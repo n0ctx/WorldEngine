@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T20 — 对话后异步追加世界时间线 ✅
+- **对外接口**：`appendWorldTimeline(sessionId)`（优先级 4，可丢弃）
+- **涉及文件**：新增 `backend/db/queries/world-timeline.js`、`backend/memory/world-timeline.js`；修改 `backend/routes/chat.js`（+import `appendWorldTimeline`、`clearPending`，runStream 加优先级 4 入队，regenerate 加 `clearPending(sessionId, 4)`）
+- **注意**：读取 session summary（`getSummaryBySessionId`），summary 为空则直接返回不调用 LLM；LLM 返回 JSON 数组，过滤非字符串/空字符串后批量插入；seq 在事务内取 `MAX(seq)+1` 原子递增，保证全局单调；压缩触发条件：插入后总条数 > `WORLD_TIMELINE_MAX_ENTRIES`（200）；压缩取最早 `WORLD_TIMELINE_COMPRESS_THRESHOLD`（50）条，LLM 生成摘要后以 `is_compressed=1`、`minSeq` 替换；regenerate 时调用 `clearPending(sessionId, 4)` 丢弃尚未开始的时间线任务
+
 ## T19D — 对话后按配置异步更新世界状态与角色状态 ✅
 - **对外接口**：`updateCharacterState(characterId, sessionId)`（优先级 2，不可丢弃）；`updateWorldState(worldId, sessionId)`（优先级 3，不可丢弃）
 - **涉及文件**：新增 `backend/memory/character-state-updater.js`、`backend/memory/world-state-updater.js`；修改 `backend/routes/chat.js`（+imports，runStream 任务链扩展）

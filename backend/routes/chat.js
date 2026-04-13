@@ -9,10 +9,11 @@ import {
   deleteMessagesAfter,
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
-import { enqueue } from '../utils/async-queue.js';
+import { enqueue, clearPending } from '../utils/async-queue.js';
 import { generateSummary, generateTitle } from '../memory/summarizer.js';
 import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
+import { appendWorldTimeline } from '../memory/world-timeline.js';
 
 const router = Router();
 
@@ -129,6 +130,10 @@ async function runStream(sessionId, res) {
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
         }
+        // 优先级 4：世界时间线（可丢弃）
+        if (worldId) {
+          enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
+        }
         return; // 等待标题生成后再关闭连接
       }
 
@@ -139,6 +144,10 @@ async function runStream(sessionId, res) {
       // 优先级 3：世界状态更新
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+      }
+      // 优先级 4：世界时间线（可丢弃）
+      if (worldId) {
+        enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
       }
     }
   }
@@ -195,6 +204,9 @@ router.post('/:sessionId/regenerate', async (req, res) => {
 
   // 保留 afterMessageId 本身，删除之后的所有消息
   deleteMessagesAfter(afterMessageId);
+
+  // 丢弃低优先级待处理任务（时间线、向量化）
+  clearPending(sessionId, 4);
 
   await runStream(sessionId, res);
 });
