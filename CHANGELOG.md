@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T15 — 提示词组装器 ✅
+- **对外接口**：`import { buildPrompt } from './prompt/assembler.js'`（返回 `{ messages, temperature, maxTokens }`）；`import { matchEntries } from './prompt/entry-matcher.js'`（返回 `Set<entryId>`）
+- **涉及文件**：新增 `backend/prompt/assembler.js`、`backend/prompt/entry-matcher.js`
+- **注意**：`buildPrompt` 不含 [8] 当前用户消息，由调用方追加；[6] 为 TODO T21 占位注释；系统消息 [1-6] 合并为单个 role:system；向量匹配使用 `search(queryVector, Math.max(entries.length*3, 100))` 避免因 topK 过小漏掉目标条目，再过滤 source_id 归属；keyword 匹配为大小写不敏感子串匹配，OR 逻辑；embed 抛出时降级到关键词匹配不抛出；生成参数 `world.temperature ?? config.llm.temperature`（max_tokens 同理）
+
 ## T14 — Prompt 条目自动向量化 ✅
 - **对外接口**：无新增对外接口；`prompt-entries.js` 的 create/update/delete 函数内部自动触发向量化/删除
 - **涉及文件**：修改 `backend/services/prompt-entries.js`
