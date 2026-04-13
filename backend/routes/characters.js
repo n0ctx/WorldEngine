@@ -1,12 +1,35 @@
 import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import multer from 'multer';
 import {
   createCharacter,
   getCharacterById,
   getCharactersByWorldId,
   updateCharacter,
   deleteCharacter,
+  reorderCharacters,
 } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+
+const avatarStorage = multer.diskStorage({
+  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
+  filename(req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `${req.params.id}${ext}`);
+  },
+});
+const upload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('只接受图片文件'));
+  },
+});
 
 const router = Router();
 
@@ -32,6 +55,16 @@ router.post('/worlds/:worldId/characters', (req, res) => {
   }
   const character = createCharacter({ ...req.body, world_id: req.params.worldId });
   res.status(201).json(character);
+});
+
+// PUT /api/characters/reorder — 批量更新排序（注意：必须在 :id 路由前注册）
+router.put('/characters/reorder', (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items 为必填数组' });
+  }
+  reorderCharacters(items);
+  res.json({ ok: true });
 });
 
 // GET /api/characters/:id — 获取单个角色
@@ -61,6 +94,21 @@ router.delete('/characters/:id', (req, res) => {
   }
   deleteCharacter(req.params.id);
   res.status(204).end();
+});
+
+// POST /api/characters/:id/avatar — 上传头像
+router.post('/characters/:id/avatar', upload.single('avatar'), (req, res) => {
+  const existing = getCharacterById(req.params.id);
+  if (!existing) {
+    return res.status(404).json({ error: '角色不存在' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: '未收到文件' });
+  }
+  // 存储相对路径，如 avatars/abc123.png
+  const relativePath = `avatars/${req.file.filename}`;
+  const updated = updateCharacter(req.params.id, { avatar_path: relativePath });
+  res.json({ avatar_path: updated.avatar_path });
 });
 
 export default router;

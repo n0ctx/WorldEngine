@@ -1,0 +1,198 @@
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
+import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
+
+export default function CharacterEditPage() {
+  const { characterId } = useParams();
+  const navigate = useNavigate();
+
+  const [character, setCharacter] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 表单字段
+  const [name, setName] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [firstMessage, setFirstMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  // 头像
+  const [avatarPath, setAvatarPath] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    getCharacter(characterId).then((c) => {
+      setCharacter(c);
+      setName(c.name);
+      setSystemPrompt(c.system_prompt ?? '');
+      setFirstMessage(c.first_message ?? '');
+      setAvatarPath(c.avatar_path);
+      setLoading(false);
+    });
+  }, [characterId]);
+
+  async function handleAvatarClick() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const result = await uploadAvatar(characterId, file);
+      setAvatarPath(result.avatar_path);
+    } catch (err) {
+      alert(`头像上传失败：${err.message}`);
+    } finally {
+      setAvatarUploading(false);
+      // 清空 input，允许再次选择同一文件
+      e.target.value = '';
+    }
+  }
+
+  async function handleSave() {
+    if (!name.trim()) {
+      setSaveError('名称为必填项');
+      return;
+    }
+    setSaving(true);
+    setSaveError('');
+    try {
+      await updateCharacter(characterId, {
+        name: name.trim(),
+        system_prompt: systemPrompt,
+        first_message: firstMessage,
+      });
+      navigate(-1);
+    } catch (e) {
+      setSaveError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-[var(--text)]">
+        加载中…
+      </div>
+    );
+  }
+
+  const avatarUrl = getAvatarUrl(avatarPath);
+  const avatarColor = getAvatarColor(character.id);
+  const avatarInitial = (name || '?')[0].toUpperCase();
+
+  return (
+    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+      <div className="max-w-lg mx-auto">
+        {/* 导航 */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors mb-8"
+        >
+          ← 返回
+        </button>
+
+        <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight mb-8">编辑角色</h1>
+
+        {/* 头像区域 */}
+        <div className="flex flex-col items-center mb-8">
+          <div
+            className="relative cursor-pointer group"
+            onClick={handleAvatarClick}
+          >
+            {/* 头像 */}
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={name}
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-semibold text-white"
+                style={{ backgroundColor: avatarColor }}
+              >
+                {avatarInitial}
+              </div>
+            )}
+
+            {/* loading 覆盖层 */}
+            {avatarUploading && (
+              <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                <span className="text-white text-xs">上传中…</span>
+              </div>
+            )}
+
+            {/* hover 遮罩 */}
+            {!avatarUploading && (
+              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">更换头像</span>
+              </div>
+            )}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <p className="text-xs text-[var(--text)] mt-2 opacity-60">点击头像上传图片</p>
+        </div>
+
+        {/* 表单 */}
+        <div className="flex flex-col gap-5">
+          <div>
+            <label className="block text-sm text-[var(--text)] mb-1.5">名称 <span className="text-red-400">*</span></label>
+            <input
+              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="角色的名字"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-[var(--text)] mb-1.5">System Prompt</label>
+            <textarea
+              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              rows={6}
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              placeholder="角色的性格、背景、说话风格……"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-[var(--text)] mb-1.5">开场白</label>
+            <textarea
+              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              rows={4}
+              value={firstMessage}
+              onChange={(e) => setFirstMessage(e.target.value)}
+              placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口"
+            />
+          </div>
+
+          {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+
+          <div className="flex justify-end pt-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2.5 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

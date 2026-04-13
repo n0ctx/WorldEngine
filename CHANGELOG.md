@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T10 — 前端世界/角色管理页面 + 角色卡编辑页 ✅
+- **对外接口**：新增后端 `PUT /api/characters/reorder`（body: `{items:[{id,sort_order}]}`）、`POST /api/characters/:id/avatar`（multipart/form-data, 字段名 avatar）；前端路由 `/` / `/worlds/:worldId` / `/characters/:characterId/edit` / `/characters/:characterId/chat`（占位）
+- **涉及文件**：新增 `frontend/src/api/worlds.js`、`api/characters.js`、`store/index.js`、`utils/avatar.js`、`pages/WorldsPage.jsx`、`pages/CharactersPage.jsx`、`pages/CharacterEditPage.jsx`、`pages/ChatPage.jsx`（T11 占位）；修改 `backend/routes/characters.js`（+reorder+avatar）、`backend/services/characters.js`、`backend/db/queries/characters.js`、`backend/server.js`（+静态文件 /uploads）、`frontend/src/App.jsx`、`frontend/src/main.jsx`、`frontend/src/index.css`、`frontend/vite.config.js`（+proxy）
+- **注意**：头像 avatar_path 存相对路径（如 `avatars/abc123.png`），前端拼接为 `/uploads/avatars/abc123.png`，Vite dev proxy 转发到后端；reorder 路由必须在 `/characters/:id` 前注册，否则被 :id 捕获；multer 存储目标 `/data/uploads/avatars/{characterId}.{ext}`；角色列表拖拽排序用原生 HTML5 draggable API，无额外依赖；`store/index.js` 已创建，今后锁定（CLAUDE.md 约束）
+
 ## T09 — 对话流式接口（后端） ✅
 - **对外接口**：`POST /api/sessions/:sessionId/chat`（SSE）、`POST /api/sessions/:sessionId/stop`、`POST /api/sessions/:sessionId/regenerate`（SSE）
 - **涉及文件**：新增 `backend/services/chat.js`、`backend/routes/chat.js`；修改 `backend/db/queries/messages.js`（+updateMessageAttachments）、`backend/services/sessions.js`（+deleteMessagesAfter）、`backend/server.js`

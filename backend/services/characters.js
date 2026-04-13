@@ -4,6 +4,7 @@ import {
   getCharactersByWorldId as dbGetCharactersByWorldId,
   updateCharacter as dbUpdateCharacter,
   deleteCharacter as dbDeleteCharacter,
+  reorderCharacters as dbReorderCharacters,
 } from '../db/queries/characters.js';
 
 export function createCharacter(data) {
@@ -24,4 +25,8 @@ export function updateCharacter(id, patch) {
 
 export function deleteCharacter(id) {
   return dbDeleteCharacter(id);
+}
+
+export function reorderCharacters(items) {
+  return dbReorderCharacters(items);
 }

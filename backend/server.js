@@ -39,6 +39,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 静态文件：头像、附件
+app.use('/uploads', express.static(path.join(DATA_ROOT, 'uploads')));
+
 // 注册路由
 app.use('/api/config', configRoutes);
 app.use('/api/worlds', worldsRoutes);

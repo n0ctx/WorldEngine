@@ -75,6 +75,20 @@ export function updateCharacter(id, patch) {
 }
 
 /**
+ * 批量更新角色排序（传入 [{id, sort_order}, ...] 数组）
+ */
+export function reorderCharacters(items) {
+  const stmt = db.prepare('UPDATE characters SET sort_order = ?, updated_at = ? WHERE id = ?');
+  const now = Date.now();
+  const update = db.transaction(() => {
+    for (const item of items) {
+      stmt.run(item.sort_order, now, item.id);
+    }
+  });
+  update();
+}
+
+/**
  * 硬删除角色
  */
 export function deleteCharacter(id) {
