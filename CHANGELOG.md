@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T16 — 组装器接入对话流程 ✅
+- **对外接口**：`buildContext(sessionId)` 变为 async，返回 `{ messages, overrides: { temperature, maxTokens } }`，接口形态不变
+- **涉及文件**：修改 `backend/services/chat.js`（移除旧 buildContext 逻辑，改为调用 assembler）、`backend/routes/chat.js`（加 `await`）
+- **注意**：services/chat.js 删掉了 getSessionById/getCharacterById/getWorldById/getMessagesBySessionId 的导入（已被 assembler 内部处理）；`readAttachmentAsDataUrl` 和 `formatMessageForLLM` 也随 buildContext 一起移出，附件处理（saveAttachments）仍保留；overrides 现在始终包含 temperature 和 maxTokens（resolved 值），不再是仅当 world 有非 null 值时才填充
+
 ## T15 — 提示词组装器 ✅
 - **对外接口**：`import { buildPrompt } from './prompt/assembler.js'`（返回 `{ messages, temperature, maxTokens }`）；`import { matchEntries } from './prompt/entry-matcher.js'`（返回 `Set<entryId>`）
 - **涉及文件**：新增 `backend/prompt/assembler.js`、`backend/prompt/entry-matcher.js`

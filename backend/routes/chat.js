@@ -51,7 +51,7 @@ async function runStream(sessionId, res) {
   let aborted = false;
 
   try {
-    const { messages, overrides } = buildContext(sessionId);
+    const { messages, overrides } = await buildContext(sessionId);
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 
     for await (const chunk of stream) {

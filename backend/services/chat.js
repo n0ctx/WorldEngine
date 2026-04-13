@@ -2,11 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getSessionById } from '../db/queries/sessions.js';
-import { getCharacterById } from '../db/queries/characters.js';
-import { getWorldById } from '../db/queries/worlds.js';
-import { getMessagesBySessionId, updateMessageAttachments } from '../db/queries/messages.js';
+import { updateMessageAttachments } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
+import { buildPrompt } from '../prompt/assembler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACHMENTS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
@@ -91,38 +89,12 @@ function formatMessageForLLM(msg) {
 }
 
 /**
- * 构建上下文 messages 数组（简化版，后续 assembler.js 接管）
- * 当前：[system_prompt, ...历史消息]
+ * 构建上下文 messages 数组，调用 assembler.js 组装完整提示词
+ *
+ * @param {string} sessionId
+ * @returns {Promise<{ messages: Array, overrides: { temperature: number, maxTokens: number } }>}
  */
-export function buildContext(sessionId) {
-  const session = getSessionById(sessionId);
-  if (!session) throw new Error(`Session not found: ${sessionId}`);
-
-  const character = getCharacterById(session.character_id);
-  if (!character) throw new Error(`Character not found: ${session.character_id}`);
-
-  const world = getWorldById(character.world_id);
-
-  const messages = [];
-
-  // system prompt（世界 + 角色拼接，后续 assembler.js 接管）
-  const systemParts = [];
-  if (world?.system_prompt) systemParts.push(world.system_prompt);
-  if (character.system_prompt) systemParts.push(character.system_prompt);
-  if (systemParts.length > 0) {
-    messages.push({ role: 'system', content: systemParts.join('\n\n') });
-  }
-
-  // 历史消息（全部加载，后续 token 截断处理）
-  const history = getMessagesBySessionId(sessionId, 9999, 0);
-  for (const msg of history) {
-    messages.push(formatMessageForLLM(msg));
-  }
-
-  // 生成参数覆盖：世界级 > 全局
-  const overrides = {};
-  if (world?.temperature != null) overrides.temperature = world.temperature;
-  if (world?.max_tokens != null) overrides.maxTokens = world.max_tokens;
-
-  return { messages, overrides };
+export async function buildContext(sessionId) {
+  const { messages, temperature, maxTokens } = await buildPrompt(sessionId);
+  return { messages, overrides: { temperature, maxTokens } };
 }
