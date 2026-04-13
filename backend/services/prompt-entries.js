@@ -1,13 +1,38 @@
+import crypto from 'node:crypto';
 import {
   createGlobalEntry, getGlobalEntryById, getAllGlobalEntries, updateGlobalEntry, deleteGlobalEntry, reorderGlobalEntries,
   createWorldEntry, getWorldEntryById, getAllWorldEntries, updateWorldEntry, deleteWorldEntry, reorderWorldEntries,
   createCharacterEntry, getCharacterEntryById, getAllCharacterEntries, updateCharacterEntry, deleteCharacterEntry, reorderCharacterEntries,
 } from '../db/queries/prompt-entries.js';
+import { embed } from '../llm/embedding.js';
+import { upsertEntry, deleteEntry } from '../utils/vector-store.js';
+import db from '../db/index.js';
+
+// ─── 向量化辅助 ──────────────────────────────────────────────────
+
+function writeEmbeddingId(table, id, embeddingId) {
+  db.prepare(`UPDATE ${table} SET embedding_id = ? WHERE id = ?`).run(embeddingId, id);
+}
+
+async function vectorize(entry, table) {
+  try {
+    const text = `${entry.title} ${entry.summary || ''}`.trim();
+    const vector = await embed(text);
+    if (!vector) return; // embedding 未配置，跳过
+    const embeddingId = entry.embedding_id || crypto.randomUUID();
+    upsertEntry(embeddingId, entry.id, table, vector);
+    writeEmbeddingId(table, entry.id, embeddingId);
+  } catch (err) {
+    console.error(`[prompt-entries] vectorize failed for ${table}/${entry.id}:`, err.message);
+  }
+}
 
 // ─── global ──────────────────────────────────────────────────────
 
 export function createGlobalPromptEntry(data) {
-  return createGlobalEntry(data);
+  const entry = createGlobalEntry(data);
+  vectorize(entry, 'global_prompt_entries');
+  return entry;
 }
 
 export function getGlobalPromptEntryById(id) {
@@ -19,11 +44,16 @@ export function listGlobalPromptEntries() {
 }
 
 export function updateGlobalPromptEntry(id, patch) {
-  return updateGlobalEntry(id, patch);
+  const entry = updateGlobalEntry(id, patch);
+  vectorize(entry, 'global_prompt_entries');
+  return entry;
 }
 
 export function deleteGlobalPromptEntry(id) {
-  return deleteGlobalEntry(id);
+  const entry = getGlobalEntryById(id);
+  const result = deleteGlobalEntry(id);
+  if (entry?.embedding_id) deleteEntry(entry.embedding_id);
+  return result;
 }
 
 export function reorderGlobalPromptEntries(orderedIds) {
@@ -33,7 +63,9 @@ export function reorderGlobalPromptEntries(orderedIds) {
 // ─── world ───────────────────────────────────────────────────────
 
 export function createWorldPromptEntry(worldId, data) {
-  return createWorldEntry({ ...data, world_id: worldId });
+  const entry = createWorldEntry({ ...data, world_id: worldId });
+  vectorize(entry, 'world_prompt_entries');
+  return entry;
 }
 
 export function getWorldPromptEntryById(id) {
@@ -45,11 +77,16 @@ export function listWorldPromptEntries(worldId) {
 }
 
 export function updateWorldPromptEntry(id, patch) {
-  return updateWorldEntry(id, patch);
+  const entry = updateWorldEntry(id, patch);
+  vectorize(entry, 'world_prompt_entries');
+  return entry;
 }
 
 export function deleteWorldPromptEntry(id) {
-  return deleteWorldEntry(id);
+  const entry = getWorldEntryById(id);
+  const result = deleteWorldEntry(id);
+  if (entry?.embedding_id) deleteEntry(entry.embedding_id);
+  return result;
 }
 
 export function reorderWorldPromptEntries(worldId, orderedIds) {
@@ -59,7 +96,9 @@ export function reorderWorldPromptEntries(worldId, orderedIds) {
 // ─── character ───────────────────────────────────────────────────
 
 export function createCharacterPromptEntry(characterId, data) {
-  return createCharacterEntry({ ...data, character_id: characterId });
+  const entry = createCharacterEntry({ ...data, character_id: characterId });
+  vectorize(entry, 'character_prompt_entries');
+  return entry;
 }
 
 export function getCharacterPromptEntryById(id) {
@@ -71,11 +110,16 @@ export function listCharacterPromptEntries(characterId) {
 }
 
 export function updateCharacterPromptEntry(id, patch) {
-  return updateCharacterEntry(id, patch);
+  const entry = updateCharacterEntry(id, patch);
+  vectorize(entry, 'character_prompt_entries');
+  return entry;
 }
 
 export function deleteCharacterPromptEntry(id) {
-  return deleteCharacterEntry(id);
+  const entry = getCharacterEntryById(id);
+  const result = deleteCharacterEntry(id);
+  if (entry?.embedding_id) deleteEntry(entry.embedding_id);
+  return result;
 }
 
 export function reorderCharacterPromptEntries(characterId, orderedIds) {

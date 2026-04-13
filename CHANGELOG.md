@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T14 — Prompt 条目自动向量化 ✅
+- **对外接口**：无新增对外接口；`prompt-entries.js` 的 create/update/delete 函数内部自动触发向量化/删除
+- **涉及文件**：修改 `backend/services/prompt-entries.js`
+- **注意**：create/update 后异步调用 `embed(title + ' ' + summary)`，embed 返回 null（未配置）时静默跳过；embedding_id 复用旧值做 upsert，首次创建时 `crypto.randomUUID()` 生成；embedding_id 写回数据库用直接 SQL（三张表通用），不改动 queries 层；delete 操作同步（先读 embedding_id 再删 DB 再删向量），三种条目（global/world/character）均保持一致
+
 ## T13 — Embedding 服务 ✅
 - **对外接口**：`import { embed } from './llm/embedding.js'`（返回 `number[] | null`）；`import { loadStore, upsertEntry, deleteEntry, search } from './utils/vector-store.js'`
 - **涉及文件**：新增 `backend/llm/embedding.js`、`backend/utils/vector-store.js`
