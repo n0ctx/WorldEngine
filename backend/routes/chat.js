@@ -7,8 +7,9 @@ import {
   touchSession,
   getSessionById,
   deleteMessagesAfter,
-  generateSessionTitle,
 } from '../services/sessions.js';
+import { enqueue } from '../utils/async-queue.js';
+import { generateSummary, generateTitle } from '../memory/summarizer.js';
 
 const router = Router();
 
@@ -93,26 +94,28 @@ async function runStream(sessionId, res) {
 
   // TODO T21: memory_recall_start / memory_recall_done
 
-  // 正常完成且有内容时，异步生成标题（T18 实现具体逻辑）
+  // 正常完成且有内容时，入队异步任务
   if (!aborted && fullContent) {
-    const session = getSessionById(sessionId);
-    if (session && !session.title) {
-      const msgs = getMessagesBySessionId(sessionId, 9999, 0);
-      const hasUserMsg = msgs.some((m) => m.role === 'user');
-      if (hasUserMsg) {
-        // 异步生成，不阻塞当前响应
-        Promise.resolve().then(async () => {
-          try {
-            const title = await generateSessionTitle(sessionId);
-            if (title && !clientClosed) {
-              sseSend(res, { type: 'title_updated', title });
-            }
-          } catch {
-            // 标题生成失败不影响主流程
-          }
-          if (!clientClosed) res.end();
-        });
-        return; // 等待上方 Promise 再 end
+    const msgs = getMessagesBySessionId(sessionId, 9999, 0);
+    const hasUserMsg = msgs.some((m) => m.role === 'user');
+
+    if (hasUserMsg) {
+      const session = getSessionById(sessionId);
+
+      // 优先级 1：生成 summary（不可丢弃，fire-and-forget）
+      enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
+
+      // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
+      if (session && !session.title) {
+        enqueue(sessionId, () => generateTitle(sessionId), 2)
+          .then((title) => {
+            if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
+          })
+          .catch(() => {})
+          .finally(() => {
+            if (!clientClosed) res.end();
+          });
+        return; // 等待标题生成后再关闭连接
       }
     }
   }

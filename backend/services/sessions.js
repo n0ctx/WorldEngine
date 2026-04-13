@@ -91,9 +91,3 @@ export function deleteMessagesAfter(messageId) {
   return dbDeleteMessagesAfter(messageId);
 }
 
-/**
- * 占位：异步生成会话标题（T18 实现具体逻辑）
- */
-export function generateSessionTitle(sessionId) {
-  // TODO: T18 — 调用 LLM 生成标题，完成后通过 SSE 推送 title_updated 事件
-}

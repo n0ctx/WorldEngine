@@ -804,39 +804,71 @@
 
 ---
 
-### T13 ⬜ Embedding 服务
+### T13 ✅ Embedding 服务
 
 **这个任务做什么**：实现把文字转成向量数字的功能，以及管理向量文件（读、写、搜索）。Prompt 条目的自动触发依赖这个。
 
 **涉及文件**：
-- `/backend/llm/embedding.js` — 调用 OpenAI 或 Ollama 的 embedding 接口
-- `/backend/utils/vector-store.js` — 读写 `/data/vectors/prompt_entries.json`，实现相似度搜索
+
+* `/backend/llm/embedding.js` — 调用 OpenAI、OpenAI 兼容接口、Ollama 的 embedding 接口
+* `/backend/utils/vector-store.js` — 读写 `/data/vectors/prompt_entries.json`，实现相似度搜索
 
 **Claude Code 指令**：
-```
+
+```text
 请读取 @SCHEMA.md。
 
 任务：实现 Embedding 服务和向量文件管理。
+
 1. 创建 /backend/llm/embedding.js：
-   - 根据 config.json 中的 embedding.provider 选择 OpenAI 或 Ollama
-   - 导出 embed(text) → 返回 float 数组
-   - embedding 未配置时（provider 为 null）返回 null，不报错
+   - 根据 config.json 中的 embedding.provider 选择 provider
+   - 支持：
+     - null：未启用，embed(text) 返回 null，不报错
+     - openai：OpenAI 官方 embedding
+     - openai_compatible：OpenAI 兼容接口
+     - ollama：Ollama embedding
+   - openai_compatible 必须兼容常见 OpenAI 兼容平台，包括但不限于：
+     - OpenRouter
+     - 硅基流动（SiliconFlow）
+     - 以及其他兼容 OpenAI embeddings API 的服务
+   - 模型名不要写死，统一从 config.json 读取，例如：
+     - OpenAI：text-embedding-3-small / text-embedding-3-large
+     - Qwen embedding 系列
+     - bge / mxbai / nomic / snowflake-arctic / granite 等
+   - 导出 async embed(text) → 返回 float 数组或 null
+   - 做基础校验：
+     - provider 未配置时返回 null
+     - 响应中的 embedding 必须是 number[]
+     - 请求失败时抛出可读错误，错误信息带上 provider 名称
+
 2. 创建 /backend/utils/vector-store.js，管理 /data/vectors/prompt_entries.json：
-   - loadStore() → 读取文件，不存在则初始化空结构
+   - loadStore() → 读取文件，不存在则自动初始化空结构
    - upsertEntry(id, sourceId, sourceTable, vector) → 新增或更新
    - deleteEntry(id)
    - search(queryVector, topK) → 返回相似度最高的 topK 个条目（余弦相似度）
    - 所有操作后自动写回文件
+   - 向量数据至少保存：id、sourceId、sourceTable、vector、updatedAt
+
+3. 细节要求：
+   - 向量文件目录不存在时自动创建
+   - search() 按相似度从高到低排序
+   - 维度不一致的向量跳过
+   - 空库时返回 []
+   - deleteEntry(id) 对不存在的 id 不报错
+   - 代码风格、模块导出方式、配置读取方式遵循现有项目约定
 ```
 
 **验证方法**：
-- 调用 `embed("测试文字")`，能返回一个数字数组（长度取决于模型）
-- 调用 `upsertEntry` 存入几个向量，再调用 `search`，返回最相似的条目
-- embedding 未配置时，embed() 返回 null 且不报错
+
+* 调用 `embed("测试文字")`，能返回一个数字数组（长度取决于模型）
+* OpenAI、OpenRouter、硅基流动、Ollama 只要配置为兼容格式都能正常调用
+* 使用 Qwen 等 embedding 模型时，无需改代码，只改配置即可
+* 调用 `upsertEntry` 存入几个向量，再调用 `search`，返回最相似的条目
+* embedding 未配置时，`embed()` 返回 `null` 且不报错
 
 ---
 
-### T14 ⬜ Prompt 条目自动向量化
+### T14 ✅ Prompt 条目自动向量化
 
 **这个任务做什么**：每当 Prompt 条目被创建或修改时，自动把它的"标题+简介"向量化，存入向量文件。这样后续触发时就能做相似度匹配。
 
@@ -864,7 +896,7 @@
 
 ---
 
-### T15 ⬜ 提示词组装器
+### T15 ✅ 提示词组装器
 
 **这个任务做什么**：实现 assembler.js，这是整个提示词系统的核心——把三层 system prompt、触发的条目正文、记忆内容、对话历史按固定顺序拼在一起，交给 LLM。此文件一旦写好，后续**不得修改**。
 
@@ -924,7 +956,7 @@ OOC 统一规则：
 
 ---
 
-### T16 ⬜ 将组装器接入对话流程
+### T16 ✅ 将组装器接入对话流程
 
 **这个任务做什么**：把 T09 做的对话接口升级——不再用简单的历史消息，改用 assembler.js 组装完整上下文。
 
@@ -949,7 +981,7 @@ OOC 统一规则：
 
 ---
 
-### T17 ⬜ 前端：Prompt 条目管理界面
+### T17 ✅ 前端：Prompt 条目管理界面
 
 **这个任务做什么**：让用户能在界面上管理 Prompt 条目（增删改查），包括填写标题、简介、正文、关键词。
 
@@ -1014,7 +1046,7 @@ OOC 统一规则：
 
 **Claude Code 指令**：
 ```
-请读取 @SCHEMA.md。
+请读取 @SCHEMA.md 和 @CHANGELOG.md。
 
 任务：实现 Session Summary 和会话标题的异步生成。
 1. 创建 /backend/db/queries/session-summaries.js：

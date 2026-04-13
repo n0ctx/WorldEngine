@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T18 — Session Summary 异步生成 ✅
+- **对外接口**：新增 `backend/db/queries/session-summaries.js`（upsertSummary/getSummaryBySessionId）；新增 `backend/memory/summarizer.js`（generateSummary/generateTitle）
+- **涉及文件**：新增 `backend/db/queries/session-summaries.js`、`backend/memory/summarizer.js`；修改 `backend/routes/chat.js`、`backend/services/sessions.js`（删除占位 generateSessionTitle）
+- **注意**：summary（优先级1）和 title（优先级2）通过 async-queue 串行，summary 先跑完才出标题；SSE 连接保持到 generateTitle 完成后才 end（与 T11 约定一致）；title 仅当 session.title 为 NULL 时才入队；summary fire-and-forget（catch 静默）；title 生成后通过 sseSend 推送 `{type:"title_updated",title}`，若连接已关闭则跳过，前端下次读接口可得到更新的 title
+
 ## T17 — 前端：Prompt 条目管理界面 ✅
 - **对外接口**：新增 `frontend/src/api/prompt-entries.js`（listGlobalEntries/listWorldEntries/listCharacterEntries/createGlobalEntry/createWorldEntry/createCharacterEntry/updateEntry/deleteEntry/reorderEntries）、`frontend/src/api/config.js`（getConfig/updateConfig/updateApiKey/updateEmbeddingApiKey/fetchModels/fetchEmbeddingModels/testConnection）
 - **涉及文件**：新增 `frontend/src/components/prompt/EntryEditor.jsx`、`EntryList.jsx`、`frontend/src/pages/SettingsPage.jsx`；修改 `CharacterEditPage.jsx`（底部嵌入 character 级 EntryList）、`CharactersPage.jsx`（底部嵌入 world 级 EntryList）、`App.jsx`（+/settings 路由）、`WorldsPage.jsx`（+设置按钮）
