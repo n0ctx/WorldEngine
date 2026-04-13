@@ -14,6 +14,7 @@ if (proxyUrl) {
 import db from './db/index.js';
 import { initSchema } from './db/schema.js';
 import configRoutes from './routes/config.js';
+import worldsRoutes from './routes/worlds.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -37,6 +38,7 @@ app.use(express.json());
 
 // 注册路由
 app.use('/api/config', configRoutes);
+app.use('/api/worlds', worldsRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T06 — 世界的增删改查（后端） ✅
+- **对外接口**：`GET /api/worlds`、`POST /api/worlds`、`GET /api/worlds/:id`、`PUT /api/worlds/:id`、`DELETE /api/worlds/:id`；Service 层 `import { createWorld, getWorldById, getAllWorlds, updateWorld, deleteWorld } from './services/worlds.js'`
+- **涉及文件**：新增 `backend/db/queries/worlds.js`、`backend/services/worlds.js`、`backend/routes/worlds.js`；修改 `backend/server.js`
+- **注意**：POST 创建时 name 必填，temperature 和 max_tokens 不传则默认 NULL；PUT 为部分更新（只更新传入的字段），自动刷新 updated_at；DELETE 返回 204，SQLite 外键级联自动清理子数据；updateWorld 白名单字段 name/system_prompt/persona_name/persona_prompt/temperature/max_tokens
+
 ## T05 — LLM 接入层 ✅
 - **对外接口**：`import { chat, complete } from './llm/index.js'`；`chat(messages, options)` 返回 AsyncGenerator（流式），`complete(messages, options)` 返回 string（非流式）；options 可传 `{ temperature, maxTokens, model, signal }`
 - **涉及文件**：新增 `backend/llm/index.js`、`backend/llm/providers/openai.js`、`backend/llm/providers/ollama.js`；修改 `backend/routes/config.js`、`SCHEMA.md`
