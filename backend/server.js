@@ -3,6 +3,8 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import db from './db/index.js';
+import { initSchema } from './db/schema.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -16,6 +18,9 @@ const dataDirs = [
 for (const dir of dataDirs) {
   fs.mkdirSync(dir, { recursive: true });
 }
+
+// 初始化数据库表结构
+initSchema(db);
 
 const app = express();
 app.use(cors());
