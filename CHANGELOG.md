@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T21 — 记忆召回与状态注入 ✅
+- **对外接口**：`renderWorldState(worldId)`、`renderCharacterState(characterId)`、`renderTimeline(worldId, limit)` —— 均在 `backend/memory/recall.js`
+- **涉及文件**：新增 `backend/memory/recall.js`；修改 `backend/prompt/assembler.js`（[6] 位置填入）
+- **注意**：用原始 SQL JOIN 查询（world_state_fields LEFT JOIN world_state_values，character_state_fields LEFT JOIN character_state_values），不走各自的 queries 封装，避免二次遍历；value_json 经 JSON.parse 后转 String 展示，null 值行跳过（不渲染）；时间线取最近 WORLD_TIMELINE_RECENT_LIMIT 条（seq DESC LIMIT），rows.reverse() 后正序展示；全部为空时 [6] 不向 systemParts 追加任何内容
+
 ## T20 — 对话后异步追加世界时间线 ✅
 - **对外接口**：`appendWorldTimeline(sessionId)`（优先级 4，可丢弃）
 - **涉及文件**：新增 `backend/db/queries/world-timeline.js`、`backend/memory/world-timeline.js`；修改 `backend/routes/chat.js`（+import `appendWorldTimeline`、`clearPending`，runStream 加优先级 4 入队，regenerate 加 `clearPending(sessionId, 4)`）

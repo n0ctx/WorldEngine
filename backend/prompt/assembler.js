@@ -31,6 +31,7 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
+import { renderWorldState, renderCharacterState, renderTimeline } from '../memory/recall.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
@@ -137,8 +138,15 @@ export async function buildPrompt(sessionId) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 记忆召回内容（占位）
-  // TODO T21: recallMemory()
+  // [6] 状态与记忆注入（世界状态 + 角色状态 + 世界时间线）
+  const worldStateText = renderWorldState(world.id);
+  const characterStateText = renderCharacterState(character.id);
+  const timelineText = renderTimeline(world.id);
+  const recallParts = [worldStateText, characterStateText, timelineText].filter(Boolean);
+  if (recallParts.length > 0) {
+    systemParts.push(recallParts.join('\n\n'));
+  }
+  // TODO 未来：embedding 搜索历史 session summary，渐进式展开原文
 
   // [1-6] 合并为单个 role:system 消息
   const messages = [];
