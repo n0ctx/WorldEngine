@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T04 — 全局配置读写 ✅
+- **对外接口**：`import { getConfig, updateConfig } from './services/config.js'`；路由 `GET/PUT /api/config`、`PUT /api/config/apikey`、`PUT /api/config/embedding-apikey`、`GET /api/config/models`、`GET /api/config/embedding-models`、`GET /api/config/test-connection`
+- **涉及文件**：新增 `backend/services/config.js`、`backend/routes/config.js`；修改 `backend/server.js`
+- **注意**：GET/PUT /api/config 响应中自动剥离 `llm.api_key` 和 `embedding.api_key`，api_key 只能通过专用 PUT 接口更新；config.json 不存在时自动初始化默认结构；updateConfig 做深度合并而非整体替换；Anthropic 模型列表为硬编码；test-connection 始终返回 HTTP 200（前端判断 success 字段），models 拉取失败返回 HTTP 502
+
 ## T03 — 基础工具文件 ✅
 - **对外接口**：`import { XXX } from './utils/constants.js'`；`import { enqueue, clearPending } from './utils/async-queue.js'`；`import { countTokens, countMessages } from './utils/token-counter.js'`
 - **涉及文件**：新增 `backend/utils/constants.js`、`backend/utils/async-queue.js`、`backend/utils/token-counter.js`

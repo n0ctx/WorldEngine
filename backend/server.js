@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import db from './db/index.js';
 import { initSchema } from './db/schema.js';
+import configRoutes from './routes/config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -25,6 +26,9 @@ initSchema(db);
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// 注册路由
+app.use('/api/config', configRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
