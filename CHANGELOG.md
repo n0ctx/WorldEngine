@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T07 — 角色的增删改查（后端） ✅
+- **对外接口**：`GET /api/worlds/:worldId/characters`、`POST /api/worlds/:worldId/characters`、`GET /api/characters/:id`、`PUT /api/characters/:id`、`DELETE /api/characters/:id`；Service 层 `import { createCharacter, getCharacterById, getCharactersByWorldId, updateCharacter, deleteCharacter } from './services/characters.js'`
+- **涉及文件**：新增 `backend/db/queries/characters.js`、`backend/services/characters.js`、`backend/routes/characters.js`；修改 `backend/server.js`
+- **注意**：createCharacter 的 sort_order 自动取当前 world 下 MAX(sort_order)+1，首个角色为 0；列表按 sort_order ASC, created_at ASC 排序；characters 路由挂载在 `/api` 下（因混合路径 `/worlds/:worldId/characters` 和 `/characters/:id`）；删除世界时角色被 SQLite 外键级联删除
+
 ## T06 — 世界的增删改查（后端） ✅
 - **对外接口**：`GET /api/worlds`、`POST /api/worlds`、`GET /api/worlds/:id`、`PUT /api/worlds/:id`、`DELETE /api/worlds/:id`；Service 层 `import { createWorld, getWorldById, getAllWorlds, updateWorld, deleteWorld } from './services/worlds.js'`
 - **涉及文件**：新增 `backend/db/queries/worlds.js`、`backend/services/worlds.js`、`backend/routes/worlds.js`；修改 `backend/server.js`
