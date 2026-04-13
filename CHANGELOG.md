@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T11 — 前端：对话界面 ✅
+- **对外接口**：新增 `frontend/src/api/sessions.js`（getSessions/getSession/createSession/deleteSession/renameSession/getMessages/editMessage）、`frontend/src/api/chat.js`（sendMessage/stopGeneration/regenerate/editAndRegenerate/continueGeneration占位/impersonate占位）；所有 SSE 流式接口统一解析 delta/done/aborted/error/title_updated/memory_recall_start/memory_recall_done，额外增加 **onStreamEnd** 回调（流连接实际关闭时触发，晚于 done 因为 title_updated 在 done 后异步推送）
+- **涉及文件**：新增 `frontend/src/components/chat/Sidebar.jsx`、`SessionItem.jsx`、`MessageList.jsx`、`MessageItem.jsx`、`InputBox.jsx`；修改 `frontend/src/pages/ChatPage.jsx`（完整三栏实现）、`frontend/src/index.css`（+typing-dot 动画）、`backend/server.js`（express.json limit 20mb）
+- **注意**：SSE 流不可在 onDone 时终结——需等 onStreamEnd（流连接关闭），因为 title_updated 在 done 之后到达；MessageList/Sidebar 通过静态方法属性（appendMessage/updateMessages/updateTitle）供 ChatPage 命令式操作内部状态；MessageList 使用 `key` prop 切换会话/流结束后完整重载；react-markdown + remark-gfm 渲染 assistant 消息，代码块含复制按钮；角色头像 fallback 逻辑复用 utils/avatar.js；右栏记忆面板为 T22 占位；T25 占位按钮（续写/代入）已预留；continueGeneration/impersonate 已作占位导出
+
 ## T10 — 前端世界/角色管理页面 + 角色卡编辑页 ✅
 - **对外接口**：新增后端 `PUT /api/characters/reorder`（body: `{items:[{id,sort_order}]}`）、`POST /api/characters/:id/avatar`（multipart/form-data, 字段名 avatar）；前端路由 `/` / `/worlds/:worldId` / `/characters/:characterId/edit` / `/characters/:characterId/chat`（占位）
 - **涉及文件**：新增 `frontend/src/api/worlds.js`、`api/characters.js`、`store/index.js`、`utils/avatar.js`、`pages/WorldsPage.jsx`、`pages/CharactersPage.jsx`、`pages/CharacterEditPage.jsx`、`pages/ChatPage.jsx`（T11 占位）；修改 `backend/routes/characters.js`（+reorder+avatar）、`backend/services/characters.js`、`backend/db/queries/characters.js`、`backend/server.js`（+静态文件 /uploads）、`frontend/src/App.jsx`、`frontend/src/main.jsx`、`frontend/src/index.css`、`frontend/vite.config.js`（+proxy）

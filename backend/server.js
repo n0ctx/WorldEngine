@@ -37,7 +37,7 @@ initSchema(db);
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '20mb' }));
 
 // 静态文件：头像、附件
 app.use('/uploads', express.static(path.join(DATA_ROOT, 'uploads')));

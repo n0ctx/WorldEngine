@@ -1,0 +1,169 @@
+import { editMessage } from './sessions.js';
+
+async function parseSSEStream(response, callbacks) {
+  const {
+    onDelta,
+    onDone,
+    onAborted,
+    onError,
+    onTitleUpdated,
+    onMemoryRecallStart,
+    onMemoryRecallDone,
+  } = callbacks;
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+        try {
+          const evt = JSON.parse(json);
+          if (evt.delta !== undefined) onDelta?.(evt.delta);
+          else if (evt.done) onDone?.();
+          else if (evt.aborted) onAborted?.();
+          else if (evt.type === 'error') onError?.(evt.error);
+          else if (evt.type === 'title_updated') onTitleUpdated?.(evt.title);
+          else if (evt.type === 'memory_recall_start') onMemoryRecallStart?.();
+          else if (evt.type === 'memory_recall_done') onMemoryRecallDone?.();
+        } catch {
+          // ignore malformed events
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * 发送消息，返回 abort 函数
+ * callbacks 额外支持 onStreamEnd()：流连接实际关闭时触发（晚于 onDone，因为 title_updated 在 done 后发送）
+ */
+export function sendMessage(sessionId, content, attachments, callbacks) {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, attachments: attachments?.length ? attachments : undefined }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/**
+ * 停止生成
+ */
+export async function stopGeneration(sessionId) {
+  await fetch(`/api/sessions/${sessionId}/stop`, { method: 'POST' });
+}
+
+/**
+ * 重新生成，返回 abort 函数
+ */
+export function regenerate(sessionId, afterMessageId, callbacks) {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ afterMessageId }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/**
+ * 编辑消息并重新生成，返回 abort 函数
+ */
+export function editAndRegenerate(sessionId, messageId, newContent, callbacks) {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const updated = await editMessage(messageId, newContent);
+      const res = await fetch(`/api/sessions/${sessionId}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ afterMessageId: updated.id }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/**
+ * 续写（T25 实现，此处占位）
+ */
+export function continueGeneration(sessionId, callbacks) {
+  callbacks.onError?.('续写功能尚未实现');
+  return () => {};
+}
+
+/**
+ * 代入（T25 实现，此处占位）
+ */
+export async function impersonate(_sessionId) {
+  return { content: '' };
+}
