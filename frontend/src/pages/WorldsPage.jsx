@@ -2,6 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api/worlds';
 import useStore from '../store/index';
+import StateFieldList from '../components/state/StateFieldList';
+import {
+  listWorldStateFields, createWorldStateField,
+  updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
+} from '../api/worldStateFields';
+import {
+  listCharacterStateFields, createCharacterStateField,
+  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
+} from '../api/characterStateFields';
 
 // 世界表单的初始空值
 const EMPTY_FORM = {
@@ -170,6 +179,34 @@ function WorldFormModal({ initial, onSave, onClose }) {
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
+
+          {/* 状态字段模板（仅编辑现有世界时显示） */}
+          {initial?.id && (
+            <>
+              <div className="border-t border-[var(--border)] pt-4">
+                <StateFieldList
+                  scope="world"
+                  worldId={initial.id}
+                  listFn={listWorldStateFields}
+                  createFn={createWorldStateField}
+                  updateFn={updateWorldStateField}
+                  deleteFn={deleteWorldStateField}
+                  reorderFn={reorderWorldStateFields}
+                />
+              </div>
+              <div className="border-t border-[var(--border)] pt-4">
+                <StateFieldList
+                  scope="character"
+                  worldId={initial.id}
+                  listFn={listCharacterStateFields}
+                  createFn={createCharacterStateField}
+                  updateFn={updateCharacterStateField}
+                  deleteFn={deleteCharacterStateField}
+                  reorderFn={reorderCharacterStateFields}
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3">
           <button

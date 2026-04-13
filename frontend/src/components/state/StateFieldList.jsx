@@ -1,0 +1,192 @@
+import { useState, useEffect, useRef } from 'react';
+import StateFieldEditor from './StateFieldEditor';
+
+const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举' };
+const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
+const TRIGGER_LABEL = { manual_only: '手动', every_turn: '每轮', keyword_based: '关键词' };
+
+/**
+ * StateFieldList — 状态字段模板列表
+ * Props:
+ *   scope     — 'world' | 'character'
+ *   worldId   — 所属世界 ID
+ *   listFn    — async (worldId) => fields[]
+ *   createFn  — async (worldId, data) => field
+ *   updateFn  — async (id, patch) => field
+ *   deleteFn  — async (id) => void
+ *   reorderFn — async (worldId, orderedIds) => void
+ */
+export default function StateFieldList({
+  scope, worldId, listFn, createFn, updateFn, deleteFn, reorderFn,
+}) {
+  const [fields, setFields] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingField, setEditingField] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const dragIdx = useRef(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      setFields(await listFn(worldId));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [worldId]);
+
+  async function handleSave(data) {
+    if (editingField) {
+      await updateFn(editingField.id, data);
+    } else {
+      await createFn(worldId, data);
+    }
+    await load();
+  }
+
+  async function handleDelete(id) {
+    await deleteFn(id);
+    setDeletingId(null);
+    await load();
+  }
+
+  // ── 拖拽排序 ──
+  function handleDragStart(idx) { dragIdx.current = idx; }
+
+  function handleDragOver(e, idx) {
+    e.preventDefault();
+    if (dragIdx.current === null || dragIdx.current === idx) return;
+    const next = [...fields];
+    const [moved] = next.splice(dragIdx.current, 1);
+    next.splice(idx, 0, moved);
+    dragIdx.current = idx;
+    setFields(next);
+  }
+
+  async function handleDragEnd() {
+    dragIdx.current = null;
+    await reorderFn(worldId, fields.map((f) => f.id));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-medium text-[var(--text)] uppercase tracking-wider opacity-60">
+          {scope === 'world' ? '世界状态字段' : '角色状态字段'}
+        </span>
+        <button
+          onClick={() => { setEditingField(null); setShowEditor(true); }}
+          className="text-xs px-2.5 py-1 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+        >
+          + 添加
+        </button>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-[var(--text)] opacity-50 py-3 text-center">加载中…</p>
+      ) : fields.length === 0 ? (
+        <p className="text-xs text-[var(--text)] opacity-35 italic py-3 text-center">暂无字段</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {fields.map((f, idx) => (
+            <FieldRow
+              key={f.id}
+              field={f}
+              onEdit={() => { setEditingField(f); setShowEditor(true); }}
+              onDelete={() => setDeletingId(f.id)}
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+        </div>
+      )}
+
+      {showEditor && (
+        <StateFieldEditor
+          field={editingField}
+          scope={scope}
+          onSave={handleSave}
+          onClose={() => setShowEditor(false)}
+        />
+      )}
+
+      {deletingId && (
+        <DeleteConfirm
+          onConfirm={() => handleDelete(deletingId)}
+          onClose={() => setDeletingId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd }) {
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      className="group flex items-center gap-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-[var(--accent-border)] transition-colors"
+    >
+      <span className="text-[var(--text)] opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
+
+      <div className="flex-1 min-w-0 flex items-center gap-2">
+        <span className="text-sm text-[var(--text-h)] font-medium truncate">{field.label}</span>
+        <span className="text-xs text-[var(--text)] opacity-50 font-mono truncate">{field.field_key}</span>
+        <span className="ml-auto flex gap-1 flex-shrink-0">
+          <Badge label={TYPE_LABEL[field.type] ?? field.type} />
+          <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
+          <Badge label={TRIGGER_LABEL[field.trigger_mode] ?? field.trigger_mode} dim />
+        </span>
+      </div>
+
+      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+        <button onClick={onEdit}
+          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+          title="编辑">✎</button>
+        <button onClick={onDelete}
+          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+          title="删除">✕</button>
+      </div>
+    </div>
+  );
+}
+
+function Badge({ label, dim }) {
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-xs ${dim
+      ? 'text-[var(--text)] opacity-50 bg-transparent border border-[var(--border)]'
+      : 'bg-[var(--accent-bg)] text-[var(--accent)]'
+    }`}>
+      {label}
+    </span>
+  );
+}
+
+function DeleteConfirm({ onConfirm, onClose }) {
+  const [deleting, setDeleting] = useState(false);
+  async function handle() {
+    setDeleting(true);
+    await onConfirm();
+    setDeleting(false);
+  }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除字段</h2>
+        <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors">取消</button>
+          <button onClick={handle} disabled={deleting}
+            className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50">
+            {deleting ? '删除中…' : '确认删除'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

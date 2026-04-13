@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T19B — 世界设置页状态字段模板配置 ✅
+- **对外接口**：`GET/POST /api/worlds/:worldId/world-state-fields`、`PUT /api/worlds/:worldId/world-state-fields/reorder`、`PUT/DELETE /api/world-state-fields/:id`；角色状态字段同上（world-state-fields → character-state-fields）
+- **涉及文件**：新增 `backend/services/world-state-fields.js`、`backend/services/character-state-fields.js`、`backend/routes/state-fields.js`；新增 `frontend/src/api/worldStateFields.js`、`characterStateFields.js`、`frontend/src/components/state/StateFieldEditor.jsx`、`StateFieldList.jsx`；修改 `backend/server.js`（+stateFieldsRoutes）、`frontend/src/pages/WorldsPage.jsx`（编辑世界弹窗底部嵌入两个 StateFieldList）
+- **注意**：状态字段配置仅在**编辑**现有世界时显示（通过 `initial?.id` 判断），新建世界时不显示（无 worldId）；StateFieldEditor 弹窗 z-index 为 60（高于世界编辑弹窗的 50）；field_key 编辑时自动替换空格为下划线，且编辑模式下禁用（不允许修改 key）；reorder 路由必须在 `:id` 路由前注册（state-fields.js 中已保证顺序）；两套字段（world/character）共用同一组组件，通过 props 注入不同的 API 函数
+
 ## T19A — 世界/角色状态字段与状态值 queries ✅
 - **对外接口**：`world-state-fields.js`（createWorldStateField/getWorldStateFieldById/getWorldStateFieldsByWorldId/updateWorldStateField/deleteWorldStateField/reorderWorldStateFields）；`character-state-fields.js`（同上，前缀 Character）；`world-state-values.js`（upsertWorldStateValue/getWorldStateValue/getAllWorldStateValues/deleteWorldStateValue）；`character-state-values.js`（同上，前缀 Character，key 为 characterId）
 - **涉及文件**：新增 `backend/db/queries/world-state-fields.js`、`character-state-fields.js`、`world-state-values.js`、`character-state-values.js`；`schema.js` 和 `index.js` 无需修改（建表 SQL 早已存在）
