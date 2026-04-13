@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T13 — Embedding 服务 ✅
+- **对外接口**：`import { embed } from './llm/embedding.js'`（返回 `number[] | null`）；`import { loadStore, upsertEntry, deleteEntry, search } from './utils/vector-store.js'`
+- **涉及文件**：新增 `backend/llm/embedding.js`、`backend/utils/vector-store.js`
+- **注意**：embedding provider 支持 `openai`（官方）、`openai_compatible`（兼容接口，走同一套 OpenAI embeddings API，适用于 OpenRouter/硅基流动/Qwen 等）、`ollama`（本地，endpoint `/api/embeddings`）；provider 为 null 或未配置时 embed() 返回 null 不报错；向量文件不存在时自动初始化空结构；search() 跳过维度不一致条目，空库返回 []；deleteEntry 对不存在 id 静默忽略；每次 upsert/delete 都立即写回文件（同步 I/O，因 better-sqlite3 本身也是同步风格）
+
 ## T12 — Prompt 条目的增删改查（后端） ✅
 - **对外接口**：`GET/POST /api/global-entries`、`GET/POST /api/worlds/:worldId/entries`、`GET/POST /api/characters/:characterId/entries`、`GET/PUT/DELETE /api/entries/:type/:id`（type=global/world/character）、`PUT /api/entries/:type/reorder`；Service 层 `import { createGlobalPromptEntry, listGlobalPromptEntries, ... } from './services/prompt-entries.js'`
 - **涉及文件**：新增 `backend/db/queries/prompt-entries.js`、`backend/services/prompt-entries.js`、`backend/routes/prompt-entries.js`；修改 `backend/server.js`
