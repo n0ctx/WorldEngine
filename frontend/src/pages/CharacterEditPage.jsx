@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
+import EntryList from '../components/prompt/EntryList';
 
 export default function CharacterEditPage() {
   const { characterId } = useParams();
@@ -191,6 +192,11 @@ export default function CharacterEditPage() {
               {saving ? '保存中…' : '保存'}
             </button>
           </div>
+        </div>
+
+        {/* Prompt 条目 */}
+        <div className="mt-10 border-t border-[var(--border)] pt-8">
+          <EntryList type="character" scopeId={characterId} />
         </div>
       </div>
     </div>

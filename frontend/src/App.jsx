@@ -3,6 +3,7 @@ import WorldsPage from './pages/WorldsPage';
 import CharactersPage from './pages/CharactersPage';
 import CharacterEditPage from './pages/CharacterEditPage';
 import ChatPage from './pages/ChatPage';
+import SettingsPage from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/worlds/:worldId" element={<CharactersPage />} />
       <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
       <Route path="/characters/:characterId/chat" element={<ChatPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 }

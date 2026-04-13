@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T17 — 前端：Prompt 条目管理界面 ✅
+- **对外接口**：新增 `frontend/src/api/prompt-entries.js`（listGlobalEntries/listWorldEntries/listCharacterEntries/createGlobalEntry/createWorldEntry/createCharacterEntry/updateEntry/deleteEntry/reorderEntries）、`frontend/src/api/config.js`（getConfig/updateConfig/updateApiKey/updateEmbeddingApiKey/fetchModels/fetchEmbeddingModels/testConnection）
+- **涉及文件**：新增 `frontend/src/components/prompt/EntryEditor.jsx`、`EntryList.jsx`、`frontend/src/pages/SettingsPage.jsx`；修改 `CharacterEditPage.jsx`（底部嵌入 character 级 EntryList）、`CharactersPage.jsx`（底部嵌入 world 级 EntryList）、`App.jsx`（+/settings 路由）、`WorldsPage.jsx`（+设置按钮）
+- **注意**：keywords 字段后端返回已解析 JSON 数组（queries 层处理），前端直接使用数组；EntryList 使用原生 HTML5 draggable 拖拽排序，无额外依赖；ModelSelector 在 mount 时自动调用 loadModels，provider 或 base_url 变更时通过 key prop 强制重置；API Key 独立保存（PUT /api/config/apikey），不随其他配置一起提交；SettingsPage 中 llm/embedding 配置每项变更后立即 patch 到服务器（无"保存"按钮），通用配置（context_compress_rounds / global_system_prompt）需手动点保存
+
 ## T16 — 组装器接入对话流程 ✅
 - **对外接口**：`buildContext(sessionId)` 变为 async，返回 `{ messages, overrides: { temperature, maxTokens } }`，接口形态不变
 - **涉及文件**：修改 `backend/services/chat.js`（移除旧 buildContext 逻辑，改为调用 assembler）、`backend/routes/chat.js`（加 `await`）

@@ -281,12 +281,20 @@ export default function WorldsPage() {
             <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight">世界</h1>
             <p className="text-sm text-[var(--text)] mt-0.5">选择或创建一个世界，开始你的故事</p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-          >
-            + 创建世界
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/settings')}
+              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors"
+            >
+              设置
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+            >
+              + 创建世界
+            </button>
+          </div>
         </div>
 
         {/* 列表 */}
