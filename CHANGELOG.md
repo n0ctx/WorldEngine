@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T08 — 会话和消息的增删改查（后端） ✅
+- **对外接口**：`GET/POST /api/characters/:characterId/sessions`、`GET/DELETE /api/sessions/:id`、`PUT /api/sessions/:id/title`、`GET /api/sessions/:id/messages`、`POST /api/sessions/:id/messages`、`PUT /api/messages/:id`；Service 层 `import { createSession, getSessionById, ... } from './services/sessions.js'`
+- **涉及文件**：新增 `backend/db/queries/sessions.js`、`backend/db/queries/messages.js`、`backend/services/sessions.js`、`backend/routes/sessions.js`；修改 `backend/server.js`
+- **注意**：POST 创建会话时自动查询角色 first_message，非空则插入 role=assistant 的开场白（created_at 与会话相同）；PUT /api/messages/:id 编辑消息后自动调用 deleteMessagesAfter 删除后续消息；消息 attachments 字段在 queries 层自动 JSON.parse；touchSession 在创建消息时自动更新会话 updated_at；generateSessionTitle 已占位（T18 实现）
+
 ## T07 — 角色的增删改查（后端） ✅
 - **对外接口**：`GET /api/worlds/:worldId/characters`、`POST /api/worlds/:worldId/characters`、`GET /api/characters/:id`、`PUT /api/characters/:id`、`DELETE /api/characters/:id`；Service 层 `import { createCharacter, getCharacterById, getCharactersByWorldId, updateCharacter, deleteCharacter } from './services/characters.js'`
 - **涉及文件**：新增 `backend/db/queries/characters.js`、`backend/services/characters.js`、`backend/routes/characters.js`；修改 `backend/server.js`
