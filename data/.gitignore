@@ -1,0 +1,10 @@
+# Ignore everything in data/ except .gitkeep and this file
+*
+!.gitignore
+!uploads/
+!uploads/avatars/
+!uploads/avatars/.gitkeep
+!uploads/attachments/
+!uploads/attachments/.gitkeep
+!vectors/
+!vectors/.gitkeep
