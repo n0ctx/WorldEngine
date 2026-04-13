@@ -117,7 +117,8 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **前端**
 - 所有 fetch 调用封装在 `/frontend/src/api/`，组件内禁止直接调用
 - 样式只用 TailwindCSS 工具类，不写内联 style，颜色用 CSS 变量不硬编码
-- 整体深色风格，简洁现代
+- 整体Claude风格，文学舒适
+- 语言：简体中文
 
 ---
 
