@@ -3,6 +3,14 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// 代理支持：读取环境变量 https_proxy / http_proxy，为 Node 原生 fetch 设置全局代理
+const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.HTTP_PROXY;
+if (proxyUrl) {
+  const { ProxyAgent, setGlobalDispatcher } = await import('undici');
+  setGlobalDispatcher(new ProxyAgent(proxyUrl));
+  console.log(`Proxy enabled: ${proxyUrl}`);
+}
 import db from './db/index.js';
 import { initSchema } from './db/schema.js';
 import configRoutes from './routes/config.js';
