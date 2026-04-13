@@ -18,7 +18,7 @@
 
 ---
 
-### T01 ⬜ 初始化项目结构
+### T01 ✅ 完成 初始化项目结构
 
 **这个任务做什么**：创建前后端的所有文件夹和基础配置文件，初始化 git 仓库。这是整个项目的地基，后续所有任务都在这个结构里工作。
 
@@ -56,7 +56,7 @@
 
 ---
 
-### T02 ⬜ 创建数据库建表文件
+### T02 ✅ 完成 创建数据库建表文件
 
 **这个任务做什么**：把 SCHEMA.md 里定义的所有表，翻译成真正能执行的 JavaScript 建表代码。以后每次启动后端，这个文件会自动把表建好（如果表不存在的话）。
 
@@ -88,7 +88,7 @@
 
 ---
 
-### T03 ⬜ 创建基础工具文件
+### T03 ✅ 完成 创建基础工具文件
 
 **这个任务做什么**：创建两个所有模块都会用到的工具文件——数值常量和异步队列。这两个文件在开发其他模块之前必须存在。
 
@@ -143,7 +143,7 @@
 
 ---
 
-### T04 ⬜ 全局配置读写
+### T04 ✅ 完成 全局配置读写
 
 **这个任务做什么**：实现读取和保存 config.json 的功能。后续所有需要用到 API Key、模型名称的地方都从这里读。同时实现模型列表拉取接口，供设置页面的模型下拉框使用。
 
@@ -190,36 +190,161 @@
 
 ### T05 ⬜ LLM 接入层
 
-**这个任务做什么**：封装所有和 LLM 通信的逻辑。不管用 OpenAI 还是本地 Ollama，其他模块都用同样的方式调用，不需要关心底层差异。
+**这个任务做什么**：封装所有和 LLM 通信的逻辑。不管用 OpenAI、Anthropic、Gemini，还是 OpenRouter、GLM、Kimi、MiniMax、DeepSeek、Grok、硅基流动、本地 Ollama / LM Studio，其他模块都用同样的方式调用，不需要关心底层差异。同时补齐 T04 已完成但尚未覆盖的新 provider 的模型列表和连通性检测逻辑。
 
 **涉及文件**：
-- `/backend/llm/index.js` — 对外暴露两个函数：`chat(messages, options)`（流式，返回 SSE）和 `complete(messages, options)`（非流式，返回文本）
-- `/backend/llm/providers/openai.js` — OpenAI / Anthropic / Gemini 的适配
-- `/backend/llm/providers/ollama.js` — Ollama / LM Studio 的适配
+- `/backend/llm/index.js` — 对外暴露两个函数：`chat(messages, options)`（流式，返回 AsyncGenerator）和 `complete(messages, options)`（非流式，返回文本）
+- `/backend/llm/providers/openai.js` — 云端 provider 适配：OpenAI / Anthropic / Gemini / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / 硅基流动
+- `/backend/llm/providers/ollama.js` — 本地 provider 适配：Ollama / LM Studio
+- `/backend/services/config.js` — 如有需要，补充 provider 相关默认值/校验
+- `/backend/routes/config.js` — **补充** T04 中 `/api/config/models` 与 `/api/config/test-connection` 对新增 provider 的支持
 
 **Claude Code 指令**：
 ```
 
-任务：实现 LLM 接入层。
+任务：实现 LLM 接入层，并补充 T04 已完成但尚未覆盖的新 provider 配置接口逻辑。
+
 1. 创建 /backend/llm/providers/openai.js：
-   - 支持 OpenAI、Anthropic（转换为 OpenAI-compatible 格式）、Gemini
-   - 实现 streamChat(messages, config) 返回 AsyncGenerator
-   - 实现 complete(messages, config) 返回字符串
+
+   * 支持以下云端 provider：
+
+     * OpenAI
+     * Anthropic
+     * Gemini
+     * OpenRouter
+     * GLM
+     * Kimi
+     * MiniMax
+     * DeepSeek
+     * Grok
+     * 硅基流动（SiliconFlow）
+   * 不要把所有 provider 都强行转换成 OpenAI-compatible；应按各 provider 的真实接口格式发请求：
+
+     * OpenAI / OpenRouter / GLM / Kimi / DeepSeek / Grok / 硅基流动：使用 OpenAI 风格 chat completions 接口
+     * Anthropic：使用原生 Messages API（不是 OpenAI-compatible）
+     * Gemini：使用原生 generateContent / streamGenerateContent 接口（不是 OpenAI-compatible）
+     * MiniMax：按其实际 chat/completions 接口格式组装请求
+   * 实现 `streamChat(messages, config)`，返回 AsyncGenerator，逐步 yield 文本片段
+   * 实现 `complete(messages, config)`，返回完整字符串
+   * provider 选择依据 `config.provider`
+   * 支持传入 `config.api_key`、`config.base_url`、`config.model`、`config.temperature`、`config.max_tokens`
+   * 若调用方传入 `options.temperature` / `options.maxTokens`，优先使用调用方值；否则回退 config 中的默认值
+   * 兼容消息中的多段 content：
+
+     * 纯文本消息：正常透传
+     * 含图片附件的消息：转换为各 provider 支持的多模态格式
+   * 统一将输入 messages 视为内部标准格式：
+
+     * `[{ role: 'system'|'user'|'assistant', content: string | Array<part> }]`
+     * part 至少支持：
+
+       * `{ type: 'text', text: '...' }`
+       * `{ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,...' } }`
+   * 在 provider 内部做格式转换，不要要求上层感知差异
+   * 要支持 AbortSignal，中断时抛出可识别的 AbortError
+
 2. 创建 /backend/llm/providers/ollama.js：
-   - 支持 Ollama、LM Studio（均使用 OpenAI-compatible 接口）
-   - 同样实现 streamChat 和 complete
+
+   * 支持 Ollama、LM Studio
+   * 这两个 provider 均使用 OpenAI-compatible 接口
+   * 实现 `streamChat(messages, config)`，返回 AsyncGenerator
+   * 实现 `complete(messages, config)`，返回字符串
+   * 默认请求地址：
+
+     * Ollama：`{base_url}/v1/chat/completions`
+     * LM Studio：`{base_url}/v1/chat/completions`
+   * 同样支持 `config.model`、`config.temperature`、`config.max_tokens`
+   * 同样支持 AbortSignal
+   * 流式按 SSE / chunk 中的 delta 文本逐步 yield
+
 3. 创建 /backend/llm/index.js：
-   - 根据 config.json 中的 provider 字段自动选择对应 provider
-   - 导出 chat(messages, options) 和 complete(messages, options)
-   - 统一处理重试逻辑（最多 LLM_RETRY_MAX 次，间隔 LLM_RETRY_DELAY_MS）
-   - complete() 用于记忆更新等非流式场景，chat() 用于对话生成
-不要创建任何路由。
+
+   * 读取当前 config.json（通过已有 `getConfig()`）
+   * 根据 `config.llm.provider` 自动选择 provider：
+
+     * `openai`
+     * `anthropic`
+     * `gemini`
+     * `openrouter`
+     * `glm`
+     * `kimi`
+     * `minimax`
+     * `deepseek`
+     * `grok`
+     * `siliconflow`
+     * `ollama`
+     * `lmstudio`
+   * 导出：
+
+     * `chat(messages, options = {})`
+     * `complete(messages, options = {})`
+   * `chat()`：
+
+     * 用于对话生成
+     * 调用对应 provider 的 `streamChat`
+     * 返回 AsyncGenerator
+   * `complete()`：
+
+     * 用于记忆更新、summary、状态栏、时间线等非流式场景
+     * 调用对应 provider 的 `complete`
+     * 返回字符串
+   * 统一处理重试逻辑：
+
+     * 最多重试 `LLM_RETRY_MAX` 次
+     * 每次间隔 `LLM_RETRY_DELAY_MS`
+     * AbortError 不重试，立即抛出
+     * 4xx 中鉴权/参数错误不重试，直接抛出
+     * 网络错误、5xx、429 可重试
+   * 统一错误对象格式，至少包含：
+
+     * `message`
+     * `provider`
+     * `status`（若有）
+     * `code`（若有）
+
+4. 补充修改 /backend/routes/config.js（虽然 T04 已完成，但本任务需补齐新增 provider 的支持）：
+
+   * 扩展 `GET /api/config/models`，根据当前 `config.llm.provider` 和 `config.llm.api_key` 拉取可用模型列表，新增支持：
+
+     * OpenRouter
+     * GLM
+     * Kimi
+     * MiniMax
+     * DeepSeek
+     * Grok
+     * 硅基流动（SiliconFlow）
+   * 扩展 `GET /api/config/test-connection`，对上述新增 provider 执行最小可行连通性检测
+   * 保持 T04 原有行为不变：
+
+     * 拉取失败时 `/api/config/models` 返回 HTTP 502，body: `{ error: "无法获取模型列表，请检查 API Key 和网络连接" }`
+     * `/api/config/test-connection` 无论成功失败都返回 HTTP 200，由 `success` 字段判断
+   * 不要新增任何新的配置路由，只补充现有逻辑
+
+5. 如有需要，补充 /backend/services/config.js：
+
+   * 确保默认配置和 provider 校验逻辑兼容新增 provider
+   * 不改变 T04 已有接口行为，不重构原有结构
+
+6. 实现要求补充：
+
+   * 使用 ES Modules
+   * 不引入重量级 SDK，优先使用原生 `fetch`
+   * provider 文件只负责协议适配和结果解析，不要混入业务逻辑
+   * 不要在 provider 内写死具体模型名；模型名全部从 config 或 options 读取
+   * 对外暴露的文本流必须是纯文本 delta，上层不应感知各家 SSE 事件差异
+   * 不要创建任何路由
+
+7. `SCHEMA.md` 里 `config.json.llm.provider` 的枚举目前还是旧集合，补一次，实现和 schema 描述会一致。
 ```
 
 **验证方法**：
-- 在 config.json 里填入真实的 API Key
-- 写一个临时测试脚本，调用 `complete(['role':'user', content:'说你好'])`，能返回文字
-- 调用 `chat()`，能返回 AsyncGenerator，迭代它能逐步拿到文字片段
+- 在 config.json 中分别填入不同 provider 的真实配置，调用 `complete([{ role:'user', content:'说你好' }])`，应返回字符串
+- 调用 `chat([{ role:'user', content:'说你好' }])`，应返回 AsyncGenerator，迭代时可逐步拿到文本片段
+- 切换 `config.llm.provider` 为不同 provider 后，上层调用代码无需改动
+- 调用 `GET /api/config/models`，新增 provider 也能返回模型列表
+- 调用 `GET /api/config/test-connection`，新增 provider 也能返回 `{ success: true/false }`
+- 人为触发 abort，中断后应立即停止生成，且不会进入重试
+- 人为填错 API Key，应返回清晰错误，且 401/403 不应重试
 
 ---
 
