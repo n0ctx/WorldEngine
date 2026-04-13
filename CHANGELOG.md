@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T19A — 世界/角色状态字段与状态值 queries ✅
+- **对外接口**：`world-state-fields.js`（createWorldStateField/getWorldStateFieldById/getWorldStateFieldsByWorldId/updateWorldStateField/deleteWorldStateField/reorderWorldStateFields）；`character-state-fields.js`（同上，前缀 Character）；`world-state-values.js`（upsertWorldStateValue/getWorldStateValue/getAllWorldStateValues/deleteWorldStateValue）；`character-state-values.js`（同上，前缀 Character，key 为 characterId）
+- **涉及文件**：新增 `backend/db/queries/world-state-fields.js`、`character-state-fields.js`、`world-state-values.js`、`character-state-values.js`；`schema.js` 和 `index.js` 无需修改（建表 SQL 早已存在）
+- **注意**：`trigger_keywords`、`enum_options` 在 queries 层自动 JSON parse/stringify，调用方透明；`default_value`、`value_json` 保持原始 JSON 字符串，调用方按字段 type 自行解析；`character_state_fields` 归属于 world（不是 character），sort_order 按 world_id 分组取 MAX+1；删除 state_field 不会级联删除 state_value（两表外键指向不同父表），需业务层手动清理孤立值
+
 ## T18 — Session Summary 异步生成 ✅
 - **对外接口**：新增 `backend/db/queries/session-summaries.js`（upsertSummary/getSummaryBySessionId）；新增 `backend/memory/summarizer.js`（generateSummary/generateTitle）
 - **涉及文件**：新增 `backend/db/queries/session-summaries.js`、`backend/memory/summarizer.js`；修改 `backend/routes/chat.js`、`backend/services/sessions.js`（删除占位 generateSessionTitle）

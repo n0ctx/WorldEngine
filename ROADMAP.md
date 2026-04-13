@@ -1035,7 +1035,7 @@ OOC 统一规则：
 
 ---
 
-### T18 ⬜ Session Summary 异步生成
+### T18 ✅ Session Summary 异步生成
 
 **这个任务做什么**：每次对话结束后，异步让 AI 生成这次对话的摘要，存入 session_summaries 表。这个摘要是后续记忆召回的索引。
 
