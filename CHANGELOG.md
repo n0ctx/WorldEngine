@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T19D — 对话后按配置异步更新世界状态与角色状态 ✅
+- **对外接口**：`updateCharacterState(characterId, sessionId)`（优先级 2，不可丢弃）；`updateWorldState(worldId, sessionId)`（优先级 3，不可丢弃）
+- **涉及文件**：新增 `backend/memory/character-state-updater.js`、`backend/memory/world-state-updater.js`；修改 `backend/routes/chat.js`（+imports，runStream 任务链扩展）
+- **注意**：只处理 `update_mode=llm_auto` 字段；trigger_mode 过滤：manual_only 跳过，every_turn 每轮，keyword_based 近 `PROMPT_ENTRY_SCAN_WINDOW` 条消息内命中关键词才参与；LLM 返回 JSON patch（只含变化字段），空对象 `{}` 表示无变化；类型校验：number 允许字符串转换，boolean 支持字符串 "true"/"false"，enum 必须精确匹配 enum_options；`null` 值以 SQL NULL 写入（不做 JSON.stringify）；角色状态在 title 之后入队（同优先级 2，先入先出），世界状态优先级 3 在二者之后；state updater 内部查库获取 character/world 信息，不依赖调用方传入
+
 ## T19C — 新建世界/角色时自动初始化状态值 ✅
 - **对外接口**：无新增接口；`services/worlds.createWorld()` 和 `services/characters.createCharacter()` 内部自动触发初始化
 - **涉及文件**：修改 `backend/services/worlds.js`、`backend/services/characters.js`

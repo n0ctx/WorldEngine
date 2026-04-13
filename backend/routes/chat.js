@@ -8,8 +8,11 @@ import {
   getSessionById,
   deleteMessagesAfter,
 } from '../services/sessions.js';
+import { getCharacterById } from '../services/characters.js';
 import { enqueue } from '../utils/async-queue.js';
 import { generateSummary, generateTitle } from '../memory/summarizer.js';
+import { updateCharacterState } from '../memory/character-state-updater.js';
+import { updateWorldState } from '../memory/world-state-updater.js';
 
 const router = Router();
 
@@ -101,6 +104,9 @@ async function runStream(sessionId, res) {
 
     if (hasUserMsg) {
       const session = getSessionById(sessionId);
+      const characterId = session?.character_id;
+      const character = characterId ? getCharacterById(characterId) : null;
+      const worldId = character?.world_id;
 
       // 优先级 1：生成 summary（不可丢弃，fire-and-forget）
       enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
@@ -115,7 +121,24 @@ async function runStream(sessionId, res) {
           .finally(() => {
             if (!clientClosed) res.end();
           });
+        // 优先级 2：角色状态更新（title 之后入队，title 先跑）
+        if (characterId) {
+          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+        }
+        // 优先级 3：世界状态更新
+        if (worldId) {
+          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+        }
         return; // 等待标题生成后再关闭连接
+      }
+
+      // 优先级 2：角色状态更新
+      if (characterId) {
+        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+      }
+      // 优先级 3：世界状态更新
+      if (worldId) {
+        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
       }
     }
   }
