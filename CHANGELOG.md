@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T05 — LLM 接入层 ✅
+- **对外接口**：`import { chat, complete } from './llm/index.js'`；`chat(messages, options)` 返回 AsyncGenerator（流式），`complete(messages, options)` 返回 string（非流式）；options 可传 `{ temperature, maxTokens, model, signal }`
+- **涉及文件**：新增 `backend/llm/index.js`、`backend/llm/providers/openai.js`、`backend/llm/providers/ollama.js`；修改 `backend/routes/config.js`、`SCHEMA.md`
+- **注意**：provider 分三类 API 风格——OpenAI-compatible（openai/openrouter/glm/kimi/minimax/deepseek/grok/siliconflow）、Anthropic 原生 Messages API、Gemini 原生 generateContent API；本地 provider（ollama/lmstudio）走 OpenAI-compatible；重试逻辑在 index.js 统一处理，AbortError 和 4xx（非 429）不重试，流式已输出内容后不重试；消息格式转换（多模态图片等）在 provider 内部完成，上层无需感知；routes/config.js 的 fetchModels 已补齐所有新 provider 支持
+
 ## T04 — 全局配置读写 ✅
 - **对外接口**：`import { getConfig, updateConfig } from './services/config.js'`；路由 `GET/PUT /api/config`、`PUT /api/config/apikey`、`PUT /api/config/embedding-apikey`、`GET /api/config/models`、`GET /api/config/embedding-models`、`GET /api/config/test-connection`
 - **涉及文件**：新增 `backend/services/config.js`、`backend/routes/config.js`；修改 `backend/server.js`

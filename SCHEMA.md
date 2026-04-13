@@ -335,9 +335,9 @@ CREATE INDEX idx_character_prompt_entries_character_id ON character_prompt_entri
 {
   "version": 1,
   "llm": {
-    "provider": "openai",                  // "openai" | "anthropic" | "gemini" | "ollama" | "lmstudio"
+    "provider": "openai",                  // "openai" | "anthropic" | "gemini" | "openrouter" | "glm" | "kimi" | "minimax" | "deepseek" | "grok" | "siliconflow" | "ollama" | "lmstudio"
     "api_key": "",                         // 云端 API Key，本地模型留空
-    "base_url": "",                        // 本地模型的 base URL，如 http://localhost:11434
+    "base_url": "",                        // 自定义 API base URL，留空使用各 provider 默认值
     "model": "",                           // 模型名称
     "max_tokens": 4096,
     "temperature": 0.8
