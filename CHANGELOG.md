@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T12 — Prompt 条目的增删改查（后端） ✅
+- **对外接口**：`GET/POST /api/global-entries`、`GET/POST /api/worlds/:worldId/entries`、`GET/POST /api/characters/:characterId/entries`、`GET/PUT/DELETE /api/entries/:type/:id`（type=global/world/character）、`PUT /api/entries/:type/reorder`；Service 层 `import { createGlobalPromptEntry, listGlobalPromptEntries, ... } from './services/prompt-entries.js'`
+- **涉及文件**：新增 `backend/db/queries/prompt-entries.js`、`backend/services/prompt-entries.js`、`backend/routes/prompt-entries.js`；修改 `backend/server.js`
+- **注意**：reorder 路由必须在 `/entries/:type/:id` 前注册，否则被 :id 捕获；keywords 字段在 queries 层自动 JSON.stringify/parse，service 和路由层透明；sort_order 默认取同父级 MAX(sort_order)+1，首条为 0；reorder 时 orderedIds 第一个 sort_order=0 依次递增；world/character reorder 时 SQL 同时校验归属（WHERE id=? AND world_id=?），避免跨域误改
+
 ## T11 — 前端：对话界面 ✅
 - **对外接口**：新增 `frontend/src/api/sessions.js`（getSessions/getSession/createSession/deleteSession/renameSession/getMessages/editMessage）、`frontend/src/api/chat.js`（sendMessage/stopGeneration/regenerate/editAndRegenerate/continueGeneration占位/impersonate占位）；所有 SSE 流式接口统一解析 delta/done/aborted/error/title_updated/memory_recall_start/memory_recall_done，额外增加 **onStreamEnd** 回调（流连接实际关闭时触发，晚于 done 因为 title_updated 在 done 后异步推送）
 - **涉及文件**：新增 `frontend/src/components/chat/Sidebar.jsx`、`SessionItem.jsx`、`MessageList.jsx`、`MessageItem.jsx`、`InputBox.jsx`；修改 `frontend/src/pages/ChatPage.jsx`（完整三栏实现）、`frontend/src/index.css`（+typing-dot 动画）、`backend/server.js`（express.json limit 20mb）
