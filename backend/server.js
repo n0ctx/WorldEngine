@@ -17,6 +17,7 @@ import configRoutes from './routes/config.js';
 import worldsRoutes from './routes/worlds.js';
 import charactersRoutes from './routes/characters.js';
 import sessionsRoutes from './routes/sessions.js';
+import chatRoutes from './routes/chat.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -43,6 +44,7 @@ app.use('/api/config', configRoutes);
 app.use('/api/worlds', worldsRoutes);
 app.use('/api', charactersRoutes);
 app.use('/api', sessionsRoutes);
+app.use('/api/sessions', chatRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

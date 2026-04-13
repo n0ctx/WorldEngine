@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T09 — 对话流式接口（后端） ✅
+- **对外接口**：`POST /api/sessions/:sessionId/chat`（SSE）、`POST /api/sessions/:sessionId/stop`、`POST /api/sessions/:sessionId/regenerate`（SSE）
+- **涉及文件**：新增 `backend/services/chat.js`、`backend/routes/chat.js`；修改 `backend/db/queries/messages.js`（+updateMessageAttachments）、`backend/services/sessions.js`（+deleteMessagesAfter）、`backend/server.js`
+- **注意**：chat 路由挂载在 `/api/sessions`；SSE 事件格式：`{delta}` / `{done:true}` / `{aborted:true}` / `{type:'error',error}` / `{type:'title_updated',title}`；aborted 时在已输出内容末尾追加 `\n\n[已中断]`；buildContext 为简化版（仅拼接 world+character system_prompt + 历史消息），后续 assembler.js 接管；saveAttachments 写磁盘后自动调用 updateMessageAttachments 更新 DB，路由层无需手动更新；activeStreams Map 在 services/chat.js 维护，同一 session 新请求会 abort 旧请求；req.on('close') 监听客户端断开并触发 abort；title_updated 通过同一 SSE 连接推送（T18 实现具体生成逻辑）
+
 ## T08 — 会话和消息的增删改查（后端） ✅
 - **对外接口**：`GET/POST /api/characters/:characterId/sessions`、`GET/DELETE /api/sessions/:id`、`PUT /api/sessions/:id/title`、`GET /api/sessions/:id/messages`、`POST /api/sessions/:id/messages`、`PUT /api/messages/:id`；Service 层 `import { createSession, getSessionById, ... } from './services/sessions.js'`
 - **涉及文件**：新增 `backend/db/queries/sessions.js`、`backend/db/queries/messages.js`、`backend/services/sessions.js`、`backend/routes/sessions.js`；修改 `backend/server.js`

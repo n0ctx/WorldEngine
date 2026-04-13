@@ -44,6 +44,14 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
 }
 
 /**
+ * 更新单条消息的 attachments 字段
+ */
+export function updateMessageAttachments(id, paths) {
+  db.prepare('UPDATE messages SET attachments = ? WHERE id = ?')
+    .run(JSON.stringify(paths), id);
+}
+
+/**
  * 更新单条消息的 content
  */
 export function updateMessageContent(id, content) {

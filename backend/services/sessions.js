@@ -87,6 +87,10 @@ export function deleteMessage(id) {
   return dbDeleteMessage(id);
 }
 
+export function deleteMessagesAfter(messageId) {
+  return dbDeleteMessagesAfter(messageId);
+}
+
 /**
  * 占位：异步生成会话标题（T18 实现具体逻辑）
  */
