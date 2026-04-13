@@ -41,12 +41,51 @@
 
 /backend/
   /routes       # HTTP 路由，只做参数校验和调用 service
+    config.js
+    worlds.js
+    characters.js
+    sessions.js
+    chat.js
+    prompt-entries.js
+    world-state-fields.js       # T19B
+    character-state-fields.js   # T19B
+    world-state-values.js       # T22
+    character-state-values.js   # T22
+    world-timeline.js           # T22
+    import-export.js            # T23
   /services     # 业务逻辑
+    config.js
+    worlds.js
+    characters.js
+    sessions.js
+    chat.js
+    prompt-entries.js
+    world-state-fields.js       # T19B
+    character-state-fields.js   # T19B
+    import-export.js            # T23
   /db           # 数据库：schema.js + /queries/*.js
-  /memory       # 记忆系统：summarizer / character-state-updater / world-state-updater / world-timeline / recall
+    index.js
+    schema.js
+    /queries/
+      worlds.js
+      characters.js
+      sessions.js
+      messages.js
+      session-summaries.js
+      prompt-entries.js
+      world-state-fields.js     # T19A
+      character-state-fields.js # T19A
+      world-state-values.js     # T19A
+      character-state-values.js # T19A
+  /memory       # 记忆系统
+    summarizer.js               # T18: session summary + title 生成
+    character-state-updater.js  # T19D: 对话后异步更新角色状态
+    world-state-updater.js      # T19D: 对话后异步更新世界状态
+    world-timeline.js           # T20: 对话后异步追加世界时间线
+    recall.js                   # T21: 渲染世界状态/角色状态/时间线为可读文本，注入 [6]
   /prompt       # 提示词：assembler.js + entry-matcher.js
-  /llm          # LLM 接入层：index.js + /providers/
-  /utils        # 工具：constants.js / async-queue.js / token-counter.js
+  /llm          # LLM 接入层：index.js + embedding.js + /providers/
+  /utils        # 工具：constants.js / async-queue.js / token-counter.js / vector-store.js
   server.js     # 入口
 ```
 
@@ -97,7 +136,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 两类调用严格分开，不得混用
 
 **异步队列优先级**（数字越小越高，1/2/3 不可丢弃，4/5 可丢弃）
-- 1: summary 生成 / 2: 角色状态栏更新 / 3: 世界状态栏更新 / 4: 世界时间线 / 5: Prompt 条目向量化
+- 1: summary 生成
+- 2: 角色状态栏更新 / title 生成（title 仅当 session.title 为 NULL 时入队）
+- 3: 世界状态栏更新
+- 4: 世界时间线
+- 5: Prompt 条目向量化
 - 编辑消息或重新生成时，清空该 sessionId 队列中优先级 4/5 的未开始任务
 
 **提示词组装顺序**（硬编码在 assembler.js，顺序不得改变）
@@ -107,7 +150,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 [3] 世界 System Prompt
 [4] 角色 System Prompt
 [5] Prompt 条目（命中→注入 content，未命中→注入 summary；全局→世界→角色顺序）
-[6] 记忆召回内容（占位，T21 填入）
+[6] 状态与记忆注入（世界状态 + 角色状态 + 世界时间线，由 recall.js 渲染为可读文本；未来扩展：embedding 搜索历史 session summary 的渐进式展开）
 [7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮）
 [8] 用户当前消息（调用方传入）
 ```
@@ -126,22 +169,40 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **Session Summary 触发条件**：对话流正常结束（done）**且**该 session 至少有 1 条 user 消息。aborted 或仅有 first_message 时不触发。
 
+**对话结束后异步任务链**（均在 done 且有 user 消息时触发）：
+1. summary 生成（优先级 1）
+2. title 生成（优先级 2，仅 title 为 NULL 时）
+3. 角色状态栏更新（优先级 2，T19D 实现）
+4. 世界状态栏更新（优先级 3，T19D 实现）
+5. 世界时间线追加（优先级 4，可丢弃，T20 实现）
+
 **角色头像 Fallback**：`avatar_path` 为 NULL 时，显示基于角色 id hash 的纯色圆形 + 名字首字。封装在 `/frontend/src/utils/avatar.js` 的 `getAvatarColor(id)`。
 
 **SSE 事件类型**：`delta` / `done` / `aborted` / `type:error` / `type:memory_recall_start` / `type:memory_recall_done` / `type:title_updated`。详细规范见 ROADMAP.md T09/T11 任务说明。
 
 **图片附件**：base64 随消息发送（不单独上传接口），后端解码存 `/data/uploads/attachments/`，路径写入 `messages.attachments`（JSON 字符串）。单条最多 3 张、单张不超过 5MB，前端校验。
 
-**角色卡/世界卡格式**：`.wechar.json`（format: worldengine-character-v1）/ `.weworld.json`（format: worldengine-world-v1），不兼容 SillyTavern 格式。
+**角色卡/世界卡格式**：`.wechar.json`（format: worldengine-character-v1）/ `.weworld.json`（format: worldengine-world-v1），不兼容 SillyTavern 格式。导出包含状态字段定义和状态值。
 
-**上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 记忆召回` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
+**上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 状态与记忆` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
 
-**状态系统**：
-- 每个世界可配置两套状态字段模板：世界状态字段、角色状态字段
-- 世界状态字段作用于 worlds，自身只有一份当前值
-- 角色状态字段作用于该世界下所有角色，每个角色各持有一份当前值
-- 配置权在前端，执行权在后端
-- 对 LLM 注入时，结构化状态渲染为可读文本
+**状态系统**（T19A/B/C/D 拆分实现）：
+- 每个世界可配置两套状态字段模板：世界状态字段（world_state_fields）、角色状态字段（character_state_fields）
+- 世界状态字段作用于 worlds，自身只有一份当前值（world_state_values）
+- 角色状态字段作用于该世界下所有角色，每个角色各持有一份当前值（character_state_values）
+- 字段模板在前端世界编辑页配置（T19B），支持 text/number/boolean/enum 四种类型
+- 创建世界/角色时自动按模板初始化状态值（T19C）
+- 对话后按配置异步更新状态值（T19D），只处理 update_mode=llm_auto 的字段
+- trigger_mode 控制是否参与自动更新：manual_only（跳过）/ every_turn（每轮）/ keyword_based（关键词命中）
+- 对 LLM 注入时，recall.js 将结构化状态渲染为可读文本，注入 [6] 位置（T21）
+- 前端记忆面板只读展示世界状态、角色状态、世界时间线（T22）
+
+**recall.js 职责**（T21）：
+- `renderWorldState(worldId)` → 渲染世界状态为可读文本
+- `renderCharacterState(characterId)` → 渲染角色状态为可读文本
+- `renderTimeline(worldId, limit)` → 渲染世界时间线为可读文本
+- 三段文本拼接注入 assembler.js 的 [6] 位置，全部为空则 [6] 为空字符串
+- 未来扩展：embedding 搜索历史 session summary，渐进式展开原文
 
 ---
 

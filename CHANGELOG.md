@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T19C — 新建世界/角色时自动初始化状态值 ✅
+- **对外接口**：无新增接口；`services/worlds.createWorld()` 和 `services/characters.createCharacter()` 内部自动触发初始化
+- **涉及文件**：修改 `backend/services/worlds.js`、`backend/services/characters.js`
+- **注意**：`getInitialValueJson` 逻辑：优先用 `field.default_value`（已是 JSON 字符串）；为 null 时按 type 给默认值（text→`""`，number→`0`，boolean→`false`，enum→第一项或 null）；新建空世界时 world_state_fields 通常为空，初始化为 no-op；主要应用场景是"先建字段模板再建角色"，角色创建时自动按字段模板初始化所有 character_state_values
+
 ## T19B — 世界设置页状态字段模板配置 ✅
 - **对外接口**：`GET/POST /api/worlds/:worldId/world-state-fields`、`PUT /api/worlds/:worldId/world-state-fields/reorder`、`PUT/DELETE /api/world-state-fields/:id`；角色状态字段同上（world-state-fields → character-state-fields）
 - **涉及文件**：新增 `backend/services/world-state-fields.js`、`backend/services/character-state-fields.js`、`backend/routes/state-fields.js`；新增 `frontend/src/api/worldStateFields.js`、`characterStateFields.js`、`frontend/src/components/state/StateFieldEditor.jsx`、`StateFieldList.jsx`；修改 `backend/server.js`（+stateFieldsRoutes）、`frontend/src/pages/WorldsPage.jsx`（编辑世界弹窗底部嵌入两个 StateFieldList）
