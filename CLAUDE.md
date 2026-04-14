@@ -166,7 +166,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 [3] 世界 System Prompt
 [4] 角色 System Prompt
 [5] Prompt 条目（命中→注入 content，未命中→注入 summary；全局→世界→角色顺序）
-[6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线，由 recall.js 渲染为可读文本；未来扩展：embedding 搜索历史 session summary 的渐进式展开）
+[6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 历史摘要召回 + 原文展开，由 recall.js 渲染；T21/T26C/T27/T28 渐进落地）
 [7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮）
 [8] 用户当前消息（调用方传入）
 ```
@@ -227,13 +227,14 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - persona 的 name 和 system_prompt 注入到 assembler.js 的 [2] 位置（替换原 worlds.persona_name / persona_prompt）
 - persona 的状态值渲染为可读文本注入 [6] 位置（顺序在最前，优先于角色状态）
 
-**recall.js 职责**（T21 / T26C）：
+**recall.js 职责**（T21 / T26C / T27 / T28）：
 - `renderPersonaState(worldId)` → 渲染玩家状态为可读文本（T26C 新增）
 - `renderCharacterState(characterId)` → 渲染角色状态为可读文本
 - `renderWorldState(worldId)` → 渲染世界状态为可读文本
 - `renderTimeline(worldId, limit)` → 渲染世界时间线为可读文本
-- 四段文本按「玩家 → 角色 → 世界 → 时间线」顺序拼接注入 assembler.js 的 [6] 位置，全部为空则 [6] 为空字符串
-- 未来扩展：embedding 搜索历史 session summary，渐进式展开原文
+- `searchRecalledSummaries(worldId, sessionId)` → embedding 搜索历史 session summary，返回 `{ recalled, recentMessagesText }`；`recalled` 为结构化数组（含 ref/session_id/session_title/created_at/content/score）（T27 / T28 重构）
+- `renderRecalledSummaries(recalled)` → 将结构化 recalled 数组渲染为可读文本块（T27；T28 将签名从双参数重构为接受数组）
+- 四段状态文本 + 召回摘要文本 + 原文展开文本，按「玩家 → 角色 → 世界 → 时间线 → 召回摘要 → 原文展开」顺序拼接注入 assembler.js 的 [6] 位置，全部为空则 [6] 为空字符串
 
 **自定义样式与正则替换**（T24A/B）：
 - 自定义 CSS：多条片段独立启用/禁用，全部为全局作用；前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`

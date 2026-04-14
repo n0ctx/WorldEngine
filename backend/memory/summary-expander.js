@@ -9,7 +9,6 @@
  *     → string  可读文本块，供注入 [6] 末尾
  */
 
-import db from '../db/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
