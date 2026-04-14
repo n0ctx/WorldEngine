@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api/worlds';
 import useStore from '../store/index';
+import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import StateFieldList from '../components/state/StateFieldList';
 import {
   listWorldStateFields, createWorldStateField,
@@ -276,6 +277,9 @@ export default function WorldsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editingWorld, setEditingWorld] = useState(null);
   const [deletingWorld, setDeletingWorld] = useState(null);
+  const [exportingWorldId, setExportingWorldId] = useState(null);
+  const [importingWorld, setImportingWorld] = useState(false);
+  const worldImportRef = useRef(null);
 
   async function loadWorlds() {
     try {
@@ -309,6 +313,35 @@ export default function WorldsPage() {
     await loadWorlds();
   }
 
+  async function handleExportWorld(world, e) {
+    e.stopPropagation();
+    setExportingWorldId(world.id);
+    try {
+      const safeName = world.name.replace(/[^\w\u4e00-\u9fa5]/g, '_');
+      await downloadWorldCard(world.id, `${safeName}.weworld.json`);
+    } catch (err) {
+      alert(`导出失败：${err.message}`);
+    } finally {
+      setExportingWorldId(null);
+    }
+  }
+
+  async function handleImportWorldFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingWorld(true);
+    try {
+      const data = await readJsonFile(file);
+      await importWorld(data);
+      await loadWorlds();
+    } catch (err) {
+      alert(`导入失败：${err.message}`);
+    } finally {
+      setImportingWorld(false);
+      e.target.value = '';
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
       <div className="max-w-4xl mx-auto">
@@ -325,6 +358,20 @@ export default function WorldsPage() {
             >
               设置
             </button>
+            <button
+              onClick={() => worldImportRef.current?.click()}
+              disabled={importingWorld}
+              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+            >
+              {importingWorld ? '导入中…' : '导入世界卡'}
+            </button>
+            <input
+              ref={worldImportRef}
+              type="file"
+              accept=".json,.weworld.json"
+              className="hidden"
+              onChange={handleImportWorldFile}
+            />
             <button
               onClick={() => setShowCreate(true)}
               className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
@@ -362,6 +409,14 @@ export default function WorldsPage() {
                   className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  <button
+                    onClick={(e) => handleExportWorld(world, e)}
+                    disabled={exportingWorldId === world.id}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs disabled:opacity-50"
+                    title="导出世界卡"
+                  >
+                    ↓
+                  </button>
                   <button
                     onClick={() => setEditingWorld(world)}
                     className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"

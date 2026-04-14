@@ -10,6 +10,7 @@ import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import EntryList from '../components/prompt/EntryList';
+import { importCharacter, readJsonFile } from '../api/importExport';
 
 function AvatarCircle({ character, size = 'md' }) {
   const url = getAvatarUrl(character.avatar_path);
@@ -153,9 +154,11 @@ export default function CharactersPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [deletingChar, setDeletingChar] = useState(null);
+  const [importingChar, setImportingChar] = useState(false);
 
   // 拖拽状态
   const dragIdx = useRef(null);
+  const charImportRef = useRef(null);
 
   async function loadData() {
     const [w, chars] = await Promise.all([
@@ -180,6 +183,23 @@ export default function CharactersPage() {
     setDeletingChar(null);
     const chars = await getCharactersByWorld(worldId);
     setCharacters(chars);
+  }
+
+  async function handleImportCharFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingChar(true);
+    try {
+      const data = await readJsonFile(file);
+      await importCharacter(worldId, data);
+      const chars = await getCharactersByWorld(worldId);
+      setCharacters(chars);
+    } catch (err) {
+      alert(`导入失败：${err.message}`);
+    } finally {
+      setImportingChar(false);
+      e.target.value = '';
+    }
   }
 
   // 拖拽排序
@@ -227,12 +247,28 @@ export default function CharactersPage() {
             </h1>
             <p className="text-sm text-[var(--text)] mt-0.5">选择角色开始对话，或拖拽调整顺序</p>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-          >
-            + 创建角色
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => charImportRef.current?.click()}
+              disabled={importingChar}
+              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+            >
+              {importingChar ? '导入中…' : '导入角色卡'}
+            </button>
+            <input
+              ref={charImportRef}
+              type="file"
+              accept=".json,.wechar.json"
+              className="hidden"
+              onChange={handleImportCharFile}
+            />
+            <button
+              onClick={() => setShowCreate(true)}
+              className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+            >
+              + 创建角色
+            </button>
+          </div>
         </div>
 
         {/* 角色列表 */}

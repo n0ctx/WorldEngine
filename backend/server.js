@@ -23,6 +23,7 @@ import stateFieldsRoutes from './routes/state-fields.js';
 import worldStateValuesRoutes from './routes/world-state-values.js';
 import characterStateValuesRoutes from './routes/character-state-values.js';
 import worldTimelineRoutes from './routes/world-timeline.js';
+import importExportRoutes from './routes/import-export.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -58,6 +59,7 @@ app.use('/api', stateFieldsRoutes);
 app.use('/api', worldStateValuesRoutes);
 app.use('/api', characterStateValuesRoutes);
 app.use('/api', worldTimelineRoutes);
+app.use('/api', importExportRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

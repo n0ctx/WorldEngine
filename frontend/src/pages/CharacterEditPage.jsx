@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import EntryList from '../components/prompt/EntryList';
+import { downloadCharacterCard } from '../api/importExport';
 
 export default function CharacterEditPage() {
   const { characterId } = useParams();
@@ -17,6 +18,7 @@ export default function CharacterEditPage() {
   const [firstMessage, setFirstMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   // 头像
   const [avatarPath, setAvatarPath] = useState(null);
@@ -51,6 +53,18 @@ export default function CharacterEditPage() {
       setAvatarUploading(false);
       // 清空 input，允许再次选择同一文件
       e.target.value = '';
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const safeName = (name || character.name || 'character').replace(/[^\w\u4e00-\u9fa5]/g, '_');
+      await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
+    } catch (err) {
+      alert(`导出失败：${err.message}`);
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -183,7 +197,14 @@ export default function CharacterEditPage() {
 
           {saveError && <p className="text-sm text-red-400">{saveError}</p>}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-between items-center pt-2">
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="px-4 py-2.5 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+            >
+              {exporting ? '导出中…' : '导出角色卡'}
+            </button>
             <button
               onClick={handleSave}
               disabled={saving}

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T23 — 角色卡 / 世界卡导入导出 ✅
+- **对外接口**：`GET /api/characters/:id/export`、`POST /api/worlds/:worldId/import-character`、`GET /api/worlds/:id/export`、`POST /api/worlds/import`；前端 `downloadCharacterCard(id, filename)`、`importCharacter(worldId, data)`、`downloadWorldCard(id, filename)`、`importWorld(data)` 在 `frontend/src/api/importExport.js`
+- **涉及文件**：新增 `backend/services/import-export.js`、`backend/routes/import-export.js`、`frontend/src/api/importExport.js`；修改 `backend/server.js`（+1 路由）、`frontend/src/pages/CharacterEditPage.jsx`（导出按钮）、`frontend/src/pages/CharactersPage.jsx`（导入角色卡按钮）、`frontend/src/pages/WorldsPage.jsx`（导出按钮 + 导入世界卡按钮）
+- **注意**：导出含头像时使用 `avatar_base64` + `avatar_mime` 字段（非 SCHEMA 示例中的简单 null），导入时解码写文件到 `/data/uploads/avatars/`；导入角色卡时 character_state_values 中 field_key 不在目标世界 character_state_fields 中的条目会被静默跳过；导入世界卡时 world_state_values 中 field_key 不在本次导入的 world_state_fields 中的条目同样跳过；整个导入操作在同一 better-sqlite3 transaction 内执行，任何步骤失败自动回滚；服务层直接用 `db.prepare()` 而未走 queries 层封装（因为批量 insert 操作不在现有 queries 函数中）
+
 ## T22 — 前端记忆面板 ✅
 - **对外接口**：`GET /api/worlds/:worldId/state-values`、`GET /api/characters/:characterId/state-values`、`GET /api/worlds/:worldId/timeline?limit=50`
 - **涉及文件**：新增 `backend/db/queries/world-state-values.js`（`getWorldStateValuesWithFields`）、`character-state-values.js`（`getCharacterStateValuesWithFields`）；新增路由 `backend/routes/world-state-values.js`、`character-state-values.js`、`world-timeline.js`；新增前端 `api/worldStateValues.js`、`characterStateValues.js`、`worldTimeline.js`、`components/memory/MemoryPanel.jsx`；修改 `backend/server.js`（+3 路由）、`frontend/src/pages/ChatPage.jsx`（嵌入 MemoryPanel）
