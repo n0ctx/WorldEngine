@@ -6,6 +6,8 @@ import {
   deleteCharacter as dbDeleteCharacter,
   reorderCharacters as dbReorderCharacters,
 } from '../db/queries/characters.js';
+import { runOnDelete } from '../utils/cleanup-hooks.js';
+import { unlinkUploadFile } from '../utils/file-cleanup.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 
@@ -41,11 +43,20 @@ export function getCharactersByWorldId(worldId) {
   return dbGetCharactersByWorldId(worldId);
 }
 
-export function updateCharacter(id, patch) {
-  return dbUpdateCharacter(id, patch);
+export async function updateCharacter(id, patch) {
+  let oldAvatarPath;
+  if ('avatar_path' in patch) {
+    oldAvatarPath = dbGetCharacterById(id)?.avatar_path;
+  }
+  const updated = dbUpdateCharacter(id, patch);
+  if (oldAvatarPath && oldAvatarPath !== patch.avatar_path) {
+    await unlinkUploadFile(oldAvatarPath);
+  }
+  return updated;
 }
 
-export function deleteCharacter(id) {
+export async function deleteCharacter(id) {
+  await runOnDelete('character', id);
   return dbDeleteCharacter(id);
 }
 

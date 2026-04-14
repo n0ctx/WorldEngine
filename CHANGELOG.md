@@ -19,6 +19,30 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T30 — 副作用资源生命周期自动维护 ✅
+- **对外接口**：无新 HTTP 接口；核心 API 为 `registerOnDelete(entity, fn)` / `runOnDelete(entity, id)`（utils/cleanup-hooks.js）
+- **涉及文件**（新建）：
+  - `backend/utils/cleanup-hooks.js` — 钩子注册表
+  - `backend/utils/file-cleanup.js` — `unlinkUploadFile` / `unlinkUploadFiles`
+  - `backend/services/cleanup-registrations.js` — 所有钩子集中注册
+- **涉及文件**（修改）：
+  - `backend/db/queries/messages.js` — 新增 `getAttachmentsByMessageId/SessionId/CharacterId/WorldId`、`getMessageIdsBySessionId`、`getMessageIdsAfter`
+  - `backend/db/queries/characters.js` — 新增 `getAvatarPathsByWorldId`、`getSessionIdsByCharacterId/WorldId`
+  - `backend/db/queries/prompt-entries.js` — 新增 `getEmbeddingIdsByCharacterId/WorldId`
+  - `backend/db/queries/personas.js` — 新增 `getPersonaAvatarPathByWorldId`
+  - `backend/services/worlds.js` — `deleteWorld` 改 async，删前 `runOnDelete('world')`
+  - `backend/services/characters.js` — `deleteCharacter` 改 async；`updateCharacter` 改 async，替换头像时 unlink 旧文件
+  - `backend/services/sessions.js` — `deleteSession`、`deleteMessage`、`deleteMessagesAfter`、`deleteAllMessagesBySessionId`、`updateMessageAndDeleteAfter` 均改 async
+  - `backend/services/personas.js` — `updatePersona` 改 async，替换头像时 unlink 旧文件
+  - 所有路由层对应处理函数补 async/await
+  - `backend/server.js` — 新增 `import './services/cleanup-registrations.js';`
+  - `CLAUDE.md` — server.js 行补例外登记；核心约束补"副作用资源扩展规则"
+- **注意**：
+  - 钩子注册表模式：新增副作用资源（文件/向量）只需在 cleanup-registrations.js 注册，不改任何 delete service
+  - 本任务已覆盖：消息附件、角色头像、玩家头像、Prompt 条目向量、Session Summary 向量
+  - `runOnDelete` 在 DB DELETE **之前**执行（资源还存在时收集路径）；钩子失败仅 warn，不中断 DB 删
+  - `updateMessageAndDeleteAfter` 内部调用 service 层 `deleteMessagesAfter`（而非 db 层），确保消息钩子被触发
+
 ## T30 — 玩家头像 + 斜杠命令去重 ✅
 - **对外接口**：
   - `POST /api/worlds/:worldId/persona/avatar` — 上传玩家头像，返回 `{ avatar_path }`

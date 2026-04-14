@@ -77,27 +77,27 @@ router.get('/characters/:id', (req, res) => {
 });
 
 // PUT /api/characters/:id — 更新角色
-router.put('/characters/:id', (req, res) => {
+router.put('/characters/:id', async (req, res) => {
   const existing = getCharacterById(req.params.id);
   if (!existing) {
     return res.status(404).json({ error: '角色不存在' });
   }
-  const updated = updateCharacter(req.params.id, req.body);
+  const updated = await updateCharacter(req.params.id, req.body);
   res.json(updated);
 });
 
 // DELETE /api/characters/:id — 删除角色
-router.delete('/characters/:id', (req, res) => {
+router.delete('/characters/:id', async (req, res) => {
   const existing = getCharacterById(req.params.id);
   if (!existing) {
     return res.status(404).json({ error: '角色不存在' });
   }
-  deleteCharacter(req.params.id);
+  await deleteCharacter(req.params.id);
   res.status(204).end();
 });
 
 // POST /api/characters/:id/avatar — 上传头像
-router.post('/characters/:id/avatar', upload.single('avatar'), (req, res) => {
+router.post('/characters/:id/avatar', upload.single('avatar'), async (req, res) => {
   const existing = getCharacterById(req.params.id);
   if (!existing) {
     return res.status(404).json({ error: '角色不存在' });
@@ -107,7 +107,7 @@ router.post('/characters/:id/avatar', upload.single('avatar'), (req, res) => {
   }
   // 存储相对路径，如 avatars/abc123.png
   const relativePath = `avatars/${req.file.filename}`;
-  const updated = updateCharacter(req.params.id, { avatar_path: relativePath });
+  const updated = await updateCharacter(req.params.id, { avatar_path: relativePath });
   res.json({ avatar_path: updated.avatar_path });
 });
 

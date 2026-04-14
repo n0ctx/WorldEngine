@@ -214,3 +214,33 @@ export function reorderCharacterEntries(characterId, orderedIds) {
     orderedIds.forEach((id, index) => stmt.run(index, now, id, characterId));
   })();
 }
+
+// ─── 副作用清理辅助查询（只读） ──────────────────────────────────
+
+/**
+ * 获取某角色下所有 Prompt 条目的 embedding_id（过滤 NULL）
+ * @param {string} characterId
+ * @returns {string[]}
+ */
+export function getEmbeddingIdsByCharacterId(characterId) {
+  return db.prepare(
+    'SELECT embedding_id FROM character_prompt_entries WHERE character_id = ? AND embedding_id IS NOT NULL',
+  ).all(characterId).map((r) => r.embedding_id);
+}
+
+/**
+ * 获取某世界下所有 Prompt 条目的 embedding_id（world 级 + 该 world 下所有 character 级；过滤 NULL；去重）
+ * @param {string} worldId
+ * @returns {string[]}
+ */
+export function getEmbeddingIdsByWorldId(worldId) {
+  const rows = db.prepare(`
+    SELECT embedding_id FROM world_prompt_entries
+    WHERE world_id = ? AND embedding_id IS NOT NULL
+    UNION
+    SELECT embedding_id FROM character_prompt_entries
+    WHERE character_id IN (SELECT id FROM characters WHERE world_id = ?)
+      AND embedding_id IS NOT NULL
+  `).all(worldId, worldId);
+  return rows.map((r) => r.embedding_id);
+}

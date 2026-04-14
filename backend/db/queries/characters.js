@@ -94,3 +94,40 @@ export function reorderCharacters(items) {
 export function deleteCharacter(id) {
   return db.prepare('DELETE FROM characters WHERE id = ?').run(id);
 }
+
+// ─── 副作用清理辅助查询（只读） ──────────────────────────────────
+
+/**
+ * 获取某世界下所有角色的头像路径（过滤 NULL）
+ * @param {string} worldId
+ * @returns {string[]}
+ */
+export function getAvatarPathsByWorldId(worldId) {
+  return db.prepare(
+    'SELECT avatar_path FROM characters WHERE world_id = ? AND avatar_path IS NOT NULL',
+  ).all(worldId).map((r) => r.avatar_path);
+}
+
+/**
+ * 获取某角色下所有会话 id
+ * @param {string} characterId
+ * @returns {string[]}
+ */
+export function getSessionIdsByCharacterId(characterId) {
+  return db.prepare('SELECT id FROM sessions WHERE character_id = ?')
+    .all(characterId)
+    .map((r) => r.id);
+}
+
+/**
+ * 获取某世界下所有会话 id（JOIN characters）
+ * @param {string} worldId
+ * @returns {string[]}
+ */
+export function getSessionIdsByWorldId(worldId) {
+  return db.prepare(`
+    SELECT s.id FROM sessions s
+    JOIN characters c ON s.character_id = c.id
+    WHERE c.world_id = ?
+  `).all(worldId).map((r) => r.id);
+}

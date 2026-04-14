@@ -15,7 +15,10 @@ import {
   deleteMessagesAfter as dbDeleteMessagesAfter,
   deleteMessage as dbDeleteMessage,
   deleteAllMessagesBySessionId as dbDeleteAllMessagesBySessionId,
+  getMessageIdsAfter,
+  getMessageIdsBySessionId,
 } from '../db/queries/messages.js';
+import { runOnDelete } from '../utils/cleanup-hooks.js';
 
 import { getCharacterById } from '../db/queries/characters.js';
 
@@ -54,7 +57,8 @@ export function touchSession(id) {
   return dbTouchSession(id);
 }
 
-export function deleteSession(id) {
+export async function deleteSession(id) {
+  await runOnDelete('session', id);
   return dbDeleteSession(id);
 }
 
@@ -78,21 +82,30 @@ export function getMessagesBySessionId(sessionId, limit, offset) {
 /**
  * 编辑消息：更新 content 并删除之后的所有消息
  */
-export function updateMessageAndDeleteAfter(id, content) {
+export async function updateMessageAndDeleteAfter(id, content) {
   const updated = dbUpdateMessageContent(id, content);
-  dbDeleteMessagesAfter(id);
+  await deleteMessagesAfter(id);
   return updated;
 }
 
-export function deleteMessage(id) {
+export async function deleteMessage(id) {
+  await runOnDelete('message', id);
   return dbDeleteMessage(id);
 }
 
-export function deleteMessagesAfter(messageId) {
+export async function deleteMessagesAfter(messageId) {
+  const ids = getMessageIdsAfter(messageId);
+  for (const mid of ids) {
+    await runOnDelete('message', mid);
+  }
   return dbDeleteMessagesAfter(messageId);
 }
 
-export function deleteAllMessagesBySessionId(sessionId) {
+export async function deleteAllMessagesBySessionId(sessionId) {
+  const ids = getMessageIdsBySessionId(sessionId);
+  for (const mid of ids) {
+    await runOnDelete('message', mid);
+  }
   return dbDeleteAllMessagesBySessionId(sessionId);
 }
 

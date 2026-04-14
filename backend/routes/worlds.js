@@ -45,12 +45,12 @@ router.put('/:id', (req, res) => {
 });
 
 // DELETE /api/worlds/:id — 删除世界
-router.delete('/:id', (req, res) => {
+router.delete('/:id', async (req, res) => {
   const existing = getWorldById(req.params.id);
   if (!existing) {
     return res.status(404).json({ error: '世界不存在' });
   }
-  deleteWorld(req.params.id);
+  await deleteWorld(req.params.id);
   res.status(204).end();
 });
 

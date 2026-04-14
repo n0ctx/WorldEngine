@@ -232,7 +232,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   // 保留 afterMessageId 本身，删除之后的所有消息
-  deleteMessagesAfter(afterMessageId);
+  await deleteMessagesAfter(afterMessageId);
 
   // 丢弃低优先级待处理任务（时间线、向量化）
   clearPending(sessionId, 4);
@@ -407,13 +407,13 @@ router.post('/:sessionId/impersonate', async (req, res) => {
 
 // ── DELETE /api/sessions/:sessionId/messages ──
 
-router.delete('/:sessionId/messages', (req, res) => {
+router.delete('/:sessionId/messages', async (req, res) => {
   const { sessionId } = req.params;
 
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  deleteAllMessagesBySessionId(sessionId);
+  await deleteAllMessagesBySessionId(sessionId);
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   let firstMessage = null;

@@ -42,3 +42,13 @@ export function upsertPersona(worldId, data = {}) {
 export function getPersonaByWorldId(worldId) {
   return db.prepare('SELECT * FROM personas WHERE world_id = ?').get(worldId);
 }
+
+/**
+ * 获取某世界 persona 的头像路径，不存在或无头像返回 null
+ * @param {string} worldId
+ * @returns {string|null}
+ */
+export function getPersonaAvatarPathByWorldId(worldId) {
+  const row = db.prepare('SELECT avatar_path FROM personas WHERE world_id = ?').get(worldId);
+  return row?.avatar_path ?? null;
+}

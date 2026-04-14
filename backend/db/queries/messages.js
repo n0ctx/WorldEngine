@@ -84,3 +84,110 @@ export function deleteMessage(id) {
 export function deleteAllMessagesBySessionId(sessionId) {
   return db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
 }
+
+// ─── 副作用清理辅助查询（只读） ──────────────────────────────────
+
+/**
+ * 解析单行 attachments JSON，返回 string[] 或 []
+ */
+function parseAttachments(raw) {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v) => typeof v === 'string');
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 获取单条消息的附件路径列表
+ * @param {string} messageId
+ * @returns {string[]}
+ */
+export function getAttachmentsByMessageId(messageId) {
+  const row = db.prepare('SELECT attachments FROM messages WHERE id = ? AND attachments IS NOT NULL').get(messageId);
+  return parseAttachments(row?.attachments);
+}
+
+/**
+ * 批量获取多条消息的附件路径列表
+ * @param {string[]} messageIds
+ * @returns {string[]}
+ */
+export function getAttachmentsByMessageIds(messageIds) {
+  if (!messageIds || messageIds.length === 0) return [];
+  const result = [];
+  for (const id of messageIds) {
+    result.push(...getAttachmentsByMessageId(id));
+  }
+  return result;
+}
+
+/**
+ * 获取某会话下所有消息的附件路径列表
+ * @param {string} sessionId
+ * @returns {string[]}
+ */
+export function getAttachmentsBySessionId(sessionId) {
+  const rows = db.prepare(
+    'SELECT attachments FROM messages WHERE session_id = ? AND attachments IS NOT NULL',
+  ).all(sessionId);
+  return rows.flatMap((r) => parseAttachments(r.attachments));
+}
+
+/**
+ * 获取某角色下所有消息的附件路径列表（JOIN sessions）
+ * @param {string} characterId
+ * @returns {string[]}
+ */
+export function getAttachmentsByCharacterId(characterId) {
+  const rows = db.prepare(`
+    SELECT m.attachments
+    FROM messages m
+    JOIN sessions s ON m.session_id = s.id
+    WHERE s.character_id = ? AND m.attachments IS NOT NULL
+  `).all(characterId);
+  return rows.flatMap((r) => parseAttachments(r.attachments));
+}
+
+/**
+ * 获取某世界下所有消息的附件路径列表（JOIN sessions + characters）
+ * @param {string} worldId
+ * @returns {string[]}
+ */
+export function getAttachmentsByWorldId(worldId) {
+  const rows = db.prepare(`
+    SELECT m.attachments
+    FROM messages m
+    JOIN sessions s ON m.session_id = s.id
+    JOIN characters c ON s.character_id = c.id
+    WHERE c.world_id = ? AND m.attachments IS NOT NULL
+  `).all(worldId);
+  return rows.flatMap((r) => parseAttachments(r.attachments));
+}
+
+/**
+ * 获取某会话下所有消息 id
+ * @param {string} sessionId
+ * @returns {string[]}
+ */
+export function getMessageIdsBySessionId(sessionId) {
+  return db.prepare('SELECT id FROM messages WHERE session_id = ?')
+    .all(sessionId)
+    .map((r) => r.id);
+}
+
+/**
+ * 获取指定消息之后（不含该消息本身）的所有消息 id，与 deleteMessagesAfter 条件一致
+ * @param {string} messageId
+ * @returns {string[]}
+ */
+export function getMessageIdsAfter(messageId) {
+  const msg = db.prepare('SELECT session_id, created_at FROM messages WHERE id = ?').get(messageId);
+  if (!msg) return [];
+  return db.prepare(
+    'SELECT id FROM messages WHERE session_id = ? AND created_at > ?',
+  ).all(msg.session_id, msg.created_at).map((r) => r.id);
+}

@@ -5,6 +5,7 @@ import {
   updateWorld as dbUpdateWorld,
   deleteWorld as dbDeleteWorld,
 } from '../db/queries/worlds.js';
+import { runOnDelete } from '../utils/cleanup-hooks.js';
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
 import { upsertPersona } from '../db/queries/personas.js';
@@ -57,6 +58,7 @@ export function updateWorld(id, patch) {
   return dbUpdateWorld(id, patch);
 }
 
-export function deleteWorld(id) {
+export async function deleteWorld(id) {
+  await runOnDelete('world', id);
   return dbDeleteWorld(id);
 }

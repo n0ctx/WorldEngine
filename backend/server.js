@@ -11,6 +11,7 @@ if (proxyUrl) {
   setGlobalDispatcher(new ProxyAgent(proxyUrl));
   console.log(`Proxy enabled: ${proxyUrl}`);
 }
+import './services/cleanup-registrations.js';
 import db from './db/index.js';
 import { initSchema } from './db/schema.js';
 import configRoutes from './routes/config.js';

@@ -58,12 +58,12 @@ router.get('/sessions/:id/messages', (req, res) => {
 });
 
 // DELETE /api/sessions/:id — 删除会话
-router.delete('/sessions/:id', (req, res) => {
+router.delete('/sessions/:id', async (req, res) => {
   const session = getSessionById(req.params.id);
   if (!session) {
     return res.status(404).json({ error: '会话不存在' });
   }
-  deleteSession(req.params.id);
+  await deleteSession(req.params.id);
   res.status(204).end();
 });
 
@@ -93,7 +93,7 @@ router.post('/sessions/:id/messages', (req, res) => {
 });
 
 // PUT /api/messages/:id — 编辑消息（更新 content 并删除之后的消息）
-router.put('/messages/:id', (req, res) => {
+router.put('/messages/:id', async (req, res) => {
   const msg = getMessageById(req.params.id);
   if (!msg) {
     return res.status(404).json({ error: '消息不存在' });
@@ -102,7 +102,7 @@ router.put('/messages/:id', (req, res) => {
   if (typeof content !== 'string') {
     return res.status(400).json({ error: 'content 为必填项' });
   }
-  const updated = updateMessageAndDeleteAfter(req.params.id, content);
+  const updated = await updateMessageAndDeleteAfter(req.params.id, content);
   res.json(updated);
 });
 
