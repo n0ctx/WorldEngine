@@ -31,6 +31,8 @@ const EMBEDDING_PROVIDERS = [
 ];
 
 const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
+// 需要显示 Base URL 输入框的 provider（本地 + openai_compatible）
+const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible']);
 
 function SectionTitle({ children }) {
   return (
@@ -142,6 +144,7 @@ function ProviderSection({
   }
 
   const isLocal = LOCAL_PROVIDERS.includes(config.provider);
+  const needsBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(config.provider);
 
   return (
     <div className="flex flex-col gap-4">
@@ -161,7 +164,7 @@ function ProviderSection({
         </select>
       </div>
 
-      {/* API Key */}
+      {/* API Key（本地 provider 无需 API Key） */}
       {config.provider && !isLocal && (
         <div>
           <FieldLabel>API Key</FieldLabel>
@@ -183,14 +186,16 @@ function ProviderSection({
         </div>
       )}
 
-      {/* Base URL（仅本地 provider 显示） */}
-      {isLocal && (
+      {/* Base URL（本地 provider 和 openai_compatible 显示） */}
+      {needsBaseUrl && (
         <div>
           <FieldLabel>Base URL</FieldLabel>
           {textInput(
             config.base_url || '',
             onBaseUrlChange,
-            config.provider === 'ollama' ? 'http://localhost:11434' : 'http://localhost:1234',
+            config.provider === 'ollama' ? 'http://localhost:11434'
+              : config.provider === 'lmstudio' ? 'http://localhost:1234'
+              : 'https://your-api-endpoint/v1',
           )}
         </div>
       )}
@@ -258,8 +263,8 @@ export default function SettingsPage() {
 
   async function handleEmbeddingChange(field, value) {
     if (field === 'provider') {
-      const isLocal = LOCAL_PROVIDERS.includes(value);
-      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
+      const keepBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(value);
+      const patch = keepBaseUrl ? { provider: value } : { provider: value, base_url: '' };
       await patchConfig({ embedding: patch });
       setEmbedding((prev) => ({ ...prev, ...patch }));
     } else {
@@ -408,12 +413,11 @@ export default function SettingsPage() {
                   {saving ? '保存中…' : '保存'}
                 </button>
               </div>
-            </div>
-          </section>
 
-          {/* ── 全局 Prompt 条目 ──────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
-            <EntryList type="global" />
+              <div className="border-t border-[var(--border)] pt-4">
+                <EntryList type="global" />
+              </div>
+            </div>
           </section>
 
           {/* ── 自定义样式 ────────────────────────────── */}

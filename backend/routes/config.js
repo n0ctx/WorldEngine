@@ -108,10 +108,11 @@ async function fetchModels(provider, apiKey, baseUrl) {
     return (data.models || []).map((m) => m.name);
   }
 
-  // OpenAI-compatible 一族
+  // OpenAI-compatible 一族（含无默认 URL 的 openai_compatible）
   const defaultBase = OPENAI_COMPATIBLE_BASE_URLS[provider];
-  if (defaultBase) {
+  if (defaultBase !== undefined || provider === 'openai_compatible') {
     const base = baseUrl || defaultBase;
+    if (!base) throw new Error('openai_compatible provider 需要指定 Base URL');
     return fetchOpenAICompatibleModels(base, apiKey);
   }
 
