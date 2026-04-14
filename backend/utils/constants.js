@@ -23,6 +23,7 @@ export const PROMPT_ENTRY_TOP_K = 3;
 export const MEMORY_RECALL_MAX_SESSIONS = 3;
 export const MEMORY_RECALL_CONTEXT_WINDOW = 10;
 export const MEMORY_RECALL_MAX_TOKENS = 2048;
+export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.68;
 
 // ============================
 // 世界时间线

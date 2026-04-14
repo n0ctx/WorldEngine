@@ -19,6 +19,7 @@ import { updateWorldState } from '../memory/world-state-updater.js';
 import { updatePersonaState } from '../memory/persona-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { appendWorldTimeline } from '../memory/world-timeline.js';
+import { embedSessionSummary } from '../memory/summary-embedder.js';
 import { applyRules } from '../utils/regex-runner.js';
 
 const router = Router();
@@ -62,7 +63,9 @@ async function runStream(sessionId, res) {
   let aborted = false;
 
   try {
-    const { messages, overrides } = await buildContext(sessionId);
+    if (!clientClosed) sseSend(res, { type: 'memory_recall_start' });
+    const { messages, overrides, recallHitCount } = await buildContext(sessionId);
+    if (!clientClosed) sseSend(res, { type: 'memory_recall_done', hit: recallHitCount });
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 
     for await (const chunk of stream) {
@@ -111,8 +114,6 @@ async function runStream(sessionId, res) {
 
   activeStreams.delete(sessionId);
 
-  // TODO T21: memory_recall_start / memory_recall_done
-
   // 正常完成且有内容时，入队异步任务
   if (!aborted && fullContent) {
     const msgs = getMessagesBySessionId(sessionId, 9999, 0);
@@ -122,6 +123,9 @@ async function runStream(sessionId, res) {
 
       // 优先级 1：生成 summary（不可丢弃，fire-and-forget）
       enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
+
+      // 优先级 5：向量化 summary（可丢弃）
+      enqueue(sessionId, () => embedSessionSummary(sessionId), 5).catch(() => {});
 
       // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
       if (session && !session.title) {
@@ -315,6 +319,9 @@ router.post('/:sessionId/continue', async (req, res) => {
 
     if (hasUserMsg) {
       enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
+
+      // 优先级 5：向量化 summary（可丢弃）
+      enqueue(sessionId, () => embedSessionSummary(sessionId), 5).catch(() => {});
 
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2)

@@ -19,6 +19,18 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T27 — 跨 Session Summary 召回 ✅
+- **对外接口**：
+  - `embedSessionSummary(sessionId)` — `/backend/memory/summary-embedder.js`，优先级 5 异步任务
+  - `renderRecalledSummaries(worldId, sessionId)` — `/backend/memory/recall.js`，返回 `{ text, hitCount }`，已接入 assembler.js [6] 位置末尾
+  - SSE 事件：`{ type: 'memory_recall_start' }` / `{ type: 'memory_recall_done', hit: number }`，在 buildContext 前后发出（仅 runStream，不含 /continue）
+  - `search(queryVector, { worldId, excludeSessionId, topK })` — `/backend/utils/session-summary-vector-store.js`
+  - `getSummaryWithMetaById(summaryId)` / `listSummariesByWorldId(worldId, excludeSessionId)` — `/backend/db/queries/session-summaries.js`
+- **涉及文件**：
+  - 新增：`backend/utils/session-summary-vector-store.js`、`backend/memory/summary-embedder.js`
+  - 修改：`backend/utils/constants.js`（+`MEMORY_RECALL_SIMILARITY_THRESHOLD=0.68`）、`backend/db/queries/session-summaries.js`（+2 函数）、`backend/memory/recall.js`（+`renderRecalledSummaries`，+若干 import）、`backend/prompt/assembler.js`（[6] 接入召回，返回值加 `recallHitCount`）、`backend/services/chat.js`（透传 `recallHitCount`）、`backend/routes/chat.js`（+`embedSessionSummary` import、SSE 事件、+priority 5 任务）
+- **注意**：向量文件独立于 prompt_entries，路径 `data/vectors/session_summaries.json`；embedding 未配置时全链路静默降级（不报错、不注入）；召回阈值 0.68 比 prompt entry 阈值 0.72 略低（摘要语义更宽）；不做历史 backfill，已有 summary 在下次该 session 有新消息触发 generateSummary 后顺带 embed；`buildPrompt` / `buildContext` 返回值新增 `recallHitCount` 字段，旧调用忽略该字段向后兼容
+
 ## T26C 后续调整 — UI 归位 ✅
 - **变更**：玩家人设编辑从 WorldFormModal 移出，改为 CharactersPage 的 PersonaCard 上的编辑按钮（PersonaEditModal，含玩家状态字段 StateFieldList）；角色状态字段从 WorldFormModal 移到 CharacterEditPage；WorldFormModal 仅保留世界状态字段；记忆面板顺序改为世界→玩家→角色→时间线
 - **涉及文件**：`frontend/src/pages/WorldsPage.jsx`（移除 PersonaEditor、角色字段、玩家字段）、`frontend/src/pages/CharactersPage.jsx`（内联 PersonaCard + PersonaEditModal 替代旧组件）、`frontend/src/pages/CharacterEditPage.jsx`（加角色状态字段 StateFieldList）、`frontend/src/components/memory/MemoryPanel.jsx`（顺序调整）；删除 `PersonaCard.jsx`、`PersonaEditor.jsx` 独立组件文件

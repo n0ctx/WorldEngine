@@ -2,17 +2,25 @@
  * recall.js — 记忆召回：将结构化状态渲染为可读文本，注入 assembler.js [6] 位置
  *
  * 对外暴露：
- *   renderPersonaState(worldId)        → string
- *   renderWorldState(worldId)          → string
- *   renderCharacterState(characterId)  → string
- *   renderTimeline(worldId, limit)     → string
- *
- * 未来扩展：embedding 搜索历史 session summary，渐进式展开原文
+ *   renderPersonaState(worldId)                            → string
+ *   renderWorldState(worldId)                              → string
+ *   renderCharacterState(characterId)                      → string
+ *   renderTimeline(worldId, limit)                         → string
+ *   renderRecalledSummaries(worldId, sessionId)            → Promise<{ text: string, hitCount: number }>
  */
 
 import db from '../db/index.js';
 import { getCharacterById } from '../db/queries/characters.js';
-import { WORLD_TIMELINE_RECENT_LIMIT } from '../utils/constants.js';
+import { getSummaryWithMetaById } from '../db/queries/session-summaries.js';
+import { embed } from '../llm/embedding.js';
+import { search } from '../utils/session-summary-vector-store.js';
+import { countTokens } from '../utils/token-counter.js';
+import {
+  WORLD_TIMELINE_RECENT_LIMIT,
+  MEMORY_RECALL_CONTEXT_WINDOW,
+  MEMORY_RECALL_MAX_SESSIONS,
+  MEMORY_RECALL_MAX_TOKENS,
+} from '../utils/constants.js';
 
 /**
  * 将 value_json 解析为可显示的字符串。
@@ -155,4 +163,71 @@ export function renderTimeline(worldId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * 基于当前对话上下文，向量搜索历史 session summary，渲染为可读文本。
+ *
+ * @param {string} worldId
+ * @param {string} sessionId   当前 session（排除在外，不自召回）
+ * @returns {Promise<{ text: string, hitCount: number }>}
+ */
+export async function renderRecalledSummaries(worldId, sessionId) {
+  // 取最近 MEMORY_RECALL_CONTEXT_WINDOW 条消息作为查询上下文
+  const recentMsgs = db.prepare(`
+    SELECT role, content FROM messages
+    WHERE session_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(sessionId, MEMORY_RECALL_CONTEXT_WINDOW);
+
+  if (recentMsgs.length === 0) return { text: '', hitCount: 0 };
+
+  // 逆转还原时序，拼接为查询文本
+  recentMsgs.reverse();
+  const joined = recentMsgs.map((m) =>
+    m.role === 'user' ? `用户：${m.content}` : `AI：${m.content}`
+  ).join('\n');
+
+  // 获取查询向量；embedding 未配置时静默降级
+  let queryVector = null;
+  try {
+    queryVector = await embed(joined);
+  } catch {
+    // embed 失败时降级，不抛出
+  }
+  if (!queryVector) return { text: '', hitCount: 0 };
+
+  // 向量搜索（同世界、排除当前 session、取 topK）
+  const hits = search(queryVector, {
+    worldId,
+    excludeSessionId: sessionId,
+    topK: MEMORY_RECALL_MAX_SESSIONS,
+  });
+
+  if (hits.length === 0) return { text: '', hitCount: 0 };
+
+  // 拉取摘要元信息，按 token 预算软截断
+  const lines = ['[历史记忆召回]'];
+  let totalTokens = 0;
+  let hitCount = 0;
+
+  for (const hit of hits) {
+    const meta = getSummaryWithMetaById(hit.summary_id);
+    if (!meta?.content) continue;
+
+    const dateStr = new Date(meta.session_created_at).toISOString().slice(0, 10);
+    const title = meta.session_title || '未命名会话';
+    const line = `- 【${dateStr} · ${title}】${meta.content}`;
+
+    const lineTokens = countTokens(line);
+    if (totalTokens + lineTokens > MEMORY_RECALL_MAX_TOKENS) break;
+
+    lines.push(line);
+    totalTokens += lineTokens;
+    hitCount++;
+  }
+
+  if (hitCount === 0) return { text: '', hitCount: 0 };
+  return { text: lines.join('\n'), hitCount };
 }

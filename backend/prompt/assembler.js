@@ -31,7 +31,7 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
-import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline } from '../memory/recall.js';
+import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline, renderRecalledSummaries } from '../memory/recall.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -80,7 +80,7 @@ function formatMessageForLLM(msg) {
  * 注意：[8] 当前用户消息由调用方传入，不在此函数内读取
  *
  * @param {string} sessionId
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number }>}
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
  */
 export async function buildPrompt(sessionId) {
   const session = getSessionById(sessionId);
@@ -141,16 +141,17 @@ export async function buildPrompt(sessionId) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线）
+  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 召回摘要）
   const personaStateText = renderPersonaState(world.id);
   const characterStateText = renderCharacterState(character.id);
   const worldStateText = renderWorldState(world.id);
   const timelineText = renderTimeline(world.id);
-  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText].filter(Boolean);
+  const { text: recalledSummariesText, hitCount: recallHitCount } = await renderRecalledSummaries(world.id, sessionId);
+  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText, recalledSummariesText].filter(Boolean);
   if (recallParts.length > 0) {
     systemParts.push(recallParts.join('\n\n'));
   }
-  // TODO 未来：embedding 搜索历史 session summary，渐进式展开原文
+  // TODO T28：渐进式展开——AI 通过 preflight 决策触发读取历史 session 原始 messages
 
   // [1-6] 合并为单个 role:system 消息
   const messages = [];
@@ -171,5 +172,5 @@ export async function buildPrompt(sessionId) {
   const temperature = world.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
 
-  return { messages, temperature, maxTokens };
+  return { messages, temperature, maxTokens, recallHitCount };
 }
