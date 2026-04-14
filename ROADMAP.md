@@ -12,1405 +12,27 @@
 
 ---
 
-## 阶段 0：骨架（M0）
+## 阶段 0：骨架（M0）DONE!
 
 > 目标：项目能跑起来，目录结构正确，数据库能建表。还没有任何功能。
 
 ---
 
-### T01 ✅ 完成 初始化项目结构
-
-**这个任务做什么**：创建前后端的所有文件夹和基础配置文件，初始化 git 仓库。这是整个项目的地基，后续所有任务都在这个结构里工作。
-
-**涉及文件**：
-- `/frontend/` — 前端项目根目录，用 Vite 初始化
-- `/backend/` — 后端项目根目录，用 npm 初始化
-- `/frontend/src/components/` 下的子文件夹 — 按模块分好，但都是空的
-- `/backend/routes/`、`/backend/services/`、`/backend/db/`、`/backend/memory/`、`/backend/prompt/`、`/backend/llm/`、`/backend/utils/` — 同上，空文件夹
-- `.gitignore` — 告诉 git 忽略 node_modules、.env 等文件
-- `README.md` — 简单说明项目是什么
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：初始化 WorldEngine 项目骨架。
-1. 在 /frontend 目录用 Vite 初始化 React + TailwindCSS 项目
-2. 在 /backend 目录初始化 Node.js + Express 项目，安装 express、better-sqlite3、cors、uuid 依赖
-3. 按照 CLAUDE.md 的目录结构创建所有子文件夹（内容为空，放一个 .gitkeep 占位文件）
-4. 创建根目录的 .gitignore（忽略 node_modules、dist、.env、*.db、data/）
-4.5 在后端根目录同级创建 /data/ 目录及子目录：
-  /data/uploads/avatars/（放 .gitkeep）
-  /data/uploads/attachments/（放 .gitkeep）
-  /data/vectors/（放 .gitkeep）
-  /data/ 目录加入 .gitignore（*.db、data/ 已在其中）。
-  同时在 backend/server.js 启动时加入自动创建逻辑（fs.mkdirSync + recursive:true），确保部署时目录不存在也能自动生成。
-5. 初始化 git 仓库，执行第一次 commit，message 为 "init: 项目骨架"
-不要实现任何业务逻辑。
-```
-
-**验证方法**：
-- 运行 `cd frontend && npm run dev`，浏览器能打开 Vite 默认页面
-- 运行 `cd backend && node server.js`，终端没有报错
-- 运行 `git log`，能看到第一条 commit 记录
-
----
-
-### T02 ✅ 完成 创建数据库建表文件
-
-**这个任务做什么**：把 SCHEMA.md 里定义的所有表，翻译成真正能执行的 JavaScript 建表代码。以后每次启动后端，这个文件会自动把表建好（如果表不存在的话）。
-
-**涉及文件**：
-- `/backend/db/schema.js` — 核心文件，包含所有 CREATE TABLE 语句和索引。**此文件后续不得随意修改**
-- `/backend/db/index.js` — 数据库连接文件，负责打开 SQLite 文件、开启外键约束、执行建表
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：创建数据库建表文件。
-1. 创建 /backend/db/index.js：
-   - 使用 better-sqlite3 打开 /data/worldengine.db
-   - 连接后立即执行 PRAGMA foreign_keys = ON
-   - 导出 db 实例供其他模块使用
-2. 创建 /backend/db/schema.js：
-   - 包含 SCHEMA.md 中所有表的 CREATE TABLE IF NOT EXISTS 语句
-   - 包含所有索引的 CREATE INDEX IF NOT EXISTS 语句
-   - 导出一个 initSchema(db) 函数，执行所有建表语句
-3. 在 server.js 中引入并调用 initSchema，确保启动时自动建表
-不要实现任何其他逻辑。
-```
-
-**验证方法**：
-- 运行 `cd backend && node server.js`
-- 检查 `/data/` 目录下是否生成了 `worldengine.db` 文件
-- 用任意 SQLite 查看工具（如 DB Browser for SQLite）打开数据库，确认所有表都存在
-
----
-
-### T03 ✅ 完成 创建基础工具文件
-
-**这个任务做什么**：创建两个所有模块都会用到的工具文件——数值常量和异步队列。这两个文件在开发其他模块之前必须存在。
-
-**涉及文件**：
-- `/backend/utils/constants.js` — 存所有魔法数字（比如"记忆最多召回3条"），其他文件只能引用这里的常量，不能自己写数字
-- `/backend/utils/async-queue.js` — 异步队列，让记忆更新操作串行执行，避免并发写入冲突
-
-**Claude Code 指令**：
-```
-
-任务：创建基础工具文件。
-1. 创建 /backend/utils/constants.js，使用 ES Module export，至少包含以下常量名：
-   - LLM_RETRY_MAX
-   - LLM_RETRY_DELAY_MS
-   - ASYNC_QUEUE_MAX_SIZE
-   - CONTEXT_MIN_HISTORY_ROUNDS
-   - PROMPT_ENTRY_SCAN_WINDOW
-   - PROMPT_ENTRY_SIMILARITY_THRESHOLD
-   - PROMPT_ENTRY_TOP_K
-   - MEMORY_RECALL_MAX_SESSIONS
-   - MEMORY_RECALL_CONTEXT_WINDOW
-   - MEMORY_RECALL_MAX_TOKENS
-   - WORLD_TIMELINE_RECENT_LIMIT
-   - WORLD_TIMELINE_COMPRESS_THRESHOLD
-   - WORLD_TIMELINE_MAX_ENTRIES
-   - MAX_ATTACHMENTS_PER_MESSAGE
-   - MAX_ATTACHMENT_SIZE_MB
-   以上常量的具体取值由本任务一次性写入 constants.js，后续其他模块只能引用，不得硬编码。
-2. 创建 /backend/utils/async-queue.js，实现一个按 sessionId 分组的串行队列：
-   - 同一 sessionId 的任务严格串行执行
-   - 不同 sessionId 的任务互不干扰
-   - 支持任务优先级（数字越小优先级越高）
-   - 导出 enqueue(sessionId, taskFn, priority) 函数
-   - 队列长度超过 ASYNC_QUEUE_MAX_SIZE 时，丢弃同 sessionId 中优先级最低的任务
-不要实现任何业务逻辑。
-3. 创建 /backend/utils/token-counter.js：
-   - 导出 countTokens(text) 函数
-   - 中文字符按 1字符=0.5 token 估算，其他字符按 1字符=0.25 token 估算
-   - 导出 countMessages(messages) 函数，对 messages 数组中每条消息调用 countTokens 并求和
-   - 不引入任何外部依赖
-```
-
-**验证方法**：
-- 在 Node.js 中 `import { MEMORY_RECALL_MAX_SESSIONS } from './utils/constants.js'`，能正确打印值
-- 写一个简单测试：往队列里塞 3 个 sleep 任务，确认它们是串行执行的（不是同时执行）
-
----
-
-## 阶段 1：能对话（M1）
+## 阶段 1：能对话（M1）DONE!
 
 > 目标：可以创建世界、角色，然后和角色对话，消息能保存。这是整个系统最核心的功能。
 
 ---
 
-### T04 ✅ 完成 全局配置读写
-
-**这个任务做什么**：实现读取和保存 config.json 的功能。后续所有需要用到 API Key、模型名称的地方都从这里读。同时实现模型列表拉取接口，供设置页面的模型下拉框使用。
-
-**涉及文件**：
-- `/backend/services/config.js` — 读写 config.json 的逻辑，包括初始化默认配置
-- `/backend/routes/config.js` — 配置读写接口 + 模型列表拉取接口
-- `/backend/server.js` — 注册新路由
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现全局配置读写，以及各 provider 的模型列表拉取接口。
-1. 创建 /backend/services/config.js：
-   - 读取 /data/config.json，不存在则用 SCHEMA.md 中定义的默认结构初始化
-   - 导出 getConfig() 和 updateConfig(patch) 函数
-   - updateConfig 只做字段合并，不整体替换
-2. 创建 /backend/routes/config.js，实现：
-   - GET /api/config：返回当前配置，去掉 llm.api_key 和 embedding.api_key 字段
-   - PUT /api/config：接收部分字段更新配置，返回更新后配置（同样去掉 key 字段）
-   - PUT /api/config/apikey：只更新 llm.api_key，不在响应中返回
-   - PUT /api/config/embedding-apikey：只更新 embedding.api_key，不在响应中返回
-   - GET /api/config/models：根据当前 config 的 llm.provider 和 llm.api_key 拉取可用模型列表
-     * OpenAI：GET https://api.openai.com/v1/models，Header: Authorization: Bearer {api_key}，返回 data[].id 列表
-     * Anthropic：返回硬编码列表 ["claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-0", "claude-sonnet-4-0"]
-     * Gemini：GET https://generativelanguage.googleapis.com/v1beta/models?key={api_key}，返回 models[].name 列表
-     * Ollama：GET {base_url}/api/tags，返回 models[].name 列表
-     * LM Studio：GET {base_url}/v1/models，返回 data[].id 列表
-     * 拉取失败返回 HTTP 502，body: { error: "无法获取模型列表，请检查 API Key 和网络连接" }
-   - GET /api/config/embedding-models：同上逻辑，用 embedding.provider 和 embedding.api_key 拉取
-   - GET /api/config/test-connection：用当前 config 的 llm.provider 和 llm.api_key 发送最小请求验证连通性
-     * OpenAI / Anthropic / Gemini：调用对应的模型列表接口（同 /models 逻辑），成功返回 { success: true }
-     * Ollama / LM Studio：调用 {base_url}/api/tags 或 /v1/models，成功返回 { success: true }
-     * 失败返回 { success: false, error: "..." }，HTTP 状态码仍为 200（让前端自己判断 success 字段）
-3. 在 server.js 中注册路由
-```
-
-**验证方法**：
-- 启动后端，用浏览器或 curl 访问 `GET http://localhost:3000/api/config`，能返回 JSON
-- 用 curl 发送 `PUT http://localhost:3000/api/config`，修改 ui.theme，再 GET 确认已变更
-- 检查 `/data/config.json` 文件是否被正确创建和更新
-
----
-
-### T05 ✅ LLM 接入层
-
-**这个任务做什么**：封装所有和 LLM 通信的逻辑。不管用 OpenAI、Anthropic、Gemini，还是 OpenRouter、GLM、Kimi、MiniMax、DeepSeek、Grok、硅基流动、本地 Ollama / LM Studio，其他模块都用同样的方式调用，不需要关心底层差异。同时补齐 T04 已完成但尚未覆盖的新 provider 的模型列表和连通性检测逻辑。
-
-**涉及文件**：
-- `/backend/llm/index.js` — 对外暴露两个函数：`chat(messages, options)`（流式，返回 AsyncGenerator）和 `complete(messages, options)`（非流式，返回文本）
-- `/backend/llm/providers/openai.js` — 云端 provider 适配：OpenAI / Anthropic / Gemini / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / 硅基流动
-- `/backend/llm/providers/ollama.js` — 本地 provider 适配：Ollama / LM Studio
-- `/backend/services/config.js` — 如有需要，补充 provider 相关默认值/校验
-- `/backend/routes/config.js` — **补充** T04 中 `/api/config/models` 与 `/api/config/test-connection` 对新增 provider 的支持
-
-**Claude Code 指令**：
-```
-
-任务：实现 LLM 接入层，并补充 T04 已完成但尚未覆盖的新 provider 配置接口逻辑。
-
-1. 创建 /backend/llm/providers/openai.js：
-
-   * 支持以下云端 provider：
-
-     * OpenAI
-     * Anthropic
-     * Gemini
-     * OpenRouter
-     * GLM
-     * Kimi
-     * MiniMax
-     * DeepSeek
-     * Grok
-     * 硅基流动（SiliconFlow）
-   * 不要把所有 provider 都强行转换成 OpenAI-compatible；应按各 provider 的真实接口格式发请求：
-
-     * OpenAI / OpenRouter / GLM / Kimi / DeepSeek / Grok / 硅基流动：使用 OpenAI 风格 chat completions 接口
-     * Anthropic：使用原生 Messages API（不是 OpenAI-compatible）
-     * Gemini：使用原生 generateContent / streamGenerateContent 接口（不是 OpenAI-compatible）
-     * MiniMax：按其实际 chat/completions 接口格式组装请求
-   * 实现 `streamChat(messages, config)`，返回 AsyncGenerator，逐步 yield 文本片段
-   * 实现 `complete(messages, config)`，返回完整字符串
-   * provider 选择依据 `config.provider`
-   * 支持传入 `config.api_key`、`config.base_url`、`config.model`、`config.temperature`、`config.max_tokens`
-   * 若调用方传入 `options.temperature` / `options.maxTokens`，优先使用调用方值；否则回退 config 中的默认值
-   * 兼容消息中的多段 content：
-
-     * 纯文本消息：正常透传
-     * 含图片附件的消息：转换为各 provider 支持的多模态格式
-   * 统一将输入 messages 视为内部标准格式：
-
-     * `[{ role: 'system'|'user'|'assistant', content: string | Array<part> }]`
-     * part 至少支持：
-
-       * `{ type: 'text', text: '...' }`
-       * `{ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,...' } }`
-   * 在 provider 内部做格式转换，不要要求上层感知差异
-   * 要支持 AbortSignal，中断时抛出可识别的 AbortError
-
-2. 创建 /backend/llm/providers/ollama.js：
-
-   * 支持 Ollama、LM Studio
-   * 这两个 provider 均使用 OpenAI-compatible 接口
-   * 实现 `streamChat(messages, config)`，返回 AsyncGenerator
-   * 实现 `complete(messages, config)`，返回字符串
-   * 默认请求地址：
-
-     * Ollama：`{base_url}/v1/chat/completions`
-     * LM Studio：`{base_url}/v1/chat/completions`
-   * 同样支持 `config.model`、`config.temperature`、`config.max_tokens`
-   * 同样支持 AbortSignal
-   * 流式按 SSE / chunk 中的 delta 文本逐步 yield
-
-3. 创建 /backend/llm/index.js：
-
-   * 读取当前 config.json（通过已有 `getConfig()`）
-   * 根据 `config.llm.provider` 自动选择 provider：
-
-     * `openai`
-     * `anthropic`
-     * `gemini`
-     * `openrouter`
-     * `glm`
-     * `kimi`
-     * `minimax`
-     * `deepseek`
-     * `grok`
-     * `siliconflow`
-     * `ollama`
-     * `lmstudio`
-   * 导出：
-
-     * `chat(messages, options = {})`
-     * `complete(messages, options = {})`
-   * `chat()`：
-
-     * 用于对话生成
-     * 调用对应 provider 的 `streamChat`
-     * 返回 AsyncGenerator
-   * `complete()`：
-
-     * 用于记忆更新、summary、状态栏、时间线等非流式场景
-     * 调用对应 provider 的 `complete`
-     * 返回字符串
-   * 统一处理重试逻辑：
-
-     * 最多重试 `LLM_RETRY_MAX` 次
-     * 每次间隔 `LLM_RETRY_DELAY_MS`
-     * AbortError 不重试，立即抛出
-     * 4xx 中鉴权/参数错误不重试，直接抛出
-     * 网络错误、5xx、429 可重试
-   * 统一错误对象格式，至少包含：
-
-     * `message`
-     * `provider`
-     * `status`（若有）
-     * `code`（若有）
-
-4. 补充修改 /backend/routes/config.js（虽然 T04 已完成，但本任务需补齐新增 provider 的支持）：
-
-   * 扩展 `GET /api/config/models`，根据当前 `config.llm.provider` 和 `config.llm.api_key` 拉取可用模型列表，新增支持：
-
-     * OpenRouter
-     * GLM
-     * Kimi
-     * MiniMax
-     * DeepSeek
-     * Grok
-     * 硅基流动（SiliconFlow）
-   * 扩展 `GET /api/config/test-connection`，对上述新增 provider 执行最小可行连通性检测
-   * 保持 T04 原有行为不变：
-
-     * 拉取失败时 `/api/config/models` 返回 HTTP 502，body: `{ error: "无法获取模型列表，请检查 API Key 和网络连接" }`
-     * `/api/config/test-connection` 无论成功失败都返回 HTTP 200，由 `success` 字段判断
-   * 不要新增任何新的配置路由，只补充现有逻辑
-
-5. 如有需要，补充 /backend/services/config.js：
-
-   * 确保默认配置和 provider 校验逻辑兼容新增 provider
-   * 不改变 T04 已有接口行为，不重构原有结构
-
-6. 实现要求补充：
-
-   * 使用 ES Modules
-   * 不引入重量级 SDK，优先使用原生 `fetch`
-   * provider 文件只负责协议适配和结果解析，不要混入业务逻辑
-   * 不要在 provider 内写死具体模型名；模型名全部从 config 或 options 读取
-   * 对外暴露的文本流必须是纯文本 delta，上层不应感知各家 SSE 事件差异
-   * 不要创建任何路由
-
-7. `SCHEMA.md` 里 `config.json.llm.provider` 的枚举目前还是旧集合，补一次，实现和 schema 描述会一致。
-```
-
-**验证方法**：
-- 在 config.json 中分别填入不同 provider 的真实配置，调用 `complete([{ role:'user', content:'说你好' }])`，应返回字符串
-- 调用 `chat([{ role:'user', content:'说你好' }])`，应返回 AsyncGenerator，迭代时可逐步拿到文本片段
-- 切换 `config.llm.provider` 为不同 provider 后，上层调用代码无需改动
-- 调用 `GET /api/config/models`，新增 provider 也能返回模型列表
-- 调用 `GET /api/config/test-connection`，新增 provider 也能返回 `{ success: true/false }`
-- 人为触发 abort，中断后应立即停止生成，且不会进入重试
-- 人为填错 API Key，应返回清晰错误，且 401/403 不应重试
-
----
-
-### T06 ✅ 世界的增删改查（后端）
-
-**这个任务做什么**：实现世界的创建、读取、修改、删除接口。前端还没有，先把后端 API 做好测通。
-
-**涉及文件**：
-- `/backend/db/queries/worlds.js` — 所有操作 worlds 表的 SQL 函数（增删改查）
-- `/backend/services/worlds.js` — 业务逻辑，调用 db/queries，处理级联删除等
-- `/backend/routes/worlds.js` — HTTP 接口，调用 services
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现世界的后端增删改查。
-1. 创建 /backend/db/queries/worlds.js，包含以下函数：
-   - createWorld(data) → 插入一条记录，返回新记录
-   - getWorldById(id)
-   - getAllWorlds() → 按 created_at 升序返回所有世界
-   - updateWorld(id, patch)
-   - deleteWorld(id) → 硬删除，SQLite 外键级联会自动处理子数据
-2. 创建 /backend/services/worlds.js，封装业务逻辑，调用 queries
-3. 创建 /backend/routes/worlds.js，实现：
-   - GET /api/worlds
-   - POST /api/worlds
-   - GET /api/worlds/:id
-   - PUT /api/worlds/:id
-   - DELETE /api/worlds/:id
-4. 在 server.js 注册路由
-所有字段名以 SCHEMA.md 为准，注意 worlds 表含 persona_name、persona_prompt、temperature、max_tokens 字段，temperature 和 max_tokens 允许为 NULL，创建时不传则默认 NULL。
-注意：characters 表含 sort_order 字段，createCharacter 时取当前 world 下最大 sort_order + 1 作为默认值。
-新增接口：PUT /api/characters/reorder，接收 { worldId, orderedIds: ["id1","id2",...] }，批量更新 sort_order。
-```
-
-**验证方法**：
-- `POST /api/worlds` 创建一个世界，返回包含 id 的对象
-- `GET /api/worlds` 返回刚创建的世界列表
-- `DELETE /api/worlds/:id` 删除后，`GET /api/worlds` 不再包含该世界
-
----
-
-### T07 ✅ 角色的增删改查（后端）
-
-**这个任务做什么**：和 T06 一样，但对象是角色。角色属于某个世界，删世界时角色会被级联删除。
-
-**涉及文件**：
-- `/backend/db/queries/characters.js`
-- `/backend/services/characters.js`
-- `/backend/routes/characters.js`
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现角色的后端增删改查，参考 T06 世界模块的结构。
-1. 创建 /backend/db/queries/characters.js：
-   - createCharacter(data) — data 包含 world_id、name、system_prompt，first_message 和 avatar_path有默认值；sort_order 默认取当前 world 下最大 sort_order + 1
-   - getCharacterById(id)
-   - getCharactersByWorldId(worldId) → 按 created_at 升序
-   - updateCharacter(id, patch)
-   - deleteCharacter(id)
-2. 创建 /backend/services/characters.js
-3. 创建 /backend/routes/characters.js，实现：
-   - GET /api/worlds/:worldId/characters
-   - POST /api/worlds/:worldId/characters
-   - GET /api/characters/:id
-   - PUT /api/characters/:id
-   - DELETE /api/characters/:id
-4. 在 server.js 注册路由
-所有字段名以 SCHEMA.md 为准，注意 characters 表含 first_message 字段（TEXT，默认空字符串）。
-```
-
-**验证方法**：
-- `POST /api/worlds/:worldId/characters` 创建角色，返回包含 id 的对象
-- `GET /api/worlds/:worldId/characters` 返回该世界下的角色列表
-- 删除世界后，其下角色也消失（验证级联删除）
-
----
-
-### T08 ✅ 会话和消息的增删改查（后端）
-
-**这个任务做什么**：实现会话（一次对话记录）和消息（每条聊天内容）的接口。这是存储对话历史的基础。
-
-**涉及文件**：
-- `/backend/db/queries/sessions.js`
-- `/backend/db/queries/messages.js`
-- `/backend/services/sessions.js`
-- `/backend/routes/sessions.js`
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现会话和消息的后端增删改查。
-1. 创建 /backend/db/queries/sessions.js：
-   - createSession(characterId) → 创建新会话，title 默认 NULL
-   - getSessionById(id)
-   - getSessionsByCharacterId(characterId, limit, offset) → 按 updated_at 降序，支持分页
-   - updateSessionTitle(id, title)
-   - deleteSession(id)
-2. 创建 /backend/db/queries/messages.js：
-   - createMessage(data) → data 包含 session_id、role、content，attachments 默认 NULL
-   - getMessagesBySessionId(sessionId, limit, offset) → 按 created_at 升序，支持分页，attachments 字段自动 JSON.parse
-   - deleteMessage(id)
-   - deleteMessagesAfter(messageId) → 物理删除指定消息之后的所有消息（不含该消息本身）
-3. 创建 /backend/services/sessions.js，封装业务逻辑
-4. 创建 /backend/routes/sessions.js，实现：
-   - GET /api/characters/:characterId/sessions?limit=20&offset=0
-     * 按 updated_at 降序
-     * 默认 limit=20、offset=0
-     * 返回数组，不额外返回 total；前端以返回数量是否小于 limit 判断是否已全部加载
-   - POST /api/characters/:characterId/sessions：
-     * 创建新会话
-     * 查询该角色的 first_message 字段，若不为空，立即插入一条 role='assistant'、content=first_message 的消息，created_at 与会话 created_at 相同
-     * 返回会话对象
-   - GET /api/sessions/:id — 返回单个会话对象（含 title），前端进入 session 时调用以刷新标题
-   - GET /api/sessions/:id/messages?limit=20&offset=0 — 支持分页，默认最新20条
-   - DELETE /api/sessions/:id
-   - PUT /api/sessions/:id/title — 手动修改会话标题，接收 { title }
-   - PUT /api/messages/:id — 更新单条消息的 content，同时调用 deleteMessagesAfter 删除该消息之后的所有消息
-5. 在 server.js 注册路由，并在配置中注册以下异步任务入口（T18 会实现具体逻辑，这里只占位）：
-   - generateSessionTitle(sessionId)：对话结束后异步调用 LLM 生成标题，生成完成后更新 sessions 表的 title 字段；若该 session 当前仍有活跃的 chat SSE 连接，则通过原 SSE 连接推送：
-     data: {"type": "title_updated", "title": "..."}\n\n
-所有字段名以 SCHEMA.md 为准。
-```
-
-**验证方法**：
-- 创建会话，在该会话下创建几条消息（role 分别为 user 和 assistant）
-- `GET /api/sessions/:id/messages` 返回按时间排序的消息列表
-- 删除会话后，消息也消失
-
----
-
-### T09 ✅ 对话接口（流式输出）
-
-**这个任务做什么**：实现最核心的一个接口——用户发一条消息，后端把消息存数据库，然后调用 LLM，把回复以流式方式实时返回给前端，最后把 AI 的回复也存数据库。同时实现停止生成和重新生成接口。
-
-**涉及文件**：
-- `/backend/routes/chat.js` — 对话、停止、重新生成三个接口
-- `/backend/services/chat.js` — 组装上下文，管理进行中的请求
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CHANGELOG.md。
-
-任务：实现对话流式接口、停止生成接口、重新生成接口（暂不包含记忆和提示词系统，后续任务加入）。
-
-1. 创建 /backend/services/chat.js：
-   - buildContext(sessionId) → 读取角色信息和历史消息，组装 messages 数组
-     格式：[{role:'system', content: 角色system_prompt}, ...历史消息]
-     含附件的消息，content 转换为 OpenAI vision 数组格式（读取附件文件转 base64 内嵌）
-   - 用一个 Map 维护进行中的请求：activeStreams = Map<sessionId, AbortController>
-
-2. 创建 /backend/routes/chat.js，实现以下接口，并在 server.js 注册：
-
-   POST /api/sessions/:sessionId/chat
-   - 接收 { content, attachments }
-     attachments 格式：[{ type: "image", data: "base64...", mimeType: "image/jpeg" }]，可为空数组
-   - 若该 sessionId 已有进行中的请求，先 abort 掉
-   - 将用户消息存入 messages 表；若 attachments 不为空，将文件解码保存到
-     /data/uploads/attachments/{messageId}_{index}.{ext}，相对路径数组写入 attachments 字段
-   - 创建 AbortController，存入 activeStreams
-   - 监听 req.on('close')：触发时 abort 对应 stream（处理页面刷新/关闭场景）
-   - 调用 llm.chat() 获取流式响应
-   - SSE 事件格式（CLAUDE.md 第8节）：
-     * 流式片段：data: {"delta": "..."}\n\n
-     * 记忆召回事件（T21 实现后才会真正推送，此处不要实现，只在代码中留注释占位）：// TODO T21: memory_recall_start / memory_recall_done
-     * 流正常结束：将完整 AI 回复存入 messages 表，更新 session 的 updated_at，
-       推送 data: {"done": true}\n\n，从 activeStreams 删除该条目
-     * 会话标题异步生成完成后，若当前 SSE 连接仍存在，额外推送：
-       data: {"type": "title_updated", "title": "..."}\n\n
-       用于前端实时更新左侧会话标题；若连接已关闭，则仅更新数据库，不强制补发
-     * 流被 abort：将已输出的部分内容存入 messages 表，
-       content 末尾追加 "\n\n[已中断]" 标记，
-       推送 data: {"aborted": true}\n\n（若连接已关闭则跳过推送），从 activeStreams 删除该条目
-
-   POST /api/sessions/:sessionId/stop
-   - 若该 sessionId 有进行中的请求，调用 abort()
-   - 返回 { success: true }，不等待流真正结束
-
-   POST /api/sessions/:sessionId/regenerate
-   - 接收 { afterMessageId }
-   - afterMessageId 语义：保留该消息本身，删除该消息之后的所有消息（调用 deleteMessagesAfter）
-   - 重新调用流式生成，逻辑与 /chat 接口相同，但不插入新的用户消息
-   - 同样监听 req.on('close') 处理中断
-   - 返回 SSE 流
-   - `title_updated` 必须通过原 chat SSE 回流；前端进入 session 时再调用 GET /api/sessions/:id 做兜底刷新
-```
-
-**验证方法**：
-- curl 发送 chat 请求，能看到流式输出
-- 流输出过程中发送 stop 请求，输出停止，数据库消息内容末尾有"[已中断]"
-- 发送 regenerate 请求，数据库中旧的 AI 回复被删除，新的回复写入
-
----
-
-### T10 ✅ 前端：世界、角色管理页面和角色卡编辑页
-
-**这个任务做什么**：做出让用户能看到、创建、编辑、删除世界和角色的界面，包括头像上传。这是进入对话前的必经之路。
-
-**涉及文件**：
-- `/frontend/src/api/worlds.js` — 封装世界接口
-- `/frontend/src/api/characters.js` — 封装角色接口，包含头像上传
-- `/frontend/src/pages/WorldsPage.jsx` — 世界列表页面
-- `/frontend/src/pages/CharactersPage.jsx` — 某世界下的角色列表页面
-- `/frontend/src/pages/CharacterEditPage.jsx` — 角色卡编辑页（含头像上传）
-- `/frontend/src/store/index.js` — Zustand 全局状态
-
-**Claude Code 指令**：
-```
-
-任务：实现前端世界和角色管理页面，以及角色卡编辑页，后端接口已就绪。
-
-1. 创建 /frontend/src/api/worlds.js 和 characters.js，封装 fetch 调用，统一处理错误
-   - characters.js 额外包含 uploadAvatar(characterId, file) → POST /api/characters/:id/avatar
-
-2. 创建 /frontend/src/store/index.js，用 Zustand 管理：
-   - currentWorldId、currentCharacterId、currentSessionId
-
-3. 创建 WorldsPage.jsx：
-   - 展示世界列表（卡片形式）
-   - 支持创建世界（弹窗表单：名称 + system prompt）
-   - 支持编辑世界（弹窗表单，含以下所有字段）
-   - 支持删除世界（二次确认弹窗，提示"将同时删除其下所有角色和会话"）
-   - 点击世界卡片进入 CharactersPage
-   - 世界编辑表单字段：
-     * 名称（必填）
-     * System Prompt（大文本框）
-     * 用户人设 - 名字（单行文本，可为空，placeholder："你在这个世界里的名字"）
-     * 用户人设 - 描述（多行文本，可为空，placeholder："你的身份、背景等"）
-     * Temperature（滑块，范围 0.1-2.0，步进 0.1，右侧显示当前数值；
-       旁边有"使用全局默认"复选框，勾选时滑块禁用，值存为 null）
-     * Max Tokens（数字输入框，同样有"使用全局默认"复选框，勾选时输入框禁用，值存为 null）
-
-4. 创建 CharactersPage.jsx：
-   - 展示该世界下的角色列表（卡片形式，按 sort_order 升序，显示头像缩略图和角色名）
-   - 支持拖拽排序（拖拽结束后调用 PUT /api/characters/reorder 持久化顺序）
-   - 支持创建角色（弹窗表单：名称 + system prompt）
-   - 支持删除角色（二次确认）
-   - 点击角色卡片进入对话页（T11 实现）
-   - 点击角色卡片右上角编辑图标进入 CharacterEditPage
-
-5. 创建 CharacterEditPage.jsx：
-   - 顶部显示头像（圆形），点击头像触发文件选择（accept="image/*"）
-   - 选择图片后立即上传并预览，上传中显示 loading 覆盖层
-   - 表单字段：
-     * 名称（必填）
-     * System Prompt（大文本框）
-     * 首条消息（大文本框，placeholder："角色在对话开始时主动说的第一句话，留空则由用户先开口"）
-   - 底部"保存"按钮，保存后返回 CharactersPage
-   - 头像上传和表单保存是独立操作，不需要同时提交
-
-6. 后端补充头像上传接口（在 /backend/routes/characters.js 中添加）：
-   - POST /api/characters/:id/avatar
-   - 接收 multipart/form-data，文件字段名为 avatar
-   - 保存到 /data/uploads/avatars/{characterId}.{ext}
-   - 更新 characters 表的 avatar_path 字段
-   - 返回 { avatar_path: "..." }
-   - 安装 multer 处理文件上传
-
-7. 配置前端路由（react-router-dom）：
-   - / → WorldsPage
-   - /worlds/:worldId → CharactersPage
-   - /characters/:characterId/edit → CharacterEditPage
-   - /characters/:characterId/chat → ChatPage（T11 实现）
-
-使用 TailwindCSS，Claude风格，文学舒适。
-```
-
-**验证方法**：
-- 能创建世界和角色，删除世界时弹出含警告文字的二次确认
-- 进入角色编辑页，点击头像区域弹出文件选择，选择图片后头像更新
-- 角色列表卡片显示刚上传的头像缩略图
-
----
-
-### T11 ✅ 前端：对话界面
-
-**这个任务做什么**：实现完整的对话主界面，包括三栏布局、左侧会话列表、中间对话区、右侧记忆面板，以及所有消息操作交互。
-
-**涉及文件**：
-- `/frontend/src/pages/ChatPage.jsx` — 三栏布局主页面
-- `/frontend/src/components/chat/Sidebar.jsx` — 左侧会话列表栏
-- `/frontend/src/components/chat/SessionItem.jsx` — 单条会话列表项
-- `/frontend/src/components/chat/MessageList.jsx` — 消息列表
-- `/frontend/src/components/chat/MessageItem.jsx` — 单条消息
-- `/frontend/src/components/chat/InputBox.jsx` — 输入框
-- `/frontend/src/api/chat.js` — 流式请求、停止、重新生成封装
-- `/frontend/src/api/sessions.js` — 会话增删改查封装
-
-**Claude Code 指令(a)**：
-```
-
-任务：实现完整对话界面，后端所有接口已就绪。
-
-布局规范（三栏，无顶部导航）：
-- 整体占满视口高度，无顶部栏
-- 左栏固定宽度 260px，不可拖拽
-- 中栏弹性占满剩余宽度，内容最大宽度 800px 居中，两侧留白
-- 右栏固定宽度 300px，可整体收起（收起后宽度为 0，中栏自动扩展）
-
-1. 创建 /frontend/src/api/sessions.js：
-   - getSessions(characterId)
-   - getSession(id) → GET /api/sessions/:id，返回单个会话对象（含最新 title）
-   - createSession(characterId)
-   - deleteSession(id)
-   - renameSession(id, title)
-   - getMessages(sessionId, limit, offset) — 支持分页
-
-2. 创建 /frontend/src/api/chat.js：
-   封装所有 SSE 流式接口，统一解析以下事件类型：
-   - delta：追加文字片段
-   - memory_recall_start / memory_recall_done：记忆检索状态（回调 onMemoryRecallStart / onMemoryRecallDone）
-   - done：流正常结束（回调 onDone）
-   - aborted：流被中断（回调 onAborted）
-   - type=title_updated：标题更新（回调 onTitleUpdated(title)）
-
-   导出以下函数：
-   - sendMessage(sessionId, content, attachments, callbacks)
-     attachments 为对象数组：[{ type:"image", data:"base64...", mimeType:"image/jpeg" }]
-     发送前对每张图片做前端校验：单张不超过 5MB，超出则提示用户拒绝发送
-     用 FileReader 读取为 base64 后放入 attachments
-   - stopGeneration(sessionId) → POST /api/sessions/:id/stop
-   - regenerate(sessionId, afterMessageId, callbacks)
-     → POST /api/sessions/:id/regenerate，解析 SSE 流
-   - editAndRegenerate(sessionId, messageId, newContent, callbacks)
-     → 先 PUT /api/messages/:id 更新消息内容，再调用 regenerate
-   - continueGeneration(sessionId, callbacks)
-     → POST /api/sessions/:id/continue，解析 SSE 流（T25 实现接口，此处占位）
-   - impersonate(sessionId) → POST /api/sessions/:id/impersonate，返回 { content }（T25 实现接口，此处占位）
-
-3. 创建 Sidebar.jsx（左栏）：
-   - 顶部：当前角色头像 + 角色名，旁边有"切换"按钮（跳转回 CharactersPage）
-   - 顶部下方：固定"+ 新对话"按钮，点击创建新 session 并立即进入
-   - 会话列表：按 updated_at 倒序排列，初始加载最近 20 条，向上滚动到顶部时自动加载更多（每次 20 条），全部加载完后不再触发；每项显示标题和日期
-   - 会话标题：title 为 NULL 时显示 created_at 的日期（如"2024-01-15"）作占位
-     * 若后端通过原 chat SSE 推送 `title_updated`，则实时更新标题；若未收到，则进入会话时以 GET /api/sessions/:id 返回值为准
-   - 单击会话名进入该会话；进入时调用 getSession(id) 刷新 title（处理 title_updated 已错过的情况）
-   - 单击会话名文字处可内联重命名：文字变为输入框，Enter 确认，Escape 取消
-   - 悬停会话项时右侧出现删除按钮（垃圾桶图标），点击弹出二次确认后删除
-   - 删除当前会话后自动切换到列表中第一个会话，无会话时显示空状态
-   - 收到 onTitleUpdated 回调时，更新对应会话项的标题显示
-
-使用 TailwindCSS，Claude风格，文学舒适。
-```
-
-**Claude Code 指令(b)**：
-```
-
-1. 创建 SessionItem.jsx：
-   - 封装单条会话项的展示、内联重命名、悬停删除按钮逻辑
-
-2. 创建 MessageList.jsx：
-   - 进入会话时加载最近 20 条消息（GET /messages?limit=20&offset=0）
-   - 向上滚动到顶部时自动加载更多（offset 递增），显示 loading 指示器
-   - 所有消息加载完毕后不再触发
-   - 新消息到来时自动滚动到底部（加载历史时不自动滚动）
-   - 记忆检索期间在消息列表顶部显示"正在检索记忆…"提示条，检索完成后消失
-
-3. 创建 MessageItem.jsx：
-   - user 消息右对齐，assistant 消息左对齐
-   - assistant 消息左侧显示角色小头像（圆形，24px），消息气泡上方显示角色 name
-   - 支持 Markdown 渲染（react-markdown）
-   - 代码块（``` 包裹）右上角显示"复制"按钮，点击将代码写入剪贴板，按钮文字短暂变为"已复制"后恢复
-   - 支持图片附件缩略图显示（点击可放大查看）
-   - content 含 "[已中断]" 时，去除该文字，显示橙色"已中断"小标签
-   - 悬停时消息右上角出现操作按钮：
-     * user 消息："编辑"按钮
-     * assistant 消息："重新生成"按钮
-   - 悬停时消息下方显示时间戳（格式：HH:mm）
-   - 内联编辑（user 消息点击"编辑"）：
-     * 消息就地替换为多行文本框，自动聚焦，底部有"确认"和"取消"
-     * 确认：调用 editAndRegenerate；afterMessageId 传入被编辑消息的 id；
-       该消息之后所有消息从列表移除，追加空 assistant 消息流式填充
-     * 取消 / Escape：恢复原文，不触发任何请求
-   - 重新生成（assistant 消息点击"重新生成"）：
-     * afterMessageId 传入被删除 assistant 消息的前一条消息 id
-     * 从列表中移除该 assistant 消息及之后所有消息，追加空 assistant 消息流式填充
-   - AI 回复占位：收到第一个 delta 之前，消息气泡内显示三点打点动画（CSS 动画，三个点依次亮起）；收到第一个 delta 后动画消失，替换为实际文字内容开始流式追加
-
-4. 创建 InputBox.jsx：
-   - Shift+Enter 换行，Enter 发送
-   - 输入框为空时按 Up 键，将上一条已发送的 user 消息内容填入输入框（仅页面内存，刷新不保留）
-   - 最多上传 3 张图片，选择后前端校验（>5MB 则提示并跳过），通过则显示缩略图，点击缩略图移除
-   - 生成中：输入框禁用，发送按钮变为"停止"按钮，点击调用 stopGeneration
-   - 空闲时：正常发送按钮
-   - 输入框右上角预留两个快捷图标按钮（T25 实现具体功能，此处渲染占位按钮即可）：
-     * Continue 按钮（续写图标）
-     * Impersonate 按钮（角色扮演图标）
-   - 输入 / 时弹出命令列表浮层（T25 实现，此处只预留 onSlashCommand 回调接口）
-
-5. 创建 ChatPage.jsx 组合以上组件，右栏嵌入 MemoryPanel（T22 实现，这里预留位置和收起按钮）
-
-使用 TailwindCSS，Claude风格，文学舒适。
-```
-
-**验证方法**：
-- 三栏正常显示，右栏收起按钮可折叠右侧面板
-- 左侧"+ 新对话"创建会话，若角色有 first_message 则直接显示开场白
-- 点击会话项切换，进入时重新拉取 session 刷新标题
-- 向上滚动到顶部自动加载更多历史消息
-- 悬停会话项显示删除按钮，单击标题可内联重命名
-- 发送消息后 AI 流式回复，assistant 消息左侧有小头像，上方显示角色名
-- 代码块右上角有复制按钮，点击后文字变"已复制"
-- 输入框为空时按 Up 键，填入上一条发送内容
-- 停止生成后出现橙色"已中断"标签
-- 切换角色按钮跳转回角色选择页
-
----
-
-## 阶段 2：提示词系统（M2）
+## 阶段 2：提示词系统（M2）DONE!
 
 > 目标：三层提示词生效，Prompt 条目能自动触发。
 
 ---
 
-### T12 ✅ Prompt 条目的增删改查（后端）
-
-**这个任务做什么**：实现三张 Prompt 条目表（全局/世界/角色）的接口。用户可以在界面上管理这些条目。
-
-**涉及文件**：
-- `/backend/db/queries/prompt-entries.js` — 三张表的 SQL 操作
-- `/backend/services/prompt-entries.js`
-- `/backend/routes/prompt-entries.js`
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CHANGELOG.md。
-
-任务：实现三层 Prompt 条目的后端增删改查。
-1. 创建 /backend/db/queries/prompt-entries.js，为三张表（global/world/character）各实现：
-   - create、getById、getAll（按所属 ID 查询）、update、delete
-   - keywords 字段存取时自动 JSON.stringify / JSON.parse
-   - 各表额外实现 reorder 函数，按 orderedIds 批量更新 sort_order
-2. 创建 /backend/services/prompt-entries.js
-3. 创建 /backend/routes/prompt-entries.js，实现：
-   - GET/POST /api/global-entries
-   - GET/POST /api/worlds/:worldId/entries
-   - GET/POST /api/characters/:characterId/entries
-   - GET/PUT/DELETE /api/entries/:type/:id（type 为 global/world/character）
-   - PUT /api/entries/:type/reorder
-     * type 为 global/world/character
-     * 接收：
-       - global: { orderedIds: ["id1","id2",...] }
-       - world: { worldId, orderedIds: ["id1","id2",...] }
-      - character: { characterId, orderedIds: ["id1","id2",...] }
-     * 批量更新 sort_order，orderedIds 中第一个为 0，依次递增
-4. 在 server.js 注册路由
-```
-
-**验证方法**：
-- 能为某个角色创建一个 Prompt 条目，包含 title、summary、content、keywords
-- 查询该角色的条目列表，能看到刚创建的条目
-- keywords 字段返回的是数组而不是字符串
-
----
-
-### T13 ✅ Embedding 服务
-
-**这个任务做什么**：实现把文字转成向量数字的功能，以及管理向量文件（读、写、搜索）。Prompt 条目的自动触发依赖这个。
-
-**涉及文件**：
-
-* `/backend/llm/embedding.js` — 调用 OpenAI、OpenAI 兼容接口、Ollama 的 embedding 接口
-* `/backend/utils/vector-store.js` — 读写 `/data/vectors/prompt_entries.json`，实现相似度搜索
-
-**Claude Code 指令**：
-
-```text
-请读取 @SCHEMA.md。
-
-任务：实现 Embedding 服务和向量文件管理。
-
-1. 创建 /backend/llm/embedding.js：
-   - 根据 config.json 中的 embedding.provider 选择 provider
-   - 支持：
-     - null：未启用，embed(text) 返回 null，不报错
-     - openai：OpenAI 官方 embedding
-     - openai_compatible：OpenAI 兼容接口
-     - ollama：Ollama embedding
-   - openai_compatible 必须兼容常见 OpenAI 兼容平台，包括但不限于：
-     - OpenRouter
-     - 硅基流动（SiliconFlow）
-     - 以及其他兼容 OpenAI embeddings API 的服务
-   - 模型名不要写死，统一从 config.json 读取，例如：
-     - OpenAI：text-embedding-3-small / text-embedding-3-large
-     - Qwen embedding 系列
-     - bge / mxbai / nomic / snowflake-arctic / granite 等
-   - 导出 async embed(text) → 返回 float 数组或 null
-   - 做基础校验：
-     - provider 未配置时返回 null
-     - 响应中的 embedding 必须是 number[]
-     - 请求失败时抛出可读错误，错误信息带上 provider 名称
-
-2. 创建 /backend/utils/vector-store.js，管理 /data/vectors/prompt_entries.json：
-   - loadStore() → 读取文件，不存在则自动初始化空结构
-   - upsertEntry(id, sourceId, sourceTable, vector) → 新增或更新
-   - deleteEntry(id)
-   - search(queryVector, topK) → 返回相似度最高的 topK 个条目（余弦相似度）
-   - 所有操作后自动写回文件
-   - 向量数据至少保存：id、sourceId、sourceTable、vector、updatedAt
-
-3. 细节要求：
-   - 向量文件目录不存在时自动创建
-   - search() 按相似度从高到低排序
-   - 维度不一致的向量跳过
-   - 空库时返回 []
-   - deleteEntry(id) 对不存在的 id 不报错
-   - 代码风格、模块导出方式、配置读取方式遵循现有项目约定
-```
-
-**验证方法**：
-
-* 调用 `embed("测试文字")`，能返回一个数字数组（长度取决于模型）
-* OpenAI、OpenRouter、硅基流动、Ollama 只要配置为兼容格式都能正常调用
-* 使用 Qwen 等 embedding 模型时，无需改代码，只改配置即可
-* 调用 `upsertEntry` 存入几个向量，再调用 `search`，返回最相似的条目
-* embedding 未配置时，`embed()` 返回 `null` 且不报错
-
----
-
-### T14 ✅ Prompt 条目自动向量化
-
-**这个任务做什么**：每当 Prompt 条目被创建或修改时，自动把它的"标题+简介"向量化，存入向量文件。这样后续触发时就能做相似度匹配。
-
-**涉及文件**：
-- `/backend/services/prompt-entries.js` — 在创建/修改操作后，异步触发向量化
-
-**Claude Code 指令**：
-```
-
-任务：在 Prompt 条目的创建和修改操作后，异步触发向量化。
-修改 /backend/services/prompt-entries.js：
-1. 在 create 和 update 操作完成后，异步执行（不阻塞响应）：
-   a. 调用 embed(title + ' ' + summary) 获取向量
-   b. 调用 vector-store 的 upsertEntry 存入向量文件
-   c. 将返回的 embedding_id 写回对应的数据库表
-2. embedding 服务未配置时（embed() 返回 null），跳过向量化，不报错
-3. 在 delete 操作后，同步从向量文件中删除对应条目
-不要修改路由文件。
-```
-
-**验证方法**：
-- 创建一个 Prompt 条目，等待约 1 秒
-- 查看 `/data/vectors/prompt_entries.json`，能看到新增的向量条目
-- 数据库中该条目的 `embedding_id` 字段已被更新为非 NULL
-
----
-
-### T15 ✅ 提示词组装器
-
-**这个任务做什么**：实现 assembler.js，这是整个提示词系统的核心——把三层 system prompt、触发的条目正文、记忆内容、对话历史按固定顺序拼在一起，交给 LLM。此文件一旦写好，后续**不得修改**。
-
-**涉及文件**：
-- `/backend/prompt/assembler.js` — **核心文件，写完即锁定顺序**
-- `/backend/prompt/entry-matcher.js` — 判断哪些条目需要触发（embedding 相似度 + 关键词兜底）
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现提示词组装器。
-1. 创建 /backend/prompt/entry-matcher.js：
-   - matchEntries(sessionId, entries) → 返回需要注入正文的条目列表
-   - 逻辑：
-     a. 取最近 PROMPT_ENTRY_SCAN_WINDOW 条消息拼成扫描文本
-     b. 调用 embed(扫描文本) 获取查询向量
-     c. 对每个条目：embedding_id 存在则算余弦相似度，超过 PROMPT_ENTRY_SIMILARITY_THRESHOLD 则触发
-     d. 对未触发的条目：检查 keywords 是否出现在扫描文本中，命中则触发
-     e. embedding 未配置时，只走关键词匹配
-   - 补充规则：
-     a. keywords 匹配为大小写不敏感的普通子串匹配，不支持正则
-     b. 同一条目多个 keywords 之间为 OR 关系，命中任一即可触发
-     c. 同一条目一旦触发，只注入一次 content，不重复注入
-     d. 未触发条目只注入 summary，不注入 content
-
-2. 创建 /backend/prompt/assembler.js，导出 buildPrompt(sessionId)：
-   严格按 CLAUDE.md 定义的 [1]~[8] 顺序组装，顺序硬编码，不得调整：
-   - [1]：全局 system_prompt（来自 config.json 的 global_system_prompt）
-   - [2]：用户 Persona（读取 session→character→world 的 persona_name 和 persona_prompt）
-     * 两者均为空则跳过 [2]，不注入任何内容
-     * 按固定模板拼接："[用户人设]\n名字：{persona_name}\n{persona_prompt}"
-     * persona_name 不为空但 persona_prompt 为空时，只注入名字行
-   - [3]：世界 system_prompt
-   - [4]：角色 system_prompt
-   - [1][2][3][4] 合并为单个 role:system 消息发送给 LLM
-   - [5]：调用 entry-matcher，命中条目注入 content，未命中条目注入 summary，
-     拼接后追加到 system 消息末尾（或作为独立 system 消息，以不超出单条 system 上限为准）
-   - [6]：空字符串占位，此处留注释 // TODO T21: recallMemory()，T21 任务时将填入召回内容，届时是本文件唯一允许的修改
-   - [7]：历史消息（含附件的消息转换为 vision 数组格式）
-   - [8]：当前用户消息（调用方传入，不在 buildPrompt 内读取）
-   - 返回 { messages: [...], temperature, maxTokens }
-     temperature 和 maxTokens 读取逻辑：world.temperature ?? config.llm.temperature，max_tokens 同理
-
-OOC 统一规则：
-- 用户使用 (( )) 包裹的 OOC 文本原样保存到 messages.content，并正常进入对话上下文
-- OOC 文本参与 Prompt 条目扫描匹配
-- OOC 文本参与 session title 生成
-- OOC 文本不写入角色状态栏和世界时间线；相关异步记忆任务在抽取时应忽略纯 OOC 指令性内容
-```
-
-**验证方法**：
-- 调用 `buildPrompt(sessionId)`，返回的 messages 数组第一条是 role:system
-- system 内容依次包含全局 prompt、Persona（若已设置）、世界 prompt、角色 prompt
-- 创建一个带关键词的 Prompt 条目，发一条包含该关键词的消息，确认条目正文出现在 messages 里
-- 世界设置了 temperature 时，返回值中 temperature 为世界值而非全局值
-
----
-
-### T16 ✅ 将组装器接入对话流程
-
-**这个任务做什么**：把 T09 做的对话接口升级——不再用简单的历史消息，改用 assembler.js 组装完整上下文。
-
-**涉及文件**：
-- `/backend/services/chat.js` — 替换 buildContext，改用 assembler
-
-**Claude Code 指令**：
-```
-
-任务：将提示词组装器接入对话流程。
-修改 /backend/services/chat.js：
-- 将原来的 buildContext() 替换为调用 assembler.js 的 buildPrompt(sessionId)
-- buildPrompt 返回 { messages, temperature, maxTokens }
-- 将 temperature 和 maxTokens 传入 llm.chat() / llm.complete() 的 options，覆盖默认值
-- 其他逻辑不变
-只修改这一个文件。
-```
-
-**验证方法**：
-- 发一条消息，AI 的回复风格符合角色的 system prompt 设定
-- 创建一个 Prompt 条目并设置关键词，发包含该关键词的消息，确认 AI 的回复体现了条目内容
-
----
-
-### T17 ✅ 前端：Prompt 条目管理界面
-
-**这个任务做什么**：让用户能在界面上管理 Prompt 条目（增删改查），包括填写标题、简介、正文、关键词。
-
-**涉及文件**：
-- `/frontend/src/api/prompt-entries.js`
-- `/frontend/src/components/prompt/EntryList.jsx`
-- `/frontend/src/components/prompt/EntryEditor.jsx`
-- `/frontend/src/pages/SettingsPage.jsx` — 设置页，包含全局条目管理和 API 配置
-
-**Claude Code 指令**：
-```
-
-任务：实现 Prompt 条目管理界面和设置页面。
-1. 创建 /frontend/src/api/prompt-entries.js，封装增删改查接口调用
-2. 创建 /frontend/src/api/config.js，封装配置相关接口：
-   - getConfig()、updateConfig(patch)、updateApiKey(key)、updateEmbeddingApiKey(key)
-   - fetchModels()：调用 GET /api/config/models，返回模型列表或抛出错误
-   - fetchEmbeddingModels()：调用 GET /api/config/embedding-models
-3. 创建 EntryList.jsx：列表展示条目，支持拖拽排序（用 sort_order 字段）
-4. 创建 EntryEditor.jsx：表单弹窗，包含：
-   - 标题（必填）
-   - 简介（多行文本，~50字提示）
-   - 正文（大文本框）
-   - 关键词（标签输入，回车添加一个关键词）
-5. 在角色详情页和世界详情页各嵌入一个 EntryList
-6. 创建 SettingsPage.jsx，包含：
-   - 全局 Prompt 条目管理
-   - LLM 配置区块：
-     * Provider 下拉框（openai / anthropic / gemini / ollama / lmstudio）
-     * API Key 输入框（输入后单独保存，不随其他配置一起提交）
-     * Base URL 输入框（仅 ollama / lmstudio 显示）
-     * 模型下拉框：页面打开时自动调用 fetchModels() 拉取列表；拉取中显示 loading；
-       拉取失败显示红色报错"无法获取模型列表，请检查 API Key 和网络连接"及"重试"按钮；
-       成功则渲染下拉选项，当前选中值与 config.llm.model 同步
-   - 测试连接按钮：点击调用 GET /api/config/test-connection，显示"连接成功"或红色错误信息
-   - 上下文保留轮次（context_compress_rounds）：数字输入框，最小值 0（0表示禁用），旁边说明文字"保留最近 N 轮对话历史发送给 AI，0 = 不限制"
-   - Embedding 配置区块：结构同 LLM 配置，使用 fetchEmbeddingModels()
-```
-
-**验证方法**：
-- 能在角色页面创建、编辑、删除 Prompt 条目
-- 关键词输入框能添加多个标签
-- 打开设置页，填入有效 API Key 后，模型下拉框自动出现可选项
-- 填入无效 API Key，模型下拉框显示红色报错和重试按钮
-
----
-
-## 阶段 3：记忆系统（M3）
+## 阶段 3：记忆系统（M3）DONE!
 
 > 目标：三层记忆系统全部上线，AI 能记住跨 session 的历史。
-
----
-
-### T18 ✅ Session Summary 异步生成
-
-**这个任务做什么**：每次对话结束后，异步让 AI 生成这次对话的摘要，存入 session_summaries 表。这个摘要是后续记忆召回的索引。
-
-**涉及文件**：
-- `/backend/db/queries/session-summaries.js`
-- `/backend/memory/summarizer.js` — 生成 summary 的逻辑
-- `/backend/services/chat.js` — 对话结束后入队
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CHANGELOG.md。
-
-任务：实现 Session Summary 和会话标题的异步生成。
-1. 创建 /backend/db/queries/session-summaries.js：
-   - upsertSummary(sessionId, content) → 不存在则插入，存在则更新
-   - getSummaryBySessionId(sessionId)
-2. 创建 /backend/memory/summarizer.js，导出两个函数：
-   - generateSummary(sessionId)：
-     读取该 session 所有消息 → 调用 llm.complete() 生成摘要 → 存入 session_summaries 表
-   - generateTitle(sessionId)：
-     读取该 session 前几条消息 → 调用 llm.complete() 生成不超过15字的标题
-     → 更新 sessions 表的 title 字段
-     prompt 要求：简洁概括对话主题，不加引号，不超过15字
-3. 修改 /backend/services/chat.js：
-   前置条件：仅当对话流正常结束（done，非 aborted）且该 session 中存在至少 1 条 user 消息时，才入队以下任务。
-   - 对话流结束后，依次将以下任务加入异步队列：
-     * generateSummary(sessionId)（优先级1，不可丢弃）
-     * generateTitle(sessionId)（优先级2，不可丢弃，仅当 session.title 为 NULL 时才入队）
-   - title 生成完成后，通过 SSE 推送一条额外事件通知前端更新标题：
-     data: {"type": "title_updated", "title": "..."}\n\n
-     （在 /chat 接口的 SSE 连接关闭前发送；若连接已关闭则跳过推送，前端下次进入时从接口读取）
-只修改 chat.js 中对话结束后的部分。
-```
-
-**验证方法**：
-- 和 AI 对话几轮，等待约 5 秒
-- 查询数据库 session_summaries 表，能看到该 session 的摘要
-- 摘要内容准确反映对话内容
-
----
-
-### T19A ✅ 世界状态字段与角色状态字段的 Schema 落地
-
-**这个任务做什么**：
-把“前端可配置的世界状态栏 + 角色状态栏”正式落到数据库结构里，包括字段定义表和当前值表。
-
-**涉及文件**：
-- /backend/db/schema.js
-- /backend/db/index.js
-- /backend/db/queries/world-state-fields.js
-- /backend/db/queries/character-state-fields.js
-- /backend/db/queries/world-state-values.js
-- /backend/db/queries/character-state-values.js
-
-**Claude Code 指令**：
-``` 
-请读取 @SCHEMA.md。
-
-任务：实现世界状态栏与角色状态栏的底层数据结构。
-1. 按 SCHEMA.md 新增以下表的建表语句和索引：
-   - world_state_fields
-   - character_state_fields
-   - world_state_values
-   - character_state_values
-2. 为以上四张表分别创建 queries 文件，封装增删改查
-3. JSON 字段统一在 queries 层自动 stringify / parse
-4. 所有主键使用 crypto.randomUUID()
-5. 所有时间戳使用 Date.now()
-不要实现路由和前端。
-```
-
-**验证方法**：
-- 启动后端后，数据库中出现四张新表和对应索引
-- 用简单测试脚本插入一组字段定义和状态值，能正确读回
-
----
-
-### T19B ✅ 世界设置页支持配置状态字段模板
-
-**这个任务做什么**：
-在世界编辑界面中新增两个配置模块：世界状态字段、角色状态字段。用户可在前端配置字段模板，而不是依赖系统内置。
-
-**涉及文件**：
-- /backend/routes/world-state-fields.js
-- /backend/routes/character-state-fields.js
-- /backend/services/world-state-fields.js
-- /backend/services/character-state-fields.js
-- /frontend/src/api/worldStateFields.js
-- /frontend/src/api/characterStateFields.js
-- /frontend/src/pages/WorldsPage.jsx 或世界编辑弹窗相关组件
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CLAUDE.md。
-
-任务：实现世界状态字段与角色状态字段的前端可配置能力。
-1. 后端分别实现世界状态字段、角色状态字段的增删改查和 reorder 接口
-2. 前端在世界编辑界面中新增两个字段模板配置区域：
-   - 世界状态字段
-   - 角色状态字段
-3. 每个字段支持编辑以下属性：
-   - label
-   - field_key
-   - type(text/number/boolean/enum)
-   - default_value
-   - description
-   - update_mode
-   - trigger_mode
-   - trigger_keywords
-   - enum_options
-   - min_value / max_value
-   - allow_empty
-   - update_instruction
-4. 支持新增、删除、拖拽排序
-5. 保持深色风格，界面简洁，不要额外重构其他页面
-```
-
-**验证方法**：
-- 能在世界编辑界面新增字段模板并保存
-- 刷新页面后字段模板仍存在
-- 排序、删除、修改均正常
-
----
-
-### T19C ✅ 新建世界/角色时初始化状态值
-
-**这个任务做什么**：
-根据字段模板自动初始化状态值。世界创建后拥有一份世界状态；角色创建后拥有一份角色状态。
-
-**涉及文件**：
-- /backend/services/worlds.js
-- /backend/services/characters.js
-- /backend/db/queries/world-state-values.js
-- /backend/db/queries/character-state-values.js
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现状态值自动初始化。
-1. 创建世界后，根据该世界的 world_state_fields 初始化 world_state_values
-2. 创建角色后，根据该角色所属世界的 character_state_fields 初始化 character_state_values
-3. default_value 为空时按字段类型给出合理空值：
-   - text: ""
-   - number: 0
-   - boolean: false
-   - enum: 第一项或 null
-4. 初始化逻辑放在 service 层，不写在 route 层
-```
-
-**验证方法**：
-- 新建世界后，数据库中自动生成对应的 world_state_values
-- 新建角色后，数据库中自动生成对应的 character_state_values
-
----
-
-### T19D ✅ 对话后按配置异步更新世界状态与角色状态
-
-**这个任务做什么**：
-在每轮对话完成后，后端根据字段模板配置判断哪些状态需要更新，并调用 LLM 生成字段 patch。
-
-**涉及文件**：
-- /backend/memory/world-state-updater.js
-- /backend/memory/character-state-updater.js
-- /backend/services/chat.js
-- /backend/utils/async-queue.js
-- /backend/llm/index.js
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CLAUDE.md。
-
-任务：实现世界状态栏与角色状态栏的异步更新。
-1. 对话流正常结束后，异步触发状态更新任务，不阻塞用户
-2. 分别实现：
-   - updateWorldState(worldId, sessionId)
-   - updateCharacterState(characterId, sessionId)
-3. 只处理 update_mode = llm_auto 的字段
-4. trigger_mode 规则：
-   - manual_only: 跳过
-   - every_turn: 每轮都进入候选
-   - keyword_based: 最近扫描文本命中 trigger_keywords 才进入候选
-5. LLM 不重写整份状态，只返回 changed fields patch
-6. 后端严格校验：
-   - key 必须存在于字段模板
-   - value 类型必须合法
-   - enum 必须在 options 中
-   - number 必须在 min/max 范围内
-7. 合法 patch 才写回状态值表
-8. OOC 内容参与当轮理解，但不应直接沉淀为长期状态，除非用户明确要求修改设定
-9. 加入异步队列时：updateCharacterState 优先级为 2（不可丢弃），updateWorldState 优先级为 3（不可丢弃）
-```
-
-**验证方法**：
-- 对话后能看到状态值按配置发生变化
-- 不符合类型的 LLM 输出不会写入数据库
-- manual_only 字段不会被自动更新
-
----
-
-### T20 ✅ 世界时间线异步追加
-
-**这个任务做什么**：每次对话结束后，异步让 AI 从对话中提取世界事件，追加到 world_timeline 表。
-
-**涉及文件**：
-- `/backend/memory/world-timeline.js` — 提取和追加事件的逻辑
-- `/backend/services/chat.js` — 对话结束后入队
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现世界时间线异步追加。
-1. 创建 /backend/memory/world-timeline.js，导出 appendWorldTimeline(sessionId)：
-   - 读取 session 所属角色的 world_id 和本次 session summary
-   - 使用以下固定 Prompt 模板（变量替换后）调用 llm.complete()：
-
-     你是编年史官，负责记录世界「{世界名}」的历史事件。
-     根据刚刚发生的对话，提取值得记入历史的事件。
-
-     规则：
-     - 只记录对世界或角色有实质影响的事件，忽略日常闲聊
-     - 每条事件不超过20字，格式：「谁做了什么，结果如何」
-     - 若本轮对话没有值得记录的事件，返回空数组
-     - 返回 JSON 数组，例：["艾伦击败了守卫，进入禁地", "古老契约正式解除"]
-
-     本轮对话摘要：
-     {session_summary}
-
-   - 解析返回的 JSON 数组
-   - 若数组为空则跳过，否则将每条事件插入 world_timeline 表
-   - seq 值取当前该世界最大 seq + 1（原子操作）
-   - 检查总条数是否超过 WORLD_TIMELINE_MAX_ENTRIES，超过则触发压缩
-2. 实现压缩逻辑：将最早的一半条目让 LLM 总结，替换为一条 is_compressed=1 的摘要行
-3. 修改 /backend/services/chat.js 加入队列，优先级为 4（可丢弃）
-```
-
-**验证方法**：
-- 对话中发生明显事件（如"打倒了怪物"），等待约 10 秒
-- 查询 world_timeline 表，能看到新增的事件条目
-- 条目数超过设定上限时，旧条目被压缩为一条摘要
-
----
-
-### T21 ✅ 记忆召回与状态注入（含 Prompt 注入）
-
-**这个任务做什么**：
-将当前世界状态、当前角色状态和世界时间线内容渲染为可读文本，注入到 assembler.js 的 [6] 占位位置，为模型提供持续状态与历史背景。
-
-**涉及文件**：
-- `/backend/prompt/assembler.js` — 填入 [6] 位置（此文件唯一允许的修改点）
-- `/backend/db/queries/world-state-values.js`
-- `/backend/db/queries/character-state-values.js`
-- `/backend/db/queries/world-timeline.js`
-- `/backend/memory/recall.js` — 新建，实现渲染函数
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md 和 @CLAUDE.md。
-
-任务：实现状态文本渲染并注入 prompt 的 [6] 位置，同时保留记忆召回扩展空间。
-
-1. 在 /backend/memory/recall.js 中实现三个渲染函数（纯数据处理，不调用 LLM）：
-
-   renderWorldState(worldId) → 返回字符串
-   - 联表查询 world_state_fields 和 world_state_values，按 sort_order 升序
-   - 格式：
-     [世界状态]
-     - {label}：{value}
-     - ...
-   - 若该世界无任何状态字段，返回空字符串
-
-   renderCharacterState(characterId) → 返回字符串
-   - 联表查询 character_state_fields 和 character_state_values，按 sort_order 升序
-   - 格式：
-     [角色状态]
-     - {label}：{value}
-     - ...
-   - 若该角色无任何状态字段，返回空字符串
-
-   renderTimeline(worldId, limit) → 返回字符串
-   - 取最近 limit 条 world_timeline 记录（按 seq 降序取，展示时正序排列）
-   - is_compressed=1 的行前缀标注「早期历史」
-   - 格式：
-     [世界时间线]
-     - {content}
-     - 【早期历史】{content}
-     - ...
-   - 若无记录返回空字符串
-   - limit 默认取常量 WORLD_TIMELINE_RECENT_LIMIT
-
-2. 修改 /backend/prompt/assembler.js，填入 [6] 占位位置
-   （这是 assembler.js 唯一允许的修改，不得调整其他任何顺序）：
-   - 将原注释 // TODO T21: recallMemory() 替换为实际调用
-   - 调用 renderWorldState、renderCharacterState、renderTimeline
-   - 将三段文本拼接后注入 [6]，非空段落之间以空行分隔
-   - 全部为空时 [6] 注入空字符串，不影响其余顺序
-
-3. 保留后续扩展注释：
-   // TODO 未来：embedding 搜索历史 session summary，渐进式展开原文
-```
-
-**验证方法**：
-- 在世界/角色编辑页配置几个状态字段并赋值，发起对话，打印 buildPrompt 的返回值
-- messages 中 [6] 位置能看到世界状态和角色状态的可读文本
-- 对话中发生事件并等待时间线写入后，再次发起对话，[6] 位置能看到时间线条目
-- 无状态字段时 [6] 为空字符串，不影响其余消息顺序
-
----
-
-### T22 ⬜ 前端记忆面板（含状态栏展示接口）
-
-**这个任务做什么**：
-实现完整的右侧记忆面板，包括世界状态、角色状态、世界时间线三个区块的后端接口和前端展示。（原 T19D 内容合并至本任务。）
-
-**涉及文件**：
-- `/backend/routes/world-state-values.js` — 新建
-- `/backend/routes/character-state-values.js` — 新建
-- `/backend/routes/world-timeline.js` — 新建
-- `/frontend/src/api/worldStateValues.js` — 新建
-- `/frontend/src/api/characterStateValues.js` — 新建
-- `/frontend/src/api/worldTimeline.js` — 新建
-- `/frontend/src/components/memory/MemoryPanel.jsx` — 实现完整面板
-- `/frontend/src/pages/ChatPage.jsx` — 嵌入面板
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现右侧记忆面板，包括后端读取接口和前端展示。
-
-1. 后端新增三个只读路由，注册到 server.js：
-
-   GET /api/worlds/:worldId/state-values
-   - 联表查询 world_state_fields 和 world_state_values
-   - 返回数组：[{ field_key, label, type, sort_order, value_json }]，按 sort_order 升序
-
-   GET /api/characters/:characterId/state-values
-   - 联表查询 character_state_fields 和 character_state_values
-   - 返回数组：[{ field_key, label, type, sort_order, value_json }]，按 sort_order 升序
-
-   GET /api/worlds/:worldId/timeline?limit=50
-   - 返回 world_timeline 表记录，按 seq 升序，默认最多 50 条
-
-2. 前端分别创建 api 封装文件：
-   - worldStateValues.js：getWorldStateValues(worldId)
-   - characterStateValues.js：getCharacterStateValues(characterId)
-   - worldTimeline.js：getWorldTimeline(worldId, limit)
-
-3. 实现 MemoryPanel.jsx，分三个可折叠区块：
-
-   世界状态：
-   - 按 sort_order 展示 label 和当前值（value_json 解析后展示）
-   - 无字段时显示"暂无数据"
-
-   角色状态：
-   - 同上
-
-   世界时间线：
-   - 按 seq 升序展示
-   - is_compressed=1 的行以灰色斜体「早期历史」前缀展示
-   - 无记录时显示"暂无记录"
-
-   进入聊天页时自动加载三块数据，每块独立 loading 状态，加载失败显示错误提示。
-   仅做查看，不做面板内编辑。
-
-4. 在 ChatPage.jsx 中将 MemoryPanel 嵌入右侧面板（T11 已预留位置），
-   将当前会话的 worldId 和 characterId 作为 props 传入。
-```
-
-**验证方法**：
-- 进入聊天页，右侧面板展开后能看到世界状态、角色状态、世界时间线三个区块
-- 世界/角色有状态字段时正确显示；无字段时显示"暂无数据"
-- 时间线中压缩行以灰色斜体「早期历史」前缀展示
-- 折叠/展开各区块正常
 
 ---
 
@@ -1420,179 +42,26 @@ OOC 统一规则：
 
 ---
 
-### T23 ⬜ 角色卡 / 世界卡导入导出
+### T25 ✅ Slash 命令系统
 
-**这个任务做什么**：
-实现 WorldEngine 自有格式的角色卡与世界卡导入导出，并包含新版状态系统所需的数据。
-
-**涉及文件**：
-- /backend/routes/import-export.js
-- /backend/services/import-export.js
-- /frontend/src/api/importExport.js
-- /frontend/src/pages/CharacterEditPage.jsx
-- /frontend/src/pages/WorldsPage.jsx
-
-**Claude Code 指令**：
-```
-请读取 @SCHEMA.md。
-
-任务：实现角色卡 / 世界卡导入导出。
-1. 角色卡 `.wechar.json` 导出内容包含：
-   - character
-   - prompt_entries
-   - character_state_values
-2. 世界卡 `.weworld.json` 导出内容包含：
-   - world
-   - prompt_entries
-   - world_state_fields
-   - character_state_fields
-   - world_state_values
-   - characters（每个角色包含 character 基础信息、prompt_entries、character_state_values）
-3. 导入时为世界、角色、字段模板、状态值、Prompt 条目重新生成 UUID 和时间戳
-4. 不导入任何 API Key
-5. 具体 JSON 字段结构以 SCHEMA.md 的导入导出章节示例为准（包含新增的状态字段）
-```
-
-**验证方法**：导出一个角色卡，删除该角色，重新导入，所有数据恢复。
-
----
-
-### T24A ⬜ 自定义 CSS 片段管理
-
-**这个任务做什么**：实现多条自定义 CSS 片段的增删改查、启用开关、排序，并在前端实时注入生效。不做深浅色主题切换（外观完全交给用户自定义 CSS）。
-
-**涉及文件**：
-- `/backend/db/queries/custom-css-snippets.js`（新建）
-- `/backend/services/custom-css-snippets.js`（新建）
-- `/backend/routes/custom-css-snippets.js`（新建）
-- `/backend/server.js`（注册路由）
-- `/frontend/src/api/customCssSnippets.js`（新建）
-- `/frontend/src/components/settings/CustomCssManager.jsx`（新建）
-- `/frontend/src/pages/SettingsPage.jsx`（嵌入 CustomCssManager）
-- `/frontend/src/App.jsx`（挂载 `<style id="we-custom-css">` 并订阅变更）
-
-**Claude Code 指令**：
-```
-请先读取 @SCHEMA.md 的 custom_css_snippets 表定义和 @CHANGELOG.md。
-
-任务：实现自定义 CSS 片段管理。
-
-后端：
-1. queries 层提供 createCustomCssSnippet / listCustomCssSnippets / getCustomCssSnippetById / updateCustomCssSnippet / deleteCustomCssSnippet / reorderCustomCssSnippets
-   - list 按 sort_order ASC, created_at ASC 排序
-   - create 时 sort_order 默认取当前 MAX(sort_order)+1
-2. service 层无特殊逻辑，直接透传；id 用 crypto.randomUUID()，时间戳用 Date.now()
-3. 路由：
-   - GET  /api/custom-css-snippets              列出全部
-   - POST /api/custom-css-snippets              创建
-   - PUT  /api/custom-css-snippets/reorder      批量排序（body: {items:[{id,sort_order}]}）
-   - GET  /api/custom-css-snippets/:id          详情
-   - PUT  /api/custom-css-snippets/:id          更新（部分字段，白名单 name/enabled/content）
-   - DELETE /api/custom-css-snippets/:id
-   注意 reorder 路由必须在 :id 路由前注册
-
-前端：
-4. api/customCssSnippets.js 封装所有 fetch 调用
-5. CustomCssManager.jsx：片段列表 + 新建按钮 + 单条编辑弹窗 + 启用开关 + 拖拽排序（复用 T10 同款原生 HTML5 draggable）
-6. SettingsPage 新增「自定义样式」分区，嵌入 CustomCssManager
-7. App.jsx 在启动时拉取所有 enabled=1 条目，按 sort_order 拼接后写入 <style id="we-custom-css"> 标签
-8. 每次增/删/改/排序/启用切换后立即重新拉取并刷新 <style> 内容（不要用 localStorage，不要缓存）
-
-约束：
-- 不做深浅色主题切换，不新建 themes/ 目录
-- config.json 的 ui 节点已不含 custom_css 字段，不要再读写旧字段
-- 不修改 assembler.js / constants.js / schema.js（建表由 schema.js 在 T02 时预留或后续 db 迁移处理，具体以 schema.js 现状为准，缺表则在 schema.js 中补 CREATE TABLE IF NOT EXISTS）
-```
-
-**验证方法**：创建两条 CSS 片段（例如其中一条把消息气泡背景色改为红色），全部启用后页面立即生效；禁用其中一条后该条样式消失；刷新页面后保持；拖拽调整顺序后 sort_order 持久化。
-
----
-
-### T24B ⬜ 正则替换规则系统
-
-**这个任务做什么**：实现 SillyTavern 同类能力的正则替换系统。按 scope 分四种作用时机，支持全局或按世界生效，链式套用。
-
-**涉及文件**：
-- `/backend/db/queries/regex-rules.js`（新建）
-- `/backend/services/regex-rules.js`（新建）
-- `/backend/routes/regex-rules.js`（新建）
-- `/backend/utils/regex-runner.js`（新建）
-- `/backend/services/chat.js`（ai_output scope 在流式完结、写 messages 前调用 runner）
-- `/backend/prompt/assembler.js`（prompt_only scope 在 [7] 历史消息位置调用 runner —— **本任务明确允许的修改点**）
-- `/backend/server.js`（注册路由）
-- `/frontend/src/api/regexRules.js`（新建）
-- `/frontend/src/components/settings/RegexRulesManager.jsx`（新建）
-- `/frontend/src/components/settings/RegexRuleEditor.jsx`（新建）
-- `/frontend/src/pages/SettingsPage.jsx`（嵌入 RegexRulesManager）
-- `/frontend/src/components/chat/InputBox.jsx`（user_input scope 发送前应用）
-- `/frontend/src/components/chat/MessageItem.jsx`（display_only scope 渲染时应用）
-- `/frontend/src/utils/regex-runner.js`（新建，前端共享实现）
-
-**Claude Code 指令**：
-```
-请先读取 @SCHEMA.md 的 regex_rules 表定义、scope 取值说明和 @CHANGELOG.md。
-
-任务：实现正则替换规则系统。
-
-1) 后端 queries / service / routes
-   - queries 层：create / list / getById / update / delete / reorder，list 支持按 scope 过滤以及按 worldId 过滤（NULL 视为全局，非 NULL 会话查询时需同时带出全局与该世界两类）
-   - routes：
-     - GET  /api/regex-rules              列出全部（支持 ?scope=xxx&worldId=xxx 过滤）
-     - POST /api/regex-rules              创建
-     - PUT  /api/regex-rules/reorder      批量排序
-     - GET  /api/regex-rules/:id          详情
-     - PUT  /api/regex-rules/:id          更新（白名单 name/enabled/pattern/replacement/flags/scope/world_id）
-     - DELETE /api/regex-rules/:id
-     reorder 路由必须在 :id 前注册
-   - service 内部不实例化 RegExp，只负责 CRUD
-
-2) regex-runner 工具（后端 /backend/utils/regex-runner.js、前端 /frontend/src/utils/regex-runner.js）
-   - 暴露 applyRules(text, scope, worldId) → string
-   - 在内部拉取「enabled=1 且（world_id IS NULL 或 world_id === worldId）且 scope === 当前 scope」的规则
-   - 按 sort_order ASC 依次 `text = text.replace(new RegExp(pattern, flags), replacement)`
-   - 每条规则单独 try/catch，编译失败或执行异常时跳过并 console.warn，不中断管线
-   - 后端版本从 DB 读取；前端版本通过 api 拉取后本地缓存（每次打开设置页或规则变更后刷新缓存）
-
-3) 四种 scope 的接入点
-   - user_input：前端 InputBox 在调用 sendMessage(chatApi) 前，对用户消息 text 和每条用户输入片段 applyRules(text, 'user_input', worldId)
-   - ai_output：后端 services/chat.js 在 SSE 流 done 之后、写入 messages 前，对完整 assistant 文本 applyRules(text, 'ai_output', worldId)
-   - display_only：前端 MessageItem 在 markdown 渲染前对 content applyRules(text, 'display_only', worldId)，不修改 store 里的原始内容
-   - prompt_only：assembler.js 在完成 [7] 历史消息聚合后，对每条消息的 content 字段 applyRules(text, 'prompt_only', worldId)（这是 assembler.js 本任务明确允许的修改点）
-
-4) 前端界面
-   - RegexRulesManager.jsx：按 scope 分组展示，每组支持新建/排序；规则行显示 name / enabled 开关 / 作用域（全局/某世界）
-   - RegexRuleEditor.jsx：弹窗形式，字段 name / enabled / pattern / replacement / flags（默认 g，可选 g / gi / gm / gim / 自由输入含 g 的组合）/ scope 下拉 / world_id 下拉（"全局" + 所有世界）
-   - 新建规则时有「测试」按钮：输入一段样本文本，点击后用当前表单值在前端编译正则跑一次，展示替换后的结果
-   - SettingsPage 新增「正则替换」分区，嵌入 RegexRulesManager
-
-约束：
-- assembler.js 仅允许在 [7] 历史消息位置调用 prompt_only 的 runner，其他位置不得插入任何 regex 逻辑；组装顺序 [1]-[8] 不得改变
-- runner 失败只记 warn，不抛
-- 前端 store/index.js（锁定）不得修改；规则缓存可放在 RegexRulesManager 组件本地或新建 /frontend/src/hooks/useRegexRules.js
-- config.json 的 ui 节点不新增任何字段
-- 不修改 constants.js / store/index.js / server.js 入口（仅挂载新路由算例外）
-```
-
-**验证方法**：
-1. 建一条 user_input 全局规则：`pattern=哈哈` / `replacement=😂`，发送「哈哈」后数据库里存的是「😂」
-2. 建一条 ai_output 全局规则清理 AI 返回中的 `\*\*.*?\*\*` 加粗标记 → 存库和显示都是处理后的纯文本
-3. 建一条 display_only 规则将 `(.+?)` 渲染为自定义气泡样式 → 刷新页面源文本仍原样
-4. 建一条 prompt_only 规则把历史消息中的 `内心：(.+)` 删除 → 发送对话时后端日志打印的 messages 中该字段已被删除，但数据库和前端显示仍保留
-5. 建一条 world_id 非空的规则，切换到其他世界时该规则不生效
-6. 建一条 pattern 非法的规则（如 `(abc`），观察后端日志输出 warn 且流程不崩
-
----
-
-### T25 ⬜ Slash 命令系统
+  
 
 **这个任务做什么**：实现输入框的 Slash 命令，并补全 T11 预留的 Continue 和 Impersonate 接口及按钮功能。
 
+  
+
 **涉及文件**：
+
 - `/backend/routes/chat.js` — 新增 /continue 和 /impersonate 接口
+
 - `/frontend/src/components/chat/InputBox.jsx` — 命令列表浮层 + 快捷按钮激活
+
 - `/frontend/src/api/chat.js` — continueGeneration 和 impersonate 占位已在 T11 创建，此处实现
 
+  
+
 **Claude Code 指令**：
+
 ```
 
 任务：实现 Slash 命令系统，并完善 Continue / Impersonate 功能。
@@ -1600,6 +69,7 @@ OOC 统一规则：
 后端新增两个接口（在 /backend/routes/chat.js 中添加）：
 
 POST /api/sessions/:sessionId/continue
+
 - 取当前 session 最后一条 assistant 消息
 - 若不存在则返回 400
 - 以流式方式续写，delta 内容追加到该消息的 content（不新增消息行）
@@ -1608,42 +78,653 @@ POST /api/sessions/:sessionId/continue
 - SSE 格式与 /chat 接口相同
 
 POST /api/sessions/:sessionId/impersonate
+
 - 读取 session 所属角色的世界 persona_name 和 persona_prompt
 - 使用以下固定 prompt（不暴露给用户修改）调用 llm.complete()：
-  "你正在扮演用户「{persona_name}」。根据当前对话情境，以第一人称写一条用户接下来可能说的话。只输出这条话本身，不加任何解释或引号。"
-  若 persona_name 为空，则用"用户"替代
+"你正在扮演用户「{persona_name}」。根据当前对话情境，以第一人称写一条用户接下来可能说的话。只输出这条话本身，不加任何解释或引号。"
+若 persona_name 为空，则用"用户"替代
 - 返回 { content: "..." }，不写入数据库
 
 前端修改 InputBox.jsx：
 
 1. Slash 命令列表：
-   输入框内容以 / 开头时，在输入框上方弹出命令浮层（绝对定位），支持键盘上下键选择，Enter 执行，Escape 关闭。
-   支持的命令列表（显示命令名 + 一行说明）：
-   - /continue  续写上一条 AI 回复
-   - /impersonate  AI 替你写一条消息
-   - /retry   删除最后一条 AI 回复并重新生成
-   - /regen   重新生成最后一条 AI 回复（同 /retry）
-   - /clear   清空当前会话所有消息（二次确认）
-   - /summary  手动触发生成当前会话摘要
+
+输入框内容以 / 开头时，在输入框上方弹出命令浮层（绝对定位），支持键盘上下键选择，Enter 执行，Escape 关闭。
+支持的命令列表（显示命令名 + 一行说明）：
+
+- /continue 续写上一条 AI 回复
+- /impersonate AI 替你写一条消息
+- /retry 删除最后一条 AI 回复并重新生成
+- /regen 重新生成最后一条 AI 回复（同 /retry）
+- /clear 清空当前会话所有消息（二次确认）
+- /summary 手动触发生成当前会话摘要
 
 2. 激活 T11 预留的两个快捷图标按钮：
-   - Continue 按钮：调用 continueGeneration(sessionId, callbacks)，流式 delta 追加到最后一条 assistant 消息
-   - Impersonate 按钮：调用 impersonate(sessionId)，返回内容填入输入框（不自动发送）
+
+- Continue 按钮：调用 continueGeneration(sessionId, callbacks)，流式 delta 追加到最后一条 assistant 消息
+- Impersonate 按钮：调用 impersonate(sessionId)，返回内容填入输入框（不自动发送）
+  
 
 3. 各命令的前端执行逻辑：
-   - /continue：同 Continue 按钮
-   - /impersonate：同 Impersonate 按钮
-   - /retry：取最后一条 assistant 消息，调用 regenerate，afterMessageId 为其前一条消息的 id
-   - /regen：同 /retry
-   - /clear：弹出二次确认弹窗；确认后调用 DELETE /api/sessions/:id/messages（新接口，见下）；
-     若角色有 first_message，清空后前端重新插入该消息到消息列表（不需要重新请求后端）
-   - /summary：调用 POST /api/sessions/:id/summary（新接口，见下）；完成后 toast 提示"摘要已生成"
+
+- /continue：同 Continue 按钮
+- /impersonate：同 Impersonate 按钮
+- /retry：取最后一条 assistant 消息，调用 regenerate，afterMessageId 为其前一条消息的 id
+- /regen：同 /retry
+- /clear：弹出二次确认弹窗；确认后调用 DELETE /api/sessions/:id/messages（新接口，见下）；
+若角色有 first_message，清空后前端重新插入该消息到消息列表（不需要重新请求后端）
+- /summary：调用 POST /api/sessions/:id/summary（新接口，见下）；完成后 toast 提示"摘要已生成"
 
 后端新增两个辅助接口：
 
 DELETE /api/sessions/:sessionId/messages
+
 - 物理删除该 session 下所有消息
 - 若角色有 first_message，重新插入一条 role='assistant' 的首条消息
 - 返回 { success: true, firstMessage: "..." | null }
 
-POST /api/sessi
+POST /api/sessions/:sessionId/summary
+
+- 手动触发当前 session 的摘要生成（对标 T18 自动生成逻辑，走同一函数）
+- 内部调用 backend/memory/summarizer.js 的 generateSummary(sessionId)；成功后返回 { success: true }
+- 若 session 不存在返回 404；若 session 没有任何 user 消息返回 400 + { error: '当前会话尚无用户消息，无法生成摘要' }
+- 非流式，前端拿到 success 即可 toast 提示，实际 summary 内容由记忆面板读取
+
+约束：
+- 不改任何锁定文件
+- /continue 接口服用 services/chat.js 中现有的 activeStreams Map 和流控逻辑，不新建一套
+- /impersonate 读取 persona 基础信息：T26C 完成前从 worlds.persona_name / persona_prompt 读；T26C 完成后从 personas 表读（getPersonaByWorldId）。本任务按当前 schema 现状实现即可，T26C 会一并改写此处
+- /clear 二次确认弹窗样式复用现有弹窗组件，不新增 UI 依赖
+- /summary 不要和 T18 的自动入队重复触发：手动接口直接调用 generateSummary 同步执行即可，不走 async-queue
+```
+
+**验证方法**：
+1. 输入框输入 `/co`，命令浮层出现 `/continue` 一项；键盘上下键切换，Enter 触发续写；Escape 关闭浮层
+2. 输入框右侧 Continue 按钮点击后最后一条 assistant 消息继续流式追加，中断能正确保存并追加「[已中断]」
+3. Impersonate 按钮点击后输入框自动填入 AI 代拟的用户消息，不自动发送，可继续编辑
+4. `/retry` 和 `/regen` 删除最后一条 assistant 消息并对其前一条用户消息重新生成
+5. `/clear` 弹出二次确认，确认后消息列表清空；若角色有 first_message，清空后立即在列表里出现一条首条消息
+6. `/summary` 触发后前端 toast「摘要已生成」，记忆面板刷新能看到新 summary
+7. `/summary` 在没有 user 消息的会话上执行返回 400 错误，前端 toast 提示「当前会话尚无用户消息」
+
+---
+
+### T26A ✅ 修复对话气泡 hover 抖动
+
+**这个任务做什么**：修复消息气泡在鼠标悬停时因为编辑按钮和时间戳条件渲染导致的上下跳动。
+
+  
+
+**涉及文件**：
+
+- `/frontend/src/components/chat/MessageItem.jsx`
+
+  
+
+**Claude Code 指令**：
+
+```
+
+请先阅读 @CHANGELOG.md 与 /frontend/src/components/chat/MessageItem.jsx 的现有内容。
+
+  
+
+任务：修复消息气泡 hover 时的布局抖动。
+
+  
+
+当前实现的问题：MessageItem.jsx 里三处 `{hovered && ...}` 条件渲染（user 气泡下的编辑按钮区、user 气泡下的时间戳、assistant 气泡下的时间戳+操作按钮区）在鼠标进出时把元素从 DOM 中插入/移除，导致气泡上下跳动。
+
+  
+
+修复要求：
+
+1. 删除 `const [hovered, setHovered] = useState(false);` 及 onMouseEnter/onMouseLeave 绑定
+
+2. 在消息外层容器加上 Tailwind `group` 类
+
+3. 原来三处 `{hovered && (...)}` 改为始终渲染该 DOM，用 `opacity-0 group-hover:opacity-100 transition-opacity` 控制可见性
+
+4. 不可见态下要加 `pointer-events-none`，hover 后改 `group-hover:pointer-events-auto`，避免透明区域仍能点击
+
+5. 编辑状态（editing=true）期间这些区域应当保持可点击/可见（编辑按钮会切到保存/取消按钮），维持现有逻辑，只改 hover 相关部分
+
+  
+
+其他所有逻辑（startEdit/confirmEdit/cancelEdit/onRegenerate 等）不动。
+
+  
+
+约束：
+
+- 只改 MessageItem.jsx 这一个文件
+
+- 不改任何锁定文件
+
+- 不使用任何第三方动画库
+
+```
+
+  
+
+**验证方法**：
+
+1. 在对话页面鼠标从屏幕顶部滑到底部经过多条消息，每条气泡位置**完全静止**，不上下跳动
+
+2. 编辑按钮、时间戳平滑淡入淡出
+
+3. 鼠标移出后按钮和时间戳消失且不响应点击（点击透明区不触发任何操作）
+
+4. 点击编辑按钮进入编辑态后保存/取消按钮始终可见
+
+  
+
+---
+
+  
+
+### T26B ✅ 世界 Prompt 条目迁移到编辑世界弹窗
+
+  
+
+**这个任务做什么**：把世界级 Prompt 条目管理区从「角色列表页底部」挪到「编辑世界弹窗内」，避免与角色级 Prompt 条目混淆。
+
+  
+
+**涉及文件**：
+
+- `/frontend/src/pages/CharactersPage.jsx`（删除世界级 EntryList）
+
+- `/frontend/src/pages/WorldsPage.jsx`（编辑世界弹窗内新增世界级 EntryList）
+
+  
+
+**Claude Code 指令**：
+
+```
+
+请先阅读 @CHANGELOG.md、CharactersPage.jsx 和 WorldsPage.jsx 的现有内容。
+
+  
+
+任务：把世界级 Prompt 条目管理从角色列表页迁移到编辑世界弹窗内。
+
+  
+
+具体步骤：
+
+1. 在 CharactersPage.jsx 中，删除「世界 Prompt 条目」区块（包含注释 `{/* 世界 Prompt 条目 */}` 和 `<EntryList type="world" scopeId={worldId} />` 那段）及相关包裹容器和标题；若 `import EntryList` 在此文件中不再被其它地方引用，把 import 也一并删除
+
+2. 在 WorldsPage.jsx 的编辑世界弹窗底部（当前 T19B 挂载两个 StateFieldList 的位置）**之上**插入一块 `<EntryList type="world" scopeId={initial.id} />` 区域，仅当 `initial?.id` 存在（即编辑现有世界而非新建）时渲染；添加配套的分区标题「世界 Prompt 条目」
+
+3. 同时在 WorldsPage.jsx 顶部 import EntryList，import 路径参照 CharacterEditPage.jsx 的写法
+
+  
+
+约束：
+
+- 后端 API 不变，/frontend/src/api/prompt-entries.js 不动
+
+- 组件 EntryList.jsx 和 EntryEditor.jsx 不动
+
+- 不触及状态字段模板的两块 StateFieldList，保留它们原有位置
+
+- 不改任何锁定文件
+
+```
+
+  
+
+**验证方法**：
+
+1. 打开角色列表页，页面底部**不再**有「世界 Prompt 条目」区块
+
+2. 打开编辑世界弹窗（点击世界卡上的编辑图标），弹窗底部能看到「世界 Prompt 条目」区域，新增 / 编辑 / 删除 / 拖拽排序均正常
+
+3. 新建世界（initial.id 不存在）时弹窗内不显示世界 Prompt 条目区域，只显示基础字段
+
+  
+
+---
+
+  
+
+### T26C ⬜ 玩家（Persona）独立为世界下的一级对象
+
+  
+
+**这个任务做什么**：把原本挂在 worlds 表的 persona_name / persona_prompt 拆成独立的 `personas` 表，并新增一套玩家状态字段模板和状态值，实现玩家状态的对话后异步更新和 [6] 位置 LLM 注入。
+
+  
+
+**涉及文件**：
+
+  
+
+后端：
+
+- `/backend/db/schema.js`（删除 worlds 表 persona_name/persona_prompt 两列；新增 personas / persona_state_fields / persona_state_values 三张表建表 SQL）
+
+- `/backend/db/queries/worlds.js`（移除 persona_* 字段的读写和白名单）
+
+- `/backend/db/queries/personas.js`（新建）
+
+- `/backend/db/queries/persona-state-fields.js`（新建）
+
+- `/backend/db/queries/persona-state-values.js`（新建）
+
+- `/backend/services/personas.js`（新建）
+
+- `/backend/services/persona-state-fields.js`（新建）
+
+- `/backend/services/worlds.js`（创建世界时自动 upsert persona 行和 persona_state_values 初值）
+
+- `/backend/routes/personas.js`（新建）
+
+- `/backend/routes/persona-state-fields.js`（新建）
+
+- `/backend/routes/persona-state-values.js`（新建，仅暴露 GET 用于前端记忆面板读取）
+
+- `/backend/server.js`（注册新路由）
+
+- `/backend/prompt/assembler.js`（[2] 位置改从 personas 表读；[6] 位置调用串追加 `renderPersonaState` —— T21 [6] 例外的自然扩展，不新增新例外）
+
+- `/backend/memory/recall.js`（新增 `renderPersonaState(worldId)` 并更新 [6] 的拼接顺序为「玩家 → 角色 → 世界 → 时间线」）
+
+- `/backend/memory/persona-state-updater.js`（新建，参照 character-state-updater.js）
+
+- `/backend/routes/chat.js`（runStream 任务链新增 `updatePersonaState`，优先级 2，紧跟角色状态之后入队）
+
+- `/backend/services/import-export.js`（世界卡导入导出：去掉 world.persona_name/prompt，新增 persona 块 + persona_state_fields + persona_state_values 的读写）
+
+  
+
+前端：
+
+- `/frontend/src/api/personas.js`（新建）
+
+- `/frontend/src/api/personaStateFields.js`（新建）
+
+- `/frontend/src/api/personaStateValues.js`（新建）
+
+- `/frontend/src/components/persona/PersonaEditor.jsx`（新建，弹窗仅编辑 name / system_prompt）
+
+- `/frontend/src/components/persona/PersonaCard.jsx`（新建，角色列表页顶部的卡片，点击打开 PersonaEditor）
+
+- `/frontend/src/pages/WorldsPage.jsx`（编辑世界弹窗：删除 persona_name / persona_prompt 两个输入框，新增「玩家状态字段」StateFieldList 区域）
+
+- `/frontend/src/pages/CharactersPage.jsx`（角色列表**顶部**新增独立一块 `<PersonaCard worldId={worldId} />`）
+
+- `/frontend/src/components/memory/MemoryPanel.jsx`（新增「玩家状态」区块，放在「角色状态」之上）
+
+  
+
+**Claude Code 指令**：
+
+```
+
+请先阅读 @SCHEMA.md（personas / persona_state_fields / persona_state_values 表定义，worlds 表字段变更，以及 .weworld.json 中 persona 块的格式）、@CLAUDE.md（异步任务链优先级、assembler.js [2] 和 [6] 位置、状态系统说明）、@CHANGELOG.md（T18-T24 已完成任务的接入约定）。
+
+  
+
+任务：把玩家（Persona）拆成世界下一对一的一级对象，带状态字段、状态值、对话后异步更新、[6] 位置 LLM 注入。
+
+  
+
+一、数据模型（修改锁定文件 schema.js，本任务明确允许）
+
+1. schema.js 中 worlds 表删除 persona_name、persona_prompt 两列
+
+2. schema.js 中新增三张表：personas、persona_state_fields、persona_state_values；字段和索引完全按 SCHEMA.md 示例
+
+3. 由于开发期 db:reset 即可，不写迁移脚本
+
+  
+
+二、后端 CRUD
+
+4. queries/personas.js：createPersona / getPersonaByWorldId / updatePersona（白名单 name / system_prompt）；createPersona 传入 world_id 时如已存在则 REPLACE
+
+5. queries/persona-state-fields.js 和 queries/persona-state-values.js：完全照搬 character-state-fields.js 和 world-state-values.js（注意：persona_state_values 的 UNIQUE 键是 world_id + field_key，不是 persona_id——因为 persona 与 world 一对一，以 world_id 作键对齐 world_state_values 的语义）
+
+6. services/personas.js：getOrCreatePersona(worldId)、updatePersona(worldId, patch)；updatePersona 刷新 updated_at
+
+7. services/persona-state-fields.js：CRUD + reorder（照搬 character-state-fields.js）
+
+8. services/worlds.createWorld：创建 world 后立即 upsert 一条空 persona 行（id 用 randomUUID），并按当前 persona_state_fields 模板（新建世界时通常为空）初始化 persona_state_values（复用 T19C 的 getInitialValueJson）
+
+9. 路由：
+
+- GET /api/worlds/:worldId/persona 返回该 world 的 persona，若不存在则自动创建
+
+- PUT /api/worlds/:worldId/persona 更新 name / system_prompt
+
+- GET/POST /api/worlds/:worldId/persona-state-fields
+
+- PUT /api/worlds/:worldId/persona-state-fields/reorder
+
+- PUT/DELETE /api/persona-state-fields/:id
+
+- GET /api/worlds/:worldId/persona-state-values 返回该 world 的 persona 状态值（供记忆面板读取）
+
+reorder 路由必须在 :id 路由前注册
+
+10. server.js 挂载新路由
+
+  
+
+三、assembler.js 改造（修改锁定文件，属于 T21 [6] 例外的自然扩展与 [2] 位置的明确替换）
+
+11. [2] 位置：原来读 world.persona_name / world.persona_prompt，改为 `services/personas.getOrCreatePersona(worldId)` 取 name 和 system_prompt；若两者均为空则整段跳过（原逻辑保持）
+
+12. [6] 位置：在现有的 `renderWorldState + renderCharacterState + renderTimeline` 串中插入 `renderPersonaState`，最终顺序为「玩家 → 角色 → 世界 → 时间线」
+
+13. 不改其他位置，不改 [1]、[3]-[5]、[7]、[8]
+
+  
+
+四、recall.js 新增
+
+14. 新增 `renderPersonaState(worldId)`：原始 SQL JOIN 查询 persona_state_fields LEFT JOIN persona_state_values（按 world_id），渲染格式与 renderWorldState 对齐，标题使用「【玩家状态】」；value_json null 行跳过；全部空时返回空串不输出标题
+
+  
+
+五、对话后异步更新（T26C 核心）
+
+15. 新建 backend/memory/persona-state-updater.js，对外 `updatePersonaState(worldId, sessionId)`，实现完全参照 character-state-updater.js：
+
+- 只处理 update_mode=llm_auto 字段
+
+- trigger_mode 过滤：manual_only 跳过、every_turn 每轮、keyword_based 近 PROMPT_ENTRY_SCAN_WINDOW 条消息命中关键词才参与
+
+- LLM 返回 JSON patch（只含变化字段），空对象 {} 表示无变化
+
+- 类型校验同 T19D：number 允许字符串转换、boolean 允许字符串 "true"/"false"、enum 必须精确匹配 enum_options
+
+- null 值以 SQL NULL 写入
+
+16. routes/chat.js 的 runStream 任务链入队 `updatePersonaState(worldId, sessionId)`，优先级 2，紧跟 updateCharacterState 之后；regenerate 不需要 clearPending（优先级 2 不可丢弃）
+
+  
+
+六、导入导出（修改 T23 已完成的 import-export.js）
+
+17. 导出世界卡：不再导出 world.persona_name/prompt；新增顶层 `persona`（对象 {name, system_prompt}）、`persona_state_fields`（数组，同 character_state_fields 的裁剪规则）、`persona_state_values`（数组，同 character_state_values 的裁剪规则）
+
+18. 导入世界卡：读取 persona 块时先 getOrCreatePersona(newWorldId)，随后 updatePersona 写入 name / system_prompt；persona_state_fields 和 persona_state_values 逐条插入，全部重新生成 UUID 和时间戳
+
+19. 老格式（world.persona_name/prompt 非空、缺少 persona 块）**不做兼容**（用户确认没有已导出的旧卡）
+
+  
+
+七、前端
+
+20. 新增 api/personas.js（getPersona/updatePersona）、personaStateFields.js（照抄 characterStateFields.js）、personaStateValues.js（仅 listPersonaStateValues(worldId)）
+
+21. 新建 components/persona/PersonaEditor.jsx：受控弹窗，字段 name / system_prompt，onSave 回调；UI 风格参照 CharacterEditPage.jsx 中的基础字段表单，简洁版
+
+22. 新建 components/persona/PersonaCard.jsx：接收 worldId，内部 getPersona 加载并展示当前 name（空则显示「未命名玩家」）+ 一个编辑按钮，点击打开 PersonaEditor
+
+23. 改造 WorldsPage.jsx 编辑弹窗：
+
+- 删除 form.persona_name / form.persona_prompt 两处 input 和对应 state / 回填 / 提交逻辑
+
+- 在现有 StateFieldList×2 旁边新增第三个 StateFieldList，注入 persona 版 API（listFields=api/personaStateFields.* 等），标题「玩家状态字段」
+
+- 仅当 initial?.id 存在时渲染三块 StateFieldList（与现有逻辑一致）
+
+24. 改造 CharactersPage.jsx：在角色列表（现有网格）**上方**新增一块独立区域 `<PersonaCard worldId={worldId} />`，配标题「玩家」；与角色列表用分割线隔开
+
+25. 改造 MemoryPanel.jsx：在「世界状态」「角色状态」两块之前新增「玩家状态」一块，数据源 api/personaStateValues.listPersonaStateValues(worldId)，无数据时不渲染整块
+
+  
+
+八、范围与约束
+
+- 锁定文件的例外：schema.js（表结构变更，T26C 明确）、assembler.js（[2] 位置替换 + [6] 位置追加 renderPersonaState，T21 [6] 例外的自然扩展）、constants.js（不动）、store/index.js（不动）、server.js（仅挂载新路由算例外）
+
+- 不新增任何异步任务优先级档位，玩家状态共用优先级 2
+
+- 不做 persona 的 Prompt 条目（persona 本身没有此概念）
+
+- 老的 worlds.persona_name / persona_prompt 字段从 services/worlds 的白名单、queries/worlds.js 的读写、路由响应、前端 api/worlds.js 中彻底去除
+
+```
+
+  
+
+**验证方法**：
+
+1. `cd backend && npm run db:reset && npm run dev`，创建一个新世界，SQLite 里能看到 personas 表多一行（world_id 与新世界匹配），name 和 system_prompt 为空
+
+2. 打开编辑世界弹窗：没有 persona 姓名和 persona prompt 两个输入框；底部有三块 StateFieldList（世界 / 角色 / 玩家）；世界级 Prompt 条目区块（T26B 实现）仍在底部
+
+3. 在「玩家状态字段」下配置一个字段 `stamina / 体力 / text / update_mode=llm_auto / trigger_mode=every_turn`；保存后 persona_state_fields 表有新行，persona_state_values 表对应 world_id 多一行
+
+4. 打开角色列表页：顶部有「玩家」卡片，点击打开 PersonaEditor 弹窗，填写 name 和 system_prompt，保存后 PersonaCard 上显示新 name
+
+5. 点击某角色进入对话，发一轮消息，后端日志里 runStream 任务链触发 updatePersonaState；LLM 返回 patch 后 persona_state_values 里 stamina 字段被更新
+
+6. 对话过程中观察 assembler 的 [2] 位置（日志里打印的 system messages）正确带入玩家 name 和 system_prompt；[6] 位置开头为「玩家状态」段
+
+7. 打开记忆面板：「玩家状态」区块在最上方，展示当前 persona 状态值
+
+8. 导出世界卡 `.weworld.json`：顶层有 persona 对象、persona_state_fields 和 persona_state_values 数组；world 对象下没有 persona_name / persona_prompt；重新导入后全部还原
+
+---
+
+### T27 ⬜ 跨 Session Summary 召回（补齐"层一 原始 Session"召回）
+
+**这个任务做什么**：实现 PROJECT.md 中"层一 原始 Session"的 embedding 召回部分——在对话组装时，根据当前上下文从历史 `session_summaries` 中基于 embedding 相似度检索相关摘要，注入到 assembler.js 的 [6] 位置末尾。召回范围覆盖同一 world 下所有历史 session（跨角色），排除当前 session 自身。**不做渐进式展开原文**（AI 主动召回原始 messages 全文）—— 留给未来任务。
+
+**涉及文件**：
+
+后端：
+- `/backend/utils/constants.js`（新增 `MEMORY_RECALL_SIMILARITY_THRESHOLD` 常量；不改已有常量）
+- `/backend/utils/session-summary-vector-store.js`（新建，复刻 `vector-store.js` 模式，独立文件 `data/vectors/session_summaries.json`）
+- `/backend/db/queries/session-summaries.js`（新增 `getSummaryWithMetaById(id)`、`listSummariesByWorldId(worldId, excludeSessionId)` 两个查询）
+- `/backend/memory/summary-embedder.js`（新建，`embedSessionSummary(sessionId)`：读 summary 文本 → 调 `llm.embed()` → upsert 到向量库；embedding 未配置则静默跳过）
+- `/backend/memory/recall.js`（新增 `renderRecalledSummaries(worldId, sessionId)` 并更新 [6] 位置拼接顺序为「玩家 → 角色 → 世界 → 时间线 → 召回摘要」）
+- `/backend/prompt/assembler.js`（[6] 位置在现有 `renderWorldState/Character/Timeline` 串之后 `await renderRecalledSummaries(worldId, sessionId)`）
+- `/backend/routes/chat.js`（runStream 任务链新增 `embedSessionSummary(sessionId)`，优先级 5，紧跟 `generateSummary` 之后入队；regenerate/编辑消息时需要随优先级 4/5 一起被 `clearPending` 清空）
+
+**Claude Code 指令**：
+
+```
+请先阅读 @SCHEMA.md（session_summaries 表结构保持不变）、@CLAUDE.md（异步队列优先级、assembler.js [6] 例外、向量调用分工）、@CHANGELOG.md（T13/T14 向量化模式、T18 summary 生成、T21 [6] 位置约定、T26C [6] 新例外）、@PROJECT.md（层一 原始 Session 的召回说明）。
+
+任务：在不改 SCHEMA.md、不改 schema.js、不改 constants.js 已有常量的前提下，实现跨 session 的 summary 向量召回和 [6] 位置注入。
+
+一、向量存储（独立于 prompt_entries 向量库）
+1. 新建 /backend/utils/session-summary-vector-store.js：
+   - 文件路径 data/vectors/session_summaries.json（不存在时自动创建目录）
+   - 结构 { version: 1, entries: [{ summary_id, session_id, world_id, vector, updated_at }] }
+   - 对外暴露 loadStore / upsertEntry(summaryId, sessionId, worldId, vector) / deleteBySessionId(sessionId) / search(queryVector, { worldId, excludeSessionId, topK })
+   - search 实现：加载全量 entries → 过滤 worldId 和 excludeSessionId → 计算余弦相似度 → 过滤 >= MEMORY_RECALL_SIMILARITY_THRESHOLD → 按相似度倒序取 topK → 返回 [{ summary_id, session_id, score }]
+   - 不新增依赖，相似度计算直接写内联工具函数
+
+二、常量与查询层
+2. constants.js 新增 `export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.68;`（单独的召回阈值，摘要通常更长语义更宽，阈值比 PROMPT_ENTRY_SIMILARITY_THRESHOLD 略低）。其他 MEMORY_RECALL_* 已存在，不要动
+3. queries/session-summaries.js 新增：
+   - `getSummaryWithMetaById(summaryId)` → 返回 { id, session_id, content, session_title, session_created_at, world_id, character_id }，通过 JOIN sessions + characters 拿到 world_id
+   - `listSummariesByWorldId(worldId, excludeSessionId)` → 同上字段，供前端/调试使用（本任务 LLM 注入不直接调用它；search 通过向量库过滤更高效）
+
+三、向量化（写侧）
+4. 新建 /backend/memory/summary-embedder.js，导出 `embedSessionSummary(sessionId)`：
+   - 读 summary（getSummaryBySessionId）+ session meta（world_id 需经 session → character → world）
+   - 调 llm.embed(summary.content)；返回 null（未配置 embedding）→ 静默退出，不报错
+   - 向量成功 → upsertEntry(summaryId, sessionId, worldId, vector)
+   - 任何异常 catch 后记 console.warn，不抛出（队列中本就是 priority 5 可丢弃）
+5. routes/chat.js 的 runStream 任务链：
+   - 在现有 `enqueue(sessionId, () => generateSummary(sessionId), 1)` 之后，追加 `enqueue(sessionId, () => embedSessionSummary(sessionId), 5).catch(() => {})`
+   - 两处任务链（done 与 aborted-with-user-message 两个分支）都要加
+   - regenerate / 编辑消息的 clearPending 原本清空优先级 4/5 未开始任务——本项属优先级 5，继承现有清理策略，无需新增逻辑
+
+四、召回（读侧）
+6. recall.js 新增 `async renderRecalledSummaries(worldId, sessionId)`：
+   - 从当前 session 取最近 MEMORY_RECALL_CONTEXT_WINDOW 条 user+assistant 消息，拼接 `用户：xxx\nAI：xxx\n...`
+   - 拼接结果为空 → 返回空字符串
+   - 调 llm.embed(joined)；返回 null（embedding 未配置）→ 返回空字符串（静默降级，不报错）
+   - 调 sessionSummaryVectorStore.search(queryVec, { worldId, excludeSessionId: sessionId, topK: MEMORY_RECALL_MAX_SESSIONS })
+   - 命中为空 → 返回空字符串
+   - 用 getSummaryWithMetaById 取每条的 content + session_title + session_created_at
+   - 按 MEMORY_RECALL_MAX_TOKENS 软截断：按相似度倒序累加 token（用 token-counter.js 的 estimateTokens），超出阈值则丢弃剩余条目
+   - 渲染格式：
+     标题行 `[历史记忆召回]`
+     每条 `- 【{YYYY-MM-DD} · {session_title 或 "未命名会话"}】{content}`
+   - 若最终至少有一条 → 返回完整文本；否则返回空串
+
+五、assembler.js 接入（修改锁定文件，属 T21 [6] 例外的自然扩展）
+7. [6] 位置现有的 `[worldStateText, characterStateText, timelineText, personaStateText]`（T26C 已扩展）末尾追加 `await renderRecalledSummaries(world.id, sessionId)`；最终拼接顺序：玩家 → 角色 → 世界 → 时间线 → 召回摘要
+8. 因 renderRecalledSummaries 是 async，确认 buildPrompt 内改为 await；保持其他位置（[1]-[5]、[7]、[8]）不动
+9. 在代码里保留一条 TODO 注释：「未来 T28：渐进式展开——AI 通过 preflight 决策触发读取历史 session 原始 messages」，替换现有第 149 行的旧 TODO
+
+六、SSE 事件（落地 T21 遗留的 memory_recall 事件约定）
+10. chat.js 的 runStream 中，现有 `// TODO T21: memory_recall_start / memory_recall_done` 注释替换为真实实现：
+    - 在调用 `buildPrompt(sessionId)` **之前** emit `event: type:memory_recall_start\ndata: {}`
+    - 在 `buildPrompt` 返回后（无论命中与否）emit `event: type:memory_recall_done\ndata: {"hit": <number>}`，`hit` 为最终注入的召回条数（0 表示未命中）
+    - 若 buildPrompt 抛错，不 emit recall_done，按现有 error 分支处理
+    - 为了拿到 hit 数，buildPrompt 可通过 options 回调或返回值透传（建议 `buildPrompt` 签名扩展为返回 `{ messages, temperature, maxTokens, recallHitCount }`，向后兼容，旧调用忽略新字段即可）
+11. 前端 api/chat.js 已监听两个事件，无需改动；本任务不做 UI 胶囊（留给 T28 与 expand 事件一起做）
+
+七、约束与范围
+- 不改 schema.js，不改 SCHEMA.md（session_summaries 不加字段；向量存独立文件）
+- 不改 assembler.js 的 [1]-[5]、[7]、[8]，不动 constants.js 已有项
+- 不改 import-export.js：session_summaries 不在导出范围（现状保留），导入时不需要重建向量
+- 不做 backfill：历史已存在但未 embed 的 summary，在下次该 session 再有新消息触发 generateSummary 时顺带补上；本任务不提供一次性 backfill 接口
+- embedding 未配置时整条召回链路静默跳过，不在 UI 上提示；由用户自行在设置页配置 embedding provider
+- 前端本任务**不改**（记忆面板 T22 只展示结构化状态，不需要展示召回结果；召回是只对 LLM 可见的隐式注入）
+```
+
+**验证方法**：
+1. `cd backend && npm run db:reset && npm run dev`，在设置页配置好 embedding provider（OpenAI / Ollama 任一）
+2. 创建世界 A，建角色 X，进行 2 轮有实质内容的对话后关闭会话；观察后端日志 runStream 先打印 generateSummary 完成，再打印 embedSessionSummary 完成；`data/vectors/session_summaries.json` 多一条 entry，vector 数组非空
+3. 同一世界 A 再建角色 Y，开新会话问一句和 X 之前对话主题相关的问题；后端日志打印 [6] 组装时 `renderRecalledSummaries` 命中 ≥1 条，assembler 生成的 system message 末尾出现 `[历史记忆召回]` 段并包含之前 X 的 session 摘要
+4. 同一角色 X 换一个完全无关的话题开新会话；召回应**不命中**（相似度低于 0.68），[6] 位置不出现 `[历史记忆召回]` 段
+5. 在不同世界 B 下建角色、对话；世界 B 的召回**不会**检索到世界 A 的摘要（世界隔离）
+6. 在设置页清空 embedding provider，再发消息；后端不报错，`[历史记忆召回]` 段不出现
+7. 编辑某条消息触发 regenerate；检查 async 队列的 clearPending 清空了优先级 4/5 的未开始任务，不重复 embed
+8. 手动删除 `data/vectors/session_summaries.json`，再发一轮消息；后端不崩溃，新的 embedSessionSummary 重新建文件
+
+9. assembler [1]、[3]-[5]、[7]-[8] 其他位置未受影响，老对话继续可用
+
+---
+
+### T28 ⬜ 渐进式展开原文（补齐"层一"召回的第二跳）
+
+**这个任务做什么**：在 T27 已经把相关 session summary 注入 [6] 位置的基础上，增加第二跳——让 AI 主动决定是否"翻开正文"。实现方式为**两阶段 preflight 决策**：正式流式生成前，用一次低延迟的非流式 LLM 小调用，让模型针对当次召回到的 summary 集合返回一个 JSON（是否展开、展开哪几条）；命中展开的 session 的原始对话会被拼接进 [6] 位置末尾的「历史对话原文」段，再走正常流式对话。整个过程对前端流式体验不变，只在首包前增加一次小的预热延迟，且有 SSE 事件反馈进度。
+
+**为什么用 preflight 而不是 tool call 或流中标记**：
+- WorldEngine 支持 12 个 provider（包含部分不支持 tool/function call 的本地模型），preflight 走 `llm.complete()` 的纯文本 JSON 协议，所有 provider 通用
+- 流中标记方案需要在 SSE 解析层检测 + 中断重启流，工程复杂且与 T11/T16 已稳定的流式管线耦合度高，回归风险大
+- preflight 的代价是首包延迟增加一次小调用（maxTokens ≤ 200、temperature=0）；只在 T27 召回命中 ≥1 条时才触发，未命中时零成本
+
+**涉及文件**：
+
+后端：
+- `/backend/utils/constants.js`（新增 `MEMORY_EXPAND_MAX_TOKENS`、`MEMORY_EXPAND_DECISION_MAX_TOKENS`、`MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS` 三个常量）
+- `/backend/memory/recall.js`（将 `renderRecalledSummaries` 拆成两步：新增 `searchRecalledSummaries(worldId, sessionId)` 返回结构化命中列表 `[{ ref, session_id, session_title, created_at, content, score }, ...]`；原 render 函数改为吃结构化列表返回文本；ref 用 1 起的序号，注入文本里明示给 AI）
+- `/backend/memory/summary-expander.js`（新建：`decideExpansion(sessionId, recalled, currentUserMessage)` 发 preflight；`renderExpandedSessions(sessionIds, tokenBudget)` 拉原始 messages 渲染为可读文本块）
+- `/backend/db/queries/messages.js`（确认有 `getMessagesBySessionId`，无则复用现有；本任务不新增查询）
+- `/backend/prompt/assembler.js`（[6] 位置在 `renderRecalledSummaries` 之后追加 expansion 流程；signature 改为 `buildPrompt(sessionId, { onRecallEvent })` 回调用于发 SSE 事件）
+- `/backend/routes/chat.js`（将 onRecallEvent 回调接到 SSE 通道：新增事件 `type:memory_expand_start` / `type:memory_expand_done`；已存在 `memory_recall_start` / `memory_recall_done` 按原有规范继续发）
+- `/backend/services/config.js` 与 global config（新增开关 `memory_expansion_enabled` 默认 true；关闭时整段跳过）
+- `/frontend/src/components/chat/MessageStream.jsx` 或相应 SSE 事件处理组件（新增 `memory_expand_start/done` 事件的可视化提示——可简单显示「正在翻阅相关历史对话…」）
+- `/frontend/src/pages/SettingsPage.jsx` 或全局配置页（新增 `memory_expansion_enabled` 开关 UI，标题「记忆原文展开」，副标题「召回历史摘要后允许 AI 读取原文，会增加首包延迟」）
+
+**Claude Code 指令**：
+
+```
+请先阅读 @SCHEMA.md（messages / sessions / session_summaries 表结构）、@CLAUDE.md（异步队列、LLM 调用分工——chat 流式 vs complete 非流式、assembler.js [6] 例外、SSE 事件类型）、@CHANGELOG.md（T18 summary、T21 [6] 注入、T27 跨 session 召回已落地）、@PROJECT.md（层一 原始 Session 召回逻辑：embedding → summary → AI 决定展开 → 渐进式读取原文）。
+
+任务：在 T27 的基础上加第二跳。AI 可以针对当次召回到的每一条 summary 决定「仅看摘要」还是「需要翻正文」，翻正文命中的 session 的原始对话会被拼入 [6] 末尾的「历史对话原文」段。实现使用 preflight 两阶段决策，不引入 tool/function call，不改动 SSE 流中间切换。
+
+一、常量（constants.js）
+1. 新增：
+   - `MEMORY_EXPAND_MAX_TOKENS = 4096`（全部展开段加起来的上限）
+   - `MEMORY_EXPAND_DECISION_MAX_TOKENS = 200`（preflight 回复的 maxTokens）
+   - `MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30`（单个 session 展开时取最多多少条 user+assistant 消息；超出则截取最早一段并加「…（后续对话略）」占位）
+2. 已有 MEMORY_RECALL_* 不要动；T27 新增的 MEMORY_RECALL_SIMILARITY_THRESHOLD 也不要动
+
+二、recall.js 重构（不改锁定文件；recall.js 非锁定）
+3. 将 T27 的单一函数 `renderRecalledSummaries(worldId, sessionId)` 拆为：
+   - `async searchRecalledSummaries(worldId, sessionId)` → 返回 `[{ ref, session_id, session_title, created_at, content, score }]`（按相似度倒序；ref 从 1 起，供 AI 指代）；embedding 未配置或空命中时返回空数组
+   - `renderRecalledSummaries(recalled)` → 输入结构化列表，返回注入用的可读文本（保留 T27 的格式，但每条前加 `【#{ref}】` 前缀以便 AI 指代；无项时返空串）
+4. assembler.js 调用方自己负责调用这两个函数的先后顺序和复用命中结果（避免 expansion 再做一次向量搜索）
+
+三、summary-expander.js（新建，本任务核心）
+5. `async decideExpansion({ sessionId, recalled, recentMessagesText })` → 返回 `string[]`（需要展开的 session_id 列表，可能为空）
+   - 若 recalled 为空 → 直接返回 []
+   - 构造 preflight prompt（`llm.complete`，temperature=0，maxTokens=MEMORY_EXPAND_DECISION_MAX_TOKENS）：
+     system：简短说明任务，示范输出格式（严格 JSON）
+     user：拼接「近 N 轮对话片段」+「召回到的摘要列表，每条带 #ref 和 session_id」+「判断要不要展开哪几条，返回 {"expand":["<session_id>",...]}，不需要任何解释文本，不需要 markdown 代码块；若都不需要返回 {"expand":[]}」
+   - 解析：strip 可能的 ```json 包裹，`JSON.parse`；校验 `expand` 是字符串数组；过滤掉不在 recalled.session_id 集合中的 id；去重；截断最多 `recalled.length` 条
+   - 任何异常（超时、JSON 解析失败、字段不对）→ 记 warn 后返回 []（降级为"不展开"）
+6. `renderExpandedSessions(sessionIds, tokenBudget)` → 返回可读文本块
+   - 对每个 sessionId：
+     - 取 session meta（title / created_at）
+     - 取最多 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS 条 user+assistant 消息，按消息时间正序
+     - 渲染：
+       `【历史对话原文 · {YYYY-MM-DD} · {title 或 "未命名会话"}】`
+       每条 `用户：...` / `AI：...`
+       若命中本 session 的消息数被 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS 截掉 → 末尾追加 `…（后续对话略）`
+   - 累加各 session 文本时用 token-counter.js 的 estimateTokens 控预算 `tokenBudget`；超额则丢弃剩余 session（按 decideExpansion 返回的顺序优先保留前面的）
+   - 所有段之间空行隔开；整体返回时首行再加一行 `[历史对话原文展开]` 作为大标题（若至少有一段命中）
+   - 无命中 → 返回空串
+
+四、assembler.js 接入（锁定文件例外，延续 T21/T26C/T27 的 [6] 扩展）
+7. buildPrompt 签名改为 `buildPrompt(sessionId, options = {})`，其中 `options.onRecallEvent?: (name, payload) => void`；向后兼容：未传时 noop
+8. [6] 位置原有调用 `renderRecalledSummaries(world.id, sessionId)` 一行改为：
+   - 先 `const recalled = await searchRecalledSummaries(world.id, sessionId)`
+   - `const recalledText = renderRecalledSummaries(recalled)`
+   - 若 `recalled.length > 0` 且 `config.memory_expansion_enabled !== false`：
+     - onRecallEvent?.('memory_expand_start', { candidates: recalled.map(r => ({ ref: r.ref, title: r.session_title })) })
+     - `const toExpand = await decideExpansion({ sessionId, recalled, recentMessagesText })`（recentMessagesText 复用已有取最近消息的工具，与 recall.js 一致）
+     - `const expandedText = toExpand.length ? renderExpandedSessions(toExpand, MEMORY_EXPAND_MAX_TOKENS) : ''`
+     - onRecallEvent?.('memory_expand_done', { expanded: toExpand })
+   - 最终 [6] 拼接顺序（T26C 基础上追加）：玩家 → 角色 → 世界 → 时间线 → recalledText → expandedText
+9. 保持 [1]-[5]、[7]、[8] 不动；保持 recalledText 的格式不变（T27 产出物）
+
+五、chat.js SSE 事件
+10. runStream 调用 `buildPrompt(sessionId, { onRecallEvent: (name, payload) => res.write(`event: ${name}\ndata: ${JSON.stringify(payload)}\n\n`) })`
+11. 事件语义：
+    - `memory_expand_start`：candidates 列表送前端用于显示「正在判断是否翻阅…」
+    - `memory_expand_done`：expanded 列表送前端显示「已翻阅 X 条历史对话」或不显示（展开列表为空）
+12. `memory_recall_start` / `memory_recall_done` 事件由 T27 首次落地实现，本任务不改这两个事件的发射逻辑；expand 事件仅在 recall 命中 ≥1 且开关打开时发送
+
+六、config 开关
+13. services/config.js 扩展 global config schema：新增 boolean `memory_expansion_enabled`，默认 true
+14. 关闭开关时：assembler.js 中不调用 decideExpansion 也不发 expand 事件；只保留 T27 的 summary 召回
+
+七、前端
+15. 前端 SSE 事件处理器监听 `memory_expand_start` / `memory_expand_done`：
+    - start 时在消息气泡上方或底部显示淡色胶囊「正在翻阅历史对话…」
+    - done 时若 `expanded.length > 0`，把胶囊换成「已翻阅 N 条历史对话」保留 3 秒后淡出；若为空则直接隐藏
+    - 样式用现有 TailwindCSS 工具类 + CSS 变量，不加颜色硬编码
+16. 设置页（SettingsPage.jsx 或等价位置）新增一项开关「记忆原文展开」，绑定到 `memory_expansion_enabled`；副标题「召回历史摘要后允许 AI 读取原文，会略增加首包延迟」；保存调用现有 config 更新接口
+
+八、约束
+- 仅在 T27 召回命中 ≥1 条时触发 preflight；零命中时 0 成本
+- preflight 用 `llm.complete`（非流式），不破坏 CLAUDE.md 关于对话流式 / 记忆非流式的分工
+- preflight 失败静默降级为"不展开"，不影响正式对话流；不做重试
+- 不改 schema.js / SCHEMA.md / constants.js 已有项 / server.js / store/index.js
+- 不引入 tool/function call 协议（跨 provider 兼容性代价过高）
+- 不对 expansion 结果做持久化缓存（每次对话重新决策，简单；若后续发现成本高可加缓存，留给未来任务）
+```
+
+**验证方法**：
+1. 前置：T27 已完成并可用；embedding provider 已配置；同一世界 A 下至少有 2 个历史 session 的 summary 已向量化，分别讨论「关于 X 的事件」和「关于 Y 的事件」
+2. 在世界 A 新开会话，明确问「上次我们聊 X 的时候具体说了什么细节？」——后端日志：
+   - SSE 发出 `memory_recall_start` 和 `memory_recall_done`，recall 命中至少 1 条
+   - SSE 发出 `memory_expand_start`，preflight 调用返回 JSON 包含 X 的 session_id
+   - SSE 发出 `memory_expand_done`，expanded 列表包含该 session_id
+   - assembler 组装的 system message 末尾出现 `[历史对话原文展开]` 段并包含 X session 的 user/AI 消息原文
+3. 在同世界问「今天天气真好」这种无指代意图的问题——recall 命中 0 或低质量：
+   - 若 recall 为 0：不发 expand 事件，行为与 T27 一致
+   - 若 recall 命中但 AI 判断无需展开：preflight 返回 `{"expand":[]}`，expand_done 事件 expanded=[] 且无展开段
+4. 设置页关闭「记忆原文展开」开关 → recall 段保留，无 expand 事件、无展开段
+5. 故意把 embedding provider 配置成无效值 → 整条召回链静默跳过，无 expand 段，对话正常
+6. Mock preflight 返回非法 JSON（比如断网 / 超时）→ 降级为不展开，对话仍能正常流式完成，后端日志有一条 warn
+7. 前端 UI：expand_start 出现「正在翻阅历史对话…」胶囊，done 后显示「已翻阅 N 条历史对话」3 秒后淡出；关闭开关时从未出现胶囊
+8. expanded session 的原始消息超过 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS → 渲染末尾有「…（后续对话略）」占位
+9. assembler [1]-[5]、[7]-[8] 其他位置未受影响；T27 的 recall 行为在未命中时维持不变

@@ -45,13 +45,81 @@ CREATE TABLE worlds (
   id             TEXT PRIMARY KEY,          -- UUID
   name           TEXT NOT NULL,
   system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt
-  persona_name   TEXT NOT NULL DEFAULT '',  -- 用户在该世界的称呼/名字
-  persona_prompt TEXT NOT NULL DEFAULT '',  -- 用户人设描述
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
   max_tokens     INTEGER,                   -- 生成参数覆盖，NULL 时使用全局配置
   created_at     INTEGER NOT NULL,          -- Unix 时间戳（毫秒）
   updated_at     INTEGER NOT NULL
 );
+```
+
+> 玩家（Persona）已从 worlds 表移出到独立的 `personas` 表（见下），每个世界一对一持有一条 persona 记录。
+
+---
+
+### personas — 玩家（用户代入身份）
+
+每个世界一对一持有一条 persona 记录（`world_id UNIQUE`）。创建世界时由业务层自动初始化一条空记录。
+
+```sql
+CREATE TABLE personas (
+  id             TEXT PRIMARY KEY,          -- UUID
+  world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL DEFAULT '',  -- 玩家在该世界的称呼
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 玩家人设描述，注入到 [2] 位置
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+```
+
+---
+
+### persona_state_fields — 玩家状态字段定义
+
+字段模板属于 world（类似 character_state_fields 的归属方式），所有字段复制自 character_state_fields 的结构。
+
+```sql
+CREATE TABLE persona_state_fields (
+  id                 TEXT PRIMARY KEY,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  label              TEXT NOT NULL,
+  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum'
+  description        TEXT NOT NULL DEFAULT '',
+  default_value      TEXT,
+  update_mode        TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'llm_auto'
+  trigger_mode       TEXT NOT NULL DEFAULT 'manual_only', -- 'manual_only' | 'every_turn' | 'keyword_based'
+  trigger_keywords   TEXT,
+  enum_options       TEXT,
+  min_value          REAL,
+  max_value          REAL,
+  allow_empty        INTEGER NOT NULL DEFAULT 1,
+  update_instruction TEXT NOT NULL DEFAULT '',
+  sort_order         INTEGER NOT NULL DEFAULT 0,
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(world_id, field_key)
+);
+
+CREATE INDEX idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
+```
+
+---
+
+### persona_state_values — 玩家状态当前值
+
+一个 world 一份当前值（和 world_state_values 的粒度一致，因为一个 world 只有一个 persona）。
+
+```sql
+CREATE TABLE persona_state_values (
+  id             TEXT PRIMARY KEY,
+  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key      TEXT NOT NULL,
+  value_json     TEXT,                      -- 统一按 JSON 字符串存储
+  updated_at     INTEGER NOT NULL,
+  UNIQUE(world_id, field_key)
+);
+
+CREATE INDEX idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
 ```
 
 ---
@@ -469,11 +537,37 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
   "world": {
     "name": "世界名",
     "system_prompt": "",
-    "persona_name": "",
-    "persona_prompt": "",
     "temperature": null,
     "max_tokens": null
   },
+  "persona": {
+    "name": "",
+    "system_prompt": ""
+  },
+  "persona_state_fields": [
+    {
+      "field_key": "stamina",
+      "label": "体力",
+      "type": "text",
+      "description": "",
+      "default_value": null,
+      "update_mode": "llm_auto",
+      "trigger_mode": "every_turn",
+      "trigger_keywords": null,
+      "enum_options": null,
+      "min_value": null,
+      "max_value": null,
+      "allow_empty": 1,
+      "update_instruction": "",
+      "sort_order": 0
+    }
+  ],
+  "persona_state_values": [
+    {
+      "field_key": "stamina",
+      "value_json": "\"充沛\""
+    }
+  ],
   "prompt_entries": [
     {
       "title": "",
@@ -555,9 +649,10 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 约束：
 - 不包含数据库 id、world_id、character_id、embedding_id、created_at、updated_at
 - `characters` 字段可为空数组
-- `world_state_fields` 和 `character_state_fields` 导出字段定义（不含 id、world_id、created_at、updated_at）
-- `world_state_values` 和 `character_state_values` 仅导出 field_key 和 value_json
-- 导入时世界、角色、字段定义、状态值、条目全部重新生成 UUID 和时间戳
+- `persona` 为对象（非数组），一对一挂在 world 下；导出字段仅含 name、system_prompt
+- `world_state_fields`、`character_state_fields` 和 `persona_state_fields` 导出字段定义（不含 id、world_id、created_at、updated_at）
+- `world_state_values`、`character_state_values` 和 `persona_state_values` 仅导出 field_key 和 value_json
+- 导入时世界、角色、玩家、字段定义、状态值、条目全部重新生成 UUID 和时间戳
 - 导入世界卡时，不导入 session、messages、session_summaries、world_timeline
 
 ---

@@ -10,7 +10,147 @@ import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/importExport';
-import PersonaCard from '../components/persona/PersonaCard';
+import { getPersona, updatePersona } from '../api/personas';
+import StateFieldList from '../components/state/StateFieldList';
+import {
+  listPersonaStateFields, createPersonaStateField,
+  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
+} from '../api/personaStateFields';
+
+function PersonaEditModal({ worldId, onClose }) {
+  const [name, setName] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    getPersona(worldId).then((p) => {
+      setName(p.name ?? '');
+      setSystemPrompt(p.system_prompt ?? '');
+      setLoaded(true);
+    });
+  }, [worldId]);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await updatePersona(worldId, { name, system_prompt: systemPrompt });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
+        <div className="px-6 py-5 border-b border-[var(--border)]">
+          <h2 className="text-lg font-semibold text-[var(--text-h)]">编辑玩家</h2>
+        </div>
+        <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
+          {!loaded ? (
+            <p className="text-sm text-[var(--text)] opacity-50">加载中…</p>
+          ) : (
+            <>
+              <div>
+                <label className="block text-sm text-[var(--text)] mb-1">名字</label>
+                <input
+                  className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="你在这个世界里的名字"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text)] mb-1">人设</label>
+                <textarea
+                  className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+                  rows={4}
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  placeholder="你的身份、背景等"
+                />
+              </div>
+              <div className="border-t border-[var(--border)] pt-4">
+                <StateFieldList
+                  scope="persona"
+                  worldId={worldId}
+                  listFn={listPersonaStateFields}
+                  createFn={createPersonaStateField}
+                  updateFn={updatePersonaStateField}
+                  deleteFn={deletePersonaStateField}
+                  reorderFn={reorderPersonaStateFields}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !loaded}
+            className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonaCard({ worldId, onEdit }) {
+  const [persona, setPersona] = useState(null);
+
+  useEffect(() => {
+    if (!worldId) return;
+    getPersona(worldId).then(setPersona).catch(() => {});
+  }, [worldId]);
+
+  if (!persona || (!persona.name && !persona.system_prompt)) {
+    return (
+      <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
+        <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-1">玩家</p>
+        <p className="text-xs text-[var(--text)] opacity-30 italic">尚未设置人设</p>
+        <button
+          onClick={onEdit}
+          className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+          title="编辑玩家"
+        >
+          ✎
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
+      <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-2">玩家</p>
+      <div className="flex flex-col gap-1 pr-8">
+        {persona.name && (
+          <p className="text-sm font-medium text-[var(--text-h)]">{persona.name}</p>
+        )}
+        {persona.system_prompt && (
+          <p className="text-xs text-[var(--text)] line-clamp-2">{persona.system_prompt}</p>
+        )}
+      </div>
+      <button
+        onClick={onEdit}
+        className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs opacity-0 group-hover:opacity-100"
+        title="编辑玩家"
+      >
+        ✎
+      </button>
+    </div>
+  );
+}
 
 function AvatarCircle({ character, size = 'md' }) {
   const url = getAvatarUrl(character.avatar_path);
@@ -154,6 +294,7 @@ export default function CharactersPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [deletingChar, setDeletingChar] = useState(null);
+  const [showPersonaEdit, setShowPersonaEdit] = useState(false);
   const [importingChar, setImportingChar] = useState(false);
 
   // 拖拽状态
@@ -272,7 +413,7 @@ export default function CharactersPage() {
         </div>
 
         {/* 玩家人设卡片 */}
-        <PersonaCard worldId={worldId} />
+        <PersonaCard worldId={worldId} onEdit={() => setShowPersonaEdit(true)} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
@@ -345,6 +486,12 @@ export default function CharactersPage() {
           character={deletingChar}
           onConfirm={handleDelete}
           onClose={() => setDeletingChar(null)}
+        />
+      )}
+      {showPersonaEdit && (
+        <PersonaEditModal
+          worldId={worldId}
+          onClose={() => setShowPersonaEdit(false)}
         />
       )}
     </div>

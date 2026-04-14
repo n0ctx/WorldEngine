@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import EntryList from '../components/prompt/EntryList';
+import StateFieldList from '../components/state/StateFieldList';
 import { downloadCharacterCard } from '../api/importExport';
+import {
+  listCharacterStateFields, createCharacterStateField,
+  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
+} from '../api/characterStateFields';
 
 export default function CharacterEditPage() {
   const { characterId } = useParams();
@@ -218,6 +223,19 @@ export default function CharacterEditPage() {
         {/* Prompt 条目 */}
         <div className="mt-10 border-t border-[var(--border)] pt-8">
           <EntryList type="character" scopeId={characterId} />
+        </div>
+
+        {/* 角色状态字段模板 */}
+        <div className="mt-6 border-t border-[var(--border)] pt-8">
+          <StateFieldList
+            scope="character"
+            worldId={character.world_id}
+            listFn={listCharacterStateFields}
+            createFn={createCharacterStateField}
+            updateFn={updateCharacterStateField}
+            deleteFn={deleteCharacterStateField}
+            reorderFn={reorderCharacterStateFields}
+          />
         </div>
       </div>
     </div>

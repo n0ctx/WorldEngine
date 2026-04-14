@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T26C 后续调整 — UI 归位 ✅
+- **变更**：玩家人设编辑从 WorldFormModal 移出，改为 CharactersPage 的 PersonaCard 上的编辑按钮（PersonaEditModal，含玩家状态字段 StateFieldList）；角色状态字段从 WorldFormModal 移到 CharacterEditPage；WorldFormModal 仅保留世界状态字段；记忆面板顺序改为世界→玩家→角色→时间线
+- **涉及文件**：`frontend/src/pages/WorldsPage.jsx`（移除 PersonaEditor、角色字段、玩家字段）、`frontend/src/pages/CharactersPage.jsx`（内联 PersonaCard + PersonaEditModal 替代旧组件）、`frontend/src/pages/CharacterEditPage.jsx`（加角色状态字段 StateFieldList）、`frontend/src/components/memory/MemoryPanel.jsx`（顺序调整）；删除 `PersonaCard.jsx`、`PersonaEditor.jsx` 独立组件文件
+- **注意**：PersonaCard 编辑按钮 hover 显示（`group-hover:opacity-100`）；PersonaEditModal 保存按钮统一提交 name + system_prompt；CharacterEditPage 的 StateFieldList 用 `character.world_id` 作为 worldId
+
 ## T26C — Persona 作为 World 下的一等对象 ✅
 - **对外接口**：`GET/PATCH /api/worlds/:worldId/persona`；`GET/POST/PUT/DELETE /api/worlds/:worldId/persona-state-fields`、`PUT /api/worlds/:worldId/persona-state-fields/reorder`、`PUT/DELETE /api/persona-state-fields/:id`；`GET /api/worlds/:worldId/persona-state-values`
 - **涉及文件**：

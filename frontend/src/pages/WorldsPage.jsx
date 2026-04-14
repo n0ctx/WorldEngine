@@ -5,19 +5,10 @@ import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import StateFieldList from '../components/state/StateFieldList';
 import EntryList from '../components/prompt/EntryList';
-import PersonaEditor from '../components/persona/PersonaEditor';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
 } from '../api/worldStateFields';
-import {
-  listCharacterStateFields, createCharacterStateField,
-  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../api/characterStateFields';
-import {
-  listPersonaStateFields, createPersonaStateField,
-  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../api/personaStateFields';
 
 // 世界表单的初始空值
 const EMPTY_FORM = {
@@ -103,14 +94,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
             />
           </div>
 
-          {/* 用户人设（仅编辑现有世界时显示） */}
-          {initial?.id && (
-            <div className="border rounded-lg border-[var(--border)] px-4 py-3 flex flex-col gap-1">
-              <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-1">玩家人设</p>
-              <PersonaEditor worldId={initial.id} />
-            </div>
-          )}
-
           {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -181,28 +164,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
                   updateFn={updateWorldStateField}
                   deleteFn={deleteWorldStateField}
                   reorderFn={reorderWorldStateFields}
-                />
-              </div>
-              <div className="border-t border-[var(--border)] pt-4">
-                <StateFieldList
-                  scope="character"
-                  worldId={initial.id}
-                  listFn={listCharacterStateFields}
-                  createFn={createCharacterStateField}
-                  updateFn={updateCharacterStateField}
-                  deleteFn={deleteCharacterStateField}
-                  reorderFn={reorderCharacterStateFields}
-                />
-              </div>
-              <div className="border-t border-[var(--border)] pt-4">
-                <StateFieldList
-                  scope="persona"
-                  worldId={initial.id}
-                  listFn={listPersonaStateFields}
-                  createFn={createPersonaStateField}
-                  updateFn={updatePersonaStateField}
-                  deleteFn={deletePersonaStateField}
-                  reorderFn={reorderPersonaStateFields}
                 />
               </div>
             </>

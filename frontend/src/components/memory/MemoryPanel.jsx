@@ -151,11 +151,11 @@ export default function MemoryPanel({ worldId, characterId }) {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      <Section title="玩家状态">
-        {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
-      </Section>
       <Section title="世界状态">
         {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
+      </Section>
+      <Section title="玩家状态">
+        {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
       </Section>
       <Section title="角色状态">
         {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} />}
