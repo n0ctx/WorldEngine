@@ -210,20 +210,35 @@ export function exportWorld(worldId) {
     };
   });
 
+  const persona = db.prepare('SELECT name, system_prompt FROM personas WHERE world_id = ?').get(worldId);
+
+  const personaStateFields = db.prepare(
+    'SELECT field_key, label, type, description, default_value, update_mode, trigger_mode, trigger_keywords, enum_options, min_value, max_value, allow_empty, update_instruction, sort_order FROM persona_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
+  ).all(worldId).map((f) => ({
+    ...f,
+    trigger_keywords: f.trigger_keywords ? JSON.parse(f.trigger_keywords) : null,
+    enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
+  }));
+
+  const personaStateValues = db.prepare(
+    'SELECT field_key, value_json FROM persona_state_values WHERE world_id = ?',
+  ).all(worldId);
+
   return {
     format: 'worldengine-world-v1',
     world: {
       name: world.name,
       system_prompt: world.system_prompt,
-      persona_name: world.persona_name,
-      persona_prompt: world.persona_prompt,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
     },
+    persona: persona ? { name: persona.name, system_prompt: persona.system_prompt } : null,
     prompt_entries: worldPromptEntries,
     world_state_fields: worldStateFields,
     character_state_fields: characterStateFields,
+    persona_state_fields: personaStateFields,
     world_state_values: worldStateValues,
+    persona_state_values: personaStateValues,
     characters,
   };
 }
@@ -241,18 +256,24 @@ export function importWorld(data) {
 
     // 插入世界
     db.prepare(`
-      INSERT INTO worlds (id, name, system_prompt, persona_name, persona_prompt, temperature, max_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, system_prompt, temperature, max_tokens, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
       data.world.system_prompt ?? '',
-      data.world.persona_name ?? '',
-      data.world.persona_prompt ?? '',
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,
       now, now,
     );
+
+    // 插入 persona（兼容旧格式：world.persona_name / persona_prompt 字段）
+    const personaName = data.persona?.name ?? data.world?.persona_name ?? '';
+    const personaSystemPrompt = data.persona?.system_prompt ?? data.world?.persona_prompt ?? '';
+    db.prepare(`
+      INSERT INTO personas (id, world_id, name, system_prompt, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(crypto.randomUUID(), worldId, personaName, personaSystemPrompt, now, now);
 
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`
@@ -335,6 +356,46 @@ export function importWorld(data) {
     for (const sv of (data.world_state_values ?? [])) {
       if (validWorldFieldKeys.has(sv.field_key)) {
         insertWorldValue.run(crypto.randomUUID(), worldId, sv.field_key, sv.value_json, now);
+      }
+    }
+
+    // 插入玩家状态字段定义
+    const insertPersonaField = db.prepare(`
+      INSERT INTO persona_state_fields (
+        id, world_id, field_key, label, type, description,
+        default_value, update_mode, trigger_mode, trigger_keywords,
+        enum_options, min_value, max_value, allow_empty,
+        update_instruction, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const field of (data.persona_state_fields ?? [])) {
+      insertPersonaField.run(
+        crypto.randomUUID(), worldId,
+        field.field_key, field.label, field.type,
+        field.description ?? '',
+        field.default_value ?? null,
+        field.update_mode ?? 'manual',
+        field.trigger_mode ?? 'manual_only',
+        field.trigger_keywords != null ? JSON.stringify(field.trigger_keywords) : null,
+        field.enum_options != null ? JSON.stringify(field.enum_options) : null,
+        field.min_value ?? null,
+        field.max_value ?? null,
+        field.allow_empty ?? 1,
+        field.update_instruction ?? '',
+        field.sort_order ?? 0,
+        now, now,
+      );
+    }
+
+    // 插入玩家状态当前值
+    const insertPersonaValue = db.prepare(`
+      INSERT INTO persona_state_values (id, world_id, field_key, value_json, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const validPersonaFieldKeys = new Set((data.persona_state_fields ?? []).map((f) => f.field_key));
+    for (const sv of (data.persona_state_values ?? [])) {
+      if (validPersonaFieldKeys.has(sv.field_key)) {
+        insertPersonaValue.run(crypto.randomUUID(), worldId, sv.field_key, sv.value_json, now);
       }
     }
 

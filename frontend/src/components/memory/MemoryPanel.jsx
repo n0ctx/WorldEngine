@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getWorldStateValues } from '../../api/worldStateValues.js';
 import { getCharacterStateValues } from '../../api/characterStateValues.js';
 import { getWorldTimeline } from '../../api/worldTimeline.js';
+import { getPersonaStateValues } from '../../api/personaStateValues.js';
 
 function parseValue(valueJson, type) {
   if (valueJson == null) return null;
@@ -92,6 +93,10 @@ function TimelineRows({ rows }) {
 }
 
 export default function MemoryPanel({ worldId, characterId }) {
+  const [personaState, setPersonaState] = useState(null);
+  const [personaStateLoading, setPersonaStateLoading] = useState(false);
+  const [personaStateError, setPersonaStateError] = useState(null);
+
   const [worldState, setWorldState] = useState(null);
   const [worldStateLoading, setWorldStateLoading] = useState(false);
   const [worldStateError, setWorldStateError] = useState(null);
@@ -103,6 +108,16 @@ export default function MemoryPanel({ worldId, characterId }) {
   const [timeline, setTimeline] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState(null);
+
+  useEffect(() => {
+    if (!worldId) return;
+    setPersonaStateLoading(true);
+    setPersonaStateError(null);
+    getPersonaStateValues(worldId)
+      .then(setPersonaState)
+      .catch((e) => setPersonaStateError(e.message))
+      .finally(() => setPersonaStateLoading(false));
+  }, [worldId]);
 
   useEffect(() => {
     if (!worldId) return;
@@ -136,6 +151,9 @@ export default function MemoryPanel({ worldId, characterId }) {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
+      <Section title="玩家状态">
+        {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
+      </Section>
       <Section title="世界状态">
         {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
       </Section>

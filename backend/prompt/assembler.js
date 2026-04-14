@@ -31,7 +31,8 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
-import { renderWorldState, renderCharacterState, renderTimeline } from '../memory/recall.js';
+import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline } from '../memory/recall.js';
+import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -100,8 +101,9 @@ export async function buildPrompt(sessionId) {
   }
 
   // [2] 用户 Persona（两者均为空则跳过整段）
-  const personaName = world.persona_name || '';
-  const personaPrompt = world.persona_prompt || '';
+  const persona = getOrCreatePersona(world.id);
+  const personaName = persona?.name || '';
+  const personaPrompt = persona?.system_prompt || '';
   if (personaName || personaPrompt) {
     const lines = ['[用户人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
@@ -139,11 +141,12 @@ export async function buildPrompt(sessionId) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 状态与记忆注入（世界状态 + 角色状态 + 世界时间线）
-  const worldStateText = renderWorldState(world.id);
+  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线）
+  const personaStateText = renderPersonaState(world.id);
   const characterStateText = renderCharacterState(character.id);
+  const worldStateText = renderWorldState(world.id);
   const timelineText = renderTimeline(world.id);
-  const recallParts = [worldStateText, characterStateText, timelineText].filter(Boolean);
+  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText].filter(Boolean);
   if (recallParts.length > 0) {
     systemParts.push(recallParts.join('\n\n'));
   }

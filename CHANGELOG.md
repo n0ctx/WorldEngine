@@ -19,6 +19,13 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T26C — Persona 作为 World 下的一等对象 ✅
+- **对外接口**：`GET/PATCH /api/worlds/:worldId/persona`；`GET/POST/PUT/DELETE /api/worlds/:worldId/persona-state-fields`、`PUT /api/worlds/:worldId/persona-state-fields/reorder`、`PUT/DELETE /api/persona-state-fields/:id`；`GET /api/worlds/:worldId/persona-state-values`
+- **涉及文件**：
+  - 修改：`backend/db/schema.js`（worlds 表删 persona_name/persona_prompt，新增 personas/persona_state_fields/persona_state_values 三表及索引）、`backend/db/queries/worlds.js`（移除 persona 字段）、`backend/services/worlds.js`（createWorld 时 upsert persona + 初始化 persona_state_values）、`backend/prompt/assembler.js`（[2] 改读 personas 表，[6] 新增 personaStateText 排最前）、`backend/memory/recall.js`（新增 renderPersonaState）、`backend/routes/chat.js`（runStream + /continue 两处任务链各加 persona state 更新，/impersonate 改读 personas 表）、`backend/services/import-export.js`（导出/导入新增 persona / persona_state_fields / persona_state_values 块，兼容旧格式）、`backend/server.js`（注册 3 个新路由）、`frontend/src/pages/WorldsPage.jsx`（移除旧 persona 表单字段，改为 PersonaEditor 组件，新增玩家状态字段 StateFieldList）、`frontend/src/pages/CharactersPage.jsx`（加入 PersonaCard）、`frontend/src/components/memory/MemoryPanel.jsx`（加入玩家状态区块）、`frontend/src/components/state/StateFieldList.jsx`（支持 scope='persona' 显示正确标签）
+  - 新增：`backend/db/queries/personas.js`、`backend/db/queries/persona-state-fields.js`、`backend/db/queries/persona-state-values.js`、`backend/services/personas.js`、`backend/services/persona-state-fields.js`、`backend/routes/personas.js`、`backend/routes/persona-state-fields.js`、`backend/routes/persona-state-values.js`、`backend/memory/persona-state-updater.js`、`frontend/src/api/personas.js`、`frontend/src/api/personaStateFields.js`、`frontend/src/api/personaStateValues.js`、`frontend/src/components/persona/PersonaEditor.jsx`、`frontend/src/components/persona/PersonaCard.jsx`
+- **注意**：persona_state_values 以 (world_id, field_key) 为主键，不绑 persona_id（每世界一 persona，world_id 已唯一）；PersonaEditor 在 WorldFormModal 内采用 onBlur 自动保存（独立 PATCH 请求）而不随世界表单一起 submit；导入世界卡时兼容旧格式（data.world.persona_name / persona_prompt），优先读 data.persona；数据库有变更需执行 `npm run db:reset`
+
 ## T26B — 世界 Prompt 条目迁移到编辑世界弹窗 ✅
 - **对外接口**：无（纯 UI 迁移，后端 API 不变）
 - **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（删除 EntryList 区块和 import）、`frontend/src/pages/WorldsPage.jsx`（新增 EntryList import，在 StateFieldList 之上插入 EntryList 区块）

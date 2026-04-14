@@ -74,7 +74,7 @@ export default function StateFieldList({
     <div>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-medium text-[var(--text)] uppercase tracking-wider opacity-60">
-          {scope === 'world' ? '世界状态字段' : '角色状态字段'}
+          {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}

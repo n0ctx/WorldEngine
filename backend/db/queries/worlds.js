@@ -8,15 +8,13 @@ export function createWorld(data) {
   const id = crypto.randomUUID();
   const now = Date.now();
   const stmt = db.prepare(`
-    INSERT INTO worlds (id, name, system_prompt, persona_name, persona_prompt, temperature, max_tokens, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO worlds (id, name, system_prompt, temperature, max_tokens, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
     data.name,
     data.system_prompt ?? '',
-    data.persona_name ?? '',
-    data.persona_prompt ?? '',
     data.temperature ?? null,
     data.max_tokens ?? null,
     now,
@@ -43,7 +41,7 @@ export function getAllWorlds() {
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  const allowedFields = ['name', 'system_prompt', 'persona_name', 'persona_prompt', 'temperature', 'max_tokens'];
+  const allowedFields = ['name', 'system_prompt', 'temperature', 'max_tokens'];
   const sets = [];
   const values = [];
 

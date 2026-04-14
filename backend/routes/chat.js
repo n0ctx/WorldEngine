@@ -16,6 +16,8 @@ import { enqueue, clearPending } from '../utils/async-queue.js';
 import { generateSummary, generateTitle } from '../memory/summarizer.js';
 import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
+import { updatePersonaState } from '../memory/persona-state-updater.js';
+import { getOrCreatePersona } from '../services/personas.js';
 import { appendWorldTimeline } from '../memory/world-timeline.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -135,6 +137,10 @@ async function runStream(sessionId, res) {
         if (characterId) {
           enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
         }
+        // 优先级 2：玩家状态更新
+        if (worldId) {
+          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+        }
         // 优先级 3：世界状态更新
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
@@ -149,6 +155,10 @@ async function runStream(sessionId, res) {
       // 优先级 2：角色状态更新
       if (characterId) {
         enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+      }
+      // 优先级 2：玩家状态更新
+      if (worldId) {
+        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
       }
       // 优先级 3：世界状态更新
       if (worldId) {
@@ -319,6 +329,9 @@ router.post('/:sessionId/continue', async (req, res) => {
           enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
         }
         if (worldId) {
+          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+        }
+        if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
         }
         if (worldId) {
@@ -329,6 +342,9 @@ router.post('/:sessionId/continue', async (req, res) => {
 
       if (characterId) {
         enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+      }
+      if (worldId) {
+        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
       }
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
@@ -353,8 +369,9 @@ router.post('/:sessionId/impersonate', async (req, res) => {
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const world = character?.world_id ? getWorldById(character.world_id) : null;
 
-  const personaName = world?.persona_name || '用户';
-  const personaPrompt = world?.persona_prompt || '';
+  const persona = world ? getOrCreatePersona(world.id) : null;
+  const personaName = persona?.name || '用户';
+  const personaPrompt = persona?.system_prompt || '';
 
   const systemText = personaPrompt
     ? `你正在扮演用户「${personaName}」。用户设定：${personaPrompt}`

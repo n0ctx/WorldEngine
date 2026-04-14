@@ -2,9 +2,10 @@
  * recall.js — 记忆召回：将结构化状态渲染为可读文本，注入 assembler.js [6] 位置
  *
  * 对外暴露：
- *   renderWorldState(worldId)         → string
- *   renderCharacterState(characterId) → string
- *   renderTimeline(worldId, limit)    → string
+ *   renderPersonaState(worldId)        → string
+ *   renderWorldState(worldId)          → string
+ *   renderCharacterState(characterId)  → string
+ *   renderTimeline(worldId, limit)     → string
  *
  * 未来扩展：embedding 搜索历史 session summary，渐进式展开原文
  */
@@ -26,6 +27,36 @@ function parseValueForDisplay(valueJson) {
   } catch {
     return String(valueJson);
   }
+}
+
+/**
+ * 渲染玩家状态为可读文本。
+ *
+ * @param {string} worldId
+ * @returns {string} 渲染结果，无状态字段时返回空字符串
+ */
+export function renderPersonaState(worldId) {
+  const rows = db.prepare(`
+    SELECT psf.label, psv.value_json
+    FROM persona_state_fields psf
+    LEFT JOIN persona_state_values psv
+      ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+    WHERE psf.world_id = ?
+    ORDER BY psf.sort_order ASC, psf.created_at ASC
+  `).all(worldId);
+
+  if (rows.length === 0) return '';
+
+  const lines = ['[玩家状态]'];
+  for (const row of rows) {
+    const value = parseValueForDisplay(row.value_json);
+    if (value !== null) {
+      lines.push(`- ${row.label}：${value}`);
+    }
+  }
+
+  if (lines.length === 1) return '';
+  return lines.join('\n');
 }
 
 /**

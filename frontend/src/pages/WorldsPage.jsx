@@ -5,6 +5,7 @@ import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import StateFieldList from '../components/state/StateFieldList';
 import EntryList from '../components/prompt/EntryList';
+import PersonaEditor from '../components/persona/PersonaEditor';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -13,13 +14,15 @@ import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
 } from '../api/characterStateFields';
+import {
+  listPersonaStateFields, createPersonaStateField,
+  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
+} from '../api/personaStateFields';
 
 // 世界表单的初始空值
 const EMPTY_FORM = {
   name: '',
   system_prompt: '',
-  persona_name: '',
-  persona_prompt: '',
   temperature: 1.0,
   max_tokens: 2048,
   useGlobalTemp: true,
@@ -32,8 +35,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
     return {
       name: initial.name ?? '',
       system_prompt: initial.system_prompt ?? '',
-      persona_name: initial.persona_name ?? '',
-      persona_prompt: initial.persona_prompt ?? '',
       temperature: initial.temperature ?? 1.0,
       max_tokens: initial.max_tokens ?? 2048,
       useGlobalTemp: initial.temperature == null,
@@ -58,8 +59,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
       const payload = {
         name: form.name.trim(),
         system_prompt: form.system_prompt,
-        persona_name: form.persona_name,
-        persona_prompt: form.persona_prompt,
         temperature: form.useGlobalTemp ? null : form.temperature,
         max_tokens: form.useGlobalMaxTokens ? null : form.max_tokens,
       };
@@ -104,28 +103,13 @@ function WorldFormModal({ initial, onSave, onClose }) {
             />
           </div>
 
-          {/* 用户人设 */}
-          <div className="grid grid-cols-1 gap-3">
-            <div>
-              <label className="block text-sm text-[var(--text)] mb-1">你的名字</label>
-              <input
-                className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
-                value={form.persona_name}
-                onChange={(e) => set('persona_name', e.target.value)}
-                placeholder="你在这个世界里的名字"
-              />
+          {/* 用户人设（仅编辑现有世界时显示） */}
+          {initial?.id && (
+            <div className="border rounded-lg border-[var(--border)] px-4 py-3 flex flex-col gap-1">
+              <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-1">玩家人设</p>
+              <PersonaEditor worldId={initial.id} />
             </div>
-            <div>
-              <label className="block text-sm text-[var(--text)] mb-1">你的人设</label>
-              <textarea
-                className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
-                rows={3}
-                value={form.persona_prompt}
-                onChange={(e) => set('persona_prompt', e.target.value)}
-                placeholder="你的身份、背景等"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Temperature */}
           <div>
@@ -208,6 +192,17 @@ function WorldFormModal({ initial, onSave, onClose }) {
                   updateFn={updateCharacterStateField}
                   deleteFn={deleteCharacterStateField}
                   reorderFn={reorderCharacterStateFields}
+                />
+              </div>
+              <div className="border-t border-[var(--border)] pt-4">
+                <StateFieldList
+                  scope="persona"
+                  worldId={initial.id}
+                  listFn={listPersonaStateFields}
+                  createFn={createPersonaStateField}
+                  updateFn={updatePersonaStateField}
+                  deleteFn={deletePersonaStateField}
+                  reorderFn={reorderPersonaStateFields}
                 />
               </div>
             </>

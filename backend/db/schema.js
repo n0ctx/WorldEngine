@@ -3,12 +3,50 @@ CREATE TABLE IF NOT EXISTS worlds (
   id             TEXT PRIMARY KEY,
   name           TEXT NOT NULL,
   system_prompt  TEXT NOT NULL DEFAULT '',
-  persona_name   TEXT NOT NULL DEFAULT '',
-  persona_prompt TEXT NOT NULL DEFAULT '',
   temperature    REAL,
   max_tokens     INTEGER,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS personas (
+  id             TEXT PRIMARY KEY,
+  world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+  name           TEXT NOT NULL DEFAULT '',
+  system_prompt  TEXT NOT NULL DEFAULT '',
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS persona_state_fields (
+  id                 TEXT PRIMARY KEY,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  label              TEXT NOT NULL,
+  type               TEXT NOT NULL,
+  description        TEXT NOT NULL DEFAULT '',
+  default_value      TEXT,
+  update_mode        TEXT NOT NULL DEFAULT 'manual',
+  trigger_mode       TEXT NOT NULL DEFAULT 'manual_only',
+  trigger_keywords   TEXT,
+  enum_options       TEXT,
+  min_value          REAL,
+  max_value          REAL,
+  allow_empty        INTEGER NOT NULL DEFAULT 1,
+  update_instruction TEXT NOT NULL DEFAULT '',
+  sort_order         INTEGER NOT NULL DEFAULT 0,
+  created_at         INTEGER NOT NULL,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(world_id, field_key)
+);
+
+CREATE TABLE IF NOT EXISTS persona_state_values (
+  id             TEXT PRIMARY KEY,
+  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key      TEXT NOT NULL,
+  value_json     TEXT,
+  updated_at     INTEGER NOT NULL,
+  UNIQUE(world_id, field_key)
 );
 
 CREATE TABLE IF NOT EXISTS characters (
@@ -194,6 +232,8 @@ CREATE INDEX IF NOT EXISTS idx_character_prompt_entries_character_id ON characte
 CREATE INDEX IF NOT EXISTS idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
 CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_order);
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
+CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
 `;
 
 export function initSchema(db) {

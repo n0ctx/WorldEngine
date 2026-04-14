@@ -26,6 +26,9 @@ import worldTimelineRoutes from './routes/world-timeline.js';
 import importExportRoutes from './routes/import-export.js';
 import customCssSnippetsRoutes from './routes/custom-css-snippets.js';
 import regexRulesRoutes from './routes/regex-rules.js';
+import personasRoutes from './routes/personas.js';
+import personaStateFieldsRoutes from './routes/persona-state-fields.js';
+import personaStateValuesRoutes from './routes/persona-state-values.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -64,6 +67,9 @@ app.use('/api', worldTimelineRoutes);
 app.use('/api', importExportRoutes);
 app.use('/api', customCssSnippetsRoutes);
 app.use('/api', regexRulesRoutes);
+app.use('/api', personasRoutes);
+app.use('/api', personaStateFieldsRoutes);
+app.use('/api', personaStateValuesRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

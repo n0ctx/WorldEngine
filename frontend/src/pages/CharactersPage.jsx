@@ -10,6 +10,7 @@ import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/importExport';
+import PersonaCard from '../components/persona/PersonaCard';
 
 function AvatarCircle({ character, size = 'md' }) {
   const url = getAvatarUrl(character.avatar_path);
@@ -269,6 +270,9 @@ export default function CharactersPage() {
             </button>
           </div>
         </div>
+
+        {/* 玩家人设卡片 */}
+        <PersonaCard worldId={worldId} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
