@@ -25,6 +25,7 @@ import characterStateValuesRoutes from './routes/character-state-values.js';
 import worldTimelineRoutes from './routes/world-timeline.js';
 import importExportRoutes from './routes/import-export.js';
 import customCssSnippetsRoutes from './routes/custom-css-snippets.js';
+import regexRulesRoutes from './routes/regex-rules.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -62,6 +63,7 @@ app.use('/api', characterStateValuesRoutes);
 app.use('/api', worldTimelineRoutes);
 app.use('/api', importExportRoutes);
 app.use('/api', customCssSnippetsRoutes);
+app.use('/api', regexRulesRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

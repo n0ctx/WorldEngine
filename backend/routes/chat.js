@@ -14,6 +14,7 @@ import { generateSummary, generateTitle } from '../memory/summarizer.js';
 import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
 import { appendWorldTimeline } from '../memory/world-timeline.js';
+import { applyRules } from '../utils/regex-runner.js';
 
 const router = Router();
 
@@ -79,13 +80,22 @@ async function runStream(sessionId, res) {
     }
   }
 
+  // 提前查询 session/character/world，供 ai_output 规则和异步任务使用
+  const session = getSessionById(sessionId);
+  const characterId = session?.character_id;
+  const character = characterId ? getCharacterById(characterId) : null;
+  const worldId = character?.world_id ?? null;
+
   // 保存 AI 回复
   if (aborted && fullContent) {
     fullContent += '\n\n[已中断]';
   }
 
   if (fullContent) {
-    createMessage({ session_id: sessionId, role: 'assistant', content: fullContent });
+    // ai_output scope：流式完结后、写入 messages 前处理
+    const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId);
+    createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
+    fullContent = savedContent;
     touchSession(sessionId);
   }
 
@@ -104,10 +114,6 @@ async function runStream(sessionId, res) {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      const session = getSessionById(sessionId);
-      const characterId = session?.character_id;
-      const character = characterId ? getCharacterById(characterId) : null;
-      const worldId = character?.world_id;
 
       // 优先级 1：生成 summary（不可丢弃，fire-and-forget）
       enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});

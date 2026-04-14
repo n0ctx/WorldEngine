@@ -6,6 +6,7 @@ import {
 } from '../api/config';
 import EntryList from '../components/prompt/EntryList';
 import CustomCssManager from '../components/settings/CustomCssManager';
+import RegexRulesManager from '../components/settings/RegexRulesManager';
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -419,6 +420,12 @@ export default function SettingsPage() {
           <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
             <SectionTitle>自定义样式</SectionTitle>
             <CustomCssManager />
+          </section>
+
+          {/* ── 正则替换 ──────────────────────────────── */}
+          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+            <SectionTitle>正则替换</SectionTitle>
+            <RegexRulesManager />
           </section>
         </div>
       </div>

@@ -32,6 +32,7 @@ import {
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
 import { renderWorldState, renderCharacterState, renderTimeline } from '../memory/recall.js';
+import { applyRules } from '../utils/regex-runner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
@@ -154,10 +155,11 @@ export async function buildPrompt(sessionId) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
 
-  // [7] 历史消息
+  // [7] 历史消息（prompt_only scope：对每条消息的 content 字段应用正则替换，仅影响送入 LLM 的副本）
   const history = getMessagesBySessionId(sessionId, 9999, 0);
   for (const msg of history) {
-    messages.push(formatMessageForLLM(msg));
+    const content = applyRules(msg.content, 'prompt_only', world.id);
+    messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
   // [8] 当前用户消息 — 由调用方传入，不在此处添加

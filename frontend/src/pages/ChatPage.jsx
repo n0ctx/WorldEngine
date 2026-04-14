@@ -7,6 +7,7 @@ import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import MemoryPanel from '../components/memory/MemoryPanel.jsx';
+import { loadRules } from '../utils/regex-runner.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -33,6 +34,11 @@ export default function ChatPage() {
     if (!characterId) return;
     getCharacter(characterId).then(setCharacter).catch(console.error);
   }, [characterId]);
+
+  // 启动时加载正则规则缓存
+  useEffect(() => {
+    loadRules().catch(console.error);
+  }, []);
 
   // 选择会话
   function handleSessionSelect(session) {
@@ -235,6 +241,7 @@ export default function ChatPage() {
           key={`${currentSessionId}-${messageListKey}`}
           sessionId={currentSessionId}
           character={character}
+          worldId={character?.world_id ?? null}
           generating={generating}
           streamingText={streamingText}
           memoryRecalling={memoryRecalling}
@@ -248,6 +255,7 @@ export default function ChatPage() {
           onStop={handleStop}
           generating={generating}
           lastUserContent={lastUserContent}
+          worldId={character?.world_id ?? null}
         />
       </div>
 

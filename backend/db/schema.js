@@ -166,6 +166,20 @@ CREATE TABLE IF NOT EXISTS custom_css_snippets (
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS regex_rules (
+  id             TEXT PRIMARY KEY,
+  name           TEXT NOT NULL,
+  enabled        INTEGER NOT NULL DEFAULT 1,
+  pattern        TEXT NOT NULL,
+  replacement    TEXT NOT NULL DEFAULT '',
+  flags          TEXT NOT NULL DEFAULT 'g',
+  scope          TEXT NOT NULL,
+  world_id       TEXT REFERENCES worlds(id) ON DELETE CASCADE,
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
 `;
 
 const INDEXES = `
@@ -178,6 +192,8 @@ CREATE INDEX IF NOT EXISTS idx_character_state_values_character_id ON character_
 CREATE INDEX IF NOT EXISTS idx_world_prompt_entries_world_id ON world_prompt_entries(world_id);
 CREATE INDEX IF NOT EXISTS idx_character_prompt_entries_character_id ON character_prompt_entries(character_id);
 CREATE INDEX IF NOT EXISTS idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
+CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_order);
+CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 `;
 
 export function initSchema(db) {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
+import { applyRules } from '../../utils/regex-runner.js';
 
-export default function InputBox({ onSend, onStop, generating, lastUserContent }) {
+export default function InputBox({ onSend, onStop, generating, lastUserContent, worldId }) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const textareaRef = useRef(null);
@@ -31,7 +32,9 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent }
   function handleSend() {
     const trimmed = text.trim();
     if (!trimmed || generating) return;
-    onSend(trimmed, attachments);
+    // user_input scope：发送前应用正则替换
+    const processed = applyRules(trimmed, 'user_input', worldId ?? null);
+    onSend(processed, attachments);
     setText('');
     setAttachments([]);
   }

@@ -7,6 +7,7 @@ const PAGE_SIZE = 50;
 export default function MessageList({
   sessionId,
   character,
+  worldId,
   generating,
   streamingText,
   memoryRecalling,
@@ -150,6 +151,7 @@ export default function MessageList({
             key={msg.id}
             message={msg}
             character={character}
+            worldId={worldId}
             isStreaming={false}
             onEdit={onEditMessage}
             onRegenerate={onRegenerateMessage}
@@ -162,6 +164,7 @@ export default function MessageList({
             key="__streaming__"
             message={{ id: '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
             character={character}
+            worldId={worldId}
             isStreaming={true}
             streamingText={streamingText}
             onEdit={() => {}}

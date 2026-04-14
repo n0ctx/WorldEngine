@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
+import { applyRules } from '../../utils/regex-runner.js';
 
 function formatTime(ts) {
   const d = new Date(ts);
@@ -63,7 +64,7 @@ function AttachmentThumbnail({ src }) {
   );
 }
 
-export default function MessageItem({ message, character, isStreaming, streamingText, onEdit, onRegenerate }) {
+export default function MessageItem({ message, character, worldId, isStreaming, streamingText, onEdit, onRegenerate }) {
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -78,6 +79,11 @@ export default function MessageItem({ message, character, isStreaming, streaming
   if (displayContent.includes('[已中断]')) {
     displayContent = displayContent.replace(/\n?\n?\[已中断\]/, '').trimEnd();
     interrupted = true;
+  }
+
+  // display_only scope：渲染前应用正则替换，不修改 store 里的原始内容
+  if (!isStreaming) {
+    displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
   function startEdit() {
