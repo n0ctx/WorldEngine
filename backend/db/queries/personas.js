@@ -13,6 +13,7 @@ export function upsertPersona(worldId, data = {}) {
     const patch = {};
     if ('name' in data) patch.name = data.name;
     if ('system_prompt' in data) patch.system_prompt = data.system_prompt;
+    if ('avatar_path' in data) patch.avatar_path = data.avatar_path;
     if (Object.keys(patch).length === 0) return existing;
 
     const sets = Object.keys(patch).map((k) => `${k} = ?`);

@@ -728,3 +728,303 @@ reorder 路由必须在 :id 路由前注册
 7. 前端 UI：expand_start 出现「正在翻阅历史对话…」胶囊，done 后显示「已翻阅 N 条历史对话」3 秒后淡出；关闭开关时从未出现胶囊
 8. expanded session 的原始消息超过 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS → 渲染末尾有「…（后续对话略）」占位
 9. assembler [1]-[5]、[7]-[8] 其他位置未受影响；T27 的 recall 行为在未命中时维持不变
+
+---
+
+### T29A ⬜ 设计令牌落地 & 视觉基线审计
+
+**这个任务做什么**：将 DESIGN.md 里描述的 Claude 风格设计系统落成具体的 CSS 变量 + Tailwind v4 `@theme` 配置 + 字体栈；同时产出一份「组件 → 变更清单」的审计表给 T29B 按图施工。**本任务只改全局 token，不动任何组件的 className**。
+
+**涉及文件**：
+
+- `/frontend/src/index.css`（重写 `:root` 变量 + `@theme` 块；删除 `prefers-color-scheme: dark` 块）
+- `/frontend/DESIGN_AUDIT.md`（新建，临时审计产物，T29B 完成后删除）
+
+**Claude Code 指令**：
+
+```
+请先阅读 @DESIGN.md（完整设计系统说明）、@CLAUDE.md（项目约束与 T24A/T24B 的交互）、@CHANGELOG.md（T24A 自定义 CSS 已落地，注入点 <style id="we-custom-css"> 在 <head> 末尾）、以及 /frontend/src/index.css 当前内容。另外通过 ls 了解 /frontend/src/components 与 /frontend/src/pages 下的文件分布。
+
+本项目使用 Tailwind v4（`@import "tailwindcss"` + `@theme`），没有 tailwind.config.js，theme 扩展必须写在 CSS 文件里的 `@theme { ... }` 块内。
+
+任务：建立 Claude 风格的设计令牌层，并产出组件审计清单。不改任何组件。
+
+一、重写 /frontend/src/index.css
+
+1. 删除现有 `prefers-color-scheme: dark` 整块（项目明确不做深浅色主题切换，见 PROJECT.md「不做的功能」），连带删除 --text、--bg、--accent 等旧变量
+2. 在 `:root` 定义完整 Claude 风格变量，全部以 `--we-` 前缀：
+   - 画布与表面：--we-canvas（#f5f4ed 羊皮纸）、--we-ivory（#faf9f5）、--we-sand（#e8e6dc）、--we-white（#ffffff）、--we-surface-dark（#30302e）、--we-surface-deep（#141413）
+   - 品牌与强调：--we-accent（#c96442 陶土）、--we-accent-soft（#d97757 珊瑚）、--we-error（#b53333）、--we-focus（#3898ec）
+   - 文字：--we-text（#141413 正文）、--we-text-secondary（#5e5d59）、--we-text-tertiary（#87867f）、--we-text-muted（#4d4c48）、--we-text-on-dark（#b0aea5）
+   - 边框：--we-border（#f0eee6）、--we-border-strong（#e8e6dc）、--we-border-dark（#30302e）
+   - 环形阴影：--we-ring（#d1cfc5）、--we-ring-deep（#c2c0b6）
+   - 阴影预设：--we-shadow-ring（"0 0 0 1px var(--we-ring)"）、--we-shadow-ring-deep（"0 0 0 1px var(--we-ring-deep)"）、--we-shadow-whisper（"rgba(0,0,0,0.05) 0 4px 24px"）
+   - 字体栈（回退链按 DESIGN.md § 3）：
+     --we-serif: "Anthropic Serif", Georgia, "Noto Serif SC", serif;
+     --we-sans: "Anthropic Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+     --we-mono: "Anthropic Mono", ui-monospace, Consolas, monospace;
+   - 圆角刻度：--we-radius-sharp（4px）/--we-radius-sm（6px）/--we-radius（8px）/--we-radius-md（12px）/--we-radius-lg（16px）/--we-radius-xl（24px）/--we-radius-2xl（32px）
+   - 全局排版：font-family 用 var(--we-sans)；font-size 用 16px（从 15px 提到 16px，符合 DESIGN.md Body Standard）；line-height 1.60；color var(--we-text)；background var(--we-canvas)
+
+3. 新增 `@theme` 块，把 Claude 设计 token 暴露为 Tailwind 工具类（v4 语法）：
+   - `--color-canvas`、`--color-ivory`、`--color-sand`、`--color-surface-dark`、`--color-surface-deep`、`--color-accent`、`--color-accent-soft`、`--color-text`、`--color-text-secondary`、`--color-text-tertiary`、`--color-text-muted`、`--color-text-on-dark`、`--color-border`、`--color-border-strong`、`--color-border-dark`、`--color-ring-warm`、`--color-ring-warm-deep`、`--color-error`、`--color-focus`
+     值全部引用 `:root` 定义的对应 `--we-*` 变量
+     这样 `bg-canvas`、`text-accent`、`border-border` 等 Tailwind 工具类可用
+   - 字体族：`--font-serif`、`--font-sans`、`--font-mono` 指向对应 --we-* 变量（启用 `font-serif` / `font-sans` / `font-mono` 工具类）
+   - 圆角：`--radius-sharp`、`--radius-sm`、`--radius`（对应无后缀的 `rounded` 类，指向 --we-radius=8px）、`--radius-md`、`--radius-lg`、`--radius-xl`、`--radius-2xl` 指向对应 --we-radius-* 变量
+   - 阴影：`--shadow-ring`、`--shadow-ring-deep`、`--shadow-whisper` 指向对应 --we-shadow-* 变量
+
+4. 保留现有 `.line-clamp-2`、`.typing-dot`、`@keyframes typing-dot` 等工具样式，但把里面引用的旧变量名（如 `background: var(--text)`）替换为新的 `var(--we-text-tertiary)` 等对应值
+5. body 的 background 改 `var(--we-canvas)`
+6. `* { box-sizing: border-box; }`、`#root { min-height: 100svh; }` 等结构样式保持
+
+二、钩子类名清单（供 T24A 用户片段稳定定位）
+
+7. 整理一份"项目应当保留的钩子类名"清单，写入 DESIGN_AUDIT.md。必须包含至少以下稳定钩子（部分可能当前组件已有，部分待 T29B 补齐）：
+   - 全局结构：`we-app`、`we-sidebar`、`we-main`、`we-modal`、`we-modal-backdrop`
+   - 对话相关：`we-chat-message`、`we-chat-message-user`、`we-chat-message-ai`、`we-chat-bubble`、`we-chat-input`
+   - 列表卡片：`we-character-card`、`we-world-card`、`we-session-card`、`we-persona-card`
+   - 按钮：`we-btn`、`we-btn-primary`、`we-btn-secondary`、`we-btn-ghost`、`we-btn-danger`
+   - 输入：`we-input`、`we-textarea`、`we-select`
+   - 记忆面板：`we-memory-panel`、`we-state-field-row`
+   这是约定清单，**不要在本任务里去各组件加这些 class**，只做登记
+
+三、DESIGN_AUDIT.md（新建）
+
+8. 文件放在 /frontend/DESIGN_AUDIT.md（前端根目录，不是 src 下），文件头注明 "临时审计产物，T29B 完成后删除"
+9. 文件结构：
+   a. 「设计令牌清单」：列出本任务新增的所有 --we-* 变量、它们的值、用途、对应的 Tailwind 工具类名；一张表一眼看全
+   b. 「钩子类名清单」：上述第 7 步清单
+   c. 「字体回退策略」：说明 Anthropic Serif/Sans/Mono 是闭源字体本项目不加载，回退到 Georgia / system-ui / Consolas；不引入任何 web font
+   d. 「组件变更清单」：遍历 /frontend/src/components/**/*.jsx 和 /frontend/src/pages/**/*.jsx（用 ls 或 find 统计），按文件列出：当前用到的硬编码颜色（如 `bg-purple-*`、`text-gray-*`、`#xxx`）、圆角、阴影、字号；对照 DESIGN.md 给出目标 Tailwind 类或 CSS 变量。每个文件一小节，最多 5 行备注。如果文件太多，按目录分组汇总（不必每个文件都单列），但关键页面（ChatPage、CharactersPage、WorldsPage、SettingsPage、MessageItem、InputBox）必须单列
+   e. 「与 T24A 的兼容约定」：写明 "T24A 的 `<style id=\"we-custom-css\">` 注入点在 <head> 末尾，优先级天然高于本任务定义的 :root 和 @theme；用户可覆盖 --we-* 任一变量或直接用钩子类 .we-* 定位；T29B 不得删除现有的 .we-* 钩子类"
+
+四、约束
+
+- 本任务 0 行组件代码改动，`git diff` 除 index.css 外只应看到 DESIGN_AUDIT.md 新增
+- 不引入任何第三方 font 或 CSS 框架
+- 不动锁定文件（index.css 不是锁定文件，可以改）
+- 不改 tailwind 的基础预设（preflight），只扩展 theme
+- 不加深浅色 mode 类、不加 media query 主题切换
+- 变量名一律用 --we- 前缀，避免与 Tailwind 内置 --color-* 或用户 CSS 命名冲突（`@theme` 里的 `--color-*` 是 Tailwind v4 的约定，必须写；但 `:root` 里的用户层变量统一 --we-* 前缀）
+```
+
+**验证方法**：
+
+1. `cd frontend && npm run dev` 启动，**所有页面视觉无崩溃**：页面背景变成羊皮纸色（#f5f4ed），body 文字颜色变成近黑（#141413），其他组件因为 className 未动所以可能仍然显示紫色/灰色/蓝色——这是预期的，T29B 才会替换
+2. 浏览器 DevTools 检查 `:root` 的 computed style，所有 `--we-*` 变量都存在且值符合 DESIGN.md
+3. 临时在某组件里写一个 `<div className="bg-accent text-ivory rounded-md">test</div>`，视觉上应显示陶土色底、象牙色文字、12px 圆角（如未生效说明 @theme 配置错误）；测完删除这个测试
+4. `prefers-color-scheme: dark` 的块确认已删除（搜 `prefers-color-scheme` 全仓无命中）
+5. DESIGN_AUDIT.md 生成，至少包含：设计令牌清单（≥25 个变量）、钩子类名清单（≥20 个类）、组件变更清单（≥6 个关键文件单列 + 其他分组）
+6. T24A 的自定义 CSS 片段功能仍可用：在 SettingsPage 新建一条片段内容 `:root { --we-canvas: #ff0000 !important }`，启用后整个页面背景变红（证明用户片段能覆盖新 token）；测完删除片段
+
+---
+
+### T29B ⬜ 组件样式重构（按 DESIGN_AUDIT.md 执行）
+
+**这个任务做什么**：按 T29A 产出的 DESIGN_AUDIT.md，逐组件把硬编码颜色/字体/圆角/阴影替换为 Claude 风格的 Tailwind 工具类或 CSS 变量；同时在 `/frontend/src/components/ui/` 新建若干纯视觉原语（Button / Card / Input / Badge / Modal 外壳），把散落的样式集中化；补齐 T29A 登记过的 `.we-*` 钩子类名。**不改 props / hooks / store / api / 业务逻辑**。
+
+**涉及文件**：
+
+- `/frontend/src/components/ui/`（新建 Button.jsx、Card.jsx、Input.jsx、Textarea.jsx、Badge.jsx、ModalShell.jsx 等，文件数由实际抽取结果决定）
+- `/frontend/src/**/*.jsx`（所有组件与页面的 className 更新；禁止改 props、hooks、state、api 调用）
+- `/frontend/src/index.css`（若 T29A 没包含的少量跨组件通用 class，比如 `.we-scrollbar`，可在此补充，但不再动 `:root` 或 `@theme`）
+- 删除 `/frontend/DESIGN_AUDIT.md`（任务末尾）
+
+**Claude Code 指令**：
+
+```
+请先阅读 @DESIGN.md、@/frontend/DESIGN_AUDIT.md（T29A 产出物，含组件变更清单和钩子类清单）、@CLAUDE.md、@CHANGELOG.md（特别留意 T24A / T24B / T26A / T26B / T26C 的 UI 结构约束）。然后 ls /frontend/src/components、/frontend/src/pages 了解全貌。
+
+任务：把前端视觉按 DESIGN.md 重构到 Claude 风格。逻辑一点都不动。
+
+一、新建 /frontend/src/components/ui/ 原语（按需拆，不追求最小集）
+
+1. Button.jsx：props = { variant?: 'primary'|'secondary'|'ghost'|'danger', size?: 'sm'|'md'|'lg', as?: 'button'|'a', ...rest }；默认 variant='secondary'、size='md'；
+   - primary：bg-accent text-ivory hover:opacity-90，圆角 rounded-md（12px），shadow-ring-deep
+   - secondary：bg-sand text-text-muted hover:bg-border-strong，圆角 rounded（8px），shadow-ring
+   - ghost：bg-transparent text-text-secondary hover:bg-sand
+   - danger：bg-error text-white hover:opacity-90
+   - 内部统一挂 className="we-btn we-btn-{variant}"（合并用户传入的 className）
+2. Card.jsx：props = { elevation?: 'flat'|'contained'|'ring'|'whisper' }；默认 contained；
+   - flat：bg-canvas，无边框无阴影
+   - contained：bg-ivory border border-border rounded-md
+   - ring：bg-ivory shadow-ring rounded-md
+   - whisper：bg-ivory shadow-whisper rounded-lg
+   - 挂 we-card 钩子
+3. Input.jsx / Textarea.jsx：bg-white border border-border rounded-md px-3 py-2 text-text focus:border-focus focus:ring-2 focus:ring-focus/20 outline-none；挂 we-input / we-textarea
+4. Badge.jsx：bg-sand text-text-muted text-xs px-2 py-0.5 rounded-full；挂 we-badge
+5. ModalShell.jsx：通用遮罩 + 居中容器，bg-ivory rounded-lg shadow-whisper；挂 we-modal / we-modal-backdrop
+6. 这些原语不加新 props 参数到业务层，只封装样式；业务组件可以选择性迁移，也可以直接用 Tailwind 工具类，保持渐进
+
+二、逐组件样式替换（按 DESIGN_AUDIT.md 的组件变更清单）
+
+7. 遍历清单里列出的每个文件，按以下原则改 className：
+   - 颜色：所有 bg-purple-*, bg-blue-*, text-gray-*, border-gray-* 等 Tailwind 默认色 → 对应的 Claude 令牌（bg-canvas/ivory/sand、text-text/text-secondary、border-border 等）；任何硬编码 # 颜色（style="..." 或 className 里的 [#xxx]）全部替换
+   - 字体：标题（h1/h2/h3/对话框标题/页面大标题）加 font-serif；正文和 UI 保持 font-sans（默认已是）；代码 font-mono
+   - 字号：按 DESIGN.md § 3 重新分配；body 默认 16px（T29A 已改），大标题 28-36px，卡片标题 20-25px，caption 14px，label 12px；不追求像素级精确，只要层级符合
+   - 圆角：所有 rounded-sm/rounded/rounded-md/rounded-lg 按 DESIGN.md § 5 重新选：小按钮 rounded-sm（6px），标准按钮/卡片 rounded（8px），主按钮/输入 rounded-md（12px），大卡片/面板 rounded-lg（16px），胶囊/标签 rounded-full
+   - 阴影：drop shadow (shadow-sm/shadow/shadow-md/shadow-lg) 改 shadow-ring 或 shadow-whisper；active/pressed 状态用 shadow-ring-deep
+   - hover / focus：hover 改色时走变量（如 hover:bg-sand 而非 hover:bg-gray-100）；focus 统一 focus:ring-2 focus:ring-focus/20 focus:border-focus
+8. 关键组件额外要求（清单）：
+   - ChatPage / MessageList：背景 bg-canvas；消息气泡 bg-ivory（AI）、bg-accent/10（user）；气泡圆角 rounded-lg；挂 we-chat-message / we-chat-bubble / we-chat-message-user|ai
+   - MessageItem：T26A 的 group-hover 结构保持；文字颜色分 user/ai 分别用 text-text / text-text；时间戳 text-text-tertiary
+   - InputBox：外壳 bg-ivory border-border rounded-lg；发送按钮用 Button variant="primary"
+   - CharactersPage / WorldsPage / SessionListPage：列表项 bg-ivory hover:bg-sand transition；头像圆角 rounded-full
+   - SettingsPage：分区标题 font-serif text-xl mb-4；输入区用 Input / Textarea 原语
+   - 各种 Modal（WorldFormModal、CharacterEditPage 的弹层、RegexRuleEditor、PersonaEditModal 等）：外壳用 ModalShell，标题 font-serif text-2xl
+   - MemoryPanel：分区标题 font-serif；状态字段行 we-state-field-row
+9. 补齐 T29A 登记的钩子类名：每个组件的最外层/关键容器加对应的 we-* className（用 `className={"原有类 we-xxx"}` 或 clsx 合并）
+
+三、结构性禁区（硬约束）
+
+10. 禁止：修改任何 .jsx 的 import；修改任何 useState/useEffect/useMemo 的依赖或逻辑；改 store/index.js；改 /api/ 下任何文件；改 SSE 事件处理；改 MessageList 渲染条件；改 T25 Slash 命令激活逻辑；改 T24B regex-runner 的调用时机；改 T26A group-hover 结构；改 T26C PersonaCard 的数据流
+11. 允许：拆出只承载视觉的新组件（如把 MessageItem 里重复的一段按钮组抽成 `<MessageActions>`），但拆出的组件必须 1:1 等价于原逻辑，props 透传；不允许合并多个原有组件
+12. 允许：调整 Tailwind 的 spacing / padding / margin 数值以契合 DESIGN.md 的 editorial pacing，但不改 flex 方向、不改 grid 列数、不改层级嵌套
+
+四、收尾
+
+13. 删除 /frontend/DESIGN_AUDIT.md
+14. 若发现 T29A 漏定义的 token 或钩子类，可在 index.css 的 :root / @theme 或 DESIGN_AUDIT.md 补充；但补定义要在 CHANGELOG 里写清
+15. 不新增依赖（package.json 不动）
+
+五、T24A 兼容性验证（本任务必须跑一遍）
+
+16. 在 Settings 页用 T24A 新建一条片段：`body { font-family: "Comic Sans MS" !important; }`，启用 → 整个 UI 字体变 Comic Sans，证明用户片段仍生效；测完删片段
+17. 新建一条片段：`.we-chat-bubble { background: #ffe !important; }`，启用 → 所有消息气泡变浅黄色；测完删片段
+```
+
+**验证方法**：
+
+1. `cd frontend && npm run dev` 全页面肉眼巡检：
+   - 背景是羊皮纸米色（#f5f4ed），不再是冷灰
+   - 主按钮是陶土橙（#c96442），不再是紫色
+   - 所有圆角柔和（≥6px），没有尖角按钮/卡片
+   - 标题是衬线字体（Georgia 回退），正文是无衬线
+   - 阴影是环形 halo，不是传统的模糊投影
+2. 核心交互手动走一遍确认功能完全无变化：创建世界 → 建角色 → 建会话 → 发消息（流式、编辑、重试、继续写、代入）→ 打开记忆面板 → 改设置 → 导出导入 → Slash 命令 → 正则规则 → 自定义 CSS → 玩家人设编辑
+3. T26A hover 稳态仍然无抖动
+4. T24A 片段覆盖测试通过（见指令第 16-17 步）
+5. T24B 正则规则 4 种 scope 仍正常触发（重点验 display_only 的 HTML 不被新样式破坏）
+6. 无控制台 warning / error；无未使用的 CSS 变量（可忽略）
+7. `npm run build` 通过，dist 产物大小无明显膨胀（±20% 可接受）
+8. DESIGN_AUDIT.md 已删除
+9. 所有 T29A 登记的钩子类名在对应组件的 DOM 树里都能被 querySelector 命中（抽查 3-5 个）
+
+---
+
+### T30 ⬜ 删除时同步清理附件 / 头像 / 向量（orphan cleanup）
+
+**这个任务做什么**：SQLite 的 `ON DELETE CASCADE` 只负责 DB 行级联，不会回调 JS 去清磁盘文件和向量 JSON。现状是删 session / character / world 时，`/data/uploads/attachments/` 里的消息附件、`/data/uploads/avatars/` 里的角色头像、`/data/vectors/prompt_entries.json` 里的 Prompt 条目向量都会变孤儿（T27 的 `session_summaries.json` 已有 `deleteBySessionId`，但 service 层没调用）。本任务在三个 delete service 里补一道「先 SELECT 收集副作用目标 → DB DELETE → 清文件/向量」的流程，实现真正的彻底删除。
+
+**为什么不用 SQLite 触发器或事务回滚**：
+
+- 文件 IO 和向量 JSON 都在 JS 层，SQLite 触发器不触及
+- 清理失败（比如文件被占用）不应回滚 DB——DB 删了就是删了，孤儿文件只是占盘空间，没有业务正确性风险；强行回滚反而制造"删不掉"的死状态
+- 因此采用"DB 先删、副作用后清、失败只记 warn"的策略
+
+**涉及文件**：
+
+- `/backend/utils/file-cleanup.js`（新建，封装 `unlinkAttachmentFiles` / `unlinkAvatarFile`，统一做 path resolve + 失败静默）
+- `/backend/db/queries/messages.js`（新增三个只读查询：`getAttachmentsBySessionId` / `getAttachmentsByCharacterId` / `getAttachmentsByWorldId`）
+- `/backend/db/queries/characters.js`（新增 `getAvatarPathsByWorldId` / `getSessionIdsByCharacterId` / `getSessionIdsByWorldId`）
+- `/backend/db/queries/prompt-entries.js`（新增 `getEmbeddingIdsByCharacterId` / `getEmbeddingIdsByWorldId`，仅返回 `embedding_id IS NOT NULL` 的条目）
+- `/backend/services/sessions.js`（`deleteSession` 改造）
+- `/backend/services/characters.js`（`deleteCharacter` 改造）
+- `/backend/services/worlds.js`（`deleteWorld` 改造）
+
+**Claude Code 指令**：
+
+```
+请先阅读 @SCHEMA.md（级联删除策略、attachments / avatar_path 字段格式）、@CLAUDE.md（数据库操作规范：queries 层只做 SQL、service 层做业务；range 克制原则；CHANGELOG + git commit 规范）、@CHANGELOG.md（T27 已落地 session_summary 向量，T28 没改这块；T26C 有 personas 表，但 persona 只有 name/system_prompt 无文件/无向量）、@backend/utils/vector-store.js（`deleteEntry(id)` 现有 API）、@backend/utils/session-summary-vector-store.js（`deleteBySessionId(sessionId)` 现有 API）。
+
+任务：让 deleteSession / deleteCharacter / deleteWorld 在删 DB 行的同时，把对应的附件文件、头像文件、prompt 条目向量、session summary 向量一并清掉，不留孤儿。
+
+一、新建 utils/file-cleanup.js
+
+1. 导入 `fs/promises`、`path`、`fileURLToPath`
+2. 常量 `UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads')`（与现有上传写入路径保持一致，若现有代码有常量则复用，不要重复定义）
+3. 导出 `async unlinkAttachmentFiles(relativePaths)`：入参可能为 null / 空数组 / 字符串数组；逐个 `fs.unlink(path.resolve(UPLOADS_DIR, rel))`；捕获 ENOENT 静默忽略，其它错误 `console.warn` 后继续；不抛
+4. 导出 `async unlinkAvatarFile(relativePath)`：null / 空字符串 → 直接 return；否则同上规则 unlink
+
+二、扩 db/queries/messages.js（纯只读查询，不改现有函数）
+
+5. `getAttachmentsBySessionId(sessionId)` → `string[]`
+   - `SELECT attachments FROM messages WHERE session_id = ? AND attachments IS NOT NULL`
+   - 每行 `JSON.parse` 后扁平化，过滤 null / 非字符串项；返回字符串数组（可能为空）
+6. `getAttachmentsByCharacterId(characterId)` → `string[]`
+   - JOIN sessions：`SELECT m.attachments FROM messages m JOIN sessions s ON m.session_id = s.id WHERE s.character_id = ? AND m.attachments IS NOT NULL`
+   - 同样扁平化
+7. `getAttachmentsByWorldId(worldId)` → `string[]`
+   - JOIN sessions + characters：`SELECT m.attachments FROM messages m JOIN sessions s ON m.session_id = s.id JOIN characters c ON s.character_id = c.id WHERE c.world_id = ? AND m.attachments IS NOT NULL`
+
+三、扩 db/queries/characters.js
+
+8. `getAvatarPathsByWorldId(worldId)` → `string[]`：`SELECT avatar_path FROM characters WHERE world_id = ? AND avatar_path IS NOT NULL`
+9. `getSessionIdsByCharacterId(characterId)` → `string[]`：`SELECT id FROM sessions WHERE character_id = ?`
+10. `getSessionIdsByWorldId(worldId)` → `string[]`：`SELECT s.id FROM sessions s JOIN characters c ON s.character_id = c.id WHERE c.world_id = ?`
+
+四、扩 db/queries/prompt-entries.js（若无此文件则在已有 `character-prompt-entries.js` / `world-prompt-entries.js` 拆分的文件里各加一个函数）
+
+11. `getEmbeddingIdsByCharacterId(characterId)` → `string[]`：`SELECT embedding_id FROM character_prompt_entries WHERE character_id = ? AND embedding_id IS NOT NULL`
+12. `getEmbeddingIdsByWorldId(worldId)` → `string[]`：UNION ALL 两条查询——该 world 的 world_prompt_entries 的 embedding_id + 该 world 下所有 character 的 character_prompt_entries 的 embedding_id；过滤 NULL；结果去重
+
+五、改造 services/sessions.js `deleteSession(id)`
+
+13. 执行顺序：
+    1) `const attachments = getAttachmentsBySessionId(id)`
+    2) `dbDeleteSession(id)`（cascade 清 messages + session_summaries）
+    3) `sessionSummaryVectorStore.deleteBySessionId(id)`（即使 summary 不存在也 no-op）
+    4) `await unlinkAttachmentFiles(attachments)`
+14. DB delete 成功但后续失败只记日志，函数仍返回 db delete 的 changes
+
+六、改造 services/characters.js `deleteCharacter(id)`
+
+15. 执行顺序：
+    1) `const character = getCharacterById(id)`（拿 avatar_path）
+    2) `const sessionIds = getSessionIdsByCharacterId(id)`
+    3) `const attachments = getAttachmentsByCharacterId(id)`
+    4) `const embeddingIds = getEmbeddingIdsByCharacterId(id)`
+    5) `dbDeleteCharacter(id)`（cascade 清 sessions→messages/summaries、character_state_values、character_prompt_entries）
+    6) `for (sid of sessionIds) sessionSummaryVectorStore.deleteBySessionId(sid)`
+    7) `for (eid of embeddingIds) vectorStore.deleteEntry(eid)`
+    8) `await unlinkAvatarFile(character?.avatar_path)`
+    9) `await unlinkAttachmentFiles(attachments)`
+
+七、改造 services/worlds.js `deleteWorld(id)`
+
+16. 执行顺序：
+    1) `const avatarPaths = getAvatarPathsByWorldId(id)`
+    2) `const sessionIds = getSessionIdsByWorldId(id)`
+    3) `const attachments = getAttachmentsByWorldId(id)`
+    4) `const embeddingIds = getEmbeddingIdsByWorldId(id)`
+    5) `dbDeleteWorld(id)`（cascade 清 characters→sessions→messages/summaries、personas、persona_state_*、world_state_*、character_state_fields、world_timeline、world_prompt_entries、world_id 绑定的 regex_rules）
+    6) `for (sid of sessionIds) sessionSummaryVectorStore.deleteBySessionId(sid)`
+    7) `for (eid of embeddingIds) vectorStore.deleteEntry(eid)`
+    8) `for (p of avatarPaths) await unlinkAvatarFile(p)`
+    9) `await unlinkAttachmentFiles(attachments)`
+
+八、约束
+
+- 三个 service 的 delete 方法签名不变，只是内部从同步改为 async；所有调用方（routes/*.js）已经 await 则无需改，若现有路由未 await 则同步改 `await service.deleteX()`
+- 不改任何锁定文件（schema.js / constants.js / assembler.js / SCHEMA.md / server.js / store/index.js）
+- 不改前端
+- 不新增事务包裹——副作用清理故意放在 DB DELETE 之后、失败只记 warn，保证 DB 状态不被文件系统错误反向污染
+- import-export.js 的导入流程不受影响（它走 createX 而非 deleteX）
+- 任务完成后在 CHANGELOG.md 最上方追加 T30 记录，git commit
+```
+
+**验证方法**：
+
+1. 准备：在某世界 A 下建角色 C（上传头像）、开会话 S、发带图片附件的消息若干、触发一次 summary 使其向量化、给世界和角色各建 1-2 条 Prompt 条目并等待向量化完成
+2. 记录删除前基线：
+   - `ls -1 data/uploads/attachments | wc -l`
+   - `ls -1 data/uploads/avatars`
+   - `jq '.entries | length' data/vectors/prompt_entries.json`
+   - `jq '.entries | length' data/vectors/session_summaries.json`
+3. 场景 1（删 session）：删除会话 S → attachments 数量减少正好为 S 下消息附件数；session_summaries.json 该 session 条目消失；avatars / prompt_entries.json 不变
+4. 场景 2（删 character）：重建上述基线后，删除角色 C → 头像文件消失；C 下所有 session 的 attachments 消失；session_summaries.json 该角色下 session 条目全消失；prompt_entries.json 减少条数 = C 的 character_prompt_entries 已向量化条目数；世界级 Prompt 条目向量不受影响
+5. 场景 3（删 world）：重建基线后，删除世界 A → 该世界下所有头像、所有附件、所有 session summary 向量、所有 world/character prompt 向量一并消失；其它世界资源完全不受影响
+6. 故障注入：手动把某附件文件 `chmod 000`，再删 session → 后端日志 warn 一行但 DB DELETE 成功，后续读 session 返回 404，DB 里 messages 行已删
+7. 故障注入：手动删掉 `data/vectors/prompt_entries.json` 文件后删 character → 走 `loadStore` 的 empty fallback，不报错
+8. 删除 persona 无向量无文件需清理（persona 只有 name/system_prompt）→ 删 world 时 personas 行被 cascade 清掉即可，验证 `SELECT * FROM personas WHERE world_id = ?` 为空

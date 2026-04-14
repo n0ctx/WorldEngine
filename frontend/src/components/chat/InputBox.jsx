@@ -5,7 +5,6 @@ const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
   { cmd: '/impersonate', desc: 'AI 替你写一条消息' },
   { cmd: '/retry',       desc: '删除最后一条 AI 回复并重新生成' },
-  { cmd: '/regen',       desc: '重新生成最后一条 AI 回复（同 /retry）' },
   { cmd: '/clear',       desc: '清空当前会话所有消息' },
   { cmd: '/summary',     desc: '手动触发生成当前会话摘要' },
 ];
@@ -73,8 +72,7 @@ export default function InputBox({
     switch (cmd) {
       case '/continue':    onContinue?.();    break;
       case '/impersonate': onImpersonate?.(); break;
-      case '/retry':
-      case '/regen':       onRetry?.();       break;
+      case '/retry':       onRetry?.();       break;
       case '/clear':       onClear?.();       break;
       case '/summary':     onSummary?.();     break;
     }

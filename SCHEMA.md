@@ -66,6 +66,7 @@ CREATE TABLE personas (
   world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL DEFAULT '',  -- 玩家在该世界的称呼
   system_prompt  TEXT NOT NULL DEFAULT '',  -- 玩家人设描述，注入到 [2] 位置
+  avatar_path    TEXT,                      -- 头像相对路径（T30）
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );

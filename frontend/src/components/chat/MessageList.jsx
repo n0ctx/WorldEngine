@@ -7,6 +7,7 @@ const PAGE_SIZE = 50;
 export default function MessageList({
   sessionId,
   character,
+  persona,
   worldId,
   generating,
   streamingText,
@@ -177,6 +178,7 @@ export default function MessageList({
               key={msg.id}
               message={displayMsg}
               character={character}
+              persona={persona}
               worldId={worldId}
               isStreaming={isContinuing}
               onEdit={onEditMessage}

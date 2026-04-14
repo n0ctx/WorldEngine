@@ -10,26 +10,48 @@ import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/importExport';
-import { getPersona, updatePersona } from '../api/personas';
+import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import StateFieldList from '../components/state/StateFieldList';
 import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/personaStateFields';
 
-function PersonaEditModal({ worldId, onClose }) {
+function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [avatarPath, setAvatarPath] = useState(null);
+  const [personaId, setPersonaId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const avatarFileRef = useRef(null);
 
   useEffect(() => {
     getPersona(worldId).then((p) => {
       setName(p.name ?? '');
       setSystemPrompt(p.system_prompt ?? '');
+      setAvatarPath(p.avatar_path ?? null);
+      setPersonaId(p.id);
       setLoaded(true);
     });
   }, [worldId]);
+
+  async function handleAvatarFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarUploading(true);
+    try {
+      const result = await uploadPersonaAvatar(worldId, file);
+      setAvatarPath(result.avatar_path);
+      onAvatarChange?.(result.avatar_path);
+    } catch (err) {
+      alert(`头像上传失败：${err.message}`);
+    } finally {
+      setAvatarUploading(false);
+      e.target.value = '';
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -40,6 +62,10 @@ function PersonaEditModal({ worldId, onClose }) {
       setSaving(false);
     }
   }
+
+  const avatarUrl = getAvatarUrl(avatarPath);
+  const avatarColor = getAvatarColor(personaId || worldId);
+  const avatarInitial = (name || '玩')[0].toUpperCase();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -52,6 +78,47 @@ function PersonaEditModal({ worldId, onClose }) {
             <p className="text-sm text-[var(--text)] opacity-50">加载中…</p>
           ) : (
             <>
+              {/* 头像 */}
+              <div className="flex flex-col items-center">
+                <div
+                  className="relative cursor-pointer group"
+                  onClick={() => avatarFileRef.current?.click()}
+                >
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt={name}
+                      className="w-20 h-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-semibold text-white"
+                      style={{ backgroundColor: avatarColor }}
+                    >
+                      {avatarInitial}
+                    </div>
+                  )}
+                  {avatarUploading && (
+                    <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                      <span className="text-white text-xs">上传中…</span>
+                    </div>
+                  )}
+                  {!avatarUploading && (
+                    <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                      <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">更换头像</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarFileChange}
+                />
+                <p className="text-xs text-[var(--text)] mt-1.5 opacity-50">点击头像上传图片</p>
+              </div>
+
               <div>
                 <label className="block text-sm text-[var(--text)] mb-1">名字</label>
                 <input
@@ -114,7 +181,11 @@ function PersonaCard({ worldId, onEdit }) {
     getPersona(worldId).then(setPersona).catch(() => {});
   }, [worldId]);
 
-  if (!persona || (!persona.name && !persona.system_prompt)) {
+  const avatarUrl = persona ? getAvatarUrl(persona.avatar_path) : null;
+  const avatarColor = getAvatarColor(persona?.id || worldId);
+  const avatarInitial = (persona?.name || '玩')[0].toUpperCase();
+
+  if (!persona || (!persona.name && !persona.system_prompt && !persona.avatar_path)) {
     return (
       <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
         <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-1">玩家</p>
@@ -133,13 +204,28 @@ function PersonaCard({ worldId, onEdit }) {
   return (
     <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
       <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-2">玩家</p>
-      <div className="flex flex-col gap-1 pr-8">
-        {persona.name && (
-          <p className="text-sm font-medium text-[var(--text-h)]">{persona.name}</p>
-        )}
-        {persona.system_prompt && (
-          <p className="text-xs text-[var(--text)] line-clamp-2">{persona.system_prompt}</p>
-        )}
+      <div className="flex items-center gap-3 pr-8">
+        {/* 头像 */}
+        <div className="flex-none">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={persona.name} className="w-10 h-10 rounded-full object-cover" />
+          ) : (
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white"
+              style={{ backgroundColor: avatarColor }}
+            >
+              {avatarInitial}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-0.5 min-w-0">
+          {persona.name && (
+            <p className="text-sm font-medium text-[var(--text-h)] truncate">{persona.name}</p>
+          )}
+          {persona.system_prompt && (
+            <p className="text-xs text-[var(--text)] line-clamp-2">{persona.system_prompt}</p>
+          )}
+        </div>
       </div>
       <button
         onClick={onEdit}
@@ -296,6 +382,7 @@ export default function CharactersPage() {
   const [deletingChar, setDeletingChar] = useState(null);
   const [showPersonaEdit, setShowPersonaEdit] = useState(false);
   const [importingChar, setImportingChar] = useState(false);
+  const [personaRefreshKey, setPersonaRefreshKey] = useState(0);
 
   // 拖拽状态
   const dragIdx = useRef(null);
@@ -419,7 +506,7 @@ export default function CharactersPage() {
         </div>
 
         {/* 玩家人设卡片 */}
-        <PersonaCard worldId={worldId} onEdit={() => setShowPersonaEdit(true)} />
+        <PersonaCard key={personaRefreshKey} worldId={worldId} onEdit={() => setShowPersonaEdit(true)} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
@@ -497,7 +584,8 @@ export default function CharactersPage() {
       {showPersonaEdit && (
         <PersonaEditModal
           worldId={worldId}
-          onClose={() => setShowPersonaEdit(false)}
+          onClose={() => { setShowPersonaEdit(false); setPersonaRefreshKey((k) => k + 1); }}
+          onAvatarChange={() => setPersonaRefreshKey((k) => k + 1)}
         />
       )}
     </div>

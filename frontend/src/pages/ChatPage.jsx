@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
+import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary } from '../api/chat.js';
 import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -16,6 +17,7 @@ export default function ChatPage() {
   const { currentSessionId, setCurrentSessionId } = useStore();
 
   const [character, setCharacter] = useState(null);
+  const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -42,7 +44,12 @@ export default function ChatPage() {
   // 加载角色信息
   useEffect(() => {
     if (!characterId) return;
-    getCharacter(characterId).then(setCharacter).catch(console.error);
+    getCharacter(characterId).then((c) => {
+      setCharacter(c);
+      if (c.world_id) {
+        getPersona(c.world_id).then(setPersona).catch(() => {});
+      }
+    }).catch(console.error);
   }, [characterId]);
 
   // 启动时加载正则规则缓存
@@ -455,6 +462,7 @@ export default function ChatPage() {
           key={`${currentSessionId}-${messageListKey}`}
           sessionId={currentSessionId}
           character={character}
+          persona={persona}
           worldId={character?.world_id ?? null}
           generating={generating}
           streamingText={streamingText}

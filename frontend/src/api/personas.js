@@ -15,3 +15,18 @@ export async function updatePersona(worldId, patch) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export function uploadPersonaAvatar(worldId, file) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  return fetch(`${BASE}/worlds/${worldId}/persona/avatar`, {
+    method: 'POST',
+    body: formData,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `上传失败：${res.status}`);
+    }
+    return res.json();
+  });
+}

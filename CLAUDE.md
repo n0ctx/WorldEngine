@@ -124,8 +124,8 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 | 文件 | 原因 |
 |---|---|
-| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件 |
-| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准 |
+| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段 |
+| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源 |
 | `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
@@ -175,8 +175,8 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **前端**
 - 所有 fetch 调用封装在 `/frontend/src/api/`，组件内禁止直接调用
-- 样式只用 TailwindCSS 工具类，不写内联 style，颜色用 CSS 变量不硬编码
-- 整体Claude风格，文学舒适
+- 样式只用 TailwindCSS 工具类，不写内联 style，颜色/字体/圆角/阴影统一走 CSS 变量（T29A 后全部以 `--we-*` 前缀命名），禁止硬编码色值
+- 整体 Claude 风格（参考 `DESIGN.md`）：羊皮纸底色 + 陶土强调 + 暖色中性；衬线做标题、无衬线做 UI；环形阴影（`0 0 0 1px`）代替传统投影；单主题不做深浅色切换（用户如需暗色通过 T24A 自定义 CSS 片段覆盖 `--we-*` 变量即可）
 - 语言：简体中文
 
 ---

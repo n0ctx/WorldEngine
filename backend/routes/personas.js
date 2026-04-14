@@ -1,5 +1,28 @@
 import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import multer from 'multer';
 import { getOrCreatePersona, updatePersona } from '../services/personas.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+
+const avatarStorage = multer.diskStorage({
+  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
+  filename(req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const persona = getOrCreatePersona(req.params.worldId);
+    cb(null, `persona-${persona.id}${ext}`);
+  },
+});
+const upload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('只接受图片文件'));
+  },
+});
 
 const router = Router();
 
@@ -19,6 +42,16 @@ router.patch('/worlds/:worldId/persona', (req, res) => {
   if (system_prompt !== undefined) patch.system_prompt = system_prompt;
   const persona = updatePersona(worldId, patch);
   res.json(persona);
+});
+
+// POST /api/worlds/:worldId/persona/avatar — 上传玩家头像
+router.post('/worlds/:worldId/persona/avatar', upload.single('avatar'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: '未收到文件' });
+  }
+  const relativePath = `avatars/${req.file.filename}`;
+  const persona = updatePersona(req.params.worldId, { avatar_path: relativePath });
+  res.json({ avatar_path: persona.avatar_path });
 });
 
 export default router;

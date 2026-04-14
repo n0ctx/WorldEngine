@@ -19,6 +19,24 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T30 — 玩家头像 + 斜杠命令去重 ✅
+- **对外接口**：
+  - `POST /api/worlds/:worldId/persona/avatar` — 上传玩家头像，返回 `{ avatar_path }`
+  - `uploadPersonaAvatar(worldId, file)` — 前端 API 封装（`api/personas.js`）
+- **涉及文件**：
+  - `SCHEMA.md` / `backend/db/schema.js` — personas 表新增 `avatar_path TEXT` 字段；`initSchema` 加 ALTER TABLE 迁移（现有库自动补列）
+  - `backend/db/queries/personas.js` — `upsertPersona` 支持 `avatar_path` patch
+  - `backend/routes/personas.js` — 加 multer + 头像上传路由
+  - `frontend/src/api/personas.js` — 加 `uploadPersonaAvatar`
+  - `frontend/src/pages/CharactersPage.jsx` — `PersonaCard` 展示头像；`PersonaEditModal` 加头像区域（点击上传）；父组件加 `personaRefreshKey` 刷新卡片
+  - `frontend/src/pages/ChatPage.jsx` — 加载 persona，传给 MessageList
+  - `frontend/src/components/chat/MessageList.jsx` — 透传 `persona` 到 MessageItem
+  - `frontend/src/components/chat/MessageItem.jsx` — 用户消息右侧显示玩家头像
+  - `frontend/src/components/chat/InputBox.jsx` — 删除重复的 `/regen` 命令，只保留 `/retry`
+- **注意**：
+  - 头像文件存 `data/uploads/avatars/persona-{personaId}.ext`，与角色头像同目录
+  - 用户消息气泡改为 `flex items-end gap-3 justify-end`，右侧追加 6×6 头像圆
+
 ## bugfix — 错误气泡 / 设置入口 ✅
 - **对外接口**：无新接口，纯前端
 - **涉及文件**：

@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS personas (
   world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
+  avatar_path    TEXT,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -239,4 +240,6 @@ CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_va
 export function initSchema(db) {
   db.exec(TABLES);
   db.exec(INDEXES);
+  // T30: 为现有数据库添加 personas.avatar_path 列（新建库由 CREATE TABLE 覆盖）
+  try { db.exec(`ALTER TABLE personas ADD COLUMN avatar_path TEXT`); } catch {}
 }

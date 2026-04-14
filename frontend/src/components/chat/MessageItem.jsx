@@ -64,7 +64,7 @@ function AttachmentThumbnail({ src }) {
   );
 }
 
-export default function MessageItem({ message, character, worldId, isStreaming, streamingText, onEdit, onRegenerate }) {
+export default function MessageItem({ message, character, persona, worldId, isStreaming, streamingText, onEdit, onRegenerate }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
@@ -118,6 +118,9 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
 
   const avatarColor = getAvatarColor(character?.id);
   const avatarUrl = getAvatarUrl(character?.avatar_path);
+  const personaAvatarColor = getAvatarColor(persona?.id);
+  const personaAvatarUrl = getAvatarUrl(persona?.avatar_path);
+  const personaInitial = (persona?.name || '玩')[0].toUpperCase();
 
   // 打点动画
   if (isStreaming && !streamingText) {
@@ -168,9 +171,8 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
 
   if (isUser) {
     return (
-      <div
-        className="flex flex-col items-end mb-4 group"
-      >
+      <div className="flex items-end gap-3 mb-4 group justify-end">
+        <div className="flex-1 min-w-0 flex flex-col items-end">
         {editing ? (
           <div className="w-full max-w-[75%]">
             <textarea
@@ -227,6 +229,16 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
             <p className="text-right text-xs opacity-0 group-hover:opacity-40 transition-opacity mt-1 pointer-events-none">{formatTime(message.created_at)}</p>
           </div>
         )}
+        </div>
+        {/* 玩家头像 */}
+        <div
+          className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
+          style={{ background: personaAvatarColor }}
+        >
+          {personaAvatarUrl
+            ? <img src={personaAvatarUrl} alt="" className="w-6 h-6 object-cover" />
+            : personaInitial}
+        </div>
       </div>
     );
   }
