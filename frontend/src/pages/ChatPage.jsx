@@ -6,6 +6,7 @@ import { sendMessage, stopGeneration, regenerate, editAndRegenerate } from '../a
 import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
+import MemoryPanel from '../components/memory/MemoryPanel.jsx';
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -250,15 +251,14 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* 右栏：记忆面板（300px，可收起；T22 实现内容） */}
-      {rightOpen && (
+      {/* 右栏：记忆面板（300px，可收起） */}
+      {rightOpen && character && (
         <div className="w-[300px] flex-none border-l border-[var(--border)] flex flex-col overflow-hidden">
           <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] shrink-0">
             <h2 className="text-sm font-semibold text-[var(--text-h)]">记忆面板</h2>
-            <p className="text-xs opacity-30 mt-0.5">T22 实现</p>
           </div>
-          <div className="flex-1 flex items-center justify-center overflow-y-auto">
-            <p className="text-xs opacity-25">暂无记忆数据</p>
+          <div className="flex-1 overflow-hidden">
+            <MemoryPanel worldId={character.world_id} characterId={characterId} />
           </div>
         </div>
       )}

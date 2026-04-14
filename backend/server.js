@@ -20,6 +20,9 @@ import sessionsRoutes from './routes/sessions.js';
 import chatRoutes from './routes/chat.js';
 import promptEntriesRoutes from './routes/prompt-entries.js';
 import stateFieldsRoutes from './routes/state-fields.js';
+import worldStateValuesRoutes from './routes/world-state-values.js';
+import characterStateValuesRoutes from './routes/character-state-values.js';
+import worldTimelineRoutes from './routes/world-timeline.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -52,6 +55,9 @@ app.use('/api', sessionsRoutes);
 app.use('/api/sessions', chatRoutes);
 app.use('/api', promptEntriesRoutes);
 app.use('/api', stateFieldsRoutes);
+app.use('/api', worldStateValuesRoutes);
+app.use('/api', characterStateValuesRoutes);
+app.use('/api', worldTimelineRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

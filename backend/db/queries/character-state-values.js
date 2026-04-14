@@ -58,3 +58,19 @@ export function deleteCharacterStateValue(characterId, fieldKey) {
     'DELETE FROM character_state_values WHERE character_id = ? AND field_key = ?',
   ).run(characterId, fieldKey);
 }
+
+/**
+ * 联表查询：角色状态字段定义 + 当前值，按 sort_order 升序
+ * @param {string} characterId
+ * @returns {{ field_key, label, type, sort_order, value_json }[]}
+ */
+export function getCharacterStateValuesWithFields(characterId) {
+  return db.prepare(`
+    SELECT csf.field_key, csf.label, csf.type, csf.sort_order, csv.value_json
+    FROM character_state_fields csf
+    LEFT JOIN character_state_values csv
+      ON csf.field_key = csv.field_key AND csv.character_id = ?
+    WHERE csf.world_id = (SELECT world_id FROM characters WHERE id = ?)
+    ORDER BY csf.sort_order ASC
+  `).all(characterId, characterId);
+}

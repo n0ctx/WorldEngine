@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T22 — 前端记忆面板 ✅
+- **对外接口**：`GET /api/worlds/:worldId/state-values`、`GET /api/characters/:characterId/state-values`、`GET /api/worlds/:worldId/timeline?limit=50`
+- **涉及文件**：新增 `backend/db/queries/world-state-values.js`（`getWorldStateValuesWithFields`）、`character-state-values.js`（`getCharacterStateValuesWithFields`）；新增路由 `backend/routes/world-state-values.js`、`character-state-values.js`、`world-timeline.js`；新增前端 `api/worldStateValues.js`、`characterStateValues.js`、`worldTimeline.js`、`components/memory/MemoryPanel.jsx`；修改 `backend/server.js`（+3 路由）、`frontend/src/pages/ChatPage.jsx`（嵌入 MemoryPanel）
+- **注意**：MemoryPanel 接收 `worldId`（来自 `character.world_id`）和 `characterId` 两个 prop，仅当 `character` 已加载时渲染；三块数据各自独立 loading/error 状态；`value_json` 为 null 时显示破折号不崩溃；boolean 类型转"是"/"否"；is_compressed=1 的时间线条目以灰色斜体「早期历史」前缀展示
+
 ## T21 — 记忆召回与状态注入 ✅
 - **对外接口**：`renderWorldState(worldId)`、`renderCharacterState(characterId)`、`renderTimeline(worldId, limit)` —— 均在 `backend/memory/recall.js`
 - **涉及文件**：新增 `backend/memory/recall.js`；修改 `backend/prompt/assembler.js`（[6] 位置填入）

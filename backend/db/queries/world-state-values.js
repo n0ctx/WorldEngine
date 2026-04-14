@@ -58,3 +58,19 @@ export function deleteWorldStateValue(worldId, fieldKey) {
     'DELETE FROM world_state_values WHERE world_id = ? AND field_key = ?',
   ).run(worldId, fieldKey);
 }
+
+/**
+ * 联表查询：世界状态字段定义 + 当前值，按 sort_order 升序
+ * @param {string} worldId
+ * @returns {{ field_key, label, type, sort_order, value_json }[]}
+ */
+export function getWorldStateValuesWithFields(worldId) {
+  return db.prepare(`
+    SELECT wsf.field_key, wsf.label, wsf.type, wsf.sort_order, wsv.value_json
+    FROM world_state_fields wsf
+    LEFT JOIN world_state_values wsv
+      ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+    WHERE wsf.world_id = ?
+    ORDER BY wsf.sort_order ASC
+  `).all(worldId);
+}
