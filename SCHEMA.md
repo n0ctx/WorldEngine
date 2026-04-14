@@ -9,7 +9,7 @@
 | 结构化数据（世界、角色、会话、消息等） | SQLite（`worldengine.db`）|
 | Prompt 条目 embedding 向量 | JSON 文件（`/data/vectors/`）|
 | 头像、附件图片、上传文件 | 本地文件（`/data/uploads/`）|
-| 全局配置（API Key、主题等） | JSON 文件（`/data/config.json`）|
+| 全局配置（API Key、字号等） | JSON 文件（`/data/config.json`）|
 
 ### 文件目录结构
 
@@ -300,6 +300,71 @@ CREATE INDEX idx_character_prompt_entries_character_id ON character_prompt_entri
 
 ---
 
+### custom_css_snippets — 自定义 CSS 片段
+
+用于前端外观自定义。多条片段独立启用/禁用，启用项按 `sort_order` 拼接后注入 DOM 的 `<style id="we-custom-css">`。全部为全局作用，不与世界/角色绑定。
+
+```sql
+CREATE TABLE custom_css_snippets (
+  id             TEXT PRIMARY KEY,          -- UUID
+  name           TEXT NOT NULL,             -- 片段显示名
+  enabled        INTEGER NOT NULL DEFAULT 1, -- 0: 禁用 / 1: 启用
+  content        TEXT NOT NULL DEFAULT '',  -- CSS 源文本，原样注入
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE INDEX idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
+```
+
+> 前端拉取所有 `enabled=1` 条目，按 `sort_order ASC, created_at ASC` 拼接为一段 CSS 文本注入。禁用条目保留数据库中记录，不参与注入。
+
+---
+
+### regex_rules — 正则替换规则
+
+对标 SillyTavern Regex 扩展的能力。每条规则按 `scope` 指定作用时机，按 `world_id` 决定作用范围（全局或仅某世界）。
+
+```sql
+CREATE TABLE regex_rules (
+  id             TEXT PRIMARY KEY,          -- UUID
+  name           TEXT NOT NULL,             -- 规则显示名
+  enabled        INTEGER NOT NULL DEFAULT 1, -- 0: 禁用 / 1: 启用
+  pattern        TEXT NOT NULL,             -- JavaScript 正则 source（不含 / 分隔符和 flags）
+  replacement    TEXT NOT NULL DEFAULT '',  -- 替换文本，支持 $1 $2 等回引
+  flags          TEXT NOT NULL DEFAULT 'g', -- 正则 flags，如 'g' / 'gi' / 'gm' / 'gim'
+  scope          TEXT NOT NULL,             -- 作用时机，见下文四类
+  world_id       TEXT REFERENCES worlds(id) ON DELETE CASCADE, -- NULL: 全局生效；非 NULL: 仅此世界
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
+
+CREATE INDEX idx_regex_rules_scope ON regex_rules(scope, sort_order);
+CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
+```
+
+**scope 取值与作用位置**：
+
+| scope | 作用时机 | 影响存库 | 影响显示 | 影响 LLM prompt |
+|---|---|---|---|---|
+| `user_input` | 前端发送前处理用户消息文本 | 是 | 是 | 是 |
+| `ai_output` | 后端流式完结后、写入 `messages` 前处理 assistant 文本 | 是 | 是 | 是 |
+| `display_only` | 前端渲染消息时即时处理，仅影响视觉 | 否 | 是 | 否 |
+| `prompt_only` | 后端 `assembler.js` 组装 [7] 历史消息时处理，仅影响送入 LLM 的副本 | 否 | 否 | 是 |
+
+> 这是 `assembler.js` 继 T21 之后第二个**明确允许**的修改点，仅限 [7] 历史消息位置对 `prompt_only` 规则调用 `regex-runner.applyRules()`，其它位置禁止改动。
+
+**执行规则**：
+
+- 同 scope 内按 `sort_order ASC` 顺序依次套用（链式），前一条结果作为后一条输入
+- `world_id IS NULL` 的规则对所有世界生效；`world_id` 非空的规则仅在该世界的会话中生效，两类规则混合时仍按 `sort_order` 统一排序
+- 规则无效（pattern 编译失败、flags 非法）时跳过该条并在后端日志记录，不中断整条管线
+- `enabled=0` 的规则不执行，保留数据库记录
+
+---
+
 ## 向量文件结构
 
 路径：`/data/vectors/prompt_entries.json`
@@ -349,9 +414,7 @@ CREATE INDEX idx_character_prompt_entries_character_id ON character_prompt_entri
     "model": "text-embedding-3-small"
   },
   "ui": {
-    "theme": "dark",                       // "dark" | "light" | 自定义主题名
-    "font_size": 16,
-    "custom_css": ""                       // 用户自定义 CSS 字符串
+    "font_size": 16
   },
   "context_compress_rounds": 10,   // 历史消息保留轮次，0 表示禁用，仅用 token 截断兜底
   "global_system_prompt": ""              // 全局层 system prompt

@@ -5,6 +5,7 @@ import {
   fetchModels, fetchEmbeddingModels, testConnection,
 } from '../api/config';
 import EntryList from '../components/prompt/EntryList';
+import CustomCssManager from '../components/settings/CustomCssManager';
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -394,6 +395,12 @@ export default function SettingsPage() {
           {/* ── 全局 Prompt 条目 ──────────────────────── */}
           <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
             <EntryList type="global" />
+          </section>
+
+          {/* ── 自定义样式 ────────────────────────────── */}
+          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+            <SectionTitle>自定义样式</SectionTitle>
+            <CustomCssManager />
           </section>
         </div>
       </div>

@@ -156,6 +156,16 @@ CREATE TABLE IF NOT EXISTS character_prompt_entries (
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS custom_css_snippets (
+  id             TEXT PRIMARY KEY,
+  name           TEXT NOT NULL,
+  enabled        INTEGER NOT NULL DEFAULT 1,
+  content        TEXT NOT NULL DEFAULT '',
+  sort_order     INTEGER NOT NULL DEFAULT 0,
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL
+);
 `;
 
 const INDEXES = `
@@ -167,6 +177,7 @@ CREATE INDEX IF NOT EXISTS idx_character_state_fields_world_id ON character_stat
 CREATE INDEX IF NOT EXISTS idx_character_state_values_character_id ON character_state_values(character_id, field_key);
 CREATE INDEX IF NOT EXISTS idx_world_prompt_entries_world_id ON world_prompt_entries(world_id);
 CREATE INDEX IF NOT EXISTS idx_character_prompt_entries_character_id ON character_prompt_entries(character_id);
+CREATE INDEX IF NOT EXISTS idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
 `;
 
 export function initSchema(db) {

@@ -53,6 +53,8 @@
     character-state-values.js   # T22
     world-timeline.js           # T22
     import-export.js            # T23
+    custom-css-snippets.js      # T24A
+    regex-rules.js              # T24B
   /services     # 业务逻辑
     config.js
     worlds.js
@@ -63,6 +65,8 @@
     world-state-fields.js       # T19B
     character-state-fields.js   # T19B
     import-export.js            # T23
+    custom-css-snippets.js      # T24A
+    regex-rules.js              # T24B
   /db           # 数据库：schema.js + /queries/*.js
     index.js
     schema.js
@@ -77,6 +81,8 @@
       character-state-fields.js # T19A
       world-state-values.js     # T19A
       character-state-values.js # T19A
+      custom-css-snippets.js    # T24A
+      regex-rules.js            # T24B
   /memory       # 记忆系统
     summarizer.js               # T18: session summary + title 生成
     character-state-updater.js  # T19D: 对话后异步更新角色状态
@@ -85,7 +91,7 @@
     recall.js                   # T21: 渲染世界状态/角色状态/时间线为可读文本，注入 [6]
   /prompt       # 提示词：assembler.js + entry-matcher.js
   /llm          # LLM 接入层：index.js + embedding.js + /providers/
-  /utils        # 工具：constants.js / async-queue.js / token-counter.js / vector-store.js
+  /utils        # 工具：constants.js / async-queue.js / token-counter.js / vector-store.js / regex-runner.js（T24B）
   server.js     # 入口
 ```
 
@@ -113,7 +119,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件 |
 | `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**唯一例外**：T21 任务填入 [6] 位置占位 |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件 |
 
@@ -204,8 +210,18 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 三段文本拼接注入 assembler.js 的 [6] 位置，全部为空则 [6] 为空字符串
 - 未来扩展：embedding 搜索历史 session summary，渐进式展开原文
 
+**自定义样式与正则替换**（T24A/B）：
+- 自定义 CSS：多条片段独立启用/禁用，全部为全局作用；前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`
+- 正则替换：按 `scope` 分四种作用时机，同 scope 内按 `sort_order ASC` 链式套用，前一条结果作为后一条输入
+  - `user_input` → 前端发送前处理（影响存库 + 显示 + prompt）
+  - `ai_output` → 后端流式完结后、写 messages 前处理（影响存库 + 显示 + prompt）
+  - `display_only` → 前端渲染时处理（仅视觉，不改存库）
+  - `prompt_only` → 后端 assembler.js 组装 [7] 历史消息时处理（仅送入 LLM 的副本，不改存库不改显示）
+- `world_id IS NULL` 的规则对所有世界生效；非 NULL 仅该世界会话生效
+- 规则编译/执行失败时跳过该条并记日志，不中断管线
+
 ---
 
 ## 不做的功能
 
-多用户系统、云端同步、图片生成、TTS、Visual Novel、多角色群聊、插件市场、ST 格式兼容、Prompt 顺序自定义、消息分支(Swipe)、Author's Note、会话内搜索、自动备份。
+多用户系统、云端同步、图片生成、TTS、Visual Novel、多角色群聊、插件市场、ST 格式兼容、ST Regex 扩展格式兼容、深浅色主题切换、Prompt 顺序自定义、消息分支(Swipe)、Author's Note、会话内搜索、自动备份。

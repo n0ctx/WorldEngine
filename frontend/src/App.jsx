@@ -1,11 +1,17 @@
+import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import WorldsPage from './pages/WorldsPage';
 import CharactersPage from './pages/CharactersPage';
 import CharacterEditPage from './pages/CharacterEditPage';
 import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
+import { refreshCustomCss } from './api/customCssSnippets';
 
 export default function App() {
+  useEffect(() => {
+    refreshCustomCss();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<WorldsPage />} />

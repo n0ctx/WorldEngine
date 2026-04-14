@@ -1457,19 +1457,129 @@ OOC 统一规则：
 
 ---
 
-### T24 ⬜ CSS 主题系统
+### T24A ⬜ 自定义 CSS 片段管理
+
+**这个任务做什么**：实现多条自定义 CSS 片段的增删改查、启用开关、排序，并在前端实时注入生效。不做深浅色主题切换（外观完全交给用户自定义 CSS）。
+
+**涉及文件**：
+- `/backend/db/queries/custom-css-snippets.js`（新建）
+- `/backend/services/custom-css-snippets.js`（新建）
+- `/backend/routes/custom-css-snippets.js`（新建）
+- `/backend/server.js`（注册路由）
+- `/frontend/src/api/customCssSnippets.js`（新建）
+- `/frontend/src/components/settings/CustomCssManager.jsx`（新建）
+- `/frontend/src/pages/SettingsPage.jsx`（嵌入 CustomCssManager）
+- `/frontend/src/App.jsx`（挂载 `<style id="we-custom-css">` 并订阅变更）
 
 **Claude Code 指令**：
 ```
+请先读取 @SCHEMA.md 的 custom_css_snippets 表定义和 @CHANGELOG.md。
 
-任务：实现 CSS 主题系统。
-1. 在 /frontend/src/styles/themes/ 下创建 dark.css 和 light.css，定义 CSS 变量（颜色、字体大小等）
-2. 在 App.jsx 中根据 config 的 ui.theme 值动态切换主题 class
-3. 在设置页面加入主题切换下拉框
-4. 支持用户在设置页面输入自定义 CSS，实时预览（注入到 style 标签）
+任务：实现自定义 CSS 片段管理。
+
+后端：
+1. queries 层提供 createCustomCssSnippet / listCustomCssSnippets / getCustomCssSnippetById / updateCustomCssSnippet / deleteCustomCssSnippet / reorderCustomCssSnippets
+   - list 按 sort_order ASC, created_at ASC 排序
+   - create 时 sort_order 默认取当前 MAX(sort_order)+1
+2. service 层无特殊逻辑，直接透传；id 用 crypto.randomUUID()，时间戳用 Date.now()
+3. 路由：
+   - GET  /api/custom-css-snippets              列出全部
+   - POST /api/custom-css-snippets              创建
+   - PUT  /api/custom-css-snippets/reorder      批量排序（body: {items:[{id,sort_order}]}）
+   - GET  /api/custom-css-snippets/:id          详情
+   - PUT  /api/custom-css-snippets/:id          更新（部分字段，白名单 name/enabled/content）
+   - DELETE /api/custom-css-snippets/:id
+   注意 reorder 路由必须在 :id 路由前注册
+
+前端：
+4. api/customCssSnippets.js 封装所有 fetch 调用
+5. CustomCssManager.jsx：片段列表 + 新建按钮 + 单条编辑弹窗 + 启用开关 + 拖拽排序（复用 T10 同款原生 HTML5 draggable）
+6. SettingsPage 新增「自定义样式」分区，嵌入 CustomCssManager
+7. App.jsx 在启动时拉取所有 enabled=1 条目，按 sort_order 拼接后写入 <style id="we-custom-css"> 标签
+8. 每次增/删/改/排序/启用切换后立即重新拉取并刷新 <style> 内容（不要用 localStorage，不要缓存）
+
+约束：
+- 不做深浅色主题切换，不新建 themes/ 目录
+- config.json 的 ui 节点已不含 custom_css 字段，不要再读写旧字段
+- 不修改 assembler.js / constants.js / schema.js（建表由 schema.js 在 T02 时预留或后续 db 迁移处理，具体以 schema.js 现状为准，缺表则在 schema.js 中补 CREATE TABLE IF NOT EXISTS）
 ```
 
-**验证方法**：切换深色/浅色主题，界面颜色立即改变，刷新后保持。
+**验证方法**：创建两条 CSS 片段（例如其中一条把消息气泡背景色改为红色），全部启用后页面立即生效；禁用其中一条后该条样式消失；刷新页面后保持；拖拽调整顺序后 sort_order 持久化。
+
+---
+
+### T24B ⬜ 正则替换规则系统
+
+**这个任务做什么**：实现 SillyTavern 同类能力的正则替换系统。按 scope 分四种作用时机，支持全局或按世界生效，链式套用。
+
+**涉及文件**：
+- `/backend/db/queries/regex-rules.js`（新建）
+- `/backend/services/regex-rules.js`（新建）
+- `/backend/routes/regex-rules.js`（新建）
+- `/backend/utils/regex-runner.js`（新建）
+- `/backend/services/chat.js`（ai_output scope 在流式完结、写 messages 前调用 runner）
+- `/backend/prompt/assembler.js`（prompt_only scope 在 [7] 历史消息位置调用 runner —— **本任务明确允许的修改点**）
+- `/backend/server.js`（注册路由）
+- `/frontend/src/api/regexRules.js`（新建）
+- `/frontend/src/components/settings/RegexRulesManager.jsx`（新建）
+- `/frontend/src/components/settings/RegexRuleEditor.jsx`（新建）
+- `/frontend/src/pages/SettingsPage.jsx`（嵌入 RegexRulesManager）
+- `/frontend/src/components/chat/InputBox.jsx`（user_input scope 发送前应用）
+- `/frontend/src/components/chat/MessageItem.jsx`（display_only scope 渲染时应用）
+- `/frontend/src/utils/regex-runner.js`（新建，前端共享实现）
+
+**Claude Code 指令**：
+```
+请先读取 @SCHEMA.md 的 regex_rules 表定义、scope 取值说明和 @CHANGELOG.md。
+
+任务：实现正则替换规则系统。
+
+1) 后端 queries / service / routes
+   - queries 层：create / list / getById / update / delete / reorder，list 支持按 scope 过滤以及按 worldId 过滤（NULL 视为全局，非 NULL 会话查询时需同时带出全局与该世界两类）
+   - routes：
+     - GET  /api/regex-rules              列出全部（支持 ?scope=xxx&worldId=xxx 过滤）
+     - POST /api/regex-rules              创建
+     - PUT  /api/regex-rules/reorder      批量排序
+     - GET  /api/regex-rules/:id          详情
+     - PUT  /api/regex-rules/:id          更新（白名单 name/enabled/pattern/replacement/flags/scope/world_id）
+     - DELETE /api/regex-rules/:id
+     reorder 路由必须在 :id 前注册
+   - service 内部不实例化 RegExp，只负责 CRUD
+
+2) regex-runner 工具（后端 /backend/utils/regex-runner.js、前端 /frontend/src/utils/regex-runner.js）
+   - 暴露 applyRules(text, scope, worldId) → string
+   - 在内部拉取「enabled=1 且（world_id IS NULL 或 world_id === worldId）且 scope === 当前 scope」的规则
+   - 按 sort_order ASC 依次 `text = text.replace(new RegExp(pattern, flags), replacement)`
+   - 每条规则单独 try/catch，编译失败或执行异常时跳过并 console.warn，不中断管线
+   - 后端版本从 DB 读取；前端版本通过 api 拉取后本地缓存（每次打开设置页或规则变更后刷新缓存）
+
+3) 四种 scope 的接入点
+   - user_input：前端 InputBox 在调用 sendMessage(chatApi) 前，对用户消息 text 和每条用户输入片段 applyRules(text, 'user_input', worldId)
+   - ai_output：后端 services/chat.js 在 SSE 流 done 之后、写入 messages 前，对完整 assistant 文本 applyRules(text, 'ai_output', worldId)
+   - display_only：前端 MessageItem 在 markdown 渲染前对 content applyRules(text, 'display_only', worldId)，不修改 store 里的原始内容
+   - prompt_only：assembler.js 在完成 [7] 历史消息聚合后，对每条消息的 content 字段 applyRules(text, 'prompt_only', worldId)（这是 assembler.js 本任务明确允许的修改点）
+
+4) 前端界面
+   - RegexRulesManager.jsx：按 scope 分组展示，每组支持新建/排序；规则行显示 name / enabled 开关 / 作用域（全局/某世界）
+   - RegexRuleEditor.jsx：弹窗形式，字段 name / enabled / pattern / replacement / flags（默认 g，可选 g / gi / gm / gim / 自由输入含 g 的组合）/ scope 下拉 / world_id 下拉（"全局" + 所有世界）
+   - 新建规则时有「测试」按钮：输入一段样本文本，点击后用当前表单值在前端编译正则跑一次，展示替换后的结果
+   - SettingsPage 新增「正则替换」分区，嵌入 RegexRulesManager
+
+约束：
+- assembler.js 仅允许在 [7] 历史消息位置调用 prompt_only 的 runner，其他位置不得插入任何 regex 逻辑；组装顺序 [1]-[8] 不得改变
+- runner 失败只记 warn，不抛
+- 前端 store/index.js（锁定）不得修改；规则缓存可放在 RegexRulesManager 组件本地或新建 /frontend/src/hooks/useRegexRules.js
+- config.json 的 ui 节点不新增任何字段
+- 不修改 constants.js / store/index.js / server.js 入口（仅挂载新路由算例外）
+```
+
+**验证方法**：
+1. 建一条 user_input 全局规则：`pattern=哈哈` / `replacement=😂`，发送「哈哈」后数据库里存的是「😂」
+2. 建一条 ai_output 全局规则清理 AI 返回中的 `\*\*.*?\*\*` 加粗标记 → 存库和显示都是处理后的纯文本
+3. 建一条 display_only 规则将 `(.+?)` 渲染为自定义气泡样式 → 刷新页面源文本仍原样
+4. 建一条 prompt_only 规则把历史消息中的 `内心：(.+)` 删除 → 发送对话时后端日志打印的 messages 中该字段已被删除，但数据库和前端显示仍保留
+5. 建一条 world_id 非空的规则，切换到其他世界时该规则不生效
+6. 建一条 pattern 非法的规则（如 `(abc`），观察后端日志输出 warn 且流程不崩
 
 ---
 

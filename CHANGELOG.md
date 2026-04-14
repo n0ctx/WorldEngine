@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T24A — 自定义 CSS 片段管理 ✅
+- **对外接口**：`GET/POST /api/custom-css-snippets`、`PUT /api/custom-css-snippets/reorder`（body: `{items:[{id,sort_order}]}`）、`GET/PUT/DELETE /api/custom-css-snippets/:id`（PUT 白名单：name/enabled/content）；前端 `refreshCustomCss()` 在 `frontend/src/api/customCssSnippets.js`，拉取所有 enabled=1 条目拼接后写入 `<style id="we-custom-css">`
+- **涉及文件**：新增 `backend/db/queries/custom-css-snippets.js`、`backend/services/custom-css-snippets.js`、`backend/routes/custom-css-snippets.js`、`frontend/src/api/customCssSnippets.js`、`frontend/src/components/settings/CustomCssManager.jsx`；修改 `backend/db/schema.js`（+custom_css_snippets 表和索引）、`backend/server.js`（+1 路由）、`frontend/src/pages/SettingsPage.jsx`（+自定义样式分区）、`frontend/src/App.jsx`（+useEffect 启动时 refreshCustomCss）
+- **注意**：reorder 路由用 `{items:[{id,sort_order}]}` 格式（与 T10 characters reorder 一致，非 state-fields 的 orderedIds 格式）；enabled 字段前端发送 0/1 整数而非 boolean；refreshCustomCss() 在增/删/改/排序/启用切换后均需主动调用（CustomCssManager 内部已调用），无需 localStorage 缓存；CSS 注入完全客户端运行，不影响后端
+
 ## T23 — 角色卡 / 世界卡导入导出 ✅
 - **对外接口**：`GET /api/characters/:id/export`、`POST /api/worlds/:worldId/import-character`、`GET /api/worlds/:id/export`、`POST /api/worlds/import`；前端 `downloadCharacterCard(id, filename)`、`importCharacter(worldId, data)`、`downloadWorldCard(id, filename)`、`importWorld(data)` 在 `frontend/src/api/importExport.js`
 - **涉及文件**：新增 `backend/services/import-export.js`、`backend/routes/import-export.js`、`frontend/src/api/importExport.js`；修改 `backend/server.js`（+1 路由）、`frontend/src/pages/CharacterEditPage.jsx`（导出按钮）、`frontend/src/pages/CharactersPage.jsx`（导入角色卡按钮）、`frontend/src/pages/WorldsPage.jsx`（导出按钮 + 导入世界卡按钮）
