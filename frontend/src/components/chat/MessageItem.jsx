@@ -65,7 +65,6 @@ function AttachmentThumbnail({ src }) {
 }
 
 export default function MessageItem({ message, character, worldId, isStreaming, streamingText, onEdit, onRegenerate }) {
-  const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
@@ -170,9 +169,7 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
   if (isUser) {
     return (
       <div
-        className="flex flex-col items-end mb-4"
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        className="flex flex-col items-end mb-4 group"
       >
         {editing ? (
           <div className="w-full max-w-[75%]">
@@ -205,20 +202,18 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
           </div>
         ) : (
           <div className="max-w-[75%]">
-            {hovered && (
-              <div className="flex justify-end mb-1">
-                <button
-                  onClick={startEdit}
-                  className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  编辑
-                </button>
-              </div>
-            )}
+            <div className="flex justify-end mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+              <button
+                onClick={startEdit}
+                className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                编辑
+              </button>
+            </div>
             <div className="px-4 py-3 rounded-2xl rounded-tr-sm bg-[var(--accent-bg)] border border-[var(--accent-border)] text-[var(--text-h)] text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
             </div>
@@ -229,9 +224,7 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
                 ))}
               </div>
             )}
-            {hovered && (
-              <p className="text-right text-xs opacity-40 mt-1">{formatTime(message.created_at)}</p>
-            )}
+            <p className="text-right text-xs opacity-0 group-hover:opacity-40 transition-opacity mt-1 pointer-events-none">{formatTime(message.created_at)}</p>
           </div>
         )}
       </div>
@@ -241,9 +234,7 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
   // assistant 消息
   return (
     <div
-      className="flex items-start gap-3 mb-4"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="flex items-start gap-3 mb-4 group"
     >
       <div
         className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
@@ -304,21 +295,19 @@ export default function MessageItem({ message, character, worldId, isStreaming, 
             ))}
           </div>
         )}
-        {hovered && (
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
-            <button
-              onClick={() => onRegenerate(message.id)}
-              className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-              </svg>
-              重新生成
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+          <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
+          <button
+            onClick={() => onRegenerate(message.id)}
+            className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="1 4 1 10 7 10" />
+              <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+            </svg>
+            重新生成
+          </button>
+        </div>
       </div>
     </div>
   );

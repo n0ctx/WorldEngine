@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T26A — 修复对话气泡 hover 抖动 ✅
+- **对外接口**：无（纯 UI 修复）
+- **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`
+- **注意**：删除了 `hovered` state 和 onMouseEnter/onMouseLeave 绑定；外层容器加 `group` 类；三处原 `{hovered && ...}` 条件渲染改为始终渲染 DOM，用 `opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto` 控制可见性；user 气泡时间戳用 `group-hover:opacity-40` 而非 `group-hover:opacity-100` 以匹配原视觉效果
+
 ## T25 — Slash 命令系统 ✅
 - **对外接口**：`POST /api/sessions/:id/continue`（SSE 续写）、`POST /api/sessions/:id/impersonate`（返回 `{content}`）、`DELETE /api/sessions/:id/messages`（返回 `{success, firstMessage}`）、`POST /api/sessions/:id/summary`（返回 `{success}`）；前端新增 `continueGeneration`、`impersonate`、`clearMessages`、`triggerSummary` 在 `frontend/src/api/chat.js`
 - **涉及文件**：修改 `backend/routes/chat.js`（+4 个端点）、`backend/services/sessions.js`（+deleteAllMessagesBySessionId、+updateMessageContent 导出）、`backend/db/queries/messages.js`（+deleteAllMessagesBySessionId）；修改 `frontend/src/api/chat.js`（实现4个占位函数）、`frontend/src/pages/ChatPage.jsx`（+续写/代入/重试/清空/摘要 handlers + toast + fillText）、`frontend/src/components/chat/InputBox.jsx`（+Slash命令浮层 + 激活 Continue/Impersonate 按钮）、`frontend/src/components/chat/MessageList.jsx`（+continuingMessageId/continuingText props）
