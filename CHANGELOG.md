@@ -19,6 +19,17 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## bugfix — 错误气泡 / 设置入口 ✅
+- **对外接口**：无新接口，纯前端
+- **涉及文件**：
+  - `frontend/src/pages/ChatPage.jsx` — 新增 `errorBubble` state、`streamingTextRef` ref、`handleRetryAfterError()`；`onError` 回调现在捕获部分内容并设置 errorBubble（不再丢失流中内容）；顶栏加设置齿轮按钮；发送/切换会话时清除 errorBubble
+  - `frontend/src/pages/CharactersPage.jsx` — 页头加"设置"按钮
+  - `frontend/src/pages/CharacterEditPage.jsx` — 导航栏加"设置"链接
+- **注意**：
+  - 错误气泡渲染在 `MessageList` 和 `InputBox` 之间（ChatPage 内），而非 MessageList 内部，避免破坏 MessageList 的 key/刷新逻辑
+  - `streamingTextRef` 与 `streamingText` state 同步更新，用于在 `onError` 闭包（可能有 stale state）中正确取到部分内容
+  - 编辑消息 → 自动重新生成已在 T28 前实现（`handleEditMessage` 调用 `editAndRegenerate`），本次未改变逻辑，仅补充了 `setErrorBubble(null)` 和 `streamingTextRef.current = ''` 的重置
+
 ## T28 — 渐进式展开原文 ✅
 - **对外接口**：
   - `searchRecalledSummaries(worldId, sessionId)` — `/backend/memory/recall.js`（原 `renderRecalledSummaries` 拆分），返回 `{ recalled: [{ref, session_id, session_title, created_at, content, score}], recentMessagesText }`

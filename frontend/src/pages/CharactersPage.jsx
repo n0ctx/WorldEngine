@@ -390,6 +390,12 @@ export default function CharactersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => navigate('/settings')}
+              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors"
+            >
+              设置
+            </button>
+            <button
               onClick={() => charImportRef.current?.click()}
               disabled={importingChar}
               className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"

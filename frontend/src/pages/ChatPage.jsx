@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary } from '../api/chat.js';
@@ -8,9 +8,11 @@ import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import MemoryPanel from '../components/memory/MemoryPanel.jsx';
 import { loadRules } from '../utils/regex-runner.js';
+import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
+  const navigate = useNavigate();
   const { currentSessionId, setCurrentSessionId } = useStore();
 
   const [character, setCharacter] = useState(null);
@@ -27,9 +29,11 @@ export default function ChatPage() {
   const [continuingText, setContinuingText] = useState('');
   const [fillText, setFillText] = useState('');
   const [toast, setToast] = useState(null);
+  const [errorBubble, setErrorBubble] = useState(null); // { partialContent, errorMsg }
 
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
+  const streamingTextRef = useRef('');
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -52,6 +56,8 @@ export default function ChatPage() {
     setCurrentSession(session);
     setGenerating(false);
     setStreamingText('');
+    setErrorBubble(null);
+    streamingTextRef.current = '';
     setMessageListKey((k) => k + 1);
   }
 
@@ -61,6 +67,8 @@ export default function ChatPage() {
     setCurrentSession(session);
     setGenerating(false);
     setStreamingText('');
+    setErrorBubble(null);
+    streamingTextRef.current = '';
     setMessageListKey((k) => k + 1);
   }
 
@@ -104,16 +112,25 @@ export default function ChatPage() {
   function makeCallbacks() {
     return {
       onDelta(delta) {
-        setStreamingText((prev) => prev + delta);
+        setStreamingText((prev) => {
+          const next = prev + delta;
+          streamingTextRef.current = next;
+          return next;
+        });
       },
       onDone() {
         // 流可能还有 title_updated，等 onStreamEnd 再终结
       },
       onAborted() {
+        streamingTextRef.current = '';
         finalizeStream();
       },
       onError(err) {
         console.error('SSE error:', err);
+        const partial = streamingTextRef.current;
+        const errMsg = typeof err === 'string' ? err : (err?.message || '生成失败');
+        streamingTextRef.current = '';
+        setErrorBubble({ partialContent: partial, errorMsg: errMsg });
         finalizeStream();
       },
       onTitleUpdated(title) {
@@ -150,6 +167,8 @@ export default function ChatPage() {
   function handleSend(content, attachments) {
     if (!currentSessionId || generating) return;
 
+    setErrorBubble(null);
+    streamingTextRef.current = '';
     setLastUserContent(content);
 
     // 乐观追加 user 消息到列表
@@ -180,6 +199,9 @@ export default function ChatPage() {
   function handleEditMessage(messageId, newContent) {
     if (generating) return;
 
+    setErrorBubble(null);
+    streamingTextRef.current = '';
+
     // 截断消息列表到被编辑消息（含，内容替换）
     if (MessageList.updateMessages) {
       MessageList.updateMessages((prev) => {
@@ -199,6 +221,9 @@ export default function ChatPage() {
   // 重新生成 assistant 消息
   function handleRegenerateMessage(assistantMessageId) {
     if (generating || !currentSessionId) return;
+
+    setErrorBubble(null);
+    streamingTextRef.current = '';
 
     let afterMessageId = null;
 
@@ -270,6 +295,9 @@ export default function ChatPage() {
   function handleRetryLast() {
     if (generating || !currentSessionId) return;
 
+    setErrorBubble(null);
+    streamingTextRef.current = '';
+
     let afterMessageId = null;
     if (MessageList.updateMessages) {
       MessageList.updateMessages((prev) => {
@@ -279,6 +307,33 @@ export default function ChatPage() {
         return prev.slice(0, idx);
       });
     }
+    if (!afterMessageId) return;
+
+    setGenerating(true);
+    setStreamingText('');
+    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
+    stopRef.current = stop;
+  }
+
+  // 错误后重试：从最后一条 user 消息重新生成
+  function handleRetryAfterError() {
+    if (generating || !currentSessionId) return;
+    setErrorBubble(null);
+    streamingTextRef.current = '';
+
+    let afterMessageId = null;
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) => {
+        // 去掉末尾可能残留的 assistant 消息
+        let end = prev.length;
+        while (end > 0 && prev[end - 1].role === 'assistant') end--;
+        const trimmed = prev.slice(0, end);
+        const lastUser = [...trimmed].reverse().find((m) => m.role === 'user');
+        if (lastUser) afterMessageId = lastUser.id;
+        return trimmed;
+      });
+    }
+
     if (!afterMessageId) return;
 
     setGenerating(true);
@@ -366,6 +421,16 @@ export default function ChatPage() {
             <span className="flex-1" />
           )}
           <button
+            onClick={() => navigate('/settings')}
+            className="p-1.5 mr-1 rounded-lg text-[var(--text)] opacity-40 hover:opacity-80 hover:bg-[var(--border)] transition-all"
+            title="设置"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+          <button
             onClick={() => setRightOpen((o) => !o)}
             className="p-1.5 rounded-lg text-[var(--text)] opacity-40 hover:opacity-80 hover:bg-[var(--border)] transition-all"
             title={rightOpen ? '收起记忆面板' : '展开记忆面板'}
@@ -401,6 +466,47 @@ export default function ChatPage() {
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
         />
+
+        {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
+        {errorBubble && !generating && (
+          <div className="px-4 pb-2 shrink-0">
+            <div className="max-w-[800px] mx-auto">
+              <div className="flex items-start gap-3">
+                <div
+                  className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
+                  style={{ background: getAvatarColor(character?.id) }}
+                >
+                  {getAvatarUrl(character?.avatar_path)
+                    ? <img src={getAvatarUrl(character?.avatar_path)} alt="" className="w-6 h-6 object-cover" />
+                    : (character?.name?.[0] || '?')}
+                </div>
+                <div className="flex flex-col gap-1 max-w-[75%]">
+                  <span className="text-xs opacity-50">{character?.name}</span>
+                  {errorBubble.partialContent && (
+                    <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[var(--code-bg)] border border-[var(--border)] text-[var(--text-h)] text-sm leading-relaxed whitespace-pre-wrap opacity-60">
+                      {errorBubble.partialContent}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-200">
+                      生成失败：{errorBubble.errorMsg}
+                    </span>
+                    <button
+                      onClick={handleRetryAfterError}
+                      className="text-xs px-2.5 py-1 rounded-lg border border-[var(--border)] hover:bg-[var(--border)] transition-colors flex items-center gap-1 text-[var(--text)]"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                      </svg>
+                      重新生成
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 输入框 */}
         <InputBox

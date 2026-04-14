@@ -110,12 +110,20 @@ export default function CharacterEditPage() {
     <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
       <div className="max-w-lg mx-auto">
         {/* 导航 */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors mb-8"
-        >
-          ← 返回
-        </button>
+        <div className="flex items-center justify-between mb-8">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+          >
+            ← 返回
+          </button>
+          <button
+            onClick={() => navigate('/settings')}
+            className="text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors opacity-60 hover:opacity-100"
+          >
+            设置
+          </button>
+        </div>
 
         <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight mb-8">编辑角色</h1>
 
