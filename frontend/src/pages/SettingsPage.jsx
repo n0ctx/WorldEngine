@@ -243,9 +243,12 @@ export default function SettingsPage() {
 
   async function handleLlmChange(field, value) {
     if (field === 'provider') {
+      // 切换到非本地 provider 时清除 base_url，避免旧 base_url 干扰模型拉取
+      const isLocal = LOCAL_PROVIDERS.includes(value);
+      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
       // 先保存再更新 state，避免 ModelSelector 在旧 provider 下拉取模型
-      await patchConfig({ llm: { [field]: value } });
-      setLlm((prev) => ({ ...prev, [field]: value }));
+      await patchConfig({ llm: patch });
+      setLlm((prev) => ({ ...prev, ...patch }));
     } else {
       setLlm((prev) => ({ ...prev, [field]: value }));
       await patchConfig({ llm: { [field]: value } });
@@ -254,8 +257,10 @@ export default function SettingsPage() {
 
   async function handleEmbeddingChange(field, value) {
     if (field === 'provider') {
-      await patchConfig({ embedding: { [field]: value } });
-      setEmbedding((prev) => ({ ...prev, [field]: value }));
+      const isLocal = LOCAL_PROVIDERS.includes(value);
+      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
+      await patchConfig({ embedding: patch });
+      setEmbedding((prev) => ({ ...prev, ...patch }));
     } else {
       setEmbedding((prev) => ({ ...prev, [field]: value }));
       await patchConfig({ embedding: { [field]: value } });
