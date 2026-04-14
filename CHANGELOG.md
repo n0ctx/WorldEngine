@@ -19,6 +19,20 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T28 — 渐进式展开原文 ✅
+- **对外接口**：
+  - `searchRecalledSummaries(worldId, sessionId)` — `/backend/memory/recall.js`（原 `renderRecalledSummaries` 拆分），返回 `{ recalled: [{ref, session_id, session_title, created_at, content, score}], recentMessagesText }`
+  - `renderRecalledSummaries(recalled)` — `/backend/memory/recall.js`（重构后签名接受结构化列表），每条前加 `【#ref】` 前缀
+  - `decideExpansion({ sessionId, recalled, recentMessagesText })` — `/backend/memory/summary-expander.js`，preflight 非流式调用，返回需展开的 `string[]`
+  - `renderExpandedSessions(sessionIds, tokenBudget)` — `/backend/memory/summary-expander.js`，渲染展开原文文本块
+  - `buildPrompt(sessionId, options?)` — `/backend/prompt/assembler.js`，签名新增 `options.onRecallEvent` 回调
+  - `buildContext(sessionId, options?)` — `/backend/services/chat.js`，透传 options 到 buildPrompt
+  - SSE 事件：`memory_expand_start`（candidates）/ `memory_expand_done`（expanded），仅 runStream 路径发送
+- **涉及文件**：
+  - 修改：`backend/utils/constants.js`（+3 个 MEMORY_EXPAND_* 常量）、`backend/memory/recall.js`（拆分函数 + 新格式）、`backend/prompt/assembler.js`（[6] 接入展开流程，签名扩展）、`backend/services/chat.js`（透传 options）、`backend/routes/chat.js`（+onRecallEvent 回调到 buildContext）、`backend/services/config.js`（+`memory_expansion_enabled` 默认 true）、`frontend/src/api/chat.js`（+expand 事件回调）、`frontend/src/pages/ChatPage.jsx`（+状态 + expand 事件处理）、`frontend/src/components/chat/MessageList.jsx`（+expand 胶囊 UI）、`frontend/src/pages/SettingsPage.jsx`（+「记忆原文展开」开关 section）
+  - 新增：`backend/memory/summary-expander.js`
+- **注意**：preflight 用 `llm.complete`（非流式），失败静默降级为"不展开"，不抛出不重试；`memory_expansion_enabled=false` 时整条展开链跳过，召回摘要仍保留（T27 行为不变）；`/continue` 路径不传 onRecallEvent 故无 expand 事件，符合预期；recall.js 的 `renderRecalledSummaries` 签名已变更（从 `(worldId, sessionId)` 改为接受结构化数组），任何直接调用该函数的代码需同步更新
+
 ## T27 — 跨 Session Summary 召回 ✅
 - **对外接口**：
   - `embedSessionSummary(sessionId)` — `/backend/memory/summary-embedder.js`，优先级 5 异步任务

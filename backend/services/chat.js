@@ -92,9 +92,10 @@ function formatMessageForLLM(msg) {
  * 构建上下文 messages 数组，调用 assembler.js 组装完整提示词
  *
  * @param {string} sessionId
+ * @param {object} [options]  透传给 buildPrompt，支持 onRecallEvent 回调（T28）
  * @returns {Promise<{ messages: Array, overrides: { temperature: number, maxTokens: number }, recallHitCount: number }>}
  */
-export async function buildContext(sessionId) {
-  const { messages, temperature, maxTokens, recallHitCount } = await buildPrompt(sessionId);
+export async function buildContext(sessionId, options = {}) {
+  const { messages, temperature, maxTokens, recallHitCount } = await buildPrompt(sessionId, options);
   return { messages, overrides: { temperature, maxTokens }, recallHitCount: recallHitCount ?? 0 };
 }

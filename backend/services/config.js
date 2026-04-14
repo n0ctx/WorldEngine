@@ -28,6 +28,7 @@ const DEFAULT_CONFIG = {
   },
   context_compress_rounds: 10,
   global_system_prompt: '',
+  memory_expansion_enabled: true,
 };
 
 /**

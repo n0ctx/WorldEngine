@@ -18,6 +18,8 @@ export default function ChatPage() {
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
+  const [memoryExpanding, setMemoryExpanding] = useState(false);
+  const [expandedMessage, setExpandedMessage] = useState('');
   const [rightOpen, setRightOpen] = useState(true);
   const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
@@ -91,6 +93,7 @@ export default function ChatPage() {
     setGenerating(false);
     setStreamingText('');
     setMemoryRecalling(false);
+    setMemoryExpanding(false);
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
@@ -124,6 +127,18 @@ export default function ChatPage() {
       },
       onMemoryRecallDone() {
         setMemoryRecalling(false);
+      },
+      onMemoryExpandStart() {
+        setMemoryExpanding(true);
+        setExpandedMessage('');
+      },
+      onMemoryExpandDone(evt) {
+        setMemoryExpanding(false);
+        const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
+        if (count > 0) {
+          setExpandedMessage(`已翻阅 ${count} 条历史对话`);
+          setTimeout(() => setExpandedMessage(''), 3000);
+        }
       },
       onStreamEnd() {
         finalizeStream();
@@ -379,6 +394,8 @@ export default function ChatPage() {
           generating={generating}
           streamingText={streamingText}
           memoryRecalling={memoryRecalling}
+          memoryExpanding={memoryExpanding}
+          expandedMessage={expandedMessage}
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
           continuingMessageId={continuingMessageId}

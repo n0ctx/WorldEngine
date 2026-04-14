@@ -289,7 +289,7 @@ POST /api/sessions/:sessionId/summary
 
   
 
-### T26C ⬜ 玩家（Persona）独立为世界下的一级对象
+### T26C ✅ 玩家（Persona）独立为世界下的一级对象
 
   
 
@@ -513,7 +513,7 @@ reorder 路由必须在 :id 路由前注册
 
 ---
 
-### T27 ⬜ 跨 Session Summary 召回（补齐"层一 原始 Session"召回）
+### T27 ✅ 跨 Session Summary 召回（补齐"层一 原始 Session"召回）
 
 **这个任务做什么**：实现 PROJECT.md 中"层一 原始 Session"的 embedding 召回部分——在对话组装时，根据当前上下文从历史 `session_summaries` 中基于 embedding 相似度检索相关摘要，注入到 assembler.js 的 [6] 位置末尾。召回范围覆盖同一 world 下所有历史 session（跨角色），排除当前 session 自身。**不做渐进式展开原文**（AI 主动召回原始 messages 全文）—— 留给未来任务。
 

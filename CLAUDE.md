@@ -127,11 +127,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件 |
 | `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件 |
 
-> 例外登记机制：上述锁定不是"永不改动"，而是"非例外不改动"。当某任务明确需要变更锁定文件时，必须在本表对应行用加粗 `**允许的例外**` 字样列出任务号与改动点（如 `assembler.js` 一行所示）。已存在例外：`SCHEMA.md` 与 `schema.js` 在 T19A / T26C 中扩展了状态系统三张表，`assembler.js` 的 [6] 位置在 T21 / T26C / T27 中追加了 recall 段。
+> 例外登记机制：上述锁定不是"永不改动"，而是"非例外不改动"。当某任务明确需要变更锁定文件时，必须在本表对应行用加粗 `**允许的例外**` 字样列出任务号与改动点（如 `assembler.js` 一行所示）。已存在例外：`SCHEMA.md` 与 `schema.js` 在 T19A / T26C 中扩展了状态系统三张表，`assembler.js` 的 [6] 位置在 T21 / T26C / T27 / T28 中追加了 recall 段和展开原文段。
 
 ---
 
@@ -198,7 +198,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **SSE 事件类型**：
 - 已实现：`delta` / `done` / `aborted` / `type:error` / `type:title_updated`（T09 / T11）
 - 已约定待实现：`type:memory_recall_start` / `type:memory_recall_done`（前端 api/chat.js 已监听，后端 chat.js 尚为 TODO，计划在 T27 随 recall 能力一起落地）
-- 规划中：`type:memory_expand_start` / `type:memory_expand_done`（T28 渐进式展开原文）
+- 已实现（T28）：`type:memory_expand_start`（payload: `{candidates:[{ref,title}]}`）/ `type:memory_expand_done`（payload: `{expanded:string[]}`）；仅在 recall 命中 ≥1 且 `memory_expansion_enabled=true` 时发送，通过 `buildPrompt` 的 `onRecallEvent` 回调 → `buildContext` → routes/chat.js 注入 SSE
 
 详细规范见 ROADMAP.md T09 / T11 / T27 / T28 任务说明。
 

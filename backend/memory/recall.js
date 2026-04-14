@@ -6,7 +6,9 @@
  *   renderWorldState(worldId)                              → string
  *   renderCharacterState(characterId)                      → string
  *   renderTimeline(worldId, limit)                         → string
- *   renderRecalledSummaries(worldId, sessionId)            → Promise<{ text: string, hitCount: number }>
+ *   searchRecalledSummaries(worldId, sessionId)            → Promise<{ recalled: Array, recentMessagesText: string }>
+ *     recalled 元素：{ ref, session_id, session_title, created_at, content, score }
+ *   renderRecalledSummaries(recalled)                      → string（接受结构化列表，返回注入文本）
  */
 
 import db from '../db/index.js';
@@ -166,13 +168,15 @@ export function renderTimeline(worldId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
 }
 
 /**
- * 基于当前对话上下文，向量搜索历史 session summary，渲染为可读文本。
+ * 基于当前对话上下文，向量搜索历史 session summary，返回结构化命中列表。
+ * 每条元素：{ ref, session_id, session_title, created_at, content, score }
+ * ref 从 1 起，供 AI 通过 #ref 指代。
  *
  * @param {string} worldId
  * @param {string} sessionId   当前 session（排除在外，不自召回）
- * @returns {Promise<{ text: string, hitCount: number }>}
+ * @returns {Promise<{ recalled: Array, recentMessagesText: string }>}
  */
-export async function renderRecalledSummaries(worldId, sessionId) {
+export async function searchRecalledSummaries(worldId, sessionId) {
   // 取最近 MEMORY_RECALL_CONTEXT_WINDOW 条消息作为查询上下文
   const recentMsgs = db.prepare(`
     SELECT role, content FROM messages
@@ -181,22 +185,22 @@ export async function renderRecalledSummaries(worldId, sessionId) {
     LIMIT ?
   `).all(sessionId, MEMORY_RECALL_CONTEXT_WINDOW);
 
-  if (recentMsgs.length === 0) return { text: '', hitCount: 0 };
+  if (recentMsgs.length === 0) return { recalled: [], recentMessagesText: '' };
 
   // 逆转还原时序，拼接为查询文本
   recentMsgs.reverse();
-  const joined = recentMsgs.map((m) =>
+  const recentMessagesText = recentMsgs.map((m) =>
     m.role === 'user' ? `用户：${m.content}` : `AI：${m.content}`
   ).join('\n');
 
   // 获取查询向量；embedding 未配置时静默降级
   let queryVector = null;
   try {
-    queryVector = await embed(joined);
+    queryVector = await embed(recentMessagesText);
   } catch {
     // embed 失败时降级，不抛出
   }
-  if (!queryVector) return { text: '', hitCount: 0 };
+  if (!queryVector) return { recalled: [], recentMessagesText };
 
   // 向量搜索（同世界、排除当前 session、取 topK）
   const hits = search(queryVector, {
@@ -205,29 +209,51 @@ export async function renderRecalledSummaries(worldId, sessionId) {
     topK: MEMORY_RECALL_MAX_SESSIONS,
   });
 
-  if (hits.length === 0) return { text: '', hitCount: 0 };
+  if (hits.length === 0) return { recalled: [], recentMessagesText };
 
-  // 拉取摘要元信息，按 token 预算软截断
-  const lines = ['[历史记忆召回]'];
+  // 拉取摘要元信息，按 token 预算软截断，构建结构化列表
+  const recalled = [];
   let totalTokens = 0;
-  let hitCount = 0;
+  let ref = 1;
 
   for (const hit of hits) {
     const meta = getSummaryWithMetaById(hit.summary_id);
     if (!meta?.content) continue;
 
-    const dateStr = new Date(meta.session_created_at).toISOString().slice(0, 10);
-    const title = meta.session_title || '未命名会话';
-    const line = `- 【${dateStr} · ${title}】${meta.content}`;
-
+    const line = meta.content;
     const lineTokens = countTokens(line);
     if (totalTokens + lineTokens > MEMORY_RECALL_MAX_TOKENS) break;
 
-    lines.push(line);
+    recalled.push({
+      ref,
+      session_id: meta.session_id,
+      session_title: meta.session_title || '未命名会话',
+      created_at: meta.session_created_at,
+      content: meta.content,
+      score: hit.score,
+    });
     totalTokens += lineTokens;
-    hitCount++;
+    ref++;
   }
 
-  if (hitCount === 0) return { text: '', hitCount: 0 };
-  return { text: lines.join('\n'), hitCount };
+  return { recalled, recentMessagesText };
+}
+
+/**
+ * 将结构化召回列表渲染为注入用的可读文本。
+ * 每条前加 【#ref】 前缀，供 AI 指代。
+ *
+ * @param {Array} recalled  searchRecalledSummaries 返回的 recalled 数组
+ * @returns {string}  无项时返回空字符串
+ */
+export function renderRecalledSummaries(recalled) {
+  if (!recalled || recalled.length === 0) return '';
+
+  const lines = ['[历史记忆召回]'];
+  for (const item of recalled) {
+    const dateStr = new Date(item.created_at).toISOString().slice(0, 10);
+    lines.push(`- 【#${item.ref}】【${dateStr} · ${item.session_title}】${item.content}`);
+  }
+
+  return lines.join('\n');
 }

@@ -8,12 +8,13 @@
  *   [4] 角色 System Prompt
  *   [1-4] 合并为单个 role:system 消息
  *   [5] Prompt 条目（命中→content，未命中→summary，追加到 system 消息末尾）
- *   [6] 记忆召回内容（占位，T21 填入）
+ *   [6] 状态与记忆注入：玩家状态 + 角色状态 + 世界状态 + 时间线 + 召回摘要 + 展开原文（T28）
  *   [7] 历史消息（含附件的消息转换为 vision 数组格式）
  *   [8] 当前用户消息 — 由调用方传入，不在此函数内添加
  *
  * 对外暴露：
- *   buildPrompt(sessionId) → Promise<{ messages, temperature, maxTokens }>
+ *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
+ *   options.onRecallEvent?: (name, payload) => void  — SSE 回调，T28 的 expand 事件通过此回调发出
  */
 
 import fs from 'node:fs';
@@ -31,7 +32,9 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
-import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline, renderRecalledSummaries } from '../memory/recall.js';
+import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline, searchRecalledSummaries, renderRecalledSummaries } from '../memory/recall.js';
+import { decideExpansion, renderExpandedSessions } from '../memory/summary-expander.js';
+import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -80,9 +83,12 @@ function formatMessageForLLM(msg) {
  * 注意：[8] 当前用户消息由调用方传入，不在此函数内读取
  *
  * @param {string} sessionId
+ * @param {object} [options]
+ * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void  SSE 事件回调
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
  */
-export async function buildPrompt(sessionId) {
+export async function buildPrompt(sessionId, options = {}) {
+  const { onRecallEvent } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -141,17 +147,34 @@ export async function buildPrompt(sessionId) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 召回摘要）
+  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 召回摘要 + 展开原文）
   const personaStateText = renderPersonaState(world.id);
   const characterStateText = renderCharacterState(character.id);
   const worldStateText = renderWorldState(world.id);
   const timelineText = renderTimeline(world.id);
-  const { text: recalledSummariesText, hitCount: recallHitCount } = await renderRecalledSummaries(world.id, sessionId);
-  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText, recalledSummariesText].filter(Boolean);
+
+  // T27：向量搜索召回摘要
+  const { recalled, recentMessagesText } = await searchRecalledSummaries(world.id, sessionId);
+  const recalledSummariesText = renderRecalledSummaries(recalled);
+  const recallHitCount = recalled.length;
+
+  // T28：AI preflight 决策展开原文
+  let expandedText = '';
+  if (recalled.length > 0 && config.memory_expansion_enabled !== false) {
+    onRecallEvent?.('memory_expand_start', {
+      candidates: recalled.map((r) => ({ ref: r.ref, title: r.session_title })),
+    });
+
+    const toExpand = await decideExpansion({ sessionId, recalled, recentMessagesText });
+    expandedText = toExpand.length ? renderExpandedSessions(toExpand, MEMORY_EXPAND_MAX_TOKENS) : '';
+
+    onRecallEvent?.('memory_expand_done', { expanded: toExpand });
+  }
+
+  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText, recalledSummariesText, expandedText].filter(Boolean);
   if (recallParts.length > 0) {
     systemParts.push(recallParts.join('\n\n'));
   }
-  // TODO T28：渐进式展开——AI 通过 preflight 决策触发读取历史 session 原始 messages
 
   // [1-6] 合并为单个 role:system 消息
   const messages = [];

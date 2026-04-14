@@ -64,7 +64,13 @@ async function runStream(sessionId, res) {
 
   try {
     if (!clientClosed) sseSend(res, { type: 'memory_recall_start' });
-    const { messages, overrides, recallHitCount } = await buildContext(sessionId);
+    const { messages, overrides, recallHitCount } = await buildContext(sessionId, {
+      onRecallEvent(name, payload) {
+        if (!clientClosed) {
+          sseSend(res, { type: name, ...payload });
+        }
+      },
+    });
     if (!clientClosed) sseSend(res, { type: 'memory_recall_done', hit: recallHitCount });
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 

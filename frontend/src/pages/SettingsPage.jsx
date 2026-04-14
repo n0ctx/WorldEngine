@@ -226,6 +226,7 @@ export default function SettingsPage() {
   const [embedding, setEmbedding] = useState({});
   const [contextRounds, setContextRounds] = useState(10);
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
+  const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
 
   const [testStatus, setTestStatus] = useState('idle'); // idle | testing | ok | error
   const [testMsg, setTestMsg] = useState('');
@@ -238,6 +239,7 @@ export default function SettingsPage() {
       setEmbedding(c.embedding || {});
       setContextRounds(c.context_compress_rounds ?? 10);
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
+      setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
       setLoading(false);
     });
   }, []);
@@ -283,6 +285,11 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleToggleMemoryExpansion(enabled) {
+    setMemoryExpansionEnabled(enabled);
+    await patchConfig({ memory_expansion_enabled: enabled });
   }
 
   async function handleTestConnection() {
@@ -430,6 +437,37 @@ export default function SettingsPage() {
           <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
             <SectionTitle>正则替换</SectionTitle>
             <RegexRulesManager />
+          </section>
+
+          {/* ── 记忆与召回 ────────────────────────────── */}
+          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+            <SectionTitle>记忆与召回</SectionTitle>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-[var(--text-h)]">记忆原文展开</p>
+                  <p className="text-xs text-[var(--text)] opacity-60 mt-0.5">
+                    召回历史摘要后允许 AI 读取原文，会略增加首包延迟
+                  </p>
+                </div>
+                <button
+                  role="switch"
+                  aria-checked={memoryExpansionEnabled}
+                  onClick={() => handleToggleMemoryExpansion(!memoryExpansionEnabled)}
+                  className={[
+                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                    memoryExpansionEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--border)]',
+                  ].join(' ')}
+                >
+                  <span
+                    className={[
+                      'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200',
+                      memoryExpansionEnabled ? 'translate-x-5' : 'translate-x-0',
+                    ].join(' ')}
+                  />
+                </button>
+              </div>
+            </div>
           </section>
         </div>
       </div>

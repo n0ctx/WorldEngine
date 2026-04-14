@@ -11,6 +11,8 @@ export default function MessageList({
   generating,
   streamingText,
   memoryRecalling,
+  memoryExpanding,
+  expandedMessage,
   onEditMessage,
   onRegenerateMessage,
   continuingMessageId,
@@ -138,6 +140,23 @@ export default function MessageList({
           <span className="typing-dot" style={{ background: 'var(--accent)' }} />
           <span className="typing-dot" style={{ background: 'var(--accent)' }} />
           <span className="ml-1">正在检索记忆…</span>
+        </div>
+      )}
+
+      {/* 记忆原文展开提示（T28） */}
+      {memoryExpanding && (
+        <div className="flex items-center justify-center gap-2 py-2 text-xs text-[var(--text)] opacity-50">
+          <span className="typing-dot" style={{ background: 'var(--text)' }} />
+          <span className="typing-dot" style={{ background: 'var(--text)' }} />
+          <span className="typing-dot" style={{ background: 'var(--text)' }} />
+          <span className="ml-1">正在翻阅历史对话…</span>
+        </div>
+      )}
+      {!memoryExpanding && expandedMessage && (
+        <div className="flex items-center justify-center py-2">
+          <span className="text-xs text-[var(--text)] opacity-40 px-3 py-1 rounded-full border border-[var(--border)]">
+            {expandedMessage}
+          </span>
         </div>
       )}
 

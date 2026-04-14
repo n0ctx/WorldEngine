@@ -26,6 +26,13 @@ export const MEMORY_RECALL_MAX_TOKENS = 2048;
 export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.68;
 
 // ============================
+// 记忆原文展开（T28）
+// ============================
+export const MEMORY_EXPAND_MAX_TOKENS = 4096;
+export const MEMORY_EXPAND_DECISION_MAX_TOKENS = 200;
+export const MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30;
+
+// ============================
 // 世界时间线
 // ============================
 export const WORLD_TIMELINE_RECENT_LIMIT = 20;

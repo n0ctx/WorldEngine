@@ -9,6 +9,8 @@ async function parseSSEStream(response, callbacks) {
     onTitleUpdated,
     onMemoryRecallStart,
     onMemoryRecallDone,
+    onMemoryExpandStart,
+    onMemoryExpandDone,
   } = callbacks;
 
   const reader = response.body.getReader();
@@ -35,6 +37,8 @@ async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'title_updated') onTitleUpdated?.(evt.title);
           else if (evt.type === 'memory_recall_start') onMemoryRecallStart?.();
           else if (evt.type === 'memory_recall_done') onMemoryRecallDone?.();
+          else if (evt.type === 'memory_expand_start') onMemoryExpandStart?.(evt);
+          else if (evt.type === 'memory_expand_done') onMemoryExpandDone?.(evt);
         } catch {
           // ignore malformed events
         }
