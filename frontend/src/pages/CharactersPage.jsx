@@ -9,7 +9,6 @@ import {
 import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
-import EntryList from '../components/prompt/EntryList';
 import { importCharacter, readJsonFile } from '../api/importExport';
 
 function AvatarCircle({ character, size = 'md' }) {
@@ -328,11 +327,6 @@ export default function CharactersPage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* 世界 Prompt 条目 */}
-      <div className="mt-12 border-t border-[var(--border)] pt-8">
-        <EntryList type="world" scopeId={worldId} />
       </div>
 
       {showCreate && (

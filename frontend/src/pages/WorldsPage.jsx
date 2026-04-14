@@ -4,6 +4,7 @@ import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api/worlds'
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import StateFieldList from '../components/state/StateFieldList';
+import EntryList from '../components/prompt/EntryList';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -181,9 +182,12 @@ function WorldFormModal({ initial, onSave, onClose }) {
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          {/* 状态字段模板（仅编辑现有世界时显示） */}
+          {/* 世界 Prompt 条目 / 状态字段模板（仅编辑现有世界时显示） */}
           {initial?.id && (
             <>
+              <div className="border-t border-[var(--border)] pt-4">
+                <EntryList type="world" scopeId={initial.id} />
+              </div>
               <div className="border-t border-[var(--border)] pt-4">
                 <StateFieldList
                   scope="world"

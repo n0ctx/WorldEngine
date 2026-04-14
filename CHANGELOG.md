@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T26B — 世界 Prompt 条目迁移到编辑世界弹窗 ✅
+- **对外接口**：无（纯 UI 迁移，后端 API 不变）
+- **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（删除 EntryList 区块和 import）、`frontend/src/pages/WorldsPage.jsx`（新增 EntryList import，在 StateFieldList 之上插入 EntryList 区块）
+- **注意**：EntryList 在 WorldsPage 放在 `initial?.id &&` 条件块内，新建世界时不显示；位置在两个 StateFieldList 之上、`error` 信息之下
+
 ## T26A — 修复对话气泡 hover 抖动 ✅
 - **对外接口**：无（纯 UI 修复）
 - **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`
