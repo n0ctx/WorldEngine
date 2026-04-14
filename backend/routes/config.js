@@ -3,11 +3,11 @@ import { getConfig, updateConfig } from '../services/config.js';
 
 const router = Router();
 
-/** 从配置对象中移除敏感的 API Key 字段 */
+/** 从配置对象中移除敏感的 API Key 字段，保留 has_key 布尔标志 */
 function stripApiKeys(config) {
   const safe = structuredClone(config);
-  if (safe.llm) delete safe.llm.api_key;
-  if (safe.embedding) delete safe.embedding.api_key;
+  if (safe.llm) { safe.llm.has_key = !!safe.llm.api_key; delete safe.llm.api_key; }
+  if (safe.embedding) { safe.embedding.has_key = !!safe.embedding.api_key; delete safe.embedding.api_key; }
   return safe;
 }
 

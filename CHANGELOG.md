@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## bugfix — Provider 设置页两个 Bug 修复 ✅
+- **Bug 1（API Key 无已配置提示）**：后端 `stripApiKeys()` 改为保留 `has_key: !!api_key` 布尔字段；前端 `ProviderSection` 据此显示 `••••••••（已配置，输入新密钥可覆盖）` placeholder，保存后通过 `onApiKeySaved` 回调同步本地 state
+- **Bug 2（切换 Provider 后拉取的仍是旧模型）**：竞态条件——旧代码先 `setLlm` 触发 ModelSelector 重挂载，再 await 保存；改为 `field === 'provider'` 时先 await patchConfig 写入后端，再更新 state，确保后端 config 已更新再发起 `/models` 请求
+- **涉及文件**：`backend/routes/config.js`（stripApiKeys）、`frontend/src/pages/SettingsPage.jsx`（ProviderSection + handleLlmChange + handleEmbeddingChange）
+
 ## T24A — 自定义 CSS 片段管理 ✅
 - **对外接口**：`GET/POST /api/custom-css-snippets`、`PUT /api/custom-css-snippets/reorder`（body: `{items:[{id,sort_order}]}`）、`GET/PUT/DELETE /api/custom-css-snippets/:id`（PUT 白名单：name/enabled/content）；前端 `refreshCustomCss()` 在 `frontend/src/api/customCssSnippets.js`，拉取所有 enabled=1 条目拼接后写入 `<style id="we-custom-css">`
 - **涉及文件**：新增 `backend/db/queries/custom-css-snippets.js`、`backend/services/custom-css-snippets.js`、`backend/routes/custom-css-snippets.js`、`frontend/src/api/customCssSnippets.js`、`frontend/src/components/settings/CustomCssManager.jsx`；修改 `backend/db/schema.js`（+custom_css_snippets 表和索引）、`backend/server.js`（+1 路由）、`frontend/src/pages/SettingsPage.jsx`（+自定义样式分区）、`frontend/src/App.jsx`（+useEffect 启动时 refreshCustomCss）

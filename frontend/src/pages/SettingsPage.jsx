@@ -122,6 +122,7 @@ function ProviderSection({
   onBaseUrlChange,
   onModelChange,
   onApiKeySave,
+  onApiKeySaved,
   loadModels,
 }) {
   const [apiKey, setApiKey] = useState('');
@@ -132,6 +133,7 @@ function ProviderSection({
       await onApiKeySave(apiKey);
       setApiKey('');
       setApiKeySaved(true);
+      onApiKeySaved?.();
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
       alert(`保存失败：${e.message}`);
@@ -168,7 +170,7 @@ function ProviderSection({
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="输入后单独保存，不随其他配置提交"
+              placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
             />
             <button
               onClick={handleSaveKey}
@@ -240,15 +242,24 @@ export default function SettingsPage() {
   }
 
   async function handleLlmChange(field, value) {
-    const next = { ...llm, [field]: value };
-    setLlm(next);
-    await patchConfig({ llm: { [field]: value } });
+    if (field === 'provider') {
+      // 先保存再更新 state，避免 ModelSelector 在旧 provider 下拉取模型
+      await patchConfig({ llm: { [field]: value } });
+      setLlm((prev) => ({ ...prev, [field]: value }));
+    } else {
+      setLlm((prev) => ({ ...prev, [field]: value }));
+      await patchConfig({ llm: { [field]: value } });
+    }
   }
 
   async function handleEmbeddingChange(field, value) {
-    const next = { ...embedding, [field]: value };
-    setEmbedding(next);
-    await patchConfig({ embedding: { [field]: value } });
+    if (field === 'provider') {
+      await patchConfig({ embedding: { [field]: value } });
+      setEmbedding((prev) => ({ ...prev, [field]: value }));
+    } else {
+      setEmbedding((prev) => ({ ...prev, [field]: value }));
+      await patchConfig({ embedding: { [field]: value } });
+    }
   }
 
   async function handleSaveGeneral() {
@@ -314,6 +325,7 @@ export default function SettingsPage() {
               onBaseUrlChange={(v) => handleLlmChange('base_url', v)}
               onModelChange={(v) => handleLlmChange('model', v)}
               onApiKeySave={updateApiKey}
+              onApiKeySaved={() => setLlm((prev) => ({ ...prev, has_key: true }))}
               loadModels={fetchModels}
             />
 
@@ -345,6 +357,7 @@ export default function SettingsPage() {
               onBaseUrlChange={(v) => handleEmbeddingChange('base_url', v)}
               onModelChange={(v) => handleEmbeddingChange('model', v)}
               onApiKeySave={updateEmbeddingApiKey}
+              onApiKeySaved={() => setEmbedding((prev) => ({ ...prev, has_key: true }))}
               loadModels={fetchEmbeddingModels}
             />
           </section>
