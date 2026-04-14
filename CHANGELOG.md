@@ -24,6 +24,11 @@
 - **涉及文件**：新增 `backend/db/queries/regex-rules.js`、`backend/services/regex-rules.js`、`backend/routes/regex-rules.js`、`backend/utils/regex-runner.js`、`frontend/src/api/regexRules.js`、`frontend/src/utils/regex-runner.js`、`frontend/src/components/settings/RegexRulesManager.jsx`、`frontend/src/components/settings/RegexRuleEditor.jsx`；修改 `backend/db/schema.js`（+regex_rules 表和索引）、`backend/server.js`（+1 路由）、`backend/routes/chat.js`（ai_output scope 接入 + 提前查询 session/character/world）、`backend/prompt/assembler.js`（[7] 历史消息 prompt_only scope 接入）、`frontend/src/pages/SettingsPage.jsx`（+正则替换分区）、`frontend/src/pages/ChatPage.jsx`（+loadRules 初始化 + worldId 传递）、`frontend/src/components/chat/MessageList.jsx`（+worldId prop）、`frontend/src/components/chat/InputBox.jsx`（user_input scope 接入）、`frontend/src/components/chat/MessageItem.jsx`（display_only scope 接入）
 - **注意**：前端用模块级缓存（`_cachedRules`），ChatPage 挂载时调用 `loadRules()` 填充，RegexRulesManager 每次变更后调用 `invalidateCache()` + `loadRules()` 刷新；ai_output 规则仅对非 aborted（正常完成）内容生效，已中断的内容跳过处理，直接存原始内容（含 [已中断] 标记）；`world_id IS NULL` 表示全局规则，查询时用 `(world_id IS NULL OR world_id = ?)` 覆盖两类；chat.js 中 session/character/world 查询提前到 ai_output 处理之前，供后续异步任务复用，无重复查库
 
+## bugfix — Provider 设置页追加修复 ✅
+- **Embedding openai_compatible**：后端 `fetchModels` 新增对 `openai_compatible` provider 的支持（使用自定义 base_url 拉取模型列表）；前端对该 provider 显示 Base URL 输入框，切换时不清除已填写的 base_url
+- **UI 整合**：全局 Prompt 条目（EntryList）移入通用配置卡片，置于全局 System Prompt 下方，不再单独成卡
+- **涉及文件**：`backend/routes/config.js`、`frontend/src/pages/SettingsPage.jsx`
+
 ## bugfix — Provider 设置页两个 Bug 修复 ✅
 - **Bug 1（API Key 无已配置提示）**：后端 `stripApiKeys()` 改为保留 `has_key: !!api_key` 布尔字段；前端 `ProviderSection` 据此显示 `••••••••（已配置，输入新密钥可覆盖）` placeholder，保存后通过 `onApiKeySaved` 回调同步本地 state
 - **Bug 2（切换 Provider 后拉取的仍是旧模型）**：竞态条件——旧代码先 `setLlm` 触发 ModelSelector 重挂载，再 await 保存；改为 `field === 'provider'` 时先 await patchConfig 写入后端，再更新 state，确保后端 config 已更新再发起 `/models` 请求
