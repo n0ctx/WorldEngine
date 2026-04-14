@@ -13,6 +13,8 @@ export default function MessageList({
   memoryRecalling,
   onEditMessage,
   onRegenerateMessage,
+  continuingMessageId,
+  continuingText,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -146,20 +148,26 @@ export default function MessageList({
       )}
 
       <div className="max-w-[800px] mx-auto">
-        {messages.map((msg) => (
-          <MessageItem
-            key={msg.id}
-            message={msg}
-            character={character}
-            worldId={worldId}
-            isStreaming={false}
-            onEdit={onEditMessage}
-            onRegenerate={onRegenerateMessage}
-          />
-        ))}
+        {messages.map((msg) => {
+          const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+          const displayMsg = isContinuing
+            ? { ...msg, content: msg.content + continuingText }
+            : msg;
+          return (
+            <MessageItem
+              key={msg.id}
+              message={displayMsg}
+              character={character}
+              worldId={worldId}
+              isStreaming={isContinuing}
+              onEdit={onEditMessage}
+              onRegenerate={onRegenerateMessage}
+            />
+          );
+        })}
 
-        {/* 流式响应气泡 */}
-        {generating && (
+        {/* 流式响应气泡（仅新消息，续写时不显示） */}
+        {generating && !continuingMessageId && (
           <MessageItem
             key="__streaming__"
             message={{ id: '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}

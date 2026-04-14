@@ -77,3 +77,10 @@ export function deleteMessagesAfter(messageId) {
 export function deleteMessage(id) {
   return db.prepare('DELETE FROM messages WHERE id = ?').run(id);
 }
+
+/**
+ * 删除某会话下的所有消息
+ */
+export function deleteAllMessagesBySessionId(sessionId) {
+  return db.prepare('DELETE FROM messages WHERE session_id = ?').run(sessionId);
+}

@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
-import { sendMessage, stopGeneration, regenerate, editAndRegenerate } from '../api/chat.js';
+import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary } from '../api/chat.js';
 import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
@@ -21,6 +21,10 @@ export default function ChatPage() {
   const [rightOpen, setRightOpen] = useState(true);
   const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
+  const [continuingMessageId, setContinuingMessageId] = useState(null);
+  const [continuingText, setContinuingText] = useState('');
+  const [fillText, setFillText] = useState('');
+  const [toast, setToast] = useState(null);
 
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
@@ -76,11 +80,19 @@ export default function ChatPage() {
     setMessageListKey((k) => k + 1);
   }
 
+  // Toast 提示（自动消失）
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
   // 流状态清理
   const finalizeStream = useCallback(() => {
     setGenerating(false);
     setStreamingText('');
     setMemoryRecalling(false);
+    setContinuingMessageId(null);
+    setContinuingText('');
     stopRef.current = null;
     refreshMessages();
   }, []);
@@ -192,8 +204,130 @@ export default function ChatPage() {
     stopRef.current = stop;
   }
 
+  // 续写最后一条 assistant 消息
+  function handleContinue() {
+    if (generating || !currentSessionId) return;
+
+    // 找最后一条 assistant 消息 id
+    let lastAssistantId = null;
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) => {
+        const last = [...prev].reverse().find((m) => m.role === 'assistant');
+        if (last) lastAssistantId = last.id;
+        return prev;
+      });
+    }
+    if (!lastAssistantId) return;
+
+    setContinuingMessageId(lastAssistantId);
+    setContinuingText('');
+    setGenerating(true);
+
+    const callbacks = {
+      onDelta(delta) {
+        setContinuingText((prev) => prev + delta);
+      },
+      onDone() {},
+      onAborted() { finalizeStream(); },
+      onError(err) {
+        console.error('continue error:', err);
+        finalizeStream();
+      },
+      onStreamEnd() { finalizeStream(); },
+    };
+
+    const stop = continueGeneration(currentSessionId, callbacks);
+    stopRef.current = stop;
+  }
+
+  // AI 代拟用户消息，填入输入框
+  async function handleImpersonate() {
+    if (generating || !currentSessionId) return;
+    try {
+      const { content } = await impersonate(currentSessionId);
+      if (content) setFillText(content);
+    } catch (err) {
+      console.error('impersonate error:', err);
+    }
+  }
+
+  // 重试：删除最后一条 assistant 消息并重新生成
+  function handleRetryLast() {
+    if (generating || !currentSessionId) return;
+
+    let afterMessageId = null;
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) => {
+        const idx = [...prev].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === 'assistant')?.i;
+        if (idx === undefined || idx <= 0) return prev;
+        afterMessageId = prev[idx - 1].id;
+        return prev.slice(0, idx);
+      });
+    }
+    if (!afterMessageId) return;
+
+    setGenerating(true);
+    setStreamingText('');
+    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
+    stopRef.current = stop;
+  }
+
+  // 清空会话消息
+  async function handleClearMessages() {
+    if (!currentSessionId) return;
+    if (!window.confirm('确认清空当前会话所有消息？')) return;
+    try {
+      const { firstMessage } = await clearMessages(currentSessionId);
+      if (firstMessage) {
+        // 角色有开场白，重新插入
+        const fakeMsg = {
+          id: `__first_${Date.now()}`,
+          session_id: currentSessionId,
+          role: 'assistant',
+          content: firstMessage,
+          attachments: null,
+          created_at: Date.now(),
+        };
+        if (MessageList.updateMessages) {
+          MessageList.updateMessages(() => [fakeMsg]);
+        }
+      } else {
+        if (MessageList.updateMessages) {
+          MessageList.updateMessages(() => []);
+        }
+      }
+      // 刷新以拿到真实 id
+      refreshMessages();
+    } catch (err) {
+      alert(err.message || '清空失败');
+    }
+  }
+
+  // 手动生成摘要
+  async function handleManualSummary() {
+    if (!currentSessionId) return;
+    try {
+      await triggerSummary(currentSessionId);
+      showToast('摘要已生成');
+    } catch (err) {
+      showToast(err.message || '摘要生成失败', 'error');
+    }
+  }
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)]" style={{ position: 'relative' }}>
+      {/* Toast 提示 */}
+      {toast && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
+            toast.type === 'error'
+              ? 'bg-red-500 text-white'
+              : 'bg-[var(--accent)] text-white'
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
       {/* 左栏：会话列表（260px） */}
       <div className="w-[260px] flex-none border-r border-[var(--border)] flex flex-col overflow-hidden">
         <Sidebar
@@ -247,6 +381,8 @@ export default function ChatPage() {
           memoryRecalling={memoryRecalling}
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
+          continuingMessageId={continuingMessageId}
+          continuingText={continuingText}
         />
 
         {/* 输入框 */}
@@ -256,6 +392,13 @@ export default function ChatPage() {
           generating={generating}
           lastUserContent={lastUserContent}
           worldId={character?.world_id ?? null}
+          onContinue={handleContinue}
+          onImpersonate={handleImpersonate}
+          onRetry={handleRetryLast}
+          onClear={handleClearMessages}
+          onSummary={handleManualSummary}
+          fillText={fillText}
+          onFillTextConsumed={() => setFillText('')}
         />
       </div>
 

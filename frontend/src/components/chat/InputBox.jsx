@@ -1,9 +1,33 @@
 import { useState, useRef, useEffect } from 'react';
 import { applyRules } from '../../utils/regex-runner.js';
 
-export default function InputBox({ onSend, onStop, generating, lastUserContent, worldId }) {
+const SLASH_COMMANDS = [
+  { cmd: '/continue',    desc: '续写上一条 AI 回复' },
+  { cmd: '/impersonate', desc: 'AI 替你写一条消息' },
+  { cmd: '/retry',       desc: '删除最后一条 AI 回复并重新生成' },
+  { cmd: '/regen',       desc: '重新生成最后一条 AI 回复（同 /retry）' },
+  { cmd: '/clear',       desc: '清空当前会话所有消息' },
+  { cmd: '/summary',     desc: '手动触发生成当前会话摘要' },
+];
+
+export default function InputBox({
+  onSend,
+  onStop,
+  generating,
+  lastUserContent,
+  worldId,
+  onContinue,
+  onImpersonate,
+  onRetry,
+  onClear,
+  onSummary,
+  fillText,
+  onFillTextConsumed,
+}) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -17,7 +41,70 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent, 
 
   useEffect(() => { adjustHeight(); }, [text]);
 
+  // 外部填入文本（impersonate）
+  useEffect(() => {
+    if (fillText) {
+      setText(fillText);
+      onFillTextConsumed?.();
+      textareaRef.current?.focus();
+    }
+  }, [fillText]);
+
+  // 过滤命令列表
+  const filteredCommands = text.startsWith('/')
+    ? SLASH_COMMANDS.filter((c) => c.cmd.startsWith(text.toLowerCase().trim()))
+    : [];
+
+  // 当输入变化时控制浮层
+  function handleChange(e) {
+    const val = e.target.value;
+    setText(val);
+    if (val.startsWith('/')) {
+      setSlashOpen(true);
+      setSlashIndex(0);
+    } else {
+      setSlashOpen(false);
+    }
+  }
+
+  function executeCommand(cmd) {
+    setText('');
+    setSlashOpen(false);
+    switch (cmd) {
+      case '/continue':    onContinue?.();    break;
+      case '/impersonate': onImpersonate?.(); break;
+      case '/retry':
+      case '/regen':       onRetry?.();       break;
+      case '/clear':       onClear?.();       break;
+      case '/summary':     onSummary?.();     break;
+    }
+  }
+
   function handleKeyDown(e) {
+    // Slash 命令浮层键盘导航
+    if (slashOpen && filteredCommands.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeCommand(filteredCommands[slashIndex].cmd);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSlashOpen(false);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -37,6 +124,7 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent, 
     onSend(processed, attachments);
     setText('');
     setAttachments([]);
+    setSlashOpen(false);
   }
 
   function handleFileChange(e) {
@@ -129,12 +217,33 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent, 
 
         {/* 输入框 */}
         <div className="flex-1 relative">
-          {/* T25 预留快捷图标 */}
+          {/* Slash 命令浮层 */}
+          {slashOpen && filteredCommands.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 bg-[var(--code-bg)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden z-20">
+              {filteredCommands.map((c, i) => (
+                <button
+                  key={c.cmd}
+                  onMouseDown={(e) => { e.preventDefault(); executeCommand(c.cmd); }}
+                  className={`w-full text-left px-4 py-2.5 flex items-baseline gap-3 transition-colors ${
+                    i === slashIndex
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'text-[var(--text-h)] hover:bg-[var(--border)]'
+                  }`}
+                >
+                  <span className="text-sm font-mono font-semibold w-28 shrink-0">{c.cmd}</span>
+                  <span className="text-xs opacity-70">{c.desc}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 快捷图标 */}
           <div className="absolute right-2 top-2 flex gap-1 z-10">
             <button
-              className="p-1 rounded opacity-30 hover:opacity-60 transition-opacity cursor-not-allowed"
-              title="续写（T25 实现）"
-              disabled
+              onClick={onContinue}
+              disabled={generating}
+              className="p-1 rounded opacity-40 hover:opacity-80 transition-opacity disabled:cursor-not-allowed"
+              title="续写"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="13 17 18 12 13 7" />
@@ -142,9 +251,10 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent, 
               </svg>
             </button>
             <button
-              className="p-1 rounded opacity-30 hover:opacity-60 transition-opacity cursor-not-allowed"
-              title="代入（T25 实现）"
-              disabled
+              onClick={onImpersonate}
+              disabled={generating}
+              className="p-1 rounded opacity-40 hover:opacity-80 transition-opacity disabled:cursor-not-allowed"
+              title="代入"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -156,9 +266,9 @@ export default function InputBox({ onSend, onStop, generating, lastUserContent, 
           <textarea
             ref={textareaRef}
             className="w-full px-4 py-3 pr-20 rounded-xl border border-[var(--border)] bg-[var(--code-bg)] text-[var(--text-h)] text-sm leading-relaxed resize-none outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text)] placeholder:opacity-40 disabled:opacity-50"
-            placeholder="发送消息… (Shift+Enter 换行)"
+            placeholder="发送消息… (Shift+Enter 换行，/ 调出命令)"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleChange}
             onKeyDown={handleKeyDown}
             disabled={generating}
             rows={1}

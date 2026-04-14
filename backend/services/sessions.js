@@ -14,6 +14,7 @@ import {
   updateMessageContent as dbUpdateMessageContent,
   deleteMessagesAfter as dbDeleteMessagesAfter,
   deleteMessage as dbDeleteMessage,
+  deleteAllMessagesBySessionId as dbDeleteAllMessagesBySessionId,
 } from '../db/queries/messages.js';
 
 import { getCharacterById } from '../db/queries/characters.js';
@@ -89,5 +90,13 @@ export function deleteMessage(id) {
 
 export function deleteMessagesAfter(messageId) {
   return dbDeleteMessagesAfter(messageId);
+}
+
+export function deleteAllMessagesBySessionId(sessionId) {
+  return dbDeleteAllMessagesBySessionId(sessionId);
+}
+
+export function updateMessageContent(id, content) {
+  return dbUpdateMessageContent(id, content);
 }
 

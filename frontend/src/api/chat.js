@@ -154,16 +154,77 @@ export function editAndRegenerate(sessionId, messageId, newContent, callbacks) {
 }
 
 /**
- * 续写（T25 实现，此处占位）
+ * 续写：流式追加到最后一条 assistant 消息，返回 abort 函数
  */
 export function continueGeneration(sessionId, callbacks) {
-  callbacks.onError?.('续写功能尚未实现');
-  return () => {};
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/continue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
 }
 
 /**
- * 代入（T25 实现，此处占位）
+ * 代入：AI 代拟用户消息，返回 { content }
  */
-export async function impersonate(_sessionId) {
-  return { content: '' };
+export async function impersonate(sessionId) {
+  const res = await fetch(`/api/sessions/${sessionId}/impersonate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * 清空会话消息，返回 { success, firstMessage }
+ */
+export async function clearMessages(sessionId) {
+  const res = await fetch(`/api/sessions/${sessionId}/messages`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
+ * 手动触发摘要生成
+ */
+export async function triggerSummary(sessionId) {
+  const res = await fetch(`/api/sessions/${sessionId}/summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
