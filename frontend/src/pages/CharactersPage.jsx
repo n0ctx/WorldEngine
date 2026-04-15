@@ -10,6 +10,7 @@ import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile, downloadPersonaCard } from '../api/importExport';
+import { listCharacterStateFields } from '../api/characterStateFields';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
@@ -514,6 +515,18 @@ export default function CharactersPage() {
     setImportingChar(true);
     try {
       const data = await readJsonFile(file);
+      const stateValues = data.character_state_values;
+      if (stateValues && stateValues.length > 0) {
+        const fields = await listCharacterStateFields(worldId);
+        const worldFieldKeys = new Set(fields.map((f) => f.field_key));
+        const incompatibleKeys = stateValues
+          .filter((sv) => !worldFieldKeys.has(sv.field_key))
+          .map((sv) => sv.field_key);
+        if (incompatibleKeys.length > 0) {
+          alert(`导入失败：该角色卡包含与当前世界不兼容的状态字段：${incompatibleKeys.join('、')}。请在同一世界中导入。`);
+          return;
+        }
+      }
       await importCharacter(worldId, data);
       const chars = await getCharactersByWorld(worldId);
       setCharacters(chars);

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T41 — 角色卡跨世界导入兼容性校验 ✅
+- **对外接口**：无新增接口；复用 `listCharacterStateFields(worldId)`
+- **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（`handleImportCharFile` 中插入校验逻辑；新增 `listCharacterStateFields` import）
+- **注意**：`character_state_values` 为空或长度 0 时跳过校验直接导入；目标世界无字段但角色卡有状态值时同样视为不兼容报错；错误提示用原有 `alert()`，与页面风格一致；后端的静默跳过逻辑保留作为保底
+
 ## T40 — 记忆面板实时更新感知 ✅
 - **对外接口**：无新增接口；复用 `getPersonaStateValues` / `getWorldStateValues` / `getCharacterStateValues` / `getWorldTimeline` 轮询
 - **涉及文件**：`frontend/src/store/index.js`（新增 `memoryRefreshTick` + `triggerMemoryRefresh`）、`frontend/src/pages/ChatPage.jsx`（`finalizeStream` 末尾调用 `triggerMemoryRefresh`，移除右栏外部标题头）、`frontend/src/components/memory/MemoryPanel.jsx`（内置标题头含脉冲指示、`tick` 订阅、3s 轮询 + 20s 超时）
