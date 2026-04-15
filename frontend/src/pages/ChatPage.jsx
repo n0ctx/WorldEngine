@@ -4,6 +4,7 @@ import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary } from '../api/chat.js';
+import { createSession } from '../api/sessions.js';
 import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
@@ -163,8 +164,17 @@ export default function ChatPage() {
   }
 
   // 发送消息
-  function handleSend(content, attachments) {
-    if (!currentSessionId || generating) return;
+  async function handleSend(content, attachments) {
+    if (generating) return;
+
+    let sessionId = currentSessionId;
+    if (!sessionId) {
+      if (!character) return;
+      const newSession = await createSession(character.id);
+      enterSession(newSession);
+      Sidebar.addSession(newSession);
+      sessionId = newSession.id;
+    }
 
     setErrorBubble(null);
     streamingTextRef.current = '';
@@ -173,7 +183,7 @@ export default function ChatPage() {
     // 乐观追加 user 消息到列表
     const tempUserMsg = {
       id: `__temp_${Date.now()}`,
-      session_id: currentSessionId,
+      session_id: sessionId,
       role: 'user',
       content,
       attachments: null,
@@ -184,7 +194,7 @@ export default function ChatPage() {
     setGenerating(true);
     setStreamingText('');
 
-    const stop = sendMessage(currentSessionId, content, attachments, makeCallbacks());
+    const stop = sendMessage(sessionId, content, attachments, makeCallbacks());
     stopRef.current = stop;
   }
 

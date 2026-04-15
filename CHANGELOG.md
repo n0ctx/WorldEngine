@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T42 — 无会话时发送消息自动建会话 ✅
+- **对外接口**：无新增接口；复用 `createSession(characterId)` from `api/sessions.js`
+- **涉及文件**：`frontend/src/pages/ChatPage.jsx`（`handleSend` 改为 async，guard 拆分，新增自动建会话逻辑）、`frontend/src/components/chat/Sidebar.jsx`（新增 `Sidebar.addSession` 静态方法，与 `Sidebar.updateTitle` 同模式）
+- **注意**：`enterSession` 内部会调用 `setMessageListKey(k+1)` 重置消息列表，乐观 user 消息会随之丢失（新会话为空，可接受）；流式内容通过 `streamingText` state 正常展示；`Sidebar.addSession` 在同帧注册，React 批量更新后即可感知新会话
+
 ## T41 — 角色卡跨世界导入兼容性校验 ✅
 - **对外接口**：无新增接口；复用 `listCharacterStateFields(worldId)`
 - **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（`handleImportCharFile` 中插入校验逻辑；新增 `listCharacterStateFields` import）

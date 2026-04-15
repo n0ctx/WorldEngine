@@ -115,6 +115,11 @@ export default function Sidebar({
     setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
   };
 
+  // 外部追加新会话（自动建会话时使用）
+  Sidebar.addSession = (session) => {
+    setSessions((prev) => [session, ...prev]);
+  };
+
   return (
     <div className="we-sidebar flex flex-col h-full">
       {/* 角色信息 */}
