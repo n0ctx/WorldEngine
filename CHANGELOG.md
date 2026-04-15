@@ -19,6 +19,16 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T29A — 设计令牌落地 & 视觉基线审计 ✅
+- **对外接口**：无新路由；仅 CSS 变量层，所有 `--we-*` 变量通过 `:root` 定义，并通过 `@theme` 暴露为 Tailwind v4 工具类
+- **涉及文件**：
+  - `frontend/src/index.css` — 重写：删除 `prefers-color-scheme: dark` 块及旧变量（`--text`/`--bg`/`--accent` 等）；新增 26 个 `--we-*` 变量（画布/表面/品牌/文字/边框/阴影/字体/圆角）；新增 `@theme` 块映射 Tailwind 工具类；`body` 背景改 `var(--we-canvas)`；`typing-dot` 背景色改 `var(--we-text-tertiary)`；全局 `font-size` 从 15px 改 16px；字体栈改 `var(--we-sans)`
+  - `frontend/DESIGN_AUDIT.md` — 新建，临时审计产物（T29B 完成后删除）：设计令牌清单、钩子类名清单（25 个）、字体回退策略、组件变更清单、T24A 兼容约定
+- **注意**：
+  - 本任务 0 行组件改动，组件 className 未动，T29B 按 DESIGN_AUDIT.md 施工
+  - 旧紫色 `--accent: #7c3aed` 已删除；新陶土色 `--we-accent: #c96442` 作为品牌色
+  - Tailwind v4 `@theme` 里的 `--color-*` 是框架约定必须写；用户层变量统一 `--we-*` 前缀避免冲突
+
 ## T32 — 会话上下文轮次压缩（Context Compression）✅
 - **对外接口**：
   - `POST /api/sessions/:sessionId/summary` — 现在调用 `maybeCompress(sessionId, { force: true })`，跳过阈值强制压缩，同时重置轮次计数；无需用户消息检查（generateSummary 内部处理空对话）

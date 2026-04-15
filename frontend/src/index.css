@@ -1,59 +1,137 @@
 @import "tailwindcss";
 
+/* =========================================================
+   WorldEngine — Claude 风格设计令牌层 (T29A)
+   --we-* 变量为用户层 CSS 变量，全局唯一前缀，T24A 片段可覆盖
+   ========================================================= */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #faf9f7;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #7c3aed;
-  --accent-bg: rgba(124, 58, 237, 0.08);
-  --accent-border: rgba(124, 58, 237, 0.4);
-  --shadow:
-    rgba(0, 0, 0, 0.08) 0 4px 12px -2px, rgba(0, 0, 0, 0.04) 0 2px 4px -1px;
+  /* --- 画布与表面 --- */
+  --we-canvas:       #f5f4ed; /* 羊皮纸，页面主背景 */
+  --we-ivory:        #faf9f5; /* 象牙白，卡片/浮层表面 */
+  --we-sand:         #e8e6dc; /* 暖沙，次要按钮背景 */
+  --we-white:        #ffffff; /* 纯白，最高对比度元素 */
+  --we-surface-dark: #30302e; /* 深炭灰，暗面容器/导航边框 */
+  --we-surface-deep: #141413; /* 近黑，最深暗面背景 */
 
-  --sans: system-ui, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* --- 品牌与强调 --- */
+  --we-accent:       #c96442; /* 陶土，主 CTA 按钮 */
+  --we-accent-soft:  #d97757; /* 珊瑚，次要强调/暗面文字链接 */
+  --we-error:        #b53333; /* 深暖红，错误状态 */
+  --we-focus:        #3898ec; /* 焦点蓝，唯一冷色，仅用于 focus ring */
 
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.6;
-  letter-spacing: 0.01em;
-  color: var(--text);
-  background: var(--bg);
+  /* --- 文字 --- */
+  --we-text:           #141413; /* 近黑，正文主色 */
+  --we-text-secondary: #5e5d59; /* 橄榄灰，次要说明文字 */
+  --we-text-tertiary:  #87867f; /* 石灰，三级文字/元数据 */
+  --we-text-muted:     #4d4c48; /* 暖炭，按钮文字/紧凑正文 */
+  --we-text-on-dark:   #b0aea5; /* 暖银，暗面文字 */
+
+  /* --- 边框 --- */
+  --we-border:       #f0eee6; /* 奶油边框，最柔和的分隔 */
+  --we-border-strong: #e8e6dc; /* 暖沙边框，更明显的分隔 */
+  --we-border-dark:  #30302e; /* 暗面边框 */
+
+  /* --- 环形阴影色 --- */
+  --we-ring:      #d1cfc5; /* 标准 hover/focus ring */
+  --we-ring-deep: #c2c0b6; /* active/pressed ring */
+
+  /* --- 阴影预设（字符串值，用于 box-shadow） --- */
+  --we-shadow-ring:      0 0 0 1px var(--we-ring);
+  --we-shadow-ring-deep: 0 0 0 1px var(--we-ring-deep);
+  --we-shadow-whisper:   rgba(0, 0, 0, 0.05) 0 4px 24px;
+
+  /* --- 字体栈 --- */
+  --we-serif: "Anthropic Serif", Georgia, "Noto Serif SC", serif;
+  --we-sans:  "Anthropic Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+  --we-mono:  "Anthropic Mono", ui-monospace, Consolas, monospace;
+
+  /* --- 圆角刻度 --- */
+  --we-radius-sharp: 4px;
+  --we-radius-sm:    6px;
+  --we-radius:       8px;
+  --we-radius-md:    12px;
+  --we-radius-lg:    16px;
+  --we-radius-xl:    24px;
+  --we-radius-2xl:   32px;
+
+  /* --- 全局排版基线 --- */
+  font-family: var(--we-sans);
+  font-size:   16px;
+  line-height: 1.60;
+  color:       var(--we-text);
+  background:  var(--we-canvas);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #111118;
-    --border: #27272f;
-    --code-bg: #1c1c26;
-    --accent: #a78bfa;
-    --accent-bg: rgba(167, 139, 250, 0.12);
-    --accent-border: rgba(167, 139, 250, 0.4);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 4px 12px -2px, rgba(0, 0, 0, 0.2) 0 2px 4px -1px;
-  }
+/* =========================================================
+   Tailwind v4 @theme 扩展
+   将 --we-* 变量暴露为 Tailwind 工具类
+   ========================================================= */
+@theme {
+  /* 颜色工具类：bg-canvas / text-accent / border-border 等 */
+  --color-canvas:        var(--we-canvas);
+  --color-ivory:         var(--we-ivory);
+  --color-sand:          var(--we-sand);
+  --color-surface-dark:  var(--we-surface-dark);
+  --color-surface-deep:  var(--we-surface-deep);
+  --color-accent:        var(--we-accent);
+  --color-accent-soft:   var(--we-accent-soft);
+  --color-text:          var(--we-text);
+  --color-text-secondary: var(--we-text-secondary);
+  --color-text-tertiary:  var(--we-text-tertiary);
+  --color-text-muted:    var(--we-text-muted);
+  --color-text-on-dark:  var(--we-text-on-dark);
+  --color-border:        var(--we-border);
+  --color-border-strong: var(--we-border-strong);
+  --color-border-dark:   var(--we-border-dark);
+  --color-ring-warm:     var(--we-ring);
+  --color-ring-warm-deep: var(--we-ring-deep);
+  --color-error:         var(--we-error);
+  --color-focus:         var(--we-focus);
+
+  /* 字体工具类：font-serif / font-sans / font-mono */
+  --font-serif: var(--we-serif);
+  --font-sans:  var(--we-sans);
+  --font-mono:  var(--we-mono);
+
+  /* 圆角工具类：rounded-sharp / rounded-sm / rounded / rounded-md 等 */
+  --radius-sharp: var(--we-radius-sharp);
+  --radius-sm:    var(--we-radius-sm);
+  --radius:       var(--we-radius);
+  --radius-md:    var(--we-radius-md);
+  --radius-lg:    var(--we-radius-lg);
+  --radius-xl:    var(--we-radius-xl);
+  --radius-2xl:   var(--we-radius-2xl);
+
+  /* 阴影工具类：shadow-ring / shadow-ring-deep / shadow-whisper */
+  --shadow-ring:       var(--we-shadow-ring);
+  --shadow-ring-deep:  var(--we-shadow-ring-deep);
+  --shadow-whisper:    var(--we-shadow-whisper);
 }
 
+/* =========================================================
+   结构基线
+   ========================================================= */
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--we-canvas);
 }
 
 #root {
   min-height: 100svh;
 }
+
+/* =========================================================
+   工具样式（保留，更新旧变量引用）
+   ========================================================= */
 
 /* 文字截断辅助 */
 .line-clamp-2 {
@@ -66,7 +144,7 @@ body {
 /* 三点打点动画 */
 @keyframes typing-dot {
   0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
-  40% { opacity: 1; transform: translateY(-4px); }
+  40%            { opacity: 1;   transform: translateY(-4px); }
 }
 
 .typing-dot {
@@ -74,7 +152,7 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--we-text-tertiary);
   margin: 0 2px;
   animation: typing-dot 1.2s ease-in-out infinite;
 }
