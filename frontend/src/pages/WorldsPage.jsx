@@ -1,23 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getWorlds, createWorld, updateWorld, deleteWorld } from '../api/worlds';
+import { getWorlds, createWorld, deleteWorld } from '../api/worlds';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
-import StateFieldList from '../components/state/StateFieldList';
-import EntryList from '../components/prompt/EntryList';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
-import {
-  listWorldStateFields, createWorldStateField,
-  updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
-} from '../api/worldStateFields';
-import {
-  listCharacterStateFields, createCharacterStateField,
-  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../api/characterStateFields';
-import {
-  listPersonaStateFields, createPersonaStateField,
-  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../api/personaStateFields';
 
 // 世界表单的初始空值
 const EMPTY_FORM = {
@@ -30,19 +16,8 @@ const EMPTY_FORM = {
   useGlobalMaxTokens: true,
 };
 
-function WorldFormModal({ initial, onSave, onClose }) {
-  const [form, setForm] = useState(() => {
-    if (!initial) return EMPTY_FORM;
-    return {
-      name: initial.name ?? '',
-      system_prompt: initial.system_prompt ?? '',
-      post_prompt: initial.post_prompt ?? '',
-      temperature: initial.temperature ?? 1.0,
-      max_tokens: initial.max_tokens ?? 2048,
-      useGlobalTemp: initial.temperature == null,
-      useGlobalMaxTokens: initial.max_tokens == null,
-    };
-  });
+function WorldFormModal({ onSave, onClose }) {
+  const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -78,12 +53,9 @@ function WorldFormModal({ initial, onSave, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
         <div className="px-6 py-5 border-b border-border">
-          <h2 className="font-serif text-lg font-semibold text-text">
-            {initial ? '编辑世界' : '创建世界'}
-          </h2>
+          <h2 className="font-serif text-lg font-semibold text-text">创建世界</h2>
         </div>
         <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
-          {/* 名称 */}
           <div>
             <label className="block text-sm text-text-secondary mb-1">名称 <span className="text-red-400">*</span></label>
             <input
@@ -91,10 +63,10 @@ function WorldFormModal({ initial, onSave, onClose }) {
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="世界的名称"
+              autoFocus
             />
           </div>
 
-          {/* System Prompt */}
           <div>
             <label className="block text-sm text-text-secondary mb-1">世界 System Prompt</label>
             <MarkdownEditor
@@ -105,7 +77,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
             />
           </div>
 
-          {/* Post Prompt */}
           <div>
             <label className="block text-sm text-text-secondary mb-1">
               世界后置提示词
@@ -119,7 +90,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
             />
           </div>
 
-          {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm text-text-secondary">Temperature</label>
@@ -148,7 +118,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
             </div>
           </div>
 
-          {/* Max Tokens */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm text-text-secondary">Max Tokens</label>
@@ -173,48 +142,6 @@ function WorldFormModal({ initial, onSave, onClose }) {
           </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
-
-          {/* 世界 Prompt 条目 / 状态字段模板（仅编辑现有世界时显示） */}
-          {initial?.id && (
-            <>
-              <div className="border-t border-border pt-4">
-                <EntryList type="world" scopeId={initial.id} />
-              </div>
-              <div className="border-t border-border pt-4">
-                <StateFieldList
-                  scope="world"
-                  worldId={initial.id}
-                  listFn={listWorldStateFields}
-                  createFn={createWorldStateField}
-                  updateFn={updateWorldStateField}
-                  deleteFn={deleteWorldStateField}
-                  reorderFn={reorderWorldStateFields}
-                />
-              </div>
-              <div className="border-t border-border pt-4">
-                <StateFieldList
-                  scope="character"
-                  worldId={initial.id}
-                  listFn={listCharacterStateFields}
-                  createFn={createCharacterStateField}
-                  updateFn={updateCharacterStateField}
-                  deleteFn={deleteCharacterStateField}
-                  reorderFn={reorderCharacterStateFields}
-                />
-              </div>
-              <div className="border-t border-border pt-4">
-                <StateFieldList
-                  scope="persona"
-                  worldId={initial.id}
-                  listFn={listPersonaStateFields}
-                  createFn={createPersonaStateField}
-                  updateFn={updatePersonaStateField}
-                  deleteFn={deletePersonaStateField}
-                  reorderFn={reorderPersonaStateFields}
-                />
-              </div>
-            </>
-          )}
         </div>
         <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
           <button
@@ -228,7 +155,7 @@ function WorldFormModal({ initial, onSave, onClose }) {
             disabled={saving}
             className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? '创建中…' : '创建'}
           </button>
         </div>
       </div>
@@ -282,7 +209,6 @@ export default function WorldsPage() {
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [editingWorld, setEditingWorld] = useState(null);
   const [deletingWorld, setDeletingWorld] = useState(null);
   const [exportingWorldId, setExportingWorldId] = useState(null);
   const [importingWorld, setImportingWorld] = useState(false);
@@ -306,11 +232,6 @@ export default function WorldsPage() {
 
   async function handleCreate(payload) {
     await createWorld(payload);
-    await loadWorlds();
-  }
-
-  async function handleEdit(payload) {
-    await updateWorld(editingWorld.id, payload);
     await loadWorlds();
   }
 
@@ -425,7 +346,7 @@ export default function WorldsPage() {
                     ↓
                   </button>
                   <button
-                    onClick={() => setEditingWorld(world)}
+                    onClick={() => navigate(`/worlds/${world.id}/edit`)}
                     className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
                     title="编辑"
                   >
@@ -447,16 +368,8 @@ export default function WorldsPage() {
 
       {showCreate && (
         <WorldFormModal
-          initial={null}
           onSave={handleCreate}
           onClose={() => setShowCreate(false)}
-        />
-      )}
-      {editingWorld && (
-        <WorldFormModal
-          initial={editingWorld}
-          onSave={handleEdit}
-          onClose={() => setEditingWorld(null)}
         />
       )}
       {deletingWorld && (

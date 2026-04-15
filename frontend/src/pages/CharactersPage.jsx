@@ -9,265 +9,9 @@ import {
 import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
-import { importCharacter, readJsonFile, downloadPersonaCard } from '../api/importExport';
+import { importCharacter, readJsonFile } from '../api/importExport';
 import { listCharacterStateFields } from '../api/characterStateFields';
-import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
-import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
-import MarkdownEditor from '../components/ui/MarkdownEditor';
-
-function StateValueField({ field, onSave }) {
-  const parseValue = (vj) => {
-    try { return vj != null ? JSON.parse(vj) : null; }
-    catch { return vj ?? null; }
-  };
-  const [local, setLocal] = useState(() => parseValue(field.value_json));
-
-  function saveValue(val) {
-    onSave(field.field_key, JSON.stringify(val));
-  }
-
-  const inputClass = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
-
-  if (field.type === 'boolean') {
-    return (
-      <input
-        type="checkbox"
-        checked={!!local}
-        onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
-        className="accent-accent w-4 h-4"
-      />
-    );
-  }
-  if (field.type === 'number') {
-    return (
-      <input
-        type="number"
-        value={local ?? ''}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
-        className={inputClass}
-      />
-    );
-  }
-  if (field.type === 'enum') {
-    const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
-    return (
-      <select
-        value={local ?? ''}
-        onChange={(e) => { setLocal(e.target.value); saveValue(e.target.value); }}
-        className={inputClass}
-      >
-        <option value="">—</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
-    );
-  }
-  if (field.type === 'list') {
-    const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
-    return (
-      <input
-        type="text"
-        value={displayValue}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => {
-          const arr = String(local).split(',').map((s) => s.trim()).filter(Boolean);
-          saveValue(arr);
-        }}
-        placeholder="逗号分隔多个条目"
-        className={inputClass}
-      />
-    );
-  }
-  // text (default)
-  return (
-    <input
-      type="text"
-      value={local ?? ''}
-      onChange={(e) => setLocal(e.target.value)}
-      onBlur={() => saveValue(String(local ?? ''))}
-      className={inputClass}
-    />
-  );
-}
-
-function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
-  const [name, setName] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [avatarPath, setAvatarPath] = useState(null);
-  const [personaId, setPersonaId] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [stateFields, setStateFields] = useState([]);
-  const avatarFileRef = useRef(null);
-
-  useEffect(() => {
-    Promise.all([
-      getPersona(worldId),
-      getPersonaStateValues(worldId),
-    ]).then(([p, fields]) => {
-      setName(p.name ?? '');
-      setSystemPrompt(p.system_prompt ?? '');
-      setAvatarPath(p.avatar_path ?? null);
-      setPersonaId(p.id);
-      setStateFields(fields);
-      setLoaded(true);
-    });
-  }, [worldId]);
-
-  async function handleStateValueSave(fieldKey, valueJson) {
-    try {
-      await updatePersonaStateValue(worldId, fieldKey, valueJson);
-    } catch (err) {
-      console.error('状态值保存失败', err);
-    }
-  }
-
-  async function handleAvatarFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAvatarUploading(true);
-    try {
-      const result = await uploadPersonaAvatar(worldId, file);
-      setAvatarPath(result.avatar_path);
-      onAvatarChange?.(result.avatar_path);
-    } catch (err) {
-      alert(`头像上传失败：${err.message}`);
-    } finally {
-      setAvatarUploading(false);
-      e.target.value = '';
-    }
-  }
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      await updatePersona(worldId, { name, system_prompt: systemPrompt });
-      onClose();
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const avatarUrl = getAvatarUrl(avatarPath);
-  const avatarColor = getAvatarColor(personaId || worldId);
-  const avatarInitial = (name || '玩')[0].toUpperCase();
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
-        <div className="px-6 py-5 border-b border-border">
-          <h2 className="font-serif text-lg font-semibold text-text">编辑玩家</h2>
-        </div>
-        <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
-          {!loaded ? (
-            <p className="text-sm text-text-secondary opacity-50">加载中…</p>
-          ) : (
-            <>
-              {/* 头像 */}
-              <div className="flex flex-col items-center">
-                <div
-                  className="relative cursor-pointer group"
-                  onClick={() => avatarFileRef.current?.click()}
-                >
-                  {avatarUrl ? (
-                    <img
-                      src={avatarUrl}
-                      alt={name}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div
-                      className="w-20 h-20 rounded-full flex items-center justify-center text-2xl font-semibold text-white"
-                      style={{ backgroundColor: avatarColor }}
-                    >
-                      {avatarInitial}
-                    </div>
-                  )}
-                  {avatarUploading && (
-                    <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
-                      <span className="text-white text-xs">上传中…</span>
-                    </div>
-                  )}
-                  {!avatarUploading && (
-                    <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                      <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">更换头像</span>
-                    </div>
-                  )}
-                </div>
-                <input
-                  ref={avatarFileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarFileChange}
-                />
-                <p className="text-xs text-text-secondary mt-1.5 opacity-50">点击头像上传图片</p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-text-secondary mb-1">名字</label>
-                <input
-                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="你在这个世界里的名字"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-text-secondary mb-1">人设</label>
-                <MarkdownEditor
-                  value={systemPrompt}
-                  onChange={setSystemPrompt}
-                  placeholder="你的身份、背景等"
-                  minHeight={96}
-                />
-              </div>
-              {stateFields.length > 0 && (
-                <div className="border-t border-border pt-4">
-                  <h3 className="text-sm font-semibold text-text-secondary mb-3">当前状态字段值</h3>
-                  <div className="flex flex-col gap-3">
-                    {stateFields.map((field) => (
-                      <div key={field.field_key}>
-                        <label className="block text-sm text-text-secondary mb-1">{field.label}</label>
-                        <StateValueField field={field} onSave={handleStateValueSave} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-        <div className="px-6 py-4 border-t border-border flex justify-between gap-3">
-          <button
-            onClick={() => downloadPersonaCard(worldId, `${name || '玩家'}.wechar.json`)}
-            disabled={!loaded}
-            className="px-4 py-2 text-sm text-text-secondary border border-border rounded-lg hover:bg-sand transition-colors disabled:opacity-40"
-          >
-            导出为角色卡
-          </button>
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !loaded}
-              className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {saving ? '保存中…' : '保存'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { getPersona } from '../api/personas';
 
 function PersonaCard({ worldId, onEdit }) {
   const [persona, setPersona] = useState(null);
@@ -476,9 +220,7 @@ export default function CharactersPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [deletingChar, setDeletingChar] = useState(null);
-  const [showPersonaEdit, setShowPersonaEdit] = useState(false);
   const [importingChar, setImportingChar] = useState(false);
-  const [personaRefreshKey, setPersonaRefreshKey] = useState(0);
 
   // 拖拽状态
   const dragIdx = useRef(null);
@@ -624,7 +366,7 @@ export default function CharactersPage() {
         </div>
 
         {/* 玩家人设卡片 */}
-        <PersonaCard key={personaRefreshKey} worldId={worldId} onEdit={() => setShowPersonaEdit(true)} />
+        <PersonaCard worldId={worldId} onEdit={() => navigate(`/worlds/${worldId}/persona`)} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
@@ -697,13 +439,6 @@ export default function CharactersPage() {
           character={deletingChar}
           onConfirm={handleDelete}
           onClose={() => setDeletingChar(null)}
-        />
-      )}
-      {showPersonaEdit && (
-        <PersonaEditModal
-          worldId={worldId}
-          onClose={() => { setShowPersonaEdit(false); setPersonaRefreshKey((k) => k + 1); }}
-          onAvatarChange={() => setPersonaRefreshKey((k) => k + 1)}
         />
       )}
     </div>

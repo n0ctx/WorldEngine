@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T43 — 编辑界面统一全屏+加宽 ✅
+- **对外接口**：新增路由 `/worlds/:worldId/edit` → `WorldEditPage`，`/worlds/:worldId/persona` → `PersonaEditPage`
+- **涉及文件**：新增 `frontend/src/pages/WorldEditPage.jsx`、`frontend/src/pages/PersonaEditPage.jsx`；修改 `App.jsx`（注册路由）、`WorldsPage.jsx`（WorldFormModal 简化为纯创建，编辑按钮改为 navigate）、`CharactersPage.jsx`（移除 PersonaEditModal 和 StateValueField，玩家编辑改为 navigate）、`CharacterEditPage.jsx`（max-w-lg → max-w-2xl）
+- **注意**：创建世界仍用 Modal（WorldFormModal），编辑世界才走全屏页；PersonaCard 返回后自动刷新（React Router 重新挂载 CharactersPage），不再需要 personaRefreshKey；WorldFormModal 已移除 `initial` prop，不再支持编辑模式
+
 ## T42 — 无会话时发送消息自动建会话 ✅
 - **对外接口**：无新增接口；复用 `createSession(characterId)` from `api/sessions.js`
 - **涉及文件**：`frontend/src/pages/ChatPage.jsx`（`handleSend` 改为 async，guard 拆分，新增自动建会话逻辑）、`frontend/src/components/chat/Sidebar.jsx`（新增 `Sidebar.addSession` 静态方法，与 `Sidebar.updateTitle` 同模式）
