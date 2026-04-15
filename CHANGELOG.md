@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T36 — 状态字段表单逻辑修正 ✅
+- **对外接口**：无新增接口
+- **涉及文件**：`frontend/src/components/state/StateFieldEditor.jsx`、`backend/db/queries/world-state-fields.js`、`backend/db/queries/character-state-fields.js`、`backend/db/queries/persona-state-fields.js`
+- **注意**：allow_empty 控件已从前端移除，handleSave 中硬编码为 `allow_empty: 1`（后端字段保留）；当 update_mode==='manual' 时，trigger_mode 整块（含关键词 tag 区域）不渲染；三个 queries 文件中新建字段的默认值已改为 `llm_auto` / `every_turn`
+
 ## T35 — Prompt 编辑框 WYSIWYG + 体验优化 ✅
 - **对外接口**：新增 `frontend/src/components/ui/MarkdownEditor.jsx`，Props: `value`, `onChange(v: string)`, `placeholder`, `minHeight`, `className`
 - **涉及文件**：`frontend/src/components/ui/MarkdownEditor.jsx`（新建）、`frontend/src/components/ui/Textarea.jsx`（resize-y）、`frontend/src/index.css`（MDEditor 样式覆盖）、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/pages/WorldsPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`frontend/src/pages/CharactersPage.jsx`、`frontend/src/components/prompt/EntryEditor.jsx`

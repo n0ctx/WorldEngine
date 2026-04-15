@@ -149,7 +149,7 @@
 
 ---
 
-### T36 ⬜ 状态字段表单逻辑修正
+### T36 ✅ 状态字段表单逻辑修正
 
 **这个任务做什么**：修复状态字段编辑表单中 update_mode 与 trigger_mode 的不合理联动（manual 时仍显示触发时机），改善两个说明字段的 placeholder，移除不应暴露给用户的 allow_empty 控件，并将新建字段的默认值改为更合理的 llm_auto / every_turn。
 

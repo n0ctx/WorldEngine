@@ -44,8 +44,8 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
       label:              field?.label ?? '',
       type:               field?.type ?? 'text',
       description:        field?.description ?? '',
-      update_mode:        field?.update_mode ?? 'manual',
-      trigger_mode:       field?.trigger_mode ?? 'manual_only',
+      update_mode:        field?.update_mode ?? 'llm_auto',
+      trigger_mode:       field?.trigger_mode ?? 'every_turn',
       trigger_keywords:   Array.isArray(field?.trigger_keywords) ? field.trigger_keywords : [],
       enum_options:       Array.isArray(field?.enum_options) ? field.enum_options : [],
       list_defaults:      listDefaults,
@@ -123,7 +123,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
                               ? form.enum_options : null,
         min_value:          form.type === 'number' && form.min_value !== '' ? Number(form.min_value) : null,
         max_value:          form.type === 'number' && form.max_value !== '' ? Number(form.max_value) : null,
-        allow_empty:        form.allow_empty,
+        allow_empty:        1,
         update_instruction: form.update_instruction,
         default_value:      defaultValue,
       };
@@ -267,7 +267,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             <label className={labelCls}>字段说明（给 LLM 的提示）</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={form.description}
               onChange={(e) => set('description', e.target.value)}
-              placeholder="告诉 LLM 这个字段代表什么" />
+              placeholder="「字段含义说明」——告诉 LLM 这个字段代表什么，会注入到提示词上下文中" />
           </div>
 
           {/* 更新模式 */}
@@ -279,17 +279,19 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
                 {updateModeOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div>
-              <label className={labelCls}>触发时机</label>
-              <select className={selectCls} value={form.trigger_mode}
-                onChange={(e) => set('trigger_mode', e.target.value)}>
-                {TRIGGER_MODE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
+            {form.update_mode !== 'manual' && (
+              <div>
+                <label className={labelCls}>触发时机</label>
+                <select className={selectCls} value={form.trigger_mode}
+                  onChange={(e) => set('trigger_mode', e.target.value)}>
+                  {TRIGGER_MODE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            )}
           </div>
 
-          {/* 触发关键词（trigger_mode=keyword_based 时显示） */}
-          {form.trigger_mode === 'keyword_based' && (
+          {/* 触发关键词（update_mode 非 manual 且 trigger_mode=keyword_based 时显示） */}
+          {form.update_mode !== 'manual' && form.trigger_mode === 'keyword_based' && (
             <div>
               <label className={labelCls}>触发关键词（回车添加）</label>
               <div
@@ -324,16 +326,8 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             <label className={labelCls}>更新指令（告诉 LLM 如何更新该字段）</label>
             <textarea className={`${inputCls} resize-none`} rows={2} value={form.update_instruction}
               onChange={(e) => set('update_instruction', e.target.value)}
-              placeholder="例：根据对话内容判断当前心情" />
+              placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值" />
           </div>
-
-          {/* 允许为空 */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={form.allow_empty === 1}
-              onChange={(e) => set('allow_empty', e.target.checked ? 1 : 0)}
-              className="accent-accent" />
-            <span className="text-sm text-text-secondary">允许值为空</span>
-          </label>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
