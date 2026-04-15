@@ -51,6 +51,37 @@ export function exportCharacter(characterId) {
   };
 }
 
+// ─── 导出玩家为角色卡 ────────────────────────────────────────────────────────
+
+export function exportPersona(worldId) {
+  const persona = db.prepare('SELECT name, system_prompt, avatar_path FROM personas WHERE world_id = ?').get(worldId);
+  if (!persona) throw new Error('玩家不存在');
+
+  let avatarBase64 = null;
+  let avatarMime = null;
+  if (persona.avatar_path) {
+    const avatarFile = path.join(DATA_ROOT, 'uploads', persona.avatar_path);
+    if (fs.existsSync(avatarFile)) {
+      const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
+      avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+      avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
+    }
+  }
+
+  return {
+    format: 'worldengine-character-v1',
+    character: {
+      name: persona.name,
+      system_prompt: persona.system_prompt,
+      first_message: '',
+      post_prompt: '',
+      ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
+    },
+    prompt_entries: [],
+    character_state_values: [],
+  };
+}
+
 // ─── 导入角色卡 ──────────────────────────────────────────────────────────────
 
 export function importCharacter(worldId, data) {

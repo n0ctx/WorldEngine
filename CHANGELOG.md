@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T38 — 玩家卡导出为角色卡 ✅
+- **对外接口**：`GET /api/worlds/:worldId/persona/export` → 返回 worldengine-character-v1 格式 JSON
+- **涉及文件**：`backend/services/import-export.js`（新增 `exportPersona`）、`backend/routes/import-export.js`（新增路由）、`frontend/src/api/importExport.js`（新增 `exportPersona`/`downloadPersonaCard`）、`frontend/src/pages/CharactersPage.jsx`（PersonaEditModal 底部加「导出为角色卡」按钮）
+- **注意**：personas 表无 first_message/post_prompt 列，导出时固定填空字符串；底部操作区由 `justify-end` 改为 `justify-between`，左侧放导出按钮，右侧保留取消/保存
+
 ## T37 — 对话消息 CSS+HTML 渲染支持 ✅
 - **对外接口**：无新增接口
 - **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`、`frontend/package.json`

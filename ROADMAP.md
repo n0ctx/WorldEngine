@@ -214,7 +214,7 @@
 
 ---
 
-### T37 ⬜ 对话消息 CSS+HTML 渲染支持
+### T37 ✅ 对话消息 CSS+HTML 渲染支持
 
 **这个任务做什么**：为 assistant 消息的 Markdown 渲染添加 HTML 标签支持（如 `<br>`, `<details>`, `<b>` 等），同时引入 sanitize 防止 XSS 注入。
 
@@ -261,7 +261,7 @@ npm install rehype-raw rehype-sanitize
 
 ---
 
-### T38 ⬜ 玩家卡导出为角色卡
+### T38 ✅ 玩家卡导出为角色卡
 
 **这个任务做什么**：在玩家（Persona）编辑弹窗新增「导出为角色卡」按钮，将玩家的基础信息导出为标准 `.wechar.json` 角色卡格式，方便跨世界复用。
 

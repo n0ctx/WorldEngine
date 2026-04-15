@@ -9,7 +9,7 @@ import {
 import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
-import { importCharacter, readJsonFile } from '../api/importExport';
+import { importCharacter, readJsonFile, downloadPersonaCard } from '../api/importExport';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
@@ -239,20 +239,29 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
             </>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border flex justify-between gap-3">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
+            onClick={() => downloadPersonaCard(worldId, `${name || '玩家'}.wechar.json`)}
+            disabled={!loaded}
+            className="px-4 py-2 text-sm text-text-secondary border border-border rounded-lg hover:bg-sand transition-colors disabled:opacity-40"
           >
-            取消
+            导出为角色卡
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || !loaded}
-            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? '保存中…' : '保存'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
+            >
+              取消
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving || !loaded}
+              className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {saving ? '保存中…' : '保存'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

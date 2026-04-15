@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { exportCharacter, importCharacter, exportWorld, importWorld } from '../services/import-export.js';
+import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona } from '../services/import-export.js';
 
 const router = Router();
 
@@ -25,6 +25,18 @@ router.post('/worlds/:worldId/import-character', (req, res) => {
     if (err.message === '不支持的角色卡格式') return res.status(400).json({ error: err.message });
     console.error('导入角色卡失败', err);
     res.status(500).json({ error: '导入失败' });
+  }
+});
+
+// GET /api/worlds/:worldId/persona/export — 导出玩家为角色卡
+router.get('/worlds/:worldId/persona/export', (req, res) => {
+  try {
+    const data = exportPersona(req.params.worldId);
+    res.json(data);
+  } catch (err) {
+    if (err.message === '玩家不存在') return res.status(404).json({ error: err.message });
+    console.error('导出玩家卡失败', err);
+    res.status(500).json({ error: '导出失败' });
   }
 });
 
