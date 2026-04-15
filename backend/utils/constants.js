@@ -35,7 +35,7 @@ export const MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30;
 // ============================
 // 世界时间线
 // ============================
-export const WORLD_TIMELINE_RECENT_LIMIT = 20;
+export const WORLD_TIMELINE_RECENT_LIMIT = 5;
 export const WORLD_TIMELINE_COMPRESS_THRESHOLD = 50;
 export const WORLD_TIMELINE_MAX_ENTRIES = 200;
 

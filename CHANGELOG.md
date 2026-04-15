@@ -19,6 +19,29 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T32 — 会话上下文轮次压缩（Context Compression）✅
+- **对外接口**：
+  - `POST /api/sessions/:sessionId/summary` — 现在调用 `maybeCompress(sessionId, { force: true })`，跳过阈值强制压缩，同时重置轮次计数；无需用户消息检查（generateSummary 内部处理空对话）
+  - `maybeCompress(sessionId, { force? })` — 核心压缩函数（`backend/memory/context-compressor.js`）
+- **涉及文件**（新建）：
+  - `backend/memory/context-compressor.js` — `maybeCompress`：阈值检查 → generateSummary → setCompressedContext → markAllMessagesCompressed → upsertSessionTimeline → embedSessionSummary
+- **涉及文件**（修改）：
+  - `backend/db/schema.js` — messages 加 `is_compressed`，sessions DDL 已含 `compressed_context`，world_timeline 加 `session_id`/`updated_at`，ALTER TABLE 迁移，新建两个索引
+  - `backend/db/queries/messages.js` — 新增 `getUncompressedMessagesBySessionId`、`countUncompressedRounds`、`markAllMessagesCompressed`
+  - `backend/db/queries/sessions.js` — 新增 `setCompressedContext`、`clearCompressedContext`
+  - `backend/db/queries/world-timeline.js` — 新增 `upsertSessionTimeline`（SELECT→UPDATE/INSERT 模式，无需 UNIQUE 约束）
+  - `backend/memory/world-timeline.js` — 彻底重写：去除 LLM 事件提取逻辑，改为直接调用 `upsertSessionTimeline`（此文件由 context-compressor.js 内联调用，不再入独立队列）
+  - `backend/memory/recall.js` — `renderTimeline`：改为 LEFT JOIN sessions，按 updated_at DESC 取最新 5 条，格式变为 `[历史会话摘要]` + `- 【日期 · 标题】摘要`
+  - `backend/memory/summary-expander.js` — `renderExpandedSessions` 改用 `getUncompressedMessagesBySessionId`；若 session 有 `compressed_context` 则作为历史前缀展示
+  - `backend/prompt/assembler.js` — `[6]` 之前注入 `[早期对话摘要]`（`session.compressed_context`）；`[7]` 改用 `getUncompressedMessagesBySessionId`
+  - `backend/routes/chat.js` — 删除每轮 `generateSummary`/`embedSessionSummary`/`appendWorldTimeline` 入队；替换为 `maybeCompress(sessionId)` 优先级 1；DELETE messages 路由加 `clearCompressedContext`；/summary 路由改为 `maybeCompress(force:true)`
+  - `backend/utils/constants.js` — `WORLD_TIMELINE_RECENT_LIMIT`: 20 → 5
+  - `SCHEMA.md`、`CHANGELOG.md` — 更新字段说明
+- **注意**：
+  - 阈值由 `config.context_compress_rounds`（默认 10）控制；0 不等于禁用（每轮 rounds=0 < 0 不触发），实际上设为极大值可近似禁用
+  - 旧数据库：ALTER TABLE 安全迁移；旧消息 `is_compressed=0`（全部参与 context）；旧 world_timeline 条目 `session_id=NULL`（renderTimeline LEFT JOIN 时显示"未命名会话"）
+  - 世界时间线语义变化：不再是"时序事件"，而是"各 session 摘要"，每 session 最多一行，压缩时覆盖
+
 ## T31 — 后置提示词 + 组装顺序调整 ✅
 - **对外接口**：后置提示词在 assembler.js 内部拼接，无新路由；存储透传现有 PUT /api/worlds/:id 和 PUT /api/characters/:id
 - **涉及文件**：`backend/prompt/assembler.js`、`backend/db/schema.js`、`backend/db/queries/worlds.js`、`backend/db/queries/characters.js`、`backend/services/config.js`、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/pages/WorldsPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`SCHEMA.md`、`CLAUDE.md`

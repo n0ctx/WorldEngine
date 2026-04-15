@@ -46,6 +46,22 @@ export function touchSession(id) {
 }
 
 /**
+ * 快照压缩摘要到 sessions.compressed_context
+ */
+export function setCompressedContext(sessionId, content) {
+  db.prepare('UPDATE sessions SET compressed_context = ?, updated_at = ? WHERE id = ?')
+    .run(content, Date.now(), sessionId);
+}
+
+/**
+ * 清除 sessions.compressed_context（清空聊天记录时调用）
+ */
+export function clearCompressedContext(sessionId) {
+  db.prepare('UPDATE sessions SET compressed_context = NULL, updated_at = ? WHERE id = ?')
+    .run(Date.now(), sessionId);
+}
+
+/**
  * 硬删除会话
  */
 export function deleteSession(id) {

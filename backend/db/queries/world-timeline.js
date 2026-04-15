@@ -95,6 +95,36 @@ export function compressEarliestEntries(worldId, count, summaryContent) {
 }
 
 /**
+ * Upsert 世界时间线：同 world+session 组合覆盖，不存在则插入（one-row-per-session）
+ *
+ * @param {string} worldId
+ * @param {string} sessionId
+ * @param {string} content — 该 session 的摘要文本
+ */
+export function upsertSessionTimeline(worldId, sessionId, content) {
+  const now = Date.now();
+  const existing = db.prepare(
+    'SELECT id FROM world_timeline WHERE world_id = ? AND session_id = ?',
+  ).get(worldId, sessionId);
+
+  if (existing) {
+    db.prepare(
+      'UPDATE world_timeline SET content = ?, updated_at = ? WHERE id = ?',
+    ).run(content, now, existing.id);
+  } else {
+    const maxRow = db.prepare(
+      'SELECT MAX(seq) AS m FROM world_timeline WHERE world_id = ?',
+    ).get(worldId);
+    const seq = (maxRow?.m ?? 0) + 1;
+    const id = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO world_timeline (id, world_id, session_id, content, is_compressed, seq, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 0, ?, ?, ?)
+    `).run(id, worldId, sessionId, content, seq, now, now);
+  }
+}
+
+/**
  * 获取某世界时间线，按 seq 升序
  *
  * @param {string} worldId

@@ -180,6 +180,37 @@ export function getMessageIdsBySessionId(sessionId) {
 }
 
 /**
+ * 只返回 is_compressed=0 的消息，按 created_at ASC（用于 context 组装）
+ */
+export function getUncompressedMessagesBySessionId(sessionId) {
+  const rows = db.prepare(
+    'SELECT * FROM messages WHERE session_id = ? AND is_compressed = 0 ORDER BY created_at ASC',
+  ).all(sessionId);
+  for (const row of rows) {
+    row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
+  }
+  return rows;
+}
+
+/**
+ * 统计 is_compressed=0 且 role='user' 的消息数（即未压缩轮次数）
+ */
+export function countUncompressedRounds(sessionId) {
+  return db.prepare(
+    "SELECT COUNT(*) AS n FROM messages WHERE session_id = ? AND is_compressed = 0 AND role = 'user'",
+  ).get(sessionId).n;
+}
+
+/**
+ * 将该 session 所有 is_compressed=0 的消息批量标记为 1
+ */
+export function markAllMessagesCompressed(sessionId) {
+  db.prepare(
+    'UPDATE messages SET is_compressed = 1 WHERE session_id = ? AND is_compressed = 0',
+  ).run(sessionId);
+}
+
+/**
  * 获取指定消息之后（不含该消息本身）的所有消息 id，与 deleteMessagesAfter 条件一致
  * @param {string} messageId
  * @returns {string[]}

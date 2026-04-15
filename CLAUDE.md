@@ -124,10 +124,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 | 文件 | 原因 |
 |---|---|
-| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段 |
-| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移 |
-| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息 |
+| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段；T32 为 messages/sessions/world_timeline 表增加压缩相关字段 |
+| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移；T32 为 messages 加 `is_compressed`、world_timeline 加 `session_id`/`updated_at`，sessions DDL 加 `compressed_context`，并加 ALTER TABLE 迁移和索引 |
+| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；**允许的例外**：T32 将 `WORLD_TIMELINE_RECENT_LIMIT` 从 20 改为 5 |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息；T32 在 [6] 之前注入 `compressed_context`，[7] 改用 `getUncompressedMessagesBySessionId` |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；**允许的例外**：T30（副作用生命周期）新增一行 `import './services/cleanup-registrations.js';`，触发钩子注册副作用 |
 
@@ -152,11 +152,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 两类调用严格分开，不得混用
 
 **异步队列优先级**（数字越小越高，1/2/3 不可丢弃，4/5 可丢弃）
-- 1: summary 生成
+- 1: `maybeCompress(sessionId)`（T32 起替换原 summary 生成；内部按阈值决定是否生成 summary + 压缩 + 时间线 upsert + embed）
 - 2: 角色状态栏更新 / 玩家状态栏更新 / title 生成（title 仅当 session.title 为 NULL 时入队）
 - 3: 世界状态栏更新
-- 4: 世界时间线
-- 5: Prompt 条目向量化
+- ~~4: 世界时间线~~（T32 起已移入 maybeCompress 内部，不再独立入队）
+- ~~5: Prompt 条目向量化~~（T32 起已移入 maybeCompress 内部，不再独立入队）
 - 编辑消息或重新生成时，清空该 sessionId 队列中优先级 4/5 的未开始任务
 
 **副作用资源扩展规则**（T30 起执行）
@@ -188,15 +188,14 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 ## 关键设计速查
 
-**Session Summary 触发条件**：对话流正常结束（done）**且**该 session 至少有 1 条 user 消息。aborted 或仅有 first_message 时不触发。
+**Session Summary 触发条件**（T32 起变更）：不再每轮生成 summary；改为 `maybeCompress` 内部在轮次达到阈值时触发，或用户手动 /summary（force=true）。短会话（< threshold 轮）无 summary，不参与 embedding 召回。
 
 **对话结束后异步任务链**（均在 done 且有 user 消息时触发）：
-1. summary 生成（优先级 1）
+1. `maybeCompress(sessionId)`（优先级 1，T32 起，内含 summary/压缩/时间线/embed）
 2. title 生成（优先级 2，仅 title 为 NULL 时）
 3. 角色状态栏更新（优先级 2，T19D 实现）
 4. 玩家状态栏更新（优先级 2，T26C 实现）
 5. 世界状态栏更新（优先级 3，T19D 实现）
-6. 世界时间线追加（优先级 4，可丢弃，T20 实现）
 
 **角色头像 Fallback**：`avatar_path` 为 NULL 时，显示基于角色 id hash 的纯色圆形 + 名字首字。封装在 `/frontend/src/utils/avatar.js` 的 `getAvatarColor(id)`。
 

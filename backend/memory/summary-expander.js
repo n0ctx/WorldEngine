@@ -10,7 +10,7 @@
  */
 
 import { getSessionById } from '../db/queries/sessions.js';
-import { getMessagesBySessionId } from '../db/queries/messages.js';
+import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import {
@@ -92,9 +92,9 @@ export function renderExpandedSessions(sessionIds, tokenBudget) {
     const session = getSessionById(sid);
     if (!session) continue;
 
-    // 取最多 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS * 2 条（每轮含 user + assistant）
+    // 取未压缩消息（最多 MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS * 2 条）
     const maxMsgs = MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS * 2;
-    const allMsgs = getMessagesBySessionId(sid, maxMsgs + 1, 0).filter(
+    const allMsgs = getUncompressedMessagesBySessionId(sid).filter(
       (m) => m.role === 'user' || m.role === 'assistant'
     );
 
@@ -105,6 +105,10 @@ export function renderExpandedSessions(sessionIds, tokenBudget) {
     const titleStr = session.title || '未命名会话';
 
     const sectionLines = [`【历史对话原文 · ${dateStr} · ${titleStr}】`];
+    // 若有压缩历史摘要，先展示
+    if (session.compressed_context) {
+      sectionLines.push(`[早期对话摘要] ${session.compressed_context}`);
+    }
     for (const msg of msgs) {
       const speaker = msg.role === 'user' ? '用户' : 'AI';
       sectionLines.push(`${speaker}：${msg.content}`);

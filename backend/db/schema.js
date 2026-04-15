@@ -65,11 +65,12 @@ CREATE TABLE IF NOT EXISTS characters (
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
-  id             TEXT PRIMARY KEY,
-  character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-  title          TEXT,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
+  id                  TEXT PRIMARY KEY,
+  character_id        TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  title               TEXT,
+  compressed_context  TEXT,
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -78,6 +79,7 @@ CREATE TABLE IF NOT EXISTS messages (
   role           TEXT NOT NULL,
   content        TEXT NOT NULL,
   attachments    TEXT,
+  is_compressed  INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL
 );
 
@@ -92,10 +94,12 @@ CREATE TABLE IF NOT EXISTS session_summaries (
 CREATE TABLE IF NOT EXISTS world_timeline (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  session_id     TEXT REFERENCES sessions(id) ON DELETE CASCADE,
   content        TEXT NOT NULL,
   is_compressed  INTEGER NOT NULL DEFAULT 0,
   seq            INTEGER NOT NULL,
-  created_at     INTEGER NOT NULL
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS world_state_fields (
@@ -237,6 +241,8 @@ CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_orde
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
+CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at);
+CREATE INDEX IF NOT EXISTS idx_world_timeline_session_id ON world_timeline(world_id, session_id);
 `;
 
 export function initSchema(db) {
@@ -247,4 +253,9 @@ export function initSchema(db) {
   // T31: 为现有数据库添加 post_prompt 列（新建库由 CREATE TABLE 覆盖）
   try { db.exec(`ALTER TABLE worlds ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T32: 轮次压缩字段迁移
+  try { db.exec(`ALTER TABLE messages ADD COLUMN is_compressed INTEGER NOT NULL DEFAULT 0`); } catch {}
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE world_timeline ADD COLUMN session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE`); } catch {}
+  try { db.exec(`ALTER TABLE world_timeline ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0`); } catch {}
 }

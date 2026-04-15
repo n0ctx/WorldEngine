@@ -24,7 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
-import { getMessagesBySessionId } from '../db/queries/messages.js';
+import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
 import {
   getAllGlobalEntries,
   getAllWorldEntries,
@@ -171,6 +171,11 @@ export async function buildPrompt(sessionId, options = {}) {
     onRecallEvent?.('memory_expand_done', { expanded: toExpand });
   }
 
+  // [早期对话摘要] 压缩历史（若存在），注入在状态记忆之前
+  if (session.compressed_context) {
+    systemParts.push(`[早期对话摘要]\n${session.compressed_context}`);
+  }
+
   const recallParts = [personaStateText, characterStateText, worldStateText, timelineText, recalledSummariesText, expandedText].filter(Boolean);
   if (recallParts.length > 0) {
     systemParts.push(recallParts.join('\n\n'));
@@ -182,8 +187,8 @@ export async function buildPrompt(sessionId, options = {}) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
 
-  // [7] 历史消息（prompt_only scope：对每条消息的 content 字段应用正则替换，仅影响送入 LLM 的副本）
-  const history = getMessagesBySessionId(sessionId, 9999, 0);
+  // [7] 历史消息（仅未压缩消息；prompt_only scope：对每条消息的 content 字段应用正则替换，仅影响送入 LLM 的副本）
+  const history = getUncompressedMessagesBySessionId(sessionId);
   for (const msg of history) {
     const content = applyRules(msg.content, 'prompt_only', world.id);
     messages.push(formatMessageForLLM({ ...msg, content }));

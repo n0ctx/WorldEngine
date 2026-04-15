@@ -13,13 +13,13 @@ import {
 import { getCharacterById } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
 import { enqueue, clearPending } from '../utils/async-queue.js';
-import { generateSummary, generateTitle } from '../memory/summarizer.js';
+import { generateTitle } from '../memory/summarizer.js';
 import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
 import { updatePersonaState } from '../memory/persona-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
-import { appendWorldTimeline } from '../memory/world-timeline.js';
-import { embedSessionSummary } from '../memory/summary-embedder.js';
+import { maybeCompress } from '../memory/context-compressor.js';
+import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 
 const router = Router();
@@ -127,11 +127,8 @@ async function runStream(sessionId, res) {
 
     if (hasUserMsg) {
 
-      // 优先级 1：生成 summary（不可丢弃，fire-and-forget）
-      enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
-
-      // 优先级 5：向量化 summary（可丢弃）
-      enqueue(sessionId, () => embedSessionSummary(sessionId), 5).catch(() => {});
+      // 优先级 1：轮次压缩检查（内部按阈值决定是否生成 summary + 压缩 + 时间线 + embed）
+      enqueue(sessionId, () => maybeCompress(sessionId), 1).catch(() => {});
 
       // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
       if (session && !session.title) {
@@ -155,10 +152,6 @@ async function runStream(sessionId, res) {
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
         }
-        // 优先级 4：世界时间线（可丢弃）
-        if (worldId) {
-          enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
-        }
         return; // 等待标题生成后再关闭连接
       }
 
@@ -173,10 +166,6 @@ async function runStream(sessionId, res) {
       // 优先级 3：世界状态更新
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
-      }
-      // 优先级 4：世界时间线（可丢弃）
-      if (worldId) {
-        enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
       }
     }
   }
@@ -324,10 +313,7 @@ router.post('/:sessionId/continue', async (req, res) => {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      enqueue(sessionId, () => generateSummary(sessionId), 1).catch(() => {});
-
-      // 优先级 5：向量化 summary（可丢弃）
-      enqueue(sessionId, () => embedSessionSummary(sessionId), 5).catch(() => {});
+      enqueue(sessionId, () => maybeCompress(sessionId), 1).catch(() => {});
 
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2)
@@ -347,9 +333,6 @@ router.post('/:sessionId/continue', async (req, res) => {
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
         }
-        if (worldId) {
-          enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
-        }
         return;
       }
 
@@ -361,9 +344,6 @@ router.post('/:sessionId/continue', async (req, res) => {
       }
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
-      }
-      if (worldId) {
-        enqueue(sessionId, () => appendWorldTimeline(sessionId), 4).catch(() => {});
       }
     }
   }
@@ -414,6 +394,7 @@ router.delete('/:sessionId/messages', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   await deleteAllMessagesBySessionId(sessionId);
+  clearCompressedContext(sessionId);
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   let firstMessage = null;
@@ -435,14 +416,8 @@ router.post('/:sessionId/summary', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  const msgs = getMessagesBySessionId(sessionId, 9999, 0);
-  const hasUserMsg = msgs.some((m) => m.role === 'user');
-  if (!hasUserMsg) {
-    return res.status(400).json({ error: '当前会话尚无用户消息，无法生成摘要' });
-  }
-
   try {
-    await generateSummary(sessionId);
+    await maybeCompress(sessionId, { force: true });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

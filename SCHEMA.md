@@ -151,11 +151,12 @@ CREATE INDEX idx_characters_world_id ON characters(world_id, sort_order);
 
 ```sql
 CREATE TABLE sessions (
-  id             TEXT PRIMARY KEY,          -- UUID
-  character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-  title          TEXT,                      -- 会话标题，NULL 时前端显示 created_at 对应的日期（如 2024-01-15）
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL           -- 最后一条消息的时间，用于排序
+  id                  TEXT PRIMARY KEY,          -- UUID
+  character_id        TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  title               TEXT,                      -- 会话标题，NULL 时前端显示 created_at 对应的日期（如 2024-01-15）
+  compressed_context  TEXT,                      -- T32：压缩触发时快照的摘要文本；assembler.js 在 [6] 之前注入；清空聊天时置 NULL
+  created_at          INTEGER NOT NULL,
+  updated_at          INTEGER NOT NULL           -- 最后一条消息的时间，用于排序
 );
 ```
 
@@ -171,8 +172,11 @@ CREATE TABLE messages (
   content        TEXT NOT NULL,             -- 消息正文
   attachments    TEXT,                      -- JSON 数组，相对路径列表，无附件则 NULL
                                             -- 例：["attachments/msg1_0.png", "attachments/msg1_1.pdf"]
+  is_compressed  INTEGER NOT NULL DEFAULT 0, -- T32：0=未压缩（送入 LLM），1=已压缩（仅存档）
   created_at     INTEGER NOT NULL           -- 消息发送时间，用于排序
 );
+
+CREATE INDEX idx_messages_session_compressed ON messages(session_id, is_compressed, created_at);
 ```
 
 content 字段更新规则（/continue 操作场景）：更新时在 Service 层读出完整 content，在内存中拼接新内容，将完整字符串写回，不使用 SQL 字符串拼接，避免并发问题。
@@ -197,22 +201,26 @@ CREATE TABLE session_summaries (
 
 ### world_timeline — 世界时间线
 
+T32 起重新设计：不再是"时序事件列表"，改为"该世界所有历史会话的摘要档案"，每个 session 对应一行（one-row-per-session）。每次压缩或手动 /summary 时 upsert（同 session 覆盖，不追加新行）。
+
 ```sql
 CREATE TABLE world_timeline (
   id             TEXT PRIMARY KEY,          -- UUID
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  content        TEXT NOT NULL,             -- 事件一句话描述，不超过20字
-  is_compressed  INTEGER NOT NULL DEFAULT 0, -- 0: 原始条目，1: 压缩后的"早期历史"摘要段
-  seq            INTEGER NOT NULL,          -- 顺序编号，单调递增，用于排序（不用时间戳排序，避免并发问题）
-  created_at     INTEGER NOT NULL
+  session_id     TEXT REFERENCES sessions(id) ON DELETE CASCADE, -- T32：关联 session，NULL 表示旧格式条目
+  content        TEXT NOT NULL,             -- T32 后：该 session 的摘要文本；T32 前：事件一句话描述
+  is_compressed  INTEGER NOT NULL DEFAULT 0, -- 保留字段，T32 后不再使用
+  seq            INTEGER NOT NULL,          -- 插入顺序编号（T32 后仍维持单调递增，用于兜底排序）
+  created_at     INTEGER NOT NULL,
+  updated_at     INTEGER NOT NULL DEFAULT 0  -- T32：最后 upsert 时间；recall.js 按此排序取最近 N 条
 );
 
 CREATE INDEX idx_world_timeline_world_id ON world_timeline(world_id, seq);
+CREATE INDEX idx_world_timeline_session_id ON world_timeline(world_id, session_id);
 ```
 
-> `is_compressed=1` 的行是压缩后的摘要段，前端展示时可折叠显示。正常条目 `is_compressed=0`。
-
-seq 取值规则：插入新条目时，seq 取 SELECT MAX(seq) FROM world_timeline WHERE world_id = ? + 1，新世界首条初始为 1。取值与插入必须在同一事务内执行，保证原子性。
+upsert 规则：`upsertSessionTimeline(worldId, sessionId, content)` 先查 `world_id + session_id` 是否存在，存在则 UPDATE content/updated_at，不存在则 INSERT（seq 取 MAX+1）。  
+前端记忆面板展示最新 5 条（按 updated_at DESC），格式：`- 【日期 · 会话标题】摘要内容`。
 
 ---
 

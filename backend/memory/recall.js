@@ -143,25 +143,21 @@ export function renderCharacterState(characterId) {
  */
 export function renderTimeline(worldId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
   const rows = db.prepare(`
-    SELECT content, is_compressed
-    FROM world_timeline
-    WHERE world_id = ?
-    ORDER BY seq DESC
+    SELECT wt.content, wt.updated_at, s.title
+    FROM world_timeline wt
+    LEFT JOIN sessions s ON wt.session_id = s.id
+    WHERE wt.world_id = ?
+    ORDER BY wt.updated_at DESC
     LIMIT ?
   `).all(worldId, limit);
 
   if (rows.length === 0) return '';
 
-  // 按取出顺序逆转，恢复正序展示
-  rows.reverse();
-
-  const lines = ['[世界时间线]'];
+  const lines = ['[历史会话摘要]'];
   for (const row of rows) {
-    if (row.is_compressed) {
-      lines.push(`- 【早期历史】${row.content}`);
-    } else {
-      lines.push(`- ${row.content}`);
-    }
+    const dateStr = new Date(row.updated_at || 0).toISOString().slice(0, 10);
+    const title = row.title || '未命名会话';
+    lines.push(`- 【${dateStr} · ${title}】${row.content}`);
   }
 
   return lines.join('\n');
