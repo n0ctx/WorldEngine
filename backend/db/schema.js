@@ -241,8 +241,6 @@ CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_orde
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
-CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at);
-CREATE INDEX IF NOT EXISTS idx_world_timeline_session_id ON world_timeline(world_id, session_id);
 `;
 
 export function initSchema(db) {
@@ -258,4 +256,7 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
   try { db.exec(`ALTER TABLE world_timeline ADD COLUMN session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE`); } catch {}
   try { db.exec(`ALTER TABLE world_timeline ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0`); } catch {}
+  // T32: 字段迁移完成后才能创建依赖 is_compressed 的索引
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_world_timeline_session_id ON world_timeline(world_id, session_id)`); } catch {}
 }
