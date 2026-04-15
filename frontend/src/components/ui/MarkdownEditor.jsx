@@ -75,7 +75,7 @@ export default function MarkdownEditor({ value = '', onChange, placeholder, minH
       <EditorContent
         editor={editor}
         className="we-md-content"
-        style={{ minHeight }}
+        style={{ height: minHeight }}
       />
     </div>
   );

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T45 — Prompt 编辑框可调高度 + 创建/编辑页面宽度扩展 ✅
+- **对外接口**：无新增接口；`MarkdownEditor` prop `minHeight` 含义变化：原为 CSS `min-height`（自动拉伸），现为初始固定 `height`（用户可拖动调整）
+- **涉及文件**：`frontend/src/components/ui/MarkdownEditor.jsx`（`style={{ minHeight }}` → `style={{ height: minHeight }}`）；`frontend/src/index.css`（`.we-md-content` 加 `overflow-y: auto / resize: vertical / min-height: 60px / border-bottom-radius: 7px`，追加 webkit 滚动条样式）；5 个页面 `max-w-2xl` → `max-w-[56rem]`：`WorldCreatePage` / `WorldEditPage` / `CharacterCreatePage` / `CharacterEditPage` / `PersonaEditPage`
+- **注意**：`minHeight` prop 传入的 px 值既是初始高度也是 `min-height: inherit` 给 ProseMirror 的参照，ProseMirror 仍会填满可见区；滚动条宽 6px，`.we-md-editor` 不需要 `overflow: hidden`，底部圆角由 `.we-md-content` 的 `border-bottom-*-radius: 7px` 收束
+
 ## T44 — 创建页面对齐编辑页面 + 世界级模型参数下线 + Provider 切换 Bug 修复 ✅
 - **对外接口**：新增路由 `/worlds/new` → `WorldCreatePage`；`/worlds/:worldId/characters/new` → `CharacterCreatePage`；两个创建页创建完成后用 `navigate(url, { replace: true })` 跳到编辑页（创建页不留在历史栈中，返回键直达列表）
 - **涉及文件**：新增 `frontend/src/pages/WorldCreatePage.jsx`、`frontend/src/pages/CharacterCreatePage.jsx`；修改 `App.jsx`（注册两条新路由，`/worlds/new` 放在 `/worlds/:worldId` 之前）；修改 `WorldsPage.jsx`（删除 WorldFormModal，创建按钮改 navigate）；修改 `CharactersPage.jsx`（删除 CreateCharacterModal，创建按钮改 navigate）；修改 `WorldEditPage.jsx`（删除 temperature/maxTokens state 和 UI，保存时始终发 `temperature: null, max_tokens: null` 清除 DB 中旧值）；修改 `SettingsPage.jsx`（LLM 卡片追加 Temperature 滑块和 Max Tokens 输入；handleLlmChange/handleEmbeddingChange 切 provider 时同步清空 model；ModelSelector.load() 加载完成后若 value 为空或不在列表中自动选第一个模型）

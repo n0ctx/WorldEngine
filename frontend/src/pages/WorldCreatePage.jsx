@@ -35,7 +35,7 @@ export default function WorldCreatePage() {
 
   return (
     <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-[56rem] mx-auto">
         {/* 导航 */}
         <div className="flex items-center justify-between mb-8">
           <button
