@@ -3,14 +3,14 @@
  *
  * 组装顺序（硬编码，不得调整）：
  *   [1] 全局 System Prompt
- *   [2] 用户 Persona（均为空则整段跳过）
- *   [3] 世界 System Prompt
+ *   [2] 世界 System Prompt
+ *   [3] 用户 Persona（均为空则整段跳过）
  *   [4] 角色 System Prompt
  *   [1-4] 合并为单个 role:system 消息
  *   [5] Prompt 条目（命中→content，未命中→summary，追加到 system 消息末尾）
  *   [6] 状态与记忆注入：玩家状态 + 角色状态 + 世界状态 + 时间线 + 召回摘要 + 展开原文（T28）
  *   [7] 历史消息（含附件的消息转换为 vision 数组格式）
- *   [8] 当前用户消息 — 由调用方传入，不在此函数内添加
+ *   [8] 当前用户消息（已包含在历史记录中）+ 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -106,7 +106,12 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(config.global_system_prompt);
   }
 
-  // [2] 用户 Persona（两者均为空则跳过整段）
+  // [2] 世界 System Prompt
+  if (world.system_prompt) {
+    systemParts.push(world.system_prompt);
+  }
+
+  // [3] 用户 Persona（两者均为空则跳过整段）
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -115,11 +120,6 @@ export async function buildPrompt(sessionId, options = {}) {
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(personaPrompt);
     systemParts.push(lines.join('\n'));
-  }
-
-  // [3] 世界 System Prompt
-  if (world.system_prompt) {
-    systemParts.push(world.system_prompt);
   }
 
   // [4] 角色 System Prompt
@@ -189,7 +189,15 @@ export async function buildPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [8] 当前用户消息 — 由调用方传入，不在此处添加
+  // [8] 后置提示词（全局→世界→角色，合并为单条 role:user 消息，插入在历史消息之后）
+  const postParts = [
+    config.global_post_prompt,
+    world.post_prompt,
+    character.post_prompt,
+  ].filter(Boolean);
+  if (postParts.length > 0) {
+    messages.push({ role: 'user', content: postParts.join('\n\n') });
+  }
 
   // 生成参数：世界级 > 全局
   const temperature = world.temperature ?? config.llm.temperature;

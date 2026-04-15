@@ -226,6 +226,7 @@ export default function SettingsPage() {
   const [embedding, setEmbedding] = useState({});
   const [contextRounds, setContextRounds] = useState(10);
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
+  const [globalPostPrompt, setGlobalPostPrompt] = useState('');
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
 
   const [testStatus, setTestStatus] = useState('idle'); // idle | testing | ok | error
@@ -239,6 +240,7 @@ export default function SettingsPage() {
       setEmbedding(c.embedding || {});
       setContextRounds(c.context_compress_rounds ?? 10);
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
+      setGlobalPostPrompt(c.global_post_prompt ?? '');
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
       setLoading(false);
     });
@@ -281,6 +283,7 @@ export default function SettingsPage() {
       await patchConfig({
         context_compress_rounds: Number(contextRounds),
         global_system_prompt: globalSystemPrompt,
+        global_post_prompt: globalPostPrompt,
       });
     } finally {
       setSaving(false);
@@ -408,6 +411,17 @@ export default function SettingsPage() {
                   value={globalSystemPrompt}
                   onChange={(e) => setGlobalSystemPrompt(e.target.value)}
                   placeholder="适用于所有世界和角色的全局指令"
+                />
+              </div>
+
+              <div>
+                <FieldLabel hint="插入在用户消息之后，作为 user 角色发送">全局后置提示词</FieldLabel>
+                <textarea
+                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+                  rows={3}
+                  value={globalPostPrompt}
+                  onChange={(e) => setGlobalPostPrompt(e.target.value)}
+                  placeholder="每次用户发送消息后附加的全局指令，例如输出格式要求"
                 />
               </div>
 

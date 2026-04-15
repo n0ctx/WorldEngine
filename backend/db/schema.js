@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS worlds (
   id             TEXT PRIMARY KEY,
   name           TEXT NOT NULL,
   system_prompt  TEXT NOT NULL DEFAULT '',
+  post_prompt    TEXT NOT NULL DEFAULT '',
   temperature    REAL,
   max_tokens     INTEGER,
   created_at     INTEGER NOT NULL,
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS characters (
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,
   system_prompt  TEXT NOT NULL DEFAULT '',
+  post_prompt    TEXT NOT NULL DEFAULT '',
   first_message  TEXT NOT NULL DEFAULT '',
   avatar_path    TEXT,
   sort_order     INTEGER NOT NULL DEFAULT 0,
@@ -242,4 +244,7 @@ export function initSchema(db) {
   db.exec(INDEXES);
   // T30: 为现有数据库添加 personas.avatar_path 列（新建库由 CREATE TABLE 覆盖）
   try { db.exec(`ALTER TABLE personas ADD COLUMN avatar_path TEXT`); } catch {}
+  // T31: 为现有数据库添加 post_prompt 列（新建库由 CREATE TABLE 覆盖）
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
 }

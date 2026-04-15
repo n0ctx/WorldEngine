@@ -913,118 +913,197 @@ reorder 路由必须在 :id 路由前注册
 
 ---
 
-### T30 ⬜ 删除时同步清理附件 / 头像 / 向量（orphan cleanup）
+### T30 ⬜ 副作用资源生命周期自动维护（删除 / 替换 / 重新生成）
 
-**这个任务做什么**：SQLite 的 `ON DELETE CASCADE` 只负责 DB 行级联，不会回调 JS 去清磁盘文件和向量 JSON。现状是删 session / character / world 时，`/data/uploads/attachments/` 里的消息附件、`/data/uploads/avatars/` 里的角色头像、`/data/vectors/prompt_entries.json` 里的 Prompt 条目向量都会变孤儿（T27 的 `session_summaries.json` 已有 `deleteBySessionId`，但 service 层没调用）。本任务在三个 delete service 里补一道「先 SELECT 收集副作用目标 → DB DELETE → 清文件/向量」的流程，实现真正的彻底删除。
+**这个任务做什么**：把所有"DB 行之外"的资源（上传文件、向量 JSON）的生命周期自动化，让数据库 + 磁盘永远不会因为用户正常操作而积累孤儿。覆盖三类路径：
+
+- **级联删除**：删 session / character / world 时，对应附件、角色头像、玩家头像、Prompt 条目向量、session summary 向量全部一起清掉
+- **文件替换**：用户更换角色头像 / 玩家头像时，旧文件立刻 unlink（特别是扩展名变化场景：`.jpg` → `.png` 会在同目录产生两个文件）
+- **消息级删除**：用户 `/clear`、编辑消息触发 `deleteMessagesAfter`、单条删除时，对应消息的附件一并 unlink；summary 与其向量已经按 `upsertSummary` + `upsertEntry(summary.id, ...)` 原地覆盖，无需额外处理 ✅
+
+**核心架构选型——钩子注册表（而非硬编码枚举）**：
+
+原因：如果在 `deleteWorld` 里硬编码"扫角色头像 + 玩家头像 + 附件 + 向量……"，每次新增一种"带文件 / 带向量"的子资源（未来可能加：玩家头像、语音消息、小说插图、会话封面图……）都必须回去改 `deleteWorld` / `deleteCharacter` 的清理逻辑，违反范围克制。改用钩子注册表后，每个功能模块在自己的 service 里调一次 `registerOnDelete('world', async id => {...})`，以后加任何新资源只改新模块一个文件，三个 delete service 永不再动。
 
 **为什么不用 SQLite 触发器或事务回滚**：
 
 - 文件 IO 和向量 JSON 都在 JS 层，SQLite 触发器不触及
-- 清理失败（比如文件被占用）不应回滚 DB——DB 删了就是删了，孤儿文件只是占盘空间，没有业务正确性风险；强行回滚反而制造"删不掉"的死状态
-- 因此采用"DB 先删、副作用后清、失败只记 warn"的策略
+- 清理失败（文件被占用等）不应回滚 DB——DB 删了就是删了，孤儿文件只是占盘空间，没有业务正确性风险；强行回滚反而制造"删不掉"的死状态
+- 采用"先收集 → DB 删 → 副作用清理 → 失败只记 warn"的策略
+
+**已核实的现状**（不要重复处理）：
+
+- `upsertSummary` 按 session_id 复用同一 DB 行 ✅；`embedSessionSummary` 按 summary.id 原地 upsert 向量 ✅；对话重新生成 / 编辑后 summary + 向量自动覆盖，无孤儿
+- `vectorize` 按 `entry.embedding_id || randomUUID()` 复用 embedding_id ✅；Prompt 条目内容改了向量原地覆盖，无孤儿
+- `deleteXPromptEntry`（global/world/character）已在 service 内主动 `deleteEntry(embedding_id)` ✅；单条删除已清干净，缺的是「级联删 world/character 时 cascade DB 但不触发 JS」的情况
+- `session-summary-vector-store.deleteBySessionId` 存在但没人调用
+- persona 已在本任务前加了 `avatar_path` 列（schema.js:59、routes/personas.js:48 上传接口），但 `upsertPersona` 不 unlink 旧文件，`deleteWorld` cascade persona 行但不 unlink 头像
 
 **涉及文件**：
 
-- `/backend/utils/file-cleanup.js`（新建，封装 `unlinkAttachmentFiles` / `unlinkAvatarFile`，统一做 path resolve + 失败静默）
-- `/backend/db/queries/messages.js`（新增三个只读查询：`getAttachmentsBySessionId` / `getAttachmentsByCharacterId` / `getAttachmentsByWorldId`）
+新建：
+
+- `/backend/utils/cleanup-hooks.js`（钩子注册表：`registerOnDelete` / `runOnDelete`；支持 entity = `'world' | 'character' | 'session' | 'message'`）
+- `/backend/utils/file-cleanup.js`（`unlinkUploadFile(relativePath)` / `unlinkUploadFiles(relativePaths)` + `UPLOADS_DIR` 常量；统一做 path resolve + ENOENT 静默 + 其它错误 `console.warn`）
+- `/backend/services/cleanup-registrations.js`（所有钩子在此集中注册；server.js 仅在启动时 `import` 触发一次注册副作用——见约束段对 server.js 的例外说明）
+
+修改：
+
+- `/backend/db/queries/messages.js`（新增只读：`getAttachmentsByMessageId` / `getAttachmentsByMessageIds` / `getAttachmentsBySessionId` / `getAttachmentsByCharacterId` / `getAttachmentsByWorldId`；新增 `getMessageIdsAfter(messageId)` / `getMessageIdsBySessionId(sessionId)`）
 - `/backend/db/queries/characters.js`（新增 `getAvatarPathsByWorldId` / `getSessionIdsByCharacterId` / `getSessionIdsByWorldId`）
-- `/backend/db/queries/prompt-entries.js`（新增 `getEmbeddingIdsByCharacterId` / `getEmbeddingIdsByWorldId`，仅返回 `embedding_id IS NOT NULL` 的条目）
-- `/backend/services/sessions.js`（`deleteSession` 改造）
-- `/backend/services/characters.js`（`deleteCharacter` 改造）
-- `/backend/services/worlds.js`（`deleteWorld` 改造）
+- `/backend/db/queries/prompt-entries.js`（新增 `getEmbeddingIdsByCharacterId` / `getEmbeddingIdsByWorldId`，均过滤 NULL）
+- `/backend/db/queries/personas.js`（新增 `getPersonaAvatarPathByWorldId`）
+- `/backend/services/worlds.js`（`deleteWorld` 改为 `await runOnDelete('world', id); dbDeleteWorld(id);`）
+- `/backend/services/characters.js`（`deleteCharacter` 同上；`updateCharacter` 在 patch 含 `avatar_path` 时读旧值，更新后若 old && old !== new 则 unlink old）
+- `/backend/services/sessions.js`（`deleteSession` 同上；`deleteMessage` / `deleteMessagesAfter` / `deleteAllMessagesBySessionId` 改造为先 `runOnDelete('message', mid)` 逐条再 DB 删）
+- `/backend/services/personas.js`（`updatePersona` 按同样方式处理 avatar_path 替换；此外 `getOrCreatePersona` 无需改）
+- `/backend/server.js`（**唯一新增一行**：`import './services/cleanup-registrations.js';`，触发钩子注册副作用）
 
 **Claude Code 指令**：
 
 ```
-请先阅读 @SCHEMA.md（级联删除策略、attachments / avatar_path 字段格式）、@CLAUDE.md（数据库操作规范：queries 层只做 SQL、service 层做业务；range 克制原则；CHANGELOG + git commit 规范）、@CHANGELOG.md（T27 已落地 session_summary 向量，T28 没改这块；T26C 有 personas 表，但 persona 只有 name/system_prompt 无文件/无向量）、@backend/utils/vector-store.js（`deleteEntry(id)` 现有 API）、@backend/utils/session-summary-vector-store.js（`deleteBySessionId(sessionId)` 现有 API）。
+请先阅读 @SCHEMA.md（级联策略、attachments / avatar_path 字段格式；personas 表已有 avatar_path）、@CLAUDE.md（queries 层只做 SQL / service 做业务、范围克制、锁定文件与允许例外机制、CHANGELOG + git commit）、@CHANGELOG.md、@backend/utils/vector-store.js（deleteEntry(id)）、@backend/utils/session-summary-vector-store.js（deleteBySessionId(sessionId)）、@backend/services/prompt-entries.js（已有单条删除时的 deleteEntry 调用；cascade 场景才是本任务要补的）、@backend/db/queries/session-summaries.js（upsertSummary 按 session_id 原地 UPDATE，本任务不碰）、@backend/memory/summary-embedder.js（按 summary.id 原地 upsert 向量，本任务不碰）。
 
-任务：让 deleteSession / deleteCharacter / deleteWorld 在删 DB 行的同时，把对应的附件文件、头像文件、prompt 条目向量、session summary 向量一并清掉，不留孤儿。
+任务：通过钩子注册表，让三类路径全自动维护磁盘文件 + 向量 JSON，不留孤儿；以后加任何新的副作用资源只需注册一个钩子，不再动核心 delete 逻辑。
 
-一、新建 utils/file-cleanup.js
+一、钩子注册表（utils/cleanup-hooks.js）
 
-1. 导入 `fs/promises`、`path`、`fileURLToPath`
-2. 常量 `UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads')`（与现有上传写入路径保持一致，若现有代码有常量则复用，不要重复定义）
-3. 导出 `async unlinkAttachmentFiles(relativePaths)`：入参可能为 null / 空数组 / 字符串数组；逐个 `fs.unlink(path.resolve(UPLOADS_DIR, rel))`；捕获 ENOENT 静默忽略，其它错误 `console.warn` 后继续；不抛
-4. 导出 `async unlinkAvatarFile(relativePath)`：null / 空字符串 → 直接 return；否则同上规则 unlink
+1. 模块内部维护 `const hooks = { world: [], character: [], session: [], message: [] }`
+2. 导出 `registerOnDelete(entity, fn)`：entity 必须是四个之一；fn 必须是 `async (id) => void`；push 到对应数组
+3. 导出 `async runOnDelete(entity, id)`：遍历 `hooks[entity]`，逐个 `await` 执行；单个 fn 抛错只 `console.warn(\`[cleanup] ${entity}/${id} hook failed:\`, err.message)`，不终止后续钩子；不向上抛
+4. 钩子之间的执行顺序按注册顺序；注册顺序不敏感（设计上每个钩子独立管一类资源）
 
-二、扩 db/queries/messages.js（纯只读查询，不改现有函数）
+二、文件删除工具（utils/file-cleanup.js）
 
-5. `getAttachmentsBySessionId(sessionId)` → `string[]`
-   - `SELECT attachments FROM messages WHERE session_id = ? AND attachments IS NOT NULL`
-   - 每行 `JSON.parse` 后扁平化，过滤 null / 非字符串项；返回字符串数组（可能为空）
-6. `getAttachmentsByCharacterId(characterId)` → `string[]`
-   - JOIN sessions：`SELECT m.attachments FROM messages m JOIN sessions s ON m.session_id = s.id WHERE s.character_id = ? AND m.attachments IS NOT NULL`
-   - 同样扁平化
-7. `getAttachmentsByWorldId(worldId)` → `string[]`
-   - JOIN sessions + characters：`SELECT m.attachments FROM messages m JOIN sessions s ON m.session_id = s.id JOIN characters c ON s.character_id = c.id WHERE c.world_id = ? AND m.attachments IS NOT NULL`
+5. 常量 `UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads')`（对应 /data/uploads/，与现有上传接口写入路径一致）
+6. 导出 `async unlinkUploadFile(relativePath)`：null / 空 → 直接 return；`fs.unlink(path.resolve(UPLOADS_DIR, relativePath))`；err.code === 'ENOENT' 静默；其它 `console.warn`；不抛
+7. 导出 `async unlinkUploadFiles(relativePaths)`：null / 空数组 → return；逐个 await 调用 unlinkUploadFile（串行以便日志可读；量级不大）
 
-三、扩 db/queries/characters.js
+三、扩 DB queries（纯只读 + 纯数据查询，不改现有函数）
 
-8. `getAvatarPathsByWorldId(worldId)` → `string[]`：`SELECT avatar_path FROM characters WHERE world_id = ? AND avatar_path IS NOT NULL`
-9. `getSessionIdsByCharacterId(characterId)` → `string[]`：`SELECT id FROM sessions WHERE character_id = ?`
-10. `getSessionIdsByWorldId(worldId)` → `string[]`：`SELECT s.id FROM sessions s JOIN characters c ON s.character_id = c.id WHERE c.world_id = ?`
+8. messages.js：
+   - `getAttachmentsByMessageId(messageId)` → string[]（JSON.parse 后扁平化，过滤 null / 非字符串）
+   - `getAttachmentsByMessageIds(messageIds)` → string[]（批量版；messageIds 空数组返 []）
+   - `getAttachmentsBySessionId(sessionId)` → string[]
+   - `getAttachmentsByCharacterId(characterId)` → string[]（JOIN sessions）
+   - `getAttachmentsByWorldId(worldId)` → string[]（JOIN sessions + characters）
+   - `getMessageIdsBySessionId(sessionId)` → string[]
+   - `getMessageIdsAfter(messageId)` → string[]（复用 deleteMessagesAfter 里的 created_at > ? 条件，只返 id）
+9. characters.js：
+   - `getAvatarPathsByWorldId(worldId)` → string[]（WHERE avatar_path IS NOT NULL）
+   - `getSessionIdsByCharacterId(characterId)` / `getSessionIdsByWorldId(worldId)` → string[]
+10. prompt-entries.js：
+    - `getEmbeddingIdsByCharacterId(characterId)` → string[]（过滤 NULL）
+    - `getEmbeddingIdsByWorldId(worldId)` → string[]（UNION ALL：该 world 的 world_prompt_entries + 该 world 下所有 character 的 character_prompt_entries；过滤 NULL；去重）
+11. personas.js：
+    - `getPersonaAvatarPathByWorldId(worldId)` → string | null
 
-四、扩 db/queries/prompt-entries.js（若无此文件则在已有 `character-prompt-entries.js` / `world-prompt-entries.js` 拆分的文件里各加一个函数）
+四、统一注册所有钩子（services/cleanup-registrations.js，新建）
 
-11. `getEmbeddingIdsByCharacterId(characterId)` → `string[]`：`SELECT embedding_id FROM character_prompt_entries WHERE character_id = ? AND embedding_id IS NOT NULL`
-12. `getEmbeddingIdsByWorldId(worldId)` → `string[]`：UNION ALL 两条查询——该 world 的 world_prompt_entries 的 embedding_id + 该 world 下所有 character 的 character_prompt_entries 的 embedding_id；过滤 NULL；结果去重
+12. 文件顶部 import：各 db/queries 查询、cleanup-hooks、file-cleanup、vector-store、session-summary-vector-store
+13. 按资源分组注册（每段独立，互不依赖；顺序无关）：
 
-五、改造 services/sessions.js `deleteSession(id)`
+    // ── 附件文件 ──
+    registerOnDelete('message',   async (mid) => unlinkUploadFiles(getAttachmentsByMessageId(mid)));
+    registerOnDelete('session',   async (sid) => unlinkUploadFiles(getAttachmentsBySessionId(sid)));
+    registerOnDelete('character', async (cid) => unlinkUploadFiles(getAttachmentsByCharacterId(cid)));
+    registerOnDelete('world',     async (wid) => unlinkUploadFiles(getAttachmentsByWorldId(wid)));
 
-13. 执行顺序：
-    1) `const attachments = getAttachmentsBySessionId(id)`
-    2) `dbDeleteSession(id)`（cascade 清 messages + session_summaries）
-    3) `sessionSummaryVectorStore.deleteBySessionId(id)`（即使 summary 不存在也 no-op）
-    4) `await unlinkAttachmentFiles(attachments)`
-14. DB delete 成功但后续失败只记日志，函数仍返回 db delete 的 changes
+    // ── 角色头像 ──
+    registerOnDelete('character', async (cid) => {
+      const ch = getCharacterById(cid);
+      await unlinkUploadFile(ch?.avatar_path);
+    });
+    registerOnDelete('world', async (wid) => {
+      for (const p of getAvatarPathsByWorldId(wid)) await unlinkUploadFile(p);
+    });
 
-六、改造 services/characters.js `deleteCharacter(id)`
+    // ── 玩家头像 ──
+    registerOnDelete('world', async (wid) => {
+      await unlinkUploadFile(getPersonaAvatarPathByWorldId(wid));
+    });
 
-15. 执行顺序：
-    1) `const character = getCharacterById(id)`（拿 avatar_path）
-    2) `const sessionIds = getSessionIdsByCharacterId(id)`
-    3) `const attachments = getAttachmentsByCharacterId(id)`
-    4) `const embeddingIds = getEmbeddingIdsByCharacterId(id)`
-    5) `dbDeleteCharacter(id)`（cascade 清 sessions→messages/summaries、character_state_values、character_prompt_entries）
-    6) `for (sid of sessionIds) sessionSummaryVectorStore.deleteBySessionId(sid)`
-    7) `for (eid of embeddingIds) vectorStore.deleteEntry(eid)`
-    8) `await unlinkAvatarFile(character?.avatar_path)`
-    9) `await unlinkAttachmentFiles(attachments)`
+    // ── Prompt 条目向量 ──
+    registerOnDelete('character', async (cid) => {
+      for (const eid of getEmbeddingIdsByCharacterId(cid)) deleteEntry(eid);
+    });
+    registerOnDelete('world', async (wid) => {
+      for (const eid of getEmbeddingIdsByWorldId(wid)) deleteEntry(eid);
+    });
 
-七、改造 services/worlds.js `deleteWorld(id)`
+    // ── Session Summary 向量 ──
+    registerOnDelete('session', async (sid) => sessionSummaryVectorStore.deleteBySessionId(sid));
+    registerOnDelete('character', async (cid) => {
+      for (const sid of getSessionIdsByCharacterId(cid)) sessionSummaryVectorStore.deleteBySessionId(sid);
+    });
+    registerOnDelete('world', async (wid) => {
+      for (const sid of getSessionIdsByWorldId(wid)) sessionSummaryVectorStore.deleteBySessionId(sid);
+    });
 
-16. 执行顺序：
-    1) `const avatarPaths = getAvatarPathsByWorldId(id)`
-    2) `const sessionIds = getSessionIdsByWorldId(id)`
-    3) `const attachments = getAttachmentsByWorldId(id)`
-    4) `const embeddingIds = getEmbeddingIdsByWorldId(id)`
-    5) `dbDeleteWorld(id)`（cascade 清 characters→sessions→messages/summaries、personas、persona_state_*、world_state_*、character_state_fields、world_timeline、world_prompt_entries、world_id 绑定的 regex_rules）
-    6) `for (sid of sessionIds) sessionSummaryVectorStore.deleteBySessionId(sid)`
-    7) `for (eid of embeddingIds) vectorStore.deleteEntry(eid)`
-    8) `for (p of avatarPaths) await unlinkAvatarFile(p)`
-    9) `await unlinkAttachmentFiles(attachments)`
+14. 每段注册顶部加注释标明"这段管哪类资源、属于哪个模块"，以便未来维护
 
-八、约束
+五、改造三个实体删除 service
 
-- 三个 service 的 delete 方法签名不变，只是内部从同步改为 async；所有调用方（routes/*.js）已经 await 则无需改，若现有路由未 await 则同步改 `await service.deleteX()`
-- 不改任何锁定文件（schema.js / constants.js / assembler.js / SCHEMA.md / server.js / store/index.js）
+15. worlds.js `deleteWorld(id)`：改为 `async`，内部 `await runOnDelete('world', id); return dbDeleteWorld(id);`
+16. characters.js `deleteCharacter(id)`：改为 `async`，内部 `await runOnDelete('character', id); return dbDeleteCharacter(id);`
+17. sessions.js `deleteSession(id)`：改为 `async`，内部 `await runOnDelete('session', id); return dbDeleteSession(id);`
+
+六、改造消息级删除 service（新逻辑：先把待删消息 id 收集完，逐个跑 message 钩子，再 DB 批删）
+
+18. sessions.js `deleteMessage(id)`：改为 `async`，`await runOnDelete('message', id); return dbDeleteMessage(id);`
+19. sessions.js `deleteMessagesAfter(messageId)`：改为 `async`；先 `const ids = getMessageIdsAfter(messageId)`；`for (mid of ids) await runOnDelete('message', mid)`；再 `return dbDeleteMessagesAfter(messageId)`（保持原 SQL，不改查询逻辑）
+20. sessions.js `deleteAllMessagesBySessionId(sessionId)`：改为 `async`；先 `const ids = getMessageIdsBySessionId(sessionId)`；`for (mid of ids) await runOnDelete('message', mid)`；再 `return dbDeleteAllMessagesBySessionId(sessionId)`
+21. `updateMessageAndDeleteAfter(id, content)` 内部调用 `deleteMessagesAfter`——改为 `async`，`await` 之；并确保该函数的调用链（routes/chat.js 里的 /regenerate 等）也 `await`
+
+七、头像替换清理（update 路径）
+
+22. characters.js `updateCharacter(id, patch)`：若 `'avatar_path' in patch`，先 `const old = getCharacterById(id)?.avatar_path`；执行 DB update；若 `old && old !== patch.avatar_path` → `await unlinkUploadFile(old)`
+23. personas.js `updatePersona(worldId, patch)`：同样逻辑——若 `'avatar_path' in patch`，读取旧 `persona.avatar_path`（用 `getPersonaByWorldId`）；upsert；若 `old && old !== patch.avatar_path` → `await unlinkUploadFile(old)`；函数签名改为 `async`
+24. routes 层（routes/characters.js 头像上传、routes/personas.js 头像上传）：若原先没 `await` service，现在改成 `await`
+
+八、启动时触发注册
+
+25. server.js 仅新增一行 `import './services/cleanup-registrations.js';`（锁定文件例外登记在 CLAUDE.md，本任务下面会一并补）；位置放在其它 service / route import 之前，确保钩子在路由处理之前完成注册
+
+九、CLAUDE.md 例外登记
+
+26. 更新 CLAUDE.md 的"不可随意修改的文件"表：
+    - server.js 行追加 `**允许的例外**：T30 import cleanup-registrations.js 触发钩子注册副作用`
+27. 同时在"核心约束"段"异步队列优先级"或合适位置附近加一段简短说明：新增副作用资源（文件 / 向量 / 外部存储）时，必须到 cleanup-registrations.js 注册对应钩子，而非改 delete service
+
+十、约束
+
+- 不改 schema.js / SCHEMA.md / constants.js / assembler.js / store/index.js
 - 不改前端
-- 不新增事务包裹——副作用清理故意放在 DB DELETE 之后、失败只记 warn，保证 DB 状态不被文件系统错误反向污染
-- import-export.js 的导入流程不受影响（它走 createX 而非 deleteX）
-- 任务完成后在 CHANGELOG.md 最上方追加 T30 记录，git commit
+- 不碰 import-export.js（走 createX，不走 deleteX，不受影响）
+- 不新增事务：runOnDelete 在 DB DELETE 之前运行，且钩子失败不中断其它钩子也不中断 DB 删；任何钩子抛错只 warn
+- deleteMessagesAfter / deleteAllMessagesBySessionId 里"先跑消息钩子再批删"会增加 N 次 attachment SELECT + N 次 runOnDelete，量级通常 < 50 条，可接受；后续若发现性能问题可加一个 batch 版消息钩子接口，留给未来任务
+- 改 async 的函数签名：调用链上所有旧同步调用处都要补 await；编译 / 启动时 grep 一遍 `deleteSession(` `deleteCharacter(` `deleteWorld(` `deleteMessage(` `deleteMessagesAfter(` `deleteAllMessagesBySessionId(` `updateMessageAndDeleteAfter(` `updateCharacter(` `updatePersona(`，确保没有遗漏
+- 完成后 CHANGELOG.md 最上方追加 T30 记录（重点写：钩子注册表模式 + 本任务已覆盖哪些资源 + 未来如何扩展），git commit
 ```
 
 **验证方法**：
 
-1. 准备：在某世界 A 下建角色 C（上传头像）、开会话 S、发带图片附件的消息若干、触发一次 summary 使其向量化、给世界和角色各建 1-2 条 Prompt 条目并等待向量化完成
-2. 记录删除前基线：
-   - `ls -1 data/uploads/attachments | wc -l`
-   - `ls -1 data/uploads/avatars`
-   - `jq '.entries | length' data/vectors/prompt_entries.json`
-   - `jq '.entries | length' data/vectors/session_summaries.json`
-3. 场景 1（删 session）：删除会话 S → attachments 数量减少正好为 S 下消息附件数；session_summaries.json 该 session 条目消失；avatars / prompt_entries.json 不变
-4. 场景 2（删 character）：重建上述基线后，删除角色 C → 头像文件消失；C 下所有 session 的 attachments 消失；session_summaries.json 该角色下 session 条目全消失；prompt_entries.json 减少条数 = C 的 character_prompt_entries 已向量化条目数；世界级 Prompt 条目向量不受影响
-5. 场景 3（删 world）：重建基线后，删除世界 A → 该世界下所有头像、所有附件、所有 session summary 向量、所有 world/character prompt 向量一并消失；其它世界资源完全不受影响
-6. 故障注入：手动把某附件文件 `chmod 000`，再删 session → 后端日志 warn 一行但 DB DELETE 成功，后续读 session 返回 404，DB 里 messages 行已删
-7. 故障注入：手动删掉 `data/vectors/prompt_entries.json` 文件后删 character → 走 `loadStore` 的 empty fallback，不报错
-8. 删除 persona 无向量无文件需清理（persona 只有 name/system_prompt）→ 删 world 时 personas 行被 cascade 清掉即可，验证 `SELECT * FROM personas WHERE world_id = ?` 为空
+1. 准备基线：世界 A 下建角色 C1（传头像）、玩家 P（传头像）、会话 S（发若干带图附件消息、触发一次 summary 向量化、给世界和 C1 各建 1-2 条 Prompt 条目并等其向量化完成）。同时另建世界 B 作为「不应受影响」对照
+2. 记录基线：`ls -1 data/uploads/attachments | wc -l`、`ls data/uploads/avatars`、`jq '.entries | length' data/vectors/prompt_entries.json`、`jq '.entries | length' data/vectors/session_summaries.json`
+3. **级联删除场景**：
+   - 删会话 S → 附件减少 = S 下附件数；summary 向量减少 1；avatars / prompt_entries.json 不变
+   - 重建后删角色 C1 → C1 头像消失、C1 所有会话附件消失、对应 summary 向量全消失、C1 的 prompt 向量消失；P 的头像、世界级 prompt 向量不变
+   - 重建后删世界 A → A 下所有附件、所有角色头像、玩家 P 头像、所有 summary 向量、所有 world/character prompt 向量一并消失；世界 B 完全不变
+4. **头像替换场景**：
+   - 给 C1 依次上传 `.jpg`、`.png` 两张头像 → `ls data/uploads/avatars` 只有一张（.png）；DB 里 avatar_path 指向新文件
+   - 给玩家 P 同样测试一次 → 只剩新扩展名文件
+   - 把 C1 头像清空（PATCH avatar_path=null）→ 旧文件消失
+5. **消息级删除场景**：
+   - 在会话 S 发带图片的 user 消息 M1，再发 assistant 回复 M2，编辑 M1（触发 `deleteMessagesAfter(M1)`）→ M2 如果有附件，其附件文件消失（无则 no-op）；M1 自身附件保留
+   - `/clear` 清空会话 → 所有消息附件文件消失；DB 里 messages 表该 session_id 下为空
+   - 单条删除一条带图消息 → 该消息附件消失
+6. **重新生成场景（验证无意外行为）**：
+   - 触发 /regenerate 几轮后观察 `session_summaries` 表该 session 的 row 一直是同一条（UPDATE 原地）；`session_summaries.json` 也一直只有一条该 session 的 entry；确认 upsert 覆盖生效，无积累
+   - 对 Prompt 条目改内容几次 → `prompt_entries.json` 中该 source_id 对应的 entry 保持 1 条
+7. **可扩展性验证**：在 cleanup-registrations.js 顶部加一条临时测试钩子 `registerOnDelete('world', async id => console.log('[test-hook]', id))`；删一个世界 → 日志出现该输出；测完删除临时钩子
+8. **故障注入**：
+   - 把某附件文件 `chmod 000` 再删 session → DB DELETE 成功、后端 warn 一行、session GET 返 404
+   - `rm data/vectors/prompt_entries.json` 后删 character → 走 loadStore 的 empty fallback，不报错
+   - 一个钩子中途抛错（手动 patch 让某 hook throw）→ warn 一行但后续钩子与 DB DELETE 都继续执行
+9. 核心交互全流程冒烟：创建世界 → 建角色 → 建会话 → 发消息 → 编辑 → /retry → /continue → 导出导入 → Slash 命令 → 正则规则 → 自定义 CSS；功能无回归

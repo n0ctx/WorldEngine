@@ -44,7 +44,8 @@
 CREATE TABLE worlds (
   id             TEXT PRIMARY KEY,          -- UUID
   name           TEXT NOT NULL,
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt，注入 [2] 位置
+  post_prompt    TEXT NOT NULL DEFAULT '',  -- 世界层后置提示词，注入 [8] 位置（user 角色）
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
   max_tokens     INTEGER,                   -- 生成参数覆盖，NULL 时使用全局配置
   created_at     INTEGER NOT NULL,          -- Unix 时间戳（毫秒）
@@ -132,7 +133,8 @@ CREATE TABLE characters (
   id             TEXT PRIMARY KEY,          -- UUID
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 角色层 system prompt
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 角色层 system prompt，注入 [4] 位置
+  post_prompt    TEXT NOT NULL DEFAULT '',  -- 角色层后置提示词，注入 [8] 位置（user 角色）
   first_message  TEXT NOT NULL DEFAULT '',  -- 会话创建时自动插入的开场白，为空则不插入
   avatar_path    TEXT,                      -- 相对路径，如 avatars/abc123.png，无头像则 NULL
   sort_order     INTEGER NOT NULL DEFAULT 0, -- 同世界下角色的显示排序，支持拖拽修改

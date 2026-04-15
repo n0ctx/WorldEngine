@@ -125,9 +125,9 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | 文件 | 原因 |
 |---|---|
 | `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段 |
-| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移 |
+| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段 |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；**允许的例外**：T30（副作用生命周期）新增一行 `import './services/cleanup-registrations.js';`，触发钩子注册副作用 |
 
@@ -167,13 +167,13 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **提示词组装顺序**（硬编码在 assembler.js，顺序不得改变）
 ```
 [1] 全局 System Prompt
-[2] 用户 Persona（均为空则整段跳过）
-[3] 世界 System Prompt
+[2] 世界 System Prompt
+[3] 用户 Persona（均为空则整段跳过）
 [4] 角色 System Prompt
 [5] Prompt 条目（命中→注入 content，未命中→注入 summary；全局→世界→角色顺序）
 [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 历史摘要召回 + 原文展开，由 recall.js 渲染；T21/T26C/T27/T28 渐进落地）
-[7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮）
-[8] 用户当前消息（调用方传入）
+[7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮；prompt_only scope 正则在此处理）
+[8] 用户当前消息（已包含在历史记录中）+ 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，非空部分合并为单条 role:user 消息追加；T31）
 ```
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置

@@ -20,6 +20,7 @@ export default function CharacterEditPage() {
   // 表单字段
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [postPrompt, setPostPrompt] = useState('');
   const [firstMessage, setFirstMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -35,6 +36,7 @@ export default function CharacterEditPage() {
       setCharacter(c);
       setName(c.name);
       setSystemPrompt(c.system_prompt ?? '');
+      setPostPrompt(c.post_prompt ?? '');
       setFirstMessage(c.first_message ?? '');
       setAvatarPath(c.avatar_path);
       setLoading(false);
@@ -84,6 +86,7 @@ export default function CharacterEditPage() {
       await updateCharacter(characterId, {
         name: name.trim(),
         system_prompt: systemPrompt,
+        post_prompt: postPrompt,
         first_message: firstMessage,
       });
       navigate(-1);
@@ -194,6 +197,20 @@ export default function CharacterEditPage() {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               placeholder="角色的性格、背景、说话风格……"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm text-[var(--text)] mb-1.5">
+              后置提示词
+              <span className="text-[var(--text)] opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+            </label>
+            <textarea
+              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              rows={3}
+              value={postPrompt}
+              onChange={(e) => setPostPrompt(e.target.value)}
+              placeholder="每次对话附加的角色级指令，例如特定的回复格式……"
             />
           </div>
 

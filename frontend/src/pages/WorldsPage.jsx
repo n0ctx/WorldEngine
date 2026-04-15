@@ -14,6 +14,7 @@ import {
 const EMPTY_FORM = {
   name: '',
   system_prompt: '',
+  post_prompt: '',
   temperature: 1.0,
   max_tokens: 2048,
   useGlobalTemp: true,
@@ -26,6 +27,7 @@ function WorldFormModal({ initial, onSave, onClose }) {
     return {
       name: initial.name ?? '',
       system_prompt: initial.system_prompt ?? '',
+      post_prompt: initial.post_prompt ?? '',
       temperature: initial.temperature ?? 1.0,
       max_tokens: initial.max_tokens ?? 2048,
       useGlobalTemp: initial.temperature == null,
@@ -50,6 +52,7 @@ function WorldFormModal({ initial, onSave, onClose }) {
       const payload = {
         name: form.name.trim(),
         system_prompt: form.system_prompt,
+        post_prompt: form.post_prompt,
         temperature: form.useGlobalTemp ? null : form.temperature,
         max_tokens: form.useGlobalMaxTokens ? null : form.max_tokens,
       };
@@ -91,6 +94,21 @@ function WorldFormModal({ initial, onSave, onClose }) {
               value={form.system_prompt}
               onChange={(e) => set('system_prompt', e.target.value)}
               placeholder="描述这个世界的背景、规则、氛围……"
+            />
+          </div>
+
+          {/* Post Prompt */}
+          <div>
+            <label className="block text-sm text-[var(--text)] mb-1">
+              世界后置提示词
+              <span className="text-[var(--text)] opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+            </label>
+            <textarea
+              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              rows={3}
+              value={form.post_prompt}
+              onChange={(e) => set('post_prompt', e.target.value)}
+              placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
             />
           </div>
 

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T31 — 后置提示词 + 组装顺序调整 ✅
+- **对外接口**：后置提示词在 assembler.js 内部拼接，无新路由；存储透传现有 PUT /api/worlds/:id 和 PUT /api/characters/:id
+- **涉及文件**：`backend/prompt/assembler.js`、`backend/db/schema.js`、`backend/db/queries/worlds.js`、`backend/db/queries/characters.js`、`backend/services/config.js`、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/pages/WorldsPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`SCHEMA.md`、`CLAUDE.md`
+- **注意**：[2][3] 顺序已对调（世界 SP 现在在 Persona 前）；后置提示词为三层叠加（全局→世界→角色），全为空时不追加任何消息；现有 DB 通过 ALTER TABLE 迁移，无需重置
+
 ## T30 — 副作用资源生命周期自动维护 ✅
 - **对外接口**：无新 HTTP 接口；核心 API 为 `registerOnDelete(entity, fn)` / `runOnDelete(entity, id)`（utils/cleanup-hooks.js）
 - **涉及文件**（新建）：
