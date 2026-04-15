@@ -104,6 +104,7 @@ export default function ChatPage() {
     setContinuingText('');
     stopRef.current = null;
     refreshMessages();
+    useStore.getState().triggerMemoryRefresh();
   }, []);
 
   // 共用 SSE callbacks
@@ -527,12 +528,7 @@ export default function ChatPage() {
       {/* 右栏：记忆面板（300px，可收起） */}
       {rightOpen && character && (
         <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
-          <div className="px-4 pt-4 pb-3 border-b border-border shrink-0">
-            <h2 className="text-sm font-semibold text-text">记忆面板</h2>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            <MemoryPanel worldId={character.world_id} characterId={characterId} />
-          </div>
+          <MemoryPanel worldId={character.world_id} characterId={characterId} />
         </div>
       )}
     </div>

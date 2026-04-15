@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import useStore from '../../store/index.js';
 import { getWorldStateValues } from '../../api/worldStateValues.js';
 import { getCharacterStateValues } from '../../api/characterStateValues.js';
 import { getWorldTimeline } from '../../api/worldTimeline.js';
@@ -97,6 +98,8 @@ function TimelineRows({ rows }) {
 }
 
 export default function MemoryPanel({ worldId, characterId }) {
+  const tick = useStore((s) => s.memoryRefreshTick);
+
   const [personaState, setPersonaState] = useState(null);
   const [personaStateLoading, setPersonaStateLoading] = useState(false);
   const [personaStateError, setPersonaStateError] = useState(null);
@@ -112,6 +115,8 @@ export default function MemoryPanel({ worldId, characterId }) {
   const [timeline, setTimeline] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState(null);
+
+  const [isPolling, setIsPolling] = useState(false);
 
   useEffect(() => {
     if (!worldId) return;
@@ -153,20 +158,82 @@ export default function MemoryPanel({ worldId, characterId }) {
       .finally(() => setTimelineLoading(false));
   }, [worldId]);
 
+  // 轮询：AI 回复结束后感知异步状态更新
+  useEffect(() => {
+    if (tick === 0) return;
+
+    setIsPolling(true);
+    const snapshot = JSON.stringify([personaState, worldState, charState, timeline]);
+
+    let intervalId;
+    let timeoutId;
+
+    intervalId = setInterval(async () => {
+      try {
+        const [newPersona, newWorld, newChar, newTimeline] = await Promise.all([
+          worldId ? getPersonaStateValues(worldId) : Promise.resolve(null),
+          worldId ? getWorldStateValues(worldId) : Promise.resolve(null),
+          characterId ? getCharacterStateValues(characterId) : Promise.resolve(null),
+          worldId ? getWorldTimeline(worldId, 50) : Promise.resolve(null),
+        ]);
+        const current = JSON.stringify([newPersona, newWorld, newChar, newTimeline]);
+        if (current !== snapshot) {
+          if (newPersona !== null) setPersonaState(newPersona);
+          if (newWorld !== null) setWorldState(newWorld);
+          if (newChar !== null) setCharState(newChar);
+          if (newTimeline !== null) setTimeline(newTimeline);
+          setIsPolling(false);
+          clearInterval(intervalId);
+          clearTimeout(timeoutId);
+        }
+      } catch {
+        setIsPolling(false);
+        clearInterval(intervalId);
+        clearTimeout(timeoutId);
+      }
+    }, 3000);
+
+    timeoutId = setTimeout(() => {
+      setIsPolling(false);
+      clearInterval(intervalId);
+    }, 20000);
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId);
+    };
+  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className="we-memory-panel flex flex-col h-full overflow-y-auto">
-      <Section title="世界状态">
-        {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
-      </Section>
-      <Section title="玩家状态">
-        {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
-      </Section>
-      <Section title="角色状态">
-        {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} />}
-      </Section>
-      <Section title="世界时间线">
-        {timelineLoading ? <LoadingRow /> : timelineError ? <ErrorRow msg={timelineError} /> : <TimelineRows rows={timeline} />}
-      </Section>
+    <div className="we-memory-panel flex flex-col h-full">
+      {/* 标题头 */}
+      <div className="px-4 pt-4 pb-3 border-b border-border shrink-0 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-text">记忆面板</h2>
+        {isPolling && (
+          <div className="flex items-center gap-1.5">
+            <span
+              className="w-1.5 h-1.5 rounded-full animate-pulse"
+              style={{ backgroundColor: 'var(--we-accent)' }}
+            />
+            <span className="text-xs text-text-secondary">更新中…</span>
+          </div>
+        )}
+      </div>
+      {/* 可滚动内容 */}
+      <div className="flex-1 overflow-y-auto">
+        <Section title="世界状态">
+          {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
+        </Section>
+        <Section title="玩家状态">
+          {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
+        </Section>
+        <Section title="角色状态">
+          {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} />}
+        </Section>
+        <Section title="世界时间线">
+          {timelineLoading ? <LoadingRow /> : timelineError ? <ErrorRow msg={timelineError} /> : <TimelineRows rows={timeline} />}
+        </Section>
+      </div>
     </div>
   );
 }

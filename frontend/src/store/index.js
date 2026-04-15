@@ -8,6 +8,9 @@ const useStore = create((set) => ({
   setCurrentWorldId: (id) => set({ currentWorldId: id }),
   setCurrentCharacterId: (id) => set({ currentCharacterId: id }),
   setCurrentSessionId: (id) => set({ currentSessionId: id }),
+
+  memoryRefreshTick: 0,
+  triggerMemoryRefresh: () => set((s) => ({ memoryRefreshTick: s.memoryRefreshTick + 1 })),
 }));
 
 export default useStore;

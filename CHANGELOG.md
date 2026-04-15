@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T40 — 记忆面板实时更新感知 ✅
+- **对外接口**：无新增接口；复用 `getPersonaStateValues` / `getWorldStateValues` / `getCharacterStateValues` / `getWorldTimeline` 轮询
+- **涉及文件**：`frontend/src/store/index.js`（新增 `memoryRefreshTick` + `triggerMemoryRefresh`）、`frontend/src/pages/ChatPage.jsx`（`finalizeStream` 末尾调用 `triggerMemoryRefresh`，移除右栏外部标题头）、`frontend/src/components/memory/MemoryPanel.jsx`（内置标题头含脉冲指示、`tick` 订阅、3s 轮询 + 20s 超时）
+- **注意**：轮询以 JSON.stringify 对比快照判断数据是否变化；轮询失败直接 setIsPolling(false) 静默停止；`tick === 0` 时不启动轮询（挂载时不触发）；标题头从 ChatPage 移入 MemoryPanel 以便内联展示指示
+
 ## T35 修订 — MarkdownEditor 改为 tiptap 真正 WYSIWYG ✅
 - **问题**：原 T35 用 `@uiw/react-md-editor`（preview=live），渲染为左右分栏，不是所见即所得
 - **修改**：移除 `@uiw/react-md-editor`，改用 `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-placeholder` + `tiptap-markdown`；`MarkdownEditor.jsx` 重写为 tiptap WYSIWYG，内容直接以富文本形式渲染（无分栏、无可见 markdown 符号）
