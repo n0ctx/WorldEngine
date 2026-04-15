@@ -22,6 +22,7 @@ function getInitialValueJson(field) {
       const opts = field.enum_options;
       return (Array.isArray(opts) && opts.length > 0) ? JSON.stringify(opts[0]) : null;
     }
+    case 'list':    return JSON.stringify([]);
     default:        return null;
   }
 }

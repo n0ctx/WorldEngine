@@ -74,6 +74,9 @@ export async function updateWorldState(worldId, sessionId) {
         const hi = f.max_value != null ? f.max_value : '不限';
         line += `，范围：${lo} ~ ${hi}`;
       }
+      if (f.type === 'list') {
+        line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
+      }
       const cur = valueMap[f.field_key];
       line += `，当前值：${cur != null ? cur : '（未设置）'}`;
       if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
@@ -98,9 +101,10 @@ export async function updateWorldState(worldId, sessionId) {
         `要求：\n` +
         `1. 仅返回确实发生了变化的字段，没有变化则返回空对象 {}\n` +
         `2. 返回格式为 JSON 对象，key 为字段名，value 为新值，类型必须与字段类型一致\n` +
-        `3. OOC（角色扮演之外的讨论）不应直接改变世界状态，除非是明确的设定修改指令\n` +
-        `4. 不要添加任何解释，只返回 JSON\n\n` +
-        `示例：{"date": "第三纪元第101年", "weather": "暴风雪"}`,
+        `3. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
+        `4. OOC（角色扮演之外的讨论）不应直接改变世界状态，除非是明确的设定修改指令\n` +
+        `5. 不要添加任何解释，只返回 JSON\n\n` +
+        `示例：{"date": "第三纪元第101年", "weather": "暴风雪", "factions": ["帝国","反抗军"]}`,
     },
   ];
 
@@ -174,6 +178,16 @@ function validateValue(value, field) {
       if (typeof value !== 'string') return undefined;
       if (field.enum_options && !field.enum_options.includes(value)) return undefined;
       return value;
+    }
+
+    case 'list': {
+      if (typeof value === 'string') {
+        value = value.split(/[,，、]/).map((s) => s.trim()).filter(Boolean);
+      }
+      if (!Array.isArray(value)) return undefined;
+      const items = value.map(String).filter(Boolean);
+      if (items.length === 0) return field.allow_empty ? [] : undefined;
+      return items;
     }
 
     default:

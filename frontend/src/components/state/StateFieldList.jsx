@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import StateFieldEditor from './StateFieldEditor';
 
-const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举' };
+const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
 const TRIGGER_LABEL = { manual_only: '手动', every_turn: '每轮', keyword_based: '关键词' };
 

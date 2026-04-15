@@ -5,6 +5,7 @@ const TYPE_OPTIONS = [
   { value: 'number',  label: '数值' },
   { value: 'boolean', label: '布尔' },
   { value: 'enum',    label: '枚举' },
+  { value: 'list',    label: '列表' },
 ];
 
 const UPDATE_MODE_OPTIONS = [
@@ -32,28 +33,38 @@ const labelCls = 'block text-sm text-text-secondary mb-1';
  *   onClose()
  */
 export default function StateFieldEditor({ field, scope, onSave, onClose }) {
-  const [form, setForm] = useState(() => ({
-    field_key:          field?.field_key ?? '',
-    label:              field?.label ?? '',
-    type:               field?.type ?? 'text',
-    description:        field?.description ?? '',
-    update_mode:        field?.update_mode ?? 'manual',
-    trigger_mode:       field?.trigger_mode ?? 'manual_only',
-    trigger_keywords:   Array.isArray(field?.trigger_keywords) ? field.trigger_keywords : [],
-    enum_options:       Array.isArray(field?.enum_options) ? field.enum_options : [],
-    min_value:          field?.min_value ?? '',
-    max_value:          field?.max_value ?? '',
-    allow_empty:        field?.allow_empty ?? 1,
-    update_instruction: field?.update_instruction ?? '',
-    default_value:      field?.default_value ?? '',
-  }));
+  const [form, setForm] = useState(() => {
+    // 解析 list 类型的 default_value（存储为 JSON 数组字符串）
+    let listDefaults = [];
+    if (field?.type === 'list' && field?.default_value) {
+      try { listDefaults = JSON.parse(field.default_value) || []; } catch { listDefaults = []; }
+    }
+    return {
+      field_key:          field?.field_key ?? '',
+      label:              field?.label ?? '',
+      type:               field?.type ?? 'text',
+      description:        field?.description ?? '',
+      update_mode:        field?.update_mode ?? 'manual',
+      trigger_mode:       field?.trigger_mode ?? 'manual_only',
+      trigger_keywords:   Array.isArray(field?.trigger_keywords) ? field.trigger_keywords : [],
+      enum_options:       Array.isArray(field?.enum_options) ? field.enum_options : [],
+      list_defaults:      listDefaults,
+      min_value:          field?.min_value ?? '',
+      max_value:          field?.max_value ?? '',
+      allow_empty:        field?.allow_empty ?? 1,
+      update_instruction: field?.update_instruction ?? '',
+      default_value:      field?.type === 'list' ? '' : (field?.default_value ?? ''),
+    };
+  });
 
   const [kwInput, setKwInput] = useState('');
   const [enumInput, setEnumInput] = useState('');
+  const [listDefInput, setListDefInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const kwRef = useRef(null);
   const enumRef = useRef(null);
+  const listDefRef = useRef(null);
 
   function set(k, v) { setForm((f) => ({ ...f, [k]: v })); }
 
@@ -75,6 +86,15 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
   }
   function removeEnum(v) { set('enum_options', form.enum_options.filter((e) => e !== v)); }
 
+  // ── 列表默认条目 tags ──
+  function addListDef(raw) {
+    const v = raw.trim();
+    if (!v || form.list_defaults.includes(v)) return;
+    set('list_defaults', [...form.list_defaults, v]);
+    setListDefInput('');
+  }
+  function removeListDef(v) { set('list_defaults', form.list_defaults.filter((e) => e !== v)); }
+
   async function handleSave() {
     if (!form.field_key.trim()) { setError('field_key 为必填项'); return; }
     if (!form.label.trim())     { setError('label 为必填项'); return; }
@@ -83,6 +103,13 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
     setSaving(true);
     setError('');
     try {
+      const defaultValue = (() => {
+        if (form.type === 'list') {
+          return form.list_defaults.length > 0 ? JSON.stringify(form.list_defaults) : null;
+        }
+        return form.default_value !== '' ? form.default_value : null;
+      })();
+
       const payload = {
         field_key:          form.field_key.trim(),
         label:              form.label.trim(),
@@ -98,7 +125,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
         max_value:          form.type === 'number' && form.max_value !== '' ? Number(form.max_value) : null,
         allow_empty:        form.allow_empty,
         update_instruction: form.update_instruction,
-        default_value:      form.default_value !== '' ? form.default_value : null,
+        default_value:      defaultValue,
       };
       await onSave(payload);
       onClose();
@@ -178,6 +205,37 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             </div>
           )}
 
+          {/* 列表默认条目（type=list 时显示） */}
+          {form.type === 'list' && (
+            <div>
+              <label className={labelCls}>默认条目（回车添加）</label>
+              <div
+                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
+                onClick={() => listDefRef.current?.focus()}
+              >
+                {form.list_defaults.map((v) => (
+                  <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
+                    {v}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removeListDef(v); }}
+                      className="opacity-60 hover:opacity-100">×</button>
+                  </span>
+                ))}
+                <input ref={listDefRef}
+                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
+                  value={listDefInput} onChange={(e) => setListDefInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); addListDef(listDefInput); }
+                    else if (e.key === 'Backspace' && listDefInput === '' && form.list_defaults.length) {
+                      removeListDef(form.list_defaults[form.list_defaults.length - 1]);
+                    }
+                  }}
+                  onBlur={() => { if (listDefInput.trim()) addListDef(listDefInput); }}
+                  placeholder={form.list_defaults.length === 0 ? '输入条目后按回车' : ''}
+                />
+              </div>
+            </div>
+          )}
+
           {/* 数值范围（type=number 时显示） */}
           {form.type === 'number' && (
             <div className="grid grid-cols-2 gap-3">
@@ -194,13 +252,15 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             </div>
           )}
 
-          {/* 默认值 */}
-          <div>
-            <label className={labelCls}>默认值</label>
-            <input className={inputCls} value={form.default_value}
-              onChange={(e) => set('default_value', e.target.value)}
-              placeholder="留空表示无默认值" />
-          </div>
+          {/* 默认值（list 类型用上方"默认条目"代替，此处不显示） */}
+          {form.type !== 'list' && (
+            <div>
+              <label className={labelCls}>默认值</label>
+              <input className={inputCls} value={form.default_value}
+                onChange={(e) => set('default_value', e.target.value)}
+                placeholder="留空表示无默认值" />
+            </div>
+          )}
 
           {/* 说明 */}
           <div>

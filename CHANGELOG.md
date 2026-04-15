@@ -19,6 +19,14 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T33 — 状态字段 list 类型 ✅
+- **新增类型**：状态字段（世界/角色/玩家）支持 `list`（字符串列表）类型，适用于装备列表、物品列表等场景
+- **存储**：`value_json` 存 JSON 数组字符串（`["条目1","条目2"]`），无需改动数据库 schema
+- **LLM 更新策略**：替换整个列表（LLM 返回完整新数组）；容错：LLM 返回逗号/顿号字符串时自动 split 转换
+- **渲染**：`recall.js` 和 `MemoryPanel.jsx` 中用顿号（`、`）拼接条目，注入格式为 `- 背包：长剑、圆盾`
+- **前端编辑器**：`StateFieldEditor.jsx` 新增"默认条目"tag-input（type=list 时替换普通默认值输入框）
+- **涉及文件**：`SCHEMA.md`、`recall.js`、`character/world/persona-state-updater.js`（fieldsDesc + validateValue）、`services/characters.js`、`services/worlds.js`、`StateFieldEditor.jsx`、`StateFieldList.jsx`、`MemoryPanel.jsx`
+
 ## T29B — 组件样式重构 ✅
 - **对外接口**：新增 6 个 UI 原语组件（`/frontend/src/components/ui/`），均通过 `className` prop 支持外部扩展
 - **涉及文件**：

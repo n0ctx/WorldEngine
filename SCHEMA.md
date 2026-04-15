@@ -85,7 +85,7 @@ CREATE TABLE persona_state_fields (
   world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key          TEXT NOT NULL,
   label              TEXT NOT NULL,
-  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum'
+  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum' | 'list'
   description        TEXT NOT NULL DEFAULT '',
   default_value      TEXT,
   update_mode        TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'llm_auto'
@@ -232,7 +232,7 @@ CREATE TABLE world_state_fields (
   world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key          TEXT NOT NULL,
   label              TEXT NOT NULL,
-  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum'
+  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum' | 'list'
   description        TEXT NOT NULL DEFAULT '',  -- 给 LLM 的字段说明
   default_value      TEXT,                      -- 统一以 JSON 字符串存储，读取时解析
   update_mode        TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'llm_auto' | 'system_rule'
@@ -279,7 +279,7 @@ CREATE TABLE character_state_fields (
   world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key          TEXT NOT NULL,
   label              TEXT NOT NULL,
-  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum'
+  type               TEXT NOT NULL,             -- 'text' | 'number' | 'boolean' | 'enum' | 'list'
   description        TEXT NOT NULL DEFAULT '',
   default_value      TEXT,
   update_mode        TEXT NOT NULL DEFAULT 'manual', -- 'manual' | 'llm_auto'

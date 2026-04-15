@@ -9,6 +9,10 @@ function parseValue(valueJson, type) {
   try {
     const v = JSON.parse(valueJson);
     if (type === 'boolean') return v ? '是' : '否';
+    if (type === 'list') {
+      if (!Array.isArray(v) || v.length === 0) return null;
+      return v.join('、');
+    }
     return String(v);
   } catch {
     return String(valueJson);

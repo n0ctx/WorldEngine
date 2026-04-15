@@ -33,6 +33,10 @@ function parseValueForDisplay(valueJson) {
   try {
     const parsed = JSON.parse(valueJson);
     if (parsed === null || parsed === undefined) return null;
+    if (Array.isArray(parsed)) {
+      if (parsed.length === 0) return null;
+      return parsed.join('、');
+    }
     return String(parsed);
   } catch {
     return String(valueJson);
