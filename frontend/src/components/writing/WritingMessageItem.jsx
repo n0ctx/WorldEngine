@@ -31,7 +31,7 @@ export default function WritingMessageItem({ message, isStreaming = false, strea
             </p>
           ))}
           {isStreaming && (
-            <span className="inline-block w-0.5 h-4 bg-clay opacity-70 animate-pulse ml-0.5 align-middle" />
+            <span className="inline-block w-0.5 h-4 bg-accent opacity-70 animate-pulse ml-0.5 align-middle" />
           )}
         </div>
       )}

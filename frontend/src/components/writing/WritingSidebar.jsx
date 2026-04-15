@@ -21,7 +21,7 @@ function SessionItem({ session, isActive, onSelect, onDelete }) {
   return (
     <div
       className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-        isActive ? 'bg-clay/15 text-text' : 'hover:bg-sand text-text-secondary'
+        isActive ? 'bg-accent/15 text-text' : 'hover:bg-sand text-text-secondary'
       }`}
       onClick={() => onSelect(session)}
     >
@@ -99,7 +99,7 @@ export default function WritingSidebar({
           <svg
             width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8"
-            className="flex-none text-clay opacity-70"
+            className="flex-none text-accent opacity-70"
           >
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />

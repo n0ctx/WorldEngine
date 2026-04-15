@@ -14,7 +14,7 @@ function CharacterRow({ character, isActive, onToggle }) {
   return (
     <div
       className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
-        isActive ? 'bg-clay/15' : 'hover:bg-sand'
+        isActive ? 'bg-accent/15' : 'hover:bg-sand'
       }`}
       onClick={() => onToggle(character)}
     >
@@ -28,7 +28,7 @@ function CharacterRow({ character, isActive, onToggle }) {
       </div>
       <span className="flex-1 text-sm text-text truncate">{character.name}</span>
       <div className={`w-4 h-4 rounded border flex-none flex items-center justify-center transition-colors ${
-        isActive ? 'bg-clay border-clay' : 'border-border'
+        isActive ? 'bg-accent border-accent' : 'border-border'
       }`}>
         {isActive && (
           <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="white" strokeWidth="2">
@@ -86,7 +86,7 @@ export default function ActiveCharactersPicker({ worldId, sessionId }) {
         <span className="font-serif text-xs font-semibold text-text uppercase tracking-wide">
           激活角色
           {activeCount > 0 && (
-            <span className="ml-1.5 text-clay">({activeCount})</span>
+            <span className="ml-1.5 text-accent">({activeCount})</span>
           )}
         </span>
         <svg

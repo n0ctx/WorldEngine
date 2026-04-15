@@ -228,7 +228,7 @@ export default function WritingSpacePage() {
   const hasAssistantMessages = messages.some((m) => m.role === 'assistant');
 
   return (
-    <div className="flex h-screen bg-surface overflow-hidden">
+    <div className="flex h-screen bg-canvas overflow-hidden">
       {/* 左侧边栏 */}
       <div className="we-sidebar w-[260px] flex-none border-r border-border">
         <WritingSidebar
@@ -248,7 +248,7 @@ export default function WritingSpacePage() {
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="1.8"
-            className="text-clay opacity-60"
+            className="text-accent opacity-60"
           >
             <path d="M12 20h9" />
             <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -280,14 +280,14 @@ export default function WritingSpacePage() {
         {/* 错误提示 */}
         {error && (
           <div className="px-6 py-2 text-center">
-            <span className="text-xs text-red-400 bg-red-50 px-3 py-1 rounded">{error}</span>
+            <span className="text-xs text-error bg-ivory border border-border px-3 py-1 rounded-md">{error}</span>
           </div>
         )}
 
         {/* 输入区 */}
         <div className="border-t border-border px-4 py-3 flex-none">
           <div className="max-w-2xl mx-auto">
-            <div className="relative rounded-xl border border-border bg-surface focus-within:border-clay/40 transition-colors shadow-sm">
+            <div className="relative rounded-xl border border-border bg-ivory focus-within:border-accent/40 transition-colors shadow-ring">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -310,14 +310,14 @@ export default function WritingSpacePage() {
                 {generating ? (
                   <button
                     onClick={handleStop}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-error hover:bg-sand transition-colors"
                   >
                     停止
                   </button>
                 ) : (
                   <button
                     onClick={handleGenerate}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-clay text-white hover:bg-clay/80 transition-colors"
+                    className="text-xs px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent/80 transition-colors"
                   >
                     生成
                   </button>
