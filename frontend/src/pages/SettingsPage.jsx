@@ -36,15 +36,15 @@ const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible
 
 function SectionTitle({ children }) {
   return (
-    <h2 className="text-base font-semibold text-[var(--text-h)] mb-4">{children}</h2>
+    <h2 className="font-serif text-base font-semibold text-text mb-4">{children}</h2>
   );
 }
 
 function FieldLabel({ children, hint }) {
   return (
-    <label className="block text-sm text-[var(--text)] mb-1">
+    <label className="block text-sm text-text-secondary mb-1">
       {children}
-      {hint && <span className="text-[var(--text)] opacity-40 ml-1.5 text-xs">{hint}</span>}
+      {hint && <span className="text-text-secondary opacity-40 ml-1.5 text-xs">{hint}</span>}
     </label>
   );
 }
@@ -52,7 +52,7 @@ function FieldLabel({ children, hint }) {
 function textInput(value, onChange, placeholder) {
   return (
     <input
-      className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+      className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -82,7 +82,7 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
   useEffect(() => { load(); }, []);
 
   if (status === 'loading') {
-    return <p className="text-sm text-[var(--text)] opacity-60 py-1">获取模型列表中…</p>;
+    return <p className="text-sm text-text-secondary opacity-60 py-1">获取模型列表中…</p>;
   }
 
   if (status === 'error') {
@@ -91,7 +91,7 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
         <p className="text-sm text-red-400 mb-1">{errMsg}</p>
         <button
           onClick={load}
-          className="text-xs text-[var(--accent)] hover:opacity-80 transition-opacity"
+          className="text-xs text-accent hover:opacity-80 transition-opacity"
         >
           重试
         </button>
@@ -101,7 +101,7 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
 
   return (
     <select
-      className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+      className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
@@ -154,7 +154,7 @@ function ProviderSection({
       <div>
         <FieldLabel>Provider</FieldLabel>
         <select
-          className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+          className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
           value={config.provider || ''}
           onChange={(e) => onProviderChange(e.target.value)}
         >
@@ -170,7 +170,7 @@ function ProviderSection({
           <FieldLabel>API Key</FieldLabel>
           <div className="flex gap-2">
             <input
-              className="flex-1 px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="flex-1 px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -178,7 +178,7 @@ function ProviderSection({
             />
             <button
               onClick={handleSaveKey}
-              className="px-4 py-2 text-sm bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] hover:border-[var(--accent)] transition-colors"
+              className="px-4 py-2 text-sm bg-ivory border border-border rounded-lg text-text hover:border-accent transition-colors"
             >
               {apiKeySaved ? '已保存' : '保存密钥'}
             </button>
@@ -316,28 +316,28 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[var(--text)]">
+      <div className="min-h-screen flex items-center justify-center text-text-secondary">
         加载中…
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+    <div className="min-h-screen bg-canvas px-4 py-10">
       <div className="max-w-2xl mx-auto">
         {/* 返回 */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors mb-8"
+          className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors mb-8"
         >
           ← 返回
         </button>
 
-        <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight mb-10">设置</h1>
+        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-10">设置</h1>
 
         <div className="flex flex-col gap-10">
           {/* ── LLM 配置 ─────────────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <ProviderSection
               title="语言模型（LLM）"
               providers={LLM_PROVIDERS}
@@ -355,7 +355,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleTestConnection}
                 disabled={testStatus === 'testing'}
-                className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text-h)] hover:border-[var(--accent)] transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm border border-border rounded-lg text-text hover:border-accent transition-colors disabled:opacity-50"
               >
                 {testStatus === 'testing' ? '测试中…' : '测试连接'}
               </button>
@@ -369,7 +369,7 @@ export default function SettingsPage() {
           </section>
 
           {/* ── Embedding 配置 ───────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <ProviderSection
               title="Embedding 模型"
               providers={EMBEDDING_PROVIDERS}
@@ -384,7 +384,7 @@ export default function SettingsPage() {
           </section>
 
           {/* ── 通用配置 ─────────────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <SectionTitle>通用配置</SectionTitle>
             <div className="flex flex-col gap-4">
               <div>
@@ -393,11 +393,11 @@ export default function SettingsPage() {
                   <input
                     type="number"
                     min={0}
-                    className="w-28 px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+                    className="w-28 px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
                     value={contextRounds}
                     onChange={(e) => setContextRounds(e.target.value)}
                   />
-                  <span className="text-sm text-[var(--text)] opacity-60">
+                  <span className="text-sm text-text-secondary opacity-60">
                     保留最近 N 轮对话历史发送给 AI，0 = 不限制
                   </span>
                 </div>
@@ -406,7 +406,7 @@ export default function SettingsPage() {
               <div>
                 <FieldLabel>全局 System Prompt</FieldLabel>
                 <textarea
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+                  className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
                   rows={4}
                   value={globalSystemPrompt}
                   onChange={(e) => setGlobalSystemPrompt(e.target.value)}
@@ -417,7 +417,7 @@ export default function SettingsPage() {
               <div>
                 <FieldLabel hint="插入在用户消息之后，作为 user 角色发送">全局后置提示词</FieldLabel>
                 <textarea
-                  className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+                  className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
                   rows={3}
                   value={globalPostPrompt}
                   onChange={(e) => setGlobalPostPrompt(e.target.value)}
@@ -429,38 +429,38 @@ export default function SettingsPage() {
                 <button
                   onClick={handleSaveGeneral}
                   disabled={saving}
-                  className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {saving ? '保存中…' : '保存'}
                 </button>
               </div>
 
-              <div className="border-t border-[var(--border)] pt-4">
+              <div className="border-t border-border pt-4">
                 <EntryList type="global" />
               </div>
             </div>
           </section>
 
           {/* ── 自定义样式 ────────────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <SectionTitle>自定义样式</SectionTitle>
             <CustomCssManager />
           </section>
 
           {/* ── 正则替换 ──────────────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <SectionTitle>正则替换</SectionTitle>
             <RegexRulesManager />
           </section>
 
           {/* ── 记忆与召回 ────────────────────────────── */}
-          <section className="bg-[var(--code-bg)] border border-[var(--border)] rounded-2xl p-6">
+          <section className="bg-ivory border border-border rounded-2xl p-6">
             <SectionTitle>记忆与召回</SectionTitle>
             <div className="flex flex-col gap-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm text-[var(--text-h)]">记忆原文展开</p>
-                  <p className="text-xs text-[var(--text)] opacity-60 mt-0.5">
+                  <p className="text-sm text-text">记忆原文展开</p>
+                  <p className="text-xs text-text-secondary opacity-60 mt-0.5">
                     召回历史摘要后允许 AI 读取原文，会略增加首包延迟
                   </p>
                 </div>
@@ -470,7 +470,7 @@ export default function SettingsPage() {
                   onClick={() => handleToggleMemoryExpansion(!memoryExpansionEnabled)}
                   className={[
                     'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
-                    memoryExpansionEnabled ? 'bg-[var(--accent)]' : 'bg-[var(--border)]',
+                    memoryExpansionEnabled ? 'bg-accent' : 'bg-border',
                   ].join(' ')}
                 >
                   <span

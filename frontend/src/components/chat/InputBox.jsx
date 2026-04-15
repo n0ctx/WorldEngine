@@ -168,7 +168,7 @@ export default function InputBox({
   }
 
   return (
-    <div className="border-t border-[var(--border)] bg-[var(--bg)] px-4 pt-3 pb-4">
+    <div className="we-chat-input border-t border-border bg-canvas px-4 pt-3 pb-4">
       {/* 图片缩略图 */}
       {attachments.length > 0 && (
         <div className="flex gap-2 mb-2">
@@ -177,11 +177,11 @@ export default function InputBox({
               <img
                 src={att.preview}
                 alt=""
-                className="h-16 w-16 object-cover rounded-lg border border-[var(--border)]"
+                className="h-16 w-16 object-cover rounded-lg border border-border"
               />
               <button
                 onClick={() => removeAttachment(i)}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[var(--text)] text-[var(--bg)] rounded-full flex items-center justify-center text-[10px] hover:opacity-80"
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-text text-canvas rounded-full flex items-center justify-center text-[10px] hover:opacity-80"
               >
                 ×
               </button>
@@ -195,7 +195,7 @@ export default function InputBox({
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={generating || attachments.length >= 3}
-          className="flex-none p-2 rounded-lg text-[var(--text)] hover:bg-[var(--border)] disabled:opacity-30 transition-colors"
+          className="flex-none p-2 rounded-lg text-text-secondary hover:bg-sand disabled:opacity-30 transition-colors"
           title="添加图片（最多3张）"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -217,15 +217,15 @@ export default function InputBox({
         <div className="flex-1 relative">
           {/* Slash 命令浮层 */}
           {slashOpen && filteredCommands.length > 0 && (
-            <div className="absolute bottom-full mb-1 left-0 right-0 bg-[var(--code-bg)] border border-[var(--border)] rounded-xl shadow-lg overflow-hidden z-20">
+            <div className="absolute bottom-full mb-1 left-0 right-0 bg-ivory border border-border rounded-xl shadow-lg overflow-hidden z-20">
               {filteredCommands.map((c, i) => (
                 <button
                   key={c.cmd}
                   onMouseDown={(e) => { e.preventDefault(); executeCommand(c.cmd); }}
                   className={`w-full text-left px-4 py-2.5 flex items-baseline gap-3 transition-colors ${
                     i === slashIndex
-                      ? 'bg-[var(--accent)] text-white'
-                      : 'text-[var(--text-h)] hover:bg-[var(--border)]'
+                      ? 'bg-accent text-white'
+                      : 'text-text hover:bg-sand'
                   }`}
                 >
                   <span className="text-sm font-mono font-semibold w-28 shrink-0">{c.cmd}</span>
@@ -263,7 +263,7 @@ export default function InputBox({
 
           <textarea
             ref={textareaRef}
-            className="w-full px-4 py-3 pr-20 rounded-xl border border-[var(--border)] bg-[var(--code-bg)] text-[var(--text-h)] text-sm leading-relaxed resize-none outline-none focus:border-[var(--accent)] transition-colors placeholder:text-[var(--text)] placeholder:opacity-40 disabled:opacity-50"
+            className="w-full px-4 py-3 pr-20 rounded-xl border border-border bg-ivory text-text text-sm leading-relaxed resize-none outline-none focus:border-accent transition-colors placeholder:text-text-secondary placeholder:opacity-40 disabled:opacity-50"
             placeholder="发送消息… (Shift+Enter 换行，/ 调出命令)"
             value={text}
             onChange={handleChange}
@@ -289,7 +289,7 @@ export default function InputBox({
           <button
             onClick={handleSend}
             disabled={!text.trim()}
-            className="flex-none p-2.5 rounded-xl bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+            className="flex-none p-2.5 rounded-xl bg-accent text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
             title="发送 (Enter)"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

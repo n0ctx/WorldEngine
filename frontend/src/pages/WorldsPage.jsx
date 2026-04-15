@@ -67,18 +67,18 @@ function WorldFormModal({ initial, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
-        <div className="px-6 py-5 border-b border-[var(--border)]">
-          <h2 className="text-lg font-semibold text-[var(--text-h)]">
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
+        <div className="px-6 py-5 border-b border-border">
+          <h2 className="font-serif text-lg font-semibold text-text">
             {initial ? '编辑世界' : '创建世界'}
           </h2>
         </div>
         <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
           {/* 名称 */}
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">名称 <span className="text-red-400">*</span></label>
+            <label className="block text-sm text-text-secondary mb-1">名称 <span className="text-red-400">*</span></label>
             <input
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               placeholder="世界的名称"
@@ -87,9 +87,9 @@ function WorldFormModal({ initial, onSave, onClose }) {
 
           {/* System Prompt */}
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">世界 System Prompt</label>
+            <label className="block text-sm text-text-secondary mb-1">世界 System Prompt</label>
             <textarea
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={4}
               value={form.system_prompt}
               onChange={(e) => set('system_prompt', e.target.value)}
@@ -99,12 +99,12 @@ function WorldFormModal({ initial, onSave, onClose }) {
 
           {/* Post Prompt */}
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">
+            <label className="block text-sm text-text-secondary mb-1">
               世界后置提示词
-              <span className="text-[var(--text)] opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+              <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
             </label>
             <textarea
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={3}
               value={form.post_prompt}
               onChange={(e) => set('post_prompt', e.target.value)}
@@ -115,13 +115,13 @@ function WorldFormModal({ initial, onSave, onClose }) {
           {/* Temperature */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[var(--text)]">Temperature</label>
-              <label className="flex items-center gap-1.5 text-sm text-[var(--text)] cursor-pointer">
+              <label className="text-sm text-text-secondary">Temperature</label>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.useGlobalTemp}
                   onChange={(e) => set('useGlobalTemp', e.target.checked)}
-                  className="accent-[var(--accent)]"
+                  className="accent-accent"
                 />
                 使用全局默认
               </label>
@@ -133,9 +133,9 @@ function WorldFormModal({ initial, onSave, onClose }) {
                 value={form.temperature}
                 disabled={form.useGlobalTemp}
                 onChange={(e) => set('temperature', parseFloat(e.target.value))}
-                className="flex-1 accent-[var(--accent)] disabled:opacity-40"
+                className="flex-1 accent-accent disabled:opacity-40"
               />
-              <span className="w-10 text-right text-sm text-[var(--text-h)] font-mono">
+              <span className="w-10 text-right text-sm text-text font-mono">
                 {form.useGlobalTemp ? '—' : form.temperature.toFixed(1)}
               </span>
             </div>
@@ -144,13 +144,13 @@ function WorldFormModal({ initial, onSave, onClose }) {
           {/* Max Tokens */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-[var(--text)]">Max Tokens</label>
-              <label className="flex items-center gap-1.5 text-sm text-[var(--text)] cursor-pointer">
+              <label className="text-sm text-text-secondary">Max Tokens</label>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
                 <input
                   type="checkbox"
                   checked={form.useGlobalMaxTokens}
                   onChange={(e) => set('useGlobalMaxTokens', e.target.checked)}
-                  className="accent-[var(--accent)]"
+                  className="accent-accent"
                 />
                 使用全局默认
               </label>
@@ -161,7 +161,7 @@ function WorldFormModal({ initial, onSave, onClose }) {
               value={form.max_tokens}
               disabled={form.useGlobalMaxTokens}
               onChange={(e) => set('max_tokens', parseInt(e.target.value, 10))}
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] disabled:opacity-40"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent disabled:opacity-40"
             />
           </div>
 
@@ -170,10 +170,10 @@ function WorldFormModal({ initial, onSave, onClose }) {
           {/* 世界 Prompt 条目 / 状态字段模板（仅编辑现有世界时显示） */}
           {initial?.id && (
             <>
-              <div className="border-t border-[var(--border)] pt-4">
+              <div className="border-t border-border pt-4">
                 <EntryList type="world" scopeId={initial.id} />
               </div>
-              <div className="border-t border-[var(--border)] pt-4">
+              <div className="border-t border-border pt-4">
                 <StateFieldList
                   scope="world"
                   worldId={initial.id}
@@ -187,17 +187,17 @@ function WorldFormModal({ initial, onSave, onClose }) {
             </>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {saving ? '保存中…' : '保存'}
           </button>
@@ -218,10 +218,10 @@ function DeleteConfirmModal({ world, onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除</h2>
-        <p className="text-sm text-[var(--text)] mb-1">
-          即将删除世界 <span className="font-medium text-[var(--text-h)]">「{world.name}」</span>。
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
+        <p className="text-sm text-text-secondary mb-1">
+          即将删除世界 <span className="font-medium text-text">「{world.name}」</span>。
         </p>
         <p className="text-sm text-red-400 mb-5">
           此操作将同时删除其下所有角色和会话，且无法恢复。
@@ -229,7 +229,7 @@ function DeleteConfirmModal({ world, onConfirm, onClose }) {
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
           >
             取消
           </button>
@@ -321,25 +321,25 @@ export default function WorldsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+    <div className="min-h-screen bg-canvas px-4 py-10">
       <div className="max-w-4xl mx-auto">
         {/* 页头 */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight">世界</h1>
-            <p className="text-sm text-[var(--text)] mt-0.5">选择或创建一个世界，开始你的故事</p>
+            <h1 className="text-2xl font-serif font-semibold text-text tracking-tight">世界</h1>
+            <p className="text-sm text-text-secondary mt-0.5">选择或创建一个世界，开始你的故事</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/settings')}
-              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors"
+              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
             >
               设置
             </button>
             <button
               onClick={() => worldImportRef.current?.click()}
               disabled={importingWorld}
-              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
             >
               {importingWorld ? '导入中…' : '导入世界卡'}
             </button>
@@ -352,7 +352,7 @@ export default function WorldsPage() {
             />
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+              className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
             >
               + 创建世界
             </button>
@@ -361,9 +361,9 @@ export default function WorldsPage() {
 
         {/* 列表 */}
         {loading ? (
-          <div className="text-center text-[var(--text)] py-20">加载中…</div>
+          <div className="text-center text-text-secondary py-20">加载中…</div>
         ) : worlds.length === 0 ? (
-          <div className="text-center text-[var(--text)] py-20">
+          <div className="text-center text-text-secondary py-20">
             <p className="text-4xl mb-4">✦</p>
             <p className="text-base">还没有世界，点击右上角创建第一个</p>
           </div>
@@ -372,14 +372,14 @@ export default function WorldsPage() {
             {worlds.map((world) => (
               <div
                 key={world.id}
-                className="group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl p-5 cursor-pointer hover:border-[var(--accent-border)] hover:shadow-md transition-all"
+                className="we-world-card group relative bg-ivory border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:shadow-ring transition-all"
                 onClick={() => handleEnterWorld(world)}
               >
-                <h3 className="font-medium text-[var(--text-h)] mb-1.5 pr-16">{world.name}</h3>
+                <h3 className="font-medium text-text mb-1.5 pr-16">{world.name}</h3>
                 {world.system_prompt ? (
-                  <p className="text-sm text-[var(--text)] line-clamp-2">{world.system_prompt}</p>
+                  <p className="text-sm text-text-secondary line-clamp-2">{world.system_prompt}</p>
                 ) : (
-                  <p className="text-sm text-[var(--text)] opacity-40 italic">暂无描述</p>
+                  <p className="text-sm text-text-secondary opacity-40 italic">暂无描述</p>
                 )}
 
                 {/* 操作按钮 */}
@@ -390,21 +390,21 @@ export default function WorldsPage() {
                   <button
                     onClick={(e) => handleExportWorld(world, e)}
                     disabled={exportingWorldId === world.id}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs disabled:opacity-50"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs disabled:opacity-50"
                     title="导出世界卡"
                   >
                     ↓
                   </button>
                   <button
                     onClick={() => setEditingWorld(world)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
                     title="编辑"
                   >
                     ✎
                   </button>
                   <button
                     onClick={() => setDeletingWorld(world)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
                     title="删除"
                   >
                     ✕

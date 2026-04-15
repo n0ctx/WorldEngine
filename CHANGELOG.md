@@ -19,6 +19,22 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T29B — 组件样式重构 ✅
+- **对外接口**：新增 6 个 UI 原语组件（`/frontend/src/components/ui/`），均通过 `className` prop 支持外部扩展
+- **涉及文件**：
+  - `frontend/src/components/ui/Button.jsx` — 新建，variants: primary/secondary/ghost/danger，sizes: sm/md/lg，挂 `we-btn we-btn-{variant}`
+  - `frontend/src/components/ui/Card.jsx` — 新建，elevations: flat/contained/ring/whisper，挂 `we-card`
+  - `frontend/src/components/ui/Input.jsx` — 新建，标准输入框，挂 `we-input`
+  - `frontend/src/components/ui/Textarea.jsx` — 新建，多行文本域，挂 `we-textarea`
+  - `frontend/src/components/ui/Badge.jsx` — 新建，胶囊标签，variants: default/accent/error，挂 `we-badge`
+  - `frontend/src/components/ui/ModalShell.jsx` — 新建，模态框外壳，挂 `we-modal`/`we-modal-backdrop`
+  - 18 个 `.jsx` 文件 — 替换所有旧 `var(--text)` / `var(--bg)` / `var(--accent)` / `var(--border)` 等为新 Tailwind 工具类；补齐 `we-*` 钩子类；主标题加 `font-serif`
+  - `frontend/DESIGN_AUDIT.md` — 删除（T29B 完成后审计产物）
+- **注意**：
+  - `bg-border` 在 Tailwind v4 中解析为 `background-color: var(--color-border)` = `#f0eee6`，可用于 toggle 开关「关闭」态背景
+  - UI 原语组件的 `className` prop 总是追加在末尾，外部覆盖优先
+  - 25 个 `we-*` 钩子类全部挂载完毕，T24A 用户片段定位器保持稳定
+
 ## T29A — 设计令牌落地 & 视觉基线审计 ✅
 - **对外接口**：无新路由；仅 CSS 变量层，所有 `--we-*` 变量通过 `:root` 定义，并通过 `@theme` 暴露为 Tailwind v4 工具类
 - **涉及文件**：

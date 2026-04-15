@@ -99,7 +99,7 @@ export default function CharacterEditPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-[var(--text)]">
+      <div className="min-h-screen flex items-center justify-center text-text-secondary">
         加载中…
       </div>
     );
@@ -110,25 +110,25 @@ export default function CharacterEditPage() {
   const avatarInitial = (name || '?')[0].toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+    <div className="min-h-screen bg-canvas px-4 py-10">
       <div className="max-w-lg mx-auto">
         {/* 导航 */}
         <div className="flex items-center justify-between mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
           >
             ← 返回
           </button>
           <button
             onClick={() => navigate('/settings')}
-            className="text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors opacity-60 hover:opacity-100"
+            className="text-sm text-text-secondary hover:text-text transition-colors opacity-60 hover:opacity-100"
           >
             设置
           </button>
         </div>
 
-        <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight mb-8">编辑角色</h1>
+        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">编辑角色</h1>
 
         {/* 头像区域 */}
         <div className="flex flex-col items-center mb-8">
@@ -174,15 +174,15 @@ export default function CharacterEditPage() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <p className="text-xs text-[var(--text)] mt-2 opacity-60">点击头像上传图片</p>
+          <p className="text-xs text-text-secondary mt-2 opacity-60">点击头像上传图片</p>
         </div>
 
         {/* 表单 */}
         <div className="flex flex-col gap-5">
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1.5">名称 <span className="text-red-400">*</span></label>
+            <label className="block text-sm text-text-secondary mb-1.5">名称 <span className="text-red-400">*</span></label>
             <input
-              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="角色的名字"
@@ -190,9 +190,9 @@ export default function CharacterEditPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1.5">System Prompt</label>
+            <label className="block text-sm text-text-secondary mb-1.5">System Prompt</label>
             <textarea
-              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={6}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
@@ -201,12 +201,12 @@ export default function CharacterEditPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1.5">
+            <label className="block text-sm text-text-secondary mb-1.5">
               后置提示词
-              <span className="text-[var(--text)] opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+              <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
             </label>
             <textarea
-              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={3}
               value={postPrompt}
               onChange={(e) => setPostPrompt(e.target.value)}
@@ -215,9 +215,9 @@ export default function CharacterEditPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1.5">开场白</label>
+            <label className="block text-sm text-text-secondary mb-1.5">开场白</label>
             <textarea
-              className="w-full px-3 py-2.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={4}
               value={firstMessage}
               onChange={(e) => setFirstMessage(e.target.value)}
@@ -231,14 +231,14 @@ export default function CharacterEditPage() {
             <button
               onClick={handleExport}
               disabled={exporting}
-              className="px-4 py-2.5 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+              className="px-4 py-2.5 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
             >
               {exporting ? '导出中…' : '导出角色卡'}
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-6 py-2.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {saving ? '保存中…' : '保存'}
             </button>
@@ -246,12 +246,12 @@ export default function CharacterEditPage() {
         </div>
 
         {/* Prompt 条目 */}
-        <div className="mt-10 border-t border-[var(--border)] pt-8">
+        <div className="mt-10 border-t border-border pt-8">
           <EntryList type="character" scopeId={characterId} />
         </div>
 
         {/* 角色状态字段模板 */}
-        <div className="mt-6 border-t border-[var(--border)] pt-8">
+        <div className="mt-6 border-t border-border pt-8">
           <StateFieldList
             scope="character"
             worldId={character.world_id}

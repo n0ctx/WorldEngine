@@ -73,21 +73,21 @@ export default function StateFieldList({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-[var(--text)] uppercase tracking-wider opacity-60">
+        <span className="text-xs font-medium text-text-secondary uppercase tracking-wider opacity-60">
           {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="text-xs px-2.5 py-1 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="text-xs px-2.5 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
       </div>
 
       {loading ? (
-        <p className="text-xs text-[var(--text)] opacity-50 py-3 text-center">加载中…</p>
+        <p className="text-xs text-text-secondary opacity-50 py-3 text-center">加载中…</p>
       ) : fields.length === 0 ? (
-        <p className="text-xs text-[var(--text)] opacity-35 italic py-3 text-center">暂无字段</p>
+        <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {fields.map((f, idx) => (
@@ -130,13 +130,13 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-center gap-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-[var(--accent-border)] transition-colors"
+      className="group flex items-center gap-2 bg-ivory border border-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
     >
-      <span className="text-[var(--text)] opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
+      <span className="text-text-secondary opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-[var(--text-h)] font-medium truncate">{field.label}</span>
-        <span className="text-xs text-[var(--text)] opacity-50 font-mono truncate">{field.field_key}</span>
+        <span className="text-sm text-text font-medium truncate">{field.label}</span>
+        <span className="text-xs text-text-secondary opacity-50 font-mono truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
           <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
@@ -146,10 +146,10 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button onClick={onEdit}
-          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+          className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
           title="编辑">✎</button>
         <button onClick={onDelete}
-          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+          className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
           title="删除">✕</button>
       </div>
     </div>
@@ -159,8 +159,8 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
 function Badge({ label, dim }) {
   return (
     <span className={`px-1.5 py-0.5 rounded text-xs ${dim
-      ? 'text-[var(--text)] opacity-50 bg-transparent border border-[var(--border)]'
-      : 'bg-[var(--accent-bg)] text-[var(--accent)]'
+      ? 'text-text-secondary opacity-50 bg-transparent border border-border'
+      : 'bg-accent/10 text-accent'
     }`}>
       {label}
     </span>
@@ -176,11 +176,11 @@ function DeleteConfirm({ onConfirm, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除字段</h2>
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-text mb-2">确认删除字段</h2>
         <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">取消</button>
           <button onClick={handle} disabled={deleting}
             className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50">
             {deleting ? '删除中…' : '确认删除'}

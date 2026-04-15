@@ -88,19 +88,19 @@ export default function EntryList({ type, scopeId }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-[var(--text-h)]">Prompt 条目</h3>
+        <h3 className="text-sm font-medium text-text">Prompt 条目</h3>
         <button
           onClick={openCreate}
-          className="text-xs px-3 py-1.5 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="text-xs px-3 py-1.5 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-[var(--text)] opacity-60 py-4 text-center">加载中…</p>
+        <p className="text-sm text-text-secondary opacity-60 py-4 text-center">加载中…</p>
       ) : entries.length === 0 ? (
-        <p className="text-sm text-[var(--text)] opacity-40 italic py-4 text-center">暂无条目</p>
+        <p className="text-sm text-text-secondary opacity-40 italic py-4 text-center">暂无条目</p>
       ) : (
         <div className="flex flex-col gap-2">
           {entries.map((entry, idx) => (
@@ -144,23 +144,23 @@ function EntryRow({ entry, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-start gap-3 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg px-3 py-3 cursor-grab active:cursor-grabbing select-none hover:border-[var(--accent-border)] transition-colors"
+      className="group flex items-start gap-3 bg-ivory border border-border rounded-lg px-3 py-3 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
     >
       {/* 拖拽图标 */}
-      <span className="text-[var(--text)] opacity-30 group-hover:opacity-60 mt-0.5 text-xs flex-shrink-0">⠿</span>
+      <span className="text-text-secondary opacity-30 group-hover:opacity-60 mt-0.5 text-xs flex-shrink-0">⠿</span>
 
       {/* 内容 */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[var(--text-h)] truncate">{entry.title}</p>
+        <p className="text-sm font-medium text-text truncate">{entry.title}</p>
         {entry.summary ? (
-          <p className="text-xs text-[var(--text)] mt-0.5 line-clamp-2">{entry.summary}</p>
+          <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{entry.summary}</p>
         ) : null}
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {keywords.map((kw) => (
               <span
                 key={kw}
-                className="px-1.5 py-0.5 bg-[var(--accent-bg)] text-[var(--accent)] text-xs rounded"
+                className="px-1.5 py-0.5 bg-accent/10 text-accent text-xs rounded"
               >
                 {kw}
               </span>
@@ -173,14 +173,14 @@ function EntryRow({ entry, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button
           onClick={onEdit}
-          className="w-7 h-7 flex items-center justify-center rounded text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+          className="w-7 h-7 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
           title="编辑"
         >
           ✎
         </button>
         <button
           onClick={onDelete}
-          className="w-7 h-7 flex items-center justify-center rounded text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+          className="w-7 h-7 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
           title="删除"
         >
           ✕
@@ -201,11 +201,11 @@ function DeleteConfirm({ onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除</h2>
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
         <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">取消</button>
           <button
             onClick={handle}
             disabled={deleting}

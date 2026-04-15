@@ -69,13 +69,13 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
-        <div className="px-6 py-5 border-b border-[var(--border)]">
-          <h2 className="text-lg font-semibold text-[var(--text-h)]">编辑玩家</h2>
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
+        <div className="px-6 py-5 border-b border-border">
+          <h2 className="font-serif text-lg font-semibold text-text">编辑玩家</h2>
         </div>
         <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
           {!loaded ? (
-            <p className="text-sm text-[var(--text)] opacity-50">加载中…</p>
+            <p className="text-sm text-text-secondary opacity-50">加载中…</p>
           ) : (
             <>
               {/* 头像 */}
@@ -116,13 +116,13 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
                   className="hidden"
                   onChange={handleAvatarFileChange}
                 />
-                <p className="text-xs text-[var(--text)] mt-1.5 opacity-50">点击头像上传图片</p>
+                <p className="text-xs text-text-secondary mt-1.5 opacity-50">点击头像上传图片</p>
               </div>
 
               <div>
-                <label className="block text-sm text-[var(--text)] mb-1">名字</label>
+                <label className="block text-sm text-text-secondary mb-1">名字</label>
                 <input
-                  className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="你在这个世界里的名字"
@@ -130,16 +130,16 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
                 />
               </div>
               <div>
-                <label className="block text-sm text-[var(--text)] mb-1">人设</label>
+                <label className="block text-sm text-text-secondary mb-1">人设</label>
                 <textarea
-                  className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
                   rows={4}
                   value={systemPrompt}
                   onChange={(e) => setSystemPrompt(e.target.value)}
                   placeholder="你的身份、背景等"
                 />
               </div>
-              <div className="border-t border-[var(--border)] pt-4">
+              <div className="border-t border-border pt-4">
                 <StateFieldList
                   scope="persona"
                   worldId={worldId}
@@ -153,17 +153,17 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
             </>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !loaded}
-            className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {saving ? '保存中…' : '保存'}
           </button>
@@ -187,12 +187,12 @@ function PersonaCard({ worldId, onEdit }) {
 
   if (!persona || (!persona.name && !persona.system_prompt && !persona.avatar_path)) {
     return (
-      <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
-        <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-1">玩家</p>
-        <p className="text-xs text-[var(--text)] opacity-30 italic">尚未设置人设</p>
+      <div className="mb-6 group relative bg-ivory border border-border rounded-xl px-5 py-4">
+        <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide opacity-50 mb-1">玩家</p>
+        <p className="text-xs text-text-secondary opacity-30 italic">尚未设置人设</p>
         <button
           onClick={onEdit}
-          className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+          className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
           title="编辑玩家"
         >
           ✎
@@ -202,8 +202,8 @@ function PersonaCard({ worldId, onEdit }) {
   }
 
   return (
-    <div className="mb-6 group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl px-5 py-4">
-      <p className="text-xs font-semibold text-[var(--text)] uppercase tracking-wide opacity-50 mb-2">玩家</p>
+    <div className="we-persona-card mb-6 group relative bg-ivory border border-border rounded-xl px-5 py-4">
+      <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide opacity-50 mb-2">玩家</p>
       <div className="flex items-center gap-3 pr-8">
         {/* 头像 */}
         <div className="flex-none">
@@ -220,16 +220,16 @@ function PersonaCard({ worldId, onEdit }) {
         </div>
         <div className="flex flex-col gap-0.5 min-w-0">
           {persona.name && (
-            <p className="text-sm font-medium text-[var(--text-h)] truncate">{persona.name}</p>
+            <p className="text-sm font-medium text-text truncate">{persona.name}</p>
           )}
           {persona.system_prompt && (
-            <p className="text-xs text-[var(--text)] line-clamp-2">{persona.system_prompt}</p>
+            <p className="text-xs text-text-secondary line-clamp-2">{persona.system_prompt}</p>
           )}
         </div>
       </div>
       <button
         onClick={onEdit}
-        className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs opacity-0 group-hover:opacity-100"
+        className="absolute top-3 right-3 w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs opacity-0 group-hover:opacity-100"
         title="编辑玩家"
       >
         ✎
@@ -291,15 +291,15 @@ function CreateCharacterModal({ worldId, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md mx-4">
-        <div className="px-6 py-5 border-b border-[var(--border)]">
-          <h2 className="text-lg font-semibold text-[var(--text-h)]">创建角色</h2>
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-md mx-4">
+        <div className="px-6 py-5 border-b border-border">
+          <h2 className="font-serif text-lg font-semibold text-text">创建角色</h2>
         </div>
         <div className="px-6 py-5 flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">名称 <span className="text-red-400">*</span></label>
+            <label className="block text-sm text-text-secondary mb-1">名称 <span className="text-red-400">*</span></label>
             <input
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="角色的名字"
@@ -307,9 +307,9 @@ function CreateCharacterModal({ worldId, onSave, onClose }) {
             />
           </div>
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">System Prompt</label>
+            <label className="block text-sm text-text-secondary mb-1">System Prompt</label>
             <textarea
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
               rows={4}
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
@@ -318,17 +318,17 @@ function CreateCharacterModal({ worldId, onSave, onClose }) {
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
-        <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {saving ? '创建中…' : '创建'}
           </button>
@@ -349,14 +349,14 @@ function DeleteCharacterModal({ character, onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除</h2>
-        <p className="text-sm text-[var(--text)] mb-1">
-          即将删除角色 <span className="font-medium text-[var(--text-h)]">「{character.name}」</span>。
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
+        <p className="text-sm text-text-secondary mb-1">
+          即将删除角色 <span className="font-medium text-text">「{character.name}」</span>。
         </p>
         <p className="text-sm text-red-400 mb-5">此操作将同时删除该角色的所有会话记录，且无法恢复。</p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors">取消</button>
+          <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">取消</button>
           <button
             onClick={handleDelete}
             disabled={deleting}
@@ -453,16 +453,16 @@ export default function CharactersPage() {
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-[var(--text)]">加载中…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-text-secondary">加载中…</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] px-4 py-10">
+    <div className="min-h-screen bg-canvas px-4 py-10">
       <div className="max-w-4xl mx-auto">
         {/* 导航 */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors mb-6"
+          className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors mb-6"
         >
           ← 所有世界
         </button>
@@ -470,22 +470,22 @@ export default function CharactersPage() {
         {/* 页头 */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-semibold text-[var(--text-h)] tracking-tight">
+            <h1 className="text-2xl font-serif font-semibold text-text tracking-tight">
               {world?.name}
             </h1>
-            <p className="text-sm text-[var(--text)] mt-0.5">选择角色开始对话，或拖拽调整顺序</p>
+            <p className="text-sm text-text-secondary mt-0.5">选择角色开始对话，或拖拽调整顺序</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/settings')}
-              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors"
+              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
             >
               设置
             </button>
             <button
               onClick={() => charImportRef.current?.click()}
               disabled={importingChar}
-              className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:border-[var(--accent-border)] transition-colors disabled:opacity-50"
+              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
             >
               {importingChar ? '导入中…' : '导入角色卡'}
             </button>
@@ -498,7 +498,7 @@ export default function CharactersPage() {
             />
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
+              className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
             >
               + 创建角色
             </button>
@@ -510,7 +510,7 @@ export default function CharactersPage() {
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
-          <div className="text-center text-[var(--text)] py-20">
+          <div className="text-center text-text-secondary py-20">
             <p className="text-4xl mb-4">✦</p>
             <p className="text-base">还没有角色，点击右上角创建第一个</p>
           </div>
@@ -523,7 +523,7 @@ export default function CharactersPage() {
                 onDragStart={() => handleDragStart(idx)}
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDragEnd={handleDragEnd}
-                className="group relative bg-[var(--code-bg)] border border-[var(--border)] rounded-xl p-4 cursor-pointer hover:border-[var(--accent-border)] hover:shadow-md transition-all select-none"
+                className="we-character-card group relative bg-ivory border border-border rounded-xl p-4 cursor-pointer hover:border-accent/40 hover:shadow-ring transition-all select-none"
                 onClick={() => {
                   setCurrentCharacterId(char.id);
                   navigate(`/characters/${char.id}/chat`);
@@ -532,11 +532,11 @@ export default function CharactersPage() {
                 <div className="flex items-center gap-3">
                   <AvatarCircle character={char} size="md" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-[var(--text-h)] truncate">{char.name}</p>
+                    <p className="font-medium text-text truncate">{char.name}</p>
                     {char.system_prompt ? (
-                      <p className="text-xs text-[var(--text)] mt-0.5 line-clamp-2">{char.system_prompt}</p>
+                      <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{char.system_prompt}</p>
                     ) : (
-                      <p className="text-xs text-[var(--text)] opacity-40 italic mt-0.5">暂无描述</p>
+                      <p className="text-xs text-text-secondary opacity-40 italic mt-0.5">暂无描述</p>
                     )}
                   </div>
                 </div>
@@ -548,14 +548,14 @@ export default function CharactersPage() {
                 >
                   <button
                     onClick={() => navigate(`/characters/${char.id}/edit`)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
                     title="编辑"
                   >
                     ✎
                   </button>
                   <button
                     onClick={() => setDeletingChar(char)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
                     title="删除"
                   >
                     ✕

@@ -22,8 +22,8 @@ function CodeBlock({ children, className }) {
   }
 
   return (
-    <div className="relative my-3 rounded-lg overflow-hidden border border-[var(--border)]">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--code-bg)] border-b border-[var(--border)]">
+    <div className="relative my-3 rounded-lg overflow-hidden border border-border">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-ivory border-b border-border">
         <span className="text-xs opacity-50 font-mono">{lang || 'code'}</span>
         <button
           onClick={copy}
@@ -32,7 +32,7 @@ function CodeBlock({ children, className }) {
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3 text-sm font-mono bg-[var(--code-bg)] leading-relaxed">
+      <pre className="overflow-x-auto p-3 text-sm font-mono bg-ivory leading-relaxed">
         <code>{code}</code>
       </pre>
     </div>
@@ -49,7 +49,7 @@ function AttachmentThumbnail({ src }) {
       <img
         src={url}
         alt="附件"
-        className="h-20 w-20 object-cover rounded-lg cursor-pointer border border-[var(--border)] hover:opacity-90 transition-opacity"
+        className="h-20 w-20 object-cover rounded-lg cursor-pointer border border-border hover:opacity-90 transition-opacity"
         onClick={() => setEnlarged(true)}
       />
       {enlarged && (
@@ -136,7 +136,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         </div>
         <div className="flex flex-col gap-1 max-w-[75%]">
           <span className="text-xs opacity-50 mb-0.5">{character?.name}</span>
-          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[var(--code-bg)] border border-[var(--border)] flex items-center gap-1" style={{ minHeight: '44px' }}>
+          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border flex items-center gap-1" style={{ minHeight: '44px' }}>
             <span className="typing-dot" />
             <span className="typing-dot" />
             <span className="typing-dot" />
@@ -160,9 +160,9 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         </div>
         <div className="flex flex-col gap-1 max-w-[75%]">
           <span className="text-xs opacity-50 mb-0.5">{character?.name}</span>
-          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[var(--code-bg)] border border-[var(--border)] text-[var(--text-h)] text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed whitespace-pre-wrap">
             {streamingText}
-            <span className="inline-block w-0.5 h-4 bg-[var(--accent)] ml-0.5 animate-pulse align-middle" />
+            <span className="inline-block w-0.5 h-4 bg-accent ml-0.5 animate-pulse align-middle" />
           </div>
         </div>
       </div>
@@ -171,13 +171,13 @@ export default function MessageItem({ message, character, persona, worldId, isSt
 
   if (isUser) {
     return (
-      <div className="flex items-end gap-3 mb-4 group justify-end">
+      <div className="we-chat-message we-chat-message-user flex items-end gap-3 mb-4 group justify-end">
         <div className="flex-1 min-w-0 flex flex-col items-end">
         {editing ? (
           <div className="w-full max-w-[75%]">
             <textarea
               ref={textareaRef}
-              className="w-full px-4 py-3 rounded-2xl rounded-tr-sm bg-[var(--accent-bg)] border border-[var(--accent-border)] text-[var(--text-h)] text-sm leading-relaxed resize-none outline-none"
+              className="w-full px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
@@ -190,13 +190,13 @@ export default function MessageItem({ message, character, persona, worldId, isSt
             <div className="flex justify-end gap-2 mt-2">
               <button
                 onClick={cancelEdit}
-                className="text-xs px-3 py-1 rounded border border-[var(--border)] hover:bg-[var(--border)] transition-colors"
+                className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
               >
                 取消
               </button>
               <button
                 onClick={confirmEdit}
-                className="text-xs px-3 py-1 rounded bg-[var(--accent)] text-white hover:opacity-90 transition-opacity"
+                className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
               >
                 确认
               </button>
@@ -207,7 +207,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
             <div className="flex justify-end mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
               <button
                 onClick={startEdit}
-                className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
+                className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -216,7 +216,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
                 编辑
               </button>
             </div>
-            <div className="px-4 py-3 rounded-2xl rounded-tr-sm bg-[var(--accent-bg)] border border-[var(--accent-border)] text-[var(--text-h)] text-sm leading-relaxed whitespace-pre-wrap">
+            <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
             </div>
             {message.attachments?.length > 0 && (
@@ -246,7 +246,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
   // assistant 消息
   return (
     <div
-      className="flex items-start gap-3 mb-4 group"
+      className="we-chat-message we-chat-message-ai flex items-start gap-3 mb-4 group"
     >
       <div
         className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
@@ -260,19 +260,19 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         <div className="flex items-center gap-2">
           <span className="text-xs opacity-50">{character?.name}</span>
           {interrupted && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 font-medium">
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">
               已中断
             </span>
           )}
         </div>
-        <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[var(--code-bg)] border border-[var(--border)] text-[var(--text-h)] text-sm leading-relaxed">
+        <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
               code({ node, inline, className, children, ...props }) {
                 if (inline) {
                   return (
-                    <code className="px-1 py-0.5 rounded bg-[var(--border)] font-mono text-xs" {...props}>
+                    <code className="px-1 py-0.5 rounded bg-border font-mono text-xs" {...props}>
                       {children}
                     </code>
                   );
@@ -290,7 +290,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
               },
               blockquote({ children }) {
                 return (
-                  <blockquote className="border-l-2 border-[var(--accent)] pl-3 opacity-75 italic my-2">
+                  <blockquote className="border-l-2 border-accent pl-3 opacity-75 italic my-2">
                     {children}
                   </blockquote>
                 );
@@ -311,7 +311,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
           <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
           <button
             onClick={() => onRegenerate(message.id)}
-            className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-[var(--text)]"
+            className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="1 4 1 10 7 10" />

@@ -18,12 +18,12 @@ function parseValue(valueJson, type) {
 function Section({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-b border-[var(--border)] last:border-b-0">
+    <div className="border-b border-border last:border-b-0">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-[var(--border)] transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-sand transition-colors"
       >
-        <span className="text-xs font-semibold text-[var(--text-h)] uppercase tracking-wide">{title}</span>
+        <span className="font-serif text-xs font-semibold text-text uppercase tracking-wide">{title}</span>
         <svg
           width="12"
           height="12"
@@ -59,9 +59,9 @@ function StateRows({ rows }) {
       {rows.map((row) => {
         const display = parseValue(row.value_json, row.type);
         return (
-          <div key={row.field_key} className="flex gap-2 items-baseline">
+          <div key={row.field_key} className="we-state-field-row flex gap-2 items-baseline">
             <dt className="text-xs opacity-50 shrink-0 min-w-[4rem]">{row.label}</dt>
-            <dd className="text-xs text-[var(--text)] break-all">
+            <dd className="text-xs text-text-secondary break-all">
               {display != null ? display : <span className="opacity-30">—</span>}
             </dd>
           </div>
@@ -80,11 +80,11 @@ function TimelineRows({ rows }) {
       {rows.map((row) => (
         <li key={row.id} className="text-xs leading-relaxed">
           {row.is_compressed === 1 ? (
-            <span className="text-[var(--text)] opacity-40 italic">
+            <span className="text-text-secondary opacity-40 italic">
               「早期历史」{row.content}
             </span>
           ) : (
-            <span className="text-[var(--text)]">{row.content}</span>
+            <span className="text-text-secondary">{row.content}</span>
           )}
         </li>
       ))}
@@ -150,7 +150,7 @@ export default function MemoryPanel({ worldId, characterId }) {
   }, [worldId]);
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="we-memory-panel flex flex-col h-full overflow-y-auto">
       <Section title="世界状态">
         {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
       </Section>

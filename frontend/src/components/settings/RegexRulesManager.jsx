@@ -95,7 +95,7 @@ export default function RegexRulesManager() {
   }
 
   if (loading) {
-    return <p className="text-sm text-[var(--text)] opacity-60 py-2">加载中…</p>;
+    return <p className="text-sm text-text-secondary opacity-60 py-2">加载中…</p>;
   }
 
   const rulesByScope = SCOPE_ORDER.reduce((acc, scope) => {
@@ -106,12 +106,12 @@ export default function RegexRulesManager() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--text)] opacity-60">
+        <p className="text-sm text-text-secondary opacity-60">
           按 scope 分组，同组内按顺序链式执行
         </p>
         <button
           onClick={openCreate}
-          className="px-3 py-1.5 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 新建规则
         </button>
@@ -120,8 +120,8 @@ export default function RegexRulesManager() {
       {SCOPE_ORDER.map((scope) => (
         <div key={scope}>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-medium text-[var(--text-h)]">{SCOPE_LABELS[scope]}</span>
-            <span className="text-xs text-[var(--text)] opacity-40">
+            <span className="text-sm font-medium text-text">{SCOPE_LABELS[scope]}</span>
+            <span className="text-xs text-text-secondary opacity-40">
               {scope === 'user_input' && '— 前端发送前，影响存库与 LLM'}
               {scope === 'ai_output' && '— 后端流式完结后，影响存库与显示'}
               {scope === 'display_only' && '— 前端渲染时，不改存库'}
@@ -130,20 +130,20 @@ export default function RegexRulesManager() {
           </div>
 
           {rulesByScope[scope].length === 0 ? (
-            <p className="text-xs text-[var(--text)] opacity-30 ml-1 mb-2">暂无规则</p>
+            <p className="text-xs text-text-secondary opacity-30 ml-1 mb-2">暂无规则</p>
           ) : (
             <div className="flex flex-col gap-1.5">
               {rulesByScope[scope].map((rule, idx) => (
                 <div
                   key={rule.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:border-[var(--accent)] transition-colors group"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-canvas hover:border-accent transition-colors group"
                 >
                   {/* 顺序操作 */}
                   <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-60 transition-opacity">
                     <button
                       onClick={() => moveRule(rule, -1)}
                       disabled={idx === 0}
-                      className="text-[var(--text)] hover:text-[var(--text-h)] disabled:opacity-30"
+                      className="text-text-secondary hover:text-text disabled:opacity-30"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="18 15 12 9 6 15" />
@@ -152,7 +152,7 @@ export default function RegexRulesManager() {
                     <button
                       onClick={() => moveRule(rule, 1)}
                       disabled={idx === rulesByScope[scope].length - 1}
-                      className="text-[var(--text)] hover:text-[var(--text-h)] disabled:opacity-30"
+                      className="text-text-secondary hover:text-text disabled:opacity-30"
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <polyline points="6 9 12 15 18 9" />
@@ -164,7 +164,7 @@ export default function RegexRulesManager() {
                   <button
                     onClick={() => handleToggleEnabled(rule)}
                     className={`relative flex-none inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${
-                      rule.enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+                      rule.enabled ? 'bg-accent' : 'bg-border'
                     }`}
                     style={{ height: '18px', width: '32px' }}
                   >
@@ -177,16 +177,16 @@ export default function RegexRulesManager() {
 
                   {/* 名称 + 作用域 */}
                   <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${rule.enabled ? 'text-[var(--text-h)]' : 'text-[var(--text)] opacity-50'}`}>
+                    <span className={`text-sm ${rule.enabled ? 'text-text' : 'text-text-secondary opacity-50'}`}>
                       {rule.name}
                     </span>
-                    <span className="ml-2 text-xs text-[var(--text)] opacity-40">
+                    <span className="ml-2 text-xs text-text-secondary opacity-40">
                       {getWorldName(rule.world_id)}
                     </span>
                   </div>
 
                   {/* 正则预览 */}
-                  <span className="text-xs font-mono text-[var(--text)] opacity-50 truncate max-w-[120px] hidden sm:block">
+                  <span className="text-xs font-mono text-text-secondary opacity-50 truncate max-w-[120px] hidden sm:block">
                     /{rule.pattern}/{rule.flags}
                   </span>
 
@@ -194,13 +194,13 @@ export default function RegexRulesManager() {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => openEdit(rule)}
-                      className="px-2 py-1 text-xs rounded border border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)] transition-colors"
+                      className="px-2 py-1 text-xs rounded border border-border text-text-secondary hover:border-accent transition-colors"
                     >
                       编辑
                     </button>
                     <button
                       onClick={() => handleDelete(rule.id)}
-                      className="px-2 py-1 text-xs rounded border border-[var(--border)] text-red-400 hover:border-red-400 transition-colors"
+                      className="px-2 py-1 text-xs rounded border border-border text-red-400 hover:border-red-400 transition-colors"
                     >
                       删除
                     </button>

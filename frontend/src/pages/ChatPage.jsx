@@ -392,21 +392,21 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg)]" style={{ position: 'relative' }}>
+    <div className="we-app flex h-screen overflow-hidden bg-canvas" style={{ position: 'relative' }}>
       {/* Toast 提示 */}
       {toast && (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
             toast.type === 'error'
               ? 'bg-red-500 text-white'
-              : 'bg-[var(--accent)] text-white'
+              : 'bg-accent text-white'
           }`}
         >
           {toast.msg}
         </div>
       )}
       {/* 左栏：会话列表（260px） */}
-      <div className="w-[260px] flex-none border-r border-[var(--border)] flex flex-col overflow-hidden">
+      <div className="w-[260px] flex-none border-r border-border flex flex-col overflow-hidden">
         <Sidebar
           character={character}
           currentSessionId={currentSessionId}
@@ -417,11 +417,11 @@ export default function ChatPage() {
       </div>
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      <div className="we-main flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* 顶部栏 */}
-        <div className="flex items-center px-4 pt-3 pb-2 border-b border-[var(--border)] shrink-0">
+        <div className="flex items-center px-4 pt-3 pb-2 border-b border-border shrink-0">
           {currentSession ? (
-            <h1 className="flex-1 text-sm font-medium text-[var(--text-h)] truncate">
+            <h1 className="flex-1 text-sm font-medium text-text truncate">
               {currentSession.title || '新对话'}
             </h1>
           ) : (
@@ -429,7 +429,7 @@ export default function ChatPage() {
           )}
           <button
             onClick={() => navigate('/settings')}
-            className="p-1.5 mr-1 rounded-lg text-[var(--text)] opacity-40 hover:opacity-80 hover:bg-[var(--border)] transition-all"
+            className="p-1.5 mr-1 rounded-lg text-text-secondary opacity-40 hover:opacity-80 hover:bg-sand transition-all"
             title="设置"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -439,7 +439,7 @@ export default function ChatPage() {
           </button>
           <button
             onClick={() => setRightOpen((o) => !o)}
-            className="p-1.5 rounded-lg text-[var(--text)] opacity-40 hover:opacity-80 hover:bg-[var(--border)] transition-all"
+            className="p-1.5 rounded-lg text-text-secondary opacity-40 hover:opacity-80 hover:bg-sand transition-all"
             title={rightOpen ? '收起记忆面板' : '展开记忆面板'}
           >
             <svg
@@ -491,7 +491,7 @@ export default function ChatPage() {
                 <div className="flex flex-col gap-1 max-w-[75%]">
                   <span className="text-xs opacity-50">{character?.name}</span>
                   {errorBubble.partialContent && (
-                    <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-[var(--code-bg)] border border-[var(--border)] text-[var(--text-h)] text-sm leading-relaxed whitespace-pre-wrap opacity-60">
+                    <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed whitespace-pre-wrap opacity-60">
                       {errorBubble.partialContent}
                     </div>
                   )}
@@ -501,7 +501,7 @@ export default function ChatPage() {
                     </span>
                     <button
                       onClick={handleRetryAfterError}
-                      className="text-xs px-2.5 py-1 rounded-lg border border-[var(--border)] hover:bg-[var(--border)] transition-colors flex items-center gap-1 text-[var(--text)]"
+                      className="text-xs px-2.5 py-1 rounded-lg border border-border hover:bg-sand transition-colors flex items-center gap-1 text-text-secondary"
                     >
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <polyline points="1 4 1 10 7 10" />
@@ -535,9 +535,9 @@ export default function ChatPage() {
 
       {/* 右栏：记忆面板（300px，可收起） */}
       {rightOpen && character && (
-        <div className="w-[300px] flex-none border-l border-[var(--border)] flex flex-col overflow-hidden">
-          <div className="px-4 pt-4 pb-3 border-b border-[var(--border)] shrink-0">
-            <h2 className="text-sm font-semibold text-[var(--text-h)]">记忆面板</h2>
+        <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
+          <div className="px-4 pt-4 pb-3 border-b border-border shrink-0">
+            <h2 className="text-sm font-semibold text-text">记忆面板</h2>
           </div>
           <div className="flex-1 overflow-hidden">
             <MemoryPanel worldId={character.world_id} characterId={characterId} />

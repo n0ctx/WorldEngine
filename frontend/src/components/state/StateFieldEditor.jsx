@@ -19,9 +19,9 @@ const TRIGGER_MODE_OPTIONS = [
   { value: 'keyword_based',  label: '关键词触发' },
 ];
 
-const inputCls = 'w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]';
-const selectCls = 'w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]';
-const labelCls = 'block text-sm text-[var(--text)] mb-1';
+const inputCls = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
+const selectCls = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
+const labelCls = 'block text-sm text-text-secondary mb-1';
 
 /**
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
@@ -115,9 +115,9 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-[var(--border)] flex-shrink-0">
-          <h2 className="text-base font-semibold text-[var(--text-h)]">
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="px-6 py-4 border-b border-border flex-shrink-0">
+          <h2 className="text-base font-semibold text-text">
             {field ? '编辑字段' : '新建字段'}
           </h2>
         </div>
@@ -152,18 +152,18 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             <div>
               <label className={labelCls}>枚举选项（回车添加）</label>
               <div
-                className="w-full min-h-[42px] px-2 py-1.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-[var(--accent)]"
+                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
                 onClick={() => enumRef.current?.focus()}
               >
                 {form.enum_options.map((v) => (
-                  <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent)] text-xs rounded-md">
+                  <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
                     {v}
                     <button type="button" onClick={(e) => { e.stopPropagation(); removeEnum(v); }}
                       className="opacity-60 hover:opacity-100">×</button>
                   </span>
                 ))}
                 <input ref={enumRef}
-                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-[var(--text-h)] placeholder:text-[var(--text)] placeholder:opacity-40"
+                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
                   value={enumInput} onChange={(e) => setEnumInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); addEnum(enumInput); }
@@ -233,18 +233,18 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
             <div>
               <label className={labelCls}>触发关键词（回车添加）</label>
               <div
-                className="w-full min-h-[42px] px-2 py-1.5 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-[var(--accent)]"
+                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
                 onClick={() => kwRef.current?.focus()}
               >
                 {form.trigger_keywords.map((kw) => (
-                  <span key={kw} className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--accent-bg)] text-[var(--accent)] text-xs rounded-md">
+                  <span key={kw} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
                     {kw}
                     <button type="button" onClick={(e) => { e.stopPropagation(); removeKw(kw); }}
                       className="opacity-60 hover:opacity-100">×</button>
                   </span>
                 ))}
                 <input ref={kwRef}
-                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-[var(--text-h)] placeholder:text-[var(--text)] placeholder:opacity-40"
+                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
                   value={kwInput} onChange={(e) => setKwInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); addKw(kwInput); }
@@ -271,20 +271,20 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={form.allow_empty === 1}
               onChange={(e) => set('allow_empty', e.target.checked ? 1 : 0)}
-              className="accent-[var(--accent)]" />
-            <span className="text-sm text-[var(--text)]">允许值为空</span>
+              className="accent-accent" />
+            <span className="text-sm text-text-secondary">允许值为空</span>
           </label>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
 
-        <div className="px-6 py-4 border-t border-[var(--border)] flex justify-end gap-3 flex-shrink-0">
+        <div className="px-6 py-4 border-t border-border flex justify-end gap-3 flex-shrink-0">
           <button onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors">
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">
             取消
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
             {saving ? '保存中…' : '保存'}
           </button>
         </div>

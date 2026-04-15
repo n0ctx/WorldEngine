@@ -116,9 +116,9 @@ export default function Sidebar({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="we-sidebar flex flex-col h-full">
       {/* 角色信息 */}
-      <div className="px-4 pt-4 pb-3 border-b border-[var(--border)]">
+      <div className="px-4 pt-4 pb-3 border-b border-border">
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-none overflow-hidden"
@@ -129,11 +129,11 @@ export default function Sidebar({
               : (character?.name?.[0] || '?')}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[var(--text-h)] truncate">{character?.name || '…'}</p>
+            <p className="text-sm font-semibold text-text truncate">{character?.name || '…'}</p>
           </div>
           <button
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
-            className="text-xs text-[var(--text)] opacity-60 hover:opacity-100 transition-opacity flex-none"
+            className="text-xs text-text-secondary opacity-60 hover:opacity-100 transition-opacity flex-none"
             title="切换角色"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -145,7 +145,7 @@ export default function Sidebar({
         {/* 新建对话 */}
         <button
           onClick={handleCreateSession}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-[var(--border)] text-sm text-[var(--text)] hover:bg-[var(--border)] hover:text-[var(--text-h)] transition-colors"
+          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-border text-sm text-text-secondary hover:bg-sand hover:text-text transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />

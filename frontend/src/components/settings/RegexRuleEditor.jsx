@@ -76,14 +76,14 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
       className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
+      <div className="bg-canvas border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-[var(--text-h)]">
+          <h3 className="text-base font-semibold text-text">
             {rule ? '编辑规则' : '新建规则'}
           </h3>
           <button
             onClick={onClose}
-            className="text-[var(--text)] opacity-50 hover:opacity-100 transition-opacity text-lg leading-none"
+            className="text-text-secondary opacity-50 hover:opacity-100 transition-opacity text-lg leading-none"
           >
             ×
           </button>
@@ -91,9 +91,9 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 名称 */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">规则名称</label>
+          <label className="block text-sm text-text-secondary mb-1">规则名称</label>
           <input
-            className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
             value={form.name}
             onChange={(e) => setField('name', e.target.value)}
             placeholder="便于识别的名称"
@@ -102,9 +102,9 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 作用时机 */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">作用时机</label>
+          <label className="block text-sm text-text-secondary mb-1">作用时机</label>
           <select
-            className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
             value={form.scope}
             onChange={(e) => setField('scope', e.target.value)}
           >
@@ -116,9 +116,9 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 作用世界 */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">作用范围</label>
+          <label className="block text-sm text-text-secondary mb-1">作用范围</label>
           <select
-            className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
             value={form.world_id ?? ''}
             onChange={(e) => setField('world_id', e.target.value || null)}
           >
@@ -131,9 +131,9 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 正则表达式 */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">正则表达式</label>
+          <label className="block text-sm text-text-secondary mb-1">正则表达式</label>
           <input
-            className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm font-mono focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent"
             value={form.pattern}
             onChange={(e) => setField('pattern', e.target.value)}
             placeholder="不含 / 分隔符和 flags，如：哈哈"
@@ -142,9 +142,9 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 替换文本 */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">替换文本</label>
+          <label className="block text-sm text-text-secondary mb-1">替换文本</label>
           <input
-            className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm font-mono focus:outline-none focus:border-[var(--accent)]"
+            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent"
             value={form.replacement}
             onChange={(e) => setField('replacement', e.target.value)}
             placeholder="支持 $1 $2 等回引，留空表示删除匹配部分"
@@ -153,7 +153,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* Flags */}
         <div>
-          <label className="block text-sm text-[var(--text)] mb-1">Flags</label>
+          <label className="block text-sm text-text-secondary mb-1">Flags</label>
           <div className="flex gap-2 flex-wrap">
             {FLAGS_PRESETS.map((f) => (
               <button
@@ -161,8 +161,8 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
                 onClick={() => { setField('flags', f); setFlagsCustom(false); }}
                 className={`px-3 py-1 text-sm rounded border font-mono transition-colors ${
                   !flagsCustom && form.flags === f
-                    ? 'border-[var(--accent)] bg-[var(--accent-bg)] text-[var(--text-h)]'
-                    : 'border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)]'
+                    ? 'border-accent bg-accent/10 text-text'
+                    : 'border-border text-text-secondary hover:border-accent'
                 }`}
               >
                 {f}
@@ -172,15 +172,15 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
               onClick={() => setFlagsCustom(true)}
               className={`px-3 py-1 text-sm rounded border transition-colors ${
                 flagsCustom
-                  ? 'border-[var(--accent)] bg-[var(--accent-bg)] text-[var(--text-h)]'
-                  : 'border-[var(--border)] text-[var(--text)] hover:border-[var(--accent)]'
+                  ? 'border-accent bg-accent/10 text-text'
+                  : 'border-border text-text-secondary hover:border-accent'
               }`}
             >
               自定义
             </button>
             {flagsCustom && (
               <input
-                className="px-3 py-1 w-24 bg-[var(--code-bg)] border border-[var(--accent)] rounded text-[var(--text-h)] text-sm font-mono focus:outline-none"
+                className="px-3 py-1 w-24 bg-ivory border border-accent rounded text-text text-sm font-mono focus:outline-none"
                 value={form.flags}
                 onChange={(e) => setField('flags', e.target.value)}
                 placeholder="如 gims"
@@ -194,7 +194,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
           <button
             onClick={() => setField('enabled', form.enabled ? 0 : 1)}
             className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              form.enabled ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'
+              form.enabled ? 'bg-accent' : 'bg-border'
             }`}
           >
             <span
@@ -203,14 +203,14 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
               }`}
             />
           </button>
-          <span className="text-sm text-[var(--text)]">{form.enabled ? '已启用' : '已禁用'}</span>
+          <span className="text-sm text-text-secondary">{form.enabled ? '已启用' : '已禁用'}</span>
         </div>
 
         {/* 测试区 */}
-        <div className="border border-[var(--border)] rounded-xl p-4 flex flex-col gap-2 bg-[var(--code-bg)]">
-          <span className="text-xs text-[var(--text)] opacity-60 font-medium uppercase tracking-wide">测试</span>
+        <div className="border border-border rounded-xl p-4 flex flex-col gap-2 bg-ivory">
+          <span className="text-xs text-text-secondary opacity-60 font-medium uppercase tracking-wide">测试</span>
           <textarea
-            className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm font-mono focus:outline-none focus:border-[var(--accent)] resize-none"
+            className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent resize-none"
             rows={3}
             placeholder="输入样本文本…"
             value={testInput}
@@ -218,7 +218,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
           />
           <button
             onClick={handleTest}
-            className="self-start px-3 py-1.5 text-sm border border-[var(--border)] rounded-lg text-[var(--text-h)] hover:border-[var(--accent)] transition-colors"
+            className="self-start px-3 py-1.5 text-sm border border-border rounded-lg text-text hover:border-accent transition-colors"
           >
             测试替换
           </button>
@@ -226,7 +226,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
             <p className="text-xs text-red-400 font-mono">{testError}</p>
           )}
           {testOutput !== null && !testError && (
-            <div className="px-3 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm font-mono whitespace-pre-wrap">
+            <div className="px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm font-mono whitespace-pre-wrap">
               {testOutput}
             </div>
           )}
@@ -236,14 +236,14 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         <div className="flex justify-end gap-2 pt-1">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm border border-[var(--border)] rounded-lg text-[var(--text-h)] hover:bg-[var(--border)] transition-colors"
+            className="px-4 py-2 text-sm border border-border rounded-lg text-text hover:bg-sand transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {saving ? '保存中…' : '保存'}
           </button>

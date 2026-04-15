@@ -61,10 +61,10 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
 
   return (
     <div
-      className={`group relative flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+      className={`we-session-card group relative flex items-start gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
         isActive
-          ? 'bg-[var(--accent-bg)] text-[var(--text-h)]'
-          : 'hover:bg-[var(--border)] text-[var(--text)]'
+          ? 'bg-accent/10 text-text'
+          : 'hover:bg-sand text-text-secondary'
       }`}
       onClick={() => !editing && onSelect(session)}
       onMouseEnter={() => setHovered(true)}
@@ -74,7 +74,7 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
         {editing ? (
           <input
             ref={inputRef}
-            className="w-full text-sm bg-[var(--bg)] border border-[var(--accent)] rounded px-1 py-0.5 text-[var(--text-h)] outline-none"
+            className="w-full text-sm bg-canvas border border-accent rounded px-1 py-0.5 text-text outline-none"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -106,7 +106,7 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
               </button>
               <button
                 onClick={handleCancelDelete}
-                className="text-xs px-1.5 py-0.5 rounded bg-[var(--border)] hover:bg-[var(--code-bg)]"
+                className="text-xs px-1.5 py-0.5 rounded bg-border hover:bg-ivory"
               >
                 取消
               </button>

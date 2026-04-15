@@ -110,7 +110,7 @@ export default function MessageList({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--text)] opacity-50 text-sm">
+      <div className="flex-1 flex items-center justify-center text-text-secondary opacity-50 text-sm">
         加载中…
       </div>
     );
@@ -118,7 +118,7 @@ export default function MessageList({
 
   if (!sessionId) {
     return (
-      <div className="flex-1 flex items-center justify-center text-[var(--text)] opacity-40 text-sm">
+      <div className="flex-1 flex items-center justify-center text-text-secondary opacity-40 text-sm">
         请选择或创建一个对话
       </div>
     );
@@ -136,33 +136,33 @@ export default function MessageList({
 
       {/* 记忆检索提示 */}
       {memoryRecalling && (
-        <div className="flex items-center justify-center gap-2 py-3 text-xs text-[var(--accent)] opacity-70">
-          <span className="typing-dot" style={{ background: 'var(--accent)' }} />
-          <span className="typing-dot" style={{ background: 'var(--accent)' }} />
-          <span className="typing-dot" style={{ background: 'var(--accent)' }} />
+        <div className="flex items-center justify-center gap-2 py-3 text-xs text-accent opacity-70">
+          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
           <span className="ml-1">正在检索记忆…</span>
         </div>
       )}
 
       {/* 记忆原文展开提示（T28） */}
       {memoryExpanding && (
-        <div className="flex items-center justify-center gap-2 py-2 text-xs text-[var(--text)] opacity-50">
-          <span className="typing-dot" style={{ background: 'var(--text)' }} />
-          <span className="typing-dot" style={{ background: 'var(--text)' }} />
-          <span className="typing-dot" style={{ background: 'var(--text)' }} />
+        <div className="flex items-center justify-center gap-2 py-2 text-xs text-text-secondary opacity-50">
+          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
+          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
+          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
           <span className="ml-1">正在翻阅历史对话…</span>
         </div>
       )}
       {!memoryExpanding && expandedMessage && (
         <div className="flex items-center justify-center py-2">
-          <span className="text-xs text-[var(--text)] opacity-40 px-3 py-1 rounded-full border border-[var(--border)]">
+          <span className="text-xs text-text-secondary opacity-40 px-3 py-1 rounded-full border border-border">
             {expandedMessage}
           </span>
         </div>
       )}
 
       {messages.length === 0 && !generating && (
-        <div className="flex items-center justify-center h-full text-[var(--text)] opacity-30 text-sm">
+        <div className="flex items-center justify-center h-full text-text-secondary opacity-30 text-sm">
           开始对话吧
         </div>
       )}

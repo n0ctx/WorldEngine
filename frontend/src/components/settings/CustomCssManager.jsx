@@ -69,21 +69,21 @@ export default function CustomCssManager() {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-[var(--text)] uppercase tracking-wider opacity-60">
+        <span className="text-xs font-medium text-text-secondary uppercase tracking-wider opacity-60">
           自定义 CSS 片段
         </span>
         <button
           onClick={() => { setEditingSnippet(null); setShowEditor(true); }}
-          className="text-xs px-2.5 py-1 bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="text-xs px-2.5 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
       </div>
 
       {loading ? (
-        <p className="text-xs text-[var(--text)] opacity-50 py-3 text-center">加载中…</p>
+        <p className="text-xs text-text-secondary opacity-50 py-3 text-center">加载中…</p>
       ) : snippets.length === 0 ? (
-        <p className="text-xs text-[var(--text)] opacity-35 italic py-3 text-center">暂无 CSS 片段</p>
+        <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无 CSS 片段</p>
       ) : (
         <div className="flex flex-col gap-1.5">
           {snippets.map((s, idx) => (
@@ -126,14 +126,14 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete, onDragStart, onDragOv
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-center gap-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-[var(--accent-border)] transition-colors"
+      className="group flex items-center gap-2 bg-canvas border border-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
     >
-      <span className="text-[var(--text)] opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
+      <span className="text-text-secondary opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-[var(--text-h)] font-medium truncate">{snippet.name}</span>
+        <span className="text-sm text-text font-medium truncate">{snippet.name}</span>
         {snippet.content && (
-          <span className="text-xs text-[var(--text)] opacity-40 font-mono truncate">
+          <span className="text-xs text-text-secondary opacity-40 font-mono truncate">
             {snippet.content.trim().slice(0, 40)}{snippet.content.trim().length > 40 ? '…' : ''}
           </span>
         )}
@@ -146,8 +146,8 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete, onDragStart, onDragOv
           title={snippet.enabled ? '点击禁用' : '点击启用'}
           className={`text-xs px-2 py-0.5 rounded border transition-colors ${
             snippet.enabled
-              ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--accent-bg)]'
-              : 'border-[var(--border)] text-[var(--text)] opacity-40'
+              ? 'border-accent text-accent bg-accent/10'
+              : 'border-border text-text-secondary opacity-40'
           }`}
         >
           {snippet.enabled ? '启用' : '禁用'}
@@ -156,12 +156,12 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete, onDragStart, onDragOv
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={onEdit}
-            className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-[var(--text-h)] hover:bg-[var(--border)] transition-colors text-xs"
+            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
             title="编辑"
           >✎</button>
           <button
             onClick={onDelete}
-            className="w-6 h-6 flex items-center justify-center rounded text-[var(--text)] hover:text-red-400 hover:bg-[var(--border)] transition-colors text-xs"
+            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
             title="删除"
           >✕</button>
         </div>
@@ -191,16 +191,16 @@ function SnippetEditor({ snippet, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-2xl mx-4 p-6 flex flex-col gap-4">
-        <h2 className="text-base font-semibold text-[var(--text-h)]">
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-2xl mx-4 p-6 flex flex-col gap-4">
+        <h2 className="text-base font-semibold text-text">
           {snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}
         </h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">片段名称</label>
+            <label className="block text-sm text-text-secondary mb-1">片段名称</label>
             <input
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm focus:outline-none focus:border-[var(--accent)]"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例：消息气泡样式"
@@ -209,9 +209,9 @@ function SnippetEditor({ snippet, onSave, onClose }) {
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--text)] mb-1">CSS 内容</label>
+            <label className="block text-sm text-text-secondary mb-1">CSS 内容</label>
             <textarea
-              className="w-full px-3 py-2 bg-[var(--code-bg)] border border-[var(--border)] rounded-lg text-[var(--text-h)] text-sm font-mono focus:outline-none focus:border-[var(--accent)] resize-none"
+              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent resize-none"
               rows={12}
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -224,14 +224,14 @@ function SnippetEditor({ snippet, onSave, onClose }) {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+              className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
             >
               取消
             </button>
             <button
               type="submit"
               disabled={saving || !name.trim()}
-              className="px-5 py-2 text-sm bg-[var(--accent)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {saving ? '保存中…' : '保存'}
             </button>
@@ -251,13 +251,13 @@ function DeleteConfirm({ onConfirm, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-[var(--text-h)] mb-2">确认删除</h2>
+      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
+        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
         <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-[var(--text)] hover:text-[var(--text-h)] transition-colors"
+            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
           >
             取消
           </button>
