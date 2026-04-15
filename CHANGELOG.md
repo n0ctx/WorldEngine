@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T35 修订 — MarkdownEditor 改为 tiptap 真正 WYSIWYG ✅
+- **问题**：原 T35 用 `@uiw/react-md-editor`（preview=live），渲染为左右分栏，不是所见即所得
+- **修改**：移除 `@uiw/react-md-editor`，改用 `@tiptap/react` + `@tiptap/starter-kit` + `@tiptap/extension-placeholder` + `tiptap-markdown`；`MarkdownEditor.jsx` 重写为 tiptap WYSIWYG，内容直接以富文本形式渲染（无分栏、无可见 markdown 符号）
+- **涉及文件**：`frontend/src/components/ui/MarkdownEditor.jsx`（重写）、`frontend/src/index.css`（去掉旧 `.we-md-editor` 块，换成 tiptap `.ProseMirror` 样式）、`frontend/package.json`
+- **注意**：组件 API（value/onChange/placeholder/minHeight/className）保持不变，调用方零改动；光标同步用 `useEffect` 比对当前 markdown 与 prop，仅外部变更时才调用 `setContent`
+
 ## T38 — 玩家卡导出为角色卡 ✅
 - **对外接口**：`GET /api/worlds/:worldId/persona/export` → 返回 worldengine-character-v1 格式 JSON
 - **涉及文件**：`backend/services/import-export.js`（新增 `exportPersona`）、`backend/routes/import-export.js`（新增路由）、`frontend/src/api/importExport.js`（新增 `exportPersona`/`downloadPersonaCard`）、`frontend/src/pages/CharactersPage.jsx`（PersonaEditModal 底部加「导出为角色卡」按钮）
