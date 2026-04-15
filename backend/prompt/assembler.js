@@ -22,6 +22,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getSessionById } from '../db/queries/sessions.js';
+import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
@@ -209,4 +210,125 @@ export async function buildPrompt(sessionId, options = {}) {
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
 
   return { messages, temperature, maxTokens, recallHitCount };
+}
+
+/**
+ * 写作空间提示词组装器
+ *
+ * 写作模式下没有单一绑定角色，而是一个世界 + 多个激活角色。
+ * 组装顺序与 buildPrompt 对齐，但 [4][5][6] 针对所有激活角色展开。
+ *
+ * @param {string} sessionId
+ * @param {object} [options]
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number }>}
+ */
+export async function buildWritingPrompt(sessionId, options = {}) {
+  const session = getSessionById(sessionId);
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+  const world = getWorldById(session.world_id);
+  if (!world) throw new Error(`World not found: ${session.world_id}`);
+
+  const config = getConfig();
+  const systemParts = [];
+
+  // [1] 全局 System Prompt
+  if (config.global_system_prompt) {
+    systemParts.push(config.global_system_prompt);
+  }
+
+  // [2] 世界 System Prompt
+  if (world.system_prompt) {
+    systemParts.push(world.system_prompt);
+  }
+
+  // [3] 用户 Persona
+  const persona = getOrCreatePersona(world.id);
+  const personaName = persona?.name || '';
+  const personaPrompt = persona?.system_prompt || '';
+  if (personaName || personaPrompt) {
+    const lines = ['[用户人设]'];
+    if (personaName) lines.push(`名字：${personaName}`);
+    if (personaPrompt) lines.push(personaPrompt);
+    systemParts.push(lines.join('\n'));
+  }
+
+  // [4] 激活角色 System Prompt（每个角色一段）
+  const activeCharacters = getWritingSessionCharacters(sessionId);
+
+  for (const character of activeCharacters) {
+    if (character.system_prompt) {
+      systemParts.push(`[角色：${character.name}]\n${character.system_prompt}`);
+    }
+  }
+
+  // [5] Prompt 条目（全局→世界→各激活角色）
+  const globalEntries = getAllGlobalEntries();
+  const worldEntries = getAllWorldEntries(world.id);
+  const allCharacterEntries = [];
+  for (const character of activeCharacters) {
+    const entries = getAllCharacterEntries(character.id);
+    allCharacterEntries.push(...entries);
+  }
+  const allEntries = [...globalEntries, ...worldEntries, ...allCharacterEntries];
+
+  const triggeredIds = await matchEntries(sessionId, allEntries);
+
+  const entryTexts = [];
+  for (const entry of allEntries) {
+    if (triggeredIds.has(entry.id)) {
+      if (entry.content) entryTexts.push(entry.content);
+    } else {
+      if (entry.summary) entryTexts.push(entry.summary);
+    }
+  }
+  if (entryTexts.length > 0) {
+    systemParts.push(entryTexts.join('\n\n'));
+  }
+
+  // [6] 状态与记忆注入
+  const personaStateText = renderPersonaState(world.id);
+  const worldStateText = renderWorldState(world.id);
+  const timelineText = renderTimeline(world.id);
+
+  // 各激活角色状态
+  const charStateTexts = [];
+  for (const character of activeCharacters) {
+    const t = renderCharacterState(character.id);
+    if (t) charStateTexts.push(t);
+  }
+
+  // 压缩历史摘要
+  if (session.compressed_context) {
+    systemParts.push(`[早期对话摘要]\n${session.compressed_context}`);
+  }
+
+  const recallParts = [personaStateText, ...charStateTexts, worldStateText, timelineText].filter(Boolean);
+  if (recallParts.length > 0) {
+    systemParts.push(recallParts.join('\n\n'));
+  }
+
+  // [1-6] 合并为单个 role:system 消息
+  const messages = [];
+  if (systemParts.length > 0) {
+    messages.push({ role: 'system', content: systemParts.join('\n\n') });
+  }
+
+  // [7] 历史消息
+  const history = getUncompressedMessagesBySessionId(sessionId);
+  for (const msg of history) {
+    const content = applyRules(msg.content, 'prompt_only', world.id);
+    messages.push(formatMessageForLLM({ ...msg, content }));
+  }
+
+  // [8] 后置提示词（全局→世界，写作模式无角色后置提示词）
+  const postParts = [config.global_post_prompt, world.post_prompt].filter(Boolean);
+  if (postParts.length > 0) {
+    messages.push({ role: 'user', content: postParts.join('\n\n') });
+  }
+
+  const temperature = world.temperature ?? config.llm.temperature;
+  const maxTokens = world.max_tokens ?? config.llm.max_tokens;
+
+  return { messages, temperature, maxTokens };
 }

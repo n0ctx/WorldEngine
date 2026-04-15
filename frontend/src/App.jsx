@@ -5,6 +5,7 @@ import CharactersPage from './pages/CharactersPage';
 import CharacterEditPage from './pages/CharacterEditPage';
 import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
+import WritingSpacePage from './pages/WritingSpacePage';
 import { refreshCustomCss } from './api/customCssSnippets';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
       <Route path="/worlds/:worldId" element={<CharactersPage />} />
       <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
       <Route path="/characters/:characterId/chat" element={<ChatPage />} />
+      <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );

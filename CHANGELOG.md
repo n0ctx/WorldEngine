@@ -19,6 +19,16 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T34 — 写作空间 ✅
+- **入口**：角色选择页右上角 "写作空间" 按钮 → `/worlds/:worldId/writing`
+- **路由（后端）**：`/api/worlds/:worldId/writing-sessions` 及子路由，注册在 `server.js` 的 `app.use('/api/worlds', writingRoutes)`
+- **DB 迁移**：`sessions` 表通过 table-recreation 将 `character_id NOT NULL` 改为可空，同时新增 `world_id`（FK→worlds）和 `mode TEXT DEFAULT 'chat'`；新增 `writing_session_characters` 联结表（session_id, character_id UNIQUE）；迁移逻辑在 `initSchema` 末尾，先检测 `PRAGMA table_info(sessions)` 中 `charCol.notnull === 1` 再执行
+- **对外接口**：`buildWritingPrompt(sessionId, options?)` 追加在 `assembler.js` 末尾，不修改 `buildPrompt`；写作路由在 `routes/writing.js`；写作 service 在 `services/writing-sessions.js`；DB 查询在 `db/queries/writing-sessions.js`
+- **激活角色**：通过 `writing_session_characters` 表动态管理，可在会话中随时增删；`buildWritingPrompt` 循环所有激活角色注入 [4][5][6]
+- **状态更新**：生成完成后并行 enqueue 所有激活角色的 `updateCharacterState`（优先级 2）+ persona 状态 + 世界状态
+- **前端组件**：`WritingSpacePage`（主页）、`WritingSidebar`（会话列表）、`WritingMessageList/Item`（散文展示，无气泡）、`MultiCharacterMemoryPanel`（含激活角色选择器）、`ActiveCharactersPicker`；API 封装在 `api/writingSessions.js`
+- **注意**：写作会话 `character_id = NULL`，`mode = 'writing'`；旧 chat 会话自动补 `mode = 'chat'`；`getWritingSessionById` 查询条件含 `mode = 'writing'` 防误用普通会话 id
+
 ## T33 — 状态字段 list 类型 ✅
 - **新增类型**：状态字段（世界/角色/玩家）支持 `list`（字符串列表）类型，适用于装备列表、物品列表等场景
 - **存储**：`value_json` 存 JSON 数组字符串（`["条目1","条目2"]`），无需改动数据库 schema

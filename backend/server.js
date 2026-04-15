@@ -30,6 +30,7 @@ import regexRulesRoutes from './routes/regex-rules.js';
 import personasRoutes from './routes/personas.js';
 import personaStateFieldsRoutes from './routes/persona-state-fields.js';
 import personaStateValuesRoutes from './routes/persona-state-values.js';
+import writingRoutes from './routes/writing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -71,6 +72,7 @@ app.use('/api', regexRulesRoutes);
 app.use('/api', personasRoutes);
 app.use('/api', personaStateFieldsRoutes);
 app.use('/api', personaStateValuesRoutes);
+app.use('/api/worlds', writingRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
