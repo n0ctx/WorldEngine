@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
 import { applyRules } from '../../utils/regex-runner.js';
 
 const REMARK_PLUGINS = [remarkGfm];
+const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
 
 const MD_COMPONENTS = {
   code({ node, inline, className, children, ...props }) {
@@ -299,6 +302,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
           <ReactMarkdown
             remarkPlugins={REMARK_PLUGINS}
+            rehypePlugins={REHYPE_PLUGINS}
             components={MD_COMPONENTS}
           >
             {displayContent}

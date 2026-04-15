@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T37 — 对话消息 CSS+HTML 渲染支持 ✅
+- **对外接口**：无新增接口
+- **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`、`frontend/package.json`
+- **注意**：仅 assistant 消息的 ReactMarkdown 加了 `rehypePlugins={[rehypeRaw, rehypeSanitize]}`；流式状态仍用 whitespace-pre-wrap 纯文本，不走 ReactMarkdown，未改动；sanitize 使用 rehype-sanitize 默认规则（允许常规 HTML 标签，过滤 script/on* 等危险属性）
+
 ## T36 — 状态字段表单逻辑修正 ✅
 - **对外接口**：无新增接口
 - **涉及文件**：`frontend/src/components/state/StateFieldEditor.jsx`、`backend/db/queries/world-state-fields.js`、`backend/db/queries/character-state-fields.js`、`backend/db/queries/persona-state-fields.js`
