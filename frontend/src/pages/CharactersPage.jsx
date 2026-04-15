@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   getCharactersByWorld,
-  createCharacter,
   deleteCharacter,
   reorderCharacters,
 } from '../api/characters';
@@ -106,78 +105,6 @@ function AvatarCircle({ character, size = 'md' }) {
   );
 }
 
-function CreateCharacterModal({ worldId, onSave, onClose }) {
-  const [name, setName] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleSave() {
-    if (!name.trim()) {
-      setError('名称为必填项');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      await onSave({ name: name.trim(), system_prompt: systemPrompt });
-      onClose();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-md mx-4">
-        <div className="px-6 py-5 border-b border-border">
-          <h2 className="font-serif text-lg font-semibold text-text">创建角色</h2>
-        </div>
-        <div className="px-6 py-5 flex flex-col gap-4">
-          <div>
-            <label className="block text-sm text-text-secondary mb-1">名称 <span className="text-red-400">*</span></label>
-            <input
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="角色的名字"
-              autoFocus
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-text-secondary mb-1">System Prompt</label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={4}
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              placeholder="角色的性格、背景、说话风格……"
-            />
-          </div>
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </div>
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? '创建中…' : '创建'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function DeleteCharacterModal({ character, onConfirm, onClose }) {
   const [deleting, setDeleting] = useState(false);
 
@@ -218,7 +145,6 @@ export default function CharactersPage() {
   const [world, setWorld] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [deletingChar, setDeletingChar] = useState(null);
   const [importingChar, setImportingChar] = useState(false);
 
@@ -237,12 +163,6 @@ export default function CharactersPage() {
   }
 
   useEffect(() => { loadData(); }, [worldId]);
-
-  async function handleCreate(data) {
-    await createCharacter(worldId, data);
-    const chars = await getCharactersByWorld(worldId);
-    setCharacters(chars);
-  }
 
   async function handleDelete() {
     await deleteCharacter(deletingChar.id);
@@ -357,7 +277,7 @@ export default function CharactersPage() {
               onChange={handleImportCharFile}
             />
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => navigate(`/worlds/${worldId}/characters/new`)}
               className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
             >
               + 创建角色
@@ -427,13 +347,6 @@ export default function CharactersPage() {
         )}
       </div>
 
-      {showCreate && (
-        <CreateCharacterModal
-          worldId={worldId}
-          onSave={handleCreate}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
       {deletingChar && (
         <DeleteCharacterModal
           character={deletingChar}

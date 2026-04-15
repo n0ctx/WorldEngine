@@ -1,167 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getWorlds, createWorld, deleteWorld } from '../api/worlds';
+import { getWorlds, deleteWorld } from '../api/worlds';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
-import MarkdownEditor from '../components/ui/MarkdownEditor';
-
-// 世界表单的初始空值
-const EMPTY_FORM = {
-  name: '',
-  system_prompt: '',
-  post_prompt: '',
-  temperature: 1.0,
-  max_tokens: 2048,
-  useGlobalTemp: true,
-  useGlobalMaxTokens: true,
-};
-
-function WorldFormModal({ onSave, onClose }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  function set(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
-  }
-
-  async function handleSave() {
-    if (!form.name.trim()) {
-      setError('名称为必填项');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    try {
-      const payload = {
-        name: form.name.trim(),
-        system_prompt: form.system_prompt,
-        post_prompt: form.post_prompt,
-        temperature: form.useGlobalTemp ? null : form.temperature,
-        max_tokens: form.useGlobalMaxTokens ? null : form.max_tokens,
-      };
-      await onSave(payload);
-      onClose();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
-        <div className="px-6 py-5 border-b border-border">
-          <h2 className="font-serif text-lg font-semibold text-text">创建世界</h2>
-        </div>
-        <div className="overflow-y-auto px-6 py-5 flex flex-col gap-4">
-          <div>
-            <label className="block text-sm text-text-secondary mb-1">名称 <span className="text-red-400">*</span></label>
-            <input
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-              value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-              placeholder="世界的名称"
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-text-secondary mb-1">世界 System Prompt</label>
-            <MarkdownEditor
-              value={form.system_prompt}
-              onChange={(v) => set('system_prompt', v)}
-              placeholder="描述这个世界的背景、规则、氛围……"
-              minHeight={96}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-text-secondary mb-1">
-              世界后置提示词
-              <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
-            </label>
-            <MarkdownEditor
-              value={form.post_prompt}
-              onChange={(v) => set('post_prompt', v)}
-              placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
-              minHeight={72}
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-text-secondary">Temperature</label>
-              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.useGlobalTemp}
-                  onChange={(e) => set('useGlobalTemp', e.target.checked)}
-                  className="accent-accent"
-                />
-                使用全局默认
-              </label>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0.1" max="2.0" step="0.1"
-                value={form.temperature}
-                disabled={form.useGlobalTemp}
-                onChange={(e) => set('temperature', parseFloat(e.target.value))}
-                className="flex-1 accent-accent disabled:opacity-40"
-              />
-              <span className="w-10 text-right text-sm text-text font-mono">
-                {form.useGlobalTemp ? '—' : form.temperature.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-text-secondary">Max Tokens</label>
-              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.useGlobalMaxTokens}
-                  onChange={(e) => set('useGlobalMaxTokens', e.target.checked)}
-                  className="accent-accent"
-                />
-                使用全局默认
-              </label>
-            </div>
-            <input
-              type="number"
-              min="64" max="32000" step="64"
-              value={form.max_tokens}
-              disabled={form.useGlobalMaxTokens}
-              onChange={(e) => set('max_tokens', parseInt(e.target.value, 10))}
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent disabled:opacity-40"
-            />
-          </div>
-
-          {error && <p className="text-sm text-red-400">{error}</p>}
-        </div>
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? '创建中…' : '创建'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function DeleteConfirmModal({ world, onConfirm, onClose }) {
   const [deleting, setDeleting] = useState(false);
@@ -208,7 +49,6 @@ export default function WorldsPage() {
 
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
   const [deletingWorld, setDeletingWorld] = useState(null);
   const [exportingWorldId, setExportingWorldId] = useState(null);
   const [importingWorld, setImportingWorld] = useState(false);
@@ -228,11 +68,6 @@ export default function WorldsPage() {
   function handleEnterWorld(world) {
     setCurrentWorldId(world.id);
     navigate(`/worlds/${world.id}`);
-  }
-
-  async function handleCreate(payload) {
-    await createWorld(payload);
-    await loadWorlds();
   }
 
   async function handleDelete() {
@@ -301,7 +136,7 @@ export default function WorldsPage() {
               onChange={handleImportWorldFile}
             />
             <button
-              onClick={() => setShowCreate(true)}
+              onClick={() => navigate('/worlds/new')}
               className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
             >
               + 创建世界
@@ -366,12 +201,6 @@ export default function WorldsPage() {
         )}
       </div>
 
-      {showCreate && (
-        <WorldFormModal
-          onSave={handleCreate}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
       {deletingWorld && (
         <DeleteConfirmModal
           world={deletingWorld}

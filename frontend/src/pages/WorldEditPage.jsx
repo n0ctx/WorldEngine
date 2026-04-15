@@ -30,20 +30,12 @@ export default function WorldEditPage() {
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [postPrompt, setPostPrompt] = useState('');
-  const [temperature, setTemperature] = useState(1.0);
-  const [maxTokens, setMaxTokens] = useState(2048);
-  const [useGlobalTemp, setUseGlobalTemp] = useState(true);
-  const [useGlobalMaxTokens, setUseGlobalMaxTokens] = useState(true);
 
   useEffect(() => {
     getWorld(worldId).then((w) => {
       setName(w.name ?? '');
       setSystemPrompt(w.system_prompt ?? '');
       setPostPrompt(w.post_prompt ?? '');
-      setTemperature(w.temperature ?? 1.0);
-      setMaxTokens(w.max_tokens ?? 2048);
-      setUseGlobalTemp(w.temperature == null);
-      setUseGlobalMaxTokens(w.max_tokens == null);
       setLoading(false);
     });
   }, [worldId]);
@@ -60,8 +52,8 @@ export default function WorldEditPage() {
         name: name.trim(),
         system_prompt: systemPrompt,
         post_prompt: postPrompt,
-        temperature: useGlobalTemp ? null : temperature,
-        max_tokens: useGlobalMaxTokens ? null : maxTokens,
+        temperature: null,
+        max_tokens: null,
       });
       navigate(-1);
     } catch (e) {
@@ -144,59 +136,6 @@ export default function WorldEditPage() {
               onChange={setPostPrompt}
               placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
               minHeight={72}
-            />
-          </div>
-
-          {/* Temperature */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-text-secondary">Temperature</label>
-              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useGlobalTemp}
-                  onChange={(e) => setUseGlobalTemp(e.target.checked)}
-                  className="accent-accent"
-                />
-                使用全局默认
-              </label>
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                min="0.1" max="2.0" step="0.1"
-                value={temperature}
-                disabled={useGlobalTemp}
-                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="flex-1 accent-accent disabled:opacity-40"
-              />
-              <span className="w-10 text-right text-sm text-text font-mono">
-                {useGlobalTemp ? '—' : temperature.toFixed(1)}
-              </span>
-            </div>
-          </div>
-
-          {/* Max Tokens */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-text-secondary">Max Tokens</label>
-              <label className="flex items-center gap-1.5 text-sm text-text-secondary cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useGlobalMaxTokens}
-                  onChange={(e) => setUseGlobalMaxTokens(e.target.checked)}
-                  className="accent-accent"
-                />
-                使用全局默认
-              </label>
-            </div>
-            <input
-              type="number"
-              min="64" max="32000" step="64"
-              value={maxTokens}
-              disabled={useGlobalMaxTokens}
-              onChange={(e) => setMaxTokens(parseInt(e.target.value, 10))}
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent disabled:opacity-40"
             />
           </div>
 

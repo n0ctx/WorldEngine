@@ -72,8 +72,13 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
     setErrMsg('');
     try {
       const data = await loadModels();
-      setModels(data.models || []);
+      const list = data.models || [];
+      setModels(list);
       setStatus('ok');
+      // 当前值为空或不在新列表中时，自动选第一个可用模型
+      if (list.length > 0 && (!value || !list.includes(value))) {
+        onChange(list[0]);
+      }
     } catch (e) {
       setErrMsg(e.message || '无法获取模型列表，请检查 API Key 和网络连接');
       setStatus('error');
@@ -254,9 +259,11 @@ export default function SettingsPage() {
 
   async function handleLlmChange(field, value) {
     if (field === 'provider') {
-      // 切换到非本地 provider 时清除 base_url，避免旧 base_url 干扰模型拉取
+      // 切换 provider 时清除 base_url（非本地）和 model，避免旧值干扰新 provider
       const isLocal = LOCAL_PROVIDERS.includes(value);
-      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
+      const patch = isLocal
+        ? { provider: value, model: '' }
+        : { provider: value, base_url: '', model: '' };
       // 先保存再更新 state，避免 ModelSelector 在旧 provider 下拉取模型
       await patchConfig({ llm: patch });
       setLlm((prev) => ({ ...prev, ...patch }));
@@ -269,7 +276,9 @@ export default function SettingsPage() {
   async function handleEmbeddingChange(field, value) {
     if (field === 'provider') {
       const keepBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(value);
-      const patch = keepBaseUrl ? { provider: value } : { provider: value, base_url: '' };
+      const patch = keepBaseUrl
+        ? { provider: value, model: '' }
+        : { provider: value, base_url: '', model: '' };
       await patchConfig({ embedding: patch });
       setEmbedding((prev) => ({ ...prev, ...patch }));
     } else {
@@ -350,6 +359,35 @@ export default function SettingsPage() {
               onApiKeySaved={() => setLlm((prev) => ({ ...prev, has_key: true }))}
               loadModels={fetchModels}
             />
+
+            {/* 模型参数 */}
+            <div className="mt-4 flex flex-col gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <FieldLabel>Temperature</FieldLabel>
+                  <span className="text-sm text-text font-mono">
+                    {(llm.temperature ?? 0.8).toFixed(1)}
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0.1" max="2.0" step="0.1"
+                  value={llm.temperature ?? 0.8}
+                  onChange={(e) => handleLlmChange('temperature', parseFloat(e.target.value))}
+                  className="w-full accent-accent"
+                />
+              </div>
+              <div>
+                <FieldLabel>Max Tokens</FieldLabel>
+                <input
+                  type="number"
+                  min="64" max="32000" step="64"
+                  value={llm.max_tokens ?? 4096}
+                  onChange={(e) => handleLlmChange('max_tokens', parseInt(e.target.value, 10))}
+                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+                />
+              </div>
+            </div>
 
             {/* 测试连接 */}
             <div className="mt-5 flex items-center gap-3">

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T44 — 创建页面对齐编辑页面 + 世界级模型参数下线 + Provider 切换 Bug 修复 ✅
+- **对外接口**：新增路由 `/worlds/new` → `WorldCreatePage`；`/worlds/:worldId/characters/new` → `CharacterCreatePage`；两个创建页创建完成后用 `navigate(url, { replace: true })` 跳到编辑页（创建页不留在历史栈中，返回键直达列表）
+- **涉及文件**：新增 `frontend/src/pages/WorldCreatePage.jsx`、`frontend/src/pages/CharacterCreatePage.jsx`；修改 `App.jsx`（注册两条新路由，`/worlds/new` 放在 `/worlds/:worldId` 之前）；修改 `WorldsPage.jsx`（删除 WorldFormModal，创建按钮改 navigate）；修改 `CharactersPage.jsx`（删除 CreateCharacterModal，创建按钮改 navigate）；修改 `WorldEditPage.jsx`（删除 temperature/maxTokens state 和 UI，保存时始终发 `temperature: null, max_tokens: null` 清除 DB 中旧值）；修改 `SettingsPage.jsx`（LLM 卡片追加 Temperature 滑块和 Max Tokens 输入；handleLlmChange/handleEmbeddingChange 切 provider 时同步清空 model；ModelSelector.load() 加载完成后若 value 为空或不在列表中自动选第一个模型）
+- **注意**：worlds 表仍有 temperature/max_tokens 列，不删除 schema；现有世界中旧的非 null 值在下次保存时会被清为 null（assembler.js 已有 `world.temperature ?? config.llm.temperature` fallback，行为正确）；ModelSelector 自动选模型会触发 onChange→handleLlmChange('model')→patchConfig 保存，属预期行为；embedding provider 切换同样修复了相同 bug
+
 ## T43 — 编辑界面统一全屏+加宽 ✅
 - **对外接口**：新增路由 `/worlds/:worldId/edit` → `WorldEditPage`，`/worlds/:worldId/persona` → `PersonaEditPage`
 - **涉及文件**：新增 `frontend/src/pages/WorldEditPage.jsx`、`frontend/src/pages/PersonaEditPage.jsx`；修改 `App.jsx`（注册路由）、`WorldsPage.jsx`（WorldFormModal 简化为纯创建，编辑按钮改为 navigate）、`CharactersPage.jsx`（移除 PersonaEditModal 和 StateValueField，玩家编辑改为 navigate）、`CharacterEditPage.jsx`（max-w-lg → max-w-2xl）

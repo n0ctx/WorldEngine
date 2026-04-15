@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import WorldsPage from './pages/WorldsPage';
+import WorldCreatePage from './pages/WorldCreatePage';
 import WorldEditPage from './pages/WorldEditPage';
 import CharactersPage from './pages/CharactersPage';
+import CharacterCreatePage from './pages/CharacterCreatePage';
 import CharacterEditPage from './pages/CharacterEditPage';
 import PersonaEditPage from './pages/PersonaEditPage';
 import ChatPage from './pages/ChatPage';
@@ -18,9 +20,11 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<WorldsPage />} />
+      <Route path="/worlds/new" element={<WorldCreatePage />} />
       <Route path="/worlds/:worldId" element={<CharactersPage />} />
       <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
       <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+      <Route path="/worlds/:worldId/characters/new" element={<CharacterCreatePage />} />
       <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
       <Route path="/characters/:characterId/chat" element={<ChatPage />} />
       <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
