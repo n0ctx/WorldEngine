@@ -2,6 +2,8 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import MessageItem from './MessageItem.jsx';
 import { getMessages } from '../../api/sessions.js';
 
+const NOOP = () => {};
+
 const PAGE_SIZE = 50;
 
 export default function MessageList({
@@ -196,8 +198,8 @@ export default function MessageList({
             worldId={worldId}
             isStreaming={true}
             streamingText={streamingText}
-            onEdit={() => {}}
-            onRegenerate={() => {}}
+            onEdit={NOOP}
+            onRegenerate={NOOP}
           />
         )}
       </div>

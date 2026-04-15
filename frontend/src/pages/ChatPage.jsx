@@ -57,8 +57,7 @@ export default function ChatPage() {
     loadRules().catch(console.error);
   }, []);
 
-  // 选择会话
-  function handleSessionSelect(session) {
+  function enterSession(session) {
     setCurrentSessionId(session.id);
     setCurrentSession(session);
     setGenerating(false);
@@ -68,16 +67,8 @@ export default function ChatPage() {
     setMessageListKey((k) => k + 1);
   }
 
-  // 新建会话后自动进入
-  function handleSessionCreate(session) {
-    setCurrentSessionId(session.id);
-    setCurrentSession(session);
-    setGenerating(false);
-    setStreamingText('');
-    setErrorBubble(null);
-    streamingTextRef.current = '';
-    setMessageListKey((k) => k + 1);
-  }
+  const handleSessionSelect = enterSession;
+  const handleSessionCreate = enterSession;
 
   // 删除当前会话后切换到第一个，或清空
   function handleSessionDelete(deletedId, remaining) {

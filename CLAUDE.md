@@ -57,6 +57,7 @@
     personas.js                 # T26C
     persona-state-fields.js     # T26C
     persona-state-values.js     # T26C
+    writing.js                  # T34
   /services     # 业务逻辑
     config.js
     worlds.js
@@ -71,6 +72,8 @@
     regex-rules.js              # T24B
     personas.js                 # T26C
     persona-state-fields.js     # T26C
+    cleanup-registrations.js    # T30：副作用钩子注册
+    writing-sessions.js         # T34
   /db           # 数据库：schema.js + /queries/*.js
     index.js
     schema.js
@@ -90,6 +93,7 @@
       personas.js               # T26C
       persona-state-fields.js   # T26C
       persona-state-values.js   # T26C
+      writing-sessions.js       # T34
   /memory       # 记忆系统
     summarizer.js               # T18: session summary + title 生成
     character-state-updater.js  # T19D: 对话后异步更新角色状态
@@ -201,7 +205,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **SSE 事件类型**：
 - 已实现：`delta` / `done` / `aborted` / `type:error` / `type:title_updated`（T09 / T11）
-- 已约定待实现：`type:memory_recall_start` / `type:memory_recall_done`（前端 api/chat.js 已监听，后端 chat.js 尚为 TODO，计划在 T27 随 recall 能力一起落地）
+- 已实现（T27）：`type:memory_recall_start` / `type:memory_recall_done`（payload: `{hit: number}`）；仅 runStream 路径发出，`/continue` 不含
 - 已实现（T28）：`type:memory_expand_start`（payload: `{candidates:[{ref,title}]}`）/ `type:memory_expand_done`（payload: `{expanded:string[]}`）；仅在 recall 命中 ≥1 且 `memory_expansion_enabled=true` 时发送，通过 `buildPrompt` 的 `onRecallEvent` 回调 → `buildContext` → routes/chat.js 注入 SSE
 
 详细规范见 ROADMAP.md T09 / T11 / T27 / T28 任务说明。
@@ -210,6 +214,13 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **角色卡/世界卡格式**：`.wechar.json`（format: worldengine-character-v1）/ `.weworld.json`（format: worldengine-world-v1），不兼容 SillyTavern 格式。导出包含状态字段定义和状态值。
 
+**写作空间（T34）**：
+- 入口：角色列表页右上角"写作空间"按钮，路由 `/worlds/:worldId/writing`
+- `sessions` 表 schema 已变更：`character_id` 改为可空（写作会话无单一角色）；新增 `world_id TEXT`（FK→worlds）；新增 `mode TEXT DEFAULT 'chat'`（'chat' | 'writing'）
+- 新增 `writing_session_characters` 联结表（`session_id`, `character_id UNIQUE`），管理写作会话激活角色
+- `buildWritingPrompt(sessionId, options?)` 封装在 `assembler.js` 末尾，循环所有激活角色注入 [4][5][6]，不修改 `buildPrompt`
+- 后端路由 `routes/writing.js`，注册在 `server.js` 的 `app.use('/api/worlds', writingRoutes)`；服务层 `services/writing-sessions.js`
+
 **上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 状态与记忆` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
 
 **状态系统**（T19A/B/C/D + T26C 拆分实现）：
@@ -217,7 +228,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 世界状态字段作用于 worlds，自身只有一份当前值（world_state_values）
 - 角色状态字段作用于该世界下所有角色，每个角色各持有一份当前值（character_state_values）
 - 玩家状态字段作用于该世界唯一的 persona 实例（personas 表 `world_id UNIQUE`，每个 world 一对一），自身只有一份当前值（persona_state_values）
-- 字段模板在前端世界编辑页配置（T19B / T26C），支持 text/number/boolean/enum 四种类型
+- 字段模板在前端世界编辑页配置（T19B / T26C），支持 text/number/boolean/enum/list 五种类型（list 为 T33 新增，存储 JSON 数组，渲染为顿号分隔）
 - 创建世界/角色时自动按模板初始化状态值（T19C / T26C）；创建世界时一并初始化 persona 行和 persona_state_values
 - 对话后按配置异步更新状态值（T19D 角色+世界、T26C 玩家），只处理 update_mode=llm_auto 的字段
 - trigger_mode 控制是否参与自动更新：manual_only（跳过）/ every_turn（每轮）/ keyword_based（关键词命中）

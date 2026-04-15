@@ -251,8 +251,6 @@ CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_orde
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
-CREATE INDEX IF NOT EXISTS idx_writing_session_characters_session_id ON writing_session_characters(session_id);
-CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at);
 `;
 
 export function initSchema(db) {

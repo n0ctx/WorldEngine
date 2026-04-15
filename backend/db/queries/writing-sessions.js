@@ -1,7 +1,6 @@
-import { getDb } from '../index.js';
+import db from '../index.js';
 
 export function createWritingSession(worldId) {
-  const db = getDb();
   const id = crypto.randomUUID();
   const now = Date.now();
   db.prepare(
@@ -12,34 +11,34 @@ export function createWritingSession(worldId) {
 }
 
 export function getWritingSessionsByWorldId(worldId) {
-  const db = getDb();
+
   return db.prepare(
     `SELECT * FROM sessions WHERE world_id = ? AND mode = 'writing' ORDER BY updated_at DESC`
   ).all(worldId);
 }
 
 export function getWritingSessionById(id) {
-  const db = getDb();
+
   return db.prepare('SELECT * FROM sessions WHERE id = ? AND mode = \'writing\'').get(id);
 }
 
 export function deleteWritingSession(id) {
-  const db = getDb();
+
   db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
 }
 
 export function updateWritingSessionTitle(id, title) {
-  const db = getDb();
+
   db.prepare('UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?').run(title, Date.now(), id);
 }
 
 export function touchWritingSession(id) {
-  const db = getDb();
+
   db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
 export function getWritingSessionCharacters(sessionId) {
-  const db = getDb();
+
   return db.prepare(
     `SELECT c.*, wsc.created_at AS activated_at
      FROM writing_session_characters wsc
@@ -50,7 +49,7 @@ export function getWritingSessionCharacters(sessionId) {
 }
 
 export function addWritingSessionCharacter(sessionId, characterId) {
-  const db = getDb();
+
   const id = crypto.randomUUID();
   const now = Date.now();
   db.prepare(
@@ -60,7 +59,7 @@ export function addWritingSessionCharacter(sessionId, characterId) {
 }
 
 export function removeWritingSessionCharacter(sessionId, characterId) {
-  const db = getDb();
+
   db.prepare(
     'DELETE FROM writing_session_characters WHERE session_id = ? AND character_id = ?'
   ).run(sessionId, characterId);

@@ -21,16 +21,18 @@
     /avatars             # 角色头像，文件名：{character_id}.{ext}
     /attachments         # 消息附件，文件名：{message_id}_{index}.{ext}
   /vectors
-    prompt_entries.json  # Prompt 条目的 embedding 向量索引
+    prompt_entries.json      # Prompt 条目的 embedding 向量索引
+    session_summaries.json   # 会话摘要的 embedding 向量索引（T27）
 ```
 
 ### 删除策略
 
-- 删除世界 → 级联删除其下所有角色、会话、消息、时间线条目、Prompt 条目
-- 删除角色 → 级联删除其下所有会话、消息、Prompt 条目，清空对应头像文件
-- 删除会话 → 级联删除其下所有消息、summary，清空对应附件文件
+- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、时间线条目、Prompt 条目、persona
+- 删除角色 → 级联删除其下所有聊天会话、消息、Prompt 条目，清空对应头像文件；同时从 `writing_session_characters` 移除该角色（CASCADE）
+- 删除会话 → 级联删除其下所有消息、summary、`writing_session_characters` 关联行，清空对应附件文件
 - 删除消息 → 清空对应附件文件
 - 所有删除均为硬删除，无软删除
+- 磁盘文件（头像、附件、向量）的清理通过 `cleanup-registrations.js` 注册的钩子执行，在 DB DELETE 之前调用；钩子失败只 warn，不阻塞删除
 
 级联删除由 SQLite 外键约束（`ON DELETE CASCADE`）自动处理，不在业务代码中手动实现。
 
@@ -152,12 +154,34 @@ CREATE INDEX idx_characters_world_id ON characters(world_id, sort_order);
 ```sql
 CREATE TABLE sessions (
   id                  TEXT PRIMARY KEY,          -- UUID
-  character_id        TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  character_id        TEXT REFERENCES characters(id) ON DELETE CASCADE,  -- T34：改为可空，写作会话无单一角色
+  world_id            TEXT REFERENCES worlds(id) ON DELETE CASCADE,       -- T34：写作会话直接挂在世界下
+  mode                TEXT NOT NULL DEFAULT 'chat',                       -- T34：'chat' | 'writing'
   title               TEXT,                      -- 会话标题，NULL 时前端显示 created_at 对应的日期（如 2024-01-15）
   compressed_context  TEXT,                      -- T32：压缩触发时快照的摘要文本；assembler.js 在 [6] 之前注入；清空聊天时置 NULL
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER NOT NULL           -- 最后一条消息的时间，用于排序
 );
+
+CREATE INDEX idx_sessions_world_id ON sessions(world_id, mode, created_at);
+```
+
+---
+
+### writing_session_characters — 写作会话激活角色
+
+T34 新增。管理写作会话中当前激活的角色列表，支持动态增删。
+
+```sql
+CREATE TABLE writing_session_characters (
+  id           TEXT PRIMARY KEY,
+  session_id   TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  character_id TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  created_at   INTEGER NOT NULL,
+  UNIQUE(session_id, character_id)
+);
+
+CREATE INDEX idx_writing_session_characters_session_id ON writing_session_characters(session_id);
 ```
 
 ---
@@ -495,8 +519,10 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
   "ui": {
     "font_size": 16
   },
-  "context_compress_rounds": 10,   // 历史消息保留轮次，0 表示禁用，仅用 token 截断兜底
-  "global_system_prompt": ""              // 全局层 system prompt
+  "context_compress_rounds": 10,          // 触发压缩的轮次阈值，0 表示禁用，仅用 token 截断兜底
+  "global_system_prompt": "",             // 全局层 system prompt
+  "global_post_prompt": "",              // 全局层后置提示词，注入 [8] 位置（T31）
+  "memory_expansion_enabled": true       // 是否启用渐进展开原文（T28），false 时召回摘要仍保留
 }
 ```
 

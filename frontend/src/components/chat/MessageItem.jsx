@@ -4,6 +4,37 @@ import remarkGfm from 'remark-gfm';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
 import { applyRules } from '../../utils/regex-runner.js';
 
+const REMARK_PLUGINS = [remarkGfm];
+
+const MD_COMPONENTS = {
+  code({ node, inline, className, children, ...props }) {
+    if (inline) {
+      return (
+        <code className="px-1 py-0.5 rounded bg-border font-mono text-xs" {...props}>
+          {children}
+        </code>
+      );
+    }
+    return <CodeBlock className={className}>{children}</CodeBlock>;
+  },
+  p({ children }) {
+    return <p className="mb-2 last:mb-0">{children}</p>;
+  },
+  ul({ children }) {
+    return <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>;
+  },
+  ol({ children }) {
+    return <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>;
+  },
+  blockquote({ children }) {
+    return (
+      <blockquote className="border-l-2 border-accent pl-3 opacity-75 italic my-2">
+        {children}
+      </blockquote>
+    );
+  },
+};
+
 function formatTime(ts) {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -267,35 +298,8 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         </div>
         <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code({ node, inline, className, children, ...props }) {
-                if (inline) {
-                  return (
-                    <code className="px-1 py-0.5 rounded bg-border font-mono text-xs" {...props}>
-                      {children}
-                    </code>
-                  );
-                }
-                return <CodeBlock className={className}>{children}</CodeBlock>;
-              },
-              p({ children }) {
-                return <p className="mb-2 last:mb-0">{children}</p>;
-              },
-              ul({ children }) {
-                return <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>;
-              },
-              ol({ children }) {
-                return <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>;
-              },
-              blockquote({ children }) {
-                return (
-                  <blockquote className="border-l-2 border-accent pl-3 opacity-75 italic my-2">
-                    {children}
-                  </blockquote>
-                );
-              },
-            }}
+            remarkPlugins={REMARK_PLUGINS}
+            components={MD_COMPONENTS}
           >
             {displayContent}
           </ReactMarkdown>

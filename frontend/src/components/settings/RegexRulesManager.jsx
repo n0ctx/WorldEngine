@@ -163,14 +163,13 @@ export default function RegexRulesManager() {
                   {/* 启用开关 */}
                   <button
                     onClick={() => handleToggleEnabled(rule)}
-                    className={`relative flex-none inline-flex h-4.5 w-8 items-center rounded-full transition-colors ${
+                    className={`relative flex-none inline-flex h-[18px] w-8 items-center rounded-full transition-colors ${
                       rule.enabled ? 'bg-accent' : 'bg-border'
                     }`}
-                    style={{ height: '18px', width: '32px' }}
                   >
                     <span
                       className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        rule.enabled ? 'translate-x-[16px]' : 'translate-x-[2px]'
+                        rule.enabled ? 'translate-x-4' : 'translate-x-0.5'
                       }`}
                     />
                   </button>

@@ -278,7 +278,7 @@ export default function InputBox({
         {generating ? (
           <button
             onClick={onStop}
-            className="flex-none p-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+            className="flex-none p-2.5 rounded-xl bg-error text-white hover:opacity-90 transition-opacity"
             title="停止生成"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
