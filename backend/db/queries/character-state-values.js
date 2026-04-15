@@ -66,7 +66,7 @@ export function deleteCharacterStateValue(characterId, fieldKey) {
  */
 export function getCharacterStateValuesWithFields(characterId) {
   return db.prepare(`
-    SELECT csf.field_key, csf.label, csf.type, csf.sort_order, csv.value_json
+    SELECT csf.field_key, csf.label, csf.type, csf.sort_order, csf.enum_options, csv.value_json
     FROM character_state_fields csf
     LEFT JOIN character_state_values csv
       ON csf.field_key = csv.field_key AND csv.character_id = ?

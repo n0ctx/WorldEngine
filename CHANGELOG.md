@@ -19,6 +19,16 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T39 — 状态字段编辑入口重构 ✅
+- **对外接口**：新增 `PATCH /api/characters/:characterId/state-values/:fieldKey` 和 `PATCH /api/worlds/:worldId/persona-state-values/:fieldKey`；前端新增 `updateCharacterStateValue` / `updatePersonaStateValue`
+- **涉及文件**：`backend/routes/character-state-values.js`、`backend/routes/persona-state-values.js`、`backend/db/queries/character-state-values.js`（getCharacterStateValuesWithFields 加 enum_options）、`backend/db/queries/persona-state-values.js`（同上）、`frontend/src/api/characterStateValues.js`、`frontend/src/api/personaStateValues.js`、`frontend/src/pages/WorldsPage.jsx`（世界编辑弹窗追加角色/玩家状态字段两个 StateFieldList）、`frontend/src/pages/CharacterEditPage.jsx`（移除 StateFieldList，改为状态值编辑面板）、`frontend/src/pages/CharactersPage.jsx`（PersonaEditModal 同步）
+- **注意**：各页面内嵌了 `StateValueField` 组件（未提取为独立文件）；boolean/enum 即时保存（onChange），text/number/list 失焦保存（onBlur）；list 类型展示为逗号分隔字符串，保存时 split 转 JSON 数组；enum 渲染需要 enum_options，故两个联表查询均已补充该字段
+
+## 规划 T35-T42 ✅
+- **内容**：基于试用反馈规划了 8 个新任务，已追加到 ROADMAP.md 阶段 5
+- **任务列表**：T35（Prompt编辑框WYSIWYG）、T36（状态字段表单修正）、T37（消息HTML渲染）、T38（玩家卡导出）、T39（状态字段入口重构，依赖T36）、T40（记忆面板实时刷新，建议T39后）、T41（角色卡导入兼容性校验）、T42（无会话自动建会话）
+- **注意**：T35 需安装 @uiw/react-md-editor；T37 需安装 rehype-raw + rehype-sanitize；T39 必须在 T36 后执行
+
 ## T34 — 写作空间 ✅
 - **入口**：角色选择页右上角 "写作空间" 按钮 → `/worlds/:worldId/writing`
 - **路由（后端）**：`/api/worlds/:worldId/writing-sessions` 及子路由，注册在 `server.js` 的 `app.use('/api/worlds', writingRoutes)`

@@ -11,11 +11,82 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/importExport';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
-import StateFieldList from '../components/state/StateFieldList';
-import {
-  listPersonaStateFields, createPersonaStateField,
-  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../api/personaStateFields';
+import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
+
+function StateValueField({ field, onSave }) {
+  const parseValue = (vj) => {
+    try { return vj != null ? JSON.parse(vj) : null; }
+    catch { return vj ?? null; }
+  };
+  const [local, setLocal] = useState(() => parseValue(field.value_json));
+
+  function saveValue(val) {
+    onSave(field.field_key, JSON.stringify(val));
+  }
+
+  const inputClass = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
+
+  if (field.type === 'boolean') {
+    return (
+      <input
+        type="checkbox"
+        checked={!!local}
+        onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
+        className="accent-accent w-4 h-4"
+      />
+    );
+  }
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        value={local ?? ''}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
+        className={inputClass}
+      />
+    );
+  }
+  if (field.type === 'enum') {
+    const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
+    return (
+      <select
+        value={local ?? ''}
+        onChange={(e) => { setLocal(e.target.value); saveValue(e.target.value); }}
+        className={inputClass}
+      >
+        <option value="">—</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (field.type === 'list') {
+    const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
+    return (
+      <input
+        type="text"
+        value={displayValue}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          const arr = String(local).split(',').map((s) => s.trim()).filter(Boolean);
+          saveValue(arr);
+        }}
+        placeholder="逗号分隔多个条目"
+        className={inputClass}
+      />
+    );
+  }
+  // text (default)
+  return (
+    <input
+      type="text"
+      value={local ?? ''}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => saveValue(String(local ?? ''))}
+      className={inputClass}
+    />
+  );
+}
 
 function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
   const [name, setName] = useState('');
@@ -25,17 +96,30 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [stateFields, setStateFields] = useState([]);
   const avatarFileRef = useRef(null);
 
   useEffect(() => {
-    getPersona(worldId).then((p) => {
+    Promise.all([
+      getPersona(worldId),
+      getPersonaStateValues(worldId),
+    ]).then(([p, fields]) => {
       setName(p.name ?? '');
       setSystemPrompt(p.system_prompt ?? '');
       setAvatarPath(p.avatar_path ?? null);
       setPersonaId(p.id);
+      setStateFields(fields);
       setLoaded(true);
     });
   }, [worldId]);
+
+  async function handleStateValueSave(fieldKey, valueJson) {
+    try {
+      await updatePersonaStateValue(worldId, fieldKey, valueJson);
+    } catch (err) {
+      console.error('状态值保存失败', err);
+    }
+  }
 
   async function handleAvatarFileChange(e) {
     const file = e.target.files?.[0];
@@ -139,17 +223,19 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
                   placeholder="你的身份、背景等"
                 />
               </div>
-              <div className="border-t border-border pt-4">
-                <StateFieldList
-                  scope="persona"
-                  worldId={worldId}
-                  listFn={listPersonaStateFields}
-                  createFn={createPersonaStateField}
-                  updateFn={updatePersonaStateField}
-                  deleteFn={deletePersonaStateField}
-                  reorderFn={reorderPersonaStateFields}
-                />
-              </div>
+              {stateFields.length > 0 && (
+                <div className="border-t border-border pt-4">
+                  <h3 className="text-sm font-semibold text-text-secondary mb-3">当前状态字段值</h3>
+                  <div className="flex flex-col gap-3">
+                    {stateFields.map((field) => (
+                      <div key={field.field_key}>
+                        <label className="block text-sm text-text-secondary mb-1">{field.label}</label>
+                        <StateValueField field={field} onSave={handleStateValueSave} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

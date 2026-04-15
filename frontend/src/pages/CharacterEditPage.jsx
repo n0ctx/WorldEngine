@@ -3,12 +3,83 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import EntryList from '../components/prompt/EntryList';
-import StateFieldList from '../components/state/StateFieldList';
 import { downloadCharacterCard } from '../api/importExport';
-import {
-  listCharacterStateFields, createCharacterStateField,
-  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../api/characterStateFields';
+import { getCharacterStateValues, updateCharacterStateValue } from '../api/characterStateValues';
+
+function StateValueField({ field, onSave }) {
+  const parseValue = (vj) => {
+    try { return vj != null ? JSON.parse(vj) : null; }
+    catch { return vj ?? null; }
+  };
+  const [local, setLocal] = useState(() => parseValue(field.value_json));
+
+  function saveValue(val) {
+    onSave(field.field_key, JSON.stringify(val));
+  }
+
+  const inputClass = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
+
+  if (field.type === 'boolean') {
+    return (
+      <input
+        type="checkbox"
+        checked={!!local}
+        onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
+        className="accent-accent w-4 h-4"
+      />
+    );
+  }
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        value={local ?? ''}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
+        className={inputClass}
+      />
+    );
+  }
+  if (field.type === 'enum') {
+    const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
+    return (
+      <select
+        value={local ?? ''}
+        onChange={(e) => { setLocal(e.target.value); saveValue(e.target.value); }}
+        className={inputClass}
+      >
+        <option value="">—</option>
+        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      </select>
+    );
+  }
+  if (field.type === 'list') {
+    const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
+    return (
+      <input
+        type="text"
+        value={displayValue}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          const arr = String(local).split(',').map((s) => s.trim()).filter(Boolean);
+          saveValue(arr);
+        }}
+        placeholder="逗号分隔多个条目"
+        className={inputClass}
+      />
+    );
+  }
+  // text (default)
+  return (
+    <input
+      type="text"
+      value={local ?? ''}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => saveValue(String(local ?? ''))}
+      className={inputClass}
+    />
+  );
+}
 
 export default function CharacterEditPage() {
   const { characterId } = useParams();
@@ -26,22 +97,37 @@ export default function CharacterEditPage() {
   const [saveError, setSaveError] = useState('');
   const [exporting, setExporting] = useState(false);
 
+  // 状态字段值
+  const [stateFields, setStateFields] = useState([]);
+
   // 头像
   const [avatarPath, setAvatarPath] = useState(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    getCharacter(characterId).then((c) => {
+    Promise.all([
+      getCharacter(characterId),
+      getCharacterStateValues(characterId),
+    ]).then(([c, fields]) => {
       setCharacter(c);
       setName(c.name);
       setSystemPrompt(c.system_prompt ?? '');
       setPostPrompt(c.post_prompt ?? '');
       setFirstMessage(c.first_message ?? '');
       setAvatarPath(c.avatar_path);
+      setStateFields(fields);
       setLoading(false);
     });
   }, [characterId]);
+
+  async function handleStateValueSave(fieldKey, valueJson) {
+    try {
+      await updateCharacterStateValue(characterId, fieldKey, valueJson);
+    } catch (err) {
+      console.error('状态值保存失败', err);
+    }
+  }
 
   async function handleAvatarClick() {
     fileInputRef.current?.click();
@@ -250,18 +336,20 @@ export default function CharacterEditPage() {
           <EntryList type="character" scopeId={characterId} />
         </div>
 
-        {/* 角色状态字段模板 */}
-        <div className="mt-6 border-t border-border pt-8">
-          <StateFieldList
-            scope="character"
-            worldId={character.world_id}
-            listFn={listCharacterStateFields}
-            createFn={createCharacterStateField}
-            updateFn={updateCharacterStateField}
-            deleteFn={deleteCharacterStateField}
-            reorderFn={reorderCharacterStateFields}
-          />
-        </div>
+        {/* 当前状态字段值 */}
+        {stateFields.length > 0 && (
+          <div className="mt-6 border-t border-border pt-8">
+            <h3 className="text-sm font-semibold text-text-secondary mb-4">当前状态字段值</h3>
+            <div className="flex flex-col gap-4">
+              {stateFields.map((field) => (
+                <div key={field.field_key}>
+                  <label className="block text-sm text-text-secondary mb-1.5">{field.label}</label>
+                  <StateValueField field={field} onSave={handleStateValueSave} />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

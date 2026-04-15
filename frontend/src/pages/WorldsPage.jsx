@@ -9,6 +9,14 @@ import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
 } from '../api/worldStateFields';
+import {
+  listCharacterStateFields, createCharacterStateField,
+  updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
+} from '../api/characterStateFields';
+import {
+  listPersonaStateFields, createPersonaStateField,
+  updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
+} from '../api/personaStateFields';
 
 // 世界表单的初始空值
 const EMPTY_FORM = {
@@ -182,6 +190,28 @@ function WorldFormModal({ initial, onSave, onClose }) {
                   updateFn={updateWorldStateField}
                   deleteFn={deleteWorldStateField}
                   reorderFn={reorderWorldStateFields}
+                />
+              </div>
+              <div className="border-t border-border pt-4">
+                <StateFieldList
+                  scope="character"
+                  worldId={initial.id}
+                  listFn={listCharacterStateFields}
+                  createFn={createCharacterStateField}
+                  updateFn={updateCharacterStateField}
+                  deleteFn={deleteCharacterStateField}
+                  reorderFn={reorderCharacterStateFields}
+                />
+              </div>
+              <div className="border-t border-border pt-4">
+                <StateFieldList
+                  scope="persona"
+                  worldId={initial.id}
+                  listFn={listPersonaStateFields}
+                  createFn={createPersonaStateField}
+                  updateFn={updatePersonaStateField}
+                  deleteFn={deletePersonaStateField}
+                  reorderFn={reorderPersonaStateFields}
                 />
               </div>
             </>

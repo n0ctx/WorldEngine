@@ -48,7 +48,7 @@ export function getAllPersonaStateValues(worldId) {
  */
 export function getPersonaStateValuesWithFields(worldId) {
   return db.prepare(`
-    SELECT psf.field_key, psf.label, psf.type, psf.sort_order, psv.value_json
+    SELECT psf.field_key, psf.label, psf.type, psf.sort_order, psf.enum_options, psv.value_json
     FROM persona_state_fields psf
     LEFT JOIN persona_state_values psv
       ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
