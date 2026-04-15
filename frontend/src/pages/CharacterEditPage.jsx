@@ -5,6 +5,7 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import EntryList from '../components/prompt/EntryList';
 import { downloadCharacterCard } from '../api/importExport';
 import { getCharacterStateValues, updateCharacterStateValue } from '../api/characterStateValues';
+import MarkdownEditor from '../components/ui/MarkdownEditor';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -277,12 +278,11 @@ export default function CharacterEditPage() {
 
           <div>
             <label className="block text-sm text-text-secondary mb-1.5">System Prompt</label>
-            <textarea
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={6}
+            <MarkdownEditor
               value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
+              onChange={setSystemPrompt}
               placeholder="角色的性格、背景、说话风格……"
+              minHeight={144}
             />
           </div>
 
@@ -291,23 +291,21 @@ export default function CharacterEditPage() {
               后置提示词
               <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
             </label>
-            <textarea
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={3}
+            <MarkdownEditor
               value={postPrompt}
-              onChange={(e) => setPostPrompt(e.target.value)}
+              onChange={setPostPrompt}
               placeholder="每次对话附加的角色级指令，例如特定的回复格式……"
+              minHeight={72}
             />
           </div>
 
           <div>
             <label className="block text-sm text-text-secondary mb-1.5">开场白</label>
-            <textarea
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={4}
+            <MarkdownEditor
               value={firstMessage}
-              onChange={(e) => setFirstMessage(e.target.value)}
+              onChange={setFirstMessage}
               placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口"
+              minHeight={96}
             />
           </div>
 

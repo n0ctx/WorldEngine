@@ -5,6 +5,7 @@ import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import StateFieldList from '../components/state/StateFieldList';
 import EntryList from '../components/prompt/EntryList';
+import MarkdownEditor from '../components/ui/MarkdownEditor';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -96,12 +97,11 @@ function WorldFormModal({ initial, onSave, onClose }) {
           {/* System Prompt */}
           <div>
             <label className="block text-sm text-text-secondary mb-1">世界 System Prompt</label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={4}
+            <MarkdownEditor
               value={form.system_prompt}
-              onChange={(e) => set('system_prompt', e.target.value)}
+              onChange={(v) => set('system_prompt', v)}
               placeholder="描述这个世界的背景、规则、氛围……"
+              minHeight={96}
             />
           </div>
 
@@ -111,12 +111,11 @@ function WorldFormModal({ initial, onSave, onClose }) {
               世界后置提示词
               <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
             </label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={3}
+            <MarkdownEditor
               value={form.post_prompt}
-              onChange={(e) => set('post_prompt', e.target.value)}
+              onChange={(v) => set('post_prompt', v)}
               placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
+              minHeight={72}
             />
           </div>
 

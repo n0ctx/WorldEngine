@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T35 — Prompt 编辑框 WYSIWYG + 体验优化 ✅
+- **对外接口**：新增 `frontend/src/components/ui/MarkdownEditor.jsx`，Props: `value`, `onChange(v: string)`, `placeholder`, `minHeight`, `className`
+- **涉及文件**：`frontend/src/components/ui/MarkdownEditor.jsx`（新建）、`frontend/src/components/ui/Textarea.jsx`（resize-y）、`frontend/src/index.css`（MDEditor 样式覆盖）、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/pages/WorldsPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`frontend/src/pages/CharactersPage.jsx`、`frontend/src/components/prompt/EntryEditor.jsx`
+- **注意**：`MarkdownEditor` 的 `onChange` 接收字符串值（非 event 对象），与普通 textarea 不同——替换时需将 `(e) => setState(e.target.value)` 改为 `(v) => setState(v)` 或直接传 `setState`；`data-color-mode="light"` 强制浅色主题；`hideToolbar={false}` 仅保留 5 个工具按钮；`StateFieldEditor` 的 description/update_instruction 仍为纯 textarea，不受影响
+
 ## T39 — 状态字段编辑入口重构 ✅
 - **对外接口**：新增 `PATCH /api/characters/:characterId/state-values/:fieldKey` 和 `PATCH /api/worlds/:worldId/persona-state-values/:fieldKey`；前端新增 `updateCharacterStateValue` / `updatePersonaStateValue`
 - **涉及文件**：`backend/routes/character-state-values.js`、`backend/routes/persona-state-values.js`、`backend/db/queries/character-state-values.js`（getCharacterStateValuesWithFields 加 enum_options）、`backend/db/queries/persona-state-values.js`（同上）、`frontend/src/api/characterStateValues.js`、`frontend/src/api/personaStateValues.js`、`frontend/src/pages/WorldsPage.jsx`（世界编辑弹窗追加角色/玩家状态字段两个 StateFieldList）、`frontend/src/pages/CharacterEditPage.jsx`（移除 StateFieldList，改为状态值编辑面板）、`frontend/src/pages/CharactersPage.jsx`（PersonaEditModal 同步）

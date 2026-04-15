@@ -12,6 +12,7 @@ import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/importExport';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
+import MarkdownEditor from '../components/ui/MarkdownEditor';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -215,12 +216,11 @@ function PersonaEditModal({ worldId, onClose, onAvatarChange }) {
               </div>
               <div>
                 <label className="block text-sm text-text-secondary mb-1">人设</label>
-                <textarea
-                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-                  rows={4}
+                <MarkdownEditor
                   value={systemPrompt}
-                  onChange={(e) => setSystemPrompt(e.target.value)}
+                  onChange={setSystemPrompt}
                   placeholder="你的身份、背景等"
+                  minHeight={96}
                 />
               </div>
               {stateFields.length > 0 && (

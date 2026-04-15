@@ -159,3 +159,120 @@ body {
 
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* =========================================================
+   MarkdownEditor (@uiw/react-md-editor) 样式覆盖
+   ========================================================= */
+
+/* 强制浅色模式，覆盖 MDEditor 默认深色主题 */
+.we-md-editor,
+.we-md-editor [data-color-mode="light"] {
+  --color-canvas-default:     var(--we-ivory);
+  --color-canvas-subtle:      var(--we-canvas);
+  --color-border-default:     var(--we-border);
+  --color-fg-default:         var(--we-text);
+  --color-fg-muted:           var(--we-text-secondary);
+  --color-accent-emphasis:    var(--we-accent);
+  --color-btn-bg:             var(--we-ivory);
+  --color-btn-border:         var(--we-border);
+  --color-btn-hover-bg:       var(--we-sand);
+  --color-btn-hover-border:   var(--we-border-strong);
+  --color-btn-active-bg:      var(--we-sand);
+}
+
+.we-md-editor .w-md-editor {
+  border: 1px solid var(--we-border);
+  border-radius: var(--we-radius);
+  background: var(--we-ivory);
+  box-shadow: none;
+  font-family: var(--we-sans);
+  font-size: 0.875rem;
+  color: var(--we-text);
+}
+
+.we-md-editor .w-md-editor:focus-within {
+  border-color: var(--we-accent);
+}
+
+/* 工具栏 */
+.we-md-editor .w-md-editor-toolbar {
+  background: var(--we-canvas);
+  border-bottom: 1px solid var(--we-border);
+  border-radius: var(--we-radius) var(--we-radius) 0 0;
+  padding: 2px 6px;
+}
+
+.we-md-editor .w-md-editor-toolbar button {
+  color: var(--we-text-secondary);
+  border-radius: var(--we-radius-sharp);
+}
+
+.we-md-editor .w-md-editor-toolbar button:hover {
+  background: var(--we-sand);
+  color: var(--we-text);
+}
+
+/* 编辑区与预览区 */
+.we-md-editor .w-md-editor-content {
+  background: var(--we-ivory);
+}
+
+.we-md-editor .w-md-editor-input textarea {
+  background: var(--we-ivory);
+  color: var(--we-text);
+  font-family: var(--we-sans);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.we-md-editor .w-md-editor-preview {
+  background: var(--we-ivory);
+  font-family: var(--we-sans);
+  font-size: 0.875rem;
+  color: var(--we-text);
+  border-left: 1px solid var(--we-border);
+}
+
+/* 隐藏不需要的全屏/其他额外按钮 */
+.we-md-editor .w-md-editor-toolbar-divider,
+.we-md-editor .w-md-editor-toolbar ul:last-child {
+  display: none;
+}
+
+/* 分割线拖拽手柄（如显示）轻化 */
+.we-md-editor .w-md-editor-resize {
+  background: var(--we-border);
+}
+
+/* 预览区 Markdown 排版 */
+.we-md-editor .wmde-markdown {
+  background: transparent;
+  color: var(--we-text);
+  font-family: var(--we-sans);
+  font-size: 0.875rem;
+}
+
+.we-md-editor .wmde-markdown h1,
+.we-md-editor .wmde-markdown h2,
+.we-md-editor .wmde-markdown h3 {
+  font-family: var(--we-serif);
+  color: var(--we-text);
+  border-bottom: none;
+}
+
+.we-md-editor .wmde-markdown code {
+  background: var(--we-canvas);
+  color: var(--we-text);
+  font-family: var(--we-mono);
+  font-size: 0.8rem;
+  border-radius: var(--we-radius-sharp);
+  padding: 1px 4px;
+}
+
+.we-md-editor .wmde-markdown blockquote {
+  border-left-color: var(--we-accent);
+  color: var(--we-text-secondary);
+  background: var(--we-canvas);
+  padding: 4px 12px;
+  border-radius: 0 var(--we-radius-sharp) var(--we-radius-sharp) 0;
+}

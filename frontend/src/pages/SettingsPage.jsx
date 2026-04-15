@@ -7,6 +7,7 @@ import {
 import EntryList from '../components/prompt/EntryList';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
+import MarkdownEditor from '../components/ui/MarkdownEditor';
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -405,23 +406,21 @@ export default function SettingsPage() {
 
               <div>
                 <FieldLabel>全局 System Prompt</FieldLabel>
-                <textarea
-                  className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-                  rows={4}
+                <MarkdownEditor
                   value={globalSystemPrompt}
-                  onChange={(e) => setGlobalSystemPrompt(e.target.value)}
+                  onChange={setGlobalSystemPrompt}
                   placeholder="适用于所有世界和角色的全局指令"
+                  minHeight={96}
                 />
               </div>
 
               <div>
                 <FieldLabel hint="插入在用户消息之后，作为 user 角色发送">全局后置提示词</FieldLabel>
-                <textarea
-                  className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-                  rows={3}
+                <MarkdownEditor
                   value={globalPostPrompt}
-                  onChange={(e) => setGlobalPostPrompt(e.target.value)}
+                  onChange={setGlobalPostPrompt}
                   placeholder="每次用户发送消息后附加的全局指令，例如输出格式要求"
+                  minHeight={72}
                 />
               </div>
 

@@ -4,7 +4,7 @@ export default function Textarea({ className = '', ...props }) {
       className={[
         'we-textarea',
         'w-full px-3 py-2 bg-ivory border border-border rounded-lg',
-        'text-text text-sm resize-none',
+        'text-text text-sm resize-y',
         'focus:outline-none focus:border-accent',
         'disabled:opacity-40',
         'placeholder:text-text-tertiary',

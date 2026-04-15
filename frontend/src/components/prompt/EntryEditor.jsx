@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import MarkdownEditor from '../ui/MarkdownEditor';
 
 /**
  * EntryEditor — 创建/编辑 Prompt 条目的模态弹窗
@@ -95,24 +96,22 @@ export default function EntryEditor({ entry, onSave, onClose }) {
               简介
               <span className="text-text-secondary opacity-50 ml-1 text-xs">（约 50 字，未触发时注入）</span>
             </label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={3}
+            <MarkdownEditor
               value={summary}
-              onChange={(e) => setSummary(e.target.value)}
+              onChange={setSummary}
               placeholder="对内容的简短描述，AI 在未触发完整内容时会看到这段文字"
+              minHeight={72}
             />
           </div>
 
           {/* 正文 */}
           <div>
             <label className="block text-sm text-text-secondary mb-1">正文</label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent resize-none"
-              rows={6}
+            <MarkdownEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={setContent}
               placeholder="触发时注入 AI 上下文的完整内容"
+              minHeight={144}
             />
           </div>
 
