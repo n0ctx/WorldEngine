@@ -21,8 +21,8 @@
 
 ## T51 — 模板变量 {{user}} / {{char}} / {{world}} ✅
 - **对外接口**：新增 `applyTemplateVars(text, ctx)` 工具函数（`backend/utils/template-vars.js`）；ctx = `{ user, char, world }`，大小写不敏感（`gi` flag），null/undefined 原样返回
-- **涉及文件**：`backend/utils/template-vars.js`（新建）；`backend/prompt/assembler.js`（`buildPrompt` 和 `buildWritingPrompt` 均在 systemParts 注入前应用替换）
-- **注意**：替换仅在提示词组装时发生，不修改数据库原始文本。[14] 历史消息和 [16] 当前用户消息**不替换**（对话内容非配置模板）。写作模式多角色场景：共享段（[1]-[5][8-11][15]）用首个激活角色名作为 `{{char}}` fallback；[6-7] per-character 段用各自角色名
+- **涉及文件**：`backend/utils/template-vars.js`（新建）；`backend/prompt/assembler.js`（`buildPrompt` 和 `buildWritingPrompt` 均在 systemParts 注入前应用替换）；`backend/memory/recall.js`（状态区块抬头改用 `{{world}}状态`/`{{user}}状态`/`{{char}}状态` 占位符，由 assembler.js 的 tv() 统一替换）
+- **注意**：替换仅在提示词组装时发生，不修改数据库原始文本。[14] 历史消息和 [16] 当前用户消息**不替换**（对话内容非配置模板）。写作模式多角色场景：共享段（[1]-[5][8-11][15]）用首个激活角色名作为 `{{char}}` fallback；[6-7] per-character 段用各自角色名；写作模式角色状态抬头（`[{{char}}状态]`）用 `tvChar()` 替换，保证每个角色用自己的名字
 
 ## T50 — 写作模式支持 turn_records ✅
 - **对外接口**：无新增接口；`createTurnRecord` 现在同时支持 chat 和 writing session
