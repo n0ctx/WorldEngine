@@ -8,6 +8,8 @@ import EntryList from '../components/prompt/EntryList';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import ModelCombobox from '../components/ui/ModelCombobox';
+import Select from '../components/ui/Select';
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -76,7 +78,7 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
       setModels(list);
       setStatus('ok');
       // 当前值为空或不在新列表中时，自动选第一个可用模型
-      if (list.length > 0 && (!value || !list.includes(value))) {
+      if (list.length > 0 && !value) {
         onChange(list[0]);
       }
     } catch (e) {
@@ -106,19 +108,13 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
   }
 
   return (
-    <select
-      className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+    <ModelCombobox
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
+      options={models}
       disabled={disabled}
-    >
-      {value && !models.includes(value) && (
-        <option value={value}>{value}</option>
-      )}
-      {models.map((m) => (
-        <option key={m} value={m}>{m}</option>
-      ))}
-    </select>
+      placeholder="输入或选择模型名称"
+    />
   );
 }
 
@@ -159,15 +155,11 @@ function ProviderSection({
       {/* Provider */}
       <div>
         <FieldLabel>Provider</FieldLabel>
-        <select
-          className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+        <Select
           value={config.provider || ''}
-          onChange={(e) => onProviderChange(e.target.value)}
-        >
-          {providers.map((p) => (
-            <option key={p.value} value={p.value}>{p.label}</option>
-          ))}
-        </select>
+          onChange={onProviderChange}
+          options={providers}
+        />
       </div>
 
       {/* API Key（本地 provider 无需 API Key） */}

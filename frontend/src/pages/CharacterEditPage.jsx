@@ -6,6 +6,7 @@ import EntryList from '../components/prompt/EntryList';
 import { downloadCharacterCard } from '../api/importExport';
 import { getCharacterStateValues, updateCharacterStateValue } from '../api/characterStateValues';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import Select from '../components/ui/Select';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -44,14 +45,11 @@ function StateValueField({ field, onSave }) {
   if (field.type === 'enum') {
     const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
     return (
-      <select
+      <Select
         value={local ?? ''}
-        onChange={(e) => { setLocal(e.target.value); saveValue(e.target.value); }}
-        className={inputClass}
-      >
-        <option value="">—</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+        onChange={(v) => { setLocal(v); saveValue(v); }}
+        options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
+      />
     );
   }
   if (field.type === 'list') {

@@ -12,7 +12,10 @@ export async function createCharacterStateField(worldId, data) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error || await res.text());
+  }
   return res.json();
 }
 

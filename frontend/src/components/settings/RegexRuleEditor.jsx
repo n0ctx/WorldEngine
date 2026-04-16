@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Select from '../ui/Select';
 
 const SCOPE_OPTIONS = [
   { value: 'user_input', label: '用户输入', desc: '发送前处理，影响存库与 LLM' },
@@ -103,30 +104,24 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         {/* 作用时机 */}
         <div>
           <label className="block text-sm text-text-secondary mb-1">作用时机</label>
-          <select
-            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+          <Select
             value={form.scope}
-            onChange={(e) => setField('scope', e.target.value)}
-          >
-            {SCOPE_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>{s.label} — {s.desc}</option>
-            ))}
-          </select>
+            onChange={(v) => setField('scope', v)}
+            options={SCOPE_OPTIONS.map((s) => ({ value: s.value, label: `${s.label} — ${s.desc}` }))}
+          />
         </div>
 
         {/* 作用世界 */}
         <div>
           <label className="block text-sm text-text-secondary mb-1">作用范围</label>
-          <select
-            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+          <Select
             value={form.world_id ?? ''}
-            onChange={(e) => setField('world_id', e.target.value || null)}
-          >
-            <option value="">全局（所有世界）</option>
-            {(worlds || []).map((w) => (
-              <option key={w.id} value={w.id}>{w.name}</option>
-            ))}
-          </select>
+            onChange={(v) => setField('world_id', v || null)}
+            options={[
+              { value: '', label: '全局（所有世界）' },
+              ...(worlds || []).map((w) => ({ value: w.id, label: w.name })),
+            ]}
+          />
         </div>
 
         {/* 正则表达式 */}

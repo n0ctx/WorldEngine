@@ -39,8 +39,15 @@ router.post('/worlds/:worldId/world-state-fields', (req, res) => {
   if (!field_key || !label || !type) {
     return res.status(400).json({ error: 'field_key, label, type 为必填项' });
   }
-  const field = createWorldStateField(req.params.worldId, req.body);
-  res.status(201).json(field);
+  try {
+    const field = createWorldStateField(req.params.worldId, req.body);
+    res.status(201).json(field);
+  } catch (e) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: `field_key "${field_key}" 在该世界下已存在` });
+    }
+    throw e;
+  }
 });
 
 // reorder 必须在 :id 路由前注册
@@ -75,8 +82,15 @@ router.post('/worlds/:worldId/character-state-fields', (req, res) => {
   if (!field_key || !label || !type) {
     return res.status(400).json({ error: 'field_key, label, type 为必填项' });
   }
-  const field = createCharacterStateField(req.params.worldId, req.body);
-  res.status(201).json(field);
+  try {
+    const field = createCharacterStateField(req.params.worldId, req.body);
+    res.status(201).json(field);
+  } catch (e) {
+    if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: `field_key "${field_key}" 在该世界下已存在` });
+    }
+    throw e;
+  }
 });
 
 router.put('/worlds/:worldId/character-state-fields/reorder', (req, res) => {

@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import Select from '../ui/Select';
 
 const TYPE_OPTIONS = [
   { value: 'text',    label: '文本' },
@@ -168,10 +169,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           {/* 类型 */}
           <div>
             <label className={labelCls}>类型 <span className="text-red-400">*</span></label>
-            <select className={selectCls} value={form.type}
-              onChange={(e) => set('type', e.target.value)}>
-              {TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <Select value={form.type} onChange={(v) => set('type', v)} options={TYPE_OPTIONS} />
           </div>
 
           {/* 枚举选项（type=enum 时显示） */}
@@ -274,18 +272,12 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>更新方式</label>
-              <select className={selectCls} value={form.update_mode}
-                onChange={(e) => set('update_mode', e.target.value)}>
-                {updateModeOpts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
+              <Select value={form.update_mode} onChange={(v) => set('update_mode', v)} options={updateModeOpts} />
             </div>
             {form.update_mode !== 'manual' && (
               <div>
                 <label className={labelCls}>触发时机</label>
-                <select className={selectCls} value={form.trigger_mode}
-                  onChange={(e) => set('trigger_mode', e.target.value)}>
-                  {TRIGGER_MODE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                <Select value={form.trigger_mode} onChange={(v) => set('trigger_mode', v)} options={TRIGGER_MODE_OPTIONS} />
               </div>
             )}
           </div>
