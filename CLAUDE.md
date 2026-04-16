@@ -54,7 +54,7 @@ cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
-每次任务完成后更新CHANGELOG.md，git commit。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
+每次任务完成后git commit（每次commit前必须更新CHANGELOG.md）。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
 
 ---
 
@@ -64,10 +64,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 | 文件 | 原因 |
 |---|---|
-| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段；T32 为 messages/sessions/world_timeline 表增加压缩相关字段 |
-| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移；T32 为 messages 加 `is_compressed`、world_timeline 加 `session_id`/`updated_at`，sessions DDL 加 `compressed_context`，并加 ALTER TABLE 迁移和索引 |
-| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；**允许的例外**：T32 将 `WORLD_TIMELINE_RECENT_LIMIT` 从 20 改为 5 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息；T32 在 [6] 之前注入 `compressed_context`，[7] 改用 `getUncompressedMessagesBySessionId` |
+| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段；T32 为 messages/sessions/world_timeline 表增加压缩相关字段；T35 新增 turn_records 表 |
+| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移；T32 为 messages 加 `is_compressed`、world_timeline 加 `session_id`/`updated_at`，sessions DDL 加 `compressed_context`，并加 ALTER TABLE 迁移和索引；T35 新增 turn_records 表 DDL 及索引 |
+| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；**允许的例外**：T32 将 `WORLD_TIMELINE_RECENT_LIMIT` 从 20 改为 5；T35 新增 `MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.45` |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息；T32 在 [6] 之前注入 `compressed_context`，[7] 改用 `getUncompressedMessagesBySessionId`；T35 完整重构为 16 段新组装顺序，[14] 改用 turn records + 降级路径，[16] 单独追加当前用户消息，移除 compressed_context 注入，`renderExpandedSessions` → `renderExpandedTurnRecords` |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；**允许的例外**：T30（副作用生命周期）新增一行 `import './services/cleanup-registrations.js';`，触发钩子注册副作用 |
 
@@ -92,11 +92,9 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 两类调用严格分开，不得混用
 
 **异步队列优先级**（数字越小越高，1/2/3 不可丢弃，4/5 可丢弃）
-- 1: `maybeCompress(sessionId)`（T32 起替换原 summary 生成；内部按阈值决定是否生成 summary + 压缩 + 时间线 upsert + embed）
 - 2: 角色状态栏更新 / 玩家状态栏更新 / title 生成（title 仅当 session.title 为 NULL 时入队）
-- 3: 世界状态栏更新
-- ~~4: 世界时间线~~（T32 起已移入 maybeCompress 内部，不再独立入队）
-- ~~5: Prompt 条目向量化~~（T32 起已移入 maybeCompress 内部，不再独立入队）
+- 3: 世界状态栏更新 / `createTurnRecord(sessionId)`（per-turn 摘要，在世界状态更新之后入队，捕获本轮结果状态）
+- ~~1: maybeCompress~~（per-turn 重构后已移除自动压缩；/summary 手动触发改用 generateTimelineEntry）
 - 编辑消息或重新生成时，清空该 sessionId 队列中优先级 4/5 的未开始任务
 
 **副作用资源扩展规则**（T30 起执行）
@@ -106,14 +104,30 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **提示词组装顺序**（硬编码在 assembler.js，顺序不得改变）
 ```
-[1] 全局 System Prompt
-[2] 世界 System Prompt
-[3] 用户 Persona（均为空则整段跳过）
-[4] 角色 System Prompt
-[5] Prompt 条目（命中→注入 content，未命中→注入 summary；全局→世界→角色顺序）
-[6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 历史摘要召回 + 原文展开，由 recall.js 渲染；见 ARCHITECTURE.md §6）
-[7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮；prompt_only scope 正则在此处理）
-[8] 用户当前消息（已包含在历史记录中）+ 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，非空部分合并为单条 role:user 消息追加）
+[system 消息，[1]–[13] 合并为单个 role:system]
+[1]  全局 System Prompt
+[2]  世界 System Prompt
+[3]  世界状态              renderWorldState(world.id)
+[4]  玩家 System Prompt    [用户人设] name + system_prompt（均为空则跳过）
+[5]  玩家状态              renderPersonaState(world.id)
+[6]  角色 System Prompt
+[7]  角色状态              renderCharacterState(character.id)
+[8]  全局 Prompt 条目      命中→content，未命中→summary
+[9]  世界 Prompt 条目
+[10] 角色 Prompt 条目
+[11] 世界时间线            renderTimeline(world.id)
+[12] 召回摘要              searchRecalledSummaries → renderRecalledSummaries（turn_summaries 向量库）
+[13] 展开原文              decideExpansion → renderExpandedTurnRecords
+
+[历史消息：role:user/assistant 交替]
+[14] 历史消息（turn records 新路径，最近 context_history_rounds 轮；
+              无 turn records 时降级为 getUncompressedMessagesBySessionId；
+              prompt_only scope 正则在此处理）
+
+[尾部 user 消息]
+[15] 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，
+               均空则跳过；合并为单条 role:user 消息）
+[16] 当前用户消息          role:user（DB 中最新的 user 消息）
 ```
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置

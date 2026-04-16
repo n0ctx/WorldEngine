@@ -13,13 +13,12 @@
 
 import db from '../db/index.js';
 import { getCharacterById } from '../db/queries/characters.js';
-import { getSummaryWithMetaById } from '../db/queries/session-summaries.js';
+import { getTurnRecordById } from '../db/queries/turn-records.js';
 import { embed } from '../llm/embedding.js';
-import { search } from '../utils/session-summary-vector-store.js';
+import { search } from '../utils/turn-summary-vector-store.js';
 import { countTokens } from '../utils/token-counter.js';
 import {
   WORLD_TIMELINE_RECENT_LIMIT,
-  MEMORY_RECALL_CONTEXT_WINDOW,
   MEMORY_RECALL_MAX_SESSIONS,
   MEMORY_RECALL_MAX_TOKENS,
 } from '../utils/constants.js';
@@ -168,30 +167,36 @@ export function renderTimeline(worldId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
 }
 
 /**
- * 基于当前对话上下文，向量搜索历史 session summary，返回结构化命中列表。
- * 每条元素：{ ref, session_id, session_title, created_at, content, score }
+ * 基于当前对话最后一轮（最后一条 user + 最后一条 assistant），向量搜索历史 turn summary。
+ * 每条元素：{ ref, turn_record_id, session_id, session_title, created_at, content, score, is_same_session }
  * ref 从 1 起，供 AI 通过 #ref 指代。
  *
+ * 双阈值策略：同 session 用较低阈值（宽松），跨 session 用较高阈值（严格）。
+ *
  * @param {string} worldId
- * @param {string} sessionId   当前 session（排除在外，不自召回）
+ * @param {string} sessionId   当前 session
  * @returns {Promise<{ recalled: Array, recentMessagesText: string }>}
  */
 export async function searchRecalledSummaries(worldId, sessionId) {
-  // 取最近 MEMORY_RECALL_CONTEXT_WINDOW 条消息作为查询上下文
-  const recentMsgs = db.prepare(`
-    SELECT role, content FROM messages
-    WHERE session_id = ?
-    ORDER BY created_at DESC
-    LIMIT ?
-  `).all(sessionId, MEMORY_RECALL_CONTEXT_WINDOW);
+  // 查询向量：最后一条 user 消息 + 最后一条 assistant 消息
+  const lastUser = db.prepare(`
+    SELECT content FROM messages
+    WHERE session_id = ? AND role = 'user'
+    ORDER BY created_at DESC LIMIT 1
+  `).get(sessionId);
 
-  if (recentMsgs.length === 0) return { recalled: [], recentMessagesText: '' };
+  const lastAsst = db.prepare(`
+    SELECT content FROM messages
+    WHERE session_id = ? AND role = 'assistant'
+    ORDER BY created_at DESC LIMIT 1
+  `).get(sessionId);
 
-  // 逆转还原时序，拼接为查询文本
-  recentMsgs.reverse();
-  const recentMessagesText = recentMsgs.map((m) =>
-    m.role === 'user' ? `用户：${m.content}` : `AI：${m.content}`
-  ).join('\n');
+  if (!lastUser) return { recalled: [], recentMessagesText: '' };
+
+  const recentMessagesText = [
+    lastUser  ? `用户：${lastUser.content}`  : '',
+    lastAsst  ? `AI：${lastAsst.content}`    : '',
+  ].filter(Boolean).join('\n');
 
   // 获取查询向量；embedding 未配置时静默降级
   let queryVector = null;
@@ -202,35 +207,40 @@ export async function searchRecalledSummaries(worldId, sessionId) {
   }
   if (!queryVector) return { recalled: [], recentMessagesText };
 
-  // 向量搜索（同世界、排除当前 session、取 topK）
+  // 向量搜索（同世界，同 session / 跨 session 双阈值，取 topK）
   const hits = search(queryVector, {
     worldId,
-    excludeSessionId: sessionId,
+    currentSessionId: sessionId,
     topK: MEMORY_RECALL_MAX_SESSIONS,
   });
 
   if (hits.length === 0) return { recalled: [], recentMessagesText };
 
-  // 拉取摘要元信息，按 token 预算软截断，构建结构化列表
+  // 拉取 turn record 元信息，按 token 预算软截断，构建结构化列表
   const recalled = [];
   let totalTokens = 0;
   let ref = 1;
 
   for (const hit of hits) {
-    const meta = getSummaryWithMetaById(hit.summary_id);
-    if (!meta?.content) continue;
+    const record = getTurnRecordById(hit.turn_record_id);
+    if (!record?.summary) continue;
 
-    const line = meta.content;
-    const lineTokens = countTokens(line);
+    // 通过 session 拿 title 和 created_at
+    const sessionRow = db.prepare('SELECT title, created_at FROM sessions WHERE id = ?').get(record.session_id);
+
+    const lineTokens = countTokens(record.summary);
     if (totalTokens + lineTokens > MEMORY_RECALL_MAX_TOKENS) break;
 
     recalled.push({
       ref,
-      session_id: meta.session_id,
-      session_title: meta.session_title || '未命名会话',
-      created_at: meta.session_created_at,
-      content: meta.content,
+      turn_record_id: record.id,
+      session_id: record.session_id,
+      session_title: sessionRow?.title || '未命名会话',
+      round_index: record.round_index,
+      created_at: sessionRow?.created_at ?? record.created_at,
+      content: record.summary,
       score: hit.score,
+      is_same_session: hit.is_same_session,
     });
     totalTokens += lineTokens;
     ref++;

@@ -2,19 +2,29 @@
  * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
  *
  * 组装顺序（硬编码，不得调整）：
- *   [1] 全局 System Prompt
- *   [2] 世界 System Prompt
- *   [3] 用户 Persona（均为空则整段跳过）
- *   [4] 角色 System Prompt
- *   [1-4] 合并为单个 role:system 消息
- *   [5] Prompt 条目（命中→content，未命中→summary，追加到 system 消息末尾）
- *   [6] 状态与记忆注入：玩家状态 + 角色状态 + 世界状态 + 时间线 + 召回摘要 + 展开原文（T28）
- *   [7] 历史消息（含附件的消息转换为 vision 数组格式）
- *   [8] 当前用户消息（已包含在历史记录中）+ 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
+ *   [system 消息，[1]–[13] 合并为单个 role:system]
+ *   [1]  全局 System Prompt
+ *   [2]  世界 System Prompt
+ *   [3]  世界状态
+ *   [4]  玩家 System Prompt（均为空则跳过）
+ *   [5]  玩家状态
+ *   [6]  角色 System Prompt
+ *   [7]  角色状态
+ *   [8]  全局 Prompt 条目（命中→content，未命中→summary）
+ *   [9]  世界 Prompt 条目
+ *   [10] 角色 Prompt 条目
+ *   [11] 世界时间线
+ *   [12] 召回摘要（向量搜索历史 turn summaries）
+ *   [13] 展开原文（AI preflight 决策后的 turn record 原文）
+ *   [历史消息：role:user/assistant 交替]
+ *   [14] 历史消息（turn records 新路径；无 turn records 时降级为 uncompressed messages）
+ *   [尾部 user 消息]
+ *   [15] 后置提示词（全局→世界→角色，均空跳过）
+ *   [16] 当前用户消息
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
- *   options.onRecallEvent?: (name, payload) => void  — SSE 回调，T28 的 expand 事件通过此回调发出
+ *   options.onRecallEvent?: (name, payload) => void  — SSE 回调
  */
 
 import fs from 'node:fs';
@@ -26,6 +36,7 @@ import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
+import { getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 import {
   getAllGlobalEntries,
   getAllWorldEntries,
@@ -33,8 +44,15 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
-import { renderPersonaState, renderWorldState, renderCharacterState, renderTimeline, searchRecalledSummaries, renderRecalledSummaries } from '../memory/recall.js';
-import { decideExpansion, renderExpandedSessions } from '../memory/summary-expander.js';
+import {
+  renderPersonaState,
+  renderWorldState,
+  renderCharacterState,
+  renderTimeline,
+  searchRecalledSummaries,
+  renderRecalledSummaries,
+} from '../memory/recall.js';
+import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
 import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -81,11 +99,9 @@ function formatMessageForLLM(msg) {
 /**
  * 构建发送给 LLM 的完整 messages 数组
  *
- * 注意：[8] 当前用户消息由调用方传入，不在此函数内读取
- *
  * @param {string} sessionId
  * @param {object} [options]
- * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void  SSE 事件回调
+ * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
  */
 export async function buildPrompt(sessionId, options = {}) {
@@ -112,7 +128,11 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(world.system_prompt);
   }
 
-  // [3] 用户 Persona（两者均为空则跳过整段）
+  // [3] 世界状态
+  const worldStateText = renderWorldState(world.id);
+  if (worldStateText) systemParts.push(worldStateText);
+
+  // [4] 玩家 System Prompt（均为空则跳过）
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -123,12 +143,20 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(lines.join('\n'));
   }
 
-  // [4] 角色 System Prompt
+  // [5] 玩家状态
+  const personaStateText = renderPersonaState(world.id);
+  if (personaStateText) systemParts.push(personaStateText);
+
+  // [6] 角色 System Prompt
   if (character.system_prompt) {
     systemParts.push(character.system_prompt);
   }
 
-  // [5] Prompt 条目（全局→世界→角色顺序）
+  // [7] 角色状态
+  const characterStateText = renderCharacterState(character.id);
+  if (characterStateText) systemParts.push(characterStateText);
+
+  // [8-10] Prompt 条目（全局→世界→角色顺序）
   const globalEntries = getAllGlobalEntries();
   const worldEntries = getAllWorldEntries(world.id);
   const characterEntries = getAllCharacterEntries(character.id);
@@ -148,54 +176,60 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 召回摘要 + 展开原文）
-  const personaStateText = renderPersonaState(world.id);
-  const characterStateText = renderCharacterState(character.id);
-  const worldStateText = renderWorldState(world.id);
+  // [11] 世界时间线
   const timelineText = renderTimeline(world.id);
+  if (timelineText) systemParts.push(timelineText);
 
-  // T27：向量搜索召回摘要
+  // [12] 召回摘要（向量搜索历史 turn summaries）
   const { recalled, recentMessagesText } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
+  if (recalledSummariesText) systemParts.push(recalledSummariesText);
 
-  // T28：AI preflight 决策展开原文
-  let expandedText = '';
+  // [13] 展开原文（AI preflight 决策）
   if (recalled.length > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', {
       candidates: recalled.map((r) => ({ ref: r.ref, title: r.session_title })),
     });
 
     const toExpand = await decideExpansion({ sessionId, recalled, recentMessagesText });
-    expandedText = toExpand.length ? renderExpandedSessions(toExpand, MEMORY_EXPAND_MAX_TOKENS) : '';
+    const expandedText = toExpand.length
+      ? renderExpandedTurnRecords(toExpand, MEMORY_EXPAND_MAX_TOKENS)
+      : '';
 
     onRecallEvent?.('memory_expand_done', { expanded: toExpand });
+
+    if (expandedText) systemParts.push(expandedText);
   }
 
-  // [早期对话摘要] 压缩历史（若存在），注入在状态记忆之前
-  if (session.compressed_context) {
-    systemParts.push(`[早期对话摘要]\n${session.compressed_context}`);
-  }
-
-  const recallParts = [personaStateText, characterStateText, worldStateText, timelineText, recalledSummariesText, expandedText].filter(Boolean);
-  if (recallParts.length > 0) {
-    systemParts.push(recallParts.join('\n\n'));
-  }
-
-  // [1-6] 合并为单个 role:system 消息
+  // [1–13] 合并为单个 role:system 消息
   const messages = [];
   if (systemParts.length > 0) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
 
-  // [7] 历史消息（仅未压缩消息；prompt_only scope：对每条消息的 content 字段应用正则替换，仅影响送入 LLM 的副本）
-  const history = getUncompressedMessagesBySessionId(sessionId);
-  for (const msg of history) {
-    const content = applyRules(msg.content, 'prompt_only', world.id);
-    messages.push(formatMessageForLLM({ ...msg, content }));
+  // [14] 历史消息
+  const K = config.context_history_rounds ?? 10;
+  const turnRecords = getTurnRecordsBySessionId(sessionId, K);
+
+  if (turnRecords.length > 0) {
+    // 新路径：turn records，每条渲染为 user/assistant 对（含状态快照）
+    for (const record of turnRecords) {
+      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
+      messages.push({ role: 'assistant', content: applyRules(record.asst_context, 'prompt_only', world.id) });
+    }
+  } else {
+    // 降级路径：session 尚无任何 turn record，用旧的 uncompressed messages
+    // 去掉最后一条 user 消息（将在 [16] 单独追加）
+    const history = getUncompressedMessagesBySessionId(sessionId);
+    const withoutLastUser = history.slice(0, history.length - 1);
+    for (const msg of withoutLastUser) {
+      const content = applyRules(msg.content, 'prompt_only', world.id);
+      messages.push(formatMessageForLLM({ ...msg, content }));
+    }
   }
 
-  // [8] 后置提示词（全局→世界→角色，合并为单条 role:user 消息，插入在历史消息之后）
+  // [15] 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
   const postParts = [
     config.global_post_prompt,
     world.post_prompt,
@@ -203,6 +237,14 @@ export async function buildPrompt(sessionId, options = {}) {
   ].filter(Boolean);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
+  }
+
+  // [16] 当前用户消息（取 DB 中最新的 user 消息）
+  const allHistory = getUncompressedMessagesBySessionId(sessionId);
+  const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
+  if (currentUserMsg) {
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id);
+    messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
   // 生成参数：世界级 > 全局
@@ -216,7 +258,8 @@ export async function buildPrompt(sessionId, options = {}) {
  * 写作空间提示词组装器
  *
  * 写作模式下没有单一绑定角色，而是一个世界 + 多个激活角色。
- * 组装顺序与 buildPrompt 对齐，但 [4][5][6] 针对所有激活角色展开。
+ * 组装顺序与 buildPrompt 对齐，但 [6-10] 针对所有激活角色展开。
+ * 写作模式无 turn records，使用降级路径（uncompressed messages）。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -242,7 +285,11 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(world.system_prompt);
   }
 
-  // [3] 用户 Persona
+  // [3] 世界状态
+  const worldStateText = renderWorldState(world.id);
+  if (worldStateText) systemParts.push(worldStateText);
+
+  // [4] 玩家 System Prompt
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -253,16 +300,21 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(lines.join('\n'));
   }
 
-  // [4] 激活角色 System Prompt（每个角色一段）
-  const activeCharacters = getWritingSessionCharacters(sessionId);
+  // [5] 玩家状态
+  const personaStateText = renderPersonaState(world.id);
+  if (personaStateText) systemParts.push(personaStateText);
 
+  // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
+  const activeCharacters = getWritingSessionCharacters(sessionId);
   for (const character of activeCharacters) {
     if (character.system_prompt) {
       systemParts.push(`[角色：${character.name}]\n${character.system_prompt}`);
     }
+    const charStateText = renderCharacterState(character.id);
+    if (charStateText) systemParts.push(charStateText);
   }
 
-  // [5] Prompt 条目（全局→世界→各激活角色）
+  // [8-10] Prompt 条目（全局→世界→各激活角色）
   const globalEntries = getAllGlobalEntries();
   const worldEntries = getAllWorldEntries(world.id);
   const allCharacterEntries = [];
@@ -286,45 +338,38 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [6] 状态与记忆注入
-  const personaStateText = renderPersonaState(world.id);
-  const worldStateText = renderWorldState(world.id);
+  // [11] 世界时间线
   const timelineText = renderTimeline(world.id);
+  if (timelineText) systemParts.push(timelineText);
 
-  // 各激活角色状态
-  const charStateTexts = [];
-  for (const character of activeCharacters) {
-    const t = renderCharacterState(character.id);
-    if (t) charStateTexts.push(t);
-  }
+  // [12-13] 写作模式无向量召回和展开原文
 
-  // 压缩历史摘要
-  if (session.compressed_context) {
-    systemParts.push(`[早期对话摘要]\n${session.compressed_context}`);
-  }
-
-  const recallParts = [personaStateText, ...charStateTexts, worldStateText, timelineText].filter(Boolean);
-  if (recallParts.length > 0) {
-    systemParts.push(recallParts.join('\n\n'));
-  }
-
-  // [1-6] 合并为单个 role:system 消息
+  // [1-13] 合并为单个 role:system 消息
   const messages = [];
   if (systemParts.length > 0) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
 
-  // [7] 历史消息
+  // [14] 历史消息（写作模式始终用降级路径）
+  // 去掉最后一条 user 消息（将在 [16] 单独追加）
   const history = getUncompressedMessagesBySessionId(sessionId);
-  for (const msg of history) {
+  const withoutLastUser = history.slice(0, history.length - 1);
+  for (const msg of withoutLastUser) {
     const content = applyRules(msg.content, 'prompt_only', world.id);
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [8] 后置提示词（全局→世界，写作模式无角色后置提示词）
+  // [15] 后置提示词（全局→世界，写作模式无角色后置提示词）
   const postParts = [config.global_post_prompt, world.post_prompt].filter(Boolean);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
+  }
+
+  // [16] 当前用户消息
+  const currentUserMsg = [...history].reverse().find((m) => m.role === 'user');
+  if (currentUserMsg) {
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id);
+    messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
   const temperature = world.temperature ?? config.llm.temperature;

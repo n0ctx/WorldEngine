@@ -18,7 +18,9 @@ import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
 import { updatePersonaState } from '../memory/persona-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
-import { maybeCompress } from '../memory/context-compressor.js';
+import { generateTimelineEntry } from '../memory/context-compressor.js';
+import { createTurnRecord } from '../memory/turn-summarizer.js';
+import { deleteLastTurnRecord } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -127,9 +129,6 @@ async function runStream(sessionId, res) {
 
     if (hasUserMsg) {
 
-      // 优先级 1：轮次压缩检查（内部按阈值决定是否生成 summary + 压缩 + 时间线 + embed）
-      enqueue(sessionId, () => maybeCompress(sessionId), 1, 'compress').catch(() => {});
-
       // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
@@ -140,7 +139,7 @@ async function runStream(sessionId, res) {
           .finally(() => {
             if (!clientClosed) res.end();
           });
-        // 优先级 2：角色状态更新（title 之后入队，title 先跑）
+        // 优先级 2：角色状态更新
         if (characterId) {
           enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
         }
@@ -148,10 +147,11 @@ async function runStream(sessionId, res) {
         if (worldId) {
           enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
         }
-        // 优先级 3：世界状态更新
+        // 优先级 3：世界状态更新，之后创建 turn record（状态更新完毕后捕获最终状态）
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
         }
+        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
         return; // 等待标题生成后再关闭连接
       }
 
@@ -163,10 +163,11 @@ async function runStream(sessionId, res) {
       if (worldId) {
         enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
       }
-      // 优先级 3：世界状态更新
+      // 优先级 3：世界状态更新，之后创建 turn record
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
       }
+      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
     }
   }
 
@@ -222,6 +223,9 @@ router.post('/:sessionId/regenerate', async (req, res) => {
 
   // 保留 afterMessageId 本身，删除之后的所有消息
   await deleteMessagesAfter(afterMessageId);
+
+  // 删除最后一条 turn record（对应被删除的那轮）
+  deleteLastTurnRecord(sessionId);
 
   // 丢弃低优先级待处理任务（时间线、向量化）
   clearPending(sessionId, 4);
@@ -313,8 +317,6 @@ router.post('/:sessionId/continue', async (req, res) => {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      enqueue(sessionId, () => maybeCompress(sessionId), 1, 'compress').catch(() => {});
-
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
@@ -333,6 +335,8 @@ router.post('/:sessionId/continue', async (req, res) => {
         if (worldId) {
           enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
         }
+        // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
+        enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
         return;
       }
 
@@ -345,6 +349,8 @@ router.post('/:sessionId/continue', async (req, res) => {
       if (worldId) {
         enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
       }
+      // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
+      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
     }
   }
 
@@ -417,7 +423,7 @@ router.post('/:sessionId/summary', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   try {
-    await maybeCompress(sessionId, { force: true });
+    await generateTimelineEntry(sessionId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

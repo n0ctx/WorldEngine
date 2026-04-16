@@ -19,6 +19,19 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T35 — Per-turn 摘要系统重构 ✅
+- **对外接口**：新增 `createTurnRecord(sessionId, { isUpdate? })` 用于每轮结束后创建/更新 turn record；`generateTimelineEntry(sessionId)` 替代旧 `maybeCompress`（被 `/api/sessions/:id/summary` 路由调用）；`deleteLastTurnRecord(sessionId)` 被 `/regenerate` 路由调用；`recall.js` 的 `searchRecalledSummaries` 现在返回 turn_record 粒度的召回结果
+- **涉及文件**：
+  - **新增**：`backend/db/queries/turn-records.js`、`backend/utils/turn-summary-vector-store.js`、`backend/memory/turn-summarizer.js`
+  - **修改**：`backend/db/schema.js`（新增 turn_records 表）、`backend/utils/constants.js`（新增 `MEMORY_RECALL_SAME_SESSION_THRESHOLD`）、`backend/services/config.js`（`context_compress_rounds` → `context_history_rounds`）、`backend/memory/recall.js`（改用 turn-summary-vector-store，双阈值召回）、`backend/memory/summary-expander.js`（`renderExpandedSessions` → `renderExpandedTurnRecords`，读 turn record 原文而非 session messages）、`backend/prompt/assembler.js`（完整 16 段新组装顺序）、`backend/memory/context-compressor.js`（移除 `maybeCompress`，改为 `generateTimelineEntry`）、`backend/routes/chat.js`（队列变更：移除 P1 compress，P3 新增 `createTurnRecord`；/regenerate 加 `deleteLastTurnRecord`；/continue 加 `isUpdate:true`）、`backend/services/cleanup-registrations.js`（注册 turn_summaries 向量清理钩子）
+- **注意**：
+  - turn record 在 P3 末尾入队，确保所有 P2（char/persona 状态）和 P3（world 状态）更新完毕后才创建，捕获本轮**结果状态**
+  - `/continue` 续写后调用 `createTurnRecord(sessionId, { isUpdate: true })`，通过 UPSERT 覆盖同 round_index 的旧记录（不增加新轮次）
+  - 旧 session（无 turn records）自动降级：assembler.js [14] 检测 `turnRecords.length === 0` 时用 `getUncompressedMessagesBySessionId` 路径，向后兼容
+  - `session_summaries` 表保留（存档旧数据），T35 起不再写入
+  - `turn_records` 表的级联删除由 SQLite `ON DELETE CASCADE` 自动处理，无需业务代码
+  - 配置键 `context_compress_rounds` 已重命名为 `context_history_rounds`，现有 config.json 需手动迁移（或重置后自动初始化）
+
 ## T48 — 记忆面板状态栏重置按钮 ✅
 - **对外接口**：新增三个 POST 路由：`POST /api/worlds/:worldId/state-values/reset`、`POST /api/characters/:characterId/state-values/reset`、`POST /api/worlds/:worldId/persona-state-values/reset`；各返回重置后的状态值数组（同各自的 GET 返回格式）
 - **涉及文件**：`backend/routes/world-state-values.js`（新增 reset 端点）；`backend/routes/character-state-values.js`（新增 reset 端点，新增 `getCharacterById` 和 `getCharacterStateFieldsByWorldId` import）；`backend/routes/persona-state-values.js`（新增 reset 端点，新增 `getPersonaStateFieldsByWorldId` import）；`frontend/src/api/worldStateValues.js`、`characterStateValues.js`、`personaStateValues.js`（各新增 reset 函数）；`frontend/src/components/memory/MemoryPanel.jsx` 和 `MultiCharacterMemoryPanel.jsx`（Section 组件加 onReset/resetting prop，三个状态栏各加重置按钮）

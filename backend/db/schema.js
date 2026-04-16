@@ -235,6 +235,17 @@ CREATE TABLE IF NOT EXISTS regex_rules (
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS turn_records (
+  id              TEXT PRIMARY KEY,
+  session_id      TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index     INTEGER NOT NULL,
+  summary         TEXT NOT NULL,
+  user_context    TEXT NOT NULL,
+  asst_context    TEXT NOT NULL,
+  created_at      INTEGER NOT NULL,
+  UNIQUE(session_id, round_index)
+);
 `;
 
 const INDEXES = `
@@ -304,4 +315,6 @@ export function initSchema(db) {
   // T34: 补充索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_writing_session_characters_session_id ON writing_session_characters(session_id)`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
+  // per-turn 摘要系统：新增 turn_records 表索引
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
 }

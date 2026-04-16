@@ -23,7 +23,8 @@ export const PROMPT_ENTRY_TOP_K = 3;
 export const MEMORY_RECALL_MAX_SESSIONS = 3;
 export const MEMORY_RECALL_CONTEXT_WINDOW = 10;
 export const MEMORY_RECALL_MAX_TOKENS = 2048;
-export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.68;
+export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.68;       // 跨 session 阈值（严格）
+export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.45;     // 同 session 内阈值（宽松）
 
 // ============================
 // 记忆原文展开（T28）

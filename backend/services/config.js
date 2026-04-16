@@ -26,7 +26,7 @@ const DEFAULT_CONFIG = {
     font_size: 16,
     custom_css: '',
   },
-  context_compress_rounds: 10,
+  context_history_rounds: 10,
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,

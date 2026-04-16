@@ -12,6 +12,7 @@ import { registerOnDelete } from '../utils/cleanup-hooks.js';
 import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
 import { deleteEntry } from '../utils/vector-store.js';
 import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
+import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 
 import {
   getAttachmentsByMessageId,
@@ -105,5 +106,25 @@ registerOnDelete('character', async (cid) => {
 registerOnDelete('world', async (wid) => {
   for (const sid of getSessionIdsByWorldId(wid)) {
     sessionSummaryVectorStore.deleteBySessionId(sid);
+  }
+});
+
+// ── Turn Summary 向量 ────────────────────────────────────────────
+// 模块：turn-summarizer — 管理 data/vectors/turn_summaries.json
+// turn_records 表由 ON DELETE CASCADE 自动清理；向量文件需手动清理
+
+registerOnDelete('session', async (sid) => {
+  turnSummaryVectorStore.deleteBySessionId(sid);
+});
+
+registerOnDelete('character', async (cid) => {
+  for (const sid of getSessionIdsByCharacterId(cid)) {
+    turnSummaryVectorStore.deleteBySessionId(sid);
+  }
+});
+
+registerOnDelete('world', async (wid) => {
+  for (const sid of getSessionIdsByWorldId(wid)) {
+    turnSummaryVectorStore.deleteBySessionId(sid);
   }
 });
