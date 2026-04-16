@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T47 — 修复状态更新器混淆玩家与角色身份 ✅
+- **对外接口**：无新增接口；仅修改两个状态更新器内部 prompt
+- **涉及文件**：`backend/memory/character-state-updater.js`（对话标签从"用户"改为"玩家"；prompt 加入边界说明，明确只追踪角色自身变化）；`backend/memory/persona-state-updater.js`（新增从 session 查角色名；对话标签从泛称"角色"改为具体角色名；prompt 加入对称边界说明，明确只追踪玩家自身变化）
+- **注意**：根本原因是两个更新器的 prompt 均未告知 LLM"另一方有独立状态系统"，导致 LLM 对共享字段名（coin/identity/items 等）同时用玩家事件更新双方；writing session 无 character_id 时 characterName 回退为"角色"（泛称），不影响写作模式
+
 ## T46 — 设置页加宽 + 所有编辑页操作按钮固定顶栏 ✅
 - **对外接口**：无新增接口；纯 UI 重构
 - **涉及文件**：`frontend/src/pages/SettingsPage.jsx`（`max-w-2xl` → `max-w-[56rem]`；新增 `sticky top-0 z-40` 顶栏含返回+保存；移除 "通用配置" section 内联保存按钮）；`frontend/src/pages/WorldEditPage.jsx`（外层容器重构为顶栏+内容区两段；顶栏含返回/设置/导出世界卡/保存；移除底部按钮行）；`frontend/src/pages/CharacterEditPage.jsx`（同世界编辑页结构；顶栏含导出角色卡+保存；saveError 保留在表单原位置）；`frontend/src/pages/PersonaEditPage.jsx`（顶栏含导出为角色卡+保存；移除底部按钮行）
