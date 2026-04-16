@@ -56,6 +56,7 @@ import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-ex
 import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
+import { applyTemplateVars } from '../utils/template-vars.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
@@ -118,43 +119,48 @@ export async function buildPrompt(sessionId, options = {}) {
   const config = getConfig();
   const systemParts = [];
 
-  // [1] 全局 System Prompt
-  if (config.global_system_prompt) {
-    systemParts.push(config.global_system_prompt);
-  }
-
-  // [2] 世界 System Prompt
-  if (world.system_prompt) {
-    systemParts.push(world.system_prompt);
-  }
-
-  // [3] 世界状态
-  const worldStateText = renderWorldState(world.id);
-  if (worldStateText) systemParts.push(worldStateText);
-
   // [4] 玩家 System Prompt（均为空则跳过）
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
+
+  // 模板变量上下文（{{user}} / {{char}} / {{world}}）
+  const ctx = { user: personaName, char: character.name, world: world.name };
+  const tv = (t) => applyTemplateVars(t, ctx);
+
+  // [1] 全局 System Prompt
+  if (config.global_system_prompt) {
+    systemParts.push(tv(config.global_system_prompt));
+  }
+
+  // [2] 世界 System Prompt
+  if (world.system_prompt) {
+    systemParts.push(tv(world.system_prompt));
+  }
+
+  // [3] 世界状态
+  const worldStateText = renderWorldState(world.id);
+  if (worldStateText) systemParts.push(tv(worldStateText));
+
   if (personaName || personaPrompt) {
     const lines = ['[用户人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
-    if (personaPrompt) lines.push(personaPrompt);
+    if (personaPrompt) lines.push(tv(personaPrompt));
     systemParts.push(lines.join('\n'));
   }
 
   // [5] 玩家状态
   const personaStateText = renderPersonaState(world.id);
-  if (personaStateText) systemParts.push(personaStateText);
+  if (personaStateText) systemParts.push(tv(personaStateText));
 
   // [6] 角色 System Prompt
   if (character.system_prompt) {
-    systemParts.push(character.system_prompt);
+    systemParts.push(tv(character.system_prompt));
   }
 
   // [7] 角色状态
   const characterStateText = renderCharacterState(character.id);
-  if (characterStateText) systemParts.push(characterStateText);
+  if (characterStateText) systemParts.push(tv(characterStateText));
 
   // [8-10] Prompt 条目（全局→世界→角色顺序）
   const globalEntries = getAllGlobalEntries();
@@ -167,9 +173,9 @@ export async function buildPrompt(sessionId, options = {}) {
   const entryTexts = [];
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id)) {
-      if (entry.content) entryTexts.push(entry.content);
+      if (entry.content) entryTexts.push(tv(entry.content));
     } else {
-      if (entry.summary) entryTexts.push(entry.summary);
+      if (entry.summary) entryTexts.push(tv(entry.summary));
     }
   }
   if (entryTexts.length > 0) {
@@ -178,13 +184,13 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [11] 世界时间线
   const timelineText = renderTimeline(world.id);
-  if (timelineText) systemParts.push(timelineText);
+  if (timelineText) systemParts.push(tv(timelineText));
 
   // [12] 召回摘要（向量搜索历史 turn summaries）
   const { recalled, recentMessagesText } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) systemParts.push(recalledSummariesText);
+  if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
 
   // [13] 展开原文（AI preflight 决策）
   if (recalled.length > 0 && config.memory_expansion_enabled !== false) {
@@ -199,7 +205,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
     onRecallEvent?.('memory_expand_done', { expanded: toExpand });
 
-    if (expandedText) systemParts.push(expandedText);
+    if (expandedText) systemParts.push(tv(expandedText));
   }
 
   // [1–13] 合并为单个 role:system 消息
@@ -234,7 +240,7 @@ export async function buildPrompt(sessionId, options = {}) {
     config.global_post_prompt,
     world.post_prompt,
     character.post_prompt,
-  ].filter(Boolean);
+  ].filter(Boolean).map(tv);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
@@ -275,43 +281,52 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const config = getConfig();
   const systemParts = [];
 
-  // [1] 全局 System Prompt
-  if (config.global_system_prompt) {
-    systemParts.push(config.global_system_prompt);
-  }
-
-  // [2] 世界 System Prompt
-  if (world.system_prompt) {
-    systemParts.push(world.system_prompt);
-  }
-
-  // [3] 世界状态
-  const worldStateText = renderWorldState(world.id);
-  if (worldStateText) systemParts.push(worldStateText);
-
   // [4] 玩家 System Prompt
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
+
+  // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
+  const activeCharacters = getWritingSessionCharacters(sessionId);
+
+  // 模板变量上下文：共享段用首个激活角色名作为 {{char}} fallback
+  const firstCharName = activeCharacters[0]?.name || '';
+  const ctx = { user: personaName, char: firstCharName, world: world.name };
+  const tv = (t) => applyTemplateVars(t, ctx);
+
+  // [1] 全局 System Prompt
+  if (config.global_system_prompt) {
+    systemParts.push(tv(config.global_system_prompt));
+  }
+
+  // [2] 世界 System Prompt
+  if (world.system_prompt) {
+    systemParts.push(tv(world.system_prompt));
+  }
+
+  // [3] 世界状态
+  const worldStateText = renderWorldState(world.id);
+  if (worldStateText) systemParts.push(tv(worldStateText));
+
   if (personaName || personaPrompt) {
     const lines = ['[用户人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
-    if (personaPrompt) lines.push(personaPrompt);
+    if (personaPrompt) lines.push(tv(personaPrompt));
     systemParts.push(lines.join('\n'));
   }
 
   // [5] 玩家状态
   const personaStateText = renderPersonaState(world.id);
-  if (personaStateText) systemParts.push(personaStateText);
+  if (personaStateText) systemParts.push(tv(personaStateText));
 
-  // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
-  const activeCharacters = getWritingSessionCharacters(sessionId);
   for (const character of activeCharacters) {
+    // per-character 段使用该角色自身的名字替换 {{char}}
+    const tvChar = (t) => applyTemplateVars(t, { ...ctx, char: character.name });
     if (character.system_prompt) {
-      systemParts.push(`[角色：${character.name}]\n${character.system_prompt}`);
+      systemParts.push(`[角色：${character.name}]\n${tvChar(character.system_prompt)}`);
     }
     const charStateText = renderCharacterState(character.id);
-    if (charStateText) systemParts.push(charStateText);
+    if (charStateText) systemParts.push(tv(charStateText));
   }
 
   // [8-10] Prompt 条目（全局→世界→各激活角色）
@@ -329,9 +344,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const entryTexts = [];
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id)) {
-      if (entry.content) entryTexts.push(entry.content);
+      if (entry.content) entryTexts.push(tv(entry.content));
     } else {
-      if (entry.summary) entryTexts.push(entry.summary);
+      if (entry.summary) entryTexts.push(tv(entry.summary));
     }
   }
   if (entryTexts.length > 0) {
@@ -340,7 +355,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [11] 世界时间线
   const timelineText = renderTimeline(world.id);
-  if (timelineText) systemParts.push(timelineText);
+  if (timelineText) systemParts.push(tv(timelineText));
 
   // [12-13] 写作模式无向量召回和展开原文
 
@@ -370,7 +385,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [15] 后置提示词（全局→世界，写作模式无角色后置提示词）
-  const postParts = [config.global_post_prompt, world.post_prompt].filter(Boolean);
+  const postParts = [config.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }

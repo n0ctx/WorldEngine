@@ -315,6 +315,26 @@ createTurnRecord(sessionId, { isUpdate? })
 
 ---
 
+## §9.1 模板变量（T51）
+
+类 SillyTavern 的内置占位符，在提示词组装时（assembler.js）自动替换，不修改数据库原始文本。
+
+| 占位符 | 替换值 | 作用域说明 |
+|---|---|---|
+| `{{user}}` | `persona.name` | 世界级（每个世界对应一个 persona） |
+| `{{char}}` | `character.name` | 角色级 |
+| `{{world}}` | `world.name` | 全局 |
+
+**大小写不敏感**：`{{User}}`、`{{CHAR}}` 等均有效。
+
+**应用范围**：[1]–[13] 所有 systemParts 注入点 + [15] 后置提示词。**不替换** [14] 历史消息和 [16] 当前用户消息（对话内容非配置模板）。
+
+**写作模式多角色**：共享段（[1]-[5][8-11][15]）以首个激活角色名作为 `{{char}}` fallback；[6-7] per-character 段各自使用自身角色名。
+
+**实现**：`backend/utils/template-vars.js` → `applyTemplateVars(text, ctx)`；assembler.js 内以闭包 `const tv = t => applyTemplateVars(t, ctx)` 调用。
+
+---
+
 ## §10 副作用资源删除钩子
 
 **挂载方式**：`server.js` 启动时通过副作用 `import './services/cleanup-registrations.js'` 触发一次全局注册；钩子通过 `registerOnDelete(entity, asyncFn)` 注册，`entity` 为 `'world' | 'character' | 'session' | 'message'`。
