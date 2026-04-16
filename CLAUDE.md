@@ -34,7 +34,7 @@
 /backend/routes/                # HTTP 路由，只做参数校验，不含业务逻辑
 /backend/services/              # 业务逻辑层
 /backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
-/backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [6]
+/backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [3][5][7][11][12][13]
 /backend/prompt/assembler.js    # 锁定文件：提示词组装顺序
 /backend/utils/constants.js     # 锁定文件：所有硬性数值常量
 /frontend/src/store/index.js    # 锁定文件：全局状态
@@ -62,16 +62,14 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 以下文件一旦完成即锁定，未经明确要求禁止改动：
 
-| 文件 | 原因 |
+| 文件 | 说明 |
 |---|---|
-| `SCHEMA.md` | 数据库字段权威来源，改字段必须同步更新此文件；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段；T32 为 messages/sessions/world_timeline 表增加压缩相关字段；T35 新增 turn_records 表 |
-| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；**允许的例外**：T30 为 personas 表增加 `avatar_path TEXT` 字段并加 ALTER TABLE 迁移；T31 为 worlds/characters 表增加 `post_prompt TEXT` 字段并加 ALTER TABLE 迁移；T32 为 messages 加 `is_compressed`、world_timeline 加 `session_id`/`updated_at`，sessions DDL 加 `compressed_context`，并加 ALTER TABLE 迁移和索引；T35 新增 turn_records 表 DDL 及索引 |
-| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；**允许的例外**：T32 将 `WORLD_TIMELINE_RECENT_LIMIT` 从 20 改为 5；T35 新增 `MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.45` |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码，**允许的例外**：T21 填入 [6] 位置；T24B 在 [7] 历史消息位置对 `prompt_only` scope 调用 regex-runner；T28 签名改为 `buildPrompt(sessionId, options?)` 加 onRecallEvent 回调，[6] 末尾追加展开原文段；T31 调整 [2][3] 顺序（世界提前于 Persona），[8] 后追加后置提示词 user 消息；T32 在 [6] 之前注入 `compressed_context`，[7] 改用 `getUncompressedMessagesBySessionId`；T35 完整重构为 16 段新组装顺序，[14] 改用 turn records + 降级路径，[16] 单独追加当前用户消息，移除 compressed_context 注入，`renderExpandedSessions` → `renderExpandedTurnRecords` |
+| `SCHEMA.md` | 数据库字段权威来源，改字段/加表必须同步更新此文件 |
+| `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；新增表/字段时用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE IF NOT EXISTS` 追加，不重建已有表 |
+| `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；新增常量需说明用途和来源 |
+| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码（16 段，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
-| `server.js` | 入口文件；**允许的例外**：T30（副作用生命周期）新增一行 `import './services/cleanup-registrations.js';`，触发钩子注册副作用 |
-
-> 例外登记机制：上述锁定不是"永不改动"，而是"非例外不改动"。当某任务明确需要变更锁定文件时，必须在本表对应行用加粗 `**允许的例外**` 字样列出任务号与改动点（如 `assembler.js` 一行所示）。已存在例外：`SCHEMA.md` 与 `schema.js` 在 T19A / T26C 中扩展了状态系统三张表，`assembler.js` 的 [6] 位置在 T21 / T26C / T27 / T28 中追加了 recall 段和展开原文段。
+| `server.js` | 入口文件；已含 `import './services/cleanup-registrations.js'` 副作用 import |
 
 ---
 
@@ -94,10 +92,9 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **异步队列优先级**（数字越小越高，1/2/3 不可丢弃，4/5 可丢弃）
 - 2: 角色状态栏更新 / 玩家状态栏更新 / title 生成（title 仅当 session.title 为 NULL 时入队）
 - 3: 世界状态栏更新 / `createTurnRecord(sessionId)`（per-turn 摘要，在世界状态更新之后入队，捕获本轮结果状态）
-- ~~1: maybeCompress~~（per-turn 重构后已移除自动压缩；/summary 手动触发改用 generateTimelineEntry）
 - 编辑消息或重新生成时，清空该 sessionId 队列中优先级 4/5 的未开始任务
 
-**副作用资源扩展规则**（T30 起执行）
+**副作用资源扩展规则**
 - 新增任何带磁盘文件或向量的子资源时，**只在 `/backend/services/cleanup-registrations.js` 注册钩子**，不改 `deleteWorld` / `deleteCharacter` / `deleteSession` 等核心 delete 函数
 - 钩子通过 `registerOnDelete(entity, async id => {...})` 注册，entity 为 `'world' | 'character' | 'session' | 'message'`
 - 钩子失败只 warn，不影响 DB DELETE；runOnDelete 在 DB DELETE 之前调用

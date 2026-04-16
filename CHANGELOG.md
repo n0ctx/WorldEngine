@@ -19,7 +19,7 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
-## T35 — Per-turn 摘要系统重构 ✅
+## T49 — Per-turn 摘要系统重构 ✅
 - **对外接口**：新增 `createTurnRecord(sessionId, { isUpdate? })` 用于每轮结束后创建/更新 turn record；`generateTimelineEntry(sessionId)` 替代旧 `maybeCompress`（被 `/api/sessions/:id/summary` 路由调用）；`deleteLastTurnRecord(sessionId)` 被 `/regenerate` 路由调用；`recall.js` 的 `searchRecalledSummaries` 现在返回 turn_record 粒度的召回结果
 - **涉及文件**：
   - **新增**：`backend/db/queries/turn-records.js`、`backend/utils/turn-summary-vector-store.js`、`backend/memory/turn-summarizer.js`
