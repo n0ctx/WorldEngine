@@ -194,8 +194,14 @@ export default function MessageItem({ message, character, persona, worldId, isSt
         </div>
         <div className="flex flex-col gap-1 max-w-[75%]">
           <span className="text-xs opacity-50 mb-0.5">{character?.name}</span>
-          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed whitespace-pre-wrap">
-            {streamingText}
+          <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={MD_COMPONENTS}
+            >
+              {streamingText}
+            </ReactMarkdown>
             <span className="inline-block w-0.5 h-4 bg-accent ml-0.5 animate-pulse align-middle" />
           </div>
         </div>
