@@ -183,6 +183,7 @@ export default function MessageList({
               persona={persona}
               worldId={worldId}
               isStreaming={isContinuing}
+              streamingText={isContinuing ? displayMsg.content : undefined}
               onEdit={onEditMessage}
               onRegenerate={onRegenerateMessage}
             />

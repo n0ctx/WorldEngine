@@ -112,16 +112,18 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     responseKeys.push('"world"（世界状态）');
   }
 
-  for (const char of charactersWithFields) {
+  for (let i = 0; i < charactersWithFields.length; i++) {
+    const char = charactersWithFields[i];
+    const charKey = `char_${i}`;
     const valueMap = Object.fromEntries(
       getAllCharacterStateValues(char.id).map((v) => [v.field_key, v.value_json])
     );
     sections.push(
-      `=== 角色状态（"${char.name}"）===\n` +
+      `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
         `注意：只追踪"${char.name}"自身的变化，勿将玩家的经历记录为此角色的状态。\n` +
         buildFieldsDesc(charSchemaFields, valueMap)
     );
-    responseKeys.push(`"${char.name}"（角色状态）`);
+    responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
   }
 
   if (personaActiveFields.length > 0) {
@@ -145,7 +147,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   const exampleKeys = [
     worldActiveFields.length > 0 ? '"world": {"date": "第三纪元第101年"}' : null,
-    charactersWithFields[0] ? `"${charactersWithFields[0].name}": {"mood": "开心"}` : null,
+    charactersWithFields[0] ? '"char_0": {"mood": "开心"}' : null,
     personaActiveFields.length > 0 ? '"persona": {"health": 85}' : null,
   ]
     .filter(Boolean)
@@ -203,8 +205,9 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
 
   // ── 写入各角色状态 ──
-  for (const char of charactersWithFields) {
-    const charPatch = patch[char.name];
+  for (let i = 0; i < charactersWithFields.length; i++) {
+    const char = charactersWithFields[i];
+    const charPatch = patch[`char_${i}`];
     if (!charPatch || typeof charPatch !== 'object') continue;
     const fieldMap = Object.fromEntries(charSchemaFields.map((f) => [f.field_key, f]));
     const updated = [];

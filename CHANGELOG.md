@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T53 — 修复 /continue 气泡仍显示"..."+ 角色状态栏不更新 ✅
+- **问题 1**：`MessageList.jsx` 的续写消息项未传 `streamingText` prop，导致 `MessageItem` 判断 `isStreaming && !streamingText` 后始终显示"..."打点动画
+- **问题 2**：`combined-state-updater.js` 用角色名作为 JSON 顶层 key（如 `"小绿": {...}`），LLM 经常用别名/不精确名称，导致 `patch[char.name]` 永远找不到，静默跳过，状态栏无法更新
+- **修复前端**：`MessageList.jsx` 续写 `MessageItem` 加 `streamingText={isContinuing ? displayMsg.content : undefined}`，续写期间直接展示原内容+新增内容并带光标
+- **修复后端**：`combined-state-updater.js` 改用索引 key `"char_0"`, `"char_1"` 代替角色名；prompt 中明确标注每个角色对应的 key；示例也随之更新
+
 ## T52 — 修复 /continue 气泡闪烁 + 状态信息泄露 ✅
 - **问题 1**：续写结束时 `finalizeStream` 先清 `continuingText`→消息回到原始内容，再调 `refreshMessages` 重挂载 MessageList 重拉数据，中间有闪烁
 - **问题 2**：`/continue` 用 `buildContext`（末尾是 [16] user 消息）调 LLM，LLM 相当于"重新回答"而非续写；且 [14] turn record 的 `asst_context` 含 `"AI："前缀 + 角色状态后缀`，LLM 会模仿此格式在输出中带入状态信息
