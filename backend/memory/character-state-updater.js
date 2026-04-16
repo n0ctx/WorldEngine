@@ -82,15 +82,17 @@ export async function updateCharacterState(characterId, sessionId) {
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .slice(-10)
-    .map((m) => `${m.role === 'user' ? '用户' : character.name}：${m.content}`)
+    .map((m) => `${m.role === 'user' ? '玩家' : character.name}：${m.content}`)
     .join('\n');
 
   const prompt = [
     {
       role: 'user',
       content:
-        `你是角色状态追踪系统，负责根据对话内容更新角色"${character.name}"的状态。\n\n` +
-        `候选状态字段：\n${fieldsDesc}\n\n` +
+        `你是角色状态追踪系统，专门负责追踪AI角色"${character.name}"的状态变化。\n\n` +
+        `重要说明：对话中"玩家"一方的状态由独立的玩家状态追踪系统管理，请勿根据玩家的经历来更新此处字段。` +
+        `只关注角色"${character.name}"自身发生的变化（被攻击、情绪变化、获得或失去物品等），不要将玩家的经历记录为角色的状态。\n\n` +
+        `候选状态字段（均为"${character.name}"的属性）：\n${fieldsDesc}\n\n` +
         `最近对话：\n${dialogue}\n\n` +
         `要求：\n` +
         `1. 仅返回确实发生了变化的字段，没有变化则返回空对象 {}\n` +

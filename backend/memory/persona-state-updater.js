@@ -7,6 +7,8 @@
 
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId } from '../services/sessions.js';
+import { getSessionById } from '../db/queries/sessions.js';
+import { getCharacterById } from '../db/queries/characters.js';
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { getAllPersonaStateValues, upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
 import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
@@ -18,6 +20,11 @@ import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
  * @param {string} sessionId
  */
 export async function updatePersonaState(worldId, sessionId) {
+  // 尝试从会话中获取角色名，用于在 prompt 中明确区分双方
+  const session = getSessionById(sessionId);
+  const character = session?.character_id ? getCharacterById(session.character_id) : null;
+  const characterName = character?.name || '角色';
+
   // 获取该世界的所有玩家状态字段，筛选 llm_auto
   const allFields = getPersonaStateFieldsByWorldId(worldId);
   const autoFields = allFields.filter((f) => f.update_mode === 'llm_auto');
@@ -78,15 +85,17 @@ export async function updatePersonaState(worldId, sessionId) {
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .slice(-10)
-    .map((m) => `${m.role === 'user' ? '玩家' : '角色'}：${m.content}`)
+    .map((m) => `${m.role === 'user' ? '玩家' : characterName}：${m.content}`)
     .join('\n');
 
   const prompt = [
     {
       role: 'user',
       content:
-        `你是玩家状态追踪系统，负责根据对话内容更新玩家的状态。\n\n` +
-        `候选状态字段：\n${fieldsDesc}\n\n` +
+        `你是玩家状态追踪系统，专门负责追踪玩家的状态变化。\n\n` +
+        `重要说明：对话中"${characterName}"一方的状态由独立的角色状态追踪系统管理，请勿根据角色的经历来更新此处字段。` +
+        `只关注玩家自身发生的变化（受到伤害、情绪变化、获得或失去物品等），不要将角色的经历记录为玩家的状态。\n\n` +
+        `候选状态字段（均为玩家的属性）：\n${fieldsDesc}\n\n` +
         `最近对话：\n${dialogue}\n\n` +
         `要求：\n` +
         `1. 仅返回确实发生了变化的字段，没有变化则返回空对象 {}\n` +
