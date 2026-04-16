@@ -353,6 +353,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [14] 历史消息（有 turn records 时用新路径，否则降级）
   const K = config.context_history_rounds ?? 10;
   const turnRecords = getTurnRecordsBySessionId(sessionId, K);
+  const allHistory = getUncompressedMessagesBySessionId(sessionId);
 
   if (turnRecords.length > 0) {
     for (const record of turnRecords) {
@@ -361,8 +362,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   } else {
     // 降级路径：session 尚无任何 turn record
-    const history = getUncompressedMessagesBySessionId(sessionId);
-    const withoutLastUser = history.slice(0, history.length - 1);
+    const withoutLastUser = allHistory.slice(0, allHistory.length - 1);
     for (const msg of withoutLastUser) {
       const content = applyRules(msg.content, 'prompt_only', world.id);
       messages.push(formatMessageForLLM({ ...msg, content }));
@@ -376,7 +376,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [16] 当前用户消息
-  const currentUserMsg = [...history].reverse().find((m) => m.role === 'user');
+  const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
   if (currentUserMsg) {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id);
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
