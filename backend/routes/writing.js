@@ -22,7 +22,6 @@ import { generateTitle } from '../memory/summarizer.js';
 import { updateCharacterState } from '../memory/character-state-updater.js';
 import { updateWorldState } from '../memory/world-state-updater.js';
 import { updatePersonaState } from '../memory/persona-state-updater.js';
-import { maybeCompress } from '../memory/context-compressor.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
@@ -198,8 +197,6 @@ async function runWritingStream(sessionId, res) {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      enqueue(sessionId, () => maybeCompress(sessionId), 1).catch(() => {});
-
       // 标题生成
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2)

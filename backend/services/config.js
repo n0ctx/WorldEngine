@@ -63,7 +63,16 @@ export function getConfig() {
     return structuredClone(DEFAULT_CONFIG);
   }
   const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-  return JSON.parse(raw);
+  const config = JSON.parse(raw);
+
+  // 迁移旧字段名 context_compress_rounds → context_history_rounds
+  if ('context_compress_rounds' in config && !('context_history_rounds' in config)) {
+    config.context_history_rounds = config.context_compress_rounds;
+    delete config.context_compress_rounds;
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
+  return config;
 }
 
 /**
