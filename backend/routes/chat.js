@@ -18,7 +18,7 @@ import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { generateTimelineEntry } from '../memory/context-compressor.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
-import { deleteLastTurnRecord, getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -202,8 +202,10 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   // 保留 afterMessageId 本身，删除之后的所有消息
   await deleteMessagesAfter(afterMessageId);
 
-  // 删除最后一条 turn record（对应被删除的那轮）
-  deleteLastTurnRecord(sessionId);
+  // 删除多余的 turn records：计算剩余 user 消息数=当前轮编号 R，保留 1..R-1
+  const remaining = getMessagesBySessionId(sessionId, 9999, 0);
+  const R = remaining.filter((m) => m.role === 'user').length;
+  deleteTurnRecordsAfterRound(sessionId, R - 1);
 
   // 丢弃低优先级待处理任务（时间线、向量化）
   clearPending(sessionId, 4);

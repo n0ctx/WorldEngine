@@ -95,6 +95,23 @@ function formatMessageForLLM(msg) {
   return { role: msg.role, content: contentParts };
 }
 
+// ─── asst_context 清洗：剥除 "AI：" 前缀和末尾状态块，防止 LLM 模仿格式 ──
+
+function stripAsstContext(raw) {
+  const segments = raw.split('\n\n');
+  if (segments[0].startsWith('AI：')) segments[0] = segments[0].slice(3);
+  // 末尾若有状态块（形如 "[…状态]\n…"），逐一去除
+  while (segments.length > 1) {
+    const last = segments[segments.length - 1];
+    if (last.startsWith('[') && last.includes('状态]')) {
+      segments.pop();
+    } else {
+      break;
+    }
+  }
+  return segments.join('\n\n');
+}
+
 // ─── 核心函数 ─────────────────────────────────────────────────────
 
 /**
@@ -219,10 +236,11 @@ export async function buildPrompt(sessionId, options = {}) {
   const turnRecords = getTurnRecordsBySessionId(sessionId, K);
 
   if (turnRecords.length > 0) {
-    // 新路径：turn records，每条渲染为 user/assistant 对（含状态快照）
+    // 新路径：turn records，每条渲染为 user/assistant 对
+    // asst_context 去除 "AI：" 前缀和状态块，防止 LLM 模仿格式输出状态
     for (const record of turnRecords) {
       messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
-      messages.push({ role: 'assistant', content: applyRules(record.asst_context, 'prompt_only', world.id) });
+      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id) });
     }
   } else {
     // 降级路径：session 尚无任何 turn record，用旧的 uncompressed messages
@@ -373,7 +391,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (turnRecords.length > 0) {
     for (const record of turnRecords) {
       messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
-      messages.push({ role: 'assistant', content: applyRules(record.asst_context, 'prompt_only', world.id) });
+      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id) });
     }
   } else {
     // 降级路径：session 尚无任何 turn record

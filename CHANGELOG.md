@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T55 — 修复编辑消息重新生成时状态栏泄漏到气泡 ✅
+- **对外接口**：无新增接口
+- **涉及文件**：`backend/routes/chat.js`（`/regenerate` 路由改用 `deleteTurnRecordsAfterRound`）、`backend/prompt/assembler.js`（[14] 新增 `stripAsstContext` 剥除 asst_context 中 "AI：" 前缀和状态块）
+- **注意**：两处 bug：① `/regenerate` 原来只调 `deleteLastTurnRecord`，编辑旧消息时会留下多余 turn records；现改为按剩余 user 消息数计算当前轮号 R，调 `deleteTurnRecordsAfterRound(sessionId, R-1)`；② [14] turn record 的 `asst_context` 含 "AI：" 前缀 + 状态块，LLM 模仿格式输出状态，现在渲染前统一剥除；`stripAsstContext` 也兼容旧格式历史记录；`/continue` 路由的 pop 逻辑不受影响
+
 ## T54 — 气泡复制按钮 + 用户消息编辑移到下方 + AI消息编辑 + 状态空值自动补全 ✅
 - **对外接口**：新增后端路由 `POST /api/sessions/:sessionId/edit-assistant`（body: `{messageId, content}`）；新增前端 `editAssistantMessage(sessionId, messageId, content)` in `api/chat.js`；`MessageItem` 新增 `onEditAssistant` prop
 - **涉及文件**：`backend/routes/chat.js`（新增 edit-assistant 路由）、`backend/memory/combined-state-updater.js`（修改 prompt 指令）、`frontend/src/api/chat.js`、`frontend/src/pages/ChatPage.jsx`、`frontend/src/components/chat/MessageList.jsx`、`frontend/src/components/chat/MessageItem.jsx`
