@@ -27,84 +27,21 @@
 
 ---
 
-## 目录结构
+## 关键路径（约束导航用）
 
 ```
-/frontend/src/
-  /components/{chat,characters,worlds,settings,memory,prompt,ui}
-  /pages        # 页面级组件
-  /hooks        # 自定义 hooks
-  /store        # Zustand 全局状态
-  /api          # 所有 fetch 封装，禁止在组件内直接调用
-  /utils        # 工具函数
-
-/backend/
-  /routes       # HTTP 路由，只做参数校验和调用 service
-    config.js
-    worlds.js
-    characters.js
-    sessions.js
-    chat.js
-    prompt-entries.js
-    state-fields.js             # T19B（世界/角色状态字段统一路由）
-    world-state-values.js       # T22
-    character-state-values.js   # T22
-    world-timeline.js           # T22
-    import-export.js            # T23
-    custom-css-snippets.js      # T24A
-    regex-rules.js              # T24B
-    personas.js                 # T26C
-    persona-state-fields.js     # T26C
-    persona-state-values.js     # T26C
-    writing.js                  # T34
-  /services     # 业务逻辑
-    config.js
-    worlds.js
-    characters.js
-    sessions.js
-    chat.js
-    prompt-entries.js
-    world-state-fields.js       # T19B
-    character-state-fields.js   # T19B
-    import-export.js            # T23
-    custom-css-snippets.js      # T24A
-    regex-rules.js              # T24B
-    personas.js                 # T26C
-    persona-state-fields.js     # T26C
-    cleanup-registrations.js    # T30：副作用钩子注册
-    writing-sessions.js         # T34
-  /db           # 数据库：schema.js + /queries/*.js
-    index.js
-    schema.js
-    /queries/
-      worlds.js
-      characters.js
-      sessions.js
-      messages.js
-      session-summaries.js
-      prompt-entries.js
-      world-state-fields.js     # T19A
-      character-state-fields.js # T19A
-      world-state-values.js     # T19A
-      character-state-values.js # T19A
-      custom-css-snippets.js    # T24A
-      regex-rules.js            # T24B
-      personas.js               # T26C
-      persona-state-fields.js   # T26C
-      persona-state-values.js   # T26C
-      writing-sessions.js       # T34
-  /memory       # 记忆系统
-    summarizer.js               # T18: session summary + title 生成
-    character-state-updater.js  # T19D: 对话后异步更新角色状态
-    world-state-updater.js      # T19D: 对话后异步更新世界状态
-    persona-state-updater.js    # T26C: 对话后异步更新玩家状态
-    world-timeline.js           # T20: 对话后异步追加世界时间线
-    recall.js                   # T21: 渲染玩家状态/角色状态/世界状态/时间线为可读文本，注入 [6]
-  /prompt       # 提示词：assembler.js + entry-matcher.js
-  /llm          # LLM 接入层：index.js + embedding.js + /providers/
-  /utils        # 工具：constants.js / async-queue.js / token-counter.js / vector-store.js / regex-runner.js（T24B）
-  server.js     # 入口
+/frontend/src/api/              # 所有 fetch 封装，禁止在组件内直接调用
+/backend/routes/                # HTTP 路由，只做参数校验，不含业务逻辑
+/backend/services/              # 业务逻辑层
+/backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
+/backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [6]
+/backend/prompt/assembler.js    # 锁定文件：提示词组装顺序
+/backend/utils/constants.js     # 锁定文件：所有硬性数值常量
+/frontend/src/store/index.js    # 锁定文件：全局状态
+/backend/server.js              # 锁定文件：入口
 ```
+
+完整目录结构见 `ARCHITECTURE.md §2`。
 
 ---
 
@@ -206,8 +143,3 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **自定义 CSS**：前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`，全部为全局作用。
 
----
-
-## 不做的功能
-
-多用户系统、云端同步、图片生成、TTS、Visual Novel、多角色群聊、插件市场、ST 格式兼容、ST Regex 扩展格式兼容、深浅色主题切换、Prompt 顺序自定义、消息分支(Swipe)、Author's Note、会话内搜索、自动备份。
