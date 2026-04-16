@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T52 — 流式消息实时 Markdown 渲染 ✅
+- **对外接口**：无新增接口，纯前端渲染层变更
+- **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`（流式分支从 `whitespace-pre-wrap` 纯文本改为 `ReactMarkdown`，与流结束后渲染逻辑一致）
+- **注意**：流式期间 `rehype-sanitize` 仍启用，不存在 XSS 风险；不完整 Markdown（如未闭合 `**`）由 remark 容错处理；光标 `animate-pulse` span 保留在 ReactMarkdown 之后作为兄弟元素
+
 ## T51 — 模板变量 {{user}} / {{char}} / {{world}} ✅
 - **对外接口**：新增 `applyTemplateVars(text, ctx)` 工具函数（`backend/utils/template-vars.js`）；ctx = `{ user, char, world }`，大小写不敏感（`gi` flag），null/undefined 原样返回
 - **涉及文件**：`backend/utils/template-vars.js`（新建）；`backend/prompt/assembler.js`（`buildPrompt` 和 `buildWritingPrompt` 均在 systemParts 注入前应用替换）
