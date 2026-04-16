@@ -155,7 +155,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [6] 角色 System Prompt
   if (character.system_prompt) {
-    systemParts.push(tv(character.system_prompt));
+    systemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
   // [7] 角色状态
