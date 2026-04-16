@@ -19,6 +19,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T51c — 补全 [{{char}}人设] 抬头 ✅
+- **问题**：角色 system_prompt（[6] 段）裸文本推入，无标签；而人设有 `[{{user}}人设]` 标签，不对称，AI 容易混淆玩家与角色
+- **修改**：`buildPrompt` [6] 改为 `tv('[{{char}}人设]\n' + system_prompt)`；写作模式 `[角色：${name}]` 统一改为 `tvChar('[{{char}}人设]\n' + system_prompt)` 格式
+
 ## T51b — 模板变量补丁：状态区块头 + assembler 修复 ✅
 - **对外接口**：无新增接口，补全 T51 遗漏的替换点
 - **涉及文件**：`backend/memory/recall.js`（`[玩家状态]`/`[世界状态]`/`[角色状态]` 改为 `[{{user}}状态]`/`[{{world}}状态]`/`[{{char}}状态]`）；`backend/prompt/assembler.js`（`[用户人设]` 改为 `[{{user}}人设]`，写作模式 `charStateText` 从 `tv()` 改为 `tvChar()` 以使用角色作用域替换）

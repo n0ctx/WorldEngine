@@ -323,7 +323,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     // per-character 段使用该角色自身的名字替换 {{char}}
     const tvChar = (t) => applyTemplateVars(t, { ...ctx, char: character.name });
     if (character.system_prompt) {
-      systemParts.push(`[角色：${character.name}]\n${tvChar(character.system_prompt)}`);
+      systemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`));
     }
     const charStateText = renderCharacterState(character.id);
     if (charStateText) systemParts.push(tvChar(charStateText));
