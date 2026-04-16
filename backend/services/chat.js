@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { updateMessageAttachments } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
 import { buildPrompt } from '../prompt/assembler.js';
+import { logPrompt } from '../utils/logger.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACHMENTS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
@@ -97,5 +98,6 @@ function formatMessageForLLM(msg) {
  */
 export async function buildContext(sessionId, options = {}) {
   const { messages, temperature, maxTokens, recallHitCount } = await buildPrompt(sessionId, options);
+  logPrompt(sessionId, messages);
   return { messages, overrides: { temperature, maxTokens }, recallHitCount: recallHitCount ?? 0 };
 }

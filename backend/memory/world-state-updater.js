@@ -12,6 +12,9 @@ import { getWorldById } from '../db/queries/worlds.js';
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { getAllWorldStateValues, upsertWorldStateValue } from '../db/queries/world-state-values.js';
 import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('world-state');
 
 /**
  * 更新指定世界的状态值。
@@ -20,13 +23,19 @@ import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
  * @param {string} sessionId
  */
 export async function updateWorldState(worldId, sessionId) {
+  const sid = sessionId.slice(0, 8);
   const world = getWorldById(worldId);
   if (!world) return;
+
+  log.debug(`START  world="${world.name}"  session=${sid}`);
 
   // 获取世界状态字段，筛选 llm_auto
   const allFields = getWorldStateFieldsByWorldId(worldId);
   const autoFields = allFields.filter((f) => f.update_mode === 'llm_auto');
-  if (autoFields.length === 0) return;
+  if (autoFields.length === 0) {
+    log.debug(`SKIP no llm_auto fields  world="${world.name}"`);
+    return;
+  }
 
   // 获取会话消息
   const messages = getMessagesBySessionId(sessionId, 9999, 0);
@@ -50,7 +59,12 @@ export async function updateWorldState(worldId, sessionId) {
     return false;
   });
 
-  if (activeFields.length === 0) return;
+  if (activeFields.length === 0) {
+    log.debug(`SKIP no active fields this turn  world="${world.name}"`);
+    return;
+  }
+
+  log.debug(`active fields=${activeFields.map((f) => f.field_key).join(',')}  world="${world.name}"`);
 
   // 获取当前状态值
   const currentValues = getAllWorldStateValues(worldId);
@@ -118,10 +132,13 @@ export async function updateWorldState(worldId, sessionId) {
     if (!match) return;
     patch = JSON.parse(match[0]);
   } catch {
+    log.warn(`JSON parse failed  world="${world.name}"  raw="${raw.slice(0, 100)}"`);
     return;
   }
 
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
+
+  const updatedKeys = [];
 
   // 字段 map，用于校验
   const fieldMap = Object.fromEntries(activeFields.map((f) => [f.field_key, f]));
@@ -136,6 +153,13 @@ export async function updateWorldState(worldId, sessionId) {
 
     const valueJson = validated === null ? null : JSON.stringify(validated);
     upsertWorldStateValue(worldId, key, valueJson);
+    updatedKeys.push(`${key}=${valueJson}`);
+  }
+
+  if (updatedKeys.length > 0) {
+    log.info(`DONE  world="${world.name}"  updates: ${updatedKeys.join('  ')}`);
+  } else {
+    log.debug(`DONE no changes  world="${world.name}"`);
   }
 }
 

@@ -128,11 +128,11 @@ async function runStream(sessionId, res) {
     if (hasUserMsg) {
 
       // 优先级 1：轮次压缩检查（内部按阈值决定是否生成 summary + 压缩 + 时间线 + embed）
-      enqueue(sessionId, () => maybeCompress(sessionId), 1).catch(() => {});
+      enqueue(sessionId, () => maybeCompress(sessionId), 1, 'compress').catch(() => {});
 
       // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
       if (session && !session.title) {
-        enqueue(sessionId, () => generateTitle(sessionId), 2)
+        enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
             if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
           })
@@ -142,30 +142,30 @@ async function runStream(sessionId, res) {
           });
         // 优先级 2：角色状态更新（title 之后入队，title 先跑）
         if (characterId) {
-          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
         }
         // 优先级 2：玩家状态更新
         if (worldId) {
-          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
         }
         // 优先级 3：世界状态更新
         if (worldId) {
-          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
         }
         return; // 等待标题生成后再关闭连接
       }
 
       // 优先级 2：角色状态更新
       if (characterId) {
-        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
       }
       // 优先级 2：玩家状态更新
       if (worldId) {
-        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
       }
       // 优先级 3：世界状态更新
       if (worldId) {
-        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
       }
     }
   }
@@ -313,10 +313,10 @@ router.post('/:sessionId/continue', async (req, res) => {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      enqueue(sessionId, () => maybeCompress(sessionId), 1).catch(() => {});
+      enqueue(sessionId, () => maybeCompress(sessionId), 1, 'compress').catch(() => {});
 
       if (session && !session.title) {
-        enqueue(sessionId, () => generateTitle(sessionId), 2)
+        enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
             if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
           })
@@ -325,25 +325,25 @@ router.post('/:sessionId/continue', async (req, res) => {
             if (!clientClosed) res.end();
           });
         if (characterId) {
-          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
         }
         if (worldId) {
-          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
         }
         if (worldId) {
-          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
         }
         return;
       }
 
       if (characterId) {
-        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2).catch(() => {});
+        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
       }
       if (worldId) {
-        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
+        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
       }
       if (worldId) {
-        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
       }
     }
   }

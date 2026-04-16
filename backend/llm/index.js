@@ -10,6 +10,9 @@ import { getConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('llm');
 
 // ============================================================
 // Provider 路由
@@ -90,23 +93,38 @@ export async function* chat(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
 
+  log.debug(`CHAT  provider=${llmConfig.provider}  model=${llmConfig.model}  msgs=${messages.length}`);
+
   let lastError;
+  let fullResponse = '';
+
   for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
     let started = false;
     try {
       const gen = provider.streamChat(messages, llmConfig);
       for await (const chunk of gen) {
         started = true;
+        fullResponse += chunk;
         yield chunk;
       }
+      log.debug(
+        `CHAT DONE  len=${fullResponse.length}\n` +
+        `${'-'.repeat(60)}\n` +
+        `${fullResponse}\n` +
+        `${'-'.repeat(60)}`
+      );
       return;
     } catch (err) {
       // 已开始输出，不可重试（调用方已收到部分数据）
-      if (started) throw wrapError(err, llmConfig.provider);
+      if (started) {
+        log.debug(`CHAT ABORTED  len=${fullResponse.length}`);
+        throw wrapError(err, llmConfig.provider);
+      }
       if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
       if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 
       lastError = err;
+      log.warn(`CHAT retry attempt=${attempt + 1}  err=${err.message}`);
       if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
     }
   }
@@ -124,15 +142,25 @@ export async function complete(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
 
+  log.debug(`COMPLETE  provider=${llmConfig.provider}  model=${llmConfig.model}  msgs=${messages.length}`);
+
   let lastError;
   for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
     try {
-      return await provider.complete(messages, llmConfig);
+      const result = await provider.complete(messages, llmConfig);
+      log.debug(
+        `COMPLETE DONE  len=${result?.length ?? 0}\n` +
+        `${'-'.repeat(60)}\n` +
+        `${result}\n` +
+        `${'-'.repeat(60)}`
+      );
+      return result;
     } catch (err) {
       if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
       if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 
       lastError = err;
+      log.warn(`COMPLETE retry attempt=${attempt + 1}  err=${err.message}`);
       if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
     }
   }

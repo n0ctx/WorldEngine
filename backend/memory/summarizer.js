@@ -5,6 +5,9 @@
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions.js';
 import { upsertSummary } from '../db/queries/session-summaries.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('summarizer');
 
 /**
  * 生成会话摘要，存入 session_summaries 表。
@@ -12,13 +15,19 @@ import { upsertSummary } from '../db/queries/session-summaries.js';
  * @param {string} sessionId
  */
 export async function generateSummary(sessionId) {
+  const sid = sessionId.slice(0, 8);
+  log.debug(`generateSummary START  session=${sid}`);
+
   const messages = getMessagesBySessionId(sessionId, 9999, 0);
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
     .join('\n');
 
-  if (!dialogue) return;
+  if (!dialogue) {
+    log.debug(`generateSummary SKIP no dialogue  session=${sid}`);
+    return;
+  }
 
   const prompt = [
     {
@@ -32,6 +41,7 @@ export async function generateSummary(sessionId) {
   const summary = await llm.complete(prompt, { temperature: 0.3, maxTokens: 500 });
   if (summary) {
     upsertSummary(sessionId, summary.trim());
+    log.info(`generateSummary DONE  session=${sid}  len=${summary.trim().length}`);
   }
 }
 
@@ -42,6 +52,9 @@ export async function generateSummary(sessionId) {
  * @returns {Promise<string|null>} 生成的标题，失败时返回 null
  */
 export async function generateTitle(sessionId) {
+  const sid = sessionId.slice(0, 8);
+  log.debug(`generateTitle START  session=${sid}`);
+
   // 只取前几条消息，够用于概括即可
   const messages = getMessagesBySessionId(sessionId, 10, 0);
   const dialogue = messages
@@ -65,5 +78,6 @@ export async function generateTitle(sessionId) {
 
   const title = raw.trim().replace(/["'"'「」『』《》【】]/g, '').slice(0, 15);
   updateSessionTitle(sessionId, title);
+  log.info(`generateTitle DONE  session=${sid}  title="${title}"`);
   return title;
 }

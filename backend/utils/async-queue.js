@@ -1,4 +1,7 @@
 import { ASYNC_QUEUE_MAX_SIZE } from './constants.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('queue');
 
 /**
  * 按 sessionId 分组的优先级串行队列。
@@ -34,10 +37,16 @@ async function drain(sessionId) {
   q.running = true;
   while (q.items.length > 0) {
     const entry = q.items.shift();
+    const sid = sessionId.slice(0, 8);
+    const tag = `session=${sid} p=${entry.priority} [${entry.label || '?'}]`;
+    log.debug(`START  ${tag}`);
+    const t0 = Date.now();
     try {
       const result = await entry.taskFn();
+      log.debug(`DONE   ${tag} +${Date.now() - t0}ms`);
       entry.resolve(result);
     } catch (err) {
+      log.debug(`FAIL   ${tag} +${Date.now() - t0}ms  err=${err.message}`);
       entry.reject(err);
     }
   }
@@ -53,18 +62,23 @@ async function drain(sessionId) {
  * @param {string} sessionId
  * @param {() => Promise<any>} taskFn
  * @param {number} priority — 数字越小优先级越高
+ * @param {string} [label]  — 可选任务标签，用于日志
  * @returns {Promise<any>} taskFn 的返回值
  */
-export function enqueue(sessionId, taskFn, priority = 5) {
+export function enqueue(sessionId, taskFn, priority = 5, label = '') {
   const q = getQueue(sessionId);
+  const sid = sessionId.slice(0, 8);
+
+  log.debug(`ENQUEUE  session=${sid} p=${priority} [${label || '?'}]`);
 
   return new Promise((resolve, reject) => {
-    const entry = { taskFn, priority, resolve, reject };
+    const entry = { taskFn, priority, label, resolve, reject };
     insertSorted(q.items, entry);
 
     // 超过上限时，丢弃优先级最低（数组末尾）的任务
     while (q.items.length > ASYNC_QUEUE_MAX_SIZE) {
       const dropped = q.items.pop();
+      log.debug(`DROP     session=${sid} p=${dropped.priority} [${dropped.label || '?'}] queue full`);
       dropped.reject(new Error('Queue full — task dropped'));
     }
 

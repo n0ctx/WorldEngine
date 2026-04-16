@@ -77,4 +77,6 @@ app.use('/api/worlds', writingRoutes);
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`WorldEngine backend running on http://localhost:${PORT}`);
+  const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
+  console.log(`日志级别: ${level}  （debug 模式可跟踪 prompt 组装 / LLM 调用 / 队列事件）`);
 });

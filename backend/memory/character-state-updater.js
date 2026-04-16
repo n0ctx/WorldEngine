@@ -11,6 +11,9 @@ import { getCharacterById } from '../db/queries/characters.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getAllCharacterStateValues, upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('char-state');
 
 /**
  * 更新指定角色的状态值。
@@ -19,13 +22,19 @@ import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
  * @param {string} sessionId
  */
 export async function updateCharacterState(characterId, sessionId) {
+  const sid = sessionId.slice(0, 8);
   const character = getCharacterById(characterId);
   if (!character) return;
+
+  log.debug(`START  char="${character.name}"  session=${sid}`);
 
   // 获取该世界的所有角色状态字段，筛选 llm_auto
   const allFields = getCharacterStateFieldsByWorldId(character.world_id);
   const autoFields = allFields.filter((f) => f.update_mode === 'llm_auto');
-  if (autoFields.length === 0) return;
+  if (autoFields.length === 0) {
+    log.debug(`SKIP no llm_auto fields  char="${character.name}"`);
+    return;
+  }
 
   // 获取会话消息
   const messages = getMessagesBySessionId(sessionId, 9999, 0);
@@ -49,7 +58,12 @@ export async function updateCharacterState(characterId, sessionId) {
     return false;
   });
 
-  if (activeFields.length === 0) return;
+  if (activeFields.length === 0) {
+    log.debug(`SKIP no active fields this turn  char="${character.name}"`);
+    return;
+  }
+
+  log.debug(`active fields=${activeFields.map((f) => f.field_key).join(',')}  char="${character.name}"`);
 
   // 获取当前状态值
   const currentValues = getAllCharacterStateValues(characterId);
@@ -114,10 +128,13 @@ export async function updateCharacterState(characterId, sessionId) {
     if (!match) return;
     patch = JSON.parse(match[0]);
   } catch {
+    log.warn(`JSON parse failed  char="${character.name}"  raw="${raw.slice(0, 100)}"`);
     return;
   }
 
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
+
+  const updatedKeys = [];
 
   // 字段 map，用于校验
   const fieldMap = Object.fromEntries(activeFields.map((f) => [f.field_key, f]));
@@ -132,6 +149,13 @@ export async function updateCharacterState(characterId, sessionId) {
 
     const valueJson = validated === null ? null : JSON.stringify(validated);
     upsertCharacterStateValue(characterId, key, valueJson);
+    updatedKeys.push(`${key}=${valueJson}`);
+  }
+
+  if (updatedKeys.length > 0) {
+    log.info(`DONE  char="${character.name}"  updates: ${updatedKeys.join('  ')}`);
+  } else {
+    log.debug(`DONE no changes  char="${character.name}"`);
   }
 }
 
