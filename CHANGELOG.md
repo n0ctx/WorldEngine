@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T48 — 记忆面板状态栏重置按钮 ✅
+- **对外接口**：新增三个 POST 路由：`POST /api/worlds/:worldId/state-values/reset`、`POST /api/characters/:characterId/state-values/reset`、`POST /api/worlds/:worldId/persona-state-values/reset`；各返回重置后的状态值数组（同各自的 GET 返回格式）
+- **涉及文件**：`backend/routes/world-state-values.js`（新增 reset 端点）；`backend/routes/character-state-values.js`（新增 reset 端点，新增 `getCharacterById` 和 `getCharacterStateFieldsByWorldId` import）；`backend/routes/persona-state-values.js`（新增 reset 端点，新增 `getPersonaStateFieldsByWorldId` import）；`frontend/src/api/worldStateValues.js`、`characterStateValues.js`、`personaStateValues.js`（各新增 reset 函数）；`frontend/src/components/memory/MemoryPanel.jsx` 和 `MultiCharacterMemoryPanel.jsx`（Section 组件加 onReset/resetting prop，三个状态栏各加重置按钮）
+- **注意**：重置使用 `field.default_value`（用户在字段编辑器填写的值），若 default_value 为 null 则清空该字段（设为 null）；重置成功后直接用接口返回值更新前端 state，无需再发 GET；hover 样式用 `hover:bg-accent/10 hover:text-accent`（Tailwind v4 主题色）；世界时间线 Section 不加重置按钮
+
 ## T47 — 修复状态更新器混淆玩家与角色身份 ✅
 - **对外接口**：无新增接口；仅修改两个状态更新器内部 prompt
 - **涉及文件**：`backend/memory/character-state-updater.js`（对话标签从"用户"改为"玩家"；prompt 加入边界说明，明确只追踪角色自身变化）；`backend/memory/persona-state-updater.js`（新增从 session 查角色名；对话标签从泛称"角色"改为具体角色名；prompt 加入对称边界说明，明确只追踪玩家自身变化）

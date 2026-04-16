@@ -25,3 +25,12 @@ export async function updateCharacterStateValue(characterId, fieldKey, valueJson
   }
   return res.json();
 }
+
+export async function resetCharacterStateValues(characterId) {
+  const res = await fetch(`${BASE}/characters/${characterId}/state-values/reset`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `重置失败：${res.status}`);
+  }
+  return res.json();
+}

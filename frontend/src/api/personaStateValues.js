@@ -15,3 +15,12 @@ export async function updatePersonaStateValue(worldId, fieldKey, valueJson) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export async function resetPersonaStateValues(worldId) {
+  const res = await fetch(`${BASE}/worlds/${worldId}/persona-state-values/reset`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `重置失败：${res.status}`);
+  }
+  return res.json();
+}

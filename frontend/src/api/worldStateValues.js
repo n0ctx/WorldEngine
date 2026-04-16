@@ -12,3 +12,12 @@ async function request(url) {
 export function getWorldStateValues(worldId) {
   return request(`${BASE}/worlds/${worldId}/state-values`);
 }
+
+export async function resetWorldStateValues(worldId) {
+  const res = await fetch(`${BASE}/worlds/${worldId}/state-values/reset`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `重置失败：${res.status}`);
+  }
+  return res.json();
+}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import useStore from '../../store/index.js';
-import { getWorldStateValues } from '../../api/worldStateValues.js';
-import { getCharacterStateValues } from '../../api/characterStateValues.js';
+import { getWorldStateValues, resetWorldStateValues } from '../../api/worldStateValues.js';
+import { getCharacterStateValues, resetCharacterStateValues } from '../../api/characterStateValues.js';
 import { getWorldTimeline } from '../../api/worldTimeline.js';
-import { getPersonaStateValues } from '../../api/personaStateValues.js';
+import { getPersonaStateValues, resetPersonaStateValues } from '../../api/personaStateValues.js';
 
 function parseValue(valueJson, type) {
   if (valueJson == null) return null;
@@ -20,7 +20,7 @@ function parseValue(valueJson, type) {
   }
 }
 
-function Section({ title, children, defaultOpen = true }) {
+function Section({ title, children, defaultOpen = true, onReset, resetting = false }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border-b border-border last:border-b-0">
@@ -29,18 +29,30 @@ function Section({ title, children, defaultOpen = true }) {
         className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-sand transition-colors"
       >
         <span className="font-serif text-xs font-semibold text-text uppercase tracking-wide">{title}</span>
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="opacity-40 transition-transform"
-          style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
-        >
-          <polyline points="2,4 6,8 10,4" />
-        </svg>
+        <div className="flex items-center gap-2">
+          {onReset && (
+            <span
+              role="button"
+              onClick={(e) => { e.stopPropagation(); if (!resetting) onReset(); }}
+              className="text-xs opacity-40 hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded hover:bg-accent/10 hover:text-accent cursor-pointer select-none"
+              title="重置为默认值"
+            >
+              {resetting ? '重置中…' : '重置'}
+            </span>
+          )}
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="opacity-40 transition-transform"
+            style={{ transform: open ? 'rotate(0deg)' : 'rotate(-90deg)' }}
+          >
+            <polyline points="2,4 6,8 10,4" />
+          </svg>
+        </div>
       </button>
       {open && <div className="px-4 pb-3">{children}</div>}
     </div>
@@ -117,6 +129,49 @@ export default function MemoryPanel({ worldId, characterId }) {
   const [timelineError, setTimelineError] = useState(null);
 
   const [isPolling, setIsPolling] = useState(false);
+
+  const [worldResetting, setWorldResetting] = useState(false);
+  const [personaResetting, setPersonaResetting] = useState(false);
+  const [charResetting, setCharResetting] = useState(false);
+
+  async function handleResetWorldState() {
+    if (!worldId || worldResetting) return;
+    setWorldResetting(true);
+    try {
+      const rows = await resetWorldStateValues(worldId);
+      setWorldState(rows);
+    } catch (e) {
+      console.error('重置世界状态失败', e);
+    } finally {
+      setWorldResetting(false);
+    }
+  }
+
+  async function handleResetPersonaState() {
+    if (!worldId || personaResetting) return;
+    setPersonaResetting(true);
+    try {
+      const rows = await resetPersonaStateValues(worldId);
+      setPersonaState(rows);
+    } catch (e) {
+      console.error('重置玩家状态失败', e);
+    } finally {
+      setPersonaResetting(false);
+    }
+  }
+
+  async function handleResetCharState() {
+    if (!characterId || charResetting) return;
+    setCharResetting(true);
+    try {
+      const rows = await resetCharacterStateValues(characterId);
+      setCharState(rows);
+    } catch (e) {
+      console.error('重置角色状态失败', e);
+    } finally {
+      setCharResetting(false);
+    }
+  }
 
   useEffect(() => {
     if (!worldId) return;
@@ -221,13 +276,13 @@ export default function MemoryPanel({ worldId, characterId }) {
       </div>
       {/* 可滚动内容 */}
       <div className="flex-1 overflow-y-auto">
-        <Section title="世界状态">
+        <Section title="世界状态" onReset={handleResetWorldState} resetting={worldResetting}>
           {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
         </Section>
-        <Section title="玩家状态">
+        <Section title="玩家状态" onReset={handleResetPersonaState} resetting={personaResetting}>
           {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
         </Section>
-        <Section title="角色状态">
+        <Section title="角色状态" onReset={handleResetCharState} resetting={charResetting}>
           {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} />}
         </Section>
         <Section title="世界时间线">

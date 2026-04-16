@@ -3,6 +3,7 @@
  *
  *   GET   /api/worlds/:worldId/persona-state-values
  *   PATCH /api/worlds/:worldId/persona-state-values/:fieldKey
+ *   POST  /api/worlds/:worldId/persona-state-values/reset
  */
 
 import { Router } from 'express';
@@ -10,6 +11,7 @@ import {
   getPersonaStateValuesWithFields,
   upsertPersonaStateValue,
 } from '../db/queries/persona-state-values.js';
+import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 
 const router = Router();
 
@@ -26,6 +28,15 @@ router.patch('/worlds/:worldId/persona-state-values/:fieldKey', (req, res) => {
   }
   upsertPersonaStateValue(worldId, fieldKey, value_json);
   res.json({ success: true });
+});
+
+router.post('/worlds/:worldId/persona-state-values/reset', (req, res) => {
+  const { worldId } = req.params;
+  const fields = getPersonaStateFieldsByWorldId(worldId);
+  for (const field of fields) {
+    upsertPersonaStateValue(worldId, field.field_key, field.default_value ?? null);
+  }
+  res.json(getPersonaStateValuesWithFields(worldId));
 });
 
 export default router;
