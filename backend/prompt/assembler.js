@@ -143,10 +143,10 @@ export async function buildPrompt(sessionId, options = {}) {
   if (worldStateText) systemParts.push(tv(worldStateText));
 
   if (personaName || personaPrompt) {
-    const lines = ['[用户人设]'];
+    const lines = ['[{{user}}人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    systemParts.push(lines.join('\n'));
+    systemParts.push(tv(lines.join('\n')));
   }
 
   // [5] 玩家状态
@@ -155,7 +155,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [6] 角色 System Prompt
   if (character.system_prompt) {
-    systemParts.push(tv(character.system_prompt));
+    systemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
   // [7] 角色状态
@@ -309,10 +309,10 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (worldStateText) systemParts.push(tv(worldStateText));
 
   if (personaName || personaPrompt) {
-    const lines = ['[用户人设]'];
+    const lines = ['[{{user}}人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    systemParts.push(lines.join('\n'));
+    systemParts.push(tv(lines.join('\n')));
   }
 
   // [5] 玩家状态
@@ -326,7 +326,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       systemParts.push(`[角色：${character.name}]\n${tvChar(character.system_prompt)}`);
     }
     const charStateText = renderCharacterState(character.id);
-    if (charStateText) systemParts.push(tv(charStateText));
+    if (charStateText) systemParts.push(tvChar(charStateText));
   }
 
   // [8-10] Prompt 条目（全局→世界→各激活角色）
