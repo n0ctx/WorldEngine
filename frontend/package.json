@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "lsof -ti tcp:5173 | xargs kill -9 2>/dev/null || true",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",

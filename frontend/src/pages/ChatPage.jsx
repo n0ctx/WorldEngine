@@ -37,6 +37,8 @@ export default function ChatPage() {
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
   const streamingTextRef = useRef('');
+  const continuingMessageIdRef = useRef(null);
+  const continuingTextRef = useRef('');
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -97,6 +99,17 @@ export default function ChatPage() {
 
   // 流状态清理
   const finalizeStream = useCallback(() => {
+    // 续写场景：原地合并消息内容，不重挂载 MessageList，避免气泡闪烁
+    const wasContinuing = !!continuingMessageIdRef.current;
+    if (wasContinuing && MessageList.updateMessages) {
+      const contId = continuingMessageIdRef.current;
+      const contText = continuingTextRef.current;
+      MessageList.updateMessages((prev) =>
+        prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+      );
+    }
+    continuingMessageIdRef.current = null;
+    continuingTextRef.current = '';
     setGenerating(false);
     setStreamingText('');
     setMemoryRecalling(false);
@@ -104,7 +117,8 @@ export default function ChatPage() {
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
-    refreshMessages();
+    // 续写时已原地更新，无需重挂载 MessageList；普通流结束需要重拉最新数据
+    if (!wasContinuing) refreshMessages();
     useStore.getState().triggerMemoryRefresh();
   }, []);
 
@@ -268,12 +282,15 @@ export default function ChatPage() {
     }
     if (!lastAssistantId) return;
 
+    continuingMessageIdRef.current = lastAssistantId;
+    continuingTextRef.current = '';
     setContinuingMessageId(lastAssistantId);
     setContinuingText('');
     setGenerating(true);
 
     const callbacks = {
       onDelta(delta) {
+        continuingTextRef.current += delta;
         setContinuingText((prev) => prev + delta);
       },
       onDone() {},
@@ -538,7 +555,7 @@ export default function ChatPage() {
       {/* 右栏：记忆面板（300px，可收起） */}
       {rightOpen && character && (
         <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
-          <MemoryPanel worldId={character.world_id} characterId={characterId} />
+          <MemoryPanel worldId={character.world_id} characterId={characterId} character={character} persona={persona} />
         </div>
       )}
     </div>

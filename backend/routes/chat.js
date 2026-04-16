@@ -14,13 +14,11 @@ import { getCharacterById } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
 import { enqueue, clearPending } from '../utils/async-queue.js';
 import { generateTitle } from '../memory/summarizer.js';
-import { updateCharacterState } from '../memory/character-state-updater.js';
-import { updateWorldState } from '../memory/world-state-updater.js';
-import { updatePersonaState } from '../memory/persona-state-updater.js';
+import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { generateTimelineEntry } from '../memory/context-compressor.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
-import { deleteLastTurnRecord } from '../db/queries/turn-records.js';
+import { deleteLastTurnRecord, getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 
@@ -139,34 +137,14 @@ async function runStream(sessionId, res) {
           .finally(() => {
             if (!clientClosed) res.end();
           });
-        // 优先级 2：角色状态更新
-        if (characterId) {
-          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
-        }
-        // 优先级 2：玩家状态更新
-        if (worldId) {
-          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
-        }
-        // 优先级 3：世界状态更新，之后创建 turn record（状态更新完毕后捕获最终状态）
-        if (worldId) {
-          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
-        }
+        // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
         enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
         return; // 等待标题生成后再关闭连接
       }
 
-      // 优先级 2：角色状态更新
-      if (characterId) {
-        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
-      }
-      // 优先级 2：玩家状态更新
-      if (worldId) {
-        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
-      }
-      // 优先级 3：世界状态更新，之后创建 turn record
-      if (worldId) {
-        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
-      }
+      // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
     }
   }
@@ -271,6 +249,29 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   try {
     const { messages, overrides } = await buildContext(sessionId);
+
+    // /continue 场景：修正上下文末尾，让 LLM 从当前 assistant 内容末尾续写（prefill）
+    // buildContext 末尾是 [16] user 消息，续写时需改为以 assistant prefill 结尾
+
+    // Step 1：移除末尾所有 user 消息（[15] post_prompt + [16] 当前用户消息）
+    while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+      messages.pop();
+    }
+    // Step 2：若 [14] 使用 turn record 路径，末尾是 asst_context（含"AI："前缀和状态后缀），
+    //          会导致 LLM 模仿此格式输出状态信息，需移除；同时移除对应 user_context 避免重复
+    const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
+    if (hasTurnRecords && messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+      messages.pop(); // 移除 asst_context(K)
+      if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+        messages.pop(); // 移除 user_context(K)
+      }
+    }
+    // Step 3：补充裸用户消息（不含状态快照前缀）
+    const lastUserMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
+    if (lastUserMsg) messages.push({ role: 'user', content: lastUserMsg.content });
+    // Step 4：添加 assistant prefill，LLM 从此处续写
+    messages.push({ role: 'assistant', content: originalContent });
+
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
     for await (const chunk of stream) {
       newContent += chunk;
@@ -326,29 +327,15 @@ router.post('/:sessionId/continue', async (req, res) => {
           .finally(() => {
             if (!clientClosed) res.end();
           });
-        if (characterId) {
-          enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
-        }
-        if (worldId) {
-          enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
-        }
-        if (worldId) {
-          enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
-        }
+        // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
         // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
         enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
         return;
       }
 
-      if (characterId) {
-        enqueue(sessionId, () => updateCharacterState(characterId, sessionId), 2, 'char-state').catch(() => {});
-      }
-      if (worldId) {
-        enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2, 'persona-state').catch(() => {});
-      }
-      if (worldId) {
-        enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3, 'world-state').catch(() => {});
-      }
+      // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
       // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
       enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
     }

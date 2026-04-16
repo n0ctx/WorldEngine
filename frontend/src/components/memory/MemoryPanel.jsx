@@ -67,13 +67,21 @@ function ErrorRow({ msg }) {
   return <p className="text-xs text-red-400 py-1">{msg}</p>;
 }
 
-function StateRows({ rows }) {
-  if (!rows || rows.length === 0) {
+function StateRows({ rows, pinnedName }) {
+  const hasName = pinnedName != null && pinnedName !== '';
+  const hasRows = rows && rows.length > 0;
+  if (!hasName && !hasRows) {
     return <p className="text-xs opacity-30 py-1">暂无数据</p>;
   }
   return (
     <dl className="space-y-1.5 mt-1">
-      {rows.map((row) => {
+      {hasName && (
+        <div className="we-state-field-row flex gap-2 items-baseline">
+          <dt className="text-xs opacity-50 shrink-0 min-w-[4rem]">姓名</dt>
+          <dd className="text-xs text-text-secondary font-medium break-all">{pinnedName}</dd>
+        </div>
+      )}
+      {rows?.map((row) => {
         const display = parseValue(row.value_json, row.type);
         return (
           <div key={row.field_key} className="we-state-field-row flex gap-2 items-baseline">
@@ -109,7 +117,7 @@ function TimelineRows({ rows }) {
   );
 }
 
-export default function MemoryPanel({ worldId, characterId }) {
+export default function MemoryPanel({ worldId, characterId, character, persona }) {
   const tick = useStore((s) => s.memoryRefreshTick);
 
   const [personaState, setPersonaState] = useState(null);
@@ -280,10 +288,10 @@ export default function MemoryPanel({ worldId, characterId }) {
           {worldStateLoading ? <LoadingRow /> : worldStateError ? <ErrorRow msg={worldStateError} /> : <StateRows rows={worldState} />}
         </Section>
         <Section title="玩家状态" onReset={handleResetPersonaState} resetting={personaResetting}>
-          {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} />}
+          {personaStateLoading ? <LoadingRow /> : personaStateError ? <ErrorRow msg={personaStateError} /> : <StateRows rows={personaState} pinnedName={persona?.name} />}
         </Section>
         <Section title="角色状态" onReset={handleResetCharState} resetting={charResetting}>
-          {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} />}
+          {charStateLoading ? <LoadingRow /> : charStateError ? <ErrorRow msg={charStateError} /> : <StateRows rows={charState} pinnedName={character?.name} />}
         </Section>
         <Section title="世界时间线">
           {timelineLoading ? <LoadingRow /> : timelineError ? <ErrorRow msg={timelineError} /> : <TimelineRows rows={timeline} />}

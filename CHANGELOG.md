@@ -19,6 +19,13 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T52 — 修复 /continue 气泡闪烁 + 状态信息泄露 ✅
+- **问题 1**：续写结束时 `finalizeStream` 先清 `continuingText`→消息回到原始内容，再调 `refreshMessages` 重挂载 MessageList 重拉数据，中间有闪烁
+- **问题 2**：`/continue` 用 `buildContext`（末尾是 [16] user 消息）调 LLM，LLM 相当于"重新回答"而非续写；且 [14] turn record 的 `asst_context` 含 `"AI："前缀 + 角色状态后缀`，LLM 会模仿此格式在输出中带入状态信息
+- **修复前端**：`ChatPage.jsx` 加 `continuingMessageIdRef`/`continuingTextRef`，`finalizeStream` 续写时原地合并消息内容（`MessageList.updateMessages`），不调 `refreshMessages()`
+- **修复后端**：`chat.js` + `writing.js` 的 `/continue` 路由，在 `buildContext` 后：① pop 末尾所有 user 消息；② 若有 turn record，pop `asst_context(K)` 和 `user_context(K)`；③ push 裸 user 消息；④ push `originalContent` 作为 assistant prefill
+- **注意**：prefill（以 assistant 结尾）在 Anthropic、Gemini、多数 OpenAI-compatible 均支持；若某 provider 不支持会在 catch 中报错
+
 ## T51c — 补全 [{{char}}人设] 抬头 ✅
 - **问题**：角色 system_prompt（[6] 段）裸文本推入，无标签；而人设有 `[{{user}}人设]` 标签，不对称，AI 容易混淆玩家与角色
 - **修改**：`buildPrompt` [6] 改为 `tv('[{{char}}人设]\n' + system_prompt)`；写作模式 `[角色：${name}]` 统一改为 `tvChar('[{{char}}人设]\n' + system_prompt)` 格式

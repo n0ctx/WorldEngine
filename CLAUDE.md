@@ -2,7 +2,7 @@
 
 ## 行动原则（最高优先级）
 
-- **先读后写**：修改任何文件前，必须先阅读该文件现有内容
+- **先读后写**：执行任何任务前，必须先阅读 `SCHEMA.md` `ARCHITECTURE.md` `CHANGELOG.md`；修改任何文件前，必须先阅读该文件现有内容
 - **强制规划**：3 个步骤以上的任务，必须先列出计划并等待确认，再动手
 - **强制验证**：完成任务后必须能说明如何验证，不能仅凭"看起来对"交差
 - **范围克制**：每次任务只修改任务指令明确要求的文件，禁止"顺手重构"
@@ -54,7 +54,7 @@ cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
-每次任务完成后git commit（每次commit前必须更新CHANGELOG.md）。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
+每次任务完成后git commit（每次commit前必须更新`CHANGELOG.md`）。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
 
 ---
 

@@ -19,14 +19,13 @@ import { getWorldById } from '../services/worlds.js';
 import { getCharactersByWorldId } from '../services/characters.js';
 import { enqueue } from '../utils/async-queue.js';
 import { generateTitle } from '../memory/summarizer.js';
-import { updateCharacterState } from '../memory/character-state-updater.js';
-import { updateWorldState } from '../memory/world-state-updater.js';
-import { updatePersonaState } from '../memory/persona-state-updater.js';
+import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
+import { getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 
 const router = Router();
 
@@ -209,26 +208,17 @@ async function runWritingStream(sessionId, res) {
             if (!clientClosed) res.end();
           });
 
-        // 激活角色状态更新（并行）
+        // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
         const activeCharacters = getWritingSessionCharacters(sessionId);
-        for (const char of activeCharacters) {
-          enqueue(sessionId, () => updateCharacterState(char.id, sessionId), 2).catch(() => {});
-        }
-        // 玩家状态
-        if (worldId) enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
-        // 世界状态
-        if (worldId) enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
-        // turn record（在世界状态之后入队，捕获本轮结果状态）
+        enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(() => {});
+        // turn record（在状态更新之后入队，捕获本轮结果状态）
         enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
         return;
       }
 
+      // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
       const activeCharacters = getWritingSessionCharacters(sessionId);
-      for (const char of activeCharacters) {
-        enqueue(sessionId, () => updateCharacterState(char.id, sessionId), 2).catch(() => {});
-      }
-      if (worldId) enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
-      if (worldId) enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+      enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(() => {});
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
     }
   }
@@ -298,6 +288,22 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   try {
     const { messages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
+
+    // /continue 场景：修正上下文末尾，让 LLM 从当前 assistant 内容末尾续写（prefill）
+    while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+      messages.pop();
+    }
+    const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
+    if (hasTurnRecords && messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
+      messages.pop(); // 移除 asst_context(K)
+      if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+        messages.pop(); // 移除 user_context(K)
+      }
+    }
+    const lastUserMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
+    if (lastUserMsg) messages.push({ role: 'user', content: lastUserMsg.content });
+    messages.push({ role: 'assistant', content: originalContent });
+
     const stream = llm.chat(messages, { temperature, maxTokens, signal: ac.signal });
     for await (const chunk of stream) {
       newContent += chunk;

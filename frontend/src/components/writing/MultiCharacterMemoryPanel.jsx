@@ -3,6 +3,7 @@ import { getWorldStateValues, resetWorldStateValues } from '../../api/worldState
 import { getCharacterStateValues, resetCharacterStateValues } from '../../api/characterStateValues.js';
 import { getWorldTimeline } from '../../api/worldTimeline.js';
 import { getPersonaStateValues, resetPersonaStateValues } from '../../api/personaStateValues.js';
+import { getPersona } from '../../api/personas.js';
 import ActiveCharactersPicker from './ActiveCharactersPicker.jsx';
 
 function parseValue(valueJson, type) {
@@ -63,13 +64,21 @@ function ErrorRow({ msg }) {
   return <p className="text-xs text-red-400 py-1">{msg}</p>;
 }
 
-function StateRows({ rows }) {
-  if (!rows || rows.length === 0) {
+function StateRows({ rows, pinnedName }) {
+  const hasName = pinnedName != null && pinnedName !== '';
+  const hasRows = rows && rows.length > 0;
+  if (!hasName && !hasRows) {
     return <p className="text-xs opacity-30 py-1">暂无数据</p>;
   }
   return (
     <dl className="space-y-1.5 mt-1">
-      {rows.map((row) => {
+      {hasName && (
+        <div className="flex gap-2 items-baseline">
+          <dt className="text-xs opacity-50 shrink-0 min-w-[4rem]">姓名</dt>
+          <dd className="text-xs text-text-secondary font-medium break-all">{pinnedName}</dd>
+        </div>
+      )}
+      {rows?.map((row) => {
         const display = parseValue(row.value_json, row.type);
         return (
           <div key={row.field_key} className="flex gap-2 items-baseline">
@@ -133,12 +142,13 @@ function CharacterStateSection({ character }) {
 
   return (
     <Section title={`${character.name} 状态`} defaultOpen={false} onReset={handleReset} resetting={resetting}>
-      {loading ? <LoadingRow /> : error ? <ErrorRow msg={error} /> : <StateRows rows={data} />}
+      {loading ? <LoadingRow /> : error ? <ErrorRow msg={error} /> : <StateRows rows={data} pinnedName={character.name} />}
     </Section>
   );
 }
 
 export default function MultiCharacterMemoryPanel({ worldId, sessionId, activeCharacters = [] }) {
+  const [personaName, setPersonaName] = useState(null);
   const [personaState, setPersonaState] = useState(null);
   const [personaLoading, setPersonaLoading] = useState(false);
   const [personaError, setPersonaError] = useState(null);
@@ -157,8 +167,14 @@ export default function MultiCharacterMemoryPanel({ worldId, sessionId, activeCh
   useEffect(() => {
     if (!worldId) return;
     setPersonaLoading(true);
-    getPersonaStateValues(worldId)
-      .then(setPersonaState)
+    Promise.all([
+      getPersonaStateValues(worldId),
+      getPersona(worldId),
+    ])
+      .then(([stateRows, persona]) => {
+        setPersonaState(stateRows);
+        setPersonaName(persona?.name ?? null);
+      })
       .catch((e) => setPersonaError(e.message))
       .finally(() => setPersonaLoading(false));
   }, [worldId]);
@@ -221,7 +237,7 @@ export default function MultiCharacterMemoryPanel({ worldId, sessionId, activeCh
 
       {/* 玩家状态 */}
       <Section title="玩家状态" onReset={handleResetPersonaState} resetting={personaResetting}>
-        {personaLoading ? <LoadingRow /> : personaError ? <ErrorRow msg={personaError} /> : <StateRows rows={personaState} />}
+        {personaLoading ? <LoadingRow /> : personaError ? <ErrorRow msg={personaError} /> : <StateRows rows={personaState} pinnedName={personaName} />}
       </Section>
 
       {/* 每个激活角色的状态 */}
