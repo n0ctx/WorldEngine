@@ -60,7 +60,7 @@ export function renderPersonaState(worldId) {
 
   if (rows.length === 0) return '';
 
-  const lines = ['[玩家状态]'];
+  const lines = ['[{{user}}状态]'];
   for (const row of rows) {
     const value = parseValueForDisplay(row.value_json);
     if (value !== null) {
@@ -90,7 +90,7 @@ export function renderWorldState(worldId) {
 
   if (rows.length === 0) return '';
 
-  const lines = ['[世界状态]'];
+  const lines = ['[{{world}}状态]'];
   for (const row of rows) {
     const value = parseValueForDisplay(row.value_json);
     if (value !== null) {
@@ -124,7 +124,7 @@ export function renderCharacterState(characterId) {
 
   if (rows.length === 0) return '';
 
-  const lines = ['[角色状态]'];
+  const lines = ['[{{char}}状态]'];
   for (const row of rows) {
     const value = parseValueForDisplay(row.value_json);
     if (value !== null) {
