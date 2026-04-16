@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T50 — 写作模式支持 turn_records ✅
+- **对外接口**：无新增接口；`createTurnRecord` 现在同时支持 chat 和 writing session
+- **涉及文件**：`backend/memory/turn-summarizer.js`（从 `session.world_id` 兜底取世界；写作模式 charStateText 拼接所有激活角色状态）；`backend/prompt/assembler.js`（`buildWritingPrompt` [14] 改为与 `buildPrompt` 相同的 turn records + 降级逻辑）；`backend/routes/writing.js`（`/generate` P3 入队 `createTurnRecord`；`/continue` P3 入队 `createTurnRecord(isUpdate:true)`）
+- **注意**：写作模式 generate 不强依赖 user 消息（用户可不输入就生成），`createTurnRecord` 内部若无 user/assistant 消息对会静默跳过，不报错
+
 ## T49 — Per-turn 摘要系统重构 ✅
 - **对外接口**：新增 `createTurnRecord(sessionId, { isUpdate? })` 用于每轮结束后创建/更新 turn record；`generateTimelineEntry(sessionId)` 替代旧 `maybeCompress`（被 `/api/sessions/:id/summary` 路由调用）；`deleteLastTurnRecord(sessionId)` 被 `/regenerate` 路由调用；`recall.js` 的 `searchRecalledSummaries` 现在返回 turn_record 粒度的召回结果
 - **涉及文件**：

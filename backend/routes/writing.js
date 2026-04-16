@@ -24,6 +24,7 @@ import { updateWorldState } from '../memory/world-state-updater.js';
 import { updatePersonaState } from '../memory/persona-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
+import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
 
@@ -217,6 +218,8 @@ async function runWritingStream(sessionId, res) {
         if (worldId) enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
         // 世界状态
         if (worldId) enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+        // turn record（在世界状态之后入队，捕获本轮结果状态）
+        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
         return;
       }
 
@@ -226,6 +229,7 @@ async function runWritingStream(sessionId, res) {
       }
       if (worldId) enqueue(sessionId, () => updatePersonaState(worldId, sessionId), 2).catch(() => {});
       if (worldId) enqueue(sessionId, () => updateWorldState(worldId, sessionId), 3).catch(() => {});
+      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
     }
   }
 
@@ -328,6 +332,11 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   }
 
   activeStreams.delete(sessionId);
+
+  // 续写正常完成后更新 turn record（isUpdate=true 覆盖最后一轮）
+  if (!aborted && newContent) {
+    enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+  }
 
   if (!clientClosed) res.end();
 });

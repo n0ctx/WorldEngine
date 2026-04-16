@@ -171,7 +171,7 @@ POST /api/sessions/:sessionId/chat
 | [7] | 循环所有激活角色调用 `renderCharacterState` |
 | [8-10] | 合并全局 + 世界 + 所有激活角色的 entries |
 | [12-13] | 无向量召回，无记忆展开 |
-| [14] | 始终使用降级路径（uncompressed messages），写作模式无 turn records |
+| [14] | 有 turn records 时同 buildPrompt；无时降级（uncompressed messages） |
 | [15] | 无角色后置提示词（只有 `global_post_prompt` + `world.post_prompt`） |
 | 返回值 | 无 `recallHitCount` |
 
@@ -205,6 +205,10 @@ createTurnRecord(sessionId, { isUpdate? })
   ├─ UPSERT turn_records（by session_id + round_index）
   └─ 异步 embed summary → upsertEntry 到 turn_summaries.json
 ```
+
+写作模式差异：
+- world 从 `session.world_id` 直接取（无 character_id）
+- charStateText = 所有激活角色的 `renderCharacterState` 拼接
 
 **SSE 连接关闭时机**：
 - `session.title` 为 NULL：等 `generateTitle` 完成 → `.then` 推送 `title_updated` → `.finally` 调用 `res.end()`

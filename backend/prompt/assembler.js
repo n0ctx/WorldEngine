@@ -350,13 +350,23 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
 
-  // [14] 历史消息（写作模式始终用降级路径）
-  // 去掉最后一条 user 消息（将在 [16] 单独追加）
-  const history = getUncompressedMessagesBySessionId(sessionId);
-  const withoutLastUser = history.slice(0, history.length - 1);
-  for (const msg of withoutLastUser) {
-    const content = applyRules(msg.content, 'prompt_only', world.id);
-    messages.push(formatMessageForLLM({ ...msg, content }));
+  // [14] 历史消息（有 turn records 时用新路径，否则降级）
+  const K = config.context_history_rounds ?? 10;
+  const turnRecords = getTurnRecordsBySessionId(sessionId, K);
+
+  if (turnRecords.length > 0) {
+    for (const record of turnRecords) {
+      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
+      messages.push({ role: 'assistant', content: applyRules(record.asst_context, 'prompt_only', world.id) });
+    }
+  } else {
+    // 降级路径：session 尚无任何 turn record
+    const history = getUncompressedMessagesBySessionId(sessionId);
+    const withoutLastUser = history.slice(0, history.length - 1);
+    for (const msg of withoutLastUser) {
+      const content = applyRules(msg.content, 'prompt_only', world.id);
+      messages.push(formatMessageForLLM({ ...msg, content }));
+    }
   }
 
   // [15] 后置提示词（全局→世界，写作模式无角色后置提示词）
