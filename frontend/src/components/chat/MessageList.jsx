@@ -18,6 +18,7 @@ export default function MessageList({
   expandedMessage,
   onEditMessage,
   onRegenerateMessage,
+  onEditAssistantMessage,
   continuingMessageId,
   continuingText,
 }) {
@@ -186,6 +187,7 @@ export default function MessageList({
               streamingText={isContinuing ? displayMsg.content : undefined}
               onEdit={onEditMessage}
               onRegenerate={onRegenerateMessage}
+              onEditAssistant={onEditAssistantMessage}
             />
           );
         })}
@@ -201,6 +203,7 @@ export default function MessageList({
             streamingText={streamingText}
             onEdit={NOOP}
             onRegenerate={NOOP}
+            onEditAssistant={NOOP}
           />
         )}
       </div>

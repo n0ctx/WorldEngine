@@ -162,7 +162,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         `\n\n最近对话：\n${dialogue}\n\n` +
         `要求：\n` +
         `1. 返回 JSON 对象，顶层 key 必须为：${responseKeys.join('、')}\n` +
-        `2. 每个对象只包含确实发生变化的字段，无变化则为空对象 {}\n` +
+        `2. 每个对象只包含需要更新或初始化的字段：若字段当前值为（未设置），根据对话内容推断合理的初始值并填写；若对话中无明显线索则不填；无任何变化或初始化时返回空对象 {}\n` +
         `3. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
         `4. OOC 讨论不应直接改变状态，除非是明确的设定修改指令\n` +
         `5. 不要添加任何解释，只返回 JSON\n\n` +

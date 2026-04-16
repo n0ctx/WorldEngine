@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
-import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary } from '../api/chat.js';
+import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary, editAssistantMessage } from '../api/chat.js';
 import { createSession } from '../api/sessions.js';
 import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -317,6 +317,23 @@ export default function ChatPage() {
     }
   }
 
+  // 编辑 AI 消息（不重新生成，仅更新内容并重新生成 summary）
+  async function handleEditAssistantMessage(messageId, newContent) {
+    if (generating) return;
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) =>
+        prev.map((m) => m.id === messageId ? { ...m, content: newContent } : m)
+      );
+    }
+    try {
+      await editAssistantMessage(currentSessionId, messageId, newContent);
+      showToast('已保存，摘要更新中…');
+    } catch (err) {
+      showToast(err.message || '保存失败', 'error');
+      refreshMessages();
+    }
+  }
+
   // 重试：删除最后一条 assistant 消息并重新生成
   function handleRetryLast() {
     if (generating || !currentSessionId) return;
@@ -490,6 +507,7 @@ export default function ChatPage() {
           expandedMessage={expandedMessage}
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
+          onEditAssistantMessage={handleEditAssistantMessage}
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
         />

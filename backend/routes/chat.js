@@ -401,6 +401,27 @@ router.delete('/:sessionId/messages', async (req, res) => {
   res.json({ success: true, firstMessage });
 });
 
+// ── POST /api/sessions/:sessionId/edit-assistant ──
+
+router.post('/:sessionId/edit-assistant', async (req, res) => {
+  const { sessionId } = req.params;
+  const { messageId, content } = req.body;
+
+  if (!messageId || !content || typeof content !== 'string') {
+    return res.status(400).json({ error: 'messageId and content are required' });
+  }
+
+  const session = getSessionById(sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  updateMessageContent(messageId, content.trim());
+
+  // 重新生成最后一条 turn record（覆盖）
+  enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+
+  res.json({ success: true });
+});
+
 // ── POST /api/sessions/:sessionId/summary ──
 
 router.post('/:sessionId/summary', async (req, res) => {

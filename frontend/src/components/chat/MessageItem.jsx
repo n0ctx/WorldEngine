@@ -43,7 +43,6 @@ function formatTime(ts) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-// 代码块组件，带复制按钮
 function CodeBlock({ children, className }) {
   const [copied, setCopied] = useState(false);
   const code = String(children).replace(/\n$/, '');
@@ -73,7 +72,6 @@ function CodeBlock({ children, className }) {
   );
 }
 
-// 图片附件缩略图
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const url = `/uploads/${src}`;
@@ -98,15 +96,40 @@ function AttachmentThumbnail({ src }) {
   );
 }
 
-export default function MessageItem({ message, character, persona, worldId, isStreaming, streamingText, onEdit, onRegenerate }) {
+// 复制按钮（通用）
+function CopyButton({ getText }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(getText());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+  return (
+    <button
+      onClick={copy}
+      className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+      </svg>
+      {copied ? '已复制' : '复制'}
+    </button>
+  );
+}
+
+export default function MessageItem({ message, character, persona, worldId, isStreaming, streamingText, onEdit, onRegenerate, onEditAssistant }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
 
+  const [editingAI, setEditingAI] = useState(false);
+  const [aiDraft, setAiDraft] = useState('');
+  const aiTextareaRef = useRef(null);
+
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
-  // 处理 [已中断]
   let displayContent = message.content || '';
   let interrupted = false;
   if (displayContent.includes('[已中断]')) {
@@ -114,11 +137,11 @@ export default function MessageItem({ message, character, persona, worldId, isSt
     interrupted = true;
   }
 
-  // display_only scope：渲染前应用正则替换，不修改 store 里的原始内容
   if (!isStreaming) {
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
+  // ── 用户消息编辑 ──
   function startEdit() {
     setDraft(message.content);
     setEditing(true);
@@ -148,6 +171,35 @@ export default function MessageItem({ message, character, persona, worldId, isSt
   function handleKeyDown(e) {
     if (e.key === 'Escape') cancelEdit();
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
+  }
+
+  // ── AI 消息编辑 ──
+  function startEditAI() {
+    setAiDraft(message.content);
+    setEditingAI(true);
+  }
+
+  useEffect(() => {
+    if (editingAI && aiTextareaRef.current) {
+      aiTextareaRef.current.focus();
+      aiTextareaRef.current.style.height = 'auto';
+      aiTextareaRef.current.style.height = aiTextareaRef.current.scrollHeight + 'px';
+    }
+  }, [editingAI]);
+
+  function confirmEditAI() {
+    if (aiDraft.trim() && aiDraft !== message.content) {
+      onEditAssistant?.(message.id, aiDraft.trim());
+    }
+    setEditingAI(false);
+  }
+
+  function cancelEditAI() {
+    setEditingAI(false);
+  }
+
+  function handleKeyDownAI(e) {
+    if (e.key === 'Escape') cancelEditAI();
   }
 
   const avatarColor = getAvatarColor(character?.id);
@@ -213,62 +265,64 @@ export default function MessageItem({ message, character, persona, worldId, isSt
     return (
       <div className="we-chat-message we-chat-message-user flex items-end gap-3 mb-4 group justify-end">
         <div className="flex-1 min-w-0 flex flex-col items-end">
-        {editing ? (
-          <div className="w-full max-w-[75%]">
-            <textarea
-              ref={textareaRef}
-              className="w-full px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-              }}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                onClick={cancelEdit}
-                className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmEdit}
-                className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
-              >
-                确认
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="max-w-[75%]">
-            <div className="flex justify-end mb-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-              <button
-                onClick={startEdit}
-                className="text-xs opacity-60 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-                编辑
-              </button>
-            </div>
-            <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed whitespace-pre-wrap">
-              {message.content}
-            </div>
-            {message.attachments?.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2 justify-end">
-                {message.attachments.map((att, i) => (
-                  <AttachmentThumbnail key={i} src={att} />
-                ))}
+          {editing ? (
+            <div className="w-full max-w-[75%]">
+              <textarea
+                ref={textareaRef}
+                className="w-full px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onKeyDown={handleKeyDown}
+                rows={1}
+              />
+              <div className="flex justify-end gap-2 mt-2">
+                <button
+                  onClick={cancelEdit}
+                  className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={confirmEdit}
+                  className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
+                >
+                  确认
+                </button>
               </div>
-            )}
-            <p className="text-right text-xs opacity-0 group-hover:opacity-40 transition-opacity mt-1 pointer-events-none">{formatTime(message.created_at)}</p>
-          </div>
-        )}
+            </div>
+          ) : (
+            <div className="max-w-[75%]">
+              <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed whitespace-pre-wrap">
+                {message.content}
+              </div>
+              {message.attachments?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2 justify-end">
+                  {message.attachments.map((att, i) => (
+                    <AttachmentThumbnail key={i} src={att} />
+                  ))}
+                </div>
+              )}
+              {/* 下方悬停操作区 */}
+              <div className="flex justify-end items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+                <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
+                <CopyButton getText={() => message.content} />
+                <button
+                  onClick={startEdit}
+                  className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  编辑
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         {/* 玩家头像 */}
         <div
@@ -285,9 +339,7 @@ export default function MessageItem({ message, character, persona, worldId, isSt
 
   // assistant 消息
   return (
-    <div
-      className="we-chat-message we-chat-message-ai flex items-start gap-3 mb-4 group"
-    >
+    <div className="we-chat-message we-chat-message-ai flex items-start gap-3 mb-4 group">
       <div
         className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
         style={{ background: avatarColor }}
@@ -305,15 +357,48 @@ export default function MessageItem({ message, character, persona, worldId, isSt
             </span>
           )}
         </div>
-        <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
-          <ReactMarkdown
-            remarkPlugins={REMARK_PLUGINS}
-            rehypePlugins={REHYPE_PLUGINS}
-            components={MD_COMPONENTS}
-          >
-            {displayContent}
-          </ReactMarkdown>
-        </div>
+
+        {editingAI ? (
+          <div>
+            <textarea
+              ref={aiTextareaRef}
+              className="w-full px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
+              value={aiDraft}
+              onChange={(e) => {
+                setAiDraft(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+              onKeyDown={handleKeyDownAI}
+              rows={4}
+            />
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={cancelEditAI}
+                className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmEditAI}
+                className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
+            <ReactMarkdown
+              remarkPlugins={REMARK_PLUGINS}
+              rehypePlugins={REHYPE_PLUGINS}
+              components={MD_COMPONENTS}
+            >
+              {displayContent}
+            </ReactMarkdown>
+          </div>
+        )}
+
         {message.attachments?.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-1">
             {message.attachments.map((att, i) => (
@@ -321,19 +406,34 @@ export default function MessageItem({ message, character, persona, worldId, isSt
             ))}
           </div>
         )}
-        <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-          <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
-          <button
-            onClick={() => onRegenerate(message.id)}
-            className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-            </svg>
-            重新生成
-          </button>
-        </div>
+
+        {/* 下方悬停操作区 */}
+        {!editingAI && (
+          <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+            <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
+            <button
+              onClick={() => onRegenerate(message.id)}
+              className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+              </svg>
+              重新生成
+            </button>
+            <CopyButton getText={() => displayContent} />
+            <button
+              onClick={startEditAI}
+              className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              编辑
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

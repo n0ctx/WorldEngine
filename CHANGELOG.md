@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T54 — 气泡复制按钮 + 用户消息编辑移到下方 + AI消息编辑 + 状态空值自动补全 ✅
+- **对外接口**：新增后端路由 `POST /api/sessions/:sessionId/edit-assistant`（body: `{messageId, content}`）；新增前端 `editAssistantMessage(sessionId, messageId, content)` in `api/chat.js`；`MessageItem` 新增 `onEditAssistant` prop
+- **涉及文件**：`backend/routes/chat.js`（新增 edit-assistant 路由）、`backend/memory/combined-state-updater.js`（修改 prompt 指令）、`frontend/src/api/chat.js`、`frontend/src/pages/ChatPage.jsx`、`frontend/src/components/chat/MessageList.jsx`、`frontend/src/components/chat/MessageItem.jsx`
+- **注意**：edit-assistant 路由只更新消息内容 + 以 `isUpdate:true` 重新入队 turn-record（覆盖最后一条），不重新跑状态更新；空值自动补全只在 `update_mode=llm_auto` + 非 `manual_only` 触发模式的字段生效；用户消息编辑按钮从气泡上方移至下方悬停区（与复制同排）；AI 消息编辑进入 textarea 模式，保存后不重新生成 AI 回复
+
 ## T53 — 修复 /continue 气泡仍显示"..."+ 角色状态栏不更新 ✅
 - **问题 1**：`MessageList.jsx` 的续写消息项未传 `streamingText` prop，导致 `MessageItem` 判断 `isStreaming && !streamingText` 后始终显示"..."打点动画
 - **问题 2**：`combined-state-updater.js` 用角色名作为 JSON 顶层 key（如 `"小绿": {...}`），LLM 经常用别名/不精确名称，导致 `patch[char.name]` 永远找不到，静默跳过，状态栏无法更新
