@@ -169,120 +169,125 @@ export default function PersonaEditPage() {
   const avatarInitial = (name || '玩')[0].toUpperCase();
 
   return (
-    <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="max-w-[56rem] mx-auto">
-        {/* 导航 */}
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-canvas">
+      {/* 固定顶栏 */}
+      <div className="sticky top-0 z-40 bg-canvas border-b border-border px-4">
+        <div className="max-w-[56rem] mx-auto flex items-center justify-between py-2.5">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
           >
             ← 返回
           </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="text-sm text-text-secondary hover:text-text transition-colors opacity-60 hover:opacity-100"
-          >
-            设置
-          </button>
-        </div>
-
-        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">编辑玩家</h1>
-
-        {/* 头像区域 */}
-        <div className="flex flex-col items-center mb-8">
-          <div
-            className="relative cursor-pointer group"
-            onClick={handleAvatarClick}
-          >
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={name}
-                className="w-24 h-24 rounded-full object-cover"
-              />
-            ) : (
-              <div
-                className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-semibold text-white"
-                style={{ backgroundColor: avatarColor }}
-              >
-                {avatarInitial}
-              </div>
-            )}
-
-            {avatarUploading && (
-              <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
-                <span className="text-white text-xs">上传中…</span>
-              </div>
-            )}
-
-            {!avatarUploading && (
-              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">更换头像</span>
-              </div>
-            )}
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <p className="text-xs text-text-secondary mt-2 opacity-60">点击头像上传图片</p>
-        </div>
-
-        {/* 表单 */}
-        <div className="flex flex-col gap-5">
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">名字</label>
-            <input
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="你在这个世界里的名字"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">人设</label>
-            <MarkdownEditor
-              value={systemPrompt}
-              onChange={setSystemPrompt}
-              placeholder="你的身份、背景等"
-              minHeight={144}
-            />
-          </div>
-
-          {stateFields.length > 0 && (
-            <div className="border-t border-border pt-5">
-              <h3 className="text-sm font-semibold text-text-secondary mb-4">当前状态字段值</h3>
-              <div className="flex flex-col gap-4">
-                {stateFields.map((field) => (
-                  <div key={field.field_key}>
-                    <label className="block text-sm text-text-secondary mb-1.5">{field.label}</label>
-                    <StateValueField field={field} onSave={handleStateValueSave} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center pt-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/settings')}
+              className="text-sm text-text-secondary hover:text-text transition-colors opacity-60 hover:opacity-100"
+            >
+              设置
+            </button>
+            <span className="border-l border-border h-4" />
             <button
               onClick={handleExport}
-              className="px-4 py-2.5 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
+              className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
             >
               导出为角色卡
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-6 py-2.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {saving ? '保存中…' : '保存'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 内容区 */}
+      <div className="px-4 pt-8 pb-10">
+        <div className="max-w-[56rem] mx-auto">
+          <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">编辑玩家</h1>
+
+          {/* 头像区域 */}
+          <div className="flex flex-col items-center mb-8">
+            <div
+              className="relative cursor-pointer group"
+              onClick={handleAvatarClick}
+            >
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={name}
+                  className="w-24 h-24 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="w-24 h-24 rounded-full flex items-center justify-center text-3xl font-semibold text-white"
+                  style={{ backgroundColor: avatarColor }}
+                >
+                  {avatarInitial}
+                </div>
+              )}
+
+              {avatarUploading && (
+                <div className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center">
+                  <span className="text-white text-xs">上传中…</span>
+                </div>
+              )}
+
+              {!avatarUploading && (
+                <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                  <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">更换头像</span>
+                </div>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <p className="text-xs text-text-secondary mt-2 opacity-60">点击头像上传图片</p>
+          </div>
+
+          {/* 表单 */}
+          <div className="flex flex-col gap-5">
+            <div>
+              <label className="block text-sm text-text-secondary mb-1.5">名字</label>
+              <input
+                className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="你在这个世界里的名字"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-text-secondary mb-1.5">人设</label>
+              <MarkdownEditor
+                value={systemPrompt}
+                onChange={setSystemPrompt}
+                placeholder="你的身份、背景等"
+                minHeight={144}
+              />
+            </div>
+
+            {stateFields.length > 0 && (
+              <div className="border-t border-border pt-5">
+                <h3 className="text-sm font-semibold text-text-secondary mb-4">当前状态字段值</h3>
+                <div className="flex flex-col gap-4">
+                  {stateFields.map((field) => (
+                    <div key={field.field_key}>
+                      <label className="block text-sm text-text-secondary mb-1.5">{field.label}</label>
+                      <StateValueField field={field} onSave={handleStateValueSave} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

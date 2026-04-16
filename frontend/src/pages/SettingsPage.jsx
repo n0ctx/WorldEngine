@@ -325,16 +325,29 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="max-w-2xl mx-auto">
-        {/* 返回 */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors mb-8"
-        >
-          ← 返回
-        </button>
+    <div className="min-h-screen bg-canvas">
+      {/* 固定顶栏 */}
+      <div className="sticky top-0 z-40 bg-canvas border-b border-border px-4">
+        <div className="max-w-[56rem] mx-auto flex items-center justify-between py-2.5">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
+          >
+            ← 返回
+          </button>
+          <button
+            onClick={handleSaveGeneral}
+            disabled={saving}
+            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            {saving ? '保存中…' : '保存'}
+          </button>
+        </div>
+      </div>
 
+      {/* 内容区 */}
+      <div className="px-4 pt-8 pb-10">
+      <div className="max-w-[56rem] mx-auto">
         <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-10">设置</h1>
 
         <div className="flex flex-col gap-10">
@@ -454,16 +467,6 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={handleSaveGeneral}
-                  disabled={saving}
-                  className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                >
-                  {saving ? '保存中…' : '保存'}
-                </button>
-              </div>
-
               <div className="border-t border-border pt-4">
                 <EntryList type="global" />
               </div>
@@ -513,6 +516,7 @@ export default function SettingsPage() {
             </div>
           </section>
         </div>
+      </div>
       </div>
     </div>
   );

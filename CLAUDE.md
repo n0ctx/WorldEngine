@@ -54,7 +54,7 @@ cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
-每次任务完成后 git commit。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
+每次任务完成后更新CHANGELOG.md，git commit。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
 
 ---
 
