@@ -12,8 +12,7 @@
 
 ## 项目概览
 
-**WorldEngine** — 面向创意写作/角色扮演的本地 LLM 前端。核心特点：在角色之上增加"世界"层，记忆系统包含 session summary、角色状态栏、世界状态栏、世界时间线四部分，并支持按世界前端配置状态字段模板；提示词采用渐进式披露。
-架构层级：`全局 → 世界 → 角色 → 会话`，每层有独立的提示词、配置和记忆，下层不可覆盖上层。
+架构层级：`全局 → 世界 → 角色 → 会话`，每层有独立的提示词、配置和记忆，下层不可覆盖上层。详细架构见 `ARCHITECTURE.md`。
 
 ---
 
@@ -118,7 +117,7 @@ cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
-每次任务完成后，阅读 CHANGELOG.md，在最上方追加一条记录；并且git commit。
+每次任务完成后，阅读 CHANGELOG.md，在最上方追加一条记录；并且git commit。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
 
 ---
 
@@ -175,9 +174,9 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 [3] 用户 Persona（均为空则整段跳过）
 [4] 角色 System Prompt
 [5] Prompt 条目（命中→注入 content，未命中→注入 summary；全局→世界→角色顺序）
-[6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 历史摘要召回 + 原文展开，由 recall.js 渲染；T21/T26C/T27/T28 渐进落地）
+[6] 状态与记忆注入（玩家状态 + 角色状态 + 世界状态 + 世界时间线 + 历史摘要召回 + 原文展开，由 recall.js 渲染；见 ARCHITECTURE.md §6）
 [7] 历史消息（轮次压缩后，最少保留 CONTEXT_MIN_HISTORY_ROUNDS 轮；prompt_only scope 正则在此处理）
-[8] 用户当前消息（已包含在历史记录中）+ 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，非空部分合并为单条 role:user 消息追加；T31）
+[8] 用户当前消息（已包含在历史记录中）+ 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，非空部分合并为单条 role:user 消息追加）
 ```
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置
@@ -192,74 +191,20 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 ## 关键设计速查
 
-**Session Summary 触发条件**（T32 起变更）：不再每轮生成 summary；改为 `maybeCompress` 内部在轮次达到阈值时触发，或用户手动 /summary（force=true）。短会话（< threshold 轮）无 summary，不参与 embedding 召回。
+详细架构见 `ARCHITECTURE.md`：
+- 提示词组装 → §4，记忆召回 → §6，SSE 事件 → §7
+- 异步任务链 → §5，状态系统 → §8，正则替换管线 → §9
+- 写作空间 → §11，副作用清理钩子 → §10
 
-**对话结束后异步任务链**（均在 done 且有 user 消息时触发）：
-1. `maybeCompress(sessionId)`（优先级 1，T32 起，内含 summary/压缩/时间线/embed）
-2. title 生成（优先级 2，仅 title 为 NULL 时）
-3. 角色状态栏更新（优先级 2，T19D 实现）
-4. 玩家状态栏更新（优先级 2，T26C 实现）
-5. 世界状态栏更新（优先级 3，T19D 实现）
-
-**角色头像 Fallback**：`avatar_path` 为 NULL 时，显示基于角色 id hash 的纯色圆形 + 名字首字。封装在 `/frontend/src/utils/avatar.js` 的 `getAvatarColor(id)`。
-
-**SSE 事件类型**：
-- 已实现：`delta` / `done` / `aborted` / `type:error` / `type:title_updated`（T09 / T11）
-- 已实现（T27）：`type:memory_recall_start` / `type:memory_recall_done`（payload: `{hit: number}`）；仅 runStream 路径发出，`/continue` 不含
-- 已实现（T28）：`type:memory_expand_start`（payload: `{candidates:[{ref,title}]}`）/ `type:memory_expand_done`（payload: `{expanded:string[]}`）；仅在 recall 命中 ≥1 且 `memory_expansion_enabled=true` 时发送，通过 `buildPrompt` 的 `onRecallEvent` 回调 → `buildContext` → routes/chat.js 注入 SSE
-
-详细规范见 ROADMAP.md T09 / T11 / T27 / T28 任务说明。
+**上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 状态与记忆` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
 
 **图片附件**：base64 随消息发送（不单独上传接口），后端解码存 `/data/uploads/attachments/`，路径写入 `messages.attachments`（JSON 字符串）。单条最多 3 张、单张不超过 5MB，前端校验。
 
 **角色卡/世界卡格式**：`.wechar.json`（format: worldengine-character-v1）/ `.weworld.json`（format: worldengine-world-v1），不兼容 SillyTavern 格式。导出包含状态字段定义和状态值。
 
-**写作空间（T34）**：
-- 入口：角色列表页右上角"写作空间"按钮，路由 `/worlds/:worldId/writing`
-- `sessions` 表 schema 已变更：`character_id` 改为可空（写作会话无单一角色）；新增 `world_id TEXT`（FK→worlds）；新增 `mode TEXT DEFAULT 'chat'`（'chat' | 'writing'）
-- 新增 `writing_session_characters` 联结表（`session_id`, `character_id UNIQUE`），管理写作会话激活角色
-- `buildWritingPrompt(sessionId, options?)` 封装在 `assembler.js` 末尾，循环所有激活角色注入 [4][5][6]，不修改 `buildPrompt`
-- 后端路由 `routes/writing.js`，注册在 `server.js` 的 `app.use('/api/worlds', writingRoutes)`；服务层 `services/writing-sessions.js`
+**persona 无 Prompt 条目**：persona 只有 name 和 system_prompt，与角色不同，没有 Prompt 条目。
 
-**上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 状态与记忆` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
-
-**状态系统**（T19A/B/C/D + T26C 拆分实现）：
-- 每个世界可配置三套状态字段模板：世界状态字段（world_state_fields）、角色状态字段（character_state_fields）、玩家状态字段（persona_state_fields，T26C）
-- 世界状态字段作用于 worlds，自身只有一份当前值（world_state_values）
-- 角色状态字段作用于该世界下所有角色，每个角色各持有一份当前值（character_state_values）
-- 玩家状态字段作用于该世界唯一的 persona 实例（personas 表 `world_id UNIQUE`，每个 world 一对一），自身只有一份当前值（persona_state_values）
-- 字段模板在前端世界编辑页配置（T19B / T26C），支持 text/number/boolean/enum/list 五种类型（list 为 T33 新增，存储 JSON 数组，渲染为顿号分隔）
-- 创建世界/角色时自动按模板初始化状态值（T19C / T26C）；创建世界时一并初始化 persona 行和 persona_state_values
-- 对话后按配置异步更新状态值（T19D 角色+世界、T26C 玩家），只处理 update_mode=llm_auto 的字段
-- trigger_mode 控制是否参与自动更新：manual_only（跳过）/ every_turn（每轮）/ keyword_based（关键词命中）
-- 对 LLM 注入时，recall.js 将结构化状态渲染为可读文本，注入 [6] 位置（T21 + T26C）
-- 前端记忆面板只读展示玩家状态、角色状态、世界状态、世界时间线（T22 + T26C）
-
-**玩家（Persona）与世界的关系**（T26C）：
-- 每个世界对应一个且仅一个 persona（personas 表 `world_id UNIQUE`）
-- 创建世界时由 `services/worlds.createWorld` 自动 upsert persona 行和 persona_state_values 初值
-- persona 只有 name 和 system_prompt 两个基础字段；**没有 Prompt 条目**（和角色不同）
-- persona 的 name 和 system_prompt 注入到 assembler.js 的 [2] 位置（替换原 worlds.persona_name / persona_prompt）
-- persona 的状态值渲染为可读文本注入 [6] 位置（顺序在最前，优先于角色状态）
-
-**recall.js 职责**（T21 / T26C / T27 / T28）：
-- `renderPersonaState(worldId)` → 渲染玩家状态为可读文本（T26C 新增）
-- `renderCharacterState(characterId)` → 渲染角色状态为可读文本
-- `renderWorldState(worldId)` → 渲染世界状态为可读文本
-- `renderTimeline(worldId, limit)` → 渲染世界时间线为可读文本
-- `searchRecalledSummaries(worldId, sessionId)` → embedding 搜索历史 session summary，返回 `{ recalled, recentMessagesText }`；`recalled` 为结构化数组（含 ref/session_id/session_title/created_at/content/score）（T27 / T28 重构）
-- `renderRecalledSummaries(recalled)` → 将结构化 recalled 数组渲染为可读文本块（T27；T28 将签名从双参数重构为接受数组）
-- 四段状态文本 + 召回摘要文本 + 原文展开文本，按「玩家 → 角色 → 世界 → 时间线 → 召回摘要 → 原文展开」顺序拼接注入 assembler.js 的 [6] 位置，全部为空则 [6] 为空字符串
-
-**自定义样式与正则替换**（T24A/B）：
-- 自定义 CSS：多条片段独立启用/禁用，全部为全局作用；前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`
-- 正则替换：按 `scope` 分四种作用时机，同 scope 内按 `sort_order ASC` 链式套用，前一条结果作为后一条输入
-  - `user_input` → 前端发送前处理（影响存库 + 显示 + prompt）
-  - `ai_output` → 后端流式完结后、写 messages 前处理（影响存库 + 显示 + prompt）
-  - `display_only` → 前端渲染时处理（仅视觉，不改存库）
-  - `prompt_only` → 后端 assembler.js 组装 [7] 历史消息时处理（仅送入 LLM 的副本，不改存库不改显示）
-- `world_id IS NULL` 的规则对所有世界生效；非 NULL 仅该世界会话生效
-- 规则编译/执行失败时跳过该条并记日志，不中断管线
+**自定义 CSS**：前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`，全部为全局作用。
 
 ---
 

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## DOC — 新增 ARCHITECTURE.md + 精简 CLAUDE.md ✅
+- **对外接口**：无代码改动；新增 `ARCHITECTURE.md` 作为架构快照（覆盖式维护，15 节，447 行）
+- **涉及文件**：新增 `ARCHITECTURE.md`；修改 `CLAUDE.md`（213 行，从 269 行精简，"关键设计速查"节从 ~70 行压缩至 ~12 行，架构描述迁移至 ARCHITECTURE.md）
+- **注意**：CLAUDE.md 只保留约束与规则；ARCHITECTURE.md 描述当前系统现状，每次大特性完成后覆盖式更新对应节；两文件职责不重叠——SCHEMA.md 管字段，CLAUDE.md 管规则，ARCHITECTURE.md 管运行时行为
+
 ## T45 — Prompt 编辑框可调高度 + 创建/编辑页面宽度扩展 ✅
 - **对外接口**：无新增接口；`MarkdownEditor` prop `minHeight` 含义变化：原为 CSS `min-height`（自动拉伸），现为初始固定 `height`（用户可拖动调整）
 - **涉及文件**：`frontend/src/components/ui/MarkdownEditor.jsx`（`style={{ minHeight }}` → `style={{ height: minHeight }}`）；`frontend/src/index.css`（`.we-md-content` 加 `overflow-y: auto / resize: vertical / min-height: 60px / border-bottom-radius: 7px`，追加 webkit 滚动条样式）；5 个页面 `max-w-2xl` → `max-w-[56rem]`：`WorldCreatePage` / `WorldEditPage` / `CharacterCreatePage` / `CharacterEditPage` / `PersonaEditPage`
