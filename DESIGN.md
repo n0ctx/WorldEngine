@@ -1,312 +1,840 @@
-# Design System Inspired by Claude (Anthropic)
+# WorldEngine · 设计规格 v2
 
-## 1. Visual Theme & Atmosphere
+> 权威来源：本文件描述视觉/交互规格。架构见 `ARCHITECTURE.md`，数据库见 `SCHEMA.md`，约束见 `CLAUDE.md`。
+> 最后更新：2026-04-17
 
-Claude's interface is a literary salon reimagined as a product page — warm, unhurried, and quietly intellectual. The entire experience is built on a parchment-toned canvas (`#f5f4ed`) that deliberately evokes the feeling of high-quality paper rather than a digital surface. Where most AI product pages lean into cold, futuristic aesthetics, Claude's design radiates human warmth, as if the AI itself has good taste in interior design.
+---
 
-The signature move is the custom Anthropic Serif typeface — a medium-weight serif with generous proportions that gives every headline the gravitas of a book title. Combined with organic, hand-drawn-feeling illustrations in terracotta (`#c96442`), black, and muted green, the visual language says "thoughtful companion" rather than "powerful tool." The serif headlines breathe at tight-but-comfortable line-heights (1.10–1.30), creating a cadence that feels more like reading an essay than scanning a product page.
+## §1 核心概念
 
-What makes Claude's design truly distinctive is its warm neutral palette. Every gray has a yellow-brown undertone (`#5e5d59`, `#87867f`, `#4d4c48`) — there are no cool blue-grays anywhere. Borders are cream-tinted (`#f0eee6`, `#e8e6dc`), shadows use warm transparent blacks, and even the darkest surfaces (`#141413`, `#30302e`) carry a barely perceptible olive warmth. This chromatic consistency creates a space that feels lived-in and trustworthy.
+**"一本正在被书写的博物志手稿"**
 
-**Key Characteristics:**
-- Warm parchment canvas (`#f5f4ed`) evoking premium paper, not screens
-- Custom Anthropic type family: Serif for headlines, Sans for UI, Mono for code
-- Terracotta brand accent (`#c96442`) — warm, earthy, deliberately un-tech
-- Exclusively warm-toned neutrals — every gray has a yellow-brown undertone
-- Organic, editorial illustrations replacing typical tech iconography
-- Ring-based shadow system (`0px 0px 0px 1px`) creating border-like depth without visible borders
-- Magazine-like pacing with generous section spacing and serif-driven hierarchy
+不是"带羊皮纸背景的聊天软件"——用户是在翻阅并共创一本古籍。每一次对话都是在手稿上落笔，每一段记忆都是页边批注，每一个角色都有自己的朱砂印章。
 
-## 2. Color Palette & Roles
+### 1.1 风格定位
 
-### Primary
-- **Anthropic Near Black** (`#141413`): The primary text color and dark-theme surface — not pure black but a warm, almost olive-tinted dark that's gentler on the eyes. The warmest "black" in any major tech brand.
-- **Terracotta Brand** (`#c96442`): The core brand color — a burnt orange-brown used for primary CTA buttons, brand moments, and the signature accent. Deliberately earthy and un-tech.
-- **Coral Accent** (`#d97757`): A lighter, warmer variant of the brand color used for text accents, links on dark surfaces, and secondary emphasis.
+| 维度 | 定义 |
+|---|---|
+| 大类风格 | MUD / 文字冒险 |
+| 美术分支 | 羊皮纸古籍派（Parchment Tome） |
+| 参照原型 | 中世纪博物志手稿、武侠秘籍、西方奇幻日志 |
+| 核心体验 | 仪式感、沉浸、克制的装饰、"书写中"的临场感 |
 
-### Secondary & Accent
-- **Error Crimson** (`#b53333`): A deep, warm red for error states — serious without being alarming.
-- **Focus Blue** (`#3898ec`): Standard blue for input focus rings — the only cool color in the entire system, used purely for accessibility.
+### 1.2 区别于俗套奇幻 UI 的三件事
 
-### Surface & Background
-- **Parchment** (`#f5f4ed`): The primary page background — a warm cream with a yellow-green tint that feels like aged paper. The emotional foundation of the entire design.
-- **Ivory** (`#faf9f5`): The lightest surface — used for cards and elevated containers on the Parchment background. Barely distinguishable but creates subtle layering.
-- **Pure White** (`#ffffff`): Reserved for specific button surfaces and maximum-contrast elements.
-- **Warm Sand** (`#e8e6dc`): Button backgrounds and prominent interactive surfaces — a noticeably warm light gray.
-- **Dark Surface** (`#30302e`): Dark-theme containers, nav borders, and elevated dark elements — warm charcoal.
-- **Deep Dark** (`#141413`): Dark-theme page background and primary dark surface.
+1. **不做 HUD**：没有浮动血条、技能图标、经验值条——状态以古籍批注样式呈现
+2. **不做高饱和棕金**：朱砂 + 铁胆墨 + 褪色纸是主调，金色仅作克制点缀
+3. **真正的古籍排版**：章节分隔（Fleuron）、首字下沉（Drop Cap）、页边批注（Marginalia）、朱砂闲章（Seal）
 
-### Neutrals & Text
-- **Charcoal Warm** (`#4d4c48`): Button text on light warm surfaces — the go-to dark-on-light text.
-- **Olive Gray** (`#5e5d59`): Secondary body text — a distinctly warm medium-dark gray.
-- **Stone Gray** (`#87867f`): Tertiary text, footnotes, and de-emphasized metadata.
-- **Dark Warm** (`#3d3d3a`): Dark text links and emphasized secondary text.
-- **Warm Silver** (`#b0aea5`): Text on dark surfaces — a warm, parchment-tinted light gray.
+---
 
-### Semantic & Accent
-- **Border Cream** (`#f0eee6`): Standard light-theme border — barely visible warm cream, creating the gentlest possible containment.
-- **Border Warm** (`#e8e6dc`): Prominent borders, section dividers, and emphasized containment on light surfaces.
-- **Border Dark** (`#30302e`): Standard border on dark surfaces — maintains the warm tone.
-- **Ring Warm** (`#d1cfc5`): Shadow ring color for button hover/focus states.
-- **Ring Subtle** (`#dedc01`): Secondary ring variant for lighter interactive surfaces.
-- **Ring Deep** (`#c2c0b6`): Deeper ring for active/pressed states.
+## §2 CSS 变量体系
 
-### Gradient System
-- Claude's design is **gradient-free** in the traditional sense. Depth and visual richness come from the interplay of warm surface tones, organic illustrations, and light/dark section alternation. The warm palette itself creates a "gradient" effect as the eye moves through cream → sand → stone → charcoal → black sections.
+所有视觉 token 以 `--we-*` 前缀统一管理。实现于 `/frontend/src/styles/tokens.css`，全局注入。
 
-## 3. Typography Rules
+### 2.1 纸基三层
 
-### Font Family
-- **Headline**: `Anthropic Serif`, with fallback: `Georgia`
-- **Body / UI**: `Anthropic Sans`, with fallback: `Arial`
-- **Code**: `Anthropic Mono`, with fallback: `Arial`
+```css
+--we-paper-base:    #ede3d0;   /* 新纸·右页底色 */
+--we-paper-aged:    #d9ccb0;   /* 旧化·左页底色 */
+--we-paper-shadow:  #c8b99a;   /* 页脚/折叠阴影 */
+--we-paper-deep:    #b8a882;   /* 最深纸面层（折角/装饰） */
+--we-book-bg:       #4a3728;   /* 书本外部背景（木桌色） */
+```
 
-*Note: These are custom typefaces. For external implementations, Georgia serves as the serif substitute and system-ui/Inter as the sans substitute.*
+### 2.2 墨水色系
 
-### Hierarchy
+```css
+--we-ink-primary:    #2a1f17;   /* 深铁胆墨·主文字 */
+--we-ink-secondary:  #534236;   /* 灰烬墨·次级文字 */
+--we-ink-faded:      #8a7663;   /* 褪色墨·标签/说明文字 */
+```
 
-| Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
-|------|------|------|--------|-------------|----------------|-------|
-| Display / Hero | Anthropic Serif | 64px (4rem) | 500 | 1.10 (tight) | normal | Maximum impact, book-title presence |
-| Section Heading | Anthropic Serif | 52px (3.25rem) | 500 | 1.20 (tight) | normal | Feature section anchors |
-| Sub-heading Large | Anthropic Serif | 36–36.8px (~2.3rem) | 500 | 1.30 | normal | Secondary section markers |
-| Sub-heading | Anthropic Serif | 32px (2rem) | 500 | 1.10 (tight) | normal | Card titles, feature names |
-| Sub-heading Small | Anthropic Serif | 25–25.6px (~1.6rem) | 500 | 1.20 | normal | Smaller section titles |
-| Feature Title | Anthropic Serif | 20.8px (1.3rem) | 500 | 1.20 | normal | Small feature headings |
-| Body Serif | Anthropic Serif | 17px (1.06rem) | 400 | 1.60 (relaxed) | normal | Serif body text (editorial passages) |
-| Body Large | Anthropic Sans | 20px (1.25rem) | 400 | 1.60 (relaxed) | normal | Intro paragraphs |
-| Body / Nav | Anthropic Sans | 17px (1.06rem) | 400–500 | 1.00–1.60 | normal | Navigation links, UI text |
-| Body Standard | Anthropic Sans | 16px (1rem) | 400–500 | 1.25–1.60 | normal | Standard body, button text |
-| Body Small | Anthropic Sans | 15px (0.94rem) | 400–500 | 1.00–1.60 | normal | Compact body text |
-| Caption | Anthropic Sans | 14px (0.88rem) | 400 | 1.43 | normal | Metadata, descriptions |
-| Label | Anthropic Sans | 12px (0.75rem) | 400–500 | 1.25–1.60 | 0.12px | Badges, small labels |
-| Overline | Anthropic Sans | 10px (0.63rem) | 400 | 1.60 | 0.5px | Uppercase overline labels |
-| Micro | Anthropic Sans | 9.6px (0.6rem) | 400 | 1.60 | 0.096px | Smallest text |
-| Code | Anthropic Mono | 15px (0.94rem) | 400 | 1.60 | -0.32px | Inline code, terminal |
+### 2.3 朱砂系（主强调色）
 
-### Principles
-- **Serif for authority, sans for utility**: Anthropic Serif carries all headline content with medium weight (500), giving every heading the gravitas of a published title. Anthropic Sans handles all functional UI text — buttons, labels, navigation — with quiet efficiency.
-- **Single weight for serifs**: All Anthropic Serif headings use weight 500 — no bold, no light. This creates a consistent "voice" across all headline sizes, as if the same author wrote every heading.
-- **Relaxed body line-height**: Most body text uses 1.60 line-height — significantly more generous than typical tech sites (1.4–1.5). This creates a reading experience closer to a book than a dashboard.
-- **Tight-but-not-compressed headings**: Line-heights of 1.10–1.30 for headings are tight but never claustrophobic. The serif letterforms need breathing room that sans-serif fonts don't.
-- **Micro letter-spacing on labels**: Small sans text (12px and below) uses deliberate letter-spacing (0.12px–0.5px) to maintain readability at tiny sizes.
+```css
+--we-vermilion:       #a23b2e;   /* 朱砂·印章/强调 */
+--we-vermilion-deep:  #7c2a20;   /* 干涸朱砂·悬停/按下 */
+--we-vermilion-bg:    rgba(162,59,46,0.08);  /* 朱砂浅底 */
+```
 
-## 4. Component Stylings
+### 2.4 金箔系（装饰专用，克制使用）
 
-### Buttons
+```css
+--we-gold-leaf:  #a0833f;   /* 金箔·分隔线/印章边框 */
+--we-gold-pale:  #c9a85a;   /* 淡金·悬停高亮 */
+```
 
-**Warm Sand (Secondary)**
-- Background: Warm Sand (`#e8e6dc`)
-- Text: Charcoal Warm (`#4d4c48`)
-- Padding: 0px 12px 0px 8px (asymmetric — icon-first layout)
-- Radius: comfortably rounded (8px)
-- Shadow: ring-based (`#e8e6dc 0px 0px 0px 0px, #d1cfc5 0px 0px 0px 1px`)
-- The workhorse button — warm, unassuming, clearly interactive
+### 2.5 功能色（融入风格，非原生 red/green）
 
-**White Surface**
-- Background: Pure White (`#ffffff`)
-- Text: Anthropic Near Black (`#141413`)
-- Padding: 8px 16px 8px 12px
-- Radius: generously rounded (12px)
-- Hover: shifts to secondary background color
-- Clean, elevated button for light surfaces
+```css
+--we-moss:   #5c6b3a;   /* 苔藓绿·生命/正常状态 */
+--we-amber:  #8b5a1f;   /* 琥珀棕·警示/用户消息边线 */
+--we-slate:  #4a5568;   /* 石板灰·禁用/不活跃 */
+```
 
-**Dark Charcoal**
-- Background: Dark Surface (`#30302e`)
-- Text: Ivory (`#faf9f5`)
-- Padding: 0px 12px 0px 8px
-- Radius: comfortably rounded (8px)
-- Shadow: ring-based (`#30302e 0px 0px 0px 0px, ring 0px 0px 0px 1px`)
-- The inverted variant for dark-on-light emphasis
+### 2.6 UI 功能变量
 
-**Brand Terracotta**
-- Background: Terracotta Brand (`#c96442`)
-- Text: Ivory (`#faf9f5`)
-- Radius: 8–12px
-- Shadow: ring-based (`#c96442 0px 0px 0px 0px, #c96442 0px 0px 0px 1px`)
-- The primary CTA — the only button with chromatic color
+```css
+--we-border:         1px solid var(--we-paper-shadow);
+--we-border-faint:   1px solid rgba(200,185,154,0.5);
+--we-radius-sm:      2px;
+--we-radius-md:      4px;
+--we-radius-none:    1px;   /* 古籍风：几乎无圆角 */
+--we-spine-shadow:   linear-gradient(to right,
+    rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.06) 12%,
+    transparent 25%, transparent 75%,
+    rgba(0,0,0,0.06) 88%, rgba(0,0,0,0.22) 100%);
+```
 
-**Dark Primary**
-- Background: Anthropic Near Black (`#141413`)
-- Text: Warm Silver (`#b0aea5`)
-- Padding: 9.6px 16.8px
-- Radius: generously rounded (12px)
-- Border: thin solid Dark Surface (`1px solid #30302e`)
-- Used on dark theme surfaces
+---
 
-### Cards & Containers
-- Background: Ivory (`#faf9f5`) or Pure White (`#ffffff`) on light surfaces; Dark Surface (`#30302e`) on dark
-- Border: thin solid Border Cream (`1px solid #f0eee6`) on light; `1px solid #30302e` on dark
-- Radius: comfortably rounded (8px) for standard cards; generously rounded (16px) for featured; very rounded (32px) for hero containers and embedded media
-- Shadow: whisper-soft (`rgba(0,0,0,0.05) 0px 4px 24px`) for elevated content
-- Ring shadow: `0px 0px 0px 1px` patterns for interactive card states
-- Section borders: `1px 0px 0px` (top-only) for list item separators
+## §3 字体系统
 
-### Inputs & Forms
-- Text: Anthropic Near Black (`#141413`)
-- Padding: 1.6px 12px (very compact vertical)
-- Border: standard warm borders
-- Focus: ring with Focus Blue (`#3898ec`) border-color — the only cool color moment
-- Radius: generously rounded (12px)
+### 3.1 字体选型
 
-### Navigation
-- Sticky top nav with warm background
-- Logo: Claude wordmark in Anthropic Near Black
-- Links: mix of Near Black (`#141413`), Olive Gray (`#5e5d59`), and Dark Warm (`#3d3d3a`)
-- Nav border: `1px solid #30302e` (dark) or `1px solid #f0eee6` (light)
-- CTA: Terracotta Brand button or White Surface button
-- Hover: text shifts to foreground-primary, no decoration
+| 用途 | 中文字体 | 英文/数字字体 | 来源 |
+|---|---|---|---|
+| **正文/对话** | 思源宋体 Source Han Serif | EB Garamond | Google Fonts |
+| **标题/章节** | 霞鹜文楷 LXGW WenKai | Cormorant Garamond | Google Fonts |
+| **印章/角色名** | ZCOOL XiaoWei | Cormorant Garamond Italic | Google Fonts |
+| **状态数字/等宽** | JetBrains Mono | JetBrains Mono | Google Fonts |
 
-### Image Treatment
-- Product screenshots showing the Claude chat interface
-- Generous border-radius on media (16–32px)
-- Embedded video players with rounded corners
-- Dark UI screenshots provide contrast against warm light canvas
-- Organic, hand-drawn illustrations for conceptual sections
+**禁止**：Inter、Roboto、Arial、系统默认无衬线字体、Noto Sans（太现代）。
 
-### Distinctive Components
+### 3.2 字号体系
 
-**Model Comparison Cards**
-- Opus 4.5, Sonnet 4.5, Haiku 4.5 presented in a clean card grid
-- Each model gets a bordered card with name, description, and capability badges
-- Border Warm (`#e8e6dc`) separation between items
+```css
+--we-text-xs:    11px;   /* 批注/日期/页边小字 */
+--we-text-sm:    13px;   /* 标签/状态值 */
+--we-text-base:  16.5px; /* 对话正文 */
+--we-text-md:    18px;   /* 章节副标题 */
+--we-text-lg:    22px;   /* 章节主标题 */
+--we-text-xl:    28px;   /* 页面大标题 */
 
-**Organic Illustrations**
-- Hand-drawn-feeling vector illustrations in terracotta, black, and muted green
-- Abstract, conceptual rather than literal product diagrams
-- The primary visual personality — no other AI company uses this style
+--we-leading-tight:   1.3;
+--we-leading-normal:  1.75;
+--we-leading-loose:   1.95;  /* 对话正文行高 */
+```
 
-**Dark/Light Section Alternation**
-- The page alternates between Parchment light and Near Black dark sections
-- Creates a reading rhythm like chapters in a book
-- Each section feels like a distinct environment
+### 3.3 字体使用规则
 
-## 5. Layout Principles
+- 对话正文：EB Garamond / 思源宋体，`--we-text-base`，`--we-leading-loose`
+- 角色发言人标签：Cormorant Garamond，`--we-text-xs`，全大写，letter-spacing 0.28em
+- 章节标题：Cormorant Garamond Italic，`--we-text-lg`，font-weight 300
+- 状态数值：JetBrains Mono，`--we-text-sm`
+- 印章文字：ZCOOL XiaoWei，按印章尺寸
 
-### Spacing System
-- Base unit: 8px
-- Scale: 3px, 4px, 6px, 8px, 10px, 12px, 16px, 20px, 24px, 30px
-- Button padding: asymmetric (0px 12px 0px 8px) or balanced (8px 16px)
-- Card internal padding: approximately 24–32px
-- Section vertical spacing: generous (estimated 80–120px between major sections)
+---
 
-### Grid & Container
-- Max container width: approximately 1200px, centered
-- Hero: centered with editorial layout
-- Feature sections: single-column or 2–3 column card grids
-- Model comparison: clean 3-column grid
-- Full-width dark sections breaking the container for emphasis
+## §4 配色使用规则
 
-### Whitespace Philosophy
-- **Editorial pacing**: Each section breathes like a magazine spread — generous top/bottom margins create natural reading pauses.
-- **Serif-driven rhythm**: The serif headings establish a literary cadence that demands more whitespace than sans-serif designs.
-- **Content island approach**: Sections alternate between light and dark environments, creating distinct "rooms" for each message.
+### 正文内容区
+- 背景：`--we-paper-base`
+- 主文字：`--we-ink-primary`
+- 次级文字：`--we-ink-secondary`
+- 标签/说明：`--we-ink-faded`
 
-### Border Radius Scale
-- Sharp (4px): Minimal inline elements
-- Subtly rounded (6–7.5px): Small buttons, secondary interactive elements
-- Comfortably rounded (8–8.5px): Standard buttons, cards, containers
-- Generously rounded (12px): Primary buttons, input fields, nav elements
-- Very rounded (16px): Featured containers, video players, tab lists
-- Highly rounded (24px): Tag-like elements, highlighted containers
-- Maximum rounded (32px): Hero containers, embedded media, large cards
+### 左侧面板
+- 背景：`--we-paper-aged`（比右页略深，营造左页旧化感）
+- 印章：`--we-vermilion`
+- 状态批注：`--we-ink-faded`（键）+ `--we-ink-secondary`（值）
+- 记忆召回批注：`--we-vermilion`（细竖线 + 日期文字）
 
-## 6. Depth & Elevation
+### 强调 / 交互
+- 主按钮：`--we-vermilion` 背景，`--we-paper-base` 文字
+- 次级按钮：`--we-paper-shadow` 背景，`--we-ink-secondary` 文字
+- 用户消息边线：`--we-amber`
+- 金箔装饰：仅在分隔线、印章边框、章节标题下线使用
 
-| Level | Treatment | Use |
-|-------|-----------|-----|
-| Flat (Level 0) | No shadow, no border | Parchment background, inline text |
-| Contained (Level 1) | `1px solid #f0eee6` (light) or `1px solid #30302e` (dark) | Standard cards, sections |
-| Ring (Level 2) | `0px 0px 0px 1px` ring shadows using warm grays | Interactive cards, buttons, hover states |
-| Whisper (Level 3) | `rgba(0,0,0,0.05) 0px 4px 24px` | Elevated feature cards, product screenshots |
-| Inset (Level 4) | `inset 0px 0px 0px 1px` at 15% opacity | Active/pressed button states |
+### 功能色使用
+- 进度条（生命/资源）：`--we-moss`（绿）或 `--we-amber`（橙），由状态字段配置决定
+- 警示状态：`--we-amber`
+- 禁用元素：`--we-slate`，透明度 0.5
 
-**Shadow Philosophy**: Claude communicates depth through **warm-toned ring shadows** rather than traditional drop shadows. The signature `0px 0px 0px 1px` pattern creates a border-like halo that's softer than an actual border — it's a shadow pretending to be a border, or a border that's technically a shadow. When drop shadows do appear, they're extremely soft (0.05 opacity, 24px blur) — barely visible lifts that suggest floating rather than casting.
+---
 
-### Decorative Depth
-- **Light/Dark alternation**: The most dramatic depth effect comes from alternating between Parchment (`#f5f4ed`) and Near Black (`#141413`) sections — entire sections shift elevation by changing the ambient light level.
-- **Warm ring halos**: Button and card interactions use ring shadows that match the warm palette — never cool-toned or generic gray.
+## §5 整体布局结构
 
-## 7. Do's and Don'ts
+### 5.1 层级结构
 
-### Do
-- Use Parchment (`#f5f4ed`) as the primary light background — the warm cream tone IS the Claude personality
-- Use Anthropic Serif at weight 500 for all headlines — the single-weight consistency is intentional
-- Use Terracotta Brand (`#c96442`) only for primary CTAs and the highest-signal brand moments
-- Keep all neutrals warm-toned — every gray should have a yellow-brown undertone
-- Use ring shadows (`0px 0px 0px 1px`) for interactive element states instead of drop shadows
-- Maintain the editorial serif/sans hierarchy — serif for content headlines, sans for UI
-- Use generous body line-height (1.60) for a literary reading experience
-- Alternate between light and dark sections to create chapter-like page rhythm
-- Apply generous border-radius (12–32px) for a soft, approachable feel
+```
+[TopBar]        全局导航：世界选择 | 写作空间 | 设置
+[BookSpread]    双页书本展开
+  ├─ [PageLeft]    左页：Tab[会话] | Tab[角色状态]
+  └─ [PageRight]   右页：章节头 + 对话区 + 输入区
+```
 
-### Don't
-- Don't use cool blue-grays anywhere — the palette is exclusively warm-toned
-- Don't use bold (700+) weight on Anthropic Serif — weight 500 is the ceiling for serifs
-- Don't introduce saturated colors beyond Terracotta — the palette is deliberately muted
-- Don't use sharp corners (< 6px radius) on buttons or cards — softness is core to the identity
-- Don't apply heavy drop shadows — depth comes from ring shadows and background color shifts
-- Don't use pure white (`#ffffff`) as a page background — Parchment (`#f5f4ed`) or Ivory (`#faf9f5`) are always warmer
-- Don't use geometric/tech-style illustrations — Claude's illustrations are organic and hand-drawn-feeling
-- Don't reduce body line-height below 1.40 — the generous spacing supports the editorial personality
-- Don't use monospace fonts for non-code content — Anthropic Mono is strictly for code
-- Don't mix in sans-serif for headlines — the serif/sans split is the typographic identity
+### 5.2 TopBar
 
-## 8. Responsive Behavior
+**高度**：40px  
+**背景**：`#3d2e22`（深于书本背景，形成地基感）  
+**边框底部**：`1px solid rgba(255,255,255,0.06)`
 
-### Breakpoints
-| Name | Width | Key Changes |
-|------|-------|-------------|
-| Small Mobile | <479px | Minimum layout, stacked everything, compact typography |
-| Mobile | 479–640px | Single column, hamburger nav, reduced heading sizes |
-| Large Mobile | 640–767px | Slightly wider content area |
-| Tablet | 768–991px | 2-column grids begin, condensed nav |
-| Desktop | 992px+ | Full multi-column layout, expanded nav, maximum hero typography (64px) |
+**元素排列（左→右）**：
+- `[世界选择器]`：当前世界名，点击展开世界列表下拉；首次无世界时显示「新建世界」
+- `·` 分隔
+- `[会话模式]` / `[写作空间]`：切换当前页面模式（仅在进入世界后可见）
+- **右侧**：`[玩家人设]` 图标 | `[设置]` 齿轮图标
 
-### Touch Targets
-- Buttons use generous padding (8–16px vertical minimum)
-- Navigation links adequately spaced for thumb navigation
-- Card surfaces serve as large touch targets
-- Minimum recommended: 44x44px
+字体：Cormorant Garamond Italic，`--we-text-sm`，颜色 `rgba(255,255,255,0.5)`，active 时 `--we-gold-pale`
 
-### Collapsing Strategy
-- **Navigation**: Full horizontal nav collapses to hamburger on mobile
-- **Feature sections**: Multi-column → stacked single column
-- **Hero text**: 64px → 36px → ~25px progressive scaling
-- **Model cards**: 3-column → stacked vertical
-- **Section padding**: Reduces proportionally but maintains editorial rhythm
-- **Illustrations**: Scale proportionally, maintain aspect ratios
+### 5.3 PageLeft（左页）
 
-### Image Behavior
-- Product screenshots scale proportionally within rounded containers
-- Illustrations maintain quality at all sizes
-- Video embeds maintain 16:9 aspect ratio with rounded corners
-- No art direction changes between breakpoints
+**宽度**：260px（固定），可折叠至 40px（书脊模式）  
+**背景**：`--we-paper-aged`  
+**右侧书脊阴影**：`--we-spine-shadow` 右侧部分
 
-## 9. Agent Prompt Guide
+**Tab 切换（方案 C）**：
 
-### Quick Color Reference
-- Brand CTA: "Terracotta Brand (#c96442)"
-- Page Background: "Parchment (#f5f4ed)"
-- Card Surface: "Ivory (#faf9f5)"
-- Primary Text: "Anthropic Near Black (#141413)"
-- Secondary Text: "Olive Gray (#5e5d59)"
-- Tertiary Text: "Stone Gray (#87867f)"
-- Borders (light): "Border Cream (#f0eee6)"
-- Dark Surface: "Dark Surface (#30302e)"
+```
+┌─ [会话] ─┬─ [角色状态] ─┐
+│           │               │
+```
 
-### Example Component Prompts
-- "Create a hero section on Parchment (#f5f4ed) with a headline at 64px Anthropic Serif weight 500, line-height 1.10. Use Anthropic Near Black (#141413) text. Add a subtitle in Olive Gray (#5e5d59) at 20px Anthropic Sans with 1.60 line-height. Place a Terracotta Brand (#c96442) CTA button with Ivory text, 12px radius."
-- "Design a feature card on Ivory (#faf9f5) with a 1px solid Border Cream (#f0eee6) border and comfortably rounded corners (8px). Title in Anthropic Serif at 25px weight 500, description in Olive Gray (#5e5d59) at 16px Anthropic Sans. Add a whisper shadow (rgba(0,0,0,0.05) 0px 4px 24px)."
-- "Build a dark section on Anthropic Near Black (#141413) with Ivory (#faf9f5) headline text in Anthropic Serif at 52px weight 500. Use Warm Silver (#b0aea5) for body text. Borders in Dark Surface (#30302e)."
-- "Create a button in Warm Sand (#e8e6dc) with Charcoal Warm (#4d4c48) text, 8px radius, and a ring shadow (0px 0px 0px 1px #d1cfc5). Padding: 0px 12px 0px 8px."
-- "Design a model comparison grid with three cards on Ivory surfaces. Each card gets a Border Warm (#e8e6dc) top border, model name in Anthropic Serif at 25px, and description in Olive Gray at 15px Anthropic Sans."
+- Tab 标签：Cormorant Garamond，`--we-text-xs`，letter-spacing 0.2em
+- Active tab：`--we-ink-secondary` 文字，tab 下方 1px `--we-gold-leaf` 下划线
+- Inactive tab：`--we-ink-faded`
 
-### Iteration Guide
-1. Focus on ONE component at a time
-2. Reference specific color names — "use Olive Gray (#5e5d59)" not "make it gray"
-3. Always specify warm-toned variants — no cool grays
-4. Describe serif vs sans usage explicitly — "Anthropic Serif for the heading, Anthropic Sans for the label"
-5. For shadows, use "ring shadow (0px 0px 0px 1px)" or "whisper shadow" — never generic "drop shadow"
-6. Specify the warm background — "on Parchment (#f5f4ed)" or "on Near Black (#141413)"
-7. Keep illustrations organic and conceptual — describe "hand-drawn-feeling" style
+**[会话] Tab 内容（顺序）**：
+
+1. `[新建会话]` 按钮（朱砂文字 + 虚线边框，仿"加盖印章"样式）
+2. 会话列表（可滚动）：
+   - 每条：角色头像（印章圆形）+ 会话标题（截断）+ 最近时间戳
+   - Active 会话：左侧 2px `--we-vermilion` 竖线 + 淡底色
+   - Hover：淡底 `--we-paper-shadow`
+   - 右键/长按：删除、重命名
+
+**[角色状态] Tab 内容（顺序）**：
+
+1. 角色印章（SVG）+ 角色名 + 副标题（种族·时代）
+2. 状态栏区域（character_state_values）
+3. 分隔线
+4. 召回记忆区域（页边批注样式）
+5. 底部：世界名标签
+
+折叠状态（书脊模式）：仅显示印章缩略图，hover 浮出悬浮面板。
+
+### 5.4 PageRight（右页）
+
+**背景**：`--we-paper-base`  
+**左侧书脊阴影**：`--we-spine-shadow` 左侧部分  
+**Padding**：上 44px，左 60px，右 52px，下 28px
+
+**内部结构（纵向）**：
+
+```
+[章节标题区]         章节号 + 标题 + 花饰分隔线
+[对话区]             flex:1，可滚动，会话消息列表
+[输入区]             textarea + 操作按钮行
+[页脚]               第N章 · 第N页 · 世界名
+```
+
+**边注（inline marginalia）布局约束**：  
+`.we-chat-area`（对话区）需设 `overflow-y: auto` 以支持滚动，但浏览器会同时裁剪水平溢出，导致绝对定位的边注被截断。  
+实现方式：消息列表容器（`.we-messages-list`）设 `overflow: visible`，由其**祖先** `.we-page-right`（非滚动容器，`overflow: visible`）负责边注的定位基准；滚动容器单独包裹消息列表内部，不作为边注的 `offsetParent`。具体来说：
+
+```
+.we-page-right           overflow: visible（边注定位基准）
+  └─ .we-chat-area       overflow-y: auto（滚动容器）
+       └─ .we-messages-list   position: static（边注 absolute 向上冒泡到 .we-page-right）
+            └─ .we-message    position: relative
+                 └─ .we-marginalia   position: absolute; right: -180px（溢出到页面空白处）
+```
+
+Mobile（< 768px）下 inline marginalia 不显示（`display: none`），改为折叠标签展示。
+
+**书签丝带**：绝对定位在右页右上角，朱砂色，标记当前章节。
+
+---
+
+## §6 页面规格
+
+### 6.1 ChatPage（对话主页）
+
+参见 §5 整体布局。额外规格：
+
+**章节分组逻辑**：每 N 条消息（或超过一定时间间隔）自动分组为新"章节"，章节起始处绘制章节标题 + 花饰分隔线。N 默认 20，不可配置（视觉决定，非业务逻辑）。
+
+**章节标题**：
+- 章节号：Cormorant Garamond，`--we-text-xs`，letter-spacing 0.5em，全大写，`--we-ink-faded`
+- 标题文字：Cormorant Garamond Italic，`--we-text-lg`，font-weight 300（若 `session.title` 存在则用之，否则"会话进行中"）
+- 花饰：`❦`，`--we-gold-leaf`，两侧金色渐变横线
+
+**SSE 状态指示**（不用 spinner，用古籍风格）：
+
+| SSE 事件 | 视觉表现 |
+|---|---|
+| `memory_recall_start` | 右页左上角出现小蜡烛火焰 SVG 微动（"正在检索记忆"） |
+| `memory_recall_done` | 火焰消失；若 hit>0，左页批注区淡入新批注 |
+| `memory_expand_start/done` | 无额外视觉，在批注区显示最终结果 |
+| `title_updated` | 章节标题区以 inkRise 动画更新 |
+| `delta` | 流式文字 + 羽毛笔光标 |
+| `done` | 光标消失；若 regenerate 可用则显示操作菜单 |
+| `aborted` | 消息气泡尾部显示 `[已中断]` 小字 |
+
+**消息操作菜单**（hover 右上角浮出，古籍风格小图标行）：
+- 复制 | 重新生成 | 编辑（用户消息）| 继续（assistant 最后一条）| 朗读（可选）
+
+### 6.2 WorldsPage（世界列表）
+
+**布局**：卷轴/书架隐喻
+
+- 背景：`--we-book-bg` + 噪点纹理
+- 世界卡片：纸页样式，有轻微下方阴影（像叠放的书页）
+  - 卡片内：世界名（大）+ 描述（小）+ 角色数量 + 最近对话时间
+  - 右上角有该世界专属的印章颜色点
+  - Hover：轻微 `y: -3px` 上浮 + 阴影加深
+- 右下角浮动"新建世界"按钮：印章圆形样式，朱砂色
+- 无世界时：显示空白羊皮纸 + 居中文字「尚无世界记录」+ 新建按钮
+
+### 6.3 WorldEditPage / WorldCreatePage
+
+**布局**：全屏羊皮纸面板（不用弹窗，用整页，体现编辑的"郑重感"）
+
+**分区（标签式）**：
+
+| 标签 | 内容 |
+|---|---|
+| **基础设定** | 世界名、描述、System Prompt、Post Prompt |
+| **LLM 参数** | temperature、max_tokens（覆盖全局） |
+| **状态模板** | 世界状态字段 / 角色状态模板字段 / 玩家状态字段（StateFieldList + StateFieldEditor） |
+| **Prompt 条目** | 世界级 Prompt 条目（EntryList + EntryEditor） |
+| **世界时间线** | 只读展示 + 手动添加 / 删除条目 |
+| **导入导出** | 导出世界卡 `.weworld.json` / 导入 |
+
+每个标签分区头部有花饰分隔线。表单样式：标签用 `--we-text-xs` 全大写，输入框羊皮纸底色，`--we-border`。
+
+### 6.4 CharacterEditPage / CharacterCreatePage
+
+**布局**：同 WorldEditPage，整页
+
+**分区**：
+
+| 标签 | 内容 |
+|---|---|
+| **角色设定** | 头像（印章样式圆形）、角色名、System Prompt、Post Prompt |
+| **状态初始值** | character_state_values（基于世界模板，StateFieldEditor） |
+| **Prompt 条目** | 角色级 Prompt 条目 |
+| **导入导出** | 导出角色卡 `.wechar.json` / 导入 |
+
+头像区：点击上传，上传后显示头像圆图；无头像时显示基于 id 的纯色印章圆（`getAvatarColor`）+ 首字。
+
+### 6.5 PersonaEditPage（玩家人设）
+
+**布局**：轻量侧边滑入面板（不需要整页，玩家设定相对简单）
+
+内容：
+- 玩家名（`persona.name`，对应 `{{user}}` 占位符）
+- System Prompt（`persona.system_prompt`）
+- 玩家状态字段定义（`persona_state_fields`）+ 当前状态值（`persona_state_values`）
+- 头像上传（同角色头像样式）
+
+### 6.6 SettingsPage（设置页）
+
+**布局**：双列，左侧分类导航 + 右侧内容区
+
+**分类**：
+
+| 分类 | 内容 |
+|---|---|
+| **LLM 配置** | Provider（OpenAI/Ollama）、API Key、Base URL、全局 temperature/max_tokens |
+| **全局 Prompt** | global_system_prompt、global_post_prompt |
+| **自定义 CSS** | CustomCssManager（启用/禁用、编辑代码片段，参见 §10） |
+| **正则规则** | RegexRulesManager（增删改查，scope 选择，排序，参见 §10） |
+| **全局 Prompt 条目** | 全局级 Prompt 条目 |
+| **关于** | 版本号、重置数据库 |
+
+**自定义 CSS 编辑器**：代码字体，`--we-paper-aged` 背景，带行号，提供"推荐选择器参考"可折叠区块（参见 §10）。
+
+### 6.7 WritingSpacePage（写作空间）
+
+**布局**：变体双页，左页改为"激活角色列表"+ Tab 切换 [角色] / [状态]
+
+- 左页 [角色] Tab：当前激活角色头像列表，可点击添加/移除角色
+- 左页 [状态] Tab：所有激活角色状态纵向排列（每角色一个折叠块）
+- 右页：与 ChatPage 相同，章节/消息/输入区
+- 多角色时发言人标签明确显示角色名 + 印章色点区分
+
+---
+
+## §7 核心组件规格
+
+### 7.1 消息气泡（MessageItem）
+
+**外观（无外框，直接在纸面上）**：
+
+```
+[发言人标签]    Cormorant Garamond，xs，全大写，letter-spacing 0.28em
+[正文段落]      EB Garamond，base，leading-loose
+```
+
+**助手消息**：
+- 无左侧边线
+- 第一章第一条消息：首字下沉（Drop Cap）——首字 Cormorant Garamond，3.4em，float:left
+- 段落间距 0.5em
+
+**用户消息**：
+- 左侧 2px `--we-amber` 竖线
+- padding-left 16px
+- 发言人标签颜色 `--we-amber`
+
+**流式状态**：
+- 行尾跟随 `▊` 光标（1.5px 宽，`--we-ink-secondary`，0.65s steps 闪烁）
+- 可选：SVG 羽毛笔图标跟随（P1 实现）
+
+**编辑状态**：原文以 `filter:blur(1px) + opacity:0.4` 过渡后，新内容以 inkRise 浮现
+
+**操作菜单**（hover .we-message-row 时浮出）：
+- 图标行，绝对定位右上方
+- 图标：朱砂色，`--we-text-sm`，hover 时背景 `--we-vermilion-bg`
+
+**CSS 稳定锚点类名（承诺向后兼容）**：
+
+```
+.we-message-row          消息行容器
+.we-message-user         用户消息行
+.we-message-assistant    助手消息行
+.we-message-label        发言人标签
+.we-message-content      消息正文（正则替换作用点）
+.we-message-actions      操作菜单
+```
+
+### 7.2 状态栏（StatusBar / AnnotationSection）
+
+批注样式，不是 HUD：
+
+```
+[SECTION TITLE]   全大写，xs，letter-spacing 0.28em，ink-faded
+stat-key: italic  stat-val: normal
+[进度条]          3px 高，无圆角，moss 或 amber 填充
+```
+
+**进度条**：
+- 容器：`--we-paper-shadow` 底色
+- 填充：动画过渡 `width 1s ease`
+- 颜色由状态字段的 `field_type` + 世界配置决定（设计层不硬编码，通过 CSS 变量注入）
+
+**CSS 锚点**：
+
+```
+.we-status-character   角色状态栏容器
+.we-status-world       世界状态栏容器
+.we-status-player      玩家状态栏容器
+.we-status-field       单个状态字段行
+.we-status-bar         进度条容器
+.we-status-bar-fill    进度条填充
+```
+
+### 7.3 召回记忆批注（Marginalia）
+
+左页批注区，也可在右页消息旁侧出现：
+
+```
+[左侧 1.5px 朱砂竖线]
+[日期/来源]  xs，vermilion，italic
+[摘要文字]   xs，ink-faded，italic，line-height 1.6
+```
+
+动画：inkRise（opacity + y + blur），延迟 1.2s（在消息出现后出现）
+
+**CSS 锚点**：
+
+```
+.we-marginalia          批注容器
+.we-marginalia-date     批注日期/来源标签
+.we-marginalia-text     批注正文
+```
+
+### 7.4 输入区（InputBox）
+
+```
+[textarea]           羊皮纸底色，--we-border，无圆角，EB Garamond
+[发送按钮]           方形，1px border，箭头 SVG，hover 朱砂
+[附件按钮]           回形针图标，最多 3 张图（含附件预览缩略图行）
+[操作按钮行]         /continue · /regenerate · stop（流式时）· 字数统计
+```
+
+上方分隔：`1px solid --we-paper-shadow`
+
+placeholder 文字：`"在此落笔，续写故事……"` italic，`--we-ink-faded`
+
+### 7.5 章节分隔线（ChapterDivider）
+
+**Fleuron 类型**（场景分隔，轻量）：
+
+```
+━━━━━ ※ ━━━━━
+```
+- 横线：`--we-paper-shadow`，1px
+- 中心符号：`--we-paper-deep`，14px
+
+**章节起始类型**（新章节头，重量级）：
+
+```
+        第 七 章
+   雾林深处的来客
+      ━━━ ❦ ━━━
+```
+- 章节号：全大写，letter-spacing 0.5em，`--we-ink-faded`
+- 标题：Cormorant Garamond Italic，`--we-text-lg`
+- 花饰行：`❦`，`--we-gold-leaf`，两侧 1px 金色渐变横线
+
+**绘制动画**：进入视口时 SVG stroke-dasharray 从中心向两侧展开，500ms
+
+### 7.6 印章（Seal）
+
+SVG，按角色 id hash 确定颜色（用 `getAvatarColor` 逻辑）：
+
+```
+外框：双线矩形（外实线 2.5px，内虚线 0.8px dash）
+内容：角色名 1~2 字（ZCOOL XiaoWei），中间横线分隔
+颜色：默认朱砂，可被 getAvatarColor 覆盖
+```
+
+有头像时：印章框内显示头像圆图，外框保留装饰双线。
+
+### 7.7 书签丝带（Bookmark）
+
+绝对定位，右页右上角：
+
+```css
+width: 16px; height: 52px;
+background: --we-vermilion;
+clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+```
+
+### 7.8 模态框（Modal）
+
+背景：蒙版 `rgba(42,31,23,0.6)`（墨水感，非纯黑）  
+内容：`--we-paper-base` 背景，`--we-border` 边框，`--we-radius-sm`  
+动画：`scale(0.96) + opacity:0` → `scale(1) + opacity:1`，250ms  
+关闭：右上角 `✕`，`--we-ink-faded`
+
+### 7.9 页脚（PageFooter）
+
+```
+[第七章 · 第一页]    Cormorant Garamond Italic，xs，ink-faded
+[❧]                  gold-leaf，居中
+[幻世录]             同左，右对齐
+```
+
+---
+
+## §8 SVG 装饰元素规格
+
+### 8.1 羊皮纸噪点纹理
+
+**实现**：SVG `feTurbulence` 内联 + CSS `background-image`
+
+```html
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">
+  <filter id="parchment">
+    <feTurbulence type="fractalNoise" baseFrequency="0.85"
+                  numOctaves="4" stitchTiles="stitch"/>
+    <feColorMatrix type="matrix"
+      values="0 0 0 0 0.55  0 0 0 0 0.44  0 0 0 0 0.29  0 0 0 0.055 0"/>
+  </filter>
+  <rect width="256" height="256" filter="url(#parchment)"/>
+</svg>
+```
+
+叠加于 `.book::after`，`mix-blend-mode: multiply`，`opacity: 0.7`，`pointer-events: none`，`z-index: 20`。
+
+### 8.2 书脊阴影
+
+**左页右侧 + 右页左侧**，通过 CSS 渐变实现（见 `--we-spine-shadow`）。
+
+### 8.3 印章 SVG（通用模板）
+
+```svg
+<svg viewBox="0 0 76 76" fill="none">
+  <!-- 外框实线 -->
+  <rect x="4" y="4" width="68" height="68" rx="2"
+        stroke="[color]" stroke-width="2.5"/>
+  <!-- 内框虚线 -->
+  <rect x="8.5" y="8.5" width="59" height="59" rx="1"
+        stroke="[color]" stroke-width="0.8"
+        stroke-dasharray="3 2" opacity="0.6"/>
+  <!-- 文字行 1 -->
+  <text x="38" y="31" text-anchor="middle"
+        font-family="ZCOOL XiaoWei" font-size="15"
+        fill="[color]">[字1]</text>
+  <!-- 中间横线 -->
+  <line x1="16" y1="40" x2="60" y2="40"
+        stroke="[color]" stroke-width="0.7" opacity="0.45"/>
+  <!-- 文字行 2 -->
+  <text x="38" y="58" text-anchor="middle"
+        font-family="ZCOOL XiaoWei" font-size="15"
+        fill="[color]">[字2]</text>
+</svg>
+```
+
+`[color]` 默认 `--we-vermilion`；角色印章由 `getAvatarColor(id)` 返回的色相替换。
+
+### 8.4 花饰横线（Fleuron Line）SVG
+
+章节分隔使用 SVG `stroke-dasharray` 动画实现"绘制"效果：
+
+```svg
+<line x1="0" y1="0.5" x2="100%" y2="0.5"
+      stroke="[gold]" stroke-width="1"
+      stroke-dasharray="[total-length]"
+      stroke-dashoffset="[total-length]">
+  <animate attributeName="stroke-dashoffset"
+           from="[total-length]" to="0"
+           dur="0.5s" fill="freeze"/>
+</line>
+```
+
+配合中央符号 `❦`（金色），整体由 JS IntersectionObserver 触发，进入视口后启动。
+
+### 8.5 流式羽毛笔光标（P1，可选）
+
+```svg
+<!-- 极简羽毛笔，跟随流式输出行尾 -->
+<svg width="20" height="32" viewBox="0 0 20 32">
+  <path d="M10 30 Q6 20 4 8 Q10 2 16 8 Q14 20 10 30Z"
+        fill="none" stroke="[ink-faded]" stroke-width="1.2"/>
+  <line x1="10" y1="30" x2="10" y2="32"
+        stroke="[ink-primary]" stroke-width="1.5"/>
+</svg>
+```
+
+跟随最后一个字符位置，0.7s steps 透明度闪烁。
+
+### 8.6 蜡烛火焰（记忆召回指示）
+
+用于 `memory_recall_start` 事件，右页左上角显示：
+
+```svg
+<svg width="16" height="24" viewBox="0 0 16 24">
+  <ellipse cx="8" cy="20" rx="4" ry="2" fill="[amber]" opacity="0.3"/>
+  <path d="M8 18 Q4 12 6 6 Q8 2 10 6 Q12 12 8 18Z"
+        fill="[gold-pale]" opacity="0.85">
+    <animateTransform attributeName="transform" type="scale"
+      values="1,1;1.05,0.95;0.95,1.05;1,1"
+      dur="0.8s" repeatCount="indefinite" additive="sum"
+      transformOrigin="8 18"/>
+  </path>
+</svg>
+```
+
+---
+
+## §9 动画系统
+
+### 9.1 Motion Token
+
+```js
+// /frontend/src/utils/motion.js
+export const MOTION = {
+  duration: {
+    quick:  0.18,   // 按钮 hover
+    base:   0.32,   // 消息浮现、模态框
+    slow:   0.50,   // 页面切换、分隔线绘制
+    crawl:  0.80,   // 蜡烛摆动
+  },
+  ease: {
+    ink:    [0.22, 1,    0.36, 1],    // 墨水浸润（主要）
+    page:   [0.65, 0,    0.35, 1],    // 翻页
+    quill:  [0.40, 0,    0.20, 1],    // 落笔
+    sharp:  [0.25, 0.46, 0.45, 0.94], // 快速进出
+  },
+  stagger: 0.05,  // 列表 stagger delay
+};
+```
+
+### 9.2 标准动画定义
+
+#### inkRise（墨水浮现）——所有入场动画基础
+
+```js
+// framer-motion
+initial: { opacity: 0, y: 8, filter: 'blur(1.5px)' }
+animate: { opacity: 1, y: 0, filter: 'blur(0px)' }
+transition: { duration: MOTION.duration.base, ease: MOTION.ease.ink }
+```
+
+**使用场景**：消息气泡、批注浮现、章节标题、模态框内容
+
+#### pageTransition（路由切换）
+
+```js
+initial: { opacity: 0, y: 12, scale: 0.98 }
+animate: { opacity: 1, y: 0,  scale: 1.00 }
+exit:    { opacity: 0, y: -8, scale: 0.99 }
+transition: { duration: MOTION.duration.slow, ease: MOTION.ease.page }
+```
+
+#### sealStamp（朱砂盖印）——关键操作完成
+
+```js
+// 印章元素
+initial: { scale: 1.3, opacity: 0, rotate: -3 }
+animate: { scale: 1.0, opacity: 1, rotate: 0 }
+transition: { duration: 0.3, ease: MOTION.ease.sharp }
+// 然后 0.5s 后淡出
+```
+
+#### drawDivider（分隔线绘制）
+
+CSS animation + SVG stroke-dashoffset，进入视口触发（IntersectionObserver），500ms。
+
+### 9.3 动效分级
+
+| 级别 | 内容 | 默认 |
+|---|---|---|
+| **必做** | inkRise（消息）、页面切换、模态框进出、流式光标 | 开 |
+| **推荐** | 状态栏数值过渡、章节分隔绘制、批注淡入 | 开 |
+| **可选** | 蜡烛火焰、羽毛笔光标、盖印动画 | 开 |
+
+### 9.4 减少动效（无障碍）
+
+Settings 页提供「减少动效」开关，同时读取 `prefers-reduced-motion`：
+
+```js
+const shouldReduceMotion =
+  useReducedMotion() || settings.reduceMotion;
+
+// 若启用：所有 duration → 0，所有 filter blur → 0
+const transition = shouldReduceMotion
+  ? { duration: 0 }
+  : { duration: MOTION.duration.base, ease: MOTION.ease.ink };
+```
+
+---
+
+## §10 自定义 CSS 兼容性规格
+
+### 10.1 分层设计
+
+| 层 | 类名前缀 | 稳定性承诺 | 用户可改 |
+|---|---|---|---|
+| 变量层 | `--we-*` | 稳定，改变量协调换肤 | 推荐 |
+| 内容锚点层 | `.we-message-*`，`.we-status-*`，`.we-chapter-*` | 稳定，向后兼容 | 可放心改 |
+| 装饰骨架层 | `.we-chrome-*`，`.we-book-*` | 可能随版本变化 | 改了可能翻车 |
+
+### 10.2 稳定锚点类名（完整列表）
+
+```
+# 消息相关
+.we-message-row          消息行
+.we-message-user         用户消息行
+.we-message-assistant    助手消息行
+.we-message-label        发言人标签
+.we-message-content      消息正文（正则 display_only 作用点）
+.we-message-actions      操作菜单
+
+# 章节相关
+.we-chapter              章节分组容器
+.we-chapter-header       章节标题区
+.we-chapter-divider      轻量场景分隔线
+
+# 状态相关
+.we-status-character     角色状态栏
+.we-status-world         世界状态栏
+.we-status-player        玩家状态栏
+.we-status-field         单个字段行
+.we-status-bar           进度条容器
+.we-status-bar-fill      进度条填充
+
+# 批注相关
+.we-marginalia           召回记忆批注
+.we-marginalia-date      批注日期标签
+.we-marginalia-text      批注正文
+
+# 布局相关
+.we-page-left            左页
+.we-page-right           右页
+.we-chat-area            对话主区（含章节+消息列表）
+.we-input-area           输入区域
+```
+
+### 10.3 编辑器内建引导
+
+SettingsPage 自定义 CSS 编辑器顶部提供可折叠的"推荐选择器参考"：
+
+```css
+/* ✅ 推荐：改变量协调换肤 */
+:root {
+  --we-paper-base: #e8dcc8;
+  --we-vermilion: #8b2e24;
+}
+
+/* ✅ 推荐：改消息样式 */
+.we-message-assistant .we-message-content {
+  font-size: 18px;
+  line-height: 2;
+}
+
+/* ✅ 推荐：改用户消息边线颜色 */
+.we-message-user { border-left-color: #4a7c8b; }
+
+/* ⚠️  注意：骨架类名可能随版本变化 */
+.we-book-spine { ... }
+```
+
+### 10.4 正则替换兼容
+
+`display_only` scope 的正则在 `.we-message-content` 内的文本节点上执行，不影响 `.we-message-label`、`.we-status-*` 等结构节点。
+
+---
+
+## §11 响应式规格
+
+### 断点
+
+| 名称 | 宽度 | 变化 |
+|---|---|---|
+| Desktop | ≥ 1024px | 双页完整布局 |
+| Tablet | 768–1023px | 左页收起为书脊（40px），hover/点击展开悬浮面板 |
+| Mobile | < 768px | 单页，左页内容折叠为顶部抽屉，书本去双页改单列 |
+
+### Desktop（默认）
+- 双页书本，左 260px + 右 flex:1
+- 右页 inline marginalia 可见
+
+### Tablet
+- 左页折叠为 40px 书脊，显示印章缩略
+- 点击书脊 → 左侧滑出面板（overlay，不挤压右页）
+
+### Mobile
+- 单列，无双页概念
+- 顶部：世界/角色选择 dropdown
+- 左页内容 → 右上角「角色」按钮展开 bottom sheet
+- 章节标题保留，Drop Cap 保留
+- 右页 inline marginalia 隐藏，批注信息折入对话上方小标签
+
+---
+
+## §12 实施 Phase 规划
+
+| Phase | 内容 | 验收要点 |
+|---|---|---|
+| **P0** | 建立 token 文件（CSS 变量 + motion.js）+ 字体引入 | 变量加载，字体渲染 |
+| **P1** | 双页布局骨架 + 书脊阴影 + 纸张噪点纹理 + 书签丝带 | 视觉比例正确，纹理可见 |
+| **P2** | 消息组件重构（inkRise + Drop Cap + 稳定类名）+ 流式光标 | 动画流畅，类名存在 |
+| **P3** | 左页 Tab C（会话列表 + 角色状态）+ 印章组件 | Tab 切换正常，会话可点击 |
+| **P4** | 章节分组 + 花饰分隔线绘制动画 + 页脚 | 章节分组出现，分隔线绘制 |
+| **P5** | 页面路由动画 + 模态框动画 + SSE 状态指示（蜡烛） | 切换动画，蜡烛出现 |
+| **P6** | WorldsPage / CharacterEditPage / SettingsPage 改造 | 各页面羊皮纸风格一致 |
+| **P7** | WritingSpacePage 变体 + 左页批注 inline marginalia | 写作空间正常，批注显示 |
+| **P8** | SVG 装饰完善（羽毛笔光标、盖印动画）+ 减少动效开关 | 可选动效可关闭 |
+
+每个 Phase 独立可部署、独立可回滚，完成后 commit。
+
+---
+
+## §13 禁止事项（Do NOT）
+
+- ❌ 出现 emoji（用 SVG 或古籍符号 ❦ ※ ❧ §）
+- ❌ 羊皮纸底色 + Material Design / Fluent Design 图标
+- ❌ 状态栏做成游戏 HUD（HP 条浮在屏幕边缘）
+- ❌ Spring bounce / overshoot 弹性动画
+- ❌ 颜色硬编码（必须走 `--we-*` 变量）
+- ❌ 内联 style（全部走 TailwindCSS 工具类或 CSS 变量）
+- ❌ 正文字号低于 16px
+- ❌ 破坏 §10 中承诺的稳定锚点类名
+- ❌ 动态改写 `.we-chrome-*` 等骨架类名（用 CSS 变量替代）
+- ❌ 引入深色/浅色主题切换（用户按需通过自定义 CSS 覆盖变量）

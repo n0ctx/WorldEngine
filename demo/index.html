@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorldEngine · 博物志手稿 Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=ZCOOL+XiaoWei&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    /* ── CSS Variables ───────────────────────────────── */
+    :root {
+      --we-paper-base:     #ede3d0;
+      --we-paper-aged:     #d9ccb0;
+      --we-paper-shadow:   #c8b99a;
+      --we-paper-deep:     #b8a882;
+      --we-ink-primary:    #2a1f17;
+      --we-ink-secondary:  #534236;
+      --we-ink-faded:      #8a7663;
+      --we-vermilion:      #a23b2e;
+      --we-vermilion-deep: #7c2a20;
+      --we-gold-leaf:      #a0833f;
+      --we-gold-pale:      #c9a85a;
+      --we-moss:           #5c6b3a;
+      --we-amber:          #8b5a1f;
+    }
+
+    /* ── Reset ───────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #4a3728;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.18'/%3E%3C/svg%3E");
+      font-family: 'EB Garamond', 'Source Han Serif SC', serif;
+      color: var(--we-ink-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      gap: 16px;
+    }
+
+    /* ── Top navigation bar (世界/角色选择器) ──────────── */
+    .topbar {
+      width: 100%;
+      max-width: 1120px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 4px;
+    }
+
+    .topbar-item {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 12px;
+      font-style: italic;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.1em;
+      padding: 4px 10px;
+      border: 1px solid transparent;
+      border-radius: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .topbar-item:hover { color: rgba(255,255,255,0.7); }
+    .topbar-item.active {
+      color: var(--we-gold-pale);
+      border-color: rgba(201,168,90,0.3);
+      background: rgba(201,168,90,0.08);
+    }
+    .topbar-sep { color: rgba(255,255,255,0.2); font-size: 12px; }
+    .topbar-spacer { flex: 1; }
+    .topbar-world {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 13px;
+      color: rgba(255,255,255,0.35);
+      letter-spacing: 0.15em;
+    }
+
+    /* ── Book Container ───────────────────────────────── */
+    .book {
+      width: 100%;
+      max-width: 1120px;
+      min-height: 700px;
+      display: flex;
+      position: relative;
+      border-radius: 2px;
+      box-shadow:
+        0 24px 64px rgba(0,0,0,0.55),
+        0 4px 16px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+
+    /* Parchment noise over the whole book */
+    .book::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 2px;
+      pointer-events: none;
+      z-index: 20;
+      background-image:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.44 0 0 0 0 0.29 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23p)'/%3E%3C/svg%3E");
+    }
+
+    /* ── Left Page ────────────────────────────────────── */
+    .page-left {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--we-paper-aged);
+      padding: 44px 28px 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      position: relative;
+      border-radius: 2px 0 0 2px;
+    }
+
+    /* Book spine shadow on right edge of left page */
+    .page-left::after {
+      content: '';
+      position: absolute;
+      right: 0; top: 0; bottom: 0;
+      width: 24px;
+      background: linear-gradient(to right,
+        transparent 0%,
+        rgba(0,0,0,0.04) 40%,
+        rgba(0,0,0,0.14) 80%,
+        rgba(0,0,0,0.22) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ── Right Page ───────────────────────────────────── */
+    .page-right {
+      flex: 1;
+      background: var(--we-paper-base);
+      padding: 44px 52px 28px 60px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      border-radius: 0 2px 2px 0;
+      overflow: hidden;
+    }
+
+    /* Spine shadow on left edge of right page */
+    .page-right::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 24px;
+      background: linear-gradient(to left,
+        transparent 0%,
+        rgba(0,0,0,0.04) 40%,
+        rgba(0,0,0,0.12) 80%,
+        rgba(0,0,0,0.2) 100%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Bookmark ribbon */
+    .bookmark {
+      position: absolute;
+      top: -4px;
+      right: 72px;
+      width: 16px;
+      height: 52px;
+      background: var(--we-vermilion);
+      clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+      opacity: 0.9;
+      z-index: 15;
+      box-shadow: -1px 2px 6px rgba(0,0,0,0.3);
+    }
+
+    /* ── Left: Character Seal ─────────────────────────── */
+    .char-seal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .seal-stamp { width: 76px; height: 76px; }
+    .seal-stamp svg { width: 100%; height: 100%; }
+
+    .seal-name {
+      font-family: 'ZCOOL XiaoWei', 'Cormorant Garamond', serif;
+      font-size: 16px;
+      color: var(--we-ink-secondary);
+      letter-spacing: 0.12em;
+      text-align: center;
+    }
+
+    .seal-subtitle {
+      font-family: 'EB Garamond', serif;
+      font-size: 11px;
+      color: var(--we-ink-faded);
+      font-style: italic;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Left: Status Section ─────────────────────────── */
+    .left-section {
+      border-top: 1px solid var(--we-paper-shadow);
+      padding-top: 16px;
+    }
+
+    .left-section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 9.5px;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--we-ink-faded);
+      margin-bottom: 12px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 4px;
+    }
+
+    .stat-key {
+      font-family: 'EB Garamond', serif;
+      font-size: 12px;
+      font-style: italic;
+      color: var(--we-ink-faded);
+    }
+
+    .stat-val {
+      font-family: 'EB Garamond', serif;
+      font-size: 13px;
+      color: var(--we-ink-secondary);
+    }
+
+    .stat-val.red { color: var(--we-vermilion); }
+    .stat-val.green { color: var(--we-moss); }
+
+    .stat-bar {
+      height: 3px;
+      background: rgba(0,0,0,0.1);
+      margin: 3px 0 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-bar-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      transition: width 1s ease;
+    }
+
+    .stat-bar-fill.green { background: var(--we-moss); }
+    .stat-bar-fill.amber { background: var(--we-amber); }
+
+    /* ── Left: Marginalia (召回记忆) ─────────────────── */
+    .marginalia-note {
+      position: relative;
+      padding-left: 10px;
+      margin-bottom: 12px;
+    }
+
+    .marginalia-note::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 2px; bottom: 2px;
+      width: 1.5px;
+      background: var(--we-vermilion);
+      opacity: 0.5;
+    }
+
+    .marginalia-date {
+      font-family: 'EB Garamond', serif;
+      font-size: 10px;
+      font-style: italic;
+      color: var(--we-vermilion);
+      margin-bottom: 2px;
+      opacity: 0.9;
+    }
+
+    .marginalia-text {
+      font-family: 'EB Garamond', serif;
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: var(--we-ink-faded);
+      font-style: italic;
+    }
+
+    /* World label bottom left */
+    .world-tag {
+      margin-top: auto;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 10px;
+      font-style: italic;
+      color: var(--we-ink-faded);
+      letter-spacing: 0.06em;
+      opacity: 0.65;
+      text-align: center;
+    }
+
+    /* ── Right: Chapter Header ────────────────────────── */
+    .chapter-header {
+      text-align: center;
+      margin-bottom: 28px;
+      animation: fadeUp 0.6s ease-out both;
+    }
+
+    .chapter-num {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 10px;
+      font-weight: 300;
+      letter-spacing: 0.5em;
+      text-transform: uppercase;
+      color: var(--we-ink-faded);
+      margin-bottom: 8px;
+    }
+
+    .chapter-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 24px;
+      font-weight: 300;
+      font-style: italic;
+      color: var(--we-ink-primary);
+      margin-bottom: 14px;
+      letter-spacing: 0.02em;
+    }
+
+    .fleuron-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .fleuron-row::before,
+    .fleuron-row::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--we-gold-leaf), transparent);
+      opacity: 0.7;
+    }
+
+    .fleuron-row span {
+      color: var(--we-gold-leaf);
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    /* ── Conversation ─────────────────────────────────── */
+    .conversation {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .conversation::-webkit-scrollbar { width: 4px; }
+    .conversation::-webkit-scrollbar-track { background: transparent; }
+    .conversation::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: 0; }
+
+    /* Message row */
+    .msg-row {
+      display: flex;
+      gap: 0;
+      position: relative;
+      animation: inkRise 0.45s ease-out both;
+    }
+
+    @keyframes inkRise {
+      from { opacity: 0; transform: translateY(8px); filter: blur(1.5px); }
+      to   { opacity: 1; transform: translateY(0);   filter: blur(0); }
+    }
+
+    .msg-row:nth-child(1) { animation-delay: 0.15s; }
+    .msg-row:nth-child(2) { animation-delay: 0.0s; }
+    .msg-row:nth-child(3) { animation-delay: 0.35s; }
+    .msg-row:nth-child(4) { animation-delay: 0.55s; }
+    .msg-row:nth-child(5) { animation-delay: 0.75s; }
+
+    .msg-body { flex: 1; }
+
+    /* Drop cap on first assistant message */
+    .msg-row.assistant:first-child .msg-content p:first-child::first-letter {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 3.4em;
+      font-weight: 300;
+      float: left;
+      line-height: 0.78;
+      margin: 0.04em 0.09em 0 0;
+      color: var(--we-ink-primary);
+    }
+
+    .msg-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .msg-label.char { color: var(--we-ink-faded); }
+    .msg-label.user { color: var(--we-amber); }
+
+    .msg-body.user-body {
+      border-left: 2px solid var(--we-amber);
+      padding-left: 16px;
+    }
+
+    .msg-content {
+      font-family: 'EB Garamond', serif;
+      font-size: 16.5px;
+      line-height: 1.9;
+      color: var(--we-ink-primary);
+    }
+
+    .msg-content p + p { margin-top: 0.5em; }
+
+    /* Inline right marginalia */
+    .inline-marginalia {
+      position: absolute;
+      right: -200px;
+      top: 24px;
+      width: 170px;
+      font-family: 'EB Garamond', serif;
+      font-size: 11px;
+      line-height: 1.55;
+      color: var(--we-vermilion);
+      font-style: italic;
+      opacity: 0;
+      animation: inkRise 0.4s ease-out 1.4s both;
+    }
+
+    .inline-marginalia::before {
+      content: '☙  ';
+      font-size: 11px;
+      opacity: 0.65;
+    }
+
+    /* ── Section divider ─────────────────────────────── */
+    .scene-break {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 4px 0;
+      animation: dividerDraw 0.8s ease-out 0.6s both;
+    }
+
+    @keyframes dividerDraw {
+      from { clip-path: inset(0 50% 0 50%); opacity: 0; }
+      to   { clip-path: inset(0 0 0 0);     opacity: 1; }
+    }
+
+    .scene-break::before,
+    .scene-break::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, transparent, var(--we-paper-shadow), transparent);
+    }
+
+    .scene-break span {
+      font-size: 14px;
+      color: var(--we-paper-deep);
+      flex-shrink: 0;
+    }
+
+    /* ── Streaming cursor ─────────────────────────────── */
+    .cursor {
+      display: inline-block;
+      width: 1.5px;
+      height: 0.85em;
+      background: var(--we-ink-secondary);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 0.65s steps(1) infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    /* ── Input Area ───────────────────────────────────── */
+    .input-wrap {
+      margin-top: 20px;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid var(--we-paper-shadow);
+    }
+
+    .input-field {
+      flex: 1;
+      background: rgba(0,0,0,0.035);
+      border: 1px solid var(--we-paper-shadow);
+      border-radius: 1px;
+      padding: 10px 14px;
+      font-family: 'EB Garamond', serif;
+      font-size: 15.5px;
+      color: var(--we-ink-primary);
+      resize: none;
+      outline: none;
+      line-height: 1.75;
+      min-height: 52px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .input-field::placeholder {
+      color: var(--we-ink-faded);
+      font-style: italic;
+    }
+
+    .input-field:focus {
+      border-color: var(--we-ink-faded);
+      background: rgba(0,0,0,0.02);
+    }
+
+    .send-btn {
+      width: 38px;
+      height: 38px;
+      background: none;
+      border: 1px solid var(--we-paper-shadow);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--we-ink-faded);
+      transition: all 0.18s;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+
+    .send-btn:hover {
+      border-color: var(--we-vermilion);
+      color: var(--we-vermilion);
+      background: rgba(162,59,46,0.06);
+    }
+
+    /* ── Page Footer ──────────────────────────────────── */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .footer-txt {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 10.5px;
+      font-style: italic;
+      color: var(--we-ink-faded);
+      letter-spacing: 0.08em;
+      opacity: 0.7;
+    }
+
+    .footer-fleuron {
+      color: var(--we-gold-leaf);
+      font-size: 15px;
+      opacity: 0.65;
+    }
+
+    /* ── Animations ───────────────────────────────────── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="topbar">
+    <span class="topbar-item active">会话列表</span>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-item">角色</span>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-item">世界设定</span>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-item">记忆库</span>
+    <div class="topbar-spacer"></div>
+    <span class="topbar-world">幻 世 录</span>
+  </nav>
+
+  <!-- Book Spread -->
+  <div class="book">
+    <div class="bookmark"></div>
+
+    <!-- ─── Left Page ─────────────────────────────── -->
+    <div class="page-left">
+
+      <!-- Seal -->
+      <div class="char-seal">
+        <div class="seal-stamp">
+          <svg viewBox="0 0 76 76" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="4" width="68" height="68" rx="2" stroke="#a23b2e" stroke-width="2.5"/>
+            <rect x="8.5" y="8.5" width="59" height="59" rx="1" stroke="#a23b2e" stroke-width="0.8" stroke-dasharray="3 2" opacity="0.6"/>
+            <text x="38" y="31" text-anchor="middle" font-family="ZCOOL XiaoWei, serif" font-size="15" fill="#a23b2e" letter-spacing="2">靈</text>
+            <line x1="16" y1="40" x2="60" y2="40" stroke="#a23b2e" stroke-width="0.7" opacity="0.45"/>
+            <text x="38" y="58" text-anchor="middle" font-family="ZCOOL XiaoWei, serif" font-size="15" fill="#a23b2e" letter-spacing="2">狐</text>
+          </svg>
+        </div>
+        <div class="seal-name">玲珑</div>
+        <div class="seal-subtitle">狐族幻术师 · 第三纪</div>
+      </div>
+
+      <!-- Status -->
+      <div class="left-section">
+        <div class="left-section-title">当前状态</div>
+        <div class="stat-row">
+          <span class="stat-key">生命</span>
+          <span class="stat-val green">78 / 100</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill green" style="width:78%"></div></div>
+        <div class="stat-row">
+          <span class="stat-key">灵力</span>
+          <span class="stat-val amber" style="color:var(--we-amber)">42 / 80</span>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill amber" style="width:52%"></div></div>
+        <div class="stat-row" style="margin-top:4px">
+          <span class="stat-key">情绪</span>
+          <span class="stat-val red">谨慎</span>
+        </div>
+        <div class="stat-row" style="margin-top:6px">
+          <span class="stat-key">所在</span>
+          <span class="stat-val">雾林深处</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-key">时刻</span>
+          <span class="stat-val">黄昏</span>
+        </div>
+      </div>
+
+      <!-- Marginalia: Recalled Memory -->
+      <div class="left-section">
+        <div class="left-section-title">召回记忆</div>
+        <div class="marginalia-note">
+          <div class="marginalia-date">三月前</div>
+          <div class="marginalia-text">曾于此林遭遇猎人追捕，险些落入陷阱，留有心理阴影。</div>
+        </div>
+        <div class="marginalia-note">
+          <div class="marginalia-date">童年记忆</div>
+          <div class="marginalia-text">母亲说，雾林之神会在月圆时苏醒，切勿轻易呼唤其名。</div>
+        </div>
+      </div>
+
+      <div class="world-tag">幻世录 · 秋雾卷 · 第三纪</div>
+    </div>
+
+    <!-- ─── Right Page ─────────────────────────────── -->
+    <div class="page-right">
+
+      <!-- Chapter Header -->
+      <div class="chapter-header">
+        <div class="chapter-num">第 七 章</div>
+        <div class="chapter-title">雾林深处的来客</div>
+        <div class="fleuron-row"><span>❦</span></div>
+      </div>
+
+      <!-- Conversation -->
+      <div class="conversation">
+
+        <!-- AI message 1 (drop cap) -->
+        <div class="msg-row assistant" style="animation-delay:0.1s">
+          <div class="msg-body">
+            <div class="msg-label char">玲珑</div>
+            <div class="msg-content">
+              <p>浓雾如白绸般缠绕着古木，你的脚步声在落叶上沙沙作响。林间忽有异动——一道橙红身影从树梢掠过，落于你三步之外。</p>
+              <p>狐女玲珑抱臂而立，九条尾巴徐徐散开，银眸中带着三分戒备、七分好奇。</p>
+              <p>「雾林不欢迎陌生人。」她的声音如低语，「说，你是谁，从何而来？」</p>
+            </div>
+          </div>
+          <div class="inline-marginalia">灵力消耗：幻术结界已展开，防备等级+2。</div>
+        </div>
+
+        <!-- Scene break -->
+        <div class="scene-break"><span>※</span></div>
+
+        <!-- User message -->
+        <div class="msg-row user" style="animation-delay:0.35s">
+          <div class="msg-body user-body">
+            <div class="msg-label user">旅人</div>
+            <div class="msg-content">
+              <p>我缓缓举起双手，示意无害，声音尽量平稳：「我是从山外而来的旅人，迷路了。只想借道，不会打扰林中居民。」</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI message 2 (streaming) -->
+        <div class="msg-row assistant" style="animation-delay:0.6s">
+          <div class="msg-body">
+            <div class="msg-label char">玲珑</div>
+            <div class="msg-content">
+              <p>玲珑的耳朵微微抖动，捕捉着你话语中的真伪。片刻后，她迈出一步，细细打量你的面容。</p>
+              <p>「山外来的……」她重复了一遍，语气意味深长，「上一个说"迷路"的人，是猎人公会派来的探子。」</p>
+              <p>她伸出一只手，掌心有微弱蓝光聚集——那是验真术的前兆<span class="cursor"></span></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Input -->
+      <div class="input-wrap">
+        <textarea class="input-field" placeholder="在此落笔，续写故事……" rows="2"></textarea>
+        <button class="send-btn" title="发送">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+            <path d="M1.5 7.5h12M8.5 2.5l5 5-5 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="page-footer">
+        <span class="footer-txt">第七章 · 第一页</span>
+        <span class="footer-fleuron">❧</span>
+        <span class="footer-txt">幻世录</span>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
