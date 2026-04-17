@@ -17,7 +17,7 @@ export default function BookSpread({ children, className = '' }) {
           display: 'flex',
           width: '100%',
           position: 'relative',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.18), 0 12px 28px rgba(0,0,0,0.30), 0 32px 64px rgba(0,0,0,0.38), 0 48px 96px rgba(0,0,0,0.16)',
           borderRadius: '0',
           overflow: 'hidden',
           minHeight: 0,
@@ -25,7 +25,7 @@ export default function BookSpread({ children, className = '' }) {
         className={className}
       >
         {children}
-        <ParchmentTexture />
+        <ParchmentTexture opacity={0.55} />
       </div>
     </div>
   );

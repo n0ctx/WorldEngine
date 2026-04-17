@@ -33,4 +33,5 @@ echo ""
 # 后台等待服务启动后自动打开浏览器
 (sleep 4 && open http://localhost:5173) &
 
+export LOG_LEVEL=debug
 npm run dev

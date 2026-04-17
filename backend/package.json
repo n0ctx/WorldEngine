@@ -6,7 +6,7 @@
   "scripts": {
     "predev": "lsof -ti tcp:3000 | xargs kill -9 2>/dev/null || true",
     "dev": "LOG_LEVEL=debug node --watch server.js",
-    "start": "node server.js",
+    "start": "LOG_LEVEL=debug node server.js",
     "db:reset": "node db/reset.js",
     "test": "node --test tests/*.test.js"
   },

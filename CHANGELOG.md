@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T78 — 羊皮纸物理质感阴影系统 + 调试日志 start 修复 ✅
+- **对外接口**：新增 CSS 变量 `--we-shadow-stamp-up / stamp-down / paper-stack / paper-stack-hover / paper-lift / paper-indent`（定义于 `tokens.css`）；`ParchmentTexture` 新增 fiber 纹理层（内部 SVG feTurbulence），opacity prop 默认值不变
+- **涉及文件**：`tokens.css`（6 个物理阴影变量）、`pages.css`（世界卡/角色卡阴影改用变量）、`BookSpread.jsx`（多层书本阴影 + ParchmentTexture opacity=0.55）、`ParchmentTexture.jsx`（新增 fiber 纤维层叠加）、`backend/package.json`（`start` 脚本补 `LOG_LEVEL=debug`）、`启动WorldEngine.bat / .command`（补 `LOG_LEVEL=debug`）
+- **注意**：`--we-paper-deep` / `--we-paper-shadow` 已在 tokens.css 定义，阴影系统直接引用；`start` 与 `dev` 脚本现在行为一致（均 debug 模式），避免直接 `node server.js` 时无日志输出
+
 ## T77 — 修复流式输出闪烁 + HTML 额外空行 ✅
 - **问题根因**：① 流结束时 `finalizeStream` 调用 `refreshMessages()` 导致 `MessageList` 整体重挂载，`AnimatePresence popLayout` 触发全部气泡 exit/enter 动画（视觉闪烁）。② 流式期间用 `<span whiteSpace:pre-wrap>` 渲染原始文本，`\n\n` 以双换行显示；流结束切换 `<ReactMarkdown>` 后段间距收紧，产生内容跳变。
 - **修复方案**：后端 `runStream` 在 SSE `done`/`aborted` 事件中附带真实 assistant 消息行、在流起始广播 `user_saved` 事件传递真实 user id；前端 `finalizeStream` 改为直接 `appendMessage`（复用本轮 `streamingKey` 作为 `_key` 实现 AnimatePresence 零动画切换），仅在后端未回传 payload 时降级到 `refreshMessages`；`onAborted`/`onError` 移除直接 `finalizeStream` 调用，统一由 `onStreamEnd` 的 finally 块触发，消除双重 finalize；`MessageItem` assistant 流式/终态统一走 `<ReactMarkdown>`，`<QuillCursor>` 作为同级后置元素。

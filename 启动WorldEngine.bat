@@ -31,5 +31,6 @@ if not exist "backend\node_modules" (
 rem 后台等待服务启动后自动打开浏览器
 start "" /b cmd /c "timeout /t 4 >nul && start http://localhost:5173"
 
+set LOG_LEVEL=debug
 call npm run dev
 pause
