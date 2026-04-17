@@ -42,12 +42,28 @@ export default function ChatPage() {
   const [fillText, setFillText] = useState('');
   const [toast, setToast] = useState(null);
   const [errorBubble, setErrorBubble] = useState(null); // { partialContent, errorMsg }
+  // 本轮流式占位节点的 React key（每次新流都换，避免相邻两轮 key 冲突）
+  const [streamingKey, setStreamingKey] = useState('__stream_init__');
 
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
   const streamingTextRef = useRef('');
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
+  // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
+  const tempUserIdRef = useRef(null);
+  // 本轮后端返回的真实 assistant 消息（finalizeStream 用它原地追加）
+  const pendingAssistantRef = useRef(null);
+  // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
+  const streamingKeyRef = useRef('__stream_init__');
+
+  // 每次开启新流时调用：生成本轮唯一的占位 key
+  const beginStreamingKey = useCallback(() => {
+    const k = `__stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}__`;
+    streamingKeyRef.current = k;
+    setStreamingKey(k);
+    return k;
+  }, []);
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -165,8 +181,21 @@ export default function ChatPage() {
         prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
       );
     }
+
+    // 普通流结束：原地追加真实 assistant 消息（后端通过 done 事件带回），避免重挂载闪烁
+    // 复用本轮的 streamingKey 让 AnimatePresence 视其与流式占位为同一节点，零动画切换
+    const pending = pendingAssistantRef.current;
+    const streamKey = streamingKeyRef.current;
+    pendingAssistantRef.current = null;
+    let appendedAssistant = false;
+    if (!wasContinuing && pending && MessageList.appendMessage) {
+      MessageList.appendMessage({ ...pending, _key: streamKey });
+      appendedAssistant = true;
+    }
+
     continuingMessageIdRef.current = null;
     continuingTextRef.current = '';
+    tempUserIdRef.current = null;
     setGenerating(false);
     setStreamingText('');
     setMemoryRecalling(false);
@@ -175,8 +204,8 @@ export default function ChatPage() {
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
-    // 续写时已原地更新，无需重挂载 MessageList；普通流结束需要重拉最新数据
-    if (!wasContinuing) refreshMessages();
+    // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
+    if (!wasContinuing && !appendedAssistant) refreshMessages();
     useStore.getState().triggerMemoryRefresh();
   }, []);
 
@@ -190,12 +219,25 @@ export default function ChatPage() {
           return next;
         });
       },
-      onDone() {
-        // 流可能还有 title_updated，等 onStreamEnd 再终结
+      onUserSaved(realId) {
+        const tempId = tempUserIdRef.current;
+        if (!tempId || !realId || tempId === realId) return;
+        if (MessageList.updateMessages) {
+          // 保留 _key=tempId 作为稳定 React key，避免 AnimatePresence 把 id 变化当作进出场
+          MessageList.updateMessages((prev) =>
+            prev.map((m) => m.id === tempId ? { ...m, _key: m._key ?? tempId, id: realId } : m)
+          );
+        }
+        tempUserIdRef.current = realId;
       },
-      onAborted() {
+      onDone(assistant) {
+        // 流可能还有 title_updated，等 onStreamEnd 再终结
+        if (assistant) pendingAssistantRef.current = assistant;
+      },
+      onAborted(assistant) {
+        // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
         streamingTextRef.current = '';
-        finalizeStream();
+        if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(err) {
         console.error('SSE error:', err);
@@ -203,7 +245,7 @@ export default function ChatPage() {
         const errMsg = typeof err === 'string' ? err : (err?.message || '生成失败');
         streamingTextRef.current = '';
         setErrorBubble({ partialContent: partial, errorMsg: errMsg });
-        finalizeStream();
+        // 不直接 finalize，交给 onStreamEnd 统一处理，避免第二次 finalize 回退到 refreshMessages 引发重挂载
       },
       onTitleUpdated(title) {
         setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
@@ -271,8 +313,10 @@ export default function ChatPage() {
       attachments: null,
       created_at: Date.now(),
     };
+    tempUserIdRef.current = tempUserMsg.id;
     if (MessageList.appendMessage) MessageList.appendMessage(tempUserMsg);
 
+    beginStreamingKey();
     setGenerating(true);
     setStreamingText('');
 
@@ -302,6 +346,7 @@ export default function ChatPage() {
       });
     }
 
+    beginStreamingKey();
     setGenerating(true);
     setStreamingText('');
 
@@ -326,6 +371,7 @@ export default function ChatPage() {
       return i >= 0 ? prev.slice(0, i) : prev;
     });
 
+    beginStreamingKey();
     setGenerating(true);
     setStreamingText('');
 
@@ -360,10 +406,9 @@ export default function ChatPage() {
         setContinuingText((prev) => prev + delta);
       },
       onDone() {},
-      onAborted() { finalizeStream(); },
+      onAborted() {},
       onError(err) {
         console.error('continue error:', err);
-        finalizeStream();
       },
       onStreamEnd() { finalizeStream(); },
     };
@@ -417,6 +462,7 @@ export default function ChatPage() {
 
     MessageList.updateMessages?.((prev) => prev.slice(0, lastIdx));
 
+    beginStreamingKey();
     setGenerating(true);
     setStreamingText('');
     const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
@@ -440,6 +486,7 @@ export default function ChatPage() {
 
     MessageList.updateMessages?.(() => trimmed);
 
+    beginStreamingKey();
     setGenerating(true);
     setStreamingText('');
     const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
@@ -540,6 +587,7 @@ export default function ChatPage() {
           worldId={character?.world_id ?? null}
           generating={generating}
           streamingText={streamingText}
+          streamingKey={streamingKey}
           memoryRecalling={memoryRecalling}
           memoryExpanding={memoryExpanding}
           expandedMessage={expandedMessage}

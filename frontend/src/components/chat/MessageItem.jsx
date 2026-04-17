@@ -311,16 +311,10 @@ export default function MessageItem({
               </div>
             ) : (
               <div className="we-message-content">
-                {isStreaming ? (
-                  <span style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--we-font-serif)', fontSize: 'var(--we-text-base)', lineHeight: 'var(--we-leading-loose)', color: 'var(--we-ink-primary)' }}>
-                    {streamingText || ''}
-                    <QuillCursor visible={true} />
-                  </span>
-                ) : (
-                  <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
-                    {displayContent}
-                  </ReactMarkdown>
-                )}
+                <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
+                  {displayContent}
+                </ReactMarkdown>
+                {isStreaming && <QuillCursor visible={true} />}
               </div>
             )}
             {message.attachments?.length > 0 && (

@@ -7,6 +7,7 @@ async function parseSSEStream(response, callbacks) {
     onAborted,
     onError,
     onTitleUpdated,
+    onUserSaved,
     onMemoryRecallStart,
     onMemoryRecallDone,
     onMemoryExpandStart,
@@ -31,10 +32,11 @@ async function parseSSEStream(response, callbacks) {
         try {
           const evt = JSON.parse(json);
           if (evt.delta !== undefined) onDelta?.(evt.delta);
-          else if (evt.done) onDone?.();
-          else if (evt.aborted) onAborted?.();
+          else if (evt.done) onDone?.(evt.assistant ?? null);
+          else if (evt.aborted) onAborted?.(evt.assistant ?? null);
           else if (evt.type === 'error') onError?.(evt.error);
           else if (evt.type === 'title_updated') onTitleUpdated?.(evt.title);
+          else if (evt.type === 'user_saved') onUserSaved?.(evt.id);
           else if (evt.type === 'memory_recall_start') onMemoryRecallStart?.();
           else if (evt.type === 'memory_recall_done') onMemoryRecallDone?.(evt);
           else if (evt.type === 'memory_expand_start') onMemoryExpandStart?.(evt);
@@ -70,13 +72,12 @@ export function sendMessage(sessionId, content, attachments, callbacks) {
         return;
       }
       await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
     } catch (err) {
       if (err.name !== 'AbortError') {
         callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
       }
+    } finally {
+      callbacks.onStreamEnd?.();
     }
   })();
 
@@ -110,13 +111,12 @@ export function regenerate(sessionId, afterMessageId, callbacks) {
         return;
       }
       await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
     } catch (err) {
       if (err.name !== 'AbortError') {
         callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
       }
+    } finally {
+      callbacks.onStreamEnd?.();
     }
   })();
 
@@ -144,13 +144,12 @@ export function editAndRegenerate(sessionId, messageId, newContent, callbacks) {
         return;
       }
       await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
     } catch (err) {
       if (err.name !== 'AbortError') {
         callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
       }
+    } finally {
+      callbacks.onStreamEnd?.();
     }
   })();
 
@@ -176,13 +175,12 @@ export function continueGeneration(sessionId, callbacks) {
         return;
       }
       await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
     } catch (err) {
       if (err.name !== 'AbortError') {
         callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
       }
+    } finally {
+      callbacks.onStreamEnd?.();
     }
   })();
 
