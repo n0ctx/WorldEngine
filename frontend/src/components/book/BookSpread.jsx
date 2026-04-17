@@ -9,8 +9,6 @@ export default function BookSpread({ children, className = '' }) {
       height: '100%',
       display: 'flex',
       flexDirection: 'column',
-      padding: '0 12px 8px',
-      boxSizing: 'border-box',
     }}>
       {/* 书本本体：铺满剩余高度，最大 1120px 居中 */}
       <div
@@ -22,7 +20,7 @@ export default function BookSpread({ children, className = '' }) {
           margin: '0 auto',
           position: 'relative',
           boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)',
-          borderRadius: '0 0 2px 2px',
+          borderRadius: '0',
           overflow: 'hidden',
           minHeight: 0,
         }}
