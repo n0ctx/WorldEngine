@@ -13,6 +13,7 @@ import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import StatePanel from '../components/book/StatePanel.jsx';
 import PageFooter from '../components/book/PageFooter.jsx';
+import CandleFlame from '../components/book/CandleFlame.jsx';
 import { getWorld } from '../api/worlds.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
@@ -31,6 +32,8 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
+  const [recallVisible, setRecallVisible] = useState(false);
+  const [recalledItems, setRecalledItems] = useState([]);
   const [expandedMessage, setExpandedMessage] = useState('');
   const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
@@ -59,6 +62,7 @@ export default function ChatPage() {
     setMemoryRecalling(false);
     setMemoryExpanding(false);
     setExpandedMessage('');
+    setRecallVisible(false);
     setContinuingMessageId(null);
     setContinuingText('');
     streamingTextRef.current = '';
@@ -146,6 +150,7 @@ export default function ChatPage() {
     setStreamingText('');
     setMemoryRecalling(false);
     setMemoryExpanding(false);
+    setRecallVisible(false);
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
@@ -187,9 +192,19 @@ export default function ChatPage() {
       },
       onMemoryRecallStart() {
         setMemoryRecalling(true);
+        setRecallVisible(true);
       },
-      onMemoryRecallDone() {
+      onMemoryRecallDone(evt) {
         setMemoryRecalling(false);
+        const hit = evt?.hit ?? 0;
+        if (hit > 0) {
+          setRecalledItems(
+            Array.from({ length: hit }, (_, i) => ({ id: `recall-${i}`, text: `召回摘要 ${i + 1}` }))
+          );
+          setTimeout(() => setRecallVisible(false), 300);
+        } else {
+          setRecallVisible(false);
+        }
       },
       onMemoryExpandStart() {
         setMemoryExpanding(true);
@@ -485,6 +500,7 @@ export default function ChatPage() {
 
       {/* 右页：对话区 + 记忆面板 */}
       <PageRight className="!p-0">
+        <CandleFlame visible={recallVisible} />
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
@@ -600,6 +616,7 @@ export default function ChatPage() {
         worldId={character?.world_id ?? null}
         characterId={characterId}
         persona={persona}
+        recalledItems={recalledItems}
       />
     </BookSpread>
   );

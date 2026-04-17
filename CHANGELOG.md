@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T66 — 路由/模态框动画 + SSE 召回指示（蜡烛）✅
+- **对外接口**：`PageTransition` 包裹 `<Routes>` 实现 pageTransition 动画；`CandleFlame` 接收 `visible` prop 显示/隐藏蜡烛 SVG；`ModalShell` 现已使用 framer-motion motion.div 实现入场动画；`ChatPage` 新增 `recallVisible`/`recalledItems` state，通过 `recalledItems` prop 传给 `StatePanel`
+- **涉及文件**：新建 `frontend/src/components/book/PageTransition.jsx`、`frontend/src/components/book/CandleFlame.jsx`；重写 `frontend/src/components/ui/ModalShell.jsx`；修改 `frontend/src/App.jsx`、`frontend/src/api/chat.js`、`frontend/src/pages/ChatPage.jsx`
+- **注意**：`chat.js` 的 `onMemoryRecallDone` 回调现在会将 `evt`（含 `hit` 字段）传入；召回条目为占位数据（`{ id, text }`），hit > 0 时创建 N 条，300ms 后蜡烛淡出；`StatePanel` 已有 `recalledItems = []` prop 无需修改；`ModalShell` padding 32px 40px 覆盖了原 Tailwind 样式，使用时 children 不需要额外 padding wrapper
+
 ## T65 — 章节分组 + 花饰分隔线 + 页脚 ✅
 - **对外接口**：新建纯函数 `groupMessagesIntoChapters(messages, sessionTitle)` in `frontend/src/utils/chapter-grouping.js`；`MessageList` 新增 `sessionTitle` / `onChapterChange` props；`ChatPage` 新增 `PageFooter` 渲染
 - **涉及文件**：`frontend/src/utils/constants.js`（新建，含 `CHAPTER_MESSAGE_SIZE=20` / `CHAPTER_TIME_GAP_MS=6h`）、`frontend/src/utils/chapter-grouping.js`（新建）、`frontend/src/components/book/ChapterDivider.jsx`（新建）、`frontend/src/components/book/FleuronLine.jsx`（新建）、`frontend/src/components/book/PageFooter.jsx`（新建）、`frontend/src/components/chat/MessageList.jsx`（章节渲染）、`frontend/src/pages/ChatPage.jsx`（worldName 获取 + 页脚接入）、`frontend/src/index.css`（追加章节/花饰/页脚样式）

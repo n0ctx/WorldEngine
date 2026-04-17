@@ -11,6 +11,7 @@ import ChatPage from './pages/ChatPage';
 import SettingsPage from './pages/SettingsPage';
 import WritingSpacePage from './pages/WritingSpacePage';
 import TopBar from './components/book/TopBar.jsx';
+import PageTransition from './components/book/PageTransition.jsx';
 import { refreshCustomCss } from './api/customCssSnippets';
 
 export default function App() {
@@ -21,7 +22,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
       <TopBar />
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <PageTransition>
         <Routes>
           <Route path="/" element={<WorldsPage />} />
           <Route path="/worlds/new" element={<WorldCreatePage />} />
@@ -34,7 +35,7 @@ export default function App() {
           <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
-      </div>
+      </PageTransition>
     </div>
   );
 }
