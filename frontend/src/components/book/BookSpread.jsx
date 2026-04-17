@@ -15,9 +15,7 @@ export default function BookSpread({ children, className = '' }) {
         style={{
           flex: 1,
           display: 'flex',
-          maxWidth: '1120px',
           width: '100%',
-          margin: '0 auto',
           position: 'relative',
           boxShadow: '0 24px 64px rgba(0,0,0,0.55), 0 4px 16px rgba(0,0,0,0.35)',
           borderRadius: '0',
