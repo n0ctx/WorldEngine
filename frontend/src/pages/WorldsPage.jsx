@@ -116,12 +116,6 @@ export default function WorldsPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate('/settings')}
-              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
-            >
-              设置
-            </button>
-            <button
               onClick={() => worldImportRef.current?.click()}
               disabled={importingWorld}
               className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"

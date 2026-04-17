@@ -257,12 +257,6 @@ export default function CharactersPage() {
               写作空间
             </button>
             <button
-              onClick={() => navigate('/settings')}
-              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
-            >
-              设置
-            </button>
-            <button
               onClick={() => charImportRef.current?.click()}
               disabled={importingChar}
               className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
