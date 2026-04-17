@@ -74,7 +74,7 @@ function CodeBlock({ children, className }) {
 
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
-  const url = `/uploads/${src}`;
+  const url = `/api/uploads/${src}`;
 
   return (
     <>

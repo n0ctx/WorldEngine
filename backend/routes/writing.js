@@ -26,21 +26,13 @@ import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
+import {
+  beginStreamSession,
+  buildContinuationMessages,
+  sendSse,
+} from './stream-helpers.js';
 
 const router = Router();
-
-// ── 工具函数 ──
-
-function sseHeaders(res) {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-}
-
-function sseSend(res, data) {
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
-}
 
 // ── 写作会话列表/创建 ──
 
@@ -135,19 +127,8 @@ router.get('/:worldId/characters', (req, res) => {
 // ── 流式生成 ──
 
 async function runWritingStream(sessionId, res) {
-  const existing = activeStreams.get(sessionId);
-  if (existing) existing.abort();
-
-  const ac = new AbortController();
-  activeStreams.set(sessionId, ac);
-
-  let clientClosed = false;
-  res.on('close', () => {
-    clientClosed = true;
-    if (activeStreams.get(sessionId) === ac) ac.abort();
-  });
-
-  sseHeaders(res);
+  const streamState = beginStreamSession(sessionId, res, activeStreams);
+  const ac = streamState.controller;
 
   let fullContent = '';
   let aborted = false;
@@ -160,16 +141,16 @@ async function runWritingStream(sessionId, res) {
     const stream = llm.chat(messages, { temperature, maxTokens, signal: ac.signal });
     for await (const chunk of stream) {
       fullContent += chunk;
-      if (!clientClosed) sseSend(res, { delta: chunk });
+      if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
     }
   } catch (err) {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!clientClosed) sseSend(res, { type: 'error', error: err.message });
+      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
       if (!fullContent) {
-        activeStreams.delete(sessionId);
-        if (!clientClosed) res.end();
+        streamState.clear();
+        if (!streamState.isClientClosed()) res.end();
         return;
       }
     }
@@ -186,11 +167,11 @@ async function runWritingStream(sessionId, res) {
     touchWritingSession(sessionId);
   }
 
-  if (!clientClosed) {
-    sseSend(res, aborted ? { aborted: true } : { done: true });
+  if (!streamState.isClientClosed()) {
+    sendSse(res, aborted ? { aborted: true } : { done: true });
   }
 
-  activeStreams.delete(sessionId);
+  streamState.clear();
 
   if (!aborted && fullContent) {
     const msgs = getMessagesBySessionId(sessionId, 9999, 0);
@@ -201,11 +182,11 @@ async function runWritingStream(sessionId, res) {
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2)
           .then((title) => {
-            if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
           })
           .catch(() => {})
           .finally(() => {
-            if (!clientClosed) res.end();
+            if (!streamState.isClientClosed()) res.end();
           });
 
         // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
@@ -223,7 +204,7 @@ async function runWritingStream(sessionId, res) {
     }
   }
 
-  if (!clientClosed) res.end();
+  if (!streamState.isClientClosed()) res.end();
 }
 
 // POST /api/worlds/:worldId/writing-sessions/:sessionId/generate
@@ -259,25 +240,14 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   const worldId = session.world_id;
 
-  const existing = activeStreams.get(sessionId);
-  if (existing) existing.abort();
-
-  const ac = new AbortController();
-  activeStreams.set(sessionId, ac);
-
-  let clientClosed = false;
-  res.on('close', () => {
-    clientClosed = true;
-    if (activeStreams.get(sessionId) === ac) ac.abort();
-  });
-
-  sseHeaders(res);
+  const streamState = beginStreamSession(sessionId, res, activeStreams);
+  const ac = streamState.controller;
 
   // 找最后一条 assistant 消息
   const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
   const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
   if (!lastAssistant) {
-    sseSend(res, { type: 'error', error: '没有可续写的内容' });
+    sendSse(res, { type: 'error', error: '没有可续写的内容' });
     res.end();
     return;
   }
@@ -288,35 +258,22 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   try {
     const { messages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
-
-    // /continue 场景：修正上下文末尾，让 LLM 从当前 assistant 内容末尾续写（prefill）
-    while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-      messages.pop();
-    }
     const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
-    if (hasTurnRecords && messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-      messages.pop(); // 移除 asst_context(K)
-      if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-        messages.pop(); // 移除 user_context(K)
-      }
-    }
-    const lastUserMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
-    if (lastUserMsg) messages.push({ role: 'user', content: lastUserMsg.content });
-    messages.push({ role: 'assistant', content: originalContent });
+    const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
 
-    const stream = llm.chat(messages, { temperature, maxTokens, signal: ac.signal });
+    const stream = llm.chat(continuationMessages, { temperature, maxTokens, signal: ac.signal });
     for await (const chunk of stream) {
       newContent += chunk;
-      if (!clientClosed) sseSend(res, { delta: chunk });
+      if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
     }
   } catch (err) {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!clientClosed) sseSend(res, { type: 'error', error: err.message });
+      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
       if (!newContent) {
-        activeStreams.delete(sessionId);
-        if (!clientClosed) res.end();
+        streamState.clear();
+        if (!streamState.isClientClosed()) res.end();
         return;
       }
     }
@@ -333,18 +290,20 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     touchWritingSession(sessionId);
   }
 
-  if (!clientClosed) {
-    sseSend(res, aborted ? { aborted: true } : { done: true });
+  if (!streamState.isClientClosed()) {
+    sendSse(res, aborted ? { aborted: true } : { done: true });
   }
 
-  activeStreams.delete(sessionId);
+  streamState.clear();
 
   // 续写正常完成后更新 turn record（isUpdate=true 覆盖最后一轮）
   if (!aborted && newContent) {
+    const activeCharacters = getWritingSessionCharacters(sessionId);
+    enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state').catch(() => {});
     enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
   }
 
-  if (!clientClosed) res.end();
+  if (!streamState.isClientClosed()) res.end();
 });
 
 export default router;

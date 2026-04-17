@@ -22,7 +22,9 @@ router.post('/worlds/:worldId/import-character', (req, res) => {
     res.status(201).json(character);
   } catch (err) {
     if (err.message === '世界不存在') return res.status(404).json({ error: err.message });
-    if (err.message === '不支持的角色卡格式') return res.status(400).json({ error: err.message });
+    if (err.message.includes('角色卡') || err.message.includes('character') || err.message.includes('prompt_entries') || err.message.includes('state_values')) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error('导入角色卡失败', err);
     res.status(500).json({ error: '导入失败' });
   }
@@ -58,7 +60,9 @@ router.post('/worlds/import', (req, res) => {
     const world = importWorld(req.body);
     res.status(201).json(world);
   } catch (err) {
-    if (err.message === '不支持的世界卡格式') return res.status(400).json({ error: err.message });
+    if (err.message.includes('世界卡') || err.message.includes('world.') || err.message.includes('persona') || err.message.includes('characters[')) {
+      return res.status(400).json({ error: err.message });
+    }
     console.error('导入世界卡失败', err);
     res.status(500).json({ error: '导入失败' });
   }

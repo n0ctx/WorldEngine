@@ -236,7 +236,7 @@ export default function SettingsPage() {
       setConfig(c);
       setLlm(c.llm || {});
       setEmbedding(c.embedding || {});
-      setContextRounds(c.context_compress_rounds ?? 10);
+      setContextRounds(c.context_history_rounds ?? 10);
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
       setGlobalPostPrompt(c.global_post_prompt ?? '');
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
@@ -283,7 +283,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await patchConfig({
-        context_compress_rounds: Number(contextRounds),
+        context_history_rounds: Number(contextRounds),
         global_system_prompt: globalSystemPrompt,
         global_post_prompt: globalPostPrompt,
       });

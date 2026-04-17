@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getConfig, updateConfig } from '../services/config.js';
+import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 
 const router = Router();
 
@@ -11,6 +12,14 @@ function stripApiKeys(config) {
   return safe;
 }
 
+function sanitizeBaseUrlPatch(section) {
+  if (!section || !('base_url' in section)) {
+    return;
+  }
+
+  section.base_url = validateModelFetchBaseUrl(section.provider, section.base_url);
+}
+
 // GET /api/config — 返回当前配置（去掉 api_key）
 router.get('/', (_req, res) => {
   const config = getConfig();
@@ -19,12 +28,22 @@ router.get('/', (_req, res) => {
 
 // PUT /api/config — 部分更新配置（禁止通过此接口更新 api_key）
 router.put('/', (req, res) => {
-  const patch = req.body;
-  // 防止通过此接口更新 api_key
-  if (patch.llm) delete patch.llm.api_key;
-  if (patch.embedding) delete patch.embedding.api_key;
-  const updated = updateConfig(patch);
-  res.json(stripApiKeys(updated));
+  try {
+    const patch = structuredClone(req.body);
+    if (patch.llm) {
+      delete patch.llm.api_key;
+      sanitizeBaseUrlPatch(patch.llm);
+    }
+    if (patch.embedding) {
+      delete patch.embedding.api_key;
+      sanitizeBaseUrlPatch(patch.embedding);
+    }
+
+    const updated = updateConfig(patch);
+    res.json(stripApiKeys(updated));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // PUT /api/config/apikey — 只更新 llm.api_key
@@ -101,7 +120,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
 
   // Ollama — 专有 /api/tags 接口
   if (provider === 'ollama') {
-    const url = (baseUrl || 'http://localhost:11434').replace(/\/+$/, '');
+    const url = validateModelFetchBaseUrl(provider, baseUrl || 'http://localhost:11434');
     const resp = await fetch(`${url}/api/tags`);
     if (!resp.ok) throw new Error(`Ollama API ${resp.status}`);
     const data = await resp.json();
@@ -111,7 +130,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
   // OpenAI-compatible 一族（含无默认 URL 的 openai_compatible）
   const defaultBase = OPENAI_COMPATIBLE_BASE_URLS[provider];
   if (defaultBase !== undefined || provider === 'openai_compatible') {
-    const base = baseUrl || defaultBase;
+    const base = validateModelFetchBaseUrl(provider, baseUrl || defaultBase);
     if (!base) throw new Error('openai_compatible provider 需要指定 Base URL');
     return fetchOpenAICompatibleModels(base, apiKey);
   }

@@ -21,73 +21,50 @@ import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
+import {
+  beginStreamSession,
+  buildContinuationMessages,
+  sendSse,
+} from './stream-helpers.js';
 
 const router = Router();
-
-// ── 工具函数 ──
-
-function sseHeaders(res) {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-}
-
-function sseSend(res, data) {
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
-}
 
 /**
  * 执行流式生成（chat 和 regenerate 共用）
  */
 async function runStream(sessionId, res) {
-  // 若该 sessionId 已有进行中的请求，先 abort
-  const existing = activeStreams.get(sessionId);
-  if (existing) existing.abort();
-
-  const ac = new AbortController();
-  activeStreams.set(sessionId, ac);
-
-  // 监听客户端断开（页面刷新/关闭）
-  let clientClosed = false;
-  res.on('close', () => {
-    clientClosed = true;
-    if (activeStreams.get(sessionId) === ac) {
-      ac.abort();
-    }
-  });
-
-  sseHeaders(res);
+  const streamState = beginStreamSession(sessionId, res, activeStreams);
+  const ac = streamState.controller;
 
   let fullContent = '';
   let aborted = false;
 
   try {
-    if (!clientClosed) sseSend(res, { type: 'memory_recall_start' });
+    if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_start' });
     const { messages, overrides, recallHitCount } = await buildContext(sessionId, {
       onRecallEvent(name, payload) {
-        if (!clientClosed) {
-          sseSend(res, { type: name, ...payload });
+        if (!streamState.isClientClosed()) {
+          sendSse(res, { type: name, ...payload });
         }
       },
     });
-    if (!clientClosed) sseSend(res, { type: 'memory_recall_done', hit: recallHitCount });
+    if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_done', hit: recallHitCount });
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 
     for await (const chunk of stream) {
       fullContent += chunk;
-      if (!clientClosed) sseSend(res, { delta: chunk });
+      if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
     }
   } catch (err) {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
       // LLM 错误
-      if (!clientClosed) sseSend(res, { type: 'error', error: err.message });
+      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
       // 无内容时直接结束
       if (!fullContent) {
-        activeStreams.delete(sessionId);
-        if (!clientClosed) res.end();
+        streamState.clear();
+        if (!streamState.isClientClosed()) res.end();
         return;
       }
       // 有部分内容时继续保存（作为正常 done 处理）
@@ -114,11 +91,11 @@ async function runStream(sessionId, res) {
   }
 
   // 推送结束事件
-  if (!clientClosed) {
-    sseSend(res, aborted ? { aborted: true } : { done: true });
+  if (!streamState.isClientClosed()) {
+    sendSse(res, aborted ? { aborted: true } : { done: true });
   }
 
-  activeStreams.delete(sessionId);
+  streamState.clear();
 
   // 正常完成且有内容时，入队异步任务
   if (!aborted && fullContent) {
@@ -131,11 +108,11 @@ async function runStream(sessionId, res) {
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
-            if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
           })
           .catch(() => {})
           .finally(() => {
-            if (!clientClosed) res.end();
+            if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
         enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
@@ -149,7 +126,7 @@ async function runStream(sessionId, res) {
     }
   }
 
-  if (!clientClosed) res.end();
+  if (!streamState.isClientClosed()) res.end();
 }
 
 // ── POST /api/sessions/:sessionId/chat ──
@@ -228,22 +205,8 @@ router.post('/:sessionId/continue', async (req, res) => {
     return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
   }
 
-  // 若该 sessionId 已有进行中的请求，先 abort
-  const existing = activeStreams.get(sessionId);
-  if (existing) existing.abort();
-
-  const ac = new AbortController();
-  activeStreams.set(sessionId, ac);
-
-  let clientClosed = false;
-  res.on('close', () => {
-    clientClosed = true;
-    if (activeStreams.get(sessionId) === ac) {
-      ac.abort();
-    }
-  });
-
-  sseHeaders(res);
+  const streamState = beginStreamSession(sessionId, res, activeStreams);
+  const ac = streamState.controller;
 
   const originalContent = lastAssistant.content;
   let newContent = '';
@@ -251,42 +214,22 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   try {
     const { messages, overrides } = await buildContext(sessionId);
-
-    // /continue 场景：修正上下文末尾，让 LLM 从当前 assistant 内容末尾续写（prefill）
-    // buildContext 末尾是 [16] user 消息，续写时需改为以 assistant prefill 结尾
-
-    // Step 1：移除末尾所有 user 消息（[15] post_prompt + [16] 当前用户消息）
-    while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-      messages.pop();
-    }
-    // Step 2：若 [14] 使用 turn record 路径，末尾是 asst_context（含"AI："前缀和状态后缀），
-    //          会导致 LLM 模仿此格式输出状态信息，需移除；同时移除对应 user_context 避免重复
     const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
-    if (hasTurnRecords && messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-      messages.pop(); // 移除 asst_context(K)
-      if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-        messages.pop(); // 移除 user_context(K)
-      }
-    }
-    // Step 3：补充裸用户消息（不含状态快照前缀）
-    const lastUserMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
-    if (lastUserMsg) messages.push({ role: 'user', content: lastUserMsg.content });
-    // Step 4：添加 assistant prefill，LLM 从此处续写
-    messages.push({ role: 'assistant', content: originalContent });
+    const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
 
-    const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
+    const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal });
     for await (const chunk of stream) {
       newContent += chunk;
-      if (!clientClosed) sseSend(res, { delta: chunk });
+      if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
     }
   } catch (err) {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!clientClosed) sseSend(res, { type: 'error', error: err.message });
+      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
       if (!newContent) {
-        activeStreams.delete(sessionId);
-        if (!clientClosed) res.end();
+        streamState.clear();
+        if (!streamState.isClientClosed()) res.end();
         return;
       }
     }
@@ -308,11 +251,11 @@ router.post('/:sessionId/continue', async (req, res) => {
     touchSession(sessionId);
   }
 
-  if (!clientClosed) {
-    sseSend(res, aborted ? { aborted: true } : { done: true });
+  if (!streamState.isClientClosed()) {
+    sendSse(res, aborted ? { aborted: true } : { done: true });
   }
 
-  activeStreams.delete(sessionId);
+  streamState.clear();
 
   // 正常完成且有内容时，入队异步任务
   if (!aborted && newContent) {
@@ -323,11 +266,11 @@ router.post('/:sessionId/continue', async (req, res) => {
       if (session && !session.title) {
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
-            if (title && !clientClosed) sseSend(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
           })
           .catch(() => {})
           .finally(() => {
-            if (!clientClosed) res.end();
+            if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
         enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
@@ -343,7 +286,7 @@ router.post('/:sessionId/continue', async (req, res) => {
     }
   }
 
-  if (!clientClosed) res.end();
+  if (!streamState.isClientClosed()) res.end();
 });
 
 // ── POST /api/sessions/:sessionId/impersonate ──

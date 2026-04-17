@@ -31,9 +31,40 @@ import personasRoutes from './routes/personas.js';
 import personaStateFieldsRoutes from './routes/persona-state-fields.js';
 import personaStateValuesRoutes from './routes/persona-state-values.js';
 import writingRoutes from './routes/writing.js';
+import { resolveUploadPath } from './services/state-values.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
+const UPLOADS_ROOT = path.join(DATA_ROOT, 'uploads');
+
+function isLocalAddress(address) {
+  return address === '127.0.0.1' ||
+    address === '::1' ||
+    address === '::ffff:127.0.0.1';
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin || origin === 'null') {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(origin);
+    return (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+      /^https?:$/.test(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
+function localOnly(req, res, next) {
+  if (isLocalAddress(req.socket.remoteAddress)) {
+    next();
+    return;
+  }
+
+  res.status(403).json({ error: '仅允许本机访问' });
+}
 
 // 确保 /data/ 子目录存在
 const dataDirs = [
@@ -49,11 +80,26 @@ for (const dir of dataDirs) {
 initSchema(db);
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    callback(null, isAllowedOrigin(origin));
+  },
+}));
 app.use(express.json({ limit: '20mb' }));
+app.use('/api', localOnly);
 
-// 静态文件：头像、附件
-app.use('/uploads', express.static(path.join(DATA_ROOT, 'uploads')));
+app.get('/api/uploads/*path', localOnly, (req, res) => {
+  const relativePath = Array.isArray(req.params.path)
+    ? req.params.path.join('/')
+    : req.params.path;
+  const filePath = resolveUploadPath(relativePath, UPLOADS_ROOT);
+  if (!filePath || !fs.existsSync(filePath)) {
+    res.status(404).json({ error: '文件不存在' });
+    return;
+  }
+
+  res.sendFile(filePath);
+});
 
 // 注册路由
 app.use('/api/config', configRoutes);
@@ -74,9 +120,10 @@ app.use('/api', personaStateFieldsRoutes);
 app.use('/api', personaStateValuesRoutes);
 app.use('/api/worlds', writingRoutes);
 
+const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`WorldEngine backend running on http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`WorldEngine backend running on http://${HOST}:${PORT}`);
   const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
   console.log(`日志级别: ${level}  （debug 模式可跟踪 prompt 组装 / LLM 调用 / 队列事件）`);
 });

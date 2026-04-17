@@ -22,5 +22,5 @@ export function getAvatarColor(id) {
  */
 export function getAvatarUrl(avatarPath) {
   if (!avatarPath) return null;
-  return `/uploads/${avatarPath}`;
+  return `/api/uploads/${avatarPath}`;
 }
