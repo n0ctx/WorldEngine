@@ -168,20 +168,34 @@ export default function InputBox({
   }
 
   return (
-    <div className="we-chat-input border-t border-border bg-canvas px-4 pt-3 pb-4">
+    <div
+      className="we-chat-input"
+      style={{
+        borderTop: '1px solid var(--we-paper-shadow)',
+        background: 'var(--we-paper-base)',
+        padding: '12px 16px 14px',
+      }}
+    >
       {/* 图片缩略图 */}
       {attachments.length > 0 && (
-        <div className="flex gap-2 mb-2">
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           {attachments.map((att, i) => (
-            <div key={i} className="relative">
+            <div key={i} style={{ position: 'relative' }}>
               <img
                 src={att.preview}
                 alt=""
-                className="h-16 w-16 object-cover rounded-lg border border-border"
+                style={{ height: '64px', width: '64px', objectFit: 'cover', borderRadius: '2px', border: '1px solid var(--we-paper-shadow)' }}
               />
               <button
                 onClick={() => removeAttachment(i)}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-text text-canvas rounded-full flex items-center justify-center text-[10px] hover:opacity-80"
+                style={{
+                  position: 'absolute', top: '-6px', right: '-6px',
+                  width: '16px', height: '16px',
+                  background: 'var(--we-ink-secondary)', color: 'var(--we-paper-base)',
+                  borderRadius: '50%', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '10px', lineHeight: 1,
+                }}
               >
                 ×
               </button>
@@ -190,15 +204,24 @@ export default function InputBox({
         </div>
       )}
 
-      <div className="relative flex items-end gap-2">
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
         {/* 附件按钮 */}
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={generating || attachments.length >= 3}
-          className="flex-none p-2 rounded-lg text-text-secondary hover:bg-sand disabled:opacity-30 transition-colors"
+          style={{
+            flexShrink: 0, padding: '8px',
+            color: 'var(--we-ink-faded)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            opacity: (generating || attachments.length >= 3) ? 0.3 : 0.6,
+            transition: 'opacity 0.15s',
+            borderRadius: '2px',
+          }}
           title="添加图片（最多3张）"
+          onMouseEnter={(e) => { if (!generating && attachments.length < 3) e.currentTarget.style.opacity = '1'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = (generating || attachments.length >= 3) ? '0.3' : '0.6'; }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
@@ -209,41 +232,74 @@ export default function InputBox({
           type="file"
           accept="image/*"
           multiple
-          className="hidden"
+          style={{ display: 'none' }}
           onChange={handleFileChange}
         />
 
         {/* 输入框 */}
-        <div className="flex-1 relative">
+        <div style={{ flex: 1, position: 'relative' }}>
           {/* Slash 命令浮层 */}
           {slashOpen && filteredCommands.length > 0 && (
-            <div className="absolute bottom-full mb-1 left-0 right-0 bg-ivory border border-border rounded-xl shadow-lg overflow-hidden z-20">
+            <div style={{
+              position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0,
+              background: 'var(--we-paper-base)',
+              border: '1px solid var(--we-paper-shadow)',
+              borderTop: '2px solid var(--we-vermilion)',
+              borderRadius: 'var(--we-radius-sm)',
+              boxShadow: '0 -4px 16px rgba(42,31,23,0.12), 0 0 0 1px rgba(42,31,23,0.05)',
+              overflow: 'hidden',
+              zIndex: 20,
+            }}>
               {filteredCommands.map((c, i) => (
                 <button
                   key={c.cmd}
                   onMouseDown={(e) => { e.preventDefault(); executeCommand(c.cmd); }}
-                  className={`w-full text-left px-4 py-2.5 flex items-baseline gap-3 transition-colors ${
-                    i === slashIndex
-                      ? 'bg-accent text-white'
-                      : 'text-text hover:bg-sand'
-                  }`}
+                  style={{
+                    width: '100%', textAlign: 'left',
+                    padding: '9px 16px',
+                    display: 'flex', alignItems: 'baseline', gap: '12px',
+                    background: i === slashIndex ? 'var(--we-paper-aged)' : 'transparent',
+                    border: 'none', cursor: 'pointer',
+                    borderLeft: i === slashIndex ? '2px solid var(--we-vermilion)' : '2px solid transparent',
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = i === slashIndex ? 'var(--we-paper-aged)' : 'transparent'; }}
                 >
-                  <span className="text-sm font-mono font-semibold w-28 shrink-0">{c.cmd}</span>
-                  <span className="text-xs opacity-70">{c.desc}</span>
+                  <span style={{
+                    fontFamily: 'var(--we-font-display)',
+                    fontSize: '13.5px',
+                    fontStyle: 'italic',
+                    color: 'var(--we-vermilion)',
+                    width: '112px',
+                    flexShrink: 0,
+                  }}>{c.cmd}</span>
+                  <span style={{
+                    fontFamily: 'var(--we-font-serif)',
+                    fontSize: '12.5px',
+                    color: 'var(--we-ink-faded)',
+                  }}>{c.desc}</span>
                 </button>
               ))}
             </div>
           )}
 
           {/* 快捷图标 */}
-          <div className="absolute right-2 top-2 flex gap-1 z-10">
+          <div style={{ position: 'absolute', right: '10px', top: '10px', display: 'flex', gap: '2px', zIndex: 10 }}>
             <button
               onClick={onContinue}
               disabled={generating}
-              className="p-1 rounded opacity-40 hover:opacity-80 transition-opacity disabled:cursor-not-allowed"
+              style={{
+                padding: '3px', background: 'none', border: 'none',
+                color: 'var(--we-ink-faded)', cursor: 'pointer',
+                opacity: generating ? 0.2 : 0.4, transition: 'opacity 0.15s',
+                borderRadius: '1px',
+              }}
               title="续写"
+              onMouseEnter={(e) => { if (!generating) e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.2' : '0.4'; }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="13 17 18 12 13 7" />
                 <polyline points="6 17 11 12 6 7" />
               </svg>
@@ -251,10 +307,17 @@ export default function InputBox({
             <button
               onClick={onImpersonate}
               disabled={generating}
-              className="p-1 rounded opacity-40 hover:opacity-80 transition-opacity disabled:cursor-not-allowed"
+              style={{
+                padding: '3px', background: 'none', border: 'none',
+                color: 'var(--we-ink-faded)', cursor: 'pointer',
+                opacity: generating ? 0.2 : 0.4, transition: 'opacity 0.15s',
+                borderRadius: '1px',
+              }}
               title="代入"
+              onMouseEnter={(e) => { if (!generating) e.currentTarget.style.opacity = '0.9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.2' : '0.4'; }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
@@ -263,14 +326,38 @@ export default function InputBox({
 
           <textarea
             ref={textareaRef}
-            className="w-full px-4 py-3 pr-20 rounded-xl border border-border bg-ivory text-text text-sm leading-relaxed resize-none outline-none focus:border-accent transition-colors placeholder:text-text-secondary placeholder:opacity-40 disabled:opacity-50"
             placeholder="发送消息… (Shift+Enter 换行，/ 调出命令)"
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
             disabled={generating}
             rows={1}
-            style={{ minHeight: '48px', overflowY: 'hidden' }}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              paddingRight: '60px',
+              background: 'rgba(0,0,0,0.025)',
+              border: '1px solid var(--we-paper-shadow)',
+              borderRadius: 'var(--we-radius-none)',
+              fontFamily: 'var(--we-font-serif)',
+              fontSize: '15px',
+              lineHeight: '1.65',
+              color: 'var(--we-ink-primary)',
+              resize: 'none',
+              outline: 'none',
+              minHeight: '48px',
+              overflowY: 'hidden',
+              opacity: generating ? 0.6 : 1,
+              transition: 'border-color 0.18s, box-shadow 0.18s',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = 'var(--we-vermilion)';
+              e.target.style.boxShadow = '0 0 0 2px rgba(162,59,46,0.12)';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = 'var(--we-paper-shadow)';
+              e.target.style.boxShadow = 'none';
+            }}
           />
         </div>
 
@@ -278,21 +365,39 @@ export default function InputBox({
         {generating ? (
           <button
             onClick={onStop}
-            className="flex-none p-2.5 rounded-xl bg-error text-white hover:opacity-90 transition-opacity"
+            style={{
+              flexShrink: 0, padding: '10px',
+              background: 'var(--we-vermilion)',
+              color: 'var(--we-paper-base)',
+              border: 'none', borderRadius: '2px',
+              cursor: 'pointer', transition: 'opacity 0.15s',
+            }}
             title="停止生成"
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="6" width="12" height="12" rx="2" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="6" width="12" height="12" rx="1" />
             </svg>
           </button>
         ) : (
           <button
             onClick={handleSend}
             disabled={!text.trim()}
-            className="flex-none p-2.5 rounded-xl bg-accent text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity"
+            style={{
+              flexShrink: 0, padding: '10px',
+              background: text.trim() ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+              color: 'var(--we-paper-base)',
+              border: 'none', borderRadius: '2px',
+              cursor: text.trim() ? 'pointer' : 'not-allowed',
+              transition: 'background 0.18s, opacity 0.15s',
+              opacity: text.trim() ? 1 : 0.5,
+            }}
             title="发送 (Enter)"
+            onMouseEnter={(e) => { if (text.trim()) e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = text.trim() ? '1' : '0.5'; }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
             </svg>

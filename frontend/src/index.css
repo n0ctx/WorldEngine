@@ -161,86 +161,109 @@ body {
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
 /* =========================================================
-   MarkdownEditor (tiptap WYSIWYG) 样式
+   MarkdownEditor (tiptap WYSIWYG) 样式 — 手稿书写风格
    ========================================================= */
 
 .we-md-editor {
-  border: 1px solid var(--we-border);
-  border-radius: var(--we-radius);
-  background: var(--we-ivory);
-  font-family: var(--we-sans);
-  font-size: 0.875rem;
-  color: var(--we-text);
-  transition: border-color 0.15s;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-paper-base);
+  color: var(--we-ink-primary);
+  overflow: hidden;
+  transition: border-color 0.18s, box-shadow 0.18s;
 }
 
 .we-md-editor:focus-within {
-  border-color: var(--we-accent);
+  border-color: var(--we-vermilion);
+  box-shadow: 0 0 0 2px rgba(162, 59, 46, 0.08);
 }
 
 /* 工具栏 */
 .we-md-toolbar {
   display: flex;
-  gap: 2px;
-  padding: 4px 6px;
-  background: var(--we-canvas);
-  border-bottom: 1px solid var(--we-border);
-  border-radius: var(--we-radius) var(--we-radius) 0 0;
+  gap: 1px;
+  padding: 5px 8px;
+  background: linear-gradient(180deg, var(--we-paper-aged) 0%, var(--we-paper-base) 100%);
+  border-bottom: 1px solid var(--we-paper-shadow);
 }
 
 .we-md-toolbar button {
-  padding: 2px 8px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-family: var(--we-sans);
-  color: var(--we-text-secondary);
+  position: relative;
+  padding: 3px 10px;
+  font-family: var(--we-font-display);
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--we-ink-faded);
   background: transparent;
   border: none;
-  border-radius: var(--we-radius-sharp);
+  border-radius: 1px;
   cursor: pointer;
-  line-height: 1.6;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  transition: color 0.15s, background 0.15s;
+}
+
+.we-md-toolbar button::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 50%;
+  right: 50%;
+  height: 1.5px;
+  background: var(--we-vermilion);
+  transition: left 0.15s, right 0.15s;
+  opacity: 0;
 }
 
 .we-md-toolbar button:hover {
-  background: var(--we-sand);
-  color: var(--we-text);
+  color: var(--we-ink-secondary);
+  background: rgba(42, 31, 23, 0.05);
 }
 
 .we-md-toolbar button.active {
-  background: var(--we-sand);
-  color: var(--we-accent);
+  color: var(--we-vermilion);
+}
+
+.we-md-toolbar button.active::after {
+  left: 6px;
+  right: 6px;
+  opacity: 1;
 }
 
 /* 编辑区 */
 .we-md-content {
-  padding: 8px 12px;
+  padding: 10px 14px;
   overflow-y: auto;
   resize: vertical;
   min-height: 60px;
   box-sizing: border-box;
-  border-bottom-left-radius: 7px;
-  border-bottom-right-radius: 7px;
+  background: var(--we-paper-base);
 }
 
-.we-md-content::-webkit-scrollbar { width: 6px; }
+.we-md-content::-webkit-scrollbar { width: 4px; }
 .we-md-content::-webkit-scrollbar-track { background: transparent; }
 .we-md-content::-webkit-scrollbar-thumb {
-  background: var(--we-border-strong);
-  border-radius: 3px;
+  background: var(--we-paper-shadow);
+  border-radius: 2px;
 }
 
 .we-md-content .ProseMirror {
   outline: none;
   min-height: inherit;
-  line-height: 1.6;
-  color: var(--we-text);
+  font-family: var(--we-font-serif);
+  font-size: 15px;
+  line-height: 1.85;
+  color: var(--we-ink-primary);
 }
 
 /* 占位符（由 @tiptap/extension-placeholder 注入） */
 .we-md-content .ProseMirror .is-editor-empty:first-child::before,
 .we-md-content .ProseMirror.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--we-text-secondary);
+  font-family: var(--we-font-serif);
+  font-style: italic;
+  color: var(--we-ink-faded);
   pointer-events: none;
   float: left;
   height: 0;
@@ -250,58 +273,139 @@ body {
 .we-md-content .ProseMirror h1,
 .we-md-content .ProseMirror h2,
 .we-md-content .ProseMirror h3 {
-  font-family: var(--we-serif);
-  color: var(--we-text);
-  margin: 0.5em 0 0.25em;
+  font-family: var(--we-font-display);
+  color: var(--we-ink-primary);
+  font-weight: 400;
+  letter-spacing: 0.02em;
   line-height: 1.3;
 }
 
-.we-md-content .ProseMirror h1 { font-size: 1.25rem; }
-.we-md-content .ProseMirror h2 { font-size: 1.1rem; }
-.we-md-content .ProseMirror h3 { font-size: 1rem; }
+.we-md-content .ProseMirror h1 {
+  font-size: 1.35rem;
+  margin: 0.8em 0 0.3em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--we-paper-shadow);
+}
+.we-md-content .ProseMirror h2 { font-size: 1.15rem; margin: 0.6em 0 0.25em; }
+.we-md-content .ProseMirror h3 { font-size: 1.02rem; margin: 0.5em 0 0.2em; }
 
-.we-md-content .ProseMirror p { margin: 0.25em 0; }
+.we-md-content .ProseMirror p { margin: 0.4em 0; }
 
-.we-md-content .ProseMirror strong { font-weight: 700; }
+.we-md-content .ProseMirror strong { font-weight: 700; color: var(--we-ink-primary); }
 .we-md-content .ProseMirror em { font-style: italic; }
 
 .we-md-content .ProseMirror code {
-  background: var(--we-canvas);
-  color: var(--we-text);
-  font-family: var(--we-mono);
-  font-size: 0.8rem;
-  border-radius: var(--we-radius-sharp);
-  padding: 1px 4px;
+  background: var(--we-paper-aged);
+  color: var(--we-ink-secondary);
+  font-family: var(--we-font-mono);
+  font-size: 0.82em;
+  border: 1px solid rgba(200, 185, 154, 0.6);
+  border-radius: 1px;
+  padding: 1px 5px;
 }
 
 .we-md-content .ProseMirror pre {
-  background: var(--we-canvas);
-  border-radius: var(--we-radius-sharp);
-  padding: 8px 12px;
+  background: linear-gradient(180deg, var(--we-paper-aged), rgba(217, 204, 176, 0.6));
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: 1px;
+  padding: 10px 14px;
   overflow-x: auto;
+  margin: 0.5em 0;
 }
 
 .we-md-content .ProseMirror pre code {
   background: transparent;
+  border: none;
   padding: 0;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .we-md-content .ProseMirror blockquote {
-  border-left: 3px solid var(--we-accent);
-  color: var(--we-text-secondary);
-  background: var(--we-canvas);
-  padding: 4px 12px;
-  margin: 0.5em 0;
-  border-radius: 0 var(--we-radius-sharp) var(--we-radius-sharp) 0;
+  border-left: 2.5px solid var(--we-gold-leaf);
+  background: rgba(184, 168, 130, 0.15);
+  color: var(--we-ink-secondary);
+  padding: 6px 14px;
+  margin: 0.6em 0;
+  font-style: italic;
+  border-radius: 0 1px 1px 0;
 }
 
 .we-md-content .ProseMirror ul,
 .we-md-content .ProseMirror ol {
-  padding-left: 1.5em;
-  margin: 0.25em 0;
+  padding-left: 1.6em;
+  margin: 0.35em 0;
 }
 
-.we-md-content .ProseMirror li { margin: 0.1em 0; }
+.we-md-content .ProseMirror li { margin: 0.15em 0; }
+.we-md-content .ProseMirror ul li::marker { color: var(--we-vermilion); }
+.we-md-content .ProseMirror ol li::marker { color: var(--we-ink-faded); }
+
+/* =========================================================
+   ModelCombobox 焦点态
+   ========================================================= */
+
+.we-combobox-wrap:focus-within {
+  border-color: var(--we-vermilion) !important;
+  box-shadow: 0 0 0 2px rgba(162, 59, 46, 0.08);
+}
+
+/* =========================================================
+   Range 滑条 — 全平台定制
+   ========================================================= */
+
+.we-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--we-vermilion) 0%,
+    var(--we-vermilion) calc(var(--range-pct, 0%) ),
+    var(--we-paper-shadow) calc(var(--range-pct, 0%)),
+    var(--we-paper-shadow) 100%
+  );
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  border: none;
+}
+
+.we-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--we-paper-base);
+  border: 2px solid var(--we-vermilion);
+  box-shadow: 0 1px 4px rgba(42,31,23,0.18);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.we-range::-webkit-slider-thumb:hover,
+.we-range:focus::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 0 3px rgba(162,59,46,0.15), 0 1px 4px rgba(42,31,23,0.18);
+}
+
+.we-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--we-paper-base);
+  border: 2px solid var(--we-vermilion);
+  box-shadow: 0 1px 4px rgba(42,31,23,0.18);
+  cursor: pointer;
+}
+
+.we-range::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--we-paper-shadow);
+}
 
 /* =========================================================
    StatePanel 档案侧页（T64 重打磨）
@@ -399,6 +503,9 @@ body {
     transparent 100%
   );
   opacity: 0.7;
+  box-shadow:
+    0 1px 0 rgba(201, 168, 90, 0.40),
+    0 -0.5px 0 rgba(0, 0, 0, 0.10);
 }
 .we-panel-divider-gem {
   font-size: 7px;
@@ -406,6 +513,9 @@ body {
   opacity: 0.8;
   flex-shrink: 0;
   line-height: 1;
+  text-shadow:
+    0 1px 0 rgba(201, 168, 90, 0.45),
+    0 -0.5px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* ── 内容区 ─── */
@@ -651,6 +761,9 @@ body {
   height: 1px;
   background: linear-gradient(to right, transparent, var(--we-paper-shadow), transparent);
   display: block;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.32),
+    0 -0.5px 0 rgba(42, 31, 23, 0.08);
 }
 .we-fleuron-symbol {
   font-family: var(--we-font-display);
@@ -658,6 +771,9 @@ body {
   color: var(--we-paper-deep);
   line-height: 1;
   flex-shrink: 0;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.40),
+    0 -0.5px 0 rgba(42, 31, 23, 0.12);
 }
 
 /* ── 页脚（PageFooter）────────────────────────────────────────── */

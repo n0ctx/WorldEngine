@@ -66,35 +66,29 @@ export default function EntryEditor({ entry, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-xl flex flex-col max-h-[90vh]">
-        {/* 标题栏 */}
-        <div className="px-6 py-5 border-b border-border flex-shrink-0">
-          <h2 className="text-lg font-semibold text-text">
-            {entry ? '编辑条目' : '新建条目'}
-          </h2>
+      <div className="we-dialog-panel w-full max-w-xl flex flex-col max-h-[90vh]">
+        <div className="we-dialog-header">
+          <h2>{entry ? '编辑条目' : '新建条目'}</h2>
         </div>
 
-        {/* 表单内容 */}
-        <div className="px-6 py-5 flex flex-col gap-4 overflow-y-auto">
-          {/* 标题 */}
+        <div className="we-dialog-body flex flex-col gap-4">
           <div>
-            <label className="block text-sm text-text-secondary mb-1">
-              标题 <span className="text-red-400">*</span>
+            <label className="we-dialog-label">
+              标题 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
             </label>
             <input
               autoFocus
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+              className="we-input"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="条目标题"
             />
           </div>
 
-          {/* 简介 */}
           <div>
-            <label className="block text-sm text-text-secondary mb-1">
+            <label className="we-dialog-label">
               简介
-              <span className="text-text-secondary opacity-50 ml-1 text-xs">（约 50 字，未触发时注入）</span>
+              <span className="we-dialog-hint">（约 50 字，未触发时注入）</span>
             </label>
             <MarkdownEditor
               value={summary}
@@ -104,9 +98,8 @@ export default function EntryEditor({ entry, onSave, onClose }) {
             />
           </div>
 
-          {/* 正文 */}
           <div>
-            <label className="block text-sm text-text-secondary mb-1">正文</label>
+            <label className="we-dialog-label">正文</label>
             <MarkdownEditor
               value={content}
               onChange={setContent}
@@ -115,34 +108,24 @@ export default function EntryEditor({ entry, onSave, onClose }) {
             />
           </div>
 
-          {/* 关键词 */}
           <div>
-            <label className="block text-sm text-text-secondary mb-1">
+            <label className="we-dialog-label">
               关键词
-              <span className="text-text-secondary opacity-50 ml-1 text-xs">（回车添加，作为触发关键词）</span>
+              <span className="we-dialog-hint">（回车添加，作为触发关键词）</span>
             </label>
-            <div
-              className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
-              onClick={() => kwRef.current?.focus()}
-            >
+            <div className="we-tag-input" onClick={() => kwRef.current?.focus()}>
               {keywords.map((kw) => (
-                <span
-                  key={kw}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md"
-                >
+                <span key={kw} className="we-tag">
                   {kw}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removeKeyword(kw); }}
-                    className="opacity-60 hover:opacity-100 transition-opacity leading-none"
-                  >
-                    ×
-                  </button>
+                  >×</button>
                 </span>
               ))}
               <input
                 ref={kwRef}
-                className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
+                className="we-tag-input-field"
                 value={kwInput}
                 onChange={(e) => setKwInput(e.target.value)}
                 onKeyDown={handleKwKeyDown}
@@ -152,22 +135,16 @@ export default function EntryEditor({ entry, onSave, onClose }) {
             </div>
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }}>
+              {error}
+            </p>
+          )}
         </div>
 
-        {/* 底部按钮 */}
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3 flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
+        <div className="we-dialog-footer">
+          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
+          <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
             {saving ? '保存中…' : '保存'}
           </button>
         </div>

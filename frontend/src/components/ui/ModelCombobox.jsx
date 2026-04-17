@@ -69,7 +69,17 @@ export default function ModelCombobox({
 
   return (
     <div ref={containerRef} className={['relative w-full', className].filter(Boolean).join(' ')}>
-      <div className="flex items-center w-full bg-ivory border border-border rounded-lg overflow-hidden focus-within:border-accent transition-colors">
+      <div style={{
+        display: 'flex', alignItems: 'center', width: '100%',
+        background: 'rgba(0,0,0,0.03)',
+        border: '1px solid var(--we-paper-shadow)',
+        borderRadius: 'var(--we-radius-none)',
+        overflow: 'hidden',
+        transition: 'border-color 0.18s, box-shadow 0.18s',
+      }}
+        onFocus={() => {}}
+        className="we-combobox-wrap"
+      >
         <input
           type="text"
           value={inputValue}
@@ -78,39 +88,66 @@ export default function ModelCombobox({
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder}
-          className="flex-1 px-3 py-2 bg-transparent text-text text-sm focus:outline-none disabled:opacity-40 placeholder:text-text-tertiary"
+          style={{
+            flex: 1, padding: '9px 12px',
+            background: 'transparent',
+            fontFamily: 'var(--we-font-serif)',
+            fontSize: '14.5px',
+            color: 'var(--we-ink-primary)',
+            border: 'none', outline: 'none',
+          }}
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={handleToggle}
           disabled={disabled}
-          className="px-2 py-2 text-text-tertiary hover:text-text transition-colors disabled:opacity-40"
+          style={{
+            padding: '8px 10px',
+            color: 'var(--we-ink-faded)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            transition: 'color 0.15s',
+          }}
           aria-label={open ? '收起列表' : '展开列表'}
         >
           <svg
-            className={['w-4 h-4 transition-transform duration-150', open ? 'rotate-180' : ''].filter(Boolean).join(' ')}
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+            style={{ width: 14, height: 14, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
+            viewBox="0 0 16 16" fill="none" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
           >
             <path d="M4 6l4 4 4-4" />
           </svg>
         </button>
       </div>
       {open && filtered.length > 0 && (
-        <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-ivory border border-border rounded-lg shadow-whisper overflow-y-auto max-h-[12rem] py-1">
+        <ul style={{
+          position: 'absolute', zIndex: 50,
+          top: 'calc(100% + 2px)', left: 0, right: 0,
+          background: 'var(--we-paper-base)',
+          border: '1px solid var(--we-paper-shadow)',
+          borderRadius: 'var(--we-radius-sm)',
+          boxShadow: '0 4px 16px rgba(42,31,23,0.14)',
+          overflow: 'hidden', overflowY: 'auto',
+          maxHeight: '12rem',
+          padding: '4px 0',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--we-paper-shadow) transparent',
+        }}>
           {filtered.map((option) => (
             <li
               key={option}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
-              className={[
-                'px-3 py-2 text-sm cursor-pointer select-none hover:bg-canvas transition-colors',
-                option === value ? 'text-accent' : 'text-text',
-              ].join(' ')}
+              style={{
+                padding: '7px 14px',
+                fontFamily: 'var(--we-font-serif)',
+                fontSize: '14px',
+                color: option === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
+                cursor: 'pointer', userSelect: 'none',
+                transition: 'background 0.12s',
+                listStyle: 'none',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
               {option}
             </li>

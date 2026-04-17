@@ -77,24 +77,26 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
       className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-canvas border border-border rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-text">
-            {rule ? '编辑规则' : '新建规则'}
-          </h3>
+      <div className="we-dialog-panel w-full max-w-lg max-h-[90vh] flex flex-col">
+        <div className="we-dialog-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3>{rule ? '编辑规则' : '新建规则'}</h3>
           <button
             onClick={onClose}
-            className="text-text-secondary opacity-50 hover:opacity-100 transition-opacity text-lg leading-none"
+            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '18px', color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, opacity: 0.6, transition: 'opacity 0.15s' }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
           >
             ×
           </button>
         </div>
 
+        <div className="we-dialog-body flex flex-col gap-4">
+
         {/* 名称 */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">规则名称</label>
+          <label className="we-dialog-label">规则名称</label>
           <input
-            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+            className="we-input"
             value={form.name}
             onChange={(e) => setField('name', e.target.value)}
             placeholder="便于识别的名称"
@@ -103,7 +105,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 作用时机 */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">作用时机</label>
+          <label className="we-dialog-label">作用时机</label>
           <Select
             value={form.scope}
             onChange={(v) => setField('scope', v)}
@@ -113,7 +115,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 作用世界 */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">作用范围</label>
+          <label className="we-dialog-label">作用范围</label>
           <Select
             value={form.world_id ?? ''}
             onChange={(v) => setField('world_id', v || null)}
@@ -126,9 +128,10 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 正则表达式 */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">正则表达式</label>
+          <label className="we-dialog-label">正则表达式</label>
           <input
-            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent"
+            className="we-input"
+            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13.5px' }}
             value={form.pattern}
             onChange={(e) => setField('pattern', e.target.value)}
             placeholder="不含 / 分隔符和 flags，如：哈哈"
@@ -137,9 +140,10 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* 替换文本 */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">替换文本</label>
+          <label className="we-dialog-label">替换文本</label>
           <input
-            className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent"
+            className="we-input"
+            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13.5px' }}
             value={form.replacement}
             onChange={(e) => setField('replacement', e.target.value)}
             placeholder="支持 $1 $2 等回引，留空表示删除匹配部分"
@@ -148,7 +152,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
         {/* Flags */}
         <div>
-          <label className="block text-sm text-text-secondary mb-1">Flags</label>
+          <label className="we-dialog-label">Flags</label>
           <div className="flex gap-2 flex-wrap">
             {FLAGS_PRESETS.map((f) => (
               <button
@@ -202,44 +206,33 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         </div>
 
         {/* 测试区 */}
-        <div className="border border-border rounded-xl p-4 flex flex-col gap-2 bg-ivory">
-          <span className="text-xs text-text-secondary opacity-60 font-medium uppercase tracking-wide">测试</span>
+        <div style={{ border: '1px solid var(--we-paper-shadow)', borderRadius: '2px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.02)' }}>
+          <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.2em', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>测试替换</span>
           <textarea
-            className="w-full px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent resize-none"
+            className="we-textarea"
+            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', minHeight: '64px' }}
             rows={3}
             placeholder="输入样本文本…"
             value={testInput}
             onChange={(e) => setTestInput(e.target.value)}
           />
-          <button
-            onClick={handleTest}
-            className="self-start px-3 py-1.5 text-sm border border-border rounded-lg text-text hover:border-accent transition-colors"
-          >
-            测试替换
+          <button onClick={handleTest} className="we-btn we-btn-sm" style={{ alignSelf: 'flex-start' }}>
+            测试
           </button>
           {testError && (
-            <p className="text-xs text-red-400 font-mono">{testError}</p>
+            <p style={{ fontFamily: 'var(--we-font-mono)', fontSize: '12px', color: 'var(--we-vermilion)' }}>{testError}</p>
           )}
           {testOutput !== null && !testError && (
-            <div className="px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm font-mono whitespace-pre-wrap">
+            <div style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', color: 'var(--we-ink-secondary)', background: 'var(--we-paper-aged)', border: '1px solid var(--we-paper-shadow)', padding: '6px 10px', borderRadius: '1px', whiteSpace: 'pre-wrap' }}>
               {testOutput}
             </div>
           )}
         </div>
 
-        {/* 操作按钮 */}
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm border border-border rounded-lg text-text hover:bg-sand transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
+        </div>
+        <div className="we-dialog-footer">
+          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
+          <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
             {saving ? '保存中…' : '保存'}
           </button>
         </div>

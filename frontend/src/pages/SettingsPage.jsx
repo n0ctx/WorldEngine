@@ -224,10 +224,11 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange }) {
           </div>
           <input
             type="range"
+            className="we-range"
             min="0.1" max="2.0" step="0.1"
             value={llm.temperature ?? 0.8}
             onChange={(e) => onLlmChange('temperature', parseFloat(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--we-vermilion)' }}
+            style={{ '--range-pct': `${((llm.temperature ?? 0.8) - 0.1) / (2.0 - 0.1) * 100}%` }}
           />
         </div>
 

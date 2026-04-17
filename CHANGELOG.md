@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T76 — 全局 UI 羊皮纸化：对话框、输入栏、Markdown 渲染优化 ✅
+- **对外接口**：新增 CSS 类 `.we-dialog-panel / .we-dialog-header / .we-dialog-body / .we-dialog-footer / .we-dialog-label / .we-dialog-hint / .we-tag-input / .we-tag / .we-tag-input-field / .we-range`；`Select.jsx` 和 `ModelCombobox.jsx` 全部改为 inline style（无 Tailwind 依赖）
+- **涉及文件**：`ui.css`（新增 dialog/tag/range 类）、`index.css`（MarkdownEditor Tiptap 重设计、`we-range` 样式、combobox focus 样式）、`chat.css`（h1-h3、blockquote、table、hr、del、GFM 任务列表补全）、`InputBox.jsx`（输入栏羊皮纸化、斜杠命令弹层重设计）、`Select.jsx`（全面 inline style 改造）、`ModelCombobox.jsx`（inline style 改造）、`EntryEditor.jsx`、`EntryList.jsx`、`StateFieldEditor.jsx`、`StateFieldList.jsx`、`RegexRuleEditor.jsx`（均换用 `.we-dialog-panel` 系列类）、`SettingsPage.jsx`（temperature 滑条用 `we-range` + CSS 变量驱动填充）、`MessageItem.jsx`（移除 MD_COMPONENTS 内联样式，改由 CSS 控制）
+- **注意**：`Select.jsx` 与 `ModelCombobox.jsx` 视觉完全对齐，下拉选项悬浮色用 `var(--we-paper-aged)`，选中项用 `var(--we-vermilion)`；`we-range` 通过 `--range-pct` CSS 变量驱动已选填充渐变，需在 JSX 中通过 `style={{ '--range-pct': '...' }}` 传入；斜杠命令弹层顶部有 2px 朱砂上边框、选中项左侧有 2px 朱砂竖线指示
+
 ## T75 — 代码简化与气泡宽度修复 ✅
 - **对外接口**：`CharacterSeal` 新增 `color` prop（默认 `var(--we-vermilion)`），persona 印章传 `color="var(--we-amber)"`
 - **涉及文件**：`CharacterSeal.jsx`（color prop）、`MessageItem.jsx`（删除 PersonaSeal，改用 CharacterSeal）、`BookSpread.jsx`（移除 Bookmark）、`chat.css`（用户气泡宽度改 `fit-content + max-width 420px`）、`turn-summarizer.js`（getTurnRecordById 改静态 import）

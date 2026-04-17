@@ -176,13 +176,16 @@ function DeleteConfirm({ onConfirm, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-text mb-2">确认删除字段</h2>
-        <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
+      <div className="we-dialog-panel w-full max-w-sm mx-4" style={{ padding: '24px' }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '17px', fontWeight: 400, fontStyle: 'italic', color: 'var(--we-ink-primary)', marginBottom: '10px' }}>
+          确认删除字段
+        </h2>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: '20px' }}>
+          此操作无法撤销。
+        </p>
         <div className="flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">取消</button>
-          <button onClick={handle} disabled={deleting}
-            className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50">
+          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
+          <button onClick={handle} disabled={deleting} className="we-btn we-btn-sm we-btn-danger">
             {deleting ? '删除中…' : '确认删除'}
           </button>
         </div>

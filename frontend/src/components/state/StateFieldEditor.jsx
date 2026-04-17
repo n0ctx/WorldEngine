@@ -21,9 +21,8 @@ const TRIGGER_MODE_OPTIONS = [
   { value: 'keyword_based',  label: '关键词触发' },
 ];
 
-const inputCls = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
-const selectCls = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
-const labelCls = 'block text-sm text-text-secondary mb-1';
+const inputCls = 'we-input';
+const labelCls = 'we-dialog-label';
 
 /**
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
@@ -143,23 +142,21 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-lg flex flex-col max-h-[90vh]">
-        <div className="px-6 py-4 border-b border-border flex-shrink-0">
-          <h2 className="text-base font-semibold text-text">
-            {field ? '编辑字段' : '新建字段'}
-          </h2>
+      <div className="we-dialog-panel w-full max-w-lg flex flex-col max-h-[90vh]">
+        <div className="we-dialog-header">
+          <h2>{field ? '编辑字段' : '新建字段'}</h2>
         </div>
 
-        <div className="px-6 py-4 flex flex-col gap-4 overflow-y-auto">
+        <div className="we-dialog-body flex flex-col gap-4">
           {/* 基础信息 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>label <span className="text-red-400">*</span></label>
+              <label className={labelCls}>label <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
               <input className={inputCls} value={form.label}
                 onChange={(e) => set('label', e.target.value)} placeholder="显示名称" />
             </div>
             <div>
-              <label className={labelCls}>field_key <span className="text-red-400">*</span></label>
+              <label className={labelCls}>field_key <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
               <input className={inputCls} value={form.field_key}
                 onChange={(e) => set('field_key', e.target.value.replace(/\s/g, '_'))}
                 placeholder="唯一标识符" disabled={!!field} />
@@ -168,7 +165,7 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
 
           {/* 类型 */}
           <div>
-            <label className={labelCls}>类型 <span className="text-red-400">*</span></label>
+            <label className={labelCls}>类型 <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
             <Select value={form.type} onChange={(v) => set('type', v)} options={TYPE_OPTIONS} />
           </div>
 
@@ -176,19 +173,14 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           {form.type === 'enum' && (
             <div>
               <label className={labelCls}>枚举选项（回车添加）</label>
-              <div
-                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
-                onClick={() => enumRef.current?.focus()}
-              >
+              <div className="we-tag-input" onClick={() => enumRef.current?.focus()}>
                 {form.enum_options.map((v) => (
-                  <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
+                  <span key={v} className="we-tag">
                     {v}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeEnum(v); }}
-                      className="opacity-60 hover:opacity-100">×</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removeEnum(v); }}>×</button>
                   </span>
                 ))}
-                <input ref={enumRef}
-                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
+                <input ref={enumRef} className="we-tag-input-field"
                   value={enumInput} onChange={(e) => setEnumInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); addEnum(enumInput); }
@@ -207,19 +199,14 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           {form.type === 'list' && (
             <div>
               <label className={labelCls}>默认条目（回车添加）</label>
-              <div
-                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
-                onClick={() => listDefRef.current?.focus()}
-              >
+              <div className="we-tag-input" onClick={() => listDefRef.current?.focus()}>
                 {form.list_defaults.map((v) => (
-                  <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
+                  <span key={v} className="we-tag">
                     {v}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeListDef(v); }}
-                      className="opacity-60 hover:opacity-100">×</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removeListDef(v); }}>×</button>
                   </span>
                 ))}
-                <input ref={listDefRef}
-                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
+                <input ref={listDefRef} className="we-tag-input-field"
                   value={listDefInput} onChange={(e) => setListDefInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); addListDef(listDefInput); }
@@ -286,19 +273,14 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
           {form.update_mode !== 'manual' && form.trigger_mode === 'keyword_based' && (
             <div>
               <label className={labelCls}>触发关键词（回车添加）</label>
-              <div
-                className="w-full min-h-[42px] px-2 py-1.5 bg-ivory border border-border rounded-lg flex flex-wrap gap-1.5 cursor-text focus-within:border-accent"
-                onClick={() => kwRef.current?.focus()}
-              >
+              <div className="we-tag-input" onClick={() => kwRef.current?.focus()}>
                 {form.trigger_keywords.map((kw) => (
-                  <span key={kw} className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent/10 text-accent text-xs rounded-md">
+                  <span key={kw} className="we-tag">
                     {kw}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeKw(kw); }}
-                      className="opacity-60 hover:opacity-100">×</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removeKw(kw); }}>×</button>
                   </span>
                 ))}
-                <input ref={kwRef}
-                  className="flex-1 min-w-[80px] bg-transparent outline-none text-sm text-text placeholder:text-text-secondary placeholder:opacity-40"
+                <input ref={kwRef} className="we-tag-input-field"
                   value={kwInput} onChange={(e) => setKwInput(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') { e.preventDefault(); addKw(kwInput); }
@@ -321,16 +303,16 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
               placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值" />
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && (
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }}>
+              {error}
+            </p>
+          )}
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex justify-end gap-3 flex-shrink-0">
-          <button onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors">
-            取消
-          </button>
-          <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50">
+        <div className="we-dialog-footer">
+          <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">取消</button>
+          <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
             {saving ? '保存中…' : '保存'}
           </button>
         </div>

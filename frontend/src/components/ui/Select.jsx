@@ -37,13 +37,27 @@ export default function Select({
         type="button"
         onClick={() => !disabled && setOpen((p) => !p)}
         disabled={disabled}
-        className="w-full flex items-center justify-between px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm text-left focus:outline-none focus:border-accent hover:border-accent transition-colors disabled:opacity-40"
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '9px 12px',
+          background: 'rgba(0,0,0,0.03)',
+          border: `1px solid var(--we-paper-shadow)`,
+          borderRadius: 'var(--we-radius-none)',
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '14.5px',
+          color: selected ? 'var(--we-ink-primary)' : 'var(--we-ink-faded)',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.5 : 1,
+          outline: 'none',
+          transition: 'border-color 0.18s, box-shadow 0.18s',
+          textAlign: 'left',
+        }}
+        onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.borderColor = 'var(--we-vermilion)'; }}
+        onMouseLeave={(e) => { if (!open) e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'; }}
       >
-        <span className={selected ? 'text-text' : 'text-text-tertiary'}>
-          {selected ? selected.label : '—'}
-        </span>
+        <span>{selected ? selected.label : '—'}</span>
         <svg
-          className={['w-4 h-4 flex-shrink-0 text-text-tertiary transition-transform duration-150', open ? 'rotate-180' : ''].filter(Boolean).join(' ')}
+          style={{ width: 14, height: 14, flexShrink: 0, color: 'var(--we-ink-faded)', transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
           viewBox="0 0 16 16"
           fill="none"
           stroke="currentColor"
@@ -55,15 +69,35 @@ export default function Select({
         </svg>
       </button>
       {open && (
-        <ul className="absolute z-50 top-full left-0 right-0 mt-1 bg-ivory border border-border rounded-lg shadow-whisper overflow-y-auto max-h-[12rem] py-1">
+        <ul style={{
+          position: 'absolute', zIndex: 50,
+          top: 'calc(100% + 2px)', left: 0, right: 0,
+          background: 'var(--we-paper-base)',
+          border: '1px solid var(--we-paper-shadow)',
+          borderRadius: 'var(--we-radius-sm)',
+          boxShadow: '0 4px 16px rgba(42,31,23,0.14)',
+          overflowY: 'auto',
+          maxHeight: '12rem',
+          padding: '4px 0',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--we-paper-shadow) transparent',
+        }}>
           {options.map((option) => (
             <li
               key={option.value}
               onMouseDown={(e) => { e.preventDefault(); handleSelect(option.value); }}
-              className={[
-                'px-3 py-2 text-sm cursor-pointer select-none hover:bg-canvas transition-colors',
-                option.value === value ? 'text-accent' : 'text-text',
-              ].join(' ')}
+              style={{
+                padding: '7px 14px',
+                fontFamily: 'var(--we-font-serif)',
+                fontSize: '14px',
+                color: option.value === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
+                cursor: 'pointer',
+                userSelect: 'none',
+                listStyle: 'none',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
             >
               {option.label}
             </li>

@@ -10,16 +10,21 @@
   background: transparent;
   color: var(--we-ink-secondary);
   cursor: pointer;
-  transition: all 0.18s;
+  transition: all 0.18s, box-shadow 0.05s, transform 0.05s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1.4;
   text-decoration: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(42, 31, 23, 0.08);
 }
 .we-btn:hover:not(:disabled) {
   border-color: var(--we-ink-faded);
   background: rgba(0, 0, 0, 0.03);
+}
+.we-btn:active:not(:disabled) {
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
+  transform: translateY(0.5px);
 }
 .we-btn:disabled {
   opacity: 0.5;
@@ -40,11 +45,19 @@
 .we-btn-primary {
   background: var(--we-vermilion);
   color: var(--we-paper-base);
-  border-color: var(--we-vermilion);
+  border-color: var(--we-vermilion-deep);
+  box-shadow: var(--we-shadow-stamp-up);
+  transition: background 0.18s, box-shadow 0.05s, transform 0.05s;
 }
 .we-btn-primary:hover:not(:disabled) {
   background: var(--we-vermilion-deep);
   border-color: var(--we-vermilion-deep);
+  box-shadow: var(--we-shadow-stamp-up), inset 0 0 12px rgba(255, 200, 160, 0.08);
+  transform: translateY(-1px);
+}
+.we-btn-primary:active:not(:disabled) {
+  box-shadow: var(--we-shadow-stamp-down);
+  transform: translateY(1px);
 }
 
 /* variant: secondary */
@@ -163,4 +176,130 @@
   color: var(--we-vermilion-deep);
   border-color: var(--we-vermilion-deep);
   background: var(--we-vermilion-bg);
+}
+
+/* ── Dialog Panel ── */
+.we-dialog-panel {
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-top: 2px solid var(--we-vermilion);
+  border-radius: var(--we-radius-sm);
+  box-shadow:
+    0 0 0 1px rgba(42, 31, 23, 0.07),
+    0 4px 18px rgba(42, 31, 23, 0.13),
+    0 16px 48px rgba(42, 31, 23, 0.17);
+}
+
+.we-dialog-header {
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--we-paper-shadow);
+  flex-shrink: 0;
+}
+
+.we-dialog-header h2,
+.we-dialog-header h3 {
+  font-family: var(--we-font-display);
+  font-size: 18px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--we-ink-primary);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.we-dialog-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
+}
+
+.we-dialog-body::-webkit-scrollbar { width: 4px; }
+.we-dialog-body::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: 2px; }
+.we-dialog-body::-webkit-scrollbar-track { background: transparent; }
+
+.we-dialog-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--we-paper-shadow);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.we-dialog-label {
+  display: block;
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--we-ink-secondary);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+}
+
+.we-dialog-hint {
+  font-family: var(--we-font-serif);
+  font-size: 11.5px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+/* 关键词/枚举 tag 容器 */
+.we-tag-input {
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.025);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-none);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  cursor: text;
+  transition: border-color 0.18s;
+}
+
+.we-tag-input:focus-within {
+  border-color: var(--we-ink-faded);
+}
+
+.we-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  background: var(--we-vermilion-bg);
+  border: 1px solid rgba(162, 59, 46, 0.25);
+  border-radius: 1px;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-vermilion);
+  letter-spacing: 0.02em;
+}
+
+.we-tag button {
+  color: var(--we-vermilion);
+  opacity: 0.55;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  transition: opacity 0.15s;
+}
+
+.we-tag button:hover { opacity: 1; }
+
+.we-tag-input-field {
+  flex: 1;
+  min-width: 80px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+  color: var(--we-ink-primary);
 }
