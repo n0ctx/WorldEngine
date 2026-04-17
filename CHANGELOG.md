@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T73 — CharactersPage 羊皮纸化改造 ✅
+- **对外接口**：无新增 API
+- **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（全量重构样式）、`frontend/src/styles/pages.css`（追加 `.we-characters-*` 和 `.we-persona-*` 锚点样式块）
+- **注意**：`AvatarCircle` 改为 `style` 内联 `width/height` 数值，移除 Tailwind sizeClass；`--we-vermilion-muted` 未定义，已用 fallback `var(--we-vermilion-muted, var(--we-vermilion))` 兜底；导航"← 所有世界"按钮 hover 效果通过 `onMouseEnter/onMouseLeave` 实现；文件输入框保留 `className="hidden"`（Tailwind base utilities）
+
 ## T72（部分）— 羽毛笔光标 + 盖印动画 ✅
 - **对外接口**：新增 `SealStampAnimation`（Props: `trigger: number | visible: boolean, text?: string`）；新增 `QuillCursor`（Props: `visible: boolean`）
 - **涉及文件**：新建 `frontend/src/components/book/QuillCursor.jsx`、`frontend/src/components/book/SealStampAnimation.jsx`；修改 `frontend/src/pages/CharacterEditPage.jsx`（导出成功触发盖印）、`frontend/src/pages/WorldEditPage.jsx`（同）；追加 `frontend/src/index.css`（`@keyframes quill-blink` + `.we-quill-cursor`）

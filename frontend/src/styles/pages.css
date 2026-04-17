@@ -257,6 +257,235 @@
   letter-spacing: 0.15em;
 }
 
+/* ── CharactersPage 角色名册 ── */
+
+.we-characters-canvas {
+  background: var(--we-book-bg);
+  min-height: 100vh;
+  padding: 40px 32px;
+  position: relative;
+}
+
+.we-characters-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.we-characters-title {
+  font-family: var(--we-font-display);
+  font-size: 26px;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--we-paper-base);
+  letter-spacing: 0.03em;
+}
+
+.we-characters-subtitle {
+  font-family: var(--we-font-serif);
+  font-size: 11px;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: var(--we-paper-shadow);
+  margin-top: 4px;
+}
+
+.we-characters-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.we-characters-action-btn {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  color: var(--we-paper-shadow);
+  background: none;
+  border: 1px solid var(--we-paper-deep);
+  border-radius: var(--we-radius-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.we-characters-action-btn:hover {
+  color: var(--we-paper-base);
+  border-color: var(--we-paper-base);
+}
+
+.we-characters-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.we-characters-create-btn {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  color: var(--we-paper-base);
+  background: var(--we-vermilion);
+  border: none;
+  border-radius: var(--we-radius-sm);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.we-characters-create-btn:hover {
+  opacity: 0.88;
+}
+
+.we-characters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.we-character-card {
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-md);
+  padding: 16px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.we-character-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.10);
+}
+
+.we-character-card:hover .we-character-card-actions {
+  opacity: 1;
+}
+
+.we-character-card-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.we-character-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.we-character-card-name {
+  font-family: var(--we-font-display);
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--we-ink-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-character-card-desc {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-secondary);
+  margin-top: 3px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.we-character-card-desc-empty {
+  color: var(--we-ink-faded);
+  font-style: italic;
+}
+
+.we-character-card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.we-character-card-action-btn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--we-radius-sm);
+  color: var(--we-ink-faded);
+  transition: color 0.12s, background 0.12s;
+}
+
+.we-character-card-action-btn:hover {
+  color: var(--we-ink-primary);
+  background: var(--we-paper-shadow);
+}
+
+.we-character-card-action-btn.danger:hover {
+  color: var(--we-vermilion);
+  background: var(--we-vermilion-bg);
+}
+
+.we-persona-section-label {
+  font-family: var(--we-font-serif);
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--we-ink-faded);
+  margin-bottom: 8px;
+}
+
+.we-persona-card-wrap {
+  background: var(--we-paper-aged);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-md);
+  padding: 14px 16px;
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.we-persona-empty-hint {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--we-ink-faded);
+}
+
+.we-characters-empty {
+  text-align: center;
+  padding: 80px 0;
+  color: var(--we-ink-faded);
+}
+
+.we-characters-empty-icon {
+  font-size: 36px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.we-characters-empty-text {
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+}
+
+.we-characters-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+  color: var(--we-ink-faded);
+}
+
 /* ── 编辑页单页羊皮纸布局 ── */
 
 .we-edit-canvas {
