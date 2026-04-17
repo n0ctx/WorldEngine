@@ -246,6 +246,12 @@ CREATE TABLE IF NOT EXISTS turn_records (
   created_at      INTEGER NOT NULL,
   UNIQUE(session_id, round_index)
 );
+
+CREATE TABLE IF NOT EXISTS internal_meta (
+  key             TEXT PRIMARY KEY,
+  value           TEXT NOT NULL,
+  updated_at      INTEGER NOT NULL
+);
 `;
 
 const INDEXES = `
@@ -317,4 +323,99 @@ export function initSchema(db) {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
   // per-turn 摘要系统：新增 turn_records 表索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
+
+  migrateLegacyAutoFilledNullStateValues(db);
+}
+
+function migrateLegacyAutoFilledNullStateValues(db) {
+  const key = 'migration:t56_clear_legacy_auto_filled_null_state_values';
+  const applied = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key);
+  if (applied?.value === '1') return;
+
+  // 仅清理旧版本自动写入的占位默认值：
+  // 1) 字段本身没有 default_value
+  // 2) 值等于旧逻辑注入的类型默认值
+  // 3) updated_at 非常接近对象/字段创建时刻，缩小误伤范围
+  const WINDOW_MS = 10_000;
+  const now = Date.now();
+
+  db.exec('BEGIN');
+  try {
+    db.prepare(`
+      UPDATE world_state_values
+      SET value_json = NULL
+      WHERE id IN (
+        SELECT wsv.id
+        FROM world_state_values wsv
+        JOIN world_state_fields wsf
+          ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+        JOIN worlds w
+          ON w.id = wsv.world_id
+        WHERE wsf.default_value IS NULL
+          AND wsv.updated_at <= w.created_at + ?
+          AND (
+            (wsf.type = 'text' AND wsv.value_json = '""') OR
+            (wsf.type = 'number' AND wsv.value_json = '0') OR
+            (wsf.type = 'boolean' AND wsv.value_json = 'false') OR
+            (wsf.type = 'list' AND wsv.value_json = '[]')
+          )
+      )
+    `).run(WINDOW_MS);
+
+    db.prepare(`
+      UPDATE character_state_values
+      SET value_json = NULL
+      WHERE id IN (
+        SELECT csv.id
+        FROM character_state_values csv
+        JOIN characters c
+          ON c.id = csv.character_id
+        JOIN character_state_fields csf
+          ON csf.world_id = c.world_id AND csf.field_key = csv.field_key
+        WHERE csf.default_value IS NULL
+          AND csv.updated_at <= c.created_at + ?
+          AND (
+            (csf.type = 'text' AND csv.value_json = '""') OR
+            (csf.type = 'number' AND csv.value_json = '0') OR
+            (csf.type = 'boolean' AND csv.value_json = 'false') OR
+            (csf.type = 'list' AND csv.value_json = '[]')
+          )
+      )
+    `).run(WINDOW_MS);
+
+    db.prepare(`
+      UPDATE persona_state_values
+      SET value_json = NULL
+      WHERE id IN (
+        SELECT psv.id
+        FROM persona_state_values psv
+        JOIN persona_state_fields psf
+          ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+        JOIN worlds w
+          ON w.id = psv.world_id
+        WHERE psf.default_value IS NULL
+          AND (
+            psv.updated_at <= w.created_at + ?
+            OR psv.updated_at <= psf.created_at + ?
+          )
+          AND (
+            (psf.type = 'text' AND psv.value_json = '""') OR
+            (psf.type = 'number' AND psv.value_json = '0') OR
+            (psf.type = 'boolean' AND psv.value_json = 'false') OR
+            (psf.type = 'list' AND psv.value_json = '[]')
+          )
+      )
+    `).run(WINDOW_MS, WINDOW_MS);
+
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at)
+      VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 }

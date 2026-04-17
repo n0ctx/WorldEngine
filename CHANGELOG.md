@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T56 — 修复状态空值自动补全的初始化语义 + 历史数据迁移 ✅
+- **对外接口**：无新增接口；启动时 `initSchema(db)` 会一次性执行历史状态值清洗迁移
+- **涉及文件**：`backend/services/worlds.js`、`backend/services/characters.js`、`backend/services/persona-state-fields.js`（无 `default_value` 时不再自动写入类型占位值）；`backend/routes/chat.js`（`edit-assistant` 编辑最后一条 AI 消息时补跑 `updateAllStates`）；`backend/db/schema.js`（新增 `internal_meta` 表并执行一次性迁移）
+- **注意**：T54 的“空值自动补全”判定依赖状态值为 `NULL`；旧逻辑会把无默认值字段初始化成 `""/0/false/[]`，导致首轮对话不被视为“未设置”。本次迁移只清理与旧占位默认值完全一致、且时间戳接近创建时刻的历史值，避免误清用户后来手动设置的值；枚举首项因无法可靠区分“占位”与“真实选择”，本次不自动迁移
+
 ## T55 — 修复编辑消息重新生成时状态栏泄漏到气泡 ✅
 - **对外接口**：无新增接口
 - **涉及文件**：`backend/routes/chat.js`（`/regenerate` 路由改用 `deleteTurnRecordsAfterRound`）、`backend/prompt/assembler.js`（[14] 新增 `stripAsstContext` 剥除 asst_context 中 "AI：" 前缀和状态块）

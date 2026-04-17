@@ -418,6 +418,17 @@ router.post('/:sessionId/edit-assistant', async (req, res) => {
 
   updateMessageContent(messageId, content.trim());
 
+  // 仅在编辑当前最后一条 assistant 消息时，重跑状态更新，
+  // 避免编辑历史 AI 消息时直接改写当前状态。
+  const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
+  const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
+  if (lastAssistant?.id === messageId) {
+    const characterId = session.character_id;
+    const character = characterId ? getCharacterById(characterId) : null;
+    const worldId = character?.world_id ?? null;
+    enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
+  }
+
   // 重新生成最后一条 turn record（覆盖）
   enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
 

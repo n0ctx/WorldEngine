@@ -93,7 +93,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         }
         if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
         const cur = valueMap[f.field_key];
-        line += `，当前值：${cur != null ? cur : '（未设置）'}`;
+        line += `，当前值：${isEffectivelyUnset(cur, f) ? '（未设置）' : cur}`;
         if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
         return line;
       })
@@ -284,4 +284,17 @@ function validateValue(value, field) {
     default:
       return undefined;
   }
+}
+
+function isEffectivelyUnset(valueJson, field) {
+  if (valueJson == null) return true;
+
+  // 兼容旧数据：无 default_value 的空字符串/空数组本质上是历史占位值，
+  // 应继续视为“未设置”，让自动补全有机会运行。
+  if (field.default_value == null) {
+    if (field.type === 'text' && valueJson === '""') return true;
+    if (field.type === 'list' && valueJson === '[]') return true;
+  }
+
+  return false;
 }

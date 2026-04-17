@@ -12,18 +12,7 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 
 function getInitialValueJson(field) {
-  if (field.default_value != null) return field.default_value;
-  switch (field.type) {
-    case 'text':    return JSON.stringify('');
-    case 'number':  return JSON.stringify(0);
-    case 'boolean': return JSON.stringify(false);
-    case 'enum': {
-      const opts = field.enum_options;
-      return (Array.isArray(opts) && opts.length > 0) ? JSON.stringify(opts[0]) : null;
-    }
-    case 'list':    return JSON.stringify([]);
-    default:        return null;
-  }
+  return field.default_value ?? null;
 }
 
 export function createCharacter(data) {
