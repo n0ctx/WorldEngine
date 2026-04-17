@@ -929,7 +929,7 @@
 
 ---
 
-### T69 ⬜ 未开始 World / Character / Persona 编辑页羊皮纸化
+### T69 ✅ 已完成 World / Character / Persona 编辑页羊皮纸化
 
 **这个任务做什么**：按 DESIGN §6.3 / §6.4 / §6.5 重构世界编辑、角色编辑、人设编辑页，采用整页羊皮纸 + 分区标签布局（PersonaEdit 采用侧边滑入面板）。
 

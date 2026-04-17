@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createWorld } from '../api/worlds';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function WorldCreatePage() {
   const navigate = useNavigate();
@@ -34,35 +36,28 @@ export default function WorldCreatePage() {
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-canvas px-4 py-10">
-      <div className="max-w-[56rem] mx-auto">
-        {/* 导航 */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            ← 返回
-          </button>
+    <div className="we-edit-canvas">
+      <div className="we-edit-panel">
+        <div className="we-edit-header">
+          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <h1 className="we-edit-title">新建世界</h1>
         </div>
 
-        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">创建世界</h1>
-
-        {/* 表单 */}
-        <div className="flex flex-col gap-5">
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">名称 <span className="text-red-400">*</span></label>
-            <input
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+        <div className="we-edit-form-stack">
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
+              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
+            </label>
+            <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               placeholder="世界的名称"
               autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">世界 System Prompt</label>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">世界 System Prompt</label>
             <MarkdownEditor
               value={systemPrompt}
               onChange={setSystemPrompt}
@@ -71,10 +66,10 @@ export default function WorldCreatePage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">
-              世界后置提示词
-              <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
+              后置提示词
+              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
             </label>
             <MarkdownEditor
               value={postPrompt}
@@ -84,16 +79,12 @@ export default function WorldCreatePage() {
             />
           </div>
 
-          {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+          {saveError && <p className="we-edit-error">{saveError}</p>}
 
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+          <div className="we-edit-save-row">
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? '创建中…' : '创建世界'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

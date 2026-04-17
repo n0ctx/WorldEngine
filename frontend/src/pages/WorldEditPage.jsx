@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getWorld, updateWorld } from '../api/worlds';
-import { downloadWorldCard } from '../api/importExport';
+import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import EntryList from '../components/prompt/EntryList';
 import StateFieldList from '../components/state/StateFieldList';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import SectionTabs from '../components/book/SectionTabs';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -19,6 +22,7 @@ import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/personaStateFields';
+import { getWorldTimeline } from '../api/worldTimeline';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -31,26 +35,24 @@ function StateValueField({ field, onSave }) {
     onSave(field.field_key, JSON.stringify(val));
   }
 
-  const inputClass = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
-
   if (field.type === 'boolean') {
     return (
       <input
         type="checkbox"
         checked={!!local}
         onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
-        className="accent-accent w-4 h-4"
+        className="w-4 h-4"
+        style={{ accentColor: 'var(--we-gold-leaf)' }}
       />
     );
   }
   if (field.type === 'number') {
     return (
-      <input
+      <Input
         type="number"
         value={local ?? ''}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
-        className={inputClass}
       />
     );
   }
@@ -60,33 +62,31 @@ function StateValueField({ field, onSave }) {
       <Select
         value={local ?? ''}
         onChange={(v) => { setLocal(v); saveValue(v); }}
-        options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
+        options={[{ value: '', label: '—' }, ...options.map(o => ({ value: o, label: o }))]}
       />
     );
   }
   if (field.type === 'list') {
     const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
     return (
-      <input
+      <Input
         type="text"
         value={displayValue}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => {
-          const arr = String(local).split(',').map((s) => s.trim()).filter(Boolean);
+          const arr = String(local).split(',').map(s => s.trim()).filter(Boolean);
           saveValue(arr);
         }}
         placeholder="逗号分隔多个条目"
-        className={inputClass}
       />
     );
   }
   return (
-    <input
+    <Input
       type="text"
       value={local ?? ''}
       onChange={(e) => setLocal(e.target.value)}
       onBlur={() => saveValue(String(local ?? ''))}
-      className={inputClass}
     />
   );
 }
@@ -94,26 +94,35 @@ function StateValueField({ field, onSave }) {
 export default function WorldEditPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
+  const worldImportRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
 
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [postPrompt, setPostPrompt] = useState('');
+  const [temperature, setTemperature] = useState('');
+  const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
+  const [timeline, setTimeline] = useState([]);
 
   useEffect(() => {
     Promise.all([
       getWorld(worldId),
       getWorldStateValues(worldId),
-    ]).then(([w, fields]) => {
+      getWorldTimeline(worldId),
+    ]).then(([w, fields, tl]) => {
       setName(w.name ?? '');
       setSystemPrompt(w.system_prompt ?? '');
       setPostPrompt(w.post_prompt ?? '');
+      setTemperature(w.temperature != null ? String(w.temperature) : '');
+      setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setStateFields(fields);
+      setTimeline(Array.isArray(tl) ? tl : []);
       setLoading(false);
     });
   }, [worldId]);
@@ -127,10 +136,7 @@ export default function WorldEditPage() {
   }
 
   async function handleSave() {
-    if (!name.trim()) {
-      setSaveError('名称为必填项');
-      return;
-    }
+    if (!name.trim()) { setSaveError('名称为必填项'); return; }
     setSaving(true);
     setSaveError('');
     try {
@@ -138,8 +144,8 @@ export default function WorldEditPage() {
         name: name.trim(),
         system_prompt: systemPrompt,
         post_prompt: postPrompt,
-        temperature: null,
-        max_tokens: null,
+        temperature: temperature === '' ? null : Number(temperature),
+        max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
       });
       navigate(-1);
     } catch (e) {
@@ -161,153 +167,225 @@ export default function WorldEditPage() {
     }
   }
 
+  async function handleImportWorldFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const data = await readJsonFile(file);
+      await importWorld(data);
+      navigate('/worlds');
+    } catch (err) {
+      alert(`导入失败：${err.message}`);
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-text-secondary">
-        加载中…
+      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p className="we-edit-empty-text">加载中…</p>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-canvas">
-      {/* 固定顶栏 */}
-      <div className="sticky top-0 z-40 bg-canvas border-b border-border px-4">
-        <div className="max-w-[56rem] mx-auto flex items-center justify-between py-2.5">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            ← 返回
-          </button>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/settings')}
-              className="text-sm text-text-secondary hover:text-text transition-colors opacity-60 hover:opacity-100"
-            >
-              设置
-            </button>
-            <span className="border-l border-border h-4" />
-            <button
-              onClick={handleExport}
-              disabled={exporting}
-              className="px-3 py-1.5 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
-            >
-              {exporting ? '导出中…' : '导出世界卡'}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+  const sections = [
+    {
+      key: 'basic',
+      label: '基础设定',
+      content: (
+        <div className="we-edit-form-stack">
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
+              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
+            </label>
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" />
+          </div>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">世界 System Prompt</label>
+            <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="描述这个世界的背景、规则、氛围……" minHeight={144} />
+          </div>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
+              后置提示词
+              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
+            </label>
+            <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……" minHeight={72} />
+          </div>
+          {saveError && <p className="we-edit-error">{saveError}</p>}
+          <div className="we-edit-save-row">
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? '保存中…' : '保存'}
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
-
-      {/* 内容区 */}
-      <div className="px-4 pt-8 pb-10">
-        <div className="max-w-[56rem] mx-auto">
-          <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">编辑世界</h1>
-
-          {/* 表单 */}
-          <div className="flex flex-col gap-5">
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">名称 <span className="text-red-400">*</span></label>
-              <input
-                className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="世界的名称"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">世界 System Prompt</label>
-              <MarkdownEditor
-                value={systemPrompt}
-                onChange={setSystemPrompt}
-                placeholder="描述这个世界的背景、规则、氛围……"
-                minHeight={144}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-text-secondary mb-1.5">
-                世界后置提示词
-                <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
-              </label>
-              <MarkdownEditor
-                value={postPrompt}
-                onChange={setPostPrompt}
-                placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
-                minHeight={72}
-              />
-            </div>
-
-            {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+      ),
+    },
+    {
+      key: 'llm',
+      label: 'LLM 参数',
+      content: (
+        <div className="we-edit-form-stack">
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">Temperature</label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max="2"
+              value={temperature}
+              onChange={e => setTemperature(e.target.value)}
+              placeholder="留空则使用全局配置"
+            />
+            <p className="we-edit-hint">覆盖全局 temperature，留空则使用全局配置（世界级 &gt; 全局）</p>
           </div>
-
-          {/* Prompt 条目 */}
-          <div className="mt-10 border-t border-border pt-8">
-            <div className="mb-10">
-              <h2 className="text-lg font-serif font-semibold text-text mb-4">世界默认状态</h2>
-              {stateFields.length === 0 ? (
-                <p className="text-sm text-text-secondary opacity-40">暂无状态字段</p>
-              ) : (
-                <div className="space-y-3">
-                  {stateFields.map((field) => (
-                    <div key={field.field_key} className="grid grid-cols-[10rem_1fr] gap-3 items-center">
-                      <div>
-                        <p className="text-sm text-text">{field.label}</p>
-                        <p className="text-xs text-text-secondary opacity-50">{field.field_key}</p>
-                      </div>
-                      <StateValueField field={field} onSave={handleStateValueSave} />
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">最大 Token 数</label>
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              value={maxTokens}
+              onChange={e => setMaxTokens(e.target.value)}
+              placeholder="留空则使用全局配置"
+            />
+            <p className="we-edit-hint">覆盖全局 max_tokens，留空则使用全局配置</p>
+          </div>
+          {saveError && <p className="we-edit-error">{saveError}</p>}
+          <div className="we-edit-save-row">
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
+              {saving ? '保存中…' : '保存'}
+            </Button>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'state_templates',
+      label: '状态模板',
+      content: (
+        <div>
+          {stateFields.length > 0 && (
+            <div className="we-edit-form-group">
+              <h3 className="we-edit-subsection-title">世界默认状态值</h3>
+              <div className="we-state-value-list">
+                {stateFields.map(f => (
+                  <div key={f.field_key} className="we-state-value-row">
+                    <div>
+                      <p className="we-state-value-label">{f.label}</p>
+                      <p className="we-state-value-key">{f.field_key}</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <StateValueField field={f} onSave={handleStateValueSave} />
+                  </div>
+                ))}
+              </div>
+              <div className="we-edit-state-sep" />
             </div>
-
-            <EntryList type="world" scopeId={worldId} />
+          )}
+          <StateFieldList
+            scope="world"
+            worldId={worldId}
+            listFn={listWorldStateFields}
+            createFn={createWorldStateField}
+            updateFn={updateWorldStateField}
+            deleteFn={deleteWorldStateField}
+            reorderFn={reorderWorldStateFields}
+          />
+          <div className="we-edit-state-sep" />
+          <StateFieldList
+            scope="character"
+            worldId={worldId}
+            listFn={listCharacterStateFields}
+            createFn={createCharacterStateField}
+            updateFn={updateCharacterStateField}
+            deleteFn={deleteCharacterStateField}
+            reorderFn={reorderCharacterStateFields}
+          />
+          <div className="we-edit-state-sep" />
+          <StateFieldList
+            scope="persona"
+            worldId={worldId}
+            listFn={listPersonaStateFields}
+            createFn={createPersonaStateField}
+            updateFn={updatePersonaStateField}
+            deleteFn={deletePersonaStateField}
+            reorderFn={reorderPersonaStateFields}
+          />
+        </div>
+      ),
+    },
+    {
+      key: 'prompt_entries',
+      label: 'Prompt 条目',
+      content: <EntryList type="world" scopeId={worldId} />,
+    },
+    {
+      key: 'timeline',
+      label: '世界时间线',
+      content: timeline.length === 0 ? (
+        <p className="we-edit-empty-text">暂无时间线记录</p>
+      ) : (
+        <div className="we-edit-tl-list">
+          {timeline.map(entry => (
+            <div key={entry.id} className="we-edit-tl-item">
+              <div className="we-edit-tl-dot" />
+              <div>
+                <p className="we-edit-tl-content">{entry.content}</p>
+                {entry.created_at && (
+                  <p className="we-edit-tl-meta">{new Date(entry.created_at).toLocaleDateString('zh-CN')}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: 'export',
+      label: '导入导出',
+      content: (
+        <div>
+          <div className="we-edit-form-group">
+            <h3 className="we-edit-subsection-title">导出世界卡</h3>
+            <p className="we-edit-hint">将此世界导出为 .weworld.json 文件，包含所有配置和状态字段定义。</p>
+            <div style={{ marginTop: '12px' }}>
+              <Button variant="secondary" onClick={handleExport} disabled={exporting}>
+                {exporting ? '导出中…' : '导出 .weworld.json'}
+              </Button>
+            </div>
           </div>
-
-          {/* 状态字段模板 */}
-          <div className="mt-6 border-t border-border pt-8">
-            <StateFieldList
-              scope="world"
-              worldId={worldId}
-              listFn={listWorldStateFields}
-              createFn={createWorldStateField}
-              updateFn={updateWorldStateField}
-              deleteFn={deleteWorldStateField}
-              reorderFn={reorderWorldStateFields}
-            />
-          </div>
-          <div className="mt-6 border-t border-border pt-8">
-            <StateFieldList
-              scope="character"
-              worldId={worldId}
-              listFn={listCharacterStateFields}
-              createFn={createCharacterStateField}
-              updateFn={updateCharacterStateField}
-              deleteFn={deleteCharacterStateField}
-              reorderFn={reorderCharacterStateFields}
-            />
-          </div>
-          <div className="mt-6 border-t border-border pt-8">
-            <StateFieldList
-              scope="persona"
-              worldId={worldId}
-              listFn={listPersonaStateFields}
-              createFn={createPersonaStateField}
-              updateFn={updatePersonaStateField}
-              deleteFn={deletePersonaStateField}
-              reorderFn={reorderPersonaStateFields}
-            />
+          <div className="we-edit-state-sep" />
+          <div className="we-edit-form-group">
+            <h3 className="we-edit-subsection-title">导入世界卡</h3>
+            <p className="we-edit-hint">导入 .weworld.json 将创建一个新世界（不覆盖当前世界）。</p>
+            <div style={{ marginTop: '12px' }}>
+              <Button variant="secondary" onClick={() => worldImportRef.current?.click()} disabled={importing}>
+                {importing ? '导入中…' : '导入世界卡…'}
+              </Button>
+              <input
+                ref={worldImportRef}
+                type="file"
+                accept=".json,.weworld.json"
+                className="hidden"
+                onChange={handleImportWorldFile}
+              />
+            </div>
           </div>
         </div>
+      ),
+    },
+  ];
+
+  return (
+    <div className="we-edit-canvas">
+      <div className="we-edit-panel">
+        <div className="we-edit-header">
+          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <h1 className="we-edit-title">编辑世界 · {name}</h1>
+        </div>
+        <SectionTabs sections={sections} defaultKey="basic" />
       </div>
     </div>
   );

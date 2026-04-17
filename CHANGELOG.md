@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T69 — World / Character / Persona 编辑页羊皮纸化 ✅
+- **对外接口**：新建 `SectionTabs` 组件（`frontend/src/components/book/SectionTabs.jsx`），Props: `{ sections: [{ key, label, content }], defaultKey }`；`WorldEditPage` 新增加载 `getWorldTimeline` 并接线 temperature/max_tokens 到 state；`CharacterEditPage` 新增 `AvatarUpload` 内部子组件；`PersonaEditPage` 不再是整页，改为 framer-motion 右侧抽屉
+- **涉及文件**：新建 `frontend/src/components/book/SectionTabs.jsx`；重写 `frontend/src/pages/WorldEditPage.jsx`、`WorldCreatePage.jsx`、`CharacterEditPage.jsx`、`CharacterCreatePage.jsx`、`PersonaEditPage.jsx`；追加 `frontend/src/styles/pages.css`（`.we-edit-*`、`.we-section-tab*`、`.we-persona-drawer*`、`.we-state-value-*`、`.we-edit-tl-*` 等类）
+- **注意**：`WorldEditPage.updateWorld` 现在真正保存 temperature/max_tokens（空字符串→null，否则转 Number/parseInt）；`CharacterEditPage` 导入角色卡需要 `character.world_id`（`SELECT *` 已返回该字段）；`PersonaEditPage` 保留原路由 `/worlds/:worldId/persona`，渲染为固定定位遮罩 + 右侧 400px 抽屉（`navigate(-1)` 关闭）；framer-motion 首次被引入，需确保 `frontend/node_modules/framer-motion` 已安装（`npm install framer-motion` 在 frontend 目录）；`SectionTabs` 将 sections 的 content 作为 JSX 传入，AnimatePresence 按 key 标识切换，父组件 state 变化会透传进入 content 无需特殊处理
+
 ## T68 — WorldsPage 卷宗书架 ✅
 - **对外接口**：`WorldsPage` 无新增对外接口；新增 `frontend/src/styles/pages.css` 定义所有 `.we-worlds-*`、`.we-world-card*` 类；新增 `relativeTime(ts)` 纯函数（组件内）；页面加载时用 `getCharactersByWorld(worldId)` 并行拉取各世界角色数并合并为 `world.character_count`
 - **涉及文件**：新建 `frontend/src/styles/pages.css`；重写 `frontend/src/pages/WorldsPage.jsx`；修改 `frontend/src/main.jsx`（pages.css 导入在 ui.css 之后、index.css 之前）

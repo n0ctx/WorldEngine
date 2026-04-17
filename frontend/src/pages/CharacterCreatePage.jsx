@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { createCharacter } from '../api/characters';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 export default function CharacterCreatePage() {
   const { worldId } = useParams();
@@ -37,41 +39,28 @@ export default function CharacterCreatePage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="max-w-[56rem] mx-auto">
-        {/* 导航 */}
-        <div className="flex items-center justify-between mb-8">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            ← 返回
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className="text-sm text-text-secondary hover:text-text transition-colors opacity-60 hover:opacity-100"
-          >
-            设置
-          </button>
+    <div className="we-edit-canvas">
+      <div className="we-edit-panel">
+        <div className="we-edit-header">
+          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <h1 className="we-edit-title">新建角色</h1>
         </div>
 
-        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-8">创建角色</h1>
-
-        {/* 表单 */}
-        <div className="flex flex-col gap-5">
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">名称 <span className="text-red-400">*</span></label>
-            <input
-              className="w-full px-3 py-2.5 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+        <div className="we-edit-form-stack">
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
+              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
+            </label>
+            <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               placeholder="角色的名字"
               autoFocus
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">System Prompt</label>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">System Prompt</label>
             <MarkdownEditor
               value={systemPrompt}
               onChange={setSystemPrompt}
@@ -80,10 +69,10 @@ export default function CharacterCreatePage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">
               后置提示词
-              <span className="text-text-secondary opacity-40 ml-1.5 text-xs">插入在用户消息之后，作为 user 角色发送</span>
+              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
             </label>
             <MarkdownEditor
               value={postPrompt}
@@ -93,8 +82,8 @@ export default function CharacterCreatePage() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm text-text-secondary mb-1.5">开场白</label>
+          <div className="we-edit-form-group">
+            <label className="we-edit-label">开场白</label>
             <MarkdownEditor
               value={firstMessage}
               onChange={setFirstMessage}
@@ -103,16 +92,12 @@ export default function CharacterCreatePage() {
             />
           </div>
 
-          {saveError && <p className="text-sm text-red-400">{saveError}</p>}
+          {saveError && <p className="we-edit-error">{saveError}</p>}
 
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+          <div className="we-edit-save-row">
+            <Button variant="primary" onClick={handleSave} disabled={saving}>
               {saving ? '创建中…' : '创建角色'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
