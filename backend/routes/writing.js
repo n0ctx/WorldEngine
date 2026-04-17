@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
-import { buildWritingPrompt } from '../prompt/assembler.js';
+import { buildWritingPrompt, stripAsstContext } from '../prompt/assembler.js';
 import { activeStreams } from '../services/chat.js';
 import {
   createWritingSession,
@@ -154,6 +154,10 @@ async function runWritingStream(sessionId, res) {
         return;
       }
     }
+  }
+
+  if (fullContent) {
+    fullContent = stripAsstContext(fullContent);
   }
 
   if (aborted && fullContent) {

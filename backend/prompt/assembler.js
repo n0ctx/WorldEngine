@@ -97,7 +97,7 @@ function formatMessageForLLM(msg) {
 
 // ─── asst_context 清洗：剥除 "AI：" 前缀和末尾状态块，防止 LLM 模仿格式 ──
 
-function stripAsstContext(raw) {
+export function stripAsstContext(raw) {
   const segments = raw.split('\n\n');
   if (segments[0].startsWith('AI：')) segments[0] = segments[0].slice(3);
   // 末尾若有状态块（形如 "[…状态]\n…"），逐一去除

@@ -26,6 +26,7 @@ import {
   buildContinuationMessages,
   sendSse,
 } from './stream-helpers.js';
+import { stripAsstContext } from '../prompt/assembler.js';
 
 const router = Router();
 
@@ -77,7 +78,11 @@ async function runStream(sessionId, res) {
   const character = characterId ? getCharacterById(characterId) : null;
   const worldId = character?.world_id ?? null;
 
-  // 保存 AI 回复
+  // 保存 AI 回复（先剥除状态块，再应用 ai_output 规则）
+  if (fullContent) {
+    fullContent = stripAsstContext(fullContent);
+  }
+
   if (aborted && fullContent) {
     fullContent += '\n\n[已中断]';
   }
@@ -238,6 +243,10 @@ router.post('/:sessionId/continue', async (req, res) => {
   const characterId = session.character_id;
   const character = characterId ? getCharacterById(characterId) : null;
   const worldId = character?.world_id ?? null;
+
+  if (newContent) {
+    newContent = stripAsstContext(newContent);
+  }
 
   if (aborted && newContent) {
     newContent += '\n\n[已中断]';

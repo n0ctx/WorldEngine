@@ -19,6 +19,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## fix: 状态栏文本混入会话正文 ✅
+- **涉及文件**：`backend/prompt/assembler.js`（导出 `stripAsstContext`）、`backend/routes/chat.js`（普通回复 + 续写各加一次调用）、`backend/routes/writing.js`（写作模式加一次调用）
+- **注意**：`stripAsstContext` 此前仅在读取历史消息组装 Prompt 时调用，保存新 AI 回复到 DB 前从未调用，导致 LLM 输出的状态块直接写入 `messages.content`。修复顺序：先 `stripAsstContext(fullContent)`，再 `applyRules(..., 'ai_output', ...)`，再追加 `[已中断]` 标记（如有）
+
 ## T70 — SettingsPage 双栏 + CustomCssManager 引导 ✅
 - **对外接口**：`SettingsPage` 无新增对外接口；`CustomCssManager` 无 props 变化；`RegexRulesManager` 无 props 变化
 - **涉及文件**：重写 `frontend/src/pages/SettingsPage.jsx`；更新 `frontend/src/components/settings/CustomCssManager.jsx`（添加折叠引导 + 替换 Button/Input/Textarea）；更新 `frontend/src/components/settings/RegexRulesManager.jsx`（替换按钮为 T67 Button）；追加 `frontend/src/styles/pages.css`（`.we-settings-panel`/`.we-settings-nav`/`.we-settings-nav-item`/`.we-settings-body` 等设置页专用类 + `.we-css-reference*` 折叠引导样式）
