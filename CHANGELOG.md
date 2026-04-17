@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T65 — 章节分组 + 花饰分隔线 + 页脚 ✅
+- **对外接口**：新建纯函数 `groupMessagesIntoChapters(messages, sessionTitle)` in `frontend/src/utils/chapter-grouping.js`；`MessageList` 新增 `sessionTitle` / `onChapterChange` props；`ChatPage` 新增 `PageFooter` 渲染
+- **涉及文件**：`frontend/src/utils/constants.js`（新建，含 `CHAPTER_MESSAGE_SIZE=20` / `CHAPTER_TIME_GAP_MS=6h`）、`frontend/src/utils/chapter-grouping.js`（新建）、`frontend/src/components/book/ChapterDivider.jsx`（新建）、`frontend/src/components/book/FleuronLine.jsx`（新建）、`frontend/src/components/book/PageFooter.jsx`（新建）、`frontend/src/components/chat/MessageList.jsx`（章节渲染）、`frontend/src/pages/ChatPage.jsx`（worldName 获取 + 页脚接入）、`frontend/src/index.css`（追加章节/花饰/页脚样式）
+- **注意**：`MessageList._lastChapterCount` 作内部静态缓存，防止 `onChapterChange` 在每次渲染都触发；`isChapterFirstAssistant` 改为章节内相对首条（T62 全局首条行为变化，每章第一条 assistant 消息均触发 Drop Cap）；`AnimatePresence` 直接子元素改为 `div.we-chapter`，章节内消息不再是 AnimatePresence 直接子元素，popLayout 行为保留流式消息动画；FleuronLine 用 `IntersectionObserver` 延迟触发动画，不在 SSR 场景使用；页面数固定显示"第一页"（scroll 追踪复杂度不值），章节数实时更新
+
 ## T64 重打磨 — StatePanel 视觉与逻辑优化 ✅
 - **修复**：CURRENT STATE 不再重复显示角色名（头部已有）；`rows===null` 显示骨架屏、`rows===[]` 才显示"暂无数据"；RECALLED 区块 empty 时隐藏不占位；`we-marginalia-list` 去除内置 border-top（改由父级 `we-recalled-section` 负责分隔线）
 - **视觉**：字段行改用"key ··· value"点线引导格式；区块标题改为"label + 右延横线 + hover 才显重置"；金箔分隔线升级为 ✦ 装饰线；骨架屏加载动画；时间线条目朱砂小点区分新旧；进度条改为苔绿→金叶渐变

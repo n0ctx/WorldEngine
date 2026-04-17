@@ -12,6 +12,8 @@ import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import StatePanel from '../components/book/StatePanel.jsx';
+import PageFooter from '../components/book/PageFooter.jsx';
+import { getWorld } from '../api/worlds.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
@@ -23,6 +25,8 @@ export default function ChatPage() {
   const [character, setCharacter] = useState(null);
   const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
+  const [worldName, setWorldName] = useState('');
+  const [footerChapterIndex, setFooterChapterIndex] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
@@ -74,6 +78,7 @@ export default function ChatPage() {
       setCharacter(c);
       if (c.world_id) {
         getPersona(c.world_id).then(setPersona).catch(() => {});
+        getWorld(c.world_id).then((w) => setWorldName(w.name || '')).catch(() => {});
       }
     }).catch(console.error);
   }, [characterId, clearActiveSession]);
@@ -509,6 +514,7 @@ export default function ChatPage() {
         <MessageList
           key={`${currentSessionId}-${messageListKey}`}
           sessionId={currentSessionId}
+          sessionTitle={currentSession?.title || ''}
           character={character}
           persona={persona}
           worldId={character?.world_id ?? null}
@@ -522,6 +528,7 @@ export default function ChatPage() {
           onEditAssistantMessage={handleEditAssistantMessage}
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
+          onChapterChange={setFooterChapterIndex}
         />
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
@@ -580,6 +587,9 @@ export default function ChatPage() {
           fillText={fillText}
           onFillTextConsumed={() => setFillText('')}
         />
+
+        {/* 页脚 */}
+        <PageFooter chapterIndex={footerChapterIndex} worldName={worldName} />
       </div>
 
         </div>

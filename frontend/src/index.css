@@ -583,3 +583,100 @@ body {
   color: var(--we-ink-faded);
   font-style: italic;
 }
+
+/* ── 章节标题（ChapterDivider）────────────────────────────────── */
+.we-chapter-header {
+  text-align: center;
+  padding: 32px 0 16px;
+  opacity: 0;
+  transform: translateY(8px);
+  filter: blur(1.5px);
+}
+.we-chapter-header.we-chapter-header--visible {
+  animation: we-ink-rise 0.32s cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes we-ink-rise {
+  from { opacity: 0; transform: translateY(8px); filter: blur(1.5px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0);     }
+}
+.we-chapter-num {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--we-ink-faded);
+  margin-bottom: 6px;
+}
+.we-chapter-title {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-lg);
+  font-weight: 300;
+  color: var(--we-ink-primary);
+  margin: 0 0 14px;
+}
+.we-chapter-fleuron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--we-gold-leaf);
+}
+.we-chapter-fleuron-line {
+  width: 40px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(160, 131, 63, 0.7), transparent);
+  display: block;
+}
+
+/* ── 场景分隔线（FleuronLine）──────────────────────────────────── */
+.we-chapter-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  opacity: 0;
+  clip-path: inset(0 50% 0 50%);
+}
+.we-chapter-divider.we-fleuron--visible {
+  animation: we-fleuron-draw 0.5s cubic-bezier(.65, 0, .35, 1) both;
+}
+@keyframes we-fleuron-draw {
+  from { opacity: 0; clip-path: inset(0 50% 0 50%); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0);      }
+}
+.we-fleuron-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--we-paper-shadow), transparent);
+  display: block;
+}
+.we-fleuron-symbol {
+  font-family: var(--we-font-display);
+  font-size: 14px;
+  color: var(--we-paper-deep);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* ── 页脚（PageFooter）────────────────────────────────────────── */
+.we-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 16px 8px;
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--we-ink-faded);
+  opacity: 0.7;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+.we-page-footer-fleuron {
+  color: var(--we-gold-leaf);
+  font-size: 15px;
+  opacity: 0.65;
+}

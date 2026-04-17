@@ -1,7 +1,10 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, Fragment } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import { getMessages } from '../../api/sessions.js';
+import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
+import ChapterDivider from '../book/ChapterDivider.jsx';
+import FleuronLine from '../book/FleuronLine.jsx';
 
 const NOOP = () => {};
 
@@ -9,6 +12,7 @@ const PAGE_SIZE = 50;
 
 export default function MessageList({
   sessionId,
+  sessionTitle,
   character,
   persona,
   worldId,
@@ -22,6 +26,7 @@ export default function MessageList({
   onEditAssistantMessage,
   continuingMessageId,
   continuingText,
+  onChapterChange,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -174,28 +179,45 @@ export default function MessageList({
       <div className="max-w-[800px] mx-auto">
         <AnimatePresence mode="popLayout">
           {(() => {
-            const firstAssistantIdx = messages.findIndex(m => m.role === 'assistant');
-            return messages.map((msg, idx) => {
-              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-              const displayMsg = isContinuing
-                ? { ...msg, content: msg.content + continuingText }
-                : msg;
-              return (
-                <MessageItem
-                  key={msg.id}
-                  message={displayMsg}
-                  character={character}
-                  persona={persona}
-                  worldId={worldId}
-                  isStreaming={isContinuing}
-                  streamingText={isContinuing ? displayMsg.content : undefined}
-                  onEdit={onEditMessage}
-                  onRegenerate={onRegenerateMessage}
-                  onEditAssistant={onEditAssistantMessage}
-                  isChapterFirstAssistant={idx === firstAssistantIdx}
-                />
-              );
-            });
+            const chapters = groupMessagesIntoChapters(messages, sessionTitle);
+            // 通知父组件当前章节数（用于页脚）
+            const chapterCount = chapters.length || 1;
+            if (MessageList._lastChapterCount !== chapterCount) {
+              MessageList._lastChapterCount = chapterCount;
+              onChapterChange?.(chapterCount);
+            }
+            return chapters.map((chapter) => (
+              <div className="we-chapter" key={`chapter-${chapter.chapterIndex}`}>
+                <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
+                {chapter.messages.map((msg, i) => {
+                  const firstAssistantI = chapter.messages.findIndex(m => m.role === 'assistant');
+                  const isChapterFirstAssistant = msg.role === 'assistant' && firstAssistantI === i;
+                  const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+                  const displayMsg = isContinuing
+                    ? { ...msg, content: msg.content + continuingText }
+                    : msg;
+                  return (
+                    <Fragment key={msg.id}>
+                      <MessageItem
+                        message={displayMsg}
+                        character={character}
+                        persona={persona}
+                        worldId={worldId}
+                        isStreaming={isContinuing}
+                        streamingText={isContinuing ? displayMsg.content : undefined}
+                        onEdit={onEditMessage}
+                        onRegenerate={onRegenerateMessage}
+                        onEditAssistant={onEditAssistantMessage}
+                        isChapterFirstAssistant={isChapterFirstAssistant}
+                      />
+                      {msg.role === 'assistant' && i < chapter.messages.length - 1 && (
+                        <FleuronLine />
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </div>
+            ));
           })()}
 
           {/* 流式响应（仅新消息，续写时不显示） */}
