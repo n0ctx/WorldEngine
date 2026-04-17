@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T72（部分）— 羽毛笔光标 + 盖印动画 ✅
+- **对外接口**：新增 `SealStampAnimation`（Props: `trigger: number | visible: boolean, text?: string`）；新增 `QuillCursor`（Props: `visible: boolean`）
+- **涉及文件**：新建 `frontend/src/components/book/QuillCursor.jsx`、`frontend/src/components/book/SealStampAnimation.jsx`；修改 `frontend/src/pages/CharacterEditPage.jsx`（导出成功触发盖印）、`frontend/src/pages/WorldEditPage.jsx`（同）；追加 `frontend/src/index.css`（`@keyframes quill-blink` + `.we-quill-cursor`）
+- **注意**：减少动效开关部分（useReducedMotion / SettingsPage toggle）已按用户要求跳过。`SealStampAnimation` 用 `trigger`（数字计数器）触发，每次+1播放一次动画；`position: fixed` 定位在视口右下角 40px，无需父容器 relative。`QuillCursor` 已创建但未接入 MessageItem，供后续使用。
+
 ## feat: 写作页并入书本布局 + 顶栏恢复世界上下文 ✅
 - **对外接口**：新增 `GET /api/worlds/:worldId/latest-chat-session`（返回该世界最近更新的一条 `mode='chat'` 会话，404 表示该世界还没有对话）；`frontend/src/api/sessions.js` 新增 `getLatestChatSession(worldId)`；新增写作页组件 `WritingPageLeft` / `WritingSessionList` / `CastPanel`，`WritingSessionList` 暴露静态方法 `addSession(session)`、`updateTitle(sessionId, title)` 供 `WritingSpacePage` 在流式生成和自动建会话时同步左栏
 - **涉及文件**：`backend/db/queries/sessions.js`、`backend/routes/sessions.js`、`backend/services/sessions.js`、`frontend/src/api/sessions.js`、`frontend/src/components/book/TopBar.jsx`、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/components/book/WritingPageLeft.jsx`、`frontend/src/components/book/WritingSessionList.jsx`、`frontend/src/components/book/CastPanel.jsx`、`frontend/src/components/chat/SessionItem.jsx`、`frontend/src/components/book/SessionListPanel.jsx`、`frontend/src/App.jsx`、`frontend/src/pages/WorldEditPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`frontend/src/pages/WorldsPage.jsx`、`frontend/src/pages/CharactersPage.jsx`、以及对应样式文件；删除旧写作页专用组件 `frontend/src/components/writing/*`

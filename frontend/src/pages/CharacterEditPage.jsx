@@ -10,6 +10,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import SectionTabs from '../components/book/SectionTabs';
+import SealStampAnimation from '../components/book/SealStampAnimation';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -160,6 +161,7 @@ export default function CharacterEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [sealKey, setSealKey] = useState(0);
   const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -219,6 +221,7 @@ export default function CharacterEditPage() {
     try {
       const safeName = (name || character?.name || 'character').replace(/[^\w\u4e00-\u9fa5]/g, '_');
       await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
+      setSealKey(k => k + 1);
     } catch (err) {
       alert(`导出失败：${err.message}`);
     } finally {
@@ -402,13 +405,18 @@ export default function CharacterEditPage() {
       </div>
   );
 
-  return isOverlay ? (
-    <div className="we-settings-overlay" onClick={handleClose}>
-      {content}
-    </div>
-  ) : (
-    <div className="we-edit-canvas">
-      {content}
-    </div>
+  return (
+    <>
+      {isOverlay ? (
+        <div className="we-settings-overlay" onClick={handleClose}>
+          {content}
+        </div>
+      ) : (
+        <div className="we-edit-canvas">
+          {content}
+        </div>
+      )}
+      <SealStampAnimation trigger={sealKey} text="成" />
+    </>
   );
 }

@@ -6,7 +6,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { getAvatarUrl } from '../../utils/avatar.js';
 import { applyRules } from '../../utils/regex-runner.js';
-import StreamingCursor from './StreamingCursor.jsx';
+import QuillCursor from '../book/QuillCursor.jsx';
 import { INK_RISE } from '../../utils/motion.js';
 
 const REMARK_PLUGINS = [remarkGfm];
@@ -259,8 +259,14 @@ export default function MessageItem({
               </div>
             </div>
           ) : (
-            <div className="we-message-content" style={{ whiteSpace: 'pre-wrap' }}>
-              {displayContent}
+            <div className="we-message-content">
+              <ReactMarkdown
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
+                components={MD_COMPONENTS}
+              >
+                {displayContent}
+              </ReactMarkdown>
             </div>
           )
         ) : (
@@ -284,14 +290,20 @@ export default function MessageItem({
             </div>
           ) : (
             <div className="we-message-content">
-              <ReactMarkdown
-                remarkPlugins={REMARK_PLUGINS}
-                rehypePlugins={REHYPE_PLUGINS}
-                components={MD_COMPONENTS}
-              >
-                {isStreaming ? (streamingText || '') : displayContent}
-              </ReactMarkdown>
-              {isStreaming && <StreamingCursor />}
+              {isStreaming ? (
+                <span style={{ whiteSpace: 'pre-wrap', fontFamily: 'var(--we-font-serif)', fontSize: 'var(--we-text-base)', lineHeight: 'var(--we-leading-loose)', color: 'var(--we-ink-primary)' }}>
+                  {streamingText || ''}
+                  <QuillCursor visible={true} />
+                </span>
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={REMARK_PLUGINS}
+                  rehypePlugins={REHYPE_PLUGINS}
+                  components={MD_COMPONENTS}
+                >
+                  {displayContent}
+                </ReactMarkdown>
+              )}
             </div>
           )
         )}

@@ -9,6 +9,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import SectionTabs from '../components/book/SectionTabs';
+import SealStampAnimation from '../components/book/SealStampAnimation';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -101,6 +102,7 @@ export default function WorldEditPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [sealKey, setSealKey] = useState(0);
   const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -162,6 +164,7 @@ export default function WorldEditPage() {
     try {
       const safeName = (name || 'world').replace(/[^\w\u4e00-\u9fa5]/g, '_');
       await downloadWorldCard(worldId, `${safeName}.weworld.json`);
+      setSealKey(k => k + 1);
     } catch (err) {
       alert(`导出失败：${err.message}`);
     } finally {
@@ -405,13 +408,18 @@ export default function WorldEditPage() {
       </div>
   );
 
-  return isOverlay ? (
-    <div className="we-settings-overlay" onClick={handleClose}>
-      {content}
-    </div>
-  ) : (
-    <div className="we-edit-canvas">
-      {content}
-    </div>
+  return (
+    <>
+      {isOverlay ? (
+        <div className="we-settings-overlay" onClick={handleClose}>
+          {content}
+        </div>
+      ) : (
+        <div className="we-edit-canvas">
+          {content}
+        </div>
+      )}
+      <SealStampAnimation trigger={sealKey} text="成" />
+    </>
   );
 }

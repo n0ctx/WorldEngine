@@ -692,3 +692,12 @@ body {
 .we-cast-char-remove:hover { color: var(--we-vermilion); }
 .we-cast-character-block { border-top: 1px solid var(--we-paper-shadow); }
 .we-cast-char-body { padding: 0 0 10px; }
+
+/* ── QuillCursor（羽毛笔流式光标）──────────────────────────────── */
+@keyframes quill-blink {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0; }
+}
+.we-quill-cursor {
+  animation: quill-blink 0.7s steps(2, end) infinite;
+}

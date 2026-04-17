@@ -308,24 +308,27 @@ router.post('/:sessionId/impersonate', async (req, res) => {
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const world = character?.world_id ? getWorldById(character.world_id) : null;
+  if (!character || !world) {
+    return res.status(400).json({ error: 'Session is missing character/world context' });
+  }
 
-  const persona = world ? getOrCreatePersona(world.id) : null;
+  const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '用户';
-  const personaPrompt = persona?.system_prompt || '';
-
-  const systemText = personaPrompt
-    ? `你正在扮演用户「${personaName}」。用户设定：${personaPrompt}`
-    : `你正在扮演用户「${personaName}」。`;
-  const prompt = [
-    {
-      role: 'user',
-      content:
-        `${systemText}\n\n根据当前对话情境，以第一人称写一条用户接下来可能说的话。只输出这条话本身，不加任何解释或引号。`,
-    },
-  ];
-
   try {
-    const content = await llm.complete(prompt, { temperature: 0.7, maxTokens: 200 });
+    const { messages: baseMessages, overrides } = await buildContext(sessionId);
+    const prompt = [...baseMessages];
+    const lastMessage = [...prompt].reverse().find((msg) => msg.role === 'user' || msg.role === 'assistant') ?? null;
+
+    const instruction = lastMessage?.role === 'user'
+      ? `你正在代拟用户「${personaName}」准备发到聊天框里的内容。最后一条已经是用户消息，请把它补完或顺着原意改写得更自然。要求像真人即时发消息，不要写成说明文、总结、旁白、设定介绍或大段独白；优先短句、口语、直接回应当前话题，除非上下文明确需要，否则不要故意写长。保持用户视角，不要改成 assistant 回复。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`
+      : `你正在代拟用户「${personaName}」下一条准备发到聊天框里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条 assistant 的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
+
+    prompt.push({ role: 'user', content: instruction });
+
+    const content = await llm.complete(prompt, {
+      temperature: overrides.temperature,
+      maxTokens: Math.min(overrides.maxTokens ?? 300, 300),
+    });
     res.json({ content: content.trim() });
   } catch (err) {
     res.status(500).json({ error: err.message });
