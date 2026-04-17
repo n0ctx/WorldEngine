@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T68 — WorldsPage 卷宗书架 ✅
+- **对外接口**：`WorldsPage` 无新增对外接口；新增 `frontend/src/styles/pages.css` 定义所有 `.we-worlds-*`、`.we-world-card*` 类；新增 `relativeTime(ts)` 纯函数（组件内）；页面加载时用 `getCharactersByWorld(worldId)` 并行拉取各世界角色数并合并为 `world.character_count`
+- **涉及文件**：新建 `frontend/src/styles/pages.css`；重写 `frontend/src/pages/WorldsPage.jsx`；修改 `frontend/src/main.jsx`（pages.css 导入在 ui.css 之后、index.css 之前）
+- **注意**：角色数通过 `getCharactersByWorld` 并行加载（N+1 但可接受，失败 fallback 0）；印章圆点颜色复用 `getAvatarColor(world.id)`；FAB `+` 按钮 fixed 定位，注意与其他固定元素的层叠（z-index: 10）；hover 操作按钮通过 `.we-world-card:hover .we-world-card-actions { opacity: 1 }` 显现；原 `world.updated_at` 为毫秒时间戳
+
 ## T67 — 基础 UI 组件羊皮纸化：Button / Input / Textarea / Card / Badge ✅
 - **对外接口**：Button props `variant`（primary/secondary/ghost/danger）、`size`（sm/md/lg）API 不变；Input/Textarea/Card/Badge API 不变；新增 `frontend/src/styles/ui.css` 集中定义所有 `.we-btn*`、`.we-input`、`.we-textarea`、`.we-card*`、`.we-badge*` 类
 - **涉及文件**：新建 `frontend/src/styles/ui.css`；修改 `frontend/src/main.jsx`（新增 ui.css 导入，位于 chat.css 之后、index.css 之前）；重写 `frontend/src/components/ui/Button.jsx`、`Input.jsx`、`Textarea.jsx`、`Card.jsx`、`Badge.jsx`

@@ -1,8 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getWorlds, deleteWorld } from '../api/worlds';
+import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
+import { getAvatarColor } from '../utils/avatar';
+
+function relativeTime(ts) {
+  if (!ts) return '';
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return '刚刚';
+  if (min < 60) return `${min} 分钟前`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} 小时前`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d} 天前`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo} 个月前`;
+  return `${Math.floor(mo / 12)} 年前`;
+}
 
 function DeleteConfirmModal({ world, onConfirm, onClose }) {
   const [deleting, setDeleting] = useState(false);
@@ -15,25 +32,27 @@ function DeleteConfirmModal({ world, onConfirm, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
-        <p className="text-sm text-text-secondary mb-1">
-          即将删除世界 <span className="font-medium text-text">「{world.name}」</span>。
+      <div style={{ background: 'var(--we-paper-base)', border: '1px solid var(--we-paper-shadow)' }} className="rounded w-full max-w-sm mx-4 p-6">
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', color: 'var(--we-ink-primary)' }} className="mb-2 italic font-normal">确认删除</h2>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-secondary)' }} className="mb-1">
+          即将删除世界 <span style={{ color: 'var(--we-ink-primary)', fontWeight: 500 }}>「{world.name}」</span>。
         </p>
-        <p className="text-sm text-red-400 mb-5">
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }} className="mb-5">
           此操作将同时删除其下所有角色和会话，且无法恢复。
         </p>
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
+            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)' }}
+            className="px-4 py-2 transition-colors hover:text-[var(--we-ink-primary)]"
           >
             取消
           </button>
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', background: 'var(--we-vermilion)', color: 'var(--we-paper-base)', border: 'none', borderRadius: 'var(--we-radius-sm)', padding: '6px 16px' }}
+            className="disabled:opacity-50 cursor-pointer"
           >
             {deleting ? '删除中…' : '确认删除'}
           </button>
@@ -57,7 +76,10 @@ export default function WorldsPage() {
   async function loadWorlds() {
     try {
       const data = await getWorlds();
-      setWorlds(data);
+      const counts = await Promise.all(
+        data.map((w) => getCharactersByWorld(w.id).then((chars) => chars.length).catch(() => 0))
+      );
+      setWorlds(data.map((w, i) => ({ ...w, character_count: counts[i] })));
     } finally {
       setLoading(false);
     }
@@ -106,94 +128,104 @@ export default function WorldsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-canvas px-4 py-10">
-      <div className="max-w-4xl mx-auto">
-        {/* 页头 */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-serif font-semibold text-text tracking-tight">世界</h1>
-            <p className="text-sm text-text-secondary mt-0.5">选择或创建一个世界，开始你的故事</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => worldImportRef.current?.click()}
-              disabled={importingWorld}
-              className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
-            >
-              {importingWorld ? '导入中…' : '导入世界卡'}
-            </button>
-            <input
-              ref={worldImportRef}
-              type="file"
-              accept=".json,.weworld.json"
-              className="hidden"
-              onChange={handleImportWorldFile}
-            />
-            <button
-              onClick={() => navigate('/worlds/new')}
-              className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity"
-            >
-              + 创建世界
-            </button>
-          </div>
+    <div className="we-worlds-canvas">
+      {/* 页头 */}
+      <div className="we-worlds-header">
+        <div>
+          <h1 className="we-worlds-title">博物志 · 卷宗书架</h1>
+          <p className="we-worlds-subtitle">WORLDENGINE — ARCHIVES</p>
         </div>
-
-        {/* 列表 */}
-        {loading ? (
-          <div className="text-center text-text-secondary py-20">加载中…</div>
-        ) : worlds.length === 0 ? (
-          <div className="text-center text-text-secondary py-20">
-            <p className="text-4xl mb-4">✦</p>
-            <p className="text-base">还没有世界，点击右上角创建第一个</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {worlds.map((world) => (
-              <div
-                key={world.id}
-                className="we-world-card group relative bg-ivory border border-border rounded-xl p-5 cursor-pointer hover:border-accent/40 hover:shadow-ring transition-all"
-                onClick={() => handleEnterWorld(world)}
-              >
-                <h3 className="font-medium text-text mb-1.5 pr-16">{world.name}</h3>
-                {world.system_prompt ? (
-                  <p className="text-sm text-text-secondary line-clamp-2">{world.system_prompt}</p>
-                ) : (
-                  <p className="text-sm text-text-secondary opacity-40 italic">暂无描述</p>
-                )}
-
-                {/* 操作按钮 */}
-                <div
-                  className="absolute top-4 right-4 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={(e) => handleExportWorld(world, e)}
-                    disabled={exportingWorldId === world.id}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs disabled:opacity-50"
-                    title="导出世界卡"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() => navigate(`/worlds/${world.id}/edit`)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
-                    title="编辑"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={() => setDeletingWorld(world)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
-                    title="删除"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <div className="we-worlds-header-actions">
+          <button
+            onClick={() => worldImportRef.current?.click()}
+            disabled={importingWorld}
+            className="we-worlds-import-btn"
+          >
+            {importingWorld ? '导入中…' : '导入世界卡'}
+          </button>
+          <input
+            ref={worldImportRef}
+            type="file"
+            accept=".json,.weworld.json"
+            className="hidden"
+            onChange={handleImportWorldFile}
+          />
+        </div>
       </div>
+
+      {/* 内容区 */}
+      {loading ? (
+        <div className="we-worlds-loading">检索卷宗中…</div>
+      ) : worlds.length === 0 ? (
+        <div className="we-worlds-empty">
+          <p className="we-worlds-empty-text">尚无世界记录</p>
+          <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new')}>
+            新建世界
+          </button>
+        </div>
+      ) : (
+        <div className="we-worlds-grid">
+          {worlds.map((world) => (
+            <div
+              key={world.id}
+              className="we-world-card"
+              onClick={() => handleEnterWorld(world)}
+            >
+              <div
+                className="we-world-card-seal"
+                style={{ background: getAvatarColor(world.id) }}
+              />
+              <h3 className="we-world-card-name">{world.name}</h3>
+              <p className={`we-world-card-desc${!world.system_prompt ? ' we-world-card-desc-empty' : ''}`}>
+                {world.system_prompt || '暂无描述'}
+              </p>
+              <div className="we-world-card-meta">
+                <span>{world.character_count} 角色</span>
+                <span>·</span>
+                <span>{relativeTime(world.updated_at)}</span>
+              </div>
+
+              {/* hover 操作按钮 */}
+              <div
+                className="we-world-card-actions"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  className="we-world-card-action-btn"
+                  onClick={(e) => handleExportWorld(world, e)}
+                  disabled={exportingWorldId === world.id}
+                  title="导出世界卡"
+                >
+                  ↓
+                </button>
+                <button
+                  className="we-world-card-action-btn"
+                  onClick={() => navigate(`/worlds/${world.id}/edit`)}
+                  title="编辑"
+                >
+                  ✎
+                </button>
+                <button
+                  className="we-world-card-action-btn danger"
+                  onClick={() => setDeletingWorld(world)}
+                  title="删除"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 新建 FAB */}
+      <button
+        className="we-world-create-fab"
+        onClick={() => navigate('/worlds/new')}
+        title="新建世界"
+      >
+        +
+      </button>
 
       {deletingWorld && (
         <DeleteConfirmModal
