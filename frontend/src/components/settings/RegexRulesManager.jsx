@@ -9,6 +9,7 @@ import {
 import { getWorlds } from '../../api/worlds.js';
 import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
+import Button from '../ui/Button.jsx';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',
@@ -109,12 +110,9 @@ export default function RegexRulesManager() {
         <p className="text-sm text-text-secondary opacity-60">
           按 scope 分组，同组内按顺序链式执行
         </p>
-        <button
-          onClick={openCreate}
-          className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
-        >
+        <Button variant="ghost" size="sm" onClick={openCreate}>
           + 新建规则
-        </button>
+        </Button>
       </div>
 
       {SCOPE_ORDER.map((scope) => (
@@ -191,18 +189,12 @@ export default function RegexRulesManager() {
 
                   {/* 操作按钮 */}
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => openEdit(rule)}
-                      className="px-2 py-1 text-xs rounded border border-border text-text-secondary hover:border-accent transition-colors"
-                    >
+                    <Button variant="default" size="sm" onClick={() => openEdit(rule)}>
                       编辑
-                    </button>
-                    <button
-                      onClick={() => handleDelete(rule.id)}
-                      className="px-2 py-1 text-xs rounded border border-border text-red-400 hover:border-red-400 transition-colors"
-                    >
+                    </Button>
+                    <Button variant="danger" size="sm" onClick={() => handleDelete(rule.id)}>
                       删除
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}

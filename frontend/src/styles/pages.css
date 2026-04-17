@@ -596,3 +596,162 @@
   gap: 12px;
   flex-shrink: 0;
 }
+
+/* ── SettingsPage 双栏布局 ── */
+
+.we-settings-panel {
+  max-width: 1100px;
+  margin: 32px auto 0;
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  display: flex;
+  min-height: calc(100vh - 96px);
+}
+
+.we-settings-nav {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 32px 16px;
+  border-right: 1px solid var(--we-paper-shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.we-settings-nav-title {
+  font-family: var(--we-font-display);
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--we-ink-primary);
+  margin-bottom: 24px;
+  padding-left: 14px;
+}
+
+.we-settings-nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.we-settings-nav-item {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: 14px;
+  padding: 10px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--we-ink-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.we-settings-nav-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--we-ink-primary);
+}
+
+.we-settings-nav-item.active {
+  border-left-color: var(--we-vermilion);
+  background: var(--we-vermilion-bg);
+  color: var(--we-ink-primary);
+}
+
+.we-settings-body {
+  flex: 1;
+  padding: 32px 48px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.we-settings-section-title {
+  font-family: var(--we-font-display);
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--we-ink-primary);
+  margin: 0 0 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--we-paper-shadow);
+}
+
+.we-settings-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.we-settings-divider {
+  border: none;
+  border-top: 1px solid var(--we-paper-shadow);
+  margin: 24px 0;
+}
+
+.we-settings-subsection-title {
+  font-family: var(--we-font-display);
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--we-ink-secondary);
+  margin: 0 0 16px;
+}
+
+/* CSS reference collapsible block */
+.we-css-reference {
+  margin-bottom: 20px;
+}
+
+.we-css-reference details > summary {
+  font-family: var(--we-font-display);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--we-ink-faded);
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-none);
+  background: rgba(0, 0, 0, 0.02);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.15s;
+}
+
+.we-css-reference details > summary:hover {
+  color: var(--we-ink-secondary);
+}
+
+.we-css-reference details[open] > summary {
+  border-bottom: none;
+  border-radius: var(--we-radius-none) var(--we-radius-none) 0 0;
+}
+
+.we-css-reference-body {
+  border: 1px solid var(--we-paper-shadow);
+  padding: 16px;
+  background: var(--we-paper-aged);
+}
+
+.we-css-reference-code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--we-ink-secondary);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.we-css-reference-note {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+  margin-top: 10px;
+}

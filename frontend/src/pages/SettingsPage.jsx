@@ -10,6 +10,8 @@ import RegexRulesManager from '../components/settings/RegexRulesManager';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import ModelCombobox from '../components/ui/ModelCombobox';
 import Select from '../components/ui/Select';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -34,39 +36,29 @@ const EMBEDDING_PROVIDERS = [
 ];
 
 const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
-// 需要显示 Base URL 输入框的 provider（本地 + openai_compatible）
 const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible']);
 
-function SectionTitle({ children }) {
-  return (
-    <h2 className="font-serif text-base font-semibold text-text mb-4">{children}</h2>
-  );
-}
+const NAV_SECTIONS = [
+  { key: 'llm', label: 'LLM 配置' },
+  { key: 'prompt', label: '全局 Prompt' },
+  { key: 'css', label: '自定义 CSS' },
+  { key: 'regex', label: '正则规则' },
+  { key: 'entries', label: '全局 Prompt 条目' },
+  { key: 'about', label: '关于' },
+];
 
 function FieldLabel({ children, hint }) {
   return (
-    <label className="block text-sm text-text-secondary mb-1">
+    <label className="we-edit-label">
       {children}
-      {hint && <span className="text-text-secondary opacity-40 ml-1.5 text-xs">{hint}</span>}
+      {hint && <span className="we-edit-label-hint">{hint}</span>}
     </label>
   );
 }
 
-function textInput(value, onChange, placeholder) {
-  return (
-    <input
-      className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-    />
-  );
-}
-
-/** 模型下拉框 + 加载/错误状态 */
-function ModelSelector({ value, onChange, loadModels, disabled }) {
+function ModelSelector({ value, onChange, loadModels }) {
   const [models, setModels] = useState([]);
-  const [status, setStatus] = useState('idle'); // idle | loading | error
+  const [status, setStatus] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
 
   async function load() {
@@ -77,10 +69,7 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
       const list = data.models || [];
       setModels(list);
       setStatus('ok');
-      // 当前值为空或不在新列表中时，自动选第一个可用模型
-      if (list.length > 0 && !value) {
-        onChange(list[0]);
-      }
+      if (list.length > 0 && !value) onChange(list[0]);
     } catch (e) {
       setErrMsg(e.message || '无法获取模型列表，请检查 API Key 和网络连接');
       setStatus('error');
@@ -90,46 +79,27 @@ function ModelSelector({ value, onChange, loadModels, disabled }) {
   useEffect(() => { load(); }, []);
 
   if (status === 'loading') {
-    return <p className="text-sm text-text-secondary opacity-60 py-1">获取模型列表中…</p>;
+    return <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)' }}>获取模型列表中…</p>;
   }
-
   if (status === 'error') {
     return (
       <div>
-        <p className="text-sm text-red-400 mb-1">{errMsg}</p>
-        <button
-          onClick={load}
-          className="text-xs text-accent hover:opacity-80 transition-opacity"
-        >
-          重试
-        </button>
+        <p style={{ fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: '6px' }}>{errMsg}</p>
+        <Button variant="ghost" size="sm" onClick={load}>重试</Button>
       </div>
     );
   }
-
   return (
     <ModelCombobox
       value={value}
       onChange={onChange}
       options={models}
-      disabled={disabled}
       placeholder="输入或选择模型名称"
     />
   );
 }
 
-/** LLM 或 Embedding 配置区块 */
-function ProviderSection({
-  title,
-  providers,
-  config,
-  onProviderChange,
-  onBaseUrlChange,
-  onModelChange,
-  onApiKeySave,
-  onApiKeySaved,
-  loadModels,
-}) {
+function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, loadModels }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
 
@@ -149,58 +119,49 @@ function ProviderSection({
   const needsBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(config.provider);
 
   return (
-    <div className="flex flex-col gap-4">
-      <SectionTitle>{title}</SectionTitle>
+    <div className="we-settings-field-group">
+      {title && <p className="we-settings-subsection-title">{title}</p>}
 
-      {/* Provider */}
-      <div>
+      <div className="we-edit-form-group">
         <FieldLabel>Provider</FieldLabel>
-        <Select
-          value={config.provider || ''}
-          onChange={onProviderChange}
-          options={providers}
-        />
+        <Select value={config.provider || ''} onChange={onProviderChange} options={providers} />
       </div>
 
-      {/* API Key（本地 provider 无需 API Key） */}
       {config.provider && !isLocal && (
-        <div>
+        <div className="we-edit-form-group">
           <FieldLabel>API Key</FieldLabel>
-          <div className="flex gap-2">
-            <input
-              className="flex-1 px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Input
               type="password"
+              style={{ flex: 1 }}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
             />
-            <button
-              onClick={handleSaveKey}
-              className="px-4 py-2 text-sm bg-ivory border border-border rounded-lg text-text hover:border-accent transition-colors"
-            >
+            <Button variant="default" onClick={handleSaveKey}>
               {apiKeySaved ? '已保存' : '保存密钥'}
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
-      {/* Base URL（本地 provider 和 openai_compatible 显示） */}
       {needsBaseUrl && (
-        <div>
+        <div className="we-edit-form-group">
           <FieldLabel>Base URL</FieldLabel>
-          {textInput(
-            config.base_url || '',
-            onBaseUrlChange,
-            config.provider === 'ollama' ? 'http://localhost:11434'
-              : config.provider === 'lmstudio' ? 'http://localhost:1234'
-              : 'https://your-api-endpoint/v1',
-          )}
+          <Input
+            value={config.base_url || ''}
+            onChange={(e) => onBaseUrlChange(e.target.value)}
+            placeholder={
+              config.provider === 'ollama' ? 'http://localhost:11434'
+                : config.provider === 'lmstudio' ? 'http://localhost:1234'
+                : 'https://your-api-endpoint/v1'
+            }
+          />
         </div>
       )}
 
-      {/* 模型 */}
       {config.provider && (
-        <div>
+        <div className="we-edit-form-group">
           <FieldLabel>模型</FieldLabel>
           <ModelSelector
             key={config.provider + (config.base_url || '') + (config.api_key || '')}
@@ -214,21 +175,259 @@ function ProviderSection({
   );
 }
 
+function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange }) {
+  const [testStatus, setTestStatus] = useState('idle');
+  const [testMsg, setTestMsg] = useState('');
+
+  async function handleTestConnection() {
+    setTestStatus('testing');
+    setTestMsg('');
+    try {
+      const result = await testConnection();
+      if (result.success) {
+        setTestStatus('ok');
+        setTestMsg('连接成功');
+      } else {
+        setTestStatus('error');
+        setTestMsg(result.error || '连接失败');
+      }
+    } catch (e) {
+      setTestStatus('error');
+      setTestMsg(e.message);
+    }
+    setTimeout(() => setTestStatus('idle'), 4000);
+  }
+
+  return (
+    <div>
+      <h2 className="we-settings-section-title">LLM 配置</h2>
+
+      <ProviderBlock
+        title="语言模型（LLM）"
+        providers={LLM_PROVIDERS}
+        config={llm}
+        onProviderChange={(v) => onLlmChange('provider', v)}
+        onBaseUrlChange={(v) => onLlmChange('base_url', v)}
+        onModelChange={(v) => onLlmChange('model', v)}
+        onApiKeySave={updateApiKey}
+        onApiKeySaved={() => onLlmChange('has_key', true)}
+        loadModels={fetchModels}
+      />
+
+      <div className="we-settings-field-group">
+        <div className="we-edit-form-group">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+            <FieldLabel>Temperature</FieldLabel>
+            <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)' }}>
+              {(llm.temperature ?? 0.8).toFixed(1)}
+            </span>
+          </div>
+          <input
+            type="range"
+            min="0.1" max="2.0" step="0.1"
+            value={llm.temperature ?? 0.8}
+            onChange={(e) => onLlmChange('temperature', parseFloat(e.target.value))}
+            style={{ width: '100%', accentColor: 'var(--we-vermilion)' }}
+          />
+        </div>
+
+        <div className="we-edit-form-group">
+          <FieldLabel>Max Tokens</FieldLabel>
+          <Input
+            type="number"
+            min="64" max="32000" step="64"
+            value={llm.max_tokens ?? 4096}
+            onChange={(e) => onLlmChange('max_tokens', parseInt(e.target.value, 10))}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+          <Button
+            variant="default"
+            onClick={handleTestConnection}
+            disabled={testStatus === 'testing'}
+          >
+            {testStatus === 'testing' ? '测试中…' : '测试连接'}
+          </Button>
+          {testStatus === 'ok' && (
+            <span style={{ fontSize: '13px', color: 'var(--we-moss)' }}>{testMsg}</span>
+          )}
+          {testStatus === 'error' && (
+            <span style={{ fontSize: '13px', color: 'var(--we-vermilion)' }}>{testMsg}</span>
+          )}
+        </div>
+      </div>
+
+      <hr className="we-settings-divider" />
+
+      <ProviderBlock
+        title="Embedding 模型"
+        providers={EMBEDDING_PROVIDERS}
+        config={embedding}
+        onProviderChange={(v) => onEmbeddingChange('provider', v || null)}
+        onBaseUrlChange={(v) => onEmbeddingChange('base_url', v)}
+        onModelChange={(v) => onEmbeddingChange('model', v)}
+        onApiKeySave={updateEmbeddingApiKey}
+        onApiKeySaved={() => onEmbeddingChange('has_key', true)}
+        loadModels={fetchEmbeddingModels}
+      />
+    </div>
+  );
+}
+
+function PromptSection({
+  globalSystemPrompt, setGlobalSystemPrompt,
+  globalPostPrompt, setGlobalPostPrompt,
+  contextRounds, setContextRounds,
+  memoryExpansionEnabled, onToggleMemoryExpansion,
+  onSave, saving,
+}) {
+  return (
+    <div>
+      <h2 className="we-settings-section-title">全局 Prompt</h2>
+
+      <div className="we-settings-field-group">
+        <div className="we-edit-form-group">
+          <FieldLabel hint="0 = 不限制">上下文保留轮次</FieldLabel>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Input
+              type="number"
+              min={0}
+              style={{ width: '96px' }}
+              value={contextRounds}
+              onChange={(e) => setContextRounds(e.target.value)}
+            />
+            <span style={{ fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', fontFamily: 'var(--we-font-serif)' }}>
+              保留最近 N 轮，0 = 不限制
+            </span>
+          </div>
+        </div>
+
+        <div className="we-edit-form-group">
+          <FieldLabel>全局 System Prompt</FieldLabel>
+          <MarkdownEditor
+            value={globalSystemPrompt}
+            onChange={setGlobalSystemPrompt}
+            placeholder="适用于所有世界和角色的全局指令"
+            minHeight={96}
+          />
+        </div>
+
+        <div className="we-edit-form-group">
+          <FieldLabel hint="插入在用户消息之后，作为 user 角色发送">全局后置提示词</FieldLabel>
+          <MarkdownEditor
+            value={globalPostPrompt}
+            onChange={setGlobalPostPrompt}
+            placeholder="每次用户发送消息后附加的全局指令，例如输出格式要求"
+            minHeight={72}
+          />
+        </div>
+      </div>
+
+      <hr className="we-settings-divider" />
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
+        <div>
+          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+            记忆原文展开
+          </p>
+          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+            召回历史摘要后允许 AI 读取原文，会略增加首包延迟
+          </p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={memoryExpansionEnabled}
+          onClick={() => onToggleMemoryExpansion(!memoryExpansionEnabled)}
+          style={{
+            flexShrink: 0,
+            position: 'relative',
+            display: 'inline-flex',
+            height: '24px',
+            width: '44px',
+            cursor: 'pointer',
+            borderRadius: '9999px',
+            border: '2px solid transparent',
+            transition: 'background-color 0.2s',
+            backgroundColor: memoryExpansionEnabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-block',
+              height: '20px',
+              width: '20px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--we-paper-base)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              transition: 'transform 0.2s',
+              transform: memoryExpansionEnabled ? 'translateX(20px)' : 'translateX(0)',
+            }}
+          />
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button variant="primary" onClick={onSave} disabled={saving}>
+          {saving ? '保存中…' : '保存'}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AboutSection() {
+  return (
+    <div>
+      <h2 className="we-settings-section-title">关于</h2>
+      <div className="we-settings-field-group">
+        <div>
+          <p style={{ fontFamily: 'var(--we-font-display)', fontSize: '15px', fontStyle: 'italic', color: 'var(--we-ink-secondary)', margin: '0 0 4px' }}>
+            WorldEngine
+          </p>
+          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', margin: 0 }}>
+            版本 0.0.0（开发版）
+          </p>
+        </div>
+
+        <hr className="we-settings-divider" />
+
+        <div>
+          <p style={{ fontFamily: 'var(--we-font-display)', fontSize: '14px', fontStyle: 'italic', color: 'var(--we-ink-secondary)', margin: '0 0 8px' }}>
+            重置数据库
+          </p>
+          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', lineHeight: '1.6', margin: '0 0 12px' }}>
+            重置将清除所有数据（世界、角色、会话、消息）。请在后端目录执行：
+          </p>
+          <pre style={{
+            fontFamily: 'Courier New, monospace',
+            fontSize: '12.5px',
+            background: 'var(--we-paper-aged)',
+            border: '1px solid var(--we-paper-shadow)',
+            padding: '10px 14px',
+            color: 'var(--we-ink-secondary)',
+            margin: 0,
+          }}>
+            {'cd backend && npm run db:reset'}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState('llm');
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 独立存储 llm 和 embedding 的 provider/base_url/model（从 config 加载，本地修改后 patch 到服务器）
   const [llm, setLlm] = useState({});
   const [embedding, setEmbedding] = useState({});
   const [contextRounds, setContextRounds] = useState(10);
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
-
-  const [testStatus, setTestStatus] = useState('idle'); // idle | testing | ok | error
-  const [testMsg, setTestMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -251,14 +450,14 @@ export default function SettingsPage() {
 
   async function handleLlmChange(field, value) {
     if (field === 'provider') {
-      // 切换 provider 时清除 base_url（非本地）和 model，避免旧值干扰新 provider
       const isLocal = LOCAL_PROVIDERS.includes(value);
       const patch = isLocal
         ? { provider: value, model: '' }
         : { provider: value, base_url: '', model: '' };
-      // 先保存再更新 state，避免 ModelSelector 在旧 provider 下拉取模型
       await patchConfig({ llm: patch });
       setLlm((prev) => ({ ...prev, ...patch }));
+    } else if (field === 'has_key') {
+      setLlm((prev) => ({ ...prev, has_key: value }));
     } else {
       setLlm((prev) => ({ ...prev, [field]: value }));
       await patchConfig({ llm: { [field]: value } });
@@ -273,6 +472,8 @@ export default function SettingsPage() {
         : { provider: value, base_url: '', model: '' };
       await patchConfig({ embedding: patch });
       setEmbedding((prev) => ({ ...prev, ...patch }));
+    } else if (field === 'has_key') {
+      setEmbedding((prev) => ({ ...prev, has_key: value }));
     } else {
       setEmbedding((prev) => ({ ...prev, [field]: value }));
       await patchConfig({ embedding: { [field]: value } });
@@ -297,226 +498,78 @@ export default function SettingsPage() {
     await patchConfig({ memory_expansion_enabled: enabled });
   }
 
-  async function handleTestConnection() {
-    setTestStatus('testing');
-    setTestMsg('');
-    try {
-      const result = await testConnection();
-      if (result.success) {
-        setTestStatus('ok');
-        setTestMsg('连接成功');
-      } else {
-        setTestStatus('error');
-        setTestMsg(result.error || '连接失败');
-      }
-    } catch (e) {
-      setTestStatus('error');
-      setTestMsg(e.message);
-    }
-    setTimeout(() => setTestStatus('idle'), 4000);
-  }
-
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-text-secondary">
-        加载中…
+      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-canvas">
-      {/* 固定顶栏 */}
-      <div className="sticky top-0 z-40 bg-canvas border-b border-border px-4">
-        <div className="max-w-[56rem] mx-auto flex items-center justify-between py-2.5">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            ← 返回
-          </button>
-          <button
-            onClick={handleSaveGeneral}
-            disabled={saving}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {saving ? '保存中…' : '保存'}
-          </button>
-        </div>
-      </div>
-
-      {/* 内容区 */}
-      <div className="px-4 pt-8 pb-10">
-      <div className="max-w-[56rem] mx-auto">
-        <h1 className="text-2xl font-serif font-semibold text-text tracking-tight mb-10">设置</h1>
-
-        <div className="flex flex-col gap-10">
-          {/* ── LLM 配置 ─────────────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <ProviderSection
-              title="语言模型（LLM）"
-              providers={LLM_PROVIDERS}
-              config={llm}
-              onProviderChange={(v) => handleLlmChange('provider', v)}
-              onBaseUrlChange={(v) => handleLlmChange('base_url', v)}
-              onModelChange={(v) => handleLlmChange('model', v)}
-              onApiKeySave={updateApiKey}
-              onApiKeySaved={() => setLlm((prev) => ({ ...prev, has_key: true }))}
-              loadModels={fetchModels}
-            />
-
-            {/* 模型参数 */}
-            <div className="mt-4 flex flex-col gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <FieldLabel>Temperature</FieldLabel>
-                  <span className="text-sm text-text font-mono">
-                    {(llm.temperature ?? 0.8).toFixed(1)}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0.1" max="2.0" step="0.1"
-                  value={llm.temperature ?? 0.8}
-                  onChange={(e) => handleLlmChange('temperature', parseFloat(e.target.value))}
-                  className="w-full accent-accent"
-                />
-              </div>
-              <div>
-                <FieldLabel>Max Tokens</FieldLabel>
-                <input
-                  type="number"
-                  min="64" max="32000" step="64"
-                  value={llm.max_tokens ?? 4096}
-                  onChange={(e) => handleLlmChange('max_tokens', parseInt(e.target.value, 10))}
-                  className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-                />
-              </div>
-            </div>
-
-            {/* 测试连接 */}
-            <div className="mt-5 flex items-center gap-3">
+    <div className="we-edit-canvas">
+      <div className="we-settings-panel">
+        {/* 左栏导航 */}
+        <nav className="we-settings-nav">
+          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <p className="we-settings-nav-title">设置</p>
+          <div className="we-settings-nav-items">
+            {NAV_SECTIONS.map((s) => (
               <button
-                onClick={handleTestConnection}
-                disabled={testStatus === 'testing'}
-                className="px-4 py-2 text-sm border border-border rounded-lg text-text hover:border-accent transition-colors disabled:opacity-50"
+                key={s.key}
+                className={`we-settings-nav-item${activeSection === s.key ? ' active' : ''}`}
+                onClick={() => setActiveSection(s.key)}
               >
-                {testStatus === 'testing' ? '测试中…' : '测试连接'}
+                {s.label}
               </button>
-              {testStatus === 'ok' && (
-                <span className="text-sm text-green-500">{testMsg}</span>
-              )}
-              {testStatus === 'error' && (
-                <span className="text-sm text-red-400">{testMsg}</span>
-              )}
-            </div>
-          </section>
+            ))}
+          </div>
+        </nav>
 
-          {/* ── Embedding 配置 ───────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <ProviderSection
-              title="Embedding 模型"
-              providers={EMBEDDING_PROVIDERS}
-              config={embedding}
-              onProviderChange={(v) => handleEmbeddingChange('provider', v || null)}
-              onBaseUrlChange={(v) => handleEmbeddingChange('base_url', v)}
-              onModelChange={(v) => handleEmbeddingChange('model', v)}
-              onApiKeySave={updateEmbeddingApiKey}
-              onApiKeySaved={() => setEmbedding((prev) => ({ ...prev, has_key: true }))}
-              loadModels={fetchEmbeddingModels}
+        {/* 右栏内容 */}
+        <div className="we-settings-body">
+          {activeSection === 'llm' && (
+            <LlmSection
+              llm={llm}
+              embedding={embedding}
+              onLlmChange={handleLlmChange}
+              onEmbeddingChange={handleEmbeddingChange}
             />
-          </section>
-
-          {/* ── 通用配置 ─────────────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <SectionTitle>通用配置</SectionTitle>
-            <div className="flex flex-col gap-4">
-              <div>
-                <FieldLabel hint="0 = 不限制">上下文保留轮次</FieldLabel>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={0}
-                    className="w-28 px-3 py-2 bg-canvas border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
-                    value={contextRounds}
-                    onChange={(e) => setContextRounds(e.target.value)}
-                  />
-                  <span className="text-sm text-text-secondary opacity-60">
-                    保留最近 N 轮对话历史发送给 AI，0 = 不限制
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <FieldLabel>全局 System Prompt</FieldLabel>
-                <MarkdownEditor
-                  value={globalSystemPrompt}
-                  onChange={setGlobalSystemPrompt}
-                  placeholder="适用于所有世界和角色的全局指令"
-                  minHeight={96}
-                />
-              </div>
-
-              <div>
-                <FieldLabel hint="插入在用户消息之后，作为 user 角色发送">全局后置提示词</FieldLabel>
-                <MarkdownEditor
-                  value={globalPostPrompt}
-                  onChange={setGlobalPostPrompt}
-                  placeholder="每次用户发送消息后附加的全局指令，例如输出格式要求"
-                  minHeight={72}
-                />
-              </div>
-
-              <div className="border-t border-border pt-4">
-                <EntryList type="global" />
-              </div>
+          )}
+          {activeSection === 'prompt' && (
+            <PromptSection
+              globalSystemPrompt={globalSystemPrompt}
+              setGlobalSystemPrompt={setGlobalSystemPrompt}
+              globalPostPrompt={globalPostPrompt}
+              setGlobalPostPrompt={setGlobalPostPrompt}
+              contextRounds={contextRounds}
+              setContextRounds={setContextRounds}
+              memoryExpansionEnabled={memoryExpansionEnabled}
+              onToggleMemoryExpansion={handleToggleMemoryExpansion}
+              onSave={handleSaveGeneral}
+              saving={saving}
+            />
+          )}
+          {activeSection === 'css' && (
+            <div>
+              <h2 className="we-settings-section-title">自定义 CSS</h2>
+              <CustomCssManager />
             </div>
-          </section>
-
-          {/* ── 自定义样式 ────────────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <SectionTitle>自定义样式</SectionTitle>
-            <CustomCssManager />
-          </section>
-
-          {/* ── 正则替换 ──────────────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <SectionTitle>正则替换</SectionTitle>
-            <RegexRulesManager />
-          </section>
-
-          {/* ── 记忆与召回 ────────────────────────────── */}
-          <section className="bg-ivory border border-border rounded-2xl p-6">
-            <SectionTitle>记忆与召回</SectionTitle>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text">记忆原文展开</p>
-                  <p className="text-xs text-text-secondary opacity-60 mt-0.5">
-                    召回历史摘要后允许 AI 读取原文，会略增加首包延迟
-                  </p>
-                </div>
-                <button
-                  role="switch"
-                  aria-checked={memoryExpansionEnabled}
-                  onClick={() => handleToggleMemoryExpansion(!memoryExpansionEnabled)}
-                  className={[
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
-                    memoryExpansionEnabled ? 'bg-accent' : 'bg-border',
-                  ].join(' ')}
-                >
-                  <span
-                    className={[
-                      'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200',
-                      memoryExpansionEnabled ? 'translate-x-5' : 'translate-x-0',
-                    ].join(' ')}
-                  />
-                </button>
-              </div>
+          )}
+          {activeSection === 'regex' && (
+            <div>
+              <h2 className="we-settings-section-title">正则规则</h2>
+              <RegexRulesManager />
             </div>
-          </section>
+          )}
+          {activeSection === 'entries' && (
+            <div>
+              <h2 className="we-settings-section-title">全局 Prompt 条目</h2>
+              <EntryList type="global" />
+            </div>
+          )}
+          {activeSection === 'about' && <AboutSection />}
         </div>
-      </div>
       </div>
     </div>
   );

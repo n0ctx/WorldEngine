@@ -3,6 +3,27 @@ import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
 } from '../../api/customCssSnippets';
+import Button from '../ui/Button';
+import Input from '../ui/Input';
+import Textarea from '../ui/Textarea';
+
+const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
+:root {
+  --we-paper-base: #e8dcc8;
+  --we-vermilion: #8b2e24;
+}
+
+/* ✅ 推荐：改消息样式 */
+.we-message-assistant .we-message-content {
+  font-size: 18px;
+  line-height: 2;
+}
+
+/* ✅ 推荐：改用户消息边线颜色 */
+.we-message-user { border-left-color: #4a7c8b; }
+
+/* ⚠️  注意：骨架类名可能随版本变化 */
+.we-book-spine { ... }`;
 
 export default function CustomCssManager() {
   const [snippets, setSnippets] = useState([]);
@@ -46,7 +67,6 @@ export default function CustomCssManager() {
     await refreshCustomCss();
   }
 
-  // ── 拖拽排序 ──
   function handleDragStart(idx) { dragIdx.current = idx; }
 
   function handleDragOver(e, idx) {
@@ -68,24 +88,42 @@ export default function CustomCssManager() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-text-secondary uppercase tracking-wider opacity-60">
+      {/* 推荐选择器参考（可折叠） */}
+      <div className="we-css-reference">
+        <details>
+          <summary>推荐选择器参考</summary>
+          <div className="we-css-reference-body">
+            <pre className="we-css-reference-code">{CSS_REFERENCE_EXAMPLE}</pre>
+            <p className="we-css-reference-note">
+              稳定锚点类名清单见 DESIGN.md §10.2，标 ⚠️ 的类名可能随版本变化请谨慎。
+            </p>
+          </div>
+        </details>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-ink-faded)' }}>
           自定义 CSS 片段
         </span>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => { setEditingSnippet(null); setShowEditor(true); }}
-          className="text-xs px-2.5 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 添加
-        </button>
+        </Button>
       </div>
 
       {loading ? (
-        <p className="text-xs text-text-secondary opacity-50 py-3 text-center">加载中…</p>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+          加载中…
+        </p>
       ) : snippets.length === 0 ? (
-        <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无 CSS 片段</p>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+          暂无 CSS 片段
+        </p>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {snippets.map((s, idx) => (
             <SnippetRow
               key={s.id}
@@ -126,45 +164,77 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete, onDragStart, onDragOv
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-center gap-2 bg-canvas border border-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
+      className="group"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        background: 'var(--we-paper-aged)',
+        border: '1px solid var(--we-paper-shadow)',
+        padding: '8px 12px',
+        cursor: 'grab',
+        userSelect: 'none',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--we-ink-faded)'}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'}
     >
-      <span className="text-text-secondary opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
+      <span style={{ color: 'var(--we-ink-faded)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
 
-      <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-text font-medium truncate">{snippet.name}</span>
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {snippet.name}
+        </span>
         {snippet.content && (
-          <span className="text-xs text-text-secondary opacity-40 font-mono truncate">
+          <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-ink-faded)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {snippet.content.trim().slice(0, 40)}{snippet.content.trim().length > 40 ? '…' : ''}
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* 启用/禁用开关 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
         <button
           onClick={onToggle}
           title={snippet.enabled ? '点击禁用' : '点击启用'}
-          className={`text-xs px-2 py-0.5 rounded border transition-colors ${
-            snippet.enabled
-              ? 'border-accent text-accent bg-accent/10'
-              : 'border-border text-text-secondary opacity-40'
-          }`}
+          style={{
+            fontFamily: 'var(--we-font-serif)',
+            fontSize: '11px',
+            padding: '2px 8px',
+            border: `1px solid ${snippet.enabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
+            color: snippet.enabled ? 'var(--we-vermilion)' : 'var(--we-ink-faded)',
+            background: snippet.enabled ? 'var(--we-vermilion-bg)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
         >
           {snippet.enabled ? '启用' : '禁用'}
         </button>
-
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onEdit}
-            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
-            title="编辑"
-          >✎</button>
-          <button
-            onClick={onDelete}
-            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
-            title="删除"
-          >✕</button>
-        </div>
+        <button
+          onClick={onEdit}
+          title="编辑"
+          style={{
+            width: '24px', height: '24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: 'none',
+            color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px',
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-ink-primary)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+        >✎</button>
+        <button
+          onClick={onDelete}
+          title="删除"
+          style={{
+            width: '24px', height: '24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'transparent', border: 'none',
+            color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px',
+            transition: 'color 0.15s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-vermilion)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+        >✕</button>
       </div>
     </div>
   );
@@ -190,17 +260,28 @@ function SnippetEditor({ snippet, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-2xl mx-4 p-6 flex flex-col gap-4">
-        <h2 className="text-base font-semibold text-text">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+      <div style={{
+        background: 'var(--we-paper-base)',
+        border: '1px solid var(--we-paper-shadow)',
+        borderRadius: 'var(--we-radius-sm)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+        width: '100%',
+        maxWidth: '640px',
+        margin: '0 16px',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+      }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-ink-primary)', margin: 0 }}>
           {snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}
         </h2>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label className="block text-sm text-text-secondary mb-1">片段名称</label>
-            <input
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent"
+            <label className="we-edit-label">片段名称</label>
+            <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="例：消息气泡样式"
@@ -209,32 +290,22 @@ function SnippetEditor({ snippet, onSave, onClose }) {
           </div>
 
           <div>
-            <label className="block text-sm text-text-secondary mb-1">CSS 内容</label>
-            <textarea
-              className="w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm font-mono focus:outline-none focus:border-accent resize-none"
+            <label className="we-edit-label">CSS 内容</label>
+            <Textarea
               rows={12}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder=".message-bubble { background: #fff; }"
               spellCheck={false}
+              style={{ fontFamily: 'Courier New, monospace', resize: 'none' }}
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-1">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              disabled={saving || !name.trim()}
-              className="px-5 py-2 text-sm bg-accent text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '4px' }}>
+            <Button variant="ghost" type="button" onClick={onClose}>取消</Button>
+            <Button variant="primary" type="submit" disabled={saving || !name.trim()}>
               {saving ? '保存中…' : '保存'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -250,24 +321,28 @@ function DeleteConfirm({ onConfirm, onClose }) {
     setDeleting(false);
   }
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-      <div className="bg-canvas border border-border rounded-2xl shadow-whisper w-full max-w-sm mx-4 p-6">
-        <h2 className="text-base font-semibold text-text mb-2">确认删除</h2>
-        <p className="text-sm text-red-400 mb-5">此操作无法撤销。</p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handle}
-            disabled={deleting}
-            className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-          >
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+      <div style={{
+        background: 'var(--we-paper-base)',
+        border: '1px solid var(--we-paper-shadow)',
+        borderRadius: 'var(--we-radius-sm)',
+        boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+        width: '100%',
+        maxWidth: '360px',
+        margin: '0 16px',
+        padding: '24px',
+      }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-ink-primary)', margin: '0 0 8px' }}>
+          确认删除
+        </h2>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', margin: '0 0 20px' }}>
+          此操作无法撤销。
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <Button variant="ghost" onClick={onClose}>取消</Button>
+          <Button variant="danger" onClick={handle} disabled={deleting}>
             {deleting ? '删除中…' : '确认删除'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T70 — SettingsPage 双栏 + CustomCssManager 引导 ✅
+- **对外接口**：`SettingsPage` 无新增对外接口；`CustomCssManager` 无 props 变化；`RegexRulesManager` 无 props 变化
+- **涉及文件**：重写 `frontend/src/pages/SettingsPage.jsx`；更新 `frontend/src/components/settings/CustomCssManager.jsx`（添加折叠引导 + 替换 Button/Input/Textarea）；更新 `frontend/src/components/settings/RegexRulesManager.jsx`（替换按钮为 T67 Button）；追加 `frontend/src/styles/pages.css`（`.we-settings-panel`/`.we-settings-nav`/`.we-settings-nav-item`/`.we-settings-body` 等设置页专用类 + `.we-css-reference*` 折叠引导样式）
+- **注意**：`SettingsPage` 使用 `we-edit-canvas`（外层书本背景，与 T69 保持一致）+ 新建 `we-settings-panel`（flex 双栏，最大宽度 1100px）；LLM 和 Embedding 同在"LLM 配置"分区，分隔线区分；"全局 Prompt"分区包含 context_rounds、memory_expansion 及保存按钮；CSS 折叠引导用原生 `<details>`/`<summary>`，默认收起；"关于"分区版本号硬编码 0.0.0，数据库重置引导用 CLI 命令展示（无 HTTP 接口）；`RegexRulesManager` 原有 Tailwind 类在行级规则项上仍保留（只替换了顶部新建按钮和行内编辑/删除按钮）
+
 ## T69 后续修复 ✅
 - **涉及文件**：`App.jsx`、`PageTransition.jsx`、`BookSpread.jsx`、`TopBar.jsx`、`CharactersPage.jsx`、`PersonaEditPage.jsx`、`StatePanel.jsx`、`ChatPage.jsx`、`pages.css`
 - **注意**：`PageTransition` 去除 framer-motion 动画与 `key`（消除页面切换闪烁）；改为 `overflowY: auto` 使编辑页可滚动，`BookSpread` 对应改为 `flex: 1; min-height: 0`（`height: 100%` 在 overflow:auto 容器中解析不稳定）；`PersonaEditPage` 关闭动画改为内部 `closing` state 驱动（`x: 0→400`），`handleClose()` 统一入口；顶部栏"玩家人设"点击已开时发 `closingDrawer` state 信号触发关闭动画；`CharactersPage` 玩家卡片 ✎ 按钮同步传 `backgroundLocation`；抽屉及遮罩 `top: 40px`（TopBar 高度）；`StatePanel` 宽 280→340px；`ChatPage` 移除 `PageFooter`；删除 `demo/index.html`
