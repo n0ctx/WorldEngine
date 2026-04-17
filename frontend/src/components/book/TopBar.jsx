@@ -67,7 +67,7 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const isChat = !!characterId;
+  const isChat = !!characterId || !!location.pathname.match(/\/worlds\/[\w-]+$/);
   const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
 
   return (
@@ -189,8 +189,8 @@ export default function TopBar() {
           if (worldId) navigate(`/worlds/${worldId}/writing`);
         }}
       >
-        写作空间
-      </button>
+        写作
+</button>
 
       <div style={{ flex: 1 }} />
 

@@ -247,16 +247,6 @@ export default function CharactersPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate(`/worlds/${worldId}/writing`)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 20h9" />
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              写作空间
-            </button>
-            <button
               onClick={() => charImportRef.current?.click()}
               disabled={importingChar}
               className="px-4 py-2 text-sm border border-border rounded-lg text-text-secondary hover:text-text hover:border-accent/40 transition-colors disabled:opacity-50"
