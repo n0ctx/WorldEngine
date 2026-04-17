@@ -15,21 +15,20 @@ function parseValue(effectiveValueJson, type) {
   }
 }
 
-// 加载骨架行
 function SkeletonRows() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 2 }}>
-      {[70, 55, 80].map((w, i) => (
-        <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 2 }}>
+      {[60, 80, 45].map((w, i) => (
+        <div key={i}>
+          <div className="we-skel" style={{ height: 8, width: '30%', marginBottom: 4 }} />
+          <div className="we-skel" style={{ height: 10, width: `${w}%` }} />
+        </div>
       ))}
     </div>
   );
 }
 
 export default function StatusSection({ title, rows, pinnedName, onReset, resetting, className }) {
-  // rows === null  → 加载中
-  // rows === []    → 已加载但无字段（只展示 pinnedName）
-  // rows.length>0  → 正常渲染
   const isLoading = rows === null;
   const hasName = pinnedName != null && pinnedName !== '';
   const hasRows = Array.isArray(rows) && rows.length > 0;
@@ -37,7 +36,6 @@ export default function StatusSection({ title, rows, pinnedName, onReset, resett
 
   return (
     <div className={`we-state-section ${className || ''}`}>
-      {/* 区块标题栏 */}
       <div className="we-state-section-title">
         <span className="we-section-label">{title}</span>
         <span className="we-section-rule" />
@@ -51,25 +49,19 @@ export default function StatusSection({ title, rows, pinnedName, onReset, resett
         )}
       </div>
 
-      {/* 内容 */}
       {isLoading && <SkeletonRows />}
 
-      {isEmpty && (
-        <p className="we-section-empty">暂无数据</p>
-      )}
+      {isEmpty && <p className="we-section-empty">暂无数据</p>}
 
       {!isLoading && !isEmpty && (
         <div className="we-fields-list">
-          {/* 置顶姓名行 */}
           {hasName && (
             <div className="we-status-field" style={{ animationDelay: '0ms' }}>
               <span className="we-status-key">姓名</span>
-              <span className="we-status-dots" />
               <span className="we-status-value">{pinnedName}</span>
             </div>
           )}
 
-          {/* 字段行 */}
           {rows?.map((row, i) => {
             const type = row.field_type ?? row.type;
             const display = parseValue(row.effective_value_json, type);
@@ -79,16 +71,17 @@ export default function StatusSection({ title, rows, pinnedName, onReset, resett
             const pct = max != null && numVal != null ? Math.min(100, (numVal / max) * 100) : null;
 
             return (
-              <div key={row.field_key} style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 40}ms` }}>
-                <div className="we-status-field">
-                  <span className="we-status-key">{row.label}</span>
-                  <span className="we-status-dots" />
-                  <span className={`we-status-value${display == null ? ' we-status-null' : ''}`}>
-                    {display != null ? (
-                      isNumber && max != null ? `${display} / ${max}` : display
-                    ) : '—'}
-                  </span>
-                </div>
+              <div
+                key={row.field_key}
+                className="we-status-field"
+                style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
+              >
+                <span className="we-status-key">{row.label}</span>
+                <span className={`we-status-value${display == null ? ' we-status-null' : ''}`}>
+                  {display != null ? (
+                    isNumber && max != null ? `${display} / ${max}` : display
+                  ) : '—'}
+                </span>
                 {pct != null && (
                   <div className="we-status-bar">
                     <div className="we-status-bar-fill" style={{ width: `${pct}%` }} />

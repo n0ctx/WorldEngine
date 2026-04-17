@@ -189,15 +189,15 @@ export default function StatePanel({ character, worldId, characterId, persona, r
       {/* 金箔分隔线 */}
       <GoldDivider />
 
-      {/* ── 内容区 ── */}
+      {/* ── 内容区：世界 → 玩家 → 角色 ── */}
       <div className="we-panel-body">
-        {/* 角色状态：pinnedName 不传（头部已显示角色名） */}
+        {/* 世界状态 */}
         <StatusSection
-          title="CURRENT STATE"
-          className="we-status-character"
-          rows={charState}
-          onReset={handleResetChar}
-          resetting={charResetting}
+          title="WORLD"
+          className="we-status-world"
+          rows={worldState}
+          onReset={handleResetWorld}
+          resetting={worldResetting}
         />
 
         {/* 玩家状态 */}
@@ -210,13 +210,13 @@ export default function StatePanel({ character, worldId, characterId, persona, r
           resetting={personaResetting}
         />
 
-        {/* 世界状态 */}
+        {/* 角色状态：pinnedName 不传（头部已显示角色名） */}
         <StatusSection
-          title="WORLD"
-          className="we-status-world"
-          rows={worldState}
-          onReset={handleResetWorld}
-          resetting={worldResetting}
+          title="CURRENT STATE"
+          className="we-status-character"
+          rows={charState}
+          onReset={handleResetChar}
+          resetting={charResetting}
         />
 
         {/* 世界时间线 */}

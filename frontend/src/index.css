@@ -471,58 +471,43 @@ body {
 }
 
 /* ── 字段列表 ─── */
-.we-fields-list > div {
+.we-fields-list .we-status-field {
   animation: wePanelFadeIn 0.28s ease-out both;
 }
 
-/* 字段行：key ··· value */
+/* 字段行：竖排，标签在上，值在下，完整显示 */
 .we-status-field {
   display: flex;
-  align-items: baseline;
-  gap: 4px;
-  margin-bottom: 6px;
-  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
 }
 .we-status-key {
-  font-family: var(--we-font-serif);
-  font-size: 11.5px;
-  font-style: italic;
+  font-family: var(--we-font-display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--we-ink-faded);
-  flex-shrink: 0;
-  max-width: 45%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-/* 点线引导 */
-.we-status-dots {
-  flex: 1;
-  border-bottom: 1px dotted var(--we-paper-deep);
-  margin-bottom: 2px;
-  min-width: 8px;
-  opacity: 0.5;
+  opacity: 0.75;
 }
 .we-status-value {
   font-family: var(--we-font-serif);
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--we-ink-secondary);
-  flex-shrink: 0;
-  max-width: 52%;
-  text-align: right;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .we-status-null {
   color: var(--we-ink-faded);
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 /* 进度条 */
 .we-status-bar {
   height: 2px;
   background: rgba(0, 0, 0, 0.08);
-  margin: -2px 0 8px;
+  margin-top: 4px;
   overflow: hidden;
 }
 .we-status-bar-fill {
