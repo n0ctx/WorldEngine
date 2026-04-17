@@ -19,12 +19,17 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T60 — 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签 ✅
+- **对外接口**：新增 `BookSpread` `PageLeft` `PageRight` `ParchmentTexture` `Bookmark` 五个组件，路径 `frontend/src/components/book/`
+- **涉及文件**：上述五个新建组件；`frontend/src/pages/ChatPage.jsx`（外层容器改为 BookSpread + PageLeft + PageRight，Sidebar 移入 PageLeft，对话区 + 记忆面板移入 PageRight）
+- **注意**：PageRight 默认 padding `44px 52px 28px 60px`（书页内边距），ChatPage 用 `className="!p-0"` 覆盖——内部 we-main / MessageList / InputBox 已有自己的 padding，不能双层叠加；书脊阴影用独立绝对定位 div 实现（非 CSS 伪元素）；ParchmentTexture 渲染在书本最顶层（z-index:20）且 pointer-events:none
+
 ## T59 — CSS 变量 + 字体 + 动效 token 基础设施 ✅
 - **对外接口**：`MOTION`、`INK_RISE` 从 `frontend/src/utils/motion.js` 导出；`--we-*` CSS 变量全局注入
 - **涉及文件**：`frontend/src/styles/tokens.css`（新建）、`frontend/src/styles/fonts.css`（新建）、`frontend/src/utils/motion.js`（新建）、`frontend/src/main.jsx`（新增两行 import）、`frontend/index.html`（Google Fonts）、`frontend/package.json`（framer-motion ^11）
 - **注意**：本任务不改变任何页面外观；tokens.css 同时含字号变量（`--we-text-*`、`--we-leading-*`），fonts.css 只含字族变量；framer-motion 打包后约 1.2MB（未 tree-shake），后续按需 import 动态组件可缩减体积
 
-## T59 — 状态默认值/运行时值解耦 + 会话页清理 + 摘要篇幅收紧 ✅
+## T59A — 状态默认值/运行时值解耦 + 会话页清理 + 摘要篇幅收紧 ✅
 - **对外接口**：`GET /api/worlds/:worldId/state-values`、`GET /api/characters/:characterId/state-values`、`GET /api/worlds/:worldId/persona-state-values` 现在统一返回 `default_value_json`、`runtime_value_json`、`effective_value_json`；新增 `PATCH /api/worlds/:worldId/state-values/:fieldKey`；三个 `POST .../state-values/reset` 语义改为“清空 runtime 并回退默认值显示”
 - **涉及文件**：`backend/db/schema.js`、`backend/db/queries/*state-values.js`、`backend/services/state-values.js`、`backend/memory/combined-state-updater.js`、`backend/memory/recall.js`、`backend/memory/summarizer.js`、`backend/memory/turn-summarizer.js`、`backend/services/import-export.js`；`frontend/src/pages/WorldEditPage.jsx`、`CharacterEditPage.jsx`、`PersonaEditPage.jsx`、`ChatPage.jsx`、`frontend/src/components/memory/MemoryPanel.jsx`、`MultiCharacterMemoryPanel.jsx`、`frontend/src/api/worldStateValues.js`；`SCHEMA.md`、`ARCHITECTURE.md`
 - **注意**：值表里的 `default_value_json` 才是编辑页保存的实体默认值，字段定义表 `default_value` 退回“模板初值/新对象种子”；LLM 只写 `runtime_value_json`，不会再覆盖默认值；导出卡只导出默认值层，不带运行时值；切换角色时聊天页会主动清掉跨角色残留 session，删除当前会话后中栏立即清空或切到剩余首项

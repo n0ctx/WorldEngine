@@ -144,7 +144,7 @@
 
 ---
 
-### T60 ⬜ 未开始 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签
+### T60 ✅ 完成 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签
 
 **这个任务做什么**：按 DESIGN §5/§8.1/§8.2 实现书本外壳（双页 + 书脊阴影 + 羊皮纸噪点 + 书签丝带），ChatPage 用新骨架包裹旧内容，保持功能零回归。
 

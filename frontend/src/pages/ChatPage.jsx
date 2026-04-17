@@ -9,6 +9,9 @@ import Sidebar from '../components/chat/Sidebar.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import MemoryPanel from '../components/memory/MemoryPanel.jsx';
+import BookSpread from '../components/book/BookSpread.jsx';
+import PageLeft from '../components/book/PageLeft.jsx';
+import PageRight from '../components/book/PageRight.jsx';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
@@ -453,7 +456,7 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="we-app flex h-screen overflow-hidden bg-canvas" style={{ position: 'relative' }}>
+    <BookSpread>
       {/* Toast 提示 */}
       {toast && (
         <div
@@ -466,8 +469,9 @@ export default function ChatPage() {
           {toast.msg}
         </div>
       )}
-      {/* 左栏：会话列表（260px） */}
-      <div className="w-[260px] flex-none border-r border-border flex flex-col overflow-hidden">
+
+      {/* 左页：会话列表 */}
+      <PageLeft>
         <Sidebar
           character={character}
           currentSessionId={currentSessionId}
@@ -475,7 +479,11 @@ export default function ChatPage() {
           onSessionCreate={handleSessionCreate}
           onSessionDelete={handleSessionDelete}
         />
-      </div>
+      </PageLeft>
+
+      {/* 右页：对话区 + 记忆面板 */}
+      <PageRight className="!p-0">
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
       <div className="we-main flex-1 min-w-0 flex flex-col overflow-hidden">
@@ -595,12 +603,14 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* 右栏：记忆面板（300px，可收起） */}
-      {rightOpen && character && (
-        <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
-          <MemoryPanel worldId={character.world_id} characterId={characterId} character={character} persona={persona} />
+          {/* 右栏：记忆面板（300px，可收起） */}
+          {rightOpen && character && (
+            <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
+              <MemoryPanel worldId={character.world_id} characterId={characterId} character={character} persona={persona} />
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </PageRight>
+    </BookSpread>
   );
 }
