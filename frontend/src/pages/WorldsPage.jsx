@@ -69,18 +69,24 @@ export default function WorldsPage() {
 
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [deletingWorld, setDeletingWorld] = useState(null);
   const [exportingWorldId, setExportingWorldId] = useState(null);
   const [importingWorld, setImportingWorld] = useState(false);
   const worldImportRef = useRef(null);
 
   async function loadWorlds() {
+    setLoading(true);
+    setLoadError('');
     try {
       const data = await getWorlds();
       const counts = await Promise.all(
         data.map((w) => getCharactersByWorld(w.id).then((chars) => chars.length).catch(() => 0))
       );
       setWorlds(data.map((w, i) => ({ ...w, character_count: counts[i] })));
+    } catch (err) {
+      setWorlds([]);
+      setLoadError(err.message || '读取世界列表失败');
     } finally {
       setLoading(false);
     }
@@ -157,6 +163,14 @@ export default function WorldsPage() {
       {/* 内容区 */}
       {loading ? (
         <div className="we-worlds-loading">检索卷宗中…</div>
+      ) : loadError ? (
+        <div className="we-worlds-empty">
+          <p className="we-worlds-empty-text">世界列表读取失败</p>
+          <p className="we-worlds-subtitle" style={{ marginTop: 8 }}>{loadError}</p>
+          <button className="we-worlds-empty-btn" onClick={loadWorlds}>
+            重试
+          </button>
+        </div>
       ) : worlds.length === 0 ? (
         <div className="we-worlds-empty">
           <p className="we-worlds-empty-text">尚无世界记录</p>

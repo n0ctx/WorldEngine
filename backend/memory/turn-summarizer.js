@@ -10,11 +10,8 @@
 import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
-import { getWorldById } from '../db/queries/worlds.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord } from '../db/queries/turn-records.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
-import { renderPersonaState, renderWorldState, renderCharacterState } from './recall.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger } from '../utils/logger.js';
@@ -35,9 +32,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   if (!session) { log.warn(`session not found  session=${sid}`); return; }
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
-  // 写作模式 session.character_id 为 null，直接从 session.world_id 取世界
   const worldId = character?.world_id ?? session.world_id;
-  const world = worldId ? getWorldById(worldId) : null;
 
   // 取全部消息，找最后一条 user + 最后一条 assistant
   const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
@@ -51,24 +46,9 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
 
   log.debug(`START  session=${sid}  isUpdate=${isUpdate}`);
 
-  // 渲染状态快照（turn 结束后，捕获本轮更新后的最终状态）
-  const worldStateText   = world ? renderWorldState(world.id)   : '';
-  const personaStateText = world ? renderPersonaState(world.id) : '';
-
-  // 角色状态：普通模式取单一角色，写作模式取所有激活角色
-  let charStateText = '';
-  if (character) {
-    charStateText = renderCharacterState(character.id);
-  } else if (session.mode === 'writing') {
-    const activeChars = getWritingSessionCharacters(sessionId);
-    charStateText = activeChars.map((c) => renderCharacterState(c.id)).filter(Boolean).join('\n\n');
-  }
-
-  // 组装 user_context / asst_context
-  const userParts = [worldStateText, personaStateText, `用户：${userMsg.content}`].filter(Boolean);
-  const asstParts = [`AI：${asstMsg.content}`, charStateText].filter(Boolean);
-  const user_context = userParts.join('\n\n');
-  const asst_context = asstParts.join('\n\n');
+  // turn_records 中仅保存纯对话原文，不保存状态快照。
+  const user_context = `{{user}}：${userMsg.content}`;
+  const asst_context = `{{char}}：${asstMsg.content}`;
 
   // LLM 生成摘要（非流式，temp=0.3）
   let summary = '';

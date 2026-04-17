@@ -57,6 +57,7 @@ import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
+import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
@@ -93,23 +94,6 @@ function formatMessageForLLM(msg) {
     }
   }
   return { role: msg.role, content: contentParts };
-}
-
-// ─── asst_context 清洗：剥除 "AI：" 前缀和末尾状态块，防止 LLM 模仿格式 ──
-
-export function stripAsstContext(raw) {
-  const segments = raw.split('\n\n');
-  if (segments[0].startsWith('AI：')) segments[0] = segments[0].slice(3);
-  // 末尾若有状态块（形如 "[…状态]\n…"），逐一去除
-  while (segments.length > 1) {
-    const last = segments[segments.length - 1];
-    if (last.startsWith('[') && last.includes('状态]')) {
-      segments.pop();
-    } else {
-      break;
-    }
-  }
-  return segments.join('\n\n');
 }
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
@@ -237,9 +221,8 @@ export async function buildPrompt(sessionId, options = {}) {
 
   if (turnRecords.length > 0) {
     // 新路径：turn records，每条渲染为 user/assistant 对
-    // asst_context 去除 "AI：" 前缀和状态块，防止 LLM 模仿格式输出状态
     for (const record of turnRecords) {
-      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
+      messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id) });
       messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id) });
     }
   } else {

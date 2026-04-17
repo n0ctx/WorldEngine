@@ -13,6 +13,7 @@ import { getSessionById } from '../db/queries/sessions.js';
 import { getTurnRecordById } from '../db/queries/turn-records.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
+import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 import {
   MEMORY_EXPAND_DECISION_MAX_TOKENS,
 } from '../utils/constants.js';
@@ -76,7 +77,7 @@ export async function decideExpansion({ sessionId, recalled, recentMessagesText 
 
 /**
  * 将指定 turn_record_id 列表对应的原文渲染为可读文本块，受 tokenBudget 限制。
- * 每条 turn record 的原文 = user_context + asst_context（已包含状态快照）。
+ * 每条 turn record 仅渲染纯对话原文；旧数据中的状态快照会在这里被剥离。
  *
  * @param {string[]} turnRecordIds  需展开的 turn_record_id 列表（按优先级顺序）
  * @param {number}   tokenBudget    最大 token 数
@@ -96,7 +97,10 @@ export function renderExpandedTurnRecords(turnRecordIds, tokenBudget) {
     const dateStr = new Date(record.created_at).toISOString().slice(0, 10);
     const titleStr = session?.title || '未命名会话';
 
-    const originalText = [record.user_context, record.asst_context].filter(Boolean).join('\n\n');
+    const originalText = [
+      record.user_context ? `{{user}}：${stripUserContext(record.user_context)}` : '',
+      record.asst_context ? `{{char}}：${stripAsstContext(record.asst_context)}` : '',
+    ].filter(Boolean).join('\n\n');
     const sectionText = `【历史对话原文 · ${dateStr} · ${titleStr} · 第${record.round_index}轮】\n${originalText}`;
     const sectionTokens = countTokens(sectionText);
 

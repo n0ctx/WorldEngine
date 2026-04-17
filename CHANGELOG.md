@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T74 — ChatPage 左右气泡对话布局 ✅
+- **对外接口**：`MessageList` 移除 `sessionTitle` / `onChapterChange` 两个 prop（ChatPage 传入仍安全，被忽略）；`MessageItem` 移除 `isChapterFirstAssistant` prop
+- **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`（气泡布局重构）、`frontend/src/components/chat/MessageList.jsx`（移除章节分组）、`frontend/src/styles/chat.css`（新增 `.we-message-bubble-user/assistant`，删除 Drop Cap，操作菜单改绝对定位）
+- **注意**：`ChapterDivider.jsx` / `FleuronLine.jsx` / `chapter-grouping.js` 保留未删（写作空间备用）；`.we-message-actions` 改为绝对定位并加了半透明背景+边框，避免悬浮在内容上时难以辨认；`isAssistant` 变量已删除（不再需要）
+
 ## T73 — CharactersPage 羊皮纸化改造 ✅
 - **对外接口**：无新增 API
 - **涉及文件**：`frontend/src/pages/CharactersPage.jsx`（全量重构样式）、`frontend/src/styles/pages.css`（追加 `.we-characters-*` 和 `.we-persona-*` 锚点样式块）

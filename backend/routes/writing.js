@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
-import { buildWritingPrompt, stripAsstContext } from '../prompt/assembler.js';
+import { buildWritingPrompt } from '../prompt/assembler.js';
 import { activeStreams } from '../services/chat.js';
 import {
   createWritingSession,
@@ -31,6 +31,7 @@ import {
   buildContinuationMessages,
   sendSse,
 } from './stream-helpers.js';
+import { stripAsstContext } from '../utils/turn-dialogue.js';
 
 const router = Router();
 

@@ -26,7 +26,7 @@ import {
   buildContinuationMessages,
   sendSse,
 } from './stream-helpers.js';
-import { stripAsstContext } from '../prompt/assembler.js';
+import { stripAsstContext } from '../utils/turn-dialogue.js';
 
 const router = Router();
 
