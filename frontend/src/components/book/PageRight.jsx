@@ -15,19 +15,6 @@ export default function PageRight({ children, className = '' }) {
       }}
       className={className}
     >
-      {/* 左侧书脊阴影 — DESIGN §8.2 */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: '24px',
-          background: 'linear-gradient(to right, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.06) 40%, transparent 100%)',
-          pointerEvents: 'none',
-          zIndex: 1,
-        }}
-      />
       {children}
     </div>
   );

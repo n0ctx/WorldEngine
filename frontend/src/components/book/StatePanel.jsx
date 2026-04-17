@@ -165,9 +165,6 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         position: 'relative',
       }}
     >
-      {/* 左侧书脊内阴影 */}
-      <div className="we-panel-spine" aria-hidden="true" />
-
       {/* ── 头部：印章 + 角色名 + 世界名 ── */}
       <div className="we-state-panel-header">
         <div className="we-seal-wrap">

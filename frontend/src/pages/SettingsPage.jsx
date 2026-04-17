@@ -330,7 +330,7 @@ export default function SettingsPage() {
       <div className="sticky top-0 z-40 bg-canvas border-b border-border px-4">
         <div className="max-w-[56rem] mx-auto flex items-center justify-between py-2.5">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text transition-colors"
           >
             ← 返回
