@@ -126,7 +126,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     );
     sections.push(
       `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
-        `注意：只追踪"${char.name}"自身的变化，勿将玩家的经历记录为此角色的状态。\n` +
+        `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
         buildFieldsDesc(charSchemaFields, valueMap)
     );
     responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
@@ -171,10 +171,12 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         `\n\n最近对话：\n${dialogue}\n\n` +
         `要求：\n` +
         `1. 返回 JSON 对象，顶层 key 必须为：${responseKeys.join('、')}\n` +
-        `2. 只在对话中出现明确变化时返回字段。默认值是稳定基线，当前运行时值是临时状态；若当前运行时值为空，表示尚未偏离默认值，不要仅因重复提及默认设定就写入字段。无明确变化时返回空对象 {}\n` +
-        `3. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
-        `4. OOC 讨论不应直接改变状态，除非是明确的设定修改指令\n` +
-        `5. 不要添加任何解释，只返回 JSON\n\n` +
+        `2. 你必须逐个判断每个顶层 key：world、每个 char_x、persona。若某个 key 没有任何可更新字段，也必须返回该 key 对应的空对象 {}\n` +
+        `3. 空值补全规则：若某字段默认值和当前运行时值都为（未设置），且对话里有明确线索，可以为它填写首次值；若线索不足则不要猜测\n` +
+        `4. 默认值是稳定基线，当前运行时值是临时状态；若默认值已存在且当前运行时值为空，不要仅因重复提及默认设定就写入字段，只有出现明确偏离默认值的新事实时才更新\n` +
+        `5. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
+        `6. OOC 讨论不应直接改变状态，除非是明确的设定修改指令\n` +
+        `7. 不要添加任何解释，只返回 JSON\n\n` +
         `示例：{${exampleKeys}}`,
     },
   ];
