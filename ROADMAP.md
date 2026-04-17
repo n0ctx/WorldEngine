@@ -71,7 +71,7 @@
 
 > 目标：CSS 变量、字体、动效 token 全部就位，书本双页骨架能打开正常对话。完成后 ChatPage 外观焕然一新，功能零回归。
 
-### T56 ⬜ 未开始 建立 CSS 变量、字体与动效 token 基础设施
+### T59 ⬜ 未开始 建立 CSS 变量、字体与动效 token 基础设施
 
 **这个任务做什么**：按 DESIGN §2/§3/§9.1 建立 `--we-*` CSS 变量、Google Fonts 字体族、framer-motion 动效常量；不改变任何页面外观（只加载 token，组件未使用）。
 
@@ -144,7 +144,7 @@
 
 ---
 
-### T57 ⬜ 未开始 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签
+### T60 ⬜ 未开始 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签
 
 **这个任务做什么**：按 DESIGN §5/§8.1/§8.2 实现书本外壳（双页 + 书脊阴影 + 羊皮纸噪点 + 书签丝带），ChatPage 用新骨架包裹旧内容，保持功能零回归。
 
@@ -202,11 +202,11 @@
    - 原 Sidebar 移到 <PageLeft> 内（Sidebar 保持原样，不动内部实现）
    - 原对话区（MessageList + InputBox 等）移到 <PageRight> 内
    - 若 Sidebar 有硬编码宽度样式导致在 260px 内溢出，临时添加 className 让它 width:100% 填充 PageLeft（不改 Sidebar 组件本身）
-   - 顶部导航若现有在 ChatPage 内则保留其位置（TopBar 在 T58 处理）
+   - 顶部导航若现有在 ChatPage 内则保留其位置（TopBar 在 T61 处理）
 
 约束：
 - 不改 @frontend/src/components/chat/Sidebar.jsx 内部实现（只改挂载位置）
-- 不改 @frontend/src/components/chat/MessageList.jsx @frontend/src/components/chat/MessageItem.jsx @frontend/src/components/chat/InputBox.jsx 内部（T59 处理）
+- 不改 @frontend/src/components/chat/MessageList.jsx @frontend/src/components/chat/MessageItem.jsx @frontend/src/components/chat/InputBox.jsx 内部（T62 处理）
 - 不改 @frontend/src/store/index.js（锁定）
 - 不改后端任何文件
 - 所有颜色/字体/间距必须走 CSS 变量，禁止硬编码
@@ -224,7 +224,7 @@
 
 ---
 
-### T58 ⬜ 未开始 顶部导航栏 TopBar + 路由挂载
+### T61 ⬜ 未开始 顶部导航栏 TopBar + 路由挂载
 
 **这个任务做什么**：按 DESIGN §5.2 建立 TopBar（世界选择 / 模式切换 / 人设 / 设置入口），挂在 App 根，替代当前分散的导航元素。
 
@@ -285,7 +285,7 @@
 
 > 目标：消息气泡、左页 Tab 切换、章节分组、路由/模态动画、SSE 召回指示全部就位。完成后对话主场景完全呈现羊皮纸古籍派的沉浸体验。
 
-### T59 ⬜ 未开始 消息组件重构：稳定类名 + inkRise + Drop Cap + 流式光标
+### T62 ⬜ 未开始 消息组件重构：稳定类名 + inkRise + Drop Cap + 流式光标
 
 **这个任务做什么**：按 DESIGN §7.1 重写 MessageItem：注入稳定锚点类名、应用 inkRise 动画、章节首条助手消息含 Drop Cap、流式末尾挂 ▊ 光标。
 
@@ -364,7 +364,7 @@
 
 ---
 
-### T60 ⬜ 未开始 左页 Tab 壳 + 会话列表面板迁移
+### T63 ⬜ 未开始 左页 Tab 壳 + 会话列表面板迁移
 
 **这个任务做什么**：按 DESIGN §5.3 在左页注入 Tab 切换 `[会话] | [角色状态]`，将 Sidebar 内的会话列表迁移为 SessionListPanel，用 framer-motion 做 tab 内容切换。
 
@@ -408,7 +408,7 @@
    - tabs 配置：
      [
        { key: 'sessions', label: '会话', content: <SessionListPanel /> },
-       { key: 'character', label: '角色状态', content: <div>T61 占位</div> }
+       { key: 'character', label: '角色状态', content: <div>T64 占位</div> }
      ]
    - 默认 tab 为 'sessions'
 
@@ -439,7 +439,7 @@
 
 ---
 
-### T61 ⬜ 未开始 左页角色状态面板：印章 + 状态栏 + 召回批注
+### T64 ⬜ 未开始 左页角色状态面板：印章 + 状态栏 + 召回批注
 
 **这个任务做什么**：按 DESIGN §5.3 / §7.2 / §7.3 / §7.6 / §8.3 实现 `[角色状态]` Tab 的完整内容——印章 SVG、状态栏（批注风格）、召回记忆批注列表。
 
@@ -517,7 +517,7 @@
 - 不改 @frontend/src/api/* 任何文件
 - 不改 @frontend/src/utils/avatar.js
 - 稳定类名（DESIGN §10.2）必须完整保留：we-status-character / we-status-field / we-status-bar / we-status-bar-fill / we-marginalia / we-marginalia-date / we-marginalia-text
-- 召回批注数据在本任务以"最近 session 的 recall hit 列表"形式占位；真实 SSE 绑定在 T63 完成
+- 召回批注数据在本任务以"最近 session 的 recall hit 列表"形式占位；真实 SSE 绑定在 T66 完成
 - 若 character 无头像且 getAvatarColor 返回对象格式含 { bg, stroke }，印章 stroke 用 stroke 字段；无则默认 vermilion
 ```
 
@@ -531,7 +531,7 @@
 
 ---
 
-### T62 ⬜ 未开始 章节分组 + 花饰分隔线 + 页脚
+### T65 ⬜ 未开始 章节分组 + 花饰分隔线 + 页脚
 
 **这个任务做什么**：按 DESIGN §6.1 / §7.5 / §7.9 / §8.4 实现消息按章节自动分组，章节头含章节号 + 标题 + 金色花饰分隔线；对话内场景分隔用 Fleuron；右页底部加页脚。
 
@@ -637,7 +637,7 @@
 
 ---
 
-### T63 ⬜ 未开始 路由/模态框动画 + SSE 召回指示（蜡烛）
+### T66 ⬜ 未开始 路由/模态框动画 + SSE 召回指示（蜡烛）
 
 **这个任务做什么**：按 DESIGN §6.1 / §7.8 / §8.6 / §9.2 实现路由切换 pageTransition 动画、ModalShell 羊皮纸化、CandleFlame SVG，接入 SSE `memory_recall_*` 事件显示召回指示。
 
@@ -647,7 +647,7 @@
 - `frontend/src/components/ui/ModalShell.jsx` — 重写样式
 - `frontend/src/App.jsx` — 包 PageTransition
 - `frontend/src/pages/ChatPage.jsx` — 接入 SSE 召回事件
-- `frontend/src/components/book/MarginaliaList.jsx`（T61 新建）— 接收 SSE 返回的召回数据填充
+- `frontend/src/components/book/MarginaliaList.jsx`（T64 新建）— 接收 SSE 返回的召回数据填充
 
 **Claude Code 指令**：
 
@@ -694,7 +694,7 @@
    - 若当前 memory_recall_done payload 无完整召回内容，先以 hit 数量作为占位数据（显示 N 条召回）
 
 6) frontend/src/components/book/MarginaliaList.jsx
-   - 在 T61 基础上，数据来源切换为上一步提到的 recalled items context/prop
+   - 在 T64 基础上，数据来源切换为上一步提到的 recalled items context/prop
    - 数据为空时回退"暂无召回记忆"占位
 
 约束：
@@ -719,7 +719,7 @@
 
 > 目标：基础 UI 组件、世界列表、世界/角色/人设编辑页、设置页全部羊皮纸化。完成后 App 无残留旧风格区域。
 
-### T64 ⬜ 未开始 基础 UI 组件羊皮纸化：Button / Input / Textarea / Card / Badge
+### T67 ⬜ 未开始 基础 UI 组件羊皮纸化：Button / Input / Textarea / Card / Badge
 
 **这个任务做什么**：按 DESIGN §7 重构 components/ui/ 下的原子组件，统一改用 `--we-*` 变量、古籍风格（低圆角、羊皮纸底、朱砂强调）。
 
@@ -764,7 +764,7 @@
 约束：
 - 必须保留每个组件原有的所有 props 和 API
 - 不改任何使用这些组件的调用点（保持 props 约定）
-- 所有 use 组件的页面不需要在本任务内修改，会在后续 T65-T67 随页面改造
+- 所有 use 组件的页面不需要在本任务内修改，会在后续 T68-T70 随页面改造
 - 不得引入新的 css-in-js 库
 ```
 
@@ -776,7 +776,7 @@
 
 ---
 
-### T65 ⬜ 未开始 WorldsPage 卷宗书架
+### T68 ⬜ 未开始 WorldsPage 卷宗书架
 
 **这个任务做什么**：按 DESIGN §6.2 把 WorldsPage 改造为"卷宗书架"卡片布局，世界卡以纸页叠放风格呈现。
 
@@ -842,7 +842,7 @@
 
 ---
 
-### T66 ⬜ 未开始 World / Character / Persona 编辑页羊皮纸化
+### T69 ⬜ 未开始 World / Character / Persona 编辑页羊皮纸化
 
 **这个任务做什么**：按 DESIGN §6.3 / §6.4 / §6.5 重构世界编辑、角色编辑、人设编辑页，采用整页羊皮纸 + 分区标签布局（PersonaEdit 采用侧边滑入面板）。
 
@@ -891,7 +891,7 @@
    - 若原来是整页，保留原路由但里面的 UI 改为轻量表单，顶部加"可从 TopBar 快速打开"提示
 
 5) 状态/Prompt 条目子编辑器（StateFieldEditor / EntryEditor 等）
-   - 不大改结构，只替换 Button/Input 为 T64 改造后的版本
+   - 不大改结构，只替换 Button/Input 为 T67 改造后的版本
    - 标签、按钮文字保持原样
 
 约束：
@@ -912,14 +912,14 @@
 
 ---
 
-### T67 ⬜ 未开始 SettingsPage 双栏 + CustomCssManager 引导
+### T70 ⬜ 未开始 SettingsPage 双栏 + CustomCssManager 引导
 
 **这个任务做什么**：按 DESIGN §6.6 / §10.3 重构设置页为左导航 + 右内容双栏；CustomCssManager 顶部加入"推荐选择器参考"可折叠引导。
 
 **涉及文件**：
 - `frontend/src/pages/SettingsPage.jsx`
 - `frontend/src/components/settings/CustomCssManager.jsx`
-- `frontend/src/components/settings/RegexRulesManager.jsx` — 仅样式随 T64 更新（本任务内顺带检查）
+- `frontend/src/components/settings/RegexRulesManager.jsx` — 仅样式随 T67 更新（本任务内顺带检查）
 
 **Claude Code 指令**：
 
@@ -929,7 +929,7 @@
 目标：设置页双栏布局，自定义 CSS 编辑器增加稳定选择器引导。
 
 1) frontend/src/pages/SettingsPage.jsx
-   - 外层单页羊皮纸面板（同 T66 单页布局）
+   - 外层单页羊皮纸面板（同 T69 单页布局）
    - 布局：display flex
    - 左栏：width 220px，padding 32px 16px，border-right 1px solid var(--we-paper-shadow)
      - 分类列表：LLM 配置 / 全局 Prompt / 自定义 CSS / 正则规则 / 全局 Prompt 条目 / 关于
@@ -954,10 +954,10 @@
      /* 推荐：改用户消息边线 */
      .we-message-user { border-left-color: #4a7c8b; }
    - 下方加一行简短说明："稳定锚点类名清单见 DESIGN.md §10.2，标 ⚠️ 的类名可能随版本变化请谨慎。"
-   - 列表项、编辑器表单沿用现有逻辑，仅把 Button/Input/Textarea 替换为 T64 版本
+   - 列表项、编辑器表单沿用现有逻辑，仅把 Button/Input/Textarea 替换为 T67 版本
 
 3) frontend/src/components/settings/RegexRulesManager.jsx
-   - 仅检查并替换 Button/Input/Textarea 为 T64 版本；不改逻辑
+   - 仅检查并替换 Button/Input/Textarea 为 T67 版本；不改逻辑
 
 约束：
 - 不改 @frontend/src/api/* 
@@ -979,7 +979,7 @@
 
 > 目标：写作空间适配书本布局；inline marginalia、羽毛笔、盖印动画、减少动效开关全部就位。完成后整个前端改造收尾。
 
-### T68 ⬜ 未开始 写作空间变体 + Inline Marginalia
+### T71 ⬜ 未开始 写作空间变体 + Inline Marginalia
 
 **这个任务做什么**：按 DESIGN §6.7 / §7.3 为 WritingSpacePage 实现双页变体（左页改为激活角色 / 多角色状态 Tab），右页消息支持 inline marginalia。
 
@@ -1021,7 +1021,7 @@
 5) frontend/src/pages/WritingSpacePage.jsx
    - 用 BookSpread 包裹
    - PageLeft 内 <PageLeftTabs tabs=[{角色: <ActiveCharactersPanel/>}, {状态: <MultiCharacterStatusPanel/>}]>
-   - PageRight：WritingMessageList（现有组件）嵌入；如其内部已引用 MessageItem 则调整为支持章节分组与 inline marginalia（参考 T59/T62 模式）
+   - PageRight：WritingMessageList（现有组件）嵌入；如其内部已引用 MessageItem 则调整为支持章节分组与 inline marginalia（参考 T62/T65 模式）
    - 保留所有现有写作空间 API 调用
 
 约束：
@@ -1040,7 +1040,7 @@
 
 ---
 
-### T69 ⬜ 未开始 羽毛笔光标 · 盖印动画 · 减少动效开关
+### T72 ⬜ 未开始 羽毛笔光标 · 盖印动画 · 减少动效开关
 
 **这个任务做什么**：按 DESIGN §8.5 / §9.2 / §9.4 实现羽毛笔流式光标、朱砂盖印动画、减少动效开关（含 prefers-reduced-motion + localStorage 双通道）。
 

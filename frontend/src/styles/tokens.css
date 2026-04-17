@@ -1,0 +1,57 @@
+/* WorldEngine 视觉 token — 权威定义见 DESIGN.md §2 */
+
+:root {
+  /* §2.1 纸基三层 */
+  --we-paper-base:   #ede3d0;
+  --we-paper-aged:   #d9ccb0;
+  --we-paper-shadow: #c8b99a;
+  --we-paper-deep:   #b8a882;
+  --we-book-bg:      #4a3728;
+
+  /* §2.2 墨水色系 */
+  --we-ink-primary:   #2a1f17;
+  --we-ink-secondary: #534236;
+  --we-ink-faded:     #8a7663;
+
+  /* §2.3 朱砂系 */
+  --we-vermilion:      #a23b2e;
+  --we-vermilion-deep: #7c2a20;
+  --we-vermilion-bg:   rgba(162, 59, 46, 0.08);
+
+  /* §2.4 金箔系 */
+  --we-gold-leaf: #a0833f;
+  --we-gold-pale: #c9a85a;
+
+  /* §2.5 功能色 */
+  --we-moss:  #5c6b3a;
+  --we-amber: #8b5a1f;
+  --we-slate: #4a5568;
+
+  /* §2.6 UI 功能变量 */
+  --we-border:       1px solid var(--we-paper-shadow);
+  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5);
+  --we-radius-sm:    2px;
+  --we-radius-md:    4px;
+  --we-radius-none:  1px;
+  --we-spine-shadow: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.06) 12%,
+    transparent 25%,
+    transparent 75%,
+    rgba(0, 0, 0, 0.06) 88%,
+    rgba(0, 0, 0, 0.22) 100%
+  );
+
+  /* §3.2 字号体系 */
+  --we-text-xs:   11px;
+  --we-text-sm:   13px;
+  --we-text-base: 16.5px;
+  --we-text-md:   18px;
+  --we-text-lg:   22px;
+  --we-text-xl:   28px;
+
+  --we-leading-tight:  1.3;
+  --we-leading-normal: 1.75;
+  --we-leading-loose:  1.95;
+}
