@@ -169,10 +169,11 @@ export default function TopBar() {
 
       {/* 对话模式 */}
       <button
-        style={isChat ? itemActiveStyle : { ...itemStyle, opacity: characterId || worldId ? 1 : 0.4, cursor: characterId || worldId ? 'pointer' : 'default' }}
-        disabled={!characterId && !worldId}
+        style={isChat ? itemActiveStyle : { ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
+        disabled={!worldId}
         onClick={() => {
           if (characterId) navigate(`/characters/${characterId}/chat`);
+          else if (worldId) navigate(`/worlds/${worldId}`);
         }}
       >
         对话
