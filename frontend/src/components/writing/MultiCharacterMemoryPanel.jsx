@@ -36,7 +36,7 @@ function Section({ title, children, defaultOpen = true, onReset, resetting = fal
               role="button"
               onClick={(e) => { e.stopPropagation(); if (!resetting) onReset(); }}
               className="text-xs opacity-40 hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded hover:bg-accent/10 hover:text-accent cursor-pointer select-none"
-              title="重置为默认值"
+              title="清空临时状态并回退默认值"
             >
               {resetting ? '重置中…' : '重置'}
             </span>
@@ -79,7 +79,7 @@ function StateRows({ rows, pinnedName }) {
         </div>
       )}
       {rows?.map((row) => {
-        const display = parseValue(row.value_json, row.type);
+        const display = parseValue(row.effective_value_json, row.type);
         return (
           <div key={row.field_key} className="flex gap-2 items-baseline">
             <dt className="text-xs opacity-50 shrink-0 min-w-[4rem]">{row.label}</dt>

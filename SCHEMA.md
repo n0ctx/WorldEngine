@@ -110,16 +110,17 @@ CREATE INDEX idx_persona_state_fields_world_id ON persona_state_fields(world_id,
 
 ---
 
-### persona_state_values — 玩家状态当前值
+### persona_state_values — 玩家状态值
 
-一个 world 一份当前值（和 world_state_values 的粒度一致，因为一个 world 只有一个 persona）。
+一个 world 一份状态值（和 world_state_values 的粒度一致，因为一个 world 只有一个 persona）。
 
 ```sql
 CREATE TABLE persona_state_values (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,                      -- 统一按 JSON 字符串存储
+  default_value_json TEXT,                  -- 用户在编辑页保存的默认值，允许为 NULL
+  runtime_value_json TEXT,                  -- LLM 自动更新的运行时值，允许为 NULL
   updated_at     INTEGER NOT NULL,
   UNIQUE(world_id, field_key)
 );
@@ -234,7 +235,7 @@ CREATE TABLE IF NOT EXISTS turn_records (
   id              TEXT PRIMARY KEY,          -- UUID
   session_id      TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   round_index     INTEGER NOT NULL,          -- 1-based，该 session 内的轮次序号
-  summary         TEXT NOT NULL,             -- LLM 生成的摘要（用于向量检索，100-200 字）
+  summary         TEXT NOT NULL,             -- LLM 生成的摘要（用于向量检索，50-100 字）
   user_context    TEXT NOT NULL,             -- [世界状态]+[玩家状态]+用户输入（[14] 中 user 消息内容）
   asst_context    TEXT NOT NULL,             -- AI 输出+[角色状态]（[14] 中 assistant 消息内容）
   created_at      INTEGER NOT NULL,
@@ -305,14 +306,15 @@ CREATE INDEX idx_world_state_fields_world_id ON world_state_fields(world_id, sor
 
 ---
 
-### world_state_values — 世界状态当前值
+### world_state_values — 世界状态值
 
 ```sql
 CREATE TABLE world_state_values (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,                      -- 当前值，统一按 JSON 字符串存储
+  default_value_json TEXT,                  -- 编辑世界页保存的默认值，允许为 NULL
+  runtime_value_json TEXT,                  -- LLM 自动更新的运行时值，允许为 NULL
   updated_at     INTEGER NOT NULL,
   UNIQUE(world_id, field_key)
 );
@@ -352,14 +354,15 @@ CREATE INDEX idx_character_state_fields_world_id ON character_state_fields(world
 
 ---
 
-### character_state_values — 角色状态当前值
+### character_state_values — 角色状态值
 
 ```sql
 CREATE TABLE character_state_values (
   id             TEXT PRIMARY KEY,
   character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,
+  default_value_json TEXT,                  -- 编辑角色页保存的默认值，允许为 NULL
+  runtime_value_json TEXT,                  -- LLM 自动更新的运行时值，允许为 NULL
   updated_at     INTEGER NOT NULL,
   UNIQUE(character_id, field_key)
 );
@@ -617,7 +620,7 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 约束：
 - 不包含数据库 id、character_id、world_id、embedding_id、created_at、updated_at
 - `avatar_path` 仅用于导出时指示是否有头像；若实际导出头像内容，则使用独立字段 `avatar_base64`，否则为 `null`
-- `character_state_values` 仅导出 field_key 和 value_json，不导出字段定义本身（定义在世界卡里）
+- `character_state_values` 导出默认值层：仅导出 field_key 和 value_json，不导出运行时值，也不导出字段定义本身（定义在世界卡里）
 - 导入时为角色、条目重新生成 UUID 和时间戳；state_values 的 field_key 与目标世界的字段模板对齐，key 不存在则跳过
 - 不包含 API Key 等任何配置项
 
@@ -743,7 +746,7 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 - `characters` 字段可为空数组
 - `persona` 为对象（非数组），一对一挂在 world 下；导出字段仅含 name、system_prompt
 - `world_state_fields`、`character_state_fields` 和 `persona_state_fields` 导出字段定义（不含 id、world_id、created_at、updated_at）
-- `world_state_values`、`character_state_values` 和 `persona_state_values` 仅导出 field_key 和 value_json
+- `world_state_values`、`character_state_values` 和 `persona_state_values` 仅导出默认值层（field_key + value_json），不导出运行时值
 - 导入时世界、角色、玩家、字段定义、状态值、条目全部重新生成 UUID 和时间戳
 - 导入世界卡时，不导入 session、messages、session_summaries、world_timeline
 

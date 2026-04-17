@@ -24,7 +24,7 @@ import {
 } from '../utils/constants.js';
 
 /**
- * 将 value_json 解析为可显示的字符串。
+ * 将 effective_value_json 解析为可显示的字符串。
  * null 返回 null（调用方跳过该行）。
  */
 function parseValueForDisplay(valueJson) {
@@ -50,7 +50,13 @@ function parseValueForDisplay(valueJson) {
  */
 export function renderPersonaState(worldId) {
   const rows = db.prepare(`
-    SELECT psf.label, psv.value_json
+    SELECT
+      psf.label,
+      CASE
+        WHEN psv.runtime_value_json IS NOT NULL THEN psv.runtime_value_json
+        WHEN psv.id IS NOT NULL THEN psv.default_value_json
+        ELSE psf.default_value
+      END AS effective_value_json
     FROM persona_state_fields psf
     LEFT JOIN persona_state_values psv
       ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
@@ -62,7 +68,7 @@ export function renderPersonaState(worldId) {
 
   const lines = ['[{{user}}状态]'];
   for (const row of rows) {
-    const value = parseValueForDisplay(row.value_json);
+    const value = parseValueForDisplay(row.effective_value_json);
     if (value !== null) {
       lines.push(`- ${row.label}：${value}`);
     }
@@ -80,7 +86,13 @@ export function renderPersonaState(worldId) {
  */
 export function renderWorldState(worldId) {
   const rows = db.prepare(`
-    SELECT wsf.label, wsv.value_json
+    SELECT
+      wsf.label,
+      CASE
+        WHEN wsv.runtime_value_json IS NOT NULL THEN wsv.runtime_value_json
+        WHEN wsv.id IS NOT NULL THEN wsv.default_value_json
+        ELSE wsf.default_value
+      END AS effective_value_json
     FROM world_state_fields wsf
     LEFT JOIN world_state_values wsv
       ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
@@ -92,7 +104,7 @@ export function renderWorldState(worldId) {
 
   const lines = ['[{{world}}状态]'];
   for (const row of rows) {
-    const value = parseValueForDisplay(row.value_json);
+    const value = parseValueForDisplay(row.effective_value_json);
     if (value !== null) {
       lines.push(`- ${row.label}：${value}`);
     }
@@ -114,7 +126,13 @@ export function renderCharacterState(characterId) {
   if (!character) return '';
 
   const rows = db.prepare(`
-    SELECT csf.label, csv.value_json
+    SELECT
+      csf.label,
+      CASE
+        WHEN csv.runtime_value_json IS NOT NULL THEN csv.runtime_value_json
+        WHEN csv.id IS NOT NULL THEN csv.default_value_json
+        ELSE csf.default_value
+      END AS effective_value_json
     FROM character_state_fields csf
     LEFT JOIN character_state_values csv
       ON csf.field_key = csv.field_key AND csv.character_id = ?
@@ -126,7 +144,7 @@ export function renderCharacterState(characterId) {
 
   const lines = ['[{{char}}状态]'];
   for (const row of rows) {
-    const value = parseValueForDisplay(row.value_json);
+    const value = parseValueForDisplay(row.effective_value_json);
     if (value !== null) {
       lines.push(`- ${row.label}：${value}`);
     }

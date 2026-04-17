@@ -200,7 +200,7 @@ createTurnRecord(sessionId, { isUpdate? })
   ├─ 组装：
   │    user_context  = [worldState, personaState, "用户：{input}"].join("\n\n")
   │    asst_context  = ["AI：{output}", charState].join("\n\n")
-  ├─ LLM.complete() 生成摘要（100-200 字，temp=0.3）
+  ├─ LLM.complete() 生成摘要（50-100 字，temp=0.3）
   ├─ round_index = isUpdate ? latestRecord.round_index : count + 1
   ├─ UPSERT turn_records（by session_id + round_index）
   └─ 异步 embed summary → upsertEntry 到 turn_summaries.json
@@ -272,9 +272,9 @@ createTurnRecord(sessionId, { isUpdate? })
 
 | 状态套 | 字段定义表 | 字段值表 | 粒度 |
 |---|---|---|---|
-| 世界状态 | `world_state_fields` | `world_state_values` | 每世界唯一一份 |
-| 角色状态 | `character_state_fields` | `character_state_values` | 每角色独立一份 |
-| 玩家状态 | `persona_state_fields` | `persona_state_values` | 每世界唯一一份（跟随 persona） |
+| 世界状态 | `world_state_fields` | `world_state_values` | 每世界唯一一份；值表含 `default_value_json` + `runtime_value_json` |
+| 角色状态 | `character_state_fields` | `character_state_values` | 每角色独立一份；值表含 `default_value_json` + `runtime_value_json` |
+| 玩家状态 | `persona_state_fields` | `persona_state_values` | 每世界唯一一份（跟随 persona）；值表含 `default_value_json` + `runtime_value_json` |
 
 **字段类型**：`text / number / boolean / enum / list`
 - `list`：值存储为 JSON 数组字符串，渲染时解析为顿号分隔的字符串
@@ -289,8 +289,10 @@ createTurnRecord(sessionId, { isUpdate? })
 - `keyword_based`：关键词命中时更新
 
 **初始化时机**：
-- 创建世界时：`services/worlds.createWorld` 自动 upsert persona 行 + persona_state_values 初值
-- 创建角色时：按世界的 character_state_fields 模板初始化 character_state_values
+- 创建世界时：`services/worlds.createWorld` 自动 upsert persona 行，并按字段模板写入默认值层（`default_value_json`）
+- 创建角色时：按世界的 character_state_fields 模板初始化角色默认值层（`default_value_json`）
+- 运行时状态只由 `combined-state-updater.js` 写入 `runtime_value_json`；编辑页只改默认值层
+- 记忆面板“重置”会清空 `runtime_value_json`，显示层自动回退到默认值层
 
 **persona 与世界的关系**：每个世界对应唯一 persona（`personas.world_id UNIQUE`）；persona 的 name / system_prompt 注入 assembler.js [3] 位置。
 

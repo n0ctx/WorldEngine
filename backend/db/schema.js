@@ -46,7 +46,8 @@ CREATE TABLE IF NOT EXISTS persona_state_values (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,
+  default_value_json TEXT,
+  runtime_value_json TEXT,
   updated_at     INTEGER NOT NULL,
   UNIQUE(world_id, field_key)
 );
@@ -138,7 +139,8 @@ CREATE TABLE IF NOT EXISTS world_state_values (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,
+  default_value_json TEXT,
+  runtime_value_json TEXT,
   updated_at     INTEGER NOT NULL,
   UNIQUE(world_id, field_key)
 );
@@ -169,7 +171,8 @@ CREATE TABLE IF NOT EXISTS character_state_values (
   id             TEXT PRIMARY KEY,
   character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
-  value_json     TEXT,
+  default_value_json TEXT,
+  runtime_value_json TEXT,
   updated_at     INTEGER NOT NULL,
   UNIQUE(character_id, field_key)
 );
@@ -318,6 +321,14 @@ export function initSchema(db) {
   // T34: 为现有 sessions 表补充 world_id / mode 列（已经过 table-recreation 的库跳过）
   try { db.exec(`ALTER TABLE sessions ADD COLUMN world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE`); } catch {}
   try { db.exec(`ALTER TABLE sessions ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  // T59: 状态值拆分为默认值 + 运行时值；旧 value_json 迁移到 default_value_json
+  try { db.exec(`ALTER TABLE world_state_values ADD COLUMN default_value_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE world_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE character_state_values ADD COLUMN default_value_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE character_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE persona_state_values ADD COLUMN default_value_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE persona_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
+  migrateLegacyStateValueColumns(db);
   // T34: 补充索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_writing_session_characters_session_id ON writing_session_characters(session_id)`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
@@ -343,7 +354,7 @@ function migrateLegacyAutoFilledNullStateValues(db) {
   try {
     db.prepare(`
       UPDATE world_state_values
-      SET value_json = NULL
+      SET default_value_json = NULL
       WHERE id IN (
         SELECT wsv.id
         FROM world_state_values wsv
@@ -354,17 +365,17 @@ function migrateLegacyAutoFilledNullStateValues(db) {
         WHERE wsf.default_value IS NULL
           AND wsv.updated_at <= w.created_at + ?
           AND (
-            (wsf.type = 'text' AND wsv.value_json = '""') OR
-            (wsf.type = 'number' AND wsv.value_json = '0') OR
-            (wsf.type = 'boolean' AND wsv.value_json = 'false') OR
-            (wsf.type = 'list' AND wsv.value_json = '[]')
+            (wsf.type = 'text' AND wsv.default_value_json = '""') OR
+            (wsf.type = 'number' AND wsv.default_value_json = '0') OR
+            (wsf.type = 'boolean' AND wsv.default_value_json = 'false') OR
+            (wsf.type = 'list' AND wsv.default_value_json = '[]')
           )
       )
     `).run(WINDOW_MS);
 
     db.prepare(`
       UPDATE character_state_values
-      SET value_json = NULL
+      SET default_value_json = NULL
       WHERE id IN (
         SELECT csv.id
         FROM character_state_values csv
@@ -375,17 +386,17 @@ function migrateLegacyAutoFilledNullStateValues(db) {
         WHERE csf.default_value IS NULL
           AND csv.updated_at <= c.created_at + ?
           AND (
-            (csf.type = 'text' AND csv.value_json = '""') OR
-            (csf.type = 'number' AND csv.value_json = '0') OR
-            (csf.type = 'boolean' AND csv.value_json = 'false') OR
-            (csf.type = 'list' AND csv.value_json = '[]')
+            (csf.type = 'text' AND csv.default_value_json = '""') OR
+            (csf.type = 'number' AND csv.default_value_json = '0') OR
+            (csf.type = 'boolean' AND csv.default_value_json = 'false') OR
+            (csf.type = 'list' AND csv.default_value_json = '[]')
           )
       )
     `).run(WINDOW_MS);
 
     db.prepare(`
       UPDATE persona_state_values
-      SET value_json = NULL
+      SET default_value_json = NULL
       WHERE id IN (
         SELECT psv.id
         FROM persona_state_values psv
@@ -399,13 +410,60 @@ function migrateLegacyAutoFilledNullStateValues(db) {
             OR psv.updated_at <= psf.created_at + ?
           )
           AND (
-            (psf.type = 'text' AND psv.value_json = '""') OR
-            (psf.type = 'number' AND psv.value_json = '0') OR
-            (psf.type = 'boolean' AND psv.value_json = 'false') OR
-            (psf.type = 'list' AND psv.value_json = '[]')
+            (psf.type = 'text' AND psv.default_value_json = '""') OR
+            (psf.type = 'number' AND psv.default_value_json = '0') OR
+            (psf.type = 'boolean' AND psv.default_value_json = 'false') OR
+            (psf.type = 'list' AND psv.default_value_json = '[]')
           )
       )
     `).run(WINDOW_MS, WINDOW_MS);
+
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at)
+      VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function migrateLegacyStateValueColumns(db) {
+  const key = 'migration:t59_split_state_default_and_runtime';
+  const applied = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key);
+  if (applied?.value === '1') return;
+
+  const now = Date.now();
+  const hasWorldLegacyCol = db.pragma('table_info(world_state_values)').some((col) => col.name === 'value_json');
+  const hasCharLegacyCol = db.pragma('table_info(character_state_values)').some((col) => col.name === 'value_json');
+  const hasPersonaLegacyCol = db.pragma('table_info(persona_state_values)').some((col) => col.name === 'value_json');
+
+  db.exec('BEGIN');
+  try {
+    if (hasWorldLegacyCol) {
+      db.exec(`
+        UPDATE world_state_values
+        SET default_value_json = COALESCE(default_value_json, value_json)
+        WHERE default_value_json IS NULL
+      `);
+    }
+    if (hasCharLegacyCol) {
+      db.exec(`
+        UPDATE character_state_values
+        SET default_value_json = COALESCE(default_value_json, value_json)
+        WHERE default_value_json IS NULL
+      `);
+    }
+    if (hasPersonaLegacyCol) {
+      db.exec(`
+        UPDATE persona_state_values
+        SET default_value_json = COALESCE(default_value_json, value_json)
+        WHERE default_value_json IS NULL
+      `);
+    }
 
     db.prepare(`
       INSERT INTO internal_meta (key, value, updated_at)

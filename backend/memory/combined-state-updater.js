@@ -92,8 +92,8 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
           line += `，范围：${lo} ~ ${hi}`;
         }
         if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
-        const cur = valueMap[f.field_key];
-        line += `，当前值：${isEffectivelyUnset(cur, f) ? '（未设置）' : cur}`;
+        const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
+        line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
         if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
         return line;
       })
@@ -106,7 +106,10 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   if (worldActiveFields.length > 0) {
     const valueMap = Object.fromEntries(
-      getAllWorldStateValues(worldId).map((v) => [v.field_key, v.value_json])
+      getAllWorldStateValues(worldId).map((v) => [v.field_key, {
+        defaultValueJson: v.default_value_json,
+        runtimeValueJson: v.runtime_value_json,
+      }])
     );
     sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, valueMap));
     responseKeys.push('"world"（世界状态）');
@@ -116,7 +119,10 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     const char = charactersWithFields[i];
     const charKey = `char_${i}`;
     const valueMap = Object.fromEntries(
-      getAllCharacterStateValues(char.id).map((v) => [v.field_key, v.value_json])
+      getAllCharacterStateValues(char.id).map((v) => [v.field_key, {
+        defaultValueJson: v.default_value_json,
+        runtimeValueJson: v.runtime_value_json,
+      }])
     );
     sections.push(
       `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
@@ -128,7 +134,10 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   if (personaActiveFields.length > 0) {
     const valueMap = Object.fromEntries(
-      getAllPersonaStateValues(worldId).map((v) => [v.field_key, v.value_json])
+      getAllPersonaStateValues(worldId).map((v) => [v.field_key, {
+        defaultValueJson: v.default_value_json,
+        runtimeValueJson: v.runtime_value_json,
+      }])
     );
     sections.push(
       `=== 玩家状态 ===\n` +
@@ -162,7 +171,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         `\n\n最近对话：\n${dialogue}\n\n` +
         `要求：\n` +
         `1. 返回 JSON 对象，顶层 key 必须为：${responseKeys.join('、')}\n` +
-        `2. 每个对象只包含需要更新或初始化的字段：若字段当前值为（未设置），根据对话内容推断合理的初始值并填写；若对话中无明显线索则不填；无任何变化或初始化时返回空对象 {}\n` +
+        `2. 只在对话中出现明确变化时返回字段。默认值是稳定基线，当前运行时值是临时状态；若当前运行时值为空，表示尚未偏离默认值，不要仅因重复提及默认设定就写入字段。无明确变化时返回空对象 {}\n` +
         `3. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
         `4. OOC 讨论不应直接改变状态，除非是明确的设定修改指令\n` +
         `5. 不要添加任何解释，只返回 JSON\n\n` +
@@ -198,7 +207,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertWorldStateValue(worldId, key, valueJson);
+      upsertWorldStateValue(worldId, key, { runtimeValueJson: valueJson });
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`world="${world.name}"  updates: ${updated.join('  ')}`);
@@ -217,7 +226,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertCharacterStateValue(char.id, key, valueJson);
+      upsertCharacterStateValue(char.id, key, { runtimeValueJson: valueJson });
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`char="${char.name}"  updates: ${updated.join('  ')}`);
@@ -233,7 +242,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertPersonaStateValue(worldId, key, valueJson);
+      upsertPersonaStateValue(worldId, key, { runtimeValueJson: valueJson });
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`persona  world="${world?.name}"  updates: ${updated.join('  ')}`);
@@ -286,15 +295,15 @@ function validateValue(value, field) {
   }
 }
 
-function isEffectivelyUnset(valueJson, field) {
-  if (valueJson == null) return true;
+function formatValueForPrompt(valueJson, field) {
+  if (valueJson == null) return '（未设置）';
 
   // 兼容旧数据：无 default_value 的空字符串/空数组本质上是历史占位值，
   // 应继续视为“未设置”，让自动补全有机会运行。
   if (field.default_value == null) {
-    if (field.type === 'text' && valueJson === '""') return true;
-    if (field.type === 'list' && valueJson === '[]') return true;
+    if (field.type === 'text' && valueJson === '""') return '（未设置）';
+    if (field.type === 'list' && valueJson === '[]') return '（未设置）';
   }
 
-  return false;
+  return valueJson;
 }

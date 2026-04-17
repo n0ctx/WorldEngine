@@ -19,6 +19,21 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T59 — 状态默认值/运行时值解耦 + 会话页清理 + 摘要篇幅收紧 ✅
+- **对外接口**：`GET /api/worlds/:worldId/state-values`、`GET /api/characters/:characterId/state-values`、`GET /api/worlds/:worldId/persona-state-values` 现在统一返回 `default_value_json`、`runtime_value_json`、`effective_value_json`；新增 `PATCH /api/worlds/:worldId/state-values/:fieldKey`；三个 `POST .../state-values/reset` 语义改为“清空 runtime 并回退默认值显示”
+- **涉及文件**：`backend/db/schema.js`、`backend/db/queries/*state-values.js`、`backend/services/state-values.js`、`backend/memory/combined-state-updater.js`、`backend/memory/recall.js`、`backend/memory/summarizer.js`、`backend/memory/turn-summarizer.js`、`backend/services/import-export.js`；`frontend/src/pages/WorldEditPage.jsx`、`CharacterEditPage.jsx`、`PersonaEditPage.jsx`、`ChatPage.jsx`、`frontend/src/components/memory/MemoryPanel.jsx`、`MultiCharacterMemoryPanel.jsx`、`frontend/src/api/worldStateValues.js`；`SCHEMA.md`、`ARCHITECTURE.md`
+- **注意**：值表里的 `default_value_json` 才是编辑页保存的实体默认值，字段定义表 `default_value` 退回“模板初值/新对象种子”；LLM 只写 `runtime_value_json`，不会再覆盖默认值；导出卡只导出默认值层，不带运行时值；切换角色时聊天页会主动清掉跨角色残留 session，删除当前会话后中栏立即清空或切到剩余首项
+
+## T58 — 配置探测安全校验 + 导入卡验证 + 流式辅助收敛 + 最小测试基线 ✅
+- **对外接口**：`PUT /api/config` 现在会校验 `base_url`；本地 provider 仅允许 localhost/127.0.0.1，远程 provider 自定义 `base_url` 必须是 https 且不能指向本机/私网；`/api/config/models` 与 `/embedding-models` 也走同样约束
+- **涉及文件**：`backend/utils/network-safety.js`（新增 `validateModelFetchBaseUrl`）、`backend/routes/config.js`（配置写入与模型探测共用校验）、`backend/services/import-export-validation.js` 与 `backend/services/import-export.js`、`backend/routes/import-export.js`（导入卡结构/大小/头像体积验证）、`backend/routes/stream-helpers.js`、`backend/routes/chat.js`、`backend/routes/writing.js`（抽取共用 SSE / stream session / continue 消息拼装）、`backend/tests/*.test.js`、`backend/package.json`
+- **注意**：这轮只做“保功能不变”的代码收敛，没有改变 chat / writing 现有对外行为；新增测试是 `node:test` 纯单元测试，当前只覆盖安全校验、导入卡验证和状态值纯函数，不含端到端路由测试
+
+## T57 — 收紧本机访问边界 + 状态值写入收口 + 设置字段修正 ✅
+- **对外接口**：新增受本机访问限制的文件读取路径 `GET /api/uploads/*`，前端头像/附件改走该接口；`/api` 全部请求仅允许本机来源访问，默认监听地址改为 `127.0.0.1`
+- **涉及文件**：`backend/server.js`（本机访问限制、CORS 收紧、上传文件改为受控路由）、`backend/services/state-values.js`（新增状态值校验/重置业务层）、`backend/routes/world-state-values.js`、`backend/routes/character-state-values.js`、`backend/routes/persona-state-values.js`（不再在路由层直接写 DB）、`backend/routes/writing.js`（写作模式 `/continue` 补跑 `updateAllStates`）、`frontend/src/pages/SettingsPage.jsx`（统一使用 `context_history_rounds`）、`frontend/src/utils/avatar.js`、`frontend/src/components/chat/MessageItem.jsx`、`frontend/vite.config.js`
+- **注意**：这次**没有**改动“自定义 CSS / 正则规则可写”这一设计；上传文件现在不再公开挂载整个 `/uploads` 目录，若后续新增图片/附件展示入口，统一使用 `/api/uploads/...`；状态值写入现在会校验 JSON、字段存在性和类型约束，不合法输入会直接 400
+
 ## T56 — 修复状态空值自动补全的初始化语义 + 历史数据迁移 ✅
 - **对外接口**：无新增接口；启动时 `initSchema(db)` 会一次性执行历史状态值清洗迁移
 - **涉及文件**：`backend/services/worlds.js`、`backend/services/characters.js`、`backend/services/persona-state-fields.js`（无 `default_value` 时不再自动写入类型占位值）；`backend/routes/chat.js`（`edit-assistant` 编辑最后一条 AI 消息时补跑 `updateAllStates`）；`backend/db/schema.js`（新增 `internal_meta` 表并执行一次性迁移）

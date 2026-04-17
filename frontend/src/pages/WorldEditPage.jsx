@@ -5,10 +5,12 @@ import { downloadWorldCard } from '../api/importExport';
 import EntryList from '../components/prompt/EntryList';
 import StateFieldList from '../components/state/StateFieldList';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
+import Select from '../components/ui/Select';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
 } from '../api/worldStateFields';
+import { getWorldStateValues, updateWorldStateValue } from '../api/worldStateValues.js';
 import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
@@ -17,6 +19,77 @@ import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/personaStateFields';
+
+function StateValueField({ field, onSave }) {
+  const parseValue = (vj) => {
+    try { return vj != null ? JSON.parse(vj) : null; }
+    catch { return vj ?? null; }
+  };
+  const [local, setLocal] = useState(() => parseValue(field.default_value_json));
+
+  function saveValue(val) {
+    onSave(field.field_key, JSON.stringify(val));
+  }
+
+  const inputClass = 'w-full px-3 py-2 bg-ivory border border-border rounded-lg text-text text-sm focus:outline-none focus:border-accent';
+
+  if (field.type === 'boolean') {
+    return (
+      <input
+        type="checkbox"
+        checked={!!local}
+        onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
+        className="accent-accent w-4 h-4"
+      />
+    );
+  }
+  if (field.type === 'number') {
+    return (
+      <input
+        type="number"
+        value={local ?? ''}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
+        className={inputClass}
+      />
+    );
+  }
+  if (field.type === 'enum') {
+    const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
+    return (
+      <Select
+        value={local ?? ''}
+        onChange={(v) => { setLocal(v); saveValue(v); }}
+        options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
+      />
+    );
+  }
+  if (field.type === 'list') {
+    const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
+    return (
+      <input
+        type="text"
+        value={displayValue}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          const arr = String(local).split(',').map((s) => s.trim()).filter(Boolean);
+          saveValue(arr);
+        }}
+        placeholder="逗号分隔多个条目"
+        className={inputClass}
+      />
+    );
+  }
+  return (
+    <input
+      type="text"
+      value={local ?? ''}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => saveValue(String(local ?? ''))}
+      className={inputClass}
+    />
+  );
+}
 
 export default function WorldEditPage() {
   const { worldId } = useParams();
@@ -30,15 +103,28 @@ export default function WorldEditPage() {
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [postPrompt, setPostPrompt] = useState('');
+  const [stateFields, setStateFields] = useState([]);
 
   useEffect(() => {
-    getWorld(worldId).then((w) => {
+    Promise.all([
+      getWorld(worldId),
+      getWorldStateValues(worldId),
+    ]).then(([w, fields]) => {
       setName(w.name ?? '');
       setSystemPrompt(w.system_prompt ?? '');
       setPostPrompt(w.post_prompt ?? '');
+      setStateFields(fields);
       setLoading(false);
     });
   }, [worldId]);
+
+  async function handleStateValueSave(fieldKey, valueJson) {
+    try {
+      await updateWorldStateValue(worldId, fieldKey, valueJson);
+    } catch (err) {
+      console.error('世界状态默认值保存失败', err);
+    }
+  }
 
   async function handleSave() {
     if (!name.trim()) {
@@ -165,6 +251,25 @@ export default function WorldEditPage() {
 
           {/* Prompt 条目 */}
           <div className="mt-10 border-t border-border pt-8">
+            <div className="mb-10">
+              <h2 className="text-lg font-serif font-semibold text-text mb-4">世界默认状态</h2>
+              {stateFields.length === 0 ? (
+                <p className="text-sm text-text-secondary opacity-40">暂无状态字段</p>
+              ) : (
+                <div className="space-y-3">
+                  {stateFields.map((field) => (
+                    <div key={field.field_key} className="grid grid-cols-[10rem_1fr] gap-3 items-center">
+                      <div>
+                        <p className="text-sm text-text">{field.label}</p>
+                        <p className="text-xs text-text-secondary opacity-50">{field.field_key}</p>
+                      </div>
+                      <StateValueField field={field} onSave={handleStateValueSave} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <EntryList type="world" scopeId={worldId} />
           </div>
 

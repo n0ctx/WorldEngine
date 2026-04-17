@@ -76,7 +76,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     const prompt = [{
       role: 'user',
       content:
-        `请对以下对话生成简洁摘要（100~200字），概括主要内容、关键事件和结论。` +
+        `请对以下对话生成简洁摘要（50~100字），概括主要内容、关键事件和结论。` +
         `摘要将用于后续记忆检索，请确保包含重要的人物、地点、事件等关键信息。\n\n` +
         `用户：${userMsg.content}\n\nAI：${asstMsg.content}`,
     }];

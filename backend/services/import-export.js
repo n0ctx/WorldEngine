@@ -3,6 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import db from '../db/index.js';
+import {
+  validateCharacterImportPayload,
+  validateWorldImportPayload,
+} from './import-export-validation.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
@@ -22,7 +26,7 @@ export function exportCharacter(characterId) {
   }));
 
   const stateValues = db.prepare(
-    'SELECT field_key, value_json FROM character_state_values WHERE character_id = ?',
+    'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
   ).all(characterId);
 
   // 读取头像（如果有）
@@ -85,9 +89,7 @@ export function exportPersona(worldId) {
 // ─── 导入角色卡 ──────────────────────────────────────────────────────────────
 
 export function importCharacter(worldId, data) {
-  if (data.format !== 'worldengine-character-v1') {
-    throw new Error('不支持的角色卡格式');
-  }
+  validateCharacterImportPayload(data);
 
   const world = db.prepare('SELECT id FROM worlds WHERE id = ?').get(worldId);
   if (!world) throw new Error('世界不存在');
@@ -150,8 +152,8 @@ export function importCharacter(worldId, data) {
 
     // 插入 state_values（只导入 field_key 在目标世界中存在的）
     const insertValue = db.prepare(`
-      INSERT INTO character_state_values (id, character_id, field_key, value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
+      VALUES (?, ?, ?, ?, NULL, ?)
     `);
     for (const sv of (data.character_state_values ?? [])) {
       if (validFieldKeys.has(sv.field_key)) {
@@ -199,7 +201,7 @@ export function exportWorld(worldId) {
   }));
 
   const worldStateValues = db.prepare(
-    'SELECT field_key, value_json FROM world_state_values WHERE world_id = ?',
+    'SELECT field_key, default_value_json AS value_json FROM world_state_values WHERE world_id = ?',
   ).all(worldId);
 
   // 导出角色（含 prompt_entries 和 state_values）
@@ -214,7 +216,7 @@ export function exportWorld(worldId) {
     }));
 
     const stateValues = db.prepare(
-      'SELECT field_key, value_json FROM character_state_values WHERE character_id = ?',
+      'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
     ).all(character.id);
 
     // 读取头像
@@ -252,7 +254,7 @@ export function exportWorld(worldId) {
   }));
 
   const personaStateValues = db.prepare(
-    'SELECT field_key, value_json FROM persona_state_values WHERE world_id = ?',
+    'SELECT field_key, default_value_json AS value_json FROM persona_state_values WHERE world_id = ?',
   ).all(worldId);
 
   return {
@@ -277,9 +279,7 @@ export function exportWorld(worldId) {
 // ─── 导入世界卡 ──────────────────────────────────────────────────────────────
 
 export function importWorld(data) {
-  if (data.format !== 'worldengine-world-v1') {
-    throw new Error('不支持的世界卡格式');
-  }
+  validateWorldImportPayload(data);
 
   const doImport = db.transaction(() => {
     const now = Date.now();
@@ -379,8 +379,8 @@ export function importWorld(data) {
 
     // 插入世界状态当前值
     const insertWorldValue = db.prepare(`
-      INSERT INTO world_state_values (id, world_id, field_key, value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO world_state_values (id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+      VALUES (?, ?, ?, ?, NULL, ?)
     `);
     // 获取合法的 world field_key 集合（刚刚插入的）
     const validWorldFieldKeys = new Set((data.world_state_fields ?? []).map((f) => f.field_key));
@@ -420,8 +420,8 @@ export function importWorld(data) {
 
     // 插入玩家状态当前值
     const insertPersonaValue = db.prepare(`
-      INSERT INTO persona_state_values (id, world_id, field_key, value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO persona_state_values (id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+      VALUES (?, ?, ?, ?, NULL, ?)
     `);
     const validPersonaFieldKeys = new Set((data.persona_state_fields ?? []).map((f) => f.field_key));
     for (const sv of (data.persona_state_values ?? [])) {
@@ -443,8 +443,8 @@ export function importWorld(data) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertCharValue = db.prepare(`
-      INSERT INTO character_state_values (id, character_id, field_key, value_json, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
+      VALUES (?, ?, ?, ?, NULL, ?)
     `);
 
     for (const charData of (data.characters ?? [])) {

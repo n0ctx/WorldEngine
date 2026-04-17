@@ -13,7 +13,7 @@ function StateValueField({ field, onSave }) {
     try { return vj != null ? JSON.parse(vj) : null; }
     catch { return vj ?? null; }
   };
-  const [local, setLocal] = useState(() => parseValue(field.value_json));
+  const [local, setLocal] = useState(() => parseValue(field.default_value_json));
 
   function saveValue(val) {
     onSave(field.field_key, JSON.stringify(val));

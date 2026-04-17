@@ -44,16 +44,37 @@ export default function ChatPage() {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
 
+  const clearActiveSession = useCallback(() => {
+    setCurrentSessionId(null);
+    setCurrentSession(null);
+    setGenerating(false);
+    setStreamingText('');
+    setErrorBubble(null);
+    setMemoryRecalling(false);
+    setMemoryExpanding(false);
+    setExpandedMessage('');
+    setContinuingMessageId(null);
+    setContinuingText('');
+    streamingTextRef.current = '';
+    continuingMessageIdRef.current = null;
+    continuingTextRef.current = '';
+    stopRef.current = null;
+    setMessageListKey((k) => k + 1);
+  }, [setCurrentSessionId]);
+
   // 加载角色信息
   useEffect(() => {
     if (!characterId) return;
+    clearActiveSession();
+    setCharacter(null);
+    setPersona(null);
     getCharacter(characterId).then((c) => {
       setCharacter(c);
       if (c.world_id) {
         getPersona(c.world_id).then(setPersona).catch(() => {});
       }
     }).catch(console.error);
-  }, [characterId]);
+  }, [characterId, clearActiveSession]);
 
   // 启动时加载正则规则缓存
   useEffect(() => {
@@ -75,14 +96,18 @@ export default function ChatPage() {
 
   // 删除当前会话后切换到第一个，或清空
   function handleSessionDelete(deletedId, remaining) {
-    if (deletedId === currentSessionId) {
+    const activeSessionId = currentSessionIdRef.current;
+    if (deletedId === activeSessionId) {
       if (remaining.length > 0) {
         handleSessionSelect(remaining[0]);
       } else {
-        setCurrentSessionId(null);
-        setCurrentSession(null);
-        setMessageListKey((k) => k + 1);
+        clearActiveSession();
       }
+      return;
+    }
+
+    if (activeSessionId && !remaining.some((session) => session.id === activeSessionId)) {
+      clearActiveSession();
     }
   }
 

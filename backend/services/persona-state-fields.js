@@ -15,7 +15,7 @@ function getInitialValueJson(field) {
 export function createPersonaStateField(worldId, data) {
   const field = dbCreate(worldId, data);
   // 为该 world 的 persona 初始化状态值
-  upsertPersonaStateValue(worldId, field.field_key, getInitialValueJson(field));
+  upsertPersonaStateValue(worldId, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   return field;
 }
 

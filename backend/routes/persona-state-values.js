@@ -7,11 +7,11 @@
  */
 
 import { Router } from 'express';
+import { getPersonaStateValuesWithFields } from '../db/queries/persona-state-values.js';
 import {
-  getPersonaStateValuesWithFields,
-  upsertPersonaStateValue,
-} from '../db/queries/persona-state-values.js';
-import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
+  resetPersonaStateValuesValidated,
+  updatePersonaDefaultStateValueValidated,
+} from '../services/state-values.js';
 
 const router = Router();
 
@@ -26,17 +26,32 @@ router.patch('/worlds/:worldId/persona-state-values/:fieldKey', (req, res) => {
   if (value_json === undefined) {
     return res.status(400).json({ error: 'value_json 为必填项' });
   }
-  upsertPersonaStateValue(worldId, fieldKey, value_json);
-  res.json({ success: true });
+
+  try {
+    updatePersonaDefaultStateValueValidated(worldId, fieldKey, value_json);
+    res.json({ success: true });
+  } catch (err) {
+    if (err.message === '世界不存在') {
+      res.status(404).json({ error: err.message });
+      return;
+    }
+
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.post('/worlds/:worldId/persona-state-values/reset', (req, res) => {
-  const { worldId } = req.params;
-  const fields = getPersonaStateFieldsByWorldId(worldId);
-  for (const field of fields) {
-    upsertPersonaStateValue(worldId, field.field_key, field.default_value ?? null);
+  try {
+    resetPersonaStateValuesValidated(req.params.worldId);
+    res.json(getPersonaStateValuesWithFields(req.params.worldId));
+  } catch (err) {
+    if (err.message === '世界不存在') {
+      res.status(404).json({ error: err.message });
+      return;
+    }
+
+    res.status(400).json({ error: err.message });
   }
-  res.json(getPersonaStateValuesWithFields(worldId));
 });
 
 export default router;

@@ -20,7 +20,7 @@ export function createCharacter(data) {
   // 根据所属世界的 character_state_fields 初始化角色状态值
   const fields = getCharacterStateFieldsByWorldId(character.world_id);
   for (const field of fields) {
-    upsertCharacterStateValue(character.id, field.field_key, getInitialValueJson(field));
+    upsertCharacterStateValue(character.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   }
   return character;
 }
