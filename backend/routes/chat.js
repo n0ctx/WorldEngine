@@ -32,10 +32,17 @@ const router = Router();
 
 /**
  * 执行流式生成（chat 和 regenerate 共用）
+ * @param {object} [opts]
+ * @param {string} [opts.userMsgId] 真实 user 消息 id，流起始时广播给前端替换 temp id
  */
-async function runStream(sessionId, res) {
+async function runStream(sessionId, res, opts = {}) {
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
+
+  // 广播真实 user 消息 id（前端用于把乐观追加的 __temp_ id 替换为真实 id）
+  if (opts.userMsgId && !streamState.isClientClosed()) {
+    sendSse(res, { type: 'user_saved', id: opts.userMsgId });
+  }
 
   let fullContent = '';
   let aborted = false;
@@ -87,17 +94,20 @@ async function runStream(sessionId, res) {
     fullContent += '\n\n[已中断]';
   }
 
+  let savedAssistant = null;
   if (fullContent) {
     // ai_output scope：流式完结后、写入 messages 前处理
     const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId);
-    createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
+    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
     fullContent = savedContent;
     touchSession(sessionId);
   }
 
-  // 推送结束事件
+  // 推送结束事件（附带真实 assistant 消息，便于前端原地追加，免于重挂载刷新）
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted ? { aborted: true } : { done: true });
+    sendSse(res, aborted
+      ? { aborted: true, assistant: savedAssistant }
+      : { done: true, assistant: savedAssistant });
   }
 
   streamState.clear();
@@ -156,7 +166,7 @@ router.post('/:sessionId/chat', async (req, res) => {
     saveAttachments(userMsg.id, attachments);
   }
 
-  await runStream(sessionId, res);
+  await runStream(sessionId, res, { userMsgId: userMsg.id });
 });
 
 // ── POST /api/sessions/:sessionId/stop ──
@@ -252,16 +262,20 @@ router.post('/:sessionId/continue', async (req, res) => {
     newContent += '\n\n[已中断]';
   }
 
+  let mergedAssistant = null;
   if (newContent) {
     // ai_output scope 仅作用于新生成的内容
     const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId);
     const mergedContent = originalContent + processedNew;
     updateMessageContent(lastAssistant.id, mergedContent);
+    mergedAssistant = { ...lastAssistant, content: mergedContent };
     touchSession(sessionId);
   }
 
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted ? { aborted: true } : { done: true });
+    sendSse(res, aborted
+      ? { aborted: true, assistant: mergedAssistant }
+      : { done: true, assistant: mergedAssistant });
   }
 
   streamState.clear();

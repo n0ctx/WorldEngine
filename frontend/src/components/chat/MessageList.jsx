@@ -14,6 +14,7 @@ export default function MessageList({
   worldId,
   generating,
   streamingText,
+  streamingKey,
   memoryRecalling,
   memoryExpanding,
   expandedMessage,
@@ -184,7 +185,7 @@ export default function MessageList({
               : msg;
             return (
               <MessageItem
-                key={msg.id}
+                key={msg._key ?? msg.id}
                 message={displayMsg}
                 character={character}
                 persona={persona}
@@ -201,8 +202,8 @@ export default function MessageList({
           {/* 流式响应（仅新消息，续写时不显示） */}
           {generating && !continuingMessageId && (
             <MessageItem
-              key="__streaming__"
-              message={{ id: '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
+              key={streamingKey || '__streaming__'}
+              message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
               character={character}
               worldId={worldId}
               isStreaming={true}

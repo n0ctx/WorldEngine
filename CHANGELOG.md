@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T77 — 修复流式输出闪烁 + HTML 额外空行 ✅
+- **问题根因**：① 流结束时 `finalizeStream` 调用 `refreshMessages()` 导致 `MessageList` 整体重挂载，`AnimatePresence popLayout` 触发全部气泡 exit/enter 动画（视觉闪烁）。② 流式期间用 `<span whiteSpace:pre-wrap>` 渲染原始文本，`\n\n` 以双换行显示；流结束切换 `<ReactMarkdown>` 后段间距收紧，产生内容跳变。
+- **修复方案**：后端 `runStream` 在 SSE `done`/`aborted` 事件中附带真实 assistant 消息行、在流起始广播 `user_saved` 事件传递真实 user id；前端 `finalizeStream` 改为直接 `appendMessage`（复用本轮 `streamingKey` 作为 `_key` 实现 AnimatePresence 零动画切换），仅在后端未回传 payload 时降级到 `refreshMessages`；`onAborted`/`onError` 移除直接 `finalizeStream` 调用，统一由 `onStreamEnd` 的 finally 块触发，消除双重 finalize；`MessageItem` assistant 流式/终态统一走 `<ReactMarkdown>`，`<QuillCursor>` 作为同级后置元素。
+- **涉及文件**：`backend/routes/chat.js`、`frontend/src/api/chat.js`、`frontend/src/pages/ChatPage.jsx`、`frontend/src/components/chat/MessageList.jsx`、`frontend/src/components/chat/MessageItem.jsx`
+- **注意**：`streamingKey` 每轮流生成唯一 key（`__stream_<ts>_<rand>__`），避免连发两条消息时 React key 冲突；`user_saved` 替换 temp id 时保留 `_key=tempId` 防止 AnimatePresence 因 key 变化触发气泡进出场；`onStreamEnd` finally 保证单次触发，旧前端无 `assistant` 字段时自动降级为 `refreshMessages`。
+
 ## T76 — 全局 UI 羊皮纸化：对话框、输入栏、Markdown 渲染优化 ✅
 - **对外接口**：新增 CSS 类 `.we-dialog-panel / .we-dialog-header / .we-dialog-body / .we-dialog-footer / .we-dialog-label / .we-dialog-hint / .we-tag-input / .we-tag / .we-tag-input-field / .we-range`；`Select.jsx` 和 `ModelCombobox.jsx` 全部改为 inline style（无 Tailwind 依赖）
 - **涉及文件**：`ui.css`（新增 dialog/tag/range 类）、`index.css`（MarkdownEditor Tiptap 重设计、`we-range` 样式、combobox focus 样式）、`chat.css`（h1-h3、blockquote、table、hr、del、GFM 任务列表补全）、`InputBox.jsx`（输入栏羊皮纸化、斜杠命令弹层重设计）、`Select.jsx`（全面 inline style 改造）、`ModelCombobox.jsx`（inline style 改造）、`EntryEditor.jsx`、`EntryList.jsx`、`StateFieldEditor.jsx`、`StateFieldList.jsx`、`RegexRuleEditor.jsx`（均换用 `.we-dialog-panel` 系列类）、`SettingsPage.jsx`（temperature 滑条用 `we-range` + CSS 变量驱动填充）、`MessageItem.jsx`（移除 MD_COMPONENTS 内联样式，改由 CSS 控制）
