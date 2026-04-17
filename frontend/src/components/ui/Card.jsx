@@ -1,8 +1,8 @@
 const elevationCls = {
-  flat:      'bg-ivory',
-  contained: 'bg-ivory border border-border',
-  ring:      'bg-ivory border border-border hover:border-accent/40 hover:shadow-ring transition-all',
-  whisper:   'bg-ivory border border-border shadow-whisper',
+  flat:      'we-card-flat',
+  contained: '',
+  ring:      'we-card-ring',
+  whisper:   'we-card-whisper',
 };
 
 export default function Card({
@@ -15,8 +15,7 @@ export default function Card({
     <div
       className={[
         'we-card',
-        'rounded-xl',
-        elevationCls[elevation] ?? elevationCls.contained,
+        elevationCls[elevation] ?? '',
         className,
       ].filter(Boolean).join(' ')}
       {...props}

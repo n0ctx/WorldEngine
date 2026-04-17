@@ -1,0 +1,166 @@
+/* WorldEngine 原子 UI 组件样式 — T67 */
+
+/* ── Button ── */
+.we-btn {
+  font-family: var(--we-font-serif);
+  font-size: 15px;
+  padding: 8px 16px;
+  border-radius: var(--we-radius-none);
+  border: 1px solid var(--we-paper-shadow);
+  background: transparent;
+  color: var(--we-ink-secondary);
+  cursor: pointer;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.4;
+  text-decoration: none;
+}
+.we-btn:hover:not(:disabled) {
+  border-color: var(--we-ink-faded);
+  background: rgba(0, 0, 0, 0.03);
+}
+.we-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* size modifiers */
+.we-btn-sm {
+  font-size: 13px;
+  padding: 5px 10px;
+}
+.we-btn-lg {
+  font-size: 15px;
+  padding: 10px 20px;
+}
+
+/* variant: primary */
+.we-btn-primary {
+  background: var(--we-vermilion);
+  color: var(--we-paper-base);
+  border-color: var(--we-vermilion);
+}
+.we-btn-primary:hover:not(:disabled) {
+  background: var(--we-vermilion-deep);
+  border-color: var(--we-vermilion-deep);
+}
+
+/* variant: secondary */
+.we-btn-secondary {
+  background: transparent;
+  color: var(--we-ink-secondary);
+  border-color: var(--we-paper-shadow);
+}
+.we-btn-secondary:hover:not(:disabled) {
+  border-color: var(--we-ink-faded);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* variant: ghost */
+.we-btn-ghost {
+  border: 1px dashed var(--we-vermilion);
+  color: var(--we-vermilion);
+  background: transparent;
+}
+.we-btn-ghost:hover:not(:disabled) {
+  background: var(--we-vermilion-bg);
+}
+
+/* variant: danger */
+.we-btn-danger {
+  color: var(--we-vermilion);
+  border-color: var(--we-vermilion-deep);
+  background: transparent;
+}
+.we-btn-danger:hover:not(:disabled) {
+  background: var(--we-vermilion-bg);
+}
+
+/* icon-only button */
+.we-btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+/* ── Input / Textarea ── */
+.we-input,
+.we-textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.035);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-none);
+  padding: 10px 14px;
+  font-family: var(--we-font-serif);
+  font-size: 15.5px;
+  color: var(--we-ink-primary);
+  outline: none;
+  line-height: 1.75;
+  transition: border-color 0.2s, background 0.2s;
+}
+.we-input:focus,
+.we-textarea:focus {
+  border-color: var(--we-ink-faded);
+  background: rgba(0, 0, 0, 0.02);
+}
+.we-input::placeholder,
+.we-textarea::placeholder {
+  color: var(--we-ink-faded);
+  font-style: italic;
+}
+.we-input:disabled,
+.we-textarea:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.we-textarea {
+  resize: vertical;
+}
+
+/* ── Card ── */
+.we-card {
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  padding: 20px;
+}
+.we-card-flat {
+  border: none;
+  box-shadow: none;
+}
+.we-card-ring {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.we-card-ring:hover {
+  border-color: var(--we-ink-faded);
+  box-shadow: 0 0 0 1px var(--we-ink-faded);
+}
+.we-card-whisper {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Badge ── */
+.we-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: var(--we-text-xs);
+  font-family: var(--we-font-serif);
+  border-radius: var(--we-radius-none);
+  border: 1px solid var(--we-paper-shadow);
+  background: transparent;
+  color: var(--we-ink-faded);
+  letter-spacing: 0.05em;
+}
+.we-badge-accent {
+  color: var(--we-vermilion);
+  border-color: var(--we-vermilion-deep);
+  background: var(--we-vermilion-bg);
+}
+.we-badge-error {
+  color: var(--we-vermilion-deep);
+  border-color: var(--we-vermilion-deep);
+  background: var(--we-vermilion-bg);
+}

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T67 — 基础 UI 组件羊皮纸化：Button / Input / Textarea / Card / Badge ✅
+- **对外接口**：Button props `variant`（primary/secondary/ghost/danger）、`size`（sm/md/lg）API 不变；Input/Textarea/Card/Badge API 不变；新增 `frontend/src/styles/ui.css` 集中定义所有 `.we-btn*`、`.we-input`、`.we-textarea`、`.we-card*`、`.we-badge*` 类
+- **涉及文件**：新建 `frontend/src/styles/ui.css`；修改 `frontend/src/main.jsx`（新增 ui.css 导入，位于 chat.css 之后、index.css 之前）；重写 `frontend/src/components/ui/Button.jsx`、`Input.jsx`、`Textarea.jsx`、`Card.jsx`、`Badge.jsx`
+- **注意**：所有组件移除了 Tailwind 工具类，仅保留 `we-*` CSS 类；Button 的 `we-btn-icon` 是独立 variant（32×32 无 padding）；Card elevation `flat`/`ring`/`whisper` 映射为 `we-card-flat`/`we-card-ring`/`we-card-whisper` 附加类；Badge variant `accent`/`error` 映射为 `we-badge-accent`/`we-badge-error`；className prop 仍可透传额外类
+
 ## T66 — 路由/模态框动画 + SSE 召回指示（蜡烛）✅
 - **对外接口**：`PageTransition` 包裹 `<Routes>` 实现 pageTransition 动画；`CandleFlame` 接收 `visible` prop 显示/隐藏蜡烛 SVG；`ModalShell` 现已使用 framer-motion motion.div 实现入场动画；`ChatPage` 新增 `recallVisible`/`recalledItems` state，通过 `recalledItems` prop 传给 `StatePanel`
 - **涉及文件**：新建 `frontend/src/components/book/PageTransition.jsx`、`frontend/src/components/book/CandleFlame.jsx`；重写 `frontend/src/components/ui/ModalShell.jsx`；修改 `frontend/src/App.jsx`、`frontend/src/api/chat.js`、`frontend/src/pages/ChatPage.jsx`

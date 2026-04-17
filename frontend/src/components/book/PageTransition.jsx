@@ -14,7 +14,7 @@ export default function PageTransition({ children }) {
       key={location.pathname}
       initial={{ y: 8 }}
       animate={{ y: 0 }}
-      transition={{ duration: 0.5, ease: MOTION.ease.ink }}
+      transition={{ duration: 1, ease: MOTION.ease.ink }}
       style={{
         flex: 1,
         minHeight: 0,

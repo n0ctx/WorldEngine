@@ -1,7 +1,7 @@
 const variantCls = {
-  default: 'bg-sand text-text-muted',
-  accent:  'bg-accent/10 text-accent',
-  error:   'bg-error/10 text-error',
+  default: '',
+  accent:  'we-badge-accent',
+  error:   'we-badge-error',
 };
 
 export default function Badge({
@@ -14,8 +14,7 @@ export default function Badge({
     <span
       className={[
         'we-badge',
-        'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-xl',
-        variantCls[variant] ?? variantCls.default,
+        variantCls[variant] ?? '',
         className,
       ].filter(Boolean).join(' ')}
       {...props}
