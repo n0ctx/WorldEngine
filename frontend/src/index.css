@@ -680,3 +680,15 @@ body {
   font-size: 15px;
   opacity: 0.65;
 }
+
+/* ── CastPanel（写作空间右侧角色台）───────────────────────────── */
+.we-cast-panel { }
+.we-cast-header { }
+.we-cast-char-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
+.we-cast-char-title { display: flex; align-items: center; gap: 6px; padding: 9px 0; cursor: pointer; }
+.we-cast-char-name { font-family: var(--we-font-display); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--we-ink-secondary); flex: 1; }
+.we-cast-char-remove { font-family: var(--we-font-display); font-style: italic; font-size: 10px; color: var(--we-ink-faded); background: none; border: none; cursor: pointer; padding: 0; display: none; }
+.we-cast-character-block:hover .we-cast-char-remove { display: inline; }
+.we-cast-char-remove:hover { color: var(--we-vermilion); }
+.we-cast-character-block { border-top: 1px solid var(--we-paper-shadow); }
+.we-cast-char-body { padding: 0 0 10px; }

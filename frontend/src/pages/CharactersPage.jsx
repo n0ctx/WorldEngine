@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getCharactersByWorld,
   deleteCharacter,
@@ -140,6 +140,7 @@ function DeleteCharacterModal({ character, onConfirm, onClose }) {
 export default function CharactersPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
 
   const [world, setWorld] = useState(null);
@@ -270,7 +271,7 @@ export default function CharactersPage() {
         </div>
 
         {/* 玩家人设卡片 */}
-        <PersonaCard worldId={worldId} onEdit={() => navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: { pathname: `/worlds/${worldId}`, search: '', hash: '' } } })} />
+        <PersonaCard worldId={worldId} onEdit={() => navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: location } })} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (
@@ -311,7 +312,7 @@ export default function CharactersPage() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
-                    onClick={() => navigate(`/characters/${char.id}/edit`)}
+                    onClick={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
                     className="w-7 h-7 flex items-center justify-center rounded-lg text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
                     title="编辑"
                   >

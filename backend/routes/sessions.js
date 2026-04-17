@@ -3,6 +3,7 @@ import {
   createSession,
   getSessionById,
   getSessionsByCharacterId,
+  getLatestChatSessionByWorldId,
   updateSessionTitle,
   deleteSession,
   getMessagesBySessionId,
@@ -24,6 +25,15 @@ router.get('/characters/:characterId/sessions', (req, res) => {
   const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
   const sessions = getSessionsByCharacterId(req.params.characterId, limit, offset);
   res.json(sessions);
+});
+
+// GET /api/worlds/:worldId/latest-chat-session — 获取某世界最近活跃的 chat 会话
+router.get('/worlds/:worldId/latest-chat-session', (req, res) => {
+  const session = getLatestChatSessionByWorldId(req.params.worldId);
+  if (!session) {
+    return res.status(404).json({ error: '该世界暂无对话会话' });
+  }
+  res.json(session);
 });
 
 // POST /api/characters/:characterId/sessions — 创建会话（自动插入 first_message）

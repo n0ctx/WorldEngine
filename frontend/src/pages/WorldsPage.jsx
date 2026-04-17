@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds, deleteWorld } from '../api/worlds';
 import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
@@ -64,6 +64,7 @@ function DeleteConfirmModal({ world, onConfirm, onClose }) {
 
 export default function WorldsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
 
   const [worlds, setWorlds] = useState([]);
@@ -200,7 +201,7 @@ export default function WorldsPage() {
                 </button>
                 <button
                   className="we-world-card-action-btn"
-                  onClick={() => navigate(`/worlds/${world.id}/edit`)}
+                  onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
                   title="编辑"
                 >
                   ✎

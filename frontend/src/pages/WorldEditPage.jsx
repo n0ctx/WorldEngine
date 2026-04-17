@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld } from '../api/worlds';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
 import EntryList from '../components/prompt/EntryList';
@@ -94,6 +94,8 @@ function StateValueField({ field, onSave }) {
 export default function WorldEditPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOverlay = !!location.state?.backgroundLocation;
   const worldImportRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -183,11 +185,23 @@ export default function WorldEditPage() {
     }
   }
 
+  function handleClose() {
+    navigate(-1);
+  }
+
   if (loading) {
     return (
-      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p className="we-edit-empty-text">加载中…</p>
-      </div>
+      isOverlay ? (
+        <div className="we-settings-overlay" onClick={handleClose}>
+          <div className="we-edit-panel we-edit-panel-overlay" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <p className="we-edit-empty-text">加载中…</p>
+          </div>
+        </div>
+      ) : (
+        <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <p className="we-edit-empty-text">加载中…</p>
+        </div>
+      )
     );
   }
 
@@ -378,15 +392,26 @@ export default function WorldEditPage() {
     },
   ];
 
-  return (
-    <div className="we-edit-canvas">
-      <div className="we-edit-panel">
+  const content = (
+    <div
+      className={`we-edit-panel${isOverlay ? ' we-edit-panel-overlay' : ''}`}
+      onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
+    >
         <div className="we-edit-header">
-          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <button className="we-edit-back" onClick={handleClose}>← 返回</button>
           <h1 className="we-edit-title">编辑世界 · {name}</h1>
         </div>
         <SectionTabs sections={sections} defaultKey="basic" />
       </div>
+  );
+
+  return isOverlay ? (
+    <div className="we-settings-overlay" onClick={handleClose}>
+      {content}
+    </div>
+  ) : (
+    <div className="we-edit-canvas">
+      {content}
     </div>
   );
 }

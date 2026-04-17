@@ -35,7 +35,7 @@ export default function InputBox({
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+    ta.style.height = ta.scrollHeight + 'px';
   }
 
   useEffect(() => { adjustHeight(); }, [text]);
@@ -270,7 +270,7 @@ export default function InputBox({
             onKeyDown={handleKeyDown}
             disabled={generating}
             rows={1}
-            style={{ minHeight: '48px' }}
+            style={{ minHeight: '48px', overflowY: 'hidden' }}
           />
         </div>
 

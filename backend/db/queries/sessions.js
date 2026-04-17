@@ -31,6 +31,20 @@ export function getSessionsByCharacterId(characterId, limit = 20, offset = 0) {
 }
 
 /**
+ * 获取某世界最近更新的一条 chat 会话
+ */
+export function getLatestChatSessionByWorldId(worldId) {
+  return db.prepare(`
+    SELECT s.*
+    FROM sessions s
+    JOIN characters c ON c.id = s.character_id
+    WHERE c.world_id = ? AND s.mode = 'chat'
+    ORDER BY s.updated_at DESC
+    LIMIT 1
+  `).get(worldId);
+}
+
+/**
  * 更新会话标题
  */
 export function updateSessionTitle(id, title) {

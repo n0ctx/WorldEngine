@@ -1,40 +1,45 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getWorld } from '../api/worlds.js';
+import { getPersona } from '../api/personas.js';
 import {
   listWritingSessions,
   createWritingSession,
-  listMessages,
   listActiveCharacters,
   generate,
   stopGeneration,
   continueGeneration,
 } from '../api/writingSessions.js';
-import WritingSidebar from '../components/writing/WritingSidebar.jsx';
-import WritingMessageList from '../components/writing/WritingMessageList.jsx';
-import MultiCharacterMemoryPanel from '../components/writing/MultiCharacterMemoryPanel.jsx';
+import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
+import CastPanel from '../components/book/CastPanel.jsx';
+import MessageList from '../components/chat/MessageList.jsx';
+import InputBox from '../components/chat/InputBox.jsx';
+import WritingSessionList from '../components/book/WritingSessionList.jsx';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
 
   const [world, setWorld] = useState(null);
+  const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
-  const [messages, setMessages] = useState([]);
   const [activeCharacters, setActiveCharacters] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [rightOpen, setRightOpen] = useState(true);
-  const [inputText, setInputText] = useState('');
+  const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
 
   const stopRef = useRef(null);
   const streamingTextRef = useRef('');
-  const textareaRef = useRef(null);
+  const currentSessionRef = useRef(null);
 
-  // 加载世界信息
+  useEffect(() => {
+    currentSessionRef.current = currentSession;
+  }, [currentSession]);
+
   useEffect(() => {
     if (!worldId) return;
     getWorld(worldId).then(setWorld).catch(console.error);
+    getPersona(worldId).then(setPersona).catch(() => {});
   }, [worldId]);
 
   // 初始化：加载或自动创建第一个会话
@@ -44,10 +49,17 @@ export default function WritingSpacePage() {
       if (sessions.length > 0) {
         enterSession(sessions[0]);
       } else {
-        createWritingSession(worldId).then(enterSession).catch(console.error);
+        createWritingSession(worldId).then((s) => {
+          WritingSessionList.addSession?.(s);
+          enterSession(s);
+        }).catch(console.error);
       }
     }).catch(console.error);
   }, [worldId]);
+
+  function refreshMessages() {
+    setMessageListKey((k) => k + 1);
+  }
 
   async function enterSession(session) {
     setCurrentSession(session);
@@ -55,17 +67,8 @@ export default function WritingSpacePage() {
     setStreamingText('');
     streamingTextRef.current = '';
     setError(null);
+    refreshMessages();
 
-    // 加载消息
-    try {
-      const msgs = await listMessages(worldId, session.id);
-      setMessages(msgs);
-    } catch (e) {
-      console.error(e);
-      setMessages([]);
-    }
-
-    // 加载激活角色
     try {
       const chars = await listActiveCharacters(worldId, session.id);
       setActiveCharacters(chars);
@@ -80,11 +83,14 @@ export default function WritingSpacePage() {
   }
 
   function handleSessionDelete(deletedId, remaining) {
-    if (currentSession?.id === deletedId) {
+    if (currentSessionRef.current?.id === deletedId) {
       if (remaining.length > 0) {
         enterSession(remaining[0]);
       } else {
-        createWritingSession(worldId).then(enterSession).catch(console.error);
+        createWritingSession(worldId).then((s) => {
+          WritingSessionList.addSession?.(s);
+          enterSession(s);
+        }).catch(console.error);
       }
     }
   }
@@ -94,81 +100,69 @@ export default function WritingSpacePage() {
       stopRef.current();
       stopRef.current = null;
     }
-    stopGeneration(worldId, currentSession?.id).catch(console.error);
+    stopGeneration(worldId, currentSessionRef.current?.id).catch(console.error);
   }
 
-  function handleGenerate() {
-    if (!currentSession) return;
+  function handleSend(content) {
+    const session = currentSessionRef.current;
+    if (!session) return;
     if (generating) return;
 
-    const prompt = inputText.trim();
-    setInputText('');
     setError(null);
 
-    // 若有用户输入，立即乐观插入 user 消息到列表
-    if (prompt) {
-      const optimisticUserMsg = {
-        id: `__optimistic_user_${Date.now()}`,
+    if (content) {
+      const optimisticMsg = {
+        id: `__optimistic_${Date.now()}`,
+        session_id: session.id,
         role: 'user',
-        content: prompt,
+        content,
+        attachments: null,
         created_at: Date.now(),
       };
-      setMessages((prev) => [...prev, optimisticUserMsg]);
+      if (MessageList.appendMessage) MessageList.appendMessage(optimisticMsg);
     }
 
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
 
-    stopRef.current = generate(worldId, currentSession.id, prompt, {
+    stopRef.current = generate(worldId, session.id, content || '', {
       onDelta(delta) {
         streamingTextRef.current += delta;
         setStreamingText(streamingTextRef.current);
       },
-      onDone() {
-        // 生成完成，重新从服务器加载消息（以替换乐观消息和流式消息）
-        listMessages(worldId, currentSession.id)
-          .then((msgs) => {
-            setMessages(msgs);
-            setGenerating(false);
-            setStreamingText('');
-            streamingTextRef.current = '';
-          })
-          .catch(console.error);
-        stopRef.current = null;
-      },
+      onDone() {},
       onAborted() {
-        listMessages(worldId, currentSession.id)
-          .then((msgs) => {
-            setMessages(msgs);
-            setGenerating(false);
-            setStreamingText('');
-            streamingTextRef.current = '';
-          })
-          .catch(console.error);
+        streamingTextRef.current = '';
+        setGenerating(false);
+        setStreamingText('');
         stopRef.current = null;
+        refreshMessages();
       },
       onError(msg) {
         setError(msg);
+        streamingTextRef.current = '';
         setGenerating(false);
         setStreamingText('');
-        streamingTextRef.current = '';
         stopRef.current = null;
       },
       onTitleUpdated(title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        WritingSidebar.updateTitle?.(currentSession.id, title);
+        WritingSessionList.updateTitle?.(session.id, title);
       },
       onStreamEnd() {
-        // 标题在 onDone 后可能才到，最终清理
+        streamingTextRef.current = '';
         setGenerating(false);
+        setStreamingText('');
         stopRef.current = null;
+        refreshMessages();
       },
     });
   }
 
   function handleContinue() {
-    if (!currentSession) return;
+    const session = currentSessionRef.current;
+    if (!session) return;
     if (generating) return;
 
     setError(null);
@@ -176,168 +170,132 @@ export default function WritingSpacePage() {
     setStreamingText('');
     streamingTextRef.current = '';
 
-    stopRef.current = continueGeneration(worldId, currentSession.id, {
+    stopRef.current = continueGeneration(worldId, session.id, {
       onDelta(delta) {
         streamingTextRef.current += delta;
         setStreamingText(streamingTextRef.current);
       },
-      onDone() {
-        listMessages(worldId, currentSession.id)
-          .then((msgs) => {
-            setMessages(msgs);
-            setGenerating(false);
-            setStreamingText('');
-            streamingTextRef.current = '';
-          })
-          .catch(console.error);
-        stopRef.current = null;
-      },
+      onDone() {},
       onAborted() {
-        listMessages(worldId, currentSession.id)
-          .then((msgs) => {
-            setMessages(msgs);
-            setGenerating(false);
-            setStreamingText('');
-            streamingTextRef.current = '';
-          })
-          .catch(console.error);
+        streamingTextRef.current = '';
+        setGenerating(false);
+        setStreamingText('');
         stopRef.current = null;
+        refreshMessages();
       },
       onError(msg) {
         setError(msg);
+        streamingTextRef.current = '';
         setGenerating(false);
         setStreamingText('');
-        streamingTextRef.current = '';
         stopRef.current = null;
       },
       onStreamEnd() {
+        streamingTextRef.current = '';
         setGenerating(false);
+        setStreamingText('');
         stopRef.current = null;
+        refreshMessages();
       },
     });
   }
 
-  function handleKeyDown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleGenerate();
-    }
-  }
-
-  // 续写按钮：当最后一条是 assistant 消息时显示
-  const hasAssistantMessages = messages.some((m) => m.role === 'assistant');
-
   return (
-    <div className="flex h-screen bg-canvas overflow-hidden">
-      {/* 左侧边栏 */}
-      <div className="we-sidebar w-[260px] flex-none border-r border-border">
-        <WritingSidebar
-          worldId={worldId}
-          worldName={world?.name}
-          currentSessionId={currentSession?.id}
-          onSessionSelect={enterSession}
-          onSessionCreate={handleSessionCreate}
-          onSessionDelete={handleSessionDelete}
-        />
-      </div>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
+      <WritingPageLeft
+        worldId={worldId}
+        currentSessionId={currentSession?.id}
+        onSessionSelect={enterSession}
+        onSessionCreate={handleSessionCreate}
+        onSessionDelete={handleSessionDelete}
+      />
 
-      {/* 主内容区 */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶部栏 */}
-        <div className="h-12 border-b border-border flex items-center px-4 gap-2 flex-none">
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.8"
-            className="text-accent opacity-60"
-          >
-            <path d="M12 20h9" />
-            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-          </svg>
-          <span className="text-sm text-text-secondary">
-            {currentSession?.title || '写作空间'}
-          </span>
-          <div className="ml-auto flex items-center gap-2">
-            <button
-              onClick={() => setRightOpen((v) => !v)}
-              className="text-text-secondary opacity-60 hover:opacity-100 transition-opacity"
-              title={rightOpen ? '收起记忆面板' : '展开记忆面板'}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <line x1="15" y1="3" x2="15" y2="21" />
-              </svg>
-            </button>
-          </div>
+      {/* 中间消息区 */}
+      <div
+        className="we-page-right"
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--we-paper-base)',
+          position: 'relative',
+        }}
+      >
+        {/* 章节标题区 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '10px 16px 8px',
+          borderBottom: '1px solid var(--we-paper-shadow)',
+          flexShrink: 0,
+        }}>
+          {currentSession ? (
+            <h1 style={{
+              flex: 1,
+              fontFamily: 'var(--we-font-display)',
+              fontSize: 15,
+              fontStyle: 'italic',
+              fontWeight: 400,
+              color: 'var(--we-ink-secondary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              margin: 0,
+            }}>
+              {currentSession.title || '写作进行中'}
+            </h1>
+          ) : (
+            <span style={{ flex: 1 }} />
+          )}
         </div>
 
-        {/* 消息区 */}
-        <WritingMessageList
-          messages={messages}
-          isGenerating={generating}
+        {/* 消息列表 */}
+        <MessageList
+          key={`${currentSession?.id}-${messageListKey}`}
+          sessionId={currentSession?.id}
+          sessionTitle={currentSession?.title || ''}
+          character={null}
+          persona={persona}
+          worldId={worldId}
+          generating={generating}
           streamingText={streamingText}
         />
 
         {/* 错误提示 */}
         {error && (
-          <div className="px-6 py-2 text-center">
-            <span className="text-xs text-error bg-ivory border border-border px-3 py-1 rounded-md">{error}</span>
+          <div style={{ padding: '6px 16px', flexShrink: 0 }}>
+            <span style={{
+              fontSize: 12, fontFamily: 'var(--we-font-serif)',
+              color: 'var(--we-vermilion)',
+              background: 'var(--we-vermilion-bg)',
+              border: '1px solid var(--we-vermilion)',
+              borderRadius: 'var(--we-radius-sm)',
+              padding: '3px 10px',
+              display: 'inline-block',
+            }}>
+              生成失败：{error}
+            </span>
           </div>
         )}
 
         {/* 输入区 */}
-        <div className="border-t border-border px-4 py-3 flex-none">
-          <div className="max-w-2xl mx-auto">
-            <div className="relative rounded-xl border border-border bg-ivory focus-within:border-accent/40 transition-colors shadow-ring">
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="输入提示词或旁白指令… (Enter 生成，Shift+Enter 换行)"
-                disabled={generating}
-                rows={3}
-                className="w-full resize-none bg-transparent text-sm text-text placeholder:text-text-secondary/40 px-4 pt-3 pb-10 focus:outline-none"
-              />
-              <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                {hasAssistantMessages && !generating && (
-                  <button
-                    onClick={handleContinue}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-secondary hover:bg-sand hover:text-text transition-colors"
-                  >
-                    续写
-                  </button>
-                )}
-                {generating ? (
-                  <button
-                    onClick={handleStop}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-error hover:bg-sand transition-colors"
-                  >
-                    停止
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleGenerate}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-accent text-white hover:bg-accent/80 transition-colors"
-                  >
-                    生成
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <InputBox
+          onSend={handleSend}
+          onStop={handleStop}
+          generating={generating}
+          lastUserContent=""
+          worldId={worldId}
+          onContinue={handleContinue}
+        />
       </div>
 
-      {/* 右侧记忆面板 */}
-      {rightOpen && (
-        <div className="w-[300px] flex-none border-l border-border overflow-hidden">
-          <MultiCharacterMemoryPanel
-            worldId={worldId}
-            sessionId={currentSession?.id}
-            activeCharacters={activeCharacters}
-          />
-        </div>
-      )}
+      <CastPanel
+        worldId={worldId}
+        sessionId={currentSession?.id}
+        activeCharacters={activeCharacters}
+        onActiveCharactersChange={setActiveCharacters}
+      />
     </div>
   );
 }

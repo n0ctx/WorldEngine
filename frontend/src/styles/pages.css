@@ -276,6 +276,14 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
+.we-edit-panel-overlay {
+  width: min(960px, calc(100vw - 48px));
+  max-width: min(960px, calc(100vw - 48px));
+  margin: 24px auto 32px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+
 .we-edit-header {
   margin-bottom: 32px;
   padding-bottom: 24px;
@@ -616,9 +624,10 @@
 
 .we-settings-panel-overlay {
   width: min(1100px, calc(100vw - 48px));
-  margin: 24px auto;
-  min-height: min(calc(100vh - 48px), 920px);
-  max-height: calc(100vh - 48px);
+  margin: 24px auto 32px;
+  min-height: auto;
+  height: calc(100vh - 96px);
+  max-height: calc(100vh - 96px);
 }
 
 .we-settings-nav {
@@ -696,6 +705,8 @@
   background: rgba(26, 20, 15, 0.18);
   backdrop-filter: blur(1px);
   overflow: hidden;
+  padding: 0 24px 24px;
+  box-sizing: border-box;
 }
 
 .we-settings-loading {

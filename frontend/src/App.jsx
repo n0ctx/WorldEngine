@@ -44,6 +44,8 @@ export default function App() {
       {backgroundLocation && (
         <Routes>
           <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+          <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
+          <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       )}

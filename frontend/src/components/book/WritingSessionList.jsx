@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writingSessions.js';
+import { renameSession } from '../../api/sessions.js';
 
 function formatDate(ts) {
   const d = new Date(ts);
@@ -6,7 +8,7 @@ function formatDate(ts) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-export default function SessionItem({ session, isActive, onSelect, onDelete, onRename }) {
+function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -34,29 +36,11 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
     setEditing(false);
   }
 
-  function cancelEdit() {
-    setEditing(false);
-  }
+  function cancelEdit() { setEditing(false); }
 
   function handleKeyDown(e) {
     if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
     if (e.key === 'Escape') cancelEdit();
-  }
-
-  function handleDeleteClick(e) {
-    e.stopPropagation();
-    setConfirmDelete(true);
-  }
-
-  function handleConfirmDelete(e) {
-    e.stopPropagation();
-    onDelete(session.id);
-    setConfirmDelete(false);
-  }
-
-  function handleCancelDelete(e) {
-    e.stopPropagation();
-    setConfirmDelete(false);
   }
 
   return (
@@ -134,29 +118,21 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
           {confirmDelete ? (
             <div style={{ display: 'flex', gap: 4 }}>
               <button
-                onClick={handleConfirmDelete}
+                onClick={(e) => { e.stopPropagation(); onDelete(session.id); setConfirmDelete(false); }}
                 style={{
-                  fontSize: 11,
-                  padding: '2px 7px',
-                  borderRadius: 3,
-                  background: 'var(--we-vermilion)',
-                  color: 'var(--we-paper-base)',
-                  border: 'none',
-                  cursor: 'pointer',
+                  fontSize: 11, padding: '2px 7px', borderRadius: 3,
+                  background: 'var(--we-vermilion)', color: 'var(--we-paper-base)',
+                  border: 'none', cursor: 'pointer',
                 }}
               >
                 删除
               </button>
               <button
-                onClick={handleCancelDelete}
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
                 style={{
-                  fontSize: 11,
-                  padding: '2px 7px',
-                  borderRadius: 3,
-                  background: 'var(--we-paper-shadow)',
-                  color: 'var(--we-ink-secondary)',
-                  border: 'none',
-                  cursor: 'pointer',
+                  fontSize: 11, padding: '2px 7px', borderRadius: 3,
+                  background: 'var(--we-paper-shadow)', color: 'var(--we-ink-secondary)',
+                  border: 'none', cursor: 'pointer',
                 }}
               >
                 取消
@@ -184,14 +160,10 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
                 </svg>
               </button>
               <button
-                onClick={handleDeleteClick}
+                onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
                 style={{
-                  padding: 4,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--we-ink-faded)',
-                  borderRadius: 3,
+                  padding: 4, background: 'none', border: 'none',
+                  cursor: 'pointer', color: 'var(--we-ink-faded)', borderRadius: 3,
                 }}
                 title="删除会话"
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
@@ -208,6 +180,108 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+export default function WritingSessionList({ worldId, currentSessionId, onSessionSelect, onSessionCreate, onSessionDelete }) {
+  const [sessions, setSessions] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!worldId) return;
+    setLoading(true);
+    listWritingSessions(worldId)
+      .then(setSessions)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [worldId]);
+
+  WritingSessionList.updateTitle = (sessionId, title) => {
+    setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title } : s));
+  };
+
+  WritingSessionList.addSession = (session) => {
+    setSessions((prev) => [session, ...prev]);
+  };
+
+  async function handleCreate() {
+    try {
+      const session = await createWritingSession(worldId);
+      setSessions((prev) => [session, ...prev]);
+      onSessionCreate(session);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleDelete(sessionId) {
+    try {
+      await deleteWritingSession(worldId, sessionId);
+      const remaining = sessions.filter((s) => s.id !== sessionId);
+      setSessions(remaining);
+      onSessionDelete(sessionId, remaining);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleRename(sessionId, title) {
+    try {
+      const updated = await renameSession(sessionId, title);
+      setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title: updated.title } : s));
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--we-paper-shadow)' }}>
+        <button
+          onClick={handleCreate}
+          style={{
+            width: '100%', padding: '7px 0',
+            border: '1.5px dashed var(--we-vermilion)',
+            borderRadius: 4, background: 'none', cursor: 'pointer',
+            fontSize: 12, fontFamily: 'var(--we-font-serif)',
+            color: 'var(--we-vermilion)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            transition: 'background 0.12s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          新建写作会话
+        </button>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+        {loading && (
+          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
+            加载中…
+          </p>
+        )}
+        {!loading && sessions.length === 0 && (
+          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
+            暂无写作记录
+          </p>
+        )}
+        {sessions.map((session) => (
+          <WritingSessionItem
+            key={session.id}
+            session={session}
+            isActive={session.id === currentSessionId}
+            onSelect={onSessionSelect}
+            onDelete={handleDelete}
+            onRename={handleRename}
+          />
+        ))}
+      </div>
     </div>
   );
 }

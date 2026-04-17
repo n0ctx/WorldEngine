@@ -2,6 +2,7 @@ import {
   createSession as dbCreateSession,
   getSessionById as dbGetSessionById,
   getSessionsByCharacterId as dbGetSessionsByCharacterId,
+  getLatestChatSessionByWorldId as dbGetLatestChatSessionByWorldId,
   updateSessionTitle as dbUpdateSessionTitle,
   touchSession as dbTouchSession,
   deleteSession as dbDeleteSession,
@@ -47,6 +48,10 @@ export function getSessionById(id) {
 
 export function getSessionsByCharacterId(characterId, limit, offset) {
   return dbGetSessionsByCharacterId(characterId, limit, offset);
+}
+
+export function getLatestChatSessionByWorldId(worldId) {
+  return dbGetLatestChatSessionByWorldId(worldId);
 }
 
 export function updateSessionTitle(id, title) {
@@ -112,4 +117,3 @@ export async function deleteAllMessagesBySessionId(sessionId) {
 export function updateMessageContent(id, content) {
   return dbUpdateMessageContent(id, content);
 }
-

@@ -26,32 +26,19 @@ function CodeBlock({ children, className }) {
   }
 
   return (
-    <div style={{
-      background: 'var(--we-paper-aged)',
-      border: '1px solid var(--we-paper-shadow)',
-      borderRadius: '1px',
-      margin: '0.75em 0',
-      overflow: 'hidden',
-    }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '3px 10px',
-        borderBottom: '1px solid var(--we-paper-shadow)',
-        background: 'var(--we-paper-deep)',
-      }}>
-        <span style={{ fontFamily: 'var(--we-font-mono)', fontSize: '10px', color: 'var(--we-ink-faded)', letterSpacing: '0.1em' }}>
+    <div className="we-code-block">
+      <div className="we-code-block-header">
+        <span className="we-code-block-lang">
           {lang || 'code'}
         </span>
         <button
           onClick={copy}
-          style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic', fontSize: '10px', color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.08em' }}
+          className="we-code-block-copy"
         >
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <pre style={{ padding: '10px 14px', overflow: 'auto', fontFamily: 'var(--we-font-mono)', fontSize: '12.5px', color: 'var(--we-ink-secondary)', lineHeight: 1.65, margin: 0 }}>
+      <pre>
         <code>{code}</code>
       </pre>
     </div>
@@ -62,7 +49,7 @@ const MD_COMPONENTS = {
   code({ node, inline, className, children, ...props }) {
     if (inline) {
       return (
-        <code style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', background: 'var(--we-paper-shadow)', padding: '0 4px', borderRadius: '1px', color: 'var(--we-ink-secondary)' }} {...props}>
+        <code className="we-inline-code" {...props}>
           {children}
         </code>
       );

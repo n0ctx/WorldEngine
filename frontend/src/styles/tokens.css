@@ -42,6 +42,18 @@
     rgba(0, 0, 0, 0.06) 88%,
     rgba(0, 0, 0, 0.22) 100%
   );
+  --we-spine-shadow-left: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.14) 0%,
+    rgba(0, 0, 0, 0.04) 40%,
+    transparent 100%
+  );
+  --we-spine-shadow-right: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.02) 40%,
+    transparent 100%
+  );
 
   /* §3.2 字号体系 */
   --we-text-xs:   11px;

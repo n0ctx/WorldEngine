@@ -114,27 +114,19 @@ export default function SessionListPanel({
   };
 
   return (
-    <div className="we-session-list-panel flex flex-col h-full" style={{ fontFamily: 'var(--we-font-ui)' }}>
-      {/* 角色信息头 */}
-      <div
-        style={{
-          padding: '14px 14px 10px',
-          borderBottom: '1px solid var(--we-paper-shadow)',
-        }}
-      >
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--we-paper-shadow)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-          {/* 返回世界按钮 */}
           <button
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
             title="切换角色"
             style={{
-              padding: '4px',
-              borderRadius: 6,
+              padding: 4,
+              borderRadius: 4,
               color: 'var(--we-ink-faded)',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              flexShrink: 0,
               opacity: 0.6,
               transition: 'opacity 0.15s',
             }}
@@ -147,33 +139,27 @@ export default function SessionListPanel({
           </button>
         </div>
 
-        {/* 新建会话 — 虚线按钮 */}
         <button
           onClick={handleCreateSession}
           style={{
-            marginTop: 10,
             width: '100%',
-            padding: '6px 0',
-            border: '1.5px dashed var(--we-paper-shadow)',
-            borderRadius: 6,
+            padding: '7px 0',
+            marginTop: 10,
+            border: '1.5px dashed var(--we-vermilion)',
+            borderRadius: 4,
             background: 'none',
             cursor: 'pointer',
             fontSize: 12,
-            color: 'var(--we-ink-faded)',
+            fontFamily: 'var(--we-font-serif)',
+            color: 'var(--we-vermilion)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 5,
-            transition: 'border-color 0.15s, color 0.15s',
+            transition: 'background 0.12s',
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = 'var(--we-vermilion)';
-            e.currentTarget.style.color = 'var(--we-vermilion)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'var(--we-paper-shadow)';
-            e.currentTarget.style.color = 'var(--we-ink-faded)';
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -183,21 +169,9 @@ export default function SessionListPanel({
         </button>
       </div>
 
-      {/* 会话列表 */}
-      <div
-        ref={listRef}
-        style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}
-      >
+      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
         {sessions.length === 0 && (
-          <p
-            style={{
-              fontSize: 12,
-              textAlign: 'center',
-              color: 'var(--we-ink-faded)',
-              opacity: 0.6,
-              padding: '24px 0',
-            }}
-          >
+          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
             暂无对话
           </p>
         )}
@@ -212,15 +186,7 @@ export default function SessionListPanel({
           />
         ))}
         {loadingMore && (
-          <p
-            style={{
-              fontSize: 11,
-              textAlign: 'center',
-              color: 'var(--we-ink-faded)',
-              opacity: 0.5,
-              padding: '8px 0',
-            }}
-          >
+          <p style={{ fontSize: 11, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.5, padding: '8px 0' }}>
             加载中…
           </p>
         )}

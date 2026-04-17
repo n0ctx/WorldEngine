@@ -518,11 +518,11 @@ export default function ChatPage() {
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
-      <div className="we-main flex-1 min-w-0 flex flex-col overflow-hidden">
+      <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* 顶部栏 */}
-        <div className="flex items-center px-4 pt-3 pb-2 border-b border-border shrink-0">
+        <div className="we-chat-center-header">
           {currentSession ? (
-            <h1 className="flex-1 text-sm font-medium text-text truncate">
+            <h1 className="we-chat-center-title">
               {currentSession.title || '新对话'}
             </h1>
           ) : (

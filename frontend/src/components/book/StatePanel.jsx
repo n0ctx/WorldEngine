@@ -165,6 +165,19 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         position: 'relative',
       }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 12,
+          background: 'var(--we-spine-shadow-left)',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      />
+
       {/* ── 头部：印章 + 角色名 + 世界名 ── */}
       <div className="we-state-panel-header">
         <div className="we-seal-wrap">

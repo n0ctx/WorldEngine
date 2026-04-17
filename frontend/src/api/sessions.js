@@ -12,6 +12,12 @@ export async function getSession(id) {
   return res.json();
 }
 
+export async function getLatestChatSession(worldId) {
+  const res = await fetch(`${BASE}/worlds/${worldId}/latest-chat-session`);
+  if (!res.ok) throw new Error(`getLatestChatSession failed: ${res.status}`);
+  return res.json();
+}
+
 export async function createSession(characterId) {
   const res = await fetch(`${BASE}/characters/${characterId}/sessions`, { method: 'POST' });
   if (!res.ok) throw new Error(`createSession failed: ${res.status}`);

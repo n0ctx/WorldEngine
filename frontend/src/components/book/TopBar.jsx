@@ -2,6 +2,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
+import { getCharacter } from '../../api/characters.js';
+import { getLatestChatSession } from '../../api/sessions.js';
+import useStore from '../../store/index.js';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
@@ -44,8 +47,13 @@ export default function TopBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { characterId, worldId } = extractIds(location.pathname);
+  const currentWorldId = useStore((s) => s.currentWorldId);
+  const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
+  const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
+  const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
 
   const [worlds, setWorlds] = useState([]);
+  const [chatWorldId, setChatWorldId] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -53,8 +61,45 @@ export default function TopBar() {
     getWorlds().then(setWorlds).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (worldId) {
+      setCurrentWorldId(worldId);
+    }
+  }, [worldId, setCurrentWorldId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!characterId) {
+      setChatWorldId(null);
+      return undefined;
+    }
+
+    getCharacter(characterId)
+      .then((character) => {
+        if (!cancelled) {
+          const nextWorldId = character?.world_id ?? null;
+          setChatWorldId(nextWorldId);
+          if (nextWorldId) {
+            setCurrentWorldId(nextWorldId);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setChatWorldId(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [characterId, setCurrentWorldId]);
+
+  const effectiveWorldId = worldId ?? chatWorldId ?? currentWorldId;
+
   // 从 worlds 列表里找当前 worldId 对应的名字
-  const currentWorld = worlds.find((w) => w.id === worldId);
+  const currentWorld = worlds.find((w) => w.id === effectiveWorldId);
 
   // 点击外部关闭下拉
   useEffect(() => {
@@ -67,9 +112,38 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => {
+    setDropdownOpen(false);
+  }, [location.pathname]);
+
   const isPersonaDrawerOpen = !!location.pathname.match(/\/worlds\/[\w-]+\/persona/) && !!location.state?.backgroundLocation;
   const isChat = !!characterId || !!location.pathname.match(/\/worlds\/[\w-]+$/);
   const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
+
+  async function handleChatNavigate() {
+    if (!effectiveWorldId) return;
+
+    if (characterId) {
+      navigate(`/characters/${characterId}/chat`);
+      return;
+    }
+
+    try {
+      const session = await getLatestChatSession(effectiveWorldId);
+      if (session?.character_id) {
+        setCurrentWorldId(effectiveWorldId);
+        setCurrentCharacterId(session.character_id);
+        setCurrentSessionId(session.id);
+        navigate(`/characters/${session.character_id}/chat`);
+        return;
+      }
+    } catch {
+      // ignore and fall back to the world character list
+    }
+
+    setCurrentSessionId(null);
+    navigate(`/worlds/${effectiveWorldId}`);
+  }
 
   return (
     <div style={{
@@ -120,8 +194,8 @@ export default function TopBar() {
                   width: '100%',
                   textAlign: 'left',
                   padding: '7px 12px',
-                  background: w.id === worldId ? 'rgba(201,168,90,0.1)' : 'none',
-                  color: w.id === worldId ? 'var(--we-gold-pale)' : 'rgba(255,255,255,0.6)',
+                  background: w.id === effectiveWorldId ? 'rgba(201,168,90,0.1)' : 'none',
+                  color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'rgba(255,255,255,0.6)',
                   fontFamily: 'var(--we-font-display)',
                   fontStyle: 'italic',
                   fontSize: '12px',
@@ -130,10 +204,13 @@ export default function TopBar() {
                   cursor: 'pointer',
                   transition: 'background 0.15s',
                 }}
-                onMouseEnter={(e) => { if (w.id !== worldId) e.target.style.background = 'rgba(255,255,255,0.05)'; }}
-                onMouseLeave={(e) => { if (w.id !== worldId) e.target.style.background = 'none'; }}
+                onMouseEnter={(e) => { if (w.id !== effectiveWorldId) e.target.style.background = 'rgba(255,255,255,0.05)'; }}
+                onMouseLeave={(e) => { if (w.id !== effectiveWorldId) e.target.style.background = 'none'; }}
                 onClick={() => {
                   setDropdownOpen(false);
+                  setCurrentWorldId(w.id);
+                  setCurrentCharacterId(null);
+                  setCurrentSessionId(null);
                   navigate(`/worlds/${w.id}`);
                 }}
               >
@@ -170,12 +247,9 @@ export default function TopBar() {
 
       {/* 对话模式 */}
       <button
-        style={isChat ? itemActiveStyle : { ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
-        disabled={!worldId}
-        onClick={() => {
-          if (characterId) navigate(`/characters/${characterId}/chat`);
-          else if (worldId) navigate(`/worlds/${worldId}`);
-        }}
+        style={isChat ? itemActiveStyle : { ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
+        disabled={!effectiveWorldId}
+        onClick={handleChatNavigate}
       >
         对话
       </button>
@@ -184,10 +258,10 @@ export default function TopBar() {
 
       {/* 写作空间 */}
       <button
-        style={isWriting ? itemActiveStyle : { ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
-        disabled={!worldId}
+        style={isWriting ? itemActiveStyle : { ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
+        disabled={!effectiveWorldId}
         onClick={() => {
-          if (worldId) navigate(`/worlds/${worldId}/writing`);
+          if (effectiveWorldId) navigate(`/worlds/${effectiveWorldId}/writing`);
         }}
       >
         写作
@@ -197,14 +271,14 @@ export default function TopBar() {
 
       {/* 玩家人设 */}
       <button
-        style={{ ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
-        disabled={!worldId}
+        style={{ ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
+        disabled={!effectiveWorldId}
         onClick={() => {
-          if (!worldId) return;
+          if (!effectiveWorldId) return;
           if (isPersonaDrawerOpen) {
             navigate(location.pathname, { state: { ...location.state, closingDrawer: true }, replace: true });
           } else {
-            navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: { pathname: `/worlds/${worldId}`, search: '', hash: '' } } });
+            navigate(`/worlds/${effectiveWorldId}/persona`, { state: { backgroundLocation: location } });
           }
         }}
       >
