@@ -216,7 +216,17 @@ export default function TopBar() {
       {/* 设置 */}
       <button
         style={{ ...itemStyle, padding: '3px 8px', display: 'flex', alignItems: 'center' }}
-        onClick={() => navigate('/settings')}
+        onClick={() => navigate('/settings', {
+          state: {
+            backgroundLocation: location,
+            from: {
+              pathname: location.pathname,
+              search: location.search,
+              hash: location.hash,
+              state: location.state,
+            },
+          },
+        })}
         title="设置"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ opacity: 0.6 }}>

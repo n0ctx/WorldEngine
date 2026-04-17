@@ -44,6 +44,7 @@ export default function App() {
       {backgroundLocation && (
         <Routes>
           <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       )}
     </div>

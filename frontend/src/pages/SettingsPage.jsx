@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   getConfig, updateConfig, updateApiKey, updateEmbeddingApiKey,
   fetchModels, fetchEmbeddingModels, testConnection,
@@ -418,6 +418,8 @@ function AboutSection() {
 
 export default function SettingsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOverlay = !!location.state?.backgroundLocation;
   const [activeSection, setActiveSection] = useState('llm');
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -498,20 +500,57 @@ export default function SettingsPage() {
     await patchConfig({ memory_expansion_enabled: enabled });
   }
 
+  function closeOverlay() {
+    navigate(-1);
+  }
+
+  function handleBack() {
+    if (isOverlay) {
+      closeOverlay();
+      return;
+    }
+    const from = location.state?.from;
+    if (from?.pathname) {
+      navigate(
+        {
+          pathname: from.pathname,
+          search: from.search || '',
+          hash: from.hash || '',
+        },
+        { state: from.state }
+      );
+      return;
+    }
+    navigate(-1);
+  }
+
   if (loading) {
     return (
-      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
-      </div>
+      isOverlay ? (
+        <div className="we-settings-overlay" onClick={closeOverlay}>
+          <div className="we-settings-panel we-settings-panel-overlay" onClick={(e) => e.stopPropagation()}>
+            <div className="we-settings-loading">
+              <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+          <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
+        </div>
+      )
     );
   }
 
-  return (
-    <div className="we-edit-canvas">
-      <div className="we-settings-panel">
+  const settingsContent = (
+    <div className="we-settings-panel-wrap">
+      <div
+        className={`we-settings-panel${isOverlay ? ' we-settings-panel-overlay' : ''}`}
+        onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
+      >
         {/* 左栏导航 */}
         <nav className="we-settings-nav">
-          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
+          <button className="we-edit-back" onClick={handleBack}>← 返回</button>
           <p className="we-settings-nav-title">设置</p>
           <div className="we-settings-nav-items">
             {NAV_SECTIONS.map((s) => (
@@ -529,48 +568,66 @@ export default function SettingsPage() {
         {/* 右栏内容 */}
         <div className="we-settings-body">
           {activeSection === 'llm' && (
-            <LlmSection
-              llm={llm}
-              embedding={embedding}
-              onLlmChange={handleLlmChange}
-              onEmbeddingChange={handleEmbeddingChange}
-            />
+            <div className="we-settings-section">
+              <LlmSection
+                llm={llm}
+                embedding={embedding}
+                onLlmChange={handleLlmChange}
+                onEmbeddingChange={handleEmbeddingChange}
+              />
+            </div>
           )}
           {activeSection === 'prompt' && (
-            <PromptSection
-              globalSystemPrompt={globalSystemPrompt}
-              setGlobalSystemPrompt={setGlobalSystemPrompt}
-              globalPostPrompt={globalPostPrompt}
-              setGlobalPostPrompt={setGlobalPostPrompt}
-              contextRounds={contextRounds}
-              setContextRounds={setContextRounds}
-              memoryExpansionEnabled={memoryExpansionEnabled}
-              onToggleMemoryExpansion={handleToggleMemoryExpansion}
-              onSave={handleSaveGeneral}
-              saving={saving}
-            />
+            <div className="we-settings-section">
+              <PromptSection
+                globalSystemPrompt={globalSystemPrompt}
+                setGlobalSystemPrompt={setGlobalSystemPrompt}
+                globalPostPrompt={globalPostPrompt}
+                setGlobalPostPrompt={setGlobalPostPrompt}
+                contextRounds={contextRounds}
+                setContextRounds={setContextRounds}
+                memoryExpansionEnabled={memoryExpansionEnabled}
+                onToggleMemoryExpansion={handleToggleMemoryExpansion}
+                onSave={handleSaveGeneral}
+                saving={saving}
+              />
+            </div>
           )}
           {activeSection === 'css' && (
-            <div>
+            <div className="we-settings-section">
               <h2 className="we-settings-section-title">自定义 CSS</h2>
               <CustomCssManager />
             </div>
           )}
           {activeSection === 'regex' && (
-            <div>
+            <div className="we-settings-section">
               <h2 className="we-settings-section-title">正则规则</h2>
               <RegexRulesManager />
             </div>
           )}
           {activeSection === 'entries' && (
-            <div>
+            <div className="we-settings-section">
               <h2 className="we-settings-section-title">全局 Prompt 条目</h2>
               <EntryList type="global" />
             </div>
           )}
-          {activeSection === 'about' && <AboutSection />}
+          {activeSection === 'about' && (
+            <div className="we-settings-section">
+              <AboutSection />
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+
+  return isOverlay ? (
+    <div className="we-settings-overlay" onClick={closeOverlay}>
+      {settingsContent}
+    </div>
+  ) : (
+    <div className="we-edit-canvas">
+      {settingsContent}
     </div>
   );
 }

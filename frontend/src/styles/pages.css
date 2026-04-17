@@ -610,6 +610,17 @@
   min-height: calc(100vh - 96px);
 }
 
+.we-settings-panel-wrap {
+  width: 100%;
+}
+
+.we-settings-panel-overlay {
+  width: min(1100px, calc(100vw - 48px));
+  margin: 24px auto;
+  min-height: min(calc(100vh - 48px), 920px);
+  max-height: calc(100vh - 48px);
+}
+
 .we-settings-nav {
   width: 220px;
   flex-shrink: 0;
@@ -662,9 +673,36 @@
 
 .we-settings-body {
   flex: 1;
-  padding: 32px 48px;
+  padding: 32px 48px 88px;
   overflow-y: auto;
   min-width: 0;
+  box-sizing: border-box;
+}
+
+.we-settings-section {
+  padding-bottom: 8px;
+}
+
+.we-settings-section:last-child::after {
+  content: '';
+  display: block;
+  height: 48px;
+}
+
+.we-settings-overlay {
+  position: fixed;
+  inset: 40px 0 0;
+  z-index: 60;
+  background: rgba(26, 20, 15, 0.18);
+  backdrop-filter: blur(1px);
+  overflow: hidden;
+}
+
+.we-settings-loading {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .we-settings-section-title {

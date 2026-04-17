@@ -4,7 +4,7 @@ import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary, editAssistantMessage } from '../api/chat.js';
-import { createSession } from '../api/sessions.js';
+import { createSession, getSession } from '../api/sessions.js';
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
@@ -21,7 +21,7 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 export default function ChatPage() {
   const { characterId } = useParams();
   const navigate = useNavigate();
-  const { currentSessionId, setCurrentSessionId } = useStore();
+  const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
 
   const [character, setCharacter] = useState(null);
   const [persona, setPersona] = useState(null);
@@ -75,9 +75,14 @@ export default function ChatPage() {
   // 加载角色信息
   useEffect(() => {
     if (!characterId) return;
-    clearActiveSession();
+    const shouldResetSession = !!currentCharacterId && currentCharacterId !== characterId;
+    if (shouldResetSession) {
+      clearActiveSession();
+    }
+    setCurrentCharacterId(characterId);
     setCharacter(null);
     setPersona(null);
+    setCurrentSession((prev) => (shouldResetSession ? null : prev));
     getCharacter(characterId).then((c) => {
       setCharacter(c);
       if (c.world_id) {
@@ -85,7 +90,23 @@ export default function ChatPage() {
         getWorld(c.world_id).then((w) => setWorldName(w.name || '')).catch(() => {});
       }
     }).catch(console.error);
-  }, [characterId, clearActiveSession]);
+
+    if (!shouldResetSession && currentSessionId) {
+      getSession(currentSessionId)
+        .then((session) => {
+          if (session?.character_id === characterId) {
+            setCurrentSession(session);
+            return;
+          }
+          clearActiveSession();
+        })
+        .catch(() => {
+          clearActiveSession();
+        });
+    } else if (!currentSessionId) {
+      setCurrentSession(null);
+    }
+  }, [characterId, clearActiveSession, currentCharacterId, currentSessionId, setCurrentCharacterId]);
 
   // 启动时加载正则规则缓存
   useEffect(() => {
