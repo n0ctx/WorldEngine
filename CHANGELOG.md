@@ -19,6 +19,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T69 后续修复 ✅
+- **涉及文件**：`App.jsx`、`PageTransition.jsx`、`BookSpread.jsx`、`TopBar.jsx`、`CharactersPage.jsx`、`PersonaEditPage.jsx`、`StatePanel.jsx`、`ChatPage.jsx`、`pages.css`
+- **注意**：`PageTransition` 去除 framer-motion 动画与 `key`（消除页面切换闪烁）；改为 `overflowY: auto` 使编辑页可滚动，`BookSpread` 对应改为 `flex: 1; min-height: 0`（`height: 100%` 在 overflow:auto 容器中解析不稳定）；`PersonaEditPage` 关闭动画改为内部 `closing` state 驱动（`x: 0→400`），`handleClose()` 统一入口；顶部栏"玩家人设"点击已开时发 `closingDrawer` state 信号触发关闭动画；`CharactersPage` 玩家卡片 ✎ 按钮同步传 `backgroundLocation`；抽屉及遮罩 `top: 40px`（TopBar 高度）；`StatePanel` 宽 280→340px；`ChatPage` 移除 `PageFooter`；删除 `demo/index.html`
+
 ## T69 — World / Character / Persona 编辑页羊皮纸化 ✅
 - **对外接口**：新建 `SectionTabs` 组件（`frontend/src/components/book/SectionTabs.jsx`），Props: `{ sections: [{ key, label, content }], defaultKey }`；`WorldEditPage` 新增加载 `getWorldTimeline` 并接线 temperature/max_tokens 到 state；`CharacterEditPage` 新增 `AvatarUpload` 内部子组件；`PersonaEditPage` 不再是整页，改为 framer-motion 右侧抽屉
 - **涉及文件**：新建 `frontend/src/components/book/SectionTabs.jsx`；重写 `frontend/src/pages/WorldEditPage.jsx`、`WorldCreatePage.jsx`、`CharacterEditPage.jsx`、`CharacterCreatePage.jsx`、`PersonaEditPage.jsx`；追加 `frontend/src/styles/pages.css`（`.we-edit-*`、`.we-section-tab*`、`.we-persona-drawer*`、`.we-state-value-*`、`.we-edit-tl-*` 等类）

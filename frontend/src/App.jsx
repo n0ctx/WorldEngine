@@ -25,7 +25,7 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
       <TopBar />
-      <PageTransition key={(backgroundLocation || location).pathname}>
+      <PageTransition>
         <Routes location={backgroundLocation || location}>
           <Route path="/" element={<WorldsPage />} />
           <Route path="/worlds/new" element={<WorldCreatePage />} />

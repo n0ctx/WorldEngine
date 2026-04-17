@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
 import { downloadPersonaCard } from '../api/importExport';
@@ -81,11 +81,18 @@ function StateValueField({ field, onSave }) {
 export default function PersonaEditPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  function handleClose() {
+    if (closing) return;
+    setClosing(true);
+  }
 
   const [personaId, setPersonaId] = useState(null);
   const [name, setName] = useState('');
@@ -106,6 +113,10 @@ export default function PersonaEditPage() {
       setLoading(false);
     });
   }, [worldId]);
+
+  useEffect(() => {
+    if (location.state?.closingDrawer && !closing) handleClose();
+  }, [location.state?.closingDrawer]);
 
   async function handleStateValueSave(fieldKey, valueJson) {
     try {
@@ -134,7 +145,7 @@ export default function PersonaEditPage() {
     setSaving(true);
     try {
       await updatePersona(worldId, { name, system_prompt: systemPrompt });
-      navigate(-1);
+      handleClose();
     } catch (err) {
       alert(`保存失败：${err.message}`);
     } finally {
@@ -157,19 +168,25 @@ export default function PersonaEditPage() {
   return (
     <>
       {/* 轻量遮罩：点击关闭，不压黑背景 */}
-      <div className="we-persona-overlay" onClick={() => navigate(-1)} />
+      <motion.div
+        className="we-persona-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: closing ? 0 : 1 }}
+        transition={{ duration: MOTION.duration.base, ease: MOTION.ease.page }}
+        onClick={handleClose}
+      />
 
       {/* 抽屉 */}
       <motion.div
         className="we-persona-drawer"
         initial={{ x: 400 }}
-        animate={{ x: 0 }}
-        exit={{ x: 400 }}
+        animate={{ x: closing ? 400 : 0 }}
         transition={{ duration: MOTION.duration.base, ease: MOTION.ease.page }}
+        onAnimationComplete={() => { if (closing) navigate(-1); }}
       >
         <div className="we-persona-drawer-header">
           <h2 className="we-persona-drawer-title">玩家人设</h2>
-          <button className="we-persona-drawer-close" onClick={() => navigate(-1)}>✕</button>
+          <button className="we-persona-drawer-close" onClick={handleClose}>✕</button>
         </div>
 
         {loading ? (

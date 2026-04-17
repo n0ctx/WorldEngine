@@ -270,7 +270,7 @@ export default function CharactersPage() {
         </div>
 
         {/* 玩家人设卡片 */}
-        <PersonaCard worldId={worldId} onEdit={() => navigate(`/worlds/${worldId}/persona`)} />
+        <PersonaCard worldId={worldId} onEdit={() => navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: { pathname: `/worlds/${worldId}`, search: '', hash: '' } } })} />
 
         {/* 角色列表 */}
         {characters.length === 0 ? (

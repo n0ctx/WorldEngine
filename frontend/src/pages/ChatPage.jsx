@@ -594,8 +594,6 @@ export default function ChatPage() {
           onFillTextConsumed={() => setFillText('')}
         />
 
-        {/* 页脚 */}
-        <PageFooter chapterIndex={footerChapterIndex} worldName={worldName} />
       </div>
 
         </div>

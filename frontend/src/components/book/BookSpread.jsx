@@ -6,7 +6,8 @@ export default function BookSpread({ children, className = '' }) {
   return (
     /* 铺满父容器（Routes 区域），侧边留细窄深棕边框 */
     <div style={{
-      height: '100%',
+      flex: 1,
+      minHeight: 0,
       display: 'flex',
       flexDirection: 'column',
     }}>

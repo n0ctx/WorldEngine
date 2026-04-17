@@ -151,7 +151,7 @@ export default function StatePanel({ character, worldId, characterId, persona, r
     <div
       className="we-state-panel"
       style={{
-        width: 280,
+        width: 340,
         flexShrink: 0,
         minHeight: 0,
         display: 'flex',
@@ -207,9 +207,9 @@ export default function StatePanel({ character, worldId, characterId, persona, r
           resetting={personaResetting}
         />
 
-        {/* 角色状态：pinnedName 不传（头部已显示角色名） */}
+        {/* 角色状态 */}
         <StatusSection
-          title="CURRENT STATE"
+          title="CHARACTER"
           className="we-status-character"
           rows={charState}
           onReset={handleResetChar}

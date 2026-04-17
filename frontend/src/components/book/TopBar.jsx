@@ -67,6 +67,7 @@ export default function TopBar() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const isPersonaDrawerOpen = !!location.pathname.match(/\/worlds\/[\w-]+\/persona/) && !!location.state?.backgroundLocation;
   const isChat = !!characterId || !!location.pathname.match(/\/worlds\/[\w-]+$/);
   const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
 
@@ -199,7 +200,12 @@ export default function TopBar() {
         style={{ ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
         disabled={!worldId}
         onClick={() => {
-          if (worldId) navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: location } });
+          if (!worldId) return;
+          if (isPersonaDrawerOpen) {
+            navigate(location.pathname, { state: { ...location.state, closingDrawer: true }, replace: true });
+          } else {
+            navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: { pathname: `/worlds/${worldId}`, search: '', hash: '' } } });
+          }
         }}
       >
         玩家人设
