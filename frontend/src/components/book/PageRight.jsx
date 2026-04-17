@@ -8,7 +8,7 @@ export default function PageRight({ children, className = '' }) {
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        borderRadius: '0 var(--we-radius-sm) var(--we-radius-sm) 0',
+        borderRadius: '0',
         overflow: 'hidden',
         minHeight: 0,
         padding: '44px 52px 28px 60px',

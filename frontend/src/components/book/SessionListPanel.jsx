@@ -3,7 +3,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from '../chat/SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
-import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
 
 const PAGE_SIZE = 20;
 
@@ -20,9 +19,6 @@ export default function SessionListPanel({
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const listRef = useRef(null);
-
-  const avatarColor = getAvatarColor(character?.id);
-  const avatarUrl = getAvatarUrl(character?.avatar_path);
 
   // 初始加载
   useEffect(() => {
@@ -126,44 +122,7 @@ export default function SessionListPanel({
           borderBottom: '1px solid var(--we-paper-shadow)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* 头像 */}
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              background: avatarColor,
-              flexShrink: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-              overflow: 'hidden',
-            }}
-          >
-            {avatarUrl
-              ? <img src={avatarUrl} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} />
-              : (character?.name?.[0] || '?')}
-          </div>
-
-          {/* 角色名 */}
-          <span
-            style={{
-              flex: 1,
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--we-ink-primary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {character?.name || '…'}
-          </span>
-
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
           {/* 返回世界按钮 */}
           <button
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
