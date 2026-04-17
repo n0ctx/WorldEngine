@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import WorldsPage from './pages/WorldsPage';
 import WorldCreatePage from './pages/WorldCreatePage';
 import WorldEditPage from './pages/WorldEditPage';
@@ -15,6 +15,9 @@ import PageTransition from './components/book/PageTransition.jsx';
 import { refreshCustomCss } from './api/customCssSnippets';
 
 export default function App() {
+  const location = useLocation();
+  const backgroundLocation = location.state?.backgroundLocation;
+
   useEffect(() => {
     refreshCustomCss();
   }, []);
@@ -22,8 +25,8 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
       <TopBar />
-      <PageTransition>
-        <Routes>
+      <PageTransition key={(backgroundLocation || location).pathname}>
+        <Routes location={backgroundLocation || location}>
           <Route path="/" element={<WorldsPage />} />
           <Route path="/worlds/new" element={<WorldCreatePage />} />
           <Route path="/worlds/:worldId" element={<CharactersPage />} />
@@ -36,6 +39,13 @@ export default function App() {
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </PageTransition>
+
+      {/* 抽屉路由：仅当从背景页导航来时渲染，背景页保持可见 */}
+      {backgroundLocation && (
+        <Routes>
+          <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+        </Routes>
+      )}
     </div>
   );
 }

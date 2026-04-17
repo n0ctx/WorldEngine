@@ -156,6 +156,9 @@ export default function PersonaEditPage() {
 
   return (
     <>
+      {/* 轻量遮罩：点击关闭，不压黑背景 */}
+      <div className="we-persona-overlay" onClick={() => navigate(-1)} />
+
       {/* 抽屉 */}
       <motion.div
         className="we-persona-drawer"

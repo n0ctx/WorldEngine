@@ -199,7 +199,7 @@ export default function TopBar() {
         style={{ ...itemStyle, opacity: worldId ? 1 : 0.4, cursor: worldId ? 'pointer' : 'default' }}
         disabled={!worldId}
         onClick={() => {
-          if (worldId) navigate(`/worlds/${worldId}/persona`);
+          if (worldId) navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: location } });
         }}
       >
         玩家人设
