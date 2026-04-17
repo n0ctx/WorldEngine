@@ -11,7 +11,7 @@ import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById } from '../db/queries/turn-records.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger } from '../utils/logger.js';
@@ -104,9 +104,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
  */
 async function embedTurnRecord(turnRecordId, sessionId, worldId) {
   try {
-    const vector = await embed(
-      (await import('../db/queries/turn-records.js')).getTurnRecordById(turnRecordId)?.summary ?? '',
-    );
+    const vector = await embed(getTurnRecordById(turnRecordId)?.summary ?? '');
     if (!vector) return; // embedding 未配置，静默退出
     upsertEntry(turnRecordId, sessionId, worldId, vector);
   } catch (err) {

@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T75 — 代码简化与气泡宽度修复 ✅
+- **对外接口**：`CharacterSeal` 新增 `color` prop（默认 `var(--we-vermilion)`），persona 印章传 `color="var(--we-amber)"`
+- **涉及文件**：`CharacterSeal.jsx`（color prop）、`MessageItem.jsx`（删除 PersonaSeal，改用 CharacterSeal）、`BookSpread.jsx`（移除 Bookmark）、`chat.css`（用户气泡宽度改 `fit-content + max-width 420px`）、`turn-summarizer.js`（getTurnRecordById 改静态 import）
+- **注意**：`Bookmark.jsx` 文件保留未删；用户气泡去掉 65% 百分比约束，短句不再莫名换行
+
 ## T74 — ChatPage 左右气泡对话布局 ✅
 - **对外接口**：`MessageList` 移除 `sessionTitle` / `onChapterChange` 两个 prop（ChatPage 传入仍安全，被忽略）；`MessageItem` 移除 `isChapterFirstAssistant` prop
 - **涉及文件**：`frontend/src/components/chat/MessageItem.jsx`（气泡布局重构）、`frontend/src/components/chat/MessageList.jsx`（移除章节分组）、`frontend/src/styles/chat.css`（新增 `.we-message-bubble-user/assistant`，删除 Drop Cap，操作菜单改绝对定位）

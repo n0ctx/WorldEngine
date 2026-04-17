@@ -56,7 +56,8 @@
 /* ── Bubble containers ─────────────────────────────────── */
 
 .we-message-bubble-user {
-  max-width: 65%;
+  width: fit-content;
+  max-width: 420px;
   background: var(--we-paper-aged);
   border-right: 2.5px solid var(--we-amber);
   padding: 10px 14px;

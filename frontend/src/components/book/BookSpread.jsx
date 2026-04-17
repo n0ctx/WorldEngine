@@ -1,6 +1,5 @@
 /* DESIGN.md §5 §8.1 §8.2 */
 import ParchmentTexture from './ParchmentTexture.jsx';
-import Bookmark from './Bookmark.jsx';
 
 export default function BookSpread({ children, className = '' }) {
   return (
@@ -25,7 +24,6 @@ export default function BookSpread({ children, className = '' }) {
         }}
         className={className}
       >
-        <Bookmark />
         {children}
         <ParchmentTexture />
       </div>

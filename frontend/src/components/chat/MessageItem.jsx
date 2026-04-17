@@ -4,7 +4,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { getAvatarUrl } from '../../utils/avatar.js';
 import { applyRules } from '../../utils/regex-runner.js';
 
 import QuillCursor from '../book/QuillCursor.jsx';
@@ -13,8 +12,6 @@ import { INK_RISE } from '../../utils/motion.js';
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
-
-/* ── Parchment-styled Markdown components ──────────────── */
 
 function CodeBlock({ children, className }) {
   const [copied, setCopied] = useState(false);
@@ -73,8 +70,6 @@ const MD_COMPONENTS = {
   h3({ children }) { return <h3 style={{ fontFamily: 'var(--we-font-display)', fontSize: '1.05em', fontWeight: 600, color: 'var(--we-ink-secondary)', marginBottom: '0.25em' }}>{children}</h3>; },
 };
 
-/* ── Helpers ───────────────────────────────────────────── */
-
 function formatTime(ts) {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -121,43 +116,6 @@ function CopyButton({ getText }) {
   );
 }
 
-/* ── Persona Seal ──────────────────────────────────────── */
-
-function PersonaSeal({ persona, size = 40 }) {
-  const avatarUrl = getAvatarUrl(persona?.avatar_path);
-  const char1 = (persona?.name || '玩')[0];
-
-  if (avatarUrl) {
-    return (
-      <div style={{ width: size, height: size, position: 'relative', display: 'inline-block', flexShrink: 0 }}>
-        <img
-          src={avatarUrl}
-          alt={persona?.name || ''}
-          style={{
-            position: 'absolute',
-            top: '3.95%', left: '3.95%',
-            width: '92.1%', height: '92.1%',
-            objectFit: 'cover',
-          }}
-        />
-        <svg viewBox="0 0 76 76" fill="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
-          <rect x="3" y="3" width="70" height="70" rx="2" stroke="var(--we-amber)" strokeWidth="2.5" />
-        </svg>
-      </div>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 76 76" fill="none" style={{ width: size, height: size, flexShrink: 0 }}>
-      <rect x="3" y="3" width="70" height="70" rx="2" stroke="var(--we-amber)" strokeWidth="2.5" />
-      <rect x="7.5" y="7.5" width="61" height="61" rx="1" stroke="var(--we-amber)" strokeWidth="0.8" strokeDasharray="4 2.5" opacity="0.55" />
-      <text x="38" y="45" textAnchor="middle" fontFamily="ZCOOL XiaoWei, LXGW WenKai TC, serif" fontSize="22" fill="var(--we-amber)">{char1}</text>
-    </svg>
-  );
-}
-
-/* ── Main Component ────────────────────────────────────── */
-
 export default function MessageItem({
   message,
   character,
@@ -193,7 +151,6 @@ export default function MessageItem({
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
-  /* ── 用户消息编辑 ── */
   function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     if (draft.trim() && draft !== message.content) onEdit(message.id, draft.trim());
@@ -215,7 +172,6 @@ export default function MessageItem({
     }
   }, [editing]);
 
-  /* ── AI 消息编辑 ── */
   function startEditAI() { setAiDraft(message.content); setEditingAI(true); }
   function confirmEditAI() {
     if (aiDraft.trim() && aiDraft !== message.content) onEditAssistant?.(message.id, aiDraft.trim());
@@ -232,7 +188,6 @@ export default function MessageItem({
     }
   }, [editingAI]);
 
-  /* ── 打点等待态 ── */
   if (isStreaming && !streamingText) {
     return (
       <motion.div
@@ -257,7 +212,6 @@ export default function MessageItem({
     );
   }
 
-  /* ── 用户消息（右侧气泡 + 玩家印章） ── */
   if (isUser) {
     return (
       <motion.div
@@ -317,13 +271,12 @@ export default function MessageItem({
               </div>
             )}
           </div>
-          <PersonaSeal persona={persona} size={32} />
+          <CharacterSeal character={persona} size={32} color="var(--we-amber)" />
         </div>
       </motion.div>
     );
   }
 
-  /* ── 助手消息（左侧印章 + 气泡） ── */
   return (
     <motion.div
       className="we-message-row we-message-assistant"
