@@ -14,10 +14,12 @@ import {
   getMessagesBySessionId,
   touchWritingSession,
   deleteAllMessages,
+  deleteMessagesAfter,
 } from '../services/writing-sessions.js';
 import { getWorldById } from '../services/worlds.js';
 import { getCharactersByWorldId } from '../services/characters.js';
-import { enqueue } from '../utils/async-queue.js';
+import { getOrCreatePersona } from '../services/personas.js';
+import { enqueue, clearPending } from '../utils/async-queue.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
@@ -25,7 +27,7 @@ import { applyRules } from '../utils/regex-runner.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
-import { getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import {
   beginStreamSession,
   buildContinuationMessages,
@@ -165,15 +167,18 @@ async function runWritingStream(sessionId, res) {
     fullContent += '\n\n[已中断]';
   }
 
+  let savedAssistant = null;
   if (fullContent) {
     const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId);
-    createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
+    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
     fullContent = savedContent;
     touchWritingSession(sessionId);
   }
 
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted ? { aborted: true } : { done: true });
+    sendSse(res, aborted
+      ? { aborted: true, assistant: savedAssistant }
+      : { done: true, assistant: savedAssistant });
   }
 
   streamState.clear();
@@ -309,6 +314,84 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   }
 
   if (!streamState.isClientClosed()) res.end();
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/impersonate
+router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res) => {
+  const { worldId, sessionId } = req.params;
+
+  const session = dbGetWritingSessionById(sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  const world = getWorldById(worldId);
+  if (!world) return res.status(404).json({ error: 'World not found' });
+
+  const persona = getOrCreatePersona(worldId);
+  const personaName = persona?.name || '用户';
+
+  try {
+    const { messages: baseMessages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
+    const prompt = [...baseMessages];
+    while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
+      prompt.pop();
+    }
+    const instruction = `你正在代拟玩家「${personaName}」下一条准备发到写作空间里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条旁白的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
+    prompt.push({ role: 'user', content: instruction });
+
+    const content = await llm.complete(prompt, {
+      temperature,
+      maxTokens: Math.min(maxTokens ?? 300, 300),
+    });
+    res.json({ content: content.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/regenerate
+router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res) => {
+  const { sessionId } = req.params;
+  const { afterMessageId } = req.body;
+
+  if (!afterMessageId) return res.status(400).json({ error: 'afterMessageId is required' });
+
+  const session = dbGetWritingSessionById(sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  await deleteMessagesAfter(afterMessageId);
+
+  const remaining = getMessagesBySessionId(sessionId, 9999, 0);
+  const R = remaining.filter((m) => m.role === 'user').length;
+  deleteTurnRecordsAfterRound(sessionId, R - 1);
+  clearPending(sessionId, 4);
+
+  await runWritingStream(sessionId, res);
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/edit-assistant
+router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, res) => {
+  const { worldId, sessionId } = req.params;
+  const { messageId, content } = req.body;
+
+  if (!messageId || !content || typeof content !== 'string') {
+    return res.status(400).json({ error: 'messageId and content are required' });
+  }
+
+  const session = dbGetWritingSessionById(sessionId);
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  updateMessageContent(messageId, content.trim());
+
+  const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
+  const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
+  if (lastAssistant?.id === messageId) {
+    const activeCharacters = getWritingSessionCharacters(sessionId);
+    enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(() => {});
+  }
+
+  enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+
+  res.json({ success: true });
 });
 
 export default router;

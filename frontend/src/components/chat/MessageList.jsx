@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
+import WritingMessageItem from '../writing/WritingMessageItem.jsx';
 import { getMessages } from '../../api/sessions.js';
 
 const NOOP = () => {};
@@ -23,6 +24,7 @@ export default function MessageList({
   onEditAssistantMessage,
   continuingMessageId,
   continuingText,
+  prose = false,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -176,45 +178,69 @@ export default function MessageList({
         </div>
       )}
 
-      <div>
-        <AnimatePresence mode="popLayout">
-          {messages.map((msg) => {
-            const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-            const displayMsg = isContinuing
-              ? { ...msg, content: msg.content + continuingText }
-              : msg;
+      {prose ? (
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 24px' }}>
+          {(generating && !continuingMessageId
+            ? [...messages, { _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }]
+            : messages
+          ).map((msg) => {
+            const isContinuing = !msg._isStream && continuingMessageId && msg.id === continuingMessageId;
+            const isStream = !!msg._isStream;
+            const displayMsg = isContinuing ? { ...msg, content: msg.content + continuingText } : msg;
             return (
-              <MessageItem
+              <WritingMessageItem
                 key={msg._key ?? msg.id}
                 message={displayMsg}
-                character={character}
+                isStreaming={isContinuing || isStream}
                 persona={persona}
-                worldId={worldId}
-                isStreaming={isContinuing}
-                streamingText={isContinuing ? displayMsg.content : undefined}
-                onEdit={onEditMessage}
-                onRegenerate={onRegenerateMessage}
-                onEditAssistant={onEditAssistantMessage}
+                onEdit={isStream ? undefined : onEditMessage}
+                onRegenerate={isStream ? undefined : onRegenerateMessage}
+                onEditAssistant={isStream ? undefined : onEditAssistantMessage}
               />
             );
           })}
+        </div>
+      ) : (
+        <div>
+          <AnimatePresence mode="popLayout">
+            {messages.map((msg) => {
+              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+              const displayMsg = isContinuing
+                ? { ...msg, content: msg.content + continuingText }
+                : msg;
+              return (
+                <MessageItem
+                  key={msg._key ?? msg.id}
+                  message={displayMsg}
+                  character={character}
+                  persona={persona}
+                  worldId={worldId}
+                  isStreaming={isContinuing}
+                  streamingText={isContinuing ? displayMsg.content : undefined}
+                  onEdit={onEditMessage}
+                  onRegenerate={onRegenerateMessage}
+                  onEditAssistant={onEditAssistantMessage}
+                />
+              );
+            })}
 
-          {/* 流式响应（仅新消息，续写时不显示） */}
-          {generating && !continuingMessageId && (
-            <MessageItem
-              key={streamingKey || '__streaming__'}
-              message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
-              character={character}
-              worldId={worldId}
-              isStreaming={true}
-              streamingText={streamingText}
-              onEdit={NOOP}
-              onRegenerate={NOOP}
-              onEditAssistant={NOOP}
-            />
-          )}
-        </AnimatePresence>
-      </div>
+            {/* 流式响应（仅新消息，续写时不显示） */}
+            {generating && !continuingMessageId && (
+              <MessageItem
+                key={streamingKey || '__streaming__'}
+                message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
+                character={character}
+                worldId={worldId}
+                isStreaming={true}
+                streamingText={streamingText}
+                onEdit={NOOP}
+                onRegenerate={NOOP}
+                onEditAssistant={NOOP}
+              />
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <div ref={bottomRef} />
     </div>

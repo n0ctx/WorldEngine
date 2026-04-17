@@ -144,7 +144,7 @@ function EntryRow({ entry, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-start gap-3 bg-ivory border border-border rounded-lg px-3 py-3 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
+      className="we-entry-row group flex items-start gap-3 px-3 py-3 cursor-grab active:cursor-grabbing select-none"
     >
       {/* 拖拽图标 */}
       <span className="text-text-secondary opacity-30 group-hover:opacity-60 mt-0.5 text-xs flex-shrink-0">⠿</span>
@@ -158,10 +158,7 @@ function EntryRow({ entry, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">
             {keywords.map((kw) => (
-              <span
-                key={kw}
-                className="px-1.5 py-0.5 bg-accent/10 text-accent text-xs rounded"
-              >
+              <span key={kw} className="we-entry-kw">
                 {kw}
               </span>
             ))}

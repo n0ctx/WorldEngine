@@ -331,12 +331,12 @@ router.post('/:sessionId/impersonate', async (req, res) => {
   try {
     const { messages: baseMessages, overrides } = await buildContext(sessionId);
     const prompt = [...baseMessages];
-    const lastMessage = [...prompt].reverse().find((msg) => msg.role === 'user' || msg.role === 'assistant') ?? null;
+    // 剥掉 buildContext 末尾的 [16] user 消息，避免走"改写已发消息"分支
+    while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
+      prompt.pop();
+    }
 
-    const instruction = lastMessage?.role === 'user'
-      ? `你正在代拟用户「${personaName}」准备发到聊天框里的内容。最后一条已经是用户消息，请把它补完或顺着原意改写得更自然。要求像真人即时发消息，不要写成说明文、总结、旁白、设定介绍或大段独白；优先短句、口语、直接回应当前话题，除非上下文明确需要，否则不要故意写长。保持用户视角，不要改成 assistant 回复。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`
-      : `你正在代拟用户「${personaName}」下一条准备发到聊天框里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条 assistant 的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
-
+    const instruction = `你正在代拟用户「${personaName}」下一条准备发到聊天框里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条 assistant 的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
     prompt.push({ role: 'user', content: instruction });
 
     const content = await llm.complete(prompt, {

@@ -444,6 +444,17 @@
   transition: all 0.15s;
 }
 
+/* ── Prose writing mode overrides ──────────────────────── */
+
+.we-prose-item.we-message-user .we-message-label {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.we-prose-item.we-message-user .we-message-actions {
+  justify-content: flex-start;
+}
+
 .we-message-edit-actions button.primary {
   background: var(--we-vermilion);
   border-color: var(--we-vermilion);

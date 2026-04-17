@@ -9,6 +9,10 @@ import {
   generate,
   stopGeneration,
   continueGeneration,
+  regenerateWriting,
+  editAndRegenerateWriting,
+  editWritingAssistantMessage,
+  impersonateWriting,
 } from '../api/writingSessions.js';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
 import CastPanel from '../components/book/CastPanel.jsx';
@@ -25,11 +29,19 @@ export default function WritingSpacePage() {
   const [activeCharacters, setActiveCharacters] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [streamingKey, setStreamingKey] = useState('__ws_stream_init__');
+  const [continuingMessageId, setContinuingMessageId] = useState(null);
+  const [continuingText, setContinuingText] = useState('');
+  const [fillText, setFillText] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
 
   const stopRef = useRef(null);
   const streamingTextRef = useRef('');
+  const streamingKeyRef = useRef('__ws_stream_init__');
+  const continuingMessageIdRef = useRef(null);
+  const continuingTextRef = useRef('');
+  const pendingAssistantRef = useRef(null);
   const currentSessionRef = useRef(null);
 
   useEffect(() => {
@@ -66,6 +78,10 @@ export default function WritingSpacePage() {
     setGenerating(false);
     setStreamingText('');
     streamingTextRef.current = '';
+    continuingMessageIdRef.current = null;
+    continuingTextRef.current = '';
+    setContinuingMessageId(null);
+    setContinuingText('');
     setError(null);
     refreshMessages();
 
@@ -103,10 +119,58 @@ export default function WritingSpacePage() {
     stopGeneration(worldId, currentSessionRef.current?.id).catch(console.error);
   }
 
+  function beginStreamingKey() {
+    const k = `__ws_stream_${Date.now()}_${Math.random().toString(36).slice(2, 7)}__`;
+    streamingKeyRef.current = k;
+    setStreamingKey(k);
+    return k;
+  }
+
+  function makeStreamCallbacks() {
+    pendingAssistantRef.current = null;
+    const streamKey = beginStreamingKey();
+    return {
+      onDelta(delta) {
+        streamingTextRef.current += delta;
+        setStreamingText(streamingTextRef.current);
+      },
+      onDone(assistant) {
+        if (assistant) pendingAssistantRef.current = assistant;
+      },
+      onAborted(assistant) {
+        if (assistant) pendingAssistantRef.current = assistant;
+      },
+      onError(msg) {
+        setError(msg);
+        streamingTextRef.current = '';
+        setGenerating(false);
+        setStreamingText('');
+        stopRef.current = null;
+      },
+      onTitleUpdated(title) {
+        setCurrentSession((prev) => prev ? { ...prev, title } : prev);
+        WritingSessionList.updateTitle?.(currentSessionRef.current?.id, title);
+      },
+      onStreamEnd() {
+        const pending = pendingAssistantRef.current;
+        pendingAssistantRef.current = null;
+        streamingTextRef.current = '';
+        setGenerating(false);
+        setStreamingText('');
+        stopRef.current = null;
+        if (pending && MessageList.appendMessage) {
+          // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
+          MessageList.appendMessage({ ...pending, _key: streamKey });
+        } else {
+          refreshMessages();
+        }
+      },
+    };
+  }
+
   function handleSend(content) {
     const session = currentSessionRef.current;
-    if (!session) return;
-    if (generating) return;
+    if (!session || generating) return;
 
     setError(null);
 
@@ -125,79 +189,140 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
+    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks());
+  }
 
-    stopRef.current = generate(worldId, session.id, content || '', {
-      onDelta(delta) {
-        streamingTextRef.current += delta;
-        setStreamingText(streamingTextRef.current);
-      },
-      onDone() {},
-      onAborted() {
-        streamingTextRef.current = '';
-        setGenerating(false);
-        setStreamingText('');
-        stopRef.current = null;
-        refreshMessages();
-      },
-      onError(msg) {
-        setError(msg);
-        streamingTextRef.current = '';
-        setGenerating(false);
-        setStreamingText('');
-        stopRef.current = null;
-      },
-      onTitleUpdated(title) {
-        setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        WritingSessionList.updateTitle?.(session.id, title);
-      },
-      onStreamEnd() {
-        streamingTextRef.current = '';
-        setGenerating(false);
-        setStreamingText('');
-        stopRef.current = null;
-        refreshMessages();
-      },
+  function handleEditMessage(messageId, newContent) {
+    const session = currentSessionRef.current;
+    if (!session || generating) return;
+    setError(null);
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === messageId);
+        if (idx === -1) return prev;
+        return [...prev.slice(0, idx), { ...prev[idx], content: newContent }];
+      });
+    }
+    setGenerating(true);
+    setStreamingText('');
+    streamingTextRef.current = '';
+    stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks());
+  }
+
+  function handleRegenerateMessage(assistantMessageId) {
+    const session = currentSessionRef.current;
+    if (!session || generating) return;
+    setError(null);
+    const msgs = MessageList.messagesRef?.current ?? [];
+    const idx = msgs.findIndex((m) => m.id === assistantMessageId);
+    if (idx <= 0) return;
+    const afterMessageId = msgs[idx - 1].id;
+    MessageList.updateMessages?.((prev) => {
+      const i = prev.findIndex((m) => m.id === assistantMessageId);
+      return i >= 0 ? prev.slice(0, i) : prev;
     });
+    setGenerating(true);
+    setStreamingText('');
+    streamingTextRef.current = '';
+    stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks());
+  }
+
+  async function handleEditAssistantMessage(messageId, newContent) {
+    if (generating) return;
+    const session = currentSessionRef.current;
+    if (!session) return;
+    if (MessageList.updateMessages) {
+      MessageList.updateMessages((prev) =>
+        prev.map((m) => m.id === messageId ? { ...m, content: newContent } : m)
+      );
+    }
+    try {
+      await editWritingAssistantMessage(worldId, session.id, messageId, newContent);
+    } catch (err) {
+      setError(err.message || '保存失败');
+      refreshMessages();
+    }
   }
 
   function handleContinue() {
     const session = currentSessionRef.current;
-    if (!session) return;
-    if (generating) return;
+    if (!session || generating) return;
+
+    // 找最后一条 assistant 消息 id
+    let lastAssistantId = null;
+    if (MessageList.messagesRef) {
+      const msgs = MessageList.messagesRef.current ?? [];
+      const last = [...msgs].reverse().find((m) => m.role === 'assistant');
+      if (last) lastAssistantId = last.id;
+    }
+    if (!lastAssistantId) return;
 
     setError(null);
+    continuingMessageIdRef.current = lastAssistantId;
+    continuingTextRef.current = '';
+    setContinuingMessageId(lastAssistantId);
+    setContinuingText('');
     setGenerating(true);
-    setStreamingText('');
-    streamingTextRef.current = '';
 
     stopRef.current = continueGeneration(worldId, session.id, {
       onDelta(delta) {
-        streamingTextRef.current += delta;
-        setStreamingText(streamingTextRef.current);
+        continuingTextRef.current += delta;
+        setContinuingText((prev) => prev + delta);
       },
       onDone() {},
       onAborted() {
-        streamingTextRef.current = '';
+        // 合并续写内容到消息列表后清理
+        const contId = continuingMessageIdRef.current;
+        const contText = continuingTextRef.current;
+        if (contId && contText && MessageList.updateMessages) {
+          MessageList.updateMessages((prev) =>
+            prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+          );
+        }
+        continuingMessageIdRef.current = null;
+        continuingTextRef.current = '';
+        setContinuingMessageId(null);
+        setContinuingText('');
         setGenerating(false);
-        setStreamingText('');
         stopRef.current = null;
-        refreshMessages();
       },
       onError(msg) {
         setError(msg);
-        streamingTextRef.current = '';
+        continuingMessageIdRef.current = null;
+        continuingTextRef.current = '';
+        setContinuingMessageId(null);
+        setContinuingText('');
         setGenerating(false);
-        setStreamingText('');
         stopRef.current = null;
       },
       onStreamEnd() {
-        streamingTextRef.current = '';
+        // 合并续写内容到消息列表后清理
+        const contId = continuingMessageIdRef.current;
+        const contText = continuingTextRef.current;
+        if (contId && contText && MessageList.updateMessages) {
+          MessageList.updateMessages((prev) =>
+            prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+          );
+        }
+        continuingMessageIdRef.current = null;
+        continuingTextRef.current = '';
+        setContinuingMessageId(null);
+        setContinuingText('');
         setGenerating(false);
-        setStreamingText('');
         stopRef.current = null;
-        refreshMessages();
       },
     });
+  }
+
+  async function handleImpersonate() {
+    const session = currentSessionRef.current;
+    if (!session || generating) return;
+    try {
+      const { content } = await impersonateWriting(worldId, session.id);
+      if (content) setFillText(content);
+    } catch (err) {
+      console.error('impersonate error:', err);
+    }
   }
 
   return (
@@ -260,6 +385,13 @@ export default function WritingSpacePage() {
           worldId={worldId}
           generating={generating}
           streamingText={streamingText}
+          streamingKey={streamingKey}
+          continuingMessageId={continuingMessageId}
+          continuingText={continuingText}
+          onEditMessage={handleEditMessage}
+          onRegenerateMessage={handleRegenerateMessage}
+          onEditAssistantMessage={handleEditAssistantMessage}
+          prose
         />
 
         {/* 错误提示 */}
@@ -287,6 +419,9 @@ export default function WritingSpacePage() {
           lastUserContent=""
           worldId={worldId}
           onContinue={handleContinue}
+          onImpersonate={handleImpersonate}
+          fillText={fillText}
+          onFillTextConsumed={() => setFillText('')}
         />
       </div>
 

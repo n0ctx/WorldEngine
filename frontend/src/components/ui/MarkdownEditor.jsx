@@ -35,7 +35,7 @@ export default function MarkdownEditor({ value = '', onChange, placeholder, minH
     if (!editor) return;
     const current = editor.storage.markdown.getMarkdown();
     if (current !== value) {
-      editor.commands.setContent(value, false);
+      editor.commands.setContent(value, { emitUpdate: false });
     }
   }, [editor, value]);
 

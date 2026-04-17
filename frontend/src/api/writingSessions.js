@@ -18,8 +18,8 @@ async function parseSSEStream(response, callbacks) {
         try {
           const evt = JSON.parse(json);
           if (evt.delta !== undefined) callbacks.onDelta?.(evt.delta);
-          else if (evt.done) callbacks.onDone?.();
-          else if (evt.aborted) callbacks.onAborted?.();
+          else if (evt.done) callbacks.onDone?.(evt.assistant);
+          else if (evt.aborted) callbacks.onAborted?.(evt.assistant);
           else if (evt.type === 'error') callbacks.onError?.(evt.error);
           else if (evt.type === 'title_updated') callbacks.onTitleUpdated?.(evt.title);
         } catch {
@@ -145,6 +145,114 @@ export function generate(worldId, sessionId, content, callbacks) {
  */
 export async function stopGeneration(worldId, sessionId) {
   await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stop`, { method: 'POST' });
+}
+
+/**
+ * AI 代拟玩家消息
+ */
+export async function impersonateWriting(worldId, sessionId) {
+  const res = await fetch(
+    `/api/worlds/${worldId}/writing-sessions/${sessionId}/impersonate`,
+    { method: 'POST' }
+  );
+  if (!res.ok) throw new Error(`impersonate failed: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * 重新生成（从 afterMessageId 之后重新生成），返回 abort 函数
+ */
+export function regenerateWriting(worldId, sessionId, afterMessageId, callbacks) {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const res = await fetch(
+        `/api/worlds/${worldId}/writing-sessions/${sessionId}/regenerate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ afterMessageId }),
+          signal: controller.signal,
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/**
+ * 编辑用户消息并重新生成，返回 abort 函数
+ */
+export function editAndRegenerateWriting(worldId, sessionId, messageId, newContent, callbacks) {
+  const controller = new AbortController();
+
+  (async () => {
+    try {
+      const editRes = await fetch(`/api/messages/${messageId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newContent }),
+      });
+      if (!editRes.ok) throw new Error(`editMessage failed: ${editRes.status}`);
+      const updated = await editRes.json();
+
+      const res = await fetch(
+        `/api/worlds/${worldId}/writing-sessions/${sessionId}/regenerate`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ afterMessageId: updated.id }),
+          signal: controller.signal,
+        }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        callbacks.onError?.(err.error || `HTTP ${res.status}`);
+        return;
+      }
+      await parseSSEStream(res, callbacks);
+      callbacks.onStreamEnd?.();
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        callbacks.onError?.(err.message);
+      } else {
+        callbacks.onStreamEnd?.();
+      }
+    }
+  })();
+
+  return () => controller.abort();
+}
+
+/**
+ * 编辑 AI 消息内容（不重新生成）
+ */
+export async function editWritingAssistantMessage(worldId, sessionId, messageId, content) {
+  const res = await fetch(
+    `/api/worlds/${worldId}/writing-sessions/${sessionId}/edit-assistant`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId, content }),
+    }
+  );
+  if (!res.ok) throw new Error(`editWritingAssistant failed: ${res.status}`);
+  return res.json();
 }
 
 /**

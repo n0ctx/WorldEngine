@@ -337,6 +337,9 @@ body {
   margin: 0.35em 0;
 }
 
+.we-md-content .ProseMirror ul { list-style: disc; }
+.we-md-content .ProseMirror ol { list-style: decimal; }
+
 .we-md-content .ProseMirror li { margin: 0.15em 0; }
 .we-md-content .ProseMirror ul li::marker { color: var(--we-vermilion); }
 .we-md-content .ProseMirror ol li::marker { color: var(--we-ink-faded); }

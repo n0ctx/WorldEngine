@@ -130,7 +130,7 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      className="group flex items-center gap-2 bg-ivory border border-border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing select-none hover:border-accent/40 transition-colors"
+      className="we-field-row group flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none"
     >
       <span className="text-text-secondary opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
 
@@ -158,10 +158,7 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
 
 function Badge({ label, dim }) {
   return (
-    <span className={`px-1.5 py-0.5 rounded text-xs ${dim
-      ? 'text-text-secondary opacity-50 bg-transparent border border-border'
-      : 'bg-accent/10 text-accent'
-    }`}>
+    <span className={dim ? 'we-field-badge' : 'we-field-badge-accent'}>
       {label}
     </span>
   );

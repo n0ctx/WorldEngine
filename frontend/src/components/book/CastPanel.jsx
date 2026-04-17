@@ -196,7 +196,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     <div
       className="we-cast-panel"
       style={{
-        width: '280px',
+        width: '320px',
         flexShrink: 0,
         display: 'flex',
         flexDirection: 'column',
