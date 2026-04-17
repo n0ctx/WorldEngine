@@ -1,0 +1,222 @@
+/* WorldEngine 对话区样式 — 权威定义见 DESIGN.md §7.1 §9.2 §10.2 */
+
+/* ── Keyframes ─────────────────────────────────────────── */
+
+@keyframes weCursorBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes weInkRise {
+  from { opacity: 0; transform: translateY(8px); filter: blur(1.5px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0);     }
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+
+.we-chat-area {
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
+}
+.we-chat-area::-webkit-scrollbar { width: 4px; }
+.we-chat-area::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: 2px; }
+.we-chat-area::-webkit-scrollbar-track { background: transparent; }
+
+/* ── Message Row ───────────────────────────────────────── */
+
+.we-message-row {
+  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+  margin-bottom: 2em;
+  position: relative;
+}
+
+/* ── Speaker Label ─────────────────────────────────────── */
+
+.we-message-label {
+  font-family: var(--we-font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.we-message-user .we-message-label    { color: var(--we-amber); }
+.we-message-assistant .we-message-label { color: var(--we-ink-faded); }
+
+/* ── Message Body ──────────────────────────────────────── */
+
+.we-message-user .we-message-body {
+  border-left: 2px solid var(--we-amber);
+  padding-left: 16px;
+}
+
+/* ── Message Content ───────────────────────────────────── */
+
+.we-message-content {
+  font-family: var(--we-font-serif);
+  font-size: 16.5px;
+  line-height: 1.9;
+  color: var(--we-ink-primary);
+}
+
+.we-message-content p      { margin-bottom: 0.5em; }
+.we-message-content p:last-child { margin-bottom: 0; }
+.we-message-content ul, .we-message-content ol { padding-left: 1.5em; margin-bottom: 0.5em; }
+.we-message-content li     { margin-bottom: 0.2em; }
+.we-message-content strong { font-weight: 600; color: var(--we-ink-primary); }
+.we-message-content em     { font-style: italic; }
+.we-message-content blockquote {
+  border-left: 2px solid var(--we-ink-faded);
+  padding-left: 1em;
+  opacity: 0.75;
+  font-style: italic;
+  margin: 0.5em 0;
+}
+.we-message-content code {
+  font-family: var(--we-font-mono);
+  font-size: 13px;
+  background: var(--we-paper-shadow);
+  padding: 0 4px;
+  border-radius: 1px;
+  color: var(--we-ink-secondary);
+}
+
+/* ── Drop Cap — chapter first assistant message ────────── */
+
+.we-chapter-first-assistant .we-message-content p:first-child::first-letter {
+  font-family: var(--we-font-display);
+  font-size: 3.4em;
+  font-weight: 300;
+  float: left;
+  line-height: 0.78;
+  margin: 0.04em 0.09em 0 0;
+  color: var(--we-ink-primary);
+}
+
+/* ── Streaming Cursor ──────────────────────────────────── */
+
+.we-cursor {
+  display: inline-block;
+  width: 1.5px;
+  height: 0.85em;
+  background: var(--we-ink-secondary);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: weCursorBlink 0.65s steps(1) infinite;
+}
+
+/* ── Actions ───────────────────────────────────────────── */
+
+.we-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+.we-message-row:hover .we-message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.we-message-actions button,
+.we-message-actions span.we-action-time {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--we-ink-faded);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.we-message-actions button:hover { color: var(--we-vermilion); }
+
+/* ── Interrupted tag ───────────────────────────────────── */
+
+.we-message-interrupted {
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--we-amber);
+  border: 1px solid var(--we-amber);
+  padding: 1px 5px;
+  border-radius: 1px;
+  opacity: 0.7;
+}
+
+/* ── Edit state ────────────────────────────────────────── */
+
+.we-message-edit textarea {
+  width: 100%;
+  font-family: var(--we-font-serif);
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--we-ink-primary);
+  background: var(--we-paper-aged);
+  border: 1px solid var(--we-paper-shadow);
+  border-left: 2px solid var(--we-vermilion);
+  padding: 10px 14px;
+  resize: none;
+  outline: none;
+  border-radius: 1px;
+}
+
+.we-message-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.we-message-edit-actions button {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  padding: 4px 12px;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: 1px;
+  cursor: pointer;
+  background: none;
+  color: var(--we-ink-secondary);
+  transition: all 0.15s;
+}
+
+.we-message-edit-actions button.primary {
+  background: var(--we-vermilion);
+  border-color: var(--we-vermilion);
+  color: var(--we-paper-base);
+}
+
+.we-message-edit-actions button:hover:not(.primary) { background: var(--we-paper-shadow); }
+.we-message-edit-actions button.primary:hover { background: var(--we-vermilion-deep); }
+
+/* ── Attachments ───────────────────────────────────────── */
+
+.we-message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Typing dots ───────────────────────────────────────── */
+
+.we-typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+}

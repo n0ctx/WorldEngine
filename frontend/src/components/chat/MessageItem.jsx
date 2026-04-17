@@ -1,47 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
+import { getAvatarUrl } from '../../utils/avatar.js';
 import { applyRules } from '../../utils/regex-runner.js';
+import StreamingCursor from './StreamingCursor.jsx';
+import { INK_RISE } from '../../utils/motion.js';
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
 
-const MD_COMPONENTS = {
-  code({ node, inline, className, children, ...props }) {
-    if (inline) {
-      return (
-        <code className="px-1 py-0.5 rounded bg-border font-mono text-xs" {...props}>
-          {children}
-        </code>
-      );
-    }
-    return <CodeBlock className={className}>{children}</CodeBlock>;
-  },
-  p({ children }) {
-    return <p className="mb-2 last:mb-0">{children}</p>;
-  },
-  ul({ children }) {
-    return <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>;
-  },
-  ol({ children }) {
-    return <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>;
-  },
-  blockquote({ children }) {
-    return (
-      <blockquote className="border-l-2 border-accent pl-3 opacity-75 italic my-2">
-        {children}
-      </blockquote>
-    );
-  },
-};
-
-function formatTime(ts) {
-  const d = new Date(ts);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
+/* ── Parchment-styled Markdown components ──────────────── */
 
 function CodeBlock({ children, className }) {
   const [copied, setCopied] = useState(false);
@@ -55,48 +26,94 @@ function CodeBlock({ children, className }) {
   }
 
   return (
-    <div className="relative my-3 rounded-lg overflow-hidden border border-border">
-      <div className="flex items-center justify-between px-3 py-1.5 bg-ivory border-b border-border">
-        <span className="text-xs opacity-50 font-mono">{lang || 'code'}</span>
+    <div style={{
+      background: 'var(--we-paper-aged)',
+      border: '1px solid var(--we-paper-shadow)',
+      borderRadius: '1px',
+      margin: '0.75em 0',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '3px 10px',
+        borderBottom: '1px solid var(--we-paper-shadow)',
+        background: 'var(--we-paper-deep)',
+      }}>
+        <span style={{ fontFamily: 'var(--we-font-mono)', fontSize: '10px', color: 'var(--we-ink-faded)', letterSpacing: '0.1em' }}>
+          {lang || 'code'}
+        </span>
         <button
           onClick={copy}
-          className="text-xs opacity-60 hover:opacity-100 transition-opacity"
+          style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic', fontSize: '10px', color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer', letterSpacing: '0.08em' }}
         >
           {copied ? '已复制' : '复制'}
         </button>
       </div>
-      <pre className="overflow-x-auto p-3 text-sm font-mono bg-ivory leading-relaxed">
+      <pre style={{ padding: '10px 14px', overflow: 'auto', fontFamily: 'var(--we-font-mono)', fontSize: '12.5px', color: 'var(--we-ink-secondary)', lineHeight: 1.65, margin: 0 }}>
         <code>{code}</code>
       </pre>
     </div>
   );
 }
 
+const MD_COMPONENTS = {
+  code({ node, inline, className, children, ...props }) {
+    if (inline) {
+      return (
+        <code style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', background: 'var(--we-paper-shadow)', padding: '0 4px', borderRadius: '1px', color: 'var(--we-ink-secondary)' }} {...props}>
+          {children}
+        </code>
+      );
+    }
+    return <CodeBlock className={className}>{children}</CodeBlock>;
+  },
+  p({ children }) { return <p>{children}</p>; },
+  ul({ children }) { return <ul style={{ listStyle: 'disc', paddingLeft: '1.5em', marginBottom: '0.5em' }}>{children}</ul>; },
+  ol({ children }) { return <ol style={{ listStyle: 'decimal', paddingLeft: '1.5em', marginBottom: '0.5em' }}>{children}</ol>; },
+  blockquote({ children }) {
+    return (
+      <blockquote style={{ borderLeft: '2px solid var(--we-ink-faded)', paddingLeft: '1em', opacity: 0.78, fontStyle: 'italic', margin: '0.5em 0' }}>
+        {children}
+      </blockquote>
+    );
+  },
+  h1({ children }) { return <h1 style={{ fontFamily: 'var(--we-font-display)', fontSize: '1.4em', fontWeight: 300, color: 'var(--we-ink-secondary)', marginBottom: '0.4em', letterSpacing: '0.05em' }}>{children}</h1>; },
+  h2({ children }) { return <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '1.2em', fontWeight: 400, color: 'var(--we-ink-secondary)', marginBottom: '0.3em', letterSpacing: '0.04em' }}>{children}</h2>; },
+  h3({ children }) { return <h3 style={{ fontFamily: 'var(--we-font-display)', fontSize: '1.05em', fontWeight: 600, color: 'var(--we-ink-secondary)', marginBottom: '0.25em' }}>{children}</h3>; },
+};
+
+/* ── Helpers ───────────────────────────────────────────── */
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const url = `/api/uploads/${src}`;
-
   return (
     <>
       <img
         src={url}
         alt="附件"
-        className="h-20 w-20 object-cover rounded-lg cursor-pointer border border-border hover:opacity-90 transition-opacity"
+        style={{ height: '80px', width: '80px', objectFit: 'cover', borderRadius: '2px', cursor: 'pointer', border: '1px solid var(--we-paper-shadow)' }}
         onClick={() => setEnlarged(true)}
       />
       {enlarged && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
+          style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(42,31,23,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={() => setEnlarged(false)}
         >
-          <img src={url} alt="附件" className="max-w-[90vw] max-h-[90vh] rounded-lg" />
+          <img src={url} alt="附件" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '2px' }} />
         </div>
       )}
     </>
   );
 }
 
-// 复制按钮（通用）
 function CopyButton({ getText }) {
   const [copied, setCopied] = useState(false);
   function copy() {
@@ -105,11 +122,8 @@ function CopyButton({ getText }) {
     setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <button
-      onClick={copy}
-      className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-    >
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <button onClick={copy}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
       </svg>
@@ -118,7 +132,20 @@ function CopyButton({ getText }) {
   );
 }
 
-export default function MessageItem({ message, character, persona, worldId, isStreaming, streamingText, onEdit, onRegenerate, onEditAssistant }) {
+/* ── Main Component ────────────────────────────────────── */
+
+export default function MessageItem({
+  message,
+  character,
+  persona,
+  worldId,
+  isStreaming,
+  streamingText,
+  onEdit,
+  onRegenerate,
+  onEditAssistant,
+  isChapterFirstAssistant = false,
+}) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
@@ -130,21 +157,30 @@ export default function MessageItem({ message, character, persona, worldId, isSt
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
 
+  const speakerName = isUser
+    ? (persona?.name || '玩家').toUpperCase()
+    : (character?.name || '旁白').toUpperCase();
+
   let displayContent = message.content || '';
   let interrupted = false;
   if (displayContent.includes('[已中断]')) {
     displayContent = displayContent.replace(/\n?\n?\[已中断\]/, '').trimEnd();
     interrupted = true;
   }
-
   if (!isStreaming) {
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
-  // ── 用户消息编辑 ──
-  function startEdit() {
-    setDraft(message.content);
-    setEditing(true);
+  /* ── 用户消息编辑 ── */
+  function startEdit() { setDraft(message.content); setEditing(true); }
+  function confirmEdit() {
+    if (draft.trim() && draft !== message.content) onEdit(message.id, draft.trim());
+    setEditing(false);
+  }
+  function cancelEdit() { setEditing(false); }
+  function handleKeyDown(e) {
+    if (e.key === 'Escape') cancelEdit();
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
   }
 
   useEffect(() => {
@@ -157,27 +193,14 @@ export default function MessageItem({ message, character, persona, worldId, isSt
     }
   }, [editing]);
 
-  function confirmEdit() {
-    if (draft.trim() && draft !== message.content) {
-      onEdit(message.id, draft.trim());
-    }
-    setEditing(false);
+  /* ── AI 消息编辑 ── */
+  function startEditAI() { setAiDraft(message.content); setEditingAI(true); }
+  function confirmEditAI() {
+    if (aiDraft.trim() && aiDraft !== message.content) onEditAssistant?.(message.id, aiDraft.trim());
+    setEditingAI(false);
   }
-
-  function cancelEdit() {
-    setEditing(false);
-  }
-
-  function handleKeyDown(e) {
-    if (e.key === 'Escape') cancelEdit();
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
-  }
-
-  // ── AI 消息编辑 ──
-  function startEditAI() {
-    setAiDraft(message.content);
-    setEditingAI(true);
-  }
+  function cancelEditAI() { setEditingAI(false); }
+  function handleKeyDownAI(e) { if (e.key === 'Escape') cancelEditAI(); }
 
   useEffect(() => {
     if (editingAI && aiTextareaRef.current) {
@@ -187,89 +210,53 @@ export default function MessageItem({ message, character, persona, worldId, isSt
     }
   }, [editingAI]);
 
-  function confirmEditAI() {
-    if (aiDraft.trim() && aiDraft !== message.content) {
-      onEditAssistant?.(message.id, aiDraft.trim());
-    }
-    setEditingAI(false);
-  }
-
-  function cancelEditAI() {
-    setEditingAI(false);
-  }
-
-  function handleKeyDownAI(e) {
-    if (e.key === 'Escape') cancelEditAI();
-  }
-
-  const avatarColor = getAvatarColor(character?.id);
-  const avatarUrl = getAvatarUrl(character?.avatar_path);
-  const personaAvatarColor = getAvatarColor(persona?.id);
-  const personaAvatarUrl = getAvatarUrl(persona?.avatar_path);
-  const personaInitial = (persona?.name || '玩')[0].toUpperCase();
-
-  // 打点动画
+  /* ── 打点等待态 ── */
   if (isStreaming && !streamingText) {
     return (
-      <div className="flex items-start gap-3 mb-4">
-        <div
-          className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-          style={{ background: avatarColor }}
-        >
-          {avatarUrl
-            ? <img src={avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
-            : (character?.name?.[0] || '?')}
-        </div>
-        <div className="flex flex-col gap-1 max-w-[75%]">
-          <span className="text-xs opacity-50 mb-0.5">{character?.name}</span>
-          <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border flex items-center gap-1" style={{ minHeight: '44px' }}>
+      <motion.div
+        className="we-message-row we-message-assistant"
+        {...INK_RISE}
+        exit={{ opacity: 0, transition: { duration: 0.15 } }}
+      >
+        <div className="we-message-body">
+          <div className="we-message-label">{speakerName}</div>
+          <div className="we-message-content we-typing-dots">
             <span className="typing-dot" />
             <span className="typing-dot" />
             <span className="typing-dot" />
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
-  // 流式追加
-  if (isStreaming) {
-    return (
-      <div className="flex items-start gap-3 mb-4">
-        <div
-          className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
-          style={{ background: avatarColor }}
-        >
-          {avatarUrl
-            ? <img src={avatarUrl} alt="" className="w-6 h-6 object-cover" />
-            : (character?.name?.[0] || '?')}
-        </div>
-        <div className="flex flex-col gap-1 max-w-[75%]">
-          <span className="text-xs opacity-50 mb-0.5">{character?.name}</span>
-          <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
-            <ReactMarkdown
-              remarkPlugins={REMARK_PLUGINS}
-              rehypePlugins={REHYPE_PLUGINS}
-              components={MD_COMPONENTS}
-            >
-              {streamingText}
-            </ReactMarkdown>
-            <span className="inline-block w-0.5 h-4 bg-accent ml-0.5 animate-pulse align-middle" />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /* ── Row class ── */
+  const rowClass = [
+    'we-message-row',
+    isUser ? 'we-message-user' : 'we-message-assistant',
+    isChapterFirstAssistant ? 'we-chapter-first-assistant' : '',
+  ].filter(Boolean).join(' ');
 
-  if (isUser) {
-    return (
-      <div className="we-chat-message we-chat-message-user flex items-end gap-3 mb-4 group justify-end">
-        <div className="flex-1 min-w-0 flex flex-col items-end">
-          {editing ? (
-            <div className="w-full max-w-[75%]">
+  /* ── Render ── */
+  return (
+    <motion.div
+      className={rowClass}
+      {...INK_RISE}
+      exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
+    >
+      <div className="we-message-body">
+        {/* 发言人标签 */}
+        <div className="we-message-label">
+          {speakerName}
+          {interrupted && <span className="we-message-interrupted">已中断</span>}
+        </div>
+
+        {/* 内容区 */}
+        {isUser ? (
+          editing ? (
+            <div className="we-message-edit">
               <textarea
                 ref={textareaRef}
-                className="w-full px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
                 value={draft}
                 onChange={(e) => {
                   setDraft(e.target.value);
@@ -279,162 +266,93 @@ export default function MessageItem({ message, character, persona, worldId, isSt
                 onKeyDown={handleKeyDown}
                 rows={1}
               />
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  onClick={cancelEdit}
-                  className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={confirmEdit}
-                  className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
-                >
-                  确认
-                </button>
+              <div className="we-message-edit-actions">
+                <button onClick={cancelEdit}>取消</button>
+                <button className="primary" onClick={confirmEdit}>确认</button>
               </div>
             </div>
           ) : (
-            <div className="max-w-[75%]">
-              <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tr-sm bg-accent/10 border border-accent/40 text-text text-sm leading-relaxed whitespace-pre-wrap">
-                {message.content}
-              </div>
-              {message.attachments?.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2 justify-end">
-                  {message.attachments.map((att, i) => (
-                    <AttachmentThumbnail key={i} src={att} />
-                  ))}
-                </div>
-              )}
-              {/* 下方悬停操作区 */}
-              <div className="flex justify-end items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-                <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
-                <CopyButton getText={() => message.content} />
-                <button
-                  onClick={startEdit}
-                  className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-                >
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  编辑
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        {/* 玩家头像 */}
-        <div
-          className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
-          style={{ background: personaAvatarColor }}
-        >
-          {personaAvatarUrl
-            ? <img src={personaAvatarUrl} alt="" className="w-6 h-6 object-cover" />
-            : personaInitial}
-        </div>
-      </div>
-    );
-  }
-
-  // assistant 消息
-  return (
-    <div className="we-chat-message we-chat-message-ai flex items-start gap-3 mb-4 group">
-      <div
-        className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
-        style={{ background: avatarColor }}
-      >
-        {avatarUrl
-          ? <img src={avatarUrl} alt="" className="w-6 h-6 object-cover" />
-          : (character?.name?.[0] || '?')}
-      </div>
-      <div className="flex flex-col gap-1 max-w-[75%]">
-        <div className="flex items-center gap-2">
-          <span className="text-xs opacity-50">{character?.name}</span>
-          {interrupted && (
-            <span className="text-xs px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-600 font-medium">
-              已中断
-            </span>
-          )}
-        </div>
-
-        {editingAI ? (
-          <div>
-            <textarea
-              ref={aiTextareaRef}
-              className="w-full px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-accent/40 text-text text-sm leading-relaxed resize-none outline-none"
-              value={aiDraft}
-              onChange={(e) => {
-                setAiDraft(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
-              }}
-              onKeyDown={handleKeyDownAI}
-              rows={4}
-            />
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={cancelEditAI}
-                className="text-xs px-3 py-1 rounded border border-border hover:bg-sand transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmEditAI}
-                className="text-xs px-3 py-1 rounded bg-accent text-white hover:opacity-90 transition-opacity"
-              >
-                保存
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="we-chat-bubble px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed">
-            <ReactMarkdown
-              remarkPlugins={REMARK_PLUGINS}
-              rehypePlugins={REHYPE_PLUGINS}
-              components={MD_COMPONENTS}
-            >
+            <div className="we-message-content" style={{ whiteSpace: 'pre-wrap' }}>
               {displayContent}
-            </ReactMarkdown>
-          </div>
+            </div>
+          )
+        ) : (
+          editingAI ? (
+            <div className="we-message-edit">
+              <textarea
+                ref={aiTextareaRef}
+                value={aiDraft}
+                onChange={(e) => {
+                  setAiDraft(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onKeyDown={handleKeyDownAI}
+                rows={4}
+              />
+              <div className="we-message-edit-actions">
+                <button onClick={cancelEditAI}>取消</button>
+                <button className="primary" onClick={confirmEditAI}>保存</button>
+              </div>
+            </div>
+          ) : (
+            <div className="we-message-content">
+              <ReactMarkdown
+                remarkPlugins={REMARK_PLUGINS}
+                rehypePlugins={REHYPE_PLUGINS}
+                components={MD_COMPONENTS}
+              >
+                {isStreaming ? (streamingText || '') : displayContent}
+              </ReactMarkdown>
+              {isStreaming && <StreamingCursor />}
+            </div>
+          )
         )}
 
+        {/* 附件 */}
         {message.attachments?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-1">
+          <div className="we-message-attachments">
             {message.attachments.map((att, i) => (
               <AttachmentThumbnail key={i} src={att} />
             ))}
           </div>
         )}
 
-        {/* 下方悬停操作区 */}
-        {!editingAI && (
-          <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
-            <span className="text-xs opacity-40">{formatTime(message.created_at)}</span>
-            <button
-              onClick={() => onRegenerate(message.id)}
-              className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-              </svg>
-              重新生成
-            </button>
-            <CopyButton getText={() => displayContent} />
-            <button
-              onClick={startEditAI}
-              className="text-xs opacity-50 hover:opacity-100 transition-opacity flex items-center gap-1 text-text-secondary"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
-              编辑
-            </button>
+        {/* 操作菜单 */}
+        {!editing && !editingAI && (
+          <div className="we-message-actions">
+            <span className="we-action-time">{formatTime(message.created_at)}</span>
+            <CopyButton getText={() => isUser ? message.content : displayContent} />
+            {isUser && (
+              <button onClick={startEdit}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                编辑
+              </button>
+            )}
+            {isAssistant && (
+              <>
+                <button onClick={() => onRegenerate(message.id)}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                  </svg>
+                  重新生成
+                </button>
+                <button onClick={startEditAI}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  编辑
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }

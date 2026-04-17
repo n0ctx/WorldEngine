@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import { getMessages } from '../../api/sessions.js';
 
@@ -128,7 +129,7 @@ export default function MessageList({
   }
 
   return (
-    <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-4">
+    <div ref={listRef} className="we-chat-area flex-1 overflow-y-auto px-4 py-4">
       {/* 加载更多指示器 */}
       {loadingMore && (
         <div className="text-center text-xs opacity-40 py-3">加载历史消息…</div>
@@ -171,41 +172,47 @@ export default function MessageList({
       )}
 
       <div className="max-w-[800px] mx-auto">
-        {messages.map((msg) => {
-          const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-          const displayMsg = isContinuing
-            ? { ...msg, content: msg.content + continuingText }
-            : msg;
-          return (
-            <MessageItem
-              key={msg.id}
-              message={displayMsg}
-              character={character}
-              persona={persona}
-              worldId={worldId}
-              isStreaming={isContinuing}
-              streamingText={isContinuing ? displayMsg.content : undefined}
-              onEdit={onEditMessage}
-              onRegenerate={onRegenerateMessage}
-              onEditAssistant={onEditAssistantMessage}
-            />
-          );
-        })}
+        <AnimatePresence mode="popLayout">
+          {(() => {
+            const firstAssistantIdx = messages.findIndex(m => m.role === 'assistant');
+            return messages.map((msg, idx) => {
+              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+              const displayMsg = isContinuing
+                ? { ...msg, content: msg.content + continuingText }
+                : msg;
+              return (
+                <MessageItem
+                  key={msg.id}
+                  message={displayMsg}
+                  character={character}
+                  persona={persona}
+                  worldId={worldId}
+                  isStreaming={isContinuing}
+                  streamingText={isContinuing ? displayMsg.content : undefined}
+                  onEdit={onEditMessage}
+                  onRegenerate={onRegenerateMessage}
+                  onEditAssistant={onEditAssistantMessage}
+                  isChapterFirstAssistant={idx === firstAssistantIdx}
+                />
+              );
+            });
+          })()}
 
-        {/* 流式响应气泡（仅新消息，续写时不显示） */}
-        {generating && !continuingMessageId && (
-          <MessageItem
-            key="__streaming__"
-            message={{ id: '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
-            character={character}
-            worldId={worldId}
-            isStreaming={true}
-            streamingText={streamingText}
-            onEdit={NOOP}
-            onRegenerate={NOOP}
-            onEditAssistant={NOOP}
-          />
-        )}
+          {/* 流式响应（仅新消息，续写时不显示） */}
+          {generating && !continuingMessageId && (
+            <MessageItem
+              key="__streaming__"
+              message={{ id: '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
+              character={character}
+              worldId={worldId}
+              isStreaming={true}
+              streamingText={streamingText}
+              onEdit={NOOP}
+              onRegenerate={NOOP}
+              onEditAssistant={NOOP}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       <div ref={bottomRef} />

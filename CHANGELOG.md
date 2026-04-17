@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T62 — 消息组件重构：稳定类名 + inkRise + Drop Cap + 流式光标 ✅
+- **对外接口**：新增 `StreamingCursor` 组件；`MessageItem` 新增 `isChapterFirstAssistant` prop；`MessageList` 外层加 `we-chat-area` 类
+- **涉及文件**：`frontend/src/styles/chat.css`（新建）、`frontend/src/components/chat/StreamingCursor.jsx`（新建）、`frontend/src/components/chat/MessageItem.jsx`（全面重写）、`frontend/src/components/chat/MessageList.jsx`（加 AnimatePresence + we-chat-area + isChapterFirstAssistant）、`frontend/src/main.jsx`（加 chat.css import）
+- **注意**：消息气泡已完全去除（bg-ivory/rounded-2xl 全部移除），文字直接落于羊皮纸面；用户消息改为左侧 amber 竖线标注样式；操作按钮改为 Cormorant Garamond italic 小字，hover 变朱砂色；旧类名 `we-chat-message`/`we-chat-bubble` 已废弃，迁移到 `we-message-row`/`we-message-content` 等稳定锚点（见 DESIGN §10.2）——用户自定义 CSS 若依赖旧类名需更新
+
 ## T61 — 顶部导航栏 TopBar + 路由挂载 ✅
 - **对外接口**：新增 `TopBar` 组件 `frontend/src/components/book/TopBar.jsx`；所有页面共享，挂载于 App 根
 - **涉及文件**：`TopBar.jsx`（新建）、`frontend/src/App.jsx`（根容器改为 `h-screen flex-col bg-book-bg`，挂载 TopBar）、`frontend/src/components/book/BookSpread.jsx`（去掉大 padding，改为 `height:100%` 铺满 Routes 区域，侧边仅保留 12px 细边）
