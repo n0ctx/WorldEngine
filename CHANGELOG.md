@@ -19,6 +19,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## fix: 重新生成按钮失效（afterMessageId 异步读取问题）✅
+- **涉及文件**：`frontend/src/components/chat/MessageList.jsx`（暴露 `MessageList.messagesRef`）、`frontend/src/pages/ChatPage.jsx`（`handleRegenerateMessage` / `handleRetryLast` / `handleRetryAfterError` 三处）
+- **注意**：React 18 concurrent mode 下 `setMessages(updater)` 的 updater 函数在渲染阶段异步执行，在 updater 内对外部变量赋值（如 `afterMessageId`）在同步代码中无法读取。修复方法：在 MessageList 中暴露 `messagesRef`（`messagesRef.current = messages` 在 render 内同步赋值），在 ChatPage 里先从 `messagesRef.current` 同步读取目标 messageId，再调用 `updateMessages` 更新 UI，最后调用 `regenerate()` API。
+
 ## fix: 状态栏文本混入会话正文 ✅
 - **涉及文件**：`backend/prompt/assembler.js`（导出 `stripAsstContext`）、`backend/routes/chat.js`（普通回复 + 续写各加一次调用）、`backend/routes/writing.js`（写作模式加一次调用）
 - **注意**：`stripAsstContext` 此前仅在读取历史消息组装 Prompt 时调用，保存新 AI 回复到 DB 前从未调用，导致 LLM 输出的状态块直接写入 `messages.content`。修复顺序：先 `stripAsstContext(fullContent)`，再 `applyRules(..., 'ai_output', ...)`，再追加 `[已中断]` 标记（如有）

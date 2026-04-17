@@ -295,17 +295,15 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    let afterMessageId = null;
+    const msgs = MessageList.messagesRef?.current ?? [];
+    const idx = msgs.findIndex((m) => m.id === assistantMessageId);
+    if (idx <= 0) return;
+    const afterMessageId = msgs[idx - 1].id;
 
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
-        const idx = prev.findIndex((m) => m.id === assistantMessageId);
-        if (idx > 0) afterMessageId = prev[idx - 1].id;
-        return idx >= 0 ? prev.slice(0, idx) : prev;
-      });
-    }
-
-    if (!afterMessageId) return;
+    MessageList.updateMessages?.((prev) => {
+      const i = prev.findIndex((m) => m.id === assistantMessageId);
+      return i >= 0 ? prev.slice(0, i) : prev;
+    });
 
     setGenerating(true);
     setStreamingText('');
@@ -388,16 +386,15 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    let afterMessageId = null;
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
-        const idx = [...prev].map((m, i) => ({ m, i })).reverse().find(({ m }) => m.role === 'assistant')?.i;
-        if (idx === undefined || idx <= 0) return prev;
-        afterMessageId = prev[idx - 1].id;
-        return prev.slice(0, idx);
-      });
+    const msgs = MessageList.messagesRef?.current ?? [];
+    let lastIdx = -1;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'assistant') { lastIdx = i; break; }
     }
-    if (!afterMessageId) return;
+    if (lastIdx <= 0) return;
+    const afterMessageId = msgs[lastIdx - 1].id;
+
+    MessageList.updateMessages?.((prev) => prev.slice(0, lastIdx));
 
     setGenerating(true);
     setStreamingText('');
@@ -411,20 +408,16 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    let afterMessageId = null;
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
-        // 去掉末尾可能残留的 assistant 消息
-        let end = prev.length;
-        while (end > 0 && prev[end - 1].role === 'assistant') end--;
-        const trimmed = prev.slice(0, end);
-        const lastUser = [...trimmed].reverse().find((m) => m.role === 'user');
-        if (lastUser) afterMessageId = lastUser.id;
-        return trimmed;
-      });
-    }
+    const msgs = MessageList.messagesRef?.current ?? [];
+    // 去掉末尾可能残留的 assistant 消息
+    let end = msgs.length;
+    while (end > 0 && msgs[end - 1].role === 'assistant') end--;
+    const trimmed = msgs.slice(0, end);
+    const lastUser = [...trimmed].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return;
+    const afterMessageId = lastUser.id;
 
-    if (!afterMessageId) return;
+    MessageList.updateMessages?.(() => trimmed);
 
     setGenerating(true);
     setStreamingText('');

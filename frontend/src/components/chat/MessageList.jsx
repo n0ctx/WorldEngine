@@ -36,6 +36,8 @@ export default function MessageList({
   const listRef = useRef(null);
   const bottomRef = useRef(null);
   const prevScrollHeight = useRef(0);
+  const messagesRef = useRef([]);
+  messagesRef.current = messages;
 
   // 初始加载
   useEffect(() => {
@@ -116,6 +118,8 @@ export default function MessageList({
   MessageList.appendMessage = (msg) => setMessages((prev) => [...prev, msg]);
   // 外部更新消息（编辑后）
   MessageList.updateMessages = (updater) => setMessages(updater);
+  // 外部同步读取当前消息列表（避免在 updater 闭包中读取异步状态）
+  MessageList.messagesRef = messagesRef;
 
   if (loading) {
     return (
