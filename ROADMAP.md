@@ -283,7 +283,7 @@
 
 ## 阶段 7：前端羊皮纸化 · 对话主区（PARCHMENT-CHAT）
 
-> 目标：消息气泡、左页 Tab 切换、章节分组、路由/模态动画、SSE 召回指示全部就位。完成后对话主场景完全呈现羊皮纸古籍派的沉浸体验。
+> 目标：消息气泡、三栏布局（左页会话列表 + 右侧档案页 StatePanel）、章节分组、路由/模态动画、SSE 召回指示全部就位。完成后对话主场景完全呈现羊皮纸古籍派的沉浸体验。
 
 ### T62 ✅ 完成 消息组件重构：稳定类名 + inkRise + Drop Cap + 流式光标
 
@@ -364,170 +364,255 @@
 
 ---
 
-### T63 ⬜ 未开始 左页 Tab 壳 + 会话列表面板迁移
+### T63 ✅ 已完成 左页会话列表（无 Tab）+ 三栏布局接入
 
-**这个任务做什么**：按 DESIGN §5.3 在左页注入 Tab 切换 `[会话] | [角色状态]`，将 Sidebar 内的会话列表迁移为 SessionListPanel，用 framer-motion 做 tab 内容切换。
+**这个任务做什么**：按 DESIGN §5.3 将 Sidebar 会话列表迁移为 SessionListPanel，直接嵌入 PageLeft（无 Tab），完成三栏布局接入（T64 将新增右侧 StatePanel）。
+
+> **注**：`PageLeftTabs.jsx` 和 `SessionListPanel.jsx` 已在任务探索阶段创建，T63 只需接线和弃用旧组件。
 
 **涉及文件**：
-- `frontend/src/components/book/PageLeftTabs.jsx` — 新建
-- `frontend/src/components/book/SessionListPanel.jsx` — 新建
-- `frontend/src/components/book/PageLeft.jsx` — 内嵌 `<PageLeftTabs>`
-- `frontend/src/pages/ChatPage.jsx` — 不再直接渲染 Sidebar
-- `frontend/src/components/chat/Sidebar.jsx` — 保留但不再在 ChatPage 引用（留给 Settings/其他可能用途；若全局无引用则可删，需 grep 确认）
+- `frontend/src/components/book/PageLeft.jsx` — 移除 children 透传，直接接收 props 并渲染 `<SessionListPanel>`
+- `frontend/src/components/book/SessionListPanel.jsx` — 已存在，接收 5 个 props
+- `frontend/src/pages/ChatPage.jsx` — 移除 `<Sidebar>`，向 `<PageLeft>` 传 props；`Sidebar.updateTitle/addSession` → `SessionListPanel.updateTitle/addSession`
+- `frontend/src/components/chat/Sidebar.jsx` — 添加弃用注释，不删除
+- `frontend/src/components/book/PageLeftTabs.jsx` — 添加弃用注释，不删除（Tab 方案废弃）
 
 **Claude Code 指令**：
 
 ```
-请先阅读 @CHANGELOG.md @DESIGN.md §5.3/§7 @frontend/src/components/chat/Sidebar.jsx @frontend/src/api/sessions.js @frontend/src/store/index.js 的现有内容。
+请先阅读 @CHANGELOG.md @DESIGN.md §5.3 @frontend/src/components/book/PageLeft.jsx @frontend/src/components/book/SessionListPanel.jsx @frontend/src/pages/ChatPage.jsx @frontend/src/components/chat/Sidebar.jsx 的现有内容。
 
-目标：左页提供 Tab 切换，[会话] Tab 承载会话列表全部功能。
+目标：左页直接显示会话列表（无 Tab），完成三栏布局第一步。
 
-1) frontend/src/components/book/PageLeftTabs.jsx（新建）
-   - Props: { tabs: [{key, label, content}], defaultTab }
-   - 内部 useState 管理 activeTab
-   - 顶部 tab bar：两个 button 并排，label 用 --we-font-display font-size:11px letter-spacing:0.2em uppercase
-   - active tab：color var(--we-ink-secondary)，下方 1px var(--we-gold-leaf) 下划线
-   - inactive tab：color var(--we-ink-faded)
-   - 下方内容区：用 framer-motion AnimatePresence mode="wait"，每次切换 fade + y:4 过渡 180ms
-   - 整体无外框
+1) frontend/src/components/book/PageLeft.jsx
+   - 接受 props: { character, currentSessionId, onSessionSelect, onSessionCreate, onSessionDelete }
+   - 移除 children 透传
+   - 内部直接 render:
+     <SessionListPanel
+       character={character}
+       currentSessionId={currentSessionId}
+       onSessionSelect={onSessionSelect}
+       onSessionCreate={onSessionCreate}
+       onSessionDelete={onSessionDelete}
+     />
+   - 保留原有右侧书脊阴影 div（position:absolute right 0 渐变）
 
-2) frontend/src/components/book/SessionListPanel.jsx（新建）
-   - 从 @frontend/src/api/sessions.js 获取当前 world/character 下的会话列表
-   - 顶部："新建会话"按钮：width 100%，padding 10px，border:1px dashed var(--we-vermilion)，color var(--we-vermilion)，background transparent；hover 时 background var(--we-vermilion-bg)
-   - 列表项（可滚动容器 max-height 由 flex 自适应）：
-     - 每项 padding 8px 10px，display:flex gap:10px align-items:center
-     - 左侧角色头像 24x24 圆（用 getAvatarColor(characterId) + 首字 fallback）
-     - 中间 flex:1：会话标题（EB Garamond 14px ink-primary，单行截断）+ 下方相对时间戳（11px ink-faded italic）
-     - Active 项：左侧 2px var(--we-vermilion) 竖线（用 border-left 或 absolute pseudo）+ 淡底色 var(--we-paper-shadow) 透明度 0.4
-     - Hover：background var(--we-paper-shadow) 透明度 0.3
-   - 右键菜单或悬浮图标：提供删除、重命名（复用现有 sessions API）
-   - 点击列表项：setCurrentSessionId 并跳转到该会话
+2) frontend/src/pages/ChatPage.jsx
+   - 移除 `import Sidebar from '../components/chat/Sidebar.jsx'`
+   - 添加（若未有）`import SessionListPanel from '../components/book/SessionListPanel.jsx'`
+   - 将 `<PageLeft><Sidebar .../></PageLeft>` 替换为：
+     <PageLeft
+       character={character}
+       currentSessionId={currentSessionId}
+       onSessionSelect={handleSessionSelect}
+       onSessionCreate={handleSessionCreate}
+       onSessionDelete={handleSessionDelete}
+     />
+   - `Sidebar.updateTitle(...)` → `SessionListPanel.updateTitle(...)`
+   - `Sidebar.addSession(...)` → `SessionListPanel.addSession(...)`
 
-3) frontend/src/components/book/PageLeft.jsx
-   - 移除原先 children 直通；改为 render <PageLeftTabs tabs={...}>
-   - tabs 配置：
-     [
-       { key: 'sessions', label: '会话', content: <SessionListPanel /> },
-       { key: 'character', label: '角色状态', content: <div>T64 占位</div> }
-     ]
-   - 默认 tab 为 'sessions'
+3) frontend/src/components/chat/Sidebar.jsx
+   - 文件顶部第一行添加注释：
+     /* 已迁移至 components/book/SessionListPanel.jsx，待 P8 清理 */
 
-4) frontend/src/pages/ChatPage.jsx
-   - 移除旧 <Sidebar /> 引用（或内嵌在 <PageLeft> 的旧内容）
-   - <PageLeft> 现在无需传任何 children
-   - 保留 <PageRight> 内的对话区
-
-5) frontend/src/components/chat/Sidebar.jsx
-   - 全局 grep 确认是否还有其他页面引用
-   - 若无引用，保留文件但添加顶部注释 "/* 已迁移至 components/book/SessionListPanel.jsx，待 P8 清理 */"
-   - 若仍有引用，不动
+4) frontend/src/components/book/PageLeftTabs.jsx
+   - 文件顶部第一行注释改为：
+     /* Tab 方案已废弃（布局调整为三栏，无 Tab 切换），待 P8 清理 */
 
 约束：
-- 不改 @frontend/src/api/sessions.js（API 契约稳定）
+- 不改 @frontend/src/api/sessions.js
 - 不改 @frontend/src/store/index.js
-- 所有现有会话功能必须保留：切换、新建、删除、重命名
-- 不动 SessionItem 组件（若存在于 chat/SessionItem.jsx）可以复用也可以在 SessionListPanel 内重写——选择复用时保持原样传 props，选择重写时必须覆盖原有 UX
+- 不改 SessionListPanel.jsx 内部逻辑
+- 所有会话功能必须保留：切换、新建、删除、重命名、SSE title 同步
 ```
 
 **验证方法**：
-1. 打开 ChatPage，左页顶部出现 [会话] [角色状态] 两个 Tab，默认显示"会话"
-2. 会话 Tab 内能看到当前会话列表 + 顶部"新建会话"虚线按钮
+1. 打开 ChatPage，左页直接显示会话列表（无 Tab 标签行）
+2. 顶部"新建会话"虚线按钮可用；点击创建新会话，左页列表正确追加
 3. 点击某个会话，右侧对话区切换并显示对应消息历史
-4. 新建会话 / 删除会话 / 重命名会话功能全部正常
-5. 切换到"角色状态" Tab 显示占位文字；切回"会话" Tab 列表仍在且 active 项标记正确
-6. Tab 切换有淡入淡出过渡
+4. 删除 / 重命名会话功能正常
+5. AI 回复完成后，左页列表中当前会话标题自动更新（SSE title_updated 同步）
 
 ---
 
-### T64 ⬜ 未开始 左页角色状态面板：印章 + 状态栏 + 召回批注
+### T64 ✅ 已完成 右侧档案页 StatePanel：印章 + 全层状态 + 时间线 + 召回批注
 
-**这个任务做什么**：按 DESIGN §5.3 / §7.2 / §7.3 / §7.6 / §8.3 实现 `[角色状态]` Tab 的完整内容——印章 SVG、状态栏（批注风格）、召回记忆批注列表。
+**这个任务做什么**：按 DESIGN §5.5 / §7.2 / §7.3 / §7.6 / §8.3 新建右侧 StatePanel 档案页，取代现有 MemoryPanel，完成三栏布局第二步。StatePanel 显示角色档案头（印章）、角色/玩家/世界三层状态、世界时间线、召回记忆批注。
 
 **涉及文件**：
-- `frontend/src/components/book/CharacterStatusPanel.jsx` — 新建
-- `frontend/src/components/book/CharacterSeal.jsx` — 新建
-- `frontend/src/components/book/StatusBar.jsx` — 新建
-- `frontend/src/components/book/MarginaliaList.jsx` — 新建
-- `frontend/src/components/book/PageLeft.jsx` — 用 CharacterStatusPanel 替换占位
+- `frontend/src/components/book/StatePanel.jsx` — 新建，整合所有状态数据
+- `frontend/src/components/book/CharacterSeal.jsx` — 新建，印章 / 头像组件
+- `frontend/src/components/book/StatusSection.jsx` — 新建，区块渲染（标题 + 字段 + 进度条 + 重置）
+- `frontend/src/components/book/MarginaliaList.jsx` — 新建，召回批注列表
+- `frontend/src/pages/ChatPage.jsx` — 移除 `<MemoryPanel>` 和 rightOpen 状态，插入 `<StatePanel>`
+- `frontend/src/index.css` — 新增 `.we-state-panel*`、`.we-timeline`、`.we-marginalia*` CSS 锚点样式
 
 **Claude Code 指令**：
 
 ```
-请先阅读 @CHANGELOG.md @DESIGN.md §5.3/§7.2/§7.3/§7.6/§8.3/§10.2 @frontend/src/api/characters.js @frontend/src/api/characterStateValues.js @frontend/src/api/characterStateFields.js @frontend/src/utils/avatar.js @frontend/src/store/index.js 的现有内容。
+请先阅读 @CHANGELOG.md @DESIGN.md §5.5/§7.2/§7.3/§7.6/§8.3/§10.2
+@frontend/src/api/worldStateValues.js
+@frontend/src/api/characterStateValues.js
+@frontend/src/api/characterStateFields.js
+@frontend/src/api/personaStateValues.js
+@frontend/src/api/worldTimeline.js
+@frontend/src/api/characters.js
+@frontend/src/utils/avatar.js
+@frontend/src/store/index.js
+@frontend/src/components/memory/MemoryPanel.jsx（参考数据拉取逻辑，不复用样式）
+@frontend/src/pages/ChatPage.jsx
+的现有内容。
 
-目标：[角色状态] Tab 完整可用，含印章、状态栏、召回批注。
+目标：新建 StatePanel 右侧档案页，完整可用，取代 MemoryPanel。
 
 1) frontend/src/components/book/CharacterSeal.jsx（新建）
-   - Props: { character, size = 76 }
-   - 用 @frontend/src/utils/avatar.js 的 getAvatarColor(character.id) 获取色相；若 character.avatar_path 存在，render 一个圆形 img 并在外层嵌双线印章边框 SVG
-   - 无 avatar_path 时：render 完整 SVG 印章，内容按 DESIGN §8.3 模板：
-     <svg viewBox="0 0 76 76"><rect 外实线 2.5/><rect 内虚线 0.8 dash/><text 上字/><line 中横线/><text 下字/></svg>
-   - 印章文字取 character.name 前 1-2 字
-   - stroke 颜色用 getAvatarColor 返回值；若返回值无 stroke 字段则默认 var(--we-vermilion)
+   - Props: { character, size = 72 }
+   - getAvatarColor(character?.id) 获取印章颜色
+   - 有 avatar_path：圆形 img（size×size，object-fit:cover，border-radius:50%）
+     + 外层 SVG 双线印章边框（viewBox 依 size 缩放）
+   - 无 avatar_path：完整 SVG 印章（DESIGN §8.3 模板），文字取 character.name 前 1~2 字
+   - 无 character：render null
 
-2) frontend/src/components/book/StatusBar.jsx（新建）
-   - Props: { fields, values, className }
-   - 外层 div className 含 "we-status-field"（单行）；容器 className 由父组件传入（如 "we-status-character"）
-   - 按 sort_order 排序 fields
-   - 每行渲染：
-     <div className="we-status-field">
-       <span className="we-status-key">{field.label}</span>
-       <span className="we-status-value">{renderValue(field, value)}</span>
-     </div>
-     若 field.field_type === 'number' 且 field.max 存在，下面再 render 进度条：
-       <div className="we-status-bar"><div className="we-status-bar-fill" style={{width: `${value/max*100}%`}} /></div>
-     field.field_type === 'list' 时 JSON.parse 后用 ' 、 ' 连接
-     field.field_type === 'boolean' 时 true→"是" false→"否"
-   - 样式通过新增 status.css（或在 chat.css 内补充）：
-     .we-status-field { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
-     .we-status-key { font-family:var(--we-font-serif); font-size:12px; font-style:italic; color:var(--we-ink-faded); }
-     .we-status-value { font-family:var(--we-font-serif); font-size:13px; color:var(--we-ink-secondary); }
-     .we-status-bar { height:3px; background:rgba(0,0,0,0.1); margin:3px 0 10px; position:relative; overflow:hidden; }
-     .we-status-bar-fill { position:absolute; left:0; top:0; bottom:0; background:var(--we-moss); transition:width 1s ease; }
+2) frontend/src/components/book/StatusSection.jsx（新建）
+   - Props: { title, rows, pinnedName, onReset, resetting, className }
+   - rows 每项: { field_key, label, field_type, effective_value_json, max }
+   - 区块标题 .we-state-section-title：
+     font-family --we-font-display，11px，letter-spacing 0.28em，uppercase，--we-ink-faded
+     右侧重置按钮 .we-state-section-reset：10px italic --we-ink-faded，hover → --we-vermilion
+     标题下方 border-bottom: 1px solid var(--we-paper-shadow)；margin-bottom 10px
+   - pinnedName 存在时置顶渲染"姓名"字段行
+   - 字段行 .we-status-field（each row）：
+     display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px
+     key span .we-status-key：font-family serif，12px，italic，--we-ink-faded
+     val span .we-status-value：font-family serif，13px，--we-ink-secondary
+   - number 类型 + max 存在：value/max 进度条：
+     .we-status-bar { height:3px; background:rgba(0,0,0,0.1); margin:2px 0 8px; }
+     .we-status-bar-fill { height:100%; background:var(--we-moss); transition:width 1s ease; }
+   - list 类型：JSON.parse + '、' 连接（try/catch 降级显示原字符串）
+   - boolean 类型：'true'/'1'/true → '是'，其余 → '否'
+   - 空数据（!rows || rows.length===0）：小字灰色占位"暂无数据"
+   - 整体容器 className: `we-state-section ${className || ''}`
 
 3) frontend/src/components/book/MarginaliaList.jsx（新建）
-   - Props: { items }  items 每项 { date, text, id }
-   - 容器 className="we-marginalia-list"
-   - 每项 className="we-marginalia"，内部 .we-marginalia-date + .we-marginalia-text
-   - 样式（加入 chat.css 或新 marginalia.css）：
-     .we-marginalia { position:relative; padding-left:10px; margin-bottom:12px; }
-     .we-marginalia::before { content:''; position:absolute; left:0; top:2px; bottom:2px; width:1.5px; background:var(--we-vermilion); opacity:0.5; }
-     .we-marginalia-date { font-family:var(--we-font-serif); font-size:10px; font-style:italic; color:var(--we-vermilion); margin-bottom:2px; opacity:0.9; }
-     .we-marginalia-text { font-family:var(--we-font-serif); font-size:11.5px; line-height:1.6; color:var(--we-ink-faded); font-style:italic; }
-   - 空数据时 render 占位文字"暂无召回记忆"灰色小字
+   - Props: { items }  items: [{ id, date, text }]
+   - 容器 className="we-marginalia-list"（.we-state-section 包裹外）
+   - 每项 className="we-marginalia"，含：
+     div.we-marginalia-date：10px italic --we-vermilion
+     div.we-marginalia-text：11.5px italic --we-ink-faded，line-height 1.6
+   - 空列表：灰色小字"暂无召回记忆"（--we-ink-faded，10px，italic）
 
-4) frontend/src/components/book/CharacterStatusPanel.jsx（新建）
-   - 从 store 取 currentCharacterId；无则显示"尚未选择角色"占位
-   - useEffect 拉取 character + character state fields + values
-   - 订阅 store 的 memoryRefreshTick：当值变化时重新拉取召回数据（召回数据来源：当前 session 最近一次 SSE memory_recall_done 事件 payload；先以占位数据实现，P5 SSE 接入时填充真实数据）
-   - 布局（按顺序）：
-     a. 顶部印章区：<CharacterSeal character={character} /> + 下方角色名（ZCOOL XiaoWei 16px center）+ 副标题（10px italic ink-faded）
-     b. 分隔线 border-top: 1px solid var(--we-paper-shadow); padding-top:16px
-     c. 区块标题 "当前状态"（10px uppercase letter-spacing:0.28em ink-faded）
-     d. <StatusBar className="we-status-character" fields values />
-     e. 分隔线
-     f. 区块标题 "召回记忆"
-     g. <MarginaliaList items={recalledItems} />
-     h. margin-top:auto 推到底部：世界名标签（10px italic ink-faded letter-spacing:0.06em）
+4) frontend/src/components/book/StatePanel.jsx（新建）
+   - Props: { character, worldId, characterId, persona }
+   - 整体：width:280px，flexShrink:0，display:flex，flexDirection:column
+     background:var(--we-paper-aged)，borderLeft:'1px solid var(--we-paper-shadow)'
+     overflowY:auto，scrollbarWidth:'thin'
+     scrollbarColor:'var(--we-paper-shadow) transparent'
+   - 左侧书脊阴影（12px）：position:absolute; left:0; top:0; bottom:0; width:12px
+     background: linear-gradient(to right, rgba(0,0,0,0.14) 0%, rgba(0,0,0,0.04) 40%, transparent 100%)
+     pointerEvents:none; zIndex:2
 
-5) frontend/src/components/book/PageLeft.jsx
-   - tabs 配置第二项 content 改为 <CharacterStatusPanel />
+   - 头部 .we-state-panel-header（paddingTop:20px，paddingBottom:14px，paddingX:16px）：
+     a. <CharacterSeal character={character} size={72} /> 水平居中
+     b. 角色名：font-family 'ZCOOL XiaoWei','Cormorant Garamond',serif；16px；
+        color:--we-ink-primary；textAlign:center；marginTop:10px
+     c. 世界名（可选）：10px italic --we-ink-faded，textAlign:center，marginTop:3px
+     d. character 为 null 时显示"尚未选择角色"占位小字（ink-faded，italic，12px）
+
+   - 1px --we-gold-leaf 分隔线：borderTop:'1px solid var(--we-gold-leaf)'，marginX:20px
+
+   - 内容区（paddingX:14px，paddingBottom:20px，gap:0）各 StatusSection 顺序：
+     a. 角色状态区块：
+        <StatusSection
+          title="CURRENT STATE"
+          className="we-status-character"
+          rows={charState}
+          pinnedName={character?.name}
+          onReset={handleResetChar}
+          resetting={charResetting}
+        />
+     b. 玩家状态区块：
+        <StatusSection title="PLAYER" className="we-status-player"
+          rows={personaState} pinnedName={persona?.name}
+          onReset={handleResetPersona} resetting={personaResetting} />
+     c. 世界状态区块：
+        <StatusSection title="WORLD" className="we-status-world"
+          rows={worldState} onReset={handleResetWorld} resetting={worldResetting} />
+     d. 时间线区块（.we-timeline）：
+        区块标题同 StatusSection 样式，title="TIMELINE"
+        每条：flex row；左侧"·"（ink-faded）；正文 13px ink-secondary line-height 1.55
+        is_compressed=1 的条目：前缀「旧史·」+ 整体 opacity 0.45
+        最多显示 5 条（slice(0,5)）；空时"暂无记录"占位
+     e. 召回批注区块（.we-state-section）：
+        区块标题 title="RECALLED"
+        <MarginaliaList items={recalledItems} />
+        recalledItems 初始 []，T66 接入 SSE memory_recall_done 时填充
+
+   - 数据拉取（同 MemoryPanel 逻辑，直接移植）：
+     useEffect 分别拉 characterStateValues / personaStateValues / worldStateValues / worldTimeline(5)
+     deps 为 [characterId] / [worldId] / [worldId] / [worldId]
+     轮询：订阅 store.memoryRefreshTick，变化时重新拉取（直接复用 MemoryPanel 中的轮询逻辑）
+
+   - 重置 handlers：handleResetChar / handleResetPersona / handleResetWorld
+     （逻辑完全同 MemoryPanel，直接移植）
+
+5) frontend/src/index.css（追加）
+   /* StatePanel 状态区块 */
+   .we-state-section { padding: 14px 0 10px; }
+   .we-state-section + .we-state-section { border-top: 1px solid var(--we-paper-shadow); }
+   .we-state-section-title { display:flex; justify-content:space-between; align-items:center;
+     font-family:var(--we-font-display); font-size:11px; letter-spacing:0.28em;
+     text-transform:uppercase; color:var(--we-ink-faded);
+     border-bottom:1px solid var(--we-paper-shadow); padding-bottom:6px; margin-bottom:10px; }
+   .we-state-section-reset { font-family:var(--we-font-display); font-style:italic;
+     font-size:10px; color:var(--we-ink-faded); background:none; border:none; cursor:pointer;
+     padding:0; transition:color 0.15s; }
+   .we-state-section-reset:hover { color:var(--we-vermilion); }
+   /* 时间线 */
+   .we-timeline { padding:14px 0 10px; border-top:1px solid var(--we-paper-shadow); }
+   /* 召回批注 */
+   .we-marginalia-list { padding:14px 0 10px; border-top:1px solid var(--we-paper-shadow); }
+   .we-marginalia { position:relative; padding-left:10px; margin-bottom:12px; }
+   .we-marginalia::before { content:''; position:absolute; left:0; top:3px; bottom:3px;
+     width:1.5px; background:var(--we-vermilion); opacity:0.5; }
+   .we-marginalia-date { font-family:var(--we-font-serif); font-size:10px; font-style:italic;
+     color:var(--we-vermilion); margin-bottom:2px; opacity:0.9; }
+   .we-marginalia-text { font-family:var(--we-font-serif); font-size:11.5px; line-height:1.6;
+     color:var(--we-ink-faded); font-style:italic; }
+
+6) frontend/src/pages/ChatPage.jsx
+   - 移除 `import MemoryPanel from '../components/memory/MemoryPanel.jsx'`
+   - 移除 `const [rightOpen, setRightOpen] = useState(true)`
+   - 移除内联顶部栏中的"收起记忆面板"按钮（svg + onClick）
+   - 移除 `{rightOpen && character && (<div className="w-[300px] ..."><MemoryPanel .../></div>)}`
+   - 添加 `import StatePanel from '../components/book/StatePanel.jsx'`
+   - 在 `</PageRight>` 之后（`</BookSpread>` 之前）插入：
+     <StatePanel
+       character={character}
+       worldId={character?.world_id ?? null}
+       characterId={characterId}
+       persona={persona}
+     />
 
 约束：
 - 不改 @frontend/src/api/* 任何文件
 - 不改 @frontend/src/utils/avatar.js
-- 稳定类名（DESIGN §10.2）必须完整保留：we-status-character / we-status-field / we-status-bar / we-status-bar-fill / we-marginalia / we-marginalia-date / we-marginalia-text
-- 召回批注数据在本任务以"最近 session 的 recall hit 列表"形式占位；真实 SSE 绑定在 T66 完成
-- 若 character 无头像且 getAvatarColor 返回对象格式含 { bg, stroke }，印章 stroke 用 stroke 字段；无则默认 vermilion
+- 不改 @frontend/src/components/memory/MemoryPanel.jsx（保留文件，P8 清理）
+- 稳定类名必须完整：we-state-panel / we-state-panel-header / we-state-section /
+  we-state-section-title / we-state-section-reset / we-status-character / we-status-player /
+  we-status-world / we-status-field / we-status-bar / we-status-bar-fill /
+  we-timeline / we-marginalia-list / we-marginalia / we-marginalia-date / we-marginalia-text
+- 召回批注 recalledItems 本任务占位为 []，T66 接入 SSE 后填充真实数据
 ```
 
 **验证方法**：
-1. 切到左页 "角色状态" Tab，显示当前会话角色的印章、状态字段、召回记忆占位
-2. 印章：有头像的角色显示圆形头像 + 双线边框；无头像显示带角色名的 SVG 印章
-3. 状态栏：number 类型字段有进度条；list 类型字段用顿号分隔；boolean 类型字段显示是/否
-4. 切换会话/角色后 Tab 内容刷新对应数据
-5. devtools 能看到 `.we-status-character`、`.we-marginalia` 等稳定类名
-6. 未选择角色时显示占位文字，不报错
+1. ChatPage 右侧显示 280px 档案页（`--we-paper-aged` 底色，左侧书脊阴影）
+2. 头部：印章（有头像显示圆形头像，无头像显示 SVG 印章）+ 角色名 + 世界名
+3. 各层状态数据正确显示（角色 / 玩家 / 世界状态字段 + 进度条）
+4. 时间线显示最近 5 条，旧史条目半透明
+5. AI 回复完成后约 3 秒内状态自动轮询更新
+6. 三个重置按钮正常工作
+7. devtools 可见 `.we-state-panel`、`.we-status-character`、`.we-marginalia-list` 等类名
+8. 无 rightOpen 按钮、无 MemoryPanel 渲染
 
 ---
 
@@ -647,7 +732,7 @@
 - `frontend/src/components/ui/ModalShell.jsx` — 重写样式
 - `frontend/src/App.jsx` — 包 PageTransition
 - `frontend/src/pages/ChatPage.jsx` — 接入 SSE 召回事件
-- `frontend/src/components/book/MarginaliaList.jsx`（T64 新建）— 接收 SSE 返回的召回数据填充
+- `frontend/src/components/book/StatePanel.jsx`（T64 新建）— 通过 prop/context 接收 SSE 召回数据，填充 MarginaliaList
 
 **Claude Code 指令**：
 
@@ -690,12 +775,14 @@
      - 收到 type='memory_recall_done' 且 payload.hit = 0 → 直接 setRecallVisible(false)
      - memory_expand_done 后刷新 MarginaliaList 数据源
    - 在 PageRight 内（或 ChatPage 层面绝对定位）render <CandleFlame visible={recallVisible} />
-   - 将 recalledItems 通过 store（triggerMemoryRefresh）或 props 传给 MarginaliaList；最简实现：把 recalledItems 存 zustand 或 useContext 一个局部 provider；不得修改 store/index.js
+   - 将 recalledItems 通过 props 传给 StatePanel（ChatPage → StatePanel → MarginaliaList）
+     ChatPage 新增 prop: recalledItems={recalledItems} 传给 StatePanel
+   - StatePanel 将 recalledItems 向下传给 MarginaliaList
    - 若当前 memory_recall_done payload 无完整召回内容，先以 hit 数量作为占位数据（显示 N 条召回）
 
-6) frontend/src/components/book/MarginaliaList.jsx
-   - 在 T64 基础上，数据来源切换为上一步提到的 recalled items context/prop
-   - 数据为空时回退"暂无召回记忆"占位
+6) frontend/src/components/book/StatePanel.jsx（T64 已建）
+   - 新增 prop: recalledItems（默认 []）
+   - 将 recalledItems 传给内部 MarginaliaList
 
 约束：
 - 不改 @frontend/src/store/index.js
@@ -709,7 +796,7 @@
 1. WorldsPage → ChatPage 切换有整页淡入上移动画
 2. 打开任意 Modal（如新建会话对话框）：黑色墨水蒙版淡入，内容 scale 入场
 3. 发送消息时右页左上角出现摇曳蜡烛火焰 SVG
-4. 召回完成后蜡烛淡出；召回数据反映到左页 [角色状态] Tab 的召回批注区
+4. 召回完成后蜡烛淡出；召回数据反映到右侧 StatePanel 的 RECALLED 召回批注区（inkRise 淡入）
 5. 无召回命中（hit=0）时蜡烛正常淡出，不报错
 6. 路由切换期间 TopBar 不重渲染（无闪烁）
 

@@ -19,6 +19,21 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T64 — 右侧档案页 StatePanel：印章 + 全层状态 + 时间线 + 召回批注 ✅
+- **对外接口**：新建 `StatePanel`（`frontend/src/components/book/StatePanel.jsx`），props: `{ character, worldId, characterId, persona, recalledItems=[] }`；T66 通过 `recalledItems` prop 接入 SSE 召回数据填充 `MarginaliaList`
+- **涉及文件**：`CharacterSeal.jsx`（新建）、`StatusSection.jsx`（新建）、`MarginaliaList.jsx`（新建）、`StatePanel.jsx`（新建）、`ChatPage.jsx`（移除 MemoryPanel + rightOpen，插入 StatePanel）、`index.css`（追加 `.we-state-panel*`、`.we-status-*`、`.we-timeline`、`.we-marginalia*` 样式）
+- **注意**：`MemoryPanel.jsx` 保留不删（P8 清理）；StatePanel 以第三列挂在 `BookSpread` 内（`</PageRight>` 之后）；API 返回字段名为 `type`（非 `field_type`），StatusSection 兼容两者（`row.field_type ?? row.type`）；进度条依赖 `max_value` 字段，当前 DB 查询未返回该字段故进度条暂不显示（后续可在 DB queries 里追加 `csf.max_value` AS max_value 启用）；`recalledItems` 本任务占位为 `[]`，T66 接入 SSE `memory_recall_done` 后填充
+
+## T63 — 左页会话列表（无 Tab）+ 三栏布局接入 ✅
+- **对外接口**：新增 `SessionListPanel`（`frontend/src/components/book/SessionListPanel.jsx`），对外暴露两个静态方法 `SessionListPanel.updateTitle(sessionId, title)` / `SessionListPanel.addSession(session)`；`PageLeft` props 由 `children` 改为 `{ character, currentSessionId, onSessionSelect, onSessionCreate, onSessionDelete }`
+- **涉及文件**：`SessionListPanel.jsx`（新建）、`PageLeft.jsx`（重构）、`ChatPage.jsx`（移除 Sidebar，改接 PageLeft props + 更新静态方法引用）、`Sidebar.jsx`（加弃用注释）
+- **注意**：`Sidebar.jsx` 保留不删（P8 清理）；`ChatPage.jsx` 仍需 `import SessionListPanel` 以调用静态方法（`SessionListPanel.updateTitle` / `SessionListPanel.addSession`）——静态方法在组件挂载时由渲染闭包写入，ChatPage 调用前确保 SessionListPanel 已渲染；`PageLeftTabs.jsx` 未曾实际创建，T63 不处理
+
+## 设计重构：布局方案调整（三栏 + 档案侧页）✅
+- **对外接口**：无代码改动，仅文档更新
+- **涉及文件**：`DESIGN.md`（§5.1/§5.3/§5.4/新增§5.5/更新§6.1/§10.2/§12）、`ROADMAP.md`（T63/T64 重定义，T66 SSE 数据流更新）
+- **注意**：原 DESIGN §5.3 的左页双 Tab（[会话] | [角色状态]）方案废弃，改为三栏固定布局——左页 260px 纯会话列表 / 中页 flex:1 对话区 / 右侧档案页 280px StatePanel；StatePanel 取代旧 MemoryPanel，统一呈现角色印章 + 角色/玩家/世界三层状态 + 时间线 + 召回批注；`PageLeftTabs.jsx` 保留但废弃（P8 清理）；T63/T64 Claude Code 指令已同步更新
+
 ## T62 — 消息组件重构：稳定类名 + inkRise + Drop Cap + 流式光标 ✅
 - **对外接口**：新增 `StreamingCursor` 组件；`MessageItem` 新增 `isChapterFirstAssistant` prop；`MessageList` 外层加 `we-chat-area` 类
 - **涉及文件**：`frontend/src/styles/chat.css`（新建）、`frontend/src/components/chat/StreamingCursor.jsx`（新建）、`frontend/src/components/chat/MessageItem.jsx`（全面重写）、`frontend/src/components/chat/MessageList.jsx`（加 AnimatePresence + we-chat-area + isChapterFirstAssistant）、`frontend/src/main.jsx`（加 chat.css import）

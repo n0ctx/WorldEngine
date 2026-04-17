@@ -5,13 +5,13 @@ import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary, editAssistantMessage } from '../api/chat.js';
 import { createSession } from '../api/sessions.js';
-import Sidebar from '../components/chat/Sidebar.jsx';
+import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
-import MemoryPanel from '../components/memory/MemoryPanel.jsx';
 import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
+import StatePanel from '../components/book/StatePanel.jsx';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
@@ -28,7 +28,6 @@ export default function ChatPage() {
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
   const [expandedMessage, setExpandedMessage] = useState('');
-  const [rightOpen, setRightOpen] = useState(true);
   const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
   const [continuingMessageId, setContinuingMessageId] = useState(null);
@@ -177,8 +176,8 @@ export default function ChatPage() {
       },
       onTitleUpdated(title) {
         setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
-        if (Sidebar.updateTitle && currentSessionIdRef.current) {
-          Sidebar.updateTitle(currentSessionIdRef.current, title);
+        if (SessionListPanel.updateTitle && currentSessionIdRef.current) {
+          SessionListPanel.updateTitle(currentSessionIdRef.current, title);
         }
       },
       onMemoryRecallStart() {
@@ -214,7 +213,7 @@ export default function ChatPage() {
       if (!character) return;
       const newSession = await createSession(character.id);
       enterSession(newSession);
-      Sidebar.addSession(newSession);
+      SessionListPanel.addSession(newSession);
       sessionId = newSession.id;
     }
 
@@ -471,15 +470,13 @@ export default function ChatPage() {
       )}
 
       {/* 左页：会话列表 */}
-      <PageLeft>
-        <Sidebar
-          character={character}
-          currentSessionId={currentSessionId}
-          onSessionSelect={handleSessionSelect}
-          onSessionCreate={handleSessionCreate}
-          onSessionDelete={handleSessionDelete}
-        />
-      </PageLeft>
+      <PageLeft
+        character={character}
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+        onSessionCreate={handleSessionCreate}
+        onSessionDelete={handleSessionDelete}
+      />
 
       {/* 右页：对话区 + 记忆面板 */}
       <PageRight className="!p-0">
@@ -504,24 +501,6 @@ export default function ChatPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setRightOpen((o) => !o)}
-            className="p-1.5 rounded-lg text-text-secondary opacity-40 hover:opacity-80 hover:bg-sand transition-all"
-            title={rightOpen ? '收起记忆面板' : '展开记忆面板'}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              style={{ transform: rightOpen ? 'scaleX(1)' : 'scaleX(-1)', transition: 'transform 0.2s' }}
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="15" y1="3" x2="15" y2="21" />
             </svg>
           </button>
         </div>
@@ -603,14 +582,15 @@ export default function ChatPage() {
         />
       </div>
 
-          {/* 右栏：记忆面板（300px，可收起） */}
-          {rightOpen && character && (
-            <div className="w-[300px] flex-none border-l border-border flex flex-col overflow-hidden">
-              <MemoryPanel worldId={character.world_id} characterId={characterId} character={character} persona={persona} />
-            </div>
-          )}
         </div>
       </PageRight>
+
+      <StatePanel
+        character={character}
+        worldId={character?.world_id ?? null}
+        characterId={characterId}
+        persona={persona}
+      />
     </BookSpread>
   );
 }

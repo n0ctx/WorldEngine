@@ -1,5 +1,14 @@
 /* DESIGN.md §5.3 §8.2 */
-export default function PageLeft({ children, className = '' }) {
+import SessionListPanel from './SessionListPanel.jsx';
+
+export default function PageLeft({
+  character,
+  currentSessionId,
+  onSessionSelect,
+  onSessionCreate,
+  onSessionDelete,
+  className = '',
+}) {
   return (
     <div
       style={{
@@ -15,7 +24,13 @@ export default function PageLeft({ children, className = '' }) {
       }}
       className={className}
     >
-      {children}
+      <SessionListPanel
+        character={character}
+        currentSessionId={currentSessionId}
+        onSessionSelect={onSessionSelect}
+        onSessionCreate={onSessionCreate}
+        onSessionDelete={onSessionDelete}
+      />
       {/* 右侧书脊阴影 — DESIGN §8.2 */}
       <div
         style={{

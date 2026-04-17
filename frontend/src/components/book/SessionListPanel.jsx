@@ -1,19 +1,18 @@
-/* 已迁移至 components/book/SessionListPanel.jsx，待 P8 清理 */
+/* DESIGN.md §5.3 — 左页会话列表面板（无 Tab） */
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import SessionItem from './SessionItem.jsx';
+import SessionItem from '../chat/SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
 
 const PAGE_SIZE = 20;
 
-export default function Sidebar({
+export default function SessionListPanel({
   character,
   currentSessionId,
   onSessionSelect,
-  onSessionDelete,
   onSessionCreate,
-  onTitleUpdate,
+  onSessionDelete,
 }) {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -41,7 +40,7 @@ export default function Sidebar({
       .catch(console.error);
   }, [character?.id]);
 
-  // 加载更多（更旧的会话）
+  // 滚动到底部时加载更多
   async function loadMore() {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
@@ -55,22 +54,20 @@ export default function Sidebar({
     }
   }
 
-  // 滚动到底部时加载更多
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
-
     function handleScroll() {
       if (el.scrollHeight - el.scrollTop - el.clientHeight < 80 && hasMore && !loadingMore) {
         loadMore();
       }
     }
-
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [hasMore, loadingMore, offset]);
 
   async function handleCreateSession() {
+    if (!character) return;
     try {
       const session = await createSession(character.id);
       setSessions((prev) => [session, ...prev]);
@@ -101,7 +98,6 @@ export default function Sidebar({
   }
 
   async function handleSelect(session) {
-    // 刷新 session 获取最新 title
     try {
       const fresh = await getSession(session.id);
       setSessions((prev) => prev.map((s) => (s.id === fresh.id ? fresh : s)));
@@ -112,59 +108,139 @@ export default function Sidebar({
   }
 
   // 外部更新标题（SSE title_updated）
-  Sidebar.updateTitle = (sessionId, title) => {
+  SessionListPanel.updateTitle = (sessionId, title) => {
     setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
   };
 
   // 外部追加新会话（自动建会话时使用）
-  Sidebar.addSession = (session) => {
+  SessionListPanel.addSession = (session) => {
     setSessions((prev) => [session, ...prev]);
   };
 
   return (
-    <div className="we-sidebar flex flex-col h-full">
-      {/* 角色信息 */}
-      <div className="px-4 pt-4 pb-3 border-b border-border">
-        <div className="flex items-center gap-3">
+    <div className="we-session-list-panel flex flex-col h-full" style={{ fontFamily: 'var(--we-font-ui)' }}>
+      {/* 角色信息头 */}
+      <div
+        style={{
+          padding: '14px 14px 10px',
+          borderBottom: '1px solid var(--we-paper-shadow)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* 头像 */}
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-none overflow-hidden"
-            style={{ background: avatarColor }}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: avatarColor,
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+              overflow: 'hidden',
+            }}
           >
             {avatarUrl
-              ? <img src={avatarUrl} alt="" className="w-9 h-9 object-cover" />
+              ? <img src={avatarUrl} alt="" style={{ width: 36, height: 36, objectFit: 'cover' }} />
               : (character?.name?.[0] || '?')}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-text truncate">{character?.name || '…'}</p>
-          </div>
+
+          {/* 角色名 */}
+          <span
+            style={{
+              flex: 1,
+              fontSize: 13,
+              fontWeight: 600,
+              color: 'var(--we-ink-primary)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {character?.name || '…'}
+          </span>
+
+          {/* 返回世界按钮 */}
           <button
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
-            className="text-xs text-text-secondary opacity-60 hover:opacity-100 transition-opacity flex-none"
             title="切换角色"
+            style={{
+              padding: '4px',
+              borderRadius: 6,
+              color: 'var(--we-ink-faded)',
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+              opacity: 0.6,
+              transition: 'opacity 0.15s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
         </div>
 
-        {/* 新建对话 */}
+        {/* 新建会话 — 虚线按钮 */}
         <button
           onClick={handleCreateSession}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-border text-sm text-text-secondary hover:bg-sand hover:text-text transition-colors"
+          style={{
+            marginTop: 10,
+            width: '100%',
+            padding: '6px 0',
+            border: '1.5px dashed var(--we-paper-shadow)',
+            borderRadius: 6,
+            background: 'none',
+            cursor: 'pointer',
+            fontSize: 12,
+            color: 'var(--we-ink-faded)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 5,
+            transition: 'border-color 0.15s, color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'var(--we-vermilion)';
+            e.currentTarget.style.color = 'var(--we-vermilion)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'var(--we-paper-shadow)';
+            e.currentTarget.style.color = 'var(--we-ink-faded)';
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          新对话
+          新建会话
         </button>
       </div>
 
       {/* 会话列表 */}
-      <div ref={listRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+      <div
+        ref={listRef}
+        style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}
+      >
         {sessions.length === 0 && (
-          <p className="text-xs text-center opacity-40 py-6">暂无对话</p>
+          <p
+            style={{
+              fontSize: 12,
+              textAlign: 'center',
+              color: 'var(--we-ink-faded)',
+              opacity: 0.6,
+              padding: '24px 0',
+            }}
+          >
+            暂无对话
+          </p>
         )}
         {sessions.map((session) => (
           <SessionItem
@@ -177,7 +253,17 @@ export default function Sidebar({
           />
         ))}
         {loadingMore && (
-          <p className="text-xs text-center opacity-40 py-2">加载中…</p>
+          <p
+            style={{
+              fontSize: 11,
+              textAlign: 'center',
+              color: 'var(--we-ink-faded)',
+              opacity: 0.5,
+              padding: '8px 0',
+            }}
+          >
+            加载中…
+          </p>
         )}
       </div>
     </div>
