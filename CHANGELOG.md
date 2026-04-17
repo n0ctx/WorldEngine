@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T64 重打磨 — StatePanel 视觉与逻辑优化 ✅
+- **修复**：CURRENT STATE 不再重复显示角色名（头部已有）；`rows===null` 显示骨架屏、`rows===[]` 才显示"暂无数据"；RECALLED 区块 empty 时隐藏不占位；`we-marginalia-list` 去除内置 border-top（改由父级 `we-recalled-section` 负责分隔线）
+- **视觉**：字段行改用"key ··· value"点线引导格式；区块标题改为"label + 右延横线 + hover 才显重置"；金箔分隔线升级为 ✦ 装饰线；骨架屏加载动画；时间线条目朱砂小点区分新旧；进度条改为苔绿→金叶渐变
+- **涉及文件**：`CharacterSeal.jsx`、`StatusSection.jsx`、`MarginaliaList.jsx`、`StatePanel.jsx`、`index.css`（StatePanel 区块全量重写）
+
 ## T64 — 右侧档案页 StatePanel：印章 + 全层状态 + 时间线 + 召回批注 ✅
 - **对外接口**：新建 `StatePanel`（`frontend/src/components/book/StatePanel.jsx`），props: `{ character, worldId, characterId, persona, recalledItems=[] }`；T66 通过 `recalledItems` prop 接入 SSE 召回数据填充 `MarginaliaList`
 - **涉及文件**：`CharacterSeal.jsx`（新建）、`StatusSection.jsx`（新建）、`MarginaliaList.jsx`（新建）、`StatePanel.jsx`（新建）、`ChatPage.jsx`（移除 MemoryPanel + rightOpen，插入 StatePanel）、`index.css`（追加 `.we-state-panel*`、`.we-status-*`、`.we-timeline`、`.we-marginalia*` 样式）
