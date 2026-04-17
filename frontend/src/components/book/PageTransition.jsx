@@ -18,7 +18,8 @@ export default function PageTransition({ children }) {
       style={{
         flex: 1,
         minHeight: 0,
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
       }}
