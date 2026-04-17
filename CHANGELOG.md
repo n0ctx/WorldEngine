@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T61 — 顶部导航栏 TopBar + 路由挂载 ✅
+- **对外接口**：新增 `TopBar` 组件 `frontend/src/components/book/TopBar.jsx`；所有页面共享，挂载于 App 根
+- **涉及文件**：`TopBar.jsx`（新建）、`frontend/src/App.jsx`（根容器改为 `h-screen flex-col bg-book-bg`，挂载 TopBar）、`frontend/src/components/book/BookSpread.jsx`（去掉大 padding，改为 `height:100%` 铺满 Routes 区域，侧边仅保留 12px 细边）
+- **注意**：TopBar 从 pathname 派生 worldId/characterId（正则匹配），不依赖 store——聊天页 URL 不含 worldId，故"选择世界"在聊天页显示占位（设计限制，T61 约束内）；ChatPage 内原有设置/收起按钮保留（T62 会清理）；BookSpread 书本顶部 border-radius 改为 `0 0 2px 2px`（顶部与 TopBar 齐平，无圆角）
+
 ## T60 — 双页书本骨架：BookSpread / PageLeft / PageRight / 噪点 / 书签 ✅
 - **对外接口**：新增 `BookSpread` `PageLeft` `PageRight` `ParchmentTexture` `Bookmark` 五个组件，路径 `frontend/src/components/book/`
 - **涉及文件**：上述五个新建组件；`frontend/src/pages/ChatPage.jsx`（外层容器改为 BookSpread + PageLeft + PageRight，Sidebar 移入 PageLeft，对话区 + 记忆面板移入 PageRight）
