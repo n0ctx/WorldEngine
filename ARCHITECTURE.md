@@ -153,7 +153,7 @@ POST /api/sessions/:sessionId/chat
 | [11] | `renderTimeline(world.id)` | 无时间线条目时跳过 |
 | [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries` | 无命中时跳过 |
 | [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
-| [14] | 历史消息：**有 turn records** → 取最近 `context_history_rounds` 条，每条渲染为 user/assistant 对；**无 turn records（旧 session）** → 降级用 `getUncompressedMessagesBySessionId` 去除最后一条 user 消息；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
+| [14] | 历史消息：**有 turn records** → 取最近 `context_history_rounds` 条，每条渲染为 user/assistant 对；**无 turn records（旧 session）** → 降级用 `getUncompressedMessagesBySessionId`，仅移除“最新一条 user 消息”并保留 assistant 开场白；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
 | [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理 | — |
 

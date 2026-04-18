@@ -96,6 +96,12 @@ function formatMessageForLLM(msg) {
   return { role: msg.role, content: contentParts };
 }
 
+function omitLatestUserMessage(history) {
+  const lastUserIndex = history.findLastIndex((msg) => msg.role === 'user');
+  if (lastUserIndex === -1) return history;
+  return history.filter((_, index) => index !== lastUserIndex);
+}
+
 // ─── 核心函数 ─────────────────────────────────────────────────────
 
 /**
@@ -227,9 +233,9 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   } else {
     // 降级路径：session 尚无任何 turn record，用旧的 uncompressed messages
-    // 去掉最后一条 user 消息（将在 [16] 单独追加）
+    // 去掉最新一条 user 消息（将在 [16] 单独追加）；若当前还没有 user，保留 assistant 开场白
     const history = getUncompressedMessagesBySessionId(sessionId);
-    const withoutLastUser = history.slice(0, history.length - 1);
+    const withoutLastUser = omitLatestUserMessage(history);
     for (const msg of withoutLastUser) {
       const content = applyRules(msg.content, 'prompt_only', world.id);
       messages.push(formatMessageForLLM({ ...msg, content }));
@@ -378,7 +384,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   } else {
     // 降级路径：session 尚无任何 turn record
-    const withoutLastUser = allHistory.slice(0, allHistory.length - 1);
+    const withoutLastUser = omitLatestUserMessage(allHistory);
     for (const msg of withoutLastUser) {
       const content = applyRules(msg.content, 'prompt_only', world.id);
       messages.push(formatMessageForLLM({ ...msg, content }));

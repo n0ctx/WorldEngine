@@ -118,7 +118,7 @@ export default function RegexRulesManager() {
       {SCOPE_ORDER.map((scope) => (
         <div key={scope}>
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-sm font-medium text-text">{SCOPE_LABELS[scope]}</span>
+            <span className="we-edit-label" style={{ margin: 0 }}>{SCOPE_LABELS[scope]}</span>
             <span className="text-xs text-text-secondary opacity-40">
               {scope === 'user_input' && '— 前端发送前，影响存库与 LLM'}
               {scope === 'ai_output' && '— 后端流式完结后，影响存库与显示'}

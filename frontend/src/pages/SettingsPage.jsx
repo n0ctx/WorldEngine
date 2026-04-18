@@ -43,7 +43,6 @@ const NAV_SECTIONS = [
   { key: 'prompt', label: '全局 Prompt' },
   { key: 'css', label: '自定义 CSS' },
   { key: 'regex', label: '正则规则' },
-  { key: 'entries', label: '全局 Prompt 条目' },
   { key: 'about', label: '关于' },
 ];
 
@@ -325,6 +324,9 @@ function PromptSection({
         </div>
       </div>
 
+      <p className="we-edit-label">全局 Prompt 条目</p>
+      <EntryList type="global" />
+
       <hr className="we-settings-divider" />
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
@@ -604,12 +606,6 @@ export default function SettingsPage() {
             <div className="we-settings-section">
               <h2 className="we-settings-section-title">正则规则</h2>
               <RegexRulesManager />
-            </div>
-          )}
-          {activeSection === 'entries' && (
-            <div className="we-settings-section">
-              <h2 className="we-settings-section-title">全局 Prompt 条目</h2>
-              <EntryList type="global" />
             </div>
           )}
           {activeSection === 'about' && (

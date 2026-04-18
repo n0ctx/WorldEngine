@@ -87,8 +87,7 @@ export default function EntryList({ type, scopeId }) {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-text">Prompt 条目</h3>
+      <div className="flex justify-end mb-3">
         <button
           onClick={openCreate}
           className="text-xs px-3 py-1.5 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"

@@ -19,6 +19,16 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T83 — 修复 impersonate 新 session 丢失开场白上下文 ✅
+- **对外接口**：无新增接口；`buildPrompt` / `buildWritingPrompt` 在无 turn record 的降级路径里，改为仅移除“最新一条 user 消息”，不再盲目裁掉数组最后一项
+- **涉及文件**：`backend/prompt/assembler.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：这个修复直接影响 `/impersonate` 的首轮取上下文；此前新 session 若只有 assistant 开场白、还没有 user 消息，降级路径会误删开场白，导致代拟内容只能参考 system prompt 和跨 session 召回记忆
+
+## T82 — 将全局 Prompt 条目整合到全局 Prompt 设置页 ✅
+- **对外接口**：无变更；纯 UI 重组
+- **涉及文件**：`frontend/src/pages/SettingsPage.jsx`
+- **注意**：导航从 6 项减为 5 项（移除独立的"全局 Prompt 条目"）；EntryList 嵌入 PromptSection，位于全局后置提示词之后，由 hr 与下方记忆展开/保存区隔开；EntryList 独立保存，与"保存"按钮互不干扰
+
 ## T81 — 统一测试/临时文件目录并清理仓库残留 ✅
 - **对外接口**：无运行时接口变更；`CLAUDE.md` 与 `AGENTS.md` 新增同一条仓库约束：所有测试文件、测试目录、临时文件、临时目录统一放到项目根目录 `/.temp/`
 - **涉及文件**：`CLAUDE.md`、`AGENTS.md`、`CHANGELOG.md`；新建根目录 `/.temp/`（含 `.gitkeep` 以便 Git 跟踪）；删除 `backend/tests/` 和仓库内残留 `.DS_Store`
