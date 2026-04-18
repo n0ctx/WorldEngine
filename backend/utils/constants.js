@@ -41,6 +41,11 @@ export const WORLD_TIMELINE_COMPRESS_THRESHOLD = 50;
 export const WORLD_TIMELINE_MAX_ENTRIES = 200;
 
 // ============================
+// 消息查询
+// ============================
+export const ALL_MESSAGES_LIMIT = 9999;
+
+// ============================
 // 附件
 // ============================
 export const MAX_ATTACHMENTS_PER_MESSAGE = 3;

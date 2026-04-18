@@ -19,6 +19,7 @@ import {
   PROMPT_ENTRY_SCAN_WINDOW,
   PROMPT_ENTRY_SIMILARITY_THRESHOLD,
   PROMPT_ENTRY_TOP_K,
+  ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
 
 /**
@@ -32,7 +33,7 @@ export async function matchEntries(sessionId, entries) {
   if (!entries || entries.length === 0) return new Set();
 
   // 取最近 PROMPT_ENTRY_SCAN_WINDOW 条消息，拼成扫描文本
-  const allMessages = getMessagesBySessionId(sessionId, 9999, 0);
+  const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const recentMessages = allMessages.slice(-PROMPT_ENTRY_SCAN_WINDOW);
   const scanText = recentMessages.map((m) => m.content).join('\n');
 

@@ -19,7 +19,7 @@ import { getAllCharacterStateValues, upsertCharacterStateValue } from '../db/que
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { getAllPersonaStateValues, upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
 
-import { PROMPT_ENTRY_SCAN_WINDOW } from '../utils/constants.js';
+import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('all-state');
@@ -35,7 +35,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const sid = sessionId.slice(0, 8);
   const world = worldId ? getWorldById(worldId) : null;
 
-  const messages = getMessagesBySessionId(sessionId, 9999, 0);
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;
 
   // 近期文本用于 keyword_based 触发判断
@@ -190,7 +190,9 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   let patch;
   try {
-    const match = raw.match(/\{[\s\S]*\}/);
+    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
+    const match = jsonSource.match(/\{[\s\S]*\}/);
     if (!match) return;
     patch = JSON.parse(match[0]);
   } catch {
