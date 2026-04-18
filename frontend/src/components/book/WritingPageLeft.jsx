@@ -13,8 +13,9 @@ export default function WritingPageLeft({
   return (
     <div
       style={{
-        width: '260px',
-        flexShrink: 0,
+        flex: '0 0 18%',
+        minWidth: '240px',
+        maxWidth: '320px',
         background: 'var(--we-paper-aged)',
         display: 'flex',
         flexDirection: 'column',

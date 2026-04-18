@@ -151,8 +151,9 @@ export default function StatePanel({ character, worldId, characterId, persona, r
     <div
       className="we-state-panel"
       style={{
-        width: 340,
-        flexShrink: 0,
+        flex: '0 0 22%',
+        minWidth: '300px',
+        maxWidth: '420px',
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',

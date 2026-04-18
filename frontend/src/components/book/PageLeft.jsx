@@ -12,13 +12,14 @@ export default function PageLeft({
   return (
     <div
       style={{
-        width: '260px',
-        flexShrink: 0,
+        flex: '0 0 18%',
+        minWidth: '240px',
+        maxWidth: '320px',
         background: 'var(--we-paper-aged)',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative',
-        borderRadius: 'var(--we-radius-sm) 0 0 var(--we-radius-sm)',
+        borderRadius: '0 0 0 var(--we-radius-sm)',
         overflow: 'hidden',
         minHeight: 0,
         borderRight: '1px solid var(--we-paper-shadow)',

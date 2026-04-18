@@ -62,6 +62,12 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
+    if (dropdownOpen) {
+      getWorlds().then(setWorlds).catch(() => {});
+    }
+  }, [dropdownOpen]);
+
+  useEffect(() => {
     if (worldId) {
       setCurrentWorldId(worldId);
     }
