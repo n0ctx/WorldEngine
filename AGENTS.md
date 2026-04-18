@@ -9,6 +9,7 @@
 - **及时止损**：多次尝试失败或上下文逼近极限时，主动停止并告知用户
 - **及时留痕**：完成一个任务并验收后，CHANGELOG.md 追加一条记录。
 - **及时更新**：执行任何任务后，必须及时更新 `CLAUDE.md` `SCHEMA.md` `ARCHITECTURE.md` `CHANGELOG.md` (如果涉及)；
+- **测试/临时文件归档**：所有测试文件、测试目录、临时文件、临时目录统一放在项目根目录 `/.temp/`；仓库其他位置禁止新增或保留此类内容
 
 ---
 
@@ -160,7 +161,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 <claude-mem-context>
 # Memory Context
 
-# $CMEM WorldEngine 2026-04-18 11:10pm GMT+8
+# $CMEM WorldEngine 2026-04-18 11:47pm GMT+8
 
 No previous sessions found.
 </claude-mem-context>

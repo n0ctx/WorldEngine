@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T81 — 统一测试/临时文件目录并清理仓库残留 ✅
+- **对外接口**：无运行时接口变更；`CLAUDE.md` 与 `AGENTS.md` 新增同一条仓库约束：所有测试文件、测试目录、临时文件、临时目录统一放到项目根目录 `/.temp/`
+- **涉及文件**：`CLAUDE.md`、`AGENTS.md`、`CHANGELOG.md`；新建根目录 `/.temp/`（含 `.gitkeep` 以便 Git 跟踪）；删除 `backend/tests/` 和仓库内残留 `.DS_Store`
+- **注意**：本次清理只删除项目源码树中的测试/临时内容，不处理 `node_modules`、`.git` 等依赖或元数据目录；根目录 `.temp/` 作为后续统一落点，由 `.gitkeep` 保持目录存在
+
 ## T80 — 修复写作空间流式结束闪烁回归 ✅
 - **对外接口**：无新增接口；`MessageList` prose 模式渲染逻辑内部调整
 - **涉及文件**：`frontend/src/components/chat/MessageList.jsx`
