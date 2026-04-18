@@ -263,10 +263,13 @@ router.post('/:sessionId/continue', async (req, res) => {
   }
 
   let mergedAssistant = null;
+  let mergedContent = '';
   if (newContent) {
-    // ai_output scope 仅作用于新生成的内容
-    const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId);
-    const mergedContent = originalContent + processedNew;
+    // ai_output scope 仅作用于新生成的内容；再剥除末尾状态块
+    const processedNew = aborted
+      ? newContent
+      : stripAsstContext(applyRules(newContent, 'ai_output', worldId));
+    mergedContent = originalContent + processedNew;
     updateMessageContent(lastAssistant.id, mergedContent);
     mergedAssistant = { ...lastAssistant, content: mergedContent };
     touchSession(sessionId);

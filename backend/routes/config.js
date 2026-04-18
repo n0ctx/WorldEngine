@@ -52,8 +52,12 @@ router.put('/apikey', (req, res) => {
   if (typeof api_key !== 'string') {
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
-  updateConfig({ llm: { api_key } });
-  res.json({ success: true });
+  try {
+    updateConfig({ llm: { api_key } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: `保存失败：${err.message}` });
+  }
 });
 
 // PUT /api/config/embedding-apikey — 只更新 embedding.api_key
@@ -62,8 +66,12 @@ router.put('/embedding-apikey', (req, res) => {
   if (typeof api_key !== 'string') {
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
-  updateConfig({ embedding: { api_key } });
-  res.json({ success: true });
+  try {
+    updateConfig({ embedding: { api_key } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: `保存失败：${err.message}` });
+  }
 });
 
 // ============================================================

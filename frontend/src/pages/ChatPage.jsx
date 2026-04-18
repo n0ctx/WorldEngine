@@ -383,15 +383,9 @@ export default function ChatPage() {
   function handleContinue() {
     if (generating || !currentSessionId) return;
 
-    // 找最后一条 assistant 消息 id
-    let lastAssistantId = null;
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
-        const last = [...prev].reverse().find((m) => m.role === 'assistant');
-        if (last) lastAssistantId = last.id;
-        return prev;
-      });
-    }
+    const msgs = MessageList.messagesRef?.current ?? [];
+    const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant');
+    const lastAssistantId = lastAssistant?.id ?? null;
     if (!lastAssistantId) return;
 
     continuingMessageIdRef.current = lastAssistantId;
@@ -472,6 +466,7 @@ export default function ChatPage() {
   // 错误后重试：从最后一条 user 消息重新生成
   function handleRetryAfterError() {
     if (generating || !currentSessionId) return;
+
     setErrorBubble(null);
     streamingTextRef.current = '';
 

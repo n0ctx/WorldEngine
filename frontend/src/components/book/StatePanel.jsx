@@ -225,6 +225,7 @@ export default function StatePanel({ character, worldId, characterId, persona, r
           title="CHARACTER"
           className="we-status-character"
           rows={charState}
+          pinnedName={character?.name}
           onReset={handleResetChar}
           resetting={charResetting}
         />

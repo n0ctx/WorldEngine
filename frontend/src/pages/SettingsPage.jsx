@@ -164,7 +164,7 @@ function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlCh
         <div className="we-edit-form-group">
           <FieldLabel>模型</FieldLabel>
           <ModelSelector
-            key={config.provider + (config.base_url || '') + (config.api_key || '')}
+            key={config.provider + (config.base_url || '') + (config.has_key ? '1' : '0')}
             value={config.model || ''}
             onChange={onModelChange}
             loadModels={loadModels}
