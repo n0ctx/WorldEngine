@@ -481,3 +481,99 @@
   gap: 4px;
   height: 24px;
 }
+
+/* ── Chapter grouping ──────────────────────────────────── */
+
+.we-chapter {
+  margin-bottom: 8px;
+}
+
+.we-chapter-header {
+  text-align: center;
+  padding: 24px 0 0;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.we-chapter-header--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.we-chapter-num {
+  font-family: var(--we-font-display);
+  font-size: 11px;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--we-ink-faded);
+  margin-bottom: 4px;
+}
+
+.we-chapter-title {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--we-text-lg);
+  color: var(--we-ink-primary);
+  margin: 0 0 10px;
+}
+
+.we-chapter-fleuron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--we-gold-leaf);
+  font-size: 16px;
+  margin-bottom: 20px;
+}
+
+.we-chapter-fleuron-line {
+  flex: 1;
+  max-width: 120px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--we-gold-leaf), transparent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s;
+}
+
+.we-chapter-header--visible .we-chapter-fleuron-line {
+  transform: scaleX(1);
+}
+
+/* ── FleuronLine (lightweight scene divider) ───────────── */
+
+.we-chapter-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.we-fleuron--visible {
+  opacity: 1;
+}
+
+.we-fleuron-line {
+  flex: 1;
+  height: 1px;
+  background: var(--we-paper-shadow);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s;
+}
+
+.we-fleuron--visible .we-fleuron-line {
+  transform: scaleX(1);
+}
+
+.we-fleuron-symbol {
+  color: var(--we-paper-deep);
+  font-size: 14px;
+  flex-shrink: 0;
+}

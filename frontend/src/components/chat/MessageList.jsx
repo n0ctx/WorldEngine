@@ -1,8 +1,10 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import WritingMessageItem from '../writing/WritingMessageItem.jsx';
 import { getMessages } from '../../api/sessions.js';
+import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
+import ChapterDivider from '../book/ChapterDivider.jsx';
 
 const NOOP = () => {};
 
@@ -10,6 +12,7 @@ const PAGE_SIZE = 50;
 
 export default function MessageList({
   sessionId,
+  sessionTitle = '',
   character,
   persona,
   worldId,
@@ -119,6 +122,11 @@ export default function MessageList({
   // 外部同步读取当前消息列表（避免在 updater 闭包中读取异步状态）
   MessageList.messagesRef = messagesRef;
 
+  const chapters = useMemo(
+    () => groupMessagesIntoChapters(messages, sessionTitle),
+    [messages, sessionTitle]
+  );
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-text-secondary opacity-50 text-sm">
@@ -180,52 +188,101 @@ export default function MessageList({
 
       {prose ? (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 24px' }}>
-          {(generating && !continuingMessageId
-            ? [...messages, { _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }]
-            : messages
-          ).map((msg) => {
-            const isContinuing = !msg._isStream && continuingMessageId && msg.id === continuingMessageId;
-            const isStream = !!msg._isStream;
-            const displayMsg = isContinuing ? { ...msg, content: msg.content + continuingText } : msg;
+          {chapters.map((chapter, cIdx) => {
+            const isLast = cIdx === chapters.length - 1;
             return (
-              <WritingMessageItem
-                key={msg._key ?? msg.id}
-                message={displayMsg}
-                isStreaming={isContinuing || isStream}
-                persona={persona}
-                onEdit={isStream ? undefined : onEditMessage}
-                onRegenerate={isStream ? undefined : onRegenerateMessage}
-                onEditAssistant={isStream ? undefined : onEditAssistantMessage}
-              />
+              <div key={chapter.chapterIndex} className="we-chapter">
+                <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
+                {chapter.messages.map((msg) => {
+                  const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+                  const displayMsg = isContinuing ? { ...msg, content: msg.content + continuingText } : msg;
+                  return (
+                    <WritingMessageItem
+                      key={msg._key ?? msg.id}
+                      message={displayMsg}
+                      isStreaming={isContinuing}
+                      persona={persona}
+                      onEdit={onEditMessage}
+                      onRegenerate={onRegenerateMessage}
+                      onEditAssistant={onEditAssistantMessage}
+                    />
+                  );
+                })}
+                {isLast && generating && !continuingMessageId && (
+                  <WritingMessageItem
+                    key={streamingKey || '__streaming__'}
+                    message={{ _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }}
+                    isStreaming={true}
+                    persona={persona}
+                    onEdit={undefined}
+                    onRegenerate={undefined}
+                    onEditAssistant={undefined}
+                  />
+                )}
+              </div>
             );
           })}
+          {chapters.length === 0 && generating && !continuingMessageId && (
+            <WritingMessageItem
+              key={streamingKey || '__streaming__'}
+              message={{ _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }}
+              isStreaming={true}
+              persona={persona}
+              onEdit={undefined}
+              onRegenerate={undefined}
+              onEditAssistant={undefined}
+            />
+          )}
         </div>
       ) : (
         <div>
-          <AnimatePresence mode="popLayout">
-            {messages.map((msg) => {
-              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-              const displayMsg = isContinuing
-                ? { ...msg, content: msg.content + continuingText }
-                : msg;
-              return (
-                <MessageItem
-                  key={msg._key ?? msg.id}
-                  message={displayMsg}
-                  character={character}
-                  persona={persona}
-                  worldId={worldId}
-                  isStreaming={isContinuing}
-                  streamingText={isContinuing ? displayMsg.content : undefined}
-                  onEdit={onEditMessage}
-                  onRegenerate={onRegenerateMessage}
-                  onEditAssistant={onEditAssistantMessage}
-                />
-              );
-            })}
-
-            {/* 流式响应（仅新消息，续写时不显示） */}
-            {generating && !continuingMessageId && (
+          {chapters.map((chapter, cIdx) => {
+            const isLast = cIdx === chapters.length - 1;
+            return (
+              <div key={chapter.chapterIndex} className="we-chapter">
+                <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
+                <AnimatePresence mode="popLayout">
+                  {chapter.messages.map((msg) => {
+                    const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+                    const displayMsg = isContinuing
+                      ? { ...msg, content: msg.content + continuingText }
+                      : msg;
+                    return (
+                      <MessageItem
+                        key={msg._key ?? msg.id}
+                        message={displayMsg}
+                        character={character}
+                        persona={persona}
+                        worldId={worldId}
+                        isStreaming={isContinuing}
+                        streamingText={isContinuing ? displayMsg.content : undefined}
+                        onEdit={onEditMessage}
+                        onRegenerate={onRegenerateMessage}
+                        onEditAssistant={onEditAssistantMessage}
+                      />
+                    );
+                  })}
+                  {/* 流式响应（仅新消息，续写时不显示） */}
+                  {isLast && generating && !continuingMessageId && (
+                    <MessageItem
+                      key={streamingKey || '__streaming__'}
+                      message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
+                      character={character}
+                      worldId={worldId}
+                      isStreaming={true}
+                      streamingText={streamingText}
+                      onEdit={NOOP}
+                      onRegenerate={NOOP}
+                      onEditAssistant={NOOP}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+          {/* 无消息时 streaming fallback */}
+          {chapters.length === 0 && generating && !continuingMessageId && (
+            <AnimatePresence mode="popLayout">
               <MessageItem
                 key={streamingKey || '__streaming__'}
                 message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
@@ -237,8 +294,8 @@ export default function MessageList({
                 onRegenerate={NOOP}
                 onEditAssistant={NOOP}
               />
-            )}
-          </AnimatePresence>
+            </AnimatePresence>
+          )}
         </div>
       )}
 
