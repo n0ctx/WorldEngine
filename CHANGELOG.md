@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T79 — 文档同步 + SectionTabs 布局修正 ✅
+- **对外接口**：无新增运行时接口；`SCHEMA.md` / `ARCHITECTURE.md` 现已与当前实现对齐，可作为会话模型、turn record、召回阈值、路由映射与中间件行为的最新权威参考
+- **涉及文件**：`SCHEMA.md`、`ARCHITECTURE.md`、`CHANGELOG.md`、`frontend/src/styles/pages.css`
+- **注意**：`SCHEMA.md` 和 `ARCHITECTURE.md` 被 `.gitignore` 忽略，提交时需显式强制 add；chat session 的 `sessions.world_id` 仍通常为 `NULL`，不要按文档旧版本假设其恒非空；`turn_records.user_context/asst_context` 当前保存的是 `{{user}}` / `{{char}}` 前缀的纯对话文本，不再含状态快照；`pages.css` 中 `.we-section-tabs` 现补 `width: 100%`，分隔花饰改为固定宽度居中，避免标签行宽度和垂直对齐异常
+
 ## T78 — 羊皮纸物理质感阴影系统 + 调试日志 start 修复 ✅
 - **对外接口**：新增 CSS 变量 `--we-shadow-stamp-up / stamp-down / paper-stack / paper-stack-hover / paper-lift / paper-indent`（定义于 `tokens.css`）；`ParchmentTexture` 新增 fiber 纹理层（内部 SVG feTurbulence），opacity prop 默认值不变
 - **涉及文件**：`tokens.css`（6 个物理阴影变量）、`pages.css`（世界卡/角色卡阴影改用变量）、`BookSpread.jsx`（多层书本阴影 + ParchmentTexture opacity=0.55）、`ParchmentTexture.jsx`（新增 fiber 纤维层叠加）、`backend/package.json`（`start` 脚本补 `LOG_LEVEL=debug`）、`启动WorldEngine.bat / .command`（补 `LOG_LEVEL=debug`）

@@ -712,6 +712,10 @@
 
 /* ── SectionTabs ── */
 
+.we-section-tabs {
+  width: 100%;
+}
+
 .we-section-tabs-bar {
   display: flex;
   flex-wrap: wrap;
@@ -757,11 +761,13 @@
 .we-section-tabs-sep-fleuron {
   font-size: 14px;
   color: var(--we-gold-leaf);
-  line-height: 0;
+  line-height: 1;
   flex-shrink: 0;
+  width: 24px;
+  text-align: center;
   display: inline-flex;
   align-items: center;
-  height: 14px;
+  justify-content: center;
 }
 
 /* ── Persona 抽屉 ── */
