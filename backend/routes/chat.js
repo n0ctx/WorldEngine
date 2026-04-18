@@ -21,6 +21,8 @@ import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
+import { createLogger } from '../utils/logger.js';
+import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import {
   beginStreamSession,
   buildContinuationMessages,
@@ -29,6 +31,7 @@ import {
 import { stripAsstContext } from '../utils/turn-dialogue.js';
 
 const router = Router();
+const log = createLogger('chat');
 
 /**
  * 执行流式生成（chat 和 regenerate 共用）
@@ -114,7 +117,7 @@ async function runStream(sessionId, res, opts = {}) {
 
   // 正常完成且有内容时，入队异步任务
   if (!aborted && fullContent) {
-    const msgs = getMessagesBySessionId(sessionId, 9999, 0);
+    const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
@@ -125,19 +128,19 @@ async function runStream(sessionId, res, opts = {}) {
           .then((title) => {
             if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
           })
-          .catch(() => {})
+          .catch(err => log.warn('后台任务失败:', err.message))
           .finally(() => {
             if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
-        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
+        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
         return; // 等待标题生成后再关闭连接
       }
 
       // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
-      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(() => {});
+      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
     }
   }
 
@@ -195,7 +198,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   await deleteMessagesAfter(afterMessageId);
 
   // 删除多余的 turn records：计算剩余 user 消息数=当前轮编号 R，保留 1..R-1
-  const remaining = getMessagesBySessionId(sessionId, 9999, 0);
+  const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
 
@@ -214,7 +217,7 @@ router.post('/:sessionId/continue', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   // 找最后一条 assistant 消息
-  const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
   if (!lastAssistant) {
     return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
@@ -285,7 +288,7 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   // 正常完成且有内容时，入队异步任务
   if (!aborted && newContent) {
-    const msgs = getMessagesBySessionId(sessionId, 9999, 0);
+    const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
@@ -294,21 +297,21 @@ router.post('/:sessionId/continue', async (req, res) => {
           .then((title) => {
             if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
           })
-          .catch(() => {})
+          .catch(err => log.warn('后台任务失败:', err.message))
           .finally(() => {
             if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
+        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
         // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
-        enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+        enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
         return;
       }
 
       // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
+      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
       // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
-      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
     }
   }
 
@@ -392,17 +395,17 @@ router.post('/:sessionId/edit-assistant', async (req, res) => {
 
   // 仅在编辑当前最后一条 assistant 消息时，重跑状态更新，
   // 避免编辑历史 AI 消息时直接改写当前状态。
-  const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
   if (lastAssistant?.id === messageId) {
     const characterId = session.character_id;
     const character = characterId ? getCharacterById(characterId) : null;
     const worldId = character?.world_id ?? null;
-    enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(() => {});
+    enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
   }
 
   // 重新生成最后一条 turn record（覆盖）
-  enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(() => {});
+  enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
 
   res.json({ success: true });
 });

@@ -41,7 +41,9 @@ export function beginStreamSession(sessionId, res, activeStreams) {
   };
 }
 
-export function buildContinuationMessages(messages, allMessages, hasTurnRecords, originalContent) {
+export function buildContinuationMessages(rawMessages, allMessages, hasTurnRecords, originalContent) {
+  const messages = [...rawMessages];
+
   while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
     messages.pop();
   }

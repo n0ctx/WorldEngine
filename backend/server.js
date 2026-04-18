@@ -44,6 +44,8 @@ function isLocalAddress(address) {
 }
 
 function isAllowedOrigin(origin) {
+  // origin 为空（curl/Postman）或 'null'（file:// 协议 / Electron）均允许；
+  // 实际安全防护由 localOnly 中间件通过 remoteAddress 把守
   if (!origin || origin === 'null') {
     return true;
   }

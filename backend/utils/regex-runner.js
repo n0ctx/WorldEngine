@@ -27,6 +27,10 @@ export function applyRules(text, scope, worldId) {
   }
 
   for (const rule of rules) {
+    if (rule.pattern.length > 500) {
+      console.warn(`[regex-runner] 规则 "${rule.name}" (id=${rule.id}) pattern 超长（${rule.pattern.length} 字符），已跳过`);
+      continue;
+    }
     try {
       const re = new RegExp(rule.pattern, rule.flags);
       result = result.replace(re, rule.replacement);

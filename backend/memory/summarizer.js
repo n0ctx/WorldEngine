@@ -4,6 +4,7 @@
 
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions.js';
+import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { upsertSummary } from '../db/queries/session-summaries.js';
 import { createLogger } from '../utils/logger.js';
 
@@ -18,7 +19,7 @@ export async function generateSummary(sessionId) {
   const sid = sessionId.slice(0, 8);
   log.debug(`generateSummary START  session=${sid}`);
 
-  const messages = getMessagesBySessionId(sessionId, 9999, 0);
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)

@@ -15,6 +15,7 @@ import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordB
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger } from '../utils/logger.js';
+import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 
 const log = createLogger('turn-sum');
 
@@ -35,7 +36,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   const worldId = character?.world_id ?? session.world_id;
 
   // 取全部消息，找最后一条 user + 最后一条 assistant
-  const allMsgs = getMessagesBySessionId(sessionId, 9999, 0);
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const userMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
   const asstMsg = [...allMsgs].reverse().find((m) => m.role === 'assistant');
 
@@ -95,7 +96,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
 
   // 异步触发 embedding（不阻塞）
   if (record && worldId) {
-    embedTurnRecord(record.id, sessionId, worldId).catch(() => {});
+    embedTurnRecord(record.id, sessionId, worldId).catch(err => log.warn('embed turn record 失败:', err.message));
   }
 }
 
