@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T87 — 导入导出按对话/写作模式分离 ✅
+- **对外接口**：`GET /api/global-settings/export?mode=chat|writing`（按 mode 过滤导出，文件顶层带 `mode` 字段）；`POST /api/global-settings/import`（从 `data.mode` 推断目标模式，缺失时默认 `chat`），返回 `{ ok: true, mode }`
+- **涉及文件**：`backend/services/import-export.js`、`backend/routes/import-export.js`、`frontend/src/api/importExport.js`、`frontend/src/pages/SettingsPage.jsx`（ImportExportSection 加 ModeSwitch）
+- **注意**：导出文件名为 `worldengine-global-settings-{mode}.weglobal.json`；导入只清空/覆盖对应 mode 的三张表记录，另一空间数据不受影响；旧版无 mode 字段的文件导入时自动按 chat 处理（向后兼容）
+
 ## T86 — 全局设置双模式分离（对话 / 写作） ✅
 - **对外接口**：`GET/POST /api/global-entries?mode=` 按 mode 过滤全局 Prompt 条目；`GET/POST /api/custom-css-snippets?mode=` 按 mode 过滤 CSS；`GET /api/regex-rules?mode=` 按 mode 过滤全局规则；`GET /api/config` 返回包含 `writing` 命名空间的配置；`PATCH /api/config` 支持 `{ writing: { llm, global_system_prompt, ... } }` 深度合并
 - **涉及文件**：`backend/db/schema.js`（三表加 mode 列 ALTER TABLE migration）、`backend/db/queries/prompt-entries.js`、`backend/db/queries/regex-rules.js`、`backend/db/queries/custom-css-snippets.js`、`backend/services/config.js`（writing 命名空间默认值）、`backend/prompt/assembler.js`（buildWritingPrompt 使用 writing.* 配置）、`backend/routes/writing.js`（model 透传）、`backend/routes/prompt-entries.js`、`backend/routes/regex-rules.js`、`backend/routes/custom-css-snippets.js`、`backend/utils/regex-runner.js`（mode 参数透传）、`backend/services/import-export.js`（writing 块导出导入）、`frontend/src/store/appMode.js`（新建）、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/components/settings/CustomCssManager.jsx`、`frontend/src/components/settings/RegexRulesManager.jsx`、`frontend/src/components/prompt/EntryList.jsx`、`frontend/src/api/customCssSnippets.js`、`frontend/src/api/prompt-entries.js`、`frontend/src/api/regexRules.js`

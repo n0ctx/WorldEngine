@@ -68,10 +68,11 @@ router.post('/worlds/import', (req, res) => {
   }
 });
 
-// GET /api/global-settings/export — 导出全局设置
+// GET /api/global-settings/export?mode=chat|writing — 导出全局设置
 router.get('/global-settings/export', (req, res) => {
   try {
-    const data = exportGlobalSettings();
+    const mode = req.query.mode === 'writing' ? 'writing' : 'chat';
+    const data = exportGlobalSettings(mode);
     res.json(data);
   } catch (err) {
     console.error('导出全局设置失败', err);

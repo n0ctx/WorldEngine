@@ -97,21 +97,23 @@ export function importWorld(data) {
 
 /**
  * 导出全局设置，返回 JSON 数据对象
+ * @param {'chat'|'writing'} mode
  */
-export function exportGlobalSettings() {
-  return request(`${BASE}/global-settings/export`);
+export function exportGlobalSettings(mode = 'chat') {
+  return request(`${BASE}/global-settings/export?mode=${mode}`);
 }
 
 /**
  * 下载全局设置为 .weglobal.json 文件
+ * @param {'chat'|'writing'} mode
  */
-export async function downloadGlobalSettings() {
-  const data = await exportGlobalSettings();
+export async function downloadGlobalSettings(mode = 'chat') {
+  const data = await exportGlobalSettings(mode);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'worldengine-global-settings.weglobal.json';
+  a.download = `worldengine-global-settings-${mode}.weglobal.json`;
   a.click();
   URL.revokeObjectURL(url);
 }

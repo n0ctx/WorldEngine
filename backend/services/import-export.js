@@ -502,47 +502,57 @@ export function importWorld(data) {
 
 // ─── 导出全局设置 ─────────────────────────────────────────────────────────────
 
-export function exportGlobalSettings() {
+export function exportGlobalSettings(mode = 'chat') {
   const config = getConfig();
 
   const promptEntries = db.prepare(
-    'SELECT title, summary, content, keywords, mode, sort_order FROM global_prompt_entries ORDER BY sort_order ASC',
-  ).all().map((e) => ({ ...e, keywords: e.keywords ? JSON.parse(e.keywords) : null }));
+    'SELECT title, summary, content, keywords, mode, sort_order FROM global_prompt_entries WHERE mode = ? ORDER BY sort_order ASC',
+  ).all(mode).map((e) => ({ ...e, keywords: e.keywords ? JSON.parse(e.keywords) : null }));
 
   const cssSnippets = db.prepare(
-    'SELECT name, content, enabled, mode, sort_order FROM custom_css_snippets ORDER BY sort_order ASC, created_at ASC',
-  ).all();
+    'SELECT name, content, enabled, mode, sort_order FROM custom_css_snippets WHERE mode = ? ORDER BY sort_order ASC, created_at ASC',
+  ).all(mode);
 
   const regexRules = db.prepare(
     `SELECT name, pattern, replacement, scope, mode, enabled, sort_order
-     FROM regex_rules WHERE world_id IS NULL ORDER BY sort_order ASC`,
-  ).all();
+     FROM regex_rules WHERE world_id IS NULL AND mode = ? ORDER BY sort_order ASC`,
+  ).all(mode);
 
-  const writing = config.writing ?? {};
-  const writingLlm = writing.llm ?? {};
+  const base = {
+    format: 'worldengine-global-settings-v1',
+    mode,
+    exported_at: new Date().toISOString(),
+    global_prompt_entries: promptEntries,
+    custom_css_snippets: cssSnippets,
+    regex_rules: regexRules,
+  };
+
+  if (mode === 'writing') {
+    const writing = config.writing ?? {};
+    const writingLlm = writing.llm ?? {};
+    return {
+      ...base,
+      writing: {
+        global_system_prompt: writing.global_system_prompt ?? '',
+        global_post_prompt: writing.global_post_prompt ?? '',
+        context_history_rounds: writing.context_history_rounds ?? null,
+        llm: {
+          model: writingLlm.model ?? '',
+          temperature: writingLlm.temperature ?? null,
+          max_tokens: writingLlm.max_tokens ?? null,
+        },
+      },
+    };
+  }
 
   return {
-    format: 'worldengine-global-settings-v1',
-    exported_at: new Date().toISOString(),
+    ...base,
     config: {
       global_system_prompt: config.global_system_prompt ?? '',
       global_post_prompt: config.global_post_prompt ?? '',
       context_history_rounds: config.context_history_rounds ?? 20,
       memory_expansion_enabled: config.memory_expansion_enabled ?? true,
     },
-    writing: {
-      global_system_prompt: writing.global_system_prompt ?? '',
-      global_post_prompt: writing.global_post_prompt ?? '',
-      context_history_rounds: writing.context_history_rounds ?? null,
-      llm: {
-        model: writingLlm.model ?? '',
-        temperature: writingLlm.temperature ?? null,
-        max_tokens: writingLlm.max_tokens ?? null,
-      },
-    },
-    global_prompt_entries: promptEntries,
-    custom_css_snippets: cssSnippets,
-    regex_rules: regexRules,
   };
 }
 
@@ -553,13 +563,15 @@ export function importGlobalSettings(data) {
     throw new Error('全局设置文件格式不正确');
   }
 
+  // 兼容旧格式（无 mode 字段）：默认按 chat 处理
+  const mode = data.mode === 'writing' ? 'writing' : 'chat';
   const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
   const now = Date.now();
 
   const doImport = db.transaction(() => {
-    db.prepare('DELETE FROM global_prompt_entries').run();
-    db.prepare('DELETE FROM custom_css_snippets').run();
-    db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL').run();
+    db.prepare('DELETE FROM global_prompt_entries WHERE mode = ?').run(mode);
+    db.prepare('DELETE FROM custom_css_snippets WHERE mode = ?').run(mode);
+    db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL AND mode = ?').run(mode);
 
     const insertEntry = db.prepare(
       `INSERT INTO global_prompt_entries
@@ -573,7 +585,7 @@ export function importGlobalSettings(data) {
         entry.summary ?? null,
         entry.content ?? '',
         entry.keywords != null ? JSON.stringify(entry.keywords) : null,
-        entry.mode ?? 'chat',
+        mode,
         entry.sort_order ?? 0,
         now, now,
       );
@@ -589,7 +601,7 @@ export function importGlobalSettings(data) {
         snippet.name ?? '',
         snippet.content ?? '',
         snippet.enabled ? 1 : 0,
-        snippet.mode ?? 'chat',
+        mode,
         snippet.sort_order ?? 0,
         now, now,
       );
@@ -608,7 +620,7 @@ export function importGlobalSettings(data) {
         rule.pattern ?? '',
         rule.replacement ?? '',
         rule.scope ?? 'display_only',
-        rule.mode ?? 'chat',
+        mode,
         rule.enabled ? 1 : 0,
         rule.sort_order ?? 0,
         now, now,
@@ -618,7 +630,7 @@ export function importGlobalSettings(data) {
 
   doImport();
 
-  if (data.config && typeof data.config === 'object') {
+  if (mode === 'chat' && data.config && typeof data.config === 'object') {
     const patch = {};
     if (typeof data.config.global_system_prompt === 'string') patch.global_system_prompt = data.config.global_system_prompt;
     if (typeof data.config.global_post_prompt === 'string') patch.global_post_prompt = data.config.global_post_prompt;
@@ -627,7 +639,7 @@ export function importGlobalSettings(data) {
     if (Object.keys(patch).length > 0) updateConfig(patch);
   }
 
-  if (data.writing && typeof data.writing === 'object') {
+  if (mode === 'writing' && data.writing && typeof data.writing === 'object') {
     const writingPatch = {};
     if (typeof data.writing.global_system_prompt === 'string') writingPatch.global_system_prompt = data.writing.global_system_prompt;
     if (typeof data.writing.global_post_prompt === 'string') writingPatch.global_post_prompt = data.writing.global_post_prompt;
@@ -643,5 +655,5 @@ export function importGlobalSettings(data) {
     if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
   }
 
-  return { ok: true };
+  return { ok: true, mode };
 }
