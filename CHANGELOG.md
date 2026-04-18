@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## Git 仓库健康度维护 ✅
+- **对外接口**：无
+- **涉及文件**：`.mailmap`、`.gitignore`、`.temp/git-health-check.sh`
+- **注意**：(1) `.mailmap` 将 n0ctx / entropy / Yunzhi Wang 三个分裂身份归并为 Yunzhi Wang，不改变 commit hash，只影响 `git log` / `git shortlog` / `git blame` 显示；(2) `.gitignore` 显式保护 `.temp/` 目录（只允许 `.gitkeep` 和 `git-health-check.sh` 被跟踪），防止以后误提交临时文件；(3) 远程分支 `docs/add-project-docs` 已清理；(4) 交付 `.temp/git-health-check.sh` 脚本，以后在项目根目录执行 `bash .temp/git-health-check.sh` 即可一键输出健康度报告
+
 ## T87 — 导入导出按对话/写作模式分离 ✅
 - **对外接口**：`GET /api/global-settings/export?mode=chat|writing`（按 mode 过滤导出，文件顶层带 `mode` 字段）；`POST /api/global-settings/import`（从 `data.mode` 推断目标模式，缺失时默认 `chat`），返回 `{ ok: true, mode }`
 - **涉及文件**：`backend/services/import-export.js`、`backend/routes/import-export.js`、`frontend/src/api/importExport.js`、`frontend/src/pages/SettingsPage.jsx`（ImportExportSection 加 ModeSwitch）
