@@ -1,7 +1,10 @@
 const BASE = '/api/custom-css-snippets';
 
-export async function listSnippets() {
-  const res = await fetch(BASE);
+export async function listSnippets({ mode } = {}) {
+  const params = new URLSearchParams();
+  if (mode) params.set('mode', mode);
+  const query = params.toString() ? `?${params}` : '';
+  const res = await fetch(`${BASE}${query}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -42,11 +45,12 @@ export async function reorderSnippets(items) {
 }
 
 /**
- * 拉取所有启用片段，按 sort_order 拼接后写入 <style id="we-custom-css">
+ * 拉取指定 mode 的启用片段，按 sort_order 拼接后写入 <style id="we-custom-css">
+ * @param {'chat'|'writing'} [mode] 不传则加载全部
  */
-export async function refreshCustomCss() {
+export async function refreshCustomCss(mode) {
   try {
-    const snippets = await listSnippets();
+    const snippets = await listSnippets(mode ? { mode } : {});
     const css = snippets
       .filter((s) => s.enabled)
       .map((s) => s.content)

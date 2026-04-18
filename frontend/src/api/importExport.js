@@ -96,6 +96,37 @@ export function importWorld(data) {
 }
 
 /**
+ * 导出全局设置，返回 JSON 数据对象
+ */
+export function exportGlobalSettings() {
+  return request(`${BASE}/global-settings/export`);
+}
+
+/**
+ * 下载全局设置为 .weglobal.json 文件
+ */
+export async function downloadGlobalSettings() {
+  const data = await exportGlobalSettings();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'worldengine-global-settings.weglobal.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 导入全局设置（追加条目，覆盖 config 字段）
+ */
+export function importGlobalSettings(data) {
+  return request(`${BASE}/global-settings/import`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * 从文件中读取 JSON 并返回解析后的对象
  */
 export function readJsonFile(file) {

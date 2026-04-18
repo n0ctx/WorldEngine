@@ -30,6 +30,27 @@ const DEFAULT_CONFIG = {
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
+  writing: {
+    global_system_prompt: '',
+    global_post_prompt: '',
+    context_history_rounds: null,
+    llm: {
+      model: '',
+      temperature: null,
+      max_tokens: null,
+    },
+  },
+};
+
+const DEFAULT_WRITING = {
+  global_system_prompt: '',
+  global_post_prompt: '',
+  context_history_rounds: null,
+  llm: {
+    model: '',
+    temperature: null,
+    max_tokens: null,
+  },
 };
 
 /**
@@ -70,6 +91,16 @@ export function getConfig() {
     config.context_history_rounds = config.context_compress_rounds;
     delete config.context_compress_rounds;
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
+  // 补全 writing 命名空间（旧配置文件无此字段）
+  if (!config.writing || typeof config.writing !== 'object') {
+    config.writing = structuredClone(DEFAULT_WRITING);
+  } else {
+    if (!config.writing.llm || typeof config.writing.llm !== 'object') {
+      config.writing.llm = structuredClone(DEFAULT_WRITING.llm);
+    }
+    config.writing = { ...DEFAULT_WRITING, ...config.writing, llm: { ...DEFAULT_WRITING.llm, ...config.writing.llm } };
   }
 
   return config;

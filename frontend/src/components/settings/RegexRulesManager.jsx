@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   listRegexRules,
   createRegexRule,
@@ -18,48 +18,51 @@ const SCOPE_LABELS = {
   prompt_only: '仅 Prompt',
 };
 
+const SCOPE_HINTS = {
+  user_input: '前端发送前，影响存库与 LLM',
+  ai_output: '后端流式完结后，影响存库与显示',
+  display_only: '前端渲染时，不改存库',
+  prompt_only: '后端历史消息组装时，仅影响 LLM 副本',
+};
+
 const SCOPE_ORDER = ['user_input', 'ai_output', 'display_only', 'prompt_only'];
 
-export default function RegexRulesManager() {
+export default function RegexRulesManager({ settingsMode = 'chat' }) {
   const [rules, setRules] = useState([]);
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
+  // drag state: { scope, idx } within that scope's sub-array
+  const dragInfo = useRef(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [r, w] = await Promise.all([listRegexRules(), getWorlds()]);
+      const [r, w] = await Promise.all([listRegexRules({ mode: settingsMode }), getWorlds()]);
       setRules(r);
       setWorlds(w);
-      // 同步刷新前端运行时缓存
       invalidateCache();
       await loadRules();
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [settingsMode]);
 
   useEffect(() => {
     setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
-  function openCreate() {
-    setEditingRule(null);
-    setEditorOpen(true);
-  }
-
-  function openEdit(rule) {
-    setEditingRule(rule);
-    setEditorOpen(true);
-  }
+  function openCreate() { setEditingRule(null); setEditorOpen(true); }
+  function openEdit(rule) { setEditingRule(rule); setEditorOpen(true); }
 
   async function handleSave(form) {
     if (editingRule) {
       await updateRegexRule(editingRule.id, form);
     } else {
-      await createRegexRule(form);
+      const data = { ...form };
+      if (!data.world_id) data.mode = settingsMode;
+      await createRegexRule(data);
     }
     setEditorOpen(false);
     await refresh();
@@ -76,18 +79,38 @@ export default function RegexRulesManager() {
     await refresh();
   }
 
-  async function moveRule(rule, direction) {
-    const scopeRules = rules.filter((r) => r.scope === rule.scope);
-    const idx = scopeRules.findIndex((r) => r.id === rule.id);
-    const swapIdx = idx + direction;
-    if (swapIdx < 0 || swapIdx >= scopeRules.length) return;
+  function handleDragStart(scope, idx) {
+    dragInfo.current = { scope, idx };
+  }
 
-    const items = [
-      { id: scopeRules[idx].id, sort_order: scopeRules[swapIdx].sort_order },
-      { id: scopeRules[swapIdx].id, sort_order: scopeRules[idx].sort_order },
-    ];
+  function handleDragOver(e, scope, targetIdx) {
+    e.preventDefault();
+    if (!dragInfo.current) return;
+    if (dragInfo.current.scope !== scope) return;
+    const fromIdx = dragInfo.current.idx;
+    if (fromIdx === targetIdx) return;
+
+    setRules((prev) => {
+      const scopeRules = prev.filter((r) => r.scope === scope);
+      const others = prev.filter((r) => r.scope !== scope);
+      const next = [...scopeRules];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(targetIdx, 0, moved);
+      dragInfo.current = { scope, idx: targetIdx };
+      // rebuild full flat array preserving original insertion order for other scopes
+      return SCOPE_ORDER.flatMap((s) =>
+        s === scope ? next : prev.filter((r) => r.scope === s)
+      );
+    });
+  }
+
+  async function handleDragEnd(scope) {
+    dragInfo.current = null;
+    const scopeRules = rules.filter((r) => r.scope === scope);
+    const items = scopeRules.map((r, i) => ({ id: r.id, sort_order: i }));
     await reorderRegexRules(items);
-    await refresh();
+    invalidateCache();
+    await loadRules();
   }
 
   function getWorldName(worldId) {
@@ -96,7 +119,7 @@ export default function RegexRulesManager() {
   }
 
   if (loading) {
-    return <p className="text-sm text-text-secondary opacity-60 py-2">加载中…</p>;
+    return <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', padding: '8px 0' }}>加载中…</p>;
   }
 
   const rulesByScope = SCOPE_ORDER.reduce((acc, scope) => {
@@ -105,98 +128,41 @@ export default function RegexRulesManager() {
   }, {});
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-text-secondary opacity-60">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>
           按 scope 分组，同组内按顺序链式执行
-        </p>
-        <Button variant="ghost" size="sm" onClick={openCreate}>
-          + 新建规则
-        </Button>
+        </span>
+        <Button variant="ghost" size="sm" onClick={openCreate}>+ 新建规则</Button>
       </div>
 
       {SCOPE_ORDER.map((scope) => (
         <div key={scope}>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="we-edit-label" style={{ margin: 0 }}>{SCOPE_LABELS[scope]}</span>
-            <span className="text-xs text-text-secondary opacity-40">
-              {scope === 'user_input' && '— 前端发送前，影响存库与 LLM'}
-              {scope === 'ai_output' && '— 后端流式完结后，影响存库与显示'}
-              {scope === 'display_only' && '— 前端渲染时，不改存库'}
-              {scope === 'prompt_only' && '— 后端历史消息组装时，仅影响 LLM 副本'}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-ink-faded)' }}>
+              {SCOPE_LABELS[scope]}
+            </span>
+            <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '11px', color: 'var(--we-ink-faded)', opacity: 0.6 }}>
+              — {SCOPE_HINTS[scope]}
             </span>
           </div>
 
           {rulesByScope[scope].length === 0 ? (
-            <p className="text-xs text-text-secondary opacity-30 ml-1 mb-2">暂无规则</p>
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', opacity: 0.5, marginLeft: '4px' }}>暂无规则</p>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {rulesByScope[scope].map((rule, idx) => (
-                <div
+                <RuleRow
                   key={rule.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-canvas hover:border-accent transition-colors group"
-                >
-                  {/* 顺序操作 */}
-                  <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-60 transition-opacity">
-                    <button
-                      onClick={() => moveRule(rule, -1)}
-                      disabled={idx === 0}
-                      className="text-text-secondary hover:text-text disabled:opacity-30"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="18 15 12 9 6 15" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => moveRule(rule, 1)}
-                      disabled={idx === rulesByScope[scope].length - 1}
-                      className="text-text-secondary hover:text-text disabled:opacity-30"
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="6 9 12 15 18 9" />
-                      </svg>
-                    </button>
-                  </div>
-
-                  {/* 启用开关 */}
-                  <button
-                    onClick={() => handleToggleEnabled(rule)}
-                    className={`relative flex-none inline-flex h-[18px] w-8 items-center rounded-full transition-colors ${
-                      rule.enabled ? 'bg-accent' : 'bg-border'
-                    }`}
-                  >
-                    <span
-                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                        rule.enabled ? 'translate-x-4' : 'translate-x-0.5'
-                      }`}
-                    />
-                  </button>
-
-                  {/* 名称 + 作用域 */}
-                  <div className="flex-1 min-w-0">
-                    <span className={`text-sm ${rule.enabled ? 'text-text' : 'text-text-secondary opacity-50'}`}>
-                      {rule.name}
-                    </span>
-                    <span className="ml-2 text-xs text-text-secondary opacity-40">
-                      {getWorldName(rule.world_id)}
-                    </span>
-                  </div>
-
-                  {/* 正则预览 */}
-                  <span className="text-xs font-mono text-text-secondary opacity-50 truncate max-w-[120px] hidden sm:block">
-                    /{rule.pattern}/{rule.flags}
-                  </span>
-
-                  {/* 操作按钮 */}
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button variant="default" size="sm" onClick={() => openEdit(rule)}>
-                      编辑
-                    </Button>
-                    <Button variant="danger" size="sm" onClick={() => handleDelete(rule.id)}>
-                      删除
-                    </Button>
-                  </div>
-                </div>
+                  rule={rule}
+                  worldName={getWorldName(rule.world_id)}
+                  onEdit={() => openEdit(rule)}
+                  onToggle={() => handleToggleEnabled(rule)}
+                  onDelete={() => handleDelete(rule.id)}
+                  onDragStart={() => handleDragStart(scope, idx)}
+                  onDragOver={(e) => handleDragOver(e, scope, idx)}
+                  onDragEnd={() => handleDragEnd(scope)}
+                />
               ))}
             </div>
           )}
@@ -211,6 +177,91 @@ export default function RegexRulesManager() {
           onClose={() => setEditorOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+function RuleRow({ rule, worldName, onEdit, onToggle, onDelete, onDragStart, onDragOver, onDragEnd }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        background: 'var(--we-paper-aged)',
+        border: `1px solid ${hovered ? 'var(--we-ink-faded)' : 'var(--we-paper-shadow)'}`,
+        padding: '8px 12px',
+        cursor: 'grab',
+        userSelect: 'none',
+        transition: 'border-color 0.15s',
+      }}
+    >
+      {/* 拖拽把手 */}
+      <span style={{ color: 'var(--we-ink-faded)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
+
+      {/* 名称 + 所属世界 + 正则预览 */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '14px',
+          fontWeight: 500,
+          color: 'var(--we-ink-primary)',
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          opacity: rule.enabled ? 1 : 0.45,
+        }}>
+          {rule.name}
+        </span>
+        {worldName !== '全局' && (
+          <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '11px', color: 'var(--we-ink-faded)', flexShrink: 0 }}>
+            {worldName}
+          </span>
+        )}
+        <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-ink-faded)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.6 }}>
+          /{rule.pattern}/{rule.flags}
+        </span>
+      </div>
+
+      {/* 操作区 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+        <button
+          onClick={onToggle}
+          title={rule.enabled ? '点击禁用' : '点击启用'}
+          style={{
+            fontFamily: 'var(--we-font-serif)',
+            fontSize: '11px',
+            padding: '2px 8px',
+            border: `1px solid ${rule.enabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
+            color: rule.enabled ? 'var(--we-vermilion)' : 'var(--we-ink-faded)',
+            background: rule.enabled ? 'var(--we-vermilion-bg)' : 'transparent',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {rule.enabled ? '启用' : '禁用'}
+        </button>
+        <button
+          onClick={onEdit}
+          title="编辑"
+          style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px', transition: 'color 0.15s' }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-ink-primary)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+        >✎</button>
+        <button
+          onClick={onDelete}
+          title="删除"
+          style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px', transition: 'color 0.15s' }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-vermilion)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+        >✕</button>
+      </div>
     </div>
   );
 }

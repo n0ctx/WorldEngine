@@ -384,6 +384,7 @@ CREATE TABLE global_prompt_entries (
                                             -- 例：["魔法", "法术", "咒语"]
   embedding_id   TEXT,                      -- 对应 vectors/prompt_entries.json 中的条目 ID，NULL 表示尚未向量化
   sort_order     INTEGER NOT NULL DEFAULT 0, -- 同层条目的显示排序
+  mode           TEXT NOT NULL DEFAULT 'chat', -- T86：'chat' | 'writing'，决定条目归属的空间
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -444,6 +445,7 @@ CREATE TABLE custom_css_snippets (
   enabled        INTEGER NOT NULL DEFAULT 1, -- 0: 禁用 / 1: 启用
   content        TEXT NOT NULL DEFAULT '',  -- CSS 源文本，原样注入
   sort_order     INTEGER NOT NULL DEFAULT 0,
+  mode           TEXT NOT NULL DEFAULT 'chat', -- T86：'chat' | 'writing'，决定片段归属的空间
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -451,7 +453,7 @@ CREATE TABLE custom_css_snippets (
 CREATE INDEX idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
 ```
 
-> 前端拉取所有 `enabled=1` 条目，按 `sort_order ASC, created_at ASC` 拼接为一段 CSS 文本注入。禁用条目保留数据库中记录，不参与注入。
+> 前端按当前 appMode 拉取对应 `mode` 且 `enabled=1` 的条目，按 `sort_order ASC, created_at ASC` 拼接为一段 CSS 文本注入。禁用条目保留数据库中记录，不参与注入。
 
 ---
 
@@ -469,6 +471,7 @@ CREATE TABLE regex_rules (
   flags          TEXT NOT NULL DEFAULT 'g', -- 正则 flags，如 'g' / 'gi' / 'gm' / 'gim'
   scope          TEXT NOT NULL,             -- 作用时机，见下文四类
   world_id       TEXT REFERENCES worlds(id) ON DELETE CASCADE, -- NULL: 全局生效；非 NULL: 仅此世界
+  mode           TEXT NOT NULL DEFAULT 'chat', -- T86：全局规则（world_id IS NULL）专用，'chat' | 'writing'；世界规则忽略此字段
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -594,12 +597,24 @@ CREATE TABLE internal_meta (
   "ui": {
     "font_size": 16
   },
-  "context_history_rounds": 10,           // 提示词 [14] 注入的历史轮次数（turn records 条数）；也是 /summary 触发时拉取的 turn record 数量
-  "global_system_prompt": "",             // 全局层 system prompt
-  "global_post_prompt": "",              // 全局层后置提示词，注入 [8] 位置（T31）
-  "memory_expansion_enabled": true       // 是否启用渐进展开原文（T28），false 时召回摘要仍保留
+  "context_history_rounds": 10,           // 对话空间历史轮次（turn records 条数）；也是 /summary 触发时拉取的 turn record 数量
+  "global_system_prompt": "",             // 对话空间全局 system prompt
+  "global_post_prompt": "",              // 对话空间全局后置提示词，注入 [15] 位置（user 角色）
+  "memory_expansion_enabled": true,      // 是否启用渐进展开原文（T28），false 时召回摘要仍保留
+  "writing": {                           // T86：写作空间独立配置（T86新增，缺失时由 getConfig 自动补默认值）
+    "global_system_prompt": "",          // 写作空间全局 system prompt；覆盖对话空间的同名字段
+    "global_post_prompt": "",            // 写作空间全局后置提示词
+    "context_history_rounds": null,      // null = 继承对话空间的 context_history_rounds
+    "llm": {
+      "model": "",                       // "" = 继承对话空间 llm.model
+      "temperature": null,               // null = 继承对话空间 llm.temperature
+      "max_tokens": null                 // null = 继承对话空间 llm.max_tokens
+    }
+  }
 }
 ```
+
+> Provider / API Key / Base URL / embedding 配置为对话与写作空间共享，不进入 `writing` 命名空间。
 
 > API Key 存在本地文件，不进数据库，不随 JSON 导出一起导出。导出时此字段自动清空。
 

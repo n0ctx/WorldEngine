@@ -170,7 +170,7 @@ export async function buildPrompt(sessionId, options = {}) {
   if (characterStateText) systemParts.push(tv(characterStateText));
 
   // [8-10] Prompt 条目（全局→世界→角色顺序）
-  const globalEntries = getAllGlobalEntries();
+  const globalEntries = getAllGlobalEntries('chat');
   const worldEntries = getAllWorldEntries(world.id);
   const characterEntries = getAllCharacterEntries(character.id);
   const allEntries = [...globalEntries, ...worldEntries, ...characterEntries];
@@ -228,8 +228,8 @@ export async function buildPrompt(sessionId, options = {}) {
   if (turnRecords.length > 0) {
     // 新路径：turn records，每条渲染为 user/assistant 对
     for (const record of turnRecords) {
-      messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id) });
-      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id) });
+      messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id, 'chat') });
+      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'chat') });
     }
   } else {
     // 降级路径：session 尚无任何 turn record，用旧的 uncompressed messages
@@ -237,7 +237,7 @@ export async function buildPrompt(sessionId, options = {}) {
     const history = getUncompressedMessagesBySessionId(sessionId);
     const withoutLastUser = omitLatestUserMessage(history);
     for (const msg of withoutLastUser) {
-      const content = applyRules(msg.content, 'prompt_only', world.id);
+      const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
       messages.push(formatMessageForLLM({ ...msg, content }));
     }
   }
@@ -256,7 +256,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const allHistory = getUncompressedMessagesBySessionId(sessionId);
   const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
   if (currentUserMsg) {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id);
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
@@ -301,9 +301,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const ctx = { user: personaName, char: firstCharName, world: world.name };
   const tv = (t) => applyTemplateVars(t, ctx);
 
-  // [1] 全局 System Prompt
-  if (config.global_system_prompt) {
-    systemParts.push(tv(config.global_system_prompt));
+  const writing = config.writing ?? {};
+  const writingLlm = writing.llm ?? {};
+
+  // [1] 全局 System Prompt（使用写作空间专属配置）
+  if (writing.global_system_prompt) {
+    systemParts.push(tv(writing.global_system_prompt));
   }
 
   // [2] 世界 System Prompt
@@ -336,8 +339,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (charStateText) systemParts.push(tvChar(charStateText));
   }
 
-  // [8-10] Prompt 条目（全局→世界→各激活角色）
-  const globalEntries = getAllGlobalEntries();
+  // [8-10] Prompt 条目（全局写作条目→世界→各激活角色）
+  const globalEntries = getAllGlobalEntries('writing');
   const worldEntries = getAllWorldEntries(world.id);
   const allCharacterEntries = [];
   for (const character of activeCharacters) {
@@ -373,26 +376,26 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [14] 历史消息（有 turn records 时用新路径，否则降级）
-  const K = config.context_history_rounds ?? 10;
+  const K = writing.context_history_rounds ?? config.context_history_rounds ?? 10;
   const turnRecords = getTurnRecordsBySessionId(sessionId, K);
   const allHistory = getUncompressedMessagesBySessionId(sessionId);
 
   if (turnRecords.length > 0) {
     for (const record of turnRecords) {
-      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id) });
-      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id) });
+      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id, 'writing') });
+      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'writing') });
     }
   } else {
     // 降级路径：session 尚无任何 turn record
     const withoutLastUser = omitLatestUserMessage(allHistory);
     for (const msg of withoutLastUser) {
-      const content = applyRules(msg.content, 'prompt_only', world.id);
+      const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
       messages.push(formatMessageForLLM({ ...msg, content }));
     }
   }
 
-  // [15] 后置提示词（全局→世界，写作模式无角色后置提示词）
-  const postParts = [config.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
+  // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
+  const postParts = [writing.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
@@ -400,12 +403,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [16] 当前用户消息
   const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
   if (currentUserMsg) {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id);
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
-  const temperature = world.temperature ?? config.llm.temperature;
-  const maxTokens = world.max_tokens ?? config.llm.max_tokens;
+  const temperature = world.temperature ?? (writingLlm.temperature ?? config.llm.temperature);
+  const maxTokens = world.max_tokens ?? (writingLlm.max_tokens ?? config.llm.max_tokens);
+  const model = writingLlm.model || config.llm.model;
 
-  return { messages, temperature, maxTokens };
+  return { messages, temperature, maxTokens, model };
 }

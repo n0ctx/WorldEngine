@@ -15,8 +15,11 @@ async function request(url, options = {}) {
 
 // ─── list ───────────────────────────────────────────────────────
 
-export function listGlobalEntries() {
-  return request(`${BASE}/global-entries`);
+export function listGlobalEntries({ mode } = {}) {
+  const params = new URLSearchParams();
+  if (mode) params.set('mode', mode);
+  const query = params.toString() ? `?${params}` : '';
+  return request(`${BASE}/global-entries${query}`);
 }
 
 export function listWorldEntries(worldId) {

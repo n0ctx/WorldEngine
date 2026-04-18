@@ -13,14 +13,15 @@ import { getEnabledRulesForRuntime } from '../db/queries/regex-rules.js';
  * @param {string} text      原始文本
  * @param {string} scope     'user_input' | 'ai_output' | 'display_only' | 'prompt_only'
  * @param {string|null} worldId  当前会话所属世界 id，null 表示全局
+ * @param {string} [mode]    'chat' | 'writing'，用于全局规则 mode 过滤，默认 'chat'
  * @returns {string}
  */
-export function applyRules(text, scope, worldId) {
+export function applyRules(text, scope, worldId, mode = 'chat') {
   let result = text;
   let rules;
 
   try {
-    rules = getEnabledRulesForRuntime(scope, worldId ?? null);
+    rules = getEnabledRulesForRuntime(scope, worldId ?? null, mode);
   } catch (err) {
     console.warn('[regex-runner] 读取规则失败:', err.message);
     return result;

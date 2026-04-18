@@ -11,8 +11,8 @@ export function createRegexRule(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO regex_rules (id, name, enabled, pattern, replacement, flags, scope, world_id, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO regex_rules (id, name, enabled, pattern, replacement, flags, scope, world_id, mode, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.name,
@@ -22,6 +22,7 @@ export function createRegexRule(data) {
     data.flags ?? 'g',
     data.scope,
     data.world_id ?? null,
+    data.mode ?? 'chat',
     sortOrder,
     now,
     now,
@@ -38,10 +39,10 @@ export function getRegexRuleById(id) {
 }
 
 /**
- * 列出所有规则（管理界面用），支持可选 scope / worldId 过滤
- * worldId 过滤时返回全局（world_id IS NULL）+ 该 worldId 的规则
+ * 列出所有规则（管理界面用），支持可选 scope / worldId / mode 过滤
+ * mode 仅对全局规则（world_id IS NULL）生效；worldId 过滤时返回全局 + 该 worldId 的规则
  */
-export function listRegexRules({ scope, worldId } = {}) {
+export function listRegexRules({ scope, worldId, mode } = {}) {
   let sql = 'SELECT * FROM regex_rules';
   const conditions = [];
   const params = [];
@@ -56,6 +57,11 @@ export function listRegexRules({ scope, worldId } = {}) {
     params.push(worldId);
   }
 
+  if (mode) {
+    conditions.push('(world_id IS NOT NULL OR mode = ?)');
+    params.push(mode);
+  }
+
   if (conditions.length > 0) {
     sql += ' WHERE ' + conditions.join(' AND ');
   }
@@ -66,24 +72,25 @@ export function listRegexRules({ scope, worldId } = {}) {
 }
 
 /**
- * 运行时查询：给定 scope 和 worldId，返回 enabled=1 且作用于该世界的规则
- * 包括全局规则（world_id IS NULL）和该世界的规则（world_id = worldId）
+ * 运行时查询：给定 scope / worldId / mode，返回 enabled=1 的规则
+ * 全局规则按 mode 过滤（'chat' | 'writing'）；世界级规则不受 mode 限制
  */
-export function getEnabledRulesForRuntime(scope, worldId) {
+export function getEnabledRulesForRuntime(scope, worldId, mode = 'chat') {
   return db.prepare(`
     SELECT * FROM regex_rules
     WHERE enabled = 1
       AND scope = ?
       AND (world_id IS NULL OR world_id = ?)
+      AND (world_id IS NOT NULL OR mode = ?)
     ORDER BY sort_order ASC, created_at ASC
-  `).all(scope, worldId ?? null);
+  `).all(scope, worldId ?? null, mode);
 }
 
 /**
- * 部分更新，白名单：name / enabled / pattern / replacement / flags / scope / world_id
+ * 部分更新，白名单：name / enabled / pattern / replacement / flags / scope / world_id / mode
  */
 export function updateRegexRule(id, patch) {
-  const allowed = ['name', 'enabled', 'pattern', 'replacement', 'flags', 'scope', 'world_id'];
+  const allowed = ['name', 'enabled', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode'];
   const sets = [];
   const values = [];
 

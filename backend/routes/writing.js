@@ -143,8 +143,8 @@ async function runWritingStream(sessionId, res) {
   const worldId = session?.world_id;
 
   try {
-    const { messages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
-    const stream = llm.chat(messages, { temperature, maxTokens, signal: ac.signal });
+    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal });
     for await (const chunk of stream) {
       fullContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -172,7 +172,7 @@ async function runWritingStream(sessionId, res) {
 
   let savedAssistant = null;
   if (fullContent) {
-    const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId);
+    const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId, 'writing');
     savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
     fullContent = savedContent;
     touchWritingSession(sessionId);
@@ -270,11 +270,11 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   let aborted = false;
 
   try {
-    const { messages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
+    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
     const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
     const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
 
-    const stream = llm.chat(continuationMessages, { temperature, maxTokens, signal: ac.signal });
+    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -297,7 +297,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   }
 
   if (newContent) {
-    const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId);
+    const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId, 'writing');
     // 续写：合并到上一条 assistant 消息
     updateMessageContent(lastAssistant.id, originalContent + processedNew);
     touchWritingSession(sessionId);
@@ -333,7 +333,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
   const personaName = persona?.name || '用户';
 
   try {
-    const { messages: baseMessages, temperature, maxTokens } = await buildWritingPrompt(sessionId);
+    const { messages: baseMessages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
     const prompt = [...baseMessages];
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
@@ -344,6 +344,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     const content = await llm.complete(prompt, {
       temperature,
       maxTokens: Math.min(maxTokens ?? 300, 300),
+      model,
     });
     res.json({ content: content.trim() });
   } catch (err) {

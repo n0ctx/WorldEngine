@@ -3,6 +3,7 @@ import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
 } from '../../api/customCssSnippets';
+import { useAppModeStore } from '../../store/appMode';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
@@ -25,46 +26,47 @@ const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 /* ⚠️  注意：骨架类名可能随版本变化 */
 .we-book-spine { ... }`;
 
-export default function CustomCssManager() {
+export default function CustomCssManager({ settingsMode = 'chat' }) {
   const [snippets, setSnippets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const dragIdx = useRef(null);
+  const appMode = useAppModeStore((s) => s.appMode);
 
   async function load() {
     setLoading(true);
     try {
-      setSnippets(await listSnippets());
+      setSnippets(await listSnippets({ mode: settingsMode }));
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [settingsMode]);
 
   async function handleSave(data) {
     if (editingSnippet) {
       await updateSnippet(editingSnippet.id, data);
     } else {
-      await createSnippet(data);
+      await createSnippet({ ...data, mode: settingsMode });
     }
     await load();
-    await refreshCustomCss();
+    await refreshCustomCss(appMode);
   }
 
   async function handleToggle(snippet) {
     await updateSnippet(snippet.id, { enabled: snippet.enabled ? 0 : 1 });
     await load();
-    await refreshCustomCss();
+    await refreshCustomCss(appMode);
   }
 
   async function handleDelete(id) {
     await deleteSnippet(id);
     setDeletingId(null);
     await load();
-    await refreshCustomCss();
+    await refreshCustomCss(appMode);
   }
 
   function handleDragStart(idx) { dragIdx.current = idx; }
@@ -83,7 +85,7 @@ export default function CustomCssManager() {
     dragIdx.current = null;
     const items = snippets.map((s, i) => ({ id: s.id, sort_order: i }));
     await reorderSnippets(items);
-    await refreshCustomCss();
+    await refreshCustomCss(appMode);
   }
 
   return (

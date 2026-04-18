@@ -24,14 +24,15 @@ export function createGlobalEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO global_prompt_entries (id, title, summary, content, keywords, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO global_prompt_entries (id, title, summary, content, keywords, mode, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.title,
     data.summary ?? '',
     data.content ?? '',
     data.keywords != null ? JSON.stringify(data.keywords) : null,
+    data.mode ?? 'chat',
     sortOrder,
     now,
     now,
@@ -43,12 +44,15 @@ export function getGlobalEntryById(id) {
   return parseKeywords(db.prepare('SELECT * FROM global_prompt_entries WHERE id = ?').get(id));
 }
 
-export function getAllGlobalEntries() {
+export function getAllGlobalEntries(mode) {
+  if (mode) {
+    return parseAll(db.prepare('SELECT * FROM global_prompt_entries WHERE mode = ? ORDER BY sort_order ASC, created_at ASC').all(mode));
+  }
   return parseAll(db.prepare('SELECT * FROM global_prompt_entries ORDER BY sort_order ASC, created_at ASC').all());
 }
 
 export function updateGlobalEntry(id, patch) {
-  const allowed = ['title', 'summary', 'content', 'keywords', 'sort_order'];
+  const allowed = ['title', 'summary', 'content', 'keywords', 'mode', 'sort_order'];
   const sets = [];
   const values = [];
 

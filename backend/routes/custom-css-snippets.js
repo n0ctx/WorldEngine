@@ -22,7 +22,8 @@ import {
 const router = Router();
 
 router.get('/custom-css-snippets', (req, res) => {
-  res.json(listCustomCssSnippets());
+  const { mode } = req.query;
+  res.json(listCustomCssSnippets(mode || undefined));
 });
 
 router.post('/custom-css-snippets', (req, res) => {

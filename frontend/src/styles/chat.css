@@ -71,7 +71,8 @@
 }
 
 .we-message-bubble-assistant {
-  max-width: 70%;
+  width: fit-content;
+  max-width: 680px;
   background: var(--we-paper-base);
   border: 1px solid var(--we-paper-shadow);
   padding: 12px 16px;

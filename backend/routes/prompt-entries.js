@@ -9,16 +9,17 @@ const router = Router();
 
 // ─── global entries ──────────────────────────────────────────────
 
-// GET /api/global-entries
+// GET /api/global-entries?mode=chat|writing
 router.get('/global-entries', (req, res) => {
-  res.json(listGlobalPromptEntries());
+  const { mode } = req.query;
+  res.json(listGlobalPromptEntries(mode || undefined));
 });
 
 // POST /api/global-entries
 router.post('/global-entries', (req, res) => {
-  const { title, summary, content, keywords, sort_order } = req.body;
+  const { title, summary, content, keywords, mode, sort_order } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createGlobalPromptEntry({ title, summary, content, keywords, sort_order });
+  const entry = createGlobalPromptEntry({ title, summary, content, keywords, mode, sort_order });
   res.status(201).json(entry);
 });
 

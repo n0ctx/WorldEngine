@@ -11,9 +11,9 @@ export function createCustomCssSnippet(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO custom_css_snippets (id, name, enabled, content, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, data.name, data.enabled ?? 1, data.content ?? '', sortOrder, now, now);
+    INSERT INTO custom_css_snippets (id, name, enabled, content, mode, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, data.name, data.enabled ?? 1, data.content ?? '', data.mode ?? 'chat', sortOrder, now, now);
 
   return getCustomCssSnippetById(id);
 }
@@ -26,19 +26,24 @@ export function getCustomCssSnippetById(id) {
 }
 
 /**
- * 获取所有片段，按 sort_order ASC, created_at ASC
+ * 获取片段列表，可选按 mode 过滤（'chat' | 'writing'）
  */
-export function listCustomCssSnippets() {
+export function listCustomCssSnippets(mode) {
+  if (mode) {
+    return db.prepare(
+      'SELECT * FROM custom_css_snippets WHERE mode = ? ORDER BY sort_order ASC, created_at ASC',
+    ).all(mode);
+  }
   return db.prepare(
     'SELECT * FROM custom_css_snippets ORDER BY sort_order ASC, created_at ASC',
   ).all();
 }
 
 /**
- * 部分更新，白名单：name / enabled / content
+ * 部分更新，白名单：name / enabled / content / mode
  */
 export function updateCustomCssSnippet(id, patch) {
-  const allowed = ['name', 'enabled', 'content'];
+  const allowed = ['name', 'enabled', 'content', 'mode'];
   const sets = [];
   const values = [];
 

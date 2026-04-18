@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS global_prompt_entries (
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,
   embedding_id   TEXT,
+  mode           TEXT NOT NULL DEFAULT 'chat',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -220,6 +221,7 @@ CREATE TABLE IF NOT EXISTS custom_css_snippets (
   name           TEXT NOT NULL,
   enabled        INTEGER NOT NULL DEFAULT 1,
   content        TEXT NOT NULL DEFAULT '',
+  mode           TEXT NOT NULL DEFAULT 'chat',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -234,6 +236,7 @@ CREATE TABLE IF NOT EXISTS regex_rules (
   flags          TEXT NOT NULL DEFAULT 'g',
   scope          TEXT NOT NULL,
   world_id       TEXT REFERENCES worlds(id) ON DELETE CASCADE,
+  mode           TEXT NOT NULL DEFAULT 'chat',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -334,6 +337,10 @@ export function initSchema(db) {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
   // per-turn 摘要系统：新增 turn_records 表索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
+  // 双模式全局设置：为三张表添加 mode 列（'chat' | 'writing'）
+  try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  try { db.exec(`ALTER TABLE custom_css_snippets ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  try { db.exec(`ALTER TABLE regex_rules ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
 }

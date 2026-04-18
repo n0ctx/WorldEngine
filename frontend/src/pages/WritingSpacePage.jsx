@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getWorld } from '../api/worlds.js';
+import { useAppModeStore } from '../store/appMode.js';
+import { refreshCustomCss } from '../api/customCssSnippets.js';
 import { getPersona } from '../api/personas.js';
 import {
   listWritingSessions,
@@ -22,6 +24,16 @@ import WritingSessionList from '../components/book/WritingSessionList.jsx';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
+  const setAppMode = useAppModeStore((s) => s.setAppMode);
+
+  useEffect(() => {
+    setAppMode('writing');
+    refreshCustomCss('writing');
+    return () => {
+      setAppMode('chat');
+      refreshCustomCss('chat');
+    };
+  }, [setAppMode]);
 
   const [world, setWorld] = useState(null);
   const [persona, setPersona] = useState(null);

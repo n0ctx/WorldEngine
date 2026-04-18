@@ -1,9 +1,10 @@
 const BASE = '/api/regex-rules';
 
-export async function listRegexRules({ scope, worldId } = {}) {
+export async function listRegexRules({ scope, worldId, mode } = {}) {
   const params = new URLSearchParams();
   if (scope) params.set('scope', scope);
   if (worldId !== undefined && worldId !== null) params.set('worldId', worldId);
+  if (mode) params.set('mode', mode);
   const query = params.toString() ? `?${params}` : '';
   const res = await fetch(`${BASE}${query}`);
   if (!res.ok) throw new Error(await res.text());

@@ -39,8 +39,8 @@ export function getGlobalPromptEntryById(id) {
   return getGlobalEntryById(id);
 }
 
-export function listGlobalPromptEntries() {
-  return getAllGlobalEntries();
+export function listGlobalPromptEntries(mode) {
+  return getAllGlobalEntries(mode);
 }
 
 export function updateGlobalPromptEntry(id, patch) {

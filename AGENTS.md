@@ -155,13 +155,15 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 **角色卡/世界卡格式**：`.wechar.json`（format: worldengine-character-v1）/ `.weworld.json`（format: worldengine-world-v1），不兼容 SillyTavern 格式。导出包含状态字段定义和状态值。
 
+**全局设置格式**：`.weglobal.json`（format: worldengine-global-settings-v1），包含全局 Prompt（system/post/条目）、自定义 CSS、全局正则规则（world_id IS NULL）和非 LLM 配置字段。导入为覆盖模式（先清空三张表的全局记录，再写入），config 字段覆盖，不含 API 密钥。
+
 **persona 无 Prompt 条目**：persona 只有 name 和 system_prompt，与角色不同，没有 Prompt 条目。
 
 
 <claude-mem-context>
 # Memory Context
 
-# $CMEM WorldEngine 2026-04-19 12:11am GMT+8
+# $CMEM WorldEngine 2026-04-19 1:32am GMT+8
 
 No previous sessions found.
 </claude-mem-context>

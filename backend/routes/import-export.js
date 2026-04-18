@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona } from '../services/import-export.js';
+import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportGlobalSettings, importGlobalSettings } from '../services/import-export.js';
 
 const router = Router();
 
@@ -64,6 +64,31 @@ router.post('/worlds/import', (req, res) => {
       return res.status(400).json({ error: err.message });
     }
     console.error('导入世界卡失败', err);
+    res.status(500).json({ error: '导入失败' });
+  }
+});
+
+// GET /api/global-settings/export — 导出全局设置
+router.get('/global-settings/export', (req, res) => {
+  try {
+    const data = exportGlobalSettings();
+    res.json(data);
+  } catch (err) {
+    console.error('导出全局设置失败', err);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
+// POST /api/global-settings/import — 导入全局设置
+router.post('/global-settings/import', (req, res) => {
+  try {
+    const result = importGlobalSettings(req.body);
+    res.json(result);
+  } catch (err) {
+    if (err.message === '全局设置文件格式不正确') {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('导入全局设置失败', err);
     res.status(500).json({ error: '导入失败' });
   }
 });

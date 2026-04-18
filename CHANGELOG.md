@@ -19,6 +19,21 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T86 — 全局设置双模式分离（对话 / 写作） ✅
+- **对外接口**：`GET/POST /api/global-entries?mode=` 按 mode 过滤全局 Prompt 条目；`GET/POST /api/custom-css-snippets?mode=` 按 mode 过滤 CSS；`GET /api/regex-rules?mode=` 按 mode 过滤全局规则；`GET /api/config` 返回包含 `writing` 命名空间的配置；`PATCH /api/config` 支持 `{ writing: { llm, global_system_prompt, ... } }` 深度合并
+- **涉及文件**：`backend/db/schema.js`（三表加 mode 列 ALTER TABLE migration）、`backend/db/queries/prompt-entries.js`、`backend/db/queries/regex-rules.js`、`backend/db/queries/custom-css-snippets.js`、`backend/services/config.js`（writing 命名空间默认值）、`backend/prompt/assembler.js`（buildWritingPrompt 使用 writing.* 配置）、`backend/routes/writing.js`（model 透传）、`backend/routes/prompt-entries.js`、`backend/routes/regex-rules.js`、`backend/routes/custom-css-snippets.js`、`backend/utils/regex-runner.js`（mode 参数透传）、`backend/services/import-export.js`（writing 块导出导入）、`frontend/src/store/appMode.js`（新建）、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/components/settings/CustomCssManager.jsx`、`frontend/src/components/settings/RegexRulesManager.jsx`、`frontend/src/components/prompt/EntryList.jsx`、`frontend/src/api/customCssSnippets.js`、`frontend/src/api/prompt-entries.js`、`frontend/src/api/regexRules.js`
+- **注意**：（1）mode 严格二分 `'chat' | 'writing'`，现有数据默认归入 `'chat'`；（2）世界规则（world_id IS NOT NULL）忽略 mode 字段，始终对该世界所有会话生效；（3）writing.llm.model = '' 时继承对话 model，writing.context_history_rounds = null 时继承对话 context_history_rounds；（4）`store/index.js` 为锁定文件，appMode 独立 store 新建为 `store/appMode.js`；（5）CSS 片段的 refreshCustomCss 需传 appMode，不传则拉取全部（兼容旧调用）；（6）SettingsPage 的 settingsMode state 在所有 tab 间共享，切换 tab 不重置模式
+
+## T85 — 发布前第三方声明清单 ✅
+- **对外接口**：新增仓库根文档 `THIRD_PARTY_NOTICES.md`，用于发布前汇总当前仓库可确认的第三方依赖、外链字体和待人工复核的静态资产
+- **涉及文件**：`THIRD_PARTY_NOTICES.md`、`CHANGELOG.md`
+- **注意**：当前 npm 直接依赖可从三份 lockfile 读取许可证；前端字体来自 Google Fonts，许可不应统一按 MIT 处理；仓库内 `frontend/src/assets/react.svg`、`frontend/src/assets/vite.svg`、`frontend/public/icons.svg` 未发现活跃引用，发布前宜删除或单独补来源/品牌使用说明
+
+## T84 — 全局设置导入导出 + 标签页标题与 favicon 更新 ✅
+- **对外接口**：`GET /api/global-settings/export`（返回 `worldengine-global-settings-v1` 格式 JSON）、`POST /api/global-settings/import`（body 同上，条目追加，config 覆盖）；前端 `downloadGlobalSettings() / importGlobalSettings()` 封装于 `importExport.js`
+- **涉及文件**：`backend/services/import-export.js`（新增 `exportGlobalSettings` / `importGlobalSettings`）、`backend/routes/import-export.js`（新增两条路由）、`frontend/src/api/importExport.js`（新增三个函数）、`frontend/src/pages/SettingsPage.jsx`（新增"导入导出"导航项与 `ImportExportSection` 组件）、`frontend/index.html`（title 改为 WorldEngine）、`frontend/public/favicon.svg`（换为书卷风地球仪图标）
+- **注意**：导出文件后缀约定为 `.weglobal.json`，format 字段为 `worldengine-global-settings-v1`；导入是**追加**不去重；scope 白名单校验（`user_input/ai_output/display_only/prompt_only`），无效 scope 的正则规则跳过；DB 事务成功后才调用 `updateConfig`，保证原子性；不含 LLM 配置与 API 密钥；导入后前端调 `getConfig()` 重新同步 React state，不刷页
+
 ## T83 — 修复 impersonate 新 session 丢失开场白上下文 ✅
 - **对外接口**：无新增接口；`buildPrompt` / `buildWritingPrompt` 在无 turn record 的降级路径里，改为仅移除“最新一条 user 消息”，不再盲目裁掉数组最后一项
 - **涉及文件**：`backend/prompt/assembler.js`、`ARCHITECTURE.md`、`CHANGELOG.md`

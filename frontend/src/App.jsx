@@ -19,7 +19,7 @@ export default function App() {
   const backgroundLocation = location.state?.backgroundLocation;
 
   useEffect(() => {
-    refreshCustomCss();
+    refreshCustomCss('chat');
   }, []);
 
   return (

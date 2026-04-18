@@ -22,10 +22,11 @@ import {
 const router = Router();
 
 router.get('/regex-rules', (req, res) => {
-  const { scope, worldId } = req.query;
+  const { scope, worldId, mode } = req.query;
   const filters = {};
   if (scope) filters.scope = scope;
   if (worldId !== undefined) filters.worldId = worldId || null;
+  if (mode) filters.mode = mode;
   res.json(listRegexRules(filters));
 });
 

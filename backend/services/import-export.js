@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import db from '../db/index.js';
+import { getConfig, updateConfig } from './config.js';
 import {
   validateCharacterImportPayload,
   validateWorldImportPayload,
@@ -497,4 +498,150 @@ export function importWorld(data) {
   });
 
   return doImport();
+}
+
+// ─── 导出全局设置 ─────────────────────────────────────────────────────────────
+
+export function exportGlobalSettings() {
+  const config = getConfig();
+
+  const promptEntries = db.prepare(
+    'SELECT title, summary, content, keywords, mode, sort_order FROM global_prompt_entries ORDER BY sort_order ASC',
+  ).all().map((e) => ({ ...e, keywords: e.keywords ? JSON.parse(e.keywords) : null }));
+
+  const cssSnippets = db.prepare(
+    'SELECT name, content, enabled, mode, sort_order FROM custom_css_snippets ORDER BY sort_order ASC, created_at ASC',
+  ).all();
+
+  const regexRules = db.prepare(
+    `SELECT name, pattern, replacement, scope, mode, enabled, sort_order
+     FROM regex_rules WHERE world_id IS NULL ORDER BY sort_order ASC`,
+  ).all();
+
+  const writing = config.writing ?? {};
+  const writingLlm = writing.llm ?? {};
+
+  return {
+    format: 'worldengine-global-settings-v1',
+    exported_at: new Date().toISOString(),
+    config: {
+      global_system_prompt: config.global_system_prompt ?? '',
+      global_post_prompt: config.global_post_prompt ?? '',
+      context_history_rounds: config.context_history_rounds ?? 20,
+      memory_expansion_enabled: config.memory_expansion_enabled ?? true,
+    },
+    writing: {
+      global_system_prompt: writing.global_system_prompt ?? '',
+      global_post_prompt: writing.global_post_prompt ?? '',
+      context_history_rounds: writing.context_history_rounds ?? null,
+      llm: {
+        model: writingLlm.model ?? '',
+        temperature: writingLlm.temperature ?? null,
+        max_tokens: writingLlm.max_tokens ?? null,
+      },
+    },
+    global_prompt_entries: promptEntries,
+    custom_css_snippets: cssSnippets,
+    regex_rules: regexRules,
+  };
+}
+
+// ─── 导入全局设置 ─────────────────────────────────────────────────────────────
+
+export function importGlobalSettings(data) {
+  if (!data || data.format !== 'worldengine-global-settings-v1') {
+    throw new Error('全局设置文件格式不正确');
+  }
+
+  const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
+  const now = Date.now();
+
+  const doImport = db.transaction(() => {
+    db.prepare('DELETE FROM global_prompt_entries').run();
+    db.prepare('DELETE FROM custom_css_snippets').run();
+    db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL').run();
+
+    const insertEntry = db.prepare(
+      `INSERT INTO global_prompt_entries
+       (id, title, summary, content, keywords, mode, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const entry of (data.global_prompt_entries ?? [])) {
+      insertEntry.run(
+        crypto.randomUUID(),
+        entry.title ?? '',
+        entry.summary ?? null,
+        entry.content ?? '',
+        entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+        entry.mode ?? 'chat',
+        entry.sort_order ?? 0,
+        now, now,
+      );
+    }
+
+    const insertCss = db.prepare(
+      `INSERT INTO custom_css_snippets (id, name, content, enabled, mode, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const snippet of (data.custom_css_snippets ?? [])) {
+      insertCss.run(
+        crypto.randomUUID(),
+        snippet.name ?? '',
+        snippet.content ?? '',
+        snippet.enabled ? 1 : 0,
+        snippet.mode ?? 'chat',
+        snippet.sort_order ?? 0,
+        now, now,
+      );
+    }
+
+    const insertRule = db.prepare(
+      `INSERT INTO regex_rules
+       (id, world_id, name, pattern, replacement, scope, mode, enabled, sort_order, created_at, updated_at)
+       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const rule of (data.regex_rules ?? [])) {
+      if (rule.scope && !validScopes.has(rule.scope)) continue;
+      insertRule.run(
+        crypto.randomUUID(),
+        rule.name ?? '',
+        rule.pattern ?? '',
+        rule.replacement ?? '',
+        rule.scope ?? 'display_only',
+        rule.mode ?? 'chat',
+        rule.enabled ? 1 : 0,
+        rule.sort_order ?? 0,
+        now, now,
+      );
+    }
+  });
+
+  doImport();
+
+  if (data.config && typeof data.config === 'object') {
+    const patch = {};
+    if (typeof data.config.global_system_prompt === 'string') patch.global_system_prompt = data.config.global_system_prompt;
+    if (typeof data.config.global_post_prompt === 'string') patch.global_post_prompt = data.config.global_post_prompt;
+    if (typeof data.config.context_history_rounds === 'number') patch.context_history_rounds = data.config.context_history_rounds;
+    if (typeof data.config.memory_expansion_enabled === 'boolean') patch.memory_expansion_enabled = data.config.memory_expansion_enabled;
+    if (Object.keys(patch).length > 0) updateConfig(patch);
+  }
+
+  if (data.writing && typeof data.writing === 'object') {
+    const writingPatch = {};
+    if (typeof data.writing.global_system_prompt === 'string') writingPatch.global_system_prompt = data.writing.global_system_prompt;
+    if (typeof data.writing.global_post_prompt === 'string') writingPatch.global_post_prompt = data.writing.global_post_prompt;
+    if (data.writing.context_history_rounds === null || typeof data.writing.context_history_rounds === 'number') {
+      writingPatch.context_history_rounds = data.writing.context_history_rounds;
+    }
+    if (data.writing.llm && typeof data.writing.llm === 'object') {
+      writingPatch.llm = {};
+      if (typeof data.writing.llm.model === 'string') writingPatch.llm.model = data.writing.llm.model;
+      if (data.writing.llm.temperature === null || typeof data.writing.llm.temperature === 'number') writingPatch.llm.temperature = data.writing.llm.temperature;
+      if (data.writing.llm.max_tokens === null || typeof data.writing.llm.max_tokens === 'number') writingPatch.llm.max_tokens = data.writing.llm.max_tokens;
+    }
+    if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
+  }
+
+  return { ok: true };
 }

@@ -12,7 +12,7 @@ import EntryEditor from './EntryEditor';
  *   type    — 'global' | 'world' | 'character'
  *   scopeId — worldId（world 类型）或 characterId（character 类型），global 不需要
  */
-export default function EntryList({ type, scopeId }) {
+export default function EntryList({ type, scopeId, mode }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
@@ -24,7 +24,7 @@ export default function EntryList({ type, scopeId }) {
     setLoading(true);
     try {
       let list;
-      if (type === 'global') list = await listGlobalEntries();
+      if (type === 'global') list = await listGlobalEntries(mode ? { mode } : undefined);
       else if (type === 'world') list = await listWorldEntries(scopeId);
       else list = await listCharacterEntries(scopeId);
       setEntries(list);
@@ -33,13 +33,13 @@ export default function EntryList({ type, scopeId }) {
     }
   }
 
-  useEffect(() => { loadEntries(); }, [type, scopeId]);
+  useEffect(() => { loadEntries(); }, [type, scopeId, mode]);
 
   async function handleSave(data) {
     if (editingEntry) {
       await updateEntry(type, editingEntry.id, data);
     } else {
-      if (type === 'global') await createGlobalEntry(data);
+      if (type === 'global') await createGlobalEntry(mode ? { ...data, mode } : data);
       else if (type === 'world') await createWorldEntry(scopeId, data);
       else await createCharacterEntry(scopeId, data);
     }

@@ -197,7 +197,7 @@ export default function MessageItem({
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
           <CharacterSeal character={character} size={40} />
-          <div style={{ minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className="we-message-label">{speakerName}</div>
             <div className="we-message-bubble-assistant">
               <div className="we-message-content we-typing-dots">
@@ -285,7 +285,7 @@ export default function MessageItem({
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
         <CharacterSeal character={character} size={40} />
-        <div style={{ minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="we-message-label">
             {speakerName}
             {interrupted && <span className="we-message-interrupted">已中断</span>}
