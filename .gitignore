@@ -4,17 +4,7 @@ dist/
 *.db
 .DS_Store
 
-# Root-level local docs: keep on disk, do not publish to GitHub
-/ARCHITECTURE.md
-/CHANGELOG.md
-/CLAUDE.md
-/DESIGN.md
-/PROJECT.md
-/ROADMAP.md
-/SCHEMA.md
-
 # Local agent / tooling files
 /.claude/
-/AGENTS.md
 /.playwright-cli/
 /frontend/.playwright-cli/
