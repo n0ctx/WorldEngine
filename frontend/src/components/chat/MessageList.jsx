@@ -122,9 +122,26 @@ export default function MessageList({
   // 外部同步读取当前消息列表（避免在 updater 闭包中读取异步状态）
   MessageList.messagesRef = messagesRef;
 
+  const messagesForDisplay = useMemo(() => {
+    if (!prose || !generating || !!continuingMessageId) return messages;
+    const lastMsg = messages[messages.length - 1];
+    const fakeTs = (lastMsg?.created_at ?? Date.now()) + 1;
+    return [
+      ...messages,
+      {
+        _key: streamingKey || '__streaming__',
+        id: streamingKey || '__streaming__',
+        role: 'assistant',
+        content: streamingText || '',
+        _isStream: true,
+        created_at: fakeTs,
+      },
+    ];
+  }, [prose, messages, generating, continuingMessageId, streamingKey, streamingText]);
+
   const chapters = useMemo(
-    () => groupMessagesIntoChapters(messages, sessionTitle),
-    [messages, sessionTitle]
+    () => groupMessagesIntoChapters(messagesForDisplay, sessionTitle),
+    [messagesForDisplay, sessionTitle]
   );
 
   if (loading) {
@@ -188,51 +205,27 @@ export default function MessageList({
 
       {prose ? (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 24px' }}>
-          {chapters.map((chapter, cIdx) => {
-            const isLast = cIdx === chapters.length - 1;
-            return (
-              <div key={chapter.chapterIndex} className="we-chapter">
-                <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
-                {chapter.messages.map((msg) => {
-                  const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-                  const displayMsg = isContinuing ? { ...msg, content: msg.content + continuingText } : msg;
-                  return (
-                    <WritingMessageItem
-                      key={msg._key ?? msg.id}
-                      message={displayMsg}
-                      isStreaming={isContinuing}
-                      persona={persona}
-                      onEdit={onEditMessage}
-                      onRegenerate={onRegenerateMessage}
-                      onEditAssistant={onEditAssistantMessage}
-                    />
-                  );
-                })}
-                {isLast && generating && !continuingMessageId && (
+          {chapters.map((chapter) => (
+            <div key={chapter.chapterIndex} className="we-chapter">
+              <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
+              {chapter.messages.map((msg) => {
+                const isStream = !!msg._isStream;
+                const isContinuing = !isStream && continuingMessageId && msg.id === continuingMessageId;
+                const displayMsg = isContinuing ? { ...msg, content: msg.content + '\n\n' + continuingText } : msg;
+                return (
                   <WritingMessageItem
-                    key={streamingKey || '__streaming__'}
-                    message={{ _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }}
-                    isStreaming={true}
+                    key={msg._key ?? msg.id}
+                    message={displayMsg}
+                    isStreaming={isContinuing || isStream}
                     persona={persona}
-                    onEdit={undefined}
-                    onRegenerate={undefined}
-                    onEditAssistant={undefined}
+                    onEdit={isStream ? undefined : onEditMessage}
+                    onRegenerate={isStream ? undefined : onRegenerateMessage}
+                    onEditAssistant={isStream ? undefined : onEditAssistantMessage}
                   />
-                )}
-              </div>
-            );
-          })}
-          {chapters.length === 0 && generating && !continuingMessageId && (
-            <WritingMessageItem
-              key={streamingKey || '__streaming__'}
-              message={{ _key: streamingKey || '__streaming__', id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', _isStream: true }}
-              isStreaming={true}
-              persona={persona}
-              onEdit={undefined}
-              onRegenerate={undefined}
-              onEditAssistant={undefined}
-            />
-          )}
+                );
+              })}
+            </div>
+          ))}
         </div>
       ) : (
         <div>
@@ -245,7 +238,7 @@ export default function MessageList({
                   {chapter.messages.map((msg) => {
                     const isContinuing = continuingMessageId && msg.id === continuingMessageId;
                     const displayMsg = isContinuing
-                      ? { ...msg, content: msg.content + continuingText }
+                      ? { ...msg, content: msg.content + '\n\n' + continuingText }
                       : msg;
                     return (
                       <MessageItem

@@ -47,10 +47,6 @@ export default function WritingMessageItem({
 
   if (!content && !isStreaming) return null;
 
-  const label = isUser
-    ? (persona?.name || '玩家').toUpperCase()
-    : '旁白';
-
   function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     if (draft.trim() && draft !== message.content) onEdit?.(message.id, draft.trim());
@@ -88,100 +84,99 @@ export default function WritingMessageItem({
     }
   }, [editingAI]);
 
-  return (
-    <div className={`we-message-row we-prose-item ${isUser ? 'we-message-user' : 'we-message-assistant'}`}>
-      <div className="we-message-label">{label}</div>
-      <div style={isUser ? { borderLeft: '2px solid var(--we-amber)', paddingLeft: 16 } : undefined}>
-        {isUser ? (
-          editing ? (
-            <div className="we-message-edit">
-              <textarea
-                ref={textareaRef}
-                value={draft}
-                onChange={(e) => {
-                  setDraft(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }}
-                onKeyDown={handleKeyDown}
-                rows={3}
-              />
-              <div className="we-message-edit-actions">
-                <button onClick={cancelEdit}>取消</button>
-                <button className="primary" onClick={confirmEdit}>确认并重新生成</button>
-              </div>
+  /* ── 玩家输入：朱砂左线批注风格 ── */
+  if (isUser) {
+    return (
+      <div className="we-writing-annotation">
+        {editing ? (
+          <div className="we-message-edit">
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+              onKeyDown={handleKeyDown}
+              rows={2}
+            />
+            <div className="we-message-edit-actions">
+              <button onClick={cancelEdit}>取消</button>
+              <button className="primary" onClick={confirmEdit}>确认并重新生成</button>
             </div>
-          ) : (
-            <>
-              <div className="we-message-content">
-                <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-                  {content}
-                </ReactMarkdown>
-              </div>
-              {!isStreaming && (
-                <div className="we-message-actions">
-                  <CopyBtn getText={() => content} />
-                  <button onClick={startEdit}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    编辑
-                  </button>
-                </div>
-              )}
-            </>
-          )
+          </div>
         ) : (
-          editingAI ? (
-            <div className="we-message-edit">
-              <textarea
-                ref={aiTextareaRef}
-                value={aiDraft}
-                onChange={(e) => {
-                  setAiDraft(e.target.value);
-                  e.target.style.height = 'auto';
-                  e.target.style.height = e.target.scrollHeight + 'px';
-                }}
-                onKeyDown={handleKeyDownAI}
-                rows={6}
-              />
-              <div className="we-message-edit-actions">
-                <button onClick={cancelEditAI}>取消</button>
-                <button className="primary" onClick={confirmEditAI}>保存</button>
+          <>
+            <span>{content}</span>
+            {!isStreaming && (
+              <div className="we-message-actions">
+                <CopyBtn getText={() => content} />
+                <button onClick={startEdit}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  编辑
+                </button>
               </div>
-            </div>
-          ) : (
-            <>
-              <div className="we-message-content">
-                <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-                  {content}
-                </ReactMarkdown>
-                {isStreaming && <QuillCursor />}
-              </div>
-              {!isStreaming && (
-                <div className="we-message-actions">
-                  <CopyBtn getText={() => content} />
-                  <button onClick={() => onRegenerate?.(message.id)}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                    </svg>
-                    重新生成
-                  </button>
-                  <button onClick={startEditAI}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                    编辑
-                  </button>
-                </div>
-              )}
-            </>
-          )
+            )}
+          </>
         )}
       </div>
+    );
+  }
+
+  /* ── 助手叙事：书页正文散文风格 ── */
+  return (
+    <div className="we-writing-prose">
+      {editingAI ? (
+        <div className="we-message-edit">
+          <textarea
+            ref={aiTextareaRef}
+            value={aiDraft}
+            onChange={(e) => {
+              setAiDraft(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
+            onKeyDown={handleKeyDownAI}
+            rows={6}
+          />
+          <div className="we-message-edit-actions">
+            <button onClick={cancelEditAI}>取消</button>
+            <button className="primary" onClick={confirmEditAI}>保存</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="we-message-content">
+            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
+              {content}
+            </ReactMarkdown>
+            {isStreaming && <QuillCursor />}
+          </div>
+          {!isStreaming && (
+            <div className="we-message-actions">
+              <CopyBtn getText={() => content} />
+              <button onClick={() => onRegenerate?.(message.id)}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                </svg>
+                重新生成
+              </button>
+              <button onClick={startEditAI}>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                编辑
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

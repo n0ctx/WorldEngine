@@ -577,3 +577,40 @@
   font-size: 14px;
   flex-shrink: 0;
 }
+
+/* ── Writing space: prose & annotation ────────────────── */
+
+.we-writing-prose {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-base);
+  line-height: var(--we-leading-loose);
+  color: var(--we-ink-primary);
+  margin-bottom: 0.6em;
+  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+}
+
+.we-writing-prose p      { margin-bottom: 0; }
+.we-writing-prose p + p  { margin-top: 0.5em; }
+.we-writing-prose ul, .we-writing-prose ol { padding-left: 1.5em; margin-bottom: 0.5em; }
+.we-writing-prose li     { margin-bottom: 0.2em; }
+.we-writing-prose strong { font-weight: 600; }
+.we-writing-prose em     { font-style: italic; }
+
+.we-writing-annotation {
+  border-left: 1.5px solid var(--we-vermilion);
+  padding-left: 12px;
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-sm);
+  color: var(--we-ink-faded);
+  margin: 1em 0 0.6em;
+  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+}
+
+.we-writing-annotation .we-message-actions {
+  margin-top: 4px;
+}
+
+.we-writing-prose .we-message-actions {
+  margin-top: 6px;
+}

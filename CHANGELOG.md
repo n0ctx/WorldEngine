@@ -19,6 +19,11 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T80 — 修复写作空间流式结束闪烁回归 ✅
+- **对外接口**：无新增接口；`MessageList` prose 模式渲染逻辑内部调整
+- **涉及文件**：`frontend/src/components/chat/MessageList.jsx`
+- **注意**：根因是 commit 325dc83（章节分组）将 prose 模式的流式占位放到 `chapter.messages.map()` 外部作为条件元素，React 调和时 key 匹配失败导致 `WritingMessageItem` 重挂载，`.we-writing-prose` 的 `weInkRise` 动画重播产生闪烁。修复方案：新增 `messagesForDisplay` useMemo，在 prose+generating 时将流式伪消息（带 `_isStream: true`）注入数组末尾，让其自然落入 `groupMessagesIntoChapters` 的 chapter.messages，map 内通过 `msg._isStream` 判断 streaming 态，删除 map 外的条件占位和 `chapters.length === 0` fallback
+
 ## T79 — 文档同步 + SectionTabs 布局修正 ✅
 - **对外接口**：无新增运行时接口；`SCHEMA.md` / `ARCHITECTURE.md` 现已与当前实现对齐，可作为会话模型、turn record、召回阈值、路由映射与中间件行为的最新权威参考
 - **涉及文件**：`SCHEMA.md`、`ARCHITECTURE.md`、`CHANGELOG.md`、`frontend/src/styles/pages.css`
