@@ -14,6 +14,7 @@ const OP_LABELS = { create: '新建', update: '修改', delete: '删除' };
 const TYPE_LABELS = {
   'world-card': '世界卡',
   'character-card': '角色卡',
+  'persona-card': '玩家卡',
   'global-config': '全局设置',
   'css-snippet': '自定义 CSS',
   'regex-rule': '正则规则',
@@ -22,6 +23,7 @@ const TYPE_LABELS = {
 const TYPE_ICONS = {
   'world-card': '🌍',
   'character-card': '👤',
+  'persona-card': '🎭',
   'global-config': '⚙️',
   'css-snippet': '🎨',
   'regex-rule': '🔄',

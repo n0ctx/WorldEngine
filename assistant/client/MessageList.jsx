@@ -95,6 +95,7 @@ function RoutingMessage({ msg }) {
   const TARGET_LABELS = {
     'world-card': '世界卡',
     'character-card': '角色卡',
+    'persona-card': '玩家卡',
     'global-prompt': '全局设置',
     'css-regex': 'CSS/正则',
   };

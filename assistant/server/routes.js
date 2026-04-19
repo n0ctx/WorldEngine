@@ -10,10 +10,13 @@ import { Router } from 'express';
 import { routeMessage, streamResponse } from './main-agent.js';
 import { processWorldCard } from './sub-agents/world-card.js';
 import { processCharacterCard } from './sub-agents/character-card.js';
+import { processPersonaCard } from './sub-agents/persona-card.js';
 import { processGlobalPrompt } from './sub-agents/global-prompt.js';
 import { processCssRegex } from './sub-agents/css-regex.js';
 import { getWorldById, createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
 import { getCharacterById, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
+import { getOrCreatePersona, updatePersona } from '../../backend/services/personas.js';
+import { getPersonaByWorldId } from '../../backend/db/queries/personas.js';
 import { getConfig, updateConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
@@ -70,6 +73,7 @@ function sendSSE(res, data) {
 const SUB_AGENTS = {
   'world-card': processWorldCard,
   'character-card': processCharacterCard,
+  'persona-card': processPersonaCard,
   'global-prompt': processGlobalPrompt,
   'css-regex': processCssRegex,
 };
@@ -116,6 +120,15 @@ router.post('/chat', async (req, res) => {
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(character.world_id),
       };
     }
+    if (target === 'persona-card') {
+      const worldId = entityId || context.worldId;
+      if (!worldId) throw Object.assign(new Error('请先选择一个世界，再让助手修改玩家卡'), { userFacing: true });
+      const persona = getOrCreatePersona(worldId);
+      return {
+        ...persona,
+        existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
+      };
+    }
     if (target === 'global-prompt') {
       const config = getConfig();
       return { ...config, existingEntries: getAllGlobalEntries() };
@@ -126,9 +139,10 @@ router.post('/chat', async (req, res) => {
   // ── 执行单个子代理任务 ─────────────────────────────────────────────
   async function executeOneTask(taskSpec) {
     const { target, operation = 'update', task: taskDesc, taskId, worldRef } = taskSpec;
-    // character-card create 时：entityId 应为所属世界 ID；若路由 LLM 未填，回退到 context.worldId
+    // character/persona-card 操作时：entityId 应为世界 ID；若路由 LLM 未填，回退到 context.worldId
     let entityId = taskSpec.entityId ?? null;
-    if (target === 'character-card' && operation === 'create' && !entityId) {
+    if ((target === 'character-card' && operation === 'create' && !entityId) ||
+        (target === 'persona-card' && !entityId)) {
       entityId = context.worldId ?? null;
     }
     if (!SUB_AGENTS[target]) {
@@ -355,6 +369,20 @@ async function applyProposal(proposal, worldRefId = null) {
             }
           }
         }
+      }
+      return updated;
+    }
+
+    case 'persona-card': {
+      // persona 是 upsert，entityId 为 worldId
+      const worldId = entityId;
+      if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）');
+      const safeChanges = pickAllowed(changes, ['name', 'system_prompt']);
+      const updated = await updatePersona(worldId, safeChanges);
+      const sfOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
+      for (const op of sfOps) {
+        if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
+        else if (op.op === 'delete' && op.id) await applyStateFieldDelete({ ...op, target: 'persona' });
       }
       return updated;
     }
