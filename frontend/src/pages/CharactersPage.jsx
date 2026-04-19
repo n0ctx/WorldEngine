@@ -182,6 +182,7 @@ export default function CharactersPage() {
   const [world, setWorld] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [deletingChar, setDeletingChar] = useState(null);
   const [importingChar, setImportingChar] = useState(false);
 
@@ -189,13 +190,20 @@ export default function CharactersPage() {
   const charImportRef = useRef(null);
 
   async function loadData() {
-    const [w, chars] = await Promise.all([
-      getWorld(worldId),
-      getCharactersByWorld(worldId),
-    ]);
-    setWorld(w);
-    setCharacters(chars);
-    setLoading(false);
+    setLoading(true);
+    setLoadError('');
+    try {
+      const [w, chars] = await Promise.all([
+        getWorld(worldId),
+        getCharactersByWorld(worldId),
+      ]);
+      setWorld(w);
+      setCharacters(chars);
+    } catch (err) {
+      setLoadError(err.message || '读取失败');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => { loadData(); }, [worldId]);
@@ -258,6 +266,15 @@ export default function CharactersPage() {
 
   if (loading) {
     return <div className="we-characters-loading">加载中…</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="we-characters-loading" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+        <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-vermilion)', margin: 0 }}>{loadError}</p>
+        <button className="we-characters-create-btn" onClick={loadData}>重试</button>
+      </div>
+    );
   }
 
   return (

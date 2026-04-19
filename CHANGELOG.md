@@ -19,6 +19,14 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T93 — 修复角色列表加载卡死 + 提案卡编辑按钮位置 ✅
+- **涉及文件**：
+  - `frontend/src/pages/CharactersPage.jsx` — `loadData()` 新增 try/catch + finally；新增 `loadError` state 和错误页展示（含重试按钮），避免请求失败时页面永久卡在加载中
+  - `assistant/client/ChangeProposalCard.jsx` — "编辑"/"取消编辑"按钮从卡片顶部 header 移到底部操作区（与"创建/应用"按钮并排）；header 改为仅在编辑中时显示"编辑中"状态标记
+- **注意**：
+  - 编辑按钮原来在 header 右上角（用户视线通常在底部的应用按钮上，容易忽视），移到操作区后两个按钮更自然地并列显示
+  - CharactersPage 错误页含重试入口，避免需要刷新整个应用
+
 ## T92 — 写卡助手：三层状态字段分层（world/persona/character）✅
 - **涉及文件**：
   - `assistant/prompts/sub-world-card.md` — 状态字段定义改为三层架构表（world/persona/character），stateFieldOps 示例补充三种 target，底部占位符拆分为 `{{EXISTING_WORLD_STATE_FIELDS}}` / `{{EXISTING_PERSONA_STATE_FIELDS}}` / `{{EXISTING_CHARACTER_STATE_FIELDS}}`
