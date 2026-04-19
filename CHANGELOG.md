@@ -19,6 +19,23 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T99 — 完整日志系统 ✅
+- **对外接口**：
+  - 环境变量 `LOG_LEVEL=debug|info|warn|error`（终端，默认 warn）
+  - 环境变量 `LOG_FILE=false`（关闭文件写入，默认开启）
+  - 环境变量 `LOG_FILE_LEVEL=debug|info|warn|error`（文件，默认 info）
+  - `createLogger(tag, color?)` — 新增可选第二参数指定 tag 颜色（cyan/magenta/green/yellow）
+  - 日志文件路径：`data/logs/worldengine-YYYY-MM-DD.log`（按日轮换，`data/.gitignore` 已覆盖）
+  - 推荐启动方式：`LOG_LEVEL=info npm run dev`（看完整链路）；`LOG_LEVEL=debug` 看 prompt 组装细节
+- **涉及文件**：
+  - `backend/utils/logger.js` — 新增文件写入（ANSI 剥离、按日轮换、setImmediate 批量非阻塞）；新增每级别行首图标（◆ · ▲ ✖）；tag 统一 8 字符对齐；createLogger 支持可选颜色参数
+  - `backend/server.js` — dataDirs 添加 `data/logs`；新增 HTTP 请求日志中间件（info 级，不记录请求体）
+  - `backend/prompt/assembler.js` — buildPrompt / buildWritingPrompt 添加 `┌─`/`│`/`└─` 分组日志（START、entries、recall、expand、history、DONE）
+  - `backend/routes/chat.js` — runStream 添加 `▶`/`■` 流式日志；chat/regenerate/continue 路由各添加一行 info 日志
+- **注意**：
+  - assembler.js 是锁定文件，此次修改仅添加 log 调用，组装顺序/逻辑未变
+  - 文件日志写入独立于终端级别（LOG_FILE_LEVEL），可同时设 LOG_LEVEL=warn（终端安静）+ LOG_FILE_LEVEL=info（文件完整记录）
+
 ## T98 — 思考链配置与渲染 ✅
 - **对外接口**：
   - `GET /api/config/models` — 额外返回 `thinkingOptions: [{value, label}]`（provider 级别，anthropic/openai 有值，其他为空数组）

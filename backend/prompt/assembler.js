@@ -58,6 +58,12 @@ import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('assembler', 'magenta');
+
+/** 将字符数格式化为可读单位，如 3241 → '3.2k' */
+function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
@@ -123,6 +129,10 @@ export async function buildPrompt(sessionId, options = {}) {
   const world = getWorldById(character.world_id);
   if (!world) throw new Error(`World not found: ${character.world_id}`);
 
+  const t0  = Date.now();
+  const sid = sessionId.slice(0, 8);
+  log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
+
   const config = getConfig();
   const systemParts = [];
 
@@ -176,6 +186,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const allEntries = [...globalEntries, ...worldEntries, ...characterEntries];
 
   const triggeredIds = await matchEntries(sessionId, allEntries);
+  log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  char=${characterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
 
   const entryTexts = [];
   for (const entry of allEntries) {
@@ -198,6 +209,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
+  log.info(`│  [12]   recall   hits=${recallHitCount}`);
 
   // [13] 展开原文（AI preflight 决策）
   if (recalled.length > 0 && config.memory_expansion_enabled !== false) {
@@ -206,6 +218,7 @@ export async function buildPrompt(sessionId, options = {}) {
     });
 
     const toExpand = await decideExpansion({ sessionId, recalled, recentMessagesText });
+    log.debug(`│  [13]   expand   candidates=${recalled.length}  chosen=${toExpand.length}`);
     const expandedText = toExpand.length
       ? renderExpandedTurnRecords(toExpand, MEMORY_EXPAND_MAX_TOKENS)
       : '';
@@ -227,6 +240,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   if (turnRecords.length > 0) {
     // 新路径：turn records，每条渲染为 user/assistant 对
+    log.debug(`│  [14]   history  turn-records ×${turnRecords.length}`);
     for (const record of turnRecords) {
       messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id, 'chat') });
       messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'chat') });
@@ -236,6 +250,7 @@ export async function buildPrompt(sessionId, options = {}) {
     // 去掉最新一条 user 消息（将在 [16] 单独追加）；若当前还没有 user，保留 assistant 开场白
     const history = getUncompressedMessagesBySessionId(sessionId);
     const withoutLastUser = omitLatestUserMessage(history);
+    log.debug(`│  [14]   history  uncompressed ×${withoutLastUser.length}`);
     for (const msg of withoutLastUser) {
       const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
       messages.push(formatMessageForLLM({ ...msg, content }));
@@ -263,6 +278,9 @@ export async function buildPrompt(sessionId, options = {}) {
   // 生成参数：世界级 > 全局
   const temperature = world.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
+
+  const systemLen = messages[0]?.content?.length ?? 0;
+  log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
 
   return { messages, temperature, maxTokens, recallHitCount };
 }
@@ -295,6 +313,11 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
   const activeCharacters = getWritingSessionCharacters(sessionId);
+
+  const t0  = Date.now();
+  const sid = sessionId.slice(0, 8);
+  const charNames = activeCharacters.map((c) => c.name).join(', ');
+  log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
   // 模板变量上下文：共享段用首个激活角色名作为 {{char}} fallback
   const firstCharName = activeCharacters[0]?.name || '';
@@ -350,6 +373,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const allEntries = [...globalEntries, ...worldEntries, ...allCharacterEntries];
 
   const triggeredIds = await matchEntries(sessionId, allEntries);
+  log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  chars=${allCharacterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
 
   const entryTexts = [];
   for (const entry of allEntries) {
@@ -381,6 +405,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const allHistory = getUncompressedMessagesBySessionId(sessionId);
 
   if (turnRecords.length > 0) {
+    log.debug(`│  [14]   history  turn-records ×${turnRecords.length}`);
     for (const record of turnRecords) {
       messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id, 'writing') });
       messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'writing') });
@@ -388,6 +413,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   } else {
     // 降级路径：session 尚无任何 turn record
     const withoutLastUser = omitLatestUserMessage(allHistory);
+    log.debug(`│  [14]   history  uncompressed ×${withoutLastUser.length}`);
     for (const msg of withoutLastUser) {
       const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
       messages.push(formatMessageForLLM({ ...msg, content }));
@@ -410,6 +436,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const temperature = world.temperature ?? (writingLlm.temperature ?? config.llm.temperature);
   const maxTokens = world.max_tokens ?? (writingLlm.max_tokens ?? config.llm.max_tokens);
   const model = writingLlm.model || config.llm.model;
+
+  const systemLen = messages[0]?.content?.length ?? 0;
+  log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
 
   return { messages, temperature, maxTokens, model };
 }

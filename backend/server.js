@@ -37,6 +37,9 @@ import personaStateValuesRoutes from './routes/persona-state-values.js';
 import writingRoutes from './routes/writing.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import { resolveUploadPath } from './services/state-values.js';
+import { createLogger } from './utils/logger.js';
+
+const serverLog = createLogger('http', 'cyan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', 'data');
@@ -78,6 +81,7 @@ const dataDirs = [
   path.join(DATA_ROOT, 'uploads', 'avatars'),
   path.join(DATA_ROOT, 'uploads', 'attachments'),
   path.join(DATA_ROOT, 'vectors'),
+  path.join(DATA_ROOT, 'logs'),
 ];
 for (const dir of dataDirs) {
   fs.mkdirSync(dir, { recursive: true });
@@ -93,6 +97,24 @@ app.use(cors({
   },
 }));
 app.use(express.json({ limit: '20mb' }));
+
+// HTTP 请求日志中间件（仅 /api/，跳过静态文件）
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api/') || req.path.startsWith('/api/uploads/')) {
+    return next();
+  }
+  const t0     = Date.now();
+  const method = req.method.padEnd(4);
+  res.on('finish', () => {
+    const ms      = Date.now() - t0;
+    const status  = res.statusCode;
+    const isStream = /\/(chat|regenerate|continue|impersonate)$/.test(req.path);
+    const streamTag = isStream ? '  [SSE]' : '';
+    serverLog.info(`${method} ${req.path}  →  ${status}${streamTag}  ${ms}ms`);
+  });
+  next();
+});
+
 app.use('/api', localOnly);
 
 app.get('/api/uploads/*path', localOnly, (req, res) => {

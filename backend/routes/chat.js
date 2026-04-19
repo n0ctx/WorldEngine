@@ -40,6 +40,10 @@ const log = createLogger('chat');
  * @param {string} [opts.userMsgId] 真实 user 消息 id，流起始时广播给前端替换 temp id
  */
 async function runStream(sessionId, res, opts = {}) {
+  const sid = sessionId.slice(0, 8);
+  const t0  = Date.now();
+  log.info(`▶ stream START  session=${sid}`);
+
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
 
@@ -61,6 +65,7 @@ async function runStream(sessionId, res, opts = {}) {
       },
     });
     if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_done', hit: recallHitCount });
+    log.debug(`  context  session=${sid}  msgs=${messages.length}  recall=${recallHitCount}  temp=${overrides.temperature}  max=${overrides.maxTokens}`);
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 
     for await (const chunk of stream) {
@@ -72,6 +77,7 @@ async function runStream(sessionId, res, opts = {}) {
       aborted = true;
     } else {
       // LLM 错误
+      log.error(`stream ERROR  session=${sid}  ${err.message}`);
       if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
       // 无内容时直接结束
       if (!fullContent) {
@@ -82,6 +88,8 @@ async function runStream(sessionId, res, opts = {}) {
       // 有部分内容时继续保存（作为正常 done 处理）
     }
   }
+
+  log.info(`■ stream END  session=${sid}  chars=${fullContent.length}  aborted=${aborted}  +${Date.now() - t0}ms`);
 
   // 提前查询 session/character/world，供 ai_output 规则和异步任务使用
   const session = getSessionById(sessionId);
@@ -161,6 +169,8 @@ router.post('/:sessionId/chat', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
+  log.info(`chat  session=${sessionId.slice(0, 8)}  len=${content.length}${attachments?.length ? `  att=${attachments.length}` : ''}`);
+
   // 保存用户消息
   const userMsg = createMessage({ session_id: sessionId, role: 'user', content });
   touchSession(sessionId);
@@ -195,6 +205,8 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
+  log.info(`regenerate  session=${sessionId.slice(0, 8)}  after=${afterMessageId.slice(0, 8)}`);
+
   // 保留 afterMessageId 本身，删除之后的所有消息
   await deleteMessagesAfter(afterMessageId);
 
@@ -216,6 +228,8 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
+
+  log.info(`continue  session=${sessionId.slice(0, 8)}`);
 
   // 找最后一条 assistant 消息
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
