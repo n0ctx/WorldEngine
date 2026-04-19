@@ -24,6 +24,8 @@
     prompt_entries.json      # Prompt 条目的 embedding 向量索引
     session_summaries.json   # 会话摘要的 embedding 向量索引（T27，T35 起不再写入，旧数据存档）
     turn_summaries.json      # 每轮 turn record 摘要的 embedding 向量索引（T35）
+  /logs
+    worldengine-YYYY-MM-DD.log  # 运行时日志，按日轮换（T99）；data/.gitignore 的 * 规则已覆盖
 ```
 
 ### 删除策略
