@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T94 — 修复已有世界创建角色时提案卡误显示"等待世界卡" ✅
+- **涉及文件**：`assistant/server/main-agent.js`（ROUTING_SYSTEM prompt）
+- **根因**：主代理路由 prompt 未说清楚 entityId 填写规则和 worldRef 使用场景，LLM 会误生成带 `worldRef` 的 multi-delegate，导致前端提案卡以为依赖的世界卡还没创建
+- **修复**：在 ROUTING_SYSTEM 中明确"已有世界时创建角色用 `delegate`+`entityId=世界ID`；`worldRef` 只在同一请求同时新建世界+角色时使用"
+- **注意**：character-card create 时 `entityId` 填的是**世界 ID**（不是角色 ID），LLM 子代理输出 null 后由代码 `result.entityId ?? entityId` 回退到正确的世界 ID，无需改子代理
+
 ## T93 — 修复角色列表加载卡死 + 提案卡编辑按钮位置 ✅
 - **涉及文件**：
   - `frontend/src/pages/CharactersPage.jsx` — `loadData()` 新增 try/catch + finally；新增 `loadError` state 和错误页展示（含重试按钮），避免请求失败时页面永久卡在加载中
