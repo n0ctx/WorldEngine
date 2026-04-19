@@ -16,6 +16,7 @@ const DEFAULT_CONFIG = {
     model: '',
     max_tokens: 4096,
     temperature: 0.8,
+    thinking_level: null,
   },
   embedding: {
     provider: 'openai',
@@ -28,6 +29,7 @@ const DEFAULT_CONFIG = {
     theme: 'dark',
     font_size: 16,
     custom_css: '',
+    show_thinking: true,
   },
   context_history_rounds: 10,
   global_system_prompt: '',

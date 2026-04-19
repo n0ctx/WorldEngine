@@ -13,6 +13,7 @@ export default function InputBox({
   onSend,
   onStop,
   generating,
+  impersonating,
   lastUserContent,
   worldId,
   onContinue,
@@ -116,7 +117,7 @@ export default function InputBox({
 
   function handleSend() {
     const trimmed = text.trim();
-    if (!trimmed || generating) return;
+    if (!trimmed || generating || impersonating) return;
     // user_input scope：发送前应用正则替换
     const processed = applyRules(trimmed, 'user_input', worldId ?? null);
     onSend(processed, attachments);
@@ -204,7 +205,7 @@ export default function InputBox({
         </div>
       )}
 
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
         {/* 附件按钮 */}
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -284,40 +285,88 @@ export default function InputBox({
             </div>
           )}
 
-          {/* 快捷图标 */}
-          <div style={{ position: 'absolute', right: '10px', top: '10px', display: 'flex', gap: '2px', zIndex: 10 }}>
+          {/* Impersonate 等待动画覆盖层：pointerEvents:all 阻断用户交互，同时不 disabled textarea 保证值同步 */}
+          {impersonating && (
+            <div style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center',
+              paddingLeft: '16px',
+              background: 'rgba(244,237,228,0.85)',
+              pointerEvents: 'all',
+              zIndex: 5,
+            }}>
+              <style>{`
+                @keyframes we-imp-dots {
+                  0%   { content: ''; }
+                  25%  { content: '.'; }
+                  50%  { content: '..'; }
+                  75%  { content: '...'; }
+                  100% { content: ''; }
+                }
+                .we-imp-dots::after {
+                  content: '';
+                  animation: we-imp-dots 1.2s steps(1) infinite;
+                }
+              `}</style>
+              <span style={{
+                fontFamily: 'var(--we-font-serif)',
+                fontStyle: 'italic',
+                fontSize: '14px',
+                color: 'var(--we-ink-faded)',
+                opacity: 0.7,
+              }}>
+                AI 正在构思<span className="we-imp-dots" />
+              </span>
+            </div>
+          )}
+
+          {/* 快捷图标：锚定在 textarea 右下角，用 onMouseDown 避免 textarea 失焦拦截 */}
+          <div style={{
+            position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
+            display: 'flex', gap: '4px', zIndex: 10,
+          }}>
             <button
-              onClick={onContinue}
+              onMouseDown={(e) => { e.preventDefault(); if (!generating) onContinue?.(); }}
               disabled={generating}
               style={{
-                padding: '3px', background: 'none', border: 'none',
-                color: 'var(--we-ink-faded)', cursor: 'pointer',
-                opacity: generating ? 0.2 : 0.4, transition: 'opacity 0.15s',
-                borderRadius: '1px',
+                width: '28px', height: '28px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--we-paper-base)',
+                border: '1px solid var(--we-paper-shadow)',
+                borderRadius: '3px',
+                color: 'var(--we-ink-faded)',
+                cursor: generating ? 'not-allowed' : 'pointer',
+                opacity: generating ? 0.25 : 0.5,
+                transition: 'opacity 0.15s, border-color 0.15s',
               }}
-              title="续写"
-              onMouseEnter={(e) => { if (!generating) e.currentTarget.style.opacity = '0.9'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.2' : '0.4'; }}
+              title="续写上一条 AI 回复"
+              onMouseEnter={(e) => { if (!generating) { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'var(--we-ink-secondary)'; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.25' : '0.5'; e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'; }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <polyline points="13 17 18 12 13 7" />
                 <polyline points="6 17 11 12 6 7" />
               </svg>
             </button>
             <button
-              onClick={onImpersonate}
+              onMouseDown={(e) => { e.preventDefault(); if (!generating) onImpersonate?.(); }}
               disabled={generating}
               style={{
-                padding: '3px', background: 'none', border: 'none',
-                color: 'var(--we-ink-faded)', cursor: 'pointer',
-                opacity: generating ? 0.2 : 0.4, transition: 'opacity 0.15s',
-                borderRadius: '1px',
+                width: '28px', height: '28px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--we-paper-base)',
+                border: '1px solid var(--we-paper-shadow)',
+                borderRadius: '3px',
+                color: 'var(--we-ink-faded)',
+                cursor: generating ? 'not-allowed' : 'pointer',
+                opacity: generating ? 0.25 : 0.5,
+                transition: 'opacity 0.15s, border-color 0.15s',
               }}
-              title="代入"
-              onMouseEnter={(e) => { if (!generating) e.currentTarget.style.opacity = '0.9'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.2' : '0.4'; }}
+              title="AI 替你写一条消息"
+              onMouseEnter={(e) => { if (!generating) { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'var(--we-ink-secondary)'; } }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.25' : '0.5'; e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'; }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
@@ -326,7 +375,7 @@ export default function InputBox({
 
           <textarea
             ref={textareaRef}
-            placeholder="发送消息… (Shift+Enter 换行，/ 调出命令)"
+            placeholder={impersonating ? '' : '发送消息… (Shift+Enter 换行，/ 调出命令)'}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -335,7 +384,8 @@ export default function InputBox({
             style={{
               width: '100%',
               padding: '12px 16px',
-              paddingRight: '60px',
+              paddingRight: '76px',
+              paddingBottom: '14px',
               background: 'rgba(0,0,0,0.025)',
               border: '1px solid var(--we-paper-shadow)',
               borderRadius: 'var(--we-radius-none)',

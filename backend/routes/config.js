@@ -200,6 +200,30 @@ async function fetchModels(provider, apiKey, baseUrl) {
   throw new Error(`不支持的 provider: ${provider}`);
 }
 
+/**
+ * 返回当前 provider 支持的 thinking 级别选项
+ * 空数组表示该 provider 不支持 API 级别的 thinking 配置
+ * （DeepSeek R1 等模型天然输出 <think> 标签，无需此处配置）
+ */
+function getThinkingOptions(provider) {
+  switch (provider) {
+    case 'anthropic':
+      return [
+        { value: 'budget_low', label: '思考：低（1024 tokens）' },
+        { value: 'budget_medium', label: '思考：中（8192 tokens）' },
+        { value: 'budget_high', label: '思考：高（16384 tokens）' },
+      ];
+    case 'openai':
+      return [
+        { value: 'effort_low', label: '推理：低（仅 o-series 模型）' },
+        { value: 'effort_medium', label: '推理：中（仅 o-series 模型）' },
+        { value: 'effort_high', label: '推理：高（仅 o-series 模型）' },
+      ];
+    default:
+      return [];
+  }
+}
+
 // GET /api/config/models — 拉取 LLM 模型列表
 router.get('/models', async (_req, res) => {
   const config = getConfig();
@@ -207,7 +231,8 @@ router.get('/models', async (_req, res) => {
   const apiKey = resolveApiKey(config.llm);
   try {
     const models = await fetchModels(provider, apiKey, base_url);
-    res.json({ models });
+    const thinkingOptions = getThinkingOptions(provider);
+    res.json({ models, thinkingOptions });
   } catch (err) {
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
   }

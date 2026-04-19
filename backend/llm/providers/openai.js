@@ -164,9 +164,32 @@ function convertContentToGemini(content) {
 // OpenAI-compatible 实现
 // ============================================================
 
+/**
+ * 将 thinking_level 映射为 OpenAI reasoning_effort 值
+ * effort_low/medium/high → 'low'/'medium'/'high'
+ */
+function resolveReasoningEffort(thinking_level) {
+  if (!thinking_level || !thinking_level.startsWith('effort_')) return null;
+  return thinking_level.replace('effort_', '');
+}
+
 async function* streamOpenAICompatible(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
+
+  const effort = resolveReasoningEffort(config.thinking_level);
+  const body = {
+    model: config.model,
+    messages,
+    max_tokens: config.max_tokens,
+    stream: true,
+  };
+  // reasoning_effort 不兼容 temperature，有 effort 时不传 temperature
+  if (effort) {
+    body.reasoning_effort = effort;
+  } else {
+    body.temperature = config.temperature;
+  }
 
   const resp = await fetch(url, {
     method: 'POST',
@@ -174,13 +197,7 @@ async function* streamOpenAICompatible(messages, config) {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.api_key}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: config.temperature,
-      max_tokens: config.max_tokens,
-      stream: true,
-    }),
+    body: JSON.stringify(body),
     signal: config.signal,
   });
 
@@ -204,19 +221,26 @@ async function completeOpenAICompatible(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
 
+  const effort = resolveReasoningEffort(config.thinking_level);
+  const body = {
+    model: config.model,
+    messages,
+    max_tokens: config.max_tokens,
+    stream: false,
+  };
+  if (effort) {
+    body.reasoning_effort = effort;
+  } else {
+    body.temperature = config.temperature;
+  }
+
   const resp = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${config.api_key}`,
     },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: config.temperature,
-      max_tokens: config.max_tokens,
-      stream: false,
-    }),
+    body: JSON.stringify(body),
     signal: config.signal,
   });
 
@@ -233,27 +257,42 @@ async function completeOpenAICompatible(messages, config) {
 // Anthropic 原生实现
 // ============================================================
 
+/**
+ * 将 thinking_level 映射为 Anthropic thinking budget_tokens
+ * budget_low=1024, budget_medium=8192, budget_high=16384
+ */
+function resolveAnthropicThinking(thinking_level) {
+  const MAP = { budget_low: 1024, budget_medium: 8192, budget_high: 16384 };
+  return MAP[thinking_level] ?? null;
+}
+
 async function* streamAnthropic(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
 
+  const budgetTokens = resolveAnthropicThinking(config.thinking_level);
   const body = {
     model: config.model,
     messages: converted,
     max_tokens: config.max_tokens || 4096,
     stream: true,
   };
-  if (config.temperature != null) body.temperature = config.temperature;
+  // extended thinking 不兼容 temperature（必须为 1），有 thinking 时不传 temperature
+  if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
+  if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
   if (system) body.system = system;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': config.api_key,
+    'anthropic-version': '2023-06-01',
+  };
+  if (budgetTokens) headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
 
   const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.api_key,
-      'anthropic-version': '2023-06-01',
-    },
+    headers,
     body: JSON.stringify(body),
     signal: config.signal,
   });
@@ -263,16 +302,41 @@ async function* streamAnthropic(messages, config) {
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
+  // 跟踪当前是否在 thinking block 中（extended thinking 专用）
+  let inThinkingBlock = false;
+
   for await (const { event, data } of parseSSE(resp.body)) {
-    if (event !== 'content_block_delta') continue;
-    try {
-      const parsed = JSON.parse(data);
-      const text = parsed.delta?.text;
-      if (text) yield text;
-    } catch {
-      // skip
+    if (event === 'content_block_start') {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.content_block?.type === 'thinking') {
+          inThinkingBlock = true;
+          yield '<think>';
+        } else if (parsed.content_block?.type === 'text' && inThinkingBlock) {
+          yield '</think>';
+          inThinkingBlock = false;
+        }
+      } catch { /* skip */ }
+    } else if (event === 'content_block_stop') {
+      if (inThinkingBlock) {
+        yield '</think>';
+        inThinkingBlock = false;
+      }
+    } else if (event === 'content_block_delta') {
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.delta?.type === 'thinking_delta') {
+          yield parsed.delta.thinking || '';
+        } else if (parsed.delta?.type === 'text_delta') {
+          const text = parsed.delta.text;
+          if (text) yield text;
+        }
+      } catch { /* skip */ }
     }
   }
+
+  // 安全兜底：确保 thinking block 已关闭
+  if (inThinkingBlock) yield '</think>';
 }
 
 async function completeAnthropic(messages, config) {
@@ -280,21 +344,26 @@ async function completeAnthropic(messages, config) {
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
 
+  const budgetTokens = resolveAnthropicThinking(config.thinking_level);
   const body = {
     model: config.model,
     messages: converted,
     max_tokens: config.max_tokens || 4096,
   };
-  if (config.temperature != null) body.temperature = config.temperature;
+  if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
+  if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
   if (system) body.system = system;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-api-key': config.api_key,
+    'anthropic-version': '2023-06-01',
+  };
+  if (budgetTokens) headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
 
   const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': config.api_key,
-      'anthropic-version': '2023-06-01',
-    },
+    headers,
     body: JSON.stringify(body),
     signal: config.signal,
   });
@@ -305,8 +374,12 @@ async function completeAnthropic(messages, config) {
   }
 
   const data = await resp.json();
-  const textBlocks = (data.content || []).filter((b) => b.type === 'text');
-  return textBlocks.map((b) => b.text).join('');
+  // 将 thinking block 包裹为 <think> 标签，text block 直接拼接
+  return (data.content || []).map((block) => {
+    if (block.type === 'thinking') return `<think>${block.thinking}</think>`;
+    if (block.type === 'text') return block.text;
+    return '';
+  }).join('');
 }
 
 // ============================================================

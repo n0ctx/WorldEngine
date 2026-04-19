@@ -4,6 +4,7 @@ import {
   getConfig, updateConfig, updateApiKey, updateEmbeddingApiKey,
   fetchModels, fetchEmbeddingModels, testConnection,
 } from '../api/config';
+import { useDisplaySettingsStore } from '../store/displaySettings';
 import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../api/importExport';
 import { refreshCustomCss } from '../api/customCssSnippets';
 import { useAppModeStore } from '../store/appMode';
@@ -41,6 +42,26 @@ const EMBEDDING_PROVIDERS = [
 
 const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
 const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible']);
+
+/** 按 provider 静态返回 thinking 级别选项，不依赖模型列表加载 */
+function getProviderThinkingOptions(provider) {
+  switch (provider) {
+    case 'anthropic':
+      return [
+        { value: 'budget_low', label: '思考：低（1024 tokens）' },
+        { value: 'budget_medium', label: '思考：中（8192 tokens）' },
+        { value: 'budget_high', label: '思考：高（16384 tokens）' },
+      ];
+    case 'openai':
+      return [
+        { value: 'effort_low', label: '推理：低（仅 o-series）' },
+        { value: 'effort_medium', label: '推理：中（仅 o-series）' },
+        { value: 'effort_high', label: '推理：高（仅 o-series）' },
+      ];
+    default:
+      return [];
+  }
+}
 
 const NAV_SECTIONS = [
   { key: 'llm', label: 'LLM 配置' },
@@ -126,9 +147,10 @@ function ModelSelector({ value, onChange, loadModels }) {
   );
 }
 
-function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, loadModels }) {
+function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
+  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(config.provider) : [];
 
   async function handleSaveKey() {
     try {
@@ -198,6 +220,20 @@ function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlCh
           />
         </div>
       )}
+
+      {thinkingOptions.length > 0 && onThinkingLevelChange && (
+        <div className="we-edit-form-group">
+          <FieldLabel hint="auto = 不传参数，使用模型默认行为">思考链级别</FieldLabel>
+          <Select
+            value={config.thinking_level || ''}
+            onChange={(v) => onThinkingLevelChange(v || null)}
+            options={[
+              { value: '', label: '自动（模型默认）' },
+              ...thinkingOptions,
+            ]}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -255,7 +291,7 @@ function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatModel }) {
   );
 }
 
-function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange, proxyUrl, onProxyUrlSave }) {
+function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange, proxyUrl, onProxyUrlSave, showThinking, onToggleShowThinking }) {
   const [testStatus, setTestStatus] = useState('idle');
   const [testMsg, setTestMsg] = useState('');
   const [proxyInput, setProxyInput] = useState(proxyUrl ?? '');
@@ -298,6 +334,7 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMo
             onModelChange={(v) => onLlmChange('model', v)}
             onApiKeySave={updateApiKey}
             onApiKeySaved={() => onLlmChange('has_key', true)}
+            onThinkingLevelChange={(v) => onLlmChange('thinking_level', v)}
             loadModels={fetchModels}
           />
 
@@ -391,6 +428,52 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMo
           />
         </>
       )}
+
+      {/* 渲染设置：对话/写作空间共用，始终可见 */}
+      <hr className="we-settings-divider" />
+      <div className="we-settings-field-group">
+        <p className="we-settings-subsection-title">渲染设置</p>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+          <div>
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+              渲染思考链
+            </p>
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+              显示 &lt;think&gt; 标签内容（可折叠），对话与写作空间均生效；关闭则完全屏蔽
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={showThinking}
+            onClick={() => onToggleShowThinking(!showThinking)}
+            style={{
+              flexShrink: 0,
+              position: 'relative',
+              display: 'inline-flex',
+              height: '24px',
+              width: '44px',
+              cursor: 'pointer',
+              borderRadius: '9999px',
+              border: '2px solid transparent',
+              transition: 'background-color 0.2s',
+              backgroundColor: showThinking ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                height: '20px',
+                width: '20px',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--we-paper-base)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s',
+                transform: showThinking ? 'translateX(20px)' : 'translateX(0)',
+              }}
+            />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -707,6 +790,8 @@ export default function SettingsPage() {
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
+  const [showThinking, setShowThinkingLocal] = useState(true);
+  const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [saving, setSaving] = useState(false);
 
   const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
@@ -725,6 +810,7 @@ export default function SettingsPage() {
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
       setGlobalPostPrompt(c.global_post_prompt ?? '');
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
+      setShowThinkingLocal(c.ui?.show_thinking !== false);
       const w = c.writing || {};
       setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
@@ -833,6 +919,12 @@ export default function SettingsPage() {
     await patchConfig({ memory_expansion_enabled: enabled });
   }
 
+  async function handleToggleShowThinking(enabled) {
+    setShowThinkingLocal(enabled);
+    setShowThinkingStore(enabled);
+    await patchConfig({ ui: { show_thinking: enabled } });
+  }
+
   async function handleImportSuccess() {
     const c = await getConfig();
     setConfig(c);
@@ -927,6 +1019,8 @@ export default function SettingsPage() {
                 onModeChange={setSettingsMode}
                 proxyUrl={proxyUrl}
                 onProxyUrlSave={handleProxyUrlSave}
+                showThinking={showThinking}
+                onToggleShowThinking={handleToggleShowThinking}
               />
             </div>
           )}

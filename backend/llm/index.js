@@ -43,6 +43,7 @@ function buildLLMConfig(options = {}) {
     model: options.model || llm.model,
     temperature: options.temperature ?? llm.temperature,
     max_tokens: options.maxTokens ?? llm.max_tokens,
+    thinking_level: options.thinking_level ?? llm.thinking_level ?? null,
     signal: options.signal || undefined,
   };
 }
