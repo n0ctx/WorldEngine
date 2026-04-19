@@ -139,9 +139,10 @@ export default function MessageList({
     ];
   }, [prose, messages, generating, continuingMessageId, streamingKey, streamingText]);
 
+  // 章节分组仅用于写作空间（prose 模式）
   const chapters = useMemo(
-    () => groupMessagesIntoChapters(messagesForDisplay, sessionTitle),
-    [messagesForDisplay, sessionTitle]
+    () => prose ? groupMessagesIntoChapters(messagesForDisplay, sessionTitle) : [],
+    [prose, messagesForDisplay, sessionTitle]
   );
 
   if (loading) {
@@ -229,53 +230,30 @@ export default function MessageList({
         </div>
       ) : (
         <div>
-          {chapters.map((chapter, cIdx) => {
-            const isLast = cIdx === chapters.length - 1;
-            return (
-              <div key={chapter.chapterIndex} className="we-chapter">
-                <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
-                <AnimatePresence mode="popLayout">
-                  {chapter.messages.map((msg) => {
-                    const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-                    const displayMsg = isContinuing
-                      ? { ...msg, content: msg.content + '\n\n' + continuingText }
-                      : msg;
-                    return (
-                      <MessageItem
-                        key={msg._key ?? msg.id}
-                        message={displayMsg}
-                        character={character}
-                        persona={persona}
-                        worldId={worldId}
-                        isStreaming={isContinuing}
-                        streamingText={isContinuing ? displayMsg.content : undefined}
-                        onEdit={onEditMessage}
-                        onRegenerate={onRegenerateMessage}
-                        onEditAssistant={onEditAssistantMessage}
-                      />
-                    );
-                  })}
-                  {/* 流式响应（仅新消息，续写时不显示） */}
-                  {isLast && generating && !continuingMessageId && (
-                    <MessageItem
-                      key={streamingKey || '__streaming__'}
-                      message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
-                      character={character}
-                      worldId={worldId}
-                      isStreaming={true}
-                      streamingText={streamingText}
-                      onEdit={NOOP}
-                      onRegenerate={NOOP}
-                      onEditAssistant={NOOP}
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
-            );
-          })}
-          {/* 无消息时 streaming fallback */}
-          {chapters.length === 0 && generating && !continuingMessageId && (
-            <AnimatePresence mode="popLayout">
+          <AnimatePresence mode="popLayout">
+            {messagesForDisplay.map((msg) => {
+              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+              const isStream = !!msg._isStream;
+              const displayMsg = isContinuing
+                ? { ...msg, content: msg.content + '\n\n' + continuingText }
+                : msg;
+              return (
+                <MessageItem
+                  key={msg._key ?? msg.id}
+                  message={displayMsg}
+                  character={character}
+                  persona={persona}
+                  worldId={worldId}
+                  isStreaming={isContinuing || isStream}
+                  streamingText={(isContinuing || isStream) ? displayMsg.content : undefined}
+                  onEdit={onEditMessage}
+                  onRegenerate={onRegenerateMessage}
+                  onEditAssistant={onEditAssistantMessage}
+                />
+              );
+            })}
+            {/* 流式响应（仅新消息，续写时不显示） */}
+            {generating && !continuingMessageId && (
               <MessageItem
                 key={streamingKey || '__streaming__'}
                 message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
@@ -287,8 +265,8 @@ export default function MessageList({
                 onRegenerate={NOOP}
                 onEditAssistant={NOOP}
               />
-            </AnimatePresence>
-          )}
+            )}
+          </AnimatePresence>
         </div>
       )}
 
