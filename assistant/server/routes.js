@@ -415,17 +415,22 @@ async function applyProposal(proposal, worldRefId = null) {
  */
 function applyStateFieldCreate(op, worldId) {
   const data = pickAllowed(op, STATE_FIELD_KEYS);
-  switch (op.target) {
-    case 'persona':
-      createPersonaStateField(worldId, data);
-      break;
-    case 'character':
-      createCharacterStateField(worldId, data);
-      break;
-    case 'world':
-    default:
-      createWorldStateField(worldId, data);
-      break;
+  try {
+    switch (op.target) {
+      case 'persona':
+        createPersonaStateField(worldId, data);
+        break;
+      case 'character':
+        createCharacterStateField(worldId, data);
+        break;
+      case 'world':
+      default:
+        createWorldStateField(worldId, data);
+        break;
+    }
+  } catch (err) {
+    // 多角色同时创建时，相同 field_key 可能已由前一个提案创建，UNIQUE 冲突可安全忽略
+    if (!err.message?.includes('UNIQUE constraint failed')) throw err;
   }
 }
 
