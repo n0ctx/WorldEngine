@@ -10,7 +10,6 @@ const DEFAULT_CONFIG = {
   proxy_url: '',
   llm: {
     provider: 'openai',
-    api_key: '',
     provider_keys: {},
     base_url: '',
     model: '',
@@ -19,7 +18,6 @@ const DEFAULT_CONFIG = {
   },
   embedding: {
     provider: 'openai',
-    api_key: '',
     provider_keys: {},
     base_url: '',
     model: 'text-embedding-3-small',
@@ -89,25 +87,35 @@ export function getConfig() {
   const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
   const config = JSON.parse(raw);
 
+  let dirty = false;
+
   // 迁移旧字段名 context_compress_rounds → context_history_rounds
   if ('context_compress_rounds' in config && !('context_history_rounds' in config)) {
     config.context_history_rounds = config.context_compress_rounds;
     delete config.context_compress_rounds;
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    dirty = true;
   }
 
-  // 补全 provider_keys（旧配置文件无此字段；将现有 api_key 迁移进去）
+  // 迁移旧 api_key → provider_keys，然后删除 api_key
   for (const section of ['llm', 'embedding']) {
     if (!config[section] || typeof config[section] !== 'object') continue;
     if (!config[section].provider_keys || typeof config[section].provider_keys !== 'object') {
       config[section].provider_keys = {};
+      dirty = true;
     }
-    // 迁移：若当前 provider 在 provider_keys 里没有 key，但 api_key 非空，则迁入
     const { provider, api_key, provider_keys } = config[section];
-    if (provider && api_key && !provider_keys[provider]) {
-      config[section].provider_keys[provider] = api_key;
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    if (api_key) {
+      // 若当前 provider 还没有 key，把旧 api_key 迁入
+      if (provider && !provider_keys[provider]) {
+        config[section].provider_keys[provider] = api_key;
+      }
+      delete config[section].api_key;
+      dirty = true;
     }
+  }
+
+  if (dirty) {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
   }
 
   // 补全 writing 命名空间（旧配置文件无此字段）

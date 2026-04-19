@@ -5,20 +5,10 @@ import { applyProxy } from '../utils/proxy.js';
 
 const router = Router();
 
-/**
- * 获取某个 section 的有效 API Key
- * 优先用 provider_keys[provider]；
- * 仅当 provider_keys 完全为空时（旧配置迁移前）才降级到 api_key。
- * 避免多 provider 之间的 key 互相污染。
- */
+/** 获取当前 provider 的 API Key */
 function resolveApiKey(section) {
   if (!section) return '';
-  if (section.provider_keys?.[section.provider]) {
-    return section.provider_keys[section.provider];
-  }
-  const hasAnyKey = section.provider_keys && Object.values(section.provider_keys).some(Boolean);
-  if (!hasAnyKey) return section.api_key || '';
-  return '';
+  return section.provider_keys?.[section.provider] || '';
 }
 
 /** 从配置对象中移除敏感字段，保留 has_key 布尔标志和 provider_keys 布尔映射 */
@@ -29,14 +19,12 @@ function stripApiKeys(config) {
     safe.llm.provider_keys = Object.fromEntries(
       Object.entries(safe.llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
     );
-    delete safe.llm.api_key;
   }
   if (safe.embedding) {
     safe.embedding.has_key = !!resolveApiKey(safe.embedding);
     safe.embedding.provider_keys = Object.fromEntries(
       Object.entries(safe.embedding.provider_keys || {}).map(([k, v]) => [k, !!v]),
     );
-    delete safe.embedding.api_key;
   }
   return safe;
 }
@@ -78,7 +66,7 @@ router.put('/', (req, res) => {
   }
 });
 
-// PUT /api/config/apikey — 更新 llm.api_key，同时写入当前 provider 的 provider_keys slot
+// PUT /api/config/apikey — 写入当前 llm provider 的 key
 router.put('/apikey', (req, res) => {
   const { api_key } = req.body;
   if (typeof api_key !== 'string') {
@@ -87,19 +75,14 @@ router.put('/apikey', (req, res) => {
   try {
     const config = getConfig();
     const provider = config.llm.provider;
-    updateConfig({
-      llm: {
-        api_key,
-        provider_keys: { ...config.llm.provider_keys, [provider]: api_key },
-      },
-    });
+    updateConfig({ llm: { provider_keys: { [provider]: api_key } } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
 
-// PUT /api/config/embedding-apikey — 更新 embedding.api_key，同时写入当前 provider 的 slot
+// PUT /api/config/embedding-apikey — 写入当前 embedding provider 的 key
 router.put('/embedding-apikey', (req, res) => {
   const { api_key } = req.body;
   if (typeof api_key !== 'string') {
@@ -108,12 +91,7 @@ router.put('/embedding-apikey', (req, res) => {
   try {
     const config = getConfig();
     const provider = config.embedding.provider;
-    updateConfig({
-      embedding: {
-        api_key,
-        provider_keys: { ...config.embedding.provider_keys, [provider]: api_key },
-      },
-    });
+    updateConfig({ embedding: { provider_keys: { [provider]: api_key } } });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: `保存失败：${err.message}` });

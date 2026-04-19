@@ -34,11 +34,7 @@ function getProvider(providerName) {
 function buildLLMConfig(options = {}) {
   const config = getConfig();
   const llm = config.llm;
-  // 优先使用当前 provider 对应的专属 key
-  // 仅当 provider_keys 完全为空时（旧配置）才降级到 api_key，避免 key 跨 provider 污染
-  const providerKey = llm.provider_keys?.[llm.provider];
-  const hasAnyProviderKey = llm.provider_keys && Object.values(llm.provider_keys).some(Boolean);
-  const api_key = providerKey || (!hasAnyProviderKey ? llm.api_key : '') || '';
+  const api_key = llm.provider_keys?.[llm.provider] || '';
 
   return {
     provider: llm.provider,
