@@ -558,6 +558,9 @@ export default function ChatPage() {
       const { title } = await retitle(currentSessionId);
       if (title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
+        if (SessionListPanel.updateTitle) {
+          SessionListPanel.updateTitle(currentSessionIdRef.current, title);
+        }
         showToast(`标题已更新：${title}`);
       } else {
         showToast('标题生成失败', 'error');
