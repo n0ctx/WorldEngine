@@ -125,7 +125,12 @@ router.post('/chat', async (req, res) => {
 
   // ── 执行单个子代理任务 ─────────────────────────────────────────────
   async function executeOneTask(taskSpec) {
-    const { target, operation = 'update', task: taskDesc, entityId, taskId, worldRef } = taskSpec;
+    const { target, operation = 'update', task: taskDesc, taskId, worldRef } = taskSpec;
+    // character-card create 时：entityId 应为所属世界 ID；若路由 LLM 未填，回退到 context.worldId
+    let entityId = taskSpec.entityId ?? null;
+    if (target === 'character-card' && operation === 'create' && !entityId) {
+      entityId = context.worldId ?? null;
+    }
     if (!SUB_AGENTS[target]) {
       sendSSE(res, { type: 'error', error: `未知子代理类型: ${target}`, taskId });
       return null;
