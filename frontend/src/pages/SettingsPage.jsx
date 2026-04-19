@@ -255,9 +255,11 @@ function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatModel }) {
   );
 }
 
-function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange }) {
+function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange, proxyUrl, onProxyUrlSave }) {
   const [testStatus, setTestStatus] = useState('idle');
   const [testMsg, setTestMsg] = useState('');
+  const [proxyInput, setProxyInput] = useState(proxyUrl ?? '');
+  const [proxySaved, setProxySaved] = useState(false);
 
   async function handleTestConnection() {
     setTestStatus('testing');
@@ -341,6 +343,36 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMo
               {testStatus === 'error' && (
                 <span style={{ fontSize: '13px', color: 'var(--we-vermilion)' }}>{testMsg}</span>
               )}
+            </div>
+          </div>
+
+          <hr className="we-settings-divider" />
+
+          <div className="we-settings-field-group">
+            <p className="we-settings-subsection-title">网络代理</p>
+            <div className="we-edit-form-group">
+              <FieldLabel hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理">HTTP 代理地址</FieldLabel>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Input
+                  style={{ flex: 1 }}
+                  value={proxyInput}
+                  onChange={(e) => { setProxyInput(e.target.value); setProxySaved(false); }}
+                  placeholder="http://127.0.0.1:7890"
+                />
+                <Button
+                  variant="default"
+                  onClick={async () => {
+                    await onProxyUrlSave(proxyInput.trim());
+                    setProxySaved(true);
+                    setTimeout(() => setProxySaved(false), 2000);
+                  }}
+                >
+                  {proxySaved ? '已应用' : '应用'}
+                </Button>
+              </div>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '6px 0 0' }}>
+                支持 http:// 和 socks5:// 协议。修改后立即生效，无需重启服务。
+              </p>
             </div>
           </div>
 
@@ -670,6 +702,7 @@ export default function SettingsPage() {
 
   const [llm, setLlm] = useState({});
   const [embedding, setEmbedding] = useState({});
+  const [proxyUrl, setProxyUrl] = useState('');
   const [contextRounds, setContextRounds] = useState(10);
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
@@ -680,12 +713,14 @@ export default function SettingsPage() {
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     getConfig().then((c) => {
       setConfig(c);
       setLlm(c.llm || {});
       setEmbedding(c.embedding || {});
+      setProxyUrl(c.proxy_url ?? '');
       setContextRounds(c.context_history_rounds ?? 10);
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
       setGlobalPostPrompt(c.global_post_prompt ?? '');
@@ -697,6 +732,12 @@ export default function SettingsPage() {
       setWritingContextRounds(w.context_history_rounds ?? null);
       setLoading(false);
     });
+  }, [reloadKey]);
+
+  useEffect(() => {
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener('we:global-config-updated', h);
+    return () => window.removeEventListener('we:global-config-updated', h);
   }, []);
 
   async function patchConfig(patch) {
@@ -710,8 +751,15 @@ export default function SettingsPage() {
       const patch = isLocal
         ? { provider: value, model: '' }
         : { provider: value, base_url: '', model: '' };
-      await patchConfig({ llm: patch });
-      setLlm((prev) => ({ ...prev, ...patch }));
+      const updated = await updateConfig({ llm: patch });
+      setConfig(updated);
+      // 切换 provider 后同步 has_key / provider_keys（反映新 provider 的 key 状态）
+      setLlm((prev) => ({
+        ...prev,
+        ...patch,
+        has_key: updated.llm?.has_key ?? false,
+        provider_keys: updated.llm?.provider_keys ?? {},
+      }));
     } else if (field === 'has_key') {
       setLlm((prev) => ({ ...prev, has_key: value }));
     } else {
@@ -726,8 +774,14 @@ export default function SettingsPage() {
       const patch = keepBaseUrl
         ? { provider: value, model: '' }
         : { provider: value, base_url: '', model: '' };
-      await patchConfig({ embedding: patch });
-      setEmbedding((prev) => ({ ...prev, ...patch }));
+      const updated = await updateConfig({ embedding: patch });
+      setConfig(updated);
+      setEmbedding((prev) => ({
+        ...prev,
+        ...patch,
+        has_key: updated.embedding?.has_key ?? false,
+        provider_keys: updated.embedding?.provider_keys ?? {},
+      }));
     } else if (field === 'has_key') {
       setEmbedding((prev) => ({ ...prev, has_key: value }));
     } else {
@@ -767,6 +821,11 @@ export default function SettingsPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleProxyUrlSave(url) {
+    setProxyUrl(url);
+    await patchConfig({ proxy_url: url });
   }
 
   async function handleToggleMemoryExpansion(enabled) {
@@ -866,6 +925,8 @@ export default function SettingsPage() {
                 writingLlm={writingLlm}
                 onWritingLlmChange={handleWritingLlmChange}
                 onModeChange={setSettingsMode}
+                proxyUrl={proxyUrl}
+                onProxyUrlSave={handleProxyUrlSave}
               />
             </div>
           )}

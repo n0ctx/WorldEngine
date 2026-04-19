@@ -5,11 +5,39 @@ import { applyProxy } from '../utils/proxy.js';
 
 const router = Router();
 
-/** 从配置对象中移除敏感的 API Key 字段，保留 has_key 布尔标志 */
+/**
+ * 获取某个 section 的有效 API Key
+ * 优先用 provider_keys[provider]；
+ * 仅当 provider_keys 完全为空时（旧配置迁移前）才降级到 api_key。
+ * 避免多 provider 之间的 key 互相污染。
+ */
+function resolveApiKey(section) {
+  if (!section) return '';
+  if (section.provider_keys?.[section.provider]) {
+    return section.provider_keys[section.provider];
+  }
+  const hasAnyKey = section.provider_keys && Object.values(section.provider_keys).some(Boolean);
+  if (!hasAnyKey) return section.api_key || '';
+  return '';
+}
+
+/** 从配置对象中移除敏感字段，保留 has_key 布尔标志和 provider_keys 布尔映射 */
 function stripApiKeys(config) {
   const safe = structuredClone(config);
-  if (safe.llm) { safe.llm.has_key = !!safe.llm.api_key; delete safe.llm.api_key; }
-  if (safe.embedding) { safe.embedding.has_key = !!safe.embedding.api_key; delete safe.embedding.api_key; }
+  if (safe.llm) {
+    safe.llm.has_key = !!resolveApiKey(safe.llm);
+    safe.llm.provider_keys = Object.fromEntries(
+      Object.entries(safe.llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
+    );
+    delete safe.llm.api_key;
+  }
+  if (safe.embedding) {
+    safe.embedding.has_key = !!resolveApiKey(safe.embedding);
+    safe.embedding.provider_keys = Object.fromEntries(
+      Object.entries(safe.embedding.provider_keys || {}).map(([k, v]) => [k, !!v]),
+    );
+    delete safe.embedding.api_key;
+  }
   return safe;
 }
 
@@ -27,16 +55,18 @@ router.get('/', (_req, res) => {
   res.json(stripApiKeys(config));
 });
 
-// PUT /api/config — 部分更新配置（禁止通过此接口更新 api_key）
+// PUT /api/config — 部分更新配置（禁止通过此接口更新 api_key / provider_keys）
 router.put('/', (req, res) => {
   try {
     const patch = structuredClone(req.body);
     if (patch.llm) {
       delete patch.llm.api_key;
+      delete patch.llm.provider_keys;
       sanitizeBaseUrlPatch(patch.llm);
     }
     if (patch.embedding) {
       delete patch.embedding.api_key;
+      delete patch.embedding.provider_keys;
       sanitizeBaseUrlPatch(patch.embedding);
     }
 
@@ -48,28 +78,42 @@ router.put('/', (req, res) => {
   }
 });
 
-// PUT /api/config/apikey — 只更新 llm.api_key
+// PUT /api/config/apikey — 更新 llm.api_key，同时写入当前 provider 的 provider_keys slot
 router.put('/apikey', (req, res) => {
   const { api_key } = req.body;
   if (typeof api_key !== 'string') {
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
   try {
-    updateConfig({ llm: { api_key } });
+    const config = getConfig();
+    const provider = config.llm.provider;
+    updateConfig({
+      llm: {
+        api_key,
+        provider_keys: { ...config.llm.provider_keys, [provider]: api_key },
+      },
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
 
-// PUT /api/config/embedding-apikey — 只更新 embedding.api_key
+// PUT /api/config/embedding-apikey — 更新 embedding.api_key，同时写入当前 provider 的 slot
 router.put('/embedding-apikey', (req, res) => {
   const { api_key } = req.body;
   if (typeof api_key !== 'string') {
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
   try {
-    updateConfig({ embedding: { api_key } });
+    const config = getConfig();
+    const provider = config.embedding.provider;
+    updateConfig({
+      embedding: {
+        api_key,
+        provider_keys: { ...config.embedding.provider_keys, [provider]: api_key },
+      },
+    });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: `保存失败：${err.message}` });
@@ -151,9 +195,10 @@ async function fetchModels(provider, apiKey, baseUrl) {
 // GET /api/config/models — 拉取 LLM 模型列表
 router.get('/models', async (_req, res) => {
   const config = getConfig();
-  const { provider, api_key, base_url } = config.llm;
+  const { provider, base_url } = config.llm;
+  const apiKey = resolveApiKey(config.llm);
   try {
-    const models = await fetchModels(provider, api_key, base_url);
+    const models = await fetchModels(provider, apiKey, base_url);
     res.json({ models });
   } catch (err) {
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
@@ -163,12 +208,13 @@ router.get('/models', async (_req, res) => {
 // GET /api/config/embedding-models — 拉取 Embedding 模型列表
 router.get('/embedding-models', async (_req, res) => {
   const config = getConfig();
-  const { provider, api_key, base_url } = config.embedding;
+  const { provider, base_url } = config.embedding;
   if (!provider) {
     return res.json({ models: [] });
   }
+  const apiKey = resolveApiKey(config.embedding);
   try {
-    const models = await fetchModels(provider, api_key, base_url);
+    const models = await fetchModels(provider, apiKey, base_url);
     res.json({ models });
   } catch (err) {
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
@@ -178,9 +224,10 @@ router.get('/embedding-models', async (_req, res) => {
 // GET /api/config/test-connection — 验证 LLM 连通性
 router.get('/test-connection', async (_req, res) => {
   const config = getConfig();
-  const { provider, api_key, base_url } = config.llm;
+  const { provider, base_url } = config.llm;
+  const apiKey = resolveApiKey(config.llm);
   try {
-    await fetchModels(provider, api_key, base_url);
+    await fetchModels(provider, apiKey, base_url);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });

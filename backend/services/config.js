@@ -7,9 +7,11 @@ const CONFIG_PATH = path.resolve(__dirname, '..', '..', 'data', 'config.json');
 
 const DEFAULT_CONFIG = {
   version: 1,
+  proxy_url: '',
   llm: {
     provider: 'openai',
     api_key: '',
+    provider_keys: {},
     base_url: '',
     model: '',
     max_tokens: 4096,
@@ -18,6 +20,7 @@ const DEFAULT_CONFIG = {
   embedding: {
     provider: 'openai',
     api_key: '',
+    provider_keys: {},
     base_url: '',
     model: 'text-embedding-3-small',
   },
@@ -91,6 +94,20 @@ export function getConfig() {
     config.context_history_rounds = config.context_compress_rounds;
     delete config.context_compress_rounds;
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
+  // 补全 provider_keys（旧配置文件无此字段；将现有 api_key 迁移进去）
+  for (const section of ['llm', 'embedding']) {
+    if (!config[section] || typeof config[section] !== 'object') continue;
+    if (!config[section].provider_keys || typeof config[section].provider_keys !== 'object') {
+      config[section].provider_keys = {};
+    }
+    // 迁移：若当前 provider 在 provider_keys 里没有 key，但 api_key 非空，则迁入
+    const { provider, api_key, provider_keys } = config[section];
+    if (provider && api_key && !provider_keys[provider]) {
+      config[section].provider_keys[provider] = api_key;
+      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    }
   }
 
   // 补全 writing 命名空间（旧配置文件无此字段）
