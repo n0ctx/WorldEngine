@@ -19,6 +19,97 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T92 — 写卡助手：三层状态字段分层（world/persona/character）✅
+- **涉及文件**：
+  - `assistant/prompts/sub-world-card.md` — 状态字段定义改为三层架构表（world/persona/character），stateFieldOps 示例补充三种 target，底部占位符拆分为 `{{EXISTING_WORLD_STATE_FIELDS}}` / `{{EXISTING_PERSONA_STATE_FIELDS}}` / `{{EXISTING_CHARACTER_STATE_FIELDS}}`
+  - `assistant/prompts/sub-character-card.md` — 状态字段定义改为两层（character/persona），明确禁止 `target:"world"`，底部占位符同步拆分
+  - `assistant/server/sub-agents/world-card.js` — 加载三类状态字段（existingWorldStateFields/existingPersonaStateFields/existingCharacterStateFields），替换三个独立 prompt 占位符
+  - `assistant/server/sub-agents/character-card.js` — 加载 character + persona 两类字段，替换两个独立 prompt 占位符
+  - `assistant/server/routes.js` — 新增 persona-state-fields 服务 import；loadEntityData 分别为 world-card/character-card 加载三层/两层字段；新增 `applyStateFieldCreate` / `applyStateFieldDelete` 辅助函数，根据 `op.target` 分发到对应服务
+- **注意**：
+  - character target 的字段全世界 NPC 共享；persona target 每世界只有一份玩家状态；world target 只追踪世界/环境动态
+  - `applyStateFieldDelete` 根据 `op.target` 调用对应 delete 服务，delete 时需要前端传入正确的 target
+
+## T91 — 写卡助手：提案卡用户编辑 + JSON 截断修复 ✅
+- **涉及文件**：
+  - `assistant/server/sub-agents/world-card.js` / `character-card.js` — maxTokens 2000→4000（prompt 变长后输出被截断导致 JSON 解析失败）
+  - `assistant/server/routes.js` — `/execute` 新增可选 `editedProposal` 参数；以 token 锚定 type/operation/entityId，内容字段（changes/entryOps/stateFieldOps）可被用户编辑覆盖
+  - `assistant/client/api.js` — `executeProposal(token, worldRefId, editedProposal)` 新增第三参
+  - `assistant/client/ChangeProposalCard.jsx` — 全面重写：头部增加"编辑"切换按钮；编辑模式下 changes 字段变为 textarea/input，entryOps 变为可编辑表单（标题/简介/内容/关键词），stateFieldOps 变为可编辑表单（标识符/类型/名称/描述/更新指令/默认值/范围/枚举选项）；编辑模式下应用携带本地编辑内容
+- **注意**：
+  - 安全设计：type/operation/entityId 固定来自 token，客户端只能修改内容；即使用户发送伪造 editedProposal 也无法改变操作类型
+  - delete 操作不显示"编辑"按钮（无内容可编辑）
+  - 编辑模式为组件级临时状态，不持久化（关闭面板或刷新后丢失）
+
+## T90 — 写卡助手：状态字段支持 + Prompt 条目说明修正 ✅
+- **涉及文件**：
+  - `assistant/prompts/sub-world-card.md` / `sub-character-card.md` — 新增"内容分层速查"表（明确 system_prompt/entryOps/stateFieldOps 各自适用场景），修正 Prompt 条目说明（只用于静态触发型知识），新增状态字段说明和 `{{EXISTING_STATE_FIELDS}}` 占位符，`stateFieldOps` 加入输出 schema
+  - `assistant/server/sub-agents/world-card.js` / `character-card.js` — 传入 `existingStateFields`，返回值新增 `stateFieldOps`
+  - `assistant/server/routes.js` — 导入 world/character state field 服务；`loadEntityData` 加入 `existingStateFields`；`applyProposal` 处理 `stateFieldOps`（create 调 createWorldStateField/createCharacterStateField，delete 调 delete*）；新增 `STATE_FIELD_KEYS` 白名单常量
+  - `assistant/client/ChangeProposalCard.jsx` — 计算并渲染 `stateFieldOps` 展示区（新增/删除字段名、类型 badge、description）
+- **注意**：
+  - character state fields 归属于 world，不是 character——`createCharacterStateField(world_id, data)` 创建后该世界所有角色自动获得初始值
+  - update 操作对状态字段暂不支持（service 层虽然有 updateXxx，但状态字段定义更新很少通过助手做，用户直接在 UI 改即可）
+  - `default_value` 必须是 JSON 字符串（number → `"100"`，text → `"\"文本\""` ），由 LLM 按 prompt 规范生成
+
+## T89 — 写卡助手 B 方向：子代理 CRUD + 主代理并行调度 ✅
+- **涉及文件**：
+  - `assistant/server/sub-agents/world-card.js` / `character-card.js` — 扩展 create/delete 操作（delete 直接返回，create 空 entityData + 提示词注入）
+  - `assistant/server/sub-agents/global-prompt.js` / `css-regex.js` — 兼容新的 taskObj 参数签名
+  - `assistant/prompts/sub-world-card.md` / `sub-character-card.md` — 新增 `{{OPERATION_HINT}}` 占位符，运行时注入"新建/修改"指示
+  - `assistant/server/routes.js` — 重构 `/chat` 为 `executeOneTask` 辅助函数，支持 `multi-delegate` 并行；`/execute` 新增 `worldRefId` 参数；`applyProposal` 支持 create/delete 分支（调用 createWorld/createCharacter/deleteWorld/deleteCharacter）
+  - `assistant/server/main-agent.js` — ROUTING_SYSTEM 新增 create/delete/multi-delegate 格式说明；maxTokens 提升至 600
+  - `assistant/client/api.js` — onProposal 透传 taskId；executeProposal 新增可选 worldRefId 参数
+  - `assistant/client/useAssistantStore.js` — replaceRoutingWithProposal 按 taskId 匹配；新增 resolvedIds 表和 setResolvedId 方法
+  - `assistant/client/AssistantPanel.jsx` — routing/proposal 回调透传 taskId
+  - `assistant/client/ChangeProposalCard.jsx` — create/delete 差异化显示（标题/按钮文字/红色删除）；worldRef 依赖检测（等待世界卡禁用按钮）；apply 后存储 resolvedId
+  - `assistant/client/MessageList.jsx` — 传 taskId prop 给 ChangeProposalCard
+- **注意**：
+  - sub-agent 第一参数改为 `taskObj = { task, operation, entityId }`，string 兼容（旧调用不受影响）
+  - world-card/character-card create 时 entityId 为 null；character-card create 依赖世界时 `worldRef` 字段携带 taskId，apply 时前端传 `worldRefId`
+  - multi-delegate 中所有任务并行执行（包括有 worldRef 的 character 任务）；worldRef 仅在 apply 阶段解析，chat 阶段 character sub-agent 不需要 worldId
+  - `resolvedIds` 在 clearMessages 时重置，不持久化（避免陈旧 ID 干扰跨会话）
+
+## T88c — 写卡助手对抗性审查三项修复 ✅
+- **涉及文件**：
+  - `assistant/server/main-agent.js` — routeMessage 增加 context 参数，路由时注入当前世界/角色名称
+  - `assistant/server/routes.js` — proposalStore（token 锚定）、entryOps 执行、existingEntries 加载
+  - `assistant/server/sub-agents/world-card.js` / `character-card.js` / `global-prompt.js` — 传入 existingEntries，输出 entryOps
+  - `assistant/prompts/sub-*.md` — 输出 schema 改为 entryOps（含 create/update/delete）
+  - `assistant/client/api.js` / `useAssistantStore.js` / `AssistantPanel.jsx` / `ChangeProposalCard.jsx` / `MessageList.jsx` — token 流
+- **注意**：
+  - [Fix1] `routeMessage(message, history, context)` 新增第三参，路由 prompt 末尾附加"当前激活上下文"，解决"改这个角色"路由错目标的问题
+  - [Fix3] `/execute` 不再接受 `{ proposal }`，改为 `{ token }`；token 由 `/chat` 阶段生成存入内存 `proposalStore`（TTL 30min），一次性消费；直接 POST 伪造 proposal → 400
+  - [Fix2] 子代理 entityData 附加 `existingEntries`（id/title/summary）；prompt 输出改为 `entryOps` 数组，支持 op: create/update/delete；executor 向后兼容 `newEntries`（视为全 create）
+  - `ChangeProposalCard` 展示改用 entryOps，显示 [新增]/[修改]/[删除] 标签
+
+## T88b — 写卡助手 Codex Review 修复 ✅
+- **涉及文件**：`assistant/server/routes.js`、`assistant/client/ChangeProposalCard.jsx`、`assistant/client/AssistantPanel.jsx`
+- **注意**：
+  - [P1] Prompt 条目改走 `backend/services/prompt-entries.js`（含 `vectorize()`），不再直接调 DB 层
+  - [P2] CSS 提案应用后调 `refreshCustomCss()`，正则提案应用后调 `invalidateCache()` + `loadRules()`
+  - [P3] 移除全屏透明遮罩（阻断了背景页点击），面板只能通过 × 按钮关闭
+
+## T88 — 写卡助手（Assistant）✅
+- **对外接口**：
+  - 后端：`POST /api/assistant/chat`（SSE）、`POST /api/assistant/execute`
+  - 前端：TopBar "✦ 助手" 按钮 toggle 侧边面板
+- **涉及文件**：
+  - 新增目录 `/assistant/`（前后端混合，独立于原代码）
+  - `assistant/prompts/` — 5个 agent system prompt MD 文件
+  - `assistant/server/` — 主代理、4个子代理、路由
+  - `assistant/client/` — AssistantPanel、MessageList、ChangeProposalCard、InputBox、useAssistantStore、api
+  - 修改 `backend/server.js`（+2行：import + app.use）
+  - 修改 `frontend/vite.config.js`（resolve.alias + fs.allow）
+  - 修改 `frontend/src/App.jsx`（挂载 AssistantPanel）
+  - 修改 `frontend/src/components/book/TopBar.jsx`（添加助手按钮）
+- **注意**：
+  - `assistant/node_modules` 是指向 `backend/node_modules` 的符号链接（Node.js ESM 模块查找需要）
+  - Vite 需要在 `resolve.alias` 里显式指定 react/react-dom/zustand/react-router-dom，否则 Rolldown 从 `assistant/client/` 路径解析不到这些包
+  - 子代理路由决策用 `complete()`（非流式），主代理最终回复用 `chat()`（流式）
+  - 提案提案类型：`world-card`、`character-card`、`global-config`、`css-snippet`、`regex-rule`
+  - `global-config` 提案执行时会过滤掉 `api_key`、`llm.api_key`、`embedding.api_key` 防止覆写
+
 ## Git 仓库健康度维护 ✅
 - **对外接口**：无
 - **涉及文件**：`.mailmap`、`.gitignore`、`.temp/git-health-check.sh`
