@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getConfig, updateConfig } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
+import { applyProxy } from '../utils/proxy.js';
 
 const router = Router();
 
@@ -40,6 +41,7 @@ router.put('/', (req, res) => {
     }
 
     const updated = updateConfig(patch);
+    if ('proxy_url' in patch) applyProxy(updated.proxy_url || '');
     res.json(stripApiKeys(updated));
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -123,7 +125,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
     );
     if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
     const data = await resp.json();
-    return (data.models || []).map((m) => m.name);
+    return (data.models || []).map((m) => m.name.replace(/^models\//, ''));
   }
 
   // Ollama — 专有 /api/tags 接口

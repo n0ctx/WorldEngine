@@ -315,7 +315,7 @@ async function completeAnthropic(messages, config) {
 
 async function* streamGemini(messages, config) {
   const baseUrl = getBaseUrl(config);
-  const model = config.model || 'gemini-pro';
+  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:streamGenerateContent?key=${config.api_key}&alt=sse`;
 
   const { contents, systemInstruction } = convertToGeminiContents(messages);
@@ -350,7 +350,7 @@ async function* streamGemini(messages, config) {
 
 async function completeGemini(messages, config) {
   const baseUrl = getBaseUrl(config);
-  const model = config.model || 'gemini-pro';
+  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
 
   const { contents, systemInstruction } = convertToGeminiContents(messages);
