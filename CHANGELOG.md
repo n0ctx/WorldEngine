@@ -19,6 +19,15 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T96 — 新增 persona-card 子代理，区分玩家卡与角色卡 ✅
+- **涉及文件**：
+  - `assistant/prompts/sub-persona-card.md` — 新建，玩家卡子代理 prompt（upsert、无 Prompt 条目、只有 persona stateFieldOps）
+  - `assistant/server/sub-agents/persona-card.js` — 新建，调用 LLM 生成玩家卡修改方案
+  - `assistant/server/routes.js` — 注册到 SUB_AGENTS；loadEntityData 支持 persona-card；executeOneTask 补 entityId 回退；applyProposal 新增 case（upsertPersona + stateFieldOps）
+  - `assistant/server/main-agent.js` — ROUTING_SYSTEM 新增 persona-card 描述、"玩家卡 vs 角色卡"判断规则
+  - `assistant/client/ChangeProposalCard.jsx` / `MessageList.jsx` — 新增 persona-card 标签和图标（🎭）
+- **注意**：persona 是 upsert（每世界唯一），operation 固定为 update；entityId 为 worldId；applyStateFieldCreate 强制 target: 'persona' 防止子代理写错 target
+
 ## T95 — 修复多角色创建 UNIQUE 冲突 + 提案应用后自动滚底 ✅
 - **涉及文件**：
   - `assistant/server/routes.js` — `applyStateFieldCreate` 捕获 UNIQUE constraint 错误并忽略（character_state_fields 按世界共享，多角色各自携带相同 state field ops 时第二个会冲突）
