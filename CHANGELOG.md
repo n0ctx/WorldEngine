@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T95 — 修复多角色创建 UNIQUE 冲突 + 提案应用后自动滚底 ✅
+- **涉及文件**：
+  - `assistant/server/routes.js` — `applyStateFieldCreate` 捕获 UNIQUE constraint 错误并忽略（character_state_fields 按世界共享，多角色各自携带相同 state field ops 时第二个会冲突）
+  - `assistant/client/MessageList.jsx` — scroll effect 改为只在消息数量增加时滚底，`applied` 状态变更不再触发
+- **注意**：UNIQUE 冲突只 ignore，其他 DB 错误仍正常抛出
+
 ## T94 — 修复已有世界创建角色时提案卡误显示"等待世界卡" ✅
 - **涉及文件**：`assistant/server/main-agent.js`（ROUTING_SYSTEM prompt）
 - **根因**：主代理路由 prompt 未说清楚 entityId 填写规则和 worldRef 使用场景，LLM 会误生成带 `worldRef` 的 multi-delegate，导致前端提案卡以为依赖的世界卡还没创建
