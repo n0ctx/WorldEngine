@@ -203,18 +203,19 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         flexDirection: 'column',
         background: 'var(--we-paper-aged)',
         borderLeft: '1px solid var(--we-paper-shadow)',
-        overflowY: 'auto',
         position: 'relative',
-        padding: 14,
+        overflow: 'hidden',
       }}
     >
-      {/* 左侧书脊渐变 */}
+      {/* 左侧书脊渐变 — 固定在外层，不随内容滚动 */}
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 0, width: 12,
         background: 'var(--we-spine-shadow-left)',
         pointerEvents: 'none',
         zIndex: 2,
       }} />
+      {/* 滚动内容层 */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
       {/* CAST 标题 + 印章行 */}
       <div className="we-cast-header">
@@ -326,6 +327,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           />
         )}
       </AnimatePresence>
+      </div>  {/* 滚动内容层 close */}
     </div>
   );
 }

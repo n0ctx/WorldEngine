@@ -15,6 +15,11 @@ const log = createLogger('summarizer');
  * 调用方：异步队列，优先级 1。
  * @param {string} sessionId
  */
+/** 剥除 <think>...</think> 块，只保留正文 */
+function stripThinkTags(text) {
+  return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
+}
+
 export async function generateSummary(sessionId) {
   const sid = sessionId.slice(0, 8);
   log.debug(`generateSummary START  session=${sid}`);
@@ -22,7 +27,7 @@ export async function generateSummary(sessionId) {
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
+    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
     .join('\n');
 
   if (!dialogue) {
@@ -61,7 +66,7 @@ export async function generateTitle(sessionId) {
   const dialogue = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
     .slice(0, 6)
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${m.content}`)
+    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
     .join('\n');
 
   if (!dialogue) return null;
@@ -77,7 +82,8 @@ export async function generateTitle(sessionId) {
   const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 30 });
   if (!raw) return null;
 
-  const title = raw.trim().replace(/["'"'「」『』《》【】]/g, '').slice(0, 15);
+  // 剥除 LLM 输出中可能带有的 think 标签（推理模型自身也会输出思考过程）
+  const title = stripThinkTags(raw).replace(/["'"'「」『』《》【】]/g, '').slice(0, 15);
   updateSessionTitle(sessionId, title);
   log.info(`generateTitle DONE  session=${sid}  title="${title}"`);
   return title;

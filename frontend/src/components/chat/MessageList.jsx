@@ -40,6 +40,18 @@ export default function MessageList({
   const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
   messagesRef.current = messages;
+  // 是否用户当前处于接近底部（用于决定是否自动跟随流式输出）
+  const nearBottomRef = useRef(true);
+
+  function scrollToBottom(behavior = 'smooth') {
+    bottomRef.current?.scrollIntoView({ behavior });
+  }
+
+  function isNearBottom() {
+    const el = listRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
 
   // 初始加载
   useEffect(() => {
@@ -87,12 +99,13 @@ export default function MessageList({
       .catch(() => setLoadingMore(false));
   }, [loadingMore, hasMore, sessionId, offset]);
 
-  // 监听滚动，到顶部时加载更多
+  // 监听滚动：到顶部时加载更多；记录是否接近底部
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
 
     function handleScroll() {
+      nearBottomRef.current = isNearBottom();
       if (el.scrollTop < 80 && hasMore && !loadingMore) {
         loadMore();
       }
@@ -101,6 +114,24 @@ export default function MessageList({
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [loadMore, hasMore, loadingMore]);
+
+  // 新消息追加后（用户发送）滚到底部，排除"加载历史"的情况
+  const prevLengthRef = useRef(0);
+  useEffect(() => {
+    const prev = prevLengthRef.current;
+    prevLengthRef.current = messages.length;
+    if (messages.length > prev && !loadingMore) {
+      scrollToBottom('smooth');
+      nearBottomRef.current = true;
+    }
+  }, [messages.length, loadingMore]);
+
+  // 流式输出时若用户在底部附近则持续跟随
+  useEffect(() => {
+    if (generating && nearBottomRef.current) {
+      scrollToBottom('instant');
+    }
+  }, [streamingText, continuingText, generating]);
 
   // 外部追加消息（发送后插入 user 消息）
   MessageList.appendMessage = (msg) => setMessages((prev) => [...prev, msg]);

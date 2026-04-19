@@ -206,15 +206,27 @@ async function* streamOpenAICompatible(messages, config) {
     throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
   }
 
+  let inThinking = false;
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
-      const delta = parsed.choices?.[0]?.delta?.content;
-      if (delta) yield delta;
+      const delta = parsed.choices?.[0]?.delta;
+      if (!delta) continue;
+      // OpenRouter 等 provider 将推理内容放在 reasoning / reasoning_content 字段
+      const reasoning = delta.reasoning || delta.reasoning_content;
+      if (reasoning) {
+        if (!inThinking) { yield '<think>'; inThinking = true; }
+        yield reasoning;
+      }
+      if (delta.content) {
+        if (inThinking) { yield '</think>\n'; inThinking = false; }
+        yield delta.content;
+      }
     } catch {
       // 跳过无法解析的行
     }
   }
+  if (inThinking) yield '</think>\n';
 }
 
 async function completeOpenAICompatible(messages, config) {
@@ -250,7 +262,11 @@ async function completeOpenAICompatible(messages, config) {
   }
 
   const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
+  const msg = data.choices?.[0]?.message;
+  if (!msg) return '';
+  const reasoning = msg.reasoning || msg.reasoning_content;
+  const content = msg.content || '';
+  return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
 }
 
 // ============================================================
@@ -258,12 +274,17 @@ async function completeOpenAICompatible(messages, config) {
 // ============================================================
 
 /**
- * 将 thinking_level 映射为 Anthropic thinking budget_tokens
+ * 将 thinking_level 映射为 thinking budget_tokens（Anthropic 和 Gemini 共用）
  * budget_low=1024, budget_medium=8192, budget_high=16384
  */
-function resolveAnthropicThinking(thinking_level) {
+function resolveThinkingBudget(thinking_level) {
   const MAP = { budget_low: 1024, budget_medium: 8192, budget_high: 16384 };
   return MAP[thinking_level] ?? null;
+}
+
+/** @deprecated 兼容别名 */
+function resolveAnthropicThinking(thinking_level) {
+  return resolveThinkingBudget(thinking_level);
 }
 
 async function* streamAnthropic(messages, config) {
@@ -398,6 +419,11 @@ async function* streamGemini(messages, config) {
   if (config.temperature != null) body.generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
 
+  const thinkingBudget = resolveThinkingBudget(config.thinking_level);
+  if (thinkingBudget != null) {
+    body.generationConfig.thinkingConfig = { thinkingBudget };
+  }
+
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -410,15 +436,26 @@ async function* streamGemini(messages, config) {
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
+  let inThinking = false;
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
-      const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (text) yield text;
+      const parts = parsed.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
+        if (!part.text) continue;
+        if (part.thought) {
+          if (!inThinking) { yield '<think>'; inThinking = true; }
+          yield part.text;
+        } else {
+          if (inThinking) { yield '</think>\n'; inThinking = false; }
+          yield part.text;
+        }
+      }
     } catch {
       // skip
     }
   }
+  if (inThinking) yield '</think>\n';
 }
 
 async function completeGemini(messages, config) {
@@ -433,6 +470,11 @@ async function completeGemini(messages, config) {
   if (config.temperature != null) body.generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
 
+  const thinkingBudget = resolveThinkingBudget(config.thinking_level);
+  if (thinkingBudget != null) {
+    body.generationConfig.thinkingConfig = { thinkingBudget };
+  }
+
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -446,7 +488,17 @@ async function completeGemini(messages, config) {
   }
 
   const data = await resp.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  let result = '';
+  for (const part of parts) {
+    if (!part.text) continue;
+    if (part.thought) {
+      result += `<think>${part.text}</think>\n`;
+    } else {
+      result += part.text;
+    }
+  }
+  return result;
 }
 
 // ============================================================

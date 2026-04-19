@@ -208,6 +208,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
 function getThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
+    case 'gemini':
       return [
         { value: 'budget_low', label: '思考：低（1024 tokens）' },
         { value: 'budget_medium', label: '思考：中（8192 tokens）' },

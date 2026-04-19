@@ -159,13 +159,11 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         flexDirection: 'column',
         background: 'var(--we-paper-aged)',
         borderLeft: '1px solid var(--we-paper-shadow)',
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'var(--we-paper-shadow) transparent',
         position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* 书脊阴影固定在外层，不随内容滚动 */}
       <div
         style={{
           position: 'absolute',
@@ -178,6 +176,17 @@ export default function StatePanel({ character, worldId, characterId, persona, r
           zIndex: 2,
         }}
       />
+      {/* 滚动内容层 */}
+      <div style={{
+        flex: 1,
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        scrollbarWidth: 'thin',
+        scrollbarColor: 'var(--we-paper-shadow) transparent',
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0,
+      }}>
 
       {/* ── 头部：印章 + 角色名 + 世界名 ── */}
       <div className="we-state-panel-header">
@@ -266,6 +275,7 @@ export default function StatePanel({ character, worldId, characterId, persona, r
           </div>
         )}
       </div>
+      </div>  {/* 滚动内容层 close */}
     </div>
   );
 }

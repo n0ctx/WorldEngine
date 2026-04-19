@@ -8,34 +8,41 @@ import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, rehypeSanitize];
+const THINK_REMARK_PLUGINS_W = [remarkGfm];
+const THINK_REHYPE_PLUGINS_W = [rehypeSanitize];
 
-function parseThinkBlocks(text) {
-  const parts = [];
-  const regex = /<think>([\s\S]*?)<\/think>/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      const t = text.slice(lastIndex, match.index).replace(/^\n+/, '');
-      if (t) parts.push({ type: 'text', content: t });
+function parseStreamingBlocks(text) {
+  const blocks = [];
+  const segments = text.split(/(<think>|<\/think>)/);
+  let inThink = false;
+  let current = '';
+  for (const seg of segments) {
+    if (seg === '<think>') {
+      const trimmed = current.replace(/^\n+/, '');
+      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+      current = '';
+      inThink = true;
+    } else if (seg === '</think>') {
+      if (inThink) {
+        blocks.push({ type: 'thinking', content: current, open: false });
+        current = '';
+        inThink = false;
+      }
+    } else {
+      current += seg;
     }
-    if (match[1]) parts.push({ type: 'thinking', content: match[1] });
-    lastIndex = match.index + match[0].length;
   }
-  const remaining = text.slice(lastIndex).replace(/^\n+/, '');
-  if (remaining) parts.push({ type: 'text', content: remaining });
-  return parts.length > 0 ? parts : [{ type: 'text', content: text }];
+  if (inThink) {
+    blocks.push({ type: 'thinking', content: current, open: true });
+  } else {
+    const trimmed = current.replace(/^\n+/, '');
+    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+  }
+  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
 }
 
-function stripThinkContent(text) {
-  let result = text.replace(/<think>[\s\S]*?<\/think>\n*/g, '');
-  const openIdx = result.indexOf('<think>');
-  if (openIdx !== -1) result = result.slice(0, openIdx);
-  return result;
-}
-
-function ThinkBlock({ content }) {
-  const [expanded, setExpanded] = useState(false);
+function ThinkBlock({ content, open = false }) {
+  const [expanded, setExpanded] = useState(open);
   return (
     <div style={{
       margin: '0 0 8px',
@@ -64,7 +71,7 @@ function ThinkBlock({ content }) {
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
           <polyline points="9 18 15 12 9 6" />
         </svg>
-        思考过程
+        思考过程{open && <span style={{ opacity: 0.4, marginLeft: 4 }}>…</span>}
       </button>
       {expanded && (
         <div style={{
@@ -72,13 +79,13 @@ function ThinkBlock({ content }) {
           fontFamily: 'var(--we-font-serif)',
           fontSize: '12px',
           color: 'var(--we-ink-faded)',
-          fontStyle: 'italic',
           lineHeight: '1.7',
           background: 'var(--we-paper-aged)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}>
-          {content}
+        }} className="we-think-block-content">
+          <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
+            {content}
+          </ReactMarkdown>
+          {open && <QuillCursor />}
         </div>
       )}
     </div>
@@ -149,12 +156,8 @@ export default function WritingMessageItem({
   const isUser = message.role === 'user';
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
 
-  // 思考链处理
-  const displayContent = isStreaming
-    ? (showThinking ? rawContent : stripThinkContent(rawContent))
-    : rawContent;
-  const thinkBlocks = !isStreaming ? parseThinkBlocks(rawContent) : null;
-
+  const displayContent = isStreaming ? rawContent : rawContent;
+  const blocks = parseStreamingBlocks(displayContent);
   const content = displayContent;
 
   const [editing, setEditing] = useState(false);
@@ -272,20 +275,28 @@ export default function WritingMessageItem({
       ) : (
         <>
           <div className="we-message-content">
-            {isStreaming ? (
-              <>
-                <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
-                  {displayContent}
+            {blocks.map((block, i) => {
+              const isLastBlock = i === blocks.length - 1;
+              if (block.type === 'thinking') {
+                if (!showThinking) return null;
+                return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
+              }
+              if (isStreaming && isLastBlock) {
+                return (
+                  <span key={i}>
+                    <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                      {block.content}
+                    </ReactMarkdown>
+                    <QuillCursor />
+                  </span>
+                );
+              }
+              return (
+                <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                  {block.content}
                 </ReactMarkdown>
-                <QuillCursor />
-              </>
-            ) : (
-              thinkBlocks.map((block, i) =>
-                block.type === 'thinking'
-                  ? showThinking ? <ThinkBlock key={i} content={block.content} /> : null
-                  : <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>{block.content}</ReactMarkdown>
-              )
-            )}
+              );
+            })}
           </div>
           {!isStreaming && (
             <div className="we-message-actions">

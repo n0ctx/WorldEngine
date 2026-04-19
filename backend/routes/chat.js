@@ -345,11 +345,13 @@ router.post('/:sessionId/impersonate', async (req, res) => {
     const instruction = `你正在代拟用户「${personaName}」下一条准备发到聊天框里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条 assistant 的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
     prompt.push({ role: 'user', content: instruction });
 
-    const content = await llm.complete(prompt, {
+    const raw = await llm.complete(prompt, {
       temperature: overrides.temperature,
-      maxTokens: Math.min(overrides.maxTokens ?? 300, 300),
+      maxTokens: overrides.maxTokens ?? 1000,
     });
-    res.json({ content: content.trim() });
+    // 剥除 thinking 模型输出的 <think>...</think> 推理块
+    const content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    res.json({ content });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

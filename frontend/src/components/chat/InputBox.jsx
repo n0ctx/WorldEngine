@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { applyRules } from '../../utils/regex-runner.js';
 
 const SLASH_COMMANDS = [
@@ -9,7 +9,7 @@ const SLASH_COMMANDS = [
   { cmd: '/summary',     desc: '手动触发生成当前会话摘要' },
 ];
 
-export default function InputBox({
+const InputBox = forwardRef(function InputBox({
   onSend,
   onStop,
   generating,
@@ -21,15 +21,21 @@ export default function InputBox({
   onRetry,
   onClear,
   onSummary,
-  fillText,
-  onFillTextConsumed,
-}) {
+}, ref) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+
+  // 暴露命令式 fillText 给父组件
+  useImperativeHandle(ref, () => ({
+    fillText(value) {
+      setText(value);
+      setTimeout(() => textareaRef.current?.focus(), 0);
+    },
+  }));
 
   // 自动调整高度
   function adjustHeight() {
@@ -40,15 +46,6 @@ export default function InputBox({
   }
 
   useEffect(() => { adjustHeight(); }, [text]);
-
-  // 外部填入文本（impersonate）
-  useEffect(() => {
-    if (fillText) {
-      setText(fillText);
-      onFillTextConsumed?.();
-      textareaRef.current?.focus();
-    }
-  }, [fillText]);
 
   // 过滤命令列表
   const filteredCommands = text.startsWith('/')
@@ -117,7 +114,7 @@ export default function InputBox({
 
   function handleSend() {
     const trimmed = text.trim();
-    if (!trimmed || generating || impersonating) return;
+    if (!trimmed || generating) return;
     // user_input scope：发送前应用正则替换
     const processed = applyRules(trimmed, 'user_input', worldId ?? null);
     onSend(processed, attachments);
@@ -285,38 +282,21 @@ export default function InputBox({
             </div>
           )}
 
-          {/* Impersonate 等待动画覆盖层：pointerEvents:all 阻断用户交互，同时不 disabled textarea 保证值同步 */}
-          {impersonating && (
+          {/* impersonate 构思中占位层（无用户输入时覆盖 placeholder） */}
+          {impersonating && !text && (
             <div style={{
-              position: 'absolute', inset: 0,
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               display: 'flex', alignItems: 'center',
-              paddingLeft: '16px',
-              background: 'rgba(244,237,228,0.85)',
-              pointerEvents: 'all',
+              padding: '8px 16px',
+              pointerEvents: 'none',
               zIndex: 5,
             }}>
-              <style>{`
-                @keyframes we-imp-dots {
-                  0%   { content: ''; }
-                  25%  { content: '.'; }
-                  50%  { content: '..'; }
-                  75%  { content: '...'; }
-                  100% { content: ''; }
-                }
-                .we-imp-dots::after {
-                  content: '';
-                  animation: we-imp-dots 1.2s steps(1) infinite;
-                }
-              `}</style>
-              <span style={{
+              <span className="we-impersonate-thinking" style={{
                 fontFamily: 'var(--we-font-serif)',
-                fontStyle: 'italic',
-                fontSize: '14px',
+                fontSize: '15px',
                 color: 'var(--we-ink-faded)',
                 opacity: 0.7,
-              }}>
-                AI 正在构思<span className="we-imp-dots" />
-              </span>
+              }}>AI 正在构思</span>
             </div>
           )}
 
@@ -375,7 +355,7 @@ export default function InputBox({
 
           <textarea
             ref={textareaRef}
-            placeholder={impersonating ? '' : '发送消息… (Shift+Enter 换行，/ 调出命令)'}
+            placeholder={impersonating && !text ? '' : '发送消息… (Shift+Enter 换行，/ 调出命令)'}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -383,9 +363,9 @@ export default function InputBox({
             rows={1}
             style={{
               width: '100%',
-              padding: '12px 16px',
+              padding: '8px 16px',
               paddingRight: '76px',
-              paddingBottom: '14px',
+              paddingBottom: '8px',
               background: 'rgba(0,0,0,0.025)',
               border: '1px solid var(--we-paper-shadow)',
               borderRadius: 'var(--we-radius-none)',
@@ -395,7 +375,7 @@ export default function InputBox({
               color: 'var(--we-ink-primary)',
               resize: 'none',
               outline: 'none',
-              minHeight: '48px',
+              minHeight: '36px',
               overflowY: 'hidden',
               opacity: generating ? 0.6 : 1,
               transition: 'border-color 0.18s, box-shadow 0.18s',
@@ -456,4 +436,6 @@ export default function InputBox({
       </div>
     </div>
   );
-}
+});
+
+export default InputBox;

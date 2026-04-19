@@ -27,7 +27,6 @@ export default function ChatPage() {
   const [currentSession, setCurrentSession] = useState(null);
   const [worldName, setWorldName] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [impersonating, setImpersonating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
@@ -38,7 +37,7 @@ export default function ChatPage() {
   const [messageListKey, setMessageListKey] = useState(0);
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
-  const [fillText, setFillText] = useState('');
+  const inputBoxRef = useRef(null);
   const [toast, setToast] = useState(null);
   const [errorBubble, setErrorBubble] = useState(null); // { partialContent, errorMsg }
   // 本轮流式占位节点的 React key（每次新流都换，避免相邻两轮 key 冲突）
@@ -411,12 +410,13 @@ export default function ChatPage() {
   }
 
   // AI 代拟用户消息，填入输入框
+  const [impersonating, setImpersonating] = useState(false);
   async function handleImpersonate() {
     if (generating || impersonating || !currentSessionId) return;
     setImpersonating(true);
     try {
       const { content } = await impersonate(currentSessionId);
-      if (content) setFillText(content);
+      if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
       console.error('impersonate error:', err);
     } finally {
@@ -657,14 +657,13 @@ export default function ChatPage() {
 
         {/* 输入框 */}
         <InputBox
+          ref={inputBoxRef}
           onSend={handleSend}
           onStop={handleStop}
           generating={generating}
           impersonating={impersonating}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
-          fillText={fillText}
-          onFillTextConsumed={() => setFillText('')}
           onClear={handleClearMessages}
           onRetry={handleRetryLast}
           onSummary={handleManualSummary}

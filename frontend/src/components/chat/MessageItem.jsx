@@ -12,37 +12,45 @@ import CharacterSeal from '../book/CharacterSeal.jsx';
 import { INK_RISE } from '../../utils/motion.js';
 
 /**
- * 将文本按 <think>...</think> 分割为 [{type, content}] 数组
- * type: 'text' | 'thinking'
+ * 将文本解析为 [{type, content, open}] 数组，流式/非流式通用。
+ * open=true 表示该 think 块尚未收到 </think>（仍在流式输出中）。
  */
-function parseThinkBlocks(text) {
-  const parts = [];
-  const regex = /<think>([\s\S]*?)<\/think>/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      const t = text.slice(lastIndex, match.index).replace(/^\n+/, '');
-      if (t) parts.push({ type: 'text', content: t });
+function parseStreamingBlocks(text) {
+  const blocks = [];
+  const segments = text.split(/(<think>|<\/think>)/);
+  let inThink = false;
+  let current = '';
+  for (const seg of segments) {
+    if (seg === '<think>') {
+      const trimmed = current.replace(/^\n+/, '');
+      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+      current = '';
+      inThink = true;
+    } else if (seg === '</think>') {
+      if (inThink) {
+        blocks.push({ type: 'thinking', content: current, open: false });
+        current = '';
+        inThink = false;
+      }
+    } else {
+      current += seg;
     }
-    if (match[1]) parts.push({ type: 'thinking', content: match[1] });
-    lastIndex = match.index + match[0].length;
   }
-  const remaining = text.slice(lastIndex).replace(/^\n+/, '');
-  if (remaining) parts.push({ type: 'text', content: remaining });
-  return parts.length > 0 ? parts : [{ type: 'text', content: text }];
+  if (inThink) {
+    blocks.push({ type: 'thinking', content: current, open: true });
+  } else {
+    const trimmed = current.replace(/^\n+/, '');
+    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+  }
+  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
 }
 
-/** 剥除完整及不完整的 <think> 块 */
-function stripThinkContent(text) {
-  let result = text.replace(/<think>[\s\S]*?<\/think>\n*/g, '');
-  const openIdx = result.indexOf('<think>');
-  if (openIdx !== -1) result = result.slice(0, openIdx);
-  return result;
-}
-
-function ThinkBlock({ content }) {
-  const [expanded, setExpanded] = useState(false);
+/**
+ * open=true：think 块正在流式输出，自动展开并显示光标
+ * open=false：think 块已完成，默认折叠
+ */
+function ThinkBlock({ content, open = false }) {
+  const [expanded, setExpanded] = useState(open);
   return (
     <div style={{
       margin: '0 0 8px',
@@ -71,7 +79,7 @@ function ThinkBlock({ content }) {
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
           <polyline points="9 18 15 12 9 6" />
         </svg>
-        思考过程
+        思考过程{open && <span style={{ opacity: 0.4, marginLeft: 4 }}>…</span>}
       </button>
       {expanded && (
         <div style={{
@@ -79,13 +87,13 @@ function ThinkBlock({ content }) {
           fontFamily: 'var(--we-font-serif)',
           fontSize: '12px',
           color: 'var(--we-ink-faded)',
-          fontStyle: 'italic',
           lineHeight: '1.7',
           background: 'var(--we-paper-aged)',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-        }}>
-          {content}
+        }} className="we-think-block-content">
+          <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
+            {content}
+          </ReactMarkdown>
+          {open && <QuillCursor visible={true} />}
         </div>
       )}
     </div>
@@ -94,6 +102,9 @@ function ThinkBlock({ content }) {
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
+// think block 用轻量插件（不需要 rehypeRaw，避免 XSS 风险）
+const THINK_REMARK_PLUGINS = [remarkGfm];
+const THINK_REHYPE_PLUGINS = [rehypeSanitize];
 
 function CodeBlock({ children, className }) {
   const [copied, setCopied] = useState(false);
@@ -123,6 +134,30 @@ function CodeBlock({ children, className }) {
         <code>{code}</code>
       </pre>
     </div>
+  );
+}
+
+/**
+ * 流式文本渲染：按 \n\n 拆段，与 ReactMarkdown <p> 段落间距一致
+ * 段内 \n 渲染为 <br>，最后一段末尾插入 QuillCursor
+ */
+function StreamingContent({ text }) {
+  const paragraphs = text.split(/\n\n+/);
+  return (
+    <>
+      {paragraphs.map((para, i) => {
+        const isLast = i === paragraphs.length - 1;
+        const lines = para.split('\n');
+        return (
+          <p key={i} style={{ marginBottom: isLast ? 0 : '0.5em' }}>
+            {lines.map((line, j) => (
+              <span key={j}>{j > 0 && <br />}{line}</span>
+            ))}
+            {isLast && <QuillCursor visible={true} />}
+          </p>
+        );
+      })}
+    </>
   );
 }
 
@@ -268,11 +303,8 @@ export default function MessageItem({
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
-  // 思考链处理：streaming 时直接剥除/保留；非 streaming 时解析为 blocks
-  const thinkBlocks = !isStreaming ? parseThinkBlocks(displayContent) : null;
-  const streamingDisplay = isStreaming
-    ? (showThinking ? displayContent : stripThinkContent(displayContent))
-    : null;
+  // 统一解析为 blocks（流式和非流式共用）
+  const blocks = parseStreamingBlocks(displayContent);
 
   function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
@@ -435,24 +467,21 @@ export default function MessageItem({
               </div>
             ) : (
               <div className="we-message-content">
-                {isStreaming ? (
-                  <div style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    lineHeight: '1.7',
-                    fontFamily: 'var(--we-font-serif)',
-                  }}>
-                    {streamingDisplay}<QuillCursor visible={true} />
-                  </div>
-                ) : (
-                  <>
-                    {thinkBlocks.map((block, i) =>
-                      block.type === 'thinking'
-                        ? showThinking ? <ThinkBlock key={i} content={block.content} /> : null
-                        : <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>{block.content}</ReactMarkdown>
-                    )}
-                  </>
-                )}
+                {blocks.map((block, i) => {
+                  const isLastBlock = i === blocks.length - 1;
+                  if (block.type === 'thinking') {
+                    if (!showThinking) return null;
+                    return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
+                  }
+                  if (isStreaming && isLastBlock) {
+                    return <StreamingContent key={i} text={block.content} />;
+                  }
+                  return (
+                    <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
+                      {block.content}
+                    </ReactMarkdown>
+                  );
+                })}
               </div>
             )}
             {message.attachments?.length > 0 && (
