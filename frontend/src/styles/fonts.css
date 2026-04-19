@@ -1,0 +1,8 @@
+/* WorldEngine 字体族 — 权威定义见 DESIGN.md §3 */
+
+:root {
+  --we-font-serif:   'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif;
+  --we-font-display: 'Cormorant Garamond', 'LXGW WenKai TC', serif;
+  --we-font-seal:    'ZCOOL XiaoWei', 'LXGW WenKai TC', serif;
+  --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+}

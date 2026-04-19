@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+*.db
+.DS_Store
+
+# Local agent / tooling files
+/.claude/
+/.playwright-cli/
+/frontend/.playwright-cli/
+
+# Temporary/test directories
+.temp/*
+!.temp/.gitkeep
+!.temp/git-health-check.sh
