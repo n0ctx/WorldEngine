@@ -2,15 +2,17 @@
  * LLM 接入层 — 统一入口
  *
  * 对外暴露：
- *   chat(messages, options)    — 流式，返回 AsyncGenerator<string>
- *   complete(messages, options) — 非流式，返回 string
+ *   chat(messages, options)                  — 流式，返回 AsyncGenerator<string>
+ *   complete(messages, options)              — 非流式，返回 string
+ *   completeWithTools(messages, tools, opts) — 非流式 + tool-use 循环，返回 string
+ *   resolveToolContext(messages, tools, opts) — 流式预检，返回富化后的 messages
  */
 
 import { getConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
-import { createLogger } from '../utils/logger.js';
+import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages } from '../utils/logger.js';
 
 const log = createLogger('llm');
 
@@ -94,8 +96,19 @@ function sleep(ms) {
 export async function* chat(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const summary = summarizeMessages(messages);
+  const startedAt = Date.now();
 
-  log.debug(`CHAT  provider=${llmConfig.provider}  model=${llmConfig.model}  msgs=${messages.length}`);
+  log.info(`CHAT START  ${formatMeta({
+    provider: llmConfig.provider,
+    model: llmConfig.model || '',
+    msgs: summary.count,
+    chars: summary.chars,
+    roles: summary.roles,
+    temperature: llmConfig.temperature,
+    maxTokens: llmConfig.max_tokens,
+    thinking: llmConfig.thinking_level,
+  })}`);
 
   let lastError;
   let fullResponse = '';
@@ -109,28 +122,143 @@ export async function* chat(messages, options = {}) {
         fullResponse += chunk;
         yield chunk;
       }
-      log.debug(
-        `CHAT DONE  len=${fullResponse.length}\n` +
-        `${'-'.repeat(60)}\n` +
-        `${fullResponse}\n` +
-        `${'-'.repeat(60)}`
-      );
+      const meta = formatMeta({
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        len: fullResponse.length,
+        ms: Date.now() - startedAt,
+      });
+      if (shouldLogRaw('llm_raw')) {
+        log.info(`CHAT DONE  ${meta}  preview=${JSON.stringify(previewText(fullResponse))}`);
+      } else {
+        log.info(`CHAT DONE  ${meta}`);
+      }
       return;
     } catch (err) {
       // 已开始输出，不可重试（调用方已收到部分数据）
       if (started) {
-        log.debug(`CHAT ABORTED  len=${fullResponse.length}`);
+        log.warn(`CHAT PARTIAL-FAIL  ${formatMeta({
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
+          len: fullResponse.length,
+          ms: Date.now() - startedAt,
+          error: err.message,
+        })}`);
         throw wrapError(err, llmConfig.provider);
       }
       if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
       if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 
       lastError = err;
-      log.warn(`CHAT retry attempt=${attempt + 1}  err=${err.message}`);
+      log.warn(`CHAT RETRY  ${formatMeta({
+        attempt: attempt + 1,
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        error: err.message,
+      })}`);
       if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
     }
   }
   throw wrapError(lastError, llmConfig.provider);
+}
+
+function splitTools(tools = []) {
+  const safeTools = Array.isArray(tools) ? tools : [];
+  const defs = safeTools.map(({ execute: _execute, ...def }) => def);
+  const handlers = Object.fromEntries(
+    safeTools
+      .filter((tool) => typeof tool.execute === 'function')
+      .map((tool) => [tool.function.name, tool.execute]),
+  );
+  return { defs, handlers };
+}
+
+/**
+ * 非流式调用（含 tool-use 循环），返回完整文本。
+ * 若 provider 不支持 tool-use，静默降级为 complete()。
+ */
+export async function completeWithTools(messages, tools, options = {}) {
+  const llmConfig = buildLLMConfig(options);
+  const provider = getProvider(llmConfig.provider);
+  const summary = summarizeMessages(messages);
+  const startedAt = Date.now();
+
+  if (typeof provider.completeWithTools !== 'function') {
+    log.info(`COMPLETE_TOOLS FALLBACK  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', reason: 'provider-no-tool-use' })}`);
+    return provider.complete(messages, llmConfig);
+  }
+
+  const { defs, handlers } = splitTools(tools);
+  log.info(`COMPLETE_TOOLS START  ${formatMeta({
+    provider: llmConfig.provider,
+    model: llmConfig.model || '',
+    msgs: summary.count,
+    chars: summary.chars,
+    tools: defs.map((tool) => tool.function.name),
+  })}`);
+
+  let lastError;
+  for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+    try {
+      const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
+      log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        len: result?.length ?? 0,
+        ms: Date.now() - startedAt,
+        preview: shouldLogRaw('llm_raw') ? previewText(result) : undefined,
+      })}`);
+      return result;
+    } catch (err) {
+      if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
+      if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
+      lastError = err;
+      log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
+        attempt: attempt + 1,
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        error: err.message,
+      })}`);
+      if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+    }
+  }
+  throw wrapError(lastError, llmConfig.provider);
+}
+
+/**
+ * 流式回复前的工具预检：允许 LLM 读取项目文件，返回注入了工具结果的 messages。
+ * 若 provider 不支持或出错，静默降级返回原始 messages。
+ */
+export async function resolveToolContext(messages, tools, options = {}) {
+  const llmConfig = buildLLMConfig(options);
+  const provider = getProvider(llmConfig.provider);
+  const summary = summarizeMessages(messages);
+
+  if (typeof provider.resolveToolContext !== 'function') return messages;
+
+  const { defs, handlers } = splitTools(tools);
+  log.info(`RESOLVE_TOOLS START  ${formatMeta({
+    provider: llmConfig.provider,
+    model: llmConfig.model || '',
+    msgs: summary.count,
+    chars: summary.chars,
+    tools: defs.map((tool) => tool.function.name),
+  })}`);
+
+  try {
+    const enriched = await provider.resolveToolContext(messages, defs, handlers, llmConfig);
+    const added = enriched.length - messages.length;
+    // 从 enriched 消息里提取实际调用了哪些 tool
+    const calledTools = enriched
+      .filter((m) => m.role === 'assistant' && Array.isArray(m.tool_calls))
+      .flatMap((m) => m.tool_calls.map((tc) => tc.function?.name))
+      .filter(Boolean);
+    log.info(`RESOLVE_TOOLS DONE  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', added, calledTools: calledTools.length ? calledTools : undefined })}`);
+    return enriched;
+  } catch (err) {
+    log.warn(`RESOLVE_TOOLS FAIL  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', error: err.message })}`);
+    return messages;
+  }
 }
 
 /**
@@ -143,26 +271,47 @@ export async function* chat(messages, options = {}) {
 export async function complete(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const summary = summarizeMessages(messages);
+  const startedAt = Date.now();
 
-  log.debug(`COMPLETE  provider=${llmConfig.provider}  model=${llmConfig.model}  msgs=${messages.length}`);
+  log.info(`COMPLETE START  ${formatMeta({
+    provider: llmConfig.provider,
+    model: llmConfig.model || '',
+    msgs: summary.count,
+    chars: summary.chars,
+    roles: summary.roles,
+    temperature: llmConfig.temperature,
+    maxTokens: llmConfig.max_tokens,
+    thinking: llmConfig.thinking_level,
+  })}`);
 
   let lastError;
   for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
     try {
       const result = await provider.complete(messages, llmConfig);
-      log.debug(
-        `COMPLETE DONE  len=${result?.length ?? 0}\n` +
-        `${'-'.repeat(60)}\n` +
-        `${result}\n` +
-        `${'-'.repeat(60)}`
-      );
+      const meta = formatMeta({
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        len: result?.length ?? 0,
+        ms: Date.now() - startedAt,
+      });
+      if (shouldLogRaw('llm_raw')) {
+        log.info(`COMPLETE DONE  ${meta}  preview=${JSON.stringify(previewText(result))}`);
+      } else {
+        log.info(`COMPLETE DONE  ${meta}`);
+      }
       return result;
     } catch (err) {
       if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
       if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 
       lastError = err;
-      log.warn(`COMPLETE retry attempt=${attempt + 1}  err=${err.message}`);
+      log.warn(`COMPLETE RETRY  ${formatMeta({
+        attempt: attempt + 1,
+        provider: llmConfig.provider,
+        model: llmConfig.model || '',
+        error: err.message,
+      })}`);
       if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
     }
   }

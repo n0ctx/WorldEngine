@@ -215,30 +215,10 @@ export default function AssistantPanel() {
             ✦ 写卡助手
           </span>
 
-          {isStreaming && (
+          {messages.length > 0 && (
             <button
-              onClick={() => { abortRef.current?.(); }}
-              title="停止生成"
-              style={{
-                background: 'none',
-                border: '1px solid rgba(192,57,43,0.3)',
-                cursor: 'pointer',
-                fontSize: '11px',
-                color: '#c0392b',
-                padding: '3px 8px',
-                borderRadius: '3px',
-              }}
-              onMouseEnter={(e) => { e.target.style.background = 'rgba(192,57,43,0.08)'; }}
-              onMouseLeave={(e) => { e.target.style.background = 'none'; }}
-            >
-              ■ 停止
-            </button>
-          )}
-
-          {messages.length > 0 && !isStreaming && (
-            <button
-              onClick={clearMessages}
-              title="清空对话"
+              onClick={() => { abortRef.current?.(); clearMessages(); }}
+              title={isStreaming ? '停止并清空对话' : '清空对话'}
               style={{
                 background: 'none',
                 border: 'none',
@@ -288,7 +268,8 @@ export default function AssistantPanel() {
           value={input}
           onChange={setInput}
           onSend={handleSend}
-          disabled={isStreaming}
+          onStop={() => abortRef.current?.()}
+          isStreaming={isStreaming}
         />
       </div>
     </>

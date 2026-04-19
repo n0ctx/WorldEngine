@@ -97,3 +97,79 @@ export async function complete(messages, config) {
   const data = await resp.json();
   return data.choices?.[0]?.message?.content || '';
 }
+
+// ============================================================
+// Tool-use（OpenAI-compatible 格式，支持工具调用的本地模型）
+// ============================================================
+
+async function callWithTools(messages, toolDefs, config) {
+  const baseUrl = getBaseUrl(config);
+  const url = `${baseUrl}/v1/chat/completions`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.model,
+      messages,
+      tools: toolDefs,
+      tool_choice: 'auto',
+      temperature: config.temperature,
+      max_tokens: config.max_tokens,
+      stream: false,
+    }),
+    signal: config.signal,
+  });
+  if (!resp.ok) return null; // 降级信号
+  return resp.json();
+}
+
+export async function completeWithTools(messages, toolDefs, toolHandlers, config) {
+  let currentMessages = [...messages];
+
+  for (let i = 0; i < 5; i++) {
+    const data = await callWithTools(currentMessages, toolDefs, config).catch(() => null);
+    if (!data) return complete(currentMessages, config); // 模型不支持 tool-use，降级
+
+    const message = data.choices?.[0]?.message;
+    if (!message) return '';
+
+    if (!message.tool_calls?.length) return message.content || '';
+
+    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
+    for (const tc of message.tool_calls) {
+      const fn = toolHandlers[tc.function?.name];
+      let result;
+      try { result = fn ? String(await fn(JSON.parse(tc.function.arguments || '{}'))) : `工具未定义：${tc.function?.name}`; }
+      catch (e) { result = `工具执行失败：${e.message}`; }
+      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
+    }
+  }
+
+  return complete(currentMessages, config);
+}
+
+export async function resolveToolContext(messages, toolDefs, toolHandlers, config) {
+  let currentMessages = [...messages];
+  let enriched = false;
+
+  for (let i = 0; i < 5; i++) {
+    const overrideConfig = i === 0 ? { ...config, max_tokens: 200, temperature: 0 } : { ...config, temperature: 0 };
+    const data = await callWithTools(currentMessages, toolDefs, overrideConfig).catch(() => null);
+    if (!data) return enriched ? currentMessages : messages;
+
+    const message = data.choices?.[0]?.message;
+    if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
+
+    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
+    for (const tc of message.tool_calls) {
+      const fn = toolHandlers[tc.function?.name];
+      let result;
+      try { result = fn ? String(await fn(JSON.parse(tc.function.arguments || '{}'))) : `工具未定义：${tc.function?.name}`; }
+      catch (e) { result = `工具执行失败：${e.message}`; }
+      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
+    }
+    enriched = true;
+  }
+
+  return enriched ? currentMessages : messages;
+}

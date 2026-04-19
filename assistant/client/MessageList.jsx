@@ -266,7 +266,8 @@ function RoutingMessage({ msg }) {
     'character-card': '角色卡',
     'persona-card': '玩家卡',
     'global-prompt': '全局设置',
-    'css-regex': 'CSS/正则',
+    'css-snippet': '自定义 CSS',
+    'regex-rule': '正则规则',
   };
   return (
     <div

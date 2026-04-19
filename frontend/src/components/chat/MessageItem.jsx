@@ -47,10 +47,12 @@ function parseStreamingBlocks(text) {
 
 /**
  * open=true：think 块正在流式输出，自动展开并显示光标
- * open=false：think 块已完成，默认折叠
+ * open=false：think 块已完成，折叠状态由 autoCollapseThinking 决定
  */
 function ThinkBlock({ content, open = false }) {
-  const [expanded, setExpanded] = useState(open);
+  const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
+  const [expanded, setExpanded] = useState(!autoCollapse);
+
   return (
     <div style={{
       margin: '0 0 8px',
@@ -89,7 +91,7 @@ function ThinkBlock({ content, open = false }) {
           color: 'var(--we-ink-faded)',
           lineHeight: '1.7',
           background: 'var(--we-paper-aged)',
-        }} className="we-think-block-content">
+        }} className={`we-think-block-content${open ? ' we-streaming-block' : ''}`}>
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
             {content}
           </ReactMarkdown>
@@ -434,13 +436,14 @@ export default function MessageItem({
                     if (!showThinking) return null;
                     return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
                   }
+                  const streamingLast = isStreaming && isLastBlock;
                   return (
-                    <React.Fragment key={i}>
+                    <div key={i} className={streamingLast ? 'we-streaming-block' : undefined}>
                       <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
                         {block.content}
                       </ReactMarkdown>
-                      {isStreaming && isLastBlock && <QuillCursor visible={true} />}
-                    </React.Fragment>
+                      {streamingLast && <QuillCursor visible={true} />}
+                    </div>
                   );
                 })}
               </div>

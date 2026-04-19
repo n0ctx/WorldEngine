@@ -176,7 +176,7 @@ export default function ChatPage() {
       const contId = continuingMessageIdRef.current;
       const contText = continuingTextRef.current;
       MessageList.updateMessages((prev) =>
-        prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+        prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
       );
     }
 

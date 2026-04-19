@@ -423,6 +423,12 @@
 
 /* ── Edit state ────────────────────────────────────────── */
 
+/* 编辑态撑满父容器（受原有 max-width 约束），与正常气泡对齐 */
+.we-message-bubble-user:has(.we-message-edit),
+.we-message-bubble-assistant:has(.we-message-edit) {
+  width: 100%;
+}
+
 .we-message-edit textarea {
   width: 100%;
   font-family: var(--we-font-serif);
@@ -627,6 +633,12 @@
 
 .we-writing-prose .we-message-actions {
   margin-top: 6px;
+}
+
+.we-writing-annotation:hover .we-message-actions,
+.we-writing-prose:hover .we-message-actions {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */

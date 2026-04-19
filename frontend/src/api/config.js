@@ -49,3 +49,7 @@ export function fetchEmbeddingModels() {
 export function testConnection() {
   return request(`${BASE}/test-connection`);
 }
+
+export function testEmbeddingConnection() {
+  return request(`${BASE}/test-embedding`);
+}

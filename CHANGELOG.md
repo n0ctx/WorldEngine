@@ -19,6 +19,61 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T102 — 写卡助手重构：单代理 + Agent Skill 架构 ✅
+- **对外接口**：
+  - 架构变更：取消子代理模式，改为主代理 + Agent Skill（skill-as-tool）架构
+  - `assistant/server/main-agent.js`：`export async function* runAgent(message, history, context, tools)`
+  - `assistant/server/skill-factory.js`：`createSkillTool(def, skillCtx)` — 按请求绑定 SSE/proposalStore/context
+  - `assistant/server/tools/card-preview.js`：`createPreviewCardTool(context)` — preview_card tool 工厂
+  - `assistant/server/tools/extract-json.js`：从 sub-agents/ 迁移到 tools/
+  - `assistant/server/skills/index.js`：`ALL_SKILLS` 数组，包含 6 个 skill 定义
+  - `assistant/CONTRACT.md`：重写，移除子代理路由 schema，新增 skill tool 说明和 operation 约束表
+- **涉及文件**：
+  - 新增：`assistant/server/main-agent.js`（完整重写）、`assistant/server/skill-factory.js`、`assistant/server/tools/card-preview.js`、`assistant/server/tools/extract-json.js`、`assistant/server/tools/project-reader.js`、`assistant/server/skills/`（6 个 skill + index）
+  - 修改：`assistant/server/routes.js`（完整重写）、`assistant/prompts/main.md`、`assistant/prompts/sub-*.md`（移除静态注入占位符，改为引导调用 preview_card）、`assistant/CONTRACT.md`
+  - 删除：`assistant/server/sub-agents/`（整目录删除：world-card、character-card、persona-card、global-prompt、css-snippet、regex-rule、css-regex、extract-json）
+- **注意**：
+  - skill LLM 现通过 `preview_card` tool 按需获取实体数据，不再静态注入 `{{WORLD_DATA}}` 等占位符
+  - `resolveToolContext`（非流式工具循环）+ `llm.chat`（流式）两阶段，skill 在工具循环阶段执行并通过 SSE 发送提案
+  - `preview_card` 和 skill tools 是按请求创建的闭包，绑定 `res`/`proposalStore`/`context`/`normalizeProposal`
+  - openai.js Anthropic/Gemini provider 的 loop-exhaustion fallback 修复：改用 `currentMessages`（含工具结果）而非原始 `messages`
+
+## T101 — 全链路日志增强（metadata/raw 双模式） ✅
+- **对外接口**：
+  - `data/config.json` 新增 `logging` 配置块：`mode: "metadata" | "raw"`、`max_preview_chars`、`prompt.enabled`、`llm_raw.enabled`
+  - `backend/utils/logger.js` 新增 `getLoggingConfig()`、`shouldLogRaw()`、`previewText()`、`previewJson()`、`formatMeta()`、`summarizeMessages()`
+- **涉及文件**：
+  - `backend/services/config.js` — 补 `logging` 默认配置，并把旧 `log_prompt` 自动迁移到 `logging.prompt.enabled`
+  - `backend/utils/logger.js` — 从纯终端/file logger 扩展为“配置驱动的 metadata/raw preview logger”
+  - `backend/routes/config.js` — 记录配置 patch 字段、日志模式切换、模型列表拉取结果
+  - `backend/llm/index.js` — 记录 chat/complete 的 START/RETRY/DONE，raw 模式下附截断 preview
+  - `backend/routes/chat.js` / `backend/routes/writing.js` — 记录 request start、context/prompt ready、SSE 关键事件、queue 入队、continue/regenerate 分支
+  - `assistant/server/routes.js` + `assistant/server/sub-agents/*.js` — 记录 assistant route/task/proposal/execute 全链路，以及各子代理 START/RAW/RETRY/DONE/FAIL
+  - `backend/memory/combined-state-updater.js` / `turn-summarizer.js` — 记录状态更新、turn summary、JSON parse fail、embedding 结果
+  - `CLAUDE.md` / `AGENTS.md` / `ARCHITECTURE.md` — 补充 `logging` 配置说明
+- **注意**：
+  - 默认仍是 metadata-only，不会把 prompt/模型原文全文落盘；只有 `logging.mode="raw"` 且相应开关打开时才写截断 preview
+  - `logPrompt()` 不再直接看旧 `config.log_prompt`；兼容迁移仍保留，旧配置会被自动收敛到新结构
+  - assistant SSE 的 `delta`/`thinking` 仍不逐条刷日志，避免日志洪水；重点只记 routing/proposal/error/done 等高价值节点
+
+## T100 — 写卡助手路由/Prompt/契约硬化 ✅
+- **对外接口**：
+  - `assistant/CONTRACT.md` — 写卡助手唯一契约文档；集中定义 `/api/assistant/chat`、SSE 事件、主代理路由 JSON、6 类 proposal schema、`/api/assistant/execute`
+  - 公开子代理 target 固定为：`world-card`、`character-card`、`persona-card`、`global-prompt`、`css-snippet`、`regex-rule`
+- **涉及文件**：
+  - `assistant/server/main-agent.js` — ROUTING_SYSTEM 重写为“执行判定→目标选择→字段补全”；新增路由结果归一化，非法 action/target/task 自动降级 `respond`
+  - `assistant/server/routes.js` — 新增 proposal schema 归一化与白名单校验；编辑后的 proposal 重新走归一化；`regex-rule` 执行时补齐 `enabled`
+  - `assistant/server/sub-agents/extract-json.js` — 从“最后一个 }”改为：剥离 think → 试整段/代码块 → 扫描顶层对象；支持 `prefer:first|last`
+  - `assistant/server/sub-agents/world-card.js` / `character-card.js` / `persona-card.js` / `global-prompt.js` — JSON 解析失败时追加一次“只重发合法对象”的低温修复重试
+  - `assistant/prompts/sub-*.md` — 6 个子代理 prompt 全部重写为单职责 + 单一输出 schema，并补正反例与写卡最佳实践
+  - `CLAUDE.md` / `AGENTS.md` / `ARCHITECTURE.md` — 补写 `assistant/CONTRACT.md` 与 `/api/assistant` 路由说明
+- **注意**：
+  - `assistant/server/sub-agents/css-regex.js` 仍保留为 legacy 兼容文件，但不再是公开 target；新 prompt/契约只认 `css-snippet` 与 `regex-rule`
+  - `persona-card` 禁止 `entryOps`；`global-config` 禁止 `entityId/stateFieldOps`；`css-snippet` / `regex-rule` 固定 `create`
+  - `editedProposal` 现在只能覆盖 `changes/entryOps/stateFieldOps`，其余顶层字段继续由 token 锚定，避免前端编辑把 type/operation/entityId 改脏
+  - T100 后续补丁：`assistant/server/main-agent.js` 新增 `as-route` 日志（RAW / DONE / FAIL / FALLBACK）；当路由模型输出非法 JSON 或误回 `respond` 时，会对“regex + css 混合需求”做启发式兜底，例如“美化 `<think>` + 丧尸末日风动效”强制落为 `multi-delegate(regex-rule + css-snippet)`
+  - T100 后续补丁 2：`assistant/server/sub-agents/css-snippet.js` / `regex-rule.js` 兼容旧输出格式；若模型直接返回顶层 `content/pattern/...` 而非嵌套在 `changes` 中，子代理会自动折叠成新契约格式，避免被 `提案格式错误：css-snippet.changes.content 不能为空` 拒绝
+
 ## T99 — 完整日志系统 ✅
 - **对外接口**：
   - 环境变量 `LOG_LEVEL=debug|info|warn|error`（终端，默认 warn）

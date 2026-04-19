@@ -21,11 +21,13 @@ export default function App() {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
   const setShowThinking = useDisplaySettingsStore((s) => s.setShowThinking);
+  const setAutoCollapseThinking = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
 
   useEffect(() => {
     refreshCustomCss('chat');
     getConfig().then((c) => {
       setShowThinking(c.ui?.show_thinking !== false);
+      setAutoCollapseThinking(c.ui?.auto_collapse_thinking !== false);
     }).catch(() => {});
   }, []);
 

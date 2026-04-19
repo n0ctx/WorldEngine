@@ -20,7 +20,7 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValues, upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
 
 import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT } from '../utils/constants.js';
-import { createLogger } from '../utils/logger.js';
+import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 
 const log = createLogger('all-state');
 
@@ -34,6 +34,7 @@ const log = createLogger('all-state');
 export async function updateAllStates(worldId, characterIds, sessionId) {
   const sid = sessionId.slice(0, 8);
   const world = worldId ? getWorldById(worldId) : null;
+  log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds, messageScanWindow: PROMPT_ENTRY_SCAN_WINDOW })}`);
 
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;
@@ -72,7 +73,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
 
   if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
-    log.debug(`SKIP no active fields  session=${sid}`);
+    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);
     return;
   }
 
@@ -181,12 +182,18 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     },
   ];
 
-  log.debug(
-    `CALL  world=${worldActiveFields.length}f  chars=[${charactersWithFields.map((c) => c.name).join(',')}]  persona=${personaActiveFields.length}f  session=${sid}`
-  );
+  log.info(`CALL  ${formatMeta({
+    session: sid,
+    worldFields: worldActiveFields.length,
+    characterFields: charSchemaFields.length,
+    characters: charactersWithFields.map((c) => c.name),
+    personaFields: personaActiveFields.length,
+    promptChars: prompt[0].content.length,
+  })}`);
 
   const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 1000 });
   if (!raw) return;
+  log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
   let patch;
   try {
@@ -196,7 +203,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     if (!match) return;
     patch = JSON.parse(match[0]);
   } catch {
-    log.warn(`JSON parse failed  session=${sid}  raw="${raw.slice(0, 100)}"`);
+    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
     return;
   }
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;

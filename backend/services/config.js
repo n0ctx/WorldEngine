@@ -30,11 +30,24 @@ const DEFAULT_CONFIG = {
     font_size: 16,
     custom_css: '',
     show_thinking: true,
+    auto_collapse_thinking: true,
   },
   context_history_rounds: 10,
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
+  log_prompt: false,
+  logging: {
+    mode: 'metadata',
+    max_preview_chars: 600,
+    modules: {},
+    prompt: {
+      enabled: false,
+    },
+    llm_raw: {
+      enabled: false,
+    },
+  },
   writing: {
     global_system_prompt: '',
     global_post_prompt: '',
@@ -55,6 +68,18 @@ const DEFAULT_WRITING = {
     model: '',
     temperature: null,
     max_tokens: null,
+  },
+};
+
+const DEFAULT_LOGGING = {
+  mode: 'metadata',
+  max_preview_chars: 600,
+  modules: {},
+  prompt: {
+    enabled: false,
+  },
+  llm_raw: {
+    enabled: false,
   },
 };
 
@@ -116,6 +141,51 @@ export function getConfig() {
       delete config[section].api_key;
       dirty = true;
     }
+  }
+
+  if (!config.logging || typeof config.logging !== 'object' || Array.isArray(config.logging)) {
+    config.logging = structuredClone(DEFAULT_LOGGING);
+    dirty = true;
+  } else {
+    const prevPromptEnabled = !!config.logging.prompt?.enabled;
+    const prevLlmRawEnabled = !!config.logging.llm_raw?.enabled;
+    config.logging = {
+      ...structuredClone(DEFAULT_LOGGING),
+      ...config.logging,
+      modules: config.logging.modules && typeof config.logging.modules === 'object' && !Array.isArray(config.logging.modules)
+        ? { ...config.logging.modules }
+        : {},
+      prompt: {
+        ...DEFAULT_LOGGING.prompt,
+        ...(config.logging.prompt && typeof config.logging.prompt === 'object' ? config.logging.prompt : {}),
+      },
+      llm_raw: {
+        ...DEFAULT_LOGGING.llm_raw,
+        ...(config.logging.llm_raw && typeof config.logging.llm_raw === 'object' ? config.logging.llm_raw : {}),
+      },
+    };
+    if (config.logging.prompt.enabled !== prevPromptEnabled || config.logging.llm_raw.enabled !== prevLlmRawEnabled) {
+      dirty = true;
+    }
+  }
+
+  if (config.log_prompt === true && !config.logging.prompt.enabled) {
+    config.logging.prompt.enabled = true;
+    dirty = true;
+  }
+
+  if (config.logging.mode !== 'metadata' && config.logging.mode !== 'raw') {
+    config.logging.mode = DEFAULT_LOGGING.mode;
+    dirty = true;
+  }
+
+  const previewChars = Number(config.logging.max_preview_chars);
+  if (!Number.isFinite(previewChars) || previewChars < 120) {
+    config.logging.max_preview_chars = DEFAULT_LOGGING.max_preview_chars;
+    dirty = true;
+  } else if (previewChars !== config.logging.max_preview_chars) {
+    config.logging.max_preview_chars = Math.floor(previewChars);
+    dirty = true;
   }
 
   if (dirty) {

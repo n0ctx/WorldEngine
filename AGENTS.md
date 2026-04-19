@@ -44,6 +44,7 @@
 /backend/utils/constants.js     # 锁定文件：所有硬性数值常量
 /frontend/src/store/index.js    # 锁定文件：全局状态
 /backend/server.js              # 锁定文件：入口
+/assistant/CONTRACT.md          # 写卡助手接口契约（主代理/子代理/proposal schema/SSE 事件）
 ```
 
 完整目录结构见 `ARCHITECTURE.md §2`。
@@ -60,6 +61,8 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
 每次任务完成后git commit（每次commit前必须更新`CHANGELOG.md`）。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
+
+日志模式通过 `data/config.json` 的 `logging` 配置块控制：默认 `mode="metadata"`；需要原文预览时切到 `mode="raw"`，并按需开启 `logging.prompt.enabled` / `logging.llm_raw.enabled`。
 
 ---
 
@@ -163,7 +166,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 <claude-mem-context>
 # Memory Context
 
-# $CMEM WorldEngine 2026-04-19 1:32am GMT+8
+# [WorldEngine] recent context, 2026-04-20 1:52am GMT+8
 
 No previous sessions found.
 </claude-mem-context>

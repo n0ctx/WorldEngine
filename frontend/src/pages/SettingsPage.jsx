@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   getConfig, updateConfig, updateApiKey, updateEmbeddingApiKey,
-  fetchModels, fetchEmbeddingModels, testConnection,
+  fetchModels, fetchEmbeddingModels, testConnection, testEmbeddingConnection,
 } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../api/importExport';
@@ -183,6 +183,7 @@ function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlCh
           <div style={{ display: 'flex', gap: '8px' }}>
             <Input
               type="password"
+              autoComplete="new-password"
               style={{ flex: 1 }}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
@@ -292,11 +293,32 @@ function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatModel }) {
   );
 }
 
-function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange, proxyUrl, onProxyUrlSave, showThinking, onToggleShowThinking }) {
+function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMode, writingLlm, onWritingLlmChange, onModeChange, proxyUrl, onProxyUrlSave, showThinking, onToggleShowThinking, autoCollapseThinking, onToggleAutoCollapseThinking }) {
   const [testStatus, setTestStatus] = useState('idle');
   const [testMsg, setTestMsg] = useState('');
+  const [embedTestStatus, setEmbedTestStatus] = useState('idle');
+  const [embedTestMsg, setEmbedTestMsg] = useState('');
   const [proxyInput, setProxyInput] = useState(proxyUrl ?? '');
   const [proxySaved, setProxySaved] = useState(false);
+
+  async function handleTestEmbedding() {
+    setEmbedTestStatus('testing');
+    setEmbedTestMsg('');
+    try {
+      const result = await testEmbeddingConnection();
+      if (result.success) {
+        setEmbedTestStatus('ok');
+        setEmbedTestMsg(`连接成功（${result.dimensions} 维）`);
+      } else {
+        setEmbedTestStatus('error');
+        setEmbedTestMsg(result.error || '连接失败');
+      }
+    } catch (e) {
+      setEmbedTestStatus('error');
+      setEmbedTestMsg(e.message);
+    }
+    setTimeout(() => setEmbedTestStatus('idle'), 5000);
+  }
 
   async function handleTestConnection() {
     setTestStatus('testing');
@@ -427,14 +449,35 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMo
             onApiKeySaved={() => onEmbeddingChange('has_key', true)}
             loadModels={fetchEmbeddingModels}
           />
+
+          {embedding.provider && (
+            <div className="we-settings-field-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Button
+                  variant="default"
+                  onClick={handleTestEmbedding}
+                  disabled={embedTestStatus === 'testing'}
+                >
+                  {embedTestStatus === 'testing' ? '测试中…' : '测试 Embedding'}
+                </Button>
+                {embedTestStatus === 'ok' && (
+                  <span style={{ fontSize: '13px', color: 'var(--we-moss)' }}>{embedTestMsg}</span>
+                )}
+                {embedTestStatus === 'error' && (
+                  <span style={{ fontSize: '13px', color: 'var(--we-vermilion)' }}>{embedTestMsg}</span>
+                )}
+              </div>
+            </div>
+          )}
         </>
       )}
 
-      {/* 渲染设置：对话/写作空间共用，始终可见 */}
+      {/* 思考链设置：对话/写作空间共用，始终可见 */}
       <hr className="we-settings-divider" />
       <div className="we-settings-field-group">
-        <p className="we-settings-subsection-title">渲染设置</p>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+        <p className="we-settings-subsection-title">思考链设置</p>
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
           <div>
             <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
               渲染思考链
@@ -474,7 +517,49 @@ function LlmSection({ llm, embedding, onLlmChange, onEmbeddingChange, settingsMo
             />
           </button>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+          <div>
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+              自动折叠
+            </p>
+            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+              思考完成后默认折叠；关闭则默认展开
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={autoCollapseThinking}
+            onClick={() => onToggleAutoCollapseThinking(!autoCollapseThinking)}
+            style={{
+              flexShrink: 0,
+              position: 'relative',
+              display: 'inline-flex',
+              height: '24px',
+              width: '44px',
+              cursor: 'pointer',
+              borderRadius: '9999px',
+              border: '2px solid transparent',
+              transition: 'background-color 0.2s',
+              backgroundColor: autoCollapseThinking ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-block',
+                height: '20px',
+                width: '20px',
+                borderRadius: '9999px',
+                backgroundColor: 'var(--we-paper-base)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'transform 0.2s',
+                transform: autoCollapseThinking ? 'translateX(20px)' : 'translateX(0)',
+              }}
+            />
+          </button>
+        </div>
       </div>
+
     </div>
   );
 }
@@ -793,6 +878,8 @@ export default function SettingsPage() {
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
+  const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
+  const setAutoCollapseThinkingStore = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const [saving, setSaving] = useState(false);
 
   const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
@@ -812,6 +899,7 @@ export default function SettingsPage() {
       setGlobalPostPrompt(c.global_post_prompt ?? '');
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
+      setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
       const w = c.writing || {};
       setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
@@ -926,6 +1014,12 @@ export default function SettingsPage() {
     await patchConfig({ ui: { show_thinking: enabled } });
   }
 
+  async function handleToggleAutoCollapseThinking(enabled) {
+    setAutoCollapseThinkingLocal(enabled);
+    setAutoCollapseThinkingStore(enabled);
+    await patchConfig({ ui: { auto_collapse_thinking: enabled } });
+  }
+
   async function handleImportSuccess() {
     const c = await getConfig();
     setConfig(c);
@@ -1022,6 +1116,8 @@ export default function SettingsPage() {
                 onProxyUrlSave={handleProxyUrlSave}
                 showThinking={showThinking}
                 onToggleShowThinking={handleToggleShowThinking}
+                autoCollapseThinking={autoCollapseThinking}
+                onToggleAutoCollapseThinking={handleToggleAutoCollapseThinking}
               />
             </div>
           )}

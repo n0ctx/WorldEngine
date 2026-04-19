@@ -4,7 +4,8 @@
 
 import { useRef, useEffect } from 'react';
 
-export default function InputBox({ value, onChange, onSend, disabled }) {
+export default function InputBox({ value, onChange, onSend, onStop, isStreaming }) {
+  const disabled = isStreaming;
   const textareaRef = useRef(null);
 
   // 自动调整高度
@@ -62,24 +63,27 @@ export default function InputBox({ value, onChange, onSend, disabled }) {
         onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
       />
       <button
-        onClick={onSend}
-        disabled={disabled || !value.trim()}
+        onClick={isStreaming ? onStop : onSend}
+        disabled={!isStreaming && !value.trim()}
         style={{
           padding: '7px 14px',
-          background: disabled || !value.trim() ? 'rgba(138,94,74,0.3)' : 'var(--we-vermilion, #8a5e4a)',
+          background: isStreaming
+            ? 'rgba(192,57,43,0.85)'
+            : !value.trim() ? 'rgba(138,94,74,0.3)' : 'var(--we-vermilion, #8a5e4a)',
           color: '#fff',
           border: 'none',
           borderRadius: '6px',
           fontSize: '13px',
           fontFamily: 'var(--we-font-display)',
-          fontStyle: 'italic',
-          cursor: disabled || !value.trim() ? 'default' : 'pointer',
+          fontStyle: isStreaming ? 'normal' : 'italic',
+          cursor: !isStreaming && !value.trim() ? 'default' : 'pointer',
           transition: 'background 0.15s',
           flexShrink: 0,
           height: '36px',
+          minWidth: '52px',
         }}
       >
-        发送
+        {isStreaming ? '■ 停止' : '发送'}
       </button>
     </div>
   );

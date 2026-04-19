@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompt/assembler.js';
 import { activeStreams } from '../services/chat.js';
+import { logPrompt } from '../utils/logger.js';
 import {
   createWritingSession,
   getWritingSessionsByWorldId,
@@ -24,7 +25,7 @@ import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
-import { createLogger } from '../utils/logger.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
@@ -39,6 +40,19 @@ import { stripAsstContext } from '../utils/turn-dialogue.js';
 
 const router = Router();
 const log = createLogger('writing');
+
+function emitSse(res, sid, payload, { logEvent = true } = {}) {
+  if (logEvent && payload?.type && payload.type !== 'delta') {
+    log.info(`SSE ${payload.type.toUpperCase()}  ${formatMeta({
+      session: sid,
+      keys: Object.keys(payload),
+      title: payload.title,
+      hasAssistant: !!payload.assistant,
+      error: payload.error,
+    })}`);
+  }
+  sendSse(res, payload);
+}
 
 // ── 写作会话列表/创建 ──
 
@@ -135,15 +149,19 @@ router.get('/:worldId/characters', (req, res) => {
 async function runWritingStream(sessionId, res) {
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
+  const sid = sessionId.slice(0, 8);
 
   let fullContent = '';
   let aborted = false;
 
   const session = dbGetWritingSessionById(sessionId);
   const worldId = session?.world_id;
+  log.info(`REQUEST START  ${formatMeta({ session: sid, worldId: worldId?.slice(0, 8) ?? null })}`);
 
   try {
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
+    logPrompt(sessionId, messages);
     const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal });
     for await (const chunk of stream) {
       fullContent += chunk;
@@ -153,7 +171,8 @@ async function runWritingStream(sessionId, res) {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
+      log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);
+      if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'error', error: err.message });
       if (!fullContent) {
         streamState.clear();
         if (!streamState.isClientClosed()) res.end();
@@ -178,8 +197,10 @@ async function runWritingStream(sessionId, res) {
     touchWritingSession(sessionId);
   }
 
+  log.info(`STREAM END  ${formatMeta({ session: sid, chars: fullContent.length, aborted })}`);
+
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted
+    emitSse(res, sid, aborted
       ? { aborted: true, assistant: savedAssistant }
       : { done: true, assistant: savedAssistant });
   }
@@ -193,9 +214,10 @@ async function runWritingStream(sessionId, res) {
     if (hasUserMsg) {
       // 标题生成
       if (session && !session.title) {
+        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
         enqueue(sessionId, () => generateTitle(sessionId), 2)
           .then((title) => {
-            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
           })
           .catch(err => log.warn('后台任务失败:', err.message))
           .finally(() => {
@@ -204,15 +226,19 @@ async function runWritingStream(sessionId, res) {
 
         // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
         const activeCharacters = getWritingSessionCharacters(sessionId);
+        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
         enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
         // turn record（在状态更新之后入队，捕获本轮结果状态）
+        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
         enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
         return;
       }
 
       // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
       const activeCharacters = getWritingSessionCharacters(sessionId);
+      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
       enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
     }
   }
@@ -232,6 +258,7 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
   if (content && typeof content === 'string' && content.trim()) {
     createMessage({ session_id: sessionId, role: 'user', content: content.trim() });
     touchWritingSession(sessionId);
+    log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: content.trim().length })}`);
   }
 
   await runWritingStream(sessionId, res);
@@ -252,6 +279,8 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
   const worldId = session.world_id;
+  const sid = sessionId.slice(0, 8);
+  log.info(`POST /continue  ${formatMeta({ session: sid, worldId: worldId?.slice(0, 8) ?? null })}`);
 
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
@@ -260,7 +289,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
   if (!lastAssistant) {
-    sendSse(res, { type: 'error', error: '没有可续写的内容' });
+    emitSse(res, sid, { type: 'error', error: '没有可续写的内容' });
     res.end();
     return;
   }
@@ -271,6 +300,8 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   try {
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    log.info(`CONTINUE PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
+    logPrompt(sessionId, messages);
     const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
     const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
 
@@ -283,7 +314,8 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
+      log.error(`CONTINUE ERROR  ${formatMeta({ session: sid, error: err.message })}`);
+      if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'error', error: err.message });
       if (!newContent) {
         streamState.clear();
         if (!streamState.isClientClosed()) res.end();
@@ -299,12 +331,14 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   if (newContent) {
     const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId, 'writing');
     // 续写：合并到上一条 assistant 消息
-    updateMessageContent(lastAssistant.id, originalContent + processedNew);
+    updateMessageContent(lastAssistant.id, originalContent + '\n\n' + processedNew.replace(/^\n+/, ''));
     touchWritingSession(sessionId);
   }
 
+  log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: newContent.length, aborted })}`);
+
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted ? { aborted: true } : { done: true });
+    emitSse(res, sid, aborted ? { aborted: true } : { done: true });
   }
 
   streamState.clear();
@@ -312,7 +346,9 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   // 续写正常完成后更新 turn record（isUpdate=true 覆盖最后一轮）
   if (!aborted && newContent) {
     const activeCharacters = getWritingSessionCharacters(sessionId);
+    log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((character) => character.id.slice(0, 8)) })}`);
     enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+    log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
     enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
   }
 
@@ -334,6 +370,8 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
 
   try {
     const { messages: baseMessages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    log.info(`POST /impersonate  ${formatMeta({ session: sessionId.slice(0, 8), worldId: worldId.slice(0, 8), msgs: baseMessages.length })}`);
+    logPrompt(sessionId, baseMessages);
     const prompt = [...baseMessages];
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
@@ -346,7 +384,9 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       maxTokens: Math.min(maxTokens ?? 300, 300),
       model,
     });
-    res.json({ content: content.trim() });
+    // 剥除 thinking 模型输出的 <think>...</think> 推理块
+    const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    res.json({ content: cleaned });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

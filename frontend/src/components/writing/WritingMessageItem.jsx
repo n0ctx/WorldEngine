@@ -42,7 +42,9 @@ function parseStreamingBlocks(text) {
 }
 
 function ThinkBlock({ content, open = false }) {
-  const [expanded, setExpanded] = useState(open);
+  const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
+  const [expanded, setExpanded] = useState(!autoCollapse);
+
   return (
     <div style={{
       margin: '0 0 8px',
@@ -81,7 +83,7 @@ function ThinkBlock({ content, open = false }) {
           color: 'var(--we-ink-faded)',
           lineHeight: '1.7',
           background: 'var(--we-paper-aged)',
-        }} className="we-think-block-content">
+        }} className={`we-think-block-content${open ? ' we-streaming-block' : ''}`}>
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
             {content}
           </ReactMarkdown>
@@ -281,13 +283,14 @@ export default function WritingMessageItem({
                 if (!showThinking) return null;
                 return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
               }
+              const streamingLast = isStreaming && isLastBlock;
               return (
-                <React.Fragment key={i}>
+                <div key={i} className={streamingLast ? 'we-streaming-block' : undefined}>
                   <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
                     {block.content}
                   </ReactMarkdown>
-                  {isStreaming && isLastBlock && <QuillCursor />}
-                </React.Fragment>
+                  {streamingLast && <QuillCursor />}
+                </div>
               );
             })}
           </div>

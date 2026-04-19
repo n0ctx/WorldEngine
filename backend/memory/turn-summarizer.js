@@ -14,7 +14,7 @@ import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById } from '../db/queries/turn-records.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
-import { createLogger } from '../utils/logger.js';
+import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 
 const log = createLogger('turn-sum');
@@ -28,6 +28,7 @@ const log = createLogger('turn-sum');
  */
 export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   const sid = sessionId.slice(0, 8);
+  log.info(`START  ${formatMeta({ session: sid, isUpdate })}`);
 
   const session = getSessionById(sessionId);
   if (!session) { log.warn(`session not found  session=${sid}`); return; }
@@ -41,11 +42,9 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   const asstMsg = [...allMsgs].reverse().find((m) => m.role === 'assistant');
 
   if (!userMsg || !asstMsg) {
-    log.debug(`SKIP no user/assistant pair  session=${sid}`);
+    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'missing-pair' })}`);
     return;
   }
-
-  log.debug(`START  session=${sid}  isUpdate=${isUpdate}`);
 
   // turn_records 中仅保存纯对话原文，不保存状态快照。
   const user_context = `{{user}}：${userMsg.content}`;
@@ -63,14 +62,15 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     }];
     const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 500 });
     summary = raw?.trim() ?? '';
+    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
   } catch (err) {
-    log.warn(`LLM summary failed  session=${sid}  err=${err.message}`);
+    log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
     // 降级：用前 100 字作为摘要
     summary = `${userMsg.content} / ${asstMsg.content}`.slice(0, 100);
   }
 
   if (!summary) {
-    log.warn(`empty summary, skip  session=${sid}`);
+    log.warn(`SKIP  ${formatMeta({ session: sid, reason: 'empty-summary' })}`);
     return;
   }
 
@@ -92,7 +92,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     asst_context,
   });
 
-  log.info(`DONE  session=${sid}  round=${round_index}  len=${summary.length}`);
+  log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
 
   // 异步触发 embedding（不阻塞）
   if (record && worldId) {
@@ -108,7 +108,8 @@ async function embedTurnRecord(turnRecordId, sessionId, worldId) {
     const vector = await embed(getTurnRecordById(turnRecordId)?.summary ?? '');
     if (!vector) return; // embedding 未配置，静默退出
     upsertEntry(turnRecordId, sessionId, worldId, vector);
+    log.info(`EMBED DONE  ${formatMeta({ turnRecordId, session: sessionId.slice(0, 8), worldId: worldId.slice(0, 8) })}`);
   } catch (err) {
-    log.warn(`embed failed  turnRecord=${turnRecordId}  err=${err.message}`);
+    log.warn(`EMBED FAIL  ${formatMeta({ turnRecordId, session: sessionId.slice(0, 8), error: err.message })}`);
   }
 }

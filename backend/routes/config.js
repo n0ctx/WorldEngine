@@ -2,8 +2,11 @@ import { Router } from 'express';
 import { getConfig, updateConfig } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
+import { embed } from '../llm/embedding.js';
+import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('config', 'blue');
 
 /** 获取当前 provider 的 API Key */
 function resolveApiKey(section) {
@@ -40,8 +43,27 @@ function sanitizeBaseUrlPatch(section) {
 // GET /api/config — 返回当前配置（去掉 api_key）
 router.get('/', (_req, res) => {
   const config = getConfig();
+  const logging = getLoggingConfig();
+  log.debug(`GET /api/config  ${formatMeta({ loggingMode: logging.mode, prompt: logging.prompt?.enabled, llmRaw: logging.llm_raw?.enabled })}`);
   res.json(stripApiKeys(config));
 });
+
+function collectPatchPaths(value, prefix = '') {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return prefix ? [prefix] : [];
+  }
+  const paths = [];
+  for (const [key, child] of Object.entries(value)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (child && typeof child === 'object' && !Array.isArray(child)) {
+      const nested = collectPatchPaths(child, path);
+      paths.push(...(nested.length ? nested : [path]));
+    } else {
+      paths.push(path);
+    }
+  }
+  return paths;
+}
 
 /**
  * 处理 provider 切换时的 provider_models 自动存取：
@@ -75,6 +97,7 @@ router.put('/', (req, res) => {
   try {
     const current = getConfig();
     const patch = structuredClone(req.body);
+    const patchPaths = collectPatchPaths(patch);
     if (patch.llm) {
       delete patch.llm.api_key;
       delete patch.llm.provider_keys;
@@ -89,9 +112,18 @@ router.put('/', (req, res) => {
     }
 
     const updated = updateConfig(patch);
+    const loggingChanged = patchPaths.some((path) => path === 'logging' || path.startsWith('logging.'));
+    log.info(`PUT /api/config  ${formatMeta({
+      fields: patchPaths,
+      loggingChanged,
+      loggingMode: updated.logging?.mode,
+      prompt: updated.logging?.prompt?.enabled,
+      llmRaw: updated.logging?.llm_raw?.enabled,
+    })}`);
     if ('proxy_url' in patch) applyProxy(updated.proxy_url || '');
     res.json(stripApiKeys(updated));
   } catch (err) {
+    log.warn(`PUT /api/config FAIL  ${formatMeta({ error: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -106,8 +138,10 @@ router.put('/apikey', (req, res) => {
     const config = getConfig();
     const provider = config.llm.provider;
     updateConfig({ llm: { provider_keys: { [provider]: api_key } } });
+    log.info(`PUT /api/config/apikey  ${formatMeta({ section: 'llm', provider, hasKey: !!api_key })}`);
     res.json({ success: true });
   } catch (err) {
+    log.error(`PUT /api/config/apikey FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
@@ -122,8 +156,10 @@ router.put('/embedding-apikey', (req, res) => {
     const config = getConfig();
     const provider = config.embedding.provider;
     updateConfig({ embedding: { provider_keys: { [provider]: api_key } } });
+    log.info(`PUT /api/config/embedding-apikey  ${formatMeta({ section: 'embedding', provider, hasKey: !!api_key })}`);
     res.json({ success: true });
   } catch (err) {
+    log.error(`PUT /api/config/embedding-apikey FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
@@ -233,8 +269,10 @@ router.get('/models', async (_req, res) => {
   try {
     const models = await fetchModels(provider, apiKey, base_url);
     const thinkingOptions = getThinkingOptions(provider);
+    log.info(`GET /api/config/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
     res.json({ models, thinkingOptions });
   } catch (err) {
+    log.warn(`GET /api/config/models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
   }
 });
@@ -249,9 +287,28 @@ router.get('/embedding-models', async (_req, res) => {
   const apiKey = resolveApiKey(config.embedding);
   try {
     const models = await fetchModels(provider, apiKey, base_url);
+    log.info(`GET /api/config/embedding-models  ${formatMeta({ provider, count: models.length })}`);
     res.json({ models });
   } catch (err) {
+    log.warn(`GET /api/config/embedding-models FAIL  ${formatMeta({ provider, error: err.message })}`);
     res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
+  }
+});
+
+// GET /api/config/test-embedding — 验证 Embedding 连通性（不保存结果）
+router.get('/test-embedding', async (_req, res) => {
+  const config = getConfig();
+  if (!config.embedding?.provider) {
+    return res.json({ success: false, error: '未配置 Embedding provider' });
+  }
+  try {
+    const vector = await embed('Hello');
+    if (!Array.isArray(vector)) {
+      return res.json({ success: false, error: '未返回有效向量' });
+    }
+    res.json({ success: true, dimensions: vector.length });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
   }
 });
 

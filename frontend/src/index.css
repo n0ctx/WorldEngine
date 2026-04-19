@@ -803,14 +803,14 @@ body {
 /* ── CastPanel（写作空间右侧角色台）───────────────────────────── */
 .we-cast-panel { }
 .we-cast-header { }
-.we-cast-char-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
-.we-cast-char-title { display: flex; align-items: center; gap: 6px; padding: 9px 0; cursor: pointer; }
-.we-cast-char-name { font-family: var(--we-font-display); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--we-ink-secondary); flex: 1; }
-.we-cast-char-remove { font-family: var(--we-font-display); font-style: italic; font-size: 10px; color: var(--we-ink-faded); background: none; border: none; cursor: pointer; padding: 0; display: none; }
-.we-cast-character-block:hover .we-cast-char-remove { display: inline; }
-.we-cast-char-remove:hover { color: var(--we-vermilion); }
-.we-cast-character-block { border-top: 1px solid var(--we-paper-shadow); }
-.we-cast-char-body { padding: 0 0 10px; }
+.we-cast-character-block { }
+/* CastPanel 内取消所有模块间分割线 */
+.we-cast-panel .we-state-section + .we-state-section,
+.we-cast-panel .we-timeline { border-top: none; }
+/* 角色块 hover 时显现操作按钮（与 we-state-section:hover 规则对称） */
+.we-cast-character-block:hover .we-state-section-reset { color: var(--we-ink-faded); }
+/* 角色块内容区：减小顶部间距（StatusSection 自身 padding 已含 14px，此处抵消） */
+.we-cast-char-inner { padding-top: 0; }
 
 /* ── QuillCursor（羽毛笔流式光标）──────────────────────────────── */
 @keyframes quill-blink {
@@ -819,4 +819,8 @@ body {
 }
 .we-quill-cursor {
   animation: quill-blink 0.7s steps(2, end) infinite;
+}
+/* 流式输出最后一块：让最后一个 p 内联，使羽毛笔紧跟句末 */
+.we-streaming-block p:last-of-type {
+  display: inline;
 }

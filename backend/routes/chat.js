@@ -22,7 +22,7 @@ import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
-import { createLogger } from '../utils/logger.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import {
   beginStreamSession,
@@ -34,6 +34,22 @@ import { stripAsstContext } from '../utils/turn-dialogue.js';
 const router = Router();
 const log = createLogger('chat');
 
+function emitSse(res, sid, payload, { logEvent = true } = {}) {
+  if (logEvent && payload?.type && payload.type !== 'delta') {
+    log.info(`SSE ${payload.type.toUpperCase()}  ${formatMeta({
+      session: sid,
+      keys: Object.keys(payload),
+      hit: payload.hit,
+      candidates: Array.isArray(payload.candidates) ? payload.candidates.length : undefined,
+      expanded: Array.isArray(payload.expanded) ? payload.expanded.length : undefined,
+      hasAssistant: !!payload.assistant,
+      title: payload.title,
+      error: payload.error,
+    })}`);
+  }
+  sendSse(res, payload);
+}
+
 /**
  * 执行流式生成（chat 和 regenerate 共用）
  * @param {object} [opts]
@@ -42,30 +58,36 @@ const log = createLogger('chat');
 async function runStream(sessionId, res, opts = {}) {
   const sid = sessionId.slice(0, 8);
   const t0  = Date.now();
-  log.info(`▶ stream START  session=${sid}`);
+  log.info(`REQUEST START  ${formatMeta({ session: sid, userMsgId: opts.userMsgId?.slice(0, 8) ?? null })}`);
 
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
 
   // 广播真实 user 消息 id（前端用于把乐观追加的 __temp_ id 替换为真实 id）
   if (opts.userMsgId && !streamState.isClientClosed()) {
-    sendSse(res, { type: 'user_saved', id: opts.userMsgId });
+    emitSse(res, sid, { type: 'user_saved', id: opts.userMsgId });
   }
 
   let fullContent = '';
   let aborted = false;
 
   try {
-    if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_start' });
+    if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_start' });
     const { messages, overrides, recallHitCount } = await buildContext(sessionId, {
       onRecallEvent(name, payload) {
         if (!streamState.isClientClosed()) {
-          sendSse(res, { type: name, ...payload });
+          emitSse(res, sid, { type: name, ...payload });
         }
       },
     });
-    if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_done', hit: recallHitCount });
-    log.debug(`  context  session=${sid}  msgs=${messages.length}  recall=${recallHitCount}  temp=${overrides.temperature}  max=${overrides.maxTokens}`);
+    if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_done', hit: recallHitCount });
+    log.info(`CONTEXT DONE  ${formatMeta({
+      session: sid,
+      msgs: messages.length,
+      recall: recallHitCount,
+      temperature: overrides.temperature,
+      maxTokens: overrides.maxTokens,
+    })}`);
     const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
 
     for await (const chunk of stream) {
@@ -77,8 +99,8 @@ async function runStream(sessionId, res, opts = {}) {
       aborted = true;
     } else {
       // LLM 错误
-      log.error(`stream ERROR  session=${sid}  ${err.message}`);
-      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
+      log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);
+      if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'error', error: err.message });
       // 无内容时直接结束
       if (!fullContent) {
         streamState.clear();
@@ -89,7 +111,7 @@ async function runStream(sessionId, res, opts = {}) {
     }
   }
 
-  log.info(`■ stream END  session=${sid}  chars=${fullContent.length}  aborted=${aborted}  +${Date.now() - t0}ms`);
+  log.info(`STREAM END  ${formatMeta({ session: sid, chars: fullContent.length, aborted, ms: Date.now() - t0 })}`);
 
   // 提前查询 session/character/world，供 ai_output 规则和异步任务使用
   const session = getSessionById(sessionId);
@@ -117,7 +139,7 @@ async function runStream(sessionId, res, opts = {}) {
 
   // 推送结束事件（附带真实 assistant 消息，便于前端原地追加，免于重挂载刷新）
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted
+    emitSse(res, sid, aborted
       ? { aborted: true, assistant: savedAssistant }
       : { done: true, assistant: savedAssistant });
   }
@@ -133,22 +155,27 @@ async function runStream(sessionId, res, opts = {}) {
 
       // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
       if (session && !session.title) {
+        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
-            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
           })
           .catch(err => log.warn('后台任务失败:', err.message))
           .finally(() => {
             if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
         enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
         enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
         return; // 等待标题生成后再关闭连接
       }
 
       // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
       enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
     }
   }
@@ -169,7 +196,7 @@ router.post('/:sessionId/chat', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  log.info(`chat  session=${sessionId.slice(0, 8)}  len=${content.length}${attachments?.length ? `  att=${attachments.length}` : ''}`);
+  log.info(`POST /chat  ${formatMeta({ session: sessionId.slice(0, 8), len: content.length, attachments: attachments?.length ?? 0 })}`);
 
   // 保存用户消息
   const userMsg = createMessage({ session_id: sessionId, role: 'user', content });
@@ -178,6 +205,7 @@ router.post('/:sessionId/chat', async (req, res) => {
   // 保存附件（写磁盘 + 更新 DB）
   if (attachments && attachments.length > 0) {
     saveAttachments(userMsg.id, attachments);
+    log.info(`ATTACHMENTS SAVED  ${formatMeta({ session: sessionId.slice(0, 8), userMsgId: userMsg.id.slice(0, 8), count: attachments.length })}`);
   }
 
   await runStream(sessionId, res, { userMsgId: userMsg.id });
@@ -205,7 +233,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  log.info(`regenerate  session=${sessionId.slice(0, 8)}  after=${afterMessageId.slice(0, 8)}`);
+  log.info(`POST /regenerate  ${formatMeta({ session: sessionId.slice(0, 8), after: afterMessageId.slice(0, 8) })}`);
 
   // 保留 afterMessageId 本身，删除之后的所有消息
   await deleteMessagesAfter(afterMessageId);
@@ -214,9 +242,11 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+  log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sessionId.slice(0, 8), keepUntilRound: Math.max(0, R - 1) })}`);
 
   // 丢弃低优先级待处理任务（时间线、向量化）
   clearPending(sessionId, 4);
+  log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 4 })}`);
 
   await runStream(sessionId, res);
 });
@@ -229,7 +259,7 @@ router.post('/:sessionId/continue', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  log.info(`continue  session=${sessionId.slice(0, 8)}`);
+  log.info(`POST /continue  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
 
   // 找最后一条 assistant 消息
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
@@ -259,7 +289,8 @@ router.post('/:sessionId/continue', async (req, res) => {
     if (err.name === 'AbortError' || ac.signal.aborted) {
       aborted = true;
     } else {
-      if (!streamState.isClientClosed()) sendSse(res, { type: 'error', error: err.message });
+      log.error(`CONTINUE ERROR  ${formatMeta({ session: sid, error: err.message })}`);
+      if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'error', error: err.message });
       if (!newContent) {
         streamState.clear();
         if (!streamState.isClientClosed()) res.end();
@@ -287,14 +318,14 @@ router.post('/:sessionId/continue', async (req, res) => {
     const processedNew = aborted
       ? newContent
       : stripAsstContext(applyRules(newContent, 'ai_output', worldId));
-    mergedContent = originalContent + processedNew;
+    mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
     updateMessageContent(lastAssistant.id, mergedContent);
     mergedAssistant = { ...lastAssistant, content: mergedContent };
     touchSession(sessionId);
   }
 
   if (!streamState.isClientClosed()) {
-    sendSse(res, aborted
+    emitSse(res, sid, aborted
       ? { aborted: true, assistant: mergedAssistant }
       : { done: true, assistant: mergedAssistant });
   }
@@ -308,24 +339,29 @@ router.post('/:sessionId/continue', async (req, res) => {
 
     if (hasUserMsg) {
       if (session && !session.title) {
+        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
         enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
           .then((title) => {
-            if (title && !streamState.isClientClosed()) sendSse(res, { type: 'title_updated', title });
+            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
           })
           .catch(err => log.warn('后台任务失败:', err.message))
           .finally(() => {
             if (!streamState.isClientClosed()) res.end();
           });
         // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
         enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
         // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
+        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
         enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
         return;
       }
 
       // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
+      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
       enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
       // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
+      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
     }
   }

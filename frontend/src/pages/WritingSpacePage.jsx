@@ -45,10 +45,12 @@ export default function WritingSpacePage() {
   const [streamingKey, setStreamingKey] = useState('__ws_stream_init__');
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
-  const [fillText, setFillText] = useState('');
+  const [impersonating, setImpersonating] = useState(false);
+  const [castRefreshTick, setCastRefreshTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
 
+  const inputBoxRef = useRef(null);
   const stopRef = useRef(null);
   const streamingTextRef = useRef('');
   const streamingKeyRef = useRef('__ws_stream_init__');
@@ -171,6 +173,7 @@ export default function WritingSpacePage() {
         setGenerating(false);
         setStreamingText('');
         stopRef.current = null;
+        setCastRefreshTick((t) => t + 1);
         if (pending && MessageList.appendMessage) {
           // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
           MessageList.appendMessage({ ...pending, _key: streamKey });
@@ -307,7 +310,7 @@ export default function WritingSpacePage() {
         const contText = continuingTextRef.current;
         if (contId && contText && MessageList.updateMessages) {
           MessageList.updateMessages((prev) =>
-            prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+            prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
           );
         }
         continuingMessageIdRef.current = null;
@@ -332,7 +335,7 @@ export default function WritingSpacePage() {
         const contText = continuingTextRef.current;
         if (contId && contText && MessageList.updateMessages) {
           MessageList.updateMessages((prev) =>
-            prev.map((m) => m.id === contId ? { ...m, content: m.content + contText } : m)
+            prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
           );
         }
         continuingMessageIdRef.current = null;
@@ -341,18 +344,22 @@ export default function WritingSpacePage() {
         setContinuingText('');
         setGenerating(false);
         stopRef.current = null;
+        setCastRefreshTick((t) => t + 1);
       },
     });
   }
 
   async function handleImpersonate() {
     const session = currentSessionRef.current;
-    if (!session || generating) return;
+    if (!session || generating || impersonating) return;
+    setImpersonating(true);
     try {
       const { content } = await impersonateWriting(worldId, session.id);
-      if (content) setFillText(content);
+      if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
       console.error('impersonate error:', err);
+    } finally {
+      setImpersonating(false);
     }
   }
 
@@ -445,15 +452,15 @@ export default function WritingSpacePage() {
 
         {/* 输入区 */}
         <InputBox
+          ref={inputBoxRef}
           onSend={handleSend}
           onStop={handleStop}
           generating={generating}
+          impersonating={impersonating}
           lastUserContent=""
           worldId={worldId}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
-          fillText={fillText}
-          onFillTextConsumed={() => setFillText('')}
         />
       </div>
 
@@ -462,6 +469,8 @@ export default function WritingSpacePage() {
         sessionId={currentSession?.id}
         activeCharacters={activeCharacters}
         onActiveCharactersChange={setActiveCharacters}
+        refreshTick={castRefreshTick}
+        persona={persona}
       />
     </div>
   );
