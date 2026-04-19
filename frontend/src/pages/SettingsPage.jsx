@@ -748,15 +748,15 @@ export default function SettingsPage() {
   async function handleLlmChange(field, value) {
     if (field === 'provider') {
       const isLocal = LOCAL_PROVIDERS.includes(value);
-      const patch = isLocal
-        ? { provider: value, model: '' }
-        : { provider: value, base_url: '', model: '' };
+      // 不传 model，让后端从 provider_models 恢复；base_url 切本地 provider 时清空
+      const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
       const updated = await updateConfig({ llm: patch });
       setConfig(updated);
-      // 切换 provider 后同步 has_key / provider_keys（反映新 provider 的 key 状态）
       setLlm((prev) => ({
         ...prev,
-        ...patch,
+        provider: value,
+        base_url: updated.llm?.base_url ?? '',
+        model: updated.llm?.model ?? '',
         has_key: updated.llm?.has_key ?? false,
         provider_keys: updated.llm?.provider_keys ?? {},
       }));
@@ -771,14 +771,14 @@ export default function SettingsPage() {
   async function handleEmbeddingChange(field, value) {
     if (field === 'provider') {
       const keepBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(value);
-      const patch = keepBaseUrl
-        ? { provider: value, model: '' }
-        : { provider: value, base_url: '', model: '' };
+      const patch = keepBaseUrl ? { provider: value } : { provider: value, base_url: '' };
       const updated = await updateConfig({ embedding: patch });
       setConfig(updated);
       setEmbedding((prev) => ({
         ...prev,
-        ...patch,
+        provider: value,
+        base_url: updated.embedding?.base_url ?? '',
+        model: updated.embedding?.model ?? '',
         has_key: updated.embedding?.has_key ?? false,
         provider_keys: updated.embedding?.provider_keys ?? {},
       }));

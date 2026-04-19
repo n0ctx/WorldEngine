@@ -11,6 +11,7 @@ const DEFAULT_CONFIG = {
   llm: {
     provider: 'openai',
     provider_keys: {},
+    provider_models: {},
     base_url: '',
     model: '',
     max_tokens: 4096,
@@ -19,6 +20,7 @@ const DEFAULT_CONFIG = {
   embedding: {
     provider: 'openai',
     provider_keys: {},
+    provider_models: {},
     base_url: '',
     model: 'text-embedding-3-small',
   },

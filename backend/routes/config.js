@@ -43,19 +43,49 @@ router.get('/', (_req, res) => {
   res.json(stripApiKeys(config));
 });
 
+/**
+ * 处理 provider 切换时的 provider_models 自动存取：
+ * - 保存当前 model 到 provider_models[current_provider]
+ * - 恢复 provider_models[new_provider] 作为切换后的 model
+ * - 若 model 只是单独更新，同步写入 provider_models[current_provider]
+ */
+function applyProviderModelLogic(sectionPatch, currentSection) {
+  if (!sectionPatch || !currentSection) return;
+
+  const isProviderChange = 'provider' in sectionPatch && sectionPatch.provider !== currentSection.provider;
+  const providerModels = { ...(currentSection.provider_models || {}) };
+
+  if (isProviderChange) {
+    // 保存当前 model
+    if (currentSection.model) {
+      providerModels[currentSection.provider] = currentSection.model;
+    }
+    // 恢复新 provider 上次的 model（覆盖 patch 里可能传来的空字符串）
+    sectionPatch.model = providerModels[sectionPatch.provider] || '';
+    sectionPatch.provider_models = providerModels;
+  } else if ('model' in sectionPatch && sectionPatch.model) {
+    // 单独改 model 时，顺手保存
+    providerModels[currentSection.provider] = sectionPatch.model;
+    sectionPatch.provider_models = providerModels;
+  }
+}
+
 // PUT /api/config — 部分更新配置（禁止通过此接口更新 api_key / provider_keys）
 router.put('/', (req, res) => {
   try {
+    const current = getConfig();
     const patch = structuredClone(req.body);
     if (patch.llm) {
       delete patch.llm.api_key;
       delete patch.llm.provider_keys;
       sanitizeBaseUrlPatch(patch.llm);
+      applyProviderModelLogic(patch.llm, current.llm);
     }
     if (patch.embedding) {
       delete patch.embedding.api_key;
       delete patch.embedding.provider_keys;
       sanitizeBaseUrlPatch(patch.embedding);
+      applyProviderModelLogic(patch.embedding, current.embedding);
     }
 
     const updated = updateConfig(patch);
