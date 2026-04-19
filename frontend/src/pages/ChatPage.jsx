@@ -27,6 +27,7 @@ export default function ChatPage() {
   const [currentSession, setCurrentSession] = useState(null);
   const [worldName, setWorldName] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [impersonating, setImpersonating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
@@ -411,12 +412,15 @@ export default function ChatPage() {
 
   // AI 代拟用户消息，填入输入框
   async function handleImpersonate() {
-    if (generating || !currentSessionId) return;
+    if (generating || impersonating || !currentSessionId) return;
+    setImpersonating(true);
     try {
       const { content } = await impersonate(currentSessionId);
       if (content) setFillText(content);
     } catch (err) {
       console.error('impersonate error:', err);
+    } finally {
+      setImpersonating(false);
     }
   }
 
@@ -656,6 +660,7 @@ export default function ChatPage() {
           onSend={handleSend}
           onStop={handleStop}
           generating={generating}
+          impersonating={impersonating}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           fillText={fillText}
@@ -669,6 +674,8 @@ export default function ChatPage() {
 
       {/* 右侧状态面板 */}
       <StatePanel
+        character={character}
+        persona={persona}
         characterId={character?.id ?? null}
         worldId={character?.world_id ?? null}
       />

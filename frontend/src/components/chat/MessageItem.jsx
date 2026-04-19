@@ -5,10 +5,92 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { applyRules } from '../../utils/regex-runner.js';
+import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 import QuillCursor from '../book/QuillCursor.jsx';
 import CharacterSeal from '../book/CharacterSeal.jsx';
 import { INK_RISE } from '../../utils/motion.js';
+
+/**
+ * 将文本按 <think>...</think> 分割为 [{type, content}] 数组
+ * type: 'text' | 'thinking'
+ */
+function parseThinkBlocks(text) {
+  const parts = [];
+  const regex = /<think>([\s\S]*?)<\/think>/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const t = text.slice(lastIndex, match.index).replace(/^\n+/, '');
+      if (t) parts.push({ type: 'text', content: t });
+    }
+    if (match[1]) parts.push({ type: 'thinking', content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+  const remaining = text.slice(lastIndex).replace(/^\n+/, '');
+  if (remaining) parts.push({ type: 'text', content: remaining });
+  return parts.length > 0 ? parts : [{ type: 'text', content: text }];
+}
+
+/** 剥除完整及不完整的 <think> 块 */
+function stripThinkContent(text) {
+  let result = text.replace(/<think>[\s\S]*?<\/think>\n*/g, '');
+  const openIdx = result.indexOf('<think>');
+  if (openIdx !== -1) result = result.slice(0, openIdx);
+  return result;
+}
+
+function ThinkBlock({ content }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{
+      margin: '0 0 8px',
+      borderLeft: '2px solid var(--we-paper-shadow)',
+      borderRadius: '0 4px 4px 0',
+      overflow: 'hidden',
+    }}>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          width: '100%',
+          background: 'var(--we-paper-aged)',
+          border: 'none',
+          padding: '4px 10px',
+          cursor: 'pointer',
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '11px',
+          color: 'var(--we-ink-faded)',
+          fontStyle: 'italic',
+          textAlign: 'left',
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        思考过程
+      </button>
+      {expanded && (
+        <div style={{
+          padding: '8px 12px',
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '12px',
+          color: 'var(--we-ink-faded)',
+          fontStyle: 'italic',
+          lineHeight: '1.7',
+          background: 'var(--we-paper-aged)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const REMARK_PLUGINS = [remarkGfm];
 const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
@@ -169,13 +251,14 @@ export default function MessageItem({
   const [aiDraft, setAiDraft] = useState('');
   const aiTextareaRef = useRef(null);
 
+  const showThinking = useDisplaySettingsStore((s) => s.showThinking);
   const isUser = message.role === 'user';
 
   const speakerName = isUser
     ? (persona?.name || '玩家').toUpperCase()
     : (character?.name || '旁白').toUpperCase();
 
-  let displayContent = message.content || '';
+  let displayContent = isStreaming ? (streamingText || '') : (message.content || '');
   let interrupted = false;
   if (displayContent.includes('[已中断]')) {
     displayContent = displayContent.replace(/\n?\n?\[已中断\]/, '').trimEnd();
@@ -184,6 +267,12 @@ export default function MessageItem({
   if (!isStreaming) {
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
+
+  // 思考链处理：streaming 时直接剥除/保留；非 streaming 时解析为 blocks
+  const thinkBlocks = !isStreaming ? parseThinkBlocks(displayContent) : null;
+  const streamingDisplay = isStreaming
+    ? (showThinking ? displayContent : stripThinkContent(displayContent))
+    : null;
 
   function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
@@ -346,10 +435,24 @@ export default function MessageItem({
               </div>
             ) : (
               <div className="we-message-content">
-                <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
-                  {displayContent}
-                </ReactMarkdown>
-                {isStreaming && <QuillCursor visible={true} />}
+                {isStreaming ? (
+                  <div style={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    lineHeight: '1.7',
+                    fontFamily: 'var(--we-font-serif)',
+                  }}>
+                    {streamingDisplay}<QuillCursor visible={true} />
+                  </div>
+                ) : (
+                  <>
+                    {thinkBlocks.map((block, i) =>
+                      block.type === 'thinking'
+                        ? showThinking ? <ThinkBlock key={i} content={block.content} /> : null
+                        : <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>{block.content}</ReactMarkdown>
+                    )}
+                  </>
+                )}
               </div>
             )}
             {message.attachments?.length > 0 && (

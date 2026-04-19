@@ -19,6 +19,29 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T98 — 思考链配置与渲染 ✅
+- **对外接口**：
+  - `GET /api/config/models` — 额外返回 `thinkingOptions: [{value, label}]`（provider 级别，anthropic/openai 有值，其他为空数组）
+  - `config.llm.thinking_level` — 选中的级别（`null`=auto；`budget_low/medium/high`=Anthropic；`effort_low/medium/high`=OpenAI）
+  - `config.ui.show_thinking` — 是否渲染 `<think>` 标签（默认 `true`）
+  - `useDisplaySettingsStore` — 前端 Zustand store（`showThinking / setShowThinking`），位于 `frontend/src/store/displaySettings.js`
+- **涉及文件**：
+  - `backend/services/config.js` — DEFAULT_CONFIG.llm 加 `thinking_level: null`；ui 加 `show_thinking: true`
+  - `backend/routes/config.js` — 新增 `getThinkingOptions(provider)`；models 接口返回 `thinkingOptions`
+  - `backend/llm/index.js` — `buildLLMConfig` 传递 `thinking_level`
+  - `backend/llm/providers/openai.js` — Anthropic：流式/非流式处理 thinking 块，包裹 `<think>`；OpenAI-compat：`reasoning_effort` 参数；两者有 thinking/effort 时不传 temperature
+  - `frontend/src/store/displaySettings.js` — **新建**，全局 showThinking Zustand store
+  - `frontend/src/App.jsx` — mount 时拉取 config 初始化 showThinking
+  - `frontend/src/pages/SettingsPage.jsx` — ModelSelector 加 `onThinkingOptionsLoaded`；ProviderBlock 加 thinking level 下拉；LlmSection 加"渲染思考链"开关
+  - `frontend/src/components/chat/MessageItem.jsx` — `parseThinkBlocks()`/`stripThinkContent()`/`ThinkBlock` 组件；非流式时按 block 渲染；流式时剥除/直通
+  - `frontend/src/components/writing/WritingMessageItem.jsx` — 同上
+- **注意**：
+  - Anthropic extended thinking 要求 `anthropic-beta: interleaved-thinking-2025-05-14` header，且不能传 temperature
+  - OpenAI reasoning_effort 同样不传 temperature（部分 o-series 模型不兼容）
+  - thinking_level 选项与 provider 绑定，切换 provider 后旧 thinking_level 值可能无效但不报错（auto 时不传参）
+  - `<think>` 标签解析纯前端，适用于所有天然输出 `<think>` 的模型（DeepSeek R1 等）；show_thinking=false 时剥除整个 block，流式中亦实时剥除
+  - `ThinkBlock` 默认折叠，点击"思考过程"展开；内容为 pre-wrap 纯文本
+
 ## T97 — 对话/协作空间删除消息 + 写卡助手气泡操作 ✅
 - **对外接口**：
   - `DELETE /api/sessions/:sessionId/messages/:messageId` — 删除该消息及之后所有消息，清理 turn_records，回滚状态栏 runtime_value 至 NULL

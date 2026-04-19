@@ -13,14 +13,20 @@ import WritingSpacePage from './pages/WritingSpacePage';
 import TopBar from './components/book/TopBar.jsx';
 import PageTransition from './components/book/PageTransition.jsx';
 import { refreshCustomCss } from './api/customCssSnippets';
+import { getConfig } from './api/config';
+import { useDisplaySettingsStore } from './store/displaySettings';
 import AssistantPanel from '../../assistant/client/AssistantPanel.jsx';
 
 export default function App() {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
+  const setShowThinking = useDisplaySettingsStore((s) => s.setShowThinking);
 
   useEffect(() => {
     refreshCustomCss('chat');
+    getConfig().then((c) => {
+      setShowThinking(c.ui?.show_thinking !== false);
+    }).catch(() => {});
   }, []);
 
   return (

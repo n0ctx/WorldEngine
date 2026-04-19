@@ -4,9 +4,86 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import QuillCursor from '../book/QuillCursor.jsx';
+import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
-const REMARK_PLUGINS = [remarkGfm];
-const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
+const REMARK_PLUGINS_W = [remarkGfm];
+const REHYPE_PLUGINS_W = [rehypeRaw, rehypeSanitize];
+
+function parseThinkBlocks(text) {
+  const parts = [];
+  const regex = /<think>([\s\S]*?)<\/think>/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const t = text.slice(lastIndex, match.index).replace(/^\n+/, '');
+      if (t) parts.push({ type: 'text', content: t });
+    }
+    if (match[1]) parts.push({ type: 'thinking', content: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+  const remaining = text.slice(lastIndex).replace(/^\n+/, '');
+  if (remaining) parts.push({ type: 'text', content: remaining });
+  return parts.length > 0 ? parts : [{ type: 'text', content: text }];
+}
+
+function stripThinkContent(text) {
+  let result = text.replace(/<think>[\s\S]*?<\/think>\n*/g, '');
+  const openIdx = result.indexOf('<think>');
+  if (openIdx !== -1) result = result.slice(0, openIdx);
+  return result;
+}
+
+function ThinkBlock({ content }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div style={{
+      margin: '0 0 8px',
+      borderLeft: '2px solid var(--we-paper-shadow)',
+      borderRadius: '0 4px 4px 0',
+      overflow: 'hidden',
+    }}>
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          width: '100%',
+          background: 'var(--we-paper-aged)',
+          border: 'none',
+          padding: '4px 10px',
+          cursor: 'pointer',
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '11px',
+          color: 'var(--we-ink-faded)',
+          fontStyle: 'italic',
+          textAlign: 'left',
+        }}
+      >
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        思考过程
+      </button>
+      {expanded && (
+        <div style={{
+          padding: '8px 12px',
+          fontFamily: 'var(--we-font-serif)',
+          fontSize: '12px',
+          color: 'var(--we-ink-faded)',
+          fontStyle: 'italic',
+          lineHeight: '1.7',
+          background: 'var(--we-paper-aged)',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}>
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function CopyBtn({ getText }) {
   const [copied, setCopied] = useState(false);
@@ -68,8 +145,17 @@ export default function WritingMessageItem({
   onEditAssistant,
   onDelete,
 }) {
-  const content = message.content || '';
+  const rawContent = message.content || '';
   const isUser = message.role === 'user';
+  const showThinking = useDisplaySettingsStore((s) => s.showThinking);
+
+  // 思考链处理
+  const displayContent = isStreaming
+    ? (showThinking ? rawContent : stripThinkContent(rawContent))
+    : rawContent;
+  const thinkBlocks = !isStreaming ? parseThinkBlocks(rawContent) : null;
+
+  const content = displayContent;
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -186,10 +272,20 @@ export default function WritingMessageItem({
       ) : (
         <>
           <div className="we-message-content">
-            <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS}>
-              {content}
-            </ReactMarkdown>
-            {isStreaming && <QuillCursor />}
+            {isStreaming ? (
+              <>
+                <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                  {displayContent}
+                </ReactMarkdown>
+                <QuillCursor />
+              </>
+            ) : (
+              thinkBlocks.map((block, i) =>
+                block.type === 'thinking'
+                  ? showThinking ? <ThinkBlock key={i} content={block.content} /> : null
+                  : <ReactMarkdown key={i} remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>{block.content}</ReactMarkdown>
+              )
+            )}
           </div>
           {!isStreaming && (
             <div className="we-message-actions">
