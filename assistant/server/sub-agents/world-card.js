@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as llm from '../../../backend/llm/index.js';
+import { extractJson } from './extract-json.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -88,7 +89,10 @@ export async function processWorldCard(taskObj, worldData, _context) {
   const existingPersonaStateFieldsStr = isCreate ? '[]' : serializeFields(worldData.existingPersonaStateFields);
   const existingCharacterStateFieldsStr = isCreate ? '[]' : serializeFields(worldData.existingCharacterStateFields);
 
+  const globalSystemPrompt = worldData._globalSystemPrompt || '（未设置）';
+
   const prompt = loadPrompt()
+    .replace('{{GLOBAL_SYSTEM_PROMPT}}', globalSystemPrompt)
     .replace('{{WORLD_DATA}}', worldDataStr)
     .replace('{{EXISTING_ENTRIES}}', existingEntriesStr)
     .replace('{{EXISTING_WORLD_STATE_FIELDS}}', existingWorldStateFieldsStr)
@@ -101,10 +105,8 @@ export async function processWorldCard(taskObj, worldData, _context) {
   const messages = [{ role: 'user', content: prompt }];
 
   try {
-    const raw = await llm.complete(messages, { temperature: isCreate ? 0.8 : 0.7, maxTokens: 4000 });
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('子代理输出格式错误');
-    const result = JSON.parse(match[0]);
+    const raw = await llm.complete(messages, { temperature: isCreate ? 0.8 : 0.7, maxTokens: 8000 });
+    const result = extractJson(raw);
     return {
       type: 'world-card',
       operation: result.operation ?? operation,

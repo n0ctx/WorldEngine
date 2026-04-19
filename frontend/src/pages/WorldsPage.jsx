@@ -73,6 +73,7 @@ export default function WorldsPage() {
   const [deletingWorld, setDeletingWorld] = useState(null);
   const [exportingWorldId, setExportingWorldId] = useState(null);
   const [importingWorld, setImportingWorld] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const worldImportRef = useRef(null);
 
   async function loadWorlds() {
@@ -92,7 +93,13 @@ export default function WorldsPage() {
     }
   }
 
-  useEffect(() => { loadWorlds(); }, []);
+  useEffect(() => { loadWorlds(); }, [reloadKey]);
+
+  useEffect(() => {
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener('we:world-updated', h);
+    return () => window.removeEventListener('we:world-updated', h);
+  }, []);
 
   function handleEnterWorld(world) {
     setCurrentWorldId(world.id);

@@ -116,3 +116,10 @@ export function deletePersonaStateValue(worldId, fieldKey) {
     'DELETE FROM persona_state_values WHERE world_id = ? AND field_key = ?',
   ).run(worldId, fieldKey);
 }
+
+/**
+ * 清空某世界玩家所有状态字段的运行时值（删除消息回滚状态时调用）
+ */
+export function clearPersonaStateRuntimeValues(worldId) {
+  db.prepare('UPDATE persona_state_values SET runtime_value_json = NULL WHERE world_id = ?').run(worldId);
+}

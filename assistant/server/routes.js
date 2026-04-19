@@ -94,7 +94,27 @@ router.post('/chat', async (req, res) => {
 
   // ── 加载实体数据（create 时返回 {}，update/delete 时加载现有实体）──
   function loadEntityData(target, operation, entityId) {
-    if (operation === 'create') return {};
+    // 上游 prompt（供各子代理参考，避免重复或矛盾）
+    const globalCfg = (target === 'world-card' || target === 'character-card' || target === 'persona-card')
+      ? getConfig() : null;
+    const globalSystemPrompt = globalCfg?.global_system_prompt || '';
+
+    if (operation === 'create') {
+      // create 时无现有实体数据，但仍需传入上层设定供参考
+      if (target === 'world-card') {
+        return { _globalSystemPrompt: globalSystemPrompt };
+      }
+      if (target === 'character-card' || target === 'persona-card') {
+        const worldId = entityId || context.worldId;
+        const world = worldId ? getWorldById(worldId) : null;
+        return {
+          _globalSystemPrompt: globalSystemPrompt,
+          _worldSystemPrompt: world?.system_prompt || '',
+        };
+      }
+      return {};
+    }
+
     if (target === 'world-card') {
       const worldId = entityId || context.worldId;
       if (!worldId) throw Object.assign(new Error('请先选择一个世界，再让助手修改世界卡'), { userFacing: true });
@@ -106,6 +126,7 @@ router.post('/chat', async (req, res) => {
         existingWorldStateFields: listWorldStateFields(worldId),
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
         existingCharacterStateFields: listCharacterStateFields(worldId),
+        _globalSystemPrompt: globalSystemPrompt,
       };
     }
     if (target === 'character-card') {
@@ -113,20 +134,26 @@ router.post('/chat', async (req, res) => {
       if (!charId) throw Object.assign(new Error('请先选择一个角色，再让助手修改角色卡'), { userFacing: true });
       const character = getCharacterById(charId);
       if (!character) throw Object.assign(new Error('找不到指定的角色，可能已被删除'), { userFacing: true });
+      const world = getWorldById(character.world_id);
       return {
         ...character,
         existingEntries: getAllCharacterEntries(charId),
         existingCharacterStateFields: listCharacterStateFields(character.world_id),
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(character.world_id),
+        _globalSystemPrompt: globalSystemPrompt,
+        _worldSystemPrompt: world?.system_prompt || '',
       };
     }
     if (target === 'persona-card') {
       const worldId = entityId || context.worldId;
       if (!worldId) throw Object.assign(new Error('请先选择一个世界，再让助手修改玩家卡'), { userFacing: true });
       const persona = getOrCreatePersona(worldId);
+      const world = getWorldById(worldId);
       return {
         ...persona,
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
+        _globalSystemPrompt: globalSystemPrompt,
+        _worldSystemPrompt: world?.system_prompt || '',
       };
     }
     if (target === 'global-prompt') {
@@ -157,11 +184,18 @@ router.post('/chat', async (req, res) => {
       sendSSE(res, { type: 'error', error: err.message, taskId });
       return null;
     }
-    const proposalRaw = await SUB_AGENTS[target](
-      { task: taskDesc, operation, entityId: entityId ?? null },
-      entityData,
-      context,
-    );
+    // 心跳：子代理 LLM 调用可能耗时较长（思考模型），每 5s 发一次 thinking 事件保持连接
+    const heartbeat = setInterval(() => sendSSE(res, { type: 'thinking', taskId }), 5000);
+    let proposalRaw;
+    try {
+      proposalRaw = await SUB_AGENTS[target](
+        { task: taskDesc, operation, entityId: entityId ?? null },
+        entityData,
+        context,
+      );
+    } finally {
+      clearInterval(heartbeat);
+    }
     // 透传 worldRef / taskId 供前端依赖解析
     if (worldRef) proposalRaw.worldRef = worldRef;
     if (taskId) proposalRaw.taskId = taskId;

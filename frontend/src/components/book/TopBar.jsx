@@ -5,6 +5,7 @@ import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
 import { getLatestChatSession } from '../../api/sessions.js';
 import useStore from '../../store/index.js';
+import { useAssistantStore } from '../../../../assistant/client/useAssistantStore.js';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
@@ -21,11 +22,12 @@ const itemStyle = {
   fontSize: '12px',
   letterSpacing: '0.1em',
   padding: '3px 10px',
-  border: '1px solid transparent',
+  border: 'none',
   borderRadius: '1px',
   cursor: 'pointer',
   background: 'none',
-  transition: 'color 0.2s, border-color 0.2s, background 0.2s',
+  outline: 'none',
+  transition: 'color 0.2s, box-shadow 0.2s, background 0.2s',
   whiteSpace: 'nowrap',
   color: 'rgba(255,255,255,0.5)',
 };
@@ -33,7 +35,7 @@ const itemStyle = {
 const itemActiveStyle = {
   ...itemStyle,
   color: 'var(--we-gold-pale)',
-  borderColor: 'rgba(201,168,90,0.3)',
+  boxShadow: '0 0 0 1px rgba(201,168,90,0.3)',
   background: 'rgba(201,168,90,0.08)',
 };
 
@@ -51,6 +53,8 @@ export default function TopBar() {
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
+  const toggleAssistant = useAssistantStore((s) => s.toggle);
+  const isAssistantOpen = useAssistantStore((s) => s.isOpen);
 
   const [worlds, setWorlds] = useState([]);
   const [chatWorldId, setChatWorldId] = useState(null);
@@ -122,7 +126,6 @@ export default function TopBar() {
     setDropdownOpen(false);
   }, [location.pathname]);
 
-  const isPersonaDrawerOpen = !!location.pathname.match(/\/worlds\/[\w-]+\/persona/) && !!location.state?.backgroundLocation;
   const isChat = !!characterId || !!location.pathname.match(/\/worlds\/[\w-]+$/);
   const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
 
@@ -253,9 +256,8 @@ export default function TopBar() {
 
       {/* 对话模式 */}
       <button
-        style={isChat ? itemActiveStyle : { ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
-        disabled={!effectiveWorldId}
-        onClick={handleChatNavigate}
+        style={isChat ? itemActiveStyle : itemStyle}
+        onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
       >
         对话
       </button>
@@ -264,31 +266,24 @@ export default function TopBar() {
 
       {/* 写作空间 */}
       <button
-        style={isWriting ? itemActiveStyle : { ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
-        disabled={!effectiveWorldId}
+        style={isWriting ? itemActiveStyle : itemStyle}
         onClick={() => {
-          if (effectiveWorldId) navigate(`/worlds/${effectiveWorldId}/writing`);
+          if (!effectiveWorldId) return;
+          navigate(`/worlds/${effectiveWorldId}/writing`);
         }}
       >
         写作
-</button>
+      </button>
 
       <div style={{ flex: 1 }} />
 
-      {/* 玩家人设 */}
+      {/* 写卡助手 */}
       <button
-        style={{ ...itemStyle, opacity: effectiveWorldId ? 1 : 0.4, cursor: effectiveWorldId ? 'pointer' : 'default' }}
-        disabled={!effectiveWorldId}
-        onClick={() => {
-          if (!effectiveWorldId) return;
-          if (isPersonaDrawerOpen) {
-            navigate(location.pathname, { state: { ...location.state, closingDrawer: true }, replace: true });
-          } else {
-            navigate(`/worlds/${effectiveWorldId}/persona`, { state: { backgroundLocation: location } });
-          }
-        }}
+        style={isAssistantOpen ? itemActiveStyle : itemStyle}
+        onClick={toggleAssistant}
+        title="写卡助手"
       >
-        玩家人设
+        ✦ 助手
       </button>
 
       <span style={sepStyle}>·</span>

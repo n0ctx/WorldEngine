@@ -4,12 +4,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// 代理支持：读取环境变量 https_proxy / http_proxy，为 Node 原生 fetch 设置全局代理
-const proxyUrl = process.env.https_proxy || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.HTTP_PROXY;
-if (proxyUrl) {
-  const { ProxyAgent, setGlobalDispatcher } = await import('undici');
-  setGlobalDispatcher(new ProxyAgent(proxyUrl));
-  console.log(`Proxy enabled: ${proxyUrl}`);
+// 代理支持：优先读取 data/config.json 中的 proxy_url，其次读取环境变量
+import { applyProxy } from './utils/proxy.js';
+import { getConfig as _getStartupConfig } from './services/config.js';
+{
+  const startupConfig = _getStartupConfig();
+  const proxyUrl = startupConfig.proxy_url
+    || process.env.https_proxy || process.env.HTTPS_PROXY
+    || process.env.http_proxy || process.env.HTTP_PROXY
+    || '';
+  if (proxyUrl) applyProxy(proxyUrl);
 }
 import './services/cleanup-registrations.js';
 import db from './db/index.js';
@@ -31,6 +35,7 @@ import personasRoutes from './routes/personas.js';
 import personaStateFieldsRoutes from './routes/persona-state-fields.js';
 import personaStateValuesRoutes from './routes/persona-state-values.js';
 import writingRoutes from './routes/writing.js';
+import assistantRoutes from '../assistant/server/routes.js';
 import { resolveUploadPath } from './services/state-values.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -121,6 +126,7 @@ app.use('/api', personasRoutes);
 app.use('/api', personaStateFieldsRoutes);
 app.use('/api', personaStateValuesRoutes);
 app.use('/api/worlds', writingRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 3000;

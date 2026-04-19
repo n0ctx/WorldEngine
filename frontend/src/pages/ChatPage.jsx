@@ -4,7 +4,7 @@ import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary, editAssistantMessage } from '../api/chat.js';
-import { createSession, getSession } from '../api/sessions.js';
+import { createSession, getSession, deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
@@ -437,6 +437,24 @@ export default function ChatPage() {
     }
   }
 
+  // 删除消息（及之后所有内容），回滚状态栏
+  async function handleDeleteMessage(messageId) {
+    if (generating || !currentSessionId) return;
+    try {
+      await deleteMessageApi(currentSessionId, messageId);
+      if (MessageList.updateMessages) {
+        MessageList.updateMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === messageId);
+          if (idx === -1) return prev;
+          return prev.slice(0, idx);
+        });
+      }
+      useStore.getState().triggerMemoryRefresh();
+    } catch (err) {
+      showToast(err.message || '删除失败', 'error');
+    }
+  }
+
   // 重试：删除最后一条 assistant 消息并重新生成
   function handleRetryLast() {
     if (generating || !currentSessionId) return;
@@ -587,6 +605,7 @@ export default function ChatPage() {
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
           onEditAssistantMessage={handleEditAssistantMessage}
+          onDeleteMessage={handleDeleteMessage}
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
         />
@@ -637,29 +656,25 @@ export default function ChatPage() {
           onSend={handleSend}
           onStop={handleStop}
           generating={generating}
-          lastUserContent={lastUserContent}
-          worldId={character?.world_id ?? null}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
-          onRetry={handleRetryLast}
-          onClear={handleClearMessages}
-          onSummary={handleManualSummary}
           fillText={fillText}
           onFillTextConsumed={() => setFillText('')}
+          onClear={handleClearMessages}
+          onRetry={handleRetryLast}
+          onSummary={handleManualSummary}
+          worldId={character?.world_id ?? null}
         />
-
       </div>
+
+      {/* 右侧状态面板 */}
+      <StatePanel
+        characterId={character?.id ?? null}
+        worldId={character?.world_id ?? null}
+      />
 
         </div>
       </PageRight>
-
-      <StatePanel
-        character={character}
-        worldId={character?.world_id ?? null}
-        characterId={characterId}
-        persona={persona}
-        recalledItems={recalledItems}
-      />
     </BookSpread>
   );
 }

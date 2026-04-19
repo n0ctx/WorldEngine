@@ -19,6 +19,30 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T97 — 对话/协作空间删除消息 + 写卡助手气泡操作 ✅
+- **对外接口**：
+  - `DELETE /api/sessions/:sessionId/messages/:messageId` — 删除该消息及之后所有消息，清理 turn_records，回滚状态栏 runtime_value 至 NULL
+  - `deleteMessage(sessionId, messageId)` — 前端 API 封装，位于 `frontend/src/api/sessions.js`
+- **涉及文件**：
+  - `backend/db/queries/world-state-values.js` — 新增 `clearWorldStateRuntimeValues(worldId)`
+  - `backend/db/queries/character-state-values.js` — 新增 `clearCharacterStateRuntimeValues(characterId)`
+  - `backend/db/queries/persona-state-values.js` — 新增 `clearPersonaStateRuntimeValues(worldId)`
+  - `backend/routes/sessions.js` — 新增删除消息路由；写作模式同时清空激活角色状态
+  - `frontend/src/api/sessions.js` — 新增 `deleteMessage`
+  - `frontend/src/components/chat/MessageItem.jsx` — 新增 DeleteButton（两次点击确认，2s 超时复位）
+  - `frontend/src/components/chat/MessageList.jsx` — 新增 `onDeleteMessage` prop
+  - `frontend/src/components/writing/WritingMessageItem.jsx` — 新增 DeleteBtn
+  - `frontend/src/pages/ChatPage.jsx` — 新增 `handleDeleteMessage`
+  - `frontend/src/pages/WritingSpacePage.jsx` — 新增 `handleDeleteMessage`
+  - `assistant/client/useAssistantStore.js` — 新增 `editMessage`、`truncateToMessage`、`deleteMessage`
+  - `assistant/client/MessageList.jsx` — user/assistant 气泡增加复制/编辑/重新生成/删除操作（hover 显示）
+  - `assistant/client/AssistantPanel.jsx` — 新增 `handleUserEdit`（编辑后重新生成）、`handleAssistantRegenerate`、`handleDeleteMessage`；重构为 `sendContent` 内部函数复用
+- **注意**：
+  - 状态回滚 = 将 runtime_value_json 清 NULL（回到 default_value），非真正"历史回滚"
+  - 删除消息后前端乐观更新（slice 到被删消息之前），不重新拉取
+  - 写作模式删除时同时清空 `getWritingSessionCharacters` 返回的所有角色状态
+  - 写卡助手的编辑/删除只操作 Zustand store，不影响后端数据库
+
 ## T96 — 新增 persona-card 子代理，区分玩家卡与角色卡 ✅
 - **涉及文件**：
   - `assistant/prompts/sub-persona-card.md` — 新建，玩家卡子代理 prompt（upsert、无 Prompt 条目、只有 persona stateFieldOps）

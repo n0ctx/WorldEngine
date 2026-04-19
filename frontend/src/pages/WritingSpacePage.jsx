@@ -16,6 +16,7 @@ import {
   editWritingAssistantMessage,
   impersonateWriting,
 } from '../api/writingSessions.js';
+import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
 import CastPanel from '../components/book/CastPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -256,6 +257,24 @@ export default function WritingSpacePage() {
     }
   }
 
+  async function handleDeleteMessage(messageId) {
+    if (generating) return;
+    const session = currentSessionRef.current;
+    if (!session) return;
+    try {
+      await deleteMessageApi(session.id, messageId);
+      if (MessageList.updateMessages) {
+        MessageList.updateMessages((prev) => {
+          const idx = prev.findIndex((m) => m.id === messageId);
+          if (idx === -1) return prev;
+          return prev.slice(0, idx);
+        });
+      }
+    } catch (err) {
+      setError(err.message || '删除失败');
+    }
+  }
+
   function handleContinue() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
@@ -403,6 +422,7 @@ export default function WritingSpacePage() {
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
           onEditAssistantMessage={handleEditAssistantMessage}
+          onDeleteMessage={handleDeleteMessage}
           prose
         />
 

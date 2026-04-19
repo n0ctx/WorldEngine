@@ -172,6 +172,7 @@ export default function CharacterEditPage() {
   const [firstMessage, setFirstMessage] = useState('');
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -187,7 +188,13 @@ export default function CharacterEditPage() {
       setStateFields(fields);
       setLoading(false);
     });
-  }, [characterId]);
+  }, [characterId, reloadKey]);
+
+  useEffect(() => {
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener('we:character-updated', h);
+    return () => window.removeEventListener('we:character-updated', h);
+  }, []);
 
   async function handleStateValueSave(fieldKey, valueJson) {
     try {

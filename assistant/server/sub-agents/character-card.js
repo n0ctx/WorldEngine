@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as llm from '../../../backend/llm/index.js';
+import { extractJson } from './extract-json.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,7 +87,12 @@ export async function processCharacterCard(taskObj, characterData, _context) {
   const existingCharacterStateFieldsStr = isCreate ? '[]' : serializeFields(characterData.existingCharacterStateFields);
   const existingPersonaStateFieldsStr = isCreate ? '[]' : serializeFields(characterData.existingPersonaStateFields);
 
+  const globalSystemPrompt = characterData._globalSystemPrompt || '（未设置）';
+  const worldSystemPrompt = characterData._worldSystemPrompt || '（未设置）';
+
   const prompt = loadPrompt()
+    .replace('{{GLOBAL_SYSTEM_PROMPT}}', globalSystemPrompt)
+    .replace('{{WORLD_SYSTEM_PROMPT}}', worldSystemPrompt)
     .replace('{{CHARACTER_DATA}}', characterDataStr)
     .replace('{{EXISTING_ENTRIES}}', existingEntriesStr)
     .replace('{{EXISTING_CHARACTER_STATE_FIELDS}}', existingCharacterStateFieldsStr)
@@ -98,10 +104,8 @@ export async function processCharacterCard(taskObj, characterData, _context) {
   const messages = [{ role: 'user', content: prompt }];
 
   try {
-    const raw = await llm.complete(messages, { temperature: 0.8, maxTokens: 4000 });
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('子代理输出格式错误');
-    const result = JSON.parse(match[0]);
+    const raw = await llm.complete(messages, { temperature: 0.8, maxTokens: 6000 });
+    const result = extractJson(raw);
     return {
       type: 'character-card',
       operation: result.operation ?? operation,

@@ -185,6 +185,7 @@ export default function CharactersPage() {
   const [loadError, setLoadError] = useState('');
   const [deletingChar, setDeletingChar] = useState(null);
   const [importingChar, setImportingChar] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const dragIdx = useRef(null);
   const charImportRef = useRef(null);
@@ -206,7 +207,17 @@ export default function CharactersPage() {
     }
   }
 
-  useEffect(() => { loadData(); }, [worldId]);
+  useEffect(() => { loadData(); }, [worldId, reloadKey]);
+
+  useEffect(() => {
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener('we:world-updated', h);
+    window.addEventListener('we:character-updated', h);
+    return () => {
+      window.removeEventListener('we:world-updated', h);
+      window.removeEventListener('we:character-updated', h);
+    };
+  }, []);
 
   async function handleDelete() {
     await deleteCharacter(deletingChar.id);
@@ -322,7 +333,7 @@ export default function CharactersPage() {
       {/* 玩家人设卡片 */}
       <PersonaCard
         worldId={worldId}
-        onEdit={() => navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: location } })}
+        onEdit={() => navigate(`/worlds/${worldId}/persona`)}
       />
 
       {/* 角色列表 */}

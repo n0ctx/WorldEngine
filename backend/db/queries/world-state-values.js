@@ -120,3 +120,10 @@ export function getWorldStateValuesWithFields(worldId) {
     ORDER BY wsf.sort_order ASC
   `).all(worldId);
 }
+
+/**
+ * 清空某世界所有状态字段的运行时值（删除消息回滚状态时调用）
+ */
+export function clearWorldStateRuntimeValues(worldId) {
+  db.prepare('UPDATE world_state_values SET runtime_value_json = NULL WHERE world_id = ?').run(worldId);
+}

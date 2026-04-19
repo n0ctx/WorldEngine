@@ -121,3 +121,10 @@ export function getCharacterStateValuesWithFields(characterId) {
     ORDER BY csf.sort_order ASC
   `).all(characterId, characterId);
 }
+
+/**
+ * 清空某角色所有状态字段的运行时值（删除消息回滚状态时调用）
+ */
+export function clearCharacterStateRuntimeValues(characterId) {
+  db.prepare('UPDATE character_state_values SET runtime_value_json = NULL WHERE character_id = ?').run(characterId);
+}

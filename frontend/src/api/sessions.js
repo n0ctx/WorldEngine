@@ -54,3 +54,9 @@ export async function editMessage(messageId, content) {
   if (!res.ok) throw new Error(`editMessage failed: ${res.status}`);
   return res.json();
 }
+
+export async function deleteMessage(sessionId, messageId) {
+  const res = await fetch(`${BASE}/sessions/${sessionId}/messages/${messageId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`deleteMessage failed: ${res.status}`);
+  return res.json();
+}

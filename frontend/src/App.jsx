@@ -13,6 +13,7 @@ import WritingSpacePage from './pages/WritingSpacePage';
 import TopBar from './components/book/TopBar.jsx';
 import PageTransition from './components/book/PageTransition.jsx';
 import { refreshCustomCss } from './api/customCssSnippets';
+import AssistantPanel from '../../assistant/client/AssistantPanel.jsx';
 
 export default function App() {
   const location = useLocation();
@@ -40,10 +41,11 @@ export default function App() {
         </Routes>
       </PageTransition>
 
+      <AssistantPanel />
+
       {/* 抽屉路由：仅当从背景页导航来时渲染，背景页保持可见 */}
       {backgroundLocation && (
         <Routes>
-          <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
           <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
           <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
           <Route path="/settings" element={<SettingsPage />} />

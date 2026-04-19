@@ -26,6 +26,39 @@ function CopyBtn({ getText }) {
   );
 }
 
+function DeleteBtn({ onDelete }) {
+  const [confirming, setConfirming] = useState(false);
+  const timerRef = useRef(null);
+
+  function handleClick() {
+    if (confirming) {
+      clearTimeout(timerRef.current);
+      setConfirming(false);
+      onDelete();
+    } else {
+      setConfirming(true);
+      timerRef.current = setTimeout(() => setConfirming(false), 2000);
+    }
+  }
+
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  return (
+    <button
+      onClick={handleClick}
+      style={confirming ? { color: 'var(--we-vermilion, #c0392b)' } : undefined}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        <path d="M10 11v6M14 11v6" />
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+      </svg>
+      {confirming ? '确认？' : '删除'}
+    </button>
+  );
+}
+
 export default function WritingMessageItem({
   message,
   isStreaming = false,
@@ -33,6 +66,7 @@ export default function WritingMessageItem({
   onEdit,
   onRegenerate,
   onEditAssistant,
+  onDelete,
 }) {
   const content = message.content || '';
   const isUser = message.role === 'user';
@@ -119,6 +153,7 @@ export default function WritingMessageItem({
                   </svg>
                   编辑
                 </button>
+                {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
               </div>
             )}
           </>
@@ -173,6 +208,7 @@ export default function WritingMessageItem({
                 </svg>
                 编辑
               </button>
+              {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
             </div>
           )}
         </>

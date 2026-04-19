@@ -25,6 +25,7 @@ export default function MessageList({
   onEditMessage,
   onRegenerateMessage,
   onEditAssistantMessage,
+  onDeleteMessage,
   continuingMessageId,
   continuingText,
   prose = false,
@@ -60,44 +61,30 @@ export default function MessageList({
         setOffset(msgs.length);
         setHasMore(msgs.length === PAGE_SIZE);
         setLoading(false);
-        // 初始加载后滚动到底部
-        requestAnimationFrame(() => {
-          bottomRef.current?.scrollIntoView({ behavior: 'instant' });
-        });
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
       })
       .catch(() => setLoading(false));
   }, [sessionId]);
 
-  // 新消息到来时滚动到底部
-  useEffect(() => {
-    if (!generating) return;
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [generating]);
-
-  // 加载更早的消息
-  const loadMore = useCallback(async () => {
+  const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || !sessionId) return;
     setLoadingMore(true);
-    prevScrollHeight.current = listRef.current?.scrollHeight || 0;
-    try {
-      const older = await getMessages(sessionId, PAGE_SIZE, offset);
-      if (older.length === 0) {
-        setHasMore(false);
-        return;
-      }
-      setMessages((prev) => [...older, ...prev]);
-      setOffset((o) => o + older.length);
-      setHasMore(older.length === PAGE_SIZE);
-      // 保持滚动位置
-      requestAnimationFrame(() => {
-        if (listRef.current) {
-          const newScrollHeight = listRef.current.scrollHeight;
-          listRef.current.scrollTop = newScrollHeight - prevScrollHeight.current;
+    const el = listRef.current;
+    if (el) prevScrollHeight.current = el.scrollHeight;
+
+    getMessages(sessionId, PAGE_SIZE, offset)
+      .then((older) => {
+        setMessages((prev) => [...older, ...prev]);
+        setOffset((o) => o + older.length);
+        setHasMore(older.length === PAGE_SIZE);
+        setLoadingMore(false);
+        if (el) {
+          requestAnimationFrame(() => {
+            el.scrollTop = el.scrollHeight - prevScrollHeight.current;
+          });
         }
-      });
-    } finally {
-      setLoadingMore(false);
-    }
+      })
+      .catch(() => setLoadingMore(false));
   }, [loadingMore, hasMore, sessionId, offset]);
 
   // 监听滚动，到顶部时加载更多
@@ -222,6 +209,7 @@ export default function MessageList({
                     onEdit={isStream ? undefined : onEditMessage}
                     onRegenerate={isStream ? undefined : onRegenerateMessage}
                     onEditAssistant={isStream ? undefined : onEditAssistantMessage}
+                    onDelete={isStream ? undefined : onDeleteMessage}
                   />
                 );
               })}
@@ -249,6 +237,7 @@ export default function MessageList({
                   onEdit={onEditMessage}
                   onRegenerate={onRegenerateMessage}
                   onEditAssistant={onEditAssistantMessage}
+                  onDelete={isStream ? undefined : onDeleteMessage}
                 />
               );
             })}

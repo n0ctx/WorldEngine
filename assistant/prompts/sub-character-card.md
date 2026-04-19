@@ -163,6 +163,22 @@
 
 ---
 
+## 上层设定参考（只读，勿重复）
+
+以下是已生效的上层 prompt，你写的角色卡必须与之**兼容且补充**——写角色特有的内容，不要重复上层已有的通用规范：
+
+### 全局 System Prompt（[1] 注入）
+```
+{{GLOBAL_SYSTEM_PROMPT}}
+```
+
+### 世界 System Prompt（[2] 注入）
+```
+{{WORLD_SYSTEM_PROMPT}}
+```
+
+---
+
 ## 当前角色数据
 
 {{CHARACTER_DATA}}

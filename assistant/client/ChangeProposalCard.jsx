@@ -287,6 +287,15 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
       if (operation === 'create' && res?.result?.id && taskId) {
         setResolvedId(taskId, res.result.id);
       }
+      // 通知前端相关页面刷新
+      const REFRESH_EVENT = {
+        'world-card': 'we:world-updated',
+        'character-card': 'we:character-updated',
+        'persona-card': 'we:persona-updated',
+        'global-config': 'we:global-config-updated',
+      };
+      const evtName = REFRESH_EVENT[proposal.type];
+      if (evtName) window.dispatchEvent(new CustomEvent(evtName));
       if (proposal.type === 'css-snippet') {
         await refreshCustomCss();
       } else if (proposal.type === 'regex-rule') {

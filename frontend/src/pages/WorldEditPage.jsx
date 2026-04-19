@@ -113,6 +113,7 @@ export default function WorldEditPage() {
   const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
   const [timeline, setTimeline] = useState([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -129,7 +130,13 @@ export default function WorldEditPage() {
       setTimeline(Array.isArray(tl) ? tl : []);
       setLoading(false);
     });
-  }, [worldId]);
+  }, [worldId, reloadKey]);
+
+  useEffect(() => {
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener('we:world-updated', h);
+    return () => window.removeEventListener('we:world-updated', h);
+  }, []);
 
   async function handleStateValueSave(fieldKey, valueJson) {
     try {

@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import * as llm from '../../../backend/llm/index.js';
+import { extractJson } from './extract-json.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -53,7 +54,12 @@ export async function processPersonaCard(taskObj, personaData, _context) {
     2,
   );
 
+  const globalSystemPrompt = personaData._globalSystemPrompt || '（未设置）';
+  const worldSystemPrompt = personaData._worldSystemPrompt || '（未设置）';
+
   const prompt = loadPrompt()
+    .replace('{{GLOBAL_SYSTEM_PROMPT}}', globalSystemPrompt)
+    .replace('{{WORLD_SYSTEM_PROMPT}}', worldSystemPrompt)
     .replace('{{PERSONA_DATA}}', personaDataStr)
     .replace('{{EXISTING_PERSONA_STATE_FIELDS}}', existingPersonaStateFieldsStr)
     .replace('{{OPERATION_HINT}}', operationHint)
@@ -64,9 +70,7 @@ export async function processPersonaCard(taskObj, personaData, _context) {
 
   try {
     const raw = await llm.complete(messages, { temperature: 0.8, maxTokens: 4000 });
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('子代理输出格式错误');
-    const result = JSON.parse(match[0]);
+    const result = extractJson(raw);
     return {
       type: 'persona-card',
       operation: 'update',
