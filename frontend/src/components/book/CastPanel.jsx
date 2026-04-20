@@ -10,9 +10,9 @@ import {
   resetSessionPersonaStateValues,
   fetchSessionCharacterStateValues,
   resetSessionCharacterStateValuesByChar,
-} from '../../api/sessionStateValues.js';
-import { fetchSessionTimeline } from '../../api/sessionTimeline.js';
-import { activateCharacter, deactivateCharacter } from '../../api/writingSessions.js';
+} from '../../api/session-state-values.js';
+import { fetchSessionTimeline } from '../../api/session-timeline.js';
+import { activateCharacter, deactivateCharacter } from '../../api/writing-sessions.js';
 
 function Chevron({ open }) {
   return (

@@ -423,8 +423,11 @@
 
 /* ── Edit state ────────────────────────────────────────── */
 
-/* 编辑态撑满父容器（受原有 max-width 约束），与正常气泡对齐 */
-.we-message-bubble-user:has(.we-message-edit),
+/* 编辑态：用户气泡固定为 max-width，助手气泡撑满（父容器有 flex:1 可用） */
+.we-message-bubble-user:has(.we-message-edit) {
+  width: 560px;
+}
+
 .we-message-bubble-assistant:has(.we-message-edit) {
   width: 100%;
 }

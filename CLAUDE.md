@@ -210,6 +210,12 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - `store/` 只放跨页面共享状态；局部 UI 状态优先留在页面或组件内部
 - `utils/` 只放纯工具函数；不要把页面业务流程塞进工具文件
 
+**文件命名约定**
+- 前端 `frontend/src/api/` 目录：统一 kebab-case（如 `import-export.js`、`session-timeline.js`）
+- 前端 `frontend/src/components/` 目录：React 组件文件统一 PascalCase（如 `MessageItem.jsx`）
+- 前端 `frontend/src/pages/`、`frontend/src/hooks/`、`frontend/src/utils/`：统一 camelCase（如 `ChatPage.jsx`、`useSettingsConfig.js`）
+- 后端所有 `.js` 文件：统一 kebab-case（如 `combined-state-updater.js`、`entry-matcher.js`）
+
 **实现风格**
 - 优先沿用现有模块的命名、导出方式和组织结构，不在同一模块混入第二套写法
 - 单个函数只做一层职责；校验、查询、业务编排按分层拆开

@@ -18,6 +18,7 @@ import {
   deleteCustomCssSnippet,
   reorderCustomCssSnippets,
 } from '../services/custom-css-snippets.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -45,13 +46,13 @@ router.put('/custom-css-snippets/reorder', (req, res) => {
 
 router.get('/custom-css-snippets/:id', (req, res) => {
   const snippet = getCustomCssSnippetById(req.params.id);
-  if (!snippet) return res.status(404).json({ error: 'CSS 片段不存在' });
+  if (!assertExists(res, snippet, 'CSS 片段不存在')) return;
   res.json(snippet);
 });
 
 router.put('/custom-css-snippets/:id', (req, res) => {
   const snippet = updateCustomCssSnippet(req.params.id, req.body);
-  if (!snippet) return res.status(404).json({ error: 'CSS 片段不存在' });
+  if (!assertExists(res, snippet, 'CSS 片段不存在')) return;
   res.json(snippet);
 });
 

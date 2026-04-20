@@ -180,40 +180,13 @@ export default function MessageList({
   }
 
   return (
-    <div ref={listRef} className="we-chat-area flex-1 overflow-y-auto px-3 py-4">
+    <div ref={listRef} className="we-chat-area relative flex-1 overflow-y-auto px-3 py-4">
       {/* 加载更多指示器 */}
       {loadingMore && (
         <div className="text-center text-xs opacity-40 py-3">加载历史消息…</div>
       )}
       {!hasMore && messages.length > 0 && (
         <div className="text-center text-xs opacity-25 py-2">— 对话开始 —</div>
-      )}
-
-      {/* 记忆检索提示 */}
-      {memoryRecalling && (
-        <div className="flex items-center justify-center gap-2 py-3 text-xs text-accent opacity-70">
-          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-          <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-          <span className="ml-1">正在检索记忆…</span>
-        </div>
-      )}
-
-      {/* 记忆原文展开提示（T28） */}
-      {memoryExpanding && (
-        <div className="flex items-center justify-center gap-2 py-2 text-xs text-text-secondary opacity-50">
-          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-          <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-          <span className="ml-1">正在翻阅历史对话…</span>
-        </div>
-      )}
-      {!memoryExpanding && expandedMessage && (
-        <div className="flex items-center justify-center py-2">
-          <span className="text-xs text-text-secondary opacity-40 px-3 py-1 rounded-full border border-border">
-            {expandedMessage}
-          </span>
-        </div>
       )}
 
       {messages.length === 0 && !generating && (
@@ -291,6 +264,31 @@ export default function MessageList({
       )}
 
       <div ref={bottomRef} />
+
+      {/* 底部悬浮提示：不参与消息流布局，避免出现/消失时列表跳动 */}
+      {(memoryRecalling || memoryExpanding || expandedMessage) && (
+        <div className="pointer-events-none sticky bottom-3 z-10 mt-3 flex justify-center">
+          {memoryRecalling ? (
+            <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
+              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+              <span>正在检索记忆…</span>
+            </div>
+          ) : memoryExpanding ? (
+            <div className="flex items-center gap-2 px-1 py-1 text-xs text-text-secondary opacity-65">
+              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
+              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
+              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
+              <span>正在翻阅历史对话…</span>
+            </div>
+          ) : (
+            <span className="px-1 py-1 text-xs text-text-secondary opacity-55">
+              {expandedMessage}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
-import { getPersonaStateValues, updatePersonaStateValue } from '../api/personaStateValues';
-import { downloadPersonaCard } from '../api/importExport';
+import { getPersonaStateValues, updatePersonaStateValue } from '../api/persona-state-values';
+import { downloadPersonaCard } from '../api/import-export';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';

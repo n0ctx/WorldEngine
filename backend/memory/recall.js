@@ -43,6 +43,21 @@ function parseValueForDisplay(valueJson) {
 }
 
 /**
+ * 将 rows（含 label / effective_value_json）渲染为带标题行的状态文本。
+ * 无行或全为 null 值时返回空字符串。
+ */
+function rowsToStateText(rows, header) {
+  if (rows.length === 0) return '';
+  const lines = [header];
+  for (const row of rows) {
+    const value = parseValueForDisplay(row.effective_value_json);
+    if (value !== null) lines.push(`- ${row.label}：${value}`);
+  }
+  if (lines.length === 1) return '';
+  return lines.join('\n');
+}
+
+/**
  * 渲染玩家状态为可读文本。
  * 优先级：会话 runtime > 全局 default_value_json > 字段 default_value
  *
@@ -75,18 +90,7 @@ export function renderPersonaState(worldId, sessionId) {
         ORDER BY psf.sort_order ASC, psf.created_at ASC
       `).all(worldId);
 
-  if (rows.length === 0) return '';
-
-  const lines = ['[{{user}}状态]'];
-  for (const row of rows) {
-    const value = parseValueForDisplay(row.effective_value_json);
-    if (value !== null) {
-      lines.push(`- ${row.label}：${value}`);
-    }
-  }
-
-  if (lines.length === 1) return '';
-  return lines.join('\n');
+  return rowsToStateText(rows, '[{{user}}状态]');
 }
 
 /**
@@ -122,19 +126,7 @@ export function renderWorldState(worldId, sessionId) {
         ORDER BY wsf.sort_order ASC, wsf.created_at ASC
       `).all(worldId);
 
-  if (rows.length === 0) return '';
-
-  const lines = ['[{{world}}状态]'];
-  for (const row of rows) {
-    const value = parseValueForDisplay(row.effective_value_json);
-    if (value !== null) {
-      lines.push(`- ${row.label}：${value}`);
-    }
-  }
-
-  // 若所有字段均无值，返回空字符串
-  if (lines.length === 1) return '';
-  return lines.join('\n');
+  return rowsToStateText(rows, '[{{world}}状态]');
 }
 
 /**
@@ -173,18 +165,7 @@ export function renderCharacterState(characterId, sessionId) {
         ORDER BY csf.sort_order ASC, csf.created_at ASC
       `).all(characterId, character.world_id);
 
-  if (rows.length === 0) return '';
-
-  const lines = ['[{{char}}状态]'];
-  for (const row of rows) {
-    const value = parseValueForDisplay(row.effective_value_json);
-    if (value !== null) {
-      lines.push(`- ${row.label}：${value}`);
-    }
-  }
-
-  if (lines.length === 1) return '';
-  return lines.join('\n');
+  return rowsToStateText(rows, '[{{char}}状态]');
 }
 
 /**

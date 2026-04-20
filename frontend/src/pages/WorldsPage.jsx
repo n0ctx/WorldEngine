@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds, deleteWorld } from '../api/worlds';
 import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
-import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
+import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 import { getAvatarColor } from '../utils/avatar';
 
 function relativeTime(ts) {

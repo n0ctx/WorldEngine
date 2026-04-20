@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
@@ -13,14 +13,12 @@ import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import StatePanel from '../components/book/StatePanel.jsx';
-import CandleFlame from '../components/book/CandleFlame.jsx';
 import { getWorld } from '../api/worlds.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
-  const navigate = useNavigate();
   const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
 
   const [character, setCharacter] = useState(null);
@@ -31,7 +29,6 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
-  const [recallVisible, setRecallVisible] = useState(false);
   const [recalledItems, setRecalledItems] = useState([]);
   const [expandedMessage, setExpandedMessage] = useState('');
   const [lastUserContent, setLastUserContent] = useState('');
@@ -60,6 +57,11 @@ export default function ChatPage() {
 
   const [currentOptions, setCurrentOptions] = useState([]);
 
+  const clearOptionsState = useCallback(() => {
+    pendingOptionsRef.current = [];
+    setCurrentOptions([]);
+  }, []);
+
   // 每次开启新流时调用：生成本轮唯一的占位 key
   const beginStreamingKey = useCallback(() => {
     const k = `__stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}__`;
@@ -73,6 +75,7 @@ export default function ChatPage() {
   }, [currentSessionId]);
 
   const clearActiveSession = useCallback(() => {
+    clearOptionsState();
     setCurrentSessionId(null);
     setCurrentSession(null);
     setGenerating(false);
@@ -81,7 +84,6 @@ export default function ChatPage() {
     setMemoryRecalling(false);
     setMemoryExpanding(false);
     setExpandedMessage('');
-    setRecallVisible(false);
     setContinuingMessageId(null);
     setContinuingText('');
     streamingTextRef.current = '';
@@ -89,7 +91,7 @@ export default function ChatPage() {
     continuingTextRef.current = '';
     stopRef.current = null;
     setMessageListKey((k) => k + 1);
-  }, [setCurrentSessionId]);
+  }, [clearOptionsState, setCurrentSessionId]);
 
   // 加载角色信息
   useEffect(() => {
@@ -132,7 +134,14 @@ export default function ChatPage() {
     loadRules().catch(console.error);
   }, []);
 
+  useEffect(() => {
+    return () => {
+      clearOptionsState();
+    };
+  }, [clearOptionsState]);
+
   function enterSession(session) {
+    clearOptionsState();
     setCurrentSessionId(session.id);
     setCurrentSession(session);
     setGenerating(false);
@@ -203,7 +212,6 @@ export default function ChatPage() {
     setStreamingText('');
     setMemoryRecalling(false);
     setMemoryExpanding(false);
-    setRecallVisible(false);
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
@@ -220,7 +228,7 @@ export default function ChatPage() {
 
   // 共用 SSE callbacks
   function makeCallbacks() {
-    pendingOptionsRef.current = [];
+    clearOptionsState();
     return {
       onDelta(delta) {
         const next = streamingTextRef.current + delta;
@@ -272,7 +280,6 @@ export default function ChatPage() {
       },
       onMemoryRecallStart() {
         setMemoryRecalling(true);
-        setRecallVisible(true);
       },
       onMemoryRecallDone(evt) {
         setMemoryRecalling(false);
@@ -281,9 +288,6 @@ export default function ChatPage() {
           setRecalledItems(
             Array.from({ length: hit }, (_, i) => ({ id: `recall-${i}`, text: `召回摘要 ${i + 1}` }))
           );
-          setTimeout(() => setRecallVisible(false), 300);
-        } else {
-          setRecallVisible(false);
         }
       },
       onMemoryExpandStart() {
@@ -318,7 +322,7 @@ export default function ChatPage() {
     }
 
     setErrorBubble(null);
-    setCurrentOptions([]);
+    clearOptionsState();
     streamingTextRef.current = '';
     setLastUserContent(content);
 
@@ -406,7 +410,7 @@ export default function ChatPage() {
     const lastAssistantId = lastAssistant?.id ?? null;
     if (!lastAssistantId) return;
 
-    setCurrentOptions([]);
+    clearOptionsState();
     continuingMessageIdRef.current = lastAssistantId;
     continuingTextRef.current = '';
     setContinuingMessageId(lastAssistantId);
@@ -606,7 +610,6 @@ export default function ChatPage() {
 
       {/* 右页：对话区 + 记忆面板 */}
       <PageRight className="!p-0">
-        <CandleFlame visible={recallVisible} />
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}

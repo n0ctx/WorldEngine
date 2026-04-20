@@ -11,6 +11,7 @@ import {
   reorderCharacters,
 } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
@@ -36,9 +37,7 @@ const router = Router();
 // GET /api/worlds/:worldId/characters — 获取某世界下所有角色
 router.get('/worlds/:worldId/characters', (req, res) => {
   const world = getWorldById(req.params.worldId);
-  if (!world) {
-    return res.status(404).json({ error: '世界不存在' });
-  }
+  if (!assertExists(res, world, '世界不存在')) return;
   const characters = getCharactersByWorldId(req.params.worldId);
   res.json(characters);
 });
@@ -46,9 +45,7 @@ router.get('/worlds/:worldId/characters', (req, res) => {
 // POST /api/worlds/:worldId/characters — 创建角色
 router.post('/worlds/:worldId/characters', (req, res) => {
   const world = getWorldById(req.params.worldId);
-  if (!world) {
-    return res.status(404).json({ error: '世界不存在' });
-  }
+  if (!assertExists(res, world, '世界不存在')) return;
   const { name } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     return res.status(400).json({ error: 'name 为必填项' });
@@ -70,18 +67,14 @@ router.put('/characters/reorder', (req, res) => {
 // GET /api/characters/:id — 获取单个角色
 router.get('/characters/:id', (req, res) => {
   const character = getCharacterById(req.params.id);
-  if (!character) {
-    return res.status(404).json({ error: '角色不存在' });
-  }
+  if (!assertExists(res, character, '角色不存在')) return;
   res.json(character);
 });
 
 // PUT /api/characters/:id — 更新角色
 router.put('/characters/:id', async (req, res) => {
   const existing = getCharacterById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: '角色不存在' });
-  }
+  if (!assertExists(res, existing, '角色不存在')) return;
   const updated = await updateCharacter(req.params.id, req.body);
   res.json(updated);
 });
@@ -89,9 +82,7 @@ router.put('/characters/:id', async (req, res) => {
 // DELETE /api/characters/:id — 删除角色
 router.delete('/characters/:id', async (req, res) => {
   const existing = getCharacterById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: '角色不存在' });
-  }
+  if (!assertExists(res, existing, '角色不存在')) return;
   await deleteCharacter(req.params.id);
   res.status(204).end();
 });
@@ -99,9 +90,7 @@ router.delete('/characters/:id', async (req, res) => {
 // POST /api/characters/:id/avatar — 上传头像
 router.post('/characters/:id/avatar', upload.single('avatar'), async (req, res) => {
   const existing = getCharacterById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: '角色不存在' });
-  }
+  if (!assertExists(res, existing, '角色不存在')) return;
   if (!req.file) {
     return res.status(400).json({ error: '未收到文件' });
   }

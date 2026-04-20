@@ -60,7 +60,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   try {
     const prompt = [{
       role: 'user',
-      content: renderBackendPrompt('memory/turn-summary.md', {
+      content: renderBackendPrompt('memory-turn-summary.md', {
         USER_NAME: userName,
         CHARACTER_NAME: characterName,
         USER_MESSAGE: userMsg.content,

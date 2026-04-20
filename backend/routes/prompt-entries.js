@@ -4,6 +4,7 @@ import {
   createWorldPromptEntry, getWorldPromptEntryById, listWorldPromptEntries, updateWorldPromptEntry, deleteWorldPromptEntry, reorderWorldPromptEntries,
   createCharacterPromptEntry, getCharacterPromptEntryById, listCharacterPromptEntries, updateCharacterPromptEntry, deleteCharacterPromptEntry, reorderCharacterPromptEntries,
 } from '../services/prompt-entries.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.get('/entries/:type/:id', (req, res) => {
   else if (type === 'character') entry = getCharacterPromptEntryById(id);
   else return res.status(400).json({ error: 'type must be global, world, or character' });
 
-  if (!entry) return res.status(404).json({ error: 'Entry not found' });
+  if (!assertExists(res, entry, 'Entry not found')) return;
   res.json(entry);
 });
 
@@ -106,7 +107,7 @@ router.put('/entries/:type/:id', (req, res) => {
   else if (type === 'character') entry = updateCharacterPromptEntry(id, patch);
   else return res.status(400).json({ error: 'type must be global, world, or character' });
 
-  if (!entry) return res.status(404).json({ error: 'Entry not found' });
+  if (!assertExists(res, entry, 'Entry not found')) return;
   res.json(entry);
 });
 

@@ -13,6 +13,71 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
 const AVATARS_DIR = path.join(DATA_ROOT, 'uploads', 'avatars');
 
+// ─── 内部导入辅助函数 ─────────────────────────────────────────────────────────
+
+/**
+ * 保存 base64 头像到磁盘，返回 `avatars/<filename>` 相对路径；无数据或失败返回 null。
+ * 注意：文件系统操作在事务内调用，不受 SQLite 事务保护（已知限制）。
+ */
+function saveAvatarFile(entityId, avatarBase64, avatarMime) {
+  if (!avatarBase64 || !avatarMime) return null;
+  const ext = avatarMime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+  const filename = `${entityId}.${ext}`;
+  fs.writeFileSync(path.join(AVATARS_DIR, filename), Buffer.from(avatarBase64, 'base64'));
+  return `avatars/${filename}`;
+}
+
+/**
+ * 批量插入 prompt_entries（world_prompt_entries 或 character_prompt_entries）。
+ * 不适用于 global_prompt_entries（有 mode 字段，INSERT 列不同）。
+ */
+function insertPromptEntries(stmt, entityId, entries, now) {
+  for (const entry of (entries ?? [])) {
+    stmt.run(
+      crypto.randomUUID(), entityId,
+      entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
+      entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+      entry.keyword_scope ?? 'user,assistant',
+      entry.sort_order ?? 0,
+      now, now,
+    );
+  }
+}
+
+/**
+ * 批量插入 state_values，跳过不在 validKeySet 中的 field_key。
+ * stmt 由调用方 prepare（world/character/persona 表名不同，SQL 不同）。
+ * @param {import('better-sqlite3').Statement} stmt
+ * @param {string}     entityId    world_id 或 character_id
+ * @param {object[]}   entries     含 field_key / value_json 的数组
+ * @param {Set<string>} validKeySet 合法 field_key 集合
+ * @param {number}     now
+ */
+function insertStateValues(stmt, entityId, entries, validKeySet, now) {
+  for (const sv of (entries ?? [])) {
+    if (!validKeySet.has(sv.field_key)) continue;
+    stmt.run(crypto.randomUUID(), entityId, sv.field_key, sv.value_json, now);
+  }
+}
+
+/**
+ * 在事务内导入单个角色（头像 + 角色行 + prompt_entries + state_values）。
+ */
+function importSingleCharacter(characterId, worldId, charData, validCharFieldKeys, stmts, now) {
+  const avatarPath = saveAvatarFile(characterId, charData.avatar_base64, charData.avatar_mime);
+  stmts.insertChar.run(
+    characterId, worldId,
+    charData.name,
+    charData.system_prompt ?? '',
+    charData.first_message ?? '',
+    avatarPath,
+    charData.sort_order ?? 0,
+    now, now,
+  );
+  insertPromptEntries(stmts.insertCharEntry, characterId, charData.prompt_entries, now);
+  insertStateValues(stmts.insertCharValue, characterId, charData.character_state_values, validCharFieldKeys, now);
+}
+
 // ─── 导出角色卡 ──────────────────────────────────────────────────────────────
 
 export function exportCharacter(characterId) {
@@ -107,16 +172,7 @@ export function importCharacter(worldId, data) {
     const characterId = crypto.randomUUID();
 
     // 处理头像
-    let avatarPath = null;
-    if (data.character.avatar_base64 && data.character.avatar_mime) {
-      const ext = data.character.avatar_mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-      const filename = `${characterId}.${ext}`;
-      fs.writeFileSync(
-        path.join(AVATARS_DIR, filename),
-        Buffer.from(data.character.avatar_base64, 'base64'),
-      );
-      avatarPath = `avatars/${filename}`;
-    }
+    const avatarPath = saveAvatarFile(characterId, data.character.avatar_base64, data.character.avatar_mime);
 
     // 计算 sort_order
     const maxRow = db.prepare('SELECT MAX(sort_order) AS m FROM characters WHERE world_id = ?').get(worldId);
@@ -141,31 +197,14 @@ export function importCharacter(worldId, data) {
       INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    for (const entry of (data.prompt_entries ?? [])) {
-      insertEntry.run(
-        crypto.randomUUID(), characterId,
-        entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
-        entry.keywords != null ? JSON.stringify(entry.keywords) : null,
-        entry.keyword_scope ?? 'user,assistant',
-        entry.sort_order ?? 0,
-        now, now,
-      );
-    }
+    insertPromptEntries(insertEntry, characterId, data.prompt_entries, now);
 
     // 插入 state_values（只导入 field_key 在目标世界中存在的）
     const insertValue = db.prepare(`
       INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
       VALUES (?, ?, ?, ?, NULL, ?)
     `);
-    for (const sv of (data.character_state_values ?? [])) {
-      if (validFieldKeys.has(sv.field_key)) {
-        insertValue.run(
-          crypto.randomUUID(), characterId,
-          sv.field_key, sv.value_json,
-          now,
-        );
-      }
-    }
+    insertStateValues(insertValue, characterId, data.character_state_values, validFieldKeys, now);
 
     return db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
   });
@@ -313,16 +352,7 @@ export function importWorld(data) {
       INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    for (const entry of (data.prompt_entries ?? [])) {
-      insertWorldEntry.run(
-        crypto.randomUUID(), worldId,
-        entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
-        entry.keywords != null ? JSON.stringify(entry.keywords) : null,
-        entry.keyword_scope ?? 'user,assistant',
-        entry.sort_order ?? 0,
-        now, now,
-      );
-    }
+    insertPromptEntries(insertWorldEntry, worldId, data.prompt_entries, now);
 
     // 插入世界状态字段定义
     const insertWorldField = db.prepare(`
@@ -385,13 +415,8 @@ export function importWorld(data) {
       INSERT INTO world_state_values (id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
       VALUES (?, ?, ?, ?, NULL, ?)
     `);
-    // 获取合法的 world field_key 集合（刚刚插入的）
     const validWorldFieldKeys = new Set((data.world_state_fields ?? []).map((f) => f.field_key));
-    for (const sv of (data.world_state_values ?? [])) {
-      if (validWorldFieldKeys.has(sv.field_key)) {
-        insertWorldValue.run(crypto.randomUUID(), worldId, sv.field_key, sv.value_json, now);
-      }
-    }
+    insertStateValues(insertWorldValue, worldId, data.world_state_values, validWorldFieldKeys, now);
 
     // 插入玩家状态字段定义
     const insertPersonaField = db.prepare(`
@@ -427,11 +452,7 @@ export function importWorld(data) {
       VALUES (?, ?, ?, ?, NULL, ?)
     `);
     const validPersonaFieldKeys = new Set((data.persona_state_fields ?? []).map((f) => f.field_key));
-    for (const sv of (data.persona_state_values ?? [])) {
-      if (validPersonaFieldKeys.has(sv.field_key)) {
-        insertPersonaValue.run(crypto.randomUUID(), worldId, sv.field_key, sv.value_json, now);
-      }
-    }
+    insertStateValues(insertPersonaValue, worldId, data.persona_state_values, validPersonaFieldKeys, now);
 
     // 获取合法的 character field_key 集合
     const validCharFieldKeys = new Set((data.character_state_fields ?? []).map((f) => f.field_key));
@@ -450,51 +471,9 @@ export function importWorld(data) {
       VALUES (?, ?, ?, ?, NULL, ?)
     `);
 
+    const charStmts = { insertChar: insertCharacter, insertCharEntry, insertCharValue };
     for (const charData of (data.characters ?? [])) {
-      const characterId = crypto.randomUUID();
-
-      // 处理头像
-      let avatarPath = null;
-      if (charData.avatar_base64 && charData.avatar_mime) {
-        const ext = charData.avatar_mime.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
-        const filename = `${characterId}.${ext}`;
-        fs.writeFileSync(
-          path.join(AVATARS_DIR, filename),
-          Buffer.from(charData.avatar_base64, 'base64'),
-        );
-        avatarPath = `avatars/${filename}`;
-      }
-
-      insertCharacter.run(
-        characterId, worldId,
-        charData.name,
-        charData.system_prompt ?? '',
-        charData.first_message ?? '',
-        avatarPath,
-        charData.sort_order ?? 0,
-        now, now,
-      );
-
-      for (const entry of (charData.prompt_entries ?? [])) {
-        insertCharEntry.run(
-          crypto.randomUUID(), characterId,
-          entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
-          entry.keywords != null ? JSON.stringify(entry.keywords) : null,
-          entry.keyword_scope ?? 'user,assistant',
-          entry.sort_order ?? 0,
-          now, now,
-        );
-      }
-
-      for (const sv of (charData.character_state_values ?? [])) {
-        if (validCharFieldKeys.has(sv.field_key)) {
-          insertCharValue.run(
-            crypto.randomUUID(), characterId,
-            sv.field_key, sv.value_json,
-            now,
-          );
-        }
-      }
+      importSingleCharacter(crypto.randomUUID(), worldId, charData, validCharFieldKeys, charStmts, now);
     }
 
     return db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);

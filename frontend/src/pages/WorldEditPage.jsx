@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld } from '../api/worlds';
-import { downloadWorldCard, importWorld, readJsonFile } from '../api/importExport';
+import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 import EntryList from '../components/prompt/EntryList';
 import StateFieldList from '../components/state/StateFieldList';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
@@ -13,16 +13,16 @@ import SealStampAnimation from '../components/book/SealStampAnimation';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
-} from '../api/worldStateFields';
-import { getWorldStateValues, updateWorldStateValue } from '../api/worldStateValues.js';
+} from '../api/world-state-fields';
+import { getWorldStateValues, updateWorldStateValue } from '../api/world-state-values.js';
 import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../api/characterStateFields';
+} from '../api/character-state-fields';
 import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../api/personaStateFields';
+} from '../api/persona-state-fields';
 import StateValueField from '../components/state/StateValueField';
 
 export default function WorldEditPage() {

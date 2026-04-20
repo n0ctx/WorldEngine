@@ -5,7 +5,7 @@ import {
   updateRegexRule,
   deleteRegexRule,
   reorderRegexRules,
-} from '../../api/regexRules.js';
+} from '../../api/regex-rules.js';
 import { getWorlds } from '../../api/worlds.js';
 import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';

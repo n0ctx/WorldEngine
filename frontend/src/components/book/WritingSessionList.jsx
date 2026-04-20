@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writingSessions.js';
+import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writing-sessions.js';
 import { renameSession } from '../../api/sessions.js';
 
 function formatDate(ts) {

@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import TopBar from './components/book/TopBar.jsx';
 import PageTransition from './components/book/PageTransition.jsx';
-import { refreshCustomCss } from './api/customCssSnippets';
+import { refreshCustomCss } from './api/custom-css-snippets';
 import { getConfig } from './api/config';
 import { useDisplaySettingsStore } from './store/displaySettings';
 import { useAssistantStore } from '../../assistant/client/useAssistantStore.js';

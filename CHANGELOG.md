@@ -21,6 +21,14 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T134` `chore` M7 前端 api/ 目录文件命名统一为 kebab-case — 13 个文件重命名，所有引用同步更新，CLAUDE.md 补充命名约定
+- `T133` `refactor` CP-6 路由层 404 重复代码统一 — 新增 assertExists，覆盖 12 个路由文件约 55 处
+- `T131` `refactor` CS-6 runStream Feature Envy — processStreamOutput + enqueueStreamTasks 提取，修复 /continue sid bug
+- `T130` `refactor` CS-2 importWorld 深嵌套 — 私有辅助函数提取，嵌套 5→3 层
+- `T129` `refactor` CS-5 combined-state-updater God Object — 4 个模块级辅助提取，DB 写入三段合并
+- `T128` `chore` 删除火烛 SVG 与相关残留
+- `T127` `refactor` 代码异味修复（CS-1/CS-3/CS-4/CS-7）
+- `T126` `refactor` templates 文件平铺化
 - `T125` `refactor` 架构层问题修复（分层破坏、三件套残留、CP-4 残留）
 - `T124` `refactor` backend/prompt 并入 backend/prompts
 - `T123` `refactor` Prompt 模板分组重命名与 turn summary 命名修正
@@ -44,6 +52,86 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T133 — refactor: CP-6 路由层 404 重复代码统一 ✅
+- **对外接口**：无接口变化；HTTP 行为完全不变
+- **涉及文件**：新增 `backend/utils/route-helpers.js`（导出 `assertExists`）；修改 12 个路由文件：`chat.js` `writing.js` `sessions.js` `session-state-values.js` `session-timeline.js` `custom-css-snippets.js` `regex-rules.js` `state-fields.js` `persona-state-fields.js` `prompt-entries.js` `characters.js` `worlds.js`
+- **注意**：`import-export.js` 的 4 处和 `sessions.js:117` 的复合条件（`!msg || msg.session_id !== sessionId`）保留原样——前者是 catch 块错误码转译，后者含 session 归属校验，两者都不是简单空值检查，无法套用 assertExists
+
+## T132 — chore: 删除羽毛笔 SVG 与相关功能代码 ✅
+- **对外接口**：无接口变化；聊天页与写作页的流式输出不再挂载羽毛笔光标 SVG
+- **涉及文件**：
+  - 删除：`frontend/src/components/book/QuillCursor.jsx`
+  - 修改：`frontend/src/components/chat/MessageItem.jsx`
+  - 修改：`frontend/src/components/writing/WritingMessageItem.jsx`
+  - 修改：`frontend/src/index.css`
+  - 修改：`CHANGELOG.md`
+- **注意**：
+  - 本次只删除羽毛笔流式光标及其专用样式，不改 `<think>` 分块逻辑、流式文本渲染和盖印/角色印章组件
+  - `we-streaming-block` 仅为羽毛笔句尾跟随服务，现已一并移除；流式内容继续按普通 Markdown 块渲染
+
+## T131 — refactor: CS-6 runStream Feature Envy ✅
+- **对外接口**：SSE 事件类型/顺序不变；`runStream` / `continue` / `chat` 所有路由行为不变
+- **涉及文件**：
+  - `backend/services/chat.js`：新增导出 `processStreamOutput(rawContent, aborted, worldId, sessionId)`，新增 import（`createMessage`、`touchSession`、`applyRules`、`stripAsstContext`、`extractNextPromptOptions`）
+  - `backend/routes/chat.js`：新增私有函数 `enqueueStreamTasks({...})`；`runStream` 行数 ~135→~88；`/continue` 行数 ~115→~93
+- **注意**：
+  - `/continue` 的输出处理（合并旧内容 + `updateMessageContent`）与 `runStream` 不同，**不使用** `processStreamOutput`，保持内联
+  - `/continue` 路由之前有 `sid` 未定义 bug（运行时报 ReferenceError），本次一并修复：在路由顶部加 `const sid = sessionId.slice(0, 8);`
+  - `enqueueStreamTasks` 返回 `boolean`：`true` 表示有 title 任务，调用方应 `return` 等待 `finally` 关闭连接；`false` 时调用方立即 `res.end()`
+  - 队列任务优先级/顺序不变：all-state(2) 先于 turn-record(3)；title 任务存在时 turn-record 在 finally 之前完成
+
+## T130 — refactor: CS-2 importWorld 深嵌套提取 ✅
+- **对外接口**：`importWorld(data)` / `importCharacter(worldId, data)` 签名与返回值不变；事务边界不变
+- **涉及文件**：`backend/services/import-export.js`
+- **注意**：
+  - 新增 4 个文件级私有函数：`saveAvatarFile` / `insertPromptEntries` / `insertStateValues` / `importSingleCharacter`
+  - `insertPromptEntries` **不适用于** `global_prompt_entries`（该表有 `mode` 字段，INSERT 列不同）
+  - `saveAvatarFile` 文件系统操作仍在事务内（与原实现一致）；`mkdirSync` 已移除（AVATARS_DIR 由服务启动时保证存在）
+  - `importCharacter` 复用了 `insertPromptEntries` 和 `saveAvatarFile`，减少约 30 行重复
+
+## T129 — refactor: CS-5 combined-state-updater God Object ✅
+- **对外接口**：`updateAllStates(worldId, characterIds, sessionId)` 签名和行为不变
+- **涉及文件**：`backend/memory/combined-state-updater.js`
+- **注意**：
+  - 新增 4 个模块级辅助：`filterActive(fields, recentText)`（原内嵌 closure → 显式参数）/ `buildValueMap(values)` / `buildFieldsDesc(fields, valueMap)`（原内嵌）/ `applyStatePatch(activeFields, patchData, upsertFn, logLabel)`
+  - `applyStatePatch` 的 `upsertFn` 已由调用方绑定 sessionId 和 entityId，只接受 `(key, json)`
+  - DB 写入三段（world / chars / persona）合并为三次 `applyStatePatch` 调用，逻辑等价
+
+## T128 — chore: 删除火烛 SVG 与相关残留 ✅
+- **对外接口**：无接口变化；聊天页不再挂载左下角火烛 SVG 动画
+- **涉及文件**：
+  - 删除：`frontend/src/components/book/CandleFlame.jsx`
+  - 修改：`frontend/src/pages/ChatPage.jsx`
+  - 修改：`CHANGELOG.md`
+- **注意**：
+  - 这次只删除火烛 SVG 及其直接相关状态（`recallVisible` 和对应 setState 调用），不改记忆检索 / 展开本身的事件流和底部文字提示
+  - `ChatPage.jsx` 里的 `navigate` import 仅被火烛清理顺手带掉，因为该页面已无使用
+
+## T127 — refactor: 代码异味修复（CS-1/CS-3/CS-4/CS-7）✅
+- **对外接口**：全部对外函数签名与行为不变
+- **涉及文件**：
+  - `backend/llm/providers/_utils.js`：新增 `safeParseJson(str, fallback)` 工具函数
+  - `backend/llm/providers/_converters.js`：引入 `safeParseJson` 替换两处静默吞错的 `try { JSON.parse } catch`
+  - `backend/llm/providers/openai.js`：4 个 if-else-if 路由块换为 `getAdapter(provider)` 策略表（NAMED_ADAPTERS + OPENAI_COMPATIBLE_ADAPTER），新增 provider 只需扩展映射
+  - `backend/memory/recall.js`：提取 `rowsToStateText(rows, header)` helper，三个 renderXxxState 函数末尾的 9 行重复循环均缩短为 1 行调用
+  - `backend/prompts/entry-matcher.js`：拆分为 `tryLlmMatch`（LLM预检）/ `resolveKeywordScopes`（scope 解析）/ `matchByKeywords`（单条目关键词匹配），`matchEntries` 只做编排
+- **注意**：
+  - `openai.js` 的 `resolveToolContext` 对未知 provider 仍保留"原样返回 messages"的行为（与原 else 路径一致，非 throw）
+  - 高风险异味 CS-2（importWorld 深嵌套）、CS-5（combined-state-updater God Object）、CS-6（runStream Feature Envy）建议后续单独批次处理
+
+## T126 — refactor: templates 文件平铺化 ✅
+- **对外接口**：`loadBackendPrompt()` / `renderBackendPrompt()` 调用方式不变；模板名改为平铺文件名（如 `memory-turn-summary.md`）
+- **涉及文件**：
+  - 重组：`backend/prompts/templates/` 下模板改为平铺命名
+  - 修改：`backend/prompts/assembler.js`、`entry-matcher.js`
+  - 修改：`backend/memory/turn-summarizer.js`、`summarizer.js`、`summary-expander.js`、`combined-state-updater.js`
+  - 修改：`backend/routes/chat.js`、`writing.js`
+  - 修改：`backend/prompts/README.md`、`backend/prompts/templates/README.md`
+  - 修改：`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：
+  - 不再使用 `templates/memory/...` 这类多级目录；统一改为 `templates/memory-*.md` / `entry-*.md` / `chat-*.md` 等扁平文件名
+  - 这样保留了用途语义，同时避免目录层级过深
 
 ## T125 — refactor: 架构层问题修复（分层破坏、三件套残留、CP-4 残留）✅
 - **对外接口**：`GET/DELETE /api/sessions/:sessionId/state-values/*` 路由行为完全不变；`PersonaEditPage` 状态字段编辑行为不变
@@ -96,7 +184,7 @@
   - 修改：`backend/utils/constants.js`（移除 `SUGGESTION_PROMPT` 常量）
 - **注意**：
   - 这次只外置“仓库内置、代码消费”的固定 prompt；用户可配置 prompt 继续留在 `config.json` 和 SQLite，不新增 `frontend/prompts` / `data/prompts`
-  - `backend/prompts/templates/shared/suggestion.md` 保留 `{{user}}` 模板变量，仍由 `assembler.js` 在最终组装时替换，而不是在文件加载时提前展开
+  - `backend/prompts/templates/shared-suggestion.md` 保留 `{{user}}` 模板变量，仍由 `assembler.js` 在最终组装时替换，而不是在文件加载时提前展开
   - `turn-dialogue.js` 中保留 `<next_prompt>` 解析逻辑；这是标签协议，不是 prompt 模板本体
 
 ## T121 — refactor: 大文件拆分（SettingsPage 1298→121 行，openai.js 913→75 行）✅

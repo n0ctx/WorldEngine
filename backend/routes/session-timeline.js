@@ -10,13 +10,14 @@ import { Router } from 'express';
 import db from '../db/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { WORLD_TIMELINE_RECENT_LIMIT } from '../utils/constants.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
 router.get('/:sessionId/timeline', (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: '会话不存在' });
+  if (!assertExists(res, session, '会话不存在')) return;
 
   const items = db.prepare(`
     SELECT round_index, summary, created_at FROM (

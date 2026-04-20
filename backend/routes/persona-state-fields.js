@@ -16,6 +16,7 @@ import {
   deletePersonaStateField,
   reorderPersonaStateFields,
 } from '../services/persona-state-fields.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.put('/worlds/:worldId/persona-state-fields/reorder', (req, res) => {
 
 router.put('/persona-state-fields/:id', (req, res) => {
   const field = updatePersonaStateField(req.params.id, req.body);
-  if (!field) return res.status(404).json({ error: '字段不存在' });
+  if (!assertExists(res, field, '字段不存在')) return;
   res.json(field);
 });
 

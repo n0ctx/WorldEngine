@@ -17,6 +17,7 @@
 
 import { Router } from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
+import { assertExists } from '../utils/route-helpers.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import {
@@ -40,7 +41,7 @@ const router = Router();
 router.get('/:sessionId/state-values', (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: '会话不存在' });
+  if (!assertExists(res, session, '会话不存在')) return;
 
   const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
   if (!worldId) return res.json({ world: [], persona: [], character: [] });
@@ -62,7 +63,7 @@ router.get('/:sessionId/state-values', (req, res) => {
 router.delete('/:sessionId/world-state-values', (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: '会话不存在' });
+  if (!assertExists(res, session, '会话不存在')) return;
   clearSessionWorldStateValues(sessionId);
   res.json({ success: true });
 });
@@ -72,7 +73,7 @@ router.delete('/:sessionId/world-state-values', (req, res) => {
 router.delete('/:sessionId/persona-state-values', (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: '会话不存在' });
+  if (!assertExists(res, session, '会话不存在')) return;
   clearSessionPersonaStateValues(sessionId);
   res.json({ success: true });
 });
@@ -82,7 +83,7 @@ router.delete('/:sessionId/persona-state-values', (req, res) => {
 router.delete('/:sessionId/character-state-values', (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: '会话不存在' });
+  if (!assertExists(res, session, '会话不存在')) return;
   clearSessionCharacterStateValues(sessionId);
   res.json({ success: true });
 });
@@ -92,7 +93,7 @@ router.delete('/:sessionId/character-state-values', (req, res) => {
 router.get('/:sessionId/characters/:characterId/state-values', (req, res) => {
   const { sessionId, characterId } = req.params;
   const charObj = getCharacterById(characterId);
-  if (!charObj) return res.status(404).json({ error: '角色不存在' });
+  if (!assertExists(res, charObj, '角色不存在')) return;
 
   res.json(getSingleCharacterSessionStateValues(sessionId, characterId, charObj.world_id));
 });

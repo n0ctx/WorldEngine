@@ -75,6 +75,15 @@ export async function executeToolCall(tc, toolHandlers) {
   }
 }
 
+/** 安全解析 JSON，失败时返回 fallback（默认 {}） */
+export function safeParseJson(str, fallback = {}) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
+}
+
 /** thinking_level → budget_tokens（Anthropic / Gemini 共用） */
 export function resolveThinkingBudget(thinking_level) {
   const MAP = {

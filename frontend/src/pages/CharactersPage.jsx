@@ -8,8 +8,8 @@ import {
 import { getWorld } from '../api/worlds';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
-import { importCharacter, readJsonFile } from '../api/importExport';
-import { listCharacterStateFields } from '../api/characterStateFields';
+import { importCharacter, readJsonFile } from '../api/import-export';
+import { listCharacterStateFields } from '../api/character-state-fields';
 import { getPersona } from '../api/personas';
 
 function PersonaCard({ worldId, onEdit }) {

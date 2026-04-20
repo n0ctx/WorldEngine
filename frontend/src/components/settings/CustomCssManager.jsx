@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
-} from '../../api/customCssSnippets';
+} from '../../api/custom-css-snippets';
 import { useAppModeStore } from '../../store/appMode';
 import Button from '../ui/Button';
 import Input from '../ui/Input';

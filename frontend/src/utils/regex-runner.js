@@ -5,7 +5,7 @@
  * applyRules(text, scope, worldId) 从缓存中过滤规则后同步执行。
  */
 
-import { listRegexRules } from '../api/regexRules.js';
+import { listRegexRules } from '../api/regex-rules.js';
 
 // 模块级缓存，null 表示未加载
 let _cachedRules = null;

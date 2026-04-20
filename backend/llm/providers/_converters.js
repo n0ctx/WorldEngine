@@ -1,4 +1,4 @@
-import { parseDataUrl } from './_utils.js';
+import { parseDataUrl, safeParseJson } from './_utils.js';
 
 /**
  * 内部格式 → Anthropic Messages API 格式
@@ -23,8 +23,7 @@ export function convertToAnthropicMessages(messages) {
       const text = typeof msg.content === 'string' ? msg.content : '';
       if (text) blocks.push({ type: 'text', text });
       for (const tc of msg.tool_calls) {
-        let input = {};
-        try { input = JSON.parse(tc.function?.arguments || '{}'); } catch { /* ignore */ }
+        const input = safeParseJson(tc.function?.arguments || '{}');
         blocks.push({ type: 'tool_use', id: tc.id, name: tc.function?.name || '', input });
       }
       converted.push({ role: 'assistant', content: blocks });
@@ -103,8 +102,7 @@ export function convertToGeminiContents(messages) {
       const text = typeof msg.content === 'string' ? msg.content : '';
       if (text) parts.push({ text });
       for (const tc of msg.tool_calls) {
-        let args = {};
-        try { args = JSON.parse(tc.function?.arguments || '{}'); } catch { /* ignore */ }
+        const args = safeParseJson(tc.function?.arguments || '{}');
         parts.push({ functionCall: { name: tc.function?.name || '', args } });
       }
       contents.push({ role: 'model', parts });

@@ -28,48 +28,54 @@ import {
   resolveToolContextGemini,
 } from './gemini.js';
 
+const NAMED_ADAPTERS = {
+  anthropic: {
+    stream: streamAnthropic,
+    complete: completeAnthropic,
+    completeWithTools: completeAnthropicWithTools,
+    resolveToolContext: resolveToolContextAnthropic,
+  },
+  gemini: {
+    stream: streamGemini,
+    complete: completeGemini,
+    completeWithTools: completeGeminiWithTools,
+    resolveToolContext: resolveToolContextGemini,
+  },
+};
+
+const OPENAI_COMPATIBLE_ADAPTER = {
+  stream: streamOpenAICompatible,
+  complete: completeOpenAICompatible,
+  completeWithTools: completeOpenAICompatibleWithTools,
+  resolveToolContext: resolveToolContextOpenAI,
+};
+
+function getAdapter(provider) {
+  if (NAMED_ADAPTERS[provider]) return NAMED_ADAPTERS[provider];
+  if (OPENAI_COMPATIBLE.has(provider)) return OPENAI_COMPATIBLE_ADAPTER;
+  return null;
+}
+
 export async function* streamChat(messages, config) {
-  if (config.provider === 'anthropic') {
-    yield* streamAnthropic(messages, config);
-  } else if (config.provider === 'gemini') {
-    yield* streamGemini(messages, config);
-  } else if (OPENAI_COMPATIBLE.has(config.provider)) {
-    yield* streamOpenAICompatible(messages, config);
-  } else {
-    throw apiError(`不支持的 provider: ${config.provider}`, 400);
-  }
+  const adapter = getAdapter(config.provider);
+  if (!adapter) throw apiError(`不支持的 provider: ${config.provider}`, 400);
+  yield* adapter.stream(messages, config);
 }
 
 export async function complete(messages, config) {
-  if (config.provider === 'anthropic') {
-    return completeAnthropic(messages, config);
-  } else if (config.provider === 'gemini') {
-    return completeGemini(messages, config);
-  } else if (OPENAI_COMPATIBLE.has(config.provider)) {
-    return completeOpenAICompatible(messages, config);
-  } else {
-    throw apiError(`不支持的 provider: ${config.provider}`, 400);
-  }
+  const adapter = getAdapter(config.provider);
+  if (!adapter) throw apiError(`不支持的 provider: ${config.provider}`, 400);
+  return adapter.complete(messages, config);
 }
 
 export async function completeWithTools(messages, toolDefs, toolHandlers, config) {
-  if (config.provider === 'anthropic') {
-    return completeAnthropicWithTools(messages, toolDefs, toolHandlers, config);
-  } else if (config.provider === 'gemini') {
-    return completeGeminiWithTools(messages, toolDefs, toolHandlers, config);
-  } else if (OPENAI_COMPATIBLE.has(config.provider)) {
-    return completeOpenAICompatibleWithTools(messages, toolDefs, toolHandlers, config);
-  }
-  throw apiError(`不支持的 provider: ${config.provider}`, 400);
+  const adapter = getAdapter(config.provider);
+  if (!adapter) throw apiError(`不支持的 provider: ${config.provider}`, 400);
+  return adapter.completeWithTools(messages, toolDefs, toolHandlers, config);
 }
 
 export async function resolveToolContext(messages, toolDefs, toolHandlers, config) {
-  if (config.provider === 'anthropic') {
-    return resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config);
-  } else if (config.provider === 'gemini') {
-    return resolveToolContextGemini(messages, toolDefs, toolHandlers, config);
-  } else if (OPENAI_COMPATIBLE.has(config.provider)) {
-    return resolveToolContextOpenAI(messages, toolDefs, toolHandlers, config);
-  }
-  return messages;
+  const adapter = getAdapter(config.provider);
+  if (!adapter) return messages; // 未知 provider 原样返回
+  return adapter.resolveToolContext(messages, toolDefs, toolHandlers, config);
 }

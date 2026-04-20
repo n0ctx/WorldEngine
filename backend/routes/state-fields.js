@@ -25,6 +25,7 @@ import {
   createCharacterStateField, listCharacterStateFields,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
 } from '../services/character-state-fields.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -62,7 +63,7 @@ router.put('/worlds/:worldId/world-state-fields/reorder', (req, res) => {
 
 router.put('/world-state-fields/:id', (req, res) => {
   const field = updateWorldStateField(req.params.id, req.body);
-  if (!field) return res.status(404).json({ error: '字段不存在' });
+  if (!assertExists(res, field, '字段不存在')) return;
   res.json(field);
 });
 
@@ -104,7 +105,7 @@ router.put('/worlds/:worldId/character-state-fields/reorder', (req, res) => {
 
 router.put('/character-state-fields/:id', (req, res) => {
   const field = updateCharacterStateField(req.params.id, req.body);
-  if (!field) return res.status(404).json({ error: '字段不存在' });
+  if (!assertExists(res, field, '字段不存在')) return;
   res.json(field);
 });
 

@@ -1,4 +1,4 @@
-import { createStateFieldsApi } from './stateFieldsFactory.js';
+import { createStateFieldsApi } from './state-fields-factory.js';
 
 const api = createStateFieldsApi('world-state-fields');
 

@@ -38,7 +38,7 @@ export async function generateTitle(sessionId) {
   const prompt = [
     {
       role: 'user',
-      content: renderBackendPrompt('memory/title-generation.md', { DIALOGUE: dialogue }),
+      content: renderBackendPrompt('memory-title-generation.md', { DIALOGUE: dialogue }),
     },
   ];
 

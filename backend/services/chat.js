@@ -7,6 +7,9 @@ import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/co
 import { buildPrompt } from '../prompts/assembler.js';
 import { logPrompt } from '../utils/logger.js';
 import { getConfig } from './config.js';
+import { createMessage, touchSession } from './sessions.js';
+import { applyRules } from '../utils/regex-runner.js';
+import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACHMENTS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
@@ -101,4 +104,37 @@ export async function buildContext(sessionId, options = {}) {
   const { messages, temperature, maxTokens, recallHitCount } = await buildPrompt(sessionId, options);
   if (getConfig().log_prompt) logPrompt(sessionId, messages);
   return { messages, overrides: { temperature, maxTokens }, recallHitCount: recallHitCount ?? 0 };
+}
+
+/**
+ * 处理流式 LLM 输出的后处理管道（纯同步，无 SSE 依赖）
+ * @param {string} rawContent
+ * @param {boolean} aborted
+ * @param {string|null} worldId
+ * @param {string} sessionId
+ * @returns {{ savedContent: string, options: string[], savedAssistant: object|null }}
+ */
+export function processStreamOutput(rawContent, aborted, worldId, sessionId) {
+  let content = rawContent;
+
+  if (content) content = stripAsstContext(content);
+
+  let options = [];
+  if (!aborted && content) {
+    const extracted = extractNextPromptOptions(content);
+    content = extracted.content;
+    options = extracted.options;
+  }
+
+  if (aborted && content) content += '\n\n[已中断]';
+
+  let savedAssistant = null;
+  if (content) {
+    const savedContent = aborted ? content : applyRules(content, 'ai_output', worldId);
+    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
+    content = savedContent;
+    touchSession(sessionId);
+  }
+
+  return { savedContent: content, options, savedAssistant };
 }

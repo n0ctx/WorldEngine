@@ -18,6 +18,7 @@ import {
   deleteRegexRule,
   reorderRegexRules,
 } from '../services/regex-rules.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -57,13 +58,13 @@ router.put('/regex-rules/reorder', (req, res) => {
 
 router.get('/regex-rules/:id', (req, res) => {
   const rule = getRegexRuleById(req.params.id);
-  if (!rule) return res.status(404).json({ error: '规则不存在' });
+  if (!assertExists(res, rule, '规则不存在')) return;
   res.json(rule);
 });
 
 router.put('/regex-rules/:id', (req, res) => {
   const rule = updateRegexRule(req.params.id, req.body);
-  if (!rule) return res.status(404).json({ error: '规则不存在' });
+  if (!assertExists(res, rule, '规则不存在')) return;
   res.json(rule);
 });
 

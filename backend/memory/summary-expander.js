@@ -53,11 +53,11 @@ export async function decideExpansion({ sessionId, recalled }) {
   const messages = [
     {
       role: 'system',
-      content: loadBackendPrompt('memory/expand/system.md'),
+      content: loadBackendPrompt('memory-expand-system.md'),
     },
     {
       role: 'user',
-      content: renderBackendPrompt('memory/expand/user.md', {
+      content: renderBackendPrompt('memory-expand-user.md', {
         CONTEXT_TEXT: contextText,
         SUMMARY_LINES: summaryLines,
       }),

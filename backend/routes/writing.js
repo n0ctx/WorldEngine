@@ -38,6 +38,7 @@ import {
 } from './stream-helpers.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 const log = createLogger('writing');
@@ -61,7 +62,7 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
 router.get('/:worldId/writing-sessions', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
-  if (!world) return res.status(404).json({ error: 'World not found' });
+  if (!assertExists(res, world, 'World not found')) return;
   const sessions = getWritingSessionsByWorldId(worldId);
   res.json(sessions);
 });
@@ -70,7 +71,7 @@ router.get('/:worldId/writing-sessions', (req, res) => {
 router.post('/:worldId/writing-sessions', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
-  if (!world) return res.status(404).json({ error: 'World not found' });
+  if (!assertExists(res, world, 'World not found')) return;
   const session = createWritingSession(worldId);
   res.json(session);
 });
@@ -79,7 +80,7 @@ router.post('/:worldId/writing-sessions', (req, res) => {
 router.delete('/:worldId/writing-sessions/:sessionId', async (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   await deleteWritingSession(sessionId);
   res.json({ success: true });
 });
@@ -90,7 +91,7 @@ router.delete('/:worldId/writing-sessions/:sessionId', async (req, res) => {
 router.get('/:worldId/writing-sessions/:sessionId/messages', (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   res.json(messages);
 });
@@ -99,7 +100,7 @@ router.get('/:worldId/writing-sessions/:sessionId/messages', (req, res) => {
 router.delete('/:worldId/writing-sessions/:sessionId/messages', async (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   await deleteAllMessages(sessionId);
   clearCompressedContext(sessionId);
   res.json({ success: true });
@@ -111,7 +112,7 @@ router.delete('/:worldId/writing-sessions/:sessionId/messages', async (req, res)
 router.get('/:worldId/writing-sessions/:sessionId/characters', (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   const characters = getWritingSessionCharacters(sessionId);
   res.json(characters);
 });
@@ -120,7 +121,7 @@ router.get('/:worldId/writing-sessions/:sessionId/characters', (req, res) => {
 router.put('/:worldId/writing-sessions/:sessionId/characters/:characterId', (req, res) => {
   const { sessionId, characterId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   addWritingSessionCharacter(sessionId, characterId);
   res.json({ success: true });
 });
@@ -129,7 +130,7 @@ router.put('/:worldId/writing-sessions/:sessionId/characters/:characterId', (req
 router.delete('/:worldId/writing-sessions/:sessionId/characters/:characterId', (req, res) => {
   const { sessionId, characterId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
   removeWritingSessionCharacter(sessionId, characterId);
   res.json({ success: true });
 });
@@ -140,7 +141,7 @@ router.delete('/:worldId/writing-sessions/:sessionId/characters/:characterId', (
 router.get('/:worldId/characters', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
-  if (!world) return res.status(404).json({ error: 'World not found' });
+  if (!assertExists(res, world, 'World not found')) return;
   const characters = getCharactersByWorldId(worldId);
   res.json(characters);
 });
@@ -261,7 +262,7 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
   const { content } = req.body;
 
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   // 若有用户输入则先保存
   if (content && typeof content === 'string' && content.trim()) {
@@ -285,7 +286,7 @@ router.post('/:worldId/writing-sessions/:sessionId/stop', (req, res) => {
 router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   const worldId = session.world_id;
   const sid = sessionId.slice(0, 8);
@@ -369,10 +370,10 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
   const { worldId, sessionId } = req.params;
 
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   const world = getWorldById(worldId);
-  if (!world) return res.status(404).json({ error: 'World not found' });
+  if (!assertExists(res, world, 'World not found')) return;
 
   const persona = getOrCreatePersona(worldId);
   const personaName = persona?.name || '用户';
@@ -385,7 +386,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
     }
-    const instruction = renderBackendPrompt('writing/impersonate.md', { PERSONA_NAME: personaName });
+    const instruction = renderBackendPrompt('writing-impersonate.md', { PERSONA_NAME: personaName });
     prompt.push({ role: 'user', content: instruction });
 
     const content = await llm.complete(prompt, {
@@ -409,7 +410,7 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   if (!afterMessageId) return res.status(400).json({ error: 'afterMessageId is required' });
 
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   await deleteMessagesAfter(afterMessageId);
 
@@ -431,7 +432,7 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
   }
 
   const session = dbGetWritingSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   updateMessageContent(messageId, content.trim());
 

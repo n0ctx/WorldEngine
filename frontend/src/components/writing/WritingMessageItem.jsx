@@ -3,7 +3,6 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import QuillCursor from '../book/QuillCursor.jsx';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 const REMARK_PLUGINS_W = [remarkGfm];
@@ -83,11 +82,10 @@ function ThinkBlock({ content, open = false }) {
           color: 'var(--we-ink-faded)',
           lineHeight: '1.7',
           background: 'var(--we-paper-aged)',
-        }} className={`we-think-block-content${open ? ' we-streaming-block' : ''}`}>
+        }}>
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
             {content}
           </ReactMarkdown>
-          {open && <QuillCursor />}
         </div>
       )}
     </div>
@@ -283,15 +281,13 @@ export default function WritingMessageItem({
                 if (!showThinking) return null;
                 return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
               }
-              const streamingLast = isStreaming && isLastBlock;
               return (
-                <div key={i} className={streamingLast ? 'we-streaming-block' : undefined}>
+                <div key={i}>
                   {block.content && (
                     <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
                       {block.content}
                     </ReactMarkdown>
                   )}
-                  {streamingLast && <QuillCursor />}
                 </div>
               );
             })}

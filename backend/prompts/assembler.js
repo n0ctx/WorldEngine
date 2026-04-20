@@ -62,7 +62,7 @@ import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
 
 const log = createLogger('assembler', 'magenta');
-const SUGGESTION_PROMPT = loadBackendPrompt('shared/suggestion.md');
+const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
@@ -240,9 +240,11 @@ export async function buildPrompt(sessionId, options = {}) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         systemParts.push(tv(expandedText));
-        onRecallEvent?.('memory_expand_done', { expanded: expandIds });
         log.debug(`│  [13] expand  ids=${expandIds.length}`);
       }
+      onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
+    } else {
+      onRecallEvent?.('memory_expand_done', { expanded: [] });
     }
   }
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
-import { buildContext, activeStreams, saveAttachments } from '../services/chat.js';
+import { buildContext, activeStreams, saveAttachments, processStreamOutput } from '../services/chat.js';
 import {
   createMessage,
   getMessagesBySessionId,
@@ -30,6 +30,7 @@ import {
   sendSse,
 } from './stream-helpers.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 const log = createLogger('chat');
@@ -48,6 +49,29 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
     })}`);
   }
   sendSse(res, payload);
+}
+
+/**
+ * 入队后台异步任务（title + all-state + turn-record）
+ * @returns {boolean} true = 有 title 任务，调用方应 return（等待 finally 关闭连接）
+ */
+function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, streamState, res, turnRecordOpts }) {
+  if (session && !session.title) {
+    log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
+    enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
+      .then((title) => {
+        if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
+      })
+      .catch((err) => log.warn('后台任务失败:', err.message))
+      .finally(() => { if (!streamState.isClientClosed()) res.end(); });
+  }
+  log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
+  enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state')
+    .catch((err) => log.warn('后台任务失败:', err.message));
+  log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, ...(turnRecordOpts ?? {}) })}`);
+  enqueue(sessionId, () => createTurnRecord(sessionId, turnRecordOpts), 3, 'turn-record')
+    .catch((err) => log.warn('后台任务失败:', err.message));
+  return !!(session && !session.title);
 }
 
 /**
@@ -119,31 +143,9 @@ async function runStream(sessionId, res, opts = {}) {
   const character = characterId ? getCharacterById(characterId) : null;
   const worldId = character?.world_id ?? null;
 
-  // 保存 AI 回复（先剥除状态块，再应用 ai_output 规则）
-  if (fullContent) {
-    fullContent = stripAsstContext(fullContent);
-  }
-
-  // 提取选项（仅非中断时；剥除后内容不入 DB）
-  let options = [];
-  if (!aborted && fullContent) {
-    const extracted = extractNextPromptOptions(fullContent);
-    fullContent = extracted.content;
-    options = extracted.options;
-  }
-
-  if (aborted && fullContent) {
-    fullContent += '\n\n[已中断]';
-  }
-
-  let savedAssistant = null;
-  if (fullContent) {
-    // ai_output scope：流式完结后、写入 messages 前处理
-    const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId);
-    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
-    fullContent = savedContent;
-    touchSession(sessionId);
-  }
+  // 保存 AI 回复（剥除状态块 + 提取选项 + 应用规则）
+  const { savedContent, options, savedAssistant } = processStreamOutput(fullContent, aborted, worldId, sessionId);
+  fullContent = savedContent;
 
   // 推送结束事件（附带真实 assistant 消息，便于前端原地追加，免于重挂载刷新）
   if (!streamState.isClientClosed()) {
@@ -157,34 +159,9 @@ async function runStream(sessionId, res, opts = {}) {
   // 正常完成且有内容时，入队异步任务
   if (!aborted && fullContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-    const hasUserMsg = msgs.some((m) => m.role === 'user');
-
-    if (hasUserMsg) {
-
-      // 优先级 2：生成标题（不可丢弃，仅当 title 为 NULL）
-      if (session && !session.title) {
-        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
-        enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
-          .then((title) => {
-            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
-          })
-          .catch(err => log.warn('后台任务失败:', err.message))
-          .finally(() => {
-            if (!streamState.isClientClosed()) res.end();
-          });
-        // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
-        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
-        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
-        return; // 等待标题生成后再关闭连接
-      }
-
-      // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
-      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
-      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+    if (msgs.some((m) => m.role === 'user')) {
+      const needsWait = enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, streamState, res });
+      if (needsWait) return;
     }
   }
 
@@ -202,7 +179,7 @@ router.post('/:sessionId/chat', async (req, res) => {
   }
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   log.info(`POST /chat  ${formatMeta({ session: sessionId.slice(0, 8), len: content.length, attachments: attachments?.length ?? 0 })}`);
 
@@ -239,7 +216,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   }
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   log.info(`POST /regenerate  ${formatMeta({ session: sessionId.slice(0, 8), after: afterMessageId.slice(0, 8) })}`);
 
@@ -263,9 +240,10 @@ router.post('/:sessionId/regenerate', async (req, res) => {
 
 router.post('/:sessionId/continue', async (req, res) => {
   const { sessionId } = req.params;
+  const sid = sessionId.slice(0, 8);
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   log.info(`POST /continue  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
 
@@ -343,34 +321,12 @@ router.post('/:sessionId/continue', async (req, res) => {
   // 正常完成且有内容时，入队异步任务
   if (!aborted && newContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-    const hasUserMsg = msgs.some((m) => m.role === 'user');
-
-    if (hasUserMsg) {
-      if (session && !session.title) {
-        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
-        enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
-          .then((title) => {
-            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
-          })
-          .catch(err => log.warn('后台任务失败:', err.message))
-          .finally(() => {
-            if (!streamState.isClientClosed()) res.end();
-          });
-        // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-        enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
-        // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
-        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
-        enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
-        return;
-      }
-
-      // 优先级 2：状态更新（世界/角色/玩家合并为单次 LLM 调用）
-      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-      enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
-      // /continue 场景：覆盖最后一条 turn record（isUpdate=true）
-      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
-      enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+    if (msgs.some((m) => m.role === 'user')) {
+      const needsWait = enqueueStreamTasks({
+        sessionId, sid, worldId, characterId, session, streamState, res,
+        turnRecordOpts: { isUpdate: true },
+      });
+      if (needsWait) return;
     }
   }
 
@@ -383,7 +339,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
   const { sessionId } = req.params;
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const world = character?.world_id ? getWorldById(character.world_id) : null;
@@ -401,7 +357,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
       prompt.pop();
     }
 
-    const instruction = renderBackendPrompt('chat/impersonate.md', { PERSONA_NAME: personaName });
+    const instruction = renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName });
     prompt.push({ role: 'user', content: instruction });
 
     const raw = await llm.complete(prompt, {
@@ -422,7 +378,7 @@ router.delete('/:sessionId/messages', async (req, res) => {
   const { sessionId } = req.params;
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   await deleteAllMessagesBySessionId(sessionId);
   clearCompressedContext(sessionId);
@@ -450,7 +406,7 @@ router.post('/:sessionId/edit-assistant', async (req, res) => {
   }
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   updateMessageContent(messageId, content.trim());
 
@@ -478,7 +434,7 @@ router.post('/:sessionId/retitle', async (req, res) => {
   const { sessionId } = req.params;
 
   const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
+  if (!assertExists(res, session, 'Session not found')) return;
 
   try {
     // 获取完整提示词上下文（[1-16]）
@@ -497,7 +453,7 @@ router.post('/:sessionId/retitle', async (req, res) => {
     }
     titlePrompt.push({
       role: 'user',
-      content: loadBackendPrompt('memory/retitle-generation.md'),
+      content: loadBackendPrompt('memory-retitle-generation.md'),
     });
 
     const raw = await llm.complete(titlePrompt, {

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useAppModeStore } from '../../store/appMode';
-import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../api/importExport';
-import { refreshCustomCss } from '../../api/customCssSnippets';
+import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../api/import-export';
+import { refreshCustomCss } from '../../api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../utils/regex-runner';
 import ModeSwitch from './ModeSwitch';
 import Button from '../ui/Button';

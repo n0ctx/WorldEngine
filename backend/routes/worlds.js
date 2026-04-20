@@ -6,6 +6,7 @@ import {
   updateWorld,
   deleteWorld,
 } from '../services/worlds.js';
+import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 
@@ -28,18 +29,14 @@ router.post('/', (req, res) => {
 // GET /api/worlds/:id — 获取单个世界
 router.get('/:id', (req, res) => {
   const world = getWorldById(req.params.id);
-  if (!world) {
-    return res.status(404).json({ error: '世界不存在' });
-  }
+  if (!assertExists(res, world, '世界不存在')) return;
   res.json(world);
 });
 
 // PUT /api/worlds/:id — 更新世界
 router.put('/:id', (req, res) => {
   const existing = getWorldById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: '世界不存在' });
-  }
+  if (!assertExists(res, existing, '世界不存在')) return;
   const updated = updateWorld(req.params.id, req.body);
   res.json(updated);
 });
@@ -47,9 +44,7 @@ router.put('/:id', (req, res) => {
 // DELETE /api/worlds/:id — 删除世界
 router.delete('/:id', async (req, res) => {
   const existing = getWorldById(req.params.id);
-  if (!existing) {
-    return res.status(404).json({ error: '世界不存在' });
-  }
+  if (!assertExists(res, existing, '世界不存在')) return;
   await deleteWorld(req.params.id);
   res.status(204).end();
 });

@@ -28,6 +28,91 @@ import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 
 const log = createLogger('all-state');
 
+// ── 辅助函数（模块级） ──────────────────────────────────────────────────────
+
+/**
+ * 筛选本轮需要更新的活跃字段。
+ * @param {object[]} fields      字段列表
+ * @param {string}   recentText  最近消息拼接的小写文本（用于 keyword_based 触发判断）
+ */
+function filterActive(fields, recentText) {
+  return fields.filter((f) => {
+    if (f.update_mode !== 'llm_auto') return false;
+    if (f.trigger_mode === 'manual_only') return false;
+    if (f.trigger_mode === 'every_turn') return true;
+    if (f.trigger_mode === 'keyword_based') {
+      if (!f.trigger_keywords?.length) return false;
+      return f.trigger_keywords.some((kw) => recentText.includes(kw.toLowerCase()));
+    }
+    return false;
+  });
+}
+
+/**
+ * 将 getAllXxxStateValues() 返回的行转换为 valueMap。
+ * @param {object[]} values  含 field_key / default_value_json / runtime_value_json 的行
+ * @returns {Record<string, {defaultValueJson, runtimeValueJson}>}
+ */
+function buildValueMap(values) {
+  return Object.fromEntries(
+    values.map((v) => [v.field_key, {
+      defaultValueJson: v.default_value_json,
+      runtimeValueJson: v.runtime_value_json,
+    }])
+  );
+}
+
+/**
+ * 将活跃字段列表渲染为 Prompt 文本段（供 LLM 读取）。
+ * @param {object[]} fields    活跃字段列表
+ * @param {object}   valueMap  buildValueMap 返回的映射
+ */
+function buildFieldsDesc(fields, valueMap) {
+  return fields
+    .map((f) => {
+      let line = `- ${f.field_key}（${f.label}，类型：${f.type}）`;
+      if (f.description) line += `，说明：${f.description}`;
+      if (f.type === 'enum' && f.enum_options?.length)
+        line += `，可选值：[${f.enum_options.join(' / ')}]`;
+      if (f.type === 'number') {
+        const lo = f.min_value != null ? f.min_value : '不限';
+        const hi = f.max_value != null ? f.max_value : '不限';
+        line += `，范围：${lo} ~ ${hi}`;
+      }
+      if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
+      const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
+      line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
+      if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
+      return line;
+    })
+    .join('\n');
+}
+
+/**
+ * 将 LLM 返回的 patch 对象写入会话状态（校验 + upsert）。
+ * @param {object[]} activeFields  本次活跃字段列表（用于 fieldMap 构建和校验）
+ * @param {*}        patchData     patch 对象中对应此实体的子对象；非 object 时直接跳过
+ * @param {Function} upsertFn      (key: string, valueJson: string|null) => void
+ * @param {string}   logLabel      日志前缀（如 `world="xxx"`）
+ */
+function applyStatePatch(activeFields, patchData, upsertFn, logLabel) {
+  if (!patchData || typeof patchData !== 'object') return;
+  const fieldMap = Object.fromEntries(activeFields.map((f) => [f.field_key, f]));
+  const updated = [];
+  for (const [key, rawValue] of Object.entries(patchData)) {
+    const field = fieldMap[key];
+    if (!field) continue;
+    const validated = validateValue(rawValue, field);
+    if (validated === undefined) continue;
+    const valueJson = validated === null ? null : JSON.stringify(validated);
+    upsertFn(key, valueJson);
+    updated.push(`${key}=${valueJson}`);
+  }
+  if (updated.length) log.info(`${logLabel}  updates: ${updated.join('  ')}`);
+}
+
+// ── 主函数 ──────────────────────────────────────────────────────────────────
+
 /**
  * 单次 LLM 调用同时更新世界/角色（可多个）/玩家状态。
  *
@@ -50,31 +135,16 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     .join('\n')
     .toLowerCase();
 
-  function filterActive(fields) {
-    return fields.filter((f) => {
-      if (f.update_mode !== 'llm_auto') return false;
-      if (f.trigger_mode === 'manual_only') return false;
-      if (f.trigger_mode === 'every_turn') return true;
-      if (f.trigger_mode === 'keyword_based') {
-        if (!f.trigger_keywords?.length) return false;
-        return f.trigger_keywords.some((kw) => recentText.includes(kw.toLowerCase()));
-      }
-      return false;
-    });
-  }
+  // ── 确定各类活跃字段 ──
+  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId), recentText) : [];
 
-  // ── 世界活跃字段 ──
-  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
-
-  // ── 各角色活跃字段（同一世界共享 schema，只取一次） ──
   const characters = (characterIds || []).map((id) => getCharacterById(id)).filter(Boolean);
   // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id
   const charWorldId = characters[0]?.world_id ?? worldId;
-  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
+  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId), recentText) : [];
   const charactersWithFields = charSchemaFields.length > 0 ? characters : [];
 
-  // ── 玩家活跃字段 ──
-  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
+  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId), recentText) : [];
 
   if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
     log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);
@@ -84,70 +154,31 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   // 对话标注用名（用第一个角色名，没有则"角色"）
   const primaryName = characters[0]?.name ?? '角色';
 
-  function buildFieldsDesc(fields, valueMap) {
-    return fields
-      .map((f) => {
-        let line = `- ${f.field_key}（${f.label}，类型：${f.type}）`;
-        if (f.description) line += `，说明：${f.description}`;
-        if (f.type === 'enum' && f.enum_options?.length)
-          line += `，可选值：[${f.enum_options.join(' / ')}]`;
-        if (f.type === 'number') {
-          const lo = f.min_value != null ? f.min_value : '不限';
-          const hi = f.max_value != null ? f.max_value : '不限';
-          line += `，范围：${lo} ~ ${hi}`;
-        }
-        if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
-        const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
-        line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
-        if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
-        return line;
-      })
-      .join('\n');
-  }
-
   // ── 组装 prompt 各节 ──
   const sections = [];
   const responseKeys = [];
 
   if (worldActiveFields.length > 0) {
-    const valueMap = Object.fromEntries(
-      getAllWorldStateValues(worldId).map((v) => [v.field_key, {
-        defaultValueJson: v.default_value_json,
-        runtimeValueJson: v.runtime_value_json,
-      }])
-    );
-    sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, valueMap));
+    sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, buildValueMap(getAllWorldStateValues(worldId))));
     responseKeys.push('"world"（世界状态）');
   }
 
   for (let i = 0; i < charactersWithFields.length; i++) {
     const char = charactersWithFields[i];
     const charKey = `char_${i}`;
-    const valueMap = Object.fromEntries(
-      getAllCharacterStateValues(char.id).map((v) => [v.field_key, {
-        defaultValueJson: v.default_value_json,
-        runtimeValueJson: v.runtime_value_json,
-      }])
-    );
     sections.push(
       `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
         `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
-        buildFieldsDesc(charSchemaFields, valueMap)
+        buildFieldsDesc(charSchemaFields, buildValueMap(getAllCharacterStateValues(char.id)))
     );
     responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
   }
 
   if (personaActiveFields.length > 0) {
-    const valueMap = Object.fromEntries(
-      getAllPersonaStateValues(worldId).map((v) => [v.field_key, {
-        defaultValueJson: v.default_value_json,
-        runtimeValueJson: v.runtime_value_json,
-      }])
-    );
     sections.push(
       `=== 玩家状态 ===\n` +
         `注意：只追踪玩家自身的变化，勿将角色的经历记录为玩家的状态。\n` +
-        buildFieldsDesc(personaActiveFields, valueMap)
+        buildFieldsDesc(personaActiveFields, buildValueMap(getAllPersonaStateValues(worldId)))
     );
     responseKeys.push('"persona"（玩家状态）');
   }
@@ -170,7 +201,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const prompt = [
     {
       role: 'user',
-      content: renderBackendPrompt('state/update.md', {
+      content: renderBackendPrompt('state-update.md', {
         SECTIONS: sections.join('\n\n'),
         DIALOGUE: dialogue,
         RESPONSE_KEYS: responseKeys.join('、'),
@@ -205,57 +236,31 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
 
-  // ── 写入世界状态（会话级） ──
-  if (worldActiveFields.length > 0 && patch.world && typeof patch.world === 'object') {
-    const fieldMap = Object.fromEntries(worldActiveFields.map((f) => [f.field_key, f]));
-    const updated = [];
-    for (const [key, rawValue] of Object.entries(patch.world)) {
-      const field = fieldMap[key];
-      if (!field) continue;
-      const validated = validateValue(rawValue, field);
-      if (validated === undefined) continue;
-      const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertSessionWorldStateValue(sessionId, worldId, key, valueJson);
-      updated.push(`${key}=${valueJson}`);
-    }
-    if (updated.length) log.info(`world="${world.name}"  updates: ${updated.join('  ')}`);
+  // ── 写入各类状态（会话级） ──
+  if (worldActiveFields.length > 0) {
+    applyStatePatch(worldActiveFields, patch.world,
+      (key, json) => upsertSessionWorldStateValue(sessionId, worldId, key, json),
+      `world="${world.name}"`
+    );
   }
 
-  // ── 写入各角色状态（会话级） ──
   for (let i = 0; i < charactersWithFields.length; i++) {
     const char = charactersWithFields[i];
-    const charPatch = patch[`char_${i}`];
-    if (!charPatch || typeof charPatch !== 'object') continue;
-    const fieldMap = Object.fromEntries(charSchemaFields.map((f) => [f.field_key, f]));
-    const updated = [];
-    for (const [key, rawValue] of Object.entries(charPatch)) {
-      const field = fieldMap[key];
-      if (!field) continue;
-      const validated = validateValue(rawValue, field);
-      if (validated === undefined) continue;
-      const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertSessionCharacterStateValue(sessionId, char.id, key, valueJson);
-      updated.push(`${key}=${valueJson}`);
-    }
-    if (updated.length) log.info(`char="${char.name}"  updates: ${updated.join('  ')}`);
+    applyStatePatch(charSchemaFields, patch[`char_${i}`],
+      (key, json) => upsertSessionCharacterStateValue(sessionId, char.id, key, json),
+      `char="${char.name}"`
+    );
   }
 
-  // ── 写入玩家状态（会话级） ──
-  if (personaActiveFields.length > 0 && patch.persona && typeof patch.persona === 'object') {
-    const fieldMap = Object.fromEntries(personaActiveFields.map((f) => [f.field_key, f]));
-    const updated = [];
-    for (const [key, rawValue] of Object.entries(patch.persona)) {
-      const field = fieldMap[key];
-      if (!field) continue;
-      const validated = validateValue(rawValue, field);
-      if (validated === undefined) continue;
-      const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertSessionPersonaStateValue(sessionId, worldId, key, valueJson);
-      updated.push(`${key}=${valueJson}`);
-    }
-    if (updated.length) log.info(`persona  world="${world?.name}"  updates: ${updated.join('  ')}`);
+  if (personaActiveFields.length > 0) {
+    applyStatePatch(personaActiveFields, patch.persona,
+      (key, json) => upsertSessionPersonaStateValue(sessionId, worldId, key, json),
+      `persona  world="${world?.name}"`
+    );
   }
 }
+
+// ── 值校验与格式化 ───────────────────────────────────────────────────────────
 
 /**
  * 校验 LLM 返回的值是否符合字段类型约束。
@@ -307,7 +312,7 @@ function formatValueForPrompt(valueJson, field) {
   if (valueJson == null) return '（未设置）';
 
   // 兼容旧数据：无 default_value 的空字符串/空数组本质上是历史占位值，
-  // 应继续视为“未设置”，让自动补全有机会运行。
+  // 应继续视为"未设置"，让自动补全有机会运行。
   if (field.default_value == null) {
     if (field.type === 'text' && valueJson === '""') return '（未设置）';
     if (field.type === 'list' && valueJson === '[]') return '（未设置）';

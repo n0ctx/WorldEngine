@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getWorld } from '../api/worlds.js';
 import { useAppModeStore } from '../store/appMode.js';
-import { refreshCustomCss } from '../api/customCssSnippets.js';
+import { refreshCustomCss } from '../api/custom-css-snippets.js';
 import { getPersona } from '../api/personas.js';
 import {
   listWritingSessions,
@@ -15,7 +15,7 @@ import {
   editAndRegenerateWriting,
   editWritingAssistantMessage,
   impersonateWriting,
-} from '../api/writingSessions.js';
+} from '../api/writing-sessions.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
 import CastPanel from '../components/book/CastPanel.jsx';
@@ -63,15 +63,27 @@ export default function WritingSpacePage() {
 
   const [currentOptions, setCurrentOptions] = useState([]);
 
+  function clearOptionsState() {
+    pendingOptionsRef.current = [];
+    setCurrentOptions([]);
+  }
+
   useEffect(() => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
 
   useEffect(() => {
     if (!worldId) return;
+    clearOptionsState();
     getWorld(worldId).then(setWorld).catch(console.error);
     getPersona(worldId).then(setPersona).catch(() => {});
   }, [worldId]);
+
+  useEffect(() => {
+    return () => {
+      clearOptionsState();
+    };
+  }, []);
 
   // 初始化：加载或自动创建第一个会话
   useEffect(() => {
@@ -93,6 +105,7 @@ export default function WritingSpacePage() {
   }
 
   async function enterSession(session) {
+    clearOptionsState();
     setCurrentSession(session);
     setGenerating(false);
     setStreamingText('');
@@ -147,7 +160,7 @@ export default function WritingSpacePage() {
 
   function makeStreamCallbacks() {
     pendingAssistantRef.current = null;
-    pendingOptionsRef.current = [];
+    clearOptionsState();
     const streamKey = beginStreamingKey();
     return {
       onDelta(delta) {
@@ -207,7 +220,7 @@ export default function WritingSpacePage() {
     if (!session || generating) return;
 
     setError(null);
-    setCurrentOptions([]);
+    clearOptionsState();
 
     if (content) {
       const optimisticMsg = {
@@ -302,7 +315,7 @@ export default function WritingSpacePage() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
 
-    setCurrentOptions([]);
+    clearOptionsState();
 
     // 找最后一条 assistant 消息 id
     let lastAssistantId = null;

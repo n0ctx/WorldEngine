@@ -5,8 +5,8 @@ import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   resetSessionCharacterStateValues,
-} from '../../api/sessionStateValues.js';
-import { fetchSessionTimeline } from '../../api/sessionTimeline.js';
+} from '../../api/session-state-values.js';
+import { fetchSessionTimeline } from '../../api/session-timeline.js';
 import { getWorld } from '../../api/worlds.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
