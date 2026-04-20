@@ -21,6 +21,7 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T121` `refactor` 大文件拆分（SettingsPage + openai.js）
 - `T120` `refactor` Copy-Paste 重复代码消除（CP-1 至 CP-7）
 - `T119` `docs` 将现有代码规范收敛进 CLAUDE / ARCHITECTURE
 - `T117` `chore` 可维护性修复（M2/M3/M4/M6）
@@ -39,6 +40,36 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T121 — refactor: 大文件拆分（SettingsPage 1298→121 行，openai.js 913→75 行）✅
+- **对外接口**：不变；`llm/index.js` 的 `import './providers/openai.js'` 路径不变；SettingsPage 路由不变
+- **涉及文件**：
+  - 新增（前端）：
+    - `frontend/src/hooks/useSettingsConfig.js` — 18 个 useState + 9 个 handler 提取为 hook，按关注点分组返回 `{ llmProps, promptProps, onImportSuccess }`
+    - `frontend/src/components/ui/ToggleSwitch.jsx` — 消除 4 处重复的内联 switch 代码（原共 ~120 行）
+    - `frontend/src/components/settings/_settingsConstants.js` — LLM_PROVIDERS、EMBEDDING_PROVIDERS、NAV_SECTIONS、LOCAL_PROVIDERS、NEEDS_BASE_URL_PROVIDERS、getProviderThinkingOptions
+    - `frontend/src/components/settings/ModeSwitch.jsx` — chat/writing 切换组件
+    - `frontend/src/components/settings/FieldLabel.jsx` — settings 专用标签组件
+    - `frontend/src/components/settings/ModelSelector.jsx` — 模型列表拉取 + 下拉
+    - `frontend/src/components/settings/ProviderBlock.jsx` — Provider 配置块
+    - `frontend/src/components/settings/WritingLlmBlock.jsx` — 写作空间 LLM 覆盖
+    - `frontend/src/components/settings/LlmConfigPanel.jsx` — LLM 配置面板（原 LlmSection）
+    - `frontend/src/components/settings/PromptConfigPanel.jsx` — Prompt 配置面板（原 PromptSection）
+    - `frontend/src/components/settings/ImportExportPanel.jsx` — 导入导出面板
+    - `frontend/src/components/settings/AboutPanel.jsx` — 关于面板
+  - 修改（前端）：`frontend/src/pages/SettingsPage.jsx` — 改写为 121 行骨架，调用 useSettingsConfig
+  - 新增（后端）：
+    - `backend/llm/providers/_utils.js` — DEFAULT_BASE_URLS、OPENAI_COMPATIBLE、getBaseUrl、parseDataUrl、apiError、parseSSE、executeToolCall、resolveThinkingBudget
+    - `backend/llm/providers/_converters.js` — convertToAnthropicMessages/Content、convertToGeminiContents/Content
+    - `backend/llm/providers/openai-compatible.js` — OpenAI 系 stream/complete/completeWithTools/resolveToolContext
+    - `backend/llm/providers/anthropic.js` — Anthropic stream/complete/completeWithTools/resolveToolContext
+    - `backend/llm/providers/gemini.js` — Gemini stream/complete/completeWithTools/resolveToolContext
+  - 修改（后端）：`backend/llm/providers/openai.js` — 改写为 75 行路由层
+- **注意**：
+  - `resolveThinkingBudget` 移至 `_utils.js`（anthropic 和 gemini 均需要），不再重复定义
+  - `_tool-loop.js` 抽象按计划跳过——三版工具循环差异大，机械提取需复杂回调；保留在各 provider 文件中
+  - SettingsPage 原 `config` state（set 但不读）已在 hook 重写中去掉，简化逻辑
+  - `proxyInput` 仍为 LlmConfigPanel 内部 local state，初始化来自 `proxyUrl` prop，行为与重构前一致
 
 ## T120 — refactor: Copy-Paste 重复代码消除（CP-1 至 CP-7）✅
 - **对外接口**：所有 named export 保持不变，行为不变
