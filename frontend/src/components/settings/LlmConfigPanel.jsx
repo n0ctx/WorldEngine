@@ -11,7 +11,7 @@ import FieldLabel from './FieldLabel';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { LLM_PROVIDERS, EMBEDDING_PROVIDERS } from './_settingsConstants';
+import { LLM_PROVIDERS, EMBEDDING_PROVIDERS } from './_settings-constants';
 
 export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,

@@ -19,7 +19,7 @@ export const PROMPT_ENTRY_LLM_MAX_TOKENS = 300;  // LLM preflight：最大输出
 // ============================
 // 记忆召回
 // ============================
-export const MEMORY_RECALL_MAX_SESSIONS = 3;
+export const MEMORY_RECALL_MAX_SESSIONS = 5;
 export const MEMORY_RECALL_CONTEXT_WINDOW = 10;
 export const MEMORY_RECALL_MAX_TOKENS = 2048;
 export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.84;       // 跨 session 阈值（很严格）
@@ -36,8 +36,6 @@ export const MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30;
 // 世界时间线
 // ============================
 export const WORLD_TIMELINE_RECENT_LIMIT = 5;
-export const WORLD_TIMELINE_COMPRESS_THRESHOLD = 50;
-export const WORLD_TIMELINE_MAX_ENTRIES = 200;
 
 // ============================
 // 消息查询

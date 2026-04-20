@@ -264,22 +264,26 @@ skill 执行失败时发送。
 ## 5. `entryOps`
 
 ```json
-{ "op": "create", "title": "标题", "summary": "简介", "content": "正文", "keywords": ["a", "b"] }
+{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant" }
 ```
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "标题", "summary": "简介", "content": "正文", "keywords": ["a", "b"] }
+{ "op": "update", "id": "现有条目ID", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant" }
 ```
 
 ```json
 { "op": "delete", "id": "现有条目ID" }
 ```
 
-全局条目在 `create` 时额外允许：
+全局条目在 `create` 时额外允许 `mode` 字段：
 
 ```json
-{ "op": "create", "title": "标题", "summary": "简介", "content": "正文", "keywords": ["a"], "mode": "chat" }
+{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a"], "keyword_scope": "user,assistant", "mode": "chat" }
 ```
+
+`description`（触发条件）：1-2 句话描述**何时**触发，为空则降级为纯关键词触发。
+
+`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
 
 ## 6. `stateFieldOps`
 

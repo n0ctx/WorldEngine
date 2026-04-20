@@ -8,7 +8,7 @@ import AboutPanel from '../components/settings/AboutPanel';
 import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
-import { NAV_SECTIONS } from '../components/settings/_settingsConstants';
+import { NAV_SECTIONS } from '../components/settings/_settings-constants';
 
 export default function SettingsPage() {
   const navigate = useNavigate();

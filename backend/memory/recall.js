@@ -5,7 +5,6 @@
  *   renderPersonaState(worldId, sessionId)                 → string
  *   renderWorldState(worldId, sessionId)                   → string
  *   renderCharacterState(characterId, sessionId)           → string
- *   renderTimeline(sessionId, limit)                       → string（当前会话近 N 轮摘要）
  *   searchRecalledSummaries(worldId, sessionId)            → Promise<{ recalled: Array, recentMessagesText: string }>
  *     recalled 元素：{ ref, session_id, session_title, created_at, content, score }
  *   renderRecalledSummaries(recalled)                      → string（接受结构化列表，返回注入文本）
@@ -17,8 +16,8 @@ import { getTurnRecordById } from '../db/queries/turn-records.js';
 import { embed } from '../llm/embedding.js';
 import { search } from '../utils/turn-summary-vector-store.js';
 import { countTokens } from '../utils/token-counter.js';
+import { getConfig } from '../services/config.js';
 import {
-  WORLD_TIMELINE_RECENT_LIMIT,
   MEMORY_RECALL_MAX_SESSIONS,
   MEMORY_RECALL_MAX_TOKENS,
 } from '../utils/constants.js';
@@ -169,33 +168,6 @@ export function renderCharacterState(characterId, sessionId) {
 }
 
 /**
- * 渲染当前会话近 limit 轮摘要为可读文本（注入提示词 [11] 位置）。
- * 取该 session 最近 N 条 turn_records，按 round_index 升序排列。
- *
- * @param {string} sessionId
- * @param {number} [limit] — 默认 WORLD_TIMELINE_RECENT_LIMIT
- * @returns {string} 渲染结果，无记录时返回空字符串
- */
-export function renderTimeline(sessionId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
-  const rows = db.prepare(`
-    SELECT round_index, summary FROM (
-      SELECT round_index, summary FROM turn_records
-      WHERE session_id = ?
-      ORDER BY round_index DESC LIMIT ?
-    ) ORDER BY round_index ASC
-  `).all(sessionId, limit);
-
-  if (rows.length === 0) return '';
-
-  const lines = ['[当前会话摘要]'];
-  for (const row of rows) {
-    lines.push(`- [第${row.round_index}轮] ${row.summary}`);
-  }
-
-  return lines.join('\n');
-}
-
-/**
  * 基于当前对话最后一轮（最后一条 user + 最后一条 assistant），向量搜索历史 turn summary。
  * 每条元素：{ ref, turn_record_id, session_id, session_title, created_at, content, score, is_same_session }
  * ref 从 1 起，供 AI 通过 #ref 指代。
@@ -246,12 +218,22 @@ export async function searchRecalledSummaries(worldId, sessionId) {
 
   if (hits.length === 0) return { recalled: [], recentMessagesText };
 
+  // 排除已在上下文窗口内的轮次（[14] history），避免同一内容三重注入导致输出锚定
+  const config = getConfig();
+  const contextWindow = config.context_history_rounds ?? 12;
+  const recentIds = new Set(
+    db.prepare('SELECT id FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT ?')
+      .all(sessionId, contextWindow)
+      .map((r) => r.id),
+  );
+
   // 拉取 turn record 元信息，按 token 预算软截断，构建结构化列表
   const recalled = [];
   let totalTokens = 0;
   let ref = 1;
 
   for (const hit of hits) {
+    if (recentIds.has(hit.turn_record_id)) continue;
     const record = getTurnRecordById(hit.turn_record_id);
     if (!record?.summary) continue;
 

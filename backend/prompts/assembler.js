@@ -13,14 +13,15 @@
  *   [8]  全局 Prompt 条目（description全量注入；命中→content追加）
  *   [9]  世界 Prompt 条目
  *   [10] 角色 Prompt 条目
- *   [11] 世界时间线
- *   [12] 召回摘要（向量搜索历史 turn summaries）
+ *   [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
  *   [13] 展开原文（AI preflight 决策后的 turn record 原文）
  *   [历史消息：role:user/assistant 交替]
  *   [14] 历史消息（turn records 新路径；无 turn records 时降级为 uncompressed messages）
  *   [尾部 user 消息]
  *   [15] 后置提示词（全局→世界→角色，均空跳过）
  *   [16] 当前用户消息
+ *
+ * 注：[11] 世界时间线已移除（turn records 已在 [14] 历史消息中完整呈现，重复注入会导致输出锚定）
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -48,7 +49,6 @@ import {
   renderPersonaState,
   renderWorldState,
   renderCharacterState,
-  renderTimeline,
   searchRecalledSummaries,
   renderRecalledSummaries,
 } from '../memory/recall.js';
@@ -212,11 +212,7 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [11] 当前会话摘要（最近 N 轮 turn_records）
-  const timelineText = renderTimeline(sessionId);
-  if (timelineText) systemParts.push(tv(timelineText));
-
-  // [12] 召回摘要（向量搜索历史 turn summaries）
+  // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
@@ -393,10 +389,6 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
   if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
-
-  // [11] 当前会话摘要
-  const timelineText = renderTimeline(sessionId);
-  if (timelineText) systemParts.push(tv(timelineText));
 
   const messages = [];
   const systemContent = systemParts.filter(Boolean).join('\n\n');

@@ -21,7 +21,10 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
-- `T134` `chore` M7 前端 api/ 目录文件命名统一为 kebab-case — 13 个文件重命名，所有引用同步更新，CLAUDE.md 补充命名约定
+- `T137` `bugfix` 写卡助手 entryOps description/keyword_scope 丢失 — normalizeEntryOps 读 summary→description，补 keyword_scope，update pickAllowed 同步修正，CONTRACT.md/ChangeProposalCard.jsx/main.md 同步
+- `T136` `chore` 清理 [11] 删除后的废弃代码 — `renderTimeline()`、`WORLD_TIMELINE_COMPRESS_THRESHOLD`、`WORLD_TIMELINE_MAX_ENTRIES`
+- `T135` `bugfix` 删除 [11] 时间线段、recall 排除上下文窗口内轮次 — 消除 impersonate/选项重复输出的三重注入根因
+- `T134` `chore` M7 前端 api/ 目录文件命名统一为 kebab-case — 14 个文件重命名（含 _settingsConstants→_settings-constants），所有引用同步更新，CLAUDE.md 补充各目录命名约定
 - `T133` `refactor` CP-6 路由层 404 重复代码统一 — 新增 assertExists，覆盖 12 个路由文件约 55 处
 - `T131` `refactor` CS-6 runStream Feature Envy — processStreamOutput + enqueueStreamTasks 提取，修复 /continue sid bug
 - `T130` `refactor` CS-2 importWorld 深嵌套 — 私有辅助函数提取，嵌套 5→3 层
@@ -52,6 +55,16 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T137 — bugfix: 写卡助手 entryOps description/keyword_scope 丢失 ✅
+- **对外接口**：`normalizeEntryOps` 内部函数（assistant/server/routes.js）
+- **涉及文件**：`assistant/server/routes.js`、`assistant/client/ChangeProposalCard.jsx`、`assistant/CONTRACT.md`、`assistant/prompts/main.md`
+- **注意**：根因是 `normalizeEntryOps` 读取旧字段名 `summary`，但数据库迁移已将该列改名为 `description`（语义也变了：从"50字简介，始终注入"变为"触发条件，1-2句话"）；skill prompt 已正确输出 `description`，但 normalizer 把它静默丢弃，导致 DB 写入为空字符串。同期遗漏 `keyword_scope` 字段传递。3 处 `pickAllowed(op, ['title','summary','content','keywords'])` 也一并修正为 `['title','description','content','keywords','keyword_scope']`
+
+## T135 — bugfix: 删除 [11] 时间线、recall 排除上下文窗口内轮次 ✅
+- **对外接口**：`searchRecalledSummaries(worldId, sessionId)` 签名不变；内部新增上下文排除逻辑
+- **涉及文件**：`backend/prompts/assembler.js`、`backend/memory/recall.js`、`ARCHITECTURE.md`、`CLAUDE.md`
+- **注意**：根因是三重注入——同一轮次内容同时出现在 [11] 时间线摘要、[12] 向量召回结果、[14] 历史消息原文，导致 LLM 在 impersonate 和选项生成时强烈锚定近期内容、连续输出相同结果。`renderTimeline` 函数本身未删除（前端 session-timeline API 仍依赖），只是不再注入 prompt。排除窗口读 `config.context_history_rounds`（默认 12），与 [14] 历史窗口严格对齐；短会话中 [12] 召回可能全为空，这是正确行为
 
 ## T133 — refactor: CP-6 路由层 404 重复代码统一 ✅
 - **对外接口**：无接口变化；HTTP 行为完全不变

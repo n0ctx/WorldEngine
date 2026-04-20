@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { executeProposal } from './api.js';
 import { useAssistantStore } from './useAssistantStore.js';
-import { refreshCustomCss } from '../../frontend/src/api/customCssSnippets.js';
+import { refreshCustomCss } from '../../frontend/src/api/custom-css-snippets.js';
 import { invalidateCache, loadRules } from '../../frontend/src/utils/regex-runner.js';
 
 const OP_LABELS = { create: '新建', update: '修改', delete: '删除' };
@@ -103,9 +103,9 @@ function EntryOpEditor({ op, onChange, onRemove }) {
             style={{ ...inputBase, marginBottom: '4px' }}
           />
           <input
-            placeholder="简介（50字以内，始终注入）"
-            value={op.summary || ''}
-            onChange={(e) => onChange({ ...op, summary: e.target.value })}
+            placeholder="触发条件（何时触发，1-2句话，留空降级为纯关键词触发）"
+            value={op.description || ''}
+            onChange={(e) => onChange({ ...op, description: e.target.value })}
             style={{ ...inputBase, marginBottom: '4px' }}
           />
           <textarea
@@ -461,7 +461,7 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
                   >
                     <span style={{ fontSize: '10px', color: eOpColor, fontWeight: 600, flexShrink: 0 }}>[{eOpLabel}]</span>
                     <strong>{op.title || op.id}</strong>
-                    {op.summary && <span style={{ color: 'var(--we-ink-secondary)' }}>— {op.summary}</span>}
+                    {op.description && <span style={{ color: 'var(--we-ink-secondary)' }}>— {op.description}</span>}
                   </div>
                 );
               })}

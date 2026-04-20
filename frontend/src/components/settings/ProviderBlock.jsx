@@ -4,7 +4,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FieldLabel from './FieldLabel';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, getProviderThinkingOptions } from './_settingsConstants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, getProviderThinkingOptions } from './_settings-constants';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');

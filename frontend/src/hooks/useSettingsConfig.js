@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getConfig, updateConfig } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS } from '../components/settings/_settingsConstants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS } from '../components/settings/_settings-constants';
 
 export function useSettingsConfig() {
   const [loading, setLoading] = useState(true);

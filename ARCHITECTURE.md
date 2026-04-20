@@ -158,7 +158,7 @@ POST /api/sessions/:sessionId/chat
 
 `assembler.js` 只负责拼装顺序与运行时数据；固定后端模板（如 suggestion prompt）统一存放在 `backend/prompts/templates/` 的分组目录下，通过 `prompt-loader.js` 读取。
 
-16 段顺序，[1]–[13] 合并为单条 `role:system`，[14] 为多条 `role:user/assistant`，[15]–[16] 为尾部 `role:user`：
+15 段顺序（[11] 世界时间线已移除），[1]–[13] 合并为单条 `role:system`，[14] 为多条 `role:user/assistant`，[15]–[16] 为尾部 `role:user`：
 
 | 段 | 来源 | 跳过条件 |
 |---|---|---|
@@ -172,10 +172,9 @@ POST /api/sessions/:sessionId/chat
 | [8] | 全局 Prompt 条目（命中→`entry.content`，未命中→`entry.description`） | 无条目时跳过 |
 | [9] | 世界 Prompt 条目（同上） | — |
 | [10] | 角色 Prompt 条目（同上） | — |
-| [11] | `renderTimeline(session.id)`（当前会话近5轮 turn_records 摘要） | 无摘要记录时跳过 |
-| [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries` | 无命中时跳过 |
+| [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
-| [14] | 历史消息：**有 turn records** → 取最近 `context_history_rounds` 条，每条渲染为 user/assistant 对；**无 turn records（旧 session）** → 降级用 `getUncompressedMessagesBySessionId`，仅移除“最新一条 user 消息”并保留 assistant 开场白；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
+| [14] | 历史消息：**有 turn records** → 取最近 `context_history_rounds` 条，每条渲染为 user/assistant 对；**无 turn records（旧 session）** → 降级用 `getUncompressedMessagesBySessionId`，仅移除”最新一条 user 消息”并保留 assistant 开场白；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
 | [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理 | — |
 
@@ -247,16 +246,17 @@ createTurnRecord(sessionId, { isUpdate? })
 | `renderPersonaState(worldId)` → string | `[玩家状态]` | LEFT JOIN persona_state_fields + values；按 sort_order ASC |
 | `renderCharacterState(characterId)` → string | `[角色状态]` | LEFT JOIN character_state_fields + values；按 sort_order ASC |
 | `renderWorldState(worldId)` → string | `[世界状态]` | LEFT JOIN world_state_fields + values；按 sort_order ASC |
-| `renderTimeline(sessionId, limit=5)` → string | `[会话摘要]` | 取当前会话最近 limit 轮 turn_records 摘要（按 round_index DESC），格式：`第N轮：{summary}` |
+| `renderTimeline(sessionId, limit=5)` → string | `[会话摘要]` | 取当前会话最近 limit 轮 turn_records 摘要；**不再注入 prompt（[11] 已删），仅供前端 sessionTimeline API 调用** |
 | `searchRecalledSummaries(worldId, sessionId)` → Promise<{recalled, recentMessagesText}> | — | 向量搜索；recalled 数组含 `{ref, turn_record_id, session_id, session_title, round_index, created_at, content, score, is_same_session}` |
 | `renderRecalledSummaries(recalled)` → string | `[历史记忆召回]` | 格式：`#ref（turn_record_id）【date · title · 第N轮】content` |
 
-**组装位置**：[3] 世界状态、[5] 玩家状态、[7] 角色状态各自独立注入；[11] 时间线；[12] 召回摘要；[13] 展开原文（见 §4）。
+**组装位置**：[3] 世界状态、[5] 玩家状态、[7] 角色状态各自独立注入；[12] 召回摘要；[13] 展开原文（见 §4）。
 
-**向量搜索行为（T49 新）**：
+**向量搜索行为（T49 新，T135 改）**：
 - 查询向量 = 最后一条 user 消息 + 最后一条 assistant 消息拼接嵌入
 - topK = `MEMORY_RECALL_MAX_SESSIONS`（3）
 - **双阈值**：同 session（`is_same_session = true`）使用 `MEMORY_RECALL_SAME_SESSION_THRESHOLD`（0.72）；跨 session 使用 `MEMORY_RECALL_SIMILARITY_THRESHOLD`（0.84）
+- **上下文排除（T135）**：命中的 turn_record_id 若在当前 session 最近 `context_history_rounds` 轮内，直接跳过（避免与 [14] 三重注入导致输出锚定）
 - token 预算软截断（`MEMORY_RECALL_MAX_TOKENS` = 2048），超额时 break
 - embedding 未配置时静默降级，返回 `{ recalled: [], recentMessagesText }`
 

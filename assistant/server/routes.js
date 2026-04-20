@@ -222,7 +222,7 @@ async function applyProposal(proposal, worldRefId = null) {
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
       for (const op of worldOps) {
         if (op.op === 'create') createWorldPromptEntry(entityId, op);
-        else if (op.op === 'update' && op.id) updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'summary', 'content', 'keywords']));
+        else if (op.op === 'update' && op.id) updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
         else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
       }
       for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
@@ -265,7 +265,7 @@ async function applyProposal(proposal, worldRefId = null) {
       const charOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
       for (const op of charOps) {
         if (op.op === 'create') createCharacterPromptEntry(entityId, op);
-        else if (op.op === 'update' && op.id) updateCharacterPromptEntry(op.id, pickAllowed(op, ['title', 'summary', 'content', 'keywords']));
+        else if (op.op === 'update' && op.id) updateCharacterPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
         else if (op.op === 'delete' && op.id) deleteCharacterPromptEntry(op.id);
       }
       const charSfOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
@@ -300,7 +300,7 @@ async function applyProposal(proposal, worldRefId = null) {
       const globalOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
       for (const op of globalOps) {
         if (op.op === 'create') createGlobalPromptEntry(op);
-        else if (op.op === 'update' && op.id) updateGlobalPromptEntry(op.id, pickAllowed(op, ['title', 'summary', 'content', 'keywords']));
+        else if (op.op === 'update' && op.id) updateGlobalPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
         else if (op.op === 'delete' && op.id) deleteGlobalPromptEntry(op.id);
       }
       return updated;
@@ -492,9 +492,10 @@ function normalizeEntryOps(rawOps, { includeMode }) {
       normalized.id = id;
     }
     if ('title' in raw) normalized.title = String(raw.title ?? '');
-    if ('summary' in raw) normalized.summary = String(raw.summary ?? '');
+    if ('description' in raw) normalized.description = String(raw.description ?? '');
     if ('content' in raw) normalized.content = String(raw.content ?? '');
     if ('keywords' in raw) normalized.keywords = normalizeStringArrayOrNull(raw.keywords);
+    if ('keyword_scope' in raw) normalized.keyword_scope = raw.keyword_scope;
     if (includeMode && op === 'create') normalized.mode = normalizeMode(raw.mode);
     return normalized;
   });

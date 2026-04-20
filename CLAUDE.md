@@ -144,7 +144,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | `CLAUDE.md` | 根目录唯一入口正文；改入口规范时只改这里，不改 `AGENTS.md` 正文 |
 | `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；新增表/字段时用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE IF NOT EXISTS` 追加，不重建已有表 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；新增常量需说明用途和来源 |
-| `/backend/prompts/assembler.js` | 提示词组装顺序硬编码（16 段，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
+| `/backend/prompts/assembler.js` | 提示词组装顺序硬编码（15 段，[11] 时间线已删，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；已含 `import './services/cleanup-registrations.js'` 副作用 import |
 
@@ -179,7 +179,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **提示词组装**
 - 顺序权威来源：`backend/prompts/assembler.js` + `ARCHITECTURE.md §4`
 - 任何段位、注入来源、历史消息策略、写作模式差异的改动，都必须同步更新 `ARCHITECTURE.md`
-- `CLAUDE.md` 不重复维护 16 段运行时细节，避免和实现漂移
+- `CLAUDE.md` 不重复维护 15 段运行时细节，避免和实现漂移
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置
 
@@ -211,9 +211,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - `utils/` 只放纯工具函数；不要把页面业务流程塞进工具文件
 
 **文件命名约定**
-- 前端 `frontend/src/api/` 目录：统一 kebab-case（如 `import-export.js`、`session-timeline.js`）
-- 前端 `frontend/src/components/` 目录：React 组件文件统一 PascalCase（如 `MessageItem.jsx`）
-- 前端 `frontend/src/pages/`、`frontend/src/hooks/`、`frontend/src/utils/`：统一 camelCase（如 `ChatPage.jsx`、`useSettingsConfig.js`）
+- 前端 `frontend/src/api/`：统一 kebab-case（如 `import-export.js`、`session-timeline.js`）
+- 前端 `frontend/src/components/`、`frontend/src/pages/`：React 组件/页面文件统一 PascalCase（如 `MessageItem.jsx`、`ChatPage.jsx`）
+- 前端 `frontend/src/hooks/`：camelCase，必须以 `use` 开头（如 `useSettingsConfig.js`）
+- 前端 `frontend/src/utils/`、`frontend/src/styles/`：统一 kebab-case（如 `chapter-grouping.js`、`regex-runner.js`）
 - 后端所有 `.js` 文件：统一 kebab-case（如 `combined-state-updater.js`、`entry-matcher.js`）
 
 **实现风格**
