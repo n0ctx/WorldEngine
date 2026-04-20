@@ -83,7 +83,8 @@ export async function generateTitle(sessionId) {
   if (!raw) return null;
 
   // 剥除 LLM 输出中可能带有的 think 标签（推理模型自身也会输出思考过程）
-  const title = stripThinkTags(raw).replace(/["'"'「」『』《》【】]/g, '').slice(0, 15);
+  const title = stripThinkTags(raw).replace(/["'"'「」『』《》【】]/g, '').trim().slice(0, 15);
+  if (!title) return null;
   updateSessionTitle(sessionId, title);
   log.info(`generateTitle DONE  session=${sid}  title="${title}"`);
   return title;

@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## bugfix — decideExpansion & generateTitle <think> 污染修复 ✅
+- **涉及文件**：`backend/memory/summary-expander.js`、`backend/memory/summarizer.js`
+- **注意**：
+  - `decideExpansion`：`cleaned` 只去 `` ```json `` 包裹而未剥 `<think>` 标签，导致 JSON.parse 报错并降级为不展开。修复：在去 `` ```json `` 前先 strip `<think>` 推理链。
+  - `generateTitle`：`stripThinkTags` 已存在，但模型输出全为 `<think>` 内容时剥完为空字符串，仍会调用 `updateSessionTitle("")` 写坏标题。修复：剥除后若为空直接 `return null`，保留 NULL 供下次重试。
+
 ## bugfix — 时间线实时更新 & 摘要清洁 ✅
 - **涉及文件**：`frontend/src/components/book/StatePanel.jsx`、`backend/memory/turn-summarizer.js`
 - **注意**：

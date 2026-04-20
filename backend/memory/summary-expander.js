@@ -58,8 +58,12 @@ export async function decideExpansion({ sessionId, recalled, recentMessagesText 
       maxTokens: MEMORY_EXPAND_DECISION_MAX_TOKENS,
     });
 
-    // strip 可能的 ```json 包裹
-    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+    // 剥除 <think>...</think> 推理链，再去 ```json 包裹
+    const stripped = (raw || '')
+      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
+      .replace(/<think>[\s\S]*$/, '')
+      .trim();
+    const cleaned = stripped.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
     const parsed = JSON.parse(cleaned);
 
     if (!parsed || !Array.isArray(parsed.expand)) return [];
