@@ -1,5 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 
+/** options 支持 string[] 或 { id, inputPrice?, outputPrice? }[] */
+function optionId(o) { return typeof o === 'string' ? o : o.id; }
+
+function formatPrice(p) {
+  if (p == null || !Number.isFinite(p) || p <= 0) return null;
+  if (p < 0.1) return p.toFixed(3).replace(/0+$/, '');
+  if (p < 1)   return p.toFixed(2).replace(/0+$/, '');
+  if (p < 10)  return p % 1 === 0 ? String(p) : p.toFixed(1);
+  return String(Math.round(p));
+}
+
 export default function ModelCombobox({
   value = '',
   onChange,
@@ -34,31 +45,32 @@ export default function ModelCombobox({
 
   // 只在用户主动输入时才过滤，初始打开时显示全部
   const filtered = filtering && inputValue.trim()
-    ? options.filter((o) => o.toLowerCase().includes(inputValue.toLowerCase()))
+    ? options.filter((o) => optionId(o).toLowerCase().includes(inputValue.toLowerCase()))
     : options;
 
   function handleFocus() {
-    setFiltering(false); // 聚焦时重置过滤，显示全部
+    setFiltering(false);
     setOpen(true);
   }
 
   function handleInputChange(e) {
     setInputValue(e.target.value);
-    setFiltering(true); // 用户开始输入，激活过滤
+    setFiltering(true);
     onChange(e.target.value);
     if (!open) setOpen(true);
   }
 
   function handleSelect(option) {
-    setInputValue(option);
+    const id = optionId(option);
+    setInputValue(id);
     setFiltering(false);
-    onChange(option);
+    onChange(id);
     setOpen(false);
   }
 
   function handleToggle() {
     if (disabled) return;
-    if (!open) setFiltering(false); // 点箭头展开时不过滤
+    if (!open) setFiltering(false);
     setOpen((p) => !p);
   }
 
@@ -77,7 +89,6 @@ export default function ModelCombobox({
         overflow: 'hidden',
         transition: 'border-color 0.18s, box-shadow 0.18s',
       }}
-        onFocus={() => {}}
         className="we-combobox-wrap"
       >
         <input
@@ -133,25 +144,44 @@ export default function ModelCombobox({
           scrollbarWidth: 'thin',
           scrollbarColor: 'var(--we-paper-shadow) transparent',
         }}>
-          {filtered.map((option) => (
-            <li
-              key={option}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
-              style={{
-                padding: '7px 14px',
-                fontFamily: 'var(--we-font-serif)',
-                fontSize: '14px',
-                color: option === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
-                cursor: 'pointer', userSelect: 'none',
-                transition: 'background 0.12s',
-                listStyle: 'none',
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-            >
-              {option}
-            </li>
-          ))}
+          {filtered.map((option) => {
+            const id = optionId(option);
+            const inp = typeof option === 'object' ? formatPrice(option.inputPrice) : null;
+            const out = typeof option === 'object' ? formatPrice(option.outputPrice) : null;
+            const hasPrice = inp != null || out != null;
+            return (
+              <li
+                key={id}
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
+                style={{
+                  padding: '6px 14px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  fontFamily: 'var(--we-font-serif)',
+                  fontSize: '14px',
+                  color: id === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
+                  cursor: 'pointer', userSelect: 'none',
+                  transition: 'background 0.12s',
+                  listStyle: 'none',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{id}</span>
+                {hasPrice && (
+                  <span style={{
+                    flexShrink: 0, marginLeft: '10px',
+                    fontSize: '11.5px',
+                    fontFamily: 'var(--we-font-ui, var(--we-font-serif))',
+                    color: 'var(--we-ink-faded)',
+                    opacity: 0.8,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''} <span style={{ opacity: 0.6 }}>/1M</span>
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

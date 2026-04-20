@@ -168,17 +168,20 @@ router.put('/embedding-apikey', (req, res) => {
 // 模型列表拉取 — 公共逻辑
 // ============================================================
 
+// 价格单位：美元 / 1M tokens
 const ANTHROPIC_MODELS = [
-  'claude-opus-4-5',
-  'claude-sonnet-4-5',
-  'claude-haiku-4-5',
-  'claude-opus-4-0',
-  'claude-sonnet-4-0',
+  { id: 'claude-opus-4-5',   inputPrice: 15,  outputPrice: 75 },
+  { id: 'claude-sonnet-4-5', inputPrice: 3,   outputPrice: 15 },
+  { id: 'claude-haiku-4-5',  inputPrice: 0.8, outputPrice: 4  },
+  { id: 'claude-opus-4-0',   inputPrice: 15,  outputPrice: 75 },
+  { id: 'claude-sonnet-4-0', inputPrice: 3,   outputPrice: 15 },
 ];
 
 /**
  * OpenAI-compatible 模型列表拉取（通用）
  * 适用于：OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow / LM Studio
+ * 返回 { id, inputPrice?, outputPrice? }[]，价格单位 $/1M tokens
+ * 目前只有 OpenRouter 在模型列表 API 中返回价格
  */
 const OPENAI_COMPATIBLE_BASE_URLS = {
   openai: 'https://api.openai.com/v1',
@@ -192,37 +195,54 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   lmstudio: 'http://localhost:1234',
 };
 
-async function fetchOpenAICompatibleModels(base, apiKey) {
+function toPrice1M(perToken) {
+  const n = parseFloat(perToken);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  const v = n * 1_000_000;
+  return Math.round(v * 100) / 100;
+}
+
+async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const url = `${base.replace(/\/+$/, '')}/models`;
   const headers = {};
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`API ${resp.status}`);
   const data = await resp.json();
-  return (data.data || []).map((m) => m.id);
+  return (data.data || []).map((m) => {
+    const entry = { id: m.id };
+    // OpenRouter 在模型列表中返回 pricing 字段
+    if (provider === 'openrouter' && m.pricing) {
+      const inp = toPrice1M(m.pricing.prompt);
+      const out = toPrice1M(m.pricing.completion);
+      if (inp != null) entry.inputPrice = inp;
+      if (out != null) entry.outputPrice = out;
+    }
+    return entry;
+  });
 }
 
 async function fetchModels(provider, apiKey, baseUrl) {
-  // Anthropic — 硬编码
+  // Anthropic — 硬编码（含价格）
   if (provider === 'anthropic') return ANTHROPIC_MODELS;
 
-  // Gemini — 原生接口
+  // Gemini — 原生接口（暂无价格）
   if (provider === 'gemini') {
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
     );
     if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
     const data = await resp.json();
-    return (data.models || []).map((m) => m.name.replace(/^models\//, ''));
+    return (data.models || []).map((m) => ({ id: m.name.replace(/^models\//, '') }));
   }
 
-  // Ollama — 专有 /api/tags 接口
+  // Ollama — 专有 /api/tags 接口（本地无价格）
   if (provider === 'ollama') {
     const url = validateModelFetchBaseUrl(provider, baseUrl || 'http://localhost:11434');
     const resp = await fetch(`${url}/api/tags`);
     if (!resp.ok) throw new Error(`Ollama API ${resp.status}`);
     const data = await resp.json();
-    return (data.models || []).map((m) => m.name);
+    return (data.models || []).map((m) => ({ id: m.name }));
   }
 
   // OpenAI-compatible 一族（含无默认 URL 的 openai_compatible）
@@ -230,7 +250,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
   if (defaultBase !== undefined || provider === 'openai_compatible') {
     const base = validateModelFetchBaseUrl(provider, baseUrl || defaultBase);
     if (!base) throw new Error('openai_compatible provider 需要指定 Base URL');
-    return fetchOpenAICompatibleModels(base, apiKey);
+    return fetchOpenAICompatibleModels(base, apiKey, provider);
   }
 
   throw new Error(`不支持的 provider: ${provider}`);
