@@ -1,47 +1,28 @@
+import { request } from './request.js';
+
 const BASE = '/api/custom-css-snippets';
 
-export async function listSnippets({ mode } = {}) {
+export function listSnippets({ mode } = {}) {
   const params = new URLSearchParams();
   if (mode) params.set('mode', mode);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(`${BASE}${query}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request(`${BASE}${query}`);
 }
 
-export async function createSnippet(data) {
-  const res = await fetch(BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function createSnippet(data) {
+  return request(BASE, { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function updateSnippet(id, patch) {
-  const res = await fetch(`${BASE}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function updateSnippet(id, patch) {
+  return request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(patch) });
 }
 
-export async function deleteSnippet(id) {
-  const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(await res.text());
+export function deleteSnippet(id) {
+  return request(`${BASE}/${id}`, { method: 'DELETE' });
 }
 
-export async function reorderSnippets(items) {
-  const res = await fetch(`${BASE}/reorder`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function reorderSnippets(items) {
+  return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
 }
 
 /**

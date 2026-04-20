@@ -1,47 +1,28 @@
+import { request } from './request.js';
+
 const BASE = '/api/regex-rules';
 
-export async function listRegexRules({ scope, worldId, mode } = {}) {
+export function listRegexRules({ scope, worldId, mode } = {}) {
   const params = new URLSearchParams();
   if (scope) params.set('scope', scope);
   if (worldId !== undefined && worldId !== null) params.set('worldId', worldId);
   if (mode) params.set('mode', mode);
   const query = params.toString() ? `?${params}` : '';
-  const res = await fetch(`${BASE}${query}`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return request(`${BASE}${query}`);
 }
 
-export async function createRegexRule(data) {
-  const res = await fetch(BASE, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function createRegexRule(data) {
+  return request(BASE, { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function updateRegexRule(id, patch) {
-  const res = await fetch(`${BASE}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(patch),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function updateRegexRule(id, patch) {
+  return request(`${BASE}/${id}`, { method: 'PUT', body: JSON.stringify(patch) });
 }
 
-export async function deleteRegexRule(id) {
-  const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error(await res.text());
+export function deleteRegexRule(id) {
+  return request(`${BASE}/${id}`, { method: 'DELETE' });
 }
 
-export async function reorderRegexRules(items) {
-  const res = await fetch(`${BASE}/reorder`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items }),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+export function reorderRegexRules(items) {
+  return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
 }
