@@ -21,6 +21,23 @@ import { getOrCreatePersona } from '../services/personas.js';
 
 const log = createLogger('turn-sum');
 
+function getRoundMessagePair(allMsgs, roundIndex) {
+  const userIndexes = allMsgs
+    .map((msg, index) => (msg.role === 'user' ? index : -1))
+    .filter((index) => index >= 0);
+
+  const userIndex = userIndexes[roundIndex - 1];
+  if (userIndex == null) return { userMsg: null, asstMsg: null };
+
+  const nextUserIndex = userIndexes[roundIndex] ?? allMsgs.length;
+  const userMsg = allMsgs[userIndex];
+  const assistantCandidates = allMsgs.slice(userIndex + 1, nextUserIndex)
+    .filter((msg) => msg.role === 'assistant');
+  const asstMsg = assistantCandidates[assistantCandidates.length - 1] ?? null;
+
+  return { userMsg, asstMsg };
+}
+
 /**
  * 为当前 session 最近一轮（最后一条 user + 最后一条 assistant）创建 turn record。
  *
@@ -41,13 +58,14 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   const userName = persona?.name?.trim() || '玩家';
   const characterName = character?.name?.trim() || '角色';
 
-  // 取全部消息，找最后一条 user + 最后一条 assistant
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const userMsg = [...allMsgs].reverse().find((m) => m.role === 'user');
-  const asstMsg = [...allMsgs].reverse().find((m) => m.role === 'assistant');
+  const round_index = isUpdate
+    ? (getLatestTurnRecord(sessionId)?.round_index ?? 1)
+    : countTurnRecords(sessionId) + 1;
+  const { userMsg, asstMsg } = getRoundMessagePair(allMsgs, round_index);
 
   if (!userMsg || !asstMsg) {
-    log.info(`SKIP  ${formatMeta({ session: sid, reason: 'missing-pair' })}`);
+    log.info(`SKIP  ${formatMeta({ session: sid, round: round_index, reason: 'missing-round-pair' })}`);
     return;
   }
 
@@ -84,15 +102,6 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   if (!summary) {
     log.warn(`SKIP  ${formatMeta({ session: sid, reason: 'empty-summary' })}`);
     return;
-  }
-
-  // 计算 round_index
-  let round_index;
-  if (isUpdate) {
-    const latest = getLatestTurnRecord(sessionId);
-    round_index = latest ? latest.round_index : 1;
-  } else {
-    round_index = countTurnRecords(sessionId) + 1;
   }
 
   // 写入 DB（upsert by session_id + round_index）

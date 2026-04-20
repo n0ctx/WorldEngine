@@ -1,7 +1,7 @@
 /**
  * 写卡助手后端路由
  *
- * POST /api/assistant/chat    — SSE 流式对话（单 Agent + skill tools）
+ * POST /api/assistant/chat    — SSE 流式对话（主代理 + 执行子代理）
  * POST /api/assistant/execute — 应用提案（写入数据库）
  */
 
@@ -10,8 +10,8 @@ import { Router } from 'express';
 import { runAgent } from './main-agent.js';
 import { READ_FILE_TOOL } from './tools/project-reader.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
-import { ALL_SKILLS } from './skills/index.js';
-import { createSkillTool } from './skill-factory.js';
+import { ALL_AGENTS } from './agents/index.js';
+import { createAgentTool } from './agent-factory.js';
 import { getWorldById, createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
 import { getCharacterById, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
 import { getOrCreatePersona, updatePersona } from '../../backend/services/personas.js';
@@ -56,6 +56,16 @@ const log = createLogger('as-route', 'yellow');
 // ─── 服务端提案存储（Token → Proposal，TTL 30 分钟） ──────────────
 const proposalStore = new Map();
 const PROPOSAL_TTL_MS = 30 * 60 * 1000;
+
+// 每 10 分钟清理过期提案，防止内存泄漏
+setInterval(() => {
+  const now = Date.now();
+  let removed = 0;
+  for (const [token, entry] of proposalStore.entries()) {
+    if (now > entry.expiresAt) { proposalStore.delete(token); removed++; }
+  }
+  if (removed > 0) log.info(`proposalStore GC  ${formatMeta({ removed })}`);
+}, 10 * 60 * 1000).unref();
 const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
 const VALID_MODES = new Set(['chat', 'writing']);
 const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean']);
@@ -113,10 +123,10 @@ router.post('/chat', async (req, res) => {
 
   // 构建按请求绑定的完整工具集
   const previewCardTool = createPreviewCardTool(context);
-  const skillTools = ALL_SKILLS.map((def) =>
-    createSkillTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
+  const agentTools = ALL_AGENTS.map((def) =>
+    createAgentTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
   );
-  const allTools = [READ_FILE_TOOL, previewCardTool, ...skillTools];
+  const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
 
   try {
     const gen = runAgent(message, history, context, allTools);

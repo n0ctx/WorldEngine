@@ -263,8 +263,7 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   try {
     const { messages, overrides } = await buildContext(sessionId);
-    const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
-    const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
+    const continuationMessages = buildContinuationMessages(messages, originalContent);
 
     const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal });
     for await (const chunk of stream) {

@@ -41,25 +41,12 @@ export function beginStreamSession(sessionId, res, activeStreams) {
   };
 }
 
-export function buildContinuationMessages(rawMessages, allMessages, hasTurnRecords, originalContent) {
+export function buildContinuationMessages(rawMessages, originalContent) {
   const messages = [...rawMessages];
-
-  while (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-    messages.pop();
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage?.role !== 'user') {
+    return [...messages, { role: 'assistant', content: originalContent }];
   }
-
-  if (hasTurnRecords && messages.length > 0 && messages[messages.length - 1].role === 'assistant') {
-    messages.pop();
-    if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
-      messages.pop();
-    }
-  }
-
-  const lastUserMessage = [...allMessages].reverse().find((message) => message.role === 'user');
-  if (lastUserMessage) {
-    messages.push({ role: 'user', content: lastUserMessage.content });
-  }
-
   messages.push({ role: 'assistant', content: originalContent });
   return messages;
 }

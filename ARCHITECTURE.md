@@ -169,12 +169,12 @@ POST /api/sessions/:sessionId/chat
 | [5] | `renderPersonaState(world.id)` | 空跳过 |
 | [6] | `[\{\{char\}\}人设]\n${character.system_prompt}` | 空跳过 |
 | [7] | `renderCharacterState(character.id)` | 空跳过 |
-| [8] | 全局 Prompt 条目（命中→`entry.content`，未命中→`entry.description`） | 无条目时跳过 |
+| [8] | 全局 Prompt 条目（`description` 仅供 preflight；命中后注入 `entry.content`） | 无条目时跳过 |
 | [9] | 世界 Prompt 条目（同上） | — |
 | [10] | 角色 Prompt 条目（同上） | — |
 | [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
-| [14] | 历史消息：**有 turn records** → 取最近 `context_history_rounds` 条，每条渲染为 user/assistant 对；**无 turn records（旧 session）** → 降级用 `getUncompressedMessagesBySessionId`，仅移除”最新一条 user 消息”并保留 assistant 开场白；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
+| [14] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [16] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
 | [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理 | — |
 
@@ -190,7 +190,7 @@ POST /api/sessions/:sessionId/chat
 | [7] | 循环所有激活角色调用 `renderCharacterState`，并以各自角色名替换 `{{char}}` |
 | [8-10] | 合并全局 + 世界 + 所有激活角色的 entries |
 | [12-13] | 无向量召回，无记忆展开 |
-| [14] | 有 turn records 时同 buildPrompt；无时降级（uncompressed messages） |
+| [14] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
 | [15] | 无角色后置提示词（只有 `global_post_prompt` + `world.post_prompt`） |
 | 返回值 | 无 `recallHitCount` |
 
@@ -212,7 +212,7 @@ POST /api/sessions/:sessionId/chat
 
 ```
 createTurnRecord(sessionId, { isUpdate? })
-  ├─ 取最后一条 user 消息 + 最后一条 assistant 消息
+  ├─ 按 round_index 取“第 N 条 user”及其后、下一条 user 之前的最后一条 assistant
   ├─ 组装：
   │    user_context  = "{{user}}：{input}"
   │    asst_context  = "{{char}}：{output}"
@@ -233,7 +233,7 @@ createTurnRecord(sessionId, { isUpdate? })
 
 **regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。
 
-**continue**：续写完成后入队 `createTurnRecord(sessionId, { isUpdate: true })`，UPSERT 覆盖最后一轮 turn record（不新增轮次）。
+**continue**：续写时不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，仅把 [16] 当前 user 作为锚点，后接 `originalContent` 作为 assistant continuation。完成后入队 `createTurnRecord(sessionId, { isUpdate: true })`，UPSERT 覆盖最后一轮 turn record（不新增轮次）。
 
 ---
 

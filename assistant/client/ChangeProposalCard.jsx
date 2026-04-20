@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { executeProposal } from './api.js';
 import { useAssistantStore } from './useAssistantStore.js';
+import useStore from '../../frontend/src/store/index.js';
 import { refreshCustomCss } from '../../frontend/src/api/custom-css-snippets.js';
 import { invalidateCache, loadRules } from '../../frontend/src/utils/regex-runner.js';
 
@@ -231,6 +232,7 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
   const markApplied = useAssistantStore((s) => s.markProposalApplied);
   const setResolvedId = useAssistantStore((s) => s.setResolvedId);
   const resolvedIds = useAssistantStore((s) => s.resolvedIds);
+  const currentWorldId = useStore((s) => s.currentWorldId);
 
   if (!proposal) return null;
 
@@ -240,7 +242,12 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
   const opLabel = OP_LABELS[operation] || operation;
 
   const worldRef = proposal.worldRef;
-  const worldRefId = worldRef ? resolvedIds[worldRef] : null;
+  // 优先取链式建卡中已创建世界的 ID，其次取 proposal.entityId（主代理传入），最后回退当前上下文 worldId
+  const worldRefId = worldRef
+    ? resolvedIds[worldRef]
+    : (operation === 'create' && proposal.type === 'character-card'
+        ? (proposal.entityId || currentWorldId)
+        : null);
   const waitingForWorld = operation === 'create' && proposal.type === 'character-card' && worldRef && !worldRefId;
 
   // 原始计算值

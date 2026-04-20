@@ -181,11 +181,23 @@ export function getMessageIdsBySessionId(sessionId) {
 
 /**
  * 只返回 is_compressed=0 的消息，按 created_at ASC（用于 context 组装）
+ * 支持 limit/offset；当传入 limit 时，先按 created_at DESC 截窗，再重新按 ASC 返回，保证“最新 N 条”的时序正确。
  */
-export function getUncompressedMessagesBySessionId(sessionId) {
-  const rows = db.prepare(
-    'SELECT * FROM messages WHERE session_id = ? AND is_compressed = 0 ORDER BY created_at ASC',
-  ).all(sessionId);
+export function getUncompressedMessagesBySessionId(sessionId, limit = null, offset = 0) {
+  const hasLimit = Number.isInteger(limit) && limit > 0;
+  const rows = hasLimit
+    ? db.prepare(`
+      SELECT * FROM (
+        SELECT *
+        FROM messages
+        WHERE session_id = ? AND is_compressed = 0
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      ) ORDER BY created_at ASC
+    `).all(sessionId, limit, offset)
+    : db.prepare(
+      'SELECT * FROM messages WHERE session_id = ? AND is_compressed = 0 ORDER BY created_at ASC',
+    ).all(sessionId);
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
   }

@@ -10,13 +10,13 @@
  *   [5]  玩家状态
  *   [6]  角色 System Prompt
  *   [7]  角色状态
- *   [8]  全局 Prompt 条目（description全量注入；命中→content追加）
+ *   [8]  全局 Prompt 条目（description 仅供 preflight；命中→content注入）
  *   [9]  世界 Prompt 条目
  *   [10] 角色 Prompt 条目
  *   [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
  *   [13] 展开原文（AI preflight 决策后的 turn record 原文）
  *   [历史消息：role:user/assistant 交替]
- *   [14] 历史消息（turn records 新路径；无 turn records 时降级为 uncompressed messages）
+ *   [14] 历史消息（稳定使用原始 messages 窗口）
  *   [尾部 user 消息]
  *   [15] 后置提示词（全局→世界→角色，均空跳过）
  *   [16] 当前用户消息
@@ -37,7 +37,6 @@ import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
-import { getTurnRecordsBySessionId } from '../db/queries/turn-records.js';
 import {
   getAllGlobalEntries,
   getAllWorldEntries,
@@ -57,7 +56,6 @@ import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
-import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
 
@@ -108,6 +106,25 @@ function omitLatestUserMessage(history) {
   const lastUserIndex = history.findLastIndex((msg) => msg.role === 'user');
   if (lastUserIndex === -1) return history;
   return history.filter((_, index) => index !== lastUserIndex);
+}
+
+function getCurrentUserMessage(messages) {
+  const lastUserIndex = messages.findLastIndex((msg) => msg.role === 'user');
+  return lastUserIndex === -1 ? null : messages[lastUserIndex];
+}
+
+function sliceCompletedHistoryByRounds(messages, rounds) {
+  const history = omitLatestUserMessage(messages);
+  const userIndexes = history
+    .map((msg, index) => (msg.role === 'user' ? index : -1))
+    .filter((index) => index >= 0);
+
+  if (!Number.isInteger(rounds) || rounds <= 0 || userIndexes.length <= rounds) {
+    return history;
+  }
+
+  const startIndex = userIndexes[userIndexes.length - rounds];
+  return history.slice(startIndex);
 }
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
@@ -192,16 +209,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   const entryTexts = [];
 
-  // 所有条目的触发条件描述全量注入
-  const descLines = allEntries
-    .filter((e) => e.description && e.description.trim())
-    .map((e, i) => `${i + 1}. 【${tv(e.title)}】${tv(e.description)}`)
-    .join('\n');
-  if (descLines) {
-    entryTexts.push(`[条目触发索引]\n${descLines}`);
-  }
-
-  // 触发条目的完整内容
+  // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
       entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
@@ -250,23 +258,14 @@ export async function buildPrompt(sessionId, options = {}) {
   const systemContent = systemParts.filter(Boolean).join('\n\n');
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息
-  const turnRecords = getTurnRecordsBySessionId(sessionId, config.context_history_rounds ?? 12, 0);
-  if (turnRecords.length > 0) {
-    for (const record of [...turnRecords].reverse()) {
-      messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id, 'chat') });
-      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'chat') });
-    }
-    log.debug(`│  [14] history  turn_records=${turnRecords.length}`);
-  } else {
-    // 新会话前几轮 / 旧数据兼容：turn record 尚未异步生成时，降级读取未压缩 messages。
-    const history = omitLatestUserMessage(getUncompressedMessagesBySessionId(sessionId, config.context_history_rounds ?? 12));
-    for (const msg of history) {
-      const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
-      messages.push(formatMessageForLLM({ ...msg, content }));
-    }
-    log.debug(`│  [14] history  fallback_messages=${history.length}`);
+  // [14] 历史消息：稳定使用原始消息窗口；turn records 仅用于 recall/摘要，不再充当主历史源。
+  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
+  const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
+  for (const msg of history) {
+    const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
+    messages.push(formatMessageForLLM({ ...msg, content }));
   }
+  log.debug(`│  [14] history  raw_messages=${history.length}`);
 
   // [15] 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
   const postParts = [
@@ -280,7 +279,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
 
   // [16] 当前用户消息（最新 1 条 user）
-  const currentUserMsg = getUncompressedMessagesBySessionId(sessionId, 1)[0];
+  const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
@@ -377,12 +376,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const triggeredIds = await matchEntries(sessionId, allEntries);
   const entryTexts = [];
 
-  const descLines = allEntries
-    .filter((e) => e.description && e.description.trim())
-    .map((e, i) => `${i + 1}. 【${tv(e.title)}】${tv(e.description)}`)
-    .join('\n');
-  if (descLines) entryTexts.push(`[条目触发索引]\n${descLines}`);
-
+  // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
       entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
@@ -394,19 +388,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const systemContent = systemParts.filter(Boolean).join('\n\n');
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息
-  const turnRecords = getTurnRecordsBySessionId(sessionId, writing.context_history_rounds ?? config.context_history_rounds ?? 12, 0);
-  if (turnRecords.length > 0) {
-    for (const record of [...turnRecords].reverse()) {
-      messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id, 'writing') });
-      messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'writing') });
-    }
-  } else {
-    const history = omitLatestUserMessage(getUncompressedMessagesBySessionId(sessionId, writing.context_history_rounds ?? config.context_history_rounds ?? 12));
-    for (const msg of history) {
-      const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
-      messages.push(formatMessageForLLM({ ...msg, content }));
-    }
+  // [14] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
+  const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
+  const history = sliceCompletedHistoryByRounds(
+    uncompressedMessages,
+    writing.context_history_rounds ?? config.context_history_rounds ?? 12,
+  );
+  for (const msg of history) {
+    const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
+    messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
   // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
@@ -417,7 +407,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [16] 当前用户消息
-  const currentUserMsg = getUncompressedMessagesBySessionId(sessionId, 1)[0];
+  const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));

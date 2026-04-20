@@ -166,10 +166,11 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
     if (system) body.system = system;
 
-    let resp;
-    try { resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal }); }
-    catch { return enriched ? currentMessages : messages; }
-    if (!resp.ok) return enriched ? currentMessages : messages;
+    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
+    }
 
     const data = await resp.json();
     const content = data.content || [];

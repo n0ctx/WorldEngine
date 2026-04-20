@@ -267,7 +267,7 @@ export async function resolveToolContext(messages, tools, options = {}) {
     return enriched;
   } catch (err) {
     log.warn(`RESOLVE_TOOLS FAIL  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', error: err.message })}`);
-    return messages;
+    throw wrapError(err, llmConfig.provider);
   }
 }
 

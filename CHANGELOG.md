@@ -21,6 +21,12 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T143` `bugfix` 写卡助手协议修复+多轮上下文补全 — character-card create entityId 协议对齐、stateFieldOps type 枚举硬约束（三个 prompt 文件）、工具结果字符串富化、AssistantPanel history 含 proposal 摘要
+- `T142` `bugfix` 对话/写作上下文对齐修复 — entry description 退回 preflight、主历史源切回原始 messages、continue 不再重写轮次、turn record 按 round_index 配对
+- `T141` `perf` 写卡助手 harness 稳定性六项优化 — 子代理 system/user 分离、temperature:0、retry 保留工具、error SSE 透传、resolveToolContext 不再静默降级、proposalStore GC
+- `T140` `bugfix` 写卡助手气泡出现过早 — 移除预创建空气泡，改为首个 delta 到达时才创建，保证子代理调用全部结束后气泡才出现
+- `T139` `bugfix` 写卡助手 character-card create 缺 worldId + 主代理跳过 preview_card — entityId 改为 required，描述去掉"省略"歧义，四个子代理 description 加 preview_card 强约束，ChangeProposalCard 加 currentWorldId 安全网
+- `T138` `refactor` 写卡助手 skill→agent 改名 + 主代理职责收窄 — skills/→agents/，skill-factory→agent-factory，工具名 world_card_skill→world_card_agent 等，main.md 重写为研究→计划→分发三阶段，修复 SSE routing target 使用 proposalType 而非 def.name
 - `T137` `bugfix` 写卡助手 entryOps description/keyword_scope 丢失 — normalizeEntryOps 读 summary→description，补 keyword_scope，update pickAllowed 同步修正，CONTRACT.md/ChangeProposalCard.jsx/main.md 同步
 - `T136` `chore` 清理 [11] 删除后的废弃代码 — `renderTimeline()`、`WORLD_TIMELINE_COMPRESS_THRESHOLD`、`WORLD_TIMELINE_MAX_ENTRIES`
 - `T135` `bugfix` 删除 [11] 时间线段、recall 排除上下文窗口内轮次 — 消除 impersonate/选项重复输出的三重注入根因
@@ -55,6 +61,36 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T142 — bugfix: 对话/写作上下文对齐修复 ✅
+- **对外接口**：`buildPrompt` / `buildWritingPrompt` / `buildContinuationMessages` / `createTurnRecord` 签名保持不变；行为收敛
+- **涉及文件**：`backend/db/queries/messages.js`、`backend/prompts/assembler.js`、`backend/routes/chat.js`、`backend/routes/writing.js`、`backend/routes/stream-helpers.js`、`backend/memory/turn-summarizer.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：
+  1. Prompt 条目的 `description` 现在只供 `matchEntries()` preflight 使用，**不再注入最终主 prompt**；主 prompt 只注入命中的 `content`
+  2. [14] 历史消息改为稳定使用原始 `messages` 窗口；`turn_records` 退回只服务 recall/摘要/时间线，不再充当主历史源，避免同一会话前后轮次在“原文历史”和“turn record 历史”之间跳变
+  3. `getUncompressedMessagesBySessionId(sessionId, limit, offset)` 现在真正支持 limit/offset；此前 assembler 把它当“最新 1 条消息”使用时，实际会拿到整段历史中的第一条消息
+  4. `/continue` 不再按“有无 turn record”手工 pop/push user/assistant 轮次，只保留 assembler 产出的上下文并将最后一条 user 作为续写锚点，后接 `originalContent`
+  5. `createTurnRecord()` 不再用“最后一条 user + 最后一条 assistant”粗暴配对，而是按 round_index 取第 N 个 user 及其后、下一条 user 之前的最后一个 assistant；这样不会把开场白或跨轮 assistant 错配进当前轮
+
+## T143 — bugfix: 写卡助手协议修复 + 多轮上下文补全 ✅
+
+- **涉及文件**：`assistant/prompts/character-card.md`、`assistant/prompts/world-card.md`、`assistant/prompts/persona-card.md`、`assistant/server/agent-factory.js`、`assistant/client/AssistantPanel.jsx`
+- **注意**：
+  1. **entityId 协议（P0-1）**：character-card.md 额外规则第一条从"create 填 null"改为"create 填所属世界 ID"。子代理 prompt 和 tool schema（entityId required）现在语义一致。后端 `applyProposal` 用 `worldRefId || entityId` 作 worldId，前端 ChangeProposalCard 用 `proposal.entityId || currentWorldId` 作安全网，两者现在都能正确获取到 worldId。
+  2. **type 枚举（P0-2）**：三个含 stateFieldOps 的 agent prompt 都在 create 格式示例后加了硬约束行，明确 `"string"`/`"integer"` 等为非法值。
+  3. **工具结果富化（P1）**：子代理成功后返回给主代理的字符串现在包含 `changes` 各字段内容预览（前 120 字）、entryOps/stateFieldOps 条数。主代理流式回复时能引用实际内容，减少空泛总结。
+  4. **多轮历史含 proposal（P2）**：AssistantPanel 新增 `buildHistory()` + `buildProposalSummary()`，三处历史构建（handleSend / handleUserEdit / handleAssistantRegenerate）统一替换。proposal 摘要（含 changes 内容截断）前置于同轮 assistant 消息，下一轮模型能看到上一轮提案的实际内容。
+
+## T141 — perf: 写卡助手 harness 稳定性六项优化 ✅
+
+- **涉及文件**：`assistant/server/agent-factory.js`、`backend/llm/index.js`、`backend/llm/providers/openai-compatible.js`、`backend/llm/providers/anthropic.js`、`backend/llm/providers/gemini.js`、`assistant/server/routes.js`
+- **注意**：
+  1. **子代理消息结构**：新增 `buildAgentMessages()` 按 `\n## 本次任务\n` 切分 prompt 模板，切分前放 `system`，切分后（含 `{{TASK}}` 展开内容）放 `user`。所有 agent prompt 文件必须在末尾保留此分割标记。
+  2. **temperature:0**：子代理所有 `completeWithTools` 调用（含 retry）固定用 0，不继承全局对话温度。
+  3. **retry 行为变化**：原来 retry 降级为 `llm.complete`（无工具），现在 retry 仍调用 `completeWithTools`，system 层保留，只追加纠错 user 消息。
+  4. **error SSE 新增来源**：子代理 catch 块现在也会发 `{ type: 'error', taskId, error }` SSE。前端已有 error 事件处理，无需改动。
+  5. **resolveToolContext 不再降级**：provider 层 fetch 失败或 API 返回非 200 时抛出，index.js 层 catch 改为 re-throw，错误最终由 `routes.js` catch 块发送顶层 `error` SSE。"模型无工具调用"（正常情况）仍 return，不抛出。
+  6. **proposalStore GC**：`routes.js` 启动时注册 10 分钟 interval（`.unref()` 不阻塞进程退出），每轮清理 TTL 过期条目。
 
 ## T137 — bugfix: 写卡助手 entryOps description/keyword_scope 丢失 ✅
 - **对外接口**：`normalizeEntryOps` 内部函数（assistant/server/routes.js）

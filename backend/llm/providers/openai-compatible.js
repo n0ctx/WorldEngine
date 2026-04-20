@@ -151,11 +151,11 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
     if (effort) body.reasoning_effort = effort;
     else body.temperature = config.temperature ?? 0;
 
-    let resp;
-    try {
-      resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });
-    } catch { return enriched ? currentMessages : messages; }
-    if (!resp.ok) return enriched ? currentMessages : messages;
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
+    }
 
     const data = await resp.json();
     const message = data.choices?.[0]?.message;

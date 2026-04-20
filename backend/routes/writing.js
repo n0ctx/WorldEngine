@@ -312,8 +312,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
     log.info(`CONTINUE PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const hasTurnRecords = getTurnRecordsBySessionId(sessionId, 1).length > 0;
-    const continuationMessages = buildContinuationMessages(messages, allMsgs, hasTurnRecords, originalContent);
+    const continuationMessages = buildContinuationMessages(messages, originalContent);
 
     const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal });
     for await (const chunk of stream) {
@@ -332,6 +331,10 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
         return;
       }
     }
+  }
+
+  if (newContent) {
+    newContent = stripAsstContext(newContent);
   }
 
   if (aborted && newContent) {

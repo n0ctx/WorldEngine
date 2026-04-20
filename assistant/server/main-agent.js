@@ -5,8 +5,8 @@
  *   runAgent(message, history, context, tools) — 工具调用预检 + 流式回复
  *
  * 工具集由 routes.js 按请求绑定，包含：
- *   read_file、preview_card、world_card_skill、character_card_skill、
- *   persona_card_skill、global_prompt_skill、css_snippet_skill、regex_rule_skill
+ *   read_file、preview_card、world_card_agent、character_card_agent、
+ *   persona_card_agent、global_prompt_agent、css_snippet_agent、regex_rule_agent
  */
 
 import { readFileSync } from 'node:fs';
@@ -27,8 +27,8 @@ function loadPrompt(name) {
  *
  * 流程：
  * 1. resolveToolContext() — 工具调用循环（非流式）
- *    LLM 可自主调用 preview_card / read_file / skill tools
- *    skill tool 执行时会向 SSE 流发送 routing / proposal 事件
+ *    主代理可调用 preview_card / read_file 研究现状，再调用执行子代理分发任务
+ *    执行子代理调用时会向 SSE 流发送 routing / proposal 事件
  * 2. llm.chat() — 流式生成最终回复
  *
  * @param {string} message   用户消息
@@ -53,7 +53,7 @@ export async function* runAgent(message, history, context, tools) {
 
   log.info(`START  ${formatMeta({ msg: previewText(message, { limit: 120 }), history: chatHistory.length, tools: tools.length })}`);
 
-  // 阶段 1：工具调用循环（可能调用 preview_card、read_file 或 skill tools）
+  // 阶段 1：工具调用循环（研究 + 分发执行子代理）
   const enrichedMessages = await llm.resolveToolContext(messages, tools, { temperature: 0 });
 
   // 阶段 2：流式回复

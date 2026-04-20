@@ -4,9 +4,9 @@
 
 ## 架构概述
 
-单代理 + Agent Skill 架构：
-- **主代理**（`main-agent.js`）：接收用户消息，通过工具调用循环（`resolveToolContext`）决定调用哪些工具，最后流式生成回复
-- **Agent Skills**：`world_card_skill` / `character_card_skill` / `persona_card_skill` / `global_prompt_skill` / `css_snippet_skill` / `regex_rule_skill`，每个 skill 是一个 LLM tool，执行时以 SSE 事件向前端推送提案
+主代理 + 执行子代理架构：
+- **主代理**（`main-agent.js`）：接收用户消息，先研究现状（调用 `preview_card` / `read_file`），再通过工具调用循环（`resolveToolContext`）分发任务给执行子代理，最后流式生成回复
+- **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`，每个子代理是一个 LLM tool，执行时以 SSE 事件向前端推送提案
 - **辅助工具**：`preview_card`（查询实体数据）、`read_file`（读取项目文件）
 
 ## 1. `/api/assistant/chat`
@@ -37,7 +37,7 @@
 skill 开始执行时发送。
 
 ```json
-{ "type": "routing", "taskId": "sk-xxxxxxxx", "target": "world_card_skill", "task": "..." }
+{ "type": "routing", "taskId": "sk-xxxxxxxx", "target": "world-card", "task": "..." }
 ```
 
 #### `proposal`

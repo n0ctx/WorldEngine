@@ -14,6 +14,48 @@ import { getWorld } from '../../frontend/src/api/worlds.js';
 import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
 
+// ── 历史构建工具 ──────────────────────────────────────────────────
+
+/**
+ * 将 proposal 消息序列化为给主代理看的结构化摘要文本。
+ * 目的：下一轮对话时模型能引用上一轮的实际提案内容，避免多轮编辑漂移。
+ */
+function buildProposalSummary(proposal) {
+  const TYPE_SHORT = { 'world-card': '世界卡', 'character-card': '角色卡', 'persona-card': '玩家卡', 'global-config': '全局设置', 'css-snippet': '自定义CSS', 'regex-rule': '正则规则' };
+  const OP_SHORT = { create: '新建', update: '修改', delete: '删除' };
+  const lines = [`[${TYPE_SHORT[proposal.type] || proposal.type}${OP_SHORT[proposal.operation] || proposal.operation}]`];
+  for (const [k, v] of Object.entries(proposal.changes || {})) {
+    lines.push(`${k}: ${typeof v === 'string' ? v.slice(0, 120) : v}`);
+  }
+  const entryCount = Array.isArray(proposal.entryOps) ? proposal.entryOps.length : 0;
+  const sfCount = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps.length : 0;
+  if (entryCount) lines.push(`条目操作: ${entryCount}条`);
+  if (sfCount) lines.push(`状态字段操作: ${sfCount}条`);
+  return lines.join('\n');
+}
+
+/**
+ * 从消息列表构建发送给后端的对话历史。
+ * proposal 摘要前置到同轮 assistant 消息的内容中，确保多轮编辑时模型能看到提案实际内容。
+ */
+function buildHistory(msgs) {
+  const history = [];
+  let pendingProposals = [];
+  for (const m of msgs) {
+    if (m.role === 'user') {
+      history.push({ role: 'user', content: m.content });
+      pendingProposals = [];
+    } else if (m.role === 'proposal' && m.proposal) {
+      pendingProposals.push(buildProposalSummary(m.proposal));
+    } else if (m.role === 'assistant' && m.content) {
+      const prefix = pendingProposals.length > 0 ? pendingProposals.join('\n---\n') + '\n\n' : '';
+      history.push({ role: 'assistant', content: prefix + m.content });
+      pendingProposals = [];
+    }
+  }
+  return history;
+}
+
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
   const close = useAssistantStore((s) => s.close);
@@ -34,6 +76,8 @@ export default function AssistantPanel() {
 
   const [input, setInput] = useState('');
   const abortRef = useRef(null);
+  // 标记当前轮次是否已创建流式气泡（防止重复插入）
+  const bubbleCreatedRef = useRef(false);
 
   // 核心发送逻辑（接受文本和历史，不依赖 input state）
   const sendContent = useCallback(async (text, history) => {
@@ -50,10 +94,15 @@ export default function AssistantPanel() {
     }
 
     setStreaming(true);
-    addMessage({ role: 'assistant', content: '', streaming: true });
+    bubbleCreatedRef.current = false;
 
     const abort = chatAssistant({ message: text, history, context }, {
       onDelta: (chunk) => {
+        // 第一个 delta 到达时才创建气泡，确保在所有子代理调用结束后才出现
+        if (!bubbleCreatedRef.current) {
+          addMessage({ role: 'assistant', content: '', streaming: true });
+          bubbleCreatedRef.current = true;
+        }
         appendToLastAssistant(chunk);
       },
       onRouting: (evt) => {
@@ -91,10 +140,8 @@ export default function AssistantPanel() {
     // 添加用户消息
     addMessage({ role: 'user', content: text });
 
-    // 构建对话历史（过滤 routing/proposal/error，只取 user/assistant）
-    const history = messages
-      .filter((m) => m.role === 'user' || m.role === 'assistant')
-      .map((m) => ({ role: m.role, content: m.content }));
+    // 构建对话历史（proposal 摘要前置到同轮 assistant 消息，保留多轮提案上下文）
+    const history = buildHistory(messages);
 
     await sendContent(text, history);
   }, [input, isStreaming, messages, addMessage, sendContent]);
@@ -117,11 +164,8 @@ export default function AssistantPanel() {
       deleteMessage(m.id);
     }
 
-    // 构建历史（该 user 消息之前的 user/assistant）
-    const history = currentMsgs
-      .slice(0, idx)
-      .filter((m) => m.role === 'user' || m.role === 'assistant')
-      .map((m) => ({ role: m.role, content: m.content }));
+    // 构建历史（该 user 消息之前，proposal 摘要前置到同轮 assistant）
+    const history = buildHistory(currentMsgs.slice(0, idx));
 
     await sendContent(newContent, history);
   }, [isStreaming, editMessage, deleteMessage, sendContent]);
@@ -141,12 +185,9 @@ export default function AssistantPanel() {
     // 截断到该 assistant 消息（不含）
     truncateToMessage(msgId);
 
-    // 构建历史（prevUserMsg 之前的 user/assistant）
+    // 构建历史（prevUserMsg 之前，proposal 摘要前置到同轮 assistant）
     const prevUserIdx = currentMsgs.findIndex((m) => m.id === prevUserMsg.id);
-    const history = currentMsgs
-      .slice(0, prevUserIdx)
-      .filter((m) => m.role === 'user' || m.role === 'assistant')
-      .map((m) => ({ role: m.role, content: m.content }));
+    const history = buildHistory(currentMsgs.slice(0, prevUserIdx));
 
     await sendContent(prevUserMsg.content, history);
   }, [isStreaming, truncateToMessage, sendContent]);

@@ -1,6 +1,6 @@
 /**
  * preview_card tool
- * 允许主代理或 skill LLM 按需查询实体（世界/角色/玩家卡/全局配置）的完整数据。
+ * 允许主代理或执行子代理按需查询实体（世界/角色/玩家卡/全局配置）的完整数据。
  * loadEntityData 逻辑从 routes.js 迁移至此，按请求绑定 context。
  */
 
@@ -28,8 +28,8 @@ export function createPreviewCardTool(context) {
       name: 'preview_card',
       description:
         '查询当前实体（世界卡/角色卡/玩家卡/全局配置）的完整数据，包括现有 Prompt 条目和状态字段。' +
-        '在调用 world_card_skill / character_card_skill / persona_card_skill / global_prompt_skill 的 update/delete 操作前，先调用此工具了解现有内容，避免覆盖或重复。' +
-        '注意：css_snippet_skill 和 regex_rule_skill 无需调用此工具，直接调用即可。' +
+        '主代理在分发任务给执行子代理前调用此工具研究现状。' +
+        '注意：css_snippet_agent 和 regex_rule_agent 无需预研，其余子代理 update/delete 前必须先调用。' +
         '也可在直接回答用户关于当前卡片内容的问题时使用。',
       parameters: {
         type: 'object',

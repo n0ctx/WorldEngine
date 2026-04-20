@@ -1,13 +1,13 @@
-export const WORLD_CARD_SKILL = {
-  name: 'world_card_skill',
+export const WORLD_CARD_AGENT = {
+  name: 'world_card_agent',
   description:
     '创建、修改或删除世界卡。管理世界的 name/system_prompt/post_prompt/temperature/max_tokens，' +
     '以及世界 Prompt 条目（entryOps）和三层状态字段（stateFieldOps：world/persona/character）。' +
-    '调用前必须先用 preview_card(target="world-card") 获取当前数据。',
+    'update/delete 前必须先调用 preview_card(target="world-card") 获取现有数据，再调用此代理。',
   parameters: {
     type: 'object',
     properties: {
-      task: { type: 'string', description: '详细描述需要对世界卡做哪些修改' },
+      task: { type: 'string', description: '主代理预研后整理的任务说明，包含用户需求、当前数据摘要和具体修改指令' },
       operation: {
         type: 'string',
         enum: ['create', 'update', 'delete'],

@@ -145,10 +145,11 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
     if (systemInstruction) body.systemInstruction = systemInstruction;
     body.generationConfig = { maxOutputTokens: i === 0 ? 1000 : config.max_tokens, temperature: 0 };
 
-    let resp;
-    try { resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal }); }
-    catch { return enriched ? currentMessages : messages; }
-    if (!resp.ok) return enriched ? currentMessages : messages;
+    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
+    }
 
     const data = await resp.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
