@@ -64,6 +64,7 @@ const InputBox = forwardRef(function InputBox({
     } else {
       setSlashOpen(false);
     }
+    adjustHeight();
   }
 
   function executeCommand(cmd) {

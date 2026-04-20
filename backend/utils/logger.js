@@ -67,6 +67,62 @@ let _logFile = '';
 let _loggingCache = null;
 let _loggingCacheMtimeMs = -1;
 
+// ─── Spinner ─────────────────────────────────────────────────────────────────
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+let _spinnerTimer = null;
+let _spinnerFrame = 0;
+let _spinnerActive = false;
+let _spinnerNextId = 0;
+const _spinnerMap = new Map(); // id -> { label, startedAt }
+
+function _clearSpinnerLine() {
+  if (process.stdout.isTTY) process.stdout.write('\r\x1b[K');
+}
+
+function _renderSpinner() {
+  if (!_spinnerActive || !_spinnerMap.size || !process.stdout.isTTY) return;
+  const frame = SPINNER_FRAMES[_spinnerFrame % SPINNER_FRAMES.length];
+  _spinnerFrame++;
+  const now = Date.now();
+  let maxMs = 0;
+  let label = '';
+  for (const entry of _spinnerMap.values()) {
+    if (now - entry.startedAt > maxMs) { maxMs = now - entry.startedAt; label = entry.label; }
+  }
+  const count = _spinnerMap.size;
+  const elapsed = (maxMs / 1000).toFixed(1);
+  const countStr = count > 1 ? `${C.yellow}×${count}${C.reset} ` : '';
+  process.stdout.write(`\r${C.dim}${frame}${C.reset} ${C.cyan}${label}${C.reset} ${countStr}${C.dim}${elapsed}s${C.reset}  `);
+}
+
+/**
+ * 启动一个命名 spinner 条目，返回 id（用于 spinnerRemove）。
+ * 非 TTY 环境下无操作但仍返回 id（确保 spinnerRemove 安全调用）。
+ */
+export function spinnerAdd(label) {
+  const id = ++_spinnerNextId;
+  _spinnerMap.set(id, { label, startedAt: Date.now() });
+  if (!_spinnerActive) {
+    _spinnerActive = true;
+    _spinnerFrame = 0;
+    _spinnerTimer = setInterval(_renderSpinner, 80);
+  }
+  return id;
+}
+
+/**
+ * 移除一个 spinner 条目；当所有条目移除后停止 spinner。
+ */
+export function spinnerRemove(id) {
+  _spinnerMap.delete(id);
+  if (_spinnerMap.size === 0 && _spinnerActive) {
+    clearInterval(_spinnerTimer);
+    _spinnerTimer = null;
+    _spinnerActive = false;
+    _clearSpinnerLine();
+  }
+}
+
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -237,6 +293,9 @@ function write(level, tag, tagColor, args) {
 
   const colorLine = `${ts} ${lvl} ${tagStr} ${lc}${icon}${C.reset} ${msg}`;
   const plainLine = `${timestamp()} ${level.toUpperCase().padEnd(5)} [${tagPad}] ${icon} ${msg}`;
+
+  // spinner 活跃时先清空动画行，避免与日志文字重叠
+  if (_spinnerActive) _clearSpinnerLine();
 
   if (level === 'error') console.error(colorLine);
   else if (level === 'warn') console.warn(colorLine);

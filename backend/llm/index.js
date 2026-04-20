@@ -12,7 +12,7 @@ import { getConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
-import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages } from '../utils/logger.js';
+import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 
 const log = createLogger('llm');
 
@@ -112,54 +112,59 @@ export async function* chat(messages, options = {}) {
 
   let lastError;
   let fullResponse = '';
+  const spinnerId = spinnerAdd('流式响应中');
 
-  for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
-    let started = false;
-    try {
-      const gen = provider.streamChat(messages, llmConfig);
-      for await (const chunk of gen) {
-        started = true;
-        fullResponse += chunk;
-        yield chunk;
-      }
-      const meta = formatMeta({
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        len: fullResponse.length,
-        ms: Date.now() - startedAt,
-      });
-      if (shouldLogRaw('llm_raw')) {
-        log.info(`CHAT DONE  ${meta}  preview=${JSON.stringify(previewText(fullResponse))}`);
-      } else {
-        log.info(`CHAT DONE  ${meta}`);
-      }
-      return;
-    } catch (err) {
-      // 已开始输出，不可重试（调用方已收到部分数据）
-      if (started) {
-        log.warn(`CHAT PARTIAL-FAIL  ${formatMeta({
+  try {
+    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+      let started = false;
+      try {
+        const gen = provider.streamChat(messages, llmConfig);
+        for await (const chunk of gen) {
+          started = true;
+          fullResponse += chunk;
+          yield chunk;
+        }
+        const meta = formatMeta({
           provider: llmConfig.provider,
           model: llmConfig.model || '',
           len: fullResponse.length,
           ms: Date.now() - startedAt,
+        });
+        if (shouldLogRaw('llm_raw')) {
+          log.info(`CHAT DONE  ${meta}  preview=${JSON.stringify(previewText(fullResponse))}`);
+        } else {
+          log.info(`CHAT DONE  ${meta}`);
+        }
+        return;
+      } catch (err) {
+        // 已开始输出，不可重试（调用方已收到部分数据）
+        if (started) {
+          log.warn(`CHAT PARTIAL-FAIL  ${formatMeta({
+            provider: llmConfig.provider,
+            model: llmConfig.model || '',
+            len: fullResponse.length,
+            ms: Date.now() - startedAt,
+            error: err.message,
+          })}`);
+          throw wrapError(err, llmConfig.provider);
+        }
+        if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
+        if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
+
+        lastError = err;
+        log.warn(`CHAT RETRY  ${formatMeta({
+          attempt: attempt + 1,
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
           error: err.message,
         })}`);
-        throw wrapError(err, llmConfig.provider);
+        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
       }
-      if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
-      if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
-
-      lastError = err;
-      log.warn(`CHAT RETRY  ${formatMeta({
-        attempt: attempt + 1,
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        error: err.message,
-      })}`);
-      if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
     }
+    throw wrapError(lastError, llmConfig.provider);
+  } finally {
+    spinnerRemove(spinnerId);
   }
-  throw wrapError(lastError, llmConfig.provider);
 }
 
 function splitTools(tools = []) {
@@ -198,31 +203,36 @@ export async function completeWithTools(messages, tools, options = {}) {
   })}`);
 
   let lastError;
-  for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
-    try {
-      const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
-      log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        len: result?.length ?? 0,
-        ms: Date.now() - startedAt,
-        preview: shouldLogRaw('llm_raw') ? previewText(result) : undefined,
-      })}`);
-      return result;
-    } catch (err) {
-      if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
-      if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
-      lastError = err;
-      log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
-        attempt: attempt + 1,
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        error: err.message,
-      })}`);
-      if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+  const spinnerId = spinnerAdd('工具调用中');
+  try {
+    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+      try {
+        const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
+        log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
+          len: result?.length ?? 0,
+          ms: Date.now() - startedAt,
+          preview: shouldLogRaw('llm_raw') ? previewText(result) : undefined,
+        })}`);
+        return result;
+      } catch (err) {
+        if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
+        if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
+        lastError = err;
+        log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
+          attempt: attempt + 1,
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
+          error: err.message,
+        })}`);
+        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+      }
     }
+    throw wrapError(lastError, llmConfig.provider);
+  } finally {
+    spinnerRemove(spinnerId);
   }
-  throw wrapError(lastError, llmConfig.provider);
 }
 
 /**
@@ -286,34 +296,39 @@ export async function complete(messages, options = {}) {
   })}`);
 
   let lastError;
-  for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
-    try {
-      const result = await provider.complete(messages, llmConfig);
-      const meta = formatMeta({
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        len: result?.length ?? 0,
-        ms: Date.now() - startedAt,
-      });
-      if (shouldLogRaw('llm_raw')) {
-        log.info(`COMPLETE DONE  ${meta}  preview=${JSON.stringify(previewText(result))}`);
-      } else {
-        log.info(`COMPLETE DONE  ${meta}`);
-      }
-      return result;
-    } catch (err) {
-      if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
-      if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
+  const spinnerId = spinnerAdd('非流式响应中');
+  try {
+    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+      try {
+        const result = await provider.complete(messages, llmConfig);
+        const meta = formatMeta({
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
+          len: result?.length ?? 0,
+          ms: Date.now() - startedAt,
+        });
+        if (shouldLogRaw('llm_raw')) {
+          log.info(`COMPLETE DONE  ${meta}  preview=${JSON.stringify(previewText(result))}`);
+        } else {
+          log.info(`COMPLETE DONE  ${meta}`);
+        }
+        return result;
+      } catch (err) {
+        if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
+        if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 
-      lastError = err;
-      log.warn(`COMPLETE RETRY  ${formatMeta({
-        attempt: attempt + 1,
-        provider: llmConfig.provider,
-        model: llmConfig.model || '',
-        error: err.message,
-      })}`);
-      if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+        lastError = err;
+        log.warn(`COMPLETE RETRY  ${formatMeta({
+          attempt: attempt + 1,
+          provider: llmConfig.provider,
+          model: llmConfig.model || '',
+          error: err.message,
+        })}`);
+        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+      }
     }
+    throw wrapError(lastError, llmConfig.provider);
+  } finally {
+    spinnerRemove(spinnerId);
   }
-  throw wrapError(lastError, llmConfig.provider);
 }
