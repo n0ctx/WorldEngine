@@ -251,7 +251,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, rec
             <p className="we-section-empty">暂无记录</p>
           ) : (
             <div className="we-timeline-list">
-              {timeline.map((entry, i) => (
+              {[...timeline].reverse().map((entry, i) => (
                 <TimelineEntry key={entry.round_index} entry={entry} index={i} />
               ))}
             </div>

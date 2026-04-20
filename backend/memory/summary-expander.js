@@ -2,7 +2,7 @@
  * summary-expander.js — 记忆原文展开
  *
  * 对外暴露：
- *   decideExpansion({ sessionId, recalled, recentMessagesText })
+ *   decideExpansion({ sessionId, recalled })
  *     → Promise<string[]>  需要展开的 turn_record_id 列表（可能为空）
  *
  *   renderExpandedTurnRecords(turnRecordIds, tokenBudget)
@@ -11,21 +11,33 @@
 
 import { getSessionById } from '../db/queries/sessions.js';
 import { getTurnRecordById } from '../db/queries/turn-records.js';
+import { getMessagesBySessionId } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
 import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 import {
   MEMORY_EXPAND_DECISION_MAX_TOKENS,
+  ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
 
 /**
  * 通过 preflight 非流式调用，让 AI 决定需要展开哪些 turn record。
+ * 独立取最近 1 轮上文（1 user + 1 assistant），不依赖外部传入的上下文。
  *
- * @param {{ sessionId: string, recalled: Array, recentMessagesText: string }} options
+ * @param {{ sessionId: string, recalled: Array }} options
  * @returns {Promise<string[]>}  需展开的 turn_record_id 列表，失败静默返回 []
  */
-export async function decideExpansion({ sessionId, recalled, recentMessagesText }) {
+export async function decideExpansion({ sessionId, recalled }) {
   if (!recalled || recalled.length === 0) return [];
+
+  // 独立取最近 1 轮上文（1 user + 1 assistant）
+  const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const lastUser = [...allMessages].reverse().find((m) => m.role === 'user');
+  const lastAsst = [...allMessages].reverse().find((m) => m.role === 'assistant');
+  const contextText = [
+    lastAsst ? `AI：${lastAsst.content}` : '',
+    lastUser ? `用户：${lastUser.content}` : '',
+  ].filter(Boolean).join('\n');
 
   // 构建摘要列表文本
   const summaryLines = recalled.map((r) => {
@@ -45,7 +57,7 @@ export async function decideExpansion({ sessionId, recalled, recentMessagesText 
     {
       role: 'user',
       content:
-        `【近期对话片段】\n${recentMessagesText}\n\n` +
+        `【近期对话片段】\n${contextText}\n\n` +
         `【召回到的历史摘要】\n${summaryLines}\n\n` +
         '请判断：为了更好地回答用户，哪几条历史摘要需要展开原文？' +
         '如果摘要本身已足够，则不需要展开。返回需要展开的 turn_record_id 列表（JSON 格式）。',

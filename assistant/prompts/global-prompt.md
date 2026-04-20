@@ -127,13 +127,13 @@
 创建：
 
 ```json
-{ "op": "create", "title": "通用规范", "summary": "简介", "content": "完整内容", "keywords": ["关键词"], "mode": "chat" }
+{ "op": "create", "title": "通用规范", "description": "触发条件（1-2句话）", "content": "完整内容", "keywords": ["关键词"], "keyword_scope": "user,assistant", "mode": "chat" }
 ```
 
 更新：
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "summary": "更新简介", "content": "更新内容", "keywords": ["关键词"] }
+{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"] }
 ```
 
 删除：
@@ -143,6 +143,20 @@
 ```
 
 `mode` 只在 create 时输出，取值只能是 `"chat"` 或 `"writing"`。
+
+### `description`（触发条件）写法规范
+
+- 1-2 句话，描述**何时**触发，而非描述内容本身
+- 正确示例：`"当对话涉及法律、审判或帝国政府机构时"`
+- 正确示例：`"玩家询问魔法施法规则，或剧情出现法术释放场景时"`
+- 错误示例：`"关于帝国审判庭的详细介绍"`（描述了内容，不是触发条件）
+- `description` 为空时该条目降级为纯关键词触发，无关键词则永不触发
+
+### `keyword_scope` 取值
+
+- `"user"` — 仅匹配用户消息
+- `"assistant"` — 仅匹配 AI 消息
+- `"user,assistant"` — 用户消息和 AI 消息均匹配（默认，可省略）
 
 ---
 

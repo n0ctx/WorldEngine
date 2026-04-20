@@ -60,7 +60,7 @@ export default function CandleFlame({ visible }) {
           transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
           style={{
             position: 'absolute',
-            top: 16,
+            bottom: 16,
             left: 16,
             zIndex: 30,
             pointerEvents: 'none',

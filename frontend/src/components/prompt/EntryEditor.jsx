@@ -10,11 +10,21 @@ import MarkdownEditor from '../ui/MarkdownEditor';
  */
 export default function EntryEditor({ entry, onSave, onClose }) {
   const [title, setTitle] = useState(entry?.title ?? '');
-  const [summary, setSummary] = useState(entry?.summary ?? '');
+  const [description, setDescription] = useState(entry?.description ?? '');
   const [content, setContent] = useState(entry?.content ?? '');
   const [keywords, setKeywords] = useState(
     Array.isArray(entry?.keywords) ? entry.keywords : (entry?.keywords ?? [])
   );
+  const initialKeywordScope = typeof entry?.keyword_scope === 'string'
+    ? entry.keyword_scope.trim().toLowerCase()
+    : '';
+  const normalizedScope = initialKeywordScope === 'both' || initialKeywordScope === ''
+    ? ['user', 'assistant']
+    : initialKeywordScope
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item, index, arr) => (item === 'user' || item === 'assistant') && arr.indexOf(item) === index);
+  const [keywordScopes, setKeywordScopes] = useState(normalizedScope);
   const [kwInput, setKwInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -42,6 +52,14 @@ export default function EntryEditor({ entry, onSave, onClose }) {
     }
   }
 
+  function toggleKeywordScope(scope) {
+    setKeywordScopes((prev) => (
+      prev.includes(scope)
+        ? prev.filter((item) => item !== scope)
+        : [...prev, scope]
+    ));
+  }
+
   async function handleSave() {
     if (!title.trim()) {
       setError('标题为必填项');
@@ -52,9 +70,10 @@ export default function EntryEditor({ entry, onSave, onClose }) {
     try {
       await onSave({
         title: title.trim(),
-        summary,
+        description,
         content,
         keywords: keywords.length > 0 ? keywords : null,
+        keyword_scope: keywordScopes.join(','),
       });
       onClose();
     } catch (e) {
@@ -87,13 +106,13 @@ export default function EntryEditor({ entry, onSave, onClose }) {
 
           <div>
             <label className="we-dialog-label">
-              简介
-              <span className="we-dialog-hint">（约 50 字，未触发时注入）</span>
+              触发条件
+              <span className="we-dialog-hint">（1-2句话，描述该条目的触发时机）</span>
             </label>
             <MarkdownEditor
-              value={summary}
-              onChange={setSummary}
-              placeholder="对内容的简短描述，AI 在未触发完整内容时会看到这段文字"
+              value={description}
+              onChange={setDescription}
+              placeholder="例：当对话涉及魔法、施法或能量消耗时展开此条目"
               minHeight={72}
             />
           </div>
@@ -110,8 +129,8 @@ export default function EntryEditor({ entry, onSave, onClose }) {
 
           <div>
             <label className="we-dialog-label">
-              关键词
-              <span className="we-dialog-hint">（回车添加，作为触发关键词）</span>
+              关键词兜底
+              <span className="we-dialog-hint">（回车添加，LLM 未触发时按关键词兜底）</span>
             </label>
             <div className="we-tag-input" onClick={() => kwRef.current?.focus()}>
               {keywords.map((kw) => (
@@ -132,6 +151,26 @@ export default function EntryEditor({ entry, onSave, onClose }) {
                 onBlur={() => { if (kwInput.trim()) addKeyword(kwInput); }}
                 placeholder={keywords.length === 0 ? '输入关键词后按回车' : ''}
               />
+            </div>
+            <div className="we-scope-row">
+              <label className="we-scope-check">
+                <input
+                  type="checkbox"
+                  className="we-checkbox"
+                  checked={keywordScopes.includes('user')}
+                  onChange={() => toggleKeywordScope('user')}
+                />
+                用户消息
+              </label>
+              <label className="we-scope-check">
+                <input
+                  type="checkbox"
+                  className="we-checkbox"
+                  checked={keywordScopes.includes('assistant')}
+                  onChange={() => toggleKeywordScope('assistant')}
+                />
+                AI 消息
+              </label>
             </div>
           </div>
 

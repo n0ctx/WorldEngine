@@ -151,8 +151,8 @@ function EntryRow({ entry, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
       {/* 内容 */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-text truncate">{entry.title}</p>
-        {entry.summary ? (
-          <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{entry.summary}</p>
+        {entry.description ? (
+          <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{entry.description}</p>
         ) : null}
         {keywords.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1.5">

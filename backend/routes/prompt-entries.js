@@ -17,9 +17,9 @@ router.get('/global-entries', (req, res) => {
 
 // POST /api/global-entries
 router.post('/global-entries', (req, res) => {
-  const { title, summary, content, keywords, mode, sort_order } = req.body;
+  const { title, description, content, keywords, keyword_scope, mode, sort_order } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createGlobalPromptEntry({ title, summary, content, keywords, mode, sort_order });
+  const entry = createGlobalPromptEntry({ title, description, content, keywords, keyword_scope, mode, sort_order });
   res.status(201).json(entry);
 });
 
@@ -32,9 +32,9 @@ router.get('/worlds/:worldId/entries', (req, res) => {
 
 // POST /api/worlds/:worldId/entries
 router.post('/worlds/:worldId/entries', (req, res) => {
-  const { title, summary, content, keywords, sort_order } = req.body;
+  const { title, description, content, keywords, keyword_scope, sort_order } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createWorldPromptEntry(req.params.worldId, { title, summary, content, keywords, sort_order });
+  const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, sort_order });
   res.status(201).json(entry);
 });
 
@@ -47,9 +47,9 @@ router.get('/characters/:characterId/entries', (req, res) => {
 
 // POST /api/characters/:characterId/entries
 router.post('/characters/:characterId/entries', (req, res) => {
-  const { title, summary, content, keywords, sort_order } = req.body;
+  const { title, description, content, keywords, keyword_scope, sort_order } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createCharacterPromptEntry(req.params.characterId, { title, summary, content, keywords, sort_order });
+  const entry = createCharacterPromptEntry(req.params.characterId, { title, description, content, keywords, keyword_scope, sort_order });
   res.status(201).json(entry);
 });
 

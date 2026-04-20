@@ -10,7 +10,6 @@
 
 import { registerOnDelete } from '../utils/cleanup-hooks.js';
 import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
-import { deleteEntry } from '../utils/vector-store.js';
 import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
 import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 
@@ -27,11 +26,6 @@ import {
   getSessionIdsByCharacterId,
   getSessionIdsByWorldId,
 } from '../db/queries/characters.js';
-
-import {
-  getEmbeddingIdsByCharacterId,
-  getEmbeddingIdsByWorldId,
-} from '../db/queries/prompt-entries.js';
 
 import { getPersonaAvatarPathByWorldId } from '../db/queries/personas.js';
 
@@ -73,21 +67,6 @@ registerOnDelete('world', async (wid) => {
 
 registerOnDelete('world', async (wid) => {
   await unlinkUploadFile(getPersonaAvatarPathByWorldId(wid));
-});
-
-// ── Prompt 条目向量 ───────────────────────────────────────────────
-// 模块：prompt-entries — 管理 data/vectors/prompt_entries.json
-
-registerOnDelete('character', async (cid) => {
-  for (const eid of getEmbeddingIdsByCharacterId(cid)) {
-    deleteEntry(eid);
-  }
-});
-
-registerOnDelete('world', async (wid) => {
-  for (const eid of getEmbeddingIdsByWorldId(wid)) {
-    deleteEntry(eid);
-  }
 });
 
 // ── Session Summary 向量 ─────────────────────────────────────────

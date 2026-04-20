@@ -286,9 +286,11 @@ export default function WritingMessageItem({
               const streamingLast = isStreaming && isLastBlock;
               return (
                 <div key={i} className={streamingLast ? 'we-streaming-block' : undefined}>
-                  <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
-                    {block.content}
-                  </ReactMarkdown>
+                  {block.content && (
+                    <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                      {block.content}
+                    </ReactMarkdown>
+                  )}
                   {streamingLast && <QuillCursor />}
                 </div>
               );

@@ -85,16 +85,22 @@
 格式：
 
 ```json
-{ "op": "create", "title": "条目标题", "summary": "简介", "content": "完整内容", "keywords": ["关键词"] }
+{ "op": "create", "title": "条目标题", "description": "触发条件（1-2句话）", "content": "完整内容", "keywords": ["关键词"], "keyword_scope": "user,assistant" }
 ```
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "summary": "更新简介", "content": "更新内容", "keywords": ["关键词"] }
+{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"] }
 ```
 
 ```json
 { "op": "delete", "id": "现有条目ID" }
 ```
+
+`description`（触发条件）写法：1-2 句话描述**何时**触发，而非描述内容本身。
+- 正确：`"玩家主动追问角色旧伤或过去经历时"`
+- 错误：`"角色的旧伤记忆详细描述"`
+
+`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认，两者都匹配）。
 
 ### `stateFieldOps`
 

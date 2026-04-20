@@ -439,9 +439,11 @@ export default function MessageItem({
                   const streamingLast = isStreaming && isLastBlock;
                   return (
                     <div key={i} className={streamingLast ? 'we-streaming-block' : undefined}>
-                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
-                        {block.content}
-                      </ReactMarkdown>
+                      {block.content && (
+                        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
+                          {block.content}
+                        </ReactMarkdown>
+                      )}
                       {streamingLast && <QuillCursor visible={true} />}
                     </div>
                   );

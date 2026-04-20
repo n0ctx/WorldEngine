@@ -18,7 +18,7 @@ async function parseSSEStream(response, callbacks) {
         try {
           const evt = JSON.parse(json);
           if (evt.delta !== undefined) callbacks.onDelta?.(evt.delta);
-          else if (evt.done) callbacks.onDone?.(evt.assistant);
+          else if (evt.done) callbacks.onDone?.(evt.assistant, evt.options ?? []);
           else if (evt.aborted) callbacks.onAborted?.(evt.assistant);
           else if (evt.type === 'error') callbacks.onError?.(evt.error);
           else if (evt.type === 'title_updated') callbacks.onTitleUpdated?.(evt.title);

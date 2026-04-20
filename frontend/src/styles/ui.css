@@ -303,3 +303,97 @@
   font-size: 14px;
   color: var(--we-ink-primary);
 }
+
+/* ── OptionCard ── */
+.we-option-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  color: var(--we-ink-primary);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  line-height: 1.5;
+}
+.we-option-btn:hover {
+  background: var(--we-vermilion-bg);
+  border-color: var(--we-vermilion);
+}
+.we-option-dismiss {
+  display: block;
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
+  cursor: pointer;
+  font-style: italic;
+}
+
+/* ── Keyword scope checkboxes ── */
+.we-scope-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 7px;
+}
+
+.we-scope-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--we-ink-faded);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.we-scope-check:has(.we-checkbox:checked) {
+  color: var(--we-ink-secondary);
+}
+
+.we-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--we-ink-faded);
+  border-radius: 1px;
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.we-checkbox:checked {
+  background: var(--we-vermilion);
+  border-color: var(--we-vermilion-deep);
+}
+
+.we-checkbox:checked::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: -1px;
+  width: 4px;
+  height: 8px;
+  border: 1.5px solid var(--we-paper-base);
+  border-top: none;
+  border-left: none;
+  transform: rotate(45deg);
+}
+
+.we-checkbox:hover:not(:checked) {
+  border-color: var(--we-ink-secondary);
+}

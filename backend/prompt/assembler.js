@@ -10,7 +10,7 @@
  *   [5]  玩家状态
  *   [6]  角色 System Prompt
  *   [7]  角色状态
- *   [8]  全局 Prompt 条目（命中→content，未命中→summary）
+ *   [8]  全局 Prompt 条目（description全量注入；命中→content追加）
  *   [9]  世界 Prompt 条目
  *   [10] 角色 Prompt 条目
  *   [11] 世界时间线
@@ -53,7 +53,7 @@ import {
   renderRecalledSummaries,
 } from '../memory/recall.js';
 import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
-import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
+import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_PROMPT } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
@@ -189,13 +189,23 @@ export async function buildPrompt(sessionId, options = {}) {
   log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  char=${characterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
 
   const entryTexts = [];
+
+  // 所有条目的触发条件描述全量注入
+  const descLines = allEntries
+    .filter((e) => e.description && e.description.trim())
+    .map((e, i) => `${i + 1}. 【${tv(e.title)}】${tv(e.description)}`)
+    .join('\n');
+  if (descLines) {
+    entryTexts.push(`[条目触发索引]\n${descLines}`);
+  }
+
+  // 触发条目的完整内容
   for (const entry of allEntries) {
-    if (triggeredIds.has(entry.id)) {
-      if (entry.content) entryTexts.push(tv(entry.content));
-    } else {
-      if (entry.summary) entryTexts.push(tv(entry.summary));
+    if (triggeredIds.has(entry.id) && entry.content) {
+      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
+
   if (entryTexts.length > 0) {
     systemParts.push(entryTexts.join('\n\n'));
   }
@@ -205,7 +215,7 @@ export async function buildPrompt(sessionId, options = {}) {
   if (timelineText) systemParts.push(tv(timelineText));
 
   // [12] 召回摘要（向量搜索历史 turn summaries）
-  const { recalled, recentMessagesText } = await searchRecalledSummaries(world.id, sessionId);
+  const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
@@ -217,7 +227,7 @@ export async function buildPrompt(sessionId, options = {}) {
       candidates: recalled.map((r) => ({ ref: r.ref, title: r.session_title })),
     });
 
-    const toExpand = await decideExpansion({ sessionId, recalled, recentMessagesText });
+    const toExpand = await decideExpansion({ sessionId, recalled });
     log.debug(`│  [13]   expand   candidates=${recalled.length}  chosen=${toExpand.length}`);
     const expandedText = toExpand.length
       ? renderExpandedTurnRecords(toExpand, MEMORY_EXPAND_MAX_TOKENS)
@@ -263,6 +273,7 @@ export async function buildPrompt(sessionId, options = {}) {
     world.post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
+  if (config.suggestion_enabled) postParts.push(SUGGESTION_PROMPT);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
@@ -376,13 +387,23 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  chars=${allCharacterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
 
   const entryTexts = [];
+
+  // 所有条目的触发条件描述全量注入
+  const descLines = allEntries
+    .filter((e) => e.description && e.description.trim())
+    .map((e, i) => `${i + 1}. 【${tv(e.title)}】${tv(e.description)}`)
+    .join('\n');
+  if (descLines) {
+    entryTexts.push(`[条目触发索引]\n${descLines}`);
+  }
+
+  // 触发条目的完整内容
   for (const entry of allEntries) {
-    if (triggeredIds.has(entry.id)) {
-      if (entry.content) entryTexts.push(tv(entry.content));
-    } else {
-      if (entry.summary) entryTexts.push(tv(entry.summary));
+    if (triggeredIds.has(entry.id) && entry.content) {
+      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
+
   if (entryTexts.length > 0) {
     systemParts.push(entryTexts.join('\n\n'));
   }
@@ -422,6 +443,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
   const postParts = [writing.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
+  if (writing.suggestion_enabled) postParts.push(SUGGESTION_PROMPT);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }

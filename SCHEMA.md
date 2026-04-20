@@ -21,10 +21,9 @@
     /avatars             # 角色头像，文件名：{character_id}.{ext}
     /attachments         # 消息附件，文件名：{message_id}_{index}.{ext}
   /vectors
-    prompt_entries.json      # Prompt 条目的 embedding 向量索引
     session_summaries.json   # 会话摘要的 embedding 向量索引（T27，T35 起不再写入，旧数据存档）
     turn_summaries.json      # 每轮 turn record 摘要的 embedding 向量索引（T35）
-  /logs
+  /data/logs
     worldengine-YYYY-MM-DD.log  # 运行时日志，按日轮换（T99）；data/.gitignore 的 * 规则已覆盖
 ```
 
@@ -423,13 +422,13 @@ CREATE INDEX idx_character_state_values_character_id ON character_state_values(c
 CREATE TABLE global_prompt_entries (
   id             TEXT PRIMARY KEY,          -- UUID
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',  -- ~50字简介，用于未触发时注入
+  description    TEXT NOT NULL DEFAULT '',  -- 触发条件描述（1-2句话），LLM pre-flight 判断依据；为空则降级为纯关键词触发
   content        TEXT NOT NULL DEFAULT '',  -- 完整正文，触发时注入
   keywords       TEXT,                      -- JSON 字符串数组，兜底触发用，NULL 表示不启用关键词匹配
                                             -- 例：["魔法", "法术", "咒语"]
-  embedding_id   TEXT,                      -- 对应 vectors/prompt_entries.json 中的条目 ID，NULL 表示尚未向量化
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant', -- 关键词匹配范围：'user' | 'assistant' | 'user,assistant'
   sort_order     INTEGER NOT NULL DEFAULT 0, -- 同层条目的显示排序
-  mode           TEXT NOT NULL DEFAULT 'chat', -- T86：'chat' | 'writing'，决定条目归属的空间
+  mode           TEXT NOT NULL DEFAULT 'chat', -- 'chat' | 'writing'，决定条目归属的空间
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -444,10 +443,10 @@ CREATE TABLE world_prompt_entries (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',  -- 触发条件描述（同上）
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
-  embedding_id   TEXT,
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -465,10 +464,10 @@ CREATE TABLE character_prompt_entries (
   id             TEXT PRIMARY KEY,
   character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',  -- 触发条件描述（同上）
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
-  embedding_id   TEXT,
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -564,33 +563,6 @@ CREATE TABLE internal_meta (
 ---
 
 ## 向量文件结构
-
-### prompt_entries.json
-
-路径：`/data/vectors/prompt_entries.json`
-
-由 vectra 风格的本地向量库管理，结构如下：
-
-```json
-{
-  "version": 1,
-  "entries": [
-    {
-      "id": "uuid",
-      "source_id": "prompt_entry 的 id",
-      "source_table": "global_prompt_entries | world_prompt_entries | character_prompt_entries",
-      "vector": [0.123, -0.456, ...],      // embedding 向量，float 数组
-      "updated_at": 1710000000000
-    }
-  ]
-}
-```
-
-条目创建或内容修改时，后端异步更新此文件中对应条目的向量。  
-条目删除时，同步从此文件中移除对应条目。  
-向量计算完成后，将 `embedding_id` 写回对应的 prompt_entries 表。`embedding_id` 为 NULL 表示尚未向量化，触发时只走关键词匹配兜底。
-
----
 
 ### turn_summaries.json（T35）
 

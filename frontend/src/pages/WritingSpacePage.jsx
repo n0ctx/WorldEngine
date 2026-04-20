@@ -22,6 +22,7 @@ import CastPanel from '../components/book/CastPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
+import OptionCard from '../components/chat/OptionCard.jsx';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
@@ -57,7 +58,10 @@ export default function WritingSpacePage() {
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
   const pendingAssistantRef = useRef(null);
+  const pendingOptionsRef = useRef([]);
   const currentSessionRef = useRef(null);
+
+  const [currentOptions, setCurrentOptions] = useState([]);
 
   useEffect(() => {
     currentSessionRef.current = currentSession;
@@ -143,14 +147,25 @@ export default function WritingSpacePage() {
 
   function makeStreamCallbacks() {
     pendingAssistantRef.current = null;
+    pendingOptionsRef.current = [];
     const streamKey = beginStreamingKey();
     return {
       onDelta(delta) {
-        streamingTextRef.current += delta;
-        setStreamingText(streamingTextRef.current);
+        const next = streamingTextRef.current + delta;
+        streamingTextRef.current = next;
+        const tagIdx = next.indexOf('<next_prompt>');
+        if (tagIdx !== -1) {
+          setStreamingText(next.slice(0, tagIdx));
+          const afterTag = next.slice(tagIdx + '<next_prompt>'.length);
+          const opts = afterTag.split('\n').map((s) => s.trim()).filter((s) => s && s !== '</next_prompt>');
+          setCurrentOptions(opts);
+        } else {
+          setStreamingText(next);
+        }
       },
-      onDone(assistant) {
+      onDone(assistant, options) {
         if (assistant) pendingAssistantRef.current = assistant;
+        if (options?.length) pendingOptionsRef.current = options;
       },
       onAborted(assistant) {
         if (assistant) pendingAssistantRef.current = assistant;
@@ -169,11 +184,14 @@ export default function WritingSpacePage() {
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
         pendingAssistantRef.current = null;
+        const pendingOptions = pendingOptionsRef.current;
+        pendingOptionsRef.current = [];
         streamingTextRef.current = '';
         setGenerating(false);
         setStreamingText('');
         stopRef.current = null;
         setCastRefreshTick((t) => t + 1);
+        if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (pending && MessageList.appendMessage) {
           // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
           MessageList.appendMessage({ ...pending, _key: streamKey });
@@ -189,6 +207,7 @@ export default function WritingSpacePage() {
     if (!session || generating) return;
 
     setError(null);
+    setCurrentOptions([]);
 
     if (content) {
       const optimisticMsg = {
@@ -282,6 +301,8 @@ export default function WritingSpacePage() {
   function handleContinue() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
+
+    setCurrentOptions([]);
 
     // 找最后一条 assistant 消息 id
     let lastAssistantId = null;
@@ -433,6 +454,16 @@ export default function WritingSpacePage() {
           onDeleteMessage={handleDeleteMessage}
           prose
         />
+
+        {/* 选项卡：AI 回复后展示行动选项 */}
+        {currentOptions.length > 0 && (
+          <OptionCard
+            options={currentOptions}
+            streaming={generating}
+            onSelect={(text) => { setCurrentOptions([]); handleSend(text); }}
+            onDismiss={() => setCurrentOptions([])}
+          />
+        )}
 
         {/* 错误提示 */}
         {error && (

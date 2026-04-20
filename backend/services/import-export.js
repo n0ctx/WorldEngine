@@ -20,7 +20,7 @@ export function exportCharacter(characterId) {
   if (!character) throw new Error('角色不存在');
 
   const promptEntries = db.prepare(
-    'SELECT title, summary, content, keywords, sort_order FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
+    'SELECT title, description, content, keywords, keyword_scope, sort_order FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
   ).all(characterId).map((e) => ({
     ...e,
     keywords: e.keywords ? JSON.parse(e.keywords) : null,
@@ -138,14 +138,15 @@ export function importCharacter(worldId, data) {
 
     // 插入 prompt_entries
     const insertEntry = db.prepare(`
-      INSERT INTO character_prompt_entries (id, character_id, title, summary, content, keywords, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const entry of (data.prompt_entries ?? [])) {
       insertEntry.run(
         crypto.randomUUID(), characterId,
-        entry.title, entry.summary ?? '', entry.content ?? '',
+        entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
         entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+        entry.keyword_scope ?? 'user,assistant',
         entry.sort_order ?? 0,
         now, now,
       );
@@ -179,7 +180,7 @@ export function exportWorld(worldId) {
   if (!world) throw new Error('世界不存在');
 
   const worldPromptEntries = db.prepare(
-    'SELECT title, summary, content, keywords, sort_order FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT title, description, content, keywords, keyword_scope, sort_order FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((e) => ({
     ...e,
     keywords: e.keywords ? JSON.parse(e.keywords) : null,
@@ -210,7 +211,7 @@ export function exportWorld(worldId) {
     'SELECT * FROM characters WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC',
   ).all(worldId).map((character) => {
     const entries = db.prepare(
-      'SELECT title, summary, content, keywords, sort_order FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
+      'SELECT title, description, content, keywords, keyword_scope, sort_order FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
     ).all(character.id).map((e) => ({
       ...e,
       keywords: e.keywords ? JSON.parse(e.keywords) : null,
@@ -309,14 +310,15 @@ export function importWorld(data) {
 
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`
-      INSERT INTO world_prompt_entries (id, world_id, title, summary, content, keywords, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const entry of (data.prompt_entries ?? [])) {
       insertWorldEntry.run(
         crypto.randomUUID(), worldId,
-        entry.title, entry.summary ?? '', entry.content ?? '',
+        entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
         entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+        entry.keyword_scope ?? 'user,assistant',
         entry.sort_order ?? 0,
         now, now,
       );
@@ -440,8 +442,8 @@ export function importWorld(data) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertCharEntry = db.prepare(`
-      INSERT INTO character_prompt_entries (id, character_id, title, summary, content, keywords, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertCharValue = db.prepare(`
       INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
@@ -476,8 +478,9 @@ export function importWorld(data) {
       for (const entry of (charData.prompt_entries ?? [])) {
         insertCharEntry.run(
           crypto.randomUUID(), characterId,
-          entry.title, entry.summary ?? '', entry.content ?? '',
+          entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
           entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+          entry.keyword_scope ?? 'user,assistant',
           entry.sort_order ?? 0,
           now, now,
         );
@@ -506,7 +509,7 @@ export function exportGlobalSettings(mode = 'chat') {
   const config = getConfig();
 
   const promptEntries = db.prepare(
-    'SELECT title, summary, content, keywords, mode, sort_order FROM global_prompt_entries WHERE mode = ? ORDER BY sort_order ASC',
+    'SELECT title, description, content, keywords, keyword_scope, mode, sort_order FROM global_prompt_entries WHERE mode = ? ORDER BY sort_order ASC',
   ).all(mode).map((e) => ({ ...e, keywords: e.keywords ? JSON.parse(e.keywords) : null }));
 
   const cssSnippets = db.prepare(
@@ -568,6 +571,18 @@ export function importGlobalSettings(data) {
   const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
   const now = Date.now();
 
+  function normalizeKeywordScope(scope) {
+    if (typeof scope !== 'string') return 'user,assistant';
+    const raw = scope.trim().toLowerCase();
+    if (!raw || raw === 'both') return 'user,assistant';
+    if (raw === 'user' || raw === 'assistant') return raw;
+    const items = raw
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item, index, arr) => (item === 'user' || item === 'assistant') && arr.indexOf(item) === index);
+    return items.join(',');
+  }
+
   const doImport = db.transaction(() => {
     db.prepare('DELETE FROM global_prompt_entries WHERE mode = ?').run(mode);
     db.prepare('DELETE FROM custom_css_snippets WHERE mode = ?').run(mode);
@@ -575,16 +590,17 @@ export function importGlobalSettings(data) {
 
     const insertEntry = db.prepare(
       `INSERT INTO global_prompt_entries
-       (id, title, summary, content, keywords, mode, sort_order, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, title, description, content, keywords, keyword_scope, mode, sort_order, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const entry of (data.global_prompt_entries ?? [])) {
       insertEntry.run(
         crypto.randomUUID(),
         entry.title ?? '',
-        entry.summary ?? null,
+        entry.description ?? entry.summary ?? '',
         entry.content ?? '',
         entry.keywords != null ? JSON.stringify(entry.keywords) : null,
+        normalizeKeywordScope(entry.keyword_scope),
         mode,
         entry.sort_order ?? 0,
         now, now,

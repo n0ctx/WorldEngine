@@ -169,10 +169,10 @@ CREATE TABLE IF NOT EXISTS character_state_values (
 CREATE TABLE IF NOT EXISTS global_prompt_entries (
   id             TEXT PRIMARY KEY,
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,
-  embedding_id   TEXT,
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   mode           TEXT NOT NULL DEFAULT 'chat',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
@@ -183,10 +183,10 @@ CREATE TABLE IF NOT EXISTS world_prompt_entries (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,
-  embedding_id   TEXT,
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -196,10 +196,10 @@ CREATE TABLE IF NOT EXISTS character_prompt_entries (
   id             TEXT PRIMARY KEY,
   character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
-  summary        TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,
-  embedding_id   TEXT,
+  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -356,6 +356,13 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
   try { db.exec(`ALTER TABLE custom_css_snippets ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
   try { db.exec(`ALTER TABLE regex_rules ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  // Prompt 条目：summary → description（触发条件描述），新增 keyword_scope
+  try { db.exec(`ALTER TABLE global_prompt_entries RENAME COLUMN summary TO description`); } catch {}
+  try { db.exec(`ALTER TABLE world_prompt_entries RENAME COLUMN summary TO description`); } catch {}
+  try { db.exec(`ALTER TABLE character_prompt_entries RENAME COLUMN summary TO description`); } catch {}
+  try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
+  try { db.exec(`ALTER TABLE character_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
 }

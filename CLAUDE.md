@@ -64,9 +64,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 日志模式通过 `data/config.json` 的 `logging` 配置块控制：默认 `mode="metadata"`；需要原文预览时切到 `mode="raw"`，并按需开启 `logging.prompt.enabled` / `logging.llm_raw.enabled`。
 
+**日志文件**：`data/logs/worldengine-YYYY-MM-DD.log`（按日轮换），如 `data/logs/worldengine-2026-04-20.log`。
+
 ---
 
-## 不可随意修改的文件
+## 不可随意修改的文件ß
 
 以下文件一旦完成即锁定，未经明确要求禁止改动：
 
@@ -163,3 +165,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **persona 无 Prompt 条目**：persona 只有 name 和 system_prompt，与角色不同，没有 Prompt 条目。
 
 **自定义 CSS**：前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`，全部为全局作用。
+
+<claude-mem-context>
+# Memory Context
+
+# [WorldEngine] recent context, 2026-04-20 1:52am GMT+8
+
+No previous sessions found.
+</claude-mem-context>

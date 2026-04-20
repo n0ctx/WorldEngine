@@ -36,6 +36,7 @@ const DEFAULT_CONFIG = {
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
+  suggestion_enabled: false,
   log_prompt: false,
   logging: {
     mode: 'metadata',
@@ -52,6 +53,7 @@ const DEFAULT_CONFIG = {
     global_system_prompt: '',
     global_post_prompt: '',
     context_history_rounds: null,
+    suggestion_enabled: false,
     llm: {
       model: '',
       temperature: null,
@@ -64,6 +66,7 @@ const DEFAULT_WRITING = {
   global_system_prompt: '',
   global_post_prompt: '',
   context_history_rounds: null,
+  suggestion_enabled: false,
   llm: {
     model: '',
     temperature: null,

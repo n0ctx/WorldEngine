@@ -28,7 +28,7 @@ import {
   buildContinuationMessages,
   sendSse,
 } from './stream-helpers.js';
-import { stripAsstContext } from '../utils/turn-dialogue.js';
+import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 
 const router = Router();
 const log = createLogger('chat');
@@ -123,6 +123,14 @@ async function runStream(sessionId, res, opts = {}) {
     fullContent = stripAsstContext(fullContent);
   }
 
+  // 提取选项（仅非中断时；剥除后内容不入 DB）
+  let options = [];
+  if (!aborted && fullContent) {
+    const extracted = extractNextPromptOptions(fullContent);
+    fullContent = extracted.content;
+    options = extracted.options;
+  }
+
   if (aborted && fullContent) {
     fullContent += '\n\n[已中断]';
   }
@@ -140,7 +148,7 @@ async function runStream(sessionId, res, opts = {}) {
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
       ? { aborted: true, assistant: savedAssistant }
-      : { done: true, assistant: savedAssistant });
+      : { done: true, assistant: savedAssistant, options });
   }
 
   streamState.clear();

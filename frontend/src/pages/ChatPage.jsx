@@ -8,6 +8,7 @@ import { createSession, getSession, deleteMessage as deleteMessageApi } from '..
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
+import OptionCard from '../components/chat/OptionCard.jsx';
 import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
@@ -52,8 +53,12 @@ export default function ChatPage() {
   const tempUserIdRef = useRef(null);
   // 本轮后端返回的真实 assistant 消息（finalizeStream 用它原地追加）
   const pendingAssistantRef = useRef(null);
+  // 本轮后端返回的选项列表（finalizeStream 时设置到 currentOptions）
+  const pendingOptionsRef = useRef([]);
   // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
   const streamingKeyRef = useRef('__stream_init__');
+
+  const [currentOptions, setCurrentOptions] = useState([]);
 
   // 每次开启新流时调用：生成本轮唯一的占位 key
   const beginStreamingKey = useCallback(() => {
@@ -202,6 +207,12 @@ export default function ChatPage() {
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
+    // 设置本轮选项（续写不展示选项）；后端有最终解析结果时覆盖，否则保留流式检测的内容
+    if (!wasContinuing) {
+      const finalOpts = pendingOptionsRef.current;
+      if (finalOpts.length > 0) setCurrentOptions(finalOpts);
+    }
+    pendingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
     if (!wasContinuing && !appendedAssistant) refreshMessages();
     useStore.getState().triggerMemoryRefresh();
@@ -209,13 +220,20 @@ export default function ChatPage() {
 
   // 共用 SSE callbacks
   function makeCallbacks() {
+    pendingOptionsRef.current = [];
     return {
       onDelta(delta) {
-        setStreamingText((prev) => {
-          const next = prev + delta;
-          streamingTextRef.current = next;
-          return next;
-        });
+        const next = streamingTextRef.current + delta;
+        streamingTextRef.current = next;
+        const tagIdx = next.indexOf('<next_prompt>');
+        if (tagIdx !== -1) {
+          setStreamingText(next.slice(0, tagIdx));
+          const afterTag = next.slice(tagIdx + '<next_prompt>'.length);
+          const opts = afterTag.split('\n').map((s) => s.trim()).filter((s) => s && s !== '</next_prompt>');
+          setCurrentOptions(opts);
+        } else {
+          setStreamingText(next);
+        }
       },
       onUserSaved(realId) {
         const tempId = tempUserIdRef.current;
@@ -228,9 +246,10 @@ export default function ChatPage() {
         }
         tempUserIdRef.current = realId;
       },
-      onDone(assistant) {
+      onDone(assistant, options) {
         // 流可能还有 title_updated，等 onStreamEnd 再终结
         if (assistant) pendingAssistantRef.current = assistant;
+        if (options?.length) pendingOptionsRef.current = options;
       },
       onAborted(assistant) {
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
@@ -299,6 +318,7 @@ export default function ChatPage() {
     }
 
     setErrorBubble(null);
+    setCurrentOptions([]);
     streamingTextRef.current = '';
     setLastUserContent(content);
 
@@ -386,6 +406,7 @@ export default function ChatPage() {
     const lastAssistantId = lastAssistant?.id ?? null;
     if (!lastAssistantId) return;
 
+    setCurrentOptions([]);
     continuingMessageIdRef.current = lastAssistantId;
     continuingTextRef.current = '';
     setContinuingMessageId(lastAssistantId);
@@ -633,6 +654,16 @@ export default function ChatPage() {
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
         />
+
+        {/* 选项卡：AI 回复后展示行动选项（流式中实时更新，结束后可交互） */}
+        {currentOptions.length > 0 && (
+          <OptionCard
+            options={currentOptions}
+            streaming={generating}
+            onSelect={(text) => { setCurrentOptions([]); handleSend(text, []); }}
+            onDismiss={() => setCurrentOptions([])}
+          />
+        )}
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
         {errorBubble && !generating && (

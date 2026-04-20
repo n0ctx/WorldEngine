@@ -573,6 +573,8 @@ function PromptSection({
   globalPostPrompt, setGlobalPostPrompt,
   contextRounds, setContextRounds,
   memoryExpansionEnabled, onToggleMemoryExpansion,
+  suggestionEnabled, onToggleSuggestion,
+  writingSuggestionEnabled, onToggleWritingSuggestion,
   onSave, saving,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
@@ -627,6 +629,49 @@ function PromptSection({
 
           <p className="we-edit-label">写作 Prompt 条目</p>
           <EntryList type="global" mode="writing" />
+
+          <hr className="we-settings-divider" />
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
+            <div>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+                写作选项功能
+              </p>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+                开启后 AI 回复末尾生成选项卡，供选择下一步行动
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={writingSuggestionEnabled}
+              onClick={() => onToggleWritingSuggestion(!writingSuggestionEnabled)}
+              style={{
+                flexShrink: 0,
+                position: 'relative',
+                display: 'inline-flex',
+                height: '24px',
+                width: '44px',
+                cursor: 'pointer',
+                borderRadius: '9999px',
+                border: '2px solid transparent',
+                transition: 'background-color 0.2s',
+                backgroundColor: writingSuggestionEnabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  height: '20px',
+                  width: '20px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'var(--we-paper-base)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  transition: 'transform 0.2s',
+                  transform: writingSuggestionEnabled ? 'translateX(20px)' : 'translateX(0)',
+                }}
+              />
+            </button>
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <Button variant="primary" onClick={onSaveWriting} disabled={saving}>
@@ -715,6 +760,49 @@ function PromptSection({
                   boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                   transition: 'transform 0.2s',
                   transform: memoryExpansionEnabled ? 'translateX(20px)' : 'translateX(0)',
+                }}
+              />
+            </button>
+          </div>
+
+          <hr className="we-settings-divider" />
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
+            <div>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+                对话选项功能
+              </p>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+                开启后 AI 回复末尾生成选项卡，供选择下一步行动
+              </p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={suggestionEnabled}
+              onClick={() => onToggleSuggestion(!suggestionEnabled)}
+              style={{
+                flexShrink: 0,
+                position: 'relative',
+                display: 'inline-flex',
+                height: '24px',
+                width: '44px',
+                cursor: 'pointer',
+                borderRadius: '9999px',
+                border: '2px solid transparent',
+                transition: 'background-color 0.2s',
+                backgroundColor: suggestionEnabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-block',
+                  height: '20px',
+                  width: '20px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'var(--we-paper-base)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  transition: 'transform 0.2s',
+                  transform: suggestionEnabled ? 'translateX(20px)' : 'translateX(0)',
                 }}
               />
             </button>
@@ -879,6 +967,8 @@ export default function SettingsPage() {
   const [globalSystemPrompt, setGlobalSystemPrompt] = useState('');
   const [globalPostPrompt, setGlobalPostPrompt] = useState('');
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
+  const [suggestionEnabled, setSuggestionEnabled] = useState(false);
+  const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
@@ -901,6 +991,8 @@ export default function SettingsPage() {
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
       setGlobalPostPrompt(c.global_post_prompt ?? '');
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
+      setSuggestionEnabled(c.suggestion_enabled === true);
+      setWritingSuggestionEnabled(c.writing?.suggestion_enabled === true);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
       setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
       const w = c.writing || {};
@@ -1011,6 +1103,16 @@ export default function SettingsPage() {
     await patchConfig({ memory_expansion_enabled: enabled });
   }
 
+  async function handleToggleSuggestion(enabled) {
+    setSuggestionEnabled(enabled);
+    await patchConfig({ suggestion_enabled: enabled });
+  }
+
+  async function handleToggleWritingSuggestion(enabled) {
+    setWritingSuggestionEnabled(enabled);
+    await patchConfig({ writing: { suggestion_enabled: enabled } });
+  }
+
   async function handleToggleShowThinking(enabled) {
     setShowThinkingLocal(enabled);
     setShowThinkingStore(enabled);
@@ -1030,7 +1132,9 @@ export default function SettingsPage() {
     setGlobalPostPrompt(c.global_post_prompt ?? '');
     setContextRounds(c.context_history_rounds ?? 10);
     setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
+    setSuggestionEnabled(c.suggestion_enabled === true);
     const w = c.writing || {};
+    setWritingSuggestionEnabled(w.suggestion_enabled === true);
     setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
@@ -1137,6 +1241,10 @@ export default function SettingsPage() {
                 setContextRounds={setContextRounds}
                 memoryExpansionEnabled={memoryExpansionEnabled}
                 onToggleMemoryExpansion={handleToggleMemoryExpansion}
+                suggestionEnabled={suggestionEnabled}
+                onToggleSuggestion={handleToggleSuggestion}
+                writingSuggestionEnabled={writingSuggestionEnabled}
+                onToggleWritingSuggestion={handleToggleWritingSuggestion}
                 onSave={handleSaveGeneral}
                 saving={saving}
                 writingSystemPrompt={writingSystemPrompt}

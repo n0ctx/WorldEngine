@@ -3,11 +3,34 @@ import db from '../index.js';
 
 // ─── 通用工具 ───────────────────────────────────────────────────
 
+function normalizeKeywordScopeValue(value) {
+  if (Array.isArray(value)) {
+    const items = value
+      .filter((item) => item === 'user' || item === 'assistant');
+    const unique = [...new Set(items)];
+    return unique.join(',');
+  }
+
+  if (typeof value !== 'string') return 'user,assistant';
+
+  const raw = value.trim().toLowerCase();
+  if (!raw || raw === 'both') return 'user,assistant';
+  if (raw === 'user' || raw === 'assistant') return raw;
+
+  const items = raw
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => item === 'user' || item === 'assistant');
+  const unique = [...new Set(items)];
+  return unique.join(',');
+}
+
 function parseKeywords(row) {
   if (!row) return row;
   return {
     ...row,
     keywords: row.keywords ? JSON.parse(row.keywords) : null,
+    keyword_scope: normalizeKeywordScopeValue(row.keyword_scope),
   };
 }
 
@@ -24,14 +47,15 @@ export function createGlobalEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO global_prompt_entries (id, title, summary, content, keywords, mode, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO global_prompt_entries (id, title, description, content, keywords, keyword_scope, mode, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.title,
-    data.summary ?? '',
+    data.description ?? '',
     data.content ?? '',
     data.keywords != null ? JSON.stringify(data.keywords) : null,
+    normalizeKeywordScopeValue(data.keyword_scope),
     data.mode ?? 'chat',
     sortOrder,
     now,
@@ -52,7 +76,7 @@ export function getAllGlobalEntries(mode) {
 }
 
 export function updateGlobalEntry(id, patch) {
-  const allowed = ['title', 'summary', 'content', 'keywords', 'mode', 'sort_order'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'mode', 'sort_order'];
   const sets = [];
   const values = [];
 
@@ -61,9 +85,12 @@ export function updateGlobalEntry(id, patch) {
       sets.push(`${field} = ?`);
       values.push(field === 'keywords'
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
-        : patch[field]);
+        : field === 'keyword_scope'
+          ? normalizeKeywordScopeValue(patch.keyword_scope)
+          : patch[field]);
     }
   }
+
 
   if (sets.length === 0) return getGlobalEntryById(id);
 
@@ -94,15 +121,16 @@ export function createWorldEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO world_prompt_entries (id, world_id, title, summary, content, keywords, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.world_id,
     data.title,
-    data.summary ?? '',
+    data.description ?? '',
     data.content ?? '',
     data.keywords != null ? JSON.stringify(data.keywords) : null,
+    normalizeKeywordScopeValue(data.keyword_scope),
     sortOrder,
     now,
     now,
@@ -119,7 +147,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'summary', 'content', 'keywords', 'sort_order'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order'];
   const sets = [];
   const values = [];
 
@@ -128,7 +156,9 @@ export function updateWorldEntry(id, patch) {
       sets.push(`${field} = ?`);
       values.push(field === 'keywords'
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
-        : patch[field]);
+        : field === 'keyword_scope'
+          ? normalizeKeywordScopeValue(patch.keyword_scope)
+          : patch[field]);
     }
   }
 
@@ -161,15 +191,16 @@ export function createCharacterEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO character_prompt_entries (id, character_id, title, summary, content, keywords, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.character_id,
     data.title,
-    data.summary ?? '',
+    data.description ?? '',
     data.content ?? '',
     data.keywords != null ? JSON.stringify(data.keywords) : null,
+    normalizeKeywordScopeValue(data.keyword_scope),
     sortOrder,
     now,
     now,
@@ -186,7 +217,7 @@ export function getAllCharacterEntries(characterId) {
 }
 
 export function updateCharacterEntry(id, patch) {
-  const allowed = ['title', 'summary', 'content', 'keywords', 'sort_order'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order'];
   const sets = [];
   const values = [];
 
@@ -195,7 +226,9 @@ export function updateCharacterEntry(id, patch) {
       sets.push(`${field} = ?`);
       values.push(field === 'keywords'
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
-        : patch[field]);
+        : field === 'keyword_scope'
+          ? normalizeKeywordScopeValue(patch.keyword_scope)
+          : patch[field]);
     }
   }
 
@@ -217,34 +250,4 @@ export function reorderCharacterEntries(characterId, orderedIds) {
   db.transaction(() => {
     orderedIds.forEach((id, index) => stmt.run(index, now, id, characterId));
   })();
-}
-
-// ─── 副作用清理辅助查询（只读） ──────────────────────────────────
-
-/**
- * 获取某角色下所有 Prompt 条目的 embedding_id（过滤 NULL）
- * @param {string} characterId
- * @returns {string[]}
- */
-export function getEmbeddingIdsByCharacterId(characterId) {
-  return db.prepare(
-    'SELECT embedding_id FROM character_prompt_entries WHERE character_id = ? AND embedding_id IS NOT NULL',
-  ).all(characterId).map((r) => r.embedding_id);
-}
-
-/**
- * 获取某世界下所有 Prompt 条目的 embedding_id（world 级 + 该 world 下所有 character 级；过滤 NULL；去重）
- * @param {string} worldId
- * @returns {string[]}
- */
-export function getEmbeddingIdsByWorldId(worldId) {
-  const rows = db.prepare(`
-    SELECT embedding_id FROM world_prompt_entries
-    WHERE world_id = ? AND embedding_id IS NOT NULL
-    UNION
-    SELECT embedding_id FROM character_prompt_entries
-    WHERE character_id IN (SELECT id FROM characters WHERE world_id = ?)
-      AND embedding_id IS NOT NULL
-  `).all(worldId, worldId);
-  return rows.map((r) => r.embedding_id);
 }

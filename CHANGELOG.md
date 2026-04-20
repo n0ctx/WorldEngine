@@ -19,6 +19,44 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## perf — 前端首包拆分（路由 / 助手 / 编辑器） ✅
+- **对外接口**：无 API 变更；前端行为保持不变，页面、写卡助手和 Markdown 编辑器改为按需加载
+- **涉及文件**：`frontend/src/App.jsx`、`frontend/src/components/ui/MarkdownEditor.jsx`、`frontend/src/components/ui/MarkdownEditorInner.jsx`、`ARCHITECTURE.md`
+- **注意**：`AssistantPanel` 仅在首次打开助手后才加载；`MarkdownEditor` 变为轻量包装层，Tiptap 依赖只在进入编辑场景时拉取；抽屉路由仍保留背景页，只是目标页改为 lazy
+
+## feat — Prompt 条目关键词范围改为双勾选 ✅
+- **对外接口**：`keyword_scope` 不再使用 `"both"`；合法值改为 `"user"` / `"assistant"` / `"user,assistant"`；前端 Prompt 条目编辑器改为两个复选框，两个都勾选即双向触发
+- **涉及文件**：`frontend/src/components/prompt/EntryEditor.jsx`、`EntryList.jsx`、`backend/prompt/entry-matcher.js`、`backend/db/queries/prompt-entries.js`、`backend/routes/prompt-entries.js`、`backend/db/schema.js`、`backend/services/import-export.js`、`SCHEMA.md`、三个 assistant prompt
+- **注意**：后端继续兼容旧库里的 `"both"` 并在读写时归一化为 `"user,assistant"`；关键词兜底只扫描 user / assistant 消息，不再把 system 文本混进双向匹配；角色卡/世界卡/全局设置导入同时兼容旧导出的 `summary` 和旧 `keyword_scope`
+
+## feat — Prompt 条目 LLM 触发 + 关键词 scope ✅
+- **对外接口**：`matchEntries(sessionId, entries)` 签名不变；assembler.js [8-10] 注入格式变为：`[条目触发索引]`（全量 description）+ 触发条目的 `【标题】\n正文`
+- **涉及文件**：`backend/prompt/entry-matcher.js`（完整重写）、`backend/prompt/assembler.js`（[8-10] 段两处）、`backend/memory/summary-expander.js`（decideExpansion 改为内部取 1 轮上文）、`backend/services/prompt-entries.js`（移除 vectorize）、`backend/db/queries/prompt-entries.js`、`backend/db/schema.js`、`backend/utils/constants.js`、`frontend/src/components/prompt/EntryEditor.jsx`、三个写卡 prompt md
+- **Schema 变更**：三张 prompt_entries 表：`summary` RENAME → `description`，新增 `keyword_scope TEXT DEFAULT 'both'`；`embedding_id` 字段随数据库迁移保留（旧库），新建库无此字段
+- **注意**：description 全量注入主 LLM system prompt（格式：[条目触发索引]），pre-flight llm.complete() 用最近 1 轮上文（1 user+1 assistant）判断触发；LLM 失败降级为纯关键词匹配；keyword_scope 控制关键词匹配范围（'both'/'user'/'assistant'）；decideExpansion（摘要展开）也改为自行取 1 轮上文，不再依赖 recall.js 传入
+
+## refactor — OptionCard 风格修复 ✅
+- **风格**：OptionCard.jsx 重写用 Tailwind + CSS 类（`.we-option-btn`/`.we-option-dismiss` 加入 ui.css），移除 onMouseEnter/Leave JS hover
+- **注意**：选项生成仍走 assembler.js [15] 注入 SUGGESTION_PROMPT 方案（保留完整上下文），chat/regenerate/writing 所有路径均注入
+
+## T— 选项功能（Next Prompt Suggestions）✅
+- **对外接口**：全局设置 `suggestion_enabled`（对话）/ `writing.suggestion_enabled`（写作）；后端 `done` SSE 事件新增 `options: string[]` 字段
+- **涉及文件**：
+  - `backend/utils/constants.js`（新增 `SUGGESTION_PROMPT`）
+  - `backend/utils/turn-dialogue.js`（新增 `extractNextPromptOptions`）
+  - `backend/services/config.js`（新增两个 boolean 字段）
+  - `backend/prompt/assembler.js`（[15] 段条件注入，改动只在段内容，不改顺序）
+  - `backend/routes/chat.js` / `writing.js`（提取选项、done 事件携带 options）
+  - `frontend/src/api/chat.js` / `writingSessions.js`（onDone 增加 options 参数）
+  - `frontend/src/components/chat/OptionCard.jsx`（新建）
+  - `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`（pendingOptionsRef + currentOptions 状态管理）
+  - `frontend/src/pages/SettingsPage.jsx`（两个 toggle 开关）
+- **注意**：
+  - `<next_prompt>` 标签在 `extractNextPromptOptions` 中被剥除，**不保存进 DB**；选项只在当轮 done 事件返回时展示，刷新后消失
+  - 续写（`/continue`）路由不生成选项，`handleContinue` 开头主动 `setCurrentOptions([])` 清空上一轮残留
+  - `makeCallbacks`/`makeStreamCallbacks` 开头重置 `pendingOptionsRef.current = []`，防止连接断开（AbortError）后残留选项在下一轮错误显示
+  - OptionCard 的 hover 效果用 JS onMouseEnter/Leave 内联修改 style（已知技术债，项目约定要求 Tailwind，暂未重构）
+
 ## bugfix — decideExpansion & generateTitle <think> 污染修复 ✅
 - **涉及文件**：`backend/memory/summary-expander.js`、`backend/memory/summarizer.js`
 - **注意**：

@@ -70,7 +70,7 @@
 
 .we-message-bubble-user {
   width: fit-content;
-  max-width: 420px;
+  max-width: 560px;
   background: var(--we-paper-aged);
   border-right: 2.5px solid var(--we-amber);
   padding: 10px 14px;

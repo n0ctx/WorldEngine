@@ -97,16 +97,22 @@
 格式：
 
 ```json
-{ "op": "create", "title": "条目标题", "summary": "50字以内简介", "content": "完整内容", "keywords": ["关键词1", "关键词2"] }
+{ "op": "create", "title": "条目标题", "description": "触发条件（1-2句话）", "content": "完整内容", "keywords": ["关键词1", "关键词2"], "keyword_scope": "user,assistant" }
 ```
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "summary": "更新简介", "content": "更新内容", "keywords": ["关键词"] }
+{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"] }
 ```
 
 ```json
 { "op": "delete", "id": "现有条目ID" }
 ```
+
+`description`（触发条件）写法：1-2 句话描述**何时**触发，而非描述内容本身。
+- 正确：`"玩家询问地下黑市位置，或剧情涉及非法交易时"`
+- 错误：`"关于地下黑市的详细介绍"`
+
+`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认，两者都匹配）。
 
 ### `stateFieldOps`
 
