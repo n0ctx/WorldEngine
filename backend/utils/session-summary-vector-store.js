@@ -3,7 +3,6 @@
  *
  * 对外暴露：
  *   loadStore()                                                            → { version, entries }
- *   upsertEntry(summaryId, sessionId, worldId, vector)                     → void
  *   deleteBySessionId(sessionId)                                           → void
  *   search(queryVector, { worldId, excludeSessionId, topK })               → [{ summary_id, session_id, score }, ...]
  */
@@ -39,27 +38,6 @@ function saveStore(store) {
 }
 
 // ─── 操作 ────────────────────────────────────────────────────────
-
-/**
- * 新增或更新向量条目
- *
- * @param {string}   summaryId  session_summaries 表的 id
- * @param {string}   sessionId  所属 session 的 id
- * @param {string}   worldId    所属 world 的 id（用于过滤）
- * @param {number[]} vector     embedding 向量
- */
-export function upsertEntry(summaryId, sessionId, worldId, vector) {
-  const store = loadStore();
-  const idx = store.entries.findIndex((e) => e.summary_id === summaryId);
-  const entry = { summary_id: summaryId, session_id: sessionId, world_id: worldId, vector, updated_at: Date.now() };
-
-  if (idx >= 0) {
-    store.entries[idx] = entry;
-  } else {
-    store.entries.push(entry);
-  }
-  saveStore(store);
-}
 
 /**
  * 删除某 session 对应的向量条目，不存在时静默忽略

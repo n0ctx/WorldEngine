@@ -8,10 +8,7 @@ import {
 } from '../db/queries/character-state-fields.js';
 import { getCharactersByWorldId } from '../db/queries/characters.js';
 import { upsertCharacterStateValue, deleteCharacterStateValue } from '../db/queries/character-state-values.js';
-
-function getInitialValueJson(field) {
-  return field.default_value ?? null;
-}
+import { getInitialValueJson } from './_state-field-helpers.js';
 
 export function createCharacterStateField(worldId, data) {
   const field = dbCreate(worldId, data);

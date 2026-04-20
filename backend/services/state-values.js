@@ -30,7 +30,7 @@ function parseValueJson(valueJson) {
   }
 }
 
-export function validateStateValue(value, field) {
+function validateStateValue(value, field) {
   if (value === null || value === undefined || value === '') {
     return field.allow_empty ? null : undefined;
   }

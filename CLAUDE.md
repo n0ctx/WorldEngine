@@ -1,5 +1,8 @@
 # WorldEngine — Claude Code 工作手册
 
+> 本文件是仓库根目录文档系统的唯一入口正文。
+> `AGENTS.md` 仅为镜像入口，出现冲突时一律以 `CLAUDE.md` 为准。
+
 ## 行动原则（最高优先级）
 
 - **先读后写**：执行任何任务前，必须先阅读 `SCHEMA.md` `ARCHITECTURE.md` `CHANGELOG.md`；修改任何文件前，必须先阅读该文件现有内容；如需要其他信息，查询git commit，claude mem skill。
@@ -8,7 +11,7 @@
 - **范围克制**：每次任务只修改任务指令明确要求的文件，禁止"顺手重构"
 - **及时止损**：多次尝试失败或上下文逼近极限时，主动停止并告知用户
 - **及时留痕**：完成一个任务并验收后，CHANGELOG.md 追加一条记录。
-- **及时更新**：执行任何任务后，必须及时更新 `CLAUDE.md` `SCHEMA.md` `ARCHITECTURE.md` `CHANGELOG.md` (如果涉及)；`AGENTS.md`为`CLAUDE.md`的1：1映射，更新任意其一时需同步更新另一个。
+- **及时更新**：执行任何任务后，必须及时更新 `CLAUDE.md` `SCHEMA.md` `ARCHITECTURE.md` `CHANGELOG.md` (如果涉及)；`CLAUDE.md` 是唯一入口正文，`AGENTS.md` 仅保留镜像说明。
 - **测试/临时文件归档**：所有测试文件、测试目录、临时文件、临时目录统一放在项目根目录 `/.temp/`；仓库其他位置禁止新增或保留此类内容
 
 ---
@@ -16,6 +19,25 @@
 ## 项目概览
 
 架构层级：`全局 → 世界 → 角色 → 会话`，每层有独立的提示词、配置和记忆，下层不可覆盖上层。详细架构见 `ARCHITECTURE.md`。
+
+---
+
+## 文档分工
+
+| 文件 | 唯一职责 |
+|---|---|
+| `CLAUDE.md` | 入口规范：AI agent 行动规则、文档导航、执行约束 |
+| `AGENTS.md` | 镜像入口：只负责把通用 agent 导向 `CLAUDE.md` |
+| `SCHEMA.md` | 数据结构权威来源：表、字段、配置格式、导入导出格式 |
+| `ARCHITECTURE.md` | 当前运行时行为：模块职责、数据流、异步链路、接口拼装 |
+| `CHANGELOG.md` | 历史决策与隐性坑点：未来 agent 需要知道但其他文档找不到的内容 |
+
+判定规则：
+- 查字段、表、JSON 格式：只看 `SCHEMA.md`
+- 查“系统现在怎么工作”：只看 `ARCHITECTURE.md`
+- 查工程规范和执行边界：只看 `CLAUDE.md`
+- 查历史背景、兼容约束、已踩过的坑：只看 `CHANGELOG.md`
+- `CHANGELOG.md` 不是当前行为权威来源；若与 `SCHEMA.md` / `ARCHITECTURE.md` 冲突，以权威文档为准
 
 ---
 
@@ -40,11 +62,11 @@
 /backend/services/              # 业务逻辑层
 /backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
 /backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [3][5][7][11][12][13]
-/backend/prompt/assembler.js    # 锁定文件：提示词组装顺序
+/backend/prompts/assembler.js   # 锁定文件：提示词组装顺序
 /backend/utils/constants.js     # 锁定文件：所有硬性数值常量
 /frontend/src/store/index.js    # 锁定文件：全局状态
 /backend/server.js              # 锁定文件：入口
-/assistant/CONTRACT.md          # 写卡助手接口契约（主代理/子代理/proposal schema/SSE 事件）
+/assistant/CONTRACT.md          # 写卡助手接口契约（单代理 + Agent Skill / proposal schema / SSE 事件）
 ```
 
 完整目录结构见 `ARCHITECTURE.md §2`。
@@ -60,11 +82,55 @@ cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
 ```
 
-每次任务完成后git commit（每次commit前必须更新`CHANGELOG.md`）。修改了架构相关功能时，同步覆盖更新 `ARCHITECTURE.md` 对应节。
+每次任务完成后git commit（每次commit前必须更新`CHANGELOG.md`）。
 
 日志模式通过 `data/config.json` 的 `logging` 配置块控制：默认 `mode="metadata"`；需要原文预览时切到 `mode="raw"`，并按需开启 `logging.prompt.enabled` / `logging.llm_raw.enabled`。
 
 **日志文件**：`data/logs/worldengine-YYYY-MM-DD.log`（按日轮换），如 `data/logs/worldengine-2026-04-20.log`。
+
+---
+
+## 执行清单
+
+开始任务前：
+- 先读 `CLAUDE.md`、`SCHEMA.md`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- 修改任何文件前，先读该文件当前内容
+- 任务超过 3 步时，先列计划并等用户确认
+
+结束任务前：
+- 明确写出验证方式，而不是只说“已完成”
+- 判断是否需要同步更新 `SCHEMA.md` / `ARCHITECTURE.md` / `CHANGELOG.md`
+- 若改动影响入口规范，只更新 `CLAUDE.md`，不要把正文再复制进 `AGENTS.md`
+
+---
+
+## 文档同步触发器
+
+| 变更类型 | 必须同步的文档 |
+|---|---|
+| 新增/删除表、字段、索引、配置键、导入导出格式 | `SCHEMA.md` |
+| 修改 prompt 组装、SSE 事件、异步队列、状态读取/写入链路、API 行为、助手运行机制 | `ARCHITECTURE.md` |
+| 修改 agent 规则、任务流程、锁定文件规则、文档分工 | `CLAUDE.md` |
+| 引入新的兼容约束、隐性坑点、人工决策、迁移注意事项 | `CHANGELOG.md` |
+
+禁止事项：
+- 不要只改 `CHANGELOG.md` 来描述当前行为
+- 不要在 `CLAUDE.md` 重复维护会频繁漂移的运行时细节
+- 不要在 `SCHEMA.md` 记录 UI 或 prompt 运行流程
+
+---
+
+## 任务回执模板
+
+任务结束时，回复至少包含以下 5 项：
+
+```md
+修改文件：
+验证方式：
+同步文档：
+锁定文件：
+残留风险：
+```
 
 ---
 
@@ -75,9 +141,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | 文件 | 说明 |
 |---|---|
 | `SCHEMA.md` | 数据库字段权威来源，改字段/加表必须同步更新此文件 |
+| `CLAUDE.md` | 根目录唯一入口正文；改入口规范时只改这里，不改 `AGENTS.md` 正文 |
 | `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；新增表/字段时用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE IF NOT EXISTS` 追加，不重建已有表 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；新增常量需说明用途和来源 |
-| `/backend/prompt/assembler.js` | 提示词组装顺序硬编码（16 段，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
+| `/backend/prompts/assembler.js` | 提示词组装顺序硬编码（16 段，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；已含 `import './services/cleanup-registrations.js'` 副作用 import |
 
@@ -109,33 +176,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 钩子通过 `registerOnDelete(entity, async id => {...})` 注册，entity 为 `'world' | 'character' | 'session' | 'message'`
 - 钩子失败只 warn，不影响 DB DELETE；runOnDelete 在 DB DELETE 之前调用
 
-**提示词组装顺序**（硬编码在 assembler.js，顺序不得改变）
-```
-[system 消息，[1]–[13] 合并为单个 role:system]
-[1]  全局 System Prompt
-[2]  世界 System Prompt
-[3]  世界状态              renderWorldState(world.id)
-[4]  玩家 System Prompt    [用户人设] name + system_prompt（均为空则跳过）
-[5]  玩家状态              renderPersonaState(world.id)
-[6]  角色 System Prompt
-[7]  角色状态              renderCharacterState(character.id)
-[8]  全局 Prompt 条目      命中→content，未命中→summary
-[9]  世界 Prompt 条目
-[10] 角色 Prompt 条目
-[11] 世界时间线            renderTimeline(world.id)
-[12] 召回摘要              searchRecalledSummaries → renderRecalledSummaries（turn_summaries 向量库）
-[13] 展开原文              decideExpansion → renderExpandedTurnRecords
-
-[历史消息：role:user/assistant 交替]
-[14] 历史消息（turn records 新路径，最近 context_history_rounds 轮；
-              无 turn records 时降级为 getUncompressedMessagesBySessionId；
-              prompt_only scope 正则在此处理）
-
-[尾部 user 消息]
-[15] 后置提示词（全局 global_post_prompt → 世界 post_prompt → 角色 post_prompt，
-               均空则跳过；合并为单条 role:user 消息）
-[16] 当前用户消息          role:user（DB 中最新的 user 消息）
-```
+**提示词组装**
+- 顺序权威来源：`backend/prompts/assembler.js` + `ARCHITECTURE.md §4`
+- 任何段位、注入来源、历史消息策略、写作模式差异的改动，都必须同步更新 `ARCHITECTURE.md`
+- `CLAUDE.md` 不重复维护 16 段运行时细节，避免和实现漂移
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置
 
@@ -144,6 +188,40 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 样式只用 TailwindCSS 工具类，不写内联 style，颜色/字体/圆角/阴影统一走 CSS 变量（`--we-*` 前缀，定义于 `frontend/src/styles/tokens.css`），禁止硬编码色值
 - 整体 Claude 风格（参考 `DESIGN.md`）：羊皮纸底色 + 陶土强调 + 暖色中性；衬线做标题、无衬线做 UI；环形阴影（`0 0 0 1px`）代替传统投影；单主题不做深浅色切换（用户如需暗色通过 T24A 自定义 CSS 片段覆盖 `--we-*` 变量即可）
 - 语言：简体中文
+
+---
+
+## 代码规范
+
+以下规则只收敛项目已经在执行的代码规范，不新增平行风格体系。
+
+**后端分层**
+- `routes/` 只做参数校验、请求解析、响应组装和调用 `services/`，不直接写 SQL
+- `services/` 负责业务编排、事务边界、副作用触发、导入导出与跨模块协作
+- `db/queries/` 是 SQL 唯一落点；不要在 `routes/` 或 `services/` 拼查询
+- `memory/` 只放记忆召回、摘要、状态更新、展开原文等记忆相关逻辑
+- `prompt/` 只放提示词组装、条目命中、模板变量相关逻辑
+- `llm/` 只放模型调用与 provider 适配；上层不直接处理 provider 协议细节
+
+**前端分层**
+- `pages/` 负责页面级状态编排、路由上下文、数据加载与动作透传
+- `components/` 负责展示和局部交互；组件内禁止直接 `fetch`
+- `api/` 是前端网络请求唯一出口；新增接口先补 API 封装
+- `store/` 只放跨页面共享状态；局部 UI 状态优先留在页面或组件内部
+- `utils/` 只放纯工具函数；不要把页面业务流程塞进工具文件
+
+**实现风格**
+- 优先沿用现有模块的命名、导出方式和组织结构，不在同一模块混入第二套写法
+- 单个函数只做一层职责；校验、查询、业务编排按分层拆开
+- 新增逻辑优先找现有落点，避免顺手新建并行抽象
+- 注释只写边界、决策和陷阱，不解释显而易见的语句
+- 保留技术债时，必须在回复或 `CHANGELOG.md` 说明原因与影响
+
+**验证要求**
+- 改后端接口、状态链路、prompt 组装、导入导出：至少给出接口或流程级验证方法
+- 改前端交互、样式、页面状态：至少给出页面路径和人工验证步骤
+- 纯文档改动：至少说明检查了哪些漂移点、引用关系或冲突
+- 无法运行测试时必须明确说明
 
 ---
 

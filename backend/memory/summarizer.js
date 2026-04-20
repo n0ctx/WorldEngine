@@ -1,54 +1,18 @@
 /**
- * summarizer.js — Session Summary 和会话标题的异步生成
+ * summarizer.js — 会话标题的异步生成
  */
 
 import * as llm from '../llm/index.js';
 import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions.js';
-import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
-import { upsertSummary } from '../db/queries/session-summaries.js';
 import { createLogger } from '../utils/logger.js';
+import { LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
+import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 
 const log = createLogger('summarizer');
 
-/**
- * 生成会话摘要，存入 session_summaries 表。
- * 调用方：异步队列，优先级 1。
- * @param {string} sessionId
- */
 /** 剥除 <think>...</think> 块，只保留正文 */
 function stripThinkTags(text) {
   return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
-}
-
-export async function generateSummary(sessionId) {
-  const sid = sessionId.slice(0, 8);
-  log.debug(`generateSummary START  session=${sid}`);
-
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const dialogue = messages
-    .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .map((m) => `${m.role === 'user' ? '用户' : 'AI'}：${stripThinkTags(m.content)}`)
-    .join('\n');
-
-  if (!dialogue) {
-    log.debug(`generateSummary SKIP no dialogue  session=${sid}`);
-    return;
-  }
-
-  const prompt = [
-    {
-      role: 'user',
-      content:
-        `请对以下对话内容生成一段简洁的摘要（50~100字），概括对话的主要内容、关键事件和结论。` +
-        `摘要将用于后续记忆检索，请确保包含重要的人物、地点、事件等关键信息。\n\n${dialogue}`,
-    },
-  ];
-
-  const summary = await llm.complete(prompt, { temperature: 0.3, maxTokens: 500 });
-  if (summary) {
-    upsertSummary(sessionId, summary.trim());
-    log.info(`generateSummary DONE  session=${sid}  len=${summary.trim().length}`);
-  }
 }
 
 /**
@@ -74,12 +38,11 @@ export async function generateTitle(sessionId) {
   const prompt = [
     {
       role: 'user',
-      content:
-        `根据以下对话内容，生成一个简洁的标题（不超过15字，不加引号，不加标点符号结尾）：\n\n${dialogue}`,
+      content: renderBackendPrompt('memory/title-generation.md', { DIALOGUE: dialogue }),
     },
   ];
 
-  const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 30 });
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TITLE_MAX_TOKENS });
   if (!raw) return null;
 
   // 剥除 LLM 输出中可能带有的 think 标签（推理模型自身也会输出思考过程）

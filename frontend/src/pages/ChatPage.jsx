@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../store/index.js';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
-import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, triggerSummary, editAssistantMessage, retitle } from '../api/chat.js';
+import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, editAssistantMessage, retitle } from '../api/chat.js';
 import { createSession, getSession, deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -560,17 +560,6 @@ export default function ChatPage() {
     }
   }
 
-  // 手动生成摘要
-  async function handleManualSummary() {
-    if (!currentSessionId) return;
-    try {
-      await triggerSummary(currentSessionId);
-      showToast('摘要已生成');
-    } catch (err) {
-      showToast(err.message || '摘要生成失败', 'error');
-    }
-  }
-
   // 根据最近对话上下文重新生成标题
   async function handleRetitle() {
     if (!currentSessionId) return;
@@ -717,7 +706,6 @@ export default function ChatPage() {
           onImpersonate={handleImpersonate}
           onClear={handleClearMessages}
           onRetry={handleRetryLast}
-          onSummary={handleManualSummary}
           onTitle={handleRetitle}
           worldId={character?.world_id ?? null}
         />

@@ -76,7 +76,7 @@ router.put('/entries/:type/reorder', (req, res) => {
     return res.status(400).json({ error: 'type must be global, world, or character' });
   }
 
-  res.json({ ok: true });
+  res.json({ success: true });
 });
 
 // ─── single entry CRUD ───────────────────────────────────────────

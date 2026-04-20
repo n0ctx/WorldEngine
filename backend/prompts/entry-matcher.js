@@ -18,6 +18,7 @@ import {
   PROMPT_ENTRY_LLM_MAX_TOKENS,
   ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
+import { renderBackendPrompt, loadBackendPrompt } from './prompt-loader.js';
 
 /**
  * 判断哪些 Prompt 条目需要注入正文（触发）
@@ -58,17 +59,14 @@ export async function matchEntries(sessionId, entries) {
       const messages = [
         {
           role: 'system',
-          content:
-            '你是一个条目触发判断器。根据对话内容，判断哪些条目的触发条件已被满足，需要展开完整内容注入上下文。\n' +
-            '只返回严格的 JSON 数组，包含需要触发的条目编号（从 1 开始），例如 [1, 3]。无需触发时返回 []。\n' +
-            '不要包含任何其他文字，不要用 markdown 代码块包裹。',
+          content: loadBackendPrompt('entries/preflight-system.md'),
         },
         {
           role: 'user',
-          content:
-            `【近期对话】\n${contextLines}\n\n` +
-            `【条目触发条件】\n${descList}\n\n` +
-            '请判断哪些条目需要展开完整内容？返回编号数组（JSON 格式）。',
+          content: renderBackendPrompt('entries/preflight-user.md', {
+            CONTEXT_LINES: contextLines,
+            DESC_LIST: descList,
+          }),
         },
       ];
 

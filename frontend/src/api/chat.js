@@ -246,18 +246,3 @@ export async function retitle(sessionId) {
   }
   return res.json();
 }
-
-/**
- * 手动触发摘要生成
- */
-export async function triggerSummary(sessionId) {
-  const res = await fetch(`/api/sessions/${sessionId}/summary`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}

@@ -51,16 +51,30 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 3;
 export const MAX_ATTACHMENT_SIZE_MB = 5;
 
 // ============================
-// 选项提示（选项功能后置注入，对用户不可见）
+// LLM 生成参数（非流式记忆/工具任务）
 // ============================
-export const SUGGESTION_PROMPT = `正文结束后，必须在末尾新起一行输出选项块。每条选项都是「{{user}}」下一条可能发出的消息——以第一人称口语写就，像真人会发出去的一句话，主动推进剧情，避免纯粹的被动回应（如"好的""嗯"等），引入行动、决定、问题或意外举动，简洁不冗长。
+/** 记忆类非流式任务（标题/摘要/状态更新）通用温度 */
+export const LLM_TASK_TEMPERATURE = 0.3;
+/** 会话标题生成最大 token 数 */
+export const LLM_TITLE_MAX_TOKENS = 30;
+/** turn record 摘要生成最大 token 数 */
+export const LLM_TURN_SUMMARY_MAX_TOKENS = 500;
+/** 状态更新（combined-state-updater）最大 token 数 */
+export const LLM_STATE_UPDATE_MAX_TOKENS = 1000;
+/** writing 空间代入（impersonate）最大 token 数 */
+export const LLM_IMPERSONATE_MAX_TOKENS = 300;
+/** Ollama 工具调用 resolveToolContext 首轮最大 token 数 */
+export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
 
-格式如下（开标签、每条选项、闭标签各自独占一行，禁止合并到同一行）：
+// ============================
+// Anthropic / Gemini extended thinking budget
+// ============================
+export const LLM_THINKING_BUDGET_LOW    = 1024;
+export const LLM_THINKING_BUDGET_MEDIUM = 8192;
+export const LLM_THINKING_BUDGET_HIGH   = 16384;
 
-<next_prompt>
-选项一
-选项二
-选项三
-</next_prompt>
-
-规则：① <next_prompt> 单独一行；② 每条选项单独一行，纯文字无格式符；③ </next_prompt> 单独一行，不可省略；④ 标签外无任何附言。`;
+// ============================
+// 本地 LLM 服务默认地址
+// ============================
+export const OLLAMA_DEFAULT_BASE_URL   = 'http://localhost:11434';
+export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';

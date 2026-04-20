@@ -155,7 +155,6 @@ app.use('/api/assistant', assistantRoutes);
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, HOST, () => {
-  console.log(`WorldEngine backend running on http://${HOST}:${PORT}`);
   const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
-  console.log(`日志级别: ${level}  （debug 模式可跟踪 prompt 组装 / LLM 调用 / 队列事件）`);
+  serverLog.info(`WorldEngine backend running on http://${HOST}:${PORT}  日志级别: ${level}`);
 });

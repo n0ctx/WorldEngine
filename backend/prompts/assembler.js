@@ -53,14 +53,16 @@ import {
   renderRecalledSummaries,
 } from '../memory/recall.js';
 import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
-import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_PROMPT } from '../utils/constants.js';
+import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 import { createLogger } from '../utils/logger.js';
+import { loadBackendPrompt } from './prompt-loader.js';
 
 const log = createLogger('assembler', 'magenta');
+const SUGGESTION_PROMPT = loadBackendPrompt('shared/suggestion.md');
 
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
@@ -219,52 +221,53 @@ export async function buildPrompt(sessionId, options = {}) {
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
-  log.info(`│  [12]   recall   hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [12] recall  hits=${recallHitCount}`);
+  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [13] 展开原文（AI preflight 决策）
-  if (recalled.length > 0 && config.memory_expansion_enabled !== false) {
-    onRecallEvent?.('memory_expand_start', {
-      candidates: recalled.map((r) => ({ ref: r.ref, title: r.session_title })),
-    });
-
-    const toExpand = await decideExpansion({ sessionId, recalled });
-    log.debug(`│  [13]   expand   candidates=${recalled.length}  chosen=${toExpand.length}`);
-    const expandedText = toExpand.length
-      ? renderExpandedTurnRecords(toExpand, MEMORY_EXPAND_MAX_TOKENS)
-      : '';
-
-    onRecallEvent?.('memory_expand_done', { expanded: toExpand });
-
-    if (expandedText) systemParts.push(tv(expandedText));
+  // [13] 记忆展开（由 AI 决定需要展开哪些原文）
+  let expandedText = '';
+  if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
+    onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
+      ref: r.ref,
+      turn_record_id: r.turn_record_id,
+      session_id: r.session_id,
+      session_title: r.session_title,
+      round_index: r.round_index,
+      created_at: r.created_at,
+    })) });
+    const expandIds = await decideExpansion({ sessionId, recalled });
+    if (expandIds.length > 0) {
+      expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
+      if (expandedText) {
+        systemParts.push(tv(expandedText));
+        onRecallEvent?.('memory_expand_done', { expanded: expandIds });
+        log.debug(`│  [13] expand  ids=${expandIds.length}`);
+      }
+    }
   }
 
-  // [1–13] 合并为单个 role:system 消息
   const messages = [];
-  if (systemParts.length > 0) {
-    messages.push({ role: 'system', content: systemParts.join('\n\n') });
-  }
+
+  // system parts 合并为 1 条 system 消息
+  const systemContent = systemParts.filter(Boolean).join('\n\n');
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [14] 历史消息
-  const K = config.context_history_rounds ?? 10;
-  const turnRecords = getTurnRecordsBySessionId(sessionId, K);
-
+  const turnRecords = getTurnRecordsBySessionId(sessionId, config.context_history_rounds ?? 12, 0);
   if (turnRecords.length > 0) {
-    // 新路径：turn records，每条渲染为 user/assistant 对
-    log.debug(`│  [14]   history  turn-records ×${turnRecords.length}`);
-    for (const record of turnRecords) {
+    for (const record of [...turnRecords].reverse()) {
       messages.push({ role: 'user',      content: applyRules(stripUserContext(record.user_context), 'prompt_only', world.id, 'chat') });
       messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'chat') });
     }
+    log.debug(`│  [14] history  turn_records=${turnRecords.length}`);
   } else {
-    // 降级路径：session 尚无任何 turn record，用旧的 uncompressed messages
-    // 去掉最新一条 user 消息（将在 [16] 单独追加）；若当前还没有 user，保留 assistant 开场白
-    const history = getUncompressedMessagesBySessionId(sessionId);
-    const withoutLastUser = omitLatestUserMessage(history);
-    log.debug(`│  [14]   history  uncompressed ×${withoutLastUser.length}`);
-    for (const msg of withoutLastUser) {
+    // 新会话前几轮 / 旧数据兼容：turn record 尚未异步生成时，降级读取未压缩 messages。
+    const history = omitLatestUserMessage(getUncompressedMessagesBySessionId(sessionId, config.context_history_rounds ?? 12));
+    for (const msg of history) {
       const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
       messages.push(formatMessageForLLM({ ...msg, content }));
     }
+    log.debug(`│  [14] history  fallback_messages=${history.length}`);
   }
 
   // [15] 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
@@ -278,34 +281,28 @@ export async function buildPrompt(sessionId, options = {}) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
 
-  // [16] 当前用户消息（取 DB 中最新的 user 消息）
-  const allHistory = getUncompressedMessagesBySessionId(sessionId);
-  const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
-  if (currentUserMsg) {
+  // [16] 当前用户消息（最新 1 条 user）
+  const currentUserMsg = getUncompressedMessagesBySessionId(sessionId, 1)[0];
+  if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
-  // 生成参数：世界级 > 全局
   const temperature = world.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
+  const systemLen = systemContent.length;
 
-  const systemLen = messages[0]?.content?.length ?? 0;
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-
   return { messages, temperature, maxTokens, recallHitCount };
 }
 
 /**
- * 写作空间提示词组装器
- *
- * 写作模式下没有单一绑定角色，而是一个世界 + 多个激活角色。
+ * 写作空间版本：支持多个激活角色，且不接入向量召回。
  * 组装顺序与 buildPrompt 对齐，但 [6-10] 针对所有激活角色展开。
- * 写作模式无 turn records，使用降级路径（uncompressed messages）。
  *
  * @param {string} sessionId
  * @param {object} [options]
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number }>}
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
   const session = getSessionById(sessionId);
@@ -314,8 +311,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const world = getWorldById(session.world_id);
   if (!world) throw new Error(`World not found: ${session.world_id}`);
 
+  const activeCharacters = getWritingSessionCharacters(sessionId)
+    .map((row) => getCharacterById(row.character_id))
+    .filter(Boolean);
+
   const config = getConfig();
+  const writing = config.writing || {};
   const systemParts = [];
+  const sid = sessionId.slice(0, 8);
+  const t0 = Date.now();
 
   // [4] 玩家 System Prompt
   const persona = getOrCreatePersona(world.id);
@@ -323,20 +327,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const personaPrompt = persona?.system_prompt || '';
 
   // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
-  const activeCharacters = getWritingSessionCharacters(sessionId);
-
-  const t0  = Date.now();
-  const sid = sessionId.slice(0, 8);
   const charNames = activeCharacters.map((c) => c.name).join(', ');
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
-  // 模板变量上下文：共享段用首个激活角色名作为 {{char}} fallback
-  const firstCharName = activeCharacters[0]?.name || '';
-  const ctx = { user: personaName, char: firstCharName, world: world.name };
-  const tv = (t) => applyTemplateVars(t, ctx);
-
-  const writing = config.writing ?? {};
-  const writingLlm = writing.llm ?? {};
+  const tv = (t) => applyTemplateVars(t, { user: personaName, world: world.name });
+  const tvChar = (t, character) => applyTemplateVars(t, {
+    user: personaName,
+    char: character.name,
+    world: world.name,
+  });
 
   // [1] 全局 System Prompt（使用写作空间专属配置）
   if (writing.global_system_prompt) {
@@ -364,78 +363,53 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (personaStateText) systemParts.push(tv(personaStateText));
 
   for (const character of activeCharacters) {
-    // per-character 段使用该角色自身的名字替换 {{char}}
-    const tvChar = (t) => applyTemplateVars(t, { ...ctx, char: character.name });
     if (character.system_prompt) {
-      systemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`));
+      systemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`, character));
     }
     const charStateText = renderCharacterState(character.id, sessionId);
-    if (charStateText) systemParts.push(tvChar(charStateText));
+    if (charStateText) systemParts.push(tvChar(charStateText, character));
   }
 
   // [8-10] Prompt 条目（全局写作条目→世界→各激活角色）
   const globalEntries = getAllGlobalEntries('writing');
   const worldEntries = getAllWorldEntries(world.id);
-  const allCharacterEntries = [];
-  for (const character of activeCharacters) {
-    const entries = getAllCharacterEntries(character.id);
-    allCharacterEntries.push(...entries);
-  }
-  const allEntries = [...globalEntries, ...worldEntries, ...allCharacterEntries];
+  const charEntries = activeCharacters.flatMap((c) => getAllCharacterEntries(c.id));
+  const allEntries = [...globalEntries, ...worldEntries, ...charEntries];
 
   const triggeredIds = await matchEntries(sessionId, allEntries);
-  log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  chars=${allCharacterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
-
   const entryTexts = [];
 
-  // 所有条目的触发条件描述全量注入
   const descLines = allEntries
     .filter((e) => e.description && e.description.trim())
     .map((e, i) => `${i + 1}. 【${tv(e.title)}】${tv(e.description)}`)
     .join('\n');
-  if (descLines) {
-    entryTexts.push(`[条目触发索引]\n${descLines}`);
-  }
+  if (descLines) entryTexts.push(`[条目触发索引]\n${descLines}`);
 
-  // 触发条目的完整内容
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
       entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
+  if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
 
-  if (entryTexts.length > 0) {
-    systemParts.push(entryTexts.join('\n\n'));
-  }
-
-  // [11] 当前会话摘要（最近 N 轮 turn_records）
+  // [11] 当前会话摘要
   const timelineText = renderTimeline(sessionId);
   if (timelineText) systemParts.push(tv(timelineText));
 
-  // [12-13] 写作模式无向量召回和展开原文
-
-  // [1-13] 合并为单个 role:system 消息
   const messages = [];
-  if (systemParts.length > 0) {
-    messages.push({ role: 'system', content: systemParts.join('\n\n') });
-  }
+  const systemContent = systemParts.filter(Boolean).join('\n\n');
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息（有 turn records 时用新路径，否则降级）
-  const K = writing.context_history_rounds ?? config.context_history_rounds ?? 10;
-  const turnRecords = getTurnRecordsBySessionId(sessionId, K);
-  const allHistory = getUncompressedMessagesBySessionId(sessionId);
-
+  // [14] 历史消息
+  const turnRecords = getTurnRecordsBySessionId(sessionId, writing.context_history_rounds ?? config.context_history_rounds ?? 12, 0);
   if (turnRecords.length > 0) {
-    log.debug(`│  [14]   history  turn-records ×${turnRecords.length}`);
-    for (const record of turnRecords) {
+    for (const record of [...turnRecords].reverse()) {
       messages.push({ role: 'user',      content: applyRules(record.user_context, 'prompt_only', world.id, 'writing') });
       messages.push({ role: 'assistant', content: applyRules(stripAsstContext(record.asst_context), 'prompt_only', world.id, 'writing') });
     }
   } else {
-    // 降级路径：session 尚无任何 turn record
-    const withoutLastUser = omitLatestUserMessage(allHistory);
-    log.debug(`│  [14]   history  uncompressed ×${withoutLastUser.length}`);
-    for (const msg of withoutLastUser) {
+    const history = omitLatestUserMessage(getUncompressedMessagesBySessionId(sessionId, writing.context_history_rounds ?? config.context_history_rounds ?? 12));
+    for (const msg of history) {
       const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
       messages.push(formatMessageForLLM({ ...msg, content }));
     }
@@ -449,18 +423,17 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [16] 当前用户消息
-  const currentUserMsg = [...allHistory].reverse().find((m) => m.role === 'user');
-  if (currentUserMsg) {
+  const currentUserMsg = getUncompressedMessagesBySessionId(sessionId, 1)[0];
+  if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
-  const temperature = world.temperature ?? (writingLlm.temperature ?? config.llm.temperature);
-  const maxTokens = world.max_tokens ?? (writingLlm.max_tokens ?? config.llm.max_tokens);
-  const model = writingLlm.model || config.llm.model;
+  const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
+  const maxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
+  const model = writing.model || null;
+  const systemLen = systemContent.length;
 
-  const systemLen = messages[0]?.content?.length ?? 0;
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-
   return { messages, temperature, maxTokens, model };
 }

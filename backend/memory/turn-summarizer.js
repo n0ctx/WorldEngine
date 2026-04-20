@@ -15,7 +15,9 @@ import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordB
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
-import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TURN_SUMMARY_MAX_TOKENS } from '../utils/constants.js';
+import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { getOrCreatePersona } from '../services/personas.js';
 
 const log = createLogger('turn-sum');
 
@@ -35,6 +37,9 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const worldId = character?.world_id ?? session.world_id;
+  const persona = worldId ? getOrCreatePersona(worldId) : null;
+  const userName = persona?.name?.trim() || '玩家';
+  const characterName = character?.name?.trim() || '角色';
 
   // 取全部消息，找最后一条 user + 最后一条 assistant
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
@@ -55,13 +60,14 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   try {
     const prompt = [{
       role: 'user',
-      content:
-        `请对以下对话生成极简摘要（10~50字，1~3句话），概括关键事件和结论。` +
-        `摘要将用于后续记忆检索，请确保包含重要的人物、地点、事件等关键信息。` +
-        `直接输出摘要正文，不要加"摘要："等标题前缀，不要使用 markdown 格式。\n\n` +
-        `用户：${userMsg.content}\n\nAI：${asstMsg.content}`,
+      content: renderBackendPrompt('memory/turn-summary.md', {
+        USER_NAME: userName,
+        CHARACTER_NAME: characterName,
+        USER_MESSAGE: userMsg.content,
+        ASSISTANT_MESSAGE: asstMsg.content,
+      }),
     }];
-    const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 500 });
+    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS });
     // 剥除 <think>...</think> 推理链，再清理标题前缀（如 **摘要：** ）
     summary = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
@@ -72,7 +78,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   } catch (err) {
     log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
     // 降级：用前 100 字作为摘要
-    summary = `${userMsg.content} / ${asstMsg.content}`.slice(0, 100);
+    summary = `${userName}：${userMsg.content} / ${characterName}：${asstMsg.content}`.slice(0, 100);
   }
 
   if (!summary) {

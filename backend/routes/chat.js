@@ -22,7 +22,8 @@ import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/qu
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
+import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import {
   beginStreamSession,
   buildContinuationMessages,
@@ -400,7 +401,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
       prompt.pop();
     }
 
-    const instruction = `你正在代拟用户「${personaName}」下一条准备发到聊天框里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息。\n\n核心要求：主动推进剧情，不要仅仅回应或延续上一句——要让剧情朝新方向发展，引入行动、决定、问题或意外举动，给对方充分的"接话空间"。避免纯粹的被动回应（如"好的""我明白了""嗯"等）；如果上文已有明确的剧情走向，用户这条消息应该加速或转折，而不是原地踏步。\n\n不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
+    const instruction = renderBackendPrompt('chat/impersonate.md', { PERSONA_NAME: personaName });
     prompt.push({ role: 'user', content: instruction });
 
     const raw = await llm.complete(prompt, {
@@ -496,12 +497,12 @@ router.post('/:sessionId/retitle', async (req, res) => {
     }
     titlePrompt.push({
       role: 'user',
-      content: '请根据以上对话内容，生成一个简洁的标题（不超过15字，不加引号，不加标点符号结尾）。只输出标题本身。',
+      content: loadBackendPrompt('memory/retitle-generation.md'),
     });
 
     const raw = await llm.complete(titlePrompt, {
-      temperature: overrides.temperature ?? 0.3,
-      maxTokens: 30,
+      temperature: overrides.temperature ?? LLM_TASK_TEMPERATURE,
+      maxTokens: LLM_TITLE_MAX_TOKENS,
     });
     if (!raw) return res.json({ title: null });
 

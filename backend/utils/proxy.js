@@ -6,16 +6,19 @@
  * 解决方案：用 undici 包的 fetch 替换 globalThis.fetch，确保同一 dispatcher 生效。
  */
 import { ProxyAgent, Agent, setGlobalDispatcher, fetch as undiciFetch } from 'undici';
+import { createLogger } from './logger.js';
 
 // 替换内置 fetch，让 setGlobalDispatcher 能控制所有 fetch 调用
 globalThis.fetch = undiciFetch;
 
+const log = createLogger('proxy');
+
 export function applyProxy(proxyUrl) {
   if (proxyUrl && proxyUrl.trim()) {
     setGlobalDispatcher(new ProxyAgent(proxyUrl.trim()));
-    console.log(`[proxy] enabled: ${proxyUrl.trim()}`);
+    log.info(`enabled: ${proxyUrl.trim()}`);
   } else {
     setGlobalDispatcher(new Agent());
-    console.log('[proxy] disabled');
+    log.info('disabled');
   }
 }

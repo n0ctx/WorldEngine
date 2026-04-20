@@ -1,6 +1,29 @@
 # WorldEngine — 数据库 Schema
 
+> 本文件是数据结构的唯一权威来源。
+> 字段名、表名、配置键名、导入导出格式以本文件为准；运行流程见 `ARCHITECTURE.md`，工程规则见 `CLAUDE.md`。
+
 ## 总览
+
+### 权威范围与更新触发
+
+本文件只负责：
+- SQLite 表、字段、索引、删除策略
+- `data/config.json` 配置格式
+- 导入导出 JSON 格式
+- 与存储结构直接相关的硬约束
+
+本文件不负责：
+- prompt 组装顺序
+- SSE 事件与异步任务链
+- 前端渲染与页面行为
+- 历史迁移叙事
+
+出现以下改动时，必须同步更新本文件：
+- 新增、删除、重命名表/字段/索引
+- 配置文件键名或结构变化
+- 导入导出格式变化
+- 字段默认值、可空性、约束语义变化
 
 ### 存储分工
 
@@ -31,7 +54,7 @@
 
 - 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona 及所有会话状态值
 - 删除角色 → 级联删除其下所有聊天会话、消息、Prompt 条目，清空对应头像文件；同时从 `writing_session_characters` 移除该角色（CASCADE）
-- 删除会话 → 级联删除其下所有消息、summary、`writing_session_characters` 关联行，清空对应附件文件
+- 删除会话 → 级联删除其下所有消息、`session_summaries`、`writing_session_characters` 关联行，清空对应附件文件
 - 删除消息 → 清空对应附件文件
 - 所有删除均为硬删除，无软删除
 - 磁盘文件（头像、附件、向量）的清理通过 `cleanup-registrations.js` 注册的钩子执行，在 DB DELETE 之前调用；钩子失败只 warn，不阻塞删除
@@ -48,8 +71,8 @@
 CREATE TABLE worlds (
   id             TEXT PRIMARY KEY,          -- UUID
   name           TEXT NOT NULL,
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt，注入 [2] 位置
-  post_prompt    TEXT NOT NULL DEFAULT '',  -- 世界层后置提示词，注入 [8] 位置（user 角色）
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt
+  post_prompt    TEXT NOT NULL DEFAULT '',  -- 世界层后置提示词
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
   max_tokens     INTEGER,                   -- 生成参数覆盖，NULL 时使用全局配置
   created_at     INTEGER NOT NULL,          -- Unix 时间戳（毫秒）
@@ -70,7 +93,7 @@ CREATE TABLE personas (
   id             TEXT PRIMARY KEY,          -- UUID
   world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL DEFAULT '',  -- 玩家在该世界的称呼
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 玩家人设描述，注入到 [2] 位置
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 玩家人设描述
   avatar_path    TEXT,                      -- 头像相对路径（T30）
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -138,8 +161,8 @@ CREATE TABLE characters (
   id             TEXT PRIMARY KEY,          -- UUID
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 角色层 system prompt，注入 [4] 位置
-  post_prompt    TEXT NOT NULL DEFAULT '',  -- 角色层后置提示词，注入 [8] 位置（user 角色）
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 角色层 system prompt
+  post_prompt    TEXT NOT NULL DEFAULT '',  -- 角色层后置提示词
   first_message  TEXT NOT NULL DEFAULT '',  -- 会话创建时自动插入的开场白，为空则不插入
   avatar_path    TEXT,                      -- 相对路径，如 avatars/abc123.png，无头像则 NULL
   sort_order     INTEGER NOT NULL DEFAULT 0, -- 同世界下角色的显示排序，支持拖拽修改
@@ -614,9 +637,9 @@ CREATE TABLE internal_meta (
   "ui": {
     "font_size": 16
   },
-  "context_history_rounds": 10,           // 对话空间历史轮次（turn records 条数）；也是 /summary 触发时拉取的 turn record 数量
+  "context_history_rounds": 10,           // 对话空间历史轮次（turn records 条数）
   "global_system_prompt": "",             // 对话空间全局 system prompt
-  "global_post_prompt": "",              // 对话空间全局后置提示词，注入 [15] 位置（user 角色）
+  "global_post_prompt": "",              // 对话空间全局后置提示词
   "memory_expansion_enabled": true,      // 是否启用渐进展开原文（T28），false 时召回摘要仍保留
   "writing": {                           // T86：写作空间独立配置（T86新增，缺失时由 getConfig 自动补默认值）
     "global_system_prompt": "",          // 写作空间全局 system prompt；覆盖对话空间的同名字段
@@ -651,9 +674,10 @@ CREATE TABLE internal_meta (
   "prompt_entries": [
     {
       "title": "",
-      "summary": "",
+      "description": "",
       "content": "",
       "keywords": [],
+      "keyword_scope": "user,assistant",
       "sort_order": 0
     }
   ],
@@ -715,9 +739,10 @@ CREATE TABLE internal_meta (
   "prompt_entries": [
     {
       "title": "",
-      "summary": "",
+      "description": "",
       "content": "",
       "keywords": [],
+      "keyword_scope": "user,assistant",
       "sort_order": 0
     }
   ],
@@ -773,9 +798,10 @@ CREATE TABLE internal_meta (
       "prompt_entries": [
         {
           "title": "",
-          "summary": "",
+          "description": "",
           "content": "",
           "keywords": [],
+          "keyword_scope": "user,assistant",
           "sort_order": 0
         }
       ],

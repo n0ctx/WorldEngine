@@ -13,6 +13,7 @@
  */
 
 import { getConfig } from '../services/config.js';
+import { OLLAMA_DEFAULT_BASE_URL } from '../utils/constants.js';
 
 // ─── 默认 Base URL ───────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ const DEFAULT_BASE_URLS = {
   openai: 'https://api.openai.com/v1',
 };
 
-const OLLAMA_DEFAULT_BASE = 'http://localhost:11434';
+const OLLAMA_DEFAULT_BASE = OLLAMA_DEFAULT_BASE_URL;
 
 // ─── 工具 ────────────────────────────────────────────────────────
 

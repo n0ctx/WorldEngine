@@ -38,3 +38,12 @@ export function getSessionCharacterStateValues(sessionId, characterId) {
 export function clearSessionCharacterStateValues(sessionId) {
   db.prepare('DELETE FROM session_character_state_values WHERE session_id = ?').run(sessionId);
 }
+
+/**
+ * 清空某会话下指定角色的运行时状态（单角色重置时调用）
+ */
+export function clearSingleCharacterSessionStateValues(sessionId, characterId) {
+  db.prepare(
+    'DELETE FROM session_character_state_values WHERE session_id = ? AND character_id = ?',
+  ).run(sessionId, characterId);
+}

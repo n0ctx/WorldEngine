@@ -4,6 +4,7 @@ import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
+import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
 
 const router = Router();
 const log = createLogger('config', 'blue');
@@ -192,7 +193,7 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   deepseek: 'https://api.deepseek.com',
   grok: 'https://api.x.ai/v1',
   siliconflow: 'https://api.siliconflow.cn/v1',
-  lmstudio: 'http://localhost:1234',
+  lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
 };
 
 function toPrice1M(perToken) {
@@ -238,7 +239,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
 
   // Ollama — 专有 /api/tags 接口（本地无价格）
   if (provider === 'ollama') {
-    const url = validateModelFetchBaseUrl(provider, baseUrl || 'http://localhost:11434');
+    const url = validateModelFetchBaseUrl(provider, baseUrl || OLLAMA_DEFAULT_BASE_URL);
     const resp = await fetch(`${url}/api/tags`);
     if (!resp.ok) throw new Error(`Ollama API ${resp.status}`);
     const data = await resp.json();

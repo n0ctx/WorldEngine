@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { updateMessageAttachments } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
-import { buildPrompt } from '../prompt/assembler.js';
+import { buildPrompt } from '../prompts/assembler.js';
 import { logPrompt } from '../utils/logger.js';
 import { getConfig } from './config.js';
 

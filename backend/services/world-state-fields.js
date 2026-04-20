@@ -7,10 +7,7 @@ import {
   reorderWorldStateFields as dbReorder,
 } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue, deleteWorldStateValue } from '../db/queries/world-state-values.js';
-
-function getInitialValueJson(field) {
-  return field.default_value ?? null;
-}
+import { getInitialValueJson } from './_state-field-helpers.js';
 
 export function createWorldStateField(worldId, data) {
   const field = dbCreate(worldId, data);

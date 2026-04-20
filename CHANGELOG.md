@@ -21,6 +21,10 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T125` `refactor` 架构层问题修复（分层破坏、三件套残留、CP-4 残留）
+- `T124` `refactor` backend/prompt 并入 backend/prompts
+- `T123` `refactor` Prompt 模板分组重命名与 turn summary 命名修正
+- `T122` `refactor` 后端内置 Prompt 模板外置到 backend/prompts
 - `T121` `refactor` 大文件拆分（SettingsPage + openai.js）
 - `T120` `refactor` Copy-Paste 重复代码消除（CP-1 至 CP-7）
 - `T119` `docs` 将现有代码规范收敛进 CLAUDE / ARCHITECTURE
@@ -40,6 +44,60 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T125 — refactor: 架构层问题修复（分层破坏、三件套残留、CP-4 残留）✅
+- **对外接口**：`GET/DELETE /api/sessions/:sessionId/state-values/*` 路由行为完全不变；`PersonaEditPage` 状态字段编辑行为不变
+- **涉及文件**：
+  - 新增：`backend/db/queries/session-state-values.js`（5 个查询函数：getSessionWorldStateValues / getSessionPersonaStateValues / getSessionCharacterStateValues / getSingleCharacterSessionStateValues / getCharacterStateValuesAfterReset）
+  - 修改：`backend/routes/session-state-values.js`（从 200 行含 SQL 精简到 113 行纯路由调用；移除所有 `db.prepare` 直接调用）
+  - 修改：`backend/db/queries/session-character-state-values.js`（新增 `clearSingleCharacterSessionStateValues`）
+  - 修改：`frontend/src/pages/PersonaEditPage.jsx`（删除 66 行内联 StateValueField，改用 `components/state/StateValueField`）
+- **注意**：
+  - `getSessionCharacterStateValues` 用 `CROSS JOIN characters + character_state_fields` 替代路由层的 `for characterId` 循环，消除 N+1；字段按 `sort_order` 排序，返回结构与原一致（field_key 可跨角色重复）
+  - `clearSingleCharacterSessionStateValues(sessionId, characterId)` 加到 `session-character-state-values.js`，与已有的 `clearSessionCharacterStateValues(sessionId)` 区分
+  - CP-1/CP-2/CP-5/CP-7 的基础设施（request.js、stateFieldsFactory.js、_state-fields-base.js、_state-field-helpers.js）已在 T120 完成；本批只做 PersonaEditPage 的最后接入
+  - 所有陈旧代码（D-1 至 D-7）已在前次 T120 完成清理；本批仅验证确认
+
+## T124 — refactor: backend/prompt 并入 backend/prompts ✅
+- **对外接口**：`buildPrompt` / `buildWritingPrompt` / `matchEntries` / `loadBackendPrompt` 的调用方式不变；模块路径统一改为 `backend/prompts/*`
+- **涉及文件**：
+  - 新增：`backend/prompts/assembler.js`、`entry-matcher.js`、`prompt-loader.js`
+  - 新增：`backend/prompts/templates/`（模板统一下沉）
+  - 删除：`backend/prompt/` 旧代码文件
+  - 修改：`backend/services/chat.js`、`backend/routes/writing.js`、`backend/memory/*`、`backend/routes/chat.js`
+  - 修改：`CLAUDE.md`、`ARCHITECTURE.md`、`CHANGELOG.md`、`backend/prompts/README.md`
+- **注意**：
+  - 现在“提示词相关代码”和“提示词模板”只保留一个根目录：`backend/prompts/`
+  - 为避免 `.js` 和 `.md` 平铺混杂，模板统一位于 `backend/prompts/templates/`，`prompt-loader.js` 也已改为从该目录读取
+  - 旧 `backend/prompt/` 目录已无文件引用；后续若删空目录即可，不影响运行
+
+## T123 — refactor: Prompt 模板分组重命名与 turn summary 命名修正 ✅
+- **对外接口**：后端调用方式不变；`prompt-loader.js` 继续按相对路径读取模板，调用方路径改为分组后的新命名
+- **涉及文件**：
+  - 新增：`backend/prompts/README.md`
+  - 重组：`backend/prompts/` 下模板移动到 `memory/`、`entries/`、`state/`、`chat/`、`writing/`、`shared/`
+  - 修改：`backend/memory/turn-summarizer.js`、`summarizer.js`、`summary-expander.js`、`combined-state-updater.js`
+  - 修改：`backend/prompts/entry-matcher.js`、`assembler.js`
+  - 修改：`backend/routes/chat.js`、`writing.js`
+  - 修改：`ARCHITECTURE.md`
+- **注意**：
+  - `turn summary` 的生成模板现在显式注入 `{{USER_NAME}}` / `{{CHARACTER_NAME}}`，并要求摘要尽量使用实际玩家名和角色名，而不是“用户 / AI”
+  - 输入给摘要模型的对话标签也改为 `{{user}}` / `{{char}}`，与 turn record 原文占位符保持一致
+  - 摘要生成失败时的降级文案同样改为 `玩家名：... / 角色名：...`，避免回退到泛称
+
+## T122 — refactor: 后端内置 Prompt 模板外置到 backend/prompts ✅
+- **对外接口**：后端 LLM 调用入口不变；新增 `backend/prompts/prompt-loader.js` 供 `memory/`、`routes/`、`prompts/assembler.js` 统一读取 `backend/prompts/*.md`
+- **涉及文件**：
+  - 新增：`backend/prompts/`（`turn-summary.md`、`title-generation.md`、`retitle-generation.md`、`memory-expand-*.md`、`entry-preflight-*.md`、`state-update.md`、`impersonate-*.md`、`suggestion.md`）
+  - 新增：`backend/prompts/prompt-loader.js`
+  - 修改：`backend/memory/turn-summarizer.js`、`summarizer.js`、`summary-expander.js`、`combined-state-updater.js`
+  - 修改：`backend/prompts/entry-matcher.js`、`assembler.js`
+  - 修改：`backend/routes/chat.js`、`writing.js`
+  - 修改：`backend/utils/constants.js`（移除 `SUGGESTION_PROMPT` 常量）
+- **注意**：
+  - 这次只外置“仓库内置、代码消费”的固定 prompt；用户可配置 prompt 继续留在 `config.json` 和 SQLite，不新增 `frontend/prompts` / `data/prompts`
+  - `backend/prompts/templates/shared/suggestion.md` 保留 `{{user}}` 模板变量，仍由 `assembler.js` 在最终组装时替换，而不是在文件加载时提前展开
+  - `turn-dialogue.js` 中保留 `<next_prompt>` 解析逻辑；这是标签协议，不是 prompt 模板本体
 
 ## T121 — refactor: 大文件拆分（SettingsPage 1298→121 行，openai.js 913→75 行）✅
 - **对外接口**：不变；`llm/index.js` 的 `import './providers/openai.js'` 路径不变；SettingsPage 路由不变

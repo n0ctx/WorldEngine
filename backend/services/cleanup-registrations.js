@@ -70,7 +70,7 @@ registerOnDelete('world', async (wid) => {
 });
 
 // ── Session Summary 向量 ─────────────────────────────────────────
-// 模块：summary-embedder — 管理 data/vectors/session_summaries.json
+// 写路径已废弃（summary-embedder.js 已删除），清理钩子保留以处理旧数据
 
 registerOnDelete('session', async (sid) => {
   sessionSummaryVectorStore.deleteBySessionId(sid);

@@ -1,16 +1,6 @@
-const BASE = '/api';
+import { request } from './request.js';
 
-async function request(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    throw new Error(body.error || `请求失败：${res.status}`);
-  }
-  return res.json();
-}
+const BASE = '/api';
 
 /**
  * 导出角色卡，返回 JSON 数据对象

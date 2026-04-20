@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
-import { buildWritingPrompt } from '../prompt/assembler.js';
+import { buildWritingPrompt } from '../prompts/assembler.js';
 import { activeStreams } from '../services/chat.js';
 import { logPrompt } from '../utils/logger.js';
 import {
@@ -26,7 +26,7 @@ import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_IMPERSONATE_MAX_TOKENS } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
@@ -37,6 +37,7 @@ import {
   sendSse,
 } from './stream-helpers.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
+import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 
 const router = Router();
 const log = createLogger('writing');
@@ -384,12 +385,12 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
     }
-    const instruction = `你正在代拟玩家「${personaName}」下一条准备发到写作空间里的内容。严格参考上面的真实对话和用户人设，写出一条自然、口语化、像真人刚刚会发出去的消息；优先直接接最近一条旁白的话，不要写成说明文、总结、旁白、设定介绍或大段独白，除非上下文明确需要，否则尽量简洁。只输出最终消息正文，不要加引号、名字前缀、解释或舞台说明。`;
+    const instruction = renderBackendPrompt('writing/impersonate.md', { PERSONA_NAME: personaName });
     prompt.push({ role: 'user', content: instruction });
 
     const content = await llm.complete(prompt, {
       temperature,
-      maxTokens: Math.min(maxTokens ?? 300, 300),
+      maxTokens: Math.min(maxTokens ?? LLM_IMPERSONATE_MAX_TOKENS, LLM_IMPERSONATE_MAX_TOKENS),
       model,
     });
     // 剥除 thinking 模型输出的 <think>...</think> 推理块

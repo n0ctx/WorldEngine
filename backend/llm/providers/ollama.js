@@ -4,9 +4,15 @@
  * 两者均使用 OpenAI-compatible /v1/chat/completions 接口
  */
 
+import {
+  OLLAMA_DEFAULT_BASE_URL,
+  LMSTUDIO_DEFAULT_BASE_URL,
+  LLM_TOOL_RESOLUTION_MAX_TOKENS,
+} from '../../utils/constants.js';
+
 const DEFAULT_BASE_URLS = {
-  ollama: 'http://localhost:11434',
-  lmstudio: 'http://localhost:1234',
+  ollama: OLLAMA_DEFAULT_BASE_URL,
+  lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
 };
 
 function getBaseUrl(config) {
@@ -153,7 +159,7 @@ export async function resolveToolContext(messages, toolDefs, toolHandlers, confi
   let enriched = false;
 
   for (let i = 0; i < 5; i++) {
-    const overrideConfig = i === 0 ? { ...config, max_tokens: 200, temperature: 0 } : { ...config, temperature: 0 };
+    const overrideConfig = i === 0 ? { ...config, max_tokens: LLM_TOOL_RESOLUTION_MAX_TOKENS, temperature: 0 } : { ...config, temperature: 0 };
     const data = await callWithTools(currentMessages, toolDefs, overrideConfig).catch(() => null);
     if (!data) return enriched ? currentMessages : messages;
 

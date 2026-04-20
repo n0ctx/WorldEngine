@@ -7,10 +7,7 @@ import {
   reorderPersonaStateFields as dbReorder,
 } from '../db/queries/persona-state-fields.js';
 import { upsertPersonaStateValue, deletePersonaStateValue } from '../db/queries/persona-state-values.js';
-
-function getInitialValueJson(field) {
-  return field.default_value ?? null;
-}
+import { getInitialValueJson } from './_state-field-helpers.js';
 
 export function createPersonaStateField(worldId, data) {
   const field = dbCreate(worldId, data);

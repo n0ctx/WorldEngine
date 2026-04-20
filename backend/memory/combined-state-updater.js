@@ -22,8 +22,9 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
 import { upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
 
-import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT } from '../utils/constants.js';
+import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
+import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 
 const log = createLogger('all-state');
 
@@ -169,19 +170,12 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const prompt = [
     {
       role: 'user',
-      content:
-        `你是状态追踪系统，根据对话内容同时更新以下各类状态。\n\n` +
-        sections.join('\n\n') +
-        `\n\n最近对话：\n${dialogue}\n\n` +
-        `要求：\n` +
-        `1. 返回 JSON 对象，顶层 key 必须为：${responseKeys.join('、')}\n` +
-        `2. 你必须逐个判断每个顶层 key：world、每个 char_x、persona。若某个 key 没有任何可更新字段，也必须返回该 key 对应的空对象 {}\n` +
-        `3. 空值补全规则：若某字段默认值和当前运行时值都为（未设置），且对话里有明确线索，可以为它填写首次值；若线索不足则不要猜测\n` +
-        `4. 默认值是稳定基线，当前运行时值是临时状态；若默认值已存在且当前运行时值为空，不要仅因重复提及默认设定就写入字段，只有出现明确偏离默认值的新事实时才更新\n` +
-        `5. list 类型字段的 value 必须是字符串数组，替换整个列表\n` +
-        `6. OOC 讨论不应直接改变状态，除非是明确的设定修改指令\n` +
-        `7. 不要添加任何解释，只返回 JSON\n\n` +
-        `示例：{${exampleKeys}}`,
+      content: renderBackendPrompt('state/update.md', {
+        SECTIONS: sections.join('\n\n'),
+        DIALOGUE: dialogue,
+        RESPONSE_KEYS: responseKeys.join('、'),
+        EXAMPLE_KEYS: exampleKeys,
+      }),
     },
   ];
 
@@ -194,7 +188,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     promptChars: prompt[0].content.length,
   })}`);
 
-  const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 1000 });
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS });
   if (!raw) return;
   log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 

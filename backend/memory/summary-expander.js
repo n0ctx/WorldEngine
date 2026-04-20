@@ -19,6 +19,10 @@ import {
   MEMORY_EXPAND_DECISION_MAX_TOKENS,
   ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
+import { createLogger } from '../utils/logger.js';
+import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
+
+const log = createLogger('memory-expand');
 
 /**
  * 通过 preflight 非流式调用，让 AI 决定需要展开哪些 turn record。
@@ -49,18 +53,14 @@ export async function decideExpansion({ sessionId, recalled }) {
   const messages = [
     {
       role: 'system',
-      content:
-        '你是一个记忆决策助手。根据用户的近期对话和历史摘要，判断哪些历史轮次需要展开原文查看。\n' +
-        '只返回严格的 JSON，格式：{"expand":["<turn_record_id>",...]}，不需要展开时返回 {"expand":[]}。\n' +
-        '不要包含任何其他文字，不要用 markdown 代码块包裹。',
+      content: loadBackendPrompt('memory/expand/system.md'),
     },
     {
       role: 'user',
-      content:
-        `【近期对话片段】\n${contextText}\n\n` +
-        `【召回到的历史摘要】\n${summaryLines}\n\n` +
-        '请判断：为了更好地回答用户，哪几条历史摘要需要展开原文？' +
-        '如果摘要本身已足够，则不需要展开。返回需要展开的 turn_record_id 列表（JSON 格式）。',
+      content: renderBackendPrompt('memory/expand/user.md', {
+        CONTEXT_TEXT: contextText,
+        SUMMARY_LINES: summaryLines,
+      }),
     },
   ];
 
@@ -86,7 +86,7 @@ export async function decideExpansion({ sessionId, recalled }) {
 
     return result.slice(0, recalled.length);
   } catch (err) {
-    console.warn('[memory-expand] decideExpansion preflight 失败，降级为不展开:', err.message);
+    log.warn(`decideExpansion preflight 失败，降级为不展开: ${err.message}`);
     return [];
   }
 }

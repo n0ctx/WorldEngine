@@ -193,24 +193,6 @@ export function getUncompressedMessagesBySessionId(sessionId) {
 }
 
 /**
- * 统计 is_compressed=0 且 role='user' 的消息数（即未压缩轮次数）
- */
-export function countUncompressedRounds(sessionId) {
-  return db.prepare(
-    "SELECT COUNT(*) AS n FROM messages WHERE session_id = ? AND is_compressed = 0 AND role = 'user'",
-  ).get(sessionId).n;
-}
-
-/**
- * 将该 session 所有 is_compressed=0 的消息批量标记为 1
- */
-export function markAllMessagesCompressed(sessionId) {
-  db.prepare(
-    'UPDATE messages SET is_compressed = 1 WHERE session_id = ? AND is_compressed = 0',
-  ).run(sessionId);
-}
-
-/**
  * 获取指定消息之后（不含该消息本身）的所有消息 id，与 deleteMessagesAfter 条件一致
  * @param {string} messageId
  * @returns {string[]}

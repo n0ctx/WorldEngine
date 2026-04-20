@@ -1,21 +1,6 @@
 import crypto from 'node:crypto';
 import db from '../index.js';
-
-// trigger_keywords / enum_options 在 queries 层自动 JSON parse/stringify
-// default_value 保持原始 JSON 字符串，调用方按 type 自行解析
-
-function parseRow(row) {
-  if (!row) return row;
-  return {
-    ...row,
-    trigger_keywords: row.trigger_keywords ? JSON.parse(row.trigger_keywords) : null,
-    enum_options: row.enum_options ? JSON.parse(row.enum_options) : null,
-  };
-}
-
-function parseAll(rows) {
-  return rows.map(parseRow);
-}
+import { parseRow, parseAll } from './_state-fields-base.js';
 
 /**
  * 创建角色状态字段，sort_order 默认取同 world 最大值 + 1
