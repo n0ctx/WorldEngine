@@ -104,7 +104,8 @@ function cosineSimilarity(a, b) {
  *   currentSessionId: string,
  *   sameSessionThreshold?: number,
  *   crossSessionThreshold?: number,
- *   topK?: number
+ *   topK?: number,
+ *   sessionOnly?: boolean,  — true 时仅返回当前 session 的条目
  * }} options
  * @returns {{ turn_record_id: string, session_id: string, score: number, is_same_session: boolean }[]}
  */
@@ -114,6 +115,7 @@ export function search(queryVector, {
   sameSessionThreshold = MEMORY_RECALL_SAME_SESSION_THRESHOLD,
   crossSessionThreshold = MEMORY_RECALL_SIMILARITY_THRESHOLD,
   topK = 5,
+  sessionOnly = false,
 } = {}) {
   const store = loadStore();
   if (!store.entries.length) return [];
@@ -123,6 +125,8 @@ export function search(queryVector, {
     if (worldId && entry.world_id !== worldId) continue;
 
     const isSameSession = entry.session_id === currentSessionId;
+    if (sessionOnly && !isSameSession) continue;
+
     const threshold = isSameSession ? sameSessionThreshold : crossSessionThreshold;
 
     const score = cosineSimilarity(queryVector, entry.vector);

@@ -255,11 +255,12 @@ export async function searchRecalledSummaries(worldId, sessionId) {
   }
   if (!queryVector) return { recalled: [], recentMessagesText };
 
-  // 向量搜索（同世界，同 session / 跨 session 双阈值，取 topK）
+  // 向量搜索（仅限当前 session，取 topK）
   const hits = search(queryVector, {
     worldId,
     currentSessionId: sessionId,
     topK: MEMORY_RECALL_MAX_SESSIONS,
+    sessionOnly: true,
   });
 
   if (hits.length === 0) return { recalled: [], recentMessagesText };
