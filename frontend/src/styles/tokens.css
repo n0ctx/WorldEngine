@@ -103,4 +103,18 @@
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
+
+  /* Motion Duration（MOTION.md §2.5） */
+  --we-dur-micro:   0.10s;
+  --we-dur-quick:   0.18s;
+  --we-dur-base:    0.30s;
+  --we-dur-medium:  0.38s;
+  --we-dur-slow:    0.50s;
+  --we-dur-crawl:   0.75s;
+  --we-dur-ambient: 2.00s;
+  /* ink:     cubic-bezier(0.22, 1, 0.36, 1)       */
+  /* page:    cubic-bezier(0.65, 0, 0.35, 1)       */
+  /* quill:   cubic-bezier(0.40, 0, 0.20, 1)       */
+  /* sharp:   cubic-bezier(0.25, 0.46, 0.45, 0.94) */
+  /* retract: cubic-bezier(0.55, 0, 1, 0.45)       */
 }

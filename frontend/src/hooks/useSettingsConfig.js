@@ -14,6 +14,7 @@ export function useSettingsConfig() {
   const [memoryExpansionEnabled, setMemoryExpansionEnabled] = useState(true);
   const [suggestionEnabled, setSuggestionEnabled] = useState(false);
   const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
+  const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
@@ -36,6 +37,7 @@ export function useSettingsConfig() {
       setMemoryExpansionEnabled(c.memory_expansion_enabled !== false);
       setSuggestionEnabled(c.suggestion_enabled === true);
       setWritingSuggestionEnabled(c.writing?.suggestion_enabled === true);
+      setWritingMemoryExpansionEnabled(c.writing?.memory_expansion_enabled !== false);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
       setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
       const w = c.writing || {};
@@ -153,6 +155,11 @@ export function useSettingsConfig() {
     await patchConfig({ writing: { suggestion_enabled: enabled } });
   }
 
+  async function handleToggleWritingMemoryExpansion(enabled) {
+    setWritingMemoryExpansionEnabled(enabled);
+    await patchConfig({ writing: { memory_expansion_enabled: enabled } });
+  }
+
   async function handleToggleShowThinking(enabled) {
     setShowThinkingLocal(enabled);
     setShowThinkingStore(enabled);
@@ -174,6 +181,7 @@ export function useSettingsConfig() {
     setSuggestionEnabled(c.suggestion_enabled === true);
     const w = c.writing || {};
     setWritingSuggestionEnabled(w.suggestion_enabled === true);
+    setWritingMemoryExpansionEnabled(w.memory_expansion_enabled !== false);
     setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
@@ -203,6 +211,7 @@ export function useSettingsConfig() {
       memoryExpansionEnabled, onToggleMemoryExpansion: handleToggleMemoryExpansion,
       suggestionEnabled, onToggleSuggestion: handleToggleSuggestion,
       writingSuggestionEnabled, onToggleWritingSuggestion: handleToggleWritingSuggestion,
+      writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
       onSave: handleSaveGeneral,
       saving,
       writingSystemPrompt, setWritingSystemPrompt,

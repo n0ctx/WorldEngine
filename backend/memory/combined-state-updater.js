@@ -320,3 +320,12 @@ function formatValueForPrompt(valueJson, field) {
 
   return valueJson;
 }
+
+export const __testables = {
+  filterActive,
+  buildValueMap,
+  buildFieldsDesc,
+  applyStatePatch,
+  validateValue,
+  formatValueForPrompt,
+};

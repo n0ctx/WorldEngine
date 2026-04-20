@@ -645,6 +645,7 @@ CREATE TABLE internal_meta (
     "global_system_prompt": "",          // 写作空间全局 system prompt；覆盖对话空间的同名字段
     "global_post_prompt": "",            // 写作空间全局后置提示词
     "context_history_rounds": null,      // null = 继承对话空间的 context_history_rounds
+    "memory_expansion_enabled": true,   // T144：写作空间是否启用记忆原文展开；独立于顶层同名字段
     "llm": {
       "model": "",                       // "" = 继承对话空间 llm.model
       "temperature": null,               // null = 继承对话空间 llm.temperature

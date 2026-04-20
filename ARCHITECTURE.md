@@ -188,11 +188,11 @@ POST /api/sessions/:sessionId/chat
 |---|---|
 | [6] | 无单一角色；从 `writing_session_characters` 获取激活角色列表；每个角色格式：`[{{char}}人设]\n${system_prompt}`，并用该角色名字替换 `{{char}}` |
 | [7] | 循环所有激活角色调用 `renderCharacterState`，并以各自角色名替换 `{{char}}` |
-| [8-10] | 合并全局 + 世界 + 所有激活角色的 entries |
-| [12-13] | 无向量召回，无记忆展开 |
+| [8-10] | 合并全局 + 世界 + 所有激活角色的 entries；全局/世界 entries 用首个激活角色名作为 `{{char}}` fallback，角色 entries 用各自所属角色名替换 |
+| [12-13] | 同 buildPrompt；[13] 受 `writing.memory_expansion_enabled` 控制 |
 | [14] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
 | [15] | 无角色后置提示词（只有 `global_post_prompt` + `world.post_prompt`） |
-| 返回值 | 无 `recallHitCount` |
+| 返回值 | 含 `recallHitCount` |
 
 ---
 
@@ -357,7 +357,7 @@ createTurnRecord(sessionId, { isUpdate? })
 
 **应用范围**：[1]–[13] 所有 systemParts 注入点 + [15] 后置提示词。**不替换** [14] 历史消息和 [16] 当前用户消息（对话内容非配置模板）。
 
-**写作模式多角色**：共享段（[1]-[5][8-11][15]）以首个激活角色名作为 `{{char}}` fallback；[6-7] per-character 段各自使用自身角色名。
+**写作模式多角色**：共享段（[1]-[5][15] 及全局/世界 entries）以首个激活角色名作为 `{{char}}` fallback；[6-7] 与角色级 entries 各自使用所属角色名。
 
 **实现**：`backend/utils/template-vars.js` → `applyTemplateVars(text, ctx)`；assembler.js 内以闭包 `const tv = t => applyTemplateVars(t, ctx)` 调用。
 

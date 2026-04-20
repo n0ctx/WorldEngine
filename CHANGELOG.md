@@ -21,6 +21,11 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T148` `feat` MOTION.md 动效规范落地 — motion.js 重写（DURATION/EASE/STAGGER/BLUR/variants/transitions），tokens.css 补 --we-dur-* 变量，新增 useMotion hook，PageTransition 实现路由过渡，WritingMessageItem 补 inkRise，SealStamp/ModalShell/SectionTabs 对齐规范参数
+- `T147` `chore` 临时后端测试隔离真实配置 — `backend/services/config.js` 支持 `WE_CONFIG_PATH`，`.temp` 脚本改用独立临时 config 文件
+- `T146` `bugfix` 写作空间激活角色读取修复 — `buildWritingPrompt()` 不再把 `getWritingSessionCharacters()` 返回的 `c.*` 行误当成含 `character_id` 的联结行二次查询
+- `T145` `bugfix` 写作空间多角色模板变量补全 — 共享段补首个激活角色 `{{char}}` fallback，角色级 prompt entries 改为按所属角色名渲染
+- `T144` `feat` 写作空间接入记忆召回与原文展开 — buildWritingPrompt 补 [12][13]，writing.js 补 memory_recall_start SSE，前端设置页写作 tab 加记忆原文展开 toggle，config.writing 新增 memory_expansion_enabled 字段
 - `T143` `bugfix` 写卡助手协议修复+多轮上下文补全 — character-card create entityId 协议对齐、stateFieldOps type 枚举硬约束（三个 prompt 文件）、工具结果字符串富化、AssistantPanel history 含 proposal 摘要
 - `T142` `bugfix` 对话/写作上下文对齐修复 — entry description 退回 preflight、主历史源切回原始 messages、continue 不再重写轮次、turn record 按 round_index 配对
 - `T141` `perf` 写卡助手 harness 稳定性六项优化 — 子代理 system/user 分离、temperature:0、retry 保留工具、error SSE 透传、resolveToolContext 不再静默降级、proposalStore GC
@@ -62,6 +67,31 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T149 — chore: 后端测试残留风险收口 ✅
+- **对外接口**：`backend/server.js` 新增 `createApp()` / `startServer()`，默认启动行为不变；`backend/llm/index.js` 新增测试可控重试策略环境变量 `WE_LLM_RETRY_MAX` / `WE_LLM_RETRY_DELAY_MS`
+- **涉及文件**：`backend/server.js`、`backend/llm/index.js`、`backend/tests/helpers/test-env.js`、`backend/tests/routes/chat.test.js`、`CHANGELOG.md`
+- **注意**：测试环境通过 `WE_DISABLE_AUTOSTART=true` 复用真实 Express 路由而不抢占固定端口；`/chat` 集成测试已覆盖 SSE 事件流、消息落库和 `activeStreams` 清理。重试开关默认回退到常量，不影响生产行为
+
+## T148 — chore: 建立后端测试体系与 mock LLM 隔离 ✅
+- **对外接口**：`backend/package.json` 新增分层测试入口 `npm test` / `npm run test:coverage`；`backend/llm/providers/mock.js` 支持 `llm.provider="mock"`；测试隔离新增环境变量 `WE_UPLOADS_DIR` / `WE_TURN_SUMMARY_STORE_PATH`
+- **涉及文件**：`backend/tests/` 全目录、`backend/llm/index.js`、`backend/llm/providers/mock.js`、`backend/prompts/assembler.js`、`backend/prompts/entry-matcher.js`、`backend/memory/combined-state-updater.js`、`backend/memory/recall.js`、`backend/utils/turn-summary-vector-store.js`、`backend/package.json`
+- **注意**：`backend/tests/` 是应提交的测试源码，**不要加进 `.gitignore`**；真正需要忽略的是 `/.temp/` 下的临时 DB / config / uploads / vectors。mock provider 只在显式配置 `provider="mock"` 时生效，不影响生产 provider 路由
+
+## T147 — chore: 临时后端测试隔离真实配置 ✅
+- **对外接口**：`backend/services/config.js` 新增环境变量入口 `WE_CONFIG_PATH`；未设置时仍默认读取 `data/config.json`
+- **涉及文件**：`backend/services/config.js`、`.temp/test-writing-prompt-char.mjs`、`CHANGELOG.md`
+- **注意**：后端临时脚本和未来测试可通过 `WE_CONFIG_PATH` 指向 `/.temp/` 下的独立配置文件，避免覆盖真实 `data/config.json`；当前临时写作 prompt 测试脚本已改为只清理自己的临时 config / db
+
+## T146 — bugfix: 写作空间激活角色读取修复 ✅
+- **对外接口**：`buildWritingPrompt(sessionId, options?)` 签名不变；写作空间激活角色现在能正确进入 prompt 组装
+- **涉及文件**：`backend/prompts/assembler.js`、`CHANGELOG.md`
+- **注意**：`getWritingSessionCharacters()` 返回的是 `c.*` 角色行加 `activated_at`，不是带 `character_id` 的桥表原始行；旧实现继续读取 `row.character_id` 做二次查询，导致 `activeCharacters` 恒为空，进而让写作空间共享段、角色人设段、角色状态段和角色级 prompt entries 一起缺失
+
+## T145 — bugfix: 写作空间多角色模板变量补全 ✅
+- **对外接口**：`buildWritingPrompt(sessionId, options?)` 签名不变；写作空间 prompt 组装规则收敛
+- **涉及文件**：`backend/prompts/assembler.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：写作空间共享段此前只注入了 `{ user, world }`，导致全局/世界 prompt、persona、post prompt、以及写作条目里的 `{{char}}` 会被替换成空串；现在共享段使用首个激活角色名作为 fallback，而角色级 prompt entries 则按各自所属角色名渲染，避免第二个激活角色的条目仍套用首角色名
+
 ## T142 — bugfix: 对话/写作上下文对齐修复 ✅
 - **对外接口**：`buildPrompt` / `buildWritingPrompt` / `buildContinuationMessages` / `createTurnRecord` 签名保持不变；行为收敛
 - **涉及文件**：`backend/db/queries/messages.js`、`backend/prompts/assembler.js`、`backend/routes/chat.js`、`backend/routes/writing.js`、`backend/routes/stream-helpers.js`、`backend/memory/turn-summarizer.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
@@ -71,6 +101,11 @@
   3. `getUncompressedMessagesBySessionId(sessionId, limit, offset)` 现在真正支持 limit/offset；此前 assembler 把它当“最新 1 条消息”使用时，实际会拿到整段历史中的第一条消息
   4. `/continue` 不再按“有无 turn record”手工 pop/push user/assistant 轮次，只保留 assembler 产出的上下文并将最后一条 user 作为续写锚点，后接 `originalContent`
   5. `createTurnRecord()` 不再用“最后一条 user + 最后一条 assistant”粗暴配对，而是按 round_index 取第 N 个 user 及其后、下一条 user 之前的最后一个 assistant；这样不会把开场白或跨轮 assistant 错配进当前轮
+
+## T144 — feat: 写作空间接入记忆召回与原文展开 ✅
+- **对外接口**：`buildWritingPrompt(sessionId, { onRecallEvent })` 现在返回 `recallHitCount`；写作路由发送 `memory_recall_start` / `memory_recall_done` / `memory_expand_*` SSE（与对话空间一致）
+- **涉及文件**：`backend/prompts/assembler.js`、`backend/routes/writing.js`、`backend/services/config.js`、`frontend/src/hooks/useSettingsConfig.js`、`frontend/src/components/settings/PromptConfigPanel.jsx`
+- **注意**：写作空间的展开开关独立存储在 `config.writing.memory_expansion_enabled`，与顶层 `memory_expansion_enabled`（对话空间）互不干扰；旧 config 文件缺少该字段时 `DEFAULT_WRITING` 自动补 `true`
 
 ## T143 — bugfix: 写卡助手协议修复 + 多轮上下文补全 ✅
 
@@ -1338,3 +1373,21 @@
 - **对外接口**：前端 `cd frontend && npm run dev`（:5173）；后端 `cd backend && npm run dev`（:3000）
 - **涉及文件**：`frontend/`（Vite + React + TailwindCSS）、`backend/`（Express + ES Modules + better-sqlite3）、`data/`（uploads/avatars、uploads/attachments、vectors）、`.gitignore`
 - **注意**：后端 `server.js` 启动时自动 `mkdirSync` 创建 `/data/` 子目录；`data/.gitignore` 只跟踪 `.gitkeep` 占位文件；后端 `package.json` 设 `"type": "module"` 使用 ES Modules
+
+## T148 — feat: MOTION.md 动效规范落地 ✅
+- **对外接口**：`import { DURATION, EASE, STAGGER, BLUR, variants, transitions } from '@/utils/motion'`；`import { useMotion } from '@/hooks/useMotion'`
+- **涉及文件**：
+  - `frontend/src/utils/motion.js` — 完全重写，旧 `MOTION`/`INK_RISE` 已删除
+  - `frontend/src/styles/tokens.css` — 追加 `--we-dur-*` CSS 变量（7 个）
+  - `frontend/src/hooks/useMotion.js` — 新文件，`useMotion()` hook（系统减弱动效检测）
+  - `frontend/src/components/ui/ModalShell.jsx` — 使用新 token，content exit y 修正为向上（-8）
+  - `frontend/src/components/chat/MessageItem.jsx` — `INK_RISE` → `variants.inkRise + transitions.ink`
+  - `frontend/src/components/book/SealStampAnimation.jsx` — scale 1.3→1.25，rotate -3→-4，duration 1s→0.30s，ease sharp→quill，sealOut delay 0.65s，timeout 1100ms
+  - `frontend/src/components/book/SectionTabs.jsx` — Tab 切换补 x ±16px 方向位移，追踪 prevIndex
+  - `frontend/src/components/book/PageTransition.jsx` — 实现 pageTransition（AnimatePresence + motion.div，key=pathname，backgroundLocation 时不触发）
+  - `frontend/src/components/writing/WritingMessageItem.jsx` — 用户和助手消息行各包裹 motion.div，添加 inkRise
+- **注意**：
+  - framer-motion v11 不支持 `motion/react` 路径，保持 `from 'framer-motion'`；升级到 v12+ 后可迁移
+  - `--we-dur-base` 从 chat.css 的 fallback 0.32s 修正为规范的 0.30s（通过 tokens.css 变量生效）
+  - `useMotion()` 目前只接系统偏好；待 displaySettings store 添加 `reduceMotion` 字段后可接入用户级开关
+  - SectionTabs 的 `dir` 在首次渲染时始终为 1（prevIndex 初始化为 activeIndex），首次渲染 `initial={false}` 不播动画，不影响体验

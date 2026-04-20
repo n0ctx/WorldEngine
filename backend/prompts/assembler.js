@@ -66,7 +66,9 @@ const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
+const UPLOADS_DIR = process.env.WE_UPLOADS_DIR
+  ? path.resolve(process.env.WE_UPLOADS_DIR)
+  : path.resolve(__dirname, '..', '..', 'data', 'uploads');
 
 // ─── 附件读取 ─────────────────────────────────────────────────────
 
@@ -126,6 +128,14 @@ function sliceCompletedHistoryByRounds(messages, rounds) {
   const startIndex = userIndexes[userIndexes.length - rounds];
   return history.slice(startIndex);
 }
+
+export const __testables = {
+  readAttachmentAsDataUrl,
+  formatMessageForLLM,
+  omitLatestUserMessage,
+  getCurrentUserMessage,
+  sliceCompletedHistoryByRounds,
+};
 
 // ─── 核心函数 ─────────────────────────────────────────────────────
 
@@ -294,23 +304,23 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 /**
- * 写作空间版本：支持多个激活角色，且不接入向量召回。
+ * 写作空间版本：支持多个激活角色，[12-13] 向量召回与记忆展开同 buildPrompt。
  * 组装顺序与 buildPrompt 对齐，但 [6-10] 针对所有激活角色展开。
  *
  * @param {string} sessionId
  * @param {object} [options]
- * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null }>}
+ * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
+ * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
+  const { onRecallEvent } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
   const world = getWorldById(session.world_id);
   if (!world) throw new Error(`World not found: ${session.world_id}`);
 
-  const activeCharacters = getWritingSessionCharacters(sessionId)
-    .map((row) => getCharacterById(row.character_id))
-    .filter(Boolean);
+  const activeCharacters = getWritingSessionCharacters(sessionId).filter(Boolean);
 
   const config = getConfig();
   const writing = config.writing || {};
@@ -327,7 +337,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const charNames = activeCharacters.map((c) => c.name).join(', ');
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
-  const tv = (t) => applyTemplateVars(t, { user: personaName, world: world.name });
+  const primaryCharacterName = activeCharacters[0]?.name || '';
+  const tv = (t) => applyTemplateVars(t, {
+    user: personaName,
+    char: primaryCharacterName,
+    world: world.name,
+  });
   const tvChar = (t, character) => applyTemplateVars(t, {
     user: personaName,
     char: character.name,
@@ -370,19 +385,61 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [8-10] Prompt 条目（全局写作条目→世界→各激活角色）
   const globalEntries = getAllGlobalEntries('writing');
   const worldEntries = getAllWorldEntries(world.id);
-  const charEntries = activeCharacters.flatMap((c) => getAllCharacterEntries(c.id));
-  const allEntries = [...globalEntries, ...worldEntries, ...charEntries];
+  const charEntries = activeCharacters.flatMap((character) => (
+    getAllCharacterEntries(character.id).map((entry) => ({ entry, character }))
+  ));
+  const allEntries = [
+    ...globalEntries,
+    ...worldEntries,
+    ...charEntries.map(({ entry }) => entry),
+  ];
 
   const triggeredIds = await matchEntries(sessionId, allEntries);
   const entryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
-  for (const entry of allEntries) {
+  for (const entry of [...globalEntries, ...worldEntries]) {
     if (triggeredIds.has(entry.id) && entry.content) {
       entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
+  for (const { entry, character } of charEntries) {
+    if (triggeredIds.has(entry.id) && entry.content) {
+      entryTexts.push(`【${tvChar(entry.title, character)}】\n${tvChar(entry.content, character)}`);
+    }
+  }
   if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
+
+  // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  const { recalled } = await searchRecalledSummaries(world.id, sessionId);
+  const recalledSummariesText = renderRecalledSummaries(recalled);
+  const recallHitCount = recalled.length;
+  if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
+  if (recallHitCount > 0) log.debug(`│  [12] recall  hits=${recallHitCount}`);
+  onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
+
+  // [13] 记忆展开（由 AI 决定需要展开哪些原文）
+  if (recallHitCount > 0 && writing.memory_expansion_enabled !== false) {
+    onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
+      ref: r.ref,
+      turn_record_id: r.turn_record_id,
+      session_id: r.session_id,
+      session_title: r.session_title,
+      round_index: r.round_index,
+      created_at: r.created_at,
+    })) });
+    const expandIds = await decideExpansion({ sessionId, recalled });
+    if (expandIds.length > 0) {
+      const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
+      if (expandedText) {
+        systemParts.push(tv(expandedText));
+        log.debug(`│  [13] expand  ids=${expandIds.length}`);
+      }
+      onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
+    } else {
+      onRecallEvent?.('memory_expand_done', { expanded: [] });
+    }
+  }
 
   const messages = [];
   const systemContent = systemParts.filter(Boolean).join('\n\n');
@@ -419,5 +476,5 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const systemLen = systemContent.length;
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model };
+  return { messages, temperature, maxTokens, model, recallHitCount };
 }

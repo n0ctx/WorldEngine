@@ -18,7 +18,9 @@ import {
 } from './constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const STORE_PATH = path.resolve(__dirname, '..', '..', 'data', 'vectors', 'turn_summaries.json');
+const STORE_PATH = process.env.WE_TURN_SUMMARY_STORE_PATH
+  ? path.resolve(process.env.WE_TURN_SUMMARY_STORE_PATH)
+  : path.resolve(__dirname, '..', '..', 'data', 'vectors', 'turn_summaries.json');
 
 const EMPTY_STORE = { version: 1, entries: [] };
 

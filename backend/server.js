@@ -91,70 +91,81 @@ for (const dir of dataDirs) {
 // 初始化数据库表结构
 initSchema(db);
 
-const app = express();
-app.use(cors({
-  origin(origin, callback) {
-    callback(null, isAllowedOrigin(origin));
-  },
-}));
-app.use(express.json({ limit: '20mb' }));
+export function createApp() {
+  const app = express();
+  app.use(cors({
+    origin(origin, callback) {
+      callback(null, isAllowedOrigin(origin));
+    },
+  }));
+  app.use(express.json({ limit: '20mb' }));
 
-// HTTP 请求日志中间件（仅 /api/，跳过静态文件）
-app.use((req, res, next) => {
-  if (!req.path.startsWith('/api/') || req.path.startsWith('/api/uploads/')) {
-    return next();
-  }
-  const t0     = Date.now();
-  const method = req.method.padEnd(4);
-  res.on('finish', () => {
-    const ms      = Date.now() - t0;
-    const status  = res.statusCode;
-    const isStream = /\/(chat|regenerate|continue|impersonate)$/.test(req.path);
-    const streamTag = isStream ? '  [SSE]' : '';
-    serverLog.info(`${method} ${req.path}  →  ${status}${streamTag}  ${ms}ms`);
+  // HTTP 请求日志中间件（仅 /api/，跳过静态文件）
+  app.use((req, res, next) => {
+    if (!req.path.startsWith('/api/') || req.path.startsWith('/api/uploads/')) {
+      return next();
+    }
+    const t0 = Date.now();
+    const method = req.method.padEnd(4);
+    res.on('finish', () => {
+      const ms = Date.now() - t0;
+      const status = res.statusCode;
+      const isStream = /\/(chat|regenerate|continue|impersonate)$/.test(req.path);
+      const streamTag = isStream ? '  [SSE]' : '';
+      serverLog.info(`${method} ${req.path}  →  ${status}${streamTag}  ${ms}ms`);
+    });
+    next();
   });
-  next();
-});
 
-app.use('/api', localOnly);
+  app.use('/api', localOnly);
 
-app.get('/api/uploads/*path', localOnly, (req, res) => {
-  const relativePath = Array.isArray(req.params.path)
-    ? req.params.path.join('/')
-    : req.params.path;
-  const filePath = resolveUploadPath(relativePath, UPLOADS_ROOT);
-  if (!filePath || !fs.existsSync(filePath)) {
-    res.status(404).json({ error: '文件不存在' });
-    return;
-  }
+  app.get('/api/uploads/*path', localOnly, (req, res) => {
+    const relativePath = Array.isArray(req.params.path)
+      ? req.params.path.join('/')
+      : req.params.path;
+    const filePath = resolveUploadPath(relativePath, UPLOADS_ROOT);
+    if (!filePath || !fs.existsSync(filePath)) {
+      res.status(404).json({ error: '文件不存在' });
+      return;
+    }
 
-  res.sendFile(filePath);
-});
+    res.sendFile(filePath);
+  });
 
-// 注册路由
-app.use('/api/config', configRoutes);
-app.use('/api/worlds', worldsRoutes);
-app.use('/api', charactersRoutes);
-app.use('/api', sessionsRoutes);
-app.use('/api/sessions', chatRoutes);
-app.use('/api/sessions', sessionTimelineRoutes);
-app.use('/api/sessions', sessionStateValuesRoutes);
-app.use('/api', promptEntriesRoutes);
-app.use('/api', stateFieldsRoutes);
-app.use('/api', worldStateValuesRoutes);
-app.use('/api', characterStateValuesRoutes);
-app.use('/api', importExportRoutes);
-app.use('/api', customCssSnippetsRoutes);
-app.use('/api', regexRulesRoutes);
-app.use('/api', personasRoutes);
-app.use('/api', personaStateFieldsRoutes);
-app.use('/api', personaStateValuesRoutes);
-app.use('/api/worlds', writingRoutes);
-app.use('/api/assistant', assistantRoutes);
+  // 注册路由
+  app.use('/api/config', configRoutes);
+  app.use('/api/worlds', worldsRoutes);
+  app.use('/api', charactersRoutes);
+  app.use('/api', sessionsRoutes);
+  app.use('/api/sessions', chatRoutes);
+  app.use('/api/sessions', sessionTimelineRoutes);
+  app.use('/api/sessions', sessionStateValuesRoutes);
+  app.use('/api', promptEntriesRoutes);
+  app.use('/api', stateFieldsRoutes);
+  app.use('/api', worldStateValuesRoutes);
+  app.use('/api', characterStateValuesRoutes);
+  app.use('/api', importExportRoutes);
+  app.use('/api', customCssSnippetsRoutes);
+  app.use('/api', regexRulesRoutes);
+  app.use('/api', personasRoutes);
+  app.use('/api', personaStateFieldsRoutes);
+  app.use('/api', personaStateValuesRoutes);
+  app.use('/api/worlds', writingRoutes);
+  app.use('/api/assistant', assistantRoutes);
+
+  return app;
+}
+
+export function startServer({ host = HOST, port = PORT } = {}) {
+  const app = createApp();
+  return app.listen(port, host, () => {
+    const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
+    serverLog.info(`WorldEngine backend running on http://${host}:${port}  日志级别: ${level}`);
+  });
+}
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, HOST, () => {
-  const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
-  serverLog.info(`WorldEngine backend running on http://${HOST}:${PORT}  日志级别: ${level}`);
-});
+if (process.env.WE_DISABLE_AUTOSTART !== 'true') {
+  startServer();
+}

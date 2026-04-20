@@ -12,6 +12,7 @@ import { getConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
+import * as mockProvider from './providers/mock.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 
 const log = createLogger('llm');
@@ -22,7 +23,17 @@ const log = createLogger('llm');
 
 const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio']);
 
+function getRetryPolicy() {
+  const max = Number(process.env.WE_LLM_RETRY_MAX);
+  const delayMs = Number(process.env.WE_LLM_RETRY_DELAY_MS);
+  return {
+    max: Number.isInteger(max) ? max : LLM_RETRY_MAX,
+    delayMs: Number.isInteger(delayMs) ? delayMs : LLM_RETRY_DELAY_MS,
+  };
+}
+
 function getProvider(providerName) {
+  if (providerName === 'mock') return mockProvider;
   return LOCAL_PROVIDERS.has(providerName) ? localProvider : cloudProvider;
 }
 
@@ -96,6 +107,7 @@ function sleep(ms) {
 export async function* chat(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
 
@@ -115,7 +127,7 @@ export async function* chat(messages, options = {}) {
   const spinnerId = spinnerAdd('流式响应中');
 
   try {
-    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+    for (let attempt = 0; attempt <= retry.max; attempt++) {
       let started = false;
       try {
         const gen = provider.streamChat(messages, llmConfig);
@@ -158,7 +170,7 @@ export async function* chat(messages, options = {}) {
           model: llmConfig.model || '',
           error: err.message,
         })}`);
-        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+        if (attempt < retry.max) await sleep(retry.delayMs);
       }
     }
     throw wrapError(lastError, llmConfig.provider);
@@ -178,6 +190,16 @@ function splitTools(tools = []) {
   return { defs, handlers };
 }
 
+export const __testables = {
+  getProvider,
+  buildLLMConfig,
+  splitTools,
+  getRetryPolicy,
+  wrapError,
+  isNonRetryable,
+  LLMError,
+};
+
 /**
  * 非流式调用（含 tool-use 循环），返回完整文本。
  * 若 provider 不支持 tool-use，静默降级为 complete()。
@@ -185,6 +207,7 @@ function splitTools(tools = []) {
 export async function completeWithTools(messages, tools, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
 
@@ -205,7 +228,7 @@ export async function completeWithTools(messages, tools, options = {}) {
   let lastError;
   const spinnerId = spinnerAdd('工具调用中');
   try {
-    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+    for (let attempt = 0; attempt <= retry.max; attempt++) {
       try {
         const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
         log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
@@ -226,7 +249,7 @@ export async function completeWithTools(messages, tools, options = {}) {
           model: llmConfig.model || '',
           error: err.message,
         })}`);
-        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+        if (attempt < retry.max) await sleep(retry.delayMs);
       }
     }
     throw wrapError(lastError, llmConfig.provider);
@@ -281,6 +304,7 @@ export async function resolveToolContext(messages, tools, options = {}) {
 export async function complete(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
 
@@ -298,7 +322,7 @@ export async function complete(messages, options = {}) {
   let lastError;
   const spinnerId = spinnerAdd('非流式响应中');
   try {
-    for (let attempt = 0; attempt <= LLM_RETRY_MAX; attempt++) {
+    for (let attempt = 0; attempt <= retry.max; attempt++) {
       try {
         const result = await provider.complete(messages, llmConfig);
         const meta = formatMeta({
@@ -324,7 +348,7 @@ export async function complete(messages, options = {}) {
           model: llmConfig.model || '',
           error: err.message,
         })}`);
-        if (attempt < LLM_RETRY_MAX) await sleep(LLM_RETRY_DELAY_MS);
+        if (attempt < retry.max) await sleep(retry.delayMs);
       }
     }
     throw wrapError(lastError, llmConfig.provider);

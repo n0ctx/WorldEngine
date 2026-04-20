@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { MOTION } from '../../utils/motion.js';
+import { DURATION, EASE } from '../../utils/motion.js';
 
 /**
  * 羊皮纸模态壳 — DESIGN §7.8
@@ -19,7 +19,7 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' })
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{   opacity: 0 }}
-      transition={{ duration: MOTION.duration.base, ease: MOTION.ease.ink }}
+      transition={{ duration: DURATION.quick, ease: EASE.sharp }}
       onClick={onClose}
     >
       <motion.div
@@ -42,10 +42,10 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' })
             '0 16px 48px rgba(42,31,23,0.17)',
           ].join(', '),
         }}
-        initial={{ opacity: 0, y: 7,  scale: 0.97 }}
+        initial={{ opacity: 0, y: 8,  scale: 0.96 }}
         animate={{ opacity: 1, y: 0,  scale: 1    }}
-        exit={{   opacity: 0, y: 5,  scale: 0.97 }}
-        transition={{ duration: 0.26, ease: MOTION.ease.ink }}
+        exit={{   opacity: 0, y: -8, scale: 0.96 }}
+        transition={{ duration: DURATION.base, ease: EASE.ink }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

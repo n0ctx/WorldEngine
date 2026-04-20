@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.resolve(__dirname, '..', '..', 'data', 'config.json');
+const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.resolve(__dirname, '..', '..', 'data', 'config.json');
 
 const DEFAULT_CONFIG = {
   version: 1,
@@ -54,6 +54,7 @@ const DEFAULT_CONFIG = {
     global_post_prompt: '',
     context_history_rounds: null,
     suggestion_enabled: false,
+    memory_expansion_enabled: true,
     llm: {
       model: '',
       temperature: null,
@@ -67,6 +68,7 @@ const DEFAULT_WRITING = {
   global_post_prompt: '',
   context_history_rounds: null,
   suggestion_enabled: false,
+  memory_expansion_enabled: true,
   llm: {
     model: '',
     temperature: null,

@@ -98,6 +98,12 @@ function matchByKeywords(entry, userScanText, asstScanText) {
   return hitUser || hitAsst;
 }
 
+export const __testables = {
+  tryLlmMatch,
+  resolveKeywordScopes,
+  matchByKeywords,
+};
+
 /**
  * 判断哪些 Prompt 条目需要注入正文（触发）
  *

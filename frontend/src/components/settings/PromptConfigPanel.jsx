@@ -14,6 +14,7 @@ export default function PromptConfigPanel({
   memoryExpansionEnabled, onToggleMemoryExpansion,
   suggestionEnabled, onToggleSuggestion,
   writingSuggestionEnabled, onToggleWritingSuggestion,
+  writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   onSave, saving,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
@@ -68,6 +69,20 @@ export default function PromptConfigPanel({
 
           <p className="we-edit-label">写作 Prompt 条目</p>
           <EntryList type="global" mode="writing" />
+
+          <hr className="we-settings-divider" />
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
+            <div>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+                记忆原文展开
+              </p>
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+                召回历史摘要后允许 AI 读取原文，会略增加首包延迟
+              </p>
+            </div>
+            <ToggleSwitch checked={writingMemoryExpansionEnabled} onChange={onToggleWritingMemoryExpansion} />
+          </div>
 
           <hr className="we-settings-divider" />
 

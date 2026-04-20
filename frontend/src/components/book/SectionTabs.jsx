@@ -1,19 +1,26 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { MOTION } from '../../utils/motion';
+import { DURATION, EASE } from '../../utils/motion';
 
 export default function SectionTabs({ sections, defaultKey }) {
   const [active, setActive] = useState(defaultKey ?? sections[0]?.key);
+  const prevIndexRef = useRef(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
   const current = sections.find(s => s.key === active);
+  const activeIndex = sections.findIndex(s => s.key === active);
+  // dir > 0：向右（内容从右滑入），dir < 0：向左
+  const dir = activeIndex > prevIndexRef.current ? 1 : -1;
 
   return (
     <div className="we-section-tabs">
       <div className="we-section-tabs-bar">
-        {sections.map(s => (
+        {sections.map((s, i) => (
           <button
             key={s.key}
             className={`we-section-tab${active === s.key ? ' active' : ''}`}
-            onClick={() => setActive(s.key)}
+            onClick={() => {
+              prevIndexRef.current = activeIndex;
+              setActive(s.key);
+            }}
           >
             {s.label}
           </button>
@@ -24,13 +31,13 @@ export default function SectionTabs({ sections, defaultKey }) {
         <span className="we-section-tabs-sep-fleuron">❦</span>
         <div className="we-section-tabs-sep-line" />
       </div>
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={active}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: MOTION.duration.quick }}
+          initial={{ opacity: 0, x: dir * 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir * -16 }}
+          transition={{ duration: DURATION.medium, ease: EASE.ink }}
         >
           {current?.content}
         </motion.div>

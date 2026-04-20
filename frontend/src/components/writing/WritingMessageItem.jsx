@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { variants, transitions } from '../../utils/motion.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -210,7 +212,13 @@ export default function WritingMessageItem({
   /* ── 玩家输入：朱砂左线批注风格 ── */
   if (isUser) {
     return (
-      <div className="we-writing-annotation">
+      <motion.div
+        className="we-writing-annotation"
+        initial="hidden"
+        animate="visible"
+        variants={variants.inkRise}
+        transition={transitions.ink}
+      >
         {editing ? (
           <div className="we-message-edit">
             <textarea
@@ -247,13 +255,19 @@ export default function WritingMessageItem({
             )}
           </>
         )}
-      </div>
+      </motion.div>
     );
   }
 
   /* ── 助手叙事：书页正文散文风格 ── */
   return (
-    <div className="we-writing-prose">
+    <motion.div
+      className="we-writing-prose"
+      initial="hidden"
+      animate="visible"
+      variants={variants.inkRise}
+      transition={transitions.ink}
+    >
       {editingAI ? (
         <div className="we-message-edit">
           <textarea
@@ -314,6 +328,6 @@ export default function WritingMessageItem({
           )}
         </>
       )}
-    </div>
+    </motion.div>
   );
 }

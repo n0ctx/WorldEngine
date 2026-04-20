@@ -161,7 +161,11 @@ async function runWritingStream(sessionId, res) {
   log.info(`REQUEST START  ${formatMeta({ session: sid, worldId: worldId?.slice(0, 8) ?? null })}`);
 
   try {
-    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    if (!streamState.isClientClosed()) sendSse(res, { type: 'memory_recall_start' });
+    const onRecallEvent = (name, payload) => {
+      if (!streamState.isClientClosed()) sendSse(res, { type: name, ...payload });
+    };
+    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
     const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal });

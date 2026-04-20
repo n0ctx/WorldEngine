@@ -8,7 +8,7 @@ import { applyRules } from '../../utils/regex-runner.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 import CharacterSeal from '../book/CharacterSeal.jsx';
-import { INK_RISE } from '../../utils/motion.js';
+import { variants, transitions } from '../../utils/motion.js';
 
 /**
  * 将文本解析为 [{type, content, open}] 数组，流式/非流式通用。
@@ -308,7 +308,10 @@ export default function MessageItem({
     return (
       <motion.div
         className="we-message-row we-message-assistant"
-        {...INK_RISE}
+        initial="hidden"
+        animate="visible"
+        variants={variants.inkRise}
+        transition={transitions.ink}
         exit={{ opacity: 0, transition: { duration: 0.15 } }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
@@ -332,7 +335,10 @@ export default function MessageItem({
     return (
       <motion.div
         className="we-message-row we-message-user"
-        {...INK_RISE}
+        initial="hidden"
+        animate="visible"
+        variants={variants.inkRise}
+        transition={transitions.ink}
         exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', justifyContent: 'flex-end' }}>
@@ -397,7 +403,10 @@ export default function MessageItem({
   return (
     <motion.div
       className="we-message-row we-message-assistant"
-      {...INK_RISE}
+      initial="hidden"
+      animate="visible"
+      variants={variants.inkRise}
+      transition={transitions.ink}
       exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>

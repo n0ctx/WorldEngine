@@ -56,6 +56,11 @@ function rowsToStateText(rows, header) {
   return lines.join('\n');
 }
 
+export const __testables = {
+  parseValueForDisplay,
+  rowsToStateText,
+};
+
 /**
  * 渲染玩家状态为可读文本。
  * 优先级：会话 runtime > 全局 default_value_json > 字段 default_value
