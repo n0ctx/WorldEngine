@@ -71,10 +71,13 @@ export default function StatePanel({ sessionId, character, worldId, persona, rec
   }, [worldId]);
 
   // ── 轮询：AI 回复后感知异步状态更新 ──────────────────────
+  // 注意：状态更新（优先级2）和时间线更新（优先级3）在不同时间完成，
+  // 不能在检测到状态变化后立即停止轮询，必须持续轮询直到超时，
+  // 否则会漏掉后续的时间线更新。
   useEffect(() => {
     if (tick === 0 || !sessionId) return;
 
-    const snapshot = JSON.stringify([stateData, timeline]);
+    let currentSnapshot = JSON.stringify([stateData, timeline]);
     let intervalId;
     let timeoutId;
 
@@ -85,11 +88,10 @@ export default function StatePanel({ sessionId, character, worldId, persona, rec
           fetchSessionTimeline(sessionId),
         ]);
         const current = JSON.stringify([newState, newTimeline]);
-        if (current !== snapshot) {
+        if (current !== currentSnapshot) {
+          currentSnapshot = current;
           setStateData(newState);
           setTimeline(newTimeline);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
         }
       } catch {
         clearInterval(intervalId);
@@ -97,7 +99,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, rec
       }
     }, 3000);
 
-    timeoutId = setTimeout(() => clearInterval(intervalId), 20000);
+    timeoutId = setTimeout(() => clearInterval(intervalId), 30000);
 
     return () => {
       clearInterval(intervalId);

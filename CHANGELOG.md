@@ -19,6 +19,12 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## bugfix — 时间线实时更新 & 摘要清洁 ✅
+- **涉及文件**：`frontend/src/components/book/StatePanel.jsx`、`backend/memory/turn-summarizer.js`
+- **注意**：
+  - 时间线（优先级3任务）在状态更新（优先级2任务）之后才完成；旧轮询逻辑在检测到状态变化时立即 `clearInterval`，导致时间线更新被漏掉。修复：改为 `let currentSnapshot` 并在每次变化时更新快照，继续轮询至 30s 超时，不提前停止。
+  - 摘要生成时 LLM 可能输出 `<think>...</think>` 推理链和 `**摘要：**` 等前缀。修复：在 `raw` 后追加 `.replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '').trim()`；同时在 prompt 中明确指示不加标题前缀。
+
 ## T103+T104 — 时间线重构 & 状态栏会话级隔离 ✅
 
 ### 时间线重构

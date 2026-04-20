@@ -56,12 +56,18 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     const prompt = [{
       role: 'user',
       content:
-        `请对以下对话生成简洁摘要（50~100字），概括主要内容、关键事件和结论。` +
-        `摘要将用于后续记忆检索，请确保包含重要的人物、地点、事件等关键信息。\n\n` +
+        `请对以下对话生成极简摘要（10~50字，1~3句话），概括关键事件和结论。` +
+        `摘要将用于后续记忆检索，请确保包含重要的人物、地点、事件等关键信息。` +
+        `直接输出摘要正文，不要加"摘要："等标题前缀，不要使用 markdown 格式。\n\n` +
         `用户：${userMsg.content}\n\nAI：${asstMsg.content}`,
     }];
     const raw = await llm.complete(prompt, { temperature: 0.3, maxTokens: 500 });
-    summary = raw?.trim() ?? '';
+    // 剥除 <think>...</think> 推理链，再清理标题前缀（如 **摘要：** ）
+    summary = (raw || '')
+      .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
+      .replace(/<think>[\s\S]*$/, '')
+      .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
+      .trim();
     log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
   } catch (err) {
     log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
