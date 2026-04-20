@@ -273,6 +273,7 @@ export default function WritingSpacePage() {
           return prev.slice(0, idx);
         });
       }
+      setCastRefreshTick((t) => t + 1);
     } catch (err) {
       setError(err.message || '删除失败');
     }

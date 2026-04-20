@@ -23,7 +23,6 @@ import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/personaStateFields';
-import { getWorldTimeline } from '../api/worldTimeline';
 
 function StateValueField({ field, onSave }) {
   const parseValue = (vj) => {
@@ -112,22 +111,19 @@ export default function WorldEditPage() {
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
-  const [timeline, setTimeline] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     Promise.all([
       getWorld(worldId),
       getWorldStateValues(worldId),
-      getWorldTimeline(worldId),
-    ]).then(([w, fields, tl]) => {
+    ]).then(([w, fields]) => {
       setName(w.name ?? '');
       setSystemPrompt(w.system_prompt ?? '');
       setPostPrompt(w.post_prompt ?? '');
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setStateFields(fields);
-      setTimeline(Array.isArray(tl) ? tl : []);
       setLoading(false);
     });
   }, [worldId, reloadKey]);
@@ -344,27 +340,6 @@ export default function WorldEditPage() {
       key: 'prompt_entries',
       label: 'Prompt 条目',
       content: <EntryList type="world" scopeId={worldId} />,
-    },
-    {
-      key: 'timeline',
-      label: '世界时间线',
-      content: timeline.length === 0 ? (
-        <p className="we-edit-empty-text">暂无时间线记录</p>
-      ) : (
-        <div className="we-edit-tl-list">
-          {timeline.map(entry => (
-            <div key={entry.id} className="we-edit-tl-item">
-              <div className="we-edit-tl-dot" />
-              <div>
-                <p className="we-edit-tl-content">{entry.content}</p>
-                {entry.created_at && (
-                  <p className="we-edit-tl-meta">{new Date(entry.created_at).toLocaleDateString('zh-CN')}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ),
     },
     {
       key: 'export',

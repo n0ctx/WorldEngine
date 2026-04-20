@@ -4,12 +4,15 @@ import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
 import ModalShell from '../ui/ModalShell.jsx';
 import { getCharactersByWorld } from '../../api/characters.js';
-import { getCharacterStateValues, resetCharacterStateValues } from '../../api/characterStateValues.js';
-import { getWorldStateValues, resetWorldStateValues } from '../../api/worldStateValues.js';
-import { getPersonaStateValues, resetPersonaStateValues } from '../../api/personaStateValues.js';
-import { getWorldTimeline } from '../../api/worldTimeline.js';
+import {
+  fetchSessionStateValues,
+  resetSessionWorldStateValues,
+  resetSessionPersonaStateValues,
+  fetchSessionCharacterStateValues,
+  resetSessionCharacterStateValuesByChar,
+} from '../../api/sessionStateValues.js';
+import { fetchSessionTimeline } from '../../api/sessionTimeline.js';
 import { activateCharacter, deactivateCharacter } from '../../api/writingSessions.js';
-import { getAvatarColor } from '../../utils/avatar.js';
 
 function Chevron({ open }) {
   return (
@@ -39,7 +42,7 @@ function TimelineSection({ rows }) {
         onClick={() => setOpen((o) => !o)}
       >
         <Chevron open={open} />
-        <span className="we-section-label">世界时间线</span>
+        <span className="we-section-label">TIMELINE</span>
         <span className="we-section-rule" />
       </div>
       <div style={{
@@ -54,9 +57,12 @@ function TimelineSection({ rows }) {
           {rows && rows.length > 0 && (
             <ul className="we-timeline-list">
               {rows.map((row) => (
-                <li key={row.id} className={`we-timeline-entry${row.is_compressed === 1 ? ' we-timeline-entry--old' : ''}`}>
+                <li key={row.round_index} className="we-timeline-entry">
                   <span className="we-timeline-dot">·</span>
-                  <span className="we-timeline-text">{row.content}</span>
+                  <span className="we-timeline-text">
+                    <em className="we-timeline-round">第{row.round_index}轮</em>
+                    {' '}{row.summary}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -67,24 +73,24 @@ function TimelineSection({ rows }) {
   );
 }
 
-function CharacterBlock({ char, expanded, onToggle, onRemove, refreshTick }) {
+function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, refreshTick }) {
   const [stateValues, setStateValues] = useState(null);
   const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
-    if (!char?.id) return;
+    if (!char?.id || !sessionId) return;
     if (!expanded && stateValues !== null) return; // 已加载过则不重置
     if (!expanded) return;
     setStateValues(null);
-    getCharacterStateValues(char.id)
+    fetchSessionCharacterStateValues(sessionId, char.id)
       .then(setStateValues)
       .catch(() => setStateValues([]));
-  }, [char?.id, expanded, refreshTick]);
+  }, [char?.id, sessionId, expanded, refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleReset() {
     if (resetting) return;
     setResetting(true);
-    try { setStateValues(await resetCharacterStateValues(char.id)); }
+    try { setStateValues(await resetSessionCharacterStateValuesByChar(sessionId, char.id)); }
     catch (e) { console.error(e); }
     finally { setResetting(false); }
   }
@@ -222,9 +228,9 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState([]);
 
-  const [worldState, setWorldState] = useState(null);
+  // null = 加载中；{ world:[], persona:[] } = 已加载
+  const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
-  const [personaState, setPersonaState] = useState(null);
   const [personaResetting, setPersonaResetting] = useState(false);
   const [timeline, setTimeline] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
@@ -239,35 +245,38 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
 
   // 初始加载世界/玩家/时间线
   useEffect(() => {
-    if (!worldId) return;
-    setWorldState(null);
-    setPersonaState(null);
+    if (!sessionId) {
+      setStateData({ world: [], persona: [] });
+      setTimeline([]);
+      return;
+    }
+    setStateData(null);
     setTimeline(null);
-    getWorldStateValues(worldId).then(setWorldState).catch(() => setWorldState([]));
-    getPersonaStateValues(worldId).then(setPersonaState).catch(() => setPersonaState([]));
-    getWorldTimeline(worldId, 50).then(setTimeline).catch(() => setTimeline([]));
-  }, [worldId]);
+
+    fetchSessionStateValues(sessionId)
+      .then((data) => setStateData({ world: data.world, persona: data.persona }))
+      .catch(() => setStateData({ world: [], persona: [] }));
+    fetchSessionTimeline(sessionId).then(setTimeline).catch(() => setTimeline([]));
+  }, [sessionId]);
 
   // 轮询：AI 回复后感知异步状态更新
   useEffect(() => {
-    if (refreshTick === 0 || !worldId) return;
+    if (refreshTick === 0 || !sessionId) return;
     setIsPolling(true);
-    const snapshot = JSON.stringify([worldState, personaState, timeline]);
+    const snapshot = JSON.stringify([stateData, timeline]);
 
     let intervalId;
     let timeoutId;
 
     intervalId = setInterval(async () => {
       try {
-        const [newWorld, newPersona, newTimeline] = await Promise.all([
-          getWorldStateValues(worldId),
-          getPersonaStateValues(worldId),
-          getWorldTimeline(worldId, 50),
+        const [newData, newTimeline] = await Promise.all([
+          fetchSessionStateValues(sessionId),
+          fetchSessionTimeline(sessionId),
         ]);
-        const current = JSON.stringify([newWorld, newPersona, newTimeline]);
+        const current = JSON.stringify([{ world: newData.world, persona: newData.persona }, newTimeline]);
         if (current !== snapshot) {
-          setWorldState(newWorld);
-          setPersonaState(newPersona);
+          setStateData({ world: newData.world, persona: newData.persona });
           setTimeline(newTimeline);
           setIsPolling(false);
           clearInterval(intervalId);
@@ -292,18 +301,22 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResetWorldState() {
-    if (worldResetting) return;
+    if (!sessionId || worldResetting) return;
     setWorldResetting(true);
-    try { setWorldState(await resetWorldStateValues(worldId)); }
-    catch (e) { console.error(e); }
+    try {
+      const newData = await resetSessionWorldStateValues(sessionId);
+      setStateData({ world: newData.world, persona: newData.persona });
+    } catch (e) { console.error(e); }
     finally { setWorldResetting(false); }
   }
 
   async function handleResetPersonaState() {
-    if (personaResetting) return;
+    if (!sessionId || personaResetting) return;
     setPersonaResetting(true);
-    try { setPersonaState(await resetPersonaStateValues(worldId)); }
-    catch (e) { console.error(e); }
+    try {
+      const newData = await resetSessionPersonaStateValues(sessionId);
+      setStateData({ world: newData.world, persona: newData.persona });
+    } catch (e) { console.error(e); }
     finally { setPersonaResetting(false); }
   }
 
@@ -447,7 +460,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         {/* 世界状态 */}
         <StatusSection
           title="世界"
-          rows={worldState}
+          rows={stateData?.world ?? null}
           onReset={handleResetWorldState}
           resetting={worldResetting}
           collapsible
@@ -456,7 +469,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         {/* 玩家状态 */}
         <StatusSection
           title={persona?.name || '玩家'}
-          rows={personaState}
+          rows={stateData?.persona ?? null}
           onReset={handleResetPersonaState}
           resetting={personaResetting}
           collapsible
@@ -468,6 +481,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
             <CharacterBlock
               key={char.id}
               char={char}
+              sessionId={sessionId}
               expanded={expandedIds.includes(char.id)}
               onToggle={() => toggleExpand(char.id)}
               onRemove={handleRemove}
@@ -485,7 +499,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           )}
         </div>
 
-        {/* 世界时间线 */}
+        {/* 会话时间线 */}
         <TimelineSection rows={timeline} />
 
         <AnimatePresence>

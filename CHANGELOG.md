@@ -19,6 +19,33 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T103+T104 — 时间线重构 & 状态栏会话级隔离 ✅
+
+### 时间线重构
+- **删除** `world_timeline` 表及所有遗留代码：`context-compressor.js`、`world-timeline.js` 路由/queries、`worldTimeline.js` API、`MemoryPanel.jsx`（死代码）
+- **删除** `/api/sessions/:id/summary` 路由（`/summary` 接口）
+- **新增** `GET /api/sessions/:sessionId/timeline`：返回当前会话近5轮 turn_records 摘要
+- prompt [11] 段从 `renderTimeline(worldId)` 改为 `renderTimeline(sessionId)`，数据来源改为当前会话 turn_records
+- 前端 `sessionTimeline.js` 对应新接口；写作空间 StatePanel / CastPanel TIMELINE section 改为实时显示当前会话摘要
+
+### 状态栏会话级隔离
+- **新增3张表**：`session_world_state_values`、`session_persona_state_values`、`session_character_state_values`，均有 `session_id ON DELETE CASCADE`
+- 状态运行时值读写改为会话级，新建会话从全局默认值（`*_state_values.default_value_json`）开始，各会话独立
+- 值优先级（COALESCE）：`session_*_state_values.runtime_value_json` > `*_state_values.default_value_json` > `*_state_fields.default_value`
+- **新增路由** `session-state-values.js`：`GET /:sessionId/state-values`（world/persona/character 三合一）、各 `DELETE` 重置接口、`GET /:sessionId/characters/:characterId/state-values`
+- `combined-state-updater.js` 改为写 `session_*_state_values` 表
+- 消息回滚（删除消息）时同步清空该会话三张 session 状态表并删除超出轮次的 turn_records
+- 前端 `sessionStateValues.js` 对应新接口
+
+### 涉及文件
+- **删除**：`backend/memory/context-compressor.js`、`backend/memory/world-timeline.js`、`backend/routes/world-timeline.js`、`backend/db/queries/world-timeline.js`、`frontend/src/api/worldTimeline.js`、`frontend/src/components/memory/MemoryPanel.jsx`
+- **新增**：`backend/routes/session-timeline.js`、`backend/routes/session-state-values.js`、`backend/db/queries/session-world-state-values.js`、`backend/db/queries/session-persona-state-values.js`、`backend/db/queries/session-character-state-values.js`、`frontend/src/api/sessionTimeline.js`、`frontend/src/api/sessionStateValues.js`
+
+### 注意
+- `renderTimeline` 签名从 `(worldId)` 改为 `(sessionId)`，调用方需更新
+- 状态重置 API 现在针对会话级，不影响全局默认值层（`*_state_values.default_value_json`）
+- 三张 session 状态表均用 `CREATE TABLE IF NOT EXISTS` 追加，不重建现有表
+
 ## T102 — 写卡助手重构：单代理 + Agent Skill 架构 ✅
 - **对外接口**：
   - 架构变更：取消子代理模式，改为主代理 + Agent Skill（skill-as-tool）架构

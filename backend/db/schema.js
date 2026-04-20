@@ -102,17 +102,6 @@ CREATE TABLE IF NOT EXISTS session_summaries (
   updated_at     INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS world_timeline (
-  id             TEXT PRIMARY KEY,
-  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  session_id     TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-  content        TEXT NOT NULL,
-  is_compressed  INTEGER NOT NULL DEFAULT 0,
-  seq            INTEGER NOT NULL,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL DEFAULT 0
-);
-
 CREATE TABLE IF NOT EXISTS world_state_fields (
   id                 TEXT PRIMARY KEY,
   world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
@@ -258,11 +247,40 @@ CREATE TABLE IF NOT EXISTS internal_meta (
   value           TEXT NOT NULL,
   updated_at      INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS session_world_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, world_id, field_key)
+);
+
+CREATE TABLE IF NOT EXISTS session_persona_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, world_id, field_key)
+);
+
+CREATE TABLE IF NOT EXISTS session_character_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  character_id       TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, character_id, field_key)
+);
 `;
 
 const INDEXES = `
 CREATE INDEX IF NOT EXISTS idx_characters_world_id ON characters(world_id, sort_order);
-CREATE INDEX IF NOT EXISTS idx_world_timeline_world_id ON world_timeline(world_id, seq);
 CREATE INDEX IF NOT EXISTS idx_world_state_fields_world_id ON world_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_world_state_values_world_id ON world_state_values(world_id, field_key);
 CREATE INDEX IF NOT EXISTS idx_character_state_fields_world_id ON character_state_fields(world_id, sort_order);
@@ -287,11 +305,8 @@ export function initSchema(db) {
   // T32: 轮次压缩字段迁移
   try { db.exec(`ALTER TABLE messages ADD COLUMN is_compressed INTEGER NOT NULL DEFAULT 0`); } catch {}
   try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
-  try { db.exec(`ALTER TABLE world_timeline ADD COLUMN session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE`); } catch {}
-  try { db.exec(`ALTER TABLE world_timeline ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0`); } catch {}
   // T32: 字段迁移完成后才能创建依赖 is_compressed 的索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at)`); } catch {}
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_world_timeline_session_id ON world_timeline(world_id, session_id)`); } catch {}
   // T34: sessions 表改造 — character_id 改为 nullable，新增 world_id / mode；新建 writing_session_characters 表
   const colInfo = db.pragma('table_info(sessions)');
   const charCol = colInfo.find(c => c.name === 'character_id');

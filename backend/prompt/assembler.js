@@ -156,7 +156,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
 
   // [3] 世界状态
-  const worldStateText = renderWorldState(world.id);
+  const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) systemParts.push(tv(worldStateText));
 
   if (personaName || personaPrompt) {
@@ -167,7 +167,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
 
   // [5] 玩家状态
-  const personaStateText = renderPersonaState(world.id);
+  const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) systemParts.push(tv(personaStateText));
 
   // [6] 角色 System Prompt
@@ -176,7 +176,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
 
   // [7] 角色状态
-  const characterStateText = renderCharacterState(character.id);
+  const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) systemParts.push(tv(characterStateText));
 
   // [8-10] Prompt 条目（全局→世界→角色顺序）
@@ -200,8 +200,8 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [11] 世界时间线
-  const timelineText = renderTimeline(world.id);
+  // [11] 当前会话摘要（最近 N 轮 turn_records）
+  const timelineText = renderTimeline(sessionId);
   if (timelineText) systemParts.push(tv(timelineText));
 
   // [12] 召回摘要（向量搜索历史 turn summaries）
@@ -338,7 +338,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [3] 世界状态
-  const worldStateText = renderWorldState(world.id);
+  const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) systemParts.push(tv(worldStateText));
 
   if (personaName || personaPrompt) {
@@ -349,7 +349,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [5] 玩家状态
-  const personaStateText = renderPersonaState(world.id);
+  const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) systemParts.push(tv(personaStateText));
 
   for (const character of activeCharacters) {
@@ -358,7 +358,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (character.system_prompt) {
       systemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`));
     }
-    const charStateText = renderCharacterState(character.id);
+    const charStateText = renderCharacterState(character.id, sessionId);
     if (charStateText) systemParts.push(tvChar(charStateText));
   }
 
@@ -387,8 +387,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [11] 世界时间线
-  const timelineText = renderTimeline(world.id);
+  // [11] 当前会话摘要（最近 N 轮 turn_records）
+  const timelineText = renderTimeline(sessionId);
   if (timelineText) systemParts.push(tv(timelineText));
 
   // [12-13] 写作模式无向量召回和展开原文

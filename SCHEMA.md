@@ -30,7 +30,7 @@
 
 ### 删除策略
 
-- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、时间线条目、Prompt 条目、persona
+- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona 及所有会话状态值
 - 删除角色 → 级联删除其下所有聊天会话、消息、Prompt 条目，清空对应头像文件；同时从 `writing_session_characters` 移除该角色（CASCADE）
 - 删除会话 → 级联删除其下所有消息、summary、`writing_session_characters` 关联行，清空对应附件文件
 - 删除消息 → 清空对应附件文件
@@ -253,28 +253,71 @@ CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, 
 
 ---
 
-### world_timeline — 世界时间线
+### session_world_state_values — 会话级世界状态值（T103）
 
-T32 起重新设计：不再是"时序事件列表"，改为"该世界所有历史会话的摘要档案"，每个 session 对应一行（one-row-per-session）。每次压缩或手动 /summary 时 upsert（同 session 覆盖，不追加新行）。
+记录每个会话运行时的世界状态值，与全局默认值分离，实现各会话独立。
 
 ```sql
-CREATE TABLE world_timeline (
-  id             TEXT PRIMARY KEY,          -- UUID
-  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  session_id     TEXT REFERENCES sessions(id) ON DELETE CASCADE, -- T32：关联 session，NULL 表示旧格式条目
-  content        TEXT NOT NULL,             -- T32 后：该 session 的摘要文本；T32 前：事件一句话描述
-  is_compressed  INTEGER NOT NULL DEFAULT 0, -- 保留字段，T32 后不再使用
-  seq            INTEGER NOT NULL,          -- 插入顺序编号（T32 后仍维持单调递增，用于兜底排序）
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL DEFAULT 0  -- T32：最后 upsert 时间；recall.js 按此排序取最近 N 条
+CREATE TABLE IF NOT EXISTS session_world_state_values (
+  id                 TEXT PRIMARY KEY,          -- UUID
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,                      -- LLM 自动更新的运行时值，允许为 NULL
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, field_key)
 );
 
-CREATE INDEX idx_world_timeline_world_id ON world_timeline(world_id, seq);
-CREATE INDEX idx_world_timeline_session_id ON world_timeline(world_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_session_world_state_values_session ON session_world_state_values(session_id, field_key);
 ```
 
-upsert 规则：`upsertSessionTimeline(worldId, sessionId, content)` 先查 `world_id + session_id` 是否存在，存在则 UPDATE content/updated_at，不存在则 INSERT（seq 取 MAX+1）。  
-前端记忆面板展示最新 5 条（按 updated_at DESC），格式：`- 【日期 · 会话标题】摘要内容`。
+**值优先级**：`session runtime_value_json` > `world_state_values.default_value_json` > `world_state_fields.default_value`（用 COALESCE 实现）。
+
+---
+
+### session_persona_state_values — 会话级玩家状态值（T103）
+
+记录每个会话运行时的玩家状态值，各会话独立。
+
+```sql
+CREATE TABLE IF NOT EXISTS session_persona_state_values (
+  id                 TEXT PRIMARY KEY,          -- UUID
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  world_id           TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,                      -- LLM 自动更新的运行时值，允许为 NULL
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, field_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_persona_state_values_session ON session_persona_state_values(session_id, field_key);
+```
+
+**值优先级**：`session runtime_value_json` > `persona_state_values.default_value_json` > `persona_state_fields.default_value`（用 COALESCE 实现）。
+
+---
+
+### session_character_state_values — 会话级角色状态值（T103）
+
+记录每个会话中各角色的运行时状态值，各会话独立。
+
+```sql
+CREATE TABLE IF NOT EXISTS session_character_state_values (
+  id                 TEXT PRIMARY KEY,          -- UUID
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  character_id       TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,                      -- LLM 自动更新的运行时值，允许为 NULL
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(session_id, character_id, field_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_character_state_values_session ON session_character_state_values(session_id, character_id, field_key);
+```
+
+**值优先级**：`session runtime_value_json` > `character_state_values.default_value_json` > `character_state_fields.default_value`（用 COALESCE 实现）。
+
+**消息回滚**：删除会话消息时，同步清空该会话三张 session_*_state_values 表的数据，并删除超出轮次的 turn_records。
 
 ---
 
@@ -782,7 +825,7 @@ CREATE TABLE internal_meta (
 - `world_state_fields`、`character_state_fields` 和 `persona_state_fields` 导出字段定义（不含 id、world_id、created_at、updated_at）
 - `world_state_values`、`character_state_values` 和 `persona_state_values` 仅导出默认值层（field_key + value_json），不导出运行时值
 - 导入时世界、角色、玩家、字段定义、状态值、条目全部重新生成 UUID 和时间戳
-- 导入世界卡时，不导入 session、messages、session_summaries、world_timeline
+- 导入世界卡时，不导入 session、messages、session_summaries、turn_records 及所有 session_*_state_values
 
 ---
 
@@ -813,8 +856,8 @@ SELECT * FROM sessions WHERE character_id = ? ORDER BY updated_at DESC;
 -- 获取某会话的所有消息（按时间正序）
 SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC;
 
--- 获取某世界时间线（按顺序，压缩段排在前面）
-SELECT * FROM world_timeline WHERE world_id = ? ORDER BY seq ASC;
+-- 获取某会话时间线（最近 5 轮 turn_records 摘要）
+SELECT * FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT 5;
 
 -- 获取某角色的所有 Prompt 条目（按排序字段）
 SELECT * FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC;

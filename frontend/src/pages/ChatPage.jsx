@@ -694,9 +694,9 @@ export default function ChatPage() {
 
       {/* 右侧状态面板 */}
       <StatePanel
+        sessionId={currentSessionId}
         character={character}
         persona={persona}
-        characterId={character?.id ?? null}
         worldId={character?.world_id ?? null}
       />
 

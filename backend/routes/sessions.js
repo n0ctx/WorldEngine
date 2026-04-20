@@ -15,10 +15,9 @@ import {
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
-import { clearWorldStateRuntimeValues } from '../db/queries/world-state-values.js';
-import { clearCharacterStateRuntimeValues } from '../db/queries/character-state-values.js';
-import { clearPersonaStateRuntimeValues } from '../db/queries/persona-state-values.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
+import { clearSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
+import { clearSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
+import { clearSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 
 const router = Router();
@@ -144,25 +143,10 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
 
-  // 状态回滚：清空 runtime_value（回到 default）
-  const characterId = session.character_id;
-  if (characterId) {
-    // 对话模式：清角色 + 世界 + 玩家状态
-    const character = getCharacterById(characterId);
-    clearCharacterStateRuntimeValues(characterId);
-    if (character?.world_id) {
-      clearWorldStateRuntimeValues(character.world_id);
-      clearPersonaStateRuntimeValues(character.world_id);
-    }
-  } else if (session.world_id) {
-    // 写作模式：清世界 + 玩家状态 + 所有激活角色状态
-    clearWorldStateRuntimeValues(session.world_id);
-    clearPersonaStateRuntimeValues(session.world_id);
-    const activeChars = getWritingSessionCharacters(sessionId);
-    for (const { character_id } of activeChars) {
-      clearCharacterStateRuntimeValues(character_id);
-    }
-  }
+  // 状态回滚：清空该会话的运行时状态（回到 default）
+  clearSessionWorldStateValues(sessionId);
+  clearSessionPersonaStateValues(sessionId);
+  clearSessionCharacterStateValues(sessionId);
 
   res.json({ success: true });
 });

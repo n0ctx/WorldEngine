@@ -11,13 +11,16 @@ import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
-import { getAllWorldStateValues, upsertWorldStateValue } from '../db/queries/world-state-values.js';
+import { getAllWorldStateValues } from '../db/queries/world-state-values.js';
+import { upsertSessionWorldStateValue } from '../db/queries/session-world-state-values.js';
 
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
-import { getAllCharacterStateValues, upsertCharacterStateValue } from '../db/queries/character-state-values.js';
+import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
+import { upsertSessionCharacterStateValue } from '../db/queries/session-character-state-values.js';
 
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
-import { getAllPersonaStateValues, upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
+import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
+import { upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
 
 import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
@@ -208,7 +211,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
 
-  // ── 写入世界状态 ──
+  // ── 写入世界状态（会话级） ──
   if (worldActiveFields.length > 0 && patch.world && typeof patch.world === 'object') {
     const fieldMap = Object.fromEntries(worldActiveFields.map((f) => [f.field_key, f]));
     const updated = [];
@@ -218,13 +221,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertWorldStateValue(worldId, key, { runtimeValueJson: valueJson });
+      upsertSessionWorldStateValue(sessionId, worldId, key, valueJson);
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`world="${world.name}"  updates: ${updated.join('  ')}`);
   }
 
-  // ── 写入各角色状态 ──
+  // ── 写入各角色状态（会话级） ──
   for (let i = 0; i < charactersWithFields.length; i++) {
     const char = charactersWithFields[i];
     const charPatch = patch[`char_${i}`];
@@ -237,13 +240,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertCharacterStateValue(char.id, key, { runtimeValueJson: valueJson });
+      upsertSessionCharacterStateValue(sessionId, char.id, key, valueJson);
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`char="${char.name}"  updates: ${updated.join('  ')}`);
   }
 
-  // ── 写入玩家状态 ──
+  // ── 写入玩家状态（会话级） ──
   if (personaActiveFields.length > 0 && patch.persona && typeof patch.persona === 'object') {
     const fieldMap = Object.fromEntries(personaActiveFields.map((f) => [f.field_key, f]));
     const updated = [];
@@ -253,7 +256,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       const validated = validateValue(rawValue, field);
       if (validated === undefined) continue;
       const valueJson = validated === null ? null : JSON.stringify(validated);
-      upsertPersonaStateValue(worldId, key, { runtimeValueJson: valueJson });
+      upsertSessionPersonaStateValue(sessionId, worldId, key, valueJson);
       updated.push(`${key}=${valueJson}`);
     }
     if (updated.length) log.info(`persona  world="${world?.name}"  updates: ${updated.join('  ')}`);

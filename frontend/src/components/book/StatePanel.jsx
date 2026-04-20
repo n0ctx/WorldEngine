@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import useStore from '../../store/index.js';
-import { getWorldStateValues, resetWorldStateValues } from '../../api/worldStateValues.js';
-import { getCharacterStateValues, resetCharacterStateValues } from '../../api/characterStateValues.js';
-import { getWorldTimeline } from '../../api/worldTimeline.js';
-import { getPersonaStateValues, resetPersonaStateValues } from '../../api/personaStateValues.js';
+import {
+  fetchSessionStateValues,
+  resetSessionWorldStateValues,
+  resetSessionPersonaStateValues,
+  resetSessionCharacterStateValues,
+} from '../../api/sessionStateValues.js';
+import { fetchSessionTimeline } from '../../api/sessionTimeline.js';
 import { getWorld } from '../../api/worlds.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
@@ -20,88 +23,71 @@ function GoldDivider() {
   );
 }
 
-// ── 时间线条目 ─────────────────────────────────────────────
+// ── 时间线条目（当前会话轮次摘要）────────────────────────────
 function TimelineEntry({ entry, index }) {
-  const compressed = entry.is_compressed === 1;
   return (
     <div
-      className={`we-timeline-entry${compressed ? ' we-timeline-entry--old' : ''}`}
+      className="we-timeline-entry"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <span className="we-timeline-dot">·</span>
       <span className="we-timeline-text">
-        {compressed ? <em>旧史 · {entry.content}</em> : entry.content}
+        <em className="we-timeline-round">第{entry.round_index}轮</em>
+        {' '}{entry.summary}
       </span>
     </div>
   );
 }
 
-export default function StatePanel({ character, worldId, characterId, persona, recalledItems = [] }) {
+export default function StatePanel({ sessionId, character, worldId, persona, recalledItems = [] }) {
   const tick = useStore((s) => s.memoryRefreshTick);
 
-  // null = 加载中；[] = 已加载无字段
-  const [charState, setCharState] = useState(null);
-  const [charResetting, setCharResetting] = useState(false);
-
-  const [personaState, setPersonaState] = useState(null);
-  const [personaResetting, setPersonaResetting] = useState(false);
-
-  const [worldState, setWorldState] = useState(null);
+  // null = 加载中；{ world:[], persona:[], character:[] } = 已加载
+  const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
+  const [personaResetting, setPersonaResetting] = useState(false);
+  const [charResetting, setCharResetting] = useState(false);
 
   const [timeline, setTimeline] = useState(null);  // null = 加载中
   const [worldName, setWorldName] = useState(null);
 
   // ── 初始数据拉取 ──────────────────────────────────────────
   useEffect(() => {
-    if (!characterId) {
-      setCharState([]);
-      return;
-    }
-    setCharState(null); // 重置为加载中
-    getCharacterStateValues(characterId).then(setCharState).catch(() => setCharState([]));
-  }, [characterId]);
-
-  useEffect(() => {
-    if (!worldId) {
-      setPersonaState([]);
-      setWorldState([]);
+    if (!sessionId) {
+      setStateData({ world: [], persona: [], character: [] });
       setTimeline([]);
-      setWorldName(null);
       return;
     }
-    setPersonaState(null);
-    setWorldState(null);
+    setStateData(null);
     setTimeline(null);
 
-    getPersonaStateValues(worldId).then(setPersonaState).catch(() => setPersonaState([]));
-    getWorldStateValues(worldId).then(setWorldState).catch(() => setWorldState([]));
-    getWorldTimeline(worldId, 5).then(setTimeline).catch(() => setTimeline([]));
+    fetchSessionStateValues(sessionId).then(setStateData).catch(() => setStateData({ world: [], persona: [], character: [] }));
+    fetchSessionTimeline(sessionId).then(setTimeline).catch(() => setTimeline([]));
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!worldId) { setWorldName(null); return; }
     getWorld(worldId).then((w) => setWorldName(w?.name ?? null)).catch(() => {});
   }, [worldId]);
 
   // ── 轮询：AI 回复后感知异步状态更新 ──────────────────────
   useEffect(() => {
-    if (tick === 0) return;
+    if (tick === 0 || !sessionId) return;
 
-    const snapshot = JSON.stringify([charState, personaState, worldState, timeline]);
+    const snapshot = JSON.stringify([stateData, timeline]);
     let intervalId;
     let timeoutId;
 
     intervalId = setInterval(async () => {
       try {
-        const [newChar, newPersona, newWorld, newTimeline] = await Promise.all([
-          characterId ? getCharacterStateValues(characterId) : Promise.resolve(null),
-          worldId ? getPersonaStateValues(worldId) : Promise.resolve(null),
-          worldId ? getWorldStateValues(worldId) : Promise.resolve(null),
-          worldId ? getWorldTimeline(worldId, 5) : Promise.resolve(null),
+        const [newState, newTimeline] = await Promise.all([
+          fetchSessionStateValues(sessionId),
+          fetchSessionTimeline(sessionId),
         ]);
-        const current = JSON.stringify([newChar, newPersona, newWorld, newTimeline]);
+        const current = JSON.stringify([newState, newTimeline]);
         if (current !== snapshot) {
-          if (newChar !== null) setCharState(newChar);
-          if (newPersona !== null) setPersonaState(newPersona);
-          if (newWorld !== null) setWorldState(newWorld);
-          if (newTimeline !== null) setTimeline(newTimeline);
+          setStateData(newState);
+          setTimeline(newTimeline);
           clearInterval(intervalId);
           clearTimeout(timeoutId);
         }
@@ -120,28 +106,34 @@ export default function StatePanel({ character, worldId, characterId, persona, r
   }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 重置处理 ──────────────────────────────────────────────
-  async function handleResetChar() {
-    if (!characterId || charResetting) return;
-    setCharResetting(true);
-    try { setCharState(await resetCharacterStateValues(characterId)); }
-    catch (e) { console.error('重置角色状态失败', e); }
-    finally { setCharResetting(false); }
+  async function handleResetWorld() {
+    if (!sessionId || worldResetting) return;
+    setWorldResetting(true);
+    try {
+      const newState = await resetSessionWorldStateValues(sessionId);
+      setStateData(newState);
+    } catch (e) { console.error('重置世界状态失败', e); }
+    finally { setWorldResetting(false); }
   }
 
   async function handleResetPersona() {
-    if (!worldId || personaResetting) return;
+    if (!sessionId || personaResetting) return;
     setPersonaResetting(true);
-    try { setPersonaState(await resetPersonaStateValues(worldId)); }
-    catch (e) { console.error('重置玩家状态失败', e); }
+    try {
+      const newState = await resetSessionPersonaStateValues(sessionId);
+      setStateData(newState);
+    } catch (e) { console.error('重置玩家状态失败', e); }
     finally { setPersonaResetting(false); }
   }
 
-  async function handleResetWorld() {
-    if (!worldId || worldResetting) return;
-    setWorldResetting(true);
-    try { setWorldState(await resetWorldStateValues(worldId)); }
-    catch (e) { console.error('重置世界状态失败', e); }
-    finally { setWorldResetting(false); }
+  async function handleResetChar() {
+    if (!sessionId || charResetting) return;
+    setCharResetting(true);
+    try {
+      const newState = await resetSessionCharacterStateValues(sessionId);
+      setStateData(newState);
+    } catch (e) { console.error('重置角色状态失败', e); }
+    finally { setCharResetting(false); }
   }
 
   const hasTimeline = Array.isArray(timeline) && timeline.length > 0;
@@ -215,7 +207,7 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         <StatusSection
           title="WORLD"
           className="we-status-world"
-          rows={worldState}
+          rows={stateData?.world ?? null}
           onReset={handleResetWorld}
           resetting={worldResetting}
         />
@@ -224,7 +216,7 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         <StatusSection
           title="PLAYER"
           className="we-status-player"
-          rows={personaState}
+          rows={stateData?.persona ?? null}
           pinnedName={persona?.name}
           onReset={handleResetPersona}
           resetting={personaResetting}
@@ -234,13 +226,13 @@ export default function StatePanel({ character, worldId, characterId, persona, r
         <StatusSection
           title="CHARACTER"
           className="we-status-character"
-          rows={charState}
+          rows={stateData?.character ?? null}
           pinnedName={character?.name}
           onReset={handleResetChar}
           resetting={charResetting}
         />
 
-        {/* 世界时间线 */}
+        {/* 当前会话时间线 */}
         <div className="we-timeline">
           <div className="we-state-section-title">
             <span className="we-section-label">TIMELINE</span>
@@ -257,14 +249,14 @@ export default function StatePanel({ character, worldId, characterId, persona, r
             <p className="we-section-empty">暂无记录</p>
           ) : (
             <div className="we-timeline-list">
-              {timeline.slice(0, 5).map((entry, i) => (
-                <TimelineEntry key={entry.id} entry={entry} index={i} />
+              {timeline.map((entry, i) => (
+                <TimelineEntry key={entry.round_index} entry={entry} index={i} />
               ))}
             </div>
           )}
         </div>
 
-        {/* 召回批注：仅在有数据时显示（T66 接入 SSE 后填充） */}
+        {/* 召回批注：仅在有数据时显示 */}
         {showRecalled && (
           <div className="we-state-section we-recalled-section">
             <div className="we-state-section-title">

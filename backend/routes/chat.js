@@ -17,7 +17,6 @@ import { enqueue, clearPending } from '../utils/async-queue.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
-import { generateTimelineEntry } from '../memory/context-compressor.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
@@ -508,22 +507,6 @@ router.post('/:sessionId/retitle', async (req, res) => {
     updateSessionTitle(sessionId, title);
     log.info(`retitle DONE  session=${sessionId.slice(0, 8)}  title="${title}"`);
     res.json({ title });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── POST /api/sessions/:sessionId/summary ──
-
-router.post('/:sessionId/summary', async (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = getSessionById(sessionId);
-  if (!session) return res.status(404).json({ error: 'Session not found' });
-
-  try {
-    await generateTimelineEntry(sessionId);
-    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

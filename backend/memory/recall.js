@@ -2,10 +2,10 @@
  * recall.js — 记忆召回：将结构化状态渲染为可读文本，注入 assembler.js [6] 位置
  *
  * 对外暴露：
- *   renderPersonaState(worldId)                            → string
- *   renderWorldState(worldId)                              → string
- *   renderCharacterState(characterId)                      → string
- *   renderTimeline(worldId, limit)                         → string
+ *   renderPersonaState(worldId, sessionId)                 → string
+ *   renderWorldState(worldId, sessionId)                   → string
+ *   renderCharacterState(characterId, sessionId)           → string
+ *   renderTimeline(sessionId, limit)                       → string（当前会话近 N 轮摘要）
  *   searchRecalledSummaries(worldId, sessionId)            → Promise<{ recalled: Array, recentMessagesText: string }>
  *     recalled 元素：{ ref, session_id, session_title, created_at, content, score }
  *   renderRecalledSummaries(recalled)                      → string（接受结构化列表，返回注入文本）
@@ -44,25 +44,36 @@ function parseValueForDisplay(valueJson) {
 
 /**
  * 渲染玩家状态为可读文本。
+ * 优先级：会话 runtime > 全局 default_value_json > 字段 default_value
  *
  * @param {string} worldId
+ * @param {string} [sessionId]  — 传入时使用会话级运行时值
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
-export function renderPersonaState(worldId) {
-  const rows = db.prepare(`
-    SELECT
-      psf.label,
-      CASE
-        WHEN psv.runtime_value_json IS NOT NULL THEN psv.runtime_value_json
-        WHEN psv.id IS NOT NULL THEN psv.default_value_json
-        ELSE psf.default_value
-      END AS effective_value_json
-    FROM persona_state_fields psf
-    LEFT JOIN persona_state_values psv
-      ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
-    WHERE psf.world_id = ?
-    ORDER BY psf.sort_order ASC, psf.created_at ASC
-  `).all(worldId);
+export function renderPersonaState(worldId, sessionId) {
+  const rows = sessionId
+    ? db.prepare(`
+        SELECT
+          psf.label,
+          COALESCE(spsv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
+        FROM persona_state_fields psf
+        LEFT JOIN session_persona_state_values spsv
+          ON spsv.world_id = psf.world_id AND spsv.field_key = psf.field_key AND spsv.session_id = ?
+        LEFT JOIN persona_state_values psv
+          ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+        WHERE psf.world_id = ?
+        ORDER BY psf.sort_order ASC, psf.created_at ASC
+      `).all(sessionId, worldId)
+    : db.prepare(`
+        SELECT
+          psf.label,
+          COALESCE(psv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
+        FROM persona_state_fields psf
+        LEFT JOIN persona_state_values psv
+          ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+        WHERE psf.world_id = ?
+        ORDER BY psf.sort_order ASC, psf.created_at ASC
+      `).all(worldId);
 
   if (rows.length === 0) return '';
 
@@ -80,25 +91,36 @@ export function renderPersonaState(worldId) {
 
 /**
  * 渲染世界状态为可读文本。
+ * 优先级：会话 runtime > 全局 default_value_json > 字段 default_value
  *
  * @param {string} worldId
+ * @param {string} [sessionId]  — 传入时使用会话级运行时值
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
-export function renderWorldState(worldId) {
-  const rows = db.prepare(`
-    SELECT
-      wsf.label,
-      CASE
-        WHEN wsv.runtime_value_json IS NOT NULL THEN wsv.runtime_value_json
-        WHEN wsv.id IS NOT NULL THEN wsv.default_value_json
-        ELSE wsf.default_value
-      END AS effective_value_json
-    FROM world_state_fields wsf
-    LEFT JOIN world_state_values wsv
-      ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
-    WHERE wsf.world_id = ?
-    ORDER BY wsf.sort_order ASC, wsf.created_at ASC
-  `).all(worldId);
+export function renderWorldState(worldId, sessionId) {
+  const rows = sessionId
+    ? db.prepare(`
+        SELECT
+          wsf.label,
+          COALESCE(swsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
+        FROM world_state_fields wsf
+        LEFT JOIN session_world_state_values swsv
+          ON swsv.world_id = wsf.world_id AND swsv.field_key = wsf.field_key AND swsv.session_id = ?
+        LEFT JOIN world_state_values wsv
+          ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+        WHERE wsf.world_id = ?
+        ORDER BY wsf.sort_order ASC, wsf.created_at ASC
+      `).all(sessionId, worldId)
+    : db.prepare(`
+        SELECT
+          wsf.label,
+          COALESCE(wsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
+        FROM world_state_fields wsf
+        LEFT JOIN world_state_values wsv
+          ON wsf.world_id = wsv.world_id AND wsf.field_key = wsv.field_key
+        WHERE wsf.world_id = ?
+        ORDER BY wsf.sort_order ASC, wsf.created_at ASC
+      `).all(worldId);
 
   if (rows.length === 0) return '';
 
@@ -117,28 +139,39 @@ export function renderWorldState(worldId) {
 
 /**
  * 渲染角色状态为可读文本。
+ * 优先级：会话 runtime > 全局 default_value_json > 字段 default_value
  *
  * @param {string} characterId
+ * @param {string} [sessionId]  — 传入时使用会话级运行时值
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
-export function renderCharacterState(characterId) {
+export function renderCharacterState(characterId, sessionId) {
   const character = getCharacterById(characterId);
   if (!character) return '';
 
-  const rows = db.prepare(`
-    SELECT
-      csf.label,
-      CASE
-        WHEN csv.runtime_value_json IS NOT NULL THEN csv.runtime_value_json
-        WHEN csv.id IS NOT NULL THEN csv.default_value_json
-        ELSE csf.default_value
-      END AS effective_value_json
-    FROM character_state_fields csf
-    LEFT JOIN character_state_values csv
-      ON csf.field_key = csv.field_key AND csv.character_id = ?
-    WHERE csf.world_id = ?
-    ORDER BY csf.sort_order ASC, csf.created_at ASC
-  `).all(characterId, character.world_id);
+  const rows = sessionId
+    ? db.prepare(`
+        SELECT
+          csf.label,
+          COALESCE(scsv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
+        FROM character_state_fields csf
+        LEFT JOIN session_character_state_values scsv
+          ON scsv.character_id = ? AND scsv.field_key = csf.field_key AND scsv.session_id = ?
+        LEFT JOIN character_state_values csv
+          ON csf.field_key = csv.field_key AND csv.character_id = ?
+        WHERE csf.world_id = ?
+        ORDER BY csf.sort_order ASC, csf.created_at ASC
+      `).all(characterId, sessionId, characterId, character.world_id)
+    : db.prepare(`
+        SELECT
+          csf.label,
+          COALESCE(csv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
+        FROM character_state_fields csf
+        LEFT JOIN character_state_values csv
+          ON csf.field_key = csv.field_key AND csv.character_id = ?
+        WHERE csf.world_id = ?
+        ORDER BY csf.sort_order ASC, csf.created_at ASC
+      `).all(characterId, character.world_id);
 
   if (rows.length === 0) return '';
 
@@ -155,30 +188,27 @@ export function renderCharacterState(characterId) {
 }
 
 /**
- * 渲染世界时间线为可读文本。
- * 取最近 limit 条记录（按 seq 降序取，展示时正序排列）。
+ * 渲染当前会话近 limit 轮摘要为可读文本（注入提示词 [11] 位置）。
+ * 取该 session 最近 N 条 turn_records，按 round_index 升序排列。
  *
- * @param {string} worldId
+ * @param {string} sessionId
  * @param {number} [limit] — 默认 WORLD_TIMELINE_RECENT_LIMIT
  * @returns {string} 渲染结果，无记录时返回空字符串
  */
-export function renderTimeline(worldId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
+export function renderTimeline(sessionId, limit = WORLD_TIMELINE_RECENT_LIMIT) {
   const rows = db.prepare(`
-    SELECT wt.content, wt.updated_at, s.title
-    FROM world_timeline wt
-    LEFT JOIN sessions s ON wt.session_id = s.id
-    WHERE wt.world_id = ?
-    ORDER BY wt.updated_at DESC
-    LIMIT ?
-  `).all(worldId, limit);
+    SELECT round_index, summary FROM (
+      SELECT round_index, summary FROM turn_records
+      WHERE session_id = ?
+      ORDER BY round_index DESC LIMIT ?
+    ) ORDER BY round_index ASC
+  `).all(sessionId, limit);
 
   if (rows.length === 0) return '';
 
-  const lines = ['[历史会话摘要]'];
+  const lines = ['[当前会话摘要]'];
   for (const row of rows) {
-    const dateStr = new Date(row.updated_at || 0).toISOString().slice(0, 10);
-    const title = row.title || '未命名会话';
-    lines.push(`- 【${dateStr} · ${title}】${row.content}`);
+    lines.push(`- [第${row.round_index}轮] ${row.summary}`);
   }
 
   return lines.join('\n');
