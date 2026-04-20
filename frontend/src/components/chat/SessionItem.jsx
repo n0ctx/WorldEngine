@@ -61,6 +61,7 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
 
   return (
     <div
+      data-session-id={session.id}
       style={{
         display: 'flex',
         alignItems: 'flex-start',

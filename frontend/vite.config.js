@@ -22,7 +22,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': process.env.VITE_BACKEND_URL || 'http://localhost:3000',
     },
     fs: {
       // 允许 Vite 服务 frontend/ 目录之外的文件（assistant/client/）
