@@ -17,6 +17,7 @@ import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound, getLatestTurnRecord } from '../db/queries/turn-records.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
+import { clearPending } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -103,8 +104,9 @@ router.put('/messages/:id', async (req, res) => {
   }
   const updated = await updateMessageAndDeleteAfter(req.params.id, content);
 
-  // 删除超出当前轮次的 turn records，并回滚状态
+  // 清空所有待处理任务，再删 turn records 和回滚状态
   const editSessionId = msg.session_id;
+  clearPending(editSessionId, 2);
   const editSession = getSessionById(editSessionId);
   const editRemaining = getMessagesBySessionId(editSessionId, ALL_MESSAGES_LIMIT, 0);
   const editR = editRemaining.filter((m) => m.role === 'user').length;
@@ -147,6 +149,9 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+
+  // 清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
+  clearPending(sessionId, 2);
 
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const characterId = session.character_id;

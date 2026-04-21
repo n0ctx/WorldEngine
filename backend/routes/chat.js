@@ -230,6 +230,10 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   deleteTurnRecordsAfterRound(sessionId, R - 1);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sessionId.slice(0, 8), keepUntilRound: Math.max(0, R - 1) })}`);
 
+  // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
+  clearPending(sessionId, 2);
+  log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 2 })}`);
+
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const regenSession = getSessionById(sessionId);
   const regenCharId = regenSession?.character_id;
@@ -243,10 +247,6 @@ router.post('/:sessionId/regenerate', async (req, res) => {
     );
     log.info(`STATE ROLLBACK  ${formatMeta({ session: sessionId.slice(0, 8), hasSnapshot: !!lastRecord?.state_snapshot })}`);
   }
-
-  // 丢弃低优先级待处理任务（时间线、向量化）
-  clearPending(sessionId, 4);
-  log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 4 })}`);
 
   await runStream(sessionId, res);
 });

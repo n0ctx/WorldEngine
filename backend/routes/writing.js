@@ -427,6 +427,9 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
 
+  // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
+  clearPending(sessionId, 2);
+
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const regenWorldId = session.world_id;
   if (regenWorldId) {
@@ -437,8 +440,6 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
       lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
     );
   }
-
-  clearPending(sessionId, 4);
 
   await runWritingStream(sessionId, res);
 });
