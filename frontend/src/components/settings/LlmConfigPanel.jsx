@@ -8,18 +8,15 @@ import ProviderBlock from './ProviderBlock';
 import WritingLlmBlock from './WritingLlmBlock';
 import ModeSwitch from './ModeSwitch';
 import FieldLabel from './FieldLabel';
-import ToggleSwitch from '../ui/ToggleSwitch';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import { LLM_PROVIDERS, EMBEDDING_PROVIDERS } from './_settings-constants';
+import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from './SettingsConstants';
 
 export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,
   settingsMode, onModeChange,
   writingLlm, onWritingLlmChange,
   proxyUrl, onProxyUrlSave,
-  showThinking, onToggleShowThinking,
-  autoCollapseThinking, onToggleAutoCollapseThinking,
 }) {
   const [testStatus, setTestStatus] = useState('idle');
   const [testMsg, setTestMsg] = useState('');
@@ -71,7 +68,7 @@ export default function LlmConfigPanel({
       <h2 className="we-settings-section-title">LLM 配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
-      {settingsMode === 'writing' ? (
+      {settingsMode === SETTINGS_MODE.WRITING ? (
         <WritingLlmBlock writingLlm={writingLlm} onWritingLlmChange={onWritingLlmChange} chatModel={llm.model} />
       ) : (
         <>
@@ -183,35 +180,6 @@ export default function LlmConfigPanel({
         </>
       )}
 
-      {/* 思考链设置：对话/写作空间共用，始终可见 */}
-      <hr className="we-settings-divider" />
-      <div className="we-settings-field-group">
-        <p className="we-settings-subsection-title">思考链设置</p>
-
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
-          <div>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
-              渲染思考链
-            </p>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
-              显示 &lt;think&gt; 标签内容（可折叠），对话与写作空间均生效；关闭则完全屏蔽
-            </p>
-          </div>
-          <ToggleSwitch checked={showThinking} onChange={onToggleShowThinking} />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-          <div>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
-              自动折叠
-            </p>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
-              思考完成后默认折叠；关闭则默认展开
-            </p>
-          </div>
-          <ToggleSwitch checked={autoCollapseThinking} onChange={onToggleAutoCollapseThinking} />
-        </div>
-      </div>
     </div>
   );
 }

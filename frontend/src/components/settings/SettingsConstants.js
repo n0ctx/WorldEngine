@@ -20,18 +20,37 @@ export const EMBEDDING_PROVIDERS = [
   { value: 'ollama', label: 'Ollama（本地）' },
 ];
 
+export const NAV_KEY = {
+  LLM: 'llm',
+  FEATURES: 'features',
+  PROMPT: 'prompt',
+  CSS: 'css',
+  REGEX: 'regex',
+  IMPORT_EXPORT: 'import_export',
+  ABOUT: 'about',
+};
+
 export const NAV_SECTIONS = [
-  { key: 'llm', label: 'LLM 配置' },
-  { key: 'memory', label: '记忆' },
-  { key: 'prompt', label: '全局 Prompt' },
-  { key: 'css', label: '自定义 CSS' },
-  { key: 'regex', label: '正则规则' },
-  { key: 'import_export', label: '导入导出' },
-  { key: 'about', label: '关于' },
+  { key: NAV_KEY.LLM, label: 'LLM 配置' },
+  { key: NAV_KEY.FEATURES, label: '功能配置' },
+  { key: NAV_KEY.PROMPT, label: '全局 Prompt' },
+  { key: NAV_KEY.CSS, label: '自定义 CSS' },
+  { key: NAV_KEY.REGEX, label: '正则规则' },
+  { key: NAV_KEY.IMPORT_EXPORT, label: '导入导出' },
+  { key: NAV_KEY.ABOUT, label: '关于' },
 ];
 
 export const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
 export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible']);
+
+export const DEFAULT_BASE_URLS = {
+  ollama: 'http://localhost:11434',
+  lmstudio: 'http://localhost:1234',
+};
+
+export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };
+
+export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
 
 export function getProviderThinkingOptions(provider) {
   switch (provider) {

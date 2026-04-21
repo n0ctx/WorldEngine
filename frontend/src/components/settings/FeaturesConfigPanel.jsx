@@ -2,9 +2,14 @@ import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
 
-function ToggleRow({ label, hint, checked, onChange }) {
+function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+      gap: 16, marginBottom: 24,
+      opacity: disabled ? 0.4 : 1,
+      pointerEvents: disabled ? 'none' : 'auto',
+    }}>
       <div>
         <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
           {label}
@@ -20,7 +25,7 @@ function ToggleRow({ label, hint, checked, onChange }) {
   );
 }
 
-export default function MemoryConfigPanel({
+export default function FeaturesConfigPanel({
   settingsMode, onModeChange,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
@@ -28,6 +33,10 @@ export default function MemoryConfigPanel({
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
   writingDateMode, onChangeWritingDateMode,
+  showThinking, onToggleShowThinking,
+  autoCollapseThinking, onToggleAutoCollapseThinking,
+  suggestionEnabled, onToggleSuggestion,
+  writingSuggestionEnabled, onToggleWritingSuggestion,
 }) {
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const expansionEnabled = isChat ? memoryExpansionEnabled : writingMemoryExpansionEnabled;
@@ -36,13 +45,17 @@ export default function MemoryConfigPanel({
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
   const onDateMode = isChat ? onChangeChatDateMode : onChangeWritingDateMode;
+  const suggestionEnabledCurrent = isChat ? suggestionEnabled : writingSuggestionEnabled;
+  const onToggleSuggestionCurrent = isChat ? onToggleSuggestion : onToggleWritingSuggestion;
 
   return (
     <div>
-      <h2 className="we-settings-section-title">记忆</h2>
+      <h2 className="we-settings-section-title">功能配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div style={{ marginTop: 20 }}>
+        <p className="we-settings-subsection-title">记忆</p>
+
         <ToggleRow
           label="记忆原文展开"
           hint="召回历史摘要后允许 AI 读取原文，会略增加首包延迟"
@@ -62,14 +75,14 @@ export default function MemoryConfigPanel({
         />
 
         {diaryEnabled && (
-          <div style={{ marginTop: -12, marginBottom: 24, paddingLeft: 0 }}>
+          <div style={{ marginTop: -12, marginBottom: 24 }}>
             <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-ink-secondary)', margin: '0 0 8px' }}>
               日期模式
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期', hint: '解析世界状态时间字段' },
-                { value: DIARY_DATE_MODE.REAL, label: '真实日期', hint: '使用系统时间' },
+                { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期' },
+                { value: DIARY_DATE_MODE.REAL, label: '真实日期' },
               ].map(({ value, label }) => (
                 <button
                   key={value}
@@ -95,6 +108,36 @@ export default function MemoryConfigPanel({
             </p>
           </div>
         )}
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">思维链</p>
+
+        <ToggleRow
+          label="渲染思维链"
+          hint="显示 <think> 标签内容（可折叠），对话与写作空间均生效；关闭则完全屏蔽"
+          checked={showThinking}
+          onChange={onToggleShowThinking}
+        />
+
+        <ToggleRow
+          label="自动折叠"
+          hint="思考完成后默认折叠；关闭则默认展开"
+          checked={autoCollapseThinking}
+          onChange={onToggleAutoCollapseThinking}
+          disabled={!showThinking}
+        />
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">选项</p>
+
+        <ToggleRow
+          label={isChat ? '对话选项' : '写作选项'}
+          hint="开启后 AI 回复末尾生成选项卡，供选择下一步行动"
+          checked={suggestionEnabledCurrent}
+          onChange={onToggleSuggestionCurrent}
+        />
       </div>
     </div>
   );

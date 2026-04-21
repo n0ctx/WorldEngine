@@ -1,6 +1,7 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
 import FieldLabel from './FieldLabel';
+import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
 
 export default function DiaryConfigPanel({
   settingsMode, onModeChange,
@@ -9,7 +10,7 @@ export default function DiaryConfigPanel({
   writingEnabled, onToggleWritingEnabled,
   writingDateMode, onChangeWritingDateMode,
 }) {
-  const isChat = settingsMode === 'chat';
+  const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const enabled = isChat ? chatEnabled : writingEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
   const onToggle = isChat ? onToggleChatEnabled : onToggleWritingEnabled;
@@ -30,13 +31,13 @@ export default function DiaryConfigPanel({
 
         {enabled && (
           <div className="we-edit-form-group">
-            <FieldLabel hint="虚拟日期：解析世界状态时间字段中的"N年N月N日"；真实日期：使用系统时间。切换仅影响新建会话。">
+            <FieldLabel hint={'虚拟日期：解析世界状态时间字段中的"N年N月N日"；真实日期：使用系统时间。切换仅影响新建会话。'}>
               日期模式
             </FieldLabel>
             <div style={{ display: 'flex', gap: 8 }}>
               {[
-                { value: 'virtual', label: '虚拟日期' },
-                { value: 'real', label: '真实日期' },
+                { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期' },
+                { value: DIARY_DATE_MODE.REAL, label: '真实日期' },
               ].map(({ value, label }) => (
                 <button
                   key={value}

@@ -4,15 +4,13 @@ import MarkdownEditor from '../ui/MarkdownEditor';
 import EntryList from '../prompt/EntryList';
 import ModeSwitch from './ModeSwitch';
 import FieldLabel from './FieldLabel';
-import ToggleSwitch from '../ui/ToggleSwitch';
+import { SETTINGS_MODE } from './SettingsConstants';
 
 export default function PromptConfigPanel({
   settingsMode, onModeChange,
   globalSystemPrompt, setGlobalSystemPrompt,
   globalPostPrompt, setGlobalPostPrompt,
   contextRounds, setContextRounds,
-  suggestionEnabled, onToggleSuggestion,
-  writingSuggestionEnabled, onToggleWritingSuggestion,
   onSave, saving,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
@@ -24,7 +22,7 @@ export default function PromptConfigPanel({
       <h2 className="we-settings-section-title">全局 Prompt</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
-      {settingsMode === 'writing' ? (
+      {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
           <div className="we-settings-field-group">
             <div className="we-edit-form-group">
@@ -67,20 +65,6 @@ export default function PromptConfigPanel({
 
           <p className="we-edit-label">写作 Prompt 条目</p>
           <EntryList type="global" mode="writing" />
-
-          <hr className="we-settings-divider" />
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
-            <div>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
-                写作选项功能
-              </p>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
-                开启后 AI 回复末尾生成选项卡，供选择下一步行动
-              </p>
-            </div>
-            <ToggleSwitch checked={writingSuggestionEnabled} onChange={onToggleWritingSuggestion} />
-          </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <Button variant="primary" onClick={onSaveWriting} disabled={saving}>
@@ -131,21 +115,7 @@ export default function PromptConfigPanel({
           <p className="we-edit-label">全局 Prompt 条目</p>
           <EntryList type="global" mode="chat" />
 
-          <hr className="we-settings-divider" />
-
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
-            <div>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
-                对话选项功能
-              </p>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
-                开启后 AI 回复末尾生成选项卡，供选择下一步行动
-              </p>
-            </div>
-            <ToggleSwitch checked={suggestionEnabled} onChange={onToggleSuggestion} />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <Button variant="primary" onClick={onSave} disabled={saving}>
               {saving ? '保存中…' : '保存'}
             </Button>

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getWorld } from '../api/worlds.js';
 import { useAppModeStore } from '../store/appMode.js';
+import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
 import { refreshCustomCss } from '../api/custom-css-snippets.js';
 import { getPersona } from '../api/personas.js';
 import {
@@ -29,11 +30,11 @@ export default function WritingSpacePage() {
   const setAppMode = useAppModeStore((s) => s.setAppMode);
 
   useEffect(() => {
-    setAppMode('writing');
-    refreshCustomCss('writing');
+    setAppMode(SETTINGS_MODE.WRITING);
+    refreshCustomCss(SETTINGS_MODE.WRITING);
     return () => {
-      setAppMode('chat');
-      refreshCustomCss('chat');
+      setAppMode(SETTINGS_MODE.CHAT);
+      refreshCustomCss(SETTINGS_MODE.CHAT);
     };
   }, [setAppMode]);
 

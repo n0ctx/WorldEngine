@@ -8,15 +8,15 @@ import AboutPanel from '../components/settings/AboutPanel';
 import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
-import MemoryConfigPanel from '../components/settings/MemoryConfigPanel';
-import { NAV_SECTIONS } from '../components/settings/_settings-constants';
+import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
+import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../components/settings/SettingsConstants';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
-  const [activeSection, setActiveSection] = useState('llm');
-  const [settingsMode, setSettingsMode] = useState('chat');
+  const [activeSection, setActiveSection] = useState(NAV_SECTIONS[0].key);
+  const [settingsMode, setSettingsMode] = useState(SETTINGS_MODE.CHAT);
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
 
   function handleBack() {
@@ -71,19 +71,19 @@ export default function SettingsPage() {
         </nav>
 
         <div className="we-settings-body">
-          {activeSection === 'llm' && (
+          {activeSection === NAV_KEY.LLM && (
             <div className="we-settings-section">
               <LlmConfigPanel {...llmProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
             </div>
           )}
-          {activeSection === 'prompt' && (
+          {activeSection === NAV_KEY.PROMPT && (
             <div className="we-settings-section">
               <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
             </div>
           )}
-          {activeSection === 'memory' && (
+          {activeSection === NAV_KEY.FEATURES && (
             <div className="we-settings-section">
-              <MemoryConfigPanel
+              <FeaturesConfigPanel
                 settingsMode={settingsMode}
                 onModeChange={setSettingsMode}
                 memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
@@ -98,29 +98,37 @@ export default function SettingsPage() {
                 onToggleWritingDiaryEnabled={diaryProps.onToggleWritingEnabled}
                 writingDateMode={diaryProps.writingDateMode}
                 onChangeWritingDateMode={diaryProps.onChangeWritingDateMode}
+                showThinking={llmProps.showThinking}
+                onToggleShowThinking={llmProps.onToggleShowThinking}
+                autoCollapseThinking={llmProps.autoCollapseThinking}
+                onToggleAutoCollapseThinking={llmProps.onToggleAutoCollapseThinking}
+                suggestionEnabled={promptProps.suggestionEnabled}
+                onToggleSuggestion={promptProps.onToggleSuggestion}
+                writingSuggestionEnabled={promptProps.writingSuggestionEnabled}
+                onToggleWritingSuggestion={promptProps.onToggleWritingSuggestion}
               />
             </div>
           )}
-          {activeSection === 'css' && (
+          {activeSection === NAV_KEY.CSS && (
             <div className="we-settings-section">
               <h2 className="we-settings-section-title">自定义 CSS</h2>
               <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
               <CustomCssManager settingsMode={settingsMode} />
             </div>
           )}
-          {activeSection === 'regex' && (
+          {activeSection === NAV_KEY.REGEX && (
             <div className="we-settings-section">
               <h2 className="we-settings-section-title">正则规则</h2>
               <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
               <RegexRulesManager settingsMode={settingsMode} />
             </div>
           )}
-          {activeSection === 'import_export' && (
+          {activeSection === NAV_KEY.IMPORT_EXPORT && (
             <div className="we-settings-section">
               <ImportExportPanel onImportSuccess={onImportSuccess} />
             </div>
           )}
-          {activeSection === 'about' && (
+          {activeSection === NAV_KEY.ABOUT && (
             <div className="we-settings-section">
               <AboutPanel />
             </div>

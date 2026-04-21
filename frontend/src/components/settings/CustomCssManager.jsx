@@ -7,6 +7,7 @@ import { useAppModeStore } from '../../store/appMode';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
+import { SETTINGS_MODE } from './SettingsConstants';
 
 const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 :root {
@@ -26,7 +27,7 @@ const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 /* ⚠️  注意：骨架类名可能随版本变化 */
 .we-book-spine { ... }`;
 
-export default function CustomCssManager({ settingsMode = 'chat' }) {
+export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) {
   const [snippets, setSnippets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);

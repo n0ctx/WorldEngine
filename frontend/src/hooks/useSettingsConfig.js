@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getConfig, updateConfig } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS } from '../components/settings/_settings-constants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
 
 export function useSettingsConfig() {
   const [loading, setLoading] = useState(true);
@@ -25,9 +25,9 @@ export function useSettingsConfig() {
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
   const [diaryChatEnabled, setDiaryChatEnabled] = useState(false);
-  const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
+  const [diaryChatDateMode, setDiaryChatDateMode] = useState(DIARY_DATE_MODE.VIRTUAL);
   const [diaryWritingEnabled, setDiaryWritingEnabled] = useState(false);
-  const [diaryWritingDateMode, setDiaryWritingDateMode] = useState('virtual');
+  const [diaryWritingDateMode, setDiaryWritingDateMode] = useState(DIARY_DATE_MODE.VIRTUAL);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -51,9 +51,9 @@ export function useSettingsConfig() {
       setWritingContextRounds(w.context_history_rounds ?? null);
       const d = c.diary || {};
       setDiaryChatEnabled(d.chat?.enabled === true);
-      setDiaryChatDateMode(d.chat?.date_mode ?? 'virtual');
+      setDiaryChatDateMode(d.chat?.date_mode ?? DIARY_DATE_MODE.VIRTUAL);
       setDiaryWritingEnabled(d.writing?.enabled === true);
-      setDiaryWritingDateMode(d.writing?.date_mode ?? 'virtual');
+      setDiaryWritingDateMode(d.writing?.date_mode ?? DIARY_DATE_MODE.VIRTUAL);
       setLoading(false);
     });
   }, [reloadKey]);

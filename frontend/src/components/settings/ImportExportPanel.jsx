@@ -5,10 +5,11 @@ import { refreshCustomCss } from '../../api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../utils/regex-runner';
 import ModeSwitch from './ModeSwitch';
 import Button from '../ui/Button';
+import { SETTINGS_MODE } from './SettingsConstants';
 
 export default function ImportExportPanel({ onImportSuccess }) {
   const fileInputRef = useRef(null);
-  const [mode, setMode] = useState('chat');
+  const [mode, setMode] = useState(SETTINGS_MODE.CHAT);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState(null);
@@ -42,7 +43,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
         loadRules().catch(() => {}),
       ]);
       invalidateCache();
-      const label = result.mode === 'writing' ? '写作空间' : '对话空间';
+      const label = result.mode === SETTINGS_MODE.WRITING ? '写作空间' : '对话空间';
       setMessage({ type: 'ok', text: `导入成功，已覆盖${label}全局设置` });
       onImportSuccess?.();
     } catch (e) {
@@ -52,7 +53,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
     }
   }
 
-  const modeLabel = mode === 'writing' ? '写作空间' : '对话空间';
+  const modeLabel = mode === SETTINGS_MODE.WRITING ? '写作空间' : '对话空间';
 
   return (
     <div>
@@ -62,7 +63,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
         <ModeSwitch mode={mode} onChange={(m) => { setMode(m); setMessage(null); }} />
 
         <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', lineHeight: '1.7', margin: '0 0 16px' }}>
-          当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局 Prompt（system/post prompt、prompt 条目）、自定义 CSS、全局正则规则。不含 LLM 配置与 API 密钥。
+          当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局 Prompt（system/post prompt、prompt 条目）、自定义 CSS、全局正则规则。不含 LLM 配置与功能配置。
           <br />
           导入为<strong>覆盖</strong>模式，仅清空并写入<strong>{modeLabel}</strong>的数据，不影响另一空间。
         </p>

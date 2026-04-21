@@ -4,7 +4,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FieldLabel from './FieldLabel';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, getProviderThinkingOptions } from './_settings-constants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, getProviderThinkingOptions } from './SettingsConstants';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');
@@ -60,11 +60,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
           <Input
             value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
-            placeholder={
-              config.provider === 'ollama' ? 'http://localhost:11434'
-                : config.provider === 'lmstudio' ? 'http://localhost:1234'
-                : 'https://your-api-endpoint/v1'
-            }
+            placeholder={DEFAULT_BASE_URLS[config.provider] ?? 'https://your-api-endpoint/v1'}
           />
         </div>
       )}

@@ -1,4 +1,5 @@
 import { request } from './request.js';
+import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
 
 const BASE = '/api';
 
@@ -89,7 +90,7 @@ export function importWorld(data) {
  * 导出全局设置，返回 JSON 数据对象
  * @param {'chat'|'writing'} mode
  */
-export function exportGlobalSettings(mode = 'chat') {
+export function exportGlobalSettings(mode = SETTINGS_MODE.CHAT) {
   return request(`${BASE}/global-settings/export?mode=${mode}`);
 }
 
@@ -97,7 +98,7 @@ export function exportGlobalSettings(mode = 'chat') {
  * 下载全局设置为 .weglobal.json 文件
  * @param {'chat'|'writing'} mode
  */
-export async function downloadGlobalSettings(mode = 'chat') {
+export async function downloadGlobalSettings(mode = SETTINGS_MODE.CHAT) {
   const data = await exportGlobalSettings(mode);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);

@@ -10,6 +10,7 @@ import { getWorlds } from '../../api/worlds.js';
 import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
+import { SETTINGS_MODE } from './SettingsConstants';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',
@@ -27,7 +28,7 @@ const SCOPE_HINTS = {
 
 const SCOPE_ORDER = ['user_input', 'ai_output', 'display_only', 'prompt_only'];
 
-export default function RegexRulesManager({ settingsMode = 'chat' }) {
+export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT }) {
   const [rules, setRules] = useState([]);
   const [worlds, setWorlds] = useState([]);
   const [loading, setLoading] = useState(true);
