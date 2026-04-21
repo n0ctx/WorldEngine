@@ -169,6 +169,10 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
             <h2>日记时间字段</h2>
           </div>
           <div className="we-dialog-body flex flex-col gap-4">
+            <div>
+              <label className={labelCls}>label <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
+              <input className={inputCls} value={form.label} onChange={(e) => set('label', e.target.value)} />
+            </div>
             {isReal ? (
               <p style={{ fontSize: 13, color: 'var(--we-ink-secondary)', fontFamily: 'var(--we-font-serif)', lineHeight: 1.6 }}>
                 当前为<strong>真实日期</strong>模式，此字段由系统自动更新，无法手动编辑。
@@ -209,11 +213,9 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           </div>
           <div className="we-dialog-footer">
             <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">关闭</button>
-            {!isReal && (
-              <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
-                {saving ? '保存中…' : '保存'}
-              </button>
-            )}
+            <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
+              {saving ? '保存中…' : '保存'}
+            </button>
           </div>
         </div>
       </div>
