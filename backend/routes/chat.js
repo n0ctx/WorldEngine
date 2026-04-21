@@ -18,7 +18,8 @@ import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
-import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -229,6 +230,20 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   deleteTurnRecordsAfterRound(sessionId, R - 1);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sessionId.slice(0, 8), keepUntilRound: Math.max(0, R - 1) })}`);
 
+  // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
+  const regenSession = getSessionById(sessionId);
+  const regenCharId = regenSession?.character_id;
+  const regenChar = regenCharId ? getCharacterById(regenCharId) : null;
+  const regenWorldId = regenChar?.world_id ?? null;
+  if (regenWorldId) {
+    const lastRecord = getLatestTurnRecord(sessionId);
+    restoreStateFromSnapshot(
+      sessionId, regenWorldId, regenCharId ? [regenCharId] : [],
+      lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
+    );
+    log.info(`STATE ROLLBACK  ${formatMeta({ session: sessionId.slice(0, 8), hasSnapshot: !!lastRecord?.state_snapshot })}`);
+  }
+
   // 丢弃低优先级待处理任务（时间线、向量化）
   clearPending(sessionId, 4);
   log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 4 })}`);
@@ -380,6 +395,7 @@ router.delete('/:sessionId/messages', async (req, res) => {
   if (!assertExists(res, session, 'Session not found')) return;
 
   await deleteAllMessagesBySessionId(sessionId);
+  deleteTurnRecordsBySessionId(sessionId);
   clearCompressedContext(sessionId);
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;

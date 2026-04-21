@@ -251,25 +251,42 @@ CREATE TABLE session_summaries (
 
 ### turn_records — 轮次记录（T35）
 
-每轮对话结束后（状态更新完毕后）创建一条记录，包含该轮的摘要文本和原始对话对。
-用于提示词 [14] 历史消息注入和向量召回。
+每轮对话结束后（状态更新完毕后）创建一条记录，存摘要文本和指向原始消息的 ID 指针。
+用于向量召回（[12]）和原文展开（[13]）；**不参与 [14] 历史消息**（[14] 稳定使用原始 messages 窗口）。
 
 ```sql
 CREATE TABLE IF NOT EXISTS turn_records (
-  id              TEXT PRIMARY KEY,          -- UUID
-  session_id      TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  round_index     INTEGER NOT NULL,          -- 1-based，该 session 内的轮次序号
-  summary         TEXT NOT NULL,             -- LLM 生成的摘要（用于向量检索，50-100 字）
-  user_context    TEXT NOT NULL,             -- 当前实现为 `{{user}}：{用户消息}` 的纯对话文本
-  asst_context    TEXT NOT NULL,             -- 当前实现为 `{{char}}：{AI消息}` 的纯对话文本
-  created_at      INTEGER NOT NULL,
+  id                TEXT PRIMARY KEY,          -- UUID
+  session_id        TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index       INTEGER NOT NULL,          -- 1-based，该 session 内的轮次序号
+  summary           TEXT NOT NULL,             -- LLM 生成的摘要（用于向量检索，10-50 字）
+  user_message_id   TEXT,                      -- 指向 messages.id（user 消息）
+  asst_message_id   TEXT,                      -- 指向 messages.id（assistant 消息）
+  state_snapshot    TEXT,                      -- JSON：该轮结束后三层状态快照，用于 regenerate/删除/编辑回滚
+  created_at        INTEGER NOT NULL,
   UNIQUE(session_id, round_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index);
 ```
 
-- `original_text`（用于展开原文）= `user_context + "\n\n" + asst_context`，不存库，按需拼接
+`state_snapshot` 结构（JSON 字符串）：
+```json
+{
+  "world":     { "field_key": "runtime_value_json", ... },
+  "persona":   { "field_key": "runtime_value_json", ... },
+  "character": { "cid": { "field_key": "runtime_value_json", ... }, ... }
+}
+```
+- 仅记录有 `runtime_value_json` 的字段（非 NULL），默认值层不存入快照
+- 状态更新（优先级 2）完成后，由 `createTurnRecord`（优先级 3）捕获；时序上保证本轮最终状态
+- 恢复时通过 `backend/memory/state-rollback.js` 的 `restoreStateFromSnapshot()` 写回 `session_*_state_values`
+- 无快照（全新会话、或首轮 regenerate）时降级：清空三张 session_*_state_values 表回 default
+
+其他说明：
+- 原文展开（[13]）：通过 `user_message_id`/`asst_message_id` 查 `messages` 表取实时内容
+- 用户编辑消息后，`createTurnRecord({ isUpdate: true })` 重新生成摘要，指针不变（message id 不变）
+- regenerate 后，旧 assistant 消息被删除，`createTurnRecord` 产出新记录指向新 message
 - `turn_records` 由 SQLite `ON DELETE CASCADE` 随 session 自动级联删除
 - 向量文件 `turn_summaries.json` 的清理通过 `cleanup-registrations.js` 钩子执行
 

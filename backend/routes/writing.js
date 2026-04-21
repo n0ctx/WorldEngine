@@ -30,7 +30,8 @@ import { ALL_MESSAGES_LIMIT, LLM_IMPERSONATE_MAX_TOKENS } from '../utils/constan
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
-import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
   beginStreamSession,
   buildContinuationMessages,
@@ -102,6 +103,7 @@ router.delete('/:worldId/writing-sessions/:sessionId/messages', async (req, res)
   const session = dbGetWritingSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
   await deleteAllMessages(sessionId);
+  deleteTurnRecordsBySessionId(sessionId);
   clearCompressedContext(sessionId);
   res.json({ success: true });
 });
@@ -424,6 +426,18 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+
+  // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
+  const regenWorldId = session.world_id;
+  if (regenWorldId) {
+    const activeChars = getWritingSessionCharacters(sessionId);
+    const lastRecord = getLatestTurnRecord(sessionId);
+    restoreStateFromSnapshot(
+      sessionId, regenWorldId, activeChars.map((c) => c.id),
+      lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
+    );
+  }
+
   clearPending(sessionId, 4);
 
   await runWritingStream(sessionId, res);

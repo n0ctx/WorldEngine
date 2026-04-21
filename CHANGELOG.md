@@ -21,6 +21,8 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T151` `feat` 状态回滚机制 — turn_records 新增 state_snapshot 字段；createTurnRecord 在优先级 2 状态更新后捕获三层 session 级状态快照；regenerate/删除消息/编辑消息后从快照恢复，无快照时降级清空回 default；新增 backend/memory/state-rollback.js（captureStateSnapshot/restoreStateFromSnapshot）
+- `T150` `refactor` turn_records 改为指针模式，历史消息链路清理 — turn_records 新增 user_message_id/asst_message_id 列（指针），不再复制消息内容；summary-expander 展开原文优先查 messages 表，旧数据回退 user_context/asst_context；delete all messages 同步清除 turn_records；修复 assembler.js/SCHEMA.md 过时注释
 - `T148` `feat` MOTION.md 动效规范落地 — motion.js 重写（DURATION/EASE/STAGGER/BLUR/variants/transitions），tokens.css 补 --we-dur-* 变量，新增 useMotion hook，PageTransition 实现路由过渡，WritingMessageItem 补 inkRise，SealStamp/ModalShell/SectionTabs 对齐规范参数
 - `T147` `chore` 临时后端测试隔离真实配置 — `backend/services/config.js` 支持 `WE_CONFIG_PATH`，`.temp` 脚本改用独立临时 config 文件
 - `T146` `bugfix` 写作空间激活角色读取修复 — `buildWritingPrompt()` 不再把 `getWritingSessionCharacters()` 返回的 `c.*` 行误当成含 `character_id` 的联结行二次查询
@@ -66,6 +68,33 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T152 — refactor: turn_records 改为指针模式 + 历史消息链路清理 ✅
+- **对外接口**：`upsertTurnRecord` 参数从 `{ user_context, asst_context }` 改为 `{ user_message_id, asst_message_id }`；`renderExpandedTurnRecords` 直接查 messages 表取实时内容
+- **涉及文件**：`backend/db/schema.js`、`backend/db/queries/turn-records.js`、`backend/memory/turn-summarizer.js`、`backend/memory/summary-expander.js`、`backend/routes/chat.js`、`backend/routes/writing.js`、`backend/tests/helpers/fixtures.js`、`backend/prompts/assembler.js`（注释）、`SCHEMA.md`、`ARCHITECTURE.md`
+- **注意**：
+  - `user_context`/`asst_context` 列已通过 DROP COLUMN 彻底移除（schema.js 迁移）
+  - delete all messages 路由（chat.js + writing.js）现在同步调用 `deleteTurnRecordsBySessionId`，避免新对话 `countTurnRecords` 从错误基数出发
+  - [14] 历史消息**始终**使用原始 messages 窗口，turn records 仅用于 [12] 召回和 [13] 展开——assembler.js 注释和 SCHEMA.md 描述已修正过时说法
+
+## T151 — feat: StatePanel 异步任务可见性提升 ✅
+- **对外接口**：纯前端改动，无后端/API 变更
+- **涉及文件**：`frontend/src/pages/ChatPage.jsx`、`frontend/src/components/book/StatePanel.jsx`、`frontend/src/index.css`
+- **注意**：
+  - `recalledItems` 此前在 ChatPage 已跟踪但从未传给 StatePanel（bug），现已接通；每次新生成开始时清空（`makeCallbacks()` 和 `clearActiveSession()` 均加了 `setRecalledItems([])`）
+  - `memoryRecalling=true` 期间 RECALLED 区展示骨架屏，召回完成后展示"本次召回 N 条相关记忆"
+  - StatePanel 新增 `isPolling`/`stateJustChanged` 内部状态：AI 回复后异步状态整理期间头部显示"整理中…"（faded），轮询检测到数据变化后短暂切换为金色"已整理"（2.5s 后消隐）
+  - 无感操作（turn record 创建、向量嵌入、prompt 条目触发）保持静默，不增加噪音
+
+## T151 — feat: 状态回滚机制（turn_records state_snapshot） ✅
+- **对外接口**：新增 `backend/memory/state-rollback.js`，导出 `captureStateSnapshot(sessionId, worldId, characterIds)` 和 `restoreStateFromSnapshot(sessionId, worldId, characterIds, snapshot)`
+- **涉及文件**：`backend/db/schema.js`（ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT）、`backend/db/queries/turn-records.js`（upsertTurnRecord 增加 state_snapshot 参数）、`backend/memory/turn-summarizer.js`（优先级 3 写入前捕获快照）、`backend/routes/chat.js`（regenerate 后回滚）、`backend/routes/writing.js`（regenerate 后回滚）、`backend/routes/sessions.js`（DELETE /messages/:messageId 和 PUT /messages/:id 后回滚，替换旧 clearXxx 调用）、`SCHEMA.md`
+- **注意**：状态是 T103 后的会话级（session_*_state_values），snapshot 捕获/恢复的是 session 级 runtime_value_json，非全局 world/character 表。snapshot=null 时（全新会话、首轮 regenerate）降级清空三张 session_*_state_values 表回 default。写作模式多角色通过 getWritingSessionCharacters 动态获取 characterIds。
+
+## T150 — chore: 收口聊天路由并发测试与浏览器端到端验证 ✅
+- **对外接口**：`backend/llm/providers/mock.js` 支持 `MOCK_LLM_STREAM_DELAYS` 和 `AbortSignal`；`backend/tests/routes/chat.test.js` 新增 `/stop` `/continue` `/regenerate` 与同 session 并发中断集成测试；`backend/tests/e2e/chat-playwright.test.js` 新增真实浏览器收发闭环
+- **涉及文件**：`backend/llm/providers/mock.js`、`backend/tests/routes/chat.test.js`、`backend/tests/e2e/chat-playwright.test.js`、`backend/tests/helpers/test-env.js`、`CHANGELOG.md`
+- **注意**：mock 流现在会在 sleep 和 yield 前检查 `signal.aborted`，因此测试里的 stop/并发中断不再是假中断；Playwright 用例通过临时起 `createApp()` 和 Vite dev server 跑真实 `/api` 代理，不依赖额外手工环境
 
 ## T149 — chore: 后端测试残留风险收口 ✅
 - **对外接口**：`backend/server.js` 新增 `createApp()` / `startServer()`，默认启动行为不变；`backend/llm/index.js` 新增测试可控重试策略环境变量 `WE_LLM_RETRY_MAX` / `WE_LLM_RETRY_DELAY_MS`

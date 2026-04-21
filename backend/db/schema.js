@@ -232,13 +232,13 @@ CREATE TABLE IF NOT EXISTS regex_rules (
 );
 
 CREATE TABLE IF NOT EXISTS turn_records (
-  id              TEXT PRIMARY KEY,
-  session_id      TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  round_index     INTEGER NOT NULL,
-  summary         TEXT NOT NULL,
-  user_context    TEXT NOT NULL,
-  asst_context    TEXT NOT NULL,
-  created_at      INTEGER NOT NULL,
+  id                TEXT PRIMARY KEY,
+  session_id        TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  round_index       INTEGER NOT NULL,
+  summary           TEXT NOT NULL,
+  user_message_id   TEXT,
+  asst_message_id   TEXT,
+  created_at        INTEGER NOT NULL,
   UNIQUE(session_id, round_index)
 );
 
@@ -363,6 +363,13 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
   try { db.exec(`ALTER TABLE character_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
+  // turn_records 改为指针模式：新增 user_message_id / asst_message_id，移除复制内容字段
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN user_message_id TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN asst_message_id TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE turn_records DROP COLUMN user_context`); } catch {}
+  try { db.exec(`ALTER TABLE turn_records DROP COLUMN asst_context`); } catch {}
+  // 状态快照：保存该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
 }

@@ -12,12 +12,14 @@ import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById } from '../db/queries/turn-records.js';
+import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TURN_SUMMARY_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
+import { captureStateSnapshot } from './state-rollback.js';
 
 const log = createLogger('turn-sum');
 
@@ -69,10 +71,6 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     return;
   }
 
-  // turn_records 中仅保存纯对话原文，不保存状态快照。
-  const user_context = `{{user}}：${userMsg.content}`;
-  const asst_context = `{{char}}：${asstMsg.content}`;
-
   // LLM 生成摘要（非流式，temp=0.3）
   let summary = '';
   try {
@@ -104,13 +102,21 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     return;
   }
 
-  // 写入 DB（upsert by session_id + round_index）
+  // 捕获当前三层状态快照（优先级 2 状态更新已完成，此处拿到的是本轮最终状态）
+  let characterIds = characterId ? [characterId] : [];
+  if (!characterId && session.mode === 'writing' && worldId) {
+    characterIds = getWritingSessionCharacters(sessionId).map((c) => c.id);
+  }
+  const snapshot = worldId ? captureStateSnapshot(sessionId, worldId, characterIds) : null;
+
+  // 写入 DB（upsert by session_id + round_index），存指针而非内容副本
   const record = upsertTurnRecord({
     session_id: sessionId,
     round_index,
     summary,
-    user_context,
-    asst_context,
+    user_message_id: userMsg.id,
+    asst_message_id: asstMsg.id,
+    state_snapshot: snapshot ? JSON.stringify(snapshot) : null,
   });
 
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
