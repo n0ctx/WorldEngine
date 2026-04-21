@@ -7,7 +7,7 @@ import {
   resetSessionPersonaStateValues,
   resetSessionCharacterStateValues,
 } from '../../api/session-state-values.js';
-import { fetchSessionTimeline } from '../../api/session-timeline.js';
+import { fetchDailyEntries, fetchDiaryContent } from '../../api/daily-entries.js';
 import { getWorld } from '../../api/worlds.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
@@ -23,7 +23,7 @@ function GoldDivider() {
   );
 }
 
-// ── 折叠箭头（与 CastPanel 一致）────────────────────────────
+// ── 折叠箭头 ────────────────────────────────────────────────
 function Chevron({ open }) {
   return (
     <svg
@@ -42,40 +42,53 @@ function Chevron({ open }) {
   );
 }
 
-// ── 时间线条目（当前会话轮次摘要）────────────────────────────
-function TimelineEntry({ entry, index }) {
+const RECENT_LIMIT = 5;
+
+// ── 日记条目 ────────────────────────────────────────────────
+function DiaryEntry({ entry, index, selected, onSelect }) {
   return (
     <div
       className="we-timeline-entry"
-      style={{ animationDelay: `${index * 50}ms` }}
+      style={{
+        animationDelay: `${index * 50}ms`,
+        cursor: 'pointer',
+        borderRadius: 4,
+        padding: '2px 4px',
+        background: selected ? 'var(--we-gold-leaf)' : 'transparent',
+        opacity: selected ? 0.9 : 1,
+        transition: 'background 0.18s ease',
+      }}
+      onClick={() => onSelect(entry)}
+      title="点击注入下轮提示词"
     >
       <span className="we-timeline-dot">·</span>
       <span className="we-timeline-text">
-        <em className="we-timeline-round">第{entry.round_index}轮</em>
+        <em className="we-timeline-round">{entry.date_display}</em>
         {' '}{entry.summary}
       </span>
     </div>
   );
 }
 
-export default function StatePanel({ sessionId, character, worldId, persona }) {
+export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
 
-  // null = 加载中；{ world:[], persona:[], character:[] } = 已加载
   const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
   const [charResetting, setCharResetting] = useState(false);
 
-  const [timeline, setTimeline] = useState(null);  // null = 加载中
+  const [diaryEntries, setDiaryEntries] = useState(null); // null = 加载中
   const [worldName, setWorldName] = useState(null);
 
   // 折叠状态
-  const [timelineOpen, setTimelineOpen] = useState(true);
+  const [diaryOpen, setDiaryOpen] = useState(true);
+  const [diaryExpanded, setDiaryExpanded] = useState(false); // 是否展开更多
+
+  // 已选中（待注入）的日记条目
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
   // 异步任务状态反馈
-  // pollingHasChanged: 本轮轮询中是否已检测到至少一次数据变化，
-  // 用于防止"已整理"消隐后回退到"整理中"
   const [isPolling, setIsPolling] = useState(false);
   const [stateJustChanged, setStateJustChanged] = useState(false);
   const [pollingHasChanged, setPollingHasChanged] = useState(false);
@@ -84,14 +97,14 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
   useEffect(() => {
     if (!sessionId) {
       setStateData({ world: [], persona: [], character: [] });
-      setTimeline([]);
+      setDiaryEntries([]);
       return;
     }
     setStateData(null);
-    setTimeline(null);
+    setDiaryEntries(null);
 
     fetchSessionStateValues(sessionId).then(setStateData).catch(() => setStateData({ world: [], persona: [], character: [] }));
-    fetchSessionTimeline(sessionId).then(setTimeline).catch(() => setTimeline([]));
+    fetchDailyEntries(sessionId).then(setDiaryEntries).catch(() => setDiaryEntries([]));
   }, [sessionId]);
 
   useEffect(() => {
@@ -100,31 +113,28 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
   }, [worldId]);
 
   // ── 轮询：AI 回复后感知异步状态更新 ──────────────────────
-  // 注意：状态更新（优先级2）和时间线更新（优先级3）在不同时间完成，
-  // 不能在检测到状态变化后立即停止轮询，必须持续轮询直到超时，
-  // 否则会漏掉后续的时间线更新。
   useEffect(() => {
     if (tick === 0 || !sessionId) return;
 
     setIsPolling(true);
-    setPollingHasChanged(false);  // 新轮次开始时重置
-    let currentSnapshot = JSON.stringify([stateData, timeline]);
+    setPollingHasChanged(false);
+    let currentSnapshot = JSON.stringify([stateData, diaryEntries]);
     let intervalId;
     let timeoutId;
     let changedTimerId;
 
     intervalId = setInterval(async () => {
       try {
-        const [newState, newTimeline] = await Promise.all([
+        const [newState, newDiary] = await Promise.all([
           fetchSessionStateValues(sessionId),
-          fetchSessionTimeline(sessionId),
+          fetchDailyEntries(sessionId),
         ]);
-        const current = JSON.stringify([newState, newTimeline]);
+        const current = JSON.stringify([newState, newDiary]);
         if (current !== currentSnapshot) {
           currentSnapshot = current;
           setStateData(newState);
-          setTimeline(newTimeline);
-          setPollingHasChanged(true);   // 标记已变化，后续不再回退到"整理中"
+          setDiaryEntries(newDiary);
+          setPollingHasChanged(true);
           setStateJustChanged(true);
           clearTimeout(changedTimerId);
           changedTimerId = setTimeout(() => setStateJustChanged(false), 1800);
@@ -180,8 +190,33 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
     finally { setCharResetting(false); }
   }
 
-  const hasTimeline = Array.isArray(timeline) && timeline.length > 0;
-  // 悬浮卡可见：整理中（且本轮尚无变化）或 已整理（短暂）
+  // ── 日记点击注入 ─────────────────────────────────────────
+  async function handleDiarySelect(entry) {
+    if (selectedEntry?.date_str === entry.date_str) {
+      // 再次点击取消
+      setSelectedEntry(null);
+      onDiaryInject?.(null);
+      return;
+    }
+    setSelectedEntry(entry);
+    try {
+      const content = await fetchDiaryContent(sessionId, entry.date_str);
+      onDiaryInject?.(content);
+    } catch (e) {
+      console.error('获取日记内容失败', e);
+    }
+  }
+
+  // 当 sessionId 变化时清空已选
+  useEffect(() => { setSelectedEntry(null); }, [sessionId]);
+
+  const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
+  // 从近到远排列
+  const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
+  const recentDiary = reversedDiary.slice(0, RECENT_LIMIT);
+  const olderDiary = reversedDiary.slice(RECENT_LIMIT);
+  const hasMore = olderDiary.length > 0;
+
   const showFloating = stateJustChanged || (isPolling && !pollingHasChanged);
 
   return (
@@ -200,7 +235,7 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
         overflow: 'hidden',
       }}
     >
-      {/* 书脊阴影固定在外层，不随内容滚动 */}
+      {/* 书脊阴影 */}
       <div
         style={{
           position: 'absolute',
@@ -223,31 +258,26 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
         minHeight: 0,
       }}>
 
-        {/* ── 头部：印章 + 角色名 + 世界名 ── */}
+        {/* ── 头部 ── */}
         <div className="we-state-panel-header">
           <div className="we-seal-wrap">
             <CharacterSeal character={character} size={80} />
           </div>
-
           {character ? (
             <>
               <p className="we-panel-char-name">{character.name}</p>
-              {worldName && (
-                <p className="we-panel-world-name">{worldName}</p>
-              )}
+              {worldName && <p className="we-panel-world-name">{worldName}</p>}
             </>
           ) : (
             <p className="we-panel-placeholder">尚未选择角色</p>
           )}
         </div>
 
-        {/* 金箔分隔线 */}
         <GoldDivider />
 
         {/* ── 内容区 ── */}
         <div className="we-panel-body">
 
-          {/* 世界状态（可折叠） */}
           <StatusSection
             title="WORLD"
             className="we-status-world"
@@ -257,7 +287,6 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
             collapsible
           />
 
-          {/* 玩家状态（可折叠） */}
           <StatusSection
             title="PLAYER"
             className="we-status-player"
@@ -268,7 +297,6 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
             collapsible
           />
 
-          {/* 角色状态（可折叠） */}
           <StatusSection
             title="CHARACTER"
             className="we-status-character"
@@ -279,37 +307,78 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
             collapsible
           />
 
-          {/* 当前会话时间线（可折叠） */}
+          {/* ── 日记时间线（可折叠） ── */}
           <div className="we-timeline">
             <div
               className="we-state-section-title"
               style={{ cursor: 'pointer', userSelect: 'none' }}
-              onClick={() => setTimelineOpen((o) => !o)}
+              onClick={() => setDiaryOpen((o) => !o)}
             >
-              <Chevron open={timelineOpen} />
+              <Chevron open={diaryOpen} />
               <span className="we-section-label">TIMELINE</span>
               <span className="we-section-rule" />
             </div>
+            {selectedEntry && (
+              <div style={{
+                fontSize: 10,
+                color: 'var(--we-gold-leaf)',
+                padding: '0 4px 4px',
+                fontStyle: 'italic',
+              }}>
+                已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
+              </div>
+            )}
             <div style={{
               display: 'grid',
-              gridTemplateRows: timelineOpen ? '1fr' : '0fr',
+              gridTemplateRows: diaryOpen ? '1fr' : '0fr',
               transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
               overflow: 'hidden',
             }}>
               <div style={{ overflow: 'hidden', minHeight: 0 }}>
-                {timeline === null ? (
+                {diaryEntries === null ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[85, 65, 90].map((w, i) => (
                       <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
                     ))}
                   </div>
-                ) : !hasTimeline ? (
-                  <p className="we-section-empty">暂无记录</p>
+                ) : !hasDiary ? (
+                  <p className="we-section-empty">暂无日记</p>
                 ) : (
                   <div className="we-timeline-list">
-                    {[...timeline].reverse().map((entry, i) => (
-                      <TimelineEntry key={entry.round_index} entry={entry} index={i} />
+                    {recentDiary.map((entry, i) => (
+                      <DiaryEntry
+                        key={entry.date_str}
+                        entry={entry}
+                        index={i}
+                        selected={selectedEntry?.date_str === entry.date_str}
+                        onSelect={handleDiarySelect}
+                      />
                     ))}
+                    {hasMore && (
+                      <>
+                        {diaryExpanded && olderDiary.map((entry, i) => (
+                          <DiaryEntry
+                            key={entry.date_str}
+                            entry={entry}
+                            index={RECENT_LIMIT + i}
+                            selected={selectedEntry?.date_str === entry.date_str}
+                            onSelect={handleDiarySelect}
+                          />
+                        ))}
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--we-ink-faded)',
+                            cursor: 'pointer',
+                            padding: '4px 4px 2px',
+                            userSelect: 'none',
+                          }}
+                          onClick={() => setDiaryExpanded((v) => !v)}
+                        >
+                          {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -317,12 +386,11 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
           </div>
 
         </div>
-      </div>  {/* 滚动内容层 close */}
+      </div>
 
-      {/* ── 悬浮状态卡：固定在面板正中，不随内容滚动 ── */}
+      {/* ── 悬浮状态卡 ── */}
       <AnimatePresence>
         {showFloating && (
-          /* 外层遮罩：覆盖整个面板，flex 居中子卡片，带轻微磨砂 */
           <motion.div
             key="state-overlay"
             initial={{ opacity: 0 }}
@@ -342,18 +410,12 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
               WebkitBackdropFilter: 'blur(1.5px)',
             }}
           >
-            {/* 纯文字浮层：无背景无边框 */}
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{    opacity: 0, y: -4 }}
+              exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 7,
-                userSelect: 'none',
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
             >
               <span style={{
                 fontFamily: 'var(--we-font-display)',
@@ -367,8 +429,6 @@ export default function StatePanel({ sessionId, character, worldId, persona }) {
               }}>
                 {stateJustChanged ? '已整理' : '整理中'}
               </span>
-
-              {/* 跳动三点，已整理时淡出 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',

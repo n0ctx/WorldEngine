@@ -185,6 +185,7 @@ CREATE TABLE sessions (
   mode                TEXT NOT NULL DEFAULT 'chat',                       -- T34：'chat' | 'writing'
   title               TEXT,                      -- 会话标题，NULL 时前端显示 created_at 对应的日期（如 2024-01-15）
   compressed_context  TEXT,                      -- 历史遗留压缩摘要字段；当前保留但默认不参与 prompt 组装，清空聊天时置 NULL
+  diary_date_mode     TEXT,                      -- T155：'virtual' | 'real' | NULL（NULL=日记未开启）；创建时从 config 快照，不可变
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER NOT NULL           -- 最后一条消息的时间，用于排序
 );
@@ -289,6 +290,34 @@ CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, 
 - regenerate 后，旧 assistant 消息被删除，`createTurnRecord` 产出新记录指向新 message
 - `turn_records` 由 SQLite `ON DELETE CASCADE` 随 session 自动级联删除
 - 向量文件 `turn_summaries.json` 的清理通过 `cleanup-registrations.js` 钩子执行
+
+---
+
+### daily_entries — 日记条目（T155）
+
+每次日期跨越后生成一篇日记，该表存储元数据（摘要、日期）。日记正文存为磁盘文件 `data/daily/{sessionId}/{date_str}.md`。
+
+```sql
+CREATE TABLE IF NOT EXISTS daily_entries (
+  id                        TEXT PRIMARY KEY,      -- UUID
+  session_id                TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  date_str                  TEXT NOT NULL,         -- YYYY-MM-DD 格式，虚拟日期/真实日期统一
+  date_display              TEXT NOT NULL,         -- 显示用字符串（如"1000年3月15日"或"2024年3月15日"）
+  summary                   TEXT NOT NULL,         -- 日记开头一两句话摘要（LLM 生成）
+  triggered_by_round_index  INTEGER,               -- 触发本条日记生成的轮次（用于 regenerate 时精准删除）
+  created_at                INTEGER NOT NULL,
+  UNIQUE(session_id, date_str)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str);
+```
+
+说明：
+- `date_str` 精度到日（YYYY-MM-DD），同一 session 同一天只有一条（UPSERT）
+- 日记正文通过 `GET /api/sessions/:id/daily-entries/:dateStr` 读取磁盘文件
+- 磁盘文件路径：`data/daily/{sessionId}/{date_str}.md`；正文 Markdown 格式：`# date\n\nsummary\n\n---\n\nbody`
+- regenerate 时：`triggered_by_round_index >= R` 的条目 + 对应磁盘文件被删除
+- session/character/world 删除时：磁盘目录 `data/daily/{sessionId}/` 通过 `cleanup-registrations.js` 钩子删除；DB 记录由 `ON DELETE CASCADE` 自动清理
 
 ---
 

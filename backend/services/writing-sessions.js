@@ -18,9 +18,13 @@ import {
   deleteMessagesAfter as dbDeleteMessagesAfter,
 } from '../db/queries/messages.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
+import { getConfig } from './config.js';
 
 export function createWritingSession(worldId) {
-  return dbCreateWritingSession(worldId);
+  const config = getConfig();
+  const diaryWriting = config.diary?.writing;
+  const diary_date_mode = diaryWriting?.enabled ? (diaryWriting.date_mode ?? 'virtual') : null;
+  return dbCreateWritingSession(worldId, { diary_date_mode });
 }
 
 export function getWritingSessionsByWorldId(worldId) {

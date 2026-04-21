@@ -35,6 +35,7 @@ import personaStateFieldsRoutes from './routes/persona-state-fields.js';
 import personaStateValuesRoutes from './routes/persona-state-values.js';
 import writingRoutes from './routes/writing.js';
 import sessionTimelineRoutes from './routes/session-timeline.js';
+import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import { resolveUploadPath } from './services/state-values.js';
@@ -139,6 +140,7 @@ export function createApp() {
   app.use('/api', sessionsRoutes);
   app.use('/api/sessions', chatRoutes);
   app.use('/api/sessions', sessionTimelineRoutes);
+  app.use('/api/sessions', dailyEntriesRoutes);
   app.use('/api/sessions', sessionStateValuesRoutes);
   app.use('/api', promptEntriesRoutes);
   app.use('/api', stateFieldsRoutes);

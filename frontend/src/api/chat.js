@@ -55,15 +55,17 @@ async function parseSSEStream(response, callbacks) {
  * 发送消息，返回 abort 函数
  * callbacks 额外支持 onStreamEnd()：流连接实际关闭时触发（晚于 onDone，因为 title_updated 在 done 后发送）
  */
-export function sendMessage(sessionId, content, attachments, callbacks) {
+export function sendMessage(sessionId, content, attachments, callbacks, opts = {}) {
   const controller = new AbortController();
 
   (async () => {
     try {
+      const body = { content, attachments: attachments?.length ? attachments : undefined };
+      if (opts.diaryInjection) body.diaryInjection = opts.diaryInjection;
       const res = await fetch(`/api/sessions/${sessionId}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, attachments: attachments?.length ? attachments : undefined }),
+        body: JSON.stringify(body),
         signal: controller.signal,
       });
       if (!res.ok) {

@@ -107,17 +107,19 @@ export async function listWorldCharacters(worldId) {
 /**
  * 生成（含可选用户输入），返回 abort 函数
  */
-export function generate(worldId, sessionId, content, callbacks) {
+export function generate(worldId, sessionId, content, callbacks, opts = {}) {
   const controller = new AbortController();
 
   (async () => {
     try {
+      const body = { content: content || '' };
+      if (opts.diaryInjection) body.diaryInjection = opts.diaryInjection;
       const res = await fetch(
         `/api/worlds/${worldId}/writing-sessions/${sessionId}/generate`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: content || '' }),
+          body: JSON.stringify(body),
           signal: controller.signal,
         }
       );

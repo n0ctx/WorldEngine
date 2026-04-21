@@ -38,6 +38,18 @@ export const MEMORY_EXPAND_PER_SESSION_MAX_ROUNDS = 30;
 export const WORLD_TIMELINE_RECENT_LIMIT = 5;
 
 // ============================
+// 日记系统（T155）
+// ============================
+/** 虚拟日期字段的保留 field_key（不可修改）*/
+export const DIARY_TIME_FIELD_KEY = '_diary_time';
+/** 虚拟日期字段的固定 update_instruction */
+export const DIARY_TIME_UPDATE_INSTRUCTION = '记录故事中的当前时间，必须包含年月日，可选时分。格式举例：1000年3月15日 或 1000年3月15日14时30分';
+/** 日记面板默认展示条数（最近 N 条展开，其余折叠）*/
+export const DIARY_PANEL_RECENT_LIMIT = 5;
+/** 日记 LLM 生成最大 token 数 */
+export const LLM_DIARY_MAX_TOKENS = 2000;
+
+// ============================
 // 消息查询
 // ============================
 export const ALL_MESSAGES_LIMIT = 9999;

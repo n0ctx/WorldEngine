@@ -242,6 +242,17 @@ CREATE TABLE IF NOT EXISTS turn_records (
   UNIQUE(session_id, round_index)
 );
 
+CREATE TABLE IF NOT EXISTS daily_entries (
+  id                       TEXT PRIMARY KEY,
+  session_id               TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  date_str                 TEXT NOT NULL,      -- 文件名用，如 "1000-03-15"（补零）
+  date_display             TEXT NOT NULL,      -- 显示用，如 "1000年3月15日"
+  summary                  TEXT NOT NULL,      -- LLM 生成的 1-2 句摘要
+  triggered_by_round_index INTEGER,            -- 触发此日记的轮次（删除定位用）
+  created_at               INTEGER NOT NULL,
+  UNIQUE(session_id, date_str)
+);
+
 CREATE TABLE IF NOT EXISTS internal_meta (
   key             TEXT PRIMARY KEY,
   value           TEXT NOT NULL,
@@ -370,6 +381,9 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE turn_records DROP COLUMN asst_context`); } catch {}
   // 状态快照：保存该轮结束时的三层状态，用于 regenerate/删除/编辑后的状态回滚
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT`); } catch {}
+  // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
 }

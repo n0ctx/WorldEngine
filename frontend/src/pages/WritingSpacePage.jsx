@@ -62,6 +62,7 @@ export default function WritingSpacePage() {
   const currentSessionRef = useRef(null);
 
   const [currentOptions, setCurrentOptions] = useState([]);
+  const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
 
   function clearOptionsState() {
     pendingOptionsRef.current = [];
@@ -237,7 +238,9 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
-    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks());
+    const inject = pendingDiaryInject;
+    setPendingDiaryInject(null);
+    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks(), inject ? { diaryInjection: inject } : {});
   }
 
   function handleEditMessage(messageId, newContent) {
@@ -516,6 +519,7 @@ export default function WritingSpacePage() {
         onActiveCharactersChange={setActiveCharacters}
         refreshTick={castRefreshTick}
         persona={persona}
+        onDiaryInject={setPendingDiaryInject}
       />
     </div>
   );

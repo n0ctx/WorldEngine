@@ -55,6 +55,7 @@ export default function ChatPage() {
   const streamingKeyRef = useRef('__stream_init__');
 
   const [currentOptions, setCurrentOptions] = useState([]);
+  const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
 
   const clearOptionsState = useCallback(() => {
     pendingOptionsRef.current = [];
@@ -334,7 +335,9 @@ export default function ChatPage() {
     setGenerating(true);
     setStreamingText('');
 
-    const stop = sendMessage(sessionId, content, attachments, makeCallbacks());
+    const inject = pendingDiaryInject;
+    setPendingDiaryInject(null);
+    const stop = sendMessage(sessionId, content, attachments, makeCallbacks(), inject ? { diaryInjection: inject } : {});
     stopRef.current = stop;
   }
 
@@ -712,6 +715,7 @@ export default function ChatPage() {
         character={character}
         persona={persona}
         worldId={character?.world_id ?? null}
+        onDiaryInject={setPendingDiaryInject}
       />
 
         </div>

@@ -12,6 +12,7 @@ import { registerOnDelete } from '../utils/cleanup-hooks.js';
 import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
 import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
 import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
+import { deleteDiaryDir } from '../memory/diary-generator.js';
 
 import {
   getAttachmentsByMessageId,
@@ -85,6 +86,26 @@ registerOnDelete('character', async (cid) => {
 registerOnDelete('world', async (wid) => {
   for (const sid of getSessionIdsByWorldId(wid)) {
     sessionSummaryVectorStore.deleteBySessionId(sid);
+  }
+});
+
+// ── 日记文件目录 ─────────────────────────────────────────────────
+// 模块：diary-generator — 管理 data/daily/{sessionId}/ 目录
+// daily_entries 表由 ON DELETE CASCADE 自动清理；磁盘文件需手动删除
+
+registerOnDelete('session', async (sid) => {
+  deleteDiaryDir(sid);
+});
+
+registerOnDelete('character', async (cid) => {
+  for (const sid of getSessionIdsByCharacterId(cid)) {
+    deleteDiaryDir(sid);
+  }
+});
+
+registerOnDelete('world', async (wid) => {
+  for (const sid of getSessionIdsByWorldId(wid)) {
+    deleteDiaryDir(sid);
   }
 });
 

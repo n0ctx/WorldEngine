@@ -174,6 +174,7 @@ POST /api/sessions/:sessionId/chat
 | [10] | 角色 Prompt 条目（同上） | — |
 | [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
+| [13+] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [14] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [16] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
 | [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理 | — |
@@ -200,13 +201,14 @@ POST /api/sessions/:sessionId/chat
 
 **触发条件**：流正常完成（非 aborted）且该 session 存在 user 消息。
 
-**优先级**（数字越小越高，1/2/3 不可丢弃，4/5 已废弃，不再入队）：
+**优先级**（数字越小越高，1/2/3/4 不可丢弃；5 已废弃，不再入队）：
 
 | 优先级 | 任务 | 触发条件 |
 |---|---|---|
 | 2 | `generateTitle(sessionId)` | `session.title` 为 NULL 时 |
 | 2 | `updateAllStates(worldId, characterIds, sessionId)` | 每次（角色/世界/玩家状态合并一次调用） |
 | 3 | `createTurnRecord(sessionId)` | 每次（在 updateAllStates 之后入队，捕获本轮结果状态） |
+| 4 | `checkAndGenerateDiary(sessionId, roundIndex)` | 非 isUpdate（createTurnRecord 后入队）；`session.diary_date_mode` 为 NULL 时自动跳过 |
 
 **createTurnRecord 内部流程**（每轮正常完成后执行）：
 
@@ -232,9 +234,27 @@ createTurnRecord(sessionId, { isUpdate? })
 - `session.title` 为 NULL：等 `generateTitle` 完成 → `.then` 推送 `title_updated` → `.finally` 调用 `res.end()`
 - `session.title` 已存在：入队后直接 `res.end()`
 
-**regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。
+**regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
 
 **continue**：续写时不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，仅把 [16] 当前 user 作为锚点，后接 `originalContent` 作为 assistant continuation。完成后入队 `createTurnRecord(sessionId, { isUpdate: true })`，UPSERT 覆盖最后一轮 turn record（不新增轮次）。
+
+**checkAndGenerateDiary 内部流程**（Priority 4，每轮正常完成后执行）：
+
+```
+checkAndGenerateDiary(sessionId, roundIndex)
+  ├─ roundIndex ≤ 1 → 跳过（首轮不做判断）
+  ├─ 取 session.diary_date_mode → NULL 时退出
+  ├─ 取全部 turn_records 快照，比较本轮与上轮日期
+  │    virtual：解析 state_snapshot.world._diary_time → /(\d+)年(\d+)月(\d+)日/
+  │    real：使用 turn_records.created_at 时间戳格式化为 YYYY-MM-DD
+  ├─ 日期未跨越 → 退出
+  ├─ 收集前一日全部 user+assistant 消息原文（via user_message_id/asst_message_id 查 messages）
+  ├─ 读取 backend/prompts/templates/diary-generation.md 模板
+  ├─ LLM.complete() 生成日记（含日期行 + 摘要 + 正文）
+  ├─ 从响应解析 summary（正文第一个 --- 之前的第二段）
+  ├─ writeDiaryFile(sessionId, dateStr, content) → data/daily/{sessionId}/{dateStr}.md
+  └─ upsertDailyEntry(sessionId, { date_str, date_display, summary, triggered_by_round_index })
+```
 
 ---
 
@@ -247,7 +267,7 @@ createTurnRecord(sessionId, { isUpdate? })
 | `renderPersonaState(worldId)` → string | `[玩家状态]` | LEFT JOIN persona_state_fields + values；按 sort_order ASC |
 | `renderCharacterState(characterId)` → string | `[角色状态]` | LEFT JOIN character_state_fields + values；按 sort_order ASC |
 | `renderWorldState(worldId)` → string | `[世界状态]` | LEFT JOIN world_state_fields + values；按 sort_order ASC |
-| `renderTimeline(sessionId, limit=5)` → string | `[会话摘要]` | 取当前会话最近 limit 轮 turn_records 摘要；**不再注入 prompt（[11] 已删），仅供前端 sessionTimeline API 调用** |
+| `renderTimeline(sessionId, limit=5)` → string | `[会话摘要]` | 取当前会话最近 limit 轮 turn_records 摘要；**不再注入 prompt（[11] 已删）；T155 后前端 Timeline 面板改用 daily_entries，此函数已无调用方，保留供兼容** |
 | `searchRecalledSummaries(worldId, sessionId)` → Promise<{recalled, recentMessagesText}> | — | 向量搜索；recalled 数组含 `{ref, turn_record_id, session_id, session_title, round_index, created_at, content, score, is_same_session}` |
 | `renderRecalledSummaries(recalled)` → string | `[历史记忆召回]` | 格式：`#ref（turn_record_id）【date · title · 第N轮】content` |
 

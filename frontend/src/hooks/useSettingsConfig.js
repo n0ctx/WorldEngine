@@ -24,6 +24,10 @@ export function useSettingsConfig() {
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
+  const [diaryChatEnabled, setDiaryChatEnabled] = useState(false);
+  const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
+  const [diaryWritingEnabled, setDiaryWritingEnabled] = useState(false);
+  const [diaryWritingDateMode, setDiaryWritingDateMode] = useState('virtual');
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -45,6 +49,11 @@ export function useSettingsConfig() {
       setWritingSystemPrompt(w.global_system_prompt ?? '');
       setWritingPostPrompt(w.global_post_prompt ?? '');
       setWritingContextRounds(w.context_history_rounds ?? null);
+      const d = c.diary || {};
+      setDiaryChatEnabled(d.chat?.enabled === true);
+      setDiaryChatDateMode(d.chat?.date_mode ?? 'virtual');
+      setDiaryWritingEnabled(d.writing?.enabled === true);
+      setDiaryWritingDateMode(d.writing?.date_mode ?? 'virtual');
       setLoading(false);
     });
   }, [reloadKey]);
@@ -172,6 +181,26 @@ export function useSettingsConfig() {
     await patchConfig({ ui: { auto_collapse_thinking: enabled } });
   }
 
+  async function handleToggleDiaryChatEnabled(enabled) {
+    setDiaryChatEnabled(enabled);
+    await patchConfig({ diary: { chat: { enabled } } });
+  }
+
+  async function handleChangeDiaryChatDateMode(mode) {
+    setDiaryChatDateMode(mode);
+    await patchConfig({ diary: { chat: { date_mode: mode } } });
+  }
+
+  async function handleToggleDiaryWritingEnabled(enabled) {
+    setDiaryWritingEnabled(enabled);
+    await patchConfig({ diary: { writing: { enabled } } });
+  }
+
+  async function handleChangeDiaryWritingDateMode(mode) {
+    setDiaryWritingDateMode(mode);
+    await patchConfig({ diary: { writing: { date_mode: mode } } });
+  }
+
   async function handleImportSuccess() {
     const c = await getConfig();
     setGlobalSystemPrompt(c.global_system_prompt ?? '');
@@ -220,5 +249,15 @@ export function useSettingsConfig() {
       onSaveWriting: handleSaveWritingGeneral,
     },
     onImportSuccess: handleImportSuccess,
+    diaryProps: {
+      chatEnabled: diaryChatEnabled,
+      onToggleChatEnabled: handleToggleDiaryChatEnabled,
+      chatDateMode: diaryChatDateMode,
+      onChangeChatDateMode: handleChangeDiaryChatDateMode,
+      writingEnabled: diaryWritingEnabled,
+      onToggleWritingEnabled: handleToggleDiaryWritingEnabled,
+      writingDateMode: diaryWritingDateMode,
+      onChangeWritingDateMode: handleChangeDiaryWritingDateMode,
+    },
   };
 }

@@ -18,6 +18,8 @@ import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
+import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
+import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
@@ -72,6 +74,15 @@ function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, str
   log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, ...(turnRecordOpts ?? {}) })}`);
   enqueue(sessionId, () => createTurnRecord(sessionId, turnRecordOpts), 3, 'turn-record')
     .catch((err) => log.warn('后台任务失败:', err.message));
+  // 日记检测（P4）：在 turn-record 之后执行，此时快照已写入；
+  // isUpdate=true（续写）时不触发新一天检测（轮次未变）
+  if (!turnRecordOpts?.isUpdate) {
+    enqueue(sessionId, async () => {
+      const latest = getLatestTurnRecord(sessionId);
+      if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+    }, 4, 'diary')
+      .catch((err) => log.warn('日记任务失败:', err.message));
+  }
   return !!(session && !session.title);
 }
 
@@ -104,6 +115,7 @@ async function runStream(sessionId, res, opts = {}) {
           emitSse(res, sid, { type: name, ...payload });
         }
       },
+      diaryInjection: opts.diaryInjection,
     });
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_done', hit: recallHitCount });
     log.info(`CONTEXT DONE  ${formatMeta({
@@ -173,7 +185,7 @@ async function runStream(sessionId, res, opts = {}) {
 
 router.post('/:sessionId/chat', async (req, res) => {
   const { sessionId } = req.params;
-  const { content, attachments } = req.body;
+  const { content, attachments, diaryInjection } = req.body;
 
   if (!content || typeof content !== 'string') {
     return res.status(400).json({ error: 'content is required' });
@@ -182,7 +194,7 @@ router.post('/:sessionId/chat', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
 
-  log.info(`POST /chat  ${formatMeta({ session: sessionId.slice(0, 8), len: content.length, attachments: attachments?.length ?? 0 })}`);
+  log.info(`POST /chat  ${formatMeta({ session: sessionId.slice(0, 8), len: content.length, attachments: attachments?.length ?? 0, hasDiaryInject: !!diaryInjection })}`);
 
   // 保存用户消息
   const userMsg = createMessage({ session_id: sessionId, role: 'user', content });
@@ -194,7 +206,10 @@ router.post('/:sessionId/chat', async (req, res) => {
     log.info(`ATTACHMENTS SAVED  ${formatMeta({ session: sessionId.slice(0, 8), userMsgId: userMsg.id.slice(0, 8), count: attachments.length })}`);
   }
 
-  await runStream(sessionId, res, { userMsgId: userMsg.id });
+  await runStream(sessionId, res, {
+    userMsgId: userMsg.id,
+    diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
+  });
 });
 
 // ── POST /api/sessions/:sessionId/stop ──
@@ -229,6 +244,11 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sessionId.slice(0, 8), keepUntilRound: Math.max(0, R - 1) })}`);
+
+  // 清理被截断轮次之后的日记条目（及对应磁盘文件）
+  const diaryToDelete = getDailyEntriesAfterRound(sessionId, R);
+  for (const e of diaryToDelete) deleteDiaryFile(sessionId, e.date_str);
+  deleteDailyEntriesAfterRound(sessionId, R);
 
   // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
   clearPending(sessionId, 2);
@@ -397,6 +417,12 @@ router.delete('/:sessionId/messages', async (req, res) => {
   await deleteAllMessagesBySessionId(sessionId);
   deleteTurnRecordsBySessionId(sessionId);
   clearCompressedContext(sessionId);
+  // 清理该 session 所有日记（文件由 cleanup-registrations.js session 钩子不处理，需手动删除）
+  const allDiaryEntries = getDailyEntriesAfterRound(sessionId, 0);
+  for (const e of allDiaryEntries) deleteDiaryFile(sessionId, e.date_str);
+  deleteDailyEntriesBySessionId(sessionId);
+  // 清空待处理的日记任务
+  clearPending(sessionId, 4);
 
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   let firstMessage = null;

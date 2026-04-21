@@ -28,6 +28,8 @@ import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { ALL_MESSAGES_LIMIT, LLM_IMPERSONATE_MAX_TOKENS } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
+import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
+import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
@@ -105,6 +107,10 @@ router.delete('/:worldId/writing-sessions/:sessionId/messages', async (req, res)
   await deleteAllMessages(sessionId);
   deleteTurnRecordsBySessionId(sessionId);
   clearCompressedContext(sessionId);
+  const allDiaryEntries = getDailyEntriesAfterRound(sessionId, 0);
+  for (const e of allDiaryEntries) deleteDiaryFile(sessionId, e.date_str);
+  deleteDailyEntriesBySessionId(sessionId);
+  clearPending(sessionId, 4);
   res.json({ success: true });
 });
 
@@ -150,7 +156,7 @@ router.get('/:worldId/characters', (req, res) => {
 
 // ── 流式生成 ──
 
-async function runWritingStream(sessionId, res) {
+async function runWritingStream(sessionId, res, opts = {}) {
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
   const sid = sessionId.slice(0, 8);
@@ -167,7 +173,7 @@ async function runWritingStream(sessionId, res) {
     const onRecallEvent = (name, payload) => {
       if (!streamState.isClientClosed()) sendSse(res, { type: name, ...payload });
     };
-    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent });
+    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
     const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal });
@@ -247,6 +253,10 @@ async function runWritingStream(sessionId, res) {
         // turn record（在状态更新之后入队，捕获本轮结果状态）
         log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
         enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+        enqueue(sessionId, async () => {
+          const latest = getLatestTurnRecord(sessionId);
+          if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+        }, 4, 'diary').catch(err => log.warn('日记任务失败:', err.message));
         return;
       }
 
@@ -256,6 +266,10 @@ async function runWritingStream(sessionId, res) {
       enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
       log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+      enqueue(sessionId, async () => {
+        const latest = getLatestTurnRecord(sessionId);
+        if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+      }, 4, 'diary').catch(err => log.warn('日记任务失败:', err.message));
     }
   }
 
@@ -265,7 +279,7 @@ async function runWritingStream(sessionId, res) {
 // POST /api/worlds/:worldId/writing-sessions/:sessionId/generate
 router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) => {
   const { sessionId } = req.params;
-  const { content } = req.body;
+  const { content, diaryInjection } = req.body;
 
   const session = dbGetWritingSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
@@ -277,7 +291,9 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
     log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: content.trim().length })}`);
   }
 
-  await runWritingStream(sessionId, res);
+  await runWritingStream(sessionId, res, {
+    diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
+  });
 });
 
 // POST /api/worlds/:worldId/writing-sessions/:sessionId/stop
@@ -426,6 +442,11 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+
+  // 清理被截断轮次之后的日记条目
+  const diaryToDelete = getDailyEntriesAfterRound(sessionId, R);
+  for (const e of diaryToDelete) deleteDiaryFile(sessionId, e.date_str);
+  deleteDailyEntriesAfterRound(sessionId, R);
 
   // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
   clearPending(sessionId, 2);

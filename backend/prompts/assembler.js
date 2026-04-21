@@ -148,7 +148,7 @@ export const __testables = {
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
  */
 export async function buildPrompt(sessionId, options = {}) {
-  const { onRecallEvent } = options;
+  const { onRecallEvent, diaryInjection } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -262,6 +262,12 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
+  // [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
+  if (diaryInjection && typeof diaryInjection === 'string') {
+    systemParts.push(`[日记注入]\n${diaryInjection}`);
+    log.debug('│  [diary] injection applied');
+  }
+
   const messages = [];
 
   // system parts 合并为 1 条 system 消息
@@ -313,7 +319,7 @@ export async function buildPrompt(sessionId, options = {}) {
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
-  const { onRecallEvent } = options;
+  const { onRecallEvent, diaryInjection } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -439,6 +445,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     } else {
       onRecallEvent?.('memory_expand_done', { expanded: [] });
     }
+  }
+
+  // [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
+  if (diaryInjection && typeof diaryInjection === 'string') {
+    systemParts.push(`[日记注入]\n${diaryInjection}`);
+    log.debug('│  [diary] injection applied (writing)');
   }
 
   const messages = [];

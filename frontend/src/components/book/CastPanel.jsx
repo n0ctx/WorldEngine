@@ -11,7 +11,7 @@ import {
   fetchSessionCharacterStateValues,
   resetSessionCharacterStateValuesByChar,
 } from '../../api/session-state-values.js';
-import { fetchSessionTimeline } from '../../api/session-timeline.js';
+import { fetchDailyEntries, fetchDiaryContent } from '../../api/daily-entries.js';
 import { activateCharacter, deactivateCharacter } from '../../api/writing-sessions.js';
 
 function Chevron({ open }) {
@@ -32,43 +32,29 @@ function Chevron({ open }) {
   );
 }
 
-function TimelineSection({ rows }) {
-  const [open, setOpen] = useState(true);
+const DIARY_RECENT_LIMIT = 5;
+
+function DiaryEntry({ entry, index, selected, onSelect }) {
   return (
-    <div className="we-timeline">
-      <div
-        className="we-state-section-title"
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <Chevron open={open} />
-        <span className="we-section-label">TIMELINE</span>
-        <span className="we-section-rule" />
-      </div>
-      <div style={{
-        display: 'grid',
-        gridTemplateRows: open ? '1fr' : '0fr',
-        transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-        overflow: 'hidden',
-      }}>
-        <div style={{ overflow: 'hidden', minHeight: 0 }}>
-          {!rows && <p className="we-section-empty">加载中…</p>}
-          {rows && rows.length === 0 && <p className="we-section-empty">暂无记录</p>}
-          {rows && rows.length > 0 && (
-            <ul className="we-timeline-list">
-              {rows.map((row) => (
-                <li key={row.round_index} className="we-timeline-entry">
-                  <span className="we-timeline-dot">·</span>
-                  <span className="we-timeline-text">
-                    <em className="we-timeline-round">第{row.round_index}轮</em>
-                    {' '}{row.summary}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
+    <div
+      className="we-timeline-entry"
+      style={{
+        animationDelay: `${index * 50}ms`,
+        cursor: 'pointer',
+        borderRadius: 4,
+        padding: '2px 4px',
+        background: selected ? 'var(--we-gold-leaf)' : 'transparent',
+        opacity: selected ? 0.9 : 1,
+        transition: 'background 0.18s ease',
+      }}
+      onClick={() => onSelect(entry)}
+      title="点击注入下轮提示词"
+    >
+      <span className="we-timeline-dot">·</span>
+      <span className="we-timeline-text">
+        <em className="we-timeline-round">{entry.date_display}</em>
+        {' '}{entry.summary}
+      </span>
     </div>
   );
 }
@@ -224,7 +210,7 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
   );
 }
 
-export default function CastPanel({ worldId, sessionId, activeCharacters, onActiveCharactersChange, refreshTick = 0, persona }) {
+export default function CastPanel({ worldId, sessionId, activeCharacters, onActiveCharactersChange, refreshTick = 0, persona, onDiaryInject }) {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState([]);
 
@@ -232,8 +218,13 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
-  const [timeline, setTimeline] = useState(null);
+  const [diaryEntries, setDiaryEntries] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
+
+  // 日记折叠/展开
+  const [diaryOpen, setDiaryOpen] = useState(true);
+  const [diaryExpanded, setDiaryExpanded] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
   useEffect(() => {
     if (activeCharacters.length > 0) {
@@ -243,41 +234,44 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     }
   }, [activeCharacters.length]);
 
-  // 初始加载世界/玩家/时间线
+  // sessionId 变化时清空已选日记
+  useEffect(() => { setSelectedEntry(null); }, [sessionId]);
+
+  // 初始加载世界/玩家/日记
   useEffect(() => {
     if (!sessionId) {
       setStateData({ world: [], persona: [] });
-      setTimeline([]);
+      setDiaryEntries([]);
       return;
     }
     setStateData(null);
-    setTimeline(null);
+    setDiaryEntries(null);
 
     fetchSessionStateValues(sessionId)
       .then((data) => setStateData({ world: data.world, persona: data.persona }))
       .catch(() => setStateData({ world: [], persona: [] }));
-    fetchSessionTimeline(sessionId).then(setTimeline).catch(() => setTimeline([]));
+    fetchDailyEntries(sessionId).then(setDiaryEntries).catch(() => setDiaryEntries([]));
   }, [sessionId]);
 
   // 轮询：AI 回复后感知异步状态更新
   useEffect(() => {
     if (refreshTick === 0 || !sessionId) return;
     setIsPolling(true);
-    const snapshot = JSON.stringify([stateData, timeline]);
+    const snapshot = JSON.stringify([stateData, diaryEntries]);
 
     let intervalId;
     let timeoutId;
 
     intervalId = setInterval(async () => {
       try {
-        const [newData, newTimeline] = await Promise.all([
+        const [newData, newDiary] = await Promise.all([
           fetchSessionStateValues(sessionId),
-          fetchSessionTimeline(sessionId),
+          fetchDailyEntries(sessionId),
         ]);
-        const current = JSON.stringify([{ world: newData.world, persona: newData.persona }, newTimeline]);
+        const current = JSON.stringify([{ world: newData.world, persona: newData.persona }, newDiary]);
         if (current !== snapshot) {
           setStateData({ world: newData.world, persona: newData.persona });
-          setTimeline(newTimeline);
+          setDiaryEntries(newDiary);
           setIsPolling(false);
           clearInterval(intervalId);
           clearTimeout(timeoutId);
@@ -318,6 +312,21 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
       setStateData({ world: newData.world, persona: newData.persona });
     } catch (e) { console.error(e); }
     finally { setPersonaResetting(false); }
+  }
+
+  async function handleDiarySelect(entry) {
+    if (selectedEntry?.date_str === entry.date_str) {
+      setSelectedEntry(null);
+      onDiaryInject?.(null);
+      return;
+    }
+    setSelectedEntry(entry);
+    try {
+      const content = await fetchDiaryContent(sessionId, entry.date_str);
+      onDiaryInject?.(content);
+    } catch (e) {
+      console.error('获取日记内容失败', e);
+    }
   }
 
   function toggleExpand(charId) {
@@ -499,8 +508,92 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           )}
         </div>
 
-        {/* 会话时间线 */}
-        <TimelineSection rows={timeline} />
+        {/* 日记时间线 */}
+        {(() => {
+          const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
+          const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
+          const recentDiary = reversedDiary.slice(0, DIARY_RECENT_LIMIT);
+          const olderDiary = reversedDiary.slice(DIARY_RECENT_LIMIT);
+          const hasMore = olderDiary.length > 0;
+          return (
+            <div className="we-timeline">
+              <div
+                className="we-state-section-title"
+                style={{ cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setDiaryOpen((o) => !o)}
+              >
+                <Chevron open={diaryOpen} />
+                <span className="we-section-label">TIMELINE</span>
+                <span className="we-section-rule" />
+              </div>
+              {selectedEntry && (
+                <div style={{
+                  fontSize: 10,
+                  color: 'var(--we-gold-leaf)',
+                  padding: '0 4px 4px',
+                  fontStyle: 'italic',
+                }}>
+                  已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
+                </div>
+              )}
+              <div style={{
+                display: 'grid',
+                gridTemplateRows: diaryOpen ? '1fr' : '0fr',
+                transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflow: 'hidden',
+              }}>
+                <div style={{ overflow: 'hidden', minHeight: 0 }}>
+                  {diaryEntries === null ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[85, 65, 90].map((w, i) => (
+                        <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
+                      ))}
+                    </div>
+                  ) : !hasDiary ? (
+                    <p className="we-section-empty">暂无日记</p>
+                  ) : (
+                    <div className="we-timeline-list">
+                      {recentDiary.map((entry, i) => (
+                        <DiaryEntry
+                          key={entry.date_str}
+                          entry={entry}
+                          index={i}
+                          selected={selectedEntry?.date_str === entry.date_str}
+                          onSelect={handleDiarySelect}
+                        />
+                      ))}
+                      {hasMore && (
+                        <>
+                          {diaryExpanded && olderDiary.map((entry, i) => (
+                            <DiaryEntry
+                              key={entry.date_str}
+                              entry={entry}
+                              index={DIARY_RECENT_LIMIT + i}
+                              selected={selectedEntry?.date_str === entry.date_str}
+                              onSelect={handleDiarySelect}
+                            />
+                          ))}
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--we-ink-faded)',
+                              cursor: 'pointer',
+                              padding: '4px 4px 2px',
+                              userSelect: 'none',
+                            }}
+                            onClick={() => setDiaryExpanded((v) => !v)}
+                          >
+                            {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <AnimatePresence>
           {addModalOpen && (

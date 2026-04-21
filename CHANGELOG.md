@@ -21,6 +21,7 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T155` `feat` 日记系统 — sessions 新增 diary_date_mode；新增 daily_entries 表；Priority 4 checkAndGenerateDiary；前端 Timeline 面板改为展示日记摘要；日记注入 [13+] 段
 - `T151` `feat` 状态回滚机制 — turn_records 新增 state_snapshot 字段；createTurnRecord 在优先级 2 状态更新后捕获三层 session 级状态快照；regenerate/删除消息/编辑消息后从快照恢复，无快照时降级清空回 default；新增 backend/memory/state-rollback.js（captureStateSnapshot/restoreStateFromSnapshot）
 - `T150` `refactor` turn_records 改为指针模式，历史消息链路清理 — turn_records 新增 user_message_id/asst_message_id 列（指针），不再复制消息内容；summary-expander 展开原文优先查 messages 表，旧数据回退 user_context/asst_context；delete all messages 同步清除 turn_records；修复 assembler.js/SCHEMA.md 过时注释
 - `T148` `feat` MOTION.md 动效规范落地 — motion.js 重写（DURATION/EASE/STAGGER/BLUR/variants/transitions），tokens.css 补 --we-dur-* 变量，新增 useMotion hook，PageTransition 实现路由过渡，WritingMessageItem 补 inkRise，SealStamp/ModalShell/SectionTabs 对齐规范参数
@@ -68,6 +69,23 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T155 — feat: 日记系统（Timeline 重构）✅
+- **对外接口**：
+  - `GET /api/sessions/:id/daily-entries` → `{ items: [{date_str, date_display, summary, triggered_by_round_index, created_at}] }`
+  - `GET /api/sessions/:id/daily-entries/:dateStr` → `{ content: "..." }`（读磁盘文件）
+  - `POST /chat` + `POST /generate` 新增 body 参数 `diaryInjection?: string`，注入 [13+] 段
+  - `checkAndGenerateDiary(sessionId, roundIndex)` 异步 Priority 4 任务入口
+- **涉及文件**：
+  - 新增：`backend/db/queries/daily-entries.js`、`backend/memory/diary-generator.js`、`backend/routes/daily-entries.js`、`backend/prompts/templates/diary-generation.md`、`frontend/src/api/daily-entries.js`、`frontend/src/components/settings/DiaryConfigPanel.jsx`
+  - 修改：`backend/db/schema.js`（sessions 加 diary_date_mode；新建 daily_entries 表）、`backend/utils/constants.js`（4 个新常量）、`backend/services/config.js`（diary 配置块）、`backend/services/sessions.js`、`backend/services/writing-sessions.js`（创建时读 config.diary 决定 diary_date_mode）、`backend/services/worlds.js`（新世界自动创建 _diary_time 字段）、`backend/routes/chat.js`（P4 入队、regenerate 清理、diaryInjection）、`backend/routes/writing.js`（同上）、`backend/prompts/assembler.js`（[13+] 日记注入段）、`backend/services/cleanup-registrations.js`（diary 文件钩子）、`frontend/src/api/chat.js`、`frontend/src/api/writing-sessions.js`（支持 opts.diaryInjection）、`frontend/src/components/book/StatePanel.jsx`、`frontend/src/components/book/CastPanel.jsx`（Timeline 改为日记面板）、`frontend/src/pages/ChatPage.jsx`、`frontend/src/pages/WritingSpacePage.jsx`（pendingDiaryInject 状态）、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/hooks/useSettingsConfig.js`、`frontend/src/components/settings/_settings-constants.js`
+- **注意**：
+  - `diary_date_mode` 在 session 创建时从 config 快照，之后不可变；旧 session 的 `diary_date_mode` 为 NULL，自动跳过日记生成
+  - `_diary_time` 字段的 field_key 硬编码为 `DIARY_TIME_FIELD_KEY = '_diary_time'`，只在 virtual 模式下用于日期解析
+  - real 模式直接使用 `turn_records.created_at` 时间戳，不依赖 `_diary_time` 字段
+  - 日记注入为一次性（前端发送后 `setPendingDiaryInject(null)` 清空）；注入内容位于 system 段 [13] 之后、[14] 历史消息之前
+  - 日记正文格式：`# {date_display}\n\n{summary}\n\n---\n\n{body}`；摘要通过解析 `---` 分隔符前第二段自动提取
+  - 前端 Timeline 面板不再调用 `session-timeline.js` API；`renderTimeline` / `fetchSessionTimeline` 已无前端调用方（保留供兼容）
 
 ## T154 — chore: 补前端页面/assistant HTTP/写作 E2E 首批回归测试 ✅
 - **对外接口**：无新业务接口；新增测试覆盖 `ChatPage`、`WritingSpacePage`、`SettingsPage` 页面编排，`assistant /api/assistant/chat|execute` HTTP 闭环，以及写作空间 Playwright 真实收发

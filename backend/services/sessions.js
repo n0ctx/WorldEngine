@@ -22,13 +22,17 @@ import {
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 
 import { getCharacterById } from '../db/queries/characters.js';
+import { getConfig } from './config.js';
 
 /**
  * 创建会话；若角色有 first_message 则自动插入开场白
  */
 export function createSession(characterId) {
   const character = getCharacterById(characterId);
-  const session = dbCreateSession(characterId);
+  const config = getConfig();
+  const diaryChat = config.diary?.chat;
+  const diary_date_mode = diaryChat?.enabled ? (diaryChat.date_mode ?? 'virtual') : null;
+  const session = dbCreateSession(characterId, { diary_date_mode });
 
   if (character && character.first_message) {
     dbCreateMessage({

@@ -61,6 +61,10 @@ const DEFAULT_CONFIG = {
       max_tokens: null,
     },
   },
+  diary: {
+    chat: { enabled: false, date_mode: 'virtual' },
+    writing: { enabled: false, date_mode: 'virtual' },
+  },
 };
 
 const DEFAULT_WRITING = {
@@ -74,6 +78,11 @@ const DEFAULT_WRITING = {
     temperature: null,
     max_tokens: null,
   },
+};
+
+const DEFAULT_DIARY = {
+  chat: { enabled: false, date_mode: 'virtual' },
+  writing: { enabled: false, date_mode: 'virtual' },
 };
 
 const DEFAULT_LOGGING = {
@@ -205,6 +214,16 @@ export function getConfig() {
       config.writing.llm = structuredClone(DEFAULT_WRITING.llm);
     }
     config.writing = { ...DEFAULT_WRITING, ...config.writing, llm: { ...DEFAULT_WRITING.llm, ...config.writing.llm } };
+  }
+
+  // 补全 diary 命名空间（旧配置文件无此字段）
+  if (!config.diary || typeof config.diary !== 'object') {
+    config.diary = structuredClone(DEFAULT_DIARY);
+  } else {
+    config.diary = {
+      chat: { ...DEFAULT_DIARY.chat, ...(config.diary.chat || {}) },
+      writing: { ...DEFAULT_DIARY.writing, ...(config.diary.writing || {}) },
+    };
   }
 
   return config;

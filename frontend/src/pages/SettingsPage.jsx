@@ -8,6 +8,7 @@ import AboutPanel from '../components/settings/AboutPanel';
 import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
+import DiaryConfigPanel from '../components/settings/DiaryConfigPanel';
 import { NAV_SECTIONS } from '../components/settings/_settings-constants';
 
 export default function SettingsPage() {
@@ -16,7 +17,7 @@ export default function SettingsPage() {
   const isOverlay = !!location.state?.backgroundLocation;
   const [activeSection, setActiveSection] = useState('llm');
   const [settingsMode, setSettingsMode] = useState('chat');
-  const { loading, llmProps, promptProps, onImportSuccess } = useSettingsConfig();
+  const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
 
   function handleBack() {
     if (isOverlay) { navigate(-1); return; }
@@ -78,6 +79,15 @@ export default function SettingsPage() {
           {activeSection === 'prompt' && (
             <div className="we-settings-section">
               <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
+            </div>
+          )}
+          {activeSection === 'diary' && (
+            <div className="we-settings-section">
+              <DiaryConfigPanel
+                {...diaryProps}
+                settingsMode={settingsMode}
+                onModeChange={setSettingsMode}
+              />
             </div>
           )}
           {activeSection === 'css' && (

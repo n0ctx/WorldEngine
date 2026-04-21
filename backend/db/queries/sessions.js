@@ -3,14 +3,16 @@ import db from '../index.js';
 
 /**
  * 创建会话，title 默认 NULL
+ * @param {string} characterId
+ * @param {{ diary_date_mode?: string|null }} [opts]
  */
-export function createSession(characterId) {
+export function createSession(characterId, { diary_date_mode = null } = {}) {
   const id = crypto.randomUUID();
   const now = Date.now();
   db.prepare(`
-    INSERT INTO sessions (id, character_id, title, created_at, updated_at)
-    VALUES (?, ?, NULL, ?, ?)
-  `).run(id, characterId, now, now);
+    INSERT INTO sessions (id, character_id, title, diary_date_mode, created_at, updated_at)
+    VALUES (?, ?, NULL, ?, ?, ?)
+  `).run(id, characterId, diary_date_mode, now, now);
   return getSessionById(id);
 }
 
