@@ -6,6 +6,7 @@ import {
   updateWorld,
   deleteWorld,
   ensureDiaryTimeField,
+  clearAllDiaryData,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -48,6 +49,12 @@ router.delete('/:id', async (req, res) => {
   if (!assertExists(res, existing, '世界不存在')) return;
   await deleteWorld(req.params.id);
   res.status(204).end();
+});
+
+// POST /api/worlds/clear-all-diaries — 清除所有会话的日记数据（用户关闭日记功能时调用）
+router.post('/clear-all-diaries', (_req, res) => {
+  clearAllDiaryData();
+  res.json({ ok: true });
 });
 
 // POST /api/worlds/:id/sync-diary — 根据当前日记配置同步 diary_time 字段

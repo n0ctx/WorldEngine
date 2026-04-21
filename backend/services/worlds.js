@@ -18,6 +18,9 @@ import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION } from '../utils/co
 import { upsertPersona } from '../db/queries/personas.js';
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
+import { getSessionIdsByWorldId } from '../db/queries/characters.js';
+import { deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
+import { deleteDiaryDir } from '../memory/diary-generator.js';
 
 function getInitialValueJson(field) {
   return field.default_value ?? null;
@@ -108,4 +111,19 @@ export function updateWorld(id, patch) {
 export async function deleteWorld(id) {
   await runOnDelete('world', id);
   return dbDeleteWorld(id);
+}
+
+/**
+ * 清除所有世界所有会话的日记数据（DB 条目 + 磁盘文件）。
+ * 在全局日记功能关闭时由用户确认后调用。
+ */
+export function clearAllDiaryData() {
+  const worlds = dbGetAllWorlds();
+  for (const world of worlds) {
+    const sessionIds = getSessionIdsByWorldId(world.id);
+    for (const sessionId of sessionIds) {
+      deleteDailyEntriesBySessionId(sessionId);
+      deleteDiaryDir(sessionId);
+    }
+  }
 }

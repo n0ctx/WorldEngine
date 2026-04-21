@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
+import { clearAllDiaries } from '../../api/world-state-fields';
 
 function ToggleRow({ label, hint, checked, onChange }) {
   return (
@@ -16,6 +18,39 @@ function ToggleRow({ label, hint, checked, onChange }) {
         )}
       </div>
       <ToggleSwitch checked={checked} onChange={onChange} />
+    </div>
+  );
+}
+
+function DiaryDisableConfirm({ diaryLabel, onConfirm, onClose }) {
+  const [loading, setLoading] = useState(false);
+  async function handle() {
+    setLoading(true);
+    try {
+      await onConfirm();
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+      <div className="we-dialog-panel w-full max-w-sm mx-4" style={{ padding: '24px' }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '17px', fontWeight: 400, fontStyle: 'italic', color: 'var(--we-ink-primary)', marginBottom: '10px' }}>
+          关闭{diaryLabel}
+        </h2>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-secondary)', marginBottom: '6px' }}>
+          关闭后将删除所有已生成的日记记录（包括数据库条目和本地文件），此操作不可撤销。
+        </p>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: '20px' }}>
+          确认要继续吗？
+        </p>
+        <div className="flex justify-end gap-3">
+          <button onClick={onClose} disabled={loading} className="we-btn we-btn-sm we-btn-secondary">取消</button>
+          <button onClick={handle} disabled={loading} className="we-btn we-btn-sm we-btn-danger">
+            {loading ? '处理中…' : '确认关闭并删除'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -36,6 +71,23 @@ export default function MemoryConfigPanel({
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
   const onDateMode = isChat ? onChangeChatDateMode : onChangeWritingDateMode;
+  const diaryLabel = isChat ? '对话日记' : '写作日记';
+
+  const [confirmPending, setConfirmPending] = useState(false);
+
+  function handleDiaryToggle(enabled) {
+    if (!enabled && diaryEnabled) {
+      setConfirmPending(true);
+    } else {
+      onToggleDiary(enabled);
+    }
+  }
+
+  async function handleConfirmDisable() {
+    await onToggleDiary(false);
+    await clearAllDiaries().catch(() => {});
+    setConfirmPending(false);
+  }
 
   return (
     <div>
@@ -53,12 +105,12 @@ export default function MemoryConfigPanel({
         <hr className="we-settings-divider" />
 
         <ToggleRow
-          label={isChat ? '对话日记' : '写作日记'}
+          label={diaryLabel}
           hint={isChat
             ? '开启后对话空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'
             : '开启后写作空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'}
           checked={diaryEnabled}
-          onChange={onToggleDiary}
+          onChange={handleDiaryToggle}
         />
 
         {diaryEnabled && (
@@ -96,6 +148,14 @@ export default function MemoryConfigPanel({
           </div>
         )}
       </div>
+
+      {confirmPending && (
+        <DiaryDisableConfirm
+          diaryLabel={diaryLabel}
+          onConfirm={handleConfirmDisable}
+          onClose={() => setConfirmPending(false)}
+        />
+      )}
     </div>
   );
 }

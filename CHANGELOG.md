@@ -21,6 +21,7 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T161` `feat` 关闭日记时清除历史记录 + 确认弹窗 — `clearAllDiaryData()` 遍历所有世界所有会话清除 DB+文件；`POST /api/worlds/clear-all-diaries` 路由；MemoryConfigPanel 关闭 toggle 时先弹确认再执行；diary_time 字段由 syncDiaryTimeField 在页面进入时自动删除
 - `T160` `feat` 写作空间 CastPanel 补"整理中/已整理"overlay — 对齐 StatePanel 轮询逻辑；加 `pollingHasChanged`/`stateJustChanged`；移除旧内联"更新中…"文字；`motion` 补入 framer-motion 导入
 - `T159` `feat` 状态更新后台阻塞下轮 prompt 组装 + 输入立即解锁 — 新增 `state-update-tracker.js`；`onDone` 时立即 `setGenerating(false)` + `triggerMemoryRefresh`；下轮请求 `buildContext`/`buildWritingPrompt` 前 `awaitPendingStateUpdate`；StatePanel 恢复纯轮询 overlay；`state_updating`/`state_updated` SSE 事件全部清除
 - `T158` `bugfix` 用户气泡编辑不变内容不重新生成 — 三处 confirmEdit（MessageItem/WritingMessageItem/assistant MessageList）改用 `editInitContentRef` 快照初始内容，比较 `trimmed !== initContent.trim()`；防止 prop 在编辑期间变化或空白字符差异导致误触重新生成
@@ -74,6 +75,11 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T161 — feat: 关闭日记时清除历史记录 + 确认弹窗 ✅
+- **对外接口**：`clearAllDiaryData()` in `backend/services/worlds.js`；`POST /api/worlds/clear-all-diaries`；`clearAllDiaries()` in `frontend/src/api/world-state-fields.js`
+- **涉及文件**：`backend/services/worlds.js`、`backend/routes/worlds.js`、`frontend/src/api/world-state-fields.js`、`frontend/src/components/settings/MemoryConfigPanel.jsx`
+- **注意**：`/clear-all-diaries` 路由必须在 `/:id/sync-diary` 之前注册（避免路径歧义）；`clearAllDiaryData()` 清空所有世界所有会话，不区分 chat/writing mode；diary_time 字段的删除由 `syncDiaryTimeField` 在页面进入时触发，不在此函数中处理
 
 ## T158 — feat: diary_time 字段重构与日记日期切换修复 ✅
 - **对外接口**：
