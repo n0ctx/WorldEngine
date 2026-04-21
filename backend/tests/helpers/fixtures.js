@@ -66,8 +66,8 @@ export function insertSession(db, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO sessions (id, character_id, world_id, mode, title, compressed_context, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, character_id, world_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     patch.character_id ?? null,
@@ -75,6 +75,7 @@ export function insertSession(db, patch = {}) {
     patch.mode ?? 'chat',
     patch.title ?? null,
     patch.compressed_context ?? null,
+    patch.diary_date_mode ?? null,
     now,
     patch.updated_at ?? now,
   );
@@ -176,8 +177,8 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     sessionId,
@@ -185,6 +186,7 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
     patch.summary ?? '摘要',
     patch.user_message_id ?? null,
     patch.asst_message_id ?? null,
+    patch.state_snapshot ?? null,
     now,
   );
   return { id, session_id: sessionId, ...patch, created_at: now };
