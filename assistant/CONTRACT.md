@@ -48,6 +48,14 @@ skill 成功生成提案时发送。
 { "type": "proposal", "taskId": "sk-xxxxxxxx", "token": "uuid", "proposal": {} }
 ```
 
+#### `tool_call`
+
+主代理调用读取类工具（`preview_card` / `read_file`）时发送，用于前端显示进度提示。子代理调用不发此事件（由 `routing` 覆盖）。
+
+```json
+{ "type": "tool_call", "name": "preview_card" }
+```
+
 #### `thinking`
 
 skill 执行中的心跳（每 5 秒一次）。

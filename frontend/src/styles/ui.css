@@ -130,6 +130,8 @@
 }
 .we-textarea {
   resize: vertical;
+  align-self: flex-start;
+  width: 100%;
 }
 
 /* ── Card ── */

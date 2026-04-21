@@ -24,7 +24,8 @@ const log = createLogger('as-agent', 'cyan');
 const PROPOSAL_TTL_MS = 30 * 60 * 1000;
 
 function sendSSE(res, data) {
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
+  if (res.writableEnded) return;
+  try { res.write(`data: ${JSON.stringify(data)}\n\n`); } catch { /* 客户端已断连 */ }
 }
 
 function loadAgentPrompt(agentName) {

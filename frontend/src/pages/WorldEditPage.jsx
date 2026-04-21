@@ -98,6 +98,7 @@ export default function WorldEditPage() {
         temperature: temperature === '' ? null : Number(temperature),
         max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
       });
+      window.dispatchEvent(new Event('we:world-updated'));
       navigate(-1);
     } catch (e) {
       setSaveError(e.message);

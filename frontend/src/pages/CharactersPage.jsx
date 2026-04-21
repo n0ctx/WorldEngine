@@ -12,13 +12,13 @@ import { importCharacter, readJsonFile } from '../api/import-export';
 import { listCharacterStateFields } from '../api/character-state-fields';
 import { getPersona } from '../api/personas';
 
-function PersonaCard({ worldId, onEdit }) {
+function PersonaCard({ worldId, refreshKey, onEdit }) {
   const [persona, setPersona] = useState(null);
 
   useEffect(() => {
     if (!worldId) return;
     getPersona(worldId).then(setPersona).catch(() => {});
-  }, [worldId]);
+  }, [worldId, refreshKey]);
 
   const avatarUrl = persona ? getAvatarUrl(persona.avatar_path) : null;
   const avatarColor = getAvatarColor(persona?.id || worldId);
@@ -213,9 +213,11 @@ export default function CharactersPage() {
     const h = () => setReloadKey((k) => k + 1);
     window.addEventListener('we:world-updated', h);
     window.addEventListener('we:character-updated', h);
+    window.addEventListener('we:persona-updated', h);
     return () => {
       window.removeEventListener('we:world-updated', h);
       window.removeEventListener('we:character-updated', h);
+      window.removeEventListener('we:persona-updated', h);
     };
   }, []);
 
@@ -333,6 +335,7 @@ export default function CharactersPage() {
       {/* 玩家人设卡片 */}
       <PersonaCard
         worldId={worldId}
+        refreshKey={reloadKey}
         onEdit={() => navigate(`/worlds/${worldId}/persona`)}
       />
 

@@ -289,15 +289,16 @@ export async function buildPrompt(sessionId, options = {}) {
     world.post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
-  if (config.suggestion_enabled) postParts.push(SUGGESTION_PROMPT);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
 
   // [16] 当前用户消息（最新 1 条 user）
+  // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
+    let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
+    if (config.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
@@ -470,15 +471,16 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
   const postParts = [writing.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
-  if (writing.suggestion_enabled) postParts.push(SUGGESTION_PROMPT);
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
 
   // [16] 当前用户消息
+  // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
+    let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
+    if (writing.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 

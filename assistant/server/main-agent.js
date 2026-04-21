@@ -22,6 +22,9 @@ function loadPrompt(name) {
   return readFileSync(path.resolve(__dirname, '../prompts', name), 'utf-8');
 }
 
+// 只拦截这两个读取类工具，子代理通过自身 routing/proposal 事件汇报
+const READ_TOOLS = new Set(['preview_card', 'read_file']);
+
 /**
  * 主代理入口（单 Agent，tool-use 架构）
  *
@@ -31,13 +34,14 @@ function loadPrompt(name) {
  *    执行子代理调用时会向 SSE 流发送 routing / proposal 事件
  * 2. llm.chat() — 流式生成最终回复
  *
- * @param {string} message   用户消息
- * @param {Array}  history   历史消息 [{ role, content }]
- * @param {object} context   { world, character, config, worldId, characterId }
- * @param {Array}  tools     按请求绑定的完整工具集
+ * @param {string} message       用户消息
+ * @param {Array}  history       历史消息 [{ role, content }]
+ * @param {object} context       { world, character, config, worldId, characterId }
+ * @param {Array}  tools         按请求绑定的完整工具集
+ * @param {object} [options]     { onToolCall?: (name, args) => void }
  * @returns {AsyncGenerator<string>}
  */
-export async function* runAgent(message, history, context, tools) {
+export async function* runAgent(message, history, context, tools, { onToolCall } = {}) {
   const systemPrompt = loadPrompt('main.md').replace('{{CONTEXT}}', buildContextString(context));
 
   const chatHistory = history
@@ -51,10 +55,25 @@ export async function* runAgent(message, history, context, tools) {
     { role: 'user', content: message },
   ];
 
+  // 包装读取类工具，执行前通知调用方（用于前端显示进度提示）
+  const instrumentedTools = onToolCall
+    ? tools.map((tool) => {
+        const name = tool.function?.name;
+        if (!READ_TOOLS.has(name) || typeof tool.execute !== 'function') return tool;
+        return {
+          ...tool,
+          execute: async (args) => {
+            onToolCall(name, args);
+            return tool.execute(args);
+          },
+        };
+      })
+    : tools;
+
   log.info(`START  ${formatMeta({ msg: previewText(message, { limit: 120 }), history: chatHistory.length, tools: tools.length })}`);
 
   // 阶段 1：工具调用循环（研究 + 分发执行子代理）
-  const enrichedMessages = await llm.resolveToolContext(messages, tools, { temperature: 0 });
+  const enrichedMessages = await llm.resolveToolContext(messages, instrumentedTools, { temperature: 0 });
 
   // 阶段 2：流式回复
   log.info(`STREAM  ${formatMeta({ enriched: enrichedMessages.length - messages.length })}`);

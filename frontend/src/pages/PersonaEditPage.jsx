@@ -60,6 +60,7 @@ export default function PersonaEditPage() {
     try {
       const result = await uploadPersonaAvatar(worldId, file);
       setAvatarPath(result.avatar_path);
+      window.dispatchEvent(new Event('we:persona-updated'));
     } catch (err) {
       alert(`头像上传失败：${err.message}`);
     } finally {
@@ -72,6 +73,7 @@ export default function PersonaEditPage() {
     setSaving(true);
     try {
       await updatePersona(worldId, { name, system_prompt: systemPrompt });
+      window.dispatchEvent(new Event('we:persona-updated'));
       navigate(-1);
     } catch (err) {
       alert(`保存失败：${err.message}`);

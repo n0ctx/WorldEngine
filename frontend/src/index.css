@@ -236,6 +236,8 @@ body {
   padding: 10px 14px;
   overflow-y: auto;
   resize: vertical;
+  align-self: flex-start;
+  width: 100%;
   min-height: 60px;
   box-sizing: border-box;
   background: var(--we-paper-base);

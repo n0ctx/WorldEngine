@@ -25,6 +25,7 @@ import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { trackStateUpdate, awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import {
@@ -59,6 +60,7 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
  * @returns {boolean} true = 有 title 任务，调用方应 return（等待 finally 关闭连接）
  */
 function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, streamState, res, turnRecordOpts }) {
+  // title 先入队（p2），以确保队列顺序：title → all-state → turn-record → diary
   if (session && !session.title) {
     log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
     enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
@@ -68,12 +70,17 @@ function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, str
       .catch((err) => log.warn('后台任务失败:', err.message))
       .finally(() => { if (!streamState.isClientClosed()) res.end(); });
   }
+
+  // all-state 异步更新；用 trackStateUpdate 记录 Promise，下一轮请求在 buildContext 前等它完成
   log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-  enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state')
+  const statePromise = enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state')
     .catch((err) => log.warn('后台任务失败:', err.message));
+  trackStateUpdate(sessionId, statePromise);
+
   log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, ...(turnRecordOpts ?? {}) })}`);
   enqueue(sessionId, () => createTurnRecord(sessionId, turnRecordOpts), 3, 'turn-record')
     .catch((err) => log.warn('后台任务失败:', err.message));
+
   // 日记检测（P4）：在 turn-record 之后执行，此时快照已写入；
   // isUpdate=true（续写）时不触发新一天检测（轮次未变）
   if (!turnRecordOpts?.isUpdate) {
@@ -83,6 +90,7 @@ function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, str
     }, 4, 'diary')
       .catch((err) => log.warn('日记任务失败:', err.message));
   }
+
   return !!(session && !session.title);
 }
 
@@ -98,6 +106,9 @@ async function runStream(sessionId, res, opts = {}) {
 
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
+
+  // 等待上一轮状态更新完成，确保本轮 buildContext 读到最新状态
+  await awaitPendingStateUpdate(sessionId);
 
   // 广播真实 user 消息 id（前端用于把乐观追加的 __temp_ id 替换为真实 id）
   if (opts.userMsgId && !streamState.isClientClosed()) {
@@ -169,7 +180,7 @@ async function runStream(sessionId, res, opts = {}) {
 
   streamState.clear();
 
-  // 正常完成且有内容时，入队异步任务
+  // 正常完成且有内容时，入队后台任务；title 任务（如需）会在完成后关闭连接
   if (!aborted && fullContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {
@@ -292,6 +303,9 @@ router.post('/:sessionId/continue', async (req, res) => {
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
 
+  // 等待上一轮状态更新完成
+  await awaitPendingStateUpdate(sessionId);
+
   const originalContent = lastAssistant.content;
   let newContent = '';
   let aborted = false;
@@ -327,6 +341,14 @@ router.post('/:sessionId/continue', async (req, res) => {
     newContent = stripAsstContext(newContent);
   }
 
+  // 提取 <next_prompt> 选项（仅非中断时；剥除后内容不入 DB）
+  let continueOptions = [];
+  if (!aborted && newContent) {
+    const extracted = extractNextPromptOptions(newContent);
+    newContent = extracted.content;
+    continueOptions = extracted.options;
+  }
+
   if (aborted && newContent) {
     newContent += '\n\n[已中断]';
   }
@@ -347,12 +369,12 @@ router.post('/:sessionId/continue', async (req, res) => {
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
       ? { aborted: true, assistant: mergedAssistant }
-      : { done: true, assistant: mergedAssistant });
+      : { done: true, assistant: mergedAssistant, options: continueOptions });
   }
 
   streamState.clear();
 
-  // 正常完成且有内容时，入队异步任务
+  // 正常完成且有内容时，入队后台任务
   if (!aborted && newContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {

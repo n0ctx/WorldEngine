@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
 import ModalShell from '../ui/ModalShell.jsx';
@@ -220,6 +220,8 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const [personaResetting, setPersonaResetting] = useState(false);
   const [diaryEntries, setDiaryEntries] = useState(null);
   const [isPolling, setIsPolling] = useState(false);
+  const [pollingHasChanged, setPollingHasChanged] = useState(false);
+  const [stateJustChanged, setStateJustChanged] = useState(false);
 
   // 日记折叠/展开
   const [diaryOpen, setDiaryOpen] = useState(true);
@@ -256,11 +258,13 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   // 轮询：AI 回复后感知异步状态更新
   useEffect(() => {
     if (refreshTick === 0 || !sessionId) return;
-    setIsPolling(true);
-    const snapshot = JSON.stringify([stateData, diaryEntries]);
 
+    setIsPolling(true);
+    setPollingHasChanged(false);
+    let currentSnapshot = JSON.stringify([stateData, diaryEntries]);
     let intervalId;
     let timeoutId;
+    let changedTimerId;
 
     intervalId = setInterval(async () => {
       try {
@@ -269,28 +273,32 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           fetchDailyEntries(sessionId),
         ]);
         const current = JSON.stringify([{ world: newData.world, persona: newData.persona }, newDiary]);
-        if (current !== snapshot) {
+        if (current !== currentSnapshot) {
+          currentSnapshot = current;
           setStateData({ world: newData.world, persona: newData.persona });
           setDiaryEntries(newDiary);
-          setIsPolling(false);
-          clearInterval(intervalId);
-          clearTimeout(timeoutId);
+          setPollingHasChanged(true);
+          setStateJustChanged(true);
+          clearTimeout(changedTimerId);
+          changedTimerId = setTimeout(() => setStateJustChanged(false), 1800);
         }
       } catch {
-        setIsPolling(false);
         clearInterval(intervalId);
         clearTimeout(timeoutId);
+        setIsPolling(false);
       }
     }, 3000);
 
     timeoutId = setTimeout(() => {
-      setIsPolling(false);
       clearInterval(intervalId);
-    }, 20000);
+      setIsPolling(false);
+    }, 30000);
 
     return () => {
       clearInterval(intervalId);
       clearTimeout(timeoutId);
+      clearTimeout(changedTimerId);
+      setIsPolling(false);
     };
   }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -349,6 +357,8 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     setAddModalOpen(false);
   }
 
+  const showFloating = stateJustChanged || (isPolling && !pollingHasChanged);
+
   return (
     <div
       className="we-cast-panel"
@@ -390,18 +400,6 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
             }}>
               Cast
             </p>
-            {isPolling && (
-              <span style={{
-                fontFamily: 'var(--we-font-display)',
-                fontStyle: 'italic',
-                fontSize: 9.5,
-                color: 'var(--we-ink-faded)',
-                opacity: 0.6,
-                letterSpacing: '0.06em',
-              }}>
-                更新中…
-              </span>
-            )}
           </div>
 
           {/* 印章行 */}
@@ -607,6 +605,63 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           )}
         </AnimatePresence>
       </div>
+
+      {/* 悬浮状态卡 */}
+      <AnimatePresence>
+        {showFloating && (
+          <motion.div
+            key="cast-state-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.28, ease: 'easeInOut' }}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 30,
+              pointerEvents: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(184, 168, 130, 0.12)',
+              backdropFilter: 'blur(1.5px)',
+              WebkitBackdropFilter: 'blur(1.5px)',
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
+            >
+              <span style={{
+                fontFamily: 'var(--we-font-display)',
+                fontSize: 12,
+                fontStyle: 'italic',
+                letterSpacing: '0.18em',
+                lineHeight: 1,
+                color: stateJustChanged ? 'var(--we-gold-leaf)' : 'var(--we-ink-faded)',
+                transition: 'color 0.36s ease',
+                whiteSpace: 'nowrap',
+              }}>
+                {stateJustChanged ? '已整理' : '整理中'}
+              </span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 3,
+                opacity: stateJustChanged ? 0 : 1,
+                transition: 'opacity 0.28s ease',
+              }}>
+                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
+                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
+                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

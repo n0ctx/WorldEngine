@@ -27,7 +27,7 @@ import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { trackStateUpdate, awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
-import { ALL_MESSAGES_LIMIT, LLM_IMPERSONATE_MAX_TOKENS } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
 import { generateChapterTitle } from '../memory/chapter-title-generator.js';
@@ -385,6 +385,14 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     newContent = stripAsstContext(newContent);
   }
 
+  // 提取 <next_prompt> 选项（仅非中断时；剥除后内容不入 DB）
+  let continueOptions = [];
+  if (!aborted && newContent) {
+    const extracted = extractNextPromptOptions(newContent);
+    newContent = extracted.content;
+    continueOptions = extracted.options;
+  }
+
   if (aborted && newContent) {
     newContent += '\n\n[已中断]';
   }
@@ -399,7 +407,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: newContent.length, aborted })}`);
 
   if (!streamState.isClientClosed()) {
-    emitSse(res, sid, aborted ? { aborted: true } : { done: true });
+    emitSse(res, sid, aborted ? { aborted: true } : { done: true, options: continueOptions });
   }
 
   streamState.clear();
@@ -439,12 +447,12 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
     }
-    const instruction = renderBackendPrompt('writing-impersonate.md', { PERSONA_NAME: personaName });
+    const instruction = renderBackendPrompt('chat-impersonate.md', { PERSONA_NAME: personaName });
     prompt.push({ role: 'user', content: instruction });
 
     const content = await llm.complete(prompt, {
       temperature,
-      maxTokens: Math.min(maxTokens ?? LLM_IMPERSONATE_MAX_TOKENS, LLM_IMPERSONATE_MAX_TOKENS),
+      maxTokens: 1000,
       model,
     });
     // 剥除 thinking 模型输出的 <think>...</think> 推理块

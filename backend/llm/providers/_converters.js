@@ -98,14 +98,19 @@ export function convertToGeminiContents(messages) {
 
     // OpenAI-format tool call → Gemini functionCall parts
     if (msg.role === 'assistant' && Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) {
-      const parts = [];
-      const text = typeof msg.content === 'string' ? msg.content : '';
-      if (text) parts.push({ text });
-      for (const tc of msg.tool_calls) {
-        const args = safeParseJson(tc.function?.arguments || '{}');
-        parts.push({ functionCall: { name: tc.function?.name || '', args } });
+      if (msg._geminiParts) {
+        // 优先使用原始 Gemini parts，保留 thought_signature 等思考模型字段
+        contents.push({ role: 'model', parts: msg._geminiParts });
+      } else {
+        const parts = [];
+        const text = typeof msg.content === 'string' ? msg.content : '';
+        if (text) parts.push({ text });
+        for (const tc of msg.tool_calls) {
+          const args = safeParseJson(tc.function?.arguments || '{}');
+          parts.push({ functionCall: { name: tc.function?.name || '', args } });
+        }
+        contents.push({ role: 'model', parts });
       }
-      contents.push({ role: 'model', parts });
       continue;
     }
 

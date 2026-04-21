@@ -32,6 +32,7 @@ export default function AssistantPanel() {
   const setStreaming = useAssistantStore((s) => s.setStreaming);
   const clearMessages = useAssistantStore((s) => s.clearMessages);
   const editMessage = useAssistantStore((s) => s.editMessage);
+  const updateRoutingThinking = useAssistantStore((s) => s.updateRoutingThinking);
   const truncateToMessage = useAssistantStore((s) => s.truncateToMessage);
   const deleteMessage = useAssistantStore((s) => s.deleteMessage);
 
@@ -39,6 +40,7 @@ export default function AssistantPanel() {
   const currentCharacterId = useStore((s) => s.currentCharacterId);
 
   const [input, setInput] = useState('');
+  const [activeToolCall, setActiveToolCall] = useState(null);
   const abortRef = useRef(null);
   // 标记当前轮次是否已创建流式气泡（防止重复插入）
   const bubbleCreatedRef = useRef(false);
@@ -58,10 +60,15 @@ export default function AssistantPanel() {
     }
 
     setStreaming(true);
+    setActiveToolCall(null);
     bubbleCreatedRef.current = false;
 
     const abort = chatAssistant({ message: text, history, context }, {
+      onToolCall: (name) => {
+        setActiveToolCall(name);
+      },
       onDelta: (chunk) => {
+        setActiveToolCall(null);
         // 第一个 delta 到达时才创建气泡，确保在所有子代理调用结束后才出现
         if (!bubbleCreatedRef.current) {
           addMessage({ role: 'assistant', content: '', streaming: true });
@@ -70,19 +77,26 @@ export default function AssistantPanel() {
         appendToLastAssistant(chunk);
       },
       onRouting: (evt) => {
+        setActiveToolCall(null);
         addMessage({ role: 'routing', taskId: evt.taskId, target: evt.target, task: evt.task });
+      },
+      onThinking: (taskId) => {
+        updateRoutingThinking(taskId);
       },
       onProposal: (taskId, token, proposal) => {
         replaceRoutingWithProposal(taskId, token, proposal);
       },
       onDone: () => {
+        setActiveToolCall(null);
         finalizeLastAssistant();
       },
       onError: (err) => {
+        setActiveToolCall(null);
         finalizeLastAssistant();
         addMessage({ role: 'error', content: err });
       },
       onStreamEnd: () => {
+        setActiveToolCall(null);
         finalizeLastAssistant();
         setStreaming(false);
         abortRef.current = null;
@@ -92,7 +106,7 @@ export default function AssistantPanel() {
   }, [
     currentWorldId, currentCharacterId,
     addMessage, appendToLastAssistant, finalizeLastAssistant,
-    replaceRoutingWithProposal, setStreaming,
+    replaceRoutingWithProposal, setStreaming, updateRoutingThinking,
   ]);
 
   const handleSend = useCallback(async () => {
@@ -266,6 +280,8 @@ export default function AssistantPanel() {
           onUserEdit={handleUserEdit}
           onAssistantRegenerate={handleAssistantRegenerate}
           onDeleteMessage={handleDeleteMessage}
+          isStreaming={isStreaming}
+          activeToolCall={activeToolCall}
         />
 
         {/* 输入框 */}

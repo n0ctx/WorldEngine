@@ -55,6 +55,10 @@ export function chatAssistant(payload, callbacks) {
               callbacks.onProposal?.(evt.taskId, evt.token, evt.proposal);
             } else if (evt.type === 'error') {
               callbacks.onError?.(evt.error);
+            } else if (evt.type === 'thinking') {
+              callbacks.onThinking?.(evt.taskId);
+            } else if (evt.type === 'tool_call') {
+              callbacks.onToolCall?.(evt.name);
             }
           } catch {
             // ignore malformed events

@@ -46,10 +46,14 @@ export default function ChatPage() {
   const streamingTextRef = useRef('');
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
+  // 每次续写递增，防止旧 onStreamEnd 回调干扰新续写状态
+  const continuationTokenRef = useRef(0);
   // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
   const tempUserIdRef = useRef(null);
-  // 本轮后端返回的真实 assistant 消息（finalizeStream 用它原地追加）
+  // 本轮后端返回的真实 assistant 消息（onDone 提前追加后置 null；finalizeStream 读取时若已 null 则跳过）
   const pendingAssistantRef = useRef(null);
+  // onDone 已提前追加 assistant 消息的标志（防止 finalizeStream 兜底触发 refreshMessages）
+  const assistantAppendedEarlyRef = useRef(false);
   // 本轮后端返回的选项列表（finalizeStream 时设置到 currentOptions）
   const pendingOptionsRef = useRef([]);
   // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
@@ -196,12 +200,13 @@ export default function ChatPage() {
       );
     }
 
-    // 普通流结束：原地追加真实 assistant 消息（后端通过 done 事件带回），避免重挂载闪烁
+    // 普通流结束：若 onDone 尚未提前追加，在此补追（兜底路径）
     // 复用本轮的 streamingKey 让 AnimatePresence 视其与流式占位为同一节点，零动画切换
     const pending = pendingAssistantRef.current;
     const streamKey = streamingKeyRef.current;
     pendingAssistantRef.current = null;
-    let appendedAssistant = false;
+    let appendedAssistant = assistantAppendedEarlyRef.current;
+    assistantAppendedEarlyRef.current = false;
     if (!wasContinuing && pending && MessageList.appendMessage) {
       MessageList.appendMessage({ ...pending, _key: streamKey });
       appendedAssistant = true;
@@ -256,9 +261,15 @@ export default function ChatPage() {
         tempUserIdRef.current = realId;
       },
       onDone(assistant, options) {
-        if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
-        // 立即解锁输入框，不等 title_updated/onStreamEnd
+        // 立即追加真实消息 + 解锁输入框（同批次渲染，避免流式气泡消失后真实消息尚未出现的闪烁）
+        // 续写场景不在此追加，由 finalizeStream 合并内容
+        if (assistant && !continuingMessageIdRef.current && MessageList.appendMessage) {
+          MessageList.appendMessage({ ...assistant, _key: streamingKeyRef.current });
+          assistantAppendedEarlyRef.current = true;
+        } else if (assistant) {
+          pendingAssistantRef.current = assistant;
+        }
         setGenerating(false);
         useStore.getState().triggerMemoryRefresh();
       },

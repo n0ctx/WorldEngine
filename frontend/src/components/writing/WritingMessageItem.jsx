@@ -165,6 +165,7 @@ export default function WritingMessageItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
+  const editInitContentRef = useRef('');
 
   const [editingAI, setEditingAI] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
@@ -172,9 +173,10 @@ export default function WritingMessageItem({
 
   if (!content && !isStreaming) return null;
 
-  function startEdit() { setDraft(message.content); setEditing(true); }
+  function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
-    if (draft.trim() && draft !== message.content) onEdit?.(message.id, draft.trim());
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit?.(message.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }

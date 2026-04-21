@@ -105,10 +105,12 @@ function UserMessage({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const taRef = useRef(null);
+  const editInitContentRef = useRef('');
 
-  function startEdit() { setDraft(msg.content); setEditing(true); }
+  function startEdit() { editInitContentRef.current = msg.content; setDraft(msg.content); setEditing(true); }
   function confirmEdit() {
-    if (draft.trim() && draft !== msg.content) onEdit?.(msg.id, draft.trim());
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit?.(msg.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }
@@ -232,19 +234,30 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
               border: '1px solid rgba(0,0,0,0.07)',
             }}
           >
-            <SimpleMarkdown content={msg.content} />
-            {msg.streaming && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: '7px',
-                  height: '14px',
-                  background: 'var(--we-vermilion, #8a5e4a)',
-                  marginLeft: '2px',
-                  verticalAlign: 'middle',
-                  animation: 'we-blink 0.8s step-end infinite',
-                }}
-              />
+            {msg.streaming && !msg.content ? (
+              // 流式开始但首字未到：显示 typing dots（与对话空间"AI输出中"一致）
+              <div className="we-typing-dots">
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+                <span className="typing-dot" />
+              </div>
+            ) : (
+              <>
+                <SimpleMarkdown content={msg.content} />
+                {msg.streaming && (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '7px',
+                      height: '14px',
+                      background: 'var(--we-vermilion, #8a5e4a)',
+                      marginLeft: '2px',
+                      verticalAlign: 'middle',
+                      animation: 'we-blink 0.8s step-end infinite',
+                    }}
+                  />
+                )}
+              </>
             )}
           </div>
           {!msg.streaming && (
@@ -260,39 +273,70 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
   );
 }
 
-function RoutingMessage({ msg }) {
-  const TARGET_LABELS = {
-    'world-card': '世界卡',
-    'character-card': '角色卡',
-    'persona-card': '玩家卡',
-    'global-prompt': '全局设置',
-    'css-snippet': '自定义 CSS',
-    'regex-rule': '正则规则',
-  };
+const TARGET_LABELS = {
+  'world-card': '世界卡',
+  'character-card': '角色卡',
+  'persona-card': '玩家卡',
+  'global-prompt': '全局设置',
+  'css-snippet': '自定义 CSS',
+  'regex-rule': '正则规则',
+};
+
+const TOOL_LABELS = {
+  preview_card: '正在查询卡片',
+  read_file: '正在读取文件',
+};
+
+function MainAgentThinking({ toolName }) {
+  const label = (toolName && TOOL_LABELS[toolName]) || '正在处理';
   return (
     <div
       style={{
-        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '5px',
+        padding: '4px 2px',
+        margin: '4px 0',
         fontSize: '11px',
         color: 'var(--we-ink-muted, #9c8a7e)',
-        margin: '6px 0',
         fontStyle: 'italic',
       }}
     >
-      <style>{`
-        @keyframes we-routing-dots {
-          0%   { content: ''; }
-          33%  { content: '.'; }
-          66%  { content: '..'; }
-          100% { content: '...'; }
-        }
-        .we-routing-dots::after {
-          content: '';
-          animation: we-routing-dots 1.2s steps(1) infinite;
-        }
-      `}</style>
-      正在分析 {TARGET_LABELS[msg.target] || msg.target} 需求
-      <span className="we-routing-dots" />
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span>{label}…</span>
+    </div>
+  );
+}
+
+function RoutingMessage({ msg }) {
+  const label = TARGET_LABELS[msg.target] || msg.target;
+  const isDeepThinking = !!msg.lastThinkingAt;
+  const verb = isDeepThinking ? '正在构建' : '正在分析';
+  // msg.task 是主代理传入的自然语言任务描述，截取前 36 字显示
+  const taskHint = msg.task ? msg.task.slice(0, 36) : null;
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '5px',
+        padding: '4px 2px',
+        margin: '4px 0',
+        fontSize: '11px',
+        color: 'var(--we-ink-muted, #9c8a7e)',
+        fontStyle: 'italic',
+      }}
+    >
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
+      <span>
+        {verb} {label}
+        {taskHint ? `：${taskHint}${msg.task.length > 36 ? '…' : ''}` : '…'}
+      </span>
     </div>
   );
 }
@@ -315,7 +359,7 @@ function ErrorMessage({ msg }) {
   );
 }
 
-export default function MessageList({ messages, onUserEdit, onAssistantRegenerate, onDeleteMessage }) {
+export default function MessageList({ messages, onUserEdit, onAssistantRegenerate, onDeleteMessage, isStreaming, activeToolCall }) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -360,6 +404,10 @@ export default function MessageList({ messages, onUserEdit, onAssistantRegenerat
           0%, 100% { opacity: 1; }
           50% { opacity: 0; }
         }
+        @keyframes we-proposal-in {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
       {messages.map((msg) => {
         if (msg.role === 'user') return (
@@ -380,18 +428,23 @@ export default function MessageList({ messages, onUserEdit, onAssistantRegenerat
         );
         if (msg.role === 'routing') return <RoutingMessage key={msg.id} msg={msg} />;
         if (msg.role === 'proposal') return (
-          <ChangeProposalCard
-            key={msg.id}
-            messageId={msg.id}
-            taskId={msg.taskId}
-            token={msg.token}
-            proposal={msg.proposal}
-            applied={msg.applied}
-          />
+          <div key={msg.id} style={{ animation: 'we-proposal-in 0.28s ease forwards' }}>
+            <ChangeProposalCard
+              messageId={msg.id}
+              taskId={msg.taskId}
+              token={msg.token}
+              proposal={msg.proposal}
+              applied={msg.applied}
+            />
+          </div>
         );
         if (msg.role === 'error') return <ErrorMessage key={msg.id} msg={msg} />;
         return null;
       })}
+      {isStreaming
+        && !messages.some((m) => m.role === 'routing')
+        && !messages.some((m) => m.role === 'assistant' && m.streaming)
+        && <MainAgentThinking toolName={activeToolCall} />}
       <div ref={bottomRef} />
     </div>
   );

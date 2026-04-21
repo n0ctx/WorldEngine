@@ -103,8 +103,8 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   }
 
   // 捕获当前三层状态快照（优先级 2 状态更新已完成，此处拿到的是本轮最终状态）
-  let characterIds = characterId ? [characterId] : [];
-  if (!characterId && session.mode === 'writing' && worldId) {
+  let characterIds = session.character_id ? [session.character_id] : [];
+  if (!session.character_id && session.mode === 'writing' && worldId) {
     characterIds = getWritingSessionCharacters(sessionId).map((c) => c.id);
   }
   const snapshot = worldId ? captureStateSnapshot(sessionId, worldId, characterIds) : null;

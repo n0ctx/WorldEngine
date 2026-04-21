@@ -76,6 +76,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T162 — bugfix: 写作空间流式回复结束后内容短暂消失 ✅
+- **涉及文件**：`frontend/src/pages/WritingSpacePage.jsx`
+- **注意**：根因是 T159 在 `onDone` 立即 `setGenerating(false)`，导致 `messagesForDisplay` useMemo 移除流式占位符，但真实消息要等 `onStreamEnd`（SSE 连接关闭后）才追加，产生空白间隙。修复方式与 ChatPage 对齐：`onDone` 同批次调用 `MessageList.appendMessage({ ...assistant, _key: streamKey })` + `setGenerating(false)`，React 自动批量渲染，占位符消失时真实消息已在列表中。增加 `assistantAppendedEarlyRef` 标志防止 `onStreamEnd` 重复追加。
+
 ## T161 — feat: 关闭日记时清除历史记录 + 确认弹窗 ✅
 - **对外接口**：`clearAllDiaryData()` in `backend/services/worlds.js`；`POST /api/worlds/clear-all-diaries`；`clearAllDiaries()` in `frontend/src/api/world-state-fields.js`
 - **涉及文件**：`backend/services/worlds.js`、`backend/routes/worlds.js`、`frontend/src/api/world-state-fields.js`、`frontend/src/components/settings/MemoryConfigPanel.jsx`

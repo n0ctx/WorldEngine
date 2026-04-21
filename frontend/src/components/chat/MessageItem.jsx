@@ -242,6 +242,7 @@ export default function MessageItem({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const textareaRef = useRef(null);
+  const editInitContentRef = useRef('');
 
   const [editingAI, setEditingAI] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
@@ -267,9 +268,10 @@ export default function MessageItem({
   // 统一解析为 blocks（流式和非流式共用）
   const blocks = parseStreamingBlocks(displayContent);
 
-  function startEdit() { setDraft(message.content); setEditing(true); }
+  function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
-    if (draft.trim() && draft !== message.content) onEdit(message.id, draft.trim());
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit(message.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }

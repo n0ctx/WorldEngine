@@ -88,6 +88,17 @@ export const useAssistantStore = create(
       setResolvedId: (taskId, entityId) =>
         set((s) => ({ resolvedIds: { ...s.resolvedIds, [taskId]: entityId } })),
 
+      /** 记录 thinking 心跳，更新对应 routing 消息的时间戳 */
+      updateRoutingThinking: (taskId) =>
+        set((s) => {
+          const msgs = [...s.messages];
+          const idx = taskId
+            ? msgs.findLastIndex((m) => m.role === 'routing' && m.taskId === taskId)
+            : msgs.findLastIndex((m) => m.role === 'routing');
+          if (idx >= 0) msgs[idx] = { ...msgs[idx], lastThinkingAt: Date.now() };
+          return { messages: msgs };
+        }),
+
       /** 标记提案已应用 */
       markProposalApplied: (id) =>
         set((s) => ({

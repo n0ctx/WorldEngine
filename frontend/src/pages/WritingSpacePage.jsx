@@ -62,6 +62,7 @@ export default function WritingSpacePage() {
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
   const pendingAssistantRef = useRef(null);
+  const assistantAppendedEarlyRef = useRef(false);
   const pendingOptionsRef = useRef([]);
   const currentSessionRef = useRef(null);
 
@@ -178,6 +179,7 @@ export default function WritingSpacePage() {
 
   function makeStreamCallbacks() {
     pendingAssistantRef.current = null;
+    assistantAppendedEarlyRef.current = false;
     clearOptionsState();
     const streamKey = beginStreamingKey();
     return {
@@ -195,9 +197,14 @@ export default function WritingSpacePage() {
         }
       },
       onDone(assistant, options) {
-        if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
-        // 立即解锁输入框，不等 onStreamEnd
+        // 立即追加真实消息 + 解锁输入框（同批次渲染），避免流式占位消失后真实消息延迟出现的闪烁
+        if (assistant && MessageList.appendMessage) {
+          MessageList.appendMessage({ ...assistant, _key: streamKey });
+          assistantAppendedEarlyRef.current = true;
+        } else if (assistant) {
+          pendingAssistantRef.current = assistant;
+        }
         setGenerating(false);
       },
       onAborted(assistant) {
@@ -220,6 +227,8 @@ export default function WritingSpacePage() {
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
         pendingAssistantRef.current = null;
+        const alreadyAppended = assistantAppendedEarlyRef.current;
+        assistantAppendedEarlyRef.current = false;
         const pendingOptions = pendingOptionsRef.current;
         pendingOptionsRef.current = [];
         streamingTextRef.current = '';
@@ -228,11 +237,13 @@ export default function WritingSpacePage() {
         stopRef.current = null;
         setCastRefreshTick((t) => t + 1);
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
-        if (pending && MessageList.appendMessage) {
-          // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
-          MessageList.appendMessage({ ...pending, _key: streamKey });
-        } else {
-          refreshMessages();
+        if (!alreadyAppended) {
+          if (pending && MessageList.appendMessage) {
+            // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
+            MessageList.appendMessage({ ...pending, _key: streamKey });
+          } else {
+            refreshMessages();
+          }
         }
       },
     };

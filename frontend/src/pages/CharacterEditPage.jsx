@@ -149,6 +149,7 @@ export default function CharacterEditPage() {
     try {
       const result = await uploadAvatar(characterId, file);
       setAvatarPath(result.avatar_path);
+      window.dispatchEvent(new Event('we:character-updated'));
     } catch (err) {
       alert(`头像上传失败：${err.message}`);
     } finally {
@@ -197,6 +198,7 @@ export default function CharacterEditPage() {
         post_prompt: postPrompt,
         first_message: firstMessage,
       });
+      window.dispatchEvent(new Event('we:character-updated'));
       navigate(-1);
     } catch (e) {
       setSaveError(e.message);

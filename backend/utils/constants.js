@@ -71,8 +71,6 @@ export const LLM_TITLE_MAX_TOKENS = 30;
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 500;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 1000;
-/** writing 空间代入（impersonate）最大 token 数 */
-export const LLM_IMPERSONATE_MAX_TOKENS = 300;
 /** Ollama 工具调用 resolveToolContext 首轮最大 token 数 */
 export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
 

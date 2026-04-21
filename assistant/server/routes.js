@@ -129,7 +129,9 @@ router.post('/chat', async (req, res) => {
   const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
 
   try {
-    const gen = runAgent(message, history, context, allTools);
+    const gen = runAgent(message, history, context, allTools, {
+      onToolCall: (name) => sendSSE(res, { type: 'tool_call', name }),
+    });
     for await (const chunk of gen) {
       sendSSE(res, { delta: chunk });
     }
