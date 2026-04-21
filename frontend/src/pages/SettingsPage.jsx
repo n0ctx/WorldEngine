@@ -8,7 +8,7 @@ import AboutPanel from '../components/settings/AboutPanel';
 import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
-import DiaryConfigPanel from '../components/settings/DiaryConfigPanel';
+import MemoryConfigPanel from '../components/settings/MemoryConfigPanel';
 import { NAV_SECTIONS } from '../components/settings/_settings-constants';
 
 export default function SettingsPage() {
@@ -81,12 +81,23 @@ export default function SettingsPage() {
               <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
             </div>
           )}
-          {activeSection === 'diary' && (
+          {activeSection === 'memory' && (
             <div className="we-settings-section">
-              <DiaryConfigPanel
-                {...diaryProps}
+              <MemoryConfigPanel
                 settingsMode={settingsMode}
                 onModeChange={setSettingsMode}
+                memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
+                onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
+                writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
+                onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
+                chatDiaryEnabled={diaryProps.chatEnabled}
+                onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
+                chatDateMode={diaryProps.chatDateMode}
+                onChangeChatDateMode={diaryProps.onChangeChatDateMode}
+                writingDiaryEnabled={diaryProps.writingEnabled}
+                onToggleWritingDiaryEnabled={diaryProps.onToggleWritingEnabled}
+                writingDateMode={diaryProps.writingDateMode}
+                onChangeWritingDateMode={diaryProps.onChangeWritingDateMode}
               />
             </div>
           )}
