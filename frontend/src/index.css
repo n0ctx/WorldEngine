@@ -800,6 +800,11 @@ body {
   opacity: 0.65;
 }
 
+/* ── StatePanel 内取消所有模块间分割线 ─── */
+.we-state-panel .we-state-section + .we-state-section,
+.we-state-panel .we-timeline,
+.we-state-panel .we-recalled-section { border-top: none; }
+
 /* ── CastPanel（写作空间右侧角色台）───────────────────────────── */
 .we-cast-panel { }
 .we-cast-header { }

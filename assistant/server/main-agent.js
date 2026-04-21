@@ -97,3 +97,7 @@ function buildContextString(context) {
     ? parts.join('\n\n')
     : '（当前未选择世界或角色，用户可在顶部导航栏选择）';
 }
+
+export const __testables = {
+  buildContextString,
+};

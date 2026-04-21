@@ -212,16 +212,17 @@ POST /api/sessions/:sessionId/chat
 
 ```
 createTurnRecord(sessionId, { isUpdate? })
-  ├─ 按 round_index 取“第 N 条 user”及其后、下一条 user 之前的最后一条 assistant
-  ├─ 组装：
-  │    user_context  = "{{user}}：{input}"
-  │    asst_context  = "{{char}}：{output}"
+  ├─ 按 round_index 取”第 N 条 user”及其后、下一条 user 之前的最后一条 assistant
   ├─ 读取 `backend/prompts/templates/memory-turn-summary.md`
   ├─ LLM.complete() 生成摘要（10-50 字，temp=0.3）
   ├─ round_index = isUpdate ? latestRecord.round_index : count + 1
   ├─ UPSERT turn_records（by session_id + round_index）
+  │    存 user_message_id / asst_message_id（指针），user_context / asst_context 置空
   └─ 异步 embed summary → upsertEntry 到 turn_summaries.json
 ```
+
+原文展开（[13]）时，通过 `user_message_id`/`asst_message_id` 查 `messages` 表取实时内容；
+旧记录（ID 为 NULL）回退到 `user_context`/`asst_context` 字段（兼容存量数据）。
 
 写作模式差异：
 - world 从 `session.world_id` 直接取（无 character_id）

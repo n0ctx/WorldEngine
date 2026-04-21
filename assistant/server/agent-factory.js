@@ -137,3 +137,7 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
     },
   };
 }
+
+export const __testables = {
+  buildAgentMessages,
+};

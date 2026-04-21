@@ -69,6 +69,22 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T154 — chore: 补前端页面/assistant HTTP/写作 E2E 首批回归测试 ✅
+- **对外接口**：无新业务接口；新增测试覆盖 `ChatPage`、`WritingSpacePage`、`SettingsPage` 页面编排，`assistant /api/assistant/chat|execute` HTTP 闭环，以及写作空间 Playwright 真实收发
+- **涉及文件**：`frontend/tests/pages/*.test.jsx`、`frontend/tests/assistant/api.test.js`、`assistant/tests/routes-integration.test.js`、`backend/tests/memory/summary-expander.test.js`、`backend/tests/e2e/chat-playwright.test.js`
+- **注意**：
+  - 写作页 Playwright 用例查 DB 时必须按 `created_at DESC` 取最新 `mode='writing'` 会话，否则会误拿到更早的空会话
+  - `/api/assistant/execute` 集成测试若要注入 token，必须复用与 `backend/server.js` 同一个 `assistant/server/routes.js` 模块实例；`freshImport()` 会创建隔离实例，`proposalStore` 不共享
+  - `root npm test` 与 `backend test:coverage` 不能并行跑：两者都会启动 Playwright + Vite dev server，端口/进程会互相干扰；覆盖率建议分侧顺序执行
+
+## T153 — chore: 建立三侧测试入口并补首批关键链路覆盖 ✅
+- **对外接口**：根目录新增 `npm test` / `npm run test:coverage` / `npm run test:e2e` 聚合入口；`frontend/package.json` 新增 `vitest` 测试脚本；`assistant/package.json` 新增独立 `node:test` 覆盖率入口
+- **涉及文件**：`package.json`、`frontend/package.json`、`frontend/vitest.config.js`、`frontend/tests/`、`assistant/package.json`、`assistant/tests/`、`assistant/client/history.js`、`backend/tests/helpers/http.js`、`backend/tests/routes/config.test.js`、`backend/tests/routes/import-export.test.js`、`backend/tests/routes/writing.test.js`、`backend/services/import-export.js`
+- **注意**：
+  - `backend/services/config.js` 的 `CONFIG_PATH` 在模块加载时绑定环境变量；后续路由测试若要隔离 sandbox，**同一测试文件内必须复用同一个 sandbox**，否则会读到已清理路径
+  - `assistant/client/history.js` 是从 `AssistantPanel.jsx` 抽出的纯函数模块，目的是让 `node:test` 直接覆盖 proposal/history 组装逻辑；UI 仍复用同一份实现
+  - 本批测试顺手打出并修复了 `importGlobalSettings()` 的 SQLite 占位符错误：`regex_rules` INSERT 原先少 1 个 `?`，导入全局设置会直接 500
+
 ## T152 — refactor: turn_records 改为指针模式 + 历史消息链路清理 ✅
 - **对外接口**：`upsertTurnRecord` 参数从 `{ user_context, asst_context }` 改为 `{ user_message_id, asst_message_id }`；`renderExpandedTurnRecords` 直接查 messages 表取实时内容
 - **涉及文件**：`backend/db/schema.js`、`backend/db/queries/turn-records.js`、`backend/memory/turn-summarizer.js`、`backend/memory/summary-expander.js`、`backend/routes/chat.js`、`backend/routes/writing.js`、`backend/tests/helpers/fixtures.js`、`backend/prompts/assembler.js`（注释）、`SCHEMA.md`、`ARCHITECTURE.md`

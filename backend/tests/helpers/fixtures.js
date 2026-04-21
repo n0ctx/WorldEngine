@@ -176,15 +176,15 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO turn_records (id, session_id, round_index, summary, user_context, asst_context, created_at)
+    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     sessionId,
     patch.round_index ?? 0,
     patch.summary ?? '摘要',
-    patch.user_context ?? '用户：...',
-    patch.asst_context ?? 'AI：...',
+    patch.user_message_id ?? null,
+    patch.asst_message_id ?? null,
     now,
   );
   return { id, session_id: sessionId, ...patch, created_at: now };

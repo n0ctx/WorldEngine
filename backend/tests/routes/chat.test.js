@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
-import { insertCharacter, insertSession, insertWorld } from '../helpers/fixtures.js';
+import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('chat-route-suite', {
   global_system_prompt: '系统提示',
@@ -40,6 +40,29 @@ function parseSsePayloads(raw) {
       return line ? JSON.parse(line.slice(6)) : null;
     })
     .filter(Boolean);
+}
+
+async function readSseEvents(response, onEvent) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  const events = [];
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split('\n\n');
+    buffer = blocks.pop() ?? '';
+    for (const block of blocks) {
+      const line = block.split('\n').find((item) => item.startsWith('data: '));
+      if (!line) continue;
+      const payload = JSON.parse(line.slice(6));
+      events.push(payload);
+      await onEvent?.(payload);
+    }
+  }
+  reader.releaseLock();
+  return events;
 }
 
 test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', async () => {
@@ -86,5 +109,157 @@ test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', a
   assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
   assert.equal(rows[0].content, '今天天气如何？');
   assert.equal(rows[1].content, '你好，旅行者');
+  assert.equal(activeStreams.size, 0);
+});
+
+test('POST /stop 会中断当前流并保存已生成的部分内容', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一段', '第二段']);
+  process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([0, 200]);
+
+  const appServer = await ensureServer();
+  const { activeStreams } = await freshImport('backend/services/chat.js');
+
+  const world = insertWorld(sandbox.db, { name: '止流城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '珀尔' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '开始说吧' }),
+  });
+
+  let stopped = false;
+  const events = await readSseEvents(response, async (payload) => {
+    if (!stopped && payload.delta === '第一段') {
+      stopped = true;
+      await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/stop`, { method: 'POST' });
+    }
+  });
+
+  const abortedEvent = events.find((event) => event.aborted);
+  assert.ok(abortedEvent);
+  assert.match(abortedEvent.assistant.content, /第一段/);
+  assert.match(abortedEvent.assistant.content, /\[已中断\]/);
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
+  assert.match(rows[1].content, /第一段/);
+  assert.match(rows[1].content, /\[已中断\]/);
+  assert.equal(activeStreams.size, 0);
+});
+
+test('POST /continue 会把新内容追加到最后一条 assistant 消息', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写一', '续写二']);
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '续写城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '赛特' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '讲个故事', created_at: 1 });
+  const lastAssistant = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '原始回复', created_at: 2 });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/continue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  const raw = await response.text();
+  const events = parseSsePayloads(raw);
+  const doneEvent = events.find((event) => event.done);
+  assert.ok(doneEvent);
+  assert.equal(doneEvent.assistant.id, lastAssistant.id);
+  assert.match(doneEvent.assistant.content, /原始回复/);
+  assert.match(doneEvent.assistant.content, /续写一续写二/);
+
+  const row = sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(lastAssistant.id);
+  assert.match(row.content, /原始回复/);
+  assert.match(row.content, /续写一续写二/);
+});
+
+test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn records', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['新的回答']);
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '重生港' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '塔林' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const user1 = insertMessage(sandbox.db, session.id, { role: 'user', content: '第一问', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一答', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二问', created_at: 3 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二答', created_at: 4 });
+  insertTurnRecord(sandbox.db, session.id, { round_index: 1, summary: '第一轮' });
+  insertTurnRecord(sandbox.db, session.id, { round_index: 2, summary: '第二轮' });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ afterMessageId: user1.id }),
+  });
+
+  const raw = await response.text();
+  const events = parseSsePayloads(raw);
+  const doneEvent = events.find((event) => event.done);
+  assert.ok(doneEvent);
+  assert.equal(doneEvent.assistant.content, '新的回答');
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
+  assert.equal(rows[0].content, '第一问');
+  assert.equal(rows[1].content, '新的回答');
+
+  const turnRecords = sandbox.db.prepare('SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC').all(session.id);
+  assert.deepEqual(turnRecords, []);
+});
+
+test('同一 session 的第二个 /chat 会中断第一个流且不泄漏 activeStreams', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_QUEUE = JSON.stringify(['第一条-慢速', '第二条-完成']);
+  process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([300]);
+
+  const appServer = await ensureServer();
+  const { activeStreams } = await freshImport('backend/services/chat.js');
+  const world = insertWorld(sandbox.db, { name: '并发谷' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '埃文' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const firstPromise = fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '第一条请求' }),
+  }).then((res) => res.text());
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  const secondPromise = fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '第二条请求' }),
+  }).then((res) => res.text());
+
+  const [firstRaw, secondRaw] = await Promise.all([firstPromise, secondPromise]);
+  const firstEvents = parseSsePayloads(firstRaw);
+  const secondEvents = parseSsePayloads(secondRaw);
+
+  assert.ok(firstEvents.some((event) => event.aborted));
+  assert.ok(secondEvents.some((event) => event.done));
+
+  const assistants = sandbox.db.prepare(`
+    SELECT role, content FROM messages
+    WHERE session_id = ? AND role = 'assistant'
+    ORDER BY created_at ASC
+  `).all(session.id);
+  assert.ok(assistants.length >= 1 && assistants.length <= 2);
+  assert.equal(assistants.at(-1).content, '第二条-完成');
+  if (assistants.length === 2) {
+    assert.match(assistants[0].content, /\[已中断\]/);
+  }
   assert.equal(activeStreams.size, 0);
 });

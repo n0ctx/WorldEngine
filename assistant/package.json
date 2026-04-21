@@ -1,3 +1,7 @@
 {
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-isolation=process \"tests/**/*.test.js\"",
+    "test:coverage": "node --test --test-isolation=process --experimental-test-coverage \"tests/**/*.test.js\""
+  }
 }

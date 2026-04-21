@@ -601,4 +601,14 @@ function deepOmit(obj, keys) {
   return result;
 }
 
+export const __testables = {
+  normalizeProposal,
+  normalizeEntryOps,
+  normalizeStateFieldOps,
+  normalizeRegexRuleChanges,
+  pickAllowed,
+  deepOmit,
+  proposalStore,
+};
+
 export default router;

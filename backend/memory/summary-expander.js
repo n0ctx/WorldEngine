@@ -11,10 +11,9 @@
 
 import { getSessionById } from '../db/queries/sessions.js';
 import { getTurnRecordById } from '../db/queries/turn-records.js';
-import { getMessagesBySessionId } from '../db/queries/messages.js';
+import { getMessagesBySessionId, getMessageById } from '../db/queries/messages.js';
 import * as llm from '../llm/index.js';
 import { countTokens } from '../utils/token-counter.js';
-import { stripAsstContext, stripUserContext } from '../utils/turn-dialogue.js';
 import {
   MEMORY_EXPAND_DECISION_MAX_TOKENS,
   ALL_MESSAGES_LIMIT,
@@ -113,9 +112,11 @@ export function renderExpandedTurnRecords(turnRecordIds, tokenBudget) {
     const dateStr = new Date(record.created_at).toISOString().slice(0, 10);
     const titleStr = session?.title || '未命名会话';
 
+    const userContent = getMessageById(record.user_message_id)?.content ?? '';
+    const asstContent = getMessageById(record.asst_message_id)?.content ?? '';
     const originalText = [
-      record.user_context ? `{{user}}：${stripUserContext(record.user_context)}` : '',
-      record.asst_context ? `{{char}}：${stripAsstContext(record.asst_context)}` : '',
+      userContent ? `{{user}}：${userContent}` : '',
+      asstContent ? `{{char}}：${asstContent}` : '',
     ].filter(Boolean).join('\n\n');
     const sectionText = `【历史对话原文 · ${dateStr} · ${titleStr} · 第${record.round_index}轮】\n${originalText}`;
     const sectionTokens = countTokens(sectionText);

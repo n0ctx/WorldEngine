@@ -38,15 +38,55 @@ function maybeThrow(kind) {
   throw err;
 }
 
-export async function* streamChat() {
+function sleep(ms, signal) {
+  if (!signal || ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      const err = new Error('The operation was aborted');
+      err.name = 'AbortError';
+      reject(err);
+    }
+    if (signal.aborted) {
+      onAbort();
+      return;
+    }
+    signal.addEventListener('abort', onAbort);
+  });
+}
+
+export async function* streamChat(_messages, llmConfig = {}) {
   maybeThrow('stream');
+  const signal = llmConfig.signal;
   const text = getMockText('stream');
   const chunks = parseJsonEnv('MOCK_LLM_STREAM_CHUNKS', null);
+  const delays = parseJsonEnv('MOCK_LLM_STREAM_DELAYS', []);
   if (Array.isArray(chunks) && chunks.length > 0) {
-    for (const chunk of chunks) yield String(chunk);
+    for (let i = 0; i < chunks.length; i++) {
+      const delayMs = Number(delays?.[i] ?? 0);
+      if (delayMs > 0) await sleep(delayMs, signal);
+      if (signal?.aborted) {
+        const err = new Error('The operation was aborted');
+        err.name = 'AbortError';
+        throw err;
+      }
+      yield String(chunks[i]);
+    }
     return;
   }
   if (!text) return;
+  const delayMs = Number(delays?.[0] ?? 0);
+  if (delayMs > 0) await sleep(delayMs, signal);
+  if (signal?.aborted) {
+    const err = new Error('The operation was aborted');
+    err.name = 'AbortError';
+    throw err;
+  }
   yield text;
 }
 

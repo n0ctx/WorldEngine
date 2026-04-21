@@ -21,7 +21,7 @@ export default function MessageList({
   streamingKey,
   memoryRecalling,
   memoryExpanding,
-  expandedMessage,
+  recallSummary,
   onEditMessage,
   onRegenerateMessage,
   onEditAssistantMessage,
@@ -179,8 +179,14 @@ export default function MessageList({
     );
   }
 
+  const recallParts = [];
+  if (recallSummary?.recalled > 0) recallParts.push(`召回 ${recallSummary.recalled} 条`);
+  if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
+  const showIndicator = memoryRecalling || memoryExpanding || recallParts.length > 0;
+
   return (
-    <div ref={listRef} className="we-chat-area relative flex-1 overflow-y-auto px-3 py-4">
+    <div className="relative flex-1 min-h-0">
+    <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 py-4">
       {/* 加载更多指示器 */}
       {loadingMore && (
         <div className="text-center text-xs opacity-40 py-3">加载历史消息…</div>
@@ -264,31 +270,32 @@ export default function MessageList({
       )}
 
       <div ref={bottomRef} />
+    </div>
 
-      {/* 底部悬浮提示：不参与消息流布局，避免出现/消失时列表跳动 */}
-      {(memoryRecalling || memoryExpanding || expandedMessage) && (
-        <div className="pointer-events-none sticky bottom-3 z-10 mt-3 flex justify-center">
-          {memoryRecalling ? (
-            <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
-              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-              <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-              <span>正在检索记忆…</span>
-            </div>
-          ) : memoryExpanding ? (
-            <div className="flex items-center gap-2 px-1 py-1 text-xs text-text-secondary opacity-65">
-              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-              <span className="typing-dot" style={{ background: 'var(--we-text-secondary)' }} />
-              <span>正在翻阅历史对话…</span>
-            </div>
-          ) : (
-            <span className="px-1 py-1 text-xs text-text-secondary opacity-55">
-              {expandedMessage}
-            </span>
-          )}
-        </div>
-      )}
+    {/* 底部悬浮提示：absolute 定位不参与 scroll 内容流，彻底消除布局抖动 */}
+    {showIndicator && (
+      <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex justify-center">
+        {memoryRecalling ? (
+          <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span>正在检索记忆…</span>
+          </div>
+        ) : memoryExpanding ? (
+          <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span>{recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…'}</span>
+          </div>
+        ) : (
+          <span className="px-1 py-1 text-xs text-text-secondary opacity-55">
+            {recallParts.join(' · ')}
+          </span>
+        )}
+      </div>
+    )}
     </div>
   );
 }

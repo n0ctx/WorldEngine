@@ -3,7 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"后端,前端\" --prefix-colors \"yellow,cyan\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
+    "dev": "concurrently --names \"后端,前端\" --prefix-colors \"yellow,cyan\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "test": "npm run test:backend && npm run test:frontend && npm run test:assistant",
+    "test:backend": "npm run test --prefix backend",
+    "test:frontend": "npm run test --prefix frontend",
+    "test:assistant": "npm run test --prefix assistant",
+    "test:coverage": "npm run test:coverage:backend && npm run test:coverage:frontend && npm run test:coverage:assistant",
+    "test:coverage:backend": "npm run test:coverage --prefix backend",
+    "test:coverage:frontend": "npm run test:coverage --prefix frontend",
+    "test:coverage:assistant": "npm run test:coverage --prefix assistant",
+    "test:e2e": "npm run test:e2e --prefix backend"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

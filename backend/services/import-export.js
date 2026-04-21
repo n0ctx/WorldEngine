@@ -605,7 +605,7 @@ export function importGlobalSettings(data) {
     const insertRule = db.prepare(
       `INSERT INTO regex_rules
        (id, world_id, name, pattern, replacement, scope, mode, enabled, sort_order, created_at, updated_at)
-       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     for (const rule of (data.regex_rules ?? [])) {
       if (rule.scope && !validScopes.has(rule.scope)) continue;

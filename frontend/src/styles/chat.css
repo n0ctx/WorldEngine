@@ -132,8 +132,8 @@
 .we-message-content li     { margin-bottom: 0.2em; }
 .we-message-content ul li::marker { color: var(--we-vermilion); opacity: 0.7; }
 .we-message-content ol li::marker { color: var(--we-ink-faded); }
-.we-message-content strong { font-weight: 600; color: var(--we-ink-primary); }
-.we-message-content em     { font-style: italic; }
+.we-message-content strong { font-weight: 700; font-synthesis: weight; color: var(--we-ink-primary); }
+.we-message-content em     { font-style: italic; font-synthesis: style; }
 
 /* 标题 — 改用展示字体，层次感更强 */
 .we-message-content h1,
@@ -616,8 +616,8 @@
 .we-writing-prose p + p  { margin-top: 0.5em; }
 .we-writing-prose ul, .we-writing-prose ol { padding-left: 1.5em; margin-bottom: 0.5em; }
 .we-writing-prose li     { margin-bottom: 0.2em; }
-.we-writing-prose strong { font-weight: 600; }
-.we-writing-prose em     { font-style: italic; }
+.we-writing-prose strong { font-weight: 700; font-synthesis: weight; }
+.we-writing-prose em     { font-style: italic; font-synthesis: style; }
 
 .we-writing-annotation {
   border-left: 1.5px solid var(--we-vermilion);

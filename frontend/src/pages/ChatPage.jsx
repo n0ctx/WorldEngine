@@ -29,8 +29,7 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
-  const [recalledItems, setRecalledItems] = useState([]);
-  const [expandedMessage, setExpandedMessage] = useState('');
+  const [recallSummary, setRecallSummary] = useState(null); // null | { recalled: number, expanded: number }
   const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
   const [continuingMessageId, setContinuingMessageId] = useState(null);
@@ -83,7 +82,7 @@ export default function ChatPage() {
     setErrorBubble(null);
     setMemoryRecalling(false);
     setMemoryExpanding(false);
-    setExpandedMessage('');
+    setRecallSummary(null);
     setContinuingMessageId(null);
     setContinuingText('');
     streamingTextRef.current = '';
@@ -284,23 +283,15 @@ export default function ChatPage() {
       onMemoryRecallDone(evt) {
         setMemoryRecalling(false);
         const hit = evt?.hit ?? 0;
-        if (hit > 0) {
-          setRecalledItems(
-            Array.from({ length: hit }, (_, i) => ({ id: `recall-${i}`, text: `召回摘要 ${i + 1}` }))
-          );
-        }
+        setRecallSummary({ recalled: hit, expanded: 0 });
       },
       onMemoryExpandStart() {
         setMemoryExpanding(true);
-        setExpandedMessage('');
       },
       onMemoryExpandDone(evt) {
         setMemoryExpanding(false);
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
-        if (count > 0) {
-          setExpandedMessage(`已翻阅 ${count} 条历史对话`);
-          setTimeout(() => setExpandedMessage(''), 3000);
-        }
+        setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
       onStreamEnd() {
         finalizeStream();
@@ -325,6 +316,7 @@ export default function ChatPage() {
     clearOptionsState();
     streamingTextRef.current = '';
     setLastUserContent(content);
+    setRecallSummary(null);
 
     // 乐观追加 user 消息到列表
     const tempUserMsg = {
@@ -638,7 +630,7 @@ export default function ChatPage() {
           streamingKey={streamingKey}
           memoryRecalling={memoryRecalling}
           memoryExpanding={memoryExpanding}
-          expandedMessage={expandedMessage}
+          recallSummary={recallSummary}
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
           onEditAssistantMessage={handleEditAssistantMessage}

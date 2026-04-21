@@ -21,7 +21,7 @@
  *   [15] 后置提示词（全局→世界→角色，均空跳过）
  *   [16] 当前用户消息
  *
- * 注：[11] 世界时间线已移除（turn records 已在 [14] 历史消息中完整呈现，重复注入会导致输出锚定）
+ * 注：[11] 世界时间线已移除；turn records 仅用于向量召回（[12]）与原文展开（[13]），不参与 [14] 历史消息
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
