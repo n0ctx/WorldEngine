@@ -44,9 +44,13 @@
     /avatars             # 角色头像，文件名：{character_id}.{ext}
     /attachments         # 消息附件，文件名：{message_id}_{index}.{ext}
   /vectors
+    prompt_entries.json      # Prompt 条目 embedding 索引（内存加载）
     session_summaries.json   # 会话摘要的 embedding 向量索引（T27，T35 起不再写入，旧数据存档）
     turn_summaries.json      # 每轮 turn record 摘要的 embedding 向量索引（T35）
-  /data/logs
+  /daily
+    {sessionId}/             # 日记正文文件目录（T155），随 session 删除时由 cleanup-registrations.js 清理
+      {date_str}.md
+  /logs
     worldengine-YYYY-MM-DD.log  # 运行时日志，按日轮换（T99）；data/.gitignore 的 * 规则已覆盖
 ```
 
@@ -630,6 +634,13 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 
 > 当前实现会在 [14] 历史消息与 [16] 当前用户消息送入 LLM 前调用 `regex-runner.applyRules(..., 'prompt_only', worldId)`；数据库原文与前端显示不受影响。
 
+**执行规则**：
+
+- 同 scope 内按 `sort_order ASC` 顺序依次套用（链式），前一条结果作为后一条输入
+- `world_id IS NULL` 的规则对所有世界生效；`world_id` 非空的规则仅在该世界的会话中生效，两类规则混合时仍按 `sort_order` 统一排序
+- 规则无效（pattern 编译失败、flags 非法）时跳过该条并在后端日志记录，不中断整条管线
+- `enabled=0` 的规则不执行，保留数据库记录
+
 ---
 
 ### internal_meta — 内部迁移元数据
@@ -646,13 +657,6 @@ CREATE TABLE internal_meta (
 
 - 当前用于记录如 `t56_clear_legacy_auto_filled_null_state_values`、`t59_split_state_default_and_runtime` 等迁移状态
 - 不是业务层资源；不参与导出/导入，不应由前端直接读写
-
-**执行规则**：
-
-- 同 scope 内按 `sort_order ASC` 顺序依次套用（链式），前一条结果作为后一条输入
-- `world_id IS NULL` 的规则对所有世界生效；`world_id` 非空的规则仅在该世界的会话中生效，两类规则混合时仍按 `sort_order` 统一排序
-- 规则无效（pattern 编译失败、flags 非法）时跳过该条并在后端日志记录，不中断整条管线
-- `enabled=0` 的规则不执行，保留数据库记录
 
 ---
 

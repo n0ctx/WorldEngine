@@ -33,6 +33,7 @@
 | `SCHEMA.md` | 数据结构权威来源：表、字段、配置格式、导入导出格式 |
 | `ARCHITECTURE.md` | 当前运行时行为：模块职责、数据流、异步链路、接口拼装 |
 | `CHANGELOG.md` | 历史决策与隐性坑点：未来 agent 需要知道但其他文档找不到的内容 |
+| `DESIGN.md` | 视觉设计规范：调色板、字体、阴影、组件风格参考 |
 
 判定规则：
 - 查字段、表、JSON 格式：只看 `SCHEMA.md`
@@ -78,6 +79,7 @@
 ## 常用命令
 
 ```bash
+npm install --prefix frontend && npm install --prefix backend  # 首次安装依赖
 cd frontend && npm run dev     # 前端 http://localhost:5173
 cd backend  && npm run dev     # 后端 http://localhost:3000
 cd frontend && npm run build   # 构建前端
@@ -136,7 +138,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 
 ---
 
-## 不可随意修改的文件ß
+## 不可随意修改的文件
 
 以下文件一旦完成即锁定，未经明确要求禁止改动：
 
@@ -202,7 +204,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - `services/` 负责业务编排、事务边界、副作用触发、导入导出与跨模块协作
 - `db/queries/` 是 SQL 唯一落点；不要在 `routes/` 或 `services/` 拼查询
 - `memory/` 只放记忆召回、摘要、状态更新、展开原文等记忆相关逻辑
-- `prompt/` 只放提示词组装、条目命中、模板变量相关逻辑
+- `prompts/` 只放提示词组装、条目命中、模板变量相关逻辑
 - `llm/` 只放模型调用与 provider 适配；上层不直接处理 provider 协议细节
 
 **前端分层**
