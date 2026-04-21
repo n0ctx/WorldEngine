@@ -88,3 +88,13 @@ export const LLM_THINKING_BUDGET_HIGH   = 16384;
 // ============================
 export const OLLAMA_DEFAULT_BASE_URL   = 'http://localhost:11434';
 export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';
+
+// ============================
+// 章节分组（后端副本，需与 frontend/src/utils/constants.js 保持同步）
+// ============================
+/** 每 N 条消息触发新章节（与前端 CHAPTER_MESSAGE_SIZE 相同） */
+export const CHAPTER_MESSAGE_SIZE = 20;
+/** 时间间隔超过此值（毫秒）触发新章节（与前端 CHAPTER_TIME_GAP_MS 相同） */
+export const CHAPTER_TIME_GAP_MS  = 6 * 60 * 60 * 1000;
+/** 章节标题生成最大 token 数 */
+export const LLM_CHAPTER_TITLE_MAX_TOKENS = 30;

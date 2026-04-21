@@ -21,6 +21,11 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T160` `feat` 写作空间 CastPanel 补"整理中/已整理"overlay — 对齐 StatePanel 轮询逻辑；加 `pollingHasChanged`/`stateJustChanged`；移除旧内联"更新中…"文字；`motion` 补入 framer-motion 导入
+- `T159` `feat` 状态更新后台阻塞下轮 prompt 组装 + 输入立即解锁 — 新增 `state-update-tracker.js`；`onDone` 时立即 `setGenerating(false)` + `triggerMemoryRefresh`；下轮请求 `buildContext`/`buildWritingPrompt` 前 `awaitPendingStateUpdate`；StatePanel 恢复纯轮询 overlay；`state_updating`/`state_updated` SSE 事件全部清除
+- `T158` `bugfix` 用户气泡编辑不变内容不重新生成 — 三处 confirmEdit（MessageItem/WritingMessageItem/assistant MessageList）改用 `editInitContentRef` 快照初始内容，比较 `trimmed !== initContent.trim()`；防止 prop 在编辑期间变化或空白字符差异导致误触重新生成
+- `T157` `feat` 状态更新阻塞发送（已被 T159 取代）
+- `T156` `bugfix` 选项生成失败 — SUGGESTION_PROMPT 从 [15] 移至 [16] 末尾追加，消除两条连续 user 消息导致的模型忽略问题
 - `T155` `feat` 日记系统 — sessions 新增 diary_date_mode；新增 daily_entries 表；Priority 4 checkAndGenerateDiary；前端 Timeline 面板改为展示日记摘要；日记注入 [13+] 段
 - `T151` `feat` 状态回滚机制 — turn_records 新增 state_snapshot 字段；createTurnRecord 在优先级 2 状态更新后捕获三层 session 级状态快照；regenerate/删除消息/编辑消息后从快照恢复，无快照时降级清空回 default；新增 backend/memory/state-rollback.js（captureStateSnapshot/restoreStateFromSnapshot）
 - `T150` `refactor` turn_records 改为指针模式，历史消息链路清理 — turn_records 新增 user_message_id/asst_message_id 列（指针），不再复制消息内容；summary-expander 展开原文优先查 messages 表，旧数据回退 user_context/asst_context；delete all messages 同步清除 turn_records；修复 assembler.js/SCHEMA.md 过时注释
@@ -69,6 +74,33 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T157 — feat: 写作空间章节标题独立系统 ✅
+- **对外接口**：
+  - `GET /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles` → 返回章节标题数组
+  - `PUT /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex` → 手动编辑（body: `{ title }`）
+  - `POST /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle` → LLM 重生成
+  - `POST /api/worlds/:worldId/writing-sessions/:sessionId/retitle` → 会话标题重生成（修复 /title 命令）
+  - SSE 新增 `chapter_title_updated` 事件：`{ type, chapterIndex, title }`
+- **涉及文件**：
+  - 新建：`backend/db/queries/chapter-titles.js`、`backend/utils/chapter-detector.js`、`backend/memory/chapter-title-generator.js`、`backend/prompts/templates/writing-chapter-title-generation.md`、`frontend/src/api/chapter-titles.js`
+  - 修改：`backend/db/schema.js`（新增 chapter_titles 表）、`backend/utils/constants.js`（新增章节分组常量）、`backend/routes/writing.js`（新增路由 + 改造 SSE 保活逻辑）、`frontend/src/api/writing-sessions.js`（SSE 事件 + retitle）、`frontend/src/utils/chapter-grouping.js`（移除 sessionTitle 耦合）、`frontend/src/components/book/ChapterDivider.jsx`（hover 编辑/重生成 UI）、`frontend/src/components/chat/MessageList.jsx`（chapterTitles props）、`frontend/src/pages/WritingSpacePage.jsx`（状态管理 + /title 修复）
+  - 文档：`SCHEMA.md`（新增 chapter_titles 表）、`ARCHITECTURE.md`（更新 §5 SSE 保活 + §7 新增 chapter_title_updated 事件）
+- **注意**：
+  - 章节边界算法后端（`chapter-detector.js`）与前端（`chapter-grouping.js`）保持一致，两处常量（CHAPTER_MESSAGE_SIZE=20、CHAPTER_TIME_GAP_MS=6h）各自维护，需同步
+  - 章节标题仅在"新章节的第一条 assistant 消息"时自动生成（`detectNewChapter` 返回非 null 且 DB 无记录）
+  - SSE 保活改为 `Promise.allSettled([ssePromises]).finally(() => res.end())`，协调会话标题 + 章节标题任务
+  - `chapter_titles` 随 session CASCADE 删除，无需 cleanup 钩子
+  - 章节边界漂移（删消息后分组重算）是已知边缘场景，暂不处理（标题会回退默认值，用户可手动重生成）
+  - InputBox `onTitle` prop 现已传给写作空间，/title 命令生效
+
+## T156 — bugfix: 选项（suggestion）生成失败 ✅
+- **对外接口**：无变化；`suggestion_enabled` 配置键不变
+- **涉及文件**：`backend/prompts/assembler.js`（`buildPrompt` + `buildWritingPrompt`）、`ARCHITECTURE.md`（§4 [16] 描述）
+- **注意**：
+  - 原实现把 `SUGGESTION_PROMPT` 注入在 [15]（后置提示词 user 消息），[16] 是真实用户消息，造成两条连续 user 消息，LLM 以 [16] 为主请求，大多数时候忽略 [15] 的选项指令
+  - 修复：从 [15] 中移除 suggestion 注入，改为在 [16] 末尾追加 `SUGGESTION_PROMPT`；选项指令紧贴 LLM 生成前的最后输入，遵从率大幅提升
+  - 此修改不影响 `post_prompt` 的正常流程（[15] 依然保留后置提示词功能），也不改变 DB 存储内容（`content` 追加仅在内存中）
 
 ## T155 — feat: 日记系统（Timeline 重构）✅
 - **对外接口**：

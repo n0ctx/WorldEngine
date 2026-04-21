@@ -389,6 +389,31 @@ CREATE INDEX IF NOT EXISTS idx_session_character_state_values_session ON session
 
 ---
 
+### chapter_titles — 写作空间章节标题
+
+写作会话的章节标题持久化。随 session 自动 CASCADE 删除，无需注册额外 cleanup 钩子。
+
+```sql
+CREATE TABLE IF NOT EXISTS chapter_titles (
+  id            TEXT PRIMARY KEY,
+  session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  chapter_index INTEGER NOT NULL,   -- 1-based，与前端 groupMessagesIntoChapters 保持一致
+  title         TEXT NOT NULL,
+  is_default    INTEGER NOT NULL DEFAULT 1,  -- 1=占位默认（序章/续章），0=LLM/用户真实标题
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL,
+  UNIQUE(session_id, chapter_index)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index);
+```
+
+- `is_default=1`：章节首次出现时的占位标题（第一章='序章'，后续='续章'），等待 LLM 生成后替换
+- `is_default=0`：LLM 生成或用户手动编辑后的真实标题
+- 章节边界由消息数（20）或时间间隔（6h）决定，与前端 `CHAPTER_MESSAGE_SIZE` / `CHAPTER_TIME_GAP_MS` 保持一致
+
+---
+
 ### world_state_fields — 世界状态字段定义
 
 ```sql

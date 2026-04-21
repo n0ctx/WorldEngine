@@ -2,11 +2,11 @@ import { CHAPTER_MESSAGE_SIZE, CHAPTER_TIME_GAP_MS } from './constants.js';
 
 /**
  * 将消息列表按章节分组（纯函数，不含副作用）。
+ * 章节标题由调用方从 chapterTitles 数据中取得，此函数只负责分组。
  * @param {Array} messages  按 created_at 升序排列的消息数组
- * @param {string} sessionTitle  当前会话标题（第一章用此作章节标题）
- * @returns {Array<{chapterIndex: number, title: string, messages: Array}>}
+ * @returns {Array<{chapterIndex: number, messages: Array}>}
  */
-export function groupMessagesIntoChapters(messages, sessionTitle) {
+export function groupMessagesIntoChapters(messages) {
   if (!messages || messages.length === 0) return [];
 
   const chapters = [];
@@ -21,8 +21,7 @@ export function groupMessagesIntoChapters(messages, sessionTitle) {
 
     if (!currentChapter || timeGap || countExceeded) {
       const chapterIndex = chapters.length + 1;
-      const title = chapterIndex === 1 ? (sessionTitle || '会话进行中') : '续章';
-      currentChapter = { chapterIndex, title, messages: [] };
+      currentChapter = { chapterIndex, messages: [] };
       chapters.push(currentChapter);
       count = 0;
     }

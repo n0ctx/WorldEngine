@@ -288,6 +288,17 @@ CREATE TABLE IF NOT EXISTS session_character_state_values (
   updated_at         INTEGER NOT NULL,
   UNIQUE(session_id, character_id, field_key)
 );
+
+CREATE TABLE IF NOT EXISTS chapter_titles (
+  id            TEXT PRIMARY KEY,
+  session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  chapter_index INTEGER NOT NULL,   -- 1-based，与前端 groupMessagesIntoChapters 保持一致
+  title         TEXT NOT NULL,
+  is_default    INTEGER NOT NULL DEFAULT 1,  -- 1=占位默认，0=LLM/用户真实标题
+  created_at    INTEGER NOT NULL,
+  updated_at    INTEGER NOT NULL,
+  UNIQUE(session_id, chapter_index)
+);
 `;
 
 const INDEXES = `
@@ -384,6 +395,8 @@ export function initSchema(db) {
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}
+  // 章节标题系统：写作空间章节标题持久化
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index)`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
 }

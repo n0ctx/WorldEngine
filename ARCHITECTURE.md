@@ -177,7 +177,7 @@ POST /api/sessions/:sessionId/chat
 | [13+] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [14] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [16] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
-| [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理 | — |
+| [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -193,6 +193,7 @@ POST /api/sessions/:sessionId/chat
 | [12-13] | 同 buildPrompt；[13] 受 `writing.memory_expansion_enabled` 控制 |
 | [14] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
 | [15] | 无角色后置提示词（只有 `global_post_prompt` + `world.post_prompt`） |
+| [16] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT` |
 | 返回值 | 含 `recallHitCount` |
 
 ---
@@ -230,9 +231,12 @@ createTurnRecord(sessionId, { isUpdate? })
 - world 从 `session.world_id` 直接取（无 character_id）
 - `{{char}}` 仅作为最后一条旁白/角色输出前缀占位符，不额外拼接状态快照
 
-**SSE 连接关闭时机**：
-- `session.title` 为 NULL：等 `generateTitle` 完成 → `.then` 推送 `title_updated` → `.finally` 调用 `res.end()`
-- `session.title` 已存在：入队后直接 `res.end()`
+**SSE 连接关闭时机**（使用 `Promise.allSettled` 统一协调）：
+- 收集所有需要推送 SSE 事件的任务 Promise（`ssePromises`）
+  - `session.title` 为 NULL：`generateTitle` 完成 → 推送 `title_updated`
+  - 检测到新章节首轮 AI 回复：`generateChapterTitle` 完成 → 推送 `chapter_title_updated`
+- 有 ssePromises：`Promise.allSettled(ssePromises).finally(() => res.end())`
+- 无 ssePromises：直接 `res.end()`
 
 **regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
 
@@ -295,7 +299,8 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `done` | 流式正常完成 | `{ done: true }` |
 | `aborted` | 用户主动中断 | `{ aborted: true }` |
 | `error` | LLM 调用异常 | `{ type: "error", error: "..." }` |
-| `title_updated` | 标题异步生成完成 | `{ type: "title_updated", title: "..." }` |
+| `title_updated` | 会话标题异步生成完成（chat + writing） | `{ type: "title_updated", title: "..." }` |
+| `chapter_title_updated` | 章节标题 LLM 生成完成（writing 专有） | `{ type: "chapter_title_updated", chapterIndex: 1, title: "初入茫茫" }` |
 | `memory_recall_start` | 进入 buildContext 前 | `{ type: "memory_recall_start" }` |
 | `memory_recall_done` | buildContext 返回后 | `{ type: "memory_recall_done", hit: 2 }` |
 | `memory_expand_start` | 展开决策前 | `{ type: "memory_expand_start", candidates: [{ref:1,title:"..."}] }` |

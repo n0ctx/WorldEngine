@@ -12,7 +12,6 @@ const PAGE_SIZE = 50;
 
 export default function MessageList({
   sessionId,
-  sessionTitle = '',
   character,
   persona,
   worldId,
@@ -29,6 +28,9 @@ export default function MessageList({
   continuingMessageId,
   continuingText,
   prose = false,
+  chapterTitles = {},
+  onChapterEdit,
+  onChapterRetitle,
 }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -159,8 +161,8 @@ export default function MessageList({
 
   // 章节分组仅用于写作空间（prose 模式）
   const chapters = useMemo(
-    () => prose ? groupMessagesIntoChapters(messagesForDisplay, sessionTitle) : [],
-    [prose, messagesForDisplay, sessionTitle]
+    () => prose ? groupMessagesIntoChapters(messagesForDisplay) : [],
+    [prose, messagesForDisplay]
   );
 
   if (loading) {
@@ -203,9 +205,19 @@ export default function MessageList({
 
       {prose ? (
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 24px' }}>
-          {chapters.map((chapter) => (
+          {chapters.map((chapter) => {
+            const ctEntry = chapterTitles[chapter.chapterIndex];
+            const chapterTitle = ctEntry?.title ?? (chapter.chapterIndex === 1 ? '序章' : '续章');
+            const isDefault = ctEntry ? !!ctEntry.is_default : true;
+            return (
             <div key={chapter.chapterIndex} className="we-chapter">
-              <ChapterDivider chapterIndex={chapter.chapterIndex} title={chapter.title} />
+              <ChapterDivider
+                chapterIndex={chapter.chapterIndex}
+                title={chapterTitle}
+                isDefault={isDefault}
+                onEdit={onChapterEdit ? (t) => onChapterEdit(chapter.chapterIndex, t) : undefined}
+                onRegenerate={onChapterRetitle ? () => onChapterRetitle(chapter.chapterIndex) : undefined}
+              />
               {chapter.messages.map((msg) => {
                 const isStream = !!msg._isStream;
                 const isContinuing = !isStream && continuingMessageId && msg.id === continuingMessageId;
@@ -224,7 +236,8 @@ export default function MessageList({
                 );
               })}
             </div>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <div>

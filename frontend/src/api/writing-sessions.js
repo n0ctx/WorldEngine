@@ -22,6 +22,7 @@ async function parseSSEStream(response, callbacks) {
           else if (evt.aborted) callbacks.onAborted?.(evt.assistant);
           else if (evt.type === 'error') callbacks.onError?.(evt.error);
           else if (evt.type === 'title_updated') callbacks.onTitleUpdated?.(evt.title);
+          else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
         } catch {
           // ignore malformed events
         }
@@ -254,6 +255,19 @@ export async function editWritingAssistantMessage(worldId, sessionId, messageId,
     }
   );
   if (!res.ok) throw new Error(`editWritingAssistant failed: ${res.status}`);
+  return res.json();
+}
+
+/**
+ * 重新生成写作会话标题（修复写作空间 /title 命令）。
+ * @returns {Promise<{title: string|null}>}
+ */
+export async function retitleWritingSession(worldId, sessionId) {
+  const res = await fetch(
+    `/api/worlds/${worldId}/writing-sessions/${sessionId}/retitle`,
+    { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 

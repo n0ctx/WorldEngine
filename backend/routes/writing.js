@@ -26,9 +26,13 @@ import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { trackStateUpdate, awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT, LLM_IMPERSONATE_MAX_TOKENS } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
+import { generateChapterTitle } from '../memory/chapter-title-generator.js';
+import { detectNewChapter, groupChapterMessages } from '../utils/chapter-detector.js';
+import { getChapterTitle, upsertChapterTitle, getChapterTitlesBySessionId } from '../db/queries/chapter-titles.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent } from '../db/queries/messages.js';
@@ -161,6 +165,9 @@ async function runWritingStream(sessionId, res, opts = {}) {
   const ac = streamState.controller;
   const sid = sessionId.slice(0, 8);
 
+  // 等待上一轮状态更新完成，确保 buildWritingPrompt 读到最新状态
+  await awaitPendingStateUpdate(sessionId);
+
   let fullContent = '';
   let aborted = false;
 
@@ -234,42 +241,58 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      // 标题生成
+      // 收集需要推送 SSE 事件的任务 Promise，统一控制 SSE 连接关闭时机
+      const ssePromises = [];
+
+      // title（p2）：仅当 session.title 为 NULL 时入队
       if (session && !session.title) {
         log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
-        enqueue(sessionId, () => generateTitle(sessionId), 2)
+        const titlePromise = enqueue(sessionId, () => generateTitle(sessionId), 2, 'session-title')
           .then((title) => {
             if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
           })
-          .catch(err => log.warn('后台任务失败:', err.message))
-          .finally(() => {
-            if (!streamState.isClientClosed()) res.end();
-          });
-
-        // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
-        const activeCharacters = getWritingSessionCharacters(sessionId);
-        log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
-        enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
-        // turn record（在状态更新之后入队，捕获本轮结果状态）
-        log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
-        enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
-        enqueue(sessionId, async () => {
-          const latest = getLatestTurnRecord(sessionId);
-          if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
-        }, 4, 'diary').catch(err => log.warn('日记任务失败:', err.message));
-        return;
+          .catch(err => log.warn('后台任务失败:', err.message));
+        ssePromises.push(titlePromise);
       }
 
-      // 状态更新（世界/角色/玩家合并为单次 LLM 调用）
+      // 章节标题（p2）：仅当本轮 AI 回复是某章节的第一条 assistant 消息，且该章节尚无标题时入队
+      const newChapter = detectNewChapter(msgs);
+      if (newChapter) {
+        const { chapterIndex, chapterMessages } = newChapter;
+        const existing = getChapterTitle(sessionId, chapterIndex);
+        if (!existing) {
+          const defaultTitle = chapterIndex === 1 ? '序章' : '续章';
+          upsertChapterTitle(sessionId, chapterIndex, defaultTitle, 1);
+          log.info(`QUEUE CHAPTER-TITLE  ${formatMeta({ session: sid, priority: 2, chapter: chapterIndex })}`);
+          const chapterTitlePromise = enqueue(sessionId, () => generateChapterTitle(sessionId, chapterIndex, chapterMessages), 2, 'chapter-title')
+            .then((title) => {
+              if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'chapter_title_updated', chapterIndex, title });
+            })
+            .catch(err => log.warn('章节标题任务失败:', err.message));
+          ssePromises.push(chapterTitlePromise);
+        }
+      }
+
       const activeCharacters = getWritingSessionCharacters(sessionId);
       log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
-      enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+      const statePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state')
+        .catch(err => log.warn('后台任务失败:', err.message));
+      trackStateUpdate(sessionId, statePromise);
+
       log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
       enqueue(sessionId, async () => {
         const latest = getLatestTurnRecord(sessionId);
         if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
       }, 4, 'diary').catch(err => log.warn('日记任务失败:', err.message));
+
+      // SSE 保活：有待推送事件的任务时，等全部完成后再关闭连接
+      if (ssePromises.length > 0) {
+        Promise.allSettled(ssePromises).finally(() => {
+          if (!streamState.isClientClosed()) res.end();
+        });
+        return;
+      }
     }
   }
 
@@ -316,6 +339,9 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
+
+  // 等待上一轮状态更新完成
+  await awaitPendingStateUpdate(sessionId);
 
   // 找最后一条 assistant 消息
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
@@ -378,11 +404,13 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   streamState.clear();
 
-  // 续写正常完成后更新 turn record（isUpdate=true 覆盖最后一轮）
+  // 续写正常完成后异步更新状态；下一轮请求通过 awaitPendingStateUpdate 等待
   if (!aborted && newContent) {
     const activeCharacters = getWritingSessionCharacters(sessionId);
     log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((character) => character.id.slice(0, 8)) })}`);
-    enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+    const statePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state')
+      .catch(err => log.warn('后台任务失败:', err.message));
+    trackStateUpdate(sessionId, statePromise);
     log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
     enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
   }
@@ -489,6 +517,67 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
   enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
 
   res.json({ success: true });
+});
+
+// ── 章节标题管理 ──
+
+// GET /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles
+router.get('/:worldId/writing-sessions/:sessionId/chapter-titles', (req, res) => {
+  const { sessionId } = req.params;
+  const session = dbGetWritingSessionById(sessionId);
+  if (!assertExists(res, session, 'Session not found')) return;
+  const titles = getChapterTitlesBySessionId(sessionId);
+  res.json(titles);
+});
+
+// PUT /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex
+// 用户手动编辑章节标题（存 is_default=0，不调用 LLM）
+router.put('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex', (req, res) => {
+  const { sessionId, chapterIndex } = req.params;
+  const { title } = req.body;
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    return res.status(400).json({ error: 'title is required' });
+  }
+  const session = dbGetWritingSessionById(sessionId);
+  if (!assertExists(res, session, 'Session not found')) return;
+  upsertChapterTitle(sessionId, Number(chapterIndex), title.trim().slice(0, 20), 0);
+  res.json({ success: true });
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle
+// LLM 重新生成章节标题
+router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle', async (req, res) => {
+  const { sessionId, chapterIndex } = req.params;
+  const session = dbGetWritingSessionById(sessionId);
+  if (!assertExists(res, session, 'Session not found')) return;
+
+  const idx = Number(chapterIndex);
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const chapterMsgs = groupChapterMessages(allMsgs, idx);
+
+  try {
+    const title = await generateChapterTitle(sessionId, idx, chapterMsgs);
+    if (!title) return res.status(500).json({ error: '生成失败' });
+    res.json({ title, chapterIndex: idx });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/retitle
+// 重新生成会话标题（修复写作空间 /title 命令失效）
+router.post('/:worldId/writing-sessions/:sessionId/retitle', async (req, res) => {
+  const { sessionId } = req.params;
+  const session = dbGetWritingSessionById(sessionId);
+  if (!assertExists(res, session, 'Session not found')) return;
+
+  try {
+    const title = await generateTitle(sessionId);
+    if (!title) return res.json({ title: null });
+    res.json({ title });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

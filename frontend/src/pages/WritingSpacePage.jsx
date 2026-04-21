@@ -16,7 +16,9 @@ import {
   editAndRegenerateWriting,
   editWritingAssistantMessage,
   impersonateWriting,
+  retitleWritingSession,
 } from '../api/writing-sessions.js';
+import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
 import CastPanel from '../components/book/CastPanel.jsx';
@@ -64,6 +66,8 @@ export default function WritingSpacePage() {
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
+  // chapterTitles: { [chapterIndex]: { title, is_default } }
+  const [chapterTitles, setChapterTitles] = useState({});
 
   function clearOptionsState() {
     pendingOptionsRef.current = [];
@@ -117,6 +121,7 @@ export default function WritingSpacePage() {
     setContinuingMessageId(null);
     setContinuingText('');
     setError(null);
+    setChapterTitles({});
     refreshMessages();
 
     try {
@@ -126,6 +131,15 @@ export default function WritingSpacePage() {
       console.error(e);
       setActiveCharacters([]);
     }
+
+    // 加载章节标题（异步，不阻塞进入会话）
+    getChapterTitles(worldId, session.id)
+      .then((arr) => {
+        const map = {};
+        for (const row of arr) map[row.chapter_index] = { title: row.title, is_default: row.is_default };
+        setChapterTitles(map);
+      })
+      .catch(console.error);
   }
 
   function handleSessionCreate(session) {
@@ -181,6 +195,8 @@ export default function WritingSpacePage() {
       onDone(assistant, options) {
         if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
+        // 立即解锁输入框，不等 onStreamEnd
+        setGenerating(false);
       },
       onAborted(assistant) {
         if (assistant) pendingAssistantRef.current = assistant;
@@ -195,6 +211,9 @@ export default function WritingSpacePage() {
       onTitleUpdated(title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
         WritingSessionList.updateTitle?.(currentSessionRef.current?.id, title);
+      },
+      onChapterTitleUpdated(chapterIndex, title) {
+        setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
@@ -342,7 +361,9 @@ export default function WritingSpacePage() {
         continuingTextRef.current += delta;
         setContinuingText((prev) => prev + delta);
       },
-      onDone() {},
+      onDone() {
+        setGenerating(false);
+      },
       onAborted() {
         // 合并续写内容到消息列表后清理
         const contId = continuingMessageIdRef.current;
@@ -402,6 +423,47 @@ export default function WritingSpacePage() {
     }
   }
 
+  // 重新生成会话标题（修复 /title 命令）
+  async function handleRetitle() {
+    const session = currentSessionRef.current;
+    if (!session) return;
+    try {
+      const { title } = await retitleWritingSession(worldId, session.id);
+      if (title) {
+        setCurrentSession((prev) => prev ? { ...prev, title } : prev);
+        WritingSessionList.updateTitle?.(session.id, title);
+      }
+    } catch (err) {
+      console.error('retitle error:', err);
+    }
+  }
+
+  // 用户编辑章节标题（不调用 LLM）
+  async function handleChapterEdit(chapterIndex, newTitle) {
+    const session = currentSessionRef.current;
+    if (!session) return;
+    try {
+      await updateChapterTitle(worldId, session.id, chapterIndex, newTitle);
+      setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title: newTitle, is_default: 0 } }));
+    } catch (err) {
+      console.error('chapter edit error:', err);
+    }
+  }
+
+  // LLM 重新生成章节标题
+  async function handleChapterRetitle(chapterIndex) {
+    const session = currentSessionRef.current;
+    if (!session) return;
+    try {
+      const { title } = await retitleChapter(worldId, session.id, chapterIndex);
+      if (title) {
+        setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
+      }
+    } catch (err) {
+      console.error('chapter retitle error:', err);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
       <WritingPageLeft
@@ -456,7 +518,6 @@ export default function WritingSpacePage() {
         <MessageList
           key={`${currentSession?.id}-${messageListKey}`}
           sessionId={currentSession?.id}
-          sessionTitle={currentSession?.title || ''}
           character={null}
           persona={persona}
           worldId={worldId}
@@ -470,6 +531,9 @@ export default function WritingSpacePage() {
           onEditAssistantMessage={handleEditAssistantMessage}
           onDeleteMessage={handleDeleteMessage}
           prose
+          chapterTitles={chapterTitles}
+          onChapterEdit={handleChapterEdit}
+          onChapterRetitle={handleChapterRetitle}
         />
 
         {/* 选项卡：AI 回复后展示行动选项 */}
@@ -510,6 +574,7 @@ export default function WritingSpacePage() {
           worldId={worldId}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
+          onTitle={handleRetitle}
         />
       </div>
 
