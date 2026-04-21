@@ -420,6 +420,8 @@ export default function ChatPage() {
     if (!lastAssistantId) return;
 
     clearOptionsState();
+    const continuationToken = continuationTokenRef.current + 1;
+    continuationTokenRef.current = continuationToken;
     continuingMessageIdRef.current = lastAssistantId;
     continuingTextRef.current = '';
     setContinuingMessageId(lastAssistantId);
@@ -428,18 +430,23 @@ export default function ChatPage() {
 
     const callbacks = {
       onDelta(delta) {
+        if (continuationTokenRef.current !== continuationToken) return;
         continuingTextRef.current += delta;
         setContinuingText((prev) => prev + delta);
       },
       onDone() {
-        setGenerating(false);
+        if (continuationTokenRef.current !== continuationToken) return;
         useStore.getState().triggerMemoryRefresh();
       },
       onAborted() {},
       onError(err) {
+        if (continuationTokenRef.current !== continuationToken) return;
         console.error('continue error:', err);
       },
-      onStreamEnd() { finalizeStream(); },
+      onStreamEnd() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        finalizeStream();
+      },
     };
 
     const stop = continueGeneration(currentSessionId, callbacks);

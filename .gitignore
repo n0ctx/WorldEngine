@@ -13,3 +13,4 @@ dist/
 .temp/*
 !.temp/.gitkeep
 !.temp/git-health-check.sh
+test-results/

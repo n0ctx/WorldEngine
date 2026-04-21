@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from '../../store/index.js';
 import {
-  fetchSessionStateValues,
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   resetSessionCharacterStateValues,
 } from '../../api/session-state-values.js';
-import { fetchDailyEntries, fetchDiaryContent } from '../../api/daily-entries.js';
+import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { getWorld } from '../../api/worlds.js';
+import { useSessionState } from '../../hooks/useSessionState.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
+
+const MotionDiv = motion.div;
 
 // ── 金箔装饰分隔线 ──────────────────────────────────────────
 function GoldDivider() {
@@ -72,92 +74,24 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
+  const { stateData, setStateData, diaryEntries, stateJustChanged } = useSessionState(sessionId, tick);
 
-  const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
   const [charResetting, setCharResetting] = useState(false);
-
-  const [diaryEntries, setDiaryEntries] = useState(null); // null = 加载中
   const [worldName, setWorldName] = useState(null);
 
   // 折叠状态
   const [diaryOpen, setDiaryOpen] = useState(true);
-  const [diaryExpanded, setDiaryExpanded] = useState(false); // 是否展开更多
+  const [diaryExpanded, setDiaryExpanded] = useState(false);
 
   // 已选中（待注入）的日记条目
   const [selectedEntry, setSelectedEntry] = useState(null);
-
-  // 异步任务状态反馈
-  const [isPolling, setIsPolling] = useState(false);
-  const [stateJustChanged, setStateJustChanged] = useState(false);
-  const [pollingHasChanged, setPollingHasChanged] = useState(false);
-
-  // ── 初始数据拉取 ──────────────────────────────────────────
-  useEffect(() => {
-    if (!sessionId) {
-      setStateData({ world: [], persona: [], character: [] });
-      setDiaryEntries([]);
-      return;
-    }
-    setStateData(null);
-    setDiaryEntries(null);
-
-    fetchSessionStateValues(sessionId).then(setStateData).catch(() => setStateData({ world: [], persona: [], character: [] }));
-    fetchDailyEntries(sessionId).then(setDiaryEntries).catch(() => setDiaryEntries([]));
-  }, [sessionId]);
 
   useEffect(() => {
     if (!worldId) { setWorldName(null); return; }
     getWorld(worldId).then((w) => setWorldName(w?.name ?? null)).catch(() => {});
   }, [worldId]);
-
-  // ── 轮询：AI 回复后感知异步状态更新 ──────────────────────
-  useEffect(() => {
-    if (tick === 0 || !sessionId) return;
-
-    setIsPolling(true);
-    setPollingHasChanged(false);
-    let currentSnapshot = JSON.stringify([stateData, diaryEntries]);
-    let intervalId;
-    let timeoutId;
-    let changedTimerId;
-
-    intervalId = setInterval(async () => {
-      try {
-        const [newState, newDiary] = await Promise.all([
-          fetchSessionStateValues(sessionId),
-          fetchDailyEntries(sessionId),
-        ]);
-        const current = JSON.stringify([newState, newDiary]);
-        if (current !== currentSnapshot) {
-          currentSnapshot = current;
-          setStateData(newState);
-          setDiaryEntries(newDiary);
-          setPollingHasChanged(true);
-          setStateJustChanged(true);
-          clearTimeout(changedTimerId);
-          changedTimerId = setTimeout(() => setStateJustChanged(false), 1800);
-        }
-      } catch {
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-        setIsPolling(false);
-      }
-    }, 3000);
-
-    timeoutId = setTimeout(() => {
-      clearInterval(intervalId);
-      setIsPolling(false);
-    }, 30000);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-      clearTimeout(changedTimerId);
-      setIsPolling(false);
-    };
-  }, [tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 重置处理 ──────────────────────────────────────────────
   async function handleResetWorld() {
@@ -216,8 +150,6 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const recentDiary = reversedDiary.slice(0, RECENT_LIMIT);
   const olderDiary = reversedDiary.slice(RECENT_LIMIT);
   const hasMore = olderDiary.length > 0;
-
-  const showFloating = stateJustChanged || (isPolling && !pollingHasChanged);
 
   return (
     <div
@@ -390,8 +322,8 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
       {/* ── 悬浮状态卡 ── */}
       <AnimatePresence>
-        {showFloating && (
-          <motion.div
+        {stateJustChanged && (
+          <MotionDiv
             key="state-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -410,7 +342,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               WebkitBackdropFilter: 'blur(1.5px)',
             }}
           >
-            <motion.div
+            <MotionDiv
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -423,25 +355,13 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
                 fontStyle: 'italic',
                 letterSpacing: '0.18em',
                 lineHeight: 1,
-                color: stateJustChanged ? 'var(--we-gold-leaf)' : 'var(--we-ink-faded)',
-                transition: 'color 0.36s ease',
+                color: 'var(--we-gold-leaf)',
                 whiteSpace: 'nowrap',
               }}>
-                {stateJustChanged ? '已整理' : '整理中'}
+                已整理
               </span>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 3,
-                opacity: stateJustChanged ? 0 : 1,
-                transition: 'opacity 0.28s ease',
-              }}>
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-              </div>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>

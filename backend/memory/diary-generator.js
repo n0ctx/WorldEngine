@@ -298,7 +298,21 @@ function extractSummaryFromDiary(content) {
   // 跳过以 # 开头的标题行和 --- 分隔线
   for (const line of lines) {
     if (line.startsWith('#') || line === '---') continue;
-    return line.length > 80 ? line.slice(0, 80) + '…' : line;
+    const cleaned = cleanDiarySummaryLine(line);
+    if (!cleaned) continue;
+    return cleaned.length > 80 ? cleaned.slice(0, 80) + '…' : cleaned;
   }
   return lines[0] ?? '';
+}
+
+function cleanDiarySummaryLine(line) {
+  if (!line) return '';
+  let cleaned = line.trim();
+
+  // 兼容模型偶发复读模板占位，如 "{{摘要：今天...}}"。
+  cleaned = cleaned.replace(/^\{\{\s*/, '').replace(/\s*\}\}$/, '').trim();
+  cleaned = cleaned.replace(/^摘要\s*[：:]\s*/u, '').trim();
+  cleaned = cleaned.replace(/^正文\s*[：:]\s*/u, '').trim();
+
+  return cleaned;
 }

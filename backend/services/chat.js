@@ -112,9 +112,19 @@ export async function buildContext(sessionId, options = {}) {
  * @param {boolean} aborted
  * @param {string|null} worldId
  * @param {string} sessionId
+ * @param {object} [opts]
+ * @param {string} [opts.mode='chat']               正则规则模式，'chat' 或 'writing'
+ * @param {function} [opts.createMessageFn]         消息创建函数，默认使用 sessions.createMessage
+ * @param {function} [opts.touchSessionFn]          会话触活函数，默认使用 sessions.touchSession
  * @returns {{ savedContent: string, options: string[], savedAssistant: object|null }}
  */
-export function processStreamOutput(rawContent, aborted, worldId, sessionId) {
+export function processStreamOutput(rawContent, aborted, worldId, sessionId, opts = {}) {
+  const {
+    mode = 'chat',
+    createMessageFn = createMessage,
+    touchSessionFn = touchSession,
+  } = opts;
+
   let content = rawContent;
 
   if (content) content = stripAsstContext(content);
@@ -130,10 +140,10 @@ export function processStreamOutput(rawContent, aborted, worldId, sessionId) {
 
   let savedAssistant = null;
   if (content) {
-    const savedContent = aborted ? content : applyRules(content, 'ai_output', worldId);
-    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
+    const savedContent = aborted ? content : applyRules(content, 'ai_output', worldId, mode);
+    savedAssistant = createMessageFn({ session_id: sessionId, role: 'assistant', content: savedContent });
     content = savedContent;
-    touchSession(sessionId);
+    touchSessionFn(sessionId);
   }
 
   return { savedContent: content, options, savedAssistant };

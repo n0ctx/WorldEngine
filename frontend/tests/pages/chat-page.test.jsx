@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useStore from '../../src/store/index.js';
@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     createSession: vi.fn(),
     getSession: vi.fn(),
     sendMessage: vi.fn(),
+    continueGeneration: vi.fn(),
     getCharacter: vi.fn(),
     getPersona: vi.fn(),
     getWorld: vi.fn(),
@@ -47,7 +48,7 @@ vi.mock('../../src/api/chat.js', () => ({
   stopGeneration: vi.fn(),
   regenerate: vi.fn(),
   editAndRegenerate: vi.fn(),
-  continueGeneration: vi.fn(),
+  continueGeneration: (...args) => mocks.continueGeneration(...args),
   impersonate: vi.fn(),
   clearMessages: vi.fn(),
   editAssistantMessage: vi.fn(),
@@ -65,7 +66,12 @@ vi.mock('../../src/components/book/SessionListPanel.jsx', () => ({ default: mock
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
-    return <button onClick={() => props.onSend('测试消息', [])}>send</button>;
+    return (
+      <>
+        <button onClick={() => props.onSend('测试消息', [])}>send</button>
+        <button onClick={() => props.onContinue?.()}>continue</button>
+      </>
+    );
   }),
 }));
 vi.mock('../../src/components/book/BookSpread.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
@@ -89,6 +95,7 @@ describe('ChatPage', () => {
     mocks.MessageListMock.updateMessages.mockReset();
     mocks.MessageListMock.messagesRef.current = [];
     mocks.SessionListPanelMock.addSession.mockReset();
+    mocks.continueGeneration.mockReset();
     mocks.createSession.mockResolvedValue({ id: 'session-1', title: null, character_id: 'char-1' });
     mocks.getSession.mockResolvedValue(null);
     mocks.getCharacter.mockResolvedValue({ id: 'char-1', world_id: 'world-1', name: '阿塔' });
@@ -115,8 +122,46 @@ describe('ChatPage', () => {
       '测试消息',
       [],
       expect.any(Object),
+      expect.any(Object),
     ));
     expect(mocks.MessageListMock.appendMessage).toHaveBeenCalled();
     expect(screen.getByTestId('state-panel')).toHaveTextContent('world-1');
+  });
+
+  it('continue 在 onStreamEnd 前不会允许重复触发', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.MessageListMock.messagesRef.current = [
+      { id: 'asst-1', role: 'assistant', content: '第一段' },
+    ];
+    mocks.continueGeneration.mockImplementation((_sid, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    render(<ChatPage />);
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('continue'));
+    await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onDone?.();
+    });
+    fireEvent.click(screen.getByText('continue'));
+    expect(mocks.continueGeneration).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      callbacksRef.current.onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('continue'));
+    await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(2));
   });
 });

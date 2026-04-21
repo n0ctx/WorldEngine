@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompts/assembler.js';
-import { activeStreams } from '../services/chat.js';
+import { activeStreams, processStreamOutput } from '../services/chat.js';
 import { logPrompt } from '../utils/logger.js';
 import {
   createWritingSession,
@@ -202,29 +202,11 @@ async function runWritingStream(sessionId, res, opts = {}) {
     }
   }
 
-  if (fullContent) {
-    fullContent = stripAsstContext(fullContent);
-  }
-
-  // 提取选项（仅非中断时；剥除后内容不入 DB）
-  let options = [];
-  if (!aborted && fullContent) {
-    const extracted = extractNextPromptOptions(fullContent);
-    fullContent = extracted.content;
-    options = extracted.options;
-  }
-
-  if (aborted && fullContent) {
-    fullContent += '\n\n[已中断]';
-  }
-
-  let savedAssistant = null;
-  if (fullContent) {
-    const savedContent = aborted ? fullContent : applyRules(fullContent, 'ai_output', worldId, 'writing');
-    savedAssistant = createMessage({ session_id: sessionId, role: 'assistant', content: savedContent });
-    fullContent = savedContent;
-    touchWritingSession(sessionId);
-  }
+  const { savedContent, options, savedAssistant } = processStreamOutput(
+    fullContent, aborted, worldId, sessionId,
+    { mode: 'writing', createMessageFn: createMessage, touchSessionFn: touchWritingSession }
+  );
+  fullContent = savedContent;
 
   log.info(`STREAM END  ${formatMeta({ session: sid, chars: fullContent.length, aborted })}`);
 
@@ -275,24 +257,33 @@ async function runWritingStream(sessionId, res, opts = {}) {
 
       const activeCharacters = getWritingSessionCharacters(sessionId);
       log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
-      const statePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state')
+      const rawStatePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state');
+      trackStateUpdate(sessionId, rawStatePromise.catch(() => {}));
+      const statePromise = rawStatePromise
+        .then(() => {
+          if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'state_updated' });
+        })
         .catch(err => log.warn('后台任务失败:', err.message));
-      trackStateUpdate(sessionId, statePromise);
+      ssePromises.push(statePromise);
 
       log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
       enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
-      enqueue(sessionId, async () => {
+
+      const diaryPromise = enqueue(sessionId, async () => {
         const latest = getLatestTurnRecord(sessionId);
         if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
-      }, 4, 'diary').catch(err => log.warn('日记任务失败:', err.message));
+      }, 4, 'diary')
+        .then(() => {
+          if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'diary_updated' });
+        })
+        .catch(err => log.warn('日记任务失败:', err.message));
+      ssePromises.push(diaryPromise);
 
-      // SSE 保活：有待推送事件的任务时，等全部完成后再关闭连接
-      if (ssePromises.length > 0) {
-        Promise.allSettled(ssePromises).finally(() => {
-          if (!streamState.isClientClosed()) res.end();
-        });
-        return;
-      }
+      // SSE 保活：等所有后台任务推送完事件后关闭连接（state_updated + diary_updated 必在其中）
+      Promise.allSettled(ssePromises).finally(() => {
+        if (!streamState.isClientClosed()) res.end();
+      });
+      return;
     }
   }
 
@@ -412,15 +403,37 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   streamState.clear();
 
-  // 续写正常完成后异步更新状态；下一轮请求通过 awaitPendingStateUpdate 等待
+  // 续写正常完成后保持 SSE 连接，等后台任务推送完事件后再关闭
   if (!aborted && newContent) {
     const activeCharacters = getWritingSessionCharacters(sessionId);
+    const ssePromises = [];
+
     log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((character) => character.id.slice(0, 8)) })}`);
-    const statePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state')
+    const rawStatePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state');
+    trackStateUpdate(sessionId, rawStatePromise.catch(() => {}));
+    const statePromise = rawStatePromise
+      .then(() => {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'state_updated' });
+      })
       .catch(err => log.warn('后台任务失败:', err.message));
-    trackStateUpdate(sessionId, statePromise);
+    ssePromises.push(statePromise);
     log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
     enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+
+    const diaryPromise = enqueue(sessionId, async () => {
+      const latest = getLatestTurnRecord(sessionId);
+      if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+    }, 4, 'diary')
+      .then(() => {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'diary_updated' });
+      })
+      .catch(err => log.warn('日记任务失败:', err.message));
+    ssePromises.push(diaryPromise);
+
+    Promise.allSettled(ssePromises).finally(() => {
+      if (!streamState.isClientClosed()) res.end();
+    });
+    return;
   }
 
   if (!streamState.isClientClosed()) res.end();

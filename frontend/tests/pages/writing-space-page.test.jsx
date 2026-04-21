@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
     createWritingSession: vi.fn(),
     listActiveCharacters: vi.fn(),
     generate: vi.fn(),
+    continueGeneration: vi.fn(),
+    getChapterTitles: vi.fn(),
     MessageListMock: createMessageListMock(),
     WritingSessionListMock,
   };
@@ -45,7 +47,7 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   listActiveCharacters: (...args) => mocks.listActiveCharacters(...args),
   generate: (...args) => mocks.generate(...args),
   stopGeneration: vi.fn(),
-  continueGeneration: vi.fn(),
+  continueGeneration: (...args) => mocks.continueGeneration(...args),
   regenerateWriting: vi.fn(),
   editAndRegenerateWriting: vi.fn(),
   editWritingAssistantMessage: vi.fn(),
@@ -59,10 +61,19 @@ vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mo
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
-    return <button onClick={() => props.onSend('写作消息')}>send-writing</button>;
+    return (
+      <>
+        <button onClick={() => props.onSend('写作消息')}>send-writing</button>
+        <button onClick={() => props.onContinue?.()}>continue-writing</button>
+      </>
+    );
   }),
 }));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
+vi.mock('../../src/api/chapter-titles.js', () => ({
+  getChapterTitles: (...args) => mocks.getChapterTitles(...args),
+  updateChapterTitle: vi.fn(),
+}));
 
 import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
 
@@ -74,6 +85,8 @@ describe('WritingSpacePage', () => {
     mocks.listWritingSessions.mockResolvedValue([]);
     mocks.createWritingSession.mockResolvedValue({ id: 'ws-1', title: null });
     mocks.listActiveCharacters.mockResolvedValue([{ id: 'char-1', name: '阿塔' }]);
+    mocks.continueGeneration.mockReset();
+    mocks.getChapterTitles.mockResolvedValue([]);
     mocks.generate.mockImplementation((_wid, _sid, _content, callbacks) => {
       callbacks.onDone?.({ id: 'asst-1', content: '段落' }, ['下一步']);
       callbacks.onStreamEnd?.();
@@ -99,11 +112,45 @@ describe('WritingSpacePage', () => {
       'ws-1',
       '写作消息',
       expect.any(Object),
+      expect.any(Object),
     ));
     expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1');
 
     unmount();
     expect(mocks.setAppMode).toHaveBeenCalledWith('chat');
     expect(mocks.refreshCustomCss).toHaveBeenCalledWith('chat');
+  });
+
+  it('writing continue 在 onStreamEnd 前不会允许重复触发', async () => {
+    const callbacksRef = { current: null };
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.continueGeneration.mockImplementation((_wid, _sid, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+    mocks.MessageListMock.messagesRef.current = [
+      { id: 'asst-1', role: 'assistant', content: '第一段' },
+    ];
+
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
+    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+
+    fireEvent.click(screen.getByText('continue-writing'));
+    await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onDone?.();
+    });
+    fireEvent.click(screen.getByText('continue-writing'));
+    expect(mocks.continueGeneration).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      callbacksRef.current.onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('continue-writing'));
+    await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(2));
   });
 });

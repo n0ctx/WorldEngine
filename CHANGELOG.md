@@ -21,6 +21,9 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T166` `bugfix` `/continue` 等待 SSE 真正结束后再允许下一次续写 — 前端 chat/writing 的 continue 从 `onDone` 提前解锁改为等 `onStreamEnd`，并为续写回调加 token 防止旧请求收尾覆盖新请求；补了对应页面测试
+- `T163` `bugfix` `/continue` 统一显式续写指令 — `buildContinuationMessages` 不再按 provider 分支，统一改为 `assistant(originalContent) + user(直接继续上一条 AI 回复)`；既修 Gemini `CHAT DONE len=0`，也避免其他 provider 后续撞上同类尾 assistant 静默问题；新增 `backend/tests/routes/stream-helpers.test.js`
+- `T162` `refactor` 对话/写作空间通用组件插件化（插件1-3） — 新增 `frontend/src/api/stream-parser.js` 作为 SSE 解析共享层；chat.js 和 writing-sessions.js 各增内部 `streamPost` 辅助消除重复模板；`backend/services/chat.js` 的 `processStreamOutput` 扩展 opts 参数（mode/createMessageFn/touchSessionFn），writing.js runWritingStream 改调用此函数而非内联处理；提示词内部重构（插件4）未实施
 - `T161` `feat` 关闭日记时清除历史记录 + 确认弹窗 — `clearAllDiaryData()` 遍历所有世界所有会话清除 DB+文件；`POST /api/worlds/clear-all-diaries` 路由；MemoryConfigPanel 关闭 toggle 时先弹确认再执行；diary_time 字段由 syncDiaryTimeField 在页面进入时自动删除
 - `T160` `feat` 写作空间 CastPanel 补"整理中/已整理"overlay — 对齐 StatePanel 轮询逻辑；加 `pollingHasChanged`/`stateJustChanged`；移除旧内联"更新中…"文字；`motion` 补入 framer-motion 导入
 - `T159` `feat` 状态更新后台阻塞下轮 prompt 组装 + 输入立即解锁 — 新增 `state-update-tracker.js`；`onDone` 时立即 `setGenerating(false)` + `triggerMemoryRefresh`；下轮请求 `buildContext`/`buildWritingPrompt` 前 `awaitPendingStateUpdate`；StatePanel 恢复纯轮询 overlay；`state_updating`/`state_updated` SSE 事件全部清除
@@ -75,6 +78,21 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T166 — bugfix: continue 重入竞态修复 ✅
+- **对外接口**：无接口变更；`continueGeneration` / 写作空间 `continueGeneration` 调用方式不变
+- **涉及文件**：`frontend/src/pages/ChatPage.jsx`、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/tests/pages/chat-page.test.jsx`、`frontend/tests/pages/writing-space-page.test.jsx`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：`/continue` 的 SSE 会在 `done` 后继续保活，直到状态/日记后台任务完成才触发 `onStreamEnd`。如果前端在 `onDone` 就把续写解锁，用户快速连点会让旧请求的收尾清理掉新请求的 `continuing*` 状态。续写现在必须以 `onStreamEnd` 作为真正完成信号，并用 token 隔离旧回调。
+
+## T165 — bugfix: 日记 Timeline 摘要清洗模板占位泄露 ✅
+- **对外接口**：无接口变化；`GET /api/sessions/:id/daily-entries` 继续返回 `summary` 字段
+- **涉及文件**：`backend/prompts/templates/diary-generation.md`、`backend/memory/diary-generator.js`、`backend/tests/memory/diary-generator.test.js`
+- **注意**：根因是日记 prompt 用 `{{摘要：...}}` / `{{正文：...}}` 作为输出示例，模型偶发原样复读，`extractSummaryFromDiary()` 又直接把该行入库，导致前端 Timeline 裸露模板结构。修复为 prompt 改成纯自然语言格式说明，并在摘要提取阶段额外清洗 `{{...}}` 与 `摘要：` / `正文：` 前缀，双层兜底避免旧模型习惯复发
+
+## T164 — perf: 写作空间状态栏改为 SSE 定向刷新 ✅
+- **对外接口**：写作流 SSE 稳定消费 `state_updated` / `diary_updated`；`useSessionState(sessionId, stateTick, diaryTick)` 改为按事件 tick 定向刷新，不再启动轮询
+- **涉及文件**：`backend/routes/writing.js`、`frontend/src/hooks/useSessionState.js`、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/components/book/CastPanel.jsx`、`frontend/src/components/book/StatePanel.jsx`、`ARCHITECTURE.md`
+- **注意**：写作 `/generate` 与 `/continue` 都会把 SSE 连接保留到状态/日记后台任务 Promise settle 后再关闭；前端 overlay 只在事件驱动刷新完成后短暂显示“已整理”，不再显示基于轮询的“整理中”
 
 ## T162 — bugfix: 写作空间流式回复结束后内容短暂消失 ✅
 - **涉及文件**：`frontend/src/pages/WritingSpacePage.jsx`

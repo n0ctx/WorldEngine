@@ -5,14 +5,16 @@ import StatusSection from './StatusSection.jsx';
 import ModalShell from '../ui/ModalShell.jsx';
 import { getCharactersByWorld } from '../../api/characters.js';
 import {
-  fetchSessionStateValues,
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   fetchSessionCharacterStateValues,
   resetSessionCharacterStateValuesByChar,
 } from '../../api/session-state-values.js';
-import { fetchDailyEntries, fetchDiaryContent } from '../../api/daily-entries.js';
+import { fetchDiaryContent } from '../../api/daily-entries.js';
+import { useSessionState } from '../../hooks/useSessionState.js';
 import { activateCharacter, deactivateCharacter } from '../../api/writing-sessions.js';
+
+const MotionDiv = motion.div;
 
 function Chevron({ open }) {
   return (
@@ -59,7 +61,7 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
   );
 }
 
-function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, refreshTick }) {
+function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTick }) {
   const [stateValues, setStateValues] = useState(null);
   const [resetting, setResetting] = useState(false);
 
@@ -71,7 +73,7 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, refresh
     fetchSessionCharacterStateValues(sessionId, char.id)
       .then(setStateValues)
       .catch(() => setStateValues([]));
-  }, [char?.id, sessionId, expanded, refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [char?.id, sessionId, expanded, stateTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleReset() {
     if (resetting) return;
@@ -210,18 +212,13 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
   );
 }
 
-export default function CastPanel({ worldId, sessionId, activeCharacters, onActiveCharactersChange, refreshTick = 0, persona, onDiaryInject }) {
+export default function CastPanel({ worldId, sessionId, activeCharacters, onActiveCharactersChange, stateTick = 0, diaryTick = 0, persona, onDiaryInject }) {
+  const { stateData, setStateData, diaryEntries, stateJustChanged } = useSessionState(sessionId, stateTick, diaryTick);
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState([]);
-
-  // null = 加载中；{ world:[], persona:[] } = 已加载
-  const [stateData, setStateData] = useState(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
-  const [diaryEntries, setDiaryEntries] = useState(null);
-  const [isPolling, setIsPolling] = useState(false);
-  const [pollingHasChanged, setPollingHasChanged] = useState(false);
-  const [stateJustChanged, setStateJustChanged] = useState(false);
 
   // 日记折叠/展开
   const [diaryOpen, setDiaryOpen] = useState(true);
@@ -239,75 +236,11 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   // sessionId 变化时清空已选日记
   useEffect(() => { setSelectedEntry(null); }, [sessionId]);
 
-  // 初始加载世界/玩家/日记
-  useEffect(() => {
-    if (!sessionId) {
-      setStateData({ world: [], persona: [] });
-      setDiaryEntries([]);
-      return;
-    }
-    setStateData(null);
-    setDiaryEntries(null);
-
-    fetchSessionStateValues(sessionId)
-      .then((data) => setStateData({ world: data.world, persona: data.persona }))
-      .catch(() => setStateData({ world: [], persona: [] }));
-    fetchDailyEntries(sessionId).then(setDiaryEntries).catch(() => setDiaryEntries([]));
-  }, [sessionId]);
-
-  // 轮询：AI 回复后感知异步状态更新
-  useEffect(() => {
-    if (refreshTick === 0 || !sessionId) return;
-
-    setIsPolling(true);
-    setPollingHasChanged(false);
-    let currentSnapshot = JSON.stringify([stateData, diaryEntries]);
-    let intervalId;
-    let timeoutId;
-    let changedTimerId;
-
-    intervalId = setInterval(async () => {
-      try {
-        const [newData, newDiary] = await Promise.all([
-          fetchSessionStateValues(sessionId),
-          fetchDailyEntries(sessionId),
-        ]);
-        const current = JSON.stringify([{ world: newData.world, persona: newData.persona }, newDiary]);
-        if (current !== currentSnapshot) {
-          currentSnapshot = current;
-          setStateData({ world: newData.world, persona: newData.persona });
-          setDiaryEntries(newDiary);
-          setPollingHasChanged(true);
-          setStateJustChanged(true);
-          clearTimeout(changedTimerId);
-          changedTimerId = setTimeout(() => setStateJustChanged(false), 1800);
-        }
-      } catch {
-        clearInterval(intervalId);
-        clearTimeout(timeoutId);
-        setIsPolling(false);
-      }
-    }, 3000);
-
-    timeoutId = setTimeout(() => {
-      clearInterval(intervalId);
-      setIsPolling(false);
-    }, 30000);
-
-    return () => {
-      clearInterval(intervalId);
-      clearTimeout(timeoutId);
-      clearTimeout(changedTimerId);
-      setIsPolling(false);
-    };
-  }, [refreshTick]); // eslint-disable-line react-hooks/exhaustive-deps
-
   async function handleResetWorldState() {
     if (!sessionId || worldResetting) return;
     setWorldResetting(true);
     try {
-      const newData = await resetSessionWorldStateValues(sessionId);
-      setStateData({ world: newData.world, persona: newData.persona });
+      setStateData(await resetSessionWorldStateValues(sessionId));
     } catch (e) { console.error(e); }
     finally { setWorldResetting(false); }
   }
@@ -316,8 +249,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     if (!sessionId || personaResetting) return;
     setPersonaResetting(true);
     try {
-      const newData = await resetSessionPersonaStateValues(sessionId);
-      setStateData({ world: newData.world, persona: newData.persona });
+      setStateData(await resetSessionPersonaStateValues(sessionId));
     } catch (e) { console.error(e); }
     finally { setPersonaResetting(false); }
   }
@@ -356,8 +288,6 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     onActiveCharactersChange((prev) => [...prev, char]);
     setAddModalOpen(false);
   }
-
-  const showFloating = stateJustChanged || (isPolling && !pollingHasChanged);
 
   return (
     <div
@@ -492,7 +422,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
               expanded={expandedIds.includes(char.id)}
               onToggle={() => toggleExpand(char.id)}
               onRemove={handleRemove}
-              refreshTick={refreshTick}
+              stateTick={stateTick}
             />
           ))}
           {activeCharacters.length === 0 && (
@@ -608,8 +538,8 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
 
       {/* 悬浮状态卡 */}
       <AnimatePresence>
-        {showFloating && (
-          <motion.div
+        {stateJustChanged && (
+          <MotionDiv
             key="cast-state-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -628,7 +558,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
               WebkitBackdropFilter: 'blur(1.5px)',
             }}
           >
-            <motion.div
+            <MotionDiv
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
@@ -641,25 +571,13 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
                 fontStyle: 'italic',
                 letterSpacing: '0.18em',
                 lineHeight: 1,
-                color: stateJustChanged ? 'var(--we-gold-leaf)' : 'var(--we-ink-faded)',
-                transition: 'color 0.36s ease',
+                color: 'var(--we-gold-leaf)',
                 whiteSpace: 'nowrap',
               }}>
-                {stateJustChanged ? '已整理' : '整理中'}
+                已整理
               </span>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 3,
-                opacity: stateJustChanged ? 0 : 1,
-                transition: 'opacity 0.28s ease',
-              }}>
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-                <span className="typing-dot" style={{ background: 'var(--we-ink-faded)', width: 3, height: 3, margin: 0 }} />
-              </div>
-            </motion.div>
-          </motion.div>
+            </MotionDiv>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>

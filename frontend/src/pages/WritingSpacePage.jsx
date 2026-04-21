@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { getWorld } from '../api/worlds.js';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { useAppModeStore } from '../store/appMode.js';
 import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
@@ -41,7 +40,6 @@ export default function WritingSpacePage() {
     };
   }, [setAppMode]);
 
-  const [world, setWorld] = useState(null);
   const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
   const [activeCharacters, setActiveCharacters] = useState([]);
@@ -51,7 +49,8 @@ export default function WritingSpacePage() {
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
   const [impersonating, setImpersonating] = useState(false);
-  const [castRefreshTick, setCastRefreshTick] = useState(0);
+  const [stateTick, setStateTick] = useState(0);
+  const [diaryTick, setDiaryTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
 
@@ -61,6 +60,7 @@ export default function WritingSpacePage() {
   const streamingKeyRef = useRef('__ws_stream_init__');
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
+  const continuationTokenRef = useRef(0);
   const pendingAssistantRef = useRef(null);
   const assistantAppendedEarlyRef = useRef(false);
   const pendingOptionsRef = useRef([]);
@@ -83,7 +83,6 @@ export default function WritingSpacePage() {
   useEffect(() => {
     if (!worldId) return;
     clearOptionsState();
-    getWorld(worldId).then(setWorld).catch(console.error);
     getPersona(worldId).then(setPersona).catch(() => {});
     syncDiaryTimeField(worldId).catch(() => {});
   }, [worldId]);
@@ -224,6 +223,12 @@ export default function WritingSpacePage() {
       onChapterTitleUpdated(chapterIndex, title) {
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
+      onStateUpdated() {
+        setStateTick((tick) => tick + 1);
+      },
+      onDiaryUpdated() {
+        setDiaryTick((tick) => tick + 1);
+      },
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
         pendingAssistantRef.current = null;
@@ -235,7 +240,6 @@ export default function WritingSpacePage() {
         setGenerating(false);
         setStreamingText('');
         stopRef.current = null;
-        setCastRefreshTick((t) => t + 1);
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {
           if (pending && MessageList.appendMessage) {
@@ -341,7 +345,8 @@ export default function WritingSpacePage() {
           return prev.slice(0, idx);
         });
       }
-      setCastRefreshTick((t) => t + 1);
+      setStateTick((tick) => tick + 1);
+      setDiaryTick((tick) => tick + 1);
     } catch (err) {
       setError(err.message || '删除失败');
     }
@@ -363,6 +368,8 @@ export default function WritingSpacePage() {
     if (!lastAssistantId) return;
 
     setError(null);
+    const continuationToken = continuationTokenRef.current + 1;
+    continuationTokenRef.current = continuationToken;
     continuingMessageIdRef.current = lastAssistantId;
     continuingTextRef.current = '';
     setContinuingMessageId(lastAssistantId);
@@ -371,13 +378,15 @@ export default function WritingSpacePage() {
 
     stopRef.current = continueGeneration(worldId, session.id, {
       onDelta(delta) {
+        if (continuationTokenRef.current !== continuationToken) return;
         continuingTextRef.current += delta;
         setContinuingText((prev) => prev + delta);
       },
       onDone() {
-        setGenerating(false);
+        if (continuationTokenRef.current !== continuationToken) return;
       },
       onAborted() {
+        if (continuationTokenRef.current !== continuationToken) return;
         // 合并续写内容到消息列表后清理
         const contId = continuingMessageIdRef.current;
         const contText = continuingTextRef.current;
@@ -394,6 +403,7 @@ export default function WritingSpacePage() {
         stopRef.current = null;
       },
       onError(msg) {
+        if (continuationTokenRef.current !== continuationToken) return;
         setError(msg);
         continuingMessageIdRef.current = null;
         continuingTextRef.current = '';
@@ -402,7 +412,16 @@ export default function WritingSpacePage() {
         setGenerating(false);
         stopRef.current = null;
       },
+      onStateUpdated() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        setStateTick((tick) => tick + 1);
+      },
+      onDiaryUpdated() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        setDiaryTick((tick) => tick + 1);
+      },
       onStreamEnd() {
+        if (continuationTokenRef.current !== continuationToken) return;
         // 合并续写内容到消息列表后清理
         const contId = continuingMessageIdRef.current;
         const contText = continuingTextRef.current;
@@ -417,7 +436,6 @@ export default function WritingSpacePage() {
         setContinuingText('');
         setGenerating(false);
         stopRef.current = null;
-        setCastRefreshTick((t) => t + 1);
       },
     });
   }
@@ -596,7 +614,8 @@ export default function WritingSpacePage() {
         sessionId={currentSession?.id}
         activeCharacters={activeCharacters}
         onActiveCharactersChange={setActiveCharacters}
-        refreshTick={castRefreshTick}
+        stateTick={stateTick}
+        diaryTick={diaryTick}
         persona={persona}
         onDiaryInject={setPendingDiaryInject}
       />

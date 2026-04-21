@@ -236,7 +236,7 @@ export default function WritingMessageItem({
             />
             <div className="we-message-edit-actions">
               <button onClick={cancelEdit}>取消</button>
-              <button className="primary" onClick={confirmEdit}>确认并重新生成</button>
+              <button className="primary" onClick={confirmEdit}>确认</button>
             </div>
           </div>
         ) : (

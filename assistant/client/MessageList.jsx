@@ -154,7 +154,7 @@ function UserMessage({ msg, onEdit, onDelete }) {
             />
             <div style={{ display: 'flex', gap: '6px', marginTop: '4px', justifyContent: 'flex-end' }}>
               <ActionBtn onClick={cancelEdit}>取消</ActionBtn>
-              <ActionBtn onClick={confirmEdit}>确认并重新生成</ActionBtn>
+              <ActionBtn onClick={confirmEdit}>确认</ActionBtn>
             </div>
           </div>
         ) : (

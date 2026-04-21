@@ -46,7 +46,7 @@ const DEFAULT_CONFIG = {
       enabled: false,
     },
     llm_raw: {
-      enabled: false,
+      enabled:false,
     },
   },
   writing: {

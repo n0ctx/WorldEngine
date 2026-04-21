@@ -41,12 +41,18 @@ export function beginStreamSession(sessionId, res, activeStreams) {
   };
 }
 
+const CONTINUE_USER_INSTRUCTION = '请直接继续上一条 AI 回复，从上次停下的位置自然接续，不要重复已写内容，不要解释。';
+
 export function buildContinuationMessages(rawMessages, originalContent) {
   const messages = [...rawMessages];
   const lastMessage = messages[messages.length - 1];
+
   if (lastMessage?.role !== 'user') {
-    return [...messages, { role: 'assistant', content: originalContent }];
+    messages.push({ role: 'user', content: CONTINUE_USER_INSTRUCTION });
+    return messages;
   }
+
   messages.push({ role: 'assistant', content: originalContent });
+  messages.push({ role: 'user', content: CONTINUE_USER_INSTRUCTION });
   return messages;
 }
