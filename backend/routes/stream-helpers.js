@@ -1,3 +1,5 @@
+import { loadBackendPrompt } from '../prompts/prompt-loader.js';
+
 export function setSseHeaders(res) {
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -41,7 +43,7 @@ export function beginStreamSession(sessionId, res, activeStreams) {
   };
 }
 
-const CONTINUE_USER_INSTRUCTION = '请直接继续上一条 AI 回复，从上次停下的位置自然接续，不要重复已写内容，不要解释。';
+const CONTINUE_USER_INSTRUCTION = loadBackendPrompt('continue-user-instruction.md');
 
 export function buildContinuationMessages(rawMessages, originalContent) {
   const messages = [...rawMessages];

@@ -233,8 +233,8 @@ createTurnRecord(sessionId, { isUpdate? })
 
 **SSE 连接关闭时机**（使用 `Promise.allSettled` 统一协调）：
 - 收集所有需要推送 SSE 事件的任务 Promise（`ssePromises`）
-  - `session.title` 为 NULL：`generateTitle` 完成 → 推送 `title_updated`
-  - 检测到新章节首轮 AI 回复：`generateChapterTitle` 完成 → 推送 `chapter_title_updated`
+  - `session.title` 为 NULL：`generateTitle` 完成 → 推送 `title_updated`；若 LLM 空返回会自动切换到更强约束的 retry prompt 再试一次，仍为空则放弃写入并记录 `GIVEUP`
+  - 检测到新章节首轮 AI 回复：`generateChapterTitle` 完成 → 推送 `chapter_title_updated`；空返回时同样按“更强 prompt 重试一次，失败则放弃写入并记日志”处理
   - `updateAllStates(...)` 完成：推送 `state_updated`
   - `checkAndGenerateDiary(...)` 完成（无论是否实际生成新日记）：推送 `diary_updated`
 - 有 ssePromises：`Promise.allSettled(ssePromises).finally(() => res.end())`
@@ -242,7 +242,7 @@ createTurnRecord(sessionId, { isUpdate? })
 
 **regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
 
-**continue**：续写时不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令“直接继续上一条 AI 回复，从上次停下的位置自然接续，不要重复已写内容，不要解释。”，避免模型把尾 assistant 误判为已完成回复。完成后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
+**continue**：续写时不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令（模板文件：`backend/prompts/templates/continue-user-instruction.md`），避免模型把尾 assistant 误判为已完成回复。完成后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
 
 **checkAndGenerateDiary 内部流程**（Priority 4，每轮正常完成后执行）：
 

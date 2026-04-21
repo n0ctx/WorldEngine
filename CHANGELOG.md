@@ -21,6 +21,7 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T167` `bugfix` 写作标题空返回兜底 + continue 指令模板化 — title/chapter title 对 Gemini 空返回增加一次重试，仍为空时回退到本地裁剪标题；`buildContinuationMessages` 的续写指令移入 `backend/prompts/templates/continue-user-instruction.md`
 - `T166` `bugfix` `/continue` 等待 SSE 真正结束后再允许下一次续写 — 前端 chat/writing 的 continue 从 `onDone` 提前解锁改为等 `onStreamEnd`，并为续写回调加 token 防止旧请求收尾覆盖新请求；补了对应页面测试
 - `T163` `bugfix` `/continue` 统一显式续写指令 — `buildContinuationMessages` 不再按 provider 分支，统一改为 `assistant(originalContent) + user(直接继续上一条 AI 回复)`；既修 Gemini `CHAT DONE len=0`，也避免其他 provider 后续撞上同类尾 assistant 静默问题；新增 `backend/tests/routes/stream-helpers.test.js`
 - `T162` `refactor` 对话/写作空间通用组件插件化（插件1-3） — 新增 `frontend/src/api/stream-parser.js` 作为 SSE 解析共享层；chat.js 和 writing-sessions.js 各增内部 `streamPost` 辅助消除重复模板；`backend/services/chat.js` 的 `processStreamOutput` 扩展 opts 参数（mode/createMessageFn/touchSessionFn），writing.js runWritingStream 改调用此函数而非内联处理；提示词内部重构（插件4）未实施
@@ -79,6 +80,10 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T167 — bugfix: 写作标题空返回重试 + continue 指令模板化 ✅
+- **对外接口**：无接口变更；`generateTitle()` / `generateChapterTitle()` 调用方式不变，`buildContinuationMessages()` 输出结构不变
+- **涉及文件**：`backend/memory/summarizer.js`、`backend/memory/chapter-title-generator.js`、`backend/memory/title-generation.js`、`backend/routes/stream-helpers.js`、`backend/prompts/templates/continue-user-instruction.md`、`backend/prompts/templates/memory-title-generation-retry.md`、`backend/prompts/templates/writing-chapter-title-generation-retry.md`、`backend/tests/memory/title-generation.test.js`
+- **注意**：Gemini 在极短 `complete()` 任务上会偶发返回空串，之前标题链路会静默跳过，导致写作会话/章节标题看起来“没生成”。现在标题任务遇到空返回会用更强约束的 retry prompt 再试一次，并把 `RETRY / EMPTY / GIVEUP` 写进日志；若仍失败则维持空标题，不再做本地 fallback。续写默认 user 指令也已并入后端 prompt 模板目录，避免固定 prompt 文案散落在 JS 常量里。
 ## T166 — bugfix: continue 重入竞态修复 ✅
 - **对外接口**：无接口变更；`continueGeneration` / 写作空间 `continueGeneration` 调用方式不变
 - **涉及文件**：`frontend/src/pages/ChatPage.jsx`、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/tests/pages/chat-page.test.jsx`、`frontend/tests/pages/writing-space-page.test.jsx`、`ARCHITECTURE.md`、`CHANGELOG.md`

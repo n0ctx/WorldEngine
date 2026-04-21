@@ -7,13 +7,9 @@ import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions
 import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
 
 const log = createLogger('summarizer');
-
-/** 剥除 <think>...</think> 块，只保留正文 */
-function stripThinkTags(text) {
-  return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
-}
 
 /**
  * 生成会话标题，更新 sessions.title。
@@ -41,14 +37,25 @@ export async function generateTitle(sessionId) {
       content: renderBackendPrompt('memory-title-generation.md', { DIALOGUE: dialogue }),
     },
   ];
+  const retryPrompt = [
+    {
+      role: 'user',
+      content: renderBackendPrompt('memory-title-generation-retry.md', { DIALOGUE: dialogue }),
+    },
+  ];
 
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TITLE_MAX_TOKENS });
-  if (!raw) return null;
+  const result = await generateTitleWithRetry({
+    prompts: [prompt, retryPrompt],
+    maxTokens: LLM_TITLE_MAX_TOKENS,
+    temperature: LLM_TASK_TEMPERATURE,
+    log,
+    logLabel: 'generateTitle',
+    logMeta: `session=${sid}`,
+  });
+  if (!result?.title) return null;
 
-  // 剥除 LLM 输出中可能带有的 think 标签（推理模型自身也会输出思考过程）
-  const title = stripThinkTags(raw).replace(/["'"'「」『』《》【】]/g, '').trim().slice(0, 15);
-  if (!title) return null;
+  const { title, source, attempts } = result;
   updateSessionTitle(sessionId, title);
-  log.info(`generateTitle DONE  session=${sid}  title="${title}"`);
+  log.info(`generateTitle DONE  session=${sid}  title="${title}"  source=${source}  attempts=${attempts}`);
   return title;
 }

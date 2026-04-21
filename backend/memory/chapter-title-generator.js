@@ -2,17 +2,13 @@
  * chapter-title-generator.js — 写作空间章节标题的 LLM 生成
  */
 
-import * as llm from '../llm/index.js';
 import { upsertChapterTitle } from '../db/queries/chapter-titles.js';
 import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_CHAPTER_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
 
 const log = createLogger('chapter-title');
-
-function stripThinkTags(text) {
-  return (text || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').replace(/<think>[\s\S]*$/, '').trim();
-}
 
 /**
  * 为指定章节生成 LLM 标题，写入 chapter_titles 表（is_default=0）。
@@ -40,20 +36,25 @@ export async function generateChapterTitle(sessionId, chapterIndex, chapterMessa
       content: renderBackendPrompt('writing-chapter-title-generation.md', { DIALOGUE: dialogue }),
     },
   ];
+  const retryPrompt = [
+    {
+      role: 'user',
+      content: renderBackendPrompt('writing-chapter-title-generation-retry.md', { DIALOGUE: dialogue }),
+    },
+  ];
 
-  const raw = await llm.complete(prompt, {
+  const result = await generateTitleWithRetry({
+    prompts: [prompt, retryPrompt],
     temperature: LLM_TASK_TEMPERATURE,
     maxTokens: LLM_CHAPTER_TITLE_MAX_TOKENS,
+    log,
+    logLabel: 'generateChapterTitle',
+    logMeta: `session=${sid}  chapter=${chapterIndex}`,
   });
-  if (!raw) return null;
+  if (!result?.title) return null;
 
-  const title = stripThinkTags(raw)
-    .replace(/["'"'「」『』《》【】]/g, '')
-    .trim()
-    .slice(0, 15);
-  if (!title) return null;
-
+  const { title, source, attempts } = result;
   upsertChapterTitle(sessionId, chapterIndex, title, 0);
-  log.info(`generateChapterTitle DONE  session=${sid}  chapter=${chapterIndex}  title="${title}"`);
+  log.info(`generateChapterTitle DONE  session=${sid}  chapter=${chapterIndex}  title="${title}"  source=${source}  attempts=${attempts}`);
   return title;
 }
