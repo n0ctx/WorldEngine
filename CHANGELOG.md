@@ -75,6 +75,27 @@
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
 
+## T158 — feat: diary_time 字段重构与日记日期切换修复 ✅
+- **对外接口**：
+  - `ensureDiaryTimeField(worldId)` — `backend/services/worlds.js`，同步世界的 diary_time 字段（增/删/更新 update_mode）
+  - `POST /api/worlds/:id/sync-diary` — 前端页面进入时调用，触发 `ensureDiaryTimeField`
+  - `syncDiaryTimeField(worldId)` — `frontend/src/api/world-state-fields.js`，前端封装
+- **涉及文件**：
+  - `backend/utils/constants.js` — `DIARY_TIME_FIELD_KEY` 改为 `'diary_time'`（原 `'_diary_time'`）；`DIARY_TIME_UPDATE_INSTRUCTION` 更新为严格 `N年N月N日N时` 格式要求
+  - `backend/memory/diary-generator.js` — `VIRTUAL_DATE_RE` 改为 `/^(\d+)年(\d+)月(\d+)日(\d+)时/`，严格要求含"时"
+  - `backend/memory/combined-state-updater.js` — 真实日期模式（`diary_date_mode=real`）下，`updateAllStates` 在 early-return 之前直接写入 `diary_time=N年N月N日N时`（上海时区）
+  - `backend/services/worlds.js` — 新增 `ensureDiaryTimeField()`；`createWorld()` 改调此函数；支持虚拟模式（`update_mode=llm_auto`）和真实模式（`update_mode=system_rule`）
+  - `backend/routes/worlds.js` — 新增 `POST /:id/sync-diary` 路由
+  - `backend/services/sessions.js` — `createSession()` 懒创建 `diary_time` 字段（调用 `ensureDiaryTimeField`）
+  - `frontend/src/api/world-state-fields.js` — 新增 `syncDiaryTimeField(worldId)`
+  - `frontend/src/pages/WorldEditPage.jsx`、`ChatPage.jsx`、`WritingSpacePage.jsx` — 页面进入时调用 `syncDiaryTimeField`；WorldEditPage 传 `diaryChatDateMode` prop
+  - `frontend/src/components/state/StateFieldList.jsx` — `diary_time` 字段：隐藏删除按钮、禁拖拽、显示锁图标
+  - `frontend/src/components/state/StateFieldEditor.jsx` — `diary_time` 特殊编辑器：虚拟模式显示 4 个整数输入（年/月/日/时）；真实模式只读提示
+- **注意**：
+  - 旧数据库中的 `_diary_time` 字段不会自动迁移（字段名含下划线），需用 `POST /api/worlds/:id/sync-diary` 触发重建（下次进入页面时自动执行）
+  - 真实模式下 `diary_time` 字段的 `update_mode=system_rule`，`filterActive()` 已将其排除在 LLM 更新范围之外；时间由 `combined-state-updater.js` 直接写入
+  - 日记日期切换（`checkAndGenerateDiary`）：虚拟模式以 `state_snapshot.world.diary_time` 为准（新正则），真实模式以 `turn_records.created_at` 为准（不变）
+
 ## T157 — feat: 写作空间章节标题独立系统 ✅
 - **对外接口**：
   - `GET /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles` → 返回章节标题数组

@@ -5,6 +5,7 @@ import {
   getAllWorlds,
   updateWorld,
   deleteWorld,
+  ensureDiaryTimeField,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -47,6 +48,14 @@ router.delete('/:id', async (req, res) => {
   if (!assertExists(res, existing, '世界不存在')) return;
   await deleteWorld(req.params.id);
   res.status(204).end();
+});
+
+// POST /api/worlds/:id/sync-diary — 根据当前日记配置同步 diary_time 字段
+router.post('/:id/sync-diary', (req, res) => {
+  const existing = getWorldById(req.params.id);
+  if (!assertExists(res, existing, '世界不存在')) return;
+  ensureDiaryTimeField(req.params.id);
+  res.json({ ok: true });
 });
 
 export default router;

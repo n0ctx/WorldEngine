@@ -24,15 +24,25 @@ const TRIGGER_MODE_OPTIONS = [
 const inputCls = 'we-input';
 const labelCls = 'we-dialog-label';
 
+const DIARY_TIME_FIELD_KEY = 'diary_time';
+
+/** 从 "N年N月N日N时" 字符串解析出 4 个整数，失败时返回默认值 */
+function parseDiaryTimeDefault(str) {
+  const m = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时/);
+  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10), hour: parseInt(m[4], 10) };
+  return { year: 1000, month: 1, day: 1, hour: 0 };
+}
+
 /**
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
  * Props:
- *   field      — 现有字段对象（编辑模式）或 null（创建模式）
- *   scope      — 'world' | 'character'（决定 update_mode 选项范围）
- *   onSave(data) — 父组件负责调用 API，返回 Promise
+ *   field         — 现有字段对象（编辑模式）或 null（创建模式）
+ *   scope         — 'world' | 'character'（决定 update_mode 选项范围）
+ *   diaryDateMode — 'virtual' | 'real' | undefined（仅 diary_time 字段时传入）
+ *   onSave(data)  — 父组件负责调用 API，返回 Promise
  *   onClose()
  */
-export default function StateFieldEditor({ field, scope, onSave, onClose }) {
+export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose }) {
   const [form, setForm] = useState(() => {
     // 解析 list 类型的 default_value（存储为 JSON 数组字符串）
     let listDefaults = [];
@@ -139,6 +149,76 @@ export default function StateFieldEditor({ field, scope, onSave, onClose }) {
   const updateModeOpts = scope === 'world'
     ? UPDATE_MODE_OPTIONS
     : UPDATE_MODE_OPTIONS.filter((o) => o.value !== 'system_rule');
+
+  const isDiaryTime = field?.field_key === DIARY_TIME_FIELD_KEY;
+
+  // ── diary_time 特殊编辑器 ──────────────────────────────────────────
+  if (isDiaryTime) {
+    const isReal = diaryDateMode === 'real';
+    const dtParsed = parseDiaryTimeDefault(form.default_value);
+
+    function setDt(k, v) {
+      const next = { ...dtParsed, [k]: parseInt(v, 10) || 0 };
+      set('default_value', `${next.year}年${next.month}月${next.day}日${next.hour}时`);
+    }
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+        <div className="we-dialog-panel w-full max-w-sm flex flex-col">
+          <div className="we-dialog-header">
+            <h2>日记时间字段</h2>
+          </div>
+          <div className="we-dialog-body flex flex-col gap-4">
+            {isReal ? (
+              <p style={{ fontSize: 13, color: 'var(--we-ink-secondary)', fontFamily: 'var(--we-font-serif)', lineHeight: 1.6 }}>
+                当前为<strong>真实日期</strong>模式，此字段由系统自动更新，无法手动编辑。
+              </p>
+            ) : (
+              <>
+                <p style={{ fontSize: 12, color: 'var(--we-ink-faded)', fontFamily: 'var(--we-font-serif)', lineHeight: 1.6 }}>
+                  虚拟日期模式：设置故事的初始时间。格式固定为 <code>N年N月N日N时</code>，由 AI 每轮自动更新。
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { key: 'year',  label: '年', min: 1 },
+                    { key: 'month', label: '月', min: 1, max: 12 },
+                    { key: 'day',   label: '日', min: 1, max: 31 },
+                    { key: 'hour',  label: '时', min: 0, max: 23 },
+                  ].map(({ key, label, min, max }) => (
+                    <div key={key}>
+                      <label className={labelCls}>{label}</label>
+                      <input
+                        type="number"
+                        className={inputCls}
+                        value={dtParsed[key]}
+                        min={min}
+                        max={max}
+                        onChange={(e) => setDt(key, e.target.value)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--we-ink-faded)', fontFamily: 'var(--we-font-serif)' }}>
+                  初始时间：<strong>{form.default_value || `${dtParsed.year}年${dtParsed.month}月${dtParsed.day}日${dtParsed.hour}时`}</strong>
+                </p>
+              </>
+            )}
+            {error && (
+              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }}>{error}</p>
+            )}
+          </div>
+          <div className="we-dialog-footer">
+            <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">关闭</button>
+            {!isReal && (
+              <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
+                {saving ? '保存中…' : '保存'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">

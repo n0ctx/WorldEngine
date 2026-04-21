@@ -23,6 +23,7 @@ import { runOnDelete } from '../utils/cleanup-hooks.js';
 
 import { getCharacterById } from '../db/queries/characters.js';
 import { getConfig } from './config.js';
+import { ensureDiaryTimeField } from './worlds.js';
 
 /**
  * 创建会话；若角色有 first_message 则自动插入开场白
@@ -33,6 +34,11 @@ export function createSession(characterId) {
   const diaryChat = config.diary?.chat;
   const diary_date_mode = diaryChat?.enabled ? (diaryChat.date_mode ?? 'virtual') : null;
   const session = dbCreateSession(characterId, { diary_date_mode });
+
+  // 懒创建/同步 diary_time 字段（防止世界创建时日记未开启的场景）
+  if (diary_date_mode && character?.world_id) {
+    ensureDiaryTimeField(character.world_id);
+  }
 
   if (character && character.first_message) {
     dbCreateMessage({

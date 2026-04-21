@@ -5,19 +5,22 @@ const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: 
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
 const TRIGGER_LABEL = { manual_only: '手动', every_turn: '每轮', keyword_based: '关键词' };
 
+const DIARY_TIME_FIELD_KEY = 'diary_time';
+
 /**
  * StateFieldList — 状态字段模板列表
  * Props:
- *   scope     — 'world' | 'character'
- *   worldId   — 所属世界 ID
- *   listFn    — async (worldId) => fields[]
- *   createFn  — async (worldId, data) => field
- *   updateFn  — async (id, patch) => field
- *   deleteFn  — async (id) => void
- *   reorderFn — async (worldId, orderedIds) => void
+ *   scope         — 'world' | 'character'
+ *   worldId       — 所属世界 ID
+ *   diaryDateMode — 'virtual' | 'real'（仅 scope='world' 时有意义，用于 diary_time 特殊 UI）
+ *   listFn        — async (worldId) => fields[]
+ *   createFn      — async (worldId, data) => field
+ *   updateFn      — async (id, patch) => field
+ *   deleteFn      — async (id) => void
+ *   reorderFn     — async (worldId, orderedIds) => void
  */
 export default function StateFieldList({
-  scope, worldId, listFn, createFn, updateFn, deleteFn, reorderFn,
+  scope, worldId, diaryDateMode, listFn, createFn, updateFn, deleteFn, reorderFn,
 }) {
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,7 @@ export default function StateFieldList({
             <FieldRow
               key={f.id}
               field={f}
+              isDiaryTime={f.field_key === DIARY_TIME_FIELD_KEY}
               onEdit={() => { setEditingField(f); setShowEditor(true); }}
               onDelete={() => setDeletingId(f.id)}
               onDragStart={() => handleDragStart(idx)}
@@ -108,6 +112,7 @@ export default function StateFieldList({
         <StateFieldEditor
           field={editingField}
           scope={scope}
+          diaryDateMode={editingField?.field_key === DIARY_TIME_FIELD_KEY ? diaryDateMode : undefined}
           onSave={handleSave}
           onClose={() => setShowEditor(false)}
         />
@@ -123,19 +128,22 @@ export default function StateFieldList({
   );
 }
 
-function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd }) {
+function FieldRow({ field, isDiaryTime, onEdit, onDelete, onDragStart, onDragOver, onDragEnd }) {
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      className="we-field-row group flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none"
+      draggable={!isDiaryTime}
+      onDragStart={isDiaryTime ? undefined : onDragStart}
+      onDragOver={isDiaryTime ? undefined : onDragOver}
+      onDragEnd={isDiaryTime ? undefined : onDragEnd}
+      className={`we-field-row group flex items-center gap-2 px-3 py-2 select-none${isDiaryTime ? '' : ' cursor-grab active:cursor-grabbing'}`}
     >
-      <span className="text-text-secondary opacity-25 group-hover:opacity-50 text-xs flex-shrink-0">⠿</span>
+      <span className={`text-text-secondary text-xs flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`}>⠿</span>
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="text-sm text-text font-medium truncate">{field.label}</span>
+        {isDiaryTime && (
+          <span className="text-xs opacity-40 flex-shrink-0" title="日记时间字段，由系统管理">🔒</span>
+        )}
         <span className="text-xs text-text-secondary opacity-50 font-mono truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
@@ -148,9 +156,11 @@ function FieldRow({ field, onEdit, onDelete, onDragStart, onDragOver, onDragEnd 
         <button onClick={onEdit}
           className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
           title="编辑">✎</button>
-        <button onClick={onDelete}
-          className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
-          title="删除">✕</button>
+        {!isDiaryTime && (
+          <button onClick={onDelete}
+            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
+            title="删除">✕</button>
+        )}
       </div>
     </div>
   );

@@ -22,11 +22,21 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
 import { upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
 
-import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS } from '../utils/constants.js';
+import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
+import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 
 const log = createLogger('all-state');
+
+/**
+ * 格式化当前时间为日记时间字符串（上海时区），如 "2026年4月21日14时"
+ */
+function formatRealTimeDiaryStr() {
+  const now = new Date();
+  const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
+  return `${local.getFullYear()}年${local.getMonth() + 1}月${local.getDate()}日${local.getHours()}时`;
+}
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
 
@@ -124,6 +134,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const sid = sessionId.slice(0, 8);
   const world = worldId ? getWorldById(worldId) : null;
   log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds, messageScanWindow: PROMPT_ENTRY_SCAN_WINDOW })}`);
+
+  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
+  const session = getSessionById(sessionId);
+  if (session?.diary_date_mode === 'real' && worldId) {
+    const timeStr = formatRealTimeDiaryStr();
+    upsertSessionWorldStateValue(sessionId, worldId, DIARY_TIME_FIELD_KEY, JSON.stringify(timeStr));
+    log.info(`REAL TIME  ${formatMeta({ session: sid, time: timeStr })}`);
+  }
 
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;

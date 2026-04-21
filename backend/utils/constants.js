@@ -40,10 +40,10 @@ export const WORLD_TIMELINE_RECENT_LIMIT = 5;
 // ============================
 // 日记系统（T155）
 // ============================
-/** 虚拟日期字段的保留 field_key（不可修改）*/
-export const DIARY_TIME_FIELD_KEY = '_diary_time';
-/** 虚拟日期字段的固定 update_instruction */
-export const DIARY_TIME_UPDATE_INSTRUCTION = '记录故事中的当前时间，必须包含年月日，可选时分。格式举例：1000年3月15日 或 1000年3月15日14时30分';
+/** 日记时间字段的保留 field_key（不可修改）*/
+export const DIARY_TIME_FIELD_KEY = 'diary_time';
+/** 虚拟日期模式下的固定 update_instruction */
+export const DIARY_TIME_UPDATE_INSTRUCTION = '故事中的当前时间，格式必须严格为：N年N月N日N时（例：1000年3月15日14时）。不得省略任何部分，不得使用其他格式。';
 /** 日记面板默认展示条数（最近 N 条展开，其余折叠）*/
 export const DIARY_PANEL_RECENT_LIMIT = 5;
 /** 日记 LLM 生成最大 token 数 */
@@ -95,6 +95,6 @@ export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';
 /** 每 N 条消息触发新章节（与前端 CHAPTER_MESSAGE_SIZE 相同） */
 export const CHAPTER_MESSAGE_SIZE = 20;
 /** 时间间隔超过此值（毫秒）触发新章节（与前端 CHAPTER_TIME_GAP_MS 相同） */
-export const CHAPTER_TIME_GAP_MS  = 6 * 60 * 60 * 1000;
+export const CHAPTER_TIME_GAP_MS  = 24 * 60 * 60 * 1000;
 /** 章节标题生成最大 token 数 */
 export const LLM_CHAPTER_TITLE_MAX_TOKENS = 30;

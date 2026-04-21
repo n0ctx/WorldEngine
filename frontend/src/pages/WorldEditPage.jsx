@@ -13,7 +13,9 @@ import SealStampAnimation from '../components/book/SealStampAnimation';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
+  syncDiaryTimeField,
 } from '../api/world-state-fields';
+import { getConfig } from '../api/config';
 import { getWorldStateValues, updateWorldStateValue } from '../api/world-state-values.js';
 import {
   listCharacterStateFields, createCharacterStateField,
@@ -46,6 +48,14 @@ export default function WorldEditPage() {
   const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
+
+  // 页面进入时同步 diary_time 字段，并获取日记日期模式
+  useEffect(() => {
+    if (!worldId) return;
+    syncDiaryTimeField(worldId).catch(() => {});
+    getConfig().then((c) => setDiaryChatDateMode(c.diary?.chat?.date_mode ?? 'virtual')).catch(() => {});
+  }, [worldId]);
 
   useEffect(() => {
     Promise.all([
@@ -241,6 +251,7 @@ export default function WorldEditPage() {
           <StateFieldList
             scope="world"
             worldId={worldId}
+            diaryDateMode={diaryChatDateMode}
             listFn={listWorldStateFields}
             createFn={createWorldStateField}
             updateFn={updateWorldStateField}

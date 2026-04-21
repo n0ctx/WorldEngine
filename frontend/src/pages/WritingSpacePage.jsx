@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { getWorld } from '../api/worlds.js';
+import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { useAppModeStore } from '../store/appMode.js';
 import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
 import { refreshCustomCss } from '../api/custom-css-snippets.js';
@@ -83,6 +84,7 @@ export default function WritingSpacePage() {
     clearOptionsState();
     getWorld(worldId).then(setWorld).catch(console.error);
     getPersona(worldId).then(setPersona).catch(() => {});
+    syncDiaryTimeField(worldId).catch(() => {});
   }, [worldId]);
 
   useEffect(() => {

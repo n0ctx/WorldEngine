@@ -14,6 +14,7 @@ import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import StatePanel from '../components/book/StatePanel.jsx';
 import { getWorld } from '../api/worlds.js';
+import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 
@@ -109,6 +110,7 @@ export default function ChatPage() {
       if (c.world_id) {
         getPersona(c.world_id).then(setPersona).catch(() => {});
         getWorld(c.world_id).then((w) => setWorldName(w.name || '')).catch(() => {});
+        syncDiaryTimeField(c.world_id).catch(() => {});
       }
     }).catch(console.error);
 
@@ -223,7 +225,6 @@ export default function ChatPage() {
     pendingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
     if (!wasContinuing && !appendedAssistant) refreshMessages();
-    useStore.getState().triggerMemoryRefresh();
   }, []);
 
   // 共用 SSE callbacks
@@ -255,9 +256,11 @@ export default function ChatPage() {
         tempUserIdRef.current = realId;
       },
       onDone(assistant, options) {
-        // 流可能还有 title_updated，等 onStreamEnd 再终结
         if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
+        // 立即解锁输入框，不等 title_updated/onStreamEnd
+        setGenerating(false);
+        useStore.getState().triggerMemoryRefresh();
       },
       onAborted(assistant) {
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
@@ -417,7 +420,10 @@ export default function ChatPage() {
         continuingTextRef.current += delta;
         setContinuingText((prev) => prev + delta);
       },
-      onDone() {},
+      onDone() {
+        setGenerating(false);
+        useStore.getState().triggerMemoryRefresh();
+      },
       onAborted() {},
       onError(err) {
         console.error('continue error:', err);

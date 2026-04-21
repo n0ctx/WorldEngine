@@ -207,7 +207,7 @@ POST /api/sessions/:sessionId/chat
 | 优先级 | 任务 | 触发条件 |
 |---|---|---|
 | 2 | `generateTitle(sessionId)` | `session.title` 为 NULL 时 |
-| 2 | `updateAllStates(worldId, characterIds, sessionId)` | 每次（角色/世界/玩家状态合并一次调用） |
+| 2 | `updateAllStates(worldId, characterIds, sessionId)` | 每次（角色/世界/玩家状态合并一次调用）；真实日期模式下额外直接写入 `diary_time=N年N月N日N时`（上海时区） |
 | 3 | `createTurnRecord(sessionId)` | 每次（在 updateAllStates 之后入队，捕获本轮结果状态） |
 | 4 | `checkAndGenerateDiary(sessionId, roundIndex)` | 非 isUpdate（createTurnRecord 后入队）；`session.diary_date_mode` 为 NULL 时自动跳过 |
 
@@ -249,7 +249,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
   ├─ roundIndex ≤ 1 → 跳过（首轮不做判断）
   ├─ 取 session.diary_date_mode → NULL 时退出
   ├─ 取全部 turn_records 快照，比较本轮与上轮日期
-  │    virtual：解析 state_snapshot.world._diary_time → /(\d+)年(\d+)月(\d+)日/
+  │    virtual：解析 state_snapshot.world.diary_time → /^(\d+)年(\d+)月(\d+)日(\d+)时/（严格要求含时）
   │    real：使用 turn_records.created_at 时间戳格式化为 YYYY-MM-DD
   ├─ 日期未跨越 → 退出
   ├─ 收集前一日全部 user+assistant 消息原文（via user_message_id/asst_message_id 查 messages）
