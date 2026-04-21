@@ -22,8 +22,8 @@ export const EMBEDDING_PROVIDERS = [
 
 export const NAV_SECTIONS = [
   { key: 'llm', label: 'LLM 配置' },
-  { key: 'prompt', label: '全局 Prompt' },
   { key: 'memory', label: '记忆' },
+  { key: 'prompt', label: '全局 Prompt' },
   { key: 'css', label: '自定义 CSS' },
   { key: 'regex', label: '正则规则' },
   { key: 'import_export', label: '导入导出' },
