@@ -4,6 +4,8 @@ import { createWorld } from '../api/worlds';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import EditPageShell from '../components/ui/EditPageShell';
+import FormGroup from '../components/ui/FormGroup';
 
 export default function WorldCreatePage() {
   const navigate = useNavigate();
@@ -36,58 +38,43 @@ export default function WorldCreatePage() {
   }
 
   return (
-    <div className="we-edit-canvas">
-      <div className="we-edit-panel">
-        <div className="we-edit-header">
-          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
-          <h1 className="we-edit-title">新建世界</h1>
-        </div>
+    <EditPageShell onClose={() => navigate(-1)} title="新建世界">
+      <div className="we-edit-form-stack">
+        <FormGroup label="名称" required>
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="世界的名称"
+            autoFocus
+          />
+        </FormGroup>
 
-        <div className="we-edit-form-stack">
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
-            </label>
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="世界的名称"
-              autoFocus
-            />
-          </div>
+        <FormGroup label="世界 System Prompt">
+          <MarkdownEditor
+            value={systemPrompt}
+            onChange={setSystemPrompt}
+            placeholder="描述这个世界的背景、规则、氛围……"
+            minHeight={144}
+          />
+        </FormGroup>
 
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">世界 System Prompt</label>
-            <MarkdownEditor
-              value={systemPrompt}
-              onChange={setSystemPrompt}
-              placeholder="描述这个世界的背景、规则、氛围……"
-              minHeight={144}
-            />
-          </div>
+        <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
+          <MarkdownEditor
+            value={postPrompt}
+            onChange={setPostPrompt}
+            placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
+            minHeight={72}
+          />
+        </FormGroup>
 
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              后置提示词
-              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
-            </label>
-            <MarkdownEditor
-              value={postPrompt}
-              onChange={setPostPrompt}
-              placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……"
-              minHeight={72}
-            />
-          </div>
+        {saveError && <p className="we-edit-error">{saveError}</p>}
 
-          {saveError && <p className="we-edit-error">{saveError}</p>}
-
-          <div className="we-edit-save-row">
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? '创建中…' : '创建世界'}
-            </Button>
-          </div>
+        <div className="we-edit-save-row">
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? '创建中…' : '创建世界'}
+          </Button>
         </div>
       </div>
-    </div>
+    </EditPageShell>
   );
 }

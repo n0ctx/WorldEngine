@@ -4,6 +4,8 @@ import { createCharacter } from '../api/characters';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import EditPageShell from '../components/ui/EditPageShell';
+import FormGroup from '../components/ui/FormGroup';
 
 export default function CharacterCreatePage() {
   const { worldId } = useParams();
@@ -39,68 +41,52 @@ export default function CharacterCreatePage() {
   }
 
   return (
-    <div className="we-edit-canvas">
-      <div className="we-edit-panel">
-        <div className="we-edit-header">
-          <button className="we-edit-back" onClick={() => navigate(-1)}>← 返回</button>
-          <h1 className="we-edit-title">新建角色</h1>
-        </div>
+    <EditPageShell onClose={() => navigate(-1)} title="新建角色">
+      <div className="we-edit-form-stack">
+        <FormGroup label="名称" required>
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="角色的名字"
+            autoFocus
+          />
+        </FormGroup>
 
-        <div className="we-edit-form-stack">
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
-            </label>
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="角色的名字"
-              autoFocus
-            />
-          </div>
+        <FormGroup label="System Prompt">
+          <MarkdownEditor
+            value={systemPrompt}
+            onChange={setSystemPrompt}
+            placeholder="角色的性格、背景、说话风格……"
+            minHeight={144}
+          />
+        </FormGroup>
 
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">System Prompt</label>
-            <MarkdownEditor
-              value={systemPrompt}
-              onChange={setSystemPrompt}
-              placeholder="角色的性格、背景、说话风格……"
-              minHeight={144}
-            />
-          </div>
+        <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
+          <MarkdownEditor
+            value={postPrompt}
+            onChange={setPostPrompt}
+            placeholder="每次对话附加的角色级指令，例如特定的回复格式……"
+            minHeight={72}
+          />
+        </FormGroup>
 
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              后置提示词
-              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
-            </label>
-            <MarkdownEditor
-              value={postPrompt}
-              onChange={setPostPrompt}
-              placeholder="每次对话附加的角色级指令，例如特定的回复格式……"
-              minHeight={72}
-            />
-          </div>
+        <FormGroup label="开场白">
+          <MarkdownEditor
+            value={firstMessage}
+            onChange={setFirstMessage}
+            placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口"
+            minHeight={96}
+          />
+        </FormGroup>
 
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">开场白</label>
-            <MarkdownEditor
-              value={firstMessage}
-              onChange={setFirstMessage}
-              placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口"
-              minHeight={96}
-            />
-          </div>
+        {saveError && <p className="we-edit-error">{saveError}</p>}
 
-          {saveError && <p className="we-edit-error">{saveError}</p>}
-
-          <div className="we-edit-save-row">
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? '创建中…' : '创建角色'}
-            </Button>
-          </div>
+        <div className="we-edit-save-row">
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? '创建中…' : '创建角色'}
+          </Button>
         </div>
       </div>
-    </div>
+    </EditPageShell>
   );
 }
