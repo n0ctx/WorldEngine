@@ -2,86 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
-import EntryList from '../components/prompt/EntryList';
 import { downloadCharacterCard, importCharacter, readJsonFile } from '../api/import-export';
 import { getCharacterStateValues, updateCharacterStateValue } from '../api/character-state-values';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import SectionTabs from '../components/book/SectionTabs';
 import SealStampAnimation from '../components/book/SealStampAnimation';
 import StateValueField from '../components/state/StateValueField';
-
-function AvatarUpload({ name, avatarUrl, avatarColor, avatarUploading, onAvatarClick, fileInputRef, onFileChange }) {
-  const initial = (name || '?')[0].toUpperCase();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
-      <div
-        style={{ position: 'relative', cursor: 'pointer' }}
-        className="group"
-        onClick={onAvatarClick}
-      >
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={name}
-            style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
-          />
-        ) : (
-          <div
-            style={{
-              width: 80,
-              height: 80,
-              borderRadius: '50%',
-              background: avatarColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontFamily: 'var(--we-font-display)',
-              fontSize: '28px',
-              fontWeight: 300,
-              color: '#fff',
-            }}
-          >
-            {initial}
-          </div>
-        )}
-        {avatarUploading && (
-          <div style={{
-            position: 'absolute', inset: 0, borderRadius: '50%',
-            background: 'rgba(0,0,0,0.6)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span style={{ color: '#fff', fontSize: 12 }}>上传中…</span>
-          </div>
-        )}
-        {!avatarUploading && (
-          <div className="group-hover:opacity-100" style={{
-            position: 'absolute', inset: 0, borderRadius: '50%',
-            background: 'rgba(0,0,0,0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            transition: 'background 0.15s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,0,0,0.35)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'rgba(0,0,0,0)'}
-          >
-            <span style={{ color: '#fff', fontSize: 12, opacity: 0, transition: 'opacity 0.15s' }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '0'}
-            >
-              更换头像
-            </span>
-          </div>
-        )}
-      </div>
-      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-      <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-faded)', marginTop: 8, opacity: 0.7 }}>
-        点击头像上传图片
-      </p>
-    </div>
-  );
-}
+import EditPageShell from '../components/ui/EditPageShell';
+import FormGroup from '../components/ui/FormGroup';
+import AvatarUpload from '../components/ui/AvatarUpload';
 
 export default function CharacterEditPage() {
   const { characterId } = useParams();
@@ -211,24 +142,8 @@ export default function CharacterEditPage() {
     navigate(-1);
   }
 
-  if (loading) {
-    return (
-      isOverlay ? (
-        <div className="we-settings-overlay" onClick={handleClose}>
-          <div className="we-edit-panel we-edit-panel-overlay" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p className="we-edit-empty-text">加载中…</p>
-          </div>
-        </div>
-      ) : (
-        <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p className="we-edit-empty-text">加载中…</p>
-        </div>
-      )
-    );
-  }
-
   const avatarUrl = getAvatarUrl(avatarPath);
-  const avatarColor = getAvatarColor(character.id);
+  const avatarColor = getAvatarColor(character?.id);
 
   const sections = [
     {
@@ -245,27 +160,18 @@ export default function CharacterEditPage() {
             fileInputRef={fileInputRef}
             onFileChange={handleFileChange}
           />
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
-            </label>
+          <FormGroup label="名称" required>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" />
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">System Prompt</label>
+          </FormGroup>
+          <FormGroup label="System Prompt">
             <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              后置提示词
-              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
-            </label>
+          </FormGroup>
+          <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
             <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的角色级指令，例如特定的回复格式……" minHeight={72} />
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">开场白</label>
+          </FormGroup>
+          <FormGroup label="开场白">
             <MarkdownEditor value={firstMessage} onChange={setFirstMessage} placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口" minHeight={96} />
-          </div>
+          </FormGroup>
           {saveError && <p className="we-edit-error">{saveError}</p>}
           <div className="we-edit-save-row">
             <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -293,11 +199,6 @@ export default function CharacterEditPage() {
           ))}
         </div>
       ),
-    },
-    {
-      key: 'prompt_entries',
-      label: 'Prompt 条目',
-      content: <EntryList type="character" scopeId={characterId} />,
     },
     {
       key: 'export',
@@ -335,30 +236,15 @@ export default function CharacterEditPage() {
     },
   ];
 
-  const content = (
-    <div
-      className={`we-edit-panel${isOverlay ? ' we-edit-panel-overlay' : ''}`}
-      onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
-    >
-        <div className="we-edit-header">
-          <button className="we-edit-back" onClick={handleClose}>← 返回</button>
-          <h1 className="we-edit-title">编辑角色 · {name}</h1>
-        </div>
-        <SectionTabs sections={sections} defaultKey="basic" />
-      </div>
-  );
-
   return (
     <>
-      {isOverlay ? (
-        <div className="we-settings-overlay" onClick={handleClose}>
-          {content}
-        </div>
-      ) : (
-        <div className="we-edit-canvas">
-          {content}
-        </div>
-      )}
+      <EditPageShell
+        loading={loading}
+        isOverlay={isOverlay}
+        onClose={handleClose}
+      >
+        <SectionTabs sections={sections} defaultKey="basic" />
+      </EditPageShell>
       <SealStampAnimation trigger={sealKey} text="成" />
     </>
   );

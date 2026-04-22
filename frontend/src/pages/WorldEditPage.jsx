@@ -2,14 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld } from '../api/worlds';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
-import EntryList from '../components/prompt/EntryList';
 import StateFieldList from '../components/state/StateFieldList';
-import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import SectionTabs from '../components/book/SectionTabs';
 import SealStampAnimation from '../components/book/SealStampAnimation';
+import EditPageShell from '../components/ui/EditPageShell';
+import FormGroup from '../components/ui/FormGroup';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -42,8 +41,6 @@ export default function WorldEditPage() {
   const [saveError, setSaveError] = useState('');
 
   const [name, setName] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [postPrompt, setPostPrompt] = useState('');
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
@@ -63,8 +60,6 @@ export default function WorldEditPage() {
       getWorldStateValues(worldId),
     ]).then(([w, fields]) => {
       setName(w.name ?? '');
-      setSystemPrompt(w.system_prompt ?? '');
-      setPostPrompt(w.post_prompt ?? '');
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setStateFields(fields);
@@ -93,8 +88,6 @@ export default function WorldEditPage() {
     try {
       await updateWorld(worldId, {
         name: name.trim(),
-        system_prompt: systemPrompt,
-        post_prompt: postPrompt,
         temperature: temperature === '' ? null : Number(temperature),
         max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
       });
@@ -140,44 +133,20 @@ export default function WorldEditPage() {
     navigate(-1);
   }
 
-  if (loading) {
-    return (
-      isOverlay ? (
-        <div className="we-settings-overlay" onClick={handleClose}>
-          <div className="we-edit-panel we-edit-panel-overlay" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <p className="we-edit-empty-text">加载中…</p>
-          </div>
-        </div>
-      ) : (
-        <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <p className="we-edit-empty-text">加载中…</p>
-        </div>
-      )
-    );
-  }
-
   const sections = [
     {
       key: 'basic',
       label: '基础设定',
       content: (
         <div className="we-edit-form-stack">
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              名称 <span style={{ color: 'var(--we-vermilion)' }}>*</span>
-            </label>
+          <FormGroup label="名称" required>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" />
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">世界 System Prompt</label>
-            <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="描述这个世界的背景、规则、氛围……" minHeight={144} />
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">
-              后置提示词
-              <span className="we-edit-label-hint">插入在用户消息之后，作为 user 角色发送</span>
-            </label>
-            <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的世界级指令，例如输出语言、格式要求……" minHeight={72} />
+          </FormGroup>
+          <p className="we-edit-hint">世界常驻提示词已迁移到“状态”页的“常驻条目”，这里不再维护世界级 system/post prompt。</p>
+          <div className="we-edit-save-row">
+            <Button variant="secondary" onClick={() => navigate(`/worlds/${worldId}/state`)}>
+              前往状态页管理常驻条目
+            </Button>
           </div>
           {saveError && <p className="we-edit-error">{saveError}</p>}
           <div className="we-edit-save-row">
@@ -193,8 +162,7 @@ export default function WorldEditPage() {
       label: 'LLM 参数',
       content: (
         <div className="we-edit-form-stack">
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">Temperature</label>
+          <FormGroup label="Temperature" hint="覆盖全局 temperature，留空则使用全局配置（世界级 > 全局）">
             <Input
               type="number"
               step="0.01"
@@ -204,10 +172,8 @@ export default function WorldEditPage() {
               onChange={e => setTemperature(e.target.value)}
               placeholder="留空则使用全局配置"
             />
-            <p className="we-edit-hint">覆盖全局 temperature，留空则使用全局配置（世界级 &gt; 全局）</p>
-          </div>
-          <div className="we-edit-form-group">
-            <label className="we-edit-label">最大 Token 数</label>
+          </FormGroup>
+          <FormGroup label="最大 Token 数" hint="覆盖全局 max_tokens，留空则使用全局配置">
             <Input
               type="number"
               step="1"
@@ -216,8 +182,7 @@ export default function WorldEditPage() {
               onChange={e => setMaxTokens(e.target.value)}
               placeholder="留空则使用全局配置"
             />
-            <p className="we-edit-hint">覆盖全局 max_tokens，留空则使用全局配置</p>
-          </div>
+          </FormGroup>
           {saveError && <p className="we-edit-error">{saveError}</p>}
           <div className="we-edit-save-row">
             <Button variant="primary" onClick={handleSave} disabled={saving}>
@@ -283,11 +248,6 @@ export default function WorldEditPage() {
       ),
     },
     {
-      key: 'prompt_entries',
-      label: 'Prompt 条目',
-      content: <EntryList type="world" scopeId={worldId} />,
-    },
-    {
       key: 'export',
       label: '导入导出',
       content: (
@@ -323,30 +283,15 @@ export default function WorldEditPage() {
     },
   ];
 
-  const content = (
-    <div
-      className={`we-edit-panel${isOverlay ? ' we-edit-panel-overlay' : ''}`}
-      onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
-    >
-        <div className="we-edit-header">
-          <button className="we-edit-back" onClick={handleClose}>← 返回</button>
-          <h1 className="we-edit-title">编辑世界 · {name}</h1>
-        </div>
-        <SectionTabs sections={sections} defaultKey="basic" />
-      </div>
-  );
-
   return (
     <>
-      {isOverlay ? (
-        <div className="we-settings-overlay" onClick={handleClose}>
-          {content}
-        </div>
-      ) : (
-        <div className="we-edit-canvas">
-          {content}
-        </div>
-      )}
+      <EditPageShell
+        loading={loading}
+        isOverlay={isOverlay}
+        onClose={handleClose}
+      >
+        <SectionTabs sections={sections} defaultKey="basic" />
+      </EditPageShell>
       <SealStampAnimation trigger={sealKey} text="成" />
     </>
   );
