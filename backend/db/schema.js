@@ -299,6 +299,36 @@ CREATE TABLE IF NOT EXISTS chapter_titles (
   updated_at    INTEGER NOT NULL,
   UNIQUE(session_id, chapter_index)
 );
+
+CREATE TABLE IF NOT EXISTS triggers (
+  id                    TEXT PRIMARY KEY,
+  world_id              TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name                  TEXT NOT NULL,
+  enabled               INTEGER NOT NULL DEFAULT 1,
+  one_shot              INTEGER NOT NULL DEFAULT 0,
+  last_triggered_round  INTEGER,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_triggers_world_id ON triggers(world_id);
+
+CREATE TABLE IF NOT EXISTS trigger_conditions (
+  id            TEXT PRIMARY KEY,
+  trigger_id    TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
+  target_field  TEXT NOT NULL,
+  operator      TEXT NOT NULL,
+  value         TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditions(trigger_id);
+
+CREATE TABLE IF NOT EXISTS trigger_actions (
+  id          TEXT PRIMARY KEY,
+  trigger_id  TEXT NOT NULL UNIQUE REFERENCES triggers(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL,
+  params      TEXT NOT NULL DEFAULT '{}'
+);
 `;
 
 const INDEXES = `
@@ -399,6 +429,10 @@ export function initSchema(db) {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index)`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);
+  // State 引擎 Phase 1：为 world_prompt_entries 新增 position / trigger_type 字段
+  try { db.prepare("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'").run(); } catch (_) {}
+  try { db.prepare("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'").run(); } catch (_) {}
+  migrateTriggerTypeInitial(db);
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {
@@ -492,6 +526,25 @@ function migrateLegacyAutoFilledNullStateValues(db) {
     db.exec('ROLLBACK');
     throw e;
   }
+}
+
+function migrateTriggerTypeInitial(db) {
+  const migKey = 'migration:trigger_type_initial';
+  const already = db.prepare("SELECT value FROM internal_meta WHERE key = ?").get(migKey);
+  if (already) return;
+  // 有关键词的条目 → keyword 类型
+  db.prepare(`
+    UPDATE world_prompt_entries SET trigger_type = 'keyword'
+    WHERE keywords IS NOT NULL AND keywords != 'null' AND keywords != '[]'
+  `).run();
+  // 无关键词但有 description 的条目 → llm 类型
+  db.prepare(`
+    UPDATE world_prompt_entries SET trigger_type = 'llm'
+    WHERE (keywords IS NULL OR keywords = 'null' OR keywords = '[]')
+      AND description IS NOT NULL AND TRIM(description) != ''
+      AND trigger_type = 'always'
+  `).run();
+  db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
 }
 
 function migrateLegacyStateValueColumns(db) {
