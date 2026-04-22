@@ -273,10 +273,22 @@ function insertPromptEntry(db, table, ownerColumn, ownerId, patch = {}) {
   const modePlaceholders = hasMode ? '?, ' : '';
   const modeValues = hasMode ? [patch.mode ?? 'chat'] : [];
 
+  // 检查表中是否有 position 列（仅 world_prompt_entries 可能存在）
+  const hasPositionColumn = table === 'world_prompt_entries';
+  const positionColumns = hasPositionColumn ? 'position, ' : '';
+  const positionPlaceholders = hasPositionColumn ? '?, ' : '';
+  const positionValues = hasPositionColumn ? [patch.position ?? 'post'] : [];
+
+  // 检查表中是否有 trigger_type 列（仅 world_prompt_entries 可能存在）
+  const hasTriggerTypeColumn = table === 'world_prompt_entries';
+  const triggerTypeColumns = hasTriggerTypeColumn ? 'trigger_type, ' : '';
+  const triggerTypePlaceholders = hasTriggerTypeColumn ? '?, ' : '';
+  const triggerTypeValues = hasTriggerTypeColumn ? [patch.trigger_type ?? 'always'] : [];
+
   db.prepare(`
     INSERT INTO ${table} (
-      id, ${baseColumns}title, description, content, keywords, keyword_scope, ${modeColumns}sort_order, created_at, updated_at
-    ) VALUES (?, ${basePlaceholders}?, ?, ?, ?, ?, ${modePlaceholders}?, ?, ?)
+      id, ${baseColumns}title, description, content, keywords, keyword_scope, ${modeColumns}${positionColumns}${triggerTypeColumns}sort_order, created_at, updated_at
+    ) VALUES (?, ${basePlaceholders}?, ?, ?, ?, ?, ${modePlaceholders}${positionPlaceholders}${triggerTypePlaceholders}?, ?, ?)
   `).run(
     id,
     ...baseValues,
@@ -286,11 +298,22 @@ function insertPromptEntry(db, table, ownerColumn, ownerId, patch = {}) {
     patch.keywords ? JSON.stringify(patch.keywords) : null,
     patch.keyword_scope ?? 'user,assistant',
     ...modeValues,
+    ...positionValues,
+    ...triggerTypeValues,
     patch.sort_order ?? 0,
     now,
     patch.updated_at ?? now,
   );
-  return { id, ...patch, created_at: now, updated_at: patch.updated_at ?? now };
+
+  // 始终在返回值中包含 position 和 trigger_type（如果数据库中不存在这些列，使用默认值）
+  const returnObj = { id, ...patch, created_at: now, updated_at: patch.updated_at ?? now };
+  if (!hasPositionColumn) {
+    returnObj.position = patch.position ?? 'post';
+  }
+  if (!hasTriggerTypeColumn) {
+    returnObj.trigger_type = patch.trigger_type ?? 'always';
+  }
+  return returnObj;
 }
 
 export function insertGlobalEntry(db, patch = {}) {
