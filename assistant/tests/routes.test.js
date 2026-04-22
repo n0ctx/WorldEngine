@@ -88,3 +88,67 @@ test('normalizeRegexRuleChanges 与 pickAllowed/deepOmit 处理边界值', () =>
     keep: 1,
   });
 });
+
+test('normalizeProposal 会拒绝未知提案类型与非法 operation', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({ type: 'unknown-type' }),
+    /未知的 proposal type/,
+  );
+
+  assert.throws(
+    () => __testables.normalizeProposal({ type: 'persona-card', operation: 'create' }),
+    /persona-card 不支持 operation=create/,
+  );
+});
+
+test('normalizeProposal 会校验 css-snippet 与 regex-rule 的必要字段', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'css-snippet',
+      operation: 'create',
+      changes: { content: '   ' },
+    }),
+    /css-snippet\.changes\.content 不能为空/,
+  );
+
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'regex-rule',
+      operation: 'create',
+      changes: { pattern: '   ' },
+    }),
+    /regex-rule\.changes\.pattern 不能为空/,
+  );
+});
+
+test('normalizeProposal 会锁定 type/entityId 并拒绝非法 entry/state 操作', () => {
+  const proposal = __testables.normalizeProposal({
+    type: 'character-card',
+    entityId: 'raw-character',
+    changes: { name: '新名字' },
+  }, {
+    type: 'world-card',
+    operation: 'update',
+    entityId: 'locked-world',
+  });
+
+  assert.equal(proposal.type, 'world-card');
+  assert.equal(proposal.entityId, 'locked-world');
+  assert.deepEqual(proposal.changes, { name: '新名字' });
+
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'world-card',
+      entryOps: [{ op: 'update', title: '缺少 id' }],
+    }),
+    /entryOps\[0\]\.id 缺失/,
+  );
+
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'character-card',
+      stateFieldOps: [{ op: 'create', target: 'world', field_key: 'mood', label: '心情', type: 'text' }],
+    }),
+    /stateFieldOps\[0\]\.target 非法/,
+  );
+});

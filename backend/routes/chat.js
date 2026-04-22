@@ -3,6 +3,7 @@ import * as llm from '../llm/index.js';
 import { buildContext, activeStreams, saveAttachments, processStreamOutput } from '../services/chat.js';
 import {
   createMessage,
+  getMessageById,
   getMessagesBySessionId,
   touchSession,
   getSessionById,
@@ -19,13 +20,14 @@ import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
+import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { trackStateUpdate, awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
+import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import {
@@ -56,42 +58,47 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
 }
 
 /**
- * 入队后台异步任务（title + all-state + turn-record）
- * @returns {boolean} true = 有 title 任务，调用方应 return（等待 finally 关闭连接）
+ * 构建 chat 模式的后台任务 spec 列表
  */
-function enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, streamState, res, turnRecordOpts }) {
-  // title 先入队（p2），以确保队列顺序：title → all-state → turn-record → diary
-  if (session && !session.title) {
-    log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
-    enqueue(sessionId, () => generateTitle(sessionId), 2, 'title')
-      .then((title) => {
-        if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
-      })
-      .catch((err) => log.warn('后台任务失败:', err.message))
-      .finally(() => { if (!streamState.isClientClosed()) res.end(); });
-  }
-
-  // all-state 异步更新；用 trackStateUpdate 记录 Promise，下一轮请求在 buildContext 前等它完成
-  log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, hasCharacter: !!characterId })}`);
-  const statePromise = enqueue(sessionId, () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId), 2, 'all-state')
-    .catch((err) => log.warn('后台任务失败:', err.message));
-  trackStateUpdate(sessionId, statePromise);
-
-  log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, ...(turnRecordOpts ?? {}) })}`);
-  enqueue(sessionId, () => createTurnRecord(sessionId, turnRecordOpts), 3, 'turn-record')
-    .catch((err) => log.warn('后台任务失败:', err.message));
-
-  // 日记检测（P4）：在 turn-record 之后执行，此时快照已写入；
-  // isUpdate=true（续写）时不触发新一天检测（轮次未变）
-  if (!turnRecordOpts?.isUpdate) {
-    enqueue(sessionId, async () => {
-      const latest = getLatestTurnRecord(sessionId);
-      if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
-    }, 4, 'diary')
-      .catch((err) => log.warn('日记任务失败:', err.message));
-  }
-
-  return !!(session && !session.title);
+function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamState, res, sid, turnRecordOpts }) {
+  return [
+    // title（p2）：仅当 session.title 为 NULL 时入队；完成后推送 title_updated 并关闭连接
+    {
+      label: 'title',
+      priority: 2,
+      fn: () => generateTitle(sessionId),
+      condition: !!(session && !session.title),
+      sseEvent: 'title_updated',
+      ssePayload: (title) => title ? { type: 'title_updated', title } : null,
+      keepSseAlive: true,
+    },
+    // all-state（p2）：chat 模式不推 state_updated SSE（前端由 triggerMemoryRefresh 驱动）
+    {
+      label: 'all-state',
+      priority: 2,
+      fn: () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId),
+      tracksState: true,
+      keepSseAlive: false,
+    },
+    // turn-record（p3）
+    {
+      label: 'turn-record',
+      priority: 3,
+      fn: () => createTurnRecord(sessionId, turnRecordOpts),
+      keepSseAlive: false,
+    },
+    // diary（p4）：续写（isUpdate=true）时轮次未变，不触发新一天检测
+    {
+      label: 'diary',
+      priority: 4,
+      fn: async () => {
+        const latest = getLatestTurnRecord(sessionId);
+        if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+      },
+      condition: !turnRecordOpts?.isUpdate,
+      keepSseAlive: false,
+    },
+  ];
 }
 
 /**
@@ -180,12 +187,16 @@ async function runStream(sessionId, res, opts = {}) {
 
   streamState.clear();
 
-  // 正常完成且有内容时，入队后台任务；title 任务（如需）会在完成后关闭连接
+  // 正常完成且有内容时，入队后台任务；有 keepSseAlive 任务时连接由 Promise.allSettled 关闭
   if (!aborted && fullContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {
-      const needsWait = enqueueStreamTasks({ sessionId, sid, worldId, characterId, session, streamState, res });
-      if (needsWait) return;
+      const taskSpecs = buildChatTaskSpecs({ sessionId, sid, worldId, characterId, session, streamState, res });
+      const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
+        res, streamState, sid,
+        emitSse: (payload) => emitSse(res, sid, payload),
+      });
+      if (hasSseWaits) return;
     }
   }
 
@@ -244,6 +255,16 @@ router.post('/:sessionId/regenerate', async (req, res) => {
 
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
+  const afterMessage = getMessageById(afterMessageId);
+  if (!afterMessage) {
+    return res.status(404).json({ error: 'afterMessageId not found' });
+  }
+  if (afterMessage.session_id !== sessionId) {
+    return res.status(400).json({ error: 'afterMessageId does not belong to this session' });
+  }
+  if (afterMessage.role !== 'user') {
+    return res.status(400).json({ error: 'afterMessageId must be a user message' });
+  }
 
   log.info(`POST /regenerate  ${formatMeta({ session: sessionId.slice(0, 8), after: afterMessageId.slice(0, 8) })}`);
 
@@ -295,9 +316,14 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   // 找最后一条 assistant 消息
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
+  const lastAssistantIndex = allMsgs.map((m) => m.role).lastIndexOf('assistant');
+  const lastAssistant = lastAssistantIndex >= 0 ? allMsgs[lastAssistantIndex] : null;
   if (!lastAssistant) {
     return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
+  }
+  const hasUserBeforeAssistant = allMsgs.slice(0, lastAssistantIndex).some((m) => m.role === 'user');
+  if (!hasUserBeforeAssistant) {
+    return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
   }
 
   const streamState = beginStreamSession(sessionId, res, activeStreams);
@@ -374,15 +400,19 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   streamState.clear();
 
-  // 正常完成且有内容时，入队后台任务
+  // 正常完成且有内容时，入队后台任务；有 keepSseAlive 任务时连接由 Promise.allSettled 关闭
   if (!aborted && newContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {
-      const needsWait = enqueueStreamTasks({
+      const taskSpecs = buildChatTaskSpecs({
         sessionId, sid, worldId, characterId, session, streamState, res,
         turnRecordOpts: { isUpdate: true },
       });
-      if (needsWait) return;
+      const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
+        res, streamState, sid,
+        emitSse: (payload) => emitSse(res, sid, payload),
+      });
+      if (hasSseWaits) return;
     }
   }
 

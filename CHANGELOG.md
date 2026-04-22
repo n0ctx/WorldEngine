@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T174 — chore: 覆盖率清尾与统一复盘 ✅
+- **对外接口**：无运行时接口变更；新增 assistant/frontend 测试覆盖 `POST /api/assistant/execute` 的 `worldRefId` 成功链路、`editedProposal` 锁定字段语义、`preview_card` 的 persona/global 分支，以及 `frontend/src/api/writing-sessions.js` 的 HTTP 错误与 edit+regenerate SSE 收尾
+- **涉及文件**：`assistant/tests/routes-integration.test.js`、`assistant/tests/tools/card-preview.test.js`、`frontend/tests/api/writing-sessions.test.js`、`ROADMAP.md`
+- **注意**：`/api/assistant/execute` 真正读取的是 `worldRefId`，不是 `worldId`；前端 `streamPost` 约定在 HTTP 错误时只走 `onError` 不触发 `onStreamEnd`，而 AbortError/正常完成才会触发 `onStreamEnd`
+
+## T173 — chore: 补 assistant 主链路测试 ✅
+- **对外接口**：无运行时接口变更；新增覆盖 `assistant/server/routes.js`、`main-agent.js`、`agent-factory.js`、`tools/card-preview.js`、`tools/extract-json.js` 的协议与工具调用测试
+- **涉及文件**：`assistant/tests/routes.test.js`、`assistant/tests/routes-integration.test.js`、`assistant/tests/main-agent.test.js`、`assistant/tests/agent-factory.test.js`、`assistant/tests/tools/card-preview.test.js`、`assistant/tests/tools/extract-json.test.js`
+- **注意**：assistant 路由集成测试若要校验 `/api/assistant/execute` 的 token 消费，必须复用与 `backend/server.js` 同一模块实例上的 `proposalStore`；同时 `preview_card` 的 `create/update` 返回内容受请求上下文影响，测试应显式传 `worldId` / `characterId`，否则容易误把“缺上下文错误字符串”当成工具正常输出
+
+## T171 — chore: 批量补后端 service/query 测试 ✅
+- **对外接口**：无运行时接口变更；新增覆盖 `backend/tests/services/*`、`backend/tests/db/queries/*`、`backend/tests/memory/state-rollback.test.js`、`backend/tests/utils/network-safety.test.js`
+- **涉及文件**：`backend/tests/helpers/fixtures.js`、`backend/tests/helpers/test-env.js`，以及新增的 service/query/memory/utils 测试文件
+- **注意**：测试环境现在会把 `WE_DATA_DIR` 指到各自 sandbox 根目录，日记目录清理测试不会再碰真实 `data/`；新增 query 测试固定了几处当前真实行为，后续不要误改：`deleteMessagesAfter(messageId)` 只按 `created_at` 删除更晚消息，`resolveUploadPath()` 会先 `normalize` 再判断越权，因此像 `/../avatars/a.png` 会被视为仓内合法相对路径而不是拒绝。
+
 ## 记录格式模板
 
 ```
@@ -21,6 +36,7 @@
 - 旧记录允许保留历史格式，但应在触碰附近记录时顺手收敛
 
 最近关键变更索引：
+- `T168` `refactor` 后台任务声明式化（post-gen-runner） — 新增 `backend/utils/post-gen-runner.js`，导出 `runPostGenTasks`；chat.js 删除 `enqueueStreamTasks`，writing.js 删除两处 `ssePromises` 手工块；chat/writing 差异改为 TaskSpec 数据差异，SSE 保活逻辑统一由 runner 管理
 - `T167` `bugfix` 写作标题空返回兜底 + continue 指令模板化 — title/chapter title 对 Gemini 空返回增加一次重试，仍为空时回退到本地裁剪标题；`buildContinuationMessages` 的续写指令移入 `backend/prompts/templates/continue-user-instruction.md`
 - `T166` `bugfix` `/continue` 等待 SSE 真正结束后再允许下一次续写 — 前端 chat/writing 的 continue 从 `onDone` 提前解锁改为等 `onStreamEnd`，并为续写回调加 token 防止旧请求收尾覆盖新请求；补了对应页面测试
 - `T163` `bugfix` `/continue` 统一显式续写指令 — `buildContinuationMessages` 不再按 provider 分支，统一改为 `assistant(originalContent) + user(直接继续上一条 AI 回复)`；既修 Gemini `CHAT DONE len=0`，也避免其他 provider 后续撞上同类尾 assistant 静默问题；新增 `backend/tests/routes/stream-helpers.test.js`
@@ -79,6 +95,21 @@
 ---
 
 <!-- 任务记录从下方开始，最新的放最上面 -->
+
+## T174 — bugfix: continue/regenerate 消息归属校验收紧 ✅
+- **对外接口**：`POST /api/sessions/:sessionId/continue|regenerate` 与 `POST /api/worlds/:worldId/writing-sessions/:sessionId/continue|regenerate`
+- **涉及文件**：`backend/routes/chat.js`、`backend/routes/writing.js`、`backend/services/writing-sessions.js`、对应 route tests、`ARCHITECTURE.md`
+- **注意**：现在 `/continue` 必须基于一个完整的 user→assistant 轮次，不能再续写只有 assistant 开场白的会话；`/regenerate` 的 `afterMessageId` 必须存在、归属当前 session、且 `role='user'`，否则直接 400/404，不再沿用旧的“宽松接受外部 message id”行为。
+
+## T170 — chore: 补后端主链路测试 ✅
+- **对外接口**：无接口变更；补测覆盖 `/api/sessions/:sessionId/chat|stop|continue|regenerate`、`/api/worlds/:worldId/writing-sessions/*`、`buildPrompt/buildWritingPrompt`、`/api/*import*` 与 `/api/global-settings/import|export`
+- **涉及文件**：`backend/tests/routes/chat.test.js`、`backend/tests/routes/writing.test.js`、`backend/tests/prompts/assembler.test.js`、`backend/tests/routes/import-export.test.js`
+- **注意**：本批测试显式固定了几处当前真实行为，后续不要误判为 bug：`writing /continue` 无可续写内容走 SSE `error` + 200 收尾；`chat /regenerate` 传入外部 `afterMessageId` 不会 400，而是按“未截断旧消息 + 继续生成”落到当前实现；`importGlobalSettings` 是“按 mode 整体 replace”，不是 merge。
+
+## T168 — refactor: 后台任务声明式化（post-gen-runner） ✅
+- **对外接口**：无接口变更；SSE 事件 type 不变；`runPostGenTasks` 仅供 routes 内部使用
+- **涉及文件**：`backend/utils/post-gen-runner.js`（新建）、`backend/routes/chat.js`（删除 `enqueueStreamTasks`，改用 `buildChatTaskSpecs` + `runPostGenTasks`）、`backend/routes/writing.js`（删除两处 ssePromises 手工块，改用 TaskSpec + `runPostGenTasks`）、`ARCHITECTURE.md §5`
+- **注意**：chat 模式的 `all-state` 和 `diary` 任务的 `keepSseAlive=false`，不推 SSE 事件，这是**故意的**（前端由 triggerMemoryRefresh 驱动刷新，T159）；writing 模式推 state_updated/diary_updated（T164 CastPanel 按事件刷新）。两者差异现在明确表达在 TaskSpec 的 `keepSseAlive`/`sseEvent` 字段，而非散落在条件分支里。`trackStateUpdate` 已下沉到 runner 内部，路由层不再直接调用。
 
 ## T167 — bugfix: 写作标题空返回重试 + continue 指令模板化 ✅
 - **对外接口**：无接口变更；`generateTitle()` / `generateChapterTitle()` 调用方式不变，`buildContinuationMessages()` 输出结构不变
@@ -1540,3 +1571,14 @@
   - `--we-dur-base` 从 chat.css 的 fallback 0.32s 修正为规范的 0.30s（通过 tokens.css 变量生效）
   - `useMotion()` 目前只接系统偏好；待 displaySettings store 添加 `reduceMotion` 字段后可接入用户级开关
   - SectionTabs 的 `dir` 在首次渲染时始终为 1（prevIndex 初始化为 activeIndex），首次渲染 `initial={false}` 不播动画，不影响体验
+
+## T172 — chore: 补前端页面、Hook 与 API 主链路覆盖 ✅
+- **对外接口**：无新增运行时接口；补齐前端页面/API/hook 自动化测试覆盖
+- **涉及文件**：
+  - 新增：`frontend/tests/pages/worlds-page.test.jsx`、`world-edit-page.test.jsx`、`character-edit-page.test.jsx`、`persona-edit-page.test.jsx`
+  - 新增：`frontend/tests/hooks/use-session-state.test.jsx`
+  - 新增：`frontend/tests/api/worlds.test.js`、`characters.test.js`、`personas.test.js`、`world-state-values.test.js`、`character-state-values.test.js`、`persona-state-values.test.js`、`import-export.test.js`、`session-state-values.test.js`、`daily-entries.test.js`、`world-state-fields.test.js`
+- **注意**：
+  - 页面测试统一采用轻量 mock 组件，主断言集中在加载、保存、删除、上传失败提示等用户主链路，避免绑定复杂实现细节
+  - `useSessionState` 测试显式 flush 微任务而不是依赖 `waitFor + fake timers`，避免 hook 内部 `Promise.resolve()` 与定时器组合导致超时
+  - 覆盖率提升结果：`frontend/src/hooks/useSessionState.js` 达到 `95.87%` 行覆盖；`WorldsPage.jsx` `86.03%`、`WorldEditPage.jsx` `87.85%`、`CharacterEditPage.jsx` `85.18%`、`PersonaEditPage.jsx` `83.23%`

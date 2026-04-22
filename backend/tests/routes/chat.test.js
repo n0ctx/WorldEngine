@@ -112,6 +112,77 @@ test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', a
   assert.equal(activeStreams.size, 0);
 });
 
+test('POST /api/sessions/:sessionId/chat 在 LLM 返回空内容时不落 assistant 消息', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '空流城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '诺拉' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '这次不要回复' }),
+  });
+
+  const events = parseSsePayloads(await response.text());
+  assert.ok(events.some((event) => event.type === 'memory_recall_start'));
+  assert.ok(events.some((event) => event.done));
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows, [{ role: 'user', content: '这次不要回复' }]);
+});
+
+test('POST /api/sessions/:sessionId/chat 在 LLM 异常且无已产出内容时返回 error 事件且不落 assistant 消息', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_ERROR = 'mock stream failure';
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '异常城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '艾琳' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '触发异常' }),
+  });
+
+  const events = parseSsePayloads(await response.text());
+  assert.ok(events.some((event) => event.type === 'error' && event.error === 'mock stream failure'));
+  assert.ok(!events.some((event) => event.done || event.aborted));
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows, [{ role: 'user', content: '触发异常' }]);
+});
+
+test('POST /api/sessions/:sessionId/chat 在 LLM 异常时返回 error 且不落 assistant 消息', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_ERROR = 'stream exploded';
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '半成品城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '米洛' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '给我一段半成品' }),
+  });
+
+  const events = parseSsePayloads(await response.text());
+  assert.ok(events.some((event) => event.type === 'error' && event.error === 'stream exploded'));
+  assert.ok(!events.some((event) => event.done));
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows, [{ role: 'user', content: '给我一段半成品' }]);
+});
+
 test('POST /stop 会中断当前流并保存已生成的部分内容', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一段', '第二段']);
@@ -151,6 +222,49 @@ test('POST /stop 会中断当前流并保存已生成的部分内容', async () 
   assert.equal(activeStreams.size, 0);
 });
 
+test('POST /api/sessions/:sessionId/chat 在客户端提前关闭时不落 assistant 消息并清理 activeStreams', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一段', '第二段']);
+  process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([0, 200]);
+
+  const appServer = await ensureServer();
+  const { activeStreams } = await freshImport('backend/services/chat.js');
+  const world = insertWorld(sandbox.db, { name: '断连城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '维拉' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '说到一半我断开' }),
+  });
+  const reader = response.body.getReader();
+  await reader.read();
+  await reader.cancel();
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
+  assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
+  assert.match(rows[1].content, /第一段/);
+  assert.match(rows[1].content, /\[已中断\]/);
+  assert.equal(activeStreams.size, 0);
+});
+
+test('POST /stop 在没有活跃流时返回 success', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '空停止城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '莱恩' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/stop`, { method: 'POST' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true });
+});
+
 test('POST /continue 会把新内容追加到最后一条 assistant 消息', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写一', '续写二']);
@@ -179,6 +293,44 @@ test('POST /continue 会把新内容追加到最后一条 assistant 消息', asy
   const row = sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(lastAssistant.id);
   assert.match(row.content, /原始回复/);
   assert.match(row.content, /续写一续写二/);
+});
+
+test('POST /continue 在没有 assistant 消息时返回 400', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '无回复城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '索拉' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '只有用户消息', created_at: 1 });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/continue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: '当前会话没有 AI 回复可续写' });
+});
+
+test('POST /continue 在最后一条 assistant 前没有 user 消息时返回 400', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '孤立回复城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '洛安' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '开场白', created_at: 1 });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/continue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: '当前会话没有可续写的用户-助手轮次' });
 });
 
 test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn records', async () => {
@@ -216,6 +368,69 @@ test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn re
 
   const turnRecords = sandbox.db.prepare('SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC').all(session.id);
   assert.deepEqual(turnRecords, []);
+});
+
+test('POST /regenerate 缺少 afterMessageId 时返回 400', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '参数城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '琪雅' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'afterMessageId is required' });
+});
+
+test('POST /regenerate 在 afterMessageId 非当前会话消息时返回 400', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '非法锚点城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '赫敏' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第一问', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一答', created_at: 2 });
+  const anotherSession = insertSession(sandbox.db, { character_id: character.id });
+  const foreignMessage = insertMessage(sandbox.db, anotherSession.id, { role: 'user', content: '外部消息', created_at: 3 });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ afterMessageId: foreignMessage.id }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'afterMessageId does not belong to this session' });
+});
+
+test('POST /regenerate 在 afterMessageId 为 assistant 消息时返回 400', async () => {
+  resetMockEnv();
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '非法角色城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '伊登' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第一问', created_at: 1 });
+  const assistant = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一答', created_at: 2 });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ afterMessageId: assistant.id }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), { error: 'afterMessageId must be a user message' });
 });
 
 test('同一 session 的第二个 /chat 会中断第一个流且不泄漏 activeStreams', async () => {

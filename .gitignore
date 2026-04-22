@@ -6,6 +6,7 @@ dist/
 
 # Local agent / tooling files
 /.claude/
+/.obsidian/
 /.playwright-cli/
 /frontend/.playwright-cli/
 

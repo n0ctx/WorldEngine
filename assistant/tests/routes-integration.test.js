@@ -2,6 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../../backend/tests/helpers/test-env.js';
+import { insertWorld } from '../../backend/tests/helpers/fixtures.js';
 
 const sandbox = createTestSandbox('assistant-route-suite');
 sandbox.setEnv();
@@ -28,6 +29,18 @@ after(async () => {
   }
   sandbox.cleanup();
 });
+
+function parseSsePayloads(raw) {
+  return raw
+    .split('\n\n')
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const line = block.split('\n').find((item) => item.startsWith('data: '));
+      return line ? JSON.parse(line.slice(6)) : null;
+    })
+    .filter(Boolean);
+}
 
 test('POST /api/assistant/chat 对空 message 返回 400', async () => {
   const res = await request('/api/assistant/chat', {
@@ -77,4 +90,216 @@ test('POST /api/assistant/execute 会消费 token 并落库 world-card create', 
     post_prompt: '后置',
   }]);
   assert.equal(__testables.proposalStore.has('token-create-world'), false);
+});
+
+test('POST /api/assistant/chat 支持多轮 history，并在读取类工具调用时发出 tool_call 事件', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'preview_card', arguments: { target: 'world-card', operation: 'create' } },
+  ]);
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['我', '已经整理好了']);
+
+  const res = await request('/api/assistant/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: '继续整理',
+      history: [
+        { role: 'user', content: '先看一下现状' },
+        { role: 'proposal', proposal: { type: 'world-card', operation: 'update', changes: { name: '旧世界' } } },
+        { role: 'assistant', content: '上一轮我给过方案。' },
+      ],
+      context: {},
+    }),
+  });
+
+  assert.equal(res.status, 200);
+  const events = parseSsePayloads(await res.text());
+  assert.ok(events.some((event) => event.type === 'tool_call' && event.name === 'preview_card'));
+  assert.ok(events.some((event) => event.delta === '我'));
+  assert.ok(events.some((event) => event.done === true));
+});
+
+test('POST /api/assistant/chat 在子代理工具失败时返回 error 事件，同时保留最终 done', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'world_card_agent', arguments: { task: '把世界改得更完整', operation: 'update' } },
+  ]);
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'tool exploded';
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['最终', '回复']);
+
+  const res = await request('/api/assistant/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: '处理失败场景', context: {} }),
+  });
+
+  assert.equal(res.status, 200);
+  const events = parseSsePayloads(await res.text());
+  assert.ok(events.some((event) => event.type === 'routing' && event.target === 'world-card'));
+  assert.ok(events.some((event) => event.type === 'error' && event.error === 'tool exploded'));
+  assert.ok(events.some((event) => event.done === true));
+});
+
+test('POST /api/assistant/execute 对缺 token 与过期 token 返回 400', async () => {
+  const missingTokenRes = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  assert.equal(missingTokenRes.status, 400);
+  assert.match((await missingTokenRes.json()).error, /token 为必填项/);
+
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-expired', {
+    expiresAt: Date.now() - 1000,
+    proposal: { type: 'world-card', operation: 'update', entityId: 'world-1', changes: {} },
+  });
+
+  const expiredRes = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-expired' }),
+  });
+
+  assert.equal(expiredRes.status, 400);
+  assert.match((await expiredRes.json()).error, /提案已过期/);
+  assert.equal(__testables.proposalStore.has('token-expired'), false);
+});
+
+test('POST /api/assistant/execute 在缺少必要 worldRefId 时返回 500', async () => {
+  const world = insertWorld(sandbox.db, { name: '执行世界' });
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-create-character', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'character-card',
+      operation: 'create',
+      entityId: null,
+      explanation: '创建角色',
+      changes: { name: '新角色' },
+      entryOps: [],
+      stateFieldOps: [],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-create-character', worldId: world.id }),
+  });
+
+  assert.equal(res.status, 500);
+  const body = await res.json();
+  assert.match(body.error, /character-card create 需要 worldId/);
+});
+
+test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character-card', async () => {
+  const world = insertWorld(sandbox.db, { name: '落地世界' });
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-create-character-ok', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'character-card',
+      operation: 'create',
+      entityId: null,
+      explanation: '创建角色',
+      changes: { name: '新角色', system_prompt: '角色设定' },
+      entryOps: [],
+      stateFieldOps: [],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-create-character-ok', worldRefId: world.id }),
+  });
+
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.result.world_id, world.id);
+  assert.equal(body.result.name, '新角色');
+
+  const row = sandbox.db.prepare('SELECT world_id, name, system_prompt FROM characters WHERE id = ?').get(body.result.id);
+  assert.deepEqual(row, {
+    world_id: world.id,
+    name: '新角色',
+    system_prompt: '角色设定',
+  });
+});
+
+test('POST /api/assistant/execute 对 editedProposal 只接受内容覆盖，不允许改写锁定元信息', async () => {
+  const world = insertWorld(sandbox.db, {
+    name: '旧世界',
+    system_prompt: '旧设定',
+    post_prompt: '旧后置',
+  });
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-edit-world', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'world-card',
+      operation: 'update',
+      entityId: world.id,
+      explanation: '更新世界',
+      changes: { name: '基础世界' },
+      entryOps: [],
+      stateFieldOps: [],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: 'token-edit-world',
+      editedProposal: {
+        type: 'character-card',
+        operation: 'delete',
+        entityId: 'evil-id',
+        changes: {
+          name: '新世界名',
+          system_prompt: '新系统设定',
+          post_prompt: '新后置提示',
+        },
+        entryOps: [
+          {
+            op: 'create',
+            title: '新增条目',
+            description: '条目描述',
+            content: '条目内容',
+            keywords: ['线索'],
+            keyword_scope: 'user',
+          },
+        ],
+      },
+    }),
+  });
+
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.result.id, world.id);
+
+  const worldRow = sandbox.db.prepare(
+    'SELECT id, name, system_prompt, post_prompt FROM worlds WHERE id = ?',
+  ).get(world.id);
+  assert.deepEqual(worldRow, {
+    id: world.id,
+    name: '新世界名',
+    system_prompt: '新系统设定',
+    post_prompt: '新后置提示',
+  });
+
+  const entries = sandbox.db.prepare(
+    'SELECT title, description, content, keyword_scope FROM world_prompt_entries WHERE world_id = ?',
+  ).all(world.id);
+  assert.deepEqual(entries, [{
+    title: '新增条目',
+    description: '条目描述',
+    content: '条目内容',
+    keyword_scope: 'user',
+  }]);
 });

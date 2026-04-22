@@ -1,6 +1,6 @@
 # WorldEngine — 架构参考
 
-> 目标读者：AI 助手。覆盖式更新，不追加历史。最后更新：2026-04-20
+> 目标读者：AI 助手。覆盖式更新，不追加历史。最后更新：2026-04-22
 > 数据库字段权威来源见 SCHEMA.md，约束规则见 CLAUDE.md。
 
 ## §0 文档边界
@@ -235,18 +235,27 @@ createTurnRecord(sessionId, { isUpdate? })
 - world 从 `session.world_id` 直接取（无 character_id）
 - `{{char}}` 仅作为最后一条旁白/角色输出前缀占位符，不额外拼接状态快照
 
-**SSE 连接关闭时机**（使用 `Promise.allSettled` 统一协调）：
-- 收集所有需要推送 SSE 事件的任务 Promise（`ssePromises`）
-  - `session.title` 为 NULL：`generateTitle` 完成 → 推送 `title_updated`；若 LLM 空返回会自动切换到更强约束的 retry prompt 再试一次，仍为空则放弃写入并记录 `GIVEUP`
-  - 检测到新章节首轮 AI 回复：`generateChapterTitle` 完成 → 推送 `chapter_title_updated`；空返回时同样按“更强 prompt 重试一次，失败则放弃写入并记日志”处理
-  - `updateAllStates(...)` 完成：推送 `state_updated`
-  - `checkAndGenerateDiary(...)` 完成（无论是否实际生成新日记）：推送 `diary_updated`
-- 有 ssePromises：`Promise.allSettled(ssePromises).finally(() => res.end())`
-- 无 ssePromises：直接 `res.end()`
+**SSE 连接关闭时机**（由 `backend/utils/post-gen-runner.js` 的 `runPostGenTasks` 统一协调）：
+- 每个任务以 TaskSpec 描述，声明 `keepSseAlive`（是否保活连接）和 `sseEvent`（完成后推送的事件）
+- `keepSseAlive=true` 的任务 Promise 收集后统一 `Promise.allSettled(...).finally(() => res.end())`
+- 无 keepSseAlive 任务时直接 `res.end()`
 
-**regenerate**：先 `deleteLastTurnRecord(sessionId)` 删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
+**chat 模式与 writing 模式的差异**（通过不同 TaskSpec 列表表达，不是代码分支）：
 
-**continue**：续写时不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令（模板文件：`backend/prompts/templates/continue-user-instruction.md`），避免模型把尾 assistant 误判为已完成回复。完成后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
+| 任务 | chat | writing generate | writing continue |
+|---|---|---|---|
+| title（p2） | keepSseAlive，推 title_updated | keepSseAlive，推 title_updated | 无（续写不触发） |
+| chapter-title（p2） | 无 | keepSseAlive，推 chapter_title_updated（新章节时） | 无 |
+| all-state（p2） | 不保活，不推 SSE（前端由 triggerMemoryRefresh 驱动） | keepSseAlive，推 state_updated | keepSseAlive，推 state_updated |
+| turn-record（p3） | 不保活 | 不保活 | 不保活，isUpdate=true |
+| diary（p4） | 不保活，不推 SSE | keepSseAlive，推 diary_updated | keepSseAlive，推 diary_updated |
+
+- `session.title` 为 NULL：`generateTitle` 完成 → 推送 `title_updated`；若 LLM 空返回会自动切换到更强约束的 retry prompt 再试一次，仍为空则放弃写入并记录 `GIVEUP`
+- 检测到新章节首轮 AI 回复：`generateChapterTitle` 完成 → 推送 `chapter_title_updated`；空返回时同样按”更强 prompt 重试一次，失败则放弃写入并记日志”处理
+
+**regenerate**：先校验 `afterMessageId` 存在、归属当前 session，且 `role='user'`；校验通过后删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
+
+**continue**：续写前必须先找到当前 session 的最后一条 assistant，并确认它之前至少已有一条 user；只有在存在完整 user→assistant 轮次时才允许继续。通过校验后不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令（模板文件：`backend/prompts/templates/continue-user-instruction.md`），避免模型把尾 assistant 误判为已完成回复。完成后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
 
 **checkAndGenerateDiary 内部流程**（Priority 4，每轮正常完成后执行）：
 
@@ -525,31 +534,239 @@ MAX_ATTACHMENT_SIZE_MB = 5
 
 `server.js` 中全部 `app.use` 挂载：
 
-| 挂载前缀 | 路由文件 | 主要端点 |
+| 挂载前缀 | 路由文件 | 职责简述 |
 |---|---|---|
-| `/api/config` | routes/config.js | GET/PATCH 全局配置 |
-| `/api/worlds` | routes/worlds.js | CRUD 世界 |
-| `/api` | routes/characters.js | `/worlds/:id/characters` CRUD |
-| `/api` | routes/sessions.js | `/characters/:id/sessions`、`/worlds/:id/latest-chat-session`、`/sessions/:id`、`/sessions/:id/title` |
-| `/api/sessions` | routes/chat.js | `/:id/chat` `/:id/stop` `/:id/regenerate` `/:id/continue` `/:id/impersonate` `/:id/edit-assistant` `DELETE /:id/messages` |
-| `/api` | routes/prompt-entries.js | 全局/世界/角色 prompt 条目 CRUD |
-| `/api` | routes/state-fields.js | 世界/角色/玩家状态字段定义（统一路由） |
-| `/api` | routes/world-state-values.js | 世界状态值（全局默认值层） |
-| `/api` | routes/character-state-values.js | 角色状态值（全局默认值层） |
-| `/api/sessions` | routes/session-timeline.js | `GET /:sessionId/timeline` 当前会话近5轮 turn_records 摘要 |
-| `/api/sessions` | routes/session-state-values.js | `GET /:sessionId/state-values`（world/persona/character）；`DELETE /:sessionId/world-state-values` 等重置接口；`GET /:sessionId/characters/:characterId/state-values` |
-| `/api` | routes/import-export.js | 角色卡/世界卡导入导出 |
-| `/api` | routes/custom-css-snippets.js | 自定义 CSS 片段 CRUD |
-| `/api` | routes/regex-rules.js | 正则规则 CRUD |
-| `/api` | routes/personas.js | 玩家（persona）读写 |
-| `/api` | routes/persona-state-fields.js | 玩家状态字段定义 |
-| `/api` | routes/persona-state-values.js | 玩家状态值 |
-| `/api/worlds` | routes/writing.js | `/:worldId/writing-sessions`、`/:worldId/writing-sessions/:sessionId/generate|continue|regenerate|impersonate|edit-assistant` |
-| `/api/assistant` | `assistant/server/routes.js` | `POST /chat`（SSE：routing/proposal/thinking/delta/done/error）、`POST /execute` |
+| `/api/config` | routes/config.js | 全局配置读写、API Key 管理、模型列表、连通性测试 |
+| `/api/worlds` | routes/worlds.js | 世界 CRUD、日记同步 |
+| `/api` | routes/characters.js | 角色 CRUD、头像上传、批量排序 |
+| `/api` | routes/sessions.js | 会话/消息 CRUD、消息编辑与删除回滚 |
+| `/api/sessions` | routes/chat.js | 对话流（SSE）、stop/regenerate/continue/impersonate/edit-assistant/retitle |
+| `/api` | routes/prompt-entries.js | 全局/世界/角色 Prompt 条目 CRUD + 排序 |
+| `/api` | routes/state-fields.js | 世界/角色状态字段 CRUD + 排序 |
+| `/api` | routes/world-state-values.js | 世界状态值（全局默认层）读写 + 重置 |
+| `/api` | routes/character-state-values.js | 角色状态值（全局默认层）读写 + 重置 |
+| `/api/sessions` | routes/session-timeline.js | 会话近 5 轮 turn_records 摘要 |
+| `/api/sessions` | routes/session-state-values.js | 会话级状态值（world/persona/character）读取与重置 |
+| `/api/sessions` | routes/daily-entries.js | 日记列表 + 日记正文（读文件） |
+| `/api` | routes/import-export.js | 角色卡/世界卡/玩家卡/全局设置导入导出 |
+| `/api` | routes/custom-css-snippets.js | 自定义 CSS 片段 CRUD + 排序 |
+| `/api` | routes/regex-rules.js | 正则规则 CRUD + 排序 |
+| `/api` | routes/personas.js | 玩家（persona）读写、头像上传 |
+| `/api` | routes/persona-state-fields.js | 玩家状态字段 CRUD + 排序 |
+| `/api` | routes/persona-state-values.js | 玩家状态值（全局默认层）读写 + 重置 |
+| `/api/worlds` | routes/writing.js | 写作会话 CRUD、激活角色管理、流式生成、章节标题管理 |
+| `/api/assistant` | assistant/server/routes.js | 写卡助手对话（SSE）、提案执行 |
 
 **中间件顺序**：CORS（仅 localhost/127.0.0.1 origin）→ JSON 解析（limit: 20MB）→ HTTP 请求日志（info 级，仅 `/api/`，跳过 `/api/uploads/`）→ `/api` 本机访问限制（`localOnly`）→ 受保护的 `/api/uploads/*path` 文件访问 → 路由。
 
 写卡助手采用**单代理 + Agent Skill 架构**：主代理通过工具调用循环决定调用哪些 skill，skill 执行时向前端推送 SSE 提案。辅助工具 `preview_card`（查询实体数据）和 `read_file` 对主代理和 skill LLM 均可用。proposal schema、SSE 事件白名单、operation 约束见 `assistant/CONTRACT.md`。
+
+---
+
+## §14.1 完整端点列表
+
+### 配置（/api/config）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/config | 返回当前配置（去除 API Key，保留 has_key 布尔值） |
+| PUT | /api/config | 部分更新配置（禁止更新 api_key/provider_keys） |
+| PUT | /api/config/apikey | 写入当前 LLM provider 的 API Key |
+| PUT | /api/config/embedding-apikey | 写入当前 Embedding provider 的 API Key |
+| GET | /api/config/models | 拉取 LLM 模型列表（含 thinkingOptions） |
+| GET | /api/config/embedding-models | 拉取 Embedding 模型列表 |
+| GET | /api/config/test-connection | 验证 LLM 连通性 |
+| GET | /api/config/test-embedding | 验证 Embedding 连通性 |
+
+### 世界（/api/worlds）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds | 获取所有世界 |
+| POST | /api/worlds | 创建世界（name 必填） |
+| GET | /api/worlds/:id | 获取单个世界 |
+| PUT | /api/worlds/:id | 更新世界 |
+| DELETE | /api/worlds/:id | 删除世界（触发 cleanup 钩子） |
+| POST | /api/worlds/clear-all-diaries | 清除所有会话日记数据（关闭日记功能时调用） |
+| POST | /api/worlds/:id/sync-diary | 根据当前日记配置同步 diary_time 字段 |
+
+### 角色（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds/:worldId/characters | 获取某世界下所有角色 |
+| POST | /api/worlds/:worldId/characters | 创建角色（name 必填） |
+| PUT | /api/characters/reorder | 批量更新角色排序（body: `items: [{id, sort_order}]`） |
+| GET | /api/characters/:id | 获取单个角色 |
+| PUT | /api/characters/:id | 更新角色 |
+| DELETE | /api/characters/:id | 删除角色（触发 cleanup 钩子） |
+| POST | /api/characters/:id/avatar | 上传角色头像（multipart/form-data, 字段 `avatar`） |
+
+### 会话与消息（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/characters/:characterId/sessions | 获取角色下会话列表（query: limit/offset，默认 20/0） |
+| POST | /api/characters/:characterId/sessions | 创建会话（自动插入 first_message） |
+| GET | /api/worlds/:worldId/latest-chat-session | 获取世界最近活跃 chat 会话 |
+| GET | /api/sessions/:id | 获取单个会话 |
+| DELETE | /api/sessions/:id | 删除会话（触发 cleanup 钩子） |
+| PUT | /api/sessions/:id/title | 修改会话标题（body: `title`，可传 null 清空） |
+| GET | /api/sessions/:id/messages | 获取会话消息（query: limit/offset，默认 50/0） |
+| POST | /api/sessions/:id/messages | 创建消息（body: role/content/attachments） |
+| PUT | /api/messages/:id | 编辑消息并删除之后所有消息，回滚状态至最近快照 |
+| DELETE | /api/sessions/:sessionId/messages/:messageId | 删除单条消息及之后所有内容，回滚状态 |
+
+### 对话（/api/sessions，SSE 路由）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | /api/sessions/:sessionId/chat | 流式对话（SSE；body: content/attachments/diaryInjection） |
+| POST | /api/sessions/:sessionId/stop | 终止当前流式生成 |
+| POST | /api/sessions/:sessionId/regenerate | 重新生成最后一条 AI 回复（SSE；body: afterMessageId） |
+| POST | /api/sessions/:sessionId/continue | 续写最后一条 AI 回复（SSE） |
+| POST | /api/sessions/:sessionId/impersonate | 模拟用户发言（非流式；返回 `{content}`) |
+| DELETE | /api/sessions/:sessionId/messages | 清空会话消息（保留角色 first_message） |
+| POST | /api/sessions/:sessionId/edit-assistant | 编辑 AI 消息（body: messageId/content；若为最后一条则重跑状态更新） |
+| POST | /api/sessions/:sessionId/retitle | 用最近上下文重新生成会话标题（非流式；返回 `{title}`） |
+
+### Prompt 条目（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/global-entries | 列出全局条目（query: `?mode=chat\|writing`） |
+| POST | /api/global-entries | 创建全局条目（title 必填） |
+| GET | /api/worlds/:worldId/entries | 列出世界条目 |
+| POST | /api/worlds/:worldId/entries | 创建世界条目 |
+| GET | /api/characters/:characterId/entries | 列出角色条目 |
+| POST | /api/characters/:characterId/entries | 创建角色条目 |
+| PUT | /api/entries/:type/reorder | 批量排序（type=global\|world\|character；body: orderedIds + worldId/characterId） |
+| GET | /api/entries/:type/:id | 获取单条 |
+| PUT | /api/entries/:type/:id | 更新 |
+| DELETE | /api/entries/:type/:id | 删除 |
+
+### 状态字段（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds/:worldId/world-state-fields | 列出世界状态字段 |
+| POST | /api/worlds/:worldId/world-state-fields | 创建世界状态字段（field_key/label/type 必填） |
+| PUT | /api/worlds/:worldId/world-state-fields/reorder | 排序（body: orderedIds） |
+| PUT | /api/world-state-fields/:id | 更新世界状态字段 |
+| DELETE | /api/world-state-fields/:id | 删除 |
+| GET | /api/worlds/:worldId/character-state-fields | 列出角色状态字段 |
+| POST | /api/worlds/:worldId/character-state-fields | 创建角色状态字段 |
+| PUT | /api/worlds/:worldId/character-state-fields/reorder | 排序 |
+| PUT | /api/character-state-fields/:id | 更新 |
+| DELETE | /api/character-state-fields/:id | 删除 |
+
+### 状态值（全局默认层）（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds/:worldId/state-values | 世界状态值列表（COALESCE 合并 default_value） |
+| PATCH | /api/worlds/:worldId/state-values/:fieldKey | 更新世界状态某字段默认值（body: value_json） |
+| POST | /api/worlds/:worldId/state-values/reset | 重置世界状态值 |
+| GET | /api/characters/:characterId/state-values | 角色状态值列表 |
+| PATCH | /api/characters/:characterId/state-values/:fieldKey | 更新角色状态某字段默认值 |
+| POST | /api/characters/:characterId/state-values/reset | 重置角色状态值 |
+
+### 会话级状态值（/api/sessions）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/sessions/:sessionId/state-values | 获取会话级所有状态值（`{world:[],persona:[],character:[]}`，写作模式含所有激活角色） |
+| DELETE | /api/sessions/:sessionId/world-state-values | 清空该会话世界运行时状态（回退到全局默认） |
+| DELETE | /api/sessions/:sessionId/persona-state-values | 清空该会话玩家运行时状态 |
+| DELETE | /api/sessions/:sessionId/character-state-values | 清空该会话所有角色运行时状态 |
+| GET | /api/sessions/:sessionId/characters/:characterId/state-values | 获取单角色会话状态值 |
+| DELETE | /api/sessions/:sessionId/characters/:characterId/state-values | 重置单角色会话状态值 |
+
+### 会话时间线与日记（/api/sessions）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/sessions/:sessionId/timeline | 近 5 轮 turn_records 摘要（`{items: [{round_index, summary, created_at}]}`） |
+| GET | /api/sessions/:sessionId/daily-entries | 日记列表（`{items:[{date_str,date_display,summary,...}]}`，按 date_str ASC） |
+| GET | /api/sessions/:sessionId/daily-entries/:dateStr | 日记正文（读 data/daily/{sessionId}/{dateStr}.md，返回 `{content}`） |
+
+### 玩家（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds/:worldId/persona | 获取玩家（不存在则自动创建） |
+| PATCH | /api/worlds/:worldId/persona | 更新 name/system_prompt |
+| POST | /api/worlds/:worldId/persona/avatar | 上传玩家头像（multipart/form-data, 字段 `avatar`） |
+| GET | /api/worlds/:worldId/persona-state-fields | 列出玩家状态字段 |
+| POST | /api/worlds/:worldId/persona-state-fields | 创建玩家状态字段 |
+| PUT | /api/worlds/:worldId/persona-state-fields/reorder | 排序 |
+| PUT | /api/persona-state-fields/:id | 更新 |
+| DELETE | /api/persona-state-fields/:id | 删除 |
+| GET | /api/worlds/:worldId/persona-state-values | 玩家状态值列表 |
+| PATCH | /api/worlds/:worldId/persona-state-values/:fieldKey | 更新玩家状态某字段默认值 |
+| POST | /api/worlds/:worldId/persona-state-values/reset | 重置玩家状态值 |
+
+### 导入导出（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/characters/:id/export | 导出角色卡（.wechar.json） |
+| POST | /api/worlds/:worldId/import-character | 导入角色卡到指定世界 |
+| GET | /api/worlds/:worldId/persona/export | 导出玩家为角色卡 |
+| GET | /api/worlds/:id/export | 导出世界卡（.weworld.json） |
+| POST | /api/worlds/import | 导入世界卡 |
+| GET | /api/global-settings/export | 导出全局设置（query: `?mode=chat\|writing`） |
+| POST | /api/global-settings/import | 导入全局设置（覆盖模式） |
+
+### 自定义 CSS 与正则（/api）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/custom-css-snippets | 列出（query: `?mode=chat\|writing`） |
+| POST | /api/custom-css-snippets | 创建（name 必填） |
+| PUT | /api/custom-css-snippets/reorder | 排序（body: `items: [{id, sort_order}]`） |
+| GET | /api/custom-css-snippets/:id | 详情 |
+| PUT | /api/custom-css-snippets/:id | 更新 |
+| DELETE | /api/custom-css-snippets/:id | 删除 |
+| GET | /api/regex-rules | 列出（query: `?scope=&worldId=&mode=`） |
+| POST | /api/regex-rules | 创建（name/pattern/scope 必填；scope 枚举见 §9） |
+| PUT | /api/regex-rules/reorder | 排序 |
+| GET | /api/regex-rules/:id | 详情 |
+| PUT | /api/regex-rules/:id | 更新 |
+| DELETE | /api/regex-rules/:id | 删除 |
+
+### 写作空间（/api/worlds）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | /api/worlds/:worldId/writing-sessions | 获取世界写作会话列表 |
+| POST | /api/worlds/:worldId/writing-sessions | 创建写作会话 |
+| DELETE | /api/worlds/:worldId/writing-sessions/:sessionId | 删除写作会话 |
+| GET | /api/worlds/:worldId/writing-sessions/:sessionId/messages | 获取写作会话消息 |
+| DELETE | /api/worlds/:worldId/writing-sessions/:sessionId/messages | 清空写作会话消息 |
+| GET | /api/worlds/:worldId/writing-sessions/:sessionId/characters | 获取激活角色列表 |
+| PUT | /api/worlds/:worldId/writing-sessions/:sessionId/characters/:characterId | 添加激活角色 |
+| DELETE | /api/worlds/:worldId/writing-sessions/:sessionId/characters/:characterId | 移除激活角色 |
+| GET | /api/worlds/:worldId/characters | 获取世界所有角色（角色选择器用，与 characters.js 同路径） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/generate | 流式生成（SSE；body: content/diaryInjection） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/stop | 停止流式生成 |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/continue | 续写（SSE） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/impersonate | 模拟用户发言（非流式；返回 `{content}`） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/regenerate | 重新生成（body: afterMessageId） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/edit-assistant | 编辑 AI 消息（body: messageId/content） |
+| GET | /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles | 获取章节标题列表 |
+| PUT | /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex | 手动编辑章节标题（body: title；存 is_default=0） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle | LLM 重新生成章节标题（非流式；返回 `{title, chapterIndex}`） |
+| POST | /api/worlds/:worldId/writing-sessions/:sessionId/retitle | 重新生成写作会话标题（非流式；返回 `{title}`） |
+
+### 写卡助手（/api/assistant）
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | /api/assistant/chat | SSE 流式对话（单代理 + Agent Skill；body: message/history/context；SSE 事件见 CONTRACT.md） |
+| POST | /api/assistant/execute | 应用提案（body: token/worldRefId/editedProposal；token 一次性消费，TTL 30 分钟） |
+
+---
 
 **后端代码落点规则**：
 - `routes/` 层只做参数解析、状态码和调用 service，不直接访问数据库

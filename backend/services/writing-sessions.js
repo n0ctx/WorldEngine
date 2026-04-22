@@ -11,6 +11,7 @@ import {
 } from '../db/queries/writing-sessions.js';
 import {
   createMessage as dbCreateMessage,
+  getMessageById as dbGetMessageById,
   getMessagesBySessionId as dbGetMessagesBySessionId,
   deleteAllMessagesBySessionId as dbDeleteAllMessagesBySessionId,
   getMessageIdsBySessionId,
@@ -72,6 +73,10 @@ export function createMessage(data) {
 
 export function getMessagesBySessionId(sessionId, limit, offset) {
   return dbGetMessagesBySessionId(sessionId, limit, offset);
+}
+
+export function getMessageById(id) {
+  return dbGetMessageById(id);
 }
 
 export async function deleteMessagesAfter(messageId) {

@@ -12,6 +12,7 @@ import {
   addWritingSessionCharacter,
   removeWritingSessionCharacter,
   createMessage,
+  getMessageById,
   getMessagesBySessionId,
   touchWritingSession,
   deleteAllMessages,
@@ -21,12 +22,13 @@ import { getWorldById } from '../services/worlds.js';
 import { getCharactersByWorldId } from '../services/characters.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { enqueue, clearPending } from '../utils/async-queue.js';
+import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { trackStateUpdate, awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
+import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
@@ -223,67 +225,81 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      // 收集需要推送 SSE 事件的任务 Promise，统一控制 SSE 连接关闭时机
-      const ssePromises = [];
+      const activeCharacters = getWritingSessionCharacters(sessionId);
 
-      // title（p2）：仅当 session.title 为 NULL 时入队
-      if (session && !session.title) {
-        log.info(`QUEUE TITLE  ${formatMeta({ session: sid, priority: 2 })}`);
-        const titlePromise = enqueue(sessionId, () => generateTitle(sessionId), 2, 'session-title')
-          .then((title) => {
-            if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'title_updated', title });
-          })
-          .catch(err => log.warn('后台任务失败:', err.message));
-        ssePromises.push(titlePromise);
-      }
-
-      // 章节标题（p2）：仅当本轮 AI 回复是某章节的第一条 assistant 消息，且该章节尚无标题时入队
+      // 章节标题条件：本轮 AI 回复是某章节第一条，且 DB 尚无记录
       const newChapter = detectNewChapter(msgs);
+      let chapterTitleCondition = false;
+      let chapterIndex, chapterMessages;
       if (newChapter) {
-        const { chapterIndex, chapterMessages } = newChapter;
+        chapterIndex = newChapter.chapterIndex;
+        chapterMessages = newChapter.chapterMessages;
         const existing = getChapterTitle(sessionId, chapterIndex);
         if (!existing) {
+          // 立即写入默认标题占位，防止并发重复生成
           const defaultTitle = chapterIndex === 1 ? '序章' : '续章';
           upsertChapterTitle(sessionId, chapterIndex, defaultTitle, 1);
-          log.info(`QUEUE CHAPTER-TITLE  ${formatMeta({ session: sid, priority: 2, chapter: chapterIndex })}`);
-          const chapterTitlePromise = enqueue(sessionId, () => generateChapterTitle(sessionId, chapterIndex, chapterMessages), 2, 'chapter-title')
-            .then((title) => {
-              if (title && !streamState.isClientClosed()) emitSse(res, sid, { type: 'chapter_title_updated', chapterIndex, title });
-            })
-            .catch(err => log.warn('章节标题任务失败:', err.message));
-          ssePromises.push(chapterTitlePromise);
+          chapterTitleCondition = true;
         }
       }
 
-      const activeCharacters = getWritingSessionCharacters(sessionId);
-      log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((c) => c.id.slice(0, 8)) })}`);
-      const rawStatePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state');
-      trackStateUpdate(sessionId, rawStatePromise.catch(() => {}));
-      const statePromise = rawStatePromise
-        .then(() => {
-          if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'state_updated' });
-        })
-        .catch(err => log.warn('后台任务失败:', err.message));
-      ssePromises.push(statePromise);
+      const taskSpecs = [
+        // title（p2）：仅当 session.title 为 NULL 时入队
+        {
+          label: 'session-title',
+          priority: 2,
+          fn: () => generateTitle(sessionId),
+          condition: !!(session && !session.title),
+          sseEvent: 'title_updated',
+          ssePayload: (title) => title ? { type: 'title_updated', title } : null,
+          keepSseAlive: true,
+        },
+        // 章节标题（p2）：writing 专有，仅新章节首轮触发
+        {
+          label: 'chapter-title',
+          priority: 2,
+          fn: () => generateChapterTitle(sessionId, chapterIndex, chapterMessages),
+          condition: chapterTitleCondition,
+          sseEvent: 'chapter_title_updated',
+          ssePayload: (title) => title ? { type: 'chapter_title_updated', chapterIndex, title } : null,
+          keepSseAlive: true,
+        },
+        // all-state（p2）：writing 模式推 state_updated SSE（CastPanel/StatePanel 按事件刷新）
+        {
+          label: 'all-state',
+          priority: 2,
+          fn: () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId),
+          tracksState: true,
+          sseEvent: 'state_updated',
+          ssePayload: () => ({ type: 'state_updated' }),
+          keepSseAlive: true,
+        },
+        // turn-record（p3）：不推 SSE
+        {
+          label: 'turn-record',
+          priority: 3,
+          fn: () => createTurnRecord(sessionId),
+          keepSseAlive: false,
+        },
+        // diary（p4）：writing 模式推 diary_updated SSE
+        {
+          label: 'diary',
+          priority: 4,
+          fn: async () => {
+            const latest = getLatestTurnRecord(sessionId);
+            if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+          },
+          sseEvent: 'diary_updated',
+          ssePayload: () => ({ type: 'diary_updated' }),
+          keepSseAlive: true,
+        },
+      ];
 
-      log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3 })}`);
-      enqueue(sessionId, () => createTurnRecord(sessionId), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
-
-      const diaryPromise = enqueue(sessionId, async () => {
-        const latest = getLatestTurnRecord(sessionId);
-        if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
-      }, 4, 'diary')
-        .then(() => {
-          if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'diary_updated' });
-        })
-        .catch(err => log.warn('日记任务失败:', err.message));
-      ssePromises.push(diaryPromise);
-
-      // SSE 保活：等所有后台任务推送完事件后关闭连接（state_updated + diary_updated 必在其中）
-      Promise.allSettled(ssePromises).finally(() => {
-        if (!streamState.isClientClosed()) res.end();
+      const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
+        res, streamState, sid,
+        emitSse: (payload) => emitSse(res, sid, payload),
       });
-      return;
+      if (hasSseWaits) return;
     }
   }
 
@@ -328,20 +344,23 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const sid = sessionId.slice(0, 8);
   log.info(`POST /continue  ${formatMeta({ session: sid, worldId: worldId?.slice(0, 8) ?? null })}`);
 
+  // 找最后一条 assistant 消息
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const lastAssistantIndex = allMsgs.map((m) => m.role).lastIndexOf('assistant');
+  const lastAssistant = lastAssistantIndex >= 0 ? allMsgs[lastAssistantIndex] : null;
+  if (!lastAssistant) {
+    return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
+  }
+  const hasUserBeforeAssistant = allMsgs.slice(0, lastAssistantIndex).some((m) => m.role === 'user');
+  if (!hasUserBeforeAssistant) {
+    return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
+  }
+
   const streamState = beginStreamSession(sessionId, res, activeStreams);
   const ac = streamState.controller;
 
   // 等待上一轮状态更新完成
   await awaitPendingStateUpdate(sessionId);
-
-  // 找最后一条 assistant 消息
-  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
-  if (!lastAssistant) {
-    emitSse(res, sid, { type: 'error', error: '没有可续写的内容' });
-    res.end();
-    return;
-  }
 
   const originalContent = lastAssistant.content;
   let newContent = '';
@@ -406,34 +425,45 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   // 续写正常完成后保持 SSE 连接，等后台任务推送完事件后再关闭
   if (!aborted && newContent) {
     const activeCharacters = getWritingSessionCharacters(sessionId);
-    const ssePromises = [];
 
-    log.info(`QUEUE ALL-STATE  ${formatMeta({ session: sid, priority: 2, worldId: worldId?.slice(0, 8) ?? null, characters: activeCharacters.map((character) => character.id.slice(0, 8)) })}`);
-    const rawStatePromise = enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((character) => character.id), sessionId), 2, 'all-state');
-    trackStateUpdate(sessionId, rawStatePromise.catch(() => {}));
-    const statePromise = rawStatePromise
-      .then(() => {
-        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'state_updated' });
-      })
-      .catch(err => log.warn('后台任务失败:', err.message));
-    ssePromises.push(statePromise);
-    log.info(`QUEUE TURN-RECORD  ${formatMeta({ session: sid, priority: 3, isUpdate: true })}`);
-    enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));
+    // continue 不触发新章节（轮次未变），故无 title/chapterTitle 任务
+    const taskSpecs = [
+      // all-state（p2）：writing 模式推 state_updated SSE
+      {
+        label: 'all-state',
+        priority: 2,
+        fn: () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId),
+        tracksState: true,
+        sseEvent: 'state_updated',
+        ssePayload: () => ({ type: 'state_updated' }),
+        keepSseAlive: true,
+      },
+      // turn-record（p3）：isUpdate=true，UPSERT 覆盖最后一轮，不新增轮次
+      {
+        label: 'turn-record',
+        priority: 3,
+        fn: () => createTurnRecord(sessionId, { isUpdate: true }),
+        keepSseAlive: false,
+      },
+      // diary（p4）：writing 模式推 diary_updated SSE
+      {
+        label: 'diary',
+        priority: 4,
+        fn: async () => {
+          const latest = getLatestTurnRecord(sessionId);
+          if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
+        },
+        sseEvent: 'diary_updated',
+        ssePayload: () => ({ type: 'diary_updated' }),
+        keepSseAlive: true,
+      },
+    ];
 
-    const diaryPromise = enqueue(sessionId, async () => {
-      const latest = getLatestTurnRecord(sessionId);
-      if (latest) await checkAndGenerateDiary(sessionId, latest.round_index);
-    }, 4, 'diary')
-      .then(() => {
-        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'diary_updated' });
-      })
-      .catch(err => log.warn('日记任务失败:', err.message));
-    ssePromises.push(diaryPromise);
-
-    Promise.allSettled(ssePromises).finally(() => {
-      if (!streamState.isClientClosed()) res.end();
+    const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
+      res, streamState, sid,
+      emitSse: (payload) => emitSse(res, sid, payload),
     });
-    return;
+    if (hasSseWaits) return;
   }
 
   if (!streamState.isClientClosed()) res.end();
@@ -485,6 +515,16 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
 
   const session = dbGetWritingSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
+  const afterMessage = getMessageById(afterMessageId);
+  if (!afterMessage) {
+    return res.status(404).json({ error: 'afterMessageId not found' });
+  }
+  if (afterMessage.session_id !== sessionId) {
+    return res.status(400).json({ error: 'afterMessageId does not belong to this session' });
+  }
+  if (afterMessage.role !== 'user') {
+    return res.status(400).json({ error: 'afterMessageId must be a user message' });
+  }
 
   await deleteMessagesAfter(afterMessageId);
 

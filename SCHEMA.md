@@ -903,6 +903,90 @@ CREATE TABLE internal_meta (
 
 ---
 
+### 全局设置格式：.weglobal.json
+
+通过 `GET /api/global-settings/export?mode=chat|writing` 导出，`POST /api/global-settings/import` 导入。chat 和 writing 两种 mode 结构略有差异。
+
+**chat 模式**（`mode="chat"`）：
+
+```json
+{
+  "format": "worldengine-global-settings-v1",
+  "mode": "chat",
+  "exported_at": "2026-04-22T00:00:00.000Z",
+  "global_prompt_entries": [
+    {
+      "title": "",
+      "description": "",
+      "content": "",
+      "keywords": [],
+      "keyword_scope": "user,assistant",
+      "mode": "chat",
+      "sort_order": 0
+    }
+  ],
+  "custom_css_snippets": [
+    {
+      "name": "",
+      "content": "",
+      "enabled": 1,
+      "mode": "chat",
+      "sort_order": 0
+    }
+  ],
+  "regex_rules": [
+    {
+      "name": "",
+      "pattern": "",
+      "replacement": "",
+      "scope": "display_only",
+      "mode": "chat",
+      "enabled": 1,
+      "sort_order": 0
+    }
+  ],
+  "config": {
+    "global_system_prompt": "",
+    "global_post_prompt": "",
+    "context_history_rounds": 20,
+    "memory_expansion_enabled": true
+  }
+}
+```
+
+**writing 模式**（`mode="writing"`）：
+
+```json
+{
+  "format": "worldengine-global-settings-v1",
+  "mode": "writing",
+  "exported_at": "2026-04-22T00:00:00.000Z",
+  "global_prompt_entries": [...],
+  "custom_css_snippets": [...],
+  "regex_rules": [...],
+  "writing": {
+    "global_system_prompt": "",
+    "global_post_prompt": "",
+    "context_history_rounds": null,
+    "llm": {
+      "model": "",
+      "temperature": null,
+      "max_tokens": null
+    }
+  }
+}
+```
+
+导入约束：
+- **覆盖模式**：先删除同 mode 下的所有 `global_prompt_entries`、`custom_css_snippets`、`regex_rules`（world_id IS NULL），再写入
+- 不含 API Key、不含世界/角色/会话数据
+- `regex_rules` 的 `flags` 字段不在导出格式中，导入时回退为数据库默认值 `'g'`
+- chat 模式导入后，`config` 字段覆盖 `data/config.json` 中对应键（global_system_prompt / global_post_prompt / context_history_rounds / memory_expansion_enabled）
+- writing 模式导入后，`writing` 字段覆盖 `config.writing.*` 对应键
+- 兼容旧格式（无 mode 字段的文件按 chat 处理）
+
+---
+
 ## 关键约束汇总
 
 | 约束 | 实现方式 |

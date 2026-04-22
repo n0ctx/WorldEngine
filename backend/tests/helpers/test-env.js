@@ -114,6 +114,7 @@ export function createTestSandbox(name, configPatch = {}) {
     setEnv() {
       process.env.WE_DB_PATH = dbPath;
       process.env.WE_CONFIG_PATH = configPath;
+      process.env.WE_DATA_DIR = root;
       process.env.WE_UPLOADS_DIR = uploadsDir;
       process.env.WE_TURN_SUMMARY_STORE_PATH = turnSummaryStorePath;
       process.env.WE_DISABLE_AUTOSTART = 'true';

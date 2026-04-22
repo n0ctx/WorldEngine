@@ -173,6 +173,57 @@ export function insertPersonaStateValue(db, worldId, patch = {}) {
   return insertStateValue(db, 'persona_state_values', 'world_id', worldId, patch);
 }
 
+export function insertSessionWorldStateValue(db, sessionId, worldId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.updated_at);
+  db.prepare(`
+    INSERT INTO session_world_state_values (id, session_id, world_id, field_key, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    worldId,
+    patch.field_key ?? 'field',
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, world_id: worldId, ...patch, updated_at: now };
+}
+
+export function insertSessionPersonaStateValue(db, sessionId, worldId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.updated_at);
+  db.prepare(`
+    INSERT INTO session_persona_state_values (id, session_id, world_id, field_key, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    worldId,
+    patch.field_key ?? 'field',
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, world_id: worldId, ...patch, updated_at: now };
+}
+
+export function insertSessionCharacterStateValue(db, sessionId, characterId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.updated_at);
+  db.prepare(`
+    INSERT INTO session_character_state_values (id, session_id, character_id, field_key, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    characterId,
+    patch.field_key ?? 'field',
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, character_id: characterId, ...patch, updated_at: now };
+}
+
 export function insertTurnRecord(db, sessionId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
@@ -187,6 +238,25 @@ export function insertTurnRecord(db, sessionId, patch = {}) {
     patch.user_message_id ?? null,
     patch.asst_message_id ?? null,
     patch.state_snapshot ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, ...patch, created_at: now };
+}
+
+export function insertDailyEntry(db, sessionId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.created_at);
+  db.prepare(`
+    INSERT INTO daily_entries (
+      id, session_id, date_str, date_display, summary, triggered_by_round_index, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    patch.date_str ?? '1000-01-01',
+    patch.date_display ?? '1000年1月1日',
+    patch.summary ?? '日记摘要',
+    patch.triggered_by_round_index ?? null,
     now,
   );
   return { id, session_id: sessionId, ...patch, created_at: now };

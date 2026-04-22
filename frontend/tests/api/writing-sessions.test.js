@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clearMessages, createWritingSession, generate, listActiveCharacters } from '../../src/api/writing-sessions.js';
+import {
+  clearMessages,
+  createWritingSession,
+  editAndRegenerateWriting,
+  generate,
+  listActiveCharacters,
+} from '../../src/api/writing-sessions.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();
@@ -51,5 +57,75 @@ describe('writing api', () => {
       ['delta', '白'],
       ['done', '旁白', '下一句'],
     ]);
+  });
+
+  it('generate 在 HTTP 错误时只触发 onError，不触发 onStreamEnd', async () => {
+    fetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: '爆炸了' }),
+    });
+
+    const calls = [];
+    generate('world-3', 'session-3', '失败', {
+      onError: (error) => calls.push(['error', error]),
+      onStreamEnd: () => calls.push(['end']),
+    });
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual([['error', '爆炸了']]);
+    });
+  });
+
+  it('editAndRegenerateWriting 会先编辑消息，再解析 regenerate SSE 并收尾', async () => {
+    fetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'msg-2' }),
+      })
+      .mockResolvedValueOnce(createSseResponse([
+        { delta: '续' },
+        { done: true, assistant: { id: 'asst-2', content: '续写完成' }, options: [] },
+      ]));
+
+    const calls = [];
+    await new Promise((resolve) => {
+      editAndRegenerateWriting('world-9', 'session-9', 'msg-1', '新内容', {
+        onDelta: (delta) => calls.push(['delta', delta]),
+        onDone: (assistant) => calls.push(['done', assistant.content]),
+        onStreamEnd: () => {
+          calls.push(['end']);
+          resolve();
+        },
+      });
+    });
+
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/messages/msg-1', expect.objectContaining({
+      method: 'PUT',
+      body: JSON.stringify({ content: '新内容' }),
+    }));
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/worlds/world-9/writing-sessions/session-9/regenerate', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ afterMessageId: 'msg-2' }),
+    }));
+    expect(calls).toEqual([
+      ['delta', '续'],
+      ['done', '续写完成'],
+      ['end'],
+    ]);
+  });
+
+  it('editAndRegenerateWriting 在编辑失败时触发 onError', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+
+    const calls = [];
+    editAndRegenerateWriting('world-4', 'session-4', 'msg-x', '内容', {
+      onError: (error) => calls.push(['error', error]),
+      onStreamEnd: () => calls.push(['end']),
+    });
+
+    await vi.waitFor(() => {
+      expect(calls).toEqual([['error', 'editMessage failed: 500']]);
+    });
   });
 });
