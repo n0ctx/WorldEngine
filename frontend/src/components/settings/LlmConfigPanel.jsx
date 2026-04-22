@@ -126,7 +126,7 @@ export default function LlmConfigPanel({
 
           <div className="we-settings-field-group">
             <p className="we-settings-subsection-title">网络代理</p>
-            <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理">
+            <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。">
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Input
                   style={{ flex: 1 }}
@@ -145,9 +145,6 @@ export default function LlmConfigPanel({
                   {proxySaved ? '已应用' : '应用'}
                 </Button>
               </div>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '6px 0 0' }}>
-                支持 http:// 和 socks5:// 协议。修改后立即生效，无需重启服务。
-              </p>
             </FormGroup>
           </div>
 
