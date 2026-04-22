@@ -19,12 +19,12 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
           <span style={{
             fontFamily: 'var(--we-font-display)',
             fontSize: '16px',
-            color: 'var(--we-ink-primary)',
+            color: 'var(--we-paper-base)',
             fontStyle: 'italic',
           }}>
             {title}
           </span>
-          <p style={{ fontSize: '13px', color: 'var(--we-ink-secondary)', marginTop: '2px', marginLeft: '22px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--we-paper-shadow)', marginTop: '2px', marginLeft: '22px' }}>
             {desc}
           </p>
         </div>
@@ -98,7 +98,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
           </div>
         ))}
         {entries.length === 0 && (
-          <div style={{ padding: '16px', textAlign: 'center', fontSize: '13px', color: 'var(--we-ink-faded)' }}>
+          <div style={{ padding: '16px', textAlign: 'center', fontSize: '13px', color: 'var(--we-ink-faded)', background: 'var(--we-paper-base)' }}>
             暂无条目
           </div>
         )}

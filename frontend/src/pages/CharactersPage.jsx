@@ -335,7 +335,7 @@ export default function CharactersPage() {
       {/* 三标签导航 */}
       <div style={{
         display: 'flex',
-        borderBottom: '1px solid var(--we-paper-shadow)',
+        borderBottom: '1px solid rgba(200,185,154,0.3)',
         marginBottom: '16px',
       }}>
         {[
@@ -354,10 +354,10 @@ export default function CharactersPage() {
                 fontFamily: 'var(--we-font-serif)',
                 fontSize: '14px',
                 color: disabled
-                  ? 'var(--we-ink-faded)'
+                  ? 'var(--we-paper-deep)'
                   : isActive
-                    ? 'var(--we-ink-primary)'
-                    : 'var(--we-ink-secondary)',
+                    ? 'var(--we-paper-base)'
+                    : 'var(--we-paper-shadow)',
                 borderTop: 'none',
                 borderLeft: 'none',
                 borderRight: 'none',

@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { listWorldEntries } from '../api/prompt-entries';
 import { listTriggers } from '../api/triggers';
+import { getWorld } from '../api/worlds';
 import EntrySection from '../components/state/EntrySection';
 import TriggerCard from '../components/state/TriggerCard';
 import TriggerEditor from '../components/state/TriggerEditor';
 
 export default function WorldStatePage() {
   const { worldId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [world, setWorld] = useState(null);
   const [entries, setEntries] = useState([]);
   const [triggers, setTriggers] = useState([]);
   const [editingTrigger, setEditingTrigger] = useState(null);
 
   useEffect(() => {
+    getWorld(worldId).then(setWorld).catch(() => {});
     listWorldEntries(worldId).then(setEntries).catch(() => {});
     listTriggers(worldId).then(setTriggers).catch(() => {});
   }, [worldId]);
@@ -27,14 +32,68 @@ export default function WorldStatePage() {
   }
 
   return (
+    <div className="we-characters-canvas">
+      {/* 导航 */}
+      <button
+        onClick={() => navigate('/')}
+        style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-paper-shadow)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, padding: 0, transition: 'color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.color = 'var(--we-paper-base)'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--we-paper-shadow)'}
+      >
+        ← 所有世界
+      </button>
+
+      {/* 页头 */}
+      <div className="we-characters-header">
+        <div>
+          <h1 className="we-characters-title">{world?.name}</h1>
+          <p className="we-characters-subtitle">CHARACTER ROSTER</p>
+        </div>
+      </div>
+
+      {/* 三标签导航 */}
+      <div style={{ display: 'flex', borderBottom: '1px solid rgba(200,185,154,0.3)', marginBottom: '16px' }}>
+        {[
+          { label: '构建', path: null, disabled: true },
+          { label: '故事', path: `/worlds/${worldId}` },
+          { label: '状态', path: `/worlds/${worldId}/state` },
+        ].map(({ label, path, disabled }) => {
+          const isActive = path !== null && location.pathname === path;
+          return (
+            <button
+              key={label}
+              disabled={disabled}
+              onClick={() => path && navigate(path)}
+              style={{
+                padding: '8px 20px',
+                fontFamily: 'var(--we-font-serif)',
+                fontSize: '14px',
+                color: disabled
+                  ? 'var(--we-paper-deep)'
+                  : isActive
+                    ? 'var(--we-paper-base)'
+                    : 'var(--we-paper-shadow)',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderBottom: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
+                background: 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
     <div style={{
-      padding: '24px 32px',
       maxWidth: '900px',
       margin: '0 auto',
     }}>
       <EntrySection
         title="常驻条目"
-        icon="📌"
+        icon="✦"
         desc="始终注入，适合世界观基础设定和写作风格规范"
         triggerType="always"
         entries={alwaysEntries}
@@ -44,7 +103,7 @@ export default function WorldStatePage() {
 
       <EntrySection
         title="关键词触发条目"
-        icon="🔑"
+        icon="§"
         desc="对话中出现指定词语时自动注入"
         triggerType="keyword"
         entries={keywordEntries}
@@ -54,7 +113,7 @@ export default function WorldStatePage() {
 
       <EntrySection
         title="AI 召回条目"
-        icon="🤖"
+        icon="❦"
         desc="由 AI 判断当前情境是否需要注入"
         triggerType="llm"
         entries={llmEntries}
@@ -66,16 +125,16 @@ export default function WorldStatePage() {
       <div style={{ marginTop: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div>
-            <span style={{ fontSize: '18px', marginRight: '8px' }}>⚡</span>
+            <span style={{ fontSize: '18px', marginRight: '8px' }}>※</span>
             <span style={{
               fontFamily: 'var(--we-font-display)',
               fontSize: '16px',
-              color: 'var(--we-ink-primary)',
+              color: 'var(--we-paper-base)',
               fontStyle: 'italic',
             }}>
               状态触发器
             </span>
-            <p style={{ fontSize: '13px', color: 'var(--we-ink-secondary)', marginTop: '4px', marginLeft: '26px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--we-paper-shadow)', marginTop: '4px', marginLeft: '26px' }}>
               当世界或角色状态满足条件时执行动作
             </p>
           </div>
@@ -110,7 +169,7 @@ export default function WorldStatePage() {
           {triggers.length === 0 && (
             <p style={{
               fontSize: '13px',
-              color: 'var(--we-ink-faded)',
+              color: 'var(--we-paper-deep)',
               textAlign: 'center',
               padding: '24px 0',
             }}>
@@ -129,6 +188,7 @@ export default function WorldStatePage() {
           onSave={() => { setEditingTrigger(null); refresh(); }}
         />
       )}
+    </div>
     </div>
   );
 }
