@@ -214,6 +214,14 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - `store/` 只放跨页面共享状态；局部 UI 状态优先留在页面或组件内部
 - `utils/` 只放纯工具函数；不要把页面业务流程塞进工具文件
 
+**组件复用规则**
+- 新页面组装前必须先查阅 `frontend/src/components/index.js`，有可用组件则强制复用，不可另起炉灶
+- 编辑类页面骨架统一用 `EditPageShell`，禁止手写 `we-edit-canvas` / `we-edit-panel`
+- 表单字段统一用 `FormGroup`，禁止散写 `div.we-edit-form-group` + `label.we-edit-label`
+- 确认弹窗统一用 `ConfirmModal`，禁止页面内联定义局部弹窗
+- 新组件需同步在 `components/index.js` 中注册后方可使用
+- 没有现成组件时，先参照现有组件风格和 `DESIGN.md` 指引创建，放入 `components/ui/`
+
 **文件命名约定**
 - 前端 `frontend/src/api/`：统一 kebab-case（如 `import-export.js`、`session-timeline.js`）
 - 前端 `frontend/src/components/`、`frontend/src/pages/`：React 组件/页面文件统一 PascalCase（如 `MessageItem.jsx`、`ChatPage.jsx`）
