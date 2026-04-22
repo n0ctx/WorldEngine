@@ -289,6 +289,7 @@ export default function WorldEditPage() {
         loading={loading}
         isOverlay={isOverlay}
         onClose={handleClose}
+        title={name ? `编辑世界 · ${name}` : ''}
       >
         <SectionTabs sections={sections} defaultKey="basic" />
       </EditPageShell>

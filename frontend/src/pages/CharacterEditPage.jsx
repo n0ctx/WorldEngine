@@ -242,6 +242,7 @@ export default function CharacterEditPage() {
         loading={loading}
         isOverlay={isOverlay}
         onClose={handleClose}
+        title={name ? `编辑角色 · ${name}` : ''}
       >
         <SectionTabs sections={sections} defaultKey="basic" />
       </EditPageShell>
