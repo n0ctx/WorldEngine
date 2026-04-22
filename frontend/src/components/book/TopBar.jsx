@@ -128,7 +128,8 @@ export default function TopBar() {
     setDropdownOpen(false);
   }, [location.pathname]);
 
-  const isChat = !!characterId || !!location.pathname.match(/\/worlds\/[\w-]+$/);
+  const isWorldsList = location.pathname === '/';
+  const isChat = !!characterId;
   const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
 
   async function handleChatNavigate() {
@@ -171,6 +172,11 @@ export default function TopBar() {
     }}>
       {/* 世界选择器 */}
       <div ref={dropdownRef} style={{ position: 'relative' }}>
+        {isWorldsList ? (
+          <span style={{ ...itemStyle, cursor: 'default' }}>
+            世界列表
+          </span>
+        ) : (
         <button
           style={currentWorld ? itemActiveStyle : itemStyle}
           onClick={() => setDropdownOpen((o) => !o)}
@@ -178,6 +184,7 @@ export default function TopBar() {
           {currentWorld?.name ?? '选择世界'}
           <span style={{ marginLeft: '4px', opacity: 0.5, fontSize: '9px' }}>▾</span>
         </button>
+        )}
 
         {dropdownOpen && (
           <div style={{
@@ -257,28 +264,32 @@ export default function TopBar() {
         )}
       </div>
 
-      <span style={sepStyle}>·</span>
+      {!isWorldsList && (
+        <>
+          <span style={sepStyle}>·</span>
 
-      {/* 对话模式 */}
-      <button
-        style={isChat ? itemActiveStyle : itemStyle}
-        onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
-      >
-        对话
-      </button>
+          {/* 对话模式 */}
+          <button
+            style={isChat ? itemActiveStyle : itemStyle}
+            onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
+          >
+            对话
+          </button>
 
-      <span style={sepStyle}>·</span>
+          <span style={sepStyle}>·</span>
 
-      {/* 写作空间 */}
-      <button
-        style={isWriting ? itemActiveStyle : itemStyle}
-        onClick={() => {
-          if (!effectiveWorldId) return;
-          navigate(`/worlds/${effectiveWorldId}/writing`);
-        }}
-      >
-        写作
-      </button>
+          {/* 写作空间 */}
+          <button
+            style={isWriting ? itemActiveStyle : itemStyle}
+            onClick={() => {
+              if (!effectiveWorldId) return;
+              navigate(`/worlds/${effectiveWorldId}/writing`);
+            }}
+          >
+            写作
+          </button>
+        </>
+      )}
 
       <div style={{ flex: 1 }} />
 
