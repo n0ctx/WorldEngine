@@ -332,6 +332,46 @@ export default function CharactersPage() {
         </div>
       </div>
 
+      {/* 三标签导航 */}
+      <div style={{
+        display: 'flex',
+        borderBottom: '1px solid var(--we-paper-shadow)',
+        marginBottom: '16px',
+      }}>
+        {[
+          { label: '构建', path: null, disabled: true },
+          { label: '故事', path: `/worlds/${worldId}` },
+          { label: '状态', path: `/worlds/${worldId}/state` },
+        ].map(({ label, path, disabled }) => {
+          const isActive = path !== null && location.pathname === path;
+          return (
+            <button
+              key={label}
+              disabled={disabled}
+              onClick={() => path && navigate(path)}
+              style={{
+                padding: '8px 20px',
+                fontFamily: 'var(--we-font-serif)',
+                fontSize: '14px',
+                color: disabled
+                  ? 'var(--we-ink-faded)'
+                  : isActive
+                    ? 'var(--we-ink-primary)'
+                    : 'var(--we-ink-secondary)',
+                borderTop: 'none',
+                borderLeft: 'none',
+                borderRight: 'none',
+                borderBottom: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
+                background: 'none',
+                cursor: disabled ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* 玩家人设卡片 */}
       <PersonaCard
         worldId={worldId}
