@@ -7,7 +7,8 @@ import {
 import ProviderBlock from './ProviderBlock';
 import WritingLlmBlock from './WritingLlmBlock';
 import ModeSwitch from './ModeSwitch';
-import FieldLabel from './FieldLabel';
+import FormGroup from '../ui/FormGroup';
+import FieldLabel from '../ui/FieldLabel';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from './SettingsConstants';
@@ -103,15 +104,14 @@ export default function LlmConfigPanel({
               />
             </div>
 
-            <div className="we-edit-form-group">
-              <FieldLabel>Max Tokens</FieldLabel>
+            <FormGroup label="Max Tokens">
               <Input
                 type="number"
                 min="64" max="32000" step="64"
                 value={llm.max_tokens ?? 4096}
                 onChange={(e) => onLlmChange('max_tokens', parseInt(e.target.value, 10))}
               />
-            </div>
+            </FormGroup>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
               <Button variant="default" onClick={handleTestConnection} disabled={testStatus === 'testing'}>
@@ -126,8 +126,7 @@ export default function LlmConfigPanel({
 
           <div className="we-settings-field-group">
             <p className="we-settings-subsection-title">网络代理</p>
-            <div className="we-edit-form-group">
-              <FieldLabel hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理">HTTP 代理地址</FieldLabel>
+            <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理">
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Input
                   style={{ flex: 1 }}
@@ -149,7 +148,7 @@ export default function LlmConfigPanel({
               <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '6px 0 0' }}>
                 支持 http:// 和 socks5:// 协议。修改后立即生效，无需重启服务。
               </p>
-            </div>
+            </FormGroup>
           </div>
 
           <hr className="we-settings-divider" />

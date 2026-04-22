@@ -1,7 +1,8 @@
 import Input from '../ui/Input';
 import Button from '../ui/Button';
 import ModelCombobox from '../ui/ModelCombobox';
-import FieldLabel from './FieldLabel';
+import FormGroup from '../ui/FormGroup';
+import FieldLabel from '../ui/FieldLabel';
 
 export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatModel }) {
   return (
@@ -10,15 +11,14 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
       <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '0 0 12px' }}>
         Provider / API Key / Base URL 与对话空间共享。留空或为 null 则继承对话空间的值。
       </p>
-      <div className="we-edit-form-group">
-        <FieldLabel hint={`对话模型：${chatModel || '(未配置)'}`}>写作模型</FieldLabel>
+      <FormGroup label="写作模型" hint={`对话模型：${chatModel || '(未配置)'}`}>
         <ModelCombobox
           value={writingLlm.model || ''}
           onChange={(v) => onWritingLlmChange('model', v)}
           options={[]}
           placeholder={`留空则使用对话模型（${chatModel || '未配置'}）`}
         />
-      </div>
+      </FormGroup>
       <div className="we-edit-form-group">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
           <FieldLabel hint="null 则继承对话温度">写作 Temperature</FieldLabel>
@@ -38,8 +38,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
           <Button variant="ghost" size="sm" onClick={() => onWritingLlmChange('temperature', null)}>继承</Button>
         </div>
       </div>
-      <div className="we-edit-form-group">
-        <FieldLabel hint="null 则继承对话最大 Token">写作 Max Tokens</FieldLabel>
+      <FormGroup label="写作 Max Tokens" hint="null 则继承对话最大 Token">
         <div style={{ display: 'flex', gap: '8px' }}>
           <Input
             type="number"
@@ -51,7 +50,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
           />
           <Button variant="ghost" size="sm" onClick={() => onWritingLlmChange('max_tokens', null)}>继承</Button>
         </div>
-      </div>
+      </FormGroup>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
-import FieldLabel from './FieldLabel';
+import FormGroup from '../ui/FormGroup';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, getProviderThinkingOptions } from './SettingsConstants';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
@@ -30,14 +30,12 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
     <div className="we-settings-field-group">
       {title && <p className="we-settings-subsection-title">{title}</p>}
 
-      <div className="we-edit-form-group">
-        <FieldLabel>Provider</FieldLabel>
+      <FormGroup label="Provider">
         <Select value={config.provider || ''} onChange={onProviderChange} options={providers} />
-      </div>
+      </FormGroup>
 
       {config.provider && !isLocal && (
-        <div className="we-edit-form-group">
-          <FieldLabel>API Key</FieldLabel>
+        <FormGroup label="API Key">
           <div style={{ display: 'flex', gap: '8px' }}>
             <Input
               type="password"
@@ -51,41 +49,38 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
               {apiKeySaved ? '已保存' : '保存密钥'}
             </Button>
           </div>
-        </div>
+        </FormGroup>
       )}
 
       {needsBaseUrl && (
-        <div className="we-edit-form-group">
-          <FieldLabel>Base URL</FieldLabel>
+        <FormGroup label="Base URL">
           <Input
             value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
             placeholder={DEFAULT_BASE_URLS[config.provider] ?? 'https://your-api-endpoint/v1'}
           />
-        </div>
+        </FormGroup>
       )}
 
       {config.provider && (
-        <div className="we-edit-form-group">
-          <FieldLabel>模型</FieldLabel>
+        <FormGroup label="模型">
           <ModelSelector
             key={config.provider + (config.base_url || '') + (config.has_key ? '1' : '0')}
             value={config.model || ''}
             onChange={onModelChange}
             loadModels={loadModels}
           />
-        </div>
+        </FormGroup>
       )}
 
       {thinkingOptions.length > 0 && onThinkingLevelChange && (
-        <div className="we-edit-form-group">
-          <FieldLabel hint="auto = 不传参数，使用模型默认行为">思考链级别</FieldLabel>
+        <FormGroup label="思考链级别" hint="auto = 不传参数，使用模型默认行为">
           <Select
             value={config.thinking_level || ''}
             onChange={(v) => onThinkingLevelChange(v || null)}
             options={[{ value: '', label: '自动（模型默认）' }, ...thinkingOptions]}
           />
-        </div>
+        </FormGroup>
       )}
     </div>
   );

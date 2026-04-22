@@ -1,6 +1,6 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
-import FieldLabel from './FieldLabel';
+import FormGroup from '../ui/FormGroup';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
 
 export default function DiaryConfigPanel({
@@ -22,18 +22,18 @@ export default function DiaryConfigPanel({
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div className="we-settings-field-group" style={{ marginTop: 16 }}>
-        <div className="we-edit-form-group">
-          <FieldLabel hint="开启后世界状态将自动添加时间字段，AI 每轮更新后判断日期跨越并生成日记">
-            {isChat ? '对话空间日记' : '写作空间日记'}
-          </FieldLabel>
+        <FormGroup
+          label={isChat ? '对话空间日记' : '写作空间日记'}
+          hint="开启后世界状态将自动添加时间字段，AI 每轮更新后判断日期跨越并生成日记"
+        >
           <ToggleSwitch checked={enabled} onChange={onToggle} />
-        </div>
+        </FormGroup>
 
         {enabled && (
-          <div className="we-edit-form-group">
-            <FieldLabel hint={'虚拟日期：解析世界状态时间字段中的"N年N月N日"；真实日期：使用系统时间。切换仅影响新建会话。'}>
-              日期模式
-            </FieldLabel>
+          <FormGroup
+            label="日期模式"
+            hint={'虚拟日期：解析世界状态时间字段中的"N年N月N日"；真实日期：使用系统时间。切换仅影响新建会话。'}
+          >
             <div style={{ display: 'flex', gap: 8 }}>
               {[
                 { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期' },
@@ -58,7 +58,7 @@ export default function DiaryConfigPanel({
                 </button>
               ))}
             </div>
-          </div>
+          </FormGroup>
         )}
       </div>
 
