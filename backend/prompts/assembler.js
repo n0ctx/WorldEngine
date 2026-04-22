@@ -44,6 +44,7 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
+import { getActiveInjectPromptActions, updateActionParams } from '../db/queries/triggers.js';
 import {
   renderPersonaState,
   renderWorldState,
@@ -217,17 +218,24 @@ export async function buildPrompt(sessionId, options = {}) {
   const triggeredIds = await matchEntries(sessionId, allEntries);
   log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  char=${characterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
 
-  const entryTexts = [];
+  const systemEntryTexts = [];
+  const postEntryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
+  // position='system' → systemParts；position='post'（或无 position）→ postParts
   for (const entry of allEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
-      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
+      const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
+      if (entry.position === 'system') {
+        systemEntryTexts.push(text);
+      } else {
+        postEntryTexts.push(text);
+      }
     }
   }
 
-  if (entryTexts.length > 0) {
-    systemParts.push(entryTexts.join('\n\n'));
+  if (systemEntryTexts.length > 0) {
+    systemParts.push(systemEntryTexts.join('\n\n'));
   }
 
   // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
@@ -289,6 +297,24 @@ export async function buildPrompt(sessionId, options = {}) {
     world.post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
+
+  // post 位置的 prompt 条目
+  if (postEntryTexts.length > 0) {
+    postParts.push(postEntryTexts.join('\n\n'));
+  }
+
+  // inject_prompt 动作注入（consumed 模式递减 rounds_remaining）
+  const injectActions = getActiveInjectPromptActions(world.id);
+  for (const action of injectActions) {
+    const p = action.params || {};
+    if (p.text) {
+      postParts.push(`[触发注入]\n${p.text}`);
+      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
+        updateActionParams(action.trigger_id, { rounds_remaining: p.rounds_remaining - 1 });
+      }
+    }
+  }
+
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
@@ -402,20 +428,32 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   ];
 
   const triggeredIds = await matchEntries(sessionId, allEntries);
-  const entryTexts = [];
+  const systemEntryTexts = [];
+  const postEntryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
+  // position='system' → systemParts；position='post'（或无 position）→ postParts
   for (const entry of [...globalEntries, ...worldEntries]) {
     if (triggeredIds.has(entry.id) && entry.content) {
-      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
+      const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
+      if (entry.position === 'system') {
+        systemEntryTexts.push(text);
+      } else {
+        postEntryTexts.push(text);
+      }
     }
   }
   for (const { entry, character } of charEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
-      entryTexts.push(`【${tvChar(entry.title, character)}】\n${tvChar(entry.content, character)}`);
+      const text = `【${tvChar(entry.title, character)}】\n${tvChar(entry.content, character)}`;
+      if (entry.position === 'system') {
+        systemEntryTexts.push(text);
+      } else {
+        postEntryTexts.push(text);
+      }
     }
   }
-  if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
+  if (systemEntryTexts.length > 0) systemParts.push(systemEntryTexts.join('\n\n'));
 
   // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
@@ -471,6 +509,24 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
   const postParts = [writing.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
+
+  // post 位置的 prompt 条目
+  if (postEntryTexts.length > 0) {
+    postParts.push(postEntryTexts.join('\n\n'));
+  }
+
+  // inject_prompt 动作注入（consumed 模式递减 rounds_remaining）
+  const injectActions = getActiveInjectPromptActions(world.id);
+  for (const action of injectActions) {
+    const p = action.params || {};
+    if (p.text) {
+      postParts.push(`[触发注入]\n${p.text}`);
+      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
+        updateActionParams(action.trigger_id, { rounds_remaining: p.rounds_remaining - 1 });
+      }
+    }
+  }
+
   if (postParts.length > 0) {
     messages.push({ role: 'user', content: postParts.join('\n\n') });
   }

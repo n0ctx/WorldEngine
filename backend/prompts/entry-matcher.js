@@ -4,11 +4,12 @@
  * 对外暴露：
  *   matchEntries(sessionId, entries) → Promise<Set<string>>
  *
- * 触发逻辑：
- *   1. 取最近 1 轮对话（最新 1 条 user + 1 条 assistant）构建 LLM 上文
- *   2. description 非空的条目：pre-flight llm.complete() 全量判断，返回触发编号
- *   3. 关键词兜底：对未触发的条目按 keyword_scope 扫描最近 PROMPT_ENTRY_SCAN_WINDOW 条消息
- *   4. LLM 失败时降级为纯关键词匹配
+ * 触发逻辑（按 trigger_type 分流）：
+ *   always（或无 trigger_type）：直接触发，不走任何匹配逻辑
+ *   keyword：只走关键词匹配
+ *   llm：LLM preflight（有 description 时）+ 关键词兜底
+ *
+ *   LLM 失败时降级为纯关键词匹配（仅影响 llm 类型）
  */
 
 import { getMessagesBySessionId } from '../db/queries/messages.js';
@@ -127,16 +128,55 @@ export async function matchEntries(sessionId, entries) {
   const userScanText = recentMessages.filter((m) => m.role === 'user').map((m) => m.content).join('\n').toLowerCase();
   const asstScanText = recentMessages.filter((m) => m.role === 'assistant').map((m) => m.content).join('\n').toLowerCase();
 
-  // LLM pre-flight（仅处理有 description 的条目）
-  const entriesWithDesc = entries.filter((e) => e.description && e.description.trim());
-  const triggered = entriesWithDesc.length > 0 && contextLines
-    ? await tryLlmMatch(entriesWithDesc, contextLines)
-    : new Set();
+  const triggered = new Set();
 
-  // 关键词兜底：对未触发的条目补充匹配
+  // 按 trigger_type 分流：无 trigger_type 视为 'always'
+  const alwaysEntries = [];
+  const keywordEntries = [];
+  const llmEntries = [];
+
   for (const entry of entries) {
-    if (!triggered.has(entry.id) && matchByKeywords(entry, userScanText, asstScanText)) {
+    const type = entry.trigger_type || 'always';
+    if (type === 'always') {
+      alwaysEntries.push(entry);
+    } else if (type === 'keyword') {
+      keywordEntries.push(entry);
+    } else if (type === 'llm') {
+      llmEntries.push(entry);
+    } else {
+      // 未知类型降级为 always
+      alwaysEntries.push(entry);
+    }
+  }
+
+  // always：直接触发，不走匹配
+  for (const entry of alwaysEntries) {
+    triggered.add(entry.id);
+  }
+
+  // keyword：只走关键词匹配
+  for (const entry of keywordEntries) {
+    if (matchByKeywords(entry, userScanText, asstScanText)) {
       triggered.add(entry.id);
+    }
+  }
+
+  // llm：LLM pre-flight（仅处理有 description 的条目）+ 关键词兜底
+  if (llmEntries.length > 0) {
+    const llmEntriesWithDesc = llmEntries.filter((e) => e.description && e.description.trim());
+    const llmTriggered = llmEntriesWithDesc.length > 0 && contextLines
+      ? await tryLlmMatch(llmEntriesWithDesc, contextLines)
+      : new Set();
+
+    for (const id of llmTriggered) {
+      triggered.add(id);
+    }
+
+    // 关键词兜底：对未触发的 llm 类型条目补充匹配
+    for (const entry of llmEntries) {
+      if (!triggered.has(entry.id) && matchByKeywords(entry, userScanText, asstScanText)) {
+        triggered.add(entry.id);
+      }
     }
   }
 
