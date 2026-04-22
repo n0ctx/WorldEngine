@@ -273,8 +273,8 @@ function insertPromptEntry(db, table, ownerColumn, ownerId, patch = {}) {
   const modePlaceholders = hasMode ? '?, ' : '';
   const modeValues = hasMode ? [patch.mode ?? 'chat'] : [];
 
-  // 检查表中是否有 position 列（仅 world_prompt_entries 可能存在）
-  const hasPositionColumn = table === 'world_prompt_entries';
+  // 检查表中是否有 position 列（world_prompt_entries 和 character_prompt_entries）
+  const hasPositionColumn = table === 'world_prompt_entries' || table === 'character_prompt_entries';
   const positionColumns = hasPositionColumn ? 'position, ' : '';
   const positionPlaceholders = hasPositionColumn ? '?, ' : '';
   const positionValues = hasPositionColumn ? [patch.position ?? 'post'] : [];

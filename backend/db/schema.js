@@ -432,6 +432,8 @@ export function initSchema(db) {
   // State 引擎 Phase 1：为 world_prompt_entries 新增 position / trigger_type 字段
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'"); } catch (_) {}
+  // 扩展 character_prompt_entries 支持 position 字段（与 world_prompt_entries 对齐）
+  try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
 }
 
