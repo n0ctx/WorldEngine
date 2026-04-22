@@ -430,8 +430,8 @@ export function initSchema(db) {
 
   migrateLegacyAutoFilledNullStateValues(db);
   // State 引擎 Phase 1：为 world_prompt_entries 新增 position / trigger_type 字段
-  try { db.prepare("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'").run(); } catch (_) {}
-  try { db.prepare("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'").run(); } catch (_) {}
+  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
+  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
 }
 
@@ -532,19 +532,28 @@ function migrateTriggerTypeInitial(db) {
   const migKey = 'migration:trigger_type_initial';
   const already = db.prepare("SELECT value FROM internal_meta WHERE key = ?").get(migKey);
   if (already) return;
-  // 有关键词的条目 → keyword 类型
-  db.prepare(`
-    UPDATE world_prompt_entries SET trigger_type = 'keyword'
-    WHERE keywords IS NOT NULL AND keywords != 'null' AND keywords != '[]'
-  `).run();
-  // 无关键词但有 description 的条目 → llm 类型
-  db.prepare(`
-    UPDATE world_prompt_entries SET trigger_type = 'llm'
-    WHERE (keywords IS NULL OR keywords = 'null' OR keywords = '[]')
-      AND description IS NOT NULL AND TRIM(description) != ''
-      AND trigger_type = 'always'
-  `).run();
-  db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+
+  const now = Date.now();
+  db.exec('BEGIN');
+  try {
+    // 有关键词的条目 → keyword 类型
+    db.prepare(`
+      UPDATE world_prompt_entries SET trigger_type = 'keyword'
+      WHERE keywords IS NOT NULL AND keywords != 'null' AND keywords != '[]'
+    `).run();
+    // 无关键词但有 description 的条目 → llm 类型
+    db.prepare(`
+      UPDATE world_prompt_entries SET trigger_type = 'llm'
+      WHERE (keywords IS NULL OR keywords = 'null' OR keywords = '[]')
+        AND description IS NOT NULL AND TRIM(description) != ''
+        AND trigger_type = 'always'
+    `).run();
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, now);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 }
 
 function migrateLegacyStateValueColumns(db) {
