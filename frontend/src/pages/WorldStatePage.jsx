@@ -93,7 +93,7 @@ export default function WorldStatePage() {
     }}>
       <EntrySection
         title="常驻条目"
-        icon="✦"
+        icon="❦"
         desc="始终注入，适合世界观基础设定和写作风格规范"
         triggerType="always"
         entries={alwaysEntries}
@@ -103,7 +103,7 @@ export default function WorldStatePage() {
 
       <EntrySection
         title="关键词触发条目"
-        icon="§"
+        icon="❦"
         desc="对话中出现指定词语时自动注入"
         triggerType="keyword"
         entries={keywordEntries}
@@ -125,7 +125,7 @@ export default function WorldStatePage() {
       <div style={{ marginTop: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div>
-            <span style={{ fontSize: '18px', marginRight: '8px' }}>※</span>
+            <span style={{ fontSize: '18px', marginRight: '8px', color: 'var(--we-vermilion)' }}>❦</span>
             <span style={{
               fontFamily: 'var(--we-font-display)',
               fontSize: '16px',

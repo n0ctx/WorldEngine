@@ -15,7 +15,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
       {/* 标题行：icon + title + desc + "新建"按钮 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
         <div>
-          <span style={{ fontSize: '16px', marginRight: '6px' }}>{icon}</span>
+          <span style={{ fontSize: '16px', marginRight: '6px', color: 'var(--we-vermilion)' }}>{icon}</span>
           <span style={{
             fontFamily: 'var(--we-font-display)',
             fontSize: '16px',
