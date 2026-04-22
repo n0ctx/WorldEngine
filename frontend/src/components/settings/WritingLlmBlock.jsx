@@ -19,7 +19,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
           placeholder={`留空则使用对话模型（${chatModel || '未配置'}）`}
         />
       </FormGroup>
-      <div className="we-edit-form-group">
+      <div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
           <FieldLabel hint="null 则继承对话温度">写作 Temperature</FieldLabel>
           <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)' }}>

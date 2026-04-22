@@ -87,7 +87,7 @@ export default function LlmConfigPanel({
           />
 
           <div className="we-settings-field-group">
-            <div className="we-edit-form-group">
+            <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
                 <FieldLabel>Temperature</FieldLabel>
                 <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)' }}>
