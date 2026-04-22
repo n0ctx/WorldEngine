@@ -33,9 +33,9 @@ router.get('/worlds/:worldId/entries', (req, res) => {
 
 // POST /api/worlds/:worldId/entries
 router.post('/worlds/:worldId/entries', (req, res) => {
-  const { title, description, content, keywords, keyword_scope, sort_order } = req.body;
+  const { title, description, content, keywords, keyword_scope, position, trigger_type, sort_order } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, sort_order });
+  const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, position, trigger_type, sort_order });
   res.status(201).json(entry);
 });
 
