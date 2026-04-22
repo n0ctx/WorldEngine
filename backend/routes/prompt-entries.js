@@ -1,28 +1,10 @@
 import { Router } from 'express';
 import {
-  createGlobalPromptEntry, getGlobalPromptEntryById, listGlobalPromptEntries, updateGlobalPromptEntry, deleteGlobalPromptEntry, reorderGlobalPromptEntries,
   createWorldPromptEntry, getWorldPromptEntryById, listWorldPromptEntries, updateWorldPromptEntry, deleteWorldPromptEntry, reorderWorldPromptEntries,
-  createCharacterPromptEntry, getCharacterPromptEntryById, listCharacterPromptEntries, updateCharacterPromptEntry, deleteCharacterPromptEntry, reorderCharacterPromptEntries,
 } from '../services/prompt-entries.js';
 import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
-
-// ─── global entries ──────────────────────────────────────────────
-
-// GET /api/global-entries?mode=chat|writing
-router.get('/global-entries', (req, res) => {
-  const { mode } = req.query;
-  res.json(listGlobalPromptEntries(mode || undefined));
-});
-
-// POST /api/global-entries
-router.post('/global-entries', (req, res) => {
-  const { title, description, content, keywords, keyword_scope, mode, sort_order } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createGlobalPromptEntry({ title, description, content, keywords, keyword_scope, mode, sort_order });
-  res.status(201).json(entry);
-});
 
 // ─── world entries ───────────────────────────────────────────────
 
@@ -39,87 +21,43 @@ router.post('/worlds/:worldId/entries', (req, res) => {
   res.status(201).json(entry);
 });
 
-// ─── character entries ───────────────────────────────────────────
+// ─── reorder ─────────────────────────────────────────────────────
 
-// GET /api/characters/:characterId/entries
-router.get('/characters/:characterId/entries', (req, res) => {
-  res.json(listCharacterPromptEntries(req.params.characterId));
-});
-
-// POST /api/characters/:characterId/entries
-router.post('/characters/:characterId/entries', (req, res) => {
-  const { title, description, content, keywords, keyword_scope, sort_order } = req.body;
-  if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createCharacterPromptEntry(req.params.characterId, { title, description, content, keywords, keyword_scope, sort_order });
-  res.status(201).json(entry);
-});
-
-// ─── reorder (must be before :type/:id to avoid conflict) ────────
-
-// PUT /api/entries/:type/reorder
-router.put('/entries/:type/reorder', (req, res) => {
-  const { type } = req.params;
+// PUT /api/world-entries/reorder
+router.put('/world-entries/reorder', (req, res) => {
   const { orderedIds, worldId, characterId } = req.body;
 
   if (!Array.isArray(orderedIds)) {
     return res.status(400).json({ error: 'orderedIds must be an array' });
   }
-
-  if (type === 'global') {
-    reorderGlobalPromptEntries(orderedIds);
-  } else if (type === 'world') {
-    if (!worldId) return res.status(400).json({ error: 'worldId is required' });
-    reorderWorldPromptEntries(worldId, orderedIds);
-  } else if (type === 'character') {
-    if (!characterId) return res.status(400).json({ error: 'characterId is required' });
-    reorderCharacterPromptEntries(characterId, orderedIds);
-  } else {
-    return res.status(400).json({ error: 'type must be global, world, or character' });
-  }
+  if (!worldId) return res.status(400).json({ error: 'worldId is required' });
+  if (characterId) return res.status(400).json({ error: 'characterId is no longer supported' });
+  reorderWorldPromptEntries(worldId, orderedIds);
 
   res.json({ success: true });
 });
 
 // ─── single entry CRUD ───────────────────────────────────────────
 
-// GET /api/entries/:type/:id
-router.get('/entries/:type/:id', (req, res) => {
-  const { type, id } = req.params;
-  let entry;
-
-  if (type === 'global') entry = getGlobalPromptEntryById(id);
-  else if (type === 'world') entry = getWorldPromptEntryById(id);
-  else if (type === 'character') entry = getCharacterPromptEntryById(id);
-  else return res.status(400).json({ error: 'type must be global, world, or character' });
+// GET /api/world-entries/:id
+router.get('/world-entries/:id', (req, res) => {
+  const entry = getWorldPromptEntryById(req.params.id);
 
   if (!assertExists(res, entry, 'Entry not found')) return;
   res.json(entry);
 });
 
-// PUT /api/entries/:type/:id
-router.put('/entries/:type/:id', (req, res) => {
-  const { type, id } = req.params;
-  const patch = req.body;
-  let entry;
-
-  if (type === 'global') entry = updateGlobalPromptEntry(id, patch);
-  else if (type === 'world') entry = updateWorldPromptEntry(id, patch);
-  else if (type === 'character') entry = updateCharacterPromptEntry(id, patch);
-  else return res.status(400).json({ error: 'type must be global, world, or character' });
+// PUT /api/world-entries/:id
+router.put('/world-entries/:id', (req, res) => {
+  const entry = updateWorldPromptEntry(req.params.id, req.body);
 
   if (!assertExists(res, entry, 'Entry not found')) return;
   res.json(entry);
 });
 
-// DELETE /api/entries/:type/:id
-router.delete('/entries/:type/:id', (req, res) => {
-  const { type, id } = req.params;
-
-  if (type === 'global') deleteGlobalPromptEntry(id);
-  else if (type === 'world') deleteWorldPromptEntry(id);
-  else if (type === 'character') deleteCharacterPromptEntry(id);
-  else return res.status(400).json({ error: 'type must be global, world, or character' });
-
+// DELETE /api/world-entries/:id
+router.delete('/world-entries/:id', (req, res) => {
+  deleteWorldPromptEntry(req.params.id);
   res.status(204).end();
 });
 

@@ -29,18 +29,18 @@ const itemStyle = {
   outline: 'none',
   transition: 'color 0.2s, box-shadow 0.2s, background 0.2s',
   whiteSpace: 'nowrap',
-  color: 'rgba(255,255,255,0.5)',
+  color: 'var(--we-topbar-item)',
 };
 
 const itemActiveStyle = {
   ...itemStyle,
   color: 'var(--we-gold-pale)',
-  boxShadow: '0 0 0 1px rgba(201,168,90,0.3)',
-  background: 'rgba(201,168,90,0.08)',
+  boxShadow: '0 0 0 1px var(--we-topbar-active-ring)',
+  background: 'var(--we-topbar-active-bg)',
 };
 
 const sepStyle = {
-  color: 'rgba(255,255,255,0.2)',
+  color: 'var(--we-topbar-sep)',
   fontSize: '12px',
   userSelect: 'none',
 };
@@ -59,6 +59,8 @@ export default function TopBar() {
   const [worlds, setWorlds] = useState([]);
   const [chatWorldId, setChatWorldId] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [hoveredWorldId, setHoveredWorldId] = useState(null);
+  const [listBtnHover, setListBtnHover] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -158,8 +160,8 @@ export default function TopBar() {
     <div style={{
       height: '40px',
       flexShrink: 0,
-      background: '#3d2e22',
-      borderBottom: '1px solid rgba(255,255,255,0.06)',
+      background: 'var(--we-topbar-bg)',
+      borderBottom: '1px solid var(--we-topbar-border)',
       display: 'flex',
       alignItems: 'center',
       padding: '0 16px',
@@ -183,15 +185,15 @@ export default function TopBar() {
             top: '36px',
             left: 0,
             minWidth: '160px',
-            background: '#3d2e22',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: 'var(--we-topbar-dropdown-bg)',
+            border: '1px solid var(--we-topbar-dropdown-border)',
             borderRadius: '2px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--we-topbar-dropdown-shadow)',
             zIndex: 100,
             overflow: 'hidden',
           }}>
             {worlds.length === 0 && (
-              <div style={{ padding: '8px 12px', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
+              <div style={{ padding: '8px 12px', color: 'var(--we-topbar-item-dim)', fontSize: '12px' }}>
                 暂无世界
               </div>
             )}
@@ -203,8 +205,10 @@ export default function TopBar() {
                   width: '100%',
                   textAlign: 'left',
                   padding: '7px 12px',
-                  background: w.id === effectiveWorldId ? 'rgba(201,168,90,0.1)' : 'none',
-                  color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'rgba(255,255,255,0.6)',
+                  background: w.id === effectiveWorldId
+                    ? 'var(--we-topbar-active-bg)'
+                    : hoveredWorldId === w.id ? 'rgba(255,255,255,0.05)' : 'none',
+                  color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'var(--we-topbar-item-faint)',
                   fontFamily: 'var(--we-font-display)',
                   fontStyle: 'italic',
                   fontSize: '12px',
@@ -213,8 +217,8 @@ export default function TopBar() {
                   cursor: 'pointer',
                   transition: 'background 0.15s',
                 }}
-                onMouseEnter={(e) => { if (w.id !== effectiveWorldId) e.target.style.background = 'rgba(255,255,255,0.05)'; }}
-                onMouseLeave={(e) => { if (w.id !== effectiveWorldId) e.target.style.background = 'none'; }}
+                onMouseEnter={() => setHoveredWorldId(w.id)}
+                onMouseLeave={() => setHoveredWorldId(null)}
                 onClick={() => {
                   setDropdownOpen(false);
                   setCurrentWorldId(w.id);
@@ -226,7 +230,7 @@ export default function TopBar() {
                 {w.name}
               </button>
             ))}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', margin: '2px 0' }} />
+            <div style={{ borderTop: '1px solid var(--we-topbar-divider)', margin: '2px 0' }} />
             <button
               style={{
                 display: 'block',
@@ -234,16 +238,17 @@ export default function TopBar() {
                 textAlign: 'left',
                 padding: '7px 12px',
                 background: 'none',
-                color: 'rgba(255,255,255,0.35)',
+                color: listBtnHover ? 'var(--we-topbar-item-faint)' : 'var(--we-topbar-item-muted)',
                 fontFamily: 'var(--we-font-display)',
                 fontStyle: 'italic',
                 fontSize: '11px',
                 letterSpacing: '0.08em',
                 border: 'none',
                 cursor: 'pointer',
+                transition: 'color 0.15s',
               }}
-              onMouseEnter={(e) => { e.target.style.color = 'rgba(255,255,255,0.6)'; }}
-              onMouseLeave={(e) => { e.target.style.color = 'rgba(255,255,255,0.35)'; }}
+              onMouseEnter={() => setListBtnHover(true)}
+              onMouseLeave={() => setListBtnHover(false)}
               onClick={() => { setDropdownOpen(false); navigate('/'); }}
             >
               前往世界列表 →

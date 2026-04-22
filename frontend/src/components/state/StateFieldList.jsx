@@ -142,7 +142,7 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete, onDragStart, onDragOve
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="text-sm text-text font-medium truncate">{field.label}</span>
         {isDiaryTime && (
-          <span className="text-xs opacity-40 flex-shrink-0" title="日记时间字段，由系统管理">🔒</span>
+          <span className="text-xs opacity-40 flex-shrink-0" title="日记时间字段，由系统管理">§</span>
         )}
         <span className="text-xs text-text-secondary opacity-50 font-mono truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">

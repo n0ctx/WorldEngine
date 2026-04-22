@@ -76,8 +76,8 @@
 CREATE TABLE worlds (
   id             TEXT PRIMARY KEY,          -- UUID
   name           TEXT NOT NULL,
-  system_prompt  TEXT NOT NULL DEFAULT '',  -- 世界层 system prompt
-  post_prompt    TEXT NOT NULL DEFAULT '',  -- 世界层后置提示词
+  system_prompt  TEXT NOT NULL DEFAULT '',  -- 旧世界 prompt 文本镜像；启动时一次性迁移到 world_prompt_entries(position='system', trigger_type='always')
+  post_prompt    TEXT NOT NULL DEFAULT '',  -- 旧世界后置文本镜像；启动时一次性迁移到 world_prompt_entries(position='post', trigger_type='always')
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
   max_tokens     INTEGER,                   -- 生成参数覆盖，NULL 时使用全局配置
   created_at     INTEGER NOT NULL,          -- Unix 时间戳（毫秒）
@@ -86,6 +86,7 @@ CREATE TABLE worlds (
 ```
 
 > 玩家（Persona）已从 worlds 表移出到独立的 `personas` 表（见下），每个世界一对一持有一条 persona 记录。
+> 当前运行时不再直接注入 `worlds.system_prompt/post_prompt`；世界级提示词的权威运行时来源为 `world_prompt_entries`。
 
 ---
 
@@ -515,7 +516,7 @@ CREATE INDEX idx_character_state_values_character_id ON character_state_values(c
 
 ---
 
-### global_prompt_entries — 全局 Prompt 条目
+### global_prompt_entries — 全局 Prompt 条目（遗留存储）
 
 ```sql
 CREATE TABLE global_prompt_entries (
@@ -533,9 +534,11 @@ CREATE TABLE global_prompt_entries (
 );
 ```
 
+> 当前运行时不再消费该表，也不再提供前端 CRUD 入口；保留用于历史导入导出兼容与旧数据存档。
+
 ---
 
-### world_prompt_entries — 世界 Prompt 条目
+### world_prompt_entries — 世界 State 条目
 
 ```sql
 CREATE TABLE world_prompt_entries (
@@ -556,9 +559,11 @@ CREATE TABLE world_prompt_entries (
 CREATE INDEX idx_world_prompt_entries_world_id ON world_prompt_entries(world_id);
 ```
 
+> 这是当前世界级提示词的唯一运行时来源。`trigger_type='always'` 的条目对应 State 页“常驻条目”；旧 `worlds.system_prompt/post_prompt` 会在启动迁移时镜像写入这里。
+
 ---
 
-### character_prompt_entries — 角色 Prompt 条目
+### character_prompt_entries — 角色 Prompt 条目（遗留存储）
 
 ```sql
 CREATE TABLE character_prompt_entries (
@@ -576,6 +581,8 @@ CREATE TABLE character_prompt_entries (
 
 CREATE INDEX idx_character_prompt_entries_character_id ON character_prompt_entries(character_id);
 ```
+
+> 当前运行时不再消费该表，也不再提供前端 CRUD 入口；角色层可配置提示词只保留 `characters.system_prompt/post_prompt`。
 
 ---
 

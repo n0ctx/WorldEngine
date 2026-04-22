@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { createWorldEntry, updateEntry } from '../../api/prompt-entries';
+import { createWorldEntry, updateWorldEntry } from '../../api/prompt-entries';
 
 const POSITION_OPTIONS = [
   { value: 'system', label: '系统提示词' },
@@ -35,7 +35,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       if (isNew) {
         await createWorldEntry(worldId, data);
       } else {
-        await updateEntry('world', entry.id, data);
+        await updateWorldEntry(entry.id, data);
       }
       onSave();
     } finally {

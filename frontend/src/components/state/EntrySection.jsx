@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import EntryEditor from './EntryEditor';
-import { deleteEntry } from '../../api/prompt-entries';
+import { deleteWorldEntry } from '../../api/prompt-entries';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
   const [editing, setEditing] = useState(null); // null=关闭, {}=新建, entry=编辑
 
   async function handleDelete(entryId) {
-    await deleteEntry('world', entryId);
+    await deleteWorldEntry(entryId);
     onRefresh();
   }
 

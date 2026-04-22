@@ -36,7 +36,6 @@ vi.mock('../../src/utils/avatar', () => ({
   getAvatarColor: () => '#946',
   getAvatarUrl: (path) => (path ? `/uploads/${path}` : ''),
 }));
-vi.mock('../../src/components/prompt/EntryList', () => ({ default: () => <div>ENTRY LIST</div> }));
 vi.mock('../../src/components/state/StateValueField', () => ({
   default: ({ field, onSave }) => (
     <button onClick={() => onSave(field.field_key, '"hp-10"')}>save-{field.field_key}</button>

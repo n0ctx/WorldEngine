@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { createTrigger, updateTrigger } from '../../api/triggers';
-import { getCharactersByWorld } from '../../api/characters';
 import { listWorldStateFields } from '../../api/world-state-fields';
 import { listCharacterStateFields } from '../../api/character-state-fields';
 import { listPersonaStateFields } from '../../api/persona-state-fields';
@@ -80,11 +79,10 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
   useEffect(() => {
     async function loadFields() {
       try {
-        const [worldFields, charFields, personaFields, characters] = await Promise.all([
+        const [worldFields, charFields, personaFields] = await Promise.all([
           listWorldStateFields(worldId),
           listCharacterStateFields(worldId),
           listPersonaStateFields(worldId),
-          getCharactersByWorld(worldId),
         ]);
 
         const opts = [];
@@ -102,12 +100,10 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
           typeMap.set(key, f.type);
         }
 
-        for (const char of characters) {
-          for (const f of charFields) {
-            const key = `${char.name}.${f.label}`;
-            opts.push({ value: key, label: key });
-            typeMap.set(key, f.type);
-          }
+        for (const f of charFields) {
+          const key = `角色.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
         }
 
         setFieldOptions(opts);

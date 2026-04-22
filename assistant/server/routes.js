@@ -18,14 +18,8 @@ import { getOrCreatePersona, updatePersona } from '../../backend/services/person
 import { getConfig, updateConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
-  createCharacterPromptEntry,
-  createGlobalPromptEntry,
   updateWorldPromptEntry,
   deleteWorldPromptEntry,
-  updateCharacterPromptEntry,
-  deleteCharacterPromptEntry,
-  updateGlobalPromptEntry,
-  deleteGlobalPromptEntry,
 } from '../../backend/services/prompt-entries.js';
 import {
   createWorldStateField,
@@ -234,7 +228,7 @@ async function applyProposal(proposal, worldRefId = null) {
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
       for (const op of worldOps) {
         if (op.op === 'create') createWorldPromptEntry(entityId, op);
-        else if (op.op === 'update' && op.id) updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
+        else if (op.op === 'update' && op.id) updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'position', 'trigger_type']));
         else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
       }
       for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
@@ -256,9 +250,6 @@ async function applyProposal(proposal, worldRefId = null) {
           post_prompt: safeChanges.post_prompt || '',
           first_message: safeChanges.first_message || '',
         });
-        for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
-          if (op.op === 'create') createCharacterPromptEntry(newChar.id, op);
-        }
         for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
           if (op.op === 'create') applyStateFieldCreate(op, worldId);
         }
@@ -274,12 +265,6 @@ async function applyProposal(proposal, worldRefId = null) {
       const safeChanges = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'first_message']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateCharacter(entityId, safeChanges);
-      const charOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
-      for (const op of charOps) {
-        if (op.op === 'create') createCharacterPromptEntry(entityId, op);
-        else if (op.op === 'update' && op.id) updateCharacterPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
-        else if (op.op === 'delete' && op.id) deleteCharacterPromptEntry(op.id);
-      }
       const charSfOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
       if (charSfOps.length > 0) {
         const character = getCharacterById(entityId);
@@ -309,12 +294,6 @@ async function applyProposal(proposal, worldRefId = null) {
       const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = updateConfig(safeChanges);
-      const globalOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
-      for (const op of globalOps) {
-        if (op.op === 'create') createGlobalPromptEntry(op);
-        else if (op.op === 'update' && op.id) updateGlobalPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope']));
-        else if (op.op === 'delete' && op.id) deleteGlobalPromptEntry(op.id);
-      }
       return updated;
     }
 

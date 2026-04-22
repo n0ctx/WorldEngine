@@ -3,7 +3,7 @@
  *
  * 导出三个函数：
  *   evaluateCondition(condition, stateMap)   — 纯函数，评估单条件
- *   collectStateValues(worldId, sessionId)   — 收集当前会话所有状态值
+ *   collectStateValues(worldId, sessionId)   — 收集当前会话有效状态值
  *   evaluateTriggers(worldId, sessionId, roundIndex) — 评估并执行触发器动作
  */
 
@@ -87,57 +87,75 @@ function parseEffectiveValue(effectiveValueJson) {
   }
 }
 
-// ─── collectStateValues ───────────────────────────────────────────
-
-/**
- * 收集当前会话所有状态值，返回 Map<"实体名.字段标签", string>
- *
- * @param {string} worldId
- * @param {string} sessionId
- * @returns {Map<string, string>}
- */
-export function collectStateValues(worldId, sessionId) {
+function collectSharedStateValues(worldId, sessionId) {
   const map = new Map();
 
-  // 世界状态：key = "世界.${label}"
-  const worldRows = getSessionWorldStateValues(sessionId, worldId);
-  for (const row of worldRows) {
+  for (const row of getSessionWorldStateValues(sessionId, worldId)) {
     const val = parseEffectiveValue(row.effective_value_json);
     if (val != null) map.set(`世界.${row.label}`, val);
   }
 
-  // 玩家状态：key = "玩家.${label}"
-  const personaRows = getSessionPersonaStateValues(sessionId, worldId);
-  for (const row of personaRows) {
+  for (const row of getSessionPersonaStateValues(sessionId, worldId)) {
     const val = parseEffectiveValue(row.effective_value_json);
     if (val != null) map.set(`玩家.${row.label}`, val);
   }
 
-  // 角色状态：根据 session 类型获取角色列表
-  const session = getSessionById(sessionId);
-  if (!session) return map;
+  return map;
+}
 
-  let characters = [];
+function collectCharacterStateValues(worldId, sessionId, characterId) {
+  const map = new Map();
+  if (!characterId) return map;
 
-  if (session.mode === 'writing') {
-    // writing 会话：从 writing_session_characters 获取（已含 name 字段）
-    characters = getWritingSessionCharacters(sessionId);
-  } else if (session.character_id) {
-    // chat 会话：单角色，需要查角色名
-    const char = getCharacterById(session.character_id);
-    if (char) characters = [char];
-  }
-
-  // 逐角色查询状态值（用 getSingleCharacterSessionStateValues 避免 CROSS JOIN 不返回 character_id 的问题）
-  for (const char of characters) {
-    const rows = getSingleCharacterSessionStateValues(sessionId, char.id, worldId);
-    for (const row of rows) {
-      const val = parseEffectiveValue(row.effective_value_json);
-      if (val != null) map.set(`${char.name}.${row.label}`, val);
-    }
+  for (const row of getSingleCharacterSessionStateValues(sessionId, characterId, worldId)) {
+    const val = parseEffectiveValue(row.effective_value_json);
+    if (val != null) map.set(`角色.${row.label}`, val);
   }
 
   return map;
+}
+
+function getSessionCharacters(session) {
+  if (!session) return [];
+  if (session.mode === 'writing') return getWritingSessionCharacters(session.id);
+  if (!session.character_id) return [];
+
+  const char = getCharacterById(session.character_id);
+  return char ? [char] : [];
+}
+
+function mergeStateMaps(...maps) {
+  const merged = new Map();
+  for (const map of maps) {
+    for (const [key, value] of map.entries()) {
+      merged.set(key, value);
+    }
+  }
+  return merged;
+}
+
+// ─── collectStateValues ───────────────────────────────────────────
+
+/**
+ * 收集当前会话有效状态值，返回 Map<"实体名.字段标签", string>
+ * - world/persona 始终收集
+ * - chat 会话默认合并当前角色为 "角色.xxx"
+ * - writing 会话如需角色态，调用方应显式传入 characterId
+ *
+ * @param {string} worldId
+ * @param {string} sessionId
+ * @param {string|null} [characterId]
+ * @returns {Map<string, string>}
+ */
+export function collectStateValues(worldId, sessionId, characterId = null) {
+  const sharedMap = collectSharedStateValues(worldId, sessionId);
+  const session = getSessionById(sessionId);
+  if (!session) return sharedMap;
+
+  const resolvedCharacterId = characterId ?? (session.mode === 'chat' ? session.character_id : null);
+  if (!resolvedCharacterId) return sharedMap;
+
+  return mergeStateMaps(sharedMap, collectCharacterStateValues(worldId, sessionId, resolvedCharacterId));
 }
 
 // ─── evaluateTriggers ─────────────────────────────────────────────
@@ -156,15 +174,27 @@ export function evaluateTriggers(worldId, sessionId, roundIndex) {
   const triggers = listTriggersByWorld(worldId).filter((t) => t.enabled === 1);
   if (triggers.length === 0) return { notifications };
 
-  const stateMap = collectStateValues(worldId, sessionId);
-  log.debug(`trigger-eval session=${sessionId} triggers=${triggers.length} stateKeys=${stateMap.size}`);
+  const session = getSessionById(sessionId);
+  const sharedStateMap = collectSharedStateValues(worldId, sessionId);
+  const defaultStateMap = collectStateValues(worldId, sessionId);
+  const characterContexts = session?.mode === 'writing'
+    ? getSessionCharacters(session).map((char) => ({
+      id: char.id,
+      name: char.name,
+      stateMap: collectCharacterStateValues(worldId, sessionId, char.id),
+    }))
+    : [];
+  log.debug(`trigger-eval session=${sessionId} triggers=${triggers.length} stateKeys=${defaultStateMap.size}`);
 
   for (const trigger of triggers) {
     const conditions = listConditionsByTrigger(trigger.id);
 
     // 条件为空时不触发；所有条件 AND 逻辑
     if (conditions.length === 0) continue;
-    const allMet = conditions.every((c) => evaluateCondition(c, stateMap));
+    const hasCharacterCondition = conditions.some((c) => c.target_field.startsWith('角色.'));
+    const allMet = session?.mode === 'writing' && hasCharacterCondition
+      ? characterContexts.some((char) => evaluateConditionGroup(conditions, mergeStateMaps(sharedStateMap, char.stateMap)))
+      : evaluateConditionGroup(conditions, defaultStateMap);
 
     if (!allMet) continue;
 
@@ -213,4 +243,8 @@ export function evaluateTriggers(worldId, sessionId, roundIndex) {
   }
 
   return { notifications };
+}
+
+function evaluateConditionGroup(conditions, stateMap) {
+  return conditions.every((condition) => evaluateCondition(condition, stateMap));
 }

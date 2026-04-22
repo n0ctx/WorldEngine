@@ -23,17 +23,17 @@
 
 ## §1 新增 / 调整组件总览
 
-| 动作 | 文件 | 说明 |
-|---|---|---|
-| 新增 | `components/ui/FormGroup.jsx` | label + 控件 + hint + error 的标准表单组 |
-| 新增 | `components/ui/EditPageShell.jsx` | 编辑页骨架：canvas + panel + overlay 模式 + loading 状态统一处理 |
-| 新增 | `components/ui/ConfirmModal.jsx` | 通用确认弹窗，替代 WorldsPage 内联的 DeleteConfirmModal |
-| 新增 | `components/ui/AvatarUpload.jsx` | 头像上传控件，提取自 CharacterEditPage，PersonaEditPage 可复用 |
-| 新增 | `utils/time.js` | `relativeTime(ts)` 移入此处，WorldsPage 不再内联定义 |
-| 重构 | `components/ui/Select.jsx` | 内联 style → CSS 类，接口不变 |
-| 移动 | `components/settings/FieldLabel.jsx` → `components/ui/FieldLabel.jsx` | 统一路径，settings/ 改为从 ui/ import |
-| 新增 | `components/index.js` | 统一导出所有可复用组件的入口索引 |
-| 更新 | `CLAUDE.md` | 新增组件复用规范段落 |
+| 动作  | 文件                                                                    | 说明                                                 |
+| --- | --------------------------------------------------------------------- | -------------------------------------------------- |
+| 新增  | `components/ui/FormGroup.jsx`                                         | label + 控件 + hint + error 的标准表单组                   |
+| 新增  | `components/ui/EditPageShell.jsx`                                     | 编辑页骨架：canvas + panel + overlay 模式 + loading 状态统一处理 |
+| 新增  | `components/ui/ConfirmModal.jsx`                                      | 通用确认弹窗，替代 WorldsPage 内联的 DeleteConfirmModal        |
+| 新增  | `components/ui/AvatarUpload.jsx`                                      | 头像上传控件，提取自 CharacterEditPage，PersonaEditPage 可复用   |
+| 新增  | `utils/time.js`                                                       | `relativeTime(ts)` 移入此处，WorldsPage 不再内联定义          |
+| 重构  | `components/ui/Select.jsx`                                            | 内联 style → CSS 类，接口不变                              |
+| 移动  | `components/settings/FieldLabel.jsx` → `components/ui/FieldLabel.jsx` | 统一路径，settings/ 改为从 ui/ import                      |
+| 新增  | `components/index.js`                                                 | 统一导出所有可复用组件的入口索引                                   |
+| 更新  | `CLAUDE.md`                                                           | 新增组件复用规范段落                                         |
 
 **不新增目录**，所有新组件落在现有的 `components/ui/` 和 `utils/` 内。
 

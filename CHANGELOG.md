@@ -22,6 +22,11 @@
 - **已知遗留**：WorldStatePage 全页内联 style 未迁移到 CSS 类（改动范围大，建议单独任务）；WorldStatePage 无加载态（Minor，待设计确认）；MessageItem DeleteButton 硬编码 fallback 色（Minor）
 - **审查报告**：`.temp/frontend-audit-2026-04-22.md`
 
+## v2 Phase 1A — fix: 触发器角色状态字段去重并统一为 `角色.xxx` ✅
+- **对外接口**：无新增接口；TriggerEditor 角色条件下拉不再做“角色数 × 字段数”笛卡尔积，改为世界级通用字段 `角色.xxx`
+- **涉及文件**：`frontend/src/components/state/TriggerEditor.jsx`、`backend/services/trigger-evaluator.js`、`backend/tests/services/trigger-evaluator.test.js`、`ARCHITECTURE.md`
+- **注意**：① `character_state_fields` 本就是 world 级模板，触发器条件不再暴露 `阿尔托利亚.生命值` 这类按角色名复制的选项；② chat 会话里 `角色.xxx` 映射当前角色；③ writing 会话里，只要激活角色中任一角色满足带 `角色.` 前缀的整组条件即触发，同一触发器的多个角色条件仍要求落在同一角色上满足；④ 非角色条件（`世界.` / `玩家.`）仍按共享状态评估
+
 ## v2 Phase 1 — State 引擎触发器系统 ✅
 - **对外接口**：`GET/POST /api/worlds/:worldId/triggers`、`PUT/DELETE /api/triggers/:id`；assembler.js 新增 systemEntryTexts/postEntryTexts 分流 + inject_prompt 注入；chat.js/writing.js priority-2 新增 trigger-eval 任务，SSE 事件 `trigger_fired`
 - **涉及文件**：`backend/db/schema.js`（triggers/trigger_conditions/trigger_actions 三表 + world_prompt_entries 新增 position/trigger_type）、`backend/db/queries/triggers.js`（新建）、`backend/db/queries/prompt-entries.js`（支持 position/trigger_type）、`backend/services/trigger-evaluator.js`（新建）、`backend/routes/triggers.js`（新建）、`backend/prompts/entry-matcher.js`（trigger_type 分流）、`backend/prompts/assembler.js`（position 分流 + inject_prompt 注入）、`backend/routes/chat.js`、`backend/routes/writing.js`、`frontend/src/api/triggers.js`（新建）、`frontend/src/App.jsx`（/state 路由）、`frontend/src/pages/CharactersPage.jsx`（三标签导航）、`frontend/src/pages/WorldStatePage.jsx`（新建）、`frontend/src/components/state/`（EntrySection/EntryEditor/TriggerCard/TriggerEditor，全部新建）、`SCHEMA.md`（三表文档）

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
   id             TEXT PRIMARY KEY,
@@ -435,6 +437,7 @@ export function initSchema(db) {
   // 扩展 character_prompt_entries 支持 position 字段（与 world_prompt_entries 对齐）
   try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
+  migrateLegacyWorldPromptColumns(db);
   migrateTriggerActionsMulti(db);
 }
 
@@ -587,6 +590,62 @@ function migrateTriggerTypeInitial(db) {
         AND description IS NOT NULL AND TRIM(description) != ''
         AND trigger_type = 'always'
     `).run();
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, now);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function migrateLegacyWorldPromptColumns(db) {
+  const migKey = 'migration:t182_world_prompt_columns_to_state_entries';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  const now = Date.now();
+  const worlds = db.prepare('SELECT id, system_prompt, post_prompt FROM worlds').all();
+  const hasMatchingEntry = db.prepare(`
+    SELECT id
+    FROM world_prompt_entries
+    WHERE world_id = ?
+      AND trigger_type = 'always'
+      AND position = ?
+      AND content = ?
+    LIMIT 1
+  `);
+  const getMaxSortOrder = db.prepare('SELECT MAX(sort_order) AS m FROM world_prompt_entries WHERE world_id = ?');
+  const insertEntry = db.prepare(`
+    INSERT INTO world_prompt_entries (
+      id, world_id, title, description, content, keywords, keyword_scope,
+      position, trigger_type, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, '', ?, NULL, 'user,assistant', ?, 'always', ?, ?, ?)
+  `);
+
+  db.exec('BEGIN');
+  try {
+    for (const world of worlds) {
+      const entries = [
+        { title: '世界系统提示', position: 'system', content: world.system_prompt },
+        { title: '世界后置提示词', position: 'post', content: world.post_prompt },
+      ].filter((item) => typeof item.content === 'string' && item.content.trim());
+
+      for (const entry of entries) {
+        const existing = hasMatchingEntry.get(world.id, entry.position, entry.content);
+        if (existing) continue;
+        const maxRow = getMaxSortOrder.get(world.id);
+        insertEntry.run(
+          crypto.randomUUID(),
+          world.id,
+          entry.title,
+          entry.content,
+          entry.position,
+          (maxRow?.m ?? -1) + 1,
+          now,
+          now,
+        );
+      }
+    }
     db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, now);
     db.exec('COMMIT');
   } catch (e) {

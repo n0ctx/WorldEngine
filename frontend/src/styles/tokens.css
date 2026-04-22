@@ -11,7 +11,7 @@
   /* §2.2 墨水色系 */
   --we-ink-primary:   #2a1f17;
   --we-ink-secondary: #534236;
-  --we-ink-faded:     #8a7663;
+  --we-ink-faded:     #6d5c4b;  /* WCAG AA: ~4.6:1 on paper-base */
 
   /* §2.3 朱砂系 */
   --we-vermilion:      #a23b2e;
@@ -26,6 +26,22 @@
   --we-moss:  #5c6b3a;
   --we-amber: #8b5a1f;
   --we-slate: #4a5568;
+
+  /* §5.2 顶栏深色层 */
+  --we-topbar-bg:             #3d2e22;
+  --we-topbar-border:         rgba(255,255,255,0.06);
+  --we-topbar-item:           rgba(255,255,255,0.5);
+  --we-topbar-item-hover:     rgba(255,255,255,0.75);
+  --we-topbar-sep:            rgba(255,255,255,0.2);
+  --we-topbar-active-bg:      rgba(201,168,90,0.08);
+  --we-topbar-active-ring:    rgba(201,168,90,0.3);
+  --we-topbar-dropdown-bg:    #3d2e22;
+  --we-topbar-dropdown-border: rgba(255,255,255,0.1);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  --we-topbar-item-dim:       rgba(255,255,255,0.3);
+  --we-topbar-item-muted:     rgba(255,255,255,0.35);
+  --we-topbar-item-faint:     rgba(255,255,255,0.6);
+  --we-topbar-divider:        rgba(255,255,255,0.06);
 
   /* §2.6 UI 功能变量 */
   --we-border:       1px solid var(--we-paper-shadow);

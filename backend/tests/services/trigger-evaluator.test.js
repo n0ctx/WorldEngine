@@ -14,13 +14,17 @@
 
 import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { createTestSandbox, freshImport } from '../helpers/test-env.js';
 import {
   insertWorld,
   insertCharacter,
   insertSession,
   insertWorldStateField,
+  insertCharacterStateField,
+  insertCharacterStateValue,
   insertSessionWorldStateValue,
+  insertSessionCharacterStateValue,
 } from '../helpers/fixtures.js';
 
 // ─── sandbox（所有测试共享） ──────────────────────────────────────────
@@ -199,6 +203,37 @@ describe('collectStateValues — 世界状态收集', () => {
 
     assert.ok(map.has('世界.戒备等级'), 'stateMap 应包含 "世界.戒备等级" 键');
     assert.equal(map.get('世界.戒备等级'), '3');
+  });
+
+  test('chat 会话角色状态统一收集为 "角色.xxx"', async () => {
+    const world = insertWorld(sandbox.db, { name: '角色状态世界' });
+    const char = insertCharacter(sandbox.db, world.id, { name: '阿尔托利亚' });
+    const session = insertSession(sandbox.db, {
+      world_id: world.id,
+      character_id: char.id,
+      mode: 'chat',
+    });
+
+    insertCharacterStateField(sandbox.db, world.id, {
+      field_key: 'hp',
+      label: '生命值',
+      type: 'number',
+      default_value: '100',
+    });
+    insertCharacterStateValue(sandbox.db, char.id, {
+      field_key: 'hp',
+      default_value_json: JSON.stringify(75),
+    });
+    insertSessionCharacterStateValue(sandbox.db, session.id, char.id, {
+      field_key: 'hp',
+      runtime_value_json: JSON.stringify(42),
+    });
+
+    const { collectStateValues } = await freshImport('backend/services/trigger-evaluator.js');
+    const map = collectStateValues(world.id, session.id);
+
+    assert.equal(map.get('角色.生命值'), '42');
+    assert.equal(map.has('阿尔托利亚.生命值'), false);
   });
 });
 
@@ -423,5 +458,59 @@ describe('evaluateTriggers — AND 多条件逻辑', () => {
 
     assert.equal(result.notifications.length, 1, 'AND 条件全满足，应触发');
     assert.equal(result.notifications[0].text, '魔力全开！');
+  });
+});
+
+describe('evaluateTriggers — writing 模式角色 OR 语义', () => {
+  test('条件含 "角色." 时，对会话内任一角色满足即触发', async () => {
+    const world = insertWorld(sandbox.db, { name: '多角色世界' });
+    const merlin = insertCharacter(sandbox.db, world.id, { name: '梅林' });
+    const artoria = insertCharacter(sandbox.db, world.id, { name: '阿尔托利亚' });
+    const session = insertSession(sandbox.db, {
+      world_id: world.id,
+      character_id: null,
+      mode: 'writing',
+    });
+
+    sandbox.db.prepare(`
+      INSERT INTO writing_session_characters (id, session_id, character_id, created_at)
+      VALUES (?, ?, ?, ?), (?, ?, ?, ?)
+    `).run(
+      crypto.randomUUID(), session.id, merlin.id, Date.now(),
+      crypto.randomUUID(), session.id, artoria.id, Date.now() + 1,
+    );
+
+    insertCharacterStateField(sandbox.db, world.id, {
+      field_key: 'hp',
+      label: '生命值',
+      type: 'number',
+      default_value: '100',
+    });
+    insertSessionCharacterStateValue(sandbox.db, session.id, merlin.id, {
+      field_key: 'hp',
+      runtime_value_json: JSON.stringify(80),
+    });
+    insertSessionCharacterStateValue(sandbox.db, session.id, artoria.id, {
+      field_key: 'hp',
+      runtime_value_json: JSON.stringify(10),
+    });
+
+    const {
+      createTrigger,
+      replaceTriggerConditions,
+      insertTriggerAction,
+    } = await freshImport('backend/db/queries/triggers.js');
+
+    const trigger = createTrigger({ world_id: world.id, name: '濒危通知' });
+    replaceTriggerConditions(trigger.id, [
+      { target_field: '角色.生命值', operator: '<', value: '20' },
+    ]);
+    insertTriggerAction(trigger.id, 'notify', { text: '有人濒危' });
+
+    const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
+    const result = evaluateTriggers(world.id, session.id, 1);
+
+    assert.equal(result.notifications.length, 1);
+    assert.equal(result.notifications[0].text, '有人濒危');
   });
 });

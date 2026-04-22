@@ -4,21 +4,18 @@
  * 组装顺序（硬编码，不得调整）：
  *   [system 消息，[1]–[13] 合并为单个 role:system]
  *   [1]  全局 System Prompt
- *   [2]  世界 System Prompt
- *   [3]  世界状态
- *   [4]  玩家 System Prompt（均为空则跳过）
- *   [5]  玩家状态
- *   [6]  角色 System Prompt
- *   [7]  角色状态
- *   [8]  全局 Prompt 条目（description 仅供 preflight；命中→content注入）
- *   [9]  世界 Prompt 条目
- *   [10] 角色 Prompt 条目
+ *   [2]  世界状态
+ *   [3]  玩家 System Prompt（均为空则跳过）
+ *   [4]  玩家状态
+ *   [5]  角色 System Prompt
+ *   [6]  角色状态
+ *   [7]  世界 State 条目（description 仅供 preflight；命中→content 注入）
  *   [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
  *   [13] 展开原文（AI preflight 决策后的 turn record 原文）
  *   [历史消息：role:user/assistant 交替]
  *   [14] 历史消息（稳定使用原始 messages 窗口）
  *   [尾部 user 消息]
- *   [15] 后置提示词（全局→世界→角色，均空跳过）
+ *   [15] 后置提示词（全局→角色 + world post 条目，均空跳过）
  *   [16] 当前用户消息
  *
  * 注：[11] 世界时间线已移除；turn records 仅用于向量召回（[12]）与原文展开（[13]），不参与 [14] 历史消息
@@ -38,9 +35,7 @@ import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
 import {
-  getAllGlobalEntries,
   getAllWorldEntries,
-  getAllCharacterEntries,
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
@@ -180,12 +175,7 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(tv(config.global_system_prompt));
   }
 
-  // [2] 世界 System Prompt
-  if (world.system_prompt) {
-    systemParts.push(tv(world.system_prompt));
-  }
-
-  // [3] 世界状态
+  // [2] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) systemParts.push(tv(worldStateText));
 
@@ -209,21 +199,17 @@ export async function buildPrompt(sessionId, options = {}) {
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) systemParts.push(tv(characterStateText));
 
-  // [8-10] Prompt 条目（全局→世界→角色顺序）
-  const globalEntries = getAllGlobalEntries('chat');
+  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
-  const characterEntries = getAllCharacterEntries(character.id);
-  const allEntries = [...globalEntries, ...worldEntries, ...characterEntries];
-
-  const triggeredIds = await matchEntries(sessionId, allEntries);
-  log.debug(`│  [8-10] entries  global=${globalEntries.length}  world=${worldEntries.length}  char=${characterEntries.length}  triggered=${triggeredIds.size}/${allEntries.length}`);
+  const triggeredIds = await matchEntries(sessionId, worldEntries);
+  log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
   const systemEntryTexts = [];
   const postEntryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   // position='system' → systemParts；position='post'（或无 position）→ postParts
-  for (const entry of allEntries) {
+  for (const entry of worldEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
       const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
       if (entry.position === 'system') {
@@ -294,7 +280,6 @@ export async function buildPrompt(sessionId, options = {}) {
   // [15] 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
   const postParts = [
     config.global_post_prompt,
-    world.post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
 
@@ -387,12 +372,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(tv(writing.global_system_prompt));
   }
 
-  // [2] 世界 System Prompt
-  if (world.system_prompt) {
-    systemParts.push(tv(world.system_prompt));
-  }
-
-  // [3] 世界状态
+  // [2] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) systemParts.push(tv(worldStateText));
 
@@ -415,37 +395,17 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (charStateText) systemParts.push(tvChar(charStateText, character));
   }
 
-  // [8-10] Prompt 条目（全局写作条目→世界→各激活角色）
-  const globalEntries = getAllGlobalEntries('writing');
+  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
-  const charEntries = activeCharacters.flatMap((character) => (
-    getAllCharacterEntries(character.id).map((entry) => ({ entry, character }))
-  ));
-  const allEntries = [
-    ...globalEntries,
-    ...worldEntries,
-    ...charEntries.map(({ entry }) => entry),
-  ];
-
-  const triggeredIds = await matchEntries(sessionId, allEntries);
+  const triggeredIds = await matchEntries(sessionId, worldEntries);
   const systemEntryTexts = [];
   const postEntryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   // position='system' → systemParts；position='post'（或无 position）→ postParts
-  for (const entry of [...globalEntries, ...worldEntries]) {
+  for (const entry of worldEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
       const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
-      if (entry.position === 'system') {
-        systemEntryTexts.push(text);
-      } else {
-        postEntryTexts.push(text);
-      }
-    }
-  }
-  for (const { entry, character } of charEntries) {
-    if (triggeredIds.has(entry.id) && entry.content) {
-      const text = `【${tvChar(entry.title, character)}】\n${tvChar(entry.content, character)}`;
       if (entry.position === 'system') {
         systemEntryTexts.push(text);
       } else {
@@ -508,7 +468,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
-  const postParts = [writing.global_post_prompt, world.post_prompt].filter(Boolean).map(tv);
+  const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
 
   // post 位置的 prompt 条目
   if (postEntryTexts.length > 0) {

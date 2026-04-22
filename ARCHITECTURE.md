@@ -167,20 +167,17 @@ POST /api/sessions/:sessionId/chat
 | 段 | 来源 | 跳过条件 |
 |---|---|---|
 | [1] | `config.global_system_prompt` | 空字符串跳过 |
-| [2] | `world.system_prompt` | 空跳过 |
-| [3] | `renderWorldState(world.id)` | 无字段/值时跳过 |
-| [4] | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
-| [5] | `renderPersonaState(world.id)` | 空跳过 |
-| [6] | `[\{\{char\}\}人设]\n${character.system_prompt}` | 空跳过 |
-| [7] | `renderCharacterState(character.id)` | 空跳过 |
-| [8] | 全局 Prompt 条目（`description` 仅供 preflight；命中后注入 `entry.content`） | 无条目时跳过 |
-| [9] | 世界 Prompt 条目（同上） | — |
-| [10] | 角色 Prompt 条目（同上） | — |
+| [2] | `renderWorldState(world.id)` | 无字段/值时跳过 |
+| [3] | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
+| [4] | `renderPersonaState(world.id)` | 空跳过 |
+| [5] | `[\{\{char\}\}人设]\n${character.system_prompt}` | 空跳过 |
+| [6] | `renderCharacterState(character.id)` | 空跳过 |
+| [7] | 世界 State 条目（仅 `world_prompt_entries`；`description` 仅供 preflight；命中后按 `position` 注入 `entry.content`） | 无条目时跳过 |
 | [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [13+] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [14] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [16] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| [15] | 后置提示词（`global_post_prompt` → `world.post_prompt` → `character.post_prompt`），合并为单条 `role:user` | 均空跳过 |
+| [15] | 后置提示词（`global_post_prompt` → `character.post_prompt` → `world_prompt_entries(position='post')` → `inject_prompt`），合并为单条 `role:user` | 均空跳过 |
 | [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
@@ -191,12 +188,12 @@ POST /api/sessions/:sessionId/chat
 
 | 段 | 差异 |
 |---|---|
-| [6] | 无单一角色；从 `writing_session_characters` 获取激活角色列表；每个角色格式：`[{{char}}人设]\n${system_prompt}`，并用该角色名字替换 `{{char}}` |
-| [7] | 循环所有激活角色调用 `renderCharacterState`，并以各自角色名替换 `{{char}}` |
-| [8-10] | 合并全局 + 世界 + 所有激活角色的 entries；全局/世界 entries 用首个激活角色名作为 `{{char}}` fallback，角色 entries 用各自所属角色名替换 |
+| [5] | 无单一角色；从 `writing_session_characters` 获取激活角色列表；每个角色格式：`[{{char}}人设]\n${system_prompt}`，并用该角色名字替换 `{{char}}` |
+| [6] | 循环所有激活角色调用 `renderCharacterState`，并以各自角色名替换 `{{char}}` |
+| [7] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
 | [12-13] | 同 buildPrompt；[13] 受 `writing.memory_expansion_enabled` 控制 |
 | [14] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| [15] | 无角色后置提示词（只有 `global_post_prompt` + `world.post_prompt`） |
+| [15] | 无角色后置提示词（只有 `writing.global_post_prompt` + `world_prompt_entries(position='post')` + `inject_prompt`） |
 | [16] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT` |
 | 返回值 | 含 `recallHitCount` |
 
@@ -336,6 +333,8 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | 玩家状态 | `persona_state_fields` | `persona_state_values`（`default_value_json`） | `session_persona_state_values`（`runtime_value_json`） | 字段定义全局共享；运行时值按会话独立 |
 
 **会话级隔离**（T103）：状态运行时值现在存储在 `session_*_state_values` 三张表，由 `session_id ON DELETE CASCADE` 控制生命周期，各会话彼此完全独立。
+
+**触发器字段语义**：TriggerEditor 的状态条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不再按具体角色名展开。chat 会话中的 `角色.xxx` 指当前角色；writing 会话中若条件包含 `角色.xxx`，`trigger-evaluator.js` 会对当前会话激活角色逐个评估，同一角色需满足该触发器的全部条件，只要任一角色满足即触发（OR 语义）。
 
 **值优先级**：读取时通过 COALESCE 逐级回退：`session_*_state_values.runtime_value_json` → `*_state_values.default_value_json` → `*_state_fields.default_value`。
 
@@ -541,7 +540,7 @@ MAX_ATTACHMENT_SIZE_MB = 5
 | `/api` | routes/characters.js | 角色 CRUD、头像上传、批量排序 |
 | `/api` | routes/sessions.js | 会话/消息 CRUD、消息编辑与删除回滚 |
 | `/api/sessions` | routes/chat.js | 对话流（SSE）、stop/regenerate/continue/impersonate/edit-assistant/retitle |
-| `/api` | routes/prompt-entries.js | 全局/世界/角色 Prompt 条目 CRUD + 排序 |
+| `/api` | routes/prompt-entries.js | 世界 State 条目 CRUD + 排序 |
 | `/api` | routes/state-fields.js | 世界/角色状态字段 CRUD + 排序 |
 | `/api` | routes/world-state-values.js | 世界状态值（全局默认层）读写 + 重置 |
 | `/api` | routes/character-state-values.js | 角色状态值（全局默认层）读写 + 重置 |
@@ -634,16 +633,12 @@ MAX_ATTACHMENT_SIZE_MB = 5
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | /api/global-entries | 列出全局条目（query: `?mode=chat\|writing`） |
-| POST | /api/global-entries | 创建全局条目（title 必填） |
 | GET | /api/worlds/:worldId/entries | 列出世界条目 |
 | POST | /api/worlds/:worldId/entries | 创建世界条目 |
-| GET | /api/characters/:characterId/entries | 列出角色条目 |
-| POST | /api/characters/:characterId/entries | 创建角色条目 |
-| PUT | /api/entries/:type/reorder | 批量排序（type=global\|world\|character；body: orderedIds + worldId/characterId） |
-| GET | /api/entries/:type/:id | 获取单条 |
-| PUT | /api/entries/:type/:id | 更新 |
-| DELETE | /api/entries/:type/:id | 删除 |
+| PUT | /api/world-entries/reorder | 批量排序（body: orderedIds + worldId） |
+| GET | /api/world-entries/:id | 获取单条 |
+| PUT | /api/world-entries/:id | 更新 |
+| DELETE | /api/world-entries/:id | 删除 |
 
 ### 状态字段（/api）
 

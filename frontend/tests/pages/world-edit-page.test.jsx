@@ -57,7 +57,6 @@ vi.mock('../../src/api/persona-state-fields', () => ({
 vi.mock('../../src/api/config', () => ({
   getConfig: (...args) => mocks.getConfig(...args),
 }));
-vi.mock('../../src/components/prompt/EntryList', () => ({ default: () => <div>ENTRY LIST</div> }));
 vi.mock('../../src/components/state/StateFieldList', () => ({ default: ({ scope }) => <div>{scope}-fields</div> }));
 vi.mock('../../src/components/state/StateValueField', () => ({
   default: ({ field, onSave }) => (
@@ -98,8 +97,6 @@ describe('WorldEditPage', () => {
     mocks.getWorld.mockResolvedValue({
       id: 'world-1',
       name: '群星海',
-      system_prompt: '世界背景',
-      post_prompt: '输出中文',
       temperature: 0.7,
       max_tokens: 1024,
     });
@@ -122,8 +119,6 @@ describe('WorldEditPage', () => {
 
     await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
       name: '群星海-修订',
-      system_prompt: '世界背景',
-      post_prompt: '输出中文',
       temperature: 0.7,
       max_tokens: 1024,
     }));
