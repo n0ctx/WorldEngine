@@ -190,6 +190,15 @@ AI 回复结束
    - `inject_prompt`：填文本 + 选模式（consumed/persistent）+ consumed 时填注入轮数
    - `notify`：填通知文本
 
+### 视觉风格约束
+
+所有新增 UI 组件必须遵循 `DESIGN.md` 规范和现有项目风格：
+- 颜色全部使用 `--we-*` CSS 变量（定义于 `frontend/src/styles/tokens.css`），禁止硬编码色值
+- 羊皮纸底色 + 陶土强调色，环形阴影（`0 0 0 1px`）代替传统投影
+- 衬线字体做标题，无衬线字体做 UI 文本
+- 卡片、弹窗、按钮等组件风格与现有 SettingsPage、AssistantPanel 等对齐
+- 动效参数引用 `motion.js` 中的 `DURATION` / `EASE` 常量，不自行设定 transition 值
+
 ### 世界设置页简化
 
 条目管理全部迁移到 State 页后，世界设置页只保留：
