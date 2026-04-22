@@ -539,3 +539,89 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+.we-confirm-ok:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* ── AvatarUpload 头像上传 ── */
+.we-avatar-upload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.we-avatar-wrap {
+  position: relative;
+  cursor: pointer;
+}
+
+.we-avatar-img {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.we-avatar-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--we-font-display);
+  font-size: 28px;
+  font-weight: 300;
+  color: #fff;
+}
+
+.we-avatar-uploading {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.we-avatar-uploading span {
+  color: #fff;
+  font-size: 12px;
+}
+
+.we-avatar-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.we-avatar-wrap:hover .we-avatar-mask {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.we-avatar-mask span {
+  color: #fff;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.we-avatar-wrap:hover .we-avatar-mask span {
+  opacity: 1;
+}
+
+.we-avatar-hint {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
+  margin-top: 8px;
+  opacity: 0.7;
+}
