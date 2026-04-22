@@ -227,14 +227,14 @@ describe('evaluateTriggers — notify 动作', () => {
     const {
       createTrigger,
       replaceTriggerConditions,
-      upsertTriggerAction,
+      insertTriggerAction,
     } = await freshImport('backend/db/queries/triggers.js');
 
     const trigger = createTrigger({ world_id: world.id, name: '好感度触发器' });
     replaceTriggerConditions(trigger.id, [
       { target_field: '世界.好感度', operator: '>', value: '50' },
     ]);
-    upsertTriggerAction(trigger.id, 'notify', { text: '触发了！' });
+    insertTriggerAction(trigger.id, 'notify', { text: '触发了！' });
 
     const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
     const result = evaluateTriggers(world.id, session.id, 1);
@@ -266,14 +266,14 @@ describe('evaluateTriggers — notify 动作', () => {
     const {
       createTrigger,
       replaceTriggerConditions,
-      upsertTriggerAction,
+      insertTriggerAction,
     } = await freshImport('backend/db/queries/triggers.js');
 
     const trigger = createTrigger({ world_id: world.id, name: '不满足触发器' });
     replaceTriggerConditions(trigger.id, [
       { target_field: '世界.好感度2', operator: '>', value: '50' },
     ]);
-    upsertTriggerAction(trigger.id, 'notify', { text: '不该出现' });
+    insertTriggerAction(trigger.id, 'notify', { text: '不该出现' });
 
     const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
     const result = evaluateTriggers(world.id, session.id, 1);
@@ -305,7 +305,7 @@ describe('evaluateTriggers — one_shot 禁用', () => {
     const {
       createTrigger,
       replaceTriggerConditions,
-      upsertTriggerAction,
+      insertTriggerAction,
       getTriggerById,
     } = await freshImport('backend/db/queries/triggers.js');
 
@@ -313,7 +313,7 @@ describe('evaluateTriggers — one_shot 禁用', () => {
     replaceTriggerConditions(trigger.id, [
       { target_field: '世界.生命值', operator: '<', value: '50' },
     ]);
-    upsertTriggerAction(trigger.id, 'notify', { text: '濒死警告' });
+    insertTriggerAction(trigger.id, 'notify', { text: '濒死警告' });
 
     const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
     const result = evaluateTriggers(world.id, session.id, 1);
@@ -360,7 +360,7 @@ describe('evaluateTriggers — AND 多条件逻辑', () => {
     const {
       createTrigger,
       replaceTriggerConditions,
-      upsertTriggerAction,
+      insertTriggerAction,
     } = await freshImport('backend/db/queries/triggers.js');
 
     const trigger = createTrigger({ world_id: world.id, name: 'AND触发器' });
@@ -368,7 +368,7 @@ describe('evaluateTriggers — AND 多条件逻辑', () => {
       { target_field: '世界.力量', operator: '>', value: '50' },   // 满足
       { target_field: '世界.敏捷', operator: '<', value: '20' },   // 不满足（30 < 20 为 false）
     ]);
-    upsertTriggerAction(trigger.id, 'notify', { text: '双条件触发' });
+    insertTriggerAction(trigger.id, 'notify', { text: '双条件触发' });
 
     const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
     const result = evaluateTriggers(world.id, session.id, 1);
@@ -408,7 +408,7 @@ describe('evaluateTriggers — AND 多条件逻辑', () => {
     const {
       createTrigger,
       replaceTriggerConditions,
-      upsertTriggerAction,
+      insertTriggerAction,
     } = await freshImport('backend/db/queries/triggers.js');
 
     const trigger = createTrigger({ world_id: world.id, name: 'AND全满足触发器' });
@@ -416,7 +416,7 @@ describe('evaluateTriggers — AND 多条件逻辑', () => {
       { target_field: '世界.魔力', operator: '>=', value: '100' },   // 满足
       { target_field: '世界.专注度', operator: '>', value: '80' },   // 满足
     ]);
-    upsertTriggerAction(trigger.id, 'notify', { text: '魔力全开！' });
+    insertTriggerAction(trigger.id, 'notify', { text: '魔力全开！' });
 
     const { evaluateTriggers } = await freshImport('backend/services/trigger-evaluator.js');
     const result = evaluateTriggers(world.id, session.id, 1);

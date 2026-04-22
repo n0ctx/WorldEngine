@@ -325,7 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditio
 
 CREATE TABLE IF NOT EXISTS trigger_actions (
   id          TEXT PRIMARY KEY,
-  trigger_id  TEXT NOT NULL UNIQUE REFERENCES triggers(id) ON DELETE CASCADE,
+  trigger_id  TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
   action_type TEXT NOT NULL,
   params      TEXT NOT NULL DEFAULT '{}'
 );
@@ -435,6 +435,7 @@ export function initSchema(db) {
   // 扩展 character_prompt_entries 支持 position 字段（与 world_prompt_entries 对齐）
   try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
+  migrateTriggerActionsMulti(db);
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {
@@ -527,6 +528,42 @@ function migrateLegacyAutoFilledNullStateValues(db) {
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
+  }
+}
+
+// State 引擎：trigger_actions 支持一对多（移除 UNIQUE 约束）
+function migrateTriggerActionsMulti(db) {
+  const migKey = 'migration:trigger_actions_multi';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  // 检测当前表是否有 UNIQUE 约束（通过 sql 字段判断）
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='trigger_actions'").get();
+  if (!tableInfo || !tableInfo.sql.includes('UNIQUE')) {
+    // 新建库，表已无 UNIQUE，直接记录 migKey 并返回
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    return;
+  }
+
+  db.pragma('foreign_keys = OFF');
+  db.exec('BEGIN');
+  try {
+    db.exec(`CREATE TABLE trigger_actions_new (
+      id          TEXT PRIMARY KEY,
+      trigger_id  TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
+      action_type TEXT NOT NULL,
+      params      TEXT NOT NULL DEFAULT '{}'
+    )`);
+    db.exec('INSERT INTO trigger_actions_new SELECT * FROM trigger_actions');
+    db.exec('DROP TABLE trigger_actions');
+    db.exec('ALTER TABLE trigger_actions_new RENAME TO trigger_actions');
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  } finally {
+    db.pragma('foreign_keys = ON');
   }
 }
 

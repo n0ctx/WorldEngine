@@ -17,15 +17,18 @@ test('GET /api/worlds/:worldId/triggers — 空世界返回 []', async () => {
   assert.deepEqual(data, []);
 });
 
-test('POST /api/worlds/:worldId/triggers — 创建触发器返回完整对象', async () => {
+test('POST /api/worlds/:worldId/triggers — 创建触发器返回完整对象（多动作）', async () => {
   const world = insertWorld(ctx.sandbox.db);
   const conditions = [{ target_field: '凛.好感度', operator: '>', value: '50' }];
-  const action = { action_type: 'notify', params: { text: '触发了！' } };
+  const actions = [
+    { action_type: 'notify', params: { text: '触发了！' } },
+    { action_type: 'notify', params: { text: '第二个动作' } },
+  ];
 
   const res = await ctx.request(`/api/worlds/${world.id}/triggers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: '测试触发器', conditions, action }),
+    body: JSON.stringify({ name: '测试触发器', conditions, actions }),
   });
   assert.equal(res.status, 201);
   const data = await res.json();
@@ -37,8 +40,10 @@ test('POST /api/worlds/:worldId/triggers — 创建触发器返回完整对象',
   assert.equal(data.conditions[0].target_field, '凛.好感度');
   assert.equal(data.conditions[0].operator, '>');
   assert.equal(data.conditions[0].value, '50');
-  assert.ok(data.action !== null);
-  assert.equal(data.action.action_type, 'notify');
+  assert.ok(Array.isArray(data.actions));
+  assert.equal(data.actions.length, 2);
+  assert.equal(data.actions[0].action_type, 'notify');
+  assert.equal(data.actions[1].action_type, 'notify');
 });
 
 test('POST — name 缺失时返回 400', async () => {
@@ -75,7 +80,7 @@ test('GET — 创建后 list 返回正确数量的触发器', async () => {
   assert.equal(data.length, 2);
 });
 
-test('PUT /api/triggers/:id — 更新触发器名称、conditions 和 action', async () => {
+test('PUT /api/triggers/:id — 更新触发器名称、conditions 和 actions', async () => {
   const world = insertWorld(ctx.sandbox.db);
 
   // 先创建
@@ -85,12 +90,12 @@ test('PUT /api/triggers/:id — 更新触发器名称、conditions 和 action', 
     body: JSON.stringify({
       name: '原名称',
       conditions: [{ target_field: '旧字段', operator: '=', value: '0' }],
-      action: { action_type: 'notify', params: { text: '旧动作' } },
+      actions: [{ action_type: 'notify', params: { text: '旧动作' } }],
     }),
   });
   const created = await createRes.json();
 
-  // 再更新（enabled 为 NOT NULL，必须传入）
+  // 再更新
   const updateRes = await ctx.request(`/api/triggers/${created.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -99,7 +104,10 @@ test('PUT /api/triggers/:id — 更新触发器名称、conditions 和 action', 
       enabled: 1,
       one_shot: 0,
       conditions: [{ target_field: '凛.好感度', operator: '>', value: '80' }],
-      action: { action_type: 'notify', params: { text: '新动作' } },
+      actions: [
+        { action_type: 'notify', params: { text: '新动作' } },
+        { action_type: 'notify', params: { text: '追加动作' } },
+      ],
     }),
   });
   assert.equal(updateRes.status, 200);
@@ -109,7 +117,9 @@ test('PUT /api/triggers/:id — 更新触发器名称、conditions 和 action', 
   assert.equal(updated.conditions.length, 1);
   assert.equal(updated.conditions[0].target_field, '凛.好感度');
   assert.equal(updated.conditions[0].value, '80');
-  assert.equal(updated.action.action_type, 'notify');
+  assert.ok(Array.isArray(updated.actions));
+  assert.equal(updated.actions.length, 2);
+  assert.equal(updated.actions[0].action_type, 'notify');
 });
 
 test('DELETE /api/triggers/:id — 删除后 GET 返回空列表', async () => {

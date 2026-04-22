@@ -249,9 +249,9 @@ test('buildPrompt inject_prompt consumed 模式注入且递减 rounds_remaining'
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '用户消息', created_at: 1 });
 
-  const { createTrigger, upsertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
+  const { createTrigger, insertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
   const trigger = createTrigger({ world_id: world.id, name: '注入触发器', enabled: 1 });
-  upsertTriggerAction(trigger.id, 'inject_prompt', {
+  const action = insertTriggerAction(trigger.id, 'inject_prompt', {
     text: '触发注入文本',
     mode: 'consumed',
     rounds_remaining: 2,
@@ -263,7 +263,7 @@ test('buildPrompt inject_prompt consumed 模式注入且递减 rounds_remaining'
 
   assert.match(result.messages.at(-2).content, /触发注入/);
 
-  const row = sandbox.db.prepare('SELECT params FROM trigger_actions WHERE trigger_id = ?').get(trigger.id);
+  const row = sandbox.db.prepare('SELECT params FROM trigger_actions WHERE id = ?').get(action.id);
   const params = JSON.parse(row.params);
   assert.equal(params.rounds_remaining, 1);
 });
@@ -282,9 +282,9 @@ test('buildPrompt inject_prompt rounds_remaining=0 时不再注入', async () =>
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '用户消息', created_at: 1 });
 
-  const { createTrigger, upsertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
+  const { createTrigger, insertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
   const trigger = createTrigger({ world_id: world.id, name: '耗尽触发器', enabled: 1 });
-  upsertTriggerAction(trigger.id, 'inject_prompt', {
+  insertTriggerAction(trigger.id, 'inject_prompt', {
     text: '触发注入文本',
     mode: 'consumed',
     rounds_remaining: 0,

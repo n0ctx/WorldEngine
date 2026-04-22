@@ -89,13 +89,13 @@ test('listConditionsByTrigger 返回指定 trigger 的所有条件', async () =>
   assert.equal(condY.length, 2);
 });
 
-test('upsertTriggerAction 保存动作（notify 类型，params 含 text）', async () => {
+test('insertTriggerAction 保存动作（notify 类型，params 含 text）', async () => {
   const world = insertWorld(sandbox.db, { name: '触发器世界-动作' });
-  const { createTrigger, upsertTriggerAction, getActionByTriggerId } = await freshImport('backend/db/queries/triggers.js');
+  const { createTrigger, insertTriggerAction, getActionsByTriggerId } = await freshImport('backend/db/queries/triggers.js');
 
   const trigger = createTrigger({ world_id: world.id, name: '动作触发器' });
 
-  const action = upsertTriggerAction(trigger.id, 'notify', { text: '你好世界' });
+  const action = insertTriggerAction(trigger.id, 'notify', { text: '你好世界' });
 
   assert.ok(action.id, 'action.id 应非空');
   assert.equal(action.trigger_id, trigger.id);
@@ -103,20 +103,21 @@ test('upsertTriggerAction 保存动作（notify 类型，params 含 text）', as
   assert.deepEqual(action.params, { text: '你好世界' });
 });
 
-test('getActionByTriggerId 返回正确动作', async () => {
+test('getActionsByTriggerId 返回所有动作（多动作）', async () => {
   const world = insertWorld(sandbox.db, { name: '触发器世界-获取动作' });
-  const { createTrigger, upsertTriggerAction, getActionByTriggerId } = await freshImport('backend/db/queries/triggers.js');
+  const { createTrigger, insertTriggerAction, getActionsByTriggerId } = await freshImport('backend/db/queries/triggers.js');
 
   const trigger = createTrigger({ world_id: world.id, name: '获取动作触发器' });
-  upsertTriggerAction(trigger.id, 'inject_prompt', { text: '注入提示词', mode: 'persistent' });
+  insertTriggerAction(trigger.id, 'inject_prompt', { text: '注入提示词', mode: 'persistent' });
+  insertTriggerAction(trigger.id, 'notify', { text: '通知' });
 
-  const action = getActionByTriggerId(trigger.id);
+  const actions = getActionsByTriggerId(trigger.id);
 
-  assert.ok(action, '应返回动作记录');
-  assert.equal(action.trigger_id, trigger.id);
-  assert.equal(action.action_type, 'inject_prompt');
-  assert.equal(action.params.text, '注入提示词');
-  assert.equal(action.params.mode, 'persistent');
+  assert.equal(actions.length, 2);
+  assert.equal(actions[0].trigger_id, trigger.id);
+  assert.equal(actions[0].action_type, 'inject_prompt');
+  assert.equal(actions[0].params.text, '注入提示词');
+  assert.equal(actions[1].action_type, 'notify');
 });
 
 test('updateTrigger 修改 enabled/one_shot', async () => {
@@ -142,7 +143,7 @@ test('deleteTrigger 后相关数据全部清除', async () => {
   const {
     createTrigger, getTriggerById,
     replaceTriggerConditions, listConditionsByTrigger,
-    upsertTriggerAction, getActionByTriggerId,
+    insertTriggerAction, getActionsByTriggerId,
     deleteTrigger,
   } = await freshImport('backend/db/queries/triggers.js');
 
@@ -150,11 +151,11 @@ test('deleteTrigger 后相关数据全部清除', async () => {
   replaceTriggerConditions(trigger.id, [
     { target_field: 'hp', operator: 'lt', value: '10' },
   ]);
-  upsertTriggerAction(trigger.id, 'notify', { text: '即将删除' });
+  insertTriggerAction(trigger.id, 'notify', { text: '即将删除' });
 
   deleteTrigger(trigger.id);
 
   assert.equal(getTriggerById(trigger.id), undefined, 'trigger 应已删除');
   assert.deepEqual(listConditionsByTrigger(trigger.id), [], '条件应已级联删除');
-  assert.equal(getActionByTriggerId(trigger.id), undefined, '动作应已级联删除');
+  assert.deepEqual(getActionsByTriggerId(trigger.id), [], '动作应已级联删除');
 });

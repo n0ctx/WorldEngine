@@ -16,6 +16,11 @@ function actionSummary(action) {
   }
 }
 
+function actionsSummary(actions) {
+  if (!actions?.length) return '（无动作）';
+  return actions.map(actionSummary).join('；');
+}
+
 export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
   async function handleToggle() {
     await updateTrigger(trigger.id, {
@@ -80,7 +85,7 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
           当 {conditionSummary(trigger.conditions)}
         </div>
         <div style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>
-          则 {actionSummary(trigger.action)}
+          则 {actionsSummary(trigger.actions)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--we-ink-faded)' }}>
           {trigger.last_triggered_round != null

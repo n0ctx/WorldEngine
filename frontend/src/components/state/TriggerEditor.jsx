@@ -1,7 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createTrigger, updateTrigger } from '../../api/triggers';
+import { getCharactersByWorld } from '../../api/characters';
+import { listWorldStateFields } from '../../api/world-state-fields';
+import { listCharacterStateFields } from '../../api/character-state-fields';
+import { listPersonaStateFields } from '../../api/persona-state-fields';
+import Select from '../ui/Select';
 
-const OPERATORS = ['>', '<', '=', '>=', '<=', '!=', '包含', '等于', '不包含'];
+const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
+const NUMERIC_OPS = [
+  { value: '>', label: '>' },
+  { value: '<', label: '<' },
+  { value: '=', label: '=' },
+  { value: '>=', label: '>=' },
+  { value: '<=', label: '<=' },
+  { value: '!=', label: '!=' },
+];
+const TEXT_OPS = [
+  { value: '包含', label: '包含' },
+  { value: '等于', label: '等于' },
+  { value: '不包含', label: '不包含' },
+];
 
 const ACTION_TYPES = [
   { value: 'activate_entry', label: '激活 Prompt 条目' },
@@ -9,29 +27,117 @@ const ACTION_TYPES = [
   { value: 'notify', label: '前端通知' },
 ];
 
+const INJECT_MODES = [
+  { value: 'consumed', label: '消耗型（N轮后停止）' },
+  { value: 'persistent', label: '持久型（持续注入）' },
+];
+
 function emptyCondition() {
   return { target_field: '', operator: '>', value: '' };
 }
 
+function emptyAction() {
+  return { action_type: 'notify', params: {} };
+}
+
+function parseParams(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return {}; } }
+  return raw;
+}
+
+/**
+ * 根据字段名在 fieldMeta 中查找类型，决定操作符列表
+ * @param {string} targetField  "实体名.字段标签"
+ * @param {Map<string, string>} fieldTypeMap  "实体名.字段标签" → type 字符串
+ */
+function getOpsForField(targetField, fieldTypeMap) {
+  const type = fieldTypeMap.get(targetField);
+  if (!type) return [...NUMERIC_OPS, ...TEXT_OPS]; // 未知字段：全部显示
+  return NUMERIC_TYPES.has(type) ? NUMERIC_OPS : TEXT_OPS;
+}
+
 export default function TriggerEditor({ worldId, trigger, entries, onClose, onSave }) {
   const isNew = !trigger?.id;
-  const existingParams = trigger?.action
-    ? (typeof trigger.action.params === 'string'
-        ? JSON.parse(trigger.action.params || '{}')
-        : (trigger.action.params || {}))
-    : {};
 
   const [name, setName] = useState(trigger?.name ?? '');
   const [oneShot, setOneShot] = useState(trigger?.one_shot ?? 0);
   const [conditions, setConditions] = useState(
-    trigger?.conditions?.length > 0 ? trigger.conditions : [emptyCondition()]
+    trigger?.conditions?.length > 0 ? trigger.conditions.map((c) => ({ ...c })) : [emptyCondition()]
   );
-  const [actionType, setActionType] = useState(trigger?.action?.action_type ?? 'notify');
-  const [actionParams, setActionParams] = useState(existingParams);
+  const [actions, setActions] = useState(
+    trigger?.actions?.length > 0
+      ? trigger.actions.map((a) => ({ action_type: a.action_type, params: parseParams(a.params) }))
+      : [emptyAction()]
+  );
   const [saving, setSaving] = useState(false);
 
+  // 字段选项：[{ value: "世界.xxx", label: "世界.xxx" }]
+  const [fieldOptions, setFieldOptions] = useState([]);
+  // 字段类型映射：Map<"世界.xxx", "number">
+  const [fieldTypeMap, setFieldTypeMap] = useState(new Map());
+
+  useEffect(() => {
+    async function loadFields() {
+      try {
+        const [worldFields, charFields, personaFields, characters] = await Promise.all([
+          listWorldStateFields(worldId),
+          listCharacterStateFields(worldId),
+          listPersonaStateFields(worldId),
+          getCharactersByWorld(worldId),
+        ]);
+
+        const opts = [];
+        const typeMap = new Map();
+
+        for (const f of worldFields) {
+          const key = `世界.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
+        }
+
+        for (const f of personaFields) {
+          const key = `玩家.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
+        }
+
+        for (const char of characters) {
+          for (const f of charFields) {
+            const key = `${char.name}.${f.label}`;
+            opts.push({ value: key, label: key });
+            typeMap.set(key, f.type);
+          }
+        }
+
+        setFieldOptions(opts);
+        setFieldTypeMap(typeMap);
+      } catch (_) {}
+    }
+    loadFields();
+  }, [worldId]);
+
   function updateCondition(index, patch) {
-    setConditions((prev) => prev.map((c, i) => i === index ? { ...c, ...patch } : c));
+    setConditions((prev) => prev.map((c, i) => {
+      if (i !== index) return c;
+      const next = { ...c, ...patch };
+      // 当字段改变时，自动重置操作符为该类型的第一个选项
+      if (patch.target_field !== undefined) {
+        const ops = getOpsForField(next.target_field, fieldTypeMap);
+        next.operator = ops[0].value;
+      }
+      return next;
+    }));
+  }
+
+  function updateAction(index, patch) {
+    setActions((prev) => prev.map((a, i) => i === index ? { ...a, ...patch } : a));
+  }
+
+  function updateActionParams(index, paramsPatch) {
+    setActions((prev) => prev.map((a, i) =>
+      i === index ? { ...a, params: { ...a.params, ...paramsPatch } } : a
+    ));
   }
 
   async function handleSave() {
@@ -41,7 +147,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
       name: name.trim(),
       one_shot: oneShot,
       conditions: conditions.filter((c) => c.target_field && c.value),
-      action: { action_type: actionType, params: actionParams },
+      actions: actions.filter((a) => a.action_type),
     };
     try {
       if (isNew) {
@@ -59,11 +165,24 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
     padding: '6px 10px',
     fontFamily: 'var(--we-font-serif)',
     fontSize: '13px',
-    background: 'var(--we-paper-base)',
+    background: 'rgba(0,0,0,0.03)',
     border: '1px solid var(--we-paper-shadow)',
-    borderRadius: 'var(--we-radius-sm)',
+    borderRadius: 'var(--we-radius-none)',
     color: 'var(--we-ink-primary)',
     boxSizing: 'border-box',
+    outline: 'none',
+    width: '100%',
+  };
+
+  const labelStyle = {
+    display: 'block',
+    fontSize: '12px',
+    color: 'var(--we-ink-secondary)',
+    marginBottom: '4px',
+  };
+
+  const sectionStyle = {
+    marginBottom: '16px',
   };
 
   return (
@@ -77,7 +196,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         border: '1px solid var(--we-paper-shadow)',
         borderRadius: 'var(--we-radius)',
         width: '100%',
-        maxWidth: '560px',
+        maxWidth: '580px',
         padding: '24px',
         maxHeight: '85vh',
         overflowY: 'auto',
@@ -87,12 +206,12 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         </h3>
 
         {/* 名称 + one_shot */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '12px', alignItems: 'center' }}>
+        <div style={{ ...sectionStyle, display: 'flex', gap: '10px', alignItems: 'center' }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="触发器名称"
-            style={{ ...fieldStyle, flex: 1 }}
+            style={{ ...fieldStyle, flex: 1, width: 'auto' }}
           />
           <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--we-ink-secondary)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
             <input type="checkbox" checked={!!oneShot} onChange={(e) => setOneShot(e.target.checked ? 1 : 0)} />
@@ -101,37 +220,45 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         </div>
 
         {/* 条件列表 */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '6px' }}>条件（全部满足时触发）</div>
-          {conditions.map((cond, i) => (
-            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-              <input
-                value={cond.target_field}
-                onChange={(e) => updateCondition(i, { target_field: e.target.value })}
-                placeholder="实体名.字段标签"
-                style={{ ...fieldStyle, flex: 2, minWidth: 0 }}
-              />
-              <select
-                value={cond.operator}
-                onChange={(e) => updateCondition(i, { operator: e.target.value })}
-                style={{ ...fieldStyle, flex: 'none', width: '80px' }}
-              >
-                {OPERATORS.map((op) => <option key={op} value={op}>{op}</option>)}
-              </select>
-              <input
-                value={cond.value}
-                onChange={(e) => updateCondition(i, { value: e.target.value })}
-                placeholder="值"
-                style={{ ...fieldStyle, flex: 1, minWidth: 0 }}
-              />
-              <button
-                onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
-                style={{ color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 4px', flexShrink: 0 }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
+        <div style={sectionStyle}>
+          <div style={labelStyle}>条件（全部满足时触发）</div>
+          {conditions.map((cond, i) => {
+            const ops = getOpsForField(cond.target_field, fieldTypeMap);
+            return (
+              <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                {/* 目标字段下拉 */}
+                <div style={{ flex: 2, minWidth: 0 }}>
+                  <Select
+                    value={cond.target_field}
+                    onChange={(v) => updateCondition(i, { target_field: v })}
+                    options={fieldOptions}
+                    disabled={fieldOptions.length === 0}
+                  />
+                </div>
+                {/* 操作符 */}
+                <div style={{ flexShrink: 0, width: '90px' }}>
+                  <Select
+                    value={cond.operator}
+                    onChange={(v) => updateCondition(i, { operator: v })}
+                    options={ops}
+                  />
+                </div>
+                {/* 值 */}
+                <input
+                  value={cond.value}
+                  onChange={(e) => updateCondition(i, { value: e.target.value })}
+                  placeholder="值"
+                  style={{ ...fieldStyle, flex: 1, minWidth: 0, width: 'auto' }}
+                />
+                <button
+                  onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
+                  style={{ color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 4px', flexShrink: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
           <button
             onClick={() => setConditions((prev) => [...prev, emptyCondition()])}
             style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}
@@ -140,70 +267,99 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
           </button>
         </div>
 
-        {/* 动作 */}
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '6px' }}>动作</div>
-          <select
-            value={actionType}
-            onChange={(e) => { setActionType(e.target.value); setActionParams({}); }}
-            style={{ ...fieldStyle, width: '100%', marginBottom: '8px' }}
-          >
-            {ACTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-
-          {actionType === 'activate_entry' && (
-            <select
-              value={actionParams.entry_id ?? ''}
-              onChange={(e) => setActionParams({ entry_id: e.target.value })}
-              style={{ ...fieldStyle, width: '100%' }}
-            >
-              <option value="">选择条目…</option>
-              {(entries || []).map((e) => <option key={e.id} value={e.id}>{e.title}</option>)}
-            </select>
-          )}
-
-          {actionType === 'inject_prompt' && (
-            <>
-              <textarea
-                value={actionParams.text ?? ''}
-                onChange={(e) => setActionParams((p) => ({ ...p, text: e.target.value }))}
-                placeholder="注入的提示文本"
-                rows={3}
-                style={{ ...fieldStyle, width: '100%', resize: 'vertical', marginBottom: '6px' }}
-              />
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <select
-                  value={actionParams.mode ?? 'consumed'}
-                  onChange={(e) => setActionParams((p) => ({ ...p, mode: e.target.value }))}
-                  style={fieldStyle}
-                >
-                  <option value="consumed">消耗型（N轮后停止）</option>
-                  <option value="persistent">持久型（持续注入）</option>
-                </select>
-                {(actionParams.mode ?? 'consumed') === 'consumed' && (
-                  <>
-                    <input
-                      type="number"
-                      min={1}
-                      value={actionParams.inject_rounds ?? 3}
-                      onChange={(e) => setActionParams((p) => ({ ...p, inject_rounds: parseInt(e.target.value) || 1 }))}
-                      style={{ ...fieldStyle, width: '64px' }}
-                    />
-                    <span style={{ fontSize: '12px', color: 'var(--we-ink-secondary)' }}>轮</span>
-                  </>
+        {/* 动作列表 */}
+        <div style={sectionStyle}>
+          <div style={labelStyle}>动作</div>
+          {actions.map((action, i) => (
+            <div key={i} style={{
+              border: '1px solid var(--we-paper-shadow)',
+              borderRadius: 'var(--we-radius-sm)',
+              padding: '10px 12px',
+              marginBottom: '8px',
+              background: 'rgba(0,0,0,0.02)',
+            }}>
+              {/* 动作类型 + 删除按钮 */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                <div style={{ flex: 1 }}>
+                  <Select
+                    value={action.action_type}
+                    onChange={(v) => updateAction(i, { action_type: v, params: {} })}
+                    options={ACTION_TYPES}
+                  />
+                </div>
+                {actions.length > 1 && (
+                  <button
+                    onClick={() => setActions((prev) => prev.filter((_, idx) => idx !== i))}
+                    style={{ color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', padding: '0 4px', flexShrink: 0 }}
+                  >
+                    ×
+                  </button>
                 )}
               </div>
-            </>
-          )}
 
-          {actionType === 'notify' && (
-            <input
-              value={actionParams.text ?? ''}
-              onChange={(e) => setActionParams({ text: e.target.value })}
-              placeholder="通知文本"
-              style={{ ...fieldStyle, width: '100%' }}
-            />
-          )}
+              {/* activate_entry */}
+              {action.action_type === 'activate_entry' && (
+                <Select
+                  value={action.params.entry_id ?? ''}
+                  onChange={(v) => updateActionParams(i, { entry_id: v })}
+                  options={[
+                    { value: '', label: '选择条目…' },
+                    ...(entries || []).map((e) => ({ value: e.id, label: e.title })),
+                  ]}
+                />
+              )}
+
+              {/* inject_prompt */}
+              {action.action_type === 'inject_prompt' && (
+                <>
+                  <textarea
+                    value={action.params.text ?? ''}
+                    onChange={(e) => updateActionParams(i, { text: e.target.value })}
+                    placeholder="注入的提示文本"
+                    rows={3}
+                    style={{ ...fieldStyle, resize: 'vertical', marginBottom: '8px' }}
+                  />
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <div style={{ flex: 1 }}>
+                      <Select
+                        value={action.params.mode ?? 'consumed'}
+                        onChange={(v) => updateActionParams(i, { mode: v })}
+                        options={INJECT_MODES}
+                      />
+                    </div>
+                    {(action.params.mode ?? 'consumed') === 'consumed' && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                        <input
+                          type="number"
+                          min={1}
+                          value={action.params.inject_rounds ?? 3}
+                          onChange={(e) => updateActionParams(i, { inject_rounds: parseInt(e.target.value) || 1 })}
+                          style={{ ...fieldStyle, width: '60px' }}
+                        />
+                        <span style={{ fontSize: '12px', color: 'var(--we-ink-secondary)' }}>轮</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {/* notify */}
+              {action.action_type === 'notify' && (
+                <input
+                  value={action.params.text ?? ''}
+                  onChange={(e) => updateActionParams(i, { text: e.target.value })}
+                  placeholder="通知文本"
+                  style={fieldStyle}
+                />
+              )}
+            </div>
+          ))}
+          <button
+            onClick={() => setActions((prev) => [...prev, emptyAction()])}
+            style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}
+          >
+            + 添加动作
+          </button>
         </div>
 
         {/* 按钮 */}

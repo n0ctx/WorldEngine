@@ -74,7 +74,7 @@ export function updateTrigger(id, patch) {
 }
 
 /**
- * 删除 trigger（级联删除 conditions 和 action）
+ * 删除 trigger（级联删除 conditions 和 actions）
  */
 export function deleteTrigger(id) {
   return db.prepare('DELETE FROM triggers WHERE id = ?').run(id);
@@ -111,48 +111,59 @@ export function listConditionsByTrigger(triggerId) {
 // ─── trigger_actions ─────────────────────────────────────────────────────────
 
 /**
- * 插入或更新 trigger 的动作（每个 trigger 最多一条）
+ * 插入新动作（每个 trigger 可有多个）
  * @param {string} triggerId
  * @param {string} actionType
  * @param {object} params
  */
-export function upsertTriggerAction(triggerId, actionType, params) {
+export function insertTriggerAction(triggerId, actionType, params) {
   const id = crypto.randomUUID();
-  const paramsJson = JSON.stringify(params ?? {});
-
-  db.prepare(`
-    INSERT INTO trigger_actions (id, trigger_id, action_type, params)
-    VALUES (?, ?, ?, ?)
-    ON CONFLICT(trigger_id) DO UPDATE SET
-      action_type = excluded.action_type,
-      params = excluded.params
-  `).run(id, triggerId, actionType, paramsJson);
-
-  return parseAction(db.prepare('SELECT * FROM trigger_actions WHERE trigger_id = ?').get(triggerId));
+  db.prepare(
+    'INSERT INTO trigger_actions (id, trigger_id, action_type, params) VALUES (?, ?, ?, ?)',
+  ).run(id, triggerId, actionType, JSON.stringify(params ?? {}));
+  return parseAction(db.prepare('SELECT * FROM trigger_actions WHERE id = ?').get(id));
 }
 
 /**
- * 获取指定 trigger 的动作，params 自动 JSON.parse
+ * 获取指定 trigger 的所有动作（数组），params 自动 JSON.parse
  */
-export function getActionByTriggerId(triggerId) {
-  return parseAction(db.prepare('SELECT * FROM trigger_actions WHERE trigger_id = ?').get(triggerId));
+export function getActionsByTriggerId(triggerId) {
+  return db.prepare('SELECT * FROM trigger_actions WHERE trigger_id = ?').all(triggerId).map(parseAction);
 }
 
 /**
- * 合并更新 action 的 params 字段
+ * 事务内替换 trigger 的所有动作（先删后插）
  * @param {string} triggerId
- * @param {object} paramsPatch
- * @returns {object|null}
+ * @param {Array<{ action_type: string, params: object }>} actions
  */
-export function updateActionParams(triggerId, paramsPatch) {
-  const row = db.prepare('SELECT * FROM trigger_actions WHERE trigger_id = ?').get(triggerId);
+export function replaceTriggerActions(triggerId, actions) {
+  const del = db.prepare('DELETE FROM trigger_actions WHERE trigger_id = ?');
+  const ins = db.prepare(
+    'INSERT INTO trigger_actions (id, trigger_id, action_type, params) VALUES (?, ?, ?, ?)',
+  );
+
+  db.transaction(() => {
+    del.run(triggerId);
+    for (const a of actions) {
+      ins.run(crypto.randomUUID(), triggerId, a.action_type, JSON.stringify(a.params ?? {}));
+    }
+  })();
+}
+
+/**
+ * 合并更新单个 action 的 params 字段（按 action id）
+ * @param {string} actionId
+ * @param {object} paramsPatch
+ */
+export function updateActionParams(actionId, paramsPatch) {
+  const row = db.prepare('SELECT * FROM trigger_actions WHERE id = ?').get(actionId);
   if (!row) return null;
 
   const existing = row.params ? JSON.parse(row.params) : {};
   const merged = { ...existing, ...paramsPatch };
-  db.prepare('UPDATE trigger_actions SET params = ? WHERE trigger_id = ?').run(JSON.stringify(merged), triggerId);
+  db.prepare('UPDATE trigger_actions SET params = ? WHERE id = ?').run(JSON.stringify(merged), actionId);
 
-  return parseAction(db.prepare('SELECT * FROM trigger_actions WHERE trigger_id = ?').get(triggerId));
+  return parseAction(db.prepare('SELECT * FROM trigger_actions WHERE id = ?').get(actionId));
 }
 
 /**

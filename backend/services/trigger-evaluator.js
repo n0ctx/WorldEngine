@@ -19,7 +19,7 @@ import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import {
   listTriggersByWorld,
   listConditionsByTrigger,
-  getActionByTriggerId,
+  getActionsByTriggerId,
   updateTrigger,
   updateActionParams,
 } from '../db/queries/triggers.js';
@@ -170,10 +170,10 @@ export function evaluateTriggers(worldId, sessionId, roundIndex) {
 
     log.info(`触发器命中 id=${trigger.id} name=${trigger.name}`);
 
-    // 获取动作并执行
-    const action = getActionByTriggerId(trigger.id);
+    // 获取所有动作并逐一执行
+    const actions = getActionsByTriggerId(trigger.id);
 
-    if (action) {
+    for (const action of actions) {
       switch (action.action_type) {
         case 'notify': {
           const text = action.params?.text ?? '';
@@ -192,8 +192,8 @@ export function evaluateTriggers(worldId, sessionId, roundIndex) {
           // consumed 模式：用 inject_rounds 初始化 rounds_remaining
           const injectRounds = action.params?.inject_rounds;
           if (action.params?.mode !== 'persistent' && injectRounds != null) {
-            updateActionParams(trigger.id, { rounds_remaining: injectRounds });
-            log.info(`触发器 inject_prompt 初始化 rounds=${injectRounds} trigger_id=${trigger.id}`);
+            updateActionParams(action.id, { rounds_remaining: injectRounds });
+            log.info(`触发器 inject_prompt 初始化 rounds=${injectRounds} action_id=${action.id}`);
           }
           break;
         }

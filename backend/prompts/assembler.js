@@ -310,7 +310,7 @@ export async function buildPrompt(sessionId, options = {}) {
     if (p.text) {
       postParts.push(`[触发注入]\n${p.text}`);
       if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.trigger_id, { rounds_remaining: p.rounds_remaining - 1 });
+        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
       }
     }
   }
@@ -522,7 +522,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (p.text) {
       postParts.push(`[触发注入]\n${p.text}`);
       if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.trigger_id, { rounds_remaining: p.rounds_remaining - 1 });
+        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
       }
     }
   }
