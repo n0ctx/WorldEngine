@@ -482,3 +482,60 @@
 .we-select-option--active {
   color: var(--we-vermilion);
 }
+
+/* ── ConfirmModal 确认弹窗 ── */
+.we-confirm-panel {
+  padding: 24px;
+}
+
+.we-confirm-title {
+  font-family: var(--we-font-display);
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--we-ink-primary);
+  margin-bottom: 10px;
+}
+
+.we-confirm-message {
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+  color: var(--we-ink-secondary);
+  margin-bottom: 20px;
+}
+
+.we-confirm-cancel {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  color: var(--we-ink-faded);
+  background: none;
+  border: none;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.we-confirm-cancel:hover:not(:disabled) {
+  color: var(--we-ink-primary);
+}
+.we-confirm-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.we-confirm-ok {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  background: var(--we-ink-secondary);
+  color: var(--we-paper-base);
+  border: none;
+  border-radius: var(--we-radius-sm);
+  padding: 6px 16px;
+  cursor: pointer;
+}
+.we-confirm-ok.danger {
+  background: var(--we-vermilion);
+}
+.we-confirm-ok:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

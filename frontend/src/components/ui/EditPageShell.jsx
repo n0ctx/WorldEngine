@@ -12,9 +12,8 @@ export default function EditPageShell({
       return (
         <div className="we-settings-overlay" onClick={onClose}>
           <div
-            className="we-edit-panel we-edit-panel-overlay"
+            className="we-edit-panel we-edit-panel-overlay flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <p className="we-edit-empty-text">加载中…</p>
           </div>
@@ -22,7 +21,7 @@ export default function EditPageShell({
       );
     }
     return (
-      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="we-edit-canvas flex items-center justify-center">
         <p className="we-edit-empty-text">加载中…</p>
       </div>
     );
