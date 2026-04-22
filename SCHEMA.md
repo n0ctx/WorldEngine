@@ -574,6 +574,7 @@ CREATE TABLE character_prompt_entries (
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
   keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
+  position       TEXT NOT NULL DEFAULT 'post', -- 历史迁移补齐列；当前运行时不消费
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -682,7 +683,7 @@ CREATE INDEX IF NOT EXISTS idx_triggers_world_id ON triggers(world_id);
 CREATE TABLE IF NOT EXISTS trigger_conditions (
   id              TEXT PRIMARY KEY,          -- UUID
   trigger_id      TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-  target_field    TEXT NOT NULL,             -- 格式："entitybody.field_label"，如："玩家.魔法值"、"场景.时间"
+  target_field    TEXT NOT NULL,             -- 格式："世界.字段标签" / "玩家.字段标签" / "角色.字段标签"
   operator        TEXT NOT NULL,             -- '>' | '<' | '=' | '>=' | '<=' | '!=' | '包含' | '等于' | '不包含'（字符串操作）
   value           TEXT NOT NULL,             -- 比较值（数字或文本）
   created_at      INTEGER NOT NULL
@@ -693,6 +694,7 @@ CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditio
 
 说明：
 - `target_field` 使用"标签"而非"field_key"，方便用户编辑时选择；后端维护标签→field_key 映射表
+- `角色.xxx` 不按具体角色名展开；chat 会话映射当前角色，writing 会话对当前激活角色逐个评估，任一角色整组条件满足即触发
 - `operator` 的"包含"、"等于"、"不包含"用于字符串匹配（JSON 解析后的字符串值）；数值操作用 >, <, = 等
 - 多条件按 INSERT 顺序评估；如果中途失败则跳过本轮检查，待下轮继续
 
@@ -700,12 +702,12 @@ CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditio
 
 ### trigger_actions — 触发动作
 
-每条触发器一条动作记录（当前设计为 1:1，未来可扩展为 1:N）。触发时执行该动作。
+每条触发器可有多条动作记录（1:N）。触发时按插入顺序逐条执行。
 
 ```sql
 CREATE TABLE IF NOT EXISTS trigger_actions (
   id              TEXT PRIMARY KEY,          -- UUID
-  trigger_id      TEXT NOT NULL UNIQUE REFERENCES triggers(id) ON DELETE CASCADE,
+  trigger_id      TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
   action_type     TEXT NOT NULL,             -- 'activate_entry' | 'inject_prompt' | 'notify'
   params          TEXT NOT NULL,             -- JSON，格式见下文
   created_at      INTEGER NOT NULL
@@ -722,7 +724,7 @@ CREATE INDEX IF NOT EXISTS idx_trigger_actions_trigger_id ON trigger_actions(tri
   "entry_id": "world_prompt_entries_id"
 }
 ```
-- 激活指定 prompt entry，下轮或立即注入其 content
+- 将指定世界条目的 `trigger_type` 改写为 `always`，从而持续生效，直到用户手动修改
 
 **inject_prompt**（直接注入文本，带消耗倒计时）：
 ```json
@@ -735,8 +737,8 @@ CREATE INDEX IF NOT EXISTS idx_trigger_actions_trigger_id ON trigger_actions(tri
 ```
 - `text`：待注入的完整提示词文本
 - `mode`：'consumed'（用完即删）| 'persistent'（常驻）
-- `inject_rounds`：最多注入轮数
-- `rounds_remaining`：剩余注入轮数，每轮递减；=0 时自动删除动作
+- `inject_rounds`：消耗型动作命中时重置的注入轮数
+- `rounds_remaining`：剩余注入轮数；assembler 仅消费 `mode='persistent'` 或 `rounds_remaining > 0` 的动作
 
 **notify**（通知文本，不直接注入 LLM 但显示在 UI）：
 ```json
@@ -744,7 +746,7 @@ CREATE INDEX IF NOT EXISTS idx_trigger_actions_trigger_id ON trigger_actions(tri
   "text": "..."
 }
 ```
-- 显示给玩家的通知信息，位置 TBD（或作为系统消息）
+- 通过 SSE `trigger_fired` 事件发给前端；不写入 messages 表，也不直接注入 LLM
 
 ---
 

@@ -3,6 +3,11 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T207 — docs: 同步状态页与组件抽取后的权威文档 ✅
+- **对外接口**：无运行时接口变更；仅校正文档与当前实现对齐
+- **涉及文件**：`ARCHITECTURE.md`、`SCHEMA.md`、`CHANGELOG.md`
+- **注意**：① `docs/` 目录未整体 gitignore，当前只有 `/docs/superpowers/` 被忽略；② `ARCHITECTURE.md` 此次补齐了 `WorldStatePage`、组件统一出口 `components/index.js`、`state_updated` / `diary_updated` / `trigger_fired` SSE 事件，以及 `triggers.js` API 落点；③ `SCHEMA.md` 修正了 `trigger_actions` 已从 1:1 演进为 1:N 的事实，并补齐 `character_prompt_entries.position` 遗留列与触发器字段语义
+
 ## 前端通用组件库系统化提取 ✅
 - **新增组件**：`components/ui/FormGroup`（label+input+hint+error 标准字段组）、`EditPageShell`（编辑页骨架，loading/overlay 双模式）、`ConfirmModal`（通用确认弹窗，内部管理 confirming 状态）、`AvatarUpload`（头像上传控件）；`components/ui/FieldLabel` 从 settings/ 迁移到 ui/（settings/FieldLabel 改为 re-export 兼容层）；新增 `utils/time.js` 导出 `relativeTime`
 - **重构**：`Select.jsx` 内联 style 全部迁移至 `.we-select*` CSS 类（移除 JS hover 事件）；settings/ 六个组件（ProviderBlock、LlmConfigPanel、PromptConfigPanel、DiaryConfigPanel、WritingLlmBlock、MemoryConfigPanel）改用 FormGroup/ConfirmModal；WorldCreatePage、CharacterCreatePage、WorldEditPage、CharacterEditPage、PersonaEditPage 改用 EditPageShell + FormGroup + AvatarUpload；WorldsPage 改用 ConfirmModal + `relativeTime` import

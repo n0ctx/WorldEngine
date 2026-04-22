@@ -5,6 +5,7 @@ dist/
 .DS_Store
 
 # Local agent / tooling files
+/docs/
 /.claude/
 /.obsidian/
 /.playwright-cli/
