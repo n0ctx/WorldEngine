@@ -21,8 +21,9 @@ import { getOrCreatePersona } from '../services/personas.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
+import { evaluateTriggers } from '../services/trigger-evaluator.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
-import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -60,7 +61,7 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
 /**
  * 构建 chat 模式的后台任务 spec 列表
  */
-function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamState, res, sid, turnRecordOpts }) {
+function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamState, res, sid, turnRecordOpts = {} }) {
   return [
     // title（p2）：仅当 session.title 为 NULL 时入队；完成后推送 title_updated 并关闭连接
     {
@@ -79,6 +80,24 @@ function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamSt
       fn: () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId),
       tracksState: true,
       keepSseAlive: false,
+    },
+    // trigger-eval（p2）：状态更新完成后评估触发器，有通知时推 trigger_fired SSE
+    {
+      label: 'trigger-eval',
+      priority: 2,
+      fn: () => {
+        const roundIndex = turnRecordOpts?.isUpdate
+          ? (getLatestTurnRecord(sessionId)?.round_index ?? 1)
+          : countTurnRecords(sessionId) + 1;
+        return evaluateTriggers(worldId, sessionId, roundIndex);
+      },
+      condition: !!worldId,
+      sseEvent: 'trigger_fired',
+      ssePayload: (result) =>
+        result?.notifications?.length > 0
+          ? { type: 'trigger_fired', notifications: result.notifications }
+          : null,
+      keepSseAlive: true,
     },
     // turn-record（p3）
     {
