@@ -3,6 +3,25 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 前端通用组件库系统化提取 ✅
+- **新增组件**：`components/ui/FormGroup`（label+input+hint+error 标准字段组）、`EditPageShell`（编辑页骨架，loading/overlay 双模式）、`ConfirmModal`（通用确认弹窗，内部管理 confirming 状态）、`AvatarUpload`（头像上传控件）；`components/ui/FieldLabel` 从 settings/ 迁移到 ui/（settings/FieldLabel 改为 re-export 兼容层）；新增 `utils/time.js` 导出 `relativeTime`
+- **重构**：`Select.jsx` 内联 style 全部迁移至 `.we-select*` CSS 类（移除 JS hover 事件）；settings/ 六个组件（ProviderBlock、LlmConfigPanel、PromptConfigPanel、DiaryConfigPanel、WritingLlmBlock、MemoryConfigPanel）改用 FormGroup/ConfirmModal；WorldCreatePage、CharacterCreatePage、WorldEditPage、CharacterEditPage、PersonaEditPage 改用 EditPageShell + FormGroup + AvatarUpload；WorldsPage 改用 ConfirmModal + `relativeTime` import
+- **新增索引**：`components/index.js` 统一导出所有 35 个可复用组件（ui/ 原子 10 个 + 分子 5 个 + book/ 20 个）
+- **规范**：CLAUDE.md「前端分层」下新增「组件复用规则」6 条（强制查阅 index.js、EditPageShell/FormGroup/ConfirmModal 使用规则、新组件注册要求）
+- **涉及文件**：`frontend/src/utils/time.js`（新建）、`frontend/src/components/ui/FieldLabel.jsx`（新建）、`frontend/src/components/ui/FormGroup.jsx`（新建）、`frontend/src/components/ui/AvatarUpload.jsx`（新建）、`frontend/src/components/ui/ConfirmModal.jsx`（新建）、`frontend/src/components/ui/EditPageShell.jsx`（新建）、`frontend/src/components/index.js`（新建）、`frontend/src/styles/ui.css`（新增 Select/ConfirmModal/AvatarUpload CSS 类段）、`frontend/src/components/ui/Select.jsx`（重构）、`frontend/src/components/settings/FieldLabel.jsx`（改为 re-export）、settings/ 六个组件、pages/ 六个页面、`CLAUDE.md`
+- **注意**：① LlmConfigPanel/WritingLlmBlock 的 Temperature 滑块因 flex 布局特殊性，外层改为无 class `<div>`，内部保留 FieldLabel；② export 分区（"导出世界卡"等）的 `div.we-edit-form-group` 容器因含 `<h3>` 而非 `<label>` — 不适用 FormGroup，保留裸 div；③ AvatarUpload 的 `avatarColor` 背景色为运行时动态值，唯一保留的 inline style；④ ConfirmModal 不自动关闭——onConfirm resolve 后由调用方通过 onClose 控制
+
+## T206 — refactor: 收口旧 Prompt 条目入口并统一到世界 State 页 ✅
+- **对外接口**：`routes/prompt-entries.js` 现在只暴露世界级 State 条目接口：`GET/POST /api/worlds/:worldId/entries`、`GET/PUT/DELETE /api/world-entries/:id`、`PUT /api/world-entries/reorder`
+- **涉及文件**：`backend/prompts/assembler.js`、`backend/routes/prompt-entries.js`、`backend/services/prompt-entries.js`、`backend/db/schema.js`（新增旧 world prompt 列到 `world_prompt_entries(always)` 的一次性迁移）、`assistant/server/routes.js`、`frontend/src/pages/WorldCreatePage.jsx`、`frontend/src/pages/WorldEditPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`frontend/src/components/settings/PromptConfigPanel.jsx`、`frontend/src/api/prompt-entries.js`
+- **注意**：① 运行时不再消费 `global_prompt_entries` / `character_prompt_entries`，也不再直接消费 `worlds.system_prompt/post_prompt`；世界级提示词统一从 `world_prompt_entries` 读取；② 为避免旧世界静默丢 prompt，启动迁移会把非空 `worlds.system_prompt/post_prompt` 镜像写入常驻条目（按内容去重）；③ 写卡助手提案执行也已同步去掉角色/全局 prompt 条目写入，避免残留调用在服务启动时报错
+
+## 前端系统性审查与修复 ✅
+- **修复内容**：① `--we-radius-sm` CSS 变量冲突：index.css 以 6px 覆盖 tokens.css 的 2px，影响 30+ 组件（含聊天气泡），已删除 index.css `:root` 中的覆盖项，羊皮纸 2px 圆角恢复；② WorldStatePage + EntrySection + StateFieldList 中的 Emoji 图标（📌🔑🤖⚡🔒）替换为古籍符号（✦ § ❦ ※ §），符合 DESIGN.md §13；③ TopBar.jsx 10+ 处硬编码 rgba/hex 颜色替换为 tokens.css 新增的 `--we-topbar-*` 变量组；④ TopBar.jsx `onMouseEnter/Leave` 中的 `e.target.style` 直接 DOM 操作替换为 React state（`hoveredWorldId`、`listBtnHover`）；⑤ `--we-ink-faded` 从 #8a7663（3.21:1，不通过 WCAG AA）加深为 #6d5c4b（~4.6:1，通过 AA）
+- **涉及文件**：`frontend/src/styles/tokens.css`、`frontend/src/index.css`、`frontend/src/pages/WorldStatePage.jsx`、`frontend/src/components/state/StateFieldList.jsx`、`frontend/src/components/book/TopBar.jsx`
+- **已知遗留**：WorldStatePage 全页内联 style 未迁移到 CSS 类（改动范围大，建议单独任务）；WorldStatePage 无加载态（Minor，待设计确认）；MessageItem DeleteButton 硬编码 fallback 色（Minor）
+- **审查报告**：`.temp/frontend-audit-2026-04-22.md`
+
 ## v2 Phase 1 — State 引擎触发器系统 ✅
 - **对外接口**：`GET/POST /api/worlds/:worldId/triggers`、`PUT/DELETE /api/triggers/:id`；assembler.js 新增 systemEntryTexts/postEntryTexts 分流 + inject_prompt 注入；chat.js/writing.js priority-2 新增 trigger-eval 任务，SSE 事件 `trigger_fired`
 - **涉及文件**：`backend/db/schema.js`（triggers/trigger_conditions/trigger_actions 三表 + world_prompt_entries 新增 position/trigger_type）、`backend/db/queries/triggers.js`（新建）、`backend/db/queries/prompt-entries.js`（支持 position/trigger_type）、`backend/services/trigger-evaluator.js`（新建）、`backend/routes/triggers.js`（新建）、`backend/prompts/entry-matcher.js`（trigger_type 分流）、`backend/prompts/assembler.js`（position 分流 + inject_prompt 注入）、`backend/routes/chat.js`、`backend/routes/writing.js`、`frontend/src/api/triggers.js`（新建）、`frontend/src/App.jsx`（/state 路由）、`frontend/src/pages/CharactersPage.jsx`（三标签导航）、`frontend/src/pages/WorldStatePage.jsx`（新建）、`frontend/src/components/state/`（EntrySection/EntryEditor/TriggerCard/TriggerEditor，全部新建）、`SCHEMA.md`（三表文档）
