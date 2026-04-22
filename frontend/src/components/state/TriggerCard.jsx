@@ -65,7 +65,7 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
           width: '14px',
           height: '14px',
           borderRadius: '50%',
-          background: 'white',
+          background: 'var(--we-paper-base)',
           transition: 'left 0.2s',
           display: 'block',
         }} />
