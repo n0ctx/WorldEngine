@@ -56,10 +56,11 @@
 
 ### 删除策略
 
-- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona 及所有会话状态值
+- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona、触发器及其条件/动作、所有会话状态值
 - 删除角色 → 级联删除其下所有聊天会话、消息、Prompt 条目，清空对应头像文件；同时从 `writing_session_characters` 移除该角色（CASCADE）
 - 删除会话 → 级联删除其下所有消息、`session_summaries`、`writing_session_characters` 关联行，清空对应附件文件
 - 删除消息 → 清空对应附件文件
+- 删除触发器 → 级联删除其下所有条件（`trigger_conditions`）和动作（`trigger_actions`）
 - 所有删除均为硬删除，无软删除
 - 磁盘文件（头像、附件、向量）的清理通过 `cleanup-registrations.js` 注册的钩子执行，在 DB DELETE 之前调用；钩子失败只 warn，不阻塞删除
 
@@ -545,6 +546,8 @@ CREATE TABLE world_prompt_entries (
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
   keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
+  position       TEXT NOT NULL DEFAULT 'post', -- 注入位置：'system'（system 区）/ 'post'（后置提示词区）
+  trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'（关键词触发）/ 'llm'（AI召回）
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -640,6 +643,101 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 - `world_id IS NULL` 的规则对所有世界生效；`world_id` 非空的规则仅在该世界的会话中生效，两类规则混合时仍按 `sort_order` 统一排序
 - 规则无效（pattern 编译失败、flags 非法）时跳过该条并在后端日志记录，不中断整条管线
 - `enabled=0` 的规则不执行，保留数据库记录
+
+---
+
+### triggers — 触发器
+
+触发规则引擎（Phase 1）。定义按条件自动激活 Prompt 条目或注入文本的规则。
+
+```sql
+CREATE TABLE IF NOT EXISTS triggers (
+  id                   TEXT PRIMARY KEY,          -- UUID
+  world_id             TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  name                 TEXT NOT NULL,             -- 触发器显示名（如"魔法失控检查"）
+  enabled              INTEGER NOT NULL DEFAULT 1, -- 0: 禁用 / 1: 启用
+  one_shot             INTEGER NOT NULL DEFAULT 0, -- 0: 每轮重复检查 / 1: 仅触发一次后禁用
+  last_triggered_round INTEGER,                   -- 最后触发轮次（round_index），NULL=未触发
+  created_at           INTEGER NOT NULL,
+  updated_at           INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_triggers_world_id ON triggers(world_id);
+```
+
+---
+
+### trigger_conditions — 触发条件
+
+每条触发器的条件列表（AND 逻辑）。多条件全部满足时才触发动作。
+
+```sql
+CREATE TABLE IF NOT EXISTS trigger_conditions (
+  id              TEXT PRIMARY KEY,          -- UUID
+  trigger_id      TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
+  target_field    TEXT NOT NULL,             -- 格式："entitybody.field_label"，如："玩家.魔法值"、"场景.时间"
+  operator        TEXT NOT NULL,             -- '>' | '<' | '=' | '>=' | '<=' | '!=' | '包含' | '等于' | '不包含'（字符串操作）
+  value           TEXT NOT NULL,             -- 比较值（数字或文本）
+  created_at      INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditions(trigger_id);
+```
+
+说明：
+- `target_field` 使用"标签"而非"field_key"，方便用户编辑时选择；后端维护标签→field_key 映射表
+- `operator` 的"包含"、"等于"、"不包含"用于字符串匹配（JSON 解析后的字符串值）；数值操作用 >, <, = 等
+- 多条件按 INSERT 顺序评估；如果中途失败则跳过本轮检查，待下轮继续
+
+---
+
+### trigger_actions — 触发动作
+
+每条触发器一条动作记录（当前设计为 1:1，未来可扩展为 1:N）。触发时执行该动作。
+
+```sql
+CREATE TABLE IF NOT EXISTS trigger_actions (
+  id              TEXT PRIMARY KEY,          -- UUID
+  trigger_id      TEXT NOT NULL UNIQUE REFERENCES triggers(id) ON DELETE CASCADE,
+  action_type     TEXT NOT NULL,             -- 'activate_entry' | 'inject_prompt' | 'notify'
+  params          TEXT NOT NULL,             -- JSON，格式见下文
+  created_at      INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_trigger_actions_trigger_id ON trigger_actions(trigger_id);
+```
+
+`params` JSON 格式说明：
+
+**activate_entry**（激活 Prompt 条目）：
+```json
+{
+  "entry_id": "world_prompt_entries_id"
+}
+```
+- 激活指定 prompt entry，下轮或立即注入其 content
+
+**inject_prompt**（直接注入文本，带消耗倒计时）：
+```json
+{
+  "text": "...",
+  "mode": "consumed",
+  "inject_rounds": 3,
+  "rounds_remaining": 3
+}
+```
+- `text`：待注入的完整提示词文本
+- `mode`：'consumed'（用完即删）| 'persistent'（常驻）
+- `inject_rounds`：最多注入轮数
+- `rounds_remaining`：剩余注入轮数，每轮递减；=0 时自动删除动作
+
+**notify**（通知文本，不直接注入 LLM 但显示在 UI）：
+```json
+{
+  "text": "..."
+}
+```
+- 显示给玩家的通知信息，位置 TBD（或作为系统消息）
 
 ---
 
