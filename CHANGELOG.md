@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## v2 Phase 1 — State 引擎触发器系统 ✅
+- **对外接口**：`GET/POST /api/worlds/:worldId/triggers`、`PUT/DELETE /api/triggers/:id`；assembler.js 新增 systemEntryTexts/postEntryTexts 分流 + inject_prompt 注入；chat.js/writing.js priority-2 新增 trigger-eval 任务，SSE 事件 `trigger_fired`
+- **涉及文件**：`backend/db/schema.js`（triggers/trigger_conditions/trigger_actions 三表 + world_prompt_entries 新增 position/trigger_type）、`backend/db/queries/triggers.js`（新建）、`backend/db/queries/prompt-entries.js`（支持 position/trigger_type）、`backend/services/trigger-evaluator.js`（新建）、`backend/routes/triggers.js`（新建）、`backend/prompts/entry-matcher.js`（trigger_type 分流）、`backend/prompts/assembler.js`（position 分流 + inject_prompt 注入）、`backend/routes/chat.js`、`backend/routes/writing.js`、`frontend/src/api/triggers.js`（新建）、`frontend/src/App.jsx`（/state 路由）、`frontend/src/pages/CharactersPage.jsx`（三标签导航）、`frontend/src/pages/WorldStatePage.jsx`（新建）、`frontend/src/components/state/`（EntrySection/EntryEditor/TriggerCard/TriggerEditor，全部新建）、`SCHEMA.md`（三表文档）
+- **注意**：① `activate_entry` 动作的实现是把 prompt_entries 的 trigger_type 改为 `always`（irreversible，spec 约定"持续生效直到用户手动关闭"）；② trigger-eval 是 priority-2 同步操作，在 async-queue.js 的严格 FIFO 串行保证下，所有状态更新之后、turn-record 入队之前执行，无竞态；③ inject_prompt 的 position 目前固定为 post（消息列表倒数第二位），spec §六 遗留问题已在实现中决策；④ trigger_type 旧数据无字段时默认视为 `always`；⑤ 后端测试框架为 node:test（非 vitest），任何新测试必须用 `describe/test + assert` 而非 `it/expect`
+
+## ROADMAP v2 Phase 3-10 任务拆解 ✅
+- **对外接口**：无运行时变更；仅 ROADMAP.md 文档写入
+- **涉及文件**：`ROADMAP.md`（新增 T182–T205，共 24 个任务，覆盖阶段 3-10）
+- **注意**：T182 relations 表的 entity_a/b 多态引用无 SQLite FK，由应用层校验；T188 sessions.preset 列需 try/catch 防已存在报错；T193 assembler [11] 段取代原"已删除"的 [11] 世界时间线位置；T197 entity_changes.chronicle_id 此时无 FK（Phase 8 补应用层保证）；T205 需同步修改 T177-T179 的三个面板 status_tag 下拉从静态改为动态加载
+
 ## T174 — chore: 覆盖率清尾与统一复盘 ✅
 - **对外接口**：无运行时接口变更；新增 assistant/frontend 测试覆盖 `POST /api/assistant/execute` 的 `worldRefId` 成功链路、`editedProposal` 锁定字段语义、`preview_card` 的 persona/global 分支，以及 `frontend/src/api/writing-sessions.js` 的 HTTP 错误与 edit+regenerate SSE 收尾
 - **涉及文件**：`assistant/tests/routes-integration.test.js`、`assistant/tests/tools/card-preview.test.js`、`frontend/tests/api/writing-sessions.test.js`、`ROADMAP.md`
@@ -1582,3 +1592,13 @@
   - 页面测试统一采用轻量 mock 组件，主断言集中在加载、保存、删除、上传失败提示等用户主链路，避免绑定复杂实现细节
   - `useSessionState` 测试显式 flush 微任务而不是依赖 `waitFor + fake timers`，避免 hook 内部 `Promise.resolve()` 与定时器组合导致超时
   - 覆盖率提升结果：`frontend/src/hooks/useSessionState.js` 达到 `95.87%` 行覆盖；`WorldsPage.jsx` `86.03%`、`WorldEditPage.jsx` `87.85%`、`CharacterEditPage.jsx` `85.18%`、`PersonaEditPage.jsx` `83.23%`
+
+## T173 — docs: 收紧 ROADMAP 任务模板与测试要求 ✅
+- **对外接口**：无
+- **涉及文件**：
+  - 修改：`ROADMAP.md`
+- **注意**：
+  - 任务模板新增 `测试策略` 段，要求涉及业务逻辑、接口行为、状态流、数据库读写、异步任务、提示词组装顺序的任务默认补自动化测试
+  - `Claude Code 指令` 写法要求改为先读 `SCHEMA.md`、`ARCHITECTURE.md`、`CHANGELOG.md` 与涉及文件，和仓库入口规范对齐
+  - 模板新增 `任务回执要求`，固定要求回执包含修改文件、验证结果、新增或更新的测试、同步文档、锁定文件、残留风险
+  - 使用方法中的失败处理从危险的 `git checkout .` 改为先看 `git status`，仅回滚本任务涉及文件，避免误伤并行未提交改动
