@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { createWorldEntry, updateEntry } from '../../api/prompt-entries';
 
 const POSITION_OPTIONS = [
-  { value: 'post', label: '后置提示词' },
   { value: 'system', label: '系统提示词' },
+  { value: 'post', label: '后置提示词' },
 ];
 
 export default function EntryEditor({ worldId, entry, defaultTriggerType, onClose, onSave }) {
@@ -13,7 +13,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     content: entry?.content ?? '',
     description: entry?.description ?? '',
     keywords: entry?.keywords ? entry.keywords.join(', ') : '',
-    position: entry?.position ?? 'post',
+    position: entry?.position ?? 'system',
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
   });
   const [saving, setSaving] = useState(false);
