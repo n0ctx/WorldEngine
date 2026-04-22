@@ -264,6 +264,8 @@
   min-height: 100vh;
   padding: 40px 32px;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .we-characters-header {

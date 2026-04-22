@@ -18,6 +18,7 @@ const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('./pages/WritingSpacePage'));
 const WorldStatePage = lazy(() => import('./pages/WorldStatePage'));
+const WorldBuildPage = lazy(() => import('./pages/WorldBuildPage'));
 const AssistantPanel = lazy(() => import('../../assistant/client/AssistantPanel.jsx'));
 
 function RouteFallback() {
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/chat" element={<ChatPage />} />
             <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
+            <Route path="/worlds/:worldId/build" element={<WorldBuildPage />} />
             <Route path="/worlds/:worldId/state" element={<WorldStatePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

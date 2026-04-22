@@ -339,31 +339,26 @@ export default function CharactersPage() {
         marginBottom: '16px',
       }}>
         {[
-          { label: '构建', path: null, disabled: true },
+          { label: '构建', path: `/worlds/${worldId}/build` },
           { label: '故事', path: `/worlds/${worldId}` },
           { label: '状态', path: `/worlds/${worldId}/state` },
-        ].map(({ label, path, disabled }) => {
-          const isActive = path !== null && location.pathname === path;
+        ].map(({ label, path }) => {
+          const isActive = location.pathname === path;
           return (
             <button
               key={label}
-              disabled={disabled}
-              onClick={() => path && navigate(path)}
+              onClick={() => navigate(path)}
               style={{
                 padding: '8px 20px',
                 fontFamily: 'var(--we-font-serif)',
                 fontSize: '14px',
-                color: disabled
-                  ? 'var(--we-paper-deep)'
-                  : isActive
-                    ? 'var(--we-paper-base)'
-                    : 'var(--we-paper-shadow)',
+                color: isActive ? 'var(--we-paper-base)' : 'var(--we-paper-shadow)',
                 borderTop: 'none',
                 borderLeft: 'none',
                 borderRight: 'none',
                 borderBottom: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
                 background: 'none',
-                cursor: disabled ? 'not-allowed' : 'pointer',
+                cursor: 'pointer',
               }}
             >
               {label}
