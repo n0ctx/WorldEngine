@@ -5,62 +5,8 @@ import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 import { getAvatarColor } from '../utils/avatar';
-
-function relativeTime(ts) {
-  if (!ts) return '';
-  const diff = Date.now() - ts;
-  const min = Math.floor(diff / 60000);
-  if (min < 1) return '刚刚';
-  if (min < 60) return `${min} 分钟前`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} 小时前`;
-  const d = Math.floor(h / 24);
-  if (d < 30) return `${d} 天前`;
-  const mo = Math.floor(d / 30);
-  if (mo < 12) return `${mo} 个月前`;
-  return `${Math.floor(mo / 12)} 年前`;
-}
-
-function DeleteConfirmModal({ world, onConfirm, onClose }) {
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleDelete() {
-    setDeleting(true);
-    await onConfirm();
-    setDeleting(false);
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div style={{ background: 'var(--we-paper-base)', border: '1px solid var(--we-paper-shadow)' }} className="rounded w-full max-w-sm mx-4 p-6">
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', color: 'var(--we-ink-primary)' }} className="mb-2 italic font-normal">确认删除</h2>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-secondary)' }} className="mb-1">
-          即将删除世界 <span style={{ color: 'var(--we-ink-primary)', fontWeight: 500 }}>「{world.name}」</span>。
-        </p>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }} className="mb-5">
-          此操作将同时删除其下所有角色和会话，且无法恢复。
-        </p>
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)' }}
-            className="px-4 py-2 transition-colors hover:text-[var(--we-ink-primary)]"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', background: 'var(--we-vermilion)', color: 'var(--we-paper-base)', border: 'none', borderRadius: 'var(--we-radius-sm)', padding: '6px 16px' }}
-            className="disabled:opacity-50 cursor-pointer"
-          >
-            {deleting ? '删除中…' : '确认删除'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { relativeTime } from '../utils/time';
+import ConfirmModal from '../components/ui/ConfirmModal';
 
 export default function WorldsPage() {
   const navigate = useNavigate();
@@ -250,8 +196,20 @@ export default function WorldsPage() {
       </button>
 
       {deletingWorld && (
-        <DeleteConfirmModal
-          world={deletingWorld}
+        <ConfirmModal
+          title="确认删除"
+          message={
+            <>
+              <p style={{ marginBottom: '6px' }}>
+                即将删除世界 <span style={{ color: 'var(--we-ink-primary)', fontWeight: 500 }}>「{deletingWorld.name}」</span>。
+              </p>
+              <p style={{ color: 'var(--we-vermilion)', fontSize: '13px' }}>
+                此操作将同时删除其下所有角色和会话，且无法恢复。
+              </p>
+            </>
+          }
+          confirmText="确认删除"
+          danger
           onConfirm={handleDelete}
           onClose={() => setDeletingWorld(null)}
         />
