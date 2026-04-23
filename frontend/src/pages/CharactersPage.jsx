@@ -11,6 +11,7 @@ import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/import-export';
 import { listCharacterStateFields } from '../api/character-state-fields';
 import { getPersona } from '../api/personas';
+import { ConfirmModal } from '../components';
 
 function PersonaCard({ worldId, refreshKey, onEdit }) {
   const [persona, setPersona] = useState(null);
@@ -132,46 +133,6 @@ function AvatarCircle({ character, size = 'md' }) {
   );
 }
 
-function DeleteCharacterModal({ character, onConfirm, onClose }) {
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleDelete() {
-    setDeleting(true);
-    await onConfirm();
-    setDeleting(false);
-  }
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)' }}>
-      <div style={{ background: 'var(--we-paper-base)', border: '1px solid var(--we-paper-shadow)', borderRadius: 'var(--we-radius-md)', width: '100%', maxWidth: 384, margin: '0 16px', padding: 24 }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: 18, fontStyle: 'italic', fontWeight: 400, color: 'var(--we-ink-primary)', margin: '0 0 8px' }}>
-          确认删除
-        </h2>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-secondary)', margin: '0 0 4px' }}>
-          即将删除角色 <span style={{ fontWeight: 500, color: 'var(--we-ink-primary)' }}>「{character.name}」</span>。
-        </p>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-vermilion)', margin: '0 0 20px' }}>
-          此操作将同时删除该角色的所有会话记录，且无法恢复。
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
-          <button
-            onClick={onClose}
-            style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-ink-faded)', background: 'none', border: 'none', padding: '6px 16px', cursor: 'pointer' }}
-          >
-            取消
-          </button>
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, background: 'var(--we-vermilion)', color: 'var(--we-paper-base)', border: 'none', borderRadius: 'var(--we-radius-sm)', padding: '6px 16px', cursor: 'pointer', opacity: deleting ? 0.5 : 1 }}
-          >
-            {deleting ? '删除中…' : '确认删除'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function CharactersPage() {
   const { worldId } = useParams();
@@ -222,10 +183,14 @@ export default function CharactersPage() {
   }, []);
 
   async function handleDelete() {
-    await deleteCharacter(deletingChar.id);
-    setDeletingChar(null);
-    const chars = await getCharactersByWorld(worldId);
-    setCharacters(chars);
+    try {
+      await deleteCharacter(deletingChar.id);
+      setDeletingChar(null);
+      const chars = await getCharactersByWorld(worldId);
+      setCharacters(chars);
+    } catch (err) {
+      alert(`删除失败：${err.message}`);
+    }
   }
 
   async function handleImportCharFile(e) {
@@ -432,8 +397,20 @@ export default function CharactersPage() {
       )}
 
       {deletingChar && (
-        <DeleteCharacterModal
-          character={deletingChar}
+        <ConfirmModal
+          title="确认删除"
+          message={
+            <>
+              <p className="we-confirm-msg-line">
+                即将删除角色 <span className="we-confirm-msg-name">「{deletingChar.name}」</span>。
+              </p>
+              <p className="we-confirm-msg-danger">
+                此操作将同时删除该角色的所有会话记录，且无法恢复。
+              </p>
+            </>
+          }
+          confirmText="确认删除"
+          danger
           onConfirm={handleDelete}
           onClose={() => setDeletingChar(null)}
         />

@@ -1227,3 +1227,54 @@
   font-family: var(--we-font-serif);
   display: inline-block;
 }
+
+/* ── 表单字段级错误提示（就地显示在字段下方） ── */
+
+.we-field-error {
+  color: var(--we-color-status-danger);
+  font-size: var(--we-text-sm);
+  font-family: var(--we-font-serif);
+  margin: 0;
+}
+
+/* ── WritingSpacePage 生成错误提示栏 ── */
+
+.we-writing-error-bar {
+  padding: var(--we-space-xs) var(--we-space-lg);
+  flex-shrink: 0;
+}
+
+.we-writing-error-text {
+  background: var(--we-vermilion-bg);
+  border: 1px solid var(--we-color-status-danger);
+  border-radius: var(--we-radius-sm);
+  padding: 3px var(--we-space-sm);
+  display: inline-block;
+}
+
+/* ── ConfirmModal 消息内容样式 ── */
+
+.we-confirm-msg-line {
+  margin-bottom: var(--we-space-xs);
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-base);
+  color: var(--we-ink-secondary);
+}
+
+.we-confirm-msg-name {
+  font-weight: 500;
+  color: var(--we-ink-primary);
+}
+
+.we-confirm-msg-danger {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-status-danger);
+  margin: 0;
+}
+
+/* ── WorldsPage 错误详情 ── */
+
+.we-worlds-error-detail {
+  margin-top: var(--we-space-xs);
+}

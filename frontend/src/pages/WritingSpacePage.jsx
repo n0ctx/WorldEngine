@@ -53,6 +53,7 @@ export default function WritingSpacePage() {
   const [diaryTick, setDiaryTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const inputBoxRef = useRef(null);
   const stopRef = useRef(null);
@@ -70,6 +71,24 @@ export default function WritingSpacePage() {
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
   // chapterTitles: { [chapterIndex]: { title, is_default } }
   const [chapterTitles, setChapterTitles] = useState({});
+
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  }
+
+  function showTriggerNotifications(notifications) {
+    if (!Array.isArray(notifications) || notifications.length === 0) return;
+    const lines = notifications
+      .map((item) => {
+        const name = item?.name?.trim();
+        const text = item?.text?.trim();
+        if (name && text) return `【${name}】${text}`;
+        return text || name || '';
+      })
+      .filter(Boolean);
+    if (lines.length > 0) showToast(lines.join('；'));
+  }
 
   function clearOptionsState() {
     pendingOptionsRef.current = [];
@@ -228,6 +247,9 @@ export default function WritingSpacePage() {
       },
       onDiaryUpdated() {
         setDiaryTick((tick) => tick + 1);
+      },
+      onTriggerFired(notifications) {
+        showTriggerNotifications(notifications);
       },
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
@@ -420,6 +442,10 @@ export default function WritingSpacePage() {
         if (continuationTokenRef.current !== continuationToken) return;
         setDiaryTick((tick) => tick + 1);
       },
+      onTriggerFired(notifications) {
+        if (continuationTokenRef.current !== continuationToken) return;
+        showTriggerNotifications(notifications);
+      },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
         // 合并续写内容到消息列表后清理
@@ -497,6 +523,17 @@ export default function WritingSpacePage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
+      {toast && (
+        <div
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
+            toast.type === 'error'
+              ? 'bg-red-500 text-white'
+              : 'bg-accent text-white'
+          }`}
+        >
+          {toast.msg}
+        </div>
+      )}
       <WritingPageLeft
         worldId={worldId}
         currentSessionId={currentSession?.id}
@@ -579,18 +616,10 @@ export default function WritingSpacePage() {
 
         {/* 错误提示 */}
         {error && (
-          <div style={{ padding: '6px 16px', flexShrink: 0 }}>
-            <span style={{
-              fontSize: 12, fontFamily: 'var(--we-font-serif)',
-              color: 'var(--we-vermilion)',
-              background: 'var(--we-vermilion-bg)',
-              border: '1px solid var(--we-vermilion)',
-              borderRadius: 'var(--we-radius-sm)',
-              padding: '3px 10px',
-              display: 'inline-block',
-            }}>
+          <div className="we-writing-error-bar">
+            <p className="we-field-error we-writing-error-text">
               生成失败：{error}
-            </span>
+            </p>
           </div>
         )}
 

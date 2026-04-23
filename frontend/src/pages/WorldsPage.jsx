@@ -119,7 +119,7 @@ export default function WorldsPage() {
       ) : loadError ? (
         <div className="we-worlds-empty">
           <p className="we-worlds-empty-text">世界列表读取失败</p>
-          <p className="we-worlds-subtitle" style={{ marginTop: 8 }}>{loadError}</p>
+          <p className="we-worlds-subtitle we-worlds-error-detail">{loadError}</p>
           <button className="we-worlds-empty-btn" onClick={loadWorlds}>
             重试
           </button>
@@ -200,10 +200,10 @@ export default function WorldsPage() {
           title="确认删除"
           message={
             <>
-              <p style={{ marginBottom: '6px' }}>
-                即将删除世界 <span style={{ color: 'var(--we-ink-primary)', fontWeight: 500 }}>「{deletingWorld.name}」</span>。
+              <p className="we-confirm-msg-line">
+                即将删除世界 <span className="we-confirm-msg-name">「{deletingWorld.name}」</span>。
               </p>
-              <p style={{ color: 'var(--we-vermilion)', fontSize: '13px' }}>
+              <p className="we-confirm-msg-danger">
                 此操作将同时删除其下所有角色和会话，且无法恢复。
               </p>
             </>
