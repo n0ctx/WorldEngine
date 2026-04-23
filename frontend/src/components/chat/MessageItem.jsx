@@ -53,46 +53,28 @@ function ThinkBlock({ content, open = false }) {
   const [expanded, setExpanded] = useState(!autoCollapse);
 
   return (
-    <div style={{
-      margin: '0 0 8px',
-      borderLeft: '2px solid var(--we-paper-shadow)',
-      borderRadius: '0 4px 4px 0',
-      overflow: 'hidden',
-    }}>
+    <div className="we-think-block">
       <button
         onClick={() => setExpanded((v) => !v)}
         aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
         aria-expanded={expanded}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          width: '100%',
-          background: 'var(--we-paper-aged)',
-          border: 'none',
-          padding: '4px 10px',
-          cursor: 'pointer',
-          fontFamily: 'var(--we-font-serif)',
-          fontSize: '11px',
-          color: 'var(--we-ink-faded)',
-          fontStyle: 'italic',
-          textAlign: 'left',
-        }}
+        className="we-think-block-toggle"
       >
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
+        >
           <polyline points="9 18 15 12 9 6" />
         </svg>
-        思考过程{open && <span style={{ opacity: 0.4, marginLeft: 4 }}>…</span>}
+        思考过程{open && <span className="we-think-block-dots">…</span>}
       </button>
       {expanded && (
-        <div style={{
-          padding: '8px 12px',
-          fontFamily: 'var(--we-font-serif)',
-          fontSize: '12px',
-          color: 'var(--we-ink-faded)',
-          lineHeight: '1.7',
-          background: 'var(--we-paper-aged)',
-        }}>
+        <div className="we-think-block-body">
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
             {content}
           </ReactMarkdown>
@@ -163,15 +145,15 @@ function AttachmentThumbnail({ src }) {
       <img
         src={url}
         alt="附件"
-        style={{ height: '80px', width: '80px', objectFit: 'cover', borderRadius: '2px', cursor: 'pointer', border: '1px solid var(--we-paper-shadow)' }}
+        className="we-attachment-thumbnail"
         onClick={() => setEnlarged(true)}
       />
       {enlarged && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(42,31,23,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="we-attachment-overlay"
           onClick={() => setEnlarged(false)}
         >
-          <img src={url} alt="附件" style={{ maxWidth: '90vw', maxHeight: '90vh', borderRadius: '2px' }} />
+          <img src={url} alt="附件" className="we-attachment-overlay-img" />
         </div>
       )}
     </>
@@ -217,7 +199,7 @@ function DeleteButton({ onDelete }) {
     <button
       onClick={handleClick}
       aria-label={confirming ? '确认删除消息' : '删除消息'}
-      style={confirming ? { color: 'var(--we-vermilion, #c0392b)' } : undefined}
+      className={confirming ? 'we-delete-btn--confirming' : undefined}
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <polyline points="3 6 5 6 21 6" />
@@ -319,9 +301,9 @@ export default function MessageItem({
         transition={transitions.ink}
         exit={{ opacity: 0, transition: { duration: 0.15 } }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+        <div className="we-message-row-inner">
           <CharacterSeal character={character} size={40} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="we-message-body--assistant">
             <div className="we-message-label">{speakerName}</div>
             <div className="we-message-bubble-assistant">
               <div className="we-message-content we-typing-dots">
@@ -346,8 +328,8 @@ export default function MessageItem({
         transition={transitions.ink}
         exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', justifyContent: 'flex-end' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
+        <div className="we-message-row-inner we-message-row-inner--user">
+          <div className="we-message-body">
             <div className="we-message-label">
               {speakerName}
               {interrupted && <span className="we-message-interrupted">已中断</span>}
@@ -414,9 +396,9 @@ export default function MessageItem({
       transition={transitions.ink}
       exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+      <div className="we-message-row-inner">
         <CharacterSeal character={character} size={40} />
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="we-message-body--assistant">
           <div className="we-message-label">
             {speakerName}
             {interrupted && <span className="we-message-interrupted">已中断</span>}

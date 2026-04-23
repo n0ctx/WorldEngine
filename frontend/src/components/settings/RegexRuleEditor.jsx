@@ -5,7 +5,7 @@ const SCOPE_OPTIONS = [
   { value: 'user_input', label: '用户输入', desc: '发送前处理，影响存库与 LLM' },
   { value: 'ai_output', label: 'AI 输出', desc: '流式完结后处理，影响存库与显示' },
   { value: 'display_only', label: '仅显示', desc: '渲染时处理，不改存库' },
-  { value: 'prompt_only', label: '仅 Prompt', desc: '组装历史消息时处理，仅影响送给 LLM 的副本' },
+  { value: 'prompt_only', label: '仅提示词', desc: '组装历史消息时处理，仅影响送给 LLM 的副本' },
 ];
 
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
@@ -78,13 +78,12 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="we-dialog-panel w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="we-dialog-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="we-dialog-header flex items-center justify-between">
           <h3>{rule ? '编辑规则' : '新建规则'}</h3>
           <button
             onClick={onClose}
-            style={{ fontFamily: 'var(--we-font-serif)', fontSize: '18px', color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer', lineHeight: 1, opacity: 0.6, transition: 'opacity 0.15s' }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.6'}
+            className="we-regex-dialog-close"
+            aria-label="关闭对话框"
           >
             ×
           </button>
@@ -130,8 +129,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         <div>
           <label className="we-dialog-label">正则表达式</label>
           <input
-            className="we-input"
-            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13.5px' }}
+            className="we-input we-regex-field--mono"
             value={form.pattern}
             onChange={(e) => setField('pattern', e.target.value)}
             placeholder="不含 / 分隔符和 flags，如：哈哈"
@@ -142,8 +140,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         <div>
           <label className="we-dialog-label">替换文本</label>
           <input
-            className="we-input"
-            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13.5px' }}
+            className="we-input we-regex-field--mono"
             value={form.replacement}
             onChange={(e) => setField('replacement', e.target.value)}
             placeholder="支持 $1 $2 等回引，留空表示删除匹配部分"
@@ -206,24 +203,23 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         </div>
 
         {/* 测试区 */}
-        <div style={{ border: '1px solid var(--we-paper-shadow)', borderRadius: '2px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.02)' }}>
-          <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.2em', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>测试替换</span>
+        <div className="we-regex-test-box">
+          <span className="we-regex-test-label">测试替换</span>
           <textarea
-            className="we-textarea"
-            style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', minHeight: '64px' }}
+            className="we-textarea we-regex-test-textarea"
             rows={3}
             placeholder="输入样本文本…"
             value={testInput}
             onChange={(e) => setTestInput(e.target.value)}
           />
-          <button onClick={handleTest} className="we-btn we-btn-sm" style={{ alignSelf: 'flex-start' }}>
+          <button onClick={handleTest} className="we-btn we-btn-sm we-regex-test-btn">
             测试
           </button>
           {testError && (
-            <p style={{ fontFamily: 'var(--we-font-mono)', fontSize: '12px', color: 'var(--we-vermilion)' }}>{testError}</p>
+            <p className="we-regex-test-error">{testError}</p>
           )}
           {testOutput !== null && !testError && (
-            <div style={{ fontFamily: 'var(--we-font-mono)', fontSize: '13px', color: 'var(--we-ink-secondary)', background: 'var(--we-paper-aged)', border: '1px solid var(--we-paper-shadow)', padding: '6px 10px', borderRadius: '1px', whiteSpace: 'pre-wrap' }}>
+            <div className="we-regex-test-output">
               {testOutput}
             </div>
           )}

@@ -44,66 +44,27 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     }
   }
 
-  const fieldStyle = {
-    width: '100%',
-    padding: '6px 10px',
-    fontFamily: 'var(--we-font-serif)',
-    fontSize: '13px',
-    background: 'var(--we-paper-base)',
-    border: '1px solid var(--we-paper-shadow)',
-    borderRadius: 'var(--we-radius-sm)',
-    color: 'var(--we-ink-primary)',
-    boxSizing: 'border-box',
-  };
-
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 50,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        paddingTop: '10vh',
-        background: 'rgba(26, 20, 15, 0.18)',
-        backdropFilter: 'blur(1px)',
-      }}
-    >
+    <div className="we-entry-editor-overlay" onClick={onClose}>
       <div
-        className="entry-editor-panel"
+        className="we-entry-editor-panel"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--we-paper-base)',
-          border: '1px solid var(--we-paper-shadow)',
-          borderRadius: 'var(--we-radius-sm)',
-          width: '100%',
-          maxWidth: '520px',
-          padding: '24px',
-          maxHeight: 'calc(80vh - 10vh)',
-          overflowY: 'auto',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--we-paper-shadow) transparent',
-        }}
       >
-        <h3 style={{
-          fontFamily: 'var(--we-font-display)',
-          fontSize: '16px',
-          color: 'var(--we-ink-primary)',
-          fontStyle: 'italic',
-          marginBottom: '16px',
-        }}>
+        <h3 className="we-entry-editor-title">
           {isNew ? '新建条目' : '编辑条目'}
         </h3>
 
         {/* 标题 */}
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>标题</label>
+        <label className="we-entry-editor-label">标题</label>
         <input
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-          style={{ ...fieldStyle, marginBottom: '12px' }}
+          className="we-entry-editor-field we-entry-editor-field-mb"
         />
 
         {/* 内容 */}
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>内容</label>
-        <div style={{ marginBottom: '12px' }}>
+        <label className="we-entry-editor-label">内容</label>
+        <div className="we-entry-editor-content-wrap">
           <MarkdownEditor
             value={form.content}
             onChange={(md) => setForm((f) => ({ ...f, content: md }))}
@@ -115,12 +76,12 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {/* 关键词（仅 keyword 类型） */}
         {form.trigger_type === 'keyword' && (
           <>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>触发关键词（逗号分隔）</label>
+            <label className="we-entry-editor-label">触发关键词（逗号分隔）</label>
             <input
               value={form.keywords}
               onChange={(e) => setForm((f) => ({ ...f, keywords: e.target.value }))}
               placeholder="如：暗影帮, 影堂, 黑市"
-              style={{ ...fieldStyle, marginBottom: '12px' }}
+              className="we-entry-editor-field we-entry-editor-field-mb"
             />
           </>
         )}
@@ -128,22 +89,22 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {/* 触发描述（仅 llm 类型） */}
         {form.trigger_type === 'llm' && (
           <>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>触发条件描述（供 AI 判断）</label>
+            <label className="we-entry-editor-label">触发条件描述（供 AI 判断）</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={2}
-              style={{ ...fieldStyle, resize: 'vertical', marginBottom: '12px' }}
+              className="we-entry-editor-field we-entry-editor-field-mb we-entry-editor-field--resizable"
             />
           </>
         )}
 
         {/* 注入位置 */}
-        <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>注入位置</label>
+        <label className="we-entry-editor-label">注入位置</label>
         <select
           value={form.position}
           onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
-          style={{ ...fieldStyle, marginBottom: '16px' }}
+          className="we-entry-editor-select"
         >
           {POSITION_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -151,27 +112,14 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         </select>
 
         {/* 按钮 */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-          <button
-            onClick={onClose}
-            style={{ fontSize: '13px', color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}
-          >
+        <div className="we-entry-editor-footer">
+          <button onClick={onClose} className="we-entry-editor-cancel">
             取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !form.title.trim()}
-            style={{
-              fontFamily: 'var(--we-font-serif)',
-              fontSize: '13px',
-              background: 'var(--we-vermilion)',
-              color: 'var(--we-paper-base)',
-              border: 'none',
-              borderRadius: 'var(--we-radius-sm)',
-              padding: '6px 16px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.6 : 1,
-            }}
+            className="we-entry-editor-save"
           >
             {saving ? '保存中…' : '保存'}
           </button>

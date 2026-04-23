@@ -45,45 +45,16 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
 
   return (
     <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 6,
-        padding: '8px 10px',
-        cursor: 'pointer',
-        position: 'relative',
-        borderRadius: 'var(--we-radius-sm)',
-        transition: 'background 0.12s',
-        background: isActive ? 'rgba(0,0,0,0.13)' : 'transparent',
-        borderLeft: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
-        userSelect: 'none',
-      }}
+      className={`we-session-item${isActive ? ' we-session-item--active' : ''}`}
       onClick={() => !editing && onSelect(session)}
-      onMouseEnter={(e) => {
-        setHovered(true);
-        if (!isActive) e.currentTarget.style.background = 'rgba(0,0,0,0.06)';
-      }}
-      onMouseLeave={(e) => {
-        setHovered(false);
-        setConfirmDelete(false);
-        if (!isActive) e.currentTarget.style.background = 'transparent';
-      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="we-session-item__content">
         {editing ? (
           <input
             ref={inputRef}
-            style={{
-              width: '100%',
-              fontSize: 13.5,
-              fontFamily: 'var(--we-font-serif)',
-              background: 'var(--we-paper-base)',
-              border: '1px solid var(--we-vermilion)',
-              borderRadius: 3,
-              padding: '2px 6px',
-              color: 'var(--we-ink-primary)',
-              outline: 'none',
-            }}
+            className="we-session-item__edit-input"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -92,67 +63,42 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
           />
         ) : (
           <p
-            style={{
-              fontSize: 13.5,
-              fontFamily: 'var(--we-font-serif)',
-              color: 'var(--we-ink-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.4,
-              margin: 0,
-            }}
+            className="we-session-item__title"
             onDoubleClick={startEdit}
             title={displayTitle}
           >
             {displayTitle}
           </p>
         )}
-        <p style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--we-ink-faded)', marginTop: 2, margin: '2px 0 0' }}>
+        <p className="we-session-item__date">
           {formatDate(session.updated_at)}
         </p>
       </div>
 
       {!editing && hovered && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+        <div className="we-session-item__actions" onClick={(e) => e.stopPropagation()}>
           {confirmDelete ? (
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="we-session-item__confirm-group">
               <button
                 onClick={(e) => { e.stopPropagation(); onDelete(session.id); setConfirmDelete(false); }}
-                style={{
-                  fontSize: 11, padding: '2px 7px', borderRadius: 3,
-                  background: 'var(--we-vermilion)', color: 'var(--we-paper-base)',
-                  border: 'none', cursor: 'pointer',
-                }}
+                className="we-session-item__delete-confirm"
               >
                 删除
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-                style={{
-                  fontSize: 11, padding: '2px 7px', borderRadius: 3,
-                  background: 'var(--we-paper-shadow)', color: 'var(--we-ink-secondary)',
-                  border: 'none', cursor: 'pointer',
-                }}
+                className="we-session-item__cancel-confirm"
               >
                 取消
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div className="we-session-item__btn-group">
               <button
                 onClick={startEdit}
-                style={{
-                  padding: 4,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--we-ink-faded)',
-                  borderRadius: 3,
-                }}
+                className="we-session-item__icon-btn"
                 title="编辑标题"
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
+                aria-label="编辑会话标题"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 20h9" />
@@ -161,13 +107,9 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-                style={{
-                  padding: 4, background: 'none', border: 'none',
-                  cursor: 'pointer', color: 'var(--we-ink-faded)', borderRadius: 3,
-                }}
+                className="we-session-item__icon-btn"
                 title="删除会话"
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
+                aria-label="删除写作会话"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6" />
@@ -236,21 +178,12 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--we-paper-shadow)' }}>
+    <div className="we-session-list-root">
+      <div className="we-session-list-header">
         <button
           onClick={handleCreate}
-          style={{
-            width: '100%', padding: '7px 0',
-            border: '1.5px dashed var(--we-vermilion)',
-            borderRadius: 4, background: 'none', cursor: 'pointer',
-            fontSize: 12, fontFamily: 'var(--we-font-serif)',
-            color: 'var(--we-vermilion)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+          className="we-session-new-btn"
+          aria-label="新建写作会话"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -260,16 +193,12 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+      <div className="we-session-list-body">
         {loading && (
-          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
-            加载中…
-          </p>
+          <p className="we-session-empty">加载中…</p>
         )}
         {!loading && sessions.length === 0 && (
-          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
-            暂无写作记录
-          </p>
+          <p className="we-session-empty">暂无写作记录</p>
         )}
         {sessions.map((session) => (
           <WritingSessionItem
