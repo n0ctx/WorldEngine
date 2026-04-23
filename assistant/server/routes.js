@@ -199,11 +199,9 @@ async function applyProposal(proposal, worldRefId = null) {
   switch (type) {
     case 'world-card': {
       if (operation === 'create') {
-        const safeChanges = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens']);
+        const safeChanges = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
         const newWorld = createWorld({
           name: safeChanges.name || '新世界',
-          system_prompt: safeChanges.system_prompt || '',
-          post_prompt: safeChanges.post_prompt || '',
           temperature: safeChanges.temperature ?? null,
           max_tokens: safeChanges.max_tokens ?? null,
         });
@@ -222,7 +220,7 @@ async function applyProposal(proposal, worldRefId = null) {
       }
       // update
       if (!entityId) throw new Error('world-card 提案缺少 entityId');
-      const safeChanges = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens']);
+      const safeChanges = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateWorld(entityId, safeChanges);
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
@@ -386,7 +384,6 @@ function normalizeProposal(raw, locked = {}) {
       break;
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { includeMode: false });
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
       break;
     case 'persona-card':
@@ -395,7 +392,6 @@ function normalizeProposal(raw, locked = {}) {
       break;
     case 'global-config':
       proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { includeMode: true });
       break;
     case 'css-snippet':
       proposal.changes = normalizeCssSnippetChanges(changes);
@@ -412,11 +408,9 @@ function normalizeProposal(raw, locked = {}) {
 }
 
 function normalizeWorldChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens']);
+  const picked = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
   const normalized = {};
   if ('name' in picked) normalized.name = String(picked.name ?? '');
-  if ('system_prompt' in picked) normalized.system_prompt = String(picked.system_prompt ?? '');
-  if ('post_prompt' in picked) normalized.post_prompt = String(picked.post_prompt ?? '');
   if ('temperature' in picked) normalized.temperature = normalizeNumberOrNull(picked.temperature);
   if ('max_tokens' in picked) normalized.max_tokens = normalizeIntegerOrNull(picked.max_tokens);
   return normalized;

@@ -1,8 +1,9 @@
 export const WORLD_CARD_AGENT = {
   name: 'world_card_agent',
   description:
-    '创建、修改或删除世界卡。管理世界的 name/system_prompt/post_prompt/temperature/max_tokens，' +
-    '以及世界 Prompt 条目（entryOps）和三层状态字段（stateFieldOps：world/persona/character）。' +
+    '创建、修改或删除世界卡。管理世界的 name/temperature/max_tokens，' +
+    '以及世界 Prompt 条目（entryOps，包含 always 常驻条目和触发条目）和三层状态字段（stateFieldOps：world/persona/character）。' +
+    '世界内容（背景、后置提醒）通过 entryOps 的常驻条目管理，不使用 changes.system_prompt。' +
     'update/delete 前必须先调用 preview_card(target="world-card") 获取现有数据，再调用此代理。',
   parameters: {
     type: 'object',
