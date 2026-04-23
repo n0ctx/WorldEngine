@@ -64,7 +64,7 @@
 /backend/routes/                # HTTP 路由，只做参数校验，不含业务逻辑
 /backend/services/              # 业务逻辑层
 /backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
-/backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [3][5][7][11][12][13]
+/backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [2][4][6][9][10]
 /backend/prompts/assembler.js   # 锁定文件：提示词组装顺序
 /backend/utils/constants.js     # 锁定文件：所有硬性数值常量
 /frontend/src/store/index.js    # 锁定文件：全局状态
@@ -148,7 +148,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | `CLAUDE.md` | 根目录唯一入口正文；改入口规范时只改这里，不改 `AGENTS.md` 正文 |
 | `/backend/db/schema.js` | 实际建表文件，结构以 SCHEMA.md 为准；新增表/字段时用 `CREATE TABLE IF NOT EXISTS` 或 `ALTER TABLE IF NOT EXISTS` 追加，不重建已有表 |
 | `/backend/utils/constants.js` | 所有硬性数值常量的唯一来源；新增常量需说明用途和来源 |
-| `/backend/prompts/assembler.js` | 提示词组装顺序硬编码（15 段，[11] 时间线已删，见"提示词组装顺序"速查），顺序不得改变；需修改时明确指出改动的段号 |
+| `/backend/prompts/assembler.js` | 提示词组装顺序硬编码（当前 14 段，见 `ARCHITECTURE.md §4`），顺序不得改变；需修改时明确指出改动的段号 |
 | `/frontend/src/store/index.js` | 全局状态定义 |
 | `server.js` | 入口文件；已含 `import './services/cleanup-registrations.js'` 副作用 import |
 
@@ -183,7 +183,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **提示词组装**
 - 顺序权威来源：`backend/prompts/assembler.js` + `ARCHITECTURE.md §4`
 - 任何段位、注入来源、历史消息策略、写作模式差异的改动，都必须同步更新 `ARCHITECTURE.md`
-- `CLAUDE.md` 不重复维护 15 段运行时细节，避免和实现漂移
+- `CLAUDE.md` 不重复维护 prompt 组装运行时细节，避免和实现漂移
 
 **生成参数覆盖层级**：`世界级 > 全局`，worlds 表字段为 NULL 时回退全局配置
 
@@ -251,7 +251,7 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 异步任务链 → §5，状态系统 → §8，正则替换管线 → §9
 - 写作空间 → §11，副作用清理钩子 → §10
 
-**上下文截断优先级**（绝不截断 → 最后截断）：`[1-4] System` > `[6] 状态与记忆` > `[8] 当前消息` > `[5] Prompt条目` > `[7] 历史消息`
+**上下文截断优先级**（绝不截断 → 最后截断）：`[1-12] System` > `[14] 当前消息` > `[13] 历史消息`
 
 **图片附件**：base64 随消息发送（不单独上传接口），后端解码存 `/data/uploads/attachments/`，路径写入 `messages.attachments`（JSON 字符串）。单条最多 3 张、单张不超过 5MB，前端校验。
 

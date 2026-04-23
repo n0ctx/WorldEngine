@@ -2,7 +2,7 @@
  * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
  *
  * 组装顺序（硬编码，不得调整）：
- *   [system 消息，[1]–[13] 合并为单个 role:system]
+ *   [system 消息，[1]–[12] 合并为单个 role:system]
  *   [1]  全局 System Prompt
  *   [2]  世界状态
  *   [3]  玩家 System Prompt（均为空则跳过）
@@ -10,14 +10,14 @@
  *   [5]  角色 System Prompt
  *   [6]  角色状态
  *   [7]  世界 State 条目（description 仅供 preflight；命中→content 注入）
- *   [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
- *   [13] 展开原文（AI preflight 决策后的 turn record 原文）
+ *   [8]  触发器 inject_prompt（consumed 模式递减 rounds_remaining）
+ *   [9]  召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+ *   [10] 展开原文（AI preflight 决策后的 turn record 原文）
+ *   [11] 日记注入（一次性，仅本轮生效）
+ *   [12] 后置提示词（全局→角色 + world post 条目，均空跳过）
  *   [历史消息：role:user/assistant 交替]
- *   [14] 历史消息（稳定使用原始 messages 窗口）
- *   [尾部 user 消息]
- *   [15] 后置提示词（全局→角色 + world post 条目，均空跳过）
- *   [16] 当前用户消息
- *   [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
+ *   [13] 历史消息（稳定使用原始 messages 窗口）
+ *   [14] 当前用户消息（唯一的尾部 user 消息）
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -160,7 +160,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const config = getConfig();
   const systemParts = [];
 
-  // [4] 玩家 System Prompt（均为空则跳过）
+  // [3] 玩家 System Prompt（均为空则跳过）
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
@@ -185,23 +185,23 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(tv(lines.join('\n')));
   }
 
-  // [5] 玩家状态
+  // [4] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) systemParts.push(tv(personaStateText));
 
-  // [6] 角色 System Prompt
+  // [5] 角色 System Prompt
   if (character.system_prompt) {
     systemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
-  // [7] 角色状态
+  // [6] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) systemParts.push(tv(characterStateText));
 
-  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回）
+  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries);
-  log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
+  log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
   const systemEntryTexts = [];
   const postEntryTexts = [];
@@ -223,15 +223,32 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(systemEntryTexts.join('\n\n'));
   }
 
-  // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [8] 触发器 inject_prompt 注入（consumed 模式递减 rounds_remaining）
+  const injectActions = getActiveInjectPromptActions(world.id);
+  const injectTexts = [];
+  for (const action of injectActions) {
+    const p = action.params || {};
+    if (p.text) {
+      injectTexts.push(`[触发注入]\n${p.text}`);
+      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
+        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
+      }
+    }
+  }
+  if (injectTexts.length > 0) {
+    systemParts.push(injectTexts.join('\n\n'));
+    log.debug(`│  [8] inject  count=${injectTexts.length}`);
+  }
+
+  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [12] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [13] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   let expandedText = '';
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
@@ -247,7 +264,7 @@ export async function buildPrompt(sessionId, options = {}) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         systemParts.push(tv(expandedText));
-        log.debug(`│  [13] expand  ids=${expandIds.length}`);
+        log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -255,10 +272,24 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
-  // [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
+  // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     systemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [diary] injection applied');
+    log.debug('│  [11] diary injection applied');
+  }
+
+  // [12] 后置提示词 → 注入 system 末尾
+  const postParts = [
+    config.global_post_prompt,
+    character.post_prompt,
+  ].filter(Boolean).map(tv);
+
+  if (postEntryTexts.length > 0) {
+    postParts.push(postEntryTexts.join('\n\n'));
+  }
+
+  if (postParts.length > 0) {
+    systemParts.push(postParts.join('\n\n'));
   }
 
   const messages = [];
@@ -267,43 +298,16 @@ export async function buildPrompt(sessionId, options = {}) {
   const systemContent = systemParts.filter(Boolean).join('\n\n');
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息：稳定使用原始消息窗口。
+  // [13] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
   for (const msg of history) {
     const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
-  log.debug(`│  [14] history  raw_messages=${history.length}`);
+  log.debug(`│  [13] history  raw_messages=${history.length}`);
 
-  // [15] 后置提示词（全局→世界→角色，合并为单条 role:user 消息）
-  const postParts = [
-    config.global_post_prompt,
-    character.post_prompt,
-  ].filter(Boolean).map(tv);
-
-  // post 位置的 prompt 条目
-  if (postEntryTexts.length > 0) {
-    postParts.push(postEntryTexts.join('\n\n'));
-  }
-
-  // inject_prompt 动作注入（consumed 模式递减 rounds_remaining）
-  const injectActions = getActiveInjectPromptActions(world.id);
-  for (const action of injectActions) {
-    const p = action.params || {};
-    if (p.text) {
-      postParts.push(`[触发注入]\n${p.text}`);
-      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
-      }
-    }
-  }
-
-  if (postParts.length > 0) {
-    messages.push({ role: 'user', content: postParts.join('\n\n') });
-  }
-
-  // [16] 当前用户消息（最新 1 条 user）
+  // [14] 当前用户消息（最新 1 条 user）
   // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
@@ -321,8 +325,8 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 /**
- * 写作空间版本：支持多个激活角色，[12-13] 向量召回与记忆展开同 buildPrompt。
- * 组装顺序与 buildPrompt 对齐，但 [6-10] 针对所有激活角色展开。
+ * 写作空间版本：支持多个激活角色，[9-10] 向量召回与记忆展开同 buildPrompt。
+ * 组装顺序与 buildPrompt 对齐，但 [5-6] 针对所有激活角色展开。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -345,12 +349,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const sid = sessionId.slice(0, 8);
   const t0 = Date.now();
 
-  // [4] 玩家 System Prompt
+  // [3] 玩家 System Prompt
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
 
-  // [6-7] 激活角色 System Prompt + 角色状态（每个角色一段）
+  // [5-6] 激活角色 System Prompt + 角色状态（每个角色一段）
   const charNames = activeCharacters.map((c) => c.name).join(', ');
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
@@ -382,7 +386,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     systemParts.push(tv(lines.join('\n')));
   }
 
-  // [5] 玩家状态
+  // [4] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) systemParts.push(tv(personaStateText));
 
@@ -394,7 +398,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (charStateText) systemParts.push(tvChar(charStateText, character));
   }
 
-  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回）
+  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries);
   const systemEntryTexts = [];
@@ -414,15 +418,32 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
   if (systemEntryTexts.length > 0) systemParts.push(systemEntryTexts.join('\n\n'));
 
-  // [12] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [8] 触发器 inject_prompt 注入（consumed 模式递减 rounds_remaining）
+  const injectActions = getActiveInjectPromptActions(world.id);
+  const injectTexts = [];
+  for (const action of injectActions) {
+    const p = action.params || {};
+    if (p.text) {
+      injectTexts.push(`[触发注入]\n${p.text}`);
+      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
+        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
+      }
+    }
+  }
+  if (injectTexts.length > 0) {
+    systemParts.push(injectTexts.join('\n\n'));
+    log.debug(`│  [8] inject  count=${injectTexts.length}`);
+  }
+
+  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [12] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [13] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   if (recallHitCount > 0 && writing.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
       ref: r.ref,
@@ -437,7 +458,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         systemParts.push(tv(expandedText));
-        log.debug(`│  [13] expand  ids=${expandIds.length}`);
+        log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -445,17 +466,28 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
+  // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     systemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [diary] injection applied (writing)');
+    log.debug('│  [11] diary injection applied (writing)');
+  }
+
+  // [12] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词）
+  const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+
+  if (postEntryTexts.length > 0) {
+    postParts.push(postEntryTexts.join('\n\n'));
+  }
+
+  if (postParts.length > 0) {
+    systemParts.push(postParts.join('\n\n'));
   }
 
   const messages = [];
   const systemContent = systemParts.filter(Boolean).join('\n\n');
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
+  // [13] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(
     uncompressedMessages,
@@ -466,31 +498,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [15] 后置提示词（全局写作后置→世界，写作模式无角色后置提示词）
-  const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
-
-  // post 位置的 prompt 条目
-  if (postEntryTexts.length > 0) {
-    postParts.push(postEntryTexts.join('\n\n'));
-  }
-
-  // inject_prompt 动作注入（consumed 模式递减 rounds_remaining）
-  const injectActions = getActiveInjectPromptActions(world.id);
-  for (const action of injectActions) {
-    const p = action.params || {};
-    if (p.text) {
-      postParts.push(`[触发注入]\n${p.text}`);
-      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
-      }
-    }
-  }
-
-  if (postParts.length > 0) {
-    messages.push({ role: 'user', content: postParts.join('\n\n') });
-  }
-
-  // [16] 当前用户消息
+  // [14] 当前用户消息
   // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {

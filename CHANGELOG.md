@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T223 — refactor: trigger inject_prompt 提前到 [8] 并重排提示词段号 ✅
+- **对外接口**：`buildPrompt` / `buildWritingPrompt` 的 messages 结构仍为 `system + 历史消息 + 当前用户消息`；`inject_prompt` 从后置提示词移出，固定在 [8] system 段注入，`consumed` 模式仍递减 `rounds_remaining`。
+- **涉及文件**：`backend/prompts/assembler.js`、`backend/tests/prompts/assembler.test.js`、`ARCHITECTURE.md`、`CLAUDE.md`
+- **注意**：当前权威顺序为 14 段：[1]–[12] 合并为单条 system，[13] 历史消息，[14] 当前用户消息；后置提示词 [12] 不再包含 `inject_prompt`。
+
+## T222 — fix: 后置提示词改为注入 system，修复 Gemini 连续 user 消息错位 ✅
+- **根本原因**：`assembler.js` 的 [15] 后置提示词原以独立 `role:user` 消息注入，与 [16] 当前用户消息形成连续两条 user 消息；Gemini API 要求严格 user/model 交替，导致消息错位（第 1 轮的输入到第 3 轮才得到回应）。
+- **变更**：`buildPrompt` 和 `buildWritingPrompt` 中将 postParts（`global_post_prompt` + `character.post_prompt` + post 位置 State 条目 + `inject_prompt`）统一 push 进 `systemParts`，在 diary 注入之后、systemContent 合并之前完成，final messages 中不再出现 [15] user 消息。
+- **涉及文件**：`backend/prompts/assembler.js`、`ARCHITECTURE.md`
+- **验证**：重启后端，发起对话，AI 应即时回应当轮用户输入，不再出现 1-2 轮错位。
+
 ## T221 — chore: 前端 ESLint warning 清零 ✅
 - **变更**：一次性清理剩余 43 个视觉 inline style warning；覆盖 `App.jsx`、书页基础组件、纹理/印章动画、状态折叠区、聊天消息列表/选项卡/侧栏、设置页模型/提示词配置、`ChatPage.jsx` 与 `WorldsPage.jsx`。动态头像色、印章尺寸、纹理图片、状态条进度等改为 CSS custom property 承载，视觉规则落在 CSS class。
 - **验证**：`npm --prefix frontend run lint` 通过（0 errors / 0 warnings）；`npm --prefix frontend run build` 通过；`git diff --check` 通过。
@@ -103,7 +114,7 @@
 ## v2 Phase 1 — State 引擎触发器系统 ✅
 - **对外接口**：`GET/POST /api/worlds/:worldId/triggers`、`PUT/DELETE /api/triggers/:id`；assembler.js 新增 systemEntryTexts/postEntryTexts 分流 + inject_prompt 注入；chat.js/writing.js priority-2 新增 trigger-eval 任务，SSE 事件 `trigger_fired`
 - **涉及文件**：`backend/db/schema.js`（triggers/trigger_conditions/trigger_actions 三表 + world_prompt_entries 新增 position/trigger_type）、`backend/db/queries/triggers.js`（新建）、`backend/db/queries/prompt-entries.js`（支持 position/trigger_type）、`backend/services/trigger-evaluator.js`（新建）、`backend/routes/triggers.js`（新建）、`backend/prompts/entry-matcher.js`（trigger_type 分流）、`backend/prompts/assembler.js`（position 分流 + inject_prompt 注入）、`backend/routes/chat.js`、`backend/routes/writing.js`、`frontend/src/api/triggers.js`（新建）、`frontend/src/App.jsx`（/state 路由）、`frontend/src/pages/CharactersPage.jsx`（三标签导航）、`frontend/src/pages/WorldStatePage.jsx`（新建）、`frontend/src/components/state/`（EntrySection/EntryEditor/TriggerCard/TriggerEditor，全部新建）、`SCHEMA.md`（三表文档）
-- **注意**：① `activate_entry` 动作的实现是把 prompt_entries 的 trigger_type 改为 `always`（irreversible，spec 约定"持续生效直到用户手动关闭"）；② trigger-eval 是 priority-2 同步操作，在 async-queue.js 的严格 FIFO 串行保证下，所有状态更新之后、turn-record 入队之前执行，无竞态；③ inject_prompt 的 position 目前固定为 post（消息列表倒数第二位），spec §六 遗留问题已在实现中决策；④ trigger_type 旧数据无字段时默认视为 `always`；⑤ 后端测试框架为 node:test（非 vitest），任何新测试必须用 `describe/test + assert` 而非 `it/expect`
+- **注意**：① `activate_entry` 动作的实现是把 prompt_entries 的 trigger_type 改为 `always`（irreversible，spec 约定"持续生效直到用户手动关闭"）；② trigger-eval 是 priority-2 同步操作，在 async-queue.js 的严格 FIFO 串行保证下，所有状态更新之后、turn-record 入队之前执行，无竞态；③ `inject_prompt` 最初固定为 post 位置，已在 T223 改为 [8] system 段注入；④ trigger_type 旧数据无字段时默认视为 `always`；⑤ 后端测试框架为 node:test（非 vitest），任何新测试必须用 `describe/test + assert` 而非 `it/expect`
 
 ## ROADMAP v2 Phase 3-10 任务拆解 ✅
 - **对外接口**：无运行时变更；仅 ROADMAP.md 文档写入

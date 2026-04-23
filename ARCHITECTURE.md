@@ -136,7 +136,7 @@ POST /api/sessions/:sessionId/chat
   ├─ buildContext(sessionId, { onRecallEvent })
   │    └─ buildPrompt(sessionId, { onRecallEvent })
   │         ├─ 查询 session / world / character / config / persona
-  │         ├─ 组装 [1]–[16] 段（见 §4）
+  │         ├─ 组装 [1]–[14] 段（见 §4）
   │         ├─ searchRecalledSummaries() → 向量召回（turn_summaries.json，双阈值）
   │         ├─ onRecallEvent('memory_recall_done', { hit }) → 推送 SSE
   │         ├─ [若命中且 memory_expansion_enabled] decideExpansion()
@@ -165,7 +165,7 @@ POST /api/sessions/:sessionId/chat
 
 `assembler.js` 只负责拼装顺序与运行时数据；固定后端模板（如 suggestion prompt）统一存放在 `backend/prompts/templates/` 的分组目录下，通过 `prompt-loader.js` 读取。
 
-15 段顺序（[11] 世界时间线已移除），[1]–[13] 合并为单条 `role:system`，[14] 为多条 `role:user/assistant`，[15]–[16] 为尾部 `role:user`：
+14 段顺序（[11] 世界时间线已移除后重排），[1]–[12] 合并为单条 `role:system`，[13] 为多条 `role:user/assistant`，[14] 为尾部 `role:user`：
 
 | 段 | 来源 | 跳过条件 |
 |---|---|---|
@@ -176,12 +176,13 @@ POST /api/sessions/:sessionId/chat
 | [5] | `[\{\{char\}\}人设]\n${character.system_prompt}` | 空跳过 |
 | [6] | `renderCharacterState(character.id)` | 空跳过 |
 | [7] | 世界 State 条目（仅 `world_prompt_entries`；`description` 仅供 preflight；命中后按 `position` 注入 `entry.content`） | 无条目时跳过 |
-| [12] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
-| [13] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
-| [13+] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
-| [14] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [16] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| [15] | 后置提示词（`global_post_prompt` → `character.post_prompt` → `world_prompt_entries(position='post')` → `inject_prompt`），合并为单条 `role:user` | 均空跳过 |
-| [16] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
+| [8] | 触发器 `inject_prompt`：`getActiveInjectPromptActions(world.id)`；`consumed` 模式递减 `rounds_remaining` | 无有效注入文本时跳过 |
+| [9] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
+| [10] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
+| [11] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
+| [12] | 后置提示词（`global_post_prompt` → `character.post_prompt` → `world_prompt_entries(position='post')`），**注入 system 末尾**（原为 role:user，改后避免与当前用户消息形成连续 user 消息） | 均空跳过 |
+| [13] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [14] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
+| [14] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -194,10 +195,10 @@ POST /api/sessions/:sessionId/chat
 | [5] | 无单一角色；从 `writing_session_characters` 获取激活角色列表；每个角色格式：`[{{char}}人设]\n${system_prompt}`，并用该角色名字替换 `{{char}}` |
 | [6] | 循环所有激活角色调用 `renderCharacterState`，并以各自角色名替换 `{{char}}` |
 | [7] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
-| [12-13] | 同 buildPrompt；[13] 受 `writing.memory_expansion_enabled` 控制 |
-| [14] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| [15] | 无角色后置提示词（只有 `writing.global_post_prompt` + `world_prompt_entries(position='post')` + `inject_prompt`） |
-| [16] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT` |
+| [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
+| [13] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
+| [12] | 无角色后置提示词（只有 `writing.global_post_prompt` + `world_prompt_entries(position='post')`）；同 buildPrompt，**注入 system 末尾** |
+| [14] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT` |
 | 返回值 | 含 `recallHitCount` |
 
 ---
@@ -228,7 +229,7 @@ createTurnRecord(sessionId, { isUpdate? })
   └─ 异步 embed summary → upsertEntry 到 turn_summaries.json
 ```
 
-原文展开（[13]）时，通过 `user_message_id`/`asst_message_id` 查 `messages` 表取实时内容；
+原文展开（[10]）时，通过 `user_message_id`/`asst_message_id` 查 `messages` 表取实时内容；
 旧记录（ID 为 NULL）回退到 `user_context`/`asst_context` 字段（兼容存量数据）。
 
 写作模式差异：
@@ -290,13 +291,13 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `searchRecalledSummaries(worldId, sessionId)` → Promise<{recalled, recentMessagesText}> | — | 向量搜索；recalled 数组含 `{ref, turn_record_id, session_id, session_title, round_index, created_at, content, score, is_same_session}` |
 | `renderRecalledSummaries(recalled)` → string | `[历史记忆召回]` | 格式：`#ref（turn_record_id）【date · title · 第N轮】content` |
 
-**组装位置**：[3] 世界状态、[5] 玩家状态、[7] 角色状态各自独立注入；[12] 召回摘要；[13] 展开原文（见 §4）。
+**组装位置**：[2] 世界状态、[4] 玩家状态、[6] 角色状态各自独立注入；[9] 召回摘要；[10] 展开原文（见 §4）。
 
 **向量搜索行为（T49 新，T135 改）**：
 - 查询向量 = 最后一条 user 消息 + 最后一条 assistant 消息拼接嵌入
 - topK = `MEMORY_RECALL_MAX_SESSIONS`（3）
 - **双阈值**：同 session（`is_same_session = true`）使用 `MEMORY_RECALL_SAME_SESSION_THRESHOLD`（0.72）；跨 session 使用 `MEMORY_RECALL_SIMILARITY_THRESHOLD`（0.84）
-- **上下文排除（T135）**：命中的 turn_record_id 若在当前 session 最近 `context_history_rounds` 轮内，直接跳过（避免与 [14] 三重注入导致输出锚定）
+- **上下文排除（T135）**：命中的 turn_record_id 若在当前 session 最近 `context_history_rounds` 轮内，直接跳过（避免与 [13] 历史消息重复注入导致输出锚定）
 - token 预算软截断（`MEMORY_RECALL_MAX_TOKENS` = 2048），超额时 break
 - embedding 未配置时静默降级，返回 `{ recalled: [], recentMessagesText }`
 
@@ -384,7 +385,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `user_input` | 前端发送前 | 是 | 是 | 是 |
 | `ai_output` | 后端流结束后、写 messages 前 | 是 | 是 | 是 |
 | `display_only` | 前端渲染时 | 否 | 是 | 否 |
-| `prompt_only` | assembler.js [14] 历史消息处理时 | 否 | 否 | 是 |
+| `prompt_only` | assembler.js [13] 历史消息处理时 | 否 | 否 | 是 |
 
 **执行顺序**：同 scope 内按 `sort_order ASC` 链式套用，前一条输出作为后一条输入。
 
@@ -406,9 +407,9 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **大小写不敏感**：`{{User}}`、`{{CHAR}}` 等均有效。
 
-**应用范围**：[1]–[13] 所有 systemParts 注入点 + [15] 后置提示词。**不替换** [14] 历史消息和 [16] 当前用户消息（对话内容非配置模板）。
+**应用范围**：[1]–[12] 所有 systemParts 注入点。**不替换** [13] 历史消息和 [14] 当前用户消息（对话内容非配置模板）。
 
-**写作模式多角色**：共享段（[1]-[5][15] 及全局/世界 entries）以首个激活角色名作为 `{{char}}` fallback；[6-7] 与角色级 entries 各自使用所属角色名。
+**写作模式多角色**：共享段（[1]-[4][7][8][9][10][11][12]）以首个激活角色名作为 `{{char}}` fallback；[5-6] 各自使用所属角色名。
 
 **实现**：`backend/utils/template-vars.js` → `applyTemplateVars(text, ctx)`；assembler.js 内以闭包 `const tv = t => applyTemplateVars(t, ctx)` 调用。
 
