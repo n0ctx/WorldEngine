@@ -114,7 +114,6 @@ skill 执行失败时发送。
   "operation": "create|update|delete",
   "entityId": "characterId 或 worldId 或 null",
   "changes": {},
-  "entryOps": [],
   "stateFieldOps": [],
   "explanation": "..."
 }
@@ -140,7 +139,6 @@ skill 执行失败时发送。
   "type": "global-config",
   "operation": "update",
   "changes": {},
-  "entryOps": [],
   "explanation": "..."
 }
 ```
@@ -178,6 +176,8 @@ skill 执行失败时发送。
 | `css_snippet_skill` | create 仅 |
 | `regex_rule_skill` | create 仅 |
 
+**entryOps 支持说明**：仅 `world_card_skill` 支持 `entryOps`；`character_card_skill` 和 `global_prompt_skill` 不支持（提案中的 `entryOps` 字段将被忽略）。
+
 ## 4. `changes` 准确格式
 
 ### `world-card.changes`
@@ -185,12 +185,12 @@ skill 执行失败时发送。
 ```json
 {
   "name": "世界名",
-  "system_prompt": "完整文本",
-  "post_prompt": "完整文本",
   "temperature": 0.8,
   "max_tokens": 1200
 }
 ```
+
+世界内容（背景、后置提醒）通过 `entryOps` 的常驻条目（`trigger_type:"always"`）管理，`changes` 中禁止出现 `system_prompt` / `post_prompt`。
 
 ### `character-card.changes`
 
@@ -292,6 +292,29 @@ skill 执行失败时发送。
 `description`（触发条件）：1-2 句话描述**何时**触发，为空则降级为纯关键词触发。
 
 `keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
+
+**`trigger_type` 字段（world-card entryOps 必填）**：
+- `"always"` — 常驻条目，每轮必注入（世界背景、格式提醒）
+- `"keyword"` — 关键词命中时注入（默认值）
+- `"llm"` — 向量相似度召回时注入
+
+**`position` 字段（world-card entryOps 可选）**：
+- `"system"` — 注入 system 段（[7] 位置，默认值）
+- `"post"` — 注入 system 末尾（[12] 位置，与后置提示词合并）
+
+world-card 常驻条目 create 格式：
+```json
+{
+  "op": "create",
+  "title": "世界背景",
+  "description": "",
+  "content": "完整内容",
+  "keywords": [],
+  "keyword_scope": "user,assistant",
+  "trigger_type": "always",
+  "position": "system"
+}
+```
 
 ## 6. `stateFieldOps`
 
