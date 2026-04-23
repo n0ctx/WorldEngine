@@ -6,7 +6,7 @@
 
 检查 task 中是否已包含当前角色数据（由主代理预研提供）：
 
-- **task 已含当前数据**（如现有 system_prompt、条目列表等）：直接进入生成阶段
+- **task 已含当前数据**（如现有 system_prompt、状态字段列表等）：直接进入生成阶段
 - **task 未含数据，且操作为 update 或 delete**：调用 `preview_card` 补充：
   - `target`: `"character-card"`
   - `operation`: 任务中指定的操作
@@ -28,7 +28,6 @@
 - `system_prompt`
 - `post_prompt`
 - `first_message`
-- 角色 Prompt 条目 `entryOps`
 - `stateFieldOps`
   - `target: "character"`：NPC/角色状态
   - `target: "persona"`：玩家状态
@@ -49,14 +48,14 @@
 | 性格、说话方式、价值观、静态背景、初始关系 | `changes.system_prompt` |
 | 每轮输出提醒，如第一人称、语气、格式要求 | `changes.post_prompt` |
 | 开场白 | `changes.first_message` |
-| 隐藏往事、技能细则、只在特定话题出现的记忆 | `entryOps` |
+| 隐藏往事、技能细则、只在特定话题出现的记忆 | 并入 `system_prompt`（简短）或作为 world 条目（通过 world_card_agent 添加） |
 | 血量、状态、好感度、背包、关系进展 | `stateFieldOps` |
 
 ### 绝对不要这样做
 
 - 不要把动态状态写进 `system_prompt`
-- 不要把"每轮都必须知道"的角色核心人格写进 `entryOps`
 - 不要创建 `target:"world"` 的状态字段
+- 不要在提案中输出 `entryOps`（character-card 不支持此字段）
 
 ---
 
@@ -65,7 +64,7 @@
 结合 WorldEngine 架构与社区常见角色卡经验：
 
 - `system_prompt` 只写角色的**常驻人格内核**，不是流水账设定。
-- 角色秘密、创伤、技能细节、特殊记忆优先做成 `entryOps`，避免主卡过肥。
+- 角色秘密、创伤、技能细节较长时，并入 `system_prompt` 末尾或通过 world_card_agent 添加世界条目。
 - 开场白要像"第一次登场"，而不是空泛打招呼。
 - 动态量必须进 `stateFieldOps`，尤其是好感度、伤势、装备、任务状态。
 - 角色卡要与上层世界设定兼容，不要重复世界规则。
@@ -82,28 +81,6 @@
 - `system_prompt`
 - `post_prompt`
 - `first_message`
-
-### `entryOps`
-
-格式：
-
-```json
-{ "op": "create", "title": "条目标题", "description": "触发条件（1-2句话）", "content": "完整内容", "keywords": ["关键词"], "keyword_scope": "user,assistant" }
-```
-
-```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"] }
-```
-
-```json
-{ "op": "delete", "id": "现有条目ID" }
-```
-
-`description`（触发条件）写法：1-2 句话描述**何时**触发，而非描述内容本身。
-- 正确：`"玩家主动追问角色旧伤或过去经历时"`
-- 错误：`"角色的旧伤记忆详细描述"`
-
-`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认，两者都匹配）。
 
 ### `stateFieldOps`
 
@@ -151,7 +128,6 @@
     "first_message": "开场白",
     "post_prompt": "后置提示词"
   },
-  "entryOps": [],
   "stateFieldOps": [],
   "explanation": "简体中文，50字以内"
 }
@@ -161,7 +137,7 @@
 
 - create 模式下 `entityId` 填所属世界 ID（由主代理从上下文传入，不得填 null）
 - update/delete 模式下 `entityId` 保留给定角色 ID
-- `entryOps` / `stateFieldOps` 无变更时输出 `[]`
+- `stateFieldOps` 无变更时输出 `[]`
 - `explanation` 必填
 - 不要输出 `world-card` 或 `persona-card` 的字段
 
@@ -176,7 +152,8 @@
 
 ### 正例 2：补隐藏过去
 
-- 用 `entryOps.create` 增加"旧军团经历""失败实验事故"之类条目
+- 简短的隐藏过去：并入 `changes.system_prompt` 末尾
+- 较长的历史事件、秘密档案：通过 `world_card_agent` 添加 keyword 类型世界条目
 
 ### 正例 3：补动态字段
 
