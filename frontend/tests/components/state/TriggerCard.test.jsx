@@ -76,4 +76,11 @@ describe('TriggerCard', () => {
     await waitFor(() => expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('删除失败')));
     expect(onDelete).not.toHaveBeenCalled();
   });
+
+  it('默认状态快照', () => {
+    const { container } = render(
+      <TriggerCard trigger={baseTrigger} onEdit={onEdit} onDelete={onDelete} onToggle={onToggle} />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
 });

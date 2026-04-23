@@ -134,4 +134,19 @@ describe('EntrySection', () => {
     await waitFor(() => expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('删除失败')));
     expect(onRefresh).not.toHaveBeenCalled();
   });
+
+  it('默认状态快照', () => {
+    const { container } = render(
+      <EntrySection
+        title="常驻条目"
+        icon="📌"
+        desc="始终注入"
+        triggerType="always"
+        entries={baseEntries}
+        worldId="world-1"
+        onRefresh={onRefresh}
+      />
+    );
+    expect(container.firstChild).toMatchSnapshot();
+  });
 });

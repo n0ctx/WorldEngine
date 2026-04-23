@@ -260,6 +260,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                 onClick={() => enumRef.current?.focus()}
                 role="group"
                 aria-label="枚举选项标签输入区"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.currentTarget.querySelector('input')?.focus();
+                  }
+                }}
               >
                 {form.enum_options.map((v) => (
                   <span key={v} className="we-tag">
@@ -291,6 +297,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                 onClick={() => listDefRef.current?.focus()}
                 role="group"
                 aria-label="列表默认条目标签输入区"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.currentTarget.querySelector('input')?.focus();
+                  }
+                }}
               >
                 {form.list_defaults.map((v) => (
                   <span key={v} className="we-tag">
@@ -370,6 +382,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                 onClick={() => kwRef.current?.focus()}
                 role="group"
                 aria-label="触发关键词标签输入区"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.currentTarget.querySelector('input')?.focus();
+                  }
+                }}
               >
                 {form.trigger_keywords.map((kw) => (
                   <span key={kw} className="we-tag">

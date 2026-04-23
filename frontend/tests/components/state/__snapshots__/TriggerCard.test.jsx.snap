@@ -1,0 +1,59 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`TriggerCard > 默认状态快照 1`] = `
+<div
+  style="background: var(--we-paper-base); border: 1px solid var(--we-paper-shadow); border-radius: var(--we-radius-sm); padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px;"
+>
+  <button
+    style="width: 32px; height: 18px; border-radius: 9px; background: var(--we-vermilion); cursor: pointer; flex-shrink: 0; margin-top: 2px; position: relative; transition: background 0.2s; padding: 0px;"
+    title="点击禁用"
+  >
+    <span
+      style="position: absolute; top: 2px; left: 16px; width: 14px; height: 14px; border-radius: 50%; background: var(--we-paper-base); transition: left 0.2s; display: block;"
+    />
+  </button>
+  <div
+    style="flex: 1 1 0%; min-width: 0;"
+  >
+    <div
+      style="font-family: var(--we-font-serif); font-size: 14px; color: var(--we-ink-primary); font-weight: 500; margin-bottom: 4px;"
+    >
+      测试触发器
+    </div>
+    <div
+      style="font-size: 12px; color: var(--we-ink-secondary); margin-bottom: 2px;"
+    >
+      当 
+      hp &lt; 50
+    </div>
+    <div
+      style="font-size: 12px; color: var(--we-ink-secondary); margin-bottom: 4px;"
+    >
+      则 
+      通知：血量低
+    </div>
+    <div
+      style="font-size: 11px; color: var(--we-ink-faded);"
+    >
+      可重复触发
+       ·
+       
+      从未触发
+    </div>
+  </div>
+  <div
+    style="display: flex; gap: 8px; flex-shrink: 0;"
+  >
+    <button
+      style="font-size: 12px; color: var(--we-ink-secondary); background: none; cursor: pointer; font-family: var(--we-font-serif);"
+    >
+      编辑
+    </button>
+    <button
+      style="font-size: 12px; color: var(--we-vermilion); background: none; cursor: pointer; font-family: var(--we-font-serif);"
+    >
+      删除
+    </button>
+  </div>
+</div>
+`;

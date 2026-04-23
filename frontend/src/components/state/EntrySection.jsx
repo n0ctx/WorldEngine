@@ -13,6 +13,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
       setConfirmingDeleteEntry(null);
       onRefresh();
     } catch (e) {
+      // TODO: showToast 为页级函数，此处暂用 alert；待全局 toast 服务建立后替换
       alert('删除失败：' + (e?.message || '未知错误'));
     }
   }

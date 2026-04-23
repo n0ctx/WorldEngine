@@ -77,6 +77,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       setConfirmingDeleteRule(null);
       await refresh();
     } catch (e) {
+      // TODO: showToast 为页级函数，此处暂用 alert；待全局 toast 服务建立后替换
       alert('删除失败：' + (e?.message || '未知错误'));
     }
   }

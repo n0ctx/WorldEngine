@@ -40,6 +40,7 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
       setConfirmingDelete(false);
       onDelete();
     } catch (e) {
+      // TODO: showToast 为页级函数，此处暂用 alert；待全局 toast 服务建立后替换
       alert('删除失败：' + (e?.message || '未知错误'));
     }
   }

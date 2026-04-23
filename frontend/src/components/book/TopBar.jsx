@@ -5,7 +5,7 @@ import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
 import { getLatestChatSession } from '../../api/sessions.js';
 import useStore from '../../store/index.js';
-import { useAssistantStore } from '../../../../assistant/client/useAssistantStore.js';
+import { useAssistantStore } from '@assistant/useAssistantStore.js';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);

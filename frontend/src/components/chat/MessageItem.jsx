@@ -61,6 +61,8 @@ function ThinkBlock({ content, open = false }) {
     }}>
       <button
         onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
+        aria-expanded={expanded}
         style={{
           display: 'flex',
           alignItems: 'center',
