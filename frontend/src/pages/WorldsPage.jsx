@@ -144,8 +144,8 @@ export default function WorldsPage() {
                 style={{ background: getAvatarColor(world.id) }}
               />
               <h3 className="we-world-card-name">{world.name}</h3>
-              <p className={`we-world-card-desc${!world.system_prompt ? ' we-world-card-desc-empty' : ''}`}>
-                {world.system_prompt || '暂无描述'}
+              <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>
+                {world.description || '暂无描述'}
               </p>
               <div className="we-world-card-meta">
                 <span>{world.character_count} 角色</span>

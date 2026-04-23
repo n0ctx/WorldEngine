@@ -41,6 +41,7 @@ export default function WorldEditPage() {
   const [saveError, setSaveError] = useState('');
 
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [stateFields, setStateFields] = useState([]);
@@ -60,6 +61,7 @@ export default function WorldEditPage() {
       getWorldStateValues(worldId),
     ]).then(([w, fields]) => {
       setName(w.name ?? '');
+      setDescription(w.description ?? '');
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setStateFields(fields);
@@ -88,6 +90,7 @@ export default function WorldEditPage() {
     try {
       await updateWorld(worldId, {
         name: name.trim(),
+        description: description.trim(),
         temperature: temperature === '' ? null : Number(temperature),
         max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
       });
@@ -142,12 +145,15 @@ export default function WorldEditPage() {
           <FormGroup label="名称" required>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" />
           </FormGroup>
-          <p className="we-edit-hint">世界常驻提示词已迁移到“状态”页的“常驻条目”，这里不再维护世界级 system/post prompt。</p>
-          <div className="we-edit-save-row">
-            <Button variant="secondary" onClick={() => navigate(`/worlds/${worldId}/state`)}>
-              前往状态页管理常驻条目
-            </Button>
-          </div>
+          <FormGroup label="简介" hint="纯展示用途，不注入提示词">
+            <textarea
+              className="we-textarea"
+              rows={3}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="一句话介绍这个世界…"
+            />
+          </FormGroup>
           {saveError && <p className="we-edit-error">{saveError}</p>}
           <div className="we-edit-save-row">
             <Button variant="primary" onClick={handleSave} disabled={saving}>

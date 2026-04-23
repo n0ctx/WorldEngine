@@ -302,6 +302,7 @@ export function exportWorld(worldId) {
     format: 'worldengine-world-v1',
     world: {
       name: world.name,
+      description: world.description ?? '',
       system_prompt: world.system_prompt,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
@@ -328,11 +329,12 @@ export function importWorld(data) {
 
     // 插入世界
     db.prepare(`
-      INSERT INTO worlds (id, name, system_prompt, temperature, max_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, description, system_prompt, temperature, max_tokens, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
+      data.world.description ?? '',
       data.world.system_prompt ?? '',
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,

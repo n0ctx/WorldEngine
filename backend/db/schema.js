@@ -4,6 +4,7 @@ const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
   id             TEXT PRIMARY KEY,
   name           TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
   post_prompt    TEXT NOT NULL DEFAULT '',
   temperature    REAL,
@@ -356,6 +357,8 @@ export function initSchema(db) {
   // T31: 为现有数据库添加 post_prompt 列（新建库由 CREATE TABLE 覆盖）
   try { db.exec(`ALTER TABLE worlds ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T35: 为现有数据库添加 worlds.description 列
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   // T32: 轮次压缩字段迁移
   try { db.exec(`ALTER TABLE messages ADD COLUMN is_compressed INTEGER NOT NULL DEFAULT 0`); } catch {}
   try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}

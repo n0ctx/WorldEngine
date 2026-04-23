@@ -76,6 +76,7 @@
 CREATE TABLE worlds (
   id             TEXT PRIMARY KEY,          -- UUID
   name           TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',  -- 世界简介，纯展示，不注入提示词
   system_prompt  TEXT NOT NULL DEFAULT '',  -- 旧世界 prompt 文本镜像；启动时一次性迁移到 world_prompt_entries(position='system', trigger_type='always')
   post_prompt    TEXT NOT NULL DEFAULT '',  -- 旧世界后置文本镜像；启动时一次性迁移到 world_prompt_entries(position='post', trigger_type='always')
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
