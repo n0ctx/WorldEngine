@@ -1298,6 +1298,10 @@
   color: var(--we-paper-base);
 }
 
+.we-avatar-circle--sm  { width: 32px; height: 32px; font-size: var(--we-text-sm); }
+.we-avatar-circle--md  { width: 48px; height: 48px; font-size: var(--we-text-base); }
+.we-avatar-circle--lg  { width: 64px; height: 64px; font-size: var(--we-text-xl); }
+
 /* ── PersonaCard 组件 ── */
 
 .we-persona-card-body {

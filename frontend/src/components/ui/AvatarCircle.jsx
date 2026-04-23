@@ -8,35 +8,29 @@ import { getAvatarUrl, getAvatarColor } from '../../utils/avatar';
  *   avatarPath — 头像文件路径（可选）
  *   size       — 'sm'(32px) | 'md'(48px) | 'lg'(64px)，默认 'md'
  *
- * 注：width/height/backgroundColor 为运行时动态值，保留内联 style；
- *     fontSize 依 size prop 变化，也保留内联 style；
- *     其余视觉属性走 CSS 类。
+ * 尺寸档位通过 CSS variant 类（we-avatar-circle--sm/md/lg）实现；
+ * 仅 backgroundColor 为运行时动态值，保留内联 style。
  */
-const SIZE_MAP = { sm: 32, md: 48, lg: 64 };
-const FONT_MAP = { sm: 14, md: 16, lg: 24 };
-
 export default function AvatarCircle({ id, name, avatarPath, size = 'md' }) {
   const url = getAvatarUrl(avatarPath);
   const color = getAvatarColor(id);
   const initial = (name || '?')[0].toUpperCase();
-  const px = SIZE_MAP[size] ?? SIZE_MAP.md;
-  const fs = FONT_MAP[size] ?? FONT_MAP.md;
+  const sizeClass = `we-avatar-circle--${size}`;
 
   if (url) {
     return (
       <img
         src={url}
         alt={name}
-        className="we-avatar-circle we-avatar-circle--img"
-        style={{ width: px, height: px }}
+        className={`we-avatar-circle we-avatar-circle--img ${sizeClass}`}
       />
     );
   }
 
   return (
     <div
-      className="we-avatar-circle we-avatar-circle--placeholder"
-      style={{ width: px, height: px, backgroundColor: color, fontSize: fs }}
+      className={`we-avatar-circle we-avatar-circle--placeholder ${sizeClass}`}
+      style={{ backgroundColor: color }}
     >
       {initial}
     </div>
