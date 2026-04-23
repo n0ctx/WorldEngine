@@ -1,33 +1,121 @@
 /* WorldEngine 视觉 token — 权威定义见 DESIGN.md §2 */
 
 :root {
-  /* §2.1 纸基三层 */
-  --we-paper-base:   #ede3d0;
-  --we-paper-aged:   #d9ccb0;
-  --we-paper-shadow: #c8b99a;
-  --we-paper-deep:   #b8a882;
-  --we-book-bg:      #4a3728;
+  /* === 基础色（仅供语义色引用，组件禁止直接使用）=== */
+  --we-base-paper-100: #ede3d0;   /* 原 --we-paper-base */
+  --we-base-paper-200: #d9ccb0;   /* 原 --we-paper-aged */
+  --we-base-paper-300: #c8b99a;   /* 原 --we-paper-shadow */
+  --we-base-paper-400: #b8a882;   /* 原 --we-paper-deep */
+  --we-base-ink-900:   #2a1f17;   /* 原 --we-ink-primary */
+  --we-base-ink-700:   #534236;   /* 原 --we-ink-secondary */
+  --we-base-ink-500:   #6d5c4b;   /* 原 --we-ink-faded */
+  --we-base-vermilion-600: #a23b2e; /* 原 --we-vermilion */
+  --we-base-vermilion-800: #7c2a20; /* 原 --we-vermilion-deep */
+  --we-base-gold-600:  #a0833f;   /* 原 --we-gold-leaf */
+  --we-base-gold-400:  #c9a85a;   /* 原 --we-gold-pale */
+  --we-base-moss-600:  #5c6b3a;   /* 原 --we-moss */
+  --we-base-amber-600: #8b5a1f;   /* 原 --we-amber */
+  --we-base-slate-600: #4a5568;   /* 原 --we-slate */
+  --we-base-book-bg:   #4a3728;   /* 原 --we-book-bg */
+  --we-base-white:     #ffffff;
 
-  /* §2.2 墨水色系 */
-  --we-ink-primary:   #2a1f17;
-  --we-ink-secondary: #534236;
-  --we-ink-faded:     #6d5c4b;  /* WCAG AA: ~4.6:1 on paper-base */
+  /* === 语义色（组件必须使用这些，禁止直接用基础色）=== */
 
-  /* §2.3 朱砂系 */
-  --we-vermilion:      #a23b2e;
-  --we-vermilion-deep: #7c2a20;
-  --we-vermilion-bg:   rgba(162, 59, 46, 0.08);
+  /* 文字色 */
+  --we-color-text-primary:   var(--we-base-ink-900);
+  --we-color-text-secondary: var(--we-base-ink-700);
+  --we-color-text-tertiary:  var(--we-base-ink-500);
+  --we-color-text-disabled:  var(--we-base-paper-300);
+  --we-color-text-inverse:   var(--we-base-white);
+  --we-color-text-danger:    var(--we-base-vermilion-600);
 
-  /* §2.4 金箔系 */
-  --we-gold-leaf: #a0833f;
-  --we-gold-pale: #c9a85a;
+  /* 背景色 */
+  --we-color-bg-canvas:  var(--we-base-paper-100);
+  --we-color-bg-surface: var(--we-base-paper-200);  /* 卡片/面板 */
+  --we-color-bg-subtle:  var(--we-base-paper-300);
+  --we-color-bg-muted:   var(--we-base-paper-400);
+  --we-color-bg-overlay: rgba(42, 31, 23, 0.5);     /* 遮罩层 */
+  --we-color-bg-inverse: var(--we-base-book-bg);
 
-  /* §2.5 功能色 */
-  --we-moss:  #5c6b3a;
-  --we-amber: #8b5a1f;
-  --we-slate: #4a5568;
+  /* 边框色 */
+  --we-color-border-default: var(--we-base-paper-300);
+  --we-color-border-subtle:  var(--we-base-paper-200);
+  --we-color-border-strong:  var(--we-base-paper-400);
+  --we-color-border-focus:   var(--we-base-vermilion-600);
 
-  /* §5.2 顶栏深色层 */
+  /* 状态色 */
+  --we-color-status-success: var(--we-base-moss-600);
+  --we-color-status-warning: var(--we-base-amber-600);
+  --we-color-status-danger:  var(--we-base-vermilion-600);
+  --we-color-status-info:    var(--we-base-slate-600);
+
+  /* 强调色 */
+  --we-color-accent:      var(--we-base-vermilion-600);
+  --we-color-accent-deep: var(--we-base-vermilion-800);
+  --we-color-accent-bg:   rgba(162, 59, 46, 0.08);
+  --we-color-gold:        var(--we-base-gold-600);
+  --we-color-gold-pale:   var(--we-base-gold-400);
+
+  /* === 间距 Scale（严格 4 的倍数）=== */
+  --we-space-xxs: 2px;
+  --we-space-xs:  4px;
+  --we-space-sm:  8px;
+  --we-space-md:  12px;
+  --we-space-lg:  16px;
+  --we-space-xl:  24px;
+  --we-space-2xl: 32px;
+  --we-space-3xl: 48px;
+
+  /* === 圆角 Scale === */
+  --we-radius-none: 0;
+  --we-radius-sm:   2px;
+  --we-radius-md:   4px;
+  --we-radius-lg:   8px;
+  --we-radius-full: 9999px;
+
+  /* === Z-index Scale === */
+  --we-z-base:     0;
+  --we-z-dropdown: 50;
+  --we-z-sticky:   60;
+  --we-z-fixed:    100;
+  --we-z-modal:    200;
+  --we-z-popover:  300;
+  --we-z-toast:    400;
+  --we-z-tooltip:  500;
+
+  /* === Motion Tokens === */
+  --we-duration-fast:   120ms;
+  --we-duration-normal: 200ms;
+  --we-duration-slow:   320ms;
+  --we-easing-standard: cubic-bezier(.2,0,0,1);
+  --we-easing-emphasized: cubic-bezier(.2,0,0,1.2);
+
+  /* === 过渡别名（向后兼容，迁移完成后可删除）=== */
+  /* 颜色别名 */
+  --we-paper-base:   var(--we-color-bg-canvas);
+  --we-paper-aged:   var(--we-color-bg-surface);
+  --we-paper-shadow: var(--we-color-border-default);
+  --we-paper-deep:   var(--we-color-bg-muted);
+  --we-book-bg:      var(--we-color-bg-inverse);
+  --we-ink-primary:   var(--we-color-text-primary);
+  --we-ink-secondary: var(--we-color-text-secondary);
+  --we-ink-faded:     var(--we-color-text-tertiary);
+  --we-vermilion:      var(--we-color-accent);
+  --we-vermilion-deep: var(--we-color-accent-deep);
+  --we-vermilion-bg:   var(--we-color-accent-bg);
+  --we-gold-leaf: var(--we-color-gold);
+  --we-gold-pale: var(--we-color-gold-pale);
+  --we-moss:  var(--we-color-status-success);
+  --we-amber: var(--we-color-status-warning);
+  --we-slate: var(--we-color-status-info);
+  /* --we-radius-sm 和 --we-radius-md 保持原值，已在新 scale 中保留 */
+  /* --we-border / --we-border-faint 保持原值（含 1px solid shorthand）*/
+
+  /* §2.6 UI 功能变量（保留原值不动）*/
+  --we-border:       1px solid var(--we-paper-shadow);
+  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5);
+
+  /* §5.2 顶栏深色层（保留原值不动）*/
   --we-topbar-bg:             #3d2e22;
   --we-topbar-border:         rgba(255,255,255,0.06);
   --we-topbar-item:           rgba(255,255,255,0.5);
@@ -43,12 +131,7 @@
   --we-topbar-item-faint:     rgba(255,255,255,0.6);
   --we-topbar-divider:        rgba(255,255,255,0.06);
 
-  /* §2.6 UI 功能变量 */
-  --we-border:       1px solid var(--we-paper-shadow);
-  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5);
-  --we-radius-sm:    2px;
-  --we-radius-md:    4px;
-  --we-radius-none:  1px;
+  /* §脊柱阴影（保留原值不动）*/
   --we-spine-shadow: linear-gradient(
     to right,
     rgba(0, 0, 0, 0.22) 0%,
@@ -71,7 +154,7 @@
     transparent 100%
   );
 
-  /* §3.2 字号体系 */
+  /* §3.2 字号体系（保留原值不动）*/
   --we-text-xs:   11px;
   --we-text-sm:   13px;
   --we-text-base: 16.5px;
@@ -83,7 +166,7 @@
   --we-leading-normal: 1.75;
   --we-leading-loose:  1.95;
 
-  /* §物理质感阴影系统 */
+  /* §物理质感阴影系统（保留原值不动）*/
   --we-shadow-stamp-up:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(0, 0, 0, 0.15),
@@ -120,7 +203,7 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
-  /* Motion Duration（MOTION.md §2.5） */
+  /* Motion Duration 旧版（保留原值不动）*/
   --we-dur-micro:   0.10s;
   --we-dur-quick:   0.18s;
   --we-dur-base:    0.30s;
@@ -134,3 +217,14 @@
   /* sharp:   cubic-bezier(0.25, 0.46, 0.45, 0.94) */
   /* retract: cubic-bezier(0.55, 0, 1, 0.45)       */
 }
+
+/* === Typography 预设（必须使用这些组合，禁止散写字号+字重）=== */
+.we-text-h1     { font-size: var(--we-text-xl);   font-weight: 600; line-height: var(--we-leading-tight); }
+.we-text-h2     { font-size: var(--we-text-lg);   font-weight: 600; line-height: var(--we-leading-tight); }
+.we-text-h3     { font-size: var(--we-text-md);   font-weight: 500; line-height: var(--we-leading-tight); }
+.we-text-h4     { font-size: var(--we-text-base); font-weight: 500; line-height: var(--we-leading-tight); }
+.we-text-body   { font-size: var(--we-text-base); font-weight: 400; line-height: var(--we-leading-normal); }
+.we-text-sm     { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); }
+.we-text-caption{ font-size: var(--we-text-xs);   font-weight: 400; line-height: var(--we-leading-normal); }
+.we-text-label  { font-size: var(--we-text-sm);   font-weight: 500; line-height: var(--we-leading-tight); }
+.we-text-code   { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: monospace; }
