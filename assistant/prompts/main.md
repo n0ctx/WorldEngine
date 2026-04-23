@@ -63,24 +63,26 @@ create 操作省略"当前状态"部分。
 | 位置 | 内容 | 说明 |
 |---|---|---|
 | [1] | 全局 system prompt | 对所有世界和角色生效 |
-| [2] | 世界 system prompt | 描述世界背景、规则、氛围 |
-| [3] | 世界状态 | LLM 自动/手动维护的动态数值 |
-| [4] | 玩家 system prompt | 用户的角色人设 |
-| [5] | 玩家状态 | 玩家动态数值 |
-| [6] | 角色 system prompt | 角色性格、说话方式、背景 |
-| [7] | 角色状态 | 角色动态数值 |
-| [8-10] | Prompt 条目 | 触发型知识库（关键词/向量匹配后注入） |
-| [12] | 记忆召回 | 跨会话 turn summary 向量检索结果 |
-| [13] | 记忆展开 | AI 决定展开的 turn summary 原文 |
-| [14] | 历史消息 | 最近 N 轮对话 |
-| [15] | 后置提示词 | 注入在历史消息之后、当前消息之前 |
-| [16] | 当前用户消息 | 本轮用户输入 |
+| [2] | 世界状态 | LLM 自动/手动维护的动态数值（如天气、年份、局势） |
+| [3] | 玩家 system prompt | 用户在该世界的角色人设 |
+| [4] | 玩家状态 | 玩家动态数值 |
+| [5] | 角色 system prompt | 角色性格、说话方式、背景 |
+| [6] | 角色状态 | 角色动态数值 |
+| [7] | 世界 Prompt 条目 | 触发型知识库；常驻条目（always）每轮必注入；其余按关键词/向量触发 |
+| [8] | 触发器 inject_prompt | 触发器"注入文本"动作；consumed 模式自动递减 rounds_remaining |
+| [9] | 历史记忆召回 | 跨会话 turn summary 向量检索结果 |
+| [10] | 记忆展开 | AI 决定展开的 turn summary 原文 |
+| [11] | 日记注入 | 前端一次性注入的日记文本（仅生效一轮） |
+| [12] | 后置提示词 | 注入 system 末尾（全局后置 + 角色后置 + post 位置条目）；**不是独立 user 消息** |
+| [13] | 历史消息 | 最近 N 轮对话 |
+| [14] | 当前用户消息 | 本轮用户输入 |
 
 ### 关键功能说明
 
 **Prompt 条目（Entries）**
-- 触发型知识库，每条有：title（标题）、description（触发条件，1-2句话，LLM pre-flight 判断依据）、content（完整内容，触发时注入）、keywords（触发关键词数组）、keyword_scope（关键词匹配范围：user/assistant/user,assistant）
-- 全局条目：对所有世界生效；世界条目：仅此世界；角色条目：仅此角色
+- 仅世界级条目有效，分三种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（向量相似度召回时注入）
+- 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm）、position（system/post）、keywords（关键词数组，keyword 类型使用）
+- position:"system" 注入 [7] 位置；position:"post" 注入 system 末尾 [12] 位置
 
 **状态字段（State Fields）**
 - 动态数值，如"体力""当前位置""天气"
@@ -88,7 +90,8 @@ create 操作省略"当前状态"部分。
 - trigger_mode: `manual_only`、`every_turn`（每轮）、`keyword_based`（关键词触发）
 
 **后置提示词（Post Prompt）**
-- 以 user 角色注入，紧跟在历史消息之后
+- 注入 system 末尾（[12] 位置），不是独立 user 消息
+- 包含：全局后置提示词 + 角色后置提示词 + position:"post" 的常驻条目
 - 用于追加指令，如约束输出格式、提醒角色保持风格
 
 **写作空间**
@@ -118,8 +121,8 @@ create 操作省略"当前状态"部分。
 
 | 子代理 | 负责范围 | 需要预研 |
 |---|---|---|
-| `world_card_agent` | 世界卡：name / system_prompt / post_prompt / 条目 / 状态字段（world/persona/character）| update/delete 时必须 |
-| `character_card_agent` | 角色卡：name / system_prompt / post_prompt / first_message / 条目 / 状态字段（character/persona）| update/delete 时必须 |
+| `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps）/ 状态字段（world/persona/character）；世界内容通过 entryOps 的 always 常驻条目管理 | update/delete 时必须 |
+| `character_card_agent` | 角色卡：name / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
 | `persona_card_agent` | 玩家卡：name / system_prompt / 玩家状态字段（仅 update）| 必须 |
 | `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / 条目 / LLM 参数（仅 update）| 必须 |
 | `css_snippet_agent` | 新建自定义 CSS 片段（仅 create）| 不需要 |
