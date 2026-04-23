@@ -3,6 +3,55 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T229 — refactor(assistant): 写卡助手全面对齐当前运行时架构 ✅
+- **背景**：T206（条目系统收口）、T222（后置提示词改注入 system）、T223（段号重排）之后，写卡助手的 prompts、executor 和接口契约与运行时实现产生严重偏差，部分功能静默失效。
+- **变更1（代码）**：`routes.js` — `normalizeWorldChanges` 移除 system_prompt/post_prompt；`normalizeProposal` character-card/global-config 分支删除 entryOps 处理；`applyProposal` world-card create/update 移除对死字段的写入
+- **变更2（代码）**：`card-preview.js` — 删除 `getAllCharacterEntries`/`getAllGlobalEntries` 导入及调用；character-card/global-prompt 预览不再返回 existingEntries
+- **变更3（agent desc）**：`world-card.js` description 说明世界内容通过 entryOps 常驻条目管理；`character-card.js` description 移除 entryOps 提及
+- **变更4（prompts）**：`main.md` 注入顺序表更新为正确的 14 段；`world-card.md` 世界内容改走 entryOps always 常驻条目；`character-card.md` 完整删除 entryOps；`global-prompt.md` 完整删除 entryOps
+- **变更5（契约）**：`CONTRACT.md` character-card/global-config 移除 entryOps，world-card.changes 移除 system_prompt/post_prompt，§5 补充 trigger_type/position 字段文档
+- **涉及文件**：`assistant/server/routes.js`、`assistant/server/tools/card-preview.js`、`assistant/server/agents/world-card.js`、`assistant/server/agents/character-card.js`、`assistant/prompts/main.md`、`assistant/prompts/world-card.md`、`assistant/prompts/character-card.md`、`assistant/prompts/global-prompt.md`、`assistant/CONTRACT.md`、`assistant/tests/routes.test.js`、`assistant/tests/routes-integration.test.js`、`assistant/tests/tools/card-preview.test.js`
+- **验证**：`node --test assistant/tests/routes.test.js assistant/tests/routes-integration.test.js assistant/tests/tools/card-preview.test.js`，全部 20/20 通过。
+
+## T228 — feat: diary_time 格式新增必填"分"字段 ✅
+- **变更**：`DIARY_TIME_UPDATE_INSTRUCTION` 格式改为 `N年N月N日N时N分`；`default_value` 改为 `1000年1月1日0时0分`；`formatRealTimeDiaryStr` 补入 `getMinutes()`；前端 `parseDiaryTimeDefault` 解析新增第 5 捕获组（分），兼容旧格式（无分则 minute=0）；日记时间编辑器 grid 改为 5 列，新增分输入框。
+- **涉及文件**：`backend/utils/constants.js`、`backend/services/worlds.js`、`backend/memory/combined-state-updater.js`、`frontend/src/components/state/StateFieldEditor.jsx`、`backend/tests/memory/diary-generator.test.js`
+- **向前兼容**：`VIRTUAL_DATE_RE` 不含 `分` 捕获，日记跨日检测（年月日）不受影响；旧格式值仍能被正确解析。
+- **验证**：`node --test tests/memory/diary-generator.test.js tests/services/worlds.test.js` 通过（19/19）。
+
+## T227 — fix: 状态更新 LLM 无法读取会话级运行时值，导致状态永不更新 ✅
+- **根本原因**：`combined-state-updater.js` 写入用 `upsertSessionXxxStateValue`（写 `session_*_state_values` 会话隔离表），但读取时用 `getAllXxxStateValues`（读全局 `xxx_state_values` 表）。LLM 每轮看到的 `runtime_value` 永远是全局表的值（通常为 null/"未设置"），看不到自己上一轮写入的会话值，导致所有状态字段（包括 `diary_time`）永远无法累积更新。
+- **修复1**：新增 `mergeSessionValues(globalMap, sessionMap)` 辅助函数，将全局默认值 Map 与会话级运行时值合并：`defaultValueJson` 来自全局，`runtimeValueJson` 优先取会话值。
+- **修复2**：三处 `buildFieldsDesc(activeFields, buildValueMap(getAll...))` 全部改为先读会话值、合并后再传入：世界/角色/玩家状态均修复。
+- **修复3**：`DIARY_TIME_UPDATE_INSTRUCTION` 补充"每轮必须更新，在当前运行时值基础上推进，不得重复上一轮的值"语义，防止 LLM 因通用规则跳过时间推进。
+- **涉及文件**：`backend/memory/combined-state-updater.js`、`backend/utils/constants.js`
+- **验证**：重启后端，触发多轮对话，`all-state` 日志应显示 `diary_time` 每轮写入不同时间值；状态面板中角色/世界状态应随剧情累积变化。
+
+## T226 — fix: 状态更新 LLM 输入改为上轮/本轮标注 + diary_time 内置描述 ✅
+- **问题1**：状态更新 LLM 只收到平铺的最近 10 条消息，无法区分"已处理的历史"和"本轮新发生的事"，导致重复触发旧内容对应的状态更新。
+- **修复1**：`combined-state-updater.js` 对话构造逻辑改为取最近 4 条（2 轮），以`【上一轮（仅供背景参考）】`和`【本轮（请据此判断状态变化）】`两段分别打标签，明确时序边界。
+- **问题2**：`state-update.md` prompt 只说"根据对话内容更新状态"，未引导 LLM 聚焦增量变化。
+- **修复2**：prompt 首条要求改为"只根据【本轮】判断变化；【上一轮】仅供背景参考，不要因上一轮内容重新触发"。
+- **问题3**：`diary_time` 字段创建时没有内置 `description`，LLM 只能看到 label='时间' 和 update_instruction，缺乏字段用途说明。
+- **修复3**：`constants.js` 新增 `DIARY_TIME_DESCRIPTION`；`ensureDiaryTimeField` 创建时写入 description，更新分支也检查并补齐 description。
+- **涉及文件**：`backend/utils/constants.js`、`backend/services/worlds.js`、`backend/memory/combined-state-updater.js`、`backend/prompts/templates/state-update.md`
+- **验证**：重启后端，触发对话，观察 `all-state` 日志中 prompt 内容包含`【本轮】`标签；状态更新应只反映本轮新内容。
+
+## T225 — fix: 状态栏更新被 thinking tokens 截断导致 JSON 残缺或为空 ✅
+- **根本原因**：Gemini flash 系列模型中，`thinkingBudget`（1024 tokens）与 `maxOutputTokens` 共用同一个 token 配额。state updater 的 `maxTokens=1000` 比 thinking budget 还小，thinking 直接吃掉全部配额，导致 JSON 输出被截断（`chars=68`、`chars=263`）甚至为空（`len=0`）。state updater 是纯结构化 JSON 输出任务，完全不需要 thinking。
+- **修复1（根因）**：`llm/index.js` 的 `buildLLMConfig` 改用 `hasOwnProperty` 检测，使调用方可以传 `thinking_level: null` 显式禁用 thinking（原来 `??` 运算符无法覆盖 null）。`combined-state-updater.js` 在 `llm.complete()` 调用中明确传入 `thinking_level: null`。
+- **修复2（兜底）**：新增 `repairTruncatedJson(text)` 函数作为 JSON.parse 失败时的补全 fallback；regex 匹配补充无尾 `}` 时的分支。
+- **涉及文件**：`backend/llm/index.js`、`backend/memory/combined-state-updater.js`
+- **验证**：重启后端，触发对话，观察 `all-state COMPLETE START` 日志中 `thinking=null`（不再显示 `budget_low`）；状态栏应稳定更新，不再出现 `JSON PARSE FAIL` 或 `len=0`。
+
+## T224 — uiux-vibe: 全站视觉统一性 & 交互合理性审计修复 ✅
+- **范围**：14 tasks · 3 Milestones，覆盖 token 合规、可达性、交互状态、视觉一致性
+- **Milestone 1（Token & CSS）**：tokens.css 新增 `--we-z-spine/action/panel` 三个 z-index token；index.css / chat.css / ui.css / pages.css 中 17 处裸数字 z-index 全部迁移至 token 变量；12 处 `outline: none` 均补充 `:focus-visible` 焦点环替代，修复键盘可达性
+- **Milestone 2（JSX 组件 Token 合规）**：ChatPage / WritingSpacePage Toast 错误色由 `bg-red-500` 改为 `--we-color-status-danger`；StateFieldList / settings 组件 / WritingPageLeft 中 11 处旧别名（`--we-ink-*` / `--we-paper-*` / `--we-gold-leaf`）迁移至新语义色；Sidebar / StateFieldList / settings 组件 13 处 `.5` 单位间距全部修正为 4px 倍数；StateFieldList 删除确认弹窗 z-index 改用 `--we-z-modal`
+- **Milestone 3（交互状态 & 视觉一致性）**：TopBar 世界下拉新增 loading/empty 三态；WritingSessionList 编辑标题新增取消按钮（`onMouseDown + preventDefault` 防止 blur 提交）；CharactersPage `✦✎✕` 字符符号替换为 `<Icon>` 组件，empty 文案统一；全站 empty 文案统一为 `暂无X` 格式
+- **涉及文件**：`tokens.css`、`index.css`、`chat.css`、`ui.css`、`pages.css`、`ChatPage.jsx`、`WritingSpacePage.jsx`、`StateFieldList.jsx`、`ModeSwitch.jsx`、`WritingLlmBlock.jsx`、`ImportExportPanel.jsx`、`WritingPageLeft.jsx`、`Sidebar.jsx`、`TopBar.jsx`、`WritingSessionList.jsx`、`CharactersPage.jsx`、`WorldsPage.jsx`
+- **遗留技术债（已清零）**：WorldsPage 世界卡片 `✎✕` 已替换为 Icon；`StateValueField.jsx` `--we-gold-leaf` 已迁移至 `--we-color-gold`
+
 ## T223 — refactor: trigger inject_prompt 提前到 [8] 并重排提示词段号 ✅
 - **对外接口**：`buildPrompt` / `buildWritingPrompt` 的 messages 结构仍为 `system + 历史消息 + 当前用户消息`；`inject_prompt` 从后置提示词移出，固定在 [8] system 段注入，`consumed` 模式仍递减 `rounds_remaining`。
 - **涉及文件**：`backend/prompts/assembler.js`、`backend/tests/prompts/assembler.test.js`、`ARCHITECTURE.md`、`CLAUDE.md`
