@@ -1390,3 +1390,13 @@
   justify-content: center;
   min-height: 100vh;
 }
+
+/* ── WritingSpacePage 布局 ── */
+
+.we-writing-layout {
+  background: var(--we-book-bg);
+}
+
+.we-writing-center-pane {
+  background: var(--we-paper-base);
+}

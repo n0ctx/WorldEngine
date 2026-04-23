@@ -188,6 +188,19 @@ export default function ChatPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
+  function showTriggerNotifications(notifications) {
+    if (!Array.isArray(notifications) || notifications.length === 0) return;
+    const lines = notifications
+      .map((item) => {
+        const name = item?.name?.trim();
+        const text = item?.text?.trim();
+        if (name && text) return `【${name}】${text}`;
+        return text || name || '';
+      })
+      .filter(Boolean);
+    if (lines.length > 0) showToast(lines.join('；'));
+  }
+
   // 流状态清理
   const finalizeStream = useCallback(() => {
     // 续写场景：原地合并消息内容，不重挂载 MessageList，避免气泡闪烁
@@ -307,6 +320,9 @@ export default function ChatPage() {
         setMemoryExpanding(false);
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
+      },
+      onTriggerFired(notifications) {
+        showTriggerNotifications(notifications);
       },
       onStreamEnd() {
         finalizeStream();
@@ -629,7 +645,7 @@ export default function ChatPage() {
 
       {/* 右页：对话区 + 记忆面板 */}
       <PageRight className="!p-0">
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <div className="flex flex-1 min-h-0 overflow-hidden">
 
       {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
       <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">

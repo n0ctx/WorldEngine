@@ -522,7 +522,7 @@ export default function WritingSpacePage() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
+    <div className="we-writing-layout flex h-screen overflow-hidden">
       {toast && (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
@@ -543,42 +543,15 @@ export default function WritingSpacePage() {
       />
 
       {/* 中间消息区 */}
-      <div
-        className="we-page-right"
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          background: 'var(--we-paper-base)',
-          position: 'relative',
-        }}
-      >
+      <div className="we-writing-center-pane flex-1 flex flex-col overflow-hidden relative">
         {/* 章节标题区 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: '10px 16px 8px',
-          borderBottom: '1px solid var(--we-paper-shadow)',
-          flexShrink: 0,
-        }}>
+        <div className="we-chat-center-header">
           {currentSession ? (
-            <h1 style={{
-              flex: 1,
-              fontFamily: 'var(--we-font-display)',
-              fontSize: 15,
-              fontStyle: 'italic',
-              fontWeight: 400,
-              color: 'var(--we-ink-secondary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              margin: 0,
-            }}>
+            <h1 className="we-chat-center-title">
               {currentSession.title || '写作进行中'}
             </h1>
           ) : (
-            <span style={{ flex: 1 }} />
+            <span className="flex-1" />
           )}
         </div>
 
