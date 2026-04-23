@@ -497,6 +497,133 @@
   color: var(--we-ink-faded);
 }
 
+/* ── Block 组件：BackButton ── */
+
+.we-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-paper-shadow);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--we-space-xs) 0;
+  margin-bottom: var(--we-space-lg);
+  transition: color var(--we-duration-fast);
+}
+
+.we-back-btn:hover {
+  color: var(--we-paper-base);
+}
+
+/* ── Block 组件：WorldTabNav ── */
+
+.we-tab-nav {
+  display: flex;
+  gap: var(--we-space-sm);
+  border-bottom: 1px solid var(--we-paper-shadow);
+  margin-bottom: var(--we-space-xl);
+}
+
+.we-tab-nav__item {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-paper-shadow);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--we-space-sm) var(--we-space-lg);
+  cursor: pointer;
+  transition: color var(--we-duration-fast), border-color var(--we-duration-fast);
+  margin-bottom: -1px;
+}
+
+.we-tab-nav__item:hover {
+  color: var(--we-paper-base);
+}
+
+.we-tab-nav__item--active {
+  color: var(--we-vermilion);
+  border-bottom-color: var(--we-vermilion);
+}
+
+/* ── 世界页内容区公共容器 ── */
+
+.we-world-page-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding-bottom: var(--we-space-xl);
+}
+
+/* ── WorldStatePage：状态触发器区 ── */
+
+.we-trigger-section {
+  margin-top: var(--we-space-2xl);
+}
+
+.we-trigger-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--we-space-md);
+}
+
+.we-trigger-heading {
+  flex: 1;
+}
+
+.we-trigger-icon {
+  font-size: var(--we-text-md);
+  margin-right: var(--we-space-sm);
+  color: var(--we-vermilion);
+}
+
+.we-trigger-title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-base);
+  color: var(--we-paper-base);
+  font-style: italic;
+}
+
+.we-trigger-desc {
+  font-size: var(--we-text-sm);
+  color: var(--we-paper-shadow);
+  margin-top: var(--we-space-xs);
+  margin-left: var(--we-space-xl);
+}
+
+.we-trigger-new-btn {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-vermilion);
+  background: none;
+  border: 1px solid var(--we-vermilion);
+  border-radius: var(--we-radius-sm);
+  padding: var(--we-space-xs) var(--we-space-md);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--we-duration-fast);
+}
+
+.we-trigger-new-btn:hover {
+  opacity: 0.8;
+}
+
+.we-trigger-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-trigger-empty {
+  font-size: var(--we-text-sm);
+  color: var(--we-paper-deep);
+  text-align: center;
+  padding: var(--we-space-xl) 0;
+}
+
 /* ── 编辑页单页羊皮纸布局 ── */
 
 .we-edit-canvas {

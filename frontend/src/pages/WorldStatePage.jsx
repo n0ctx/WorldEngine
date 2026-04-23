@@ -5,13 +5,7 @@ import { listTriggers } from '../api/triggers';
 import { getWorld } from '../api/worlds';
 import TriggerCard from '../components/state/TriggerCard';
 import TriggerEditor from '../components/state/TriggerEditor';
-import { WorldTabNav, BackButton } from '../components';
-
-const WORLD_TABS = (worldId) => [
-  { key: `/worlds/${worldId}/build`, label: '构建' },
-  { key: `/worlds/${worldId}`,       label: '故事' },
-  { key: `/worlds/${worldId}/state`, label: '状态' },
-];
+import { WorldTabNav, BackButton, buildWorldTabs } from '../components';
 
 export default function WorldStatePage() {
   const { worldId } = useParams();
@@ -46,48 +40,29 @@ export default function WorldStatePage() {
       </div>
 
       <WorldTabNav
-        tabs={WORLD_TABS(worldId)}
+        tabs={buildWorldTabs(worldId)}
         activeTab={location.pathname}
         onTabChange={(path) => navigate(path)}
       />
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '20px' }}>
+      <div className="we-world-page-content">
         {/* 状态触发器区 */}
-        <div style={{ marginTop: '32px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-            <div>
-              <span style={{ fontSize: '18px', marginRight: '8px', color: 'var(--we-vermilion)' }}>❦</span>
-              <span style={{
-                fontFamily: 'var(--we-font-display)',
-                fontSize: '16px',
-                color: 'var(--we-paper-base)',
-                fontStyle: 'italic',
-              }}>
-                状态触发器
-              </span>
-              <p style={{ fontSize: '13px', color: 'var(--we-paper-shadow)', marginTop: '4px', marginLeft: '26px' }}>
-                当世界或角色状态满足条件时执行动作
-              </p>
+        <div className="we-trigger-section">
+          <div className="we-trigger-header">
+            <div className="we-trigger-heading">
+              <span className="we-trigger-icon">❦</span>
+              <span className="we-trigger-title">状态触发器</span>
+              <p className="we-trigger-desc">当世界或角色状态满足条件时执行动作</p>
             </div>
             <button
+              className="we-trigger-new-btn"
               onClick={() => setEditingTrigger({})}
-              style={{
-                fontFamily: 'var(--we-font-serif)',
-                fontSize: '13px',
-                color: 'var(--we-vermilion)',
-                background: 'none',
-                border: '1px solid var(--we-vermilion)',
-                borderRadius: 'var(--we-radius-sm)',
-                padding: '4px 12px',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
             >
               + 新建触发器
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="we-trigger-list">
             {triggers.map((t) => (
               <TriggerCard
                 key={t.id}
@@ -98,14 +73,7 @@ export default function WorldStatePage() {
               />
             ))}
             {triggers.length === 0 && (
-              <p style={{
-                fontSize: '13px',
-                color: 'var(--we-paper-deep)',
-                textAlign: 'center',
-                padding: '24px 0',
-              }}>
-                暂无触发器
-              </p>
+              <p className="we-trigger-empty">暂无触发器</p>
             )}
           </div>
         </div>

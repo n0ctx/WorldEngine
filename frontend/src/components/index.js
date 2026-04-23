@@ -21,7 +21,7 @@ export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
 
 // — Blocks 结构模式 —
-export { default as WorldTabNav }     from './blocks/WorldTabNav';
+export { default as WorldTabNav, buildWorldTabs } from './blocks/WorldTabNav';
 export { default as BackButton }      from './blocks/BackButton';
 
 // — Book 专属 —

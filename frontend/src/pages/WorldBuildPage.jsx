@@ -3,13 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { listWorldEntries } from '../api/prompt-entries';
 import { getWorld } from '../api/worlds';
 import EntrySection from '../components/state/EntrySection';
-import { WorldTabNav, BackButton } from '../components';
-
-const WORLD_TABS = (worldId) => [
-  { key: `/worlds/${worldId}/build`, label: '构建' },
-  { key: `/worlds/${worldId}`,       label: '故事' },
-  { key: `/worlds/${worldId}/state`, label: '状态' },
-];
+import { WorldTabNav, BackButton, buildWorldTabs } from '../components';
 
 export default function WorldBuildPage() {
   const { worldId } = useParams();
@@ -44,12 +38,12 @@ export default function WorldBuildPage() {
       </div>
 
       <WorldTabNav
-        tabs={WORLD_TABS(worldId)}
+        tabs={buildWorldTabs(worldId)}
         activeTab={location.pathname}
         onTabChange={(path) => navigate(path)}
       />
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '20px' }}>
+      <div className="we-world-page-content">
         <EntrySection
           title="常驻条目"
           icon="❦"
