@@ -1248,7 +1248,7 @@
   background: var(--we-vermilion-bg);
   border: 1px solid var(--we-color-status-danger);
   border-radius: var(--we-radius-sm);
-  padding: 3px var(--we-space-sm);
+  padding: var(--we-space-xxs) var(--we-space-sm);
   display: inline-block;
 }
 
