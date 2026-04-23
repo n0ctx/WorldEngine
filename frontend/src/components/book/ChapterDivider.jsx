@@ -9,9 +9,9 @@ function toChapterNum(n) {
 
 /**
  * 章节起始标题（重量级分隔）
- * Props: { chapterIndex, title, isDefault, onEdit, onRegenerate }
+ * Props: { chapterIndex, title, onEdit, onRegenerate }
  */
-export default function ChapterDivider({ chapterIndex, title, isDefault = true, onEdit, onRegenerate }) {
+export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenerate }) {
   const ref = useRef(null);
   const inputRef = useRef(null);
   const [hovered, setHovered] = useState(false);
@@ -78,61 +78,28 @@ export default function ChapterDivider({ chapterIndex, title, isDefault = true, 
     <header
       ref={ref}
       className="we-chapter-header"
-      style={{ position: 'relative' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="we-chapter-num">第 {toChapterNum(chapterIndex)} 章</div>
 
       {editing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '4px 0 8px' }}>
+        <div className="we-chapter-edit">
           <input
             ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
-            style={{
-              fontFamily: 'var(--we-font-display)',
-              fontStyle: 'italic',
-              fontWeight: 300,
-              fontSize: 'var(--we-text-lg, 1.25rem)',
-              textAlign: 'center',
-              background: 'var(--we-paper-aged)',
-              border: '1px solid var(--we-vermilion)',
-              borderRadius: 'var(--we-radius-sm)',
-              padding: '2px 10px',
-              color: 'var(--we-ink-primary)',
-              outline: 'none',
-              width: '60%',
-              maxWidth: 240,
-            }}
+            className="we-chapter-edit-input"
           />
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="we-chapter-edit-actions">
             <button
               onClick={cancelEdit}
-              style={{
-                fontFamily: 'var(--we-font-sans)',
-                fontSize: 11,
-                color: 'var(--we-ink-faded)',
-                background: 'none',
-                border: '1px solid var(--we-paper-shadow)',
-                borderRadius: 'var(--we-radius-sm)',
-                padding: '2px 8px',
-                cursor: 'pointer',
-              }}
+              className="we-chapter-edit-btn"
             >取消</button>
             <button
               onClick={confirmEdit}
-              style={{
-                fontFamily: 'var(--we-font-sans)',
-                fontSize: 11,
-                color: 'var(--we-accent)',
-                background: 'none',
-                border: '1px solid var(--we-accent)',
-                borderRadius: 'var(--we-radius-sm)',
-                padding: '2px 8px',
-                cursor: 'pointer',
-              }}
+              className="we-chapter-edit-btn we-chapter-edit-btn--primary"
             >保存</button>
           </div>
         </div>
@@ -141,14 +108,7 @@ export default function ChapterDivider({ chapterIndex, title, isDefault = true, 
           <h2 className="we-chapter-title">{title}</h2>
           {hovered && (onEdit || onRegenerate) && (
             <div
-              className="we-message-actions"
-              style={{
-                position: 'absolute',
-                right: 0,
-                bottom: '100%',
-                marginBottom: 4,
-                display: 'flex',
-              }}
+              className="we-message-actions we-chapter-actions"
             >
               {onEdit && (
                 <button onClick={startEdit}>

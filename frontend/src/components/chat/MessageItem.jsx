@@ -11,6 +11,8 @@ import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import CharacterSeal from '../book/CharacterSeal.jsx';
 import { variants, transitions } from '../../utils/motion.js';
 
+const MotionDiv = motion.div;
+
 /**
  * 将文本解析为 [{type, content, open}] 数组，流式/非流式通用。
  * open=true 表示该 think 块尚未收到 </think>（仍在流式输出中）。
@@ -120,7 +122,7 @@ function CodeBlock({ children, className }) {
 
 // 仅保留 code 的自定义渲染（CodeBlock 带语言标签和复制按钮），其余元素全由 CSS 控制
 const MD_COMPONENTS = {
-  code({ node, inline, className, children, ...props }) {
+  code({ inline, className, children, ...props }) {
     if (inline) {
       return <code className="we-inline-code" {...props}>{children}</code>;
     }
@@ -289,7 +291,7 @@ export default function MessageItem({
 
   if (isStreaming && !streamingText) {
     return (
-      <motion.div
+      <MotionDiv
         className="we-message-row we-message-assistant"
         initial="hidden"
         animate="visible"
@@ -310,13 +312,13 @@ export default function MessageItem({
             </div>
           </div>
         </div>
-      </motion.div>
+      </MotionDiv>
     );
   }
 
   if (isUser) {
     return (
-      <motion.div
+      <MotionDiv
         className="we-message-row we-message-user"
         initial="hidden"
         animate="visible"
@@ -379,12 +381,12 @@ export default function MessageItem({
           </div>
           <CharacterSeal character={persona} size={32} color="var(--we-amber)" />
         </div>
-      </motion.div>
+      </MotionDiv>
     );
   }
 
   return (
-    <motion.div
+    <MotionDiv
       className="we-message-row we-message-assistant"
       initial="hidden"
       animate="visible"
@@ -421,7 +423,6 @@ export default function MessageItem({
             ) : (
               <div className="we-message-content">
                 {blocks.map((block, i) => {
-                  const isLastBlock = i === blocks.length - 1;
                   if (block.type === 'thinking') {
                     if (!showThinking) return null;
                     return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
@@ -467,6 +468,6 @@ export default function MessageItem({
           )}
         </div>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 }

@@ -40,6 +40,7 @@ describe('writing api', () => {
     fetch.mockResolvedValue(createSseResponse([
       { delta: '旁' },
       { delta: '白' },
+      { type: 'trigger_fired', notifications: [{ name: '推进', text: '剧情触发' }] },
       { done: true, assistant: { id: 'asst-1', content: '旁白' }, options: ['下一句'] },
     ]));
 
@@ -47,6 +48,7 @@ describe('writing api', () => {
     await new Promise((resolve) => {
       generate('world-2', 'session-2', '开始', {
         onDelta: (delta) => calls.push(['delta', delta]),
+        onTriggerFired: (notifications) => calls.push(['trigger_fired', notifications[0].name, notifications[0].text]),
         onDone: (assistant, options) => calls.push(['done', assistant.content, options[0]]),
         onStreamEnd: resolve,
       });
@@ -55,6 +57,7 @@ describe('writing api', () => {
     expect(calls).toEqual([
       ['delta', '旁'],
       ['delta', '白'],
+      ['trigger_fired', '推进', '剧情触发'],
       ['done', '旁白', '下一句'],
     ]);
   });

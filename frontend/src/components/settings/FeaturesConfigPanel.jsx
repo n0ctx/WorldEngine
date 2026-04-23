@@ -4,18 +4,13 @@ import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
 
 function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
   return (
-    <div style={{
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      gap: 16, marginBottom: 24,
-      opacity: disabled ? 0.4 : 1,
-      pointerEvents: disabled ? 'none' : 'auto',
-    }}>
+    <div className={`we-settings-toggle-row${disabled ? ' we-settings-toggle-row--disabled' : ''}`}>
       <div>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+        <p className="we-settings-toggle-label">
           {label}
         </p>
         {hint && (
-          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+          <p className="we-settings-toggle-hint">
             {hint}
           </p>
         )}
@@ -53,7 +48,7 @@ export default function FeaturesConfigPanel({
       <h2 className="we-settings-section-title">功能配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
-      <div style={{ marginTop: 20 }}>
+      <div className="we-settings-section-body">
         <p className="we-settings-subsection-title">记忆</p>
 
         <ToggleRow
@@ -75,11 +70,11 @@ export default function FeaturesConfigPanel({
         />
 
         {diaryEnabled && (
-          <div style={{ marginTop: -12, marginBottom: 24 }}>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-ink-secondary)', margin: '0 0 8px' }}>
+          <div className="we-settings-date-mode">
+            <p className="we-settings-date-label">
               日期模式
             </p>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="we-settings-date-options">
               {[
                 { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期' },
                 { value: DIARY_DATE_MODE.REAL, label: '真实日期' },
@@ -87,23 +82,13 @@ export default function FeaturesConfigPanel({
                 <button
                   key={value}
                   onClick={() => onDateMode(value)}
-                  style={{
-                    padding: '4px 14px',
-                    border: `1.5px solid ${dateMode === value ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
-                    borderRadius: 'var(--we-radius-sm)',
-                    background: dateMode === value ? 'var(--we-vermilion-bg)' : 'none',
-                    color: dateMode === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
-                    fontFamily: 'var(--we-font-serif)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
+                  className={`we-settings-date-option${dateMode === value ? ' we-settings-date-option--active' : ''}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '6px 0 0' }}>
+            <p className="we-settings-date-hint">
               切换仅影响新建会话
             </p>
           </div>

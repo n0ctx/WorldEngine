@@ -8,6 +8,8 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
+const MotionDiv = motion.div;
+
 const REMARK_PLUGINS_W = [remarkGfm];
 const REHYPE_PLUGINS_W = [rehypeRaw, rehypeSanitize];
 const THINK_REMARK_PLUGINS_W = [remarkGfm];
@@ -48,44 +50,18 @@ function ThinkBlock({ content, open = false }) {
   const [expanded, setExpanded] = useState(!autoCollapse);
 
   return (
-    <div style={{
-      margin: '0 0 8px',
-      borderLeft: '2px solid var(--we-paper-shadow)',
-      borderRadius: '0 4px 4px 0',
-      overflow: 'hidden',
-    }}>
+    <div className="we-writing-think">
       <button
         onClick={() => setExpanded((v) => !v)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          width: '100%',
-          background: 'var(--we-paper-aged)',
-          border: 'none',
-          padding: '4px 10px',
-          cursor: 'pointer',
-          fontFamily: 'var(--we-font-serif)',
-          fontSize: '11px',
-          color: 'var(--we-ink-faded)',
-          fontStyle: 'italic',
-          textAlign: 'left',
-        }}
+        className="we-writing-think-toggle"
       >
-        <Icon size={16} style={{ flexShrink: 0, transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }}>
+        <Icon size={16} className={`we-writing-think-icon${expanded ? ' we-writing-think-icon--expanded' : ''}`}>
           <polyline points="9 18 15 12 9 6" />
         </Icon>
-        思考过程{open && <span style={{ opacity: 0.4, marginLeft: 4 }}>…</span>}
+        思考过程{open && <span className="we-writing-think-open">…</span>}
       </button>
       {expanded && (
-        <div style={{
-          padding: '8px 12px',
-          fontFamily: 'var(--we-font-serif)',
-          fontSize: '12px',
-          color: 'var(--we-ink-faded)',
-          lineHeight: '1.7',
-          background: 'var(--we-paper-aged)',
-        }}>
+        <div className="we-writing-think-body">
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
             {content}
           </ReactMarkdown>
@@ -133,7 +109,7 @@ function DeleteBtn({ onDelete }) {
   return (
     <button
       onClick={handleClick}
-      style={confirming ? { color: 'var(--we-vermilion)' } : undefined}
+      className={confirming ? 'we-message-action-danger' : undefined}
     >
       <Icon size={16}>
         <polyline points="3 6 5 6 21 6" />
@@ -149,7 +125,6 @@ function DeleteBtn({ onDelete }) {
 export default function WritingMessageItem({
   message,
   isStreaming = false,
-  persona,
   onEdit,
   onRegenerate,
   onEditAssistant,
@@ -171,8 +146,6 @@ export default function WritingMessageItem({
   const [editingAI, setEditingAI] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
   const aiTextareaRef = useRef(null);
-
-  if (!content && !isStreaming) return null;
 
   function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
@@ -212,10 +185,12 @@ export default function WritingMessageItem({
     }
   }, [editingAI]);
 
+  if (!content && !isStreaming) return null;
+
   /* ── 玩家输入：朱砂左线批注风格 ── */
   if (isUser) {
     return (
-      <motion.div
+      <MotionDiv
         className="we-writing-annotation"
         initial="hidden"
         animate="visible"
@@ -258,13 +233,13 @@ export default function WritingMessageItem({
             )}
           </>
         )}
-      </motion.div>
+      </MotionDiv>
     );
   }
 
   /* ── 助手叙事：书页正文散文风格 ── */
   return (
-    <motion.div
+    <MotionDiv
       className="we-writing-prose"
       initial="hidden"
       animate="visible"
@@ -293,7 +268,6 @@ export default function WritingMessageItem({
         <>
           <div className="we-message-content">
             {blocks.map((block, i) => {
-              const isLastBlock = i === blocks.length - 1;
               if (block.type === 'thinking') {
                 if (!showThinking) return null;
                 return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
@@ -331,6 +305,6 @@ export default function WritingMessageItem({
           )}
         </>
       )}
-    </motion.div>
+    </MotionDiv>
   );
 }

@@ -47,6 +47,38 @@
 .we-persona-drawer-body::-webkit-scrollbar-track,
 .we-edit-panel-overlay::-webkit-scrollbar-track { background: transparent; }
 
+.we-prose-message-list {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 8px 24px 24px;
+}
+
+.we-sidebar-avatar,
+.we-chat-error-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  overflow: hidden;
+  border-radius: var(--we-radius-full);
+  background: var(--avatar-bg);
+  color: var(--we-paper-base);
+  font-weight: 700;
+}
+
+.we-sidebar-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: var(--we-text-sm);
+}
+
+.we-chat-error-avatar {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  font-size: var(--we-text-xs);
+}
+
 /* ── Message Row ───────────────────────────────────────── */
 
 .we-message-row {
@@ -633,6 +665,56 @@
 .we-writing-prose:hover .we-message-actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+.we-writing-think {
+  margin: 0 0 8px;
+  border-left: 2px solid var(--we-paper-shadow);
+  border-radius: 0 var(--we-radius-md) var(--we-radius-md) 0;
+  overflow: hidden;
+}
+
+.we-writing-think-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  background: var(--we-paper-aged);
+  border: none;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-family: var(--we-font-serif);
+  font-size: 11px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+  text-align: left;
+}
+
+.we-writing-think-icon {
+  flex-shrink: 0;
+  transition: transform var(--we-duration-fast);
+}
+
+.we-writing-think-icon--expanded {
+  transform: rotate(90deg);
+}
+
+.we-writing-think-open {
+  opacity: 0.4;
+  margin-left: 4px;
+}
+
+.we-writing-think-body {
+  padding: 8px 12px;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
+  line-height: 1.7;
+  background: var(--we-paper-aged);
+}
+
+.we-message-actions button.we-message-action-danger {
+  color: var(--we-vermilion);
 }
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */

@@ -23,7 +23,7 @@ const AssistantPanel = lazy(() => import('../../assistant/client/AssistantPanel.
 
 function RouteFallback() {
   return (
-    <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="we-edit-canvas we-route-fallback">
       <p className="we-edit-empty-text">页面加载中…</p>
     </div>
   );
@@ -43,16 +43,17 @@ export default function App() {
       setShowThinking(c.ui?.show_thinking !== false);
       setAutoCollapseThinking(c.ui?.auto_collapse_thinking !== false);
     }).catch(() => {});
-  }, []);
+  }, [setAutoCollapseThinking, setShowThinking]);
 
   useEffect(() => {
     if (isAssistantOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- latch lazy AssistantPanel after first open.
       setAssistantLoaded(true);
     }
   }, [isAssistantOpen]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden', background: 'var(--we-book-bg)' }}>
+    <div className="we-app-root">
       <TopBar />
       <PageTransition>
         <Suspense fallback={<RouteFallback />}>

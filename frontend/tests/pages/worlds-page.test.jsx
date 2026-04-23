@@ -84,7 +84,9 @@ describe('WorldsPage', () => {
 
     expect(await screen.findByText('尚无世界记录')).toBeInTheDocument();
     fireEvent.click(screen.getByText('新建世界'));
-    expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/new');
+    expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/new', {
+      state: { backgroundLocation: { pathname: '/' } },
+    });
   });
 
   it('加载失败时显示错误并允许重试', async () => {

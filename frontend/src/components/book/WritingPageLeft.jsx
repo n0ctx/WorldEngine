@@ -12,39 +12,13 @@ export default function WritingPageLeft({
   const navigate = useNavigate();
 
   return (
-    <div
-      style={{
-        flex: '0 0 18%',
-        minWidth: '240px',
-        maxWidth: '320px',
-        background: 'var(--we-paper-aged)',
-        display: 'flex',
-        flexDirection: 'column',
-        position: 'relative',
-        overflow: 'hidden',
-        minHeight: 0,
-        borderRight: '1px solid var(--we-paper-shadow)',
-      }}
-    >
+    <div className="relative flex min-h-0 flex-[0_0_18%] flex-col overflow-hidden border-r border-[var(--we-paper-shadow)] bg-[var(--we-paper-aged)] min-w-[240px] max-w-[320px]">
       {/* 顶部返回按钮行 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        padding: '10px 14px 0',
-      }}>
+      <div className="flex items-center justify-end px-3.5 pt-2.5">
         <button
           onClick={() => navigate(`/worlds/${worldId}`)}
           title="返回角色页"
-          style={{
-            padding: 4, borderRadius: 4,
-            color: 'var(--we-ink-faded)',
-            background: 'none', border: 'none',
-            cursor: 'pointer', opacity: 0.6,
-            transition: 'opacity 0.15s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+          className="cursor-pointer rounded border-0 bg-transparent p-1 text-[var(--we-ink-faded)] opacity-60 transition-opacity hover:opacity-100"
         >
           <Icon size={16}>
             <polyline points="15 18 9 12 15 6" />
@@ -61,13 +35,7 @@ export default function WritingPageLeft({
       />
 
       {/* 右侧书脊阴影 */}
-      <div style={{
-        position: 'absolute',
-        right: 0, top: 0, bottom: 0, width: 12,
-        background: 'var(--we-spine-shadow-right)',
-        pointerEvents: 'none',
-        zIndex: 2,
-      }} />
+      <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-[2] w-3 bg-[var(--we-spine-shadow-right)]" />
     </div>
   );
 }

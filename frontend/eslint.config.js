@@ -34,6 +34,22 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ['vite.config.js', 'vitest.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
+  {
+    files: ['tests/**/*.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.vitest,
+        global: 'readonly',
+      },
+    },
+  },
   // CustomCssManager 展示 CSS 示例文本，豁免 no-restricted-syntax 规则
   {
     files: ['**/CustomCssManager*'],

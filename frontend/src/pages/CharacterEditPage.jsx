@@ -49,7 +49,9 @@ export default function CharacterEditPage() {
       if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
       if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
       if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
-    } catch {}
+    } catch {
+      /* 忽略无效草稿 */
+    }
   }, [isCreate]);
 
   // 创建模式：自动保存草稿

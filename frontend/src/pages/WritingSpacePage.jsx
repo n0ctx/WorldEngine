@@ -125,6 +125,8 @@ export default function WritingSpacePage() {
         }).catch(console.error);
       }
     }).catch(console.error);
+    // enterSession is intentionally kept as the page-level imperative transition used by stream callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldId]);
 
   function refreshMessages() {

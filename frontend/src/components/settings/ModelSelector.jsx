@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Button from '../ui/Button';
 import ModelCombobox from '../ui/ModelCombobox';
 
@@ -7,7 +7,7 @@ export default function ModelSelector({ value, onChange, loadModels }) {
   const [status, setStatus] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
 
-  async function load() {
+  const load = useCallback(async () => {
     setStatus('loading');
     setErrMsg('');
     try {
@@ -23,17 +23,20 @@ export default function ModelSelector({ value, onChange, loadModels }) {
       setErrMsg(e.message || '无法获取模型列表，请检查 API Key 和网络连接');
       setStatus('error');
     }
-  }
+  }, [loadModels, onChange, value]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial model discovery owns loading state.
+    load();
+  }, [load]);
 
   if (status === 'loading') {
-    return <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)' }}>获取模型列表中…</p>;
+    return <p className="we-model-selector-loading">获取模型列表中…</p>;
   }
   if (status === 'error') {
     return (
       <div>
-        <p style={{ fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: '6px' }}>{errMsg}</p>
+        <p className="we-model-selector-error">{errMsg}</p>
         <Button variant="ghost" size="sm" onClick={load}>重试</Button>
       </div>
     );

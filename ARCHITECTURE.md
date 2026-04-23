@@ -327,7 +327,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 **注**：
 - `memory_recall_*` 和 `memory_expand_*` 仅 `/chat` 路径发出；`/continue`（续写）路径不含
 - `state_updated` / `diary_updated` 仅 writing 路径发出；chat 模式对应后台任务不保活 SSE
-- `trigger_fired` 在 chat / writing 两种模式下都可能出现，但仅在本轮有通知动作时发送
+- `trigger_fired` 在 chat / writing 两种模式下都可能出现，但仅在本轮有通知动作时发送；`frontend/src/api/stream-parser.js` 统一分发给页面回调，ChatPage / WritingSpacePage 当前都以底部 toast 展示通知文本
 
 ---
 
@@ -344,6 +344,8 @@ checkAndGenerateDiary(sessionId, roundIndex)
 **会话级隔离**（T103）：状态运行时值现在存储在 `session_*_state_values` 三张表，由 `session_id ON DELETE CASCADE` 控制生命周期，各会话彼此完全独立。
 
 **触发器字段语义**：TriggerEditor 的状态条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不再按具体角色名展开。chat 会话中的 `角色.xxx` 指当前角色；writing 会话中若条件包含 `角色.xxx`，`trigger-evaluator.js` 会对当前会话激活角色逐个评估，同一角色需满足该触发器的全部条件，只要任一角色满足即触发（OR 语义）。
+
+**one_shot**：TriggerEditor 可配置“仅触发一次”；字段通过 `/api/worlds/:worldId/triggers` 和 `/api/triggers/:id` 的 `one_shot` 透传到后端。`trigger-evaluator.js` 命中后会同时写入 `last_triggered_round` 并把 `enabled` 置为 `0`，后续轮次不再重复触发。
 
 **值优先级**：读取时通过 COALESCE 逐级回退：`session_*_state_values.runtime_value_json` → `*_state_values.default_value_json` → `*_state_fields.default_value`。
 

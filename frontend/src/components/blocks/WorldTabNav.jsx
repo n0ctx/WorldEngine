@@ -4,15 +4,6 @@
 //   activeTab: string（与 tab.key 比较）
 //   onTabChange: (key: string) => void
 
-// 世界页三标签配置，供 WorldBuildPage / WorldStatePage 共用
-export function buildWorldTabs(worldId) {
-  return [
-    { key: `/worlds/${worldId}/build`, label: '构建' },
-    { key: `/worlds/${worldId}`,       label: '故事' },
-    { key: `/worlds/${worldId}/state`, label: '状态' },
-  ];
-}
-
 export default function WorldTabNav({ tabs = [], activeTab, onTabChange }) {
   return (
     <div className="we-tab-nav">

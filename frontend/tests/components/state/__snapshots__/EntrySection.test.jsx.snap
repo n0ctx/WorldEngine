@@ -2,96 +2,96 @@
 
 exports[`EntrySection > 默认状态快照 1`] = `
 <div
-  style="margin-bottom: 28px;"
+  class="we-entry-section"
 >
   <div
-    style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;"
+    class="we-entry-section-header"
   >
     <div>
       <span
-        style="font-size: 16px; margin-right: 6px; color: var(--we-vermilion);"
+        class="we-entry-section-icon"
       >
         📌
       </span>
       <span
-        style="font-family: var(--we-font-display); font-size: 16px; color: var(--we-paper-base); font-style: italic;"
+        class="we-entry-section-title"
       >
         常驻条目
       </span>
       <p
-        style="font-size: 13px; color: var(--we-paper-shadow); margin-top: 2px; margin-left: 22px;"
+        class="we-entry-section-desc"
       >
         始终注入
       </p>
     </div>
     <button
-      style="font-family: var(--we-font-serif); font-size: 13px; color: var(--we-vermilion); background: none; border: 1px solid var(--we-vermilion); border-radius: var(--we-radius-sm); padding: 4px 12px; cursor: pointer; flex-shrink: 0;"
+      class="we-entry-section-new-btn"
     >
       + 新建
     </button>
   </div>
   <div
-    style="border: 1px solid var(--we-paper-shadow); border-radius: var(--we-radius); overflow: hidden;"
+    class="we-entry-section-list"
   >
     <div
-      style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--we-paper-shadow); background: var(--we-paper-base);"
+      class="we-entry-section-row"
     >
       <div
-        style="flex: 1 1 0%; min-width: 0;"
+        class="we-entry-section-main"
       >
         <span
-          style="font-family: var(--we-font-serif); font-size: 14px; color: var(--we-ink-primary);"
+          class="we-entry-section-name"
         >
           世界观设定
         </span>
         <span
-          style="margin-left: 8px; font-size: 11px; color: var(--we-ink-faded); background: var(--we-paper-shadow); border-radius: 4px; padding: 1px 6px;"
+          class="we-entry-section-badge"
         >
           系统提示词
         </span>
       </div>
       <div
-        style="display: flex; gap: 8px; flex-shrink: 0;"
+        class="we-entry-section-actions"
       >
         <button
-          style="font-size: 12px; color: var(--we-ink-secondary); background: none; cursor: pointer;"
+          class="we-entry-section-action"
         >
           编辑
         </button>
         <button
-          style="font-size: 12px; color: var(--we-vermilion); background: none; cursor: pointer;"
+          class="we-entry-section-action we-entry-section-action--danger"
         >
           删除
         </button>
       </div>
     </div>
     <div
-      style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--we-paper-base);"
+      class="we-entry-section-row we-entry-section-row--last"
     >
       <div
-        style="flex: 1 1 0%; min-width: 0;"
+        class="we-entry-section-main"
       >
         <span
-          style="font-family: var(--we-font-serif); font-size: 14px; color: var(--we-ink-primary);"
+          class="we-entry-section-name"
         >
           后置规则
         </span>
         <span
-          style="margin-left: 8px; font-size: 11px; color: var(--we-ink-faded); background: var(--we-paper-shadow); border-radius: 4px; padding: 1px 6px;"
+          class="we-entry-section-badge"
         >
           后置提示词
         </span>
       </div>
       <div
-        style="display: flex; gap: 8px; flex-shrink: 0;"
+        class="we-entry-section-actions"
       >
         <button
-          style="font-size: 12px; color: var(--we-ink-secondary); background: none; cursor: pointer;"
+          class="we-entry-section-action"
         >
           编辑
         </button>
         <button
-          style="font-size: 12px; color: var(--we-vermilion); background: none; cursor: pointer;"
+          class="we-entry-section-action we-entry-section-action--danger"
         >
           删除
         </button>

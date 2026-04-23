@@ -33,13 +33,7 @@ function Chevron({ open }) {
       size={16}
       viewBox="0 0 10 10"
       strokeWidth="2.5"
-      style={{
-        flexShrink: 0,
-        color: 'var(--we-ink-faded)',
-        opacity: 0.45,
-        transition: 'transform 0.2s ease',
-        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
-      }}
+      className={`we-state-chevron${open ? ' we-state-chevron--open' : ''}`}
     >
       <polyline points="2,3.5 5,6.5 8,3.5" />
     </Icon>
@@ -52,15 +46,9 @@ const RECENT_LIMIT = 5;
 function DiaryEntry({ entry, index, selected, onSelect }) {
   return (
     <div
-      className="we-timeline-entry"
+      className={`we-timeline-entry we-diary-entry${selected ? ' we-diary-entry--selected' : ''}`}
       style={{
         animationDelay: `${index * 50}ms`,
-        cursor: 'pointer',
-        borderRadius: 4,
-        padding: '2px 4px',
-        background: selected ? 'var(--we-gold-leaf)' : 'transparent',
-        opacity: selected ? 0.9 : 1,
-        transition: 'background 0.18s ease',
       }}
       onClick={() => onSelect(entry)}
       title="点击注入下轮提示词"
@@ -154,43 +142,12 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const hasMore = olderDiary.length > 0;
 
   return (
-    <div
-      className="we-state-panel"
-      style={{
-        flex: '0 0 22%',
-        minWidth: '300px',
-        maxWidth: '420px',
-        minHeight: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--we-paper-aged)',
-        borderLeft: '1px solid var(--we-paper-shadow)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="we-state-panel">
       {/* 书脊阴影 */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0, top: 0, bottom: 0, width: 12,
-          background: 'var(--we-spine-shadow-left)',
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
-      />
+      <div className="we-state-spine" />
 
       {/* 滚动内容层 */}
-      <div style={{
-        flex: 1,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        scrollbarWidth: 'thin',
-        scrollbarColor: 'var(--we-paper-shadow) transparent',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 0,
-      }}>
+      <div className="we-state-scroll">
 
         {/* ── 头部 ── */}
         <div className="we-state-panel-header">
@@ -244,8 +201,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           {/* ── 日记时间线（可折叠） ── */}
           <div className="we-timeline">
             <div
-              className="we-state-section-title"
-              style={{ cursor: 'pointer', userSelect: 'none' }}
+              className="we-state-section-title we-state-section-title--toggle"
               onClick={() => setDiaryOpen((o) => !o)}
             >
               <Chevron open={diaryOpen} />
@@ -253,26 +209,16 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               <span className="we-section-rule" />
             </div>
             {selectedEntry && (
-              <div style={{
-                fontSize: 10,
-                color: 'var(--we-gold-leaf)',
-                padding: '0 4px 4px',
-                fontStyle: 'italic',
-              }}>
+              <div className="we-diary-selected-note">
                 已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
               </div>
             )}
-            <div style={{
-              display: 'grid',
-              gridTemplateRows: diaryOpen ? '1fr' : '0fr',
-              transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-              overflow: 'hidden',
-            }}>
-              <div style={{ overflow: 'hidden', minHeight: 0 }}>
+            <div className={`we-state-collapse${diaryOpen ? ' we-state-collapse--open' : ''}`}>
+              <div className="we-state-collapse-inner">
                 {diaryEntries === null ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div className="we-state-skeleton-list">
                     {[85, 65, 90].map((w, i) => (
-                      <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
+                      <div key={i} className="we-skel we-state-skeleton-line" style={{ width: `${w}%` }} />
                     ))}
                   </div>
                 ) : !hasDiary ? (
@@ -300,13 +246,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
                           />
                         ))}
                         <div
-                          style={{
-                            fontSize: 11,
-                            color: 'var(--we-ink-faded)',
-                            cursor: 'pointer',
-                            padding: '4px 4px 2px',
-                            userSelect: 'none',
-                          }}
+                          className="we-diary-more"
                           onClick={() => setDiaryExpanded((v) => !v)}
                         >
                           {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
@@ -331,33 +271,16 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 30,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--we-color-paper-overlay)',
-            }}
+            className="we-state-change-overlay"
           >
             <MotionDiv
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
+              className="we-state-change-chip"
             >
-              <span style={{
-                fontFamily: 'var(--we-font-display)',
-                fontSize: 12,
-                fontStyle: 'italic',
-                letterSpacing: '0.18em',
-                lineHeight: 1,
-                color: 'var(--we-gold-leaf)',
-                whiteSpace: 'nowrap',
-              }}>
+              <span className="we-state-change-text">
                 已整理
               </span>
             </MotionDiv>

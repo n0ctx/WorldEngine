@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import StateFieldEditor from './StateFieldEditor';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表' };
@@ -29,16 +29,16 @@ export default function StateFieldList({
   const [deletingId, setDeletingId] = useState(null);
   const dragIdx = useRef(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       setFields(await listFn(worldId));
     } finally {
       setLoading(false);
     }
-  }
+  }, [listFn, worldId]);
 
-  useEffect(() => { load(); }, [worldId]);
+  useEffect(() => { load(); }, [load]);
 
   async function handleSave(data) {
     if (editingField) {
@@ -183,11 +183,11 @@ function DeleteConfirm({ onConfirm, onClose }) {
   }
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
-      <div className="we-dialog-panel w-full max-w-sm mx-4" style={{ padding: '24px' }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '17px', fontWeight: 400, fontStyle: 'italic', color: 'var(--we-ink-primary)', marginBottom: '10px' }}>
+      <div className="we-dialog-panel mx-4 w-full max-w-sm p-6">
+        <h2 className="mb-2.5 text-[17px] font-normal italic text-[var(--we-ink-primary)] [font-family:var(--we-font-display)]">
           确认删除字段
         </h2>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: '20px' }}>
+        <p className="mb-5 text-[13px] text-[var(--we-vermilion)] [font-family:var(--we-font-serif)]">
           此操作无法撤销。
         </p>
         <div className="flex justify-end gap-3">

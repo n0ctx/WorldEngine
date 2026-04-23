@@ -19,86 +19,56 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
   }
 
   return (
-    <div style={{ marginBottom: '28px' }}>
+    <div className="we-entry-section">
       {/* 标题行：icon + title + desc + "新建"按钮 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+      <div className="we-entry-section-header">
         <div>
-          <span style={{ fontSize: '16px', marginRight: '6px', color: 'var(--we-vermilion)' }}>{icon}</span>
-          <span style={{
-            fontFamily: 'var(--we-font-display)',
-            fontSize: '16px',
-            color: 'var(--we-paper-base)',
-            fontStyle: 'italic',
-          }}>
+          <span className="we-entry-section-icon">{icon}</span>
+          <span className="we-entry-section-title">
             {title}
           </span>
-          <p style={{ fontSize: '13px', color: 'var(--we-paper-shadow)', marginTop: '2px', marginLeft: '22px' }}>
+          <p className="we-entry-section-desc">
             {desc}
           </p>
         </div>
         <button
           onClick={() => setEditing({})}
-          style={{
-            fontFamily: 'var(--we-font-serif)',
-            fontSize: '13px',
-            color: 'var(--we-vermilion)',
-            background: 'none',
-            border: '1px solid var(--we-vermilion)',
-            borderRadius: 'var(--we-radius-sm)',
-            padding: '4px 12px',
-            cursor: 'pointer',
-            flexShrink: 0,
-          }}
+          className="we-entry-section-new-btn"
         >
           + 新建
         </button>
       </div>
 
       {/* 条目列表 */}
-      <div style={{
-        border: '1px solid var(--we-paper-shadow)',
-        borderRadius: 'var(--we-radius)',
-        overflow: 'hidden',
-      }}>
+      <div className="we-entry-section-list">
         {entries.map((entry, i) => (
-          <div key={entry.id} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 14px',
-            borderBottom: i < entries.length - 1 ? '1px solid var(--we-paper-shadow)' : 'none',
-            background: 'var(--we-paper-base)',
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)' }}>
+          <div
+            key={entry.id}
+            className={`we-entry-section-row${i < entries.length - 1 ? '' : ' we-entry-section-row--last'}`}
+          >
+            <div className="we-entry-section-main">
+              <span className="we-entry-section-name">
                 {entry.title}
               </span>
-              <span style={{
-                marginLeft: '8px',
-                fontSize: '11px',
-                color: 'var(--we-ink-faded)',
-                background: 'var(--we-paper-shadow)',
-                borderRadius: '4px',
-                padding: '1px 6px',
-              }}>
+              <span className="we-entry-section-badge">
                 {entry.position === 'system' ? '系统提示词' : '后置提示词'}
               </span>
               {triggerType === 'keyword' && entry.keywords?.length > 0 && (
-                <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--we-ink-secondary)' }}>
+                <span className="we-entry-section-keywords">
                   触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <div className="we-entry-section-actions">
               <button
                 onClick={() => setEditing(entry)}
-                style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                className="we-entry-section-action"
               >
                 编辑
               </button>
               <button
                 onClick={() => setConfirmingDeleteEntry(entry)}
-                style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer' }}
+                className="we-entry-section-action we-entry-section-action--danger"
               >
                 删除
               </button>
@@ -106,7 +76,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
           </div>
         ))}
         {entries.length === 0 && (
-          <div style={{ padding: '16px', textAlign: 'center', fontSize: '13px', color: 'var(--we-ink-faded)', background: 'var(--we-paper-base)' }}>
+          <div className="we-entry-section-empty">
             暂无条目
           </div>
         )}

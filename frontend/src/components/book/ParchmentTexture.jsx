@@ -16,34 +16,19 @@ const svgFiber = `<svg xmlns='http://www.w3.org/2000/svg' width='128' height='12
 </svg>`;
 
 export default function ParchmentTexture({ opacity = 0.7, blendMode = 'multiply', zIndex = 20 }) {
+  const textureVars = {
+    '--parchment-noise-image': `url("data:image/svg+xml,${svgNoise}")`,
+    '--parchment-fiber-image': `url("data:image/svg+xml,${svgFiber}")`,
+    '--parchment-opacity': opacity,
+    '--parchment-blend': blendMode,
+    '--parchment-z': zIndex,
+    '--parchment-fiber-z': zIndex + 1,
+  };
+
   return (
-    <>
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex,
-          opacity,
-          mixBlendMode: blendMode,
-          backgroundImage: `url("data:image/svg+xml,${svgNoise}")`,
-          backgroundRepeat: 'repeat',
-          backgroundSize: '256px 256px',
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-          zIndex: zIndex + 1,
-          opacity: 0.22,
-          mixBlendMode: blendMode,
-          backgroundImage: `url("data:image/svg+xml,${svgFiber}")`,
-          backgroundRepeat: 'repeat',
-          backgroundSize: '128px 128px',
-        }}
-      />
-    </>
+    <div className="we-parchment-texture" style={textureVars}>
+      <div className="we-parchment-texture-noise" />
+      <div className="we-parchment-texture-fiber" />
+    </div>
   );
 }

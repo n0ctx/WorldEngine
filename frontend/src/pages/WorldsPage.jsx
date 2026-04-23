@@ -141,7 +141,7 @@ export default function WorldsPage() {
             >
               <div
                 className="we-world-card-seal"
-                style={{ background: getAvatarColor(world.id) }}
+                style={{ '--avatar-bg': getAvatarColor(world.id) }}
               />
               <h3 className="we-world-card-name">{world.name}</h3>
               <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>

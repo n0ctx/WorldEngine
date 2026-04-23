@@ -6,7 +6,7 @@ export default function FormGroup({ label, required, hint, error, children }) {
       {label && (
         <FieldLabel>
           {label}
-          {required && <span style={{ color: 'var(--we-vermilion)' }}> *</span>}
+          {required && <span className="we-form-required"> *</span>}
         </FieldLabel>
       )}
       {children}

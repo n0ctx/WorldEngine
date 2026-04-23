@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WorldTabNav > tab1 激活状态快照 1`] = `
+<div
+  class="we-tab-nav"
+>
+  <button
+    class="we-tab-nav__item we-tab-nav__item--active"
+  >
+    构建
+  </button>
+  <button
+    class="we-tab-nav__item"
+  >
+    故事
+  </button>
+  <button
+    class="we-tab-nav__item"
+  >
+    状态
+  </button>
+</div>
+`;
+
+exports[`WorldTabNav > tab2 激活状态快照 1`] = `
+<div
+  class="we-tab-nav"
+>
+  <button
+    class="we-tab-nav__item"
+  >
+    构建
+  </button>
+  <button
+    class="we-tab-nav__item we-tab-nav__item--active"
+  >
+    故事
+  </button>
+  <button
+    class="we-tab-nav__item"
+  >
+    状态
+  </button>
+</div>
+`;
+
+exports[`WorldTabNav > 默认状态快照（无激活项） 1`] = `
+<div
+  class="we-tab-nav"
+>
+  <button
+    class="we-tab-nav__item"
+  >
+    构建
+  </button>
+  <button
+    class="we-tab-nav__item"
+  >
+    故事
+  </button>
+  <button
+    class="we-tab-nav__item"
+  >
+    状态
+  </button>
+</div>
+`;

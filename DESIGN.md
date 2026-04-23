@@ -395,10 +395,10 @@ Mobile（< 768px）下 inline marginalia 不显示（`display: none`），改为
 | 分类 | 内容 |
 |---|---|
 | **LLM 配置** | Provider（OpenAI/Ollama）、API Key、Base URL、全局 temperature/max_tokens |
-| **全局 Prompt** | global_system_prompt、global_post_prompt |
+| **全局提示词** | global_system_prompt、global_post_prompt |
 | **自定义 CSS** | CustomCssManager（启用/禁用、编辑代码片段，参见 §10） |
 | **正则规则** | RegexRulesManager（增删改查，scope 选择，排序，参见 §10） |
-| **全局 Prompt 条目** | 全局级 Prompt 条目 |
+| **全局提示词 条目** | 全局级 Prompt 条目 |
 | **关于** | 版本号、重置数据库 |
 
 **自定义 CSS 编辑器**：代码字体，`--we-paper-aged` 背景，带行号，提供"推荐选择器参考"可折叠区块（参见 §10）。

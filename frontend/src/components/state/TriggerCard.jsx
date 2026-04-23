@@ -47,58 +47,28 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
 
   return (
     <>
-    <div style={{
-      background: 'var(--we-paper-base)',
-      border: '1px solid var(--we-paper-shadow)',
-      borderRadius: 'var(--we-radius-sm)',
-      padding: '12px 16px',
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '12px',
-    }}>
+    <div className="we-trigger-card">
       {/* 启用 toggle */}
       <button
         onClick={handleToggle}
         title={trigger.enabled ? '点击禁用' : '点击启用'}
-        style={{
-          width: '32px',
-          height: '18px',
-          borderRadius: '9px',
-          background: trigger.enabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)',
-          border: 'none',
-          cursor: 'pointer',
-          flexShrink: 0,
-          marginTop: '2px',
-          position: 'relative',
-          transition: 'background 0.2s',
-          padding: 0,
-        }}
+        className={`we-trigger-card-toggle${trigger.enabled ? ' we-trigger-card-toggle--enabled' : ''}`}
       >
-        <span style={{
-          position: 'absolute',
-          top: '2px',
-          left: trigger.enabled ? '16px' : '2px',
-          width: '14px',
-          height: '14px',
-          borderRadius: '50%',
-          background: 'var(--we-paper-base)',
-          transition: 'left 0.2s',
-          display: 'block',
-        }} />
+        <span className="we-trigger-card-toggle-knob" />
       </button>
 
       {/* 内容 */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', fontWeight: 500, marginBottom: '4px' }}>
+      <div className="we-trigger-card-body">
+        <div className="we-trigger-card-name">
           {trigger.name}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '2px' }}>
+        <div className="we-trigger-card-summary">
           当 {conditionSummary(trigger.conditions)}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>
+        <div className="we-trigger-card-summary we-trigger-card-summary--action">
           则 {actionsSummary(trigger.actions)}
         </div>
-        <div style={{ fontSize: '11px', color: 'var(--we-ink-faded)' }}>
+        <div className="we-trigger-card-meta">
           {trigger.one_shot === 1 ? '单次触发' : '可重复触发'} ·{' '}
           {trigger.last_triggered_round != null
             ? `上次触发：第 ${trigger.last_triggered_round} 轮`
@@ -107,11 +77,11 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
       </div>
 
       {/* 操作 */}
-      <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-        <button onClick={onEdit} style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}>
+      <div className="we-trigger-card-actions">
+        <button onClick={onEdit} className="we-trigger-card-action">
           编辑
         </button>
-        <button onClick={() => setConfirmingDelete(true)} style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}>
+        <button onClick={() => setConfirmingDelete(true)} className="we-trigger-card-action we-trigger-card-action--danger">
           删除
         </button>
       </div>

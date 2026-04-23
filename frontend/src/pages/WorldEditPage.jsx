@@ -64,7 +64,9 @@ export default function WorldEditPage() {
       const draft = JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
       if (draft.name != null) setName(draft.name);
       if (draft.description != null) setDescription(draft.description);
-    } catch {}
+    } catch {
+      /* 忽略无效草稿 */
+    }
   }, [isCreate]);
 
   // 创建模式：自动保存草稿

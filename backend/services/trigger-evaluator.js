@@ -232,14 +232,11 @@ export function evaluateTriggers(worldId, sessionId, roundIndex) {
       }
     }
 
-    // 更新 last_triggered_round
-    updateTrigger(trigger.id, { last_triggered_round: roundIndex });
-
-    // one_shot：触发后禁用
-    if (trigger.one_shot === 1) {
-      updateTrigger(trigger.id, { enabled: 0 });
-      log.info(`触发器 one_shot 已禁用 id=${trigger.id}`);
-    }
+    // 更新最后触发轮次；one_shot 命中后自动禁用
+    updateTrigger(trigger.id, {
+      last_triggered_round: roundIndex,
+      ...(trigger.one_shot === 1 ? { enabled: 0 } : {}),
+    });
   }
 
   return { notifications };

@@ -26,7 +26,8 @@ export { default as AvatarCircle }    from './ui/AvatarCircle';
 export { default as PersonaCard }     from './state/PersonaCard';
 
 // — Blocks 结构模式 —
-export { default as WorldTabNav, buildWorldTabs } from './blocks/WorldTabNav';
+export { default as WorldTabNav }     from './blocks/WorldTabNav';
+export { buildWorldTabs }             from './blocks/world-tabs';
 export { default as BackButton }      from './blocks/BackButton';
 
 // — Book 专属 —

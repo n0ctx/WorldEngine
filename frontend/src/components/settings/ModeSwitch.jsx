@@ -1,18 +1,16 @@
 export default function ModeSwitch({ mode, onChange }) {
   return (
-    <div style={{ display: 'flex', gap: '3px', marginBottom: '20px', background: 'var(--we-paper-aged)', borderRadius: '6px', padding: '3px', width: 'fit-content' }}>
+    <div className="mb-5 flex w-fit gap-[3px] rounded-md bg-[var(--we-paper-aged)] p-[3px]">
       {[{ key: 'chat', label: '对话' }, { key: 'writing', label: '写作' }].map(({ key, label }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
-          style={{
-            padding: '4px 20px', fontSize: '13px', borderRadius: '4px', border: 'none', cursor: 'pointer',
-            background: mode === key ? 'var(--we-paper-base)' : 'transparent',
-            color: mode === key ? 'var(--we-ink-primary)' : 'var(--we-ink-faded)',
-            fontFamily: 'var(--we-font-serif)',
-            boxShadow: mode === key ? '0 0 0 1px var(--we-paper-shadow)' : 'none',
-            transition: 'all 0.15s',
-          }}
+          className={[
+            'cursor-pointer rounded border-0 px-5 py-1 text-[13px] transition-all [font-family:var(--we-font-serif)]',
+            mode === key
+              ? 'bg-[var(--we-paper-base)] text-[var(--we-ink-primary)] shadow-[0_0_0_1px_var(--we-paper-shadow)]'
+              : 'bg-transparent text-[var(--we-ink-faded)]',
+          ].join(' ')}
         >
           {label}
         </button>

@@ -24,14 +24,6 @@ export default function ModelCombobox({
   const [filtering, setFiltering] = useState(false);
   const containerRef = useRef(null);
 
-  // 下拉关闭时，同步 inputValue 到最新的 value，并重置过滤
-  useEffect(() => {
-    if (!open) {
-      setInputValue(value);
-      setFiltering(false);
-    }
-  }, [value, open]);
-
   // 点击外部关闭
   useEffect(() => {
     function handle(e) {
@@ -47,6 +39,7 @@ export default function ModelCombobox({
   const filtered = filtering && inputValue.trim()
     ? options.filter((o) => optionId(o).toLowerCase().includes(inputValue.toLowerCase()))
     : options;
+  const displayValue = open || filtering ? inputValue : value;
 
   function handleFocus() {
     setFiltering(false);
@@ -81,48 +74,28 @@ export default function ModelCombobox({
 
   return (
     <div ref={containerRef} className={['relative w-full', className].filter(Boolean).join(' ')}>
-      <div style={{
-        display: 'flex', alignItems: 'center', width: '100%',
-        background: 'var(--we-color-ink-wash)',
-        border: '1px solid var(--we-paper-shadow)',
-        borderRadius: 'var(--we-radius-none)',
-        overflow: 'hidden',
-        transition: 'border-color 0.18s, box-shadow 0.18s',
-      }}
-        className="we-combobox-wrap"
-      >
+      <div className="we-combobox-wrap">
         <input
           type="text"
-          value={inputValue}
+          value={displayValue}
           onChange={handleInputChange}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           disabled={disabled}
           placeholder={placeholder}
-          style={{
-            flex: 1, padding: '9px 12px',
-            background: 'transparent',
-            fontFamily: 'var(--we-font-serif)',
-            fontSize: '14.5px',
-            color: 'var(--we-ink-primary)',
-            border: 'none', outline: 'none',
-          }}
+          className="we-combobox-input"
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={handleToggle}
           disabled={disabled}
-          style={{
-            padding: '8px 10px',
-            color: 'var(--we-ink-faded)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            transition: 'color 0.15s',
-          }}
+          className="we-combobox-toggle"
           aria-label={open ? '收起列表' : '展开列表'}
         >
           <svg
-            style={{ width: 14, height: 14, transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'none' }}
+            className="we-combobox-chevron"
+            style={{ transform: open ? 'rotate(180deg)' : 'none' }}
             viewBox="0 0 16 16" fill="none" stroke="currentColor"
             strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
           >
@@ -131,19 +104,7 @@ export default function ModelCombobox({
         </button>
       </div>
       {open && filtered.length > 0 && (
-        <ul style={{
-          position: 'absolute', zIndex: 50,
-          top: 'calc(100% + 2px)', left: 0, right: 0,
-          background: 'var(--we-paper-base)',
-          border: '1px solid var(--we-paper-shadow)',
-          borderRadius: 'var(--we-radius-sm)',
-          boxShadow: '0 4px 16px var(--we-color-shadow-md)',
-          overflow: 'hidden', overflowY: 'auto',
-          maxHeight: '12rem',
-          padding: '4px 0',
-          scrollbarWidth: 'thin',
-          scrollbarColor: 'var(--we-paper-shadow) transparent',
-        }}>
+        <ul className="we-combobox-dropdown">
           {filtered.map((option) => {
             const id = optionId(option);
             const inp = typeof option === 'object' ? formatPrice(option.inputPrice) : null;
@@ -153,30 +114,12 @@ export default function ModelCombobox({
               <li
                 key={id}
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(option); }}
-                style={{
-                  padding: '6px 14px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  fontFamily: 'var(--we-font-serif)',
-                  fontSize: '14px',
-                  color: id === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
-                  cursor: 'pointer', userSelect: 'none',
-                  transition: 'background 0.12s',
-                  listStyle: 'none',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-paper-aged)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                className={`we-combobox-option${id === value ? ' we-combobox-option--selected' : ''}`}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, minWidth: 0 }}>{id}</span>
+                <span className="we-combobox-option-id">{id}</span>
                 {hasPrice && (
-                  <span style={{
-                    flexShrink: 0, marginLeft: '10px',
-                    fontSize: '11.5px',
-                    fontFamily: 'var(--we-font-ui, var(--we-font-serif))',
-                    color: 'var(--we-ink-faded)',
-                    opacity: 0.8,
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''} <span style={{ opacity: 0.6 }}>/1M</span>
+                  <span className="we-combobox-price">
+                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''} <span className="we-combobox-price-unit">/1M</span>
                   </span>
                 )}
               </li>

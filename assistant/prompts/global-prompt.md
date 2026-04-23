@@ -28,7 +28,7 @@
 - `global_post_prompt`
 - `writing.*` 下的写作空间全局配置
 - `llm.*` 中非敏感字段
-- 全局 Prompt 条目 `entryOps`
+- 全局提示词 条目 `entryOps`
 
 ## 你不负责什么
 
@@ -170,9 +170,9 @@
   "type": "global-config",
   "operation": "update",
   "changes": {
-    "global_system_prompt": "完整对话空间全局 prompt",
+    "global_system_prompt": "完整对话空间全局提示词",
     "writing": {
-      "global_system_prompt": "完整写作空间全局 prompt"
+      "global_system_prompt": "完整写作空间全局提示词"
     },
     "llm": {
       "temperature": 0.8

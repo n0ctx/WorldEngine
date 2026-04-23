@@ -14,7 +14,6 @@ import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import StatePanel from '../components/book/StatePanel.jsx';
-import { getWorld } from '../api/worlds.js';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
@@ -26,13 +25,11 @@ export default function ChatPage() {
   const [character, setCharacter] = useState(null);
   const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
-  const [worldName, setWorldName] = useState('');
   const [generating, setGenerating] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
   const [recallSummary, setRecallSummary] = useState(null); // null | { recalled: number, expanded: number }
-  const [lastUserContent, setLastUserContent] = useState('');
   const [messageListKey, setMessageListKey] = useState(0);
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
@@ -114,7 +111,6 @@ export default function ChatPage() {
       setCharacter(c);
       if (c.world_id) {
         getPersona(c.world_id).then(setPersona).catch(() => {});
-        getWorld(c.world_id).then((w) => setWorldName(w.name || '')).catch(() => {});
         syncDiaryTimeField(c.world_id).catch(() => {});
       }
     }).catch(console.error);
@@ -347,7 +343,6 @@ export default function ChatPage() {
     setErrorBubble(null);
     clearOptionsState();
     streamingTextRef.current = '';
-    setLastUserContent(content);
     setRecallSummary(null);
 
     // 乐观追加 user 消息到列表
@@ -699,8 +694,8 @@ export default function ChatPage() {
             <div className="max-w-[800px] mx-auto">
               <div className="flex items-start gap-3">
                 <div
-                  className="flex-none w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
-                  style={{ background: getAvatarColor(character?.id) }}
+                  className="we-chat-error-avatar"
+                  style={{ '--avatar-bg': getAvatarColor(character?.id) }}
                 >
                   {getAvatarUrl(character?.avatar_path)
                     ? <img src={getAvatarUrl(character?.avatar_path)} alt="" className="w-6 h-6 object-cover" />

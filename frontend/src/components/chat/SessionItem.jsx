@@ -71,21 +71,11 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
         setConfirmDelete(false);
       }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="we-session-item__content">
         {editing ? (
           <input
             ref={inputRef}
-            style={{
-              width: '100%',
-              fontSize: 13.5,
-              fontFamily: 'var(--we-font-serif)',
-              background: 'var(--we-paper-base)',
-              border: '1px solid var(--we-vermilion)',
-              borderRadius: 3,
-              padding: '2px 6px',
-              color: 'var(--we-ink-primary)',
-              outline: 'none',
-            }}
+            className="we-session-item__edit-input"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -94,76 +84,42 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
           />
         ) : (
           <p
-            style={{
-              fontSize: 13.5,
-              fontFamily: 'var(--we-font-serif)',
-              color: 'var(--we-ink-primary)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              lineHeight: 1.4,
-              margin: 0,
-            }}
+            className="we-session-item__title"
             onDoubleClick={startEdit}
             title={displayTitle}
           >
             {displayTitle}
           </p>
         )}
-        <p style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--we-ink-faded)', marginTop: 2, margin: '2px 0 0' }}>
+        <p className="we-session-item__date">
           {formatDate(session.updated_at)}
         </p>
       </div>
 
       {!editing && hovered && (
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+        <div className="we-session-item__actions" onClick={(e) => e.stopPropagation()}>
           {confirmDelete ? (
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div className="we-session-item__confirm-group">
               <button
                 onClick={handleConfirmDelete}
-                style={{
-                  fontSize: 11,
-                  padding: '2px 7px',
-                  borderRadius: 3,
-                  background: 'var(--we-vermilion)',
-                  color: 'var(--we-paper-base)',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className="we-session-item__delete-confirm"
               >
                 删除
               </button>
               <button
                 onClick={handleCancelDelete}
-                style={{
-                  fontSize: 11,
-                  padding: '2px 7px',
-                  borderRadius: 3,
-                  background: 'var(--we-paper-shadow)',
-                  color: 'var(--we-ink-secondary)',
-                  border: 'none',
-                  cursor: 'pointer',
-                }}
+                className="we-session-item__cancel-confirm"
               >
                 取消
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div className="we-session-item__btn-group">
               <button
                 onClick={startEdit}
-                style={{
-                  padding: 4,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--we-ink-faded)',
-                  borderRadius: 3,
-                }}
+                className="we-session-item__icon-btn"
                 title="编辑标题"
                 aria-label="编辑会话标题"
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >
                 <Icon size={16}>
                   <path d="M12 20h9" />
@@ -172,18 +128,9 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
               </button>
               <button
                 onClick={handleDeleteClick}
-                style={{
-                  padding: 4,
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--we-ink-faded)',
-                  borderRadius: 3,
-                }}
+                className="we-session-item__icon-btn"
                 title="删除会话"
                 aria-label="删除会话"
-                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >
                 <Icon size={16}>
                   <polyline points="3 6 5 6 21 6" />

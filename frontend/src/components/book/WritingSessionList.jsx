@@ -138,10 +138,12 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
       .finally(() => setLoading(false));
   }, [worldId]);
 
+  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by streaming callbacks.
   WritingSessionList.updateTitle = (sessionId, title) => {
     setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title } : s));
   };
 
+  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by streaming callbacks.
   WritingSessionList.addSession = (session) => {
     setSessions((prev) => [session, ...prev]);
   };

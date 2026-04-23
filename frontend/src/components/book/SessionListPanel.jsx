@@ -1,5 +1,5 @@
 /* DESIGN.md §5.3 — 左页会话列表面板（无 Tab） */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from '../chat/SessionItem.jsx';
@@ -38,7 +38,7 @@ export default function SessionListPanel({
   }, [character?.id]);
 
   // 滚动到底部时加载更多
-  async function loadMore() {
+  const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
@@ -49,7 +49,7 @@ export default function SessionListPanel({
     } finally {
       setLoadingMore(false);
     }
-  }
+  }, [character?.id, hasMore, loadingMore, offset]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -61,7 +61,7 @@ export default function SessionListPanel({
     }
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [hasMore, loadingMore, offset]);
+  }, [hasMore, loadMore, loadingMore]);
 
   async function handleCreateSession() {
     if (!character) return;
@@ -115,24 +115,13 @@ export default function SessionListPanel({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--we-paper-shadow)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+    <div className="we-session-list-panel">
+      <div className="we-session-list-head">
+        <div className="we-session-list-nav">
           <button
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
             title="切换角色"
-            style={{
-              padding: 4,
-              borderRadius: 4,
-              color: 'var(--we-ink-faded)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              opacity: 0.6,
-              transition: 'opacity 0.15s',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
+            className="we-session-list-back"
           >
             <Icon size={16}>
               <polyline points="15 18 9 12 15 6" />
@@ -142,25 +131,7 @@ export default function SessionListPanel({
 
         <button
           onClick={handleCreateSession}
-          style={{
-            width: '100%',
-            padding: '7px 0',
-            marginTop: 10,
-            border: '1.5px dashed var(--we-vermilion)',
-            borderRadius: 4,
-            background: 'none',
-            cursor: 'pointer',
-            fontSize: 12,
-            fontFamily: 'var(--we-font-serif)',
-            color: 'var(--we-vermilion)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 5,
-            transition: 'background 0.12s',
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+          className="we-session-list-create"
         >
           <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -170,9 +141,9 @@ export default function SessionListPanel({
         </button>
       </div>
 
-      <div ref={listRef} style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+      <div ref={listRef} className="we-session-list-scroll">
         {sessions.length === 0 && (
-          <p style={{ fontSize: 12, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.6, padding: '24px 0' }}>
+          <p className="we-session-list-empty">
             暂无对话
           </p>
         )}
@@ -187,7 +158,7 @@ export default function SessionListPanel({
           />
         ))}
         {loadingMore && (
-          <p style={{ fontSize: 11, textAlign: 'center', color: 'var(--we-ink-faded)', opacity: 0.5, padding: '8px 0' }}>
+          <p className="we-session-list-loading">
             加载中…
           </p>
         )}

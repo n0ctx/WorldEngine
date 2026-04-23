@@ -33,7 +33,7 @@ export const NAV_KEY = {
 export const NAV_SECTIONS = [
   { key: NAV_KEY.LLM, label: 'LLM 配置' },
   { key: NAV_KEY.FEATURES, label: '功能配置' },
-  { key: NAV_KEY.PROMPT, label: '全局 Prompt' },
+  { key: NAV_KEY.PROMPT, label: '全局提示词' },
   { key: NAV_KEY.CSS, label: '自定义 CSS' },
   { key: NAV_KEY.REGEX, label: '正则规则' },
   { key: NAV_KEY.IMPORT_EXPORT, label: '导入导出' },

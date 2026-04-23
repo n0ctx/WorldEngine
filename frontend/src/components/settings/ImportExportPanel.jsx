@@ -62,13 +62,13 @@ export default function ImportExportPanel({ onImportSuccess }) {
       <div className="we-settings-field-group">
         <ModeSwitch mode={mode} onChange={(m) => { setMode(m); setMessage(null); }} />
 
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', lineHeight: '1.7', margin: '0 0 16px' }}>
-          当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局 Prompt（system/post prompt、prompt 条目）、自定义 CSS、全局正则规则。不含 LLM 配置与功能配置。
+        <p className="mb-4 mt-0 text-[13px] leading-[1.7] text-[var(--we-ink-faded)] [font-family:var(--we-font-serif)]">
+          当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局提示词（system/post prompt、prompt 条目）、自定义 CSS、全局正则规则。不含 LLM 配置与功能配置。
           <br />
           导入为<strong>覆盖</strong>模式，仅清空并写入<strong>{modeLabel}</strong>的数据，不影响另一空间。
         </p>
 
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-2.5">
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? '导出中…' : `导出${modeLabel}设置`}
           </Button>
@@ -79,18 +79,17 @@ export default function ImportExportPanel({ onImportSuccess }) {
             ref={fileInputRef}
             type="file"
             accept=".json,.weglobal.json"
-            style={{ display: 'none' }}
+            className="hidden"
             onChange={handleFileChange}
           />
         </div>
 
         {message && (
-          <p style={{
-            marginTop: '12px',
-            fontFamily: 'var(--we-font-serif)',
-            fontSize: '13px',
-            color: message.type === 'ok' ? 'var(--we-gold-leaf)' : 'var(--we-vermilion)',
-          }}>
+          <p className={[
+            'mt-3 text-[13px] [font-family:var(--we-font-serif)]',
+            message.type === 'ok' ? 'text-[var(--we-gold-leaf)]' : 'text-[var(--we-vermilion)]',
+          ].join(' ')}
+          >
             {message.text}
           </p>
         )}

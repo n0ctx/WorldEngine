@@ -1,9 +1,11 @@
 import { getAvatarUrl } from '../../utils/avatar.js';
 
 export default function CharacterSeal({ character, size = 80, color = 'var(--we-vermilion)' }) {
+  const sealVars = { '--seal-size': `${size}px`, '--seal-color': color };
+
   if (!character) {
     return (
-      <svg viewBox="0 0 76 76" fill="none" style={{ width: size, height: size, flexShrink: 0, opacity: 0.25 }}>
+      <svg viewBox="0 0 76 76" fill="none" className="we-character-seal we-character-seal--empty" style={sealVars}>
         <rect x="4" y="4" width="68" height="68" rx="2" stroke="var(--we-ink-faded)" strokeWidth="2" />
         <rect x="8.5" y="8.5" width="59" height="59" rx="1" stroke="var(--we-ink-faded)" strokeWidth="0.7" strokeDasharray="3 2" opacity="0.5" />
       </svg>
@@ -17,21 +19,16 @@ export default function CharacterSeal({ character, size = 80, color = 'var(--we-
 
   if (avatarUrl) {
     return (
-      <div style={{ width: size, height: size, position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+      <div className="we-character-seal-wrap" style={sealVars}>
         <img
           src={avatarUrl}
           alt={name}
-          style={{
-            position: 'absolute',
-            top: '3.95%', left: '3.95%',
-            width: '92.1%', height: '92.1%',
-            objectFit: 'cover',
-          }}
+          className="we-character-seal-avatar"
         />
         <svg
           viewBox="0 0 76 76"
           fill="none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          className="we-character-seal-frame"
         >
           <rect x="3" y="3" width="70" height="70" rx="2" stroke={color} strokeWidth="2.5" />
         </svg>
@@ -42,7 +39,7 @@ export default function CharacterSeal({ character, size = 80, color = 'var(--we-
   const showTwo = char2 !== '';
 
   return (
-    <svg viewBox="0 0 76 76" fill="none" style={{ width: size, height: size, flexShrink: 0 }}>
+    <svg viewBox="0 0 76 76" fill="none" className="we-character-seal" style={sealVars}>
       <rect x="3" y="3" width="70" height="70" rx="2" stroke={color} strokeWidth="2.5" />
       <rect x="7.5" y="7.5" width="61" height="61" rx="1" stroke={color} strokeWidth="0.8" strokeDasharray="4 2.5" opacity="0.55" />
       {showTwo ? (

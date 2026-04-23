@@ -17,35 +17,6 @@ function extractIds(pathname) {
   };
 }
 
-const itemStyle = {
-  fontFamily: 'var(--we-font-display)',
-  fontStyle: 'italic',
-  fontSize: '12px',
-  letterSpacing: '0.1em',
-  padding: '3px 10px',
-  border: 'none',
-  borderRadius: '1px',
-  cursor: 'pointer',
-  background: 'none',
-  outline: 'none',
-  transition: 'color 0.2s, box-shadow 0.2s, background 0.2s',
-  whiteSpace: 'nowrap',
-  color: 'var(--we-topbar-item)',
-};
-
-const itemActiveStyle = {
-  ...itemStyle,
-  color: 'var(--we-gold-pale)',
-  boxShadow: '0 0 0 1px var(--we-topbar-active-ring)',
-  background: 'var(--we-topbar-active-bg)',
-};
-
-const sepStyle = {
-  color: 'var(--we-topbar-sep)',
-  fontSize: '12px',
-  userSelect: 'none',
-};
-
 export default function TopBar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -60,8 +31,6 @@ export default function TopBar() {
   const [worlds, setWorlds] = useState([]);
   const [chatWorldId, setChatWorldId] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [hoveredWorldId, setHoveredWorldId] = useState(null);
-  const [listBtnHover, setListBtnHover] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -84,6 +53,7 @@ export default function TopBar() {
     let cancelled = false;
 
     if (!characterId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- route changes clear derived chat world context.
       setChatWorldId(null);
       return undefined;
     }
@@ -126,6 +96,7 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- route changes should close the world menu immediately.
     setDropdownOpen(false);
   }, [location.pathname]);
 
@@ -159,77 +130,37 @@ export default function TopBar() {
   }
 
   return (
-    <div style={{
-      height: '40px',
-      flexShrink: 0,
-      background: 'var(--we-topbar-bg)',
-      borderBottom: '1px solid var(--we-topbar-border)',
-      display: 'flex',
-      alignItems: 'center',
-      padding: '0 16px',
-      gap: '4px',
-      zIndex: 50,
-      position: 'relative',
-    }}>
+    <div className="we-topbar">
       {/* 世界选择器 */}
-      <div ref={dropdownRef} style={{ position: 'relative' }}>
+      <div ref={dropdownRef} className="we-topbar-world-wrap">
         {isWorldsList ? (
-          <span style={{ ...itemStyle, cursor: 'default' }}>
+          <span className="we-topbar-item we-topbar-item--static">
             世界列表
           </span>
         ) : (
         <button
-          style={currentWorld ? itemActiveStyle : itemStyle}
+          className={`we-topbar-item${currentWorld ? ' we-topbar-item--active' : ''}`}
           onClick={() => setDropdownOpen((o) => !o)}
           aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
           aria-expanded={dropdownOpen}
           aria-haspopup="listbox"
         >
           {currentWorld?.name ?? '选择世界'}
-          <span style={{ marginLeft: '4px', opacity: 0.5, fontSize: '9px' }}>▾</span>
+          <span className="we-topbar-caret">▾</span>
         </button>
         )}
 
         {dropdownOpen && (
-          <div style={{
-            position: 'absolute',
-            top: '36px',
-            left: 0,
-            minWidth: '160px',
-            background: 'var(--we-topbar-dropdown-bg)',
-            border: '1px solid var(--we-topbar-dropdown-border)',
-            borderRadius: '2px',
-            boxShadow: 'var(--we-topbar-dropdown-shadow)',
-            zIndex: 100,
-            overflow: 'hidden',
-          }}>
+          <div className="we-topbar-dropdown">
             {worlds.length === 0 && (
-              <div style={{ padding: '8px 12px', color: 'var(--we-topbar-item-dim)', fontSize: '12px' }}>
+              <div className="we-topbar-dropdown-empty">
                 暂无世界
               </div>
             )}
             {worlds.map((w) => (
               <button
                 key={w.id}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '7px 12px',
-                  background: w.id === effectiveWorldId
-                    ? 'var(--we-topbar-active-bg)'
-                    : hoveredWorldId === w.id ? 'var(--we-topbar-item-hover-bg)' : 'none',
-                  color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'var(--we-topbar-item-faint)',
-                  fontFamily: 'var(--we-font-display)',
-                  fontStyle: 'italic',
-                  fontSize: '12px',
-                  letterSpacing: '0.08em',
-                  border: 'none',
-                  cursor: 'pointer',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={() => setHoveredWorldId(w.id)}
-                onMouseLeave={() => setHoveredWorldId(null)}
+                className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
                 onClick={() => {
                   setDropdownOpen(false);
                   setCurrentWorldId(w.id);
@@ -241,25 +172,9 @@ export default function TopBar() {
                 {w.name}
               </button>
             ))}
-            <div style={{ borderTop: '1px solid var(--we-topbar-divider)', margin: '2px 0' }} />
+            <div className="we-topbar-dropdown-divider" />
             <button
-              style={{
-                display: 'block',
-                width: '100%',
-                textAlign: 'left',
-                padding: '7px 12px',
-                background: 'none',
-                color: listBtnHover ? 'var(--we-topbar-item-faint)' : 'var(--we-topbar-item-muted)',
-                fontFamily: 'var(--we-font-display)',
-                fontStyle: 'italic',
-                fontSize: '11px',
-                letterSpacing: '0.08em',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'color 0.15s',
-              }}
-              onMouseEnter={() => setListBtnHover(true)}
-              onMouseLeave={() => setListBtnHover(false)}
+              className="we-topbar-dropdown-list-btn"
               onClick={() => { setDropdownOpen(false); navigate('/'); }}
             >
               前往世界列表 →
@@ -270,22 +185,22 @@ export default function TopBar() {
 
       {!isWorldsList && (
         <>
-          <span style={sepStyle}>·</span>
+          <span className="we-topbar-sep">·</span>
 
           {/* 对话模式 */}
           <button
-            style={isChat ? itemActiveStyle : itemStyle}
+            className={`we-topbar-item${isChat ? ' we-topbar-item--active' : ''}`}
             onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
             aria-label="进入对话模式"
           >
             对话
           </button>
 
-          <span style={sepStyle}>·</span>
+          <span className="we-topbar-sep">·</span>
 
           {/* 写作空间 */}
           <button
-            style={isWriting ? itemActiveStyle : itemStyle}
+            className={`we-topbar-item${isWriting ? ' we-topbar-item--active' : ''}`}
             onClick={() => {
               if (!effectiveWorldId) return;
               navigate(`/worlds/${effectiveWorldId}/writing`);
@@ -297,11 +212,11 @@ export default function TopBar() {
         </>
       )}
 
-      <div style={{ flex: 1 }} />
+      <div className="we-topbar-spacer" />
 
       {/* 写卡助手 */}
       <button
-        style={isAssistantOpen ? itemActiveStyle : itemStyle}
+        className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}
         onClick={toggleAssistant}
         title="写卡助手"
         aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
@@ -310,11 +225,11 @@ export default function TopBar() {
         ✦ 助手
       </button>
 
-      <span style={sepStyle}>·</span>
+      <span className="we-topbar-sep">·</span>
 
       {/* 设置 */}
       <button
-        style={{ ...itemStyle, padding: '3px 8px', display: 'flex', alignItems: 'center' }}
+        className="we-topbar-item we-topbar-settings-btn"
         aria-label="打开设置"
         onClick={() => navigate('/settings', {
           state: {
@@ -329,7 +244,7 @@ export default function TopBar() {
         })}
         title="设置"
       >
-        <Icon size={16} strokeWidth="1.8" style={{ opacity: 0.6 }}>
+        <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </Icon>

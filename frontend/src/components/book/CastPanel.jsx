@@ -23,10 +23,9 @@ function Chevron({ open }) {
       size={16}
       viewBox="0 0 10 10"
       strokeWidth="2.5"
+      className="we-cast-chevron"
       style={{
         flexShrink: 0,
-        color: 'var(--we-ink-faded)',
-        opacity: 0.45,
         transition: 'transform 0.2s ease',
         transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
       }}
@@ -41,14 +40,9 @@ const DIARY_RECENT_LIMIT = 5;
 function DiaryEntry({ entry, index, selected, onSelect }) {
   return (
     <div
-      className="we-timeline-entry"
+      className={`we-timeline-entry we-cast-diary-entry${selected ? ' we-cast-diary-entry--selected' : ''}`}
       style={{
         animationDelay: `${index * 50}ms`,
-        cursor: 'pointer',
-        borderRadius: 4,
-        padding: '2px 4px',
-        background: selected ? 'var(--we-gold-leaf)' : 'transparent',
-        opacity: selected ? 0.9 : 1,
         transition: 'background 0.18s ease',
       }}
       onClick={() => onSelect(entry)}
@@ -151,61 +145,38 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
 
   return (
     <ModalShell onClose={onClose} maxWidth="max-w-sm">
-      <div style={{ padding: '16px 20px 6px' }}>
-        <p style={{
-          fontFamily: 'var(--we-font-display)',
-          fontSize: 15,
-          fontStyle: 'italic',
-          color: 'var(--we-ink-primary)',
-          marginBottom: 12,
-        }}>
+      <div className="we-cast-add-modal-body">
+        <p className="we-cast-add-modal-title">
           添加角色
         </p>
         {available.length === 0 && (
-          <p style={{ fontSize: 13, color: 'var(--we-ink-faded)', fontStyle: 'italic', padding: '8px 0 12px' }}>
+          <p className="we-cast-add-modal-empty">
             所有角色均已激活
           </p>
         )}
         {available.map((char) => (
           <div
             key={char.id}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '8px 0',
-              borderBottom: '1px solid var(--we-paper-shadow)',
-            }}
+            className="we-cast-add-modal-row"
           >
             <CharacterSeal character={char} size={32} />
-            <span style={{ flex: 1, fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-primary)' }}>
+            <span className="we-cast-add-modal-name">
               {char.name}
             </span>
             <button
               onClick={() => handleAdd(char.id)}
               disabled={adding === char.id}
-              style={{
-                padding: '3px 10px',
-                border: '1.5px dashed var(--we-vermilion)',
-                borderRadius: 3,
-                background: 'none',
-                color: 'var(--we-vermilion)',
-                fontFamily: 'var(--we-font-serif)',
-                fontSize: 12,
-                cursor: 'pointer',
-                opacity: adding === char.id ? 0.5 : 1,
-                transition: 'background 0.12s',
-              }}
-              onMouseEnter={(e) => { if (adding !== char.id) e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+              className="we-cast-add-modal-action"
             >
               {adding === char.id ? '…' : '添加'}
             </button>
           </div>
         ))}
       </div>
-      <div style={{ padding: '10px 20px 16px', display: 'flex', justifyContent: 'flex-end' }}>
+      <div className="we-cast-add-modal-footer">
         <button
           onClick={onClose}
-          style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-ink-faded)', background: 'none', border: 'none', cursor: 'pointer' }}
+          className="we-cast-add-modal-close"
         >
           关闭
         </button>
@@ -226,14 +197,15 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const [diaryOpen, setDiaryOpen] = useState(true);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const firstActiveCharacterId = activeCharacters[0]?.id;
 
   useEffect(() => {
-    if (activeCharacters.length > 0) {
-      setExpandedIds([activeCharacters[0].id]);
+    if (firstActiveCharacterId) {
+      setExpandedIds([firstActiveCharacterId]);
     } else {
       setExpandedIds([]);
     }
-  }, [activeCharacters.length]);
+  }, [firstActiveCharacterId]);
 
   // sessionId 变化时清空已选日记
   useEffect(() => { setSelectedEntry(null); }, [sessionId]);
@@ -292,44 +264,17 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   }
 
   return (
-    <div
-      className="we-cast-panel"
-      style={{
-        flex: '0 0 22%',
-        minWidth: '300px',
-        maxWidth: '420px',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'var(--we-paper-aged)',
-        borderLeft: '1px solid var(--we-paper-shadow)',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
+    <div className="we-cast-panel">
       {/* 左侧书脊渐变 */}
-      <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: 12,
-        background: 'var(--we-spine-shadow-left)',
-        pointerEvents: 'none',
-        zIndex: 2,
-      }} />
+      <div className="we-cast-spine" />
 
       {/* 滚动内容层 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div className="we-cast-scroll">
 
         {/* CAST 标题 + 轮询指示 */}
         <div className="we-cast-header">
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            borderBottom: '1px solid var(--we-paper-shadow)',
-            paddingBottom: 6, marginBottom: 10,
-          }}>
-            <p style={{
-              fontFamily: 'var(--we-font-display)',
-              fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase',
-              color: 'var(--we-ink-faded)',
-              margin: 0,
-            }}>
+          <div className="we-cast-header-row">
+            <p className="we-cast-title">
               Cast
             </p>
           </div>
@@ -342,24 +287,13 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
                 style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
               >
                 <CharacterSeal character={char} size={44} />
-                <span style={{
-                  fontSize: 8, fontStyle: 'italic', color: 'var(--we-ink-faded)',
-                  maxWidth: 44, overflow: 'hidden', textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap', textAlign: 'center', marginTop: 3,
-                }}>
+                <span className="we-cast-seal-name">
                   {char.name}
                 </span>
                 <button
                   onClick={() => handleRemove(char.id)}
                   title={`移除 ${char.name}`}
-                  style={{
-                    position: 'absolute', top: -2, right: -4,
-                    fontSize: 9, color: 'var(--we-ink-faded)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    lineHeight: 1, padding: 2,
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
+                  className="we-cast-seal-remove"
                 >
                   ✕
                 </button>
@@ -369,18 +303,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
             {/* 添加按钮 */}
             <button
               onClick={() => setAddModalOpen(true)}
-              style={{
-                width: 44, height: 44,
-                border: '1px dashed var(--we-vermilion)',
-                borderRadius: 'var(--we-radius-sm)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, color: 'var(--we-vermilion)',
-                background: 'none', cursor: 'pointer',
-                transition: 'background 0.12s',
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+              className="we-cast-add-button"
               title="添加角色"
             >
               ＋
@@ -389,12 +312,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         </div>
 
         {/* 金箔分隔线 */}
-        <div style={{
-          height: 1,
-          background: 'var(--we-gold-leaf)',
-          opacity: 0.4,
-          margin: '12px -14px',
-        }} />
+        <div className="we-cast-divider" />
 
         {/* 世界状态 */}
         <StatusSection
@@ -428,11 +346,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
             />
           ))}
           {activeCharacters.length === 0 && (
-            <p style={{
-              fontSize: 12, fontStyle: 'italic',
-              color: 'var(--we-ink-faded)',
-              textAlign: 'center', paddingTop: 12,
-            }}>
+            <p className="we-cast-empty">
               暂无激活角色
             </p>
           )}
@@ -457,12 +371,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
                 <span className="we-section-rule" />
               </div>
               {selectedEntry && (
-                <div style={{
-                  fontSize: 10,
-                  color: 'var(--we-gold-leaf)',
-                  padding: '0 4px 4px',
-                  fontStyle: 'italic',
-                }}>
+                <div className="we-cast-diary-selected-note">
                   已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
                 </div>
               )}
@@ -504,13 +413,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
                             />
                           ))}
                           <div
-                            style={{
-                              fontSize: 11,
-                              color: 'var(--we-ink-faded)',
-                              cursor: 'pointer',
-                              padding: '4px 4px 2px',
-                              userSelect: 'none',
-                            }}
+                            className="we-cast-diary-more"
                             onClick={() => setDiaryExpanded((v) => !v)}
                           >
                             {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
@@ -547,16 +450,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute',
-              inset: 0,
-              zIndex: 30,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'var(--we-color-paper-overlay)',
-            }}
+            className="we-cast-state-overlay"
           >
             <MotionDiv
               initial={{ opacity: 0, y: 6 }}
@@ -565,15 +459,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
             >
-              <span style={{
-                fontFamily: 'var(--we-font-display)',
-                fontSize: 12,
-                fontStyle: 'italic',
-                letterSpacing: '0.18em',
-                lineHeight: 1,
-                color: 'var(--we-gold-leaf)',
-                whiteSpace: 'nowrap',
-              }}>
+              <span className="we-cast-state-overlay-text">
                 已整理
               </span>
             </MotionDiv>

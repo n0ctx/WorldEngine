@@ -136,16 +136,19 @@ export default function MessageList({
   }, [streamingText, continuingText, generating]);
 
   // 外部追加消息（发送后插入 user 消息）
+  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
   MessageList.appendMessage = (msg) => setMessages((prev) => [...prev, msg]);
   // 外部更新消息（编辑后）
+  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
   MessageList.updateMessages = (updater) => setMessages(updater);
   // 外部同步读取当前消息列表（避免在 updater 闭包中读取异步状态）
+  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
   MessageList.messagesRef = messagesRef;
 
   const messagesForDisplay = useMemo(() => {
     if (!prose || !generating || !!continuingMessageId) return messages;
     const lastMsg = messages[messages.length - 1];
-    const fakeTs = (lastMsg?.created_at ?? Date.now()) + 1;
+    const fakeTs = (lastMsg?.created_at ?? 0) + 1;
     return [
       ...messages,
       {
@@ -204,7 +207,7 @@ export default function MessageList({
       )}
 
       {prose ? (
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '8px 24px 24px' }}>
+        <div className="we-prose-message-list">
           {chapters.map((chapter) => {
             const ctEntry = chapterTitles[chapter.chapterIndex];
             const chapterTitle = ctEntry?.title ?? (chapter.chapterIndex === 1 ? '序章' : '续章');
@@ -268,7 +271,7 @@ export default function MessageList({
             {generating && !continuingMessageId && (
               <MessageItem
                 key={streamingKey || '__streaming__'}
-                message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: Date.now() }}
+                message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: 0 }}
                 character={character}
                 worldId={worldId}
                 isStreaming={true}
@@ -290,16 +293,16 @@ export default function MessageList({
       <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex justify-center">
         {memoryRecalling ? (
           <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
             <span>正在检索记忆…</span>
           </div>
         ) : memoryExpanding ? (
           <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
-            <span className="typing-dot" style={{ background: 'var(--we-accent)' }} />
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
             <span>{recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…'}</span>
           </div>
         ) : (

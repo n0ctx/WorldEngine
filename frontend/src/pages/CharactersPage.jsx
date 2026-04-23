@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   getCharactersByWorld,
@@ -28,7 +28,7 @@ export default function CharactersPage() {
   const dragIdx = useRef(null);
   const charImportRef = useRef(null);
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
@@ -43,9 +43,9 @@ export default function CharactersPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [worldId]);
 
-  useEffect(() => { loadData(); }, [worldId, reloadKey]);
+  useEffect(() => { loadData(); }, [loadData, reloadKey]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);

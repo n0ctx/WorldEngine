@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
@@ -36,16 +36,16 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
   const dragIdx = useRef(null);
   const appMode = useAppModeStore((s) => s.appMode);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       setSnippets(await listSnippets({ mode: settingsMode }));
     } finally {
       setLoading(false);
     }
-  }
+  }, [settingsMode]);
 
-  useEffect(() => { load(); }, [settingsMode]);
+  useEffect(() => { load(); }, [load]);
 
   async function handleSave(data) {
     if (editingSnippet) {

@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`BackButton > 自定义 label 快照 1`] = `
+<button
+  class="we-back-btn"
+>
+  ← 
+  所有世界
+</button>
+`;
+
+exports[`BackButton > 默认 label "返回" 快照 1`] = `
+<button
+  class="we-back-btn"
+>
+  ← 
+  返回
+</button>
+`;

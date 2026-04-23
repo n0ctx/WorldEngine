@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 
+const MotionDiv = motion.div;
+
 /**
  * 选项卡：AI 回复后展示若干行动选项，点击后直接发送，点击取消则关闭。
  * streaming=true 时选项实时更新但不可交互（流式进行中）。
@@ -10,7 +12,7 @@ export default function OptionCard({ options, streaming, onSelect, onDismiss }) 
 
   return (
     <AnimatePresence>
-      <motion.div
+      <MotionDiv
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 6 }}
@@ -19,8 +21,7 @@ export default function OptionCard({ options, streaming, onSelect, onDismiss }) 
       >
         <div className="max-w-[800px] mx-auto">
           <div
-            className="flex flex-col gap-1.5 rounded-[10px] p-2.5"
-            style={{ background: 'var(--we-paper-aged)', border: '1px solid var(--we-paper-shadow)' }}
+            className="we-option-card"
           >
             <div className="flex flex-col gap-1">
               {options.map((opt, i) => (
@@ -40,7 +41,7 @@ export default function OptionCard({ options, streaming, onSelect, onDismiss }) 
             )}
           </div>
         </div>
-      </motion.div>
+      </MotionDiv>
     </AnimatePresence>
   );
 }

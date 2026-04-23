@@ -18,33 +18,33 @@ export default function PromptConfigPanel({
 }) {
   return (
     <div>
-      <h2 className="we-settings-section-title">全局 Prompt</h2>
+      <h2 className="we-settings-section-title">全局提示词</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
           <div className="we-settings-field-group">
             <FormGroup label="写作上下文保留轮次" hint="null = 继承对话配置，0 = 不限制">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="we-settings-inline-field">
                 <Input
                   type="number"
                   min={0}
-                  style={{ width: '96px' }}
+                  className="we-settings-number-short"
                   value={writingContextRounds ?? ''}
                   placeholder="继承对话"
                   onChange={(e) => setWritingContextRounds(e.target.value === '' ? null : e.target.value)}
                 />
-                <span style={{ fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', fontFamily: 'var(--we-font-serif)' }}>
+                <span className="we-settings-inline-hint">
                   留空继承对话配置，0 = 不限制
                 </span>
               </div>
             </FormGroup>
 
-            <FormGroup label="写作 System Prompt">
+            <FormGroup label="写作系统提示词">
               <MarkdownEditor
                 value={writingSystemPrompt}
                 onChange={setWritingSystemPrompt}
-                placeholder="写作空间专用全局指令，覆盖对话 System Prompt"
+                placeholder="写作空间专用全局指令，覆盖对话系统提示词"
                 minHeight={96}
               />
             </FormGroup>
@@ -59,7 +59,7 @@ export default function PromptConfigPanel({
             </FormGroup>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <div className="we-settings-save-row">
             <Button variant="primary" onClick={onSaveWriting} disabled={saving}>
               {saving ? '保存中…' : '保存'}
             </Button>
@@ -69,21 +69,21 @@ export default function PromptConfigPanel({
         <>
           <div className="we-settings-field-group">
             <FormGroup label="上下文保留轮次" hint="0 = 不限制">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="we-settings-inline-field">
                 <Input
                   type="number"
                   min={0}
-                  style={{ width: '96px' }}
+                  className="we-settings-number-short"
                   value={contextRounds}
                   onChange={(e) => setContextRounds(e.target.value)}
                 />
-                <span style={{ fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', fontFamily: 'var(--we-font-serif)' }}>
+                <span className="we-settings-inline-hint">
                   保留最近 N 轮，0 = 不限制
                 </span>
               </div>
             </FormGroup>
 
-            <FormGroup label="全局 System Prompt">
+            <FormGroup label="全局系统提示词">
               <MarkdownEditor
                 value={globalSystemPrompt}
                 onChange={setGlobalSystemPrompt}
@@ -102,7 +102,7 @@ export default function PromptConfigPanel({
             </FormGroup>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+          <div className="we-settings-save-row">
             <Button variant="primary" onClick={onSave} disabled={saving}>
               {saving ? '保存中…' : '保存'}
             </Button>

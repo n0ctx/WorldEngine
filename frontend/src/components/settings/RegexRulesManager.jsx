@@ -52,6 +52,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   }, [settingsMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- settings mode changes should show reload state immediately.
     setLoading(true);
     refresh().finally(() => setLoading(false));
   }, [refresh]);
@@ -100,7 +101,6 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
 
     setRules((prev) => {
       const scopeRules = prev.filter((r) => r.scope === scope);
-      const others = prev.filter((r) => r.scope !== scope);
       const next = [...scopeRules];
       const [moved] = next.splice(fromIdx, 1);
       next.splice(targetIdx, 0, moved);
@@ -127,7 +127,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   }
 
   if (loading) {
-    return <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', padding: '8px 0' }}>加载中…</p>;
+    return <p className="we-regex-manager-loading">加载中…</p>;
   }
 
   const rulesByScope = SCOPE_ORDER.reduce((acc, scope) => {
@@ -136,9 +136,9 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   }, {});
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>
+    <div className="we-regex-manager">
+      <div className="we-regex-manager-head">
+        <span className="we-regex-manager-note">
           按 scope 分组，同组内按顺序链式执行
         </span>
         <Button variant="ghost" size="sm" onClick={openCreate}>+ 新建规则</Button>
@@ -146,19 +146,19 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
 
       {SCOPE_ORDER.map((scope) => (
         <div key={scope}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '8px' }}>
-            <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-ink-faded)' }}>
+          <div className="we-regex-scope-head">
+            <span className="we-regex-scope-title">
               {SCOPE_LABELS[scope]}
             </span>
-            <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '11px', color: 'var(--we-ink-faded)', opacity: 0.6 }}>
+            <span className="we-regex-scope-hint">
               — {SCOPE_HINTS[scope]}
             </span>
           </div>
 
           {rulesByScope[scope].length === 0 ? (
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '12px', color: 'var(--we-ink-faded)', fontStyle: 'italic', opacity: 0.5, marginLeft: '4px' }}>暂无规则</p>
+            <p className="we-regex-scope-empty">暂无规则</p>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className="we-regex-rule-list">
               {rulesByScope[scope].map((rule, idx) => (
                 <RuleRow
                   key={rule.id}
@@ -201,84 +201,50 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
 }
 
 function RuleRow({ rule, worldName, onEdit, onToggle, onDelete, onDragStart, onDragOver, onDragEnd }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
     <div
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        background: 'var(--we-paper-aged)',
-        border: `1px solid ${hovered ? 'var(--we-ink-faded)' : 'var(--we-paper-shadow)'}`,
-        padding: '8px 12px',
-        cursor: 'grab',
-        userSelect: 'none',
-        transition: 'border-color 0.15s',
-      }}
+      className="we-regex-rule-row"
     >
       {/* 拖拽把手 */}
-      <span style={{ color: 'var(--we-ink-faded)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
+      <span className="we-regex-rule-drag">⠿</span>
 
       {/* 名称 + 所属世界 + 正则预览 */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{
-          fontFamily: 'var(--we-font-serif)',
-          fontSize: '14px',
-          fontWeight: 500,
-          color: 'var(--we-ink-primary)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          opacity: rule.enabled ? 1 : 0.45,
-        }}>
+      <div className="we-regex-rule-main">
+        <span className={`we-regex-rule-name${rule.enabled ? '' : ' we-regex-rule-name--disabled'}`}>
           {rule.name}
         </span>
         {worldName !== '全局' && (
-          <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '11px', color: 'var(--we-ink-faded)', flexShrink: 0 }}>
+          <span className="we-regex-rule-world">
             {worldName}
           </span>
         )}
-        <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-ink-faded)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.6 }}>
+        <span className="we-regex-rule-pattern">
           /{rule.pattern}/{rule.flags}
         </span>
       </div>
 
       {/* 操作区 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+      <div className="we-regex-rule-actions">
         <button
           onClick={onToggle}
           title={rule.enabled ? '点击禁用' : '点击启用'}
-          style={{
-            fontFamily: 'var(--we-font-serif)',
-            fontSize: '11px',
-            padding: '2px 8px',
-            border: `1px solid ${rule.enabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
-            color: rule.enabled ? 'var(--we-vermilion)' : 'var(--we-ink-faded)',
-            background: rule.enabled ? 'var(--we-vermilion-bg)' : 'transparent',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
+          className={`we-regex-rule-toggle${rule.enabled ? ' we-regex-rule-toggle--enabled' : ''}`}
         >
           {rule.enabled ? '启用' : '禁用'}
         </button>
         <button
           onClick={onEdit}
           title="编辑"
-          style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px', transition: 'color 0.15s' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-ink-primary)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+          className="we-regex-rule-icon-btn"
         >✎</button>
         <button
           onClick={onDelete}
           title="删除"
-          style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', border: 'none', color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px', transition: 'color 0.15s' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-vermilion)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+          className="we-regex-rule-icon-btn we-regex-rule-icon-btn--danger"
         >✕</button>
       </div>
     </div>

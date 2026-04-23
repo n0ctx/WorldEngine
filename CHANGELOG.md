@@ -3,6 +3,56 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T221 — chore: 前端 ESLint warning 清零 ✅
+- **变更**：一次性清理剩余 43 个视觉 inline style warning；覆盖 `App.jsx`、书页基础组件、纹理/印章动画、状态折叠区、聊天消息列表/选项卡/侧栏、设置页模型/提示词配置、`ChatPage.jsx` 与 `WorldsPage.jsx`。动态头像色、印章尺寸、纹理图片、状态条进度等改为 CSS custom property 承载，视觉规则落在 CSS class。
+- **验证**：`npm --prefix frontend run lint` 通过（0 errors / 0 warnings）；`npm --prefix frontend run build` 通过；`git diff --check` 通过。
+- **注意**：仍保留允许范围内的动态 `animationDelay`、`transform` 与 CSS custom property 注入；本次不改变业务行为。
+
+## T220 — chore: 清理模式切换、写作左栏与导入导出 inline style 警告 ✅
+- **变更**：将 `ModeSwitch.jsx`、`WritingPageLeft.jsx`、`ImportExportPanel.jsx`、`WritingLlmBlock.jsx`、`StateFieldList.jsx` 中的视觉 inline style / DOM hover 写法迁移到 Tailwind class 或既有 `we-settings-*` / `we-dialog-*` class；`WritingLlmBlock` 的温度滑条改用离散 `--range-pct` class 映射保留填充进度。
+- **验证**：目标 5 文件 `rg "style=\\{|onMouseEnter|onMouseLeave"` 清零；`npm --prefix frontend run build` 通过；`npm --prefix frontend run lint -- src/components/settings/ModeSwitch.jsx src/components/state/StateFieldList.jsx src/components/book/WritingPageLeft.jsx src/components/settings/ImportExportPanel.jsx src/components/settings/WritingLlmBlock.jsx` 通过（0 errors，仓库其他文件仍有既有 inline style warnings）。
+- **注意**：本批只处理指定五个组件；`PageLeft.jsx`、`PromptConfigPanel.jsx`、`ModelSelector.jsx` 等剩余 warning 留待后续批次。
+
+## T219 — chore: 清理状态字段、写作消息与 LLM/日记配置 inline style 警告 ✅
+- **变更**：将 `StateFieldEditor.jsx` 的必填标记、日记时间说明和错误文案迁移到 `we-state-field-*` class；将 `WritingMessageItem.jsx` 的 thinking block 与删除确认颜色迁移到 `we-writing-think-*` / `we-message-action-danger` class；将 `LlmConfigPanel.jsx`、`DiaryConfigPanel.jsx` 的连接状态、代理行、日期模式与说明文案迁移到共享 settings class。
+- **验证**：`cd frontend && npx eslint src/components/state/StateFieldEditor.jsx src/components/writing/WritingMessageItem.jsx src/components/settings/LlmConfigPanel.jsx src/components/settings/DiaryConfigPanel.jsx --format stylish` 通过；全量 ESLint JSON 统计为 0 errors / 90 warnings。
+- **注意**：`WritingMessageItem` 仍保留 textarea 自适应高度的 DOM style 写入；`LlmConfigPanel` 保留 range 组件 `--range-pct` CSS 变量，均不触发视觉 inline style 规则。
+
+## T218 — chore: 清理关于页、章节、会话列表和状态面板 inline style 警告 ✅
+- **变更**：将 `AboutPanel.jsx`、`ChapterDivider.jsx`、`SessionListPanel.jsx`、`StatePanel.jsx` 的视觉 inline style 迁移到 CSS class；补充 `we-settings-about-*`、`we-chapter-*`、`we-session-list-*`、`we-state-*` / `we-diary-*` 样式。`StatePanel` 仅保留动态 `animationDelay` 和骨架宽度。
+- **验证**：`cd frontend && npx eslint src/components/settings/AboutPanel.jsx src/components/book/ChapterDivider.jsx src/components/book/SessionListPanel.jsx src/components/book/StatePanel.jsx --format stylish` 通过；全量 ESLint JSON 统计为 0 errors / 151 warnings。
+- **注意**：本批只处理指定四个文件；剩余 warning 仍全部来自视觉 inline style 迁移债。
+
+## T217 — chore: 清理记忆/功能配置与顶栏 inline style 警告 ✅
+- **变更**：将 `MemoryConfigPanel.jsx`、`FeaturesConfigPanel.jsx` 的 toggle 行、日期模式按钮和确认文案迁移到共享 `we-settings-*` class；将 `TopBar.jsx` 的顶栏、世界下拉、导航项、分隔符和设置图标迁移到 `we-topbar-*` class，并移除 hover 专用 state。
+- **验证**：`cd frontend && npx eslint src/components/settings/MemoryConfigPanel.jsx src/components/book/TopBar.jsx src/components/settings/FeaturesConfigPanel.jsx --format stylish` 通过；全量 ESLint JSON 统计为 0 errors / 240 warnings。
+- **注意**：本批只处理指定三个文件；剩余 warning 仍全部来自视觉 inline style 迁移债。
+
+## T216 — chore: 清理会话项与触发器卡片 inline style 警告 ✅
+- **变更**：将 `SessionItem.jsx` 改为复用既有 `we-session-item__*` 样式；将 `TriggerCard.jsx` 的卡片、启用开关、摘要文本和操作按钮迁移到 `we-trigger-card-*` class，并同步更新快照。
+- **验证**：`cd frontend && npx eslint src/components/chat/SessionItem.jsx src/components/state/TriggerCard.jsx --format stylish` 通过；`cd frontend && npx vitest run tests/components/state/TriggerCard.test.jsx -u` 通过并更新快照；全量 ESLint JSON 统计为 0 errors / 332 warnings。
+- **注意**：本批只处理指定的会话项和触发器卡片；剩余 warning 仍全部来自视觉 inline style 迁移债。
+
+## T215 — chore: 清理状态触发器与正则规则 inline style 警告 ✅
+- **变更**：将 `TriggerEditor.jsx`、`RegexRulesManager.jsx`、`EntrySection.jsx` 的视觉 inline style 迁移到 CSS class；补充 `we-trigger-editor-*`、`we-regex-*`、`we-entry-section-*` 样式，保留原有触发器编辑、正则拖拽排序和条目编辑行为。
+- **验证**：`cd frontend && npx eslint src/components/state/TriggerEditor.jsx src/components/settings/RegexRulesManager.jsx src/components/state/EntrySection.jsx --format stylish` 通过；`cd frontend && npm run lint` 通过（0 errors，剩余 397 warnings）。
+- **注意**：本批只处理指定高密度文件；剩余 warning 仍全部来自视觉 inline style 迁移债。
+
+## T214 — chore: 清理 Hook 依赖警告与 UI 原子 inline style ✅
+- **变更**：收敛前端剩余 `react-hooks/exhaustive-deps` warning，使用 `useCallback`、派生值或窄范围注释处理加载/初始化类 effect；迁移 `AvatarCircle`、`AvatarUpload`、`FormGroup`、`ModalShell`、`ModelCombobox` 的视觉 inline style 到 CSS class / CSS 变量。
+- **验证**：`cd frontend && npm run lint` 通过（0 errors，剩余 550 warnings）；`cd frontend && npm run build` 通过；`cd frontend && npm run test` 28 个文件 / 75 个测试全通过。
+- **注意**：头像 fallback 背景色改为 CSS 变量承载动态值；`ModelCombobox` 保留允许的动态 `transform`。
+
+## T213 — chore: 前端 ESLint 阻断错误清零 ✅
+- **变更**：补齐 ESLint flat config 的 Vite/Vitest 运行环境 globals；拆分 `buildWorldTabs` 到 `blocks/world-tabs.js` 以满足 Fast Refresh 组件导出规则；清理未使用变量、空 catch、测试 mock/期望漂移；修复或窄范围标注 React hook/compiler 阻断错误。
+- **验证**：`cd frontend && npm run lint` 通过（0 errors，剩余 593 warnings）；`cd frontend && npm run build` 通过；`cd frontend && npm run test` 28 个文件 / 75 个测试全通过。
+- **注意**：剩余 warning 主要是 `no-restricted-syntax` 视觉 inline style 迁移债（584 条）和少量 `react-hooks/exhaustive-deps`（9 条），不阻断 lint。
+
+## T212 — chore: 清理 CastPanel 视觉内联样式警告 ✅
+- **变更**：将 `frontend/src/components/book/CastPanel.jsx` 中会触发 ESLint `no-restricted-syntax` 的视觉类 inline style 迁移到 `frontend/src/index.css` 的 `we-cast-*` class；保留动态折叠、动画延迟、骨架宽度等运行时样式。
+- **验证**：`cd frontend && npx eslint src/components/book/CastPanel.jsx --format stylish` 不再出现 inline style 规则警告；该文件仍保留既有 `react-hooks/exhaustive-deps` warning。
+- **注意**：本次只清 CastPanel 样式警告，不处理全仓 lint 既有 error/warning。
+
 ## T211 — feat(uiux): Icon Primitive + SVG 尺寸规范化 ✅
 - **新增**：`frontend/src/components/ui/Icon.jsx` — SVG 图标容器 Primitive，三档 size（16/20/24），`aria-hidden` / `role=img` 自动管理，DEV 环境 console.warn 非法 size
 - **注册**：`frontend/src/components/index.js` 的 "UI 原子" 区新增 `Icon` 导出

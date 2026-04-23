@@ -9,7 +9,7 @@ import { getAvatarUrl, getAvatarColor } from '../../utils/avatar';
  *   size       — 'sm'(32px) | 'md'(48px) | 'lg'(64px)，默认 'md'
  *
  * 尺寸档位通过 CSS variant 类（we-avatar-circle--sm/md/lg）实现；
- * 仅 backgroundColor 为运行时动态值，保留内联 style。
+ * 动态颜色通过 CSS custom property 注入，视觉属性仍由 CSS 控制。
  */
 export default function AvatarCircle({ id, name, avatarPath, size = 'md' }) {
   const url = getAvatarUrl(avatarPath);
@@ -30,7 +30,7 @@ export default function AvatarCircle({ id, name, avatarPath, size = 'md' }) {
   return (
     <div
       className={`we-avatar-circle we-avatar-circle--placeholder ${sizeClass}`}
-      style={{ backgroundColor: color }}
+      style={{ '--avatar-bg': color }}
     >
       {initial}
     </div>

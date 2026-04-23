@@ -39,7 +39,7 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     expect(screen.getByText('LLM PANEL')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('全局 Prompt'));
+    fireEvent.click(screen.getByText('全局提示词'));
     expect(screen.getByText('PROMPT PANEL')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('自定义 CSS'));

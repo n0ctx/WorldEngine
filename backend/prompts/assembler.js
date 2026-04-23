@@ -17,8 +17,7 @@
  *   [尾部 user 消息]
  *   [15] 后置提示词（全局→角色 + world post 条目，均空跳过）
  *   [16] 当前用户消息
- *
- * 注：[11] 世界时间线已移除；turn records 仅用于向量召回（[12]）与原文展开（[13]），不参与 [14] 历史消息
+ *   [diary] 一次性日记注入（[13]-[14] 之间，仅本轮生效）
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -268,7 +267,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const systemContent = systemParts.filter(Boolean).join('\n\n');
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [14] 历史消息：稳定使用原始消息窗口；turn records 仅用于 recall/摘要，不再充当主历史源。
+  // [14] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
   for (const msg of history) {

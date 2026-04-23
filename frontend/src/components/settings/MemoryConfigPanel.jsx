@@ -7,13 +7,13 @@ import { clearAllDiaries } from '../../api/world-state-fields';
 
 function ToggleRow({ label, hint, checked, onChange }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
+    <div className="we-settings-toggle-row">
       <div>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-primary)', margin: '0 0 4px' }}>
+        <p className="we-settings-toggle-label">
           {label}
         </p>
         {hint && (
-          <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: 0 }}>
+          <p className="we-settings-toggle-hint">
             {hint}
           </p>
         )}
@@ -63,7 +63,7 @@ export default function MemoryConfigPanel({
       <h2 className="we-settings-section-title">记忆</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
-      <div style={{ marginTop: 20 }}>
+      <div className="we-settings-section-body">
         <ToggleRow
           label="记忆原文展开"
           hint="召回历史摘要后允许 AI 读取原文，会略增加首包延迟"
@@ -83,11 +83,11 @@ export default function MemoryConfigPanel({
         />
 
         {diaryEnabled && (
-          <div style={{ marginTop: -12, marginBottom: 24, paddingLeft: 0 }}>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-ink-secondary)', margin: '0 0 8px' }}>
+          <div className="we-settings-date-mode">
+            <p className="we-settings-date-label">
               日期模式
             </p>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div className="we-settings-date-options">
               {[
                 { value: DIARY_DATE_MODE.VIRTUAL, label: '虚拟日期', hint: '解析世界状态时间字段' },
                 { value: DIARY_DATE_MODE.REAL, label: '真实日期', hint: '使用系统时间' },
@@ -95,23 +95,13 @@ export default function MemoryConfigPanel({
                 <button
                   key={value}
                   onClick={() => onDateMode(value)}
-                  style={{
-                    padding: '4px 14px',
-                    border: `1.5px solid ${dateMode === value ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
-                    borderRadius: 'var(--we-radius-sm)',
-                    background: dateMode === value ? 'var(--we-vermilion-bg)' : 'none',
-                    color: dateMode === value ? 'var(--we-vermilion)' : 'var(--we-ink-secondary)',
-                    fontFamily: 'var(--we-font-serif)',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                  }}
+                  className={`we-settings-date-option${dateMode === value ? ' we-settings-date-option--active' : ''}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-faded)', fontStyle: 'italic', margin: '6px 0 0' }}>
+            <p className="we-settings-date-hint">
               切换仅影响新建会话
             </p>
           </div>
@@ -123,10 +113,10 @@ export default function MemoryConfigPanel({
           title={`关闭${diaryLabel}`}
           message={
             <>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-secondary)', marginBottom: '6px' }}>
+              <p className="we-settings-confirm-text">
                 关闭后将删除所有已生成的日记记录（包括数据库条目和本地文件），此操作不可撤销。
               </p>
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', marginBottom: 0 }}>
+              <p className="we-settings-confirm-danger">
                 确认要继续吗？
               </p>
             </>

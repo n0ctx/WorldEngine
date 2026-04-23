@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   useParams: vi.fn(),
   useNavigate: vi.fn(),
+  useLocation: vi.fn(),
   getPersona: vi.fn(),
   updatePersona: vi.fn(),
   uploadPersonaAvatar: vi.fn(),
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => mocks.useNavigate,
+  useLocation: () => mocks.useLocation(),
 }));
 vi.mock('../../src/api/personas', () => ({
   getPersona: (...args) => mocks.getPersona(...args),
@@ -53,6 +55,7 @@ import PersonaEditPage from '../../src/pages/PersonaEditPage.jsx';
 describe('PersonaEditPage', () => {
   beforeEach(() => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
+    mocks.useLocation.mockReturnValue({ state: {} });
     mocks.useNavigate.mockReset();
     mocks.getPersona.mockResolvedValue({
       id: 'persona-1',

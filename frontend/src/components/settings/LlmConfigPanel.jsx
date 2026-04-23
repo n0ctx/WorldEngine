@@ -88,9 +88,9 @@ export default function LlmConfigPanel({
 
           <div className="we-settings-field-group">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <div className="we-settings-range-head">
                 <FieldLabel>Temperature</FieldLabel>
-                <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)' }}>
+                <span className="we-settings-range-value">
                   {(llm.temperature ?? 0.8).toFixed(1)}
                 </span>
               </div>
@@ -113,12 +113,12 @@ export default function LlmConfigPanel({
               />
             </FormGroup>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
+            <div className="we-settings-action-row we-settings-action-row--spaced">
               <Button variant="default" onClick={handleTestConnection} disabled={testStatus === 'testing'}>
                 {testStatus === 'testing' ? '测试中…' : '测试连接'}
               </Button>
-              {testStatus === 'ok' && <span style={{ fontSize: '13px', color: 'var(--we-moss)' }}>{testMsg}</span>}
-              {testStatus === 'error' && <span style={{ fontSize: '13px', color: 'var(--we-vermilion)' }}>{testMsg}</span>}
+              {testStatus === 'ok' && <span className="we-settings-status-ok">{testMsg}</span>}
+              {testStatus === 'error' && <span className="we-settings-status-error">{testMsg}</span>}
             </div>
           </div>
 
@@ -127,9 +127,9 @@ export default function LlmConfigPanel({
           <div className="we-settings-field-group">
             <p className="we-settings-subsection-title">网络代理</p>
             <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。">
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="we-settings-proxy-row">
                 <Input
-                  style={{ flex: 1 }}
+                  className="we-settings-proxy-input"
                   value={proxyInput}
                   onChange={(e) => { setProxyInput(e.target.value); setProxySaved(false); }}
                   placeholder="http://127.0.0.1:7890"
@@ -164,12 +164,12 @@ export default function LlmConfigPanel({
 
           {embedding.provider && (
             <div className="we-settings-field-group">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="we-settings-action-row">
                 <Button variant="default" onClick={handleTestEmbedding} disabled={embedTestStatus === 'testing'}>
                   {embedTestStatus === 'testing' ? '测试中…' : '测试 Embedding'}
                 </Button>
-                {embedTestStatus === 'ok' && <span style={{ fontSize: '13px', color: 'var(--we-moss)' }}>{embedTestMsg}</span>}
-                {embedTestStatus === 'error' && <span style={{ fontSize: '13px', color: 'var(--we-vermilion)' }}>{embedTestMsg}</span>}
+                {embedTestStatus === 'ok' && <span className="we-settings-status-ok">{embedTestMsg}</span>}
+                {embedTestStatus === 'error' && <span className="we-settings-status-error">{embedTestMsg}</span>}
               </div>
             </div>
           )}

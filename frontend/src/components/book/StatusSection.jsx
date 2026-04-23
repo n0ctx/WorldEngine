@@ -20,11 +20,11 @@ function parseValue(effectiveValueJson, type) {
 
 function SkeletonRows() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 2 }}>
+    <div className="we-status-skeleton">
       {[60, 80, 45].map((w, i) => (
         <div key={i}>
-          <div className="we-skel" style={{ height: 8, width: '30%', marginBottom: 4 }} />
-          <div className="we-skel" style={{ height: 10, width: `${w}%` }} />
+          <div className="we-skel we-status-skeleton-key" />
+          <div className="we-skel we-status-skeleton-value" style={{ '--skel-width': `${w}%` }} />
         </div>
       ))}
     </div>
@@ -37,11 +37,8 @@ function Chevron({ open }) {
       size={16}
       viewBox="0 0 10 10"
       strokeWidth="2.5"
+      className="we-status-chevron"
       style={{
-        flexShrink: 0,
-        color: 'var(--we-ink-faded)',
-        opacity: 0.45,
-        transition: 'transform 0.2s ease, opacity 0.2s',
         transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
       }}
     >
@@ -100,7 +97,7 @@ export default function StatusSection({
                 </span>
                 {pct != null && (
                   <div className="we-status-bar">
-                    <div className="we-status-bar-fill" style={{ width: `${pct}%` }} />
+                    <div className="we-status-bar-fill" style={{ '--status-pct': `${pct}%` }} />
                   </div>
                 )}
               </div>
@@ -117,9 +114,8 @@ export default function StatusSection({
     <div className={`we-state-section ${className || ''}`}>
       {showTitle && (
         <div
-          className="we-state-section-title"
+          className={`we-state-section-title${collapsible ? ' we-state-section-title--collapsible' : ''}`}
           onClick={collapsible ? () => setOpen((o) => !o) : undefined}
-          style={collapsible ? { cursor: 'pointer', userSelect: 'none' } : undefined}
         >
           {collapsible && <Chevron open={open} />}
           <span className="we-section-label">{title}</span>
@@ -136,13 +132,8 @@ export default function StatusSection({
       )}
 
       {collapsible ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateRows: open ? '1fr' : '0fr',
-          transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflow: 'hidden',
-        }}>
-          <div style={{ overflow: 'hidden', minHeight: 0 }}>
+        <div className={`we-status-collapse${open ? ' we-status-collapse--open' : ''}`}>
+          <div className="we-status-collapse-inner">
             {body}
           </div>
         </div>

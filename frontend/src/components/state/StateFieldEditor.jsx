@@ -23,6 +23,7 @@ const TRIGGER_MODE_OPTIONS = [
 
 const inputCls = 'we-input';
 const labelCls = 'we-dialog-label';
+const requiredMark = <span className="we-state-field-required">*</span>;
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 
@@ -170,16 +171,16 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           </div>
           <div className="we-dialog-body flex flex-col gap-4">
             <div>
-              <label className={labelCls}>label <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
+              <label className={labelCls}>label {requiredMark}</label>
               <input className={inputCls} value={form.label} onChange={(e) => set('label', e.target.value)} />
             </div>
             {isReal ? (
-              <p style={{ fontSize: 13, color: 'var(--we-ink-secondary)', fontFamily: 'var(--we-font-serif)', lineHeight: 1.6 }}>
+              <p className="we-state-field-note">
                 当前为<strong>真实日期</strong>模式，此字段由系统自动更新，无法手动编辑。
               </p>
             ) : (
               <>
-                <p style={{ fontSize: 12, color: 'var(--we-ink-faded)', fontFamily: 'var(--we-font-serif)', lineHeight: 1.6 }}>
+                <p className="we-state-field-hint">
                   虚拟日期模式：设置故事的初始时间。格式固定为 <code>N年N月N日N时</code>，由 AI 每轮自动更新。
                 </p>
                 <div className="grid grid-cols-4 gap-2">
@@ -202,13 +203,13 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                     </div>
                   ))}
                 </div>
-                <p style={{ fontSize: 12, color: 'var(--we-ink-faded)', fontFamily: 'var(--we-font-serif)' }}>
+                <p className="we-state-field-hint">
                   初始时间：<strong>{form.default_value || `${dtParsed.year}年${dtParsed.month}月${dtParsed.day}日${dtParsed.hour}时`}</strong>
                 </p>
               </>
             )}
             {error && (
-              <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }}>{error}</p>
+              <p className="we-state-field-error">{error}</p>
             )}
           </div>
           <div className="we-dialog-footer">
@@ -233,12 +234,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           {/* 基础信息 */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>label <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
+              <label className={labelCls}>label {requiredMark}</label>
               <input className={inputCls} value={form.label}
                 onChange={(e) => set('label', e.target.value)} placeholder="显示名称" />
             </div>
             <div>
-              <label className={labelCls}>field_key <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
+              <label className={labelCls}>field_key {requiredMark}</label>
               <input className={inputCls} value={form.field_key}
                 onChange={(e) => set('field_key', e.target.value.replace(/\s/g, '_'))}
                 placeholder="唯一标识符" disabled={!!field} />
@@ -247,7 +248,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
 
           {/* 类型 */}
           <div>
-            <label className={labelCls}>类型 <span style={{ color: 'var(--we-vermilion)' }}>*</span></label>
+            <label className={labelCls}>类型 {requiredMark}</label>
             <Select value={form.type} onChange={(v) => set('type', v)} options={TYPE_OPTIONS} />
           </div>
 
@@ -419,7 +420,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           </div>
 
           {error && (
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)' }}>
+            <p className="we-state-field-error">
               {error}
             </p>
           )}

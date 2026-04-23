@@ -1,5 +1,5 @@
 /* 已迁移至 components/book/SessionListPanel.jsx，待 P8 清理 */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from './SessionItem.jsx';
@@ -14,7 +14,6 @@ export default function Sidebar({
   onSessionSelect,
   onSessionDelete,
   onSessionCreate,
-  onTitleUpdate,
 }) {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
@@ -43,7 +42,7 @@ export default function Sidebar({
   }, [character?.id]);
 
   // 加载更多（更旧的会话）
-  async function loadMore() {
+  const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
@@ -54,7 +53,7 @@ export default function Sidebar({
     } finally {
       setLoadingMore(false);
     }
-  }
+  }, [character?.id, hasMore, loadingMore, offset]);
 
   // 滚动到底部时加载更多
   useEffect(() => {
@@ -69,7 +68,7 @@ export default function Sidebar({
 
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
-  }, [hasMore, loadingMore, offset]);
+  }, [hasMore, loadMore, loadingMore]);
 
   async function handleCreateSession() {
     try {
@@ -128,8 +127,8 @@ export default function Sidebar({
       <div className="px-4 pt-4 pb-3 border-b border-border">
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-none overflow-hidden"
-            style={{ background: avatarColor }}
+            className="we-sidebar-avatar"
+            style={{ '--avatar-bg': avatarColor }}
           >
             {avatarUrl
               ? <img src={avatarUrl} alt="" className="w-9 h-9 object-cover" />

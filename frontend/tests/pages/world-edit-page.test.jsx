@@ -119,6 +119,7 @@ describe('WorldEditPage', () => {
 
     await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', {
       name: '群星海-修订',
+      description: '',
       temperature: 0.7,
       max_tokens: 1024,
     }));

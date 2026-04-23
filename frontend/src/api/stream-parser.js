@@ -15,6 +15,7 @@
  *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作空间）
  *   onStateUpdated()            — 状态栏异步更新完成（writing 专有）
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
+ *   onTriggerFired(notifications) — 触发器通知（chat + writing）
  */
 export async function parseSSEStream(response, callbacks) {
   const reader = response.body.getReader();
@@ -47,6 +48,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
+          else if (evt.type === 'trigger_fired') callbacks.onTriggerFired?.(evt.notifications ?? []);
         } catch {
           // ignore malformed events
         }
