@@ -57,7 +57,7 @@ export function updateTrigger(id, patch) {
   const vals = [];
 
   for (const key of allowed) {
-    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+    if (Object.prototype.hasOwnProperty.call(patch, key) && patch[key] !== undefined) {
       sets.push(`${key} = ?`);
       vals.push(patch[key]);
     }

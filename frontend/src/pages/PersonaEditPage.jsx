@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getPersona, updatePersona, uploadPersonaAvatar } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/persona-state-values';
 import { downloadPersonaCard } from '../api/import-export';
@@ -15,6 +15,8 @@ import AvatarUpload from '../components/ui/AvatarUpload';
 export default function PersonaEditPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isOverlay = !!location.state?.backgroundLocation;
   const fileInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
@@ -97,7 +99,7 @@ export default function PersonaEditPage() {
   const avatarColor = getAvatarColor(personaId || worldId);
 
   return (
-    <EditPageShell loading={loading} onClose={() => navigate(-1)} title="玩家人设">
+    <EditPageShell loading={loading} isOverlay={isOverlay} onClose={() => navigate(-1)} title="玩家人设">
       <div className="we-edit-form-stack">
         <AvatarUpload
           name={name}
@@ -132,8 +134,6 @@ export default function PersonaEditPage() {
             </FormGroup>
           </div>
         )}
-
-        <div className="we-edit-state-sep" />
 
         <div className="we-edit-save-row">
           <Button variant="ghost" size="sm" onClick={handleExport}>导出为角色卡</Button>

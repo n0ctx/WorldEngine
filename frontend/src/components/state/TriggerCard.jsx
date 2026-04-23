@@ -39,7 +39,7 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
     <div style={{
       background: 'var(--we-paper-base)',
       border: '1px solid var(--we-paper-shadow)',
-      borderRadius: 'var(--we-radius)',
+      borderRadius: 'var(--we-radius-sm)',
       padding: '12px 16px',
       display: 'flex',
       alignItems: 'flex-start',
@@ -91,7 +91,6 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
           {trigger.last_triggered_round != null
             ? `上次触发：第 ${trigger.last_triggered_round} 轮`
             : '从未触发'}
-          {trigger.one_shot ? '  ·  仅触发一次' : ''}
         </div>
       </div>
 

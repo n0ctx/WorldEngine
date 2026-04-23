@@ -371,7 +371,7 @@ export default function CharactersPage() {
       <PersonaCard
         worldId={worldId}
         refreshKey={reloadKey}
-        onEdit={() => navigate(`/worlds/${worldId}/persona`)}
+        onEdit={() => navigate(`/worlds/${worldId}/persona`, { state: { backgroundLocation: location } })}
       />
 
       {/* 角色列表 */}

@@ -4,6 +4,7 @@ import { listWorldStateFields } from '../../api/world-state-fields';
 import { listCharacterStateFields } from '../../api/character-state-fields';
 import { listPersonaStateFields } from '../../api/persona-state-fields';
 import Select from '../ui/Select';
+import MarkdownEditor from '../ui/MarkdownEditor';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
 const NUMERIC_OPS = [
@@ -60,7 +61,6 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
   const isNew = !trigger?.id;
 
   const [name, setName] = useState(trigger?.name ?? '');
-  const [oneShot, setOneShot] = useState(trigger?.one_shot ?? 0);
   const [conditions, setConditions] = useState(
     trigger?.conditions?.length > 0 ? trigger.conditions.map((c) => ({ ...c })) : [emptyCondition()]
   );
@@ -139,11 +139,17 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
   async function handleSave() {
     if (!name.trim()) return;
     setSaving(true);
+    const payloadActions = actions.filter((a) => a.action_type).map((a) => {
+      const p = { ...a.params };
+      if (a.action_type === 'inject_prompt' && p.mode !== 'persistent' && p.inject_rounds == null) {
+        p.inject_rounds = 3;
+      }
+      return { action_type: a.action_type, params: p };
+    });
     const payload = {
       name: name.trim(),
-      one_shot: oneShot,
       conditions: conditions.filter((c) => c.target_field && c.value),
-      actions: actions.filter((a) => a.action_type),
+      actions: payloadActions,
     };
     try {
       if (isNew) {
@@ -152,6 +158,8 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         await updateTrigger(trigger.id, payload);
       }
       onSave();
+    } catch (err) {
+      alert(`保存失败：${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -182,37 +190,44 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.5)',
-    }}>
-      <div style={{
-        background: 'var(--we-paper-base)',
-        border: '1px solid var(--we-paper-shadow)',
-        borderRadius: 'var(--we-radius)',
-        width: '100%',
-        maxWidth: '580px',
-        padding: '24px',
-        maxHeight: '85vh',
-        overflowY: 'auto',
-      }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        paddingTop: '10vh',
+        background: 'rgba(26, 20, 15, 0.18)',
+        backdropFilter: 'blur(1px)',
+      }}
+    >
+      <div
+        className="entry-editor-panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--we-paper-base)',
+          border: '1px solid var(--we-paper-shadow)',
+          borderRadius: 'var(--we-radius-sm)',
+          width: '100%',
+          maxWidth: '580px',
+          padding: '24px',
+          maxHeight: 'calc(85vh - 10vh)',
+          overflowY: 'auto',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--we-paper-shadow) transparent',
+        }}
+      >
         <h3 style={{ fontFamily: 'var(--we-font-display)', fontSize: '16px', color: 'var(--we-ink-primary)', fontStyle: 'italic', marginBottom: '16px' }}>
           {isNew ? '新建触发器' : '编辑触发器'}
         </h3>
 
-        {/* 名称 + one_shot */}
-        <div style={{ ...sectionStyle, display: 'flex', gap: '10px', alignItems: 'center' }}>
+        {/* 名称 */}
+        <div style={sectionStyle}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="触发器名称"
-            style={{ ...fieldStyle, flex: 1, width: 'auto' }}
+            style={fieldStyle}
           />
-          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: 'var(--we-ink-secondary)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-            <input type="checkbox" checked={!!oneShot} onChange={(e) => setOneShot(e.target.checked ? 1 : 0)} />
-            仅触发一次
-          </label>
         </div>
 
         {/* 条件列表 */}
@@ -244,7 +259,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
                   value={cond.value}
                   onChange={(e) => updateCondition(i, { value: e.target.value })}
                   placeholder="值"
-                  style={{ ...fieldStyle, flex: 1, minWidth: 0, width: 'auto' }}
+                  style={{ ...fieldStyle, flex: 1, minWidth: 0, width: 'auto', padding: '9px 12px', fontSize: '14.5px' }}
                 />
                 <button
                   onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
@@ -308,13 +323,14 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
               {/* inject_prompt */}
               {action.action_type === 'inject_prompt' && (
                 <>
-                  <textarea
-                    value={action.params.text ?? ''}
-                    onChange={(e) => updateActionParams(i, { text: e.target.value })}
-                    placeholder="注入的提示文本"
-                    rows={3}
-                    style={{ ...fieldStyle, resize: 'vertical', marginBottom: '8px' }}
-                  />
+                  <div style={{ marginBottom: '8px' }}>
+                    <MarkdownEditor
+                      value={action.params.text ?? ''}
+                      onChange={(md) => updateActionParams(i, { text: md })}
+                      placeholder="注入的提示文本"
+                      minHeight={80}
+                    />
+                  </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <div style={{ flex: 1 }}>
                       <Select

@@ -84,6 +84,7 @@ export default function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
+            <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createWorldEntry, updateWorldEntry } from '../../api/prompt-entries';
+import MarkdownEditor from '../ui/MarkdownEditor';
 
 const POSITION_OPTIONS = [
   { value: 'system', label: '系统提示词' },
@@ -56,21 +57,32 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 50,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.5)',
-    }}>
-      <div style={{
-        background: 'var(--we-paper-base)',
-        border: '1px solid var(--we-paper-shadow)',
-        borderRadius: 'var(--we-radius)',
-        width: '100%',
-        maxWidth: '520px',
-        padding: '24px',
-        maxHeight: '80vh',
-        overflowY: 'auto',
-      }}>
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 50,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        paddingTop: '10vh',
+        background: 'rgba(26, 20, 15, 0.18)',
+        backdropFilter: 'blur(1px)',
+      }}
+    >
+      <div
+        className="entry-editor-panel"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--we-paper-base)',
+          border: '1px solid var(--we-paper-shadow)',
+          borderRadius: 'var(--we-radius-sm)',
+          width: '100%',
+          maxWidth: '520px',
+          padding: '24px',
+          maxHeight: 'calc(80vh - 10vh)',
+          overflowY: 'auto',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'var(--we-paper-shadow) transparent',
+        }}
+      >
         <h3 style={{
           fontFamily: 'var(--we-font-display)',
           fontSize: '16px',
@@ -91,12 +103,14 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
 
         {/* 内容 */}
         <label style={{ display: 'block', fontSize: '12px', color: 'var(--we-ink-secondary)', marginBottom: '4px' }}>内容</label>
-        <textarea
-          value={form.content}
-          onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-          rows={4}
-          style={{ ...fieldStyle, resize: 'vertical', marginBottom: '12px' }}
-        />
+        <div style={{ marginBottom: '12px' }}>
+          <MarkdownEditor
+            value={form.content}
+            onChange={(md) => setForm((f) => ({ ...f, content: md }))}
+            placeholder="条目内容…"
+            minHeight={120}
+          />
+        </div>
 
         {/* 关键词（仅 keyword 类型） */}
         {form.trigger_type === 'keyword' && (
