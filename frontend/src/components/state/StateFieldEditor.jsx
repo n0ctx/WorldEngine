@@ -255,7 +255,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           {form.type === 'enum' && (
             <div>
               <label className={labelCls}>枚举选项（回车添加）</label>
-              <div className="we-tag-input" onClick={() => enumRef.current?.focus()}>
+              <div
+                className="we-tag-input"
+                onClick={() => enumRef.current?.focus()}
+                role="group"
+                aria-label="枚举选项标签输入区"
+              >
                 {form.enum_options.map((v) => (
                   <span key={v} className="we-tag">
                     {v}
@@ -281,7 +286,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           {form.type === 'list' && (
             <div>
               <label className={labelCls}>默认条目（回车添加）</label>
-              <div className="we-tag-input" onClick={() => listDefRef.current?.focus()}>
+              <div
+                className="we-tag-input"
+                onClick={() => listDefRef.current?.focus()}
+                role="group"
+                aria-label="列表默认条目标签输入区"
+              >
                 {form.list_defaults.map((v) => (
                   <span key={v} className="we-tag">
                     {v}
@@ -355,7 +365,12 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           {form.update_mode !== 'manual' && form.trigger_mode === 'keyword_based' && (
             <div>
               <label className={labelCls}>触发关键词（回车添加）</label>
-              <div className="we-tag-input" onClick={() => kwRef.current?.focus()}>
+              <div
+                className="we-tag-input"
+                onClick={() => kwRef.current?.focus()}
+                role="group"
+                aria-label="触发关键词标签输入区"
+              >
                 {form.trigger_keywords.map((kw) => (
                   <span key={kw} className="we-tag">
                     {kw}

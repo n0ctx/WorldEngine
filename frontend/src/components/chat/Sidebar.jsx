@@ -141,6 +141,7 @@ export default function Sidebar({
             onClick={() => navigate(`/worlds/${character?.world_id}`)}
             className="text-xs text-text-secondary opacity-60 hover:opacity-100 transition-opacity flex-none"
             title="切换角色"
+            aria-label="切换角色"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />

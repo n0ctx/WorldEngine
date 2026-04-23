@@ -176,6 +176,7 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
                   borderRadius: 3,
                 }}
                 title="编辑标题"
+                aria-label="编辑会话标题"
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >
@@ -195,6 +196,7 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
                   borderRadius: 3,
                 }}
                 title="删除会话"
+                aria-label="删除会话"
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >

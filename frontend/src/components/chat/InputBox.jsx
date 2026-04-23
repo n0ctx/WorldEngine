@@ -190,6 +190,7 @@ const InputBox = forwardRef(function InputBox({
               />
               <button
                 onClick={() => removeAttachment(i)}
+                aria-label={`移除第 ${i + 1} 张图片`}
                 style={{
                   position: 'absolute', top: '-6px', right: '-6px',
                   width: '16px', height: '16px',
@@ -220,6 +221,7 @@ const InputBox = forwardRef(function InputBox({
             borderRadius: '2px',
           }}
           title="添加图片（最多3张）"
+          aria-label="添加图片附件（最多3张）"
           onMouseEnter={(e) => { if (!generating && attachments.length < 3) e.currentTarget.style.opacity = '1'; }}
           onMouseLeave={(e) => { e.currentTarget.style.opacity = (generating || attachments.length >= 3) ? '0.3' : '0.6'; }}
         >
@@ -324,6 +326,7 @@ const InputBox = forwardRef(function InputBox({
                 transition: 'opacity 0.15s, border-color 0.15s',
               }}
               title="续写上一条 AI 回复"
+              aria-label="续写上一条 AI 回复"
               onMouseEnter={(e) => { if (!generating) { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'var(--we-ink-secondary)'; } }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.25' : '0.5'; e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'; }}
             >
@@ -347,6 +350,7 @@ const InputBox = forwardRef(function InputBox({
                 transition: 'opacity 0.15s, border-color 0.15s',
               }}
               title="AI 替你写一条消息"
+              aria-label="AI 替你写一条消息"
               onMouseEnter={(e) => { if (!generating) { e.currentTarget.style.opacity = '1'; e.currentTarget.style.borderColor = 'var(--we-ink-secondary)'; } }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = generating ? '0.25' : '0.5'; e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'; }}
             >
@@ -407,6 +411,7 @@ const InputBox = forwardRef(function InputBox({
               cursor: 'pointer', transition: 'opacity 0.15s',
             }}
             title="停止生成"
+            aria-label="停止生成"
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
@@ -428,6 +433,7 @@ const InputBox = forwardRef(function InputBox({
               opacity: text.trim() ? 1 : 0.5,
             }}
             title="发送 (Enter)"
+            aria-label="发送消息"
             onMouseEnter={(e) => { if (text.trim()) e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = text.trim() ? '1' : '0.5'; }}
           >

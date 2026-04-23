@@ -180,6 +180,9 @@ export default function TopBar() {
         <button
           style={currentWorld ? itemActiveStyle : itemStyle}
           onClick={() => setDropdownOpen((o) => !o)}
+          aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
+          aria-expanded={dropdownOpen}
+          aria-haspopup="listbox"
         >
           {currentWorld?.name ?? '选择世界'}
           <span style={{ marginLeft: '4px', opacity: 0.5, fontSize: '9px' }}>▾</span>
@@ -272,6 +275,7 @@ export default function TopBar() {
           <button
             style={isChat ? itemActiveStyle : itemStyle}
             onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
+            aria-label="进入对话模式"
           >
             对话
           </button>
@@ -285,6 +289,7 @@ export default function TopBar() {
               if (!effectiveWorldId) return;
               navigate(`/worlds/${effectiveWorldId}/writing`);
             }}
+            aria-label="进入写作空间"
           >
             写作
           </button>
@@ -298,6 +303,8 @@ export default function TopBar() {
         style={isAssistantOpen ? itemActiveStyle : itemStyle}
         onClick={toggleAssistant}
         title="写卡助手"
+        aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
+        aria-pressed={isAssistantOpen}
       >
         ✦ 助手
       </button>
@@ -307,6 +314,7 @@ export default function TopBar() {
       {/* 设置 */}
       <button
         style={{ ...itemStyle, padding: '3px 8px', display: 'flex', alignItems: 'center' }}
+        aria-label="打开设置"
         onClick={() => navigate('/settings', {
           state: {
             backgroundLocation: location,

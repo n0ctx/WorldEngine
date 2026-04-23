@@ -12,7 +12,7 @@ export default function AvatarUpload({
 
   return (
     <div className="we-avatar-upload">
-      <div className="we-avatar-wrap" onClick={onAvatarClick}>
+      <button type="button" className="we-avatar-wrap" onClick={onAvatarClick} aria-label="更换头像">
         {avatarUrl ? (
           <img src={avatarUrl} alt={name} className="we-avatar-img" />
         ) : (
@@ -28,7 +28,7 @@ export default function AvatarUpload({
         <div className="we-avatar-mask">
           <span>更换头像</span>
         </div>
-      </div>
+      </button>
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
       <p className="we-avatar-hint">点击头像上传图片</p>
     </div>
