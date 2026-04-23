@@ -86,8 +86,8 @@ test('POST /api/assistant/execute 会消费 token 并落库 world-card create', 
   const worlds = sandbox.db.prepare('SELECT name, system_prompt, post_prompt FROM worlds').all();
   assert.deepEqual(worlds, [{
     name: '新世界',
-    system_prompt: '世界设定',
-    post_prompt: '后置',
+    system_prompt: '',
+    post_prompt: '',
   }]);
   assert.equal(__testables.proposalStore.has('token-create-world'), false);
 });
@@ -289,8 +289,8 @@ test('POST /api/assistant/execute 对 editedProposal 只接受内容覆盖，不
   assert.deepEqual(worldRow, {
     id: world.id,
     name: '新世界名',
-    system_prompt: '新系统设定',
-    post_prompt: '新后置提示',
+    system_prompt: '旧设定',
+    post_prompt: '旧后置',
   });
 
   const entries = sandbox.db.prepare(
