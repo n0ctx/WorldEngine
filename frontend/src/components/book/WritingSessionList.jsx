@@ -12,7 +12,6 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [hovered, setHovered] = useState(false);
   const inputRef = useRef(null);
 
   const displayTitle = session.title || formatDate(session.created_at);
@@ -47,8 +46,7 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
     <div
       className={`we-session-item${isActive ? ' we-session-item--active' : ''}`}
       onClick={() => !editing && onSelect(session)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
+      onMouseLeave={() => setConfirmDelete(false)}
     >
       <div className="we-session-item__content">
         {editing ? (
@@ -75,7 +73,7 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
         </p>
       </div>
 
-      {!editing && hovered && (
+      {!editing && (
         <div className="we-session-item__actions" onClick={(e) => e.stopPropagation()}>
           {confirmDelete ? (
             <div className="we-session-item__confirm-group">

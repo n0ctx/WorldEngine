@@ -74,7 +74,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      className="we-regex-modal-overlay"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="we-dialog-panel w-full max-w-lg max-h-[90vh] flex flex-col">
@@ -155,28 +155,20 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
               <button
                 key={f}
                 onClick={() => { setField('flags', f); setFlagsCustom(false); }}
-                className={`px-3 py-1 text-sm rounded border font-mono transition-colors ${
-                  !flagsCustom && form.flags === f
-                    ? 'border-accent bg-accent/10 text-text'
-                    : 'border-border text-text-secondary hover:border-accent'
-                }`}
+                className={`we-flags-btn${!flagsCustom && form.flags === f ? ' we-flags-btn--active' : ''}`}
               >
                 {f}
               </button>
             ))}
             <button
               onClick={() => setFlagsCustom(true)}
-              className={`px-3 py-1 text-sm rounded border transition-colors ${
-                flagsCustom
-                  ? 'border-accent bg-accent/10 text-text'
-                  : 'border-border text-text-secondary hover:border-accent'
-              }`}
+              className={`we-flags-btn${flagsCustom ? ' we-flags-btn--active' : ''}`}
             >
               自定义
             </button>
             {flagsCustom && (
               <input
-                className="px-3 py-1 w-24 bg-ivory border border-accent rounded text-text text-sm font-mono focus:outline-none"
+                className="we-flags-custom-input"
                 value={form.flags}
                 onChange={(e) => setField('flags', e.target.value)}
                 placeholder="如 gims"

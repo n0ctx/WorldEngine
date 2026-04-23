@@ -972,8 +972,8 @@
   align-items: flex-start;
 }
 
-.we-delete-btn--confirming {
-  color: var(--we-color-text-danger) !important;
+.we-message-actions button.we-delete-btn--confirming {
+  color: var(--we-color-text-danger);
 }
 
 .we-attachment-thumbnail {
