@@ -132,7 +132,7 @@ function DeleteBtn({ onDelete }) {
   return (
     <button
       onClick={handleClick}
-      style={confirming ? { color: 'var(--we-vermilion, #c0392b)' } : undefined}
+      style={confirming ? { color: 'var(--we-vermilion)' } : undefined}
     >
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <polyline points="3 6 5 6 21 6" />

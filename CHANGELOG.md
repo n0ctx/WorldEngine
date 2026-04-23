@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T209 — feat(uiux): task9+10 CSS 色值迁移 + 禁止视觉样式清理 ✅
+- **变更**：将前端所有 CSS/JSX 中的 `rgba()` 硬编码替换为 `color-mix(in srgb, var(--we-*) N%, transparent)` 语法；移除所有 `linear-gradient` / `radial-gradient`（range 滑条功能性渐变提升为 `--we-range-track-bg` token，书脊阴影改用 `--we-spine-shadow-left` token）；清除全部 `backdrop-filter: blur`、`text-shadow`、`!important`（改用高特异性选择器）；JSX 中的 `var(--token, #hex)` 回退色值全部清理
+- **涉及文件**：`frontend/src/styles/tokens.css`（新增 `--we-range-track-bg` 功能性渐变 token）、`chat.css`、`pages.css`、`ui.css`、`index.css`、`components/ui/ModalShell.jsx`、`components/ui/ModelCombobox.jsx`、`components/ui/ToggleSwitch.jsx`、`components/settings/CustomCssManager.jsx`、`components/chat/SessionItem.jsx`、`components/state/TriggerEditor.jsx`、`components/book/StatePanel.jsx`、`components/book/CastPanel.jsx`、`components/book/SealStampAnimation.jsx`、`components/book/TopBar.jsx`、`components/book/ChapterDivider.jsx`、`components/writing/WritingMessageItem.jsx`
+- **验收**：所有 6 项 grep 验收标准全部清零；测试数量未变（4 个预存失败）
+- **注意**：`tokens.css` 中 `--we-color-bg-overlay` / `--we-color-accent-bg` 保留 `rgba()` 定义（tokens.css 是真相来源，不受迁移约束）；骨架屏动画改为 opacity-pulse（原 shimmer 渐变依赖动态位置无法 token 化）；状态栏填充色从双色渐变改为单色 `--we-color-status-success`
+
+## T208 — bugfix: 补齐触发器通知与 `one_shot` 闭环 ✅
+- **对外接口**：`trigger_fired` SSE 现在被前端统一消费并在 chat / writing 页面显示 toast；`POST /api/worlds/:worldId/triggers` 与 `PUT /api/triggers/:id` 正式支持 `one_shot`
+- **涉及文件**：`frontend/src/api/stream-parser.js`、`frontend/src/pages/ChatPage.jsx`、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/components/state/TriggerEditor.jsx`、`frontend/src/components/state/TriggerCard.jsx`、`frontend/tests/api/chat.test.js`、`frontend/tests/api/writing-sessions.test.js`、`backend/routes/triggers.js`、`backend/services/trigger-evaluator.js`、`backend/tests/routes/triggers.test.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
+- **注意**：① 之前后端会发 `trigger_fired`，但前端 SSE 解析器没消费，导致“前端通知”静默失效；② `one_shot` 之前只存在于 schema/query 和失败测试里，路由未透传、执行器也未自动禁用，这次补成真实闭环；③ 前端触发器通知当前采用底部 toast 合并展示，多条通知会用全角分号拼接
+
 ## T207 — docs: 同步状态页与组件抽取后的权威文档 ✅
 - **对外接口**：无运行时接口变更；仅校正文档与当前实现对齐
 - **涉及文件**：`ARCHITECTURE.md`、`SCHEMA.md`、`CHANGELOG.md`
@@ -19,7 +30,7 @@
 ## T206 — refactor: 收口旧 Prompt 条目入口并统一到世界 State 页 ✅
 - **对外接口**：`routes/prompt-entries.js` 现在只暴露世界级 State 条目接口：`GET/POST /api/worlds/:worldId/entries`、`GET/PUT/DELETE /api/world-entries/:id`、`PUT /api/world-entries/reorder`
 - **涉及文件**：`backend/prompts/assembler.js`、`backend/routes/prompt-entries.js`、`backend/services/prompt-entries.js`、`backend/db/schema.js`（新增旧 world prompt 列到 `world_prompt_entries(always)` 的一次性迁移）、`assistant/server/routes.js`、`frontend/src/pages/WorldCreatePage.jsx`、`frontend/src/pages/WorldEditPage.jsx`、`frontend/src/pages/CharacterEditPage.jsx`、`frontend/src/components/settings/PromptConfigPanel.jsx`、`frontend/src/api/prompt-entries.js`
-- **注意**：① 运行时不再消费 `global_prompt_entries` / `character_prompt_entries`，也不再直接消费 `worlds.system_prompt/post_prompt`；世界级提示词统一从 `world_prompt_entries` 读取；② 为避免旧世界静默丢 prompt，启动迁移会把非空 `worlds.system_prompt/post_prompt` 镜像写入常驻条目（按内容去重）；③ 写卡助手提案执行也已同步去掉角色/全局 prompt 条目写入，避免残留调用在服务启动时报错
+- **注意**：① 运行时不再消费 `global_prompt_entries` / `character_prompt_entries`，也不再直接消费 `worlds.system_prompt/post_prompt`；世界级提示词统一从 `world_prompt_entries` 读取；② 为避免旧世界静默丢 prompt，启动迁移会把非空 `worlds.system_prompt/post_prompt` 镜像写入常驻条目（按内容去重）；③ 写卡助手提案执行也已同步去掉角色/全局提示词 条目写入，避免残留调用在服务启动时报错
 
 ## 前端系统性审查与修复 ✅
 - **修复内容**：① `--we-radius-sm` CSS 变量冲突：index.css 以 6px 覆盖 tokens.css 的 2px，影响 30+ 组件（含聊天气泡），已删除 index.css `:root` 中的覆盖项，羊皮纸 2px 圆角恢复；② WorldStatePage + EntrySection + StateFieldList 中的 Emoji 图标（📌🔑🤖⚡🔒）替换为古籍符号（✦ § ❦ ※ §），符合 DESIGN.md §13；③ TopBar.jsx 10+ 处硬编码 rgba/hex 颜色替换为 tokens.css 新增的 `--we-topbar-*` 变量组；④ TopBar.jsx `onMouseEnter/Leave` 中的 `e.target.style` 直接 DOM 操作替换为 React state（`hoveredWorldId`、`listBtnHover`）；⑤ `--we-ink-faded` 从 #8a7663（3.21:1，不通过 WCAG AA）加深为 #6d5c4b（~4.6:1，通过 AA）
@@ -942,7 +953,7 @@
 - **注意**：导出文件名为 `worldengine-global-settings-{mode}.weglobal.json`；导入只清空/覆盖对应 mode 的三张表记录，另一空间数据不受影响；旧版无 mode 字段的文件导入时自动按 chat 处理（向后兼容）
 
 ## T86 — feat: 全局设置双模式分离（对话 / 写作） ✅
-- **对外接口**：`GET/POST /api/global-entries?mode=` 按 mode 过滤全局 Prompt 条目；`GET/POST /api/custom-css-snippets?mode=` 按 mode 过滤 CSS；`GET /api/regex-rules?mode=` 按 mode 过滤全局规则；`GET /api/config` 返回包含 `writing` 命名空间的配置；`PATCH /api/config` 支持 `{ writing: { llm, global_system_prompt, ... } }` 深度合并
+- **对外接口**：`GET/POST /api/global-entries?mode=` 按 mode 过滤全局提示词 条目；`GET/POST /api/custom-css-snippets?mode=` 按 mode 过滤 CSS；`GET /api/regex-rules?mode=` 按 mode 过滤全局规则；`GET /api/config` 返回包含 `writing` 命名空间的配置；`PATCH /api/config` 支持 `{ writing: { llm, global_system_prompt, ... } }` 深度合并
 - **涉及文件**：`backend/db/schema.js`（三表加 mode 列 ALTER TABLE migration）、`backend/db/queries/prompt-entries.js`、`backend/db/queries/regex-rules.js`、`backend/db/queries/custom-css-snippets.js`、`backend/services/config.js`（writing 命名空间默认值）、`backend/prompt/assembler.js`（buildWritingPrompt 使用 writing.* 配置）、`backend/routes/writing.js`（model 透传）、`backend/routes/prompt-entries.js`、`backend/routes/regex-rules.js`、`backend/routes/custom-css-snippets.js`、`backend/utils/regex-runner.js`（mode 参数透传）、`backend/services/import-export.js`（writing 块导出导入）、`frontend/src/store/appMode.js`（新建）、`frontend/src/pages/WritingSpacePage.jsx`、`frontend/src/pages/SettingsPage.jsx`、`frontend/src/components/settings/CustomCssManager.jsx`、`frontend/src/components/settings/RegexRulesManager.jsx`、`frontend/src/components/prompt/EntryList.jsx`、`frontend/src/api/customCssSnippets.js`、`frontend/src/api/prompt-entries.js`、`frontend/src/api/regexRules.js`
 - **注意**：（1）mode 严格二分 `'chat' | 'writing'`，现有数据默认归入 `'chat'`；（2）世界规则（world_id IS NOT NULL）忽略 mode 字段，始终对该世界所有会话生效；（3）writing.llm.model = '' 时继承对话 model，writing.context_history_rounds = null 时继承对话 context_history_rounds；（4）`store/index.js` 为锁定文件，appMode 独立 store 新建为 `store/appMode.js`；（5）CSS 片段的 refreshCustomCss 需传 appMode，不传则拉取全部（兼容旧调用）；（6）SettingsPage 的 settingsMode state 在所有 tab 间共享，切换 tab 不重置模式
 
@@ -961,10 +972,10 @@
 - **涉及文件**：`backend/prompt/assembler.js`、`ARCHITECTURE.md`、`CHANGELOG.md`
 - **注意**：这个修复直接影响 `/impersonate` 的首轮取上下文；此前新 session 若只有 assistant 开场白、还没有 user 消息，降级路径会误删开场白，导致代拟内容只能参考 system prompt 和跨 session 召回记忆
 
-## T82 — feat: 将全局 Prompt 条目整合到全局 Prompt 设置页 ✅
+## T82 — feat: 将全局提示词 条目整合到全局提示词 设置页 ✅
 - **对外接口**：无变更；纯 UI 重组
 - **涉及文件**：`frontend/src/pages/SettingsPage.jsx`
-- **注意**：导航从 6 项减为 5 项（移除独立的"全局 Prompt 条目"）；EntryList 嵌入 PromptSection，位于全局后置提示词之后，由 hr 与下方记忆展开/保存区隔开；EntryList 独立保存，与"保存"按钮互不干扰
+- **注意**：导航从 6 项减为 5 项（移除独立的"全局提示词 条目"）；EntryList 嵌入 PromptSection，位于全局后置提示词之后，由 hr 与下方记忆展开/保存区隔开；EntryList 独立保存，与"保存"按钮互不干扰
 
 ## T81 — chore: 统一测试/临时文件目录并清理仓库残留 ✅
 - **对外接口**：无运行时接口变更；`CLAUDE.md` 与 `AGENTS.md` 新增同一条仓库约束：所有测试文件、测试目录、临时文件、临时目录统一放到项目根目录 `/.temp/`
@@ -1033,7 +1044,7 @@
 ## T70 — feat: SettingsPage 双栏 + CustomCssManager 引导 ✅
 - **对外接口**：`SettingsPage` 无新增对外接口；`CustomCssManager` 无 props 变化；`RegexRulesManager` 无 props 变化
 - **涉及文件**：重写 `frontend/src/pages/SettingsPage.jsx`；更新 `frontend/src/components/settings/CustomCssManager.jsx`（添加折叠引导 + 替换 Button/Input/Textarea）；更新 `frontend/src/components/settings/RegexRulesManager.jsx`（替换按钮为 T67 Button）；追加 `frontend/src/styles/pages.css`（`.we-settings-panel`/`.we-settings-nav`/`.we-settings-nav-item`/`.we-settings-body` 等设置页专用类 + `.we-css-reference*` 折叠引导样式）
-- **注意**：`SettingsPage` 使用 `we-edit-canvas`（外层书本背景，与 T69 保持一致）+ 新建 `we-settings-panel`（flex 双栏，最大宽度 1100px）；LLM 和 Embedding 同在"LLM 配置"分区，分隔线区分；"全局 Prompt"分区包含 context_rounds、memory_expansion 及保存按钮；CSS 折叠引导用原生 `<details>`/`<summary>`，默认收起；"关于"分区版本号硬编码 0.0.0，数据库重置引导用 CLI 命令展示（无 HTTP 接口）；`RegexRulesManager` 原有 Tailwind 类在行级规则项上仍保留（只替换了顶部新建按钮和行内编辑/删除按钮）
+- **注意**：`SettingsPage` 使用 `we-edit-canvas`（外层书本背景，与 T69 保持一致）+ 新建 `we-settings-panel`（flex 双栏，最大宽度 1100px）；LLM 和 Embedding 同在"LLM 配置"分区，分隔线区分；"全局提示词"分区包含 context_rounds、memory_expansion 及保存按钮；CSS 折叠引导用原生 `<details>`/`<summary>`，默认收起；"关于"分区版本号硬编码 0.0.0，数据库重置引导用 CLI 命令展示（无 HTTP 接口）；`RegexRulesManager` 原有 Tailwind 类在行级规则项上仍保留（只替换了顶部新建按钮和行内编辑/删除按钮）
 
 ## T69A — bugfix: T69 后续修复 ✅
 - **涉及文件**：`App.jsx`、`PageTransition.jsx`、`BookSpread.jsx`、`TopBar.jsx`、`CharactersPage.jsx`、`PersonaEditPage.jsx`、`StatePanel.jsx`、`ChatPage.jsx`、`pages.css`
@@ -1450,7 +1461,7 @@
 
 ## T24D — bugfix: Provider 设置页追加修复 ✅
 - **Embedding openai_compatible**：后端 `fetchModels` 新增对 `openai_compatible` provider 的支持（使用自定义 base_url 拉取模型列表）；前端对该 provider 显示 Base URL 输入框，切换时不清除已填写的 base_url
-- **UI 整合**：全局 Prompt 条目（EntryList）移入通用配置卡片，置于全局 System Prompt 下方，不再单独成卡
+- **UI 整合**：全局提示词 条目（EntryList）移入通用配置卡片，置于全局 System Prompt 下方，不再单独成卡
 - **涉及文件**：`backend/routes/config.js`、`frontend/src/pages/SettingsPage.jsx`
 
 ## T24C — bugfix: Provider 设置页两个 Bug 修复 ✅

@@ -114,7 +114,17 @@
   /* --we-border 和 --we-border-faint 是含 1px solid 的 shorthand，
      新代码应使用 --we-color-border-* + CSS 类；迁移完成后可删除 */
   --we-border:       1px solid var(--we-color-border-default);
-  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5); /* 此 rgba 是 --we-base-paper-300 的 50% 透明度 */
+  --we-border-faint: 1px solid color-mix(in srgb, var(--we-base-paper-300) 50%, transparent);
+
+  /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
+  /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
+  --we-range-track-bg: linear-gradient(
+    to right,
+    var(--we-vermilion) 0%,
+    var(--we-vermilion) calc(var(--range-pct, 0%)),
+    var(--we-paper-shadow) calc(var(--range-pct, 0%)),
+    var(--we-paper-shadow) 100%
+  );
 
   /* §5.2 顶栏深色层（保留原值不动）*/
   --we-topbar-bg:             #3d2e22;

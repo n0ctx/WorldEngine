@@ -24,7 +24,7 @@ export default function ToggleSwitch({ checked, onChange }) {
           width: '20px',
           borderRadius: '9999px',
           backgroundColor: 'var(--we-paper-base)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          boxShadow: '0 1px 3px color-mix(in srgb, var(--we-base-ink-900) 20%, transparent)',
           transition: 'transform 0.2s',
           transform: checked ? 'translateX(20px)' : 'translateX(0)',
         }}

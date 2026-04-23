@@ -71,14 +71,14 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
         position: 'relative',
         borderRadius: 'var(--we-radius-sm)',
         transition: 'background 0.12s',
-        background: isActive ? 'rgba(0,0,0,0.13)' : 'transparent',
+        background: isActive ? 'color-mix(in srgb, var(--we-base-ink-900) 13%, transparent)' : 'transparent',
         borderLeft: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
         userSelect: 'none',
       }}
       onClick={() => !editing && onSelect(session)}
       onMouseEnter={(e) => {
         setHovered(true);
-        if (!isActive) e.currentTarget.style.background = 'rgba(0,0,0,0.06)';
+        if (!isActive) e.currentTarget.style.background = 'color-mix(in srgb, var(--we-base-ink-900) 6%, transparent)';
       }}
       onMouseLeave={(e) => {
         setHovered(false);

@@ -337,9 +337,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(184, 168, 130, 0.12)',
-              backdropFilter: 'blur(1.5px)',
-              WebkitBackdropFilter: 'blur(1.5px)',
+              background: 'color-mix(in srgb, var(--we-base-paper-400) 12%, transparent)',
             }}
           >
             <MotionDiv

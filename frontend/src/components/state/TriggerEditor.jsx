@@ -61,6 +61,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
   const isNew = !trigger?.id;
 
   const [name, setName] = useState(trigger?.name ?? '');
+  const [oneShot, setOneShot] = useState(trigger?.one_shot === 1);
   const [conditions, setConditions] = useState(
     trigger?.conditions?.length > 0 ? trigger.conditions.map((c) => ({ ...c })) : [emptyCondition()]
   );
@@ -148,6 +149,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
     });
     const payload = {
       name: name.trim(),
+      one_shot: oneShot ? 1 : 0,
       conditions: conditions.filter((c) => c.target_field && c.value),
       actions: payloadActions,
     };
@@ -169,7 +171,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
     padding: '6px 10px',
     fontFamily: 'var(--we-font-serif)',
     fontSize: '13px',
-    background: 'rgba(0,0,0,0.03)',
+    background: 'color-mix(in srgb, var(--we-base-ink-900) 3%, transparent)',
     border: '1px solid var(--we-paper-shadow)',
     borderRadius: 'var(--we-radius-none)',
     color: 'var(--we-ink-primary)',
@@ -196,8 +198,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         position: 'fixed', inset: 0, zIndex: 50,
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         paddingTop: '10vh',
-        background: 'rgba(26, 20, 15, 0.18)',
-        backdropFilter: 'blur(1px)',
+        background: 'color-mix(in srgb, var(--we-base-ink-900) 30%, transparent)',
       }}
     >
       <div
@@ -208,9 +209,9 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
           border: '1px solid var(--we-paper-shadow)',
           borderRadius: 'var(--we-radius-sm)',
           width: '100%',
-          maxWidth: '580px',
+          maxWidth: '960px',
           padding: '24px',
-          maxHeight: 'calc(85vh - 10vh)',
+          maxHeight: 'calc(100vh - 96px)',
           overflowY: 'auto',
           scrollbarWidth: 'thin',
           scrollbarColor: 'var(--we-paper-shadow) transparent',
@@ -228,6 +229,17 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
             placeholder="触发器名称"
             style={fieldStyle}
           />
+        </div>
+
+        <div style={{ ...sectionStyle, marginTop: '-6px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--we-ink-secondary)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={oneShot}
+              onChange={(e) => setOneShot(e.target.checked)}
+            />
+            仅触发一次（命中后自动禁用）
+          </label>
         </div>
 
         {/* 条件列表 */}
@@ -287,7 +299,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
               borderRadius: 'var(--we-radius-sm)',
               padding: '10px 12px',
               marginBottom: '8px',
-              background: 'rgba(0,0,0,0.02)',
+              background: 'color-mix(in srgb, var(--we-base-ink-900) 2%, transparent)',
             }}>
               {/* 动作类型 + 删除按钮 */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>

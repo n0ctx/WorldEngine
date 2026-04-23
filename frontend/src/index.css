@@ -39,7 +39,7 @@
   /* --- 阴影预设（字符串值，用于 box-shadow） --- */
   --we-shadow-ring:      0 0 0 1px var(--we-ring);
   --we-shadow-ring-deep: 0 0 0 1px var(--we-ring-deep);
-  --we-shadow-whisper:   rgba(0, 0, 0, 0.05) 0 4px 24px;
+  --we-shadow-whisper:   color-mix(in srgb, black 5%, transparent) 0 4px 24px;
 
   /* --- 字体栈 --- */
   --we-serif: "Anthropic Serif", Georgia, "Noto Serif SC", serif;
@@ -174,7 +174,7 @@ body {
 
 .we-md-editor:focus-within {
   border-color: var(--we-vermilion);
-  box-shadow: 0 0 0 2px rgba(162, 59, 46, 0.08);
+  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
 }
 
 /* 工具栏 */
@@ -182,7 +182,7 @@ body {
   display: flex;
   gap: 1px;
   padding: 5px 8px;
-  background: linear-gradient(180deg, var(--we-paper-aged) 0%, var(--we-paper-base) 100%);
+  background: var(--we-paper-aged);
   border-bottom: 1px solid var(--we-paper-shadow);
 }
 
@@ -217,7 +217,7 @@ body {
 
 .we-md-toolbar button:hover {
   color: var(--we-ink-secondary);
-  background: rgba(42, 31, 23, 0.05);
+  background: color-mix(in srgb, var(--we-base-ink-900) 5%, transparent);
 }
 
 .we-md-toolbar button.active {
@@ -307,13 +307,13 @@ body {
   color: var(--we-ink-secondary);
   font-family: var(--we-font-mono);
   font-size: 0.82em;
-  border: 1px solid rgba(200, 185, 154, 0.6);
+  border: 1px solid color-mix(in srgb, var(--we-base-paper-300) 60%, transparent);
   border-radius: 1px;
   padding: 1px 5px;
 }
 
 .we-md-content .ProseMirror pre {
-  background: linear-gradient(180deg, var(--we-paper-aged), rgba(217, 204, 176, 0.6));
+  background: var(--we-paper-aged);
   border: 1px solid var(--we-paper-shadow);
   border-radius: 1px;
   padding: 10px 14px;
@@ -331,7 +331,7 @@ body {
 
 .we-md-content .ProseMirror blockquote {
   border-left: 2.5px solid var(--we-gold-leaf);
-  background: rgba(184, 168, 130, 0.15);
+  background: color-mix(in srgb, var(--we-base-paper-400) 15%, transparent);
   color: var(--we-ink-secondary);
   padding: 6px 14px;
   margin: 0.6em 0;
@@ -357,8 +357,8 @@ body {
    ========================================================= */
 
 .we-combobox-wrap:focus-within {
-  border-color: var(--we-vermilion) !important;
-  box-shadow: 0 0 0 2px rgba(162, 59, 46, 0.08);
+  border-color: var(--we-vermilion);
+  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
 }
 
 /* =========================================================
@@ -370,13 +370,7 @@ body {
   appearance: none;
   width: 100%;
   height: 4px;
-  background: linear-gradient(
-    to right,
-    var(--we-vermilion) 0%,
-    var(--we-vermilion) calc(var(--range-pct, 0%) ),
-    var(--we-paper-shadow) calc(var(--range-pct, 0%)),
-    var(--we-paper-shadow) 100%
-  );
+  background: var(--we-range-track-bg);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -391,7 +385,7 @@ body {
   border-radius: 50%;
   background: var(--we-paper-base);
   border: 2px solid var(--we-vermilion);
-  box-shadow: 0 1px 4px rgba(42,31,23,0.18);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.1s;
 }
@@ -399,7 +393,7 @@ body {
 .we-range::-webkit-slider-thumb:hover,
 .we-range:focus::-webkit-slider-thumb {
   transform: scale(1.2);
-  box-shadow: 0 0 0 3px rgba(162,59,46,0.15), 0 1px 4px rgba(42,31,23,0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent), 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
 }
 
 .we-range::-moz-range-thumb {
@@ -408,7 +402,7 @@ body {
   border-radius: 50%;
   background: var(--we-paper-base);
   border: 2px solid var(--we-vermilion);
-  box-shadow: 0 1px 4px rgba(42,31,23,0.18);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
   cursor: pointer;
 }
 
@@ -424,19 +418,13 @@ body {
 
 /* ── 骨架屏动画 ─── */
 @keyframes wePanelSkeleton {
-  0%   { background-position: -300% 0; }
-  100% { background-position: 300% 0; }
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1;   }
 }
 .we-skel {
   display: block;
   border-radius: 1px;
-  background: linear-gradient(
-    90deg,
-    var(--we-paper-deep)   25%,
-    rgba(200, 185, 154, 0.5) 50%,
-    var(--we-paper-deep)   75%
-  );
-  background-size: 600% 100%;
+  background: var(--we-color-bg-muted);
   animation: wePanelSkeleton 1.6s ease-in-out infinite;
 }
 
@@ -451,11 +439,7 @@ body {
   position: absolute;
   left: 0; top: 0; bottom: 0;
   width: 14px;
-  background: linear-gradient(to right,
-    rgba(0,0,0,0.16) 0%,
-    rgba(0,0,0,0.05) 45%,
-    transparent 100%
-  );
+  background: var(--we-spine-shadow-left);
   pointer-events: none;
   z-index: 2;
 }
@@ -507,16 +491,11 @@ body {
 .we-panel-divider-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(to right,
-    transparent 0%,
-    var(--we-gold-leaf) 30%,
-    var(--we-gold-leaf) 70%,
-    transparent 100%
-  );
+  background: var(--we-color-gold);
   opacity: 0.7;
   box-shadow:
-    0 1px 0 rgba(201, 168, 90, 0.40),
-    0 -0.5px 0 rgba(0, 0, 0, 0.10);
+    0 1px 0 color-mix(in srgb, var(--we-base-gold-600) 40%, transparent),
+    0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 10%, transparent);
 }
 .we-panel-divider-gem {
   font-size: 7px;
@@ -524,9 +503,6 @@ body {
   opacity: 0.8;
   flex-shrink: 0;
   line-height: 1;
-  text-shadow:
-    0 1px 0 rgba(201, 168, 90, 0.45),
-    0 -0.5px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* ── 内容区 ─── */
@@ -578,7 +554,7 @@ body {
   letter-spacing: 0.05em;
 }
 .we-state-section:hover .we-state-section-reset { color: var(--we-ink-faded); }
-.we-state-section-reset:hover { color: var(--we-vermilion) !important; }
+.we-state-section .we-state-section-reset:hover { color: var(--we-vermilion); }
 
 /* 空状态文字 */
 .we-section-empty {
@@ -627,13 +603,13 @@ body {
 /* 进度条 */
 .we-status-bar {
   height: 2px;
-  background: rgba(0, 0, 0, 0.08);
+  background: color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
   margin-top: 4px;
   overflow: hidden;
 }
 .we-status-bar-fill {
   height: 100%;
-  background: linear-gradient(to right, var(--we-moss), var(--we-gold-leaf));
+  background: var(--we-color-status-success);
   transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -747,7 +723,7 @@ body {
 .we-chapter-fleuron-line {
   width: 40px;
   height: 1px;
-  background: linear-gradient(to right, transparent, rgba(160, 131, 63, 0.7), transparent);
+  background: color-mix(in srgb, var(--we-base-gold-600) 70%, transparent);
   display: block;
 }
 
@@ -770,11 +746,11 @@ body {
 .we-fleuron-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(to right, transparent, var(--we-paper-shadow), transparent);
+  background: var(--we-color-border-default);
   display: block;
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.32),
-    0 -0.5px 0 rgba(42, 31, 23, 0.08);
+    0 1px 0 color-mix(in srgb, var(--we-base-white) 32%, transparent),
+    0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
 }
 .we-fleuron-symbol {
   font-family: var(--we-font-display);
@@ -782,9 +758,6 @@ body {
   color: var(--we-paper-deep);
   line-height: 1;
   flex-shrink: 0;
-  text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.40),
-    0 -0.5px 0 rgba(42, 31, 23, 0.12);
 }
 
 /* ── 页脚（PageFooter）────────────────────────────────────────── */

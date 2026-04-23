@@ -263,12 +263,12 @@ function SnippetEditor({ snippet, onSave, onClose }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
       <div style={{
         background: 'var(--we-paper-base)',
         border: '1px solid var(--we-paper-shadow)',
         borderRadius: 'var(--we-radius-sm)',
-        boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+        boxShadow: '0 16px 48px color-mix(in srgb, var(--we-base-ink-900) 30%, transparent)',
         width: '100%',
         maxWidth: '640px',
         margin: '0 16px',
@@ -324,12 +324,12 @@ function DeleteConfirm({ onConfirm, onClose }) {
     setDeleting(false);
   }
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
       <div style={{
         background: 'var(--we-paper-base)',
         border: '1px solid var(--we-paper-shadow)',
         borderRadius: 'var(--we-radius-sm)',
-        boxShadow: '0 16px 48px rgba(0,0,0,0.3)',
+        boxShadow: '0 16px 48px color-mix(in srgb, var(--we-base-ink-900) 30%, transparent)',
         width: '100%',
         maxWidth: '360px',
         margin: '0 16px',

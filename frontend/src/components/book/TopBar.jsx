@@ -217,7 +217,7 @@ export default function TopBar() {
                   padding: '7px 12px',
                   background: w.id === effectiveWorldId
                     ? 'var(--we-topbar-active-bg)'
-                    : hoveredWorldId === w.id ? 'rgba(255,255,255,0.05)' : 'none',
+                    : hoveredWorldId === w.id ? 'color-mix(in srgb, var(--we-base-white) 5%, transparent)' : 'none',
                   color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'var(--we-topbar-item-faint)',
                   fontFamily: 'var(--we-font-display)',
                   fontStyle: 'italic',
