@@ -34,6 +34,7 @@
   --we-color-bg-surface: var(--we-base-paper-200);  /* 卡片/面板 */
   --we-color-bg-subtle:  var(--we-base-paper-300);
   --we-color-bg-muted:   var(--we-base-paper-400);
+  /* 42,31,23 = --we-base-ink-900 的 RGB；如调整基础色需同步更新此值 */
   --we-color-bg-overlay: rgba(42, 31, 23, 0.5);     /* 遮罩层 */
   --we-color-bg-inverse: var(--we-base-book-bg);
 
@@ -52,6 +53,7 @@
   /* 强调色 */
   --we-color-accent:      var(--we-base-vermilion-600);
   --we-color-accent-deep: var(--we-base-vermilion-800);
+  /* 162,59,46 = --we-base-vermilion-600 的 RGB；CSS 暂不支持从变量提取 RGB，如调整基础色需同步更新此值 */
   --we-color-accent-bg:   rgba(162, 59, 46, 0.08);
   --we-color-gold:        var(--we-base-gold-600);
   --we-color-gold-pale:   var(--we-base-gold-400);
@@ -67,7 +69,7 @@
   --we-space-3xl: 48px;
 
   /* === 圆角 Scale === */
-  --we-radius-none: 0;
+  --we-radius-none: 1px;  /* 微圆角，保持与原值一致 */
   --we-radius-sm:   2px;
   --we-radius-md:   4px;
   --we-radius-lg:   8px;
@@ -109,11 +111,10 @@
   --we-amber: var(--we-color-status-warning);
   --we-slate: var(--we-color-status-info);
   /* --we-radius-sm 和 --we-radius-md 保持原值，已在新 scale 中保留 */
-  /* --we-border / --we-border-faint 保持原值（含 1px solid shorthand）*/
-
-  /* §2.6 UI 功能变量（保留原值不动）*/
-  --we-border:       1px solid var(--we-paper-shadow);
-  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5);
+  /* --we-border 和 --we-border-faint 是含 1px solid 的 shorthand，
+     新代码应使用 --we-color-border-* + CSS 类；迁移完成后可删除 */
+  --we-border:       1px solid var(--we-color-border-default);
+  --we-border-faint: 1px solid rgba(200, 185, 154, 0.5); /* 此 rgba 是 --we-base-paper-300 的 50% 透明度 */
 
   /* §5.2 顶栏深色层（保留原值不动）*/
   --we-topbar-bg:             #3d2e22;
@@ -203,6 +204,7 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
+  /* 旧 motion 变量，已冻结；新代码使用 --we-duration-* 系列 */
   /* Motion Duration 旧版（保留原值不动）*/
   --we-dur-micro:   0.10s;
   --we-dur-quick:   0.18s;
@@ -219,12 +221,12 @@
 }
 
 /* === Typography 预设（必须使用这些组合，禁止散写字号+字重）=== */
-.we-text-h1     { font-size: var(--we-text-xl);   font-weight: 600; line-height: var(--we-leading-tight); }
-.we-text-h2     { font-size: var(--we-text-lg);   font-weight: 600; line-height: var(--we-leading-tight); }
-.we-text-h3     { font-size: var(--we-text-md);   font-weight: 500; line-height: var(--we-leading-tight); }
-.we-text-h4     { font-size: var(--we-text-base); font-weight: 500; line-height: var(--we-leading-tight); }
-.we-text-body   { font-size: var(--we-text-base); font-weight: 400; line-height: var(--we-leading-normal); }
-.we-text-sm     { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); }
-.we-text-caption{ font-size: var(--we-text-xs);   font-weight: 400; line-height: var(--we-leading-normal); }
-.we-text-label  { font-size: var(--we-text-sm);   font-weight: 500; line-height: var(--we-leading-tight); }
-.we-text-code   { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: monospace; }
+.we-type-h1      { font-size: var(--we-text-xl);   font-weight: 600; line-height: var(--we-leading-tight); }
+.we-type-h2      { font-size: var(--we-text-lg);   font-weight: 600; line-height: var(--we-leading-tight); }
+.we-type-h3      { font-size: var(--we-text-md);   font-weight: 500; line-height: var(--we-leading-tight); }
+.we-type-h4      { font-size: var(--we-text-base); font-weight: 500; line-height: var(--we-leading-tight); }
+.we-type-body    { font-size: var(--we-text-base); font-weight: 400; line-height: var(--we-leading-normal); }
+.we-type-sm      { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); }
+.we-type-caption { font-size: var(--we-text-xs);   font-weight: 400; line-height: var(--we-leading-normal); }
+.we-type-label   { font-size: var(--we-text-sm);   font-weight: 500; line-height: var(--we-leading-tight); }
+.we-type-code    { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: monospace; }
