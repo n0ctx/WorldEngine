@@ -116,7 +116,7 @@ export default function WorldEditPage() {
         });
         window.dispatchEvent(new Event('we:world-updated'));
         sessionStorage.removeItem('world_create_draft');
-        navigate(`/worlds/${world.id}/edit`, { replace: true });
+        navigate(`/worlds/${world.id}/edit`, { replace: true, state: location.state });
       } else {
         await updateWorld(worldId, {
           name: name.trim(),

@@ -17,10 +17,28 @@ function extractIds(pathname) {
   };
 }
 
+// Overlay routes that should not affect topbar state — mirrors App.jsx's background <Routes> block.
+const OVERLAY_PATTERNS = [
+  /^\/worlds\/new$/,
+  /^\/worlds\/[\w-]+\/edit$/,
+  /^\/worlds\/[\w-]+\/persona$/,
+  /^\/worlds\/[\w-]+\/characters\/new$/,
+  /^\/characters\/[\w-]+\/edit$/,
+  /^\/settings$/,
+];
+
+function resolveTopbarPathname(location) {
+  const bg = location.state?.backgroundLocation;
+  if (bg) return bg.pathname;
+  if (OVERLAY_PATTERNS.some((re) => re.test(location.pathname))) return '/';
+  return location.pathname;
+}
+
 export default function TopBar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { characterId, worldId } = extractIds(location.pathname);
+  const topbarPathname = resolveTopbarPathname(location);
+  const { characterId, worldId } = extractIds(topbarPathname);
   const currentWorldId = useStore((s) => s.currentWorldId);
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
@@ -100,9 +118,9 @@ export default function TopBar() {
     setDropdownOpen(false);
   }, [location.pathname]);
 
-  const isWorldsList = location.pathname === '/';
+  const isWorldsList = topbarPathname === '/';
   const isChat = !!characterId;
-  const isWriting = location.pathname.match(/\/worlds\/([\w-]+)\/writing/);
+  const isWriting = topbarPathname.match(/\/worlds\/([\w-]+)\/writing/);
 
   async function handleChatNavigate() {
     if (!effectiveWorldId) return;
@@ -231,17 +249,20 @@ export default function TopBar() {
       <button
         className="we-topbar-item we-topbar-settings-btn"
         aria-label="打开设置"
-        onClick={() => navigate('/settings', {
-          state: {
-            backgroundLocation: location,
-            from: {
-              pathname: location.pathname,
-              search: location.search,
-              hash: location.hash,
-              state: location.state,
+        onClick={() => {
+          const realBackground = location.state?.backgroundLocation ?? location;
+          navigate('/settings', {
+            state: {
+              backgroundLocation: realBackground,
+              from: {
+                pathname: location.pathname,
+                search: location.search,
+                hash: location.hash,
+                state: location.state,
+              },
             },
-          },
-        })}
+          });
+        }}
         title="设置"
       >
         <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">

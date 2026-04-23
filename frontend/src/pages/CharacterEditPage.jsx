@@ -154,7 +154,7 @@ export default function CharacterEditPage() {
         });
         window.dispatchEvent(new Event('we:character-updated'));
         sessionStorage.removeItem('character_create_draft');
-        navigate(`/characters/${newChar.id}/edit`, { replace: true });
+        navigate(`/characters/${newChar.id}/edit`, { replace: true, state: location.state });
       } else {
         await updateCharacter(characterId, {
           name: name.trim(),
