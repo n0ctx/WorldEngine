@@ -10,13 +10,14 @@ import { getWorlds } from '../../api/worlds.js';
 import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
+import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { SETTINGS_MODE } from './SettingsConstants';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',
   ai_output: 'AI 输出',
   display_only: '仅显示',
-  prompt_only: '仅 Prompt',
+  prompt_only: '仅提示词',
 };
 
 const SCOPE_HINTS = {
@@ -34,6 +35,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
+  const [confirmingDeleteRule, setConfirmingDeleteRule] = useState(null); // null or rule object
   // drag state: { scope, idx } within that scope's sub-array
   const dragInfo = useRef(null);
 
@@ -69,10 +71,14 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     await refresh();
   }
 
-  async function handleDelete(id) {
-    if (!confirm('确认删除此规则？')) return;
-    await deleteRegexRule(id);
-    await refresh();
+  async function handleDelete() {
+    try {
+      await deleteRegexRule(confirmingDeleteRule.id);
+      setConfirmingDeleteRule(null);
+      await refresh();
+    } catch (e) {
+      alert('删除失败：' + (e?.message || '未知错误'));
+    }
   }
 
   async function handleToggleEnabled(rule) {
@@ -159,7 +165,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
                   worldName={getWorldName(rule.world_id)}
                   onEdit={() => openEdit(rule)}
                   onToggle={() => handleToggleEnabled(rule)}
-                  onDelete={() => handleDelete(rule.id)}
+                  onDelete={() => setConfirmingDeleteRule(rule)}
                   onDragStart={() => handleDragStart(scope, idx)}
                   onDragOver={(e) => handleDragOver(e, scope, idx)}
                   onDragEnd={() => handleDragEnd(scope)}
@@ -176,6 +182,17 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
           worlds={worlds}
           onSave={handleSave}
           onClose={() => setEditorOpen(false)}
+        />
+      )}
+
+      {confirmingDeleteRule && (
+        <ConfirmModal
+          title="删除正则规则"
+          message={`确认删除规则「${confirmingDeleteRule.name}」？此操作不可撤销。`}
+          confirmText="删除"
+          danger
+          onConfirm={handleDelete}
+          onClose={() => setConfirmingDeleteRule(null)}
         />
       )}
     </div>

@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import EntryEditor from './EntryEditor';
 import { deleteWorldEntry } from '../../api/prompt-entries';
+import ConfirmModal from '../ui/ConfirmModal.jsx';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
   const [editing, setEditing] = useState(null); // null=关闭, {}=新建, entry=编辑
+  const [confirmingDeleteEntry, setConfirmingDeleteEntry] = useState(null); // null or entry object
 
-  async function handleDelete(entryId) {
-    await deleteWorldEntry(entryId);
-    onRefresh();
+  async function handleDelete() {
+    try {
+      await deleteWorldEntry(confirmingDeleteEntry.id);
+      setConfirmingDeleteEntry(null);
+      onRefresh();
+    } catch (e) {
+      alert('删除失败：' + (e?.message || '未知错误'));
+    }
   }
 
   return (
@@ -89,7 +96,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
                 编辑
               </button>
               <button
-                onClick={() => handleDelete(entry.id)}
+                onClick={() => setConfirmingDeleteEntry(entry)}
                 style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 删除
@@ -111,6 +118,17 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
           defaultTriggerType={triggerType}
           onClose={() => setEditing(null)}
           onSave={() => { setEditing(null); onRefresh(); }}
+        />
+      )}
+
+      {confirmingDeleteEntry && (
+        <ConfirmModal
+          title="删除条目"
+          message={`确认删除条目「${confirmingDeleteEntry.title}」？此操作不可撤销。`}
+          confirmText="删除"
+          danger
+          onConfirm={handleDelete}
+          onClose={() => setConfirmingDeleteEntry(null)}
         />
       )}
     </div>

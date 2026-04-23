@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { deleteTrigger, updateTrigger } from '../../api/triggers';
+import ConfirmModal from '../ui/ConfirmModal.jsx';
 
 function conditionSummary(conditions) {
   if (!conditions?.length) return '（无条件）';
@@ -22,6 +24,8 @@ function actionsSummary(actions) {
 }
 
 export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+
   async function handleToggle() {
     await updateTrigger(trigger.id, {
       ...trigger,
@@ -31,11 +35,17 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
   }
 
   async function handleDelete() {
-    await deleteTrigger(trigger.id);
-    onDelete();
+    try {
+      await deleteTrigger(trigger.id);
+      setConfirmingDelete(false);
+      onDelete();
+    } catch (e) {
+      alert('删除失败：' + (e?.message || '未知错误'));
+    }
   }
 
   return (
+    <>
     <div style={{
       background: 'var(--we-paper-base)',
       border: '1px solid var(--we-paper-shadow)',
@@ -88,6 +98,7 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
           则 {actionsSummary(trigger.actions)}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--we-ink-faded)' }}>
+          {trigger.one_shot === 1 ? '单次触发' : '可重复触发'} ·{' '}
           {trigger.last_triggered_round != null
             ? `上次触发：第 ${trigger.last_triggered_round} 轮`
             : '从未触发'}
@@ -99,10 +110,22 @@ export default function TriggerCard({ trigger, onEdit, onDelete, onToggle }) {
         <button onClick={onEdit} style={{ fontSize: '12px', color: 'var(--we-ink-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}>
           编辑
         </button>
-        <button onClick={handleDelete} style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}>
+        <button onClick={() => setConfirmingDelete(true)} style={{ fontSize: '12px', color: 'var(--we-vermilion)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--we-font-serif)' }}>
           删除
         </button>
       </div>
     </div>
+
+    {confirmingDelete && (
+      <ConfirmModal
+        title="删除触发器"
+        message={`确认删除触发器「${trigger.name}」？此操作不可撤销。`}
+        confirmText="删除"
+        danger
+        onConfirm={handleDelete}
+        onClose={() => setConfirmingDelete(false)}
+      />
+    )}
+    </>
   );
 }
