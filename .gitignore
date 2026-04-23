@@ -5,7 +5,8 @@ dist/
 .DS_Store
 
 # Local agent / tooling files
-/docs/
+/docs/*
+!/docs/CHANGELOG-archive-T1-T200.md
 /.claude/
 /.obsidian/
 /.playwright-cli/
