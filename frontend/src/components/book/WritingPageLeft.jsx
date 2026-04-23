@@ -1,5 +1,6 @@
 import WritingSessionList from './WritingSessionList.jsx';
 import { useNavigate } from 'react-router-dom';
+import Icon from '../ui/Icon.jsx';
 
 export default function WritingPageLeft({
   worldId,
@@ -45,9 +46,9 @@ export default function WritingPageLeft({
           onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
           onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <Icon size={16}>
             <polyline points="15 18 9 12 15 6" />
-          </svg>
+          </Icon>
         </button>
       </div>
 

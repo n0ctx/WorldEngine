@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import Icon from '../ui/Icon.jsx';
 
 function formatDate(ts) {
   const d = new Date(ts);
@@ -62,28 +63,12 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
   return (
     <div
       data-session-id={session.id}
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 6,
-        padding: '8px 10px',
-        cursor: 'pointer',
-        position: 'relative',
-        borderRadius: 'var(--we-radius-sm)',
-        transition: 'background 0.12s',
-        background: isActive ? 'color-mix(in srgb, var(--we-base-ink-900) 13%, transparent)' : 'transparent',
-        borderLeft: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
-        userSelect: 'none',
-      }}
+      className={`we-session-item${isActive ? ' we-session-item--active' : ''}${editing ? ' we-session-item--editing' : ''}`}
       onClick={() => !editing && onSelect(session)}
-      onMouseEnter={(e) => {
-        setHovered(true);
-        if (!isActive) e.currentTarget.style.background = 'color-mix(in srgb, var(--we-base-ink-900) 6%, transparent)';
-      }}
-      onMouseLeave={(e) => {
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => {
         setHovered(false);
         setConfirmDelete(false);
-        if (!isActive) e.currentTarget.style.background = 'transparent';
       }}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -180,10 +165,10 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <Icon size={16}>
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
+                </Icon>
               </button>
               <button
                 onClick={handleDeleteClick}
@@ -200,12 +185,12 @@ export default function SessionItem({ session, isActive, onSelect, onDelete, onR
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--we-vermilion)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--we-ink-faded)'; }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <Icon size={16}>
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14H6L5 6" />
                   <path d="M10 11v6M14 11v6" />
                   <path d="M9 6V4h6v2" />
-                </svg>
+                </Icon>
               </button>
             </div>
           )}

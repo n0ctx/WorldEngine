@@ -156,7 +156,7 @@
 /* 引用块 */
 .we-message-content blockquote {
   border-left: 2.5px solid var(--we-gold-leaf);
-  background: color-mix(in srgb, var(--we-base-paper-400) 12%, transparent);
+  background: var(--we-color-paper-overlay);
   padding: 6px 14px 6px 14px;
   margin: 0.6em 0;
   border-radius: 0 1px 1px 0;
@@ -194,12 +194,12 @@
   letter-spacing: 0.03em;
 }
 .we-message-content td {
-  border: 1px solid color-mix(in srgb, var(--we-base-paper-300) 45%, transparent);
+  border: 1px solid var(--we-color-paper-tint);
   padding: 5px 12px;
   color: var(--we-ink-secondary);
 }
 .we-message-content tr:nth-child(even) td {
-  background: color-mix(in srgb, var(--we-base-paper-100) 28%, transparent);
+  background: var(--we-color-paper-wash);
 }
 
 /* 水平分隔线 */
@@ -254,19 +254,19 @@
   padding: 0 4px;
   border-radius: 1px;
   color: var(--we-ink-secondary);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--we-base-white) 22%, transparent);
+  box-shadow: inset 0 1px 0 var(--we-color-white-sheen-md);
 }
 
 .we-code-block {
   margin: 0.75em 0;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--we-base-ink-700) 16%, transparent);
+  border: 1px solid var(--we-color-ink-secondary-wash);
   border-radius: 1px;
   background: var(--we-color-bg-surface);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, var(--we-base-white) 22%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--we-base-white) 6%, transparent),
-    0 8px 18px color-mix(in srgb, var(--we-base-ink-900) 6%, transparent);
+    inset 0 1px 0 var(--we-color-white-sheen-md),
+    inset 0 0 0 1px var(--we-color-white-wash),
+    0 8px 18px var(--we-color-shadow-sm);
 }
 
 .we-code-block-header {
@@ -274,7 +274,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 4px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--we-base-ink-700) 12%, transparent);
+  border-bottom: 1px solid var(--we-color-ink-secondary-wash-sm);
   background: var(--we-color-bg-muted);
 }
 
@@ -311,7 +311,7 @@
   font-size: 12.5px;
   line-height: 1.65;
   color: var(--we-ink-secondary);
-  background: color-mix(in srgb, var(--we-base-paper-100) 36%, transparent);
+  background: color-mix(in srgb, var(--we-color-bg-canvas) 36%, transparent);
 }
 
 .we-code-block pre code {
@@ -653,7 +653,7 @@
   color: inherit;
 }
 .we-think-block-content code {
-  background: color-mix(in srgb, var(--we-base-ink-900) 6%, transparent);
+  background: var(--we-color-ink-wash-md);
   border-radius: 2px;
   padding: 0 3px;
   font-size: 0.9em;
@@ -754,7 +754,7 @@
   border: 1px solid var(--we-color-border-default);
   border-top: 2px solid var(--we-color-accent);
   border-radius: var(--we-radius-sm);
-  box-shadow: 0 -4px 16px color-mix(in srgb, var(--we-base-ink-900) 12%, transparent), 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 5%, transparent);
+  box-shadow: 0 -4px 16px var(--we-color-shadow-md), 0 0 0 1px var(--we-color-ink-wash);
   overflow: hidden;
   z-index: var(--we-z-dropdown);
 }
@@ -856,7 +856,7 @@
   width: 100%;
   padding: var(--we-space-sm) var(--we-space-lg);
   padding-right: 76px;
-  background: color-mix(in srgb, var(--we-base-ink-900) 2.5%, transparent);
+  background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-none);
   font-family: var(--we-font-serif);

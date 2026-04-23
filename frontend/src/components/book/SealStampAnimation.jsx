@@ -31,7 +31,7 @@ export default function SealStampAnimation({ visible, trigger, text = '成' }) {
             position: 'fixed',
             right: 40,
             bottom: 40,
-            zIndex: 9999,
+            zIndex: 500, // --we-z-tooltip
             pointerEvents: 'none',
           }}
           initial={{ scale: 1.25, opacity: 0, rotate: -4 }}
@@ -39,7 +39,7 @@ export default function SealStampAnimation({ visible, trigger, text = '成' }) {
           exit={{ opacity: 0, scale: 0.92, transition: { duration: DURATION.medium, ease: EASE.retract, delay: 0.65 } }}
           transition={{ duration: DURATION.base, ease: EASE.quill }}
         >
-          <svg viewBox="0 0 76 76" fill="none" style={{ width: 80, height: 80, filter: 'drop-shadow(0 2px 8px color-mix(in srgb, var(--we-base-vermilion-600) 30%, transparent))' }}>
+          <svg viewBox="0 0 76 76" fill="none" style={{ width: 80, height: 80, filter: 'drop-shadow(0 2px 8px color-mix(in srgb, var(--we-color-accent) 30%, transparent))' }}>
             <rect x="4" y="4" width="68" height="68" rx="2"
               stroke="var(--we-vermilion)" strokeWidth="2.5" />
             <rect x="8.5" y="8.5" width="59" height="59" rx="1"

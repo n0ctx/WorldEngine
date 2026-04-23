@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Icon from '../ui/Icon.jsx';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
 import ModalShell from '../ui/ModalShell.jsx';
@@ -18,9 +19,10 @@ const MotionDiv = motion.div;
 
 function Chevron({ open }) {
   return (
-    <svg
-      width="8" height="8" viewBox="0 0 10 10" fill="none"
-      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    <Icon
+      size={16}
+      viewBox="0 0 10 10"
+      strokeWidth="2.5"
       style={{
         flexShrink: 0,
         color: 'var(--we-ink-faded)',
@@ -30,7 +32,7 @@ function Chevron({ open }) {
       }}
     >
       <polyline points="2,3.5 5,6.5 8,3.5" />
-    </svg>
+    </Icon>
   );
 }
 
@@ -553,7 +555,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'color-mix(in srgb, var(--we-base-paper-400) 12%, transparent)',
+              background: 'var(--we-color-paper-overlay)',
             }}
           >
             <MotionDiv

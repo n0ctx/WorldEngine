@@ -171,7 +171,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
     padding: '6px 10px',
     fontFamily: 'var(--we-font-serif)',
     fontSize: '13px',
-    background: 'color-mix(in srgb, var(--we-base-ink-900) 3%, transparent)',
+    background: 'var(--we-color-ink-wash)',
     border: '1px solid var(--we-paper-shadow)',
     borderRadius: 'var(--we-radius-none)',
     color: 'var(--we-ink-primary)',
@@ -198,7 +198,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
         position: 'fixed', inset: 0, zIndex: 50,
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
         paddingTop: '10vh',
-        background: 'color-mix(in srgb, var(--we-base-ink-900) 30%, transparent)',
+        background: 'var(--we-color-shadow-xl)',
       }}
     >
       <div
@@ -299,7 +299,7 @@ export default function TriggerEditor({ worldId, trigger, entries, onClose, onSa
               borderRadius: 'var(--we-radius-sm)',
               padding: '10px 12px',
               marginBottom: '8px',
-              background: 'color-mix(in srgb, var(--we-base-ink-900) 2%, transparent)',
+              background: 'var(--we-color-ink-wash)',
             }}>
               {/* 动作类型 + 删除按钮 */}
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import Icon from '../ui/Icon.jsx';
 import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writing-sessions.js';
 import { renameSession } from '../../api/sessions.js';
 
@@ -98,10 +99,10 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
                 title="编辑标题"
                 aria-label="编辑会话标题"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <Icon size={16}>
                   <path d="M12 20h9" />
                   <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
+                </Icon>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
@@ -109,12 +110,12 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
                 title="删除会话"
                 aria-label="删除写作会话"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <Icon size={16}>
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14H6L5 6" />
                   <path d="M10 11v6M14 11v6" />
                   <path d="M9 6V4h6v2" />
-                </svg>
+                </Icon>
               </button>
             </div>
           )}
@@ -183,10 +184,10 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
           className="we-session-new-btn"
           aria-label="新建写作会话"
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          </Icon>
           新建写作会话
         </button>
       </div>

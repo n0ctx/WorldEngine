@@ -1,5 +1,6 @@
 /* 已迁移至 components/book/SessionListPanel.jsx，待 P8 清理 */
 import { useState, useEffect, useRef } from 'react';
+import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from './SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
@@ -143,9 +144,9 @@ export default function Sidebar({
             title="切换角色"
             aria-label="切换角色"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <Icon size={16}>
               <polyline points="15 18 9 12 15 6" />
-            </svg>
+            </Icon>
           </button>
         </div>
 
@@ -154,10 +155,10 @@ export default function Sidebar({
           onClick={handleCreateSession}
           className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-border text-sm text-text-secondary hover:bg-sand hover:text-text transition-colors"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          </Icon>
           新对话
         </button>
       </div>

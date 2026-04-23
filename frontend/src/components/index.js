@@ -12,6 +12,7 @@ export { default as ToggleSwitch }    from './ui/ToggleSwitch';
 export { default as MarkdownEditor }  from './ui/MarkdownEditor';
 export { default as ModalShell }      from './ui/ModalShell';
 export { default as ModelCombobox }   from './ui/ModelCombobox';
+export { default as Icon }            from './ui/Icon';
 
 // — UI 分子 —
 export { default as FieldLabel }      from './ui/FieldLabel';

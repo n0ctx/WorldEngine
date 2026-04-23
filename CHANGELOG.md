@@ -3,6 +3,13 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## T211 — feat(uiux): Icon Primitive + SVG 尺寸规范化 ✅
+- **新增**：`frontend/src/components/ui/Icon.jsx` — SVG 图标容器 Primitive，三档 size（16/20/24），`aria-hidden` / `role=img` 自动管理，DEV 环境 console.warn 非法 size
+- **注册**：`frontend/src/components/index.js` 的 "UI 原子" 区新增 `Icon` 导出
+- **迁移（14 文件）**：所有非标准 SVG 尺寸（8/10/11/12/13/14/15px）按映射规则（<17→16，17-22→20，≥23→24）统一用 `<Icon size={N}>` 替换；涉及 CastPanel、StatePanel、StatusSection（8px chevron）、MessageItem、WritingMessageItem（10px 操作按钮）、ChapterDivider（10px）、ChatPage（11px）、SessionListPanel（12/15px）、WritingSessionList（12/13px）、SessionItem（13px）、Sidebar（14/16px）、TopBar（14px）、WritingPageLeft（15px）
+- **测试**：`frontend/tests/components/ui/Icon.test.jsx` 4 项全通过
+- **注意**：① Icon 组件用 `import.meta.env.DEV` 替代 prop-types（项目未安装 prop-types）；② 8px chevron 改 16px 是视觉两倍，但父容器 flex 无约束，实际视觉由 `we-state-section-title` 的 gap 控制；③ InputBox 的 16px SVG 未迁移（已是标准尺寸且不在迁移列表）
+
 ## T209 — feat(uiux): task9+10 CSS 色值迁移 + 禁止视觉样式清理 ✅
 - **变更**：将前端所有 CSS/JSX 中的 `rgba()` 硬编码替换为 `color-mix(in srgb, var(--we-*) N%, transparent)` 语法；移除所有 `linear-gradient` / `radial-gradient`（range 滑条功能性渐变提升为 `--we-range-track-bg` token，书脊阴影改用 `--we-spine-shadow-left` token）；清除全部 `backdrop-filter: blur`、`text-shadow`、`!important`（改用高特异性选择器）；JSX 中的 `var(--token, #hex)` 回退色值全部清理
 - **涉及文件**：`frontend/src/styles/tokens.css`（新增 `--we-range-track-bg` 功能性渐变 token）、`chat.css`、`pages.css`、`ui.css`、`index.css`、`components/ui/ModalShell.jsx`、`components/ui/ModelCombobox.jsx`、`components/ui/ToggleSwitch.jsx`、`components/settings/CustomCssManager.jsx`、`components/chat/SessionItem.jsx`、`components/state/TriggerEditor.jsx`、`components/book/StatePanel.jsx`、`components/book/CastPanel.jsx`、`components/book/SealStampAnimation.jsx`、`components/book/TopBar.jsx`、`components/book/ChapterDivider.jsx`、`components/writing/WritingMessageItem.jsx`

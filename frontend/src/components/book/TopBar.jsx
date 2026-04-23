@@ -1,5 +1,6 @@
 /* DESIGN.md §5.2 */
 import { useState, useEffect, useRef } from 'react';
+import Icon from '../ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
@@ -217,7 +218,7 @@ export default function TopBar() {
                   padding: '7px 12px',
                   background: w.id === effectiveWorldId
                     ? 'var(--we-topbar-active-bg)'
-                    : hoveredWorldId === w.id ? 'color-mix(in srgb, var(--we-base-white) 5%, transparent)' : 'none',
+                    : hoveredWorldId === w.id ? 'var(--we-topbar-item-hover-bg)' : 'none',
                   color: w.id === effectiveWorldId ? 'var(--we-gold-pale)' : 'var(--we-topbar-item-faint)',
                   fontFamily: 'var(--we-font-display)',
                   fontStyle: 'italic',
@@ -328,10 +329,10 @@ export default function TopBar() {
         })}
         title="设置"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ opacity: 0.6 }}>
+        <Icon size={16} strokeWidth="1.8" style={{ opacity: 0.6 }}>
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+        </Icon>
       </button>
     </div>
   );

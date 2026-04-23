@@ -18,6 +18,7 @@
   --we-base-slate-600: #4a5568;   /* 原 --we-slate */
   --we-base-book-bg:   #4a3728;   /* 原 --we-book-bg */
   --we-base-white:     #ffffff;
+  --we-base-peach-200: #ffc8a0;
 
   /* === 语义色（组件必须使用这些，禁止直接用基础色）=== */
 
@@ -57,6 +58,46 @@
   --we-color-accent-bg:   rgba(162, 59, 46, 0.08);
   --we-color-gold:        var(--we-base-gold-600);
   --we-color-gold-pale:   var(--we-base-gold-400);
+
+  /* 头像占位背景 */
+  --we-color-avatar-placeholder: var(--we-base-peach-200);
+
+  /* 墨水渐淡色（ink wash）— 用于背景填充，禁止组件直接用 --we-base-ink-* */
+  /* 42,31,23 = --we-base-ink-900 的 RGB；如调整基础色需同步更新 */
+  --we-color-ink-wash:          rgba(42, 31, 23, 0.035); /* 输入框/选择框背景 ~3.5% */
+  --we-color-ink-wash-md:       rgba(42, 31, 23, 0.06);  /* 悬停背景 ~6% */
+  --we-color-ink-wash-strong:   rgba(42, 31, 23, 0.13);  /* 激活背景 ~13% */
+  /* sm/md/lg/xl 表示不透明度从低到高，非空间尺寸 */
+  --we-color-shadow-sm:         rgba(42, 31, 23, 0.08);  /* 浅色调 ~8%（细微阴影/边框） */
+  --we-color-shadow-md:         rgba(42, 31, 23, 0.14);  /* 中色调 ~14%（常规阴影） */
+  --we-color-shadow-lg:         rgba(42, 31, 23, 0.20);  /* 深色调 ~20%（强调阴影） */
+  --we-color-shadow-xl:         rgba(42, 31, 23, 0.30);  /* 最深色调 ~30%（遮罩/浮层背景） */
+  --we-color-overlay-light:     rgba(42, 31, 23, 0.15);  /* 轻遮罩 ~15% */
+  --we-color-overlay-medium:    rgba(42, 31, 23, 0.35);  /* 中遮罩 ~35% */
+  --we-color-overlay-heavy:     rgba(42, 31, 23, 0.60);  /* 重遮罩 ~60% (头像上传) */
+
+  /* 白色透明叠加（用于高光）*/
+  /* 255,255,255 = --we-base-white 的 RGB */
+  --we-color-white-wash:        rgba(255, 255, 255, 0.05); /* ~5% 白色悬停 */
+  --we-color-white-sheen-sm:    rgba(255, 255, 255, 0.12); /* ~12% 白色高光（按钮） */
+  --we-color-white-sheen-md:    rgba(255, 255, 255, 0.22); /* ~22% 白色高光（卡片） */
+
+  /* 纸张色透明叠加（用于 blockquote、代码块等）*/
+  /* paper-300: 200,185,154 | paper-400: 184,168,130 | paper-100: 237,227,208 */
+  --we-color-paper-wash:        rgba(237, 227, 208, 0.28); /* paper-100 28% — 代码块底色 */
+  --we-color-paper-tint:        rgba(200, 185, 154, 0.45); /* paper-300 45% — 表格边框 */
+  --we-color-paper-muted:       rgba(200, 185, 154, 0.30); /* paper-300 30% — tab 分隔线 */
+  --we-color-paper-overlay:     rgba(184, 168, 130, 0.12); /* paper-400 12% — blockquote 背景 */
+
+  /* 墨水次色透明叠加（用于代码块边框）*/
+  /* ink-700: 83,66,54 */
+  --we-color-ink-secondary-wash:    rgba(83, 66, 54, 0.16); /* ink-700 16% — 代码块边框 */
+  --we-color-ink-secondary-wash-sm: rgba(83, 66, 54, 0.12); /* ink-700 12% — 代码块头边框 */
+
+  /* 强调色透明叠加（用于 tag 边框）*/
+  /* vermilion-600: 162,59,46 */
+  --we-color-accent-border:     rgba(162, 59, 46, 0.25); /* ~25% — tag/badge 边框 */
+  --we-color-accent-border-sm:  rgba(162, 59, 46, 0.22); /* ~22% — entry/field badge 边框 */
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
@@ -137,6 +178,7 @@
   --we-topbar-dropdown-bg:    #3d2e22;
   --we-topbar-dropdown-border: rgba(255,255,255,0.1);
   --we-topbar-dropdown-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  --we-topbar-item-hover-bg:  rgba(255,255,255,0.05); /* 世界下拉悬停背景 */
   --we-topbar-item-dim:       rgba(255,255,255,0.3);
   --we-topbar-item-muted:     rgba(255,255,255,0.35);
   --we-topbar-item-faint:     rgba(255,255,255,0.6);

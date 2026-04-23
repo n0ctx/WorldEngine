@@ -83,7 +83,7 @@ export default function ModelCombobox({
     <div ref={containerRef} className={['relative w-full', className].filter(Boolean).join(' ')}>
       <div style={{
         display: 'flex', alignItems: 'center', width: '100%',
-        background: 'color-mix(in srgb, var(--we-base-ink-900) 3%, transparent)',
+        background: 'var(--we-color-ink-wash)',
         border: '1px solid var(--we-paper-shadow)',
         borderRadius: 'var(--we-radius-none)',
         overflow: 'hidden',
@@ -137,7 +137,7 @@ export default function ModelCombobox({
           background: 'var(--we-paper-base)',
           border: '1px solid var(--we-paper-shadow)',
           borderRadius: 'var(--we-radius-sm)',
-          boxShadow: '0 4px 16px color-mix(in srgb, var(--we-base-ink-900) 14%, transparent)',
+          boxShadow: '0 4px 16px var(--we-color-shadow-md)',
           overflow: 'hidden', overflowY: 'auto',
           maxHeight: '12rem',
           padding: '4px 0',

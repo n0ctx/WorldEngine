@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { applyRules } from '../../utils/regex-runner.js';
+import Icon from '../ui/Icon.jsx';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
@@ -202,11 +203,11 @@ const InputBox = forwardRef(function InputBox({
           title="添加图片（最多3张）"
           aria-label="添加图片附件（最多3张）"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <Icon size={16} strokeWidth="1.8">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
-          </svg>
+          </Icon>
         </button>
         <input
           ref={fileInputRef}
@@ -251,10 +252,10 @@ const InputBox = forwardRef(function InputBox({
               title="续写上一条 AI 回复"
               aria-label="续写上一条 AI 回复"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <Icon size={16} strokeWidth="2.2">
                 <polyline points="13 17 18 12 13 7" />
                 <polyline points="6 17 11 12 6 7" />
-              </svg>
+              </Icon>
             </button>
             <button
               onMouseDown={(e) => { e.preventDefault(); if (!generating) onImpersonate?.(); }}
@@ -263,10 +264,10 @@ const InputBox = forwardRef(function InputBox({
               title="AI 替你写一条消息"
               aria-label="AI 替你写一条消息"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <Icon size={16} strokeWidth="2.2">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
-              </svg>
+              </Icon>
             </button>
           </div>
 
@@ -290,9 +291,9 @@ const InputBox = forwardRef(function InputBox({
             title="停止生成"
             aria-label="停止生成"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <Icon size={16} fill="currentColor" stroke="none">
               <rect x="6" y="6" width="12" height="12" rx="1" />
-            </svg>
+            </Icon>
           </button>
         ) : (
           <button
@@ -302,10 +303,10 @@ const InputBox = forwardRef(function InputBox({
             title="发送 (Enter)"
             aria-label="发送消息"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <Icon size={16} strokeWidth="2.5">
               <line x1="22" y1="2" x2="11" y2="13" />
               <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+            </Icon>
           </button>
         )}
       </div>

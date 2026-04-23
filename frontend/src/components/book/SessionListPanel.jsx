@@ -1,5 +1,6 @@
 /* DESIGN.md §5.3 — 左页会话列表面板（无 Tab） */
 import { useState, useEffect, useRef } from 'react';
+import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from '../chat/SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
@@ -133,9 +134,9 @@ export default function SessionListPanel({
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.6')}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <Icon size={16}>
               <polyline points="15 18 9 12 15 6" />
-            </svg>
+            </Icon>
           </button>
         </div>
 
@@ -161,10 +162,10 @@ export default function SessionListPanel({
           onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--we-vermilion-bg)'; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          </Icon>
           新建会话
         </button>
       </div>
