@@ -6,7 +6,7 @@
 
 检查 task 中是否已包含当前全局配置数据（由主代理预研提供）：
 
-- **task 已含当前数据**（如现有 global_system_prompt、条目列表等）：直接进入生成阶段
+- **task 已含当前数据**（如现有 global_system_prompt 等）：直接进入生成阶段
 - **task 未含数据**：调用 `preview_card` 补充：
   - `target`: `"global-prompt"`
   - `operation`: `"update"`（全局配置固定为 update）
@@ -28,7 +28,6 @@
 - `global_post_prompt`
 - `writing.*` 下的写作空间全局配置
 - `llm.*` 中非敏感字段
-- 全局提示词 条目 `entryOps`
 
 ## 你不负责什么
 
@@ -110,7 +109,7 @@
 - 全局只放跨世界通用规则；题材内容一律下沉到世界卡。
 - 对话空间写"角色如何和玩家互动"。
 - 写作空间写"叙事文本如何组织"。
-- 若只是补充通用知识库或全局规范条目，优先用 `entryOps`，不要把所有东西塞进主 prompt。
+- 若需补充触发型规范条目，通过 world_card_agent 添加世界级条目；全局 prompt 保持精简。
 
 ---
 
@@ -124,44 +123,6 @@
 - `writing`
 
 不要输出 `api_key`、`llm.api_key`、`embedding.api_key`。
-
-## `entryOps` 格式
-
-创建：
-
-```json
-{ "op": "create", "title": "通用规范", "description": "触发条件（1-2句话）", "content": "完整内容", "keywords": ["关键词"], "keyword_scope": "user,assistant", "mode": "chat" }
-```
-
-更新：
-
-```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"] }
-```
-
-删除：
-
-```json
-{ "op": "delete", "id": "现有条目ID" }
-```
-
-`mode` 只在 create 时输出，取值只能是 `"chat"` 或 `"writing"`。
-
-### `description`（触发条件）写法规范
-
-- 1-2 句话，描述**何时**触发，而非描述内容本身
-- 正确示例：`"当对话涉及法律、审判或帝国政府机构时"`
-- 正确示例：`"玩家询问魔法施法规则，或剧情出现法术释放场景时"`
-- 错误示例：`"关于帝国审判庭的详细介绍"`（描述了内容，不是触发条件）
-- `description` 为空时该条目降级为纯关键词触发，无关键词则永不触发
-
-### `keyword_scope` 取值
-
-- `"user"` — 仅匹配用户消息
-- `"assistant"` — 仅匹配 AI 消息
-- `"user,assistant"` — 用户消息和 AI 消息均匹配（默认，可省略）
-
----
 
 ## 输出 Schema
 
@@ -178,7 +139,6 @@
       "temperature": 0.8
     }
   },
-  "entryOps": [],
   "explanation": "简体中文，50字以内"
 }
 ```
@@ -186,9 +146,9 @@
 ## 额外规则
 
 - 只输出需要修改的字段
-- `entryOps` 无变更时输出 `[]`
 - 不输出 `entityId`
 - 不输出 `stateFieldOps`
+- 不输出 `entryOps`（global-config 不支持此字段）
 
 ---
 
@@ -196,7 +156,6 @@
 
 - "把全局回复统一成简体中文 + 不打破第四面墙" → `global_system_prompt`
 - "给写作空间加第三人称有限视角规范" → `writing.global_system_prompt`
-- "增加一条写作空间通用条目：战斗场景节奏规范" → `entryOps.create` + `mode:"writing"`
 
 ## 反例
 
