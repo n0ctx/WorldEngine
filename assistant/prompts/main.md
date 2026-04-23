@@ -124,7 +124,7 @@ create 操作省略"当前状态"部分。
 | `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps）/ 状态字段（world/persona/character）；世界内容通过 entryOps 的 always 常驻条目管理 | update/delete 时必须 |
 | `character_card_agent` | 角色卡：name / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
 | `persona_card_agent` | 玩家卡：name / system_prompt / 玩家状态字段（仅 update）| 必须 |
-| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / 条目 / LLM 参数（仅 update）| 必须 |
+| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / LLM 参数（仅 update）| 必须 |
 | `css_snippet_agent` | 新建自定义 CSS 片段（仅 create）| 不需要 |
 | `regex_rule_agent` | 新建正则替换规则（仅 create）| 不需要 |
 
