@@ -246,7 +246,7 @@ export default function CharacterEditPage() {
               <div className="we-edit-form-group">
                 <h3 className="we-edit-subsection-title">导出角色卡</h3>
                 <p className="we-edit-hint">将此角色导出为 .wechar.json 文件，包含所有配置和状态字段定义。</p>
-                <div style={{ marginTop: '12px' }}>
+                <div className="we-edit-btn-spacer">
                   <Button variant="secondary" onClick={handleExport} disabled={exporting}>
                     {exporting ? '导出中…' : '导出 .wechar.json'}
                   </Button>
@@ -255,7 +255,7 @@ export default function CharacterEditPage() {
               <div className="we-edit-form-group">
                 <h3 className="we-edit-subsection-title">导入角色卡</h3>
                 <p className="we-edit-hint">导入 .wechar.json 将在当前世界创建一个新角色（不覆盖当前角色）。</p>
-                <div style={{ marginTop: '12px' }}>
+                <div className="we-edit-btn-spacer">
                   <Button variant="secondary" onClick={() => charImportRef.current?.click()} disabled={importing}>
                     {importing ? '导入中…' : '导入角色卡…'}
                   </Button>

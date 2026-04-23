@@ -290,7 +290,7 @@ export default function WorldEditPage() {
           <div className="we-edit-form-group">
             <h3 className="we-edit-subsection-title">导出世界卡</h3>
             <p className="we-edit-hint">将此世界导出为 .weworld.json 文件，包含所有配置和状态字段定义。</p>
-            <div style={{ marginTop: '12px' }}>
+            <div className="we-edit-btn-spacer">
               <Button variant="secondary" onClick={handleExport} disabled={exporting}>
                 {exporting ? '导出中…' : '导出 .weworld.json'}
               </Button>
@@ -300,7 +300,7 @@ export default function WorldEditPage() {
           <div className="we-edit-form-group">
             <h3 className="we-edit-subsection-title">导入世界卡</h3>
             <p className="we-edit-hint">导入 .weworld.json 将创建一个新世界（不覆盖当前世界）。</p>
-            <div style={{ marginTop: '12px' }}>
+            <div className="we-edit-btn-spacer">
               <Button variant="secondary" onClick={() => worldImportRef.current?.click()} disabled={importing}>
                 {importing ? '导入中…' : '导入世界卡…'}
               </Button>

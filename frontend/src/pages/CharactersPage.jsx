@@ -6,133 +6,10 @@ import {
   reorderCharacters,
 } from '../api/characters';
 import { getWorld } from '../api/worlds';
-import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/import-export';
 import { listCharacterStateFields } from '../api/character-state-fields';
-import { getPersona } from '../api/personas';
-import { ConfirmModal } from '../components';
-
-function PersonaCard({ worldId, refreshKey, onEdit }) {
-  const [persona, setPersona] = useState(null);
-
-  useEffect(() => {
-    if (!worldId) return;
-    getPersona(worldId).then(setPersona).catch(() => {});
-  }, [worldId, refreshKey]);
-
-  const avatarUrl = persona ? getAvatarUrl(persona.avatar_path) : null;
-  const avatarColor = getAvatarColor(persona?.id || worldId);
-  const avatarInitial = (persona?.name || '玩')[0].toUpperCase();
-
-  if (!persona || (!persona.name && !persona.system_prompt && !persona.avatar_path)) {
-    return (
-      <div className="we-persona-card-wrap">
-        <p className="we-persona-section-label">玩家</p>
-        <p className="we-persona-empty-hint">尚未设置人设</p>
-        <button
-          onClick={onEdit}
-          className="we-character-card-action-btn"
-          style={{ position: 'absolute', top: 10, right: 10 }}
-          title="编辑玩家"
-        >
-          ✎
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="we-persona-card-wrap">
-      <p className="we-persona-section-label">玩家</p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingRight: 32 }}>
-        <div style={{ flexShrink: 0 }}>
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={persona.name}
-              style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }}
-            />
-          ) : (
-            <div
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'var(--we-paper-base)',
-                backgroundColor: avatarColor,
-              }}
-            >
-              {avatarInitial}
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-          {persona.name && (
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 14, color: 'var(--we-ink-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {persona.name}
-            </p>
-          )}
-          {persona.system_prompt && (
-            <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: 12, color: 'var(--we-ink-secondary)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-              {persona.system_prompt}
-            </p>
-          )}
-        </div>
-      </div>
-      <button
-        onClick={onEdit}
-        className="we-character-card-action-btn"
-        style={{ position: 'absolute', top: 10, right: 10 }}
-        title="编辑玩家"
-      >
-        ✎
-      </button>
-    </div>
-  );
-}
-
-function AvatarCircle({ character, size = 'md' }) {
-  const url = getAvatarUrl(character.avatar_path);
-  const color = getAvatarColor(character.id);
-  const initial = (character.name || '?')[0].toUpperCase();
-  const px = size === 'lg' ? 64 : 48;
-
-  if (url) {
-    return (
-      <img
-        src={url}
-        alt={character.name}
-        style={{ width: px, height: px, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
-      />
-    );
-  }
-  return (
-    <div
-      style={{
-        width: px,
-        height: px,
-        borderRadius: '50%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 600,
-        fontSize: size === 'lg' ? 24 : 16,
-        color: 'var(--we-paper-base)',
-        flexShrink: 0,
-        backgroundColor: color,
-      }}
-    >
-      {initial}
-    </div>
-  );
-}
-
+import { ConfirmModal, BackButton, WorldTabNav, buildWorldTabs, PersonaCard, AvatarCircle } from '../components';
 
 export default function CharactersPage() {
   const { worldId } = useParams();
@@ -248,8 +125,8 @@ export default function CharactersPage() {
 
   if (loadError) {
     return (
-      <div className="we-characters-loading" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
-        <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-vermilion)', margin: 0 }}>{loadError}</p>
+      <div className="we-characters-loading we-characters-error">
+        <p className="we-characters-error-text">{loadError}</p>
         <button className="we-characters-create-btn" onClick={loadData}>重试</button>
       </div>
     );
@@ -258,14 +135,7 @@ export default function CharactersPage() {
   return (
     <div className="we-characters-canvas">
       {/* 导航 */}
-      <button
-        onClick={() => navigate('/')}
-        style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-paper-shadow)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, padding: 0, transition: 'color 0.15s' }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--we-paper-base)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--we-paper-shadow)'}
-      >
-        ← 所有世界
-      </button>
+      <BackButton onClick={() => navigate('/')} label="所有世界" />
 
       {/* 页头 */}
       <div className="we-characters-header">
@@ -298,39 +168,11 @@ export default function CharactersPage() {
       </div>
 
       {/* 三标签导航 */}
-      <div style={{
-        display: 'flex',
-        borderBottom: '1px solid rgba(200,185,154,0.3)',
-        marginBottom: '16px',
-      }}>
-        {[
-          { label: '构建', path: `/worlds/${worldId}/build` },
-          { label: '故事', path: `/worlds/${worldId}` },
-          { label: '状态', path: `/worlds/${worldId}/state` },
-        ].map(({ label, path }) => {
-          const isActive = location.pathname === path;
-          return (
-            <button
-              key={label}
-              onClick={() => navigate(path)}
-              style={{
-                padding: '8px 20px',
-                fontFamily: 'var(--we-font-serif)',
-                fontSize: '14px',
-                color: isActive ? 'var(--we-paper-base)' : 'var(--we-paper-shadow)',
-                borderTop: 'none',
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderBottom: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
-                background: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <WorldTabNav
+        tabs={buildWorldTabs(worldId)}
+        activeTab={location.pathname}
+        onTabChange={(path) => navigate(path)}
+      />
 
       {/* 玩家人设卡片 */}
       <PersonaCard
@@ -361,7 +203,12 @@ export default function CharactersPage() {
               }}
             >
               <div className="we-character-card-body">
-                <AvatarCircle character={char} size="md" />
+                <AvatarCircle
+                  id={char.id}
+                  name={char.name}
+                  avatarPath={char.avatar_path}
+                  size="md"
+                />
                 <div className="we-character-card-info">
                   <p className="we-character-card-name">{char.name}</p>
                   {char.system_prompt ? (

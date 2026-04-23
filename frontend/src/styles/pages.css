@@ -1278,3 +1278,115 @@
 .we-worlds-error-detail {
   margin-top: var(--we-space-xs);
 }
+
+/* ── AvatarCircle 组件 ── */
+
+.we-avatar-circle {
+  border-radius: var(--we-radius-full);
+  flex-shrink: 0;
+}
+
+.we-avatar-circle--img {
+  object-fit: cover;
+}
+
+.we-avatar-circle--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--we-paper-base);
+}
+
+/* ── PersonaCard 组件 ── */
+
+.we-persona-card-body {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-md);
+  padding-right: var(--we-space-2xl);
+}
+
+.we-persona-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  min-width: 0;
+}
+
+.we-persona-card-name {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-ink-primary);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-persona-card-desc {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-xs);
+  color: var(--we-ink-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.we-persona-card-edit-btn {
+  position: absolute;
+  top: var(--we-space-md);
+  right: var(--we-space-md);
+}
+
+/* ── CharactersPage 错误状态 ── */
+
+.we-characters-error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-md);
+  align-items: center;
+}
+
+.we-characters-error-text {
+  font-family: var(--we-font-serif);
+  color: var(--we-color-status-danger);
+  margin: 0;
+}
+
+/* ── 编辑页导入导出区按钮间距 ── */
+
+.we-edit-btn-spacer {
+  margin-top: var(--we-space-md);
+}
+
+/* ── PersonaEditPage 状态字段间距 ── */
+
+.we-persona-state-list {
+  margin-top: var(--we-space-sm);
+}
+
+.we-persona-state-item {
+  margin-bottom: var(--we-space-md);
+}
+
+.we-persona-state-label {
+  margin-bottom: var(--we-space-xs);
+}
+
+/* ── SettingsPage 加载状态 ── */
+
+.we-settings-loading-text {
+  font-family: var(--we-font-serif);
+  color: var(--we-ink-faded);
+  font-style: italic;
+}
+
+.we-settings-canvas-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}

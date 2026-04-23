@@ -19,6 +19,10 @@ export { default as FormGroup }       from './ui/FormGroup';
 export { default as EditPageShell }   from './ui/EditPageShell';
 export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
+export { default as AvatarCircle }    from './ui/AvatarCircle';
+
+// — State Feature 组件 —
+export { default as PersonaCard }     from './state/PersonaCard';
 
 // — Blocks 结构模式 —
 export { default as WorldTabNav, buildWorldTabs } from './blocks/WorldTabNav';

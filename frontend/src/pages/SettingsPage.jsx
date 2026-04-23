@@ -37,13 +37,13 @@ export default function SettingsPage() {
       <div className="we-settings-overlay" onClick={() => navigate(-1)}>
         <div className="we-settings-panel we-settings-panel-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="we-settings-loading">
-            <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
+            <p className="we-settings-loading-text">加载中…</p>
           </div>
         </div>
       </div>
     ) : (
-      <div className="we-edit-canvas" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <p style={{ fontFamily: 'var(--we-font-serif)', color: 'var(--we-ink-faded)', fontStyle: 'italic' }}>加载中…</p>
+      <div className="we-edit-canvas we-settings-canvas-loading">
+        <p className="we-settings-loading-text">加载中…</p>
       </div>
     );
   }

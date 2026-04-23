@@ -123,10 +123,10 @@ export default function PersonaEditPage() {
           <div>
             <div className="we-edit-state-sep" />
             <FormGroup label="玩家状态">
-              <div className="we-state-value-list" style={{ marginTop: 8 }}>
+              <div className="we-state-value-list we-persona-state-list">
                 {stateFields.map(f => (
-                  <div key={f.field_key} style={{ marginBottom: 12 }}>
-                    <p className="we-state-value-label" style={{ marginBottom: 4 }}>{f.label}</p>
+                  <div key={f.field_key} className="we-persona-state-item">
+                    <p className="we-state-value-label we-persona-state-label">{f.label}</p>
                     <StateValueField field={f} onSave={handleStateValueSave} />
                   </div>
                 ))}
