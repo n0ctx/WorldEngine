@@ -324,7 +324,7 @@ export default function CharactersPage() {
             onChange={handleImportCharFile}
           />
           <button
-            onClick={() => navigate(`/worlds/${worldId}/characters/new`)}
+            onClick={() => navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } })}
             className="we-characters-create-btn"
           >
             + 创建角色

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getWorld, updateWorld } from '../api/worlds';
+import { getWorld, updateWorld, createWorld } from '../api/worlds';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
+
 import StateFieldList from '../components/state/StateFieldList';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -31,9 +32,10 @@ export default function WorldEditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
+  const isCreate = !worldId;
   const worldImportRef = useRef(null);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sealKey, setSealKey] = useState(0);
@@ -50,12 +52,29 @@ export default function WorldEditPage() {
 
   // 页面进入时同步 diary_time 字段，并获取日记日期模式
   useEffect(() => {
-    if (!worldId) return;
+    if (isCreate || !worldId) return;
     syncDiaryTimeField(worldId).catch(() => {});
     getConfig().then((c) => setDiaryChatDateMode(c.diary?.chat?.date_mode ?? 'virtual')).catch(() => {});
-  }, [worldId]);
+  }, [worldId, isCreate]);
+
+  // 创建模式：从 sessionStorage 恢复草稿
+  useEffect(() => {
+    if (!isCreate) return;
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
+      if (draft.name != null) setName(draft.name);
+      if (draft.description != null) setDescription(draft.description);
+    } catch {}
+  }, [isCreate]);
+
+  // 创建模式：自动保存草稿
+  useEffect(() => {
+    if (!isCreate) return;
+    sessionStorage.setItem('world_create_draft', JSON.stringify({ name, description }));
+  }, [name, description, isCreate]);
 
   useEffect(() => {
+    if (isCreate) return;
     Promise.all([
       getWorld(worldId),
       getWorldStateValues(worldId),
@@ -67,7 +86,7 @@ export default function WorldEditPage() {
       setStateFields(fields);
       setLoading(false);
     });
-  }, [worldId, reloadKey]);
+  }, [worldId, reloadKey, isCreate]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);
@@ -88,14 +107,24 @@ export default function WorldEditPage() {
     setSaving(true);
     setSaveError('');
     try {
-      await updateWorld(worldId, {
-        name: name.trim(),
-        description: description.trim(),
-        temperature: temperature === '' ? null : Number(temperature),
-        max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
-      });
-      window.dispatchEvent(new Event('we:world-updated'));
-      navigate(-1);
+      if (isCreate) {
+        const world = await createWorld({
+          name: name.trim(),
+          description: description.trim(),
+        });
+        window.dispatchEvent(new Event('we:world-updated'));
+        sessionStorage.removeItem('world_create_draft');
+        navigate(`/worlds/${world.id}/edit`, { replace: true });
+      } else {
+        await updateWorld(worldId, {
+          name: name.trim(),
+          description: description.trim(),
+          temperature: temperature === '' ? null : Number(temperature),
+          max_tokens: maxTokens === '' ? null : parseInt(maxTokens, 10),
+        });
+        window.dispatchEvent(new Event('we:world-updated'));
+        navigate(-1);
+      }
     } catch (e) {
       setSaveError(e.message);
     } finally {
@@ -143,7 +172,7 @@ export default function WorldEditPage() {
       content: (
         <div className="we-edit-form-stack">
           <FormGroup label="名称" required>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" />
+            <Input value={name} onChange={e => setName(e.target.value)} placeholder="世界的名称" autoFocus={isCreate} />
           </FormGroup>
           <FormGroup label="简介" hint="纯展示用途，不注入提示词">
             <textarea
@@ -157,7 +186,7 @@ export default function WorldEditPage() {
           {saveError && <p className="we-edit-error">{saveError}</p>}
           <div className="we-edit-save-row">
             <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? (isCreate ? '创建中…' : '保存中…') : (isCreate ? '创建世界' : '保存')}
             </Button>
           </div>
         </div>
@@ -295,7 +324,7 @@ export default function WorldEditPage() {
         loading={loading}
         isOverlay={isOverlay}
         onClose={handleClose}
-        title={name ? `编辑世界 · ${name}` : ''}
+        title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}
       >
         <SectionTabs sections={sections} defaultKey="basic" />
       </EditPageShell>

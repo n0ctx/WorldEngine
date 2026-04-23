@@ -8,10 +8,10 @@ import { useDisplaySettingsStore } from './store/displaySettings';
 import { useAssistantStore } from '../../assistant/client/useAssistantStore.js';
 
 const WorldsPage = lazy(() => import('./pages/WorldsPage'));
-const WorldCreatePage = lazy(() => import('./pages/WorldCreatePage'));
+
 const WorldEditPage = lazy(() => import('./pages/WorldEditPage'));
 const CharactersPage = lazy(() => import('./pages/CharactersPage'));
-const CharacterCreatePage = lazy(() => import('./pages/CharacterCreatePage'));
+
 const CharacterEditPage = lazy(() => import('./pages/CharacterEditPage'));
 const PersonaEditPage = lazy(() => import('./pages/PersonaEditPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
@@ -58,11 +58,11 @@ export default function App() {
         <Suspense fallback={<RouteFallback />}>
           <Routes location={backgroundLocation || location}>
             <Route path="/" element={<WorldsPage />} />
-            <Route path="/worlds/new" element={<WorldCreatePage />} />
+            <Route path="/worlds/new" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId" element={<CharactersPage />} />
             <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
-            <Route path="/worlds/:worldId/characters/new" element={<CharacterCreatePage />} />
+            <Route path="/worlds/:worldId/characters/new" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/chat" element={<ChatPage />} />
             <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
@@ -83,8 +83,10 @@ export default function App() {
       {backgroundLocation && (
         <Suspense fallback={null}>
           <Routes>
+            <Route path="/worlds/new" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+            <Route path="/worlds/:worldId/characters/new" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>

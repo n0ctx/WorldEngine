@@ -127,7 +127,7 @@ export default function WorldsPage() {
       ) : worlds.length === 0 ? (
         <div className="we-worlds-empty">
           <p className="we-worlds-empty-text">尚无世界记录</p>
-          <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new')}>
+          <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
             新建世界
           </button>
         </div>
@@ -189,7 +189,7 @@ export default function WorldsPage() {
       {/* 新建 FAB */}
       <button
         className="we-world-create-fab"
-        onClick={() => navigate('/worlds/new')}
+        onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
         title="新建世界"
       >
         +

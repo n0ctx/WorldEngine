@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getCharacter, updateCharacter, uploadAvatar } from '../api/characters';
+import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import { downloadCharacterCard, importCharacter, readJsonFile } from '../api/import-export';
 import { getCharacterStateValues, updateCharacterStateValue } from '../api/character-state-values';
@@ -15,15 +15,16 @@ import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
 
 export default function CharacterEditPage() {
-  const { characterId } = useParams();
+  const { characterId, worldId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
+  const isCreate = !characterId && !!worldId;
   const fileInputRef = useRef(null);
   const charImportRef = useRef(null);
 
   const [character, setCharacter] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sealKey, setSealKey] = useState(0);
@@ -39,7 +40,26 @@ export default function CharacterEditPage() {
   const [stateFields, setStateFields] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
 
+  // 创建模式：从 sessionStorage 恢复草稿
   useEffect(() => {
+    if (!isCreate) return;
+    try {
+      const draft = JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
+      if (draft.name != null) setName(draft.name);
+      if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
+      if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
+      if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
+    } catch {}
+  }, [isCreate]);
+
+  // 创建模式：自动保存草稿
+  useEffect(() => {
+    if (!isCreate) return;
+    sessionStorage.setItem('character_create_draft', JSON.stringify({ name, systemPrompt, postPrompt, firstMessage }));
+  }, [name, systemPrompt, postPrompt, firstMessage, isCreate]);
+
+  useEffect(() => {
+    if (isCreate) return;
     Promise.all([
       getCharacter(characterId),
       getCharacterStateValues(characterId),
@@ -53,7 +73,7 @@ export default function CharacterEditPage() {
       setStateFields(fields);
       setLoading(false);
     });
-  }, [characterId, reloadKey]);
+  }, [characterId, reloadKey, isCreate]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);
@@ -123,14 +143,26 @@ export default function CharacterEditPage() {
     setSaving(true);
     setSaveError('');
     try {
-      await updateCharacter(characterId, {
-        name: name.trim(),
-        system_prompt: systemPrompt,
-        post_prompt: postPrompt,
-        first_message: firstMessage,
-      });
-      window.dispatchEvent(new Event('we:character-updated'));
-      navigate(-1);
+      if (isCreate) {
+        const newChar = await createCharacter(worldId, {
+          name: name.trim(),
+          system_prompt: systemPrompt,
+          post_prompt: postPrompt,
+          first_message: firstMessage,
+        });
+        window.dispatchEvent(new Event('we:character-updated'));
+        sessionStorage.removeItem('character_create_draft');
+        navigate(`/characters/${newChar.id}/edit`, { replace: true });
+      } else {
+        await updateCharacter(characterId, {
+          name: name.trim(),
+          system_prompt: systemPrompt,
+          post_prompt: postPrompt,
+          first_message: firstMessage,
+        });
+        window.dispatchEvent(new Event('we:character-updated'));
+        navigate(-1);
+      }
     } catch (e) {
       setSaveError(e.message);
     } finally {
@@ -145,12 +177,12 @@ export default function CharacterEditPage() {
   const avatarUrl = getAvatarUrl(avatarPath);
   const avatarColor = getAvatarColor(character?.id);
 
-  const sections = [
-    {
-      key: 'basic',
-      label: '角色设定',
-      content: (
-        <div className="we-edit-form-stack">
+  const basicTab = {
+    key: 'basic',
+    label: '角色设定',
+    content: (
+      <div className="we-edit-form-stack">
+        {!isCreate && (
           <AvatarUpload
             name={name}
             avatarUrl={avatarUrl}
@@ -160,81 +192,86 @@ export default function CharacterEditPage() {
             fileInputRef={fileInputRef}
             onFileChange={handleFileChange}
           />
-          <FormGroup label="名称" required>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" />
-          </FormGroup>
-          <FormGroup label="System Prompt">
-            <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />
-          </FormGroup>
-          <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
-            <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的角色级指令，例如特定的回复格式……" minHeight={72} />
-          </FormGroup>
-          <FormGroup label="开场白">
-            <MarkdownEditor value={firstMessage} onChange={setFirstMessage} placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口" minHeight={96} />
-          </FormGroup>
-          {saveError && <p className="we-edit-error">{saveError}</p>}
-          <div className="we-edit-save-row">
-            <Button variant="primary" onClick={handleSave} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
-            </Button>
-          </div>
+        )}
+        <FormGroup label="名称" required>
+          <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" autoFocus={isCreate} />
+        </FormGroup>
+        <FormGroup label="系统提示词">
+          <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />
+        </FormGroup>
+        <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
+          <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的角色级指令，例如特定的回复格式……" minHeight={72} />
+        </FormGroup>
+        <FormGroup label="开场白">
+          <MarkdownEditor value={firstMessage} onChange={setFirstMessage} placeholder="角色在对话开始时主动说的第一句话，留空则由用户先开口" minHeight={96} />
+        </FormGroup>
+        {saveError && <p className="we-edit-error">{saveError}</p>}
+        <div className="we-edit-save-row">
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
+            {saving ? (isCreate ? '创建中…' : '保存中…') : (isCreate ? '创建角色' : '保存')}
+          </Button>
         </div>
-      ),
-    },
-    {
-      key: 'state_init',
-      label: '状态初始值',
-      content: stateFields.length === 0 ? (
-        <p className="we-edit-empty-text">暂无状态字段（可在世界编辑页添加角色状态模板）</p>
-      ) : (
-        <div className="we-state-value-list">
-          {stateFields.map(f => (
-            <div key={f.field_key} className="we-state-value-row">
-              <div>
-                <p className="we-state-value-label">{f.label}</p>
-                <p className="we-state-value-key">{f.field_key}</p>
+      </div>
+    ),
+  };
+
+  const sections = isCreate
+    ? [basicTab]
+    : [
+        basicTab,
+        {
+          key: 'state_init',
+          label: '状态初始值',
+          content: stateFields.length === 0 ? (
+            <p className="we-edit-empty-text">暂无状态字段（可在世界编辑页添加角色状态模板）</p>
+          ) : (
+            <div className="we-state-value-list">
+              {stateFields.map(f => (
+                <div key={f.field_key} className="we-state-value-row">
+                  <div>
+                    <p className="we-state-value-label">{f.label}</p>
+                    <p className="we-state-value-key">{f.field_key}</p>
+                  </div>
+                  <StateValueField field={f} onSave={handleStateValueSave} />
+                </div>
+              ))}
+            </div>
+          ),
+        },
+        {
+          key: 'export',
+          label: '导入导出',
+          content: (
+            <div>
+              <div className="we-edit-form-group">
+                <h3 className="we-edit-subsection-title">导出角色卡</h3>
+                <p className="we-edit-hint">将此角色导出为 .wechar.json 文件，包含所有配置和状态字段定义。</p>
+                <div style={{ marginTop: '12px' }}>
+                  <Button variant="secondary" onClick={handleExport} disabled={exporting}>
+                    {exporting ? '导出中…' : '导出 .wechar.json'}
+                  </Button>
+                </div>
               </div>
-              <StateValueField field={f} onSave={handleStateValueSave} />
+              <div className="we-edit-form-group">
+                <h3 className="we-edit-subsection-title">导入角色卡</h3>
+                <p className="we-edit-hint">导入 .wechar.json 将在当前世界创建一个新角色（不覆盖当前角色）。</p>
+                <div style={{ marginTop: '12px' }}>
+                  <Button variant="secondary" onClick={() => charImportRef.current?.click()} disabled={importing}>
+                    {importing ? '导入中…' : '导入角色卡…'}
+                  </Button>
+                  <input
+                    ref={charImportRef}
+                    type="file"
+                    accept=".json,.wechar.json"
+                    className="hidden"
+                    onChange={handleImportCharFile}
+                  />
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      key: 'export',
-      label: '导入导出',
-      content: (
-        <div>
-          <div className="we-edit-form-group">
-            <h3 className="we-edit-subsection-title">导出角色卡</h3>
-            <p className="we-edit-hint">将此角色导出为 .wechar.json 文件，包含所有配置和状态字段定义。</p>
-            <div style={{ marginTop: '12px' }}>
-              <Button variant="secondary" onClick={handleExport} disabled={exporting}>
-                {exporting ? '导出中…' : '导出 .wechar.json'}
-              </Button>
-            </div>
-          </div>
-          <div className="we-edit-state-sep" />
-          <div className="we-edit-form-group">
-            <h3 className="we-edit-subsection-title">导入角色卡</h3>
-            <p className="we-edit-hint">导入 .wechar.json 将在当前世界创建一个新角色（不覆盖当前角色）。</p>
-            <div style={{ marginTop: '12px' }}>
-              <Button variant="secondary" onClick={() => charImportRef.current?.click()} disabled={importing}>
-                {importing ? '导入中…' : '导入角色卡…'}
-              </Button>
-              <input
-                ref={charImportRef}
-                type="file"
-                accept=".json,.wechar.json"
-                className="hidden"
-                onChange={handleImportCharFile}
-              />
-            </div>
-          </div>
-        </div>
-      ),
-    },
-  ];
+          ),
+        },
+      ];
 
   return (
     <>
@@ -242,7 +279,7 @@ export default function CharacterEditPage() {
         loading={loading}
         isOverlay={isOverlay}
         onClose={handleClose}
-        title={name ? `编辑角色 · ${name}` : ''}
+        title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}
       >
         <SectionTabs sections={sections} defaultKey="basic" />
       </EditPageShell>
