@@ -34,6 +34,7 @@ export default function ConfirmModal({
         <div className="flex justify-end gap-3">
           <button
             onClick={onClose}
+            autoFocus
             disabled={confirming}
             className="we-confirm-cancel"
           >
