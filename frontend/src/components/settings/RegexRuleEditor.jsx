@@ -180,16 +180,14 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         {/* 启用 */}
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            className={`we-toggle-track${form.enabled ? ' we-toggle-track--enabled' : ''}`}
             onClick={() => setField('enabled', form.enabled ? 0 : 1)}
-            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-              form.enabled ? 'bg-accent' : 'bg-border'
-            }`}
+            aria-checked={!!form.enabled}
+            role="switch"
+            aria-label="启用规则"
           >
-            <span
-              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                form.enabled ? 'translate-x-4' : 'translate-x-1'
-              }`}
-            />
+            <span className={`we-toggle-thumb${form.enabled ? ' we-toggle-thumb--enabled' : ''}`} />
           </button>
           <span className="text-sm text-text-secondary">{form.enabled ? '已启用' : '已禁用'}</span>
         </div>

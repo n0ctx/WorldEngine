@@ -1111,3 +1111,38 @@
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: 1px;
 }
+
+/* ── RegexRuleEditor toggle 开关 ── */
+.we-toggle-track {
+  position: relative;
+  display: inline-flex;
+  height: 20px;
+  width: 36px;
+  align-items: center;
+  border-radius: var(--we-radius-full);
+  transition: background var(--we-duration-fast);
+  background: var(--we-color-border-default);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+.we-toggle-track--enabled {
+  background: var(--we-color-accent);
+}
+.we-toggle-track:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: 2px;
+}
+.we-toggle-thumb {
+  display: inline-block;
+  height: 14px;
+  width: 14px;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-text-inverse);
+  transform: translateX(3px);
+  transition: transform var(--we-duration-fast);
+}
+.we-toggle-thumb--enabled {
+  transform: translateX(19px);
+}
