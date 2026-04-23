@@ -3,6 +3,13 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { listWorldEntries } from '../api/prompt-entries';
 import { getWorld } from '../api/worlds';
 import EntrySection from '../components/state/EntrySection';
+import { WorldTabNav, BackButton } from '../components';
+
+const WORLD_TABS = (worldId) => [
+  { key: `/worlds/${worldId}/build`, label: '构建' },
+  { key: `/worlds/${worldId}`,       label: '故事' },
+  { key: `/worlds/${worldId}/state`, label: '状态' },
+];
 
 export default function WorldBuildPage() {
   const { worldId } = useParams();
@@ -26,15 +33,7 @@ export default function WorldBuildPage() {
 
   return (
     <div className="we-characters-canvas">
-      {/* 导航 */}
-      <button
-        onClick={() => navigate('/')}
-        style={{ fontFamily: 'var(--we-font-serif)', fontSize: 13, color: 'var(--we-paper-shadow)', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, padding: 0, transition: 'color 0.15s' }}
-        onMouseEnter={e => e.currentTarget.style.color = 'var(--we-paper-base)'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--we-paper-shadow)'}
-      >
-        ← 所有世界
-      </button>
+      <BackButton onClick={() => navigate('/')} label="所有世界" />
 
       {/* 页头 */}
       <div className="we-characters-header">
@@ -44,42 +43,13 @@ export default function WorldBuildPage() {
         </div>
       </div>
 
-      {/* 三标签导航 */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(200,185,154,0.3)', marginBottom: '16px' }}>
-        {[
-          { label: '构建', path: `/worlds/${worldId}/build` },
-          { label: '故事', path: `/worlds/${worldId}` },
-          { label: '状态', path: `/worlds/${worldId}/state` },
-        ].map(({ label, path }) => {
-          const isActive = location.pathname === path;
-          return (
-            <button
-              key={label}
-              onClick={() => navigate(path)}
-              style={{
-                padding: '8px 20px',
-                fontFamily: 'var(--we-font-serif)',
-                fontSize: '14px',
-                color: isActive ? 'var(--we-paper-base)' : 'var(--we-paper-shadow)',
-                borderTop: 'none',
-                borderLeft: 'none',
-                borderRight: 'none',
-                borderBottom: isActive ? '2px solid var(--we-vermilion)' : '2px solid transparent',
-                background: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      <WorldTabNav
+        tabs={WORLD_TABS(worldId)}
+        activeTab={location.pathname}
+        onTabChange={(path) => navigate(path)}
+      />
 
-      <div style={{
-        maxWidth: '900px',
-        margin: '0 auto',
-        paddingBottom: '20px',
-      }}>
+      <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '20px' }}>
         <EntrySection
           title="常驻条目"
           icon="❦"

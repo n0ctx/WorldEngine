@@ -20,6 +20,10 @@ export { default as EditPageShell }   from './ui/EditPageShell';
 export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
 
+// — Blocks 结构模式 —
+export { default as WorldTabNav }     from './blocks/WorldTabNav';
+export { default as BackButton }      from './blocks/BackButton';
+
 // — Book 专属 —
 export { default as BookSpread }          from './book/BookSpread';
 export { default as Bookmark }            from './book/Bookmark';
