@@ -56,11 +56,11 @@
 
 ### 删除策略
 
-- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona、触发器及其条件/动作、所有会话状态值
+- 删除世界 → 级联删除其下所有角色、会话（含写作会话）、消息、Prompt 条目、persona、所有会话状态值
 - 删除角色 → 级联删除其下所有聊天会话、消息、Prompt 条目，清空对应头像文件；同时从 `writing_session_characters` 移除该角色（CASCADE）
 - 删除会话 → 级联删除其下所有消息、`session_summaries`、`writing_session_characters` 关联行，清空对应附件文件
 - 删除消息 → 清空对应附件文件
-- 删除触发器 → 级联删除其下所有条件（`trigger_conditions`）和动作（`trigger_actions`）
+- 删除 world_prompt_entries 条目 → 级联删除其下所有 `entry_conditions`（ON DELETE CASCADE）
 - 所有删除均为硬删除，无软删除
 - 磁盘文件（头像、附件、向量）的清理通过 `cleanup-registrations.js` 注册的钩子执行，在 DB DELETE 之前调用；钩子失败只 warn，不阻塞删除
 
@@ -93,19 +93,24 @@ CREATE TABLE worlds (
 
 ### personas — 玩家（用户代入身份）
 
-每个世界一对一持有一条 persona 记录（`world_id UNIQUE`）。创建世界时由业务层自动初始化一条空记录。
+每个世界可持有多条 persona 记录（一对多）。创建世界时由业务层自动初始化一条空记录。
+激活的 persona 通过 `worlds.active_persona_id` 标记；NULL 时回退到最早创建的 persona。
 
 ```sql
 CREATE TABLE personas (
   id             TEXT PRIMARY KEY,          -- UUID
-  world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL DEFAULT '',  -- 玩家在该世界的称呼
+  description    TEXT NOT NULL DEFAULT '',  -- 玩家简介，纯展示，不注入提示词
   system_prompt  TEXT NOT NULL DEFAULT '',  -- 玩家人设描述
-  avatar_path    TEXT,                      -- 头像相对路径（T30）
+  avatar_path    TEXT,                      -- 头像相对路径
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
+  -- world_id 不再有 UNIQUE 约束（支持多玩家卡）
 );
 ```
+
+`worlds.active_persona_id TEXT` — 引用当前激活的 persona id（可 NULL，NULL 时取最早创建的）。
 
 ---
 
@@ -168,6 +173,7 @@ CREATE TABLE characters (
   id             TEXT PRIMARY KEY,          -- UUID
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',  -- 角色简介，纯展示，不注入提示词
   system_prompt  TEXT NOT NULL DEFAULT '',  -- 角色层 system prompt
   post_prompt    TEXT NOT NULL DEFAULT '',  -- 角色层后置提示词
   first_message  TEXT NOT NULL DEFAULT '',  -- 会话创建时自动插入的开场白，为空则不插入
@@ -551,7 +557,7 @@ CREATE TABLE world_prompt_entries (
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
   keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   position       TEXT NOT NULL DEFAULT 'post', -- 注入位置：'system'（system 区）/ 'post'（后置提示词区）
-  trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'（关键词触发）/ 'llm'（AI召回）
+  trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'（关键词触发）/ 'llm'（AI召回）/ 'state'（状态条件评估）
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
@@ -560,7 +566,46 @@ CREATE TABLE world_prompt_entries (
 CREATE INDEX idx_world_prompt_entries_world_id ON world_prompt_entries(world_id);
 ```
 
-> 这是当前世界级提示词的唯一运行时来源。`trigger_type='always'` 的条目对应 State 页“常驻条目”；旧 `worlds.system_prompt/post_prompt` 会在启动迁移时镜像写入这里。
+`trigger_type` 可选值说明：
+- `always`：常驻，无条件注入
+- `keyword`：关键词匹配
+- `llm`：AI 预判 + 关键词兜底
+- `state`：状态条件评估（依托 `entry_conditions` 关联表存储评估条件，提示词组装时同步评估）
+
+> 这是当前世界级提示词的唯一运行时来源。`trigger_type='always'` 的条目对应 State 页”常驻条目”；旧 `worlds.system_prompt/post_prompt` 会在启动迁移时镜像写入这里。
+
+---
+
+### entry_conditions — 状态条目评估条件
+
+`trigger_type='state'` 的 world_prompt_entries 条目的评估条件列表。条件为 AND 逻辑，全部满足时才触发该条目注入。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | TEXT PK | UUID |
+| entry_id | TEXT NOT NULL | → world_prompt_entries.id，ON DELETE CASCADE |
+| target_field | TEXT NOT NULL | 如 “世界.体力” / “玩家.精力” / “角色.心情” |
+| operator | TEXT NOT NULL | `>` \| `<` \| `=` \| `>=` \| `<=` \| `!=` \| `包含` \| `等于` \| `不包含` |
+| value | TEXT NOT NULL | 比较目标值 |
+
+```sql
+CREATE TABLE IF NOT EXISTS entry_conditions (
+  id           TEXT PRIMARY KEY,
+  entry_id     TEXT NOT NULL REFERENCES world_prompt_entries(id) ON DELETE CASCADE,
+  target_field TEXT NOT NULL,
+  operator     TEXT NOT NULL,
+  value        TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_entry_conditions_entry_id ON entry_conditions(entry_id);
+```
+
+说明：
+- 数值操作符（`>` `<` `=` `>=` `<=` `!=`）：两侧均以 `Number.parseFloat` 转换，`Number.isFinite` 保护；转换失败则跳过该条件（条目不触发）
+- 文本操作符（`包含` `等于` `不包含`）：对 JSON 解析后的字符串值做字符串匹配
+- 条件为空的 `state` 条目不触发（必须至少有一条 entry_conditions）
+- chat 模式：`角色.xxx` 映射当前会话角色；writing 模式：对所有激活角色逐个评估，任一角色满足整组条件即触发（OR over characters，AND within conditions）
+- 级联删除：world_prompt_entries 删除时自动级联删除 entry_conditions
 
 ---
 
@@ -652,102 +697,6 @@ CREATE INDEX idx_regex_rules_world_id ON regex_rules(world_id);
 - `world_id IS NULL` 的规则对所有世界生效；`world_id` 非空的规则仅在该世界的会话中生效，两类规则混合时仍按 `sort_order` 统一排序
 - 规则无效（pattern 编译失败、flags 非法）时跳过该条并在后端日志记录，不中断整条管线
 - `enabled=0` 的规则不执行，保留数据库记录
-
----
-
-### triggers — 触发器
-
-触发规则引擎（Phase 1）。定义按条件自动激活 Prompt 条目或注入文本的规则。
-
-```sql
-CREATE TABLE IF NOT EXISTS triggers (
-  id                   TEXT PRIMARY KEY,          -- UUID
-  world_id             TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  name                 TEXT NOT NULL,             -- 触发器显示名（如"魔法失控检查"）
-  enabled              INTEGER NOT NULL DEFAULT 1, -- 0: 禁用 / 1: 启用
-  one_shot             INTEGER NOT NULL DEFAULT 0, -- 0: 每轮重复检查 / 1: 仅触发一次后禁用
-  last_triggered_round INTEGER,                   -- 最后触发轮次（round_index），NULL=未触发
-  created_at           INTEGER NOT NULL,
-  updated_at           INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_triggers_world_id ON triggers(world_id);
-```
-
----
-
-### trigger_conditions — 触发条件
-
-每条触发器的条件列表（AND 逻辑）。多条件全部满足时才触发动作。
-
-```sql
-CREATE TABLE IF NOT EXISTS trigger_conditions (
-  id              TEXT PRIMARY KEY,          -- UUID
-  trigger_id      TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-  target_field    TEXT NOT NULL,             -- 格式："世界.字段标签" / "玩家.字段标签" / "角色.字段标签"
-  operator        TEXT NOT NULL,             -- '>' | '<' | '=' | '>=' | '<=' | '!=' | '包含' | '等于' | '不包含'（字符串操作）
-  value           TEXT NOT NULL,             -- 比较值（数字或文本）
-  created_at      INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditions(trigger_id);
-```
-
-说明：
-- `target_field` 使用"标签"而非"field_key"，方便用户编辑时选择；后端维护标签→field_key 映射表
-- `角色.xxx` 不按具体角色名展开；chat 会话映射当前角色，writing 会话对当前激活角色逐个评估，任一角色整组条件满足即触发
-- `operator` 的"包含"、"等于"、"不包含"用于字符串匹配（JSON 解析后的字符串值）；数值操作用 >, <, = 等
-- 多条件按 INSERT 顺序评估；如果中途失败则跳过本轮检查，待下轮继续
-
----
-
-### trigger_actions — 触发动作
-
-每条触发器可有多条动作记录（1:N）。触发时按插入顺序逐条执行。
-
-```sql
-CREATE TABLE IF NOT EXISTS trigger_actions (
-  id              TEXT PRIMARY KEY,          -- UUID
-  trigger_id      TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-  action_type     TEXT NOT NULL,             -- 'activate_entry' | 'inject_prompt' | 'notify'
-  params          TEXT NOT NULL,             -- JSON，格式见下文
-  created_at      INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_trigger_actions_trigger_id ON trigger_actions(trigger_id);
-```
-
-`params` JSON 格式说明：
-
-**activate_entry**（激活 Prompt 条目）：
-```json
-{
-  "entry_id": "world_prompt_entries_id"
-}
-```
-- 将指定世界条目的 `trigger_type` 改写为 `always`，从而持续生效，直到用户手动修改
-
-**inject_prompt**（直接注入文本，带消耗倒计时）：
-```json
-{
-  "text": "...",
-  "mode": "consumed",
-  "inject_rounds": 3,
-  "rounds_remaining": 3
-}
-```
-- `text`：待注入的完整提示词文本
-- `mode`：'consumed'（用完即删）| 'persistent'（常驻）
-- `inject_rounds`：消耗型动作命中时重置的注入轮数
-- `rounds_remaining`：剩余注入轮数；assembler 仅消费 `mode='persistent'` 或 `rounds_remaining > 0` 的动作
-
-**notify**（通知文本，不直接注入 LLM 但显示在 UI）：
-```json
-{
-  "text": "..."
-}
-```
-- 通过 SSE `trigger_fired` 事件发给前端；不写入 messages 表，也不直接注入 LLM
 
 ---
 

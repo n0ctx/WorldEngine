@@ -3,6 +3,15 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 触发器动作瘦身：删除 inject_prompt 注入和 notify 前端通知
+
+- **背景**：触发器原有三种动作类型 `activate_entry`、`inject_prompt`、`notify`，其中 inject_prompt 在提示词组装 [8] 段注入文本，notify 通过 SSE `trigger_fired` 事件向前端发 toast
+- **删除 inject_prompt**：`assembler.js` 移除 [8] inject_prompt 段（含 consumed 模式倒计时逻辑），`triggers.js` 移除 `getActiveInjectPromptActions` 和 `updateActionParams` 函数；提示词段号从 14 段缩为 13 段，后续段号 [9]-[12] 均前移一位
+- **删除 notify**：`trigger-evaluator.js` 移除 `notify` case 和 `notifications` 返回值；`chat.js`/`writing.js` trigger-eval task 去掉 `sseEvent`/`ssePayload`/`keepSseAlive=true`；前端 `stream-parser.js` 移除 `trigger_fired` 处理；`ChatPage`/`WritingSpacePage` 移除 `showTriggerNotifications` 函数和 `onTriggerFired` 回调
+- **TriggerEditor**：`ACTION_TYPES` 只保留 `activate_entry`；移除 `inject_prompt`/`notify` UI 和 `INJECT_MODES` 常量；`emptyAction()` 默认改为 `activate_entry`
+- **文档同步**：`ARCHITECTURE.md` §4 提示词段号表更新（删 [8]，后续段号前移）；§7 SSE 表删除 `trigger_fired` 行；`SCHEMA.md` `trigger_actions.action_type` 注释只保留 `activate_entry`
+- **注意**：数据库表结构不变，存量 `inject_prompt`/`notify` 动作记录保留但不再被执行（trigger-evaluator 遇到未知 action_type 仅 warn）
+
 ## 2026-04-24 WorldConfigPage — 三栏配置页重组
 
 - 将 WorldBuildPage（构建页）和 WorldStatePage（状态页）合并为 WorldConfigPage（配置页），路由 `/worlds/:worldId/config`
@@ -291,3 +300,27 @@ T01–T174 完整记录见 [`docs/CHANGELOG-archive-T1-T200.md`](docs/CHANGELOG-
 | T121–T135 | 模板外置、目录整合、OptionCard、LLM 触发、`<think>` 修复、时间线段删除 |
 | T136–T155 | 写卡助手架构重构（单代理+Skill）、状态回滚、turn_records 指针模式 |
 | T156–T174 | 日记系统、章节标题、续写竞态修复、后台任务声明式化、测试体系建立 |
+
+---
+
+## [2026-04-24] 废除触发器系统，新增状态条目
+
+### 决策
+废除 `triggers` / `trigger_conditions` / `trigger_actions` 三张表及其配套代码（`trigger-evaluator.js`、`triggers.js` 路由），改为在 `world_prompt_entries` 新增 `state` 类型条目，依托 `entry_conditions` 关联表存储评估条件。
+
+### 设计意图
+旧触发器在每次对话后异步执行动作（如注入 prompt）；新状态条目在提示词组装时同步评估，与 always/keyword/llm 三类条目统一走 matchEntries → 按 position 注入，assembler 无差异对待。
+
+### 评估时机变化
+- 旧：对话生成后，异步队列（priority 2）执行 `evaluateTriggers()`
+- 新：提示词组装时（[7] 段），`matchEntries()` state 分支实时评估
+
+### entry_conditions 评估逻辑
+- 数值操作符：`>` `<` `=` `>=` `<=` `!=`（Number.isFinite 保护）
+- 文本操作符：`包含` `等于` `不包含`
+- 条件为空的 state 条目不触发
+- AND 逻辑：所有条件全部满足才触发
+- writing 模式：任一激活角色满足所有条件即触发
+
+### 迁移注意
+旧 `triggers` / `trigger_conditions` / `trigger_actions` 数据**不迁移**，由 `migrateDropTriggerTables()` 在服务器启动时自动 DROP（幂等）。
