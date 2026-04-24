@@ -13,6 +13,14 @@
  */
 
 import { getMessagesBySessionId } from '../db/queries/messages.js';
+import { getSessionById } from '../db/queries/sessions.js';
+import {
+  getSessionWorldStateValues,
+  getSessionPersonaStateValues,
+  getSingleCharacterSessionStateValues,
+} from '../db/queries/session-state-values.js';
+import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
+import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
 import * as llm from '../llm/index.js';
 import {
   PROMPT_ENTRY_SCAN_WINDOW,
@@ -105,6 +113,78 @@ export const __testables = {
   matchByKeywords,
 };
 
+// ─── 状态条件评估 ────────────────────────────────────────────
+
+const NUMERIC_OPS = new Set(['>', '<', '=', '>=', '<=', '!=']);
+const TEXT_OPS = new Set(['包含', '等于', '不包含']);
+
+function evaluateCondition(condition, stateMap) {
+  const { target_field, operator, value } = condition;
+  if (!stateMap.has(target_field)) return false;
+  const current = stateMap.get(target_field);
+  if (NUMERIC_OPS.has(operator)) {
+    const cur = Number(current);
+    const thr = Number(value);
+    if (!Number.isFinite(cur) || !Number.isFinite(thr)) return false;
+    switch (operator) {
+      case '>':  return cur > thr;
+      case '<':  return cur < thr;
+      case '=':  return cur === thr;
+      case '>=': return cur >= thr;
+      case '<=': return cur <= thr;
+      case '!=': return cur !== thr;
+    }
+  }
+  if (TEXT_OPS.has(operator)) {
+    switch (operator) {
+      case '包含':   return current.includes(value);
+      case '等于':   return current === value;
+      case '不包含': return !current.includes(value);
+    }
+  }
+  return false;
+}
+
+function parseStateValue(effectiveValueJson) {
+  if (effectiveValueJson == null) return null;
+  try {
+    const parsed = JSON.parse(effectiveValueJson);
+    if (parsed == null) return null;
+    return String(parsed);
+  } catch {
+    return String(effectiveValueJson);
+  }
+}
+
+function buildSharedStateMap(worldId, sessionId) {
+  const map = new Map();
+  for (const row of getSessionWorldStateValues(sessionId, worldId)) {
+    const val = parseStateValue(row.effective_value_json);
+    if (val != null) map.set(`世界.${row.label}`, val);
+  }
+  for (const row of getSessionPersonaStateValues(sessionId, worldId)) {
+    const val = parseStateValue(row.effective_value_json);
+    if (val != null) map.set(`玩家.${row.label}`, val);
+  }
+  return map;
+}
+
+function buildCharacterStateMap(worldId, sessionId, characterId) {
+  const map = new Map();
+  if (!characterId) return map;
+  for (const row of getSingleCharacterSessionStateValues(sessionId, characterId, worldId)) {
+    const val = parseStateValue(row.effective_value_json);
+    if (val != null) map.set(`角色.${row.label}`, val);
+  }
+  return map;
+}
+
+function mergeStateMaps(...maps) {
+  const merged = new Map();
+  for (const map of maps) for (const [k, v] of map) merged.set(k, v);
+  return merged;
+}
+
 /**
  * 判断哪些 Prompt 条目需要注入正文（触发）
  *
@@ -112,7 +192,7 @@ export const __testables = {
  * @param {Array}  entries  所有条目的合并列表（global + world + character，已按注入顺序排列）
  * @returns {Promise<Set<string>>}  触发条目的 id 集合
  */
-export async function matchEntries(sessionId, entries) {
+export async function matchEntries(sessionId, entries, worldId = null) {
   if (!entries || entries.length === 0) return new Set();
 
   const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
@@ -134,6 +214,7 @@ export async function matchEntries(sessionId, entries) {
   const alwaysEntries = [];
   const keywordEntries = [];
   const llmEntries = [];
+  const stateEntries = [];
 
   for (const entry of entries) {
     const type = entry.trigger_type || 'always';
@@ -143,6 +224,8 @@ export async function matchEntries(sessionId, entries) {
       keywordEntries.push(entry);
     } else if (type === 'llm') {
       llmEntries.push(entry);
+    } else if (type === 'state') {
+      stateEntries.push(entry);
     } else {
       // 未知类型降级为 always
       alwaysEntries.push(entry);
@@ -176,6 +259,45 @@ export async function matchEntries(sessionId, entries) {
     for (const entry of llmEntries) {
       if (!triggered.has(entry.id) && matchByKeywords(entry, userScanText, asstScanText)) {
         triggered.add(entry.id);
+      }
+    }
+  }
+
+  // state：实时评估状态条件（AND 逻辑，所有条件满足才触发）
+  if (stateEntries.length > 0 && worldId) {
+    const session = getSessionById(sessionId);
+    const sharedMap = buildSharedStateMap(worldId, sessionId);
+
+    if (session?.mode === 'writing') {
+      // writing 模式：对每个激活角色评估；任一角色满足所有条件即触发
+      const writingChars = getWritingSessionCharacters(sessionId);
+      for (const entry of stateEntries) {
+        const conditions = listConditionsByEntry(entry.id);
+        if (conditions.length === 0) continue;
+        const hasCharCond = conditions.some((c) => c.target_field.startsWith('角色.'));
+        let allMet = false;
+        if (hasCharCond && writingChars.length > 0) {
+          allMet = writingChars.some((char) => {
+            const charMap = buildCharacterStateMap(worldId, sessionId, char.id);
+            return conditions.every((c) => evaluateCondition(c, mergeStateMaps(sharedMap, charMap)));
+          });
+        } else {
+          allMet = conditions.every((c) => evaluateCondition(c, sharedMap));
+        }
+        if (allMet) triggered.add(entry.id);
+      }
+    } else {
+      // chat 模式：使用 world + persona + 当前角色状态
+      const charMap = session?.character_id
+        ? buildCharacterStateMap(worldId, sessionId, session.character_id)
+        : new Map();
+      const stateMap = mergeStateMaps(sharedMap, charMap);
+      for (const entry of stateEntries) {
+        const conditions = listConditionsByEntry(entry.id);
+        if (conditions.length === 0) continue;
+        if (conditions.every((c) => evaluateCondition(c, stateMap))) {
+          triggered.add(entry.id);
+        }
       }
     }
   }

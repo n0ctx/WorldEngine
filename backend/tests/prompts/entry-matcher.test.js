@@ -1,8 +1,17 @@
-import test, { after } from 'node:test';
+import test, { after, describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
-import { insertCharacter, insertMessage, insertSession, insertWorld } from '../helpers/fixtures.js';
+import {
+  insertCharacter,
+  insertMessage,
+  insertSession,
+  insertWorld,
+  insertWorldEntry,
+  insertEntryCondition,
+  insertWorldStateField,
+  insertSessionWorldStateValue,
+} from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('entry-suite');
 sandbox.setEnv();
@@ -139,4 +148,77 @@ test('trigger_type=llm LLM 失败时关键词兜底命中', async () => {
   ]);
 
   assert.deepEqual([...matched], ['entry-llm-kb']);
+});
+
+// ─── state 分支集成测试 ─────────────────────────────────────
+describe('matchEntries — state 类型条件评估', () => {
+  test('单条件满足时命中 state 条目', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-A' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    // 建状态字段 + 设置会话值
+    insertWorldStateField(sandbox.db, world.id, { field_key: 'hp', label: '体力', type: 'number', sort_order: 0 });
+    insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'hp', runtime_value_json: '25' });
+
+    // 建 state 条目 + 设置条件：世界.体力 < 30
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '低血量提醒', trigger_type: 'state', content: '注意体力不足' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.体力', operator: '<', value: '30' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(matched.has(entry.id), '体力 25 < 30，应命中');
+  });
+
+  test('条件不满足时 state 条目不触发', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-B' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色B' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    insertWorldStateField(sandbox.db, world.id, { field_key: 'hp2', label: '生命', type: 'number', sort_order: 0 });
+    insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'hp2', runtime_value_json: '80' });
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '低血量提醒B', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.生命', operator: '<', value: '30' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(!matched.has(entry.id), '生命 80 不满足 < 30，不应命中');
+  });
+
+  test('多条件 AND 逻辑：所有条件满足才触发', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-C' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色C' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    insertWorldStateField(sandbox.db, world.id, { field_key: 'hp3', label: '耐力', type: 'number', sort_order: 0 });
+    insertWorldStateField(sandbox.db, world.id, { field_key: 'status', label: '状态', type: 'text', sort_order: 1 });
+    insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'hp3', runtime_value_json: '20' });
+    insertSessionWorldStateValue(sandbox.db, session.id, world.id, { field_key: 'status', runtime_value_json: '"危机"' });
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '双条件', trigger_type: 'state', content: '...' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.耐力', operator: '<', value: '30' });
+    insertEntryCondition(sandbox.db, entry.id, { target_field: '世界.状态', operator: '等于', value: '危机' });
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(matched.has(entry.id), 'AND 条件全满足，应命中');
+  });
+
+  test('state 条目无条件时不触发', async () => {
+    const world = insertWorld(sandbox.db, { name: '状态条目世界-D' });
+    const character = insertCharacter(sandbox.db, world.id, { name: '测试角色D' });
+    const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
+
+    const entry = insertWorldEntry(sandbox.db, world.id, { title: '空条件', trigger_type: 'state', content: '...' });
+    // 不添加任何 entry_conditions
+
+    resetMockEnv();
+    const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
+    const matched = await matchEntries(session.id, [{ ...entry }], world.id);
+    assert.ok(!matched.has(entry.id), '无条件的 state 条目不应触发');
+  });
 });
