@@ -3,6 +3,7 @@ import {
   createWorldPromptEntry, getWorldPromptEntryById, listWorldPromptEntries, updateWorldPromptEntry, deleteWorldPromptEntry, reorderWorldPromptEntries,
 } from '../services/prompt-entries.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
 
 const router = Router();
 
@@ -59,6 +60,25 @@ router.put('/world-entries/:id', (req, res) => {
 router.delete('/world-entries/:id', (req, res) => {
   deleteWorldPromptEntry(req.params.id);
   res.status(204).end();
+});
+
+// ─── entry_conditions ─────────────────────────────────────────
+
+// GET /api/world-entries/:id/conditions
+router.get('/world-entries/:id/conditions', (req, res) => {
+  const entry = getWorldPromptEntryById(req.params.id);
+  if (!assertExists(res, entry, 'Entry not found')) return;
+  res.json(listConditionsByEntry(req.params.id));
+});
+
+// PUT /api/world-entries/:id/conditions — 批量替换所有条件
+router.put('/world-entries/:id/conditions', (req, res) => {
+  const entry = getWorldPromptEntryById(req.params.id);
+  if (!assertExists(res, entry, 'Entry not found')) return;
+  const { conditions } = req.body;
+  if (!Array.isArray(conditions)) return res.status(400).json({ error: 'conditions must be an array' });
+  replaceEntryConditions(req.params.id, conditions);
+  res.json(listConditionsByEntry(req.params.id));
 });
 
 export default router;
