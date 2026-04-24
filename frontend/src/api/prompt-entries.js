@@ -32,3 +32,16 @@ export function reorderWorldEntries(worldId, orderedIds) {
     body: JSON.stringify({ orderedIds, worldId }),
   });
 }
+
+// ─── entry_conditions ─────────────────────────────────────────
+
+export function getEntryConditions(entryId) {
+  return request(`${BASE}/world-entries/${entryId}/conditions`);
+}
+
+export function replaceEntryConditions(entryId, conditions) {
+  return request(`${BASE}/world-entries/${entryId}/conditions`, {
+    method: 'PUT',
+    body: JSON.stringify({ conditions }),
+  });
+}
