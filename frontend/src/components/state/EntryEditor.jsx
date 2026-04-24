@@ -83,7 +83,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         setFieldOptions(opts);
         setFieldTypeMap(typeMap);
 
-        if (!isNew && entry?.trigger_type === 'state') {
+        if (!isNew && form.trigger_type === 'state') {
           const conds = await getEntryConditions(entry.id);
           setConditions(conds.length > 0 ? conds.map((c) => ({ ...c })) : [emptyCondition()]);
         } else {
