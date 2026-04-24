@@ -3,16 +3,13 @@ import assert from 'node:assert/strict';
 
 import { __testables } from '../server/routes.js';
 
-test('normalizeProposal 会过滤敏感字段并规范 entry/state ops', () => {
+test('normalizeProposal 会过滤敏感字段并规范 global-config changes', () => {
   const proposal = __testables.normalizeProposal({
     changes: {
       llm: { api_key: 'secret', model: 'mock-model' },
       embedding: { api_key: 'embed-secret' },
       global_system_prompt: '新的系统提示',
     },
-    entryOps: [
-      { op: 'create', title: '条目', description: '描述', content: '内容', keywords: ['A'], keyword_scope: 'both', mode: 'writing' },
-    ],
   }, {
     type: 'global-config',
     operation: 'update',
@@ -23,8 +20,7 @@ test('normalizeProposal 会过滤敏感字段并规范 entry/state ops', () => {
   assert.equal(proposal.changes.llm.api_key, undefined);
   assert.equal(proposal.changes.embedding.api_key, undefined);
   assert.equal(proposal.changes.global_system_prompt, '新的系统提示');
-  assert.equal(proposal.entryOps.length, 1);
-  assert.equal(proposal.entryOps[0].mode, 'writing');
+  assert.equal(proposal.entryOps, undefined);
 });
 
 test('normalizeStateFieldOps 会校验 target/type 并规范 create/delete', () => {
@@ -151,4 +147,40 @@ test('normalizeProposal 会锁定 type/entityId 并拒绝非法 entry/state 操�
     }),
     /stateFieldOps\[0\]\.target 非法/,
   );
+});
+
+test('normalizeProposal 会从 world-card changes 中过滤 system_prompt 与 post_prompt', () => {
+  const proposal = __testables.normalizeProposal({
+    entityId: 'world-123',
+    changes: {
+      name: '新世界',
+      system_prompt: '世界背景...',
+      post_prompt: '格式提醒...',
+      temperature: 0.9,
+    },
+    entryOps: [],
+    stateFieldOps: [],
+  }, {
+    type: 'world-card',
+    operation: 'update',
+  });
+
+  assert.equal(proposal.changes.name, '新世界');
+  assert.equal(proposal.changes.temperature, 0.9);
+  assert.equal(proposal.changes.system_prompt, undefined);
+  assert.equal(proposal.changes.post_prompt, undefined);
+});
+
+test('normalizeProposal 不会在 character-card 中包含 entryOps', () => {
+  const proposal = __testables.normalizeProposal({
+    entityId: 'char-123',
+    changes: { name: '角色' },
+    entryOps: [{ op: 'create', title: '秘密', content: '内容', keywords: [] }],
+    stateFieldOps: [],
+  }, {
+    type: 'character-card',
+    operation: 'update',
+  });
+
+  assert.equal(proposal.entryOps, undefined);
 });

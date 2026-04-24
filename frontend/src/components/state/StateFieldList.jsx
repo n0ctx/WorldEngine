@@ -81,7 +81,7 @@ export default function StateFieldList({
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="text-xs px-2.5 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="text-xs px-3 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
@@ -92,7 +92,7 @@ export default function StateFieldList({
       ) : fields.length === 0 ? (
         <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           {fields.map((f, idx) => (
             <FieldRow
               key={f.id}
@@ -158,7 +158,7 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete, onDragStart, onDragOve
           title="编辑">✎</button>
         {!isDiaryTime && (
           <button onClick={onDelete}
-            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-red-400 hover:bg-sand transition-colors text-xs"
+            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-[var(--we-color-text-danger)] hover:bg-sand transition-colors text-xs"
             title="删除">✕</button>
         )}
       </div>
@@ -182,12 +182,12 @@ function DeleteConfirm({ onConfirm, onClose }) {
     setDeleting(false);
   }
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60">
       <div className="we-dialog-panel mx-4 w-full max-w-sm p-6">
-        <h2 className="mb-2.5 text-[17px] font-normal italic text-[var(--we-ink-primary)] [font-family:var(--we-font-display)]">
+        <h2 className="mb-3 text-[17px] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
           确认删除字段
         </h2>
-        <p className="mb-5 text-[13px] text-[var(--we-vermilion)] [font-family:var(--we-font-serif)]">
+        <p className="mb-5 text-[13px] text-[var(--we-color-accent)] [font-family:var(--we-font-serif)]">
           此操作无法撤销。
         </p>
         <div className="flex justify-end gap-3">

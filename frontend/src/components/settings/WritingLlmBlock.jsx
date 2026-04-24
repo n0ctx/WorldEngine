@@ -35,7 +35,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
   return (
     <div className="we-settings-field-group">
       <p className="we-settings-subsection-title">写作空间 LLM 覆盖</p>
-      <p className="mb-3 mt-0 text-xs italic text-[var(--we-ink-faded)] [font-family:var(--we-font-serif)]">
+      <p className="mb-3 mt-0 text-xs italic text-[var(--we-color-text-tertiary)] [font-family:var(--we-font-serif)]">
         Provider / API Key / Base URL 与对话空间共享。留空或为 null 则继承对话空间的值。
       </p>
       <FormGroup label="写作模型" hint={`对话模型：${chatModel || '(未配置)'}`}>
@@ -60,7 +60,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
           value={temperature}
           onChange={(e) => onWritingLlmChange('temperature', parseFloat(e.target.value))}
         />
-        <div className="mt-1.5 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <Button variant="ghost" size="sm" onClick={() => onWritingLlmChange('temperature', null)}>继承</Button>
         </div>
       </div>

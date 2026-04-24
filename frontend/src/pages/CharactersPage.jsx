@@ -10,6 +10,7 @@ import useStore from '../store/index';
 import { importCharacter, readJsonFile } from '../api/import-export';
 import { listCharacterStateFields } from '../api/character-state-fields';
 import { ConfirmModal, BackButton, WorldTabNav, buildWorldTabs, PersonaCard, AvatarCircle } from '../components';
+import Icon from '../components/ui/Icon.jsx';
 
 export default function CharactersPage() {
   const { worldId } = useParams();
@@ -184,8 +185,7 @@ export default function CharactersPage() {
       {/* 角色列表 */}
       {characters.length === 0 ? (
         <div className="we-characters-empty">
-          <div className="we-characters-empty-icon">✦</div>
-          <p className="we-characters-empty-text">还没有角色，点击右上角创建第一个</p>
+          <p className="we-characters-empty-text">暂无角色，点击右上角新建</p>
         </div>
       ) : (
         <div className="we-characters-grid">
@@ -227,15 +227,23 @@ export default function CharactersPage() {
                   onClick={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
                   className="we-character-card-action-btn"
                   title="编辑"
+                  aria-label="编辑角色"
                 >
-                  ✎
+                  <Icon size={16}>
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </Icon>
                 </button>
                 <button
                   onClick={() => setDeletingChar(char)}
                   className="we-character-card-action-btn danger"
                   title="删除"
+                  aria-label="删除角色"
                 >
-                  ✕
+                  <Icon size={16}>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </Icon>
                 </button>
               </div>
             </div>

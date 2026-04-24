@@ -293,9 +293,12 @@ body {
 }
 
 .we-topbar-item {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: 12px;
+  line-height: 1;
   letter-spacing: 0.1em;
   padding: 3px 10px;
   border: none;
@@ -306,6 +309,11 @@ body {
   transition: color var(--we-duration-normal), box-shadow var(--we-duration-normal), background var(--we-duration-normal);
   white-space: nowrap;
   color: var(--we-topbar-item);
+}
+
+.we-topbar-item:focus-visible {
+  outline: 2px solid var(--we-topbar-active-ring);
+  outline-offset: 1px;
 }
 
 .we-topbar-item:hover {
@@ -418,6 +426,11 @@ body {
   font-size: 15px;
   line-height: 1.85;
   color: var(--we-ink-primary);
+}
+
+.we-md-content .ProseMirror:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -1px;
 }
 
 /* 占位符（由 @tiptap/extension-placeholder 注入） */
@@ -539,6 +552,11 @@ body {
   min-width: 0;
 }
 
+.we-combobox-input:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -2px;
+}
+
 .we-combobox-toggle {
   padding: 8px 10px;
   color: var(--we-ink-faded);
@@ -561,7 +579,7 @@ body {
 
 .we-combobox-dropdown {
   position: absolute;
-  z-index: 50;
+  z-index: var(--we-z-dropdown);
   top: calc(100% + 2px);
   left: 0;
   right: 0;
@@ -634,6 +652,11 @@ body {
   outline: none;
   cursor: pointer;
   border: none;
+}
+
+.we-range:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: 2px;
 }
 
 .we-range::-webkit-slider-thumb {
@@ -713,7 +736,7 @@ body {
   width: 14px;
   background: var(--we-spine-shadow-left);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--we-z-spine);
 }
 
 .we-state-spine {
@@ -724,7 +747,7 @@ body {
   width: 12px;
   background: var(--we-spine-shadow-left);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--we-z-spine);
 }
 
 .we-page-left {
@@ -749,7 +772,7 @@ body {
   width: 12px;
   background: var(--we-spine-shadow-right);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--we-z-spine);
 }
 
 .we-page-right {
@@ -831,7 +854,7 @@ body {
   position: fixed;
   right: 40px;
   bottom: 40px;
-  z-index: 500;
+  z-index: var(--we-z-tooltip);
   pointer-events: none;
 }
 
@@ -1266,6 +1289,11 @@ body {
   max-width: 240px;
 }
 
+.we-chapter-edit-input:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -1px;
+}
+
 .we-chapter-edit-actions {
   display: flex;
   gap: 8px;
@@ -1372,7 +1400,7 @@ body {
 .we-state-change-overlay {
   position: absolute;
   inset: 0;
-  z-index: 30;
+  z-index: var(--we-z-panel);
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -1493,7 +1521,7 @@ body {
   width: 12px;
   background: var(--we-spine-shadow-left);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--we-z-spine);
 }
 .we-cast-scroll {
   flex: 1;
@@ -1614,7 +1642,7 @@ body {
 .we-cast-state-overlay {
   position: absolute;
   inset: 0;
-  z-index: 30;
+  z-index: var(--we-z-panel);
   pointer-events: none;
   display: flex;
   align-items: center;

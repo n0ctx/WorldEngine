@@ -12,15 +12,15 @@ import { getWorldById } from '../db/queries/worlds.js';
 
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { getAllWorldStateValues } from '../db/queries/world-state-values.js';
-import { upsertSessionWorldStateValue } from '../db/queries/session-world-state-values.js';
+import { upsertSessionWorldStateValue, getSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
 
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
-import { upsertSessionCharacterStateValue } from '../db/queries/session-character-state-values.js';
+import { upsertSessionCharacterStateValue, getSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
-import { upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
+import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
 import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
@@ -35,10 +35,30 @@ const log = createLogger('all-state');
 function formatRealTimeDiaryStr() {
   const now = new Date();
   const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
-  return `${local.getFullYear()}年${local.getMonth() + 1}月${local.getDate()}日${local.getHours()}时`;
+  return `${local.getFullYear()}年${local.getMonth() + 1}月${local.getDate()}日${local.getHours()}时${local.getMinutes()}分`;
 }
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
+
+/**
+ * 补全被截断的 JSON：通过括号栈追踪未闭合的 { 和 [，在末尾追加缺失的关闭符号。
+ * 仅处理缺少关闭括号的情况（LLM 输出被 maxTokens 截断时最常见）。
+ */
+function repairTruncatedJson(text) {
+  const stack = [];
+  let inString = false;
+  let escape = false;
+  for (const ch of text) {
+    if (escape) { escape = false; continue; }
+    if (ch === '\\' && inString) { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') stack.push('}');
+    else if (ch === '[') stack.push(']');
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  return text + stack.reverse().join('');
+}
 
 /**
  * 筛选本轮需要更新的活跃字段。
@@ -96,6 +116,20 @@ function buildFieldsDesc(fields, valueMap) {
       return line;
     })
     .join('\n');
+}
+
+/**
+ * 合并全局默认值 Map 与会话级运行时值：defaultValueJson 来自全局，runtimeValueJson 优先取会话值。
+ * @param {ReturnType<typeof buildValueMap>} globalMap  buildValueMap 返回的全局 Map
+ * @param {Record<string, string|null>}      sessionMap getSessionXxxStateValues 返回的 { field_key → runtime_value_json }
+ */
+function mergeSessionValues(globalMap, sessionMap) {
+  return Object.fromEntries(
+    Object.entries(globalMap).map(([key, v]) => [
+      key,
+      { defaultValueJson: v.defaultValueJson, runtimeValueJson: sessionMap[key] ?? v.runtimeValueJson },
+    ])
+  );
 }
 
 /**
@@ -177,36 +211,56 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const responseKeys = [];
 
   if (worldActiveFields.length > 0) {
-    sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, buildValueMap(getAllWorldStateValues(worldId))));
+    const worldValueMap = mergeSessionValues(
+      buildValueMap(getAllWorldStateValues(worldId)),
+      getSessionWorldStateValues(sessionId, worldId)
+    );
+    sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, worldValueMap));
     responseKeys.push('"world"（世界状态）');
   }
 
   for (let i = 0; i < charactersWithFields.length; i++) {
     const char = charactersWithFields[i];
     const charKey = `char_${i}`;
+    const charValueMap = mergeSessionValues(
+      buildValueMap(getAllCharacterStateValues(char.id)),
+      getSessionCharacterStateValues(sessionId, char.id)
+    );
     sections.push(
       `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
         `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
-        buildFieldsDesc(charSchemaFields, buildValueMap(getAllCharacterStateValues(char.id)))
+        buildFieldsDesc(charSchemaFields, charValueMap)
     );
     responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
   }
 
   if (personaActiveFields.length > 0) {
+    const personaValueMap = mergeSessionValues(
+      buildValueMap(getAllPersonaStateValues(worldId)),
+      getSessionPersonaStateValues(sessionId, worldId)
+    );
     sections.push(
       `=== 玩家状态 ===\n` +
         `注意：只追踪玩家自身的变化，勿将角色的经历记录为玩家的状态。\n` +
-        buildFieldsDesc(personaActiveFields, buildValueMap(getAllPersonaStateValues(worldId)))
+        buildFieldsDesc(personaActiveFields, personaValueMap)
     );
     responseKeys.push('"persona"（玩家状态）');
   }
 
-  // 对话上下文（最近 10 条）
-  const dialogue = messages
+  // 对话上下文：取最近 4 条（2 轮），分"上一轮"/"本轮"打标签
+  const recentMsgs = messages
     .filter((m) => m.role === 'user' || m.role === 'assistant')
-    .slice(-10)
-    .map((m) => `${m.role === 'user' ? '玩家' : primaryName}：${m.content}`)
-    .join('\n');
+    .slice(-4);
+  const formatMsg = (m) => `${m.role === 'user' ? '玩家' : primaryName}：${m.content}`;
+  const currentTurn = recentMsgs.slice(-2);
+  // length > 2：无论是单条开场白还是完整的上一轮，都纳入"上一轮"
+  const prevTurn = recentMsgs.length > 2 ? recentMsgs.slice(0, -2) : [];
+  const dialogueParts = [];
+  if (prevTurn.length > 0) {
+    dialogueParts.push(`【上一轮（仅供背景参考，状态已处理）】\n${prevTurn.map(formatMsg).join('\n')}`);
+  }
+  dialogueParts.push(`【本轮（请据此判断状态变化）】\n${currentTurn.map(formatMsg).join('\n')}`);
+  const dialogue = dialogueParts.join('\n\n');
 
   const exampleKeys = [
     worldActiveFields.length > 0 ? '"world": {"date": "第三纪元第101年"}' : null,
@@ -237,7 +291,8 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     promptChars: prompt[0].content.length,
   })}`);
 
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS });
+  // thinking_level: null — 显式禁用 thinking，防止 thinking tokens 占用 maxOutputTokens 配额导致 JSON 输出被截断
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null });
   if (!raw) return;
   log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
@@ -245,9 +300,18 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   try {
     const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
     const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
-    const match = jsonSource.match(/\{[\s\S]*\}/);
+    // 优先匹配完整 JSON 对象；若 LLM 截断导致末尾无 }，则取从 { 开始的所有内容
+    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
     if (!match) return;
-    patch = JSON.parse(match[0]);
+    let jsonStr = match[0];
+    try {
+      patch = JSON.parse(jsonStr);
+    } catch {
+      // 尝试补全截断的 JSON（追加缺失的 } / ]）
+      const repaired = repairTruncatedJson(jsonStr);
+      patch = JSON.parse(repaired);
+      log.info(`JSON REPAIRED  ${formatMeta({ session: sid, appended: repaired.length - jsonStr.length })}`);
+    }
   } catch {
     log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
     return;

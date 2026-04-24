@@ -152,7 +152,7 @@ export default function Sidebar({
         {/* 新建对话 */}
         <button
           onClick={handleCreateSession}
-          className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-border text-sm text-text-secondary hover:bg-sand hover:text-text transition-colors"
+          className="we-chat-new-btn"
         >
           <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
@@ -163,7 +163,7 @@ export default function Sidebar({
       </div>
 
       {/* 会话列表 */}
-      <div ref={listRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+      <div ref={listRef} className="flex-1 overflow-y-auto py-2 px-2 space-y-1">
         {sessions.length === 0 && (
           <p className="text-xs text-center opacity-40 py-6">暂无对话</p>
         )}

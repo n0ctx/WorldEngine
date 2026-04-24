@@ -6,7 +6,6 @@ dist/
 
 # Local agent / tooling files
 /docs/*
-!/docs/CHANGELOG-archive-T1-T200.md
 /.claude/
 /.obsidian/
 /.playwright-cli/

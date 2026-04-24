@@ -29,7 +29,7 @@ export default function StateValueField({ field, onSave }) {
         checked={!!local}
         onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
         className="w-4 h-4"
-        style={{ accentColor: 'var(--we-gold-leaf)' }}
+        style={{ accentColor: 'var(--we-color-gold)' }}
       />
     );
   }

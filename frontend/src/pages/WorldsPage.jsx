@@ -7,6 +7,7 @@ import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-expo
 import { getAvatarColor } from '../utils/avatar';
 import { relativeTime } from '../utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import Icon from '../components/ui/Icon.jsx';
 
 export default function WorldsPage() {
   const navigate = useNavigate();
@@ -126,7 +127,7 @@ export default function WorldsPage() {
         </div>
       ) : worlds.length === 0 ? (
         <div className="we-worlds-empty">
-          <p className="we-worlds-empty-text">尚无世界记录</p>
+          <p className="we-worlds-empty-text">暂无世界记录</p>
           <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
             新建世界
           </button>
@@ -170,15 +171,23 @@ export default function WorldsPage() {
                   className="we-world-card-action-btn"
                   onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
                   title="编辑"
+                  aria-label="编辑世界"
                 >
-                  ✎
+                  <Icon size={16}>
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </Icon>
                 </button>
                 <button
                   className="we-world-card-action-btn danger"
                   onClick={() => setDeletingWorld(world)}
                   title="删除"
+                  aria-label="删除世界"
                 >
-                  ✕
+                  <Icon size={16}>
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </Icon>
                 </button>
               </div>
             </div>

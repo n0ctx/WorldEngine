@@ -47,17 +47,20 @@ export default function TopBar() {
   const isAssistantOpen = useAssistantStore((s) => s.isOpen);
 
   const [worlds, setWorlds] = useState([]);
+  const [worldsLoading, setWorldsLoading] = useState(false);
   const [chatWorldId, setChatWorldId] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
-    getWorlds().then(setWorlds).catch(() => {});
+    setWorldsLoading(true);
+    getWorlds().then(setWorlds).catch(() => {}).finally(() => setWorldsLoading(false));
   }, []);
 
   useEffect(() => {
     if (dropdownOpen) {
-      getWorlds().then(setWorlds).catch(() => {});
+      setWorldsLoading(true);
+      getWorlds().then(setWorlds).catch(() => {}).finally(() => setWorldsLoading(false));
     }
   }, [dropdownOpen]);
 
@@ -170,12 +173,16 @@ export default function TopBar() {
 
         {dropdownOpen && (
           <div className="we-topbar-dropdown">
-            {worlds.length === 0 && (
+            {worldsLoading ? (
               <div className="we-topbar-dropdown-empty">
-                暂无世界
+                加载中…
               </div>
-            )}
-            {worlds.map((w) => (
+            ) : worlds.length === 0 ? (
+              <div className="we-topbar-dropdown-empty">
+                暂无世界记录
+              </div>
+            ) : null}
+            {!worldsLoading && worlds.map((w) => (
               <button
                 key={w.id}
                 className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
@@ -190,7 +197,7 @@ export default function TopBar() {
                 {w.name}
               </button>
             ))}
-            <div className="we-topbar-dropdown-divider" />
+            {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
             <button
               className="we-topbar-dropdown-list-btn"
               onClick={() => { setDropdownOpen(false); navigate('/'); }}

@@ -75,14 +75,15 @@
 }
 
 .we-world-card {
-  background: var(--we-paper-base);
-  border: 1px solid var(--we-paper-shadow);
+  background: var(--we-color-bg-canvas);
+  border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  padding: 24px;
+  padding: var(--we-space-lg);
   position: relative;
   box-shadow: var(--we-shadow-paper-stack);
   cursor: pointer;
-  transition: transform 0.18s, box-shadow 0.18s;
+  transition: transform var(--we-duration-normal) var(--we-easing-standard),
+              box-shadow var(--we-duration-normal) var(--we-easing-standard);
   overflow: hidden;
 }
 
@@ -203,7 +204,7 @@
   box-shadow: 0 8px 20px var(--we-color-shadow-xl);
   cursor: pointer;
   transition: transform 0.15s, background 0.15s;
-  z-index: 10;
+  z-index: var(--we-z-action);
 }
 
 .we-world-create-fab:hover {
@@ -345,28 +346,21 @@
 }
 
 .we-character-card {
-  background: var(--we-paper-base);
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-md);
-  padding: 16px;
+  background: var(--we-color-bg-canvas);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-sm);
+  padding: var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow:
-    inset 0 1px 0 var(--we-color-white-sheen-md),
-    1px 2px 0 var(--we-paper-deep),
-    2px 3px 0 var(--we-paper-shadow),
-    0 4px 12px var(--we-color-shadow-sm);
-  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: var(--we-shadow-paper-stack);
+  transition: transform var(--we-duration-normal) var(--we-easing-standard),
+              box-shadow var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
 }
 
 .we-character-card:hover {
   transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 var(--we-color-white-sheen-md),
-    1px 2px 0 var(--we-paper-deep),
-    2px 3px 0 var(--we-paper-shadow),
-    0 8px 20px var(--we-color-shadow-md);
+  box-shadow: var(--we-shadow-paper-stack-hover);
 }
 
 .we-character-card:hover .we-character-card-actions {
@@ -456,10 +450,10 @@
 }
 
 .we-persona-card-wrap {
-  background: var(--we-paper-aged);
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-md);
-  padding: 14px 16px;
+  background: var(--we-color-bg-canvas);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-sm);
+  padding: var(--we-space-md) var(--we-space-lg);
   position: relative;
   margin-bottom: 24px;
 }
@@ -626,19 +620,24 @@
 }
 
 .we-trigger-card {
-  background: var(--we-paper-base);
-  border: 1px solid var(--we-paper-shadow);
+  background: var(--we-color-bg-canvas);
+  border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  padding: 12px 16px;
+  padding: var(--we-space-md) var(--we-space-lg);
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  transition: background var(--we-duration-fast) var(--we-easing-standard);
+}
+
+.we-trigger-card:hover {
+  background: var(--we-color-bg-surface);
 }
 
 .we-trigger-card-toggle {
   width: 32px;
   height: 18px;
-  border-radius: 9px;
+  border-radius: var(--we-radius-full);
   background: var(--we-paper-shadow);
   border: none;
   cursor: pointer;
@@ -768,7 +767,7 @@
 
 .we-entry-section-list {
   border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius);
+  border-radius: var(--we-radius-sm);
   overflow: hidden;
 }
 
@@ -776,9 +775,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--we-paper-shadow);
-  background: var(--we-paper-base);
+  padding: var(--we-space-md) var(--we-space-lg);
+  border-bottom: 1px solid var(--we-color-border-default);
+  background: var(--we-color-bg-canvas);
+  transition: background var(--we-duration-fast) var(--we-easing-standard);
+}
+
+.we-entry-section-row:hover {
+  background: var(--we-color-bg-surface);
 }
 
 .we-entry-section-row--last {
@@ -801,7 +805,7 @@
   font-size: var(--we-text-xs);
   color: var(--we-ink-faded);
   background: var(--we-paper-shadow);
-  border-radius: 4px;
+  border-radius: var(--we-radius-md);
   padding: 1px 6px;
 }
 
@@ -1121,7 +1125,7 @@
   right: 0;
   bottom: 0;
   background: var(--we-color-overlay-light);
-  z-index: 100;
+  z-index: var(--we-z-fixed);
   cursor: default;
 }
 
@@ -1134,7 +1138,7 @@
   background: var(--we-paper-base);
   border-left: 1px solid var(--we-paper-shadow);
   box-shadow: -12px 0 40px var(--we-color-overlay-medium);
-  z-index: 101;
+  z-index: calc(var(--we-z-fixed) + 1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1290,7 +1294,7 @@
 .we-settings-overlay {
   position: fixed;
   inset: 40px 0 0;
-  z-index: 60;
+  z-index: var(--we-z-sticky);
   background: var(--we-color-shadow-xl);
   overflow: hidden;
   padding: 0 24px 24px;
@@ -1859,12 +1863,3 @@
   min-height: 100vh;
 }
 
-/* ── WritingSpacePage 布局 ── */
-
-.we-writing-layout {
-  background: var(--we-book-bg);
-}
-
-.we-writing-center-pane {
-  background: var(--we-paper-base);
-}

@@ -60,7 +60,7 @@
 ```
 /frontend/src/api/              # 所有 fetch 封装，禁止在组件内直接调用
 /frontend/src/styles/           # CSS 变量与全局样式（tokens.css 定义所有 --we-* 变量）
-/frontend/src/components/book/  # 书卷风 UI 组件（QuillCursor、SealStampAnimation、CharacterSeal）
+/frontend/src/components/book/  # 书卷风 UI 组件（TopBar、SealStampAnimation、CharacterSeal、BookSpread 等）
 /backend/routes/                # HTTP 路由，只做参数校验，不含业务逻辑
 /backend/services/              # 业务逻辑层
 /backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
@@ -70,6 +70,8 @@
 /frontend/src/store/index.js    # 锁定文件：全局状态
 /backend/server.js              # 锁定文件：入口
 /assistant/CONTRACT.md          # 写卡助手接口契约（单代理 + Agent Skill / proposal schema / SSE 事件）
+/assistant/server/              # 写卡助手后端：routes.js / agents/ / tools/
+/assistant/client/              # 写卡助手前端面板（AssistantPanel、ChangeProposalCard 等）
 ```
 
 完整目录结构见 `ARCHITECTURE.md §2`。
@@ -262,11 +264,3 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 **persona 无 Prompt 条目**：persona 只有 name 和 system_prompt，与角色不同，没有 Prompt 条目。
 
 **自定义 CSS**：前端拼接所有 `enabled=1` 条目后注入 `<style id="we-custom-css">`，全部为全局作用。
-
-<claude-mem-context>
-# Memory Context
-
-# [WorldEngine] recent context, 2026-04-20 1:52am GMT+8
-
-No previous sessions found.
-</claude-mem-context>

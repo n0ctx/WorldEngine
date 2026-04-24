@@ -27,11 +27,14 @@ const requiredMark = <span className="we-state-field-required">*</span>;
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 
-/** 从 "N年N月N日N时" 字符串解析出 4 个整数，失败时返回默认值 */
+/** 从 "N年N月N日N时N分" 字符串解析出 5 个整数，失败时返回默认值 */
 function parseDiaryTimeDefault(str) {
-  const m = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时/);
-  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10), hour: parseInt(m[4], 10) };
-  return { year: 1000, month: 1, day: 1, hour: 0 };
+  const m = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时(\d+)分/);
+  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10), hour: parseInt(m[4], 10), minute: parseInt(m[5], 10) };
+  // 兼容旧格式 "N年N月N日N时"（无分）
+  const m2 = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时/);
+  if (m2) return { year: parseInt(m2[1], 10), month: parseInt(m2[2], 10), day: parseInt(m2[3], 10), hour: parseInt(m2[4], 10), minute: 0 };
+  return { year: 1000, month: 1, day: 1, hour: 0, minute: 0 };
 }
 
 /**
@@ -160,7 +163,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
 
     function setDt(k, v) {
       const next = { ...dtParsed, [k]: parseInt(v, 10) || 0 };
-      set('default_value', `${next.year}年${next.month}月${next.day}日${next.hour}时`);
+      set('default_value', `${next.year}年${next.month}月${next.day}日${next.hour}时${next.minute}分`);
     }
 
     return (
@@ -181,14 +184,15 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
             ) : (
               <>
                 <p className="we-state-field-hint">
-                  虚拟日期模式：设置故事的初始时间。格式固定为 <code>N年N月N日N时</code>，由 AI 每轮自动更新。
+                  虚拟日期模式：设置故事的初始时间。格式固定为 <code>N年N月N日N时N分</code>，由 AI 每轮自动更新。
                 </p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {[
-                    { key: 'year',  label: '年', min: 1 },
-                    { key: 'month', label: '月', min: 1, max: 12 },
-                    { key: 'day',   label: '日', min: 1, max: 31 },
-                    { key: 'hour',  label: '时', min: 0, max: 23 },
+                    { key: 'year',   label: '年', min: 1 },
+                    { key: 'month',  label: '月', min: 1, max: 12 },
+                    { key: 'day',    label: '日', min: 1, max: 31 },
+                    { key: 'hour',   label: '时', min: 0, max: 23 },
+                    { key: 'minute', label: '分', min: 0, max: 59 },
                   ].map(({ key, label, min, max }) => (
                     <div key={key}>
                       <label className={labelCls}>{label}</label>
@@ -204,7 +208,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                   ))}
                 </div>
                 <p className="we-state-field-hint">
-                  初始时间：<strong>{form.default_value || `${dtParsed.year}年${dtParsed.month}月${dtParsed.day}日${dtParsed.hour}时`}</strong>
+                  初始时间：<strong>{form.default_value || `${dtParsed.year}年${dtParsed.month}月${dtParsed.day}日${dtParsed.hour}时${dtParsed.minute}分`}</strong>
                 </p>
               </>
             )}

@@ -118,6 +118,9 @@
 
   /* === Z-index Scale === */
   --we-z-base:     0;
+  --we-z-spine:    2;   /* 书脊装饰层（panel 内部层级） */
+  --we-z-action:   10;  /* 快速操作浮层按钮 */
+  --we-z-panel:    30;  /* 侧面板（chat center / state panel） */
   --we-z-dropdown: 50;
   --we-z-sticky:   60;
   --we-z-fixed:    100;

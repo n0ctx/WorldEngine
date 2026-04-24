@@ -62,13 +62,13 @@ export default function ImportExportPanel({ onImportSuccess }) {
       <div className="we-settings-field-group">
         <ModeSwitch mode={mode} onChange={(m) => { setMode(m); setMessage(null); }} />
 
-        <p className="mb-4 mt-0 text-[13px] leading-[1.7] text-[var(--we-ink-faded)] [font-family:var(--we-font-serif)]">
+        <p className="mb-4 mt-0 text-[13px] leading-[1.7] text-[var(--we-color-text-tertiary)] [font-family:var(--we-font-serif)]">
           当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局提示词（system/post prompt、prompt 条目）、自定义 CSS、全局正则规则。不含 LLM 配置与功能配置。
           <br />
           导入为<strong>覆盖</strong>模式，仅清空并写入<strong>{modeLabel}</strong>的数据，不影响另一空间。
         </p>
 
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-3">
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? '导出中…' : `导出${modeLabel}设置`}
           </Button>
@@ -87,7 +87,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
         {message && (
           <p className={[
             'mt-3 text-[13px] [font-family:var(--we-font-serif)]',
-            message.type === 'ok' ? 'text-[var(--we-gold-leaf)]' : 'text-[var(--we-vermilion)]',
+            message.type === 'ok' ? 'text-[var(--we-color-gold)]' : 'text-[var(--we-color-accent)]',
           ].join(' ')}
           >
             {message.text}

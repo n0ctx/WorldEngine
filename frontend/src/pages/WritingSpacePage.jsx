@@ -20,6 +20,8 @@ import {
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
+import BookSpread from '../components/book/BookSpread.jsx';
+import PageRight from '../components/book/PageRight.jsx';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
 import CastPanel from '../components/book/CastPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -524,13 +526,13 @@ export default function WritingSpacePage() {
   }
 
   return (
-    <div className="we-writing-layout flex h-screen overflow-hidden">
+    <BookSpread>
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
             toast.type === 'error'
-              ? 'bg-red-500 text-white'
-              : 'bg-accent text-white'
+              ? 'bg-[var(--we-color-status-danger)] text-[var(--we-color-text-inverse)]'
+              : 'bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)]'
           }`}
         >
           {toast.msg}
@@ -544,85 +546,91 @@ export default function WritingSpacePage() {
         onSessionDelete={handleSessionDelete}
       />
 
-      {/* 中间消息区 */}
-      <div className="we-writing-center-pane flex-1 flex flex-col overflow-hidden relative">
-        {/* 章节标题区 */}
-        <div className="we-chat-center-header">
-          {currentSession ? (
-            <h1 className="we-chat-center-title">
-              {currentSession.title || '写作进行中'}
-            </h1>
-          ) : (
-            <span className="flex-1" />
-          )}
-        </div>
+      <PageRight className="!p-0">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* 消息列表 */}
-        <MessageList
-          key={`${currentSession?.id}-${messageListKey}`}
-          sessionId={currentSession?.id}
-          character={null}
-          persona={persona}
-          worldId={worldId}
-          generating={generating}
-          streamingText={streamingText}
-          streamingKey={streamingKey}
-          continuingMessageId={continuingMessageId}
-          continuingText={continuingText}
-          onEditMessage={handleEditMessage}
-          onRegenerateMessage={handleRegenerateMessage}
-          onEditAssistantMessage={handleEditAssistantMessage}
-          onDeleteMessage={handleDeleteMessage}
-          prose
-          chapterTitles={chapterTitles}
-          onChapterEdit={handleChapterEdit}
-          onChapterRetitle={handleChapterRetitle}
-        />
+          {/* 中间消息区 */}
+          <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
+            {/* 章节标题区 */}
+            <div className="we-chat-center-header">
+              {currentSession ? (
+                <h1 className="we-chat-center-title">
+                  {currentSession.title || '写作进行中'}
+                </h1>
+              ) : (
+                <span className="flex-1" />
+              )}
+            </div>
 
-        {/* 选项卡：AI 回复后展示行动选项 */}
-        {currentOptions.length > 0 && (
-          <OptionCard
-            options={currentOptions}
-            streaming={generating}
-            onSelect={(text) => { setCurrentOptions([]); handleSend(text); }}
-            onDismiss={() => setCurrentOptions([])}
-          />
-        )}
+            {/* 消息列表 */}
+            <MessageList
+              key={`${currentSession?.id}-${messageListKey}`}
+              sessionId={currentSession?.id}
+              character={null}
+              persona={persona}
+              worldId={worldId}
+              generating={generating}
+              streamingText={streamingText}
+              streamingKey={streamingKey}
+              continuingMessageId={continuingMessageId}
+              continuingText={continuingText}
+              onEditMessage={handleEditMessage}
+              onRegenerateMessage={handleRegenerateMessage}
+              onEditAssistantMessage={handleEditAssistantMessage}
+              onDeleteMessage={handleDeleteMessage}
+              prose
+              chapterTitles={chapterTitles}
+              onChapterEdit={handleChapterEdit}
+              onChapterRetitle={handleChapterRetitle}
+            />
 
-        {/* 错误提示 */}
-        {error && (
-          <div className="we-writing-error-bar">
-            <p className="we-field-error we-writing-error-text">
-              生成失败：{error}
-            </p>
+            {/* 选项卡：AI 回复后展示行动选项 */}
+            {currentOptions.length > 0 && (
+              <OptionCard
+                options={currentOptions}
+                streaming={generating}
+                onSelect={(text) => { setCurrentOptions([]); handleSend(text); }}
+                onDismiss={() => setCurrentOptions([])}
+              />
+            )}
+
+            {/* 错误提示 */}
+            {error && (
+              <div className="we-writing-error-bar">
+                <p className="we-field-error we-writing-error-text">
+                  生成失败：{error}
+                </p>
+              </div>
+            )}
+
+            {/* 输入区 */}
+            <InputBox
+              ref={inputBoxRef}
+              onSend={handleSend}
+              onStop={handleStop}
+              generating={generating}
+              impersonating={impersonating}
+              lastUserContent=""
+              worldId={worldId}
+              onContinue={handleContinue}
+              onImpersonate={handleImpersonate}
+              onTitle={handleRetitle}
+            />
           </div>
-        )}
 
-        {/* 输入区 */}
-        <InputBox
-          ref={inputBoxRef}
-          onSend={handleSend}
-          onStop={handleStop}
-          generating={generating}
-          impersonating={impersonating}
-          lastUserContent=""
-          worldId={worldId}
-          onContinue={handleContinue}
-          onImpersonate={handleImpersonate}
-          onTitle={handleRetitle}
-        />
-      </div>
+          <CastPanel
+            worldId={worldId}
+            sessionId={currentSession?.id}
+            activeCharacters={activeCharacters}
+            onActiveCharactersChange={setActiveCharacters}
+            stateTick={stateTick}
+            diaryTick={diaryTick}
+            persona={persona}
+            onDiaryInject={setPendingDiaryInject}
+          />
 
-      <CastPanel
-        worldId={worldId}
-        sessionId={currentSession?.id}
-        activeCharacters={activeCharacters}
-        onActiveCharactersChange={setActiveCharacters}
-        stateTick={stateTick}
-        diaryTick={diaryTick}
-        persona={persona}
-        onDiaryInject={setPendingDiaryInject}
-      />
-    </div>
+        </div>
+      </PageRight>
+    </BookSpread>
   );
 }

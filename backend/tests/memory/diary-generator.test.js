@@ -55,7 +55,13 @@ function makeRound(db, sessionId, { round_index, userContent, asstContent, snaps
 // § 1  纯函数测试
 // ═══════════════════════════════════════════════════════════════════════
 
-test('parseVirtualDate：正确解析 "N年N月N日N时" 格式', async () => {
+test('parseVirtualDate：正确解析 "N年N月N日N时N分" 格式', async () => {
+  const { parseVirtualDate } = await freshImport('backend/memory/diary-generator.js');
+  const result = parseVirtualDate(JSON.stringify('1000年3月15日14时30分'));
+  assert.deepEqual(result, { year: 1000, month: 3, day: 15 });
+});
+
+test('parseVirtualDate：兼容旧格式 "N年N月N日N时"', async () => {
   const { parseVirtualDate } = await freshImport('backend/memory/diary-generator.js');
   const result = parseVirtualDate(JSON.stringify('1000年3月15日14时'));
   assert.deepEqual(result, { year: 1000, month: 3, day: 15 });

@@ -51,15 +51,28 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
     >
       <div className="we-session-item__content">
         {editing ? (
-          <input
-            ref={inputRef}
-            className="we-session-item__edit-input"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onBlur={confirmEdit}
-            onClick={(e) => e.stopPropagation()}
-          />
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            <input
+              ref={inputRef}
+              className="we-session-item__edit-input"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={confirmEdit}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onMouseDown={(e) => { e.preventDefault(); cancelEdit(); }}
+              className="we-session-item__icon-btn flex-shrink-0"
+              aria-label="取消编辑"
+              title="取消"
+            >
+              <Icon size={16}>
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </Icon>
+            </button>
+          </div>
         ) : (
           <p
             className="we-session-item__title"
@@ -125,7 +138,7 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
   );
 }
 
-export default function WritingSessionList({ worldId, currentSessionId, onSessionSelect, onSessionCreate, onSessionDelete }) {
+export default function WritingSessionList({ worldId, currentSessionId, onSessionSelect, onSessionCreate, onSessionDelete, onBack }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -180,17 +193,28 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
 
   return (
     <div className="we-session-list-root">
-      <div className="we-session-list-header">
+      <div className="we-session-list-head">
+        <div className="we-session-list-nav">
+          <button
+            onClick={onBack}
+            title="返回角色页"
+            className="we-session-list-back"
+          >
+            <Icon size={16}>
+              <polyline points="15 18 9 12 15 6" />
+            </Icon>
+          </button>
+        </div>
         <button
           onClick={handleCreate}
-          className="we-session-new-btn"
-          aria-label="新建写作会话"
+          className="we-session-list-create"
+          aria-label="新建会话"
         >
           <Icon size={16} strokeWidth="2.5">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </Icon>
-          新建写作会话
+          新建会话
         </button>
       </div>
 

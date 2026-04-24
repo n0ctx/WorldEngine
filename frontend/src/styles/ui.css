@@ -113,6 +113,10 @@
   line-height: 1.75;
   transition: border-color 0.2s, background 0.2s;
 }
+.we-input:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -1px;
+}
 .we-input:focus,
 .we-textarea:focus {
   border-color: var(--we-ink-faded);
@@ -203,7 +207,7 @@
   border-right: 1px solid var(--we-border);
   border-bottom: 1px solid var(--we-border);
   border-left: 1px solid var(--we-border);
-  border-radius: var(--we-radius-sm, 8px);
+  border-radius: var(--we-radius-sm);
   box-shadow: var(--we-shadow-paper-stack);
 }
 
@@ -289,7 +293,7 @@
   padding: 1px 8px;
   background: var(--we-vermilion-bg);
   border: 1px solid var(--we-color-accent-border);
-  border-radius: 1px;
+  border-radius: var(--we-radius-none);
   font-family: var(--we-font-serif);
   font-size: 12px;
   color: var(--we-vermilion);
@@ -320,13 +324,17 @@
   font-size: 14px;
   color: var(--we-ink-primary);
 }
+.we-tag-input-field:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -2px;
+}
 
 /* ── OptionCard ── */
 .we-option-card {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  border-radius: 10px;
+  border-radius: var(--we-radius-md);
   padding: 10px;
   background: var(--we-paper-aged);
   border: 1px solid var(--we-paper-shadow);
@@ -338,7 +346,7 @@
   text-align: left;
   background: var(--we-paper-base);
   border: 1px solid var(--we-paper-shadow);
-  border-radius: 6px;
+  border-radius: var(--we-radius-sm);
   padding: 7px 12px;
   font-family: var(--we-font-serif);
   font-size: 13px;
@@ -395,7 +403,7 @@
   width: 12px;
   height: 12px;
   border: 1px solid var(--we-ink-faded);
-  border-radius: 1px;
+  border-radius: var(--we-radius-none);
   background: transparent;
   cursor: pointer;
   position: relative;
@@ -459,6 +467,11 @@
   cursor: not-allowed;
   opacity: 0.5;
 }
+.we-select-trigger:focus-visible {
+  border-color: var(--we-color-border-focus);
+  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
+  outline: none;
+}
 
 .we-select-chevron {
   width: 14px;
@@ -473,7 +486,7 @@
 
 .we-select-dropdown {
   position: absolute;
-  z-index: 50;
+  z-index: var(--we-z-dropdown);
   top: calc(100% + 2px);
   left: 0;
   right: 0;
@@ -745,31 +758,6 @@
   height: 100%;
 }
 
-.we-session-list-header {
-  padding: var(--we-space-lg) var(--we-space-lg) var(--we-space-md);
-  border-bottom: 1px solid var(--we-color-border-default);
-}
-
-.we-session-new-btn {
-  width: 100%;
-  padding: var(--we-space-sm) 0;
-  border: 1.5px dashed var(--we-color-accent);
-  border-radius: var(--we-radius-md);
-  background: none;
-  cursor: pointer;
-  font-size: var(--we-text-xs);
-  font-family: var(--we-font-serif);
-  color: var(--we-color-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--we-space-xs);
-  transition: background var(--we-duration-fast);
-}
-
-.we-session-new-btn:hover {
-  background: var(--we-color-accent-bg);
-}
 
 .we-session-list-body {
   flex: 1;
@@ -904,6 +892,10 @@
   padding: var(--we-space-xxs) var(--we-space-xs);
   color: var(--we-color-text-primary);
   outline: none;
+}
+.we-session-item__edit-input:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -1px;
 }
 
 /* ── EntryEditor ── */
@@ -1070,6 +1062,10 @@
   box-sizing: border-box;
   outline: none;
   width: 100%;
+}
+.we-trigger-editor-field:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -1px;
 }
 
 .we-trigger-editor-label {

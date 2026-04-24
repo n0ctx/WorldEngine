@@ -620,10 +620,10 @@ export default function ChatPage() {
       {/* Toast 提示 */}
       {toast && (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
             toast.type === 'error'
-              ? 'bg-red-500 text-white'
-              : 'bg-accent text-white'
+              ? 'bg-[var(--we-color-status-danger)] text-[var(--we-color-text-inverse)]'
+              : 'bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)]'
           }`}
         >
           {toast.msg}
@@ -708,13 +708,13 @@ export default function ChatPage() {
                       {errorBubble.partialContent}
                     </div>
                   )}
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500 border border-red-200">
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs px-2 py-1 rounded-full bg-[var(--we-color-accent-bg)] text-[var(--we-color-text-danger)] border border-[var(--we-color-border-focus)]">
                       生成失败：{errorBubble.errorMsg}
                     </span>
                     <button
                       onClick={handleRetryAfterError}
-                      className="text-xs px-2.5 py-1 rounded-lg border border-border hover:bg-sand transition-colors flex items-center gap-1 text-text-secondary"
+                      className="text-xs px-3 py-1 rounded-lg border border-border hover:bg-sand transition-colors flex items-center gap-1 text-text-secondary"
                     >
                       <Icon size={16}>
                         <polyline points="1 4 1 10 7 10" />

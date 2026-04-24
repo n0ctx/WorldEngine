@@ -14,7 +14,7 @@ import {
 } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
 import { getConfig } from './config.js';
-import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION } from '../utils/constants.js';
+import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION, DIARY_TIME_DESCRIPTION } from '../utils/constants.js';
 import { upsertPersona } from '../db/queries/personas.js';
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
 import { upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
@@ -50,23 +50,29 @@ export function ensureDiaryTimeField(worldId) {
     createWorldStateField(worldId, {
       field_key: DIARY_TIME_FIELD_KEY,
       label: '时间',
+      description: DIARY_TIME_DESCRIPTION,
       type: 'text',
       update_mode: dateMode === 'real' ? 'system_rule' : 'llm_auto',
       trigger_mode: 'every_turn',
       update_instruction: dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION,
       allow_empty: 1,
       sort_order: 0,
-      default_value: '1000年1月1日0时',
+      default_value: '1000年1月1日0时0分',
     });
   } else if (!isDiaryEnabled && timeField) {
     deleteWorldStateField(timeField.id);
   } else if (isDiaryEnabled && timeField) {
     const expectedMode = dateMode === 'real' ? 'system_rule' : 'llm_auto';
     const expectedInstruction = dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION;
-    if (timeField.update_mode !== expectedMode || timeField.update_instruction !== expectedInstruction) {
+    if (
+      timeField.update_mode !== expectedMode ||
+      timeField.update_instruction !== expectedInstruction ||
+      timeField.description !== DIARY_TIME_DESCRIPTION
+    ) {
       updateWorldStateField(timeField.id, {
         update_mode: expectedMode,
         update_instruction: expectedInstruction,
+        description: DIARY_TIME_DESCRIPTION,
       });
     }
   }
