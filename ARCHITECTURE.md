@@ -186,11 +186,11 @@ POST /api/sessions/:sessionId/chat
 | [4] | `renderPersonaState(world.id)` | 空跳过 |
 | [5] | `[\{\{char\}\}人设]\n${character.system_prompt}` | 空跳过 |
 | [6] | `renderCharacterState(character.id)` | 空跳过 |
-| [7] | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；命中后按 `position` 注入 `entry.content`） | 无条目时跳过 |
+| [7] | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费） | 无条目时跳过 |
 | [8] | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [9] | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [10] | **日记注入（T155）**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
-| [11] | 后置提示词（`global_post_prompt` → `character.post_prompt` → `world_prompt_entries(position='post')`），**注入 system 末尾**（原为 role:user，改后避免与当前用户消息形成连续 user 消息） | 均空跳过 |
+| [11] | 后置提示词（`global_post_prompt` → `character.post_prompt`），**注入 system 末尾** | 均空跳过 |
 | [13] | 历史消息：稳定使用原始 `messages` 窗口；仅移除 [14] 当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
 | [14] | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
 

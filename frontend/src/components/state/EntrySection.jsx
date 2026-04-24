@@ -50,9 +50,6 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
               <span className="we-entry-section-name">
                 {entry.title}
               </span>
-              <span className="we-entry-section-badge">
-                {entry.position === 'system' ? '系统提示词' : '后置提示词'}
-              </span>
               {triggerType === 'keyword' && entry.keywords?.length > 0 && (
                 <span className="we-entry-section-keywords">
                   触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}

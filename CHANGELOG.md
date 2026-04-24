@@ -3,6 +3,15 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 删除条目注入位置（position）配置
+
+- **背景**：`world_prompt_entries.position` 原区分 `system`（注入 [7]）/ `post`（注入 [11]）两个位置，但二者最终都合并进同一条 system 消息，区别仅是顺序，无实际意义
+- **assembler.js**：`buildPrompt` 和 `buildWritingPrompt` 均移除 `systemEntryTexts`/`postEntryTexts` 拆分逻辑，所有命中条目统一收入 `entryTexts`，注入 [7]（system 块）；`postParts` 只保留 `global_post_prompt` + `character.post_prompt`
+- **queries/prompt-entries.js**：`createWorldEntry` INSERT 语句移除 `position` 列；`updateWorldEntry` allowed 列表移除 `position`
+- **前端 EntryEditor.jsx**：删除 `POSITION_OPTIONS`、`form.position` 状态、注入位置 select UI
+- **前端 EntrySection.jsx**：删除显示位置 badge（`'系统提示词' / '后置提示词'`）
+- **DB 列保留**：`world_prompt_entries.position` 列不做 DROP，存量数据保留但运行时不再读取；SCHEMA.md 注释标注为"历史遗留列"
+
 ## 2026-04-24 触发器动作瘦身：删除 inject_prompt 注入和 notify 前端通知
 
 - **背景**：触发器原有三种动作类型 `activate_entry`、`inject_prompt`、`notify`，其中 inject_prompt 在提示词组装 [8] 段注入文本，notify 通过 SSE `trigger_fired` 事件向前端发 toast

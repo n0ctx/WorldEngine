@@ -556,7 +556,7 @@ CREATE TABLE world_prompt_entries (
   content        TEXT NOT NULL DEFAULT '',
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
   keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
-  position       TEXT NOT NULL DEFAULT 'post', -- 注入位置：'system'（system 区）/ 'post'（后置提示词区）
+  position       TEXT NOT NULL DEFAULT 'post', -- 历史遗留列；运行时不再消费（所有命中条目统一注入 system 块）
   trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'（关键词触发）/ 'llm'（AI召回）/ 'state'（状态条件评估）
   sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,

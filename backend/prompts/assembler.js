@@ -201,24 +201,17 @@ export async function buildPrompt(sessionId, options = {}) {
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
-  const systemEntryTexts = [];
-  const postEntryTexts = [];
+  const entryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
-  // position='system' → systemParts；position='post'（或无 position）→ postParts
   for (const entry of worldEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
-      const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
-      if (entry.position === 'system') {
-        systemEntryTexts.push(text);
-      } else {
-        postEntryTexts.push(text);
-      }
+      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
 
-  if (systemEntryTexts.length > 0) {
-    systemParts.push(systemEntryTexts.join('\n\n'));
+  if (entryTexts.length > 0) {
+    systemParts.push(entryTexts.join('\n\n'));
   }
 
   // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
@@ -264,10 +257,6 @@ export async function buildPrompt(sessionId, options = {}) {
     config.global_post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
-
-  if (postEntryTexts.length > 0) {
-    postParts.push(postEntryTexts.join('\n\n'));
-  }
 
   if (postParts.length > 0) {
     systemParts.push(postParts.join('\n\n'));
@@ -382,22 +371,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  const systemEntryTexts = [];
-  const postEntryTexts = [];
+  const entryTexts = [];
 
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
-  // position='system' → systemParts；position='post'（或无 position）→ postParts
   for (const entry of worldEntries) {
     if (triggeredIds.has(entry.id) && entry.content) {
-      const text = `【${tv(entry.title)}】\n${tv(entry.content)}`;
-      if (entry.position === 'system') {
-        systemEntryTexts.push(text);
-      } else {
-        postEntryTexts.push(text);
-      }
+      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
     }
   }
-  if (systemEntryTexts.length > 0) systemParts.push(systemEntryTexts.join('\n\n'));
+  if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
 
   // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
@@ -438,10 +420,6 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [11] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词）
   const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
-
-  if (postEntryTexts.length > 0) {
-    postParts.push(postEntryTexts.join('\n\n'));
-  }
 
   if (postParts.length > 0) {
     systemParts.push(postParts.join('\n\n'));

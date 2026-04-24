@@ -6,11 +6,6 @@ import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
 
-const POSITION_OPTIONS = [
-  { value: 'system', label: '系统提示词' },
-  { value: 'post', label: '后置提示词' },
-];
-
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
 const NUMERIC_OPS = [
   { value: '>', label: '>' },
@@ -43,7 +38,6 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     content: entry?.content ?? '',
     description: entry?.description ?? '',
     keywords: entry?.keywords ? entry.keywords.join(', ') : '',
-    position: entry?.position ?? 'system',
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
   });
   const [saving, setSaving] = useState(false);
@@ -118,7 +112,6 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       keywords: form.trigger_type === 'keyword'
         ? form.keywords.split(',').map((k) => k.trim()).filter(Boolean)
         : null,
-      position: form.position,
       trigger_type: form.trigger_type,
     };
     try {
@@ -239,18 +232,6 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             </button>
           </>
         )}
-
-        {/* 注入位置 */}
-        <label className="we-entry-editor-label">注入位置</label>
-        <select
-          value={form.position}
-          onChange={(e) => setForm((f) => ({ ...f, position: e.target.value }))}
-          className="we-entry-editor-select"
-        >
-          {POSITION_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
 
         {/* 按钮 */}
         <div className="we-entry-editor-footer">
