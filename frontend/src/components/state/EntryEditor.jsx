@@ -200,8 +200,8 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             {conditions.map((cond, i) => {
               const ops = getOpsForField(cond.target_field, fieldTypeMap);
               return (
-                <div key={i} className="we-trigger-editor-condition">
-                  <div className="we-trigger-editor-condition-field">
+                <div key={i} className="we-entry-condition">
+                  <div className="we-entry-condition-field">
                     <Select
                       value={cond.target_field}
                       onChange={(v) => updateCondition(i, { target_field: v })}
@@ -209,7 +209,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
                       disabled={fieldOptions.length === 0}
                     />
                   </div>
-                  <div className="we-trigger-editor-condition-op">
+                  <div className="we-entry-condition-op">
                     <Select
                       value={cond.operator}
                       onChange={(v) => updateCondition(i, { operator: v })}
@@ -220,11 +220,11 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
                     value={cond.value}
                     onChange={(e) => updateCondition(i, { value: e.target.value })}
                     placeholder="值"
-                    className="we-trigger-editor-field we-trigger-editor-condition-value"
+                    className="we-entry-condition-input we-entry-condition-value"
                   />
                   <button
                     onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
-                    className="we-trigger-editor-icon-btn we-trigger-editor-icon-btn--danger"
+                    className="we-entry-condition-icon-btn we-entry-condition-icon-btn--danger"
                   >
                     ×
                   </button>
@@ -233,7 +233,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             })}
             <button
               onClick={() => setConditions((prev) => [...prev, emptyCondition()])}
-              className="we-trigger-editor-link-btn"
+              className="we-entry-condition-add-btn"
             >
               + 添加条件
             </button>

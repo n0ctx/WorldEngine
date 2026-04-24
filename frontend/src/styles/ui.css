@@ -984,8 +984,8 @@
   cursor: not-allowed;
 }
 
-/* ── TriggerEditor 条件行（EntryEditor 复用） ── */
-.we-trigger-editor-field {
+/* ── 状态条件行（EntryEditor state 类型） ── */
+.we-entry-condition-input {
   padding: 6px 10px;
   font-family: var(--we-font-serif);
   font-size: var(--we-text-sm);
@@ -997,29 +997,29 @@
   outline: none;
   width: 100%;
 }
-.we-trigger-editor-field:focus-visible {
+.we-entry-condition-input:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: -1px;
 }
 
-.we-trigger-editor-condition {
+.we-entry-condition {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
 
-.we-trigger-editor-condition-field {
+.we-entry-condition-field {
   flex: 2;
   min-width: 0;
 }
 
-.we-trigger-editor-condition-op {
+.we-entry-condition-op {
   flex-shrink: 0;
   width: 90px;
 }
 
-.we-trigger-editor-condition-value {
+.we-entry-condition-value {
   flex: 1;
   min-width: 0;
   width: auto;
@@ -1027,7 +1027,7 @@
   font-size: 14.5px;
 }
 
-.we-trigger-editor-icon-btn {
+.we-entry-condition-icon-btn {
   background: none;
   border: none;
   cursor: pointer;
@@ -1036,11 +1036,11 @@
   flex-shrink: 0;
 }
 
-.we-trigger-editor-icon-btn--danger {
+.we-entry-condition-icon-btn--danger {
   color: var(--we-vermilion);
 }
 
-.we-trigger-editor-link-btn {
+.we-entry-condition-add-btn {
   font-size: var(--we-text-xs);
   color: var(--we-vermilion);
   background: none;
