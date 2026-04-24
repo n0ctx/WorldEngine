@@ -657,36 +657,6 @@
   color: var(--we-paper-base);
 }
 
-/* ── Block 组件：WorldTabNav ── */
-
-.we-tab-nav {
-  display: flex;
-  gap: var(--we-space-sm);
-  border-bottom: 1px solid var(--we-paper-shadow);
-  margin-bottom: var(--we-space-xl);
-}
-
-.we-tab-nav__item {
-  font-family: var(--we-font-serif);
-  font-size: var(--we-text-sm);
-  color: var(--we-paper-shadow);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: var(--we-space-sm) var(--we-space-lg);
-  cursor: pointer;
-  transition: color var(--we-duration-fast), border-color var(--we-duration-fast);
-  margin-bottom: -1px;
-}
-
-.we-tab-nav__item:hover {
-  color: var(--we-paper-base);
-}
-
-.we-tab-nav__item--active {
-  color: var(--we-vermilion);
-  border-bottom-color: var(--we-vermilion);
-}
 
 /* ── 世界页内容区公共容器 ── */
 

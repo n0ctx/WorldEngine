@@ -692,32 +692,6 @@
   color: var(--we-color-bg-canvas);
 }
 
-/* ── WorldTabNav 世界页标签导航 Block ── */
-.we-tab-nav {
-  display: flex;
-  border-bottom: 1px solid var(--we-color-paper-muted);
-  margin-bottom: var(--we-space-lg);
-}
-.we-tab-nav__item {
-  padding: var(--we-space-sm) var(--we-space-xl);
-  font-family: var(--we-font-serif);
-  font-size: 14px;
-  color: var(--we-color-border-default);
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  border-bottom: 2px solid transparent;
-  background: none;
-  cursor: pointer;
-  transition: color var(--we-duration-fast), border-color var(--we-duration-fast);
-}
-.we-tab-nav__item:hover {
-  color: var(--we-color-bg-canvas);
-}
-.we-tab-nav__item--active {
-  color: var(--we-color-bg-canvas);
-  border-bottom-color: var(--we-color-accent);
-}
 
 /* ── Bookmark ── */
 .we-bookmark {
