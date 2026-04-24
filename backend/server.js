@@ -38,7 +38,6 @@ import sessionTimelineRoutes from './routes/session-timeline.js';
 import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import assistantRoutes from '../assistant/server/routes.js';
-import triggersRoutes from './routes/triggers.js';
 import { resolveUploadPath } from './services/state-values.js';
 import { createLogger } from './utils/logger.js';
 
@@ -155,7 +154,6 @@ export function createApp() {
   app.use('/api', personaStateValuesRoutes);
   app.use('/api/worlds', writingRoutes);
   app.use('/api/assistant', assistantRoutes);
-  app.use('/api', triggersRoutes);
 
   return app;
 }

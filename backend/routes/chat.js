@@ -21,7 +21,6 @@ import { getOrCreatePersona } from '../services/personas.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
-import { evaluateTriggers } from '../services/trigger-evaluator.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
@@ -80,24 +79,6 @@ function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamSt
       fn: () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId),
       tracksState: true,
       keepSseAlive: false,
-    },
-    // trigger-eval（p2）：状态更新完成后评估触发器，有通知时推 trigger_fired SSE
-    {
-      label: 'trigger-eval',
-      priority: 2,
-      fn: () => {
-        const roundIndex = turnRecordOpts?.isUpdate
-          ? (getLatestTurnRecord(sessionId)?.round_index ?? 1)
-          : countTurnRecords(sessionId) + 1;
-        return evaluateTriggers(worldId, sessionId, roundIndex);
-      },
-      condition: !!worldId,
-      sseEvent: 'trigger_fired',
-      ssePayload: (result) =>
-        result?.notifications?.length > 0
-          ? { type: 'trigger_fired', notifications: result.notifications }
-          : null,
-      keepSseAlive: true,
     },
     // turn-record（p3）
     {

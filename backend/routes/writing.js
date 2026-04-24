@@ -23,7 +23,6 @@ import { getCharactersByWorldId } from '../services/characters.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { enqueue, clearPending } from '../utils/async-queue.js';
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
-import { evaluateTriggers } from '../services/trigger-evaluator.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
@@ -275,22 +274,6 @@ async function runWritingStream(sessionId, res, opts = {}) {
           ssePayload: () => ({ type: 'state_updated' }),
           keepSseAlive: true,
         },
-        // trigger-eval（p2）：状态更新完成后评估触发器，有通知时推 trigger_fired SSE
-        {
-          label: 'trigger-eval',
-          priority: 2,
-          fn: () => {
-            const roundIndex = countTurnRecords(sessionId) + 1;
-            return evaluateTriggers(worldId, sessionId, roundIndex);
-          },
-          condition: !!worldId,
-          sseEvent: 'trigger_fired',
-          ssePayload: (result) =>
-            result?.notifications?.length > 0
-              ? { type: 'trigger_fired', notifications: result.notifications }
-              : null,
-          keepSseAlive: true,
-        },
         // turn-record（p3）：不推 SSE
         {
           label: 'turn-record',
@@ -453,22 +436,6 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
         tracksState: true,
         sseEvent: 'state_updated',
         ssePayload: () => ({ type: 'state_updated' }),
-        keepSseAlive: true,
-      },
-      // trigger-eval（p2）：续写场景覆盖最后轮，roundIndex 取最新 turn record
-      {
-        label: 'trigger-eval',
-        priority: 2,
-        fn: () => {
-          const roundIndex = getLatestTurnRecord(sessionId)?.round_index ?? 1;
-          return evaluateTriggers(worldId, sessionId, roundIndex);
-        },
-        condition: !!worldId,
-        sseEvent: 'trigger_fired',
-        ssePayload: (result) =>
-          result?.notifications?.length > 0
-            ? { type: 'trigger_fired', notifications: result.notifications }
-            : null,
         keepSseAlive: true,
       },
       // turn-record（p3）：isUpdate=true，UPSERT 覆盖最后一轮，不新增轮次
