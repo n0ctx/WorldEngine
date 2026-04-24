@@ -22,12 +22,10 @@ export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
 export { default as AvatarCircle }    from './ui/AvatarCircle';
 
-// — State Feature 组件 —
-export { default as PersonaCard }     from './state/PersonaCard';
+// — State Feature 组件（PersonaCard 已废弃，由 CharactersPage 内联实现）—
 
 // — Blocks 结构模式 —
 export { default as WorldTabNav }     from './blocks/WorldTabNav';
-export { buildWorldTabs }             from './blocks/world-tabs';
 export { default as BackButton }      from './blocks/BackButton';
 
 // — Book 专属 —

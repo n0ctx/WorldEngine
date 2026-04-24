@@ -4,7 +4,6 @@ import Icon from '../ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
-import { getLatestChatSession } from '../../api/sessions.js';
 import useStore from '../../store/index.js';
 import { useAssistantStore } from '@assistant/useAssistantStore.js';
 
@@ -122,33 +121,6 @@ export default function TopBar() {
   }, [location.pathname]);
 
   const isWorldsList = topbarPathname === '/';
-  const isChat = !!characterId;
-  const isWriting = topbarPathname.match(/\/worlds\/([\w-]+)\/writing/);
-
-  async function handleChatNavigate() {
-    if (!effectiveWorldId) return;
-
-    if (characterId) {
-      navigate(`/characters/${characterId}/chat`);
-      return;
-    }
-
-    try {
-      const session = await getLatestChatSession(effectiveWorldId);
-      if (session?.character_id) {
-        setCurrentWorldId(effectiveWorldId);
-        setCurrentCharacterId(session.character_id);
-        setCurrentSessionId(session.id);
-        navigate(`/characters/${session.character_id}/chat`);
-        return;
-      }
-    } catch {
-      // ignore and fall back to the world character list
-    }
-
-    setCurrentSessionId(null);
-    navigate(`/worlds/${effectiveWorldId}`);
-  }
 
   return (
     <div className="we-topbar">
@@ -208,31 +180,28 @@ export default function TopBar() {
         )}
       </div>
 
-      {!isWorldsList && (
+      {!isWorldsList && effectiveWorldId && (
         <>
           <span className="we-topbar-sep">·</span>
 
-          {/* 对话模式 */}
+          {/* 故事 */}
           <button
-            className={`we-topbar-item${isChat ? ' we-topbar-item--active' : ''}`}
-            onClick={() => { if (!effectiveWorldId) return; handleChatNavigate(); }}
-            aria-label="进入对话模式"
+            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}` ? ' we-topbar-item--active' : ''}`}
+            onClick={() => navigate(`/worlds/${effectiveWorldId}`)}
+            aria-label="进入故事页"
           >
-            对话
+            故事
           </button>
 
           <span className="we-topbar-sep">·</span>
 
-          {/* 写作空间 */}
+          {/* 配置 */}
           <button
-            className={`we-topbar-item${isWriting ? ' we-topbar-item--active' : ''}`}
-            onClick={() => {
-              if (!effectiveWorldId) return;
-              navigate(`/worlds/${effectiveWorldId}/writing`);
-            }}
-            aria-label="进入写作空间"
+            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}/config` ? ' we-topbar-item--active' : ''}`}
+            onClick={() => navigate(`/worlds/${effectiveWorldId}/config`)}
+            aria-label="进入配置页"
           >
-            写作
+            配置
           </button>
         </>
       )}

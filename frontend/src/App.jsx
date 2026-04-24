@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import TopBar from './components/book/TopBar.jsx';
 import PageTransition from './components/book/PageTransition.jsx';
 import { refreshCustomCss } from './api/custom-css-snippets';
@@ -17,9 +17,13 @@ const PersonaEditPage = lazy(() => import('./pages/PersonaEditPage'));
 const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('./pages/WritingSpacePage'));
-const WorldStatePage = lazy(() => import('./pages/WorldStatePage'));
-const WorldBuildPage = lazy(() => import('./pages/WorldBuildPage'));
+const WorldConfigPage = lazy(() => import('./pages/WorldConfigPage'));
 const AssistantPanel = lazy(() => import('../../assistant/client/AssistantPanel.jsx'));
+
+function RedirectToConfig() {
+  const { worldId } = useParams();
+  return <Navigate to={`/worlds/${worldId}/config`} replace />;
+}
 
 function RouteFallback() {
   return (
@@ -63,12 +67,15 @@ export default function App() {
             <Route path="/worlds/:worldId" element={<CharactersPage />} />
             <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+            <Route path="/worlds/:worldId/personas/new" element={<PersonaEditPage />} />
+            <Route path="/worlds/:worldId/personas/:personaId/edit" element={<PersonaEditPage />} />
             <Route path="/worlds/:worldId/characters/new" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/chat" element={<ChatPage />} />
             <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
-            <Route path="/worlds/:worldId/build" element={<WorldBuildPage />} />
-            <Route path="/worlds/:worldId/state" element={<WorldStatePage />} />
+            <Route path="/worlds/:worldId/config" element={<WorldConfigPage />} />
+            <Route path="/worlds/:worldId/build" element={<RedirectToConfig />} />
+            <Route path="/worlds/:worldId/state" element={<RedirectToConfig />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </Suspense>
@@ -87,6 +94,8 @@ export default function App() {
             <Route path="/worlds/new" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
             <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
+            <Route path="/worlds/:worldId/personas/new" element={<PersonaEditPage />} />
+            <Route path="/worlds/:worldId/personas/:personaId/edit" element={<PersonaEditPage />} />
             <Route path="/worlds/:worldId/characters/new" element={<CharacterEditPage />} />
             <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
             <Route path="/settings" element={<SettingsPage />} />

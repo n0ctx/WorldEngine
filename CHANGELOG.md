@@ -3,6 +3,36 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 WorldConfigPage — 三栏配置页重组
+
+- 将 WorldBuildPage（构建页）和 WorldStatePage（状态页）合并为 WorldConfigPage（配置页），路由 `/worlds/:worldId/config`
+- 新增 VisualizationPanel 中间可视化总览：条目概况卡 + 触发器→条目折叠关系列表（点击展开，显示关联条目名称和类型）
+- TopBar 世界标签精简为「故事·配置」两个，删除「构建」入口
+- 旧路由 `/build` 和 `/state` 均重定向到 `/config`（使用 RedirectToConfig 辅助组件）
+- 不改任何后端接口；EntrySection、TriggerCard、TriggerEditor 组件零改动
+- 删除死代码：WorldBuildPage.jsx、WorldStatePage.jsx、world-tabs.js
+
+## T231 — feat: 角色卡和玩家卡新增简介字段 ✅
+
+- **背景**：世界卡已有 `description` 简介字段（纯展示，不注入提示词），角色卡和玩家卡缺少同等字段
+- **DB**：`characters` 表和 `personas` 表各新增 `description TEXT NOT NULL DEFAULT ''`；schema.js 补充 ALTER TABLE 迁移（try-catch 幂等）
+- **后端**：characters queries INSERT/allowedFields 补充 description；personas queries INSERT/updatePersonaById 补充 description；personas 路由三处解构补充 description 透传
+- **前端**：CharacterEditPage / PersonaEditPage 各新增 `description` state + "简介"表单字段（`we-textarea`，hint="纯展示用途，不注入提示词"）；CharacterEditPage 草稿缓存同步加入 description
+- **卡片展示**：CharactersPage 角色卡和玩家卡改为展示 `description`（原来是 `system_prompt`），空值显示"暂无简介"
+- **SCHEMA.md**：同步更新 characters / personas 表字段定义
+
+## T230 — feat(ui): CharactersPage 玩家/角色双栏重构 + 多玩家卡支持 ✅
+
+- **背景**：原页面只支持单个 persona，且 persona 与角色卡在同一个线性布局中，操作入口分散
+- **Schema 变更**：`personas.world_id` 移除 UNIQUE 约束（迁移：`migration:personas_multi_per_world`）；`worlds` 表新增 `active_persona_id TEXT`（NULL 时回退到最早 persona）
+- **后端新路由**：`GET/POST /api/worlds/:worldId/personas`、`DELETE /api/personas/:id`、`PATCH /api/worlds/:worldId/personas/:id/activate`、`GET/PATCH /api/personas/:id`、`POST /api/personas/:personaId/avatar`；原 `GET/PATCH /api/worlds/:worldId/persona` 保留兼容
+- **前端布局**：CharactersPage 改为左 1/3 玩家卡列表 + 右 2/3 角色卡列表；新建/导入按钮移至各自栏底部；原 header actions 移除
+- **PersonaCard**：废弃 `components/state/PersonaCard.jsx`，在 CharactersPage 内联实现；激活卡有左边框 + 徽标 + `personaActivate` 动效
+- **PersonaEditPage**：支持 `/worlds/:worldId/personas/new` 和 `/worlds/:worldId/personas/:personaId/edit` 路由，new 模式走创建流程
+- **WritingSpacePage**：优先读 `store.currentPersonaId`（从玩家卡点击传入），fallback 到 active persona
+- **Store**：新增 `currentPersonaId` + `setCurrentPersonaId`
+- **SCHEMA.md**：同步更新 personas 表描述
+
 ## T229 — refactor(assistant): 写卡助手全面对齐当前运行时架构 ✅
 - **背景**：T206（条目系统收口）、T222（后置提示词改注入 system）、T223（段号重排）之后，写卡助手的 prompts、executor 和接口契约与运行时实现产生严重偏差，部分功能静默失效。
 - **变更1（代码）**：`routes.js` — `normalizeWorldChanges` 移除 system_prompt/post_prompt；`normalizeProposal` character-card/global-config 分支删除 entryOps 处理；`applyProposal` world-card create/update 移除对死字段的写入
