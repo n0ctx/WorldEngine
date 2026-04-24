@@ -172,35 +172,9 @@ CREATE TABLE IF NOT EXISTS character_state_values (
   UNIQUE(character_id, field_key)
 );
 
-CREATE TABLE IF NOT EXISTS global_prompt_entries (
-  id             TEXT PRIMARY KEY,
-  title          TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',
-  content        TEXT NOT NULL DEFAULT '',
-  keywords       TEXT,
-  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
-  mode           TEXT NOT NULL DEFAULT 'chat',
-  sort_order     INTEGER NOT NULL DEFAULT 0,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS world_prompt_entries (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  title          TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',
-  content        TEXT NOT NULL DEFAULT '',
-  keywords       TEXT,
-  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
-  sort_order     INTEGER NOT NULL DEFAULT 0,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS character_prompt_entries (
-  id             TEXT PRIMARY KEY,
-  character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
   description    TEXT NOT NULL DEFAULT '',
   content        TEXT NOT NULL DEFAULT '',
@@ -323,7 +297,6 @@ CREATE INDEX IF NOT EXISTS idx_world_state_values_world_id ON world_state_values
 CREATE INDEX IF NOT EXISTS idx_character_state_fields_world_id ON character_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_character_state_values_character_id ON character_state_values(character_id, field_key);
 CREATE INDEX IF NOT EXISTS idx_world_prompt_entries_world_id ON world_prompt_entries(world_id);
-CREATE INDEX IF NOT EXISTS idx_character_prompt_entries_character_id ON character_prompt_entries(character_id);
 CREATE INDEX IF NOT EXISTS idx_custom_css_snippets_sort_order ON custom_css_snippets(sort_order);
 CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_order);
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
@@ -394,17 +367,12 @@ export function initSchema(db) {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
   // per-turn 摘要系统：新增 turn_records 表索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
-  // 双模式全局设置：为三张表添加 mode 列（'chat' | 'writing'）
-  try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
+  // 双模式全局设置：为两张表添加 mode 列（'chat' | 'writing'）
   try { db.exec(`ALTER TABLE custom_css_snippets ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
   try { db.exec(`ALTER TABLE regex_rules ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'`); } catch {}
   // Prompt 条目：summary → description（触发条件描述），新增 keyword_scope
-  try { db.exec(`ALTER TABLE global_prompt_entries RENAME COLUMN summary TO description`); } catch {}
   try { db.exec(`ALTER TABLE world_prompt_entries RENAME COLUMN summary TO description`); } catch {}
-  try { db.exec(`ALTER TABLE character_prompt_entries RENAME COLUMN summary TO description`); } catch {}
-  try { db.exec(`ALTER TABLE global_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
-  try { db.exec(`ALTER TABLE character_prompt_entries ADD COLUMN keyword_scope TEXT NOT NULL DEFAULT 'user,assistant'`); } catch {}
   // turn_records 改为指针模式：新增 user_message_id / asst_message_id，移除复制内容字段
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN user_message_id TEXT`); } catch {}
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN asst_message_id TEXT`); } catch {}
@@ -422,8 +390,6 @@ export function initSchema(db) {
   // State 引擎 Phase 1：为 world_prompt_entries 新增 position / trigger_type 字段
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'"); } catch (_) {}
-  // 扩展 character_prompt_entries 支持 position 字段（与 world_prompt_entries 对齐）
-  try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
   migrateLegacyWorldPromptColumns(db);
   // personas 多对一：移除 world_id UNIQUE 约束
@@ -433,9 +399,9 @@ export function initSchema(db) {
   // worlds 新增 active_persona_id 列
   try { db.exec(`ALTER TABLE worlds ADD COLUMN active_persona_id TEXT`); } catch {}
   // token 字段：条目注入顺序权重（正整数，越大越靠后，默认 1）
-  try { db.exec("ALTER TABLE global_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
-  try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
+  // 删除废弃表：global_prompt_entries / character_prompt_entries
+  migrateDropLegacyEntryTables(db);
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {
@@ -661,6 +627,18 @@ function migrateDropTriggerTables(db) {
   db.exec('DROP TABLE IF EXISTS trigger_actions');
   db.exec('DROP TABLE IF EXISTS trigger_conditions');
   db.exec('DROP TABLE IF EXISTS triggers');
+
+  db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)")
+    .run(migKey, Date.now());
+}
+
+function migrateDropLegacyEntryTables(db) {
+  const migKey = 'migration:drop_legacy_entry_tables';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  db.exec('DROP TABLE IF EXISTS character_prompt_entries');
+  db.exec('DROP TABLE IF EXISTS global_prompt_entries');
 
   db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)")
     .run(migKey, Date.now());

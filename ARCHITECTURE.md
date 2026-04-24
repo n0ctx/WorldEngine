@@ -461,7 +461,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **全局配置继承（T86）**：写作空间使用 `config.writing.*` 命名空间；`writing.llm.model = ''` 时继承 chat model，`writing.context_history_rounds = null` 时继承 chat 值。
 
-**资源与模式绑定**：`global_prompt_entries`、`regex_rules`（`world_id IS NULL`）、`custom_css_snippets` 各带 `mode TEXT NOT NULL DEFAULT 'chat'` 列，严格二分（`'chat'` 或 `'writing'`），互不干扰。
+**资源与模式绑定**：`regex_rules`（`world_id IS NULL`）、`custom_css_snippets` 各带 `mode TEXT NOT NULL DEFAULT 'chat'` 列，严格二分（`'chat'` 或 `'writing'`），互不干扰。
 
 **appMode 状态**：`store/appMode.js`（独立 Zustand store），写作空间页面挂载时设置为 `'writing'`，其他页面设置为 `'chat'`；`refreshCustomCss(mode)` 按当前 appMode 加载对应 CSS 片段注入 `<style id="we-custom-css">`。
 

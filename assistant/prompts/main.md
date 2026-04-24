@@ -87,7 +87,7 @@ create 操作省略"当前状态"部分。
 **状态字段（State Fields）**
 - 动态数值，如"体力""当前位置""天气"
 - update_mode: `manual`（手动）或 `llm_auto`（AI 自动更新）
-- trigger_mode: `manual_only`、`every_turn`（每轮）、`keyword_based`（关键词触发）
+- trigger_mode: `manual_only`、`every_turn`（每轮）、`keyword_based`（关键词）
 
 **后置提示词（Post Prompt）**
 - 注入 system 末尾（[12] 位置），不是独立 user 消息

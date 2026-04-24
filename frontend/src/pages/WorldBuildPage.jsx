@@ -37,7 +37,7 @@ export default function WorldBuildPage() {
         />
 
         <EntrySection
-          title="关键词触发条目"
+          title="关键词条目"
           icon="❦"
           desc="对话中出现指定词语时自动注入"
           triggerType="keyword"

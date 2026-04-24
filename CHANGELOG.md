@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 清理废弃条目表：彻底移除 global_prompt_entries / character_prompt_entries
+
+- **背景**：两张表在 prompt 组装中已弃用（运行时不消费），残留代码造成误导
+- **DB**：`schema.js` 删除两张表的 `CREATE TABLE IF NOT EXISTS`，添加 `migrateDropLegacyEntryTables` 迁移（启动时 DROP TABLE IF EXISTS），同步删除相关 ALTER TABLE 迁移和索引
+- **DB Queries**：`db/queries/prompt-entries.js` 删除 `createGlobalEntry`/`getGlobalEntryById`/`getAllGlobalEntries`/`updateGlobalEntry`/`deleteGlobalEntry`/`reorderGlobalEntries` 及对应角色条目 CRUD
+- **Import/Export**：角色卡导出 `prompt_entries: []`（不再读 character_prompt_entries）；导入忽略 `prompt_entries` 字段（不写 character_prompt_entries）；全局设置导出不含 `global_prompt_entries`；导入不清写该表
+- **Assistant**：`routes.js` 移除 `global-config` entryOps 处理；`card-preview.js` 移除 `existingGlobalEntries`
+- **测试**：import-export 测试、prompt-entries query 测试、fixtures 全部同步清理
+- **文档**：SCHEMA.md / ARCHITECTURE.md 移除两张废表相关描述和导出格式中的 `global_prompt_entries` 字段
+
 ## 2026-04-24 状态字段更新方式简化：移除 trigger_mode/keyword_based，新增状态栏内联编辑
 
 - **背景**：`update_mode` + `trigger_mode` 两个维度冗余，用户体验复杂；统一收敛为一维：`manual`（手动）/ `llm_auto`（每轮更新）

@@ -2,43 +2,35 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport } from '../../helpers/test-env.js';
-import { insertCharacter, insertWorld } from '../../helpers/fixtures.js';
+import { insertWorld } from '../../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('query-prompt-entries-suite');
 sandbox.setEnv();
 
 after(() => sandbox.cleanup());
 
-test('prompt entries query 会规范化 keyword_scope、支持按 mode 过滤并保留关键词数组', async () => {
-  const world = insertWorld(sandbox.db, { name: '条目世界-全局' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '阿尔文' });
+test('prompt entries query 会规范化 keyword_scope 并保留关键词数组', async () => {
+  const world = insertWorld(sandbox.db, { name: '条目世界-keyword' });
   const queries = await freshImport('backend/db/queries/prompt-entries.js');
 
-  const g1 = queries.createGlobalEntry({
-    title: '全局聊天',
-    description: 'desc',
-    content: 'chat',
+  const e1 = queries.createWorldEntry({
+    world_id: world.id,
+    title: '关键词条目',
+    content: '内容',
     keyword_scope: 'both',
     keywords: ['火焰'],
-    mode: 'chat',
   });
-  queries.createGlobalEntry({
-    title: '全局写作',
-    content: 'writing',
+  const e2 = queries.createWorldEntry({
+    world_id: world.id,
+    title: '助手条目',
+    content: '内容',
     keyword_scope: ['assistant', 'user', 'assistant'],
-    mode: 'writing',
-  });
-  const c1 = queries.createCharacterEntry({
-    character_id: character.id,
-    title: '角色条目',
-    content: 'char',
-    keyword_scope: 'assistant',
-    keywords: ['夜色'],
   });
 
-  assert.equal(g1.keyword_scope, 'user,assistant');
-  assert.deepEqual(queries.getAllGlobalEntries('chat').map((row) => row.title), ['全局聊天']);
-  assert.deepEqual(queries.getCharacterEntryById(c1.id).keywords, ['夜色']);
+  assert.equal(e1.keyword_scope, 'user,assistant');
+  assert.deepEqual(e1.keywords, ['火焰']);
+  assert.ok(['user,assistant', 'assistant,user'].includes(e2.keyword_scope));
+  assert.deepEqual(queries.getWorldEntryById(e1.id).keywords, ['火焰']);
 });
 
 test('prompt entries query 会更新字段并按 owner 范围重排', async () => {
@@ -67,18 +59,17 @@ test('prompt entries query 会更新字段并按 owner 范围重排', async () =
   assert.deepEqual(otherRows.map((row) => row.title), ['外部']);
 });
 
-test('updateCharacterEntry 在空 patch 时返回现有记录，不会破坏排序与数据', async () => {
+test('updateWorldEntry 在空 patch 时返回现有记录，不会破坏排序与数据', async () => {
   const world = insertWorld(sandbox.db, { name: '条目世界-空更新' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '芙兰' });
   const queries = await freshImport('backend/db/queries/prompt-entries.js');
-  const created = queries.createCharacterEntry({
-    character_id: character.id,
+  const created = queries.createWorldEntry({
+    world_id: world.id,
     title: '原条目',
     content: '内容',
     sort_order: 5,
   });
 
-  const same = queries.updateCharacterEntry(created.id, {});
+  const same = queries.updateWorldEntry(created.id, {});
   assert.equal(same.id, created.id);
   assert.equal(same.sort_order, 5);
   assert.equal(same.title, '原条目');

@@ -33,8 +33,7 @@ function saveAvatarFile(entityId, avatarBase64, avatarMime) {
 }
 
 /**
- * 批量插入 prompt_entries（world_prompt_entries 或 character_prompt_entries）。
- * 不适用于 global_prompt_entries（有 mode 字段，INSERT 列不同）。
+ * 批量插入 world_prompt_entries。
  */
 function insertPromptEntries(stmt, entityId, entries, now) {
   for (const entry of (entries ?? [])) {
@@ -80,7 +79,6 @@ function importSingleCharacter(characterId, worldId, charData, validCharFieldKey
     charData.sort_order ?? 0,
     now, now,
   );
-  insertPromptEntries(stmts.insertCharEntry, characterId, charData.prompt_entries, now);
   insertStateValues(stmts.insertCharValue, characterId, charData.character_state_values, validCharFieldKeys, now);
 }
 
@@ -89,13 +87,6 @@ function importSingleCharacter(characterId, worldId, charData, validCharFieldKey
 export function exportCharacter(characterId) {
   const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
   if (!character) throw new Error('角色不存在');
-
-  const promptEntries = db.prepare(
-    'SELECT title, description, content, keywords, keyword_scope, sort_order, token FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
-  ).all(characterId).map((e) => ({
-    ...e,
-    keywords: e.keywords ? JSON.parse(e.keywords) : null,
-  }));
 
   const stateValues = db.prepare(
     'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
@@ -122,7 +113,7 @@ export function exportCharacter(characterId) {
       avatar_path: character.avatar_path ?? null,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
     },
-    prompt_entries: promptEntries,
+    prompt_entries: [],
     character_state_values: stateValues,
   };
 }
@@ -198,13 +189,6 @@ export function importCharacter(worldId, data) {
       now, now,
     );
 
-    // 插入 prompt_entries
-    const insertEntry = db.prepare(`
-      INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, token, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    insertPromptEntries(insertEntry, characterId, data.prompt_entries, now);
-
     // 插入 state_values（只导入 field_key 在目标世界中存在的）
     const insertValue = db.prepare(`
       INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
@@ -251,17 +235,10 @@ export function exportWorld(worldId) {
     'SELECT field_key, default_value_json AS value_json FROM world_state_values WHERE world_id = ?',
   ).all(worldId);
 
-  // 导出角色（含 prompt_entries 和 state_values）
+  // 导出角色（含 state_values）
   const characters = db.prepare(
     'SELECT * FROM characters WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC',
   ).all(worldId).map((character) => {
-    const entries = db.prepare(
-      'SELECT title, description, content, keywords, keyword_scope, sort_order, token FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC',
-    ).all(character.id).map((e) => ({
-      ...e,
-      keywords: e.keywords ? JSON.parse(e.keywords) : null,
-    }));
-
     const stateValues = db.prepare(
       'SELECT field_key, default_value_json AS value_json FROM character_state_values WHERE character_id = ?',
     ).all(character.id);
@@ -285,7 +262,7 @@ export function exportWorld(worldId) {
       avatar_path: character.avatar_path ?? null,
       sort_order: character.sort_order,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
-      prompt_entries: entries,
+      prompt_entries: [],
       character_state_values: stateValues,
     };
   });
@@ -470,16 +447,12 @@ export function importWorld(data) {
       INSERT INTO characters (id, world_id, name, system_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const insertCharEntry = db.prepare(`
-      INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, token, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
     const insertCharValue = db.prepare(`
       INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
       VALUES (?, ?, ?, ?, NULL, ?)
     `);
 
-    const charStmts = { insertChar: insertCharacter, insertCharEntry, insertCharValue };
+    const charStmts = { insertChar: insertCharacter, insertCharValue };
     for (const charData of (data.characters ?? [])) {
       importSingleCharacter(crypto.randomUUID(), worldId, charData, validCharFieldKeys, charStmts, now);
     }
@@ -495,10 +468,6 @@ export function importWorld(data) {
 export function exportGlobalSettings(mode = 'chat') {
   const config = getConfig();
 
-  const promptEntries = db.prepare(
-    'SELECT title, description, content, keywords, keyword_scope, mode, sort_order, token FROM global_prompt_entries WHERE mode = ? ORDER BY sort_order ASC',
-  ).all(mode).map((e) => ({ ...e, keywords: e.keywords ? JSON.parse(e.keywords) : null }));
-
   const cssSnippets = db.prepare(
     'SELECT name, content, enabled, mode, sort_order FROM custom_css_snippets WHERE mode = ? ORDER BY sort_order ASC, created_at ASC',
   ).all(mode);
@@ -512,7 +481,6 @@ export function exportGlobalSettings(mode = 'chat') {
     format: 'worldengine-global-settings-v1',
     mode,
     exported_at: new Date().toISOString(),
-    global_prompt_entries: promptEntries,
     custom_css_snippets: cssSnippets,
     regex_rules: regexRules,
   };
@@ -558,42 +526,9 @@ export function importGlobalSettings(data) {
   const validScopes = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
   const now = Date.now();
 
-  function normalizeKeywordScope(scope) {
-    if (typeof scope !== 'string') return 'user,assistant';
-    const raw = scope.trim().toLowerCase();
-    if (!raw || raw === 'both') return 'user,assistant';
-    if (raw === 'user' || raw === 'assistant') return raw;
-    const items = raw
-      .split(',')
-      .map((item) => item.trim())
-      .filter((item, index, arr) => (item === 'user' || item === 'assistant') && arr.indexOf(item) === index);
-    return items.join(',');
-  }
-
   const doImport = db.transaction(() => {
-    db.prepare('DELETE FROM global_prompt_entries WHERE mode = ?').run(mode);
     db.prepare('DELETE FROM custom_css_snippets WHERE mode = ?').run(mode);
     db.prepare('DELETE FROM regex_rules WHERE world_id IS NULL AND mode = ?').run(mode);
-
-    const insertEntry = db.prepare(
-      `INSERT INTO global_prompt_entries
-       (id, title, description, content, keywords, keyword_scope, mode, sort_order, token, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    );
-    for (const entry of (data.global_prompt_entries ?? [])) {
-      insertEntry.run(
-        crypto.randomUUID(),
-        entry.title ?? '',
-        entry.description ?? entry.summary ?? '',
-        entry.content ?? '',
-        entry.keywords != null ? JSON.stringify(entry.keywords) : null,
-        normalizeKeywordScope(entry.keyword_scope),
-        mode,
-        entry.sort_order ?? 0,
-        normalizeToken(entry.token),
-        now, now,
-      );
-    }
 
     const insertCss = db.prepare(
       `INSERT INTO custom_css_snippets (id, name, content, enabled, mode, sort_order, created_at, updated_at)

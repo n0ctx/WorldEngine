@@ -523,29 +523,6 @@ CREATE INDEX idx_character_state_values_character_id ON character_state_values(c
 
 ---
 
-### global_prompt_entries — 全局 Prompt 条目（遗留存储）
-
-```sql
-CREATE TABLE global_prompt_entries (
-  id             TEXT PRIMARY KEY,          -- UUID
-  title          TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',  -- 触发条件描述（1-2句话），LLM pre-flight 判断依据；为空则降级为纯关键词触发
-  content        TEXT NOT NULL DEFAULT '',  -- 完整正文，触发时注入
-  keywords       TEXT,                      -- JSON 字符串数组，兜底触发用，NULL 表示不启用关键词匹配
-                                            -- 例：["魔法", "法术", "咒语"]
-  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant', -- 关键词匹配范围：'user' | 'assistant' | 'user,assistant'
-  sort_order     INTEGER NOT NULL DEFAULT 0, -- 同层条目的显示排序
-  token          INTEGER NOT NULL DEFAULT 1, -- 注入顺序权重，token 越大越靠后（ASC 排序），默认 1
-  mode           TEXT NOT NULL DEFAULT 'chat', -- 'chat' | 'writing'，决定条目归属的空间
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
-);
-```
-
-> 当前运行时不再消费该表，也不再提供前端 CRUD 入口；保留用于历史导入导出兼容与旧数据存档。
-
----
-
 ### world_prompt_entries — 世界 State 条目
 
 ```sql
@@ -558,7 +535,7 @@ CREATE TABLE world_prompt_entries (
   keywords       TEXT,                      -- JSON 字符串数组或 NULL
   keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
   position       TEXT NOT NULL DEFAULT 'post', -- 历史遗留列；运行时不再消费（所有命中条目统一注入 system 块）
-  trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'（关键词触发）/ 'llm'（AI召回）/ 'state'（状态条件评估）
+  trigger_type   TEXT NOT NULL DEFAULT 'always', -- 激活方式：'always'（常驻）/ 'keyword'）/ 'llm'（AI召回）/ 'state'（状态条件评估）
   sort_order     INTEGER NOT NULL DEFAULT 0,
   token          INTEGER NOT NULL DEFAULT 1, -- 注入顺序权重，token 越大越靠后（ASC 排序），默认 1；同 token 时按 sort_order ASC
   created_at     INTEGER NOT NULL,
@@ -608,31 +585,6 @@ CREATE INDEX IF NOT EXISTS idx_entry_conditions_entry_id ON entry_conditions(ent
 - 条件为空的 `state` 条目不触发（必须至少有一条 entry_conditions）
 - chat 模式：`角色.xxx` 映射当前会话角色；writing 模式：对所有激活角色逐个评估，任一角色满足整组条件即触发（OR over characters，AND within conditions）
 - 级联删除：world_prompt_entries 删除时自动级联删除 entry_conditions
-
----
-
-### character_prompt_entries — 角色 Prompt 条目（遗留存储）
-
-```sql
-CREATE TABLE character_prompt_entries (
-  id             TEXT PRIMARY KEY,
-  character_id   TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-  title          TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',  -- 触发条件描述（同上）
-  content        TEXT NOT NULL DEFAULT '',
-  keywords       TEXT,                      -- JSON 字符串数组或 NULL
-  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
-  position       TEXT NOT NULL DEFAULT 'post', -- 历史迁移补齐列；当前运行时不消费
-  sort_order     INTEGER NOT NULL DEFAULT 0,
-  token          INTEGER NOT NULL DEFAULT 1, -- 注入顺序权重，token 越大越靠后（ASC 排序），默认 1
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
-);
-
-CREATE INDEX idx_character_prompt_entries_character_id ON character_prompt_entries(character_id);
-```
-
-> 当前运行时不再消费该表，也不再提供前端 CRUD 入口；角色层可配置提示词只保留 `characters.system_prompt/post_prompt`。
 
 ---
 
@@ -974,17 +926,6 @@ CREATE TABLE internal_meta (
   "format": "worldengine-global-settings-v1",
   "mode": "chat",
   "exported_at": "2026-04-22T00:00:00.000Z",
-  "global_prompt_entries": [
-    {
-      "title": "",
-      "description": "",
-      "content": "",
-      "keywords": [],
-      "keyword_scope": "user,assistant",
-      "mode": "chat",
-      "sort_order": 0
-    }
-  ],
   "custom_css_snippets": [
     {
       "name": "",
@@ -1021,7 +962,6 @@ CREATE TABLE internal_meta (
   "format": "worldengine-global-settings-v1",
   "mode": "writing",
   "exported_at": "2026-04-22T00:00:00.000Z",
-  "global_prompt_entries": [...],
   "custom_css_snippets": [...],
   "regex_rules": [...],
   "writing": {
@@ -1038,7 +978,7 @@ CREATE TABLE internal_meta (
 ```
 
 导入约束：
-- **覆盖模式**：先删除同 mode 下的所有 `global_prompt_entries`、`custom_css_snippets`、`regex_rules`（world_id IS NULL），再写入
+- **覆盖模式**：先删除同 mode 下的所有 `custom_css_snippets`、`regex_rules`（world_id IS NULL），再写入
 - 不含 API Key、不含世界/角色/会话数据
 - `regex_rules` 的 `flags` 字段不在导出格式中，导入时回退为数据库默认值 `'g'`
 - chat 模式导入后，`config` 字段覆盖 `data/config.json` 中对应键（global_system_prompt / global_post_prompt / context_history_rounds / memory_expansion_enabled）
@@ -1076,9 +1016,6 @@ SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC;
 
 -- 获取某会话时间线（最近 5 轮 turn_records 摘要）
 SELECT * FROM turn_records WHERE session_id = ? ORDER BY round_index DESC LIMIT 5;
-
--- 获取某角色的所有 Prompt 条目（按排序字段）
-SELECT * FROM character_prompt_entries WHERE character_id = ? ORDER BY sort_order ASC;
 
 -- 检查某 session 是否已有 summary
 SELECT id FROM session_summaries WHERE session_id = ? LIMIT 1;

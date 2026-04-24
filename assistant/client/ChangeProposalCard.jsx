@@ -104,7 +104,7 @@ function EntryOpEditor({ op, onChange, onRemove }) {
             style={{ ...inputBase, marginBottom: '4px' }}
           />
           <input
-            placeholder="触发条件（何时触发，1-2句话，留空降级为纯关键词触发）"
+            placeholder="触发条件（何时触发，1-2句话，留空降级为纯关键词）"
             value={op.description || ''}
             onChange={(e) => onChange({ ...op, description: e.target.value })}
             style={{ ...inputBase, marginBottom: '4px' }}

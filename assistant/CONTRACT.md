@@ -288,7 +288,7 @@ skill 执行失败时发送。
 { "op": "delete", "id": "现有条目ID" }
 ```
 
-`description`（触发条件）：1-2 句话描述**何时**触发，为空则降级为纯关键词触发。
+`description`（触发条件）：1-2 句话描述**何时**触发，为空则降级为纯关键词。
 
 `keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
 
@@ -313,7 +313,7 @@ skill 执行失败时发送。
 
 支持的 `operator`：`eq` / `ne` / `gt` / `lt` / `gte` / `lte` / `contains` / `not_contains`
 
-**global-config entryOps 额外字段**（全局条目无 trigger_type，仅关键词触发）：
+**global-config entryOps 额外字段**（全局条目无 trigger_type，仅关键词）：
 
 ```json
 {

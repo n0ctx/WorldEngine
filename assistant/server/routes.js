@@ -22,12 +22,6 @@ import {
   deleteWorldPromptEntry,
 } from '../../backend/services/prompt-entries.js';
 import {
-  createGlobalEntry,
-  updateGlobalEntry,
-  deleteGlobalEntry,
-  getAllGlobalEntries,
-} from '../../backend/db/queries/prompt-entries.js';
-import {
   createWorldStateField,
   listWorldStateFields,
   updateWorldStateField,
@@ -339,11 +333,6 @@ async function applyProposal(proposal, worldRefId = null) {
       const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = updateConfig(safeChanges);
-      for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
-        if (op.op === 'create') createGlobalEntry(op);
-        else if (op.op === 'update' && op.id) updateGlobalEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'mode', 'token']));
-        else if (op.op === 'delete' && op.id) deleteGlobalEntry(op.id);
-      }
       return updated;
     }
 

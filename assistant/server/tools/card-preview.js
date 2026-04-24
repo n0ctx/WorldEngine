@@ -8,7 +8,7 @@ import { getWorldById } from '../../../backend/services/worlds.js';
 import { getCharacterById } from '../../../backend/services/characters.js';
 import { getOrCreatePersona } from '../../../backend/services/personas.js';
 import { getConfig } from '../../../backend/services/config.js';
-import { getAllWorldEntries, getAllGlobalEntries } from '../../../backend/db/queries/prompt-entries.js';
+import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 import { listWorldStateFields } from '../../../backend/services/world-state-fields.js';
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../../backend/services/persona-state-fields.js';
@@ -127,7 +127,7 @@ function loadEntityData(target, operation, entityId, context) {
       };
     }
     case 'global-prompt': {
-      return { ...getConfig(), existingGlobalEntries: getAllGlobalEntries() };
+      return { ...getConfig() };
     }
     case 'css-snippet': {
       return { existingSnippets: listCustomCssSnippets() };
