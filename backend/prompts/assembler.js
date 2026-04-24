@@ -10,11 +10,10 @@
  *   [5]  角色 System Prompt
  *   [6]  角色状态
  *   [7]  世界 State 条目（description 仅供 preflight；命中→content 注入）
- *   [8]  触发器 inject_prompt（consumed 模式递减 rounds_remaining）
- *   [9]  召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
- *   [10] 展开原文（AI preflight 决策后的 turn record 原文）
- *   [11] 日记注入（一次性，仅本轮生效）
- *   [12] 后置提示词（全局→角色 + world post 条目，均空跳过）
+ *   [8]  召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+ *   [9]  展开原文（AI preflight 决策后的 turn record 原文）
+ *   [10] 日记注入（一次性，仅本轮生效）
+ *   [11] 后置提示词（全局→角色 + world post 条目，均空跳过）
  *   [历史消息：role:user/assistant 交替]
  *   [13] 历史消息（稳定使用原始 messages 窗口）
  *   [14] 当前用户消息（唯一的尾部 user 消息）
@@ -38,7 +37,6 @@ import {
 } from '../db/queries/prompt-entries.js';
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
-import { getActiveInjectPromptActions, updateActionParams } from '../db/queries/triggers.js';
 import {
   renderPersonaState,
   renderWorldState,
@@ -200,7 +198,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
-  const triggeredIds = await matchEntries(sessionId, worldEntries);
+  const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
   const systemEntryTexts = [];
@@ -223,32 +221,15 @@ export async function buildPrompt(sessionId, options = {}) {
     systemParts.push(systemEntryTexts.join('\n\n'));
   }
 
-  // [8] 触发器 inject_prompt 注入（consumed 模式递减 rounds_remaining）
-  const injectActions = getActiveInjectPromptActions(world.id);
-  const injectTexts = [];
-  for (const action of injectActions) {
-    const p = action.params || {};
-    if (p.text) {
-      injectTexts.push(`[触发注入]\n${p.text}`);
-      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
-      }
-    }
-  }
-  if (injectTexts.length > 0) {
-    systemParts.push(injectTexts.join('\n\n'));
-    log.debug(`│  [8] inject  count=${injectTexts.length}`);
-  }
-
-  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [9] 记忆展开（由 AI 决定需要展开哪些原文）
   let expandedText = '';
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
@@ -264,7 +245,7 @@ export async function buildPrompt(sessionId, options = {}) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         systemParts.push(tv(expandedText));
-        log.debug(`│  [10] expand  ids=${expandIds.length}`);
+        log.debug(`│  [9] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -272,13 +253,13 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
-  // [11] 日记注入（一次性，仅本轮生效）
+  // [10] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     systemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [11] diary injection applied');
+    log.debug('│  [10] diary injection applied');
   }
 
-  // [12] 后置提示词 → 注入 system 末尾
+  // [11] 后置提示词 → 注入 system 末尾
   const postParts = [
     config.global_post_prompt,
     character.post_prompt,
@@ -400,7 +381,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
-  const triggeredIds = await matchEntries(sessionId, worldEntries);
+  const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   const systemEntryTexts = [];
   const postEntryTexts = [];
 
@@ -418,32 +399,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
   if (systemEntryTexts.length > 0) systemParts.push(systemEntryTexts.join('\n\n'));
 
-  // [8] 触发器 inject_prompt 注入（consumed 模式递减 rounds_remaining）
-  const injectActions = getActiveInjectPromptActions(world.id);
-  const injectTexts = [];
-  for (const action of injectActions) {
-    const p = action.params || {};
-    if (p.text) {
-      injectTexts.push(`[触发注入]\n${p.text}`);
-      if (p.mode === 'consumed' && typeof p.rounds_remaining === 'number') {
-        updateActionParams(action.id, { rounds_remaining: p.rounds_remaining - 1 });
-      }
-    }
-  }
-  if (injectTexts.length > 0) {
-    systemParts.push(injectTexts.join('\n\n'));
-    log.debug(`│  [8] inject  count=${injectTexts.length}`);
-  }
-
-  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [9] 记忆展开（由 AI 决定需要展开哪些原文）
   if (recallHitCount > 0 && writing.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
       ref: r.ref,
@@ -458,7 +422,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         systemParts.push(tv(expandedText));
-        log.debug(`│  [10] expand  ids=${expandIds.length}`);
+        log.debug(`│  [9] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -466,13 +430,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [11] 日记注入（一次性，仅本轮生效）
+  // [10] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     systemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [11] diary injection applied (writing)');
+    log.debug('│  [10] diary injection applied (writing)');
   }
 
-  // [12] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词）
+  // [11] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词）
   const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
 
   if (postEntryTexts.length > 0) {

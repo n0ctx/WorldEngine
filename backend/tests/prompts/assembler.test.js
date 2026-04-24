@@ -223,68 +223,6 @@ test('buildPrompt position=post 条目注入到 system 后置段', async () => {
   assert.equal(result.messages.at(-1).content, '用户消息');
 });
 
-test('buildPrompt inject_prompt consumed 模式注入且递减 rounds_remaining', async () => {
-  sandbox.writeConfig({
-    ...sandbox.readConfig(),
-    global_system_prompt: '',
-    global_post_prompt: '',
-    context_history_rounds: 1,
-    suggestion_enabled: false,
-  });
-
-  const world = insertWorld(sandbox.db, { name: '触发器世界' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '测试角色' });
-  const session = insertSession(sandbox.db, { character_id: character.id });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '用户消息', created_at: 1 });
-
-  const { createTrigger, insertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
-  const trigger = createTrigger({ world_id: world.id, name: '注入触发器', enabled: 1 });
-  const action = insertTriggerAction(trigger.id, 'inject_prompt', {
-    text: '触发注入文本',
-    mode: 'consumed',
-    rounds_remaining: 2,
-    inject_rounds: 3,
-  });
-
-  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
-  const result = await buildPrompt(session.id);
-
-  assert.match(result.messages[0].content, /触发注入/);
-
-  const row = sandbox.db.prepare('SELECT params FROM trigger_actions WHERE id = ?').get(action.id);
-  const params = JSON.parse(row.params);
-  assert.equal(params.rounds_remaining, 1);
-});
-
-test('buildPrompt inject_prompt rounds_remaining=0 时不再注入', async () => {
-  sandbox.writeConfig({
-    ...sandbox.readConfig(),
-    global_system_prompt: '',
-    global_post_prompt: '',
-    context_history_rounds: 1,
-    suggestion_enabled: false,
-  });
-
-  const world = insertWorld(sandbox.db, { name: '耗尽触发器世界' });
-  const character = insertCharacter(sandbox.db, world.id, { name: '测试角色' });
-  const session = insertSession(sandbox.db, { character_id: character.id });
-  insertMessage(sandbox.db, session.id, { role: 'user', content: '用户消息', created_at: 1 });
-
-  const { createTrigger, insertTriggerAction } = await freshImport('backend/db/queries/triggers.js');
-  const trigger = createTrigger({ world_id: world.id, name: '耗尽触发器', enabled: 1 });
-  insertTriggerAction(trigger.id, 'inject_prompt', {
-    text: '触发注入文本',
-    mode: 'consumed',
-    rounds_remaining: 0,
-    inject_rounds: 3,
-  });
-
-  const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
-  const result = await buildPrompt(session.id);
-
-  assert.equal(result.messages.length, 1);
-  assert.doesNotMatch(result.messages.at(-1).content, /触发注入/);
-});
 
 test('buildWritingPrompt 在写作模式下合并多角色条目、状态与写作专属开关', async () => {
   sandbox.writeConfig({
