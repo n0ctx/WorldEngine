@@ -432,6 +432,10 @@ export function initSchema(db) {
   migrateDropTriggerTables(db);
   // worlds 新增 active_persona_id 列
   try { db.exec(`ALTER TABLE worlds ADD COLUMN active_persona_id TEXT`); } catch {}
+  // token 字段：条目注入顺序权重（正整数，越大越靠后，默认 1）
+  try { db.exec("ALTER TABLE global_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
+  try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
+  try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {

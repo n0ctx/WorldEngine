@@ -39,6 +39,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     description: entry?.description ?? '',
     keywords: entry?.keywords ? entry.keywords.join(', ') : '',
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
+    token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
 
@@ -113,6 +114,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         ? form.keywords.split(',').map((k) => k.trim()).filter(Boolean)
         : null,
       trigger_type: form.trigger_type,
+      token: Math.max(1, parseInt(form.token, 10) || 1),
     };
     try {
       let saved;
@@ -147,6 +149,21 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           value={form.title}
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           className="we-entry-editor-field we-entry-editor-field-mb"
+        />
+
+        {/* 顺序权重 */}
+        <label className="we-entry-editor-label">顺序权重（越大越靠后，默认 1）</label>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={form.token}
+          onChange={(e) => {
+            const v = parseInt(e.target.value, 10);
+            setForm((f) => ({ ...f, token: isNaN(v) || v < 1 ? 1 : v }));
+          }}
+          className="we-entry-editor-field we-entry-editor-field-mb"
+          style={{ width: '80px' }}
         />
 
         {/* 内容 */}

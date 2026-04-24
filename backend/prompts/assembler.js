@@ -201,14 +201,15 @@ export async function buildPrompt(sessionId, options = {}) {
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
-  const entryTexts = [];
-
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
-  for (const entry of worldEntries) {
-    if (triggeredIds.has(entry.id) && entry.content) {
-      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
-    }
-  }
+  const triggeredEntries = worldEntries
+    .filter((entry) => triggeredIds.has(entry.id) && entry.content)
+    .sort((a, b) => {
+      const diff = (a.token ?? 1) - (b.token ?? 1); // token ASC（越大越靠后）
+      if (diff !== 0) return diff;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0); // 同 token 时 sort_order ASC
+    });
+  const entryTexts = triggeredEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
 
   if (entryTexts.length > 0) {
     systemParts.push(entryTexts.join('\n\n'));
@@ -371,14 +372,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  const entryTexts = [];
-
   // description 只供 preflight 判断是否命中，不进入最终主 prompt。
-  for (const entry of worldEntries) {
-    if (triggeredIds.has(entry.id) && entry.content) {
-      entryTexts.push(`【${tv(entry.title)}】\n${tv(entry.content)}`);
-    }
-  }
+  const triggeredEntries2 = worldEntries
+    .filter((entry) => triggeredIds.has(entry.id) && entry.content)
+    .sort((a, b) => {
+      const diff = (a.token ?? 1) - (b.token ?? 1); // token ASC（越大越靠后）
+      if (diff !== 0) return diff;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
   if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
 
   // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）

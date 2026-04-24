@@ -3,6 +3,11 @@ import db from '../index.js';
 
 // ─── 通用工具 ───────────────────────────────────────────────────
 
+function normalizeToken(value) {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
+
 function normalizeKeywordScopeValue(value) {
   if (Array.isArray(value)) {
     const items = value
@@ -47,8 +52,8 @@ export function createGlobalEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO global_prompt_entries (id, title, description, content, keywords, keyword_scope, mode, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO global_prompt_entries (id, title, description, content, keywords, keyword_scope, mode, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.title,
@@ -58,6 +63,7 @@ export function createGlobalEntry(data) {
     normalizeKeywordScopeValue(data.keyword_scope),
     data.mode ?? 'chat',
     sortOrder,
+    normalizeToken(data.token),
     now,
     now,
   );
@@ -76,7 +82,7 @@ export function getAllGlobalEntries(mode) {
 }
 
 export function updateGlobalEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'mode', 'sort_order'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'mode', 'sort_order', 'token'];
   const sets = [];
   const values = [];
 
@@ -87,7 +93,9 @@ export function updateGlobalEntry(id, patch) {
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
         : field === 'keyword_scope'
           ? normalizeKeywordScopeValue(patch.keyword_scope)
-          : patch[field]);
+          : field === 'token'
+            ? normalizeToken(patch.token)
+            : patch[field]);
     }
   }
 
@@ -121,8 +129,8 @@ export function createWorldEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.world_id,
@@ -133,6 +141,7 @@ export function createWorldEntry(data) {
     normalizeKeywordScopeValue(data.keyword_scope),
     data.trigger_type ?? 'always',
     sortOrder,
+    normalizeToken(data.token),
     now,
     now,
   );
@@ -148,7 +157,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'token'];
   const sets = [];
   const values = [];
 
@@ -159,7 +168,9 @@ export function updateWorldEntry(id, patch) {
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
         : field === 'keyword_scope'
           ? normalizeKeywordScopeValue(patch.keyword_scope)
-          : patch[field]);
+          : field === 'token'
+            ? normalizeToken(patch.token)
+            : patch[field]);
     }
   }
 
@@ -192,8 +203,8 @@ export function createCharacterEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO character_prompt_entries (id, character_id, title, description, content, keywords, keyword_scope, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.character_id,
@@ -203,6 +214,7 @@ export function createCharacterEntry(data) {
     data.keywords != null ? JSON.stringify(data.keywords) : null,
     normalizeKeywordScopeValue(data.keyword_scope),
     sortOrder,
+    normalizeToken(data.token),
     now,
     now,
   );
@@ -218,7 +230,7 @@ export function getAllCharacterEntries(characterId) {
 }
 
 export function updateCharacterEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'token'];
   const sets = [];
   const values = [];
 
@@ -229,7 +241,9 @@ export function updateCharacterEntry(id, patch) {
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
         : field === 'keyword_scope'
           ? normalizeKeywordScopeValue(patch.keyword_scope)
-          : patch[field]);
+          : field === 'token'
+            ? normalizeToken(patch.token)
+            : patch[field]);
     }
   }
 

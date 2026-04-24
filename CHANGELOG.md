@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 条目新增 token 顺序权重字段
+
+- **需求**：给所有条目类型（global/world/character）统一增加 `token` 属性（正整数，默认 1），注入时按 token ASC 排序（token 越大越靠后）；同 token 时保持 sort_order ASC 手动顺序
+- **schema.js**：追加 3 条 `ALTER TABLE ... ADD COLUMN token INTEGER NOT NULL DEFAULT 1`，覆盖三张条目表
+- **queries/prompt-entries.js**：`createGlobalEntry`/`createWorldEntry`/`createCharacterEntry` INSERT 加 `token` 列；对应 `updateXxxEntry` 的 `allowed` 数组均加 `'token'`
+- **assembler.js**：`buildPrompt` 和 `buildWritingPrompt` 的 [7] 段改为 filter+sort+map 链式写法，按 `token ASC` 排序已触发条目后再拼文本
+- **routes/prompt-entries.js**：POST 路由解构加 `token`
+- **services/import-export.js**：4 处导出 SELECT 加 `token` 字段；4 处导入 INSERT（world/character/global）加 `token` 列及参数
+- **EntryEditor.jsx**：form state 加 `token: 1`；handleSave 的 data 加 `token`；新增"顺序权重"数字输入框（min=1），位于标题与内容之间
+- **SCHEMA.md**：三张条目表字段定义均加 `token` 说明
+
 ## 2026-04-24 删除条目注入位置（position）配置
 
 - **背景**：`world_prompt_entries.position` 原区分 `system`（注入 [7]）/ `post`（注入 [11]）两个位置，但二者最终都合并进同一条 system 消息，区别仅是顺序，无实际意义
