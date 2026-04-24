@@ -64,7 +64,7 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
-  const { stateData, setStateData, diaryEntries, stateJustChanged } = useSessionState(sessionId, tick);
+  const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, tick);
 
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
@@ -264,9 +264,31 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
       {/* ── 悬浮状态卡 ── */}
       <AnimatePresence>
-        {stateJustChanged && (
+        {isUpdating && (
           <MotionDiv
-            key="state-overlay"
+            key="state-overlay-updating"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.28, ease: 'easeInOut' }}
+            className="we-state-change-overlay"
+          >
+            <MotionDiv
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              className="we-state-change-chip"
+            >
+              <span className="we-state-change-text">
+                整理中
+              </span>
+            </MotionDiv>
+          </MotionDiv>
+        )}
+        {!isUpdating && stateJustChanged && (
+          <MotionDiv
+            key="state-overlay-done"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

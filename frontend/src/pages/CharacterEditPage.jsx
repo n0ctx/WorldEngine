@@ -212,10 +212,10 @@ export default function CharacterEditPage() {
             placeholder="一句话介绍这个角色…"
           />
         </FormGroup>
-        <FormGroup label="系统提示词">
+        <FormGroup label="人设">
           <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />
         </FormGroup>
-        <FormGroup label="后置提示词" hint="插入在用户消息之后，作为 user 角色发送">
+        <FormGroup label="后置提示词">
           <MarkdownEditor value={postPrompt} onChange={setPostPrompt} placeholder="每次对话附加的角色级指令，例如特定的回复格式……" minHeight={72} />
         </FormGroup>
         <FormGroup label="开场白">

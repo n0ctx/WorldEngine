@@ -26,7 +26,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
 import { getSessionById } from '../db/queries/sessions.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
