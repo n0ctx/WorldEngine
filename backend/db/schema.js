@@ -2,21 +2,23 @@ import crypto from 'node:crypto';
 
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
-  id             TEXT PRIMARY KEY,
-  name           TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',
-  system_prompt  TEXT NOT NULL DEFAULT '',
-  post_prompt    TEXT NOT NULL DEFAULT '',
-  temperature    REAL,
-  max_tokens     INTEGER,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
+  id                TEXT PRIMARY KEY,
+  name              TEXT NOT NULL,
+  description       TEXT NOT NULL DEFAULT '',
+  system_prompt     TEXT NOT NULL DEFAULT '',
+  post_prompt       TEXT NOT NULL DEFAULT '',
+  temperature       REAL,
+  max_tokens        INTEGER,
+  active_persona_id TEXT,
+  created_at        INTEGER NOT NULL,
+  updated_at        INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS personas (
   id             TEXT PRIMARY KEY,
-  world_id       TEXT NOT NULL UNIQUE REFERENCES worlds(id) ON DELETE CASCADE,
+  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL DEFAULT '',
+  description    TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
   avatar_path    TEXT,
   created_at     INTEGER NOT NULL,
@@ -59,6 +61,7 @@ CREATE TABLE IF NOT EXISTS characters (
   id             TEXT PRIMARY KEY,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   name           TEXT NOT NULL,
+  description    TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
   post_prompt    TEXT NOT NULL DEFAULT '',
   first_message  TEXT NOT NULL DEFAULT '',
@@ -303,35 +306,14 @@ CREATE TABLE IF NOT EXISTS chapter_titles (
   UNIQUE(session_id, chapter_index)
 );
 
-CREATE TABLE IF NOT EXISTS triggers (
-  id                    TEXT PRIMARY KEY,
-  world_id              TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  name                  TEXT NOT NULL,
-  enabled               INTEGER NOT NULL DEFAULT 1,
-  one_shot              INTEGER NOT NULL DEFAULT 0,
-  last_triggered_round  INTEGER,
-  created_at            INTEGER NOT NULL,
-  updated_at            INTEGER NOT NULL
+CREATE TABLE IF NOT EXISTS entry_conditions (
+  id           TEXT PRIMARY KEY,
+  entry_id     TEXT NOT NULL REFERENCES world_prompt_entries(id) ON DELETE CASCADE,
+  target_field TEXT NOT NULL,
+  operator     TEXT NOT NULL,
+  value        TEXT NOT NULL
 );
-
-CREATE INDEX IF NOT EXISTS idx_triggers_world_id ON triggers(world_id);
-
-CREATE TABLE IF NOT EXISTS trigger_conditions (
-  id            TEXT PRIMARY KEY,
-  trigger_id    TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-  target_field  TEXT NOT NULL,
-  operator      TEXT NOT NULL,
-  value         TEXT NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_trigger_conditions_trigger_id ON trigger_conditions(trigger_id);
-
-CREATE TABLE IF NOT EXISTS trigger_actions (
-  id          TEXT PRIMARY KEY,
-  trigger_id  TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-  action_type TEXT NOT NULL,
-  params      TEXT NOT NULL DEFAULT '{}'
-);
+CREATE INDEX IF NOT EXISTS idx_entry_conditions_entry_id ON entry_conditions(entry_id);
 `;
 
 const INDEXES = `
@@ -359,6 +341,9 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
   // T35: 为现有数据库添加 worlds.description 列
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T-desc: 为现有数据库添加 characters.description / personas.description 列
+  try { db.exec(`ALTER TABLE characters ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { db.exec(`ALTER TABLE personas ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   // T32: 轮次压缩字段迁移
   try { db.exec(`ALTER TABLE messages ADD COLUMN is_compressed INTEGER NOT NULL DEFAULT 0`); } catch {}
   try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
@@ -441,7 +426,12 @@ export function initSchema(db) {
   try { db.exec("ALTER TABLE character_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
   migrateLegacyWorldPromptColumns(db);
-  migrateTriggerActionsMulti(db);
+  // personas 多对一：移除 world_id UNIQUE 约束
+  migratePersonasMultiPerWorld(db);
+  // 废除触发器三表，新增 entry_conditions 表
+  migrateDropTriggerTables(db);
+  // worlds 新增 active_persona_id 列
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN active_persona_id TEXT`); } catch {}
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {
@@ -537,42 +527,6 @@ function migrateLegacyAutoFilledNullStateValues(db) {
   }
 }
 
-// State 引擎：trigger_actions 支持一对多（移除 UNIQUE 约束）
-function migrateTriggerActionsMulti(db) {
-  const migKey = 'migration:trigger_actions_multi';
-  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
-  if (already) return;
-
-  // 检测当前表是否有 UNIQUE 约束（通过 sql 字段判断）
-  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='trigger_actions'").get();
-  if (!tableInfo || !tableInfo.sql.includes('UNIQUE')) {
-    // 新建库，表已无 UNIQUE，直接记录 migKey 并返回
-    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
-    return;
-  }
-
-  db.pragma('foreign_keys = OFF');
-  db.exec('BEGIN');
-  try {
-    db.exec(`CREATE TABLE trigger_actions_new (
-      id          TEXT PRIMARY KEY,
-      trigger_id  TEXT NOT NULL REFERENCES triggers(id) ON DELETE CASCADE,
-      action_type TEXT NOT NULL,
-      params      TEXT NOT NULL DEFAULT '{}'
-    )`);
-    db.exec('INSERT INTO trigger_actions_new SELECT * FROM trigger_actions');
-    db.exec('DROP TABLE trigger_actions');
-    db.exec('ALTER TABLE trigger_actions_new RENAME TO trigger_actions');
-    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  } finally {
-    db.pragma('foreign_keys = ON');
-  }
-}
-
 function migrateTriggerTypeInitial(db) {
   const migKey = 'migration:trigger_type_initial';
   const already = db.prepare("SELECT value FROM internal_meta WHERE key = ?").get(migKey);
@@ -655,6 +609,57 @@ function migrateLegacyWorldPromptColumns(db) {
     db.exec('ROLLBACK');
     throw e;
   }
+}
+
+function migratePersonasMultiPerWorld(db) {
+  const migKey = 'migration:personas_multi_per_world';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  // 检测当前 personas 表是否仍有 UNIQUE 约束（旧库）
+  const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='personas'").get();
+  if (!tableInfo || !tableInfo.sql.includes('UNIQUE')) {
+    // 新库无 UNIQUE，直接记录迁移完成
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    return;
+  }
+
+  db.pragma('foreign_keys = OFF');
+  db.exec('BEGIN');
+  try {
+    db.exec(`CREATE TABLE personas_new (
+      id             TEXT PRIMARY KEY,
+      world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+      name           TEXT NOT NULL DEFAULT '',
+      system_prompt  TEXT NOT NULL DEFAULT '',
+      avatar_path    TEXT,
+      created_at     INTEGER NOT NULL,
+      updated_at     INTEGER NOT NULL
+    )`);
+    db.exec('INSERT INTO personas_new SELECT id, world_id, name, system_prompt, avatar_path, created_at, updated_at FROM personas');
+    db.exec('DROP TABLE personas');
+    db.exec('ALTER TABLE personas_new RENAME TO personas');
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
+}
+
+function migrateDropTriggerTables(db) {
+  const migKey = 'migration:drop_trigger_tables';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  db.exec('DROP TABLE IF EXISTS trigger_actions');
+  db.exec('DROP TABLE IF EXISTS trigger_conditions');
+  db.exec('DROP TABLE IF EXISTS triggers');
+
+  db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)")
+    .run(migKey, Date.now());
 }
 
 function migrateLegacyStateValueColumns(db) {
