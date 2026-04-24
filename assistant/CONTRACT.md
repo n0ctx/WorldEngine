@@ -306,12 +306,17 @@ skill 执行失败时发送。
 
 ```json
 [
-  { "target_field": "hp", "operator": "lt", "value": "30" },
-  { "target_field": "weather", "operator": "eq", "value": "storm" }
+  { "target_field": "玩家.HP", "operator": "<", "value": "30" },
+  { "target_field": "世界.天气", "operator": "等于", "value": "暴雨" }
 ]
 ```
 
-支持的 `operator`：`eq` / `ne` / `gt` / `lt` / `gte` / `lte` / `contains` / `not_contains`
+约束：
+
+- `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`
+- 不要只写裸 `field_key`，例如 `"hp"`
+- 数值操作符：`>` / `<` / `=` / `>=` / `<=` / `!=`
+- 文本操作符：`包含` / `等于` / `不包含`
 
 **global-config entryOps 额外字段**（全局条目无 trigger_type，仅关键词）：
 

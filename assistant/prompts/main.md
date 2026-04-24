@@ -83,6 +83,7 @@ create 操作省略"当前状态"部分。
 - 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm/state）、keywords（关键词数组，keyword 类型使用）、token（注入顺序权重，整数，越小越靠前）
 - 全局条目（global_prompt_entries）无触发类型，仅关键词匹配，按 mode 区分 chat/writing
 - 所有命中的世界条目统一在 [7] 位置注入（position 字段已废弃，不再消费）
+- `state` 条目条件必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`
 
 **状态字段（State Fields）**
 - 动态数值，如"体力""当前位置""天气"
@@ -90,8 +91,8 @@ create 操作省略"当前状态"部分。
 - trigger_mode: `manual_only`、`every_turn`（每轮）、`keyword_based`（关键词）
 
 **后置提示词（Post Prompt）**
-- 注入 system 末尾（[12] 位置），不是独立 user 消息
-- 包含：全局后置提示词 + 角色后置提示词 + position:"post" 的常驻条目
+- 注入 system 末尾（[11] 位置），不是独立 user 消息
+- 包含：全局后置提示词 + 角色后置提示词
 - 用于追加指令，如约束输出格式、提醒角色保持风格
 
 **写作空间**

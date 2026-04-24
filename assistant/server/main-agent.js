@@ -89,8 +89,8 @@ function buildContextString(context) {
     const w = context.world;
     parts.push(
       `**当前世界**：${w.name}（ID: ${w.id}）\n` +
-      `system_prompt: ${w.system_prompt?.slice(0, 400) || '（空）'}\n` +
-      `post_prompt: ${w.post_prompt?.slice(0, 150) || '（空）'}`,
+      `temperature: ${w.temperature ?? '（继承全局）'}，max_tokens: ${w.max_tokens ?? '（继承全局）'}\n` +
+      `世界正文通过 world_prompt_entries 管理；状态逻辑通过 world/persona/character 三套状态字段与 state 条目管理。`,
     );
   }
 

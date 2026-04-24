@@ -20,7 +20,7 @@ test('normalizeProposal 会过滤敏感字段并规范 global-config changes', (
   assert.equal(proposal.changes.llm.api_key, undefined);
   assert.equal(proposal.changes.embedding.api_key, undefined);
   assert.equal(proposal.changes.global_system_prompt, '新的系统提示');
-  assert.equal(proposal.entryOps, undefined);
+  assert.deepEqual(proposal.entryOps, []);
 });
 
 test('normalizeStateFieldOps 会校验 target/type 并规范 create/delete', () => {
@@ -92,8 +92,8 @@ test('normalizeProposal 会拒绝未知提案类型与非法 operation', () => {
   );
 
   assert.throws(
-    () => __testables.normalizeProposal({ type: 'persona-card', operation: 'create' }),
-    /persona-card 不支持 operation=create/,
+    () => __testables.normalizeProposal({ type: 'global-config', operation: 'delete' }),
+    /global-config 不支持 operation=delete/,
   );
 });
 
@@ -183,4 +183,55 @@ test('normalizeProposal 不会在 character-card 中包含 entryOps', () => {
   });
 
   assert.equal(proposal.entryOps, undefined);
+});
+
+test('normalizeProposal 会把 world-card state 条件归一到当前运行时格式', () => {
+  const proposal = __testables.normalizeProposal({
+    entityId: 'world-123',
+    entryOps: [{
+      op: 'create',
+      title: '重伤提醒',
+      trigger_type: 'state',
+      content: '玩家重伤时，场上角色要明确做出反应。',
+      conditions: [
+        { target_field: 'hp', operator: 'lt', value: '30' },
+        { target_field: 'story_phase', operator: 'eq', value: '决战' },
+      ],
+    }],
+    stateFieldOps: [
+      { op: 'create', target: 'persona', field_key: 'hp', label: 'HP', type: 'number' },
+      { op: 'create', target: 'world', field_key: 'story_phase', label: '剧情阶段', type: 'enum' },
+    ],
+  }, {
+    type: 'world-card',
+    operation: 'update',
+  });
+
+  assert.deepEqual(proposal.entryOps[0].conditions, [
+    { target_field: '玩家.HP', operator: '<', value: '30' },
+    { target_field: '世界.剧情阶段', operator: '等于', value: '决战' },
+  ]);
+});
+
+test('normalizeProposal 遇到歧义 state 条件字段时会拒绝自动归一', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({
+      entryOps: [{
+        op: 'create',
+        title: '歧义条件',
+        trigger_type: 'state',
+        content: '...',
+        conditions: [{ target_field: 'progress', operator: 'gt', value: '1' }],
+      }],
+      stateFieldOps: [
+        { op: 'create', target: 'world', field_key: 'progress', label: '世界进度', type: 'number' },
+        { op: 'create', target: 'persona', field_key: 'progress', label: '玩家进度', type: 'number' },
+      ],
+    }, {
+      type: 'world-card',
+      operation: 'update',
+      entityId: 'world-123',
+    }),
+    /存在多个同名 field_key/,
+  );
 });

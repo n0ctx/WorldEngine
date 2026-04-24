@@ -450,8 +450,11 @@ function normalizeProposal(raw, locked = {}) {
   switch (type) {
     case 'world-card':
       proposal.changes = normalizeWorldChanges(changes);
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { allowTriggerType: true });
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
+      proposal.entryOps = normalizeEntryOps(raw?.entryOps, {
+        allowTriggerType: true,
+        conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
+      });
       break;
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
@@ -544,8 +547,157 @@ function normalizeRegexRuleChanges(changes) {
 
 const VALID_ENTRY_CONDITION_OPERATORS = new Set(['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains', 'not_contains']);
 const VALID_TRIGGER_TYPES = new Set(['always', 'keyword', 'llm', 'state']);
+const VALID_RUNTIME_ENTRY_CONDITION_OPERATORS = new Set(['>', '<', '=', '>=', '<=', '!=', '包含', '等于', '不包含']);
+const CONDITION_OPERATOR_ALIASES = {
+  eq: 'eq',
+  ne: 'ne',
+  gt: 'gt',
+  lt: 'lt',
+  gte: 'gte',
+  lte: 'lte',
+  contains: 'contains',
+  not_contains: 'not_contains',
+  '>': '>',
+  '<': '<',
+  '=': '=',
+  '>=': '>=',
+  '<=': '<=',
+  '!=': '!=',
+  '包含': '包含',
+  '等于': '等于',
+  '不包含': '不包含',
+};
 
-function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false } = {}) {
+function buildWorldConditionContext(worldId, stateFieldOps = []) {
+  const scopedFields = [];
+  const pushScopedField = (scopeLabel, field) => {
+    if (!field?.label) return;
+    scopedFields.push({
+      scopeLabel,
+      label: String(field.label),
+      field_key: typeof field.field_key === 'string' ? field.field_key : '',
+      type: typeof field.type === 'string' ? field.type : 'text',
+    });
+  };
+
+  if (worldId) {
+    listWorldStateFields(worldId).forEach((field) => pushScopedField('世界', field));
+    getPersonaStateFieldsByWorldId(worldId).forEach((field) => pushScopedField('玩家', field));
+    listCharacterStateFields(worldId).forEach((field) => pushScopedField('角色', field));
+  }
+
+  for (const op of stateFieldOps) {
+    if (op?.op !== 'create') continue;
+    if (op.target === 'world') pushScopedField('世界', op);
+    else if (op.target === 'persona') pushScopedField('玩家', op);
+    else if (op.target === 'character') pushScopedField('角色', op);
+  }
+
+  const deduped = [];
+  const seen = new Set();
+  for (const field of scopedFields) {
+    const key = `${field.scopeLabel}.${field.field_key}::${field.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(field);
+  }
+
+  const byScopedLabel = new Map();
+  const byScopedFieldKey = new Map();
+  const byFieldKey = new Map();
+  const byLabel = new Map();
+
+  for (const field of deduped) {
+    const scopedLabel = `${field.scopeLabel}.${field.label}`;
+    byScopedLabel.set(scopedLabel, field);
+    if (field.field_key) byScopedFieldKey.set(`${field.scopeLabel}.${field.field_key}`, field);
+    if (field.field_key) {
+      if (!byFieldKey.has(field.field_key)) byFieldKey.set(field.field_key, []);
+      byFieldKey.get(field.field_key).push(field);
+    }
+    if (!byLabel.has(field.label)) byLabel.set(field.label, []);
+    byLabel.get(field.label).push(field);
+  }
+
+  return { byScopedLabel, byScopedFieldKey, byFieldKey, byLabel };
+}
+
+function resolveConditionField(rawTargetField, context) {
+  const input = String(rawTargetField ?? '').trim();
+  if (!input) return { targetField: null, field: null };
+  if (!context) return { targetField: input, field: null };
+
+  if (context.byScopedLabel.has(input)) {
+    const field = context.byScopedLabel.get(input);
+    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+  }
+  if (context.byScopedFieldKey.has(input)) {
+    const field = context.byScopedFieldKey.get(input);
+    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+  }
+
+  if (input.includes('.')) {
+    return { targetField: input, field: null };
+  }
+
+  const byKeyMatches = context.byFieldKey.get(input) || [];
+  if (byKeyMatches.length === 1) {
+    const field = byKeyMatches[0];
+    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+  }
+  if (byKeyMatches.length > 1) {
+    throw new Error(`提案格式错误：state 条件 target_field "${input}" 存在多个同名 field_key，请改为 世界.xxx / 玩家.xxx / 角色.xxx`);
+  }
+
+  const byLabelMatches = context.byLabel.get(input) || [];
+  if (byLabelMatches.length === 1) {
+    const field = byLabelMatches[0];
+    return { targetField: `${field.scopeLabel}.${field.label}`, field };
+  }
+  if (byLabelMatches.length > 1) {
+    throw new Error(`提案格式错误：state 条件 target_field "${input}" 存在多个同名标签，请改为 世界.xxx / 玩家.xxx / 角色.xxx`);
+  }
+
+  return { targetField: input, field: null };
+}
+
+function normalizeConditionOperator(rawOperator, field, idx, condIdx) {
+  const operator = CONDITION_OPERATOR_ALIASES[String(rawOperator ?? '').trim()];
+  if (!operator) {
+    throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}].operator 非法`);
+  }
+  if (VALID_RUNTIME_ENTRY_CONDITION_OPERATORS.has(operator)) return operator;
+
+  const fieldType = field?.type || null;
+  const isNumeric = fieldType === 'number';
+  switch (operator) {
+    case 'gt':
+      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 gt`);
+      return '>';
+    case 'lt':
+      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 lt`);
+      return '<';
+    case 'gte':
+      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 gte`);
+      return '>=';
+    case 'lte':
+      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 非数值字段不能使用 lte`);
+      return '<=';
+    case 'eq':
+      return isNumeric ? '=' : '等于';
+    case 'ne':
+      if (!isNumeric) throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}] 文本字段不支持 ne，请改用 等于/包含/不包含`);
+      return '!=';
+    case 'contains':
+      return '包含';
+    case 'not_contains':
+      return '不包含';
+    default:
+      throw new Error(`提案格式错误：entryOps[${idx}].conditions[${condIdx}].operator 非法`);
+  }
+}
+
+function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false, conditionContext = null } = {}) {
   if (rawOps == null) return [];
   if (!Array.isArray(rawOps)) throw new Error('提案格式错误：entryOps 必须是数组');
   return rawOps.map((raw, idx) => {
@@ -580,11 +732,14 @@ function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = fal
     if (allowTriggerType && normalized.trigger_type === 'state' && Array.isArray(raw.conditions)) {
       normalized.conditions = raw.conditions
         .filter((c) => c && typeof c === 'object' && c.target_field && c.operator && 'value' in c)
-        .map((c) => ({
-          target_field: String(c.target_field),
-          operator: VALID_ENTRY_CONDITION_OPERATORS.has(c.operator) ? c.operator : 'eq',
-          value: String(c.value ?? ''),
-        }));
+        .map((c, condIdx) => {
+          const { targetField, field } = resolveConditionField(c.target_field, conditionContext);
+          return {
+            target_field: targetField,
+            operator: normalizeConditionOperator(c.operator, field, idx, condIdx),
+            value: String(c.value ?? ''),
+          };
+        });
     }
     return normalized;
   });

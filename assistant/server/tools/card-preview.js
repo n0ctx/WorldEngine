@@ -9,6 +9,7 @@ import { getCharacterById } from '../../../backend/services/characters.js';
 import { getOrCreatePersona } from '../../../backend/services/personas.js';
 import { getConfig } from '../../../backend/services/config.js';
 import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
+import { listConditionsByEntry } from '../../../backend/db/queries/entry-conditions.js';
 import { listWorldStateFields } from '../../../backend/services/world-state-fields.js';
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../../backend/services/persona-state-fields.js';
@@ -69,6 +70,11 @@ export function createPreviewCardTool(context) {
 function loadEntityData(target, operation, entityId, context) {
   const needsGlobal = ['world-card', 'character-card', 'persona-card'].includes(target);
   const globalSystemPrompt = needsGlobal ? (getConfig()?.global_system_prompt || '') : '';
+  const withEntryConditions = (entries) => entries.map((entry) => (
+    entry.trigger_type === 'state'
+      ? { ...entry, conditions: listConditionsByEntry(entry.id) }
+      : entry
+  ));
 
   if (operation === 'create') {
     if (target === 'world-card') {
@@ -93,7 +99,7 @@ function loadEntityData(target, operation, entityId, context) {
       if (!world) throw Object.assign(new Error('找不到指定的世界，可能已被删除'), { userFacing: true });
       return {
         ...world,
-        existingEntries: getAllWorldEntries(worldId),
+        existingEntries: withEntryConditions(getAllWorldEntries(worldId)),
         existingWorldStateFields: listWorldStateFields(worldId),
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
         existingCharacterStateFields: listCharacterStateFields(worldId),

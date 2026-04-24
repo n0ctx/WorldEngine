@@ -207,7 +207,7 @@ POST /api/sessions/:sessionId/chat
 | [7] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
 | [8-9] | 同 buildPrompt；[9] 受 `writing.memory_expansion_enabled` 控制 |
 | [13] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| [11] | 无角色后置提示词（只有 `writing.global_post_prompt` + `world_prompt_entries(position='post')`）；同 buildPrompt，**注入 system 末尾** |
+| [11] | 无角色后置提示词（只有 `writing.global_post_prompt`）；同 buildPrompt，**注入 system 末尾** |
 | [14] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT` |
 | 返回值 | 含 `recallHitCount` |
 
@@ -790,6 +790,11 @@ MAX_ATTACHMENT_SIZE_MB = 5
 |---|---|---|
 | POST | /api/assistant/chat | SSE 流式对话（单代理 + Agent Skill；body: message/history/context；SSE 事件见 CONTRACT.md） |
 | POST | /api/assistant/execute | 应用提案（body: token/worldRefId/editedProposal；token 一次性消费，TTL 30 分钟） |
+
+**world-card assistant 对齐规则**：
+- `preview_card(target="world-card")` 返回现有世界条目时，会为 `trigger_type='state'` 的条目附带 `conditions`
+- `editedProposal.entryOps[].conditions` 与运行时 `entry_conditions` 表同构：`target_field` 使用 `世界.xxx / 玩家.xxx / 角色.xxx`，`operator` 使用当前评估器支持的符号/中文操作符
+- world-card 提案卡内联编辑器按真实条目编辑模型渲染，不再使用旧版简化字段摘要
 
 ---
 

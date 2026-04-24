@@ -3,6 +3,27 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-25 写卡助手 world-card 对齐当前状态条目系统
+
+- **Assistant Prompt / Contract**：`world-card.md`、`main.md`、`assistant/CONTRACT.md` 清除废弃 `position` 与旧版 `eq/lt/contains` 示例，改为当前真实格式：`state` 条件使用 `世界.xxx / 玩家.xxx / 角色.xxx` + 运行时支持的符号/中文操作符
+- **routes.js**：`normalizeProposal` 为 world-card 建立状态字段上下文，`normalizeEntryOps` 可把旧式 `field_key + gt/lt/eq` 条件安全归一为真实 `entry_conditions` 格式；遇到歧义字段时直接报错，避免写入半错数据
+- **card-preview.js**：world-card 预览中的 `existingEntries` 对 `trigger_type='state'` 条目补回 `conditions`，主代理和前端提案卡都能看到完整状态条目结构
+- **ChangeProposalCard.jsx**：world-card 提案卡重做内联编辑，条目编辑支持 `always/keyword/llm/state` 四类真实字段；`state` 条件支持按当前字段类型选择操作符；状态字段编辑补齐 `target/type/update_mode/trigger_mode/default_value/enum/range` 等核心项；预览态同步显示 trigger、token、conditions 和字段元数据
+- **测试 / 文档**：新增 assistant routes/card-preview 测试覆盖条件归一与预览回传；`ARCHITECTURE.md` 补充 world-card assistant 对齐规则
+
+## 2026-04-25 文档入口降噪：收口 agent 入口并降低误读风险
+
+- **AGENTS.md**：删除误导性的 `claude-mem-context` 块，恢复为纯镜像入口，只保留跳转 `CLAUDE.md` 的最小说明
+- **CLAUDE.md**：在文档分工规则中补充非权威来源声明，明确 `README.md` / `PROJECT.md` / `ROADMAP.md` 不是 agent 入口规范，`docs/` `.superpowers/` `.obsidian/` `.claude/` `.temp/` 仅作辅助材料或本地工作目录
+- **ROADMAP.md**：顶部新增警示，明确其角色是任务池与排期，而非执行规范入口
+- **README.md**：顶部补充 AI agent 导航说明，文档表加入 `CLAUDE.md`
+- **.gitignore**：补充 `.superpowers/`、`backend/node_modules/`、`frontend/node_modules/`、`frontend/dist/`，减少工作区噪音
+
+## 2026-04-24 角色选择页新增右侧条目顺序面板（三栏布局）
+
+- **CharactersPage.jsx**：新增 `EntryOrderPanel` 组件，展示当前世界全部条目（按 token ASC + sort_order 排序），token 值可内联点击编辑（blur/Enter 保存，Escape 取消）；`loadData` 并发加载 `listWorldEntries`；新增 `handleTokenChange` 调用 `updateWorldEntry` 后刷新列表
+- **pages.css**：已有 `.we-characters-col-entries` / `.we-entry-order-*` 样式，布局为三栏（左 Persona / 中 Character / 右条目顺序）
+
 ## 2026-04-24 清理废弃条目表：彻底移除 global_prompt_entries / character_prompt_entries
 
 - **背景**：两张表在 prompt 组装中已弃用（运行时不消费），残留代码造成误导
