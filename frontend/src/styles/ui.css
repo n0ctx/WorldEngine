@@ -984,47 +984,7 @@
   cursor: not-allowed;
 }
 
-/* ── TriggerEditor ── */
-.we-trigger-editor-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--we-z-modal);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 10vh;
-  background: var(--we-color-shadow-xl);
-}
-
-.we-trigger-editor-panel {
-  background: var(--we-paper-base);
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-sm);
-  width: 100%;
-  max-width: 960px;
-  padding: var(--we-space-xl);
-  max-height: calc(100vh - 96px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-paper-shadow) transparent;
-}
-
-.we-trigger-editor-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
-  color: var(--we-ink-primary);
-  font-style: italic;
-  margin-bottom: var(--we-space-lg);
-}
-
-.we-trigger-editor-section {
-  margin-bottom: var(--we-space-lg);
-}
-
-.we-trigger-editor-section--tight {
-  margin-top: -6px;
-}
-
+/* ── TriggerEditor 条件行（EntryEditor 复用） ── */
 .we-trigger-editor-field {
   padding: 6px 10px;
   font-family: var(--we-font-serif);
@@ -1042,31 +1002,9 @@
   outline-offset: -1px;
 }
 
-.we-trigger-editor-label {
-  display: block;
-  font-size: var(--we-text-xs);
-  color: var(--we-ink-secondary);
-  margin-bottom: var(--we-space-xs);
-}
-
-.we-trigger-editor-check {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  font-size: var(--we-text-xs);
-  color: var(--we-ink-secondary);
-  cursor: pointer;
-}
-
-.we-trigger-editor-condition,
-.we-trigger-editor-action-head,
-.we-trigger-editor-inject-row,
-.we-trigger-editor-rounds {
-  display: flex;
-  align-items: center;
-}
-
 .we-trigger-editor-condition {
+  display: flex;
+  align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
@@ -1111,76 +1049,6 @@
   font-family: var(--we-font-serif);
 }
 
-.we-trigger-editor-action-card {
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-sm);
-  padding: 10px 12px;
-  margin-bottom: var(--we-space-sm);
-  background: var(--we-color-ink-wash);
-}
-
-.we-trigger-editor-action-head {
-  gap: var(--we-space-sm);
-  margin-bottom: var(--we-space-sm);
-}
-
-.we-trigger-editor-action-type,
-.we-trigger-editor-inject-mode {
-  flex: 1;
-}
-
-.we-trigger-editor-markdown {
-  margin-bottom: var(--we-space-sm);
-}
-
-.we-trigger-editor-inject-row {
-  gap: var(--we-space-sm);
-}
-
-.we-trigger-editor-rounds {
-  gap: var(--we-space-xs);
-  flex-shrink: 0;
-}
-
-.we-trigger-editor-rounds-input {
-  width: 60px;
-}
-
-.we-trigger-editor-rounds-label {
-  font-size: var(--we-text-xs);
-  color: var(--we-ink-secondary);
-}
-
-.we-trigger-editor-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.we-trigger-editor-cancel {
-  font-size: var(--we-text-sm);
-  color: var(--we-ink-faded);
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: var(--we-font-serif);
-}
-
-.we-trigger-editor-save {
-  font-family: var(--we-font-serif);
-  font-size: var(--we-text-sm);
-  background: var(--we-vermilion);
-  color: var(--we-paper-base);
-  border: none;
-  border-radius: var(--we-radius-sm);
-  padding: 6px 16px;
-  cursor: pointer;
-}
-
-.we-trigger-editor-save:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
 
 /* ── RegexRuleEditor ── */
 .we-regex-dialog-close {
