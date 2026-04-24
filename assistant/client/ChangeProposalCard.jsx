@@ -63,6 +63,12 @@ const STATE_FIELD_TARGET_OPTIONS = [
   { value: 'character', label: '角色' },
 ];
 
+const STATE_FIELD_TARGET_OPTIONS_BY_PROPOSAL = {
+  'world-card': STATE_FIELD_TARGET_OPTIONS,
+  'character-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value !== 'world'),
+  'persona-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value === 'persona'),
+};
+
 const STATE_FIELD_TYPE_OPTIONS = [
   { value: 'text', label: '文本' },
   { value: 'number', label: '数值' },
@@ -397,7 +403,7 @@ function WorldCardEntryOpEditor({ op, fieldOptions, onChange, onRemove }) {
   );
 }
 
-function StateFieldOpEditor({ op, onChange, onRemove }) {
+function StateFieldOpEditor({ op, allowedTargets, onChange, onRemove }) {
   const isDelete = op.op === 'delete';
   const opColor = isDelete ? '#c0392b' : op.op === 'update' ? '#7a5c1e' : '#2e5a8a';
   const opLabel = isDelete ? '删除' : op.op === 'update' ? '修改' : '新增';
@@ -425,7 +431,7 @@ function StateFieldOpEditor({ op, onChange, onRemove }) {
               onChange={(e) => onChange({ ...op, target: e.target.value })}
               style={inputBase}
             >
-              {STATE_FIELD_TARGET_OPTIONS.map((option) => (
+              {allowedTargets.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -615,6 +621,7 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
   const hasEntryOps = effectiveEntryOps.length > 0;
   const sourceWorldId = isWorldCard && operation !== 'create' ? (proposal.entityId || currentWorldId) : null;
   const fieldOptions = buildFieldOptions(fieldCatalog, effectiveStateFieldOps);
+  const allowedStateTargets = STATE_FIELD_TARGET_OPTIONS_BY_PROPOSAL[proposal.type] || STATE_FIELD_TARGET_OPTIONS;
 
   useEffect(() => {
     if (!editing || !isWorldCard || !sourceWorldId) return;
@@ -792,11 +799,12 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
           <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '4px' }}>
             状态字段变更（{effectiveStateFieldOps.length} 项）
           </div>
-          {editing
+              {editing
             ? localStateFieldOps.map((op, index) => (
                 <StateFieldOpEditor
                   key={index}
                   op={op}
+                  allowedTargets={allowedStateTargets}
                   onChange={(updated) => setLocalStateFieldOps((prev) => prev.map((item, i) => (i === index ? normalizeStateFieldOp(updated) : item)))}
                   onRemove={() => setLocalStateFieldOps((prev) => prev.filter((_, i) => i !== index))}
                 />

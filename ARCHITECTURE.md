@@ -796,6 +796,11 @@ MAX_ATTACHMENT_SIZE_MB = 5
 - `editedProposal.entryOps[].conditions` 与运行时 `entry_conditions` 表同构：`target_field` 使用 `世界.xxx / 玩家.xxx / 角色.xxx`，`operator` 使用当前评估器支持的符号/中文操作符
 - world-card 提案卡内联编辑器按真实条目编辑模型渲染，不再使用旧版简化字段摘要
 
+**其他 assistant 对齐规则**：
+- `character-card` / `persona-card` 的 assistant proposal 已支持 `description` 字段，对齐当前编辑页
+- `preview_card(target="character-card" | "persona-card")` 会附带世界名、世界简介与现有世界条目，供子代理理解上层世界语境
+- `global-config` assistant 不再暴露 `entryOps`；全局关键词条目能力已移除，不再对模型宣称支持
+
 ---
 
 **后端代码落点规则**：

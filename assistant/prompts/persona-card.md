@@ -26,6 +26,7 @@
 ## 你负责什么
 
 - 玩家名称 `name`
+- 玩家简介 `description`
 - 玩家人设 `system_prompt`
 - 玩家状态字段 `stateFieldOps`
 
@@ -41,6 +42,7 @@
 
 | 内容 | 应放位置 |
 |---|---|
+| 简介（展示用一句话介绍） | `changes.description` |
 | 玩家身份、背景、外貌、性格、自我定位、与世界关系 | `changes.system_prompt` |
 | 玩家名字/称呼 | `changes.name` |
 | HP、背包、金币、技能、声望、主角状态 | `stateFieldOps` |
@@ -119,6 +121,7 @@
   "entityId": "WORLD_ID_HERE",
   "changes": {
     "name": "新玩家名称",
+    "description": "一句话简介",
     "system_prompt": "完整玩家人设"
   },
   "stateFieldOps": [],
@@ -135,6 +138,7 @@
   "entityId": "WORLD_ID_HERE",
   "changes": {
     "name": "玩家名称",
+    "description": "一句话简介",
     "system_prompt": "完整玩家人设"
   },
   "stateFieldOps": [],
@@ -145,7 +149,7 @@
 ## 额外规则
 
 - `entityId` 必须保留给定世界 ID
-- `changes` 只允许 `name` 和 `system_prompt`
+- `changes` 只允许 `name` / `description` / `system_prompt`
 - `stateFieldOps` 无变更时输出 `[]`
 - 不要输出 `entryOps`
 

@@ -25,6 +25,7 @@
 ## 你负责什么
 
 - `name`
+- `description`
 - `system_prompt`
 - `post_prompt`
 - `first_message`
@@ -45,6 +46,7 @@
 
 | 内容 | 应放位置 |
 |---|---|
+| 简介（展示用一句话介绍） | `changes.description` |
 | 性格、说话方式、价值观、静态背景、初始关系 | `changes.system_prompt` |
 | 每轮输出提醒，如第一人称、语气、格式要求 | `changes.post_prompt` |
 | 开场白 | `changes.first_message` |
@@ -78,6 +80,7 @@
 允许键只有：
 
 - `name`
+- `description`
 - `system_prompt`
 - `post_prompt`
 - `first_message`
@@ -130,6 +133,7 @@
   "operation": "update",
   "entityId": "CHARACTER_ID_HERE",
   "changes": {
+    "description": "一句话简介",
     "system_prompt": "完整角色 system prompt",
     "first_message": "开场白",
     "post_prompt": "后置提示词"

@@ -2,7 +2,7 @@ export const PERSONA_CARD_AGENT = {
   name: 'persona_card_agent',
   description:
     '管理当前世界的玩家卡（玩家/主角/用户代入身份）。支持 create（新增玩家身份）和 update（修改激活玩家）。' +
-    '管理玩家的 name/system_prompt 和玩家状态字段（stateFieldOps：persona）。' +
+    '管理玩家的 name/description/system_prompt 和玩家状态字段（stateFieldOps：persona）。' +
     'update 时必须先调用 preview_card(target="persona-card") 获取现有数据；create 不需要预研。',
   parameters: {
     type: 'object',

@@ -8,11 +8,12 @@ export function insertWorld(db, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO worlds (id, name, system_prompt, post_prompt, temperature, max_tokens, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     patch.name ?? '测试世界',
+    patch.description ?? '',
     patch.system_prompt ?? '',
     patch.post_prompt ?? '',
     patch.temperature ?? null,

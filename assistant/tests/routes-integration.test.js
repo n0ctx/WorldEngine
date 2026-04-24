@@ -204,7 +204,7 @@ test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character
       operation: 'create',
       entityId: null,
       explanation: '创建角色',
-      changes: { name: '新角色', system_prompt: '角色设定' },
+      changes: { name: '新角色', description: '一句话简介', system_prompt: '角色设定' },
       entryOps: [],
       stateFieldOps: [],
     },
@@ -222,11 +222,46 @@ test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character
   assert.equal(body.result.world_id, world.id);
   assert.equal(body.result.name, '新角色');
 
-  const row = sandbox.db.prepare('SELECT world_id, name, system_prompt FROM characters WHERE id = ?').get(body.result.id);
+  const row = sandbox.db.prepare('SELECT world_id, name, description, system_prompt FROM characters WHERE id = ?').get(body.result.id);
   assert.deepEqual(row, {
     world_id: world.id,
     name: '新角色',
+    description: '一句话简介',
     system_prompt: '角色设定',
+  });
+});
+
+test('POST /api/assistant/execute 会创建包含 description 的 persona-card', async () => {
+  const world = insertWorld(sandbox.db, { name: '玩家世界' });
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-create-persona', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'persona-card',
+      operation: 'create',
+      entityId: world.id,
+      explanation: '创建玩家',
+      changes: { name: '旅者', description: '一句话简介', system_prompt: '流亡审判官' },
+      stateFieldOps: [],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-create-persona' }),
+  });
+
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.ok, true);
+
+  const row = sandbox.db.prepare('SELECT world_id, name, description, system_prompt FROM personas WHERE id = ?').get(body.result.id);
+  assert.deepEqual(row, {
+    world_id: world.id,
+    name: '旅者',
+    description: '一句话简介',
+    system_prompt: '流亡审判官',
   });
 });
 

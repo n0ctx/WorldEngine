@@ -28,7 +28,8 @@ async function loadCardPreview() {
 
 test('createPreviewCardTool 在 create 场景返回全局/世界 prompt 上下文', async () => {
   const { createPreviewCardTool } = await loadCardPreview();
-  const world = insertWorld(sandbox.db, { name: '晨星海' });
+  const world = insertWorld(sandbox.db, { name: '晨星海', description: '海上群岛' });
+  insertWorldEntry(sandbox.db, world.id, { title: '世界背景', content: '群岛秩序' });
   const tool = createPreviewCardTool({ worldId: world.id });
 
   const worldCreate = JSON.parse(await tool.execute({ target: 'world-card', operation: 'create' }));
@@ -36,7 +37,9 @@ test('createPreviewCardTool 在 create 场景返回全局/世界 prompt 上下�
 
   assert.equal(worldCreate._globalSystemPrompt, '全局系统提示');
   assert.equal(characterCreate._globalSystemPrompt, '全局系统提示');
-  assert.equal(characterCreate._worldSystemPrompt, '');
+  assert.equal(characterCreate._worldName, '晨星海');
+  assert.equal(characterCreate._worldDescription, '海上群岛');
+  assert.equal(characterCreate.existingWorldEntries.length, 1);
 });
 
 test('createPreviewCardTool 会返回实体详情、现有条目与状态字段', async () => {
@@ -66,8 +69,9 @@ test('createPreviewCardTool 会返回实体详情、现有条目与状态字段'
 
   assert.equal(characterData.name, '伊瑟');
   assert.equal(characterData.existingEntries, undefined);
+  assert.equal(characterData.existingWorldEntries.length, 1);
   assert.equal(characterData.existingCharacterStateFields.length, 1);
-  assert.equal(characterData._worldSystemPrompt, '海港设定');
+  assert.equal(characterData._worldName, '白港');
 });
 
 test('createPreviewCardTool 在缺少上下文或 target 非法时返回错误字符串', async () => {
@@ -96,9 +100,11 @@ test('createPreviewCardTool 会返回 persona-card 与 global-prompt 的完整�
 
   assert.equal(personaData.name, '旅者');
   assert.equal(personaData.system_prompt, '玩家设定');
+  assert.equal(personaData.existingWorldEntries.length, 0);
   assert.equal(personaData.existingPersonaStateFields.length, 1);
   assert.equal(personaData._globalSystemPrompt, '全局系统提示');
-  assert.equal(personaData._worldSystemPrompt, '镜城设定');
+  assert.equal(personaData._worldName, '镜城');
+  assert.equal(personaData._worldDescription, '');
 
   assert.equal(globalData.global_system_prompt, '全局系统提示');
   assert.equal(globalData.existingEntries, undefined);

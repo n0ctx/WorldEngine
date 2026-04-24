@@ -1,7 +1,7 @@
 export const GLOBAL_PROMPT_AGENT = {
   name: 'global_prompt_agent',
   description:
-    '修改跨所有世界通用的全局配置，包括 global_system_prompt/global_post_prompt、全局提示词 条目（entryOps）和全局 LLM 参数。' +
+    '修改跨所有世界通用的全局配置，包括 global_system_prompt/global_post_prompt、writing.* 与全局 LLM 参数。' +
     '只处理对所有世界题材都适用的内容，题材相关内容应放世界卡。' +
     '必须先调用 preview_card(target="global-prompt") 获取现有配置，再调用此代理。',
   parameters: {

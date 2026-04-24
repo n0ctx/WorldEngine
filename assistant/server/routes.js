@@ -265,10 +265,11 @@ async function applyProposal(proposal, worldRefId = null) {
       if (operation === 'create') {
         const worldId = worldRefId || entityId;
         if (!worldId) throw new Error('character-card create 需要 worldId（请先应用对应的世界卡提案）');
-        const safeChanges = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'first_message']);
+        const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
         const newChar = createCharacter({
           world_id: worldId,
           name: safeChanges.name || '新角色',
+          description: safeChanges.description || '',
           system_prompt: safeChanges.system_prompt || '',
           post_prompt: safeChanges.post_prompt || '',
           first_message: safeChanges.first_message || '',
@@ -285,7 +286,7 @@ async function applyProposal(proposal, worldRefId = null) {
       }
       // update
       if (!entityId) throw new Error('character-card 提案缺少 entityId');
-      const safeChanges = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'first_message']);
+      const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateCharacter(entityId, safeChanges);
       const charSfOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
@@ -306,9 +307,10 @@ async function applyProposal(proposal, worldRefId = null) {
       if (operation === 'create') {
         const worldId = entityId;
         if (!worldId) throw new Error('persona-card create 需要 worldId（entityId）');
-        const safeChanges = pickAllowed(changes, ['name', 'system_prompt']);
+        const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
         const newPersona = createPersonaDb(worldId, {
           name: safeChanges.name || '新玩家',
+          description: safeChanges.description || '',
           system_prompt: safeChanges.system_prompt || '',
         });
         for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
@@ -319,7 +321,7 @@ async function applyProposal(proposal, worldRefId = null) {
       // update
       const worldId = entityId;
       if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）');
-      const safeChanges = pickAllowed(changes, ['name', 'system_prompt']);
+      const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
       const updated = await updatePersona(worldId, safeChanges);
       for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
         if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
@@ -466,7 +468,6 @@ function normalizeProposal(raw, locked = {}) {
       break;
     case 'global-config':
       proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { includeMode: true });
       break;
     case 'css-snippet':
       if (operation === 'delete') {
@@ -504,14 +505,14 @@ function normalizeWorldChanges(changes) {
 }
 
 function normalizeCharacterChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'system_prompt', 'post_prompt', 'first_message']);
+  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
   const normalized = {};
   for (const key of Object.keys(picked)) normalized[key] = String(picked[key] ?? '');
   return normalized;
 }
 
 function normalizePersonaChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'system_prompt']);
+  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt']);
   const normalized = {};
   for (const key of Object.keys(picked)) normalized[key] = String(picked[key] ?? '');
   return normalized;

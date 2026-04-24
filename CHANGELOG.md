@@ -11,6 +11,14 @@
 - **ChangeProposalCard.jsx**：world-card 提案卡重做内联编辑，条目编辑支持 `always/keyword/llm/state` 四类真实字段；`state` 条件支持按当前字段类型选择操作符；状态字段编辑补齐 `target/type/update_mode/trigger_mode/default_value/enum/range` 等核心项；预览态同步显示 trigger、token、conditions 和字段元数据
 - **测试 / 文档**：新增 assistant routes/card-preview 测试覆盖条件归一与预览回传；`ARCHITECTURE.md` 补充 world-card assistant 对齐规则
 
+## 2026-04-25 写卡助手继续收口：清理 global 假能力并补齐角色/玩家卡字段
+
+- **global-config**：`global-prompt.md`、`main.md`、`CONTRACT.md`、`global-prompt.js` 统一删除已失效的 `entryOps/global_prompt_entries` 能力描述；`routes.js` 也不再为 global-config 归一化 `entryOps`，避免模型继续输出不会执行的假功能
+- **character/persona**：assistant 提案执行与 prompt 规则补回 `description`，对齐当前 `CharacterEditPage` / `PersonaEditPage` 的真实编辑字段
+- **card-preview**：角色卡/玩家卡预研返回补充 `existingWorldEntries`、`_worldName`、`_worldDescription`，让子代理生成内容时能读到上层世界语境，而不是继续依赖废弃的 `world.system_prompt`
+- **ChangeProposalCard.jsx**：状态字段编辑器按 proposal 类型收紧可选 target；角色卡不再能误选 `world`，玩家卡只允许 `persona`
+- **测试**：新增 assistant normalize/integration 测试，覆盖 character/persona `description` 落库与 global-config 去除 `entryOps`
+
 ## 2026-04-25 文档入口降噪：收口 agent 入口并降低误读风险
 
 - **AGENTS.md**：删除误导性的 `claude-mem-context` 块，恢复为纯镜像入口，只保留跳转 `CLAUDE.md` 的最小说明

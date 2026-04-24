@@ -85,7 +85,9 @@ function loadEntityData(target, operation, entityId, context) {
       const world = worldId ? getWorldById(worldId) : null;
       return {
         _globalSystemPrompt: globalSystemPrompt,
-        _worldSystemPrompt: world?.system_prompt || '',
+        _worldName: world?.name || '',
+        _worldDescription: world?.description || '',
+        existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
       };
     }
     return {};
@@ -114,10 +116,12 @@ function loadEntityData(target, operation, entityId, context) {
       const world = getWorldById(character.world_id);
       return {
         ...character,
+        existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
         existingCharacterStateFields: listCharacterStateFields(character.world_id),
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(character.world_id),
         _globalSystemPrompt: globalSystemPrompt,
-        _worldSystemPrompt: world?.system_prompt || '',
+        _worldName: world?.name || '',
+        _worldDescription: world?.description || '',
       };
     }
     case 'persona-card': {
@@ -127,9 +131,11 @@ function loadEntityData(target, operation, entityId, context) {
       const world = getWorldById(worldId);
       return {
         ...persona,
+        existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
         existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
         _globalSystemPrompt: globalSystemPrompt,
-        _worldSystemPrompt: world?.system_prompt || '',
+        _worldName: world?.name || '',
+        _worldDescription: world?.description || '',
       };
     }
     case 'global-prompt': {

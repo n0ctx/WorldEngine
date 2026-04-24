@@ -81,7 +81,6 @@ create 操作省略"当前状态"部分。
 **Prompt 条目（Entries）**
 - 世界级条目分四种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（向量相似度召回时注入）、state（当前会话状态满足所有条件时注入）
 - 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm/state）、keywords（关键词数组，keyword 类型使用）、token（注入顺序权重，整数，越小越靠前）
-- 全局条目（global_prompt_entries）无触发类型，仅关键词匹配，按 mode 区分 chat/writing
 - 所有命中的世界条目统一在 [7] 位置注入（position 字段已废弃，不再消费）
 - `state` 条目条件必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`
 
@@ -123,9 +122,9 @@ create 操作省略"当前状态"部分。
 | 子代理 | 负责范围 | 需要预研 |
 |---|---|---|
 | `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps，支持 always/keyword/llm/state 四种触发类型）/ 状态字段（world/persona/character） | update/delete 时必须 |
-| `character_card_agent` | 角色卡：name / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
-| `persona_card_agent` | 玩家卡：name / system_prompt / 玩家状态字段（支持 create/update）| update 时必须；create 不需要 |
-| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / LLM 参数 / 全局 Prompt 条目（entryOps，仅 keyword 类型，按 mode 区分）| 必须 |
+| `character_card_agent` | 角色卡：name / description / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
+| `persona_card_agent` | 玩家卡：name / description / system_prompt / 玩家状态字段（支持 create/update）| update 时必须；create 不需要 |
+| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / `llm.*` / `writing.*` 等跨世界通用配置 | 必须 |
 | `css_snippet_agent` | 自定义 CSS 片段（create / update / delete）| update/delete 时需要，create 不需要 |
 | `regex_rule_agent` | 正则替换规则（create / update / delete）| update/delete 时需要，create 不需要 |
 

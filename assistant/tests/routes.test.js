@@ -20,7 +20,7 @@ test('normalizeProposal 会过滤敏感字段并规范 global-config changes', (
   assert.equal(proposal.changes.llm.api_key, undefined);
   assert.equal(proposal.changes.embedding.api_key, undefined);
   assert.equal(proposal.changes.global_system_prompt, '新的系统提示');
-  assert.deepEqual(proposal.entryOps, []);
+  assert.equal(proposal.entryOps, undefined);
 });
 
 test('normalizeStateFieldOps 会校验 target/type 并规范 create/delete', () => {
@@ -183,6 +183,44 @@ test('normalizeProposal 不会在 character-card 中包含 entryOps', () => {
   });
 
   assert.equal(proposal.entryOps, undefined);
+});
+
+test('normalizeProposal 会保留 character/persona 的 description，并移除 global-config.entryOps', () => {
+  const characterProposal = __testables.normalizeProposal({
+    entityId: 'char-123',
+    changes: {
+      name: '角色',
+      description: '一句话简介',
+      system_prompt: '角色设定',
+    },
+  }, {
+    type: 'character-card',
+    operation: 'update',
+  });
+
+  const personaProposal = __testables.normalizeProposal({
+    entityId: 'world-123',
+    changes: {
+      name: '玩家',
+      description: '一句话简介',
+      system_prompt: '玩家设定',
+    },
+  }, {
+    type: 'persona-card',
+    operation: 'update',
+  });
+
+  const globalProposal = __testables.normalizeProposal({
+    changes: { global_system_prompt: '全局提示' },
+    entryOps: [{ op: 'create', title: '无效', content: '不会保留' }],
+  }, {
+    type: 'global-config',
+    operation: 'update',
+  });
+
+  assert.equal(characterProposal.changes.description, '一句话简介');
+  assert.equal(personaProposal.changes.description, '一句话简介');
+  assert.equal(globalProposal.entryOps, undefined);
 });
 
 test('normalizeProposal 会把 world-card state 条件归一到当前运行时格式', () => {

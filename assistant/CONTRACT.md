@@ -139,7 +139,6 @@ skill 执行失败时发送。
   "type": "global-config",
   "operation": "update",
   "changes": {},
-  "entryOps": [],
   "explanation": "..."
 }
 ```
@@ -179,7 +178,7 @@ skill 执行失败时发送。
 | `css_snippet_skill` | create / update / delete |
 | `regex_rule_skill` | create / update / delete |
 
-**entryOps 支持说明**：`world_card_skill` 和 `global_prompt_skill` 支持 `entryOps`；`character_card_skill` 不支持（字段将被忽略）。全局 entryOps（global-config）为纯关键词类型，无 trigger_type，有 mode 字段。
+**entryOps 支持说明**：只有 `world_card_skill` 支持 `entryOps`；`character_card_skill` / `persona_card_skill` / `global_prompt_skill` 均不支持。
 
 ## 4. `changes` 准确格式
 
@@ -200,6 +199,7 @@ skill 执行失败时发送。
 ```json
 {
   "name": "角色名",
+  "description": "一句话简介",
   "system_prompt": "完整文本",
   "post_prompt": "完整文本",
   "first_message": "完整开场白"
@@ -211,6 +211,7 @@ skill 执行失败时发送。
 ```json
 {
   "name": "玩家名",
+  "description": "一句话简介",
   "system_prompt": "完整文本"
 }
 ```
@@ -274,7 +275,7 @@ skill 执行失败时发送。
 
 ## 5. `entryOps`
 
-基础格式（适用于 world-card 和 global-config）：
+基础格式（仅适用于 world-card）：
 
 ```json
 { "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant", "token": 1 }
@@ -317,21 +318,6 @@ skill 执行失败时发送。
 - 不要只写裸 `field_key`，例如 `"hp"`
 - 数值操作符：`>` / `<` / `=` / `>=` / `<=` / `!=`
 - 文本操作符：`包含` / `等于` / `不包含`
-
-**global-config entryOps 额外字段**（全局条目无 trigger_type，仅关键词）：
-
-```json
-{
-  "op": "create",
-  "title": "条目标题",
-  "description": "触发条件",
-  "content": "注入内容",
-  "keywords": ["关键词"],
-  "keyword_scope": "user,assistant",
-  "mode": "chat",
-  "token": 1
-}
-```
 
 world-card 常驻条目 create 格式：
 ```json
@@ -400,7 +386,6 @@ world-card 常驻条目 create 格式：
   "worldRefId": "可选，依赖世界 create 时使用",
   "editedProposal": {
     "changes": {},
-    "entryOps": [],
     "stateFieldOps": []
   }
 }
@@ -408,4 +393,5 @@ world-card 常驻条目 create 格式：
 
 约束：
 - `editedProposal` 只能覆盖 `changes` / `entryOps` / `stateFieldOps`
+- 其中 `entryOps` 仅对 `world-card` 有效
 - `type` / `operation` / `entityId` / `taskId` 以 token 锚定的原提案为准

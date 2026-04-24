@@ -1,7 +1,7 @@
 export const CHARACTER_CARD_AGENT = {
   name: 'character_card_agent',
   description:
-    '创建、修改或删除角色卡（NPC/配角）。管理角色的 name/system_prompt/post_prompt/first_message，' +
+    '创建、修改或删除角色卡（NPC/配角）。管理角色的 name/description/system_prompt/post_prompt/first_message，' +
     '以及角色/玩家状态字段（stateFieldOps：character/persona）。' +
     'update/delete 前必须先调用 preview_card(target="character-card") 获取现有数据，再调用此代理。',
   parameters: {
