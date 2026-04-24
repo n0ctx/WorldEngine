@@ -46,6 +46,7 @@
 
 | 内容 | 应放位置 |
 |---|---|
+| 世界简介（展示用一句话介绍） | `changes.description` |
 | 世界背景、时代、规则、长期稳定的世界框架 | `entryOps.create` + `trigger_type:"always"` |
 | 地点资料、组织章程、术式说明、阶段性 lore | `entryOps.create` + `trigger_type:"keyword"` 或 `"llm"` |
 | 由状态变化触发的提醒、特殊情境规则 | `entryOps.create` + `trigger_type:"state"` |
@@ -57,6 +58,7 @@
 - 不要把角色人格或玩家人设写进世界卡
 - 不要使用 `changes.system_prompt` 或 `changes.post_prompt`
 - 不要输出 `position` 字段，它已经废弃
+- `description` 只写世界简介，不要把整本设定塞进去
 
 ---
 
@@ -80,6 +82,7 @@
 允许出现的键只有：
 
 - `name`
+- `description`
 - `temperature`
 - `max_tokens`
 

@@ -164,8 +164,12 @@ export default function PersonaEditPage() {
   const avatarColor = getAvatarColor(resolvedPersonaId || personaIdParam || worldId);
   const pageTitle = isNew ? '创建玩家' : '编辑玩家卡';
 
+  const exportAction = !isNew ? (
+    <Button variant="ghost" size="sm" onClick={handleExport}>导出玩家卡</Button>
+  ) : null;
+
   return (
-    <EditPageShell loading={loading} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle}>
+    <EditPageShell loading={loading} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
       <div className="we-edit-form-stack">
         <AvatarUpload
           name={name}
@@ -212,9 +216,6 @@ export default function PersonaEditPage() {
         )}
 
         <div className="we-edit-save-row">
-          {!isNew && (
-            <Button variant="ghost" size="sm" onClick={handleExport}>导出为玩家卡</Button>
-          )}
           <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? '保存中…' : isNew ? '创建' : '保存'}
           </Button>

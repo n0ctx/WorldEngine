@@ -81,6 +81,16 @@ function assertPromptEntries(entries, label) {
         assertRequiredString(keyword, `${label}[${index}].keywords[${keywordIndex}]`, MAX_NAME_LENGTH);
       }
     }
+    assertOptionalString(entry.trigger_type, `${label}[${index}].trigger_type`, 20);
+    if (entry.conditions !== undefined && entry.conditions !== null) {
+      assertArray(entry.conditions, `${label}[${index}].conditions`);
+      for (const [cIndex, cond] of entry.conditions.entries()) {
+        assertPlainObject(cond, `${label}[${index}].conditions[${cIndex}]`);
+        assertRequiredString(cond.target_field, `${label}[${index}].conditions[${cIndex}].target_field`, MAX_NAME_LENGTH);
+        assertRequiredString(cond.operator, `${label}[${index}].conditions[${cIndex}].operator`, 20);
+        assertRequiredString(cond.value, `${label}[${index}].conditions[${cIndex}].value`, MAX_NAME_LENGTH);
+      }
+    }
     assertOptionalNumber(entry.sort_order, `${label}[${index}].sort_order`);
   }
 }
@@ -151,7 +161,7 @@ export function validateWorldImportPayload(data) {
   assert(data.format === 'worldengine-world-v1', '不支持的世界卡格式');
   assertPlainObject(data.world, 'world');
   assertRequiredString(data.world.name, 'world.name', MAX_NAME_LENGTH);
-  assertOptionalString(data.world.system_prompt, 'world.system_prompt');
+  // world.system_prompt / post_prompt 已废弃，由 prompt_entries 接管；保留读取兼容，无需验证
   assertOptionalNumber(data.world.temperature, 'world.temperature');
   assertOptionalNumber(data.world.max_tokens, 'world.max_tokens');
 

@@ -265,6 +265,39 @@ test('POST /api/assistant/execute 会创建包含 description 的 persona-card',
   });
 });
 
+test('POST /api/assistant/execute 对重复 stateField 返回明确错误而非静默忽略', async () => {
+  const world = insertWorld(sandbox.db, { name: '字段冲突世界' });
+  // 先通过 fixtures 直接插入一个状态字段
+  const { insertWorldStateField } = await import('../../backend/tests/helpers/fixtures.js');
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命值' });
+
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-duplicate-sf', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'world-card',
+      operation: 'update',
+      entityId: world.id,
+      explanation: '创建重复字段',
+      changes: {},
+      entryOps: [],
+      stateFieldOps: [
+        { op: 'create', target: 'world', field_key: 'hp', label: '生命值2', type: 'number', default_value: '100' },
+      ],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-duplicate-sf' }),
+  });
+
+  assert.equal(res.status, 500);
+  const body = await res.json();
+  assert.match(body.error, /字段键 "hp" 已存在/);
+});
+
 test('POST /api/assistant/execute 对 editedProposal 只接受内容覆盖，不允许改写锁定元信息', async () => {
   const world = insertWorld(sandbox.db, {
     name: '旧世界',

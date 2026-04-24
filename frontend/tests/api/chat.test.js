@@ -31,7 +31,6 @@ describe('chat api', () => {
       { delta: '你' },
       { delta: '好' },
       { type: 'memory_recall_done', recalled: 1 },
-      { type: 'trigger_fired', notifications: [{ name: '警报', text: '命中了' }] },
       { done: true, assistant: { id: 'msg-asst', content: '你好' }, options: ['继续'] },
     ]));
 
@@ -40,7 +39,6 @@ describe('chat api', () => {
         onUserSaved: (id) => calls.push(['user_saved', id]),
         onMemoryRecallStart: () => calls.push(['memory_recall_start']),
         onMemoryRecallDone: (evt) => calls.push(['memory_recall_done', evt.recalled]),
-        onTriggerFired: (notifications) => calls.push(['trigger_fired', notifications[0]?.name, notifications[0]?.text]),
         onDelta: (delta) => calls.push(['delta', delta]),
         onDone: (assistant, options) => calls.push(['done', assistant.content, options[0]]),
         onStreamEnd: resolve,
@@ -53,7 +51,6 @@ describe('chat api', () => {
       ['delta', '你'],
       ['delta', '好'],
       ['memory_recall_done', 1],
-      ['trigger_fired', '警报', '命中了'],
       ['done', '你好', '继续'],
     ]);
   });

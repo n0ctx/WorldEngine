@@ -210,9 +210,10 @@ async function applyProposal(proposal, worldRefId = null) {
   switch (type) {
     case 'world-card': {
       if (operation === 'create') {
-        const safeChanges = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
+        const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
         const newWorld = createWorld({
           name: safeChanges.name || '新世界',
+          description: safeChanges.description ?? '',
           temperature: safeChanges.temperature ?? null,
           max_tokens: safeChanges.max_tokens ?? null,
         });
@@ -236,7 +237,7 @@ async function applyProposal(proposal, worldRefId = null) {
       }
       // update
       if (!entityId) throw new Error('world-card 提案缺少 entityId');
-      const safeChanges = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
+      const safeChanges = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateWorld(entityId, safeChanges);
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
@@ -396,7 +397,11 @@ function applyStateFieldCreate(op, worldId) {
       default: createWorldStateField(worldId, data); break;
     }
   } catch (err) {
-    if (!err.message?.includes('UNIQUE constraint failed')) throw err;
+    if (err.message?.includes('UNIQUE constraint failed')) {
+      log.warn(`applyStateFieldCreate UNIQUE conflict: target=${op.target}, field_key=${data.field_key}, worldId=${worldId}`);
+      throw new Error(`状态字段创建失败：字段键 "${data.field_key}" 已存在，请勿重复创建`);
+    }
+    throw err;
   }
 }
 
@@ -457,6 +462,14 @@ function normalizeProposal(raw, locked = {}) {
         allowTriggerType: true,
         conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
       });
+      {
+        const disallowedKeys = Object.keys(changes).filter(
+          (k) => !['name', 'description', 'temperature', 'max_tokens'].includes(k),
+        );
+        if (disallowedKeys.length > 0) {
+          proposal.explanation += `（注意：世界卡不支持 ${disallowedKeys.join(', ')} 字段，相关内容请通过条目管理）`;
+        }
+      }
       break;
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
@@ -492,13 +505,25 @@ function normalizeProposal(raw, locked = {}) {
 
   if (typeof raw?.worldRef === 'string' && raw.worldRef.trim()) proposal.worldRef = raw.worldRef.trim();
   if (typeof raw?.taskId === 'string' && raw.taskId.trim()) proposal.taskId = raw.taskId.trim();
+
+  // 空内容检测：非 delete 操作必须至少有一项变更
+  if (operation !== 'delete') {
+    const hasChanges = Object.keys(proposal.changes || {}).length > 0;
+    const hasEntryOps = Array.isArray(proposal.entryOps) && proposal.entryOps.length > 0;
+    const hasStateFieldOps = Array.isArray(proposal.stateFieldOps) && proposal.stateFieldOps.length > 0;
+    if (!hasChanges && !hasEntryOps && !hasStateFieldOps) {
+      throw new Error('提案格式错误：提案内容为空，未包含任何变更');
+    }
+  }
+
   return proposal;
 }
 
 function normalizeWorldChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'temperature', 'max_tokens']);
+  const picked = pickAllowed(changes, ['name', 'description', 'temperature', 'max_tokens']);
   const normalized = {};
   if ('name' in picked) normalized.name = String(picked.name ?? '');
+  if ('description' in picked) normalized.description = String(picked.description ?? '');
   if ('temperature' in picked) normalized.temperature = normalizeNumberOrNull(picked.temperature);
   if ('max_tokens' in picked) normalized.max_tokens = normalizeIntegerOrNull(picked.max_tokens);
   return normalized;

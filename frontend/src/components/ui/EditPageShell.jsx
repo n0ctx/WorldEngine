@@ -5,6 +5,7 @@ export default function EditPageShell({
   isOverlay = false,
   onClose,
   title,
+  headerActions,
   children,
 }) {
   if (loading) {
@@ -34,7 +35,10 @@ export default function EditPageShell({
     >
       <div className="we-edit-header">
         <button className="we-edit-back" onClick={onClose}>← 返回</button>
-        {title && <h1 className="we-edit-title">{title}</h1>}
+        <div className="we-edit-header-row">
+          {title && <h1 className="we-edit-title">{title}</h1>}
+          {headerActions && <div className="we-edit-header-actions">{headerActions}</div>}
+        </div>
       </div>
       {children}
     </div>

@@ -41,6 +41,8 @@
 - 查工程规范和执行边界：只看 `CLAUDE.md`
 - 查历史背景、兼容约束、已踩过的坑：只看 `CHANGELOG.md`
 - `CHANGELOG.md` 不是当前行为权威来源；若与 `SCHEMA.md` / `ARCHITECTURE.md` 冲突，以权威文档为准
+- `README.md` / `PROJECT.md` / `ROADMAP.md` 仅用于产品介绍、产品规划、任务排期，不是 agent 入口规范
+- `docs/` `.superpowers/` `.obsidian/` `.claude/` `.temp/` 均视为辅助材料或本地工作目录；除非任务明确要求，否则不要把它们当作当前实现或执行规范的权威来源
 
 ---
 

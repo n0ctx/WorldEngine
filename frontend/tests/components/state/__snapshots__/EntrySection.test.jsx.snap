@@ -44,11 +44,6 @@ exports[`EntrySection > 默认状态快照 1`] = `
         >
           世界观设定
         </span>
-        <span
-          class="we-entry-section-badge"
-        >
-          系统提示词
-        </span>
       </div>
       <div
         class="we-entry-section-actions"
@@ -75,11 +70,6 @@ exports[`EntrySection > 默认状态快照 1`] = `
           class="we-entry-section-name"
         >
           后置规则
-        </span>
-        <span
-          class="we-entry-section-badge"
-        >
-          后置提示词
         </span>
       </div>
       <div

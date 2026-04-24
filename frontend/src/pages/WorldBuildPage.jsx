@@ -16,6 +16,7 @@ export default function WorldBuildPage() {
   const alwaysEntries = entries.filter((e) => e.trigger_type === 'always');
   const keywordEntries = entries.filter((e) => e.trigger_type === 'keyword');
   const llmEntries = entries.filter((e) => e.trigger_type === 'llm');
+  const stateEntries = entries.filter((e) => e.trigger_type === 'state');
 
   function refresh() {
     listWorldEntries(worldId).then(setEntries).catch(() => {});
@@ -52,6 +53,16 @@ export default function WorldBuildPage() {
           desc="由 AI 判断当前情境是否需要注入"
           triggerType="llm"
           entries={llmEntries}
+          worldId={worldId}
+          onRefresh={refresh}
+        />
+
+        <EntrySection
+          title="状态条件条目"
+          icon="❦"
+          desc="当状态字段满足设定条件时自动注入"
+          triggerType="state"
+          entries={stateEntries}
           worldId={worldId}
           onRefresh={refresh}
         />

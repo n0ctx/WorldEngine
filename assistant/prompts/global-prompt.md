@@ -106,8 +106,10 @@
 - `global_post_prompt`
 - `context_history_rounds`
 - `memory_expansion_enabled`
+- `suggestion_enabled`
 - `llm`
 - `writing`
+- `diary`
 
 禁止输出：
 
@@ -148,6 +150,9 @@
 - “把全局回复统一成简体中文 + 不打破第四面墙” → `global_system_prompt`
 - “给写作空间加第三人称有限视角规范” → `writing.global_system_prompt`
 - “把默认 temperature 从 0.7 调到 0.9” → `llm.temperature`
+- “开启 AI 建议” → `suggestion_enabled: true`
+- “开启聊天空间日记” → `diary.chat.enabled: true`
+- “日记使用真实日期” → `diary.chat.date_mode: "real"`
 
 ## 反例
 

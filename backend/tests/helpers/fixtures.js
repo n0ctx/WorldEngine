@@ -268,7 +268,7 @@ export function insertWorldEntry(db, worldId, patch = {}) {
   const now = nowTs(patch.created_at);
   db.prepare(`
     INSERT INTO world_prompt_entries (
-      id, world_id, title, description, content, keywords, keyword_scope, position, trigger_type, sort_order, created_at, updated_at
+      id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, worldId,
@@ -277,9 +277,9 @@ export function insertWorldEntry(db, worldId, patch = {}) {
     patch.content ?? '',
     patch.keywords ? JSON.stringify(patch.keywords) : null,
     patch.keyword_scope ?? 'user,assistant',
-    patch.position ?? 'post',
     patch.trigger_type ?? 'always',
     patch.sort_order ?? 0,
+    patch.token ?? 1,
     now,
     patch.updated_at ?? now,
   );

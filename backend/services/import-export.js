@@ -8,6 +8,7 @@ import {
   validateCharacterImportPayload,
   validateWorldImportPayload,
 } from './import-export-validation.js';
+import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
@@ -34,19 +35,25 @@ function saveAvatarFile(entityId, avatarBase64, avatarMime) {
 
 /**
  * 批量插入 world_prompt_entries。
+ * 返回插入的条目 id 数组（与 entries 一一对应）。
  */
 function insertPromptEntries(stmt, entityId, entries, now) {
+  const ids = [];
   for (const entry of (entries ?? [])) {
+    const id = crypto.randomUUID();
     stmt.run(
-      crypto.randomUUID(), entityId,
+      id, entityId,
       entry.title, entry.description ?? entry.summary ?? '', entry.content ?? '',
       entry.keywords != null ? JSON.stringify(entry.keywords) : null,
       entry.keyword_scope ?? 'user,assistant',
+      entry.trigger_type ?? 'always',
       entry.sort_order ?? 0,
       normalizeToken(entry.token),
       now, now,
     );
+    ids.push(id);
   }
+  return ids;
 }
 
 /**
@@ -209,11 +216,20 @@ export function exportWorld(worldId) {
   if (!world) throw new Error('世界不存在');
 
   const worldPromptEntries = db.prepare(
-    'SELECT title, description, content, keywords, keyword_scope, sort_order, token FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
-  ).all(worldId).map((e) => ({
-    ...e,
-    keywords: e.keywords ? JSON.parse(e.keywords) : null,
-  }));
+    'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
+  ).all(worldId).map((e) => {
+    const entry = {
+      ...e,
+      keywords: e.keywords ? JSON.parse(e.keywords) : null,
+    };
+    if (entry.trigger_type === 'state') {
+      entry.conditions = listConditionsByEntry(entry.id);
+      delete entry.id;
+    } else {
+      delete entry.id;
+    }
+    return entry;
+  });
 
   const worldStateFields = db.prepare(
     'SELECT field_key, label, type, description, default_value, update_mode, trigger_mode, trigger_keywords, enum_options, min_value, max_value, allow_empty, update_instruction, sort_order FROM world_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
@@ -286,7 +302,6 @@ export function exportWorld(worldId) {
     world: {
       name: world.name,
       description: world.description ?? '',
-      system_prompt: world.system_prompt,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
     },
@@ -312,17 +327,39 @@ export function importWorld(data) {
 
     // 插入世界
     db.prepare(`
-      INSERT INTO worlds (id, name, description, system_prompt, temperature, max_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
       data.world.description ?? '',
-      data.world.system_prompt ?? '',
+      '',
+      '',
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,
       now, now,
     );
+
+    // 兼容旧格式：将 world.system_prompt / post_prompt 转为 always 条目
+    const legacyEntries = [];
+    if (typeof data.world?.system_prompt === 'string' && data.world.system_prompt.trim()) {
+      legacyEntries.push({
+        title: '世界系统提示',
+        content: data.world.system_prompt.trim(),
+        trigger_type: 'always',
+        sort_order: 0,
+        token: 1,
+      });
+    }
+    if (typeof data.world?.post_prompt === 'string' && data.world.post_prompt.trim()) {
+      legacyEntries.push({
+        title: '世界后置提示词',
+        content: data.world.post_prompt.trim(),
+        trigger_type: 'always',
+        sort_order: (legacyEntries.length),
+        token: 1,
+      });
+    }
 
     // 插入 persona（兼容旧格式：world.persona_name / persona_prompt 字段）
     const personaName = data.persona?.name ?? data.world?.persona_name ?? '';
@@ -332,12 +369,23 @@ export function importWorld(data) {
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(crypto.randomUUID(), worldId, personaName, personaSystemPrompt, now, now);
 
+    // 合并新旧条目
+    const allPromptEntries = [...legacyEntries, ...(data.prompt_entries ?? [])];
+
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`
-      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, sort_order, token, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    insertPromptEntries(insertWorldEntry, worldId, data.prompt_entries, now);
+    const entryIds = insertPromptEntries(insertWorldEntry, worldId, allPromptEntries, now);
+
+    // 插入 state 条目的 conditions
+    for (let i = 0; i < allPromptEntries.length; i++) {
+      const entry = allPromptEntries[i];
+      if (entry.trigger_type === 'state' && Array.isArray(entry.conditions) && entry.conditions.length > 0) {
+        replaceEntryConditions(entryIds[i], entry.conditions);
+      }
+    }
 
     // 插入世界状态字段定义
     const insertWorldField = db.prepare(`

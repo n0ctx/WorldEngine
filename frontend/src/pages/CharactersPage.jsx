@@ -14,8 +14,92 @@ import {
   deletePersona,
   createPersona,
 } from '../api/personas';
+import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle } from '../components';
 import Icon from '../components/ui/Icon.jsx';
+
+const TRIGGER_LABEL = {
+  always: '常驻',
+  keyword: '关键词',
+  llm: 'AI召回',
+  state: '状态',
+};
+
+function EntryOrderPanel({ entries, onTokenChange }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  function startEdit(entry) {
+    setEditingId(entry.id);
+    setEditValue(String(entry.token ?? 1));
+  }
+
+  function commitEdit(entry) {
+    const n = parseInt(editValue, 10);
+    const newToken = Number.isFinite(n) && n >= 1 ? n : entry.token;
+    setEditingId(null);
+    if (newToken !== entry.token) {
+      onTokenChange(entry.id, newToken);
+    }
+  }
+
+  function handleKeyDown(e, entry) {
+    if (e.key === 'Enter') commitEdit(entry);
+    if (e.key === 'Escape') setEditingId(null);
+  }
+
+  const sorted = [...entries].sort((a, b) => {
+    if (a.token !== b.token) return a.token - b.token;
+    return a.sort_order - b.sort_order;
+  });
+
+  return (
+    <div className="we-characters-col-entries">
+      <div className="we-characters-col-header">条目顺序</div>
+      <div className="we-entry-order-list">
+        {sorted.length === 0 ? (
+          <p className="we-entry-order-empty">暂无条目</p>
+        ) : (
+          sorted.map((entry) => (
+            <div key={entry.id} className="we-entry-order-item">
+              {editingId === entry.id ? (
+                <input
+                  ref={inputRef}
+                  className="we-entry-order-token-input"
+                  type="number"
+                  min={1}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={() => commitEdit(entry)}
+                  onKeyDown={(e) => handleKeyDown(e, entry)}
+                />
+              ) : (
+                <span
+                  className="we-entry-order-token"
+                  title="点击编辑 token"
+                  onClick={() => startEdit(entry)}
+                >
+                  {entry.token ?? 1}
+                </span>
+              )}
+              <div className="we-entry-order-info">
+                <div className="we-entry-order-title" title={entry.title}>{entry.title}</div>
+                <div className="we-entry-order-type">{TRIGGER_LABEL[entry.trigger_type] ?? entry.trigger_type}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ── PersonaCard（内联组件）─────────────────────────────────────────────────
 
@@ -102,6 +186,7 @@ export default function CharactersPage() {
 
   const [characters, setCharacters] = useState([]);
   const [personas, setPersonas] = useState([]);
+  const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [deletingChar, setDeletingChar] = useState(null);
@@ -118,12 +203,14 @@ export default function CharactersPage() {
     setLoading(true);
     setLoadError('');
     try {
-      const [chars, ps] = await Promise.all([
+      const [chars, ps, ents] = await Promise.all([
         getCharactersByWorld(worldId),
         listPersonas(worldId),
+        listWorldEntries(worldId),
       ]);
       setCharacters(chars);
       setPersonas(ps);
+      setEntries(ents);
     } catch (err) {
       setLoadError(err.message || '读取失败');
     } finally {
@@ -228,6 +315,16 @@ export default function CharactersPage() {
     }
   }
 
+  async function handleTokenChange(entryId, newToken) {
+    try {
+      await updateWorldEntry(entryId, { token: newToken });
+      const updated = await listWorldEntries(worldId);
+      setEntries(updated);
+    } catch (err) {
+      alert(`更新失败：${err.message}`);
+    }
+  }
+
   function handleDragStart(idx) {
     dragIdx.current = idx;
   }
@@ -271,7 +368,36 @@ export default function CharactersPage() {
 
         {/* ── 左栏：玩家卡 ── */}
         <div className="we-characters-col-left">
-          <div className="we-characters-col-header">Players</div>
+          <div className="we-characters-col-header">
+            <span>Players</span>
+            <div className="we-characters-col-actions">
+              <button
+                onClick={() => personaImportRef.current?.click()}
+                disabled={importingPersona}
+                className="we-characters-col-btn"
+                title="导入玩家卡"
+              >
+                {importingPersona ? '…' : '导入'}
+              </button>
+              <input
+                ref={personaImportRef}
+                type="file"
+                accept=".json,.wechar.json"
+                className="hidden"
+                onChange={handleImportPersonaFile}
+              />
+              <button
+                onClick={() => navigate(
+                  `/worlds/${worldId}/personas/new`,
+                  { state: { backgroundLocation: location } }
+                )}
+                className="we-characters-col-btn we-characters-col-btn--primary"
+                title="创建玩家"
+              >
+                + 创建
+              </button>
+            </div>
+          </div>
 
           <div className="we-characters-col-list">
             {personas.length === 0 ? (
@@ -298,38 +424,38 @@ export default function CharactersPage() {
               ))
             )}
           </div>
-
-          <div className="we-characters-col-footer">
-            <button
-              onClick={() => personaImportRef.current?.click()}
-              disabled={importingPersona}
-              className="we-characters-action-btn"
-            >
-              {importingPersona ? '导入中…' : '导入玩家卡'}
-            </button>
-            <input
-              ref={personaImportRef}
-              type="file"
-              accept=".json,.wechar.json"
-              className="hidden"
-              onChange={handleImportPersonaFile}
-            />
-            <button
-              onClick={() => navigate(
-                `/worlds/${worldId}/personas/new`,
-                { state: { backgroundLocation: location } }
-              )}
-              className="we-characters-create-btn"
-            >
-              + 创建玩家
-            </button>
-          </div>
         </div>
 
 
         {/* ── 右栏：角色卡 ── */}
         <div className="we-characters-col-right">
-          <div className="we-characters-col-header">Character</div>
+          <div className="we-characters-col-header">
+            <span>Character</span>
+            <div className="we-characters-col-actions">
+              <button
+                onClick={() => charImportRef.current?.click()}
+                disabled={importingChar}
+                className="we-characters-col-btn"
+                title="导入角色卡"
+              >
+                {importingChar ? '…' : '导入'}
+              </button>
+              <input
+                ref={charImportRef}
+                type="file"
+                accept=".json,.wechar.json"
+                className="hidden"
+                onChange={handleImportCharFile}
+              />
+              <button
+                onClick={() => navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } })}
+                className="we-characters-col-btn we-characters-col-btn--primary"
+                title="创建角色"
+              >
+                + 创建
+              </button>
+            </div>
+          </div>
 
           <div className="we-characters-col-list">
             {characters.length === 0 ? (
@@ -401,29 +527,10 @@ export default function CharactersPage() {
             )}
           </div>
 
-          <div className="we-characters-col-footer">
-            <button
-              onClick={() => charImportRef.current?.click()}
-              disabled={importingChar}
-              className="we-characters-action-btn"
-            >
-              {importingChar ? '导入中…' : '导入角色卡'}
-            </button>
-            <input
-              ref={charImportRef}
-              type="file"
-              accept=".json,.wechar.json"
-              className="hidden"
-              onChange={handleImportCharFile}
-            />
-            <button
-              onClick={() => navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } })}
-              className="we-characters-create-btn"
-            >
-              + 创建角色
-            </button>
-          </div>
         </div>
+
+        {/* ── 右侧条目顺序栏 ── */}
+        <EntryOrderPanel entries={entries} onTokenChange={handleTokenChange} />
       </div>
 
       {/* 删除角色确认 */}

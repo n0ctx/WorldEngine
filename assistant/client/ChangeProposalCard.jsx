@@ -578,6 +578,14 @@ function StateFieldOpSummary({ op }) {
   );
 }
 
+function formatExpiresIn(ms) {
+  if (ms <= 0) return '已过期';
+  const minutes = Math.floor(ms / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  if (minutes > 0) return `${minutes}分${seconds}秒后过期`;
+  return `${seconds}秒后过期`;
+}
+
 export default function ChangeProposalCard({ messageId, taskId, token, proposal, applied }) {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState(null);
@@ -586,6 +594,7 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
   const [localEntryOps, setLocalEntryOps] = useState([]);
   const [localStateFieldOps, setLocalStateFieldOps] = useState([]);
   const [fieldCatalog, setFieldCatalog] = useState({ world: [], persona: [], character: [] });
+  const [expiresIn, setExpiresIn] = useState(null);
 
   const markApplied = useAssistantStore((s) => s.markProposalApplied);
   const setResolvedId = useAssistantStore((s) => s.setResolvedId);
@@ -687,7 +696,21 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
     }
   }
 
-  const canEdit = !applied && operation !== 'delete';
+  useEffect(() => {
+    if (!proposal.expiresAt) return;
+    const update = () => {
+      const remaining = proposal.expiresAt - Date.now();
+      setExpiresIn(remaining);
+      if (remaining <= 0) {
+        setError('提案已过期，请重新生成');
+      }
+    };
+    update();
+    const id = setInterval(update, 5000);
+    return () => clearInterval(id);
+  }, [proposal.expiresAt]);
+
+  const canEdit = !applied && operation !== 'delete' && (!expiresIn || expiresIn > 0);
 
   return (
     <div
@@ -723,6 +746,17 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
           {editing && (
             <span style={{ fontSize: '11px', color: 'var(--we-vermilion, #8a5e4a)', background: 'rgba(138,94,74,0.1)', padding: '1px 6px', borderRadius: '3px' }}>
               编辑中
+            </span>
+          )}
+          {expiresIn != null && !applied && (
+            <span style={{
+              fontSize: '11px',
+              color: expiresIn <= 0 ? '#c0392b' : 'var(--we-ink-muted)',
+              background: expiresIn <= 0 ? 'rgba(192,57,43,0.08)' : 'rgba(0,0,0,0.04)',
+              padding: '1px 6px',
+              borderRadius: '3px',
+            }}>
+              {formatExpiresIn(expiresIn)}
             </span>
           )}
         </div>

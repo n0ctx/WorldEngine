@@ -22,6 +22,7 @@ import { READ_FILE_TOOL } from './tools/project-reader.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-agent', 'cyan');
 const PROPOSAL_TTL_MS = 30 * 60 * 1000;
+const MAX_JSON_RETRY = 1;
 
 function sendSSE(res, data) {
   if (res.writableEnded) return;
@@ -89,6 +90,8 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
         const messages = buildAgentMessages(def.name, task + entityHint);
 
         // temperature: 0 — 精确 JSON 输出任务，排除随机性
+        // 注：若需提升写卡创造性，可将生成阶段改为 0.3-0.5，但当前单轮 completeWithTools
+        // 架构下工具调用与文本生成共用同一轮，暂保持 0 以确保 JSON 稳定。
         let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0 });
         log.info(`RAW  ${formatMeta({ agent: def.name, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
@@ -96,7 +99,7 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
         try {
           result = extractJson(raw);
         } catch {
-          log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed' })}`);
+          log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY })}`);
           // retry 时保留 system 层，追加纠错指令，继续用 completeWithTools 保留工具能力
           messages.push({ role: 'assistant', content: raw });
           messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON。请只重发 1 个 JSON 对象，不要代码块、注释或解释。' });
@@ -107,10 +110,11 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
 
         const proposal = normalizeProposal(result, { type: def.proposalType, operation, entityId });
         const token = randomUUID();
-        proposalStore.set(token, { proposal, expiresAt: Date.now() + PROPOSAL_TTL_MS });
+        const expiresAt = Date.now() + PROPOSAL_TTL_MS;
+        proposalStore.set(token, { proposal, expiresAt });
         const changeKeys = Object.keys(proposal.changes || {});
         log.info(`DONE  ${formatMeta({ agent: def.name, operation: proposal.operation, token: token.slice(0, 8), changeKeys })}`);
-        sendSSE(res, { type: 'proposal', taskId, token, proposal });
+        sendSSE(res, { type: 'proposal', taskId, token, proposal, expiresAt });
 
         // 富化工具结果：把 changes 内容摘要和条目计数返回给主代理，
         // 让主代理流式回复时有足够上下文，避免空泛总结

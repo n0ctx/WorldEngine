@@ -20,8 +20,9 @@ export function executeReadFile({ path: filePath }) {
   const normalized = filePath.trim();
   const resolved = path.resolve(PROJECT_ROOT, normalized);
 
-  // 安全检查：必须在项目根目录内
-  if (!resolved.startsWith(PROJECT_ROOT + path.sep) && resolved !== PROJECT_ROOT) {
+  // 安全检查：必须在项目根目录内（跨平台兼容方案）
+  const relative = path.relative(PROJECT_ROOT, resolved);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
     return `错误：路径 "${normalized}" 超出项目范围`;
   }
 

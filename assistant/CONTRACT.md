@@ -187,6 +187,7 @@ skill 执行失败时发送。
 ```json
 {
   "name": "世界名",
+  "description": "一句话简介",
   "temperature": 0.8,
   "max_tokens": 1200
 }
@@ -224,6 +225,7 @@ skill 执行失败时发送。
   "global_post_prompt": "完整文本",
   "context_history_rounds": 10,
   "memory_expansion_enabled": true,
+  "suggestion_enabled": false,
   "llm": {
     "model": "gpt-4o",
     "temperature": 0.8,
@@ -233,11 +235,17 @@ skill 执行失败时发送。
     "global_system_prompt": "完整文本",
     "global_post_prompt": "完整文本",
     "context_history_rounds": 12,
+    "suggestion_enabled": false,
+    "memory_expansion_enabled": true,
     "llm": {
       "model": "claude-sonnet",
       "temperature": 0.9,
       "max_tokens": 2000
     }
+  },
+  "diary": {
+    "chat": { "enabled": false, "date_mode": "virtual" },
+    "writing": { "enabled": false, "date_mode": "virtual" }
   }
 }
 ```

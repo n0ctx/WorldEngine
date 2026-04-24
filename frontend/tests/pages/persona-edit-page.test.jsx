@@ -7,7 +7,9 @@ const mocks = vi.hoisted(() => ({
   useNavigate: vi.fn(),
   useLocation: vi.fn(),
   getPersona: vi.fn(),
+  getPersonaById: vi.fn(),
   updatePersona: vi.fn(),
+  updatePersonaById: vi.fn(),
   uploadPersonaAvatar: vi.fn(),
   getPersonaStateValues: vi.fn(),
   updatePersonaStateValue: vi.fn(),
@@ -21,7 +23,9 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('../../src/api/personas', () => ({
   getPersona: (...args) => mocks.getPersona(...args),
+  getPersonaById: (...args) => mocks.getPersonaById(...args),
   updatePersona: (...args) => mocks.updatePersona(...args),
+  updatePersonaById: (...args) => mocks.updatePersonaById(...args),
   uploadPersonaAvatar: (...args) => mocks.uploadPersonaAvatar(...args),
 }));
 vi.mock('../../src/api/persona-state-values', () => ({
@@ -55,7 +59,7 @@ import PersonaEditPage from '../../src/pages/PersonaEditPage.jsx';
 describe('PersonaEditPage', () => {
   beforeEach(() => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
-    mocks.useLocation.mockReturnValue({ state: {} });
+    mocks.useLocation.mockReturnValue({ pathname: '/worlds/world-1/persona', state: {} });
     mocks.useNavigate.mockReset();
     mocks.getPersona.mockResolvedValue({
       id: 'persona-1',
@@ -65,6 +69,7 @@ describe('PersonaEditPage', () => {
     });
     mocks.getPersonaStateValues.mockResolvedValue([{ field_key: 'mood', label: '心境' }]);
     mocks.updatePersona.mockResolvedValue({ id: 'persona-1' });
+    mocks.updatePersonaById.mockResolvedValue({ id: 'persona-1' });
     mocks.updatePersonaStateValue.mockResolvedValue({ success: true });
     mocks.downloadPersonaCard.mockResolvedValue(undefined);
     mocks.uploadPersonaAvatar.mockResolvedValue({ avatar_path: 'avatars/persona.png' });
@@ -80,19 +85,20 @@ describe('PersonaEditPage', () => {
 
     await waitFor(() => expect(mocks.updatePersonaStateValue).toHaveBeenCalledWith('world-1', 'mood', '"玩家值"'));
 
-    fireEvent.click(screen.getByText('导出为角色卡'));
+    fireEvent.click(screen.getByText('导出玩家卡'));
     await waitFor(() => expect(mocks.downloadPersonaCard).toHaveBeenCalledWith('world-1', '行者.wechar.json'));
 
     fireEvent.click(screen.getByText('保存'));
-    await waitFor(() => expect(mocks.updatePersona).toHaveBeenCalledWith('world-1', {
+    await waitFor(() => expect(mocks.updatePersonaById).toHaveBeenCalledWith('persona-1', {
       name: '行者',
+      description: '',
       system_prompt: '异界来客',
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
   });
 
   it('保存失败时会提示错误', async () => {
-    mocks.updatePersona.mockRejectedValueOnce(new Error('保存失败'));
+    mocks.updatePersonaById.mockRejectedValueOnce(new Error('保存失败'));
 
     render(<PersonaEditPage />);
 

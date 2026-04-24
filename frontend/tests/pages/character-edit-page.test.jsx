@@ -94,6 +94,7 @@ describe('CharacterEditPage', () => {
 
     await waitFor(() => expect(mocks.updateCharacter).toHaveBeenCalledWith('char-1', {
       name: '阿塔-新',
+      description: '',
       system_prompt: '冷静',
       post_prompt: '保留神秘感',
       first_message: '你好',

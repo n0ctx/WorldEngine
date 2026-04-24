@@ -305,6 +305,9 @@
 }
 
 .we-characters-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-family: var(--we-font-display);
   font-size: 11px;
   letter-spacing: 0.3em;
@@ -314,6 +317,45 @@
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   flex-shrink: 0;
+}
+
+.we-characters-col-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.we-characters-col-btn {
+  font-family: var(--we-font-sans);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: none;
+  padding: 2px 8px;
+  border-radius: var(--we-radius-sm);
+  border: 1px solid rgba(200, 185, 154, 0.3);
+  background: transparent;
+  color: rgba(200, 185, 154, 0.7);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.we-characters-col-btn:hover:not(:disabled) {
+  border-color: rgba(200, 185, 154, 0.6);
+  color: var(--we-paper-shadow);
+}
+
+.we-characters-col-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.we-characters-col-btn--primary {
+  border-color: var(--we-color-accent);
+  color: var(--we-color-accent);
+}
+
+.we-characters-col-btn--primary:hover {
+  background: rgba(180, 80, 60, 0.12);
 }
 
 .we-characters-col-list {
@@ -342,8 +384,107 @@
   flex-wrap: wrap;
   padding-top: 14px;
   margin-top: 8px;
-  border-top: 1px solid var(--we-paper-shadow);
   flex-shrink: 0;
+}
+
+/* ── 条目顺序侧栏 ── */
+
+.we-characters-col-entries {
+  flex: 0 0 240px;
+  min-width: 200px;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-left: 20px;
+}
+
+.we-entry-order-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.we-entry-order-list::-webkit-scrollbar {
+  width: 4px;
+}
+.we-entry-order-list::-webkit-scrollbar-track { background: transparent; }
+.we-entry-order-list::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
+}
+
+.we-entry-order-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.we-entry-order-token {
+  flex-shrink: 0;
+  width: 32px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--we-text-xs);
+  font-family: var(--we-font-mono, monospace);
+  color: var(--we-ink-secondary);
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.we-entry-order-token:hover {
+  border-color: var(--we-color-accent);
+  color: var(--we-ink-primary);
+}
+
+.we-entry-order-token-input {
+  width: 32px;
+  height: 22px;
+  font-size: var(--we-text-xs);
+  font-family: var(--we-font-mono, monospace);
+  text-align: center;
+  color: var(--we-ink-primary);
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-accent);
+  border-radius: var(--we-radius-sm);
+  outline: none;
+  padding: 0;
+}
+
+.we-entry-order-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.we-entry-order-title {
+  font-size: var(--we-text-sm);
+  color: var(--we-paper-shadow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.we-entry-order-type {
+  font-size: 10px;
+  color: rgba(200, 185, 154, 0.55);
+  margin-top: 1px;
+}
+
+.we-entry-order-empty {
+  font-size: var(--we-text-sm);
+  color: rgba(200, 185, 154, 0.55);
+  text-align: center;
+  padding: 24px 0;
 }
 
 /* ── PersonaCard ── */
@@ -953,6 +1094,20 @@
 
 .we-edit-back:hover {
   color: var(--we-ink-secondary);
+}
+
+.we-edit-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.we-edit-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .we-edit-title {

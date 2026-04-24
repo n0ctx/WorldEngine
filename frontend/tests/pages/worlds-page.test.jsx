@@ -82,7 +82,7 @@ describe('WorldsPage', () => {
 
     render(<WorldsPage />);
 
-    expect(await screen.findByText('尚无世界记录')).toBeInTheDocument();
+    expect(await screen.findByText('暂无世界记录')).toBeInTheDocument();
     fireEvent.click(screen.getByText('新建世界'));
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/new', {
       state: { backgroundLocation: { pathname: '/' } },

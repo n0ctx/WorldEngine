@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../api/characters';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
-import { downloadCharacterCard, importCharacter, readJsonFile } from '../api/import-export';
+import { downloadCharacterCard } from '../api/import-export';
 import { getCharacterStateValues, updateCharacterStateValue } from '../api/character-state-values';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
@@ -21,14 +21,12 @@ export default function CharacterEditPage() {
   const isOverlay = !!location.state?.backgroundLocation;
   const isCreate = !characterId && !!worldId;
   const fileInputRef = useRef(null);
-  const charImportRef = useRef(null);
 
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sealKey, setSealKey] = useState(0);
-  const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -124,22 +122,6 @@ export default function CharacterEditPage() {
       alert(`导出失败：${err.message}`);
     } finally {
       setExporting(false);
-    }
-  }
-
-  async function handleImportCharFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const data = await readJsonFile(file);
-      await importCharacter(character?.world_id, data);
-      navigate(-1);
-    } catch (err) {
-      alert(`导入失败：${err.message}`);
-    } finally {
-      setImporting(false);
-      e.target.value = '';
     }
   }
 
@@ -254,40 +236,13 @@ export default function CharacterEditPage() {
             </div>
           ),
         },
-        {
-          key: 'export',
-          label: '导入导出',
-          content: (
-            <div>
-              <div className="we-edit-form-group">
-                <h3 className="we-edit-subsection-title">导出角色卡</h3>
-                <p className="we-edit-hint">将此角色导出为 .wechar.json 文件，包含所有配置和状态字段定义。</p>
-                <div className="we-edit-btn-spacer">
-                  <Button variant="secondary" onClick={handleExport} disabled={exporting}>
-                    {exporting ? '导出中…' : '导出 .wechar.json'}
-                  </Button>
-                </div>
-              </div>
-              <div className="we-edit-form-group">
-                <h3 className="we-edit-subsection-title">导入角色卡</h3>
-                <p className="we-edit-hint">导入 .wechar.json 将在当前世界创建一个新角色（不覆盖当前角色）。</p>
-                <div className="we-edit-btn-spacer">
-                  <Button variant="secondary" onClick={() => charImportRef.current?.click()} disabled={importing}>
-                    {importing ? '导入中…' : '导入角色卡…'}
-                  </Button>
-                  <input
-                    ref={charImportRef}
-                    type="file"
-                    accept=".json,.wechar.json"
-                    className="hidden"
-                    onChange={handleImportCharFile}
-                  />
-                </div>
-              </div>
-            </div>
-          ),
-        },
       ];
+
+  const exportAction = !isCreate && characterId ? (
+    <Button variant="ghost" size="sm" onClick={handleExport} disabled={exporting}>
+      {exporting ? '导出中…' : '导出角色卡'}
+    </Button>
+  ) : null;
 
   return (
     <>
@@ -296,6 +251,7 @@ export default function CharacterEditPage() {
         isOverlay={isOverlay}
         onClose={handleClose}
         title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}
+        headerActions={exportAction}
       >
         <SectionTabs sections={sections} defaultKey="basic" />
       </EditPageShell>

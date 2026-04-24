@@ -76,6 +76,19 @@ function loadEntityData(target, operation, entityId, context) {
       : entry
   ));
 
+  const MAX_PREVIEW_ENTRIES = 100;
+  const MAX_PREVIEW_FIELDS = 100;
+
+  function maybeTruncate(arr, max, label) {
+    if (!Array.isArray(arr) || arr.length <= max) return { data: arr, truncated: false, total: arr.length };
+    return {
+      data: arr.slice(0, max),
+      truncated: true,
+      total: arr.length,
+      _message: `${label} 数量过多，仅返回前 ${max} 条`,
+    };
+  }
+
   if (operation === 'create') {
     if (target === 'world-card') {
       return { _globalSystemPrompt: globalSystemPrompt };
@@ -99,12 +112,20 @@ function loadEntityData(target, operation, entityId, context) {
       if (!worldId) throw Object.assign(new Error('请先选择一个世界，再查询世界卡'), { userFacing: true });
       const world = getWorldById(worldId);
       if (!world) throw Object.assign(new Error('找不到指定的世界，可能已被删除'), { userFacing: true });
+      const entriesMeta = maybeTruncate(withEntryConditions(getAllWorldEntries(worldId)), MAX_PREVIEW_ENTRIES, '现有条目');
+      const worldSfMeta = maybeTruncate(listWorldStateFields(worldId), MAX_PREVIEW_FIELDS, '世界状态字段');
+      const personaSfMeta = maybeTruncate(getPersonaStateFieldsByWorldId(worldId), MAX_PREVIEW_FIELDS, '玩家状态字段');
+      const charSfMeta = maybeTruncate(listCharacterStateFields(worldId), MAX_PREVIEW_FIELDS, '角色状态字段');
       return {
         ...world,
-        existingEntries: withEntryConditions(getAllWorldEntries(worldId)),
-        existingWorldStateFields: listWorldStateFields(worldId),
-        existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
-        existingCharacterStateFields: listCharacterStateFields(worldId),
+        existingEntries: entriesMeta.data,
+        _existingEntriesMeta: entriesMeta.truncated ? { total: entriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
+        existingWorldStateFields: worldSfMeta.data,
+        _existingWorldStateFieldsMeta: worldSfMeta.truncated ? { total: worldSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingPersonaStateFields: personaSfMeta.data,
+        _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingCharacterStateFields: charSfMeta.data,
+        _existingCharacterStateFieldsMeta: charSfMeta.truncated ? { total: charSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         _globalSystemPrompt: globalSystemPrompt,
       };
     }
@@ -114,11 +135,17 @@ function loadEntityData(target, operation, entityId, context) {
       const character = getCharacterById(charId);
       if (!character) throw Object.assign(new Error('找不到指定的角色，可能已被删除'), { userFacing: true });
       const world = getWorldById(character.world_id);
+      const charEntriesMeta = maybeTruncate(world ? withEntryConditions(getAllWorldEntries(world.id)) : [], MAX_PREVIEW_ENTRIES, '现有世界条目');
+      const charCharSfMeta = maybeTruncate(listCharacterStateFields(character.world_id), MAX_PREVIEW_FIELDS, '角色状态字段');
+      const charPersonaSfMeta = maybeTruncate(getPersonaStateFieldsByWorldId(character.world_id), MAX_PREVIEW_FIELDS, '玩家状态字段');
       return {
         ...character,
-        existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
-        existingCharacterStateFields: listCharacterStateFields(character.world_id),
-        existingPersonaStateFields: getPersonaStateFieldsByWorldId(character.world_id),
+        existingWorldEntries: charEntriesMeta.data,
+        _existingWorldEntriesMeta: charEntriesMeta.truncated ? { total: charEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
+        existingCharacterStateFields: charCharSfMeta.data,
+        _existingCharacterStateFieldsMeta: charCharSfMeta.truncated ? { total: charCharSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingPersonaStateFields: charPersonaSfMeta.data,
+        _existingPersonaStateFieldsMeta: charPersonaSfMeta.truncated ? { total: charPersonaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
@@ -129,10 +156,14 @@ function loadEntityData(target, operation, entityId, context) {
       if (!worldId) throw Object.assign(new Error('请先选择一个世界，再查询玩家卡'), { userFacing: true });
       const persona = getOrCreatePersona(worldId);
       const world = getWorldById(worldId);
+      const personaEntriesMeta = maybeTruncate(world ? withEntryConditions(getAllWorldEntries(world.id)) : [], MAX_PREVIEW_ENTRIES, '现有世界条目');
+      const personaSfMeta = maybeTruncate(getPersonaStateFieldsByWorldId(worldId), MAX_PREVIEW_FIELDS, '玩家状态字段');
       return {
         ...persona,
-        existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
-        existingPersonaStateFields: getPersonaStateFieldsByWorldId(worldId),
+        existingWorldEntries: personaEntriesMeta.data,
+        _existingWorldEntriesMeta: personaEntriesMeta.truncated ? { total: personaEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
+        existingPersonaStateFields: personaSfMeta.data,
+        _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
