@@ -328,6 +328,20 @@ export function insertCharacterEntry(db, characterId, patch = {}) {
   return insertPromptEntry(db, 'character_prompt_entries', 'character_id', characterId, patch);
 }
 
+export function insertEntryCondition(db, entryId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  db.prepare(
+    'INSERT INTO entry_conditions (id, entry_id, target_field, operator, value) VALUES (?, ?, ?, ?, ?)',
+  ).run(
+    id,
+    entryId,
+    patch.target_field ?? '世界.字段',
+    patch.operator ?? '>',
+    patch.value ?? '0',
+  );
+  return { id, entry_id: entryId, target_field: patch.target_field ?? '世界.字段', operator: patch.operator ?? '>', value: patch.value ?? '0' };
+}
+
 export function insertRegexRule(db, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
