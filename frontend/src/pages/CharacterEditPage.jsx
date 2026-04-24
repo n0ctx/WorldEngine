@@ -33,6 +33,7 @@ export default function CharacterEditPage() {
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [postPrompt, setPostPrompt] = useState('');
   const [firstMessage, setFirstMessage] = useState('');
@@ -46,6 +47,7 @@ export default function CharacterEditPage() {
     try {
       const draft = JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
       if (draft.name != null) setName(draft.name);
+      if (draft.description != null) setDescription(draft.description);
       if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
       if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
       if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
@@ -57,7 +59,7 @@ export default function CharacterEditPage() {
   // 创建模式：自动保存草稿
   useEffect(() => {
     if (!isCreate) return;
-    sessionStorage.setItem('character_create_draft', JSON.stringify({ name, systemPrompt, postPrompt, firstMessage }));
+    sessionStorage.setItem('character_create_draft', JSON.stringify({ name, description, systemPrompt, postPrompt, firstMessage }));
   }, [name, systemPrompt, postPrompt, firstMessage, isCreate]);
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export default function CharacterEditPage() {
     ]).then(([c, fields]) => {
       setCharacter(c);
       setName(c.name);
+      setDescription(c.description ?? '');
       setSystemPrompt(c.system_prompt ?? '');
       setPostPrompt(c.post_prompt ?? '');
       setFirstMessage(c.first_message ?? '');
@@ -148,6 +151,7 @@ export default function CharacterEditPage() {
       if (isCreate) {
         const newChar = await createCharacter(worldId, {
           name: name.trim(),
+          description: description.trim(),
           system_prompt: systemPrompt,
           post_prompt: postPrompt,
           first_message: firstMessage,
@@ -158,6 +162,7 @@ export default function CharacterEditPage() {
       } else {
         await updateCharacter(characterId, {
           name: name.trim(),
+          description: description.trim(),
           system_prompt: systemPrompt,
           post_prompt: postPrompt,
           first_message: firstMessage,
@@ -197,6 +202,15 @@ export default function CharacterEditPage() {
         )}
         <FormGroup label="名称" required>
           <Input value={name} onChange={e => setName(e.target.value)} placeholder="角色的名字" autoFocus={isCreate} />
+        </FormGroup>
+        <FormGroup label="简介" hint="纯展示用途，不注入提示词">
+          <textarea
+            className="we-textarea"
+            rows={3}
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="一句话介绍这个角色…"
+          />
         </FormGroup>
         <FormGroup label="系统提示词">
           <MarkdownEditor value={systemPrompt} onChange={setSystemPrompt} placeholder="角色的性格、背景、说话风格……" minHeight={144} />

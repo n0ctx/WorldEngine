@@ -185,19 +185,6 @@ export default function ChatPage() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  function showTriggerNotifications(notifications) {
-    if (!Array.isArray(notifications) || notifications.length === 0) return;
-    const lines = notifications
-      .map((item) => {
-        const name = item?.name?.trim();
-        const text = item?.text?.trim();
-        if (name && text) return `【${name}】${text}`;
-        return text || name || '';
-      })
-      .filter(Boolean);
-    if (lines.length > 0) showToast(lines.join('；'));
-  }
-
   // 流状态清理
   const finalizeStream = useCallback(() => {
     // 续写场景：原地合并消息内容，不重挂载 MessageList，避免气泡闪烁
@@ -317,9 +304,6 @@ export default function ChatPage() {
         setMemoryExpanding(false);
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
-      },
-      onTriggerFired(notifications) {
-        showTriggerNotifications(notifications);
       },
       onStreamEnd() {
         finalizeStream();

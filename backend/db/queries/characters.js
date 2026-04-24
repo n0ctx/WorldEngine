@@ -14,13 +14,14 @@ export function createCharacter(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.max_sort ?? -1) + 1);
 
   const stmt = db.prepare(`
-    INSERT INTO characters (id, world_id, name, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
     data.world_id,
     data.name,
+    data.description ?? '',
     data.system_prompt ?? '',
     data.post_prompt ?? '',
     data.first_message ?? '',
@@ -52,7 +53,7 @@ export function getCharactersByWorldId(worldId) {
  * 部分更新角色字段
  */
 export function updateCharacter(id, patch) {
-  const allowedFields = ['name', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path', 'sort_order'];
+  const allowedFields = ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'avatar_path', 'sort_order'];
   const sets = [];
   const values = [];
 

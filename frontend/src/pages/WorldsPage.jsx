@@ -111,6 +111,12 @@ export default function WorldsPage() {
             className="hidden"
             onChange={handleImportWorldFile}
           />
+          <button
+            onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
+            className="we-worlds-create-btn"
+          >
+            + 创建世界
+          </button>
         </div>
       </div>
 
@@ -194,15 +200,6 @@ export default function WorldsPage() {
           ))}
         </div>
       )}
-
-      {/* 新建 FAB */}
-      <button
-        className="we-world-create-fab"
-        onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
-        title="新建世界"
-      >
-        +
-      </button>
 
       {deletingWorld && (
         <ConfirmModal

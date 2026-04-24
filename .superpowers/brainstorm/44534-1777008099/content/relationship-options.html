@@ -1,0 +1,120 @@
+<h2>关系图：选哪种呈现方式？</h2>
+<p class="subtitle">中间面板下半部分——条目与触发器的关联展示</p>
+
+<div class="cards">
+
+  <!-- Option A: 矩阵表格 -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#faf8f5;">
+      <div style="font-size:11px;color:#8b7355;margin-bottom:8px;font-weight:600;letter-spacing:.05em;">矩阵表</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:4px 6px;border-bottom:1px solid #d4c5a9;color:#8b7355;">条目</th>
+            <th style="padding:4px 6px;border-bottom:1px solid #d4c5a9;color:#8b7355;text-align:center;">触发器A</th>
+            <th style="padding:4px 6px;border-bottom:1px solid #d4c5a9;color:#8b7355;text-align:center;">触发器B</th>
+            <th style="padding:4px 6px;border-bottom:1px solid #d4c5a9;color:#8b7355;text-align:center;">触发器C</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="padding:4px 6px;color:#3d2b1f;">世界基础设定</td>
+            <td style="text-align:center;padding:4px 6px;color:#c07a3f;">●</td>
+            <td style="text-align:center;padding:4px 6px;color:#bbb;">○</td>
+            <td style="text-align:center;padding:4px 6px;color:#c07a3f;">●</td>
+          </tr>
+          <tr style="background:#f5f0e8;">
+            <td style="padding:4px 6px;color:#3d2b1f;">战斗规则</td>
+            <td style="text-align:center;padding:4px 6px;color:#bbb;">○</td>
+            <td style="text-align:center;padding:4px 6px;color:#c07a3f;">●</td>
+            <td style="text-align:center;padding:4px 6px;color:#bbb;">○</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 6px;color:#3d2b1f;">魔法体系</td>
+            <td style="text-align:center;padding:4px 6px;color:#c07a3f;">●</td>
+            <td style="text-align:center;padding:4px 6px;color:#c07a3f;">●</td>
+            <td style="text-align:center;padding:4px 6px;color:#bbb;">○</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:6px;font-size:10px;color:#aaa;">● 已关联　○ 无关联</div>
+    </div>
+    <div class="card-body">
+      <h3>A — 矩阵表格</h3>
+      <p>行=条目，列=触发器，交叉点标记关联。一览式，适合条目/触发器数量都多时快速扫描。</p>
+    </div>
+  </div>
+
+  <!-- Option B: 节点连线图 -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#faf8f5;position:relative;min-height:140px;">
+      <div style="font-size:11px;color:#8b7355;margin-bottom:12px;font-weight:600;letter-spacing:.05em;">节点连线</div>
+      <svg width="100%" height="110" viewBox="0 0 280 110" style="overflow:visible;">
+        <!-- 条目节点（左侧） -->
+        <rect x="4" y="10" width="72" height="22" rx="4" fill="#e8dcc8" stroke="#c4a96a" stroke-width="1"/>
+        <text x="40" y="25" text-anchor="middle" font-size="10" fill="#3d2b1f">世界基础设定</text>
+        <rect x="4" y="44" width="72" height="22" rx="4" fill="#e8dcc8" stroke="#c4a96a" stroke-width="1"/>
+        <text x="40" y="59" text-anchor="middle" font-size="10" fill="#3d2b1f">战斗规则</text>
+        <rect x="4" y="78" width="72" height="22" rx="4" fill="#e8dcc8" stroke="#c4a96a" stroke-width="1"/>
+        <text x="40" y="93" text-anchor="middle" font-size="10" fill="#3d2b1f">魔法体系</text>
+        <!-- 触发器节点（右侧） -->
+        <rect x="200" y="10" width="72" height="22" rx="4" fill="#d4e8d4" stroke="#7ab87a" stroke-width="1"/>
+        <text x="236" y="25" text-anchor="middle" font-size="10" fill="#2a4a2a">触发器 A</text>
+        <rect x="200" y="44" width="72" height="22" rx="4" fill="#d4e8d4" stroke="#7ab87a" stroke-width="1"/>
+        <text x="236" y="59" text-anchor="middle" font-size="10" fill="#2a4a2a">触发器 B</text>
+        <rect x="200" y="78" width="72" height="22" rx="4" fill="#d4e8d4" stroke="#7ab87a" stroke-width="1"/>
+        <text x="236" y="93" text-anchor="middle" font-size="10" fill="#2a4a2a">触发器 C</text>
+        <!-- 连线 -->
+        <line x1="76" y1="21" x2="200" y2="21" stroke="#c07a3f" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <line x1="76" y1="21" x2="200" y2="89" stroke="#c07a3f" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <line x1="76" y1="55" x2="200" y2="55" stroke="#c07a3f" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <line x1="76" y1="89" x2="200" y2="21" stroke="#c07a3f" stroke-width="1.2" stroke-dasharray="4,2"/>
+        <line x1="76" y1="89" x2="200" y2="55" stroke="#c07a3f" stroke-width="1.2" stroke-dasharray="4,2"/>
+      </svg>
+    </div>
+    <div class="card-body">
+      <h3>B — 节点连线图</h3>
+      <p>左侧条目节点，右侧触发器节点，连线表示关联。直观但线条多时容易交叉凌乱。</p>
+    </div>
+  </div>
+
+  <!-- Option C: 折叠列表 -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:16px;background:#faf8f5;">
+      <div style="font-size:11px;color:#8b7355;margin-bottom:8px;font-weight:600;letter-spacing:.05em;">折叠列表</div>
+      <!-- 触发器A展开 -->
+      <div style="border:1px solid #d4c5a9;border-radius:4px;margin-bottom:6px;overflow:hidden;">
+        <div style="background:#e8dcc8;padding:5px 10px;font-size:11px;color:#3d2b1f;display:flex;justify-content:space-between;">
+          <span>▾ 触发器 A <span style="color:#7ab87a;font-size:10px;">● 启用</span></span>
+          <span style="color:#8b7355;font-size:10px;">激活 2 个条目</span>
+        </div>
+        <div style="padding:6px 10px 6px 18px;font-size:10px;color:#5a4a3a;line-height:1.8;">
+          → 世界基础设定<br/>
+          → 魔法体系
+        </div>
+      </div>
+      <!-- 触发器B折叠 -->
+      <div style="border:1px solid #d4c5a9;border-radius:4px;margin-bottom:6px;">
+        <div style="background:#f5f0e8;padding:5px 10px;font-size:11px;color:#8b7355;display:flex;justify-content:space-between;">
+          <span>▸ 触发器 B <span style="color:#bbb;font-size:10px;">○ 禁用</span></span>
+          <span style="color:#8b7355;font-size:10px;">激活 2 个条目</span>
+        </div>
+      </div>
+      <!-- 触发器C展开 -->
+      <div style="border:1px solid #d4c5a9;border-radius:4px;">
+        <div style="background:#e8dcc8;padding:5px 10px;font-size:11px;color:#3d2b1f;display:flex;justify-content:space-between;">
+          <span>▾ 触发器 C <span style="color:#7ab87a;font-size:10px;">● 启用</span></span>
+          <span style="color:#8b7355;font-size:10px;">激活 1 个条目</span>
+        </div>
+        <div style="padding:6px 10px 6px 18px;font-size:10px;color:#5a4a3a;line-height:1.8;">
+          → 世界基础设定
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — 折叠列表（以触发器为主视角）</h3>
+      <p>每个触发器展开后列出它关联的条目。清晰有序，配置多时不乱，但只能从触发器视角查看。</p>
+    </div>
+  </div>
+
+</div>

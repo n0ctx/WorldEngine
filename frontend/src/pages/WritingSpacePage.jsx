@@ -4,7 +4,8 @@ import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { useAppModeStore } from '../store/appMode.js';
 import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
 import { refreshCustomCss } from '../api/custom-css-snippets.js';
-import { getPersona } from '../api/personas.js';
+import { getPersona, getPersonaById } from '../api/personas.js';
+import useStore from '../store/index.js';
 import {
   listWritingSessions,
   createWritingSession,
@@ -32,6 +33,7 @@ import OptionCard from '../components/chat/OptionCard.jsx';
 export default function WritingSpacePage() {
   const { worldId } = useParams();
   const setAppMode = useAppModeStore((s) => s.setAppMode);
+  const currentPersonaId = useStore((s) => s.currentPersonaId);
 
   useEffect(() => {
     setAppMode(SETTINGS_MODE.WRITING);
@@ -79,19 +81,6 @@ export default function WritingSpacePage() {
     setTimeout(() => setToast(null), 3000);
   }
 
-  function showTriggerNotifications(notifications) {
-    if (!Array.isArray(notifications) || notifications.length === 0) return;
-    const lines = notifications
-      .map((item) => {
-        const name = item?.name?.trim();
-        const text = item?.text?.trim();
-        if (name && text) return `【${name}】${text}`;
-        return text || name || '';
-      })
-      .filter(Boolean);
-    if (lines.length > 0) showToast(lines.join('；'));
-  }
-
   function clearOptionsState() {
     pendingOptionsRef.current = [];
     setCurrentOptions([]);
@@ -104,9 +93,13 @@ export default function WritingSpacePage() {
   useEffect(() => {
     if (!worldId) return;
     clearOptionsState();
-    getPersona(worldId).then(setPersona).catch(() => {});
+    // 优先用 store 中记录的 currentPersonaId（从角色页点卡片传入），fallback 到 active persona
+    const loadPersona = currentPersonaId
+      ? getPersonaById(currentPersonaId).catch(() => getPersona(worldId))
+      : getPersona(worldId);
+    loadPersona.then(setPersona).catch(() => {});
     syncDiaryTimeField(worldId).catch(() => {});
-  }, [worldId]);
+  }, [worldId, currentPersonaId]);
 
   useEffect(() => {
     return () => {
@@ -251,9 +244,6 @@ export default function WritingSpacePage() {
       },
       onDiaryUpdated() {
         setDiaryTick((tick) => tick + 1);
-      },
-      onTriggerFired(notifications) {
-        showTriggerNotifications(notifications);
       },
       onStreamEnd() {
         const pending = pendingAssistantRef.current;
@@ -445,10 +435,6 @@ export default function WritingSpacePage() {
       onDiaryUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;
         setDiaryTick((tick) => tick + 1);
-      },
-      onTriggerFired(notifications) {
-        if (continuationTokenRef.current !== continuationToken) return;
-        showTriggerNotifications(notifications);
       },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
