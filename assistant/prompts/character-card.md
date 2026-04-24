@@ -170,6 +170,20 @@
 - 该角色好感度、伤势、携带武器 → `target:"character"`
 - 玩家 HP、玩家背包 → `target:"persona"`
 
+### 正例 4：从零构建完整角色卡
+
+用户说"给这个世界创建一个冷酷刺客角色"：
+
+1. **changes**：
+   - `name`：影隼
+   - `description`：前帝国暗影卫，现在只认钱
+   - `system_prompt`：完整人格内核（性格寡言、行动优先、对背叛零容忍、习惯在阴影中观察）
+   - `post_prompt`：始终用第一人称、句子简短、不解释动机
+   - `first_message`：第一次登场场景（如从房梁跃下，刀尖抵着目标喉咙）
+2. **stateFieldOps**（4条）：
+   - `target:"character"`：好感度(number, 默认0)、信任度(number, 默认0)、任务完成数(number, 默认0)、当前伤势(enum:无伤/轻伤/重伤)
+   - `target:"persona"`：玩家悬赏金额(number, 默认0) —— 刺客对玩家的估值
+
 ## 反例
 
 - 把"这个世界由蒸汽帝国统治"写进角色卡

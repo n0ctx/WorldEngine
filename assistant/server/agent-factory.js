@@ -89,10 +89,9 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
         const entityHint = entityId ? `\n\n实体 ID：${entityId}` : '';
         const messages = buildAgentMessages(def.name, task + entityHint);
 
-        // temperature: 0 — 精确 JSON 输出任务，排除随机性
-        // 注：若需提升写卡创造性，可将生成阶段改为 0.3-0.5，但当前单轮 completeWithTools
-        // 架构下工具调用与文本生成共用同一轮，暂保持 0 以确保 JSON 稳定。
-        let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0 });
+        // temperature: 0.3 — 在 JSON 稳定性与写卡创造力之间取平衡
+        // 有明确的 schema、正例和 extractJson + retry 兜底，0.3 是安全值
+        let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
         log.info(`RAW  ${formatMeta({ agent: def.name, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
         let result;
@@ -103,7 +102,7 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
           // retry 时保留 system 层，追加纠错指令，继续用 completeWithTools 保留工具能力
           messages.push({ role: 'assistant', content: raw });
           messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON。请只重发 1 个 JSON 对象，不要代码块、注释或解释。' });
-          raw = await llm.completeWithTools(messages, agentTools, { temperature: 0 });
+          raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
           log.info(`RAW  ${formatMeta({ agent: def.name, retry: true, chars: raw?.length ?? 0 })}`);
           result = extractJson(raw);
         }

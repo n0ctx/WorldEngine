@@ -81,6 +81,28 @@ test('buildContextString 在缺少上下文时返回默认提示', async () => {
   );
 });
 
+test('buildContextString 会展示世界卡条目与字段摘要', async () => {
+  const { __testables: mainTestables } = await loadMainAgent();
+  const context = mainTestables.buildContextString({
+    world: { id: 'world-1', name: '云海', temperature: 0.7, max_tokens: 256 },
+    _worldSummary: {
+      entryCount: 12,
+      alwaysCount: 2,
+      keywordCount: 5,
+      llmCount: 3,
+      stateCount: 2,
+      worldStateFieldCount: 4,
+      personaStateFieldCount: 3,
+      characterStateFieldCount: 2,
+    },
+  });
+
+  assert.match(context, /云海/);
+  assert.match(context, /现有条目：12条/);
+  assert.match(context, /always 2/);
+  assert.match(context, /状态字段：世界 4 \/ 玩家 3 \/ 角色 2/);
+});
+
 test('runAgent 只对读取类工具触发 onToolCall，并在多轮 history 下稳定流式返回', async () => {
   const { runAgent } = await loadMainAgent();
   resetMockEnv();

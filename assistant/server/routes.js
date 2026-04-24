@@ -119,10 +119,33 @@ router.post('/chat', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
+  // 预置世界卡摘要：让主代理在上下文中直接看到当前世界的条目/字段概况
+  const worldId = context?.worldId ?? context?.world?.id ?? null;
+  if (worldId) {
+    try {
+      const entries = listWorldPromptEntries(worldId);
+      const worldSf = listWorldStateFields(worldId);
+      const personaSf = getPersonaStateFieldsByWorldId(worldId);
+      const charSf = listCharacterStateFields(worldId);
+      context._worldSummary = {
+        entryCount: entries.length,
+        alwaysCount: entries.filter((e) => e.trigger_type === 'always').length,
+        keywordCount: entries.filter((e) => e.trigger_type === 'keyword').length,
+        llmCount: entries.filter((e) => e.trigger_type === 'llm').length,
+        stateCount: entries.filter((e) => e.trigger_type === 'state').length,
+        worldStateFieldCount: worldSf.length,
+        personaStateFieldCount: personaSf.length,
+        characterStateFieldCount: charSf.length,
+      };
+    } catch {
+      // 摘要查询失败不阻断对话
+    }
+  }
+
   log.info(`chat START  ${formatMeta({
     message: previewText(message, { limit: 160 }),
     history: Array.isArray(history) ? history.length : 0,
-    worldId: context?.worldId ?? context?.world?.id ?? null,
+    worldId,
     characterId: context?.characterId ?? context?.character?.id ?? null,
   })}`);
 

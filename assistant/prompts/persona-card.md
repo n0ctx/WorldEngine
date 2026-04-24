@@ -160,6 +160,19 @@
 - "把玩家改成退役审判官，带罪流放到北境" → 修改 `system_prompt`
 - "增加玩家生命值、金币和背包字段" → 3 条 `stateFieldOps.create`
 
+### 正例 3：从零构建完整玩家卡
+
+用户说"创建一个流浪医师身份"：
+
+1. **changes**：
+   - `name`：无名旅医
+   - `description`：背着药箱走过瘟疫区的独行者
+   - `system_prompt`：玩家身份、背景动机、与世界的关系（如"曾在教会医院受训，因拒绝放弃贫民患者被除名，现在边旅行边收集民间药方"）
+2. **stateFieldOps**（5条）：
+   - `target:"persona"`：HP(number, 默认100)、精力(number, 默认100)、金币(number, 默认50)
+   - `target:"persona"`：背包(list, 默认["草药包","绷带"])
+   - `target:"persona"`：医术声望(number, 默认10) —— 影响 NPC 对玩家的信任度
+
 ## 反例
 
 - 给玩家卡增加 lore 条目

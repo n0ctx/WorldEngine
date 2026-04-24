@@ -87,9 +87,16 @@ function buildContextString(context) {
 
   if (context?.world) {
     const w = context.world;
+    const summary = context._worldSummary;
+    let summaryLine = '';
+    if (summary) {
+      summaryLine =
+        `\n现有条目：${summary.entryCount}条（always ${summary.alwaysCount} / keyword ${summary.keywordCount} / llm ${summary.llmCount} / state ${summary.stateCount}）；` +
+        `状态字段：世界 ${summary.worldStateFieldCount} / 玩家 ${summary.personaStateFieldCount} / 角色 ${summary.characterStateFieldCount}`;
+    }
     parts.push(
       `**当前世界**：${w.name}（ID: ${w.id}）\n` +
-      `temperature: ${w.temperature ?? '（继承全局）'}，max_tokens: ${w.max_tokens ?? '（继承全局）'}\n` +
+      `temperature: ${w.temperature ?? '（继承全局）'}，max_tokens: ${w.max_tokens ?? '（继承全局）'}${summaryLine}\n` +
       `世界正文通过 world_prompt_entries 管理；状态逻辑通过 world/persona/character 三套状态字段与 state 条目管理。`,
     );
   }
