@@ -1,11 +1,40 @@
-import { useState } from 'react';
-import { createWorldEntry, updateWorldEntry } from '../../api/prompt-entries';
+import { useState, useEffect } from 'react';
+import { createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions } from '../../api/prompt-entries';
+import { listWorldStateFields } from '../../api/world-state-fields';
+import { listCharacterStateFields } from '../../api/character-state-fields';
+import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
+import Select from '../ui/Select';
 
 const POSITION_OPTIONS = [
   { value: 'system', label: '系统提示词' },
   { value: 'post', label: '后置提示词' },
 ];
+
+const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
+const NUMERIC_OPS = [
+  { value: '>', label: '>' },
+  { value: '<', label: '<' },
+  { value: '=', label: '=' },
+  { value: '>=', label: '>=' },
+  { value: '<=', label: '<=' },
+  { value: '!=', label: '!=' },
+];
+const TEXT_OPS = [
+  { value: '包含', label: '包含' },
+  { value: '等于', label: '等于' },
+  { value: '不包含', label: '不包含' },
+];
+
+function emptyCondition() {
+  return { target_field: '', operator: '>', value: '' };
+}
+
+function getOpsForField(targetField, fieldTypeMap) {
+  const type = fieldTypeMap.get(targetField);
+  if (!type) return [...NUMERIC_OPS, ...TEXT_OPS];
+  return NUMERIC_TYPES.has(type) ? NUMERIC_OPS : TEXT_OPS;
+}
 
 export default function EntryEditor({ worldId, entry, defaultTriggerType, onClose, onSave }) {
   const isNew = !entry?.id;
@@ -18,6 +47,66 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
   });
   const [saving, setSaving] = useState(false);
+
+  // state 类型专用
+  const [conditions, setConditions] = useState([emptyCondition()]);
+  const [fieldOptions, setFieldOptions] = useState([]);
+  const [fieldTypeMap, setFieldTypeMap] = useState(new Map());
+
+  // 当 trigger_type 切换为 state 时，加载字段选项 + 已有条件
+  useEffect(() => {
+    if (form.trigger_type !== 'state') return;
+    async function load() {
+      try {
+        const [worldFields, charFields, personaFields] = await Promise.all([
+          listWorldStateFields(worldId),
+          listCharacterStateFields(worldId),
+          listPersonaStateFields(worldId),
+        ]);
+        const opts = [];
+        const typeMap = new Map();
+        for (const f of worldFields) {
+          const key = `世界.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
+        }
+        for (const f of personaFields) {
+          const key = `玩家.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
+        }
+        for (const f of charFields) {
+          const key = `角色.${f.label}`;
+          opts.push({ value: key, label: key });
+          typeMap.set(key, f.type);
+        }
+        setFieldOptions(opts);
+        setFieldTypeMap(typeMap);
+
+        if (!isNew && entry?.trigger_type === 'state') {
+          const conds = await getEntryConditions(entry.id);
+          setConditions(conds.length > 0 ? conds.map((c) => ({ ...c })) : [emptyCondition()]);
+        } else {
+          setConditions([emptyCondition()]);
+        }
+      } catch (err) {
+        console.error('加载状态字段失败', err);
+      }
+    }
+    load();
+  }, [form.trigger_type]);
+
+  function updateCondition(index, patch) {
+    setConditions((prev) => prev.map((c, i) => {
+      if (i !== index) return c;
+      const next = { ...c, ...patch };
+      if (patch.target_field !== undefined) {
+        const ops = getOpsForField(next.target_field, fieldTypeMap);
+        next.operator = ops[0].value;
+      }
+      return next;
+    }));
+  }
 
   async function handleSave() {
     if (!form.title.trim()) return;
@@ -33,12 +122,20 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       trigger_type: form.trigger_type,
     };
     try {
+      let saved;
       if (isNew) {
-        await createWorldEntry(worldId, data);
+        saved = await createWorldEntry(worldId, data);
       } else {
-        await updateWorldEntry(entry.id, data);
+        saved = await updateWorldEntry(entry.id, data);
+      }
+      if (form.trigger_type === 'state') {
+        const entryId = isNew ? saved.id : entry.id;
+        const validConditions = conditions.filter((c) => c.target_field && c.value);
+        await replaceEntryConditions(entryId, validConditions);
       }
       onSave();
+    } catch (err) {
+      alert(`保存失败：${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -46,10 +143,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
 
   return (
     <div className="we-entry-editor-overlay" onClick={onClose}>
-      <div
-        className="we-entry-editor-panel"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
         <h3 className="we-entry-editor-title">
           {isNew ? '新建条目' : '编辑条目'}
         </h3>
@@ -99,6 +193,53 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           </>
         )}
 
+        {/* 状态条件（仅 state 类型） */}
+        {form.trigger_type === 'state' && (
+          <>
+            <label className="we-entry-editor-label">状态条件（全部满足时注入）</label>
+            {conditions.map((cond, i) => {
+              const ops = getOpsForField(cond.target_field, fieldTypeMap);
+              return (
+                <div key={i} className="we-trigger-editor-condition">
+                  <div className="we-trigger-editor-condition-field">
+                    <Select
+                      value={cond.target_field}
+                      onChange={(v) => updateCondition(i, { target_field: v })}
+                      options={fieldOptions}
+                      disabled={fieldOptions.length === 0}
+                    />
+                  </div>
+                  <div className="we-trigger-editor-condition-op">
+                    <Select
+                      value={cond.operator}
+                      onChange={(v) => updateCondition(i, { operator: v })}
+                      options={ops}
+                    />
+                  </div>
+                  <input
+                    value={cond.value}
+                    onChange={(e) => updateCondition(i, { value: e.target.value })}
+                    placeholder="值"
+                    className="we-trigger-editor-field we-trigger-editor-condition-value"
+                  />
+                  <button
+                    onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
+                    className="we-trigger-editor-icon-btn we-trigger-editor-icon-btn--danger"
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            <button
+              onClick={() => setConditions((prev) => [...prev, emptyCondition()])}
+              className="we-trigger-editor-link-btn"
+            >
+              + 添加条件
+            </button>
+          </>
+        )}
+
         {/* 注入位置 */}
         <label className="we-entry-editor-label">注入位置</label>
         <select
@@ -113,9 +254,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
 
         {/* 按钮 */}
         <div className="we-entry-editor-footer">
-          <button onClick={onClose} className="we-entry-editor-cancel">
-            取消
-          </button>
+          <button onClick={onClose} className="we-entry-editor-cancel">取消</button>
           <button
             onClick={handleSave}
             disabled={saving || !form.title.trim()}
