@@ -1078,6 +1078,23 @@ body {
   color: var(--we-ink-faded);
   opacity: 0.35;
 }
+.we-status-editable {
+  cursor: pointer;
+  border-bottom: 1px dashed color-mix(in srgb, var(--we-color-gold) 50%, transparent);
+  transition: border-color 0.15s, color 0.15s;
+}
+.we-status-editable:hover {
+  color: var(--we-color-gold);
+  border-bottom-color: var(--we-color-gold);
+}
+.we-status-inline-input {
+  font-family: var(--we-font-serif);
+  font-size: 12.5px;
+  padding: 1px 4px;
+  height: auto;
+  min-width: 0;
+  width: 100%;
+}
 
 /* 进度条 */
 .we-status-bar {

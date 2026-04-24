@@ -6,6 +6,7 @@ import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   resetSessionCharacterStateValues,
+  patchSessionStateValue,
 } from '../../api/session-state-values.js';
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { getWorld } from '../../api/worlds.js';
@@ -114,6 +115,36 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     finally { setCharResetting(false); }
   }
 
+  async function handleSaveWorld(fieldKey, valueJson) {
+    try {
+      await patchSessionStateValue(sessionId, 'world', fieldKey, valueJson);
+      setStateData((prev) => prev ? {
+        ...prev,
+        world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
+      } : prev);
+    } catch (e) { console.error('更新世界状态失败', e); }
+  }
+
+  async function handleSavePersona(fieldKey, valueJson) {
+    try {
+      await patchSessionStateValue(sessionId, 'persona', fieldKey, valueJson);
+      setStateData((prev) => prev ? {
+        ...prev,
+        persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
+      } : prev);
+    } catch (e) { console.error('更新玩家状态失败', e); }
+  }
+
+  async function handleSaveCharacter(fieldKey, valueJson, characterId) {
+    try {
+      await patchSessionStateValue(sessionId, 'character', fieldKey, valueJson, characterId ?? character?.id);
+      setStateData((prev) => prev ? {
+        ...prev,
+        character: prev.character.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
+      } : prev);
+    } catch (e) { console.error('更新角色状态失败', e); }
+  }
+
   // ── 日记点击注入 ─────────────────────────────────────────
   async function handleDiarySelect(entry) {
     if (selectedEntry?.date_str === entry.date_str) {
@@ -175,6 +206,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             rows={stateData?.world ?? null}
             onReset={handleResetWorld}
             resetting={worldResetting}
+            onSave={handleSaveWorld}
             collapsible
           />
 
@@ -185,6 +217,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             pinnedName={persona?.name}
             onReset={handleResetPersona}
             resetting={personaResetting}
+            onSave={handleSavePersona}
             collapsible
           />
 
@@ -195,6 +228,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             pinnedName={character?.name}
             onReset={handleResetChar}
             resetting={charResetting}
+            onSave={handleSaveCharacter}
             collapsible
           />
 

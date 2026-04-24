@@ -27,11 +27,12 @@ import {
   getSingleCharacterSessionStateValues,
   getCharacterStateValuesAfterReset,
 } from '../db/queries/session-state-values.js';
-import { clearSessionWorldStateValues } from '../db/queries/session-world-state-values.js';
-import { clearSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
+import { clearSessionWorldStateValues, upsertSessionWorldStateValue } from '../db/queries/session-world-state-values.js';
+import { clearSessionPersonaStateValues, upsertSessionPersonaStateValue } from '../db/queries/session-persona-state-values.js';
 import {
   clearSessionCharacterStateValues,
   clearSingleCharacterSessionStateValues,
+  upsertSessionCharacterStateValue,
 } from '../db/queries/session-character-state-values.js';
 
 const router = Router();
@@ -56,6 +57,43 @@ router.get('/:sessionId/state-values', (req, res) => {
   const character = getSessionCharacterStateValues(sessionId, worldId, characterIds);
 
   res.json({ world, persona, character });
+});
+
+// ── PATCH /api/sessions/:sessionId/world-state-values/:fieldKey ───
+
+router.patch('/:sessionId/world-state-values/:fieldKey', (req, res) => {
+  const { sessionId, fieldKey } = req.params;
+  const session = getSessionById(sessionId);
+  if (!assertExists(res, session, '会话不存在')) return;
+  const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
+  if (!worldId) return res.status(400).json({ error: '无法确定 worldId' });
+  const { value_json } = req.body;
+  upsertSessionWorldStateValue(sessionId, worldId, fieldKey, value_json ?? null);
+  res.json({ ok: true });
+});
+
+// ── PATCH /api/sessions/:sessionId/persona-state-values/:fieldKey ─
+
+router.patch('/:sessionId/persona-state-values/:fieldKey', (req, res) => {
+  const { sessionId, fieldKey } = req.params;
+  const session = getSessionById(sessionId);
+  if (!assertExists(res, session, '会话不存在')) return;
+  const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
+  if (!worldId) return res.status(400).json({ error: '无法确定 worldId' });
+  const { value_json } = req.body;
+  upsertSessionPersonaStateValue(sessionId, worldId, fieldKey, value_json ?? null);
+  res.json({ ok: true });
+});
+
+// ── PATCH /api/sessions/:sessionId/character-state-values/:characterId/:fieldKey
+
+router.patch('/:sessionId/character-state-values/:characterId/:fieldKey', (req, res) => {
+  const { sessionId, characterId, fieldKey } = req.params;
+  const session = getSessionById(sessionId);
+  if (!assertExists(res, session, '会话不存在')) return;
+  const { value_json } = req.body;
+  upsertSessionCharacterStateValue(sessionId, characterId, fieldKey, value_json ?? null);
+  res.json({ ok: true });
 });
 
 // ── DELETE /api/sessions/:sessionId/world-state-values ────────────

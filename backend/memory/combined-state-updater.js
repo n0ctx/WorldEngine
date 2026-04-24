@@ -22,7 +22,7 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
 import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { PROMPT_ENTRY_SCAN_WINDOW, ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -61,21 +61,11 @@ function repairTruncatedJson(text) {
 }
 
 /**
- * 筛选本轮需要更新的活跃字段。
- * @param {object[]} fields      字段列表
- * @param {string}   recentText  最近消息拼接的小写文本（用于 keyword_based 触发判断）
+ * 筛选本轮需要更新的活跃字段：仅 update_mode='llm_auto' 的字段参与自动更新。
+ * @param {object[]} fields 字段列表
  */
-function filterActive(fields, recentText) {
-  return fields.filter((f) => {
-    if (f.update_mode !== 'llm_auto') return false;
-    if (f.trigger_mode === 'manual_only') return false;
-    if (f.trigger_mode === 'every_turn') return true;
-    if (f.trigger_mode === 'keyword_based') {
-      if (!f.trigger_keywords?.length) return false;
-      return f.trigger_keywords.some((kw) => recentText.includes(kw.toLowerCase()));
-    }
-    return false;
-  });
+function filterActive(fields) {
+  return fields.filter((f) => f.update_mode === 'llm_auto');
 }
 
 /**
@@ -167,7 +157,7 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel) {
 export async function updateAllStates(worldId, characterIds, sessionId) {
   const sid = sessionId.slice(0, 8);
   const world = worldId ? getWorldById(worldId) : null;
-  log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds, messageScanWindow: PROMPT_ENTRY_SCAN_WINDOW })}`);
+  log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds })}`);
 
   // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
   const session = getSessionById(sessionId);
@@ -180,23 +170,16 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   if (messages.length === 0) return;
 
-  // 近期文本用于 keyword_based 触发判断
-  const recentText = messages
-    .slice(-PROMPT_ENTRY_SCAN_WINDOW)
-    .map((m) => m.content)
-    .join('\n')
-    .toLowerCase();
-
   // ── 确定各类活跃字段 ──
-  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId), recentText) : [];
+  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
 
   const characters = (characterIds || []).map((id) => getCharacterById(id)).filter(Boolean);
   // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id
   const charWorldId = characters[0]?.world_id ?? worldId;
-  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId), recentText) : [];
+  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
   const charactersWithFields = charSchemaFields.length > 0 ? characters : [];
 
-  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId), recentText) : [];
+  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
 
   if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
     log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);

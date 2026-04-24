@@ -10,15 +10,8 @@ const TYPE_OPTIONS = [
 ];
 
 const UPDATE_MODE_OPTIONS = [
-  { value: 'manual',      label: '手动' },
-  { value: 'llm_auto',    label: 'LLM 自动' },
-  { value: 'system_rule', label: '系统规则' },
-];
-
-const TRIGGER_MODE_OPTIONS = [
-  { value: 'manual_only',    label: '仅手动' },
-  { value: 'every_turn',     label: '每轮更新' },
-  { value: 'keyword_based',  label: '关键词触发' },
+  { value: 'manual',   label: '手动' },
+  { value: 'llm_auto', label: 'LLM 自动' },
 ];
 
 const inputCls = 'we-input';
@@ -41,12 +34,12 @@ function parseDiaryTimeDefault(str) {
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
  * Props:
  *   field         — 现有字段对象（编辑模式）或 null（创建模式）
- *   scope         — 'world' | 'character'（决定 update_mode 选项范围）
+ *   scope         — 'world' | 'character'（保留参数，不影响当前逻辑）
  *   diaryDateMode — 'virtual' | 'real' | undefined（仅 diary_time 字段时传入）
  *   onSave(data)  — 父组件负责调用 API，返回 Promise
  *   onClose()
  */
-export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose }) {
+export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose }) {
   const [form, setForm] = useState(() => {
     // 解析 list 类型的 default_value（存储为 JSON 数组字符串）
     let listDefaults = [];
@@ -58,9 +51,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
       label:              field?.label ?? '',
       type:               field?.type ?? 'text',
       description:        field?.description ?? '',
-      update_mode:        field?.update_mode ?? 'llm_auto',
-      trigger_mode:       field?.trigger_mode ?? 'every_turn',
-      trigger_keywords:   Array.isArray(field?.trigger_keywords) ? field.trigger_keywords : [],
+      update_mode:        field?.update_mode === 'manual' ? 'manual' : 'llm_auto',
       enum_options:       Array.isArray(field?.enum_options) ? field.enum_options : [],
       list_defaults:      listDefaults,
       min_value:          field?.min_value ?? '',
@@ -71,25 +62,14 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
     };
   });
 
-  const [kwInput, setKwInput] = useState('');
   const [enumInput, setEnumInput] = useState('');
   const [listDefInput, setListDefInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const kwRef = useRef(null);
   const enumRef = useRef(null);
   const listDefRef = useRef(null);
 
   function set(k, v) { setForm((f) => ({ ...f, [k]: v })); }
-
-  // ── 关键词 tags ──
-  function addKw(raw) {
-    const kw = raw.trim();
-    if (!kw || form.trigger_keywords.includes(kw)) return;
-    set('trigger_keywords', [...form.trigger_keywords, kw]);
-    setKwInput('');
-  }
-  function removeKw(kw) { set('trigger_keywords', form.trigger_keywords.filter((k) => k !== kw)); }
 
   // ── 枚举选项 tags ──
   function addEnum(raw) {
@@ -130,9 +110,6 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
         type:               form.type,
         description:        form.description,
         update_mode:        form.update_mode,
-        trigger_mode:       form.trigger_mode,
-        trigger_keywords:   form.trigger_mode === 'keyword_based' && form.trigger_keywords.length
-                              ? form.trigger_keywords : null,
         enum_options:       form.type === 'enum' && form.enum_options.length
                               ? form.enum_options : null,
         min_value:          form.type === 'number' && form.min_value !== '' ? Number(form.min_value) : null,
@@ -149,10 +126,6 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
       setSaving(false);
     }
   }
-
-  const updateModeOpts = scope === 'world'
-    ? UPDATE_MODE_OPTIONS
-    : UPDATE_MODE_OPTIONS.filter((o) => o.value !== 'system_rule');
 
   const isDiaryTime = field?.field_key === DIARY_TIME_FIELD_KEY;
 
@@ -364,64 +337,21 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
               placeholder="「字段含义说明」——告诉 LLM 这个字段代表什么，会注入到提示词上下文中" />
           </div>
 
-          {/* 更新模式 */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={labelCls}>更新方式</label>
-              <Select value={form.update_mode} onChange={(v) => set('update_mode', v)} options={updateModeOpts} />
-            </div>
-            {form.update_mode !== 'manual' && (
-              <div>
-                <label className={labelCls}>触发时机</label>
-                <Select value={form.trigger_mode} onChange={(v) => set('trigger_mode', v)} options={TRIGGER_MODE_OPTIONS} />
-              </div>
-            )}
+          {/* 更新方式 */}
+          <div>
+            <label className={labelCls}>更新方式</label>
+            <Select value={form.update_mode} onChange={(v) => set('update_mode', v)} options={UPDATE_MODE_OPTIONS} />
           </div>
 
-          {/* 触发关键词（update_mode 非 manual 且 trigger_mode=keyword_based 时显示） */}
-          {form.update_mode !== 'manual' && form.trigger_mode === 'keyword_based' && (
+          {/* 更新指令（LLM 自动时显示） */}
+          {form.update_mode === 'llm_auto' && (
             <div>
-              <label className={labelCls}>触发关键词（回车添加）</label>
-              <div
-                className="we-tag-input"
-                onClick={() => kwRef.current?.focus()}
-                role="group"
-                aria-label="触发关键词标签输入区"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.currentTarget.querySelector('input')?.focus();
-                  }
-                }}
-              >
-                {form.trigger_keywords.map((kw) => (
-                  <span key={kw} className="we-tag">
-                    {kw}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); removeKw(kw); }}>×</button>
-                  </span>
-                ))}
-                <input ref={kwRef} className="we-tag-input-field"
-                  value={kwInput} onChange={(e) => setKwInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); addKw(kwInput); }
-                    else if (e.key === 'Backspace' && kwInput === '' && form.trigger_keywords.length) {
-                      removeKw(form.trigger_keywords[form.trigger_keywords.length - 1]);
-                    }
-                  }}
-                  onBlur={() => { if (kwInput.trim()) addKw(kwInput); }}
-                  placeholder={form.trigger_keywords.length === 0 ? '输入关键词后按回车' : ''}
-                />
-              </div>
+              <label className={labelCls}>更新指令（告诉 LLM 如何更新该字段）</label>
+              <textarea className={`${inputCls} resize-none`} rows={2} value={form.update_instruction}
+                onChange={(e) => set('update_instruction', e.target.value)}
+                placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值" />
             </div>
           )}
-
-          {/* 更新指令 */}
-          <div>
-            <label className={labelCls}>更新指令（告诉 LLM 如何更新该字段）</label>
-            <textarea className={`${inputCls} resize-none`} rows={2} value={form.update_instruction}
-              onChange={(e) => set('update_instruction', e.target.value)}
-              placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值" />
-          </div>
 
           {error && (
             <p className="we-state-field-error">

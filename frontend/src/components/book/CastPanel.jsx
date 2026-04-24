@@ -10,6 +10,7 @@ import {
   resetSessionPersonaStateValues,
   fetchSessionCharacterStateValues,
   resetSessionCharacterStateValuesByChar,
+  patchSessionStateValue,
 } from '../../api/session-state-values.js';
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
@@ -79,6 +80,16 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
     finally { setResetting(false); }
   }
 
+  async function handleSave(fieldKey, valueJson) {
+    try {
+      await patchSessionStateValue(sessionId, 'character', fieldKey, valueJson, char.id);
+      setStateValues((prev) => prev
+        ? prev.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r)
+        : prev
+      );
+    } catch (e) { console.error('更新角色状态失败', e); }
+  }
+
   return (
     <div className="we-cast-character-block we-state-section">
       <div
@@ -112,7 +123,7 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
         overflow: 'hidden',
       }}>
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
-          <StatusSection title="" rows={stateValues} className="we-cast-char-inner" />
+          <StatusSection title="" rows={stateValues} onSave={handleSave} className="we-cast-char-inner" />
         </div>
       </div>
     </div>
@@ -228,6 +239,26 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     finally { setPersonaResetting(false); }
   }
 
+  async function handleSaveWorld(fieldKey, valueJson) {
+    try {
+      await patchSessionStateValue(sessionId, 'world', fieldKey, valueJson);
+      setStateData((prev) => prev ? {
+        ...prev,
+        world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
+      } : prev);
+    } catch (e) { console.error('更新世界状态失败', e); }
+  }
+
+  async function handleSavePersona(fieldKey, valueJson) {
+    try {
+      await patchSessionStateValue(sessionId, 'persona', fieldKey, valueJson);
+      setStateData((prev) => prev ? {
+        ...prev,
+        persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
+      } : prev);
+    } catch (e) { console.error('更新玩家状态失败', e); }
+  }
+
   async function handleDiarySelect(entry) {
     if (selectedEntry?.date_str === entry.date_str) {
       setSelectedEntry(null);
@@ -320,6 +351,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           rows={stateData?.world ?? null}
           onReset={handleResetWorldState}
           resetting={worldResetting}
+          onSave={handleSaveWorld}
           collapsible
         />
 
@@ -329,6 +361,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           rows={stateData?.persona ?? null}
           onReset={handleResetPersonaState}
           resetting={personaResetting}
+          onSave={handleSavePersona}
           collapsible
         />
 

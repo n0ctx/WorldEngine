@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 状态字段更新方式简化：移除 trigger_mode/keyword_based，新增状态栏内联编辑
+
+- **背景**：`update_mode` + `trigger_mode` 两个维度冗余，用户体验复杂；统一收敛为一维：`manual`（手动）/ `llm_auto`（每轮更新）
+- **后端 DB 查询**：`world-state-fields` / `character-state-fields` / `persona-state-fields` 三张表的 `createXxx` / `updateXxx` 停止读写 `trigger_mode` / `trigger_keywords`（列保留，依靠 DB 默认值）；`session-state-values.js` 所有 SELECT 加 `update_mode`，角色查询加 `character_id`
+- **combined-state-updater.js**：`filterActive(fields)` 简化为仅检查 `update_mode === 'llm_auto'`，删除 `recentText` 构建和 keyword_based 分支，删除 `PROMPT_ENTRY_SCAN_WINDOW` 引用
+- **routes/session-state-values.js**：新增 3 个 PATCH 端点（`world-state-values/:fieldKey` / `persona-state-values/:fieldKey` / `character-state-values/:characterId/:fieldKey`），复用已有 upsert 函数，支持手动更新单个会话状态值
+- **StateFieldEditor.jsx**：移除 TRIGGER_MODE_OPTIONS / system_rule 选项 / 触发关键词 tag 输入；update_mode 改为二选一 Select
+- **StatusSection.jsx**：新增 `onSave(fieldKey, valueJson, characterId?)` prop；`update_mode='manual'` 的字段值点击进入内联编辑（InlineEditor 组件），支持 text/number/enum/list/boolean 所有类型，blur/Enter 保存，Esc 取消
+- **session-state-values.js（API）**：新增 `patchSessionStateValue(sessionId, category, fieldKey, valueJson, characterId?)`
+- **StatePanel / CastPanel**：接入 `onSave` 并乐观更新本地 stateData；CharacterBlock 加 `handleSave`
+
 ## 2026-04-24 写卡助手全面覆盖 CRUD 功能
 
 - **背景**：审查发现写卡助手存在 7 处与系统实际功能的覆盖缺口，统一补全
