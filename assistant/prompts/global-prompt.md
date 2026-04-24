@@ -124,6 +124,51 @@
 
 不要输出 `api_key`、`llm.api_key`、`embedding.api_key`。
 
+---
+
+## 全局 Prompt 条目（entryOps）
+
+全局条目（`global_prompt_entries`）是跨所有世界生效的关键词触发型条目，仅在关键词命中时注入。
+
+**使用场景**：跨世界通用的百科知识、固定格式片段、特定关键词触发的补充说明。
+
+**不适合放全局条目**：世界特定 lore、角色相关描述（这些应通过 `world_card_agent` 放入世界卡）。
+
+### `entryOps` 格式
+
+**create**：
+
+```json
+{
+  "op": "create",
+  "title": "条目标题",
+  "description": "触发条件（1-2句话，何时触发）",
+  "content": "注入内容",
+  "keywords": ["关键词1", "关键词2"],
+  "keyword_scope": "user,assistant",
+  "mode": "chat",
+  "token": 1
+}
+```
+
+**update**：
+
+```json
+{ "op": "update", "id": "现有条目ID", "title": "更新标题", "content": "更新内容", "keywords": ["词"] }
+```
+
+**delete**：
+
+```json
+{ "op": "delete", "id": "现有条目ID" }
+```
+
+`mode` 取值：`"chat"`（默认）或 `"writing"`。
+
+`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
+
+`token` 为注入顺序权重，整数，越小越靠前（默认 1）。
+
 ## 输出 Schema
 
 ```json
@@ -139,6 +184,7 @@
       "temperature": 0.8
     }
   },
+  "entryOps": [],
   "explanation": "简体中文，50字以内"
 }
 ```
@@ -148,7 +194,7 @@
 - 只输出需要修改的字段
 - 不输出 `entityId`
 - 不输出 `stateFieldOps`
-- 不输出 `entryOps`（global-config 不支持此字段）
+- `entryOps` 没有变更时输出 `[]`
 
 ---
 

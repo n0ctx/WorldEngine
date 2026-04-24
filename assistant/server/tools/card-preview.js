@@ -8,10 +8,12 @@ import { getWorldById } from '../../../backend/services/worlds.js';
 import { getCharacterById } from '../../../backend/services/characters.js';
 import { getOrCreatePersona } from '../../../backend/services/personas.js';
 import { getConfig } from '../../../backend/services/config.js';
-import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
+import { getAllWorldEntries, getAllGlobalEntries } from '../../../backend/db/queries/prompt-entries.js';
 import { listWorldStateFields } from '../../../backend/services/world-state-fields.js';
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../../backend/services/persona-state-fields.js';
+import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
+import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 
 /**
  * 创建 preview_card tool（按请求绑定 context）
@@ -23,16 +25,16 @@ export function createPreviewCardTool(context) {
     function: {
       name: 'preview_card',
       description:
-        '查询当前实体（世界卡/角色卡/玩家卡/全局配置）的完整数据，包括现有 Prompt 条目和状态字段。' +
+        '查询当前实体（世界卡/角色卡/玩家卡/全局配置/CSS片段/正则规则）的完整数据，包括现有 Prompt 条目和状态字段。' +
         '主代理在分发任务给执行子代理前调用此工具研究现状。' +
-        '注意：css_snippet_agent 和 regex_rule_agent 无需预研，其余子代理 update/delete 前必须先调用。' +
-        '也可在直接回答用户关于当前卡片内容的问题时使用。',
+        'css_snippet_agent 和 regex_rule_agent 在 update/delete 时也需要调用此工具获取现有列表（create 不需要）。' +
+        '也可在直接回答用户关于当前配置内容的问题时使用。',
       parameters: {
         type: 'object',
         properties: {
           target: {
             type: 'string',
-            enum: ['world-card', 'character-card', 'persona-card', 'global-prompt'],
+            enum: ['world-card', 'character-card', 'persona-card', 'global-prompt', 'css-snippet', 'regex-rule'],
             description: '要查询的实体类型',
           },
           operation: {
@@ -125,7 +127,13 @@ function loadEntityData(target, operation, entityId, context) {
       };
     }
     case 'global-prompt': {
-      return { ...getConfig() };
+      return { ...getConfig(), existingGlobalEntries: getAllGlobalEntries() };
+    }
+    case 'css-snippet': {
+      return { existingSnippets: listCustomCssSnippets() };
+    }
+    case 'regex-rule': {
+      return { existingRules: listRegexRules() };
     }
     default:
       throw new Error(`未知的 target：${target}`);

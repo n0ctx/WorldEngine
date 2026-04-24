@@ -124,7 +124,7 @@ skill 执行失败时发送。
 ```json
 {
   "type": "persona-card",
-  "operation": "update",
+  "operation": "create|update",
   "entityId": "worldId",
   "changes": {},
   "stateFieldOps": [],
@@ -139,6 +139,7 @@ skill 执行失败时发送。
   "type": "global-config",
   "operation": "update",
   "changes": {},
+  "entryOps": [],
   "explanation": "..."
 }
 ```
@@ -148,7 +149,8 @@ skill 执行失败时发送。
 ```json
 {
   "type": "css-snippet",
-  "operation": "create",
+  "operation": "create|update|delete",
+  "entityId": "snippetId（update/delete 时必填）",
   "changes": {},
   "explanation": "..."
 }
@@ -159,7 +161,8 @@ skill 执行失败时发送。
 ```json
 {
   "type": "regex-rule",
-  "operation": "create",
+  "operation": "create|update|delete",
+  "entityId": "ruleId（update/delete 时必填）",
   "changes": {},
   "explanation": "..."
 }
@@ -171,12 +174,12 @@ skill 执行失败时发送。
 |---|---|
 | `world_card_skill` | create / update / delete |
 | `character_card_skill` | create / update / delete |
-| `persona_card_skill` | update 仅 |
+| `persona_card_skill` | create / update |
 | `global_prompt_skill` | update 仅 |
-| `css_snippet_skill` | create 仅 |
-| `regex_rule_skill` | create 仅 |
+| `css_snippet_skill` | create / update / delete |
+| `regex_rule_skill` | create / update / delete |
 
-**entryOps 支持说明**：仅 `world_card_skill` 支持 `entryOps`；`character_card_skill` 和 `global_prompt_skill` 不支持（提案中的 `entryOps` 字段将被忽略）。
+**entryOps 支持说明**：`world_card_skill` 和 `global_prompt_skill` 支持 `entryOps`；`character_card_skill` 不支持（字段将被忽略）。全局 entryOps（global-config）为纯关键词类型，无 trigger_type，有 mode 字段。
 
 ## 4. `changes` 准确格式
 
@@ -271,12 +274,14 @@ skill 执行失败时发送。
 
 ## 5. `entryOps`
 
+基础格式（适用于 world-card 和 global-config）：
+
 ```json
-{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant" }
+{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant", "token": 1 }
 ```
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant" }
+{ "op": "update", "id": "现有条目ID", "title": "标题", "content": "正文", "keywords": ["a", "b"], "token": 1 }
 ```
 
 ```json
@@ -287,14 +292,41 @@ skill 执行失败时发送。
 
 `keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
 
-**`trigger_type` 字段（world-card entryOps 必填）**：
-- `"always"` — 常驻条目，每轮必注入（世界背景、格式提醒）
-- `"keyword"` — 关键词命中时注入（默认值）
-- `"llm"` — 向量相似度召回时注入
+`token`：注入顺序权重，整数 ≥ 1，越小越靠前（默认 1）。
 
-**`position` 字段（world-card entryOps 可选）**：
-- `"system"` — 注入 system 段（[7] 位置，默认值）
-- `"post"` — 注入 system 末尾（[12] 位置，与后置提示词合并）
+**`trigger_type` 字段（world-card entryOps 必填）**：
+- `"always"` — 常驻条目，每轮必注入
+- `"keyword"` — 关键词命中时注入
+- `"llm"` — 向量相似度召回时注入
+- `"state"` — 当前会话所有状态条件满足时注入（需配合 `conditions` 数组）
+
+注意：`position` 字段已废弃，不再消费，不要在提案中输出。所有世界条目统一在 [7] 位置注入。
+
+**`conditions` 字段（trigger_type:"state" 时使用）**：
+
+```json
+[
+  { "target_field": "hp", "operator": "lt", "value": "30" },
+  { "target_field": "weather", "operator": "eq", "value": "storm" }
+]
+```
+
+支持的 `operator`：`eq` / `ne` / `gt` / `lt` / `gte` / `lte` / `contains` / `not_contains`
+
+**global-config entryOps 额外字段**（全局条目无 trigger_type，仅关键词触发）：
+
+```json
+{
+  "op": "create",
+  "title": "条目标题",
+  "description": "触发条件",
+  "content": "注入内容",
+  "keywords": ["关键词"],
+  "keyword_scope": "user,assistant",
+  "mode": "chat",
+  "token": 1
+}
+```
 
 world-card 常驻条目 create 格式：
 ```json
@@ -306,7 +338,7 @@ world-card 常驻条目 create 格式：
   "keywords": [],
   "keyword_scope": "user,assistant",
   "trigger_type": "always",
-  "position": "system"
+  "token": 1
 }
 ```
 
@@ -332,6 +364,14 @@ world-card 常驻条目 create 格式：
   "max_value": 100,
   "allow_empty": 1
 }
+```
+
+### update
+
+只输出需要修改的字段（id 和 target 必填）：
+
+```json
+{ "op": "update", "target": "world|persona|character", "id": "现有字段ID", "label": "新标签", "default_value": "200" }
 ```
 
 ### delete

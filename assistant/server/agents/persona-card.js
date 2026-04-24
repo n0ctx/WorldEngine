@@ -1,16 +1,17 @@
 export const PERSONA_CARD_AGENT = {
   name: 'persona_card_agent',
   description:
-    '修改当前世界的玩家卡（玩家/主角/用户代入身份）。管理玩家的 name/system_prompt 和玩家状态字段（stateFieldOps：persona）。' +
-    '玩家卡只支持 update（upsert）。必须先调用 preview_card(target="persona-card") 获取现有数据，再调用此代理。',
+    '管理当前世界的玩家卡（玩家/主角/用户代入身份）。支持 create（新增玩家身份）和 update（修改激活玩家）。' +
+    '管理玩家的 name/system_prompt 和玩家状态字段（stateFieldOps：persona）。' +
+    'update 时必须先调用 preview_card(target="persona-card") 获取现有数据；create 不需要预研。',
   parameters: {
     type: 'object',
     properties: {
       task: { type: 'string', description: '主代理预研后整理的任务说明，包含用户需求、当前数据摘要和具体修改指令' },
       operation: {
         type: 'string',
-        enum: ['update'],
-        description: '固定为 update（玩家卡只支持 upsert）',
+        enum: ['create', 'update'],
+        description: 'create 新建玩家身份；update 修改当前激活玩家',
       },
       entityId: {
         type: 'string',

@@ -4,22 +4,22 @@
 
 ## 第一步：准备数据
 
-检查 task 中是否已包含当前玩家数据（由主代理预研提供）：
+检查操作类型：
 
-- **task 已含当前数据**（如现有 system_prompt、状态字段列表等）：直接进入生成阶段
-- **task 未含数据**：调用 `preview_card` 补充：
-  - `target`: `"persona-card"`
-  - `operation`: `"update"`（玩家卡固定为 update）
-  - `entityId`: 任务中的世界 ID
-
-生成提案时必须以现有数据为基础，不得遗漏或重复现有内容。
+- **create**：无需预研，直接生成新玩家身份
+- **update**：
+  - 若 task 已含当前数据（如现有 system_prompt、状态字段列表等）：直接进入生成阶段
+  - 若 task 未含数据：调用 `preview_card` 补充：
+    - `target`: `"persona-card"`
+    - `operation`: `"update"`
+    - `entityId`: 任务中的世界 ID
+  - 生成提案时必须以现有数据为基础，不得遗漏或重复现有内容
 
 ## 硬规则
 
 - 只输出 1 个 JSON 对象
 - 不输出代码块、解释、分析
 - 不输出 schema 之外字段
-- 玩家卡固定是 `update`；不要生成 create/delete
 
 ---
 
@@ -64,6 +64,8 @@
 
 ## `stateFieldOps` 格式
 
+每项 `op` 支持 `create` / `update` / `delete`。
+
 创建：
 
 ```json
@@ -84,6 +86,12 @@
 
 **`type` 约束**：只允许 `"number"` / `"text"` / `"enum"` / `"list"` / `"boolean"` 五种，禁用 `"string"`、`"integer"` 等任何其他值。
 
+修改（只输出需要改动的字段）：
+
+```json
+{ "op": "update", "target": "persona", "id": "现有状态字段ID", "label": "新标签" }
+```
+
 删除：
 
 ```json
@@ -101,6 +109,24 @@
 ---
 
 ## 输出 Schema
+
+**create**（新建玩家身份）：
+
+```json
+{
+  "type": "persona-card",
+  "operation": "create",
+  "entityId": "WORLD_ID_HERE",
+  "changes": {
+    "name": "新玩家名称",
+    "system_prompt": "完整玩家人设"
+  },
+  "stateFieldOps": [],
+  "explanation": "简体中文，50字以内"
+}
+```
+
+**update**（修改激活玩家）：
 
 ```json
 {

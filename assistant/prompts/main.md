@@ -68,21 +68,21 @@ create 操作省略"当前状态"部分。
 | [4] | 玩家状态 | 玩家动态数值 |
 | [5] | 角色 system prompt | 角色性格、说话方式、背景 |
 | [6] | 角色状态 | 角色动态数值 |
-| [7] | 世界 Prompt 条目 | 触发型知识库；常驻条目（always）每轮必注入；其余按关键词/向量触发 |
-| [8] | 触发器 inject_prompt | 触发器"注入文本"动作；consumed 模式自动递减 rounds_remaining |
-| [9] | 历史记忆召回 | 跨会话 turn summary 向量检索结果 |
-| [10] | 记忆展开 | AI 决定展开的 turn summary 原文 |
-| [11] | 日记注入 | 前端一次性注入的日记文本（仅生效一轮） |
-| [12] | 后置提示词 | 注入 system 末尾（全局后置 + 角色后置 + post 位置条目）；**不是独立 user 消息** |
+| [7] | 世界 Prompt 条目 | 触发型知识库；always 每轮必注入；keyword 关键词匹配；llm 向量召回；state 状态条件满足时注入 |
+| [8] | 历史记忆召回 | 跨会话 turn summary 向量检索结果 |
+| [9] | 记忆展开 | AI 决定展开的 turn summary 原文 |
+| [10] | 日记注入 | 前端一次性注入的日记文本（仅生效一轮） |
+| [11] | 后置提示词 | 注入 system 末尾（全局后置 + 角色后置提示词）；**不是独立 user 消息** |
 | [13] | 历史消息 | 最近 N 轮对话 |
 | [14] | 当前用户消息 | 本轮用户输入 |
 
 ### 关键功能说明
 
 **Prompt 条目（Entries）**
-- 仅世界级条目有效，分三种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（向量相似度召回时注入）
-- 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm）、position（system/post）、keywords（关键词数组，keyword 类型使用）
-- position:"system" 注入 [7] 位置；position:"post" 注入 system 末尾 [12] 位置
+- 世界级条目分四种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（向量相似度召回时注入）、state（当前会话状态满足所有条件时注入）
+- 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm/state）、keywords（关键词数组，keyword 类型使用）、token（注入顺序权重，整数，越小越靠前）
+- 全局条目（global_prompt_entries）无触发类型，仅关键词匹配，按 mode 区分 chat/writing
+- 所有命中的世界条目统一在 [7] 位置注入（position 字段已废弃，不再消费）
 
 **状态字段（State Fields）**
 - 动态数值，如"体力""当前位置""天气"
@@ -121,12 +121,12 @@ create 操作省略"当前状态"部分。
 
 | 子代理 | 负责范围 | 需要预研 |
 |---|---|---|
-| `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps）/ 状态字段（world/persona/character）；世界内容通过 entryOps 的 always 常驻条目管理 | update/delete 时必须 |
+| `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps，支持 always/keyword/llm/state 四种触发类型）/ 状态字段（world/persona/character） | update/delete 时必须 |
 | `character_card_agent` | 角色卡：name / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
-| `persona_card_agent` | 玩家卡：name / system_prompt / 玩家状态字段（仅 update）| 必须 |
-| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / LLM 参数（仅 update）| 必须 |
-| `css_snippet_agent` | 新建自定义 CSS 片段（仅 create）| 不需要 |
-| `regex_rule_agent` | 新建正则替换规则（仅 create）| 不需要 |
+| `persona_card_agent` | 玩家卡：name / system_prompt / 玩家状态字段（支持 create/update）| update 时必须；create 不需要 |
+| `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / LLM 参数 / 全局 Prompt 条目（entryOps，仅 keyword 类型，按 mode 区分）| 必须 |
+| `css_snippet_agent` | 自定义 CSS 片段（create / update / delete）| update/delete 时需要，create 不需要 |
+| `regex_rule_agent` | 正则替换规则（create / update / delete）| update/delete 时需要，create 不需要 |
 
 ### 分发判断
 

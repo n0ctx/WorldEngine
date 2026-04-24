@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-24 写卡助手全面覆盖 CRUD 功能
+
+- **背景**：审查发现写卡助手存在 7 处与系统实际功能的覆盖缺口，统一补全
+- **A. main.md 提示词注入顺序修正**：删除过时的 [8] 触发器段落，[9]-[12] 前移为 [8]-[11]；补充 trigger_type:"state" 和 position 废弃说明
+- **B. entryOps token 字段同步**：`normalizeEntryOps()` 传递 `token` 字段；world-card.md 和 CONTRACT.md entryOps schema 补充 token 说明
+- **C. stateFieldOps update op**：`normalizeStateFieldOps()` 支持 `update` op；`applyStateFieldUpdate()` 函数路由到对应 service；routes.js 导入 update 函数；CONTRACT.md、world-card/character-card/persona-card 提示词补充 update 格式
+- **D. CSS 片段和正则规则 update/delete**：`PROPOSAL_ALLOWED_OPERATIONS` 放开 create/update/delete；`applyProposal` 处理 update/delete 分支；card-preview.js 支持 `css-snippet`/`regex-rule` 预研目标；agent 定义补充 entityId 参数；提示词补充操作说明；CONTRACT.md 更新
+- **E. 全局 Prompt 条目（entryOps for global-config）**：`normalizeProposal` 为 global-config 启用 `entryOps` 解析（includeMode=true）；`applyProposal` global-config 分支处理 entryOps create/update/delete；card-preview 全局预研加入 existingGlobalEntries；global-prompt.md 补充 entryOps 章节，删除禁止输出说明
+- **F. trigger_type:"state" + entry_conditions**：`normalizeEntryOps` 允许 `allowTriggerType=true` 解析 trigger_type 和 conditions；`applyProposal` world-card 分支在创建/更新 state 类型条目后调用 `replaceEntryConditions`；world-card.md 补充 state 类型和 conditions 格式；CONTRACT.md 补充
+- **G. 多 persona 支持（persona-card create）**：`PROPOSAL_ALLOWED_OPERATIONS` 加入 create；`applyProposal` persona-card 分支处理 create；persona-card agent 定义和 persona-card.md 补充 create 说明
+
 ## 2026-04-24 条目新增 token 顺序权重字段
 
 - **需求**：给所有条目类型（global/world/character）统一增加 `token` 属性（正整数，默认 1），注入时按 token ASC 排序（token 越大越靠后）；同 token 时保持 sort_order ASC 手动顺序

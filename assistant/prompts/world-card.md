@@ -93,18 +93,18 @@
 - `update`
 - `delete`
 
-**create 格式（含必填的 trigger_type 和 position）**：
+**create 格式**：
 
 ```json
 {
   "op": "create",
   "title": "条目标题",
-  "description": "触发条件（keyword/llm 类型时填写，1-2句话）",
+  "description": "触发条件（keyword/llm/state 类型时填写，1-2句话）",
   "content": "完整内容",
   "keywords": ["关键词1", "关键词2"],
   "keyword_scope": "user,assistant",
   "trigger_type": "always",
-  "position": "system"
+  "token": 1
 }
 ```
 
@@ -112,15 +112,37 @@
 - `"always"` — 常驻条目，每轮必注入（世界背景、格式提醒用此类型）
 - `"keyword"` — 关键词命中时注入
 - `"llm"` — 向量相似度召回时注入
+- `"state"` — 当前会话状态满足所有条件时注入（需配合 `conditions` 字段）
 
-`position` 取值：
-- `"system"` — 注入 system 段（[7] 位置，默认值）
-- `"post"` — 注入 system 末尾（[12] 位置，与后置提示词合并）
+`token` 为注入顺序权重，整数，越小越靠前，默认 1。
+
+**state 类型需额外提供 `conditions` 数组**（AND 逻辑，所有条件同时满足才触发）：
+
+```json
+{
+  "op": "create",
+  "title": "受伤警告",
+  "description": "当玩家血量低于30时提醒AI角色做出反应",
+  "content": "注意：玩家当前处于重伤状态，AI 角色应有所察觉并回应。",
+  "keywords": [],
+  "keyword_scope": "user,assistant",
+  "trigger_type": "state",
+  "token": 1,
+  "conditions": [
+    { "target_field": "hp", "operator": "lt", "value": "30" }
+  ]
+}
+```
+
+`conditions` 中每项字段：
+- `target_field`：状态字段的 `field_key`（如 `"hp"`、`"weather"`）
+- `operator`：比较运算符，支持 `eq` / `ne` / `gt` / `lt` / `gte` / `lte` / `contains` / `not_contains`
+- `value`：比较值（字符串）
 
 **update 格式**：
 
 ```json
-{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"], "trigger_type": "keyword", "position": "system" }
+{ "op": "update", "id": "现有条目ID", "title": "更新标题", "description": "触发条件", "content": "更新内容", "keywords": ["关键词"], "trigger_type": "keyword", "token": 1 }
 ```
 
 **delete 格式**：
@@ -137,7 +159,7 @@
 
 ### `stateFieldOps`
 
-每项 `op` 只能是 `create` 或 `delete`。
+每项 `op` 只能是 `create` / `update` / `delete`。
 
 创建格式：
 
@@ -160,6 +182,12 @@
 ```
 
 **`type` 约束**：只允许 `"number"` / `"text"` / `"enum"` / `"list"` / `"boolean"` 五种，禁用 `"string"`、`"integer"` 等任何其他值。
+
+修改格式（只输出需要改动的字段）：
+
+```json
+{ "op": "update", "target": "world", "id": "现有状态字段ID", "label": "新标签", "default_value": "200" }
+```
 
 删除格式：
 

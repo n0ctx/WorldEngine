@@ -84,7 +84,7 @@
 
 ### `stateFieldOps`
 
-只允许 `target: "character"` 或 `target: "persona"`。
+只允许 `target: "character"` 或 `target: "persona"`，每项 `op` 支持 `create` / `update` / `delete`。
 
 创建格式：
 
@@ -107,6 +107,12 @@
 ```
 
 **`type` 约束**：只允许 `"number"` / `"text"` / `"enum"` / `"list"` / `"boolean"` 五种，禁用 `"string"`、`"integer"` 等任何其他值。
+
+修改格式（只输出需要改动的字段）：
+
+```json
+{ "op": "update", "target": "character", "id": "现有状态字段ID", "label": "新标签", "default_value": "50" }
+```
 
 删除格式：
 

@@ -22,26 +22,43 @@ import {
   deleteWorldPromptEntry,
 } from '../../backend/services/prompt-entries.js';
 import {
+  createGlobalEntry,
+  updateGlobalEntry,
+  deleteGlobalEntry,
+  getAllGlobalEntries,
+} from '../../backend/db/queries/prompt-entries.js';
+import {
   createWorldStateField,
   listWorldStateFields,
+  updateWorldStateField,
   deleteWorldStateField,
 } from '../../backend/services/world-state-fields.js';
 import {
   createCharacterStateField,
   listCharacterStateFields,
+  updateCharacterStateField,
   deleteCharacterStateField,
 } from '../../backend/services/character-state-fields.js';
 import {
   createPersonaStateField,
   getPersonaStateFieldsByWorldId,
+  updatePersonaStateField,
   deletePersonaStateField,
 } from '../../backend/services/persona-state-fields.js';
 import {
   createCustomCssSnippet,
+  updateCustomCssSnippet,
+  deleteCustomCssSnippet,
 } from '../../backend/db/queries/custom-css-snippets.js';
 import {
   createRegexRule,
+  updateRegexRule,
+  deleteRegexRule,
 } from '../../backend/db/queries/regex-rules.js';
+import {
+  replaceEntryConditions,
+} from '../../backend/db/queries/entry-conditions.js';
+import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
 
 const router = Router();
@@ -68,10 +85,10 @@ const VALID_TRIGGER_MODES = new Set(['manual_only', 'every_turn', 'keyword_based
 const PROPOSAL_ALLOWED_OPERATIONS = {
   'world-card': new Set(['create', 'update', 'delete']),
   'character-card': new Set(['create', 'update', 'delete']),
-  'persona-card': new Set(['update']),
+  'persona-card': new Set(['create', 'update']),
   'global-config': new Set(['update']),
-  'css-snippet': new Set(['create']),
-  'regex-rule': new Set(['create']),
+  'css-snippet': new Set(['create', 'update', 'delete']),
+  'regex-rule': new Set(['create', 'update', 'delete']),
 };
 const STATE_TARGETS_BY_PROPOSAL_TYPE = {
   'world-card': new Set(['world', 'persona', 'character']),
@@ -206,7 +223,12 @@ async function applyProposal(proposal, worldRefId = null) {
           max_tokens: safeChanges.max_tokens ?? null,
         });
         for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
-          if (op.op === 'create') createWorldPromptEntry(newWorld.id, op);
+          if (op.op === 'create') {
+            const entry = createWorldPromptEntry(newWorld.id, op);
+            if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
+              replaceEntryConditions(entry.id, op.conditions);
+            }
+          }
         }
         for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
           if (op.op === 'create') applyStateFieldCreate(op, newWorld.id);
@@ -225,12 +247,21 @@ async function applyProposal(proposal, worldRefId = null) {
       if (Object.keys(safeChanges).length > 0) updated = await updateWorld(entityId, safeChanges);
       const worldOps = proposal.entryOps?.length ? proposal.entryOps : newEntries.map((e) => ({ op: 'create', ...e }));
       for (const op of worldOps) {
-        if (op.op === 'create') createWorldPromptEntry(entityId, op);
-        else if (op.op === 'update' && op.id) updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'position', 'trigger_type']));
-        else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
+        if (op.op === 'create') {
+          const entry = createWorldPromptEntry(entityId, op);
+          if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
+            replaceEntryConditions(entry.id, op.conditions);
+          }
+        } else if (op.op === 'update' && op.id) {
+          updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'trigger_type', 'token']));
+          if (op.trigger_type === 'state' && Array.isArray(op.conditions)) {
+            replaceEntryConditions(op.id, op.conditions);
+          }
+        } else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
       }
       for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
         if (op.op === 'create') applyStateFieldCreate(op, entityId);
+        else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
         else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
       }
       return updated;
@@ -269,6 +300,7 @@ async function applyProposal(proposal, worldRefId = null) {
         if (character) {
           for (const op of charSfOps) {
             if (op.op === 'create') applyStateFieldCreate(op, character.world_id);
+            else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
             else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
           }
         }
@@ -277,12 +309,27 @@ async function applyProposal(proposal, worldRefId = null) {
     }
 
     case 'persona-card': {
+      if (operation === 'create') {
+        const worldId = entityId;
+        if (!worldId) throw new Error('persona-card create 需要 worldId（entityId）');
+        const safeChanges = pickAllowed(changes, ['name', 'system_prompt']);
+        const newPersona = createPersonaDb(worldId, {
+          name: safeChanges.name || '新玩家',
+          system_prompt: safeChanges.system_prompt || '',
+        });
+        for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
+          if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
+        }
+        return newPersona;
+      }
+      // update
       const worldId = entityId;
       if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）');
       const safeChanges = pickAllowed(changes, ['name', 'system_prompt']);
       const updated = await updatePersona(worldId, safeChanges);
       for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
         if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
+        else if (op.op === 'update' && op.id) await applyStateFieldUpdate({ ...op, target: 'persona' });
         else if (op.op === 'delete' && op.id) await applyStateFieldDelete({ ...op, target: 'persona' });
       }
       return updated;
@@ -292,10 +339,24 @@ async function applyProposal(proposal, worldRefId = null) {
       const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = updateConfig(safeChanges);
+      for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
+        if (op.op === 'create') createGlobalEntry(op);
+        else if (op.op === 'update' && op.id) updateGlobalEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'mode', 'token']));
+        else if (op.op === 'delete' && op.id) deleteGlobalEntry(op.id);
+      }
       return updated;
     }
 
     case 'css-snippet': {
+      if (operation === 'delete') {
+        if (!entityId) throw new Error('css-snippet delete 需要 entityId');
+        deleteCustomCssSnippet(entityId);
+        return { deleted: entityId };
+      }
+      if (operation === 'update') {
+        if (!entityId) throw new Error('css-snippet update 需要 entityId');
+        return updateCustomCssSnippet(entityId, pickAllowed(changes, ['name', 'content', 'mode', 'enabled']));
+      }
       return createCustomCssSnippet({
         name: changes.name || '写卡助手生成',
         content: changes.content || '',
@@ -305,6 +366,15 @@ async function applyProposal(proposal, worldRefId = null) {
     }
 
     case 'regex-rule': {
+      if (operation === 'delete') {
+        if (!entityId) throw new Error('regex-rule delete 需要 entityId');
+        deleteRegexRule(entityId);
+        return { deleted: entityId };
+      }
+      if (operation === 'update') {
+        if (!entityId) throw new Error('regex-rule update 需要 entityId');
+        return updateRegexRule(entityId, pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']));
+      }
       const scope = VALID_REGEX_SCOPES.has(changes.scope) ? changes.scope : 'display_only';
       return createRegexRule({
         name: changes.name || '写卡助手生成',
@@ -339,6 +409,16 @@ function applyStateFieldCreate(op, worldId) {
   }
 }
 
+async function applyStateFieldUpdate(op) {
+  const data = pickAllowed(op, STATE_FIELD_KEYS);
+  switch (op.target) {
+    case 'persona': updatePersonaStateField(op.id, data); break;
+    case 'character': updateCharacterStateField(op.id, data); break;
+    case 'world':
+    default: updateWorldStateField(op.id, data); break;
+  }
+}
+
 async function applyStateFieldDelete(op) {
   switch (op.target) {
     case 'persona': await deletePersonaStateField(op.id); break;
@@ -370,7 +450,9 @@ function normalizeProposal(raw, locked = {}) {
     explanation: normalizeString(raw?.explanation) || getDefaultExplanation(type, operation),
   };
 
-  if (type === 'world-card' || type === 'character-card' || type === 'persona-card') {
+  if (type === 'world-card' || type === 'character-card' || type === 'persona-card' ||
+      (type === 'css-snippet' && operation !== 'create') ||
+      (type === 'regex-rule' && operation !== 'create')) {
     proposal.entityId = normalizeEntityId(locked.entityId ?? raw?.entityId);
   }
 
@@ -379,7 +461,7 @@ function normalizeProposal(raw, locked = {}) {
   switch (type) {
     case 'world-card':
       proposal.changes = normalizeWorldChanges(changes);
-      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { includeMode: false });
+      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { allowTriggerType: true });
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
       break;
     case 'character-card':
@@ -392,12 +474,25 @@ function normalizeProposal(raw, locked = {}) {
       break;
     case 'global-config':
       proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
+      proposal.entryOps = normalizeEntryOps(raw?.entryOps, { includeMode: true });
       break;
     case 'css-snippet':
-      proposal.changes = normalizeCssSnippetChanges(changes);
+      if (operation === 'delete') {
+        proposal.changes = {};
+      } else if (operation === 'update') {
+        proposal.changes = pickAllowed(changes, ['name', 'content', 'mode', 'enabled']);
+      } else {
+        proposal.changes = normalizeCssSnippetChanges(changes);
+      }
       break;
     case 'regex-rule':
-      proposal.changes = normalizeRegexRuleChanges(changes);
+      if (operation === 'delete') {
+        proposal.changes = {};
+      } else if (operation === 'update') {
+        proposal.changes = pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']);
+      } else {
+        proposal.changes = normalizeRegexRuleChanges(changes);
+      }
       break;
     default: break;
   }
@@ -458,7 +553,10 @@ function normalizeRegexRuleChanges(changes) {
   };
 }
 
-function normalizeEntryOps(rawOps, { includeMode }) {
+const VALID_ENTRY_CONDITION_OPERATORS = new Set(['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains', 'not_contains']);
+const VALID_TRIGGER_TYPES = new Set(['always', 'keyword', 'llm', 'state']);
+
+function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false } = {}) {
   if (rawOps == null) return [];
   if (!Array.isArray(rawOps)) throw new Error('提案格式错误：entryOps 必须是数组');
   return rawOps.map((raw, idx) => {
@@ -481,7 +579,24 @@ function normalizeEntryOps(rawOps, { includeMode }) {
     if ('content' in raw) normalized.content = String(raw.content ?? '');
     if ('keywords' in raw) normalized.keywords = normalizeStringArrayOrNull(raw.keywords);
     if ('keyword_scope' in raw) normalized.keyword_scope = raw.keyword_scope;
-    if (includeMode && op === 'create') normalized.mode = normalizeMode(raw.mode);
+    if ('token' in raw) {
+      const t = parseInt(raw.token, 10);
+      normalized.token = Number.isFinite(t) && t >= 1 ? t : 1;
+    }
+    if (includeMode) normalized.mode = normalizeMode(raw.mode);
+    if (allowTriggerType && 'trigger_type' in raw) {
+      const tt = normalizeString(raw.trigger_type);
+      if (tt && VALID_TRIGGER_TYPES.has(tt)) normalized.trigger_type = tt;
+    }
+    if (allowTriggerType && normalized.trigger_type === 'state' && Array.isArray(raw.conditions)) {
+      normalized.conditions = raw.conditions
+        .filter((c) => c && typeof c === 'object' && c.target_field && c.operator && 'value' in c)
+        .map((c) => ({
+          target_field: String(c.target_field),
+          operator: VALID_ENTRY_CONDITION_OPERATORS.has(c.operator) ? c.operator : 'eq',
+          value: String(c.value ?? ''),
+        }));
+    }
     return normalized;
   });
 }
@@ -493,13 +608,32 @@ function normalizeStateFieldOps(rawOps, type) {
   return rawOps.map((raw, idx) => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：stateFieldOps[${idx}] 必须是对象`);
     const op = normalizeString(raw.op);
-    if (!['create', 'delete'].includes(op)) throw new Error(`提案格式错误：stateFieldOps[${idx}].op 非法`);
+    if (!['create', 'update', 'delete'].includes(op)) throw new Error(`提案格式错误：stateFieldOps[${idx}].op 非法`);
     const target = normalizeString(raw.target);
     if (!target || !allowedTargets.has(target)) throw new Error(`提案格式错误：stateFieldOps[${idx}].target 非法`);
     if (op === 'delete') {
       const id = normalizeEntityId(raw.id);
       if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
       return { op, target, id };
+    }
+    if (op === 'update') {
+      const id = normalizeEntityId(raw.id);
+      if (!id) throw new Error(`提案格式错误：stateFieldOps[${idx}].id 缺失`);
+      const normalized = { op, target, id };
+      const data = pickAllowed(raw, STATE_FIELD_KEYS);
+      if ('type' in data && VALID_STATE_TYPES.has(data.type)) normalized.type = data.type;
+      if ('label' in data) normalized.label = String(data.label ?? '');
+      if ('description' in data) normalized.description = String(data.description ?? '');
+      if ('default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
+      if ('update_mode' in data) normalized.update_mode = VALID_UPDATE_MODES.has(data.update_mode) ? data.update_mode : undefined;
+      if ('trigger_mode' in data) normalized.trigger_mode = VALID_TRIGGER_MODES.has(data.trigger_mode) ? data.trigger_mode : undefined;
+      if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
+      if ('trigger_keywords' in data) normalized.trigger_keywords = normalizeStringArrayOrNull(data.trigger_keywords);
+      if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
+      if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
+      if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
+      if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
+      return normalized;
     }
     const fieldKey = normalizeString(raw.field_key);
     const label = normalizeString(raw.label);
