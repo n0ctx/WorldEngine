@@ -15,6 +15,7 @@ dist/
 /SCHEMA.md
 
 # Local agent / tooling files
+/.temp/
 /docs/*
 /.superpowers/
 /.claude/
