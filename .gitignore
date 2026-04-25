@@ -4,6 +4,16 @@ dist/
 *.db
 .DS_Store
 
+# Root-level documentation (keep README.md tracked)
+/AGENTS.md
+/ARCHITECTURE.md
+/CHANGELOG.md
+/CLAUDE.md
+/DESIGN.md
+/PROJECT.md
+/ROADMAP.md
+/SCHEMA.md
+
 # Local agent / tooling files
 /docs/*
 /.superpowers/
