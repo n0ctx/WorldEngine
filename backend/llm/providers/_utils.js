@@ -42,27 +42,68 @@ export function apiError(message, status, code) {
   return err;
 }
 
+async function* iterateBodyChunks(body) {
+  if (!body) return;
+
+  if (typeof body.getReader === 'function') {
+    const reader = body.getReader();
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (value) yield value;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    return;
+  }
+
+  for await (const chunk of body) {
+    yield chunk;
+  }
+}
+
 export async function* parseSSE(body) {
   const decoder = new TextDecoder();
   let buffer = '';
   let currentEvent = '';
 
-  for await (const chunk of body) {
+  const parseLine = (line) => {
+    if (line.startsWith('event:')) {
+      currentEvent = line.slice(6).trim();
+      return null;
+    }
+    if (line.startsWith('data:')) {
+      const data = line.slice(5).trimStart();
+      if (data === '[DONE]') return { done: true };
+      return { event: currentEvent, data };
+    }
+    if (line === '') {
+      currentEvent = '';
+    }
+    return null;
+  };
+
+  for await (const chunk of iterateBodyChunks(body)) {
     buffer += decoder.decode(chunk, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop();
 
     for (const line of lines) {
-      if (line.startsWith('event: ')) {
-        currentEvent = line.slice(7).trim();
-      } else if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') return;
-        yield { event: currentEvent, data };
-      } else if (line === '') {
-        currentEvent = '';
-      }
+      const parsed = parseLine(line.trimEnd());
+      if (parsed?.done) return;
+      if (parsed) yield parsed;
     }
+  }
+
+  buffer += decoder.decode();
+  if (!buffer) return;
+
+  for (const line of buffer.split('\n')) {
+    const parsed = parseLine(line.trimEnd());
+    if (parsed?.done) return;
+    if (parsed) yield parsed;
   }
 }
 
