@@ -1,116 +1,123 @@
 # WorldEngine
 
-> 一本正在被书写的世界手稿。
-> AI agent / 自动化协作者进入仓库后，请先阅读 `CLAUDE.md`；`README.md` 不是执行规范入口。
+AI 驱动的沉浸式角色扮演与创意写作工具。
 
-大多数 AI 角色扮演工具把对话当作核心——WorldEngine 把**世界**当作核心。你在这里创造的不只是一个角色，而是一套有记忆、有状态、会随时间演化的完整世界观。每一轮对话都在手稿上留下印记，每一个角色都背负着自己的过去。
+## Overview
 
----
+WorldEngine 解决的问题：**如何在长程 AI 对话中维护一个活的世界**。
 
-## 为什么与众不同
+普通 AI 对话工具每次开启都是白板，角色没有记忆、世界没有状态、设定随写随丢。WorldEngine 引入了完整的世界→角色→会话层级，每层有独立的提示词、状态字段和记忆，让 AI 在几十轮甚至几百轮后仍能感知"当前发生了什么"。
 
-**长期记忆不靠模型，靠系统设计。**
+适合人群：
+- 有世界观设定的创意写作者、互动小说爱好者
+- TRPG 玩家 / GM，需要管理多角色和世界状态
+- 想用 AI 辅助构建复杂角色系统与长程叙事的人
 
-当你和角色聊了几百轮之后，普通工具要么塞满上下文、要么直接遗忘。WorldEngine 用三套机制让关键信息始终在场：
+## Features
 
-### 状态栏系统
+**世界管理**
+- 卡片封面、名称、描述；支持世界级 LLM 参数覆盖全局配置
+- 世界状态字段（如"政局稳定性""戒严等级"），支持 text / number / boolean / enum / list
+- 每个会话有独立的状态快照，多会话互不干扰
 
-每轮对话结束后，角色状态、世界状态、玩家状态会自动异步更新。你亲眼看着角色的情绪、关系、处境随着剧情变化，而不是每次都要在提示词里手动"提醒"模型。状态按会话隔离——同一个角色在不同故事线里有完全独立的状态，互不干扰。
+**角色系统**
+- 角色头像、系统提示词、生成参数、状态字段（如"好感度""当前情绪"）
+- Persona（玩家身份），有独立状态字段集
 
-### 消息摘要 + 向量召回
-
-每轮对话结束后生成一条摘要和原文指针。下次对话前，系统用语义相似度从历史里捞出最相关的片段——不是最近的几条，而是**最值得记住的那些**。发送消息前，系统还会让 LLM 自动判断哪些摘要足够重要，值得把原文完整展开注入提示词，确保模型在关键时刻看到的是细节而不是压缩摘要。
-
-### 日记系统
-
-开启日记功能后，角色会在每天的对话里感知时间流逝。跨天时自动生成一篇 `.md` 日记，记录那一天发生的事。右侧边栏里能看到所有日记摘要，点击任意一篇，原文就会在下轮对话里被注入——像是把一页旧日记递给角色，让它想起很久以前的事。
-
----
-
-## 其他核心功能
-
-**世界层**：角色不是孤立存在的，它们活在你构建的世界里。世界有自己的背景设定、提示词、状态字段模板，对其下所有角色和会话生效。
-
-**写作**：独立于对话的多角色协作写作模式，更接近小说创作工作流，多个角色可以同时在场。
-
-**Prompt 条目**：百科全书式的知识管理。条目按向量相似度 + 近期消息双路命中，只在相关时才出现，不撑爆上下文。
-
-**写卡助手**：用 AI 填写角色卡和世界卡，流式输出，边看边改。
-
-**正则管线**：对输出做细粒度后处理，支持多作用域（全局/显示层/用户输入），可排序、可开关。
-
-**自定义 CSS**：所有视觉 token 都是 CSS 变量，想换主题直接覆盖变量，不用动源码。
-
----
-
-## 技术栈
-
-| 层 | 技术 |
+**提示词条目**
+四种触发类型，精细控制 AI 行为：
+| 类型 | 触发时机 |
 |---|---|
-| 前端 | React 18 + Vite + TailwindCSS + Zustand |
-| 后端 | Node.js + Express + ES Modules |
-| 数据库 | SQLite（better-sqlite3） |
-| 向量 | OpenAI embeddings 或 Ollama embeddings（可选，未配置时自动降级） |
+| `always` | 常驻，每轮必然注入 |
+| `keyword` | 用户消息含关键词时触发 |
+| `llm` | AI 判断语义相关时注入，按 token 权重排序 |
+| `state` | 状态字段满足条件表达式时自动激活 |
 
-完全本地运行，数据不离开你的机器。唯一出站的流量是你自己配置的 LLM API 调用。
+**两种会话模式**
+- **对话（Chat）**：气泡消息列表，单角色扮演，右侧实时状态面板
+- **写作（Writing）**：散文段落排版，多角色协作，章节自动分组
 
----
+**记忆系统**
+- 每轮生成 10–50 字摘要 + 向量 embedding
+- 新消息发送时语义召回相关历史片段，同 session 阈值 0.72，跨 session 阈值 0.84
+- 决策引擎判断是否展开原文（智能展开）
 
-## 快速开始
+**状态自动更新**
+- `llm_auto` 模式：每轮 AI 回复后，由 LLM 解析对话内容自动更新世界/角色/玩家状态
+- `manual` 模式：仅用户手动编辑
 
-### 环境要求
+**写卡助手**
+挂载在界面右侧的 AI 代理面板，以提案（Proposal）方式辅助用户构建世界、角色、Persona 和全局配置，用户逐条确认后方执行，SSE 实时推送进度。
 
-- Node.js 18+
-- 一个兼容 OpenAI API 的 LLM 服务（本地 Ollama 或任意远端 API）
+**正则替换**
+四种作用域（`user_input` / `ai_output` / `display_only` / `prompt_only`），可按对话/写作模式分别生效。
 
-### 安装
+**自定义 CSS**
+全局和世界级 CSS 片段，拼接注入 `<style id="we-custom-css">`。
+
+**多 LLM 支持**
+Anthropic Claude、OpenAI GPT、OpenAI 兼容接口（DeepSeek、SiliconFlow 等）、Google Gemini、Ollama 本地模型；模型下拉直接显示每百万 token 价格。
+
+**导入导出**
+- `.wechar.json` — 单角色（含状态字段）
+- `.weworld.json` — 完整世界（含所有角色、配置、会话历史）
+- `.weglobal.json` — 全局设置（提示词、CSS、正则，不含 API Key）
+
+**桌面应用**
+Electron 打包，支持 macOS（x64 / arm64）和 Windows（x64），数据存用户目录，随机端口避免冲突。
+
+## Quick Start
+
+**环境要求**：Node.js 18+
 
 ```bash
+# 克隆仓库
 git clone https://github.com/YunzhiWang/WorldEngine.git
 cd WorldEngine
 
+# 安装依赖
 npm install --prefix frontend
 npm install --prefix backend
+
+# 启动开发服务器（两个终端）
+cd frontend && npm run dev   # http://localhost:5173
+cd backend  && npm run dev   # http://localhost:3000
 ```
 
-### 启动
+首次启动后在设置页填入 LLM 提供商的 API Key，然后：
+
+1. 新建世界
+2. 在世界内新建角色
+3. 开启对话或写作会话
+
+## Usage
+
+**重置数据库（开发用）**
 
 ```bash
-# 终端 1
-cd backend && npm run dev
-
-# 终端 2
-cd frontend && npm run dev
+cd backend && npm run db:reset
 ```
 
-打开 `http://localhost:5173`，在设置页填写 API Key 和模型即可开始。
+**构建前端**
 
----
+```bash
+cd frontend && npm run build
+```
 
-## 数据与隐私
+**打包桌面应用**
 
-所有数据存放在本地 `/data/` 目录，不提交 Git：
+```bash
+# 首次打包前下载 Node runtime（约需几分钟）
+npm run desktop:dist
+```
 
-| 路径 | 内容 |
-|---|---|
-| `data/worldengine.db` | 所有结构化数据（世界、角色、会话、消息…） |
-| `data/config.json` | 全局配置，含 API Key |
-| `data/uploads/` | 头像与消息附件图片 |
-| `data/vectors/` | Prompt 条目与摘要的 embedding 索引 |
-| `data/daily/` | 日记 `.md` 文件 |
+打包产物在 `desktop/dist/`。数据目录：
+- macOS：`~/Library/Application Support/worldengine-desktop/`
+- Windows：`%APPDATA%\worldengine-desktop\`
 
----
+**日志**
 
-## 文档
-
-| 文件 | 内容 |
-|---|---|
-| `CLAUDE.md` | AI agent 执行规范、文档导航、修改边界 |
-| `ARCHITECTURE.md` | 模块职责、数据流、SSE 事件、记忆召回链路 |
-| `SCHEMA.md` | 数据库表结构、配置格式、导入导出格式 |
-| `DESIGN.md` | 视觉设计规范（调色板、字体、组件风格） |
-
----
+日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
 
 ## License
 

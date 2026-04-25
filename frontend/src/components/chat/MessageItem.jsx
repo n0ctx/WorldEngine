@@ -146,6 +146,32 @@ function formatTokens(n) {
   return n.toLocaleString();
 }
 
+/**
+ * 根据 token 用量和模型单价计算费用（美元）
+ * pricing: { inputPrice, outputPrice, cacheReadPrice?, cacheWritePrice? }（单位 $/1M tokens）
+ * 返回 null 表示无法计算（无价格信息或全为 0）
+ */
+function calcCost(usage, pricing) {
+  if (!pricing || (!pricing.inputPrice && !pricing.outputPrice)) return null;
+  const inp = ((usage.prompt_tokens ?? 0) * pricing.inputPrice) / 1_000_000;
+  const out = ((usage.completion_tokens ?? 0) * pricing.outputPrice) / 1_000_000;
+  const cacheRead = pricing.cacheReadPrice
+    ? ((usage.cache_read_tokens ?? 0) * pricing.cacheReadPrice) / 1_000_000
+    : 0;
+  const cacheWrite = pricing.cacheWritePrice
+    ? ((usage.cache_creation_tokens ?? 0) * pricing.cacheWritePrice) / 1_000_000
+    : 0;
+  return inp + out + cacheRead + cacheWrite;
+}
+
+function formatCost(usd) {
+  if (usd == null) return null;
+  if (usd < 0.000001) return '<$0.000001';
+  if (usd < 0.001) return `$${usd.toFixed(6)}`;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
+}
+
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const url = `/api/uploads/${src}`;
@@ -244,6 +270,7 @@ export default function MessageItem({
 
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
   const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
+  const currentModelPricing = useDisplaySettingsStore((s) => s.currentModelPricing);
   const isUser = message.role === 'user';
 
   const speakerName = isUser
@@ -468,6 +495,11 @@ export default function MessageItem({
                 <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
               )}
               <span className="we-token-usage-unit">tokens</span>
+              {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
+                <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
+                  {formatCost(calcCost(message.token_usage, currentModelPricing))}
+                </span>
+              )}
             </div>
           )}
           {!editingAI && (

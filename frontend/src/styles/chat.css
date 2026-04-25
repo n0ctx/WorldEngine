@@ -431,6 +431,12 @@
   opacity: 0.6;
 }
 
+.we-token-usage-cost {
+  color: var(--we-accent);
+  opacity: 0.8;
+  font-weight: 500;
+}
+
 /* ── Actions ───────────────────────────────────────────── */
 
 .we-message-actions {

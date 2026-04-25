@@ -81,6 +81,7 @@ CREATE TABLE worlds (
   post_prompt    TEXT NOT NULL DEFAULT '',  -- 旧世界后置文本镜像；启动时一次性迁移到 world_prompt_entries(position='post', trigger_type='always')
   temperature    REAL,                      -- 生成参数覆盖，NULL 时使用全局配置
   max_tokens     INTEGER,                   -- 生成参数覆盖，NULL 时使用全局配置
+  cover_path     TEXT,                      -- 封面图相对路径，如 avatars/world_{id}.png，无封面则 NULL
   created_at     INTEGER NOT NULL,          -- Unix 时间戳（毫秒）
   updated_at     INTEGER NOT NULL
 );

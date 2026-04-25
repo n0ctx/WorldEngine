@@ -43,7 +43,7 @@ export function getAllWorlds() {
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  const allowedFields = ['name', 'description', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens'];
+  const allowedFields = ['name', 'description', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens', 'cover_path'];
   const sets = [];
   const values = [];
 

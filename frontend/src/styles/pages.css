@@ -107,6 +107,43 @@
   background: var(--avatar-bg);
 }
 
+.we-world-card-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+.we-world-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, rgba(20, 14, 8, 0.3) 0%, rgba(20, 14, 8, 0.7) 100%);
+  z-index: 1;
+}
+
+.we-world-card--has-cover .we-world-card-seal,
+.we-world-card--has-cover .we-world-card-name,
+.we-world-card--has-cover .we-world-card-desc,
+.we-world-card--has-cover .we-world-card-meta,
+.we-world-card--has-cover .we-world-card-actions {
+  position: relative;
+  z-index: 2;
+}
+
+.we-world-card--has-cover .we-world-card-name {
+  color: rgba(255, 248, 235, 0.95);
+}
+
+.we-world-card--has-cover .we-world-card-desc {
+  color: rgba(255, 248, 235, 0.75);
+}
+
+.we-world-card--has-cover .we-world-card-meta {
+  color: rgba(255, 248, 235, 0.6);
+}
+
 .we-world-card-name {
   font-family: var(--we-font-display);
   font-size: 22px;

@@ -7,4 +7,6 @@ export const useDisplaySettingsStore = create((set) => ({
   setAutoCollapseThinking: (v) => set({ autoCollapseThinking: v }),
   showTokenUsage: false,
   setShowTokenUsage: (v) => set({ showTokenUsage: v }),
+  currentModelPricing: null,
+  setCurrentModelPricing: (v) => set({ currentModelPricing: v }),
 }));

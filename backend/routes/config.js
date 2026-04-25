@@ -41,12 +41,30 @@ function sanitizeBaseUrlPatch(section) {
   section.base_url = validateModelFetchBaseUrl(section.provider, section.base_url);
 }
 
+/** 查询当前模型的静态价格，优先 ANTHROPIC_MODELS，其次 KNOWN_PRICES */
+function resolveModelPricing(modelId) {
+  if (!modelId) return null;
+  const anthropic = ANTHROPIC_MODELS.find((m) => m.id === modelId);
+  if (anthropic) {
+    return {
+      inputPrice: anthropic.inputPrice,
+      outputPrice: anthropic.outputPrice,
+      cacheWritePrice: anthropic.cacheWritePrice ?? null,
+      cacheReadPrice: anthropic.cacheReadPrice ?? null,
+    };
+  }
+  const known = KNOWN_PRICES.get(modelId);
+  return known ? { inputPrice: known.inputPrice, outputPrice: known.outputPrice, cacheWritePrice: null, cacheReadPrice: null } : null;
+}
+
 // GET /api/config — 返回当前配置（去掉 api_key）
 router.get('/', (_req, res) => {
   const config = getConfig();
   const logging = getLoggingConfig();
+  const safe = stripApiKeys(config);
+  if (safe.llm) safe.llm.model_pricing = resolveModelPricing(config.llm?.model);
   log.debug(`GET /api/config  ${formatMeta({ loggingMode: logging.mode, prompt: logging.prompt?.enabled, llmRaw: logging.llm_raw?.enabled })}`);
-  res.json(stripApiKeys(config));
+  res.json(safe);
 });
 
 function collectPatchPaths(value, prefix = '') {

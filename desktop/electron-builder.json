@@ -64,6 +64,7 @@
         "arch": ["x64", "arm64"]
       }
     ],
+    "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
     "icon": "assets/icon.icns"
   },
   "win": {
@@ -73,6 +74,7 @@
         "arch": ["x64"]
       }
     ],
+    "artifactName": "${productName}-${version}-win-${arch}.${ext}",
     "icon": "assets/icon.ico"
   },
   "nsis": {

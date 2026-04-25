@@ -1,11 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import Button from '../ui/Button';
 import ModelCombobox from '../ui/ModelCombobox';
+import { useDisplaySettingsStore } from '../../store/displaySettings.js';
+
+function extractPricing(model) {
+  if (!model || typeof model !== 'object') return null;
+  return {
+    inputPrice: model.inputPrice ?? 0,
+    outputPrice: model.outputPrice ?? 0,
+    cacheWritePrice: model.cacheWritePrice ?? null,
+    cacheReadPrice: model.cacheReadPrice ?? null,
+  };
+}
 
 export default function ModelSelector({ value, onChange, loadModels }) {
   const [models, setModels] = useState([]);
   const [status, setStatus] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
+  const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
+
+  // 当模型列表或当前值变化时，同步价格到 store
+  useEffect(() => {
+    if (!models.length || !value) return;
+    const found = models.find((m) => (typeof m === 'object' ? m.id : m) === value);
+    setCurrentModelPricing(extractPricing(found));
+  }, [models, value, setCurrentModelPricing]);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -17,13 +36,15 @@ export default function ModelSelector({ value, onChange, loadModels }) {
       setStatus('ok');
       if (list.length > 0 && !value) {
         const first = list[0];
-        onChange(typeof first === 'string' ? first : first.id);
+        const modelId = typeof first === 'string' ? first : first.id;
+        setCurrentModelPricing(extractPricing(first));
+        onChange(modelId);
       }
     } catch (e) {
       setErrMsg(e.message || '无法获取模型列表，请检查 API Key 和网络连接');
       setStatus('error');
     }
-  }, [loadModels, onChange, value]);
+  }, [loadModels, onChange, value, setCurrentModelPricing]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial model discovery owns loading state.

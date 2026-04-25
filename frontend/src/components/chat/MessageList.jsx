@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import WritingMessageItem from '../writing/WritingMessageItem.jsx';
@@ -10,7 +10,7 @@ const NOOP = () => {};
 
 const PAGE_SIZE = 50;
 
-export default function MessageList({
+const MessageList = forwardRef(function MessageList({
   sessionId,
   character,
   persona,
@@ -31,7 +31,7 @@ export default function MessageList({
   chapterTitles = {},
   onChapterEdit,
   onChapterRetitle,
-}) {
+}, ref) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -135,15 +135,13 @@ export default function MessageList({
     }
   }, [streamingText, continuingText, generating]);
 
-  // 外部追加消息（发送后插入 user 消息）
-  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
-  MessageList.appendMessage = (msg) => setMessages((prev) => [...prev, msg]);
-  // 外部更新消息（编辑后）
-  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
-  MessageList.updateMessages = (updater) => setMessages(updater);
-  // 外部同步读取当前消息列表（避免在 updater 闭包中读取异步状态）
-  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by stream handlers.
-  MessageList.messagesRef = messagesRef;
+  useImperativeHandle(ref, () => ({
+    appendMessage: (msg) => setMessages((prev) => [...prev, msg]),
+    updateMessages: (updater) => setMessages(updater),
+    get messagesRef() {
+      return messagesRef;
+    },
+  }));
 
   const messagesForDisplay = useMemo(() => {
     if (!prose || !generating || !!continuingMessageId) return messages;
@@ -315,4 +313,7 @@ export default function MessageList({
     )}
     </div>
   );
-}
+});
+
+export default MessageList;
+

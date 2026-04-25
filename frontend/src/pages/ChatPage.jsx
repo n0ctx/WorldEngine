@@ -34,7 +34,9 @@ export default function ChatPage() {
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
   const inputBoxRef = useRef(null);
+  const messageListRef = useRef(null);
   const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
   const [errorBubble, setErrorBubble] = useState(null); // { partialContent, errorMsg }
   // 本轮流式占位节点的 React key（每次新流都换，避免相邻两轮 key 冲突）
   const [streamingKey, setStreamingKey] = useState('__stream_init__');
@@ -140,6 +142,7 @@ export default function ChatPage() {
   useEffect(() => {
     return () => {
       clearOptionsState();
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [clearOptionsState]);
 
@@ -181,18 +184,19 @@ export default function ChatPage() {
 
   // Toast 提示（自动消失）
   function showToast(msg, type = 'success') {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }
 
   // 流状态清理
   const finalizeStream = useCallback(() => {
     // 续写场景：原地合并消息内容，不重挂载 MessageList，避免气泡闪烁
     const wasContinuing = !!continuingMessageIdRef.current;
-    if (wasContinuing && MessageList.updateMessages) {
+    if (wasContinuing && messageListRef.current?.updateMessages) {
       const contId = continuingMessageIdRef.current;
       const contText = continuingTextRef.current;
-      MessageList.updateMessages((prev) =>
+      messageListRef.current.updateMessages((prev) =>
         prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
       );
     }
@@ -204,8 +208,8 @@ export default function ChatPage() {
     pendingAssistantRef.current = null;
     let appendedAssistant = assistantAppendedEarlyRef.current;
     assistantAppendedEarlyRef.current = false;
-    if (!wasContinuing && pending && MessageList.appendMessage) {
-      MessageList.appendMessage({ ...pending, _key: streamKey });
+    if (!wasContinuing && pending && messageListRef.current?.appendMessage) {
+      messageListRef.current.appendMessage({ ...pending, _key: streamKey });
       appendedAssistant = true;
     }
 
@@ -249,9 +253,9 @@ export default function ChatPage() {
       onUserSaved(realId) {
         const tempId = tempUserIdRef.current;
         if (!tempId || !realId || tempId === realId) return;
-        if (MessageList.updateMessages) {
+        if (messageListRef.current?.updateMessages) {
           // 保留 _key=tempId 作为稳定 React key，避免 AnimatePresence 把 id 变化当作进出场
-          MessageList.updateMessages((prev) =>
+          messageListRef.current.updateMessages((prev) =>
             prev.map((m) => m.id === tempId ? { ...m, _key: m._key ?? tempId, id: realId } : m)
           );
         }
@@ -261,8 +265,8 @@ export default function ChatPage() {
         if (options?.length) pendingOptionsRef.current = options;
         // 立即追加真实消息 + 解锁输入框（同批次渲染，避免流式气泡消失后真实消息尚未出现的闪烁）
         // 续写场景不在此追加，由 finalizeStream 合并内容
-        if (assistant && !continuingMessageIdRef.current && MessageList.appendMessage) {
-          MessageList.appendMessage({ ...assistant, _key: streamingKeyRef.current });
+        if (assistant && !continuingMessageIdRef.current && messageListRef.current?.appendMessage) {
+          messageListRef.current.appendMessage({ ...assistant, _key: streamingKeyRef.current });
           assistantAppendedEarlyRef.current = true;
         } else if (assistant) {
           pendingAssistantRef.current = assistant;
@@ -339,7 +343,7 @@ export default function ChatPage() {
       created_at: Date.now(),
     };
     tempUserIdRef.current = tempUserMsg.id;
-    if (MessageList.appendMessage) MessageList.appendMessage(tempUserMsg);
+    if (messageListRef.current?.appendMessage) messageListRef.current.appendMessage(tempUserMsg);
 
     beginStreamingKey();
     setGenerating(true);
@@ -365,8 +369,8 @@ export default function ChatPage() {
     streamingTextRef.current = '';
 
     // 截断消息列表到被编辑消息（含，内容替换）
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
+    if (messageListRef.current?.updateMessages) {
+      messageListRef.current.updateMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === messageId);
         if (idx === -1) return prev;
         return [...prev.slice(0, idx), { ...prev[idx], content: newContent }];
@@ -388,12 +392,12 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    const msgs = MessageList.messagesRef?.current ?? [];
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
     const idx = msgs.findIndex((m) => m.id === assistantMessageId);
     if (idx <= 0) return;
     const afterMessageId = msgs[idx - 1].id;
 
-    MessageList.updateMessages?.((prev) => {
+    messageListRef.current?.updateMessages?.((prev) => {
       const i = prev.findIndex((m) => m.id === assistantMessageId);
       return i >= 0 ? prev.slice(0, i) : prev;
     });
@@ -410,7 +414,7 @@ export default function ChatPage() {
   function handleContinue() {
     if (generating || !currentSessionId) return;
 
-    const msgs = MessageList.messagesRef?.current ?? [];
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
     const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant');
     const lastAssistantId = lastAssistant?.id ?? null;
     if (!lastAssistantId) return;
@@ -467,8 +471,8 @@ export default function ChatPage() {
   // 编辑 AI 消息（不重新生成，仅更新内容并重新生成 summary）
   async function handleEditAssistantMessage(messageId, newContent) {
     if (generating) return;
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) =>
+    if (messageListRef.current?.updateMessages) {
+      messageListRef.current.updateMessages((prev) =>
         prev.map((m) => m.id === messageId ? { ...m, content: newContent } : m)
       );
     }
@@ -486,8 +490,8 @@ export default function ChatPage() {
     if (generating || !currentSessionId) return;
     try {
       await deleteMessageApi(currentSessionId, messageId);
-      if (MessageList.updateMessages) {
-        MessageList.updateMessages((prev) => {
+      if (messageListRef.current?.updateMessages) {
+        messageListRef.current.updateMessages((prev) => {
           const idx = prev.findIndex((m) => m.id === messageId);
           if (idx === -1) return prev;
           return prev.slice(0, idx);
@@ -506,7 +510,7 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    const msgs = MessageList.messagesRef?.current ?? [];
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
     let lastIdx = -1;
     for (let i = msgs.length - 1; i >= 0; i--) {
       if (msgs[i].role === 'assistant') { lastIdx = i; break; }
@@ -514,7 +518,7 @@ export default function ChatPage() {
     if (lastIdx <= 0) return;
     const afterMessageId = msgs[lastIdx - 1].id;
 
-    MessageList.updateMessages?.((prev) => prev.slice(0, lastIdx));
+    messageListRef.current?.updateMessages?.((prev) => prev.slice(0, lastIdx));
 
     beginStreamingKey();
     setGenerating(true);
@@ -530,7 +534,7 @@ export default function ChatPage() {
     setErrorBubble(null);
     streamingTextRef.current = '';
 
-    const msgs = MessageList.messagesRef?.current ?? [];
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
     // 去掉末尾可能残留的 assistant 消息
     let end = msgs.length;
     while (end > 0 && msgs[end - 1].role === 'assistant') end--;
@@ -539,7 +543,7 @@ export default function ChatPage() {
     if (!lastUser) return;
     const afterMessageId = lastUser.id;
 
-    MessageList.updateMessages?.(() => trimmed);
+    messageListRef.current?.updateMessages?.(() => trimmed);
 
     beginStreamingKey();
     setGenerating(true);
@@ -564,12 +568,12 @@ export default function ChatPage() {
           attachments: null,
           created_at: Date.now(),
         };
-        if (MessageList.updateMessages) {
-          MessageList.updateMessages(() => [fakeMsg]);
+        if (messageListRef.current?.updateMessages) {
+          messageListRef.current.updateMessages(() => [fakeMsg]);
         }
       } else {
-        if (MessageList.updateMessages) {
-          MessageList.updateMessages(() => []);
+        if (messageListRef.current?.updateMessages) {
+          messageListRef.current.updateMessages(() => []);
         }
       }
       // 刷新以拿到真实 id
@@ -642,6 +646,7 @@ export default function ChatPage() {
 
         {/* 消息列表 */}
         <MessageList
+          ref={messageListRef}
           key={`${currentSessionId}-${messageListKey}`}
           sessionId={currentSessionId}
           sessionTitle={currentSession?.title || ''}

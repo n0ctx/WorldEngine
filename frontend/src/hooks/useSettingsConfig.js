@@ -22,6 +22,7 @@ export function useSettingsConfig() {
   const setAutoCollapseThinkingStore = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const [showTokenUsage, setShowTokenUsageLocal] = useState(false);
   const setShowTokenUsageStore = useDisplaySettingsStore((s) => s.setShowTokenUsage);
+  const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
   const { saving, saved, run: runSave } = useSaveState();
   const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
   const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
@@ -53,6 +54,7 @@ export function useSettingsConfig() {
       const tokenUsage = c.ui?.show_token_usage === true;
       setShowTokenUsageLocal(tokenUsage);
       setShowTokenUsageStore(tokenUsage);
+      setCurrentModelPricing(c.llm?.model_pricing ?? null);
       const w = c.writing || {};
       setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
       setWritingSystemPrompt(w.global_system_prompt ?? '');

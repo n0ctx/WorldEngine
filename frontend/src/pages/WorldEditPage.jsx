@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getWorld, updateWorld, createWorld } from '../api/worlds';
+import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../api/worlds';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 
 import StateFieldList from '../components/state/StateFieldList';
+import AvatarUpload from '../components/ui/AvatarUpload';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import SectionTabs from '../components/book/SectionTabs';
@@ -16,6 +17,7 @@ import {
   syncDiaryTimeField,
 } from '../api/world-state-fields';
 import { getConfig } from '../api/config';
+import { getAvatarUrl, getAvatarColor } from '../utils/avatar';
 import { getWorldStateValues, updateWorldStateValue } from '../api/world-state-values.js';
 import {
   listCharacterStateFields, createCharacterStateField,
@@ -41,6 +43,9 @@ export default function WorldEditPage() {
   const [sealKey, setSealKey] = useState(0);
   const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [coverPath, setCoverPath] = useState(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverFileInputRef = useRef(null);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -85,6 +90,7 @@ export default function WorldEditPage() {
       setDescription(w.description ?? '');
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
+      setCoverPath(w.cover_path ?? null);
       setStateFields(fields);
       setLoading(false);
     });
@@ -162,6 +168,22 @@ export default function WorldEditPage() {
     }
   }
 
+  async function handleCoverFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverUploading(true);
+    try {
+      const result = await uploadWorldCover(worldId, file);
+      setCoverPath(result.cover_path);
+      window.dispatchEvent(new Event('we:world-updated'));
+    } catch (err) {
+      alert(`封面上传失败：${err.message}`);
+    } finally {
+      setCoverUploading(false);
+      e.target.value = '';
+    }
+  }
+
   function handleClose() {
     navigate(-1);
   }
@@ -190,6 +212,19 @@ export default function WorldEditPage() {
               {saving ? (isCreate ? '创建中…' : '保存中…') : (isCreate ? '创建世界' : '保存')}
             </Button>
           </div>
+          {!isCreate && (
+            <FormGroup label="封面图" hint="铺满世界卡片背景，建议比例 4:3 或横向图片">
+              <AvatarUpload
+                name={name}
+                avatarUrl={getAvatarUrl(coverPath)}
+                avatarColor={getAvatarColor(worldId)}
+                avatarUploading={coverUploading}
+                fileInputRef={coverFileInputRef}
+                onAvatarClick={() => coverFileInputRef.current?.click()}
+                onFileChange={handleCoverFileChange}
+              />
+            </FormGroup>
+          )}
         </div>
       ),
     },

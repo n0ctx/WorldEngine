@@ -404,6 +404,8 @@ export function initSchema(db) {
   migrateDropLegacyEntryTables(db);
   // token 消耗统计：messages 表新增 token_usage 字段（JSON 字符串）
   try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
+  // worlds 封面图
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {

@@ -57,9 +57,9 @@ export default function WritingSpacePage() {
   const [diaryTick, setDiaryTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
-  const [toast, setToast] = useState(null);
 
   const inputBoxRef = useRef(null);
+  const messageListRef = useRef(null);
   const stopRef = useRef(null);
   const streamingTextRef = useRef('');
   const streamingKeyRef = useRef('__ws_stream_init__');
@@ -75,11 +75,6 @@ export default function WritingSpacePage() {
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
   // chapterTitles: { [chapterIndex]: { title, is_default } }
   const [chapterTitles, setChapterTitles] = useState({});
-
-  function showToast(msg, type = 'success') {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  }
 
   function clearOptionsState() {
     pendingOptionsRef.current = [];
@@ -214,8 +209,8 @@ export default function WritingSpacePage() {
       onDone(assistant, options) {
         if (options?.length) pendingOptionsRef.current = options;
         // 立即追加真实消息 + 解锁输入框（同批次渲染），避免流式占位消失后真实消息延迟出现的闪烁
-        if (assistant && MessageList.appendMessage) {
-          MessageList.appendMessage({ ...assistant, _key: streamKey });
+        if (assistant && messageListRef.current?.appendMessage) {
+          messageListRef.current.appendMessage({ ...assistant, _key: streamKey });
           assistantAppendedEarlyRef.current = true;
         } else if (assistant) {
           pendingAssistantRef.current = assistant;
@@ -258,9 +253,9 @@ export default function WritingSpacePage() {
         stopRef.current = null;
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {
-          if (pending && MessageList.appendMessage) {
+          if (pending && messageListRef.current?.appendMessage) {
             // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
-            MessageList.appendMessage({ ...pending, _key: streamKey });
+            messageListRef.current.appendMessage({ ...pending, _key: streamKey });
           } else {
             refreshMessages();
           }
@@ -285,7 +280,7 @@ export default function WritingSpacePage() {
         attachments: null,
         created_at: Date.now(),
       };
-      if (MessageList.appendMessage) MessageList.appendMessage(optimisticMsg);
+      if (messageListRef.current?.appendMessage) messageListRef.current.appendMessage(optimisticMsg);
     }
 
     setGenerating(true);
@@ -300,8 +295,8 @@ export default function WritingSpacePage() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
     setError(null);
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) => {
+    if (messageListRef.current?.updateMessages) {
+      messageListRef.current.updateMessages((prev) => {
         const idx = prev.findIndex((m) => m.id === messageId);
         if (idx === -1) return prev;
         return [...prev.slice(0, idx), { ...prev[idx], content: newContent }];
@@ -317,11 +312,11 @@ export default function WritingSpacePage() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
     setError(null);
-    const msgs = MessageList.messagesRef?.current ?? [];
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
     const idx = msgs.findIndex((m) => m.id === assistantMessageId);
     if (idx <= 0) return;
     const afterMessageId = msgs[idx - 1].id;
-    MessageList.updateMessages?.((prev) => {
+    messageListRef.current?.updateMessages?.((prev) => {
       const i = prev.findIndex((m) => m.id === assistantMessageId);
       return i >= 0 ? prev.slice(0, i) : prev;
     });
@@ -335,8 +330,8 @@ export default function WritingSpacePage() {
     if (generating) return;
     const session = currentSessionRef.current;
     if (!session) return;
-    if (MessageList.updateMessages) {
-      MessageList.updateMessages((prev) =>
+    if (messageListRef.current?.updateMessages) {
+      messageListRef.current.updateMessages((prev) =>
         prev.map((m) => m.id === messageId ? { ...m, content: newContent } : m)
       );
     }
@@ -354,8 +349,8 @@ export default function WritingSpacePage() {
     if (!session) return;
     try {
       await deleteMessageApi(session.id, messageId);
-      if (MessageList.updateMessages) {
-        MessageList.updateMessages((prev) => {
+      if (messageListRef.current?.updateMessages) {
+        messageListRef.current.updateMessages((prev) => {
           const idx = prev.findIndex((m) => m.id === messageId);
           if (idx === -1) return prev;
           return prev.slice(0, idx);
@@ -376,8 +371,8 @@ export default function WritingSpacePage() {
 
     // 找最后一条 assistant 消息 id
     let lastAssistantId = null;
-    if (MessageList.messagesRef) {
-      const msgs = MessageList.messagesRef.current ?? [];
+    if (messageListRef.current?.messagesRef) {
+      const msgs = messageListRef.current.messagesRef.current ?? [];
       const last = [...msgs].reverse().find((m) => m.role === 'assistant');
       if (last) lastAssistantId = last.id;
     }
@@ -406,8 +401,8 @@ export default function WritingSpacePage() {
         // 合并续写内容到消息列表后清理
         const contId = continuingMessageIdRef.current;
         const contText = continuingTextRef.current;
-        if (contId && contText && MessageList.updateMessages) {
-          MessageList.updateMessages((prev) =>
+        if (contId && contText && messageListRef.current?.updateMessages) {
+          messageListRef.current.updateMessages((prev) =>
             prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
           );
         }
@@ -441,8 +436,8 @@ export default function WritingSpacePage() {
         // 合并续写内容到消息列表后清理
         const contId = continuingMessageIdRef.current;
         const contText = continuingTextRef.current;
-        if (contId && contText && MessageList.updateMessages) {
-          MessageList.updateMessages((prev) =>
+        if (contId && contText && messageListRef.current?.updateMessages) {
+          messageListRef.current.updateMessages((prev) =>
             prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
           );
         }
@@ -513,17 +508,6 @@ export default function WritingSpacePage() {
 
   return (
     <BookSpread>
-      {toast && (
-        <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
-            toast.type === 'error'
-              ? 'bg-[var(--we-color-status-danger)] text-[var(--we-color-text-inverse)]'
-              : 'bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)]'
-          }`}
-        >
-          {toast.msg}
-        </div>
-      )}
       <WritingPageLeft
         worldId={worldId}
         currentSessionId={currentSession?.id}
@@ -550,6 +534,7 @@ export default function WritingSpacePage() {
 
             {/* 消息列表 */}
             <MessageList
+              ref={messageListRef}
               key={`${currentSession?.id}-${messageListKey}`}
               sessionId={currentSession?.id}
               character={null}

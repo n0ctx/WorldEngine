@@ -110,10 +110,10 @@
   --we-space-3xl: 48px;
 
   /* === 圆角 Scale === */
-  --we-radius-none: 1px;  /* 微圆角，保持与原值一致 */
-  --we-radius-sm:   2px;
-  --we-radius-md:   4px;
-  --we-radius-lg:   8px;
+  --we-radius-none: 1px;  /* 微圆角，代码块/行内代码等保留平直感 */
+  --we-radius-sm:   6px;
+  --we-radius-md:   8px;
+  --we-radius-lg:   12px;
   --we-radius-full: 9999px;
 
   /* === Z-index Scale === */

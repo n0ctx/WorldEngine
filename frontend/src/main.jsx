@@ -8,11 +8,14 @@ import './styles/ui.css'
 import './styles/pages.css'
 import './index.css'
 import App from './App.jsx'
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </BrowserRouter>
   </StrictMode>,
 )

@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import multer from 'multer';
 import {
   createWorld,
   getWorldById,
@@ -9,6 +12,25 @@ import {
   clearAllDiaryData,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+
+const coverStorage = multer.diskStorage({
+  destination: path.join(DATA_ROOT, 'uploads', 'avatars'),
+  filename(req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `world_${req.params.id}${ext}`);
+  },
+});
+const upload = multer({
+  storage: coverStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter(req, file, cb) {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('只接受图片文件'));
+  },
+});
 
 const router = Router();
 
@@ -55,6 +77,16 @@ router.delete('/:id', async (req, res) => {
 router.post('/clear-all-diaries', (_req, res) => {
   clearAllDiaryData();
   res.json({ ok: true });
+});
+
+// POST /api/worlds/:id/cover — 上传封面图
+router.post('/:id/cover', upload.single('cover'), async (req, res) => {
+  const existing = getWorldById(req.params.id);
+  if (!assertExists(res, existing, '世界不存在')) return;
+  if (!req.file) return res.status(400).json({ error: '未收到图片文件' });
+  const relativePath = `avatars/world_${req.params.id}${path.extname(req.file.originalname).toLowerCase() || '.jpg'}`;
+  const updated = updateWorld(req.params.id, { cover_path: relativePath });
+  res.json({ cover_path: updated.cover_path });
 });
 
 // POST /api/worlds/:id/sync-diary — 根据当前日记配置同步 diary_time 字段

@@ -3,6 +3,25 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-26 Token 消耗行新增费用估算显示
+
+**目标**：在每条 AI 消息的 token 消耗行末尾显示本条消息的估算费用（美元）。
+
+**改动文件**：
+- `backend/routes/config.js` — `GET /api/config` 响应新增 `llm.model_pricing`（从 `KNOWN_PRICES` / `ANTHROPIC_MODELS` 查当前模型，作为初次加载兜底）
+- `frontend/src/store/displaySettings.js` — 新增 `currentModelPricing` 状态
+- `frontend/src/hooks/useSettingsConfig.js` — 配置加载后同步 `setCurrentModelPricing`（兜底路径）
+- `frontend/src/components/settings/ModelSelector.jsx` — 模型列表拉取后及模型切换时，从列表价格字段更新 store（主路径，优先级高于兜底）
+- `frontend/src/components/chat/MessageItem.jsx` — 新增 `calcCost` / `formatCost` 函数；token 消耗行末尾显示费用（陶土色强调）
+- `frontend/src/styles/chat.css` — 新增 `.we-token-usage-cost` 样式
+
+**行为**：
+- 已知价格且非零（正常按量计费 provider）→ 显示 `$x.xxxxxx`
+- 价格全为 0（Coding Plan）或未知模型 → 不显示费用，只显示 token 数
+- 费用 < $0.000001 → 显示 `<$0.000001`
+
+**验证方式**：开启「显示 Token 消耗」后发一条消息，消耗行末尾应出现带陶土色的费用数字；切换到 GLM Coding Plan 后发消息，费用不显示。
+
 ## 2026-04-25 新增 Kimi / MiniMax / GLM Coding Plan provider
 
 **目标**：支持三家国内大模型的按周/配额计费 Coding Plan，与现有按 token 计费的标准 provider 并列。

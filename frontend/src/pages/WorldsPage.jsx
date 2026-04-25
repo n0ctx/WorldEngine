@@ -4,7 +4,7 @@ import { getWorlds, deleteWorld } from '../api/worlds';
 import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
-import { getAvatarColor } from '../utils/avatar';
+import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import { relativeTime } from '../utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
@@ -143,13 +143,18 @@ export default function WorldsPage() {
           {worlds.map((world) => (
             <div
               key={world.id}
-              className="we-world-card"
+              className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ''}`}
               onClick={() => handleEnterWorld(world)}
             >
-              <div
-                className="we-world-card-seal"
-                style={{ '--avatar-bg': getAvatarColor(world.id) }}
-              />
+              {world.cover_path && (
+                <>
+                  <img src={getAvatarUrl(world.cover_path)} alt="" className="we-world-card-bg" />
+                  <div className="we-world-card-overlay" />
+                </>
+              )}
+              {!world.cover_path && (
+                <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
+              )}
               <h3 className="we-world-card-name">{world.name}</h3>
               <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>
                 {world.description || '暂无描述'}
