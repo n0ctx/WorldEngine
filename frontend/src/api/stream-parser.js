@@ -12,7 +12,7 @@
  *   onMemoryRecallDone(evt)     — 向量召回完成
  *   onMemoryExpandStart(evt)    — 记忆展开开始
  *   onMemoryExpandDone(evt)     — 记忆展开完成
- *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作空间）
+ *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作）
  *   onStateUpdated()            — 状态栏异步更新完成（writing 专有）
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
  */

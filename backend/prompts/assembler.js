@@ -295,7 +295,7 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 /**
- * 写作空间版本：支持多个激活角色，[9-10] 向量召回与记忆展开同 buildPrompt。
+ * 写作版本：支持多个激活角色，[9-10] 向量召回与记忆展开同 buildPrompt。
  * 组装顺序与 buildPrompt 对齐，但 [5-6] 针对所有激活角色展开。
  *
  * @param {string} sessionId
@@ -340,7 +340,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     world: world.name,
   });
 
-  // [1] 全局 System Prompt（使用写作空间专属配置）
+  // [1] 全局 System Prompt（使用写作专属配置）
   if (writing.global_system_prompt) {
     systemParts.push(tv(writing.global_system_prompt));
   }

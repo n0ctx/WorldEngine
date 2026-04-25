@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getConfig, updateConfig } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
+import { useSaveState } from './useSaveState';
 
 export function useSettingsConfig() {
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,8 @@ export function useSettingsConfig() {
   const setAutoCollapseThinkingStore = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const [showTokenUsage, setShowTokenUsageLocal] = useState(false);
   const setShowTokenUsageStore = useDisplaySettingsStore((s) => s.setShowTokenUsage);
-  const [saving, setSaving] = useState(false);
+  const { saving, saved, run: runSave } = useSaveState();
+  const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
   const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
@@ -123,32 +125,22 @@ export function useSettingsConfig() {
   }
 
   async function handleSaveGeneral() {
-    setSaving(true);
-    try {
-      await patchConfig({
-        context_history_rounds: Number(contextRounds),
-        global_system_prompt: globalSystemPrompt,
-        global_post_prompt: globalPostPrompt,
-      });
-    } finally {
-      setSaving(false);
-    }
+    await runSave(() => patchConfig({
+      context_history_rounds: Number(contextRounds),
+      global_system_prompt: globalSystemPrompt,
+      global_post_prompt: globalPostPrompt,
+    }));
   }
 
   async function handleSaveWritingGeneral() {
-    setSaving(true);
-    try {
-      await patchConfig({
-        writing: {
-          context_history_rounds: writingContextRounds !== '' && writingContextRounds !== null
-            ? Number(writingContextRounds) : null,
-          global_system_prompt: writingSystemPrompt,
-          global_post_prompt: writingPostPrompt,
-        },
-      });
-    } finally {
-      setSaving(false);
-    }
+    await runSaveWriting(() => patchConfig({
+      writing: {
+        context_history_rounds: writingContextRounds !== '' && writingContextRounds !== null
+          ? Number(writingContextRounds) : null,
+        global_system_prompt: writingSystemPrompt,
+        global_post_prompt: writingPostPrompt,
+      },
+    }));
   }
 
   async function handleProxyUrlSave(url) {
@@ -258,6 +250,9 @@ export function useSettingsConfig() {
       writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
       onSave: handleSaveGeneral,
       saving,
+      saved,
+      savingWriting,
+      savedWriting,
       writingSystemPrompt, setWritingSystemPrompt,
       writingPostPrompt, setWritingPostPrompt,
       writingContextRounds, setWritingContextRounds,

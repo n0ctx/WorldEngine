@@ -403,7 +403,7 @@ CREATE INDEX IF NOT EXISTS idx_session_character_state_values_session ON session
 
 ---
 
-### chapter_titles — 写作空间章节标题
+### chapter_titles — 写作章节标题
 
 写作会话的章节标题持久化。随 session 自动 CASCADE 删除，无需注册额外 cleanup 钩子。
 
@@ -728,25 +728,25 @@ CREATE TABLE internal_meta (
     "auto_collapse_thinking": true,  // 思维链完成后是否自动折叠
     "show_token_usage": false        // 是否在每条 AI 回复底部显示 token 消耗
   },
-  "context_history_rounds": 10,           // 对话空间历史轮次（turn records 条数）
-  "global_system_prompt": "",             // 对话空间全局 system prompt
-  "global_post_prompt": "",              // 对话空间全局后置提示词
+  "context_history_rounds": 10,           // 对话历史轮次（turn records 条数）
+  "global_system_prompt": "",             // 对话全局 system prompt
+  "global_post_prompt": "",              // 对话全局后置提示词
   "memory_expansion_enabled": true,      // 是否启用渐进展开原文（T28），false 时召回摘要仍保留
-  "writing": {                           // T86：写作空间独立配置（T86新增，缺失时由 getConfig 自动补默认值）
-    "global_system_prompt": "",          // 写作空间全局 system prompt；覆盖对话空间的同名字段
-    "global_post_prompt": "",            // 写作空间全局后置提示词
-    "context_history_rounds": null,      // null = 继承对话空间的 context_history_rounds
-    "memory_expansion_enabled": true,   // T144：写作空间是否启用记忆原文展开；独立于顶层同名字段
+  "writing": {                           // T86：写作独立配置（T86新增，缺失时由 getConfig 自动补默认值）
+    "global_system_prompt": "",          // 写作全局 system prompt；覆盖对话的同名字段
+    "global_post_prompt": "",            // 写作全局后置提示词
+    "context_history_rounds": null,      // null = 继承对话的 context_history_rounds
+    "memory_expansion_enabled": true,   // T144：写作是否启用记忆原文展开；独立于顶层同名字段
     "llm": {
-      "model": "",                       // "" = 继承对话空间 llm.model
-      "temperature": null,               // null = 继承对话空间 llm.temperature
-      "max_tokens": null                 // null = 继承对话空间 llm.max_tokens
+      "model": "",                       // "" = 继承对话 llm.model
+      "temperature": null,               // null = 继承对话 llm.temperature
+      "max_tokens": null                 // null = 继承对话 llm.max_tokens
     }
   }
 }
 ```
 
-> Provider / API Key / Base URL / embedding 配置为对话与写作空间共享，不进入 `writing` 命名空间。
+> Provider / API Key / Base URL / embedding 配置为对话与写作共享，不进入 `writing` 命名空间。
 
 > API Key 存在本地文件，不进数据库，不随 JSON 导出一起导出。导出时此字段自动清空。
 

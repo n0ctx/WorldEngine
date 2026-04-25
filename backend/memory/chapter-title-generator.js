@@ -1,5 +1,5 @@
 /**
- * chapter-title-generator.js — 写作空间章节标题的 LLM 生成
+ * chapter-title-generator.js — 写作章节标题的 LLM 生成
  */
 
 import { upsertChapterTitle } from '../db/queries/chapter-titles.js';

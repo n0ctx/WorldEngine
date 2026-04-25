@@ -129,7 +129,6 @@ export default function WorldEditPage() {
       }
     } catch (e) {
       setSaveError(e.message);
-    } finally {
       setSaving(false);
     }
   }

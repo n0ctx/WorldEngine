@@ -11,8 +11,8 @@ const SCOPE_OPTIONS = [
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
 
 const MODE_OPTIONS = [
-  { value: 'chat', label: '对话空间' },
-  { value: 'writing', label: '写作空间' },
+  { value: 'chat', label: '对话' },
+  { value: 'writing', label: '写作' },
 ];
 
 export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
@@ -74,7 +74,6 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
       await onSave(form);
     } catch (e) {
       alert(`保存失败：${e.message}`);
-    } finally {
       setSaving(false);
     }
   }

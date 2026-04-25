@@ -64,8 +64,8 @@ export default function FeaturesConfigPanel({
         <ToggleRow
           label={isChat ? '对话日记' : '写作日记'}
           hint={isChat
-            ? '开启后对话空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'
-            : '开启后写作空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'}
+            ? '开启后对话自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'
+            : '开启后写作自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'}
           checked={diaryEnabled}
           onChange={onToggleDiary}
         />
@@ -101,7 +101,7 @@ export default function FeaturesConfigPanel({
 
         <ToggleRow
           label="渲染思维链"
-          hint="显示 <think> 标签内容（可折叠），对话与写作空间均生效；关闭则完全屏蔽"
+          hint="显示 <think> 标签内容（可折叠），对话与写作均生效；关闭则完全屏蔽"
           checked={showThinking}
           onChange={onToggleShowThinking}
         />

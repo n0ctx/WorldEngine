@@ -154,7 +154,6 @@ export default function CharacterEditPage() {
       }
     } catch (e) {
       setSaveError(e.message);
-    } finally {
       setSaving(false);
     }
   }

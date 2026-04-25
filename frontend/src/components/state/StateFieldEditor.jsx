@@ -122,7 +122,6 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
       onClose();
     } catch (e) {
       setError(e.message);
-    } finally {
       setSaving(false);
     }
   }

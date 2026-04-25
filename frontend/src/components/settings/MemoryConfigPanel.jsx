@@ -76,8 +76,8 @@ export default function MemoryConfigPanel({
         <ToggleRow
           label={diaryLabel}
           hint={isChat
-            ? '开启后对话空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'
-            : '开启后写作空间自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'}
+            ? '开启后对话自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'
+            : '开启后写作自动检测日期跨越并生成日记，右侧面板 Timeline 展示摘要'}
           checked={diaryEnabled}
           onChange={handleDiaryToggle}
         />

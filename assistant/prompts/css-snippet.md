@@ -131,7 +131,7 @@
 
 - “给思考链做成旧终端荧光风格” → 修改 `.thinking-block`
 - “把聊天界面调成深色羊皮纸主题” → 优先覆写 `:root` 下的 `--we-*`
-- “写作空间正文更疏朗” → `mode:"writing"` + `.message-content`
+- “写作正文更疏朗” → `mode:"writing"` + `.message-content`
 
 ## 反例
 

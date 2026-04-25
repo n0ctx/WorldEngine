@@ -383,7 +383,7 @@ export function initSchema(db) {
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}
-  // 章节标题系统：写作空间章节标题持久化
+  // 章节标题系统：写作章节标题持久化
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_chapter_titles_session ON chapter_titles(session_id, chapter_index)`); } catch {}
 
   migrateLegacyAutoFilledNullStateValues(db);

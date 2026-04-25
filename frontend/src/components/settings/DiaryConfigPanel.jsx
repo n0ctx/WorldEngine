@@ -23,7 +23,7 @@ export default function DiaryConfigPanel({
 
       <div className="we-settings-field-group we-settings-field-group--spaced">
         <FormGroup
-          label={isChat ? '对话空间日记' : '写作空间日记'}
+          label={isChat ? '对话日记' : '写作日记'}
           hint="开启后世界状态将自动添加时间字段，AI 每轮更新后判断日期跨越并生成日记"
         >
           <ToggleSwitch checked={enabled} onChange={onToggle} />

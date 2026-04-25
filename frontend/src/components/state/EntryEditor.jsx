@@ -131,7 +131,6 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       onSave();
     } catch (err) {
       alert(`保存失败：${err.message}`);
-    } finally {
       setSaving(false);
     }
   }

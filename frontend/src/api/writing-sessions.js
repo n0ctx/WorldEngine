@@ -1,7 +1,7 @@
 import { parseSSEStream } from './stream-parser.js';
 
 /**
- * 内部辅助：POST 请求 + SSE 流解析（写作空间版）
+ * 内部辅助：POST 请求 + SSE 流解析（写作版）
  * onStreamEnd 仅在成功完成或 AbortError 时调用；HTTP 错误和非 Abort 异常时不调用（由 onError 处理）
  */
 function streamPost(url, body, callbacks) {

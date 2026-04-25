@@ -257,7 +257,6 @@ function SnippetEditor({ snippet, onSave, onClose }) {
       onClose();
     } catch (err) {
       alert(`保存失败：${err.message}`);
-    } finally {
       setSaving(false);
     }
   }

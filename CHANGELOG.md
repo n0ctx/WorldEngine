@@ -377,9 +377,9 @@
 - `T167` `bugfix` 写作标题空返回兜底 + continue 指令模板化 — title/chapter title 对 Gemini 空返回增加一次重试，仍为空时回退到本地裁剪标题；`buildContinuationMessages` 的续写指令移入 `backend/prompts/templates/continue-user-instruction.md`
 - `T166` `bugfix` `/continue` 等待 SSE 真正结束后再允许下一次续写 — 前端 chat/writing 的 continue 从 `onDone` 提前解锁改为等 `onStreamEnd`，并为续写回调加 token 防止旧请求收尾覆盖新请求；补了对应页面测试
 - `T163` `bugfix` `/continue` 统一显式续写指令 — `buildContinuationMessages` 不再按 provider 分支，统一改为 `assistant(originalContent) + user(直接继续上一条 AI 回复)`；既修 Gemini `CHAT DONE len=0`，也避免其他 provider 后续撞上同类尾 assistant 静默问题；新增 `backend/tests/routes/stream-helpers.test.js`
-- `T162` `refactor` 对话/写作空间通用组件插件化（插件1-3） — 新增 `frontend/src/api/stream-parser.js` 作为 SSE 解析共享层；chat.js 和 writing-sessions.js 各增内部 `streamPost` 辅助消除重复模板；`backend/services/chat.js` 的 `processStreamOutput` 扩展 opts 参数（mode/createMessageFn/touchSessionFn），writing.js runWritingStream 改调用此函数而非内联处理；提示词内部重构（插件4）未实施
+- `T162` `refactor` 对话/写作通用组件插件化（插件1-3） — 新增 `frontend/src/api/stream-parser.js` 作为 SSE 解析共享层；chat.js 和 writing-sessions.js 各增内部 `streamPost` 辅助消除重复模板；`backend/services/chat.js` 的 `processStreamOutput` 扩展 opts 参数（mode/createMessageFn/touchSessionFn），writing.js runWritingStream 改调用此函数而非内联处理；提示词内部重构（插件4）未实施
 - `T161` `feat` 关闭日记时清除历史记录 + 确认弹窗 — `clearAllDiaryData()` 遍历所有世界所有会话清除 DB+文件；`POST /api/worlds/clear-all-diaries` 路由；MemoryConfigPanel 关闭 toggle 时先弹确认再执行；diary_time 字段由 syncDiaryTimeField 在页面进入时自动删除
-- `T160` `feat` 写作空间 CastPanel 补"整理中/已整理"overlay — 对齐 StatePanel 轮询逻辑；加 `pollingHasChanged`/`stateJustChanged`；移除旧内联"更新中…"文字；`motion` 补入 framer-motion 导入
+- `T160` `feat` 写作 CastPanel 补"整理中/已整理"overlay — 对齐 StatePanel 轮询逻辑；加 `pollingHasChanged`/`stateJustChanged`；移除旧内联"更新中…"文字；`motion` 补入 framer-motion 导入
 - `T159` `feat` 状态更新后台阻塞下轮 prompt 组装 + 输入立即解锁 — 新增 `state-update-tracker.js`；`onDone` 时立即 `setGenerating(false)` + `triggerMemoryRefresh`；下轮请求 `buildContext`/`buildWritingPrompt` 前 `awaitPendingStateUpdate`；StatePanel 恢复纯轮询 overlay；`state_updating`/`state_updated` SSE 事件全部清除
 - `T158` `bugfix` 用户气泡编辑不变内容不重新生成 — 三处 confirmEdit（MessageItem/WritingMessageItem/assistant MessageList）改用 `editInitContentRef` 快照初始内容，比较 `trimmed !== initContent.trim()`；防止 prop 在编辑期间变化或空白字符差异导致误触重新生成
 - `T157` `feat` 状态更新阻塞发送（已被 T159 取代）
@@ -389,9 +389,9 @@
 - `T150` `refactor` turn_records 改为指针模式，历史消息链路清理 — turn_records 新增 user_message_id/asst_message_id 列（指针），不再复制消息内容；summary-expander 展开原文优先查 messages 表，旧数据回退 user_context/asst_context；delete all messages 同步清除 turn_records；修复 assembler.js/SCHEMA.md 过时注释
 - `T148` `feat` MOTION.md 动效规范落地 — motion.js 重写（DURATION/EASE/STAGGER/BLUR/variants/transitions），tokens.css 补 --we-dur-* 变量，新增 useMotion hook，PageTransition 实现路由过渡，WritingMessageItem 补 inkRise，SealStamp/ModalShell/SectionTabs 对齐规范参数
 - `T147` `chore` 临时后端测试隔离真实配置 — `backend/services/config.js` 支持 `WE_CONFIG_PATH`，`.temp` 脚本改用独立临时 config 文件
-- `T146` `bugfix` 写作空间激活角色读取修复 — `buildWritingPrompt()` 不再把 `getWritingSessionCharacters()` 返回的 `c.*` 行误当成含 `character_id` 的联结行二次查询
-- `T145` `bugfix` 写作空间多角色模板变量补全 — 共享段补首个激活角色 `{{char}}` fallback，角色级 prompt entries 改为按所属角色名渲染
-- `T144` `feat` 写作空间接入记忆召回与原文展开 — buildWritingPrompt 补 [12][13]，writing.js 补 memory_recall_start SSE，前端设置页写作 tab 加记忆原文展开 toggle，config.writing 新增 memory_expansion_enabled 字段
+- `T146` `bugfix` 写作激活角色读取修复 — `buildWritingPrompt()` 不再把 `getWritingSessionCharacters()` 返回的 `c.*` 行误当成含 `character_id` 的联结行二次查询
+- `T145` `bugfix` 写作多角色模板变量补全 — 共享段补首个激活角色 `{{char}}` fallback，角色级 prompt entries 改为按所属角色名渲染
+- `T144` `feat` 写作接入记忆召回与原文展开 — buildWritingPrompt 补 [12][13]，writing.js 补 memory_recall_start SSE，前端设置页写作 tab 加记忆原文展开 toggle，config.writing 新增 memory_expansion_enabled 字段
 - `T143` `bugfix` 写卡助手协议修复+多轮上下文补全 — character-card create entityId 协议对齐、stateFieldOps type 枚举硬约束（三个 prompt 文件）、工具结果字符串富化、AssistantPanel history 含 proposal 摘要
 - `T142` `bugfix` 对话/写作上下文对齐修复 — entry description 退回 preflight、主历史源切回原始 messages、continue 不再重写轮次、turn record 按 round_index 配对
 - `T141` `perf` 写卡助手 harness 稳定性六项优化 — 子代理 system/user 分离、temperature:0、retry 保留工具、error SSE 透传、resolveToolContext 不再静默降级、proposalStore GC
@@ -440,7 +440,7 @@ T01–T174 完整记录见 [`docs/CHANGELOG-archive-T1-T200.md`](docs/CHANGELOG-
 |------|----------|
 | T01–T09 | 项目骨架、数据库、LLM、世界/角色/会话 CRUD、对话流 |
 | T10–T27 | 前端页面、Prompt 条目、记忆召回、Session Summary、跨会话召回 |
-| T28–T40 | 渐进展开原文、角色卡导出、写作空间、状态字段、玩家头像 |
+| T28–T40 | 渐进展开原文、角色卡导出、写作、状态字段、玩家头像 |
 | T86–T103 | 写作模式独立配置、正则/CSS 模式分离、写卡助手、全链路日志、状态会话级隔离 |
 | T104–T120 | 时间线重构、Prompt 条目重构、代码异味批量修复、大文件拆分 |
 | T121–T135 | 模板外置、目录整合、OptionCard、LLM 触发、`<think>` 修复、时间线段删除 |

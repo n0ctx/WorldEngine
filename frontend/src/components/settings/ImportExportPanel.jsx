@@ -43,7 +43,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
         loadRules(appMode).catch(() => {}),
       ]);
       invalidateCache();
-      const label = result.mode === SETTINGS_MODE.WRITING ? '写作空间' : '对话空间';
+      const label = result.mode === SETTINGS_MODE.WRITING ? '写作' : '对话';
       setMessage({ type: 'ok', text: `导入成功，已覆盖${label}全局设置` });
       onImportSuccess?.();
     } catch (e) {
@@ -53,7 +53,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
     }
   }
 
-  const modeLabel = mode === SETTINGS_MODE.WRITING ? '写作空间' : '对话空间';
+  const modeLabel = mode === SETTINGS_MODE.WRITING ? '写作' : '对话';
 
   return (
     <div>

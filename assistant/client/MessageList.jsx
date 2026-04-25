@@ -235,7 +235,7 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
             }}
           >
             {msg.streaming && !msg.content ? (
-              // 流式开始但首字未到：显示 typing dots（与对话空间"AI输出中"一致）
+              // 流式开始但首字未到：显示 typing dots（与对话"AI输出中"一致）
               <div className="we-typing-dots">
                 <span className="typing-dot" />
                 <span className="typing-dot" />

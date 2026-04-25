@@ -162,7 +162,7 @@ export default function MessageList({
     ];
   }, [prose, messages, generating, continuingMessageId, streamingKey, streamingText]);
 
-  // 章节分组仅用于写作空间（prose 模式）
+  // 章节分组仅用于写作（prose 模式）
   const chapters = useMemo(
     () => prose ? groupMessagesIntoChapters(messagesForDisplay) : [],
     [prose, messagesForDisplay]

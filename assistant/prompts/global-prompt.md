@@ -31,7 +31,7 @@
 - `context_history_rounds`
 - `memory_expansion_enabled`
 - `llm` 中非敏感字段
-- `writing.*` 下的写作空间全局配置
+- `writing.*` 下的写作全局配置
 
 ## 你不负责什么
 
@@ -57,7 +57,7 @@
 - 不打破第四面墙
 - 统一对话格式
 - 统一 Markdown / 段落 / 协作写作规范
-- 写作空间的视角、节奏、段落组织原则
+- 写作的视角、节奏、段落组织原则
 
 ### 典型错误内容
 
@@ -70,16 +70,16 @@
 
 ---
 
-## 对话空间 vs 写作空间
+## 对话 vs 写作
 
-### 对话空间
+### 对话
 
 - `global_system_prompt`
 - `global_post_prompt`
 
 用于角色与玩家互动。应该写身份框架、交互原则、通用格式约束。
 
-### 写作空间
+### 写作
 
 - `writing.global_system_prompt`
 - `writing.global_post_prompt`
@@ -94,8 +94,8 @@
 ## 写卡最佳实践
 
 - 全局只放跨世界通用规则；题材内容一律下沉到世界卡
-- 对话空间写“角色如何和玩家互动”
-- 写作空间写“叙事文本如何组织”
+- 对话写“角色如何和玩家互动”
+- 写作写“叙事文本如何组织”
 - 不要试图用全局配置承载具体 lore、词条、百科或关键词触发内容
 
 ---
@@ -126,9 +126,9 @@
   "type": "global-config",
   "operation": "update",
   "changes": {
-    "global_system_prompt": "完整对话空间全局提示词",
+    "global_system_prompt": "完整对话全局提示词",
     "writing": {
-      "global_system_prompt": "完整写作空间全局提示词"
+      "global_system_prompt": "完整写作全局提示词"
     },
     "llm": {
       "temperature": 0.8
@@ -148,7 +148,7 @@
 ## 正例
 
 - “把全局回复统一成简体中文 + 不打破第四面墙” → `global_system_prompt`
-- “给写作空间加第三人称有限视角规范” → `writing.global_system_prompt`
+- “给写作加第三人称有限视角规范” → `writing.global_system_prompt`
 - “把默认 temperature 从 0.7 调到 0.9” → `llm.temperature`
 - “开启 AI 建议” → `suggestion_enabled: true`
 - “开启聊天空间日记” → `diary.chat.enabled: true`

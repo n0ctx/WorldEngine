@@ -637,7 +637,7 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
 });
 
 // POST /api/worlds/:worldId/writing-sessions/:sessionId/retitle
-// 重新生成会话标题（修复写作空间 /title 命令失效）
+// 重新生成会话标题（修复写作 /title 命令失效）
 router.post('/:worldId/writing-sessions/:sessionId/retitle', async (req, res) => {
   const { sessionId } = req.params;
   const session = dbGetWritingSessionById(sessionId);

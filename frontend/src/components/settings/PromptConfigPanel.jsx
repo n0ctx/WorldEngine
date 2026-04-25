@@ -10,7 +10,8 @@ export default function PromptConfigPanel({
   globalSystemPrompt, setGlobalSystemPrompt,
   globalPostPrompt, setGlobalPostPrompt,
   contextRounds, setContextRounds,
-  onSave, saving,
+  onSave, saving, saved,
+  savingWriting, savedWriting,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
   writingContextRounds, setWritingContextRounds,
@@ -44,7 +45,7 @@ export default function PromptConfigPanel({
               <MarkdownEditor
                 value={writingSystemPrompt}
                 onChange={setWritingSystemPrompt}
-                placeholder="写作空间专用全局指令，覆盖对话系统提示词"
+                placeholder="写作专用全局指令，覆盖对话系统提示词"
                 minHeight={96}
               />
             </FormGroup>
@@ -53,15 +54,15 @@ export default function PromptConfigPanel({
               <MarkdownEditor
                 value={writingPostPrompt}
                 onChange={setWritingPostPrompt}
-                placeholder="写作空间专用后置提示词"
+                placeholder="写作专用后置提示词"
                 minHeight={72}
               />
             </FormGroup>
           </div>
 
           <div className="we-settings-save-row">
-            <Button variant="primary" onClick={onSaveWriting} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+            <Button variant="primary" onClick={onSaveWriting} disabled={savingWriting}>
+              {savingWriting ? '保存中…' : savedWriting ? '已保存' : '保存'}
             </Button>
           </div>
         </>
@@ -104,7 +105,7 @@ export default function PromptConfigPanel({
 
           <div className="we-settings-save-row">
             <Button variant="primary" onClick={onSave} disabled={saving}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? '保存中…' : saved ? '已保存' : '保存'}
             </Button>
           </div>
         </>
