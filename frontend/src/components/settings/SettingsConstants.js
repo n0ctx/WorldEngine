@@ -7,8 +7,11 @@ export const LLM_PROVIDERS = [
   { value: 'grok', label: 'Grok (xAI)' },
   { value: 'siliconflow', label: 'SiliconFlow' },
   { value: 'glm', label: 'GLM (智谱)' },
+  { value: 'glm-coding', label: 'GLM Coding Plan (智谱)' },
   { value: 'kimi', label: 'Kimi (月之暗面)' },
+  { value: 'kimi-coding', label: 'Kimi Coding Plan' },
   { value: 'minimax', label: 'MiniMax' },
+  { value: 'minimax-coding', label: 'MiniMax Coding Plan' },
   { value: 'ollama', label: 'Ollama（本地）' },
   { value: 'lmstudio', label: 'LM Studio（本地）' },
 ];

@@ -5,20 +5,23 @@ import {
 } from '../../utils/constants.js';
 
 export const DEFAULT_BASE_URLS = {
-  openai:       'https://api.openai.com/v1',
-  openrouter:   'https://openrouter.ai/api/v1',
-  glm:          'https://open.bigmodel.cn/api/paas/v4',
-  kimi:         'https://api.moonshot.cn/v1',
-  minimax:      'https://api.minimax.chat/v1',
-  deepseek:     'https://api.deepseek.com',
-  grok:         'https://api.x.ai/v1',
-  siliconflow:  'https://api.siliconflow.cn/v1',
-  anthropic:    'https://api.anthropic.com',
-  gemini:       'https://generativelanguage.googleapis.com',
+  openai:          'https://api.openai.com/v1',
+  openrouter:      'https://openrouter.ai/api/v1',
+  glm:             'https://open.bigmodel.cn/api/paas/v4',
+  'glm-coding':    'https://open.bigmodel.cn/api/coding/paas/v4',
+  kimi:            'https://api.moonshot.cn/v1',
+  'kimi-coding':   'https://api.kimi.com/coding/v1',
+  minimax:         'https://api.minimax.chat/v1',
+  'minimax-coding':'https://api.minimax.io/v1',
+  deepseek:        'https://api.deepseek.com',
+  grok:            'https://api.x.ai/v1',
+  siliconflow:     'https://api.siliconflow.cn/v1',
+  anthropic:       'https://api.anthropic.com',
+  gemini:          'https://generativelanguage.googleapis.com',
 };
 
 export const OPENAI_COMPATIBLE = new Set([
-  'openai', 'openrouter', 'glm', 'kimi', 'minimax', 'deepseek', 'grok', 'siliconflow',
+  'openai', 'openrouter', 'glm', 'glm-coding', 'kimi', 'kimi-coding', 'minimax', 'minimax-coding', 'deepseek', 'grok', 'siliconflow',
 ]);
 
 export function getBaseUrl(config) {

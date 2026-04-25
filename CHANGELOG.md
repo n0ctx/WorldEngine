@@ -3,6 +3,43 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-25 新增 Kimi / MiniMax / GLM Coding Plan provider
+
+**目标**：支持三家国内大模型的按周/配额计费 Coding Plan，与现有按 token 计费的标准 provider 并列。
+
+**改动文件**：
+- `backend/llm/providers/_utils.js` — `DEFAULT_BASE_URLS` 和 `OPENAI_COMPATIBLE` 加入 `kimi-coding` / `minimax-coding` / `glm-coding`
+- `backend/routes/config.js` — `OPENAI_COMPATIBLE_BASE_URLS` 加入三个新 endpoint；`KNOWN_PRICES` 加入 `kimi-for-coding` / `codex-MiniMax-M2.7` / `GLM-4.7`（价格填 0，因按配额计费无 token 单价）
+- `frontend/src/components/settings/SettingsConstants.js` — `LLM_PROVIDERS` 加入三个新 label
+
+**Base URL 来源**：
+- Kimi Coding: `https://api.kimi.com/coding/v1`（OpenAI-compatible，模型 `kimi-for-coding`）
+- MiniMax Coding: `https://api.minimax.io/v1`（OpenAI-compatible，模型 `codex-MiniMax-M2.7`）
+- GLM Coding: `https://open.bigmodel.cn/api/coding/paas/v4`（OpenAI-compatible，模型 `GLM-4.7`，与标准 GLM endpoint 不同）
+
+**验证方式**：进入设置页 → LLM 配置 → Provider 下拉，应出现三个新选项；填入对应 Coding Plan API Key 后可拉取模型列表并正常对话。
+
+## 2026-04-25 Electron 桌面打包链路修复：多架构 runtime + Windows 无 unzip + 崩溃恢复计数
+
+**目标**：修复 desktop 审核中发现的 3 个实质问题：mac 双架构产物共用错误 Node runtime、Windows 构建依赖外部 `unzip`、后端自动恢复累计 3 次后永久失效。
+
+**改动文件**：
+- `desktop/scripts/prepare-build.js` — 改为按目标矩阵预下载 `darwin-x64` / `darwin-arm64` / `win32-x64` 三套 Node runtime，目录结构改为 `desktop/node-runtime/{platform}-{arch}/...`；Windows zip 解压改用 `extract-zip`，移除对系统 `unzip` 的依赖；运行后校验目标 `node` 可执行文件存在
+- `desktop/src/main.js` — 打包态按 `process.platform + process.arch` 选择对应 runtime 路径；后端成功启动后重置 `backendRestartCount`，将“累计 3 次”修正为“连续失败 3 次”；新增 `isShuttingDown`，避免应用主动退出时误触发自动重启
+- `desktop/package.json` / `desktop/package-lock.json` — 新增 `extract-zip` 依赖
+- `desktop/electron-builder.json` — 追加 `artifactName`，显式区分 mac/win 与架构产物名称，降低多架构产物混淆风险
+
+**验证结果**：
+- `node --check desktop/src/main.js` 通过
+- `node --check desktop/scripts/prepare-build.js` 通过
+- `node -e "JSON.parse(...electron-builder.json...)"` 通过
+- `npm run prepare-build --prefix desktop` 实际执行成功，已下载并解压 `darwin-x64` / `darwin-arm64` / `win32-x64` 三套 runtime
+
+**结果**：
+- mac `x64` 与 `arm64` 安装包现在可在运行时各自命中正确的内置 Node
+- Windows 构建机不再要求系统存在 `unzip`
+- 后端自动恢复策略改为“成功一次就清零”，避免偶发崩溃耗尽终身重试次数
+
 ## 2026-04-25 Electron 桌面应用（macOS + Windows）+ 数据目录迁移 + 白屏修复
 
 **目标**：在不改动前端业务代码、不影响现有网页版的前提下，新增桌面应用打包能力；桌面版数据放在用户目录而非应用安装目录；修复打包后端口冲突导致的白屏。

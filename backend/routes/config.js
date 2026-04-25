@@ -205,6 +205,12 @@ const KNOWN_PRICES = new Map([
   // GLM
   ['glm-4',                 { inputPrice: 7,     outputPrice: 7     }],
   ['glm-4-flash',           { inputPrice: 0,     outputPrice: 0     }],
+  // GLM Coding Plan（按周额度计费，无 token 单价）
+  ['GLM-4.7',               { inputPrice: 0,     outputPrice: 0     }],
+  // Kimi Coding Plan（按会员配额计费，无 token 单价）
+  ['kimi-for-coding',       { inputPrice: 0,     outputPrice: 0     }],
+  // MiniMax Coding Plan（按 Token Plan 配额计费，无 token 单价）
+  ['codex-MiniMax-M2.7',    { inputPrice: 0,     outputPrice: 0     }],
   // SiliconFlow（部分主力模型）
   ['Qwen/Qwen3-235B-A22B',  { inputPrice: 1.26,  outputPrice: 1.26  }],
   ['Qwen/Qwen3-30B-A3B',    { inputPrice: 0.21,  outputPrice: 0.21  }],
@@ -221,8 +227,11 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   openai: 'https://api.openai.com/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   glm: 'https://open.bigmodel.cn/api/paas/v4',
+  'glm-coding': 'https://open.bigmodel.cn/api/coding/paas/v4',
   kimi: 'https://api.moonshot.cn/v1',
+  'kimi-coding': 'https://api.kimi.com/coding/v1',
   minimax: 'https://api.minimax.chat/v1',
+  'minimax-coding': 'https://api.minimax.io/v1',
   deepseek: 'https://api.deepseek.com',
   grok: 'https://api.x.ai/v1',
   siliconflow: 'https://api.siliconflow.cn/v1',
