@@ -31,8 +31,5 @@ dist/
 /data/config.json
 
 # Temporary/test directories
-.temp/*
-!.temp/.gitkeep
-!.temp/check-assistant-syntax.mjs
-!.temp/git-health-check.sh
+.temp/
 test-results/
