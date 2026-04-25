@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "llm": {
+    "provider": "openrouter",
+    "base_url": "",
+    "model": "deepseek/deepseek-v3",
+    "max_tokens": 8192,
+    "temperature": 1,
+    "provider_keys": {
+      "openrouter": "",
+      "anthropic": "",
+      "gemini": "",
+      "grok": "",
+      "openai_compatible": ""
+    },
+    "provider_models": {
+      "openrouter": "deepseek/deepseek-v3",
+      "anthropic": "claude-sonnet-4-5",
+      "gemini": "gemini-2.0-flash",
+      "grok": "grok-3-fast",
+      "openai_compatible": ""
+    },
+    "thinking_level": "none"
+  },
+  "embedding": {
+    "provider": "openai_compatible",
+    "base_url": "",
+    "model": "",
+    "provider_keys": {
+      "openai_compatible": ""
+    },
+    "provider_models": {
+      "openai_compatible": ""
+    }
+  },
+  "ui": {
+    "theme": "dark",
+    "font_size": 16,
+    "custom_css": "",
+    "show_thinking": true,
+    "auto_collapse_thinking": true,
+    "show_token_usage": true
+  },
+  "global_system_prompt": "",
+  "global_post_prompt": "",
+  "memory_expansion_enabled": true,
+  "context_history_rounds": 5,
+  "context_compress_rounds": 5,
+  "writing": {
+    "global_system_prompt": "",
+    "global_post_prompt": "",
+    "context_history_rounds": null,
+    "suggestion_enabled": false,
+    "memory_expansion_enabled": true,
+    "llm": {
+      "model": "",
+      "temperature": null,
+      "max_tokens": null
+    }
+  },
+  "proxy_url": "",
+  "logging": {
+    "mode": "metadata",
+    "max_preview_chars": 600,
+    "modules": {},
+    "prompt": {
+      "enabled": false
+    },
+    "llm_raw": {
+      "enabled": false
+    }
+  },
+  "suggestion_enabled": true,
+  "diary": {
+    "chat": {
+      "enabled": true,
+      "date_mode": "virtual"
+    },
+    "writing": {
+      "enabled": true,
+      "date_mode": "virtual"
+    }
+  }
+}

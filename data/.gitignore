@@ -8,3 +8,4 @@
 !uploads/attachments/.gitkeep
 !vectors/
 !vectors/.gitkeep
+!config.example.json

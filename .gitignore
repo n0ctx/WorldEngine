@@ -24,7 +24,12 @@ dist/
 /frontend/.playwright-cli/
 /backend/node_modules/
 /frontend/node_modules/
+/assistant/node_modules
+/assistant/node_modules/
 /frontend/dist/
+
+# User data (config contains API keys, never track)
+/data/config.json
 
 # Temporary/test directories
 .temp/*
