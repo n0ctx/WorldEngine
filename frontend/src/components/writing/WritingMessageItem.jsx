@@ -16,6 +16,35 @@ const REHYPE_PLUGINS_W = [rehypeRaw, rehypeSanitize];
 const THINK_REMARK_PLUGINS_W = [remarkGfm];
 const THINK_REHYPE_PLUGINS_W = [rehypeSanitize];
 
+function formatTokens(n) {
+  if (n == null || Number.isNaN(n)) return '-';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000) return `${Math.round(n / 100) / 10}K`;
+  return n.toLocaleString();
+}
+
+function calcCost(usage, pricing) {
+  if (!pricing || (!pricing.inputPrice && !pricing.outputPrice)) return null;
+  const inp = ((usage.prompt_tokens ?? 0) * pricing.inputPrice) / 1_000_000;
+  const out = ((usage.completion_tokens ?? 0) * pricing.outputPrice) / 1_000_000;
+  const cacheRead = pricing.cacheReadPrice
+    ? ((usage.cache_read_tokens ?? 0) * pricing.cacheReadPrice) / 1_000_000
+    : 0;
+  const cacheWrite = pricing.cacheWritePrice
+    ? ((usage.cache_creation_tokens ?? 0) * pricing.cacheWritePrice) / 1_000_000
+    : 0;
+  return inp + out + cacheRead + cacheWrite;
+}
+
+function formatCost(usd) {
+  if (usd == null) return null;
+  if (usd < 0.000001) return '<$0.000001';
+  if (usd < 0.001) return `$${usd.toFixed(6)}`;
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  return `$${usd.toFixed(3)}`;
+}
+
 function parseStreamingBlocks(text) {
   const blocks = [];
   const segments = text.split(/(<think>|<\/think>)/);
@@ -135,6 +164,8 @@ export default function WritingMessageItem({
   const rawContent = message.content || '';
   const isUser = message.role === 'user';
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
+  const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
+  const currentModelPricing = useDisplaySettingsStore((s) => s.currentWritingModelPricing);
 
   let displayContent = isStreaming ? rawContent : rawContent;
   if (!isStreaming) {
@@ -155,7 +186,7 @@ export default function WritingMessageItem({
   function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit?.(message.id, trimmed);
+    if (trimmed) onEdit?.(message.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }
@@ -306,6 +337,24 @@ export default function WritingMessageItem({
                 编辑
               </button>
               {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
+            </div>
+          )}
+          {!editingAI && !isStreaming && message.token_usage && showTokenUsage && (
+            <div className="we-token-usage">
+              <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
+              <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
+              {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
+                <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
+              )}
+              {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
+                <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
+              )}
+              <span className="we-token-usage-unit">tokens</span>
+              {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
+                <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
+                  {formatCost(calcCost(message.token_usage, currentModelPricing))}
+                </span>
+              )}
             </div>
           )}
         </>

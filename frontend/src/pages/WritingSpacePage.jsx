@@ -4,6 +4,8 @@ import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { useAppModeStore } from '../store/appMode.js';
 import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
 import { refreshCustomCss } from '../api/custom-css-snippets.js';
+import { getConfig } from '../api/config.js';
+import { useDisplaySettingsStore } from '../store/displaySettings.js';
 import { getPersona, getPersonaById } from '../api/personas.js';
 import useStore from '../store/index.js';
 import {
@@ -35,6 +37,16 @@ export default function WritingSpacePage() {
   const { worldId } = useParams();
   const setAppMode = useAppModeStore((s) => s.setAppMode);
   const currentPersonaId = useStore((s) => s.currentPersonaId);
+  const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
+  const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
+
+  useEffect(() => {
+    getConfig().then((c) => {
+      setShowTokenUsage(c.ui?.show_token_usage === true);
+      const writingModel = c.writing?.llm?.model_pricing ?? null;
+      setCurrentWritingModelPricing(writingModel);
+    });
+  }, [setCurrentWritingModelPricing, setShowTokenUsage]);
 
   useEffect(() => {
     setAppMode(SETTINGS_MODE.WRITING);

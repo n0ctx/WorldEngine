@@ -424,7 +424,7 @@
   color: var(--we-text-muted);
   margin-top: 4px;
   opacity: 0.65;
-  font-family: var(--we-font-ui);
+  font-family: var(--we-font-serif);
 }
 
 .we-token-usage-unit {

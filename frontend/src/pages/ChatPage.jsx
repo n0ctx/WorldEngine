@@ -18,9 +18,20 @@ import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 import { pushErrorToast } from '../utils/toast';
+import { getConfig } from '../api/config.js';
+import { useDisplaySettingsStore } from '../store/displaySettings.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
+  const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
+  const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
+
+  useEffect(() => {
+    getConfig().then((c) => {
+      setShowTokenUsage(c.ui?.show_token_usage === true);
+      setCurrentModelPricing(c.llm?.model_pricing ?? null);
+    });
+  }, [setCurrentModelPricing, setShowTokenUsage]);
   const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
 
   const [character, setCharacter] = useState(null);

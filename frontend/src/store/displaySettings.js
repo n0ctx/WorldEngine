@@ -9,4 +9,6 @@ export const useDisplaySettingsStore = create((set) => ({
   setShowTokenUsage: (v) => set({ showTokenUsage: v }),
   currentModelPricing: null,
   setCurrentModelPricing: (v) => set({ currentModelPricing: v }),
+  currentWritingModelPricing: null,
+  setCurrentWritingModelPricing: (v) => set({ currentWritingModelPricing: v }),
 }));

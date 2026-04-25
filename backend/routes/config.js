@@ -63,6 +63,10 @@ router.get('/', (_req, res) => {
   const logging = getLoggingConfig();
   const safe = stripApiKeys(config);
   if (safe.llm) safe.llm.model_pricing = resolveModelPricing(config.llm?.model);
+  if (safe.writing?.llm) {
+    const writingModel = config.writing?.llm?.model;
+    safe.writing.llm.model_pricing = resolveModelPricing(writingModel || config.llm?.model);
+  }
   log.debug(`GET /api/config  ${formatMeta({ loggingMode: logging.mode, prompt: logging.prompt?.enabled, llmRaw: logging.llm_raw?.enabled })}`);
   res.json(safe);
 });

@@ -293,7 +293,7 @@ export default function MessageItem({
   function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit(message.id, trimmed);
+    if (trimmed) onEdit(message.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }

@@ -90,7 +90,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       }
     }
     load();
-  }, [entry.id, form.trigger_type, isNew, worldId]);
+  }, [entry?.id, form.trigger_type, isNew, worldId]);
 
   function updateCondition(index, patch) {
     setConditions((prev) => prev.map((c, i) => {
