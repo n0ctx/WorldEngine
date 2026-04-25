@@ -10,6 +10,11 @@ const SCOPE_OPTIONS = [
 
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
 
+const MODE_OPTIONS = [
+  { value: 'chat', label: '对话空间' },
+  { value: 'writing', label: '写作空间' },
+];
+
 export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
   const [form, setForm] = useState({
     name: '',
@@ -19,6 +24,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
     flags: 'g',
     scope: 'user_input',
     world_id: null,
+    mode: 'chat',
   });
 
   const [testInput, setTestInput] = useState('');
@@ -37,6 +43,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         flags: rule.flags ?? 'g',
         scope: rule.scope ?? 'user_input',
         world_id: rule.world_id ?? null,
+        mode: rule.mode ?? 'chat',
       });
       if (!FLAGS_PRESETS.includes(rule.flags ?? 'g')) {
         setFlagsCustom(true);
@@ -112,7 +119,7 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
           />
         </div>
 
-        {/* 作用世界 */}
+        {/* 作用范围 */}
         <div>
           <label className="we-dialog-label">作用范围</label>
           <Select
@@ -122,6 +129,16 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
               { value: '', label: '全局（所有世界）' },
               ...(worlds || []).map((w) => ({ value: w.id, label: w.name })),
             ]}
+          />
+        </div>
+
+        {/* 应用模式 */}
+        <div>
+          <label className="we-dialog-label">应用模式</label>
+          <Select
+            value={form.mode}
+            onChange={(v) => setField('mode', v)}
+            options={MODE_OPTIONS}
           />
         </div>
 

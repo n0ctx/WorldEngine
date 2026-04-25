@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
+import { applyRules } from '../../utils/regex-runner.js';
 
 const MotionDiv = motion.div;
 
@@ -129,12 +130,16 @@ export default function WritingMessageItem({
   onRegenerate,
   onEditAssistant,
   onDelete,
+  worldId,
 }) {
   const rawContent = message.content || '';
   const isUser = message.role === 'user';
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
 
-  const displayContent = isStreaming ? rawContent : rawContent;
+  let displayContent = isStreaming ? rawContent : rawContent;
+  if (!isStreaming) {
+    displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
+  }
   const blocks = parseStreamingBlocks(displayContent);
   const content = displayContent;
 

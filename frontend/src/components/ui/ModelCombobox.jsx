@@ -49,8 +49,13 @@ export default function ModelCombobox({
   function handleInputChange(e) {
     setInputValue(e.target.value);
     setFiltering(true);
-    onChange(e.target.value);
     if (!open) setOpen(true);
+  }
+
+  function handleBlur() {
+    if (inputValue !== value) {
+      onChange(inputValue);
+    }
   }
 
   function handleSelect(option) {
@@ -68,8 +73,17 @@ export default function ModelCombobox({
   }
 
   function handleKeyDown(e) {
-    if (e.key === 'Escape') setOpen(false);
-    else if (e.key === 'Enter' && !open && filtered.length > 0) handleSelect(filtered[0]);
+    if (e.key === 'Escape') {
+      setOpen(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (open && filtered.length > 0) {
+        handleSelect(filtered[0]);
+      } else {
+        onChange(inputValue);
+        setOpen(false);
+      }
+    }
   }
 
   return (
@@ -79,6 +93,7 @@ export default function ModelCombobox({
           type="text"
           value={displayValue}
           onChange={handleInputChange}
+          onBlur={handleBlur}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           disabled={disabled}

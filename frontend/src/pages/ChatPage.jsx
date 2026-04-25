@@ -134,7 +134,7 @@ export default function ChatPage() {
 
   // 启动时加载正则规则缓存
   useEffect(() => {
-    loadRules().catch(console.error);
+    loadRules('chat').catch(console.error);
   }, []);
 
   useEffect(() => {
@@ -726,6 +726,7 @@ export default function ChatPage() {
           onRetry={handleRetryLast}
           onTitle={handleRetitle}
           worldId={character?.world_id ?? null}
+          mode="chat"
         />
       </div>
 

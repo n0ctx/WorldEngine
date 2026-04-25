@@ -45,7 +45,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       setRules(r);
       setWorlds(w);
       invalidateCache();
-      await loadRules();
+      await loadRules(settingsMode);
     } catch (e) {
       console.error(e);
     }
@@ -64,9 +64,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     if (editingRule) {
       await updateRegexRule(editingRule.id, form);
     } else {
-      const data = { ...form };
-      if (!data.world_id) data.mode = settingsMode;
-      await createRegexRule(data);
+      await createRegexRule(form);
     }
     setEditorOpen(false);
     await refresh();
@@ -118,7 +116,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     const items = scopeRules.map((r, i) => ({ id: r.id, sort_order: i }));
     await reorderRegexRules(items);
     invalidateCache();
-    await loadRules();
+    await loadRules(settingsMode);
   }
 
   function getWorldName(worldId) {

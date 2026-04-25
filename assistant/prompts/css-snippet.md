@@ -40,7 +40,7 @@
 
 - 优先覆盖 `--we-*` 变量，而不是大面积硬编码颜色。
 - 优先做“主题层”或“局部组件层”的样式，不要写脆弱的深层 DOM 选择器。
-- 需要视觉改造时，优先使用现有类名：`.message-content` `.chat-message` `.thinking-block` `.assistant-bubble` `.user-bubble`
+- 需要视觉改造时，优先使用现有类名：`.we-message-content` `.we-message-assistant` `.we-think-block` `.we-message-bubble-assistant` `.we-message-bubble-user`
 - 动效要克制，避免持续高频闪烁。
 - 如果需求只是“把某段文本包起来/替换成 HTML”，那不是 CSS，应交给正则。
 
@@ -143,11 +143,11 @@
 
 ## 常用目标类
 
-- `.message-content`
-- `.chat-message`
-- `.thinking-block`
-- `.assistant-bubble`
-- `.user-bubble`
+- `.we-message-content`
+- `.we-message-assistant`
+- `.we-think-block`
+- `.we-message-bubble-assistant`
+- `.we-message-bubble-user`
 
 ## 本次任务
 

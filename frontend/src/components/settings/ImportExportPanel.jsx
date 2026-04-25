@@ -40,7 +40,7 @@ export default function ImportExportPanel({ onImportSuccess }) {
       const result = await importGlobalSettings(data);
       await Promise.all([
         refreshCustomCss(appMode),
-        loadRules().catch(() => {}),
+        loadRules(appMode).catch(() => {}),
       ]);
       invalidateCache();
       const label = result.mode === SETTINGS_MODE.WRITING ? '写作空间' : '对话空间';

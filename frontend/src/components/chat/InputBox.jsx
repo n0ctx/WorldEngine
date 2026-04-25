@@ -18,6 +18,7 @@ const InputBox = forwardRef(function InputBox({
   impersonating,
   lastUserContent,
   worldId,
+  mode = 'chat',
   onContinue,
   onImpersonate,
   onRetry,
@@ -121,7 +122,7 @@ const InputBox = forwardRef(function InputBox({
     const trimmed = text.trim();
     if (!trimmed || generating) return;
     // user_input scope：发送前应用正则替换
-    const processed = applyRules(trimmed, 'user_input', worldId ?? null);
+    const processed = applyRules(trimmed, 'user_input', worldId ?? null, mode);
     onSend(processed, attachments);
     setText('');
     setAttachments([]);

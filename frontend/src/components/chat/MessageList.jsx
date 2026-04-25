@@ -231,6 +231,7 @@ export default function MessageList({
                     message={displayMsg}
                     isStreaming={isContinuing || isStream}
                     persona={persona}
+                    worldId={worldId}
                     onEdit={isStream ? undefined : onEditMessage}
                     onRegenerate={isStream ? undefined : onRegenerateMessage}
                     onEditAssistant={isStream ? undefined : onEditAssistantMessage}

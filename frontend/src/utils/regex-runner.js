@@ -11,11 +11,12 @@ import { listRegexRules } from '../api/regex-rules.js';
 let _cachedRules = null;
 
 /**
- * 拉取全部规则到缓存（打开设置页或规则变更后调用）
+ * 拉取指定 mode 的规则到缓存（打开设置页或规则变更后调用）
+ * @param {'chat'|'writing'} [mode]
  */
-export async function loadRules() {
+export async function loadRules(mode) {
   try {
-    _cachedRules = await listRegexRules();
+    _cachedRules = await listRegexRules(mode ? { mode } : {});
   } catch (err) {
     console.warn('[regex-runner] 规则加载失败:', err.message);
     _cachedRules = [];
@@ -35,16 +36,18 @@ export function invalidateCache() {
  * @param {string} text      原始文本
  * @param {string} scope     'user_input' | 'ai_output' | 'display_only' | 'prompt_only'
  * @param {string|null} worldId  当前会话所属世界 id，null 表示全局
+ * @param {'chat'|'writing'} [mode]  当前应用模式，默认 'chat'
  * @returns {string}
  */
-export function applyRules(text, scope, worldId) {
+export function applyRules(text, scope, worldId, mode = 'chat') {
   if (!_cachedRules || _cachedRules.length === 0) return text;
 
   const rules = _cachedRules.filter(
     (r) =>
       r.enabled &&
       r.scope === scope &&
-      (r.world_id === null || r.world_id === worldId),
+      (r.world_id === null || r.world_id === worldId) &&
+      (r.world_id !== null || r.mode === mode),
   );
 
   let result = text;

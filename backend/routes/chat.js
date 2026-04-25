@@ -385,7 +385,7 @@ router.post('/:sessionId/continue', async (req, res) => {
     // ai_output scope 仅作用于新生成的内容；再剥除末尾状态块
     const processedNew = aborted
       ? newContent
-      : stripAsstContext(applyRules(newContent, 'ai_output', worldId));
+      : stripAsstContext(applyRules(newContent, 'ai_output', worldId, session.mode));
     mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
     updateMessageContent(lastAssistant.id, mergedContent);
     mergedAssistant = { ...lastAssistant, content: mergedContent };

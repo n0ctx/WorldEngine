@@ -598,6 +598,7 @@ export default function WritingSpacePage() {
               impersonating={impersonating}
               lastUserContent=""
               worldId={worldId}
+              mode="writing"
               onContinue={handleContinue}
               onImpersonate={handleImpersonate}
               onTitle={handleRetitle}
