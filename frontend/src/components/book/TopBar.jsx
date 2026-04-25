@@ -51,15 +51,25 @@ export default function TopBar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  useEffect(() => {
+  async function loadWorlds() {
     setWorldsLoading(true);
-    getWorlds().then(setWorlds).catch(() => {}).finally(() => setWorldsLoading(false));
+    try {
+      const data = await getWorlds();
+      setWorlds(data);
+    } catch {
+      setWorlds([]);
+    } finally {
+      setWorldsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadWorlds();
   }, []);
 
   useEffect(() => {
     if (dropdownOpen) {
-      setWorldsLoading(true);
-      getWorlds().then(setWorlds).catch(() => {}).finally(() => setWorldsLoading(false));
+      loadWorlds();
     }
   }, [dropdownOpen]);
 
@@ -73,7 +83,6 @@ export default function TopBar() {
     let cancelled = false;
 
     if (!characterId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- route changes clear derived chat world context.
       setChatWorldId(null);
       return undefined;
     }
@@ -116,7 +125,6 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- route changes should close the world menu immediately.
     setDropdownOpen(false);
   }, [location.pathname]);
 

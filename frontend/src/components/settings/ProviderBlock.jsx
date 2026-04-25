@@ -5,6 +5,7 @@ import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, getProviderThinkingOptions } from './SettingsConstants';
+import { pushErrorToast } from '../../utils/toast';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');
@@ -19,7 +20,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       onApiKeySaved?.();
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
-      alert(`保存失败：${e.message}`);
+      pushErrorToast(`保存失败：${e.message}`);
     }
   }
 

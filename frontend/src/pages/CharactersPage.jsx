@@ -17,6 +17,7 @@ import {
 import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle } from '../components';
 import Icon from '../components/ui/Icon.jsx';
+import { pushErrorToast } from '../utils/toast';
 
 const TRIGGER_LABEL = {
   always: '常驻',
@@ -239,7 +240,7 @@ export default function CharactersPage() {
       const chars = await getCharactersByWorld(worldId);
       setCharacters(chars);
     } catch (err) {
-      alert(`删除失败：${err.message}`);
+      pushErrorToast(`删除失败：${err.message}`);
     }
   }
 
@@ -250,7 +251,7 @@ export default function CharactersPage() {
       const ps = await listPersonas(worldId);
       setPersonas(ps);
     } catch (err) {
-      alert(`删除失败：${err.message}`);
+      pushErrorToast(`删除失败：${err.message}`);
       setDeletingPersona(null);
     }
   }
@@ -260,7 +261,7 @@ export default function CharactersPage() {
       const ps = await activatePersona(worldId, personaId);
       setPersonas(ps);
     } catch (err) {
-      alert(`激活失败：${err.message}`);
+      pushErrorToast(`激活失败：${err.message}`);
     }
   }
 
@@ -278,7 +279,7 @@ export default function CharactersPage() {
           .filter((sv) => !worldFieldKeys.has(sv.field_key))
           .map((sv) => sv.field_key);
         if (incompatibleKeys.length > 0) {
-          alert(`导入失败：该角色卡包含与当前世界不兼容的状态字段：${incompatibleKeys.join('、')}。请在同一世界中导入。`);
+          pushErrorToast(`导入失败：该角色卡包含与当前世界不兼容的状态字段：${incompatibleKeys.join('、')}。请在同一世界中导入。`);
           return;
         }
       }
@@ -286,7 +287,7 @@ export default function CharactersPage() {
       const chars = await getCharactersByWorld(worldId);
       setCharacters(chars);
     } catch (err) {
-      alert(`导入失败：${err.message}`);
+      pushErrorToast(`导入失败：${err.message}`);
     } finally {
       setImportingChar(false);
       e.target.value = '';
@@ -308,7 +309,7 @@ export default function CharactersPage() {
       const ps = await listPersonas(worldId);
       setPersonas(ps);
     } catch (err) {
-      alert(`导入失败：${err.message}`);
+      pushErrorToast(`导入失败：${err.message}`);
     } finally {
       setImportingPersona(false);
       e.target.value = '';
@@ -321,7 +322,7 @@ export default function CharactersPage() {
       const updated = await listWorldEntries(worldId);
       setEntries(updated);
     } catch (err) {
-      alert(`更新失败：${err.message}`);
+      pushErrorToast(`更新失败：${err.message}`);
     }
   }
 
@@ -401,11 +402,11 @@ export default function CharactersPage() {
 
           <div className="we-characters-col-list">
             {personas.length === 0 ? (
-              <p className="we-characters-empty-text" style={{ padding: '24px 0', textAlign: 'center' }}>
+              <p className="we-characters-empty-text we-characters-empty-text--centered">
                 暂无玩家卡
               </p>
             ) : (
-              personas.map((p, idx) => (
+              personas.map((p) => (
                 <PersonaCard
                   key={p.id}
                   persona={{ ...p, _isLast: personas.length === 1 }}

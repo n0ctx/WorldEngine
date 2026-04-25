@@ -67,7 +67,13 @@ export function useSettingsConfig() {
       setDiaryWritingDateMode(d.writing?.date_mode ?? DIARY_DATE_MODE.VIRTUAL);
       setLoading(false);
     });
-  }, [reloadKey]);
+  }, [
+    reloadKey,
+    setAutoCollapseThinkingStore,
+    setCurrentModelPricing,
+    setShowThinkingStore,
+    setShowTokenUsageStore,
+  ]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);

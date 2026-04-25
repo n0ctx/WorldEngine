@@ -83,3 +83,18 @@ export function uploadPersonaAvatar(worldId, file) {
     return res.json();
   });
 }
+
+export function uploadPersonaAvatarById(personaId, file) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  return fetch(`${BASE}/personas/${personaId}/avatar`, {
+    method: 'POST',
+    body: formData,
+  }).then(async (res) => {
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `上传失败：${res.status}`);
+    }
+    return res.json();
+  });
+}

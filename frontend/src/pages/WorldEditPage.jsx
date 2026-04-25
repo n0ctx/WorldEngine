@@ -28,6 +28,7 @@ import {
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/persona-state-fields';
 import StateValueField from '../components/state/StateValueField';
+import { pushErrorToast } from '../utils/toast';
 
 export default function WorldEditPage() {
   const { worldId } = useParams();
@@ -106,7 +107,7 @@ export default function WorldEditPage() {
     try {
       await updateWorldStateValue(worldId, fieldKey, valueJson);
     } catch (err) {
-      console.error('世界状态默认值保存失败', err);
+      pushErrorToast(err.message || '世界状态默认值保存失败');
     }
   }
 
@@ -146,7 +147,7 @@ export default function WorldEditPage() {
       await downloadWorldCard(worldId, `${safeName}.weworld.json`);
       setSealKey(k => k + 1);
     } catch (err) {
-      alert(`导出失败：${err.message}`);
+      pushErrorToast(`导出失败：${err.message}`);
     } finally {
       setExporting(false);
     }
@@ -161,7 +162,7 @@ export default function WorldEditPage() {
       await importWorld(data);
       navigate('/worlds');
     } catch (err) {
-      alert(`导入失败：${err.message}`);
+      pushErrorToast(`导入失败：${err.message}`);
     } finally {
       setImporting(false);
       e.target.value = '';
@@ -177,7 +178,7 @@ export default function WorldEditPage() {
       setCoverPath(result.cover_path);
       window.dispatchEvent(new Event('we:world-updated'));
     } catch (err) {
-      alert(`封面上传失败：${err.message}`);
+      pushErrorToast(`封面上传失败：${err.message}`);
     } finally {
       setCoverUploading(false);
       e.target.value = '';

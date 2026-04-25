@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import SessionItem from './SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
+import { pushErrorToast } from '../../utils/toast.js';
 
 const PAGE_SIZE = 20;
 
@@ -38,7 +39,7 @@ export default function Sidebar({
         setOffset(data.length);
         setHasMore(data.length === PAGE_SIZE);
       })
-      .catch(console.error);
+      .catch(() => setSessions([]));
   }, [character?.id]);
 
   // 加载更多（更旧的会话）
@@ -76,7 +77,7 @@ export default function Sidebar({
       setSessions((prev) => [session, ...prev]);
       onSessionCreate(session);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '创建会话失败');
     }
   }
 
@@ -87,7 +88,7 @@ export default function Sidebar({
       setSessions(remaining);
       onSessionDelete(sessionId, remaining);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '删除会话失败');
     }
   }
 
@@ -96,7 +97,7 @@ export default function Sidebar({
       const updated = await renameSession(sessionId, title);
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title: updated.title } : s)));
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '重命名会话失败');
     }
   }
 

@@ -165,7 +165,6 @@ export default function StatusSection({
   const isEmpty = !isLoading && !hasName && !hasRows;
 
   function handleCommit(row, valueJson) {
-    const key = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
     setEditingKey(null);
     onSave?.(row.field_key, valueJson, row.character_id);
   }

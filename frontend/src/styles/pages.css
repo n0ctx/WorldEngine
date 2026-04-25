@@ -804,6 +804,11 @@
   font-size: 14px;
 }
 
+.we-characters-empty-text--centered {
+  padding: 24px 0;
+  text-align: center;
+}
+
 .we-characters-loading {
   min-height: 100vh;
   display: flex;
@@ -2138,5 +2143,4 @@
 .we-config-col:first-child {
   border-left: none;
 }
-
 

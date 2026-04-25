@@ -6,16 +6,11 @@ import useStore from '../../src/store/index.js';
 
 const mocks = vi.hoisted(() => {
   function createMessageListMock() {
-    const Component = (props) => (
-      <div data-testid="message-list">
-        <div data-testid="session-id">{props.sessionId || 'none'}</div>
-        <div data-testid="world-id">{props.worldId || 'none'}</div>
-      </div>
-    );
-    Component.appendMessage = vi.fn();
-    Component.updateMessages = vi.fn();
-    Component.messagesRef = { current: [] };
-    return Component;
+    return {
+      appendMessage: vi.fn(),
+      updateMessages: vi.fn(),
+      messagesRef: { current: [] },
+    };
   }
 
   const SessionListPanelMock = () => <div data-testid="session-list" />;
@@ -32,7 +27,7 @@ const mocks = vi.hoisted(() => {
     getPersona: vi.fn(),
     getWorld: vi.fn(),
     loadRules: vi.fn(),
-    MessageListMock: createMessageListMock(),
+    MessageListState: createMessageListMock(),
     SessionListPanelMock,
   };
 });
@@ -61,7 +56,21 @@ vi.mock('../../src/api/sessions.js', () => ({
 }));
 vi.mock('../../src/utils/regex-runner.js', () => ({ loadRules: (...args) => mocks.loadRules(...args) }));
 vi.mock('../../src/utils/avatar.js', () => ({ getAvatarColor: () => '#000', getAvatarUrl: () => '' }));
-vi.mock('../../src/components/chat/MessageList.jsx', () => ({ default: mocks.MessageListMock }));
+vi.mock('../../src/components/chat/MessageList.jsx', () => ({
+  default: React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      appendMessage: mocks.MessageListState.appendMessage,
+      updateMessages: mocks.MessageListState.updateMessages,
+      messagesRef: mocks.MessageListState.messagesRef,
+    }));
+    return (
+      <div data-testid="message-list">
+        <div data-testid="session-id">{props.sessionId || 'none'}</div>
+        <div data-testid="world-id">{props.worldId || 'none'}</div>
+      </div>
+    );
+  }),
+}));
 vi.mock('../../src/components/book/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
@@ -91,9 +100,9 @@ describe('ChatPage', () => {
       currentSessionId: null,
       memoryRefreshTick: 0,
     });
-    mocks.MessageListMock.appendMessage.mockReset();
-    mocks.MessageListMock.updateMessages.mockReset();
-    mocks.MessageListMock.messagesRef.current = [];
+    mocks.MessageListState.appendMessage.mockReset();
+    mocks.MessageListState.updateMessages.mockReset();
+    mocks.MessageListState.messagesRef.current = [];
     mocks.SessionListPanelMock.addSession.mockReset();
     mocks.continueGeneration.mockReset();
     mocks.createSession.mockResolvedValue({ id: 'session-1', title: null, character_id: 'char-1' });
@@ -124,7 +133,7 @@ describe('ChatPage', () => {
       expect.any(Object),
       expect.any(Object),
     ));
-    expect(mocks.MessageListMock.appendMessage).toHaveBeenCalled();
+    expect(mocks.MessageListState.appendMessage).toHaveBeenCalled();
     expect(screen.getByTestId('state-panel')).toHaveTextContent('world-1');
   });
 
@@ -137,7 +146,7 @@ describe('ChatPage', () => {
       currentSessionId: 'session-1',
       memoryRefreshTick: 0,
     });
-    mocks.MessageListMock.messagesRef.current = [
+    mocks.MessageListState.messagesRef.current = [
       { id: 'asst-1', role: 'assistant', content: '第一段' },
     ];
     mocks.continueGeneration.mockImplementation((_sid, callbacks) => {

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { applyRules } from '../../utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
+import { pushErrorToast } from '../../utils/toast';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
@@ -159,7 +160,7 @@ const InputBox = forwardRef(function InputBox({
     Promise.all(readers).then((results) => {
       const valid = results.filter(Boolean);
       if (rejected.length) {
-        alert(`以下图片超过 5MB，已跳过：${rejected.join(', ')}`);
+        pushErrorToast(`以下图片超过 5MB，已跳过：${rejected.join(', ')}`);
       }
       if (valid.length) {
         setAttachments((prev) => [...prev, ...valid]);

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import TopBar from './components/book/TopBar.jsx';
 import PageTransition from './components/book/PageTransition.jsx';
+import GlobalToast from './components/ui/GlobalToast.jsx';
 import { refreshCustomCss } from './api/custom-css-snippets';
 import { getConfig } from './api/config';
 import { useDisplaySettingsStore } from './store/displaySettings';
@@ -61,6 +62,7 @@ export default function App() {
   return (
     <div className="we-app-root">
       <TopBar />
+      <GlobalToast />
       <PageTransition>
         <Suspense fallback={<RouteFallback />}>
           <Routes location={backgroundLocation || location}>

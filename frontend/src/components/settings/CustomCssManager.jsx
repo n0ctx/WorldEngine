@@ -8,6 +8,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import { SETTINGS_MODE } from './SettingsConstants';
+import { pushErrorToast } from '../../utils/toast';
 
 const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 :root {
@@ -256,7 +257,7 @@ function SnippetEditor({ snippet, onSave, onClose }) {
       await onSave({ name: name.trim(), content });
       onClose();
     } catch (err) {
-      alert(`保存失败：${err.message}`);
+      pushErrorToast(`保存失败：${err.message}`);
       setSaving(false);
     }
   }

@@ -4,6 +4,7 @@ import Icon from '../ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from '../chat/SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
+import { pushErrorToast } from '../../utils/toast.js';
 
 const PAGE_SIZE = 20;
 
@@ -34,7 +35,7 @@ export default function SessionListPanel({
         setOffset(data.length);
         setHasMore(data.length === PAGE_SIZE);
       })
-      .catch(console.error);
+      .catch(() => setSessions([]));
   }, [character?.id]);
 
   // 滚动到底部时加载更多
@@ -70,7 +71,7 @@ export default function SessionListPanel({
       setSessions((prev) => [session, ...prev]);
       onSessionCreate(session);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '创建会话失败');
     }
   }
 
@@ -81,7 +82,7 @@ export default function SessionListPanel({
       setSessions(remaining);
       onSessionDelete(sessionId, remaining);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '删除会话失败');
     }
   }
 
@@ -90,7 +91,7 @@ export default function SessionListPanel({
       const updated = await renameSession(sessionId, title);
       setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title: updated.title } : s)));
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '重命名会话失败');
     }
   }
 

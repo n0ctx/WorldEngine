@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Icon from '../ui/Icon.jsx';
 import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writing-sessions.js';
 import { renameSession } from '../../api/sessions.js';
+import { pushErrorToast } from '../../utils/toast.js';
 
 function formatDate(ts) {
   const d = new Date(ts);
@@ -147,7 +148,7 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
     setLoading(true);
     listWritingSessions(worldId)
       .then(setSessions)
-      .catch(console.error)
+      .catch(() => setSessions([]))
       .finally(() => setLoading(false));
   }, [worldId]);
 
@@ -167,7 +168,7 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
       setSessions((prev) => [session, ...prev]);
       onSessionCreate(session);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '创建会话失败');
     }
   }
 
@@ -178,7 +179,7 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
       setSessions(remaining);
       onSessionDelete(sessionId, remaining);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '删除会话失败');
     }
   }
 
@@ -187,7 +188,7 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
       const updated = await renameSession(sessionId, title);
       setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title: updated.title } : s));
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '重命名会话失败');
     }
   }
 

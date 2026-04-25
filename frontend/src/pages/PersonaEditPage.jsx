@@ -7,6 +7,7 @@ import {
   getPersonaById,
   updatePersonaById,
   createPersona,
+  uploadPersonaAvatarById,
 } from '../api/personas';
 import { getPersonaStateValues, updatePersonaStateValue } from '../api/persona-state-values';
 import { downloadPersonaCard } from '../api/import-export';
@@ -18,6 +19,7 @@ import StateValueField from '../components/state/StateValueField';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
+import { pushErrorToast } from '../utils/toast';
 
 export default function PersonaEditPage() {
   const { worldId, personaId: personaIdParam } = useParams();
@@ -92,7 +94,7 @@ export default function PersonaEditPage() {
     try {
       await updatePersonaStateValue(worldId, fieldKey, valueJson);
     } catch (err) {
-      console.error('状态值保存失败', err);
+      pushErrorToast(err.message || '状态值保存失败');
     }
   }
 
@@ -103,20 +105,14 @@ export default function PersonaEditPage() {
     try {
       let result;
       if (resolvedPersonaId) {
-        // 有 id：用新接口按 id 上传
-        const formData = new FormData();
-        formData.append('avatar', file);
-        const res = await fetch(`/api/personas/${resolvedPersonaId}/avatar`, { method: 'POST', body: formData });
-        if (!res.ok) throw new Error(await res.text());
-        result = await res.json();
+        result = await uploadPersonaAvatarById(resolvedPersonaId, file);
       } else {
-        // 旧路由兼容
         result = await uploadPersonaAvatar(worldId, file);
       }
       setAvatarPath(result.avatar_path);
       window.dispatchEvent(new Event('we:persona-updated'));
     } catch (err) {
-      alert(`头像上传失败：${err.message}`);
+      pushErrorToast(`头像上传失败：${err.message}`);
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -146,7 +142,7 @@ export default function PersonaEditPage() {
         navigate(-1);
       }
     } catch (err) {
-      alert(`保存失败：${err.message}`);
+      pushErrorToast(`保存失败：${err.message}`);
       setSaving(false);
     }
   }
@@ -155,7 +151,7 @@ export default function PersonaEditPage() {
     try {
       await downloadPersonaCard(worldId, `${name || '玩家'}.wechar.json`);
     } catch (err) {
-      alert(`导出失败：${err.message}`);
+      pushErrorToast(`导出失败：${err.message}`);
     }
   }
 

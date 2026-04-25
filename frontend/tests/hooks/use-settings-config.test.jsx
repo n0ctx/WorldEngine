@@ -2,16 +2,20 @@ import React from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const displaySettingsStore = vi.hoisted(() => ({
+  setShowThinking: vi.fn(),
+  setAutoCollapseThinking: vi.fn(),
+  setShowTokenUsage: vi.fn(),
+  setCurrentModelPricing: vi.fn(),
+}));
+
 vi.mock('../../src/api/config.js', () => ({
   getConfig: vi.fn(),
   updateConfig: vi.fn(),
 }));
 
 vi.mock('../../src/store/displaySettings.js', () => ({
-  useDisplaySettingsStore: (selector) => selector({
-    setShowThinking: vi.fn(),
-    setAutoCollapseThinking: vi.fn(),
-  }),
+  useDisplaySettingsStore: (selector) => selector(displaySettingsStore),
 }));
 
 import { getConfig, updateConfig } from '../../src/api/config.js';
@@ -19,6 +23,7 @@ import { useSettingsConfig } from '../../src/hooks/useSettingsConfig.js';
 
 describe('useSettingsConfig', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     global.window ??= {};
     window.addEventListener ??= vi.fn();
     window.removeEventListener ??= vi.fn();
@@ -72,6 +77,12 @@ describe('useSettingsConfig', () => {
       result.current.promptProps.setContextRounds(12);
     });
 
+    await waitFor(() => {
+      expect(result.current.promptProps.globalSystemPrompt).toBe('新系统');
+      expect(result.current.promptProps.globalPostPrompt).toBe('新后置');
+      expect(result.current.promptProps.contextRounds).toBe(12);
+    });
+
     await act(async () => {
       await result.current.promptProps.onSave();
     });
@@ -80,6 +91,12 @@ describe('useSettingsConfig', () => {
       result.current.promptProps.setWritingSystemPrompt('新写作系统');
       result.current.promptProps.setWritingPostPrompt('新写作后置');
       result.current.promptProps.setWritingContextRounds(6);
+    });
+
+    await waitFor(() => {
+      expect(result.current.promptProps.writingSystemPrompt).toBe('新写作系统');
+      expect(result.current.promptProps.writingPostPrompt).toBe('新写作后置');
+      expect(result.current.promptProps.writingContextRounds).toBe(6);
     });
 
     await act(async () => {

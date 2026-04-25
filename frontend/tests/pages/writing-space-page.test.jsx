@@ -4,11 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   function createMessageListMock() {
-    const Component = (props) => <div data-testid="message-list">{props.sessionId || 'none'}</div>;
-    Component.appendMessage = vi.fn();
-    Component.updateMessages = vi.fn();
-    Component.messagesRef = { current: [] };
-    return Component;
+    return {
+      appendMessage: vi.fn(),
+      updateMessages: vi.fn(),
+      messagesRef: { current: [] },
+    };
   }
 
   const WritingSessionListMock = () => <div data-testid="session-list" />;
@@ -27,7 +27,7 @@ const mocks = vi.hoisted(() => {
     generate: vi.fn(),
     continueGeneration: vi.fn(),
     getChapterTitles: vi.fn(),
-    MessageListMock: createMessageListMock(),
+    MessageListState: createMessageListMock(),
     WritingSessionListMock,
   };
 });
@@ -54,7 +54,16 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   impersonateWriting: vi.fn(),
 }));
 vi.mock('../../src/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
-vi.mock('../../src/components/chat/MessageList.jsx', () => ({ default: mocks.MessageListMock }));
+vi.mock('../../src/components/chat/MessageList.jsx', () => ({
+  default: React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      appendMessage: mocks.MessageListState.appendMessage,
+      updateMessages: mocks.MessageListState.updateMessages,
+      messagesRef: mocks.MessageListState.messagesRef,
+    }));
+    return <div data-testid="message-list">{props.sessionId || 'none'}</div>;
+  }),
+}));
 vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({ default: () => <div data-testid="left" /> }));
 vi.mock('../../src/components/book/CastPanel.jsx', () => ({ default: () => <div data-testid="cast" /> }));
 vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
@@ -128,7 +137,7 @@ describe('WritingSpacePage', () => {
       callbacksRef.current = callbacks;
       return vi.fn();
     });
-    mocks.MessageListMock.messagesRef.current = [
+    mocks.MessageListState.messagesRef.current = [
       { id: 'asst-1', role: 'assistant', content: '第一段' },
     ];
 

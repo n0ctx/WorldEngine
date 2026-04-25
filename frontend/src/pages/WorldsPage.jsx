@@ -8,6 +8,7 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import { relativeTime } from '../utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
+import { pushErrorToast } from '../utils/toast';
 
 export default function WorldsPage() {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ export default function WorldsPage() {
       const safeName = world.name.replace(/[^\w\u4e00-\u9fa5]/g, '_');
       await downloadWorldCard(world.id, `${safeName}.weworld.json`);
     } catch (err) {
-      alert(`导出失败：${err.message}`);
+      pushErrorToast(`导出失败：${err.message}`);
     } finally {
       setExportingWorldId(null);
     }
@@ -81,7 +82,7 @@ export default function WorldsPage() {
       await importWorld(data);
       await loadWorlds();
     } catch (err) {
-      alert(`导入失败：${err.message}`);
+      pushErrorToast(`导入失败：${err.message}`);
     } finally {
       setImportingWorld(false);
       e.target.value = '';

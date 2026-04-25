@@ -2,6 +2,7 @@ import { useState } from 'react';
 import EntryEditor from './EntryEditor';
 import { deleteWorldEntry } from '../../api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
+import { pushErrorToast } from '../../utils/toast';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
   const [editing, setEditing] = useState(null); // null=关闭, {}=新建, entry=编辑
@@ -13,8 +14,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
       setConfirmingDeleteEntry(null);
       onRefresh();
     } catch (e) {
-      // TODO: showToast 为页级函数，此处暂用 alert；待全局 toast 服务建立后替换
-      alert('删除失败：' + (e?.message || '未知错误'));
+      pushErrorToast('删除失败：' + (e?.message || '未知错误'));
     }
   }
 

@@ -4,6 +4,33 @@
 
 const BASE = '/api/assistant';
 
+function processSseBlock(block, callbacks) {
+  const line = block.split('\n').find((item) => item.startsWith('data: '));
+  if (!line) return;
+  const json = line.slice(6).trim();
+  if (!json) return;
+  try {
+    const evt = JSON.parse(json);
+    if (evt.delta !== undefined) {
+      callbacks.onDelta?.(evt.delta);
+    } else if (evt.done) {
+      callbacks.onDone?.();
+    } else if (evt.type === 'routing') {
+      callbacks.onRouting?.(evt);
+    } else if (evt.type === 'proposal') {
+      callbacks.onProposal?.(evt.taskId, evt.token, evt.proposal);
+    } else if (evt.type === 'error') {
+      callbacks.onError?.(evt.error);
+    } else if (evt.type === 'thinking') {
+      callbacks.onThinking?.(evt.taskId);
+    } else if (evt.type === 'tool_call') {
+      callbacks.onToolCall?.(evt.name);
+    }
+  } catch {
+    // ignore malformed events
+  }
+}
+
 /**
  * 发起助手对话（SSE 流式）
  * @param {object} payload  { message, history, context }
@@ -40,30 +67,12 @@ export function chatAssistant(payload, callbacks) {
         buffer = lines.pop();
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          const json = line.slice(6).trim();
-          if (!json) continue;
-          try {
-            const evt = JSON.parse(json);
-            if (evt.delta !== undefined) {
-              callbacks.onDelta?.(evt.delta);
-            } else if (evt.done) {
-              callbacks.onDone?.();
-            } else if (evt.type === 'routing') {
-              callbacks.onRouting?.(evt);
-            } else if (evt.type === 'proposal') {
-              callbacks.onProposal?.(evt.taskId, evt.token, evt.proposal);
-            } else if (evt.type === 'error') {
-              callbacks.onError?.(evt.error);
-            } else if (evt.type === 'thinking') {
-              callbacks.onThinking?.(evt.taskId);
-            } else if (evt.type === 'tool_call') {
-              callbacks.onToolCall?.(evt.name);
-            }
-          } catch {
-            // ignore malformed events
-          }
+          processSseBlock(line, callbacks);
         }
+      }
+
+      if (buffer.trim()) {
+        processSseBlock(buffer.trim(), callbacks);
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -99,3 +108,7 @@ export async function executeProposal(token, worldRefId, editedProposal) {
   }
   return res.json();
 }
+
+export const __testables = {
+  processSseBlock,
+};

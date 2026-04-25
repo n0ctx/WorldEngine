@@ -17,6 +17,7 @@ import StatePanel from '../components/book/StatePanel.jsx';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
+import { pushErrorToast } from '../utils/toast';
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -115,7 +116,7 @@ export default function ChatPage() {
         getPersona(c.world_id).then(setPersona).catch(() => {});
         syncDiaryTimeField(c.world_id).catch(() => {});
       }
-    }).catch(console.error);
+    }).catch(() => {});
 
     if (!shouldResetSession && currentSessionId) {
       getSession(currentSessionId)
@@ -136,7 +137,7 @@ export default function ChatPage() {
 
   // 启动时加载正则规则缓存
   useEffect(() => {
-    loadRules('chat').catch(console.error);
+    loadRules('chat').catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -280,7 +281,6 @@ export default function ChatPage() {
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(err) {
-        console.error('SSE error:', err);
         const partial = streamingTextRef.current;
         const errMsg = typeof err === 'string' ? err : (err?.message || '生成失败');
         streamingTextRef.current = '';
@@ -358,7 +358,7 @@ export default function ChatPage() {
   // 停止生成
   function handleStop() {
     stopRef.current?.();
-    stopGeneration(currentSessionId).catch(console.error);
+    stopGeneration(currentSessionId).catch(() => {});
   }
 
   // 编辑并重新生成
@@ -441,7 +441,7 @@ export default function ChatPage() {
       onAborted() {},
       onError(err) {
         if (continuationTokenRef.current !== continuationToken) return;
-        console.error('continue error:', err);
+        pushErrorToast(typeof err === 'string' ? err : (err?.message || '续写失败'));
       },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -462,7 +462,7 @@ export default function ChatPage() {
       const { content } = await impersonate(currentSessionId);
       if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
-      console.error('impersonate error:', err);
+      pushErrorToast(err.message || '代拟失败');
     } finally {
       setImpersonating(false);
     }
@@ -579,7 +579,7 @@ export default function ChatPage() {
       // 刷新以拿到真实 id
       refreshMessages();
     } catch (err) {
-      alert(err.message || '清空失败');
+      pushErrorToast(err.message || '清空失败');
     }
   }
 

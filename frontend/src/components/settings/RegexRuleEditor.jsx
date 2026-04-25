@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Select from '../ui/Select';
+import { pushErrorToast } from '../../utils/toast';
 
 const SCOPE_OPTIONS = [
   { value: 'user_input', label: '用户输入', desc: '发送前处理，影响存库与 LLM' },
@@ -15,41 +16,27 @@ const MODE_OPTIONS = [
   { value: 'writing', label: '写作' },
 ];
 
+function buildForm(rule) {
+  return {
+    name: rule?.name ?? '',
+    enabled: rule?.enabled ?? 1,
+    pattern: rule?.pattern ?? '',
+    replacement: rule?.replacement ?? '',
+    flags: rule?.flags ?? 'g',
+    scope: rule?.scope ?? 'user_input',
+    world_id: rule?.world_id ?? null,
+    mode: rule?.mode ?? 'chat',
+  };
+}
+
 export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
-  const [form, setForm] = useState({
-    name: '',
-    enabled: 1,
-    pattern: '',
-    replacement: '',
-    flags: 'g',
-    scope: 'user_input',
-    world_id: null,
-    mode: 'chat',
-  });
+  const [form, setForm] = useState(() => buildForm(rule));
 
   const [testInput, setTestInput] = useState('');
   const [testOutput, setTestOutput] = useState(null);
   const [testError, setTestError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [flagsCustom, setFlagsCustom] = useState(false);
-
-  useEffect(() => {
-    if (rule) {
-      setForm({
-        name: rule.name ?? '',
-        enabled: rule.enabled ?? 1,
-        pattern: rule.pattern ?? '',
-        replacement: rule.replacement ?? '',
-        flags: rule.flags ?? 'g',
-        scope: rule.scope ?? 'user_input',
-        world_id: rule.world_id ?? null,
-        mode: rule.mode ?? 'chat',
-      });
-      if (!FLAGS_PRESETS.includes(rule.flags ?? 'g')) {
-        setFlagsCustom(true);
-      }
-    }
-  }, [rule]);
+  const [flagsCustom, setFlagsCustom] = useState(() => !FLAGS_PRESETS.includes(rule?.flags ?? 'g'));
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -67,13 +54,13 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
   }
 
   async function handleSave() {
-    if (!form.name.trim()) { alert('请填写规则名称'); return; }
-    if (!form.pattern.trim()) { alert('请填写正则表达式'); return; }
+    if (!form.name.trim()) { pushErrorToast('请填写规则名称'); return; }
+    if (!form.pattern.trim()) { pushErrorToast('请填写正则表达式'); return; }
     setSaving(true);
     try {
       await onSave(form);
     } catch (e) {
-      alert(`保存失败：${e.message}`);
+      pushErrorToast(`保存失败：${e.message}`);
       setSaving(false);
     }
   }

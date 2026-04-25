@@ -29,6 +29,7 @@ import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import OptionCard from '../components/chat/OptionCard.jsx';
+import { pushErrorToast } from '../utils/toast.js';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
@@ -112,9 +113,9 @@ export default function WritingSpacePage() {
         createWritingSession(worldId).then((s) => {
           WritingSessionList.addSession?.(s);
           enterSession(s);
-        }).catch(console.error);
+        }).catch(() => {});
       }
-    }).catch(console.error);
+    }).catch(() => {});
     // enterSession is intentionally kept as the page-level imperative transition used by stream callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldId]);
@@ -140,8 +141,7 @@ export default function WritingSpacePage() {
     try {
       const chars = await listActiveCharacters(worldId, session.id);
       setActiveCharacters(chars);
-    } catch (e) {
-      console.error(e);
+    } catch {
       setActiveCharacters([]);
     }
 
@@ -152,7 +152,7 @@ export default function WritingSpacePage() {
         for (const row of arr) map[row.chapter_index] = { title: row.title, is_default: row.is_default };
         setChapterTitles(map);
       })
-      .catch(console.error);
+      .catch(() => {});
   }
 
   function handleSessionCreate(session) {
@@ -167,7 +167,7 @@ export default function WritingSpacePage() {
         createWritingSession(worldId).then((s) => {
           WritingSessionList.addSession?.(s);
           enterSession(s);
-        }).catch(console.error);
+        }).catch(() => {});
       }
     }
   }
@@ -177,7 +177,7 @@ export default function WritingSpacePage() {
       stopRef.current();
       stopRef.current = null;
     }
-    stopGeneration(worldId, currentSessionRef.current?.id).catch(console.error);
+    stopGeneration(worldId, currentSessionRef.current?.id).catch(() => {});
   }
 
   function beginStreamingKey() {
@@ -459,7 +459,7 @@ export default function WritingSpacePage() {
       const { content } = await impersonateWriting(worldId, session.id);
       if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
-      console.error('impersonate error:', err);
+      pushErrorToast(err.message || '代拟失败');
     } finally {
       setImpersonating(false);
     }
@@ -476,7 +476,7 @@ export default function WritingSpacePage() {
         WritingSessionList.updateTitle?.(session.id, title);
       }
     } catch (err) {
-      console.error('retitle error:', err);
+      pushErrorToast(err.message || '标题生成失败');
     }
   }
 
@@ -488,7 +488,7 @@ export default function WritingSpacePage() {
       await updateChapterTitle(worldId, session.id, chapterIndex, newTitle);
       setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title: newTitle, is_default: 0 } }));
     } catch (err) {
-      console.error('chapter edit error:', err);
+      pushErrorToast(err.message || '章节标题保存失败');
     }
   }
 
@@ -502,7 +502,7 @@ export default function WritingSpacePage() {
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       }
     } catch (err) {
-      console.error('chapter retitle error:', err);
+      pushErrorToast(err.message || '章节标题生成失败');
     }
   }
 

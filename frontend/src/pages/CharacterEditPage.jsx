@@ -13,6 +13,7 @@ import StateValueField from '../components/state/StateValueField';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
+import { pushErrorToast } from '../utils/toast';
 
 export default function CharacterEditPage() {
   const { characterId, worldId } = useParams();
@@ -58,7 +59,7 @@ export default function CharacterEditPage() {
   useEffect(() => {
     if (!isCreate) return;
     sessionStorage.setItem('character_create_draft', JSON.stringify({ name, description, systemPrompt, postPrompt, firstMessage }));
-  }, [name, systemPrompt, postPrompt, firstMessage, isCreate]);
+  }, [name, description, systemPrompt, postPrompt, firstMessage, isCreate]);
 
   useEffect(() => {
     if (isCreate) return;
@@ -88,7 +89,7 @@ export default function CharacterEditPage() {
     try {
       await updateCharacterStateValue(characterId, fieldKey, valueJson);
     } catch (err) {
-      console.error('状态值保存失败', err);
+      pushErrorToast(err.message || '状态值保存失败');
     }
   }
 
@@ -105,7 +106,7 @@ export default function CharacterEditPage() {
       setAvatarPath(result.avatar_path);
       window.dispatchEvent(new Event('we:character-updated'));
     } catch (err) {
-      alert(`头像上传失败：${err.message}`);
+      pushErrorToast(`头像上传失败：${err.message}`);
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -119,7 +120,7 @@ export default function CharacterEditPage() {
       await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
       setSealKey(k => k + 1);
     } catch (err) {
-      alert(`导出失败：${err.message}`);
+      pushErrorToast(`导出失败：${err.message}`);
     } finally {
       setExporting(false);
     }

@@ -4,10 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   deleteWorldEntry: vi.fn(),
+  pushErrorToast: vi.fn(),
 }));
 
 vi.mock('../../../src/api/prompt-entries', () => ({
   deleteWorldEntry: (...args) => mocks.deleteWorldEntry(...args),
+}));
+
+vi.mock('../../../src/utils/toast', () => ({
+  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
 }));
 
 // EntryEditor 是复杂子组件，mock 掉
@@ -33,7 +38,7 @@ describe('EntrySection', () => {
   beforeEach(() => {
     onRefresh = vi.fn();
     mocks.deleteWorldEntry.mockReset();
-    global.alert = vi.fn();
+    mocks.pushErrorToast.mockReset();
   });
 
   it('默认状态：渲染条目列表和按钮，无确认弹窗', () => {
@@ -113,7 +118,7 @@ describe('EntrySection', () => {
     await waitFor(() => expect(onRefresh).toHaveBeenCalled());
   });
 
-  it('删除失败时弹出 alert 提示', async () => {
+  it('删除失败时调用错误 toast', async () => {
     mocks.deleteWorldEntry.mockRejectedValue(new Error('服务器错误'));
     render(
       <EntrySection
@@ -131,7 +136,7 @@ describe('EntrySection', () => {
     // 条目列表中有 2 个删除按钮，模态弹窗的确认按钮排在第 3 位
     const allDeleteBtns = screen.getAllByText('删除');
     fireEvent.click(allDeleteBtns[allDeleteBtns.length - 1]);
-    await waitFor(() => expect(global.alert).toHaveBeenCalledWith(expect.stringContaining('删除失败')));
+    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith(expect.stringContaining('删除失败')));
     expect(onRefresh).not.toHaveBeenCalled();
   });
 

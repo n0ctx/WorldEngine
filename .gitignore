@@ -15,7 +15,6 @@ dist/
 /SCHEMA.md
 
 # Local agent / tooling files
-/.temp/
 /docs/*
 /.superpowers/
 /.claude/
@@ -34,5 +33,6 @@ dist/
 # Temporary/test directories
 .temp/*
 !.temp/.gitkeep
+!.temp/check-assistant-syntax.mjs
 !.temp/git-health-check.sh
 test-results/

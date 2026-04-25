@@ -15,6 +15,7 @@ import {
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import { activateCharacter, deactivateCharacter } from '../../api/writing-sessions.js';
+import { pushErrorToast } from '../../utils/toast.js';
 
 const MotionDiv = motion.div;
 
@@ -76,7 +77,7 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
     if (resetting) return;
     setResetting(true);
     try { setStateValues(await resetSessionCharacterStateValuesByChar(sessionId, char.id)); }
-    catch (e) { console.error(e); }
+    catch (e) { pushErrorToast(e.message || '重置角色状态失败'); }
     finally { setResetting(false); }
   }
 
@@ -87,7 +88,7 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
         ? prev.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r)
         : prev
       );
-    } catch (e) { console.error('更新角色状态失败', e); }
+    } catch (e) { pushErrorToast(e.message || '更新角色状态失败'); }
   }
 
   return (
@@ -136,7 +137,7 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
   const activeIds = new Set(activeCharacters.map((c) => c.id));
 
   useEffect(() => {
-    getCharactersByWorld(worldId).then(setAllChars).catch(console.error);
+    getCharactersByWorld(worldId).then(setAllChars).catch(() => setAllChars([]));
   }, [worldId]);
 
   const available = allChars.filter((c) => !activeIds.has(c.id));
@@ -148,7 +149,7 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
       const char = allChars.find((c) => c.id === charId);
       onAdd(char);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '添加角色失败');
     } finally {
       setAdding(null);
     }
@@ -226,7 +227,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     setWorldResetting(true);
     try {
       setStateData(await resetSessionWorldStateValues(sessionId));
-    } catch (e) { console.error(e); }
+    } catch (e) { pushErrorToast(e.message || '重置世界状态失败'); }
     finally { setWorldResetting(false); }
   }
 
@@ -235,7 +236,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
     setPersonaResetting(true);
     try {
       setStateData(await resetSessionPersonaStateValues(sessionId));
-    } catch (e) { console.error(e); }
+    } catch (e) { pushErrorToast(e.message || '重置玩家状态失败'); }
     finally { setPersonaResetting(false); }
   }
 
@@ -246,7 +247,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         ...prev,
         world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { console.error('更新世界状态失败', e); }
+    } catch (e) { pushErrorToast(e.message || '更新世界状态失败'); }
   }
 
   async function handleSavePersona(fieldKey, valueJson) {
@@ -256,7 +257,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         ...prev,
         persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { console.error('更新玩家状态失败', e); }
+    } catch (e) { pushErrorToast(e.message || '更新玩家状态失败'); }
   }
 
   async function handleDiarySelect(entry) {
@@ -270,7 +271,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
       const content = await fetchDiaryContent(sessionId, entry.date_str);
       onDiaryInject?.(content);
     } catch (e) {
-      console.error('获取日记内容失败', e);
+      pushErrorToast(e.message || '获取日记内容失败');
     }
   }
 
@@ -285,7 +286,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
       await deactivateCharacter(worldId, sessionId, charId);
       onActiveCharactersChange((prev) => prev.filter((c) => c.id !== charId));
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '移除角色失败');
     }
   }
 

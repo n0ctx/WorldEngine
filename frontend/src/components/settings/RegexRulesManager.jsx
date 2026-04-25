@@ -12,6 +12,7 @@ import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { SETTINGS_MODE } from './SettingsConstants';
+import { pushErrorToast } from '../../utils/toast';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',
@@ -47,7 +48,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       invalidateCache();
       await loadRules(settingsMode);
     } catch (e) {
-      console.error(e);
+      pushErrorToast(e.message || '加载规则失败');
     }
   }, [settingsMode]);
 
@@ -76,8 +77,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       setConfirmingDeleteRule(null);
       await refresh();
     } catch (e) {
-      // TODO: showToast 为页级函数，此处暂用 alert；待全局 toast 服务建立后替换
-      alert('删除失败：' + (e?.message || '未知错误'));
+      pushErrorToast('删除失败：' + (e?.message || '未知错误'));
     }
   }
 

@@ -5,6 +5,7 @@ import { listCharacterStateFields } from '../../api/character-state-fields';
 import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
+import { pushErrorToast } from '../../utils/toast';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
 const NUMERIC_OPS = [
@@ -85,11 +86,11 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           setConditions([emptyCondition()]);
         }
       } catch (err) {
-        console.error('加载状态字段失败', err);
+        pushErrorToast(err.message || '加载状态字段失败');
       }
     }
     load();
-  }, [form.trigger_type]);
+  }, [entry.id, form.trigger_type, isNew, worldId]);
 
   function updateCondition(index, patch) {
     setConditions((prev) => prev.map((c, i) => {
@@ -130,7 +131,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       }
       onSave();
     } catch (err) {
-      alert(`保存失败：${err.message}`);
+      pushErrorToast(`保存失败：${err.message}`);
       setSaving(false);
     }
   }
