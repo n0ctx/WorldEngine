@@ -29,6 +29,18 @@ import {
 } from './gemini.js';
 
 const NAMED_ADAPTERS = {
+  'kimi-coding': {
+    stream: streamAnthropic,
+    complete: completeAnthropic,
+    completeWithTools: completeAnthropicWithTools,
+    resolveToolContext: resolveToolContextAnthropic,
+  },
+  'minimax-coding': {
+    stream: streamAnthropic,
+    complete: completeAnthropic,
+    completeWithTools: completeAnthropicWithTools,
+    resolveToolContext: resolveToolContextAnthropic,
+  },
   anthropic: {
     stream: streamAnthropic,
     complete: completeAnthropic,

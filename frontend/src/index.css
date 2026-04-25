@@ -191,10 +191,6 @@ body {
   transition: border-color 0.18s, box-shadow 0.18s;
 }
 
-.we-md-editor:focus-within {
-  border-color: var(--we-vermilion);
-  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
-}
 
 /* 工具栏 */
 .we-md-toolbar {
@@ -428,10 +424,6 @@ body {
   color: var(--we-ink-primary);
 }
 
-.we-md-content .ProseMirror:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: -1px;
-}
 
 /* 占位符（由 @tiptap/extension-placeholder 注入） */
 .we-md-content .ProseMirror .is-editor-empty:first-child::before,

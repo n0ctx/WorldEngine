@@ -87,3 +87,58 @@ test('PUT /api/config/apikey 与 /embedding-apikey 写入当前 provider 的 key
   assert.equal(saved.llm.provider_keys.mock, 'llm-key');
   assert.equal(saved.embedding.provider_keys.openai, 'embed-key');
 });
+
+test('GET /api/config/models 对 coding plan provider 返回静态模型列表', async () => {
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'minimax-coding',
+      provider_keys: {},
+      model: '',
+      base_url: '',
+    },
+  });
+
+  const res = await ctx.request('/api/config/models');
+  assert.equal(res.status, 200);
+  const data = await res.json();
+
+  assert.ok(data.models.some((m) => m.id === 'MiniMax-M2.7'));
+  assert.ok(data.models.some((m) => m.id === 'MiniMax-M2'));
+  assert.equal(data.thinkingOptions.length, 3);
+});
+
+test('GET /api/config/test-connection 会识别 openai-compatible 的 200 + error JSON 鉴权失败', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    if (String(url).startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    return new Response(JSON.stringify({
+      error: { message: 'The API Key appears to be invalid or may have expired.' },
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'glm-coding',
+      provider_keys: { 'glm-coding': 'test-key' },
+      model: 'GLM-4.7',
+      base_url: '',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/test-connection');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.success, false);
+    assert.match(data.error, /invalid|expired/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

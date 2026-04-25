@@ -16,6 +16,30 @@ export const LLM_PROVIDERS = [
   { value: 'lmstudio', label: 'LM Studio（本地）' },
 ];
 
+export const PROVIDER_HINTS = {
+  'kimi-coding': {
+    links: [
+      { label: '打开 Kimi Code 控制台', url: 'https://www.kimi.com/code/console' },
+      { label: '查看 Kimi 接入文档', url: 'https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents.html' },
+      { label: '打开 Kimi 登录页', url: 'https://www.kimi.com/code/en' },
+    ],
+  },
+  'minimax-coding': {
+    links: [
+      { label: '打开 Token Plan 文档', url: 'https://platform.minimax.io/docs/coding-plan/intro' },
+      { label: '查看 Anthropic 兼容文档', url: 'https://platform.minimax.io/docs/api-reference/text-anthropic-api' },
+      { label: '打开 MiniMax 控制台', url: 'https://platform.minimax.io/' },
+    ],
+  },
+  'glm-coding': {
+    links: [
+      { label: '打开 Z.AI 控制台', url: 'https://platform.z.ai/' },
+      { label: '查看 GLM Coding 文档', url: 'https://docs.z.ai/devpack/tool/others' },
+      { label: '查看配置说明', url: 'https://zcode.z.ai/docs/configuration' },
+    ],
+  },
+};
+
 export const EMBEDDING_PROVIDERS = [
   { value: '', label: '不启用' },
   { value: 'openai', label: 'OpenAI' },
@@ -59,12 +83,15 @@ export function getProviderThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
     case 'gemini':
+    case 'kimi-coding':
+    case 'minimax-coding':
       return [
         { value: 'budget_low', label: '思考：低（1024 tokens）' },
         { value: 'budget_medium', label: '思考：中（8192 tokens）' },
         { value: 'budget_high', label: '思考：高（16384 tokens）' },
       ];
     case 'openai':
+    case 'glm-coding':
       return [
         { value: 'effort_low', label: '推理：低（仅 o-series）' },
         { value: 'effort_medium', label: '推理：中（仅 o-series）' },

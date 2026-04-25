@@ -3,6 +3,8 @@ import { getConfig, updateConfig } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
+import { complete } from '../llm/index.js';
+import { DEFAULT_BASE_URLS, extractProviderError } from '../llm/providers/_utils.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
 import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
 
@@ -228,11 +230,21 @@ const KNOWN_PRICES = new Map([
   ['glm-4',                 { inputPrice: 7,     outputPrice: 7     }],
   ['glm-4-flash',           { inputPrice: 0,     outputPrice: 0     }],
   // GLM Coding Plan（按周额度计费，无 token 单价）
+  ['GLM-5.1',               { inputPrice: 0,     outputPrice: 0     }],
+  ['GLM-5',                 { inputPrice: 0,     outputPrice: 0     }],
+  ['GLM-5-Turbo',           { inputPrice: 0,     outputPrice: 0     }],
   ['GLM-4.7',               { inputPrice: 0,     outputPrice: 0     }],
+  ['GLM-4.5-Air',           { inputPrice: 0,     outputPrice: 0     }],
   // Kimi Coding Plan（按会员配额计费，无 token 单价）
   ['kimi-for-coding',       { inputPrice: 0,     outputPrice: 0     }],
   // MiniMax Coding Plan（按 Token Plan 配额计费，无 token 单价）
-  ['codex-MiniMax-M2.7',    { inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.7',          { inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.7-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.5',          { inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.5-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.1',          { inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2.1-highspeed',{ inputPrice: 0,     outputPrice: 0     }],
+  ['MiniMax-M2',            { inputPrice: 0,     outputPrice: 0     }],
   // SiliconFlow（部分主力模型）
   ['Qwen/Qwen3-235B-A22B',  { inputPrice: 1.26,  outputPrice: 1.26  }],
   ['Qwen/Qwen3-30B-A3B',    { inputPrice: 0.21,  outputPrice: 0.21  }],
@@ -248,12 +260,11 @@ const KNOWN_PRICES = new Map([
 const OPENAI_COMPATIBLE_BASE_URLS = {
   openai: 'https://api.openai.com/v1',
   openrouter: 'https://openrouter.ai/api/v1',
-  glm: 'https://open.bigmodel.cn/api/paas/v4',
-  'glm-coding': 'https://open.bigmodel.cn/api/coding/paas/v4',
+  glm: 'https://api.z.ai/api/paas/v4',
+  'glm-coding': 'https://api.z.ai/api/coding/paas/v4',
   kimi: 'https://api.moonshot.cn/v1',
   'kimi-coding': 'https://api.kimi.com/coding/v1',
   minimax: 'https://api.minimax.chat/v1',
-  'minimax-coding': 'https://api.minimax.io/v1',
   deepseek: 'https://api.deepseek.com',
   grok: 'https://api.x.ai/v1',
   siliconflow: 'https://api.siliconflow.cn/v1',
@@ -274,6 +285,8 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`API ${resp.status}`);
   const data = await resp.json();
+  const providerError = extractProviderError(data);
+  if (providerError) throw new Error(providerError);
   return (data.data || []).map((m) => {
     const entry = { id: m.id };
     // OpenRouter 在模型列表中返回 pricing 字段（优先级最高）
@@ -291,7 +304,37 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   });
 }
 
+function getStaticCodingPlanModels(provider) {
+  switch (provider) {
+    case 'kimi-coding':
+      return [{ id: 'kimi-for-coding', ...KNOWN_PRICES.get('kimi-for-coding') }];
+    case 'minimax-coding':
+      return [
+        'MiniMax-M2.7',
+        'MiniMax-M2.7-highspeed',
+        'MiniMax-M2.5',
+        'MiniMax-M2.5-highspeed',
+        'MiniMax-M2.1',
+        'MiniMax-M2.1-highspeed',
+        'MiniMax-M2',
+      ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
+    case 'glm-coding':
+      return [
+        'GLM-5.1',
+        'GLM-5',
+        'GLM-5-Turbo',
+        'GLM-4.7',
+        'GLM-4.5-Air',
+      ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
+    default:
+      return null;
+  }
+}
+
 async function fetchModels(provider, apiKey, baseUrl) {
+  const staticModels = getStaticCodingPlanModels(provider);
+  if (staticModels) return staticModels;
+
   // Anthropic — 硬编码（含价格）
   if (provider === 'anthropic') return ANTHROPIC_MODELS;
 
@@ -329,6 +372,25 @@ async function fetchModels(provider, apiKey, baseUrl) {
   throw new Error(`不支持的 provider: ${provider}`);
 }
 
+async function verifyLlmConnection(config) {
+  const llm = {
+    ...config.llm,
+    api_key: resolveApiKey(config.llm),
+    base_url: validateModelFetchBaseUrl(config.llm.provider, config.llm.base_url || DEFAULT_BASE_URLS[config.llm.provider] || ''),
+    max_tokens: 8,
+    temperature: 0,
+    signal: AbortSignal.timeout(20_000),
+  };
+
+  if (!llm.model) {
+    const models = await fetchModels(llm.provider, llm.api_key, llm.base_url);
+    llm.model = models[0]?.id || '';
+  }
+  if (!llm.model) throw new Error('当前 provider 没有可用模型');
+
+  await complete([{ role: 'user', content: 'ping' }], llm);
+}
+
 /**
  * 返回当前 provider 支持的 thinking 级别选项
  * 空数组表示该 provider 不支持 API 级别的 thinking 配置
@@ -338,12 +400,15 @@ function getThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
     case 'gemini':
+    case 'kimi-coding':
+    case 'minimax-coding':
       return [
         { value: 'budget_low', label: '思考：低（1024 tokens）' },
         { value: 'budget_medium', label: '思考：中（8192 tokens）' },
         { value: 'budget_high', label: '思考：高（16384 tokens）' },
       ];
     case 'openai':
+    case 'glm-coding':
       return [
         { value: 'effort_low', label: '推理：低（仅 o-series 模型）' },
         { value: 'effort_medium', label: '推理：中（仅 o-series 模型）' },
@@ -408,10 +473,8 @@ router.get('/test-embedding', async (_req, res) => {
 // GET /api/config/test-connection — 验证 LLM 连通性
 router.get('/test-connection', async (_req, res) => {
   const config = getConfig();
-  const { provider, base_url } = config.llm;
-  const apiKey = resolveApiKey(config.llm);
   try {
-    await fetchModels(provider, apiKey, base_url);
+    await verifyLlmConnection(config);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });

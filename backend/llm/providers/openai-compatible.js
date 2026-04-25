@@ -1,9 +1,14 @@
-import { getBaseUrl, apiError, parseSSE, executeToolCall } from './_utils.js';
+import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError } from './_utils.js';
 
 /** thinking_level → OpenAI reasoning_effort */
 function resolveReasoningEffort(thinking_level) {
   if (!thinking_level || !thinking_level.startsWith('effort_')) return null;
   return thinking_level.replace('effort_', '');
+}
+
+function assertOpenAICompatibleData(data, config) {
+  const providerError = extractProviderError(data);
+  if (providerError) throw apiError(`${config.provider} API error: ${providerError}`, 401);
 }
 
 export async function* streamOpenAICompatible(messages, config) {
@@ -35,6 +40,13 @@ export async function* streamOpenAICompatible(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
+  }
+
+  const contentType = resp.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    const data = await resp.json().catch(() => ({}));
+    assertOpenAICompatibleData(data, config);
+    throw apiError(`${config.provider} API error: 返回了非流式 JSON 响应`, 502);
   }
 
   let inThinking = false;
@@ -98,6 +110,7 @@ export async function completeOpenAICompatible(messages, config) {
   }
 
   const data = await resp.json();
+  assertOpenAICompatibleData(data, config);
   const msg = data.choices?.[0]?.message;
   if (!msg) return '';
   const reasoning = msg.reasoning || msg.reasoning_content;
@@ -130,6 +143,7 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
     }
 
     const data = await resp.json();
+    assertOpenAICompatibleData(data, config);
     const message = data.choices?.[0]?.message;
     if (!message) return '';
 
@@ -167,6 +181,7 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
     }
 
     const data = await resp.json();
+    assertOpenAICompatibleData(data, config);
     const message = data.choices?.[0]?.message;
     if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
 

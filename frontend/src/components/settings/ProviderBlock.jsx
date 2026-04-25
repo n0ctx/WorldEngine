@@ -4,13 +4,14 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, getProviderThinkingOptions } from './SettingsConstants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(config.provider) : [];
+  const providerHint = PROVIDER_HINTS[config.provider] || null;
 
   async function handleSaveKey() {
     try {
@@ -51,6 +52,27 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
             </Button>
           </div>
         </FormGroup>
+      )}
+
+      {providerHint && (
+        <div className="we-settings-provider-hint">
+          {providerHint.summary && (
+            <p className="we-settings-provider-hint-text">{providerHint.summary}</p>
+          )}
+          <div className={`we-settings-provider-link-row${providerHint.summary ? '' : ' we-settings-provider-link-row--compact'}`}>
+            {providerHint.links.map((link) => (
+              <Button
+                key={link.url}
+                variant="ghost"
+                size="sm"
+                type="button"
+                onClick={() => window.open(link.url, '_blank', 'noopener,noreferrer')}
+              >
+                {link.label}
+              </Button>
+            ))}
+          </div>
+        </div>
       )}
 
       {needsBaseUrl && (
