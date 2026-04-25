@@ -135,6 +135,17 @@ function formatTime(ts) {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/**
+ * 格式化 token 数量：大数字用 K/M 缩写，小数字加千分位
+ */
+function formatTokens(n) {
+  if (n == null || Number.isNaN(n)) return '-';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
+  if (n >= 1_000) return `${Math.round(n / 100) / 10}K`;
+  return n.toLocaleString();
+}
+
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const url = `/api/uploads/${src}`;
@@ -232,6 +243,7 @@ export default function MessageItem({
   const aiTextareaRef = useRef(null);
 
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
+  const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
   const isUser = message.role === 'user';
 
   const speakerName = isUser
@@ -445,6 +457,19 @@ export default function MessageItem({
               </div>
             )}
           </div>
+          {!editingAI && !isStreaming && message.token_usage && showTokenUsage && (
+            <div className="we-token-usage">
+              <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
+              <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
+              {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
+                <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
+              )}
+              {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
+                <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
+              )}
+              <span className="we-token-usage-unit">tokens</span>
+            </div>
+          )}
           {!editingAI && (
             <div className="we-message-actions">
               <span className="we-action-time">{formatTime(message.created_at)}</span>

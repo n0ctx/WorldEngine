@@ -70,6 +70,11 @@ export async function* streamChat(messages, config) {
   for await (const data of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
+      if (parsed.usage && config.usageRef) {
+        const u = parsed.usage;
+        if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
+        if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
+      }
       const delta = parsed.choices?.[0]?.delta?.content;
       if (delta) yield delta;
     } catch {

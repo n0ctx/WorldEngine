@@ -102,6 +102,8 @@ export default function SettingsPage() {
                 onToggleShowThinking={llmProps.onToggleShowThinking}
                 autoCollapseThinking={llmProps.autoCollapseThinking}
                 onToggleAutoCollapseThinking={llmProps.onToggleAutoCollapseThinking}
+                showTokenUsage={llmProps.showTokenUsage}
+                onToggleShowTokenUsage={llmProps.onToggleShowTokenUsage}
                 suggestionEnabled={promptProps.suggestionEnabled}
                 onToggleSuggestion={promptProps.onToggleSuggestion}
                 writingSuggestionEnabled={promptProps.writingSuggestionEnabled}

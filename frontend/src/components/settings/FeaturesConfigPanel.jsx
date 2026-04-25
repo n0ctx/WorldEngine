@@ -30,6 +30,7 @@ export default function FeaturesConfigPanel({
   writingDateMode, onChangeWritingDateMode,
   showThinking, onToggleShowThinking,
   autoCollapseThinking, onToggleAutoCollapseThinking,
+  showTokenUsage, onToggleShowTokenUsage,
   suggestionEnabled, onToggleSuggestion,
   writingSuggestionEnabled, onToggleWritingSuggestion,
 }) {
@@ -111,6 +112,17 @@ export default function FeaturesConfigPanel({
           checked={autoCollapseThinking}
           onChange={onToggleAutoCollapseThinking}
           disabled={!showThinking}
+        />
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">Token 消耗</p>
+
+        <ToggleRow
+          label="显示 token 消耗"
+          hint="在每条 AI 回复底部显示本轮 token 用量，含缓存命中/写入统计（仅 Anthropic 模型）"
+          checked={showTokenUsage}
+          onChange={onToggleShowTokenUsage}
         />
 
         <hr className="we-settings-divider" />

@@ -171,12 +171,45 @@ router.put('/embedding-apikey', (req, res) => {
 
 // 价格单位：美元 / 1M tokens
 const ANTHROPIC_MODELS = [
-  { id: 'claude-opus-4-5',   inputPrice: 15,  outputPrice: 75 },
-  { id: 'claude-sonnet-4-5', inputPrice: 3,   outputPrice: 15 },
-  { id: 'claude-haiku-4-5',  inputPrice: 0.8, outputPrice: 4  },
-  { id: 'claude-opus-4-0',   inputPrice: 15,  outputPrice: 75 },
-  { id: 'claude-sonnet-4-0', inputPrice: 3,   outputPrice: 15 },
+  { id: 'claude-opus-4-5',   inputPrice: 15,  outputPrice: 75,  cacheWritePrice: 18.75, cacheReadPrice: 1.5  },
+  { id: 'claude-sonnet-4-5', inputPrice: 3,   outputPrice: 15,  cacheWritePrice: 3.75,  cacheReadPrice: 0.3  },
+  { id: 'claude-haiku-4-5',  inputPrice: 0.8, outputPrice: 4,   cacheWritePrice: 1,     cacheReadPrice: 0.08 },
+  { id: 'claude-opus-4-0',   inputPrice: 15,  outputPrice: 75,  cacheWritePrice: 18.75, cacheReadPrice: 1.5  },
+  { id: 'claude-sonnet-4-0', inputPrice: 3,   outputPrice: 15,  cacheWritePrice: 3.75,  cacheReadPrice: 0.3  },
 ];
+
+// 静态价格表，用于无 API 价格返回的 provider（单位 $/1M tokens，来源：各官网公开定价）
+const KNOWN_PRICES = new Map([
+  // OpenAI
+  ['gpt-4o',                { inputPrice: 2.5,   outputPrice: 10    }],
+  ['gpt-4o-mini',           { inputPrice: 0.15,  outputPrice: 0.6   }],
+  ['gpt-4-turbo',           { inputPrice: 10,    outputPrice: 30    }],
+  ['o1',                    { inputPrice: 15,    outputPrice: 60    }],
+  ['o1-mini',               { inputPrice: 3,     outputPrice: 12    }],
+  ['o3-mini',               { inputPrice: 1.1,   outputPrice: 4.4   }],
+  ['o4-mini',               { inputPrice: 1.1,   outputPrice: 4.4   }],
+  // DeepSeek
+  ['deepseek-chat',         { inputPrice: 0.27,  outputPrice: 1.1   }],
+  ['deepseek-reasoner',     { inputPrice: 0.55,  outputPrice: 2.19  }],
+  // Gemini
+  ['gemini-2.5-pro-preview',        { inputPrice: 1.25,  outputPrice: 10   }],
+  ['gemini-2.5-flash-preview',      { inputPrice: 0.15,  outputPrice: 0.6  }],
+  ['gemini-2.0-flash',              { inputPrice: 0.1,   outputPrice: 0.4  }],
+  ['gemini-2.0-flash-lite',         { inputPrice: 0.075, outputPrice: 0.3  }],
+  ['gemini-1.5-pro',                { inputPrice: 1.25,  outputPrice: 5    }],
+  ['gemini-1.5-flash',              { inputPrice: 0.075, outputPrice: 0.3  }],
+  // Kimi / Moonshot
+  ['moonshot-v1-8k',        { inputPrice: 1.6,   outputPrice: 1.6   }],
+  ['moonshot-v1-32k',       { inputPrice: 3.2,   outputPrice: 3.2   }],
+  ['moonshot-v1-128k',      { inputPrice: 8,     outputPrice: 8     }],
+  // GLM
+  ['glm-4',                 { inputPrice: 7,     outputPrice: 7     }],
+  ['glm-4-flash',           { inputPrice: 0,     outputPrice: 0     }],
+  // SiliconFlow（部分主力模型）
+  ['Qwen/Qwen3-235B-A22B',  { inputPrice: 1.26,  outputPrice: 1.26  }],
+  ['Qwen/Qwen3-30B-A3B',    { inputPrice: 0.21,  outputPrice: 0.21  }],
+  ['deepseek-ai/DeepSeek-V3', { inputPrice: 0.27, outputPrice: 1.1  }],
+]);
 
 /**
  * OpenAI-compatible 模型列表拉取（通用）
@@ -212,12 +245,16 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const data = await resp.json();
   return (data.data || []).map((m) => {
     const entry = { id: m.id };
-    // OpenRouter 在模型列表中返回 pricing 字段
+    // OpenRouter 在模型列表中返回 pricing 字段（优先级最高）
     if (provider === 'openrouter' && m.pricing) {
       const inp = toPrice1M(m.pricing.prompt);
       const out = toPrice1M(m.pricing.completion);
       if (inp != null) entry.inputPrice = inp;
       if (out != null) entry.outputPrice = out;
+    } else {
+      // 其他 provider：从静态价格表兜底
+      const known = KNOWN_PRICES.get(m.id);
+      if (known) Object.assign(entry, known);
     }
     return entry;
   });
@@ -234,7 +271,11 @@ async function fetchModels(provider, apiKey, baseUrl) {
     );
     if (!resp.ok) throw new Error(`Gemini API ${resp.status}`);
     const data = await resp.json();
-    return (data.models || []).map((m) => ({ id: m.name.replace(/^models\//, '') }));
+    return (data.models || []).map((m) => {
+      const id = m.name.replace(/^models\//, '');
+      const known = KNOWN_PRICES.get(id) || {};
+      return { id, ...known };
+    });
   }
 
   // Ollama — 专有 /api/tags 接口（本地无价格）

@@ -402,6 +402,8 @@ export function initSchema(db) {
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN token INTEGER NOT NULL DEFAULT 1"); } catch (_) {}
   // 删除废弃表：global_prompt_entries / character_prompt_entries
   migrateDropLegacyEntryTables(db);
+  // token 消耗统计：messages 表新增 token_usage 字段（JSON 字符串）
+  try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {

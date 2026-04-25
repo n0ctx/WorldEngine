@@ -3,7 +3,7 @@
  *
  * 支持的 callbacks 字段（均为可选）：
  *   onDelta(delta)              — 流式文本增量
- *   onDone(assistant, options)  — 生成完成
+ *   onDone(assistant, options, usage) — 生成完成
  *   onAborted(assistant)        — 生成被中断
  *   onError(error)              — 错误
  *   onTitleUpdated(title)       — 会话标题已更新
@@ -35,7 +35,7 @@ export async function parseSSEStream(response, callbacks) {
         try {
           const evt = JSON.parse(json);
           if (evt.delta !== undefined) callbacks.onDelta?.(evt.delta);
-          else if (evt.done) callbacks.onDone?.(evt.assistant ?? null, evt.options ?? []);
+          else if (evt.done) callbacks.onDone?.(evt.assistant ?? null, evt.options ?? [], evt.usage ?? null);
           else if (evt.aborted) callbacks.onAborted?.(evt.assistant ?? null);
           else if (evt.type === 'error') callbacks.onError?.(evt.error);
           else if (evt.type === 'title_updated') callbacks.onTitleUpdated?.(evt.title);

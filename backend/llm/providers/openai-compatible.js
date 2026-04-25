@@ -16,6 +16,7 @@ export async function* streamOpenAICompatible(messages, config) {
     messages,
     max_tokens: config.max_tokens,
     stream: true,
+    stream_options: { include_usage: true },
   };
   // reasoning_effort 不兼容 temperature，有 effort 时不传 temperature
   if (effort) {
@@ -40,6 +41,14 @@ export async function* streamOpenAICompatible(messages, config) {
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
+      // 末尾 chunk 携带 usage（stream_options.include_usage: true）
+      if (parsed.usage && config.usageRef) {
+        const u = parsed.usage;
+        if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
+        if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
+        const cached = u.prompt_tokens_details?.cached_tokens;
+        if (cached != null) config.usageRef.cache_read_tokens = cached;
+      }
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
       // OpenRouter 等 provider 将推理内容放在 reasoning / reasoning_content 字段

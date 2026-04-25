@@ -415,6 +415,22 @@
   animation: weCursorBlink 0.65s steps(1) infinite;
 }
 
+/* ── Token Usage ────────────────────────────────────────── */
+
+.we-token-usage {
+  display: flex;
+  gap: 0.6em;
+  font-size: 0.72em;
+  color: var(--we-text-muted);
+  margin-top: 4px;
+  opacity: 0.65;
+  font-family: var(--we-font-ui);
+}
+
+.we-token-usage-unit {
+  opacity: 0.6;
+}
+
 /* ── Actions ───────────────────────────────────────────── */
 
 .we-message-actions {

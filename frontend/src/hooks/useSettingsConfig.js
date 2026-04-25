@@ -19,6 +19,8 @@ export function useSettingsConfig() {
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
   const setAutoCollapseThinkingStore = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
+  const [showTokenUsage, setShowTokenUsageLocal] = useState(false);
+  const setShowTokenUsageStore = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const [saving, setSaving] = useState(false);
   const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
@@ -43,7 +45,12 @@ export function useSettingsConfig() {
       setWritingSuggestionEnabled(c.writing?.suggestion_enabled === true);
       setWritingMemoryExpansionEnabled(c.writing?.memory_expansion_enabled !== false);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
+      setShowThinkingStore(c.ui?.show_thinking !== false);
       setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
+      setAutoCollapseThinkingStore(c.ui?.auto_collapse_thinking !== false);
+      const tokenUsage = c.ui?.show_token_usage === true;
+      setShowTokenUsageLocal(tokenUsage);
+      setShowTokenUsageStore(tokenUsage);
       const w = c.writing || {};
       setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
@@ -181,6 +188,12 @@ export function useSettingsConfig() {
     await patchConfig({ ui: { auto_collapse_thinking: enabled } });
   }
 
+  async function handleToggleShowTokenUsage(enabled) {
+    setShowTokenUsageLocal(enabled);
+    setShowTokenUsageStore(enabled);
+    await patchConfig({ ui: { show_token_usage: enabled } });
+  }
+
   async function handleToggleDiaryChatEnabled(enabled) {
     setDiaryChatEnabled(enabled);
     await patchConfig({ diary: { chat: { enabled } } });
@@ -232,6 +245,8 @@ export function useSettingsConfig() {
       onToggleShowThinking: handleToggleShowThinking,
       autoCollapseThinking,
       onToggleAutoCollapseThinking: handleToggleAutoCollapseThinking,
+      showTokenUsage,
+      onToggleShowTokenUsage: handleToggleShowTokenUsage,
     },
     promptProps: {
       globalSystemPrompt, setGlobalSystemPrompt,

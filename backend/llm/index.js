@@ -62,6 +62,7 @@ function buildLLMConfig(options = {}) {
       ? (options.thinking_level ?? null)
       : (llm.thinking_level ?? null),
     signal: options.signal || undefined,
+    usageRef: options.usageRef || undefined,
   };
 }
 

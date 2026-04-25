@@ -3,6 +3,33 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-25 模型 token 价格展示 + 每轮对话 token 消耗统计
+
+**功能 A：模型下拉显示 token 价格**
+- `backend/routes/config.js`：Anthropic 模型追加 `cacheWritePrice`/`cacheReadPrice`；新增 `KNOWN_PRICES` 静态 Map（覆盖 OpenAI/DeepSeek/Gemini/Kimi/GLM/SiliconFlow 主流模型）；`fetchOpenAICompatibleModels` 和 Gemini 分支合并静态价格兜底
+- `frontend/src/components/ui/ModelCombobox.jsx`：下拉选项追加 `缓存写/读` 价格渲染
+
+**功能 B：每轮对话显示 token 消耗**
+- `backend/db/schema.js`：messages 表 ALTER TABLE 追加 `token_usage TEXT`
+- `backend/db/queries/messages.js`：新增 `updateMessageTokenUsage()`；三个查询函数追加 `token_usage` JSON.parse
+- Provider 层（openai-compatible / anthropic / gemini / ollama）：通过 `usageRef` 引用对象在流结束后填充 usage 数据；openai-compatible 追加 `stream_options: { include_usage: true }`
+- `backend/llm/index.js`：`buildLLMConfig` 透传 `usageRef`
+- `backend/routes/chat.js` / `writing.js`：创建 `usageRef`、传给 `llm.chat`、流结束后写库（`updateMessageTokenUsage`）、done 事件携带 `usage`
+- `frontend/src/api/stream-parser.js`：`onDone` 回调追加第三参数 `usage`
+- `frontend/src/store/displaySettings.js`：追加 `showTokenUsage` / `setShowTokenUsage`
+- `frontend/src/hooks/useSettingsConfig.js`：追加 `showTokenUsage` state、store、`handleToggleShowTokenUsage`，加入 `llmProps` 返回
+- `frontend/src/components/settings/FeaturesConfigPanel.jsx`：新增「Token 消耗」子节和 ToggleRow
+- `frontend/src/pages/SettingsPage.jsx`：传递 `showTokenUsage`/`onToggleShowTokenUsage` props
+- `frontend/src/components/chat/MessageItem.jsx`：assistant 消息底部渲染 token 消耗（受 `showTokenUsage` 开关控制）
+- `frontend/src/styles/chat.css`：追加 `.we-token-usage` 样式
+- `SCHEMA.md`：messages 表新增字段说明；config.json ui 对象补充 `show_token_usage`
+- `ARCHITECTURE.md §7`：done 事件 payload 追加 `usage` 字段说明
+
+**坑点记录**：
+- `usageRef` 必须在 `try` 块外声明，流结束后才能在路由层访问到 provider 填充的数据
+- openai-compatible 的 `stream_options.include_usage` 末尾 chunk 的 `choices[]` 为空，usage 解析必须在 `if (!delta) continue` 之前执行
+- abort 时 usageRef 可能为空对象，路由层用 `Object.keys(usageRef).length > 0` 判断是否写库，不写入部分数据
+
 ## 2026-04-25 写卡助手 world-card 对齐当前状态条目系统
 
 - **Assistant Prompt / Contract**：`world-card.md`、`main.md`、`assistant/CONTRACT.md` 清除废弃 `position` 与旧版 `eq/lt/contains` 示例，改为当前真实格式：`state` 条件使用 `世界.xxx / 玩家.xxx / 角色.xxx` + 运行时支持的符号/中文操作符

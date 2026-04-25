@@ -25,6 +25,7 @@ import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEnt
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
+import { updateMessageTokenUsage } from '../db/queries/messages.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
@@ -124,6 +125,7 @@ async function runStream(sessionId, res, opts = {}) {
 
   let fullContent = '';
   let aborted = false;
+  const usageRef = {};
 
   try {
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_start' });
@@ -143,7 +145,7 @@ async function runStream(sessionId, res, opts = {}) {
       temperature: overrides.temperature,
       maxTokens: overrides.maxTokens,
     })}`);
-    const stream = llm.chat(messages, { ...overrides, signal: ac.signal });
+    const stream = llm.chat(messages, { ...overrides, signal: ac.signal, usageRef });
 
     for await (const chunk of stream) {
       fullContent += chunk;
@@ -178,11 +180,17 @@ async function runStream(sessionId, res, opts = {}) {
   const { savedContent, options, savedAssistant } = processStreamOutput(fullContent, aborted, worldId, sessionId);
   fullContent = savedContent;
 
+  // 持久化 token usage，并同步到返回对象
+  if (!aborted && savedAssistant && Object.keys(usageRef).length > 0) {
+    updateMessageTokenUsage(savedAssistant.id, usageRef);
+    savedAssistant.token_usage = usageRef;
+  }
+
   // 推送结束事件（附带真实 assistant 消息，便于前端原地追加，免于重挂载刷新）
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
       ? { aborted: true, assistant: savedAssistant }
-      : { done: true, assistant: savedAssistant, options });
+      : { done: true, assistant: savedAssistant, options, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
   }
 
   streamState.clear();
@@ -335,12 +343,13 @@ router.post('/:sessionId/continue', async (req, res) => {
   const originalContent = lastAssistant.content;
   let newContent = '';
   let aborted = false;
+  const usageRef = {};
 
   try {
     const { messages, overrides } = await buildContext(sessionId);
     const continuationMessages = buildContinuationMessages(messages, originalContent);
 
-    const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal });
+    const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal, usageRef });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -388,14 +397,18 @@ router.post('/:sessionId/continue', async (req, res) => {
       : stripAsstContext(applyRules(newContent, 'ai_output', worldId, session.mode));
     mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
     updateMessageContent(lastAssistant.id, mergedContent);
+    if (!aborted && Object.keys(usageRef).length > 0) {
+      updateMessageTokenUsage(lastAssistant.id, usageRef);
+    }
     mergedAssistant = { ...lastAssistant, content: mergedContent };
+    if (!aborted && Object.keys(usageRef).length > 0) mergedAssistant.token_usage = usageRef;
     touchSession(sessionId);
   }
 
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
       ? { aborted: true, assistant: mergedAssistant }
-      : { done: true, assistant: mergedAssistant, options: continueOptions });
+      : { done: true, assistant: mergedAssistant, options: continueOptions, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
   }
 
   streamState.clear();

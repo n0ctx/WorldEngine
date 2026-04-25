@@ -237,7 +237,8 @@ CREATE TABLE messages (
   attachments    TEXT,                      -- JSON 数组，相对路径列表，无附件则 NULL
                                             -- 例：["attachments/msg1_0.png", "attachments/msg1_1.pdf"]
   is_compressed  INTEGER NOT NULL DEFAULT 0, -- T32：0=未压缩（送入 LLM），1=已压缩（仅存档）
-  created_at     INTEGER NOT NULL           -- 消息发送时间，用于排序
+  created_at     INTEGER NOT NULL,          -- 消息发送时间，用于排序
+  token_usage    TEXT                       -- JSON：{ prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens? }，仅 assistant 消息填写，旧数据为 NULL
 );
 
 CREATE INDEX idx_messages_session_compressed ON messages(session_id, is_compressed, created_at);
@@ -722,7 +723,10 @@ CREATE TABLE internal_meta (
     "model": "text-embedding-3-small"
   },
   "ui": {
-    "font_size": 16
+    "font_size": 16,
+    "show_thinking": true,           // 是否渲染 <think> 思维链块
+    "auto_collapse_thinking": true,  // 思维链完成后是否自动折叠
+    "show_token_usage": false        // 是否在每条 AI 回复底部显示 token 消耗
   },
   "context_history_rounds": 10,           // 对话空间历史轮次（turn records 条数）
   "global_system_prompt": "",             // 对话空间全局 system prompt

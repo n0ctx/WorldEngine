@@ -322,7 +322,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | type 字段 | 触发时机 | payload 示例 |
 |---|---|---|
 | `delta` | LLM 流式增量 | `{ delta: "文字" }` |
-| `done` | 流式正常完成 | `{ done: true }` |
+| `done` | 流式正常完成 | `{ done: true, assistant: {…}, options: [], usage?: { prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens? } }` |
 | `aborted` | 用户主动中断 | `{ aborted: true }` |
 | `error` | LLM 调用异常 | `{ type: "error", error: "..." }` |
 | `title_updated` | 会话标题异步生成完成（chat + writing） | `{ type: "title_updated", title: "..." }` |

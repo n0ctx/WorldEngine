@@ -38,6 +38,7 @@ export default function App() {
   const backgroundLocation = location.state?.backgroundLocation;
   const setShowThinking = useDisplaySettingsStore((s) => s.setShowThinking);
   const setAutoCollapseThinking = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
+  const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const isAssistantOpen = useAssistantStore((s) => s.isOpen);
   const [assistantLoaded, setAssistantLoaded] = useState(false);
 
@@ -46,8 +47,9 @@ export default function App() {
     getConfig().then((c) => {
       setShowThinking(c.ui?.show_thinking !== false);
       setAutoCollapseThinking(c.ui?.auto_collapse_thinking !== false);
+      setShowTokenUsage(c.ui?.show_token_usage === true);
     }).catch(() => {});
-  }, [setAutoCollapseThinking, setShowThinking]);
+  }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage]);
 
   useEffect(() => {
     if (isAssistantOpen) {

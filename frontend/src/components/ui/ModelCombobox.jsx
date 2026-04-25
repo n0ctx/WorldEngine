@@ -122,8 +122,10 @@ export default function ModelCombobox({
         <ul className="we-combobox-dropdown">
           {filtered.map((option) => {
             const id = optionId(option);
-            const inp = typeof option === 'object' ? formatPrice(option.inputPrice) : null;
-            const out = typeof option === 'object' ? formatPrice(option.outputPrice) : null;
+            const inp  = typeof option === 'object' ? formatPrice(option.inputPrice)      : null;
+            const out  = typeof option === 'object' ? formatPrice(option.outputPrice)     : null;
+            const cwr  = typeof option === 'object' ? formatPrice(option.cacheWritePrice) : null;
+            const crd  = typeof option === 'object' ? formatPrice(option.cacheReadPrice)  : null;
             const hasPrice = inp != null || out != null;
             return (
               <li
@@ -134,7 +136,9 @@ export default function ModelCombobox({
                 <span className="we-combobox-option-id">{id}</span>
                 {hasPrice && (
                   <span className="we-combobox-price">
-                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''} <span className="we-combobox-price-unit">/1M</span>
+                    {inp != null ? `↑${inp}` : ''}{inp != null && out != null ? ' ' : ''}{out != null ? `↓${out}` : ''}
+                    {cwr != null ? ` 写${cwr}` : ''}{crd != null ? ` 读${crd}` : ''}
+                    {' '}<span className="we-combobox-price-unit">/1M</span>
                   </span>
                 )}
               </li>

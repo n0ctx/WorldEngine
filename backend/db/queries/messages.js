@@ -25,6 +25,7 @@ export function getMessageById(id) {
   const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
   if (row) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
+    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
   }
   return row;
 }
@@ -39,6 +40,7 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
 
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
+    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
   }
   return rows;
 }
@@ -57,6 +59,16 @@ export function updateMessageAttachments(id, paths) {
 export function updateMessageContent(id, content) {
   db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
   return getMessageById(id);
+}
+
+/**
+ * 更新单条消息的 token_usage 字段
+ * @param {string} id - 消息 id
+ * @param {object} usage - { prompt_tokens, completion_tokens, cache_creation_tokens?, cache_read_tokens? }
+ */
+export function updateMessageTokenUsage(id, usage) {
+  db.prepare('UPDATE messages SET token_usage = ? WHERE id = ?')
+    .run(JSON.stringify(usage), id);
 }
 
 /**
@@ -200,6 +212,7 @@ export function getUncompressedMessagesBySessionId(sessionId, limit = null, offs
     ).all(sessionId);
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
+    row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
   }
   return rows;
 }

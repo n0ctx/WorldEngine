@@ -44,7 +44,25 @@ export async function* streamAnthropic(messages, config) {
   let inThinkingBlock = false;
 
   for await (const { event, data } of parseSSE(resp.body)) {
-    if (event === 'content_block_start') {
+    if (event === 'message_start') {
+      try {
+        const parsed = JSON.parse(data);
+        const u = parsed.message?.usage;
+        if (u && config.usageRef) {
+          if (u.input_tokens != null) config.usageRef.prompt_tokens = u.input_tokens;
+          if (u.cache_creation_input_tokens != null) config.usageRef.cache_creation_tokens = u.cache_creation_input_tokens;
+          if (u.cache_read_input_tokens != null) config.usageRef.cache_read_tokens = u.cache_read_input_tokens;
+        }
+      } catch { /* skip */ }
+    } else if (event === 'message_delta') {
+      try {
+        const parsed = JSON.parse(data);
+        const u = parsed.usage;
+        if (u?.output_tokens != null && config.usageRef) {
+          config.usageRef.completion_tokens = u.output_tokens;
+        }
+      } catch { /* skip */ }
+    } else if (event === 'content_block_start') {
       try {
         const parsed = JSON.parse(data);
         if (parsed.content_block?.type === 'thinking') {

@@ -36,6 +36,11 @@ export async function* streamGemini(messages, config) {
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
+      const meta = parsed.usageMetadata;
+      if (meta && config.usageRef) {
+        if (meta.promptTokenCount != null) config.usageRef.prompt_tokens = meta.promptTokenCount;
+        if (meta.candidatesTokenCount != null) config.usageRef.completion_tokens = meta.candidatesTokenCount;
+      }
       const parts = parsed.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
         if (!part.text) continue;

@@ -37,7 +37,7 @@ import { detectNewChapter, groupChapterMessages } from '../utils/chapter-detecto
 import { getChapterTitle, upsertChapterTitle, getChapterTitlesBySessionId } from '../db/queries/chapter-titles.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
-import { updateMessageContent } from '../db/queries/messages.js';
+import { updateMessageContent, updateMessageTokenUsage } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
@@ -172,6 +172,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
 
   let fullContent = '';
   let aborted = false;
+  const usageRef = {};
 
   const session = dbGetWritingSessionById(sessionId);
   const worldId = session?.world_id;
@@ -185,7 +186,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal });
+    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal, usageRef });
     for await (const chunk of stream) {
       fullContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -212,10 +213,16 @@ async function runWritingStream(sessionId, res, opts = {}) {
 
   log.info(`STREAM END  ${formatMeta({ session: sid, chars: fullContent.length, aborted })}`);
 
+  // 持久化 token usage，并同步到返回对象
+  if (!aborted && savedAssistant && Object.keys(usageRef).length > 0) {
+    updateMessageTokenUsage(savedAssistant.id, usageRef);
+    savedAssistant.token_usage = usageRef;
+  }
+
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
       ? { aborted: true, assistant: savedAssistant }
-      : { done: true, assistant: savedAssistant, options });
+      : { done: true, assistant: savedAssistant, options, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
   }
 
   streamState.clear();
@@ -365,6 +372,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const originalContent = lastAssistant.content;
   let newContent = '';
   let aborted = false;
+  const usageRef = {};
 
   try {
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
@@ -372,7 +380,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     logPrompt(sessionId, messages);
     const continuationMessages = buildContinuationMessages(messages, originalContent);
 
-    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal });
+    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal, usageRef });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -411,13 +419,16 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId, 'writing');
     // 续写：合并到上一条 assistant 消息
     updateMessageContent(lastAssistant.id, originalContent + '\n\n' + processedNew.replace(/^\n+/, ''));
+    if (!aborted && Object.keys(usageRef).length > 0) {
+      updateMessageTokenUsage(lastAssistant.id, usageRef);
+    }
     touchWritingSession(sessionId);
   }
 
   log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: newContent.length, aborted })}`);
 
   if (!streamState.isClientClosed()) {
-    emitSse(res, sid, aborted ? { aborted: true } : { done: true, options: continueOptions });
+    emitSse(res, sid, aborted ? { aborted: true } : { done: true, options: continueOptions, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
   }
 
   streamState.clear();
