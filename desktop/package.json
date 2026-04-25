@@ -1,0 +1,17 @@
+{
+  "name": "worldengine-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "prepare-build": "node scripts/prepare-build.js",
+    "start": "electron .",
+    "build": "npm run prepare-build && electron-builder",
+    "dist": "npm run prepare-build && electron-builder --mac --win"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}

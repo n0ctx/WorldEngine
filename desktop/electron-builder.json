@@ -1,0 +1,82 @@
+{
+  "appId": "com.worldengine.app",
+  "productName": "WorldEngine",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "src/**/*",
+    "assets/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../backend",
+      "to": "backend",
+      "filter": [
+        "**/*",
+        "!tests",
+        "!node_modules"
+      ]
+    },
+    {
+      "from": "../backend/node_modules",
+      "to": "backend/node_modules",
+      "filter": [
+        "**/*",
+        "!.cache",
+        "!.package-lock.json"
+      ]
+    },
+    {
+      "from": "../frontend/dist",
+      "to": "frontend/dist",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "../assistant",
+      "to": "assistant",
+      "filter": [
+        "**/*",
+        "!tests",
+        "!node_modules"
+      ]
+    },
+    {
+      "from": "../assistant/node_modules",
+      "to": "assistant/node_modules",
+      "filter": [
+        "**/*",
+        "!.cache",
+        "!.package-lock.json"
+      ]
+    },
+    {
+      "from": "node-runtime",
+      "to": "node",
+      "filter": ["**/*"]
+    }
+  ],
+  "mac": {
+    "category": "public.app-category.productivity",
+    "target": [
+      {
+        "target": "dmg",
+        "arch": ["x64", "arm64"]
+      }
+    ],
+    "icon": "assets/icon.icns"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}

@@ -44,7 +44,9 @@ import { createLogger } from './utils/logger.js';
 const serverLog = createLogger('http', 'cyan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = path.resolve(__dirname, '..', 'data');
+const DATA_ROOT = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', 'data');
 const UPLOADS_ROOT = path.join(DATA_ROOT, 'uploads');
 
 function isLocalAddress(address) {
@@ -155,15 +157,29 @@ export function createApp() {
   app.use('/api/worlds', writingRoutes);
   app.use('/api/assistant', assistantRoutes);
 
+  // 桌面模式：后端同时 serve 前端打包产物，Electron 窗口只需访问单一 URL
+  if (process.env.WE_SERVE_STATIC === 'true') {
+    const staticDir = path.resolve(__dirname, '..', 'frontend', 'dist');
+    app.use(express.static(staticDir));
+    app.use((req, res, next) => {
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(staticDir, 'index.html'));
+    });
+  }
+
   return app;
 }
 
 export function startServer({ host = HOST, port = PORT } = {}) {
   const app = createApp();
-  return app.listen(port, host, () => {
+  const srv = app.listen(port, host, () => {
+    const actualPort = srv.address().port;
+    // 向父进程（Electron）广播实际端口，不受日志级别过滤影响
+    console.log(`SERVER_READY:${actualPort}`);
     const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
-    serverLog.info(`WorldEngine backend running on http://${host}:${port}  日志级别: ${level}`);
+    serverLog.info(`WorldEngine backend running on http://${host}:${actualPort}  日志级别: ${level}`);
   });
+  return srv;
 }
 
 const HOST = process.env.HOST || '127.0.0.1';

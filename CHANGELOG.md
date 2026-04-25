@@ -3,6 +3,44 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-25 Electron 桌面应用（macOS + Windows）+ 数据目录迁移 + 白屏修复
+
+**目标**：在不改动前端业务代码、不影响现有网页版的前提下，新增桌面应用打包能力；桌面版数据放在用户目录而非应用安装目录；修复打包后端口冲突导致的白屏。
+
+**架构决策**：
+- 采用 Electron（而非 Tauri），因为项目已有 Node.js 后端 + better-sqlite3 原生模块，Electron 是唯一零后端改造就能跑起来的方案
+- 不将后端跑在 Electron 的 Node.js 中（ABI 不兼容：系统 Node.js modules=141，Electron 35 modules=133），而是打包时附带独立的 Node.js v25.9.0 运行时
+- 后端条件性 serve 前端静态文件（`WE_SERVE_STATIC=true`），Electron 窗口只需访问单一 URL
+- 桌面版数据目录通过 `app.getPath('userData')` 指向用户目录（macOS: `~/Library/Application Support/worldengine-desktop/`，Windows: `%APPDATA%/worldengine-desktop/`）
+- 后端使用随机端口（`PORT=0`），Electron 主进程通过解析 stdout 中的 `SERVER_READY:PORT` 获取实际端口，彻底避免端口冲突
+
+**新增文件**：
+- `desktop/package.json` — Electron 依赖与构建脚本
+- `desktop/electron-builder.json` — mac/win 打包配置（extraResources 包含 backend、frontend/dist、assistant、node-runtime）
+- `desktop/src/main.js` — 主进程：设置 `WE_DATA_DIR` → spawn 独立 Node.js 启动后端（随机端口）→ 解析 stdout 获取端口 → 打开 BrowserWindow
+- `desktop/src/preload.js` — 安全桥接（预留）
+- `desktop/src/utils.js` — `waitForPort` 轮询检测、`getProjectRoot` 路径解析
+- `desktop/scripts/prepare-build.js` — 打包前自动下载对应平台 Node.js 运行时
+- `desktop/assets/.gitkeep` — 图标占位说明
+- `desktop/.gitignore` — 忽略 node_modules / dist / node-runtime
+
+**改动文件**：
+- `backend/server.js` — `DATA_ROOT` 支持 `WE_DATA_DIR` 环境变量覆盖；`createApp()` 末尾条件性添加 `express.static(frontend/dist)` + fallback；`startServer()` 输出 `SERVER_READY:PORT` 供父进程解析
+- `backend/db/index.js` — `DB_PATH` 支持从 `WE_DATA_DIR` 派生
+- `package.json`（根目录）— 新增 `desktop:install` / `desktop:dev` / `desktop:build` / `desktop:dist` scripts
+
+**验证结果**：
+- `npm run dev` 网页版前后端正常启动，不受影响
+- `npm run desktop:dev` 弹出 Electron 窗口，数据目录指向 `~/Library/Application Support/worldengine-desktop/`，功能正常
+- 打包后的 `.app` 在 macOS arm64 上可正常运行，数据不写入 `.app` 内部，随机端口避免冲突
+
+**坑点记录**：
+- `app.get('*')` 在 Express 5（path-to-regexp）中会抛 `Missing parameter name`，fallback 路由必须用 `app.use((req, res, next) => ...)`
+- electron-builder 默认会忽略 `extraResources` 中的 `node_modules`，必须将 `node_modules` 单独列为一项 `extraResource`
+- `backend/db/index.js` 在 `server.js` 的 `dataDirs` 创建之前初始化数据库，若 `data/` 目录不存在会直接崩溃；桌面端主进程需在 spawn 前 `fs.mkdirSync(dataDir, { recursive: true })`
+- 开发模式使用系统 `node` 命令；打包后使用 `process.resourcesPath/node/bin/node`
+- **白屏根因**：固定端口 3000 可能被之前未退出的后端进程占用，`app.listen()` 触发 `EADDRINUSE` 但错误未被捕获，server 未启动，Node.js 因事件循环无活跃任务而正常退出（exit code 0）；`waitForPort` 却检测到旧进程仍在监听该端口，导致 Electron 加载了一个无前端服务的 HTTP 端口，显示白屏/连接错误。修复方案：后端改用随机端口 + stdout 广播实际端口
+
 ## 2026-04-25 模型 token 价格展示 + 每轮对话 token 消耗统计
 
 **功能 A：模型下拉显示 token 价格**

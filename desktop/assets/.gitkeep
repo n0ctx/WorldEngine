@@ -1,0 +1,9 @@
+# 图标占位
+
+请在打包前放置平台图标：
+
+- `icon.icns` — macOS 图标（建议 512×512 及以上）
+- `icon.ico` — Windows 图标（建议 256×256 及以上）
+- `icon.png` — 通用图标（建议 512×512）
+
+缺少图标时 electron-builder 会使用默认 Electron 图标。
