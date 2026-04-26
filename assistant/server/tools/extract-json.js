@@ -30,7 +30,7 @@ export function extractJson(raw, options = {}) {
  */
 function stripLeadingThinkBlocks(text) {
   let result = text;
-  for (let i = 0; i < 20; i++) {
+  while (true) {
     const firstThink = result.search(/<think>/i);
     if (firstThink === -1) break;
     const firstBrace = result.indexOf('{');
