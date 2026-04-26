@@ -82,32 +82,13 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
 
       const heartbeat = setInterval(() => sendSSE(res, { type: 'thinking', taskId }), 5000);
       try {
-        // 执行子代理拥有 read_file 和 preview_card 两个工具（用于补充主代理未提供的数据）
-        const agentTools = [READ_FILE_TOOL, previewCardTool];
-
-        // 分离指令层（system）和任务层（user），提升指令遵循率
-        const entityHint = entityId ? `\n\n实体 ID：${entityId}` : '';
-        const messages = buildAgentMessages(def.name, task + entityHint);
-
-        // temperature: 0.3 — 在 JSON 稳定性与写卡创造力之间取平衡
-        // 有明确的 schema、正例和 extractJson + retry 兜底，0.3 是安全值
-        let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
-        log.info(`RAW  ${formatMeta({ agent: def.name, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
-
-        let result;
-        try {
-          result = extractJson(raw);
-        } catch {
-          log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY })}`);
-          // retry 时保留 system 层，追加纠错指令，继续用 completeWithTools 保留工具能力
-          messages.push({ role: 'assistant', content: raw });
-          messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON。请只重发 1 个 JSON 对象，不要代码块、注释或解释。' });
-          raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
-          log.info(`RAW  ${formatMeta({ agent: def.name, retry: true, chars: raw?.length ?? 0 })}`);
-          result = extractJson(raw);
-        }
-
-        const proposal = normalizeProposal(result, { type: def.proposalType, operation, entityId });
+        const proposal = await runAgentDefinition(def, {
+          task,
+          operation,
+          entityId,
+          normalizeProposal,
+          previewCardTool,
+        });
         const token = randomUUID();
         const expiresAt = Date.now() + PROPOSAL_TTL_MS;
         proposalStore.set(token, { proposal, expiresAt });
@@ -140,6 +121,35 @@ export function createAgentTool(def, { res, proposalStore, normalizeProposal, pr
       }
     },
   };
+}
+
+export async function runAgentDefinition(def, {
+  task,
+  operation = 'update',
+  entityId = null,
+  normalizeProposal,
+  previewCardTool,
+}) {
+  const agentTools = [READ_FILE_TOOL, previewCardTool];
+  const entityHint = entityId ? `\n\n实体 ID：${entityId}` : '';
+  const messages = buildAgentMessages(def.name, task + entityHint);
+
+  let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
+  log.info(`RAW  ${formatMeta({ agent: def.name, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+
+  let result;
+  try {
+    result = extractJson(raw);
+  } catch {
+    log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY })}`);
+    messages.push({ role: 'assistant', content: raw });
+    messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON。请只重发 1 个 JSON 对象，不要代码块、注释或解释。' });
+    raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
+    log.info(`RAW  ${formatMeta({ agent: def.name, retry: true, chars: raw?.length ?? 0 })}`);
+    result = extractJson(raw);
+  }
+
+  return normalizeProposal(result, { type: def.proposalType, operation, entityId });
 }
 
 export const __testables = {

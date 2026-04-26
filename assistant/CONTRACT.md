@@ -1,15 +1,181 @@
 # WorldEngine 写卡助手契约
 
-本文件是写卡助手的唯一接口契约说明。主代理 prompt、skill prompt、后端归一化器、前端提案卡都应以此为准。
+本文件是写卡助手的唯一接口契约说明。主代理 prompt、planner、执行子代理、后端归一化器、前端任务面板都应以此为准。
 
 ## 架构概述
 
-主代理 + 执行子代理架构：
-- **主代理**（`main-agent.js`）：接收用户消息，先研究现状（调用 `preview_card` / `read_file`），再通过工具调用循环（`resolveToolContext`）分发任务给执行子代理，最后流式生成回复
-- **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`，每个子代理是一个 LLM tool，执行时以 SSE 事件向前端推送提案
+当前为“双轨架构”：
+- **兼容轨**：`/api/assistant/chat` 仍保留旧版“主代理 + 执行子代理 + proposal 卡”对话流
+- **通用 Agent 轨**：`/api/assistant/tasks*` 采用 `Task -> Plan -> Step Graph -> Proposal -> Apply` 模型
+
+通用 Agent 组件：
+- **Planner**（`task-planner.js`）：根据用户目标输出 `answer / clarify / plan`，并对 plan 结构做语义校验；校验失败时会带错误反馈做 semantic retry，而不是直接降级
+- **Executor**（`task-executor.js`）：按步骤图逐步调用执行子代理；低风险步骤生成 proposal 后直接落库，高风险步骤先返回完整 proposal 供前端审阅/编辑，再统一走同一条落库边界
+- **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`
 - **辅助工具**：`preview_card`（查询实体数据）、`read_file`（读取项目文件）
 
-## 1. `/api/assistant/chat`
+## 1. `/api/assistant/tasks`
+
+### 请求体
+
+```json
+{
+  "message": "用户输入",
+  "history": [
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
+  ],
+  "context": {
+    "worldId": "可选",
+    "characterId": "可选",
+    "world": {},
+    "character": {},
+    "config": {}
+  }
+}
+```
+
+### 任务状态
+
+`researching | clarifying | planning | awaiting_plan_approval | executing | awaiting_step_approval | completed | failed | cancelled`
+
+### SSE 事件
+
+#### `task_created`
+
+```json
+{ "type": "task_created", "taskId": "task-xxxx", "task": {} }
+```
+
+#### `clarification_requested`
+
+```json
+{ "type": "clarification_requested", "taskId": "task-xxxx", "summary": "...", "questions": ["...", "..."], "task": {} }
+```
+
+#### `plan_ready`
+
+```json
+{ "type": "plan_ready", "taskId": "task-xxxx", "plan": { "summary": "...", "assumptions": [], "steps": [] }, "riskFlags": [], "task": {} }
+```
+
+#### `plan_approved`
+
+```json
+{ "type": "plan_approved", "taskId": "task-xxxx", "task": {} }
+```
+
+#### `step_started`
+
+```json
+{ "type": "step_started", "taskId": "task-xxxx", "stepId": "step-1", "step": {} }
+```
+
+#### `step_proposal_ready`
+
+```json
+{
+  "type": "step_proposal_ready",
+  "taskId": "task-xxxx",
+  "stepId": "step-1",
+  "proposal": {},
+  "proposalSummary": {},
+  "step": {}
+}
+```
+
+#### `step_approval_requested`
+
+```json
+{ "type": "step_approval_requested", "taskId": "task-xxxx", "stepId": "step-1", "step": {} }
+```
+
+说明：
+- 高风险步骤现在总是先经历 `step_started -> step_proposal_ready -> step_approval_requested`
+- 前端可以直接基于 `proposal` 展示完整变更、允许用户编辑 `changes / entryOps / stateFieldOps`
+- 审批后的编辑内容仍会在服务端重新走 `normalizeProposal()`，与旧 `/api/assistant/execute` 共享同级安全边界
+
+#### `step_completed`
+
+```json
+{ "type": "step_completed", "taskId": "task-xxxx", "stepId": "step-1", "result": {}, "step": {} }
+```
+
+#### `task_completed` / `task_failed`
+
+```json
+{ "type": "task_completed", "taskId": "task-xxxx" }
+{ "type": "task_failed", "taskId": "task-xxxx", "error": "..." }
+```
+
+#### `delta` / `done`
+
+说明性问答场景仍可直接流式输出文本：
+
+```json
+{ "delta": "流式文本片段" }
+{ "done": true }
+```
+
+### 计划 Step Schema
+
+```json
+{
+  "id": "step-create-world",
+  "title": "创建世界卡",
+  "kind": "proposal",
+  "targetType": "world-card",
+  "operation": "create|update|delete",
+  "entityRef": null,
+  "dependsOn": [],
+  "task": "给对应子代理的自然语言任务说明",
+  "riskLevel": "low|medium|high",
+  "approvalPolicy": "plan_only|requires_step_approval"
+}
+```
+
+`entityRef` 允许取值：
+- `null`
+- `context.worldId`
+- `context.characterId`
+- `step:<stepId>`（引用前序步骤创建出的实体 ID）
+
+Planner plan 校验最少包含：
+- `targetType` 必须属于资源域代理白名单，且 `operation` 与之匹配
+- `dependsOn` 只能引用已存在的前序 step，不能自依赖
+- `entityRef` 只能使用允许格式；若写 `step:<stepId>`，`dependsOn` 必须同时包含该 step
+- `character-card create` / `persona-card create` 必须显式依赖世界来源（`context.worldId` 或前置 `world-card create`）
+- `update/delete` 步骤必须带可解析 `entityRef`
+- 删除/清空/覆盖/重置类步骤必须显式标记 `riskLevel: "high"`
+
+### 相关接口
+
+- `POST /api/assistant/tasks/:taskId/answer`
+- `POST /api/assistant/tasks/:taskId/approve-plan`
+- `POST /api/assistant/tasks/:taskId/approve-step`
+- `POST /api/assistant/tasks/:taskId/cancel`
+- `GET /api/assistant/tasks/:taskId`
+
+### `POST /api/assistant/tasks/:taskId/approve-step`
+
+请求体：
+
+```json
+{
+  "stepId": "可选，默认使用 task.awaitingStepId",
+  "editedProposal": {
+    "changes": {},
+    "entryOps": [],
+    "stateFieldOps": []
+  }
+}
+```
+
+约束：
+- `editedProposal` 只允许覆盖 proposal 内容，不允许越权改写 `type / operation / entityId`
+- 服务端会以原 proposal 的锁定元信息为准重新 `normalizeProposal()`
+
+## 2. `/api/assistant/chat`
 
 ### 请求体
 
@@ -88,7 +254,7 @@ skill 执行失败时发送。
 { "done": true }
 ```
 
-## 2. Proposal 顶层 schema
+## 3. Proposal 顶层 schema
 
 所有 proposal 顶层都必须是 JSON object。
 
@@ -167,7 +333,7 @@ skill 执行失败时发送。
 }
 ```
 
-## 3. Operation 约束
+## 4. Operation 约束
 
 | Skill | 允许 operation |
 |---|---|
@@ -180,7 +346,7 @@ skill 执行失败时发送。
 
 **entryOps 支持说明**：只有 `world_card_skill` 支持 `entryOps`；`character_card_skill` / `persona_card_skill` / `global_prompt_skill` 均不支持。
 
-## 4. `changes` 准确格式
+## 5. `changes` 准确格式
 
 ### `world-card.changes`
 

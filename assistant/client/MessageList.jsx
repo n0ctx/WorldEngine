@@ -3,35 +3,64 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import ChangeProposalCard from './ChangeProposalCard.jsx';
-
-// 转义 HTML 特殊字符，防止 XSS
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// 简单 Markdown：加粗、斜体、代码（先转义再替换）
-function renderInline(text) {
-  return escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:0.9em">$1</code>');
-}
 
 function SimpleMarkdown({ content }) {
   if (!content) return null;
-  const lines = content.split('\n');
-  const html = lines.map((line) => renderInline(line)).join('<br/>');
   return (
-    <span
-      dangerouslySetInnerHTML={{ __html: html }}
-      style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}
-    />
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => (
+          <p style={{ margin: '0 0 6px', lineHeight: '1.6', wordBreak: 'break-word' }}>{children}</p>
+        ),
+        h1: ({ children }) => (
+          <h1 style={{ fontSize: '1.1em', fontWeight: 700, margin: '8px 0 4px' }}>{children}</h1>
+        ),
+        h2: ({ children }) => (
+          <h2 style={{ fontSize: '1.05em', fontWeight: 700, margin: '8px 0 4px' }}>{children}</h2>
+        ),
+        h3: ({ children }) => (
+          <h3 style={{ fontSize: '1em', fontWeight: 600, margin: '6px 0 3px' }}>{children}</h3>
+        ),
+        ul: ({ children }) => (
+          <ul style={{ margin: '4px 0 6px', paddingLeft: '18px' }}>{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol style={{ margin: '4px 0 6px', paddingLeft: '18px' }}>{children}</ol>
+        ),
+        li: ({ children }) => (
+          <li style={{ marginBottom: '2px', lineHeight: '1.5' }}>{children}</li>
+        ),
+        code: ({ inline, children }) =>
+          inline ? (
+            <code style={{ background: 'rgba(0,0,0,0.08)', padding: '1px 4px', borderRadius: '3px', fontFamily: 'monospace', fontSize: '0.9em' }}>
+              {children}
+            </code>
+          ) : (
+            <pre style={{ background: 'rgba(0,0,0,0.06)', padding: '8px 10px', borderRadius: '6px', overflowX: 'auto', margin: '6px 0' }}>
+              <code style={{ fontFamily: 'monospace', fontSize: '0.88em' }}>{children}</code>
+            </pre>
+          ),
+        blockquote: ({ children }) => (
+          <blockquote style={{ borderLeft: '3px solid var(--we-vermilion, #8a5e4a)', margin: '4px 0', paddingLeft: '10px', color: 'var(--we-ink-muted, #9c8a7e)', fontStyle: 'italic' }}>
+            {children}
+          </blockquote>
+        ),
+        hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '8px 0' }} />,
+        strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+        em: ({ children }) => <em>{children}</em>,
+        a: ({ href, children }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--we-vermilion, #8a5e4a)', textDecoration: 'underline' }}>
+            {children}
+          </a>
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
   );
 }
 
@@ -379,8 +408,17 @@ function TaskBadge({ children, tone = 'default' }) {
   );
 }
 
+const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'failed']);
+
 function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismissTask }) {
+  useEffect(() => {
+    if (!task || !TERMINAL_STATUSES.has(task.status)) return;
+    const timer = setTimeout(() => onDismissTask?.(), 1500);
+    return () => clearTimeout(timer);
+  }, [task?.status, onDismissTask]);
+
   if (!task) return null;
+
   const steps = task.plan?.steps || task.graph || [];
   const awaitingStepId = task.awaitingStepId || steps.find((step) => step.status === 'awaiting_approval')?.id || null;
   return (
@@ -471,9 +509,6 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
         {task.status !== 'completed' && task.status !== 'cancelled' && task.status !== 'failed' && (
           <ActionBtn onClick={onCancelTask} danger>取消任务</ActionBtn>
         )}
-        {(task.status === 'completed' || task.status === 'cancelled' || task.status === 'failed') && (
-          <ActionBtn onClick={onDismissTask}>关闭</ActionBtn>
-        )}
       </div>
     </div>
   );
@@ -541,45 +576,59 @@ export default function MessageList({
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      <TaskPanel
-        task={currentTask}
-        onApprovePlan={onApprovePlan}
-        onApproveStep={onApproveStep}
-        onCancelTask={onCancelTask}
-        onDismissTask={onDismissTask}
-      />
-      {messages.map((msg) => {
-        if (msg.role === 'user') return (
-          <UserMessage
-            key={msg.id}
-            msg={msg}
-            onEdit={onUserEdit}
-            onDelete={onDeleteMessage}
+      {(() => {
+        const taskPanel = currentTask ? (
+          <TaskPanel
+            key={`task-${currentTask.id}`}
+            task={currentTask}
+            onApprovePlan={onApprovePlan}
+            onApproveStep={onApproveStep}
+            onCancelTask={onCancelTask}
+            onDismissTask={onDismissTask}
           />
-        );
-        if (msg.role === 'assistant') return (
-          <AssistantMessage
-            key={msg.id}
-            msg={msg}
-            onRegenerate={onAssistantRegenerate}
-            onDelete={onDeleteMessage}
-          />
-        );
-        if (msg.role === 'routing') return <RoutingMessage key={msg.id} msg={msg} />;
-        if (msg.role === 'proposal') return (
-          <div key={msg.id} style={{ animation: 'we-proposal-in 0.28s ease forwards' }}>
-            <ChangeProposalCard
-              messageId={msg.id}
-              taskId={msg.taskId}
-              token={msg.token}
-              proposal={msg.proposal}
-              applied={msg.applied}
+        ) : null;
+        const anchorId = currentTask?.anchorMessageId;
+        let taskRendered = false;
+        const items = messages.map((msg) => {
+          let node = null;
+          if (msg.role === 'user') node = (
+            <UserMessage
+              key={msg.id}
+              msg={msg}
+              onEdit={onUserEdit}
+              onDelete={onDeleteMessage}
             />
-          </div>
-        );
-        if (msg.role === 'error') return <ErrorMessage key={msg.id} msg={msg} />;
-        return null;
-      })}
+          );
+          else if (msg.role === 'assistant') node = (
+            <AssistantMessage
+              key={msg.id}
+              msg={msg}
+              onRegenerate={onAssistantRegenerate}
+              onDelete={onDeleteMessage}
+            />
+          );
+          else if (msg.role === 'routing') node = <RoutingMessage key={msg.id} msg={msg} />;
+          else if (msg.role === 'proposal') node = (
+            <div key={msg.id} style={{ animation: 'we-proposal-in 0.28s ease forwards' }}>
+              <ChangeProposalCard
+                messageId={msg.id}
+                taskId={msg.taskId}
+                token={msg.token}
+                proposal={msg.proposal}
+                applied={msg.applied}
+              />
+            </div>
+          );
+          else if (msg.role === 'error') node = <ErrorMessage key={msg.id} msg={msg} />;
+          if (!node) return null;
+          if (taskPanel && anchorId && anchorId === msg.id) {
+            taskRendered = true;
+            return [node, taskPanel];
+          }
+          return node;
+        });
+        return [items, taskPanel && !taskRendered ? taskPanel : null];
+      })()}
       {isStreaming
         && !messages.some((m) => m.role === 'routing')
         && !messages.some((m) => m.role === 'assistant' && m.streaming)

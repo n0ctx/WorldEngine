@@ -127,7 +127,9 @@ export default function AssistantPanel() {
       callbacks.onProposal?.(taskId, token, proposal);
     },
     onTaskCreated: (task) => {
-      setCurrentTask(task);
+      const msgs = useAssistantStore.getState().messages;
+      const anchorMessageId = msgs.length > 0 ? msgs[msgs.length - 1].id : null;
+      setCurrentTask({ ...task, anchorMessageId });
       callbacks.onTaskCreated?.(task);
     },
     onClarificationRequested: (task, questions, summary) => {

@@ -11,6 +11,11 @@
   - `target`: `"character-card"`
   - `operation`: 任务中指定的操作
   - `entityId`: 任务中的实体 ID
+- **create 且需要补状态字段时**：也应调用 `preview_card`
+  - `target`: `"character-card"`
+  - `operation`: `"create"`
+  - `entityId`: 所属世界 ID
+  - 用返回的 `existingCharacterStateFields` / `existingPersonaStateFields` 判断哪些字段已存在，避免重复创建
 
 生成提案时必须以现有数据为基础，不得遗漏或重复现有内容。
 
@@ -88,6 +93,11 @@
 ### `stateFieldOps`
 
 只允许 `target: "character"` 或 `target: "persona"`，每项 `op` 支持 `create` / `update` / `delete`。
+
+**op 选择规则**：
+- `preview_card` 返回中已有同一字段（有 `id`，且 `field_key` 或 `label` 对得上）→ 用 `update`，不要再 `create`
+- 只有字段不存在时才允许 `create`
+- `update` / `delete` 的 `id` 必须来自 `preview_card` 返回数据，不得自行发明
 
 创建格式：
 

@@ -25,24 +25,44 @@ function processSseBlock(block, callbacks) {
       callbacks.onThinking?.(evt.taskId);
     } else if (evt.type === 'tool_call') {
       callbacks.onToolCall?.(evt.name);
+    } else if (evt.type === 'task_created') {
+      callbacks.onTaskCreated?.(evt.task);
+    } else if (evt.type === 'clarification_requested') {
+      callbacks.onClarificationRequested?.(evt.task, evt.questions, evt.summary);
+    } else if (evt.type === 'clarification_answered') {
+      callbacks.onClarificationAnswered?.(evt.task, evt.answer);
+    } else if (evt.type === 'plan_ready') {
+      callbacks.onPlanReady?.(evt.task, evt.plan, evt.riskFlags);
+    } else if (evt.type === 'plan_approved') {
+      callbacks.onPlanApproved?.(evt.task);
+    } else if (evt.type === 'step_started') {
+      callbacks.onStepStarted?.(evt.taskId, evt.stepId, evt.step);
+    } else if (evt.type === 'step_proposal_ready') {
+      callbacks.onStepProposalReady?.(evt.taskId, evt.stepId, evt.proposal, evt.proposalSummary, evt.step);
+    } else if (evt.type === 'step_approval_requested') {
+      callbacks.onStepApprovalRequested?.(evt.taskId, evt.stepId, evt.step);
+    } else if (evt.type === 'step_approved') {
+      callbacks.onStepApproved?.(evt.task);
+    } else if (evt.type === 'step_completed') {
+      callbacks.onStepCompleted?.(evt.taskId, evt.stepId, evt.result, evt.step);
+    } else if (evt.type === 'step_failed') {
+      callbacks.onStepFailed?.(evt.taskId, evt.stepId, evt.error, evt.step);
+    } else if (evt.type === 'task_completed') {
+      callbacks.onTaskCompleted?.(evt.taskId);
+    } else if (evt.type === 'task_failed') {
+      callbacks.onTaskFailed?.(evt.taskId, evt.error, evt.task);
     }
   } catch {
     // ignore malformed events
   }
 }
 
-/**
- * 发起助手对话（SSE 流式）
- * @param {object} payload  { message, history, context }
- * @param {object} callbacks { onDelta, onRouting, onProposal, onDone, onError, onStreamEnd }
- * @returns {Function} abort 函数
- */
-export function chatAssistant(payload, callbacks) {
+function streamAssistantRequest(url, payload, callbacks) {
   const controller = new AbortController();
 
   (async () => {
     try {
-      const res = await fetch(`${BASE}/chat`, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -87,6 +107,56 @@ export function chatAssistant(payload, callbacks) {
 }
 
 /**
+ * 发起助手对话（SSE 流式）
+ * @param {object} payload  { message, history, context }
+ * @param {object} callbacks { onDelta, onRouting, onProposal, onDone, onError, onStreamEnd }
+ * @returns {Function} abort 函数
+ */
+export function chatAssistant(payload, callbacks) {
+  return streamAssistantRequest(`${BASE}/chat`, payload, callbacks);
+}
+
+export function startAssistantTask(payload, callbacks) {
+  return streamAssistantRequest(`${BASE}/tasks`, payload, callbacks);
+}
+
+export function answerAssistantTask(taskId, answer, callbacks) {
+  return streamAssistantRequest(`${BASE}/tasks/${taskId}/answer`, { answer }, callbacks);
+}
+
+export function approveAssistantTaskPlan(taskId, callbacks) {
+  return streamAssistantRequest(`${BASE}/tasks/${taskId}/approve-plan`, {}, callbacks);
+}
+
+export function approveAssistantTaskStep(taskId, stepId, editedProposal, callbacks) {
+  const body = { stepId };
+  if (editedProposal) body.editedProposal = editedProposal;
+  return streamAssistantRequest(`${BASE}/tasks/${taskId}/approve-step`, body, callbacks);
+}
+
+export async function getAssistantTask(taskId) {
+  const res = await fetch(`${BASE}/tasks/${taskId}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function cancelAssistantTask(taskId) {
+  const res = await fetch(`${BASE}/tasks/${taskId}/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+/**
  * 应用子代理提案（凭服务端签发的 token 执行）
  * @param {string} token              服务端签发的一次性 token
  * @param {string} [worldRefId]       依赖世界卡 create 时由前端传入的 worldId
@@ -111,4 +181,5 @@ export async function executeProposal(token, worldRefId, editedProposal) {
 
 export const __testables = {
   processSseBlock,
+  streamAssistantRequest,
 };

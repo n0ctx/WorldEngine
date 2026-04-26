@@ -202,6 +202,23 @@ function previewValue(value) {
   return String(value);
 }
 
+async function runApplyRefreshEffects(proposal) {
+  const refreshEventByType = {
+    'world-card': 'we:world-updated',
+    'character-card': 'we:character-updated',
+    'persona-card': 'we:persona-updated',
+    'global-config': 'we:global-config-updated',
+  };
+  const eventName = refreshEventByType[proposal?.type];
+  if (eventName) window.dispatchEvent(new CustomEvent(eventName));
+  if (proposal?.type === 'css-snippet') {
+    await refreshCustomCss();
+  } else if (proposal?.type === 'regex-rule') {
+    invalidateCache();
+    await loadRules();
+  }
+}
+
 function ChangeField({ fieldKey, value, onChange }) {
   const isTextarea = TEXTAREA_KEYS.has(fieldKey);
   const isNumber = typeof value === 'number';
@@ -586,7 +603,15 @@ function formatExpiresIn(ms) {
   return `${seconds}秒后过期`;
 }
 
-export default function ChangeProposalCard({ messageId, taskId, token, proposal, applied }) {
+export default function ChangeProposalCard({
+  messageId,
+  taskId,
+  token,
+  proposal,
+  applied,
+  onApplyProposal = null,
+  applyLabel = null,
+}) {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -670,25 +695,15 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
       const edited = editing
         ? { changes: localChanges, entryOps: localEntryOps, stateFieldOps: localStateFieldOps }
         : undefined;
-      const res = await executeProposal(token, worldRefId || undefined, edited);
-      markApplied(messageId);
-      if (operation === 'create' && res?.result?.id && taskId) {
+      const res = onApplyProposal
+        ? await onApplyProposal({ proposal, editedProposal: edited, worldRefId: worldRefId || undefined })
+        : await executeProposal(token, worldRefId || undefined, edited);
+      if (messageId) markApplied(messageId);
+      if (!onApplyProposal && operation === 'create' && res?.result?.id && taskId) {
         setResolvedId(taskId, res.result.id);
       }
-      const REFRESH_EVENT = {
-        'world-card': 'we:world-updated',
-        'character-card': 'we:character-updated',
-        'persona-card': 'we:persona-updated',
-        'global-config': 'we:global-config-updated',
-      };
-      const evtName = REFRESH_EVENT[proposal.type];
-      if (evtName) window.dispatchEvent(new CustomEvent(evtName));
-      if (proposal.type === 'css-snippet') {
-        await refreshCustomCss();
-      } else if (proposal.type === 'regex-rule') {
-        invalidateCache();
-        await loadRules();
-      }
+      await runApplyRefreshEffects(proposal);
+      setEditing(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -882,7 +897,7 @@ export default function ChangeProposalCard({ messageId, taskId, token, proposal,
               transition: 'opacity 0.15s',
             }}
           >
-            {applying ? '执行中...' : waitingForWorld ? '等待世界卡' : operation === 'create' ? '创建' : operation === 'delete' ? '确认删除' : '应用'}
+            {applying ? '执行中...' : waitingForWorld ? '等待世界卡' : applyLabel || (operation === 'create' ? '创建' : operation === 'delete' ? '确认删除' : '应用')}
           </button>
           {error && <span style={{ fontSize: '11px', color: '#c0392b' }}>{error}</span>}
         </div>

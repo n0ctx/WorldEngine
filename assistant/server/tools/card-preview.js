@@ -96,11 +96,21 @@ function loadEntityData(target, operation, entityId, context) {
     if (target === 'character-card' || target === 'persona-card') {
       const worldId = entityId || context?.worldId;
       const world = worldId ? getWorldById(worldId) : null;
+      const personaSfMeta = worldId
+        ? maybeTruncate(getPersonaStateFieldsByWorldId(worldId), MAX_PREVIEW_FIELDS, '玩家状态字段')
+        : { data: [], truncated: false, total: 0 };
+      const charSfMeta = worldId
+        ? maybeTruncate(listCharacterStateFields(worldId), MAX_PREVIEW_FIELDS, '角色状态字段')
+        : { data: [], truncated: false, total: 0 };
       return {
         _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
         existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
+        existingPersonaStateFields: personaSfMeta.data,
+        _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingCharacterStateFields: charSfMeta.data,
+        _existingCharacterStateFieldsMeta: charSfMeta.truncated ? { total: charSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
       };
     }
     return {};

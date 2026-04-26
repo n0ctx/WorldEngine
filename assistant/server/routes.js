@@ -1,8 +1,13 @@
 /**
  * 写卡助手后端路由
  *
- * POST /api/assistant/chat    — SSE 流式对话（主代理 + 执行子代理）
- * POST /api/assistant/execute — 应用提案（写入数据库）
+ * POST /api/assistant/chat                   — 兼容旧版 SSE 对话（主代理 + 执行子代理）
+ * POST /api/assistant/execute               — 应用提案（写入数据库）
+ * POST /api/assistant/tasks                 — 通用 agent 任务入口（SSE）
+ * POST /api/assistant/tasks/:taskId/answer  — 回答澄清问题（SSE）
+ * POST /api/assistant/tasks/:taskId/approve-plan — 确认计划并执行（SSE）
+ * POST /api/assistant/tasks/:taskId/approve-step — 确认高风险步骤（SSE）
+ * GET  /api/assistant/tasks/:taskId         — 获取任务快照
  */
 
 import { randomUUID } from 'node:crypto';
@@ -18,6 +23,7 @@ import { getOrCreatePersona, updatePersona } from '../../backend/services/person
 import { getConfig, updateConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
+  listWorldPromptEntries,
   updateWorldPromptEntry,
   deleteWorldPromptEntry,
 } from '../../backend/services/prompt-entries.js';
@@ -54,6 +60,9 @@ import {
 } from '../../backend/db/queries/entry-conditions.js';
 import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
+import { createTask, getTask, updateTask, appendTaskEvent } from './task-store.js';
+import { createBaseTask, planTask } from './task-planner.js';
+import { executeTaskSteps } from './task-executor.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
@@ -106,28 +115,45 @@ function sendSSE(res, data) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-// ─── POST /api/assistant/chat ─────────────────────────────────────
-
-router.post('/chat', async (req, res) => {
-  const { message, history = [], context = {} } = req.body;
-
-  if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ error: 'message 为必填项' });
-  }
-
+function openSSE(res) {
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.flushHeaders();
-  // 预置世界卡摘要：让主代理在上下文中直接看到当前世界的条目/字段概况
-  const worldId = context?.worldId ?? context?.world?.id ?? null;
+}
+
+function endSSE(res) {
+  sendSSE(res, { done: true });
+  res.end();
+}
+
+function snapshotTask(task) {
+  if (!task) return null;
+  const { events: _events, ...rest } = task;
+  return rest;
+}
+
+function buildTaskEmitter(res, taskId) {
+  return (event) => {
+    const storedEvent = {
+      ...event,
+      task: snapshotTask(event.task),
+    };
+    appendTaskEvent(taskId, storedEvent);
+    sendSSE(res, event);
+  };
+}
+
+async function enrichAssistantContext(context = {}) {
+  const next = { ...context };
+  const worldId = next?.worldId ?? next?.world?.id ?? null;
   if (worldId) {
     try {
       const entries = listWorldPromptEntries(worldId);
       const worldSf = listWorldStateFields(worldId);
       const personaSf = getPersonaStateFieldsByWorldId(worldId);
       const charSf = listCharacterStateFields(worldId);
-      context._worldSummary = {
+      next._worldSummary = {
         entryCount: entries.length,
         alwaysCount: entries.filter((e) => e.trigger_type === 'always').length,
         keywordCount: entries.filter((e) => e.trigger_type === 'keyword').length,
@@ -138,9 +164,62 @@ router.post('/chat', async (req, res) => {
         characterStateFieldCount: charSf.length,
       };
     } catch {
-      // 摘要查询失败不阻断对话
+      // 摘要查询失败不阻断流程
     }
   }
+  return next;
+}
+
+function classifyRiskFlags(steps) {
+  return steps
+    .filter((step) => step.riskLevel === 'high' || step.operation === 'delete')
+    .map((step) => `${step.targetType}:${step.operation}:${step.title}`);
+}
+
+async function streamTaskAnswer({ res, task, message, history = [], context = {} }) {
+  const worldId = context?.worldId ?? context?.world?.id ?? null;
+  const previewCardTool = createPreviewCardTool(context);
+  const agentTools = ALL_AGENTS.map((def) =>
+    createAgentTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
+  );
+  const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
+  const gen = runAgent(message, history, context, allTools, {
+    onToolCall: (name) => sendSSE(res, { type: 'tool_call', name, taskId: task.id }),
+  });
+
+  log.info(`task ANSWER  ${formatMeta({ taskId: task.id, worldId })}`);
+  for await (const chunk of gen) {
+    sendSSE(res, { delta: chunk, taskId: task.id });
+  }
+  updateTask(task.id, { status: 'completed' });
+  appendTaskEvent(task.id, { type: 'task_completed', taskId: task.id });
+  sendSSE(res, { type: 'task_completed', taskId: task.id });
+}
+
+function compileTaskGraph(steps = []) {
+  return steps.map((step) => ({
+    ...step,
+    status: 'pending',
+    approved: false,
+    proposal: null,
+    result: null,
+    error: null,
+    entityId: null,
+  }));
+}
+
+// ─── POST /api/assistant/chat ─────────────────────────────────────
+
+router.post('/chat', async (req, res) => {
+  const { message, history = [], context = {} } = req.body;
+
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'message 为必填项' });
+  }
+
+  openSSE(res);
+  const enrichedContext = await enrichAssistantContext(context);
+  const worldId = enrichedContext?.worldId ?? enrichedContext?.world?.id ?? null;
 
   log.info(`chat START  ${formatMeta({
     message: previewText(message, { limit: 160 }),
@@ -150,27 +229,306 @@ router.post('/chat', async (req, res) => {
   })}`);
 
   // 构建按请求绑定的完整工具集
-  const previewCardTool = createPreviewCardTool(context);
+  const previewCardTool = createPreviewCardTool(enrichedContext);
   const agentTools = ALL_AGENTS.map((def) =>
     createAgentTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
   );
   const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
 
   try {
-    const gen = runAgent(message, history, context, allTools, {
+    const gen = runAgent(message, history, enrichedContext, allTools, {
       onToolCall: (name) => sendSSE(res, { type: 'tool_call', name }),
     });
     for await (const chunk of gen) {
       sendSSE(res, { delta: chunk });
     }
-    sendSSE(res, { done: true });
     log.info(`chat DONE`);
   } catch (err) {
     log.error(`chat FAIL  ${formatMeta({ error: err.message, message: previewText(message, { limit: 120 }) })}`);
     sendSSE(res, { type: 'error', error: err.message });
   } finally {
-    res.end();
+    endSSE(res);
   }
+});
+
+router.post('/tasks', async (req, res) => {
+  const { message, history = [], context = {} } = req.body;
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'message 为必填项' });
+  }
+
+  openSSE(res);
+  const enrichedContext = await enrichAssistantContext(context);
+  const task = createTask({
+    ...createBaseTask({ message, context: enrichedContext }),
+    context: {
+      worldId: enrichedContext?.worldId ?? enrichedContext?.world?.id ?? null,
+      characterId: enrichedContext?.characterId ?? enrichedContext?.character?.id ?? null,
+      world: enrichedContext?.world ?? null,
+      character: enrichedContext?.character ?? null,
+      config: enrichedContext?.config ?? null,
+    },
+    sourceHistory: history,
+  });
+  const emit = buildTaskEmitter(res, task.id);
+  emit({ type: 'task_created', taskId: task.id, task });
+
+  try {
+    const planned = await planTask({ message, history, context: enrichedContext });
+    if (planned.kind === 'clarify') {
+      const next = updateTask(task.id, {
+        status: 'clarifying',
+        summary: planned.summary,
+        pendingQuestions: planned.clarificationQuestions,
+      });
+      emit({
+        type: 'clarification_requested',
+        taskId: task.id,
+        summary: planned.summary,
+        questions: planned.clarificationQuestions,
+        task: next,
+      });
+      return;
+    }
+
+    if (planned.kind === 'answer') {
+      updateTask(task.id, { status: 'executing', summary: planned.summary });
+      await streamTaskAnswer({ res, task, message, history, context: enrichedContext });
+      return;
+    }
+
+    const graph = compileTaskGraph(planned.steps);
+    const riskFlags = classifyRiskFlags(graph);
+    const next = updateTask(task.id, {
+      status: 'awaiting_plan_approval',
+      summary: planned.summary,
+      plan: {
+        summary: planned.summary,
+        assumptions: planned.assumptions,
+        steps: graph,
+      },
+      graph,
+      riskFlags,
+    });
+    emit({
+      type: 'plan_ready',
+      taskId: task.id,
+      plan: next.plan,
+      riskFlags,
+      task: next,
+    });
+  } catch (error) {
+    const next = updateTask(task.id, { status: 'failed', error: error.message });
+    emit({
+      type: 'task_failed',
+      taskId: task.id,
+      error: error.message,
+      task: next,
+    });
+  } finally {
+    endSSE(res);
+  }
+});
+
+router.post('/tasks/:taskId/answer', async (req, res) => {
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
+  if (task.status !== 'clarifying') return res.status(400).json({ error: '当前任务不处于待澄清状态' });
+  const { answer } = req.body;
+  if (!answer || typeof answer !== 'string' || !answer.trim()) {
+    return res.status(400).json({ error: 'answer 为必填项' });
+  }
+
+  openSSE(res);
+  const emit = buildTaskEmitter(res, task.id);
+  const clarifications = [...(task.clarifications || []), answer.trim()];
+  const mergedMessage = `${task.goal}\n\n补充信息：\n${clarifications.map((item, index) => `${index + 1}. ${item}`).join('\n')}`;
+  const nextBase = updateTask(task.id, {
+    status: 'planning',
+    clarifications,
+    pendingQuestions: [],
+  });
+  emit({
+    type: 'clarification_answered',
+    taskId: task.id,
+    answer: answer.trim(),
+    task: nextBase,
+  });
+
+  try {
+    const planned = await planTask({
+      message: mergedMessage,
+      history: task.sourceHistory || [],
+      context: task.context,
+    });
+    if (planned.kind === 'clarify') {
+      const next = updateTask(task.id, {
+        status: 'clarifying',
+        summary: planned.summary,
+        pendingQuestions: planned.clarificationQuestions,
+      });
+      emit({
+        type: 'clarification_requested',
+        taskId: task.id,
+        summary: planned.summary,
+        questions: planned.clarificationQuestions,
+        task: next,
+      });
+      return;
+    }
+
+    if (planned.kind === 'answer') {
+      updateTask(task.id, { status: 'executing', summary: planned.summary });
+      await streamTaskAnswer({ res, task, message: mergedMessage, history: task.sourceHistory || [], context: task.context });
+      return;
+    }
+
+    const graph = compileTaskGraph(planned.steps);
+    const riskFlags = classifyRiskFlags(graph);
+    const next = updateTask(task.id, {
+      status: 'awaiting_plan_approval',
+      summary: planned.summary,
+      plan: {
+        summary: planned.summary,
+        assumptions: planned.assumptions,
+        steps: graph,
+      },
+      graph,
+      riskFlags,
+    });
+    emit({
+      type: 'plan_ready',
+      taskId: task.id,
+      plan: next.plan,
+      riskFlags,
+      task: next,
+    });
+  } catch (error) {
+    const next = updateTask(task.id, { status: 'failed', error: error.message });
+    emit({
+      type: 'task_failed',
+      taskId: task.id,
+      error: error.message,
+      task: next,
+    });
+  } finally {
+    endSSE(res);
+  }
+});
+
+router.post('/tasks/:taskId/approve-plan', async (req, res) => {
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
+  if (task.status !== 'awaiting_plan_approval') return res.status(400).json({ error: '当前任务不处于待确认计划状态' });
+
+  openSSE(res);
+  const emit = buildTaskEmitter(res, task.id);
+  const next = updateTask(task.id, { status: 'executing' });
+  emit({
+    type: 'plan_approved',
+    taskId: task.id,
+    task: next,
+  });
+
+  try {
+    await executeTaskSteps({
+      task: next,
+      normalizeProposal,
+      applyProposal,
+      emit,
+    });
+  } catch (error) {
+    updateTask(task.id, { status: 'failed', error: error.message });
+    emit({
+      type: 'task_failed',
+      taskId: task.id,
+      error: error.message,
+    });
+  } finally {
+    endSSE(res);
+  }
+});
+
+router.post('/tasks/:taskId/approve-step', async (req, res) => {
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
+  const stepId = req.body?.stepId || task.awaitingStepId;
+  const editedProposal = req.body?.editedProposal;
+  if (task.status !== 'awaiting_step_approval' || !stepId) {
+    return res.status(400).json({ error: '当前任务不处于待确认步骤状态' });
+  }
+  const step = task.graph.find((item) => item.id === stepId);
+  if (!step) return res.status(404).json({ error: '步骤不存在' });
+  if (!step.proposal) {
+    return res.status(400).json({ error: '当前步骤提案尚未生成，无法审阅确认' });
+  }
+  if (editedProposal) {
+    try {
+      const base = step.proposal;
+      step.proposal = normalizeProposal({
+        ...base,
+        explanation: typeof editedProposal.explanation === 'string' ? editedProposal.explanation : base.explanation,
+        changes: editedProposal.changes ?? base.changes,
+        entryOps: Array.isArray(editedProposal.entryOps) ? editedProposal.entryOps : base.entryOps,
+        stateFieldOps: Array.isArray(editedProposal.stateFieldOps) ? editedProposal.stateFieldOps : base.stateFieldOps,
+      }, {
+        type: base.type,
+        operation: base.operation,
+        entityId: base.entityId ?? null,
+      });
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+  }
+
+  openSSE(res);
+  step.approved = true;
+  step.status = 'pending';
+  const emit = buildTaskEmitter(res, task.id);
+  const next = updateTask(task.id, {
+    status: 'executing',
+    awaitingStepId: null,
+    graph: task.graph,
+  });
+  emit({
+    type: 'step_approved',
+    taskId: task.id,
+    stepId,
+    task: next,
+  });
+
+  try {
+    await executeTaskSteps({
+      task: next,
+      normalizeProposal,
+      applyProposal,
+      emit,
+      startFromStepId: stepId,
+    });
+  } catch (error) {
+    updateTask(task.id, { status: 'failed', error: error.message });
+    emit({
+      type: 'task_failed',
+      taskId: task.id,
+      error: error.message,
+    });
+  } finally {
+    endSSE(res);
+  }
+});
+
+router.post('/tasks/:taskId/cancel', (req, res) => {
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
+  const next = updateTask(task.id, { status: 'cancelled' });
+  appendTaskEvent(task.id, { type: 'task_cancelled', taskId: task.id });
+  res.json({ ok: true, task: next });
+});
+
+router.get('/tasks/:taskId', (req, res) => {
+  const task = getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
+  res.json(task);
 });
 
 // ─── POST /api/assistant/execute ─────────────────────────────────
@@ -421,8 +779,8 @@ function applyStateFieldCreate(op, worldId) {
     }
   } catch (err) {
     if (err.message?.includes('UNIQUE constraint failed')) {
-      log.warn(`applyStateFieldCreate UNIQUE conflict: target=${op.target}, field_key=${data.field_key}, worldId=${worldId}`);
-      throw new Error(`状态字段创建失败：字段键 "${data.field_key}" 已存在，请勿重复创建`);
+      log.warn(`applyStateFieldCreate skip duplicate: target=${op.target}, field_key=${data.field_key}, worldId=${worldId}`);
+      return; // 字段已存在视为幂等成功，多步骤创建场景下不阻断后续执行
     }
     throw err;
   }

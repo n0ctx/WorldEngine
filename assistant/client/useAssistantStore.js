@@ -20,6 +20,7 @@ export const useAssistantStore = create(
       isOpen: false,
       messages: [],
       isStreaming: false,
+      currentTask: null,
       // worldRef 依赖解析表：{ [taskId]: createdEntityId }
       resolvedIds: {},
 
@@ -127,12 +128,32 @@ export const useAssistantStore = create(
 
       setStreaming: (val) => set({ isStreaming: val }),
 
-      clearMessages: () => set({ messages: [], resolvedIds: {}, isStreaming: false }),
+      setCurrentTask: (task) => set({ currentTask: task || null }),
+      patchCurrentTask: (patch) =>
+        set((s) => ({
+          currentTask: s.currentTask ? { ...s.currentTask, ...patch } : patch,
+        })),
+      updateTaskStep: (stepId, updater) =>
+        set((s) => {
+          if (!s.currentTask?.plan?.steps) return s;
+          const steps = s.currentTask.plan.steps.map((step) => (
+            step.id === stepId ? updater(step) : step
+          ));
+          return {
+            currentTask: {
+              ...s.currentTask,
+              plan: { ...s.currentTask.plan, steps },
+              graph: steps,
+            },
+          };
+        }),
+
+      clearMessages: () => set({ messages: [], resolvedIds: {}, isStreaming: false, currentTask: null }),
     }),
     {
       name: 'we-assistant-v1',
       // 只持久化消息历史，不持久化 isOpen/isStreaming
-      partialize: (s) => ({ messages: s.messages }),
+      partialize: (s) => ({ messages: s.messages, currentTask: s.currentTask }),
     },
   ),
 );

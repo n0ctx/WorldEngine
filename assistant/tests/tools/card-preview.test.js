@@ -30,16 +30,24 @@ test('createPreviewCardTool 在 create 场景返回全局/世界 prompt 上下�
   const { createPreviewCardTool } = await loadCardPreview();
   const world = insertWorld(sandbox.db, { name: '晨星海', description: '海上群岛' });
   insertWorldEntry(sandbox.db, world.id, { title: '世界背景', content: '群岛秩序' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'level', label: '等级' });
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命值' });
   const tool = createPreviewCardTool({ worldId: world.id });
 
   const worldCreate = JSON.parse(await tool.execute({ target: 'world-card', operation: 'create' }));
   const characterCreate = JSON.parse(await tool.execute({ target: 'character-card', operation: 'create' }));
+  const personaCreate = JSON.parse(await tool.execute({ target: 'persona-card', operation: 'create' }));
 
   assert.equal(worldCreate._globalSystemPrompt, '全局系统提示');
   assert.equal(characterCreate._globalSystemPrompt, '全局系统提示');
   assert.equal(characterCreate._worldName, '晨星海');
   assert.equal(characterCreate._worldDescription, '海上群岛');
   assert.equal(characterCreate.existingWorldEntries.length, 1);
+  assert.equal(characterCreate.existingCharacterStateFields.length, 1);
+  assert.equal(characterCreate.existingCharacterStateFields[0].field_key, 'level');
+  assert.equal(characterCreate.existingPersonaStateFields.length, 1);
+  assert.equal(personaCreate.existingPersonaStateFields.length, 1);
+  assert.equal(personaCreate.existingPersonaStateFields[0].field_key, 'hp');
 });
 
 test('createPreviewCardTool 会返回实体详情、现有条目与状态字段', async () => {
