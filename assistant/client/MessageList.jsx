@@ -359,7 +359,139 @@ function ErrorMessage({ msg }) {
   );
 }
 
-export default function MessageList({ messages, onUserEdit, onAssistantRegenerate, onDeleteMessage, isStreaming, activeToolCall }) {
+function TaskBadge({ children, tone = 'default' }) {
+  const colors = tone === 'danger'
+    ? { bg: 'rgba(192,57,43,0.08)', border: 'rgba(192,57,43,0.2)', color: '#c0392b' }
+    : tone === 'success'
+      ? { bg: 'rgba(90,138,90,0.1)', border: 'rgba(90,138,90,0.18)', color: '#5a8a5a' }
+      : { bg: 'rgba(0,0,0,0.04)', border: 'rgba(0,0,0,0.08)', color: 'var(--we-ink-muted, #9c8a7e)' };
+  return (
+    <span style={{
+      fontSize: '11px',
+      padding: '2px 6px',
+      borderRadius: '999px',
+      background: colors.bg,
+      border: `1px solid ${colors.border}`,
+      color: colors.color,
+    }}>
+      {children}
+    </span>
+  );
+}
+
+function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismissTask }) {
+  if (!task) return null;
+  const steps = task.plan?.steps || task.graph || [];
+  const awaitingStepId = task.awaitingStepId || steps.find((step) => step.status === 'awaiting_approval')?.id || null;
+  return (
+    <div
+      style={{
+        margin: '0 0 12px',
+        padding: '10px 12px',
+        borderRadius: '10px',
+        background: 'rgba(255,255,255,0.45)',
+        border: '1px solid rgba(0,0,0,0.08)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <strong style={{ fontSize: '13px', color: 'var(--we-ink-primary, #3d2e22)' }}>当前任务</strong>
+        <TaskBadge tone={task.status === 'failed' ? 'danger' : task.status === 'completed' ? 'success' : 'default'}>
+          {task.status}
+        </TaskBadge>
+      </div>
+      <div style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', lineHeight: '1.6' }}>
+        {task.goal}
+      </div>
+      {task.summary && (
+        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.6' }}>
+          {task.summary}
+        </div>
+      )}
+      {Array.isArray(task.pendingQuestions) && task.pendingQuestions.length > 0 && (
+        <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)' }}>
+          {task.pendingQuestions.map((item, index) => (
+            <div key={`${task.id}-q-${index}`}>{index + 1}. {item}</div>
+          ))}
+        </div>
+      )}
+      {steps.length > 0 && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {steps.map((step) => (
+            <div
+              key={step.id}
+              style={{
+                padding: '8px 9px',
+                borderRadius: '8px',
+                background: 'rgba(0,0,0,0.03)',
+                border: '1px solid rgba(0,0,0,0.05)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', flex: 1 }}>
+                  {step.title}
+                </span>
+                <TaskBadge tone={step.status === 'failed' ? 'danger' : step.status === 'completed' ? 'success' : 'default'}>
+                  {step.status}
+                </TaskBadge>
+              </div>
+              <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+                {step.targetType} · {step.operation}
+              </div>
+              {step.proposalSummary && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+                  changes: {step.proposalSummary.changeKeys?.join(', ') || '无'}
+                  {step.proposalSummary.entryCount ? ` · 条目 ${step.proposalSummary.entryCount}` : ''}
+                  {step.proposalSummary.stateFieldCount ? ` · 字段 ${step.proposalSummary.stateFieldCount}` : ''}
+                </div>
+              )}
+              {awaitingStepId === step.id && step.proposal && (
+                <div style={{ marginTop: '8px' }}>
+                  <ChangeProposalCard
+                    messageId={null}
+                    proposal={step.proposal}
+                    applied={step.status === 'completed'}
+                    onApplyProposal={({ editedProposal }) => onApproveStep?.(step.id, editedProposal)}
+                    applyLabel="确认并执行"
+                  />
+                </div>
+              )}
+              {awaitingStepId === step.id && !step.proposal && (
+                <div style={{ marginTop: '6px', display: 'flex', gap: '6px' }}>
+                  <ActionBtn onClick={() => onApproveStep?.(step.id)}>确认此步骤</ActionBtn>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+        {task.status === 'awaiting_plan_approval' && (
+          <ActionBtn onClick={onApprovePlan}>确认计划</ActionBtn>
+        )}
+        {task.status !== 'completed' && task.status !== 'cancelled' && task.status !== 'failed' && (
+          <ActionBtn onClick={onCancelTask} danger>取消任务</ActionBtn>
+        )}
+        {(task.status === 'completed' || task.status === 'cancelled' || task.status === 'failed') && (
+          <ActionBtn onClick={onDismissTask}>关闭</ActionBtn>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function MessageList({
+  messages,
+  currentTask,
+  onUserEdit,
+  onAssistantRegenerate,
+  onDeleteMessage,
+  onApprovePlan,
+  onApproveStep,
+  onCancelTask,
+  onDismissTask,
+  isStreaming,
+  activeToolCall,
+}) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -372,7 +504,7 @@ export default function MessageList({ messages, onUserEdit, onAssistantRegenerat
     prevCountRef.current = messages.length;
   }, [messages]);
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && !currentTask) {
     return (
       <div
         style={{
@@ -409,6 +541,13 @@ export default function MessageList({ messages, onUserEdit, onAssistantRegenerat
           to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+      <TaskPanel
+        task={currentTask}
+        onApprovePlan={onApprovePlan}
+        onApproveStep={onApproveStep}
+        onCancelTask={onCancelTask}
+        onDismissTask={onDismissTask}
+      />
       {messages.map((msg) => {
         if (msg.role === 'user') return (
           <UserMessage

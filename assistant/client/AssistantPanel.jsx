@@ -4,21 +4,46 @@
  * 从右侧滑入，宽 400px，不阻断背景页操作
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
-import { chatAssistant } from './api.js';
+import {
+  startAssistantTask,
+  answerAssistantTask,
+  approveAssistantTaskPlan,
+  approveAssistantTaskStep,
+  cancelAssistantTask,
+} from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
 import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
+import { refreshCustomCss } from '../../frontend/src/api/custom-css-snippets.js';
+import { invalidateCache, loadRules } from '../../frontend/src/utils/regex-runner.js';
 import { buildHistory, buildProposalSummary } from './history.js';
 
 export const __testables = {
   buildProposalSummary,
   buildHistory,
 };
+
+async function runApplyRefreshEffects(proposal) {
+  const refreshEventByType = {
+    'world-card': 'we:world-updated',
+    'character-card': 'we:character-updated',
+    'persona-card': 'we:persona-updated',
+    'global-config': 'we:global-config-updated',
+  };
+  const eventName = refreshEventByType[proposal?.type];
+  if (eventName) window.dispatchEvent(new CustomEvent(eventName));
+  if (proposal?.type === 'css-snippet') {
+    await refreshCustomCss();
+  } else if (proposal?.type === 'regex-rule') {
+    invalidateCache();
+    await loadRules();
+  }
+}
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
@@ -31,6 +56,10 @@ export default function AssistantPanel() {
   const replaceRoutingWithProposal = useAssistantStore((s) => s.replaceRoutingWithProposal);
   const setStreaming = useAssistantStore((s) => s.setStreaming);
   const clearMessages = useAssistantStore((s) => s.clearMessages);
+  const currentTask = useAssistantStore((s) => s.currentTask);
+  const setCurrentTask = useAssistantStore((s) => s.setCurrentTask);
+  const patchCurrentTask = useAssistantStore((s) => s.patchCurrentTask);
+  const updateTaskStep = useAssistantStore((s) => s.updateTaskStep);
   const editMessage = useAssistantStore((s) => s.editMessage);
   const updateRoutingThinking = useAssistantStore((s) => s.updateRoutingThinking);
   const truncateToMessage = useAssistantStore((s) => s.truncateToMessage);
@@ -45,8 +74,17 @@ export default function AssistantPanel() {
   // 标记当前轮次是否已创建流式气泡（防止重复插入）
   const bubbleCreatedRef = useRef(false);
 
-  // 核心发送逻辑（接受文本和历史，不依赖 input state）
-  const sendContent = useCallback(async (text, history) => {
+  // 页面刷新后，localStorage 中残留的活跃任务无法恢复 SSE 流，自动清除并提示
+  useEffect(() => {
+    const ACTIVE_STATUSES = new Set(['pending', 'researching', 'clarifying', 'running', 'awaiting_plan_approval', 'awaiting_step_approval']);
+    if (currentTask && ACTIVE_STATUSES.has(currentTask.status)) {
+      setCurrentTask(null);
+      addMessage({ role: 'error', content: '上次任务已中断（页面重载），请重新发起。' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const buildContext = useCallback(async () => {
     let context = { worldId: currentWorldId, characterId: currentCharacterId };
     try {
       const [world, character, config] = await Promise.all([
@@ -58,56 +96,151 @@ export default function AssistantPanel() {
     } catch {
       // 上下文拉取失败不阻断对话
     }
+    return context;
+  }, [currentWorldId, currentCharacterId]);
 
+  const bindTaskCallbacks = useCallback((callbacks = {}) => ({
+    onToolCall: (name) => {
+      setActiveToolCall(name);
+      callbacks.onToolCall?.(name);
+    },
+    onDelta: (chunk) => {
+      setActiveToolCall(null);
+      if (!bubbleCreatedRef.current) {
+        addMessage({ role: 'assistant', content: '', streaming: true });
+        bubbleCreatedRef.current = true;
+      }
+      appendToLastAssistant(chunk);
+      callbacks.onDelta?.(chunk);
+    },
+    onRouting: (evt) => {
+      setActiveToolCall(null);
+      addMessage({ role: 'routing', taskId: evt.taskId, target: evt.target, task: evt.task });
+      callbacks.onRouting?.(evt);
+    },
+    onThinking: (taskId) => {
+      updateRoutingThinking(taskId);
+      callbacks.onThinking?.(taskId);
+    },
+    onProposal: (taskId, token, proposal) => {
+      replaceRoutingWithProposal(taskId, token, proposal);
+      callbacks.onProposal?.(taskId, token, proposal);
+    },
+    onTaskCreated: (task) => {
+      setCurrentTask(task);
+      callbacks.onTaskCreated?.(task);
+    },
+    onClarificationRequested: (task, questions, summary) => {
+      setCurrentTask(task);
+      if (summary) {
+        addMessage({ role: 'assistant', content: `${summary}\n\n${questions.map((q, index) => `${index + 1}. ${q}`).join('\n')}` });
+      }
+      callbacks.onClarificationRequested?.(task, questions, summary);
+    },
+    onClarificationAnswered: (task) => {
+      setCurrentTask(task);
+      callbacks.onClarificationAnswered?.(task);
+    },
+    onPlanReady: (task) => {
+      setCurrentTask(task);
+      callbacks.onPlanReady?.(task);
+    },
+    onPlanApproved: (task) => {
+      setCurrentTask(task);
+      callbacks.onPlanApproved?.(task);
+    },
+    onStepStarted: (_taskId, stepId, step) => {
+      updateTaskStep(stepId, () => step);
+      callbacks.onStepStarted?.(_taskId, stepId, step);
+    },
+    onStepProposalReady: (_taskId, stepId, proposal, proposalSummary, step) => {
+      updateTaskStep(stepId, () => ({
+        ...(step || {}),
+        proposal,
+        proposalSummary,
+      }));
+      callbacks.onStepProposalReady?.(_taskId, stepId, proposal, proposalSummary, step);
+    },
+    onStepApprovalRequested: (_taskId, stepId, step) => {
+      patchCurrentTask({ status: 'awaiting_step_approval', awaitingStepId: stepId });
+      updateTaskStep(stepId, () => step);
+      callbacks.onStepApprovalRequested?.(_taskId, stepId, step);
+    },
+    onStepApproved: (task) => {
+      setCurrentTask(task);
+      callbacks.onStepApproved?.(task);
+    },
+    onStepCompleted: (_taskId, stepId, result, step) => {
+      updateTaskStep(stepId, () => step);
+      runApplyRefreshEffects(step?.proposal).catch(() => {});
+      callbacks.onStepCompleted?.(_taskId, stepId, result, step);
+    },
+    onStepFailed: (_taskId, stepId, error, step) => {
+      if (step) updateTaskStep(stepId, () => step);
+      patchCurrentTask({ status: 'failed', error });
+      addMessage({ role: 'error', content: error });
+      callbacks.onStepFailed?.(_taskId, stepId, error, step);
+    },
+    onTaskCompleted: () => {
+      patchCurrentTask({ status: 'completed' });
+      callbacks.onTaskCompleted?.();
+    },
+    onTaskFailed: (_taskId, error, task) => {
+      if (task) setCurrentTask(task);
+      addMessage({ role: 'error', content: error });
+      callbacks.onTaskFailed?.(_taskId, error, task);
+    },
+    onDone: () => {
+      setActiveToolCall(null);
+      finalizeLastAssistant();
+      callbacks.onDone?.();
+    },
+    onError: (err) => {
+      setActiveToolCall(null);
+      finalizeLastAssistant();
+      addMessage({ role: 'error', content: err });
+      callbacks.onError?.(err);
+    },
+    onStreamEnd: () => {
+      setActiveToolCall(null);
+      finalizeLastAssistant();
+      setStreaming(false);
+      abortRef.current = null;
+      callbacks.onStreamEnd?.();
+    },
+  }), [
+    addMessage,
+    appendToLastAssistant,
+    finalizeLastAssistant,
+    patchCurrentTask,
+    replaceRoutingWithProposal,
+    setCurrentTask,
+    setStreaming,
+    updateRoutingThinking,
+    updateTaskStep,
+  ]);
+
+  // 核心发送逻辑（接受文本和历史，不依赖 input state）
+  const sendContent = useCallback(async (text, history) => {
+    const context = await buildContext();
     setStreaming(true);
     setActiveToolCall(null);
     bubbleCreatedRef.current = false;
-
-    const abort = chatAssistant({ message: text, history, context }, {
-      onToolCall: (name) => {
-        setActiveToolCall(name);
-      },
-      onDelta: (chunk) => {
-        setActiveToolCall(null);
-        // 第一个 delta 到达时才创建气泡，确保在所有子代理调用结束后才出现
-        if (!bubbleCreatedRef.current) {
-          addMessage({ role: 'assistant', content: '', streaming: true });
-          bubbleCreatedRef.current = true;
-        }
-        appendToLastAssistant(chunk);
-      },
-      onRouting: (evt) => {
-        setActiveToolCall(null);
-        addMessage({ role: 'routing', taskId: evt.taskId, target: evt.target, task: evt.task });
-      },
-      onThinking: (taskId) => {
-        updateRoutingThinking(taskId);
-      },
-      onProposal: (taskId, token, proposal) => {
-        replaceRoutingWithProposal(taskId, token, proposal);
-      },
-      onDone: () => {
-        setActiveToolCall(null);
-        finalizeLastAssistant();
-      },
-      onError: (err) => {
-        setActiveToolCall(null);
-        finalizeLastAssistant();
-        addMessage({ role: 'error', content: err });
-      },
-      onStreamEnd: () => {
-        setActiveToolCall(null);
-        finalizeLastAssistant();
-        setStreaming(false);
-        abortRef.current = null;
-      },
-    });
+    const abort = startAssistantTask(
+      { message: text, history, context },
+      bindTaskCallbacks(),
+    );
     abortRef.current = abort;
-  }, [
-    currentWorldId, currentCharacterId,
-    addMessage, appendToLastAssistant, finalizeLastAssistant,
-    replaceRoutingWithProposal, setStreaming, updateRoutingThinking,
-  ]);
+  }, [bindTaskCallbacks, buildContext, setStreaming]);
+
+  const answerClarification = useCallback(async (text) => {
+    if (!currentTask?.id) return;
+    setStreaming(true);
+    setActiveToolCall(null);
+    bubbleCreatedRef.current = false;
+    const abort = answerAssistantTask(currentTask.id, text, bindTaskCallbacks());
+    abortRef.current = abort;
+  }, [bindTaskCallbacks, currentTask?.id, setStreaming]);
 
   const handleSend = useCallback(async () => {
     const text = input.trim();
@@ -118,11 +251,14 @@ export default function AssistantPanel() {
     // 添加用户消息
     addMessage({ role: 'user', content: text });
 
-    // 构建对话历史（proposal 摘要前置到同轮 assistant 消息，保留多轮提案上下文）
-    const history = buildHistory(messages);
+    if (currentTask?.status === 'clarifying') {
+      await answerClarification(text);
+      return;
+    }
 
+    const history = buildHistory(messages);
     await sendContent(text, history);
-  }, [input, isStreaming, messages, addMessage, sendContent]);
+  }, [input, isStreaming, messages, addMessage, sendContent, currentTask?.status, answerClarification]);
 
   // 用户消息编辑后重新生成
   const handleUserEdit = useCallback(async (msgId, newContent) => {
@@ -174,6 +310,50 @@ export default function AssistantPanel() {
   const handleDeleteMessage = useCallback((msgId) => {
     deleteMessage(msgId);
   }, [deleteMessage]);
+
+  const handleApprovePlan = useCallback(async () => {
+    if (!currentTask?.id || isStreaming) return;
+    setStreaming(true);
+    setActiveToolCall(null);
+    bubbleCreatedRef.current = false;
+    abortRef.current = approveAssistantTaskPlan(currentTask.id, bindTaskCallbacks());
+  }, [bindTaskCallbacks, currentTask?.id, isStreaming, setStreaming]);
+
+  const handleApproveStep = useCallback((stepId, editedProposal) => {
+    if (!currentTask?.id || !stepId || isStreaming) return Promise.reject(new Error('正在执行中，请稍候'));
+    return new Promise((resolve, reject) => {
+      setStreaming(true);
+      setActiveToolCall(null);
+      bubbleCreatedRef.current = false;
+      abortRef.current = approveAssistantTaskStep(currentTask.id, stepId, editedProposal, bindTaskCallbacks({
+        onStepCompleted: (_taskId, completedStepId, result, step) => {
+          if (completedStepId === stepId) resolve({ result, step });
+        },
+        onTaskFailed: (_taskId, error, task) => {
+          reject(new Error(error || task?.error || '任务执行失败'));
+        },
+        onError: (error) => {
+          reject(new Error(error || '步骤执行失败'));
+        },
+      }));
+    });
+  }, [bindTaskCallbacks, currentTask?.id, isStreaming, setStreaming]);
+
+  const handleCancelTask = useCallback(async () => {
+    if (!currentTask?.id) return;
+    abortRef.current?.();
+    try {
+      await cancelAssistantTask(currentTask.id);
+    } catch {
+      // 取消失败不阻断 UI 更新
+    }
+    patchCurrentTask({ status: 'cancelled' });
+    setStreaming(false);
+  }, [currentTask?.id, patchCurrentTask, setStreaming]);
+
+  const handleDismissTask = useCallback(() => {
+    setCurrentTask(null);
+  }, [setCurrentTask]);
 
   return (
     <>
@@ -277,9 +457,14 @@ export default function AssistantPanel() {
         {/* 消息列表 */}
         <MessageList
           messages={messages}
+          currentTask={currentTask}
           onUserEdit={handleUserEdit}
           onAssistantRegenerate={handleAssistantRegenerate}
           onDeleteMessage={handleDeleteMessage}
+          onApprovePlan={handleApprovePlan}
+          onApproveStep={handleApproveStep}
+          onCancelTask={handleCancelTask}
+          onDismissTask={handleDismissTask}
           isStreaming={isStreaming}
           activeToolCall={activeToolCall}
         />
