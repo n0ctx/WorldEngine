@@ -184,7 +184,24 @@ export default function AssistantPanel() {
       callbacks.onStepFailed?.(_taskId, stepId, error, step);
     },
     onTaskCompleted: () => {
+      const taskSnapshot = useAssistantStore.getState().currentTask;
       patchCurrentTask({ status: 'completed' });
+
+      const steps = taskSnapshot?.plan?.steps || taskSnapshot?.graph || [];
+      const doneSteps = steps.filter((s) => s.proposal);
+      if (doneSteps.length > 0) {
+        let content;
+        if (doneSteps.length === 1) {
+          content = doneSteps[0].proposal.explanation || '已完成。';
+        } else {
+          const lines = doneSteps
+            .map((s, i) => `${i + 1}. ${s.proposal.explanation || s.title}`)
+            .join('\n');
+          content = `已完成以下操作：\n\n${lines}`;
+        }
+        addMessage({ role: 'assistant', content });
+      }
+
       callbacks.onTaskCompleted?.();
     },
     onTaskFailed: (_taskId, error, task) => {
