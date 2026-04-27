@@ -1418,6 +1418,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--we-color-paper-overlay);
+  backdrop-filter: blur(2px);
 }
 
 .we-state-change-chip {
@@ -1660,6 +1661,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--we-color-paper-overlay);
+  backdrop-filter: blur(2px);
 }
 .we-cast-state-overlay-text {
   font-family: var(--we-font-display);

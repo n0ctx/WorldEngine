@@ -496,48 +496,40 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
 
       {/* 悬浮状态卡 */}
       <AnimatePresence>
-        {isUpdating && (
+        {(isUpdating || stateJustChanged) && (
           <MotionDiv
-            key="cast-state-overlay-updating"
+            key="cast-state-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: 'easeInOut' }}
             className="we-cast-state-overlay"
           >
-            <MotionDiv
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
-            >
-              <span className="we-cast-state-overlay-text">
-                整理中
-              </span>
-            </MotionDiv>
-          </MotionDiv>
-        )}
-        {!isUpdating && stateJustChanged && (
-          <MotionDiv
-            key="cast-state-overlay-done"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="we-cast-state-overlay"
-          >
-            <MotionDiv
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
-            >
-              <span className="we-cast-state-overlay-text">
-                已整理
-              </span>
-            </MotionDiv>
+            <AnimatePresence mode="wait">
+              {isUpdating ? (
+                <MotionDiv
+                  key="updating"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
+                >
+                  <span className="we-cast-state-overlay-text">整理中</span>
+                </MotionDiv>
+              ) : (
+                <MotionDiv
+                  key="done"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
+                >
+                  <span className="we-cast-state-overlay-text">已整理</span>
+                </MotionDiv>
+              )}
+            </AnimatePresence>
           </MotionDiv>
         )}
       </AnimatePresence>

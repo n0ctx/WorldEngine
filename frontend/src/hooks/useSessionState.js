@@ -86,11 +86,16 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     stateTickRef.current = stateTick;
     diaryTickRef.current = diaryTick;
 
+    // diary-only 更新（stateTick 未变）静默刷新，不显示"整理中"overlay
+    const showOverlay = shouldRefreshState;
     let cancelled = false;
 
-    (async () => {
+    if (showOverlay) {
       updatingStartRef.current = Date.now();
       setIsUpdating(true);
+    }
+
+    (async () => {
       try {
         const [nextState, nextDiary] = await Promise.all([
           shouldRefreshState ? fetchSessionStateValues(sessionId) : Promise.resolve(stateDataRef.current),
@@ -98,21 +103,25 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
         ]);
         if (cancelled) return;
 
-        const elapsed = Date.now() - (updatingStartRef.current ?? 0);
-        const remaining = Math.max(0, 1500 - elapsed);
-        await new Promise((resolve) => setTimeout(resolve, remaining));
-        if (cancelled) return;
+        if (showOverlay) {
+          const elapsed = Date.now() - (updatingStartRef.current ?? 0);
+          const remaining = Math.max(0, 1500 - elapsed);
+          await new Promise((resolve) => setTimeout(resolve, remaining));
+          if (cancelled) return;
+        }
 
         if (shouldRefreshState) setStateData(nextState ?? EMPTY_STATE);
         if (shouldRefreshDiary) setDiaryEntries(nextDiary ?? []);
 
-        setIsUpdating(false);
-        clearTimeout(changedTimerRef.current);
-        setStateJustChanged(true);
-        changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1500);
+        if (showOverlay) {
+          setIsUpdating(false);
+          clearTimeout(changedTimerRef.current);
+          setStateJustChanged(true);
+          changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1500);
+        }
       } catch {
         if (cancelled) return;
-        setIsUpdating(false);
+        if (showOverlay) setIsUpdating(false);
         if (shouldRefreshState) setStateData((prev) => prev ?? EMPTY_STATE);
         if (shouldRefreshDiary) setDiaryEntries((prev) => prev ?? []);
       }
@@ -120,7 +129,7 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
 
     return () => {
       cancelled = true;
-      setIsUpdating(false);
+      if (showOverlay) setIsUpdating(false);
     };
   }, [sessionId, stateTick, diaryTick]);
 

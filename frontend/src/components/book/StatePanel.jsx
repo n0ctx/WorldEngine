@@ -316,48 +316,40 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
       {/* ── 悬浮状态卡 ── */}
       <AnimatePresence>
-        {isUpdating && (
+        {(isUpdating || stateJustChanged) && (
           <MotionDiv
-            key="state-overlay-updating"
+            key="state-overlay"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: 'easeInOut' }}
             className="we-state-change-overlay"
           >
-            <MotionDiv
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="we-state-change-chip"
-            >
-              <span className="we-state-change-text">
-                整理中
-              </span>
-            </MotionDiv>
-          </MotionDiv>
-        )}
-        {!isUpdating && stateJustChanged && (
-          <MotionDiv
-            key="state-overlay-done"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="we-state-change-overlay"
-          >
-            <MotionDiv
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-              className="we-state-change-chip"
-            >
-              <span className="we-state-change-text">
-                已整理
-              </span>
-            </MotionDiv>
+            <AnimatePresence mode="wait">
+              {isUpdating ? (
+                <MotionDiv
+                  key="updating"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="we-state-change-chip"
+                >
+                  <span className="we-state-change-text">整理中</span>
+                </MotionDiv>
+              ) : (
+                <MotionDiv
+                  key="done"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+                  className="we-state-change-chip"
+                >
+                  <span className="we-state-change-text">已整理</span>
+                </MotionDiv>
+              )}
+            </AnimatePresence>
           </MotionDiv>
         )}
       </AnimatePresence>
