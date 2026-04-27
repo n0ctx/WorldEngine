@@ -165,6 +165,12 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-height: 3.6em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.we-world-card:hover .we-world-card-desc {
+  opacity: 1;
 }
 
 .we-world-card-desc-empty {

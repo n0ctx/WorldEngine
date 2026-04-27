@@ -56,6 +56,7 @@ export default function ChatPage() {
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
+  const [memoryWriting, setMemoryWriting] = useState(false);
   const [recallSummary, setRecallSummary] = useState(null); // null | { recalled: number, expanded: number }
   const [messageListKey, setMessageListKey] = useState(0);
   const [continuingMessageId, setContinuingMessageId] = useState(null);
@@ -70,6 +71,12 @@ export default function ChatPage() {
 
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
+  const memoryRecallingStartRef = useRef(null);
+  const memoryExpandingStartRef = useRef(null);
+  const memoryWritingStartRef = useRef(null);
+  const memoryRecallingTimerRef = useRef(null);
+  const memoryExpandingTimerRef = useRef(null);
+  const memoryWritingTimerRef = useRef(null);
   const streamingTextRef = useRef('');
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
@@ -120,6 +127,39 @@ export default function ChatPage() {
 
   const isCurrentStreamRun = useCallback((runId) => streamRunIdRef.current === runId, []);
 
+  const startMemoryRecalling = useCallback(() => {
+    clearTimeout(memoryRecallingTimerRef.current);
+    memoryRecallingStartRef.current = Date.now();
+    setMemoryRecalling(true);
+  }, []);
+  const stopMemoryRecalling = useCallback(() => {
+    const elapsed = Date.now() - (memoryRecallingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryRecallingTimerRef.current = setTimeout(() => setMemoryRecalling(false), delay);
+  }, []);
+
+  const startMemoryExpanding = useCallback(() => {
+    clearTimeout(memoryExpandingTimerRef.current);
+    memoryExpandingStartRef.current = Date.now();
+    setMemoryExpanding(true);
+  }, []);
+  const stopMemoryExpanding = useCallback(() => {
+    const elapsed = Date.now() - (memoryExpandingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryExpandingTimerRef.current = setTimeout(() => setMemoryExpanding(false), delay);
+  }, []);
+
+  const startMemoryWriting = useCallback(() => {
+    clearTimeout(memoryWritingTimerRef.current);
+    memoryWritingStartRef.current = Date.now();
+    setMemoryWriting(true);
+  }, []);
+  const stopMemoryWriting = useCallback(() => {
+    const elapsed = Date.now() - (memoryWritingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryWritingTimerRef.current = setTimeout(() => setMemoryWriting(false), delay);
+  }, []);
+
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
@@ -131,8 +171,12 @@ export default function ChatPage() {
     setGenerating(false);
     setStreamingText('');
     setErrorBubble(null);
+    clearTimeout(memoryRecallingTimerRef.current);
+    clearTimeout(memoryExpandingTimerRef.current);
+    clearTimeout(memoryWritingTimerRef.current);
     setMemoryRecalling(false);
     setMemoryExpanding(false);
+    setMemoryWriting(false);
     setRecallSummary(null);
     setContinuingMessageId(null);
     setContinuingText('');
@@ -285,8 +329,9 @@ export default function ChatPage() {
     tempUserIdRef.current = null;
     setGenerating(false);
     setStreamingText('');
-    setMemoryRecalling(false);
-    setMemoryExpanding(false);
+    stopMemoryRecalling();
+    stopMemoryExpanding();
+    stopMemoryWriting();
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
@@ -342,11 +387,14 @@ export default function ChatPage() {
           pendingAssistantRef.current = assistant;
         }
         setGenerating(false);
+        startMemoryWriting();
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
         streamingTextRef.current = '';
+        clearTimeout(memoryWritingTimerRef.current);
+        setMemoryWriting(false);
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(err) {
@@ -366,25 +414,26 @@ export default function ChatPage() {
       },
       onStateUpdated() {
         if (!isCurrentStreamRun(runId)) return;
+        stopMemoryWriting();
         useStore.getState().triggerMemoryRefresh();
       },
       onMemoryRecallStart() {
         if (!isCurrentStreamRun(runId)) return;
-        setMemoryRecalling(true);
+        startMemoryRecalling();
       },
       onMemoryRecallDone(evt) {
         if (!isCurrentStreamRun(runId)) return;
-        setMemoryRecalling(false);
+        stopMemoryRecalling();
         const hit = evt?.hit ?? 0;
         setRecallSummary({ recalled: hit, expanded: 0 });
       },
       onMemoryExpandStart() {
         if (!isCurrentStreamRun(runId)) return;
-        setMemoryExpanding(true);
+        startMemoryExpanding();
       },
       onMemoryExpandDone(evt) {
         if (!isCurrentStreamRun(runId)) return;
-        setMemoryExpanding(false);
+        stopMemoryExpanding();
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
@@ -715,6 +764,10 @@ export default function ChatPage() {
         onSessionSelect={handleSessionSelect}
         onSessionCreate={handleSessionCreate}
         onSessionDelete={handleSessionDelete}
+        memoryRecalling={memoryRecalling}
+        memoryExpanding={memoryExpanding}
+        memoryWriting={memoryWriting}
+        recallSummary={recallSummary}
       />
 
       {/* 右页：对话区 + 记忆面板 */}
@@ -746,9 +799,6 @@ export default function ChatPage() {
           generating={generating}
           streamingText={streamingText}
           streamingKey={streamingKey}
-          memoryRecalling={memoryRecalling}
-          memoryExpanding={memoryExpanding}
-          recallSummary={recallSummary}
           onEditMessage={handleEditMessage}
           onRegenerateMessage={handleRegenerateMessage}
           onEditAssistantMessage={handleEditAssistantMessage}

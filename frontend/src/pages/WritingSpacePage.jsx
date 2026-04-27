@@ -92,6 +92,10 @@ export default function WritingSpacePage() {
   const [error, setError] = useState(null);
   const [cardPreviewChars, setCardPreviewChars] = useState(null); // null = 弹窗关闭，[] = 打开
   const [cardAnalyzing, setCardAnalyzing] = useState(false);
+  const [memoryRecalling, setMemoryRecalling] = useState(false);
+  const [memoryExpanding, setMemoryExpanding] = useState(false);
+  const [memoryWriting, setMemoryWriting] = useState(false);
+  const [recallSummary, setRecallSummary] = useState(null);
 
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -112,6 +116,12 @@ export default function WritingSpacePage() {
   // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
   const tempUserIdRef = useRef(null);
   const makingCardRef = useRef(false);
+  const memoryRecallingStartRef = useRef(null);
+  const memoryExpandingStartRef = useRef(null);
+  const memoryWritingStartRef = useRef(null);
+  const memoryRecallingTimerRef = useRef(null);
+  const memoryExpandingTimerRef = useRef(null);
+  const memoryWritingTimerRef = useRef(null);
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
@@ -167,6 +177,46 @@ export default function WritingSpacePage() {
     setMessageListKey((k) => k + 1);
   }
 
+  function startMemoryRecalling() {
+    clearTimeout(memoryRecallingTimerRef.current);
+    memoryRecallingStartRef.current = Date.now();
+    setMemoryRecalling(true);
+  }
+  function stopMemoryRecalling() {
+    const elapsed = Date.now() - (memoryRecallingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryRecallingTimerRef.current = setTimeout(() => setMemoryRecalling(false), delay);
+  }
+  function startMemoryExpanding() {
+    clearTimeout(memoryExpandingTimerRef.current);
+    memoryExpandingStartRef.current = Date.now();
+    setMemoryExpanding(true);
+  }
+  function stopMemoryExpanding() {
+    const elapsed = Date.now() - (memoryExpandingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryExpandingTimerRef.current = setTimeout(() => setMemoryExpanding(false), delay);
+  }
+  function startMemoryWriting() {
+    clearTimeout(memoryWritingTimerRef.current);
+    memoryWritingStartRef.current = Date.now();
+    setMemoryWriting(true);
+  }
+  function stopMemoryWriting() {
+    const elapsed = Date.now() - (memoryWritingStartRef.current ?? 0);
+    const delay = Math.max(0, 1500 - elapsed);
+    memoryWritingTimerRef.current = setTimeout(() => setMemoryWriting(false), delay);
+  }
+  function clearMemoryState() {
+    clearTimeout(memoryRecallingTimerRef.current);
+    clearTimeout(memoryExpandingTimerRef.current);
+    clearTimeout(memoryWritingTimerRef.current);
+    setMemoryRecalling(false);
+    setMemoryExpanding(false);
+    setMemoryWriting(false);
+    setRecallSummary(null);
+  }
+
   async function enterSession(session) {
     clearOptionsState();
     setCurrentSession(session);
@@ -179,6 +229,7 @@ export default function WritingSpacePage() {
     setContinuingText('');
     setError(null);
     setChapterTitles({});
+    clearMemoryState();
     refreshMessages();
 
     try {
@@ -282,9 +333,12 @@ export default function WritingSpacePage() {
           pendingAssistantRef.current = assistant;
         }
         setGenerating(false);
+        startMemoryWriting();
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
+        clearTimeout(memoryWritingTimerRef.current);
+        setMemoryWriting(false);
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(msg) {
@@ -306,11 +360,32 @@ export default function WritingSpacePage() {
       },
       onStateUpdated() {
         if (!isCurrentStreamRun(runId)) return;
+        stopMemoryWriting();
         setStateTick((tick) => tick + 1);
       },
       onDiaryUpdated() {
         if (!isCurrentStreamRun(runId)) return;
         setDiaryTick((tick) => tick + 1);
+      },
+      onMemoryRecallStart() {
+        if (!isCurrentStreamRun(runId)) return;
+        startMemoryRecalling();
+      },
+      onMemoryRecallDone(evt) {
+        if (!isCurrentStreamRun(runId)) return;
+        stopMemoryRecalling();
+        const hit = evt?.hit ?? 0;
+        setRecallSummary({ recalled: hit, expanded: 0 });
+      },
+      onMemoryExpandStart() {
+        if (!isCurrentStreamRun(runId)) return;
+        startMemoryExpanding();
+      },
+      onMemoryExpandDone(evt) {
+        if (!isCurrentStreamRun(runId)) return;
+        stopMemoryExpanding();
+        const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
+        setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
       onStreamEnd() {
         if (!isCurrentStreamRun(runId)) return;
@@ -326,6 +401,7 @@ export default function WritingSpacePage() {
         tempUserIdRef.current = null;
         setGenerating(false);
         setStreamingText('');
+        stopMemoryWriting();
         stopRef.current = null;
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {
@@ -507,9 +583,12 @@ export default function WritingSpacePage() {
         if (continuationTokenRef.current !== continuationToken) return;
         if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
+        startMemoryWriting();
       },
       onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;
+        clearTimeout(memoryWritingTimerRef.current);
+        setMemoryWriting(false);
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(msg) {
@@ -524,14 +603,32 @@ export default function WritingSpacePage() {
       },
       onStateUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;
+        stopMemoryWriting();
         setStateTick((tick) => tick + 1);
       },
       onDiaryUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;
         setDiaryTick((tick) => tick + 1);
       },
+      onMemoryRecallStart() {
+        startMemoryRecalling();
+      },
+      onMemoryRecallDone(evt) {
+        stopMemoryRecalling();
+        const hit = evt?.hit ?? 0;
+        setRecallSummary({ recalled: hit, expanded: 0 });
+      },
+      onMemoryExpandStart() {
+        startMemoryExpanding();
+      },
+      onMemoryExpandDone(evt) {
+        stopMemoryExpanding();
+        const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
+        setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
+      },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
+        stopMemoryWriting();
         finishContinuation();
       },
     });
@@ -668,6 +765,10 @@ export default function WritingSpacePage() {
         onSessionSelect={enterSession}
         onSessionCreate={handleSessionCreate}
         onSessionDelete={handleSessionDelete}
+        memoryRecalling={memoryRecalling}
+        memoryExpanding={memoryExpanding}
+        memoryWriting={memoryWriting}
+        recallSummary={recallSummary}
       />
 
       <PageRight className="!p-0">

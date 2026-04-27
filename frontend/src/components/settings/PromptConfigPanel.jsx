@@ -1,4 +1,3 @@
-import Input from '../ui/Input';
 import Button from '../ui/Button';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import ModeSwitch from './ModeSwitch';
@@ -9,12 +8,10 @@ export default function PromptConfigPanel({
   settingsMode, onModeChange,
   globalSystemPrompt, setGlobalSystemPrompt,
   globalPostPrompt, setGlobalPostPrompt,
-  contextRounds, setContextRounds,
   onSave, saving, saved,
   savingWriting, savedWriting,
   writingSystemPrompt, setWritingSystemPrompt,
   writingPostPrompt, setWritingPostPrompt,
-  writingContextRounds, setWritingContextRounds,
   onSaveWriting,
 }) {
   return (
@@ -25,22 +22,6 @@ export default function PromptConfigPanel({
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
           <div className="we-settings-field-group">
-            <FormGroup label="写作上下文保留轮次" hint="null = 继承对话配置，0 = 不限制">
-              <div className="we-settings-inline-field">
-                <Input
-                  type="number"
-                  min={0}
-                  className="we-settings-number-short"
-                  value={writingContextRounds ?? ''}
-                  placeholder="继承对话"
-                  onChange={(e) => setWritingContextRounds(e.target.value === '' ? null : e.target.value)}
-                />
-                <span className="we-settings-inline-hint">
-                  留空继承对话配置，0 = 不限制
-                </span>
-              </div>
-            </FormGroup>
-
             <FormGroup label="写作系统提示词">
               <MarkdownEditor
                 value={writingSystemPrompt}
@@ -69,21 +50,6 @@ export default function PromptConfigPanel({
       ) : (
         <>
           <div className="we-settings-field-group">
-            <FormGroup label="上下文保留轮次" hint="0 = 不限制">
-              <div className="we-settings-inline-field">
-                <Input
-                  type="number"
-                  min={0}
-                  className="we-settings-number-short"
-                  value={contextRounds}
-                  onChange={(e) => setContextRounds(e.target.value)}
-                />
-                <span className="we-settings-inline-hint">
-                  保留最近 N 轮，0 = 不限制
-                </span>
-              </div>
-            </FormGroup>
-
             <FormGroup label="全局系统提示词">
               <MarkdownEditor
                 value={globalSystemPrompt}

@@ -18,9 +18,6 @@ const MessageList = forwardRef(function MessageList({
   generating,
   streamingText,
   streamingKey,
-  memoryRecalling,
-  memoryExpanding,
-  recallSummary,
   onEditMessage,
   onRegenerateMessage,
   onEditAssistantMessage,
@@ -176,10 +173,6 @@ const MessageList = forwardRef(function MessageList({
     );
   }
 
-  const recallParts = [];
-  if (recallSummary?.recalled > 0) recallParts.push(`召回 ${recallSummary.recalled} 条`);
-  if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
-  const showIndicator = memoryRecalling || memoryExpanding || recallParts.length > 0;
 
   return (
     <div className="relative flex-1 min-h-0">
@@ -281,30 +274,6 @@ const MessageList = forwardRef(function MessageList({
 
     </div>
 
-    {/* 底部悬浮提示：absolute 定位不参与 scroll 内容流，彻底消除布局抖动 */}
-    {showIndicator && (
-      <div className="pointer-events-none absolute bottom-3 left-0 right-0 z-10 flex justify-center">
-        {memoryRecalling ? (
-          <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-            <span>正在检索记忆…</span>
-          </div>
-        ) : memoryExpanding ? (
-          <div className="flex items-center gap-2 px-1 py-1 text-xs text-accent/75">
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-            <span>{recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…'}</span>
-          </div>
-        ) : (
-          <span className="px-1 py-1 text-xs text-text-secondary opacity-55">
-            {recallParts.join(' · ')}
-          </span>
-        )}
-      </div>
-    )}
     </div>
   );
 });

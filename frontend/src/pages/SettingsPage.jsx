@@ -86,6 +86,12 @@ export default function SettingsPage() {
               <FeaturesConfigPanel
                 settingsMode={settingsMode}
                 onModeChange={setSettingsMode}
+                contextRounds={promptProps.contextRounds}
+                setContextRounds={promptProps.setContextRounds}
+                onSaveContextRounds={promptProps.onSaveContextRounds}
+                writingContextRounds={promptProps.writingContextRounds}
+                setWritingContextRounds={promptProps.setWritingContextRounds}
+                onSaveWritingContextRounds={promptProps.onSaveWritingContextRounds}
                 memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
                 onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
                 writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}

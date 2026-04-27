@@ -507,7 +507,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
   const personaName = persona?.name || '用户';
 
   try {
-    const { messages: baseMessages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    const { messages: baseMessages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { skipWritingInstructions: true });
     log.info(`POST /impersonate  ${formatMeta({ session: sessionId.slice(0, 8), worldId: worldId.slice(0, 8), msgs: baseMessages.length })}`);
     logPrompt(sessionId, baseMessages);
     const prompt = [...baseMessages];

@@ -14,6 +14,7 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
   const stateTickRef = useRef(stateTick);
   const diaryTickRef = useRef(diaryTick);
   const changedTimerRef = useRef(null);
+  const updatingStartRef = useRef(null);
   const stateDataRef = useRef(stateData);
   const diaryEntriesRef = useRef(diaryEntries);
 
@@ -88,6 +89,7 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     let cancelled = false;
 
     (async () => {
+      updatingStartRef.current = Date.now();
       setIsUpdating(true);
       try {
         const [nextState, nextDiary] = await Promise.all([
@@ -96,13 +98,18 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
         ]);
         if (cancelled) return;
 
+        const elapsed = Date.now() - (updatingStartRef.current ?? 0);
+        const remaining = Math.max(0, 1500 - elapsed);
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+        if (cancelled) return;
+
         if (shouldRefreshState) setStateData(nextState ?? EMPTY_STATE);
         if (shouldRefreshDiary) setDiaryEntries(nextDiary ?? []);
 
         setIsUpdating(false);
         clearTimeout(changedTimerRef.current);
         setStateJustChanged(true);
-        changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1800);
+        changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1500);
       } catch {
         if (cancelled) return;
         setIsUpdating(false);

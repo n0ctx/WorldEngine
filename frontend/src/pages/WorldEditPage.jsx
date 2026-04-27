@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../api/worlds';
-import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 
 import StateFieldList from '../components/state/StateFieldList';
 import AvatarUpload from '../components/ui/AvatarUpload';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import SectionTabs from '../components/book/SectionTabs';
-import SealStampAnimation from '../components/book/SealStampAnimation';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import {
@@ -36,13 +34,9 @@ export default function WorldEditPage() {
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
   const isCreate = !worldId;
-  const worldImportRef = useRef(null);
 
   const [loading, setLoading] = useState(!isCreate);
   const [saving, setSaving] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [sealKey, setSealKey] = useState(0);
-  const [importing, setImporting] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [coverPath, setCoverPath] = useState(null);
   const [coverUploading, setCoverUploading] = useState(false);
@@ -143,34 +137,7 @@ export default function WorldEditPage() {
     }
   }
 
-  async function handleExport() {
-    setExporting(true);
-    try {
-      const safeName = (name || 'world').replace(/[^\w\u4e00-\u9fa5]/g, '_');
-      await downloadWorldCard(worldId, `${safeName}.weworld.json`);
-      setSealKey(k => k + 1);
-    } catch (err) {
-      pushErrorToast(`导出失败：${err.message}`);
-    } finally {
-      setExporting(false);
-    }
-  }
 
-  async function handleImportWorldFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImporting(true);
-    try {
-      const data = await readJsonFile(file);
-      await importWorld(data);
-      navigate('/worlds');
-    } catch (err) {
-      pushErrorToast(`导入失败：${err.message}`);
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
-  }
 
   async function handleCoverFileChange(e) {
     const file = e.target.files?.[0];
@@ -322,53 +289,16 @@ export default function WorldEditPage() {
         </div>
       ),
     },
-    {
-      key: 'export',
-      label: '导入导出',
-      content: (
-        <div>
-          <div className="we-edit-form-group">
-            <h3 className="we-edit-subsection-title">导出世界卡</h3>
-            <p className="we-edit-hint">将此世界导出为 .weworld.json 文件，包含所有配置和状态字段定义。</p>
-            <div className="we-edit-btn-spacer">
-              <Button variant="secondary" onClick={handleExport} disabled={exporting}>
-                {exporting ? '导出中…' : '导出 .weworld.json'}
-              </Button>
-            </div>
-          </div>
-          <div className="we-edit-state-sep" />
-          <div className="we-edit-form-group">
-            <h3 className="we-edit-subsection-title">导入世界卡</h3>
-            <p className="we-edit-hint">导入 .weworld.json 将创建一个新世界（不覆盖当前世界）。</p>
-            <div className="we-edit-btn-spacer">
-              <Button variant="secondary" onClick={() => worldImportRef.current?.click()} disabled={importing}>
-                {importing ? '导入中…' : '导入世界卡…'}
-              </Button>
-              <input
-                ref={worldImportRef}
-                type="file"
-                accept=".json,.weworld.json"
-                className="hidden"
-                onChange={handleImportWorldFile}
-              />
-            </div>
-          </div>
-        </div>
-      ),
-    },
   ];
 
   return (
-    <>
-      <EditPageShell
-        loading={loading}
-        isOverlay={isOverlay}
-        onClose={handleClose}
-        title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}
-      >
-        <SectionTabs sections={sections} defaultKey="basic" />
-      </EditPageShell>
-      <SealStampAnimation trigger={sealKey} text="成" />
-    </>
+    <EditPageShell
+      loading={loading}
+      isOverlay={isOverlay}
+      onClose={handleClose}
+      title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}
+    >
+      <SectionTabs sections={sections} defaultKey="basic" />
+    </EditPageShell>
   );
 }

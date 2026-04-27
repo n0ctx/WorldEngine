@@ -63,12 +63,12 @@ export default function StateFieldList({
   const sortableFields = fields.filter(f => f.field_key !== DIARY_TIME_FIELD_KEY);
 
   function handleReorder(newItems) {
-    setFields(diaryField ? [...newItems, diaryField] : newItems);
+    setFields(diaryField ? [diaryField, ...newItems] : newItems);
   }
 
   async function handleReorderEnd(finalItems) {
     const allIds = diaryField
-      ? [...finalItems.map(f => f.id), diaryField.id]
+      ? [diaryField.id, ...finalItems.map(f => f.id)]
       : finalItems.map(f => f.id);
     await reorderFn(worldId, allIds);
   }
@@ -93,6 +93,14 @@ export default function StateFieldList({
         <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
+          {diaryField && (
+            <FieldRow
+              field={diaryField}
+              isDiaryTime={true}
+              onEdit={() => { setEditingField(diaryField); setShowEditor(true); }}
+              onDelete={() => setDeletingId(diaryField.id)}
+            />
+          )}
           {sortableFields.length > 0 && (
             <SortableList
               items={sortableFields}
@@ -107,14 +115,6 @@ export default function StateFieldList({
                 />
               )}
               className="flex flex-col gap-2"
-            />
-          )}
-          {diaryField && (
-            <FieldRow
-              field={diaryField}
-              isDiaryTime={true}
-              onEdit={() => { setEditingField(diaryField); setShowEditor(true); }}
-              onDelete={() => setDeletingId(diaryField.id)}
             />
           )}
         </div>

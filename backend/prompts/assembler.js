@@ -304,7 +304,7 @@ export async function buildPrompt(sessionId, options = {}) {
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
-  const { onRecallEvent, diaryInjection } = options;
+  const { onRecallEvent, diaryInjection, skipWritingInstructions } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -340,8 +340,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     world: world.name,
   });
 
-  // [1] 全局 System Prompt（使用写作专属配置）
-  if (writing.global_system_prompt) {
+  // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过，避免作者模式指令干扰）
+  if (writing.global_system_prompt && !skipWritingInstructions) {
     systemParts.push(tv(writing.global_system_prompt));
   }
 
@@ -419,11 +419,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     log.debug('│  [10] diary injection applied (writing)');
   }
 
-  // [11] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词）
-  const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
-
-  if (postParts.length > 0) {
-    systemParts.push(postParts.join('\n\n'));
+  // [11] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词；impersonate 时跳过）
+  if (!skipWritingInstructions) {
+    const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+    if (postParts.length > 0) {
+      systemParts.push(postParts.join('\n\n'));
+    }
   }
 
   const messages = [];

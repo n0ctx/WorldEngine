@@ -1,4 +1,6 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
+import Input from '../ui/Input';
+import FormGroup from '../ui/FormGroup';
 import ModeSwitch from './ModeSwitch';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
 
@@ -22,6 +24,8 @@ function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
 
 export default function FeaturesConfigPanel({
   settingsMode, onModeChange,
+  contextRounds, setContextRounds, onSaveContextRounds,
+  writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
@@ -44,12 +48,46 @@ export default function FeaturesConfigPanel({
   const suggestionEnabledCurrent = isChat ? suggestionEnabled : writingSuggestionEnabled;
   const onToggleSuggestionCurrent = isChat ? onToggleSuggestion : onToggleWritingSuggestion;
 
+  const currentContextRounds = isChat ? contextRounds : (writingContextRounds ?? '');
+  const onChangeContextRounds = isChat
+    ? (e) => setContextRounds(e.target.value)
+    : (e) => setWritingContextRounds(e.target.value === '' ? null : e.target.value);
+  const onBlurContextRounds = isChat
+    ? () => onSaveContextRounds(contextRounds)
+    : () => onSaveWritingContextRounds(writingContextRounds);
+
   return (
     <div>
       <h2 className="we-settings-section-title">功能配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div className="we-settings-section-body">
+        <p className="we-settings-subsection-title">上下文</p>
+
+        <div className="we-settings-field-group">
+          <FormGroup
+            label={isChat ? '上下文保留轮次' : '写作上下文保留轮次'}
+            hint={isChat ? '0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+          >
+            <div className="we-settings-inline-field">
+              <Input
+                type="number"
+                min={0}
+                className="we-settings-number-short"
+                value={currentContextRounds}
+                placeholder={isChat ? '' : '继承对话'}
+                onChange={onChangeContextRounds}
+                onBlur={onBlurContextRounds}
+              />
+              <span className="we-settings-inline-hint">
+                {isChat ? '保留最近 N 轮，0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+              </span>
+            </div>
+          </FormGroup>
+        </div>
+
+        <hr className="we-settings-divider" />
+
         <p className="we-settings-subsection-title">记忆</p>
 
         <ToggleRow

@@ -137,7 +137,6 @@ export function useSettingsConfig() {
 
   async function handleSaveGeneral() {
     await runSave(() => patchConfig({
-      context_history_rounds: Number(contextRounds),
       global_system_prompt: globalSystemPrompt,
       global_post_prompt: globalPostPrompt,
     }));
@@ -146,12 +145,22 @@ export function useSettingsConfig() {
   async function handleSaveWritingGeneral() {
     await runSaveWriting(() => patchConfig({
       writing: {
-        context_history_rounds: writingContextRounds !== '' && writingContextRounds !== null
-          ? Number(writingContextRounds) : null,
         global_system_prompt: writingSystemPrompt,
         global_post_prompt: writingPostPrompt,
       },
     }));
+  }
+
+  async function handleSaveContextRounds(value) {
+    await patchConfig({ context_history_rounds: Number(value) });
+  }
+
+  async function handleSaveWritingContextRounds(value) {
+    await patchConfig({
+      writing: {
+        context_history_rounds: value !== '' && value !== null ? Number(value) : null,
+      },
+    });
   }
 
   async function handleProxyUrlSave(url) {
@@ -255,6 +264,7 @@ export function useSettingsConfig() {
       globalSystemPrompt, setGlobalSystemPrompt,
       globalPostPrompt, setGlobalPostPrompt,
       contextRounds, setContextRounds,
+      onSaveContextRounds: handleSaveContextRounds,
       memoryExpansionEnabled, onToggleMemoryExpansion: handleToggleMemoryExpansion,
       suggestionEnabled, onToggleSuggestion: handleToggleSuggestion,
       writingSuggestionEnabled, onToggleWritingSuggestion: handleToggleWritingSuggestion,
@@ -268,6 +278,7 @@ export function useSettingsConfig() {
       writingPostPrompt, setWritingPostPrompt,
       writingContextRounds, setWritingContextRounds,
       onSaveWriting: handleSaveWritingGeneral,
+      onSaveWritingContextRounds: handleSaveWritingContextRounds,
     },
     onImportSuccess: handleImportSuccess,
     diaryProps: {
