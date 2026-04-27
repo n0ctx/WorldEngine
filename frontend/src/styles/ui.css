@@ -743,7 +743,7 @@
 
 .we-avatar-img--rect {
   width: 240px;
-  height: 135px;
+  height: 150px;
   border-radius: var(--we-radius-sm);
 }
 
@@ -763,7 +763,7 @@
 
 .we-avatar-placeholder--rect {
   width: 240px;
-  height: 135px;
+  height: 150px;
   border-radius: var(--we-radius-sm);
   font-size: 48px;
 }

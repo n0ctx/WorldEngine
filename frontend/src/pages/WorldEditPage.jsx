@@ -184,7 +184,7 @@ export default function WorldEditPage() {
             </Button>
           </div>
           {!isCreate && (
-            <FormGroup label="封面图" hint="铺满世界卡片背景，建议比例 4:3 或横向图片">
+            <FormGroup label="封面图" hint="铺满世界卡片背景，建议比例 16:10 或横向图片">
               <AvatarUpload
                 name={name}
                 avatarUrl={getAvatarUrl(coverPath)}
