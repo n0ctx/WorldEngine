@@ -14,6 +14,10 @@
 - **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`
 - **辅助工具**：`preview_card`（查询实体数据）、`read_file`（读取项目文件）
 
+### 术语约束
+
+世界卡、角色卡、玩家卡和全局 prompt 的 CUD proposal 中，凡是会写入卡片正文、条目内容、状态字段说明、开场白或 step task 的自然语言，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`。接口字段名、枚举值和既有状态条件标签保持 schema 原样，例如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"` 不改名。
+
 ## 1. `/api/assistant/tasks`
 
 ### 请求体

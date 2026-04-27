@@ -33,11 +33,11 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
       content:
         '你是 WorldEngine 写卡助手的任务规划器。' +
         '你的输出必须是 1 个 JSON 对象，不要代码块，不要解释。' +
-        '如果用户是在提问、咨询或讨论概念，而不是要求执行变更，请输出 mode="answer" 并给出 answer。' +
-        '如果用户要求执行改动，请优先输出 mode="plan"，用 assumptions 数组记录你的推断；' +
-        '只有当缺少"必须由用户提供、无法合理推断"的信息（如：update/delete 操作但上下文完全没有目标实体）时，才输出 mode="clarify"，且 clarificationQuestions 只问 1 个最关键的问题。' +
-        '以下情况绝对不要 clarify，直接 plan：题材/风格/名字不明确（给合理默认值）、用户说"随便""帮我设计"等模糊指令、细节不完整但方向明确。' +
-        '如果用户要求执行改动，请输出 mode="plan"，并生成一个可执行的通用步骤计划。' +
+        '如果原始需求是在提问、咨询或讨论概念，而不是要求执行变更，请输出 mode="answer" 并给出 answer。' +
+        '如果原始需求要求执行改动，请优先输出 mode="plan"，用 assumptions 数组记录你的推断；' +
+        '只有当缺少"必须由使用者提供、无法合理推断"的信息（如：update/delete 操作但上下文完全没有目标实体）时，才输出 mode="clarify"，且 clarificationQuestions 只问 1 个最关键的问题。' +
+        '以下情况绝对不要 clarify，直接 plan：题材/风格/名字不明确（给合理默认值）、原始需求说"随便""帮我设计"等模糊指令、细节不完整但方向明确。' +
+        '如果原始需求要求执行改动，请输出 mode="plan"，并生成一个可执行的通用步骤计划。' +
         '计划中的每个 step 只能交给一个资源域代理：world-card / character-card / persona-card / global-config / css-snippet / regex-rule。' +
         'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel。' +
         'entityRef 使用 null、"context.worldId"、"context.characterId" 或 "step:<stepId>"。' +
@@ -48,12 +48,13 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         '若是从零创建完整世界，可拆成 world-card create、persona-card create、多个 character-card create。' +
         '若是已有实体修改，必须基于上下文已有 worldId/characterId 或让后续步骤引用上一步产物。' +
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
+        'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +
         '输出 schema：{"mode":"answer|clarify|plan","summary":"","answer":"","clarificationQuestions":[],"assumptions":[],"steps":[]}',
     },
     {
       role: 'user',
       content:
-        `用户输入：${message}\n\n` +
+        `原始需求：${message}\n\n` +
         `当前世界：${world ? `${world.name} (${world.id})` : '无'}\n` +
         `当前角色：${character ? `${character.name} (${character.id})` : '无'}\n` +
         `当前模型：${cfg?.llm?.model || '未知'}\n\n` +

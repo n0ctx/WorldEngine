@@ -40,6 +40,20 @@ test('validatePlanSteps 会拒绝缺失 world 依赖和高风险漏标记', asyn
   assert.ok(errors.some((item) => item.includes('riskLevel 必须为 high')));
 });
 
+test('buildPlannerPrompt 会要求 CUD 计划统一使用占位符术语', async () => {
+  const { __testables } = await importPlanner();
+  const messages = __testables.buildPlannerPrompt({
+    message: '创建一个世界和角色',
+    history: [],
+    context: {},
+  });
+
+  assert.match(messages[0].content, /代入者统一写 \{\{user\}\}/);
+  assert.match(messages[0].content, /角色统一写 \{\{char\}\}/);
+  assert.match(messages[0].content, /不要混写“用户”“玩家”“AI”“NPC”/);
+  assert.match(messages[1].content, /原始需求：创建一个世界和角色/);
+});
+
 test('planTask 在语义校验失败后会执行 semantic retry', async () => {
   const { planTask } = await importPlanner();
   resetMockEnv();

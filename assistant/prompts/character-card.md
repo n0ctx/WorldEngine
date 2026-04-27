@@ -24,6 +24,7 @@
 - 只输出 1 个 JSON 对象
 - 不输出代码块、说明文字、分析过程
 - 不输出 schema 之外的字段
+- 术语统一：写入 `changes.system_prompt`、`changes.post_prompt`、`changes.first_message`、`changes.description` 等卡片正文时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段值与状态字段标签按 schema 和已有数据保持不变。
 
 ---
 
@@ -41,7 +42,7 @@
 ## 你不负责什么
 
 - 世界背景与世界规则
-- 玩家卡正文
+- `{{user}}` 卡正文
 - 全局通用规范
 - CSS / 正则
 - 任何状态字段的创建、修改、删除

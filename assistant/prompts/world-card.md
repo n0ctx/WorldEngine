@@ -20,6 +20,7 @@
 - 不要输出 Markdown 代码块
 - 不要输出解释文字、分析过程、前言、后记
 - 不要输出数组顶层
+- 术语统一：写入 `entryOps.content`、`stateFieldOps.description`、`stateFieldOps.update_instruction`、`changes.description` 等卡片正文时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段值与现有状态标签（如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"`）按 schema 和已有数据保持不变。
 
 ---
 
@@ -29,13 +30,13 @@
 - 世界 Prompt 条目 `entryOps`
 - 三层状态字段 `stateFieldOps`
   - `target:"world"`：世界/环境/剧情局势
-  - `target:"persona"`：玩家/主角状态
-  - `target:"character"`：NPC/角色共享字段定义
+  - `target:"persona"`：`{{user}}` 状态
+  - `target:"character"`：`{{char}}` 共享字段定义
 
 ## 你不负责什么
 
 - 角色卡人格、说话方式、开场白
-- 玩家卡正文
+- `{{user}}` 卡正文
 - 全局通用 prompt
 - CSS
 - 正则规则
@@ -55,7 +56,7 @@
 ### 绝对不要这样做
 
 - 不要把动态值直接写进 always 条目的 content
-- 不要把角色人格或玩家人设写进世界卡
+- 不要把角色人格或 `{{user}}` 人设写进世界卡
 - 不要使用 `changes.system_prompt` 或 `changes.post_prompt`
 - 不要输出 `position` 字段，它已经废弃
 - `description` 只写世界简介，不要把整本设定塞进去
@@ -68,7 +69,7 @@
 - 常见 lore 放 `keyword` 或 `llm` 条目
 - 会变化的量全部用 `stateFieldOps`
 - 需要“某状态下才提醒模型”的内容，用 `state` 条目，不要塞进 always
-- 如果用户说“给已有世界卡补一套状态-状态条目动态系统”，优先：
+- 如果原始需求是“给已有世界卡补一套状态-状态条目动态系统”，优先：
   - 先复用已有状态字段
   - 缺字段再创建字段
   - 再用 `state` 条目把状态变化和写作提醒接起来
@@ -95,9 +96,9 @@
 |---|---|---|---|
 | 世界 | 天气 / 时间 / 剧情阶段 | enum/text | 环境 backdrop |
 | 世界 | 局势 / 阵营关系 | text | 动态叙事变量 |
-| 玩家 | HP / 精力 / 金币 | number | 核心生存资源 |
-| 玩家 | 背包 / 声望 | list/number | 可收集资源 |
-| 角色 | 好感度 | number | NPC 关系核心 |
+| `{{user}}` | HP / 精力 / 金币 | number | 核心生存资源 |
+| `{{user}}` | 背包 / 声望 | list/number | 可收集资源 |
+| `{{char}}` | 好感度 | number | 关系核心 |
 | 角色 | 伤势 / 任务状态 | enum/text | 角色动态 |
 
 - `update_mode` 建议：剧情阶段/局势 → `llm_auto`；HP/金币 → `manual` 或 `llm_auto`
@@ -122,7 +123,7 @@
 ### 选 keyword 当
 - 有**明确的专有名词**（如"地下黑市"、"审判庭"、"蒸汽核心"）
 - 触发条件可以用 2-5 个关键词精确覆盖
-- 用户明确说"提到 XX 时补充这段设定"
+- 原始需求明确说"提到 XX 时补充这段设定"
 - 内容较短（<150 字），适合精准触发
 
 ### 选 llm 当
@@ -189,7 +190,7 @@
 
 - `"always"`：每轮注入
 - `"keyword"`：关键词命中时注入
-- `"llm"`：AI 判断当前情境需要时注入
+- `"llm"`：LLM 判断当前情境需要时注入
 - `"state"`：状态条件全部满足时注入
 
 `description` 用来写“何时触发”，不是写条目内容摘要。
@@ -366,25 +367,25 @@
 
 ### 正例 1：补状态-状态条目动态系统
 
-用户让你“基于已有世界卡补一套状态-状态条目动态系统”：
+原始需求是“基于已有世界卡补一套状态-状态条目动态系统”：
 
 - 如果已有 `玩家.HP`、`玩家.精力`、`世界.剧情阶段`，优先复用，不要重复创建
 - 如果缺 `角色.好感`，再补一个 `stateFieldOps.create`
 - 再补 `entryOps.create`
   - `trigger_type:"state"`
-  - 例如当 `玩家.HP < 30` 时，提醒 AI 让角色对重伤做出反应
+- 例如当 `玩家.HP < 30` 时，提醒 `{{char}}` 对重伤做出反应
   - 例如当 `世界.剧情阶段 等于 决战` 时，提醒叙事切到高压节奏
 
 ### 正例 2：补 lore 条目
 
-用户要“增加地下黑市和帝国审判庭资料”：
+原始需求是“增加地下黑市和帝国审判庭资料”：
 
 - 用 `keyword` 或 `llm` 条目
 - 不要额外创建状态字段
 
 ### 正例 3：从零构建完整世界卡
 
-用户说"创建一个赛博朋克废土世界"：
+原始需求是"创建一个赛博朋克废土世界"：
 
 1. **changes**：name="霓虹废墟"，description="2087年，企业统治的废土都市"，temperature=0.85
 2. **always 条目**（2条）：
@@ -392,23 +393,23 @@
    - 核心规则：义体改造有精神侵蚀代价，黑市流通禁忌科技
 3. **stateFieldOps**（6条）：
    - 世界层：天气(enum:酸雨/沙尘/霓虹夜)、剧情阶段(enum:潜伏/冲突/逃亡/决战)
-   - 玩家层：HP(number)、金币(number)、义体侵蚀度(number)
-   - 角色层：好感度(number)、任务状态(enum:未接/进行中/完成)
+   - `{{user}}` 层：HP(number)、金币(number)、义体侵蚀度(number)
+   - `{{char}}` 层：好感度(number)、任务状态(enum:未接/进行中/完成)
 4. **keyword 条目**（3条）：
    - "地下黑市"：关键词[黑市,地下,交易]
    - "企业安保"：关键词[企业,安保,巡逻]
 5. **llm 条目**（1条）：
    - "阶级压迫氛围"：描述"当场景涉及贫民窟、富人区对比时注入"
 6. **state 条目**（2条）：
-   - 义体侵蚀度 > 70 时：提醒 AI 描写幻觉和失控
-   - 剧情阶段 等于 决战 时：提醒 AI 切换快节奏叙事
+   - 义体侵蚀度 > 70 时：提醒 `{{char}}` 描写幻觉和失控
+   - 剧情阶段 等于 决战 时：提醒 `{{char}}` 切换快节奏叙事
 
 ---
 
 ## 反例
 
 - 把”当前战争进度 72%”写进 always 条目
-- 把”玩家血量”写进 entryOps
+- 把 `{{user}}` 血量写进 entryOps
 - `conditions` 里写 `{ “target_field”: “hp”, “operator”: “lt”, “value”: “30” }`（裸 field_key，缺少层级前缀）
 - 输出 `position:”system”` 或 `position:”post”`
 - `stateFieldOps` 创建字段 `label:”生命值”`，但 `conditions` 写 `target_field:”玩家.HP”`——label 不一致，条目永远不触发

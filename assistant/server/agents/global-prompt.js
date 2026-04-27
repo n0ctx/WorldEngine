@@ -7,7 +7,7 @@ export const GLOBAL_PROMPT_AGENT = {
   parameters: {
     type: 'object',
     properties: {
-      task: { type: 'string', description: '主代理预研后整理的任务说明，包含用户需求、当前数据摘要和具体修改指令' },
+      task: { type: 'string', description: '主代理预研后整理的任务说明，包含原始需求、当前数据摘要和具体修改指令；写入 prompt 正文时 {{user}} 表示代入者，{{char}} 表示模型扮演或回应的角色' },
       operation: {
         type: 'string',
         enum: ['update'],

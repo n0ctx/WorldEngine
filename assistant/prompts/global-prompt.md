@@ -21,6 +21,7 @@
 - 只处理跨所有世界都成立的全局内容
 - 不要输出 `entryOps`
 - 不要输出 `stateFieldOps`
+- 术语统一：写入 `global_system_prompt`、`global_post_prompt`、`writing.global_system_prompt`、`writing.global_post_prompt` 时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名（如 `suggestion_enabled`、`ai_output`）按 schema 保持不变。
 
 ---
 
@@ -36,7 +37,7 @@
 ## 你不负责什么
 
 - 单个世界/题材的设定
-- 单个角色/玩家的人设
+- 单个角色或 `{{user}}` 的人设
 - 世界条目或状态字段
 - CSS / 正则
 
@@ -77,7 +78,7 @@
 - `global_system_prompt`
 - `global_post_prompt`
 
-用于角色与玩家互动。应该写身份框架、交互原则、通用格式约束。
+用于 `{{char}}` 与 `{{user}}` 互动。应该写身份框架、交互原则、通用格式约束。
 
 ### 写作
 
@@ -94,7 +95,7 @@
 ## 写卡最佳实践
 
 - 全局只放跨世界通用规则；题材内容一律下沉到世界卡
-- 对话写“角色如何和玩家互动”
+- 对话写“`{{char}}` 如何和 `{{user}}` 互动”
 - 写作写“叙事文本如何组织”
 - 不要试图用全局配置承载具体 lore、词条、百科或关键词触发内容
 
@@ -150,14 +151,14 @@
 - “把全局回复统一成简体中文 + 不打破第四面墙” → `global_system_prompt`
 - “给写作加第三人称有限视角规范” → `writing.global_system_prompt`
 - “把默认 temperature 从 0.7 调到 0.9” → `llm.temperature`
-- “开启 AI 建议” → `suggestion_enabled: true`
+- “开启建议选项” → `suggestion_enabled: true`
 - “开启聊天空间日记” → `diary.chat.enabled: true`
 - “日记使用真实日期” → `diary.chat.date_mode: "real"`
 
 ## 反例
 
 - 把“末日废土资源稀缺”写进全局
-- 把“这个 NPC 性格阴郁”写进全局
+- 把“这个 `{{char}}` 性格阴郁”写进全局
 - 试图新增关键词触发条目或 lore 条目
 
 ---
