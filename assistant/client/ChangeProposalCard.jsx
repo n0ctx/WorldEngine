@@ -68,6 +68,10 @@ const STATE_FIELD_TARGET_OPTIONS_BY_PROPOSAL = {
   'character-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value !== 'world'),
   'persona-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value === 'persona'),
 };
+const STATE_VALUE_TARGET_OPTIONS_BY_PROPOSAL = {
+  'character-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value === 'character'),
+  'persona-card': STATE_FIELD_TARGET_OPTIONS.filter((item) => item.value === 'persona'),
+};
 
 const STATE_FIELD_TYPE_OPTIONS = [
   { value: 'text', label: '文本' },
@@ -154,6 +158,15 @@ function normalizeStateFieldOp(op) {
     trigger_mode: op.trigger_mode || 'manual_only',
     allow_empty: Number(op.allow_empty) === 0 ? 0 : 1,
     enum_options: Array.isArray(op.enum_options) ? op.enum_options : null,
+  };
+}
+
+function normalizeStateValueOp(op, fallbackTarget = 'character') {
+  return {
+    ...op,
+    target: op.target || fallbackTarget,
+    field_key: op.field_key || '',
+    value_json: Object.hasOwn(op, 'value_json') ? op.value_json : null,
   };
 }
 
@@ -595,6 +608,78 @@ function StateFieldOpSummary({ op }) {
   );
 }
 
+function StateValueOpEditor({ op, allowedTargets, fieldCatalog, onChange, onRemove }) {
+  const targetOptions = allowedTargets.length > 0 ? allowedTargets : STATE_FIELD_TARGET_OPTIONS;
+  const currentTarget = targetOptions.some((item) => item.value === op.target) ? op.target : targetOptions[0]?.value || 'character';
+  const targetFields = fieldCatalog[currentTarget] || [];
+  const currentFieldKey = targetFields.some((field) => field.field_key === op.field_key) ? op.field_key : op.field_key || '';
+
+  return (
+    <div style={{ marginBottom: '8px', padding: '8px', background: 'rgba(0,0,0,0.04)', borderRadius: '4px', border: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <span style={{ fontSize: '10px', color: '#2e5a8a', fontWeight: 700 }}>[填写] {op.field_key || '未选择字段'}</span>
+        <button
+          onClick={onRemove}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '12px', color: 'var(--we-ink-muted)', padding: '0 2px', lineHeight: 1 }}
+          title="移除此值"
+        >
+          ×
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '90px minmax(0,1fr)', gap: '6px', marginBottom: '6px' }}>
+        <select
+          value={currentTarget}
+          onChange={(e) => {
+            const nextTarget = e.target.value;
+            const nextFields = fieldCatalog[nextTarget] || [];
+            onChange(normalizeStateValueOp({
+              ...op,
+              target: nextTarget,
+              field_key: nextFields[0]?.field_key || '',
+            }, nextTarget));
+          }}
+          style={inputBase}
+        >
+          {targetOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+        <select
+          value={currentFieldKey}
+          onChange={(e) => onChange(normalizeStateValueOp({ ...op, target: currentTarget, field_key: e.target.value }, currentTarget))}
+          style={inputBase}
+        >
+          <option value="">选择字段</option>
+          {targetFields.map((field) => (
+            <option key={field.id || field.field_key} value={field.field_key}>{field.label} ({field.field_key})</option>
+          ))}
+        </select>
+      </div>
+
+      <textarea
+        placeholder="值（JSON 字符串或 null）"
+        value={op.value_json ?? ''}
+        onChange={(e) => onChange(normalizeStateValueOp({ ...op, target: currentTarget, value_json: e.target.value === '' ? null : e.target.value }, currentTarget))}
+        rows={3}
+        style={{ ...inputBase, resize: 'vertical' }}
+      />
+    </div>
+  );
+}
+
+function StateValueOpSummary({ op }) {
+  return (
+    <div style={{ fontSize: '12px', color: 'var(--we-ink-primary)', background: 'rgba(0,0,0,0.03)', padding: '6px 8px', borderRadius: '3px', marginBottom: '4px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap' }}>
+        <strong>{op.field_key}</strong>
+        {op.target && <span style={{ fontSize: '10px', color: 'var(--we-ink-muted)' }}>{STATE_FIELD_TARGET_OPTIONS.find((item) => item.value === op.target)?.label || op.target}</span>}
+      </div>
+      <div>值：{previewValue(op.value_json)}</div>
+    </div>
+  );
+}
+
 function formatExpiresIn(ms) {
   if (ms <= 0) return '已过期';
   const minutes = Math.floor(ms / 60000);
@@ -618,6 +703,7 @@ export default function ChangeProposalCard({
   const [localChanges, setLocalChanges] = useState({});
   const [localEntryOps, setLocalEntryOps] = useState([]);
   const [localStateFieldOps, setLocalStateFieldOps] = useState([]);
+  const [localStateValueOps, setLocalStateValueOps] = useState([]);
   const [fieldCatalog, setFieldCatalog] = useState({ world: [], persona: [], character: [] });
   const [expiresIn, setExpiresIn] = useState(null);
 
@@ -633,6 +719,8 @@ export default function ChangeProposalCard({
   const operation = proposal.operation || 'update';
   const opLabel = OP_LABELS[operation] || operation;
   const isWorldCard = proposal.type === 'world-card';
+  const isCharacterCard = proposal.type === 'character-card';
+  const isPersonaCard = proposal.type === 'persona-card';
   const worldRef = proposal.worldRef;
   const worldRefId = worldRef
     ? resolvedIds[worldRef]
@@ -648,17 +736,26 @@ export default function ChangeProposalCard({
     return [];
   })();
   const baseStateFieldOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps.map(normalizeStateFieldOp) : [];
+  const baseStateValueOps = Array.isArray(proposal.stateValueOps)
+    ? proposal.stateValueOps.map((op) => normalizeStateValueOp(op, proposal.type === 'persona-card' ? 'persona' : 'character'))
+    : [];
   const effectiveChanges = editing ? localChanges : (proposal.changes || {});
   const effectiveEntryOps = editing ? localEntryOps : baseEntryOps;
   const effectiveStateFieldOps = editing ? localStateFieldOps : baseStateFieldOps;
+  const effectiveStateValueOps = editing ? localStateValueOps : baseStateValueOps;
   const changesEntries = Object.entries(effectiveChanges).filter(([, value]) => value !== null && value !== undefined);
   const hasEntryOps = effectiveEntryOps.length > 0;
-  const sourceWorldId = isWorldCard && operation !== 'create' ? (proposal.entityId || currentWorldId) : null;
+  const sourceWorldId = isWorldCard
+    ? (operation !== 'create' ? (proposal.entityId || currentWorldId) : null)
+    : isPersonaCard
+      ? (proposal.entityId || currentWorldId)
+      : (currentWorldId || (operation === 'create' ? proposal.entityId : null));
   const fieldOptions = buildFieldOptions(fieldCatalog, effectiveStateFieldOps);
   const allowedStateTargets = STATE_FIELD_TARGET_OPTIONS_BY_PROPOSAL[proposal.type] || STATE_FIELD_TARGET_OPTIONS;
+  const allowedStateValueTargets = STATE_VALUE_TARGET_OPTIONS_BY_PROPOSAL[proposal.type] || [];
 
   useEffect(() => {
-    if (!editing || !isWorldCard || !sourceWorldId) return;
+    if (!editing || !sourceWorldId || (!isWorldCard && !isCharacterCard && !isPersonaCard)) return;
     let cancelled = false;
     Promise.all([
       listWorldStateFields(sourceWorldId),
@@ -678,6 +775,7 @@ export default function ChangeProposalCard({
     setLocalChanges(deepClone(proposal.changes || {}));
     setLocalEntryOps(deepClone(baseEntryOps));
     setLocalStateFieldOps(deepClone(baseStateFieldOps));
+    setLocalStateValueOps(deepClone(baseStateValueOps));
     setEditing(true);
     setError(null);
   }
@@ -693,7 +791,7 @@ export default function ChangeProposalCard({
     setError(null);
     try {
       const edited = editing
-        ? { changes: localChanges, entryOps: localEntryOps, stateFieldOps: localStateFieldOps }
+        ? { changes: localChanges, entryOps: localEntryOps, stateFieldOps: localStateFieldOps, stateValueOps: localStateValueOps }
         : undefined;
       const res = onApplyProposal
         ? await onApplyProposal({ proposal, editedProposal: edited, worldRefId: worldRefId || undefined })
@@ -783,7 +881,7 @@ export default function ChangeProposalCard({
             padding: '7px 12px',
             color: 'var(--we-ink-secondary, #6b5a4e)',
             fontSize: '12px',
-            borderBottom: changesEntries.length > 0 || hasEntryOps || effectiveStateFieldOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none',
+            borderBottom: changesEntries.length > 0 || hasEntryOps || effectiveStateFieldOps.length > 0 || effectiveStateValueOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none',
           }}
         >
           {proposal.explanation}
@@ -791,7 +889,7 @@ export default function ChangeProposalCard({
       )}
 
       {operation !== 'delete' && changesEntries.length > 0 && (
-        <div style={{ padding: '6px 12px', borderBottom: hasEntryOps || effectiveStateFieldOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+        <div style={{ padding: '6px 12px', borderBottom: hasEntryOps || effectiveStateFieldOps.length > 0 || effectiveStateValueOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
           {editing
             ? Object.keys(localChanges).map((key) => (
                 <ChangeField
@@ -815,7 +913,7 @@ export default function ChangeProposalCard({
       )}
 
       {operation !== 'delete' && hasEntryOps && (
-        <div style={{ padding: '6px 12px', borderBottom: effectiveStateFieldOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
+        <div style={{ padding: '6px 12px', borderBottom: effectiveStateFieldOps.length > 0 || effectiveStateValueOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
           <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '4px' }}>
             Prompt 条目变更（{effectiveEntryOps.length} 项）
           </div>
@@ -844,7 +942,7 @@ export default function ChangeProposalCard({
       )}
 
       {operation !== 'delete' && effectiveStateFieldOps.length > 0 && (
-        <div style={{ padding: '6px 12px' }}>
+        <div style={{ padding: '6px 12px', borderBottom: effectiveStateValueOps.length > 0 ? '1px solid rgba(0,0,0,0.06)' : 'none' }}>
           <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '4px' }}>
             状态字段变更（{effectiveStateFieldOps.length} 项）
           </div>
@@ -859,6 +957,26 @@ export default function ChangeProposalCard({
                 />
               ))
             : effectiveStateFieldOps.map((op, index) => <StateFieldOpSummary key={index} op={op} />)}
+        </div>
+      )}
+
+      {operation !== 'delete' && effectiveStateValueOps.length > 0 && (
+        <div style={{ padding: '6px 12px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '4px' }}>
+            状态值填写（{effectiveStateValueOps.length} 项）
+          </div>
+          {editing
+            ? localStateValueOps.map((op, index) => (
+                <StateValueOpEditor
+                  key={index}
+                  op={op}
+                  allowedTargets={allowedStateValueTargets}
+                  fieldCatalog={fieldCatalog}
+                  onChange={(updated) => setLocalStateValueOps((prev) => prev.map((item, i) => (i === index ? normalizeStateValueOp(updated, updated.target) : item)))}
+                  onRemove={() => setLocalStateValueOps((prev) => prev.filter((_, i) => i !== index))}
+                />
+              ))
+            : effectiveStateValueOps.map((op, index) => <StateValueOpSummary key={index} op={op} />)}
         </div>
       )}
 

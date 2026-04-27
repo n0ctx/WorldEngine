@@ -2,7 +2,11 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../../backend/tests/helpers/test-env.js';
-import { insertWorld } from '../../backend/tests/helpers/fixtures.js';
+import {
+  insertCharacterStateField,
+  insertPersonaStateField,
+  insertWorld,
+} from '../../backend/tests/helpers/fixtures.js';
 
 const sandbox = createTestSandbox('assistant-route-suite');
 sandbox.setEnv();
@@ -173,7 +177,7 @@ test('POST /api/assistant/tasks 会返回 plan_ready 任务事件', async () => 
   const planReady = events.find((event) => event.type === 'plan_ready');
   assert.ok(taskCreated);
   assert.ok(planReady);
-  assert.equal(planReady.task.status, 'awaiting_plan_approval');
+  assert.equal(planReady.task.status, 'executing');
   assert.equal(planReady.plan.steps[0].targetType, 'world-card');
 });
 
@@ -194,6 +198,26 @@ test('POST /api/assistant/tasks/:taskId/approve-plan 会执行步骤并完成任
         task: '创建一个名为白港的世界卡',
         riskLevel: 'low',
       },
+      {
+        id: 'step-create-world-2',
+        title: '补第二张世界卡',
+        targetType: 'world-card',
+        operation: 'create',
+        entityRef: null,
+        dependsOn: [],
+        task: '再创建一张世界卡',
+        riskLevel: 'low',
+      },
+      {
+        id: 'step-create-world-3',
+        title: '补第三张世界卡',
+        targetType: 'world-card',
+        operation: 'create',
+        entityRef: null,
+        dependsOn: [],
+        task: '再创建第三张世界卡',
+        riskLevel: 'low',
+      },
     ],
   });
 
@@ -205,6 +229,7 @@ test('POST /api/assistant/tasks/:taskId/approve-plan 会执行步骤并完成任
   const startEvents = parseSsePayloads(await startRes.text());
   const taskId = startEvents.find((event) => event.type === 'task_created')?.task?.id;
   assert.ok(taskId);
+  assert.ok(startEvents.some((event) => event.type === 'plan_ready' && event.task?.status === 'awaiting_plan_approval'));
 
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     type: 'world-card',
@@ -356,6 +381,7 @@ test('POST /api/assistant/execute 在缺少必要 worldRefId 时返回 500', asy
 
 test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character-card', async () => {
   const world = insertWorld(sandbox.db, { name: '落地世界' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'mood', label: '心情', type: 'enum', enum_options: ['平静', '警觉'] });
   const { __testables } = await import('../server/routes.js');
   __testables.proposalStore.set('token-create-character-ok', {
     expiresAt: Date.now() + 60_000,
@@ -365,8 +391,9 @@ test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character
       entityId: null,
       explanation: '创建角色',
       changes: { name: '新角色', description: '一句话简介', system_prompt: '角色设定' },
-      entryOps: [],
-      stateFieldOps: [],
+      stateValueOps: [
+        { target: 'character', field_key: 'mood', value_json: '"警觉"' },
+      ],
     },
   });
 
@@ -389,10 +416,16 @@ test('POST /api/assistant/execute 使用 worldRefId 时会成功创建 character
     description: '一句话简介',
     system_prompt: '角色设定',
   });
+  const stateRow = sandbox.db.prepare('SELECT field_key, default_value_json FROM character_state_values WHERE character_id = ? AND field_key = ?').get(body.result.id, 'mood');
+  assert.deepEqual(stateRow, {
+    field_key: 'mood',
+    default_value_json: '"警觉"',
+  });
 });
 
 test('POST /api/assistant/execute 会创建包含 description 的 persona-card', async () => {
   const world = insertWorld(sandbox.db, { name: '玩家世界' });
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'gold', label: '金币', type: 'number' });
   const { __testables } = await import('../server/routes.js');
   __testables.proposalStore.set('token-create-persona', {
     expiresAt: Date.now() + 60_000,
@@ -402,7 +435,9 @@ test('POST /api/assistant/execute 会创建包含 description 的 persona-card',
       entityId: world.id,
       explanation: '创建玩家',
       changes: { name: '旅者', description: '一句话简介', system_prompt: '流亡审判官' },
-      stateFieldOps: [],
+      stateValueOps: [
+        { target: 'persona', field_key: 'gold', value_json: '120' },
+      ],
     },
   });
 
@@ -423,6 +458,39 @@ test('POST /api/assistant/execute 会创建包含 description 的 persona-card',
     description: '一句话简介',
     system_prompt: '流亡审判官',
   });
+  const stateRow = sandbox.db.prepare('SELECT field_key, default_value_json FROM persona_state_values WHERE world_id = ? AND field_key = ?').get(world.id, 'gold');
+  assert.deepEqual(stateRow, {
+    field_key: 'gold',
+    default_value_json: '120',
+  });
+});
+
+test('POST /api/assistant/execute 会拒绝写入世界中不存在的角色状态字段', async () => {
+  const world = insertWorld(sandbox.db, { name: '非法字段世界' });
+  const { __testables } = await import('../server/routes.js');
+  __testables.proposalStore.set('token-invalid-character-state', {
+    expiresAt: Date.now() + 60_000,
+    proposal: {
+      type: 'character-card',
+      operation: 'create',
+      entityId: null,
+      explanation: '创建角色并填写未知字段',
+      changes: { name: '越界角色' },
+      stateValueOps: [
+        { target: 'character', field_key: 'unknown_field', value_json: '"测试"' },
+      ],
+    },
+  });
+
+  const res = await request('/api/assistant/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'token-invalid-character-state', worldRefId: world.id }),
+  });
+
+  assert.equal(res.status, 500);
+  const body = await res.json();
+  assert.match(body.error, /状态字段不存在/);
 });
 
 test('POST /api/assistant/execute 对重复 stateField 幂等跳过而非报错（多步骤创建场景）', async () => {

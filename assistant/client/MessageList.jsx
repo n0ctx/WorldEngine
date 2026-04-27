@@ -411,12 +411,6 @@ function TaskBadge({ children, tone = 'default' }) {
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'failed']);
 
 function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismissTask }) {
-  useEffect(() => {
-    if (!task || !TERMINAL_STATUSES.has(task.status)) return;
-    const timer = setTimeout(() => onDismissTask?.(), 1500);
-    return () => clearTimeout(timer);
-  }, [task?.status, onDismissTask]);
-
   if (!task) return null;
 
   const steps = task.plan?.steps || task.graph || [];
@@ -438,13 +432,8 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
         </TaskBadge>
       </div>
       <div style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', lineHeight: '1.6' }}>
-        {task.goal}
+        {task.summary || task.goal}
       </div>
-      {task.summary && (
-        <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.6' }}>
-          {task.summary}
-        </div>
-      )}
       {Array.isArray(task.pendingQuestions) && task.pendingQuestions.length > 0 && (
         <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)' }}>
           {task.pendingQuestions.map((item, index) => (
@@ -539,6 +528,13 @@ export default function MessageList({
     prevCountRef.current = messages.length;
   }, [messages]);
 
+  // 任务终结后 1.5s 自动关闭任务卡片（包括不渲染卡片的情况）
+  useEffect(() => {
+    if (!currentTask || !TERMINAL_STATUSES.has(currentTask.status)) return;
+    const timer = setTimeout(() => onDismissTask?.(), 1500);
+    return () => clearTimeout(timer);
+  }, [currentTask?.status, currentTask?.id, onDismissTask]);
+
   if (messages.length === 0 && !currentTask) {
     return (
       <div
@@ -577,7 +573,18 @@ export default function MessageList({
         }
       `}</style>
       {(() => {
-        const taskPanel = currentTask ? (
+        const taskSteps = currentTask?.plan?.steps || currentTask?.graph || [];
+        const taskHasHighRisk = taskSteps.some((s) => s.riskLevel === 'high');
+        // 需要用户交互（审批/澄清）或步骤数 ≥3 时才渲染任务卡片；
+        // 简单任务（status='executing' 且步骤数 <3 且无高风险）静默执行不弹卡
+        const shouldShowTaskPanel = !currentTask
+          ? false
+          : currentTask.status === 'awaiting_plan_approval'
+          || currentTask.status === 'awaiting_step_approval'
+          || currentTask.status === 'clarifying'
+          || taskSteps.length > 2
+          || taskHasHighRisk;
+        const taskPanel = shouldShowTaskPanel ? (
           <TaskPanel
             key={`task-${currentTask.id}`}
             task={currentTask}

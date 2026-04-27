@@ -34,7 +34,9 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         '你是 WorldEngine 写卡助手的任务规划器。' +
         '你的输出必须是 1 个 JSON 对象，不要代码块，不要解释。' +
         '如果用户是在提问、咨询或讨论概念，而不是要求执行变更，请输出 mode="answer" 并给出 answer。' +
-        '如果用户需求存在高影响缺口，请输出 mode="clarify" 并给出 1-3 个 clarificationQuestions。' +
+        '如果用户要求执行改动，请优先输出 mode="plan"，用 assumptions 数组记录你的推断；' +
+        '只有当缺少"必须由用户提供、无法合理推断"的信息（如：update/delete 操作但上下文完全没有目标实体）时，才输出 mode="clarify"，且 clarificationQuestions 只问 1 个最关键的问题。' +
+        '以下情况绝对不要 clarify，直接 plan：题材/风格/名字不明确（给合理默认值）、用户说"随便""帮我设计"等模糊指令、细节不完整但方向明确。' +
         '如果用户要求执行改动，请输出 mode="plan"，并生成一个可执行的通用步骤计划。' +
         '计划中的每个 step 只能交给一个资源域代理：world-card / character-card / persona-card / global-config / css-snippet / regex-rule。' +
         'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel。' +

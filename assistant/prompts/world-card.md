@@ -101,7 +101,6 @@
 | 角色 | 伤势 / 任务状态 | enum/text | 角色动态 |
 
 - `update_mode` 建议：剧情阶段/局势 → `llm_auto`；HP/金币 → `manual` 或 `llm_auto`
-- `trigger_mode` 建议：动态资源 → `every_turn`；静态标签 → `manual_only`
 
 ### 4. Lore 条目（3-8 条 keyword 或 llm）
 - 重要地点、组织、势力、历史事件
@@ -221,6 +220,16 @@
 - 如果 task / preview 中已经给出已有字段，优先复用那些标签
 - 不要只写裸 `field_key`，例如不要只写 `"hp"`
 
+**状态字段与 state 条目的耦联约束（必读）**
+
+`target_field` 中的 `xxx` 部分必须与真实存在的状态字段 `label` **完全一致**，逐字符匹配，大小写敏感。系统在评估时按 `label` 查找字段——如果对应字段不存在，条件永远评估为假，state 条目永远不会触发。这与 `keyword` 条目的关键词匹配是完全相同的机制：**字段不存在 = 关键词永远不出现 = 条目永远不触发**。
+
+实践规则：
+
+1. **引用已有字段**：必须先调用 `preview_card` 确认字段的真实 `label`，然后在 `target_field` 中原样使用
+2. **同一提案中同时创建字段和 state 条目**：`stateFieldOps.create` 中的 `label` 与 `conditions[].target_field` 中 `xxx` 部分必须逐字一致；如果两处写法不同，条目创建成功但永远不触发
+3. **跨提案**：先落库字段（先 apply 包含 `stateFieldOps` 的提案），再创建引用该字段的 state 条目；或在同一提案里一并完成
+
 支持的 `operator`：
 
 - 数值：`>` `<` `=` `>=` `<=` `!=`
@@ -247,7 +256,6 @@
   "description": "当前主线推进到哪一阶段",
   "default_value": "\"序章\"",
   "update_mode": "llm_auto",
-  "trigger_mode": "every_turn",
   "update_instruction": "根据剧情推进更新阶段",
   "enum_options": ["序章", "调查", "冲突", "决战"],
   "allow_empty": 1
@@ -278,12 +286,6 @@
 
 - `"manual"`
 - `"llm_auto"`
-
-`trigger_mode` 只允许：
-
-- `"manual_only"`
-- `"every_turn"`
-- `"keyword_based"`
 
 `default_value` 写法：
 
@@ -405,10 +407,12 @@
 
 ## 反例
 
-- 把“当前战争进度 72%”写进 always 条目
-- 把“玩家血量”写进 entryOps
-- `conditions` 里写 `{ "target_field": "hp", "operator": "lt", "value": "30" }`
-- 输出 `position:"system"` 或 `position:"post"`
+- 把”当前战争进度 72%”写进 always 条目
+- 把”玩家血量”写进 entryOps
+- `conditions` 里写 `{ “target_field”: “hp”, “operator”: “lt”, “value”: “30” }`（裸 field_key，缺少层级前缀）
+- 输出 `position:”system”` 或 `position:”post”`
+- `stateFieldOps` 创建字段 `label:”生命值”`，但 `conditions` 写 `target_field:”玩家.HP”`——label 不一致，条目永远不触发
+- 创建 state 条目时引用了尚未创建的字段（应在同一提案里同时创建字段和 state 条目，或确认字段已存在）
 
 ---
 

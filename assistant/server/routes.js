@@ -64,6 +64,10 @@ import { getMessagesBySessionId, getMessageById } from '../../backend/db/queries
 import { addWritingSessionCharacter, getWritingSessionById } from '../../backend/db/queries/writing-sessions.js';
 import { deleteCharacter as dbDeleteCharacter } from '../../backend/db/queries/characters.js';
 import { upsertCharacterStateValue } from '../../backend/db/queries/character-state-values.js';
+import {
+  updateCharacterDefaultStateValueValidated,
+  updatePersonaDefaultStateValueValidated,
+} from '../../backend/services/state-values.js';
 import * as llm from '../../backend/llm/index.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
 import { createTask, getTask, updateTask, appendTaskEvent } from './task-store.js';
@@ -101,7 +105,12 @@ const PROPOSAL_ALLOWED_OPERATIONS = {
 };
 const STATE_TARGETS_BY_PROPOSAL_TYPE = {
   'world-card': new Set(['world', 'persona', 'character']),
-  'character-card': new Set(['persona', 'character']),
+  'character-card': new Set(),
+  'persona-card': new Set(),
+};
+const STATE_VALUE_TARGETS_BY_PROPOSAL_TYPE = {
+  'world-card': new Set(),
+  'character-card': new Set(['character']),
   'persona-card': new Set(['persona']),
 };
 
@@ -180,6 +189,11 @@ function classifyRiskFlags(steps) {
   return steps
     .filter((step) => step.riskLevel === 'high' || step.operation === 'delete')
     .map((step) => `${step.targetType}:${step.operation}:${step.title}`);
+}
+
+// 步骤数 < 3 且无高风险时，跳过 plan_approval 直接执行
+function isDirectExecute(graph, riskFlags) {
+  return graph.length > 0 && graph.length < 3 && riskFlags.length === 0;
 }
 
 async function streamTaskAnswer({ res, task, message, history = [], context = {} }) {
@@ -444,24 +458,34 @@ router.post('/tasks', async (req, res) => {
 
     const graph = compileTaskGraph(planned.steps);
     const riskFlags = classifyRiskFlags(graph);
-    const next = updateTask(task.id, {
-      status: 'awaiting_plan_approval',
+    const planPayload = {
       summary: planned.summary,
-      plan: {
+      assumptions: planned.assumptions,
+      steps: graph,
+    };
+
+    if (isDirectExecute(graph, riskFlags)) {
+      // 简单任务：跳过 plan_approval，直接执行；用 status='executing' 告知前端无需弹卡
+      const next = updateTask(task.id, {
+        status: 'executing',
         summary: planned.summary,
-        assumptions: planned.assumptions,
-        steps: graph,
-      },
-      graph,
-      riskFlags,
-    });
-    emit({
-      type: 'plan_ready',
-      taskId: task.id,
-      plan: next.plan,
-      riskFlags,
-      task: next,
-    });
+        plan: planPayload,
+        graph,
+        riskFlags,
+      });
+      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
+      await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
+    } else {
+      // 复杂任务（≥3步或有高风险）：等待用户确认
+      const next = updateTask(task.id, {
+        status: 'awaiting_plan_approval',
+        summary: planned.summary,
+        plan: planPayload,
+        graph,
+        riskFlags,
+      });
+      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
+    }
   } catch (error) {
     const next = updateTask(task.id, { status: 'failed', error: error.message });
     emit({
@@ -530,24 +554,32 @@ router.post('/tasks/:taskId/answer', async (req, res) => {
 
     const graph = compileTaskGraph(planned.steps);
     const riskFlags = classifyRiskFlags(graph);
-    const next = updateTask(task.id, {
-      status: 'awaiting_plan_approval',
+    const planPayload = {
       summary: planned.summary,
-      plan: {
+      assumptions: planned.assumptions,
+      steps: graph,
+    };
+
+    if (isDirectExecute(graph, riskFlags)) {
+      const next = updateTask(task.id, {
+        status: 'executing',
         summary: planned.summary,
-        assumptions: planned.assumptions,
-        steps: graph,
-      },
-      graph,
-      riskFlags,
-    });
-    emit({
-      type: 'plan_ready',
-      taskId: task.id,
-      plan: next.plan,
-      riskFlags,
-      task: next,
-    });
+        plan: planPayload,
+        graph,
+        riskFlags,
+      });
+      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
+      await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
+    } else {
+      const next = updateTask(task.id, {
+        status: 'awaiting_plan_approval',
+        summary: planned.summary,
+        plan: planPayload,
+        graph,
+        riskFlags,
+      });
+      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
+    }
   } catch (error) {
     const next = updateTask(task.id, { status: 'failed', error: error.message });
     emit({
@@ -616,6 +648,7 @@ router.post('/tasks/:taskId/approve-step', async (req, res) => {
         changes: editedProposal.changes ?? base.changes,
         entryOps: Array.isArray(editedProposal.entryOps) ? editedProposal.entryOps : base.entryOps,
         stateFieldOps: Array.isArray(editedProposal.stateFieldOps) ? editedProposal.stateFieldOps : base.stateFieldOps,
+        stateValueOps: Array.isArray(editedProposal.stateValueOps) ? editedProposal.stateValueOps : base.stateValueOps,
       }, {
         type: base.type,
         operation: base.operation,
@@ -700,6 +733,7 @@ router.post('/execute', async (req, res) => {
         changes: editedProposal.changes ?? base.changes,
         entryOps: Array.isArray(editedProposal.entryOps) ? editedProposal.entryOps : base.entryOps,
         stateFieldOps: Array.isArray(editedProposal.stateFieldOps) ? editedProposal.stateFieldOps : base.stateFieldOps,
+        stateValueOps: Array.isArray(editedProposal.stateValueOps) ? editedProposal.stateValueOps : base.stateValueOps,
       }, {
         type: base.type,
         operation: base.operation,
@@ -716,6 +750,7 @@ router.post('/execute', async (req, res) => {
       changeKeys: Object.keys(effective.changes || {}),
       entryOps: Array.isArray(effective.entryOps) ? effective.entryOps.length : undefined,
       stateFieldOps: Array.isArray(effective.stateFieldOps) ? effective.stateFieldOps.length : undefined,
+      stateValueOps: Array.isArray(effective.stateValueOps) ? effective.stateValueOps.length : undefined,
       preview: shouldLogRaw('llm_raw') ? previewJson(effective) : undefined,
     })}`);
     const result = await applyProposal(effective, worldRefId);
@@ -801,8 +836,8 @@ async function applyProposal(proposal, worldRefId = null) {
           post_prompt: safeChanges.post_prompt || '',
           first_message: safeChanges.first_message || '',
         });
-        for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-          if (op.op === 'create') applyStateFieldCreate(op, worldId);
+        for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+          applyStateValueOp(op, { characterId: newChar.id, worldId });
         }
         return newChar;
       }
@@ -816,16 +851,8 @@ async function applyProposal(proposal, worldRefId = null) {
       const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateCharacter(entityId, safeChanges);
-      const charSfOps = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [];
-      if (charSfOps.length > 0) {
-        const character = getCharacterById(entityId);
-        if (character) {
-          for (const op of charSfOps) {
-            if (op.op === 'create') applyStateFieldCreate(op, character.world_id);
-            else if (op.op === 'update' && op.id) await applyStateFieldUpdate(op);
-            else if (op.op === 'delete' && op.id) await applyStateFieldDelete(op);
-          }
-        }
+      for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+        applyStateValueOp(op, { characterId: entityId });
       }
       return updated;
     }
@@ -840,8 +867,8 @@ async function applyProposal(proposal, worldRefId = null) {
           description: safeChanges.description || '',
           system_prompt: safeChanges.system_prompt || '',
         });
-        for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-          if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
+        for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+          applyStateValueOp(op, { worldId });
         }
         return newPersona;
       }
@@ -850,10 +877,8 @@ async function applyProposal(proposal, worldRefId = null) {
       if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）');
       const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
       const updated = await updatePersona(worldId, safeChanges);
-      for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-        if (op.op === 'create') applyStateFieldCreate({ ...op, target: 'persona' }, worldId);
-        else if (op.op === 'update' && op.id) await applyStateFieldUpdate({ ...op, target: 'persona' });
-        else if (op.op === 'delete' && op.id) await applyStateFieldDelete({ ...op, target: 'persona' });
+      for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+        applyStateValueOp(op, { worldId });
       }
       return updated;
     }
@@ -931,6 +956,22 @@ function applyStateFieldCreate(op, worldId) {
   }
 }
 
+function applyStateValueOp(op, refs = {}) {
+  if (op.target === 'character') {
+    const characterId = refs.characterId;
+    if (!characterId) throw new Error('character 状态值写入缺少 characterId');
+    updateCharacterDefaultStateValueValidated(characterId, op.field_key, op.value_json);
+    return;
+  }
+  if (op.target === 'persona') {
+    const worldId = refs.worldId;
+    if (!worldId) throw new Error('persona 状态值写入缺少 worldId');
+    updatePersonaDefaultStateValueValidated(worldId, op.field_key, op.value_json);
+    return;
+  }
+  throw new Error(`不支持的状态值 target：${op.target}`);
+}
+
 async function applyStateFieldUpdate(op) {
   const data = pickAllowed(op, STATE_FIELD_KEYS);
   switch (op.target) {
@@ -984,6 +1025,7 @@ function normalizeProposal(raw, locked = {}) {
     case 'world-card':
       proposal.changes = normalizeWorldChanges(changes);
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
+      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
       proposal.entryOps = normalizeEntryOps(raw?.entryOps, {
         allowTriggerType: true,
         conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
@@ -1000,10 +1042,12 @@ function normalizeProposal(raw, locked = {}) {
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
+      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
       break;
     case 'persona-card':
       proposal.changes = normalizePersonaChanges(changes);
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
+      proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
       break;
     case 'global-config':
       proposal.changes = deepOmit(normalizeObject(changes), ['api_key', 'llm.api_key', 'embedding.api_key']);
@@ -1037,7 +1081,8 @@ function normalizeProposal(raw, locked = {}) {
     const hasChanges = Object.keys(proposal.changes || {}).length > 0;
     const hasEntryOps = Array.isArray(proposal.entryOps) && proposal.entryOps.length > 0;
     const hasStateFieldOps = Array.isArray(proposal.stateFieldOps) && proposal.stateFieldOps.length > 0;
-    if (!hasChanges && !hasEntryOps && !hasStateFieldOps) {
+    const hasStateValueOps = Array.isArray(proposal.stateValueOps) && proposal.stateValueOps.length > 0;
+    if (!hasChanges && !hasEntryOps && !hasStateFieldOps && !hasStateValueOps) {
       throw new Error('提案格式错误：提案内容为空，未包含任何变更');
     }
   }
@@ -1301,6 +1346,9 @@ function normalizeStateFieldOps(rawOps, type) {
   if (rawOps == null) return [];
   if (!Array.isArray(rawOps)) throw new Error('提案格式错误：stateFieldOps 必须是数组');
   const allowedTargets = STATE_TARGETS_BY_PROPOSAL_TYPE[type];
+  if (allowedTargets && allowedTargets.size === 0 && rawOps.length > 0) {
+    throw new Error(`提案格式错误：${type} 不支持 stateFieldOps；状态字段的创建、修改、删除只能在 world-card 中进行`);
+  }
   return rawOps.map((raw, idx) => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：stateFieldOps[${idx}] 必须是对象`);
     const op = normalizeString(raw.op);
@@ -1323,8 +1371,8 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
       if ('update_mode' in data) normalized.update_mode = VALID_UPDATE_MODES.has(data.update_mode) ? data.update_mode : undefined;
       if ('trigger_mode' in data) normalized.trigger_mode = VALID_TRIGGER_MODES.has(data.trigger_mode) ? data.trigger_mode : undefined;
-      if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
       if ('trigger_keywords' in data) normalized.trigger_keywords = normalizeStringArrayOrNull(data.trigger_keywords);
+      if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
       if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
       if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
       if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
@@ -1352,6 +1400,31 @@ function normalizeStateFieldOps(rawOps, type) {
     if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
     return normalized;
+  });
+}
+
+function normalizeStateValueOps(rawOps, type) {
+  if (rawOps == null) return [];
+  if (!Array.isArray(rawOps)) throw new Error('提案格式错误：stateValueOps 必须是数组');
+  const allowedTargets = STATE_VALUE_TARGETS_BY_PROPOSAL_TYPE[type];
+  if (allowedTargets && allowedTargets.size === 0 && rawOps.length > 0) {
+    throw new Error(`提案格式错误：${type} 不支持 stateValueOps`);
+  }
+  return rawOps.map((raw, idx) => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error(`提案格式错误：stateValueOps[${idx}] 必须是对象`);
+    const target = normalizeString(raw.target);
+    if (!target || !allowedTargets.has(target)) throw new Error(`提案格式错误：stateValueOps[${idx}].target 非法`);
+    const fieldKey = normalizeString(raw.field_key);
+    if (!fieldKey) throw new Error(`提案格式错误：stateValueOps[${idx}].field_key 缺失`);
+    if (!Object.hasOwn(raw, 'value_json')) throw new Error(`提案格式错误：stateValueOps[${idx}].value_json 缺失`);
+    if (raw.value_json !== null && typeof raw.value_json !== 'string') {
+      throw new Error(`提案格式错误：stateValueOps[${idx}].value_json 必须是 JSON 字符串或 null`);
+    }
+    return {
+      target,
+      field_key: fieldKey,
+      value_json: raw.value_json,
+    };
   });
 }
 
@@ -1410,6 +1483,7 @@ export const __testables = {
   normalizeProposal,
   normalizeEntryOps,
   normalizeStateFieldOps,
+  normalizeStateValueOps,
   normalizeRegexRuleChanges,
   pickAllowed,
   deepOmit,

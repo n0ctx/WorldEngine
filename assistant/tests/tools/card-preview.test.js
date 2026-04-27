@@ -6,8 +6,10 @@ import {
   insertCharacter,
   insertEntryCondition,
   insertCharacterStateField,
+  insertCharacterStateValue,
   insertPersona,
   insertPersonaStateField,
+  insertPersonaStateValue,
   insertWorld,
   insertWorldEntry,
   insertWorldStateField,
@@ -59,6 +61,8 @@ test('createPreviewCardTool 会返回实体详情、现有条目与状态字段'
   insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气' });
   insertCharacterStateField(sandbox.db, world.id, { field_key: 'mood', label: '心情' });
   insertPersonaStateField(sandbox.db, world.id, { field_key: 'hp', label: '体力' });
+  insertCharacterStateValue(sandbox.db, character.id, { field_key: 'mood', default_value_json: '"警觉"' });
+  insertPersonaStateValue(sandbox.db, world.id, { field_key: 'hp', default_value_json: '80' });
   insertEntryCondition(sandbox.db, worldEntry.id, { target_field: '玩家.体力', operator: '<', value: '20' });
 
   const worldTool = createPreviewCardTool({ worldId: world.id });
@@ -79,6 +83,9 @@ test('createPreviewCardTool 会返回实体详情、现有条目与状态字段'
   assert.equal(characterData.existingEntries, undefined);
   assert.equal(characterData.existingWorldEntries.length, 1);
   assert.equal(characterData.existingCharacterStateFields.length, 1);
+  assert.equal(characterData.existingCharacterStateValues.length, 1);
+  assert.equal(characterData.existingCharacterStateValues[0].field_key, 'mood');
+  assert.equal(characterData.existingCharacterStateValues[0].effective_value_json, '"警觉"');
   assert.equal(characterData._worldName, '白港');
 });
 
@@ -101,6 +108,7 @@ test('createPreviewCardTool 会返回 persona-card 与 global-prompt 的完整�
   const world = insertWorld(sandbox.db, { name: '镜城', system_prompt: '镜城设定' });
   insertPersona(sandbox.db, world.id, { name: '旅者', system_prompt: '玩家设定' });
   insertPersonaStateField(sandbox.db, world.id, { field_key: 'trust', label: '信任' });
+  insertPersonaStateValue(sandbox.db, world.id, { field_key: 'trust', default_value_json: '60' });
 
   const tool = createPreviewCardTool({ worldId: world.id });
   const personaData = JSON.parse(await tool.execute({ target: 'persona-card' }));
@@ -110,6 +118,8 @@ test('createPreviewCardTool 会返回 persona-card 与 global-prompt 的完整�
   assert.equal(personaData.system_prompt, '玩家设定');
   assert.equal(personaData.existingWorldEntries.length, 0);
   assert.equal(personaData.existingPersonaStateFields.length, 1);
+  assert.equal(personaData.existingPersonaStateValues.length, 1);
+  assert.equal(personaData.existingPersonaStateValues[0].field_key, 'trust');
   assert.equal(personaData._globalSystemPrompt, '全局系统提示');
   assert.equal(personaData._worldName, '镜城');
   assert.equal(personaData._worldDescription, '');

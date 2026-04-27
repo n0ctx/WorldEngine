@@ -114,10 +114,6 @@ function assertStateFields(fields, label) {
     assertOptionalString(field.description, `${label}[${index}].description`);
     assertJsonStringOrNull(field.default_value ?? null, `${label}[${index}].default_value`);
     assertOptionalString(field.update_mode, `${label}[${index}].update_mode`, 30);
-    assertOptionalString(field.trigger_mode, `${label}[${index}].trigger_mode`, 30);
-    if (field.trigger_keywords !== undefined && field.trigger_keywords !== null) {
-      assertArray(field.trigger_keywords, `${label}[${index}].trigger_keywords`);
-    }
     if (field.enum_options !== undefined && field.enum_options !== null) {
       assertArray(field.enum_options, `${label}[${index}].enum_options`);
     }

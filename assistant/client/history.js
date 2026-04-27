@@ -7,8 +7,10 @@ export function buildProposalSummary(proposal) {
   }
   const entryCount = Array.isArray(proposal.entryOps) ? proposal.entryOps.length : 0;
   const sfCount = Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps.length : 0;
+  const svCount = Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps.length : 0;
   if (entryCount) lines.push(`条目操作: ${entryCount}条`);
   if (sfCount) lines.push(`状态字段操作: ${sfCount}条`);
+  if (svCount) lines.push(`状态值填写: ${svCount}条`);
   return lines.join('\n');
 }
 

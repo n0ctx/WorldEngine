@@ -13,6 +13,8 @@ import { listConditionsByEntry } from '../../../backend/db/queries/entry-conditi
 import { listWorldStateFields } from '../../../backend/services/world-state-fields.js';
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../../backend/services/persona-state-fields.js';
+import { getCharacterStateValuesWithFields } from '../../../backend/db/queries/character-state-values.js';
+import { getPersonaStateValuesWithFields } from '../../../backend/db/queries/persona-state-values.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 
@@ -154,6 +156,7 @@ function loadEntityData(target, operation, entityId, context) {
         _existingWorldEntriesMeta: charEntriesMeta.truncated ? { total: charEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
         existingCharacterStateFields: charCharSfMeta.data,
         _existingCharacterStateFieldsMeta: charCharSfMeta.truncated ? { total: charCharSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingCharacterStateValues: getCharacterStateValuesWithFields(charId),
         existingPersonaStateFields: charPersonaSfMeta.data,
         _existingPersonaStateFieldsMeta: charPersonaSfMeta.truncated ? { total: charPersonaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         _globalSystemPrompt: globalSystemPrompt,
@@ -174,6 +177,7 @@ function loadEntityData(target, operation, entityId, context) {
         _existingWorldEntriesMeta: personaEntriesMeta.truncated ? { total: personaEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
         existingPersonaStateFields: personaSfMeta.data,
         _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
+        existingPersonaStateValues: getPersonaStateValuesWithFields(worldId),
         _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',

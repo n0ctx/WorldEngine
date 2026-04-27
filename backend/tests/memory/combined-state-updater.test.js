@@ -19,16 +19,18 @@ after(() => {
   sandbox.cleanup();
 });
 
-test('filterActive 仅返回符合 trigger_mode 的自动字段', async () => {
+test('filterActive 返回 update_mode=llm_auto 且 trigger_mode 匹配的字段', async () => {
   const { __testables } = await freshImport('backend/memory/combined-state-updater.js');
   const fields = [
     { field_key: 'manual', update_mode: 'manual', trigger_mode: 'every_turn' },
-    { field_key: 'blocked', update_mode: 'llm_auto', trigger_mode: 'manual_only' },
-    { field_key: 'always', update_mode: 'llm_auto', trigger_mode: 'every_turn' },
-    { field_key: 'kw', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['伤口'] },
+    { field_key: 'auto_manual_only', update_mode: 'llm_auto', trigger_mode: 'manual_only' },
+    { field_key: 'auto_every_turn', update_mode: 'llm_auto', trigger_mode: 'every_turn' },
+    { field_key: 'auto_keyword_match', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['火焰'] },
+    { field_key: 'auto_keyword_no_match', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['冰霜'] },
+    { field_key: 'auto_keyword_empty', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: [] },
   ];
-  const active = __testables.filterActive(fields, '处理伤口');
-  assert.deepEqual(active.map((item) => item.field_key), ['always', 'kw']);
+  const active = __testables.filterActive(fields, '出现了火焰');
+  assert.deepEqual(active.map((item) => item.field_key), ['auto_every_turn', 'auto_keyword_match']);
 });
 
 test('validateValue 覆盖 text/number/boolean/enum/list', async () => {

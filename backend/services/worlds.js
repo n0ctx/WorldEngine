@@ -53,7 +53,6 @@ export function ensureDiaryTimeField(worldId) {
       description: DIARY_TIME_DESCRIPTION,
       type: 'text',
       update_mode: dateMode === 'real' ? 'system_rule' : 'llm_auto',
-      trigger_mode: 'every_turn',
       update_instruction: dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION,
       allow_empty: 1,
       sort_order: 0,

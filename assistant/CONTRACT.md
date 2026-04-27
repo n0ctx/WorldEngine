@@ -92,7 +92,7 @@
 
 说明：
 - 高风险步骤现在总是先经历 `step_started -> step_proposal_ready -> step_approval_requested`
-- 前端可以直接基于 `proposal` 展示完整变更、允许用户编辑 `changes / entryOps / stateFieldOps`
+- 前端可以直接基于 `proposal` 展示完整变更、允许用户编辑 `changes / entryOps / stateFieldOps / stateValueOps`
 - 审批后的编辑内容仍会在服务端重新走 `normalizeProposal()`，与旧 `/api/assistant/execute` 共享同级安全边界
 
 #### `step_completed`
@@ -166,7 +166,8 @@ Planner plan 校验最少包含：
   "editedProposal": {
     "changes": {},
     "entryOps": [],
-    "stateFieldOps": []
+    "stateFieldOps": [],
+    "stateValueOps": []
   }
 }
 ```
@@ -280,7 +281,7 @@ skill 执行失败时发送。
   "operation": "create|update|delete",
   "entityId": "characterId 或 worldId 或 null",
   "changes": {},
-  "stateFieldOps": [],
+  "stateValueOps": [],
   "explanation": "..."
 }
 ```
@@ -293,7 +294,7 @@ skill 执行失败时发送。
   "operation": "create|update",
   "entityId": "worldId",
   "changes": {},
-  "stateFieldOps": [],
+  "stateValueOps": [],
   "explanation": "..."
 }
 ```
@@ -547,8 +548,26 @@ world-card 常驻条目 create 格式：
 
 类型约束：
 - `world-card`：允许 `world|persona|character`
-- `character-card`：允许 `persona|character`
-- `persona-card`：只允许 `persona`
+- `character-card`：不允许 `stateFieldOps`
+- `persona-card`：不允许 `stateFieldOps`
+
+## 6.5 `stateValueOps`
+
+用于填写**已经存在**的状态字段值，不负责创建或删除字段模板。
+
+### 基础格式
+
+```json
+{ "target": "character|persona", "field_key": "hp", "value_json": "100" }
+```
+
+约束：
+- `value_json` 必须是 JSON 字符串或 `null`
+- `character-card`：只允许 `target:"character"`
+- `persona-card`：只允许 `target:"persona"`
+- `world-card`：不允许 `stateValueOps`
+- `field_key` 必须对应当前世界里已经存在的状态字段；未知字段在执行时会报错
+- `stateValueOps` 只写默认状态值，不改运行时会话状态
 
 ## 7. `/api/assistant/execute`
 
@@ -560,12 +579,13 @@ world-card 常驻条目 create 格式：
   "worldRefId": "可选，依赖世界 create 时使用",
   "editedProposal": {
     "changes": {},
-    "stateFieldOps": []
+    "stateFieldOps": [],
+    "stateValueOps": []
   }
 }
 ```
 
 约束：
-- `editedProposal` 只能覆盖 `changes` / `entryOps` / `stateFieldOps`
+- `editedProposal` 只能覆盖 `changes` / `entryOps` / `stateFieldOps` / `stateValueOps`
 - 其中 `entryOps` 仅对 `world-card` 有效
 - `type` / `operation` / `entityId` / `taskId` 以 token 锚定的原提案为准

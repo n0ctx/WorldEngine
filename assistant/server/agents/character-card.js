@@ -1,10 +1,10 @@
 export const CHARACTER_CARD_AGENT = {
   name: 'character_card_agent',
   description:
-    '创建、修改或删除角色卡（NPC/配角）。管理角色的 name/description/system_prompt/post_prompt/first_message，' +
-    '以及角色/玩家状态字段（stateFieldOps：character/persona）。' +
+    '创建、修改或删除角色卡（NPC/配角）。管理角色的 name/description/system_prompt/post_prompt/first_message。' +
     'update/delete 前必须先调用 preview_card(target="character-card") 获取现有数据；' +
-    'create 时若涉及 stateFieldOps，也应先调用 preview_card(target="character-card", operation="create") 避免重复字段。',
+    '角色卡不负责创建、修改或删除状态字段，字段管理只能通过 world-card 完成；' +
+    '但可以通过 stateValueOps 填写当前世界已存在的角色状态字段值。',
   parameters: {
     type: 'object',
     properties: {
