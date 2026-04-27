@@ -61,7 +61,8 @@ import {
 } from '../../backend/db/queries/entry-conditions.js';
 import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
 import { getMessagesBySessionId, getMessageById } from '../../backend/db/queries/messages.js';
-import { addWritingSessionCharacter } from '../../backend/db/queries/writing-sessions.js';
+import { addWritingSessionCharacter, getWritingSessionById } from '../../backend/db/queries/writing-sessions.js';
+import { deleteCharacter as dbDeleteCharacter } from '../../backend/db/queries/characters.js';
 import { upsertCharacterStateValue } from '../../backend/db/queries/character-state-values.js';
 import * as llm from '../../backend/llm/index.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
@@ -223,15 +224,21 @@ router.post('/extract-characters', async (req, res) => {
     return res.status(400).json({ error: 'worldId、sessionId、assistantMessageId 均为必填项' });
   }
 
+  // 校验 sessionId 归属于 worldId
+  const session = getWritingSessionById(sessionId);
+  if (!session || session.world_id !== worldId) {
+    return res.status(400).json({ error: '会话不存在或不属于指定世界' });
+  }
+
+  // 校验消息归属于该会话且为 assistant 消息
+  const assistantMsg = getMessageById(assistantMessageId);
+  if (!assistantMsg || assistantMsg.session_id !== sessionId || assistantMsg.role !== 'assistant') {
+    return res.status(400).json({ error: '消息不存在、不属于指定会话或不是助手消息' });
+  }
+
   openSSE(res);
 
   try {
-    const assistantMsg = getMessageById(assistantMessageId);
-    if (!assistantMsg) {
-      sendSSE(res, { type: 'error', error: '找不到指定的消息' });
-      return endSSE(res);
-    }
-
     // 找到此 assistant 消息前最近的 user 消息
     const allMsgs = getMessagesBySessionId(sessionId, 500);
     const aIdx = allMsgs.findIndex((m) => m.id === assistantMessageId);
@@ -287,31 +294,54 @@ router.post('/extract-characters', async (req, res) => {
     log.info(`extract-chars FOUND  ${formatMeta({ count: characters.length })}`);
     sendSSE(res, { type: 'extract_done', count: characters.length });
 
+    // 已有角色名集合（含本次循环中已创建的），用于去重
+    const existingNameSet = new Set(existingChars.map((c) => c.name.trim().toLowerCase()));
+
     for (const charData of characters) {
       const name = (charData.name || '').trim();
       if (!name) continue;
 
-      sendSSE(res, { type: 'character_found', name });
-
-      const char = createCharacter({
-        world_id: worldId,
-        name,
-        description: charData.description || '',
-        system_prompt: charData.system_prompt || '',
-        post_prompt: charData.post_prompt || '',
-        first_message: charData.first_message || '',
-      });
-
-      // 填写已有状态字段的初始值
-      if (stateFields.length > 0 && charData.state_values && typeof charData.state_values === 'object') {
-        for (const [key, val] of Object.entries(charData.state_values)) {
-          if (stateFields.some((f) => f.field_key === key)) {
-            upsertCharacterStateValue(char.id, key, { defaultValueJson: JSON.stringify(val) });
-          }
-        }
+      // 服务端去重：跳过已存在角色（含本次循环中已创建的）
+      const nameKey = name.toLowerCase();
+      if (existingNameSet.has(nameKey)) {
+        log.info(`extract-chars SKIP_DUP  ${formatMeta({ name })}`);
+        continue;
       }
 
-      addWritingSessionCharacter(sessionId, char.id);
+      sendSSE(res, { type: 'character_found', name });
+
+      let char;
+      try {
+        char = createCharacter({
+          world_id: worldId,
+          name,
+          description: charData.description || '',
+          system_prompt: charData.system_prompt || '',
+          post_prompt: charData.post_prompt || '',
+          first_message: charData.first_message || '',
+        });
+
+        // 覆盖 LLM 推断的状态字段初始值（createCharacter 已写入默认值）
+        if (stateFields.length > 0 && charData.state_values && typeof charData.state_values === 'object') {
+          for (const [key, val] of Object.entries(charData.state_values)) {
+            if (stateFields.some((f) => f.field_key === key)) {
+              upsertCharacterStateValue(char.id, key, { defaultValueJson: JSON.stringify(val) });
+            }
+          }
+        }
+
+        addWritingSessionCharacter(sessionId, char.id);
+      } catch (charErr) {
+        // 若激活或状态写入失败，删除已创建的角色行，避免留下孤儿数据
+        if (char?.id) {
+          try { dbDeleteCharacter(char.id); } catch { /* ignore */ }
+        }
+        log.error(`extract-chars CHAR_FAIL  ${formatMeta({ name, error: charErr.message })}`);
+        sendSSE(res, { type: 'error', error: `角色「${name}」创建失败：${charErr.message}` });
+        continue;
+      }
+
+      existingNameSet.add(nameKey);
       log.info(`extract-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
       sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
     }
