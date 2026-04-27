@@ -22,7 +22,7 @@ import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fiel
 import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
 import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -143,6 +143,76 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel) {
     updated.push(`${key}=${valueJson}`);
   }
   if (updated.length) log.info(`${logLabel}  updates: ${updated.join('  ')}`);
+}
+
+/**
+ * 检查 patch 中 text/list 字段是否超限，超限时调用 LLM 压缩后就地修改 patch。
+ * 必须在 applyStatePatch 之前调用，以便 validateValue 处理压缩后的值。
+ */
+async function compressOverLimitFields(patch, entityFieldPairs, sid) {
+  const overLengthText = [];
+  const overLengthList = [];
+
+  for (const { entityKey, fields, patchData } of entityFieldPairs) {
+    if (!patchData) continue;
+    const fieldMap = Object.fromEntries(fields.map((f) => [f.field_key, f]));
+    for (const [key, value] of Object.entries(patchData)) {
+      const field = fieldMap[key];
+      if (!field) continue;
+      if (field.type === 'text' && typeof value === 'string' && value.length > STATE_TEXT_MAX_LENGTH) {
+        overLengthText.push({ entityKey, fieldKey: key, value });
+      } else if (field.type === 'list' && Array.isArray(value) && value.length > STATE_LIST_MAX_ITEMS) {
+        overLengthList.push({ entityKey, fieldKey: key, value });
+      }
+    }
+  }
+
+  if (overLengthText.length === 0 && overLengthList.length === 0) return;
+
+  log.info(`COMPRESS  ${formatMeta({ session: sid, text: overLengthText.length, list: overLengthList.length })}`);
+
+  const textSection = overLengthText.length > 0
+    ? `## 文本压缩\n以下字段值过长（超过 ${STATE_TEXT_MAX_LENGTH} 字），请将每个值压缩到 ${STATE_TEXT_COMPRESS_TARGET} 字以内，保留核心信息：\n` +
+      overLengthText.map((x) => `- ${x.entityKey}.${x.fieldKey}（${x.value.length}字）: ${x.value}`).join('\n')
+    : '';
+
+  const listSection = overLengthList.length > 0
+    ? `## 列表裁剪\n以下列表字段条目过多（超过 ${STATE_LIST_MAX_ITEMS} 个），请保留最重要/最新的 ${STATE_LIST_TRIM_TARGET} 个条目，丢弃最久远、价值最低的条目，返回字符串数组：\n` +
+      overLengthList.map((x) => `- ${x.entityKey}.${x.fieldKey}（${x.value.length}条）: ${JSON.stringify(x.value)}`).join('\n')
+    : '';
+
+  const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
+
+  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null });
+  if (!raw) return;
+
+  try {
+    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
+    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
+    if (!match) return;
+    let compressed;
+    try { compressed = JSON.parse(match[0]); }
+    catch { compressed = JSON.parse(repairTruncatedJson(match[0])); }
+    if (!compressed || typeof compressed !== 'object') return;
+
+    for (const { entityKey, fieldKey } of overLengthText) {
+      const val = compressed?.[entityKey]?.[fieldKey];
+      if (typeof val === 'string' && val.length > 0) {
+        patch[entityKey][fieldKey] = val;
+        log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
+      }
+    }
+    for (const { entityKey, fieldKey } of overLengthList) {
+      const val = compressed?.[entityKey]?.[fieldKey];
+      if (Array.isArray(val) && val.length > 0) {
+        patch[entityKey][fieldKey] = val;
+        log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
+      }
+    }
+  } catch {
+    log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+  }
 }
 
 // ── 主函数 ──────────────────────────────────────────────────────────────────
@@ -300,6 +370,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     return;
   }
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
+
+  // ── 字数/列表检查：超限时压缩后再写入 ──
+  await compressOverLimitFields(patch, [
+    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world }] : []),
+    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`] })),
+    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona }] : []),
+  ], sid);
 
   // ── 写入各类状态（会话级） ──
   if (worldActiveFields.length > 0) {

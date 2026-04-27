@@ -73,6 +73,20 @@ export const LLM_TITLE_MAX_TOKENS = 30;
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 500;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
+/** 状态压缩（state-compress）最大 token 数 */
+export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
+
+// ============================
+// 状态字段长度限制
+// ============================
+/** text 字段值触发压缩的字数阈值 */
+export const STATE_TEXT_MAX_LENGTH = 50;
+/** text 字段压缩目标字数 */
+export const STATE_TEXT_COMPRESS_TARGET = 20;
+/** list 字段触发裁剪的条目数阈值 */
+export const STATE_LIST_MAX_ITEMS = 10;
+/** list 字段裁剪目标条目数 */
+export const STATE_LIST_TRIM_TARGET = 5;
 /** Ollama 工具调用 resolveToolContext 首轮最大 token 数 */
 export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
 
