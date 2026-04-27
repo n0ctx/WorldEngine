@@ -85,3 +85,32 @@ test('不同 session 的队列互不阻塞', async () => {
 
   assert.deepEqual(order, ['a-start', 'b', 'a-end']);
 });
+
+test('waitForQueueIdle 会等待同 session 已入队任务全部结束', async () => {
+  const { enqueue, waitForQueueIdle } = await freshImport('backend/utils/async-queue.js');
+  const order = [];
+  let releaseFirst;
+  const gate = new Promise((resolve) => {
+    releaseFirst = resolve;
+  });
+
+  const first = enqueue('session-e', async () => {
+    order.push('first-start');
+    await gate;
+    order.push('first-end');
+  }, 2, 'first');
+  const second = enqueue('session-e', async () => {
+    order.push('second');
+  }, 3, 'second');
+
+  const idle = waitForQueueIdle('session-e').then(() => {
+    order.push('idle');
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(order, ['first-start']);
+
+  releaseFirst();
+  await Promise.all([first, second, idle]);
+  assert.deepEqual(order, ['first-start', 'first-end', 'second', 'idle']);
+});

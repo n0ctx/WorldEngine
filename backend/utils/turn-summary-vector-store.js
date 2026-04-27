@@ -117,7 +117,7 @@ export function search(queryVector, {
   sameSessionThreshold = MEMORY_RECALL_SAME_SESSION_THRESHOLD,
   crossSessionThreshold = MEMORY_RECALL_SIMILARITY_THRESHOLD,
   topK = 5,
-  sessionOnly = false,
+  sessionOnly = true,
 } = {}) {
   const store = loadStore();
   if (!store.entries.length) return [];

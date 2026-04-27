@@ -213,7 +213,7 @@ export async function searchRecalledSummaries(worldId, sessionId) {
   }
   if (!queryVector) return { recalled: [], recentMessagesText };
 
-  // 向量搜索（仅限当前 session，取 topK）
+  // 向量搜索（当前世界内跨会话，取 topK）
   const hits = search(queryVector, {
     worldId,
     currentSessionId: sessionId,

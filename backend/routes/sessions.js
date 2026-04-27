@@ -17,7 +17,7 @@ import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound, getLatestTurnRecord } from '../db/queries/turn-records.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
-import { clearPending } from '../utils/async-queue.js';
+import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -102,11 +102,16 @@ router.put('/messages/:id', async (req, res) => {
   if (typeof content !== 'string') {
     return res.status(400).json({ error: 'content 为必填项' });
   }
+
+  const editSessionId = msg.session_id;
+  // 编辑用户消息通常会紧接重新生成；先等本 session 队列空闲，
+  // 避免旧后台任务在截断和状态回滚之后写回旧状态。
+  await waitForQueueIdle(editSessionId);
+
   const updated = await updateMessageAndDeleteAfter(req.params.id, content);
 
-  // 清空所有待处理任务，再删 turn records 和回滚状态
-  const editSessionId = msg.session_id;
-  clearPending(editSessionId, 2);
+  // 只清理可丢弃的待处理任务，p2/p3 已通过队列屏障等待完成。
+  clearPending(editSessionId, 4);
   const editSession = getSessionById(editSessionId);
   const editRemaining = getMessagesBySessionId(editSessionId, ALL_MESSAGES_LIMIT, 0);
   const editR = editRemaining.filter((m) => m.role === 'user').length;

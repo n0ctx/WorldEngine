@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 import { insertCharacter, insertMessage, insertSession, insertTurnRecord, insertWorld } from '../helpers/fixtures.js';
+import { enqueue } from '../../utils/async-queue.js';
 
 const sandbox = createTestSandbox('chat-route-suite', {
   global_system_prompt: '系统提示',
@@ -368,6 +369,49 @@ test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn re
 
   const turnRecords = sandbox.db.prepare('SELECT round_index FROM turn_records WHERE session_id = ? ORDER BY round_index ASC').all(session.id);
   assert.deepEqual(turnRecords, []);
+});
+
+test('POST /regenerate 会等待同 session 队列空闲后再截断消息', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['排队后的回答']);
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '排队港' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '伊莱' });
+  const session = insertSession(sandbox.db, { character_id: character.id, title: '已有标题' });
+  const user1 = insertMessage(sandbox.db, session.id, { role: 'user', content: '第一问', created_at: 1 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一答', created_at: 2 });
+  insertMessage(sandbox.db, session.id, { role: 'user', content: '第二问', created_at: 3 });
+  insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第二答', created_at: 4 });
+
+  let releaseQueued;
+  const gate = new Promise((resolve) => {
+    releaseQueued = resolve;
+  });
+  const queued = enqueue(session.id, async () => {
+    await gate;
+  }, 2, 'test-gate');
+
+  const port = appServer.address().port;
+  const responsePromise = fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/regenerate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ afterMessageId: user1.id }),
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  const countBeforeRelease = sandbox.db.prepare('SELECT COUNT(*) AS c FROM messages WHERE session_id = ?').get(session.id).c;
+  assert.equal(countBeforeRelease, 4);
+
+  releaseQueued();
+  await queued;
+  const response = await responsePromise;
+  assert.equal(response.status, 200);
+  const events = parseSsePayloads(await response.text());
+  assert.ok(events.some((event) => event.done));
+
+  const countAfter = sandbox.db.prepare('SELECT COUNT(*) AS c FROM messages WHERE session_id = ?').get(session.id).c;
+  assert.equal(countAfter, 2);
 });
 
 test('POST /regenerate 缺少 afterMessageId 时返回 400', async () => {

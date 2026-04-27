@@ -14,7 +14,7 @@ import {
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
-import { enqueue, clearPending } from '../utils/async-queue.js';
+import { enqueue, clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { getOrCreatePersona } from '../services/personas.js';
@@ -276,6 +276,10 @@ router.post('/:sessionId/regenerate', async (req, res) => {
 
   log.info(`POST /regenerate  ${formatMeta({ session: sessionId.slice(0, 8), after: afterMessageId.slice(0, 8) })}`);
 
+  // 重新生成会截断消息并回滚状态；必须等同 session 已入队任务跑完，
+  // 避免旧状态整理/turn-record 在新生成期间覆盖当前轮次。
+  await waitForQueueIdle(sessionId);
+
   // 保留 afterMessageId 本身，删除之后的所有消息
   await deleteMessagesAfter(afterMessageId);
 
@@ -290,9 +294,9 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   for (const e of diaryToDelete) deleteDiaryFile(sessionId, e.date_str);
   deleteDailyEntriesAfterRound(sessionId, R);
 
-  // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
-  clearPending(sessionId, 2);
-  log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 2 })}`);
+  // 按约定只清理可丢弃的低优先级待处理任务；p2/p3 已通过队列屏障等待完成。
+  clearPending(sessionId, 4);
+  log.info(`QUEUE CLEAR  ${formatMeta({ session: sessionId.slice(0, 8), threshold: 4 })}`);
 
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const regenSession = getSessionById(sessionId);
@@ -543,6 +547,8 @@ router.post('/:sessionId/retitle', async (req, res) => {
   if (!assertExists(res, session, 'Session not found')) return;
 
   try {
+    await waitForQueueIdle(sessionId);
+
     // 获取完整提示词上下文（[1-16]）
     const { messages, overrides } = await buildContext(sessionId);
 

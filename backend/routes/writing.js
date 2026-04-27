@@ -21,7 +21,7 @@ import {
 import { getWorldById } from '../services/worlds.js';
 import { getCharactersByWorldId } from '../services/characters.js';
 import { getOrCreatePersona } from '../services/personas.js';
-import { enqueue, clearPending } from '../utils/async-queue.js';
+import { enqueue, clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
@@ -537,6 +537,10 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
     return res.status(400).json({ error: 'afterMessageId must be a user message' });
   }
 
+  // 重新生成前等待同 session 队列空闲，避免旧状态整理完成后覆盖回滚结果，
+  // 或旧 SSE 收尾打断新的 regenerate 流。
+  await waitForQueueIdle(sessionId);
+
   await deleteMessagesAfter(afterMessageId);
 
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
@@ -548,8 +552,8 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   for (const e of diaryToDelete) deleteDiaryFile(sessionId, e.date_str);
   deleteDailyEntriesAfterRound(sessionId, R);
 
-  // 先清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
-  clearPending(sessionId, 2);
+  // 按约定只清理可丢弃的低优先级待处理任务；p2/p3 已通过队列屏障等待完成。
+  clearPending(sessionId, 4);
 
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const regenWorldId = session.world_id;
@@ -628,6 +632,8 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
   const chapterMsgs = groupChapterMessages(allMsgs, idx);
 
   try {
+    await waitForQueueIdle(sessionId);
+
     const title = await generateChapterTitle(sessionId, idx, chapterMsgs);
     if (!title) return res.status(500).json({ error: '生成失败' });
     res.json({ title, chapterIndex: idx });
@@ -644,6 +650,8 @@ router.post('/:worldId/writing-sessions/:sessionId/retitle', async (req, res) =>
   if (!assertExists(res, session, 'Session not found')) return;
 
   try {
+    await waitForQueueIdle(sessionId);
+
     const title = await generateTitle(sessionId);
     if (!title) return res.json({ title: null });
     res.json({ title });

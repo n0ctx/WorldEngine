@@ -11,12 +11,12 @@ const log = createLogger('queue');
  * - 队列满时丢弃同 sessionId 中优先级最低（数字最大）的任务
  */
 
-// sessionId → { running: boolean, items: Array<{ taskFn, priority, resolve, reject }> }
+// sessionId → { running: boolean, items: Array<{ taskFn, priority, resolve, reject }>, idleWaiters: Array<function> }
 const queues = new Map();
 
 function getQueue(sessionId) {
   if (!queues.has(sessionId)) {
-    queues.set(sessionId, { running: false, items: [] });
+    queues.set(sessionId, { running: false, items: [], idleWaiters: [] });
   }
   return queues.get(sessionId);
 }
@@ -54,6 +54,8 @@ async function drain(sessionId) {
 
   // 队列清空后删除 map 条目，避免内存泄漏
   if (q.items.length === 0) {
+    const waiters = q.idleWaiters.splice(0);
+    for (const resolve of waiters) resolve();
     queues.delete(sessionId);
   }
 }
@@ -106,4 +108,19 @@ export function clearPending(sessionId, minPriority) {
     }
   }
   q.items = kept;
+}
+
+/**
+ * 等待指定 session 当前队列完全空闲。
+ * 用于重新生成/编辑前，确保已入队的状态整理、turn record、日记等任务
+ * 不会和即将开始的新一轮截断、回滚、生成互相覆盖。
+ */
+export function waitForQueueIdle(sessionId) {
+  const q = queues.get(sessionId);
+  if (!q || (!q.running && q.items.length === 0)) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    q.idleWaiters.push(resolve);
+  });
 }

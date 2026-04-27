@@ -150,12 +150,14 @@ const MessageList = forwardRef(function MessageList({
     }
   }, [messages.length, loadingMore]);
 
-  // 流式输出时若用户在底部附近则持续跟随
+  // 流式结束后一次性跳转底部
+  const prevGeneratingRef = useRef(false);
   useEffect(() => {
-    if (generating && nearBottomRef.current) {
+    if (prevGeneratingRef.current && !generating) {
       scrollToBottom('instant');
     }
-  }, [streamingText, continuingText, generating]);
+    prevGeneratingRef.current = generating;
+  }, [generating]);
 
   useImperativeHandle(ref, () => ({
     appendMessage: (msg) => setMessages((prev) => [...prev, msg]),
