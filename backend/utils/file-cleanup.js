@@ -16,7 +16,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const UPLOADS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads');
+export const UPLOADS_DIR = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR, 'uploads')
+  : path.resolve(__dirname, '..', '..', 'data', 'uploads');
 
 /**
  * 删除单个上传文件

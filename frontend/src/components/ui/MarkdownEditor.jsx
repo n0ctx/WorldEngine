@@ -12,7 +12,7 @@ export default function MarkdownEditor(props) {
   return (
     <Suspense
       fallback={(
-        <div className="we-md-editor">
+        <div className="we-md-editor" style={{ height: minHeight + 37 }}>
           <div className="we-md-toolbar" aria-hidden="true">
             <button type="button" disabled>B</button>
             <button type="button" disabled>I</button>
@@ -22,7 +22,7 @@ export default function MarkdownEditor(props) {
           </div>
           <div
             className="we-md-content"
-            style={{ height: minHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <span className="we-edit-empty-text">编辑器加载中…</span>
           </div>

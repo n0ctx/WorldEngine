@@ -19,7 +19,9 @@ import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
+const DATA_DIR = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', '..', 'data');
 
 router.get('/:sessionId/daily-entries', (req, res) => {
   const { sessionId } = req.params;

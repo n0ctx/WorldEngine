@@ -23,7 +23,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.resolve(__dirname, '..', '..', 'data');
+const DATA_DIR = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', '..', 'data');
 const LOGS_DIR = path.join(DATA_DIR, 'logs');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 

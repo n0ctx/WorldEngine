@@ -12,7 +12,9 @@ import { applyRules } from '../utils/regex-runner.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ATTACHMENTS_DIR = path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
+const ATTACHMENTS_DIR = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR, 'uploads', 'attachments')
+  : path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
 
 // ── 进行中的流式请求 ──
 // Map<sessionId, AbortController>
@@ -61,7 +63,10 @@ export function saveAttachments(messageId, attachments) {
  * 读取附件文件并转为 base64 data URL
  */
 function readAttachmentAsDataUrl(relativePath) {
-  const absPath = path.resolve(__dirname, '..', '..', 'data', 'uploads', relativePath);
+  const uploadsDir = process.env.WE_DATA_DIR
+    ? path.resolve(process.env.WE_DATA_DIR, 'uploads')
+    : path.resolve(__dirname, '..', '..', 'data', 'uploads');
+  const absPath = path.resolve(uploadsDir, relativePath);
   if (!fs.existsSync(absPath)) return null;
 
   const buf = fs.readFileSync(absPath);

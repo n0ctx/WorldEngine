@@ -13,7 +13,9 @@ import { fileURLToPath } from 'node:url';
 import { MEMORY_RECALL_SIMILARITY_THRESHOLD } from './constants.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const STORE_PATH = path.resolve(__dirname, '..', '..', 'data', 'vectors', 'session_summaries.json');
+const STORE_PATH = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR, 'vectors', 'session_summaries.json')
+  : path.resolve(__dirname, '..', '..', 'data', 'vectors', 'session_summaries.json');
 
 const EMPTY_STORE = { version: 1, entries: [] };
 

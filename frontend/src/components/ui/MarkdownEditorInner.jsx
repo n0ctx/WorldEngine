@@ -44,7 +44,7 @@ export default function MarkdownEditorInner({ value = '', onChange, placeholder,
   ];
 
   return (
-    <div className={['we-md-editor', className].filter(Boolean).join(' ')}>
+    <div className={['we-md-editor', className].filter(Boolean).join(' ')} style={{ height: minHeight + 37 }}>
       <div className="we-md-toolbar">
         {tools.map((t) => {
           const active = typeof t.mark === 'string'
@@ -69,7 +69,6 @@ export default function MarkdownEditorInner({ value = '', onChange, placeholder,
       <EditorContent
         editor={editor}
         className="we-md-content"
-        style={{ height: minHeight }}
       />
     </div>
   );

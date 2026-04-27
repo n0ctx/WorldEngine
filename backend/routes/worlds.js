@@ -14,7 +14,9 @@ import {
 import { assertExists } from '../utils/route-helpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+const DATA_ROOT = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', '..', 'data');
 
 const coverStorage = multer.diskStorage({
   destination: path.join(DATA_ROOT, 'uploads', 'avatars'),

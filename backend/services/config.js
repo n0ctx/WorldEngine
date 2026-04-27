@@ -3,7 +3,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.resolve(__dirname, '..', '..', 'data', 'config.json');
+const CONFIG_PATH = process.env.WE_CONFIG_PATH
+  || (process.env.WE_DATA_DIR
+    ? path.resolve(process.env.WE_DATA_DIR, 'config.json')
+    : path.resolve(__dirname, '..', '..', 'data', 'config.json'));
 
 const DEFAULT_CONFIG = {
   version: 1,

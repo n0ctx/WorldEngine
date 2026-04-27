@@ -11,7 +11,9 @@ import {
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+const DATA_ROOT = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', '..', 'data');
 const AVATARS_DIR = path.join(DATA_ROOT, 'uploads', 'avatars');
 
 // ─── 内部导入辅助函数 ─────────────────────────────────────────────────────────

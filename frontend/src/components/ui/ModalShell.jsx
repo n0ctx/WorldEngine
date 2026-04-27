@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DURATION, EASE } from '../../utils/motion.js';
 
@@ -10,6 +11,9 @@ const MotionDiv = motion.div;
  * - 无内置 padding，由子组件自行控制布局
  */
 export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' }) {
+  // 记录 mousedown 是否发生在背景本身（而非弹窗内容）
+  const mouseDownOnBackdrop = useRef(false);
+
   return (
     <MotionDiv
       className="we-modal-backdrop fixed inset-0 z-50 flex items-center justify-center"
@@ -17,7 +21,8 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' })
       animate={{ opacity: 1 }}
       exit={{   opacity: 0 }}
       transition={{ duration: DURATION.quick, ease: EASE.sharp }}
-      onClick={onClose}
+      onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
     >
       <MotionDiv
         className={[

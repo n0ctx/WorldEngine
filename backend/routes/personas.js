@@ -14,7 +14,9 @@ import {
 import { getPersonaById } from '../db/queries/personas.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_ROOT = path.resolve(__dirname, '..', '..', 'data');
+const DATA_ROOT = process.env.WE_DATA_DIR
+  ? path.resolve(process.env.WE_DATA_DIR)
+  : path.resolve(__dirname, '..', '..', 'data');
 
 // 按 worldId 上传头像（兼容旧接口）
 const avatarStorage = multer.diskStorage({

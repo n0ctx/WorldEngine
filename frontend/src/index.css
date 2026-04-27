@@ -189,6 +189,10 @@ body {
   color: var(--we-ink-primary);
   overflow: hidden;
   transition: border-color 0.18s, box-shadow 0.18s;
+  display: flex;
+  flex-direction: column;
+  resize: vertical;
+  min-height: 80px;
 }
 
 
@@ -249,10 +253,8 @@ body {
 .we-md-content {
   padding: 10px 14px;
   overflow-y: auto;
-  resize: vertical;
-  align-self: flex-start;
-  width: 100%;
-  min-height: 60px;
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
   background: var(--we-paper-base);
 }
