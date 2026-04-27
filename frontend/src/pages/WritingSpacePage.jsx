@@ -34,6 +34,7 @@ import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import OptionCard from '../components/chat/OptionCard.jsx';
 import CharacterPreviewModal from '../components/writing/CharacterPreviewModal.jsx';
+import CharacterAnalyzingModal from '../components/writing/CharacterAnalyzingModal.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { pushToast, pushErrorToast } from '../utils/toast.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
@@ -90,6 +91,7 @@ export default function WritingSpacePage() {
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
   const [cardPreviewChars, setCardPreviewChars] = useState(null); // null = 弹窗关闭，[] = 打开
+  const [cardAnalyzing, setCardAnalyzing] = useState(false);
 
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -104,6 +106,8 @@ export default function WritingSpacePage() {
   const pendingOptionsRef = useRef([]);
   // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
   const streamRunIdRef = useRef(0);
+  // 用户主动点击停止时置 true；防止无内容时 onStreamEnd 兜底触发 refreshMessages
+  const streamAbortedRef = useRef(false);
   const currentSessionRef = useRef(null);
   // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
   const tempUserIdRef = useRef(null);
@@ -212,10 +216,7 @@ export default function WritingSpacePage() {
   }
 
   function handleStop() {
-    if (stopRef.current) {
-      stopRef.current();
-      stopRef.current = null;
-    }
+    streamAbortedRef.current = true;
     stopGeneration(worldId, currentSessionRef.current?.id).catch(() => {});
   }
 
@@ -232,6 +233,7 @@ export default function WritingSpacePage() {
     pendingAssistantRef.current = null;
     assistantAppendedEarlyRef.current = false;
     pendingOptionsRef.current = [];
+    streamAbortedRef.current = false;
     clearOptionsState();
     beginStreamingKey();
     return runId;
@@ -318,6 +320,8 @@ export default function WritingSpacePage() {
         assistantAppendedEarlyRef.current = false;
         const pendingOptions = pendingOptionsRef.current;
         pendingOptionsRef.current = [];
+        const wasAborted = streamAbortedRef.current;
+        streamAbortedRef.current = false;
         streamingTextRef.current = '';
         tempUserIdRef.current = null;
         setGenerating(false);
@@ -326,9 +330,8 @@ export default function WritingSpacePage() {
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {
           if (pending && messageListRef.current?.appendMessage) {
-            // 用与流式占位相同的 _key，React 视为同一节点，避免 unmount+mount 闪烁
             messageListRef.current.appendMessage({ ...pending, _key: streamKey });
-          } else {
+          } else if (!wasAborted) {
             refreshMessages();
           }
         }
@@ -595,25 +598,29 @@ export default function WritingSpacePage() {
     makingCardRef.current = true;
     const session = currentSessionRef.current;
     if (!session) { makingCardRef.current = false; return; }
-    pushToast('正在分析角色，请稍候…');
+    setCardAnalyzing(true);
     extractCharactersFromMessage(worldId, session.id, assistantMessageId, {
       onEvent(evt) {
         if (evt.type === 'characters_extracted') {
           makingCardRef.current = false;
+          setCardAnalyzing(false);
           if (evt.count === 0) {
             pushToast('未发现新角色');
           } else {
             setCardPreviewChars(evt.characters);
           }
         } else if (evt.type === 'error') {
+          setCardAnalyzing(false);
           pushErrorToast(evt.error || '提取失败');
         }
       },
       onStreamEnd() {
         makingCardRef.current = false;
+        setCardAnalyzing(false);
       },
       onError(err) {
         makingCardRef.current = false;
+        setCardAnalyzing(false);
         pushErrorToast(err || '提取请求失败');
       },
     }, { dryRun: true });
@@ -755,8 +762,10 @@ export default function WritingSpacePage() {
     </BookSpread>
 
     <AnimatePresence>
+      {cardAnalyzing && <CharacterAnalyzingModal key="analyzing" />}
       {cardPreviewChars !== null && (
         <CharacterPreviewModal
+          key="preview"
           characters={cardPreviewChars}
           onConfirm={handleConfirmCards}
           onClose={() => setCardPreviewChars(null)}

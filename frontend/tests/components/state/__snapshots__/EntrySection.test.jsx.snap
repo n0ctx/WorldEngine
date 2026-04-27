@@ -34,57 +34,81 @@ exports[`EntrySection > 默认状态快照 1`] = `
     class="we-entry-section-list"
   >
     <div
-      class="we-entry-section-row"
+      style="display: flex; flex-direction: column; gap: 8px;"
     >
       <div
-        class="we-entry-section-main"
+        draggable="false"
+        style="z-index: unset; transform: none; user-select: none;"
       >
-        <span
-          class="we-entry-section-name"
+        <div
+          class="we-entry-section-row"
         >
-          世界观设定
-        </span>
+          <span
+            class="we-entry-section-drag"
+          >
+            ⠿
+          </span>
+          <div
+            class="we-entry-section-main"
+          >
+            <span
+              class="we-entry-section-name"
+            >
+              世界观设定
+            </span>
+          </div>
+          <div
+            class="we-entry-section-actions"
+          >
+            <button
+              class="we-entry-section-action"
+            >
+              编辑
+            </button>
+            <button
+              class="we-entry-section-action we-entry-section-action--danger"
+            >
+              删除
+            </button>
+          </div>
+        </div>
       </div>
       <div
-        class="we-entry-section-actions"
+        draggable="false"
+        style="z-index: unset; transform: none; user-select: none;"
       >
-        <button
-          class="we-entry-section-action"
+        <div
+          class="we-entry-section-row"
         >
-          编辑
-        </button>
-        <button
-          class="we-entry-section-action we-entry-section-action--danger"
-        >
-          删除
-        </button>
-      </div>
-    </div>
-    <div
-      class="we-entry-section-row we-entry-section-row--last"
-    >
-      <div
-        class="we-entry-section-main"
-      >
-        <span
-          class="we-entry-section-name"
-        >
-          后置规则
-        </span>
-      </div>
-      <div
-        class="we-entry-section-actions"
-      >
-        <button
-          class="we-entry-section-action"
-        >
-          编辑
-        </button>
-        <button
-          class="we-entry-section-action we-entry-section-action--danger"
-        >
-          删除
-        </button>
+          <span
+            class="we-entry-section-drag"
+          >
+            ⠿
+          </span>
+          <div
+            class="we-entry-section-main"
+          >
+            <span
+              class="we-entry-section-name"
+            >
+              后置规则
+            </span>
+          </div>
+          <div
+            class="we-entry-section-actions"
+          >
+            <button
+              class="we-entry-section-action"
+            >
+              编辑
+            </button>
+            <button
+              class="we-entry-section-action we-entry-section-action--danger"
+            >
+              删除
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

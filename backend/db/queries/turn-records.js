@@ -97,6 +97,19 @@ export function deleteLastTurnRecord(sessionId) {
 }
 
 /**
+ * 获取某会话 state_snapshot 不为 null 的最新一条 turn record
+ * 用于回滚：跳过无快照的旧记录，找到最近的有效状态锚点
+ *
+ * @param {string} sessionId
+ * @returns {object|undefined}
+ */
+export function getLatestTurnRecordWithSnapshot(sessionId) {
+  return db.prepare(
+    'SELECT * FROM turn_records WHERE session_id = ? AND state_snapshot IS NOT NULL ORDER BY round_index DESC LIMIT 1',
+  ).get(sessionId);
+}
+
+/**
  * 删除某会话 round_index > roundIndex 的所有 turn records
  */
 export function deleteTurnRecordsAfterRound(sessionId, roundIndex) {

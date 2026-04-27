@@ -101,7 +101,8 @@ test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', a
   assert.ok(eventTypes.includes('memory_recall_start'));
   assert.ok(eventTypes.includes('memory_recall_done'));
   assert.ok(eventTypes.includes('delta'));
-  assert.equal(eventTypes.at(-1), 'done');
+  assert.ok(eventTypes.includes('done'));
+  assert.equal(eventTypes.at(-1), 'state_updated');
 
   const doneEvent = events.find((event) => event.done);
   assert.equal(doneEvent.assistant.content, '你好，旅行者');
@@ -290,6 +291,7 @@ test('POST /continue 会把新内容追加到最后一条 assistant 消息', asy
   assert.equal(doneEvent.assistant.id, lastAssistant.id);
   assert.match(doneEvent.assistant.content, /原始回复/);
   assert.match(doneEvent.assistant.content, /续写一续写二/);
+  assert.ok(events.some((event) => event.type === 'state_updated'), '应包含 state_updated');
 
   const row = sandbox.db.prepare('SELECT content FROM messages WHERE id = ?').get(lastAssistant.id);
   assert.match(row.content, /原始回复/);
@@ -361,6 +363,7 @@ test('POST /regenerate 会删除 afterMessageId 之后的消息并截断 turn re
   const doneEvent = events.find((event) => event.done);
   assert.ok(doneEvent);
   assert.equal(doneEvent.assistant.content, '新的回答');
+  assert.ok(events.some((event) => event.type === 'state_updated'), '应包含 state_updated');
 
   const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);

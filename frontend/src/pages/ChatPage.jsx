@@ -87,6 +87,8 @@ export default function ChatPage() {
   const streamingKeyRef = useRef('__stream_init__');
   // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
   const streamRunIdRef = useRef(0);
+  // 用户主动点击停止时置 true；防止无内容时 finalizeStream 兜底触发 refreshMessages
+  const streamAbortedRef = useRef(false);
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
@@ -110,6 +112,7 @@ export default function ChatPage() {
     pendingAssistantRef.current = null;
     assistantAppendedEarlyRef.current = false;
     pendingOptionsRef.current = [];
+    streamAbortedRef.current = false;
     clearOptionsState();
     beginStreamingKey();
     return runId;
@@ -292,7 +295,10 @@ export default function ChatPage() {
     if (finalOpts.length > 0) setCurrentOptions(finalOpts);
     pendingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
-    if (!wasContinuing && !appendedAssistant) refreshMessages();
+    // 用户主动停止时（streamAbortedRef=true）跳过刷新，避免页面闪烁跳顶
+    const wasAborted = streamAbortedRef.current;
+    streamAbortedRef.current = false;
+    if (!wasContinuing && !appendedAssistant && !wasAborted) refreshMessages();
   }, [isCurrentStreamRun]);
 
   // 共用 SSE callbacks
@@ -336,7 +342,6 @@ export default function ChatPage() {
           pendingAssistantRef.current = assistant;
         }
         setGenerating(false);
-        useStore.getState().triggerMemoryRefresh();
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
@@ -358,6 +363,10 @@ export default function ChatPage() {
         if (chatSessionListBridge.updateTitle && currentSessionIdRef.current) {
           chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
         }
+      },
+      onStateUpdated() {
+        if (!isCurrentStreamRun(runId)) return;
+        useStore.getState().triggerMemoryRefresh();
       },
       onMemoryRecallStart() {
         if (!isCurrentStreamRun(runId)) return;
@@ -424,9 +433,10 @@ export default function ChatPage() {
     stopRef.current = stop;
   }
 
-  // 停止生成
+  // 停止生成：只通知后端中断，不在前端 abort fetch；
+  // 后端会发回 aborted SSE 事件后自然关闭连接，避免前端提前断流导致 refreshMessages 重挂载页面
   function handleStop() {
-    stopRef.current?.();
+    streamAbortedRef.current = true;
     stopGeneration(currentSessionId).catch(() => {});
   }
 
@@ -510,6 +520,9 @@ export default function ChatPage() {
         if (continuationTokenRef.current !== continuationToken) return;
         if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
+      },
+      onStateUpdated() {
+        if (continuationTokenRef.current !== continuationToken) return;
         useStore.getState().triggerMemoryRefresh();
       },
       onAborted(assistant) {

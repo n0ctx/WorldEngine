@@ -22,7 +22,7 @@ import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generator.js';
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
-import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { updateMessageTokenUsage } from '../db/queries/messages.js';
@@ -73,13 +73,15 @@ function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamSt
       ssePayload: (title) => title ? { type: 'title_updated', title } : null,
       keepSseAlive: true,
     },
-    // all-state（p2）：chat 模式不推 state_updated SSE（前端由 triggerMemoryRefresh 驱动）
+    // all-state（p2）：chat 模式推 state_updated SSE（StatePanel 按事件刷新）
     {
       label: 'all-state',
       priority: 2,
       fn: () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId),
       tracksState: true,
-      keepSseAlive: false,
+      sseEvent: 'state_updated',
+      ssePayload: () => ({ type: 'state_updated' }),
+      keepSseAlive: true,
     },
     // turn-record（p3）
     {
@@ -304,7 +306,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const regenChar = regenCharId ? getCharacterById(regenCharId) : null;
   const regenWorldId = regenChar?.world_id ?? null;
   if (regenWorldId) {
-    const lastRecord = getLatestTurnRecord(sessionId);
+    const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
     restoreStateFromSnapshot(
       sessionId, regenWorldId, regenCharId ? [regenCharId] : [],
       lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,

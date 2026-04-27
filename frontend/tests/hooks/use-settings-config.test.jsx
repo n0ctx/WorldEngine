@@ -7,6 +7,7 @@ const displaySettingsStore = vi.hoisted(() => ({
   setAutoCollapseThinking: vi.fn(),
   setShowTokenUsage: vi.fn(),
   setCurrentModelPricing: vi.fn(),
+  setCurrentWritingModelPricing: vi.fn(),
 }));
 
 vi.mock('../../src/api/config.js', () => ({

@@ -38,7 +38,7 @@ import { getChapterTitle, upsertChapterTitle, getChapterTitlesBySessionId } from
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent, updateMessageTokenUsage } from '../db/queries/messages.js';
-import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, countTurnRecords } from '../db/queries/turn-records.js';
+import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
   beginStreamSession,
@@ -572,7 +572,7 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const regenWorldId = session.world_id;
   if (regenWorldId) {
     const activeChars = getWritingSessionCharacters(sessionId);
-    const lastRecord = getLatestTurnRecord(sessionId);
+    const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
     restoreStateFromSnapshot(
       sessionId, regenWorldId, activeChars.map((c) => c.id),
       lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,

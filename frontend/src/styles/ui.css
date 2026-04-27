@@ -687,6 +687,35 @@
   font-style: italic;
 }
 
+/* ── CharacterAnalyzingModal 制卡分析 ── */
+@keyframes we-spin {
+  to { transform: rotate(360deg); }
+}
+
+.we-character-analyzing-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px 24px 36px;
+}
+
+.we-character-analyzing-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid var(--we-paper-shadow);
+  border-top-color: var(--we-vermilion);
+  animation: we-spin 0.9s linear infinite;
+}
+
+.we-character-analyzing-text {
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+  color: var(--we-ink-secondary);
+  letter-spacing: 0.02em;
+}
+
 /* ── AvatarUpload 头像上传 ── */
 .we-avatar-upload {
   display: flex;
