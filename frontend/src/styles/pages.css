@@ -86,7 +86,7 @@
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   overflow: hidden;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 10;
 }
 
 .we-world-card:hover {
