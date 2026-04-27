@@ -38,7 +38,12 @@ export default function StateFieldList({
     }
   }, [listFn, worldId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [load]);
 
   async function handleSave(data) {
     if (editingField) {

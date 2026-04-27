@@ -33,6 +33,7 @@ import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import OptionCard from '../components/chat/OptionCard.jsx';
 import { pushToast, pushErrorToast } from '../utils/toast.js';
+import { writingSessionListBridge } from '../utils/session-list-bridge.js';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
@@ -102,13 +103,15 @@ export default function WritingSpacePage() {
 
   useEffect(() => {
     if (!worldId) return;
-    clearOptionsState();
-    // 优先用 store 中记录的 currentPersonaId（从角色页点卡片传入），fallback 到 active persona
-    const loadPersona = currentPersonaId
-      ? getPersonaById(currentPersonaId).catch(() => getPersona(worldId))
-      : getPersona(worldId);
-    loadPersona.then(setPersona).catch(() => {});
-    syncDiaryTimeField(worldId).catch(() => {});
+    const timeoutId = setTimeout(() => {
+      clearOptionsState();
+      const loadPersona = currentPersonaId
+        ? getPersonaById(currentPersonaId).catch(() => getPersona(worldId))
+        : getPersona(worldId);
+      loadPersona.then(setPersona).catch(() => {});
+      syncDiaryTimeField(worldId).catch(() => {});
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [worldId, currentPersonaId]);
 
   useEffect(() => {
@@ -125,7 +128,7 @@ export default function WritingSpacePage() {
         enterSession(sessions[0]);
       } else {
         createWritingSession(worldId).then((s) => {
-          WritingSessionList.addSession?.(s);
+          writingSessionListBridge.addSession?.(s);
           enterSession(s);
         }).catch(() => {});
       }
@@ -179,7 +182,7 @@ export default function WritingSpacePage() {
         enterSession(remaining[0]);
       } else {
         createWritingSession(worldId).then((s) => {
-          WritingSessionList.addSession?.(s);
+          writingSessionListBridge.addSession?.(s);
           enterSession(s);
         }).catch(() => {});
       }
@@ -243,7 +246,7 @@ export default function WritingSpacePage() {
       },
       onTitleUpdated(title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        WritingSessionList.updateTitle?.(currentSessionRef.current?.id, title);
+        writingSessionListBridge.updateTitle?.(currentSessionRef.current?.id, title);
       },
       onChapterTitleUpdated(chapterIndex, title) {
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
@@ -484,10 +487,10 @@ export default function WritingSpacePage() {
     const session = currentSessionRef.current;
     if (!session) return;
     try {
-      const { title } = await retitleWritingSession(worldId, session.id);
+        const { title } = await retitleWritingSession(worldId, session.id);
       if (title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        WritingSessionList.updateTitle?.(session.id, title);
+        writingSessionListBridge.updateTitle?.(session.id, title);
       }
     } catch (err) {
       pushErrorToast(err.message || '标题生成失败');

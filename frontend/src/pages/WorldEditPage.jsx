@@ -66,13 +66,16 @@ export default function WorldEditPage() {
   // 创建模式：从 sessionStorage 恢复草稿
   useEffect(() => {
     if (!isCreate) return;
-    try {
-      const draft = JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
-      if (draft.name != null) setName(draft.name);
-      if (draft.description != null) setDescription(draft.description);
-    } catch {
-      /* 忽略无效草稿 */
-    }
+    const timeoutId = setTimeout(() => {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
+        if (draft.name != null) setName(draft.name);
+        if (draft.description != null) setDescription(draft.description);
+      } catch {
+        /* 忽略无效草稿 */
+      }
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [isCreate]);
 
   // 创建模式：自动保存草稿

@@ -81,8 +81,22 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const [selectedEntry, setSelectedEntry] = useState(null);
 
   useEffect(() => {
-    if (!worldId) { setWorldName(null); return; }
-    getWorld(worldId).then((w) => setWorldName(w?.name ?? null)).catch(() => {});
+    let cancelled = false;
+    if (!worldId) {
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) setWorldName(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    }
+    getWorld(worldId).then((w) => {
+      if (!cancelled) setWorldName(w?.name ?? null);
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [worldId]);
 
   // ── 重置处理 ──────────────────────────────────────────────
@@ -164,7 +178,10 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   }
 
   // 当 sessionId 变化时清空已选
-  useEffect(() => { setSelectedEntry(null); }, [sessionId]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setSelectedEntry(null), 0);
+    return () => clearTimeout(timeoutId);
+  }, [sessionId]);
 
   const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
   // 从近到远排列

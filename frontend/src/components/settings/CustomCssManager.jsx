@@ -46,7 +46,12 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
     }
   }, [settingsMode]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void load();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [load]);
 
   async function handleSave(data) {
     if (editingSnippet) {

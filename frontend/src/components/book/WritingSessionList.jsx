@@ -3,6 +3,7 @@ import Icon from '../ui/Icon.jsx';
 import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writing-sessions.js';
 import { renameSession } from '../../api/sessions.js';
 import { pushErrorToast } from '../../utils/toast.js';
+import { writingSessionListBridge } from '../../utils/session-list-bridge.js';
 
 function formatDate(ts) {
   const d = new Date(ts);
@@ -145,22 +146,39 @@ export default function WritingSessionList({ worldId, currentSessionId, onSessio
 
   useEffect(() => {
     if (!worldId) return;
-    setLoading(true);
-    listWritingSessions(worldId)
-      .then(setSessions)
-      .catch(() => setSessions([]))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setLoading(true);
+      try {
+        const nextSessions = await listWritingSessions(worldId);
+        if (!cancelled) setSessions(nextSessions);
+      } catch {
+        if (!cancelled) setSessions([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [worldId]);
 
-  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by streaming callbacks.
-  WritingSessionList.updateTitle = (sessionId, title) => {
-    setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title } : s));
-  };
-
-  // eslint-disable-next-line react-hooks/immutability -- legacy imperative bridge used by streaming callbacks.
-  WritingSessionList.addSession = (session) => {
-    setSessions((prev) => [session, ...prev]);
-  };
+  useEffect(() => {
+    writingSessionListBridge.updateTitle = (sessionId, title) => {
+      setSessions((prev) => prev.map((s) => s.id === sessionId ? { ...s, title } : s));
+    };
+    writingSessionListBridge.addSession = (session) => {
+      setSessions((prev) => [session, ...prev]);
+    };
+    return () => {
+      writingSessionListBridge.updateTitle = null;
+      writingSessionListBridge.addSession = null;
+    };
+  }, []);
 
   async function handleCreate() {
     try {

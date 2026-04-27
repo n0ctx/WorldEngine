@@ -44,11 +44,19 @@ export default function PersonaEditPage() {
   const [stateFields, setStateFields] = useState([]);
 
   useEffect(() => {
+    let cancelled = false;
     if (isNew) {
-      // 新建模式：不预加载数据，直接显示空表单
-      getPersonaStateValues(worldId).then(setStateFields).catch(() => {});
-      setLoading(false);
-      return;
+      (async () => {
+        await Promise.resolve();
+        if (cancelled) return;
+        getPersonaStateValues(worldId).then((fields) => {
+          if (!cancelled) setStateFields(fields);
+        }).catch(() => {});
+        setLoading(false);
+      })();
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (personaIdParam) {
@@ -82,6 +90,9 @@ export default function PersonaEditPage() {
         setLoading(false);
       }).catch(() => setLoading(false));
     }
+    return () => {
+      cancelled = true;
+    };
   }, [worldId, personaIdParam, isNew, reloadKey]);
 
   useEffect(() => {

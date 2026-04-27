@@ -41,7 +41,12 @@ export default function WorldsPage() {
     }
   }
 
-  useEffect(() => { loadWorlds(); }, [reloadKey]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadWorlds();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [reloadKey]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);

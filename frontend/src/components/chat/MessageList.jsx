@@ -42,9 +42,12 @@ const MessageList = forwardRef(function MessageList({
   const bottomRef = useRef(null);
   const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
-  messagesRef.current = messages;
   // 是否用户当前处于接近底部（用于决定是否自动跟随流式输出）
   const nearBottomRef = useRef(true);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   function scrollToBottom(behavior = 'smooth') {
     bottomRef.current?.scrollIntoView({ behavior });
@@ -58,27 +61,45 @@ const MessageList = forwardRef(function MessageList({
 
   // 初始加载
   useEffect(() => {
+    let cancelled = false;
+
     if (!sessionId) {
+      const timeoutId = setTimeout(() => {
+        if (cancelled) return;
+        setMessages([]);
+        setOffset(0);
+        setHasMore(false);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
+    }
+
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setLoading(true);
       setMessages([]);
       setOffset(0);
       setHasMore(false);
-      return;
-    }
 
-    setLoading(true);
-    setMessages([]);
-    setOffset(0);
-    setHasMore(false);
-
-    getMessages(sessionId, PAGE_SIZE, 0)
-      .then((msgs) => {
+      try {
+        const msgs = await getMessages(sessionId, PAGE_SIZE, 0);
+        if (cancelled) return;
         setMessages(msgs);
         setOffset(msgs.length);
         setHasMore(msgs.length === PAGE_SIZE);
         setLoading(false);
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
-      })
-      .catch(() => setLoading(false));
+      } catch {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   const loadMore = useCallback(() => {
@@ -318,4 +339,3 @@ const MessageList = forwardRef(function MessageList({
 });
 
 export default MessageList;
-

@@ -67,10 +67,23 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
     if (!char?.id || !sessionId) return;
     if (!expanded && stateValues !== null) return; // 已加载过则不重置
     if (!expanded) return;
-    setStateValues(null);
-    fetchSessionCharacterStateValues(sessionId, char.id)
-      .then(setStateValues)
-      .catch(() => setStateValues([]));
+    let cancelled = false;
+
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setStateValues(null);
+      try {
+        const rows = await fetchSessionCharacterStateValues(sessionId, char.id);
+        if (!cancelled) setStateValues(rows);
+      } catch {
+        if (!cancelled) setStateValues([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [char?.id, sessionId, expanded, stateTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleReset() {
@@ -212,15 +225,21 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const firstActiveCharacterId = activeCharacters[0]?.id;
 
   useEffect(() => {
-    if (firstActiveCharacterId) {
-      setExpandedIds([firstActiveCharacterId]);
-    } else {
-      setExpandedIds([]);
-    }
+    const timeoutId = setTimeout(() => {
+      if (firstActiveCharacterId) {
+        setExpandedIds([firstActiveCharacterId]);
+      } else {
+        setExpandedIds([]);
+      }
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [firstActiveCharacterId]);
 
   // sessionId 变化时清空已选日记
-  useEffect(() => { setSelectedEntry(null); }, [sessionId]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setSelectedEntry(null), 0);
+    return () => clearTimeout(timeoutId);
+  }, [sessionId]);
 
   async function handleResetWorldState() {
     if (!sessionId || worldResetting) return;

@@ -1,0 +1,19 @@
+{
+  "name": "@worldengine/assistant-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./AssistantPanel": "./AssistantPanel.jsx",
+    "./useAssistantStore": "./useAssistantStore.js"
+  },
+  "peerDependencies": {
+    "react": "^19.2.4",
+    "zustand": "^5.0.12"
+  },
+  "dependencies": {
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  }
+}

@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
 import useStore from '../../store/index.js';
-import { useAssistantStore } from '@assistant/useAssistantStore.js';
+import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
@@ -64,12 +64,18 @@ export default function TopBar() {
   }
 
   useEffect(() => {
-    loadWorlds();
+    const timeoutId = setTimeout(() => {
+      loadWorlds();
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
     if (dropdownOpen) {
-      loadWorlds();
+      const timeoutId = setTimeout(() => {
+        loadWorlds();
+      }, 0);
+      return () => clearTimeout(timeoutId);
     }
   }, [dropdownOpen]);
 
@@ -83,8 +89,13 @@ export default function TopBar() {
     let cancelled = false;
 
     if (!characterId) {
-      setChatWorldId(null);
-      return undefined;
+      const timeoutId = setTimeout(() => {
+        if (!cancelled) setChatWorldId(null);
+      }, 0);
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+      };
     }
 
     getCharacter(characterId)
@@ -125,7 +136,8 @@ export default function TopBar() {
   }, []);
 
   useEffect(() => {
-    setDropdownOpen(false);
+    const timeoutId = setTimeout(() => setDropdownOpen(false), 0);
+    return () => clearTimeout(timeoutId);
   }, [location.pathname]);
 
   const isWorldsList = topbarPathname === '/';

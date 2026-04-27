@@ -6,7 +6,7 @@ import GlobalToast from './components/ui/GlobalToast.jsx';
 import { refreshCustomCss } from './api/custom-css-snippets';
 import { getConfig } from './api/config';
 import { useDisplaySettingsStore } from './store/displaySettings';
-import { useAssistantStore } from '../../assistant/client/useAssistantStore.js';
+import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
 
 const WorldsPage = lazy(() => import('./pages/WorldsPage'));
 
@@ -19,7 +19,7 @@ const ChatPage = lazy(() => import('./pages/ChatPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('./pages/WritingSpacePage'));
 const WorldConfigPage = lazy(() => import('./pages/WorldConfigPage'));
-const AssistantPanel = lazy(() => import('../../assistant/client/AssistantPanel.jsx'));
+const AssistantPanel = lazy(() => import('@worldengine/assistant-client/AssistantPanel'));
 
 function RedirectToConfig() {
   const { worldId } = useParams();

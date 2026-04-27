@@ -6,6 +6,7 @@ import SessionItem from './SessionItem.jsx';
 import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
 import { getAvatarColor, getAvatarUrl } from '../../utils/avatar.js';
 import { pushErrorToast } from '../../utils/toast.js';
+import { chatSessionListBridge } from '../../utils/session-list-bridge.js';
 
 const PAGE_SIZE = 20;
 
@@ -26,20 +27,31 @@ export default function Sidebar({
   const avatarColor = getAvatarColor(character?.id);
   const avatarUrl = getAvatarUrl(character?.avatar_path);
 
-  // 初始加载
   useEffect(() => {
     if (!character?.id) return;
-    setSessions([]);
-    setOffset(0);
-    setHasMore(false);
+    let cancelled = false;
 
-    getSessions(character.id, PAGE_SIZE, 0)
-      .then((data) => {
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      setSessions([]);
+      setOffset(0);
+      setHasMore(false);
+
+      try {
+        const data = await getSessions(character.id, PAGE_SIZE, 0);
+        if (cancelled) return;
         setSessions(data);
         setOffset(data.length);
         setHasMore(data.length === PAGE_SIZE);
-      })
-      .catch(() => setSessions([]));
+      } catch {
+        if (!cancelled) setSessions([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [character?.id]);
 
   // 加载更多（更旧的会话）
@@ -112,15 +124,18 @@ export default function Sidebar({
     }
   }
 
-  // 外部更新标题（SSE title_updated）
-  Sidebar.updateTitle = (sessionId, title) => {
-    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
-  };
-
-  // 外部追加新会话（自动建会话时使用）
-  Sidebar.addSession = (session) => {
-    setSessions((prev) => [session, ...prev]);
-  };
+  useEffect(() => {
+    chatSessionListBridge.updateTitle = (sessionId, title) => {
+      setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, title } : s)));
+    };
+    chatSessionListBridge.addSession = (session) => {
+      setSessions((prev) => [session, ...prev]);
+    };
+    return () => {
+      chatSessionListBridge.updateTitle = null;
+      chatSessionListBridge.addSession = null;
+    };
+  }, []);
 
   return (
     <div className="we-sidebar flex flex-col h-full">

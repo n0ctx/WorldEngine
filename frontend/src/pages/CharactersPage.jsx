@@ -219,7 +219,12 @@ export default function CharactersPage() {
     }
   }, [worldId]);
 
-  useEffect(() => { loadData(); }, [loadData, reloadKey]);
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [loadData, reloadKey]);
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);

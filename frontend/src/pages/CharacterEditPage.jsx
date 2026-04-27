@@ -43,16 +43,19 @@ export default function CharacterEditPage() {
   // 创建模式：从 sessionStorage 恢复草稿
   useEffect(() => {
     if (!isCreate) return;
-    try {
-      const draft = JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
-      if (draft.name != null) setName(draft.name);
-      if (draft.description != null) setDescription(draft.description);
-      if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
-      if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
-      if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
-    } catch {
-      /* 忽略无效草稿 */
-    }
+    const timeoutId = setTimeout(() => {
+      try {
+        const draft = JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
+        if (draft.name != null) setName(draft.name);
+        if (draft.description != null) setDescription(draft.description);
+        if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
+        if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
+        if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
+      } catch {
+        /* 忽略无效草稿 */
+      }
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, [isCreate]);
 
   // 创建模式：自动保存草稿

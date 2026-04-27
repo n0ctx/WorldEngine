@@ -20,6 +20,7 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
 import { pushErrorToast } from '../utils/toast';
 import { getConfig } from '../api/config.js';
 import { useDisplaySettingsStore } from '../store/displaySettings.js';
+import { chatSessionListBridge } from '../utils/session-list-bridge.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
@@ -113,37 +114,52 @@ export default function ChatPage() {
   // 加载角色信息
   useEffect(() => {
     if (!characterId) return;
+    let cancelled = false;
     const shouldResetSession = !!currentCharacterId && currentCharacterId !== characterId;
-    if (shouldResetSession) {
-      clearActiveSession();
-    }
-    setCurrentCharacterId(characterId);
-    setCharacter(null);
-    setPersona(null);
-    setCurrentSession((prev) => (shouldResetSession ? null : prev));
-    getCharacter(characterId).then((c) => {
-      setCharacter(c);
-      if (c.world_id) {
-        getPersona(c.world_id).then(setPersona).catch(() => {});
-        syncDiaryTimeField(c.world_id).catch(() => {});
-      }
-    }).catch(() => {});
 
-    if (!shouldResetSession && currentSessionId) {
-      getSession(currentSessionId)
-        .then((session) => {
-          if (session?.character_id === characterId) {
-            setCurrentSession(session);
-            return;
-          }
-          clearActiveSession();
-        })
-        .catch(() => {
-          clearActiveSession();
-        });
-    } else if (!currentSessionId) {
-      setCurrentSession(null);
-    }
+    (async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      if (shouldResetSession) {
+        clearActiveSession();
+      }
+      setCurrentCharacterId(characterId);
+      setCharacter(null);
+      setPersona(null);
+      setCurrentSession((prev) => (shouldResetSession ? null : prev));
+
+      getCharacter(characterId).then((c) => {
+        if (cancelled) return;
+        setCharacter(c);
+        if (c.world_id) {
+          getPersona(c.world_id).then((p) => {
+            if (!cancelled) setPersona(p);
+          }).catch(() => {});
+          syncDiaryTimeField(c.world_id).catch(() => {});
+        }
+      }).catch(() => {});
+
+      if (!shouldResetSession && currentSessionId) {
+        getSession(currentSessionId)
+          .then((session) => {
+            if (cancelled) return;
+            if (session?.character_id === characterId) {
+              setCurrentSession(session);
+              return;
+            }
+            clearActiveSession();
+          })
+          .catch(() => {
+            if (!cancelled) clearActiveSession();
+          });
+      } else if (!currentSessionId) {
+        setCurrentSession(null);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [characterId, clearActiveSession, currentCharacterId, currentSessionId, setCurrentCharacterId]);
 
   // 启动时加载正则规则缓存
@@ -300,8 +316,8 @@ export default function ChatPage() {
       },
       onTitleUpdated(title) {
         setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
-        if (SessionListPanel.updateTitle && currentSessionIdRef.current) {
-          SessionListPanel.updateTitle(currentSessionIdRef.current, title);
+        if (chatSessionListBridge.updateTitle && currentSessionIdRef.current) {
+          chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
         }
       },
       onMemoryRecallStart() {
@@ -335,7 +351,7 @@ export default function ChatPage() {
       if (!character) return;
       const newSession = await createSession(character.id);
       enterSession(newSession);
-      SessionListPanel.addSession(newSession);
+      chatSessionListBridge.addSession?.(newSession);
       sessionId = newSession.id;
     }
 
@@ -602,8 +618,8 @@ export default function ChatPage() {
       const { title } = await retitle(currentSessionId);
       if (title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        if (SessionListPanel.updateTitle) {
-          SessionListPanel.updateTitle(currentSessionIdRef.current, title);
+        if (chatSessionListBridge.updateTitle) {
+          chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
         }
         showToast(`标题已更新：${title}`);
       } else {
