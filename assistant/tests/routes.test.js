@@ -50,7 +50,6 @@ test('normalizeStateFieldOps 会校验 world-card 的 target/type 并规范 crea
     description: '',
     default_value: null,
     update_mode: 'manual',
-    trigger_mode: 'manual_only',
     update_instruction: '',
     allow_empty: 0,
     enum_options: ['平静', '警惕'],

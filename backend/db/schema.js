@@ -34,8 +34,6 @@ CREATE TABLE IF NOT EXISTS persona_state_fields (
   description        TEXT NOT NULL DEFAULT '',
   default_value      TEXT,
   update_mode        TEXT NOT NULL DEFAULT 'manual',
-  trigger_mode       TEXT NOT NULL DEFAULT 'manual_only',
-  trigger_keywords   TEXT,
   enum_options       TEXT,
   min_value          REAL,
   max_value          REAL,
@@ -117,8 +115,6 @@ CREATE TABLE IF NOT EXISTS world_state_fields (
   description        TEXT NOT NULL DEFAULT '',
   default_value      TEXT,
   update_mode        TEXT NOT NULL DEFAULT 'manual',
-  trigger_mode       TEXT NOT NULL DEFAULT 'manual_only',
-  trigger_keywords   TEXT,
   enum_options       TEXT,
   min_value          REAL,
   max_value          REAL,
@@ -149,8 +145,6 @@ CREATE TABLE IF NOT EXISTS character_state_fields (
   description        TEXT NOT NULL DEFAULT '',
   default_value      TEXT,
   update_mode        TEXT NOT NULL DEFAULT 'manual',
-  trigger_mode       TEXT NOT NULL DEFAULT 'manual_only',
-  trigger_keywords   TEXT,
   enum_options       TEXT,
   min_value          REAL,
   max_value          REAL,
@@ -406,6 +400,22 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
   // worlds 封面图
   try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
+  // 状态字段触发方式已取消：自动字段统一每轮更新，删除历史配置列
+  migrateDropStateFieldTriggerColumns(db);
+}
+
+function migrateDropStateFieldTriggerColumns(db) {
+  const tables = ['world_state_fields', 'character_state_fields', 'persona_state_fields'];
+  for (const table of tables) {
+    const cols = db.pragma(`table_info(${table})`).map((col) => col.name);
+    if (cols.includes('trigger_mode')) {
+      try { db.exec(`ALTER TABLE ${table} DROP COLUMN trigger_mode`); } catch {}
+    }
+    const updatedCols = db.pragma(`table_info(${table})`).map((col) => col.name);
+    if (updatedCols.includes('trigger_keywords')) {
+      try { db.exec(`ALTER TABLE ${table} DROP COLUMN trigger_keywords`); } catch {}
+    }
+  }
 }
 
 function migrateLegacyAutoFilledNullStateValues(db) {

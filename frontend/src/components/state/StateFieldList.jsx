@@ -3,7 +3,6 @@ import StateFieldEditor from './StateFieldEditor';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
-const TRIGGER_LABEL = { manual_only: '手动', every_turn: '每轮', keyword_based: '关键词' };
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 
@@ -153,7 +152,6 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete, onDragStart, onDragOve
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
           <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
-          <Badge label={TRIGGER_LABEL[field.trigger_mode] ?? field.trigger_mode} dim />
         </span>
       </div>
 

@@ -61,23 +61,11 @@ function repairTruncatedJson(text) {
 }
 
 /**
- * 筛选本轮需要更新的活跃字段：update_mode='llm_auto' 且 trigger_mode 匹配的字段参与自动更新。
- * @param {object[]} fields 字段列表
- * @param {string} scanText 用于关键词匹配的扫描文本（消息内容拼接）
+ * 筛选本轮需要更新的活跃字段：状态字段触发机制已收敛为一维 update_mode。
+ * update_mode='llm_auto' 的字段每轮参与自动状态更新。
  */
-function filterActive(fields, scanText = '') {
-  const text = scanText.toLowerCase();
-  return fields.filter((f) => {
-    if (f.update_mode !== 'llm_auto') return false;
-    const mode = f.trigger_mode || 'manual_only';
-    if (mode === 'manual_only') return false;
-    if (mode === 'every_turn') return true;
-    if (mode === 'keyword_based') {
-      if (!f.trigger_keywords || f.trigger_keywords.length === 0) return false;
-      return f.trigger_keywords.some((kw) => text.includes(kw.toLowerCase()));
-    }
-    return false;
-  });
+function filterActive(fields) {
+  return fields.filter((f) => f.update_mode === 'llm_auto');
 }
 
 /**
@@ -183,16 +171,15 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   if (messages.length === 0) return;
 
   // ── 确定各类活跃字段 ──
-  const scanText = messages.map((m) => m.content).join('\n');
-  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId), scanText) : [];
+  const worldActiveFields = world ? filterActive(getWorldStateFieldsByWorldId(worldId)) : [];
 
   const characters = (characterIds || []).map((id) => getCharacterById(id)).filter(Boolean);
   // 角色状态字段 schema 由 world_id 决定，取第一个有效角色的 world_id
   const charWorldId = characters[0]?.world_id ?? worldId;
-  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId), scanText) : [];
+  const charSchemaFields = charWorldId ? filterActive(getCharacterStateFieldsByWorldId(charWorldId)) : [];
   const charactersWithFields = charSchemaFields.length > 0 ? characters : [];
 
-  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId), scanText) : [];
+  const personaActiveFields = world ? filterActive(getPersonaStateFieldsByWorldId(worldId)) : [];
 
   if (worldActiveFields.length === 0 && charactersWithFields.length === 0 && personaActiveFields.length === 0) {
     log.info(`SKIP  ${formatMeta({ session: sid, reason: 'no-active-fields' })}`);

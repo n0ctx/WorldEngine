@@ -522,8 +522,6 @@ world-card 常驻条目 create 格式：
   "description": "字段描述",
   "default_value": "100",
   "update_mode": "llm_auto|manual",
-  "trigger_mode": "manual_only|every_turn|keyword_based",
-  "trigger_keywords": ["受伤", "治疗"],
   "update_instruction": "更新指令",
   "enum_options": ["正常", "受伤"],
   "min_value": 0,

@@ -50,7 +50,6 @@ for (const suite of fieldSuites) {
       label: '心情',
       type: 'enum',
       enum_options: ['平静', '激动'],
-      trigger_keywords: ['火焰'],
     });
     const second = create(world.id, {
       field_key: `${suite.label}_hp`,
@@ -59,18 +58,15 @@ for (const suite of fieldSuites) {
     });
 
     assert.deepEqual(first.enum_options, ['平静', '激动']);
-    assert.deepEqual(first.trigger_keywords, ['火焰']);
     assert.equal(second.sort_order, first.sort_order + 1);
 
     const updated = update(first.id, {
       label: '新心情',
       enum_options: ['冷静'],
-      trigger_keywords: null,
       sort_order: 9,
     });
     assert.equal(updated.label, '新心情');
     assert.deepEqual(updated.enum_options, ['冷静']);
-    assert.equal(updated.trigger_keywords, null);
     assert.equal(updated.sort_order, 9);
 
     reorder(world.id, [second.id, first.id]);

@@ -19,18 +19,15 @@ after(() => {
   sandbox.cleanup();
 });
 
-test('filterActive 返回 update_mode=llm_auto 且 trigger_mode 匹配的字段', async () => {
+test('filterActive 返回 update_mode=llm_auto 的字段', async () => {
   const { __testables } = await freshImport('backend/memory/combined-state-updater.js');
   const fields = [
-    { field_key: 'manual', update_mode: 'manual', trigger_mode: 'every_turn' },
-    { field_key: 'auto_manual_only', update_mode: 'llm_auto', trigger_mode: 'manual_only' },
-    { field_key: 'auto_every_turn', update_mode: 'llm_auto', trigger_mode: 'every_turn' },
-    { field_key: 'auto_keyword_match', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['火焰'] },
-    { field_key: 'auto_keyword_no_match', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['冰霜'] },
-    { field_key: 'auto_keyword_empty', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: [] },
+    { field_key: 'manual', update_mode: 'manual' },
+    { field_key: 'auto_weather', update_mode: 'llm_auto' },
+    { field_key: 'auto_hp', update_mode: 'llm_auto' },
   ];
-  const active = __testables.filterActive(fields, '出现了火焰');
-  assert.deepEqual(active.map((item) => item.field_key), ['auto_every_turn', 'auto_keyword_match']);
+  const active = __testables.filterActive(fields);
+  assert.deepEqual(active.map((item) => item.field_key), ['auto_weather', 'auto_hp']);
 });
 
 test('validateValue 覆盖 text/number/boolean/enum/list', async () => {
@@ -49,9 +46,9 @@ test('updateAllStates 在 LLM 失败时不写入任何会话状态', async () =>
   const character = insertCharacter(sandbox.db, world.id, { name: '诺亚' });
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '我受伤了', created_at: 1 });
-  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto', trigger_mode: 'every_turn' });
-  insertCharacterStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命', type: 'number', update_mode: 'llm_auto', trigger_mode: 'keyword_based', trigger_keywords: ['受伤'] });
-  insertPersonaStateField(sandbox.db, world.id, { field_key: 'pain', label: '疼痛', update_mode: 'llm_auto', trigger_mode: 'every_turn' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命', type: 'number', update_mode: 'llm_auto' });
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'pain', label: '疼痛', update_mode: 'llm_auto' });
   process.env.MOCK_LLM_COMPLETE_ERROR = 'state fail';
 
   const { updateAllStates } = await freshImport('backend/memory/combined-state-updater.js');
@@ -72,9 +69,9 @@ test('updateAllStates 解析 patch 后写入世界/角色/玩家状态', async (
   const session = insertSession(sandbox.db, { character_id: character.id });
   insertMessage(sandbox.db, session.id, { role: 'user', content: '我受伤了，天气转晴。', created_at: 1 });
   insertMessage(sandbox.db, session.id, { role: 'assistant', content: '你包扎了伤口。', created_at: 2 });
-  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto', trigger_mode: 'every_turn' });
-  insertCharacterStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命', type: 'number', update_mode: 'llm_auto', trigger_mode: 'every_turn' });
-  insertPersonaStateField(sandbox.db, world.id, { field_key: 'pain', label: '疼痛', update_mode: 'llm_auto', trigger_mode: 'every_turn' });
+  insertWorldStateField(sandbox.db, world.id, { field_key: 'weather', label: '天气', update_mode: 'llm_auto' });
+  insertCharacterStateField(sandbox.db, world.id, { field_key: 'hp', label: '生命', type: 'number', update_mode: 'llm_auto' });
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'pain', label: '疼痛', update_mode: 'llm_auto' });
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
     world: { weather: '晴朗' },
     char_0: { hp: 88 },

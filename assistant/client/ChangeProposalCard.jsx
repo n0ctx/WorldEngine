@@ -41,7 +41,6 @@ const TEXTAREA_KEYS = new Set([
 
 const STATE_TYPE_LABELS = { number: '数值', text: '文本', enum: '枚举', list: '列表', boolean: '布尔' };
 const UPDATE_MODE_LABELS = { manual: '手动', llm_auto: 'LLM 自动' };
-const TRIGGER_MODE_LABELS = { manual_only: '手动', every_turn: '每轮', keyword_based: '关键词' };
 const ENTRY_TRIGGER_LABELS = { always: '常驻', keyword: '关键词', llm: 'AI 判断', state: '状态条件' };
 
 const ENTRY_TRIGGER_OPTIONS = [
@@ -84,12 +83,6 @@ const STATE_FIELD_TYPE_OPTIONS = [
 const UPDATE_MODE_OPTIONS = [
   { value: 'manual', label: '手动' },
   { value: 'llm_auto', label: 'LLM 自动' },
-];
-
-const TRIGGER_MODE_OPTIONS = [
-  { value: 'manual_only', label: '手动' },
-  { value: 'every_turn', label: '每轮' },
-  { value: 'keyword_based', label: '关键词' },
 ];
 
 const NUMERIC_CONDITION_OPTIONS = [
@@ -155,7 +148,6 @@ function normalizeStateFieldOp(op) {
     target: op.target || 'world',
     type: op.type || 'text',
     update_mode: op.update_mode || 'manual',
-    trigger_mode: op.trigger_mode || 'manual_only',
     allow_empty: Number(op.allow_empty) === 0 ? 0 : 1,
     enum_options: Array.isArray(op.enum_options) ? op.enum_options : null,
   };
@@ -498,7 +490,7 @@ function StateFieldOpEditor({ op, allowedTargets, onChange, onRemove }) {
             style={{ ...inputBase, resize: 'vertical', marginBottom: '6px' }}
           />
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px 110px', gap: '6px', marginBottom: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px', gap: '6px', marginBottom: '6px' }}>
             <input
               placeholder="默认值（JSON 字符串）"
               value={op.default_value ?? ''}
@@ -511,15 +503,6 @@ function StateFieldOpEditor({ op, allowedTargets, onChange, onRemove }) {
               style={inputBase}
             >
               {UPDATE_MODE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <select
-              value={op.trigger_mode || 'manual_only'}
-              onChange={(e) => onChange({ ...op, trigger_mode: e.target.value })}
-              style={inputBase}
-            >
-              {TRIGGER_MODE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
@@ -600,7 +583,6 @@ function StateFieldOpSummary({ op }) {
       {op.description && <div>描述：{op.description}</div>}
       {op.default_value != null && <div>默认值：{previewValue(op.default_value)}</div>}
       {op.update_mode && <div>更新方式：{UPDATE_MODE_LABELS[op.update_mode] || op.update_mode}</div>}
-      {op.trigger_mode && <div>触发方式：{TRIGGER_MODE_LABELS[op.trigger_mode] || op.trigger_mode}</div>}
       {Array.isArray(op.enum_options) && op.enum_options.length > 0 && <div>枚举：{op.enum_options.join('，')}</div>}
       {(op.min_value != null || op.max_value != null) && <div>范围：{op.min_value ?? '-'} ~ {op.max_value ?? '-'}</div>}
       {op.update_instruction && <div>更新指令：{op.update_instruction}</div>}

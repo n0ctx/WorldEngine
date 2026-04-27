@@ -94,7 +94,6 @@ const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', '
 const VALID_MODES = new Set(['chat', 'writing']);
 const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean']);
 const VALID_UPDATE_MODES = new Set(['llm_auto', 'manual']);
-const VALID_TRIGGER_MODES = new Set(['manual_only', 'every_turn', 'keyword_based']);
 const PROPOSAL_ALLOWED_OPERATIONS = {
   'world-card': new Set(['create', 'update', 'delete']),
   'character-card': new Set(['create', 'update', 'delete']),
@@ -993,7 +992,7 @@ async function applyStateFieldDelete(op) {
 
 const STATE_FIELD_KEYS = [
   'field_key', 'label', 'type', 'description', 'default_value',
-  'update_mode', 'trigger_mode', 'trigger_keywords', 'update_instruction',
+  'update_mode', 'update_instruction',
   'enum_options', 'min_value', 'max_value', 'allow_empty',
 ];
 
@@ -1370,8 +1369,6 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('description' in data) normalized.description = String(data.description ?? '');
       if ('default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
       if ('update_mode' in data) normalized.update_mode = VALID_UPDATE_MODES.has(data.update_mode) ? data.update_mode : undefined;
-      if ('trigger_mode' in data) normalized.trigger_mode = VALID_TRIGGER_MODES.has(data.trigger_mode) ? data.trigger_mode : undefined;
-      if ('trigger_keywords' in data) normalized.trigger_keywords = normalizeStringArrayOrNull(data.trigger_keywords);
       if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
       if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
       if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
@@ -1391,11 +1388,9 @@ function normalizeStateFieldOps(rawOps, type) {
       description: String(raw.description ?? ''),
       default_value: raw.default_value == null ? null : String(raw.default_value),
       update_mode: VALID_UPDATE_MODES.has(raw.update_mode) ? raw.update_mode : 'manual',
-      trigger_mode: VALID_TRIGGER_MODES.has(raw.trigger_mode) ? raw.trigger_mode : 'manual_only',
       update_instruction: String(raw.update_instruction ?? ''),
       allow_empty: normalizeEnabled(raw.allow_empty),
     };
-    if ('trigger_keywords' in raw) normalized.trigger_keywords = normalizeStringArrayOrNull(raw.trigger_keywords);
     if ('enum_options' in raw) normalized.enum_options = normalizeStringArrayOrNull(raw.enum_options);
     if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);

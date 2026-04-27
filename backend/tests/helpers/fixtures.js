@@ -107,9 +107,9 @@ function insertStateField(db, table, ownerColumn, ownerId, patch = {}) {
   db.prepare(`
     INSERT INTO ${table} (
       id, ${ownerColumn}, field_key, label, type, description, default_value,
-      update_mode, trigger_mode, trigger_keywords, enum_options, min_value, max_value,
+      update_mode, enum_options, min_value, max_value,
       allow_empty, update_instruction, sort_order, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     ownerId,
@@ -119,8 +119,6 @@ function insertStateField(db, table, ownerColumn, ownerId, patch = {}) {
     patch.description ?? '',
     patch.default_value ?? null,
     patch.update_mode ?? 'manual',
-    patch.trigger_mode ?? 'manual_only',
-    patch.trigger_keywords ? JSON.stringify(patch.trigger_keywords) : null,
     patch.enum_options ? JSON.stringify(patch.enum_options) : null,
     patch.min_value ?? null,
     patch.max_value ?? null,
