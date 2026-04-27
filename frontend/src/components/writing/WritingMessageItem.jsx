@@ -159,6 +159,7 @@ export default function WritingMessageItem({
   onRegenerate,
   onEditAssistant,
   onDelete,
+  onMakeCard,
   worldId,
 }) {
   const rawContent = message.content || '';
@@ -336,6 +337,17 @@ export default function WritingMessageItem({
                 </Icon>
                 编辑
               </button>
+              {onMakeCard && (
+                <button onClick={() => onMakeCard(message.id)} aria-label="从此轮次提取角色并制卡">
+                  <Icon size={16}>
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="22" y1="11" x2="16" y2="11" />
+                  </Icon>
+                  制卡
+                </button>
+              )}
               {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
             </div>
           )}

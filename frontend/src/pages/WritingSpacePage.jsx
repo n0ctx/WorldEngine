@@ -20,6 +20,7 @@ import {
   editWritingAssistantMessage,
   impersonateWriting,
   retitleWritingSession,
+  extractCharactersFromMessage,
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
@@ -31,7 +32,7 @@ import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import OptionCard from '../components/chat/OptionCard.jsx';
-import { pushErrorToast } from '../utils/toast.js';
+import { pushToast, pushErrorToast } from '../utils/toast.js';
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
@@ -83,6 +84,7 @@ export default function WritingSpacePage() {
   const assistantAppendedEarlyRef = useRef(false);
   const pendingOptionsRef = useRef([]);
   const currentSessionRef = useRef(null);
+  const makingCardRef = useRef(false);
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
@@ -518,6 +520,40 @@ export default function WritingSpacePage() {
     }
   }
 
+  // 从当前轮次提取角色并自动制卡
+  function handleMakeCard(assistantMessageId) {
+    if (makingCardRef.current) return;
+    makingCardRef.current = true;
+    const session = currentSessionRef.current;
+    if (!session) { makingCardRef.current = false; return; }
+    pushToast('正在提取角色，请稍候...');
+    let createdCount = 0;
+    extractCharactersFromMessage(worldId, session.id, assistantMessageId, {
+      onEvent(evt) {
+        if (evt.type === 'extract_done' && evt.count === 0) {
+          pushToast('未发现新角色');
+        } else if (evt.type === 'card_activated' && evt.character) {
+          createdCount += 1;
+          setActiveCharacters((prev) => {
+            if (prev.some((c) => c.id === evt.character.id)) return prev;
+            return [...prev, evt.character];
+          });
+          pushToast(`已激活角色：${evt.character.name}`);
+        } else if (evt.type === 'error') {
+          pushErrorToast(evt.error || '制卡失败');
+        }
+      },
+      onStreamEnd() {
+        makingCardRef.current = false;
+        if (createdCount > 0) pushToast(`制卡完成，共激活 ${createdCount} 个角色`);
+      },
+      onError(err) {
+        makingCardRef.current = false;
+        pushErrorToast(err || '制卡请求失败');
+      },
+    });
+  }
+
   return (
     <BookSpread>
       <WritingPageLeft
@@ -561,6 +597,7 @@ export default function WritingSpacePage() {
               onRegenerateMessage={handleRegenerateMessage}
               onEditAssistantMessage={handleEditAssistantMessage}
               onDeleteMessage={handleDeleteMessage}
+              onMakeCard={handleMakeCard}
               prose
               chapterTitles={chapterTitles}
               onChapterEdit={handleChapterEdit}

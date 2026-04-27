@@ -152,6 +152,8 @@ export async function runAgentDefinition(def, {
   return normalizeProposal(result, { type: def.proposalType, operation, entityId });
 }
 
+export { buildAgentMessages };
+
 export const __testables = {
   buildAgentMessages,
 };

@@ -87,6 +87,14 @@ export async function activateCharacter(worldId, sessionId, characterId) {
   return res.json();
 }
 
+export function extractCharactersFromMessage(worldId, sessionId, assistantMessageId, callbacks) {
+  return streamPost(
+    '/api/assistant/extract-characters',
+    { worldId, sessionId, assistantMessageId },
+    callbacks,
+  );
+}
+
 export async function deactivateCharacter(worldId, sessionId, characterId) {
   const res = await fetch(
     `/api/worlds/${worldId}/writing-sessions/${sessionId}/characters/${characterId}`,

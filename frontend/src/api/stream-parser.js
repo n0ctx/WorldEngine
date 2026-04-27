@@ -47,6 +47,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
+          else callbacks.onEvent?.(evt);
         } catch {
           // ignore malformed events
         }

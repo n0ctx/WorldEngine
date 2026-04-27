@@ -25,6 +25,7 @@ const MessageList = forwardRef(function MessageList({
   onRegenerateMessage,
   onEditAssistantMessage,
   onDeleteMessage,
+  onMakeCard,
   continuingMessageId,
   continuingText,
   prose = false,
@@ -234,6 +235,7 @@ const MessageList = forwardRef(function MessageList({
                     onRegenerate={isStream ? undefined : onRegenerateMessage}
                     onEditAssistant={isStream ? undefined : onEditAssistantMessage}
                     onDelete={isStream ? undefined : onDeleteMessage}
+                    onMakeCard={isStream ? undefined : onMakeCard}
                   />
                 );
               })}

@@ -3,6 +3,7 @@
  *
  * POST /api/assistant/chat                   — 兼容旧版 SSE 对话（主代理 + 执行子代理）
  * POST /api/assistant/execute               — 应用提案（写入数据库）
+ * POST /api/assistant/extract-characters    — 从写作轮次提取角色并自动创建角色卡（SSE）
  * POST /api/assistant/tasks                 — 通用 agent 任务入口（SSE）
  * POST /api/assistant/tasks/:taskId/answer  — 回答澄清问题（SSE）
  * POST /api/assistant/tasks/:taskId/approve-plan — 确认计划并执行（SSE）
@@ -16,9 +17,9 @@ import { runAgent } from './main-agent.js';
 import { READ_FILE_TOOL } from './tools/project-reader.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
 import { ALL_AGENTS } from './agents/index.js';
-import { createAgentTool } from './agent-factory.js';
+import { createAgentTool, buildAgentMessages } from './agent-factory.js';
 import { getWorldById, createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
-import { getCharacterById, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
+import { getCharacterById, getCharactersByWorldId, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
 import { getOrCreatePersona, updatePersona } from '../../backend/services/personas.js';
 import { getConfig, updateConfig } from '../../backend/services/config.js';
 import {
@@ -59,6 +60,10 @@ import {
   replaceEntryConditions,
 } from '../../backend/db/queries/entry-conditions.js';
 import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
+import { getMessagesBySessionId, getMessageById } from '../../backend/db/queries/messages.js';
+import { addWritingSessionCharacter } from '../../backend/db/queries/writing-sessions.js';
+import { upsertCharacterStateValue } from '../../backend/db/queries/character-state-values.js';
+import * as llm from '../../backend/llm/index.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
 import { createTask, getTask, updateTask, appendTaskEvent } from './task-store.js';
 import { createBaseTask, planTask } from './task-planner.js';
@@ -207,6 +212,116 @@ function compileTaskGraph(steps = []) {
     entityId: null,
   }));
 }
+
+// ─── POST /api/assistant/extract-characters ──────────────────────────
+// 从写作轮次（user + assistant 消息对）中提取非玩家角色，自动创建角色卡并激活到会话
+// SSE 事件：character_found / card_activated / error / done
+
+router.post('/extract-characters', async (req, res) => {
+  const { worldId, sessionId, assistantMessageId } = req.body ?? {};
+  if (!worldId || !sessionId || !assistantMessageId) {
+    return res.status(400).json({ error: 'worldId、sessionId、assistantMessageId 均为必填项' });
+  }
+
+  openSSE(res);
+
+  try {
+    const assistantMsg = getMessageById(assistantMessageId);
+    if (!assistantMsg) {
+      sendSSE(res, { type: 'error', error: '找不到指定的消息' });
+      return endSSE(res);
+    }
+
+    // 找到此 assistant 消息前最近的 user 消息
+    const allMsgs = getMessagesBySessionId(sessionId, 500);
+    const aIdx = allMsgs.findIndex((m) => m.id === assistantMessageId);
+    const userMsg = aIdx > 0
+      ? [...allMsgs].slice(0, aIdx).reverse().find((m) => m.role === 'user')
+      : null;
+
+    const existingChars = getCharactersByWorldId(worldId);
+    const stateFields = listCharacterStateFields(worldId);
+
+    // 构建 LLM 任务描述
+    const existingNames = existingChars.map((c) => c.name).join('、') || '（无）';
+    const sfDesc = stateFields.length > 0
+      ? stateFields.map((f) => `- ${f.field_key}（${f.label}，类型：${f.type}${f.description ? '，说明：' + f.description : ''}）`).join('\n')
+      : '（无状态字段定义）';
+
+    const task = [
+      '## 用户输入',
+      userMsg?.content ? userMsg.content : '（无用户输入）',
+      '',
+      '## AI 回复',
+      assistantMsg.content || '（内容为空）',
+      '',
+      `## 世界中已有角色（请排除）\n${existingNames}`,
+      '',
+      `## 角色状态字段定义\n${sfDesc}`,
+    ].join('\n');
+
+    log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length })}`);
+
+    const messages = buildAgentMessages('extract_characters', task);
+    let raw = await llm.complete(messages, { temperature: 0.3 });
+
+    function parseCharacterArray(text) {
+      const s = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+      const codeMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const src = codeMatch ? codeMatch[1].trim() : s;
+      const parsed = JSON.parse(src);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+
+    let characters;
+    try {
+      characters = parseCharacterArray(raw);
+    } catch {
+      messages.push({ role: 'assistant', content: raw });
+      messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON 数组。请只输出一个 JSON 数组，不要代码块或解释。' });
+      raw = await llm.complete(messages, { temperature: 0.3 });
+      try { characters = parseCharacterArray(raw); }
+      catch { characters = []; }
+    }
+
+    log.info(`extract-chars FOUND  ${formatMeta({ count: characters.length })}`);
+    sendSSE(res, { type: 'extract_done', count: characters.length });
+
+    for (const charData of characters) {
+      const name = (charData.name || '').trim();
+      if (!name) continue;
+
+      sendSSE(res, { type: 'character_found', name });
+
+      const char = createCharacter({
+        world_id: worldId,
+        name,
+        description: charData.description || '',
+        system_prompt: charData.system_prompt || '',
+        post_prompt: charData.post_prompt || '',
+        first_message: charData.first_message || '',
+      });
+
+      // 填写已有状态字段的初始值
+      if (stateFields.length > 0 && charData.state_values && typeof charData.state_values === 'object') {
+        for (const [key, val] of Object.entries(charData.state_values)) {
+          if (stateFields.some((f) => f.field_key === key)) {
+            upsertCharacterStateValue(char.id, key, { defaultValueJson: JSON.stringify(val) });
+          }
+        }
+      }
+
+      addWritingSessionCharacter(sessionId, char.id);
+      log.info(`extract-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
+      sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
+    }
+  } catch (err) {
+    log.error(`extract-chars FAIL  ${formatMeta({ error: err.message })}`);
+    sendSSE(res, { type: 'error', error: err.message });
+  }
+
+  endSSE(res);
+});
 
 // ─── POST /api/assistant/chat ─────────────────────────────────────
 
