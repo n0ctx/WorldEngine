@@ -193,6 +193,7 @@ body {
   flex-direction: column;
   resize: vertical;
   min-height: 80px;
+  overflow-anchor: none;
 }
 
 

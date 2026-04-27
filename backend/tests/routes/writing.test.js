@@ -91,7 +91,7 @@ test('写作 generate 与 continue 路由会落库并返回 SSE', async () => {
   assert.ok(events.some((event) => event.done));
 
   const rows = ctx.sandbox.db.prepare(
-    'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+    'SELECT id, role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
   ).all(session.id);
   assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
   assert.equal(rows[1].content, '第一句第二句');
@@ -102,7 +102,11 @@ test('写作 generate 与 continue 路由会落库并返回 SSE', async () => {
   });
   assert.equal(res.status, 200);
   const continueEvents = parseSsePayloads(await res.text());
-  assert.ok(continueEvents.some((event) => event.done));
+  const doneEvent = continueEvents.find((event) => event.done);
+  assert.ok(doneEvent);
+  assert.equal(doneEvent.assistant.id, rows[1].id);
+  assert.match(doneEvent.assistant.content, /第一句第二句/);
+  assert.match(doneEvent.assistant.content, /续写/);
 
   const updatedAssistant = ctx.sandbox.db.prepare(
     `SELECT content FROM messages

@@ -38,6 +38,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../src/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
 vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
+vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
 vi.mock('../../src/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
   stopGeneration: vi.fn(),
@@ -105,6 +106,7 @@ describe('ChatPage', () => {
     mocks.MessageListState.messagesRef.current = [];
     mocks.SessionListPanelMock.addSession.mockReset();
     mocks.continueGeneration.mockReset();
+    mocks.sendMessage.mockReset();
     mocks.createSession.mockResolvedValue({ id: 'session-1', title: null, character_id: 'char-1' });
     mocks.getSession.mockResolvedValue(null);
     mocks.getCharacter.mockResolvedValue({ id: 'char-1', world_id: 'world-1', name: '阿塔' });
@@ -172,5 +174,78 @@ describe('ChatPage', () => {
     });
     fireEvent.click(screen.getByText('continue'));
     await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(2));
+  });
+
+  it('continue 收尾时使用后端最终 assistant 内容，避免 next_prompt 进入消息渲染', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.MessageListState.messagesRef.current = [
+      { id: 'asst-1', role: 'assistant', content: '第一段' },
+    ];
+    mocks.continueGeneration.mockImplementation((_sid, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    render(<ChatPage />);
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+    fireEvent.click(screen.getByText('continue'));
+
+    await act(async () => {
+      callbacksRef.current.onDelta?.('第二段<next_prompt>\n选项一');
+      callbacksRef.current.onDone?.({ id: 'asst-1', role: 'assistant', content: '第一段\n\n第二段' }, ['选项一']);
+      callbacksRef.current.onStreamEnd?.();
+    });
+
+    const updater = mocks.MessageListState.updateMessages.mock.calls.at(-1)[0];
+    const updated = updater([{ id: 'asst-1', role: 'assistant', content: '第一段' }]);
+    expect(updated[0].content).toBe('第一段\n\n第二段');
+  });
+
+  it('旧普通流 onStreamEnd 不会解锁正在进行的新流', async () => {
+    const callbacks = [];
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, cb) => {
+      callbacks.push(cb);
+      return vi.fn();
+    });
+
+    render(<ChatPage />);
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacks[0].onDone?.({ id: 'asst-1', content: '第一轮' }, []);
+    });
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      callbacks[0].onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('send'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      callbacks[1].onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(3));
   });
 });

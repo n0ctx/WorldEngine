@@ -87,10 +87,18 @@ export async function activateCharacter(worldId, sessionId, characterId) {
   return res.json();
 }
 
-export function extractCharactersFromMessage(worldId, sessionId, assistantMessageId, callbacks) {
+export function extractCharactersFromMessage(worldId, sessionId, assistantMessageId, callbacks, { dryRun = false } = {}) {
   return streamPost(
     '/api/assistant/extract-characters',
-    { worldId, sessionId, assistantMessageId },
+    { worldId, sessionId, assistantMessageId, dryRun },
+    callbacks,
+  );
+}
+
+export function confirmCharacters(worldId, sessionId, characters, callbacks) {
+  return streamPost(
+    '/api/assistant/confirm-characters',
+    { worldId, sessionId, characters },
     callbacks,
   );
 }

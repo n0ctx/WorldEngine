@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import Select from '../ui/Select';
+import MarkdownEditor from '../ui/MarkdownEditor';
 
 const TYPE_OPTIONS = [
   { value: 'text',    label: '文本' },
@@ -40,6 +41,7 @@ function parseDiaryTimeDefault(str) {
  *   onClose()
  */
 export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose }) {
+  const mouseDownOnBackdrop = useRef(false);
   const [form, setForm] = useState(() => {
     // 解析 list 类型的 default_value（存储为 JSON 数组字符串）
     let listDefaults = [];
@@ -139,7 +141,11 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
     }
 
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+      <div
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4"
+        onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
+        onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
+      >
         <div className="we-dialog-panel w-full max-w-sm flex flex-col">
           <div className="we-dialog-header">
             <h2>日记时间字段</h2>
@@ -331,9 +337,12 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
           {/* 说明 */}
           <div>
             <label className={labelCls}>字段说明（给 LLM 的提示）</label>
-            <textarea className={`${inputCls} resize-none`} rows={2} value={form.description}
-              onChange={(e) => set('description', e.target.value)}
-              placeholder="「字段含义说明」——告诉 LLM 这个字段代表什么，会注入到提示词上下文中" />
+            <MarkdownEditor
+              value={form.description}
+              onChange={(md) => set('description', md)}
+              placeholder="「字段含义说明」——告诉 LLM 这个字段代表什么，会注入到提示词上下文中"
+              minHeight={72}
+            />
           </div>
 
           {/* 更新方式 */}
@@ -346,9 +355,12 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
           {form.update_mode === 'llm_auto' && (
             <div>
               <label className={labelCls}>更新指令（告诉 LLM 如何更新该字段）</label>
-              <textarea className={`${inputCls} resize-none`} rows={2} value={form.update_instruction}
-                onChange={(e) => set('update_instruction', e.target.value)}
-                placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值" />
+              <MarkdownEditor
+                value={form.update_instruction}
+                onChange={(md) => set('update_instruction', md)}
+                placeholder="「更新指令」——告诉 LLM 在何种情况下、如何判断并更新这个字段的值"
+                minHeight={72}
+              />
             </div>
           )}
 

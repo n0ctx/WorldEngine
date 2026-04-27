@@ -661,10 +661,30 @@
   opacity: 0.88;
 }
 
-.we-characters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
+.we-characters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.we-char-drag {
+  cursor: grab;
+  touch-action: none;
+  color: var(--we-ink-faded);
+  font-size: 14px;
+  opacity: 0.25;
+  flex-shrink: 0;
+  padding-right: 8px;
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.we-char-drag:active {
+  cursor: grabbing;
+}
+
+.we-character-card:hover .we-char-drag {
+  opacity: 0.55;
 }
 
 .we-character-card {
@@ -1011,27 +1031,45 @@
 }
 
 .we-entry-section-list {
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-sm);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .we-entry-section-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--we-space-md) var(--we-space-lg);
-  border-bottom: 1px solid var(--we-color-border-default);
-  background: var(--we-color-bg-canvas);
-  transition: background var(--we-duration-fast) var(--we-easing-standard);
+  padding: 7px var(--we-space-lg);
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  box-shadow: inset 0 1px 0 var(--we-color-white-sheen-md), 0 1px 3px var(--we-color-shadow-sm);
+  cursor: grab;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.we-entry-section-row:active {
+  cursor: grabbing;
 }
 
 .we-entry-section-row:hover {
-  background: var(--we-color-bg-surface);
+  border-color: var(--we-amber);
+  box-shadow: inset 0 1px 0 var(--we-color-white-sheen-md), 0 2px 6px var(--we-color-shadow-sm);
 }
 
-.we-entry-section-row--last {
-  border-bottom: none;
+.we-entry-section-drag {
+  color: var(--we-ink-faded);
+  font-size: 14px;
+  opacity: 0.25;
+  flex-shrink: 0;
+  padding-right: var(--we-space-md);
+  user-select: none;
+  transition: opacity 0.15s;
+}
+
+.we-entry-section-row:hover .we-entry-section-drag {
+  opacity: 0.55;
 }
 
 .we-entry-section-main {
@@ -1079,11 +1117,12 @@
 }
 
 .we-entry-section-empty {
-  padding: var(--we-space-lg);
+  padding: var(--we-space-xs) var(--we-space-lg);
   text-align: center;
   font-size: var(--we-text-sm);
   color: var(--we-ink-faded);
   background: var(--we-paper-base);
+  border-radius: var(--we-radius-sm);
 }
 
 /* ── 编辑页单页羊皮纸布局 ── */
@@ -1938,7 +1977,7 @@
 .we-field-row {
   background: var(--we-paper-aged);
   border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   box-shadow: inset 0 1px 0 var(--we-color-white-sheen-md), 0 1px 3px var(--we-color-shadow-sm);
   transition: border-color 0.15s, box-shadow 0.15s;
 }

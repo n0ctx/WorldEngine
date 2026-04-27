@@ -39,6 +39,7 @@ vi.mock('../../src/store/appMode.js', () => ({
   useAppModeStore: (selector) => selector({ setAppMode: mocks.setAppMode }),
 }));
 vi.mock('../../src/api/custom-css-snippets.js', () => ({ refreshCustomCss: (...args) => mocks.refreshCustomCss(...args) }));
+vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, writing: {} })) }));
 vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
 vi.mock('../../src/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
 vi.mock('../../src/api/writing-sessions.js', () => ({
@@ -95,6 +96,7 @@ describe('WritingSpacePage', () => {
     mocks.createWritingSession.mockResolvedValue({ id: 'ws-1', title: null });
     mocks.listActiveCharacters.mockResolvedValue([{ id: 'char-1', name: '阿塔' }]);
     mocks.continueGeneration.mockReset();
+    mocks.generate.mockReset();
     mocks.getChapterTitles.mockResolvedValue([]);
     mocks.generate.mockImplementation((_wid, _sid, _content, callbacks) => {
       callbacks.onDone?.({ id: 'asst-1', content: '段落' }, ['下一步']);
@@ -161,5 +163,67 @@ describe('WritingSpacePage', () => {
     });
     fireEvent.click(screen.getByText('continue-writing'));
     await waitFor(() => expect(mocks.continueGeneration).toHaveBeenCalledTimes(2));
+  });
+
+  it('writing continue 收尾时使用后端最终 assistant 内容，避免 next_prompt 进入消息渲染', async () => {
+    const callbacksRef = { current: null };
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.continueGeneration.mockImplementation((_wid, _sid, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+    mocks.MessageListState.messagesRef.current = [
+      { id: 'asst-1', role: 'assistant', content: '第一段' },
+    ];
+
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+    fireEvent.click(screen.getByText('continue-writing'));
+
+    await act(async () => {
+      callbacksRef.current.onDelta?.('第二段<next_prompt>\n选项一');
+      callbacksRef.current.onDone?.({ id: 'asst-1', role: 'assistant', content: '第一段\n\n第二段' }, ['选项一']);
+      callbacksRef.current.onStreamEnd?.();
+    });
+
+    const updater = mocks.MessageListState.updateMessages.mock.calls.at(-1)[0];
+    const updated = updater([{ id: 'asst-1', role: 'assistant', content: '第一段' }]);
+    expect(updated[0].content).toBe('第一段\n\n第二段');
+  });
+
+  it('旧普通写作流 onStreamEnd 不会解锁正在进行的新流', async () => {
+    const callbacks = [];
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.generate.mockImplementation((_wid, _sid, _content, cb) => {
+      callbacks.push(cb);
+      return vi.fn();
+    });
+
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
+    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacks[0].onDone?.({ id: 'asst-1', content: '第一段' }, []);
+    });
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      callbacks[0].onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('send-writing'));
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      callbacks[1].onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(3));
   });
 });

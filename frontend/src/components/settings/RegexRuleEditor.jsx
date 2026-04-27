@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Select from '../ui/Select';
 import { pushErrorToast } from '../../utils/toast';
 
@@ -30,6 +30,7 @@ function buildForm(rule) {
 }
 
 export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
+  const mouseDownOnOverlay = useRef(false);
   const [form, setForm] = useState(() => buildForm(rule));
 
   const [testInput, setTestInput] = useState('');
@@ -68,7 +69,8 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
   return (
     <div
       className="we-regex-modal-overlay"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnOverlay.current) onClose(); }}
     >
       <div className="we-dialog-panel w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="we-dialog-header flex items-center justify-between">

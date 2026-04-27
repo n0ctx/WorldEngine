@@ -170,6 +170,11 @@ async function runWritingStream(sessionId, res, opts = {}) {
   // 等待上一轮状态更新完成，确保 buildWritingPrompt 读到最新状态
   await awaitPendingStateUpdate(sessionId);
 
+  // 广播真实 user 消息 id（前端用于把乐观追加的 __optimistic_ id 替换为真实 id）
+  if (opts.userMsgId && !streamState.isClientClosed()) {
+    emitSse(res, sid, { type: 'user_saved', id: opts.userMsgId });
+  }
+
   let fullContent = '';
   let aborted = false;
   const usageRef = {};
@@ -322,13 +327,16 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
   if (!assertExists(res, session, 'Session not found')) return;
 
   // 若有用户输入则先保存
+  let userMsgId = null;
   if (content && typeof content === 'string' && content.trim()) {
-    createMessage({ session_id: sessionId, role: 'user', content: content.trim() });
+    const userMsg = createMessage({ session_id: sessionId, role: 'user', content: content.trim() });
+    userMsgId = userMsg.id;
     touchWritingSession(sessionId);
     log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: content.trim().length })}`);
   }
 
   await runWritingStream(sessionId, res, {
+    userMsgId,
     diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
   });
 });
@@ -415,20 +423,25 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     newContent += '\n\n[已中断]';
   }
 
+  let mergedAssistant = null;
   if (newContent) {
     const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId, 'writing');
-    // 续写：合并到上一条 assistant 消息
-    updateMessageContent(lastAssistant.id, originalContent + '\n\n' + processedNew.replace(/^\n+/, ''));
+    const mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
+    updateMessageContent(lastAssistant.id, mergedContent);
     if (!aborted && Object.keys(usageRef).length > 0) {
       updateMessageTokenUsage(lastAssistant.id, usageRef);
     }
+    mergedAssistant = { ...lastAssistant, content: mergedContent };
+    if (!aborted && Object.keys(usageRef).length > 0) mergedAssistant.token_usage = usageRef;
     touchWritingSession(sessionId);
   }
 
   log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: newContent.length, aborted })}`);
 
   if (!streamState.isClientClosed()) {
-    emitSse(res, sid, aborted ? { aborted: true } : { done: true, options: continueOptions, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
+    emitSse(res, sid, aborted
+      ? { aborted: true, assistant: mergedAssistant }
+      : { done: true, assistant: mergedAssistant, options: continueOptions, usage: Object.keys(usageRef).length > 0 ? usageRef : undefined });
   }
 
   streamState.clear();

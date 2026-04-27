@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   listRegexRules,
   createRegexRule,
@@ -11,6 +11,7 @@ import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
+import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
 
@@ -36,9 +37,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
-  const [confirmingDeleteRule, setConfirmingDeleteRule] = useState(null); // null or rule object
-  // drag state: { scope, idx } within that scope's sub-array
-  const dragInfo = useRef(null);
+  const [confirmingDeleteRule, setConfirmingDeleteRule] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -86,34 +85,14 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     await refresh();
   }
 
-  function handleDragStart(scope, idx) {
-    dragInfo.current = { scope, idx };
+  function handleReorderForScope(scope, newScopeItems) {
+    setRules(prev =>
+      SCOPE_ORDER.flatMap(s => s === scope ? newScopeItems : prev.filter(r => r.scope === s))
+    );
   }
 
-  function handleDragOver(e, scope, targetIdx) {
-    e.preventDefault();
-    if (!dragInfo.current) return;
-    if (dragInfo.current.scope !== scope) return;
-    const fromIdx = dragInfo.current.idx;
-    if (fromIdx === targetIdx) return;
-
-    setRules((prev) => {
-      const scopeRules = prev.filter((r) => r.scope === scope);
-      const next = [...scopeRules];
-      const [moved] = next.splice(fromIdx, 1);
-      next.splice(targetIdx, 0, moved);
-      dragInfo.current = { scope, idx: targetIdx };
-      // rebuild full flat array preserving original insertion order for other scopes
-      return SCOPE_ORDER.flatMap((s) =>
-        s === scope ? next : prev.filter((r) => r.scope === s)
-      );
-    });
-  }
-
-  async function handleDragEnd(scope) {
-    dragInfo.current = null;
-    const scopeRules = rules.filter((r) => r.scope === scope);
-    const items = scopeRules.map((r, i) => ({ id: r.id, sort_order: i }));
+  async function handleReorderEndForScope(scope, finalItems) {
+    const items = finalItems.map((r, i) => ({ id: r.id, sort_order: i }));
     await reorderRegexRules(items);
     invalidateCache();
     await loadRules(settingsMode);
@@ -156,21 +135,21 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
           {rulesByScope[scope].length === 0 ? (
             <p className="we-regex-scope-empty">暂无规则</p>
           ) : (
-            <div className="we-regex-rule-list">
-              {rulesByScope[scope].map((rule, idx) => (
+            <SortableList
+              items={rulesByScope[scope]}
+              onReorder={(newItems) => handleReorderForScope(scope, newItems)}
+              onReorderEnd={(finalItems) => handleReorderEndForScope(scope, finalItems)}
+              renderItem={(rule) => (
                 <RuleRow
-                  key={rule.id}
                   rule={rule}
                   worldName={getWorldName(rule.world_id)}
                   onEdit={() => openEdit(rule)}
                   onToggle={() => handleToggleEnabled(rule)}
                   onDelete={() => setConfirmingDeleteRule(rule)}
-                  onDragStart={() => handleDragStart(scope, idx)}
-                  onDragOver={(e) => handleDragOver(e, scope, idx)}
-                  onDragEnd={() => handleDragEnd(scope)}
                 />
-              ))}
-            </div>
+              )}
+              className="we-regex-rule-list"
+            />
           )}
         </div>
       ))}
@@ -198,19 +177,11 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   );
 }
 
-function RuleRow({ rule, worldName, onEdit, onToggle, onDelete, onDragStart, onDragOver, onDragEnd }) {
+function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
   return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
-      className="we-regex-rule-row"
-    >
-      {/* 拖拽把手 */}
+    <div className="we-regex-rule-row">
       <span className="we-regex-rule-drag">⠿</span>
 
-      {/* 名称 + 所属世界 + 正则预览 */}
       <div className="we-regex-rule-main">
         <span className={`we-regex-rule-name${rule.enabled ? '' : ' we-regex-rule-name--disabled'}`}>
           {rule.name}
@@ -225,7 +196,6 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete, onDragStart, onD
         </span>
       </div>
 
-      {/* 操作区 */}
       <div className="we-regex-rule-actions">
         <button
           onClick={onToggle}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions } from '../../api/prompt-entries';
 import { listWorldStateFields } from '../../api/world-state-fields';
 import { listCharacterStateFields } from '../../api/character-state-fields';
@@ -43,6 +43,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
+  const mouseDownOnOverlay = useRef(false);
 
   // state 类型专用
   const [conditions, setConditions] = useState([emptyCondition()]);
@@ -137,7 +138,11 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
   }
 
   return (
-    <div className="we-entry-editor-overlay" onClick={onClose}>
+    <div
+      className="we-entry-editor-overlay"
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnOverlay.current) onClose(); }}
+    >
       <div className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
         <h3 className="we-entry-editor-title">
           {isNew ? '新建条目' : '编辑条目'}
@@ -194,12 +199,14 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {form.trigger_type === 'llm' && (
           <>
             <label className="we-entry-editor-label">触发条件描述（供 AI 判断）</label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={2}
-              className="we-entry-editor-field we-entry-editor-field-mb we-entry-editor-field--resizable"
-            />
+            <div className="we-entry-editor-content-wrap">
+              <MarkdownEditor
+                value={form.description}
+                onChange={(md) => setForm((f) => ({ ...f, description: md }))}
+                placeholder="描述此条目应在何种情境下被注入…"
+                minHeight={72}
+              />
+            </div>
           </>
         )}
 

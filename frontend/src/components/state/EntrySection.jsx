@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import EntryEditor from './EntryEditor';
-import { deleteWorldEntry } from '../../api/prompt-entries';
+import { deleteWorldEntry, reorderWorldEntries } from '../../api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
+import SortableList from '../ui/SortableList.jsx';
 import { pushErrorToast } from '../../utils/toast';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
-  const [editing, setEditing] = useState(null); // null=关闭, {}=新建, entry=编辑
-  const [confirmingDeleteEntry, setConfirmingDeleteEntry] = useState(null); // null or entry object
+  const [editing, setEditing] = useState(null);
+  const [confirmingDeleteEntry, setConfirmingDeleteEntry] = useState(null);
+  const entriesKey = entries
+    .map((entry) => `${entry.id}:${entry.updated_at ?? ''}:${entry.title}:${entry.keywords?.join(',') ?? ''}`)
+    .join('|');
 
   async function handleDelete() {
     try {
@@ -20,63 +24,26 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
 
   return (
     <div className="we-entry-section">
-      {/* 标题行：icon + title + desc + "新建"按钮 */}
       <div className="we-entry-section-header">
         <div>
           <span className="we-entry-section-icon">{icon}</span>
-          <span className="we-entry-section-title">
-            {title}
-          </span>
-          <p className="we-entry-section-desc">
-            {desc}
-          </p>
+          <span className="we-entry-section-title">{title}</span>
+          <p className="we-entry-section-desc">{desc}</p>
         </div>
-        <button
-          onClick={() => setEditing({})}
-          className="we-entry-section-new-btn"
-        >
+        <button onClick={() => setEditing({})} className="we-entry-section-new-btn">
           + 新建
         </button>
       </div>
 
-      {/* 条目列表 */}
       <div className="we-entry-section-list">
-        {entries.map((entry, i) => (
-          <div
-            key={entry.id}
-            className={`we-entry-section-row${i < entries.length - 1 ? '' : ' we-entry-section-row--last'}`}
-          >
-            <div className="we-entry-section-main">
-              <span className="we-entry-section-name">
-                {entry.title}
-              </span>
-              {triggerType === 'keyword' && entry.keywords?.length > 0 && (
-                <span className="we-entry-section-keywords">
-                  触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}
-                </span>
-              )}
-            </div>
-            <div className="we-entry-section-actions">
-              <button
-                onClick={() => setEditing(entry)}
-                className="we-entry-section-action"
-              >
-                编辑
-              </button>
-              <button
-                onClick={() => setConfirmingDeleteEntry(entry)}
-                className="we-entry-section-action we-entry-section-action--danger"
-              >
-                删除
-              </button>
-            </div>
-          </div>
-        ))}
-        {entries.length === 0 && (
-          <div className="we-entry-section-empty">
-            暂无条目
-          </div>
-        )}
+        <EntrySortableList
+          key={entriesKey}
+          entries={entries}
+          triggerType={triggerType}
+          worldId={worldId}
+          onEdit={setEditing}
+          onDelete={setConfirmingDeleteEntry}
+        />
       </div>
 
       {editing !== null && (
@@ -100,5 +67,54 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
         />
       )}
     </div>
+  );
+}
+
+function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) {
+  const [localEntries, setLocalEntries] = useState(entries);
+
+  async function handleReorderEnd(finalItems) {
+    await reorderWorldEntries(worldId, finalItems.map((entry) => entry.id));
+    // 不调用 onRefresh — 顺序已由 SortableList 乐观更新，无需重新拉取
+  }
+
+  if (localEntries.length === 0) {
+    return <div className="we-entry-section-empty">暂无条目</div>;
+  }
+
+  return (
+    <SortableList
+      items={localEntries}
+      onReorder={setLocalEntries}
+      onReorderEnd={handleReorderEnd}
+      style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+      renderItem={(entry) => (
+        <div className="we-entry-section-row">
+          <span className="we-entry-section-drag">⠿</span>
+          <div className="we-entry-section-main">
+            <span className="we-entry-section-name">{entry.title}</span>
+            {triggerType === 'keyword' && entry.keywords?.length > 0 && (
+              <span className="we-entry-section-keywords">
+                触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}
+              </span>
+            )}
+          </div>
+          <div className="we-entry-section-actions">
+            <button
+              onClick={() => onEdit(entry)}
+              className="we-entry-section-action"
+            >
+              编辑
+            </button>
+            <button
+              onClick={() => onDelete(entry)}
+              className="we-entry-section-action we-entry-section-action--danger"
+            >
+              删除
+            </button>
+          </div>
+        </div>
+      )}
+    />
   );
 }

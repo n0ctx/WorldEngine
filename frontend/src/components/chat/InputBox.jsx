@@ -20,6 +20,7 @@ const InputBox = forwardRef(function InputBox({
   lastUserContent,
   worldId,
   mode = 'chat',
+  onScrollToBottom,
   onContinue,
   onImpersonate,
   onRetry,
@@ -247,6 +248,18 @@ const InputBox = forwardRef(function InputBox({
 
           {/* 快捷图标：锚定在 textarea 右下角，用 onMouseDown 避免 textarea 失焦拦截 */}
           <div className="we-chat-quick-actions">
+            <button
+              onMouseDown={(e) => { e.preventDefault(); onScrollToBottom?.(); }}
+              className="we-chat-quick-btn"
+              title="跳转到底部"
+              aria-label="跳转到底部"
+            >
+              <Icon size={16} strokeWidth="2.2">
+                <line x1="4" y1="20" x2="20" y2="20" />
+                <polyline points="8 12 12 16 16 12" />
+                <line x1="12" y1="4" x2="12" y2="16" />
+              </Icon>
+            </button>
             <button
               onMouseDown={(e) => { e.preventDefault(); if (!generating) onContinue?.(); }}
               disabled={generating}

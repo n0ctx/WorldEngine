@@ -15,7 +15,7 @@ import {
   createPersona,
 } from '../api/personas';
 import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
-import { ConfirmModal, BackButton, AvatarCircle } from '../components';
+import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
 import Icon from '../components/ui/Icon.jsx';
 import { pushErrorToast } from '../utils/toast';
 
@@ -196,7 +196,6 @@ export default function CharactersPage() {
   const [importingPersona, setImportingPersona] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const dragIdx = useRef(null);
   const charImportRef = useRef(null);
   const personaImportRef = useRef(null);
 
@@ -305,8 +304,6 @@ export default function CharactersPage() {
     setImportingPersona(true);
     try {
       const data = await readJsonFile(file);
-      // persona 导入：只取 name / system_prompt
-      // 兼容 worldengine-character-v1 格式（character.name）和裸对象格式
       await createPersona(worldId, {
         name: data.character?.name ?? data.name ?? data.data?.name ?? '',
         system_prompt: data.character?.system_prompt ?? data.system_prompt ?? data.data?.system_prompt ?? '',
@@ -331,23 +328,8 @@ export default function CharactersPage() {
     }
   }
 
-  function handleDragStart(idx) {
-    dragIdx.current = idx;
-  }
-
-  function handleDragOver(e, idx) {
-    e.preventDefault();
-    if (dragIdx.current === null || dragIdx.current === idx) return;
-    const next = [...characters];
-    const [moved] = next.splice(dragIdx.current, 1);
-    next.splice(idx, 0, moved);
-    dragIdx.current = idx;
-    setCharacters(next);
-  }
-
-  async function handleDragEnd() {
-    dragIdx.current = null;
-    const items = characters.map((c, i) => ({ id: c.id, sort_order: i }));
+  async function handleCharReorderEnd(finalChars) {
+    const items = finalChars.map((c, i) => ({ id: c.id, sort_order: i }));
     await reorderCharacters(items);
   }
 
@@ -469,14 +451,13 @@ export default function CharactersPage() {
                 <p className="we-characters-empty-text">暂无角色，点击下方新建</p>
               </div>
             ) : (
-              <div className="we-characters-grid">
-                {characters.map((char, idx) => (
+              <SortableList
+                items={characters}
+                onReorder={setCharacters}
+                onReorderEnd={handleCharReorderEnd}
+                useHandle={true}
+                renderItem={(char, dragHandleProps) => (
                   <div
-                    key={char.id}
-                    draggable
-                    onDragStart={() => handleDragStart(idx)}
-                    onDragOver={(e) => handleDragOver(e, idx)}
-                    onDragEnd={handleDragEnd}
                     className="we-character-card"
                     onClick={() => {
                       setCurrentCharacterId(char.id);
@@ -484,6 +465,7 @@ export default function CharactersPage() {
                     }}
                   >
                     <div className="we-character-card-body">
+                      <span className="we-char-drag" {...dragHandleProps}>⠿</span>
                       <AvatarCircle
                         id={char.id}
                         name={char.name}
@@ -528,8 +510,9 @@ export default function CharactersPage() {
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+                className="we-characters-list"
+              />
             )}
           </div>
 

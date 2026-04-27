@@ -21,6 +21,7 @@ export { default as EditPageShell }   from './ui/EditPageShell';
 export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
 export { default as AvatarCircle }    from './ui/AvatarCircle';
+export { default as SortableList }    from './ui/SortableList';
 
 // — Blocks 结构模式 —
 export { default as BackButton }      from './blocks/BackButton';
@@ -46,3 +47,6 @@ export { default as StatusSection }       from './book/StatusSection';
 export { default as TopBar }              from './book/TopBar';
 export { default as WritingPageLeft }     from './book/WritingPageLeft';
 export { default as WritingSessionList }  from './book/WritingSessionList';
+
+// — Writing 专属 —
+export { default as CharacterPreviewModal } from './writing/CharacterPreviewModal';

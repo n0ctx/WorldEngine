@@ -228,11 +228,13 @@ function compileTaskGraph(steps = []) {
 }
 
 // ─── POST /api/assistant/extract-characters ──────────────────────────
-// 从写作轮次（user + assistant 消息对）中提取非玩家角色，自动创建角色卡并激活到会话
-// SSE 事件：character_found / card_activated / error / done
+// 从写作轮次（user + assistant 消息对）中提取非玩家角色
+// dryRun=true：只提取，发送 characters_extracted 事件，不创建卡
+// dryRun=false（默认）：提取 + 创建 + 激活，发送 card_activated 事件
+// SSE 事件：characters_extracted / character_found / card_activated / error / done
 
 router.post('/extract-characters', async (req, res) => {
-  const { worldId, sessionId, assistantMessageId } = req.body ?? {};
+  const { worldId, sessionId, assistantMessageId, dryRun = false } = req.body ?? {};
   if (!worldId || !sessionId || !assistantMessageId) {
     return res.status(400).json({ error: 'worldId、sessionId、assistantMessageId 均为必填项' });
   }
@@ -304,24 +306,96 @@ router.post('/extract-characters', async (req, res) => {
       catch { characters = []; }
     }
 
-    log.info(`extract-chars FOUND  ${formatMeta({ count: characters.length })}`);
-    sendSSE(res, { type: 'extract_done', count: characters.length });
+    // 已有角色名集合，用于去重
+    const existingNameSet = new Set(existingChars.map((c) => c.name.trim().toLowerCase()));
 
-    // 已有角色名集合（含本次循环中已创建的），用于去重
+    // 过滤掉已存在的角色
+    const newCharacters = characters.filter((charData) => {
+      const name = (charData.name || '').trim();
+      if (!name) return false;
+      if (existingNameSet.has(name.toLowerCase())) {
+        log.info(`extract-chars SKIP_DUP  ${formatMeta({ name })}`);
+        return false;
+      }
+      return true;
+    });
+
+    log.info(`extract-chars FOUND  ${formatMeta({ count: newCharacters.length })}`);
+
+    if (dryRun) {
+      // 只返回提取结果，不创建
+      sendSSE(res, { type: 'characters_extracted', characters: newCharacters, count: newCharacters.length });
+    } else {
+      sendSSE(res, { type: 'extract_done', count: newCharacters.length });
+      for (const charData of newCharacters) {
+        const name = charData.name.trim();
+        sendSSE(res, { type: 'character_found', name });
+        let char;
+        try {
+          char = createCharacter({
+            world_id: worldId,
+            name,
+            description: charData.description || '',
+            system_prompt: charData.system_prompt || '',
+            post_prompt: charData.post_prompt || '',
+            first_message: charData.first_message || '',
+          });
+          if (stateFields.length > 0 && charData.state_values && typeof charData.state_values === 'object') {
+            for (const [key, val] of Object.entries(charData.state_values)) {
+              if (stateFields.some((f) => f.field_key === key)) {
+                upsertCharacterStateValue(char.id, key, { defaultValueJson: JSON.stringify(val) });
+              }
+            }
+          }
+          addWritingSessionCharacter(sessionId, char.id);
+          existingNameSet.add(name.toLowerCase());
+          log.info(`extract-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
+          sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
+        } catch (charErr) {
+          if (char?.id) { try { dbDeleteCharacter(char.id); } catch { /* ignore */ } }
+          log.error(`extract-chars CHAR_FAIL  ${formatMeta({ name, error: charErr.message })}`);
+          sendSSE(res, { type: 'error', error: `角色「${name}」创建失败：${charErr.message}` });
+        }
+      }
+    }
+  } catch (err) {
+    log.error(`extract-chars FAIL  ${formatMeta({ error: err.message })}`);
+    sendSSE(res, { type: 'error', error: err.message });
+  }
+
+  endSSE(res);
+});
+
+// ─── POST /api/assistant/confirm-characters ──────────────────────────
+// 接收前端预览确认后的角色数组，创建角色卡并激活到会话
+// SSE 事件：card_activated / error / done
+
+router.post('/confirm-characters', async (req, res) => {
+  const { worldId, sessionId, characters } = req.body ?? {};
+  if (!worldId || !sessionId || !Array.isArray(characters) || characters.length === 0) {
+    return res.status(400).json({ error: 'worldId、sessionId、characters（非空数组）均为必填项' });
+  }
+
+  const session = getWritingSessionById(sessionId);
+  if (!session || session.world_id !== worldId) {
+    return res.status(400).json({ error: '会话不存在或不属于指定世界' });
+  }
+
+  openSSE(res);
+
+  try {
+    const existingChars = getCharactersByWorldId(worldId);
+    const stateFields = listCharacterStateFields(worldId);
     const existingNameSet = new Set(existingChars.map((c) => c.name.trim().toLowerCase()));
 
     for (const charData of characters) {
       const name = (charData.name || '').trim();
       if (!name) continue;
 
-      // 服务端去重：跳过已存在角色（含本次循环中已创建的）
-      const nameKey = name.toLowerCase();
-      if (existingNameSet.has(nameKey)) {
-        log.info(`extract-chars SKIP_DUP  ${formatMeta({ name })}`);
+      if (existingNameSet.has(name.toLowerCase())) {
+        log.info(`confirm-chars SKIP_DUP  ${formatMeta({ name })}`);
         continue;
       }
-
-      sendSSE(res, { type: 'character_found', name });
 
       let char;
       try {
@@ -334,7 +408,6 @@ router.post('/extract-characters', async (req, res) => {
           first_message: charData.first_message || '',
         });
 
-        // 覆盖 LLM 推断的状态字段初始值（createCharacter 已写入默认值）
         if (stateFields.length > 0 && charData.state_values && typeof charData.state_values === 'object') {
           for (const [key, val] of Object.entries(charData.state_values)) {
             if (stateFields.some((f) => f.field_key === key)) {
@@ -344,22 +417,17 @@ router.post('/extract-characters', async (req, res) => {
         }
 
         addWritingSessionCharacter(sessionId, char.id);
+        existingNameSet.add(name.toLowerCase());
+        log.info(`confirm-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
+        sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
       } catch (charErr) {
-        // 若激活或状态写入失败，删除已创建的角色行，避免留下孤儿数据
-        if (char?.id) {
-          try { dbDeleteCharacter(char.id); } catch { /* ignore */ }
-        }
-        log.error(`extract-chars CHAR_FAIL  ${formatMeta({ name, error: charErr.message })}`);
+        if (char?.id) { try { dbDeleteCharacter(char.id); } catch { /* ignore */ } }
+        log.error(`confirm-chars CHAR_FAIL  ${formatMeta({ name, error: charErr.message })}`);
         sendSSE(res, { type: 'error', error: `角色「${name}」创建失败：${charErr.message}` });
-        continue;
       }
-
-      existingNameSet.add(nameKey);
-      log.info(`extract-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
-      sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
     }
   } catch (err) {
-    log.error(`extract-chars FAIL  ${formatMeta({ error: err.message })}`);
+    log.error(`confirm-chars FAIL  ${formatMeta({ error: err.message })}`);
     sendSSE(res, { type: 'error', error: err.message });
   }
 

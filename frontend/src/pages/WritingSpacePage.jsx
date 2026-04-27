@@ -21,6 +21,7 @@ import {
   impersonateWriting,
   retitleWritingSession,
   extractCharactersFromMessage,
+  confirmCharacters,
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
@@ -32,8 +33,24 @@ import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import OptionCard from '../components/chat/OptionCard.jsx';
+import CharacterPreviewModal from '../components/writing/CharacterPreviewModal.jsx';
+import { AnimatePresence } from 'framer-motion';
 import { pushToast, pushErrorToast } from '../utils/toast.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
+
+function parseContinuationText(text) {
+  const raw = text || '';
+  const tagIdx = raw.indexOf('<next_prompt>');
+  if (tagIdx === -1) return { content: raw, options: [] };
+  const content = raw.slice(0, tagIdx);
+  const afterTag = raw.slice(tagIdx + '<next_prompt>'.length);
+  const options = afterTag
+    .replace('</next_prompt>', '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return { content, options };
+}
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
@@ -72,6 +89,7 @@ export default function WritingSpacePage() {
   const [diaryTick, setDiaryTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
+  const [cardPreviewChars, setCardPreviewChars] = useState(null); // null = 弹窗关闭，[] = 打开
 
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -84,7 +102,11 @@ export default function WritingSpacePage() {
   const pendingAssistantRef = useRef(null);
   const assistantAppendedEarlyRef = useRef(false);
   const pendingOptionsRef = useRef([]);
+  // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
+  const streamRunIdRef = useRef(0);
   const currentSessionRef = useRef(null);
+  // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
+  const tempUserIdRef = useRef(null);
   const makingCardRef = useRef(false);
 
   const [currentOptions, setCurrentOptions] = useState([]);
@@ -204,13 +226,26 @@ export default function WritingSpacePage() {
     return k;
   }
 
-  function makeStreamCallbacks() {
+  function beginStreamRun() {
+    const runId = streamRunIdRef.current + 1;
+    streamRunIdRef.current = runId;
     pendingAssistantRef.current = null;
     assistantAppendedEarlyRef.current = false;
+    pendingOptionsRef.current = [];
     clearOptionsState();
-    const streamKey = beginStreamingKey();
+    beginStreamingKey();
+    return runId;
+  }
+
+  function isCurrentStreamRun(runId) {
+    return streamRunIdRef.current === runId;
+  }
+
+  function makeStreamCallbacks(runId) {
+    const streamKey = streamingKeyRef.current;
     return {
       onDelta(delta) {
+        if (!isCurrentStreamRun(runId)) return;
         const next = streamingTextRef.current + delta;
         streamingTextRef.current = next;
         const tagIdx = next.indexOf('<next_prompt>');
@@ -223,7 +258,19 @@ export default function WritingSpacePage() {
           setStreamingText(next);
         }
       },
+      onUserSaved(realId) {
+        if (!isCurrentStreamRun(runId)) return;
+        const tempId = tempUserIdRef.current;
+        if (!tempId || !realId || tempId === realId) return;
+        if (messageListRef.current?.updateMessages) {
+          messageListRef.current.updateMessages((prev) =>
+            prev.map((m) => m.id === tempId ? { ...m, _key: m._key ?? tempId, id: realId } : m)
+          );
+        }
+        tempUserIdRef.current = realId;
+      },
       onDone(assistant, options) {
+        if (!isCurrentStreamRun(runId)) return;
         if (options?.length) pendingOptionsRef.current = options;
         // 立即追加真实消息 + 解锁输入框（同批次渲染），避免流式占位消失后真实消息延迟出现的闪烁
         if (assistant && messageListRef.current?.appendMessage) {
@@ -235,9 +282,11 @@ export default function WritingSpacePage() {
         setGenerating(false);
       },
       onAborted(assistant) {
+        if (!isCurrentStreamRun(runId)) return;
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(msg) {
+        if (!isCurrentStreamRun(runId)) return;
         setError(msg);
         streamingTextRef.current = '';
         setGenerating(false);
@@ -245,19 +294,24 @@ export default function WritingSpacePage() {
         stopRef.current = null;
       },
       onTitleUpdated(title) {
+        if (!isCurrentStreamRun(runId)) return;
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
         writingSessionListBridge.updateTitle?.(currentSessionRef.current?.id, title);
       },
       onChapterTitleUpdated(chapterIndex, title) {
+        if (!isCurrentStreamRun(runId)) return;
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
       onStateUpdated() {
+        if (!isCurrentStreamRun(runId)) return;
         setStateTick((tick) => tick + 1);
       },
       onDiaryUpdated() {
+        if (!isCurrentStreamRun(runId)) return;
         setDiaryTick((tick) => tick + 1);
       },
       onStreamEnd() {
+        if (!isCurrentStreamRun(runId)) return;
         const pending = pendingAssistantRef.current;
         pendingAssistantRef.current = null;
         const alreadyAppended = assistantAppendedEarlyRef.current;
@@ -265,6 +319,7 @@ export default function WritingSpacePage() {
         const pendingOptions = pendingOptionsRef.current;
         pendingOptionsRef.current = [];
         streamingTextRef.current = '';
+        tempUserIdRef.current = null;
         setGenerating(false);
         setStreamingText('');
         stopRef.current = null;
@@ -297,7 +352,10 @@ export default function WritingSpacePage() {
         attachments: null,
         created_at: Date.now(),
       };
+      tempUserIdRef.current = optimisticMsg.id;
       if (messageListRef.current?.appendMessage) messageListRef.current.appendMessage(optimisticMsg);
+    } else {
+      tempUserIdRef.current = null;
     }
 
     setGenerating(true);
@@ -305,7 +363,8 @@ export default function WritingSpacePage() {
     streamingTextRef.current = '';
     const inject = pendingDiaryInject;
     setPendingDiaryInject(null);
-    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks(), inject ? { diaryInjection: inject } : {});
+    const runId = beginStreamRun();
+    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks(runId), inject ? { diaryInjection: inject } : {});
   }
 
   function handleEditMessage(messageId, newContent) {
@@ -322,7 +381,8 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
-    stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks());
+    const runId = beginStreamRun();
+    stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks(runId));
   }
 
   function handleRegenerateMessage(assistantMessageId) {
@@ -340,7 +400,8 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
-    stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks());
+    const runId = beginStreamRun();
+    stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks(runId));
   }
 
   async function handleEditAssistantMessage(messageId, newContent) {
@@ -404,31 +465,49 @@ export default function WritingSpacePage() {
     setContinuingText('');
     setGenerating(true);
 
+    const finishContinuation = () => {
+      const contId = continuingMessageIdRef.current;
+      const contText = parseContinuationText(continuingTextRef.current).content;
+      const pendingAssistant = pendingAssistantRef.current;
+      pendingAssistantRef.current = null;
+      if (contId && messageListRef.current?.updateMessages) {
+        messageListRef.current.updateMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== contId) return m;
+            if (pendingAssistant?.content) return { ...m, ...pendingAssistant, content: pendingAssistant.content, _key: m._key ?? m.id };
+            if (!contText) return m;
+            return { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') };
+          })
+        );
+      }
+      const finalOptions = pendingOptionsRef.current;
+      pendingOptionsRef.current = [];
+      if (finalOptions.length > 0) setCurrentOptions(finalOptions);
+      continuingMessageIdRef.current = null;
+      continuingTextRef.current = '';
+      setContinuingMessageId(null);
+      setContinuingText('');
+      setGenerating(false);
+      stopRef.current = null;
+    };
+
     stopRef.current = continueGeneration(worldId, session.id, {
       onDelta(delta) {
         if (continuationTokenRef.current !== continuationToken) return;
-        continuingTextRef.current += delta;
-        setContinuingText((prev) => prev + delta);
+        const next = continuingTextRef.current + delta;
+        continuingTextRef.current = next;
+        const parsed = parseContinuationText(next);
+        if (parsed.options.length > 0) setCurrentOptions(parsed.options);
+        setContinuingText(parsed.content);
       },
-      onDone() {
+      onDone(assistant, options) {
         if (continuationTokenRef.current !== continuationToken) return;
+        if (assistant) pendingAssistantRef.current = assistant;
+        if (options?.length) pendingOptionsRef.current = options;
       },
-      onAborted() {
+      onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;
-        // 合并续写内容到消息列表后清理
-        const contId = continuingMessageIdRef.current;
-        const contText = continuingTextRef.current;
-        if (contId && contText && messageListRef.current?.updateMessages) {
-          messageListRef.current.updateMessages((prev) =>
-            prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
-          );
-        }
-        continuingMessageIdRef.current = null;
-        continuingTextRef.current = '';
-        setContinuingMessageId(null);
-        setContinuingText('');
-        setGenerating(false);
-        stopRef.current = null;
+        if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(msg) {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -450,20 +529,7 @@ export default function WritingSpacePage() {
       },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
-        // 合并续写内容到消息列表后清理
-        const contId = continuingMessageIdRef.current;
-        const contText = continuingTextRef.current;
-        if (contId && contText && messageListRef.current?.updateMessages) {
-          messageListRef.current.updateMessages((prev) =>
-            prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
-          );
-        }
-        continuingMessageIdRef.current = null;
-        continuingTextRef.current = '';
-        setContinuingMessageId(null);
-        setContinuingText('');
-        setGenerating(false);
-        stopRef.current = null;
+        finishContinuation();
       },
     });
   }
@@ -523,41 +589,71 @@ export default function WritingSpacePage() {
     }
   }
 
-  // 从当前轮次提取角色并自动制卡
+  // 阶段一：提取角色（dry-run），弹出预览弹窗
   function handleMakeCard(assistantMessageId) {
     if (makingCardRef.current) return;
     makingCardRef.current = true;
     const session = currentSessionRef.current;
     if (!session) { makingCardRef.current = false; return; }
-    pushToast('正在提取角色，请稍候...');
-    let createdCount = 0;
+    pushToast('正在分析角色，请稍候…');
     extractCharactersFromMessage(worldId, session.id, assistantMessageId, {
       onEvent(evt) {
-        if (evt.type === 'extract_done' && evt.count === 0) {
-          pushToast('未发现新角色');
-        } else if (evt.type === 'card_activated' && evt.character) {
-          createdCount += 1;
-          setActiveCharacters((prev) => {
-            if (prev.some((c) => c.id === evt.character.id)) return prev;
-            return [...prev, evt.character];
-          });
-          pushToast(`已激活角色：${evt.character.name}`);
+        if (evt.type === 'characters_extracted') {
+          makingCardRef.current = false;
+          if (evt.count === 0) {
+            pushToast('未发现新角色');
+          } else {
+            setCardPreviewChars(evt.characters);
+          }
         } else if (evt.type === 'error') {
-          pushErrorToast(evt.error || '制卡失败');
+          pushErrorToast(evt.error || '提取失败');
         }
       },
       onStreamEnd() {
         makingCardRef.current = false;
-        if (createdCount > 0) pushToast(`制卡完成，共激活 ${createdCount} 个角色`);
       },
       onError(err) {
         makingCardRef.current = false;
-        pushErrorToast(err || '制卡请求失败');
+        pushErrorToast(err || '提取请求失败');
       },
+    }, { dryRun: true });
+  }
+
+  // 阶段二：用户确认后创建角色卡
+  function handleConfirmCards(chosen, onProgress) {
+    const session = currentSessionRef.current;
+    if (!session) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      let doneCount = 0;
+      confirmCharacters(worldId, session.id, chosen, {
+        onEvent(evt) {
+          if (evt.type === 'card_activated' && evt.character) {
+            doneCount += 1;
+            onProgress(doneCount);
+            setActiveCharacters((prev) => {
+              if (prev.some((c) => c.id === evt.character.id)) return prev;
+              return [...prev, evt.character];
+            });
+          } else if (evt.type === 'error') {
+            pushErrorToast(evt.error || '角色创建失败');
+          }
+        },
+        onStreamEnd() {
+          if (doneCount > 0) pushToast(`制卡完成，共激活 ${doneCount} 个角色`);
+          setCardPreviewChars(null);
+          resolve();
+        },
+        onError(err) {
+          pushErrorToast(err || '创建请求失败');
+          resolve();
+        },
+      });
     });
   }
 
   return (
+    <>
     <BookSpread>
       <WritingPageLeft
         worldId={worldId}
@@ -636,6 +732,7 @@ export default function WritingSpacePage() {
               lastUserContent=""
               worldId={worldId}
               mode="writing"
+              onScrollToBottom={() => messageListRef.current?.scrollToBottom()}
               onContinue={handleContinue}
               onImpersonate={handleImpersonate}
               onTitle={handleRetitle}
@@ -656,5 +753,16 @@ export default function WritingSpacePage() {
         </div>
       </PageRight>
     </BookSpread>
+
+    <AnimatePresence>
+      {cardPreviewChars !== null && (
+        <CharacterPreviewModal
+          characters={cardPreviewChars}
+          onConfirm={handleConfirmCards}
+          onClose={() => setCardPreviewChars(null)}
+        />
+      )}
+    </AnimatePresence>
+    </>
   );
 }

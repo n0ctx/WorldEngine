@@ -22,6 +22,20 @@ import { getConfig } from '../api/config.js';
 import { useDisplaySettingsStore } from '../store/displaySettings.js';
 import { chatSessionListBridge } from '../utils/session-list-bridge.js';
 
+function parseContinuationText(text) {
+  const raw = text || '';
+  const tagIdx = raw.indexOf('<next_prompt>');
+  if (tagIdx === -1) return { content: raw, options: [] };
+  const content = raw.slice(0, tagIdx);
+  const afterTag = raw.slice(tagIdx + '<next_prompt>'.length);
+  const options = afterTag
+    .replace('</next_prompt>', '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return { content, options };
+}
+
 export default function ChatPage() {
   const { characterId } = useParams();
   const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
@@ -71,6 +85,8 @@ export default function ChatPage() {
   const pendingOptionsRef = useRef([]);
   // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
   const streamingKeyRef = useRef('__stream_init__');
+  // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
+  const streamRunIdRef = useRef(0);
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
@@ -87,6 +103,19 @@ export default function ChatPage() {
     setStreamingKey(k);
     return k;
   }, []);
+
+  const beginStreamRun = useCallback(() => {
+    const runId = streamRunIdRef.current + 1;
+    streamRunIdRef.current = runId;
+    pendingAssistantRef.current = null;
+    assistantAppendedEarlyRef.current = false;
+    pendingOptionsRef.current = [];
+    clearOptionsState();
+    beginStreamingKey();
+    return runId;
+  }, [beginStreamingKey, clearOptionsState]);
+
+  const isCurrentStreamRun = useCallback((runId) => streamRunIdRef.current === runId, []);
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
@@ -218,22 +247,29 @@ export default function ChatPage() {
   }
 
   // 流状态清理
-  const finalizeStream = useCallback(() => {
+  const finalizeStream = useCallback((runId = null) => {
+    if (runId !== null && !isCurrentStreamRun(runId)) return;
+
+    const pending = pendingAssistantRef.current;
+    const streamKey = streamingKeyRef.current;
+    pendingAssistantRef.current = null;
+
     // 续写场景：原地合并消息内容，不重挂载 MessageList，避免气泡闪烁
     const wasContinuing = !!continuingMessageIdRef.current;
     if (wasContinuing && messageListRef.current?.updateMessages) {
       const contId = continuingMessageIdRef.current;
-      const contText = continuingTextRef.current;
+      const contText = parseContinuationText(continuingTextRef.current).content;
       messageListRef.current.updateMessages((prev) =>
-        prev.map((m) => m.id === contId ? { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') } : m)
+        prev.map((m) => {
+          if (m.id !== contId) return m;
+          if (pending?.content) return { ...m, ...pending, content: pending.content, _key: m._key ?? m.id };
+          return { ...m, content: m.content + '\n\n' + contText.replace(/^\n+/, '') };
+        })
       );
     }
 
     // 普通流结束：若 onDone 尚未提前追加，在此补追（兜底路径）
     // 复用本轮的 streamingKey 让 AnimatePresence 视其与流式占位为同一节点，零动画切换
-    const pending = pendingAssistantRef.current;
-    const streamKey = streamingKeyRef.current;
-    pendingAssistantRef.current = null;
     let appendedAssistant = assistantAppendedEarlyRef.current;
     assistantAppendedEarlyRef.current = false;
     if (!wasContinuing && pending && messageListRef.current?.appendMessage) {
@@ -251,21 +287,19 @@ export default function ChatPage() {
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
-    // 设置本轮选项（续写不展示选项）；后端有最终解析结果时覆盖，否则保留流式检测的内容
-    if (!wasContinuing) {
-      const finalOpts = pendingOptionsRef.current;
-      if (finalOpts.length > 0) setCurrentOptions(finalOpts);
-    }
+    // 设置本轮选项；后端有最终解析结果时覆盖，否则保留流式检测的内容
+    const finalOpts = pendingOptionsRef.current;
+    if (finalOpts.length > 0) setCurrentOptions(finalOpts);
     pendingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
     if (!wasContinuing && !appendedAssistant) refreshMessages();
-  }, []);
+  }, [isCurrentStreamRun]);
 
   // 共用 SSE callbacks
-  function makeCallbacks() {
-    clearOptionsState();
+  function makeCallbacks(runId) {
     return {
       onDelta(delta) {
+        if (!isCurrentStreamRun(runId)) return;
         const next = streamingTextRef.current + delta;
         streamingTextRef.current = next;
         const tagIdx = next.indexOf('<next_prompt>');
@@ -279,6 +313,7 @@ export default function ChatPage() {
         }
       },
       onUserSaved(realId) {
+        if (!isCurrentStreamRun(runId)) return;
         const tempId = tempUserIdRef.current;
         if (!tempId || !realId || tempId === realId) return;
         if (messageListRef.current?.updateMessages) {
@@ -290,6 +325,7 @@ export default function ChatPage() {
         tempUserIdRef.current = realId;
       },
       onDone(assistant, options) {
+        if (!isCurrentStreamRun(runId)) return;
         if (options?.length) pendingOptionsRef.current = options;
         // 立即追加真实消息 + 解锁输入框（同批次渲染，避免流式气泡消失后真实消息尚未出现的闪烁）
         // 续写场景不在此追加，由 finalizeStream 合并内容
@@ -303,11 +339,13 @@ export default function ChatPage() {
         useStore.getState().triggerMemoryRefresh();
       },
       onAborted(assistant) {
+        if (!isCurrentStreamRun(runId)) return;
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
         streamingTextRef.current = '';
         if (assistant) pendingAssistantRef.current = assistant;
       },
       onError(err) {
+        if (!isCurrentStreamRun(runId)) return;
         const partial = streamingTextRef.current;
         const errMsg = typeof err === 'string' ? err : (err?.message || '生成失败');
         streamingTextRef.current = '';
@@ -315,29 +353,34 @@ export default function ChatPage() {
         // 不直接 finalize，交给 onStreamEnd 统一处理，避免第二次 finalize 回退到 refreshMessages 引发重挂载
       },
       onTitleUpdated(title) {
+        if (!isCurrentStreamRun(runId)) return;
         setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
         if (chatSessionListBridge.updateTitle && currentSessionIdRef.current) {
           chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
         }
       },
       onMemoryRecallStart() {
+        if (!isCurrentStreamRun(runId)) return;
         setMemoryRecalling(true);
       },
       onMemoryRecallDone(evt) {
+        if (!isCurrentStreamRun(runId)) return;
         setMemoryRecalling(false);
         const hit = evt?.hit ?? 0;
         setRecallSummary({ recalled: hit, expanded: 0 });
       },
       onMemoryExpandStart() {
+        if (!isCurrentStreamRun(runId)) return;
         setMemoryExpanding(true);
       },
       onMemoryExpandDone(evt) {
+        if (!isCurrentStreamRun(runId)) return;
         setMemoryExpanding(false);
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
       onStreamEnd() {
-        finalizeStream();
+        finalizeStream(runId);
       },
     };
   }
@@ -356,7 +399,6 @@ export default function ChatPage() {
     }
 
     setErrorBubble(null);
-    clearOptionsState();
     streamingTextRef.current = '';
     setRecallSummary(null);
 
@@ -372,13 +414,13 @@ export default function ChatPage() {
     tempUserIdRef.current = tempUserMsg.id;
     if (messageListRef.current?.appendMessage) messageListRef.current.appendMessage(tempUserMsg);
 
-    beginStreamingKey();
+    const runId = beginStreamRun();
     setGenerating(true);
     setStreamingText('');
 
     const inject = pendingDiaryInject;
     setPendingDiaryInject(null);
-    const stop = sendMessage(sessionId, content, attachments, makeCallbacks(), inject ? { diaryInjection: inject } : {});
+    const stop = sendMessage(sessionId, content, attachments, makeCallbacks(runId), inject ? { diaryInjection: inject } : {});
     stopRef.current = stop;
   }
 
@@ -404,11 +446,11 @@ export default function ChatPage() {
       });
     }
 
-    beginStreamingKey();
+    const runId = beginStreamRun();
     setGenerating(true);
     setStreamingText('');
 
-    const stop = editAndRegenerate(currentSessionId, messageId, newContent, makeCallbacks());
+    const stop = editAndRegenerate(currentSessionId, messageId, newContent, makeCallbacks(runId));
     stopRef.current = stop;
   }
 
@@ -429,11 +471,11 @@ export default function ChatPage() {
       return i >= 0 ? prev.slice(0, i) : prev;
     });
 
-    beginStreamingKey();
+    const runId = beginStreamRun();
     setGenerating(true);
     setStreamingText('');
 
-    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
+    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks(runId));
     stopRef.current = stop;
   }
 
@@ -458,14 +500,22 @@ export default function ChatPage() {
     const callbacks = {
       onDelta(delta) {
         if (continuationTokenRef.current !== continuationToken) return;
-        continuingTextRef.current += delta;
-        setContinuingText((prev) => prev + delta);
+        const next = continuingTextRef.current + delta;
+        continuingTextRef.current = next;
+        const parsed = parseContinuationText(next);
+        if (parsed.options.length > 0) setCurrentOptions(parsed.options);
+        setContinuingText(parsed.content);
       },
-      onDone() {
+      onDone(assistant, options) {
         if (continuationTokenRef.current !== continuationToken) return;
+        if (assistant) pendingAssistantRef.current = assistant;
+        if (options?.length) pendingOptionsRef.current = options;
         useStore.getState().triggerMemoryRefresh();
       },
-      onAborted() {},
+      onAborted(assistant) {
+        if (continuationTokenRef.current !== continuationToken) return;
+        if (assistant) pendingAssistantRef.current = assistant;
+      },
       onError(err) {
         if (continuationTokenRef.current !== continuationToken) return;
         pushErrorToast(typeof err === 'string' ? err : (err?.message || '续写失败'));
@@ -547,10 +597,10 @@ export default function ChatPage() {
 
     messageListRef.current?.updateMessages?.((prev) => prev.slice(0, lastIdx));
 
-    beginStreamingKey();
+    const runId = beginStreamRun();
     setGenerating(true);
     setStreamingText('');
-    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
+    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks(runId));
     stopRef.current = stop;
   }
 
@@ -572,10 +622,10 @@ export default function ChatPage() {
 
     messageListRef.current?.updateMessages?.(() => trimmed);
 
-    beginStreamingKey();
+    const runId = beginStreamRun();
     setGenerating(true);
     setStreamingText('');
-    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks());
+    const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks(runId));
     stopRef.current = stop;
   }
 
@@ -752,6 +802,7 @@ export default function ChatPage() {
           onStop={handleStop}
           generating={generating}
           impersonating={impersonating}
+          onScrollToBottom={() => messageListRef.current?.scrollToBottom()}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           onClear={handleClearMessages}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
@@ -7,6 +7,7 @@ import { useAppModeStore } from '../../store/appMode';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
+import SortableList from '../ui/SortableList';
 import { SETTINGS_MODE } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
 
@@ -34,7 +35,6 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
   const [showEditor, setShowEditor] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const dragIdx = useRef(null);
   const appMode = useAppModeStore((s) => s.appMode);
 
   const load = useCallback(async () => {
@@ -76,28 +76,14 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
     await refreshCustomCss(appMode);
   }
 
-  function handleDragStart(idx) { dragIdx.current = idx; }
-
-  function handleDragOver(e, idx) {
-    e.preventDefault();
-    if (dragIdx.current === null || dragIdx.current === idx) return;
-    const next = [...snippets];
-    const [moved] = next.splice(dragIdx.current, 1);
-    next.splice(idx, 0, moved);
-    dragIdx.current = idx;
-    setSnippets(next);
-  }
-
-  async function handleDragEnd() {
-    dragIdx.current = null;
-    const items = snippets.map((s, i) => ({ id: s.id, sort_order: i }));
+  async function handleReorderEnd(finalItems) {
+    const items = finalItems.map((s, i) => ({ id: s.id, sort_order: i }));
     await reorderSnippets(items);
     await refreshCustomCss(appMode);
   }
 
   return (
     <div>
-      {/* 推荐选择器参考（可折叠） */}
       <div className="we-css-reference">
         <details>
           <summary>推荐选择器参考</summary>
@@ -132,20 +118,21 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
           暂无 CSS 片段
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {snippets.map((s, idx) => (
+        <SortableList
+          items={snippets}
+          onReorder={setSnippets}
+          onReorderEnd={handleReorderEnd}
+          renderItem={(s) => (
             <SnippetRow
-              key={s.id}
               snippet={s}
               onEdit={() => { setEditingSnippet(s); setShowEditor(true); }}
               onToggle={() => handleToggle(s)}
               onDelete={() => setDeletingId(s.id)}
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDragEnd={handleDragEnd}
             />
-          ))}
-        </div>
+          )}
+          style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
+          className=""
+        />
       )}
 
       {showEditor && (
@@ -166,13 +153,9 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
   );
 }
 
-function SnippetRow({ snippet, onEdit, onToggle, onDelete, onDragStart, onDragOver, onDragEnd }) {
+function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
-      onDragOver={onDragOver}
-      onDragEnd={onDragEnd}
       className="group"
       style={{
         display: 'flex',

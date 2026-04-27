@@ -39,25 +39,12 @@ const MessageList = forwardRef(function MessageList({
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const listRef = useRef(null);
-  const bottomRef = useRef(null);
   const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
-  // 是否用户当前处于接近底部（用于决定是否自动跟随流式输出）
-  const nearBottomRef = useRef(true);
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
-
-  function scrollToBottom(behavior = 'smooth') {
-    bottomRef.current?.scrollIntoView({ behavior });
-  }
-
-  function isNearBottom() {
-    const el = listRef.current;
-    if (!el) return true;
-    return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  }
 
   // 初始加载
   useEffect(() => {
@@ -91,7 +78,6 @@ const MessageList = forwardRef(function MessageList({
         setOffset(msgs.length);
         setHasMore(msgs.length === PAGE_SIZE);
         setLoading(false);
-        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'instant' }), 0);
       } catch {
         if (!cancelled) setLoading(false);
       }
@@ -123,13 +109,12 @@ const MessageList = forwardRef(function MessageList({
       .catch(() => setLoadingMore(false));
   }, [loadingMore, hasMore, sessionId, offset]);
 
-  // 监听滚动：到顶部时加载更多；记录是否接近底部
+  // 监听滚动：到顶部时加载更多
   useEffect(() => {
     const el = listRef.current;
     if (!el) return;
 
     function handleScroll() {
-      nearBottomRef.current = isNearBottom();
       if (el.scrollTop < 80 && hasMore && !loadingMore) {
         loadMore();
       }
@@ -139,29 +124,14 @@ const MessageList = forwardRef(function MessageList({
     return () => el.removeEventListener('scroll', handleScroll);
   }, [loadMore, hasMore, loadingMore]);
 
-  // 新消息追加后（用户发送）滚到底部，排除"加载历史"的情况
-  const prevLengthRef = useRef(0);
-  useEffect(() => {
-    const prev = prevLengthRef.current;
-    prevLengthRef.current = messages.length;
-    if (messages.length > prev && !loadingMore) {
-      scrollToBottom('smooth');
-      nearBottomRef.current = true;
-    }
-  }, [messages.length, loadingMore]);
-
-  // 流式结束后一次性跳转底部
-  const prevGeneratingRef = useRef(false);
-  useEffect(() => {
-    if (prevGeneratingRef.current && !generating) {
-      scrollToBottom('instant');
-    }
-    prevGeneratingRef.current = generating;
-  }, [generating]);
 
   useImperativeHandle(ref, () => ({
     appendMessage: (msg) => setMessages((prev) => [...prev, msg]),
     updateMessages: (updater) => setMessages(updater),
+    scrollToBottom: () => {
+      const el = listRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
     get messagesRef() {
       return messagesRef;
     },
@@ -309,7 +279,6 @@ const MessageList = forwardRef(function MessageList({
         </div>
       )}
 
-      <div ref={bottomRef} />
     </div>
 
     {/* 底部悬浮提示：absolute 定位不参与 scroll 内容流，彻底消除布局抖动 */}

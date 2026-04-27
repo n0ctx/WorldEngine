@@ -1,6 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { createServer } from 'node:net';
 import path from 'node:path';
 
 import { chromium } from 'playwright';
@@ -15,6 +16,20 @@ sandbox.setEnv();
 
 let backendServer;
 let frontendProcess;
+let frontendBaseUrl;
+
+async function getFreePort() {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const { port } = server.address();
+  await new Promise((resolve, reject) => {
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
+  return port;
+}
 
 async function waitForUrl(url, timeoutMs = 15000) {
   const startedAt = Date.now();
@@ -39,8 +54,10 @@ async function ensureBackendServer() {
 }
 
 async function ensureFrontendServer(backendPort) {
-  if (frontendProcess) return frontendProcess;
-  frontendProcess = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4173'], {
+  if (frontendProcess) return frontendBaseUrl;
+  const frontendPort = await getFreePort();
+  frontendBaseUrl = `http://127.0.0.1:${frontendPort}`;
+  frontendProcess = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', String(frontendPort), '--strictPort'], {
     cwd: path.resolve(process.cwd(), '..', 'frontend'),
     env: {
       ...process.env,
@@ -48,8 +65,8 @@ async function ensureFrontendServer(backendPort) {
     },
     stdio: 'ignore',
   });
-  await waitForUrl('http://127.0.0.1:4173');
-  return frontendProcess;
+  await waitForUrl(frontendBaseUrl);
+  return frontendBaseUrl;
 }
 
 after(async () => {
@@ -70,7 +87,7 @@ test('Playwright: 聊天页可以新建会话并完成一次真实收发', { tim
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['来自浏览器', '的回复']);
 
   const backend = await ensureBackendServer();
-  await ensureFrontendServer(backend.address().port);
+  const frontendUrl = await ensureFrontendServer(backend.address().port);
 
   const world = insertWorld(sandbox.db, { name: '浏览器世界' });
   const character = insertCharacter(sandbox.db, world.id, { name: '银雀' });
@@ -78,7 +95,7 @@ test('Playwright: 聊天页可以新建会话并完成一次真实收发', { tim
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
-    await page.goto(`http://127.0.0.1:4173/characters/${character.id}/chat`);
+    await page.goto(`${frontendUrl}/characters/${character.id}/chat`);
     await page.getByRole('button', { name: '新建会话' }).click();
     const input = page.getByPlaceholder('发送消息… (Shift+Enter 换行，/ 调出命令)');
     await input.fill('浏览器测试消息');
@@ -101,7 +118,7 @@ test('Playwright: 写作页可以自动建会话并完成一次真实收发', { 
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['写作', '回复']);
 
   const backend = await ensureBackendServer();
-  await ensureFrontendServer(backend.address().port);
+  const frontendUrl = await ensureFrontendServer(backend.address().port);
 
   const world = insertWorld(sandbox.db, { name: '写作世界' });
   insertCharacter(sandbox.db, world.id, { name: '银雀' });
@@ -109,7 +126,7 @@ test('Playwright: 写作页可以自动建会话并完成一次真实收发', { 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
-    await page.goto(`http://127.0.0.1:4173/worlds/${world.id}/writing`);
+    await page.goto(`${frontendUrl}/worlds/${world.id}/writing`);
     const input = page.getByPlaceholder('发送消息… (Shift+Enter 换行，/ 调出命令)');
     await input.fill('写作测试消息');
     await page.getByTitle('发送 (Enter)').click();

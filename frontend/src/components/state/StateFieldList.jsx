@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { SortableList } from '../index';
 import StateFieldEditor from './StateFieldEditor';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表' };
@@ -26,7 +27,6 @@ export default function StateFieldList({
   const [showEditor, setShowEditor] = useState(false);
   const [editingField, setEditingField] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const dragIdx = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,22 +59,18 @@ export default function StateFieldList({
     await load();
   }
 
-  // ── 拖拽排序 ──
-  function handleDragStart(idx) { dragIdx.current = idx; }
+  const diaryField = fields.find(f => f.field_key === DIARY_TIME_FIELD_KEY);
+  const sortableFields = fields.filter(f => f.field_key !== DIARY_TIME_FIELD_KEY);
 
-  function handleDragOver(e, idx) {
-    e.preventDefault();
-    if (dragIdx.current === null || dragIdx.current === idx) return;
-    const next = [...fields];
-    const [moved] = next.splice(dragIdx.current, 1);
-    next.splice(idx, 0, moved);
-    dragIdx.current = idx;
-    setFields(next);
+  function handleReorder(newItems) {
+    setFields(diaryField ? [...newItems, diaryField] : newItems);
   }
 
-  async function handleDragEnd() {
-    dragIdx.current = null;
-    await reorderFn(worldId, fields.map((f) => f.id));
+  async function handleReorderEnd(finalItems) {
+    const allIds = diaryField
+      ? [...finalItems.map(f => f.id), diaryField.id]
+      : finalItems.map(f => f.id);
+    await reorderFn(worldId, allIds);
   }
 
   return (
@@ -97,18 +93,30 @@ export default function StateFieldList({
         <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
-          {fields.map((f, idx) => (
-            <FieldRow
-              key={f.id}
-              field={f}
-              isDiaryTime={f.field_key === DIARY_TIME_FIELD_KEY}
-              onEdit={() => { setEditingField(f); setShowEditor(true); }}
-              onDelete={() => setDeletingId(f.id)}
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDragEnd={handleDragEnd}
+          {sortableFields.length > 0 && (
+            <SortableList
+              items={sortableFields}
+              onReorder={handleReorder}
+              onReorderEnd={handleReorderEnd}
+              renderItem={(f) => (
+                <FieldRow
+                  field={f}
+                  isDiaryTime={false}
+                  onEdit={() => { setEditingField(f); setShowEditor(true); }}
+                  onDelete={() => setDeletingId(f.id)}
+                />
+              )}
+              className="flex flex-col gap-2"
             />
-          ))}
+          )}
+          {diaryField && (
+            <FieldRow
+              field={diaryField}
+              isDiaryTime={true}
+              onEdit={() => { setEditingField(diaryField); setShowEditor(true); }}
+              onDelete={() => setDeletingId(diaryField.id)}
+            />
+          )}
         </div>
       )}
 
@@ -132,13 +140,9 @@ export default function StateFieldList({
   );
 }
 
-function FieldRow({ field, isDiaryTime, onEdit, onDelete, onDragStart, onDragOver, onDragEnd }) {
+function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
   return (
     <div
-      draggable={!isDiaryTime}
-      onDragStart={isDiaryTime ? undefined : onDragStart}
-      onDragOver={isDiaryTime ? undefined : onDragOver}
-      onDragEnd={isDiaryTime ? undefined : onDragEnd}
       className={`we-field-row group flex items-center gap-2 px-3 py-2 select-none${isDiaryTime ? '' : ' cursor-grab active:cursor-grabbing'}`}
     >
       <span className={`text-text-secondary text-xs flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`}>⠿</span>
@@ -179,13 +183,18 @@ function Badge({ label, dim }) {
 
 function DeleteConfirm({ onConfirm, onClose }) {
   const [deleting, setDeleting] = useState(false);
+  const mouseDownOnBackdropRef = useRef(false);
   async function handle() {
     setDeleting(true);
     await onConfirm();
     setDeleting(false);
   }
   return (
-    <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60">
+    <div
+      className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60"
+      onMouseDown={(e) => { mouseDownOnBackdropRef.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnBackdropRef.current && !deleting) onClose(); }}
+    >
       <div className="we-dialog-panel mx-4 w-full max-w-sm p-6">
         <h2 className="mb-3 text-[17px] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
           确认删除字段

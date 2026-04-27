@@ -1,4 +1,5 @@
 // frontend/src/components/ui/EditPageShell.jsx
+import { useRef } from 'react';
 
 export default function EditPageShell({
   loading = false,
@@ -8,10 +9,16 @@ export default function EditPageShell({
   headerActions,
   children,
 }) {
+  const mouseDownOnOverlay = useRef(false);
+  const overlayHandlers = {
+    onMouseDown: (e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; },
+    onClick: () => { if (mouseDownOnOverlay.current) onClose(); },
+  };
+
   if (loading) {
     if (isOverlay) {
       return (
-        <div className="we-settings-overlay" onClick={onClose}>
+        <div className="we-settings-overlay" {...overlayHandlers}>
           <div
             className="we-edit-panel we-edit-panel-overlay flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
@@ -46,7 +53,7 @@ export default function EditPageShell({
 
   if (isOverlay) {
     return (
-      <div className="we-settings-overlay" onClick={onClose}>
+      <div className="we-settings-overlay" {...overlayHandlers}>
         {panel}
       </div>
     );

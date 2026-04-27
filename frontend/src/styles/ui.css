@@ -136,6 +136,7 @@
   resize: vertical;
   align-self: flex-start;
   width: 100%;
+  overflow-anchor: none;
 }
 
 /* ── Card ── */
@@ -581,6 +582,111 @@
   opacity: 0.88;
 }
 
+/* ── CharacterPreviewModal 制卡预览 ── */
+.we-character-preview-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+}
+
+.we-character-preview-empty {
+  font-size: 14px;
+  color: var(--we-ink-secondary);
+  font-style: italic;
+}
+
+.we-character-preview-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--we-paper-shadow);
+}
+
+.we-character-preview-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--we-vermilion);
+}
+
+.we-character-preview-checkbox--item {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.we-character-preview-count {
+  margin-bottom: 0;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  font-style: normal;
+  color: var(--we-ink-secondary);
+}
+
+.we-character-preview-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.we-character-preview-item--selected {
+  background: var(--we-color-ink-wash);
+}
+
+.we-character-preview-item--muted {
+  opacity: 0.5;
+}
+
+.we-character-preview-item--disabled {
+  pointer-events: none;
+}
+
+.we-character-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.we-character-preview-name {
+  margin-bottom: 4px;
+  font-family: var(--we-font-serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--we-ink-primary);
+}
+
+.we-character-preview-desc,
+.we-character-preview-prompt {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  line-height: 1.625;
+}
+
+.we-character-preview-desc {
+  color: var(--we-ink-secondary);
+}
+
+.we-character-preview-prompt {
+  margin-top: 4px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+}
+
+.we-character-preview-progress {
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--we-ink-secondary);
+  font-style: italic;
+}
+
 /* ── AvatarUpload 头像上传 ── */
 .we-avatar-upload {
   display: flex;
@@ -938,6 +1044,7 @@
 
 .we-entry-editor-field--resizable {
   resize: vertical;
+  overflow-anchor: none;
 }
 
 .we-entry-editor-select {
