@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds, deleteWorld } from '../api/worlds';
 import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
+import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import { relativeTime } from '../utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
+import { pushErrorToast } from '../utils/toast';
 
 export default function WorldsPage() {
   const navigate = useNavigate();
@@ -17,7 +19,10 @@ export default function WorldsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [deletingWorld, setDeletingWorld] = useState(null);
+  const [exportingWorldId, setExportingWorldId] = useState(null);
+  const [importingWorld, setImportingWorld] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const worldImportRef = useRef(null);
 
   async function loadWorlds() {
     setLoading(true);
@@ -60,7 +65,34 @@ export default function WorldsPage() {
     await loadWorlds();
   }
 
+  async function handleExportWorld(world, e) {
+    e.stopPropagation();
+    setExportingWorldId(world.id);
+    try {
+      const safeName = world.name.replace(/[^\w一-龥]/g, '_');
+      await downloadWorldCard(world.id, `${safeName}.weworld.json`);
+    } catch (err) {
+      pushErrorToast(`导出失败：${err.message}`);
+    } finally {
+      setExportingWorldId(null);
+    }
+  }
 
+  async function handleImportWorldFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingWorld(true);
+    try {
+      const data = await readJsonFile(file);
+      await importWorld(data);
+      await loadWorlds();
+    } catch (err) {
+      pushErrorToast(`导入失败：${err.message}`);
+    } finally {
+      setImportingWorld(false);
+      e.target.value = '';
+    }
+  }
 
   return (
     <div className="we-worlds-canvas">
@@ -71,6 +103,20 @@ export default function WorldsPage() {
           <p className="we-worlds-subtitle">WORLDENGINE — ARCHIVES</p>
         </div>
         <div className="we-worlds-header-actions">
+          <button
+            onClick={() => worldImportRef.current?.click()}
+            disabled={importingWorld}
+            className="we-worlds-import-btn"
+          >
+            {importingWorld ? '导入中…' : '导入世界卡'}
+          </button>
+          <input
+            ref={worldImportRef}
+            type="file"
+            accept=".json,.weworld.json"
+            className="hidden"
+            onChange={handleImportWorldFile}
+          />
           <button
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
             className="we-worlds-create-btn"
@@ -130,6 +176,14 @@ export default function WorldsPage() {
                 className="we-world-card-actions"
                 onClick={(e) => e.stopPropagation()}
               >
+                <button
+                  className="we-world-card-action-btn"
+                  onClick={(e) => handleExportWorld(world, e)}
+                  disabled={exportingWorldId === world.id}
+                  title="导出世界卡"
+                >
+                  ↓
+                </button>
                 <button
                   className="we-world-card-action-btn"
                   onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
