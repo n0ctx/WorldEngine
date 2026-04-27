@@ -193,6 +193,8 @@ export default function WorldEditPage() {
                 fileInputRef={coverFileInputRef}
                 onAvatarClick={() => coverFileInputRef.current?.click()}
                 onFileChange={handleCoverFileChange}
+                shape="rect"
+                hint="点击上传封面图"
               />
             </FormGroup>
           )}

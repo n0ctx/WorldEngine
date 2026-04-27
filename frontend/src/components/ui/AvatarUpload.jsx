@@ -7,30 +7,37 @@ export default function AvatarUpload({
   fileInputRef,
   onAvatarClick,
   onFileChange,
+  shape = 'circle',
+  hint = '点击头像上传图片',
 }) {
   const initial = (name || '?')[0].toUpperCase();
+  const isRect = shape === 'rect';
+  const imgClass = isRect ? 'we-avatar-img we-avatar-img--rect' : 'we-avatar-img';
+  const placeholderClass = isRect ? 'we-avatar-placeholder we-avatar-placeholder--rect' : 'we-avatar-placeholder';
+  const uploadingClass = isRect ? 'we-avatar-uploading we-avatar-uploading--rect' : 'we-avatar-uploading';
+  const maskClass = isRect ? 'we-avatar-mask we-avatar-mask--rect' : 'we-avatar-mask';
 
   return (
     <div className="we-avatar-upload">
-      <button type="button" className="we-avatar-wrap" onClick={onAvatarClick} aria-label="更换头像">
+      <button type="button" className="we-avatar-wrap" onClick={onAvatarClick} aria-label={hint}>
         {avatarUrl ? (
-          <img src={avatarUrl} alt={name} className="we-avatar-img" />
+          <img src={avatarUrl} alt={name} className={imgClass} />
         ) : (
-          <div className="we-avatar-placeholder" style={{ '--avatar-bg': avatarColor }}>
+          <div className={placeholderClass} style={{ '--avatar-bg': avatarColor }}>
             {initial}
           </div>
         )}
         {avatarUploading && (
-          <div className="we-avatar-uploading">
+          <div className={uploadingClass}>
             <span>上传中…</span>
           </div>
         )}
-        <div className="we-avatar-mask">
-          <span>更换头像</span>
+        <div className={maskClass}>
+          <span>更换图片</span>
         </div>
       </button>
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
-      <p className="we-avatar-hint">点击头像上传图片</p>
+      <p className="we-avatar-hint">{hint}</p>
     </div>
   );
 }

@@ -126,9 +126,12 @@
 .we-world-card--has-cover .we-world-card-seal,
 .we-world-card--has-cover .we-world-card-name,
 .we-world-card--has-cover .we-world-card-desc,
-.we-world-card--has-cover .we-world-card-meta,
-.we-world-card--has-cover .we-world-card-actions {
+.we-world-card--has-cover .we-world-card-meta {
   position: relative;
+  z-index: 2;
+}
+
+.we-world-card--has-cover .we-world-card-actions {
   z-index: 2;
 }
 
