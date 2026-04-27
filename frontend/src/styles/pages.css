@@ -72,6 +72,7 @@
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  align-items: start;
 }
 
 .we-world-card {
@@ -85,6 +86,7 @@
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   overflow: hidden;
+  aspect-ratio: 4 / 3;
 }
 
 .we-world-card:hover {
