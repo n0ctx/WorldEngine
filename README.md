@@ -66,6 +66,10 @@ Anthropic Claude、OpenAI GPT、OpenAI 兼容接口（DeepSeek、SiliconFlow 等
 **桌面应用**
 Electron 打包，支持 macOS（x64 / arm64）和 Windows（x64），数据存用户目录，随机端口避免冲突。
 
+## 社区交流
+
+QQ 群：**964968606**
+
 ## Quick Start
 
 **环境要求**：Node.js 18+
