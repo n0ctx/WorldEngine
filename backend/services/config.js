@@ -8,6 +8,18 @@ const CONFIG_PATH = process.env.WE_CONFIG_PATH
     ? path.resolve(process.env.WE_DATA_DIR, 'config.json')
     : path.resolve(__dirname, '..', '..', 'data', 'config.json'));
 
+const DEFAULT_AUX_LLM = {
+  provider: null,
+  provider_keys: {},
+  provider_models: {},
+  base_url: null,
+  model: null,
+};
+
+const DEFAULT_ASSISTANT = {
+  model_source: 'main',
+};
+
 const DEFAULT_CONFIG = {
   version: 1,
   proxy_url: '',
@@ -88,18 +100,6 @@ const DEFAULT_WRITING = {
 const DEFAULT_DIARY = {
   chat: { enabled: false, date_mode: 'virtual' },
   writing: { enabled: false, date_mode: 'virtual' },
-};
-
-const DEFAULT_AUX_LLM = {
-  provider: null,
-  provider_keys: {},
-  provider_models: {},
-  base_url: null,
-  model: null,
-};
-
-const DEFAULT_ASSISTANT = {
-  model_source: 'main',
 };
 
 const DEFAULT_LOGGING = {
