@@ -40,7 +40,7 @@ export default function InputBox({ value, onChange, onSend, onStop, isStreaming 
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder="和写卡助手说话... (Enter 发送，Shift+Enter 换行)"
+        placeholder="Enter 发送，Shift+Enter 换行"
         rows={1}
         style={{
           flex: 1,

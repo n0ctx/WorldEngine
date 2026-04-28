@@ -73,11 +73,11 @@ export async function* runAgent(message, history, context, tools, { onToolCall }
   log.info(`START  ${formatMeta({ msg: previewText(message, { limit: 120 }), history: chatHistory.length, tools: tools.length })}`);
 
   // 阶段 1：工具调用循环（研究 + 分发执行子代理）
-  const enrichedMessages = await llm.resolveToolContext(messages, instrumentedTools, { temperature: 0 });
+  const enrichedMessages = await llm.resolveToolContext(messages, instrumentedTools, { temperature: 0, thinking_level: null });
 
   // 阶段 2：流式回复
   log.info(`STREAM  ${formatMeta({ enriched: enrichedMessages.length - messages.length })}`);
-  yield* llm.chat(enrichedMessages, { temperature: 0.8 });
+  yield* llm.chat(enrichedMessages, { temperature: 0.8, thinking_level: null });
 }
 
 // ─── 上下文字符串构建 ─────────────────────────────────────────

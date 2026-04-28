@@ -294,7 +294,7 @@ router.post('/extract-characters', async (req, res) => {
     log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length })}`);
 
     const messages = buildAgentMessages('extract_characters', task);
-    let raw = await llm.complete(messages, { temperature: 0.3 });
+    let raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null });
 
     function parseCharacterArray(text) {
       const s = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -310,7 +310,7 @@ router.post('/extract-characters', async (req, res) => {
     } catch {
       messages.push({ role: 'assistant', content: raw });
       messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON 数组。请只输出一个 JSON 数组，不要代码块或解释。' });
-      raw = await llm.complete(messages, { temperature: 0.3 });
+      raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null });
       try { characters = parseCharacterArray(raw); }
       catch { characters = []; }
     }
@@ -1488,7 +1488,11 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
       return normalized;
     }
-    const fieldKey = normalizeString(raw.field_key);
+    let fieldKey = normalizeString(raw.field_key);
+    if (fieldKey) {
+      if (target === 'persona' && !fieldKey.endsWith('_user')) fieldKey += '_user';
+      else if (target === 'character' && !fieldKey.endsWith('_char')) fieldKey += '_char';
+    }
     const label = normalizeString(raw.label);
     const fieldType = normalizeString(raw.type);
     if (!fieldKey) throw new Error(`提案格式错误：stateFieldOps[${idx}].field_key 缺失`);

@@ -4,8 +4,8 @@
 
 ## 架构概述
 
-当前为“双轨架构”：
-- **兼容轨**：`/api/assistant/chat` 仍保留旧版“主代理 + 执行子代理 + proposal 卡”对话流
+当前为"双轨架构"：
+- **兼容轨**：`/api/assistant/chat` 仍保留旧版"主代理 + 执行子代理 + proposal 卡"对话流
 - **通用 Agent 轨**：`/api/assistant/tasks*` 采用 `Task -> Plan -> Step Graph -> Proposal -> Apply` 模型
 
 通用 Agent 组件：
@@ -17,9 +17,15 @@
 
 Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡）再拆步骤；复杂/状态机世界卡应拆出基础结构、状态字段、触发条目和后续状态值填写步骤。复杂写入默认走计划闸门：3 步以上、高风险、已有实体 update/delete、或 research 标记 `needsPlanApproval=true` 时，必须先 `awaiting_plan_approval`。执行子代理除 JSON 解析失败重试外，若 `normalizeProposal()` 返回明确契约错误，也会带错误反馈重试一次并要求定向修复。
 
+### LLM 调用约定
+
+写卡助手所有 LLM 调用默认禁用 thinking：调用方必须显式传 `thinking_level: null`，覆盖全局 `config.llm.thinking_level`，与主对话写作场景解耦。当前覆盖点：`main-agent.js`（resolveToolContext / chat）、`task-planner.js`（complete）、`agent-factory.js`（completeWithTools，所有执行子代理）、`routes.js` 中 extract-characters（complete + JSON 重试）。新增 LLM 调用点必须沿用此约定。
+
+理由：助手输出以结构化 JSON 与工具调用为主，thinking 既增加延迟也会让部分模型（如 GLM-5.1）把 JSON 写入 `reasoning_content` 导致解析失败；写作 thinking 仅在主对话保留。
+
 ### 术语约束
 
-世界卡、角色卡、玩家卡和全局 prompt 的 CUD proposal 中，凡是会写入卡片正文、条目内容、状态字段说明、开场白或 step task 的自然语言，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`。接口字段名、枚举值和既有状态条件标签保持 schema 原样，例如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"` 不改名。
+世界卡、角色卡、玩家卡和全局 prompt 的 CUD proposal 中，凡是会写入卡片正文、条目内容、状态字段说明、开场白或 step task 的自然语言，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`。受约束字段：`content`（条目正文）、`system_prompt`、`post_prompt`、`first_message`、`update_instruction`。不受约束字段：`name`、`label`、`field_key`、`enum_options` 枚举值、schema 标识符（如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"`）保持 schema 原样不改名。
 
 ## 1. `/api/assistant/tasks`
 
@@ -42,11 +48,23 @@ Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、
 }
 ```
 
-### 任务状态
+### 任务状态与合法跳转
 
 `researching | clarifying | planning | awaiting_plan_approval | executing | awaiting_step_approval | completed | failed | cancelled`
 
+| 当前状态 | 可跳转至 | 触发 |
+|---|---|---|
+| `researching` | `clarifying` / `planning` / `failed` | researcher 完成 |
+| `clarifying` | `researching` | 用户 `/answer` |
+| `planning` | `awaiting_plan_approval` / `executing` / `failed` | planner 完成 |
+| `awaiting_plan_approval` | `executing` / `cancelled` | 用户 `/approve-plan` / `/cancel` |
+| `executing` | `awaiting_step_approval` / `completed` / `failed` | executor 输出 |
+| `awaiting_step_approval` | `executing` / `cancelled` | 用户 `/approve-step` / `/cancel` |
+| `completed` / `failed` / `cancelled` | — | 终态 |
+
 ### SSE 事件
+
+主路径时序：`task_created → research_started → research_ready → plan_ready → [awaiting_plan_approval →] plan_approved → step_started → step_proposal_ready → [step_approval_requested →] step_completed → task_completed`
 
 #### `task_created`
 
@@ -118,8 +136,8 @@ Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、
 ```
 
 说明：
-- 高风险步骤现在总是先经历 `step_started -> step_proposal_ready -> step_approval_requested`
-- 前端可以直接基于 `proposal` 展示完整变更、允许用户编辑 `changes / entryOps / stateFieldOps / stateValueOps`
+- 高风险步骤总是先经历 `step_started -> step_proposal_ready -> step_approval_requested`
+- 前端可直接基于 `proposal` 展示完整变更、允许用户编辑 `changes / entryOps / stateFieldOps / stateValueOps`
 - 审批后的编辑内容仍会在服务端重新走 `normalizeProposal()`，与旧 `/api/assistant/execute` 共享同级安全边界
 
 #### `step_completed`
@@ -188,15 +206,17 @@ Planner plan 校验最少包含：
 
 ### 相关接口
 
-- `POST /api/assistant/tasks/:taskId/answer`
-- `POST /api/assistant/tasks/:taskId/approve-plan`
-- `POST /api/assistant/tasks/:taskId/approve-step`
-- `POST /api/assistant/tasks/:taskId/cancel`
-- `GET /api/assistant/tasks/:taskId`
+#### `POST /api/assistant/tasks/:taskId/answer`
 
-### `POST /api/assistant/tasks/:taskId/approve-step`
+```json
+{ "answer": "用户回答文本" }
+```
 
-请求体：
+#### `POST /api/assistant/tasks/:taskId/approve-plan`
+
+无请求体。
+
+#### `POST /api/assistant/tasks/:taskId/approve-step`
 
 ```json
 {
@@ -210,9 +230,15 @@ Planner plan 校验最少包含：
 }
 ```
 
-约束：
-- `editedProposal` 只允许覆盖 proposal 内容，不允许越权改写 `type / operation / entityId`
-- 服务端会以原 proposal 的锁定元信息为准重新 `normalizeProposal()`
+约束：`editedProposal` 只允许覆盖 proposal 内容，不允许越权改写 `type / operation / entityId`；服务端会以原 proposal 的锁定元信息为准重新 `normalizeProposal()`。
+
+#### `POST /api/assistant/tasks/:taskId/cancel`
+
+无请求体。
+
+#### `GET /api/assistant/tasks/:taskId`
+
+无请求体。
 
 ## 2. `/api/assistant/chat`
 
@@ -239,7 +265,7 @@ Planner plan 校验最少包含：
 
 #### `routing`
 
-skill 开始执行时发送。
+agent 开始执行时发送。
 
 ```json
 { "type": "routing", "taskId": "sk-xxxxxxxx", "target": "world-card", "task": "..." }
@@ -247,7 +273,7 @@ skill 开始执行时发送。
 
 #### `proposal`
 
-skill 成功生成提案时发送。
+agent 成功生成提案时发送。
 
 ```json
 { "type": "proposal", "taskId": "sk-xxxxxxxx", "token": "uuid", "proposal": {} }
@@ -263,7 +289,7 @@ skill 成功生成提案时发送。
 
 #### `thinking`
 
-skill 执行中的心跳（每 5 秒一次）。
+agent 执行中的心跳（每 5 秒一次）。
 
 ```json
 { "type": "thinking", "taskId": "sk-xxxxxxxx" }
@@ -271,25 +297,16 @@ skill 执行中的心跳（每 5 秒一次）。
 
 #### `error`
 
-skill 执行失败时发送。
+agent 执行失败时发送。
 
 ```json
 { "type": "error", "error": "错误信息", "taskId": "sk-xxxxxxxx" }
 ```
 
-#### `delta`
-
-主代理流式回复文本片段。
+#### `delta` / `done`
 
 ```json
 { "delta": "流式文本片段" }
-```
-
-#### `done`
-
-主代理流式回复结束。
-
-```json
 { "done": true }
 ```
 
@@ -374,16 +391,16 @@ skill 执行失败时发送。
 
 ## 4. Operation 约束
 
-| Skill | 允许 operation |
+| Agent | 允许 operation |
 |---|---|
-| `world_card_skill` | create / update / delete |
-| `character_card_skill` | create / update / delete |
-| `persona_card_skill` | create / update |
-| `global_prompt_skill` | update 仅 |
-| `css_snippet_skill` | create / update / delete |
-| `regex_rule_skill` | create / update / delete |
+| `world_card_agent` | create / update / delete |
+| `character_card_agent` | create / update / delete |
+| `persona_card_agent` | create / update |
+| `global_prompt_agent` | update 仅 |
+| `css_snippet_agent` | create / update / delete |
+| `regex_rule_agent` | create / update / delete |
 
-**entryOps 支持说明**：只有 `world_card_skill` 支持 `entryOps`；`character_card_skill` / `persona_card_skill` / `global_prompt_skill` 均不支持。
+**entryOps 支持说明**：只有 `world_card_agent` 支持 `entryOps`；其他 agent 均不支持。
 
 ## 5. `changes` 准确格式
 
@@ -455,10 +472,7 @@ skill 执行失败时发送。
 }
 ```
 
-禁止输出：
-- `api_key`
-- `llm.api_key`
-- `embedding.api_key`
+禁止输出：`api_key` / `llm.api_key` / `embedding.api_key`
 
 ### `css-snippet.changes`
 
@@ -486,12 +500,12 @@ skill 执行失败时发送。
 }
 ```
 
-## 5. `entryOps`
+## 6. `entryOps`
 
-基础格式（仅适用于 world-card）：
+仅适用于 world-card。`update` / `delete` 的 `id` 通过 `preview_card` 查询现有条目获得。
 
 ```json
-{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant", "token": 1 }
+{ "op": "create", "title": "标题", "description": "触发条件（1-2句话）", "content": "正文", "keywords": ["a", "b"], "keyword_scope": "user,assistant", "trigger_type": "keyword", "token": 1 }
 ```
 
 ```json
@@ -502,21 +516,21 @@ skill 执行失败时发送。
 { "op": "delete", "id": "现有条目ID" }
 ```
 
-`description`（触发条件）：1-2 句话描述**何时**触发，为空则降级为纯关键词。
+`description`：1-2 句话描述**何时**触发，为空则降级为纯关键词。
 
-`keyword_scope` 取值：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
+`keyword_scope`：`"user"`（仅用户消息）/ `"assistant"`（仅 AI 消息）/ `"user,assistant"`（默认）。
 
 `token`：注入顺序权重，整数 ≥ 1，越小越靠前（默认 1）。
 
-**`trigger_type` 字段（world-card entryOps 必填）**：
+**`trigger_type`（必填）**：
 - `"always"` — 常驻条目，每轮必注入
 - `"keyword"` — 关键词命中时注入
 - `"llm"` — 向量相似度召回时注入
 - `"state"` — 当前会话所有状态条件满足时注入（需配合 `conditions` 数组）
 
-注意：`position` 字段已废弃，不再消费，不要在提案中输出。所有世界条目统一在 [7] 位置注入。
+注意：`position` 字段已废弃，不要在提案中输出。所有世界条目统一在 [7] 位置注入。
 
-**`conditions` 字段（trigger_type:"state" 时使用）**：
+**`conditions`（trigger_type:"state" 时使用）**：
 
 ```json
 [
@@ -526,13 +540,11 @@ skill 执行失败时发送。
 ```
 
 约束：
-
-- `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`
-- 不要只写裸 `field_key`，例如 `"hp"`
+- `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`，不要只写裸 `field_key`
 - 数值操作符：`>` / `<` / `=` / `>=` / `<=` / `!=`
 - 文本操作符：`包含` / `等于` / `不包含`
 
-world-card 常驻条目 create 格式：
+常驻条目 create 示例：
 ```json
 {
   "op": "create",
@@ -546,7 +558,9 @@ world-card 常驻条目 create 格式：
 }
 ```
 
-## 6. `stateFieldOps`
+## 7. `stateFieldOps`
+
+`update` / `delete` 的 `id` 通过 `preview_card` 查询现有字段获得。
 
 ### create
 
@@ -568,9 +582,20 @@ world-card 常驻条目 create 格式：
 }
 ```
 
+**create 字段说明**：
+
+| 字段 | 必填 | 适用类型 |
+|---|---|---|
+| `op` / `target` / `field_key` / `label` / `type` | ✓ | 全部 |
+| `description` / `default_value` / `allow_empty` | — | 全部 |
+| `update_mode` | — | 全部；`llm_auto` = 每轮对话后 AI 自动更新，`manual` = 仅写卡助手显式写入 |
+| `update_instruction` | — | 全部；`llm_auto` 时说明更新规则 |
+| `enum_options` | — | `enum` 专用 |
+| `min_value` / `max_value` | — | `number` 专用 |
+
 ### update
 
-只输出需要修改的字段（id 和 target 必填）：
+只输出需要修改的字段（`id` 和 `target` 必填）：
 
 ```json
 { "op": "update", "target": "world|persona|character", "id": "现有字段ID", "label": "新标签", "default_value": "200" }
@@ -582,30 +607,28 @@ world-card 常驻条目 create 格式：
 { "op": "delete", "target": "world|persona|character", "id": "现有字段ID" }
 ```
 
-类型约束：
-- `world-card`：允许 `world|persona|character`
-- `character-card`：不允许 `stateFieldOps`
-- `persona-card`：不允许 `stateFieldOps`
+**目标约束**：
+- `world-card`：`target` 允许 `world|persona|character`
+- `character-card` / `persona-card`：不允许 `stateFieldOps`
 
-## 6.5 `stateValueOps`
+## 8. `stateValueOps`
 
 用于填写**已经存在**的状态字段值，不负责创建或删除字段模板。
-
-### 基础格式
 
 ```json
 { "target": "character|persona", "field_key": "hp", "value_json": "100" }
 ```
 
-约束：
-- `value_json` 必须是 JSON 字符串或 `null`
-- `character-card`：只允许 `target:"character"`
-- `persona-card`：只允许 `target:"persona"`
-- `world-card`：不允许 `stateValueOps`
-- `field_key` 必须对应当前世界里已经存在的状态字段；未知字段在执行时会报错
-- `stateValueOps` 只写默认状态值，不改运行时会话状态
+| 约束 | 说明 |
+|---|---|
+| `value_json` | JSON 字符串或 `null` |
+| `character-card` | 只允许 `target:"character"` |
+| `persona-card` | 只允许 `target:"persona"` |
+| `world-card` | 不允许 `stateValueOps` |
+| `field_key` | 必须对应当前世界已存在的状态字段，未知字段执行时报错 |
+| 写入范围 | 只写默认状态值，不改运行时会话状态 |
 
-## 7. `/api/assistant/execute`
+## 9. `/api/assistant/execute`
 
 ### 请求体
 

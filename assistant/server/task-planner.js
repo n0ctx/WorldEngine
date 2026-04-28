@@ -304,7 +304,7 @@ export async function planTask({ message, history = [], context = {}, research =
 
   for (let attempt = 1; attempt <= PLAN_RETRY_MAX; attempt += 1) {
     const prompt = buildPlannerPrompt({ message, history, context, research, retryFeedback });
-    const raw = await llm.complete(prompt, { temperature: 0.2 });
+    const raw = await llm.complete(prompt, { temperature: 0.2, thinking_level: null });
     const parsedResult = parsePlannerJson(raw, message);
     if (parsedResult.error) {
       retryFeedback = [parsedResult.error];

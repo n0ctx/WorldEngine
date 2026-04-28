@@ -136,7 +136,7 @@ export async function runAgentDefinition(def, {
   const messages = buildAgentMessages(def.name, task + entityHint);
 
   async function generateOnce({ retry = false } = {}) {
-    const raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
+    const raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3, thinking_level: null });
     log.info(`RAW  ${formatMeta({ agent: def.name, retry, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
     return raw;
   }
