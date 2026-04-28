@@ -122,6 +122,7 @@ export default function WritingSpacePage() {
   const memoryRecallingTimerRef = useRef(null);
   const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
+  const recallSummaryTimerRef = useRef(null);
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
@@ -179,6 +180,7 @@ export default function WritingSpacePage() {
 
   function startMemoryRecalling() {
     clearTimeout(memoryRecallingTimerRef.current);
+    clearTimeout(recallSummaryTimerRef.current);
     memoryRecallingStartRef.current = Date.now();
     setMemoryRecalling(true);
   }
@@ -205,12 +207,17 @@ export default function WritingSpacePage() {
   function stopMemoryWriting() {
     const elapsed = Date.now() - (memoryWritingStartRef.current ?? 0);
     const delay = Math.max(0, 1500 - elapsed);
-    memoryWritingTimerRef.current = setTimeout(() => setMemoryWriting(false), delay);
+    memoryWritingTimerRef.current = setTimeout(() => {
+      setMemoryWriting(false);
+      clearTimeout(recallSummaryTimerRef.current);
+      recallSummaryTimerRef.current = setTimeout(() => setRecallSummary(null), 2000);
+    }, delay);
   }
   function clearMemoryState() {
     clearTimeout(memoryRecallingTimerRef.current);
     clearTimeout(memoryExpandingTimerRef.current);
     clearTimeout(memoryWritingTimerRef.current);
+    clearTimeout(recallSummaryTimerRef.current);
     setMemoryRecalling(false);
     setMemoryExpanding(false);
     setMemoryWriting(false);
@@ -361,6 +368,10 @@ export default function WritingSpacePage() {
       onStateUpdated() {
         if (!isCurrentStreamRun(runId)) return;
         stopMemoryWriting();
+        setStateTick((tick) => tick + 1);
+      },
+      onStateRolledBack() {
+        if (!isCurrentStreamRun(runId)) return;
         setStateTick((tick) => tick + 1);
       },
       onDiaryUpdated() {

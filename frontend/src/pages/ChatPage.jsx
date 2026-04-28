@@ -77,6 +77,7 @@ export default function ChatPage() {
   const memoryRecallingTimerRef = useRef(null);
   const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
+  const recallSummaryTimerRef = useRef(null);
   const streamingTextRef = useRef('');
   const continuingMessageIdRef = useRef(null);
   const continuingTextRef = useRef('');
@@ -129,6 +130,7 @@ export default function ChatPage() {
 
   const startMemoryRecalling = useCallback(() => {
     clearTimeout(memoryRecallingTimerRef.current);
+    clearTimeout(recallSummaryTimerRef.current);
     memoryRecallingStartRef.current = Date.now();
     setMemoryRecalling(true);
   }, []);
@@ -157,7 +159,11 @@ export default function ChatPage() {
   const stopMemoryWriting = useCallback(() => {
     const elapsed = Date.now() - (memoryWritingStartRef.current ?? 0);
     const delay = Math.max(0, 1500 - elapsed);
-    memoryWritingTimerRef.current = setTimeout(() => setMemoryWriting(false), delay);
+    memoryWritingTimerRef.current = setTimeout(() => {
+      setMemoryWriting(false);
+      clearTimeout(recallSummaryTimerRef.current);
+      recallSummaryTimerRef.current = setTimeout(() => setRecallSummary(null), 2000);
+    }, delay);
   }, []);
 
   useEffect(() => {
@@ -174,6 +180,7 @@ export default function ChatPage() {
     clearTimeout(memoryRecallingTimerRef.current);
     clearTimeout(memoryExpandingTimerRef.current);
     clearTimeout(memoryWritingTimerRef.current);
+    clearTimeout(recallSummaryTimerRef.current);
     setMemoryRecalling(false);
     setMemoryExpanding(false);
     setMemoryWriting(false);
@@ -415,6 +422,10 @@ export default function ChatPage() {
       onStateUpdated() {
         if (!isCurrentStreamRun(runId)) return;
         stopMemoryWriting();
+        useStore.getState().triggerMemoryRefresh();
+      },
+      onStateRolledBack() {
+        if (!isCurrentStreamRun(runId)) return;
         useStore.getState().triggerMemoryRefresh();
       },
       onMemoryRecallStart() {

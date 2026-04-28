@@ -170,6 +170,11 @@ async function runWritingStream(sessionId, res, opts = {}) {
   // 等待上一轮状态更新完成，确保 buildWritingPrompt 读到最新状态
   await awaitPendingStateUpdate(sessionId);
 
+  // 重新生成：提前广播状态已回滚，让前端立即刷新状态栏
+  if (opts.stateRolledBack && !streamState.isClientClosed()) {
+    emitSse(res, sid, { type: 'state_rolled_back' });
+  }
+
   // 广播真实 user 消息 id（前端用于把乐观追加的 __optimistic_ id 替换为真实 id）
   if (opts.userMsgId && !streamState.isClientClosed()) {
     emitSse(res, sid, { type: 'user_saved', id: opts.userMsgId });
@@ -521,6 +526,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       temperature,
       maxTokens: 1000,
       model,
+      thinking_level: null,
     });
     // 剥除 thinking 模型输出的 <think>...</think> 推理块
     const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -579,7 +585,7 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
     );
   }
 
-  await runWritingStream(sessionId, res);
+  await runWritingStream(sessionId, res, { stateRolledBack: !!regenWorldId });
 });
 
 // POST /api/worlds/:worldId/writing-sessions/:sessionId/edit-assistant
