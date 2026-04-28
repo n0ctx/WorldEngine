@@ -3,6 +3,39 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 新增副模型(LLM)配置 + 写作助手模型选择
+
+**背景**：当前所有非主对话 LLM 调用（turn-summarizer / combined-state-updater / summary-expander / title-generation / diary-generator / entry-matcher / chat.js#impersonate / chat.js#retitle / writing.js#impersonate）以及写作助手都复用 `config.llm` 主模型配置，无法独立选择更便宜/更快的模型来跑后台任务。
+
+**改动**：
+- `backend/services/config.js`：新增 `getAuxLlmConfig()` 和 `updateAuxApiKey()` 方法；补全 `aux_llm` 和 `assistant` 命名空间
+- `backend/llm/index.js`：`buildLLMConfig(options)` 支持 `options.configScope: 'aux'` 参数，'aux' 时调用 `getAuxLlmConfig()` 覆盖配置源
+- `backend/routes/config.js`：新增 PUT `/config/aux-apikey`、GET `/config/aux/models`、GET `/config/aux/test-connection` 路由；PUT `/config` 处理 aux_llm 字段
+- 7处后台调用点切换为 `configScope: 'aux'`：turn-summarizer.js(L86)、combined-state-updater.js(L186,L348)、summary-expander.js(L67)、title-generation.js(L25)、diary-generator.js(L257)、entry-matcher.js(L61)
+- **斜杠命令保持主模型**：/impersonate、/retitle 不切副模型（按用户要求保持主模型）
+- `assistant/server/agent-factory.js`：根据 `config.assistant.model_source` 决定 `configScope`
+- `assistant/server/routes.js`：extract-characters 同步支持 `configScope`
+- `assistant/server/task-planner.js`：planTask 支持 `configScope`
+- `frontend/src/api/config.js`：新增 `updateAuxApiKey()`、`fetchAuxModels()`、`testAuxConnection()` API
+- `frontend/src/components/settings/AuxLlmBlock.jsx`：新组件，仅显示 provider/API Key/base_url/model/测试连接，不显示 temperature/max_tokens
+- `frontend/src/components/settings/AssistantModelBlock.jsx`：新组件，单选主/副模型
+- `frontend/src/components/index.js`：注册两个新组件
+- `frontend/src/hooks/useSettingsConfig.js`：扩展返回 auxLlm/assistantModelSource 及相关处理函数
+
+**约束**：
+- 副模型温度/MaxTokens/thinking_level 不在前端配置，使用主模型的值
+- `aux_llm.provider === null` 视为未配置，所有原本调用副模型的位置自动回退到 `config.llm`
+- API Key 复用 `provider_keys` 结构，通过新增的 `updateAuxApiKey` 接口写入
+- 副模型与主模型的 `provider_keys` 完全独立存储，避免共用 key 时互相影响
+
+**验证方式**：
+- 配置面板：后端启动正常，前端编译无错误，设置页对话 tab 区块顺序为"主模型 / 副模型 / 写作助手模型 / embedding / 网络代理"
+- 副模型独立调用：给主模型配 Anthropic、副模型配 OpenAI；触发发言 → turn 结束后异步生成 turn-summary、状态栏更新、title → 副模型（OpenAI）；日志中 provider/model 来源正确
+- 回退：清空副模型 provider → 全部回退主模型
+- 写作助手：设置中切 `写作助手模型` 为副模型 → 日志确认走副模型
+
+**残留风险**：副模型与主模型 provider_keys 分离存储，实现时需注意 stripApiKeys 逻辑覆盖两侧。
+
 ## 2026-04-28 修复连续发送时记忆记录提示卡住
 
 **背景**：聊天页面和写作页面在 AI 回复完成后会显示「正在记录记忆…」，等待后端 `state_updated` / SSE 收尾后延迟消失。若用户在提示未消失前发送下一条消息，页面会递增普通流 `runId`，旧流的 `state_updated` 和 `onStreamEnd` 被视为过期事件整包忽略，导致旧轮提示无法收尾，只能等下一轮记忆记录结束才消失。

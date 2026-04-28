@@ -231,6 +231,47 @@ POST /api/sessions/:sessionId/chat
 
 ---
 
+## §4.5 主/副模型分工
+
+自 T169 起，支持独立配置**副模型(aux_llm)**用于后台任务，主模型(llm)保持主对话生成。
+
+### 配置结构
+
+- **主模型**：`config.llm` — 对话流式生成、斜杠命令（/impersonate /retitle）、写作流式生成
+- **副模型**：`config.aux_llm` — null 时回退主模型；结构镜像主模型但仅含 provider / provider_keys / provider_models / base_url / model，不暴露 temperature / max_tokens / thinking_level
+- **写作助手模型选择**：`config.assistant.model_source` — 'main'（主模型）或 'aux'（副模型），决定写卡助手调用的模型源
+
+### 副模型调用点（总共 7 处）
+
+all 非流式接口在调用 `llm.complete()` 时传 `configScope: 'aux'`：
+
+1. `backend/memory/turn-summarizer.js:86` — 轮次摘要生成
+2. `backend/memory/combined-state-updater.js:186` — 状态压缩（列表字段裁剪）
+3. `backend/memory/combined-state-updater.js:348` — 状态更新推理
+4. `backend/memory/summary-expander.js:67` — 记忆展开判定（决策二值化 JSON）
+5. `backend/memory/title-generation.js:25` — 会话标题生成
+6. `backend/memory/diary-generator.js:257` — 日记正文生成
+7. `backend/prompts/entry-matcher.js:61` — Prompt 条目 LLM 命中判定
+
+**斜杠命令保持主模型**（不切副模型）：
+- `backend/routes/chat.js:473` (`/impersonate`)
+- `backend/routes/chat.js:579` (`/retitle`)
+- `backend/routes/writing.js:525` (`/impersonate`)
+
+### LLM 调用接口支持
+
+`llm.complete(messages, options)` 的 options 新增 `configScope` 参数：
+- `'main'`（默认）— 使用主模型配置
+- `'aux'` — 调用 `getAuxLlmConfig()` 获取副模型有效配置（若副模型 provider=null 则回退主模型）
+
+`llm.chat()` 和 `llm.completeWithTools()` 亦支持 `configScope` 参数。
+
+### 写作助手模型切换
+
+`assistant/server/agent-factory.js` 和 `assistant/server/task-planner.js`、`assistant/server/routes.js`(extract-characters) 在每次 LLM 调用前读取 `getConfig().assistant.model_source`，决定是否传 `configScope: 'aux'`。
+
+---
+
 ## §5 对话后异步任务链
 
 **触发条件**：流正常完成（非 aborted）且该 session 存在 user 消息。
