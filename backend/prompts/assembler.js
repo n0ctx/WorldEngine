@@ -1,22 +1,28 @@
 /**
  * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
  *
- * 组装顺序（硬编码，不得调整）：
- *   [system 消息，[1]–[12] 合并为单个 role:system]
+ * 新的组装顺序（Prompt Cache 优化，为支持 cached/dynamic 分层）：
+ *
+ *   [CACHED LAYER: system role, 可复用]
  *   [1]  全局 System Prompt
- *   [2]  世界状态
- *   [3]  玩家 System Prompt（均为空则跳过）
- *   [4]  玩家状态
- *   [5]  角色 System Prompt
+ *   [2]  玩家 System Prompt（均为空则跳过）
+ *   [3]  角色 System Prompt
+ *
+ *   [DYNAMIC LAYER: user role, 每轮变化]
+ *   [4]  世界状态
+ *   [5]  玩家状态
  *   [6]  角色状态
  *   [7]  世界 State 条目（description 仅供 preflight；命中→content 注入）
  *   [8]  召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
  *   [9]  展开原文（AI preflight 决策后的 turn record 原文）
  *   [10] 日记注入（一次性，仅本轮生效）
- *   [11] 后置提示词（全局→角色 + world post 条目，均空跳过）
+ *
  *   [历史消息：role:user/assistant 交替]
- *   [13] 历史消息（稳定使用原始 messages 窗口）
- *   [14] 当前用户消息（唯一的尾部 user 消息）
+ *   [12] 历史消息（稳定使用原始 messages 窗口）
+ *
+ *   [BOTTOM: 当前消息末尾，最高优先级]
+ *   [11] 后置提示词（全局→角色 + world post 条目，均空跳过）
+ *   [13] 当前用户消息（唯一的尾部 user 消息）
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -134,6 +140,11 @@ export const __testables = {
 /**
  * 构建发送给 LLM 的完整 messages 数组
  *
+ * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
+ *   Cached system [1, 3, 5]：全局 + 玩家 + 角色
+ *   Dynamic messages [2, 4, 6-10]：世界状态 + 玩家状态 + 角色状态 + State条目 + 召回摘要 + 展开原文 + 日记
+ *   Bottom (last user msg) [11]：后置提示词
+ *
  * @param {string} sessionId
  * @param {object} [options]
  * @param {Function} [options.onRecallEvent]  (name: string, payload: object) => void
@@ -155,70 +166,71 @@ export async function buildPrompt(sessionId, options = {}) {
   log.info(`┌─ buildPrompt  session=${sid}  char="${character.name}"  world="${world.name}"`);
 
   const config = getConfig();
-  const systemParts = [];
+  const cachedSystemParts = [];
+  const dynamicSystemParts = [];
 
-  // [3] 玩家 System Prompt（均为空则跳过）
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
 
-  // 模板变量上下文（{{user}} / {{char}} / {{world}}）
   const ctx = { user: personaName, char: character.name, world: world.name };
   const tv = (t) => applyTemplateVars(t, ctx);
 
+  // ─── CACHED LAYER (1, 2, 3) ───
   // [1] 全局 System Prompt
   if (config.global_system_prompt) {
-    systemParts.push(tv(config.global_system_prompt));
+    cachedSystemParts.push(tv(config.global_system_prompt));
   }
 
-  // [2] 世界状态
-  const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) systemParts.push(tv(worldStateText));
-
+  // [2] 玩家 System Prompt
   if (personaName || personaPrompt) {
     const lines = ['[{{user}}人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    systemParts.push(tv(lines.join('\n')));
+    cachedSystemParts.push(tv(lines.join('\n')));
   }
 
-  // [4] 玩家状态
-  const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) systemParts.push(tv(personaStateText));
-
-  // [5] 角色 System Prompt
+  // [3] 角色 System Prompt
   if (character.system_prompt) {
-    systemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
+    cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
+
+  // ─── DYNAMIC LAYER (4, 5, 6-10) ───
+  // [4] 世界状态
+  const worldStateText = renderWorldState(world.id, sessionId);
+  if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
+
+  // [5] 玩家状态
+  const personaStateText = renderPersonaState(world.id, sessionId);
+  if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
 
   // [6] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
-  if (characterStateText) systemParts.push(tv(characterStateText));
+  if (characterStateText) dynamicSystemParts.push(tv(characterStateText));
 
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
-  // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   const triggeredEntries = worldEntries
     .filter((entry) => triggeredIds.has(entry.id) && entry.content)
     .sort((a, b) => {
-      const diff = (a.token ?? 1) - (b.token ?? 1); // token ASC（越大越靠后）
+      const diff = (a.token ?? 1) - (b.token ?? 1);
       if (diff !== 0) return diff;
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0); // 同 token 时 sort_order ASC
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
   const entryTexts = triggeredEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
 
   if (entryTexts.length > 0) {
-    systemParts.push(entryTexts.join('\n\n'));
+    dynamicSystemParts.push(entryTexts.join('\n\n'));
   }
 
   // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
+  if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
   if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
@@ -237,7 +249,7 @@ export async function buildPrompt(sessionId, options = {}) {
     if (expandIds.length > 0) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
-        systemParts.push(tv(expandedText));
+        dynamicSystemParts.push(tv(expandedText));
         log.debug(`│  [9] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
@@ -248,25 +260,22 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [10] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
-    systemParts.push(`[日记注入]\n${diaryInjection}`);
+    dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
     log.debug('│  [10] diary injection applied');
   }
 
-  // [11] 后置提示词 → 注入 system 末尾
-  const postParts = [
-    config.global_post_prompt,
-    character.post_prompt,
-  ].filter(Boolean).map(tv);
-
-  if (postParts.length > 0) {
-    systemParts.push(postParts.join('\n\n'));
-  }
-
+  // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // system parts 合并为 1 条 system 消息
-  const systemContent = systemParts.filter(Boolean).join('\n\n');
-  if (systemContent) messages.push({ role: 'system', content: systemContent });
+  // cached system → marked for Prompt Caching
+  const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
+  if (cachedContent) messages.push({ role: 'system', content: cachedContent });
+
+  // dynamic context → as separate user message before history
+  const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
+  if (dynamicContent) {
+    messages.push({ role: 'user', content: dynamicContent });
+  }
 
   // [13] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
@@ -277,26 +286,40 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   log.debug(`│  [13] history  raw_messages=${history.length}`);
 
-  // [14] 当前用户消息（最新 1 条 user）
-  // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
+  // [11 + 14] 当前用户消息（最新 1 条 user）+ 后置提示词
+  // [11] 后置提示词追加在末尾，确保最高优先级
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     if (config.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
+
+    const postParts = [
+      config.global_post_prompt,
+      character.post_prompt,
+    ].filter(Boolean).map(tv);
+    if (postParts.length > 0) {
+      content += '\n\n' + postParts.join('\n\n');
+    }
+
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
   const temperature = world.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
-  const systemLen = systemContent.length;
 
-  log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
+  log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, recallHitCount };
 }
 
 /**
- * 写作版本：支持多个激活角色，[9-10] 向量召回与记忆展开同 buildPrompt。
- * 组装顺序与 buildPrompt 对齐，但 [5-6] 针对所有激活角色展开。
+ * 写作版本：支持多个激活角色，[8-10] 向量召回与记忆展开同 buildPrompt。
+ * 组装顺序与 buildPrompt 不同：为避免多角色切换导致 cache miss，[3] 角色 system prompt 移到 dynamic 层。
+ *
+ * Cached layer: [1] 全局、[2] 玩家（保持稳定）
+ * Dynamic layer: [3] 所有激活角色 system prompt + [4-10] 上下文
+ * Bottom: [11] 后置提示词 + [13] 当前消息
+ *
+ * [3] 和 [6] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -315,16 +338,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   const config = getConfig();
   const writing = config.writing || {};
-  const systemParts = [];
+  const cachedSystemParts = [];
+  const dynamicSystemParts = [];
   const sid = sessionId.slice(0, 8);
   const t0 = Date.now();
 
-  // [3] 玩家 System Prompt
   const persona = getOrCreatePersona(world.id);
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
 
-  // [5-6] 激活角色 System Prompt + 角色状态（每个角色一段）
   const charNames = activeCharacters.map((c) => c.name).join(', ');
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
@@ -340,53 +362,60 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     world: world.name,
   });
 
-  // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过，避免作者模式指令干扰）
+  // ─── CACHED LAYER (1, 2) ───
+  // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过）
   if (writing.global_system_prompt && !skipWritingInstructions) {
-    systemParts.push(tv(writing.global_system_prompt));
+    cachedSystemParts.push(tv(writing.global_system_prompt));
   }
 
-  // [2] 世界状态
-  const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) systemParts.push(tv(worldStateText));
-
+  // [2] 玩家 System Prompt
   if (personaName || personaPrompt) {
     const lines = ['[{{user}}人设]'];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    systemParts.push(tv(lines.join('\n')));
+    cachedSystemParts.push(tv(lines.join('\n')));
   }
 
-  // [4] 玩家状态
-  const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) systemParts.push(tv(personaStateText));
-
+  // ─── DYNAMIC LAYER (3-10，写作模式下[3]也在dynamic以支持多角色切换) ───
+  // [3] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
     if (character.system_prompt) {
-      systemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`, character));
+      dynamicSystemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`, character));
     }
+  }
+
+  // [4] 世界状态
+  const worldStateText = renderWorldState(world.id, sessionId);
+  if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
+
+  // [5] 玩家状态
+  const personaStateText = renderPersonaState(world.id, sessionId);
+  if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
+
+  // [6] 所有激活角色的角色状态
+  for (const character of activeCharacters) {
     const charStateText = renderCharacterState(character.id, sessionId);
-    if (charStateText) systemParts.push(tvChar(charStateText, character));
+    if (charStateText) dynamicSystemParts.push(tvChar(charStateText, character));
   }
 
   // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
   const worldEntries = getAllWorldEntries(world.id);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  // description 只供 preflight 判断是否命中，不进入最终主 prompt。
   const triggeredEntries2 = worldEntries
     .filter((entry) => triggeredIds.has(entry.id) && entry.content)
     .sort((a, b) => {
-      const diff = (a.token ?? 1) - (b.token ?? 1); // token ASC（越大越靠后）
+      const diff = (a.token ?? 1) - (b.token ?? 1);
       if (diff !== 0) return diff;
       return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
   const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-  if (entryTexts.length > 0) systemParts.push(entryTexts.join('\n\n'));
+  if (entryTexts.length > 0) dynamicSystemParts.push(entryTexts.join('\n\n'));
 
   // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) systemParts.push(tv(recalledSummariesText));
+  if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
   if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
@@ -404,7 +433,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (expandIds.length > 0) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
-        systemParts.push(tv(expandedText));
+        dynamicSystemParts.push(tv(expandedText));
         log.debug(`│  [9] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
@@ -415,21 +444,22 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [10] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
-    systemParts.push(`[日记注入]\n${diaryInjection}`);
+    dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
     log.debug('│  [10] diary injection applied (writing)');
   }
 
-  // [11] 后置提示词 → 注入 system 末尾（写作模式无角色后置提示词；impersonate 时跳过）
-  if (!skipWritingInstructions) {
-    const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
-    if (postParts.length > 0) {
-      systemParts.push(postParts.join('\n\n'));
-    }
-  }
-
+  // ─── CONSTRUCT MESSAGES ───
   const messages = [];
-  const systemContent = systemParts.filter(Boolean).join('\n\n');
-  if (systemContent) messages.push({ role: 'system', content: systemContent });
+
+  // cached system
+  const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
+  if (cachedContent) messages.push({ role: 'system', content: cachedContent });
+
+  // dynamic context
+  const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
+  if (dynamicContent) {
+    messages.push({ role: 'user', content: dynamicContent });
+  }
 
   // [13] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
@@ -442,20 +472,26 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [14] 当前用户消息
-  // suggestion_enabled 时追加选项指令到末尾，确保指令位于 LLM 生成前的最后位置
+  // [11 + 14] 当前用户消息 + 后置提示词（写作模式无角色后置提示词；impersonate 时跳过）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     if (writing.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
+
+    if (!skipWritingInstructions) {
+      const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+      if (postParts.length > 0) {
+        content += '\n\n' + postParts.join('\n\n');
+      }
+    }
+
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const model = writing.model || null;
-  const systemLen = systemContent.length;
 
-  log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  system=${fmtK(systemLen)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
+  log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, model, recallHitCount };
 }
