@@ -495,15 +495,7 @@
 }
 
 .we-entry-order-token--cached {
-  color: var(--we-color-accent);
-  background: transparent;
-  box-shadow: 0 0 0 1px var(--we-color-accent);
-  font-weight: 600;
-}
-
-.we-entry-order-item--cached .we-entry-order-title {
-  color: var(--we-ink-primary);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .we-entry-order-token-input {
@@ -1120,13 +1112,12 @@
   margin-left: var(--we-space-sm);
   font-family: var(--we-font-mono, var(--we-font-serif));
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--we-ink-secondary);
+  color: var(--we-paper-base);
+  background: var(--we-ink-secondary);
   border-radius: var(--we-radius-sm);
   padding: 1px 6px;
-  box-shadow: 0 0 0 1px var(--we-ink-faded);
-  background: transparent;
   text-transform: uppercase;
 }
 

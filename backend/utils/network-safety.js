@@ -55,12 +55,13 @@ export function validateModelFetchBaseUrl(provider, baseUrl) {
 
   const normalized = parsed.toString().replace(/\/+$/, '');
   const hostname = parsed.hostname.toLowerCase();
+  const rawHostname = hostname.replace(/^\[|\]$/g, '');
 
   if (LOCAL_PROVIDERS.has(provider)) {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new Error('本地 provider 的 Base URL 只支持 http/https');
     }
-    if (!LOCAL_HOSTNAMES.has(hostname)) {
+    if (!LOCAL_HOSTNAMES.has(rawHostname)) {
       throw new Error('本地 provider 的 Base URL 仅允许 localhost / 127.0.0.1 / ::1');
     }
     return normalized;
@@ -70,7 +71,7 @@ export function validateModelFetchBaseUrl(provider, baseUrl) {
     throw new Error('远程 provider 的 Base URL 必须使用 https');
   }
 
-  if (isBlockedRemoteHostname(hostname)) {
+  if (isBlockedRemoteHostname(rawHostname)) {
     throw new Error('远程 provider 的 Base URL 不允许指向本机或私有网络');
   }
 

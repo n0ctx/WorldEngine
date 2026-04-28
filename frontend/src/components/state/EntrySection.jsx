@@ -94,7 +94,7 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
           <div className="we-entry-section-main">
             <span className="we-entry-section-name">{entry.title}</span>
             {triggerType === 'always' && entry.token === 0 && (
-              <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER（system 角色，prompt cache 友好）">
+              <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">
                 CACHED
               </span>
             )}

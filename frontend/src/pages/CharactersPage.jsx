@@ -97,7 +97,7 @@ function EntryOrderPanel({ entries, onTokenChange }) {
                   <div className="we-entry-order-title" title={entry.title}>
                     {entry.title}
                     {isCached && (
-                      <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER（system 角色，prompt cache 友好）">
+                      <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">
                         CACHED
                       </span>
                     )}

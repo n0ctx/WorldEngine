@@ -167,7 +167,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         <label className="we-entry-editor-label">
           顺序权重（越大越靠后，默认 1）
           {form.trigger_type === 'always' && (
-            <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER（system 角色，prompt cache 友好）</span>
+            <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER</span>
           )}
         </label>
         <input
