@@ -1,5 +1,6 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToAnthropicMessages } from './_converters.js';
+import { recordTokenUsage } from './cache-usage.js';
 
 // 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching
 function withCacheControl(system) {
@@ -57,9 +58,7 @@ export async function* streamAnthropic(messages, config) {
         const parsed = JSON.parse(data);
         const u = parsed.message?.usage;
         if (u && config.usageRef) {
-          if (u.input_tokens != null) config.usageRef.prompt_tokens = u.input_tokens;
-          if (u.cache_creation_input_tokens != null) config.usageRef.cache_creation_tokens = u.cache_creation_input_tokens;
-          if (u.cache_read_input_tokens != null) config.usageRef.cache_read_tokens = u.cache_read_input_tokens;
+          recordTokenUsage(config.usageRef, u, config.provider);
         }
       } catch { /* skip */ }
     } else if (event === 'message_delta') {
@@ -67,7 +66,7 @@ export async function* streamAnthropic(messages, config) {
         const parsed = JSON.parse(data);
         const u = parsed.usage;
         if (u?.output_tokens != null && config.usageRef) {
-          config.usageRef.completion_tokens = u.output_tokens;
+          recordTokenUsage(config.usageRef, u, config.provider);
         }
       } catch { /* skip */ }
     } else if (event === 'content_block_start') {
@@ -136,11 +135,7 @@ export async function completeAnthropic(messages, config) {
 
   const data = await resp.json();
   if (data.usage && config.usageRef) {
-    const u = data.usage;
-    if (u.input_tokens != null) config.usageRef.prompt_tokens = u.input_tokens;
-    if (u.output_tokens != null) config.usageRef.completion_tokens = u.output_tokens;
-    if (u.cache_creation_input_tokens != null) config.usageRef.cache_creation_tokens = u.cache_creation_input_tokens;
-    if (u.cache_read_input_tokens != null) config.usageRef.cache_read_tokens = u.cache_read_input_tokens;
+    recordTokenUsage(config.usageRef, data.usage, config.provider);
   }
   return (data.content || []).map((block) => {
     if (block.type === 'thinking') return `<think>${block.thinking}</think>`;

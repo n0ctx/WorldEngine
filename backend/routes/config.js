@@ -315,6 +315,11 @@ const KNOWN_PRICES = new Map([
   ['Qwen/Qwen3-235B-A22B',  { inputPrice: 1.26,  outputPrice: 1.26  }],
   ['Qwen/Qwen3-30B-A3B',    { inputPrice: 0.21,  outputPrice: 0.21  }],
   ['deepseek-ai/DeepSeek-V3', { inputPrice: 0.27, outputPrice: 1.1  }],
+  // Qwen / Alibaba Cloud Model Studio（价格可能随地区和模型版本变化；未知模型由 API 列表返回但不显示价格）
+  ['qwen-turbo',             { inputPrice: 0.05,  outputPrice: 0.2   }],
+  ['qwen-plus',              { inputPrice: 0.4,   outputPrice: 1.2   }],
+  ['qwen-max',               { inputPrice: 2.4,   outputPrice: 9.6   }],
+  ['qwen3-coder-plus',       { inputPrice: 0.6,   outputPrice: 2.4   }],
 ]);
 
 /**
@@ -334,6 +339,7 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   deepseek: 'https://api.deepseek.com',
   grok: 'https://api.x.ai/v1',
   siliconflow: 'https://api.siliconflow.cn/v1',
+  qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
 };
 
@@ -392,6 +398,8 @@ function getStaticCodingPlanModels(provider) {
         'GLM-4.7',
         'GLM-4.5-Air',
       ].map((id) => ({ id, ...KNOWN_PRICES.get(id) }));
+    case 'xiaomi':
+      return [];
     default:
       return null;
   }

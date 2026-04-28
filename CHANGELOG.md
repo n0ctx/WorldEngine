@@ -3,6 +3,26 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 feat(llm): 全 provider Prompt Cache usage 标准化 + Qwen/Xiaomi provider
+
+**背景**：`assembler.js` 已拆分 cached/dynamic layer，但只有 Anthropic adapter 会发送 `cache_control`；OpenAI-compatible / Gemini / DeepSeek / Qwen 等 provider 的隐式缓存 usage 没有统一解析，导致前端看不到命中。用户同时要求新增 Qwen 官方 provider，并预留小米官方大模型 provider，避免后续忘记做 cache 兼容。
+
+**改动**：
+- `backend/llm/providers/cache-usage.js`：新增 `getPromptCacheStrategy()` 与 `recordTokenUsage()`，统一标准化 Anthropic / OpenAI-compatible / DeepSeek / Gemini 的缓存 usage 字段
+- `backend/llm/providers/openai-compatible.js` / `anthropic.js` / `gemini.js`：改用统一 usage 标准化；OpenAI-compatible 支持 `prompt_tokens_details.cached_tokens`，DeepSeek 支持 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，Gemini 支持 `cachedContentTokenCount`
+- `backend/llm/index.js`：`CHAT START` / `COMPLETE START` 日志增加 `cacheStrategy`；完成日志输出 prompt/completion/cache read/write/miss tokens
+- `backend/llm/providers/_utils.js` / `backend/routes/config.js` / `frontend/src/components/settings/SettingsConstants.js`：新增 `qwen`（默认 DashScope OpenAI-compatible URL）与 `xiaomi`（OpenAI-compatible，Base URL 由用户填写）
+- `backend/tests/llm/cache-usage.test.js` / `backend/tests/routes/config.test.js`：补 provider strategy、usage 标准化、Xiaomi 手填模型回归测试
+- `SCHEMA.md` / `ARCHITECTURE.md`：同步 token_usage 新字段、provider 列表、Prompt Cache 分 provider 行为
+
+**验证方式**：
+- `cd backend && node --test --test-isolation=process tests/llm/cache-usage.test.js tests/routes/config.test.js tests/llm/index.test.js`
+- `npm run build --prefix frontend`
+
+**残留风险**：
+- 小米官方接口文档与 endpoint 仍需以用户实际控制台为准；本次按 OpenAI-compatible + 手填 Base URL 保守接入，不写死未知官方 URL
+- 未实现 Qwen Responses API 的 `x-dashscope-session-cache` 或 Gemini/Moonshot 显式 cache resource 生命周期管理；本次只覆盖聊天路径现有 Chat Completions / Gemini native 调用的隐式缓存与 usage 观测
+
 ## 2026-04-28 feat(settings): 写作主模型独立 Provider/API Key/模型 + 连接测试
 
 **改动**：

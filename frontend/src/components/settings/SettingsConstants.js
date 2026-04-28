@@ -6,6 +6,8 @@ export const LLM_PROVIDERS = [
   { value: 'deepseek', label: 'DeepSeek' },
   { value: 'grok', label: 'Grok (xAI)' },
   { value: 'siliconflow', label: 'SiliconFlow' },
+  { value: 'qwen', label: 'Qwen (阿里云百炼)' },
+  { value: 'xiaomi', label: 'Xiaomi (小米)' },
   { value: 'glm', label: 'GLM (智谱)' },
   { value: 'glm-coding', label: 'GLM Coding Plan (智谱)' },
   { value: 'kimi', label: 'Kimi (月之暗面)' },
@@ -38,6 +40,18 @@ export const PROVIDER_HINTS = {
       { label: '查看配置说明', url: 'https://zcode.z.ai/docs/configuration' },
     ],
   },
+  qwen: {
+    links: [
+      { label: '打开阿里云百炼控制台', url: 'https://bailian.console.aliyun.com/' },
+      { label: '查看 OpenAI 兼容文档', url: 'https://help.aliyun.com/zh/model-studio/compatibility-of-openai-with-dashscope' },
+    ],
+  },
+  xiaomi: {
+    summary: '小米官方模型接口按 OpenAI 兼容方式接入；请填写控制台提供的 Base URL。',
+    links: [
+      { label: '打开小米开放平台', url: 'https://dev.mi.com/' },
+    ],
+  },
 };
 
 export const EMBEDDING_PROVIDERS = [
@@ -68,11 +82,12 @@ export const NAV_SECTIONS = [
 ];
 
 export const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
-export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible']);
+export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
 
 export const DEFAULT_BASE_URLS = {
   ollama: 'http://localhost:11434',
   lmstudio: 'http://localhost:1234',
+  xiaomi: 'https://your-xiaomi-api-endpoint/v1',
 };
 
 export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };

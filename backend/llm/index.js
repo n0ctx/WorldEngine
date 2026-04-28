@@ -13,6 +13,7 @@ import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
 import * as mockProvider from './providers/mock.js';
+import { getPromptCacheStrategy } from './providers/cache-usage.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 
 const log = createLogger('llm');
@@ -144,6 +145,7 @@ function sleep(ms) {
 export async function* chat(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
   const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
@@ -157,6 +159,7 @@ export async function* chat(messages, options = {}) {
     temperature: llmConfig.temperature,
     maxTokens: llmConfig.max_tokens,
     thinking: llmConfig.thinking_level,
+    cacheStrategy,
   })}`);
 
   let lastError;
@@ -178,6 +181,11 @@ export async function* chat(messages, options = {}) {
           model: llmConfig.model || '',
           len: fullResponse.length,
           ms: Date.now() - startedAt,
+          promptTokens: llmConfig.usageRef?.prompt_tokens,
+          completionTokens: llmConfig.usageRef?.completion_tokens,
+          cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
+          cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
+          cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
         });
         if (shouldLogRaw('llm_raw')) {
           log.info(`CHAT DONE  ${meta}  preview=${JSON.stringify(previewText(fullResponse))}`);
@@ -244,6 +252,7 @@ export const __testables = {
 export async function completeWithTools(messages, tools, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
   const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
@@ -260,6 +269,7 @@ export async function completeWithTools(messages, tools, options = {}) {
     msgs: summary.count,
     chars: summary.chars,
     tools: defs.map((tool) => tool.function.name),
+    cacheStrategy,
   })}`);
 
   let lastError;
@@ -273,6 +283,11 @@ export async function completeWithTools(messages, tools, options = {}) {
           model: llmConfig.model || '',
           len: result?.length ?? 0,
           ms: Date.now() - startedAt,
+          promptTokens: llmConfig.usageRef?.prompt_tokens,
+          completionTokens: llmConfig.usageRef?.completion_tokens,
+          cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
+          cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
+          cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
           preview: shouldLogRaw('llm_raw') ? previewText(result) : undefined,
         })}`);
         return result;
@@ -341,6 +356,7 @@ export async function resolveToolContext(messages, tools, options = {}) {
 export async function complete(messages, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
+  const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
   const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
@@ -354,6 +370,7 @@ export async function complete(messages, options = {}) {
     temperature: llmConfig.temperature,
     maxTokens: llmConfig.max_tokens,
     thinking: llmConfig.thinking_level,
+    cacheStrategy,
   })}`);
 
   let lastError;
@@ -367,6 +384,11 @@ export async function complete(messages, options = {}) {
           model: llmConfig.model || '',
           len: result?.length ?? 0,
           ms: Date.now() - startedAt,
+          promptTokens: llmConfig.usageRef?.prompt_tokens,
+          completionTokens: llmConfig.usageRef?.completion_tokens,
+          cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
+          cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
+          cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
         });
         if (shouldLogRaw('llm_raw')) {
           log.info(`COMPLETE DONE  ${meta}  preview=${JSON.stringify(previewText(result))}`);

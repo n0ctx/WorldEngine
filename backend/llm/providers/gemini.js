@@ -1,5 +1,6 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToGeminiContents } from './_converters.js';
+import { recordTokenUsage } from './cache-usage.js';
 
 function toGeminiTools(toolDefs) {
   return [{ functionDeclarations: toolDefs.map((t) => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })) }];
@@ -38,8 +39,7 @@ export async function* streamGemini(messages, config) {
       const parsed = JSON.parse(data);
       const meta = parsed.usageMetadata;
       if (meta && config.usageRef) {
-        if (meta.promptTokenCount != null) config.usageRef.prompt_tokens = meta.promptTokenCount;
-        if (meta.candidatesTokenCount != null) config.usageRef.completion_tokens = meta.candidatesTokenCount;
+        recordTokenUsage(config.usageRef, meta, config.provider);
       }
       const parts = parsed.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
@@ -85,6 +85,9 @@ export async function completeGemini(messages, config) {
   }
 
   const data = await resp.json();
+  if (data.usageMetadata && config.usageRef) {
+    recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
+  }
   const parts = data.candidates?.[0]?.content?.parts || [];
   let result = '';
   for (const part of parts) {

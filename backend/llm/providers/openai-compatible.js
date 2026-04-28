@@ -1,4 +1,5 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError } from './_utils.js';
+import { recordTokenUsage } from './cache-usage.js';
 
 /** thinking_level → OpenAI reasoning_effort */
 function resolveReasoningEffort(thinking_level) {
@@ -55,11 +56,7 @@ export async function* streamOpenAICompatible(messages, config) {
       const parsed = JSON.parse(data);
       // 末尾 chunk 携带 usage（stream_options.include_usage: true）
       if (parsed.usage && config.usageRef) {
-        const u = parsed.usage;
-        if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
-        if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
-        const cached = u.prompt_tokens_details?.cached_tokens;
-        if (cached != null) config.usageRef.cache_read_tokens = cached;
+        recordTokenUsage(config.usageRef, parsed.usage, config.provider);
       }
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
@@ -111,6 +108,9 @@ export async function completeOpenAICompatible(messages, config) {
 
   const data = await resp.json();
   assertOpenAICompatibleData(data, config);
+  if (data.usage && config.usageRef) {
+    recordTokenUsage(config.usageRef, data.usage, config.provider);
+  }
   const msg = data.choices?.[0]?.message;
   if (!msg) return '';
   const reasoning = msg.reasoning || msg.reasoning_content;

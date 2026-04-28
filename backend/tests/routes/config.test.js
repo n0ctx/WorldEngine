@@ -109,6 +109,26 @@ test('GET /api/config/models 对 coding plan provider 返回静态模型列表',
   assert.equal(data.thinkingOptions.length, 3);
 });
 
+test('GET /api/config/models 对 xiaomi provider 允许手填模型', async () => {
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'xiaomi',
+      provider_keys: {},
+      model: '',
+      base_url: 'https://api.example.com/v1',
+    },
+  });
+
+  const res = await ctx.request('/api/config/models');
+  assert.equal(res.status, 200);
+  const data = await res.json();
+
+  assert.deepEqual(data.models, []);
+  assert.equal(data.thinkingOptions.length, 0);
+});
+
 test('GET /api/config/test-connection 会识别 openai-compatible 的 200 + error JSON 鉴权失败', async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
