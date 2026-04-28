@@ -1089,23 +1089,27 @@ function normalizeProposal(raw, locked = {}) {
   const changes = raw?.changes && typeof raw.changes === 'object' && !Array.isArray(raw.changes) ? raw.changes : {};
 
   switch (type) {
-    case 'world-card':
+    case 'world-card': {
       proposal.changes = normalizeWorldChanges(changes);
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
       proposal.stateValueOps = normalizeStateValueOps(raw?.stateValueOps, type);
+      const entryWarnings = [];
       proposal.entryOps = normalizeEntryOps(raw?.entryOps, {
         allowTriggerType: true,
         conditionContext: buildWorldConditionContext(proposal.entityId, proposal.stateFieldOps),
+        warnings: entryWarnings,
       });
-      {
-        const disallowedKeys = Object.keys(changes).filter(
-          (k) => !['name', 'description', 'temperature', 'max_tokens'].includes(k),
-        );
-        if (disallowedKeys.length > 0) {
-          proposal.explanation += `（注意：世界卡不支持 ${disallowedKeys.join(', ')} 字段，相关内容请通过条目管理）`;
-        }
+      const disallowedKeys = Object.keys(changes).filter(
+        (k) => !['name', 'description', 'temperature', 'max_tokens'].includes(k),
+      );
+      if (disallowedKeys.length > 0) {
+        proposal.explanation += `（注意：世界卡不支持 ${disallowedKeys.join(', ')} 字段，相关内容请通过条目管理）`;
+      }
+      if (entryWarnings.length > 0) {
+        proposal.explanation += `\n⚠️ 条目警告：${entryWarnings.join('；')}`;
       }
       break;
+    }
     case 'character-card':
       proposal.changes = normalizeCharacterChanges(changes);
       proposal.stateFieldOps = normalizeStateFieldOps(raw?.stateFieldOps, type);
@@ -1301,7 +1305,7 @@ function resolveConditionField(rawTargetField, context) {
   }
 
   if (input.includes('.')) {
-    return { targetField: input, field: null };
+    return { targetField: input, field: null, unresolved: true };
   }
 
   const byKeyMatches = context.byFieldKey.get(input) || [];
@@ -1361,7 +1365,7 @@ function normalizeConditionOperator(rawOperator, field, idx, condIdx) {
   }
 }
 
-function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false, conditionContext = null } = {}) {
+function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = false, conditionContext = null, warnings = null } = {}) {
   if (rawOps == null) return [];
   if (!Array.isArray(rawOps)) throw new Error('提案格式错误：entryOps 必须是数组');
   return rawOps.map((raw, idx) => {
@@ -1393,17 +1397,29 @@ function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = fal
       const tt = normalizeString(raw.trigger_type);
       if (tt && VALID_TRIGGER_TYPES.has(tt)) normalized.trigger_type = tt;
     }
+    if (allowTriggerType && normalized.trigger_type === 'keyword') {
+      const kws = normalized.keywords;
+      if (!kws || kws.length === 0) {
+        warnings?.push(`条目「${normalized.title || idx}」类型为 keyword 但 keywords 为空，该条目永远不会触发；请添加关键词或改为 llm/always 类型`);
+      }
+    }
     if (allowTriggerType && normalized.trigger_type === 'state' && Array.isArray(raw.conditions)) {
       normalized.conditions = raw.conditions
         .filter((c) => c && typeof c === 'object' && c.target_field && c.operator && 'value' in c)
         .map((c, condIdx) => {
-          const { targetField, field } = resolveConditionField(c.target_field, conditionContext);
+          const { targetField, field, unresolved } = resolveConditionField(c.target_field, conditionContext);
+          if (unresolved) {
+            warnings?.push(`条目「${normalized.title || idx}」的条件引用了未知字段「${c.target_field}」，请确认字段标签正确（格式：世界/玩家/角色.字段标签）`);
+          }
           return {
             target_field: targetField,
             operator: normalizeConditionOperator(c.operator, field, idx, condIdx),
             value: String(c.value ?? ''),
           };
         });
+    }
+    if (allowTriggerType && normalized.trigger_type === 'state' && (!normalized.conditions || normalized.conditions.length === 0)) {
+      warnings?.push(`条目「${normalized.title || idx}」类型为 state 但 conditions 为空，该条目永远不会触发；请添加至少一个条件`);
     }
     return normalized;
   });

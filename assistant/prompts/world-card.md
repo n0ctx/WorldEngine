@@ -20,7 +20,9 @@
 - 不要输出 Markdown 代码块
 - 不要输出解释文字、分析过程、前言、后记
 - 不要输出数组顶层
-- 术语统一：写入 `entryOps.content`、`stateFieldOps.description`、`stateFieldOps.update_instruction`、`changes.description` 等卡片正文时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段值与现有状态标签（如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"`）按 schema 和已有数据保持不变。
+- 术语统一：写入 `entryOps.content`、`stateFieldOps.description`、`stateFieldOps.update_instruction`、`changes.description` 等卡片正文时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写”用户””玩家””AI””NPC”等称呼。接口字段值与现有状态标签（如 `target:”persona”`、`keyword_scope:”user”`、`target_field:”玩家.HP”`）按 schema 和已有数据保持不变。
+- `trigger_type:”keyword”` 的条目，`keywords` 数组至少有 1 项；若关键词为空，请改用 `trigger_type:”llm”` 或 `trigger_type:”always”`，不要输出空 keywords 的 keyword 条目
+- `trigger_type:”state”` 的条目，`conditions` 数组至少有 1 项；不要输出 conditions 为空的 state 条目——空 conditions 意味着该条目永远不触发
 
 ---
 
@@ -403,6 +405,23 @@
 6. **state 条目**（2条）：
    - 义体侵蚀度 > 70 时：提醒 `{{char}}` 描写幻觉和失控
    - 剧情阶段 等于 决战 时：提醒 `{{char}}` 切换快节奏叙事
+
+### 正例 4：创建世界时预设初始状态值
+
+`world-card` 提案**不支持** `stateValueOps`。若需为 `{{user}}` 预设初始属性值（如力量、背包、技能），必须在 Planner 中规划独立步骤：
+
+- Step 1：`world-card create`，定义世界结构与状态字段模板（stateFieldOps）
+- Step 2：`persona-card update`，通过 `stateValueOps` 填写初始值，`entityRef` 引用 Step 1 的世界 ID
+
+```json
+// Step 2 的 persona-card 提案片段
+"stateValueOps": [
+  { "target": "persona", "field_key": "strength", "value_json": "5" },
+  { "target": "persona", "field_key": "skills", "value_json": "[\"话术伪装（E级）\"]" }
+]
+```
+
+`field_key` 必须与 Step 1 中 `stateFieldOps` 已创建的字段一致；Step 2 必须 `dependsOn` Step 1。
 
 ---
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as llm from '../../backend/llm/index.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
+import { extractJson } from './tools/extract-json.js';
 
 const log = createLogger('as-plan', 'magenta');
 const PLAN_RETRY_MAX = 3;
@@ -45,7 +46,8 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         'character-card create 与 persona-card create 必须显式依赖一个世界实体来源：context.worldId 或前置 world-card create 步骤。' +
         '所有 update/delete 步骤都必须带可解析 entityRef。' +
         'delete / 清空 / 覆盖 / 重置类高风险步骤必须标记 riskLevel="high"。' +
-        '若是从零创建完整世界，可拆成 world-card create、persona-card create、多个 character-card create。' +
+        '若是从零创建完整世界，可拆成 world-card create、persona-card create、多个 character-card create；' +
+        '若 world-card create 同时涉及 10 个以上状态字段或 5 条以上 entryOps，必须拆成 2 个 world-card 步骤：Step 1 创建基础结构（always 条目 + 核心状态字段），Step 2 用 update 追加 state/keyword/llm 条目和剩余字段；两步不要重叠字段；world-card 不支持 stateValueOps，初始状态值须通过后续 persona-card 或 character-card 步骤的 stateValueOps 填写。' +
         '若是已有实体修改，必须基于上下文已有 worldId/characterId 或让后续步骤引用上一步产物。' +
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +
@@ -134,10 +136,10 @@ function inferAnswer(message) {
 
 function parsePlannerJson(raw, message) {
   try {
-    return JSON.parse(raw);
-  } catch {
+    return extractJson(raw);
+  } catch (err) {
     return {
-      error: '输出不是合法 JSON',
+      error: `输出不是合法 JSON（${err.message}）`,
       fallback: { mode: 'answer', summary: '规划器输出非法 JSON，回退直接答复', answer: inferAnswer(message) },
     };
   }

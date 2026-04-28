@@ -140,10 +140,10 @@ export async function runAgentDefinition(def, {
   let result;
   try {
     result = extractJson(raw);
-  } catch {
-    log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY })}`);
+  } catch (jsonErr) {
+    log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY, error: jsonErr.message })}`);
     messages.push({ role: 'assistant', content: raw });
-    messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON。请只重发 1 个 JSON 对象，不要代码块、注释或解释。' });
+    messages.push({ role: 'user', content: `你的输出无法解析为合法 JSON（错误：${jsonErr.message}）。请只重发 1 个 JSON 对象，不要代码块、注释或解释。` });
     raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
     log.info(`RAW  ${formatMeta({ agent: def.name, retry: true, chars: raw?.length ?? 0 })}`);
     result = extractJson(raw);
