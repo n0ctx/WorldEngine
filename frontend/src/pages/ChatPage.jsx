@@ -70,6 +70,7 @@ export default function ChatPage() {
 
   const stopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
+  const optionCollapsedRef = useRef(false);
   const memoryRecallingStartRef = useRef(null);
   const memoryExpandingStartRef = useRef(null);
   const memoryWritingStartRef = useRef(null);
@@ -101,7 +102,7 @@ export default function ChatPage() {
   const [currentOptions, setCurrentOptions] = useState([]);
   const currentOptionsRef = useRef([]);
   const selectedOptionIndexRef = useRef(-1);
-  const optionCollapsedRef = useRef(false);
+  const [optionCollapsed, setOptionCollapsed] = useState(false);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
 
   const clearOptionsState = useCallback(() => {
@@ -122,7 +123,7 @@ export default function ChatPage() {
     if (currentOptionsRef.current.length > 0) {
       messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
       selectedOptionIndexRef.current = -1;
-      optionCollapsedRef.current = false;
+      setOptionCollapsed(false);
     }
     const runId = streamRunIdRef.current + 1;
     streamRunIdRef.current = runId;
@@ -186,6 +187,10 @@ export default function ChatPage() {
   useEffect(() => {
     currentOptionsRef.current = currentOptions;
   }, [currentOptions]);
+
+  useEffect(() => {
+    optionCollapsedRef.current = optionCollapsed;
+  }, [optionCollapsed]);
 
   const clearActiveSession = useCallback(() => {
     clearOptionsState();
@@ -369,7 +374,7 @@ export default function ChatPage() {
     const wasAborted = streamAbortedRef.current;
     streamAbortedRef.current = false;
     if (!wasContinuing && !appendedAssistant && !wasAborted) refreshMessages();
-  }, [isCurrentStreamRun]);
+  }, [isCurrentStreamRun, stopMemoryRecalling, stopMemoryExpanding, stopMemoryWriting]);
 
   // 共用 SSE callbacks
   function makeCallbacks(runId) {
@@ -675,7 +680,7 @@ export default function ChatPage() {
       }
       clearOptionsState();
       selectedOptionIndexRef.current = -1;
-      optionCollapsedRef.current = false;
+      setOptionCollapsed(false);
       useStore.getState().triggerMemoryRefresh();
     } catch (err) {
       showToast(err.message || '删除失败', 'error');
@@ -848,8 +853,8 @@ export default function ChatPage() {
           options={currentOptions}
           onSelectOption={(text, idx) => { selectedOptionIndexRef.current = idx; handleSend(text, []); }}
           onDismissOptions={() => setCurrentOptions([])}
-          optionCollapsed={optionCollapsedRef.current}
-          onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
+          optionCollapsed={optionCollapsed}
+          onOptionCollapsedChange={setOptionCollapsed}
         />
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}

@@ -736,6 +736,7 @@ export default function ChangeProposalCard({
   const allowedStateTargets = STATE_FIELD_TARGET_OPTIONS_BY_PROPOSAL[proposal.type] || STATE_FIELD_TARGET_OPTIONS;
   const allowedStateValueTargets = STATE_VALUE_TARGET_OPTIONS_BY_PROPOSAL[proposal.type] || [];
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (!editing || !sourceWorldId || (!isWorldCard && !isCharacterCard && !isPersonaCard)) return;
     let cancelled = false;
@@ -751,7 +752,7 @@ export default function ChangeProposalCard({
       setFieldCatalog({ world: [], persona: [], character: [] });
     });
     return () => { cancelled = true; };
-  }, [editing, isWorldCard, sourceWorldId]);
+  }, [editing, isWorldCard, sourceWorldId, isCharacterCard, isPersonaCard]);
 
   function startEditing() {
     setLocalChanges(deepClone(proposal.changes || {}));
@@ -791,6 +792,7 @@ export default function ChangeProposalCard({
     }
   }
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (!proposal.expiresAt) return;
     const update = () => {

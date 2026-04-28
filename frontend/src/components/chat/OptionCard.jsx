@@ -10,18 +10,18 @@ const MotionDiv = motion.div;
  * initialCollapsed — 新选项出现时的初始折叠状态（用于保留上一轮的折叠偏好）。
  * onCollapsedChange(collapsed) — 折叠状态变化时回调。
  */
-export default function OptionCard({ options, streaming, onSelect, onDismiss, initialCollapsed, onCollapsedChange }) {
+export default function OptionCard({ options, streaming, onSelect, initialCollapsed, onCollapsedChange }) {
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   const [selectedIndex, setSelectedIndex] = useState(-1);
 
   // 新选项到来时重置选中，折叠态沿用 initialCollapsed
   useEffect(() => {
     if (options?.length) {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCollapsed(!!initialCollapsed);
       setSelectedIndex(-1);
     }
-  }, [options?.length]); // 故意不把 initialCollapsed 列入依赖，只在新选项到来时读一次
+  }, [options?.length, initialCollapsed]);
 
   function handleCollapse(next) {
     setCollapsed(next);

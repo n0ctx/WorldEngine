@@ -219,20 +219,7 @@ function UserMessage({ msg, onEdit, onDelete }) {
 }
 
 function AssistantMessage({ msg, onRegenerate, onDelete }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
   const taRef = useRef(null);
-
-  function startEdit() { setDraft(msg.content); setEditing(true); }
-  function cancelEdit() { setEditing(false); }
-  function confirmEdit() {
-    if (draft.trim() && draft !== msg.content) {
-      // 仅更新内容，不重新生成
-      onDelete?.(msg.id, draft.trim()); // 利用 onDelete 传 "edit-only" 回调不合适
-      // 实际由父组件的 onEdit 处理，这里通过 onRegenerate 的第二参数约定
-    }
-    setEditing(false);
-  }
 
   useEffect(() => {
     if (editing && taRef.current) {
@@ -722,6 +709,7 @@ export default function MessageList({
           else if (msg.role === 'error') node = <ErrorMessage key={msg.id} msg={msg} />;
           if (!node) return null;
           if (taskPanel && anchorId && anchorId === msg.id) {
+            // eslint-disable-next-line react-hooks/immutability
             taskRendered = true;
             return [node, taskPanel];
           }

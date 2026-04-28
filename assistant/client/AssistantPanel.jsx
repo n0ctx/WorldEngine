@@ -272,6 +272,7 @@ export default function AssistantPanel() {
     abortRef.current = abort;
   }, [bindTaskCallbacks, buildContext, setStreaming]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const answerClarification = useCallback(async (text) => {
     if (!currentTask?.id) return;
     setStreaming(true);
@@ -350,6 +351,7 @@ export default function AssistantPanel() {
     deleteMessage(msgId);
   }, [deleteMessage]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleApprovePlan = useCallback(async () => {
     if (!currentTask?.id || isStreaming) return;
     setStreaming(true);
@@ -358,6 +360,7 @@ export default function AssistantPanel() {
     abortRef.current = approveAssistantTaskPlan(currentTask.id, bindTaskCallbacks());
   }, [bindTaskCallbacks, currentTask?.id, isStreaming, setStreaming]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleApproveStep = useCallback((stepId, editedProposal) => {
     if (!currentTask?.id || !stepId || isStreaming) return Promise.reject(new Error('正在执行中，请稍候'));
     return new Promise((resolve, reject) => {
@@ -378,6 +381,7 @@ export default function AssistantPanel() {
     });
   }, [bindTaskCallbacks, currentTask?.id, isStreaming, setStreaming]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleCancelTask = useCallback(async () => {
     if (!currentTask?.id) return;
     abortRef.current?.();

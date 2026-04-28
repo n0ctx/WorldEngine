@@ -8,6 +8,9 @@
     "./AssistantPanel": "./AssistantPanel.jsx",
     "./useAssistantStore": "./useAssistantStore.js"
   },
+  "scripts": {
+    "lint": "eslint ."
+  },
   "peerDependencies": {
     "react": "^19.2.4",
     "zustand": "^5.0.12"

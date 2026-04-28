@@ -4,7 +4,7 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from './SettingsConstants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
 
 /**
