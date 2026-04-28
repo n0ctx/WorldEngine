@@ -3,6 +3,34 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 test: Wave 0+1 修红线 + 测试覆盖率补全 + freshImport 重构
+
+**背景**：盘点三大模块测试现状时发现：
+1. `assistant` 测试 76 pass / 3 fail（`normalizeProposal` 三个用例与 S506 自动后缀逻辑不匹配）
+2. `backend` 报告基线 lines 55.29% 偏低，主要原因是 `tests/helpers/test-env.js#freshImport` 给 import URL 追加 `?t=...` query 强制重载，导致 V8 native coverage 把 reimport 视作不同 script，原文件路径覆盖率被严重低估
+3. `validateModelFetchBaseUrl` 对 IPv6 字面量（`[::1]` / `[fe80::]` / `[fc..]`）未拦截：`new URL().hostname` 保留方括号，`net.isIP('[::1]')` 返 0 跳过私网检查（已知 SSRF 缺口，未在本次修）
+
+**改动**：
+- `assistant/tests/routes.test.js`：3 个失败用例调整以匹配 S506 后缀语义——`mood`→`mood_char`；条件字段改用后缀后的 `hp_user`；歧义场景改为同 label 跨 scope 触发（field_key 歧义在 S506 后已不可能）
+- `backend/tests/helpers/test-env.js`：`freshImport` 改为稳定 URL（去掉 query string）以让 V8 coverage 正确归并；新增 `freshImportUncached` 供必须重新加载模块的测试使用（如 logger 顶层捕获 env）
+- `backend/tests/utils/logger.test.js`：迁移到 `freshImportUncached`（这 3 个用例本质上需要重读 `WE_DATA_DIR`/`WE_CONFIG_PATH`）
+- 新增 6 个测试文件，64 个新用例：
+  - `tests/services/state-values-extra.test.js`（12）— persona/world/character setter 全分支 + reset + resolveUploadPath
+  - `tests/services/worlds-extra.test.js`（5）— ensureDiaryTimeField 全分支 + delete 钩子
+  - `tests/services/characters-personas-extra.test.js`（13）— state 字段初始化、avatar 清理、cleanup 钩子、activate/delete persona
+  - `tests/utils/logger-extra.test.js`（16）— preview/format/summarize/shouldLogRaw/createLogger/logPrompt/spinner，单一 init + mtime cache 失效
+  - `tests/utils/network-safety-extra.test.js`（7）— 空值/非法 URL/各种私网 IPv4 + IPv6 已知缺口标记
+  - `tests/routes/sessions.test.js`（11）— GET 列表/单个/messages，POST/PUT/DELETE 校验路径与 404
+
+**验证方式**：
+- `cd assistant && npm test` → 79 pass / 0 fail（之前 76/3）
+- `cd backend && npm test` → 234 pass / 0 fail（之前 170/0）
+- `cd backend && npm run test:coverage` → 行覆盖率 55.29% → **66.65%**，分支 53.72% → **70.23%**，函数 43.64% → **60.34%**
+
+**残留风险**：
+- IPv6 字面量 SSRF 缺口（`validateModelFetchBaseUrl`）已记录但未修复；修法：strip URL hostname 的方括号后再交给 `net.isIP`
+- 用 `freshImportUncached` 的测试不计入 V8 coverage（设计取舍）；`logger.test.js` 因此让 `logger.js` 的报告覆盖率显示 46%，实际由 `logger-extra.test.js` 充分覆盖（92%）。Node 的 `--experimental-test-coverage` 跨进程合并对同一源文件存在"取最后一个进程"的现象，未来若把 `logger.test.js` 三个 env-mutation 用例改写到 init-once 模式可消除这个偏差
+
 ## 2026-04-29 feat(prompts): 常驻条目支持 token=0 进入 CACHED LAYER
 
 **背景**：常驻强约束条目（世界规则、设定锚点）每轮都会注入，但当前一律放在 `[7]` 的 dynamic user 消息中，每轮组合变化导致无法享受 prompt cache。希望让用户显式标记一类「真常驻、内容稳定」的 always 条目进入 cached system，作为 prompt cache 的一部分。

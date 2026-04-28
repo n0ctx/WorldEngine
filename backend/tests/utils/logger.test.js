@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { freshImport } from '../helpers/test-env.js';
+import { freshImportUncached } from '../helpers/test-env.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -53,7 +53,7 @@ test('文件日志不被终端 LOG_LEVEL 过滤掉', async () => {
   process.env.LOG_FILE_LEVEL = 'info';
   process.env.LOG_FILE = 'true';
 
-  const { createLogger } = await freshImport('backend/utils/logger.js');
+  const { createLogger } = await freshImportUncached('backend/utils/logger.js');
   createLogger('test').info('info-for-file-only');
   await waitForFlush();
 
@@ -69,7 +69,7 @@ test('文件日志仍遵守 LOG_FILE_LEVEL', async () => {
   process.env.LOG_FILE_LEVEL = 'warn';
   process.env.LOG_FILE = 'true';
 
-  const { createLogger } = await freshImport('backend/utils/logger.js');
+  const { createLogger } = await freshImportUncached('backend/utils/logger.js');
   const log = createLogger('test');
   log.info('should-not-write');
   log.warn('should-write');
@@ -97,7 +97,7 @@ test('logger 读取 WE_CONFIG_PATH 中的 logging 配置', async () => {
   process.env.WE_DATA_DIR = root;
   process.env.WE_CONFIG_PATH = configPath;
 
-  const { getLoggingConfig, shouldLogRaw } = await freshImport('backend/utils/logger.js');
+  const { getLoggingConfig, shouldLogRaw } = await freshImportUncached('backend/utils/logger.js');
   const config = getLoggingConfig();
   assert.equal(config.mode, 'raw');
   assert.equal(config.max_preview_chars, 240);

@@ -157,7 +157,29 @@ export function resetMockEnv() {
   }
 }
 
+/**
+ * 加载项目内模块，使用稳定 URL 以便 V8 native coverage 能正确归并行覆盖。
+ *
+ * 历史背景：早期实现给 URL 追加 `?t=...` query 强制每次拿到新模块实例，但这会让
+ * V8 把每次 reimport 视作不同 script，导致 `--experimental-test-coverage` 的报告
+ * 严重低估实际覆盖率（被测函数虽然执行了，但记到了一个临时 URL 上，原文件路径
+ * 显示为 0）。改成稳定 URL 后，多次调用 freshImport 返回同一个模块实例。
+ *
+ * 如果某个测试真的需要"重新加载模块以读取改动后的 process.env / 配置文件 mtime"，
+ * 改用 `freshImportUncached(...)` —— 但要承担覆盖率不计入的代价。优先用以下手段：
+ *   - 在模块层暴露 reset/refresh 函数（如 logger 的 mtime cache 已自动失效）
+ *   - 在测试初始化阶段一次性设置好 env，再加载模块
+ */
 export async function freshImport(relativePath) {
+  const absPath = path.resolve(REPO_ROOT, relativePath);
+  return import(pathToFileURL(absPath).href);
+}
+
+/**
+ * 强制重新加载模块（绕过 ESM 缓存）。会导致 V8 coverage 不计入该模块的行覆盖率，
+ * 仅在测试必须读取模块加载时捕获的常量（例如顶层 `path.resolve(env)`）时使用。
+ */
+export async function freshImportUncached(relativePath) {
   const absPath = path.resolve(REPO_ROOT, relativePath);
   return import(`${pathToFileURL(absPath).href}?t=${Date.now()}-${Math.random().toString(16).slice(2)}`);
 }
