@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConfig, updateConfig, getAuxLlmConfig, updateAuxApiKey } from '../services/config.js';
+import { getConfig, updateConfig, getAuxLlmConfig, updateAuxApiKey, getWritingLlmConfig, updateWritingApiKey } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
@@ -30,6 +30,18 @@ function stripApiKeys(config) {
     safe.embedding.has_key = !!resolveApiKey(safe.embedding);
     safe.embedding.provider_keys = Object.fromEntries(
       Object.entries(safe.embedding.provider_keys || {}).map(([k, v]) => [k, !!v]),
+    );
+  }
+  if (safe.aux_llm) {
+    safe.aux_llm.has_key = !!resolveApiKey(safe.aux_llm);
+    safe.aux_llm.provider_keys = Object.fromEntries(
+      Object.entries(safe.aux_llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
+    );
+  }
+  if (safe.writing?.llm) {
+    safe.writing.llm.has_key = !!resolveApiKey(safe.writing.llm);
+    safe.writing.llm.provider_keys = Object.fromEntries(
+      Object.entries(safe.writing.llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
     );
   }
   return safe;
@@ -141,6 +153,12 @@ router.put('/', (req, res) => {
       sanitizeBaseUrlPatch(patch.aux_llm);
       applyProviderModelLogic(patch.aux_llm, current.aux_llm);
     }
+    if (patch.writing?.llm) {
+      delete patch.writing.llm.api_key;
+      delete patch.writing.llm.provider_keys;
+      sanitizeBaseUrlPatch(patch.writing.llm);
+      applyProviderModelLogic(patch.writing.llm, current.writing?.llm);
+    }
 
     const updated = updateConfig(patch);
     const loggingChanged = patchPaths.some((path) => path === 'logging' || path.startsWith('logging.'));
@@ -191,6 +209,27 @@ router.put('/embedding-apikey', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     log.error(`PUT /api/config/embedding-apikey FAIL  ${formatMeta({ error: err.message })}`);
+    res.status(500).json({ error: `保存失败：${err.message}` });
+  }
+});
+
+// PUT /api/config/writing-apikey — 写入当前写作主模型 provider 的 key
+router.put('/writing-apikey', (req, res) => {
+  const { api_key } = req.body;
+  if (typeof api_key !== 'string') {
+    return res.status(400).json({ error: 'api_key 必须为字符串' });
+  }
+  try {
+    const config = getConfig();
+    const provider = config.writing?.llm?.provider;
+    if (!provider) {
+      return res.status(400).json({ error: '写作主模型未配置 provider' });
+    }
+    updateWritingApiKey(provider, api_key);
+    log.info(`PUT /api/config/writing-apikey  ${formatMeta({ section: 'writing.llm', provider, hasKey: !!api_key })}`);
+    res.json({ success: true });
+  } catch (err) {
+    log.error(`PUT /api/config/writing-apikey FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
@@ -462,6 +501,22 @@ router.get('/models', async (_req, res) => {
   }
 });
 
+// GET /api/config/writing/models — 拉取写作主模型列表
+router.get('/writing/models', async (_req, res) => {
+  const writingConfig = getWritingLlmConfig();
+  const { provider, base_url } = writingConfig;
+  const apiKey = writingConfig.api_key;
+  try {
+    const models = await fetchModels(provider, apiKey, base_url);
+    const thinkingOptions = getThinkingOptions(provider);
+    log.info(`GET /api/config/writing/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
+    res.json({ models, thinkingOptions });
+  } catch (err) {
+    log.warn(`GET /api/config/writing/models FAIL  ${formatMeta({ provider, error: err.message })}`);
+    res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
+  }
+});
+
 // GET /api/config/aux/models — 拉取副模型列表
 router.get('/aux/models', async (_req, res) => {
   const config = getConfig();
@@ -519,6 +574,27 @@ router.get('/test-connection', async (_req, res) => {
   const config = getConfig();
   try {
     await verifyLlmConnection(config);
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/config/writing/test-connection — 验证写作主模型 LLM 连通性
+router.get('/writing/test-connection', async (_req, res) => {
+  const writingConfig = getWritingLlmConfig();
+  try {
+    const testConfig = {
+      llm: {
+        provider: writingConfig.provider,
+        provider_keys: { [writingConfig.provider]: writingConfig.api_key },
+        base_url: writingConfig.base_url || '',
+        model: writingConfig.model || '',
+        max_tokens: 8,
+        temperature: 0,
+      },
+    };
+    await verifyLlmConnection(testConfig);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });

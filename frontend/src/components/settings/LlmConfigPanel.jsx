@@ -18,7 +18,7 @@ import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from './SettingsCon
 export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,
   settingsMode, onModeChange,
-  writingLlm, onWritingLlmChange,
+  writingLlm, onWritingLlmChange, onWritingApiKeySave, fetchWritingModels, testWritingConnection,
   auxLlm, onAuxLlmChange, onAuxApiKeySave, fetchAuxModels, testAuxConnection,
   assistantModelSource, onAssistantModelSourceChange,
   proxyUrl, onProxyUrlSave,
@@ -75,7 +75,15 @@ export default function LlmConfigPanel({
 
       {/* 主模型区块：按 settingsMode 分支渲染 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
-        <WritingLlmBlock writingLlm={writingLlm} onWritingLlmChange={onWritingLlmChange} chatModel={llm.model} />
+        <WritingLlmBlock
+          writingLlm={writingLlm}
+          providers={LLM_PROVIDERS}
+          onWritingLlmChange={onWritingLlmChange}
+          onApiKeySave={onWritingApiKeySave}
+          loadModels={fetchWritingModels}
+          testConnection={testWritingConnection}
+          chatModel={llm.model}
+        />
       ) : (
         <div className="we-settings-field-group">
           <ProviderBlock

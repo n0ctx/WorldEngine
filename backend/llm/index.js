@@ -8,7 +8,7 @@
  *   resolveToolContext(messages, tools, opts) — 流式预检，返回富化后的 messages
  */
 
-import { getConfig, getAuxLlmConfig } from '../services/config.js';
+import { getConfig, getAuxLlmConfig, getWritingLlmConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
@@ -42,9 +42,9 @@ function getProvider(providerName) {
 // ============================================================
 
 /**
- * 合并 config.llm 或 config.aux_llm 与调用方 options，调用方优先
+ * 合并 config.llm / config.aux_llm / config.writing.llm 与调用方 options，调用方优先
  *
- * @param {object} options - 包含 configScope('main'|'aux') 的选项
+ * @param {object} options - 包含 configScope('main'|'aux'|'writing') 的选项
  */
 function buildLLMConfig(options = {}) {
   const config = getConfig();
@@ -60,6 +60,19 @@ function buildLLMConfig(options = {}) {
       // 副模型不暴露 temperature / max_tokens / thinking_level，使用主模型的值
       temperature: config.llm.temperature,
       max_tokens: config.llm.max_tokens,
+      thinking_level: config.llm.thinking_level,
+    };
+  } else if (options.configScope === 'writing') {
+    const writingConfig = getWritingLlmConfig();
+    const writingLlm = config.writing?.llm ?? {};
+    llm = {
+      provider: writingConfig.provider,
+      provider_keys: { [writingConfig.provider]: writingConfig.api_key },
+      base_url: writingConfig.base_url,
+      model: writingConfig.model,
+      // 写作模型保留独立的 temperature / max_tokens（null 时回退主模型），thinking_level 跟随主模型
+      temperature: writingLlm.temperature ?? config.llm.temperature,
+      max_tokens: writingLlm.max_tokens ?? config.llm.max_tokens,
       thinking_level: config.llm.thinking_level,
     };
   } else {

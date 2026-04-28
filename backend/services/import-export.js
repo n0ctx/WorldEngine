@@ -554,6 +554,9 @@ export function exportGlobalSettings(mode = 'chat') {
         global_post_prompt: writing.global_post_prompt ?? '',
         context_history_rounds: writing.context_history_rounds ?? null,
         llm: {
+          provider: writingLlm.provider ?? null,
+          provider_models: writingLlm.provider_models ?? {},
+          base_url: writingLlm.base_url ?? null,
           model: writingLlm.model ?? '',
           temperature: writingLlm.temperature ?? null,
           max_tokens: writingLlm.max_tokens ?? null,
@@ -646,6 +649,9 @@ export function importGlobalSettings(data) {
     }
     if (data.writing.llm && typeof data.writing.llm === 'object') {
       writingPatch.llm = {};
+      if (data.writing.llm.provider === null || typeof data.writing.llm.provider === 'string') writingPatch.llm.provider = data.writing.llm.provider;
+      if (data.writing.llm.provider_models && typeof data.writing.llm.provider_models === 'object' && !Array.isArray(data.writing.llm.provider_models)) writingPatch.llm.provider_models = data.writing.llm.provider_models;
+      if (data.writing.llm.base_url === null || typeof data.writing.llm.base_url === 'string') writingPatch.llm.base_url = data.writing.llm.base_url;
       if (typeof data.writing.llm.model === 'string') writingPatch.llm.model = data.writing.llm.model;
       if (data.writing.llm.temperature === null || typeof data.writing.llm.temperature === 'number') writingPatch.llm.temperature = data.writing.llm.temperature;
       if (data.writing.llm.max_tokens === null || typeof data.writing.llm.max_tokens === 'number') writingPatch.llm.max_tokens = data.writing.llm.max_tokens;

@@ -196,7 +196,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal, usageRef });
+    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal, usageRef, configScope: 'writing' });
     for await (const chunk of stream) {
       fullContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -393,7 +393,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     logPrompt(sessionId, messages);
     const continuationMessages = buildContinuationMessages(messages, originalContent);
 
-    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal, usageRef });
+    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal, usageRef, configScope: 'writing' });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -527,6 +527,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       maxTokens: 1000,
       model,
       thinking_level: null,
+      configScope: 'writing',
     });
     // 剥除 thinking 模型输出的 <think>...</think> 推理块
     const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();

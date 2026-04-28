@@ -237,7 +237,8 @@ POST /api/sessions/:sessionId/chat
 
 ### 配置结构
 
-- **主模型**：`config.llm` — 对话流式生成、斜杠命令（/impersonate /retitle）、写作流式生成
+- **主模型**：`config.llm` — 对话流式生成、斜杠命令（/impersonate /retitle）
+- **写作主模型**：`config.writing.llm` — 写作流式/续写生成、写作 /impersonate；`provider=null` 时回退对话主模型；结构镜像主模型并额外保留 `temperature / max_tokens` 覆盖（null 时回退对话主模型）
 - **副模型**：`config.aux_llm` — null 时回退主模型；结构镜像主模型但仅含 provider / provider_keys / provider_models / base_url / model，不暴露 temperature / max_tokens / thinking_level
 - **写作助手模型选择**：`config.assistant.model_source` — 'main'（主模型）或 'aux'（副模型），决定写卡助手调用的模型源
 
@@ -263,8 +264,11 @@ all 非流式接口在调用 `llm.complete()` 时传 `configScope: 'aux'`：
 `llm.complete(messages, options)` 的 options 新增 `configScope` 参数：
 - `'main'`（默认）— 使用主模型配置
 - `'aux'` — 调用 `getAuxLlmConfig()` 获取副模型有效配置（若副模型 provider=null 则回退主模型）
+- `'writing'` — 调用 `getWritingLlmConfig()` 获取写作主模型有效配置（若 writing.llm.provider=null 则回退对话主模型）；temperature/max_tokens 取 `config.writing.llm.*`，缺省回退对话主模型；thinking_level 跟随对话主模型
 
 `llm.chat()` 和 `llm.completeWithTools()` 亦支持 `configScope` 参数。
+
+写作路由（`backend/routes/writing.js`）所有生成入口（流式 chat、续写 chat、/impersonate complete）均传 `configScope: 'writing'`。
 
 ### 写作助手模型切换
 

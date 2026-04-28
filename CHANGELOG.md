@@ -3,6 +3,33 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 feat(settings): 写作主模型独立 Provider/API Key/模型 + 连接测试
+
+**改动**：
+- `backend/services/config.js`：`DEFAULT_CONFIG.writing.llm` 与 `DEFAULT_WRITING.llm` 扩展 provider/provider_keys/provider_models/base_url；`getConfig` 兼容旧文件（缺失字段补默认）；新增 `getWritingLlmConfig()`（provider=null 时回退对话主模型）和 `updateWritingApiKey(provider, key)`
+- `backend/llm/index.js`：`buildLLMConfig` 增加 `configScope: 'writing'` 分支
+- `backend/routes/config.js`：`stripApiKeys` 增加 writing.llm 与 aux_llm 的 has_key/provider_keys 布尔化（aux_llm 之前未脱敏，顺手补齐）；PUT / 中处理 writing.llm 的 sanitize/applyProviderModelLogic；新增 PUT /writing-apikey、GET /writing/models、GET /writing/test-connection
+- `backend/routes/writing.js`：写作流式 chat、续写 chat、/impersonate complete 均传 `configScope: 'writing'`
+- `backend/services/import-export.js`：写作模式导出/导入新增 provider/provider_models/base_url（不含 provider_keys）
+- `frontend/src/api/config.js`：新增 updateWritingApiKey/fetchWritingModels/testWritingConnection
+- `frontend/src/hooks/useSettingsConfig.js`：writingLlm 默认值含完整字段；handleWritingLlmChange 支持 provider 切换记忆 (provider/provider_keys/has_key/base_url 走 updateConfig 返回值刷新)；llmProps 新增写作 API/loaders
+- `frontend/src/components/settings/WritingLlmBlock.jsx`：完全重写为 AuxLlmBlock 形态（Provider 下拉 + API Key 保存 + Base URL + ModelSelector + 连接测试）+ 保留原有 Temperature 滑块和 Max Tokens 输入
+- `frontend/src/components/settings/LlmConfigPanel.jsx`：传入 providers / loadModels / testConnection / onApiKeySave 给 WritingLlmBlock
+- `SCHEMA.md` / `ARCHITECTURE.md`：补 writing.llm 新字段与 configScope='writing' 行为说明
+
+**验证方式**：
+- 启动前后端，设置→LLM 配置→写作 tab：默认 Provider=未配置时模型字段提示"对话主模型 X"；切到 anthropic 输入 API Key→保存密钥；模型下拉拉取成功；点连接测试出现"连接成功"
+- 写作页生成一次：后端日志 CHAT START 的 provider/model 应为写作主模型；切 Provider 回未配置后再次生成，回退对话主模型
+- aux 链路（摘要、状态栏、标题、日记）行为不变
+
+**同步文档**：SCHEMA.md（writing.llm 结构与导出格式）、ARCHITECTURE.md（§4 新增 'writing' scope）
+
+**锁定文件**：未触及 SCHEMA.md / CLAUDE.md / db/schema.js / utils/constants.js / prompts/assembler.js / store/index.js / server.js 的核心逻辑（SCHEMA.md 仅追加 writing.llm 字段说明，不动既有表结构）
+
+**残留风险**：
+- `prompts/assembler.js:491-493` 中 `writing.temperature ?? config.llm.temperature` 实际读的是 `config.writing.temperature`（不存在），因此 writing.llm.temperature 在 buildWritingPrompt 中其实不生效——属于历史遗留 bug，未在本次范围内修复
+- aux_llm 的 has_key/provider_keys 之前未在 stripApiKeys 中脱敏，本次顺带补齐；前端 hook 已读取 has_key 字段，行为对齐预期
+
 ## 2026-04-28 fix: 清理 lint 技术债
 
 **改动**：

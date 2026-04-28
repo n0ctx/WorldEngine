@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getConfig, updateConfig, updateAuxApiKey, fetchAuxModels, testAuxConnection } from '../api/config';
+import { getConfig, updateConfig, updateAuxApiKey, fetchAuxModels, testAuxConnection, updateWritingApiKey, fetchWritingModels, testWritingConnection } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
 import { useSaveState } from './useSaveState';
@@ -26,7 +26,7 @@ export function useSettingsConfig() {
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
   const { saving, saved, run: runSave } = useSaveState();
   const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
-  const [writingLlm, setWritingLlm] = useState({ model: '', temperature: null, max_tokens: null });
+  const [writingLlm, setWritingLlm] = useState({ provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
@@ -62,7 +62,7 @@ export function useSettingsConfig() {
       setCurrentModelPricing(c.llm?.model_pricing ?? null);
       setCurrentWritingModelPricing(c.writing?.llm?.model_pricing ?? null);
       const w = c.writing || {};
-      setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
+      setWritingLlm(w.llm || { provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
       setWritingPostPrompt(w.global_post_prompt ?? '');
       setWritingContextRounds(w.context_history_rounds ?? null);
@@ -161,8 +161,24 @@ export function useSettingsConfig() {
   }
 
   async function handleWritingLlmChange(field, value) {
-    setWritingLlm((prev) => ({ ...prev, [field]: value }));
-    await patchConfig({ writing: { llm: { [field]: value } } });
+    if (field === 'provider') {
+      const isLocal = value && LOCAL_PROVIDERS.includes(value);
+      const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
+      const updated = await updateConfig({ writing: { llm: patch } });
+      setWritingLlm((prev) => ({
+        ...prev,
+        provider: value || null,
+        base_url: updated.writing?.llm?.base_url ?? null,
+        model: updated.writing?.llm?.model ?? '',
+        has_key: updated.writing?.llm?.has_key ?? false,
+        provider_keys: updated.writing?.llm?.provider_keys ?? {},
+      }));
+    } else if (field === 'has_key') {
+      setWritingLlm((prev) => ({ ...prev, has_key: value }));
+    } else {
+      setWritingLlm((prev) => ({ ...prev, [field]: value }));
+      await patchConfig({ writing: { llm: { [field]: value } } });
+    }
   }
 
   async function handleSaveGeneral() {
@@ -266,7 +282,7 @@ export function useSettingsConfig() {
     const w = c.writing || {};
     setWritingSuggestionEnabled(w.suggestion_enabled === true);
     setWritingMemoryExpansionEnabled(w.memory_expansion_enabled !== false);
-    setWritingLlm(w.llm || { model: '', temperature: null, max_tokens: null });
+    setWritingLlm(w.llm || { provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
     setWritingContextRounds(w.context_history_rounds ?? null);
@@ -288,6 +304,9 @@ export function useSettingsConfig() {
       testAuxConnection,
       writingLlm,
       onWritingLlmChange: handleWritingLlmChange,
+      onWritingApiKeySave: updateWritingApiKey,
+      fetchWritingModels,
+      testWritingConnection,
       proxyUrl,
       onProxyUrlSave: handleProxyUrlSave,
       showThinking,
