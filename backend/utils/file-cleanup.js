@@ -8,12 +8,15 @@
  *
  * - relativePath 为 null / 空 → 直接 return（静默）
  * - 文件不存在（ENOENT）→ 静默忽略
- * - 其它错误 → console.warn，不抛
+ * - 其它错误 → 记录 warn，不抛
  */
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createLogger, formatMeta } from './logger.js';
+
+const log = createLogger('file');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const UPLOADS_DIR = process.env.WE_DATA_DIR
@@ -32,7 +35,7 @@ export async function unlinkUploadFile(relativePath) {
     await fs.unlink(fullPath);
   } catch (err) {
     if (err.code === 'ENOENT') return; // 文件已不存在，静默
-    console.warn(`[file-cleanup] unlink failed for ${relativePath}:`, err.message);
+    log.warn(`UNLINK FAIL  ${formatMeta({ path: relativePath, error: err.message })}`);
   }
 }
 

@@ -27,7 +27,10 @@ import {
   PROMPT_ENTRY_LLM_MAX_TOKENS,
   ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
+import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from './prompt-loader.js';
+
+const log = createLogger('entry', 'magenta');
 
 /**
  * LLM pre-flight 判断：返回触发条目的 id 集合。
@@ -71,7 +74,7 @@ async function tryLlmMatch(entriesWithDesc, contextLines) {
       }
     }
   } catch (err) {
-    console.warn('[entry-matcher] LLM preflight 失败，降级为关键词匹配:', err.message);
+    log.warn(`LLM preflight 失败，降级为关键词匹配: ${err.message}`);
   }
   return triggered;
 }

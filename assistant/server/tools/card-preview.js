@@ -70,8 +70,6 @@ export function createPreviewCardTool(context) {
  * 加载实体数据，逻辑与原 routes.js 的 loadEntityData 一致。
  */
 function loadEntityData(target, operation, entityId, context) {
-  const needsGlobal = ['world-card', 'character-card', 'persona-card'].includes(target);
-  const globalSystemPrompt = needsGlobal ? (getConfig()?.global_system_prompt || '') : '';
   const withEntryConditions = (entries) => entries.map((entry) => (
     entry.trigger_type === 'state'
       ? { ...entry, conditions: listConditionsByEntry(entry.id) }
@@ -93,7 +91,7 @@ function loadEntityData(target, operation, entityId, context) {
 
   if (operation === 'create') {
     if (target === 'world-card') {
-      return { _globalSystemPrompt: globalSystemPrompt };
+      return {};
     }
     if (target === 'character-card' || target === 'persona-card') {
       const worldId = entityId || context?.worldId;
@@ -105,7 +103,6 @@ function loadEntityData(target, operation, entityId, context) {
         ? maybeTruncate(listCharacterStateFields(worldId), MAX_PREVIEW_FIELDS, '角色状态字段')
         : { data: [], truncated: false, total: 0 };
       return {
-        _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
         existingWorldEntries: world ? withEntryConditions(getAllWorldEntries(world.id)) : [],
@@ -138,7 +135,6 @@ function loadEntityData(target, operation, entityId, context) {
         _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         existingCharacterStateFields: charSfMeta.data,
         _existingCharacterStateFieldsMeta: charSfMeta.truncated ? { total: charSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
-        _globalSystemPrompt: globalSystemPrompt,
       };
     }
     case 'character-card': {
@@ -159,7 +155,6 @@ function loadEntityData(target, operation, entityId, context) {
         existingCharacterStateValues: getCharacterStateValuesWithFields(charId),
         existingPersonaStateFields: charPersonaSfMeta.data,
         _existingPersonaStateFieldsMeta: charPersonaSfMeta.truncated ? { total: charPersonaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
-        _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
       };
@@ -178,7 +173,6 @@ function loadEntityData(target, operation, entityId, context) {
         existingPersonaStateFields: personaSfMeta.data,
         _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
         existingPersonaStateValues: getPersonaStateValuesWithFields(worldId),
-        _globalSystemPrompt: globalSystemPrompt,
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
       };

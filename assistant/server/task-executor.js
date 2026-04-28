@@ -1,6 +1,9 @@
 import { ALL_AGENTS } from './agents/index.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
 import { runAgentDefinition } from './agent-factory.js';
+import { createLogger, formatMeta } from '../../backend/utils/logger.js';
+
+const log = createLogger('as-exec', 'yellow');
 
 const AGENT_BY_TARGET = Object.fromEntries(
   ALL_AGENTS.map((agent) => [agent.proposalType, agent]),
@@ -76,6 +79,13 @@ export async function executeTaskSteps({
     if (!canRunStep(task, step)) continue;
 
     current.status = 'running';
+    log.info(`STEP START  ${formatMeta({
+      taskId: task.id,
+      stepId: step.id,
+      targetType: step.targetType,
+      operation: step.operation,
+      highRisk: isHighRiskStep(step),
+    })}`);
     emit({
       type: 'step_started',
       taskId: task.id,
@@ -89,6 +99,7 @@ export async function executeTaskSteps({
       current.error = `不支持的 targetType: ${step.targetType}`;
       task.status = 'failed';
       task.error = current.error;
+      log.warn(`STEP UNSUPPORTED  ${formatMeta({ taskId: task.id, stepId: step.id, targetType: step.targetType })}`);
       emit({
         type: 'step_failed',
         taskId: task.id,
@@ -125,6 +136,7 @@ export async function executeTaskSteps({
         current.status = 'awaiting_approval';
         task.status = 'awaiting_step_approval';
         task.awaitingStepId = step.id;
+        log.info(`STEP AWAIT_APPROVAL  ${formatMeta({ taskId: task.id, stepId: step.id, operation: step.operation })}`);
         emit({
           type: 'step_approval_requested',
           taskId: task.id,
@@ -149,6 +161,13 @@ export async function executeTaskSteps({
       if (!task.context.characterId && proposal.type === 'character-card' && proposal.operation === 'create' && current.entityId) {
         task.context.characterId = current.entityId;
       }
+      log.info(`STEP DONE  ${formatMeta({
+        taskId: task.id,
+        stepId: step.id,
+        type: proposal.type,
+        operation: proposal.operation,
+        entityId: current.entityId,
+      })}`);
       emit({
         type: 'step_completed',
         taskId: task.id,
@@ -161,6 +180,7 @@ export async function executeTaskSteps({
       current.error = error.message;
       task.status = 'failed';
       task.error = error.message;
+      log.error(`STEP FAIL  ${formatMeta({ taskId: task.id, stepId: step.id, error: error.message })}`);
       emit({
         type: 'step_failed',
         taskId: task.id,
@@ -174,6 +194,7 @@ export async function executeTaskSteps({
 
   task.status = 'completed';
   task.awaitingStepId = null;
+  log.info(`TASK DONE  ${formatMeta({ taskId: task.id, steps: task.graph.length })}`);
   emit({
     type: 'task_completed',
     taskId: task.id,

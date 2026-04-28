@@ -64,13 +64,7 @@
 | 由状态变化触发的提醒、特殊情境规则 | `entryOps.create` + `trigger_type:"state"` |
 | 年份、天气、战争进度、HP、精力、好感、剧情阶段 | `stateFieldOps` |
 
-### 绝对不要这样做
-
-- 不要把动态值直接写进 always 条目的 content
-- 不要把角色人格或 `{{user}}` 人设写进世界卡
-- 不要使用 `changes.system_prompt` 或 `changes.post_prompt`
-- 不要输出 `position` 字段，它已经废弃
-- `description` 只写世界简介，不要把整本设定塞进去
+**注意**：`position` 字段已废弃，提案中不要输出。`changes` 中禁止出现 `system_prompt` / `post_prompt`。
 
 ---
 
@@ -333,23 +327,6 @@
 | `list` | 可增减的集合：背包物品、已知线索、持有技能、激活任务 | `背包: ["火把", "解毒药"]` | 只有一个值的字段（用 enum/text）|
 | `text` | 真正需要自由描述的状态：当前伤势详情、特殊buff描述 | `伤势描述: "右臂骨折"` | 一切可用上面类型覆盖的场景 |
 
-### 常见字段的正确类型
-
-| 字段 | 正确类型 | 错误做法 |
-|---|---|---|
-| HP / 精力 / 金币 | `number` | ~~`text`~~ |
-| 好感度 / 声望 / 信任度 | `number` | ~~`text`~~ |
-| 剧情阶段 / 故事阶段 | `enum` | ~~`text`~~ |
-| 天气 / 时间段 | `enum` | ~~`text`~~ |
-| 情绪 / 心情 | `enum` | ~~`text`~~ |
-| 关系状态（敌对/中立/友好） | `enum` | ~~`text`~~ |
-| 任务状态（未接/进行中/完成） | `enum` | ~~`text`~~ |
-| 是否死亡 / 是否已解锁 | `boolean` | ~~`text`~~ |
-| 背包 / 物品栏 | `list` | ~~`text`~~ |
-| 已知线索 / 激活任务 | `list` | ~~`text`~~ |
-| 当前伤势详情（自由描述） | `text` | — |
-| 特殊称号 / 自定义描述 | `text` | — |
-
 ---
 
 ## 输出 Schema
@@ -387,14 +364,7 @@
 - 例如当 `玩家.HP < 30` 时，提醒 `{{char}}` 对重伤做出反应
   - 例如当 `世界.剧情阶段 等于 决战` 时，提醒叙事切到高压节奏
 
-### 正例 2：补 lore 条目
-
-原始需求是“增加地下黑市和帝国审判庭资料”：
-
-- 用 `keyword` 或 `llm` 条目
-- 不要额外创建状态字段
-
-### 正例 3：从零构建完整世界卡
+### 正例 2：从零构建完整世界卡
 
 原始需求是"创建一个赛博朋克废土世界"：
 
@@ -417,20 +387,7 @@
 
 ### 正例 4：创建世界时预设初始状态值
 
-`world-card` 提案**不支持** `stateValueOps`。若需为 `{{user}}` 预设初始属性值（如力量、背包、技能），必须在 Planner 中规划独立步骤：
-
-- Step 1：`world-card create`，定义世界结构与状态字段模板（stateFieldOps）
-- Step 2：`persona-card update`，通过 `stateValueOps` 填写初始值，`entityRef` 引用 Step 1 的世界 ID
-
-```json
-// Step 2 的 persona-card 提案片段
-"stateValueOps": [
-  { "target": "persona", "field_key": "strength", "value_json": "5" },
-  { "target": "persona", "field_key": "skills", "value_json": "[\"话术伪装（E级）\"]" }
-]
-```
-
-`field_key` 必须与 Step 1 中 `stateFieldOps` 已创建的字段一致；Step 2 必须 `dependsOn` Step 1。
+`world-card` 不支持 `stateValueOps`。若需预设初始属性值，在 Planner 中拆独立步骤：Step 1 `world-card create` 定义状态字段；Step 2 `persona-card update` 用 `stateValueOps` 填初始值（`field_key` 必须与 Step 1 字段一致，Step 2 `dependsOn` Step 1）。
 
 ### 正例 5：状态机世界卡
 

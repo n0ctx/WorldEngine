@@ -3,6 +3,31 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手 token 消耗优化
+
+**背景**：写卡助手每次任务调用多次 LLM，系统 prompt 较大（main.md ~2400 tok，world-card.md ~4600 tok），且多步骤任务中 `preview_card` 每次返回 `_globalSystemPrompt` 全文导致重复注入。
+
+**改动**：
+- `backend/llm/providers/anthropic.js` — 所有 Anthropic 调用的 system message 改为带 `cache_control: { type: "ephemeral" }` 的数组格式，启用 Prompt Caching；5 分钟内重复调用 input token 费用打 1 折；增加 `prompt-caching-2024-07-31` beta header；`completeAnthropic` 补充 cache usage 日志字段。
+- `assistant/server/tools/card-preview.js` — 从所有 preview 返回值中删除 `_globalSystemPrompt` 字段（主代理 context string 已有概览，子代理不需要重复接收全文）。
+- `assistant/server/main-agent.js` — `buildContextString` 中 `character.system_prompt` 截断从 400 字缩至 120 字，`first_message` 从 150 字缩至 80 字。
+- `assistant/prompts/world-card.md` — 删除与"硬规则"重复的"绝对不要"列表、删除与"各类型详细规则"表格重复的"常见字段正确类型"表格、压缩冗余正例；从 466 行缩至 423 行（~1100 tokens）。
+
+**验证方式**：Anthropic provider 下跑多步骤任务，日志中出现 `cache_creation_input_tokens` / `cache_read_input_tokens`；第二次同类任务应有 `cache_read_tokens > 0`。
+
+## 2026-04-28 后端日志覆盖率补齐与文件日志过滤修复
+
+**背景**：审查发现后端生成主链路日志较完整，但文件日志会被终端 `LOG_LEVEL` 提前过滤，导致默认 `LOG_LEVEL=warn` 时 `LOG_FILE_LEVEL=info` 仍丢失 info 文件日志；同时部分降级/清理错误仍绕过统一 logger，普通 CRUD 也缺少写操作结构摘要。
+
+**改动**：
+- `backend/utils/logger.js` — 终端输出级别与文件写入级别分离；`LOG_LEVEL` 只影响终端，`LOG_FILE_LEVEL` 独立控制文件；同时支持 `WE_CONFIG_PATH`，与测试/桌面配置路径保持一致。
+- `backend/server.js` — HTTP 请求日志对 `POST/PUT/PATCH/DELETE` 追加 `bodyFields` / `queryFields` 摘要，提升普通 CRUD 排查信息量，不记录请求正文。
+- `backend/prompts/entry-matcher.js` / `backend/utils/regex-runner.js` / `backend/utils/cleanup-hooks.js` / `backend/utils/file-cleanup.js` / `backend/routes/import-export.js` — 将裸 `console.warn/error` 收口到 `createLogger()`，保证降级和清理失败进入按日文件日志。
+- `assistant/server/task-executor.js` — 新增 `as-exec` 日志，覆盖 step start、等待审批、完成、失败、unsupported target 与 task done。
+- `backend/tests/utils/logger.test.js` — 新增 logger 单测，覆盖文件日志不受终端级别过滤、`LOG_FILE_LEVEL` 生效、`WE_CONFIG_PATH` 生效。
+
+**测试**：`npm --prefix backend test -- tests/utils/logger.test.js` 实际执行后端测试套件，163/163 通过。
+
 ## 2026-04-28 写卡助手 prompt 输出质量优化
 
 **背景**：基于 `.temp/无限轮回模拟器.weworld.json` 这类复杂状态机世界卡，单靠风控/语法检测只能拦坏输出，不能提升模型第一次输出的拆步智能、内容稳定性和成功率。

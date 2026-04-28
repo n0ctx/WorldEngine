@@ -105,8 +105,8 @@ function buildContextString(context) {
     const c = context.character;
     parts.push(
       `**当前角色**：${c.name}（ID: ${c.id}）\n` +
-      `system_prompt: ${c.system_prompt?.slice(0, 400) || '（空）'}\n` +
-      `first_message: ${c.first_message?.slice(0, 150) || '（空）'}`,
+      `system_prompt: ${c.system_prompt?.slice(0, 120) || '（空）'}\n` +
+      `first_message: ${c.first_message?.slice(0, 80) || '（空）'}`,
     );
   }
 

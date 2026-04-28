@@ -39,9 +39,10 @@ import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import { resolveUploadPath } from './services/state-values.js';
-import { createLogger } from './utils/logger.js';
+import { createLogger, formatMeta } from './utils/logger.js';
 
 const serverLog = createLogger('http', 'cyan');
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -115,7 +116,13 @@ export function createApp() {
       const status = res.statusCode;
       const isStream = /\/(chat|regenerate|continue|impersonate)$/.test(req.path);
       const streamTag = isStream ? '  [SSE]' : '';
-      serverLog.info(`${method} ${req.path}  →  ${status}${streamTag}  ${ms}ms`);
+      const details = MUTATING_METHODS.has(req.method)
+        ? formatMeta({
+          bodyFields: req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? Object.keys(req.body) : undefined,
+          queryFields: req.query && Object.keys(req.query).length ? Object.keys(req.query) : undefined,
+        })
+        : '';
+      serverLog.info(`${method} ${req.path}  →  ${status}${streamTag}  ${ms}ms${details ? `  ${details}` : ''}`);
     });
     next();
   });

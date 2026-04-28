@@ -1,6 +1,12 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToAnthropicMessages } from './_converters.js';
 
+// 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching
+function withCacheControl(system) {
+  if (!system) return undefined;
+  return [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
+}
+
 function toAnthropicTools(toolDefs) {
   return toolDefs.map((t) => ({
     name: t.function.name,
@@ -24,14 +30,16 @@ export async function* streamAnthropic(messages, config) {
   // extended thinking 不兼容 temperature（必须为 1），有 thinking 时不传 temperature
   if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (system) body.system = system;
+  if (system) body.system = withCacheControl(system);
 
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': config.api_key,
     'anthropic-version': '2023-06-01',
   };
-  if (budgetTokens) headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  const betas = ['prompt-caching-2024-07-31'];
+  if (budgetTokens) betas.push('interleaved-thinking-2025-05-14');
+  headers['anthropic-beta'] = betas.join(',');
 
   const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
 
@@ -108,14 +116,16 @@ export async function completeAnthropic(messages, config) {
   };
   if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (system) body.system = system;
+  if (system) body.system = withCacheControl(system);
 
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': config.api_key,
     'anthropic-version': '2023-06-01',
   };
-  if (budgetTokens) headers['anthropic-beta'] = 'interleaved-thinking-2025-05-14';
+  const betasC = ['prompt-caching-2024-07-31'];
+  if (budgetTokens) betasC.push('interleaved-thinking-2025-05-14');
+  headers['anthropic-beta'] = betasC.join(',');
 
   const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
 
@@ -125,6 +135,13 @@ export async function completeAnthropic(messages, config) {
   }
 
   const data = await resp.json();
+  if (data.usage && config.usageRef) {
+    const u = data.usage;
+    if (u.input_tokens != null) config.usageRef.prompt_tokens = u.input_tokens;
+    if (u.output_tokens != null) config.usageRef.completion_tokens = u.output_tokens;
+    if (u.cache_creation_input_tokens != null) config.usageRef.cache_creation_tokens = u.cache_creation_input_tokens;
+    if (u.cache_read_input_tokens != null) config.usageRef.cache_read_tokens = u.cache_read_input_tokens;
+  }
   return (data.content || []).map((block) => {
     if (block.type === 'thinking') return `<think>${block.thinking}</think>`;
     if (block.type === 'text') return block.text;
@@ -135,14 +152,14 @@ export async function completeAnthropic(messages, config) {
 export async function completeAnthropicWithTools(messages, toolDefs, toolHandlers, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01' };
+  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
   let currentMessages = [...messages];
 
   for (let i = 0; i < 5; i++) {
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: config.max_tokens || 4096 };
     if (config.temperature != null) body.temperature = config.temperature;
-    if (system) body.system = system;
+    if (system) body.system = withCacheControl(system);
 
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
@@ -175,14 +192,14 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
 export async function resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01' };
+  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
   let currentMessages = [...messages];
   let enriched = false;
 
   for (let i = 0; i < 5; i++) {
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
-    if (system) body.system = system;
+    if (system) body.system = withCacheControl(system);
 
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {

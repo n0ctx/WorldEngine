@@ -8,6 +8,9 @@
  */
 
 import { getEnabledRulesForRuntime } from '../db/queries/regex-rules.js';
+import { createLogger, formatMeta } from './logger.js';
+
+const log = createLogger('regex');
 
 /**
  * @param {string} text      原始文本
@@ -23,20 +26,20 @@ export function applyRules(text, scope, worldId, mode = 'chat') {
   try {
     rules = getEnabledRulesForRuntime(scope, worldId ?? null, mode);
   } catch (err) {
-    console.warn('[regex-runner] 读取规则失败:', err.message);
+    log.warn(`LOAD FAIL  ${formatMeta({ scope, worldId: worldId ?? null, mode, error: err.message })}`);
     return result;
   }
 
   for (const rule of rules) {
     if (rule.pattern.length > 500) {
-      console.warn(`[regex-runner] 规则 "${rule.name}" (id=${rule.id}) pattern 超长（${rule.pattern.length} 字符），已跳过`);
+      log.warn(`SKIP LONG PATTERN  ${formatMeta({ id: rule.id, name: rule.name, chars: rule.pattern.length })}`);
       continue;
     }
     try {
       const re = new RegExp(rule.pattern, rule.flags);
       result = result.replace(re, rule.replacement);
     } catch (err) {
-      console.warn(`[regex-runner] 规则 "${rule.name}" (id=${rule.id}) 执行失败:`, err.message);
+      log.warn(`RULE FAIL  ${formatMeta({ id: rule.id, name: rule.name, error: err.message })}`);
     }
   }
 

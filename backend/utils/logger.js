@@ -27,7 +27,7 @@ const DATA_DIR = process.env.WE_DATA_DIR
   ? path.resolve(process.env.WE_DATA_DIR)
   : path.resolve(__dirname, '..', '..', 'data');
 const LOGS_DIR = path.join(DATA_DIR, 'logs');
-const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
+const CONFIG_PATH = process.env.WE_CONFIG_PATH || path.join(DATA_DIR, 'config.json');
 
 const LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
 const currentLevel = LEVEL_ORDER[process.env.LOG_LEVEL?.toLowerCase()] ?? LEVEL_ORDER.warn;
@@ -282,8 +282,6 @@ function formatArg(a) {
 }
 
 function write(level, tag, tagColor, args) {
-  if (LEVEL_ORDER[level] < currentLevel) return;
-
   const lc = C[level];
   const tc = C[tagColor] ?? C.bold;
   const icon = LEVEL_ICON[level];
@@ -296,12 +294,14 @@ function write(level, tag, tagColor, args) {
   const colorLine = `${ts} ${lvl} ${tagStr} ${lc}${icon}${C.reset} ${msg}`;
   const plainLine = `${timestamp()} ${level.toUpperCase().padEnd(5)} [${tagPad}] ${icon} ${msg}`;
 
-  // spinner 活跃时先清空动画行，避免与日志文字重叠
-  if (_spinnerActive) _clearSpinnerLine();
+  if (LEVEL_ORDER[level] >= currentLevel) {
+    // spinner 活跃时先清空动画行，避免与日志文字重叠
+    if (_spinnerActive) _clearSpinnerLine();
 
-  if (level === 'error') console.error(colorLine);
-  else if (level === 'warn') console.warn(colorLine);
-  else console.log(colorLine);
+    if (level === 'error') console.error(colorLine);
+    else if (level === 'warn') console.warn(colorLine);
+    else console.log(colorLine);
+  }
 
   writeToFile(stripAnsi(plainLine), level);
 }

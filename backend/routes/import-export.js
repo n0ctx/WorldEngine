@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportGlobalSettings, importGlobalSettings } from '../services/import-export.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('import');
 
 // GET /api/characters/:id/export — 导出角色卡
 router.get('/characters/:id/export', (req, res) => {
@@ -10,7 +12,7 @@ router.get('/characters/:id/export', (req, res) => {
     res.json(data);
   } catch (err) {
     if (err.message === '角色不存在') return res.status(404).json({ error: err.message });
-    console.error('导出角色卡失败', err);
+    log.error(`EXPORT CHARACTER FAIL  ${formatMeta({ id: req.params.id, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
 });
@@ -25,7 +27,7 @@ router.post('/worlds/:worldId/import-character', (req, res) => {
     if (err.message.includes('角色卡') || err.message.includes('character') || err.message.includes('prompt_entries') || err.message.includes('state_values')) {
       return res.status(400).json({ error: err.message });
     }
-    console.error('导入角色卡失败', err);
+    log.error(`IMPORT CHARACTER FAIL  ${formatMeta({ worldId: req.params.worldId, error: err.message })}`);
     res.status(500).json({ error: '导入失败' });
   }
 });
@@ -37,7 +39,7 @@ router.get('/worlds/:worldId/persona/export', (req, res) => {
     res.json(data);
   } catch (err) {
     if (err.message === '玩家不存在') return res.status(404).json({ error: err.message });
-    console.error('导出玩家卡失败', err);
+    log.error(`EXPORT PERSONA FAIL  ${formatMeta({ worldId: req.params.worldId, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
 });
@@ -49,7 +51,7 @@ router.get('/worlds/:id/export', (req, res) => {
     res.json(data);
   } catch (err) {
     if (err.message === '世界不存在') return res.status(404).json({ error: err.message });
-    console.error('导出世界卡失败', err);
+    log.error(`EXPORT WORLD FAIL  ${formatMeta({ id: req.params.id, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
 });
@@ -63,7 +65,7 @@ router.post('/worlds/import', (req, res) => {
     if (err.message.includes('世界卡') || err.message.includes('world.') || err.message.includes('persona') || err.message.includes('characters[')) {
       return res.status(400).json({ error: err.message });
     }
-    console.error('导入世界卡失败', err);
+    log.error(`IMPORT WORLD FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: '导入失败' });
   }
 });
@@ -75,7 +77,7 @@ router.get('/global-settings/export', (req, res) => {
     const data = exportGlobalSettings(mode);
     res.json(data);
   } catch (err) {
-    console.error('导出全局设置失败', err);
+    log.error(`EXPORT GLOBAL FAIL  ${formatMeta({ mode: req.query.mode === 'writing' ? 'writing' : 'chat', error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
 });
@@ -89,7 +91,7 @@ router.post('/global-settings/import', (req, res) => {
     if (err.message === '全局设置文件格式不正确') {
       return res.status(400).json({ error: err.message });
     }
-    console.error('导入全局设置失败', err);
+    log.error(`IMPORT GLOBAL FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: '导入失败' });
   }
 });
