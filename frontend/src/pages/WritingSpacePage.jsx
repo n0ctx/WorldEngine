@@ -535,6 +535,9 @@ export default function WritingSpacePage() {
           return prev.slice(0, idx);
         });
       }
+      clearOptionsState();
+      selectedOptionIndexRef.current = -1;
+      optionCollapsedRef.current = false;
       setStateTick((tick) => tick + 1);
       setDiaryTick((tick) => tick + 1);
     } catch (err) {

@@ -3,6 +3,34 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 删除消息时同步清空选项卡
+
+**背景**：聊天页面（ChatPage）和写作页面（WritingSpacePage）在删除某条消息（及其之后所有消息）后，活跃的选项卡（OptionCard，由 `currentOptions` 渲染）仍残留在底部。该选项卡逻辑上属于被删除的最后一条 assistant 消息，应同步清除。冻结到具体消息上的 `_options`（FrozenOptionCard）随消息一起从列表中切片移除，无须额外处理。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx` `handleDeleteMessage`：调用 `clearOptionsState()` 并重置 `selectedOptionIndexRef` / `optionCollapsedRef`
+- `frontend/src/pages/WritingSpacePage.jsx` `handleDeleteMessage`：同上
+
+**验证方式**：在聊天/写作页面让 AI 生成带选项卡的回复，点击消息删除按钮，确认底部选项卡同步消失；再次生成新回复，选项卡可正常出现且无残留状态。
+
+**残留风险**：无，删除路径本就清空所有后续消息状态，选项卡属于同一逻辑批次。
+
+## 2026-04-28 写卡助手默认禁用 thinking
+
+**背景**：写卡助手以结构化 JSON 与工具调用为主输出，thinking 一方面增加延迟，另一方面在 GLM-5.1 等模型上会把 JSON 写入 `reasoning_content` 导致解析失败（见上一条 GLM-5.1 修复）；agent-factory 内 `parseWithJsonRetry` 还要专门提示模型"不要 think"。这是事后兜底，应在调用入口直接关闭。主对话写作场景仍需保留全局 thinking 配置。
+
+**改动**：在助手所有 LLM 调用点的 options 显式传 `thinking_level: null`（`backend/llm/index.js` 的 `buildLLMConfig` 已支持此覆盖语义），覆盖：
+- `assistant/server/main-agent.js`：`resolveToolContext` / `chat`
+- `assistant/server/task-planner.js`：`complete`
+- `assistant/server/agent-factory.js`：`completeWithTools`（所有执行子代理统一入口）
+- `assistant/server/routes.js`：extract-characters 的 `complete` 首轮 + JSON 重试
+
+`assistant/CONTRACT.md` 在架构概述新增「LLM 调用约定」一节，要求新增 LLM 调用点沿用此约束。
+
+**验证方式**：在 `data/config.json` 把 `llm.thinking_level` 设为非 null（如 `"medium"`），触发助手对话与 extract-characters；检查日志中助手相关请求体 `thinking_level` 为 `null`，主对话仍为 `"medium"`；同步用 GLM-5.1 复跑创建玩家卡场景，确认子 agent 输出可直接解析、不再触发 `parseWithJsonRetry` 中的"不要 think"重试提示。
+
+**残留风险**：新增 LLM 调用点需 code review 强制带上 `thinking_level: null`，CONTRACT.md 已留检查项。
+
 ## 2026-04-28 写卡助手 GLM-5.1 reasoning_content JSON 解析兼容修复
 
 **背景**：用户在「修真世界」创建玩家卡「夏蝉衣」时，`persona_card_agent` 三次重试均报「输出格式错误：找不到 JSON 对象」（task-6f1c5d1d），STEP FAIL。根因：GLM-5.1（z-ai/glm-5.1，OpenRouter）将最终 JSON proposal 输出写入 `message.reasoning_content` 而非 `message.content`；`backend/llm/providers/openai-compatible.js` 把 reasoning 包成 `<think>{reasoning}</think>\n` 返回，`extract-json.js` 的 `stripLeadingThinkBlocks` 检测到 `<think>` 在首个 `{` 之前 → 整段（含 JSON）一并剥除 → 剩余空字符串 → 抛错。三次 retry 走同一路径全部失败。

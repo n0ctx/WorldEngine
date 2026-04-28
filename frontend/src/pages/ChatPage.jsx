@@ -659,6 +659,9 @@ export default function ChatPage() {
           return prev.slice(0, idx);
         });
       }
+      clearOptionsState();
+      selectedOptionIndexRef.current = -1;
+      optionCollapsedRef.current = false;
       useStore.getState().triggerMemoryRefresh();
     } catch (err) {
       showToast(err.message || '删除失败', 'error');
