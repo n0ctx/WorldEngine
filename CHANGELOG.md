@@ -3,6 +3,19 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 修复连续发送时记忆记录提示卡住
+
+**背景**：聊天页面和写作页面在 AI 回复完成后会显示「正在记录记忆…」，等待后端 `state_updated` / SSE 收尾后延迟消失。若用户在提示未消失前发送下一条消息，页面会递增普通流 `runId`，旧流的 `state_updated` 和 `onStreamEnd` 被视为过期事件整包忽略，导致旧轮提示无法收尾，只能等下一轮记忆记录结束才消失。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx`：为 `memoryWriting` 增加所属 `runId`，旧流 `state_updated` / `onStreamEnd` 即使不能更新消息或解锁输入，也可以关闭自己启动的记忆记录提示；若新轮已进入记忆记录阶段，旧流不会误关新轮提示
+- `frontend/src/pages/WritingSpacePage.jsx`：同步同一机制，保持聊天/写作页面行为一致
+- `frontend/tests/pages/chat-page.test.jsx` / `frontend/tests/pages/writing-space-page.test.jsx`：新增回归测试，覆盖旧流 `state_updated` 能收起旧提示且不会解锁新流
+
+**验证方式**：`cd frontend && npm test -- --run tests/pages/chat-page.test.jsx tests/pages/writing-space-page.test.jsx`，10 个用例通过。
+
+**残留风险**：记忆召回/展开提示仍沿用原来的当前流保护；本次只修复用户反馈的「正在记录记忆…」卡住问题。
+
 ## 2026-04-28 重排 Prompt 顺序并分层以支持 Anthropic Prompt Cache
 
 **背景**：每轮对话的 system prompt 包含大量动态内容（状态、召回摘要、展开原文、日记），导致 Anthropic Prompt Cache 几乎无法命中。要使缓存生效，需将稳定内容（全局/角色/玩家 system prompt）与变化内容（状态、上下文）分离。

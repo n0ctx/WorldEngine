@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useStore from '../../src/store/index.js';
 
@@ -85,7 +85,14 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   }),
 }));
 vi.mock('../../src/components/book/BookSpread.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('../../src/components/book/PageLeft.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
+vi.mock('../../src/components/book/PageLeft.jsx', () => ({
+  default: ({ children, memoryWriting }) => (
+    <div data-testid="left-page">
+      {memoryWriting ? 'memory-writing' : 'memory-idle'}
+      {children}
+    </div>
+  ),
+}));
 vi.mock('../../src/components/book/PageRight.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
 vi.mock('../../src/components/book/StatePanel.jsx', () => ({ default: (props) => <div data-testid="state-panel">{props.worldId}</div> }));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
@@ -119,6 +126,10 @@ describe('ChatPage', () => {
       callbacks.onStreamEnd?.();
       return vi.fn();
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('首次发送会自动建会话并调用 sendMessage', async () => {
@@ -247,5 +258,45 @@ describe('ChatPage', () => {
     });
     fireEvent.click(screen.getByText('send'));
     await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(3));
+  });
+
+  it('旧普通流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {
+    const callbacks = [];
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, cb) => {
+      callbacks.push(cb);
+      return vi.fn();
+    });
+
+    render(<ChatPage />);
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacks[0].onDone?.({ id: 'asst-1', content: '第一轮' }, []);
+    });
+    expect(screen.getByTestId('left-page')).toHaveTextContent('memory-writing');
+
+    fireEvent.click(screen.getByText('send'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+
+    vi.useFakeTimers();
+    act(() => {
+      callbacks[0].onStateUpdated?.();
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByTestId('left-page')).toHaveTextContent('memory-idle');
+
+    fireEvent.click(screen.getByText('send'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
   });
 });

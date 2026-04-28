@@ -118,6 +118,7 @@ export default function WritingSpacePage() {
   const memoryRecallingStartRef = useRef(null);
   const memoryExpandingStartRef = useRef(null);
   const memoryWritingStartRef = useRef(null);
+  const memoryWritingRunIdRef = useRef(null);
   const memoryRecallingTimerRef = useRef(null);
   const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
@@ -205,15 +206,19 @@ export default function WritingSpacePage() {
     const delay = Math.max(0, 1500 - elapsed);
     memoryExpandingTimerRef.current = setTimeout(() => setMemoryExpanding(false), delay);
   }
-  function startMemoryWriting() {
+  function startMemoryWriting(runId = null) {
     clearTimeout(memoryWritingTimerRef.current);
+    memoryWritingRunIdRef.current = runId;
     memoryWritingStartRef.current = Date.now();
     setMemoryWriting(true);
   }
-  function stopMemoryWriting() {
+  function stopMemoryWriting(runId = null) {
+    if (runId !== null && memoryWritingRunIdRef.current !== runId) return;
     const elapsed = Date.now() - (memoryWritingStartRef.current ?? 0);
     const delay = Math.max(0, 1500 - elapsed);
     memoryWritingTimerRef.current = setTimeout(() => {
+      if (runId !== null && memoryWritingRunIdRef.current !== runId) return;
+      memoryWritingRunIdRef.current = null;
       setMemoryWriting(false);
       clearTimeout(recallSummaryTimerRef.current);
       recallSummaryTimerRef.current = setTimeout(() => setRecallSummary(null), 2000);
@@ -224,6 +229,7 @@ export default function WritingSpacePage() {
     clearTimeout(memoryExpandingTimerRef.current);
     clearTimeout(memoryWritingTimerRef.current);
     clearTimeout(recallSummaryTimerRef.current);
+    memoryWritingRunIdRef.current = null;
     setMemoryRecalling(false);
     setMemoryExpanding(false);
     setMemoryWriting(false);
@@ -351,11 +357,12 @@ export default function WritingSpacePage() {
           pendingAssistantRef.current = assistant;
         }
         setGenerating(false);
-        startMemoryWriting();
+        startMemoryWriting(runId);
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         clearTimeout(memoryWritingTimerRef.current);
+        memoryWritingRunIdRef.current = null;
         setMemoryWriting(false);
         if (assistant) pendingAssistantRef.current = assistant;
       },
@@ -377,8 +384,11 @@ export default function WritingSpacePage() {
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
       onStateUpdated() {
-        if (!isCurrentStreamRun(runId)) return;
-        stopMemoryWriting();
+        if (!isCurrentStreamRun(runId)) {
+          stopMemoryWriting(runId);
+          return;
+        }
+        stopMemoryWriting(runId);
         setStateTick((tick) => tick + 1);
       },
       onStateRolledBack() {
@@ -410,7 +420,10 @@ export default function WritingSpacePage() {
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
       onStreamEnd() {
-        if (!isCurrentStreamRun(runId)) return;
+        if (!isCurrentStreamRun(runId)) {
+          stopMemoryWriting(runId);
+          return;
+        }
         const pending = pendingAssistantRef.current;
         pendingAssistantRef.current = null;
         const alreadyAppended = assistantAppendedEarlyRef.current;
@@ -423,7 +436,7 @@ export default function WritingSpacePage() {
         tempUserIdRef.current = null;
         setGenerating(false);
         setStreamingText('');
-        stopMemoryWriting();
+        stopMemoryWriting(runId);
         stopRef.current = null;
         if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {

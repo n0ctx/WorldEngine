@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     refreshCustomCss: vi.fn(),
     getWorld: vi.fn(),
     getPersona: vi.fn(),
+    getPersonaById: vi.fn(),
     listWritingSessions: vi.fn(),
     createWritingSession: vi.fn(),
     listActiveCharacters: vi.fn(),
@@ -41,7 +42,10 @@ vi.mock('../../src/store/appMode.js', () => ({
 vi.mock('../../src/api/custom-css-snippets.js', () => ({ refreshCustomCss: (...args) => mocks.refreshCustomCss(...args) }));
 vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, writing: {} })) }));
 vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
-vi.mock('../../src/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
+vi.mock('../../src/api/personas.js', () => ({
+  getPersona: (...args) => mocks.getPersona(...args),
+  getPersonaById: (...args) => mocks.getPersonaById(...args),
+}));
 vi.mock('../../src/api/writing-sessions.js', () => ({
   listWritingSessions: (...args) => mocks.listWritingSessions(...args),
   createWritingSession: (...args) => mocks.createWritingSession(...args),
@@ -53,6 +57,8 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   editAndRegenerateWriting: vi.fn(),
   editWritingAssistantMessage: vi.fn(),
   impersonateWriting: vi.fn(),
+  extractCharactersFromMessage: vi.fn(),
+  confirmCharacters: vi.fn(),
 }));
 vi.mock('../../src/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
 vi.mock('../../src/components/chat/MessageList.jsx', () => ({
@@ -65,7 +71,11 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     return <div data-testid="message-list">{props.sessionId || 'none'}</div>;
   }),
 }));
-vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({ default: () => <div data-testid="left" /> }));
+vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({
+  default: ({ memoryWriting }) => (
+    <div data-testid="left">{memoryWriting ? 'memory-writing' : 'memory-idle'}</div>
+  ),
+}));
 vi.mock('../../src/components/book/CastPanel.jsx', () => ({ default: () => <div data-testid="cast" /> }));
 vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
@@ -92,6 +102,7 @@ describe('WritingSpacePage', () => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.getWorld.mockResolvedValue({ id: 'world-1', name: '世界' });
     mocks.getPersona.mockResolvedValue({ name: '旅者' });
+    mocks.getPersonaById.mockRejectedValue(new Error('no persona id'));
     mocks.listWritingSessions.mockResolvedValue([]);
     mocks.createWritingSession.mockResolvedValue({ id: 'ws-1', title: null });
     mocks.listActiveCharacters.mockResolvedValue([{ id: 'char-1', name: '阿塔' }]);
@@ -225,5 +236,40 @@ describe('WritingSpacePage', () => {
     });
     fireEvent.click(screen.getByText('send-writing'));
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(3));
+  });
+
+  it('旧普通写作流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {
+    const callbacks = [];
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.generate.mockImplementation((_wid, _sid, _content, cb) => {
+      callbacks.push(cb);
+      return vi.fn();
+    });
+
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
+    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacks[0].onDone?.({ id: 'asst-1', content: '第一段' }, []);
+    });
+    expect(screen.getByTestId('left')).toHaveTextContent('memory-writing');
+
+    fireEvent.click(screen.getByText('send-writing'));
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
+
+    vi.useFakeTimers();
+    act(() => {
+      callbacks[0].onStateUpdated?.();
+      vi.advanceTimersByTime(1500);
+    });
+    expect(screen.getByTestId('left')).toHaveTextContent('memory-idle');
+
+    fireEvent.click(screen.getByText('send-writing'));
+    expect(mocks.generate).toHaveBeenCalledTimes(2);
   });
 });
