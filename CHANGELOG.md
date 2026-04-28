@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 feat(prompts): 常驻条目支持 token=0 进入 CACHED LAYER
+
+**背景**：常驻强约束条目（世界规则、设定锚点）每轮都会注入，但当前一律放在 `[7]` 的 dynamic user 消息中，每轮组合变化导致无法享受 prompt cache。希望让用户显式标记一类「真常驻、内容稳定」的 always 条目进入 cached system，作为 prompt cache 的一部分。
+
+**改动**：
+- `backend/db/queries/prompt-entries.js`：`normalizeToken(value, triggerType)` 当 `triggerType==='always'` 时允许 0；其他 trigger_type 强制 ≥1。`updateWorldEntry` 在切换 trigger_type 为非 always 时自动把 token=0 钳到 1
+- `backend/prompts/assembler.js`：`buildPrompt` 与 `buildWritingPrompt` 拉取 `getAllWorldEntries` 后，先抽出 `trigger_type==='always' && token===0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（`[3.5]` 段位锚点，紧跟 `[3]` 之后）；`[7]` 的命中集合排除这部分条目
+- `frontend/src/components/state/EntryEditor.jsx`：常驻条目的 token 输入框 `min=0`；其他 trigger_type 仍 `min=1`；保存时按 trigger_type 钳位；token=0 时显示 cached 提示
+- `frontend/src/components/state/EntrySection.jsx` + `frontend/src/styles/pages.css`：常驻列表行在 `token===0` 时显示 `CACHED` 徽章
+- `SCHEMA.md` / `ARCHITECTURE.md §4`：补充 token=0 语义与新增 `[3.5]` 段位
+
+**验证方式**：手动建一个常驻 token=0 条目 + 一个常驻 token=1 条目，发起对话；查看 `data/logs/worldengine-YYYY-MM-DD.log` 确认 token=0 条目出现在 system 消息中、token=1 条目出现在 dynamic user 消息中；连发两轮观察 `messages.token_usage.cache_read_tokens` 增长
+
+**残留风险**：用户若把内容很大的常驻条目设为 token=0 后频繁修改文本，会反复让 cached layer miss。属于使用建议范畴，文档已说明
+
 ## 2026-04-28 test(prompts): 修正 assembler 测试以适配 Prompt Cache 分层结构
 
 **背景**：`backend/prompts/assembler.js` 已升级为 cached system + dynamic user + history + 末条 user 的分层结构，但 `tests/prompts/assembler.test.js` 5 个用例仍按老的"单 system 拼装"断言，导致全量测试 5 fail。

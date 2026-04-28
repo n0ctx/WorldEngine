@@ -5,6 +5,7 @@
  *   [1]  全局 System Prompt
  *   [2]  玩家 System Prompt（均为空则跳过）
  *   [3]  角色 System Prompt
+ *   [3.5] 常驻 cached 条目（trigger_type=always 且 token=0，按 sort_order ASC, created_at ASC）
  *
  *   [DYNAMIC LAYER: user role, 每轮变化]
  *   [4]  世界状态
@@ -193,6 +194,17 @@ export async function buildPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
+  // [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
+  const allWorldEntries = getAllWorldEntries(world.id);
+  const cachedEntries = allWorldEntries
+    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
+  if (cachedEntries.length > 0) {
+    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
+    cachedSystemParts.push(cachedTexts.join('\n\n'));
+    log.debug(`│  [3.5] cached entries  count=${cachedEntries.length}`);
+  }
+
   // ─── DYNAMIC LAYER (4, 5, 6-10) ───
   // [4] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
@@ -206,8 +218,8 @@ export async function buildPrompt(sessionId, options = {}) {
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) dynamicSystemParts.push(tv(characterStateText));
 
-  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
-  const worldEntries = getAllWorldEntries(world.id);
+  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
+  const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
@@ -374,6 +386,17 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(lines.join('\n')));
   }
 
+  // [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // 写作模式下 cached layer 仅含 [1][2]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
+  const allWorldEntries = getAllWorldEntries(world.id);
+  const cachedEntries = allWorldEntries
+    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
+  if (cachedEntries.length > 0) {
+    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
+    cachedSystemParts.push(cachedTexts.join('\n\n'));
+    log.debug(`│  [3.5] cached entries  count=${cachedEntries.length}`);
+  }
+
   // ─── DYNAMIC LAYER (3-10，写作模式下[3]也在dynamic以支持多角色切换) ───
   // [3] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
@@ -396,8 +419,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (charStateText) dynamicSystemParts.push(tvChar(charStateText, character));
   }
 
-  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回）
-  const worldEntries = getAllWorldEntries(world.id);
+  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
+  const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   const triggeredEntries2 = worldEntries
     .filter((entry) => triggeredIds.has(entry.id) && entry.content)

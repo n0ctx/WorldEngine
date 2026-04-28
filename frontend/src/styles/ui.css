@@ -1095,6 +1095,22 @@
   margin-bottom: var(--we-space-xs);
 }
 
+.we-entry-editor-hint {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary, var(--we-color-text-secondary));
+  font-style: italic;
+}
+
+.we-entry-editor-cached-note {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  margin: calc(-1 * var(--we-space-sm)) 0 var(--we-space-md);
+  padding: var(--we-space-xs) var(--we-space-sm);
+  border-radius: var(--we-radius-sm);
+  box-shadow: 0 0 0 1px var(--we-color-border-default);
+  background: var(--we-color-bg-elevated, var(--we-color-bg-canvas));
+}
+
 .we-entry-editor-field {
   width: 100%;
   padding: var(--we-space-xs) var(--we-space-md);

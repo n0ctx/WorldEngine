@@ -93,6 +93,11 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
           <span className="we-entry-section-drag">⠿</span>
           <div className="we-entry-section-main">
             <span className="we-entry-section-name">{entry.title}</span>
+            {triggerType === 'always' && entry.token === 0 && (
+              <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER（system 角色，prompt cache 友好）">
+                CACHED
+              </span>
+            )}
             {triggerType === 'keyword' && entry.keywords?.length > 0 && (
               <span className="we-entry-section-keywords">
                 触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}

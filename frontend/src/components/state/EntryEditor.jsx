@@ -26,6 +26,13 @@ function emptyCondition() {
   return { target_field: '', operator: '>', value: '' };
 }
 
+function clampToken(value, triggerType) {
+  const n = parseInt(value, 10);
+  const min = triggerType === 'always' ? 0 : 1;
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, n);
+}
+
 function getOpsForField(targetField, fieldTypeMap) {
   const type = fieldTypeMap.get(targetField);
   if (!type) return [...NUMERIC_OPS, ...TEXT_OPS];
@@ -116,7 +123,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         ? form.keywords.split(',').map((k) => k.trim()).filter(Boolean)
         : null,
       trigger_type: form.trigger_type,
-      token: Math.max(1, parseInt(form.token, 10) || 1),
+      token: clampToken(form.token, form.trigger_type),
     };
     try {
       let saved;
@@ -157,19 +164,28 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         />
 
         {/* 顺序权重 */}
-        <label className="we-entry-editor-label">顺序权重（越大越靠后，默认 1）</label>
+        <label className="we-entry-editor-label">
+          顺序权重（越大越靠后，默认 1）
+          {form.trigger_type === 'always' && (
+            <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER（system 角色，prompt cache 友好）</span>
+          )}
+        </label>
         <input
           type="number"
-          min={1}
+          min={form.trigger_type === 'always' ? 0 : 1}
           step={1}
           value={form.token}
           onChange={(e) => {
-            const v = parseInt(e.target.value, 10);
-            setForm((f) => ({ ...f, token: isNaN(v) || v < 1 ? 1 : v }));
+            setForm((f) => ({ ...f, token: clampToken(e.target.value, f.trigger_type) }));
           }}
           className="we-entry-editor-field we-entry-editor-field-mb"
           style={{ width: '80px' }}
         />
+        {form.trigger_type === 'always' && form.token === 0 && (
+          <div className="we-entry-editor-cached-note">
+            ✦ 此条目将进入 CACHED LAYER，每轮稳定注入，作为 prompt cache 的一部分。
+          </div>
+        )}
 
         {/* 内容 */}
         <label className="we-entry-editor-label">内容</label>

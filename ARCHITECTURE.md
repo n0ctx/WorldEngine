@@ -195,10 +195,11 @@ POST /api/sessions/:sessionId/chat
 | **[1]** | **Cached** | `config.global_system_prompt` | 空字符串跳过 |
 | **[2]** | **Cached** | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
 | **[3]** | **Cached** | `[{{char}}人设]\n${character.system_prompt}` | 空跳过 |
+| **[3.5]** | **Cached** | 常驻 cached 条目：`world_prompt_entries` 中 `trigger_type='always'` 且 `token=0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（每条格式：`【${title}】\n${content}`）；不参与 `matchEntries` | 无此类条目时跳过 |
 | [4] | Dynamic | `renderWorldState(world.id)` | 无字段/值时跳过 |
 | [5] | Dynamic | `renderPersonaState(world.id)` | 空跳过 |
 | [6] | Dynamic | `renderCharacterState(character.id)` | 空跳过 |
-| [7] | Dynamic | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费） | 无条目时跳过 |
+| [7] | Dynamic | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [3.5] 进入 cached layer，不再参与本段命中/排序** | 无条目时跳过 |
 | [8] | Dynamic | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [9] | Dynamic | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [10] | Dynamic | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
@@ -216,7 +217,7 @@ POST /api/sessions/:sessionId/chat
 
 与 `buildPrompt` 的差异：
 
-**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 玩家，[3] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
+**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 玩家 +（如有）[3.5] 常驻 cached 条目，[3] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
 
 | 段 | 差异 |
 |---|---|

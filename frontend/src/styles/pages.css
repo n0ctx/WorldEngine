@@ -1104,6 +1104,20 @@
   padding: 1px 6px;
 }
 
+.we-entry-cached-badge {
+  margin-left: var(--we-space-sm);
+  font-family: var(--we-font-mono, var(--we-font-serif));
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--we-ink-secondary);
+  border-radius: var(--we-radius-sm);
+  padding: 1px 6px;
+  box-shadow: 0 0 0 1px var(--we-ink-faded);
+  background: transparent;
+  text-transform: uppercase;
+}
+
 .we-entry-section-keywords {
   margin-left: var(--we-space-sm);
   font-size: var(--we-text-xs);

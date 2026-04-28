@@ -3,9 +3,13 @@ import db from '../index.js';
 
 // ─── 通用工具 ───────────────────────────────────────────────────
 
-function normalizeToken(value) {
+function normalizeToken(value, triggerType) {
   const n = parseInt(value, 10);
-  return Number.isFinite(n) && n >= 1 ? n : 1;
+  if (!Number.isFinite(n)) return 1;
+  if (triggerType === 'always') {
+    return n >= 0 ? n : 1;
+  }
+  return n >= 1 ? n : 1;
 }
 
 function normalizeKeywordScopeValue(value) {
@@ -64,7 +68,7 @@ export function createWorldEntry(data) {
     normalizeKeywordScopeValue(data.keyword_scope),
     data.trigger_type ?? 'always',
     sortOrder,
-    normalizeToken(data.token),
+    normalizeToken(data.token, data.trigger_type ?? 'always'),
     now,
     now,
   );
@@ -84,6 +88,12 @@ export function updateWorldEntry(id, patch) {
   const sets = [];
   const values = [];
 
+  // 计算更新后的 trigger_type，用于 token 归一化（trigger_type 切换时可能需要把 0 钳到 1）
+  let effectiveTriggerType = patch.trigger_type;
+  if (effectiveTriggerType === undefined && 'token' in patch) {
+    effectiveTriggerType = getWorldEntryById(id)?.trigger_type ?? 'always';
+  }
+
   for (const field of allowed) {
     if (field in patch) {
       sets.push(`${field} = ?`);
@@ -92,8 +102,17 @@ export function updateWorldEntry(id, patch) {
         : field === 'keyword_scope'
           ? normalizeKeywordScopeValue(patch.keyword_scope)
           : field === 'token'
-            ? normalizeToken(patch.token)
+            ? normalizeToken(patch.token, effectiveTriggerType)
             : patch[field]);
+    }
+  }
+
+  // trigger_type 单独切换（未带 token），且新 trigger_type 非 always 时，需要把现有 token=0 钳到 1
+  if ('trigger_type' in patch && !('token' in patch) && patch.trigger_type !== 'always') {
+    const current = getWorldEntryById(id);
+    if (current && current.token === 0) {
+      sets.push('token = ?');
+      values.push(1);
     }
   }
 
