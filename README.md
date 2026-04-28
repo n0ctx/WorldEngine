@@ -76,7 +76,7 @@ QQ 群：**964968606**
 
 ```bash
 # 克隆仓库
-git clone https://github.com/YunzhiWang/WorldEngine.git
+git clone https://github.com/n0ctx/WorldEngine.git
 cd WorldEngine
 
 # 安装依赖
