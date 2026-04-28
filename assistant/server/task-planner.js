@@ -17,7 +17,32 @@ const VALID_OPERATIONS = {
 const VALID_RISK_LEVELS = new Set(['low', 'medium', 'high']);
 const HIGH_RISK_TASK_RE = /删除|清空|覆盖|重置|销毁/;
 
-function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
+function summarizeResearchForPrompt(research) {
+  if (!research || typeof research !== 'object') return '无';
+  const lines = [];
+  if (research.summary) lines.push(`探索摘要：${research.summary}`);
+  if (Array.isArray(research.findings) && research.findings.length > 0) {
+    lines.push('已确认事实：');
+    for (const item of research.findings.slice(0, 12)) {
+      lines.push(`- ${item}`);
+    }
+  }
+  if (Array.isArray(research.constraints) && research.constraints.length > 0) {
+    lines.push('执行约束：');
+    for (const item of research.constraints.slice(0, 8)) {
+      lines.push(`- ${item}`);
+    }
+  }
+  if (Array.isArray(research.gaps) && research.gaps.length > 0) {
+    lines.push('仍缺信息：');
+    for (const item of research.gaps.slice(0, 6)) {
+      lines.push(`- ${item}`);
+    }
+  }
+  return lines.join('\n') || '无';
+}
+
+function buildPlannerPrompt({ message, history, context, research = null, retryFeedback = [] }) {
   const world = context?.world;
   const character = context?.character;
   const cfg = context?.config;
@@ -39,10 +64,11 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         '只有当缺少"必须由使用者提供、无法合理推断"的信息（如：update/delete 操作但上下文完全没有目标实体）时，才输出 mode="clarify"，且 clarificationQuestions 只问 1 个最关键的问题。' +
         '以下情况绝对不要 clarify，直接 plan：题材/风格/名字不明确（给合理默认值）、原始需求说"随便""帮我设计"等模糊指令、细节不完整但方向明确。' +
         '如果原始需求要求执行改动，请输出 mode="plan"，并生成一个可执行的通用步骤计划。' +
+        '你必须基于“探索结果”制定计划；不要假装知道探索结果中没有出现的现有字段、条目或实体。' +
         '规划前先在内部判断任务类型：单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡；不要输出分类，只按分类选择步骤模板。' +
         '复杂世界卡或状态机世界卡必须优先拆步，而不是让一个 world-card 步骤同时承担全部设定、字段、触发条目和初始状态。' +
         '计划中的每个 step 只能交给一个资源域代理：world-card / character-card / persona-card / global-config / css-snippet / regex-rule。' +
-        'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel。' +
+        'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel、rationale、inputs、expectedOutput、acceptance、rollbackRisk。' +
         'entityRef 使用 null、"context.worldId"、"context.characterId" 或 "step:<stepId>"。' +
         'dependsOn 必须是已出现 step.id 数组；若 entityRef 使用 step:<stepId>，该 stepId 必须同时出现在 dependsOn。' +
         'character-card create 与 persona-card create 必须显式依赖一个世界实体来源：context.worldId 或前置 world-card create 步骤。' +
@@ -54,6 +80,7 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         '修复已有卡的推荐模板：先让对应卡代理读取 preview_card，再只修复无效触发、字段类型、条件引用或遗漏内容，不重写整张卡。' +
         '若是已有实体修改，必须基于上下文已有 worldId/characterId 或让后续步骤引用上一步产物。' +
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
+        'rationale 写为什么需要此步骤；inputs 写会用到的上下文或前序 step 产物；expectedOutput 写本步骤应产出的 proposal 类型和关键内容；acceptance 写 1-3 条可检查验收点；rollbackRisk 写失败或误操作影响，低风险也要写“低”。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +
         '输出 schema：{"mode":"answer|clarify|plan","summary":"","answer":"","clarificationQuestions":[],"assumptions":[],"steps":[]}',
     },
@@ -64,6 +91,7 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         `当前世界：${world ? `${world.name} (${world.id})` : '无'}\n` +
         `当前角色：${character ? `${character.name} (${character.id})` : '无'}\n` +
         `当前模型：${cfg?.llm?.model || '未知'}\n\n` +
+        `探索结果：\n${summarizeResearchForPrompt(research)}\n\n` +
         `最近历史：\n${compactHistory || '无'}${retryHint}`,
     },
   ];
@@ -125,6 +153,15 @@ function normalizeSteps(rawSteps, context = {}) {
         task: typeof step.task === 'string' ? step.task.trim() : '',
         riskLevel,
         approvalPolicy: riskLevel === 'high' ? 'requires_step_approval' : 'plan_only',
+        rationale: typeof step.rationale === 'string' && step.rationale.trim() ? step.rationale.trim() : '按计划拆分执行',
+        inputs: Array.isArray(step.inputs) ? step.inputs.map((item) => String(item ?? '').trim()).filter(Boolean) : [],
+        expectedOutput: typeof step.expectedOutput === 'string' && step.expectedOutput.trim()
+          ? step.expectedOutput.trim()
+          : `${targetType} ${operation} proposal`,
+        acceptance: Array.isArray(step.acceptance)
+          ? step.acceptance.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3)
+          : [],
+        rollbackRisk: typeof step.rollbackRisk === 'string' && step.rollbackRisk.trim() ? step.rollbackRisk.trim() : '低',
         status: 'pending',
         proposal: null,
         result: null,
@@ -261,12 +298,12 @@ function validatePlanSteps(rawSteps, context = {}) {
   return errors;
 }
 
-export async function planTask({ message, history = [], context = {} }) {
+export async function planTask({ message, history = [], context = {}, research = null }) {
   let retryFeedback = [];
   log.info(`PLAN START  ${formatMeta({ message: previewText(message, { limit: 160 }) })}`);
 
   for (let attempt = 1; attempt <= PLAN_RETRY_MAX; attempt += 1) {
-    const prompt = buildPlannerPrompt({ message, history, context, retryFeedback });
+    const prompt = buildPlannerPrompt({ message, history, context, research, retryFeedback });
     const raw = await llm.complete(prompt, { temperature: 0.2 });
     const parsedResult = parsePlannerJson(raw, message);
     if (parsedResult.error) {
@@ -340,5 +377,6 @@ export function createBaseTask({ message, context }) {
 
 export const __testables = {
   buildPlannerPrompt,
+  summarizeResearchForPrompt,
   validatePlanSteps,
 };

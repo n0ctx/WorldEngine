@@ -72,6 +72,7 @@ import * as llm from '../../backend/llm/index.js';
 import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
 import { createTask, getTask, updateTask, appendTaskEvent } from './task-store.js';
 import { createBaseTask, planTask } from './task-planner.js';
+import { researchTask } from './task-researcher.js';
 import { executeTaskSteps } from './task-executor.js';
 
 const router = Router();
@@ -190,9 +191,17 @@ function classifyRiskFlags(steps) {
     .map((step) => `${step.targetType}:${step.operation}:${step.title}`);
 }
 
-// 步骤数 < 3 且无高风险时，跳过 plan_approval 直接执行
-function isDirectExecute(graph, riskFlags) {
-  return graph.length > 0 && graph.length < 3 && riskFlags.length === 0;
+function isWriteApprovalOperation(step) {
+  return step.operation === 'update' || step.operation === 'delete';
+}
+
+// 简单低风险 create 可快进；复杂写入、已有实体改删、研究阶段标记的任务都先过计划闸门
+function isDirectExecute(graph, riskFlags, research) {
+  return graph.length > 0
+    && graph.length < 3
+    && riskFlags.length === 0
+    && !research?.needsPlanApproval
+    && !graph.some(isWriteApprovalOperation);
 }
 
 async function streamTaskAnswer({ res, task, message, history = [], context = {} }) {
@@ -500,12 +509,18 @@ router.post('/tasks', async (req, res) => {
   emit({ type: 'task_created', taskId: task.id, task });
 
   try {
-    const planned = await planTask({ message, history, context: enrichedContext });
+    emit({ type: 'research_started', taskId: task.id, task: updateTask(task.id, { status: 'researching' }) });
+    const research = await researchTask({ message, context: enrichedContext });
+    const researchedTask = updateTask(task.id, { research });
+    emit({ type: 'research_ready', taskId: task.id, research, task: researchedTask });
+
+    const planned = await planTask({ message, history, context: enrichedContext, research });
     if (planned.kind === 'clarify') {
       const next = updateTask(task.id, {
         status: 'clarifying',
         summary: planned.summary,
         pendingQuestions: planned.clarificationQuestions,
+        research,
       });
       emit({
         type: 'clarification_requested',
@@ -518,7 +533,7 @@ router.post('/tasks', async (req, res) => {
     }
 
     if (planned.kind === 'answer') {
-      updateTask(task.id, { status: 'executing', summary: planned.summary });
+      updateTask(task.id, { status: 'executing', summary: planned.summary, research });
       await streamTaskAnswer({ res, task, message, history, context: enrichedContext });
       return;
     }
@@ -528,10 +543,11 @@ router.post('/tasks', async (req, res) => {
     const planPayload = {
       summary: planned.summary,
       assumptions: planned.assumptions,
+      researchSummary: research.summary,
       steps: graph,
     };
 
-    if (isDirectExecute(graph, riskFlags)) {
+    if (isDirectExecute(graph, riskFlags, research)) {
       // 简单任务：跳过 plan_approval，直接执行；用 status='executing' 告知前端无需弹卡
       const next = updateTask(task.id, {
         status: 'executing',
@@ -539,6 +555,7 @@ router.post('/tasks', async (req, res) => {
         plan: planPayload,
         graph,
         riskFlags,
+        research,
       });
       emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
       await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
@@ -550,6 +567,7 @@ router.post('/tasks', async (req, res) => {
         plan: planPayload,
         graph,
         riskFlags,
+        research,
       });
       emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
     }
@@ -592,16 +610,23 @@ router.post('/tasks/:taskId/answer', async (req, res) => {
   });
 
   try {
+    emit({ type: 'research_started', taskId: task.id, task: nextBase });
+    const research = await researchTask({ message: mergedMessage, context: task.context });
+    const researchedTask = updateTask(task.id, { research });
+    emit({ type: 'research_ready', taskId: task.id, research, task: researchedTask });
+
     const planned = await planTask({
       message: mergedMessage,
       history: task.sourceHistory || [],
       context: task.context,
+      research,
     });
     if (planned.kind === 'clarify') {
       const next = updateTask(task.id, {
         status: 'clarifying',
         summary: planned.summary,
         pendingQuestions: planned.clarificationQuestions,
+        research,
       });
       emit({
         type: 'clarification_requested',
@@ -614,7 +639,7 @@ router.post('/tasks/:taskId/answer', async (req, res) => {
     }
 
     if (planned.kind === 'answer') {
-      updateTask(task.id, { status: 'executing', summary: planned.summary });
+      updateTask(task.id, { status: 'executing', summary: planned.summary, research });
       await streamTaskAnswer({ res, task, message: mergedMessage, history: task.sourceHistory || [], context: task.context });
       return;
     }
@@ -624,16 +649,18 @@ router.post('/tasks/:taskId/answer', async (req, res) => {
     const planPayload = {
       summary: planned.summary,
       assumptions: planned.assumptions,
+      researchSummary: research.summary,
       steps: graph,
     };
 
-    if (isDirectExecute(graph, riskFlags)) {
+    if (isDirectExecute(graph, riskFlags, research)) {
       const next = updateTask(task.id, {
         status: 'executing',
         summary: planned.summary,
         plan: planPayload,
         graph,
         riskFlags,
+        research,
       });
       emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
       await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
@@ -644,6 +671,7 @@ router.post('/tasks/:taskId/answer', async (req, res) => {
         plan: planPayload,
         graph,
         riskFlags,
+        research,
       });
       emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
     }

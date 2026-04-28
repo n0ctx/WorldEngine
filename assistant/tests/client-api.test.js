@@ -25,6 +25,25 @@ test('processSseBlock 会解析 task 计划事件', () => {
   assert.deepEqual(calls, [['task-1', 'awaiting_plan_approval', true, 0]]);
 });
 
+test('processSseBlock 会解析 research 和 step_blocked 事件', () => {
+  const calls = [];
+  __testables.processSseBlock('data: {"type":"research_ready","task":{"id":"task-1","status":"researching"},"research":{"summary":"已读取世界卡"}}', {
+    onResearchReady(task, research) {
+      calls.push(['research', task.id, research.summary]);
+    },
+  });
+  __testables.processSseBlock('data: {"type":"step_blocked","taskId":"task-1","stepId":"step-b","reason":"等待依赖步骤完成","step":{"id":"step-b"}}', {
+    onStepBlocked(taskId, stepId, reason) {
+      calls.push(['blocked', taskId, stepId, reason]);
+    },
+  });
+
+  assert.deepEqual(calls, [
+    ['research', 'task-1', '已读取世界卡'],
+    ['blocked', 'task-1', 'step-b', '等待依赖步骤完成'],
+  ]);
+});
+
 test('processSseBlock 会把完整高风险步骤 proposal 透传给回调', () => {
   const calls = [];
   __testables.processSseBlock('data: {"type":"step_proposal_ready","taskId":"task-1","stepId":"step-risk","proposal":{"type":"world-card","operation":"delete","entityId":"world-1","changes":{},"explanation":"删除世界"},"proposalSummary":{"type":"world-card"},"step":{"id":"step-risk"}}', {
@@ -83,6 +102,7 @@ test('startAssistantTask 会透传 task 事件并在结束时触发 onStreamEnd'
   const encoder = new TextEncoder();
   const chunks = [
     'data: {"type":"task_created","task":{"id":"task-1","status":"researching"}}\n',
+    'data: {"type":"research_ready","task":{"id":"task-1","status":"researching"},"research":{"summary":"无需读取"}}\n',
     'data: {"type":"plan_ready","task":{"id":"task-1","status":"awaiting_plan_approval","plan":{"steps":[]}},"plan":{"steps":[]},"riskFlags":[]}\n',
     'data: {"done":true}',
   ];
@@ -108,6 +128,9 @@ test('startAssistantTask 会透传 task 事件并在结束时触发 onStreamEnd'
       onPlanReady(task) {
         calls.push(['plan', task.id, task.status]);
       },
+      onResearchReady(task, research) {
+        calls.push(['research', task.id, research.summary]);
+      },
       onDone() {
         calls.push(['done']);
       },
@@ -120,6 +143,7 @@ test('startAssistantTask 会透传 task 事件并在结束时触发 onStreamEnd'
 
   assert.deepEqual(calls, [
     ['created', 'task-1', 'researching'],
+    ['research', 'task-1', '无需读取'],
     ['plan', 'task-1', 'awaiting_plan_approval'],
     ['done'],
     ['end'],

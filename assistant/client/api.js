@@ -31,6 +31,10 @@ function processSseBlock(block, callbacks) {
       callbacks.onClarificationRequested?.(evt.task, evt.questions, evt.summary);
     } else if (evt.type === 'clarification_answered') {
       callbacks.onClarificationAnswered?.(evt.task, evt.answer);
+    } else if (evt.type === 'research_started') {
+      callbacks.onResearchStarted?.(evt.task);
+    } else if (evt.type === 'research_ready') {
+      callbacks.onResearchReady?.(evt.task, evt.research);
     } else if (evt.type === 'plan_ready') {
       callbacks.onPlanReady?.(evt.task, evt.plan, evt.riskFlags);
     } else if (evt.type === 'plan_approved') {
@@ -47,6 +51,12 @@ function processSseBlock(block, callbacks) {
       callbacks.onStepCompleted?.(evt.taskId, evt.stepId, evt.result, evt.step);
     } else if (evt.type === 'step_failed') {
       callbacks.onStepFailed?.(evt.taskId, evt.stepId, evt.error, evt.step);
+    } else if (evt.type === 'step_blocked') {
+      callbacks.onStepBlocked?.(evt.taskId, evt.stepId, evt.reason, evt.step);
+    } else if (evt.type === 'replan_started') {
+      callbacks.onReplanStarted?.(evt.task);
+    } else if (evt.type === 'replan_ready') {
+      callbacks.onReplanReady?.(evt.task, evt.plan);
     } else if (evt.type === 'task_completed') {
       callbacks.onTaskCompleted?.(evt.taskId);
     } else if (evt.type === 'task_failed') {

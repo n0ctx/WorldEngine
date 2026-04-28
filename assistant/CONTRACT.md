@@ -9,12 +9,13 @@
 - **通用 Agent 轨**：`/api/assistant/tasks*` 采用 `Task -> Plan -> Step Graph -> Proposal -> Apply` 模型
 
 通用 Agent 组件：
-- **Planner**（`task-planner.js`）：根据用户目标输出 `answer / clarify / plan`，并对 plan 结构做语义校验；校验失败时会带错误反馈做 semantic retry，而不是直接降级
-- **Executor**（`task-executor.js`）：按步骤图逐步调用执行子代理；低风险步骤生成 proposal 后直接落库，高风险步骤先返回完整 proposal 供前端审阅/编辑，再统一走同一条落库边界
+- **Researcher**（`task-researcher.js`）：在 planner 前基于当前上下文调用 `preview_card` / `read_file` 收集事实，输出 `research.summary / findings / constraints / gaps / needsPlanApproval`
+- **Planner**（`task-planner.js`）：根据用户目标 + research 输出 `answer / clarify / plan`，并对 plan 结构做语义校验；校验失败时会带错误反馈做 semantic retry，而不是直接降级
+- **Executor**（`task-executor.js`）：按 step DAG 调用执行子代理；无依赖的低风险步骤可并发执行，有依赖步骤等待前序 artifact；高风险步骤先返回完整 proposal 供前端审阅/编辑，再统一走同一条落库边界
 - **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`
 - **辅助工具**：`preview_card`（查询实体数据）、`read_file`（读取项目文件）
 
-Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡）再拆步骤；复杂/状态机世界卡应拆出基础结构、状态字段、触发条目和后续状态值填写步骤。执行子代理除 JSON 解析失败重试外，若 `normalizeProposal()` 返回明确契约错误，也会带错误反馈重试一次并要求定向修复。
+Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡）再拆步骤；复杂/状态机世界卡应拆出基础结构、状态字段、触发条目和后续状态值填写步骤。复杂写入默认走计划闸门：3 步以上、高风险、已有实体 update/delete、或 research 标记 `needsPlanApproval=true` 时，必须先 `awaiting_plan_approval`。执行子代理除 JSON 解析失败重试外，若 `normalizeProposal()` 返回明确契约错误，也会带错误反馈重试一次并要求定向修复。
 
 ### 术语约束
 
@@ -59,10 +60,30 @@ Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、
 { "type": "clarification_requested", "taskId": "task-xxxx", "summary": "...", "questions": ["...", "..."], "task": {} }
 ```
 
+#### `research_started` / `research_ready`
+
+```json
+{ "type": "research_started", "taskId": "task-xxxx", "task": {} }
+{
+  "type": "research_ready",
+  "taskId": "task-xxxx",
+  "research": {
+    "summary": "...",
+    "operation": "create|update|delete",
+    "targets": ["world-card"],
+    "findings": [],
+    "constraints": [],
+    "gaps": [],
+    "needsPlanApproval": true
+  },
+  "task": {}
+}
+```
+
 #### `plan_ready`
 
 ```json
-{ "type": "plan_ready", "taskId": "task-xxxx", "plan": { "summary": "...", "assumptions": [], "steps": [] }, "riskFlags": [], "task": {} }
+{ "type": "plan_ready", "taskId": "task-xxxx", "plan": { "summary": "...", "researchSummary": "...", "assumptions": [], "steps": [] }, "riskFlags": [], "task": {} }
 ```
 
 #### `plan_approved`
@@ -107,6 +128,12 @@ Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、
 { "type": "step_completed", "taskId": "task-xxxx", "stepId": "step-1", "result": {}, "step": {} }
 ```
 
+#### `step_blocked`
+
+```json
+{ "type": "step_blocked", "taskId": "task-xxxx", "stepId": "step-2", "reason": "等待依赖步骤完成", "step": {} }
+```
+
 #### `task_completed` / `task_failed`
 
 ```json
@@ -136,7 +163,12 @@ Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、
   "dependsOn": [],
   "task": "给对应子代理的自然语言任务说明",
   "riskLevel": "low|medium|high",
-  "approvalPolicy": "plan_only|requires_step_approval"
+  "approvalPolicy": "plan_only|requires_step_approval",
+  "rationale": "为什么需要此步骤",
+  "inputs": ["context.worldId", "step:step-create-world"],
+  "expectedOutput": "本步骤应产出的 proposal 类型和关键内容",
+  "acceptance": ["可检查的验收点"],
+  "rollbackRisk": "失败或误操作影响"
 }
 ```
 

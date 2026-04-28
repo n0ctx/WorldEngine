@@ -40,8 +40,8 @@ test('createPreviewCardTool 在 create 场景返回全局/世界 prompt 上下�
   const characterCreate = JSON.parse(await tool.execute({ target: 'character-card', operation: 'create' }));
   const personaCreate = JSON.parse(await tool.execute({ target: 'persona-card', operation: 'create' }));
 
-  assert.equal(worldCreate._globalSystemPrompt, '全局系统提示');
-  assert.equal(characterCreate._globalSystemPrompt, '全局系统提示');
+  assert.equal(worldCreate._globalSystemPrompt, undefined);
+  assert.equal(characterCreate._globalSystemPrompt, undefined);
   assert.equal(characterCreate._worldName, '晨星海');
   assert.equal(characterCreate._worldDescription, '海上群岛');
   assert.equal(characterCreate.existingWorldEntries.length, 1);
@@ -120,7 +120,7 @@ test('createPreviewCardTool 会返回 persona-card 与 global-prompt 的完整�
   assert.equal(personaData.existingPersonaStateFields.length, 1);
   assert.equal(personaData.existingPersonaStateValues.length, 1);
   assert.equal(personaData.existingPersonaStateValues[0].field_key, 'trust');
-  assert.equal(personaData._globalSystemPrompt, '全局系统提示');
+  assert.equal(personaData._globalSystemPrompt, undefined);
   assert.equal(personaData._worldName, '镜城');
   assert.equal(personaData._worldDescription, '');
 

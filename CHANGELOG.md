@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手 Plan-Execute 实质化改造
+
+**背景**：原 `/api/assistant/tasks` 计划卡主要展示步骤标题与状态，planner 没有真实探索阶段，executor 也基本按线性步骤执行，难以像 Codex / Claude Code 的 plan 模式那样提升复杂任务稳定性。
+
+**改动**：
+- `assistant/server/task-researcher.js` — 新增 Researcher 阶段，在 planner 前基于上下文调用 `preview_card` / `read_file`，产出 `research.summary / findings / constraints / gaps / needsPlanApproval`。
+- `assistant/server/task-planner.js` — planner prompt 接收探索结果，并要求 step 输出 `rationale / inputs / expectedOutput / acceptance / rollbackRisk`；旧模型未输出时服务端会补默认值，避免兼容性断裂。
+- `assistant/server/routes.js` — `/tasks` 和 `/tasks/:taskId/answer` 新增 `research_started` / `research_ready` SSE；计划审批闸门改为复杂写入触发：3 步以上、高风险、已有实体 update/delete、或 research 标记需要审批时才等待用户确认，简单低风险 create 仍可快进。
+- `assistant/server/task-executor.js` — executor 从线性循环升级为 DAG ready-batch 调度；无依赖低风险步骤可并发执行，有依赖步骤等待前序 artifact；高风险步骤仍先生成完整 proposal 再等待审阅。
+- `assistant/client/api.js` / `AssistantPanel.jsx` / `MessageList.jsx` — 前端解析 research / step_blocked 事件，任务卡展示探索依据、约束/缺口、步骤目的、预期产出、输入、验收点和风险。
+- `assistant/server/tools/extract-json.js` — 修复 JSDoc 中直接写 `/* */` 导致 Node 25 解析失败的问题（只改注释文本）。
+- `assistant/tests/*` — 新增 Researcher、DAG executor、research SSE、planner research 注入测试；同步 card-preview 测试，确认 `_globalSystemPrompt` 继续保持移除状态。
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步记录 `Task -> Research -> Plan -> Step DAG -> Proposal -> Apply`、新增 SSE 和扩展 step schema。
+
+**测试**：`npm test --prefix assistant`，77/77 通过。
+
 ## 2026-04-28 写卡助手 JSON 输出稳定性优化（第二轮）
 
 **背景**：GLM/OpenRouter 模型有时输出含尾部逗号、`//` 行注释或 `/* */` 块注释的 JSON，纯 `JSON.parse` 失败，且 `MAX_JSON_RETRY=1` 只有一次补救机会，复发率高。

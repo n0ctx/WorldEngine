@@ -134,12 +134,11 @@ function UserMessage({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const taRef = useRef(null);
-  const editInitContentRef = useRef('');
 
-  function startEdit() { editInitContentRef.current = msg.content; setDraft(msg.content); setEditing(true); }
+  function startEdit() { setDraft(msg.content); setEditing(true); }
   function confirmEdit() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== editInitContentRef.current.trim()) onEdit?.(msg.id, trimmed);
+    if (trimmed && trimmed !== msg.content.trim()) onEdit?.(msg.id, trimmed);
     setEditing(false);
   }
   function cancelEdit() { setEditing(false); }
@@ -410,11 +409,27 @@ function TaskBadge({ children, tone = 'default' }) {
 
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'failed']);
 
+function MiniList({ title, items }) {
+  const normalized = Array.isArray(items)
+    ? items.map((item) => String(item ?? '').trim()).filter(Boolean)
+    : [];
+  if (normalized.length === 0) return null;
+  return (
+    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+      <div style={{ color: 'var(--we-ink-primary, #3d2e22)', fontWeight: 600 }}>{title}</div>
+      {normalized.slice(0, 3).map((item, index) => (
+        <div key={`${title}-${index}`}>- {item}</div>
+      ))}
+    </div>
+  );
+}
+
 function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismissTask }) {
   if (!task) return null;
 
   const steps = task.plan?.steps || task.graph || [];
   const awaitingStepId = task.awaitingStepId || steps.find((step) => step.status === 'awaiting_approval')?.id || null;
+  const research = task.research;
   return (
     <div
       style={{
@@ -434,6 +449,25 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
       <div style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', lineHeight: '1.6' }}>
         {task.summary || task.goal}
       </div>
+      {research?.summary && (
+        <div
+          style={{
+            marginTop: '8px',
+            padding: '8px 9px',
+            borderRadius: '8px',
+            background: 'rgba(138,94,74,0.06)',
+            border: '1px solid rgba(138,94,74,0.12)',
+            fontSize: '11px',
+            color: 'var(--we-ink-muted, #9c8a7e)',
+            lineHeight: '1.5',
+          }}
+        >
+          <div style={{ color: 'var(--we-ink-primary, #3d2e22)', fontWeight: 600, marginBottom: '3px' }}>探索依据</div>
+          <div>{research.summary}</div>
+          <MiniList title="约束" items={research.constraints} />
+          <MiniList title="缺口" items={research.gaps} />
+        </div>
+      )}
       {Array.isArray(task.pendingQuestions) && task.pendingQuestions.length > 0 && (
         <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)' }}>
           {task.pendingQuestions.map((item, index) => (
@@ -464,6 +498,23 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
               <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
                 {step.targetType} · {step.operation}
               </div>
+              {step.rationale && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+                  目的：{step.rationale}
+                </div>
+              )}
+              {step.expectedOutput && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+                  产出：{step.expectedOutput}
+                </div>
+              )}
+              <MiniList title="输入" items={step.inputs} />
+              <MiniList title="验收" items={step.acceptance} />
+              {step.rollbackRisk && (
+                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
+                  风险：{step.rollbackRisk}
+                </div>
+              )}
               {step.proposalSummary && (
                 <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
                   changes: {step.proposalSummary.changeKeys?.join(', ') || '无'}

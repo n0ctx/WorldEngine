@@ -69,6 +69,26 @@ test('buildPlannerPrompt 会要求复杂世界卡分类拆步和状态机模板'
   assert.match(messages[0].content, /修复已有卡的推荐模板/);
 });
 
+test('buildPlannerPrompt 会把探索结果注入规划上下文并要求可验收步骤', async () => {
+  const { __testables } = await importPlanner();
+  const messages = __testables.buildPlannerPrompt({
+    message: '修复当前世界卡',
+    history: [],
+    context: {},
+    research: {
+      summary: '世界卡：旧世界；条目 6；状态字段 世界 2 / 玩家 3 / 角色 1',
+      findings: ['发现 1 条空关键词条目'],
+      constraints: ['update 必须基于 preview_card'],
+      gaps: [],
+    },
+  });
+
+  assert.match(messages[0].content, /rationale/);
+  assert.match(messages[0].content, /acceptance/);
+  assert.match(messages[1].content, /探索结果/);
+  assert.match(messages[1].content, /发现 1 条空关键词条目/);
+});
+
 test('planTask 在语义校验失败后会执行 semantic retry', async () => {
   const { planTask } = await importPlanner();
   resetMockEnv();

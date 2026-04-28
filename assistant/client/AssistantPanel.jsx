@@ -143,6 +143,14 @@ export default function AssistantPanel() {
       setCurrentTask(task);
       callbacks.onClarificationAnswered?.(task);
     },
+    onResearchStarted: (task) => {
+      setCurrentTask(task);
+      callbacks.onResearchStarted?.(task);
+    },
+    onResearchReady: (task, research) => {
+      setCurrentTask({ ...(task || {}), research });
+      callbacks.onResearchReady?.(task, research);
+    },
     onPlanReady: (task) => {
       setCurrentTask(task);
       callbacks.onPlanReady?.(task);
@@ -182,6 +190,18 @@ export default function AssistantPanel() {
       patchCurrentTask({ status: 'failed', error });
       addMessage({ role: 'error', content: error });
       callbacks.onStepFailed?.(_taskId, stepId, error, step);
+    },
+    onStepBlocked: (_taskId, stepId, reason, step) => {
+      if (step) updateTaskStep(stepId, () => step);
+      callbacks.onStepBlocked?.(_taskId, stepId, reason, step);
+    },
+    onReplanStarted: (task) => {
+      if (task) setCurrentTask(task);
+      callbacks.onReplanStarted?.(task);
+    },
+    onReplanReady: (task) => {
+      if (task) setCurrentTask(task);
+      callbacks.onReplanReady?.(task);
     },
     onTaskCompleted: () => {
       const taskSnapshot = useAssistantStore.getState().currentTask;

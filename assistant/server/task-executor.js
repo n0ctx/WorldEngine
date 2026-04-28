@@ -19,8 +19,7 @@ function cloneStep(step) {
 function isHighRiskStep(step) {
   return step.approvalPolicy === 'requires_step_approval'
     || step.operation === 'delete'
-    || step.operation === 'update'
-    || /删除|清空|覆盖/.test(step.task);
+    || /删除|清空|覆盖|重置|销毁/.test(step.task);
 }
 
 function resolveEntityRef(task, step) {
@@ -37,6 +36,10 @@ function resolveEntityRef(task, step) {
 
 function canRunStep(task, step) {
   return (step.dependsOn || []).every((depId) => task.graph.find((candidate) => candidate.id === depId)?.status === 'completed');
+}
+
+function hasFailedDependency(task, step) {
+  return (step.dependsOn || []).some((depId) => task.graph.find((candidate) => candidate.id === depId)?.status === 'failed');
 }
 
 function summarizeProposal(proposal) {
@@ -60,6 +63,7 @@ export async function executeTaskSteps({
   emit,
   startFromStepId = null,
   autoApproveHighRisk = false,
+  runAgent = runAgentDefinition,
 }) {
   const previewCardTool = createPreviewCardTool({
     worldId: task.context.worldId,
@@ -68,16 +72,8 @@ export async function executeTaskSteps({
     character: task.context.character ?? null,
   });
 
-  let resumeGateOpened = !startFromStepId;
-  for (const current of task.graph) {
+  async function runOneStep(current) {
     const step = cloneStep(current);
-    if (step.status === 'completed') continue;
-    if (!resumeGateOpened) {
-      resumeGateOpened = step.id === startFromStepId;
-      if (!resumeGateOpened) continue;
-    }
-    if (!canRunStep(task, step)) continue;
-
     current.status = 'running';
     log.info(`STEP START  ${formatMeta({
       taskId: task.id,
@@ -114,7 +110,7 @@ export async function executeTaskSteps({
     try {
       let proposal = current.proposal;
       if (!proposal) {
-        proposal = await runAgentDefinition(agent, {
+        proposal = await runAgent(agent, {
           task: step.task,
           operation: step.operation,
           entityId,
@@ -190,6 +186,65 @@ export async function executeTaskSteps({
       });
       return task;
     }
+  }
+
+  const startIndex = startFromStepId
+    ? Math.max(0, task.graph.findIndex((step) => step.id === startFromStepId))
+    : 0;
+
+  while (true) {
+    for (const step of task.graph) {
+      if (step.status !== 'pending') continue;
+      if (!hasFailedDependency(task, step)) continue;
+      step.status = 'failed';
+      step.error = '依赖步骤失败，当前步骤无法执行';
+      emit({
+        type: 'step_blocked',
+        taskId: task.id,
+        stepId: step.id,
+        reason: step.error,
+        step,
+      });
+    }
+
+    if (task.status === 'failed' || task.status === 'awaiting_step_approval') return task;
+    const unfinished = task.graph.filter((step, index) => index >= startIndex && step.status !== 'completed');
+    if (unfinished.length === 0) break;
+    if (unfinished.every((step) => step.status === 'failed')) {
+      task.status = 'failed';
+      task.error = '所有剩余步骤均失败';
+      emit({ type: 'task_failed', taskId: task.id, error: task.error, task });
+      return task;
+    }
+
+    const ready = task.graph.filter((step, index) => (
+      index >= startIndex
+      && step.status === 'pending'
+      && canRunStep(task, step)
+    ));
+
+    if (ready.length === 0) {
+      const blocked = task.graph.filter((step, index) => index >= startIndex && step.status === 'pending');
+      for (const step of blocked) {
+        emit({
+          type: 'step_blocked',
+          taskId: task.id,
+          stepId: step.id,
+          reason: '等待依赖步骤完成',
+          step,
+        });
+      }
+      return task;
+    }
+
+    const approvalStep = ready.find((step) => isHighRiskStep(step) && !autoApproveHighRisk && !step.approved);
+    if (approvalStep) {
+      await runOneStep(approvalStep);
+      return task;
+    }
+
+    await Promise.all(ready.map((step) => runOneStep(step)));
+    if (task.status === 'failed' || task.status === 'awaiting_step_approval') return task;
   }
 
   task.status = 'completed';
