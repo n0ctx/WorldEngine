@@ -150,8 +150,8 @@ export async function runAgentDefinition(def, {
         log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt, maxRetry: MAX_JSON_RETRY, error: jsonErr.message })}`);
         messages.push({ role: 'assistant', content: current });
         const hint = attempt === 1
-          ? `你的输出无法解析为合法 JSON（错误：${jsonErr.message}）。请只重发 1 个 JSON 对象，不要代码块、注释或解释。`
-          : `你的输出仍无法解析为合法 JSON（错误：${jsonErr.message}）。请严格输出 1 个纯 JSON 对象：不要任何解释文字、不要 Markdown 代码块、不要 // 注释、不要尾部逗号。`;
+          ? `你的输出无法解析为合法 JSON（错误：${jsonErr.message}）。请把 JSON 直接写在最终回复正文（content）中，不要写在 reasoning / thinking 段，也不要用代码块、注释或解释。只重发 1 个 JSON 对象。`
+          : `你的输出仍无法解析为合法 JSON（错误：${jsonErr.message}）。请严格在最终回复正文输出 1 个纯 JSON 对象：不要写在 reasoning / thinking 段，不要任何解释文字、不要 Markdown 代码块、不要 // 注释、不要尾部逗号。`;
         messages.push({ role: 'user', content: hint });
         current = await generateOnce({ retry: true });
       }

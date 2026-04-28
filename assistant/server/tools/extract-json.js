@@ -16,12 +16,34 @@ export function extractJson(raw, options = {}) {
 
   // 只剥离 JSON 对象之前的 <think> 前缀块，保留 JSON 字符串值内的 <think> 内容
   const stripped = stripLeadingThinkBlocks(text);
+
+  if (stripped) {
+    const result = tryExtractFrom(stripped, prefer);
+    if (result) return result;
+  }
+
+  // 回退：GLM-5.1 等模型会把最终 JSON 输出放进 reasoning_content，
+  // openai-compatible provider 将其包装为 <think>...JSON...</think>，
+  // 此时 stripLeadingThinkBlocks 会把整段 JSON 一并剥掉。
+  // 在外层全部失败（或剥离后为空）时，从 think 块体内部再扫一次。
+  const insideThink = extractThinkBlockBodies(text);
+  for (const body of insideThink) {
+    const inner = tryExtractFrom(body, prefer);
+    if (inner) return inner;
+  }
+
   if (!stripped) throw new Error('输出格式错误：输出为空');
-
-  const result = tryExtractFrom(stripped, prefer);
-  if (result) return result;
-
   throw new Error('输出格式错误：找不到 JSON 对象');
+}
+
+function extractThinkBlockBodies(text) {
+  const bodies = [];
+  const re = /<think>([\s\S]*?)<\/think>/gi;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m[1]) bodies.push(m[1]);
+  }
+  return bodies;
 }
 
 /**

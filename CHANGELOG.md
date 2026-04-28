@@ -3,6 +3,19 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手 GLM-5.1 reasoning_content JSON 解析兼容修复
+
+**背景**：用户在「修真世界」创建玩家卡「夏蝉衣」时，`persona_card_agent` 三次重试均报「输出格式错误：找不到 JSON 对象」（task-6f1c5d1d），STEP FAIL。根因：GLM-5.1（z-ai/glm-5.1，OpenRouter）将最终 JSON proposal 输出写入 `message.reasoning_content` 而非 `message.content`；`backend/llm/providers/openai-compatible.js` 把 reasoning 包成 `<think>{reasoning}</think>\n` 返回，`extract-json.js` 的 `stripLeadingThinkBlocks` 检测到 `<think>` 在首个 `{` 之前 → 整段（含 JSON）一并剥除 → 剩余空字符串 → 抛错。三次 retry 走同一路径全部失败。
+
+**改动**：
+- `assistant/server/tools/extract-json.js`：在外层提取（直接整段、代码块、顶层切片）全部失败后，新增回退分支 `extractThinkBlockBodies` 扫描所有 `<think>...</think>` 块体，对每个块体重跑 `tryExtractFrom`。优先级保持「外部 JSON > think 块内 JSON」，不破坏字符串内含 `<think>` 字面量的保护
+- `assistant/server/agent-factory.js`：`parseWithJsonRetry` 的两次重试 prompt 增加明确指令「把 JSON 直接写在最终回复正文（content）中，不要写在 reasoning / thinking 段」，文案兜底降低复发概率
+- `assistant/tests/tools/extract-json.test.js`：补充两个用例覆盖「JSON 完全在 think 块内」和「外部 JSON 优先于 think 内 JSON」
+
+**验证方式**：`cd assistant && node --test tests/tools/extract-json.test.js`（6 用例全过）；端到端复刻原场景，使用 z-ai/glm-5.1 模型创建玩家卡，期望 `as-agent RAW` 后直接 apply，无 `json-parse-failed` 警告。
+
+**残留风险**：未覆盖「JSON 半段在 reasoning、半段在 content」的极端情况；若再次出现需在 provider 层调整 reasoning/content 拼接策略。
+
 ## 2026-04-28 写卡助手任务面板状态中文化与步骤视觉优化
 
 **背景**：任务面板的 TaskBadge 直接显示英文状态码（`researching` / `completed` 等），步骤卡片无视觉区分，完成后无手动关闭入口，1.5s 自动消失用户常看不清结果。
