@@ -6,6 +6,8 @@ import {
 } from '../../api/config';
 import ProviderBlock from './ProviderBlock';
 import WritingLlmBlock from './WritingLlmBlock';
+import AuxLlmBlock from './AuxLlmBlock';
+import AssistantModelBlock from './AssistantModelBlock';
 import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
@@ -17,6 +19,8 @@ export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,
   settingsMode, onModeChange,
   writingLlm, onWritingLlmChange,
+  auxLlm, onAuxLlmChange, onAuxApiKeySave, fetchAuxModels, testAuxConnection,
+  assistantModelSource, onAssistantModelSourceChange,
   proxyUrl, onProxyUrlSave,
 }) {
   const [testStatus, setTestStatus] = useState('idle');
@@ -69,10 +73,11 @@ export default function LlmConfigPanel({
       <h2 className="we-settings-section-title">LLM 配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
+      {/* 主模型区块：按 settingsMode 分支渲染 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <WritingLlmBlock writingLlm={writingLlm} onWritingLlmChange={onWritingLlmChange} chatModel={llm.model} />
       ) : (
-        <>
+        <div className="we-settings-field-group">
           <ProviderBlock
             title="语言模型（LLM）"
             providers={LLM_PROVIDERS}
@@ -121,60 +126,82 @@ export default function LlmConfigPanel({
               {testStatus === 'error' && <span className="we-settings-status-error">{testMsg}</span>}
             </div>
           </div>
-
-          <hr className="we-settings-divider" />
-
-          <div className="we-settings-field-group">
-            <p className="we-settings-subsection-title">网络代理</p>
-            <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。">
-              <div className="we-settings-proxy-row">
-                <Input
-                  className="we-settings-proxy-input"
-                  value={proxyInput}
-                  onChange={(e) => { setProxyInput(e.target.value); setProxySaved(false); }}
-                  placeholder="http://127.0.0.1:7890"
-                />
-                <Button
-                  variant="default"
-                  onClick={async () => {
-                    await onProxyUrlSave(proxyInput.trim());
-                    setProxySaved(true);
-                    setTimeout(() => setProxySaved(false), 2000);
-                  }}
-                >
-                  {proxySaved ? '已应用' : '应用'}
-                </Button>
-              </div>
-            </FormGroup>
-          </div>
-
-          <hr className="we-settings-divider" />
-
-          <ProviderBlock
-            title="Embedding 模型"
-            providers={EMBEDDING_PROVIDERS}
-            config={embedding}
-            onProviderChange={(v) => onEmbeddingChange('provider', v || null)}
-            onBaseUrlChange={(v) => onEmbeddingChange('base_url', v)}
-            onModelChange={(v) => onEmbeddingChange('model', v)}
-            onApiKeySave={updateEmbeddingApiKey}
-            onApiKeySaved={() => onEmbeddingChange('has_key', true)}
-            loadModels={fetchEmbeddingModels}
-          />
-
-          {embedding.provider && (
-            <div className="we-settings-field-group">
-              <div className="we-settings-action-row">
-                <Button variant="default" onClick={handleTestEmbedding} disabled={embedTestStatus === 'testing'}>
-                  {embedTestStatus === 'testing' ? '测试中…' : '测试 Embedding'}
-                </Button>
-                {embedTestStatus === 'ok' && <span className="we-settings-status-ok">{embedTestMsg}</span>}
-                {embedTestStatus === 'error' && <span className="we-settings-status-error">{embedTestMsg}</span>}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
+
+      {/* 副模型、助手、embedding、网络代理区块：两个 tab 共享 */}
+      <hr className="we-settings-divider" />
+
+      <AuxLlmBlock
+        providers={LLM_PROVIDERS}
+        config={auxLlm}
+        onProviderChange={(v) => onAuxLlmChange('provider', v)}
+        onBaseUrlChange={(v) => onAuxLlmChange('base_url', v)}
+        onModelChange={(v) => onAuxLlmChange('model', v)}
+        onApiKeySave={onAuxApiKeySave}
+        onApiKeySaved={() => onAuxLlmChange('has_key', true)}
+        testConnection={testAuxConnection}
+        loadModels={fetchAuxModels}
+      />
+
+      <hr className="we-settings-divider" />
+
+      <AssistantModelBlock
+        modelSource={assistantModelSource}
+        onModelSourceChange={onAssistantModelSourceChange}
+      />
+
+      <hr className="we-settings-divider" />
+
+      <ProviderBlock
+        title="Embedding 模型"
+        providers={EMBEDDING_PROVIDERS}
+        config={embedding}
+        onProviderChange={(v) => onEmbeddingChange('provider', v || null)}
+        onBaseUrlChange={(v) => onEmbeddingChange('base_url', v)}
+        onModelChange={(v) => onEmbeddingChange('model', v)}
+        onApiKeySave={updateEmbeddingApiKey}
+        onApiKeySaved={() => onEmbeddingChange('has_key', true)}
+        loadModels={fetchEmbeddingModels}
+      />
+
+      {embedding.provider && (
+        <div className="we-settings-field-group">
+          <div className="we-settings-action-row">
+            <Button variant="default" onClick={handleTestEmbedding} disabled={embedTestStatus === 'testing'}>
+              {embedTestStatus === 'testing' ? '测试中…' : '测试 Embedding'}
+            </Button>
+            {embedTestStatus === 'ok' && <span className="we-settings-status-ok">{embedTestMsg}</span>}
+            {embedTestStatus === 'error' && <span className="we-settings-status-error">{embedTestMsg}</span>}
+          </div>
+        </div>
+      )}
+
+      <hr className="we-settings-divider" />
+
+      <div className="we-settings-field-group">
+        <p className="we-settings-subsection-title">网络代理</p>
+        <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。">
+          <div className="we-settings-proxy-row">
+            <Input
+              className="we-settings-proxy-input"
+              value={proxyInput}
+              onChange={(e) => { setProxyInput(e.target.value); setProxySaved(false); }}
+              placeholder="http://127.0.0.1:7890"
+            />
+            <Button
+              variant="default"
+              onClick={async () => {
+                await onProxyUrlSave(proxyInput.trim());
+                setProxySaved(true);
+                setTimeout(() => setProxySaved(false), 2000);
+              }}
+            >
+              {proxySaved ? '已应用' : '应用'}
+            </Button>
+          </div>
+        </FormGroup>
+      </div>
 
     </div>
   );

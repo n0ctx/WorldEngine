@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 设置页 LLM 配置"写作 tab"区块顺序对齐
+
+**背景**：前一轮完成了副模型(LLM)、写作助手模型、embedding 的后端和前端 API 实现，但前端 `LlmConfigPanel.jsx` 的"写作 tab"分支只渲染了 `<WritingLlmBlock />`，其他区块被隐藏，与对话 tab 的区块顺序不一致。
+
+**改动**：
+- `frontend/src/components/settings/LlmConfigPanel.jsx`：重构渲染逻辑
+  - 新增导入：`AuxLlmBlock`、`AssistantModelBlock`
+  - 新增 props：`auxLlm`、`onAuxLlmChange`、`onAuxApiKeySave`、`fetchAuxModels`、`testAuxConnection`、`assistantModelSource`、`onAssistantModelSourceChange`
+  - 将"主模型区块"按 `settingsMode` 分支渲染（WRITING → `<WritingLlmBlock />`，CHAT → `<ProviderBlock ... />` + Temperature/MaxTokens/测试连接套件）
+  - 将副模型、写作助手、embedding、网络代理四个区块移到分支外，两个 tab 共享同一渲染流（无重复代码）
+  - 所有区块按统一顺序排列：主模型 → 副模型 → 写作助手模型 → embedding → 网络代理，中间用 `<hr className="we-settings-divider" />` 分隔
+
+**验证方式**：
+- `cd frontend && npm run build` 通过，无编译错误
+- 手动 grep 确认 WRITING 分支下能看到 AuxLlmBlock / AssistantModelBlock / ProviderBlock 三处引用，说明两个 tab 共享同一套区块
+
+**残留风险**：无。区块顺序与对话 tab 完全对齐，后端改动的副模型/助手/embedding 配置现在完全暴露在设置 UI，两个 tab 体验一致。
+
 ## 2026-04-28 新增副模型(LLM)配置 + 写作助手模型选择
 
 **背景**：当前所有非主对话 LLM 调用（turn-summarizer / combined-state-updater / summary-expander / title-generation / diary-generator / entry-matcher / chat.js#impersonate / chat.js#retitle / writing.js#impersonate）以及写作助手都复用 `config.llm` 主模型配置，无法独立选择更便宜/更快的模型来跑后台任务。
