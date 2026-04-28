@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 重排 Prompt 顺序并分层以支持 Anthropic Prompt Cache
+
+**背景**：每轮对话的 system prompt 包含大量动态内容（状态、召回摘要、展开原文、日记），导致 Anthropic Prompt Cache 几乎无法命中。要使缓存生效，需将稳定内容（全局/角色/玩家 system prompt）与变化内容（状态、上下文）分离。
+
+**改动**：
+- `backend/prompts/assembler.js` `buildPrompt`：分层结构改为 cached[1-3全局/玩家/角色] + dynamic[4-10上下文] + bottom[11后置] + history[12] + current[13]。Cached 段合并为 `role:system` 消息发送；Dynamic 段作为 `role:user` 消息插入；[11]后置提示词从 system 末尾移到当前消息末尾以保持最高优先级
+- `backend/prompts/assembler.js` `buildWritingPrompt`：为避免多激活角色切换导致 cache miss，Cached 层更紧凑，仅含[1-2全局/玩家]，[3]角色 system prompt 下移到 Dynamic 层（循环所有激活角色）；Dynamic 结构同对话模式[4-10]
+- `ARCHITECTURE.md` §4：说明新的 cached/dynamic 分层策略、Cached layer 的 Anthropic Prompt Cache 标记方式、两种模式的差异
+- 调整内部序号编排[1-13]以反映新的执行顺序
+
+**验证方式**：后端启动正常，`buildPrompt` / `buildWritingPrompt` 生成的 messages 结构为 [system(cached)] + [user(dynamic)] + [history] + [user(current+post)]；Anthropic provider 接收 system 时自动包装为 `cache_control: { type: 'ephemeral' }`；连续对话中，同一 session 的多轮对话 system 内容（[1-3]）保持完全相同（字节级），能被 Anthropic API 缓存。
+
+**残留风险**：（1）多角色写作场景激活角色组合变化时，Dynamic 内容仍会改变（[3]角色 system prompt），但 Cached 层保持稳定，cache 命中率已显著提升；（2）写作模式下新增的 Dynamic 层[3]角色 prompt，需确保迭代修改角色设定时前端刷新或重新打开 WritingPage 让新 prompt 生效；（3）后置提示词从 system 移到消息末尾后，相对于 LLM 的"可见位置"不变（仍在最后），遵从性不受影响。
+
 ## 2026-04-28 世界卡导出增加封面图支持
 
 **背景**：导出世界卡（`.weworld.json`）时缺失封面图。`worlds` 表有 `cover_path` 字段（SCHEMA.md 第 84 行），但 `exportWorld` 完全没有读取；导入时也没有处理 `cover_path`。而角色卡的头像（`avatar_path` → `avatar_base64`）处理完整。
