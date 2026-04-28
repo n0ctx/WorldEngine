@@ -3,6 +3,19 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手任务面板状态中文化与步骤视觉优化
+
+**背景**：任务面板的 TaskBadge 直接显示英文状态码（`researching` / `completed` 等），步骤卡片无视觉区分，完成后无手动关闭入口，1.5s 自动消失用户常看不清结果。
+
+**改动**（`assistant/client/MessageList.jsx`）：
+- 新增 `TASK_STATUS_LABELS` 和 `STEP_STATUS_LABELS` 映射，TaskBadge 内容改为中文（"探索中" / "执行中" / "已完成" 等）
+- 步骤卡片按状态着色：completed 绿底绿边、running 陶土底边、failed 红底红边，默认透明
+- completed 步骤标题前加 `✓`，running 步骤标题前加 `⋯`
+- 移除 1.5s 自动关闭 `useEffect`，改为终结状态（completed / failed / cancelled）显示"关闭"按钮，由用户主动关闭
+- 任务面板展示条件扩展：`executing` 状态和所有终结状态也触发面板常驻显示，避免执行中或完成后面板消失
+
+**验证方式**：触发一次多步骤任务，观察任务状态徽章显示中文；步骤完成后变绿底带 ✓；任务完成后面板不自动消失，出现"关闭"按钮。
+
 ## 2026-04-28 写卡助手状态字段类型选择强化
 
 **背景**：写卡助手创建状态字段时几乎全选 number 或 text，enum/boolean/list 几乎从未出现。根因是 world-card.md 的三处互相矛盾/偏置的信号：自检步骤只禁 text 不禁 number、模板表把天气/剧情阶段标成 `enum/text` 混写、正例 2 字段配比 4 number+2 enum，0 boolean/list。
