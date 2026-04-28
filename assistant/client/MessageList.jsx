@@ -219,16 +219,6 @@ function UserMessage({ msg, onEdit, onDelete }) {
 }
 
 function AssistantMessage({ msg, onRegenerate, onDelete }) {
-  const taRef = useRef(null);
-
-  useEffect(() => {
-    if (editing && taRef.current) {
-      taRef.current.focus();
-      taRef.current.style.height = 'auto';
-      taRef.current.style.height = taRef.current.scrollHeight + 'px';
-    }
-  }, [editing]);
-
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '10px' }}>
       <div style={{ maxWidth: '90%' }}>
