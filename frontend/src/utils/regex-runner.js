@@ -42,16 +42,22 @@ export function invalidateCache() {
 export function applyRules(text, scope, worldId, mode = 'chat') {
   if (!_cachedRules || _cachedRules.length === 0) return text;
 
-  const rules = _cachedRules.filter(
-    (r) =>
-      r.enabled &&
-      r.scope === scope &&
-      (r.world_id === null || r.world_id === worldId) &&
-      (r.world_id !== null || r.mode === mode),
-  );
+  const rules = _cachedRules
+    .filter(
+      (r) =>
+        r.enabled &&
+        r.scope === scope &&
+        (r.world_id === null || r.world_id === worldId) &&
+        (r.world_id !== null || r.mode === mode),
+    )
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
   let result = text;
   for (const rule of rules) {
+    if ((rule.pattern?.length ?? 0) > 500) {
+      console.warn(`[regex-runner] 规则 "${rule.name}" (id=${rule.id}) pattern 过长，已跳过`);
+      continue;
+    }
     try {
       const re = new RegExp(rule.pattern, rule.flags);
       result = result.replace(re, rule.replacement);

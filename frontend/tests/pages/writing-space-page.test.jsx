@@ -206,6 +206,7 @@ describe('WritingSpacePage', () => {
   it('旧普通写作流 onStreamEnd 不会解锁正在进行的新流', async () => {
     const callbacks = [];
     mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.MessageListState.messagesRef.current = [{ id: 'asst-0', role: 'assistant', content: '已有段落' }];
     mocks.generate.mockImplementation((_wid, _sid, _content, cb) => {
       callbacks.push(cb);
       return vi.fn();

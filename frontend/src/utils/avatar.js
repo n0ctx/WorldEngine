@@ -35,5 +35,8 @@ export function getAvatarColor(id) {
  */
 export function getAvatarUrl(avatarPath) {
   if (!avatarPath) return null;
+  if (/^(https?:|data:|blob:)/.test(avatarPath) || avatarPath.startsWith('/')) {
+    return avatarPath;
+  }
   return `/api/uploads/${avatarPath}`;
 }

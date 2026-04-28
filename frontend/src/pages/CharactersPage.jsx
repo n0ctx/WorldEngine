@@ -26,7 +26,7 @@ const TRIGGER_LABEL = {
   state: '状态',
 };
 
-function EntryOrderPanel({ entries, onTokenChange }) {
+export function EntryOrderPanel({ entries, onTokenChange }) {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState('');
   const inputRef = useRef(null);

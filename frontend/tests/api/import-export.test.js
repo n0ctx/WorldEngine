@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  downloadCharacterCard,
   downloadGlobalSettings,
   downloadPersonaCard,
   downloadWorldCard,
+  exportCharacter,
+  exportPersona,
+  exportWorld,
   exportGlobalSettings,
   importCharacter,
   importGlobalSettings,
@@ -17,21 +21,27 @@ describe('import export api', () => {
   });
 
   it('会发送导入导出请求并带上关键 query 参数', async () => {
+    await exportCharacter('char-1');
+    await exportPersona('world-1');
+    await exportWorld('world-1');
     await exportGlobalSettings('writing');
     await importGlobalSettings({ a: 1 });
     await importWorld({ world: { name: '群星海' } });
     await importCharacter('world-1', { character: { name: '阿塔' } });
 
-    expect(fetch).toHaveBeenNthCalledWith(1, '/api/global-settings/export?mode=writing', expect.any(Object));
-    expect(fetch).toHaveBeenNthCalledWith(2, '/api/global-settings/import', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(1, '/api/characters/char-1/export', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(2, '/api/worlds/world-1/persona/export', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(3, '/api/worlds/world-1/export', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(4, '/api/global-settings/export?mode=writing', expect.any(Object));
+    expect(fetch).toHaveBeenNthCalledWith(5, '/api/global-settings/import', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ a: 1 }),
     }));
-    expect(fetch).toHaveBeenNthCalledWith(3, '/api/worlds/import', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(6, '/api/worlds/import', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ world: { name: '群星海' } }),
     }));
-    expect(fetch).toHaveBeenNthCalledWith(4, '/api/worlds/world-1/import-character', expect.objectContaining({
+    expect(fetch).toHaveBeenNthCalledWith(7, '/api/worlds/world-1/import-character', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({ character: { name: '阿塔' } }),
     }));
@@ -45,13 +55,14 @@ describe('import export api', () => {
     vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
     vi.spyOn(document, 'createElement').mockReturnValue(anchor);
 
+    await downloadCharacterCard('char-1', 'char.json');
     await downloadWorldCard('world-1', 'world.json');
     await downloadPersonaCard('world-1', 'persona.json');
     await downloadGlobalSettings('chat');
 
-    expect(createObjectURL).toHaveBeenCalledTimes(3);
-    expect(click).toHaveBeenCalledTimes(3);
-    expect(revokeObjectURL).toHaveBeenCalledTimes(3);
+    expect(createObjectURL).toHaveBeenCalledTimes(4);
+    expect(click).toHaveBeenCalledTimes(4);
+    expect(revokeObjectURL).toHaveBeenCalledTimes(4);
   });
 
   it('readJsonFile 在解析失败时会返回明确错误', async () => {

@@ -56,6 +56,12 @@ exports[`EntrySection > 默认状态快照 1`] = `
             >
               世界观设定
             </span>
+            <span
+              class="we-entry-cached-badge"
+              title="此条目进入 CACHED LAYER"
+            >
+              CACHED
+            </span>
           </div>
           <div
             class="we-entry-section-actions"

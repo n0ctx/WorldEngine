@@ -28,8 +28,8 @@ vi.mock('../../../src/components/state/EntryEditor', () => ({
 import EntrySection from '../../../src/components/state/EntrySection.jsx';
 
 const baseEntries = [
-  { id: 'entry-1', title: '世界观设定', position: 'system', keywords: [] },
-  { id: 'entry-2', title: '后置规则', position: 'post', keywords: ['战斗'] },
+  { id: 'entry-1', title: '世界观设定', position: 'system', keywords: [], token: 0 },
+  { id: 'entry-2', title: '后置规则', position: 'post', keywords: ['战斗'], token: 1 },
 ];
 
 describe('EntrySection', () => {
@@ -55,6 +55,7 @@ describe('EntrySection', () => {
     );
     expect(screen.getByText('世界观设定')).toBeInTheDocument();
     expect(screen.getByText('后置规则')).toBeInTheDocument();
+    expect(screen.getByText('CACHED')).toBeInTheDocument();
     expect(screen.queryByText('删除条目')).not.toBeInTheDocument();
   });
 

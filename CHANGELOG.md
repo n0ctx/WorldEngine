@@ -3,6 +3,39 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 test: Wave 2 完成 — frontend 覆盖率提升到 75.53% / 63.06%
+
+**改动**：
+- 新增 17 个 frontend 测试文件，覆盖 utils / api / hooks / store / pages / components：
+  - `tests/utils/{regex-runner,chapter-grouping,time,avatar,toast,motion,session-list-bridge}.test.js`
+  - `tests/api/{config,custom-css-snippets,chapter-titles,prompt-entries,regex-rules,sessions,session-timeline,state-fields-extra}.test.js`
+  - `tests/hooks/use-motion.test.jsx`
+  - `tests/store/app-mode.test.js`
+  - `tests/components/state/EntryEditor.test.jsx`
+  - `tests/pages/{characters-page,world-build-page,world-config-page}.test.jsx`
+- 扩展既有测试：
+  - `frontend/tests/api/import-export.test.js`：补 `exportCharacter/exportPersona/exportWorld/downloadCharacterCard`
+  - `frontend/tests/api/personas.test.js`：补 `list/getById/create/updateById/activate/delete/uploadPersonaAvatarById`
+  - `frontend/tests/hooks/use-settings-config.test.jsx`：补 aux / writing / embedding / UI / diary 各类 handler 与导入刷新路径
+  - `frontend/tests/components/state/EntrySection.test.jsx`：补 `CACHED` 徽章断言并更新快照
+  - `frontend/tests/pages/writing-space-page.test.jsx`：修稳 coverage 模式下的旧流回归用例
+- 为满足 Wave 2 计划中的行为对齐，补了两处前端实现：
+  - `frontend/src/utils/regex-runner.js`：与后端对齐，增加 `sort_order` 稳定执行和超长 pattern 跳过
+  - `frontend/src/utils/avatar.js`：绝对路径 / data/blob URL 直通，不再无条件前缀 `/api/uploads/`
+- `frontend/src/pages/CharactersPage.jsx`：导出 `EntryOrderPanel` 供单测覆盖 token=0 / `CACHED` 逻辑
+
+**验证方式**：
+- `cd frontend && npm test` → **110 pass / 0 fail**
+- `cd frontend && npm run test:coverage -- --reporter=dot` → **lines 75.53% / branches 69.85% / funcs 63.06%**
+
+**结果**：
+- Wave 2 目标达成：frontend **Lines ≥ 70%**、**Functions ≥ 60%**
+
+**残留风险**：
+- `frontend/pages` 下 `ChatPage` / `WritingSpacePage` / `SettingsPage` 的函数覆盖率仍偏低，但本轮已先把全局门槛拉过线
+- `tests/pages/characters-page.test.jsx` 中对 `Icon` 的轻量 mock 仍会让 JSDOM 打 `path/line` 警告，不影响测试结果
+- 工作树里仍存在与本任务无关的既有改动（如 `backend/prompts/assembler.js`、`docs/superpowers/**`），本次未处理
+
 ## 2026-04-29 test: Wave 1 续 — 路由层补测，行覆盖率达到 70.29%
 
 **改动**：
