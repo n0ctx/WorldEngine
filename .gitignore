@@ -33,3 +33,4 @@ dist/
 # Temporary/test directories
 .temp/
 test-results/
+frontend/coverage/

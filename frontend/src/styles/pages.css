@@ -494,6 +494,18 @@
   color: var(--we-ink-primary);
 }
 
+.we-entry-order-token--cached {
+  color: var(--we-color-accent);
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--we-color-accent);
+  font-weight: 600;
+}
+
+.we-entry-order-item--cached .we-entry-order-title {
+  color: var(--we-ink-primary);
+  font-weight: 500;
+}
+
 .we-entry-order-token-input {
   width: 32px;
   height: 22px;

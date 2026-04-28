@@ -44,7 +44,8 @@ function EntryOrderPanel({ entries, onTokenChange }) {
 
   function commitEdit(entry) {
     const n = parseInt(editValue, 10);
-    const newToken = Number.isFinite(n) && n >= 1 ? n : entry.token;
+    const min = entry.trigger_type === 'always' ? 0 : 1;
+    const newToken = Number.isFinite(n) && n >= min ? n : entry.token;
     setEditingId(null);
     if (newToken !== entry.token) {
       onTokenChange(entry.id, newToken);
@@ -68,34 +69,44 @@ function EntryOrderPanel({ entries, onTokenChange }) {
         {sorted.length === 0 ? (
           <p className="we-entry-order-empty">暂无条目</p>
         ) : (
-          sorted.map((entry) => (
-            <div key={entry.id} className="we-entry-order-item">
-              {editingId === entry.id ? (
-                <input
-                  ref={inputRef}
-                  className="we-entry-order-token-input"
-                  type="number"
-                  min={1}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={() => commitEdit(entry)}
-                  onKeyDown={(e) => handleKeyDown(e, entry)}
-                />
-              ) : (
-                <span
-                  className="we-entry-order-token"
-                  title="点击编辑 token"
-                  onClick={() => startEdit(entry)}
-                >
-                  {entry.token ?? 1}
-                </span>
-              )}
-              <div className="we-entry-order-info">
-                <div className="we-entry-order-title" title={entry.title}>{entry.title}</div>
-                <div className="we-entry-order-type">{TRIGGER_LABEL[entry.trigger_type] ?? entry.trigger_type}</div>
+          sorted.map((entry) => {
+            const isCached = entry.trigger_type === 'always' && entry.token === 0;
+            return (
+              <div key={entry.id} className={`we-entry-order-item${isCached ? ' we-entry-order-item--cached' : ''}`}>
+                {editingId === entry.id ? (
+                  <input
+                    ref={inputRef}
+                    className="we-entry-order-token-input"
+                    type="number"
+                    min={entry.trigger_type === 'always' ? 0 : 1}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={() => commitEdit(entry)}
+                    onKeyDown={(e) => handleKeyDown(e, entry)}
+                  />
+                ) : (
+                  <span
+                    className={`we-entry-order-token${isCached ? ' we-entry-order-token--cached' : ''}`}
+                    title={isCached ? '点击编辑 token（0 = CACHED LAYER）' : '点击编辑 token'}
+                    onClick={() => startEdit(entry)}
+                  >
+                    {entry.token ?? 1}
+                  </span>
+                )}
+                <div className="we-entry-order-info">
+                  <div className="we-entry-order-title" title={entry.title}>
+                    {entry.title}
+                    {isCached && (
+                      <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER（system 角色，prompt cache 友好）">
+                        CACHED
+                      </span>
+                    )}
+                  </div>
+                  <div className="we-entry-order-type">{TRIGGER_LABEL[entry.trigger_type] ?? entry.trigger_type}</div>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>
