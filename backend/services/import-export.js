@@ -251,6 +251,18 @@ export function exportWorld(worldId) {
     'SELECT field_key, default_value_json AS value_json FROM world_state_values WHERE world_id = ?',
   ).all(worldId);
 
+  // 读取封面图
+  let coverBase64 = null;
+  let coverMime = null;
+  if (world.cover_path) {
+    const coverFile = path.join(DATA_ROOT, 'uploads', world.cover_path);
+    if (fs.existsSync(coverFile)) {
+      const ext = path.extname(coverFile).toLowerCase().replace('.', '');
+      coverMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+      coverBase64 = fs.readFileSync(coverFile).toString('base64');
+    }
+  }
+
   // 导出角色（含 state_values）
   const characters = db.prepare(
     'SELECT * FROM characters WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC',
@@ -301,8 +313,10 @@ export function exportWorld(worldId) {
     world: {
       name: world.name,
       description: world.description ?? '',
+      cover_path: world.cover_path ?? null,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
+      ...(coverBase64 ? { cover_base64: coverBase64, cover_mime: coverMime } : {}),
     },
     persona: persona ? { name: persona.name, system_prompt: persona.system_prompt } : null,
     prompt_entries: worldPromptEntries,
@@ -324,10 +338,13 @@ export function importWorld(data) {
     const now = Date.now();
     const worldId = crypto.randomUUID();
 
+    // 处理封面图
+    const coverPath = saveAvatarFile(worldId, data.world.cover_base64, data.world.cover_mime);
+
     // 插入世界
     db.prepare(`
-      INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, cover_path, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
@@ -336,6 +353,7 @@ export function importWorld(data) {
       '',
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,
+      coverPath,
       now, now,
     );
 

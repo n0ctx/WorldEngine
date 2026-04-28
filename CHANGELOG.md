@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 世界卡导出增加封面图支持
+
+**背景**：导出世界卡（`.weworld.json`）时缺失封面图。`worlds` 表有 `cover_path` 字段（SCHEMA.md 第 84 行），但 `exportWorld` 完全没有读取；导入时也没有处理 `cover_path`。而角色卡的头像（`avatar_path` → `avatar_base64`）处理完整。
+
+**改动**：
+- `backend/services/import-export.js` `exportWorld`：读取 `world.cover_path`，转换为 base64 + MIME 类型，注入返回对象（类似角色头像处理）
+- `backend/services/import-export.js` `importWorld`：调用 `saveAvatarFile` 保存导入的 `cover_base64`，写入 worlds 表的 `cover_path` 字段
+- `backend/services/import-export-validation.js`：添加 `world.cover_path/cover_base64/cover_mime` 的验证（使用既有的 `assertAvatarPayload` 函数）
+- `SCHEMA.md`：更新世界卡/角色卡的 JSON 示例格式，添加 `cover_path/cover_base64/cover_mime` 字段；更新约束说明
+
+**验证方式**：导出包含封面图的世界卡，JSON 包含 `cover_base64`；导入该卡片后，新世界的 `cover_path` 指向新 UUID 对应的文件路径；磁盘上的 `/data/uploads/avatars/` 存在对应的封面图文件。
+
+**残留风险**：无，属于数据导入导出的补全，不改变现有逻辑。
+
 ## 2026-04-28 删除消息时同步清空选项卡
 
 **背景**：聊天页面（ChatPage）和写作页面（WritingSpacePage）在删除某条消息（及其之后所有消息）后，活跃的选项卡（OptionCard，由 `currentOptions` 渲染）仍残留在底部。该选项卡逻辑上属于被删除的最后一条 assistant 消息，应同步清除。冻结到具体消息上的 `_options`（FrozenOptionCard）随消息一起从列表中切片移除，无须额外处理。
