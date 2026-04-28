@@ -21,7 +21,7 @@
 1. 先判断任务类型：新建世界、修复已有世界、扩展状态机、补 lore、补状态字段。
 2. 如果是复杂新建世界，先规划三块内容：基础设定与 always 条目、状态字段模板、keyword/llm/state 触发条目。
 3. 如果是状态机世界，先确定唯一阶段字段，再为每个阶段创建对应 state 条目；所有阶段条目的 `conditions[].target_field` 必须引用同一个真实字段 label。
-4. 输出 JSON 前自检：keyword 条目 keywords 非空；state 条目 conditions 非空；condition 引用的 label 与已有字段或本提案新建字段完全一致；初始状态值不放在 world-card；字段类型不要滥用 text。
+4. 输出 JSON 前自检：keyword 条目 keywords 非空；state 条目 conditions 非空；condition 引用的 label 与已有字段或本提案新建字段完全一致；初始状态值不放在 world-card；每个 `stateFieldOps.create` 必须按 **boolean → number → enum → list → text** 顺序逐项排除，不允许直接落 number 或 text 而跳过前面的检查——是/否二元状态必须选 boolean，有限固定选项必须选 enum，可增减集合必须选 list，只有真正无法用前四种覆盖时才能用 text。
 
 ## 硬规则
 
@@ -99,12 +99,14 @@
 
 | 层级 | 典型字段 | 类型 | 说明 |
 |---|---|---|---|
-| 世界 | 天气 / 时间 / 剧情阶段 | enum/text | 环境 backdrop |
-| 世界 | 局势 / 阵营关系 | text | 动态叙事变量 |
-| `{{user}}` | HP / 精力 / 金币 | number | 核心生存资源 |
-| `{{user}}` | 背包 / 声望 | list/number | 可收集资源 |
-| `{{char}}` | 好感度 | number | 关系核心 |
-| 角色 | 伤势 / 任务状态 | enum/text | 角色动态 |
+| 世界 | 天气 / 剧情阶段 | `enum` | 有限选项，必须 enum |
+| 世界 | 白天/黑夜 / 已触发事件 | `boolean` | 二元状态，必须 boolean |
+| 世界 | 局势 / 阵营关系 | `text` | 无法枚举的自由描述 |
+| `{{user}}` | HP / 精力 / 金币 | `number` | 纯数字量 |
+| `{{user}}` | 背包 / 已知线索 | `list` | 可增减集合，必须 list |
+| `{{char}}` | 好感度 | `number` | 纯数字量 |
+| 角色 | 伤势 / 任务状态 | `enum` | 有限选项，必须 enum |
+| 角色 | 是否死亡 / 已入伙 | `boolean` | 二元标记，必须 boolean |
 
 - `update_mode` 建议：剧情阶段/局势 → `llm_auto`；HP/金币 → `manual` 或 `llm_auto`
 
@@ -243,6 +245,8 @@
 
 ### `stateFieldOps`
 
+> ⚠️ **选 type 前必须过下方[状态字段类型选择指南]**，按 boolean → number → enum → list → text 顺序排查，不允许跳步直接写 number 或 text。
+
 每项 `op` 只能是 `create` / `update` / `delete`。
 
 **op 选择规则**：
@@ -372,10 +376,11 @@
 2. **always 条目**（2条）：
    - 世界观概述：企业战争后的废墟都市，阶级分化极端
    - 核心规则：义体改造有精神侵蚀代价，黑市流通禁忌科技
-3. **stateFieldOps**（6条）：
-   - 世界层：天气(enum:酸雨/沙尘/霓虹夜)、剧情阶段(enum:潜伏/冲突/逃亡/决战)
-   - `{{user}}` 层：HP(number)、金币(number)、义体侵蚀度(number)
+3. **stateFieldOps**（8条，覆盖全部五种类型）：
+   - 世界层：天气(enum:酸雨/沙尘/霓虹夜)、剧情阶段(enum:潜伏/冲突/逃亡/决战)、黑市开放(boolean)
+   - `{{user}}` 层：HP(number)、金币(number)、义体侵蚀度(number)、背包(list:初始为[])
    - `{{char}}` 层：好感度(number)、任务状态(enum:未接/进行中/完成)
+   - 类型选择说明：天气/剧情阶段/任务状态有固定选项→enum；黑市开放是二元开关→boolean；HP/金币/好感度是纯数字→number；背包是可增减集合→list
 4. **keyword 条目**（3条）：
    - "地下黑市"：关键词[黑市,地下,交易]
    - "企业安保"：关键词[企业,安保,巡逻]

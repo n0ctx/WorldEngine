@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手状态字段类型选择强化
+
+**背景**：写卡助手创建状态字段时几乎全选 number 或 text，enum/boolean/list 几乎从未出现。根因是 world-card.md 的三处互相矛盾/偏置的信号：自检步骤只禁 text 不禁 number、模板表把天气/剧情阶段标成 `enum/text` 混写、正例 2 字段配比 4 number+2 enum，0 boolean/list。
+
+**改动**（仅 `assistant/prompts/world-card.md`）：
+- 模板表消除 `enum/text` 混写：天气/剧情阶段/伤势/任务状态全部改为 `enum`；新增 boolean 行（黑市开放/是否死亡）和 list 行（背包/已知线索）
+- 自检步骤 4 改为强制排查流程：每个 `stateFieldOps.create` 必须按 `boolean → number → enum → list → text` 顺序逐项排除，不允许跳步
+- stateFieldOps 创建格式前增加警示块，明确要求选 type 前先过类型选择指南
+- 正例 2 字段配比扩展到 8 条，覆盖全部五种类型（新增 boolean:黑市开放、list:背包），并附类型选择说明
+
+**验证方式**：让助手创建一个包含天气、血量、背包、是否已接任务等字段的世界卡，观察 stateFieldOps 中应出现 enum（天气）、number（HP）、list（背包）、boolean（是否已接任务）四种类型，不应出现全 number/text。
+
 ## 2026-04-28 写卡助手 Plan-Execute 实质化改造
 
 **背景**：原 `/api/assistant/tasks` 计划卡主要展示步骤标题与状态，planner 没有真实探索阶段，executor 也基本按线性步骤执行，难以像 Codex / Claude Code 的 plan 模式那样提升复杂任务稳定性。
