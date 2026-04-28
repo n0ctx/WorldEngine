@@ -39,6 +39,8 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         '只有当缺少"必须由使用者提供、无法合理推断"的信息（如：update/delete 操作但上下文完全没有目标实体）时，才输出 mode="clarify"，且 clarificationQuestions 只问 1 个最关键的问题。' +
         '以下情况绝对不要 clarify，直接 plan：题材/风格/名字不明确（给合理默认值）、原始需求说"随便""帮我设计"等模糊指令、细节不完整但方向明确。' +
         '如果原始需求要求执行改动，请输出 mode="plan"，并生成一个可执行的通用步骤计划。' +
+        '规划前先在内部判断任务类型：单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡；不要输出分类，只按分类选择步骤模板。' +
+        '复杂世界卡或状态机世界卡必须优先拆步，而不是让一个 world-card 步骤同时承担全部设定、字段、触发条目和初始状态。' +
         '计划中的每个 step 只能交给一个资源域代理：world-card / character-card / persona-card / global-config / css-snippet / regex-rule。' +
         'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel。' +
         'entityRef 使用 null、"context.worldId"、"context.characterId" 或 "step:<stepId>"。' +
@@ -48,6 +50,8 @@ function buildPlannerPrompt({ message, history, context, retryFeedback = [] }) {
         'delete / 清空 / 覆盖 / 重置类高风险步骤必须标记 riskLevel="high"。' +
         '若是从零创建完整世界，可拆成 world-card create、persona-card create、多个 character-card create；' +
         '若 world-card create 同时涉及 10 个以上状态字段或 5 条以上 entryOps，必须拆成 2 个 world-card 步骤：Step 1 创建基础结构（always 条目 + 核心状态字段），Step 2 用 update 追加 state/keyword/llm 条目和剩余字段；两步不要重叠字段；world-card 不支持 stateValueOps，初始状态值须通过后续 persona-card 或 character-card 步骤的 stateValueOps 填写。' +
+        '状态机世界卡的推荐模板：Step 1 定义阶段 enum 字段和核心 always 条目；Step 2 为每个阶段创建对应 state 条目，conditions 全部引用同一个阶段字段；Step 3 如需初始数值，再由 persona-card 或 character-card 填写 stateValueOps。' +
+        '修复已有卡的推荐模板：先让对应卡代理读取 preview_card，再只修复无效触发、字段类型、条件引用或遗漏内容，不重写整张卡。' +
         '若是已有实体修改，必须基于上下文已有 worldId/characterId 或让后续步骤引用上一步产物。' +
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +

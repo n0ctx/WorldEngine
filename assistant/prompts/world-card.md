@@ -14,6 +14,15 @@
 
 生成提案时必须以现有数据为基础，优先复用已有条目与状态字段。
 
+## 内部生成流程
+
+以下流程只用于你内部组织输出，**不要把分析过程写进最终答案**：
+
+1. 先判断任务类型：新建世界、修复已有世界、扩展状态机、补 lore、补状态字段。
+2. 如果是复杂新建世界，先规划三块内容：基础设定与 always 条目、状态字段模板、keyword/llm/state 触发条目。
+3. 如果是状态机世界，先确定唯一阶段字段，再为每个阶段创建对应 state 条目；所有阶段条目的 `conditions[].target_field` 必须引用同一个真实字段 label。
+4. 输出 JSON 前自检：keyword 条目 keywords 非空；state 条目 conditions 非空；condition 引用的 label 与已有字段或本提案新建字段完全一致；初始状态值不放在 world-card；字段类型不要滥用 text。
+
 ## 硬规则
 
 - 只输出 1 个 JSON 对象
@@ -422,6 +431,22 @@
 ```
 
 `field_key` 必须与 Step 1 中 `stateFieldOps` 已创建的字段一致；Step 2 必须 `dependsOn` Step 1。
+
+### 正例 5：状态机世界卡
+
+原始需求是“创建一个无限轮回/任务结算类世界卡”，适合使用状态机：
+
+1. 创建世界层 enum 字段：
+   - `field_key:"mission_phase"`
+   - `label:"任务阶段"`
+   - `type:"enum"`
+   - `enum_options:["休整","正在进行","结算"]`
+2. 为每个阶段创建一条 `trigger_type:"state"` 的条目：
+   - 休整条目：`conditions:[{"target_field":"世界.任务阶段","operator":"等于","value":"休整"}]`
+   - 正在进行条目：`conditions:[{"target_field":"世界.任务阶段","operator":"等于","value":"正在进行"}]`
+   - 结算条目：`conditions:[{"target_field":"世界.任务阶段","operator":"等于","value":"结算"}]`
+3. 开始游戏这类入口条目如果没有稳定关键词，不要输出空 `keywords:[]` 的 keyword 条目；应改成 `trigger_type:"llm"`，或给出明确关键词如 `["开始游戏","进入轮回","主神空间"]`。
+4. 属性、背包、技能、血统、装备等是 `{{user}}` 状态字段定义，放在 `stateFieldOps` 的 `target:"persona"`；初始值由后续 persona-card 步骤填写。
 
 ---
 

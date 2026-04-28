@@ -54,6 +54,21 @@ test('buildPlannerPrompt 会要求 CUD 计划统一使用占位符术语', async
   assert.match(messages[1].content, /原始需求：创建一个世界和角色/);
 });
 
+test('buildPlannerPrompt 会要求复杂世界卡分类拆步和状态机模板', async () => {
+  const { __testables } = await importPlanner();
+  const messages = __testables.buildPlannerPrompt({
+    message: '创建一个无限轮回任务结算世界卡，包含任务阶段和玩家属性',
+    history: [],
+    context: {},
+  });
+
+  assert.match(messages[0].content, /先在内部判断任务类型/);
+  assert.match(messages[0].content, /复杂世界卡或状态机世界卡必须优先拆步/);
+  assert.match(messages[0].content, /状态机世界卡的推荐模板/);
+  assert.match(messages[0].content, /conditions 全部引用同一个阶段字段/);
+  assert.match(messages[0].content, /修复已有卡的推荐模板/);
+});
+
 test('planTask 在语义校验失败后会执行 semantic retry', async () => {
   const { planTask } = await importPlanner();
   resetMockEnv();

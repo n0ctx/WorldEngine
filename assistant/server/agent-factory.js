@@ -23,6 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-agent', 'cyan');
 const PROPOSAL_TTL_MS = 30 * 60 * 1000;
 const MAX_JSON_RETRY = 1;
+const MAX_PROPOSAL_RETRY = 1;
 
 function sendSSE(res, data) {
   if (res.writableEnded) return;
@@ -134,22 +135,41 @@ export async function runAgentDefinition(def, {
   const entityHint = entityId ? `\n\n实体 ID：${entityId}` : '';
   const messages = buildAgentMessages(def.name, task + entityHint);
 
-  let raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
-  log.info(`RAW  ${formatMeta({ agent: def.name, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
-
-  let result;
-  try {
-    result = extractJson(raw);
-  } catch (jsonErr) {
-    log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY, error: jsonErr.message })}`);
-    messages.push({ role: 'assistant', content: raw });
-    messages.push({ role: 'user', content: `你的输出无法解析为合法 JSON（错误：${jsonErr.message}）。请只重发 1 个 JSON 对象，不要代码块、注释或解释。` });
-    raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
-    log.info(`RAW  ${formatMeta({ agent: def.name, retry: true, chars: raw?.length ?? 0 })}`);
-    result = extractJson(raw);
+  async function generateOnce({ retry = false } = {}) {
+    const raw = await llm.completeWithTools(messages, agentTools, { temperature: 0.3 });
+    log.info(`RAW  ${formatMeta({ agent: def.name, retry, chars: raw?.length ?? 0, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+    return raw;
   }
 
-  return normalizeProposal(result, { type: def.proposalType, operation, entityId });
+  async function parseWithJsonRetry(raw) {
+    try {
+      return extractJson(raw);
+    } catch (jsonErr) {
+      log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'json-parse-failed', attempt: 1, maxRetry: MAX_JSON_RETRY, error: jsonErr.message })}`);
+      messages.push({ role: 'assistant', content: raw });
+      messages.push({ role: 'user', content: `你的输出无法解析为合法 JSON（错误：${jsonErr.message}）。请只重发 1 个 JSON 对象，不要代码块、注释或解释。` });
+      const retryRaw = await generateOnce({ retry: true });
+      return extractJson(retryRaw);
+    }
+  }
+
+  let raw = await generateOnce();
+  let result = await parseWithJsonRetry(raw);
+  try {
+    return normalizeProposal(result, { type: def.proposalType, operation, entityId });
+  } catch (proposalErr) {
+    log.warn(`RETRY  ${formatMeta({ agent: def.name, reason: 'proposal-normalize-failed', attempt: 1, maxRetry: MAX_PROPOSAL_RETRY, error: proposalErr.message })}`);
+    messages.push({ role: 'assistant', content: JSON.stringify(result) });
+    messages.push({
+      role: 'user',
+      content:
+        `你的 JSON 已能解析，但不符合 WorldEngine proposal 契约（错误：${proposalErr.message}）。` +
+        '请基于上一版提案定向修复，不要改写无关内容；只重发 1 个完整 JSON 对象，不要代码块、注释或解释。',
+    });
+    raw = await generateOnce({ retry: true });
+    result = await parseWithJsonRetry(raw);
+    return normalizeProposal(result, { type: def.proposalType, operation, entityId });
+  }
 }
 
 export { buildAgentMessages };

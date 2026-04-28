@@ -14,6 +14,8 @@
 - **执行子代理**：`world_card_agent` / `character_card_agent` / `persona_card_agent` / `global_prompt_agent` / `css_snippet_agent` / `regex_rule_agent`
 - **辅助工具**：`preview_card`（查询实体数据）、`read_file`（读取项目文件）
 
+Planner 会先按任务形态内部分类（单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡）再拆步骤；复杂/状态机世界卡应拆出基础结构、状态字段、触发条目和后续状态值填写步骤。执行子代理除 JSON 解析失败重试外，若 `normalizeProposal()` 返回明确契约错误，也会带错误反馈重试一次并要求定向修复。
+
 ### 术语约束
 
 世界卡、角色卡、玩家卡和全局 prompt 的 CUD proposal 中，凡是会写入卡片正文、条目内容、状态字段说明、开场白或 step task 的自然语言，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`。接口字段名、枚举值和既有状态条件标签保持 schema 原样，例如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"` 不改名。

@@ -107,6 +107,68 @@ test('createAgentTool 会在首轮非 JSON 输出后重试并生成提案 token'
   assert.equal(events[1].proposal.changes.name, '新世界');
 });
 
+test('createAgentTool 会在 proposal 契约失败后带错误反馈重试', async () => {
+  const { createAgentTool } = await loadAgentFactory();
+  resetMockEnv();
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify([
+    JSON.stringify({
+      explanation: '第一次包含空关键词',
+      changes: {},
+      entryOps: [{ op: 'create', title: '开始游戏', trigger_type: 'keyword', keywords: [] }],
+    }),
+    JSON.stringify({
+      explanation: '已修复关键词',
+      changes: {},
+      entryOps: [{ op: 'create', title: '开始游戏', trigger_type: 'keyword', keywords: ['开始游戏'] }],
+    }),
+  ]);
+
+  const sse = createSseRecorder();
+  const proposalStore = new Map();
+  let normalizeCalls = 0;
+  const tool = createAgentTool({
+    name: 'world_card_agent',
+    description: '世界卡代理',
+    parameters: { type: 'object', properties: {} },
+    proposalType: 'world-card',
+  }, {
+    res: sse,
+    proposalStore,
+    normalizeProposal: (raw, locked) => {
+      normalizeCalls += 1;
+      if (raw.entryOps?.[0]?.keywords?.length === 0) {
+        throw new Error('entryOps[0].keywords 不能为空');
+      }
+      return {
+        type: locked.type,
+        operation: locked.operation,
+        entityId: locked.entityId,
+        explanation: raw.explanation,
+        changes: raw.changes || {},
+        entryOps: raw.entryOps || [],
+        stateFieldOps: [],
+      };
+    },
+    previewCardTool: {
+      type: 'function',
+      function: { name: 'preview_card' },
+      execute: async () => 'preview',
+    },
+  });
+
+  const result = await tool.execute({
+    task: '创建开始游戏条目',
+    operation: 'update',
+    entityId: 'world-1',
+  });
+
+  assert.match(result, /提案已生成/);
+  assert.equal(normalizeCalls, 2);
+  assert.equal(proposalStore.size, 1);
+  const [stored] = proposalStore.values();
+  assert.deepEqual(stored.proposal.entryOps[0].keywords, ['开始游戏']);
+});
+
 test('createAgentTool 在未知 proposal type 或创建异常时返回失败摘要并推送 error 事件', async () => {
   const { createAgentTool } = await loadAgentFactory();
   resetMockEnv();

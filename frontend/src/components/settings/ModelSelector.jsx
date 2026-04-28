@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Button from '../ui/Button';
 import ModelCombobox from '../ui/ModelCombobox';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
@@ -18,6 +18,8 @@ export default function ModelSelector({ value, onChange, loadModels }) {
   const [status, setStatus] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
   const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; });
 
   // 当模型列表或当前值变化时，同步价格到 store
   useEffect(() => {
@@ -38,13 +40,13 @@ export default function ModelSelector({ value, onChange, loadModels }) {
         const first = list[0];
         const modelId = typeof first === 'string' ? first : first.id;
         setCurrentModelPricing(extractPricing(first));
-        onChange(modelId);
+        onChangeRef.current(modelId);
       }
     } catch (e) {
       setErrMsg(e.message || '无法获取模型列表，请检查 API Key 和网络连接');
       setStatus('error');
     }
-  }, [loadModels, onChange, value, setCurrentModelPricing]);
+  }, [loadModels, value, setCurrentModelPricing]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial model discovery owns loading state.
