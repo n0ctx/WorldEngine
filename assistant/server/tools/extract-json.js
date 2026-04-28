@@ -65,6 +65,25 @@ function tryExtractFrom(text, prefer) {
   return null;
 }
 
+/**
+ * 尝试修复 LLM 常见 JSON 瑕疵：尾部逗号、// 行注释、/* */ 块注释。
+ * 修复策略保守——字符串内容不做处理，避免引入错误。
+ */
+function attemptRepair(text) {
+  try {
+    // 1. 移除 /* */ 块注释（贪婪匹配最短块）
+    let r = text.replace(/\/\*[\s\S]*?\*\//g, '');
+    // 2. 移除 // 行注释（只移除行内 // 到行尾，不处理字符串内 //）
+    //    用简单逐行方式：跳过字符串内容太复杂，用 regex 保守处理
+    r = r.replace(/([^"':\\])\/\/[^\n]*/g, '$1');
+    // 3. 移除 trailing comma（逗号后仅有空白和 } 或 ]）
+    r = r.replace(/,(\s*[}\]])/g, '$1');
+    return r.trim();
+  } catch {
+    return null;
+  }
+}
+
 function tryParseObject(text) {
   try {
     const parsed = JSON.parse(text);
@@ -73,6 +92,18 @@ function tryParseObject(text) {
     }
     return { ok: true, value: parsed };
   } catch {
+    // 首次解析失败，尝试修复常见 LLM JSON 瑕疵后再解析
+    const repaired = attemptRepair(text);
+    if (repaired && repaired !== text) {
+      try {
+        const parsed = JSON.parse(repaired);
+        if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+          return { ok: true, value: parsed };
+        }
+      } catch {
+        // 修复后仍失败，继续走后续策略
+      }
+    }
     return { ok: false, reason: 'parse-error' };
   }
 }

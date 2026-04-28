@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 写卡助手 JSON 输出稳定性优化（第二轮）
+
+**背景**：GLM/OpenRouter 模型有时输出含尾部逗号、`//` 行注释或 `/* */` 块注释的 JSON，纯 `JSON.parse` 失败，且 `MAX_JSON_RETRY=1` 只有一次补救机会，复发率高。
+
+**改动**：
+- `assistant/server/tools/extract-json.js` — 新增 `attemptRepair(text)` 函数，在 `tryParseObject` 首次 parse 失败时，自动移除尾部逗号、`//` 行注释、`/* */` 块注释后再尝试解析；轻微格式瑕疵的 JSON 无需触发 LLM 重试。
+- `assistant/server/agent-factory.js` — `MAX_JSON_RETRY` 和 `MAX_PROPOSAL_RETRY` 均从 1 提升到 2；`parseWithJsonRetry` 重构为循环，第 2 次重试 prompt 额外强调"不要注释、不要尾部逗号"；proposal 重试逻辑同步改为循环，支持 2 次修复机会。
+
+**验证方式**：触发复杂 world-card create，日志中 `RAW` 行后直接 `DONE`（无 `RETRY`）；历史上会失败的尾部逗号场景现在静默修复，无红色错误气泡。
+
 ## 2026-04-28 写卡助手 token 消耗优化
 
 **背景**：写卡助手每次任务调用多次 LLM，系统 prompt 较大（main.md ~2400 tok，world-card.md ~4600 tok），且多步骤任务中 `preview_card` 每次返回 `_globalSystemPrompt` 全文导致重复注入。
