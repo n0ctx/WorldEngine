@@ -409,6 +409,29 @@ function TaskBadge({ children, tone = 'default' }) {
 
 const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'failed']);
 
+const TASK_STATUS_LABELS = {
+  pending: '等待中',
+  researching: '探索中',
+  clarifying: '待澄清',
+  planning: '规划中',
+  awaiting_plan_approval: '待确认计划',
+  executing: '执行中',
+  awaiting_step_approval: '待确认步骤',
+  completed: '已完成',
+  failed: '失败',
+  cancelled: '已取消',
+};
+
+const STEP_STATUS_LABELS = {
+  pending: '待执行',
+  running: '执行中',
+  awaiting_approval: '待确认',
+  completed: '已完成',
+  failed: '失败',
+  blocked: '等待依赖',
+  skipped: '已跳过',
+};
+
 function MiniList({ title, items }) {
   const normalized = Array.isArray(items)
     ? items.map((item) => String(item ?? '').trim()).filter(Boolean)
@@ -443,7 +466,7 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <strong style={{ fontSize: '13px', color: 'var(--we-ink-primary, #3d2e22)' }}>当前任务</strong>
         <TaskBadge tone={task.status === 'failed' ? 'danger' : task.status === 'completed' ? 'success' : 'default'}>
-          {task.status}
+          {TASK_STATUS_LABELS[task.status] || task.status}
         </TaskBadge>
       </div>
       <div style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', lineHeight: '1.6' }}>
@@ -477,22 +500,41 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
       )}
       {steps.length > 0 && (
         <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {steps.map((step) => (
+          {steps.map((step) => {
+            const isCompleted = step.status === 'completed';
+            const isRunning = step.status === 'running';
+            const isFailed = step.status === 'failed';
+            return (
             <div
               key={step.id}
               style={{
                 padding: '8px 9px',
                 borderRadius: '8px',
-                background: 'rgba(0,0,0,0.03)',
-                border: '1px solid rgba(0,0,0,0.05)',
+                background: isCompleted
+                  ? 'rgba(90,138,90,0.07)'
+                  : isRunning
+                    ? 'rgba(138,94,74,0.06)'
+                    : isFailed
+                      ? 'rgba(192,57,43,0.05)'
+                      : 'rgba(0,0,0,0.03)',
+                border: isCompleted
+                  ? '1px solid rgba(90,138,90,0.18)'
+                  : isRunning
+                    ? '1px solid rgba(138,94,74,0.15)'
+                    : isFailed
+                      ? '1px solid rgba(192,57,43,0.15)'
+                      : '1px solid rgba(0,0,0,0.05)',
+                transition: 'background 0.2s, border-color 0.2s',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', flex: 1 }}>
+                <span style={{ fontSize: '12px', color: isCompleted ? 'var(--we-ink-secondary, #6b5a4e)' : 'var(--we-ink-primary, #3d2e22)', flex: 1 }}>
+                  {isCompleted && <span style={{ color: '#5a8a5a', marginRight: '4px' }}>✓</span>}
+                  {isRunning && <span style={{ marginRight: '4px', opacity: 0.7 }}>⋯</span>}
                   {step.title}
                 </span>
-                <TaskBadge tone={step.status === 'failed' ? 'danger' : step.status === 'completed' ? 'success' : 'default'}>
-                  {step.status}
+                <TaskBadge tone={isFailed ? 'danger' : isCompleted ? 'success' : 'default'}>
+                  {STEP_STATUS_LABELS[step.status] || step.status}
                 </TaskBadge>
               </div>
               <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
@@ -539,7 +581,8 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
                 </div>
               )}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
       <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
@@ -548,6 +591,9 @@ function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismiss
         )}
         {task.status !== 'completed' && task.status !== 'cancelled' && task.status !== 'failed' && (
           <ActionBtn onClick={onCancelTask} danger>取消任务</ActionBtn>
+        )}
+        {TERMINAL_STATUSES.has(task.status) && (
+          <ActionBtn onClick={onDismissTask}>关闭</ActionBtn>
         )}
       </div>
     </div>
@@ -579,12 +625,6 @@ export default function MessageList({
     prevCountRef.current = messages.length;
   }, [messages]);
 
-  // 任务终结后 1.5s 自动关闭任务卡片（包括不渲染卡片的情况）
-  useEffect(() => {
-    if (!currentTask || !TERMINAL_STATUSES.has(currentTask.status)) return;
-    const timer = setTimeout(() => onDismissTask?.(), 1500);
-    return () => clearTimeout(timer);
-  }, [currentTask?.status, currentTask?.id, onDismissTask]);
 
   if (messages.length === 0 && !currentTask) {
     return (
@@ -632,7 +672,9 @@ export default function MessageList({
           ? false
           : currentTask.status === 'awaiting_plan_approval'
           || currentTask.status === 'awaiting_step_approval'
+          || currentTask.status === 'executing'
           || currentTask.status === 'clarifying'
+          || TERMINAL_STATUSES.has(currentTask.status)
           || taskSteps.length > 2
           || taskHasHighRisk;
         const taskPanel = shouldShowTaskPanel ? (
