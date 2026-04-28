@@ -63,6 +63,10 @@ describe('useSessionState', () => {
     rerender({ stateTick: 1, diaryTick: 1 });
 
     await flushAsync();
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    await flushAsync();
     expect(result.current.stateData).toEqual({ world: [], persona: [{ field_key: 'mood' }], character: [] });
     expect(result.current.diaryEntries).toEqual([{ date_str: '2026-04-23' }]);
     expect(result.current.stateJustChanged).toBe(true);
@@ -104,6 +108,10 @@ describe('useSessionState', () => {
     mocks.fetchSessionStateValues.mockResolvedValueOnce({ world: [], persona: [], character: [{ field_key: 'hp' }] });
     mocks.fetchDailyEntries.mockResolvedValueOnce([]);
     rerender({ tick: 1 });
+    await flushAsync();
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
     await flushAsync();
     expect(result.current.stateJustChanged).toBe(true);
 

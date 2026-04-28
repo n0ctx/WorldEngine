@@ -13,6 +13,12 @@ const displaySettingsStore = vi.hoisted(() => ({
 vi.mock('../../src/api/config.js', () => ({
   getConfig: vi.fn(),
   updateConfig: vi.fn(),
+  updateAuxApiKey: vi.fn(),
+  fetchAuxModels: vi.fn(),
+  testAuxConnection: vi.fn(),
+  updateWritingApiKey: vi.fn(),
+  fetchWritingModels: vi.fn(),
+  testWritingConnection: vi.fn(),
 }));
 
 vi.mock('../../src/store/displaySettings.js', () => ({
@@ -105,13 +111,11 @@ describe('useSettingsConfig', () => {
     });
 
     expect(updateConfig).toHaveBeenCalledWith({
-      context_history_rounds: 12,
       global_system_prompt: '新系统',
       global_post_prompt: '新后置',
     });
     expect(updateConfig).toHaveBeenCalledWith({
       writing: {
-        context_history_rounds: 6,
         global_system_prompt: '新写作系统',
         global_post_prompt: '新写作后置',
       },

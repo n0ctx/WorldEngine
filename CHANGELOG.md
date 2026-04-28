@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 test(prompts): 修正 assembler 测试以适配 Prompt Cache 分层结构
+
+**背景**：`backend/prompts/assembler.js` 已升级为 cached system + dynamic user + history + 末条 user 的分层结构，但 `tests/prompts/assembler.test.js` 5 个用例仍按老的"单 system 拼装"断言，导致全量测试 5 fail。
+
+**改动**：
+- `backend/tests/prompts/assembler.test.js`：5 处用例断言重写，按新结构访问 `messages[0]`（cached system）/`messages[1]`（dynamic user）/`messages.at(-1)`（末条含 post prompt 与 suggestion）；Test "在关闭 suggestion 时" 显式补 `global_post_prompt: ''` 隔离前置用例污染；两处 always 条目相关测试名同步改成 dynamic 块描述
+
+**验证方式**：`cd backend && npm test` → pass 170 / fail 0
+
+**残留风险**：无；`backend/prompts/assembler.js` 锁定文件未改
+
 ## 2026-04-28 feat(llm): 全 provider Prompt Cache usage 标准化 + Qwen/Xiaomi provider
 
 **背景**：`assembler.js` 已拆分 cached/dynamic layer，但只有 Anthropic adapter 会发送 `cache_control`；OpenAI-compatible / Gemini / DeepSeek / Qwen 等 provider 的隐式缓存 usage 没有统一解析，导致前端看不到命中。用户同时要求新增 Qwen 官方 provider，并预留小米官方大模型 provider，避免后续忘记做 cache 兼容。

@@ -1,8 +1,6 @@
 /**
  * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
  *
- * 新的组装顺序（Prompt Cache 优化，为支持 cached/dynamic 分层）：
- *
  *   [CACHED LAYER: system role, 可复用]
  *   [1]  全局 System Prompt
  *   [2]  玩家 System Prompt（均为空则跳过）
