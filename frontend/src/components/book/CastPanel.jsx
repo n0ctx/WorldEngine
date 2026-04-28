@@ -1,5 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+
+const DIARY_TIME_FIELD_KEY = 'diary_time';
+
+/** 将 diary_time 行排到首位，其余行顺序不变 */
+function pinDiaryTimeFirst(rows) {
+  if (!Array.isArray(rows)) return rows;
+  const idx = rows.findIndex((r) => r.field_key === DIARY_TIME_FIELD_KEY);
+  if (idx <= 0) return rows;
+  const result = [...rows];
+  result.unshift(result.splice(idx, 1)[0]);
+  return result;
+}
 import Icon from '../ui/Icon.jsx';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
@@ -213,6 +225,8 @@ function AddCharacterModal({ worldId, sessionId, activeCharacters, onAdd, onClos
 export default function CastPanel({ worldId, sessionId, activeCharacters, onActiveCharactersChange, stateTick = 0, diaryTick = 0, persona, onDiaryInject }) {
   const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, stateTick, diaryTick);
 
+  const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
+
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState([]);
   const [worldResetting, setWorldResetting] = useState(false);
@@ -368,7 +382,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
         {/* 世界状态 */}
         <StatusSection
           title="世界"
-          rows={stateData?.world ?? null}
+          rows={worldRows}
           onReset={handleResetWorldState}
           resetting={worldResetting}
           onSave={handleSaveWorld}

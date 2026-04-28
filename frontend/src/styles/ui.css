@@ -356,9 +356,20 @@
   transition: background-color 0.15s, border-color 0.15s;
   line-height: 1.5;
 }
-.we-option-btn:hover {
+.we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-vermilion-bg);
   border-color: var(--we-vermilion);
+}
+.we-option-btn--disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+.we-option-btn--selected {
+  opacity: 1;
+  background: var(--we-vermilion-bg);
+  border-color: var(--we-vermilion);
+  color: var(--we-vermilion);
 }
 .we-option-dismiss {
   display: block;
@@ -371,6 +382,22 @@
   color: var(--we-ink-faded);
   cursor: pointer;
   font-style: italic;
+}
+.we-option-card--collapsed {
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 10px;
+}
+.we-option-card--history {
+  opacity: 0.7;
+  margin-top: 6px;
+}
+.we-option-collapsed-hint {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+  flex: 1;
 }
 
 /* ── Keyword scope checkboxes ── */

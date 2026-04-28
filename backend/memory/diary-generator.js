@@ -257,6 +257,7 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
     const raw = await llm.complete(prompt, {
       temperature: LLM_TASK_TEMPERATURE,
       maxTokens: LLM_DIARY_MAX_TOKENS,
+      thinking_level: null,
     });
     diaryContent = (raw || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
   } catch (err) {

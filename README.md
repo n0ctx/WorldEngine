@@ -122,7 +122,3 @@ npm run desktop:dist
 **日志**
 
 日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
-
-## License
-
-MIT

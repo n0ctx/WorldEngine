@@ -22,8 +22,8 @@ export const PROMPT_ENTRY_LLM_MAX_TOKENS = 300;  // LLM preflight：最大输出
 export const MEMORY_RECALL_MAX_SESSIONS = 5;
 export const MEMORY_RECALL_CONTEXT_WINDOW = 10;
 export const MEMORY_RECALL_MAX_TOKENS = 2048;
-export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.84;       // 跨 session 阈值（很严格）
-export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.72;     // 同 session 内阈值（严格）
+export const MEMORY_RECALL_SIMILARITY_THRESHOLD = 0.75;       // 跨 session 阈值
+export const MEMORY_RECALL_SAME_SESSION_THRESHOLD = 0.6;     // 同 session 内阈值
 
 // ============================
 // 记忆原文展开（T28）

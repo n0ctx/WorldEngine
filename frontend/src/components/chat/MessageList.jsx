@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImper
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import WritingMessageItem from '../writing/WritingMessageItem.jsx';
+import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../api/sessions.js';
 import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
 import ChapterDivider from '../book/ChapterDivider.jsx';
@@ -9,6 +10,41 @@ import ChapterDivider from '../book/ChapterDivider.jsx';
 const NOOP = () => {};
 
 const PAGE_SIZE = 50;
+
+/**
+ * 历史冻结选项卡：已使用的选项（不可交互），支持折叠/展开。
+ * 与 OptionCard 保持相同的视觉结构，在同一批次 render 中无缝接替活跃选项卡。
+ */
+function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
+  const [collapsed, setCollapsed] = useState(!!initialCollapsed);
+  if (!options?.length) return null;
+  return (
+    <div className="px-4 pb-2 shrink-0">
+      <div className="max-w-[800px] mx-auto">
+        {collapsed ? (
+          <div className="we-option-card we-option-card--collapsed we-option-card--history">
+            <span className="we-option-collapsed-hint">ξ( ✿＞◡❛)</span>
+            <button className="we-option-dismiss" onClick={() => setCollapsed(false)}>展开</button>
+          </div>
+        ) : (
+          <div className="we-option-card we-option-card--history">
+            <div className="flex flex-col gap-1">
+              {options.map((opt, i) => (
+                <div
+                  key={i}
+                  className={`we-option-btn we-option-btn--disabled${i === selectedIndex ? ' we-option-btn--selected' : ''}`}
+                >
+                  {opt}
+                </div>
+              ))}
+            </div>
+            <button className="we-option-dismiss" onClick={() => setCollapsed(true)}>折叠</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const MessageList = forwardRef(function MessageList({
   sessionId,
@@ -29,6 +65,11 @@ const MessageList = forwardRef(function MessageList({
   chapterTitles = {},
   onChapterEdit,
   onChapterRetitle,
+  options = [],
+  onSelectOption,
+  onDismissOptions,
+  optionCollapsed = false,
+  onOptionCollapsedChange,
 }, ref) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -106,6 +147,14 @@ const MessageList = forwardRef(function MessageList({
       .catch(() => setLoadingMore(false));
   }, [loadingMore, hasMore, sessionId, offset]);
 
+  // options 出现时自动滚动到底部，确保选项卡可见
+  useEffect(() => {
+    if (options.length > 0) {
+      const el = listRef.current;
+      if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    }
+  }, [options.length]);
+
   // 监听滚动：到顶部时加载更多
   useEffect(() => {
     const el = listRef.current;
@@ -125,6 +174,21 @@ const MessageList = forwardRef(function MessageList({
   useImperativeHandle(ref, () => ({
     appendMessage: (msg) => setMessages((prev) => [...prev, msg]),
     updateMessages: (updater) => setMessages(updater),
+    freezeOptions: (frozenOptions, selectedIndex, collapsed) => {
+      setMessages((prev) => {
+        const idx = [...prev].reverse().findIndex((m) => m.role === 'assistant');
+        if (idx === -1) return prev;
+        const realIdx = prev.length - 1 - idx;
+        const updated = [...prev];
+        updated[realIdx] = {
+          ...updated[realIdx],
+          _options: frozenOptions,
+          _selectedOption: selectedIndex,
+          _options_collapsed: collapsed,
+        };
+        return updated;
+      });
+    },
     scrollToBottom: () => {
       const el = listRef.current;
       if (el) el.scrollTop = el.scrollHeight;
@@ -211,64 +275,107 @@ const MessageList = forwardRef(function MessageList({
                 const isContinuing = !isStream && continuingMessageId && msg.id === continuingMessageId;
                 const displayMsg = isContinuing ? { ...msg, content: msg.content + '\n\n' + continuingText } : msg;
                 return (
-                  <WritingMessageItem
-                    key={msg._key ?? msg.id}
-                    message={displayMsg}
-                    isStreaming={isContinuing || isStream}
-                    persona={persona}
-                    worldId={worldId}
-                    onEdit={isStream ? undefined : onEditMessage}
-                    onRegenerate={isStream ? undefined : onRegenerateMessage}
-                    onEditAssistant={isStream ? undefined : onEditAssistantMessage}
-                    onDelete={isStream ? undefined : onDeleteMessage}
-                    onMakeCard={isStream ? undefined : onMakeCard}
-                  />
+                  <div key={msg._key ?? msg.id}>
+                    <WritingMessageItem
+                      message={displayMsg}
+                      isStreaming={isContinuing || isStream}
+                      persona={persona}
+                      worldId={worldId}
+                      onEdit={isStream ? undefined : onEditMessage}
+                      onRegenerate={isStream ? undefined : onRegenerateMessage}
+                      onEditAssistant={isStream ? undefined : onEditAssistantMessage}
+                      onDelete={isStream ? undefined : onDeleteMessage}
+                      onMakeCard={isStream ? undefined : onMakeCard}
+                    />
+                    {displayMsg._options?.length > 0 && !isStream && (
+                      <FrozenOptionCard
+                        options={displayMsg._options}
+                        selectedIndex={displayMsg._selectedOption}
+                        initialCollapsed={displayMsg._options_collapsed}
+                      />
+                    )}
+                  </div>
                 );
               })}
             </div>
           );
           })}
+          {options.length > 0 && (
+            <OptionCard
+              options={options}
+              streaming={generating}
+              onSelect={onSelectOption}
+              onDismiss={onDismissOptions}
+              initialCollapsed={optionCollapsed}
+              onCollapsedChange={onOptionCollapsedChange}
+            />
+          )}
         </div>
       ) : (
         <div>
           <AnimatePresence mode="popLayout">
-            {messagesForDisplay.map((msg) => {
-              const isContinuing = continuingMessageId && msg.id === continuingMessageId;
-              const isStream = !!msg._isStream;
-              const displayMsg = isContinuing
-                ? { ...msg, content: msg.content + '\n\n' + continuingText }
-                : msg;
-              return (
-                <MessageItem
-                  key={msg._key ?? msg.id}
-                  message={displayMsg}
-                  character={character}
-                  persona={persona}
-                  worldId={worldId}
-                  isStreaming={isContinuing || isStream}
-                  streamingText={(isContinuing || isStream) ? displayMsg.content : undefined}
-                  onEdit={onEditMessage}
-                  onRegenerate={onRegenerateMessage}
-                  onEditAssistant={onEditAssistantMessage}
-                  onDelete={isStream ? undefined : onDeleteMessage}
-                />
-              );
-            })}
-            {/* 流式响应（仅新消息，续写时不显示） */}
-            {generating && !continuingMessageId && (
-              <MessageItem
-                key={streamingKey || '__streaming__'}
-                message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: 0 }}
-                character={character}
-                worldId={worldId}
-                isStreaming={true}
-                streamingText={streamingText}
-                onEdit={NOOP}
-                onRegenerate={NOOP}
-                onEditAssistant={NOOP}
-              />
-            )}
+            {(() => {
+              const items = [];
+              messagesForDisplay.forEach((msg) => {
+                const isContinuing = continuingMessageId && msg.id === continuingMessageId;
+                const isStream = !!msg._isStream;
+                const displayMsg = isContinuing
+                  ? { ...msg, content: msg.content + '\n\n' + continuingText }
+                  : msg;
+                items.push(
+                  <MessageItem
+                    key={msg._key ?? msg.id}
+                    message={displayMsg}
+                    character={character}
+                    persona={persona}
+                    worldId={worldId}
+                    isStreaming={isContinuing || isStream}
+                    streamingText={(isContinuing || isStream) ? displayMsg.content : undefined}
+                    onEdit={onEditMessage}
+                    onRegenerate={onRegenerateMessage}
+                    onEditAssistant={onEditAssistantMessage}
+                    onDelete={isStream ? undefined : onDeleteMessage}
+                  />
+                );
+                if (displayMsg._options?.length > 0 && !isStream) {
+                  items.push(
+                    <FrozenOptionCard
+                      key={`fo-${msg._key ?? msg.id}`}
+                      options={displayMsg._options}
+                      selectedIndex={displayMsg._selectedOption}
+                      initialCollapsed={displayMsg._options_collapsed}
+                    />
+                  );
+                }
+              });
+              if (generating && !continuingMessageId) {
+                items.push(
+                  <MessageItem
+                    key={streamingKey || '__streaming__'}
+                    message={{ id: streamingKey || '__streaming__', role: 'assistant', content: streamingText || '', created_at: 0 }}
+                    character={character}
+                    worldId={worldId}
+                    isStreaming={true}
+                    streamingText={streamingText}
+                    onEdit={NOOP}
+                    onRegenerate={NOOP}
+                    onEditAssistant={NOOP}
+                  />
+                );
+              }
+              return items;
+            })()}
           </AnimatePresence>
+          {options.length > 0 && (
+            <OptionCard
+              options={options}
+              streaming={generating}
+              onSelect={onSelectOption}
+              onDismiss={onDismissOptions}
+              initialCollapsed={optionCollapsed}
+              onCollapsedChange={onOptionCollapsedChange}
+            />
+          )}
         </div>
       )}
 

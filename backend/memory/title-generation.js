@@ -22,7 +22,7 @@ export async function generateTitleWithRetry({ prompts, maxTokens, temperature, 
     }
 
     const prompt = prompts[Math.min(attempt - 1, prompts.length - 1)];
-    const raw = await llm.complete(prompt, { temperature, maxTokens });
+    const raw = await llm.complete(prompt, { temperature, maxTokens, thinking_level: null });
     const title = normalizeTitle(raw);
     if (title) {
       return { title, source: 'llm', attempts: attempt };

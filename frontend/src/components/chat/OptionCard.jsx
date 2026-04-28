@@ -1,47 +1,80 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 const MotionDiv = motion.div;
 
 /**
- * 选项卡：AI 回复后展示若干行动选项，点击后直接发送，点击取消则关闭。
+ * 选项卡：AI 回复后展示若干行动选项，点击后直接发送；支持折叠/展开。
  * streaming=true 时选项实时更新但不可交互（流式进行中）。
- * @param {{ options: string[], streaming?: boolean, onSelect: (text: string) => void, onDismiss: () => void }} props
+ * onSelect(text, index) — 第二个参数是所选选项的索引。
+ * initialCollapsed — 新选项出现时的初始折叠状态（用于保留上一轮的折叠偏好）。
+ * onCollapsedChange(collapsed) — 折叠状态变化时回调。
  */
-export default function OptionCard({ options, streaming, onSelect, onDismiss }) {
+export default function OptionCard({ options, streaming, onSelect, onDismiss, initialCollapsed, onCollapsedChange }) {
+  const [collapsed, setCollapsed] = useState(!!initialCollapsed);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+
+  // 新选项到来时重置选中，折叠态沿用 initialCollapsed
+  useEffect(() => {
+    if (options?.length) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setCollapsed(!!initialCollapsed);
+      setSelectedIndex(-1);
+    }
+  }, [options?.length]); // 故意不把 initialCollapsed 列入依赖，只在新选项到来时读一次
+
+  function handleCollapse(next) {
+    setCollapsed(next);
+    onCollapsedChange?.(next);
+  }
+
   if (!options?.length) return null;
 
+  const hasSelected = selectedIndex >= 0;
+
   return (
-    <AnimatePresence>
-      <MotionDiv
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 6 }}
-        transition={{ duration: 0.18, ease: 'easeOut' }}
-        className="px-4 pb-2 shrink-0"
-      >
-        <div className="max-w-[800px] mx-auto">
-          <div
-            className="we-option-card"
-          >
+    <MotionDiv
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="px-4 pb-2 shrink-0"
+    >
+      <div className="max-w-[800px] mx-auto">
+        {collapsed ? (
+          <div className="we-option-card we-option-card--collapsed">
+            <span className="we-option-collapsed-hint">ξ( ✿＞◡❛)</span>
+            <button className="we-option-dismiss" onClick={() => handleCollapse(false)}>
+              展开
+            </button>
+          </div>
+        ) : (
+          <div className="we-option-card">
             <div className="flex flex-col gap-1">
-              {options.map((opt, i) => (
-                <button
-                  key={i}
-                  className={`we-option-btn${streaming ? ' opacity-60 cursor-default pointer-events-none' : ''}`}
-                  onClick={() => onSelect(opt)}
-                >
-                  {opt}
-                </button>
-              ))}
+              {options.map((opt, i) => {
+                const isSelected = i === selectedIndex;
+                const disabled = streaming || hasSelected;
+                return (
+                  <button
+                    key={i}
+                    className={`we-option-btn${disabled ? ' we-option-btn--disabled' : ''}${isSelected ? ' we-option-btn--selected' : ''}`}
+                    onClick={disabled ? undefined : () => {
+                      setSelectedIndex(i);
+                      onSelect(opt, i);
+                    }}
+                  >
+                    {opt}
+                  </button>
+                );
+              })}
             </div>
             {!streaming && (
-              <button className="we-option-dismiss" onClick={onDismiss}>
-                取消
+              <button className="we-option-dismiss" onClick={() => handleCollapse(true)}>
+                折叠
               </button>
             )}
           </div>
-        </div>
-      </MotionDiv>
-    </AnimatePresence>
+        )}
+      </div>
+    </MotionDiv>
   );
 }

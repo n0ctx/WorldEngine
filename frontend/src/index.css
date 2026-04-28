@@ -1329,10 +1329,43 @@ body {
 
 .we-chapter-actions {
   position: absolute;
-  right: 0;
-  bottom: 100%;
-  margin-bottom: 4px;
+  top: 8px;
+  right: 8px;
   display: flex;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.we-chapter-header:hover .we-chapter-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.we-chapter-actions button {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--we-ink-faded);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s;
+}
+
+.we-chapter-actions button:hover {
+  color: var(--we-vermilion);
+}
+
+.we-chapter-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .we-chapter-fleuron {

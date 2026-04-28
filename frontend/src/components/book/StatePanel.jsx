@@ -1,6 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
+
+const DIARY_TIME_FIELD_KEY = 'diary_time';
+
+/** 将 diary_time 行排到首位，其余行顺序不变 */
+function pinDiaryTimeFirst(rows) {
+  if (!Array.isArray(rows)) return rows;
+  const idx = rows.findIndex((r) => r.field_key === DIARY_TIME_FIELD_KEY);
+  if (idx <= 0) return rows;
+  const result = [...rows];
+  result.unshift(result.splice(idx, 1)[0]);
+  return result;
+}
 import useStore from '../../store/index.js';
 import {
   resetSessionWorldStateValues,
@@ -67,6 +79,8 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
   const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, tick);
+
+  const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
@@ -221,7 +235,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           <StatusSection
             title="WORLD"
             className="we-status-world"
-            rows={stateData?.world ?? null}
+            rows={worldRows}
             onReset={handleResetWorld}
             resetting={worldResetting}
             onSave={handleSaveWorld}

@@ -14,7 +14,6 @@ function toChapterNum(n) {
 export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenerate }) {
   const ref = useRef(null);
   const inputRef = useRef(null);
-  const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [regenerating, setRegenerating] = useState(false);
@@ -75,12 +74,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
   }
 
   return (
-    <header
-      ref={ref}
-      className="we-chapter-header"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <header ref={ref} className="we-chapter-header">
       <div className="we-chapter-num">第 {toChapterNum(chapterIndex)} 章</div>
 
       {editing ? (
@@ -93,25 +87,17 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
             className="we-chapter-edit-input"
           />
           <div className="we-chapter-edit-actions">
-            <button
-              onClick={cancelEdit}
-              className="we-chapter-edit-btn"
-            >取消</button>
-            <button
-              onClick={confirmEdit}
-              className="we-chapter-edit-btn we-chapter-edit-btn--primary"
-            >保存</button>
+            <button onClick={cancelEdit} className="we-chapter-edit-btn">取消</button>
+            <button onClick={confirmEdit} className="we-chapter-edit-btn we-chapter-edit-btn--primary">保存</button>
           </div>
         </div>
       ) : (
         <>
           <h2 className="we-chapter-title">{title}</h2>
-          {hovered && (onEdit || onRegenerate) && (
-            <div
-              className="we-message-actions we-chapter-actions"
-            >
+          {(onEdit || onRegenerate) && (
+            <div className="we-chapter-actions">
               {onEdit && (
-                <button onClick={startEdit}>
+                <button onClick={startEdit} aria-label="编辑章节标题">
                   <Icon size={16}>
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -120,7 +106,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
                 </button>
               )}
               {onRegenerate && (
-                <button onClick={handleRegenerate} disabled={regenerating}>
+                <button onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
                   <Icon size={16}>
                     <polyline points="1 4 1 10 7 10" />
                     <path d="M3.51 15a9 9 0 1 0 .49-4.98" />

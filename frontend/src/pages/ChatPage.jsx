@@ -9,7 +9,6 @@ import { createSession, getSession, deleteMessage as deleteMessageApi } from '..
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
-import OptionCard from '../components/chat/OptionCard.jsx';
 import BookSpread from '../components/book/BookSpread.jsx';
 import PageLeft from '../components/book/PageLeft.jsx';
 import PageRight from '../components/book/PageRight.jsx';
@@ -99,6 +98,9 @@ export default function ChatPage() {
   const streamAbortedRef = useRef(false);
 
   const [currentOptions, setCurrentOptions] = useState([]);
+  const currentOptionsRef = useRef([]);
+  const selectedOptionIndexRef = useRef(-1);
+  const optionCollapsedRef = useRef(false);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
 
   const clearOptionsState = useCallback(() => {
@@ -115,6 +117,12 @@ export default function ChatPage() {
   }, []);
 
   const beginStreamRun = useCallback(() => {
+    // 将当前轮次选项冻结到最后一条 assistant 消息上（再次生成时保留历史选项）
+    if (currentOptionsRef.current.length > 0) {
+      messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
+      selectedOptionIndexRef.current = -1;
+      optionCollapsedRef.current = false;
+    }
     const runId = streamRunIdRef.current + 1;
     streamRunIdRef.current = runId;
     pendingAssistantRef.current = null;
@@ -169,6 +177,10 @@ export default function ChatPage() {
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    currentOptionsRef.current = currentOptions;
+  }, [currentOptions]);
 
   const clearActiveSession = useCallback(() => {
     clearOptionsState();
@@ -816,17 +828,12 @@ export default function ChatPage() {
           onDeleteMessage={handleDeleteMessage}
           continuingMessageId={continuingMessageId}
           continuingText={continuingText}
+          options={currentOptions}
+          onSelectOption={(text, idx) => { selectedOptionIndexRef.current = idx; handleSend(text, []); }}
+          onDismissOptions={() => setCurrentOptions([])}
+          optionCollapsed={optionCollapsedRef.current}
+          onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
         />
-
-        {/* 选项卡：AI 回复后展示行动选项（流式中实时更新，结束后可交互） */}
-        {currentOptions.length > 0 && (
-          <OptionCard
-            options={currentOptions}
-            streaming={generating}
-            onSelect={(text) => { setCurrentOptions([]); handleSend(text, []); }}
-            onDismiss={() => setCurrentOptions([])}
-          />
-        )}
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
         {errorBubble && !generating && (

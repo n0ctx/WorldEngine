@@ -55,7 +55,7 @@ async function tryLlmMatch(entriesWithDesc, contextLines) {
       },
     ];
 
-    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS });
+    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, thinking_level: null });
 
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')

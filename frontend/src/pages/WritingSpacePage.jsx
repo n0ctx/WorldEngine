@@ -32,7 +32,6 @@ import CastPanel from '../components/book/CastPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
-import OptionCard from '../components/chat/OptionCard.jsx';
 import CharacterPreviewModal from '../components/writing/CharacterPreviewModal.jsx';
 import CharacterAnalyzingModal from '../components/writing/CharacterAnalyzingModal.jsx';
 import { AnimatePresence } from 'framer-motion';
@@ -125,6 +124,9 @@ export default function WritingSpacePage() {
   const recallSummaryTimerRef = useRef(null);
 
   const [currentOptions, setCurrentOptions] = useState([]);
+  const currentOptionsRef = useRef([]);
+  const selectedOptionIndexRef = useRef(-1);
+  const optionCollapsedRef = useRef(false);
   const [pendingDiaryInject, setPendingDiaryInject] = useState(null);
   // chapterTitles: { [chapterIndex]: { title, is_default } }
   const [chapterTitles, setChapterTitles] = useState({});
@@ -137,6 +139,10 @@ export default function WritingSpacePage() {
   useEffect(() => {
     currentSessionRef.current = currentSession;
   }, [currentSession]);
+
+  useEffect(() => {
+    currentOptionsRef.current = currentOptions;
+  }, [currentOptions]);
 
   useEffect(() => {
     if (!worldId) return;
@@ -286,6 +292,11 @@ export default function WritingSpacePage() {
   }
 
   function beginStreamRun() {
+    if (currentOptionsRef.current.length > 0) {
+      messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
+      selectedOptionIndexRef.current = -1;
+      optionCollapsedRef.current = false;
+    }
     const runId = streamRunIdRef.current + 1;
     streamRunIdRef.current = runId;
     pendingAssistantRef.current = null;
@@ -820,17 +831,12 @@ export default function WritingSpacePage() {
               chapterTitles={chapterTitles}
               onChapterEdit={handleChapterEdit}
               onChapterRetitle={handleChapterRetitle}
+              options={currentOptions}
+              onSelectOption={(text, idx) => { selectedOptionIndexRef.current = idx; handleSend(text); }}
+              onDismissOptions={() => setCurrentOptions([])}
+              optionCollapsed={optionCollapsedRef.current}
+              onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
             />
-
-            {/* 选项卡：AI 回复后展示行动选项 */}
-            {currentOptions.length > 0 && (
-              <OptionCard
-                options={currentOptions}
-                streaming={generating}
-                onSelect={(text) => { setCurrentOptions([]); handleSend(text); }}
-                onDismiss={() => setCurrentOptions([])}
-              />
-            )}
 
             {/* 错误提示 */}
             {error && (

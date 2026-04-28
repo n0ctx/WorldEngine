@@ -63,15 +63,17 @@ export function ensureDiaryTimeField(worldId) {
   } else if (isDiaryEnabled && timeField) {
     const expectedMode = dateMode === 'real' ? 'system_rule' : 'llm_auto';
     const expectedInstruction = dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION;
-    if (
+    const needsUpdate =
       timeField.update_mode !== expectedMode ||
       timeField.update_instruction !== expectedInstruction ||
-      timeField.description !== DIARY_TIME_DESCRIPTION
-    ) {
+      timeField.description !== DIARY_TIME_DESCRIPTION ||
+      timeField.sort_order !== 0;
+    if (needsUpdate) {
       updateWorldStateField(timeField.id, {
         update_mode: expectedMode,
         update_instruction: expectedInstruction,
         description: DIARY_TIME_DESCRIPTION,
+        sort_order: 0,
       });
     }
   }

@@ -29,8 +29,6 @@
 - `state-update.md`
   批量更新世界 / 玩家 / 角色状态的模板。
 - `chat-impersonate.md`
-  聊天模式代拟用户输入的模板。
-- `writing-impersonate.md`
-  写作模式代拟玩家输入的模板。
+  聊天模式和写作模式共用的代拟用户输入的模板。
 - `shared-suggestion.md`
   生成 `<next_prompt>` 选项块的共享模板。
