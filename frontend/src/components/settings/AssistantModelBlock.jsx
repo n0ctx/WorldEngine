@@ -9,11 +9,8 @@ export default function AssistantModelBlock({ modelSource, onModelSourceChange }
   return (
     <div className="we-settings-field-group">
       <p className="we-settings-subsection-title">写作助手模型(LLM)</p>
-      <p className="we-settings-field-hint">
-        写作助手（创建/编辑卡片）使用的 LLM 模型来源。
-      </p>
 
-      <FormGroup label="模型来源">
+      <FormGroup label="模型来源" hint="写作助手（创建/编辑卡片）使用的 LLM 模型来源。">
         <Select
           value={modelSource || 'main'}
           onChange={onModelSourceChange}
