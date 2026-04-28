@@ -1,0 +1,117 @@
+{
+  "chat": {
+    "temperature": 0.33,
+    "maxTokens": 444,
+    "recallHitCount": 1,
+    "messages": [
+      {
+        "index": 0,
+        "role": "system",
+        "orderedAnchors": [
+          "ANCHOR_[1]_CHAT_GLOBAL",
+          "ANCHOR_[2]_PERSONA",
+          "ANCHOR_[3]_CHAR_ALPHA",
+          "ANCHOR_[3.5]_CACHED_TITLE",
+          "ANCHOR_[3.5]_CACHED_BODY"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 1,
+        "role": "user",
+        "orderedAnchors": [
+          "旧轮用户消息"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 2,
+        "role": "assistant",
+        "orderedAnchors": [
+          "旧轮助手消息"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 3,
+        "role": "user",
+        "orderedAnchors": [
+          "ANCHOR_[4]_WORLD_STATE",
+          "ANCHOR_[5]_PERSONA_STATE",
+          "ANCHOR_[6]_CHAR_STATE",
+          "ANCHOR_[7]_ENTRY_TITLE",
+          "ANCHOR_[7]_ENTRY_BODY",
+          "[历史记忆召回]",
+          "ANCHOR_[8]_RECALL_CHAT",
+          "[历史对话原文展开]",
+          "ANCHOR_[10]_DIARY_CHAT",
+          "<user_message>",
+          "ANCHOR_QUERY 当前聊天消息",
+          "</user_message>",
+          "next_prompt",
+          "ANCHOR_[11]_CHAT_POST",
+          "ANCHOR_[11]_CHAR_POST"
+        ],
+        "missingAnchors": []
+      }
+    ]
+  },
+  "writing": {
+    "temperature": 0.33,
+    "maxTokens": 444,
+    "model": "writer-shape-model",
+    "recallHitCount": 1,
+    "messages": [
+      {
+        "index": 0,
+        "role": "system",
+        "orderedAnchors": [
+          "ANCHOR_[1]_WRITING_GLOBAL",
+          "ANCHOR_[2]_PERSONA",
+          "ANCHOR_[3.5]_CACHED_TITLE",
+          "ANCHOR_[3.5]_CACHED_BODY"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 1,
+        "role": "user",
+        "orderedAnchors": [
+          "旧写作用户消息"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 2,
+        "role": "assistant",
+        "orderedAnchors": [
+          "旧写作助手消息"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 3,
+        "role": "user",
+        "orderedAnchors": [
+          "ANCHOR_[3]_CHAR_ALPHA",
+          "ANCHOR_[3]_CHAR_BETA",
+          "ANCHOR_[4]_WORLD_STATE",
+          "ANCHOR_[5]_PERSONA_STATE",
+          "ANCHOR_[6]_CHAR_STATE",
+          "ANCHOR_[7]_ENTRY_TITLE",
+          "ANCHOR_[7]_ENTRY_BODY",
+          "[历史记忆召回]",
+          "ANCHOR_[8]_RECALL_WRITING",
+          "[历史对话原文展开]",
+          "ANCHOR_[10]_DIARY_WRITING",
+          "<user_message>",
+          "ANCHOR_QUERY 当前写作消息",
+          "</user_message>",
+          "next_prompt",
+          "ANCHOR_[11]_WRITING_POST"
+        ],
+        "missingAnchors": []
+      }
+    ]
+  }
+}

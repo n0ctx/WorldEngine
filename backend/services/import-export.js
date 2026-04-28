@@ -18,9 +18,13 @@ const AVATARS_DIR = path.join(DATA_ROOT, 'uploads', 'avatars');
 
 // ─── 内部导入辅助函数 ─────────────────────────────────────────────────────────
 
-function normalizeToken(value) {
+function normalizeToken(value, triggerType = 'always') {
   const n = parseInt(value, 10);
-  return Number.isFinite(n) && n >= 1 ? n : 1;
+  if (!Number.isFinite(n)) return 1;
+  if (triggerType === 'always') {
+    return n >= 0 ? n : 1;
+  }
+  return n >= 1 ? n : 1;
 }
 
 /**
@@ -50,7 +54,7 @@ function insertPromptEntries(stmt, entityId, entries, now) {
       entry.keyword_scope ?? 'user,assistant',
       entry.trigger_type ?? 'always',
       entry.sort_order ?? 0,
-      normalizeToken(entry.token),
+      normalizeToken(entry.token, entry.trigger_type ?? 'always'),
       now, now,
     );
     ids.push(id);

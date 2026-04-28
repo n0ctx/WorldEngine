@@ -3,6 +3,39 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 test: Wave 3 完成 — assembler 结构快照 + import/export round-trip + 写作 e2e
+
+**改动**：
+- 新增 `backend/tests/prompts/assembler-shape.test.js` 与快照 `backend/tests/prompts/__snapshots__/assembler-shape.snap`
+  - 用最大化 fixture 固定 `buildPrompt` / `buildWritingPrompt` 的 cached / dynamic / history / bottom 结构锚点顺序
+  - 覆盖 `[3.5]` cached entries、`[8]` recall、`[9]` expand、`[10]` diary injection、`[11]` post prompt、`suggestion` 尾部注入
+- 新增 `backend/tests/services/import-export-roundtrip.test.js`
+  - 世界卡 / 角色卡 / 全局设置三条 round-trip 用例
+  - 全局设置用例额外验证导入采用覆盖语义：chat 资源被清空重写，writing 资源保留
+- 新增 `backend/tests/e2e/writing-playwright.test.js`
+  - 在 `WE_E2E=1` 下跑真实浏览器写作流：首次 generate + continue 续写，断言页面与 DB 均更新
+- 调整 `backend/tests/e2e/chat-playwright.test.js`
+  - 同样改为 `WE_E2E=1` 门控，避免默认 `npm test` 跑浏览器
+  - 不再 `spawn npm` 起前端，改用 Vite Node API 直接启动 dev server，规避 `node:test --test-isolation=process` 下的 `ENOENT`
+- 修复 `backend/services/import-export.js`
+  - 导入 world prompt entries 时同步支持 `trigger_type='always'` 的 `token=0`，使 CACHED 条目语义可 round-trip，不再被错误钳回 `1`
+
+**验证方式**：
+- `cd backend && node --test --test-isolation=process tests/prompts/assembler-shape.test.js`
+- `cd backend && node --test --test-isolation=process tests/services/import-export-roundtrip.test.js`
+- `cd backend && WE_E2E=1 node --test --test-isolation=process tests/e2e/writing-playwright.test.js`
+- `cd backend && WE_E2E=1 node --test --test-isolation=process tests/e2e/chat-playwright.test.js`
+- `cd backend && npm test`
+- `cd backend && npm run test:coverage`
+
+**结果**：
+- backend 默认测试：**273 pass / 0 fail / 3 skip**（3 个 Playwright 用例默认按 `WE_E2E` 跳过）
+- backend coverage：**lines 71.58% / branches 73.25% / funcs 73.04%**
+
+**残留风险**：
+- Playwright e2e 依赖本机已有浏览器环境；仓库默认仍不在 `npm test` 中执行，需要显式设置 `WE_E2E=1`
+- `import-export` 的 round-trip 仍会对头像/封面路径做“文件重存后换新路径”的物理归一化；测试已只比较逻辑等价，不比较导入后生成的 UUID 文件名
+
 ## 2026-04-29 test: Wave 2 续 — 补齐 ChatPage / WritingSpacePage / SettingsPage 页面级分支
 
 **改动**：
