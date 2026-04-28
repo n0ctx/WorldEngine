@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 test: Wave 1 续 — 路由层补测，行覆盖率达到 70.29%
+
+**改动**：
+- 删除 `backend/tests/utils/logger.test.js`（其 3 个用例已被 logger-extra 实质覆盖；`logger.js` 报告覆盖率 46% → 94.10%）
+- 新增 4 个路由测试文件（共 40 用例）：
+  - `tests/routes/state-fields-and-values.test.js`（9）— world/character state fields 全 CRUD + reorder + 重复 409；world/persona/character state-values PATCH/reset 校验
+  - `tests/routes/personas-characters-entries.test.js`（14）— personas 旧/新接口 + activate；characters CRUD + reorder；prompt-entries CRUD + conditions
+  - `tests/routes/regex-css-daily-timeline.test.js`（8）— regex-rules 全 CRUD + scope 校验；custom-css-snippets CRUD；daily-entries 列表 + 文件读；session timeline
+  - `tests/routes/session-state-values.test.js`（9）— 会话级三层状态值 GET/PATCH/DELETE 分支
+- 测试 234 → **271 pass / 0 fail**
+
+**覆盖率最终**：
+- 行覆盖率 55.29% → **70.29%**（达到 Wave 1 ≥70% 门槛）
+- 分支 53.72% → **73.20%**
+- 函数 43.64% → **72.62%**
+
+**残留风险**：Wave 2/3（前端补测、prompts/memory 深度测试、e2e 扩充）未执行。
+
 ## 2026-04-29 test: Wave 0+1 修红线 + 测试覆盖率补全 + freshImport 重构
 
 **背景**：盘点三大模块测试现状时发现：
