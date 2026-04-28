@@ -27,6 +27,12 @@ const mocks = vi.hoisted(() => {
     listActiveCharacters: vi.fn(),
     generate: vi.fn(),
     continueGeneration: vi.fn(),
+    stopGeneration: vi.fn(),
+    retitleWritingSession: vi.fn(),
+    updateChapterTitle: vi.fn(),
+    retitleChapter: vi.fn(),
+    impersonateWriting: vi.fn(),
+    pushErrorToast: vi.fn(),
     getChapterTitles: vi.fn(),
     MessageListState: createMessageListMock(),
     WritingSessionListMock,
@@ -51,14 +57,15 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   createWritingSession: (...args) => mocks.createWritingSession(...args),
   listActiveCharacters: (...args) => mocks.listActiveCharacters(...args),
   generate: (...args) => mocks.generate(...args),
-  stopGeneration: vi.fn(),
+  stopGeneration: (...args) => mocks.stopGeneration(...args),
   continueGeneration: (...args) => mocks.continueGeneration(...args),
   regenerateWriting: vi.fn(),
   editAndRegenerateWriting: vi.fn(),
   editWritingAssistantMessage: vi.fn(),
-  impersonateWriting: vi.fn(),
+  impersonateWriting: (...args) => mocks.impersonateWriting(...args),
   extractCharactersFromMessage: vi.fn(),
   confirmCharacters: vi.fn(),
+  retitleWritingSession: (...args) => mocks.retitleWritingSession(...args),
 }));
 vi.mock('../../src/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
 vi.mock('../../src/components/chat/MessageList.jsx', () => ({
@@ -68,7 +75,13 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
       updateMessages: mocks.MessageListState.updateMessages,
       messagesRef: mocks.MessageListState.messagesRef,
     }));
-    return <div data-testid="message-list">{props.sessionId || 'none'}</div>;
+    return (
+      <div data-testid="message-list">
+        {props.sessionId || 'none'}
+        <button onClick={() => props.onChapterEdit?.(1, '手改标题')}>edit-chapter</button>
+        <button onClick={() => props.onChapterRetitle?.(1)}>retitle-chapter</button>
+      </div>
+    );
   }),
 }));
 vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({
@@ -85,6 +98,9 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
       <>
         <button onClick={() => props.onSend('写作消息')}>send-writing</button>
         <button onClick={() => props.onContinue?.()}>continue-writing</button>
+        <button onClick={() => props.onImpersonate?.()}>impersonate-writing</button>
+        <button onClick={() => props.onTitle?.()}>retitle-writing</button>
+        <button onClick={() => props.onStop?.()}>stop-writing</button>
       </>
     );
   }),
@@ -92,8 +108,15 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
 vi.mock('../../src/api/chapter-titles.js', () => ({
   getChapterTitles: (...args) => mocks.getChapterTitles(...args),
-  updateChapterTitle: vi.fn(),
+  updateChapterTitle: (...args) => mocks.updateChapterTitle(...args),
+  retitleChapter: (...args) => mocks.retitleChapter(...args),
 }));
+vi.mock('../../src/utils/toast.js', () => ({
+  pushToast: vi.fn(),
+  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+}));
+vi.mock('../../src/components/writing/CharacterPreviewModal.jsx', () => ({ default: () => <div data-testid="preview-modal" /> }));
+vi.mock('../../src/components/writing/CharacterAnalyzingModal.jsx', () => ({ default: () => <div data-testid="analyzing-modal" /> }));
 
 import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
 
@@ -108,7 +131,18 @@ describe('WritingSpacePage', () => {
     mocks.listActiveCharacters.mockResolvedValue([{ id: 'char-1', name: '阿塔' }]);
     mocks.continueGeneration.mockReset();
     mocks.generate.mockReset();
+    mocks.stopGeneration.mockReset();
+    mocks.retitleWritingSession.mockReset();
+    mocks.updateChapterTitle.mockReset();
+    mocks.retitleChapter.mockReset();
+    mocks.impersonateWriting.mockReset();
+    mocks.pushErrorToast.mockReset();
     mocks.getChapterTitles.mockResolvedValue([]);
+    mocks.retitleWritingSession.mockResolvedValue({ title: '新章节名' });
+    mocks.updateChapterTitle.mockResolvedValue({ title: '手改标题' });
+    mocks.retitleChapter.mockResolvedValue({ title: 'AI 章节名' });
+    mocks.impersonateWriting.mockResolvedValue({ content: '写作代拟' });
+    mocks.stopGeneration.mockResolvedValue({});
     mocks.generate.mockImplementation((_wid, _sid, _content, callbacks) => {
       callbacks.onDone?.({ id: 'asst-1', content: '段落' }, ['下一步']);
       callbacks.onStreamEnd?.();
@@ -118,6 +152,7 @@ describe('WritingSpacePage', () => {
 
   afterEach(() => {
     mocks.refreshCustomCss.mockReset();
+    vi.useRealTimers();
   });
 
   it('首次进入会创建写作会话并切到 writing 模式，发送时调用 generate', async () => {
@@ -272,5 +307,43 @@ describe('WritingSpacePage', () => {
 
     fireEvent.click(screen.getByText('send-writing'));
     expect(mocks.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('支持重命名会话、编辑章节、AI 重拟章节和停止', async () => {
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+
+    fireEvent.click(screen.getByText('retitle-writing'));
+    await waitFor(() => expect(mocks.retitleWritingSession).toHaveBeenCalledWith('world-1', 'ws-1'));
+
+    fireEvent.click(screen.getByText('edit-chapter'));
+    await waitFor(() => expect(mocks.updateChapterTitle).toHaveBeenCalledWith('world-1', 'ws-1', 1, '手改标题'));
+
+    fireEvent.click(screen.getByText('retitle-chapter'));
+    await waitFor(() => expect(mocks.retitleChapter).toHaveBeenCalledWith('world-1', 'ws-1', 1));
+
+    fireEvent.click(screen.getByText('stop-writing'));
+    expect(mocks.stopGeneration).toHaveBeenCalledWith('world-1', 'ws-1');
+  });
+
+  it('代拟和章节操作失败时显示错误 toast', async () => {
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.impersonateWriting.mockRejectedValue(new Error('代拟失败'));
+    mocks.updateChapterTitle.mockRejectedValue(new Error('保存失败'));
+    mocks.retitleChapter.mockRejectedValue(new Error('重拟失败'));
+
+    render(<WritingSpacePage />);
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+
+    fireEvent.click(screen.getByText('impersonate-writing'));
+    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('代拟失败'));
+
+    fireEvent.click(screen.getByText('edit-chapter'));
+    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('保存失败'));
+
+    fireEvent.click(screen.getByText('retitle-chapter'));
+    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('重拟失败'));
   });
 });

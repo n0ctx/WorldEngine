@@ -3,6 +3,37 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 test: Wave 2 续 — 补齐 ChatPage / WritingSpacePage / SettingsPage 页面级分支
+
+**改动**：
+- 扩展 `frontend/tests/pages/chat-page.test.jsx`
+  - 补 `onImpersonate` / `onClear` / `onTitle` / `onStop`
+  - 补 `onEditAssistantMessage` / `onDeleteMessage`
+  - 补错误气泡后的 `handleRetryAfterError`
+- 扩展 `frontend/tests/pages/writing-space-page.test.jsx`
+  - 补 `handleRetitle`
+  - 补 `handleChapterEdit` / `handleChapterRetitle`
+  - 补 `handleImpersonate` 失败分支与 `handleStop`
+- 扩展 `frontend/tests/pages/settings-page.test.jsx`
+  - 补 `FEATURES / REGEX / IMPORT_EXPORT / ABOUT` 导航分支
+  - 补 `from` 回跳路径
+  - 补 loading 普通页 / overlay 两种壳子与 overlay 点击关闭
+
+**验证方式**：
+- `cd frontend && npm test` → **116 pass / 0 fail**
+- `cd frontend && npm run test:coverage -- --reporter=dot`
+
+**覆盖率结果**：
+- frontend 总体：**lines 80.13% / branches 69.28% / funcs 66.83%**
+- 页面专项：
+  - `ChatPage.jsx`：**77.77% / 56.09% funcs**
+  - `SettingsPage.jsx`：**97.82% / 57.14% funcs**
+  - `WritingSpacePage.jsx`：**64.87% / 41.26% funcs**
+
+**残留风险**：
+- `WritingSpacePage.jsx` 仍偏低，主要因为页面内联了大量写作流、制卡与章节交互状态机；若继续补，建议把 `handleMakeCard / handleConfirmCards / editing/regenerate` 一组再拆开打
+- `frontend/src/components/chat/MessageList.jsx` 仍是工作树里的既有未提交改动，本次未处理
+
 ## 2026-04-29 test: Wave 2 完成 — frontend 覆盖率提升到 75.53% / 63.06%
 
 **改动**：

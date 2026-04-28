@@ -23,6 +23,13 @@ const mocks = vi.hoisted(() => {
     getSession: vi.fn(),
     sendMessage: vi.fn(),
     continueGeneration: vi.fn(),
+    stopGeneration: vi.fn(),
+    regenerate: vi.fn(),
+    editAndRegenerate: vi.fn(),
+    impersonate: vi.fn(),
+    clearMessages: vi.fn(),
+    editAssistantMessage: vi.fn(),
+    retitle: vi.fn(),
     getCharacter: vi.fn(),
     getPersona: vi.fn(),
     getWorld: vi.fn(),
@@ -41,14 +48,14 @@ vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorl
 vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
 vi.mock('../../src/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
-  stopGeneration: vi.fn(),
-  regenerate: vi.fn(),
-  editAndRegenerate: vi.fn(),
+  stopGeneration: (...args) => mocks.stopGeneration(...args),
+  regenerate: (...args) => mocks.regenerate(...args),
+  editAndRegenerate: (...args) => mocks.editAndRegenerate(...args),
   continueGeneration: (...args) => mocks.continueGeneration(...args),
-  impersonate: vi.fn(),
-  clearMessages: vi.fn(),
-  editAssistantMessage: vi.fn(),
-  retitle: vi.fn(),
+  impersonate: (...args) => mocks.impersonate(...args),
+  clearMessages: (...args) => mocks.clearMessages(...args),
+  editAssistantMessage: (...args) => mocks.editAssistantMessage(...args),
+  retitle: (...args) => mocks.retitle(...args),
 }));
 vi.mock('../../src/api/sessions.js', () => ({
   createSession: (...args) => mocks.createSession(...args),
@@ -68,6 +75,9 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
       <div data-testid="message-list">
         <div data-testid="session-id">{props.sessionId || 'none'}</div>
         <div data-testid="world-id">{props.worldId || 'none'}</div>
+        <button onClick={() => props.onEditAssistantMessage?.('asst-1', '改写后的回复')}>edit-assistant</button>
+        <button onClick={() => props.onDeleteMessage?.('msg-1')}>delete-message</button>
+        <button onClick={() => props.onRegenerateMessage?.('asst-1')}>regenerate-message</button>
       </div>
     );
   }),
@@ -80,6 +90,11 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
       <>
         <button onClick={() => props.onSend('测试消息', [])}>send</button>
         <button onClick={() => props.onContinue?.()}>continue</button>
+        <button onClick={() => props.onImpersonate?.()}>impersonate</button>
+        <button onClick={() => props.onClear?.()}>clear</button>
+        <button onClick={() => props.onRetry?.()}>retry-last</button>
+        <button onClick={() => props.onTitle?.()}>retitle</button>
+        <button onClick={() => props.onStop?.()}>stop</button>
       </>
     );
   }),
@@ -114,12 +129,24 @@ describe('ChatPage', () => {
     mocks.SessionListPanelMock.addSession.mockReset();
     mocks.continueGeneration.mockReset();
     mocks.sendMessage.mockReset();
+    mocks.stopGeneration.mockReset();
+    mocks.regenerate.mockReset();
+    mocks.editAndRegenerate.mockReset();
+    mocks.impersonate.mockReset();
+    mocks.clearMessages.mockReset();
+    mocks.editAssistantMessage.mockReset();
+    mocks.retitle.mockReset();
     mocks.createSession.mockResolvedValue({ id: 'session-1', title: null, character_id: 'char-1' });
     mocks.getSession.mockResolvedValue(null);
     mocks.getCharacter.mockResolvedValue({ id: 'char-1', world_id: 'world-1', name: '阿塔' });
     mocks.getPersona.mockResolvedValue({ name: '旅者' });
     mocks.getWorld.mockResolvedValue({ id: 'world-1', name: '群星海' });
     mocks.loadRules.mockResolvedValue();
+    mocks.impersonate.mockResolvedValue({ content: '代拟内容' });
+    mocks.clearMessages.mockResolvedValue({ firstMessage: '' });
+    mocks.editAssistantMessage.mockResolvedValue({ ok: true });
+    mocks.retitle.mockResolvedValue({ title: '新标题' });
+    mocks.stopGeneration.mockResolvedValue({});
     mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
       callbacks.onUserSaved?.('user-1');
       callbacks.onDone?.({ id: 'asst-1', content: '你好' }, ['继续']);
@@ -298,5 +325,72 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByText('send'));
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('支持代拟、清空、重命名和停止', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(<ChatPage />);
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('impersonate'));
+    await waitFor(() => expect(mocks.impersonate).toHaveBeenCalledWith('session-1'));
+
+    fireEvent.click(screen.getByText('clear'));
+    await waitFor(() => expect(mocks.clearMessages).toHaveBeenCalledWith('session-1'));
+
+    fireEvent.click(screen.getByText('retitle'));
+    await waitFor(() => expect(mocks.retitle).toHaveBeenCalledWith('session-1'));
+    expect(await screen.findByText('标题已更新：新标题')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('stop'));
+    expect(mocks.stopGeneration).toHaveBeenCalledWith('session-1');
+    expect(confirmSpy).toHaveBeenCalled();
+  });
+
+  it('支持编辑 AI 消息、删除消息和错误后重试', async () => {
+    const callbacks = [];
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.MessageListState.messagesRef.current = [
+      { id: 'user-1', role: 'user', content: '问题' },
+      { id: 'asst-1', role: 'assistant', content: '回答' },
+    ];
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, cb) => {
+      callbacks.push(cb);
+      return vi.fn();
+    });
+    mocks.regenerate.mockImplementation(() => vi.fn());
+
+    render(<ChatPage />);
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('edit-assistant'));
+    await waitFor(() => expect(mocks.editAssistantMessage).toHaveBeenCalledWith('session-1', 'asst-1', '改写后的回复'));
+    expect(await screen.findByText('已保存，摘要更新中…')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('delete-message'));
+    await waitFor(() => expect(mocks.MessageListState.updateMessages).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      callbacks[0].onError?.('网络波动');
+      callbacks[0].onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('重新生成'));
+    await waitFor(() => expect(mocks.regenerate).toHaveBeenCalledWith('session-1', 'user-1', expect.any(Object)));
   });
 });
