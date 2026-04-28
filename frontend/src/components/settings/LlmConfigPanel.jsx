@@ -79,7 +79,7 @@ export default function LlmConfigPanel({
       ) : (
         <div className="we-settings-field-group">
           <ProviderBlock
-            title="语言模型（LLM）"
+            title="主模型（LLM）"
             providers={LLM_PROVIDERS}
             config={llm}
             onProviderChange={(v) => onLlmChange('provider', v)}

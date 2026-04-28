@@ -11,7 +11,6 @@ import { pushErrorToast } from '../../utils/toast';
  * 副模型(LLM)配置区块
  * 仅显示 provider / API Key / base_url / model / 测试连接按钮
  * 不显示 temperature / max_tokens / thinking_level
- * 说明文案："用于摘要、状态栏、记忆展开判断、日记、标题、impersonate/retitle 等后台任务；未配置则回退主模型。"
  */
 export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels }) {
   const [apiKey, setApiKey] = useState('');
@@ -51,11 +50,8 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
   return (
     <div className="we-settings-field-group">
       <p className="we-settings-subsection-title">副模型(LLM)</p>
-      <p className="we-settings-field-hint">
-        用于摘要、状态栏、记忆展开判断、日记、标题、impersonate/retitle 等后台任务；未配置则回退主模型。
-      </p>
 
-      <FormGroup label="Provider">
+      <FormGroup label="Provider" hint="用于摘要、状态栏、记忆展开、日记、标题等后台任务；未配置则回退主模型。">
         <Select
           value={config.provider || ''}
           onChange={onProviderChange}
@@ -125,18 +121,19 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
 
       {config.provider && (
         <FormGroup label="连接测试">
-          <Button
-            variant="default"
-            onClick={handleTestConnection}
-            disabled={testingConnection}
-          >
-            {testingConnection ? '测试中...' : '测试连接'}
-          </Button>
-          {testResult && (
-            <p style={{ marginTop: '8px', fontSize: '0.875rem', color: testResult.success ? '#22c55e' : '#ef4444' }}>
-              {testResult.success ? '连接成功' : `连接失败：${testResult.error}`}
-            </p>
-          )}
+          <div className="we-settings-action-row we-settings-action-row--spaced">
+            <Button
+              variant="default"
+              onClick={handleTestConnection}
+              disabled={testingConnection}
+            >
+              {testingConnection ? '测试中…' : '测试连接'}
+            </Button>
+            {testResult?.success && <span className="we-settings-status-ok">连接成功</span>}
+            {testResult && !testResult.success && (
+              <span className="we-settings-status-error">{`连接失败：${testResult.error}`}</span>
+            )}
+          </div>
         </FormGroup>
       )}
     </div>

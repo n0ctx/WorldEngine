@@ -34,7 +34,7 @@ export default function WritingLlmBlock({ writingLlm, onWritingLlmChange, chatMo
 
   return (
     <div className="we-settings-field-group">
-      <p className="we-settings-subsection-title">写作 LLM 覆盖</p>
+      <p className="we-settings-subsection-title">主模型(LLM)</p>
       <p className="mb-3 mt-0 text-xs italic text-[var(--we-color-text-tertiary)] [font-family:var(--we-font-serif)]">
         Provider / API Key / Base URL 与对话共享。留空或为 null 则继承对话的值。
       </p>

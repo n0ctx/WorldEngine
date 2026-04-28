@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-28 fix(settings): AuxLlmBlock 样式 token 规范对齐
+
+**改动**：
+- `frontend/src/components/settings/AuxLlmBlock.jsx`
+  - 删除独占的描述段落，改为 Provider FormGroup 的 hint prop
+  - 更新文案：删除"impersonate/retitle"（斜杠命令走主模型，无需提及）
+  - 重写连接测试结果区，去除 inline style 裸 hex 色值
+    - 删除 `{{ marginTop: '8px', fontSize: '0.875rem', color: '#22c55e'/'#ef4444' }}`
+    - 改用 `we-settings-action-row`、`we-settings-status-ok`、`we-settings-status-error` token
+    - 将"测试中..."改为"测试中…"（统一省略号字符）
+  - API Key 行的 inline flex style 保留（与 ProviderBlock 一致）
+
+**验证**：
+- `cd frontend && npm run build` 通过
+- grep 验证 AuxLlmBlock.jsx 中不再出现 `#22c55e`、`#ef4444`、`fontSize: '0.875rem'`、`marginTop: '8px'`、`impersonate/retitle`
+
 ## 2026-04-28 设置页 LLM 配置"写作 tab"区块顺序对齐
 
 **背景**：前一轮完成了副模型(LLM)、写作助手模型、embedding 的后端和前端 API 实现，但前端 `LlmConfigPanel.jsx` 的"写作 tab"分支只渲染了 `<WritingLlmBlock />`，其他区块被隐藏，与对话 tab 的区块顺序不一致。
