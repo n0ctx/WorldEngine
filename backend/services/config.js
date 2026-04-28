@@ -68,6 +68,8 @@ const DEFAULT_CONFIG = {
     chat: { enabled: false, date_mode: 'virtual' },
     writing: { enabled: false, date_mode: 'virtual' },
   },
+  aux_llm: structuredClone(DEFAULT_AUX_LLM),
+  assistant: structuredClone(DEFAULT_ASSISTANT),
 };
 
 const DEFAULT_WRITING = {
@@ -86,6 +88,18 @@ const DEFAULT_WRITING = {
 const DEFAULT_DIARY = {
   chat: { enabled: false, date_mode: 'virtual' },
   writing: { enabled: false, date_mode: 'virtual' },
+};
+
+const DEFAULT_AUX_LLM = {
+  provider: null,
+  provider_keys: {},
+  provider_models: {},
+  base_url: null,
+  model: null,
+};
+
+const DEFAULT_ASSISTANT = {
+  model_source: 'main',
 };
 
 const DEFAULT_LOGGING = {
@@ -229,6 +243,31 @@ export function getConfig() {
     };
   }
 
+  // 补全 aux_llm 命名空间（新增字段）
+  if (!config.aux_llm || typeof config.aux_llm !== 'object') {
+    config.aux_llm = structuredClone(DEFAULT_AUX_LLM);
+  } else {
+    if (!config.aux_llm.provider_keys || typeof config.aux_llm.provider_keys !== 'object') {
+      config.aux_llm.provider_keys = {};
+    }
+    if (!config.aux_llm.provider_models || typeof config.aux_llm.provider_models !== 'object') {
+      config.aux_llm.provider_models = {};
+    }
+    config.aux_llm = {
+      ...DEFAULT_AUX_LLM,
+      ...config.aux_llm,
+      provider_keys: { ...config.aux_llm.provider_keys },
+      provider_models: { ...config.aux_llm.provider_models },
+    };
+  }
+
+  // 补全 assistant 命名空间（新增字段）
+  if (!config.assistant || typeof config.assistant !== 'object') {
+    config.assistant = structuredClone(DEFAULT_ASSISTANT);
+  } else {
+    config.assistant = { ...DEFAULT_ASSISTANT, ...config.assistant };
+  }
+
   return config;
 }
 
@@ -240,4 +279,47 @@ export function updateConfig(patch) {
   const merged = deepMerge(current, patch);
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf-8');
   return merged;
+}
+
+/**
+ * 获取有效的副模型(aux_llm)配置
+ * 若副模型未配置(provider=null)，则回退到主模型配置
+ */
+export function getAuxLlmConfig() {
+  const config = getConfig();
+  const auxLlm = config.aux_llm;
+
+  // 副模型未配置，回退主模型
+  if (!auxLlm.provider) {
+    return {
+      provider: config.llm.provider,
+      api_key: config.llm.provider_keys?.[config.llm.provider] || '',
+      base_url: config.llm.base_url,
+      model: config.llm.model,
+    };
+  }
+
+  // 副模型已配置
+  return {
+    provider: auxLlm.provider,
+    api_key: auxLlm.provider_keys?.[auxLlm.provider] || '',
+    base_url: auxLlm.base_url,
+    model: auxLlm.model,
+  };
+}
+
+/**
+ * 更新副模型的 API Key
+ */
+export function updateAuxApiKey(provider, key) {
+  const current = getConfig();
+  if (!current.aux_llm) {
+    current.aux_llm = structuredClone(DEFAULT_AUX_LLM);
+  }
+  if (!current.aux_llm.provider_keys) {
+    current.aux_llm.provider_keys = {};
+  }
+  current.aux_llm.provider_keys[provider] = key;
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  return current;
 }

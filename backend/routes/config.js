@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConfig, updateConfig } from '../services/config.js';
+import { getConfig, updateConfig, getAuxLlmConfig, updateAuxApiKey } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
@@ -135,6 +135,12 @@ router.put('/', (req, res) => {
       sanitizeBaseUrlPatch(patch.embedding);
       applyProviderModelLogic(patch.embedding, current.embedding);
     }
+    if (patch.aux_llm) {
+      delete patch.aux_llm.api_key;
+      delete patch.aux_llm.provider_keys;
+      sanitizeBaseUrlPatch(patch.aux_llm);
+      applyProviderModelLogic(patch.aux_llm, current.aux_llm);
+    }
 
     const updated = updateConfig(patch);
     const loggingChanged = patchPaths.some((path) => path === 'logging' || path.startsWith('logging.'));
@@ -185,6 +191,27 @@ router.put('/embedding-apikey', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     log.error(`PUT /api/config/embedding-apikey FAIL  ${formatMeta({ error: err.message })}`);
+    res.status(500).json({ error: `保存失败：${err.message}` });
+  }
+});
+
+// PUT /api/config/aux-apikey — 写入当前副模型 provider 的 key
+router.put('/aux-apikey', (req, res) => {
+  const { api_key } = req.body;
+  if (typeof api_key !== 'string') {
+    return res.status(400).json({ error: 'api_key 必须为字符串' });
+  }
+  try {
+    const config = getConfig();
+    const provider = config.aux_llm?.provider;
+    if (!provider) {
+      return res.status(400).json({ error: '副模型未配置 provider' });
+    }
+    updateAuxApiKey(provider, api_key);
+    log.info(`PUT /api/config/aux-apikey  ${formatMeta({ section: 'aux_llm', provider, hasKey: !!api_key })}`);
+    res.json({ success: true });
+  } catch (err) {
+    log.error(`PUT /api/config/aux-apikey FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
@@ -435,6 +462,23 @@ router.get('/models', async (_req, res) => {
   }
 });
 
+// GET /api/config/aux/models — 拉取副模型列表
+router.get('/aux/models', async (_req, res) => {
+  const config = getConfig();
+  const auxConfig = getAuxLlmConfig();
+  const { provider, base_url } = auxConfig;
+  const apiKey = auxConfig.api_key;
+  try {
+    const models = await fetchModels(provider, apiKey, base_url);
+    const thinkingOptions = getThinkingOptions(provider);
+    log.info(`GET /api/config/aux/models  ${formatMeta({ provider, count: models.length, thinkingOptions: thinkingOptions.length })}`);
+    res.json({ models, thinkingOptions });
+  } catch (err) {
+    log.warn(`GET /api/config/aux/models FAIL  ${formatMeta({ provider, error: err.message })}`);
+    res.status(502).json({ error: '无法获取模型列表，请检查 API Key 和网络连接' });
+  }
+});
+
 // GET /api/config/embedding-models — 拉取 Embedding 模型列表
 router.get('/embedding-models', async (_req, res) => {
   const config = getConfig();
@@ -475,6 +519,28 @@ router.get('/test-connection', async (_req, res) => {
   const config = getConfig();
   try {
     await verifyLlmConnection(config);
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/config/aux/test-connection — 验证副模型 LLM 连通性
+router.get('/aux/test-connection', async (_req, res) => {
+  const config = getConfig();
+  const auxConfig = getAuxLlmConfig();
+  try {
+    const testConfig = {
+      llm: {
+        provider: auxConfig.provider,
+        provider_keys: { [auxConfig.provider]: auxConfig.api_key },
+        base_url: auxConfig.base_url || '',
+        model: auxConfig.model || '',
+        max_tokens: 8,
+        temperature: 0,
+      },
+    };
+    await verifyLlmConnection(testConfig);
     res.json({ success: true });
   } catch (err) {
     res.json({ success: false, error: err.message });

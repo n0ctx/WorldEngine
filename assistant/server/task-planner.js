@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as llm from '../../backend/llm/index.js';
+import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 import { extractJson } from './tools/extract-json.js';
 
@@ -301,10 +302,12 @@ function validatePlanSteps(rawSteps, context = {}) {
 export async function planTask({ message, history = [], context = {}, research = null }) {
   let retryFeedback = [];
   log.info(`PLAN START  ${formatMeta({ message: previewText(message, { limit: 160 }) })}`);
+  const config = getConfig();
+  const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
 
   for (let attempt = 1; attempt <= PLAN_RETRY_MAX; attempt += 1) {
     const prompt = buildPlannerPrompt({ message, history, context, research, retryFeedback });
-    const raw = await llm.complete(prompt, { temperature: 0.2, thinking_level: null });
+    const raw = await llm.complete(prompt, { temperature: 0.2, thinking_level: null, configScope });
     const parsedResult = parsePlannerJson(raw, message);
     if (parsedResult.error) {
       retryFeedback = [parsedResult.error];

@@ -8,7 +8,7 @@
  *   resolveToolContext(messages, tools, opts) — 流式预检，返回富化后的 messages
  */
 
-import { getConfig } from '../services/config.js';
+import { getConfig, getAuxLlmConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
@@ -42,11 +42,30 @@ function getProvider(providerName) {
 // ============================================================
 
 /**
- * 合并 config.llm 与调用方 options，调用方优先
+ * 合并 config.llm 或 config.aux_llm 与调用方 options，调用方优先
+ *
+ * @param {object} options - 包含 configScope('main'|'aux') 的选项
  */
 function buildLLMConfig(options = {}) {
   const config = getConfig();
-  const llm = config.llm;
+  let llm;
+
+  if (options.configScope === 'aux') {
+    const auxConfig = getAuxLlmConfig();
+    llm = {
+      provider: auxConfig.provider,
+      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
+      base_url: auxConfig.base_url,
+      model: auxConfig.model,
+      // 副模型不暴露 temperature / max_tokens / thinking_level，使用主模型的值
+      temperature: config.llm.temperature,
+      max_tokens: config.llm.max_tokens,
+      thinking_level: config.llm.thinking_level,
+    };
+  } else {
+    llm = config.llm;
+  }
+
   const api_key = llm.provider_keys?.[llm.provider] || '';
 
   return {

@@ -21,7 +21,7 @@ import { createAgentTool, buildAgentMessages } from './agent-factory.js';
 import { getWorldById, createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
 import { getCharacterById, getCharactersByWorldId, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
 import { getOrCreatePersona, updatePersona } from '../../backend/services/personas.js';
-import { getConfig, updateConfig } from '../../backend/services/config.js';
+import { getConfig, updateConfig, getAuxLlmConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
   listWorldPromptEntries,
@@ -294,7 +294,9 @@ router.post('/extract-characters', async (req, res) => {
     log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length })}`);
 
     const messages = buildAgentMessages('extract_characters', task);
-    let raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null });
+    const config = getConfig();
+    const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
+    let raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null, configScope });
 
     function parseCharacterArray(text) {
       const s = String(text || '').replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -310,7 +312,7 @@ router.post('/extract-characters', async (req, res) => {
     } catch {
       messages.push({ role: 'assistant', content: raw });
       messages.push({ role: 'user', content: '你的输出无法解析为合法 JSON 数组。请只输出一个 JSON 数组，不要代码块或解释。' });
-      raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null });
+      raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null, configScope });
       try { characters = parseCharacterArray(raw); }
       catch { characters = []; }
     }

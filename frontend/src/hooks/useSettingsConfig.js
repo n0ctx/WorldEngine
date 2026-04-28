@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getConfig, updateConfig } from '../api/config';
+import { getConfig, updateConfig, updateAuxApiKey, fetchAuxModels, testAuxConnection } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
 import { useSaveState } from './useSaveState';
@@ -34,12 +34,16 @@ export function useSettingsConfig() {
   const [diaryChatDateMode, setDiaryChatDateMode] = useState(DIARY_DATE_MODE.VIRTUAL);
   const [diaryWritingEnabled, setDiaryWritingEnabled] = useState(false);
   const [diaryWritingDateMode, setDiaryWritingDateMode] = useState(DIARY_DATE_MODE.VIRTUAL);
+  const [auxLlm, setAuxLlm] = useState({});
+  const [assistantModelSource, setAssistantModelSource] = useState('main');
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     getConfig().then((c) => {
       setLlm(c.llm || {});
       setEmbedding(c.embedding || {});
+      setAuxLlm(c.aux_llm || {});
+      setAssistantModelSource(c.assistant?.model_source ?? 'main');
       setProxyUrl(c.proxy_url ?? '');
       setContextRounds(c.context_history_rounds ?? 10);
       setGlobalSystemPrompt(c.global_system_prompt ?? '');
@@ -128,6 +132,32 @@ export function useSettingsConfig() {
       setEmbedding((prev) => ({ ...prev, [field]: value }));
       await patchConfig({ embedding: { [field]: value } });
     }
+  }
+
+  async function handleAuxLlmChange(field, value) {
+    if (field === 'provider') {
+      const isLocal = value && LOCAL_PROVIDERS.includes(value);
+      const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
+      const updated = await updateConfig({ aux_llm: patch });
+      setAuxLlm((prev) => ({
+        ...prev,
+        provider: value || null,
+        base_url: updated.aux_llm?.base_url ?? null,
+        model: updated.aux_llm?.model ?? null,
+        has_key: updated.aux_llm?.has_key ?? false,
+        provider_keys: updated.aux_llm?.provider_keys ?? {},
+      }));
+    } else if (field === 'has_key') {
+      setAuxLlm((prev) => ({ ...prev, has_key: value }));
+    } else {
+      setAuxLlm((prev) => ({ ...prev, [field]: value }));
+      await patchConfig({ aux_llm: { [field]: value } });
+    }
+  }
+
+  async function handleAssistantModelSourceChange(value) {
+    setAssistantModelSource(value);
+    await patchConfig({ assistant: { model_source: value } });
   }
 
   async function handleWritingLlmChange(field, value) {
@@ -247,8 +277,15 @@ export function useSettingsConfig() {
     llmProps: {
       llm,
       embedding,
+      auxLlm,
+      assistantModelSource,
       onLlmChange: handleLlmChange,
       onEmbeddingChange: handleEmbeddingChange,
+      onAuxLlmChange: handleAuxLlmChange,
+      onAssistantModelSourceChange: handleAssistantModelSourceChange,
+      onAuxApiKeySave: updateAuxApiKey,
+      fetchAuxModels,
+      testAuxConnection,
       writingLlm,
       onWritingLlmChange: handleWritingLlmChange,
       proxyUrl,

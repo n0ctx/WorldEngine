@@ -68,6 +68,7 @@ export async function decideExpansion({ sessionId, recalled }) {
       temperature: 0,
       maxTokens: MEMORY_EXPAND_DECISION_MAX_TOKENS,
       thinking_level: null,
+      configScope: 'aux',
     });
 
     // 剥除 <think>...</think> 推理链，再去 ```json 包裹

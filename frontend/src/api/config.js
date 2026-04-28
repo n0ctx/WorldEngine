@@ -42,3 +42,18 @@ export function testConnection() {
 export function testEmbeddingConnection() {
   return request(`${BASE}/test-embedding`);
 }
+
+export function updateAuxApiKey(key) {
+  return request(`${BASE}/aux-apikey`, {
+    method: 'PUT',
+    body: JSON.stringify({ api_key: key }),
+  });
+}
+
+export function fetchAuxModels() {
+  return request(`${BASE}/aux/models`);
+}
+
+export function testAuxConnection() {
+  return request(`${BASE}/aux/test-connection`);
+}

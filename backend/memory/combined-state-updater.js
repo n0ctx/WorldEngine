@@ -183,7 +183,7 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid) {
 
   const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
 
-  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null });
+  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
   if (!raw) return;
 
   try {
@@ -345,7 +345,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   })}`);
 
   // thinking_level: null — 显式禁用 thinking，防止 thinking tokens 占用 maxOutputTokens 配额导致 JSON 输出被截断
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null });
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
   if (!raw) return;
   log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 

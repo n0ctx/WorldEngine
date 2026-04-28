@@ -258,6 +258,7 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
       temperature: LLM_TASK_TEMPERATURE,
       maxTokens: LLM_DIARY_MAX_TOKENS,
       thinking_level: null,
+      configScope: 'aux',
     });
     diaryContent = (raw || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
   } catch (err) {
