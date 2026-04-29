@@ -176,9 +176,9 @@ export default function WritingLlmBlock({
 
       <div>
         <div className="we-settings-range-head">
-          <FieldLabel hint="null 则继承对话温度">写作 Temperature</FieldLabel>
+          <FieldLabel hint="拉到最左侧（0）则继承对话温度">写作 Temperature</FieldLabel>
           <span className="we-settings-range-value">
-            {config.temperature != null ? (config.temperature).toFixed(1) : '继承'}
+            {config.temperature != null && config.temperature > 0 ? (config.temperature).toFixed(1) : '继承'}
           </span>
         </div>
         <input
@@ -186,25 +186,21 @@ export default function WritingLlmBlock({
           className={['we-range', RANGE_PCT_CLASS[temperaturePct] ?? RANGE_PCT_CLASS[0]].join(' ')}
           min="0" max="2.0" step="0.1"
           value={temperature}
-          onChange={(e) => onWritingLlmChange('temperature', parseFloat(e.target.value))}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            onWritingLlmChange('temperature', v === 0 ? null : v);
+          }}
         />
-        <div className="mt-2 flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => onWritingLlmChange('temperature', null)}>继承</Button>
-        </div>
       </div>
 
-      <FormGroup label="写作 Max Tokens" hint="null 则继承对话最大 Token">
-        <div className="flex gap-2">
-          <Input
-            type="number"
-            min="64" max="32000" step="64"
-            value={config.max_tokens ?? ''}
-            placeholder="留空继承对话配置"
-            onChange={(e) => onWritingLlmChange('max_tokens', e.target.value ? parseInt(e.target.value, 10) : null)}
-            className="flex-1"
-          />
-          <Button variant="ghost" size="sm" onClick={() => onWritingLlmChange('max_tokens', null)}>继承</Button>
-        </div>
+      <FormGroup label="写作 Max Tokens" hint="留空则继承对话最大 Token">
+        <Input
+          type="number"
+          min="64" max="32000" step="64"
+          value={config.max_tokens ?? ''}
+          placeholder="留空继承对话配置"
+          onChange={(e) => onWritingLlmChange('max_tokens', e.target.value ? parseInt(e.target.value, 10) : null)}
+        />
       </FormGroup>
     </div>
   );

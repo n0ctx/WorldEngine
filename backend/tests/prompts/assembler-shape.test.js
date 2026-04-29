@@ -1,10 +1,10 @@
-import test, { afterEach } from 'node:test';
+import test, { after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
+import { createTestConfig, createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 import {
   insertCharacter,
   insertCharacterStateField,
@@ -66,44 +66,52 @@ function withEmbeddingFetch(vector) {
   };
 }
 
+const SHAPE_CONFIG_PATCH = {
+  embedding: {
+    provider: 'openai_compatible',
+    provider_keys: { openai_compatible: 'test-key' },
+    provider_models: {},
+    base_url: 'https://example.test/v1',
+    model: 'embed-test',
+  },
+  global_system_prompt: 'ANCHOR_[1]_CHAT_GLOBAL {{world}}',
+  global_post_prompt: 'ANCHOR_[11]_CHAT_POST {{char}}',
+  context_history_rounds: 1,
+  memory_expansion_enabled: true,
+  suggestion_enabled: true,
+  writing: {
+    global_system_prompt: 'ANCHOR_[1]_WRITING_GLOBAL {{world}}/{{char}}',
+    global_post_prompt: 'ANCHOR_[11]_WRITING_POST {{char}}',
+    context_history_rounds: 1,
+    suggestion_enabled: true,
+    memory_expansion_enabled: true,
+    llm: {
+      provider: null,
+      provider_models: {},
+      base_url: '',
+      model: 'writer-shape-model',
+      temperature: 0.88,
+      max_tokens: 555,
+    },
+    temperature: 0.88,
+    max_tokens: 555,
+    model: 'writer-shape-model',
+  },
+};
+
+const sandbox = createTestSandbox('assembler-shape-suite', SHAPE_CONFIG_PATCH);
+sandbox.setEnv();
+
+after(() => {
+  sandbox.cleanup();
+});
+
 afterEach(() => {
   resetMockEnv();
 });
 
 test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async () => {
-  const sandbox = createTestSandbox('assembler-shape-suite', {
-    embedding: {
-      provider: 'openai_compatible',
-      provider_keys: { openai_compatible: 'test-key' },
-      provider_models: {},
-      base_url: 'https://example.test/v1',
-      model: 'embed-test',
-    },
-    global_system_prompt: 'ANCHOR_[1]_CHAT_GLOBAL {{world}}',
-    global_post_prompt: 'ANCHOR_[11]_CHAT_POST {{char}}',
-    context_history_rounds: 1,
-    memory_expansion_enabled: true,
-    suggestion_enabled: true,
-    writing: {
-      global_system_prompt: 'ANCHOR_[1]_WRITING_GLOBAL {{world}}/{{char}}',
-      global_post_prompt: 'ANCHOR_[11]_WRITING_POST {{char}}',
-      context_history_rounds: 1,
-      suggestion_enabled: true,
-      memory_expansion_enabled: true,
-      llm: {
-        provider: null,
-        provider_models: {},
-        base_url: '',
-        model: 'writer-shape-model',
-        temperature: 0.88,
-        max_tokens: 555,
-      },
-      temperature: 0.88,
-      max_tokens: 555,
-      model: 'writer-shape-model',
-    },
-  });
-  sandbox.setEnv();
+  sandbox.writeConfig(createTestConfig(SHAPE_CONFIG_PATCH));
 
   const restoreFetch = withEmbeddingFetch([1, 0, 0]);
   try {
@@ -299,17 +307,14 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
         maxTokens: chatResult.maxTokens,
         recallHitCount: chatResult.recallHitCount,
         messages: extractMessageShape(chatResult.messages, {
-          0: ['ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY'],
+          0: [
+            'ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY',
+            'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
+            '[历史记忆召回]', 'ANCHOR_[8]_RECALL_CHAT', '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_CHAT',
+          ],
           1: ['旧轮用户消息'],
           2: ['旧轮助手消息'],
-          3: [
-            'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE',
-            'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
-            '[历史记忆召回]', 'ANCHOR_[8]_RECALL_CHAT',
-            '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_CHAT',
-            '<user_message>', 'ANCHOR_QUERY 当前聊天消息', '</user_message>',
-            'next_prompt', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST',
-          ],
+          3: ['ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt'],
         }),
       },
       writing: {
@@ -318,18 +323,14 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
         model: writingResult.model,
         recallHitCount: writingResult.recallHitCount,
         messages: extractMessageShape(writingResult.messages, {
-          0: ['ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY'],
+          0: [
+            'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY',
+            'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3]_CHAR_BETA', 'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE',
+            'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '[历史记忆召回]', 'ANCHOR_[8]_RECALL_WRITING', '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_WRITING',
+          ],
           1: ['旧写作用户消息'],
           2: ['旧写作助手消息'],
-          3: [
-            'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3]_CHAR_BETA',
-            'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE',
-            'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
-            '[历史记忆召回]', 'ANCHOR_[8]_RECALL_WRITING',
-            '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_WRITING',
-            '<user_message>', 'ANCHOR_QUERY 当前写作消息', '</user_message>',
-            'next_prompt', 'ANCHOR_[11]_WRITING_POST',
-          ],
+          3: ['ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt'],
         }),
       },
     };
@@ -338,6 +339,57 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
     assert.equal(snapshotShape(shape), expected);
   } finally {
     restoreFetch();
-    sandbox.cleanup();
+  }
+});
+
+test('buildPrompt messages[0]（CACHED LAYER）在同一会话内跨轮次保持内容不变', async () => {
+  sandbox.writeConfig(createTestConfig({
+    global_system_prompt: 'STABLE_GLOBAL {{world}}',
+    context_history_rounds: 0,
+  }));
+
+  const restoreFetch = withEmbeddingFetch([1, 0, 0]);
+  try {
+    const world = insertWorld(sandbox.db, { name: '稳定世界' });
+    insertPersona(sandbox.db, world.id, { name: '稳定玩家', system_prompt: 'STABLE_PERSONA {{user}}' });
+    const character = insertCharacter(sandbox.db, world.id, {
+      name: '稳定角色',
+      system_prompt: 'STABLE_CHAR {{char}}',
+    });
+    insertWorldEntry(sandbox.db, world.id, {
+      title: 'STABLE_ENTRY_TITLE',
+      content: 'STABLE_ENTRY_BODY {{world}}',
+      trigger_type: 'always',
+      token: 0,
+      sort_order: 0,
+    });
+
+    const session = insertSession(sandbox.db, { character_id: character.id });
+    insertMessage(sandbox.db, session.id, { role: 'user', content: '第一轮用户消息', created_at: 1 });
+
+    const { buildPrompt } = await freshImport('backend/prompts/assembler.js');
+
+    // 第一次调用
+    const result1 = await buildPrompt(session.id, { onRecallEvent() {} });
+    const cached0_first = result1.messages[0];
+    assert.equal(cached0_first.role, 'system', 'messages[0] 必须是 system role');
+
+    // 插入新消息，模拟对话推进
+    insertMessage(sandbox.db, session.id, { role: 'assistant', content: '第一轮 AI 回复', created_at: 2 });
+    insertMessage(sandbox.db, session.id, { role: 'user', content: '第二轮用户消息', created_at: 3 });
+
+    // 第二次调用（第二轮）
+    const result2 = await buildPrompt(session.id, { onRecallEvent() {} });
+    const cached0_second = result2.messages[0];
+    assert.equal(cached0_second.role, 'system', 'messages[0] 第二轮仍须是 system role');
+
+    // CACHED LAYER 内容必须完全相同，保证 prefix cache 可命中
+    assert.equal(
+      cached0_second.content,
+      cached0_first.content,
+      'CACHED LAYER（messages[0].content）在跨轮次之间必须保持逐字节一致，否则 provider prefix cache 无法命中',
+    );
+  } finally {
+    restoreFetch();
   }
 });

@@ -1,6 +1,10 @@
 # Ignore everything in data/ except .gitkeep and this file
 *
 !.gitignore
+!daily/
+!daily/.gitkeep
+!logs/
+!logs/.gitkeep
 !uploads/
 !uploads/avatars/
 !uploads/avatars/.gitkeep

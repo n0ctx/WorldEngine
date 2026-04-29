@@ -37,19 +37,11 @@ import CharacterAnalyzingModal from '../components/writing/CharacterAnalyzingMod
 import { AnimatePresence } from 'framer-motion';
 import { pushToast, pushErrorToast } from '../utils/toast.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
+import { parseNextPromptStream } from '../utils/next-prompt.js';
 
 function parseContinuationText(text) {
-  const raw = text || '';
-  const tagIdx = raw.indexOf('<next_prompt>');
-  if (tagIdx === -1) return { content: raw, options: [] };
-  const content = raw.slice(0, tagIdx);
-  const afterTag = raw.slice(tagIdx + '<next_prompt>'.length);
-  const options = afterTag
-    .replace('</next_prompt>', '')
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return { content, options };
+  const { display, options } = parseNextPromptStream(text);
+  return { content: display, options };
 }
 
 export default function WritingSpacePage() {
@@ -297,8 +289,9 @@ export default function WritingSpacePage() {
     return k;
   }
 
-  function beginStreamRun() {
-    if (currentOptionsRef.current.length > 0) {
+  function beginStreamRun({ freezeOptions = true } = {}) {
+    // 重新生成 / 编辑重生场景下，选项属于即将被替换的消息，不应冻结到上一条 assistant
+    if (freezeOptions && currentOptionsRef.current.length > 0) {
       messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
       selectedOptionIndexRef.current = -1;
       optionCollapsedRef.current = false;
@@ -325,15 +318,9 @@ export default function WritingSpacePage() {
         if (!isCurrentStreamRun(runId)) return;
         const next = streamingTextRef.current + delta;
         streamingTextRef.current = next;
-        const tagIdx = next.indexOf('<next_prompt>');
-        if (tagIdx !== -1) {
-          setStreamingText(next.slice(0, tagIdx));
-          const afterTag = next.slice(tagIdx + '<next_prompt>'.length);
-          const opts = afterTag.split('\n').map((s) => s.trim()).filter((s) => s && s !== '</next_prompt>');
-          setCurrentOptions(opts);
-        } else {
-          setStreamingText(next);
-        }
+        const { display, options } = parseNextPromptStream(next);
+        setStreamingText(display);
+        if (options.length > 0) setCurrentOptions(options);
       },
       onUserSaved(realId) {
         if (!isCurrentStreamRun(runId)) return;
@@ -495,7 +482,7 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks(runId));
   }
 
@@ -514,7 +501,7 @@ export default function WritingSpacePage() {
     setGenerating(true);
     setStreamingText('');
     streamingTextRef.current = '';
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks(runId));
   }
 

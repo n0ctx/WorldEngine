@@ -1,27 +1,31 @@
 /**
  * 提示词组装器 — 此文件一旦完成即锁定，顺序不得修改
  *
- *   [CACHED LAYER: system role, 可复用]
- *   [1]  全局 System Prompt
- *   [2]  玩家 System Prompt（均为空则跳过）
- *   [3]  角色 System Prompt
- *   [3.5] 常驻 cached 条目（trigger_type=always 且 token=0，按 sort_order ASC, created_at ASC）
- *
- *   [DYNAMIC LAYER: user role, 每轮变化]
- *   [4]  世界状态
- *   [5]  玩家状态
- *   [6]  角色状态
- *   [7]  世界 State 条目（description 仅供 preflight；命中→content 注入）
- *   [8]  召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
- *   [9]  展开原文（AI preflight 决策后的 turn record 原文）
- *   [10] 日记注入（一次性，仅本轮生效）
+ *   [SYSTEM MERGED: 单条 system message，前缀稳定 + 后缀动态]
+ *   [1]  全局 System Prompt          ┐
+ *   [2]  玩家 System Prompt           │ 稳定前缀
+ *   [3]  角色 System Prompt           │ （cached 部分）
+ *   [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）┘
+ *   [4]  世界状态                    ┐
+ *   [5]  玩家状态                     │
+ *   [6]  角色状态                     │
+ *   [7]  世界 State 条目              │ 动态后缀
+ *   [8]  召回摘要                     │ （每轮变化）
+ *   [9]  展开原文                     │
+ *   [10] 日记注入                    ┘
  *
  *   [历史消息：role:user/assistant 交替]
  *   [12] 历史消息（稳定使用原始 messages 窗口）
  *
  *   [BOTTOM: 当前消息末尾，最高优先级]
- *   [11] 后置提示词（全局→角色 + world post 条目，均空跳过）
- *   [13] 当前用户消息（唯一的尾部 user 消息）
+ *   [13] 当前用户消息（唯一的尾部 user 消息，[14] 拼接到其 content 末尾）
+ *   [14] 后置提示词（全局→角色 + world post 条目，均空跳过）
+ *
+ * 注：[4-10] 原为独立 user role 的 dynamic 段，2026-04-29 合并进 system role
+ * 单条消息以求 prefix cache 命中稳定前缀（[1-3.5] 4608t 稳定）。改动来源：
+ * xAI Grok prefix cache 实测显示 system + user(dynamic) + user(history) 的
+ * 双 user 结构会让 cache pipeline bypass，仅命中 158t；合并到单 system 后
+ * 期望命中 ~4608t。
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
@@ -140,9 +144,10 @@ export const __testables = {
  * 构建发送给 LLM 的完整 messages 数组
  *
  * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
- *   Cached system [1, 3, 5]：全局 + 玩家 + 角色
- *   Dynamic messages [2, 4, 6-10]：世界状态 + 玩家状态 + 角色状态 + State条目 + 召回摘要 + 展开原文 + 日记
- *   Bottom (last user msg) [11]：后置提示词
+ *   Cached system [1, 2, 3, 3.5]：全局 + 玩家 + 角色 + 常驻 cached 条目
+ *   Dynamic system [4-10]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
+ *   History [12]：历史 user/assistant 交替
+ *   Bottom (last user msg) [13 + 14]：当前用户消息 content 末尾追加后置提示词
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -277,27 +282,22 @@ export async function buildPrompt(sessionId, options = {}) {
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // cached system → marked for Prompt Caching
+  // [1-10] 合并为单条 system message：cached 前缀 + dynamic 后缀
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
-  if (cachedContent) messages.push({ role: 'system', content: cachedContent });
-
-  // dynamic context → as separate user message before history
   const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
-  if (dynamicContent) {
-    messages.push({ role: 'user', content: dynamicContent });
-  }
+  const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [13] 历史消息：稳定使用原始消息窗口。
+  // [12] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
   for (const msg of history) {
     const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
-  log.debug(`│  [13] history  raw_messages=${history.length}`);
+  log.debug(`│  [12] history  raw_messages=${history.length}`);
 
-  // [11 + 14] 当前用户消息（最新 1 条 user）+ 后置提示词
-  // [11] 后置提示词追加在末尾，确保最高优先级
+  // [13] 当前用户消息（最新 1 条 user）+ [14] 后置提示词追加到 content 末尾，确保最高优先级
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
@@ -472,17 +472,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // cached system
+  // [1-10] 合并为单条 system message：cached 前缀 + dynamic 后缀
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
-  if (cachedContent) messages.push({ role: 'system', content: cachedContent });
-
-  // dynamic context
   const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
-  if (dynamicContent) {
-    messages.push({ role: 'user', content: dynamicContent });
-  }
+  const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
 
-  // [13] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
+  // [12] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(
     uncompressedMessages,
@@ -493,7 +489,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [11 + 14] 当前用户消息 + 后置提示词（写作模式无角色后置提示词；impersonate 时跳过）
+  // [13] 当前用户消息 + [14] 后置提示词（写作模式无角色后置提示词；impersonate 时跳过）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');

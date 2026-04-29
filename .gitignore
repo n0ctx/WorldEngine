@@ -28,7 +28,8 @@ dist/
 /frontend/dist/
 
 # User data (config contains API keys, never track)
-/data/config.json
+# Note: data/ directory itself is tracked via data/.gitkeep structure.
+# Specific sensitive files inside data/ are ignored via data/.gitignore.
 
 # Temporary/test directories
 .temp/

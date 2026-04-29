@@ -1,6 +1,7 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToGeminiContents } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
+import { logRawRequest } from '../raw-logger.js';
 
 function toGeminiTools(toolDefs) {
   return [{ functionDeclarations: toolDefs.map((t) => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })) }];
@@ -21,6 +22,7 @@ export async function* streamGemini(messages, config) {
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  logRawRequest(body, config, config.callType || 'stream');
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -72,6 +74,7 @@ export async function completeGemini(messages, config) {
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  logRawRequest(body, config, config.callType || 'complete');
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -112,6 +115,7 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  logRawRequest(body, config, config.callType ? `${config.callType}:native` : 'complete-native');
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -150,6 +154,7 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
     if (config.temperature != null) body.generationConfig.temperature = config.temperature;
     if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
@@ -198,6 +203,7 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
     if (systemInstruction) body.systemInstruction = systemInstruction;
     body.generationConfig = { maxOutputTokens: i === 0 ? 1000 : config.max_tokens, temperature: 0 };
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');

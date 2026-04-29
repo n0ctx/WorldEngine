@@ -1,6 +1,7 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToAnthropicMessages } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
+import { logRawRequest } from '../raw-logger.js';
 
 // 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching
 function withCacheControl(system) {
@@ -42,6 +43,7 @@ export async function* streamAnthropic(messages, config) {
   if (budgetTokens) betas.push('interleaved-thinking-2025-05-14');
   headers['anthropic-beta'] = betas.join(',');
 
+  logRawRequest(body, config, config.callType || 'stream');
   const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
 
   if (!resp.ok) {
@@ -126,6 +128,7 @@ export async function completeAnthropic(messages, config) {
   if (budgetTokens) betasC.push('interleaved-thinking-2025-05-14');
   headers['anthropic-beta'] = betasC.join(',');
 
+  logRawRequest(body, config, config.callType || 'complete');
   const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
 
   if (!resp.ok) {
@@ -156,6 +159,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     if (config.temperature != null) body.temperature = config.temperature;
     if (system) body.system = withCacheControl(system);
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
@@ -196,6 +200,7 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
     if (system) body.system = withCacheControl(system);
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');

@@ -147,14 +147,6 @@ const MessageList = forwardRef(function MessageList({
       .catch(() => setLoadingMore(false));
   }, [loadingMore, hasMore, sessionId, offset]);
 
-  // options 出现时自动滚动到底部，确保选项卡可见
-  useEffect(() => {
-    if (options.length > 0) {
-      const el = listRef.current;
-      if (el) requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
-    }
-  }, [options.length]);
-
   // 监听滚动：到顶部时加载更多
   useEffect(() => {
     const el = listRef.current;

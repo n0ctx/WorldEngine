@@ -20,19 +20,11 @@ import { pushErrorToast } from '../utils/toast';
 import { getConfig } from '../api/config.js';
 import { useDisplaySettingsStore } from '../store/displaySettings.js';
 import { chatSessionListBridge } from '../utils/session-list-bridge.js';
+import { parseNextPromptStream } from '../utils/next-prompt.js';
 
 function parseContinuationText(text) {
-  const raw = text || '';
-  const tagIdx = raw.indexOf('<next_prompt>');
-  if (tagIdx === -1) return { content: raw, options: [] };
-  const content = raw.slice(0, tagIdx);
-  const afterTag = raw.slice(tagIdx + '<next_prompt>'.length);
-  const options = afterTag
-    .replace('</next_prompt>', '')
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return { content, options };
+  const { display, options } = parseNextPromptStream(text);
+  return { content: display, options };
 }
 
 export default function ChatPage() {
@@ -118,9 +110,10 @@ export default function ChatPage() {
     return k;
   }, []);
 
-  const beginStreamRun = useCallback(() => {
+  const beginStreamRun = useCallback(({ freezeOptions = true } = {}) => {
     // 将当前轮次选项冻结到最后一条 assistant 消息上（再次生成时保留历史选项）
-    if (currentOptionsRef.current.length > 0) {
+    // 重新生成 / 编辑重生 / 重试场景下，选项属于即将被替换的消息，不应冻结到上一条 assistant
+    if (freezeOptions && currentOptionsRef.current.length > 0) {
       messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
       selectedOptionIndexRef.current = -1;
       setOptionCollapsed(false);
@@ -383,15 +376,9 @@ export default function ChatPage() {
         if (!isCurrentStreamRun(runId)) return;
         const next = streamingTextRef.current + delta;
         streamingTextRef.current = next;
-        const tagIdx = next.indexOf('<next_prompt>');
-        if (tagIdx !== -1) {
-          setStreamingText(next.slice(0, tagIdx));
-          const afterTag = next.slice(tagIdx + '<next_prompt>'.length);
-          const opts = afterTag.split('\n').map((s) => s.trim()).filter((s) => s && s !== '</next_prompt>');
-          setCurrentOptions(opts);
-        } else {
-          setStreamingText(next);
-        }
+        const { display, options } = parseNextPromptStream(next);
+        setStreamingText(display);
+        if (options.length > 0) setCurrentOptions(options);
       },
       onUserSaved(realId) {
         if (!isCurrentStreamRun(runId)) return;
@@ -547,7 +534,7 @@ export default function ChatPage() {
       });
     }
 
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     setGenerating(true);
     setStreamingText('');
 
@@ -572,7 +559,7 @@ export default function ChatPage() {
       return i >= 0 ? prev.slice(0, i) : prev;
     });
 
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     setGenerating(true);
     setStreamingText('');
 
@@ -704,7 +691,7 @@ export default function ChatPage() {
 
     messageListRef.current?.updateMessages?.((prev) => prev.slice(0, lastIdx));
 
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     setGenerating(true);
     setStreamingText('');
     const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks(runId));
@@ -729,7 +716,7 @@ export default function ChatPage() {
 
     messageListRef.current?.updateMessages?.(() => trimmed);
 
-    const runId = beginStreamRun();
+    const runId = beginStreamRun({ freezeOptions: false });
     setGenerating(true);
     setStreamingText('');
     const stop = regenerate(currentSessionId, afterMessageId, makeCallbacks(runId));
