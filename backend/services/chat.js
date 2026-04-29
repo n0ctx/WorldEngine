@@ -106,9 +106,9 @@ function formatMessageForLLM(msg) {
  * @returns {Promise<{ messages: Array, overrides: { temperature: number, maxTokens: number }, recallHitCount: number }>}
  */
 export async function buildContext(sessionId, options = {}) {
-  const { messages, temperature, maxTokens, recallHitCount, cacheableSystem } = await buildPrompt(sessionId, options);
+  const { messages, temperature, maxTokens, recallHitCount, cacheableSystem, suggestionText } = await buildPrompt(sessionId, options);
   if (getConfig().log_prompt) logPrompt(sessionId, messages);
-  return { messages, overrides: { temperature, maxTokens, cacheableSystem }, recallHitCount: recallHitCount ?? 0 };
+  return { messages, overrides: { temperature, maxTokens, cacheableSystem }, recallHitCount: recallHitCount ?? 0, suggestionText: suggestionText ?? null };
 }
 
 /**

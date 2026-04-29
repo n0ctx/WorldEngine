@@ -388,10 +388,10 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const usageRef = {};
 
   try {
-    const { messages, temperature, maxTokens, model, cacheableSystem } = await buildWritingPrompt(sessionId);
+    const { messages, temperature, maxTokens, model, cacheableSystem, suggestionText } = await buildWritingPrompt(sessionId);
     log.info(`CONTINUE PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const continuationMessages = buildContinuationMessages(messages, originalContent);
+    const continuationMessages = buildContinuationMessages(messages, originalContent, { suggestionText });
 
     const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, cacheableSystem, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_continue', conversationId: sessionId });
     for await (const chunk of stream) {

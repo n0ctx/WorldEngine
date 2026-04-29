@@ -45,16 +45,20 @@ export function beginStreamSession(sessionId, res, activeStreams) {
 
 const CONTINUE_USER_INSTRUCTION = loadBackendPrompt('continue-user-instruction.md');
 
-export function buildContinuationMessages(rawMessages, originalContent) {
+export function buildContinuationMessages(rawMessages, originalContent, { suggestionText } = {}) {
   const messages = [...rawMessages];
   const lastMessage = messages[messages.length - 1];
 
+  const continueContent = suggestionText
+    ? `${CONTINUE_USER_INSTRUCTION}\n\n${suggestionText}`
+    : CONTINUE_USER_INSTRUCTION;
+
   if (lastMessage?.role !== 'user') {
-    messages.push({ role: 'user', content: CONTINUE_USER_INSTRUCTION });
+    messages.push({ role: 'user', content: continueContent });
     return messages;
   }
 
   messages.push({ role: 'assistant', content: originalContent });
-  messages.push({ role: 'user', content: CONTINUE_USER_INSTRUCTION });
+  messages.push({ role: 'user', content: continueContent });
   return messages;
 }

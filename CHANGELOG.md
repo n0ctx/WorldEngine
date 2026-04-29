@@ -3,6 +3,25 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix(continue): 续写路径注入 shared_suggestion，让 continue 也能输出 next_prompt 选项
+
+**背景**：`/continue` 续写在 `buildContinuationMessages` 把 `assistant prefill + CONTINUE_USER_INSTRUCTION`（"请直接继续……不要解释"）追加到末尾，作为模型最后看到的指令，覆盖了 `[14]` 段贴在原 user 消息后的 `SUGGESTION_PROMPT`。即使开启 `suggestion_enabled`，续写也不会输出 `<next_prompt>` 选项块。
+
+**改动**：
+- `backend/prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在返回值新增 `suggestionText` 字段（启用 suggestion 时为已 `tv()` 渲染的 `SUGGESTION_PROMPT`，否则 `null`）。锁定文件仅追加返回字段，不改 14 段顺序。
+- `backend/services/chat.js#buildContext`：把 `suggestionText` 透传给路由层。
+- `backend/routes/stream-helpers.js#buildContinuationMessages`：第三参新增 `{ suggestionText }`，存在时拼到末尾续写指令的 user 消息后面（保持单条 user 而非新开消息）。
+- `backend/routes/chat.js`、`backend/routes/writing.js` 续写分支：从 buildContext / buildWritingPrompt 拿 `suggestionText` 并透传。
+- `backend/tests/routes/stream-helpers.test.js`：新增 suggestion 注入用例。
+- `ARCHITECTURE.md §4 [14]`：补注 `suggestionText` 在续写路径的注入方式。
+
+**验证方式**：
+- `node --test backend/tests/routes/stream-helpers.test.js`（3 用例通过）
+- `node --test backend/tests/prompts/assembler.test.js backend/tests/prompts/assembler-shape.test.js`（10 用例通过）
+- 端到端：开启 `suggestion_enabled`，发起 chat / writing 续写，确认末尾出现 `<next_prompt>` 选项并被 `extractNextPromptOptions` 正确剥除。
+
+**残留风险**：续写时模型同时看到 `[14]` 原 user 消息尾部的 suggestion 与末尾续写指令尾部的 suggestion，存在轻度重复；但避免删除 `[14]` 段以保留 cached 前缀稳定（删除会破坏 prompt cache 命中）。
+
 ## 2026-04-29 refactor(prompt): 后置提示词改为独立 system 段，并与当前 user 消息换位
 
 **背景**：`backend/prompts/assembler.js` 此前把后置提示词直接拼到当前 `user` 消息尾部，聊天与写作链路都沿用这一结构。现在需要把“后置提示词”和“用户提示词”位置交换，并把后置提示词明确提升为 `system prompt`，同时保持 suggestion 指令继续贴在最后一个 `user` 消息上。

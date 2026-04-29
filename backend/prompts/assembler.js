@@ -313,8 +313,10 @@ export async function buildPrompt(sessionId, options = {}) {
   const temperature = world.temperature ?? config.llm.temperature;
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
 
+  const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent };
+  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText };
 }
 
 /**
@@ -506,6 +508,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const maxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
   const model = writing.model || null;
 
+  const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
+
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent };
+  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText };
 }
