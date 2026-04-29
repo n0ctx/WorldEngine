@@ -37,7 +37,7 @@ import { detectNewChapter, groupChapterMessages } from '../utils/chapter-detecto
 import { getChapterTitle, upsertChapterTitle, getChapterTitlesBySessionId } from '../db/queries/chapter-titles.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
-import { updateMessageContent, updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
+import { updateMessageContent, updateMessageTokenUsage, updateMessageNextOptions, updateMessageActivatedEntries } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
@@ -183,6 +183,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
 
   let fullContent = '';
   let aborted = false;
+  let activatedEntries = [];
   const usageRef = {};
 
   const session = dbGetWritingSessionById(sessionId);
@@ -194,7 +195,8 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const onRecallEvent = (name, payload) => {
       if (!streamState.isClientClosed()) sendSse(res, { type: name, ...payload });
     };
-    const { messages, temperature, maxTokens, model, cacheableSystem, activatedEntries } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
+    const { messages, temperature, maxTokens, model, cacheableSystem, activatedEntries: aEntries } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
+    activatedEntries = aEntries ?? [];
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
     if (activatedEntries?.length > 0 && !streamState.isClientClosed()) {
@@ -231,6 +233,12 @@ async function runWritingStream(sessionId, res, opts = {}) {
   if (!aborted && savedAssistant && Object.keys(usageRef).length > 0) {
     updateMessageTokenUsage(savedAssistant.id, usageRef);
     savedAssistant.token_usage = usageRef;
+  }
+
+  // 持久化本轮激活的非常驻条目
+  if (!aborted && savedAssistant && activatedEntries?.length > 0) {
+    updateMessageActivatedEntries(savedAssistant.id, activatedEntries);
+    savedAssistant.activated_entries = activatedEntries;
   }
 
   if (!streamState.isClientClosed()) {

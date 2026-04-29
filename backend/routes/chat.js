@@ -26,7 +26,7 @@ import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecor
 import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
-import { updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
+import { updateMessageTokenUsage, updateMessageNextOptions, updateMessageActivatedEntries } from '../db/queries/messages.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
@@ -133,11 +133,12 @@ async function runStream(sessionId, res, opts = {}) {
 
   let fullContent = '';
   let aborted = false;
+  let activatedEntries = [];
   const usageRef = {};
 
   try {
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_start' });
-    const { messages, overrides, recallHitCount, activatedEntries } = await buildContext(sessionId, {
+    const { messages, overrides, recallHitCount, activatedEntries: aEntries } = await buildContext(sessionId, {
       onRecallEvent(name, payload) {
         if (!streamState.isClientClosed()) {
           emitSse(res, sid, { type: name, ...payload });
@@ -145,6 +146,7 @@ async function runStream(sessionId, res, opts = {}) {
       },
       diaryInjection: opts.diaryInjection,
     });
+    activatedEntries = aEntries ?? [];
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_done', hit: recallHitCount });
     if (activatedEntries?.length > 0 && !streamState.isClientClosed()) {
       emitSse(res, sid, { type: 'entries_activated', entries: activatedEntries });
@@ -195,6 +197,12 @@ async function runStream(sessionId, res, opts = {}) {
   if (!aborted && savedAssistant && Object.keys(usageRef).length > 0) {
     updateMessageTokenUsage(savedAssistant.id, usageRef);
     savedAssistant.token_usage = usageRef;
+  }
+
+  // 持久化本轮激活的非常驻条目
+  if (!aborted && savedAssistant && activatedEntries?.length > 0) {
+    updateMessageActivatedEntries(savedAssistant.id, activatedEntries);
+    savedAssistant.activated_entries = activatedEntries;
   }
 
   // 推送结束事件（附带真实 assistant 消息，便于前端原地追加，免于重挂载刷新）

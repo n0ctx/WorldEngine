@@ -27,6 +27,7 @@ export function getMessageById(id) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
     row.next_options = parseNextOptions(row.next_options);
+    row.activated_entries = parseActivatedEntries(row.activated_entries);
   }
   return row;
 }
@@ -38,6 +39,17 @@ function parseNextOptions(raw) {
     if (!Array.isArray(arr)) return null;
     const cleaned = arr.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim());
     return cleaned.length > 0 ? cleaned : null;
+  } catch {
+    return null;
+  }
+}
+
+function parseActivatedEntries(raw) {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr;
   } catch {
     return null;
   }
@@ -55,8 +67,18 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
     row.next_options = parseNextOptions(row.next_options);
+    row.activated_entries = parseActivatedEntries(row.activated_entries);
   }
   return rows;
+}
+
+/**
+ * 更新单条消息的 activated_entries 字段（JSON 数组：[{id,title,trigger_type}]）
+ */
+export function updateMessageActivatedEntries(id, entries) {
+  const arr = Array.isArray(entries) ? entries.filter((e) => e && typeof e.title === 'string') : [];
+  const value = arr.length > 0 ? JSON.stringify(arr) : null;
+  db.prepare('UPDATE messages SET activated_entries = ? WHERE id = ?').run(value, id);
 }
 
 /**

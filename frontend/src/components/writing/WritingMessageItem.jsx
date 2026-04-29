@@ -323,58 +323,73 @@ export default function WritingMessageItem({
               );
             })}
           </div>
-          {!editingAI && !isStreaming && message.token_usage && showTokenUsage && (
-            <div className="we-token-usage">
-              <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
-              <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
-              {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
-                <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
-              )}
-              {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
-                <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
-              )}
-              <span className="we-token-usage-unit">tokens</span>
-              {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
-                <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
-                  {formatCost(calcCost(message.token_usage, currentModelPricing))}
-                </span>
-              )}
-            </div>
-          )}
-          {!isStreaming && (
-            <div className="we-message-actions">
-              <CopyBtn getText={() => content} />
-              <button onClick={() => onRegenerate?.(message.id)}>
-                <Icon size={16}>
-                  <polyline points="1 4 1 10 7 10" />
-                  <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                </Icon>
-                重新生成
-              </button>
-              <button onClick={startEditAI}>
-                <Icon size={16}>
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </Icon>
-                编辑
-              </button>
-              {onMakeCard && (
-                <button onClick={() => onMakeCard(message.id)} aria-label="从此轮次提取角色并制卡">
-                  <Icon size={16}>
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <line x1="19" y1="8" x2="19" y2="14" />
-                    <line x1="22" y1="11" x2="16" y2="11" />
-                  </Icon>
-                  制卡
-                </button>
-              )}
-              {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
-            </div>
-          )}
-          {!editingAI && !isStreaming && message.activated_entries?.length > 0 && (
-            <ActivatedEntriesRow entries={message.activated_entries} />
-          )}
+          {(() => {
+            const tokenRowVisible = !editingAI && !isStreaming && message.token_usage && showTokenUsage;
+            const hasEntries = !editingAI && !isStreaming && message.activated_entries?.length > 0;
+            const entriesGoWithToken = tokenRowVisible && hasEntries;
+            const entriesGoWithActions = !tokenRowVisible && hasEntries;
+            return (
+              <>
+                {tokenRowVisible && (
+                  <div className="we-token-usage">
+                    <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
+                    <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
+                    {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
+                      <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
+                    )}
+                    {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
+                      <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
+                    )}
+                    <span className="we-token-usage-unit">tokens</span>
+                    {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
+                      <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
+                        {formatCost(calcCost(message.token_usage, currentModelPricing))}
+                      </span>
+                    )}
+                    {entriesGoWithToken && (
+                      <ActivatedEntriesRow entries={message.activated_entries} />
+                    )}
+                  </div>
+                )}
+                {!isStreaming && (
+                  <div className="we-message-actions">
+                    <div className="we-message-actions-buttons">
+                      <CopyBtn getText={() => content} />
+                      <button onClick={() => onRegenerate?.(message.id)}>
+                        <Icon size={16}>
+                          <polyline points="1 4 1 10 7 10" />
+                          <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                        </Icon>
+                        重新生成
+                      </button>
+                      <button onClick={startEditAI}>
+                        <Icon size={16}>
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </Icon>
+                        编辑
+                      </button>
+                      {onMakeCard && (
+                        <button onClick={() => onMakeCard(message.id)} aria-label="从此轮次提取角色并制卡">
+                          <Icon size={16}>
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <line x1="19" y1="8" x2="19" y2="14" />
+                            <line x1="22" y1="11" x2="16" y2="11" />
+                          </Icon>
+                          制卡
+                        </button>
+                      )}
+                      {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
+                    </div>
+                    {entriesGoWithActions && (
+                      <ActivatedEntriesRow entries={message.activated_entries} />
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
     </MotionDiv>

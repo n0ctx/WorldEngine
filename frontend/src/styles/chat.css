@@ -465,8 +465,19 @@
   pointer-events: none;
 }
 
+.we-message-actions-buttons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .we-message-user .we-message-actions {
   justify-content: flex-end;
+}
+
+.we-message-assistant .we-message-actions,
+.we-message-assistant .we-token-usage {
+  max-width: 680px;
 }
 
 .we-message-row:hover .we-message-actions {
@@ -493,21 +504,41 @@
 
 .we-message-actions button:hover { color: var(--we-vermilion); }
 
-/* ── Activated entries row（本轮激活的非常驻条目，仅运行时） ── */
-.we-activated-entries-row {
+/* ── Activated entries inline（本轮激活的非常驻条目，紧随操作按钮右侧） ── */
+.we-activated-entries-inline {
+  margin-left: auto;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 6px;
-  opacity: 0;
-  transition: opacity 0.2s;
-  pointer-events: none;
+  align-items: center;
+  gap: 0;
+  font-family: var(--we-font-serif);
+  font-size: 1em;
+  color: var(--we-ink-faded);
+  line-height: 1.4;
 }
-.we-message-row:hover .we-activated-entries-row,
-.we-writing-annotation:hover .we-activated-entries-row,
-.we-writing-prose:hover .we-activated-entries-row {
-  opacity: 1;
-  pointer-events: auto;
+
+.we-activated-entry-chip {
+  position: relative;
+  padding: 0 8px;
+  cursor: default;
+  transition: color 0.15s;
+}
+
+.we-activated-entry-chip + .we-activated-entry-chip::before {
+  content: '·';
+  position: absolute;
+  left: -2px;
+  opacity: 0.5;
+}
+
+.we-activated-entry-chip:hover {
+  color: var(--we-vermilion);
+}
+
+/* 与功能按钮同行时与按钮字号对齐（按钮 10px） */
+.we-message-actions .we-activated-entries-inline {
+  font-size: 11px;
+  letter-spacing: 0.05em;
 }
 
 /* ── Interrupted tag ───────────────────────────────────── */

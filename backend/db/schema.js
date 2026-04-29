@@ -404,6 +404,8 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
   // next_prompt 选项持久化：messages 表新增 next_options 字段（JSON 数组字符串）
   try { db.exec(`ALTER TABLE messages ADD COLUMN next_options TEXT`); } catch {}
+  // 本轮激活的非常驻条目持久化：messages 表新增 activated_entries 字段（JSON 数组字符串）
+  try { db.exec(`ALTER TABLE messages ADD COLUMN activated_entries TEXT`); } catch {}
   // worlds 封面图
   try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
   // worlds 拖拽排序

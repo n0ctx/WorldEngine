@@ -3,6 +3,46 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(memory): 激活条目持久化到 messages 表（刷新后保留）
+
+**背景**：原"本轮激活的非常驻条目"仅运行时展示，刷新即消失（见同日 `7016648` 决策）。改为持久化以便用户回看历史消息时仍能看到当时命中了哪些条目。
+
+**改动**：
+- `backend/db/schema.js`：`messages` 表新增 `activated_entries TEXT`（JSON 数组），通过 `ALTER TABLE` 兼容旧库。
+- `backend/db/queries/messages.js`：`getMessageById` / `getMessagesBySessionId` 自动 JSON.parse；新增 `updateMessageActivatedEntries(id, entries)`；空数组等价 NULL。
+- `backend/routes/chat.js` / `backend/routes/writing.js`：把 `activatedEntries` 提到 try 外层作用域，stream 完结后若非中断且有命中，调用 `updateMessageActivatedEntries` 写入并同步到返回对象的 `activated_entries`。
+- 删除策略：随 messages 行 ON DELETE CASCADE 自然清理；regenerate 删旧 assistant + 新 `processStreamOutput` 创建新行时一并保存新条目；`/continue` 路径不更新（续写不算新一轮命中）。
+- SSE `entries_activated` 事件保留作为流前期反馈；前端 `pendingEntriesRef` 仍可叠加但已与 DB 数据等价。
+
+**验证**：
+1. 触发非常驻条目的 AI 回复 → 看到条目；刷新页面 → 仍可见
+2. regenerate AI 回复 → 旧条目消失，新轮的条目跟随新消息
+3. 删除消息 → 该条数据自然丢失，无残留（无单独副表）
+4. 写作页同步验证
+
+## 2026-04-30 style(ui): 激活条目改为右侧轻量内联（再调：贴气泡右、按 token 开关动态归位）
+
+**追加变更**：
+- 条目右对齐由"行容器右"改为"气泡右"：`.we-message-assistant .we-message-actions / .we-token-usage` 限宽 `max-width: 680px`，与 bubble 同 max-width。
+- 条目位置随 `showTokenUsage` 动态归位：开 token 用量时与 token 行同行（始终可见），关 token 用量时回到操作按钮行（hover 时淡入）。
+- 多行行为：`flex-wrap: wrap` 使条目超出可用宽度自动折行，按钮以 `align-items: center` 跟随多行高度居中。
+
+## 2026-04-30 style(ui): 激活条目改为右侧轻量内联，压缩消息底部高度
+
+**背景**：原本 assistant 消息底部三行（token / 操作按钮 / 条目方块）拉得太长，把下一条 user 消息推得离上一条 assistant 太远；且条目用 `Badge` 渲染呈现"实线方框"视觉过重。
+
+**决策**：
+- 条目放在操作按钮行的最右侧（`margin-left: auto`），按钮固定在左侧位置不随条目数量浮动；用户/AI 消息行结构保持一致。
+- 不再用 `Badge`，改为轻量内联 `.we-activated-entry-chip`：无边框无背景，衬线小字 0.72em，项之间 `·` 分隔（`::before` 伪元素）。
+- 三行变两行（token 用量保留独立一行；操作 + 条目合并）。
+
+**改动**：
+- `frontend/src/components/chat/ActivatedEntriesRow.jsx`：弃用 `Badge`，改为 `<span class="we-activated-entry-chip">`，外层容器 `.we-activated-entries-inline`。
+- `frontend/src/components/chat/MessageItem.jsx`、`frontend/src/components/writing/WritingMessageItem.jsx`：将 `<ActivatedEntriesRow>` 移入 `we-message-actions` 内部；按钮包一层 `.we-message-actions-buttons` 子容器承接 14px gap。
+- `frontend/src/styles/chat.css`：删除旧 `.we-activated-entries-row`；新增 `.we-activated-entries-inline` / `.we-activated-entry-chip` / `.we-message-actions-buttons`。
+
+**验证**：启前后端 → 触发非常驻条目的 AI 回复 → hover 看条目以细体小字、`·` 分隔出现在最右侧；无条目时按钮位置不变；写作页同步生效。
+
 ## 2026-04-30 feat(ui): 对话/写作页展示本轮激活的非常驻条目
 
 **背景**：Lorebook 条目命中信息已在 `entry-matcher.js` 计算出来并组装进提示词，但前端从来看不见——用户无法判断本轮是哪些条目真的被注入。常驻条目（`trigger_type='always'`）每轮必触发、无信息量，应当过滤。
