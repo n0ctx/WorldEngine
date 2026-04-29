@@ -4,14 +4,12 @@ export default function Textarea({ className = '', onMouseDown, ...props }) {
   const handleMouseDown = useCallback((e) => {
     const el = e.currentTarget;
     const rect = el.getBoundingClientRect();
-    if (e.clientX >= rect.right - 16 && e.clientY >= rect.bottom - 16) {
-      const saved = el.scrollTop;
-      const lock = () => { el.scrollTop = saved; };
+    if (e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20) {
+      el.style.overflowY = 'hidden';
       const unlock = () => {
-        el.removeEventListener('scroll', lock);
+        el.style.overflowY = '';
         document.removeEventListener('mouseup', unlock);
       };
-      el.addEventListener('scroll', lock);
       document.addEventListener('mouseup', unlock);
     }
     onMouseDown?.(e);
