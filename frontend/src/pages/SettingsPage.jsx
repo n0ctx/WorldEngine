@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettingsConfig } from '../hooks/useSettingsConfig';
 import LlmConfigPanel from '../components/settings/LlmConfigPanel';
@@ -18,6 +18,7 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState(NAV_SECTIONS[0].key);
   const [settingsMode, setSettingsMode] = useState(SETTINGS_MODE.CHAT);
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
+  const mouseDownOnOverlay = useRef(false);
 
   function handleBack() {
     if (isOverlay) { navigate(-1); return; }
@@ -34,7 +35,11 @@ export default function SettingsPage() {
 
   if (loading) {
     return isOverlay ? (
-      <div className="we-settings-overlay" onClick={() => navigate(-1)}>
+      <div
+        className="we-settings-overlay"
+        onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+        onClick={() => { if (mouseDownOnOverlay.current) navigate(-1); }}
+      >
         <div className="we-settings-panel we-settings-panel-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="we-settings-loading">
             <p className="we-settings-loading-text">加载中…</p>
@@ -147,7 +152,11 @@ export default function SettingsPage() {
   );
 
   return isOverlay ? (
-    <div className="we-settings-overlay" onClick={() => navigate(-1)}>
+    <div
+      className="we-settings-overlay"
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnOverlay.current) navigate(-1); }}
+    >
       {settingsContent}
     </div>
   ) : (
