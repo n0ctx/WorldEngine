@@ -1562,10 +1562,6 @@
   width: 100%;
 }
 
-.we-settings-panel-wrap-overlay {
-  width: auto;
-}
-
 .we-settings-panel-overlay {
   width: min(1100px, calc(100vw - 48px));
   margin: 24px auto 32px;

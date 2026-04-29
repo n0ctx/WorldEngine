@@ -18,7 +18,8 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState(NAV_SECTIONS[0].key);
   const [settingsMode, setSettingsMode] = useState(SETTINGS_MODE.CHAT);
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
-  const mouseDownOnOverlay = useRef(false);
+  const panelRef = useRef(null);
+  const mouseDownOutsidePanel = useRef(false);
 
   function handleBack() {
     if (isOverlay) { navigate(-1); return; }
@@ -33,14 +34,21 @@ export default function SettingsPage() {
     navigate(-1);
   }
 
+  const overlayHandlers = {
+    onMouseDown: (e) => {
+      mouseDownOutsidePanel.current = !panelRef.current || !panelRef.current.contains(e.target);
+    },
+    onMouseUp: (e) => {
+      const upOutside = !panelRef.current || !panelRef.current.contains(e.target);
+      if (mouseDownOutsidePanel.current && upOutside) navigate(-1);
+      mouseDownOutsidePanel.current = false;
+    },
+  };
+
   if (loading) {
     return isOverlay ? (
-      <div
-        className="we-settings-overlay"
-        onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
-        onClick={() => { if (mouseDownOnOverlay.current) navigate(-1); }}
-      >
-        <div className="we-settings-panel we-settings-panel-overlay" onClick={(e) => e.stopPropagation()}>
+      <div className="we-settings-overlay" {...overlayHandlers}>
+        <div ref={panelRef} className="we-settings-panel we-settings-panel-overlay">
           <div className="we-settings-loading">
             <p className="we-settings-loading-text">加载中…</p>
           </div>
@@ -54,10 +62,10 @@ export default function SettingsPage() {
   }
 
   const settingsContent = (
-    <div className={`we-settings-panel-wrap${isOverlay ? ' we-settings-panel-wrap-overlay' : ''}`}>
+    <div className="we-settings-panel-wrap">
       <div
+        ref={isOverlay ? panelRef : undefined}
         className={`we-settings-panel${isOverlay ? ' we-settings-panel-overlay' : ''}`}
-        onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
       >
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>
@@ -152,11 +160,7 @@ export default function SettingsPage() {
   );
 
   return isOverlay ? (
-    <div
-      className="we-settings-overlay"
-      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
-      onClick={() => { if (mouseDownOnOverlay.current) navigate(-1); }}
-    >
+    <div className="we-settings-overlay" {...overlayHandlers}>
       {settingsContent}
     </div>
   ) : (
