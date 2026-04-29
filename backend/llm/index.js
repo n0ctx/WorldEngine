@@ -8,7 +8,7 @@
  *   resolveToolContext(messages, tools, opts) — 流式预检，返回富化后的 messages
  */
 
-import { getConfig, getAuxLlmConfig, getWritingLlmConfig } from '../services/config.js';
+import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/openai.js';
 import * as localProvider from './providers/ollama.js';
@@ -43,9 +43,9 @@ function getProvider(providerName) {
 // ============================================================
 
 /**
- * 合并 config.llm / config.aux_llm / config.writing.llm 与调用方 options，调用方优先
+ * 合并 config.llm / config.aux_llm / config.writing.llm / config.writing.aux_llm 与调用方 options，调用方优先
  *
- * @param {object} options - 包含 configScope('main'|'aux'|'writing') 的选项
+ * @param {object} options - 包含 configScope('main'|'aux'|'writing'|'writing-aux') 的选项
  */
 function buildLLMConfig(options = {}) {
   const config = getConfig();
@@ -53,12 +53,33 @@ function buildLLMConfig(options = {}) {
 
   if (options.configScope === 'aux') {
     const auxConfig = getAuxLlmConfig();
+    // aux_llm 未配置时，getAuxLlmConfig() 回落到主模型。
+    // 此时 entry-matcher/摘要/状态更新等 complete 调用与 stream 调用共享同一 provider endpoint 和 prefix cache 池，
+    // 可能导致主对话的 prompt cache 命中率下降。建议在设置中配置独立的 aux_llm provider。
+    if (!config.aux_llm?.provider) {
+      log.warn('AUX_FALLBACK  aux_llm 未配置，回落到主模型。complete 调用与 stream 共享相同 endpoint，可能影响 prompt cache 命中。');
+    }
     llm = {
       provider: auxConfig.provider,
       provider_keys: { [auxConfig.provider]: auxConfig.api_key },
       base_url: auxConfig.base_url,
       model: auxConfig.model,
       // 副模型不暴露 temperature / max_tokens / thinking_level，使用主模型的值
+      temperature: config.llm.temperature,
+      max_tokens: config.llm.max_tokens,
+      thinking_level: config.llm.thinking_level,
+    };
+  } else if (options.configScope === 'writing-aux') {
+    // 写作副模型：未配置时按 writing.aux_llm → aux_llm → llm 顺序回退
+    const writingAuxConfig = getWritingAuxLlmConfig();
+    if (!config.writing?.aux_llm?.provider && !config.aux_llm?.provider) {
+      log.warn('WRITING_AUX_FALLBACK  writing.aux_llm 与 aux_llm 均未配置，回落到对话主模型。');
+    }
+    llm = {
+      provider: writingAuxConfig.provider,
+      provider_keys: { [writingAuxConfig.provider]: writingAuxConfig.api_key },
+      base_url: writingAuxConfig.base_url,
+      model: writingAuxConfig.model,
       temperature: config.llm.temperature,
       max_tokens: config.llm.max_tokens,
       thinking_level: config.llm.thinking_level,
@@ -96,6 +117,10 @@ function buildLLMConfig(options = {}) {
       : (llm.thinking_level ?? null),
     signal: options.signal || undefined,
     usageRef: options.usageRef || undefined,
+    callType: options.callType || undefined,
+    // 稳定会话 id：用于 xAI 的 x-grok-conv-id header 路由，最大化 prompt cache 命中。
+    // 其他 provider 忽略该字段。同一会话内必须保持稳定，禁止用 requestId/timestamp。
+    conversationId: options.conversationId || undefined,
   };
 }
 
@@ -151,6 +176,7 @@ export async function* chat(messages, options = {}) {
   const startedAt = Date.now();
 
   log.info(`CHAT START  ${formatMeta({
+    callType: llmConfig.callType,
     provider: llmConfig.provider,
     model: llmConfig.model || '',
     msgs: summary.count,
@@ -160,6 +186,7 @@ export async function* chat(messages, options = {}) {
     maxTokens: llmConfig.max_tokens,
     thinking: llmConfig.thinking_level,
     cacheStrategy,
+    conversationId: llmConfig.conversationId,
   })}`);
 
   let lastError;
@@ -177,6 +204,7 @@ export async function* chat(messages, options = {}) {
           yield chunk;
         }
         const meta = formatMeta({
+          callType: llmConfig.callType,
           provider: llmConfig.provider,
           model: llmConfig.model || '',
           len: fullResponse.length,
@@ -264,6 +292,7 @@ export async function completeWithTools(messages, tools, options = {}) {
 
   const { defs, handlers } = splitTools(tools);
   log.info(`COMPLETE_TOOLS START  ${formatMeta({
+    callType: llmConfig.callType,
     provider: llmConfig.provider,
     model: llmConfig.model || '',
     msgs: summary.count,
@@ -279,6 +308,7 @@ export async function completeWithTools(messages, tools, options = {}) {
       try {
         const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
         log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
+          callType: llmConfig.callType,
           provider: llmConfig.provider,
           model: llmConfig.model || '',
           len: result?.length ?? 0,
@@ -323,6 +353,7 @@ export async function resolveToolContext(messages, tools, options = {}) {
 
   const { defs, handlers } = splitTools(tools);
   log.info(`RESOLVE_TOOLS START  ${formatMeta({
+    callType: llmConfig.callType,
     provider: llmConfig.provider,
     model: llmConfig.model || '',
     msgs: summary.count,
@@ -338,7 +369,7 @@ export async function resolveToolContext(messages, tools, options = {}) {
       .filter((m) => m.role === 'assistant' && Array.isArray(m.tool_calls))
       .flatMap((m) => m.tool_calls.map((tc) => tc.function?.name))
       .filter(Boolean);
-    log.info(`RESOLVE_TOOLS DONE  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', added, calledTools: calledTools.length ? calledTools : undefined })}`);
+    log.info(`RESOLVE_TOOLS DONE  ${formatMeta({ callType: llmConfig.callType, provider: llmConfig.provider, model: llmConfig.model || '', added, calledTools: calledTools.length ? calledTools : undefined })}`);
     return enriched;
   } catch (err) {
     log.warn(`RESOLVE_TOOLS FAIL  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', error: err.message })}`);
@@ -362,6 +393,7 @@ export async function complete(messages, options = {}) {
   const startedAt = Date.now();
 
   log.info(`COMPLETE START  ${formatMeta({
+    callType: llmConfig.callType,
     provider: llmConfig.provider,
     model: llmConfig.model || '',
     msgs: summary.count,
@@ -371,6 +403,7 @@ export async function complete(messages, options = {}) {
     maxTokens: llmConfig.max_tokens,
     thinking: llmConfig.thinking_level,
     cacheStrategy,
+    conversationId: llmConfig.conversationId,
   })}`);
 
   let lastError;
@@ -380,6 +413,7 @@ export async function complete(messages, options = {}) {
       try {
         const result = await provider.complete(messages, llmConfig);
         const meta = formatMeta({
+          callType: llmConfig.callType,
           provider: llmConfig.provider,
           model: llmConfig.model || '',
           len: result?.length ?? 0,

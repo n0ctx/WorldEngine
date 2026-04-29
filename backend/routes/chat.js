@@ -152,7 +152,7 @@ async function runStream(sessionId, res, opts = {}) {
       temperature: overrides.temperature,
       maxTokens: overrides.maxTokens,
     })}`);
-    const stream = llm.chat(messages, { ...overrides, signal: ac.signal, usageRef });
+    const stream = llm.chat(messages, { ...overrides, signal: ac.signal, usageRef, callType: 'main_answer', conversationId: sessionId });
 
     for await (const chunk of stream) {
       fullContent += chunk;
@@ -360,7 +360,7 @@ router.post('/:sessionId/continue', async (req, res) => {
     const { messages, overrides } = await buildContext(sessionId);
     const continuationMessages = buildContinuationMessages(messages, originalContent);
 
-    const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal, usageRef });
+    const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal, usageRef, callType: 'main_continue', conversationId: sessionId });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -474,6 +474,8 @@ router.post('/:sessionId/impersonate', async (req, res) => {
       temperature: overrides.temperature,
       maxTokens: overrides.maxTokens ?? 1000,
       thinking_level: null,
+      callType: 'impersonate',
+      conversationId: sessionId,
     });
     // 剥除 thinking 模型输出的 <think>...</think> 推理块
     const content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
@@ -580,6 +582,8 @@ router.post('/:sessionId/retitle', async (req, res) => {
       temperature: overrides.temperature ?? LLM_TASK_TEMPERATURE,
       maxTokens: LLM_TITLE_MAX_TOKENS,
       thinking_level: null,
+      callType: 'retitle',
+      conversationId: sessionId,
     });
     if (!raw) return res.json({ title: null });
 

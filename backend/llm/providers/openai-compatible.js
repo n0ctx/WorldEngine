@@ -1,5 +1,6 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError } from './_utils.js';
 import { recordTokenUsage } from './cache-usage.js';
+import { logRawRequest } from '../raw-logger.js';
 
 /** thinking_level → OpenAI reasoning_effort */
 function resolveReasoningEffort(thinking_level) {
@@ -10,6 +11,22 @@ function resolveReasoningEffort(thinking_level) {
 function assertOpenAICompatibleData(data, config) {
   const providerError = extractProviderError(data);
   if (providerError) throw apiError(`${config.provider} API error: ${providerError}`, 401);
+}
+
+/**
+ * 构造请求头：xAI/Grok 在有 conversationId 时附加 x-grok-conv-id，
+ * 用于把同一会话路由到同一缓存服务器，最大化 prompt cache 命中。
+ * 其他 provider 不附加（避免被错误识别为非法字段）。
+ */
+export function buildOpenAICompatibleHeaders(config) {
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${config.api_key}`,
+  };
+  if (config.provider === 'grok' && config.conversationId) {
+    headers['x-grok-conv-id'] = String(config.conversationId);
+  }
+  return headers;
 }
 
 export async function* streamOpenAICompatible(messages, config) {
@@ -31,9 +48,10 @@ export async function* streamOpenAICompatible(messages, config) {
     body.temperature = config.temperature;
   }
 
+  logRawRequest(body, config, config.callType || 'stream');
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` },
+    headers: buildOpenAICompatibleHeaders(config),
     body: JSON.stringify(body),
     signal: config.signal,
   });
@@ -94,9 +112,10 @@ export async function completeOpenAICompatible(messages, config) {
     body.temperature = config.temperature;
   }
 
+  logRawRequest(body, config, config.callType || 'complete');
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` },
+    headers: buildOpenAICompatibleHeaders(config),
     body: JSON.stringify(body),
     signal: config.signal,
   });
@@ -129,9 +148,10 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
     if (effort) body.reasoning_effort = effort;
     else body.temperature = config.temperature;
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` },
+      headers: buildOpenAICompatibleHeaders(config),
       body: JSON.stringify(body),
       signal: config.signal,
     });
@@ -174,6 +194,7 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
     if (effort) body.reasoning_effort = effort;
     else body.temperature = config.temperature ?? 0;
 
+    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');

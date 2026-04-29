@@ -30,6 +30,7 @@ import db from '../db/index.js';
 import { LLM_TASK_TEMPERATURE, LLM_DIARY_MAX_TOKENS, DIARY_TIME_FIELD_KEY } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('diary');
 
@@ -258,7 +259,9 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
       temperature: LLM_TASK_TEMPERATURE,
       maxTokens: LLM_DIARY_MAX_TOKENS,
       thinking_level: null,
-      configScope: 'aux',
+      configScope: resolveAuxScope(sessionId),
+      callType: 'diary',
+      conversationId: sessionId,
     });
     diaryContent = (raw || '').replace(/<think>[\s\S]*?<\/think>\n*/g, '').trim();
   } catch (err) {

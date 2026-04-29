@@ -20,6 +20,7 @@ import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TURN_SUMMARY_MAX_TOKENS }
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { captureStateSnapshot } from './state-rollback.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('turn-sum');
 
@@ -83,7 +84,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
         ASSISTANT_MESSAGE: asstMsg.content,
       }),
     }];
-    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
+    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
     // 剥除 <think>...</think> 推理链，再清理标题前缀（如 **摘要：** ）
     summary = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')

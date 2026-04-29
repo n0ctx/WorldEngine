@@ -20,6 +20,7 @@ import {
 } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('memory-expand');
 
@@ -68,7 +69,9 @@ export async function decideExpansion({ sessionId, recalled }) {
       temperature: 0,
       maxTokens: MEMORY_EXPAND_DECISION_MAX_TOKENS,
       thinking_level: null,
-      configScope: 'aux',
+      configScope: resolveAuxScope(sessionId),
+      callType: 'summary_expand_judge',
+      conversationId: sessionId,
     });
 
     // 剥除 <think>...</think> 推理链，再去 ```json 包裹

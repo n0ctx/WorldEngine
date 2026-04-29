@@ -50,6 +50,8 @@ export async function generateChapterTitle(sessionId, chapterIndex, chapterMessa
     log,
     logLabel: 'generateChapterTitle',
     logMeta: `session=${sid}  chapter=${chapterIndex}`,
+    conversationId: sessionId,
+    configScope: 'writing-aux',
   });
   if (!result?.title) return null;
 

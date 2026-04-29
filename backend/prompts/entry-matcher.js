@@ -29,6 +29,7 @@ import {
 } from '../utils/constants.js';
 import { createLogger } from '../utils/logger.js';
 import { renderBackendPrompt, loadBackendPrompt } from './prompt-loader.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('entry', 'magenta');
 
@@ -40,25 +41,27 @@ const log = createLogger('entry', 'magenta');
  * @param {string} contextLines     近一轮对话文本
  * @returns {Promise<Set<string>>}
  */
-async function tryLlmMatch(entriesWithDesc, contextLines) {
+async function tryLlmMatch(entriesWithDesc, contextLines, sessionId) {
   const triggered = new Set();
   try {
     const descList = entriesWithDesc
       .map((e, i) => `${i + 1}. 【${e.title}】${e.description}`)
       .join('\n');
 
+    // 使用单条 user 消息（system 指令并入 user），避免发送独立 role:'system' 消息。
+    // 当 aux_llm 未配置而回落到主模型时，独立 system 消息会与主对话 stream 的不同 system
+    // 前缀竞争 provider 的 prefix cache 槽，导致 stream 调用 cache 命中率下降。
     const messages = [
-      { role: 'system', content: loadBackendPrompt('entry-preflight-system.md') },
       {
         role: 'user',
-        content: renderBackendPrompt('entry-preflight-user.md', {
+        content: loadBackendPrompt('entry-preflight-system.md') + '\n\n' + renderBackendPrompt('entry-preflight-user.md', {
           CONTEXT_LINES: contextLines,
           DESC_LIST: descList,
         }),
       },
     ];
 
-    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
+    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'entry_match', conversationId: sessionId });
 
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
@@ -251,7 +254,7 @@ export async function matchEntries(sessionId, entries, worldId = null) {
   if (llmEntries.length > 0) {
     const llmEntriesWithDesc = llmEntries.filter((e) => e.description && e.description.trim());
     const llmTriggered = llmEntriesWithDesc.length > 0 && contextLines
-      ? await tryLlmMatch(llmEntriesWithDesc, contextLines)
+      ? await tryLlmMatch(llmEntriesWithDesc, contextLines, sessionId)
       : new Set();
 
     for (const id of llmTriggered) {

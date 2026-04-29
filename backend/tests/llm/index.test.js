@@ -24,6 +24,7 @@ test('buildLLMConfig 使用调用方 options 覆盖配置文件', async (t) => {
     model: 'override-model',
     temperature: 0.2,
     maxTokens: 128,
+    conversationId: 'sess-abc',
   });
 
   assert.equal(config.provider, 'mock');
@@ -31,7 +32,12 @@ test('buildLLMConfig 使用调用方 options 覆盖配置文件', async (t) => {
   assert.equal(config.model, 'override-model');
   assert.equal(config.temperature, 0.2);
   assert.equal(config.max_tokens, 128);
+  assert.equal(config.conversationId, 'sess-abc');
+
+  const noId = __testables.buildLLMConfig({});
+  assert.equal(noId.conversationId, undefined);
 });
+
 
 test('getProvider 能路由到 mock provider', async (t) => {
   const sandbox = createTestSandbox('llm-provider');

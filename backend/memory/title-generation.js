@@ -15,14 +15,14 @@ export function normalizeTitle(raw) {
     .slice(0, 15);
 }
 
-export async function generateTitleWithRetry({ prompts, maxTokens, temperature, log, logLabel, logMeta }) {
+export async function generateTitleWithRetry({ prompts, maxTokens, temperature, log, logLabel, logMeta, conversationId, configScope = 'aux' }) {
   for (let attempt = 1; attempt <= TITLE_EMPTY_RETRY_MAX; attempt++) {
     if (attempt > 1) {
       log.warn(`${logLabel} RETRY  ${logMeta}  attempt=${attempt}`);
     }
 
     const prompt = prompts[Math.min(attempt - 1, prompts.length - 1)];
-    const raw = await llm.complete(prompt, { temperature, maxTokens, thinking_level: null, configScope: 'aux' });
+    const raw = await llm.complete(prompt, { temperature, maxTokens, thinking_level: null, configScope, callType: 'title_gen', conversationId });
     const title = normalizeTitle(raw);
     if (title) {
       return { title, source: 'llm', attempts: attempt };

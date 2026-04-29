@@ -3,6 +3,100 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: xAI / Grok 注入 x-grok-conv-id header，把同一会话路由到同一缓存服务器
+
+**背景**：之前合并 [1-10] 为单条 system message 后，其他 provider prompt cache 稳定命中，但 xAI / Grok 仍出现 cached_tokens ≈ 158 与 4k+ 来回跳的现象。核查 xAI 文档后确认根因：xAI 后端是多服务器集群，prompt cache 只在单服务器内有效；同一会话若被路由到不同服务器，前缀就无法复用。xAI 推荐的解法是设置 `x-grok-conv-id` HTTP header，把同一会话的请求 sticky 到同一服务器。
+
+**改动**：
+- `backend/llm/index.js`：`buildLLMConfig` 新增 `conversationId` 字段；`CHAT START` / `COMPLETE START` 日志附带该字段以便排查命中率。
+- `backend/llm/providers/openai-compatible.js`：抽出 `buildOpenAICompatibleHeaders(config)`，在 `provider === 'grok' && conversationId` 时附加 `x-grok-conv-id`；`stream / complete / completeWithTools / resolveToolContext` 全部使用该 helper，其他 OpenAI-compat provider 不受影响。
+- 调用层透传 sessionId 作为 conversationId：
+  - 主对话 `routes/chat.js`（main_answer / main_continue / impersonate / retitle）
+  - 写作 `routes/writing.js`（writing_main / writing_continue / writing_impersonate）
+  - 记忆/aux 任务 `memory/combined-state-updater.js`、`memory/diary-generator.js`、`memory/summary-expander.js`、`memory/turn-summarizer.js`、`prompts/entry-matcher.js`、`memory/title-generation.js`（含 summarizer / chapter-title-generator 两个调用点）
+- 新增测试 `backend/tests/llm/openai-compatible-headers.test.js`（4 用例）：覆盖 grok 有/无 conversationId、其他 provider 不附加、非字符串强转。
+
+**为什么不拆独立 adapter**：xAI Chat Completions API 在 endpoint / body / SSE / usage 字段上与 OpenAI 完全兼容，仅 header 有差异；保持 openai-compatible 路径，新增 header helper 即可，不引入冗余协议层。`usage.prompt_tokens_details.cached_tokens` 已被现有 `recordTokenUsage` 覆盖，无需改动。
+
+**验证**：`backend && npm test` 281 用例 / 276 通过 / 2 失败均为已存在的失败，与本次改动无关。人工验证步骤：(1) 配置 xAI provider，开启 `logging.llm_raw.enabled`；(2) 同一 session 连续发 3 轮请求，观察 `data/logs/llm-raw/*.json` 中 `_meta.provider === 'grok'`，并核对响应 `usage.prompt_tokens_details.cached_tokens` 第二轮起接近稳定 system prompt 长度；(3) 对照组：开启不同 session（不同 sessionId），cached_tokens 应回落。
+
+## 2026-04-29 fix: 重新生成时清空旧 next_prompt 选项卡，think 块内的 next_prompt 不再渲染
+
+**背景**：用户反馈两处问题：(1) 聊天 / 写作页重新生成（regenerate / edit-and-regenerate / retry）后，旧的 next_prompt 选项卡没有消失，反而被冻结到了上一条 assistant 消息上；(2) 模型在 `<think>...</think>` 思考块内输出 `<next_prompt>` 时，标签内容被当成正常选项渲染，且 thinking 文本也会出现 next_prompt 字面量。
+
+**根因**：
+- `beginStreamRun` 一律调用 `freezeOptions`，把当前选项绑定到列表里最后一条 assistant 消息。在重新生成场景下，被替换的消息已被 slice 移除，于是选项被错误地挂到了它之前的那条 assistant 上。
+- `onDelta` / `parseContinuationText` 仅按 `<next_prompt>` 字面量切割，不区分该标签是否位于未闭合的 `<think>` 块内。
+
+**改动**：
+- 新增 `frontend/src/utils/next-prompt.js`：`parseNextPromptStream(text)` 统一处理流式文本——总是把 `<next_prompt>` 起始处往后剥离用于显示，仅当标签处于已闭合 think 之外时才返回 options。
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：
+  - `parseContinuationText` 与 `onDelta` 改用新工具函数。
+  - `beginStreamRun` 增加 `{ freezeOptions = true }` 参数；`handleEditMessage` / `handleRegenerateMessage` / `handleRetryLast` / `handleRetryAfterError` 全部传 `freezeOptions: false`，确保旧选项随被替换消息一并清除而非误冻结。
+
+**验证**：`npm test --prefix frontend` 47 个测试文件 / 116 个用例全部通过。人工验证：聊天 + 写作页发送一轮带 next_prompt 的回复 → 点击重新生成，选项卡立即消失；触发模型在 think 块内输出 next_prompt（或本地构造延迟流），thinking 内容里不应出现 `<next_prompt>` 字面量，也不会渲染选项卡。
+
+## 2026-04-29 feat: assembler 合并 [1-10] 为单条 system message，让 xAI prefix cache 命中稳定前缀
+
+**背景**：raw-logger 跨 4 轮 main_answer delta 显示 `messages[0]` (system, 4608t) 跨轮 hash 稳定但 cached_tokens 仅 158/4k+ 循环。原 assembler 输出 `[system(cached), user(dynamic), user(history-first), assistant, ..., user(current)]` 这种"双 user"结构（双 user 出现是因为 dynamic 段以独立 user message 注入），xAI Grok 的 prefix cache pipeline 对此结构 bypass，仅匹配协议头 ~158t，导致 4608t 稳定前缀无法命中。aux 已切独立 Gemini endpoint，问题与 aux 抢 cache 无关。
+
+**改动**（动锁定文件 `backend/prompts/assembler.js`，用户明确授权）：
+- `buildPrompt` / `buildWritingPrompt`：将 `cachedSystemParts` ([1][2][3][3.5]) 与 `dynamicSystemParts` ([4][5][6][7][8][9][10]) 拼接为单条 `role: 'system'` message，前缀稳定 + 后缀动态。
+- 段位顺序与执行顺序未改（[1]→[2]→[3]→[3.5]→[4]→…→[10]→[12]→[11+13]），仅改 role 与消息结构（由 2 条变 1 条）。
+- 顶部注释更新为新结构示意；[DYNAMIC LAYER] 标识改为 [SYSTEM MERGED] 单段说明。
+- `ARCHITECTURE.md §4`：分层策略改写为"Cached + Dynamic 合并为单条 system"，段位表 Dynamic 列改名 "System 后缀"。
+
+**测试更新**：
+- `tests/prompts/assembler.test.js`：4 处 `messages.length` / `messages[i]` 索引断言更新（5→4 / 3→2，dynamic 段从 messages[1] 移到 messages[0]）。
+- `tests/prompts/assembler-shape.test.js`：`anchorMap` 由"index 0=cached / index 1=dynamic"合并为"index 0=cached+dynamic"；snap 重新生成。
+- `npm test` 273 通过，1 条 `assembler-shape.test.js:332` "Session not found" 失败为预先存在（与本次改动无关）。
+
+**期望验证**：下次对话发起后看 `data/logs/llm-raw/*-grok-main_answer.json` 的 `analysis.messages[0].tokens_est` 应该 ≥ 6000 (cached 4608 + dynamic 1500~2000)，`messages[1].role` 应为 `user`（历史首条），整体 `roles` 应为 `[system, user, assistant, user, ...]` 严格 alternating。命中 token 应稳定 ≥ 4480 (chunk-aligned)，不再出现 158 循环。若仍 158，则 xAI grok-4-1-fast-non-reasoning 的 prefix cache 实现要求"整条 system message 完全一致"（B 假设），需要进一步把动态段后置到独立 message。
+
+## 2026-04-29 feat: LLM 调用按业务 callType 打标，分离 prompt cache 诊断
+
+**背景**：Grok prefix cache 实测呈现 `cached_tokens=158/158/158/4k+` 的循环（messages[0] 4608 token system 段 hash 稳定）。raw-logger 之前只按协议层 callType（`stream`/`complete`/`complete-tools`/`resolve-tools`/`complete-native`）分组，无法区分 main_answer / state_update / turn_summary 等业务调用，日志无法按业务维度做 prompt cache 诊断。
+
+**改动**：
+- `backend/llm/index.js`：`buildLLMConfig()` 透传 `options.callType` 到 config；`CHAT START/DONE` `COMPLETE START/DONE` `COMPLETE_TOOLS START/DONE` `RESOLVE_TOOLS START/DONE` 日志全部加 `callType` 字段。
+- `backend/llm/providers/{anthropic,openai-compatible,gemini}.js`：`logRawRequest()` 由硬编码协议名改为 `config.callType` 优先，回退协议默认值；tools/resolve/native 子调用追加 `:tools` `:resolve` `:native` 后缀（如 `state_update:tools`）。
+- 11 个业务调用点注入 `callType`：
+  - `routes/chat.js`：`main_answer` / `main_continue` / `impersonate` / `retitle`
+  - `routes/writing.js`：`writing_main` / `writing_continue` / `writing_impersonate`
+  - `prompts/entry-matcher.js`：`entry_match`
+  - `memory/summary-expander.js`：`summary_expand_judge`
+  - `memory/combined-state-updater.js`：`state_compress` / `state_update`
+  - `memory/turn-summarizer.js`：`turn_summary`
+  - `memory/diary-generator.js`：`diary`
+  - `memory/title-generation.js`：`title_gen`
+
+**验证**：`npm test`（backend）273 通过，仅 1 条预先存在的 `assembler-shape.test.js:332` "Session not found" 失败（与本次改动无关）。`data/logs/llm-raw/*.json` 文件名后缀和日志 callType 字段会按业务名分组，`_prevAnalysis` delta tracking key 由 `provider:model:callType` 组成，业务间不串扰。
+
+**前端徽章未改**：`MessageItem.jsx` 显示的 `message.token_usage` 只来自 `chat.js:155/363` 的 `usageRef`（`main_answer` / `main_continue`），aux/title/state 调用本来就没传 usageRef，徽章数字一直是 main 通路。`158/4k+` 循环的根因是 messages[1+] 段位每轮都在改写（lcp_t_est=104），cache 边界被钉死在 messages[0] 末尾，xAI 端的 4608 token entry 偶尔被 LRU 顶掉再重建，与 callType 隔离无关。
+
+## 2026-04-29 feat: LLM raw logger 增强 — 完整 request body 落盘与 prompt cache 诊断
+
+**改动**：
+- 新增 `backend/llm/raw-logger.js`：在 `llm_raw.enabled=true` 且 `mode=raw` 时，于每次 LLM API 调用前将完整 request body + 分析结果写入 `data/logs/llm-raw/{timestamp}-{provider}-{callType}.json`
+  - 分析内容：system / 每条 message 的 charLen / tokens_est / sha256 hash / 前后 300 字符预览 / `cache_control` 标记位置与累计 token 数
+  - 整体哈希：canonicalHash / messagesOnlyHash / systemOnlyHash / prefix512/1024/2048Hash
+  - delta 对比（按 `provider:model:callType` 隔离）：systemHashChanged / toolsHashChanged / rolesOrderChanged / changedMessages / lcpTokensEst / prefix*HashStable
+- 修改 `backend/llm/providers/anthropic.js`：4 处 `fetch()` 前注入 `logRawRequest`（stream / complete / complete-tools / resolve-tools）
+- 修改 `backend/llm/providers/openai-compatible.js`：4 处 `fetch()` 前注入 `logRawRequest`
+- 修改 `backend/llm/providers/gemini.js`：5 处 `fetch()` 前注入 `logRawRequest`（含 complete-native fallback）
+
+**启用方式**：`data/config.json` 设置 `logging.mode="raw"` + `logging.llm_raw.enabled=true`（当前已是默认配置）
+
+**验证方式**：
+- 触发对话后检查 `data/logs/llm-raw/` 下出现 `.json` 文件
+- 日志文件中出现 `RAW REQUEST` 行（含 system_t_est / cache_markers 字段）
+- 连续两轮请求后出现 `RAW DELTA` 行
+
+**设计约束**：
+- body 仅含请求 payload，不含 headers（无 API key 泄漏风险）
+- CJK token 估算公式：cjkCount + (totalLen - cjkCount) / 4，标注为 `tokens_est` 非精确值
+- `allCacheMarkers` 列出每个 `cache_control` 标记的位置和其前的累计 tokens_est，直接回答"为什么只 cache 了 N tokens"
+
 ## 2026-04-29 test: Wave 3 完成 — assembler 结构快照 + import/export round-trip + 写作 e2e
 
 **改动**：

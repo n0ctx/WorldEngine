@@ -26,6 +26,7 @@ import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, 
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('all-state');
 
@@ -149,7 +150,7 @@ function applyStatePatch(activeFields, patchData, upsertFn, logLabel) {
  * 检查 patch 中 text/list 字段是否超限，超限时调用 LLM 压缩后就地修改 patch。
  * 必须在 applyStatePatch 之前调用，以便 validateValue 处理压缩后的值。
  */
-async function compressOverLimitFields(patch, entityFieldPairs, sid) {
+async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) {
   const overLengthText = [];
   const overLengthList = [];
 
@@ -183,7 +184,7 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid) {
 
   const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
 
-  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
+  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'state_compress', conversationId: sessionId });
   if (!raw) return;
 
   try {
@@ -345,7 +346,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   })}`);
 
   // thinking_level: null — 显式禁用 thinking，防止 thinking tokens 占用 maxOutputTokens 配额导致 JSON 输出被截断
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null, configScope: 'aux' });
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
   if (!raw) return;
   log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
@@ -376,7 +377,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world }] : []),
     ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`] })),
     ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona }] : []),
-  ], sid);
+  ], sid, sessionId);
 
   // ── 写入各类状态（会话级） ──
   if (worldActiveFields.length > 0) {

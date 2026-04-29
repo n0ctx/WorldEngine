@@ -8,6 +8,7 @@ import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('summarizer');
 
@@ -51,6 +52,8 @@ export async function generateTitle(sessionId) {
     log,
     logLabel: 'generateTitle',
     logMeta: `session=${sid}`,
+    conversationId: sessionId,
+    configScope: resolveAuxScope(sessionId),
   });
   if (!result?.title) return null;
 
