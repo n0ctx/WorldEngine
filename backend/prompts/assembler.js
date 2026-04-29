@@ -5,14 +5,14 @@
  *   [1]  全局 System Prompt          ┐
  *   [2]  玩家 System Prompt           │ 稳定前缀
  *   [3]  角色 System Prompt           │ （cached 部分）
- *   [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）┘
- *   [4]  世界状态                    ┐
- *   [5]  玩家状态                     │
- *   [6]  角色状态                     │
- *   [7]  世界 State 条目              │ 动态后缀
- *   [8]  召回摘要                     │ （每轮变化）
- *   [9]  展开原文                     │
- *   [10] 日记注入                    ┘
+ *   [4]  常驻 cached 条目（trigger_type=always 且 token=0）┘
+ *   [5]  世界状态                    ┐
+ *   [6]  玩家状态                     │
+ *   [7]  角色状态                     │
+ *   [8]  世界 State 条目              │ 动态后缀
+ *   [9]  召回摘要                     │ （每轮变化）
+ *   [10] 展开原文                     │
+ *   [11] 日记注入                    ┘
  *
  *   [历史消息：role:user/assistant 交替]
  *   [12] 历史消息（稳定使用原始 messages 窗口）
@@ -21,8 +21,8 @@
  *   [13] 当前用户消息（唯一的尾部 user 消息，[14] 拼接到其 content 末尾）
  *   [14] 后置提示词（全局→角色 + world post 条目，均空跳过）
  *
- * 注：[4-10] 原为独立 user role 的 dynamic 段，2026-04-29 合并进 system role
- * 单条消息以求 prefix cache 命中稳定前缀（[1-3.5] 4608t 稳定）。改动来源：
+ * 注：[5-11] 原为独立 user role 的 dynamic 段，2026-04-29 合并进 system role
+ * 单条消息以求 prefix cache 命中稳定前缀（[1-4] 4608t 稳定）。改动来源：
  * xAI Grok prefix cache 实测显示 system + user(dynamic) + user(history) 的
  * 双 user 结构会让 cache pipeline bypass，仅命中 158t；合并到单 system 后
  * 期望命中 ~4608t。
@@ -144,8 +144,8 @@ export const __testables = {
  * 构建发送给 LLM 的完整 messages 数组
  *
  * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
- *   Cached system [1, 2, 3, 3.5]：全局 + 玩家 + 角色 + 常驻 cached 条目
- *   Dynamic system [4-10]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
+ *   Cached system [1, 2, 3, 4]：全局 + 玩家 + 角色 + 常驻 cached 条目
+ *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
  *   History [12]：历史 user/assistant 交替
  *   Bottom (last user msg) [13 + 14]：当前用户消息 content 末尾追加后置提示词
  *
@@ -199,7 +199,7 @@ export async function buildPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
-  // [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
   const allWorldEntries = getAllWorldEntries(world.id);
   const cachedEntries = allWorldEntries
@@ -207,26 +207,26 @@ export async function buildPrompt(sessionId, options = {}) {
   if (cachedEntries.length > 0) {
     const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
     cachedSystemParts.push(cachedTexts.join('\n\n'));
-    log.debug(`│  [3.5] cached entries  count=${cachedEntries.length}`);
+    log.debug(`│  [4] cached entries  count=${cachedEntries.length}`);
   }
 
-  // ─── DYNAMIC LAYER (4, 5, 6-10) ───
-  // [4] 世界状态
+  // ─── DYNAMIC LAYER (5-11) ───
+  // [5] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
 
-  // [5] 玩家状态
+  // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
 
-  // [6] 角色状态
+  // [7] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) dynamicSystemParts.push(tv(characterStateText));
 
-  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
+  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
   const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  log.debug(`│  [7] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
+  log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
   const triggeredEntries = worldEntries
     .filter((entry) => triggeredIds.has(entry.id) && entry.content)
@@ -241,15 +241,15 @@ export async function buildPrompt(sessionId, options = {}) {
     dynamicSystemParts.push(entryTexts.join('\n\n'));
   }
 
-  // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [9] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   let expandedText = '';
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
@@ -265,7 +265,7 @@ export async function buildPrompt(sessionId, options = {}) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         dynamicSystemParts.push(tv(expandedText));
-        log.debug(`│  [9] expand  ids=${expandIds.length}`);
+        log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -273,16 +273,16 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
-  // [10] 日记注入（一次性，仅本轮生效）
+  // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [10] diary injection applied');
+    log.debug('│  [11] diary injection applied');
   }
 
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // [1-10] 合并为单条 system message：cached 前缀 + dynamic 后缀
+  // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
   const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
   const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');
@@ -325,11 +325,11 @@ export async function buildPrompt(sessionId, options = {}) {
  * 写作版本：支持多个激活角色，[8-10] 向量召回与记忆展开同 buildPrompt。
  * 组装顺序与 buildPrompt 不同：为避免多角色切换导致 cache miss，[3] 角色 system prompt 移到 dynamic 层。
  *
- * Cached layer: [1] 全局、[2] 玩家（保持稳定）
- * Dynamic layer: [3] 所有激活角色 system prompt + [4-10] 上下文
- * Bottom: [11] 后置提示词 + [13] 当前消息
+ * Cached layer: [1] 全局、[2] 玩家、[4] 常驻 cached 条目（保持稳定）
+ * Dynamic layer: [3] 所有激活角色 system prompt + [5-11] 上下文
+ * Bottom: [12] 历史消息，[13] 当前消息 + [14] 后置提示词
  *
- * [3] 和 [6] 针对所有激活角色展开；无后置提示词对角色分别应用。
+ * [3] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -372,7 +372,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     world: world.name,
   });
 
-  // ─── CACHED LAYER (1, 2) ───
+  // ─── CACHED LAYER (1, 2, 4) ───
   // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过）
   if (writing.global_system_prompt && !skipWritingInstructions) {
     cachedSystemParts.push(tv(writing.global_system_prompt));
@@ -386,18 +386,18 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(lines.join('\n')));
   }
 
-  // [3.5] 常驻 cached 条目（trigger_type=always 且 token=0）
-  // 写作模式下 cached layer 仅含 [1][2]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
+  // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // 写作模式下 cached layer 含 [1][2][4]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
   const allWorldEntries = getAllWorldEntries(world.id);
   const cachedEntries = allWorldEntries
     .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
   if (cachedEntries.length > 0) {
     const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
     cachedSystemParts.push(cachedTexts.join('\n\n'));
-    log.debug(`│  [3.5] cached entries  count=${cachedEntries.length}`);
+    log.debug(`│  [4] cached entries  count=${cachedEntries.length}`);
   }
 
-  // ─── DYNAMIC LAYER (3-10，写作模式下[3]也在dynamic以支持多角色切换) ───
+  // ─── DYNAMIC LAYER (3, 5-11；写作模式下[3]也在dynamic以支持多角色切换) ───
   // [3] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
     if (character.system_prompt) {
@@ -405,21 +405,21 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [4] 世界状态
+  // [5] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
 
-  // [5] 玩家状态
+  // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
 
-  // [6] 所有激活角色的角色状态
+  // [7] 所有激活角色的角色状态
   for (const character of activeCharacters) {
     const charStateText = renderCharacterState(character.id, sessionId);
     if (charStateText) dynamicSystemParts.push(tvChar(charStateText, character));
   }
 
-  // [7] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
+  // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
   const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   const triggeredEntries2 = worldEntries
@@ -432,15 +432,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
   if (entryTexts.length > 0) dynamicSystemParts.push(entryTexts.join('\n\n'));
 
-  // [8] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
+  // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
   if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
-  if (recallHitCount > 0) log.debug(`│  [8] recall  hits=${recallHitCount}`);
+  if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [9] 记忆展开（由 AI 决定需要展开哪些原文）
+  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
   if (recallHitCount > 0 && writing.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
       ref: r.ref,
@@ -455,7 +455,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
         dynamicSystemParts.push(tv(expandedText));
-        log.debug(`│  [9] expand  ids=${expandIds.length}`);
+        log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
     } else {
@@ -463,16 +463,16 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [10] 日记注入（一次性，仅本轮生效）
+  // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
     dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
-    log.debug('│  [10] diary injection applied (writing)');
+    log.debug('│  [11] diary injection applied (writing)');
   }
 
   // ─── CONSTRUCT MESSAGES ───
   const messages = [];
 
-  // [1-10] 合并为单条 system message：cached 前缀 + dynamic 后缀
+  // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
   const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
   const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
   const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');

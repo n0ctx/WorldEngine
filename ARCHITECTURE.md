@@ -180,35 +180,35 @@ POST /api/sessions/:sessionId/chat
 
 自 T170 起，prompt 采用 **cached/dynamic 分层** 以支持各 provider 的 Prompt Cache / Context Cache。
 
-- **Cached + Dynamic 合并为单条 system**（2026-04-29 起）：[1-10] 段全部拼接成一条 `role:system` 消息。前缀（[1][2][3][3.5]）稳定可缓存，后缀（[4-10]）每轮变化。原因：xAI Grok 实测 `[system, user(dynamic), user(history-first)]` 的"双 user"结构会让 prefix cache 整体 bypass，仅命中协议头 ~158t；合并到单 system 后命中稳定前缀（实测期望 ~4608t）。Anthropic-compatible provider 仍会标记 `cache_control: { type: 'ephemeral' }`；OpenAI-compatible / Gemini 依赖稳定前缀触发厂商隐式缓存
+- **Cached + Dynamic 合并为单条 system**（2026-04-29 起）：[1-11] 段全部拼接成一条 `role:system` 消息。前缀（[1][2][3][4]）稳定可缓存，后缀（[5-11]）每轮变化。原因：xAI Grok 实测 `[system, user(dynamic), user(history-first)]` 的"双 user"结构会让 prefix cache 整体 bypass，仅命中协议头 ~158t；合并到单 system 后命中稳定前缀（实测期望 ~4608t）。Anthropic-compatible provider 仍会标记 `cache_control: { type: 'ephemeral' }`；OpenAI-compatible / Gemini 依赖稳定前缀触发厂商隐式缓存
 - **Bottom**：后置提示词附加到当前消息末尾，保持最高优先级
 
 ### buildPrompt(sessionId, options?) → { messages, temperature, maxTokens, recallHitCount }
 
 `assembler.js` 只负责拼装顺序与运行时数据；固定后端模板（如 suggestion prompt）统一存放在 `backend/prompts/templates/` 的分组目录下，通过 `prompt-loader.js` 读取。
 
-13 段顺序（以执行顺序重新编号），**[1-10] 段合并为单条 `role:system`（前缀 [1][2][3][3.5] 稳定，后缀 [4-10] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 追加到末尾 `role:user`：
+14 段顺序（以执行顺序编号），**[1-11] 段合并为单条 `role:system`（前缀 [1][2][3][4] 稳定，后缀 [5-11] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 追加到末尾 `role:user`：
 
 | 段 | 层 | 来源 | 跳过条件 |
 |---|---|---|---|
 | **[1]** | **Cached** | `config.global_system_prompt` | 空字符串跳过 |
 | **[2]** | **Cached** | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
 | **[3]** | **Cached** | `[{{char}}人设]\n${character.system_prompt}` | 空跳过 |
-| **[3.5]** | **Cached** | 常驻 cached 条目：`world_prompt_entries` 中 `trigger_type='always'` 且 `token=0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（每条格式：`【${title}】\n${content}`）；不参与 `matchEntries` | 无此类条目时跳过 |
-| [4] | System 后缀 | `renderWorldState(world.id)` | 无字段/值时跳过 |
-| [5] | System 后缀 | `renderPersonaState(world.id)` | 空跳过 |
-| [6] | System 后缀 | `renderCharacterState(character.id)` | 空跳过 |
-| [7] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [3.5] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
-| [8] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
-| [9] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
-| [10] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
+| **[4]** | **Cached** | 常驻 cached 条目：`world_prompt_entries` 中 `trigger_type='always'` 且 `token=0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（每条格式：`【${title}】\n${content}`）；不参与 `matchEntries` | 无此类条目时跳过 |
+| [5] | System 后缀 | `renderWorldState(world.id)` | 无字段/值时跳过 |
+| [6] | System 后缀 | `renderPersonaState(world.id)` | 空跳过 |
+| [7] | System 后缀 | `renderCharacterState(character.id)` | 空跳过 |
+| [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [4] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
+| [9] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
+| [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
+| [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| **[11]** | **Bottom** | 后置提示词（`global_post_prompt` → `character.post_prompt`），**追加到当前消息末尾** | 均空跳过 |
-| [13] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率）；后置提示词 [11] 也追加于此末尾 | — |
+| [13] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率）；后置提示词 [14] 也追加于此末尾 | — |
+| **[14]** | **Bottom** | 后置提示词（`global_post_prompt` → `character.post_prompt`），**追加到当前消息末尾** | 均空跳过 |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
-**Cached layer 的发送方式**：Anthropic-compatible provider 会将 system 消息自动包装为 `[{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]`（见 `withCacheControl` 函数）。OpenAI-compatible 路径（含 OpenAI / OpenRouter / DeepSeek / Grok / GLM / Kimi / MiniMax / SiliconFlow / Qwen / Xiaomi）则在 `backend/llm/providers/openai-compatible.js#normalizeOpenAICompatibleMessages` 中**默认**按 `cacheableSystem` 把首条 `system` 拆成两条：第 1 条仅保留稳定前缀 [1-3.5]，第 2 条承载动态后缀 [4-10]，让前缀边界与 role 边界对齐，最大化各 provider prefix cache 命中（OpenRouter sticky routing 指纹、DeepSeek 64-token 块前缀匹配、Grok 单服务器缓存均受益）。两段都是 `role=system`，与 commit 02b50a2 修复的"双 user 让 cache pipeline bypass"是不同结构。`cacheableSystem` 为空 / 首条非 system / 不以 `cacheableSystem` 开头 / 无动态后缀任一情况都跳过拆分，保留原结构。Gemini 2.5 系列依靠 implicit caching 自动命中前缀；Gemini 3.x 系列（implicit cache 在常见 prompt size 区间存在 dead zone，flash-lite preview 实测无命中）走 explicit `cachedContents` API：`backend/llm/providers/gemini-cache.js` 维护 LRU（hash = sha256(model + cacheableSystem)，TTL 600s，最多 64 条），`backend/llm/providers/gemini.js` 的 `streamGemini` / `completeGemini` 在 `model` 匹配 `gemini-3.x` 且 `cacheableSystem.length ≥ 4000` 时通过 `getOrCreateCache` 获取 `cachedContents/{id}`，请求体使用 `{ contents, cachedContent }`（不带 `systemInstruction`），dynamic 段拼到首条 user message。`assembler.buildPrompt` / `buildWritingPrompt` 返回值新增 `cacheableSystem` 字段（= [1-3.5] 段拼接结果），由 `buildContext` / 路由透传到 `llm.chat`/`llm.complete` 的 `options.cacheableSystem`，`buildLLMConfig` 转为 provider config 同名字段；其他 provider 忽略。
+**Cached layer 的发送方式**：Anthropic-compatible provider 会将 system 消息自动包装为 `[{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]`（见 `withCacheControl` 函数）。OpenAI-compatible 路径（含 OpenAI / OpenRouter / DeepSeek / Grok / GLM / Kimi / MiniMax / SiliconFlow / Qwen / Xiaomi）则在 `backend/llm/providers/openai-compatible.js#normalizeOpenAICompatibleMessages` 中**默认**按 `cacheableSystem` 把首条 `system` 拆成两条：第 1 条仅保留稳定前缀 [1-4]，第 2 条承载动态后缀 [5-11]，让前缀边界与 role 边界对齐，最大化各 provider prefix cache 命中（OpenRouter sticky routing 指纹、DeepSeek 64-token 块前缀匹配、Grok 单服务器缓存均受益）。两段都是 `role=system`，与 commit 02b50a2 修复的"双 user 让 cache pipeline bypass"是不同结构。`cacheableSystem` 为空 / 首条非 system / 不以 `cacheableSystem` 开头 / 无动态后缀任一情况都跳过拆分，保留原结构。Gemini 2.5 系列依靠 implicit caching 自动命中前缀；Gemini 3.x 系列（implicit cache 在常见 prompt size 区间存在 dead zone，flash-lite preview 实测无命中）走 explicit `cachedContents` API：`backend/llm/providers/gemini-cache.js` 维护 LRU（hash = sha256(model + cacheableSystem)，TTL 600s，最多 64 条），`backend/llm/providers/gemini.js` 的 `streamGemini` / `completeGemini` 在 `model` 匹配 `gemini-3.x` 且 `cacheableSystem.length ≥ 4000` 时通过 `getOrCreateCache` 获取 `cachedContents/{id}`，请求体使用 `{ contents, cachedContent }`（不带 `systemInstruction`），dynamic 段拼到首条 user message。`assembler.buildPrompt` / `buildWritingPrompt` 返回值新增 `cacheableSystem` 字段（= [1-4] 段拼接结果），由 `buildContext` / 路由透传到 `llm.chat`/`llm.complete` 的 `options.cacheableSystem`，`buildLLMConfig` 转为 provider config 同名字段；其他 provider 忽略。
 
 **xAI / Grok cache 路由**：xAI 后端是多服务器集群，prompt cache 仅在单服务器内有效。`backend/llm/providers/openai-compatible.js` 的 `buildOpenAICompatibleHeaders(config)` 在 `provider === 'grok' && config.conversationId` 时附加 `x-grok-conv-id` HTTP header，把同一会话路由到同一缓存服务器。`conversationId` 由 `buildLLMConfig` 从调用方 options 透传：主对话 / 写作 / aux 任务统一用 sessionId 作为稳定值；其他 OpenAI-compat provider 不发送该 header。
 
@@ -218,19 +218,19 @@ POST /api/sessions/:sessionId/chat
 
 与 `buildPrompt` 的差异：
 
-**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 玩家 +（如有）[3.5] 常驻 cached 条目，[3] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
+**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 玩家 +（如有）[4] 常驻 cached 条目，[3] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
 
 | 段 | 差异 |
 |---|---|
 | **[3]** | **[3] 角色 system prompt 移到 Dynamic 层**（循环所有激活角色，每个格式：`[{{char}}人设]\n${system_prompt}`，用该角色名字替换 `{{char}}`）—— 为避免多角色组合变化导致 cache miss |
-| [4] | `renderWorldState(world.id)` |
-| [5] | `renderPersonaState(world.id)` |
-| [6] | 循环所有激活角色调用 `renderCharacterState`，用各自角色名替换 `{{char}}` |
-| [7] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
-| [8-9] | 同 buildPrompt；[9] 受 `writing.memory_expansion_enabled` 控制 |
+| [5] | `renderWorldState(world.id)` |
+| [6] | `renderPersonaState(world.id)` |
+| [7] | 循环所有激活角色调用 `renderCharacterState`，用各自角色名替换 `{{char}}` |
+| [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
+| [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| **[11]** | 无角色后置提示词（只有 `writing.global_post_prompt`）；同 buildPrompt，**追加到当前消息末尾** |
-| [13] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT`；后置提示词 [11] 也追加于此末尾 |
+| [13] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT`；后置提示词 [14] 也追加于此末尾 |
+| **[14]** | 无角色后置提示词（只有 `writing.global_post_prompt`）；同 buildPrompt，**追加到当前消息末尾** |
 | 返回值 | 含 `recallHitCount` 和 `model`（若配置了 `writing.model` 则覆盖全局） |
 
 ---
@@ -383,7 +383,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `searchRecalledSummaries(worldId, sessionId)` → Promise<{recalled, recentMessagesText}> | — | 向量搜索；recalled 数组含 `{ref, turn_record_id, session_id, session_title, round_index, created_at, content, score, is_same_session}` |
 | `renderRecalledSummaries(recalled)` → string | `[历史记忆召回]` | 格式：`#ref（turn_record_id）【date · title · 第N轮】content` |
 
-**组装位置**：[2] 世界状态、[4] 玩家状态、[6] 角色状态各自独立注入；[9] 召回摘要；[10] 展开原文（见 §4）。
+**组装位置**：[5] 世界状态、[6] 玩家状态、[7] 角色状态各自独立注入；[9] 召回摘要；[10] 展开原文（见 §4）。
 
 **向量搜索行为（T49 新，T135 改）**：
 - 查询向量 = 最后一条 user 消息 + 最后一条 assistant 消息拼接嵌入
@@ -495,9 +495,9 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **大小写不敏感**：`{{User}}`、`{{CHAR}}` 等均有效。
 
-**应用范围**：[1]–[12] 所有 systemParts 注入点。**不替换** [13] 历史消息和 [14] 当前用户消息（对话内容非配置模板）。
+**应用范围**：[1]–[11] 所有 systemParts 注入点。**不替换** [12] 历史消息和 [13] 当前用户消息（对话内容非配置模板）。
 
-**写作模式多角色**：共享段（[1]-[4][7][8][9][10][11][12]）以首个激活角色名作为 `{{char}}` fallback；[5-6] 各自使用所属角色名。
+**写作模式多角色**：共享段（[1][2][4][5][6][8][9][10][11][12]）以首个激活角色名作为 `{{char}}` fallback；[3][7] 各自使用所属角色名。
 
 **实现**：`backend/utils/template-vars.js` → `applyTemplateVars(text, ctx)`；assembler.js 内以闭包 `const tv = t => applyTemplateVars(t, ctx)` 调用。
 
