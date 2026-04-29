@@ -53,11 +53,13 @@ export default function WritingSpacePage() {
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
 
+  const [ltmEnabled, setLtmEnabled] = useState(false);
   useEffect(() => {
     getConfig().then((c) => {
       setShowTokenUsage(c.ui?.show_token_usage === true);
       const writingModel = c.writing?.llm?.model_pricing ?? null;
       setCurrentWritingModelPricing(writingModel);
+      setLtmEnabled(c.writing?.long_term_memory_enabled === true);
     });
   }, [setCurrentWritingModelPricing, setShowTokenUsage]);
 
@@ -812,26 +814,28 @@ export default function WritingSpacePage() {
                   <h1 className="we-chat-center-title">
                     {currentSession.title || '写作进行中'}
                   </h1>
-                  <button
-                    type="button"
-                    className="we-chat-center-action"
-                    onClick={() => setLtmOpen(true)}
-                    aria-label="长期记忆"
-                    title="长期记忆"
-                  >
-                    <Icon size={20} aria-label="长期记忆">
-                      <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
-                      <path d="M8 8h8" />
-                      <path d="M8 12h8" />
-                      <path d="M8 16h5" />
-                    </Icon>
-                  </button>
+                  {ltmEnabled && (
+                    <button
+                      type="button"
+                      className="we-chat-center-action"
+                      onClick={() => setLtmOpen(true)}
+                      aria-label="长期记忆"
+                      title="长期记忆"
+                    >
+                      <Icon size={20} aria-label="长期记忆">
+                        <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
+                        <path d="M8 8h8" />
+                        <path d="M8 12h8" />
+                        <path d="M8 16h5" />
+                      </Icon>
+                    </button>
+                  )}
                 </>
               ) : (
                 <span className="flex-1" />
               )}
             </div>
-            {ltmOpen && currentSession && (
+            {ltmEnabled && ltmOpen && currentSession && (
               <LongTermMemoryModal
                 sessionId={currentSession.id}
                 onClose={() => setLtmOpen(false)}

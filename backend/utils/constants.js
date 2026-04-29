@@ -74,8 +74,8 @@ export const MAX_ATTACHMENT_SIZE_MB = 5;
 export const LLM_TASK_TEMPERATURE = 0.3;
 /** 会话标题生成最大 token 数 */
 export const LLM_TITLE_MAX_TOKENS = 30;
-/** turn record 摘要生成最大 token 数 */
-export const LLM_TURN_SUMMARY_MAX_TOKENS = 500;
+/** turn record 摘要生成最大 token 数（启用 LTM 时输出 JSON 包装 + 摘要 + 2 条 memory，800 留出余量避免末条被截） */
+export const LLM_TURN_SUMMARY_MAX_TOKENS = 800;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
 /** 状态压缩（state-compress）最大 token 数 */
@@ -86,8 +86,8 @@ export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 // ============================
 /** 单轮长期记忆条目数上限 */
 export const LONG_TERM_MEMORY_PER_TURN_MAX = 2;
-/** 单条长期记忆字符上限（10–20 字弹性，给一点冗余） */
-export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 30;
+/** 单条长期记忆字符上限（含 [年月日时分] 时间前缀的条目易超 30 字被截断，放到 60） */
+export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 60;
 /** 长期记忆文档触发压缩的行数阈值 */
 export const LONG_TERM_MEMORY_MAX_LINES = 50;
 /** 长期记忆压缩目标行数 */
