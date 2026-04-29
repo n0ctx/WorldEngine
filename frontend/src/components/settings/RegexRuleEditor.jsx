@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import Select from '../ui/Select';
+import Textarea from '../ui/Textarea';
 import { pushErrorToast } from '../../utils/toast';
 
 const SCOPE_OPTIONS = [
@@ -200,8 +201,8 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
         {/* 测试区 */}
         <div className="we-regex-test-box">
           <span className="we-regex-test-label">测试替换</span>
-          <textarea
-            className="we-textarea we-regex-test-textarea"
+          <Textarea
+            className="we-regex-test-textarea"
             rows={3}
             placeholder="输入样本文本…"
             value={testInput}
