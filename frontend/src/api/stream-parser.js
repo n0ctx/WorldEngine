@@ -15,6 +15,7 @@
  *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作）
  *   onStateUpdated()            — 状态栏异步更新完成（writing 专有）
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
+ *   onEntriesActivated(entries) — 本轮激活的非常驻条目（运行时展示，不持久化）
  */
 export async function parseSSEStream(response, callbacks) {
   const reader = response.body.getReader();
@@ -48,6 +49,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
+          else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
           else callbacks.onEvent?.(evt);
         } catch {
           // ignore malformed events

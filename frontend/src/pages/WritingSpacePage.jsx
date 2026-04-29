@@ -104,6 +104,8 @@ export default function WritingSpacePage() {
   const pendingAssistantRef = useRef(null);
   const assistantAppendedEarlyRef = useRef(false);
   const pendingOptionsRef = useRef([]);
+  // 本轮 SSE 推送的激活条目（onDone 时附加到 assistant 上，仅运行时展示）
+  const pendingEntriesRef = useRef([]);
   // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
   const streamRunIdRef = useRef(0);
   // 用户主动点击停止时置 true；防止无内容时 onStreamEnd 兜底触发 refreshMessages
@@ -307,6 +309,7 @@ export default function WritingSpacePage() {
     pendingAssistantRef.current = null;
     assistantAppendedEarlyRef.current = false;
     pendingOptionsRef.current = [];
+    pendingEntriesRef.current = [];
     streamAbortedRef.current = false;
     clearOptionsState();
     beginStreamingKey();
@@ -342,6 +345,9 @@ export default function WritingSpacePage() {
       onDone(assistant, options) {
         if (!isCurrentStreamRun(runId)) return;
         if (options?.length) pendingOptionsRef.current = options;
+        if (assistant && pendingEntriesRef.current.length > 0) {
+          assistant = { ...assistant, activated_entries: pendingEntriesRef.current };
+        }
         // 立即追加真实消息 + 解锁输入框（同批次渲染），避免流式占位消失后真实消息延迟出现的闪烁
         if (assistant && messageListRef.current?.appendMessage) {
           messageListRef.current.appendMessage({ ...assistant, _key: streamKey });
@@ -351,6 +357,10 @@ export default function WritingSpacePage() {
         }
         setGenerating(false);
         startMemoryWriting(runId);
+      },
+      onEntriesActivated(entries) {
+        if (!isCurrentStreamRun(runId)) return;
+        pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;

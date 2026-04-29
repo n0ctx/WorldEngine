@@ -419,11 +419,13 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `memory_recall_done` | buildContext 返回后 | `{ type: "memory_recall_done", hit: 2 }` |
 | `memory_expand_start` | 展开决策前 | `{ type: "memory_expand_start", candidates: [{ref:1,title:"..."}] }` |
 | `memory_expand_done` | 展开完成 | `{ type: "memory_expand_done", expanded: ["session_id_1"] }` |
+| `entries_activated` | 本轮命中的非常驻条目（chat + writing；过滤 `trigger_type='always'`） | `{ type: "entries_activated", entries: [{ id, title, trigger_type }] }` |
 
 **注**：
 - `memory_recall_*` 和 `memory_expand_*` 仅 `/chat` 路径发出；`/continue`（续写）路径不含
 - `state_updated` / `diary_updated` 仅 writing 路径发出；chat 模式对应后台任务不保活 SSE
 - `state_rolled_back` 在 regenerate 路由完成回滚后、`runStream`/`runWritingStream` 启动时立即发出；触发前端状态栏立即刷新，无需等待 `state_updated`
+- `entries_activated` 在 `buildContext` / `buildWritingPrompt` 返回后、LLM 流开始前发出；仅当 entries 非空才推送。前端缓存到 `pendingEntriesRef`，在 `onDone` 时挂到新建 assistant 消息的 `activated_entries` 字段（**仅运行时**，不入 DB；刷新或切换会话即丢失）。`/continue` 路径不发出
 - `done.options` 同时持久化到对应 assistant 消息的 `messages.next_options` 字段（JSON 数组）；前端切页/刷新后由 `MessageList` 在初次拉取消息时把每条 assistant 的 `next_options` 还原成 `_options`，最近一条 assistant 的选项被提升回 `currentOptions` 形成"待选择展开"态，更早的回合统一以 `FrozenOptionCard` 折叠态呈现
 
 ---

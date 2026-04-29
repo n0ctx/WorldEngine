@@ -493,6 +493,23 @@
 
 .we-message-actions button:hover { color: var(--we-vermilion); }
 
+/* ── Activated entries row（本轮激活的非常驻条目，仅运行时） ── */
+.we-activated-entries-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.we-message-row:hover .we-activated-entries-row,
+.we-writing-annotation:hover .we-activated-entries-row,
+.we-writing-prose:hover .we-activated-entries-row {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* ── Interrupted tag ───────────────────────────────────── */
 
 .we-message-interrupted {

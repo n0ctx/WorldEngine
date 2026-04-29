@@ -88,6 +88,8 @@ export default function ChatPage() {
   const assistantAppendedEarlyRef = useRef(false);
   // 本轮后端返回的选项列表（finalizeStream 时设置到 currentOptions）
   const pendingOptionsRef = useRef([]);
+  // 本轮 SSE 推送的激活条目（onDone 时附加到 assistant 上，仅运行时展示）
+  const pendingEntriesRef = useRef([]);
   // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
   const streamingKeyRef = useRef('__stream_init__');
   // 普通生成/重生成的 run id；旧 SSE 收尾不得覆盖新一轮状态
@@ -128,6 +130,7 @@ export default function ChatPage() {
     pendingAssistantRef.current = null;
     assistantAppendedEarlyRef.current = false;
     pendingOptionsRef.current = [];
+    pendingEntriesRef.current = [];
     streamAbortedRef.current = false;
     clearOptionsState();
     beginStreamingKey();
@@ -400,6 +403,10 @@ export default function ChatPage() {
       onDone(assistant, options) {
         if (!isCurrentStreamRun(runId)) return;
         if (options?.length) pendingOptionsRef.current = options;
+        // 把本轮激活条目挂到 assistant 上（仅运行时；不入 DB）
+        if (assistant && pendingEntriesRef.current.length > 0) {
+          assistant = { ...assistant, activated_entries: pendingEntriesRef.current };
+        }
         // 立即追加真实消息 + 解锁输入框（同批次渲染，避免流式气泡消失后真实消息尚未出现的闪烁）
         // 续写场景不在此追加，由 finalizeStream 合并内容
         if (assistant && !continuingMessageIdRef.current && messageListRef.current?.appendMessage) {
@@ -410,6 +417,10 @@ export default function ChatPage() {
         }
         setGenerating(false);
         startMemoryWriting(runId);
+      },
+      onEntriesActivated(entries) {
+        if (!isCurrentStreamRun(runId)) return;
+        pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;

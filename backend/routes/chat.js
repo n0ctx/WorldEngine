@@ -137,7 +137,7 @@ async function runStream(sessionId, res, opts = {}) {
 
   try {
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_start' });
-    const { messages, overrides, recallHitCount } = await buildContext(sessionId, {
+    const { messages, overrides, recallHitCount, activatedEntries } = await buildContext(sessionId, {
       onRecallEvent(name, payload) {
         if (!streamState.isClientClosed()) {
           emitSse(res, sid, { type: name, ...payload });
@@ -146,6 +146,9 @@ async function runStream(sessionId, res, opts = {}) {
       diaryInjection: opts.diaryInjection,
     });
     if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'memory_recall_done', hit: recallHitCount });
+    if (activatedEntries?.length > 0 && !streamState.isClientClosed()) {
+      emitSse(res, sid, { type: 'entries_activated', entries: activatedEntries });
+    }
     log.info(`CONTEXT DONE  ${formatMeta({
       session: sid,
       msgs: messages.length,

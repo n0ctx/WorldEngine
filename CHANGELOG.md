@@ -3,6 +3,35 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(ui): 对话/写作页展示本轮激活的非常驻条目
+
+**背景**：Lorebook 条目命中信息已在 `entry-matcher.js` 计算出来并组装进提示词，但前端从来看不见——用户无法判断本轮是哪些条目真的被注入。常驻条目（`trigger_type='always'`）每轮必触发、无信息量，应当过滤。
+
+**决策**：
+- **不持久化**：仅运行时展示。刷新页面 / 切换会话 / 翻历史消息后旧 AI 消息底部不再带 Badge。理由：写库需要新增字段并贯穿 messages 序列化路径，性价比低；本轮命中只在"刚生成完"这个时间窗口对用户有意义。
+- **位置**：AI 消息底部 footer（与 actions 同级，hover 时同步淡入）。
+- **形态**：复用 `Badge`（默认 variant），只显示条目 title；hover 原生 `title` 提示触发类型（关键词/LLM/状态）。
+
+**改动**：
+- `backend/prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在已有 `triggeredEntries` / `triggeredEntries2` 基础上过滤 `trigger_type !== 'always'`，映射成 `[{id,title,trigger_type}]`，作为新字段 `activatedEntries` 加入返回值（不改组装顺序）。
+- `backend/services/chat.js`：`buildContext` 透传 `activatedEntries`。
+- `backend/routes/chat.js` `runStream`、`backend/routes/writing.js` `runWritingStream`：`buildContext` / `buildWritingPrompt` 返回后、LLM 流开始前，仅当 `entries.length > 0` 推送一条新 SSE 事件 `entries_activated`。`/continue` 路径不推（续写不计为新一轮命中）。
+- `frontend/src/api/stream-parser.js`：识别 `entries_activated`，分发到 `onEntriesActivated(entries)`。
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：新增 `pendingEntriesRef`，在 `beginStreamRun` 清空，在 `onEntriesActivated` 写入，`onDone` 时把 `activated_entries` 直接挂到即将 append 的 assistant 对象上（避开锁定文件 `store/index.js`）。
+- `frontend/src/components/chat/ActivatedEntriesRow.jsx`（新增，在 `components/index.js` 注册）：复用 `Badge`，每条目一个，`title` 属性提供原生 tooltip。
+- `frontend/src/components/chat/MessageItem.jsx`、`frontend/src/components/writing/WritingMessageItem.jsx`：在 actions 行之后渲染 `<ActivatedEntriesRow>`，仅当 `message.activated_entries` 非空。
+- `frontend/src/styles/chat.css`：新增 `.we-activated-entries-row`，与 `.we-message-actions` 同款 hover 淡入。
+
+**验证**：
+1. 准备一个世界，包含至少一个 `always` 条目 + 一个 `keyword` 条目 + 一个 `state` 条目。
+2. ChatPage 发命中 keyword 的消息：AI 回复底部 hover 出现该条目 Badge，`always` 不展示，hover Badge 看到"触发：关键词"。
+3. 触发 state 条目：同上验证。
+4. 刷新页面：旧 AI 消息底部 Badge 消失（符合"仅运行时"决策）。
+5. WritingSpacePage 重复一遍。
+6. DevTools Network 面板：能看到 `data: {"type":"entries_activated",...}` 行。
+
+**残留风险**：regenerate 时新 assistant 消息 id 会替换旧的，旧 key 自然失效；编辑历史 AI 消息不会重新匹配——与"运行时"语义一致，无需特殊处理。
+
 ## 2026-04-30 feat(memory): 长期记忆随消息回滚同步还原
 
 **背景**：编辑用户消息 / 删除消息 / regenerate 会按轮次截断 `turn_records` 并回滚状态快照，但 `data/long_term_memory/{sessionId}/memory.md` 是只追加 + 周期性 LLM 压缩的纯文本，没有任何回滚机制——回退到旧轮次后，被截断轮次产出的"长期记忆"仍残留在文件里继续注入 [8.5] 段，造成"已撤回的事实"长期污染上下文。

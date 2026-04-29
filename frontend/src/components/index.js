@@ -49,6 +49,9 @@ export { default as TopBar }              from './book/TopBar';
 export { default as WritingPageLeft }     from './book/WritingPageLeft';
 export { default as WritingSessionList }  from './book/WritingSessionList';
 
+// — Chat 专属 —
+export { default as ActivatedEntriesRow } from './chat/ActivatedEntriesRow';
+
 // — Writing 专属 —
 export { default as CharacterPreviewModal } from './writing/CharacterPreviewModal';
 

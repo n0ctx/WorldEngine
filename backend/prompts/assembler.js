@@ -326,8 +326,13 @@ export async function buildPrompt(sessionId, options = {}) {
 
   const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
 
+  // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
+  const activatedEntries = triggeredEntries
+    .filter((e) => e.trigger_type !== 'always')
+    .map((e) => ({ id: e.id, title: e.title, trigger_type: e.trigger_type }));
+
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText };
+  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
 }
 
 /**
@@ -530,6 +535,10 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
 
+  const activatedEntries = triggeredEntries2
+    .filter((e) => e.trigger_type !== 'always')
+    .map((e) => ({ id: e.id, title: e.title, trigger_type: e.trigger_type }));
+
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText };
+  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
 }

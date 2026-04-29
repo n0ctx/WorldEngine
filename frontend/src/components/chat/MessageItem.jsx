@@ -9,6 +9,7 @@ import { applyRules } from '../../utils/regex-runner.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 import CharacterSeal from '../book/CharacterSeal.jsx';
+import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import { variants, transitions } from '../../utils/motion.js';
 
 const MotionDiv = motion.div;
@@ -524,6 +525,9 @@ export default function MessageItem({
               </button>
               {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
             </div>
+          )}
+          {!editingAI && message.activated_entries?.length > 0 && (
+            <ActivatedEntriesRow entries={message.activated_entries} />
           )}
         </div>
       </div>

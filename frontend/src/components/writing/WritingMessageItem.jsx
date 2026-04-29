@@ -8,6 +8,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import { applyRules } from '../../utils/regex-runner.js';
+import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 
 const MotionDiv = motion.div;
 
@@ -370,6 +371,9 @@ export default function WritingMessageItem({
                 </span>
               )}
             </div>
+          )}
+          {!editingAI && !isStreaming && message.activated_entries?.length > 0 && (
+            <ActivatedEntriesRow entries={message.activated_entries} />
           )}
         </>
       )}

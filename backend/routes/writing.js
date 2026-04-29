@@ -194,9 +194,12 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const onRecallEvent = (name, payload) => {
       if (!streamState.isClientClosed()) sendSse(res, { type: name, ...payload });
     };
-    const { messages, temperature, maxTokens, model, cacheableSystem } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
+    const { messages, temperature, maxTokens, model, cacheableSystem, activatedEntries } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
+    if (activatedEntries?.length > 0 && !streamState.isClientClosed()) {
+      emitSse(res, sid, { type: 'entries_activated', entries: activatedEntries });
+    }
     const stream = llm.chat(messages, { temperature, maxTokens, model, cacheableSystem, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_main', conversationId: sessionId });
     for await (const chunk of stream) {
       fullContent += chunk;
