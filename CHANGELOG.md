@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 feat: 世界选择页支持拖拽排序
+
+**背景**：世界卡此前只能按 `created_at` 升序展示，无法手动调整。需求是拖动一张卡时，被路过位置的卡按 2D 网格平滑滑到原位置（左→右时右邻向左滑、上→下时下邻向上滑、末行末位时右邻向左补位）。
+
+**改动**：
+- `worlds` 表新增 `sort_order INTEGER NOT NULL DEFAULT 0`；旧库通过 `migrateWorldsBackfillSortOrder` 按 `created_at ASC` 回填连续序号
+- `getAllWorlds` 改为 `ORDER BY sort_order ASC, created_at ASC`；`createWorld` 自动取 `MAX(sort_order)+1` 入队尾
+- 新增 `reorderWorlds(items)` 事务批更新 + 路由 `PUT /api/worlds/reorder`（注册在 `:id` 之前以避开 Express 路径冲突）
+- 前端引入 `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`，新增通用组件 `SortableGrid`（基于 `rectSortingStrategy`，激活距离 8px 以保留点击进入世界的语义）
+- `WorldsPage` 用 `SortableGrid` 包裹世界卡；卡内操作按钮容器追加 `onPointerDown stopPropagation` 阻止误触发拖拽
+
+**验证**：访问 `/worlds`，拖动任意一张卡到其他位置，邻居实时滑动让位；松手后刷新页面顺序持久；点击未移动则正常进入世界详情。
+
+**坑点**：Express 中 `PUT /:id` 会先于 `PUT /reorder` 匹配，必须把 `/reorder` 注册在 `/:id` 之前。
+
 ## 2026-04-29 fix: 修复写作和对话页面 token 统计部分字体不统一
 
 **问题**：token 统计显示（如"↑9K 1889 命中5.1K tokens"）中，中文和英文字体不一致，破坏视觉一致性。

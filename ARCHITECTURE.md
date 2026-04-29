@@ -690,10 +690,11 @@ MAX_ATTACHMENT_SIZE_MB = 5
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | /api/worlds | 获取所有世界 |
-| POST | /api/worlds | 创建世界（name 必填） |
+| GET | /api/worlds | 获取所有世界（按 `sort_order ASC, created_at ASC`） |
+| POST | /api/worlds | 创建世界（name 必填，自动落在末尾 `sort_order = MAX+1`） |
 | GET | /api/worlds/:id | 获取单个世界 |
 | PUT | /api/worlds/:id | 更新世界 |
+| PUT | /api/worlds/reorder | 批量保存世界拖拽排序（前端 `WorldsPage` 拖拽后乐观更新调用，注册在 `:id` 之前） |
 | DELETE | /api/worlds/:id | 删除世界（触发 cleanup 钩子） |
 | POST | /api/worlds/clear-all-diaries | 清除所有会话日记数据（关闭日记功能时调用） |
 | POST | /api/worlds/:id/sync-diary | 根据当前日记配置同步 diary_time 字段 |

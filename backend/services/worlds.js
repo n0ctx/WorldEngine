@@ -4,6 +4,7 @@ import {
   getAllWorlds as dbGetAllWorlds,
   updateWorld as dbUpdateWorld,
   deleteWorld as dbDeleteWorld,
+  reorderWorlds as dbReorderWorlds,
 } from '../db/queries/worlds.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 import {
@@ -113,6 +114,10 @@ export function getAllWorlds() {
 
 export function updateWorld(id, patch) {
   return dbUpdateWorld(id, patch);
+}
+
+export function reorderWorlds(items) {
+  return dbReorderWorlds(items);
 }
 
 export async function deleteWorld(id) {

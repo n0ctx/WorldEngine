@@ -22,6 +22,7 @@ export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarUpload }    from './ui/AvatarUpload';
 export { default as AvatarCircle }    from './ui/AvatarCircle';
 export { default as SortableList }    from './ui/SortableList';
+export { default as SortableGrid }    from './ui/SortableGrid';
 
 // — Blocks 结构模式 —
 export { default as BackButton }      from './blocks/BackButton';

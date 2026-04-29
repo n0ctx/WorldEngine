@@ -7,9 +7,11 @@ import db from '../index.js';
 export function createWorld(data) {
   const id = crypto.randomUUID();
   const now = Date.now();
+  const maxRow = db.prepare('SELECT MAX(sort_order) AS max_sort FROM worlds').get();
+  const sortOrder = (maxRow?.max_sort ?? -1) + 1;
   const stmt = db.prepare(`
-    INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
@@ -19,6 +21,7 @@ export function createWorld(data) {
     data.post_prompt ?? '',
     data.temperature ?? null,
     data.max_tokens ?? null,
+    sortOrder,
     now,
     now,
   );
@@ -36,7 +39,21 @@ export function getWorldById(id) {
  * 获取所有世界，按 created_at 升序
  */
 export function getAllWorlds() {
-  return db.prepare('SELECT * FROM worlds ORDER BY created_at ASC').all();
+  return db.prepare('SELECT * FROM worlds ORDER BY sort_order ASC, created_at ASC').all();
+}
+
+/**
+ * 批量更新世界排序（传入 [{id, sort_order}, ...] 数组）
+ */
+export function reorderWorlds(items) {
+  const stmt = db.prepare('UPDATE worlds SET sort_order = ?, updated_at = ? WHERE id = ?');
+  const now = Date.now();
+  const update = db.transaction(() => {
+    for (const item of items) {
+      stmt.run(item.sort_order, now, item.id);
+    }
+  });
+  update();
 }
 
 /**

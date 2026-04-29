@@ -95,6 +95,15 @@
   box-shadow: var(--we-shadow-paper-stack-hover);
 }
 
+.we-world-card[data-dragging] {
+  cursor: grabbing;
+  box-shadow: var(--we-shadow-paper-stack-hover);
+}
+
+.we-world-card[data-dragging]:hover {
+  transform: none;
+}
+
 .we-world-card:hover .we-world-card-actions {
   opacity: 1;
 }

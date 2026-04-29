@@ -22,6 +22,10 @@ export function deleteWorld(id) {
   return request(`${BASE}/${id}`, { method: 'DELETE' });
 }
 
+export function reorderWorlds(items) {
+  return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
+}
+
 export function uploadWorldCover(worldId, file) {
   const formData = new FormData();
   formData.append('cover', file);

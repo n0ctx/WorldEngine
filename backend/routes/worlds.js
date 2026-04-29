@@ -10,6 +10,7 @@ import {
   deleteWorld,
   ensureDiaryTimeField,
   clearAllDiaryData,
+  reorderWorlds,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -50,6 +51,16 @@ router.post('/', (req, res) => {
   }
   const world = createWorld(req.body);
   res.status(201).json(world);
+});
+
+// PUT /api/worlds/reorder — 批量更新世界排序（必须在 :id 路由前注册）
+router.put('/reorder', (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items 为必填数组' });
+  }
+  reorderWorlds(items);
+  res.json({ ok: true });
 });
 
 // GET /api/worlds/:id — 获取单个世界

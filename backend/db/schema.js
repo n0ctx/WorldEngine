@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS worlds (
   temperature       REAL,
   max_tokens        INTEGER,
   active_persona_id TEXT,
+  sort_order        INTEGER NOT NULL DEFAULT 0,
   created_at        INTEGER NOT NULL,
   updated_at        INTEGER NOT NULL
 );
@@ -21,6 +22,7 @@ CREATE TABLE IF NOT EXISTS personas (
   description    TEXT NOT NULL DEFAULT '',
   system_prompt  TEXT NOT NULL DEFAULT '',
   avatar_path    TEXT,
+  sort_order     INTEGER NOT NULL DEFAULT 0,
   created_at     INTEGER NOT NULL,
   updated_at     INTEGER NOT NULL
 );
@@ -402,6 +404,15 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE messages ADD COLUMN next_options TEXT`); } catch {}
   // worlds 封面图
   try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
+  // worlds 拖拽排序
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+  migrateWorldsBackfillSortOrder(db);
+  // personas 排序字段（CREATE TABLE 已含；旧库通过 ALTER 补列后再创建索引）
+  try { db.exec(`ALTER TABLE personas ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_personas_world_id ON personas(world_id, sort_order)`); } catch {}
+  // personas 拖拽排序
+  try { db.exec(`ALTER TABLE personas ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0`); } catch {}
+  migratePersonasBackfillSortOrder(db);
   // 状态字段触发方式已取消：自动字段统一每轮更新，删除历史配置列
   migrateDropStateFieldTriggerColumns(db);
 }
@@ -658,6 +669,44 @@ function migrateDropLegacyEntryTables(db) {
 
   db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)")
     .run(migKey, Date.now());
+}
+
+function migrateWorldsBackfillSortOrder(db) {
+  const key = 'migration:worlds_backfill_sort_order';
+  const applied = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key);
+  if (applied?.value === '1') return;
+
+  const now = Date.now();
+  const rows = db.prepare('SELECT id FROM worlds ORDER BY created_at ASC, id ASC').all();
+  const upd = db.prepare('UPDATE worlds SET sort_order = ? WHERE id = ?');
+  const tx = db.transaction(() => {
+    rows.forEach((row, idx) => upd.run(idx, row.id));
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at)
+      VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+  });
+  tx();
+}
+
+function migratePersonasBackfillSortOrder(db) {
+  const key = 'migration:personas_backfill_sort_order';
+  const applied = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key);
+  if (applied?.value === '1') return;
+
+  const now = Date.now();
+  const rows = db.prepare('SELECT id FROM personas ORDER BY created_at ASC, id ASC').all();
+  const upd = db.prepare('UPDATE personas SET sort_order = ? WHERE id = ?');
+  const tx = db.transaction(() => {
+    rows.forEach((row, idx) => upd.run(idx, row.id));
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at)
+      VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+  });
+  tx();
 }
 
 function migrateLegacyStateValueColumns(db) {

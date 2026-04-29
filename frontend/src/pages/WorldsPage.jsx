@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds, deleteWorld } from '../api/worlds';
+import { getWorlds, deleteWorld, reorderWorlds } from '../api/worlds';
+import SortableGrid from '../components/ui/SortableGrid';
 import { getCharactersByWorld } from '../api/characters';
 import useStore from '../store/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
@@ -78,6 +79,16 @@ export default function WorldsPage() {
     }
   }
 
+  async function handleReorderEnd(finalItems) {
+    setWorlds(finalItems);
+    try {
+      await reorderWorlds(finalItems.map((w, i) => ({ id: w.id, sort_order: i })));
+    } catch (err) {
+      pushErrorToast(`排序保存失败：${err.message}`);
+      await loadWorlds();
+    }
+  }
+
   async function handleImportWorldFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -145,12 +156,20 @@ export default function WorldsPage() {
           </button>
         </div>
       ) : (
-        <div className="we-worlds-grid">
-          {worlds.map((world) => (
+        <SortableGrid
+          items={worlds}
+          onReorder={setWorlds}
+          onReorderEnd={handleReorderEnd}
+          className="we-worlds-grid"
+          renderItem={(world, { setNodeRef, style, isDragging, attributes, listeners }) => (
             <div
-              key={world.id}
+              ref={setNodeRef}
+              style={style}
+              {...attributes}
+              {...listeners}
+              data-dragging={isDragging || undefined}
               className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ''}`}
-              onClick={() => handleEnterWorld(world)}
+              onClick={() => { if (!isDragging) handleEnterWorld(world); }}
             >
               {world.cover_path && (
                 <>
@@ -175,6 +194,7 @@ export default function WorldsPage() {
               <div
                 className="we-world-card-actions"
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
               >
                 <button
                   className="we-world-card-action-btn"
@@ -208,8 +228,8 @@ export default function WorldsPage() {
                 </button>
               </div>
             </div>
-          ))}
-        </div>
+          )}
+        />
       )}
 
       {deletingWorld && (
