@@ -2,6 +2,8 @@
   "name": "worldengine-desktop",
   "version": "0.0.2",
   "private": true,
+  "description": "AI-assisted immersive roleplay and creative writing desktop app.",
+  "author": "n0ctx",
   "type": "module",
   "main": "src/main.js",
   "scripts": {

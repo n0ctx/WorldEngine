@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: desktop package metadata 补齐 description / author，消除 electron-builder 告警
+
+**背景**：执行 `cd desktop && npm run dist` 时，`electron-builder` 会提示：
+- `description is missed in the package.json`
+- `author is missed in the package.json`
+
+**根因**：`desktop/package.json` 缺少桌面分发所需的基础包元数据。
+
+**改动**：
+- `desktop/package.json` 补充：
+  - `description: "AI-assisted immersive roleplay and creative writing desktop app."`
+  - `author: "n0ctx"`
+
+**验证**：
+- 重新执行 `cd desktop && npm run dist`
+- `electron-builder` 不再输出 `description is missed` / `author is missed` 告警
+
 ## 2026-04-29 fix: desktop dist 前强制清空构建产物，修复 mac-arm64 ENOTEMPTY 打包失败
 
 **背景**：执行 `cd desktop && npm run dist` 时，mac x64 阶段可以推进，但在打包 `darwin arm64` 时失败：

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle, useEffectEvent } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import WritingMessageItem from '../writing/WritingMessageItem.jsx';
@@ -80,6 +80,9 @@ const MessageList = forwardRef(function MessageList({
   const listRef = useRef(null);
   const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
+  const handleMessagesLoaded = useEffectEvent((hydrated) => {
+    onMessagesLoaded?.(hydrated);
+  });
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -122,7 +125,7 @@ const MessageList = forwardRef(function MessageList({
         setOffset(hydrated.length);
         setHasMore(hydrated.length === PAGE_SIZE);
         setLoading(false);
-        onMessagesLoaded?.(hydrated);
+        handleMessagesLoaded(hydrated);
       } catch {
         if (!cancelled) setLoading(false);
       }
