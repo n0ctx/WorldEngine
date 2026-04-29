@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 refactor(prompt): 后置提示词改为独立 system 段，并与当前 user 消息换位
+
+**背景**：`backend/prompts/assembler.js` 此前把后置提示词直接拼到当前 `user` 消息尾部，聊天与写作链路都沿用这一结构。现在需要把“后置提示词”和“用户提示词”位置交换，并把后置提示词明确提升为 `system prompt`，同时保持 suggestion 指令继续贴在最后一个 `user` 消息上。
+
+**改动**：
+- `backend/prompts/assembler.js`：聊天 `buildPrompt` 与写作 `buildWritingPrompt` 同步调整为 `[12] 历史消息 → [13] 独立 system 后置提示词 → [14] 当前 user 消息`；移除“把 post prompt 追加到当前 user content”的逻辑
+- `backend/tests/prompts/assembler.test.js`：更新聊天/写作用例，断言后置提示词落在独立 `system` 消息，最后一条 `user` 只保留当前输入与 `next_prompt`
+- `backend/tests/prompts/assembler-shape.test.js` 与快照：更新消息索引和锚点顺序，新增独立后置 `system` 段
+- `ARCHITECTURE.md` / `backend/prompts/README.md` / `assistant/prompts/main.md`：同步新的段号与 role 语义
+- `frontend/src/components/settings/PromptConfigPanel.jsx`：设置页提示文案从“插入在user message后”改为“作为独立 system prompt 注入在当前 user message 前”
+
+**验证方式**：
+- `cd backend && node --test tests/prompts/assembler.test.js`
+- `cd backend && node --test tests/prompts/assembler-shape.test.js`
+
+**残留风险**：Grok / OpenAI-compatible / Gemini 的缓存主逻辑不受影响，因为 `cacheableSystem` 仍只代表稳定前缀 [1-4]；但消息总数比原先多一条，若后续有依赖“最后两条固定为 history + current user”的外部脚本，需要按新结构更新。
+
 ## 2026-04-29 fix(llm): system 前缀拆分提升为 OpenAI-compatible 路径默认行为，修复 DeepSeek prompt cache
 
 **背景**：DeepSeek 官方 API 实测几乎无 prompt cache 命中。`cache-usage.js` 已正确解析 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，问题在写侧——`assembler.js` 把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并到单条 system，DeepSeek 在 tokenizer 边界发生几个 token 漂移，加上其前缀匹配对"系统块整体一致"敏感，命中率被显著拉低。OpenRouter 此前用 `normalizeOpenAICompatibleMessages` 的拆分逻辑（commit 4812ad4）解决了同源问题。

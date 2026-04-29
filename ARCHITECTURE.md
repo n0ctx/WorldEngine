@@ -181,13 +181,13 @@ POST /api/sessions/:sessionId/chat
 自 T170 起，prompt 采用 **cached/dynamic 分层** 以支持各 provider 的 Prompt Cache / Context Cache。
 
 - **Cached + Dynamic 合并为单条 system**（2026-04-29 起）：[1-11] 段全部拼接成一条 `role:system` 消息。前缀（[1][2][3][4]）稳定可缓存，后缀（[5-11]）每轮变化。原因：xAI Grok 实测 `[system, user(dynamic), user(history-first)]` 的"双 user"结构会让 prefix cache 整体 bypass，仅命中协议头 ~158t；合并到单 system 后命中稳定前缀（实测期望 ~4608t）。Anthropic-compatible provider 仍会标记 `cache_control: { type: 'ephemeral' }`；OpenAI-compatible / Gemini 依赖稳定前缀触发厂商隐式缓存
-- **Bottom**：后置提示词附加到当前消息末尾，保持最高优先级
+- **Bottom**：历史消息之后，先注入独立的后置 `system`，再放当前 `user` 消息；选项指令仍贴在最后一个 `user` 上
 
 ### buildPrompt(sessionId, options?) → { messages, temperature, maxTokens, recallHitCount }
 
 `assembler.js` 只负责拼装顺序与运行时数据；固定后端模板（如 suggestion prompt）统一存放在 `backend/prompts/templates/` 的分组目录下，通过 `prompt-loader.js` 读取。
 
-14 段顺序（以执行顺序编号），**[1-11] 段合并为单条 `role:system`（前缀 [1][2][3][4] 稳定，后缀 [5-11] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 追加到末尾 `role:user`：
+14 段顺序（以执行顺序编号），**[1-11] 段合并为单条 `role:system`（前缀 [1][2][3][4] 稳定，后缀 [5-11] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 为“独立 `system` 后置提示词 + 尾部 `user`”：
 
 | 段 | 层 | 来源 | 跳过条件 |
 |---|---|---|---|
@@ -203,8 +203,8 @@ POST /api/sessions/:sessionId/chat
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| [13] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率）；后置提示词 [14] 也追加于此末尾 | — |
-| **[14]** | **Bottom** | 后置提示词（`global_post_prompt` → `character.post_prompt`），**追加到当前消息末尾** | 均空跳过 |
+| **[13]** | **Bottom** | 后置提示词：历史消息之后的独立 `role:system`（`global_post_prompt` → `character.post_prompt`） | 均空跳过 |
+| [14] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率） | — |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -229,8 +229,8 @@ POST /api/sessions/:sessionId/chat
 | [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
 | [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| [13] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT`；后置提示词 [14] 也追加于此末尾 |
-| **[14]** | 无角色后置提示词（只有 `writing.global_post_prompt`）；同 buildPrompt，**追加到当前消息末尾** |
+| **[13]** | 写作后置提示词：历史消息之后的独立 `role:system`；仅注入 `writing.global_post_prompt`，`skipWritingInstructions=true` 时整段跳过 |
+| [14] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT`；当前 user 消息本体不再附带后置提示词 |
 | 返回值 | 含 `recallHitCount` 和 `model`（若配置了 `writing.model` 则覆盖全局） |
 
 ---

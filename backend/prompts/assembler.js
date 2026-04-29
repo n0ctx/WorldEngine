@@ -17,9 +17,9 @@
  *   [历史消息：role:user/assistant 交替]
  *   [12] 历史消息（稳定使用原始 messages 窗口）
  *
- *   [BOTTOM: 当前消息末尾，最高优先级]
- *   [13] 当前用户消息（唯一的尾部 user 消息，[14] 拼接到其 content 末尾）
- *   [14] 后置提示词（全局→角色 + world post 条目，均空跳过）
+ *   [BOTTOM: 历史之后，当前 user 之前]
+ *   [13] 后置提示词（独立 system message；全局+角色，均空跳过）
+ *   [14] 当前用户消息（唯一的尾部 user 消息）
  *
  * 注：[5-11] 原为独立 user role 的 dynamic 段，2026-04-29 合并进 system role
  * 单条消息以求 prefix cache 命中稳定前缀（[1-4] 4608t 稳定）。改动来源：
@@ -147,7 +147,7 @@ export const __testables = {
  *   Cached system [1, 2, 3, 4]：全局 + 玩家 + 角色 + 常驻 cached 条目
  *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
  *   History [12]：历史 user/assistant 交替
- *   Bottom (last user msg) [13 + 14]：当前用户消息 content 末尾追加后置提示词
+ *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -297,19 +297,20 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
-  // [13] 当前用户消息（最新 1 条 user）+ [14] 后置提示词追加到 content 末尾，确保最高优先级
+  // [13] 后置提示词：历史消息之后、当前 user 之前的独立 system message
+  const postParts = [
+    config.global_post_prompt,
+    character.post_prompt,
+  ].filter(Boolean).map(tv);
+  if (postParts.length > 0) {
+    messages.push({ role: 'system', content: postParts.join('\n\n') });
+  }
+
+  // [14] 当前用户消息（最新 1 条 user）；suggestion 仍保持贴在最后一个 user message
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     if (config.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
-
-    const postParts = [
-      config.global_post_prompt,
-      character.post_prompt,
-    ].filter(Boolean).map(tv);
-    if (postParts.length > 0) {
-      content += '\n\n' + postParts.join('\n\n');
-    }
 
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
@@ -327,7 +328,7 @@ export async function buildPrompt(sessionId, options = {}) {
  *
  * Cached layer: [1] 全局、[2] 玩家、[4] 常驻 cached 条目（保持稳定）
  * Dynamic layer: [3] 所有激活角色 system prompt + [5-11] 上下文
- * Bottom: [12] 历史消息，[13] 当前消息 + [14] 后置提示词
+ * Bottom: [12] 历史消息，[13] 后置提示词（system），[14] 当前消息
  *
  * [3] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
@@ -489,18 +490,19 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [13] 当前用户消息 + [14] 后置提示词（写作模式无角色后置提示词；impersonate 时跳过）
+  // [13] 后置提示词：历史消息之后、当前 user 之前的独立 system message
+  if (!skipWritingInstructions) {
+    const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+    if (postParts.length > 0) {
+      messages.push({ role: 'system', content: postParts.join('\n\n') });
+    }
+  }
+
+  // [14] 当前用户消息（写作模式无角色后置提示词；impersonate 时 suggestion 逻辑保持不变）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     if (writing.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
-
-    if (!skipWritingInstructions) {
-      const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
-      if (postParts.length > 0) {
-        content += '\n\n' + postParts.join('\n\n');
-      }
-    }
 
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }

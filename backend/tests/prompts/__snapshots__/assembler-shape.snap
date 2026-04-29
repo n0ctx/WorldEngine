@@ -43,12 +43,19 @@
       },
       {
         "index": 3,
+        "role": "system",
+        "orderedAnchors": [
+          "ANCHOR_[11]_CHAT_POST",
+          "ANCHOR_[11]_CHAR_POST"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 4,
         "role": "user",
         "orderedAnchors": [
           "ANCHOR_QUERY 当前聊天消息",
-          "next_prompt",
-          "ANCHOR_[11]_CHAT_POST",
-          "ANCHOR_[11]_CHAR_POST"
+          "next_prompt"
         ],
         "missingAnchors": []
       }
@@ -100,11 +107,18 @@
       },
       {
         "index": 3,
+        "role": "system",
+        "orderedAnchors": [
+          "ANCHOR_[11]_WRITING_POST"
+        ],
+        "missingAnchors": []
+      },
+      {
+        "index": 4,
         "role": "user",
         "orderedAnchors": [
           "ANCHOR_QUERY 当前写作消息",
-          "next_prompt",
-          "ANCHOR_[11]_WRITING_POST"
+          "next_prompt"
         ],
         "missingAnchors": []
       }

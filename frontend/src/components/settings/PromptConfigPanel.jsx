@@ -31,7 +31,7 @@ export default function PromptConfigPanel({
               />
             </FormGroup>
 
-            <FormGroup label="写作后置提示词" hint="插入在system prompt的最后位置">
+            <FormGroup label="写作后置提示词" hint="作为独立 system prompt 注入在当前 user message 前">
               <MarkdownEditor
                 value={writingPostPrompt}
                 onChange={setWritingPostPrompt}
@@ -59,7 +59,7 @@ export default function PromptConfigPanel({
               />
             </FormGroup>
 
-            <FormGroup label="全局后置提示词" hint="插入在system prompt的最后位置">
+            <FormGroup label="全局后置提示词" hint="作为独立 system prompt 注入在当前 user message 前">
               <MarkdownEditor
                 value={globalPostPrompt}
                 onChange={setGlobalPostPrompt}

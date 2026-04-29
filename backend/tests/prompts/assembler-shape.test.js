@@ -314,7 +314,8 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
           ],
           1: ['旧轮用户消息'],
           2: ['旧轮助手消息'],
-          3: ['ANCHOR_QUERY 当前聊天消息', 'ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST', 'next_prompt'],
+          3: ['ANCHOR_[11]_CHAT_POST', 'ANCHOR_[11]_CHAR_POST'],
+          4: ['ANCHOR_QUERY 当前聊天消息', 'next_prompt'],
         }),
       },
       writing: {
@@ -330,7 +331,8 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
           ],
           1: ['旧写作用户消息'],
           2: ['旧写作助手消息'],
-          3: ['ANCHOR_QUERY 当前写作消息', 'ANCHOR_[11]_WRITING_POST', 'next_prompt'],
+          3: ['ANCHOR_[11]_WRITING_POST'],
+          4: ['ANCHOR_QUERY 当前写作消息', 'next_prompt'],
         }),
       },
     };

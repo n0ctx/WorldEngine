@@ -14,7 +14,7 @@
 
 代码文件：
 - `assembler.js`
-  负责聊天 / 写作 prompt 的 16 段组装顺序，是运行时拼装器，不是模板文件。
+  负责聊天 / 写作 prompt 的 14 段组装顺序，是运行时拼装器，不是模板文件。
 - `entry-matcher.js`
   负责 Prompt 条目命中判断，会调用 `entry-preflight-*.md` 做 LLM 预判。
 - `prompt-loader.js`
