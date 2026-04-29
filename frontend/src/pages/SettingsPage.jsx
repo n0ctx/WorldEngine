@@ -54,10 +54,9 @@ export default function SettingsPage() {
   }
 
   const settingsContent = (
-    <div className="we-settings-panel-wrap">
+    <div className="we-settings-panel-wrap" onClick={isOverlay ? (e) => e.stopPropagation() : undefined}>
       <div
         className={`we-settings-panel${isOverlay ? ' we-settings-panel-overlay' : ''}`}
-        onClick={isOverlay ? (e) => e.stopPropagation() : undefined}
       >
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>
