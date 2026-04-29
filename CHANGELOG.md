@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 ui(entry): 关键词条目编辑改为 chip 回车输入
+
+**背景**：`EntryEditor.jsx` 中 `trigger_type=keyword` 的关键词输入是逗号分隔的纯文本框，与后端数组存储不一致，且无法处理中文逗号、重复词、可视化展示。
+
+**改动**：`frontend/src/components/state/EntryEditor.jsx`
+- `form.keywords` 由字符串改为字符串数组（直接采用 `entry.keywords ?? []`）。
+- 新增 `keywordInput` 草稿状态、`keywordRef`、`addKeyword` / `removeKeyword` 工具函数（参考 `StateFieldEditor.jsx` enum tag 实现）。
+- JSX 替换为 `we-tag-input` 容器 + `we-tag` chip + 末尾 input：Enter 添加、Backspace 在空输入时删尾、onBlur 自动提交、重复去重。
+- `handleSave` 移除 `.split(',')`，并在保存前合并未提交的 input 草稿。
+
+**验证**：前端 `npm run dev` → 世界条目面板新建 keyword 条目，验证回车/失焦添加、Backspace 删除、重复去重、保存回显。
+
+**同步文档**：CHANGELOG（本条）。SCHEMA / ARCHITECTURE 无变化（数据格式始终为数组）。
+
 ## 2026-04-29 fix(continue): 续写路径注入 shared_suggestion，让 continue 也能输出 next_prompt 选项
 
 **背景**：`/continue` 续写在 `buildContinuationMessages` 把 `assistant prefill + CONTINUE_USER_INSTRUCTION`（"请直接继续……不要解释"）追加到末尾，作为模型最后看到的指令，覆盖了 `[14]` 段贴在原 user 消息后的 `SUGGESTION_PROMPT`。即使开启 `suggestion_enabled`，续写也不会输出 `<next_prompt>` 选项块。

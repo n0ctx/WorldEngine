@@ -45,12 +45,24 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     title: entry?.title ?? '',
     content: entry?.content ?? '',
     description: entry?.description ?? '',
-    keywords: entry?.keywords ? entry.keywords.join(', ') : '',
+    keywords: entry?.keywords ?? [],
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
     token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
+  const [keywordInput, setKeywordInput] = useState('');
+  const keywordRef = useRef(null);
   const mouseDownOnOverlay = useRef(false);
+
+  function addKeyword(raw) {
+    const v = String(raw ?? '').trim();
+    if (!v) return;
+    setForm((f) => (f.keywords.includes(v) ? f : { ...f, keywords: [...f.keywords, v] }));
+    setKeywordInput('');
+  }
+  function removeKeyword(v) {
+    setForm((f) => ({ ...f, keywords: f.keywords.filter((k) => k !== v) }));
+  }
 
   // state 类型专用
   const [conditions, setConditions] = useState([emptyCondition()]);
@@ -115,13 +127,15 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
   async function handleSave() {
     if (!form.title.trim()) return;
     setSaving(true);
+    const draft = keywordInput.trim();
+    const finalKeywords = draft && !form.keywords.includes(draft)
+      ? [...form.keywords, draft]
+      : form.keywords;
     const data = {
       title: form.title.trim(),
       content: form.content,
       description: form.description,
-      keywords: form.trigger_type === 'keyword'
-        ? form.keywords.split(',').map((k) => k.trim()).filter(Boolean)
-        : null,
+      keywords: form.trigger_type === 'keyword' ? finalKeywords : null,
       trigger_type: form.trigger_type,
       token: clampToken(form.token, form.trigger_type),
     };
@@ -201,13 +215,40 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {/* 关键词（仅 keyword 类型） */}
         {form.trigger_type === 'keyword' && (
           <>
-            <label className="we-entry-editor-label">触发关键词（逗号分隔）</label>
-            <input
-              value={form.keywords}
-              onChange={(e) => setForm((f) => ({ ...f, keywords: e.target.value }))}
-              placeholder="如：暗影帮, 影堂, 黑市"
-              className="we-entry-editor-field we-entry-editor-field-mb"
-            />
+            <label className="we-entry-editor-label">触发关键词（回车添加）</label>
+            <div
+              className="we-tag-input we-entry-editor-field-mb"
+              onClick={() => keywordRef.current?.focus()}
+              role="group"
+              aria-label="触发关键词标签输入区"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.currentTarget.querySelector('input')?.focus();
+                }
+              }}
+            >
+              {form.keywords.map((v) => (
+                <span key={v} className="we-tag">
+                  {v}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeKeyword(v); }}>×</button>
+                </span>
+              ))}
+              <input
+                ref={keywordRef}
+                className="we-tag-input-field"
+                value={keywordInput}
+                onChange={(e) => setKeywordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addKeyword(keywordInput); }
+                  else if (e.key === 'Backspace' && keywordInput === '' && form.keywords.length) {
+                    removeKeyword(form.keywords[form.keywords.length - 1]);
+                  }
+                }}
+                onBlur={() => { if (keywordInput.trim()) addKeyword(keywordInput); }}
+                placeholder={form.keywords.length === 0 ? '输入关键词后按回车' : ''}
+              />
+            </div>
           </>
         )}
 

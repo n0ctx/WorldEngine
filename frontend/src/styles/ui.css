@@ -284,7 +284,9 @@
 }
 
 .we-tag-input:focus-within {
-  border-color: var(--we-ink-faded);
+  border-color: var(--we-color-border-focus);
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -2px;
 }
 
 .we-tag {
@@ -326,8 +328,7 @@
   color: var(--we-ink-primary);
 }
 .we-tag-input-field:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: -2px;
+  outline: none;
 }
 
 /* ── OptionCard ── */
