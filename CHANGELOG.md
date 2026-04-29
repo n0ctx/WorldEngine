@@ -3,6 +3,41 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(memory): 长期记忆随消息回滚同步还原
+
+**背景**：编辑用户消息 / 删除消息 / regenerate 会按轮次截断 `turn_records` 并回滚状态快照，但 `data/long_term_memory/{sessionId}/memory.md` 是只追加 + 周期性 LLM 压缩的纯文本，没有任何回滚机制——回退到旧轮次后，被截断轮次产出的"长期记忆"仍残留在文件里继续注入 [8.5] 段，造成"已撤回的事实"长期污染上下文。
+
+**改动**：
+- `backend/db/schema.js`：`turn_records` 新增 `long_term_memory_snapshot TEXT`（idempotent ALTER）。
+- `backend/db/queries/turn-records.js`：新增 `updateTurnRecordLtmSnapshot(id, snapshot)`。
+- `backend/services/long-term-memory.js`：新增 `restoreLtmFromTurnRecord(sessionId, lastRecord)`，按 lastRecord=空 → 清目录 / snapshot=NULL（旧记录）→ 不动 / snapshot=string → 覆盖 三档语义还原。
+- `backend/memory/turn-summarizer.js`：把原本 fire-and-forget 的 `appendMemoryLines` 改为 `await`（在 p3 队列内串行），随后无条件把 `readMemoryFile` 全文写回当前 turn record 的 `long_term_memory_snapshot`，确保压缩后内容也能回滚。
+- 四条回滚链路 (`routes/sessions.js` PUT `messages/:id` + DELETE `sessions/:sessionId/messages/:messageId`，`routes/chat.js` regenerate，`routes/writing.js` regenerate) 在 `deleteTurnRecordsAfterRound` 之后追加 `restoreLtmFromTurnRecord(...)`。
+- 顺手补全 DELETE 消息路径的并发屏障：在截断前 `await waitForQueueIdle(sessionId)`，与 regenerate/编辑用户消息一致。原本只有后两者有屏障，DELETE 路径若赶上 p3 turn-record 任务在跑，旧任务可能在状态/LTM 还原后再写回旧轮次结果。该屏障同时修掉 `state_snapshot` 上的同源 race。
+
+**验证**：① 启用长期记忆后跑 3 轮，让 `memory.md` 累积条目；② 编辑第 2 轮的 user 消息或删除第 2 轮，检查 `memory.md` 应回到第 1 轮结束时的内容（GET `/api/sessions/:id/long-term-memory`）；③ regenerate 最后一轮应回到上一轮结束的内容；④ 全部消息删完时 `data/long_term_memory/{sessionId}/` 整个目录消失。
+
+## 2026-04-30 fix(memory): 长期记忆 UI 入口与开关联动 + 修正条目截断
+
+**改动**：
+- 顶栏长期记忆按钮：`ChatPage.jsx` 加载 `config.long_term_memory_enabled`、`WritingSpacePage.jsx` 加载 `config.writing.long_term_memory_enabled`，关闭时按钮与 modal 一并隐藏。
+- `LONG_TERM_MEMORY_LINE_MAX_CHARS`: 30 → 60（含 `[年月日时分]` 时间前缀的条目易超 30 字被截断）。
+- `LLM_TURN_SUMMARY_MAX_TOKENS`: 500 → 800（启用 LTM 时输出 JSON 包装 + 摘要 + 2 条 memory 接近 500 token 上限，导致末条被截）。
+- 模板 `memory-turn-summary-with-ltm.md`：恢复"三重门槛全部满足"的严格规则（上一版放宽后噪声过多）。
+
+**验证**：关闭设置中长期记忆 → 顶栏图标消失；开启 → 显示。重启后端跑包含明确事实变故的对话，确认 `data/long_term_memory/{sessionId}/memory.md` 的条目无尾部截断。
+
+## 2026-04-30 fix(memory): 长期记忆抽取改 JSON 输出 + 放宽门槛
+
+**背景**：用户开启长期记忆后多轮一条都不出。定位两个根因：① 模板 `memory-turn-summary-with-ltm.md` 写"绝大多数轮次应不输出任何条目" + 三重门槛 AND，几乎永远不命中；② 自定义分隔符 `<<<LONG_TERM_MEMORY>>>` 解析脆弱，LLM 加空格/markdown 围栏即静默归零。架构上拆成独立 LLM 会重复注入 USER/ASSISTANT 消息（最大块），输入 token 接近翻倍，性价比差 → 维持单 LLM，改格式与门槛。
+
+**改动**：
+- `backend/prompts/templates/memory-turn-summary-with-ltm.md`：输出契约改为 JSON `{"summary":"...","memory":["..."]}`，附 2 个 few-shot；门槛从"三类同时满足"改为"满足任一类即可"，仍保留"新 + 长期影响"+ 反例约束。
+- `backend/memory/turn-summarizer.js`：`splitSummaryAndMemory` 改为 JSON 解析（先剥 ```` ``` ```` 围栏，再截首尾大括号）；解析失败降级为"整段当摘要、零 memory"。新增 `LLM RAW` 日志（`logging.llm_raw.enabled=true` 时打印剥 think 后原始输出）便于诊断。
+- 不动：assembler [8.5] 注入点、`appendMemoryLines` 落盘、异步队列优先级、`long-term-memory.js` 压缩逻辑。
+
+**验证**：开启 `logging.llm_raw.enabled=true`，跑含明确"获得物品/情报/关系转折"的 3 轮，看 `data/logs/worldengine-2026-04-30.log` 中 `turn-sum LLM RAW` 是否输出 JSON 且 `memory` 非空；GET `/api/sessions/:id/long-term-memory` 应有条目；纯闲聊轮 `memory: []`。
+
 ## 2026-04-29 feat(memory): 会话级长期记忆（手动 + LLM 半自动）
 
 **背景**：现有 turn_records 摘要 + 向量召回擅长保留对话流水，但不擅长沉淀"长期有效的事实/转折"。新增会话级长期记忆通道：每轮顺手让摘要 LLM 抽 0–2 条关键事实写入 md，组装提示词时注入；用户也可手动编辑覆盖。

@@ -289,7 +289,9 @@ POST /api/sessions/:sessionId/chat
 
 **触发条件**：流正常完成（非 aborted）且该 session 存在 user 消息。
 
-**重新生成/编辑屏障**：聊天和写作的重新生成，以及编辑用户消息后重新生成，会先调用 `waitForQueueIdle(sessionId)` 等待同 session 已入队任务全部结束，再截断消息、删除后续 turn record/日记、恢复状态快照并启动新流。这样可避免上一轮状态整理、标题、turn record 或日记任务在新生成期间写回旧轮次结果。屏障完成后仅清理优先级 4+ 的可丢弃待处理任务。
+**重新生成/编辑/删除屏障**：聊天和写作的重新生成、编辑用户消息后重新生成、以及 DELETE 消息接口，都会先调用 `waitForQueueIdle(sessionId)` 等待同 session 已入队任务全部结束，再截断消息、删除后续 turn record/日记、恢复状态快照、还原长期记忆文件，并（regenerate 路径）启动新流。这样可避免上一轮状态整理、标题、turn record 或日记任务在新生成期间写回旧轮次结果。屏障完成后仅清理优先级 4+ 的可丢弃待处理任务。
+
+**长期记忆回滚**：编辑用户消息、删除消息、regenerate（聊天/写作）四条路径在 `deleteTurnRecordsAfterRound` 之后调用 `restoreLtmFromTurnRecord(sessionId, lastRecord)`，按截断后剩余的最末 turn record 中 `long_term_memory_snapshot` 字段覆盖 `data/long_term_memory/{sessionId}/memory.md`；`R=0` 时清空目录；旧记录字段为 NULL 时保持文件不动以兼容升级。该快照在 `createTurnRecord` 末尾、`appendMemoryLines`（含可能的 LLM 压缩）完成后回填。
 
 **优先级**（数字越小越高，2/3 不可丢弃；4 可在 regenerate 时清除；1 预留未用；5 已废弃不再入队）：
 
@@ -305,8 +307,8 @@ POST /api/sessions/:sessionId/chat
 ```
 createTurnRecord(sessionId, { isUpdate? })
   ├─ 按 round_index 取”第 N 条 user”及其后、下一条 user 之前的最后一条 assistant
-  ├─ 读取 `backend/prompts/templates/memory-turn-summary.md`
-  ├─ LLM.complete() 生成摘要（10-50 字，temp=0.3）
+  ├─ 读取模板（启用 LTM → `memory-turn-summary-with-ltm.md`，否则 `memory-turn-summary.md`）
+  ├─ LLM.complete() 生成摘要（temp=0.3）；启用 LTM 时输出 JSON `{summary, memory[]}`，由 `splitSummaryAndMemory` 解析；解析失败降级为整段当摘要、memory 空
   ├─ round_index = isUpdate ? latestRecord.round_index : count + 1
   ├─ UPSERT turn_records（by session_id + round_index）
   │    存 user_message_id / asst_message_id（指针），user_context / asst_context 置空

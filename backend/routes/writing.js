@@ -39,6 +39,7 @@ import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEnt
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
 import { updateMessageContent, updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
+import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
   beginStreamSession,
@@ -573,6 +574,7 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+  restoreLtmFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
 
   // 清理被截断轮次之后的日记条目
   const diaryToDelete = getDailyEntriesAfterRound(sessionId, R);

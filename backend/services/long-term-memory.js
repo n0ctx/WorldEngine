@@ -63,6 +63,28 @@ export function deleteMemoryDir(sessionId) {
 }
 
 /**
+ * 按 turn record 中的快照还原 memory.md。
+ * - lastRecord 为空（R=0）→ 整个目录清掉（无轮次留存即无长期记忆）
+ * - lastRecord.long_term_memory_snapshot 为 null（旧版本无快照字段）→ 保持文件不动
+ * - 否则按快照内容覆盖写入（空字符串即清空）
+ */
+export function restoreLtmFromTurnRecord(sessionId, lastRecord) {
+  if (!lastRecord) {
+    deleteMemoryDir(sessionId);
+    log.info(`ROLLBACK WIPE  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
+    return;
+  }
+  const snapshot = lastRecord.long_term_memory_snapshot;
+  if (snapshot == null) {
+    log.info(`ROLLBACK SKIP (legacy)  ${formatMeta({ session: sessionId.slice(0, 8), round: lastRecord.round_index })}`);
+    return;
+  }
+  writeMemoryFile(sessionId, snapshot);
+  const lineCount = String(snapshot).split('\n').filter((l) => l.trim()).length;
+  log.info(`ROLLBACK RESTORE  ${formatMeta({ session: sessionId.slice(0, 8), round: lastRecord.round_index, lines: lineCount })}`);
+}
+
+/**
  * 追加若干行长期记忆，并在超过上限时触发压缩。
  * lines 由调用方负责清洗（去空、截长、限数量）。
  */

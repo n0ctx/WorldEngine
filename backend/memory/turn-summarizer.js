@@ -11,7 +11,7 @@ import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById } from '../db/queries/turn-records.js';
+import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById, updateTurnRecordLtmSnapshot } from '../db/queries/turn-records.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
@@ -28,29 +28,34 @@ import { captureStateSnapshot } from './state-rollback.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
 import { renderWorldState } from './recall.js';
-import { appendMemoryLines } from '../services/long-term-memory.js';
-
-const LTM_DELIMITER = '<<<LONG_TERM_MEMORY>>>';
+import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.js';
 
 /**
- * 从 LLM 原始输出中切分摘要正文与长期记忆条目。
- * - 仅当出现严格分隔符（独占一行的 <<<LONG_TERM_MEMORY>>>）时才取下半段
- * - 长期记忆部分按行拆，过滤空行 / 列表前缀，最多取 LONG_TERM_MEMORY_PER_TURN_MAX 条
+ * 从 LLM 原始输出中解析 JSON 结构 {summary, memory[]}。
+ * - 先剥 markdown 围栏，再提取首尾大括号之间的 JSON
+ * - 解析失败：整段当摘要、零 memory（保持降级行为）
  */
 function splitSummaryAndMemory(raw) {
-  const text = String(raw ?? '');
-  const re = /^\s*<<<LONG_TERM_MEMORY>>>\s*$/m;
-  const match = text.match(re);
-  if (!match) return { summary: text, memoryLines: [] };
-  const idx = match.index ?? -1;
-  const summary = text.slice(0, idx);
-  const tail = text.slice(idx + match[0].length);
-  const lines = tail
-    .split('\n')
-    .map((l) => l.replace(/^\s*[-*•·\d.)]+\s*/, '').trim())
-    .filter(Boolean)
-    .slice(0, LONG_TERM_MEMORY_PER_TURN_MAX);
-  return { summary, memoryLines: lines };
+  const text = String(raw ?? '').trim();
+  if (!text) return { summary: '', memoryLines: [] };
+
+  let body = text.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  const start = body.indexOf('{');
+  const end = body.lastIndexOf('}');
+  if (start >= 0 && end > start) body = body.slice(start, end + 1);
+
+  try {
+    const obj = JSON.parse(body);
+    const summary = typeof obj.summary === 'string' ? obj.summary : '';
+    const memArr = Array.isArray(obj.memory) ? obj.memory : [];
+    const memoryLines = memArr
+      .map((l) => String(l ?? '').replace(/^\s*[-*•·\d.)]+\s*/, '').trim())
+      .filter(Boolean)
+      .slice(0, LONG_TERM_MEMORY_PER_TURN_MAX);
+    return { summary, memoryLines };
+  } catch {
+    return { summary: text, memoryLines: [] };
+  }
 }
 
 const log = createLogger('turn-sum');
@@ -130,6 +135,9 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
       .replace(/<think>[\s\S]*$/, '');
+    if (shouldLogRaw('llm_raw')) {
+      log.info(`LLM RAW  ${formatMeta({ session: sid, ltm: ltmEnabled })}\n${stripped}`);
+    }
     if (ltmEnabled) {
       const split = splitSummaryAndMemory(stripped);
       memoryLines = split.memoryLines;
@@ -172,9 +180,25 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
 
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
 
-  // 长期记忆条目落盘（不阻塞主流程；isUpdate 仍允许追加，因为同一轮重写不应丢失之前已抽取的记忆——LLM 输出顺序保证不会重复）
+  // 长期记忆条目落盘（在 turn-record 任务内串行执行；isUpdate 仍允许追加，
+  // 因为同一轮重写不应丢失之前已抽取的记忆——LLM 输出顺序保证不会重复）。
+  // 必须 await，以便随后把 memory.md 全文回填到本轮 turn record，作为回滚锚点。
   if (ltmEnabled && memoryLines.length > 0) {
-    appendMemoryLines(sessionId, memoryLines).catch((err) => log.warn(`LTM APPEND FAIL  ${formatMeta({ session: sid, error: err.message })}`));
+    try {
+      await appendMemoryLines(sessionId, memoryLines);
+    } catch (err) {
+      log.warn(`LTM APPEND FAIL  ${formatMeta({ session: sid, error: err.message })}`);
+    }
+  }
+
+  // 无论本轮是否抽取/启用 LTM，都把当前 memory.md 全文写入 turn record，
+  // 这样回滚到任意轮次都能精确还原长期记忆文件（包括"启用前为空"的轮次）。
+  if (record) {
+    try {
+      updateTurnRecordLtmSnapshot(record.id, readMemoryFile(sessionId));
+    } catch (err) {
+      log.warn(`LTM SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
+    }
   }
 
   // 异步触发 embedding（不阻塞）

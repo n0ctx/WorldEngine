@@ -23,6 +23,7 @@ import { checkAndGenerateDiary, deleteDiaryFile } from '../memory/diary-generato
 import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
+import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
@@ -295,6 +296,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
   log.info(`TURN-RECORD TRUNCATE  ${formatMeta({ session: sessionId.slice(0, 8), keepUntilRound: Math.max(0, R - 1) })}`);
+  restoreLtmFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
 
   // 清理被截断轮次之后的日记条目（及对应磁盘文件）
   const diaryToDelete = getDailyEntriesAfterRound(sessionId, R);

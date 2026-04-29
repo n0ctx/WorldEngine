@@ -17,6 +17,7 @@ import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound, getLatestTurnRecord } from '../db/queries/turn-records.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
+import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
@@ -116,6 +117,7 @@ router.put('/messages/:id', async (req, res) => {
   const editRemaining = getMessagesBySessionId(editSessionId, ALL_MESSAGES_LIMIT, 0);
   const editR = editRemaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(editSessionId, editR - 1);
+  restoreLtmFromTurnRecord(editSessionId, editR === 0 ? null : getLatestTurnRecord(editSessionId));
 
   const editCharId = editSession?.character_id;
   const editChar = editCharId ? getCharacterById(editCharId) : null;
@@ -145,6 +147,10 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const msg = getMessageById(messageId);
   if (!msg || msg.session_id !== sessionId) return res.status(404).json({ error: '消息不存在' });
 
+  // 与 regenerate / 编辑用户消息一致：先等同 session 已入队任务（p2 状态更新、p3 turn-record/长期记忆抽取）跑完，
+  // 否则截断完成后旧任务仍可能写回旧轮次的状态/turn_record/长期记忆，覆盖刚还原的快照。
+  await waitForQueueIdle(sessionId);
+
   // 删除该消息之后的所有消息（含 cleanup hooks）
   await deleteMessagesAfter(messageId);
   // 删除该消息自身
@@ -154,6 +160,7 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
+  restoreLtmFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
 
   // 清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
   clearPending(sessionId, 2);
