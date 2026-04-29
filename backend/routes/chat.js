@@ -473,6 +473,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
     const raw = await llm.complete(prompt, {
       temperature: overrides.temperature,
       maxTokens: overrides.maxTokens ?? 1000,
+      cacheableSystem: overrides.cacheableSystem,
       thinking_level: null,
       callType: 'impersonate',
       conversationId: sessionId,

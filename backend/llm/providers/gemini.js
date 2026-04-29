@@ -1,7 +1,66 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
 import { convertToGeminiContents } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
+import { getOrCreateCache } from './gemini-cache.js';
 import { logRawRequest } from '../raw-logger.js';
+import { createLogger } from '../../utils/logger.js';
+
+const cacheLog = createLogger('gemini-cache', 'cyan');
+
+// Gemini 3.x implicit cache 在常见区间存在 dead zone（issue #2064），强制走 explicit cachedContents。
+// 2.5 系列 implicit 已稳定命中，不启用 explicit 以避免引入额外 HTTP 调用。
+const EXPLICIT_CACHE_MIN_CHARS = 4000;
+function shouldUseExplicitCache(config) {
+  if (!config.cacheableSystem || config.cacheableSystem.length < EXPLICIT_CACHE_MIN_CHARS) return false;
+  const model = (config.model || '').toLowerCase();
+  return /gemini-3(\.|-)/.test(model);
+}
+
+/**
+ * 把稳定 system 前缀放入 cachedContents，剩余 dynamic system 注入首条 user message。
+ * @returns {Promise<{ contents, cachedContent } | null>} null 表示降级到非缓存路径
+ */
+async function buildCachedRequestParts(messages, config) {
+  const { contents, systemInstruction } = convertToGeminiContents(messages);
+  const fullSystem = systemInstruction?.parts?.map((p) => p.text || '').join('\n\n') || '';
+  const cacheable = config.cacheableSystem;
+  if (!cacheable) return null;
+
+  let dynamicSystem = '';
+  if (fullSystem.startsWith(cacheable)) {
+    dynamicSystem = fullSystem.slice(cacheable.length).replace(/^\s*\n+/, '');
+  } else {
+    cacheLog.warn(`SYSTEM PREFIX MISMATCH  cacheable=${cacheable.length}  full=${fullSystem.length}  fallback`);
+    return null;
+  }
+
+  const baseUrl = getBaseUrl(config);
+  const cachedContentName = await getOrCreateCache({
+    model: config.model,
+    systemText: cacheable,
+    baseUrl,
+    apiKey: config.api_key,
+    signal: config.signal,
+  });
+
+  // dynamicSystem 注入首条 user message（cachedContents 内 stub 末尾为 model role，请求 contents 必须以 user 起始）
+  const newContents = contents.map((c) => ({ ...c, parts: [...(c.parts || [])] }));
+  if (dynamicSystem) {
+    if (newContents.length > 0 && newContents[0].role === 'user') {
+      const firstParts = newContents[0].parts;
+      const firstTextIdx = firstParts.findIndex((p) => typeof p.text === 'string');
+      if (firstTextIdx >= 0) {
+        firstParts[firstTextIdx] = { ...firstParts[firstTextIdx], text: `${dynamicSystem}\n\n${firstParts[firstTextIdx].text}` };
+      } else {
+        firstParts.unshift({ text: dynamicSystem });
+      }
+    } else {
+      newContents.unshift({ role: 'user', parts: [{ text: dynamicSystem }] });
+    }
+  }
+
+  return { contents: newContents, cachedContent: cachedContentName };
+}
 
 function toGeminiTools(toolDefs) {
   return [{ functionDeclarations: toolDefs.map((t) => ({ name: t.function.name, description: t.function.description, parameters: t.function.parameters })) }];
@@ -12,9 +71,22 @@ export async function* streamGemini(messages, config) {
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:streamGenerateContent?key=${config.api_key}&alt=sse`;
 
-  const { contents, systemInstruction } = convertToGeminiContents(messages);
-  const body = { contents };
-  if (systemInstruction) body.systemInstruction = systemInstruction;
+  let body = null;
+  if (shouldUseExplicitCache(config)) {
+    try {
+      const cached = await buildCachedRequestParts(messages, config);
+      if (cached) {
+        body = { contents: cached.contents, cachedContent: cached.cachedContent };
+      }
+    } catch (err) {
+      cacheLog.warn(`STREAM FALLBACK  ${err.message}`);
+    }
+  }
+  if (!body) {
+    const { contents, systemInstruction } = convertToGeminiContents(messages);
+    body = { contents };
+    if (systemInstruction) body.systemInstruction = systemInstruction;
+  }
   body.generationConfig = {};
   if (config.temperature != null) body.generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
@@ -64,9 +136,22 @@ export async function completeGemini(messages, config) {
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
 
-  const { contents, systemInstruction } = convertToGeminiContents(messages);
-  const body = { contents };
-  if (systemInstruction) body.systemInstruction = systemInstruction;
+  let body = null;
+  if (shouldUseExplicitCache(config)) {
+    try {
+      const cached = await buildCachedRequestParts(messages, config);
+      if (cached) {
+        body = { contents: cached.contents, cachedContent: cached.cachedContent };
+      }
+    } catch (err) {
+      cacheLog.warn(`COMPLETE FALLBACK  ${err.message}`);
+    }
+  }
+  if (!body) {
+    const { contents, systemInstruction } = convertToGeminiContents(messages);
+    body = { contents };
+    if (systemInstruction) body.systemInstruction = systemInstruction;
+  }
   body.generationConfig = {};
   if (config.temperature != null) body.generationConfig.temperature = config.temperature;
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;

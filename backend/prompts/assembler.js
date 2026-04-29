@@ -318,7 +318,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const maxTokens = world.max_tokens ?? config.llm.max_tokens;
 
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, recallHitCount };
+  return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent };
 }
 
 /**
@@ -510,5 +510,5 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const model = writing.model || null;
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
-  return { messages, temperature, maxTokens, model, recallHitCount };
+  return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent };
 }

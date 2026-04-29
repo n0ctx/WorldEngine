@@ -121,6 +121,9 @@ function buildLLMConfig(options = {}) {
     // 稳定会话 id：用于 xAI 的 x-grok-conv-id header 路由，最大化 prompt cache 命中。
     // 其他 provider 忽略该字段。同一会话内必须保持稳定，禁止用 requestId/timestamp。
     conversationId: options.conversationId || undefined,
+    // 稳定 system 前缀（[1-3.5] cached layer）：仅 gemini provider 使用，触发 explicit cachedContents。
+    // 其他 provider 忽略；不会进入 messages，无泄漏风险。
+    cacheableSystem: options.cacheableSystem || undefined,
   };
 }
 

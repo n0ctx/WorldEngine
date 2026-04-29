@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: Gemini 3.x 接 explicit cachedContents API，恢复 cache 命中
+
+**背景**：实测 `gemini-3.1-flash-lite-preview` 连续三轮对话 `token_usage.cache_read_tokens` 全部为空。查 Google issue #2064 确认 Gemini 3 系列 implicit caching 在 prompt size 9K-17K tokens 区间存在 dead zone，flash-lite preview 几乎无命中。Gemini 3 在 explicit `cachedContents` API 上仍可正常工作（命中省 90% input cost），故为该模型档位补 explicit cache 路径。
+
+**改动**：
+- 数据/接口：`assembler.buildPrompt` / `buildWritingPrompt` 返回值新增 `cacheableSystem`（= [1-3.5] 稳定段拼接结果）。不动 messages 结构、不动段号
+- 透传：`services/chat.js#buildContext` 把 `cacheableSystem` 放入 `overrides`；`routes/writing.js` 三处 `buildWritingPrompt` 调用方解构透传；`routes/chat.js` impersonate 路径补 `cacheableSystem`；`llm/index.js#buildLLMConfig` 透传 `options.cacheableSystem` 到 provider config（其他 provider 忽略）
+- 新增：`backend/llm/providers/gemini-cache.js`，内存 LRU 维护 `hash(model+cacheableSystem) → { name, expireAt }`（TTL 600s，最多 64 条），含 PATCH 续期与负缓存（创建失败 5min 内不重试）
+- Provider：`backend/llm/providers/gemini.js#streamGemini` / `completeGemini` 在 `model` 匹配 `gemini-3.x` 且 `cacheableSystem.length ≥ 4000` 时调用 `getOrCreateCache`，请求体改用 `{ contents, cachedContent }`（不带 `systemInstruction`），dynamic 段（[4-10]）拼到首条 user message。任何阶段失败降级回原 `systemInstruction` 路径
+- 文档：`ARCHITECTURE.md §4` Cached layer 发送方式段落补 Gemini 3.x explicit cache 链路说明
+
+**为什么 Gemini 2.5 不启用**：2.5 系列 implicit cache 已稳定命中（数据库可见 `cache_read_tokens` ≈ prompt_tokens），不引入额外 HTTP 调用。
+
+**注意**：cache create 首次约 +200-500ms 延迟（仅每个 (model, cacheableSystem hash) 第一次）。`cacheableSystem` 不足官方 4096 token 阈值时 API 会 400，负缓存吃下 5min 内不重试，自动降级。
+
+**验证**：用 `gemini-3.1-flash-lite-preview` 在同一 session 连发 3 条消息：第 1 条日志见 `[gemini-cache] CREATE  name=cachedContents/xxx`，第 2-3 条 `messages.token_usage.cache_read_tokens` 非空且约等于 cacheableSystem 的 token 数。已实测通过。
+
 ## 2026-04-29 feat: 写作副模型与对话副模型独立配置（writing.aux_llm）
 
 **背景**：写作 tab 和对话 tab 共享同一份 `aux_llm`，导致两类后台任务（摘要 / 状态 / 记忆展开 / 日记 / 标题 / 条目命中）必须使用同一个副模型 endpoint。需要把写作 tab 的副模型拆成独立配置，回退链按 `writing.aux_llm → aux_llm → llm` 顺序展开，避免在写作 tab 调整副模型反而影响对话 tab 后台任务的 prompt cache 槽。

@@ -193,10 +193,10 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const onRecallEvent = (name, payload) => {
       if (!streamState.isClientClosed()) sendSse(res, { type: name, ...payload });
     };
-    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
+    const { messages, temperature, maxTokens, model, cacheableSystem } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection: opts.diaryInjection });
     log.info(`PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const stream = llm.chat(messages, { temperature, maxTokens, model, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_main', conversationId: sessionId });
+    const stream = llm.chat(messages, { temperature, maxTokens, model, cacheableSystem, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_main', conversationId: sessionId });
     for await (const chunk of stream) {
       fullContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -388,12 +388,12 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const usageRef = {};
 
   try {
-    const { messages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId);
+    const { messages, temperature, maxTokens, model, cacheableSystem } = await buildWritingPrompt(sessionId);
     log.info(`CONTINUE PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
     const continuationMessages = buildContinuationMessages(messages, originalContent);
 
-    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_continue', conversationId: sessionId });
+    const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, cacheableSystem, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_continue', conversationId: sessionId });
     for await (const chunk of stream) {
       newContent += chunk;
       if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
@@ -512,7 +512,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
   const personaName = persona?.name || '用户';
 
   try {
-    const { messages: baseMessages, temperature, maxTokens, model } = await buildWritingPrompt(sessionId, { skipWritingInstructions: true });
+    const { messages: baseMessages, temperature, maxTokens, model, cacheableSystem } = await buildWritingPrompt(sessionId, { skipWritingInstructions: true });
     log.info(`POST /impersonate  ${formatMeta({ session: sessionId.slice(0, 8), worldId: worldId.slice(0, 8), msgs: baseMessages.length })}`);
     logPrompt(sessionId, baseMessages);
     const prompt = [...baseMessages];
@@ -526,6 +526,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       temperature,
       maxTokens: 1000,
       model,
+      cacheableSystem,
       thinking_level: null,
       configScope: 'writing',
       callType: 'writing_impersonate',
