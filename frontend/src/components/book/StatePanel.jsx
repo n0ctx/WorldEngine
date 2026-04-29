@@ -274,11 +274,6 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               <span className="we-section-label">TIMELINE</span>
               <span className="we-section-rule" />
             </div>
-            {selectedEntry && (
-              <div className="we-diary-selected-note">
-                已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
-              </div>
-            )}
             <div className={`we-state-collapse${diaryOpen ? ' we-state-collapse--open' : ''}`}>
               <div className="we-state-collapse-inner">
                 {diaryEntries === null ? (

@@ -437,11 +437,6 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
                 <span className="we-section-label">TIMELINE</span>
                 <span className="we-section-rule" />
               </div>
-              {selectedEntry && (
-                <div className="we-cast-diary-selected-note">
-                  已选：{selectedEntry.date_display}（下轮生效，再次点击取消）
-                </div>
-              )}
               <div style={{
                 display: 'grid',
                 gridTemplateRows: diaryOpen ? '1fr' : '0fr',

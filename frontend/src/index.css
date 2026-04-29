@@ -1147,23 +1147,53 @@ body {
 }
 
 .we-diary-entry {
+  position: relative;
   cursor: pointer;
-  border-radius: var(--we-radius-md);
-  padding: 2px 4px;
+  border-radius: var(--we-radius-sm);
+  padding: 3px 6px 3px 9px;
   background: transparent;
-  transition: background 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
-
-.we-diary-entry--selected {
-  background: var(--we-gold-leaf);
-  opacity: 0.9;
+.we-diary-entry::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--we-vermilion);
+  border-radius: 1px;
+  opacity: 0;
+  transform: scaleY(0.3);
+  transform-origin: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
-.we-diary-selected-note {
-  font-size: 10px;
-  color: var(--we-gold-leaf);
-  padding: 0 4px 4px;
-  font-style: italic;
+.we-diary-entry:hover {
+  background: color-mix(in srgb, var(--we-paper-aged) 55%, transparent);
+}
+.we-diary-entry:hover::before {
+  opacity: 0.5;
+  transform: scaleY(1);
+}
+.we-diary-entry:hover .we-timeline-dot {
+  opacity: 0.85;
+}
+.we-diary-entry--selected,
+.we-diary-entry--selected:hover {
+  background: color-mix(in srgb, var(--we-vermilion) 7%, color-mix(in srgb, var(--we-paper-aged) 65%, transparent));
+}
+.we-diary-entry--selected::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.we-diary-entry--selected .we-timeline-dot {
+  opacity: 1;
+}
+.we-diary-entry--selected .we-timeline-text {
+  color: var(--we-ink-secondary);
+}
+.we-diary-entry--selected .we-timeline-round {
+  color: var(--we-vermilion);
 }
 
 .we-state-collapse {
@@ -1682,19 +1712,52 @@ body {
   padding-top: 12px;
 }
 .we-cast-diary-entry {
+  position: relative;
   cursor: pointer;
-  border-radius: 4px;
-  padding: 2px 4px;
+  border-radius: var(--we-radius-sm);
+  padding: 3px 6px 3px 9px;
+  transition: background 0.18s ease, color 0.18s ease;
 }
-.we-cast-diary-entry--selected {
-  background: var(--we-gold-leaf);
-  opacity: 0.9;
+.we-cast-diary-entry::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--we-vermilion);
+  border-radius: 1px;
+  opacity: 0;
+  transform: scaleY(0.3);
+  transform-origin: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-.we-cast-diary-selected-note {
-  font-size: 10px;
-  color: var(--we-gold-leaf);
-  padding: 0 4px 4px;
-  font-style: italic;
+.we-cast-diary-entry:hover {
+  background: color-mix(in srgb, var(--we-paper-aged) 55%, transparent);
+}
+.we-cast-diary-entry:hover::before {
+  opacity: 0.5;
+  transform: scaleY(1);
+}
+.we-cast-diary-entry:hover .we-timeline-dot {
+  opacity: 0.85;
+}
+.we-cast-diary-entry--selected,
+.we-cast-diary-entry--selected:hover {
+  background: color-mix(in srgb, var(--we-vermilion) 7%, color-mix(in srgb, var(--we-paper-aged) 65%, transparent));
+}
+.we-cast-diary-entry--selected::before {
+  opacity: 1;
+  transform: scaleY(1);
+}
+.we-cast-diary-entry--selected .we-timeline-dot {
+  opacity: 1;
+}
+.we-cast-diary-entry--selected .we-timeline-text {
+  color: var(--we-ink-secondary);
+}
+.we-cast-diary-entry--selected .we-timeline-round {
+  color: var(--we-vermilion);
 }
 .we-cast-diary-more {
   font-size: 11px;
