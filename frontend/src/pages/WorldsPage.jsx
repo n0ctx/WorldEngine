@@ -158,7 +158,6 @@ export default function WorldsPage() {
       ) : (
         <SortableGrid
           items={worlds}
-          onReorder={setWorlds}
           onReorderEnd={handleReorderEnd}
           className="we-worlds-grid"
           renderItem={(world, { setNodeRef, style, isDragging, attributes, listeners }) => (

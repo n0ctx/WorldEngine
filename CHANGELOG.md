@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: 世界卡拖拽跳跃 + 不丝滑
+
+**问题**：拖动世界卡跨越邻居时，被拖卡片会瞬移；整体动画也偏卡。
+
+**根因**：`SortableGrid` 在 `onDragOver` 中实时调用 `onReorder` 改写 `items` 数组，与 `rectSortingStrategy` 内部基于稳定索引计算 transform 的机制冲突——数组重排导致每个 sortable 项的索引漂移，被拖项被强制重定位，产生跳跃；同时正在拖动的卡片仍带 `transition`，跟手感差。
+
+**改动**：
+- `frontend/src/components/ui/SortableGrid.jsx`：删除 `onDragOver` + `onReorder` 实时重排逻辑，只在 `onDragEnd` 一次性调用 `onReorderEnd`；`useSortable` 改用 `CSS.Translate.toString`（避免 scale 干扰），dragging 时 `transition: 'none'`，并加上 `cursor: grabbing`
+- `frontend/src/pages/WorldsPage.jsx`：移除 `onReorder={setWorlds}`，仅保留 `onReorderEnd`
+
+**验证**：访问 `/worlds`，拖动任意一张卡跨越多个邻居（含右→左、末行→首行），被拖卡片应跟手移动不跳跃，邻居平滑让位；松手后顺序持久。
+
 ## 2026-04-29 feat: 世界选择页支持拖拽排序
 
 **背景**：世界卡此前只能按 `created_at` 升序展示，无法手动调整。需求是拖动一张卡时，被路过位置的卡按 2D 网格平滑滑到原位置（左→右时右邻向左滑、上→下时下邻向上滑、末行末位时右邻向左补位）。

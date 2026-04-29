@@ -19,11 +19,11 @@ import { CSS } from '@dnd-kit/utilities';
 /**
  * SortableGrid — 2D 网格内可拖拽重排的容器
  *
- * 拖动一张卡时，被覆盖位置的卡会平滑滑到原拖动卡的位置（rectSortingStrategy 提供）。
+ * 拖动期间数组保持不变，rectSortingStrategy 通过 CSS transform 让其它卡片平滑让位；
+ * 松手时一次性提交最终顺序，避免拖动中索引漂移导致被拖卡片跳跃。
  *
  * Props:
  *   items              — 数组，每项必须有唯一 .id
- *   onReorder          — (newItems) => void，拖拽中实时更新（可省略）
  *   onReorderEnd       — (finalItems) => void，松手保存最终顺序
  *   renderItem         — (item, sortableProps) => ReactNode
  *                         sortableProps 形如 { setNodeRef, style, isDragging, attributes, listeners }
@@ -33,7 +33,6 @@ import { CSS } from '@dnd-kit/utilities';
  */
 export default function SortableGrid({
   items,
-  onReorder,
   onReorderEnd,
   renderItem,
   className,
@@ -47,16 +46,6 @@ export default function SortableGrid({
 
   function handleDragStart(event) {
     setActiveId(event.active.id);
-  }
-
-  function handleDragOver(event) {
-    if (!onReorder) return;
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = items.findIndex((i) => i.id === active.id);
-    const newIndex = items.findIndex((i) => i.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    onReorder(arrayMove(items, oldIndex, newIndex));
   }
 
   function handleDragEnd(event) {
@@ -79,7 +68,6 @@ export default function SortableGrid({
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
@@ -102,12 +90,14 @@ export default function SortableGrid({
 function SortableGridItem({ item, renderItem, isActive }) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: item.id,
+    animateLayoutChanges: () => true,
   });
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Translate.toString(transform),
+    transition: isDragging ? 'none' : transition,
     zIndex: isActive || isDragging ? 10 : undefined,
     opacity: isDragging ? 0.85 : 1,
+    cursor: isDragging ? 'grabbing' : 'grab',
   };
   return renderItem(item, { setNodeRef, style, isDragging, attributes, listeners });
 }
