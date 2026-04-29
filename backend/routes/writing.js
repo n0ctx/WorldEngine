@@ -37,7 +37,7 @@ import { detectNewChapter, groupChapterMessages } from '../utils/chapter-detecto
 import { getChapterTitle, upsertChapterTitle, getChapterTitlesBySessionId } from '../db/queries/chapter-titles.js';
 import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { getWritingSessionById as dbGetWritingSessionById } from '../db/queries/writing-sessions.js';
-import { updateMessageContent, updateMessageTokenUsage } from '../db/queries/messages.js';
+import { updateMessageContent, updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
@@ -436,8 +436,12 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     if (!aborted && Object.keys(usageRef).length > 0) {
       updateMessageTokenUsage(lastAssistant.id, usageRef);
     }
+    if (!aborted) {
+      updateMessageNextOptions(lastAssistant.id, continueOptions);
+    }
     mergedAssistant = { ...lastAssistant, content: mergedContent };
     if (!aborted && Object.keys(usageRef).length > 0) mergedAssistant.token_usage = usageRef;
+    if (!aborted) mergedAssistant.next_options = continueOptions.length > 0 ? continueOptions : null;
     touchWritingSession(sessionId);
   }
 

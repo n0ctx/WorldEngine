@@ -398,6 +398,8 @@ export function initSchema(db) {
   migrateDropLegacyEntryTables(db);
   // token 消耗统计：messages 表新增 token_usage 字段（JSON 字符串）
   try { db.exec(`ALTER TABLE messages ADD COLUMN token_usage TEXT`); } catch {}
+  // next_prompt 选项持久化：messages 表新增 next_options 字段（JSON 数组字符串）
+  try { db.exec(`ALTER TABLE messages ADD COLUMN next_options TEXT`); } catch {}
   // worlds 封面图
   try { db.exec(`ALTER TABLE worlds ADD COLUMN cover_path TEXT`); } catch {}
   // 状态字段触发方式已取消：自动字段统一每轮更新，删除历史配置列

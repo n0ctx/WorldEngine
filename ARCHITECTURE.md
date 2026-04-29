@@ -403,7 +403,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | type 字段 | 触发时机 | payload 示例 |
 |---|---|---|
 | `delta` | LLM 流式增量 | `{ delta: "文字" }` |
-| `done` | 流式正常完成 | `{ done: true, assistant: {…}, options: [], usage?: { prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens?, cache_miss_tokens? } }` |
+| `done` | 流式正常完成 | `{ done: true, assistant: {…, next_options?: [...]}, options: [], usage?: { prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens?, cache_miss_tokens? } }` |
 | `aborted` | 用户主动中断 | `{ aborted: true, assistant?: {…} }` |
 | `error` | LLM 调用异常 | `{ type: "error", error: "..." }` |
 | `title_updated` | 会话标题异步生成完成（chat + writing） | `{ type: "title_updated", title: "..." }` |
@@ -420,6 +420,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 - `memory_recall_*` 和 `memory_expand_*` 仅 `/chat` 路径发出；`/continue`（续写）路径不含
 - `state_updated` / `diary_updated` 仅 writing 路径发出；chat 模式对应后台任务不保活 SSE
 - `state_rolled_back` 在 regenerate 路由完成回滚后、`runStream`/`runWritingStream` 启动时立即发出；触发前端状态栏立即刷新，无需等待 `state_updated`
+- `done.options` 同时持久化到对应 assistant 消息的 `messages.next_options` 字段（JSON 数组）；前端切页/刷新后由 `MessageList` 在初次拉取消息时把每条 assistant 的 `next_options` 还原成 `_options`，最近一条 assistant 的选项被提升回 `currentOptions` 形成"待选择展开"态，更早的回合统一以 `FrozenOptionCard` 折叠态呈现
 
 ---
 

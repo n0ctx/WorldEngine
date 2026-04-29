@@ -25,7 +25,7 @@ import { getDailyEntriesAfterRound, deleteDailyEntriesAfterRound, deleteDailyEnt
 import { getTurnRecordsBySessionId, deleteTurnRecordsAfterRound, deleteTurnRecordsBySessionId, getLatestTurnRecord, getLatestTurnRecordWithSnapshot, countTurnRecords } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
-import { updateMessageTokenUsage } from '../db/queries/messages.js';
+import { updateMessageTokenUsage, updateMessageNextOptions } from '../db/queries/messages.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
@@ -411,8 +411,12 @@ router.post('/:sessionId/continue', async (req, res) => {
     if (!aborted && Object.keys(usageRef).length > 0) {
       updateMessageTokenUsage(lastAssistant.id, usageRef);
     }
+    if (!aborted) {
+      updateMessageNextOptions(lastAssistant.id, continueOptions);
+    }
     mergedAssistant = { ...lastAssistant, content: mergedContent };
     if (!aborted && Object.keys(usageRef).length > 0) mergedAssistant.token_usage = usageRef;
+    if (!aborted) mergedAssistant.next_options = continueOptions.length > 0 ? continueOptions : null;
     touchSession(sessionId);
   }
 

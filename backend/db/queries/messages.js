@@ -26,8 +26,21 @@ export function getMessageById(id) {
   if (row) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
+    row.next_options = parseNextOptions(row.next_options);
   }
   return row;
+}
+
+function parseNextOptions(raw) {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const cleaned = arr.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim());
+    return cleaned.length > 0 ? cleaned : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -41,8 +54,18 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
+    row.next_options = parseNextOptions(row.next_options);
   }
   return rows;
+}
+
+/**
+ * 更新单条消息的 next_options 字段（JSON 数组）；传入空数组等价清空。
+ */
+export function updateMessageNextOptions(id, options) {
+  const arr = Array.isArray(options) ? options.filter((v) => typeof v === 'string' && v.trim()) : [];
+  const value = arr.length > 0 ? JSON.stringify(arr) : null;
+  db.prepare('UPDATE messages SET next_options = ? WHERE id = ?').run(value, id);
 }
 
 /**
@@ -213,6 +236,7 @@ export function getUncompressedMessagesBySessionId(sessionId, limit = null, offs
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
+    row.next_options = parseNextOptions(row.next_options);
   }
   return rows;
 }

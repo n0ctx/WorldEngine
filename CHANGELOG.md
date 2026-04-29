@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 feat: next_prompt 选项持久化，切页/刷新后历史折叠 + 当前展开
+
+**背景**：`<next_prompt>` 选项原本只活在 `currentOptions` React 状态里，切换 session、切换页面（chat ↔ writing）、刷新都会清空；同时 `optionCollapsed` 在 `clearOptionsState` 路径未重置，可能导致新一轮选项卡继承上次的折叠态。
+
+**改动**：
+- `messages` 表新增 `next_options TEXT`（JSON 字符串数组），同步 `SCHEMA.md`
+- `db/queries/messages.js`：`getMessageById` / `getMessagesBySessionId` / `getUncompressedMessagesBySessionId` 解析 `next_options`；新增 `updateMessageNextOptions(id, options)`
+- `services/chat.js#processStreamOutput`、`routes/chat.js` 和 `routes/writing.js` 续写路径：抽到选项后写入 assistant 消息的 `next_options`，并把数组放入返回的 assistant payload
+- `frontend/src/components/chat/MessageList.jsx`：拉取消息后把 `next_options` 还原成 `_options + _options_collapsed=true`；新增 `onMessagesLoaded` 回调；当父组件 `options` 非空时跳过最后一条 assistant 的 `FrozenOptionCard` 渲染，避免与 active OptionCard 重复
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：消费 `onMessagesLoaded`，把最后一条 assistant 的 `next_options` 提升为 `currentOptions` 并 `optionCollapsed=false`；`clearOptionsState` 同步重置折叠态，保证新一轮选项卡默认展开
+- `ARCHITECTURE.md §7` 注明 `done.options` 持久化路径与前端还原规则
+
+**验证**：
+- 聊天页生成回复后切到写作页再切回 → 当前选项卡仍展开，历史回合折叠
+- 浏览器刷新 → 同上
+- 多轮生成 → 仅最新一轮展开，历史均折叠
+- 续写完成 → 选项写入 DB，下次进入会话仍可见
+
 ## 2026-04-29 fix: OpenRouter 发送前拆双 system，恢复 GLM-5.1 稳定 cached prefix，不影响其他 provider
 
 **背景**：`openrouter + z-ai/glm-5.1` 实测 `cached_tokens` 在 3k+ 与 0 之间抖动。排查 `data/logs/llm-raw/*.json` 与 `worldengine-2026-04-29.log` 后确认，问题不在 `cache_read_tokens` 统计，而在 OpenRouter 的 sticky routing / prompt caching 指纹：当前 assembler 为兼容 Grok，把 `[1-3.5]` 稳定前缀与 `[4-10]` 动态后缀合并进首条 `system`，导致 OpenRouter 看到的首条 `system` 每轮都变化，连续请求 `prefix512/1024/2048Stable=false`，路由容易落到不同上游 provider，命中不稳定。

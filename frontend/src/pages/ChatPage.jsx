@@ -100,6 +100,7 @@ export default function ChatPage() {
   const clearOptionsState = useCallback(() => {
     pendingOptionsRef.current = [];
     setCurrentOptions([]);
+    setOptionCollapsed(false);
   }, []);
 
   // 每次开启新流时调用：生成本轮唯一的占位 key
@@ -842,6 +843,14 @@ export default function ChatPage() {
           onDismissOptions={() => setCurrentOptions([])}
           optionCollapsed={optionCollapsed}
           onOptionCollapsedChange={setOptionCollapsed}
+          onMessagesLoaded={(msgs) => {
+            const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
+            const opts = lastAsst?.next_options;
+            if (Array.isArray(opts) && opts.length > 0) {
+              setCurrentOptions(opts);
+              setOptionCollapsed(false);
+            }
+          }}
         />
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}

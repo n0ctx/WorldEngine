@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { updateMessageAttachments } from '../db/queries/messages.js';
+import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
 import { buildPrompt } from '../prompts/assembler.js';
 import { logPrompt } from '../utils/logger.js';
@@ -148,6 +148,10 @@ export function processStreamOutput(rawContent, aborted, worldId, sessionId, opt
     const savedContent = aborted ? content : applyRules(content, 'ai_output', worldId, mode);
     savedAssistant = createMessageFn({ session_id: sessionId, role: 'assistant', content: savedContent });
     content = savedContent;
+    if (savedAssistant && options.length > 0) {
+      updateMessageNextOptions(savedAssistant.id, options);
+      savedAssistant.next_options = options;
+    }
     touchSessionFn(sessionId);
   }
 

@@ -70,6 +70,7 @@ const MessageList = forwardRef(function MessageList({
   onDismissOptions,
   optionCollapsed = false,
   onOptionCollapsedChange,
+  onMessagesLoaded,
 }, ref) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -112,10 +113,16 @@ const MessageList = forwardRef(function MessageList({
       try {
         const msgs = await getMessages(sessionId, PAGE_SIZE, 0);
         if (cancelled) return;
-        setMessages(msgs);
-        setOffset(msgs.length);
-        setHasMore(msgs.length === PAGE_SIZE);
+        const hydrated = msgs.map((m) => (
+          m.role === 'assistant' && Array.isArray(m.next_options) && m.next_options.length > 0
+            ? { ...m, _options: m.next_options, _options_collapsed: true }
+            : m
+        ));
+        setMessages(hydrated);
+        setOffset(hydrated.length);
+        setHasMore(hydrated.length === PAGE_SIZE);
         setLoading(false);
+        onMessagesLoaded?.(hydrated);
       } catch {
         if (!cancelled) setLoading(false);
       }
@@ -134,9 +141,14 @@ const MessageList = forwardRef(function MessageList({
 
     getMessages(sessionId, PAGE_SIZE, offset)
       .then((older) => {
-        setMessages((prev) => [...older, ...prev]);
-        setOffset((o) => o + older.length);
-        setHasMore(older.length === PAGE_SIZE);
+        const hydrated = older.map((m) => (
+          m.role === 'assistant' && Array.isArray(m.next_options) && m.next_options.length > 0
+            ? { ...m, _options: m.next_options, _options_collapsed: true }
+            : m
+        ));
+        setMessages((prev) => [...hydrated, ...prev]);
+        setOffset((o) => o + hydrated.length);
+        setHasMore(hydrated.length === PAGE_SIZE);
         setLoadingMore(false);
         if (el) {
           requestAnimationFrame(() => {
@@ -206,6 +218,14 @@ const MessageList = forwardRef(function MessageList({
       },
     ];
   }, [prose, messages, generating, continuingMessageId, streamingKey, streamingText]);
+
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') return messages[i].id;
+    }
+    return null;
+  }, [messages]);
+  const suppressLastFrozen = options.length > 0;
 
   // 章节分组仅用于写作（prose 模式）
   const chapters = useMemo(
@@ -279,7 +299,7 @@ const MessageList = forwardRef(function MessageList({
                       onDelete={isStream ? undefined : onDeleteMessage}
                       onMakeCard={isStream ? undefined : onMakeCard}
                     />
-                    {displayMsg._options?.length > 0 && !isStream && (
+                    {displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId) && (
                       <FrozenOptionCard
                         options={displayMsg._options}
                         selectedIndex={displayMsg._selectedOption}
@@ -329,7 +349,7 @@ const MessageList = forwardRef(function MessageList({
                     onDelete={isStream ? undefined : onDeleteMessage}
                   />
                 );
-                if (displayMsg._options?.length > 0 && !isStream) {
+                if (displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId)) {
                   items.push(
                     <FrozenOptionCard
                       key={`fo-${msg._key ?? msg.id}`}

@@ -127,6 +127,7 @@ export default function WritingSpacePage() {
   function clearOptionsState() {
     pendingOptionsRef.current = [];
     setCurrentOptions([]);
+    optionCollapsedRef.current = false;
   }
 
   useEffect(() => {
@@ -839,6 +840,14 @@ export default function WritingSpacePage() {
               onDismissOptions={() => setCurrentOptions([])}
               optionCollapsed={optionCollapsedRef.current}
               onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
+              onMessagesLoaded={(msgs) => {
+                const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
+                const opts = lastAsst?.next_options;
+                if (Array.isArray(opts) && opts.length > 0) {
+                  setCurrentOptions(opts);
+                  optionCollapsedRef.current = false;
+                }
+              }}
             />
 
             {/* 错误提示 */}
