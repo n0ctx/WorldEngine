@@ -21,11 +21,6 @@
  *   [13] 后置提示词（独立 system message；全局+角色，均空跳过）
  *   [14] 当前用户消息（唯一的尾部 user 消息）
  *
- * 注：[5-11] 原为独立 user role 的 dynamic 段，2026-04-29 合并进 system role
- * 单条消息以求 prefix cache 命中稳定前缀（[1-4] 4608t 稳定）。改动来源：
- * xAI Grok prefix cache 实测显示 system + user(dynamic) + user(history) 的
- * 双 user 结构会让 cache pipeline bypass，仅命中 158t；合并到单 system 后
- * 期望命中 ~4608t。
  *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
