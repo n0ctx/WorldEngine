@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix(llm): system 前缀拆分提升为 OpenAI-compatible 路径默认行为，修复 DeepSeek prompt cache
+
+**背景**：DeepSeek 官方 API 实测几乎无 prompt cache 命中。`cache-usage.js` 已正确解析 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，问题在写侧——`assembler.js` 把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并到单条 system，DeepSeek 在 tokenizer 边界发生几个 token 漂移，加上其前缀匹配对"系统块整体一致"敏感，命中率被显著拉低。OpenRouter 此前用 `normalizeOpenAICompatibleMessages` 的拆分逻辑（commit 4812ad4）解决了同源问题。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js`：删除 `normalizeOpenAICompatibleMessages` 顶部的 `provider !== 'openrouter'` 白名单门控，把"按 `cacheableSystem` 拆首条 system"改为 OpenAI-compatible 路径默认行为；OpenAI / OpenRouter / DeepSeek / Grok / GLM / Kimi / MiniMax / SiliconFlow / Qwen / Xiaomi 全部受益。`cacheableSystem` 为空 / 首条非 system / 不以前缀开头任一情况均自动跳过，行为兜底等价于不开启
+- `buildOpenAICompatibleHeaders` 不变：`x-grok-conv-id` 仍是 grok-only，绝不扩散
+- `backend/tests/llm/openai-compatible-headers.test.js`：把"非 openrouter 不拆分"用例改为"任意 provider 都拆分"，覆盖 openrouter / deepseek / grok / glm / kimi / openai 6 种 provider；保留兜底用例（cacheableSystem 为空 / 首条非 system / 不匹配前缀）
+- `ARCHITECTURE.md`：更新 §4 Cached layer 段说明，OpenAI-compatible 路径默认拆分
+
+**为何对 Grok 不回归**：commit 02b50a2 修复的是"`[system, user(dynamic), user(history)]` 双 user 结构让 cache pipeline bypass"。本次拆分后两段都是 `role=system`，与"双 user"是不同结构，Grok cache pipeline 仍把它视作系统块。`x-grok-conv-id` sticky routing 同时保留。
+
+**验证方式**：
+- 单元测试：`cd backend && node --test tests/llm/openai-compatible-headers.test.js`（9/9 通过）
+- 集成验证（人工）：DeepSeek 连发 2 轮，第二轮 `cache_read_tokens` 应显著 > 0；Grok 连发 2 轮验证未回归（落盘请求体首段为 2 条连续 system，header 仍含 `x-grok-conv-id`）；OpenRouter 行为持平；Anthropic / Gemini / Ollama 不受影响
+
+**残留风险**：极少数 OpenAI-compatible 聚合厂商若不接受连续两条 system，会以 4xx 暴露——按需补反白名单兜底；Grok 双 system 命中率需要人工日志对比验证。
+
 ## 2026-04-29 refactor: Anthropic 模型列表改为接口实拉，移除硬编码
 
 **背景**：`backend/routes/config.js` 此前对 anthropic provider 硬编码 5 个 model id，输入 key 也不会去拉真实接口；新模型上线后需要手动改代码。

@@ -14,18 +14,24 @@ function assertOpenAICompatibleData(data, config) {
 }
 
 /**
- * OpenRouter 的 prompt caching / sticky routing 依赖首条 system/developer 与首条 non-system。
- * 当前 assembler 为兼容 Grok，把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并进首条 system。
- * 对 OpenRouter，这会导致首条 system 每轮变化，削弱缓存稳定性。
+ * OpenAI-compatible 路径默认行为：把首条 system 拆成稳定 cached prefix + 动态 system suffix。
  *
- * 仅在 provider=openrouter 且 messages[0] 以 cacheableSystem 为前缀时，
- * 将首条 system 拆成两条：
+ * 背景：assembler 为兼容 Grok（双 user 结构会让 cache pipeline bypass，commit 02b50a2），
+ * 把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并进首条单条 system message。但合并后的 system
+ * 每轮内容都变，prefix cache 边界会在 tokenizer 拼接处发生 1-2 token 的漂移，并被部分
+ * provider（OpenRouter / DeepSeek 等）整体视为"系统块变更"而绕过缓存。
+ *
+ * 解决方案：仅当 messages[0] 以 cacheableSystem 为前缀时，将首条 system 拆成两条：
  *   1) 稳定 cached prefix（[1-3.5]）
  *   2) 动态 system suffix（[4-10]）
- * 其他 provider 保持原结构不变，避免影响 Grok / Gemini 已调好的 cache 路径。
+ * 拆分后两段都是 role=system，与 commit 02b50a2 修复的"双 user"结构不同，Grok 不回归。
+ *
+ * 兜底：cacheableSystem 为空 / 首条非 system / 不以 cacheableSystem 开头 / 无动态后缀
+ * 任一情况都返回原 messages，行为等价于不开启拆分。
+ *
+ * 不在 OpenAI-compatible 路径的 Anthropic、Gemini、Ollama 走各自 provider 文件，零影响。
  */
 export function normalizeOpenAICompatibleMessages(messages, config) {
-  if (config?.provider !== 'openrouter') return messages;
   if (!Array.isArray(messages) || messages.length === 0) return messages;
   if (!config?.cacheableSystem) return messages;
 

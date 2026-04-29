@@ -42,50 +42,63 @@ test('conversationId 非字符串会被强制转换为字符串', () => {
   assert.equal(headers['x-grok-conv-id'], '12345');
 });
 
-test('openrouter 会把首条 system 拆成稳定 cached prefix + 动态 system suffix', () => {
+test('任意 OpenAI-compatible provider 都会把首条 system 拆成稳定 cached prefix + 动态 system suffix', () => {
   const messages = [
     { role: 'system', content: 'stable-prefix\n\ndynamic-suffix' },
     { role: 'user', content: 'hello' },
   ];
-  const normalized = normalizeOpenAICompatibleMessages(messages, {
-    provider: 'openrouter',
-    cacheableSystem: 'stable-prefix',
-  });
-
-  assert.deepEqual(normalized, [
-    { role: 'system', content: 'stable-prefix' },
-    { role: 'system', content: 'dynamic-suffix' },
-    { role: 'user', content: 'hello' },
-  ]);
+  for (const provider of ['openrouter', 'deepseek', 'grok', 'glm', 'kimi', 'openai']) {
+    const normalized = normalizeOpenAICompatibleMessages(messages, {
+      provider,
+      cacheableSystem: 'stable-prefix',
+    });
+    assert.deepEqual(normalized, [
+      { role: 'system', content: 'stable-prefix' },
+      { role: 'system', content: 'dynamic-suffix' },
+      { role: 'user', content: 'hello' },
+    ], `${provider} 应该被拆分`);
+  }
 });
 
-test('openrouter 在首条 system 没有动态后缀时保持原样', () => {
+test('首条 system 没有动态后缀时保持原样', () => {
   const messages = [
     { role: 'system', content: 'stable-prefix' },
     { role: 'user', content: 'hello' },
   ];
   const normalized = normalizeOpenAICompatibleMessages(messages, {
-    provider: 'openrouter',
+    provider: 'deepseek',
     cacheableSystem: 'stable-prefix',
   });
 
   assert.equal(normalized, messages);
 });
 
-test('非 openrouter provider 不拆 system，避免影响其他 provider cache 路径', () => {
+test('cacheableSystem 为空时不拆分', () => {
   const messages = [
-    { role: 'system', content: 'stable-prefix\n\ndynamic-suffix' },
+    { role: 'system', content: 'whatever\n\nmore' },
+    { role: 'user', content: 'hi' },
+  ];
+  const normalized = normalizeOpenAICompatibleMessages(messages, {
+    provider: 'deepseek',
+    cacheableSystem: '',
+  });
+
+  assert.equal(normalized, messages);
+});
+
+test('首条非 system 时不拆分', () => {
+  const messages = [
     { role: 'user', content: 'hello' },
   ];
   const normalized = normalizeOpenAICompatibleMessages(messages, {
-    provider: 'grok',
+    provider: 'deepseek',
     cacheableSystem: 'stable-prefix',
   });
 
   assert.equal(normalized, messages);
 });
 
-test('openrouter 在首条 system 不匹配 cacheableSystem 时不拆分', () => {
+test('首条 system 不以 cacheableSystem 开头时不拆分', () => {
   const messages = [
     { role: 'system', content: 'another-prefix\n\ndynamic-suffix' },
     { role: 'user', content: 'hello' },
