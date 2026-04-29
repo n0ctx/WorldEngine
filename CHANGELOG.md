@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: 移除 backend 未使用的 uuid 依赖，清除 audit 风险
+
+**背景**：`npm audit --prefix backend --omit=dev` 报出 1 个 `moderate` 风险，来源是直接依赖 `uuid@13.0.0`（`<14.0.0` 受 GHSA-w5hq-g745-h8pq 影响）。
+
+**根因**：后端 `package.json` 仍保留 `uuid` 依赖，但仓库内并没有任何 `uuid` 导入或调用；项目规范本来就要求主键统一使用 `crypto.randomUUID()`，因此这是历史遗留的无用依赖。
+
+**改动**：
+- 从 `backend/package.json` / `backend/package-lock.json` 移除 `uuid`
+- 重新执行 `npm uninstall uuid --prefix backend`，使 backend 依赖树不再包含该包
+
+**验证**：
+- `npm audit --prefix backend --omit=dev` → `found 0 vulnerabilities`
+- `npm ls uuid --prefix backend` → 依赖树中已无 `uuid`
+
 ## 2026-04-29 fix: 世界卡拖拽撑开背景 + 占位伪边界 + 跳跃
 
 **问题**：
