@@ -56,8 +56,12 @@ export default function WritingLlmBlock({
   const temperaturePct = Math.round((temperature / 2.0) * 20) * 5;
 
   async function handleSaveKey() {
+    if (!config.provider) {
+      pushErrorToast('请先选择 Provider 再保存密钥');
+      return;
+    }
     try {
-      await onApiKeySave(apiKey);
+      await onApiKeySave(config.provider, apiKey);
       setApiKey('');
       setApiKeySaved(true);
       onWritingLlmChange?.('has_key', true);

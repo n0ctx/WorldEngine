@@ -19,8 +19,12 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
   const [testResult, setTestResult] = useState(null);
 
   async function handleSaveKey() {
+    if (!config.provider) {
+      pushErrorToast('请先选择 Provider 再保存密钥');
+      return;
+    }
     try {
-      await onApiKeySave(apiKey);
+      await onApiKeySave(config.provider, apiKey);
       setApiKey('');
       setApiKeySaved(true);
       onApiKeySaved?.();

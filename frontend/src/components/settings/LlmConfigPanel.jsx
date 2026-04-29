@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  updateApiKey, updateEmbeddingApiKey,
+  updateProviderKey,
   fetchModels, fetchEmbeddingModels,
   testConnection, testEmbeddingConnection,
 } from '../../api/config';
@@ -94,7 +94,7 @@ export default function LlmConfigPanel({
             onProviderChange={(v) => onLlmChange('provider', v)}
             onBaseUrlChange={(v) => onLlmChange('base_url', v)}
             onModelChange={(v) => onLlmChange('model', v)}
-            onApiKeySave={updateApiKey}
+            onApiKeySave={updateProviderKey}
             onApiKeySaved={() => onLlmChange('has_key', true)}
             onThinkingLevelChange={(v) => onLlmChange('thinking_level', v)}
             loadModels={fetchModels}
@@ -184,7 +184,7 @@ export default function LlmConfigPanel({
         onProviderChange={(v) => onEmbeddingChange('provider', v || null)}
         onBaseUrlChange={(v) => onEmbeddingChange('base_url', v)}
         onModelChange={(v) => onEmbeddingChange('model', v)}
-        onApiKeySave={updateEmbeddingApiKey}
+        onApiKeySave={updateProviderKey}
         onApiKeySaved={() => onEmbeddingChange('has_key', true)}
         loadModels={fetchEmbeddingModels}
       />

@@ -3,6 +3,34 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 refactor: API Key 改为顶层共享池，对话/写作主副 + Embedding 共用一份
+
+**背景**：原本 `data/config.json` 在五处独立维护 `provider_keys`（`llm` / `embedding` / `aux_llm` / `writing.llm` / `writing.aux_llm`）。同一个 OpenAI key 在四个对话/写作 section 之间需要重复保存才能生效，UX 与认知负担都很重。
+
+**改动**：
+- `backend/services/config.js`：新增顶层 `config.provider_keys = { providerName: api_key }`，所有 LLM/Embedding section 不再保存自己的 `provider_keys`；统一通过 `getProviderKey(provider)` 与 `updateProviderKey(provider, key)` 读写共享池；首次加载执行迁移 `mergeSectionKeys`，把每个 section 残留的 `api_key` / `provider_keys` 合并到顶层（已存在不覆盖），随后删除原字段并写回；删除 `updateAuxApiKey` / `updateWritingApiKey` / `updateWritingAuxApiKey` 三个原专用 setter
+- `backend/routes/config.js`：`stripApiKeys` 输出顶层 `provider_keys` 的布尔映射 + 每个 section 的 `has_key`（按其当前 provider 在共享池查表），不再输出 section 内的 `provider_keys`；`PUT /api/config` 增加对顶层 `provider_keys` 的拦截；将 5 个独立 `*-apikey` 端点合并为单一 `PUT /api/config/provider-key { provider, api_key }`；模型列表与连接测试改用统一的 key 解析
+- `backend/llm/index.js`：`buildLLMConfig` 主模型分支改为直接从 `config.provider_keys` 读取 api_key；副/写作分支去除中间 `provider_keys` 包装
+- `backend/llm/embedding.js`：`getEmbeddingConfig` 改为读取顶层共享池
+- `frontend/src/api/config.js`：删除 5 个独立 `update*ApiKey` 函数，统一为 `updateProviderKey(provider, key)`
+- `frontend/src/components/settings/ProviderBlock.jsx` / `AuxLlmBlock.jsx` / `WritingLlmBlock.jsx`：保存按钮改为传 `(provider, key)`；当前 `provider` 为空时直接 toast 提示
+- `frontend/src/components/settings/LlmConfigPanel.jsx` / `frontend/src/hooks/useSettingsConfig.js`：去除 `update*ApiKey` 各自封装，统一指向 `updateProviderKey`；前端组件状态去掉冗余 `provider_keys` 字段，仅保留 `has_key`
+- 测试：`backend/tests/{routes/config,prompts/assembler-shape,prompts/assembler,llm/index,memory/recall}.test.js` 与 `tests/helpers/test-env.js` 全部改为顶层 `provider_keys` 形态；新增 provider-key 端点测试
+- 文档：`SCHEMA.md` 配置结构与说明、`ARCHITECTURE.md` 副模型与 /api/config 路由表
+
+**桌面端兼容**：迁移逻辑在 `getConfig()` 首次读取时跑一次并写回，`data/config.json` 路径走 `WE_DATA_DIR` / `WE_CONFIG_PATH`，对桌面端用户透明；旧 `provider_keys` 的全部 key 都会被合并到顶层，不会丢失。
+
+**已知边角**：同一 provider 在多处保存了不同 key 时（例如 chat 用 OpenAI 账号 A、embedding 用账号 B），合并后以 `llm → embedding → aux_llm → writing.llm → writing.aux_llm` 顺序，先到的 key 胜出，其余被丢弃。绝大多数用户每个 provider 只会用一份 key，不受影响。
+
+**验证方式**：
+- 后端：`cd backend && npm test`（287 通过）
+- 前端：`cd frontend && npm run build`（构建成功）
+- 人工：设置页对话主/副、写作主/副、Embedding 各自切换到同一 provider，检查 API Key 已配置标记一致；保存任一处 key 后其它同 provider 段位的 has_key 也变为 true
+
+**残留风险**：旧端点 `/apikey`、`/embedding-apikey`、`/aux-apikey`、`/writing-apikey`、`/writing-aux-apikey` 已删除（项目非发布版无需向后兼容），任何外部调用方需要切换到 `/provider-key`。
+
+---
+
 ## 2026-04-29 fix: mac arm64 桌面包启动闪退，补打包遗漏的 shared 目录
 
 **背景**：`desktop/dist/mac-arm64/WorldEngine.app` 双击后立即退出。终端直启主进程可复现：

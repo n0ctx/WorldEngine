@@ -65,9 +65,9 @@ test('renderXxxState 优先读取 session runtime，再回退 default', async ()
 
 test('searchRecalledSummaries 从向量存储命中旧 turn record 并排除最近轮次', async () => {
   const nextConfig = sandbox.readConfig();
+  nextConfig.provider_keys = { ...(nextConfig.provider_keys || {}), openai: 'test-key' };
   nextConfig.embedding = {
     provider: 'openai',
-    provider_keys: { openai: 'test-key' },
     provider_models: {},
     base_url: '',
     model: 'text-embedding-3-small',

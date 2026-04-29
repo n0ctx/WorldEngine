@@ -35,9 +35,9 @@ export function createTestConfig(patch = {}) {
   return mergeDeep({
     version: 1,
     proxy_url: '',
+    provider_keys: {},
     llm: {
       provider: 'mock',
-      provider_keys: {},
       provider_models: {},
       base_url: '',
       model: 'mock-model',
@@ -47,7 +47,6 @@ export function createTestConfig(patch = {}) {
     },
     embedding: {
       provider: null,
-      provider_keys: {},
       provider_models: {},
       base_url: '',
       model: '',

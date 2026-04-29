@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getConfig, updateConfig, getAuxLlmConfig, updateAuxApiKey, getWritingLlmConfig, updateWritingApiKey, getWritingAuxLlmConfig, updateWritingAuxApiKey } from '../services/config.js';
+import { getConfig, updateConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig, getProviderKey, updateProviderKey } from '../services/config.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
@@ -11,45 +11,28 @@ import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/con
 const router = Router();
 const log = createLogger('config', 'blue');
 
-/** 获取当前 provider 的 API Key */
-function resolveApiKey(section) {
-  if (!section) return '';
-  return section.provider_keys?.[section.provider] || '';
+/** 通过顶层共享池获取指定 section 当前 provider 的 API Key */
+function resolveApiKey(section, sharedKeys) {
+  if (!section || !section.provider) return '';
+  return sharedKeys?.[section.provider] || '';
 }
 
-/** 从配置对象中移除敏感字段，保留 has_key 布尔标志和 provider_keys 布尔映射 */
+/**
+ * 从配置对象中脱敏 API Key：
+ * - 顶层 provider_keys 替换为 { provider: bool } 映射
+ * - 每个 section 暴露 has_key（按其 provider 在共享池中查找）
+ */
 function stripApiKeys(config) {
   const safe = structuredClone(config);
-  if (safe.llm) {
-    safe.llm.has_key = !!resolveApiKey(safe.llm);
-    safe.llm.provider_keys = Object.fromEntries(
-      Object.entries(safe.llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
-    );
-  }
-  if (safe.embedding) {
-    safe.embedding.has_key = !!resolveApiKey(safe.embedding);
-    safe.embedding.provider_keys = Object.fromEntries(
-      Object.entries(safe.embedding.provider_keys || {}).map(([k, v]) => [k, !!v]),
-    );
-  }
-  if (safe.aux_llm) {
-    safe.aux_llm.has_key = !!resolveApiKey(safe.aux_llm);
-    safe.aux_llm.provider_keys = Object.fromEntries(
-      Object.entries(safe.aux_llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
-    );
-  }
-  if (safe.writing?.llm) {
-    safe.writing.llm.has_key = !!resolveApiKey(safe.writing.llm);
-    safe.writing.llm.provider_keys = Object.fromEntries(
-      Object.entries(safe.writing.llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
-    );
-  }
-  if (safe.writing?.aux_llm) {
-    safe.writing.aux_llm.has_key = !!resolveApiKey(safe.writing.aux_llm);
-    safe.writing.aux_llm.provider_keys = Object.fromEntries(
-      Object.entries(safe.writing.aux_llm.provider_keys || {}).map(([k, v]) => [k, !!v]),
-    );
-  }
+  const sharedKeys = safe.provider_keys || {};
+  safe.provider_keys = Object.fromEntries(
+    Object.entries(sharedKeys).map(([k, v]) => [k, !!v]),
+  );
+  if (safe.llm) safe.llm.has_key = !!resolveApiKey(safe.llm, sharedKeys);
+  if (safe.embedding) safe.embedding.has_key = !!resolveApiKey(safe.embedding, sharedKeys);
+  if (safe.aux_llm) safe.aux_llm.has_key = !!resolveApiKey(safe.aux_llm, sharedKeys);
+  if (safe.writing?.llm) safe.writing.llm.has_key = !!resolveApiKey(safe.writing.llm, sharedKeys);
+  if (safe.writing?.aux_llm) safe.writing.aux_llm.has_key = !!resolveApiKey(safe.writing.aux_llm, sharedKeys);
   return safe;
 }
 
@@ -141,6 +124,8 @@ router.put('/', (req, res) => {
     const current = getConfig();
     const patch = structuredClone(req.body);
     const patchPaths = collectPatchPaths(patch);
+    // 顶层共享 provider_keys 必须通过专用端点写入，不允许从这里修改
+    delete patch.provider_keys;
     if (patch.llm) {
       delete patch.llm.api_key;
       delete patch.llm.provider_keys;
@@ -189,101 +174,22 @@ router.put('/', (req, res) => {
   }
 });
 
-// PUT /api/config/apikey — 写入当前 llm provider 的 key
-router.put('/apikey', (req, res) => {
-  const { api_key } = req.body;
+// PUT /api/config/provider-key — 写入指定 provider 的 API Key 到顶层共享池
+// 所有对话/写作主副模型 + Embedding 共用同一份 provider_keys
+router.put('/provider-key', (req, res) => {
+  const { provider, api_key } = req.body || {};
+  if (typeof provider !== 'string' || !provider) {
+    return res.status(400).json({ error: 'provider 必须为非空字符串' });
+  }
   if (typeof api_key !== 'string') {
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
   try {
-    const config = getConfig();
-    const provider = config.llm.provider;
-    updateConfig({ llm: { provider_keys: { [provider]: api_key } } });
-    log.info(`PUT /api/config/apikey  ${formatMeta({ section: 'llm', provider, hasKey: !!api_key })}`);
+    updateProviderKey(provider, api_key);
+    log.info(`PUT /api/config/provider-key  ${formatMeta({ provider, hasKey: !!api_key })}`);
     res.json({ success: true });
   } catch (err) {
-    log.error(`PUT /api/config/apikey FAIL  ${formatMeta({ error: err.message })}`);
-    res.status(500).json({ error: `保存失败：${err.message}` });
-  }
-});
-
-// PUT /api/config/embedding-apikey — 写入当前 embedding provider 的 key
-router.put('/embedding-apikey', (req, res) => {
-  const { api_key } = req.body;
-  if (typeof api_key !== 'string') {
-    return res.status(400).json({ error: 'api_key 必须为字符串' });
-  }
-  try {
-    const config = getConfig();
-    const provider = config.embedding.provider;
-    updateConfig({ embedding: { provider_keys: { [provider]: api_key } } });
-    log.info(`PUT /api/config/embedding-apikey  ${formatMeta({ section: 'embedding', provider, hasKey: !!api_key })}`);
-    res.json({ success: true });
-  } catch (err) {
-    log.error(`PUT /api/config/embedding-apikey FAIL  ${formatMeta({ error: err.message })}`);
-    res.status(500).json({ error: `保存失败：${err.message}` });
-  }
-});
-
-// PUT /api/config/writing-apikey — 写入当前写作主模型 provider 的 key
-router.put('/writing-apikey', (req, res) => {
-  const { api_key } = req.body;
-  if (typeof api_key !== 'string') {
-    return res.status(400).json({ error: 'api_key 必须为字符串' });
-  }
-  try {
-    const config = getConfig();
-    const provider = config.writing?.llm?.provider;
-    if (!provider) {
-      return res.status(400).json({ error: '写作主模型未配置 provider' });
-    }
-    updateWritingApiKey(provider, api_key);
-    log.info(`PUT /api/config/writing-apikey  ${formatMeta({ section: 'writing.llm', provider, hasKey: !!api_key })}`);
-    res.json({ success: true });
-  } catch (err) {
-    log.error(`PUT /api/config/writing-apikey FAIL  ${formatMeta({ error: err.message })}`);
-    res.status(500).json({ error: `保存失败：${err.message}` });
-  }
-});
-
-// PUT /api/config/writing-aux-apikey — 写入当前写作副模型 provider 的 key
-router.put('/writing-aux-apikey', (req, res) => {
-  const { api_key } = req.body;
-  if (typeof api_key !== 'string') {
-    return res.status(400).json({ error: 'api_key 必须为字符串' });
-  }
-  try {
-    const config = getConfig();
-    const provider = config.writing?.aux_llm?.provider;
-    if (!provider) {
-      return res.status(400).json({ error: '写作副模型未配置 provider' });
-    }
-    updateWritingAuxApiKey(provider, api_key);
-    log.info(`PUT /api/config/writing-aux-apikey  ${formatMeta({ section: 'writing.aux_llm', provider, hasKey: !!api_key })}`);
-    res.json({ success: true });
-  } catch (err) {
-    log.error(`PUT /api/config/writing-aux-apikey FAIL  ${formatMeta({ error: err.message })}`);
-    res.status(500).json({ error: `保存失败：${err.message}` });
-  }
-});
-
-// PUT /api/config/aux-apikey — 写入当前副模型 provider 的 key
-router.put('/aux-apikey', (req, res) => {
-  const { api_key } = req.body;
-  if (typeof api_key !== 'string') {
-    return res.status(400).json({ error: 'api_key 必须为字符串' });
-  }
-  try {
-    const config = getConfig();
-    const provider = config.aux_llm?.provider;
-    if (!provider) {
-      return res.status(400).json({ error: '副模型未配置 provider' });
-    }
-    updateAuxApiKey(provider, api_key);
-    log.info(`PUT /api/config/aux-apikey  ${formatMeta({ section: 'aux_llm', provider, hasKey: !!api_key })}`);
-    res.json({ success: true });
-  } catch (err) {
-    log.error(`PUT /api/config/aux-apikey FAIL  ${formatMeta({ error: err.message })}`);
+    log.error(`PUT /api/config/provider-key FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: `保存失败：${err.message}` });
   }
 });
@@ -482,7 +388,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
 async function verifyLlmConnection(config) {
   const llm = {
     ...config.llm,
-    api_key: resolveApiKey(config.llm),
+    api_key: resolveApiKey(config.llm, config.provider_keys || {}),
     base_url: validateModelFetchBaseUrl(config.llm.provider, config.llm.base_url || DEFAULT_BASE_URLS[config.llm.provider] || ''),
     max_tokens: 8,
     temperature: 0,
@@ -530,7 +436,7 @@ function getThinkingOptions(provider) {
 router.get('/models', async (_req, res) => {
   const config = getConfig();
   const { provider, base_url } = config.llm;
-  const apiKey = resolveApiKey(config.llm);
+  const apiKey = getProviderKey(provider);
   try {
     const models = await fetchModels(provider, apiKey, base_url);
     const thinkingOptions = getThinkingOptions(provider);
@@ -598,7 +504,7 @@ router.get('/embedding-models', async (_req, res) => {
   if (!provider) {
     return res.json({ models: [] });
   }
-  const apiKey = resolveApiKey(config.embedding);
+  const apiKey = getProviderKey(provider);
   try {
     const models = await fetchModels(provider, apiKey, base_url);
     log.info(`GET /api/config/embedding-models  ${formatMeta({ provider, count: models.length })}`);
@@ -642,9 +548,9 @@ router.get('/writing/test-connection', async (_req, res) => {
   const writingConfig = getWritingLlmConfig();
   try {
     const testConfig = {
+      provider_keys: { [writingConfig.provider]: writingConfig.api_key },
       llm: {
         provider: writingConfig.provider,
-        provider_keys: { [writingConfig.provider]: writingConfig.api_key },
         base_url: writingConfig.base_url || '',
         model: writingConfig.model || '',
         max_tokens: 8,
@@ -663,9 +569,9 @@ router.get('/writing-aux/test-connection', async (_req, res) => {
   const auxConfig = getWritingAuxLlmConfig();
   try {
     const testConfig = {
+      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
       llm: {
         provider: auxConfig.provider,
-        provider_keys: { [auxConfig.provider]: auxConfig.api_key },
         base_url: auxConfig.base_url || '',
         model: auxConfig.model || '',
         max_tokens: 8,
@@ -685,9 +591,9 @@ router.get('/aux/test-connection', async (_req, res) => {
   const auxConfig = getAuxLlmConfig();
   try {
     const testConfig = {
+      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
       llm: {
         provider: auxConfig.provider,
-        provider_keys: { [auxConfig.provider]: auxConfig.api_key },
         base_url: auxConfig.base_url || '',
         model: auxConfig.model || '',
         max_tokens: 8,

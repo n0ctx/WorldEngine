@@ -5,9 +5,9 @@ import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-en
 
 test('buildLLMConfig 使用调用方 options 覆盖配置文件', async (t) => {
   const sandbox = createTestSandbox('llm-config', {
+    provider_keys: { mock: 'secret' },
     llm: {
       provider: 'mock',
-      provider_keys: { mock: 'secret' },
       model: 'cfg-model',
       temperature: 0.8,
       max_tokens: 512,

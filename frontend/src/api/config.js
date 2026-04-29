@@ -13,17 +13,11 @@ export function updateConfig(patch) {
   });
 }
 
-export function updateApiKey(key) {
-  return request(`${BASE}/apikey`, {
+/** 写入指定 provider 的 API Key 到顶层共享池（所有 LLM/Embedding section 共用） */
+export function updateProviderKey(provider, key) {
+  return request(`${BASE}/provider-key`, {
     method: 'PUT',
-    body: JSON.stringify({ api_key: key }),
-  });
-}
-
-export function updateEmbeddingApiKey(key) {
-  return request(`${BASE}/embedding-apikey`, {
-    method: 'PUT',
-    body: JSON.stringify({ api_key: key }),
+    body: JSON.stringify({ provider, api_key: key }),
   });
 }
 
@@ -43,13 +37,6 @@ export function testEmbeddingConnection() {
   return request(`${BASE}/test-embedding`);
 }
 
-export function updateAuxApiKey(key) {
-  return request(`${BASE}/aux-apikey`, {
-    method: 'PUT',
-    body: JSON.stringify({ api_key: key }),
-  });
-}
-
 export function fetchAuxModels() {
   return request(`${BASE}/aux/models`);
 }
@@ -58,26 +45,12 @@ export function testAuxConnection() {
   return request(`${BASE}/aux/test-connection`);
 }
 
-export function updateWritingApiKey(key) {
-  return request(`${BASE}/writing-apikey`, {
-    method: 'PUT',
-    body: JSON.stringify({ api_key: key }),
-  });
-}
-
 export function fetchWritingModels() {
   return request(`${BASE}/writing/models`);
 }
 
 export function testWritingConnection() {
   return request(`${BASE}/writing/test-connection`);
-}
-
-export function updateWritingAuxApiKey(key) {
-  return request(`${BASE}/writing-aux-apikey`, {
-    method: 'PUT',
-    body: JSON.stringify({ api_key: key }),
-  });
 }
 
 export function fetchWritingAuxModels() {

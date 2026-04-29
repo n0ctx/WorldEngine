@@ -32,11 +32,12 @@ function embeddingError(provider, message) {
 }
 
 function getEmbeddingConfig() {
-  const { embedding } = getConfig();
+  const config = getConfig();
+  const { embedding } = config;
   if (!embedding) return null;
   return {
     ...embedding,
-    api_key: embedding.provider_keys?.[embedding.provider] || '',
+    api_key: config.provider_keys?.[embedding.provider] || '',
   };
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getConfig, updateConfig, updateAuxApiKey, fetchAuxModels, testAuxConnection, updateWritingApiKey, fetchWritingModels, testWritingConnection, updateWritingAuxApiKey, fetchWritingAuxModels, testWritingAuxConnection } from '../api/config';
+import { getConfig, updateConfig, updateProviderKey, fetchAuxModels, testAuxConnection, fetchWritingModels, testWritingConnection, fetchWritingAuxModels, testWritingAuxConnection } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
 import { useSaveState } from './useSaveState';
@@ -26,7 +26,7 @@ export function useSettingsConfig() {
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
   const { saving, saved, run: runSave } = useSaveState();
   const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
-  const [writingLlm, setWritingLlm] = useState({ provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
+  const [writingLlm, setWritingLlm] = useState({ provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
@@ -64,7 +64,7 @@ export function useSettingsConfig() {
       setCurrentModelPricing(c.llm?.model_pricing ?? null);
       setCurrentWritingModelPricing(c.writing?.llm?.model_pricing ?? null);
       const w = c.writing || {};
-      setWritingLlm(w.llm || { provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
+      setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
       setWritingPostPrompt(w.global_post_prompt ?? '');
       setWritingContextRounds(w.context_history_rounds ?? null);
@@ -105,7 +105,6 @@ export function useSettingsConfig() {
         base_url: updated.llm?.base_url ?? '',
         model: updated.llm?.model ?? '',
         has_key: updated.llm?.has_key ?? false,
-        provider_keys: updated.llm?.provider_keys ?? {},
       }));
     } else if (field === 'has_key') {
       setLlm((prev) => ({ ...prev, has_key: value }));
@@ -126,7 +125,6 @@ export function useSettingsConfig() {
         base_url: updated.embedding?.base_url ?? '',
         model: updated.embedding?.model ?? '',
         has_key: updated.embedding?.has_key ?? false,
-        provider_keys: updated.embedding?.provider_keys ?? {},
       }));
     } else if (field === 'has_key') {
       setEmbedding((prev) => ({ ...prev, has_key: value }));
@@ -147,7 +145,6 @@ export function useSettingsConfig() {
         base_url: updated.aux_llm?.base_url ?? null,
         model: updated.aux_llm?.model ?? null,
         has_key: updated.aux_llm?.has_key ?? false,
-        provider_keys: updated.aux_llm?.provider_keys ?? {},
       }));
     } else if (field === 'has_key') {
       setAuxLlm((prev) => ({ ...prev, has_key: value }));
@@ -168,7 +165,6 @@ export function useSettingsConfig() {
         base_url: updated.writing?.aux_llm?.base_url ?? null,
         model: updated.writing?.aux_llm?.model ?? null,
         has_key: updated.writing?.aux_llm?.has_key ?? false,
-        provider_keys: updated.writing?.aux_llm?.provider_keys ?? {},
       }));
     } else if (field === 'has_key') {
       setWritingAuxLlm((prev) => ({ ...prev, has_key: value }));
@@ -194,7 +190,6 @@ export function useSettingsConfig() {
         base_url: updated.writing?.llm?.base_url ?? null,
         model: updated.writing?.llm?.model ?? '',
         has_key: updated.writing?.llm?.has_key ?? false,
-        provider_keys: updated.writing?.llm?.provider_keys ?? {},
       }));
     } else if (field === 'has_key') {
       setWritingLlm((prev) => ({ ...prev, has_key: value }));
@@ -305,7 +300,7 @@ export function useSettingsConfig() {
     const w = c.writing || {};
     setWritingSuggestionEnabled(w.suggestion_enabled === true);
     setWritingMemoryExpansionEnabled(w.memory_expansion_enabled !== false);
-    setWritingLlm(w.llm || { provider: null, provider_keys: {}, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
+    setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
     setWritingContextRounds(w.context_history_rounds ?? null);
@@ -324,15 +319,15 @@ export function useSettingsConfig() {
       onAuxLlmChange: handleAuxLlmChange,
       onWritingAuxLlmChange: handleWritingAuxLlmChange,
       onAssistantModelSourceChange: handleAssistantModelSourceChange,
-      onAuxApiKeySave: updateAuxApiKey,
+      onAuxApiKeySave: updateProviderKey,
       fetchAuxModels,
       testAuxConnection,
-      onWritingAuxApiKeySave: updateWritingAuxApiKey,
+      onWritingAuxApiKeySave: updateProviderKey,
       fetchWritingAuxModels,
       testWritingAuxConnection,
       writingLlm,
       onWritingLlmChange: handleWritingLlmChange,
-      onWritingApiKeySave: updateWritingApiKey,
+      onWritingApiKeySave: updateProviderKey,
       fetchWritingModels,
       testWritingConnection,
       proxyUrl,

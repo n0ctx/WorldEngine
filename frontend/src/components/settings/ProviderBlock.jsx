@@ -14,8 +14,12 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
   const providerHint = PROVIDER_HINTS[config.provider] || null;
 
   async function handleSaveKey() {
+    if (!config.provider) {
+      pushErrorToast('请先选择 Provider 再保存密钥');
+      return;
+    }
     try {
-      await onApiKeySave(apiKey);
+      await onApiKeySave(config.provider, apiKey);
       setApiKey('');
       setApiKeySaved(true);
       onApiKeySaved?.();

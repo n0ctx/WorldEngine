@@ -243,7 +243,8 @@ POST /api/sessions/:sessionId/chat
 
 - **主模型**：`config.llm` — 对话流式生成、斜杠命令（/impersonate /retitle）
 - **写作主模型**：`config.writing.llm` — 写作流式/续写生成、写作 /impersonate；`provider=null` 时回退对话主模型；结构镜像主模型并额外保留 `temperature / max_tokens` 覆盖（null 时回退对话主模型）
-- **副模型**：`config.aux_llm` — null 时回退主模型；结构镜像主模型但仅含 provider / provider_keys / provider_models / base_url / model，不暴露 temperature / max_tokens / thinking_level
+- **API Key 共享**：`config.provider_keys` — 顶层 `{ providerName: api_key }` 池，所有 LLM/Embedding section 按当前 `provider` 字段查表；同一 provider 不在多处独立存储
+- **副模型**：`config.aux_llm` — null 时回退主模型；结构镜像主模型但仅含 provider / provider_models / base_url / model，不暴露 temperature / max_tokens / thinking_level
 - **写作副模型**：`config.writing.aux_llm` — 写作模式下的后台任务（摘要/状态/记忆展开/日记/标题）专用副模型；`provider=null` 时按 `aux_llm → llm` 顺序回退；结构与对话副模型一致
 - **写作助手模型选择**：`config.assistant.model_source` — 'main'（主模型）或 'aux'（副模型），决定写卡助手调用的模型源
 
@@ -677,13 +678,18 @@ MAX_ATTACHMENT_SIZE_MB = 5
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | /api/config | 返回当前配置（去除 API Key，保留 has_key 布尔值） |
-| PUT | /api/config | 部分更新配置（禁止更新 api_key/provider_keys） |
-| PUT | /api/config/apikey | 写入当前 LLM provider 的 API Key |
-| PUT | /api/config/embedding-apikey | 写入当前 Embedding provider 的 API Key |
-| GET | /api/config/models | 拉取 LLM 模型列表（含 thinkingOptions） |
+| GET | /api/config | 返回当前配置（脱敏：顶层 `provider_keys` 转为 `{provider: bool}` 映射，每个 LLM/Embedding section 暴露 `has_key`） |
+| PUT | /api/config | 部分更新配置（禁止更新顶层 `provider_keys` 与各 section 的 api_key/provider_keys） |
+| PUT | /api/config/provider-key | 写入指定 provider 的 API Key 到顶层共享池（body: `{ provider, api_key }`），所有 LLM/Embedding section 按当前 provider 查表 |
+| GET | /api/config/models | 拉取对话主模型 LLM 模型列表（含 thinkingOptions） |
+| GET | /api/config/aux/models | 拉取对话副模型 LLM 模型列表 |
+| GET | /api/config/writing/models | 拉取写作主模型 LLM 模型列表 |
+| GET | /api/config/writing-aux/models | 拉取写作副模型 LLM 模型列表 |
 | GET | /api/config/embedding-models | 拉取 Embedding 模型列表 |
-| GET | /api/config/test-connection | 验证 LLM 连通性 |
+| GET | /api/config/test-connection | 验证对话主模型 LLM 连通性 |
+| GET | /api/config/aux/test-connection | 验证对话副模型 LLM 连通性 |
+| GET | /api/config/writing/test-connection | 验证写作主模型 LLM 连通性 |
+| GET | /api/config/writing-aux/test-connection | 验证写作副模型 LLM 连通性 |
 | GET | /api/config/test-embedding | 验证 Embedding 连通性 |
 
 ### 世界（/api/worlds）

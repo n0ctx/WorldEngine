@@ -67,9 +67,9 @@ function withEmbeddingFetch(vector) {
 }
 
 const SHAPE_CONFIG_PATCH = {
+  provider_keys: { openai_compatible: 'test-key' },
   embedding: {
     provider: 'openai_compatible',
-    provider_keys: { openai_compatible: 'test-key' },
     provider_models: {},
     base_url: 'https://example.test/v1',
     model: 'embed-test',

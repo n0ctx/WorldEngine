@@ -50,6 +50,7 @@ function getProvider(providerName) {
 function buildLLMConfig(options = {}) {
   const config = getConfig();
   let llm;
+  let api_key;
 
   if (options.configScope === 'aux') {
     const auxConfig = getAuxLlmConfig();
@@ -61,7 +62,6 @@ function buildLLMConfig(options = {}) {
     }
     llm = {
       provider: auxConfig.provider,
-      provider_keys: { [auxConfig.provider]: auxConfig.api_key },
       base_url: auxConfig.base_url,
       model: auxConfig.model,
       // 副模型不暴露 temperature / max_tokens / thinking_level，使用主模型的值
@@ -69,6 +69,7 @@ function buildLLMConfig(options = {}) {
       max_tokens: config.llm.max_tokens,
       thinking_level: config.llm.thinking_level,
     };
+    api_key = auxConfig.api_key;
   } else if (options.configScope === 'writing-aux') {
     // 写作副模型：未配置时按 writing.aux_llm → aux_llm → llm 顺序回退
     const writingAuxConfig = getWritingAuxLlmConfig();
@@ -77,19 +78,18 @@ function buildLLMConfig(options = {}) {
     }
     llm = {
       provider: writingAuxConfig.provider,
-      provider_keys: { [writingAuxConfig.provider]: writingAuxConfig.api_key },
       base_url: writingAuxConfig.base_url,
       model: writingAuxConfig.model,
       temperature: config.llm.temperature,
       max_tokens: config.llm.max_tokens,
       thinking_level: config.llm.thinking_level,
     };
+    api_key = writingAuxConfig.api_key;
   } else if (options.configScope === 'writing') {
     const writingConfig = getWritingLlmConfig();
     const writingLlm = config.writing?.llm ?? {};
     llm = {
       provider: writingConfig.provider,
-      provider_keys: { [writingConfig.provider]: writingConfig.api_key },
       base_url: writingConfig.base_url,
       model: writingConfig.model,
       // 写作模型保留独立的 temperature / max_tokens（null 时回退主模型），thinking_level 跟随主模型
@@ -97,11 +97,11 @@ function buildLLMConfig(options = {}) {
       max_tokens: writingLlm.max_tokens ?? config.llm.max_tokens,
       thinking_level: config.llm.thinking_level,
     };
+    api_key = writingConfig.api_key;
   } else {
     llm = config.llm;
+    api_key = config.provider_keys?.[llm.provider] || '';
   }
-
-  const api_key = llm.provider_keys?.[llm.provider] || '';
 
   return {
     provider: llm.provider,

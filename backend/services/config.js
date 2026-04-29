@@ -10,7 +10,6 @@ const CONFIG_PATH = process.env.WE_CONFIG_PATH
 
 const DEFAULT_AUX_LLM = {
   provider: null,
-  provider_keys: {},
   provider_models: {},
   base_url: null,
   model: null,
@@ -23,9 +22,10 @@ const DEFAULT_ASSISTANT = {
 const DEFAULT_CONFIG = {
   version: 1,
   proxy_url: '',
+  // 顶层共享 API Key 池：{ providerName: api_key }，所有 LLM/Embedding section 共用
+  provider_keys: {},
   llm: {
     provider: 'openai',
-    provider_keys: {},
     provider_models: {},
     base_url: '',
     model: '',
@@ -35,7 +35,6 @@ const DEFAULT_CONFIG = {
   },
   embedding: {
     provider: 'openai',
-    provider_keys: {},
     provider_models: {},
     base_url: '',
     model: 'text-embedding-3-small',
@@ -61,7 +60,7 @@ const DEFAULT_CONFIG = {
       enabled: false,
     },
     llm_raw: {
-      enabled:false,
+      enabled: false,
     },
   },
   writing: {
@@ -72,7 +71,6 @@ const DEFAULT_CONFIG = {
     memory_expansion_enabled: true,
     llm: {
       provider: null,
-      provider_keys: {},
       provider_models: {},
       base_url: null,
       model: '',
@@ -97,7 +95,6 @@ const DEFAULT_WRITING = {
   memory_expansion_enabled: true,
   llm: {
     provider: null,
-    provider_keys: {},
     provider_models: {},
     base_url: null,
     model: '',
@@ -147,6 +144,32 @@ function deepMerge(target, source) {
 }
 
 /**
+ * 把指定 section 残留的 provider_keys 合并到顶层共享池，然后删除 section 内副本。
+ * 优先保留已存在的顶层值（不覆盖）。返回 true 表示发生了变更。
+ */
+function mergeSectionKeys(section, sharedKeys) {
+  if (!section || typeof section !== 'object') return false;
+  let dirty = false;
+  if ('api_key' in section) {
+    if (section.api_key && section.provider && !sharedKeys[section.provider]) {
+      sharedKeys[section.provider] = section.api_key;
+    }
+    delete section.api_key;
+    dirty = true;
+  }
+  if (section.provider_keys && typeof section.provider_keys === 'object') {
+    for (const [provider, key] of Object.entries(section.provider_keys)) {
+      if (key && !sharedKeys[provider]) {
+        sharedKeys[provider] = key;
+      }
+    }
+    delete section.provider_keys;
+    dirty = true;
+  }
+  return dirty;
+}
+
+/**
  * 读取当前配置，不存在则初始化默认配置并写入文件
  */
 export function getConfig() {
@@ -166,22 +189,13 @@ export function getConfig() {
     dirty = true;
   }
 
-  // 迁移旧 api_key → provider_keys，然后删除 api_key
-  for (const section of ['llm', 'embedding']) {
-    if (!config[section] || typeof config[section] !== 'object') continue;
-    if (!config[section].provider_keys || typeof config[section].provider_keys !== 'object') {
-      config[section].provider_keys = {};
-      dirty = true;
-    }
-    const { provider, api_key, provider_keys } = config[section];
-    if (api_key) {
-      // 若当前 provider 还没有 key，把旧 api_key 迁入
-      if (provider && !provider_keys[provider]) {
-        config[section].provider_keys[provider] = api_key;
-      }
-      delete config[section].api_key;
-      dirty = true;
-    }
+  // 顶层共享 provider_keys 迁移：把 5 套独立 provider_keys 合并到顶层
+  if (!config.provider_keys || typeof config.provider_keys !== 'object' || Array.isArray(config.provider_keys)) {
+    config.provider_keys = {};
+    dirty = true;
+  }
+  for (const section of [config.llm, config.embedding, config.aux_llm, config.writing?.llm, config.writing?.aux_llm]) {
+    if (mergeSectionKeys(section, config.provider_keys)) dirty = true;
   }
 
   if (!config.logging || typeof config.logging !== 'object' || Array.isArray(config.logging)) {
@@ -240,17 +254,11 @@ export function getConfig() {
     if (!config.writing.llm || typeof config.writing.llm !== 'object') {
       config.writing.llm = structuredClone(DEFAULT_WRITING.llm);
     }
-    if (!config.writing.llm.provider_keys || typeof config.writing.llm.provider_keys !== 'object') {
-      config.writing.llm.provider_keys = {};
-    }
     if (!config.writing.llm.provider_models || typeof config.writing.llm.provider_models !== 'object') {
       config.writing.llm.provider_models = {};
     }
     if (!config.writing.aux_llm || typeof config.writing.aux_llm !== 'object') {
       config.writing.aux_llm = structuredClone(DEFAULT_WRITING.aux_llm);
-    }
-    if (!config.writing.aux_llm.provider_keys || typeof config.writing.aux_llm.provider_keys !== 'object') {
-      config.writing.aux_llm.provider_keys = {};
     }
     if (!config.writing.aux_llm.provider_models || typeof config.writing.aux_llm.provider_models !== 'object') {
       config.writing.aux_llm.provider_models = {};
@@ -261,13 +269,11 @@ export function getConfig() {
       llm: {
         ...DEFAULT_WRITING.llm,
         ...config.writing.llm,
-        provider_keys: { ...config.writing.llm.provider_keys },
         provider_models: { ...config.writing.llm.provider_models },
       },
       aux_llm: {
         ...DEFAULT_WRITING.aux_llm,
         ...config.writing.aux_llm,
-        provider_keys: { ...config.writing.aux_llm.provider_keys },
         provider_models: { ...config.writing.aux_llm.provider_models },
       },
     };
@@ -287,16 +293,12 @@ export function getConfig() {
   if (!config.aux_llm || typeof config.aux_llm !== 'object') {
     config.aux_llm = structuredClone(DEFAULT_AUX_LLM);
   } else {
-    if (!config.aux_llm.provider_keys || typeof config.aux_llm.provider_keys !== 'object') {
-      config.aux_llm.provider_keys = {};
-    }
     if (!config.aux_llm.provider_models || typeof config.aux_llm.provider_models !== 'object') {
       config.aux_llm.provider_models = {};
     }
     config.aux_llm = {
       ...DEFAULT_AUX_LLM,
       ...config.aux_llm,
-      provider_keys: { ...config.aux_llm.provider_keys },
       provider_models: { ...config.aux_llm.provider_models },
     };
   }
@@ -321,6 +323,30 @@ export function updateConfig(patch) {
   return merged;
 }
 
+/** 读取顶层共享 provider_keys 中指定 provider 的 key */
+export function getProviderKey(provider) {
+  if (!provider) return '';
+  const config = getConfig();
+  return config.provider_keys?.[provider] || '';
+}
+
+/**
+ * 写入指定 provider 的 API Key 到顶层共享池
+ * 所有 LLM/Embedding section 共用，不再按 section 区分
+ */
+export function updateProviderKey(provider, key) {
+  if (!provider || typeof provider !== 'string') {
+    throw new Error('provider 必须为字符串');
+  }
+  const current = getConfig();
+  if (!current.provider_keys || typeof current.provider_keys !== 'object') {
+    current.provider_keys = {};
+  }
+  current.provider_keys[provider] = key;
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  return current;
+}
+
 /**
  * 获取有效的副模型(aux_llm)配置
  * 若副模型未配置(provider=null)，则回退到主模型配置
@@ -333,35 +359,18 @@ export function getAuxLlmConfig() {
   if (!auxLlm.provider) {
     return {
       provider: config.llm.provider,
-      api_key: config.llm.provider_keys?.[config.llm.provider] || '',
+      api_key: config.provider_keys?.[config.llm.provider] || '',
       base_url: config.llm.base_url,
       model: config.llm.model,
     };
   }
 
-  // 副模型已配置
   return {
     provider: auxLlm.provider,
-    api_key: auxLlm.provider_keys?.[auxLlm.provider] || '',
+    api_key: config.provider_keys?.[auxLlm.provider] || '',
     base_url: auxLlm.base_url,
     model: auxLlm.model,
   };
-}
-
-/**
- * 更新副模型的 API Key
- */
-export function updateAuxApiKey(provider, key) {
-  const current = getConfig();
-  if (!current.aux_llm) {
-    current.aux_llm = structuredClone(DEFAULT_AUX_LLM);
-  }
-  if (!current.aux_llm.provider_keys) {
-    current.aux_llm.provider_keys = {};
-  }
-  current.aux_llm.provider_keys[provider] = key;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
-  return current;
 }
 
 /**
@@ -375,7 +384,7 @@ export function getWritingLlmConfig() {
   if (!writingLlm.provider) {
     return {
       provider: config.llm.provider,
-      api_key: config.llm.provider_keys?.[config.llm.provider] || '',
+      api_key: config.provider_keys?.[config.llm.provider] || '',
       base_url: config.llm.base_url,
       model: config.llm.model,
     };
@@ -383,23 +392,10 @@ export function getWritingLlmConfig() {
 
   return {
     provider: writingLlm.provider,
-    api_key: writingLlm.provider_keys?.[writingLlm.provider] || '',
+    api_key: config.provider_keys?.[writingLlm.provider] || '',
     base_url: writingLlm.base_url,
     model: writingLlm.model,
   };
-}
-
-/**
- * 更新写作主模型的 API Key
- */
-export function updateWritingApiKey(provider, key) {
-  const current = getConfig();
-  if (!current.writing) current.writing = structuredClone(DEFAULT_WRITING);
-  if (!current.writing.llm) current.writing.llm = structuredClone(DEFAULT_WRITING.llm);
-  if (!current.writing.llm.provider_keys) current.writing.llm.provider_keys = {};
-  current.writing.llm.provider_keys[provider] = key;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
-  return current;
 }
 
 /**
@@ -413,7 +409,7 @@ export function getWritingAuxLlmConfig() {
   if (writingAux.provider) {
     return {
       provider: writingAux.provider,
-      api_key: writingAux.provider_keys?.[writingAux.provider] || '',
+      api_key: config.provider_keys?.[writingAux.provider] || '',
       base_url: writingAux.base_url,
       model: writingAux.model,
     };
@@ -421,17 +417,4 @@ export function getWritingAuxLlmConfig() {
 
   // 回退到对话副模型（getAuxLlmConfig 内部再次回退到对话主模型）
   return getAuxLlmConfig();
-}
-
-/**
- * 更新写作副模型的 API Key
- */
-export function updateWritingAuxApiKey(provider, key) {
-  const current = getConfig();
-  if (!current.writing) current.writing = structuredClone(DEFAULT_WRITING);
-  if (!current.writing.aux_llm) current.writing.aux_llm = structuredClone(DEFAULT_AUX_LLM);
-  if (!current.writing.aux_llm.provider_keys) current.writing.aux_llm.provider_keys = {};
-  current.writing.aux_llm.provider_keys[provider] = key;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
-  return current;
 }
