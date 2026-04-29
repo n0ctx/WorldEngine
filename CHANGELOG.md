@@ -3,6 +3,19 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 refactor: Anthropic 模型列表改为接口实拉，移除硬编码
+
+**背景**：`backend/routes/config.js` 此前对 anthropic provider 硬编码 5 个 model id，输入 key 也不会去拉真实接口；新模型上线后需要手动改代码。
+
+**改动**：
+- `backend/routes/config.js`：`fetchModels` 中 anthropic 分支改为调用 `${base}/v1/models`（带 `x-api-key` + `anthropic-version: 2023-06-01`），无 key 时直接抛错；返回的 model id 仍通过 `KNOWN_PRICES` 兜底价格
+- 删除 `ANTHROPIC_MODELS` 常量；其原本承载的 5 个 Claude 模型价格搬入 `KNOWN_PRICES`（含 `cacheWritePrice` / `cacheReadPrice`）
+- `resolveModelPricing` 简化为只查 `KNOWN_PRICES`，并把 cache 价格透传到响应
+
+**验证方式**：设置页选 anthropic provider，无 key 时显示"Anthropic 需要 API Key 才能拉取模型列表"；保存有效 key 后模型下拉列表能动态拉到完整 Claude 模型清单，已知模型价格仍正确显示。
+
+**残留风险**：`coding plan` 系列（kimi-coding / minimax-coding / glm-coding / xiaomi）仍走 `getStaticCodingPlanModels` 硬编码——这些是会员配额套餐，官方未必开放 `/models` 接口，保留硬编码。
+
 ## 2026-04-29 refactor: API Key 改为顶层共享池，对话/写作主副 + Embedding 共用一份
 
 **背景**：原本 `data/config.json` 在五处独立维护 `provider_keys`（`llm` / `embedding` / `aux_llm` / `writing.llm` / `writing.aux_llm`）。同一个 OpenAI key 在四个对话/写作 section 之间需要重复保存才能生效，UX 与认知负担都很重。

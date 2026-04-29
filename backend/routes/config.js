@@ -44,20 +44,17 @@ function sanitizeBaseUrlPatch(section) {
   section.base_url = validateModelFetchBaseUrl(section.provider, section.base_url);
 }
 
-/** 查询当前模型的静态价格，优先 ANTHROPIC_MODELS，其次 KNOWN_PRICES */
+/** 查询当前模型的静态价格 */
 function resolveModelPricing(modelId) {
   if (!modelId) return null;
-  const anthropic = ANTHROPIC_MODELS.find((m) => m.id === modelId);
-  if (anthropic) {
-    return {
-      inputPrice: anthropic.inputPrice,
-      outputPrice: anthropic.outputPrice,
-      cacheWritePrice: anthropic.cacheWritePrice ?? null,
-      cacheReadPrice: anthropic.cacheReadPrice ?? null,
-    };
-  }
   const known = KNOWN_PRICES.get(modelId);
-  return known ? { inputPrice: known.inputPrice, outputPrice: known.outputPrice, cacheWritePrice: null, cacheReadPrice: null } : null;
+  if (!known) return null;
+  return {
+    inputPrice: known.inputPrice,
+    outputPrice: known.outputPrice,
+    cacheWritePrice: known.cacheWritePrice ?? null,
+    cacheReadPrice: known.cacheReadPrice ?? null,
+  };
 }
 
 // GET /api/config — 返回当前配置（去掉 api_key）
@@ -198,17 +195,14 @@ router.put('/provider-key', (req, res) => {
 // 模型列表拉取 — 公共逻辑
 // ============================================================
 
-// 价格单位：美元 / 1M tokens
-const ANTHROPIC_MODELS = [
-  { id: 'claude-opus-4-5',   inputPrice: 15,  outputPrice: 75,  cacheWritePrice: 18.75, cacheReadPrice: 1.5  },
-  { id: 'claude-sonnet-4-5', inputPrice: 3,   outputPrice: 15,  cacheWritePrice: 3.75,  cacheReadPrice: 0.3  },
-  { id: 'claude-haiku-4-5',  inputPrice: 0.8, outputPrice: 4,   cacheWritePrice: 1,     cacheReadPrice: 0.08 },
-  { id: 'claude-opus-4-0',   inputPrice: 15,  outputPrice: 75,  cacheWritePrice: 18.75, cacheReadPrice: 1.5  },
-  { id: 'claude-sonnet-4-0', inputPrice: 3,   outputPrice: 15,  cacheWritePrice: 3.75,  cacheReadPrice: 0.3  },
-];
-
 // 静态价格表，用于无 API 价格返回的 provider（单位 $/1M tokens，来源：各官网公开定价）
 const KNOWN_PRICES = new Map([
+  // Anthropic
+  ['claude-opus-4-5',   { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
+  ['claude-sonnet-4-5', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
+  ['claude-haiku-4-5',  { inputPrice: 0.8, outputPrice: 4,  cacheWritePrice: 1,     cacheReadPrice: 0.08 }],
+  ['claude-opus-4-0',   { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
+  ['claude-sonnet-4-0', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
   // OpenAI
   ['gpt-4o',                { inputPrice: 2.5,   outputPrice: 10    }],
   ['gpt-4o-mini',           { inputPrice: 0.15,  outputPrice: 0.6   }],
@@ -348,8 +342,26 @@ async function fetchModels(provider, apiKey, baseUrl) {
   const staticModels = getStaticCodingPlanModels(provider);
   if (staticModels) return staticModels;
 
-  // Anthropic — 硬编码（含价格）
-  if (provider === 'anthropic') return ANTHROPIC_MODELS;
+  // Anthropic — 原生 /v1/models 接口
+  if (provider === 'anthropic') {
+    if (!apiKey) throw new Error('Anthropic 需要 API Key 才能拉取模型列表');
+    const base = (baseUrl || DEFAULT_BASE_URLS.anthropic).replace(/\/+$/, '');
+    const resp = await fetch(`${base}/v1/models`, {
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+    });
+    if (!resp.ok) {
+      let providerError = null;
+      try {
+        providerError = extractProviderError(await resp.json());
+      } catch { /* not JSON */ }
+      throw new Error(providerError || `API ${resp.status}`);
+    }
+    const data = await resp.json();
+    return (data.data || []).map((m) => ({ id: m.id, ...(KNOWN_PRICES.get(m.id) || {}) }));
+  }
 
   // Gemini — 原生接口（暂无价格）
   if (provider === 'gemini') {
