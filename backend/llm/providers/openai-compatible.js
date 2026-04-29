@@ -14,6 +14,36 @@ function assertOpenAICompatibleData(data, config) {
 }
 
 /**
+ * OpenRouter 的 prompt caching / sticky routing 依赖首条 system/developer 与首条 non-system。
+ * 当前 assembler 为兼容 Grok，把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并进首条 system。
+ * 对 OpenRouter，这会导致首条 system 每轮变化，削弱缓存稳定性。
+ *
+ * 仅在 provider=openrouter 且 messages[0] 以 cacheableSystem 为前缀时，
+ * 将首条 system 拆成两条：
+ *   1) 稳定 cached prefix（[1-3.5]）
+ *   2) 动态 system suffix（[4-10]）
+ * 其他 provider 保持原结构不变，避免影响 Grok / Gemini 已调好的 cache 路径。
+ */
+export function normalizeOpenAICompatibleMessages(messages, config) {
+  if (config?.provider !== 'openrouter') return messages;
+  if (!Array.isArray(messages) || messages.length === 0) return messages;
+  if (!config?.cacheableSystem) return messages;
+
+  const [first, ...rest] = messages;
+  if (first?.role !== 'system' || typeof first.content !== 'string') return messages;
+  if (!first.content.startsWith(config.cacheableSystem)) return messages;
+
+  const dynamicSystem = first.content.slice(config.cacheableSystem.length).replace(/^\s*\n+/, '');
+  if (!dynamicSystem) return messages;
+
+  return [
+    { ...first, content: config.cacheableSystem },
+    { role: 'system', content: dynamicSystem },
+    ...rest,
+  ];
+}
+
+/**
  * 构造请求头：xAI/Grok 在有 conversationId 时附加 x-grok-conv-id，
  * 用于把同一会话路由到同一缓存服务器，最大化 prompt cache 命中。
  * 其他 provider 不附加（避免被错误识别为非法字段）。
@@ -32,11 +62,12 @@ export function buildOpenAICompatibleHeaders(config) {
 export async function* streamOpenAICompatible(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
+  const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
 
   const effort = resolveReasoningEffort(config.thinking_level);
   const body = {
     model: config.model,
-    messages,
+    messages: normalizedMessages,
     max_tokens: config.max_tokens,
     stream: true,
     stream_options: { include_usage: true },
@@ -98,11 +129,12 @@ export async function* streamOpenAICompatible(messages, config) {
 export async function completeOpenAICompatible(messages, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
+  const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
 
   const effort = resolveReasoningEffort(config.thinking_level);
   const body = {
     model: config.model,
-    messages,
+    messages: normalizedMessages,
     max_tokens: config.max_tokens,
     stream: false,
   };
@@ -140,7 +172,7 @@ export async function completeOpenAICompatible(messages, config) {
 export async function completeOpenAICompatibleWithTools(messages, toolDefs, toolHandlers, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
-  let currentMessages = [...messages];
+  let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
 
   for (let i = 0; i < 5; i++) {
     const effort = resolveReasoningEffort(config.thinking_level);
@@ -185,7 +217,7 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
 export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers, config) {
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
-  let currentMessages = [...messages];
+  let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
   let enriched = false;
 
   for (let i = 0; i < 5; i++) {

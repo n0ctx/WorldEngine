@@ -3,6 +3,29 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: OpenRouter 发送前拆双 system，恢复 GLM-5.1 稳定 cached prefix，不影响其他 provider
+
+**背景**：`openrouter + z-ai/glm-5.1` 实测 `cached_tokens` 在 3k+ 与 0 之间抖动。排查 `data/logs/llm-raw/*.json` 与 `worldengine-2026-04-29.log` 后确认，问题不在 `cache_read_tokens` 统计，而在 OpenRouter 的 sticky routing / prompt caching 指纹：当前 assembler 为兼容 Grok，把 `[1-3.5]` 稳定前缀与 `[4-10]` 动态后缀合并进首条 `system`，导致 OpenRouter 看到的首条 `system` 每轮都变化，连续请求 `prefix512/1024/2048Stable=false`，路由容易落到不同上游 provider，命中不稳定。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js` 新增 `normalizeOpenAICompatibleMessages(messages, config)`
+- 仅当 `provider === 'openrouter'` 且首条 `system` 以 `cacheableSystem` 为前缀时，在发送前把首条 system 拆成两条：
+  - 第 1 条：稳定 cached prefix（[1-3.5]）
+  - 第 2 条：动态 system suffix（[4-10]）
+- `streamOpenAICompatible / completeOpenAICompatible / completeOpenAICompatibleWithTools / resolveToolContextOpenAI` 全部走该 helper
+- 其他 provider（含 `grok` / `openai` / `deepseek` / `kimi`）完全保持原消息结构，不影响既有 cache 路径
+- `backend/tests/llm/openai-compatible-headers.test.js` 新增 4 个用例，覆盖 openrouter 拆分、无动态后缀不拆、非 openrouter 不拆、prefix 不匹配不拆
+- `ARCHITECTURE.md §4` 补充 OpenRouter 发送层双 system 特例说明
+
+**为什么不改 assembler**：assembler 当前的“单 system 合并”是为 Grok prefix cache 量身调过的。直接在通用 prompt 构造层改回双 system，会把其他 provider 一起拖回去；把差异限制在 OpenRouter 发送层，影响面最小。
+
+**验证**：
+- `cd backend && node --test tests/llm/openai-compatible-headers.test.js`
+- 人工验证：配置 `openrouter + z-ai/glm-5.1`，同一 session 连续发 3 轮，观察 `data/logs/llm-raw/*openrouter*.json` 中 messages[0] 应只含稳定 cached prefix，messages[1] 为 dynamic system；第 2 轮起 `usage.prompt_tokens_details.cached_tokens` 更应接近 `[1-3.5]` 稳定前缀长度而非随机 0
+- 对照：`grok` / `gemini` 请求 shape 不变
+
+**注意**：OpenRouter 仍可能因平台级 provider fallback 导致偶发 miss；本次修复目标是把“首条 system 每轮变化”这个我们自身造成的 cache 不稳定因素去掉。
+
 ## 2026-04-29 fix: Gemini 3.x 接 explicit cachedContents API，恢复 cache 命中
 
 **背景**：实测 `gemini-3.1-flash-lite-preview` 连续三轮对话 `token_usage.cache_read_tokens` 全部为空。查 Google issue #2064 确认 Gemini 3 系列 implicit caching 在 prompt size 9K-17K tokens 区间存在 dead zone，flash-lite preview 几乎无命中。Gemini 3 在 explicit `cachedContents` API 上仍可正常工作（命中省 90% input cost），故为该模型档位补 explicit cache 路径。
