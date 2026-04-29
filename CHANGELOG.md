@@ -3,6 +3,28 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: desktop dist 前强制清空构建产物，修复 mac-arm64 ENOTEMPTY 打包失败
+
+**背景**：执行 `cd desktop && npm run dist` 时，mac x64 阶段可以推进，但在打包 `darwin arm64` 时失败：
+
+`ENOTEMPTY: directory not empty, rename 'dist/mac-arm64/Electron.app' -> 'dist/mac-arm64/WorldEngine.app'`
+
+**根因**：`electron-builder` 默认复用 `desktop/dist/` 输出目录；前一次失败或中断后遗留的 `dist/mac-arm64/WorldEngine.app` 没有在新一轮构建前清理，导致下一次打包把 `Electron.app` 重命名为 `WorldEngine.app` 时撞上旧目录。原脚本只在末尾删 `*.blockmap`，没有做构建前清场。
+
+**改动**：
+- 新增 `desktop/scripts/clean-dist.js`，在构建前统一删除 `desktop/dist`
+- `desktop/package.json` 新增 `clean-dist` 脚本
+- `build` / `dist` 脚本调整为：先 `npm run clean-dist`，再 `prepare-build` 和 `electron-builder`
+- `clean-dist.js` 额外加入 `maxRetries` / `retryDelay`，规避 macOS 上偶发的 `fs.rmSync(...): ENOTEMPTY`
+
+**验证**：
+- `cd desktop && npm run clean-dist`
+- `cd desktop && npm run dist`
+- 本次完整跑通到：
+  - `dist/WorldEngine-0.0.2-mac-x64.dmg`
+  - `dist/WorldEngine-0.0.2-mac-arm64.dmg`
+  - `dist/WorldEngine-0.0.2-win-x64.exe`
+
 ## 2026-04-29 fix: frontend audit 无需变更，desktop 升级到安全版 Electron 39.8.9
 
 **背景**：

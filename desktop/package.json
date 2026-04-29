@@ -5,10 +5,11 @@
   "type": "module",
   "main": "src/main.js",
   "scripts": {
+    "clean-dist": "node scripts/clean-dist.js",
     "prepare-build": "node scripts/prepare-build.js",
     "start": "electron .",
-    "build": "npm run prepare-build && electron-builder && rm -f dist/*.blockmap",
-    "dist": "npm run prepare-build && electron-builder --mac --win && rm -f dist/*.blockmap"
+    "build": "npm run clean-dist && npm run prepare-build && electron-builder && rm -f dist/*.blockmap",
+    "dist": "npm run clean-dist && npm run prepare-build && electron-builder --mac --win && rm -f dist/*.blockmap"
   },
   "devDependencies": {
     "electron": "^39.8.9",
