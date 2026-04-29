@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix(next_prompt): think 块内的 next_prompt 不再误渲染为选项卡
+
+**背景**：LLM 流式输出时偶尔会在 `<think>` / `<thinking>` 推理块内输出 `<next_prompt>` 标签（提醒自己稍后给选项），前端误把它当作真正的下一步选项 chip 渲染。原 `parseNextPromptStream` 只识别严格 `<think>`，与 `MessageItem.parseStreamingBlocks` 的 `/<\s*think(?:ing)?\s*>/i` 不一致，`<thinking>` 变体或带空格写法均被漏判。
+
+**改动**：`frontend/src/utils/next-prompt.js`
+- 引入 `THINK_CLOSED_BLOCK_RE` / `THINK_OPEN_TAIL_RE`，与 MessageItem 同源正则。
+- 新增 `stripThinkBlocks()`：剥离已闭合 think 块和未闭合尾部 think 块。
+- `parseNextPromptStream` 改为先在 cleaned 文本上 indexOf `<next_prompt>`，再用 `findRawAnchor` 把位置映射回原文，保证 think 块原样保留供 ThinkBlock 折叠渲染。
+- 删除旧 `isInsideOpenThink`，逻辑被 `stripThinkBlocks` 覆盖。
+
+**验证**：node 内联用例 7 项全通过（含 `<think>`/`<thinking>`、闭合/未闭合、纯正文回归）；前端 dev 触发会输出 think 的模型对话，确认 think 内 `<next_prompt>` 不再产出 chip，think 闭合后真实选项仍正常渲染。
+
+**同步文档**：CHANGELOG（本条）。SCHEMA / ARCHITECTURE 无变化（纯前端解析层修复）。
+
+**锁定文件**：未触及。
+
+**残留风险**：模型若产出"只开不关"且后续不再闭合的 think，整段尾部都会被忽略——与"未闭合 think 不渲染选项"语义一致，符合预期。
+
 ## 2026-04-29 ui(entry): 关键词条目编辑改为 chip 回车输入
 
 **背景**：`EntryEditor.jsx` 中 `trigger_type=keyword` 的关键词输入是逗号分隔的纯文本框，与后端数组存储不一致，且无法处理中文逗号、重复词、可视化展示。
