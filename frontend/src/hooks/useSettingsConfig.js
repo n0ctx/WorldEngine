@@ -16,6 +16,8 @@ export function useSettingsConfig() {
   const [suggestionEnabled, setSuggestionEnabled] = useState(false);
   const [writingSuggestionEnabled, setWritingSuggestionEnabled] = useState(false);
   const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
+  const [longTermMemoryEnabled, setLongTermMemoryEnabled] = useState(false);
+  const [writingLongTermMemoryEnabled, setWritingLongTermMemoryEnabled] = useState(false);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
@@ -54,6 +56,8 @@ export function useSettingsConfig() {
       setSuggestionEnabled(c.suggestion_enabled === true);
       setWritingSuggestionEnabled(c.writing?.suggestion_enabled === true);
       setWritingMemoryExpansionEnabled(c.writing?.memory_expansion_enabled !== false);
+      setLongTermMemoryEnabled(c.long_term_memory_enabled === true);
+      setWritingLongTermMemoryEnabled(c.writing?.long_term_memory_enabled === true);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
       setShowThinkingStore(c.ui?.show_thinking !== false);
       setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
@@ -252,6 +256,16 @@ export function useSettingsConfig() {
     await patchConfig({ writing: { memory_expansion_enabled: enabled } });
   }
 
+  async function handleToggleLongTermMemory(enabled) {
+    setLongTermMemoryEnabled(enabled);
+    await patchConfig({ long_term_memory_enabled: enabled });
+  }
+
+  async function handleToggleWritingLongTermMemory(enabled) {
+    setWritingLongTermMemoryEnabled(enabled);
+    await patchConfig({ writing: { long_term_memory_enabled: enabled } });
+  }
+
   async function handleToggleShowThinking(enabled) {
     setShowThinkingLocal(enabled);
     setShowThinkingStore(enabled);
@@ -300,6 +314,8 @@ export function useSettingsConfig() {
     const w = c.writing || {};
     setWritingSuggestionEnabled(w.suggestion_enabled === true);
     setWritingMemoryExpansionEnabled(w.memory_expansion_enabled !== false);
+    setLongTermMemoryEnabled(c.long_term_memory_enabled === true);
+    setWritingLongTermMemoryEnabled(w.long_term_memory_enabled === true);
     setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
@@ -348,6 +364,8 @@ export function useSettingsConfig() {
       suggestionEnabled, onToggleSuggestion: handleToggleSuggestion,
       writingSuggestionEnabled, onToggleWritingSuggestion: handleToggleWritingSuggestion,
       writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
+      longTermMemoryEnabled, onToggleLongTermMemory: handleToggleLongTermMemory,
+      writingLongTermMemoryEnabled, onToggleWritingLongTermMemory: handleToggleWritingLongTermMemory,
       onSave: handleSaveGeneral,
       saving,
       saved,

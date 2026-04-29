@@ -16,11 +16,42 @@ import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TURN_SUMMARY_MAX_TOKENS } from '../utils/constants.js';
+import {
+  ALL_MESSAGES_LIMIT,
+  LLM_TASK_TEMPERATURE,
+  LLM_TURN_SUMMARY_MAX_TOKENS,
+  LONG_TERM_MEMORY_PER_TURN_MAX,
+} from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { captureStateSnapshot } from './state-rollback.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { getConfig } from '../services/config.js';
+import { renderWorldState } from './recall.js';
+import { appendMemoryLines } from '../services/long-term-memory.js';
+
+const LTM_DELIMITER = '<<<LONG_TERM_MEMORY>>>';
+
+/**
+ * 从 LLM 原始输出中切分摘要正文与长期记忆条目。
+ * - 仅当出现严格分隔符（独占一行的 <<<LONG_TERM_MEMORY>>>）时才取下半段
+ * - 长期记忆部分按行拆，过滤空行 / 列表前缀，最多取 LONG_TERM_MEMORY_PER_TURN_MAX 条
+ */
+function splitSummaryAndMemory(raw) {
+  const text = String(raw ?? '');
+  const re = /^\s*<<<LONG_TERM_MEMORY>>>\s*$/m;
+  const match = text.match(re);
+  if (!match) return { summary: text, memoryLines: [] };
+  const idx = match.index ?? -1;
+  const summary = text.slice(0, idx);
+  const tail = text.slice(idx + match[0].length);
+  const lines = tail
+    .split('\n')
+    .map((l) => l.replace(/^\s*[-*•·\d.)]+\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, LONG_TERM_MEMORY_PER_TURN_MAX);
+  return { summary, memoryLines: lines };
+}
 
 const log = createLogger('turn-sum');
 
@@ -72,26 +103,45 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     return;
   }
 
+  // 模式感知：决定是否启用长期记忆抽取（chat: long_term_memory_enabled，writing: writing.long_term_memory_enabled）
+  const config = getConfig();
+  const isWriting = session.mode === 'writing';
+  const ltmEnabled = isWriting
+    ? config.writing?.long_term_memory_enabled === true
+    : config.long_term_memory_enabled === true;
+
   // LLM 生成摘要（非流式，temp=0.3）
   let summary = '';
+  let memoryLines = [];
   try {
-    const prompt = [{
-      role: 'user',
-      content: renderBackendPrompt('memory-turn-summary.md', {
-        USER_NAME: userName,
-        CHARACTER_NAME: characterName,
-        USER_MESSAGE: userMsg.content,
-        ASSISTANT_MESSAGE: asstMsg.content,
-      }),
-    }];
+    const tplName = ltmEnabled ? 'memory-turn-summary-with-ltm.md' : 'memory-turn-summary.md';
+    const vars = {
+      USER_NAME: userName,
+      CHARACTER_NAME: characterName,
+      USER_MESSAGE: userMsg.content,
+      ASSISTANT_MESSAGE: asstMsg.content,
+    };
+    if (ltmEnabled) {
+      vars.WORLD_STATE = (worldId ? renderWorldState(worldId, sessionId) : '') || '（无世界状态）';
+    }
+    const prompt = [{ role: 'user', content: renderBackendPrompt(tplName, vars) }];
     const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
-    // 剥除 <think>...</think> 推理链，再清理标题前缀（如 **摘要：** ）
-    summary = (raw || '')
+    // 剥除 <think>...</think> 推理链
+    const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
-      .replace(/<think>[\s\S]*$/, '')
-      .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
-      .trim();
-    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
+      .replace(/<think>[\s\S]*$/, '');
+    if (ltmEnabled) {
+      const split = splitSummaryAndMemory(stripped);
+      memoryLines = split.memoryLines;
+      summary = split.summary
+        .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
+        .trim();
+    } else {
+      summary = stripped
+        .replace(/^\s*\*{1,2}[^*\n]{0,20}[：:]\*{0,2}\s*/u, '')
+        .trim();
+    }
+    log.info(`SUMMARY RAW  ${formatMeta({ session: sid, chars: summary.length, ltm: memoryLines.length, preview: shouldLogRaw('llm_raw') ? previewText(summary) : undefined })}`);
   } catch (err) {
     log.warn(`SUMMARY FAIL  ${formatMeta({ session: sid, error: err.message })}`);
     // 降级：用前 100 字作为摘要
@@ -121,6 +171,11 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   });
 
   log.info(`DONE  ${formatMeta({ session: sid, round: round_index, len: summary.length, recordId: record?.id ?? null })}`);
+
+  // 长期记忆条目落盘（不阻塞主流程；isUpdate 仍允许追加，因为同一轮重写不应丢失之前已抽取的记忆——LLM 输出顺序保证不会重复）
+  if (ltmEnabled && memoryLines.length > 0) {
+    appendMemoryLines(sessionId, memoryLines).catch((err) => log.warn(`LTM APPEND FAIL  ${formatMeta({ session: sid, error: err.message })}`));
+  }
 
   // 异步触发 embedding（不阻塞）
   if (record && worldId) {

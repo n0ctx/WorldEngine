@@ -13,6 +13,7 @@ import { unlinkUploadFile, unlinkUploadFiles } from '../utils/file-cleanup.js';
 import * as sessionSummaryVectorStore from '../utils/session-summary-vector-store.js';
 import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
+import { deleteMemoryDir as deleteLongTermMemoryDir } from './long-term-memory.js';
 
 import {
   getAttachmentsByMessageId,
@@ -106,6 +107,25 @@ registerOnDelete('character', async (cid) => {
 registerOnDelete('world', async (wid) => {
   for (const sid of getSessionIdsByWorldId(wid)) {
     deleteDiaryDir(sid);
+  }
+});
+
+// ── 长期记忆文件目录 ─────────────────────────────────────────────
+// 模块：long-term-memory — 管理 data/long_term_memory/{sessionId}/ 目录
+
+registerOnDelete('session', async (sid) => {
+  deleteLongTermMemoryDir(sid);
+});
+
+registerOnDelete('character', async (cid) => {
+  for (const sid of getSessionIdsByCharacterId(cid)) {
+    deleteLongTermMemoryDir(sid);
+  }
+});
+
+registerOnDelete('world', async (wid) => {
+  for (const sid of getSessionIdsByWorldId(wid)) {
+    deleteLongTermMemoryDir(sid);
   }
 });
 

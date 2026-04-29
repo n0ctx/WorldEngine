@@ -3,6 +3,37 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 feat(memory): 会话级长期记忆（手动 + LLM 半自动）
+
+**背景**：现有 turn_records 摘要 + 向量召回擅长保留对话流水，但不擅长沉淀"长期有效的事实/转折"。新增会话级长期记忆通道：每轮顺手让摘要 LLM 抽 0–2 条关键事实写入 md，组装提示词时注入；用户也可手动编辑覆盖。
+
+**改动**：
+- 后端
+  - 新增 `backend/services/long-term-memory.js`：`data/long_term_memory/{sessionId}/memory.md` 的 IO + 行数超限 (>50) 时调 aux LLM 压缩到 <20 行。`WE_DATA_DIR` 路径与 diary、向量库同根，桌面端落到 `app.getPath('userData')`。
+  - 新增模板 `prompts/templates/memory-turn-summary-with-ltm.md`（带 LTM 抽取规则 + 三重门槛 + 时间前缀）和 `memory-long-term-compress.md`。
+  - `memory/turn-summarizer.js`：按 `sessions.mode` 选模板，从 `<<<LONG_TERM_MEMORY>>>` 分隔符拆 summary 与 LTM 段，行数清洗后 `appendMemoryLines`。
+  - `prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在 [8] 之后、[9] 之前插入 [8.5] `[长期记忆]` 段，受 `long_term_memory_enabled` / `writing.long_term_memory_enabled` 控制。
+  - `services/config.js`：默认值补 `long_term_memory_enabled=false`（顶层 + writing）。
+  - `services/cleanup-registrations.js`：`session/character/world` 删除时清理 `data/long_term_memory/{sessionId}/`。
+  - `routes/long-term-memory.js`：GET/PUT `/api/sessions/:sessionId/long-term-memory`，挂到 `server.js`。
+  - `utils/constants.js`：新增 4 个 LTM 常量 + 1 个压缩 max_tokens。
+- 前端
+  - 新增 `api/long-term-memory.js`、`components/session/LongTermMemoryModal.jsx`（基于 `ModalShell` + `Textarea`）。
+  - `pages/ChatPage.jsx` / `pages/WritingSpacePage.jsx`：会话顶部栏右侧追加图标按钮（aria-label="长期记忆"），点击打开弹窗。
+  - `styles/chat.css`：`.we-chat-center-header` 加 `gap: 8px`，新增 `.we-chat-center-action` 图标按钮样式。
+  - `hooks/useSettingsConfig.js` + `components/settings/FeaturesConfigPanel.jsx` + `pages/SettingsPage.jsx`：功能配置 → 记忆分组追加"长期记忆"开关，按 `settingsMode` 自动切换 chat/writing 字段。
+  - `components/index.js`：注册 `LongTermMemoryModal`。
+
+**验证**：
+- `cd frontend && npx vite build` 通过。
+- 待运行验证：开启对话长期记忆开关，发负样本（自我介绍）应不增条目，发含事实变故/关系转折的对话应新增 1–2 条；关闭开关后再发一轮文件不变；删除 session 时 `data/long_term_memory/{sessionId}/` 被清掉。
+
+**同步文档**：`SCHEMA.md`（config.json `long_term_memory_enabled` 字段）、`ARCHITECTURE.md`（§4 段位表新增 [8.5]，§10 cleanup 钩子表追加 long_term_memory 目录）、CHANGELOG（本条）。
+
+**锁定文件**：`backend/utils/constants.js`（新增常量）、`backend/prompts/assembler.js`（按段位规则新增 [8.5]，已同步 `ARCHITECTURE.md`）。
+
+**残留风险**：模板中 `<<<LONG_TERM_MEMORY>>>` 分隔符需依赖模型遵守；regenerate / isUpdate 路径不重写历史长期记忆，避免抖动。压缩调用与 turn-summarizer 共用 aux 模型，未单独限流。
+
 ## 2026-04-29 fix(next_prompt): think 块内的 next_prompt 不再误渲染为选项卡
 
 **背景**：LLM 流式输出时偶尔会在 `<think>` / `<thinking>` 推理块内输出 `<next_prompt>` 标签（提醒自己稍后给选项），前端误把它当作真正的下一步选项 chip 渲染。原 `parseNextPromptStream` 只识别严格 `<think>`，与 `MessageItem.parseStreamingBlocks` 的 `/<\s*think(?:ing)?\s*>/i` 不一致，`<thinking>` 变体或带空格写法均被漏判。

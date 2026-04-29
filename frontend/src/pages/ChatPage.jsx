@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import useStore from '../store/index.js';
 import Icon from '../components/ui/Icon.jsx';
+import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, editAssistantMessage, retitle } from '../api/chat.js';
@@ -44,6 +45,7 @@ export default function ChatPage() {
   const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [ltmOpen, setLtmOpen] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
@@ -812,13 +814,35 @@ export default function ChatPage() {
         {/* 顶部栏 */}
         <div className="we-chat-center-header">
           {currentSession ? (
-            <h1 className="we-chat-center-title">
-              {currentSession.title || '新对话'}
-            </h1>
+            <>
+              <h1 className="we-chat-center-title">
+                {currentSession.title || '新对话'}
+              </h1>
+              <button
+                type="button"
+                className="we-chat-center-action"
+                onClick={() => setLtmOpen(true)}
+                aria-label="长期记忆"
+                title="长期记忆"
+              >
+                <Icon size={20} aria-label="长期记忆">
+                  <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
+                  <path d="M8 8h8" />
+                  <path d="M8 12h8" />
+                  <path d="M8 16h5" />
+                </Icon>
+              </button>
+            </>
           ) : (
             <span className="flex-1" />
           )}
         </div>
+        {ltmOpen && currentSession && (
+          <LongTermMemoryModal
+            sessionId={currentSession.id}
+            onClose={() => setLtmOpen(false)}
+          />
+        )}
 
         {/* 消息列表 */}
         <MessageList

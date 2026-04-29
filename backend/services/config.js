@@ -50,6 +50,7 @@ const DEFAULT_CONFIG = {
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
+  long_term_memory_enabled: false,
   suggestion_enabled: false,
   log_prompt: false,
   logging: {
@@ -69,6 +70,7 @@ const DEFAULT_CONFIG = {
     context_history_rounds: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
+    long_term_memory_enabled: false,
     llm: {
       provider: null,
       provider_models: {},
@@ -93,6 +95,7 @@ const DEFAULT_WRITING = {
   context_history_rounds: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
+  long_term_memory_enabled: false,
   llm: {
     provider: null,
     provider_models: {},

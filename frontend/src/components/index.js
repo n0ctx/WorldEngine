@@ -52,6 +52,9 @@ export { default as WritingSessionList }  from './book/WritingSessionList';
 // — Writing 专属 —
 export { default as CharacterPreviewModal } from './writing/CharacterPreviewModal';
 
+// — Session 专属 —
+export { default as LongTermMemoryModal } from './session/LongTermMemoryModal';
+
 // — Settings 配置块 —
 export { default as AuxLlmBlock }         from './settings/AuxLlmBlock';
 export { default as AssistantModelBlock } from './settings/AssistantModelBlock';

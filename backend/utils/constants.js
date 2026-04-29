@@ -82,6 +82,20 @@ export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
 export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 
 // ============================
+// 长期记忆（会话级 md 文件）
+// ============================
+/** 单轮长期记忆条目数上限 */
+export const LONG_TERM_MEMORY_PER_TURN_MAX = 2;
+/** 单条长期记忆字符上限（10–20 字弹性，给一点冗余） */
+export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 30;
+/** 长期记忆文档触发压缩的行数阈值 */
+export const LONG_TERM_MEMORY_MAX_LINES = 50;
+/** 长期记忆压缩目标行数 */
+export const LONG_TERM_MEMORY_TARGET_LINES = 20;
+/** 长期记忆压缩调用最大 token 数 */
+export const LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS = 1024;
+
+// ============================
 // 状态字段长度限制
 // ============================
 /** text 字段值触发压缩的字数阈值 */

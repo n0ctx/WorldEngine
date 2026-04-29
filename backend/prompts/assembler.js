@@ -10,7 +10,8 @@
  *   [6]  玩家状态                     │
  *   [7]  角色状态                     │
  *   [8]  世界 State 条目              │ 动态后缀
- *   [9]  召回摘要                     │ （每轮变化）
+ *   [8.5] 长期记忆（开关启用时）      │ （每轮变化）
+ *   [9]  召回摘要                     │
  *   [10] 展开原文                     │
  *   [11] 日记注入                    ┘
  *
@@ -48,6 +49,7 @@ import {
   renderRecalledSummaries,
 } from '../memory/recall.js';
 import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
+import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
 import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -234,6 +236,15 @@ export async function buildPrompt(sessionId, options = {}) {
 
   if (entryTexts.length > 0) {
     dynamicSystemParts.push(entryTexts.join('\n\n'));
+  }
+
+  // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
+  if (config.long_term_memory_enabled === true) {
+    const ltm = readLongTermMemory(sessionId).trim();
+    if (ltm) {
+      dynamicSystemParts.push(`[长期记忆]\n${tv(ltm)}`);
+      log.debug(`│  [8.5] long-term memory injected  chars=${ltm.length}`);
+    }
   }
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
@@ -429,6 +440,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     });
   const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
   if (entryTexts.length > 0) dynamicSystemParts.push(entryTexts.join('\n\n'));
+
+  // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
+  if (writing.long_term_memory_enabled === true) {
+    const ltm = readLongTermMemory(sessionId).trim();
+    if (ltm) {
+      dynamicSystemParts.push(`[长期记忆]\n${tv(ltm)}`);
+      log.debug(`│  [8.5] long-term memory injected (writing)  chars=${ltm.length}`);
+    }
+  }
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);

@@ -34,6 +34,8 @@ import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import CharacterPreviewModal from '../components/writing/CharacterPreviewModal.jsx';
 import CharacterAnalyzingModal from '../components/writing/CharacterAnalyzingModal.jsx';
+import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
+import Icon from '../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { pushToast, pushErrorToast } from '../utils/toast.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
@@ -72,6 +74,7 @@ export default function WritingSpacePage() {
   const [currentSession, setCurrentSession] = useState(null);
   const [activeCharacters, setActiveCharacters] = useState([]);
   const [generating, setGenerating] = useState(false);
+  const [ltmOpen, setLtmOpen] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [streamingKey, setStreamingKey] = useState('__ws_stream_init__');
   const [continuingMessageId, setContinuingMessageId] = useState(null);
@@ -805,13 +808,35 @@ export default function WritingSpacePage() {
             {/* 章节标题区 */}
             <div className="we-chat-center-header">
               {currentSession ? (
-                <h1 className="we-chat-center-title">
-                  {currentSession.title || '写作进行中'}
-                </h1>
+                <>
+                  <h1 className="we-chat-center-title">
+                    {currentSession.title || '写作进行中'}
+                  </h1>
+                  <button
+                    type="button"
+                    className="we-chat-center-action"
+                    onClick={() => setLtmOpen(true)}
+                    aria-label="长期记忆"
+                    title="长期记忆"
+                  >
+                    <Icon size={20} aria-label="长期记忆">
+                      <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
+                      <path d="M8 8h8" />
+                      <path d="M8 12h8" />
+                      <path d="M8 16h5" />
+                    </Icon>
+                  </button>
+                </>
               ) : (
                 <span className="flex-1" />
               )}
             </div>
+            {ltmOpen && currentSession && (
+              <LongTermMemoryModal
+                sessionId={currentSession.id}
+                onClose={() => setLtmOpen(false)}
+              />
+            )}
 
             {/* 消息列表 */}
             <MessageList

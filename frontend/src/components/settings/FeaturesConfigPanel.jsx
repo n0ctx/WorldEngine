@@ -28,6 +28,8 @@ export default function FeaturesConfigPanel({
   writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
+  longTermMemoryEnabled, onToggleLongTermMemory,
+  writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -41,6 +43,8 @@ export default function FeaturesConfigPanel({
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const expansionEnabled = isChat ? memoryExpansionEnabled : writingMemoryExpansionEnabled;
   const onToggleExpansion = isChat ? onToggleMemoryExpansion : onToggleWritingMemoryExpansion;
+  const ltmEnabledCurrent = isChat ? longTermMemoryEnabled : writingLongTermMemoryEnabled;
+  const onToggleLtmCurrent = isChat ? onToggleLongTermMemory : onToggleWritingLongTermMemory;
   const diaryEnabled = isChat ? chatDiaryEnabled : writingDiaryEnabled;
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
@@ -95,6 +99,13 @@ export default function FeaturesConfigPanel({
           hint="召回历史摘要后允许 AI 读取原文，会略增加首包延迟"
           checked={expansionEnabled}
           onChange={onToggleExpansion}
+        />
+
+        <ToggleRow
+          label="长期记忆"
+          hint="每轮自动抽取关键事实写入长期记忆并注入提示词；关闭仅停止产出与注入，已有内容保留"
+          checked={ltmEnabledCurrent}
+          onChange={onToggleLtmCurrent}
         />
 
         <hr className="we-settings-divider" />

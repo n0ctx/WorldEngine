@@ -199,6 +199,7 @@ POST /api/sessions/:sessionId/chat
 | [6] | System 后缀 | `renderPersonaState(world.id)` | 空跳过 |
 | [7] | System 后缀 | `renderCharacterState(character.id)` | 空跳过 |
 | [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [4] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
+| [8.5] | System 后缀 | **长期记忆**：开关 `config.long_term_memory_enabled`（写作模式读 `config.writing.long_term_memory_enabled`）启用且 `data/long_term_memory/{sessionId}/memory.md` 非空时，注入 `[长期记忆]\n{content}`，经 `tv()` 渲染模板变量。开关关闭只停止注入，磁盘文件保留 | 关闭或文件为空时跳过 |
 | [9] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
@@ -512,9 +513,9 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | entity | 清理内容 |
 |---|---|
 | `message` | 删除该消息的附件文件（`/data/uploads/attachments/`） |
-| `session` | 删除该会话所有消息的附件文件 + session summary embedding + **turn summaries embedding** |
-| `character` | 删除相关消息附件 + 角色头像文件（`avatar_path`）+ prompt entries embedding + 该角色所有会话的 summary embedding + **turn summaries embedding** |
-| `world` | 删除相关消息附件 + 所有角色头像 + persona 头像 + 所有角色 prompt entries embedding + 所有会话 summary embedding + **turn summaries embedding** |
+| `session` | 删除该会话所有消息的附件文件 + session summary embedding + **turn summaries embedding** + **diary 目录** + **long_term_memory 目录** |
+| `character` | 删除相关消息附件 + 角色头像文件（`avatar_path`）+ prompt entries embedding + 该角色所有会话的 summary embedding + **turn summaries embedding** + **diary 目录** + **long_term_memory 目录** |
+| `world` | 删除相关消息附件 + 所有角色头像 + persona 头像 + 所有角色 prompt entries embedding + 所有会话 summary embedding + **turn summaries embedding** + **diary 目录** + **long_term_memory 目录** |
 
 **执行规则**：`runOnDelete(entity, id)` 在 DB DELETE 之前调用；钩子失败只 warn，不阻塞删除。
 

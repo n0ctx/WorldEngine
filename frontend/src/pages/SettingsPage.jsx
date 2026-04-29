@@ -109,6 +109,10 @@ export default function SettingsPage() {
                 onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
                 writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
                 onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
+                longTermMemoryEnabled={promptProps.longTermMemoryEnabled}
+                onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
+                writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
+                onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
                 chatDiaryEnabled={diaryProps.chatEnabled}
                 onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
                 chatDateMode={diaryProps.chatDateMode}
