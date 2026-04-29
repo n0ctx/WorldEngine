@@ -323,6 +323,24 @@ export default function WritingMessageItem({
               );
             })}
           </div>
+          {!editingAI && !isStreaming && message.token_usage && showTokenUsage && (
+            <div className="we-token-usage">
+              <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
+              <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
+              {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
+                <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
+              )}
+              {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
+                <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
+              )}
+              <span className="we-token-usage-unit">tokens</span>
+              {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
+                <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
+                  {formatCost(calcCost(message.token_usage, currentModelPricing))}
+                </span>
+              )}
+            </div>
+          )}
           {!isStreaming && (
             <div className="we-message-actions">
               <CopyBtn getText={() => content} />
@@ -352,24 +370,6 @@ export default function WritingMessageItem({
                 </button>
               )}
               {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
-            </div>
-          )}
-          {!editingAI && !isStreaming && message.token_usage && showTokenUsage && (
-            <div className="we-token-usage">
-              <span title="输入 tokens">↑{formatTokens(message.token_usage.prompt_tokens)}</span>
-              <span title="输出 tokens">↓{formatTokens(message.token_usage.completion_tokens)}</span>
-              {message.token_usage.cache_read_tokens != null && message.token_usage.cache_read_tokens > 0 && (
-                <span title="缓存命中 tokens">命中 {formatTokens(message.token_usage.cache_read_tokens)}</span>
-              )}
-              {message.token_usage.cache_creation_tokens != null && message.token_usage.cache_creation_tokens > 0 && (
-                <span title="缓存写入 tokens">写入 {formatTokens(message.token_usage.cache_creation_tokens)}</span>
-              )}
-              <span className="we-token-usage-unit">tokens</span>
-              {formatCost(calcCost(message.token_usage, currentModelPricing)) && (
-                <span className="we-token-usage-cost" title="本条消息估算费用（美元）">
-                  {formatCost(calcCost(message.token_usage, currentModelPricing))}
-                </span>
-              )}
             </div>
           )}
           {!editingAI && !isStreaming && message.activated_entries?.length > 0 && (
