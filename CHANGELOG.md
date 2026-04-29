@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: mac arm64 桌面包启动闪退，补打包遗漏的 shared 目录
+
+**背景**：`desktop/dist/mac-arm64/WorldEngine.app` 双击后立即退出。终端直启主进程可复现：
+
+`Error [ERR_MODULE_NOT_FOUND]: Cannot find module '.../Resources/shared/chapter-constants.mjs'`
+
+**根因**：`backend/utils/constants.js` 运行时会 import `../../shared/chapter-constants.mjs`，但 `desktop/electron-builder.json` 的 `extraResources` 只打包了 `backend`、`frontend`、`assistant` 和 `node-runtime`，漏掉了仓库根目录 `shared/`。包内后端启动即崩，Electron 主进程随之退出，表现为桌面应用“闪退”。
+
+**改动**：
+- `desktop/electron-builder.json` 新增 `../shared -> Resources/shared` 的 `extraResources` 复制规则
+
+**验证**：
+- 重新执行 `cd desktop && npm run dist`
+- 终端直启 `desktop/dist/mac-arm64/WorldEngine.app/Contents/MacOS/WorldEngine`
+- 启动日志不再出现 `ERR_MODULE_NOT_FOUND ... shared/chapter-constants.mjs`
+
 ## 2026-04-29 fix: desktop package metadata 补齐 description / author，消除 electron-builder 告警
 
 **背景**：执行 `cd desktop && npm run dist` 时，`electron-builder` 会提示：

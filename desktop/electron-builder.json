@@ -51,6 +51,11 @@
       ]
     },
     {
+      "from": "../shared",
+      "to": "shared",
+      "filter": ["**/*"]
+    },
+    {
       "from": "node-runtime",
       "to": "node",
       "filter": ["**/*"]
