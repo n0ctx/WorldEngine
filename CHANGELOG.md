@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: 修复写作和对话页面 token 统计部分字体不统一
+
+**问题**：token 统计显示（如"↑9K 1889 命中5.1K tokens"）中，中文和英文字体不一致，破坏视觉一致性。
+
+**根因**：`--we-font-serif` 字体堆栈为 `'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif`，西文衬线字体优先级高于中文字体。混排文本时，英文使用 EB Garamond，中文回退到 Source Han Serif，导致字体切换。
+
+**改动**：
+- `frontend/src/styles/chat.css`：`.we-token-usage` 字体改为 `'Source Han Serif SC', 'Source Han Serif', serif`，中英文共用同一字体
+
+**验证**：CSS 修改已生效，token 统计区域（MessageItem 和 WritingMessageItem）现在使用统一的中文衬线字体，不影响其他文本区域。
+
 ## 2026-04-29 feat: next_prompt 选项持久化，切页/刷新后历史折叠 + 当前展开
 
 **背景**：`<next_prompt>` 选项原本只活在 `currentOptions` React 状态里，切换 session、切换页面（chat ↔ writing）、刷新都会清空；同时 `optionCollapsed` 在 `clearOptionsState` 路径未重置，可能导致新一轮选项卡继承上次的折叠态。
