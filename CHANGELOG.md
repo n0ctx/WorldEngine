@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: 世界卡拖拽撑开背景 + 占位伪边界 + 跳跃
+
+**问题**：
+1. 世界数量超过视口时整页无法下拉；
+2. 改成可滚动后，拖动会向下/向右无限延展背景；
+3. 用 `contain: layout paint` 裁剪后又出现内层伪边界、卡片被切；
+4. 松手有多余动画，偶发跳一下。
+
+**根因**：`.we-worlds-canvas` 原本 `overflow: hidden` 屏蔽溢出；改成 `overflow-y: auto` 后 `SortableGrid` 用 `CSS.Translate` 让被拖卡片留在 DOM 内、transform 计入滚动溢出，导致背景被撑开。强行 `contain` 又把卡片本身一起裁掉。被拖项 transform 与松手后 layout 动画两套机制叠加，产生"再交换一次"的视觉。
+
+**改动**（`frontend/src/components/ui/SortableGrid.jsx`）：
+- 改用 `DragOverlay` 模式：原位置卡片留作占位（`opacity: 0`），跟手副本由 overlay 用 fixed 定位渲染，不进入文档流，故可拖出页面而不撑开任何滚动祖先
+- `dropAnimation` 220ms cubic-bezier 自定义回位曲线，`sideEffects` 让占位在动画期间也保持透明
+- `useSortable` 设 `animateLayoutChanges: () => false`，避免松手后再播一次让位动画
+- 移除上一版的 `restrictToContainer` modifier 与 `.we-worlds-grid` 上的 `contain` 规则
+
+**验证**：访问 `/`，分别测试：① 卡片溢出时纵向滚动正常；② 拖到窗口外不再撑开背景；③ 网格无伪边界，卡片不被裁；④ 松手丝滑回位、不重复动画。
+
 ## 2026-04-29 fix: 世界卡拖拽跳跃 + 不丝滑
 
 **问题**：拖动世界卡跨越邻居时，被拖卡片会瞬移；整体动画也偏卡。

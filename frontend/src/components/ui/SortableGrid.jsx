@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   KeyboardSensor,
   useSensor,
   useSensors,
   closestCenter,
+  defaultDropAnimationSideEffects,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -19,8 +21,11 @@ import { CSS } from '@dnd-kit/utilities';
 /**
  * SortableGrid — 2D 网格内可拖拽重排的容器
  *
- * 拖动期间数组保持不变，rectSortingStrategy 通过 CSS transform 让其它卡片平滑让位；
- * 松手时一次性提交最终顺序，避免拖动中索引漂移导致被拖卡片跳跃。
+ * 使用 DragOverlay 渲染拖动副本：被拖动的卡片本体保留在原位作为占位（半透明），
+ * 实际跟手的副本 fixed 定位、不进入文档流，因此可自由拖出页面而不会撑开滚动。
+ *
+ * 其它卡片通过 rectSortingStrategy 在指针进入对应槽位时平滑让位；
+ * 松手时一次性提交最终顺序，避免拖动中索引漂移导致跳跃。
  *
  * Props:
  *   items              — 数组，每项必须有唯一 .id
@@ -31,6 +36,16 @@ import { CSS } from '@dnd-kit/utilities';
  *   className          — 容器 className（外部 grid 样式）
  *   activationDistance — 进入拖拽态的指针位移阈值（默认 8px，<阈值走原生 click）
  */
+const dropAnimation = {
+  duration: 220,
+  easing: 'cubic-bezier(0.18, 0.67, 0.32, 1.0)',
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: {
+      active: { opacity: '0' },
+    },
+  }),
+};
+
 export default function SortableGrid({
   items,
   onReorderEnd,
@@ -63,6 +78,8 @@ export default function SortableGrid({
     setActiveId(null);
   }
 
+  const activeItem = activeId ? items.find((i) => i.id === activeId) : null;
+
   return (
     <DndContext
       sensors={sensors}
@@ -78,25 +95,34 @@ export default function SortableGrid({
               key={item.id}
               item={item}
               renderItem={renderItem}
-              isActive={activeId === item.id}
             />
           ))}
         </div>
       </SortableContext>
+      <DragOverlay dropAnimation={dropAnimation}>
+        {activeItem
+          ? renderItem(activeItem, {
+              setNodeRef: () => {},
+              style: { cursor: 'grabbing', boxShadow: '0 16px 32px rgba(0,0,0,0.18)' },
+              isDragging: true,
+              attributes: {},
+              listeners: {},
+            })
+          : null}
+      </DragOverlay>
     </DndContext>
   );
 }
 
-function SortableGridItem({ item, renderItem, isActive }) {
+function SortableGridItem({ item, renderItem }) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: item.id,
-    animateLayoutChanges: () => true,
+    animateLayoutChanges: () => false,
   });
   const style = {
     transform: CSS.Translate.toString(transform),
-    transition: isDragging ? 'none' : transition,
-    zIndex: isActive || isDragging ? 10 : undefined,
-    opacity: isDragging ? 0.85 : 1,
+    transition,
+    opacity: isDragging ? 0 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
     touchAction: 'none',
   };
