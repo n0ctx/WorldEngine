@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 fix: frontend audit 无需变更，desktop 升级到安全版 Electron 39.8.9
+
+**背景**：
+- `npm audit --prefix frontend` 已是 `found 0 vulnerabilities`，无需做 `frontend audit fix`
+- `npm audit --prefix desktop` 报 1 个 `high` 风险，来源是 `electron <=39.8.4`
+
+**根因**：`desktop/package.json` 仍固定在 `electron ^35.0.0`，落在 advisory 影响范围内。`npm audit --force` 建议直接跳到 `41.3.0`，但这会放大升级面；而 `39.8.9` 已超出受影响区间，可作为更小的修复落点。
+
+**改动**：
+- `desktop/package.json` / `desktop/package-lock.json`：将 `electron` 升级到 `^39.8.9`
+- 安装时 Electron 官方分发地址两次 `ETIMEDOUT`，改用 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 完成下载与安装
+
+**验证**：
+- `npm audit --prefix frontend` → `found 0 vulnerabilities`
+- `npm audit --prefix desktop` → `found 0 vulnerabilities`
+- `node -p "require('./desktop/node_modules/electron/package.json').version"` → `39.8.9`
+- `npm run --prefix desktop prepare-build` 正常完成
+
 ## 2026-04-29 fix: 移除 backend 未使用的 uuid 依赖，清除 audit 风险
 
 **背景**：`npm audit --prefix backend --omit=dev` 报出 1 个 `moderate` 风险，来源是直接依赖 `uuid@13.0.0`（`<14.0.0` 受 GHSA-w5hq-g745-h8pq 影响）。
