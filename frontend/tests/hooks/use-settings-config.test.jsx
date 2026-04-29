@@ -19,6 +19,9 @@ vi.mock('../../src/api/config.js', () => ({
   updateWritingApiKey: vi.fn(),
   fetchWritingModels: vi.fn(),
   testWritingConnection: vi.fn(),
+  updateWritingAuxApiKey: vi.fn(),
+  fetchWritingAuxModels: vi.fn(),
+  testWritingAuxConnection: vi.fn(),
 }));
 
 vi.mock('../../src/store/displaySettings.js', () => ({

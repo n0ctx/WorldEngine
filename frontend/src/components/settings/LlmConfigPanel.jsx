@@ -20,6 +20,7 @@ export default function LlmConfigPanel({
   settingsMode, onModeChange,
   writingLlm, onWritingLlmChange, onWritingApiKeySave, fetchWritingModels, testWritingConnection,
   auxLlm, onAuxLlmChange, onAuxApiKeySave, fetchAuxModels, testAuxConnection,
+  writingAuxLlm, onWritingAuxLlmChange, onWritingAuxApiKeySave, fetchWritingAuxModels, testWritingAuxConnection,
   assistantModelSource, onAssistantModelSourceChange,
   proxyUrl, onProxyUrlSave,
 }) {
@@ -137,20 +138,35 @@ export default function LlmConfigPanel({
         </div>
       )}
 
-      {/* 副模型、助手、embedding、网络代理区块：两个 tab 共享 */}
+      {/* 副模型按 settingsMode 分别渲染（写作 tab 与对话 tab 各自独立配置） */}
       <hr className="we-settings-divider" />
 
-      <AuxLlmBlock
-        providers={LLM_PROVIDERS}
-        config={auxLlm}
-        onProviderChange={(v) => onAuxLlmChange('provider', v)}
-        onBaseUrlChange={(v) => onAuxLlmChange('base_url', v)}
-        onModelChange={(v) => onAuxLlmChange('model', v)}
-        onApiKeySave={onAuxApiKeySave}
-        onApiKeySaved={() => onAuxLlmChange('has_key', true)}
-        testConnection={testAuxConnection}
-        loadModels={fetchAuxModels}
-      />
+      {settingsMode === SETTINGS_MODE.WRITING ? (
+        <AuxLlmBlock
+          providers={LLM_PROVIDERS}
+          config={writingAuxLlm}
+          onProviderChange={(v) => onWritingAuxLlmChange('provider', v)}
+          onBaseUrlChange={(v) => onWritingAuxLlmChange('base_url', v)}
+          onModelChange={(v) => onWritingAuxLlmChange('model', v)}
+          onApiKeySave={onWritingAuxApiKeySave}
+          onApiKeySaved={() => onWritingAuxLlmChange('has_key', true)}
+          testConnection={testWritingAuxConnection}
+          loadModels={fetchWritingAuxModels}
+          fallbackHint="使用对话副模型"
+        />
+      ) : (
+        <AuxLlmBlock
+          providers={LLM_PROVIDERS}
+          config={auxLlm}
+          onProviderChange={(v) => onAuxLlmChange('provider', v)}
+          onBaseUrlChange={(v) => onAuxLlmChange('base_url', v)}
+          onModelChange={(v) => onAuxLlmChange('model', v)}
+          onApiKeySave={onAuxApiKeySave}
+          onApiKeySaved={() => onAuxLlmChange('has_key', true)}
+          testConnection={testAuxConnection}
+          loadModels={fetchAuxModels}
+        />
+      )}
 
       <hr className="we-settings-divider" />
 

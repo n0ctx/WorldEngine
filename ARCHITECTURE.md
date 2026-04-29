@@ -247,17 +247,18 @@ POST /api/sessions/:sessionId/chat
 - **写作副模型**：`config.writing.aux_llm` — 写作模式下的后台任务（摘要/状态/记忆展开/日记/标题）专用副模型；`provider=null` 时按 `aux_llm → llm` 顺序回退；结构与对话副模型一致
 - **写作助手模型选择**：`config.assistant.model_source` — 'main'（主模型）或 'aux'（副模型），决定写卡助手调用的模型源
 
-### 副模型调用点（总共 7 处）
+### 副模型调用点（总共 8 处）
 
-all 非流式接口在调用 `llm.complete()` 时传 `configScope: 'aux'`：
+所有副模型调用点统一通过 `backend/utils/aux-scope.js#resolveAuxScope(sessionId)` 决定 configScope：写作模式 session 解析为 `'writing-aux'`（回退链 `writing.aux_llm → aux_llm → llm`），其余解析为 `'aux'`（回退链 `aux_llm → llm`）。`generateChapterTitle` 始终为写作专属，固定使用 `'writing-aux'`。
 
-1. `backend/memory/turn-summarizer.js:86` — 轮次摘要生成
-2. `backend/memory/combined-state-updater.js:186` — 状态压缩（列表字段裁剪）
-3. `backend/memory/combined-state-updater.js:348` — 状态更新推理
-4. `backend/memory/summary-expander.js:67` — 记忆展开判定（决策二值化 JSON）
-5. `backend/memory/title-generation.js:25` — 会话标题生成
-6. `backend/memory/diary-generator.js:257` — 日记正文生成
-7. `backend/prompts/entry-matcher.js:61` — Prompt 条目 LLM 命中判定
+1. `backend/memory/turn-summarizer.js` — 轮次摘要生成
+2. `backend/memory/combined-state-updater.js` — 状态压缩（列表字段裁剪）
+3. `backend/memory/combined-state-updater.js` — 状态更新推理
+4. `backend/memory/summary-expander.js` — 记忆展开判定（决策二值化 JSON）
+5. `backend/memory/summarizer.js` — 会话标题生成（通过 `title-generation.js#generateTitleWithRetry`）
+6. `backend/memory/chapter-title-generator.js` — 写作章节标题生成（固定 writing-aux）
+7. `backend/memory/diary-generator.js` — 日记正文生成
+8. `backend/prompts/entry-matcher.js` — Prompt 条目 LLM 命中判定
 
 **斜杠命令保持主模型**（不切副模型）：
 - `backend/routes/chat.js:473` (`/impersonate`)
@@ -270,6 +271,7 @@ all 非流式接口在调用 `llm.complete()` 时传 `configScope: 'aux'`：
 - `'main'`（默认）— 使用主模型配置
 - `'aux'` — 调用 `getAuxLlmConfig()` 获取副模型有效配置（若副模型 provider=null 则回退主模型）
 - `'writing'` — 调用 `getWritingLlmConfig()` 获取写作主模型有效配置（若 writing.llm.provider=null 则回退对话主模型）；temperature/max_tokens 取 `config.writing.llm.*`，缺省回退对话主模型；thinking_level 跟随对话主模型
+- `'writing-aux'` — 调用 `getWritingAuxLlmConfig()` 获取写作副模型有效配置；按 `writing.aux_llm → aux_llm → llm` 顺序回退；temperature / max_tokens / thinking_level 跟随对话主模型
 
 `llm.chat()` 和 `llm.completeWithTools()` 亦支持 `configScope` 参数。
 

@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-29 feat: 写作副模型与对话副模型独立配置（writing.aux_llm）
+
+**背景**：写作 tab 和对话 tab 共享同一份 `aux_llm`，导致两类后台任务（摘要 / 状态 / 记忆展开 / 日记 / 标题 / 条目命中）必须使用同一个副模型 endpoint。需要把写作 tab 的副模型拆成独立配置，回退链按 `writing.aux_llm → aux_llm → llm` 顺序展开，避免在写作 tab 调整副模型反而影响对话 tab 后台任务的 prompt cache 槽。
+
+**改动**：
+- 数据：`config.writing.aux_llm` 字段（结构镜像 `aux_llm`），`backend/services/config.js` 增加 `DEFAULT_WRITING.aux_llm`、配置迁移、`getWritingAuxLlmConfig()`、`updateWritingAuxApiKey()`
+- 后端：`backend/llm/index.js#buildLLMConfig` 新增 `configScope: 'writing-aux'` 分支；新增 `backend/utils/aux-scope.js#resolveAuxScope(sessionId)`，根据 `sessions.mode` 决定使用 `'writing-aux'` 还是 `'aux'`
+- 调用点切换：`turn-summarizer / combined-state-updater (state_compress + state_update) / summary-expander / summarizer (会话标题) / diary-generator / entry-matcher` 改为按 `resolveAuxScope(sessionId)` 解析 scope；`chapter-title-generator` 固定 `'writing-aux'`
+- 路由：`backend/routes/config.js` 新增 `/api/config/writing-aux-apikey`、`/api/config/writing-aux/models`、`/api/config/writing-aux/test-connection`；PUT /api/config 接受 `writing.aux_llm` 子树；`stripApiKeys` 同步遮罩
+- 前端：`useSettingsConfig` 增加 `writingAuxLlm` state 与 handler；`api/config.js` 增加三个 writing-aux 接口；`LlmConfigPanel` 把 `AuxLlmBlock` 移入 `settingsMode` 分支，写作 tab 渲染 writing-aux block，对话 tab 渲染原 aux block；`AuxLlmBlock` 新增 `fallbackHint` prop，写作 tab 文案改为 "未配置则回退对话副模型，再回退对话主模型"
+- 文档：`SCHEMA.md` config schema、`ARCHITECTURE.md §4.5`（调用点 7→8、新增 writing-aux 回退链与 `'writing-aux'` scope 说明）
+
+**注意**：旧 `data/config.json` 缺失 `writing.aux_llm` 字段，由 `getConfig()` 启动时迁移补全为默认值（provider=null）。已配置 `aux_llm` 的用户不受影响，写作模式自动按 `writing.aux_llm(空) → aux_llm → llm` 回退到原行为。
+
+**验证**：人工步骤：(1) 进入设置 → LLM 配置 → 写作 tab：副模型保持 "未配置"，触发任意写作生成，确认后台 turn_summary / state_update / entry_match 使用对话副模型（若配置）或主模型；(2) 写作 tab 副模型选择独立 provider，再切到对话 tab 确认对话 tab 副模型仍为原配置；(3) 写作模式触发一轮生成，查看日志 `configScope` 应解析为 `writing-aux`；(4) 对话模式触发，应解析为 `aux`。
+
 ## 2026-04-29 fix: xAI / Grok 注入 x-grok-conv-id header，把同一会话路由到同一缓存服务器
 
 **背景**：之前合并 [1-10] 为单条 system message 后，其他 provider prompt cache 稳定命中，但 xAI / Grok 仍出现 cached_tokens ≈ 158 与 4k+ 来回跳的现象。核查 xAI 文档后确认根因：xAI 后端是多服务器集群，prompt cache 只在单服务器内有效；同一会话若被路由到不同服务器，前缀就无法复用。xAI 推荐的解法是设置 `x-grok-conv-id` HTTP header，把同一会话的请求 sticky 到同一服务器。

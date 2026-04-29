@@ -72,3 +72,18 @@ export function fetchWritingModels() {
 export function testWritingConnection() {
   return request(`${BASE}/writing/test-connection`);
 }
+
+export function updateWritingAuxApiKey(key) {
+  return request(`${BASE}/writing-aux-apikey`, {
+    method: 'PUT',
+    body: JSON.stringify({ api_key: key }),
+  });
+}
+
+export function fetchWritingAuxModels() {
+  return request(`${BASE}/writing-aux/models`);
+}
+
+export function testWritingAuxConnection() {
+  return request(`${BASE}/writing-aux/test-connection`);
+}

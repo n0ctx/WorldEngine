@@ -12,7 +12,7 @@ import { pushErrorToast } from '../../utils/toast';
  * 仅显示 provider / API Key / base_url / model / 测试连接按钮
  * 不显示 temperature / max_tokens / thinking_level
  */
-export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels }) {
+export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -51,11 +51,11 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
     <div className="we-settings-field-group">
       <p className="we-settings-subsection-title">副模型(LLM)</p>
 
-      <FormGroup label="Provider" hint="用于摘要、状态栏、记忆展开、日记、标题等后台任务；未配置则回退主模型。">
+      <FormGroup label="Provider" hint={`用于摘要、状态栏、记忆展开、日记、标题等后台任务；${fallbackHint}。`}>
         <Select
           value={config.provider || ''}
           onChange={onProviderChange}
-          options={[{ value: '', label: '未配置（使用主模型）' }, ...providers]}
+          options={[{ value: '', label: `未配置（${fallbackHint}）` }, ...providers]}
         />
       </FormGroup>
 

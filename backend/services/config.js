@@ -79,6 +79,7 @@ const DEFAULT_CONFIG = {
       temperature: null,
       max_tokens: null,
     },
+    aux_llm: structuredClone(DEFAULT_AUX_LLM),
   },
   diary: {
     chat: { enabled: false, date_mode: 'virtual' },
@@ -103,6 +104,7 @@ const DEFAULT_WRITING = {
     temperature: null,
     max_tokens: null,
   },
+  aux_llm: structuredClone(DEFAULT_AUX_LLM),
 };
 
 const DEFAULT_DIARY = {
@@ -244,6 +246,15 @@ export function getConfig() {
     if (!config.writing.llm.provider_models || typeof config.writing.llm.provider_models !== 'object') {
       config.writing.llm.provider_models = {};
     }
+    if (!config.writing.aux_llm || typeof config.writing.aux_llm !== 'object') {
+      config.writing.aux_llm = structuredClone(DEFAULT_WRITING.aux_llm);
+    }
+    if (!config.writing.aux_llm.provider_keys || typeof config.writing.aux_llm.provider_keys !== 'object') {
+      config.writing.aux_llm.provider_keys = {};
+    }
+    if (!config.writing.aux_llm.provider_models || typeof config.writing.aux_llm.provider_models !== 'object') {
+      config.writing.aux_llm.provider_models = {};
+    }
     config.writing = {
       ...DEFAULT_WRITING,
       ...config.writing,
@@ -252,6 +263,12 @@ export function getConfig() {
         ...config.writing.llm,
         provider_keys: { ...config.writing.llm.provider_keys },
         provider_models: { ...config.writing.llm.provider_models },
+      },
+      aux_llm: {
+        ...DEFAULT_WRITING.aux_llm,
+        ...config.writing.aux_llm,
+        provider_keys: { ...config.writing.aux_llm.provider_keys },
+        provider_models: { ...config.writing.aux_llm.provider_models },
       },
     };
   }
@@ -381,6 +398,40 @@ export function updateWritingApiKey(provider, key) {
   if (!current.writing.llm) current.writing.llm = structuredClone(DEFAULT_WRITING.llm);
   if (!current.writing.llm.provider_keys) current.writing.llm.provider_keys = {};
   current.writing.llm.provider_keys[provider] = key;
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  return current;
+}
+
+/**
+ * 获取有效的写作副模型(writing.aux_llm)配置
+ * 回退链：writing.aux_llm → aux_llm → 对话主模型(llm)
+ */
+export function getWritingAuxLlmConfig() {
+  const config = getConfig();
+  const writingAux = config.writing?.aux_llm ?? {};
+
+  if (writingAux.provider) {
+    return {
+      provider: writingAux.provider,
+      api_key: writingAux.provider_keys?.[writingAux.provider] || '',
+      base_url: writingAux.base_url,
+      model: writingAux.model,
+    };
+  }
+
+  // 回退到对话副模型（getAuxLlmConfig 内部再次回退到对话主模型）
+  return getAuxLlmConfig();
+}
+
+/**
+ * 更新写作副模型的 API Key
+ */
+export function updateWritingAuxApiKey(provider, key) {
+  const current = getConfig();
+  if (!current.writing) current.writing = structuredClone(DEFAULT_WRITING);
+  if (!current.writing.aux_llm) current.writing.aux_llm = structuredClone(DEFAULT_AUX_LLM);
+  if (!current.writing.aux_llm.provider_keys) current.writing.aux_llm.provider_keys = {};
+  current.writing.aux_llm.provider_keys[provider] = key;
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
   return current;
 }
