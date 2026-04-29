@@ -359,6 +359,48 @@ test('写作 generate 在存在新章节时会推 title_updated 与 chapter_titl
   assert.ok(events.some((event) => event.type === 'chapter_title_updated' && event.title === '章节标题' && event.chapterIndex === 1));
 });
 
+test('写作章节标题重生成按 6 小时间隔分章，与前端保持一致', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify(['第二章标题']);
+
+  const world = insertWorld(ctx.sandbox.db, { name: '章节重标题世界' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  const gap = (6 * 60 * 60 * 1000) + 1;
+
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '第一章开头', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第一章回应', created_at: 2 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '第二章开头', created_at: 2 + gap });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第二章回应', created_at: 3 + gap });
+
+  const res = await ctx.request(
+    `/api/worlds/${world.id}/writing-sessions/${session.id}/chapter-titles/2/retitle`,
+    { method: 'POST' },
+  );
+  assert.equal(res.status, 200);
+  assert.deepEqual(await res.json(), { title: '第二章标题', chapterIndex: 2 });
+
+  const row = ctx.sandbox.db.prepare(
+    'SELECT title, is_default FROM chapter_titles WHERE session_id = ? AND chapter_index = ?',
+  ).get(session.id, 2);
+  assert.deepEqual(row, { title: '第二章标题', is_default: 0 });
+});
+
+test('写作章节标题重生成在章节不存在时返回 404', async () => {
+  resetMockEnv();
+
+  const world = insertWorld(ctx.sandbox.db, { name: '缺失章节世界' });
+  const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '只有第一章', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第一章回应', created_at: 2 });
+
+  const res = await ctx.request(
+    `/api/worlds/${world.id}/writing-sessions/${session.id}/chapter-titles/2/retitle`,
+    { method: 'POST' },
+  );
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: 'Chapter not found' });
+});
+
 test('写作 stop 在没有活跃流时返回 success', async () => {
   resetMockEnv();
   const world = insertWorld(ctx.sandbox.db, { name: '空停止写作世界' });

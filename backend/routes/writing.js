@@ -653,6 +653,9 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
   const idx = Number(chapterIndex);
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const chapterMsgs = groupChapterMessages(allMsgs, idx);
+  if (chapterMsgs.length === 0) {
+    return res.status(404).json({ error: 'Chapter not found' });
+  }
 
   try {
     await waitForQueueIdle(sessionId);

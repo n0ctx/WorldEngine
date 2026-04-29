@@ -1420,3 +1420,13 @@
 - 旧路由 `/build` 和 `/state` 均重定向到 `/config`（使用 RedirectToConfig 辅助组件）
 - 不改任何后端接口；EntrySection、TriggerCard、TriggerEditor 组件零改动
 - 删除死代码：WorldBuildPage.jsx、WorldStatePage.jsx、world-tabs.js
+## 2026-04-29 修复写作模式重新生成章节名报错
+
+**问题**：写作页章节标题分组前后端出现漂移。前端 `chapter-grouping.js` 以 `6h` 时间间隔切新章节，后端 `chapter-detector.js` 实际引用的 `CHAPTER_TIME_GAP_MS` 却被改成了 `24h`。结果是消息列表里已经显示“第二章”，点击“重新生成章节标题”时，后端仍把这些消息视为第一章，`groupChapterMessages()` 返回空数组，最终接口报错。
+
+**改动**：
+- `backend/utils/constants.js` — 将后端章节时间分组阈值从 `24h` 改回 `6h`，与前端 `frontend/src/utils/constants.js` 和文档保持一致。
+- `backend/routes/writing.js` — 写作章节标题重生成在目标章节不存在时显式返回 `404 Chapter not found`，不再落到模糊的 `500 生成失败`。
+- `backend/tests/routes/writing.test.js` — 新增回归测试，覆盖“6 小时间隔触发第二章后可成功重生成标题”以及“章节不存在返回 404”两条链路。
+
+**结果**：写作模式下，前端显示出来的章节索引和后端章节标题生成使用同一套边界规则；点击“重新生成章节标题”不会再因为章节分组不一致而报错。
