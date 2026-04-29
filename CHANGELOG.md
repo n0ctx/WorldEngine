@@ -1428,5 +1428,6 @@
 - `backend/utils/constants.js` — 将后端章节时间分组阈值从 `24h` 改回 `6h`，与前端 `frontend/src/utils/constants.js` 和文档保持一致。
 - `backend/routes/writing.js` — 写作章节标题重生成在目标章节不存在时显式返回 `404 Chapter not found`，不再落到模糊的 `500 生成失败`。
 - `backend/tests/routes/writing.test.js` — 新增回归测试，覆盖“6 小时间隔触发第二章后可成功重生成标题”以及“章节不存在返回 404”两条链路。
+- `shared/chapter-constants.mjs` / `frontend/src/utils/constants.js` / `backend/utils/constants.js` — 章节分组常量抽为前后端共享单一来源，避免后续再次双写漂移。
 
 **结果**：写作模式下，前端显示出来的章节索引和后端章节标题生成使用同一套边界规则；点击“重新生成章节标题”不会再因为章节分组不一致而报错。
