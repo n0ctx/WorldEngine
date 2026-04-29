@@ -7,6 +7,7 @@ import {
   deletePersonaById,
   setActivePersona,
   upsertPersona,
+  reorderPersonas as dbReorderPersonas,
 } from '../db/queries/personas.js';
 import { unlinkUploadFile } from '../utils/file-cleanup.js';
 
@@ -65,4 +66,8 @@ export function activatePersona(worldId, personaId) {
   if (!persona || persona.world_id !== worldId) throw new Error('玩家卡不属于该世界');
   setActivePersona(worldId, personaId);
   return getPersonasByWorldId(worldId);
+}
+
+export function reorderPersonas(items) {
+  return dbReorderPersonas(items);
 }

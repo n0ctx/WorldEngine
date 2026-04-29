@@ -1,5 +1,16 @@
 const BASE = '/api';
 
+/** 批量更新玩家卡排序 */
+export async function reorderPersonas(items) {
+  const res = await fetch(`${BASE}/personas/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 /** 获取当前世界激活的 persona（兼容旧接口） */
 export async function getPersona(worldId) {
   const res = await fetch(`${BASE}/worlds/${worldId}/persona`);

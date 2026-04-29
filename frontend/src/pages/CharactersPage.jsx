@@ -13,6 +13,7 @@ import {
   activatePersona,
   deletePersona,
   createPersona,
+  reorderPersonas,
 } from '../api/personas';
 import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
@@ -113,17 +114,42 @@ export function EntryOrderPanel({ entries, onTokenChange }) {
   );
 }
 
+// ── 拖动感知点击 hook ──────────────────────────────────────────────────────
+
+function useDragAwareClick(onClick) {
+  const posRef = useRef(null);
+
+  const onMouseDown = (e) => {
+    posRef.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleClick = (e) => {
+    if (!posRef.current) return;
+    const dx = e.clientX - posRef.current.x;
+    const dy = e.clientY - posRef.current.y;
+    posRef.current = null;
+    if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+      onClick?.(e);
+    }
+  };
+
+  return { onMouseDown, onClick: handleClick };
+}
+
 // ── PersonaCard（内联组件）─────────────────────────────────────────────────
 
-function PersonaCard({ persona, onActivate, onEdit, onDelete, onCardClick }) {
+function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, onCardClick }) {
   const isActive = !!persona.is_active;
+  const clickProps = useDragAwareClick(onCardClick);
 
   return (
     <div
       className={`we-persona-card${isActive ? ' we-persona-card--active' : ''}`}
-      onClick={onCardClick}
+      onMouseDown={clickProps.onMouseDown}
+      onClick={clickProps.onClick}
     >
       <div className="we-character-card-body">
+        {dragHandleProps && <span className="we-char-drag" {...dragHandleProps}>⠿</span>}
         <AvatarCircle
           id={persona.id}
           name={persona.name}
@@ -178,6 +204,66 @@ function PersonaCard({ persona, onActivate, onEdit, onDelete, onCardClick }) {
           disabled={persona._isLast}
         >
           <Icon size={15}>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </Icon>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── CharacterCard（内联组件）────────────────────────────────────────────────
+
+function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete }) {
+  const clickProps = useDragAwareClick(onCardClick);
+
+  return (
+    <div
+      className="we-character-card"
+      onMouseDown={clickProps.onMouseDown}
+      onClick={clickProps.onClick}
+    >
+      <div className="we-character-card-body">
+        <span className="we-char-drag" {...dragHandleProps}>⠿</span>
+        <AvatarCircle
+          id={char.id}
+          name={char.name}
+          avatarPath={char.avatar_path}
+          size="md"
+        />
+        <div className="we-character-card-info">
+          <p className="we-character-card-name">{char.name}</p>
+          {char.description ? (
+            <p className="we-character-card-desc">{char.description}</p>
+          ) : (
+            <p className="we-character-card-desc we-character-card-desc-empty">暂无简介</p>
+          )}
+        </div>
+      </div>
+
+      <div
+        className="we-character-card-actions"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onEdit}
+          className="we-character-card-action-btn"
+          title="编辑"
+          aria-label="编辑角色"
+        >
+          <Icon size={16}>
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+          </Icon>
+        </button>
+        <button
+          onClick={onDelete}
+          className="we-character-card-action-btn danger"
+          title="删除"
+          aria-label="删除角色"
+        >
+          <Icon size={16}>
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </Icon>
@@ -344,6 +430,11 @@ export default function CharactersPage() {
     await reorderCharacters(items);
   }
 
+  async function handlePersonaReorderEnd(finalPersonas) {
+    const items = finalPersonas.map((p, i) => ({ id: p.id, sort_order: i }));
+    await reorderPersonas(items);
+  }
+
   if (loading) {
     return <div className="we-characters-loading">加载中…</div>;
   }
@@ -404,23 +495,28 @@ export default function CharactersPage() {
                 暂无玩家卡
               </p>
             ) : (
-              personas.map((p) => (
-                <PersonaCard
-                  key={p.id}
-                  persona={{ ...p, _isLast: personas.length === 1 }}
-                  worldId={worldId}
-                  onCardClick={() => {
-                    setCurrentPersonaId(p.id);
-                    navigate(`/worlds/${worldId}/writing`);
-                  }}
-                  onActivate={() => handleActivatePersona(p.id)}
-                  onEdit={() => navigate(
-                    `/worlds/${worldId}/personas/${p.id}/edit`,
-                    { state: { backgroundLocation: location } }
-                  )}
-                  onDelete={() => setDeletingPersona(p)}
-                />
-              ))
+              <SortableList
+                items={personas}
+                onReorder={setPersonas}
+                onReorderEnd={handlePersonaReorderEnd}
+                useHandle={true}
+                renderItem={(p, dragHandleProps) => (
+                  <PersonaCard
+                    persona={{ ...p, _isLast: personas.length === 1 }}
+                    dragHandleProps={dragHandleProps}
+                    onCardClick={() => {
+                      setCurrentPersonaId(p.id);
+                      navigate(`/worlds/${worldId}/writing`);
+                    }}
+                    onActivate={() => handleActivatePersona(p.id)}
+                    onEdit={() => navigate(
+                      `/worlds/${worldId}/personas/${p.id}/edit`,
+                      { state: { backgroundLocation: location } }
+                    )}
+                    onDelete={() => setDeletingPersona(p)}
+                  />
+                )}
+              />
             )}
           </div>
         </div>
@@ -468,59 +564,16 @@ export default function CharactersPage() {
                 onReorderEnd={handleCharReorderEnd}
                 useHandle={true}
                 renderItem={(char, dragHandleProps) => (
-                  <div
-                    className="we-character-card"
-                    onClick={() => {
+                  <CharacterCard
+                    char={char}
+                    dragHandleProps={dragHandleProps}
+                    onCardClick={() => {
                       setCurrentCharacterId(char.id);
                       navigate(`/characters/${char.id}/chat`);
                     }}
-                  >
-                    <div className="we-character-card-body">
-                      <span className="we-char-drag" {...dragHandleProps}>⠿</span>
-                      <AvatarCircle
-                        id={char.id}
-                        name={char.name}
-                        avatarPath={char.avatar_path}
-                        size="md"
-                      />
-                      <div className="we-character-card-info">
-                        <p className="we-character-card-name">{char.name}</p>
-                        {char.description ? (
-                          <p className="we-character-card-desc">{char.description}</p>
-                        ) : (
-                          <p className="we-character-card-desc we-character-card-desc-empty">暂无简介</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      className="we-character-card-actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
-                        className="we-character-card-action-btn"
-                        title="编辑"
-                        aria-label="编辑角色"
-                      >
-                        <Icon size={16}>
-                          <path d="M12 20h9" />
-                          <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                        </Icon>
-                      </button>
-                      <button
-                        onClick={() => setDeletingChar(char)}
-                        className="we-character-card-action-btn danger"
-                        title="删除"
-                        aria-label="删除角色"
-                      >
-                        <Icon size={16}>
-                          <line x1="18" y1="6" x2="6" y2="18" />
-                          <line x1="6" y1="6" x2="18" y2="18" />
-                        </Icon>
-                      </button>
-                    </div>
-                  </div>
+                    onEdit={() => navigate(`/characters/${char.id}/edit`, { state: { backgroundLocation: location } })}
+                    onDelete={() => setDeletingChar(char)}
+                  />
                 )}
                 className="we-characters-list"
               />

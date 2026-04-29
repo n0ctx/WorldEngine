@@ -110,8 +110,8 @@ export default function WorldsPage() {
       {/* 页头 */}
       <div className="we-worlds-header">
         <div>
-          <h1 className="we-worlds-title">博物志 · 卷宗书架</h1>
-          <p className="we-worlds-subtitle">WORLDENGINE — ARCHIVES</p>
+          <h1 className="we-worlds-title">书架</h1>
+          <p className="we-worlds-subtitle">BOOKSHELF</p>
         </div>
         <div className="we-worlds-header-actions">
           <button

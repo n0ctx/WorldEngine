@@ -258,20 +258,22 @@ body {
   min-height: 0;
   box-sizing: border-box;
   background: var(--we-paper-base);
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
 
 .we-md-content::-webkit-scrollbar { width: 4px; }
 .we-md-content::-webkit-scrollbar-track { background: transparent; }
 .we-md-content::-webkit-scrollbar-thumb {
   background: var(--we-paper-shadow);
-  border-radius: 2px;
+  border-radius: var(--we-radius-full);
 }
 
 .entry-editor-panel::-webkit-scrollbar { width: 4px; }
 .entry-editor-panel::-webkit-scrollbar-track { background: transparent; }
 .entry-editor-panel::-webkit-scrollbar-thumb {
   background: var(--we-paper-shadow);
-  border-radius: 2px;
+  border-radius: var(--we-radius-full);
 }
 
 .we-topbar {
@@ -588,6 +590,9 @@ body {
   scrollbar-width: thin;
   scrollbar-color: var(--we-paper-shadow) transparent;
 }
+.we-combobox-dropdown::-webkit-scrollbar { width: 4px; }
+.we-combobox-dropdown::-webkit-scrollbar-track { background: transparent; }
+.we-combobox-dropdown::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 
 .we-combobox-option {
   padding: 6px 14px;
@@ -869,6 +874,9 @@ body {
   flex-direction: column;
   min-height: 0;
 }
+.we-state-scroll::-webkit-scrollbar { width: 4px; }
+.we-state-scroll::-webkit-scrollbar-track { background: transparent; }
+.we-state-scroll::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 
 /* ── 头部 ─── */
 .we-state-panel-header {
@@ -1529,7 +1537,12 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 6px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
+.we-session-list-scroll::-webkit-scrollbar { width: 4px; }
+.we-session-list-scroll::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
+.we-session-list-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .we-session-list-empty {
   font-size: 12px;
@@ -1576,7 +1589,12 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
+.we-cast-scroll::-webkit-scrollbar { width: 4px; }
+.we-cast-scroll::-webkit-scrollbar-track { background: transparent; }
+.we-cast-scroll::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 .we-cast-header { }
 .we-cast-header-row {
   display: flex;

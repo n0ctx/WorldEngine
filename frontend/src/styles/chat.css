@@ -41,7 +41,7 @@
 .we-chat-area::-webkit-scrollbar-thumb,
 .we-settings-body::-webkit-scrollbar-thumb,
 .we-persona-drawer-body::-webkit-scrollbar-thumb,
-.we-edit-panel-overlay::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: 2px; }
+.we-edit-panel-overlay::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 .we-chat-area::-webkit-scrollbar-track,
 .we-settings-body::-webkit-scrollbar-track,
 .we-persona-drawer-body::-webkit-scrollbar-track,

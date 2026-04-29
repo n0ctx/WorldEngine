@@ -10,7 +10,7 @@ export function getPersonasByWorldId(worldId) {
   const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
   if (!world) return [];
 
-  const personas = db.prepare('SELECT * FROM personas WHERE world_id = ? ORDER BY created_at ASC').all(worldId);
+  const personas = db.prepare('SELECT * FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC').all(worldId);
   if (personas.length === 0) return personas;
 
   // active_persona_id 为 NULL 时，最早创建的 persona 为 active
@@ -48,10 +48,16 @@ export function getPersonaById(id) {
 export function createPersona(worldId, data = {}) {
   const id = crypto.randomUUID();
   const now = Date.now();
+
+  const maxRow = db.prepare(
+    'SELECT MAX(sort_order) AS max_sort FROM personas WHERE world_id = ?',
+  ).get(worldId);
+  const sortOrder = data.sort_order ?? ((maxRow?.max_sort ?? -1) + 1);
+
   db.prepare(`
-    INSERT INTO personas (id, world_id, name, description, system_prompt, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, worldId, data.name ?? '', data.description ?? '', data.system_prompt ?? '', now, now);
+    INSERT INTO personas (id, world_id, name, description, system_prompt, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, worldId, data.name ?? '', data.description ?? '', data.system_prompt ?? '', sortOrder, now, now);
   return db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
 }
 
@@ -64,6 +70,7 @@ export function updatePersonaById(id, data = {}) {
   if ('description' in data) patch.description = data.description;
   if ('system_prompt' in data) patch.system_prompt = data.system_prompt;
   if ('avatar_path' in data) patch.avatar_path = data.avatar_path;
+  if ('sort_order' in data) patch.sort_order = data.sort_order;
   if (Object.keys(patch).length === 0) return db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
 
   const sets = Object.keys(patch).map((k) => `${k} = ?`);
@@ -108,6 +115,20 @@ export function upsertPersona(worldId, data = {}) {
     return updatePersonaById(existing.id, data);
   }
   return createPersona(worldId, data);
+}
+
+/**
+ * 批量更新玩家卡排序（传入 [{id, sort_order}, ...] 数组）
+ */
+export function reorderPersonas(items) {
+  const stmt = db.prepare('UPDATE personas SET sort_order = ?, updated_at = ? WHERE id = ?');
+  const now = Date.now();
+  const update = db.transaction(() => {
+    for (const item of items) {
+      stmt.run(item.sort_order, now, item.id);
+    }
+  });
+  update();
 }
 
 /**

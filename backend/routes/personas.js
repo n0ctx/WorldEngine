@@ -10,6 +10,7 @@ import {
   updatePersonaByIdService,
   deletePersonaService,
   activatePersona,
+  reorderPersonas,
 } from '../services/personas.js';
 import { getPersonaById } from '../db/queries/personas.js';
 
@@ -119,6 +120,16 @@ router.patch('/worlds/:worldId/personas/:personaId/activate', (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// PUT /api/personas/reorder — 批量更新排序（注意：必须在 :id 路由前注册）
+router.put('/personas/reorder', (req, res) => {
+  const { items } = req.body;
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items 为必填数组' });
+  }
+  reorderPersonas(items);
+  res.json({ ok: true });
 });
 
 // GET /api/personas/:id — 按 id 获取 persona

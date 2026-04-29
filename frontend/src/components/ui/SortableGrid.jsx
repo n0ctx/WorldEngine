@@ -98,6 +98,7 @@ function SortableGridItem({ item, renderItem, isActive }) {
     zIndex: isActive || isDragging ? 10 : undefined,
     opacity: isDragging ? 0.85 : 1,
     cursor: isDragging ? 'grabbing' : 'grab',
+    touchAction: 'none',
   };
   return renderItem(item, { setNodeRef, style, isDragging, attributes, listeners });
 }

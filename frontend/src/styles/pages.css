@@ -3,11 +3,18 @@
 /* ── WorldsPage 卷宗书架 ── */
 
 .we-worlds-canvas {
-  min-height: calc(100vh - 40px);
+  height: calc(100vh - 40px);
   background: var(--we-book-bg);
   padding: 4% 5%;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
+.we-worlds-canvas::-webkit-scrollbar { width: 4px; }
+.we-worlds-canvas::-webkit-scrollbar-track { background: transparent; }
+.we-worlds-canvas::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 
 .we-worlds-header {
   margin: 0 0 40px;
@@ -421,6 +428,8 @@
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
 
 .we-characters-col-list::-webkit-scrollbar {
@@ -462,6 +471,8 @@
   overflow-y: auto;
   min-height: 0;
   padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
 
 .we-entry-order-list::-webkit-scrollbar {
@@ -2241,7 +2252,12 @@
   padding: var(--we-space-lg);
   overflow-y: auto;
   border-left: var(--we-border);
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
+.we-config-col::-webkit-scrollbar { width: 4px; }
+.we-config-col::-webkit-scrollbar-track { background: transparent; }
+.we-config-col::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 
 .we-config-col:first-child {
   border-left: none;
