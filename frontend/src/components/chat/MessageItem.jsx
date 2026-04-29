@@ -19,16 +19,18 @@ const MotionDiv = motion.div;
  */
 function parseStreamingBlocks(text) {
   const blocks = [];
-  const segments = text.split(/(<think>|<\/think>)/);
+  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
+  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
+  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
   let inThink = false;
   let current = '';
   for (const seg of segments) {
-    if (seg === '<think>') {
+    if (OPEN_TAG.test(seg)) {
       const trimmed = current.replace(/^\n+/, '');
       if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
       current = '';
       inThink = true;
-    } else if (seg === '</think>') {
+    } else if (CLOSE_TAG.test(seg)) {
       if (inThink) {
         blocks.push({ type: 'thinking', content: current, open: false });
         current = '';
