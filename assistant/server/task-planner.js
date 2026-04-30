@@ -80,6 +80,7 @@ function buildPlannerPrompt({ message, history, context, research = null, retryF
         '状态机世界卡的推荐模板：Step 1 定义阶段 enum 字段和核心 always 条目；Step 2 为每个阶段创建对应 state 条目，conditions 全部引用同一个阶段字段；Step 3 如需初始数值，再由 persona-card 或 character-card 填写 stateValueOps。' +
         '修复已有卡的推荐模板：先让对应卡代理读取 preview_card，再只修复无效触发、字段类型、条件引用或遗漏内容，不重写整张卡。' +
         '若是已有实体修改，必须基于上下文已有 worldId/characterId 或让后续步骤引用上一步产物。' +
+        '【字段定义 vs 字段值】修改世界卡中的状态字段定义（player_fields / character_fields 的字段结构、类型、枚举值等）属于 world-card 域操作，不要拆成 character-card 步骤。character-card update 只用于修改具体角色实例的属性或状态值，且必须有可解析的 context.characterId 或 step 引用；若上下文没有角色，禁止生成 entityRef="context.characterId" 的 character-card 步骤。' +
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
         'rationale 写为什么需要此步骤；inputs 写会用到的上下文或前序 step 产物；expectedOutput 写本步骤应产出的 proposal 类型和关键内容；acceptance 写 1-3 条可检查验收点；rollbackRisk 写失败或误操作影响，低风险也要写“低”。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +

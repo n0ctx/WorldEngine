@@ -211,7 +211,9 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
       return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
     }
 
-    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
+    const assistantMsg = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
+    if (message.reasoning_content) assistantMsg.reasoning_content = message.reasoning_content;
+    currentMessages.push(assistantMsg);
     for (const tc of message.tool_calls) {
       currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: await executeToolCall(tc, toolHandlers) });
     }
@@ -244,7 +246,9 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
     const message = data.choices?.[0]?.message;
     if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
 
-    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
+    const assistantMsg2 = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
+    if (message.reasoning_content) assistantMsg2.reasoning_content = message.reasoning_content;
+    currentMessages.push(assistantMsg2);
     for (const tc of message.tool_calls) {
       currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: await executeToolCall(tc, toolHandlers) });
     }

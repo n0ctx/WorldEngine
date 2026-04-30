@@ -27,7 +27,6 @@ import { getOrCreatePersona } from '../services/personas.js';
 import { captureStateSnapshot } from './state-rollback.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
-import { renderWorldState } from './recall.js';
 import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.js';
 
 /**
@@ -126,9 +125,6 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       USER_MESSAGE: userMsg.content,
       ASSISTANT_MESSAGE: asstMsg.content,
     };
-    if (ltmEnabled) {
-      vars.WORLD_STATE = (worldId ? renderWorldState(worldId, sessionId) : '') || '（无世界状态）';
-    }
     const prompt = [{ role: 'user', content: renderBackendPrompt(tplName, vars) }];
     const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
     // 剥除 <think>...</think> 推理链
