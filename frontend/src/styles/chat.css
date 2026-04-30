@@ -25,6 +25,11 @@
   to   { opacity: 1; transform: translateY(0);   filter: blur(0);     }
 }
 
+@keyframes wePanelFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ── Scrollbar ─────────────────────────────────────────── */
 
 .we-chat-area,
@@ -378,8 +383,7 @@
 .we-chat-center-pane {
   position: relative;
   background: var(--we-paper-base);
-  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
-  animation-delay: 220ms;
+  animation: wePanelFade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 .we-chat-center-header {
