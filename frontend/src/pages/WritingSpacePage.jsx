@@ -845,12 +845,15 @@ export default function WritingSpacePage() {
                 <span className="flex-1" />
               )}
             </div>
-            {ltmEnabled && ltmOpen && currentSession && (
-              <LongTermMemoryModal
-                sessionId={currentSession.id}
-                onClose={() => setLtmOpen(false)}
-              />
-            )}
+            <AnimatePresence>
+              {ltmEnabled && ltmOpen && currentSession && (
+                <LongTermMemoryModal
+                  key="ltm-modal"
+                  sessionId={currentSession.id}
+                  onClose={() => setLtmOpen(false)}
+                />
+              )}
+            </AnimatePresence>
 
             {/* 消息列表 */}
             <MessageList

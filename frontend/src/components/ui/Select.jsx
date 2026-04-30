@@ -1,5 +1,7 @@
 // frontend/src/components/ui/Select.jsx
 import { useState, useRef, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { DURATION, EASE } from '../../utils/motion.js';
 
 /**
  * 自定义下拉选择组件（固定选项，无自由输入）
@@ -57,22 +59,31 @@ export default function Select({
           <path d="M4 6l4 4 4-4" />
         </svg>
       </button>
-      {open && (
-        <ul className="we-select-dropdown">
-          {options.map((option) => (
-            <li
-              key={option.value}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(option.value); }}
-              className={[
-                'we-select-option',
-                option.value === value ? 'we-select-option--active' : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {option.label}
-            </li>
-          ))}
-        </ul>
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            className="we-select-dropdown"
+            initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
+            animate={{ opacity: 1, scaleY: 1,    y: 0 }}
+            exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
+            transition={{ duration: DURATION.quick, ease: EASE.ink }}
+            style={{ transformOrigin: 'top' }}
+          >
+            {options.map((option) => (
+              <li
+                key={option.value}
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(option.value); }}
+                className={[
+                  'we-select-option',
+                  option.value === value ? 'we-select-option--active' : '',
+                ].filter(Boolean).join(' ')}
+              >
+                {option.label}
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

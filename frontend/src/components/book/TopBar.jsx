@@ -1,5 +1,7 @@
 /* DESIGN.md §5.2 */
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { DURATION, EASE } from '../../utils/motion.js';
 import Icon from '../ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
@@ -159,45 +161,59 @@ export default function TopBar() {
           aria-haspopup="listbox"
         >
           {currentWorld?.name ?? '选择世界'}
-          <span className="we-topbar-caret">▾</span>
+          <motion.span
+            className="we-topbar-caret"
+            animate={{ rotate: dropdownOpen ? 180 : 0 }}
+            transition={{ duration: DURATION.quick, ease: EASE.sharp }}
+            style={{ display: 'inline-block' }}
+          >▾</motion.span>
         </button>
         )}
 
-        {dropdownOpen && (
-          <div className="we-topbar-dropdown">
-            {worldsLoading ? (
-              <div className="we-topbar-dropdown-empty">
-                加载中…
-              </div>
-            ) : worlds.length === 0 ? (
-              <div className="we-topbar-dropdown-empty">
-                暂无世界记录
-              </div>
-            ) : null}
-            {!worldsLoading && worlds.map((w) => (
-              <button
-                key={w.id}
-                className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
-                onClick={() => {
-                  setDropdownOpen(false);
-                  setCurrentWorldId(w.id);
-                  setCurrentCharacterId(null);
-                  setCurrentSessionId(null);
-                  navigate(`/worlds/${w.id}`);
-                }}
-              >
-                {w.name}
-              </button>
-            ))}
-            {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
-            <button
-              className="we-topbar-dropdown-list-btn"
-              onClick={() => { setDropdownOpen(false); navigate('/'); }}
+        <AnimatePresence>
+          {dropdownOpen && (
+            <motion.div
+              className="we-topbar-dropdown"
+              initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
+              animate={{ opacity: 1, scaleY: 1,    y: 0 }}
+              exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
+              transition={{ duration: DURATION.quick, ease: EASE.ink }}
+              style={{ transformOrigin: 'top' }}
             >
-              前往世界列表 →
-            </button>
-          </div>
-        )}
+              {worldsLoading ? (
+                <div className="we-topbar-dropdown-empty">
+                  加载中…
+                </div>
+              ) : worlds.length === 0 ? (
+                <div className="we-topbar-dropdown-empty">
+                  暂无世界记录
+                </div>
+              ) : null}
+              {!worldsLoading && worlds.map((w) => (
+                <button
+                  key={w.id}
+                  className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
+                  onClick={() => {
+                    setDropdownOpen(false);
+                    setCurrentWorldId(w.id);
+                    setCurrentCharacterId(null);
+                    setCurrentSessionId(null);
+                    navigate(`/worlds/${w.id}`);
+                  }}
+                >
+                  {w.name}
+                </button>
+              ))}
+              {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
+              <button
+                className="we-topbar-dropdown-list-btn"
+                onClick={() => { setDropdownOpen(false); navigate('/'); }}
+              >
+                前往世界列表 →
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {!isWorldsList && effectiveWorldId && (

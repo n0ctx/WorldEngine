@@ -25,6 +25,13 @@ export default function SectionTabs({ sections, defaultKey }) {
             }}
           >
             {s.label}
+            {active === s.key && (
+              <motion.div
+                className="we-section-tab-indicator"
+                layoutId="tab-indicator"
+                transition={{ duration: DURATION.quick, ease: EASE.ink }}
+              />
+            )}
           </button>
         ))}
       </div>

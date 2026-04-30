@@ -327,6 +327,10 @@ body {
   background: var(--we-topbar-active-bg);
 }
 
+.we-topbar-item:active:not(.we-topbar-item--static) {
+  transform: scale(0.96);
+}
+
 .we-topbar-item--static {
   cursor: default;
 }

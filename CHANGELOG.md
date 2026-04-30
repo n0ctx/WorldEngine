@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(ui): 动态化阶段 2 — 全局导航与通用交互反馈层
+
+**目标**：在不增加"动画感"的前提下，让导航和弹窗有自然的出现/消失过渡，按钮有轻量按压反馈，Tab 指示器平滑滑动。
+
+**改动**：
+- `TopBar.jsx`：世界下拉菜单加 `AnimatePresence + motion.div`（`scaleY + opacity + y`，quick 时长），▾ 小图标用 `motion.span` 做 0→180° 旋转动画，同步 dropdown 开合。
+- `Select.jsx`：选项列表加 `AnimatePresence + motion.ul`，与 TopBar 下拉动效一致。
+- `SectionTabs.jsx`：活跃 Tab 底部指示器改为 `motion.div layoutId="tab-indicator"`，切换时平滑滑动；移除静态 CSS `border-bottom-color` active 规则。
+- `pages/ChatPage.jsx`：`LongTermMemoryModal` 渲染点补 `AnimatePresence`，激活 ModalShell 已有的入场/离场动效。
+- `pages/WritingSpacePage.jsx`：同上。
+- `index.css`：为 `.we-topbar-item:active` 补 `scale(0.96)` 按压微反馈。
+- `styles/pages.css`：补 `.we-section-tab-indicator` 绝对定位 CSS，Tab 改为 `position: relative`。
+
+**未动**：`ModalShell.jsx` 本身已在 Phase 1 完成；EntryEditor / RegexModal CSS overlay 保持现状，不在本阶段迁移。
+
+**验证**：`npm run build --prefix frontend` 通过，0 error。
+
 ## 2026-04-30 fix: DeepSeek reasoning_content 丢失 + 规划器 characterId 误用
 
 **背景**：使用 DeepSeek reasoning 模型（如 deepseek-reasoner）时，多轮 tool call 循环中把 assistant 消息压回历史时漏传 `reasoning_content`，导致 API 报 400 错误。同时规划器在无角色上下文时仍会生成 `entityRef="context.characterId"` 的 character-card 步骤，连续 3 次校验失败后任务中断。

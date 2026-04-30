@@ -1422,11 +1422,11 @@
   font-style: italic;
   padding: 10px 16px;
   border: none;
-  border-bottom: 1px solid transparent;
   background: none;
   color: var(--we-ink-faded);
   cursor: pointer;
-  transition: color var(--we-duration-fast), border-color var(--we-duration-fast);
+  position: relative;
+  transition: color var(--we-duration-fast);
 }
 
 .we-section-tab:hover {
@@ -1435,7 +1435,16 @@
 
 .we-section-tab.active {
   color: var(--we-ink-primary);
-  border-bottom-color: var(--we-gold-leaf);
+}
+
+.we-section-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--we-gold-leaf);
+  border-radius: 1px;
 }
 
 .we-section-tabs-sep {

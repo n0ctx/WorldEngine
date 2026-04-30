@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 import useStore from '../store/index.js';
 import Icon from '../components/ui/Icon.jsx';
@@ -821,12 +822,15 @@ export default function ChatPage() {
             <span className="flex-1" />
           )}
         </div>
-        {ltmEnabled && ltmOpen && currentSession && (
-          <LongTermMemoryModal
-            sessionId={currentSession.id}
-            onClose={() => setLtmOpen(false)}
-          />
-        )}
+        <AnimatePresence>
+          {ltmEnabled && ltmOpen && currentSession && (
+            <LongTermMemoryModal
+              key="ltm-modal"
+              sessionId={currentSession.id}
+              onClose={() => setLtmOpen(false)}
+            />
+          )}
+        </AnimatePresence>
 
         {/* 消息列表 */}
         <MessageList
