@@ -766,6 +766,7 @@ body {
   background: var(--we-paper-aged);
   border-right: 1px solid var(--we-paper-shadow);
   border-radius: 0 0 0 var(--we-radius-sm);
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-page-left-spine {
@@ -1605,6 +1606,7 @@ body {
   border-left: 1px solid var(--we-paper-shadow);
   position: relative;
   overflow: hidden;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 .we-cast-spine {
   position: absolute;

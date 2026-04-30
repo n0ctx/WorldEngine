@@ -1661,6 +1661,7 @@
 
 .we-settings-section {
   padding-bottom: 8px;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-settings-section:last-child::after {
