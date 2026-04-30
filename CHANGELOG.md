@@ -3,6 +3,12 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(ui): 补充 SettingsPage 切换与 WritingSpacePage 面板入场动效
+
+- `.we-settings-section`（pages.css）加 `weInkRise`：用户切换设置 tab 时，内容条件重挂载触发 320ms 入场动效
+- `.we-page-left` / `.we-chat-center-pane` / `.we-cast-panel` 加 `weInkRise`：WritingSpacePage 三栏首次挂载时入场；ChatPage 的左栏和中间栏同步受益
+- 均遵循 §14 规则：固定布局区块单件入场，无 exit 需求故用 CSS animation，不加 stagger
+
 ## 2026-04-30 feat(ui): Phase 5 — 页面级统一收尾与动效约定确立
 
 **目标**：清除四阶段积累的 token 漂移，激活缺失的路由过渡，补充列表入场节奏，形成可持续开发的动效约定。
