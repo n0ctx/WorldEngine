@@ -95,7 +95,19 @@
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   overflow: hidden;
   aspect-ratio: 16 / 10;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
+
+/* 入场 stagger：dnd-kit 通过 CSS transform 拖拽，不干扰此一次性动画 */
+.we-world-card:nth-child(1)  { animation-delay:   0ms; }
+.we-world-card:nth-child(2)  { animation-delay:  50ms; }
+.we-world-card:nth-child(3)  { animation-delay: 100ms; }
+.we-world-card:nth-child(4)  { animation-delay: 150ms; }
+.we-world-card:nth-child(5)  { animation-delay: 200ms; }
+.we-world-card:nth-child(6)  { animation-delay: 250ms; }
+.we-world-card:nth-child(7)  { animation-delay: 300ms; }
+.we-world-card:nth-child(8)  { animation-delay: 350ms; }
+.we-world-card:nth-child(n+9) { animation-delay: 400ms; }
 
 .we-world-card:hover {
   transform: translateY(-2px);
@@ -734,7 +746,17 @@
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
+
+/* 入场 stagger（framer-motion Reorder 通过 layout animation 拖拽，不干扰此一次性动画）*/
+.we-character-card:nth-child(1)  { animation-delay:   0ms; }
+.we-character-card:nth-child(2)  { animation-delay:  50ms; }
+.we-character-card:nth-child(3)  { animation-delay: 100ms; }
+.we-character-card:nth-child(4)  { animation-delay: 150ms; }
+.we-character-card:nth-child(5)  { animation-delay: 200ms; }
+.we-character-card:nth-child(6)  { animation-delay: 250ms; }
+.we-character-card:nth-child(n+7) { animation-delay: 300ms; }
 
 .we-character-card:hover {
   transform: translateY(-2px);

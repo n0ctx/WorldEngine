@@ -3,6 +3,25 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(ui): Phase 5 — 页面级统一收尾与动效约定确立
+
+**目标**：清除四阶段积累的 token 漂移，激活缺失的路由过渡，补充列表入场节奏，形成可持续开发的动效约定。
+
+- **[5a] CSS token 清洁**（`tokens.css` / `chat.css` / `pages.css`）
+  - `tokens.css`：补充 `--we-duration-extended: 500ms`（对应 motion.js `DURATION.slow`）及对照注释；`prefers-reduced-motion` 同步覆盖
+  - `chat.css`：消除 9 处硬编码时长/贝塞尔（`var(--we-dur-base,0.32s)` × 3、`0.22s`、`0.2s`、`0.5s` × 2、`0.4s` × 2、`0.25s`、`0.18s`），全部改用 `--we-duration-*` + `--we-easing-*`
+  - `pages.css`：修复孤儿引用 `--we-easing-decelerate` → `--we-easing-ink`；修复 `0.2s ease` 硬编码
+
+- **[5b] PageTransition 激活**（`PageTransition.jsx`）
+  - 从纯布局 stub 升级为 `AnimatePresence + motion.div`，接入 `pageTransition` variant（opacity+y+scale）和 `transitions.page`（500ms ink easing）
+  - `locationKey` 变化触发过渡；overlay 场景 key 不变，背景页不重渲染
+
+- **[5c] 列表入场 stagger + 约定文档**（`pages.css` / `DESIGN.md`）
+  - `.we-world-card` 和 `.we-character-card` 补充 CSS `weInkRise` 动画 + nth-child 50ms 步进 stagger（上限 8 步，总时长 ≤ 720ms）；CSS 方式不干扰 dnd-kit / framer Reorder 拖拽行为
+  - `DESIGN.md §14` 新增动效约定：层级职责表、token 对照表、6 条规则
+
+**验证**：三次 `npm run build` 均零错误（211~213ms）。
+
 ## 2026-04-30 feat(ui): Phase 4 — 聊天与消息系统动态化
 
 **目标**：在不破坏流式生成、key 稳定性、滚动行为的前提下，补齐消息系统中"突然出现"的视觉断点。
