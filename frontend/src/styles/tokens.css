@@ -130,9 +130,11 @@
   --we-z-tooltip:  500;
 
   /* === Motion Tokens === */
-  --we-duration-fast:   120ms;
-  --we-duration-normal: 200ms;
-  --we-duration-slow:   320ms;
+  /* CSS token → motion.js DURATION 对照：fast=micro, normal=quick, slow=base, extended=slow */
+  --we-duration-fast:     120ms;  /* hover 色变、工具提示 */
+  --we-duration-normal:   200ms;  /* 元数据、局部反馈 */
+  --we-duration-slow:     320ms;  /* 组件入场、Modal 内容 */
+  --we-duration-extended: 500ms;  /* 章节标题、场景分隔线等慢显 */
 
   /* 具名缓动函数（对应 motion.js EASE，供 CSS transition 引用）*/
   --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场 */
@@ -269,9 +271,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --we-duration-fast:   0ms;
-    --we-duration-normal: 0ms;
-    --we-duration-slow:   0ms;
+    --we-duration-fast:     0ms;
+    --we-duration-normal:   0ms;
+    --we-duration-slow:     0ms;
+    --we-duration-extended: 0ms;
     --we-easing-ink:      linear;
     --we-easing-page:     linear;
     --we-easing-quill:    linear;

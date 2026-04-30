@@ -105,7 +105,7 @@
 /* ── Message Row ───────────────────────────────────────── */
 
 .we-message-row {
-  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
   position: relative;
 }
 
@@ -446,7 +446,7 @@
   margin-top: 4px;
   opacity: 0.65;
   font-family: 'Source Han Serif SC', 'Source Han Serif', serif;
-  animation: weMetaReveal 0.22s ease-out both;
+  animation: weMetaReveal var(--we-duration-normal) var(--we-easing-sharp) both;
 }
 
 .we-token-usage-unit {
@@ -467,7 +467,7 @@
   gap: 14px;
   margin-top: 4px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--we-duration-normal);
   pointer-events: none;
 }
 
@@ -659,8 +659,8 @@
   padding: 24px 0 0;
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity  var(--we-duration-extended) var(--we-easing-ink),
+              transform var(--we-duration-extended) var(--we-easing-ink);
 }
 
 .we-chapter-header--visible {
@@ -703,7 +703,7 @@
   background: var(--we-color-gold);
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s;
+  transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.1s;
 }
 
 .we-chapter-header--visible .we-chapter-fleuron-line {
@@ -718,7 +718,7 @@
   gap: 8px;
   margin: 16px 0;
   opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--we-duration-extended) var(--we-easing-ink);
 }
 
 .we-fleuron--visible {
@@ -731,7 +731,7 @@
   background: var(--we-paper-shadow);
   transform: scaleX(0);
   transform-origin: center;
-  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.05s;
+  transition: transform var(--we-duration-extended) var(--we-easing-ink) 0.05s;
 }
 
 .we-fleuron--visible .we-fleuron-line {
@@ -752,7 +752,7 @@
   line-height: var(--we-leading-loose);
   color: var(--we-ink-primary);
   margin-bottom: 0.6em;
-  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-writing-prose p      { margin-bottom: 0; }
@@ -770,7 +770,7 @@
   font-size: var(--we-text-sm);
   color: var(--we-ink-faded);
   margin: 1em 0 0.6em;
-  animation: weInkRise var(--we-dur-base, 0.32s) ease-out both;
+  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-writing-annotation .we-message-actions {
@@ -1150,7 +1150,7 @@
 .we-think-block-body-wrap {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-ink);
 }
 
 .we-think-block-body-wrap--open {
@@ -1224,5 +1224,5 @@
 }
 
 .we-frozen-card-appear {
-  animation: weInkRise 0.18s ease-out both;
+  animation: weInkRise var(--we-duration-normal) var(--we-easing-sharp) both;
 }

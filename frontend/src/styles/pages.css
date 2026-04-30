@@ -188,7 +188,7 @@
   overflow: hidden;
   min-height: 3.6em;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity var(--we-duration-normal) var(--we-easing-sharp);
 }
 
 .we-world-card:hover .we-world-card-desc {
@@ -593,7 +593,7 @@
   /* 显式设置实色背景，防止半透明色透出深色书本底层 */
   background-color: var(--we-color-bg-canvas);
   background-image: linear-gradient(var(--we-vermilion-bg), var(--we-vermilion-bg));
-  animation: personaActivate var(--we-duration-slow) var(--we-easing-decelerate);
+  animation: personaActivate var(--we-duration-slow) var(--we-easing-ink);
 }
 
 .we-persona-card__badge {
