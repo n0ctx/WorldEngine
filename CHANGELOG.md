@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 fix: DeepSeek reasoning_content 丢失 + 规划器 characterId 误用
+
+**背景**：使用 DeepSeek reasoning 模型（如 deepseek-reasoner）时，多轮 tool call 循环中把 assistant 消息压回历史时漏传 `reasoning_content`，导致 API 报 400 错误。同时规划器在无角色上下文时仍会生成 `entityRef="context.characterId"` 的 character-card 步骤，连续 3 次校验失败后任务中断。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js`：`completeOpenAICompatibleWithTools` 和 `resolveToolContextOpenAI` 两处 tool call 循环中，压入历史的 assistant 消息若含 `reasoning_content` 则原样保留，满足 DeepSeek API 要求。
+- `assistant/server/task-planner.js`：system prompt 补充「字段定义 vs 字段值」规则——修改 world-card 的 player_fields / character_fields 字段结构属于 world-card 域操作，不得拆成 character-card 步骤；无角色上下文时禁止生成 `entityRef="context.characterId"` 的步骤。
+- `backend/memory/turn-summarizer.js` + `backend/prompts/templates/memory-turn-summary-with-ltm.md`：移除轮次摘要对 `WORLD_STATE` 的依赖及相关时间标注逻辑（之前遗留未提交的改动）。
+
+**验证**：使用 deepseek-reasoner 跑多轮 tool call 任务不再报 400；无角色上下文时发"同步增加状态字段"类指令，规划器生成纯 world-card 步骤，校验通过。
+
 ## 2026-04-30 refactor(ui): 拖动条统一为全局 Range 组件
 
 **背景**：原 WritingLlmBlock 和 LlmConfigPanel 中的温度拖动条各自维护 RANGE_PCT_CLASS 映射表，冗余且不利于扩展；助手面板中数值字段（min_value / max_value）未使用拖动条界面，UI 体验不一致。
