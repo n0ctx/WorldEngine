@@ -15,7 +15,6 @@ dist/
 /SCHEMA.md
 
 # Local agent / tooling files
-/docs/*
 /.superpowers/
 /.claude/
 /.obsidian/

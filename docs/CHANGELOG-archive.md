@@ -1,6 +1,6 @@
-# WorldEngine — Changelog 存档（T1–T200）
+# WorldEngine — Changelog 存档
 
-> 存档自 `CHANGELOG.md`，包含 T01–T174（及同期无编号任务批次）。
+> 存档自 `CHANGELOG.md`。
 > 现行记录见 `CHANGELOG.md`；快速导航见本文件末尾索引。
 
 ---
