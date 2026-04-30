@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants, transitions } from '../../utils/motion.js';
+import { variants } from '../../utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -16,7 +16,6 @@ export default function PageTransition({ children, locationKey }) {
         initial="hidden"
         animate="visible"
         exit="exit"
-        transition={transitions.page}
         style={{
           flex: 1,
           minHeight: 0,

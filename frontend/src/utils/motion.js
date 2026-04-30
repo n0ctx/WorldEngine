@@ -70,9 +70,9 @@ export const variants = {
   },
   // 页面级：路由切换过渡（对应 DESIGN.md §9 pageTransition）
   pageTransition: {
-    hidden:  { opacity: 0, y: 12, scale: 0.98 },
-    visible: { opacity: 1, y: 0,  scale: 1    },
-    exit:    { opacity: 0, y: -8, scale: 0.99 },
+    hidden:  { opacity: 0, y: 6 },
+    visible: { opacity: 1, y: 0, transition: { duration: DURATION.quick, ease: EASE.ink } },
+    exit:    { opacity: 0,       transition: { duration: 0.08,           ease: EASE.retract } },
   },
   // overlay 级：背景遮罩淡入淡出（供 ConfirmModal 等复用）
   overlayBackdrop: {
@@ -87,7 +87,7 @@ export const transitions = {
   quick:   { duration: DURATION.quick,  ease: EASE.sharp   },
   medium:  { duration: DURATION.medium, ease: EASE.ink     },
   slow:    { duration: DURATION.slow,   ease: EASE.page    },
-  page:    { duration: DURATION.slow,   ease: EASE.page    },
+  page:    { duration: DURATION.quick,  ease: EASE.ink     },
   quill:   { duration: DURATION.base,   ease: EASE.quill   },
   retract: { duration: DURATION.quick,  ease: EASE.retract },
 };

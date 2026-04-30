@@ -3,6 +3,12 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 perf(ui): PageTransition 页面切换动画提速——总等待从 ~1000ms 压缩到 ~260ms
+
+- `motion.js`：`pageTransition` variant 各状态嵌入独立 transition；exit 改为纯淡出（80ms retract），visible 改为 180ms ink 入场；去掉 scale/y 偏移；`transitions.page` 同步更新为 quick+ink（兜底用）
+- `PageTransition.jsx`：移除顶层 `transition={transitions.page}` prop（原本覆盖了 variant 内嵌 transition，导致统一走 500ms）；移除 `transitions` 导入
+- 根本原因：`mode="wait"` + 500ms 退场 + 500ms 入场 = ~1000ms；现在退场 80ms + 入场 180ms = ~260ms
+
 ## 2026-04-30 feat(ui): 补充 SettingsPage 切换与 WritingSpacePage 面板入场动效
 
 - `.we-settings-section`（pages.css）加 `weInkRise`：用户切换设置 tab 时，内容条件重挂载触发 320ms 入场动效
