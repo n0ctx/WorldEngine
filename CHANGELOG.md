@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 refactor(ui): 拖动条统一为全局 Range 组件
+
+**背景**：原 WritingLlmBlock 和 LlmConfigPanel 中的温度拖动条各自维护 RANGE_PCT_CLASS 映射表，冗余且不利于扩展；助手面板中数值字段（min_value / max_value）未使用拖动条界面，UI 体验不一致。
+
+**改动**：
+- 新增 `frontend/src/components/ui/Range.jsx`：封装统一的拖动条组件，内部处理 RANGE_PCT_CLASS 映射和 --range-pct 百分比计算，统一所有拖动条的样式（`we-range` CSS 类）和交互。
+- `frontend/src/components/index.js`：注册 Range 组件为可复用 UI 原子。
+- `WritingLlmBlock.jsx`：移除本地 RANGE_PCT_CLASS，改用 Range 组件；简化 temperature 状态管理。
+- `LlmConfigPanel.jsx`：移除 inline `--range-pct` 计算，改用 Range 组件；代码更清晰。
+- `ChangeProposalCard.jsx`：改进 number 类型字段的 min_value / max_value 输入框 UI 标签显示。
+
+**优势**：
+- 组件化：Range 集中处理拖动条逻辑，后续新增拖动条无需重复维护 PCT 映射。
+- 一致性：所有拖动条使用同一组件，样式和交互统一。
+- 可扩展：Range 参数灵活，支持任意 min / max / step，无需修改内部实现。
+
+**验证**：构建成功（npm run build），设置页 LLM Temperature 拖动条交互保持一致；CSS 类名自动生成，无手工维护。
+
 ## 2026-04-30 fix(ui): 列表类型状态值改用标签输入（回车添加）
 
 **背景**：编辑世界（角色）页面填写列表类型状态字段默认值时，原实现使用逗号分隔输入（`split(',')`），用户输入格式不规范（漏写逗号、多余空格、误用全角逗号等）容易导致解析失败或拆分错误。
