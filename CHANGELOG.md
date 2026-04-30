@@ -3,6 +3,27 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 feat(ui): Phase 4 — 聊天与消息系统动态化
+
+**目标**：在不破坏流式生成、key 稳定性、滚动行为的前提下，补齐消息系统中"突然出现"的视觉断点。
+
+**P0 验证结论**：
+- `streamingKey`（随机字符串）在 `onDone` 时以 `_key` 写入真实消息，React 视流式占位与真实消息为同一节点，零 exit/enter 动画，key 完全稳定。
+- 续写（continue）通过 `updateMessages` 原地合并内容，无重挂载。
+- `.we-message-actions` 已有 `opacity:0 + transition:0.2s hover` — 无需改动。
+
+**P1 改动**：
+- `chat.css`：`@keyframes weMetaReveal`（opacity 0→0.65），加到 `.we-token-usage`，streaming 结束后 token 行淡显而非突然弹出。
+- `chat.css`：`.we-think-block-body-wrap / --open / -inner`，使用 CSS `grid-template-rows: 0fr↔1fr` 过渡（0.25s ink 曲线），ThinkBlock 展开/折叠不再跳变。
+- `MessageItem.jsx`：ThinkBlock body 从条件渲染改为 CSS grid 包裹，始终挂载，由 class 控制高度。
+- `chat.css`：`.we-frozen-card-appear`（weInkRise 0.18s），加到 FrozenOptionCard 根 div。
+- `MessageList.jsx`：FrozenOptionCard 根 div 加 `we-frozen-card-appear`。
+- `ChatPage.jsx`：错误气泡用 `AnimatePresence + motion.div` 包裹，入场 inkRise 0.25s，离场 fade 0.15s。
+
+**不动的内容**：streaming 文字内容、续写追加内容、load-more 历史消息、滚动行为、`.we-chat-area` 容器本身。
+
+**验证**：`npm run build --prefix frontend` 通过，0 error，4 文件 46 行净增。
+
 ## 2026-04-30 feat(ui): 动态化阶段 2 — 全局导航与通用交互反馈层
 
 **目标**：在不增加"动画感"的前提下，让导航和弹窗有自然的出现/消失过渡，按钮有轻量按压反馈，Tab 指示器平滑滑动。
