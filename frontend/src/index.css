@@ -766,7 +766,6 @@ body {
   background: var(--we-paper-aged);
   border-right: 1px solid var(--we-paper-shadow);
   border-radius: 0 0 0 var(--we-radius-sm);
-  animation: wePanelFade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 .we-page-left-spine {
