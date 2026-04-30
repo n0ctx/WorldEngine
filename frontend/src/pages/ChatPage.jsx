@@ -29,6 +29,15 @@ function parseContinuationText(text) {
   return { content: display, options };
 }
 
+function areOptionsEqual(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 export default function ChatPage() {
   const { characterId } = useParams();
   const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
@@ -109,7 +118,7 @@ export default function ChatPage() {
   const clearOptionsState = useCallback(() => {
     pendingOptionsRef.current = [];
     streamingOptionsRef.current = [];
-    setCurrentOptions([]);
+    setCurrentOptions((prev) => (prev.length > 0 ? [] : prev));
     setOptionCollapsed(false);
   }, []);
 
@@ -398,7 +407,10 @@ export default function ChatPage() {
         streamingTextRef.current = next;
         const { display, options } = parseNextPromptStream(next);
         setStreamingText(display);
-        if (options.length > 0) streamingOptionsRef.current = options;
+        if (options.length > 0) {
+          streamingOptionsRef.current = options;
+          setCurrentOptions((prev) => (areOptionsEqual(prev, options) ? prev : options));
+        }
       },
       onUserSaved(realId) {
         if (!isCurrentStreamRun(runId)) return;

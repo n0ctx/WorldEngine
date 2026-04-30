@@ -48,8 +48,8 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
             </button>
           </div>
         ) : (
-          <div className="we-option-card">
-            <div className="flex flex-col gap-1">
+          <div className={`we-option-card${streaming ? ' we-option-card--streaming' : ''}`}>
+            <div className="we-option-list">
               {options.map((opt, i) => {
                 const isSelected = i === selectedIndex;
                 const disabled = streaming || hasSelected;
@@ -67,6 +67,11 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
                 );
               })}
             </div>
+            {streaming && (
+              <div className="we-option-streaming-hint">
+                生成中，选项会继续实时补全
+              </div>
+            )}
             {!streaming && (
               <button className="we-option-dismiss" onClick={() => handleCollapse(true)}>
                 折叠

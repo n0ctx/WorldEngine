@@ -3,6 +3,30 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-01 fix(ui): 新流式选项出现时不再隐藏上一轮冻结卡
+
+**问题**：恢复流式选项渲染后，`MessageList.jsx` 里“只要有活跃 options 就隐藏最后一张冻结卡”的规则仍然存在，导致新一轮 `<next_prompt>` 一出现，上一轮历史选项卡立刻消失，页面高度突变。
+
+**修复**：
+- `MessageList.jsx`：将 suppress 条件从 `options.length > 0` 收窄为“当前活跃 options 与最后一条 assistant 的 `_options` 完全相同”时才隐藏历史卡。
+- 保留原本的去重语义：会话初始加载时，底部活跃卡与最后一条历史卡内容相同，仍只显示一份；新一轮流式选项与上一轮历史卡内容不同，则两者同时保留，不再发生旧卡消失导致的跳动。
+
+**验证**：`npm run build --prefix frontend` 通过；新一轮流式选项出现时，上一轮冻结卡继续保留，页面不再因旧卡消失而跳动。
+
+## 2026-05-01 fix(ui): 恢复选项卡流式渲染并消除点击选择闪烁
+
+**问题**：`30aa123` 为了压住选项卡实时挂载导致的页面跳动，改成了“流中只写 ref、流后再一次性渲染”，副作用是两处：
+- 流式输出阶段 `<next_prompt>` 不再实时显示，必须等流结束
+- 点击选项发送下一轮时，活跃卡和冻结卡切换叠加入场动画，视觉上会闪一下
+
+**修复**：
+- `ChatPage.jsx`：`onDelta` 恢复 `setCurrentOptions`，但用浅比较避免相同 options 重复 setState；仍保留 `streamingOptionsRef` 作为最终回退
+- `MessageList.jsx`：恢复生成中渲染 `OptionCard`，不再用 `!generating` 把它整体挡掉
+- `OptionCard.jsx` + `ui.css`：流式阶段改为稳定预览态，列表区域固定高度并滚动，底部显示“生成中，选项会继续实时补全”，避免 options 逐字增长时不断撑高页面
+- `FrozenOptionCard`：去掉即时冻结时的额外 appear 动画，减少点击选项后的闪烁感
+
+**验证**：`npm run build --prefix frontend` 通过；聊天页中 `<next_prompt>` 会在流式阶段出现并持续补全，点击选项后历史冻结卡不再额外闪一下。
+
 ## 2026-05-01 fix(prompt): Deepseek 选项生成不稳定修复——Token 预留 + 模板精简
 
 **问题**：开启选项功能后，Deepseek 有时输出选项有时不输出。

@@ -342,6 +342,18 @@
   border: 1px solid var(--we-paper-shadow);
 }
 
+.we-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.we-option-card--streaming .we-option-list {
+  min-height: 96px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+
 .we-option-btn {
   display: block;
   width: 100%;
@@ -382,6 +394,14 @@
   font-size: 12px;
   color: var(--we-ink-faded);
   cursor: pointer;
+  font-style: italic;
+}
+
+.we-option-streaming-hint {
+  margin-left: auto;
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-faded);
   font-style: italic;
 }
 .we-option-card--collapsed {

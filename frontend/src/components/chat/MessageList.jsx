@@ -11,6 +11,15 @@ const NOOP = () => {};
 
 const PAGE_SIZE = 50;
 
+function areOptionsEqual(a, b) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
 /**
  * 历史冻结选项卡：已使用的选项（不可交互），支持折叠/展开。
  * 与 OptionCard 保持相同的视觉结构，在同一批次 render 中无缝接替活跃选项卡。
@@ -19,7 +28,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
   const [collapsed, setCollapsed] = useState(!!initialCollapsed);
   if (!options?.length) return null;
   return (
-    <div className="px-4 pb-2 shrink-0 we-frozen-card-appear">
+    <div className="px-4 pb-2 shrink-0">
       <div className="max-w-[800px] mx-auto">
         {collapsed ? (
           <div className="we-option-card we-option-card--collapsed we-option-card--history">
@@ -228,7 +237,14 @@ const MessageList = forwardRef(function MessageList({
     }
     return null;
   }, [messages]);
-  const suppressLastFrozen = options.length > 0;
+  const lastAssistantFrozenOptions = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === 'assistant') return Array.isArray(msg._options) ? msg._options : [];
+    }
+    return [];
+  }, [messages]);
+  const suppressLastFrozen = options.length > 0 && areOptionsEqual(options, lastAssistantFrozenOptions);
 
   // 章节分组仅用于写作（prose 模式）
   const chapters = useMemo(
@@ -315,7 +331,7 @@ const MessageList = forwardRef(function MessageList({
             </div>
           );
           })}
-          {options.length > 0 && !generating && (
+          {options.length > 0 && (
             <OptionCard
               options={options}
               streaming={generating}
@@ -381,7 +397,7 @@ const MessageList = forwardRef(function MessageList({
               return items;
             })()}
           </AnimatePresence>
-          {options.length > 0 && !generating && (
+          {options.length > 0 && (
             <OptionCard
               options={options}
               streaming={generating}
