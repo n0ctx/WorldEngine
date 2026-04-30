@@ -62,14 +62,6 @@ export async function listMessages(worldId, sessionId) {
   return res.json();
 }
 
-export async function clearMessages(worldId, sessionId) {
-  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/messages`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
 // ─── 激活角色 ─────────────────────────────────────────────────────────
 
 export async function listActiveCharacters(worldId, sessionId) {

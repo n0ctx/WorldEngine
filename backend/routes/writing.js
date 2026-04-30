@@ -106,21 +106,6 @@ router.get('/:worldId/writing-sessions/:sessionId/messages', (req, res) => {
   res.json(messages);
 });
 
-// DELETE /api/worlds/:worldId/writing-sessions/:sessionId/messages
-router.delete('/:worldId/writing-sessions/:sessionId/messages', async (req, res) => {
-  const { sessionId } = req.params;
-  const session = dbGetWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  await deleteAllMessages(sessionId);
-  deleteTurnRecordsBySessionId(sessionId);
-  clearCompressedContext(sessionId);
-  const allDiaryEntries = getDailyEntriesAfterRound(sessionId, 0);
-  for (const e of allDiaryEntries) deleteDiaryFile(sessionId, e.date_str);
-  deleteDailyEntriesBySessionId(sessionId);
-  clearPending(sessionId, 4);
-  res.json({ success: true });
-});
-
 // ── 激活角色管理 ──
 
 // GET /api/worlds/:worldId/writing-sessions/:sessionId/characters
