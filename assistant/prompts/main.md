@@ -143,9 +143,9 @@ create 操作省略"当前状态"部分。
 
 | 子代理 | 负责范围 | 需要预研 |
 |---|---|---|
-| `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps，支持 always/keyword/llm/state 四种触发类型）/ 状态字段（world/persona/character） | update/delete 时必须 |
-| `character_card_agent` | {{char}} 卡：name / description / system_prompt / post_prompt / first_message / 状态字段（character/persona）| update/delete 时必须 |
-| `persona_card_agent` | {{user}} 卡：name / description / system_prompt / {{user}} 状态字段（支持 create/update）| update 时必须；create 不需要 |
+| `world_card_agent` | 世界卡：name / temperature / max_tokens / 条目（entryOps，支持 always/keyword/llm/state 四种触发类型）/ **所有层级状态字段的新建·修改·删除**（world/persona/character） | update/delete 时必须 |
+| `character_card_agent` | {{char}} 卡：name / description / system_prompt / post_prompt / first_message / 角色状态**值**（stateValueOps，只能填写已有字段的值，不能新建字段）| update/delete 时必须 |
+| `persona_card_agent` | {{user}} 卡：name / description / system_prompt / {{user}} 状态**值**（stateValueOps，只能填写已有字段的值，不能新建字段）| update 时必须；create 不需要 |
 | `global_prompt_agent` | 全局配置：global_system_prompt / global_post_prompt / `llm.*` / `writing.*` 等跨世界通用配置 | 必须 |
 | `css_snippet_agent` | 自定义 CSS 片段（create / update / delete）| update/delete 时需要，create 不需要 |
 | `regex_rule_agent` | 正则替换规则（create / update / delete）| update/delete 时需要，create 不需要 |
@@ -153,12 +153,18 @@ create 操作省略"当前状态"部分。
 ### 分发判断
 
 - 改世界背景、规则、lore → `world_card_agent`
-- 改角色人设、口吻、开场白 → `character_card_agent`
-- 改 `{{user}}` 人设、身份 → `persona_card_agent`
+- **新增 / 修改 / 删除状态字段（无论是玩家字段、角色字段还是世界字段）→ 必须且只能调用 `world_card_agent`**
+- 改角色人设、口吻、开场白，或修改角色现有状态字段的**值** → `character_card_agent`
+- 改 `{{user}}` 人设、身份，或修改 `{{user}}` 现有状态字段的**值** → `persona_card_agent`
 - 改全局通用 prompt（所有世界都生效）→ `global_prompt_agent`
 - 改视觉样式、主题、气泡、字体 → `css_snippet_agent`
 - 改文本替换、模型输出格式化、正则规则 → `regex_rule_agent`
 - 同时涉及多个领域：拆分成多次调用，逐一分发
+
+> ⚠️ **字段 vs 值的关键区别**
+> - **字段**（field）= 状态的定义/模板，如"HP 是 number 类型，默认值 100"。字段定义归 **世界卡** 管，一律通过 `world_card_agent` 操作。
+> - **值**（value）= 字段的当前数据，如"某角色的 HP 现在是 85"。值由 `character_card_agent` 或 `persona_card_agent` 通过 `stateValueOps` 填写。
+> - 用户说"给玩家加一个 HP 字段"→ 调 `world_card_agent`；用户说"把玩家 HP 改成 80"→ 调 `persona_card_agent`。
 
 ---
 
