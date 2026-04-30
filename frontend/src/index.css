@@ -767,6 +767,7 @@ body {
   border-right: 1px solid var(--we-paper-shadow);
   border-radius: 0 0 0 var(--we-radius-sm);
   animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation-delay: 160ms;
 }
 
 .we-page-left-spine {
@@ -1607,6 +1608,7 @@ body {
   position: relative;
   overflow: hidden;
   animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation-delay: 280ms;
 }
 .we-cast-spine {
   position: absolute;

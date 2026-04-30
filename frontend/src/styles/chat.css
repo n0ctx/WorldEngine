@@ -379,6 +379,7 @@
   position: relative;
   background: var(--we-paper-base);
   animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation-delay: 220ms;
 }
 
 .we-chat-center-header {
