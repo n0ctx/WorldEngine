@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useParams } from 'react-router-dom';
 import useStore from '../store/index.js';
 import Icon from '../components/ui/Icon.jsx';
@@ -866,8 +866,16 @@ export default function ChatPage() {
         />
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
+        <AnimatePresence>
         {errorBubble && !generating && (
-          <div className="px-4 pb-2 shrink-0">
+          <motion.div
+            key="error-bubble"
+            initial={{ opacity: 0, y: 8, filter: 'blur(1.5px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -4, filter: 'blur(1px)', transition: { duration: 0.15 } }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            className="px-4 pb-2 shrink-0"
+          >
             <div className="max-w-[800px] mx-auto">
               <div className="flex items-start gap-3">
                 <div
@@ -903,8 +911,9 @@ export default function ChatPage() {
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
+        </AnimatePresence>
 
         {/* 输入框 */}
         <InputBox

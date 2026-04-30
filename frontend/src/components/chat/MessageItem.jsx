@@ -74,13 +74,15 @@ function ThinkBlock({ content, open = false }) {
         </Icon>
         思考过程{open && <span className="we-think-block-dots">…</span>}
       </button>
-      {expanded && (
-        <div className="we-think-block-body">
-          <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
-            {content}
-          </ReactMarkdown>
+      <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
+        <div className="we-think-block-body-inner">
+          <div className="we-think-block-body">
+            <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
+              {content}
+            </ReactMarkdown>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

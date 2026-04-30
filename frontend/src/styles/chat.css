@@ -433,6 +433,11 @@
 
 /* ── Token Usage ────────────────────────────────────────── */
 
+@keyframes weMetaReveal {
+  from { opacity: 0; }
+  to   { opacity: 0.65; }
+}
+
 .we-token-usage {
   display: flex;
   gap: 0.6em;
@@ -441,6 +446,7 @@
   margin-top: 4px;
   opacity: 0.65;
   font-family: 'Source Han Serif SC', 'Source Han Serif', serif;
+  animation: weMetaReveal 0.22s ease-out both;
 }
 
 .we-token-usage-unit {
@@ -1141,6 +1147,21 @@
   margin-left: var(--we-space-xs);
 }
 
+.we-think-block-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.we-think-block-body-wrap--open {
+  grid-template-rows: 1fr;
+}
+
+.we-think-block-body-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
 .we-think-block-body {
   padding: var(--we-space-sm) var(--we-space-md);
   font-family: var(--we-font-serif);
@@ -1200,4 +1221,8 @@
   max-width: 90vw;
   max-height: 90vh;
   border-radius: var(--we-radius-sm);
+}
+
+.we-frozen-card-appear {
+  animation: weInkRise 0.18s ease-out both;
 }
