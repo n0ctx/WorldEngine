@@ -2,35 +2,12 @@ import { useState } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import Button from '../ui/Button';
+import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
-
-const RANGE_PCT_CLASS = {
-  0: '[--range-pct:0%]',
-  5: '[--range-pct:5%]',
-  10: '[--range-pct:10%]',
-  15: '[--range-pct:15%]',
-  20: '[--range-pct:20%]',
-  25: '[--range-pct:25%]',
-  30: '[--range-pct:30%]',
-  35: '[--range-pct:35%]',
-  40: '[--range-pct:40%]',
-  45: '[--range-pct:45%]',
-  50: '[--range-pct:50%]',
-  55: '[--range-pct:55%]',
-  60: '[--range-pct:60%]',
-  65: '[--range-pct:65%]',
-  70: '[--range-pct:70%]',
-  75: '[--range-pct:75%]',
-  80: '[--range-pct:80%]',
-  85: '[--range-pct:85%]',
-  90: '[--range-pct:90%]',
-  95: '[--range-pct:95%]',
-  100: '[--range-pct:100%]',
-};
 
 /**
  * 写作主模型(LLM)配置区块
@@ -53,7 +30,6 @@ export default function WritingLlmBlock({
 
   const config = writingLlm || {};
   const temperature = config.temperature ?? 0;
-  const temperaturePct = Math.round((temperature / 2.0) * 20) * 5;
 
   async function handleSaveKey() {
     if (!config.provider) {
@@ -185,10 +161,10 @@ export default function WritingLlmBlock({
             {config.temperature != null && config.temperature > 0 ? (config.temperature).toFixed(1) : '继承'}
           </span>
         </div>
-        <input
-          type="range"
-          className={['we-range', RANGE_PCT_CLASS[temperaturePct] ?? RANGE_PCT_CLASS[0]].join(' ')}
-          min="0" max="2.0" step="0.1"
+        <Range
+          min="0"
+          max="2.0"
+          step="0.1"
           value={temperature}
           onChange={(e) => {
             const v = parseFloat(e.target.value);

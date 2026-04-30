@@ -13,6 +13,7 @@ import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
+import Range from '../ui/Range';
 import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from './SettingsConstants';
 
 export default function LlmConfigPanel({
@@ -108,13 +109,12 @@ export default function LlmConfigPanel({
                   {(llm.temperature ?? 0.8).toFixed(1)}
                 </span>
               </div>
-              <input
-                type="range"
-                className="we-range"
-                min="0.1" max="2.0" step="0.1"
+              <Range
+                min="0.1"
+                max="2.0"
+                step="0.1"
                 value={llm.temperature ?? 0.8}
                 onChange={(e) => onLlmChange('temperature', parseFloat(e.target.value))}
-                style={{ '--range-pct': `${((llm.temperature ?? 0.8) - 0.1) / (2.0 - 0.1) * 100}%` }}
               />
             </div>
 

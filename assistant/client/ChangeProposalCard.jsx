@@ -526,21 +526,27 @@ function StateFieldOpEditor({ op, allowedTargets, onChange, onRemove }) {
           )}
 
           {op.type === 'number' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-              <input
-                type="number"
-                placeholder="最小值"
-                value={op.min_value ?? ''}
-                onChange={(e) => onChange({ ...op, min_value: e.target.value === '' ? null : Number(e.target.value) })}
-                style={inputBase}
-              />
-              <input
-                type="number"
-                placeholder="最大值"
-                value={op.max_value ?? ''}
-                onChange={(e) => onChange({ ...op, max_value: e.target.value === '' ? null : Number(e.target.value) })}
-                style={inputBase}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '6px' }}>
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '3px' }}>最小值</div>
+                <input
+                  type="number"
+                  placeholder="最小值"
+                  value={op.min_value ?? ''}
+                  onChange={(e) => onChange({ ...op, min_value: e.target.value === '' ? null : Number(e.target.value) })}
+                  style={inputBase}
+                />
+              </div>
+              <div style={{ marginBottom: '6px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', marginBottom: '3px' }}>最大值</div>
+                <input
+                  type="number"
+                  placeholder="最大值"
+                  value={op.max_value ?? ''}
+                  onChange={(e) => onChange({ ...op, max_value: e.target.value === '' ? null : Number(e.target.value) })}
+                  style={inputBase}
+                />
+              </div>
             </div>
           )}
         </>
