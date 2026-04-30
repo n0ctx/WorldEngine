@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 
@@ -17,6 +17,8 @@ export default function StateValueField({ field, onSave }) {
     catch { return vj ?? null; }
   };
   const [local, setLocal] = useState(() => parseValue(field.default_value_json));
+  const [listInput, setListInput] = useState('');
+  const listRef = useRef(null);
 
   function saveValue(val) {
     onSave(field.field_key, JSON.stringify(val));
@@ -54,18 +56,54 @@ export default function StateValueField({ field, onSave }) {
     );
   }
   if (field.type === 'list') {
-    const displayValue = Array.isArray(local) ? local.join(', ') : (local ?? '');
+    const items = Array.isArray(local) ? local : [];
+
+    function addListItem(raw) {
+      const v = raw.trim();
+      if (!v || items.includes(v)) return;
+      setLocal([...items, v]);
+      setListInput('');
+      saveValue([...items, v]);
+    }
+
+    function removeListItem(v) {
+      const updated = items.filter((e) => e !== v);
+      setLocal(updated);
+      setListInput('');
+      saveValue(updated);
+    }
+
     return (
-      <Input
-        type="text"
-        value={displayValue}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => {
-          const arr = String(local).split(',').map(s => s.trim()).filter(Boolean);
-          saveValue(arr);
+      <div
+        className="we-tag-input"
+        onClick={() => listRef.current?.focus()}
+        role="group"
+        aria-label="列表项标签输入区"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.currentTarget.querySelector('input')?.focus();
+          }
         }}
-        placeholder="逗号分隔多个条目"
-      />
+      >
+        {items.map((v) => (
+          <span key={v} className="we-tag">
+            {v}
+            <button type="button" onClick={(e) => { e.stopPropagation(); removeListItem(v); }}>×</button>
+          </span>
+        ))}
+        <input ref={listRef} className="we-tag-input-field"
+          value={listInput} onChange={(e) => setListInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); addListItem(listInput); }
+            else if (e.key === 'Backspace' && listInput === '' && items.length) {
+              removeListItem(items[items.length - 1]);
+            }
+          }}
+          onBlur={() => { if (listInput.trim()) addListItem(listInput); }}
+          placeholder={items.length === 0 ? '输入条目后按回车' : ''}
+        />
+      </div>
     );
   }
   return (

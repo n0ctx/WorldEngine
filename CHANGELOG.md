@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-04-30 fix(ui): 列表类型状态值改用标签输入（回车添加）
+
+**背景**：编辑世界（角色）页面填写列表类型状态字段默认值时，原实现使用逗号分隔输入（`split(',')`），用户输入格式不规范（漏写逗号、多余空格、误用全角逗号等）容易导致解析失败或拆分错误。
+
+**改动**：
+- `frontend/src/components/state/StateValueField.jsx`：`type === 'list'` 分支由单行 `<Input type="text">` + 逗号 split 改为标签输入（tag input）组件，复用 `StateFieldEditor.jsx` 中列表默认条目 / 枚举选项使用的同套 `we-tag-input` / `we-tag` / `we-tag-input-field` 样式与交互。
+- 交互一致化：输入条目按 Enter 添加；输入框为空时按 Backspace 删除最后一项；点击标签 × 删除单项；onBlur 自动提交未确认输入。
+- 持久化：每次增删立即调用 `onSave(field_key, JSON.stringify(items))`，仍写入 `default_value_json` 中的 JSON 数组字符串，与原 schema 完全兼容；旧数据（已为数组）正常显示，无需迁移。
+- 顶层 hooks：`listInput` / `listRef` 提到组件顶层，避免在条件分支内调用 hooks。
+
+**验证**：
+1. API 层：创建列表字段（POST `/api/worlds/:id/world-state-fields`）→ PATCH `/state-values/:fieldKey` 更新值 → GET 回读，`default_value_json` 正确为 JSON 数组字符串
+2. UI 层（手动）：进入编辑世界 → 列表类型字段行 → 输入条目 + 回车 / Backspace / × 三种交互均可正常增删；刷新页面后值保留
+3. 兼容：已有列表默认值（数组）正常加载为标签
+
 ## 2026-04-30 feat(memory): 激活条目持久化到 messages 表（刷新后保留）
 
 **背景**：原"本轮激活的非常驻条目"仅运行时展示，刷新即消失（见同日 `7016648` 决策）。改为持久化以便用户回看历史消息时仍能看到当时命中了哪些条目。
