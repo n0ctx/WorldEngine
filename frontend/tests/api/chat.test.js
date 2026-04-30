@@ -4,7 +4,7 @@ vi.mock('../../src/api/sessions.js', () => ({
   editMessage: vi.fn(async (messageId, content) => ({ id: `${messageId}-edited`, content })),
 }));
 
-import { clearMessages, continueGeneration, retitle, sendMessage } from '../../src/api/chat.js';
+import { continueGeneration, retitle, sendMessage } from '../../src/api/chat.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();
@@ -64,11 +64,6 @@ describe('chat api', () => {
       })
       .mockResolvedValueOnce({
         ok: false,
-        status: 400,
-        json: async () => ({ error: 'clear failed' }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
         status: 409,
         json: async () => ({ error: 'retitle failed' }),
       });
@@ -83,7 +78,6 @@ describe('chat api', () => {
       });
     });
 
-    await expect(clearMessages('session-2')).rejects.toThrow('clear failed');
     await expect(retitle('session-2')).rejects.toThrow('retitle failed');
   });
 });

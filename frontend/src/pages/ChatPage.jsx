@@ -5,7 +5,7 @@ import Icon from '../components/ui/Icon.jsx';
 import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
 import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
-import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, clearMessages, editAssistantMessage, retitle } from '../api/chat.js';
+import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, editAssistantMessage, retitle } from '../api/chat.js';
 import { createSession, getSession, deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import SessionListPanel from '../components/book/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
@@ -739,38 +739,7 @@ export default function ChatPage() {
     stopRef.current = stop;
   }
 
-  // 清空会话消息
-  async function handleClearMessages() {
-    if (!currentSessionId) return;
-    if (!window.confirm('确认清空当前会话所有消息？')) return;
-    try {
-      const { firstMessage } = await clearMessages(currentSessionId);
-      if (firstMessage) {
-        // 角色有开场白，重新插入
-        const fakeMsg = {
-          id: `__first_${Date.now()}`,
-          session_id: currentSessionId,
-          role: 'assistant',
-          content: firstMessage,
-          attachments: null,
-          created_at: Date.now(),
-        };
-        if (messageListRef.current?.updateMessages) {
-          messageListRef.current.updateMessages(() => [fakeMsg]);
-        }
-      } else {
-        if (messageListRef.current?.updateMessages) {
-          messageListRef.current.updateMessages(() => []);
-        }
-      }
-      // 刷新以拿到真实 id
-      refreshMessages();
-    } catch (err) {
-      pushErrorToast(err.message || '清空失败');
-    }
-  }
-
-  // 根据最近对话上下文重新生成标题
+// 根据最近对话上下文重新生成标题
   async function handleRetitle() {
     if (!currentSessionId) return;
     try {
@@ -943,7 +912,6 @@ export default function ChatPage() {
           onScrollToBottom={() => messageListRef.current?.scrollToBottom()}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
-          onClear={handleClearMessages}
           onRetry={handleRetryLast}
           onTitle={handleRetitle}
           worldId={character?.world_id ?? null}

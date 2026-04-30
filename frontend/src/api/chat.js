@@ -114,20 +114,6 @@ export async function impersonate(sessionId) {
 }
 
 /**
- * 清空会话消息，返回 { success, firstMessage }
- */
-export async function clearMessages(sessionId) {
-  const res = await fetch(`/api/sessions/${sessionId}/messages`, {
-    method: 'DELETE',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
-
-/**
  * 编辑 AI 消息内容并触发摘要重新生成（不重新生成 AI 回复）
  */
 export async function editAssistantMessage(sessionId, messageId, content) {

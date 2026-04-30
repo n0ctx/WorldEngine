@@ -7,8 +7,6 @@ const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
   { cmd: '/impersonate', desc: 'AI 替你写一条消息' },
   { cmd: '/retry',       desc: '删除最后一条 AI 回复并重新生成' },
-  { cmd: '/clear',       desc: '清空当前会话所有消息' },
-  { cmd: '/summary',     desc: '手动触发生成当前会话摘要' },
   { cmd: '/title',       desc: '根据最近对话上下文重新生成会话标题' },
 ];
 
@@ -24,8 +22,6 @@ const InputBox = forwardRef(function InputBox({
   onContinue,
   onImpersonate,
   onRetry,
-  onClear,
-  onSummary,
   onTitle,
 }, ref) {
   const [text, setText] = useState('');
@@ -78,8 +74,6 @@ const InputBox = forwardRef(function InputBox({
       case '/continue':    onContinue?.();    break;
       case '/impersonate': onImpersonate?.(); break;
       case '/retry':       onRetry?.();       break;
-      case '/clear':       onClear?.();       break;
-      case '/summary':     onSummary?.();     break;
       case '/title':       onTitle?.();       break;
     }
   }

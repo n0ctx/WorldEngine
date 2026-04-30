@@ -503,36 +503,6 @@ router.post('/:sessionId/impersonate', async (req, res) => {
   }
 });
 
-// ── DELETE /api/sessions/:sessionId/messages ──
-
-router.delete('/:sessionId/messages', async (req, res) => {
-  const { sessionId } = req.params;
-
-  const session = getSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-
-  await deleteAllMessagesBySessionId(sessionId);
-  deleteTurnRecordsBySessionId(sessionId);
-  clearCompressedContext(sessionId);
-  // 清理该 session 所有日记（文件由 cleanup-registrations.js session 钩子不处理，需手动删除）
-  const allDiaryEntries = getDailyEntriesAfterRound(sessionId, 0);
-  for (const e of allDiaryEntries) deleteDiaryFile(sessionId, e.date_str);
-  deleteDailyEntriesBySessionId(sessionId);
-  // 清空待处理的日记任务
-  clearPending(sessionId, 4);
-
-  const character = session.character_id ? getCharacterById(session.character_id) : null;
-  let firstMessage = null;
-
-  if (character?.first_message) {
-    firstMessage = character.first_message;
-    createMessage({ session_id: sessionId, role: 'assistant', content: firstMessage });
-    touchSession(sessionId);
-  }
-
-  res.json({ success: true, firstMessage });
-});
-
 // ── POST /api/sessions/:sessionId/edit-assistant ──
 
 router.post('/:sessionId/edit-assistant', async (req, res) => {
