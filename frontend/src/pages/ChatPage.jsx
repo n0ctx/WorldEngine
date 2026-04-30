@@ -89,6 +89,8 @@ export default function ChatPage() {
   const assistantAppendedEarlyRef = useRef(false);
   // 本轮后端返回的选项列表（finalizeStream 时设置到 currentOptions）
   const pendingOptionsRef = useRef([]);
+  // 本轮流式解析到的选项（onDelta 暂存；finalizeStream 时若后端无最终选项则使用此值）
+  const streamingOptionsRef = useRef([]);
   // 本轮 SSE 推送的激活条目（onDone 时附加到 assistant 上，仅运行时展示）
   const pendingEntriesRef = useRef([]);
   // 本轮流占位节点的 key（finalizeStream 把它作为 assistant._key，保持 React key 稳定）
@@ -106,6 +108,7 @@ export default function ChatPage() {
 
   const clearOptionsState = useCallback(() => {
     pendingOptionsRef.current = [];
+    streamingOptionsRef.current = [];
     setCurrentOptions([]);
     setOptionCollapsed(false);
   }, []);
@@ -367,10 +370,18 @@ export default function ChatPage() {
     setContinuingMessageId(null);
     setContinuingText('');
     stopRef.current = null;
-    // 设置本轮选项；后端有最终解析结果时覆盖，否则保留流式检测的内容
-    const finalOpts = pendingOptionsRef.current;
-    if (finalOpts.length > 0) setCurrentOptions(finalOpts);
+    // 设置本轮选项；后端最终解析结果优先，否则回落到流式检测到的内容
+    const finalOpts = pendingOptionsRef.current.length > 0
+      ? pendingOptionsRef.current
+      : streamingOptionsRef.current;
+    if (finalOpts.length > 0) {
+      setCurrentOptions(finalOpts);
+      requestAnimationFrame(() => {
+        messageListRef.current?.scrollToBottom();
+      });
+    }
     pendingOptionsRef.current = [];
+    streamingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
     // 用户主动停止时（streamAbortedRef=true）跳过刷新，避免页面闪烁跳顶
     const wasAborted = streamAbortedRef.current;
@@ -387,7 +398,7 @@ export default function ChatPage() {
         streamingTextRef.current = next;
         const { display, options } = parseNextPromptStream(next);
         setStreamingText(display);
-        if (options.length > 0) setCurrentOptions(options);
+        if (options.length > 0) streamingOptionsRef.current = options;
       },
       onUserSaved(realId) {
         if (!isCurrentStreamRun(runId)) return;

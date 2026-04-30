@@ -315,7 +315,7 @@ const MessageList = forwardRef(function MessageList({
             </div>
           );
           })}
-          {options.length > 0 && (
+          {options.length > 0 && !generating && (
             <OptionCard
               options={options}
               streaming={generating}
@@ -381,7 +381,7 @@ const MessageList = forwardRef(function MessageList({
               return items;
             })()}
           </AnimatePresence>
-          {options.length > 0 && (
+          {options.length > 0 && !generating && (
             <OptionCard
               options={options}
               streaming={generating}
