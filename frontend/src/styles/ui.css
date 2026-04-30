@@ -10,7 +10,7 @@
   background: transparent;
   color: var(--we-ink-secondary);
   cursor: pointer;
-  transition: all 0.18s, box-shadow 0.05s, transform 0.05s;
+  transition: all var(--we-duration-fast) var(--we-easing-sharp), box-shadow 0.05s, transform 0.05s;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -47,7 +47,7 @@
   color: var(--we-paper-base);
   border-color: var(--we-vermilion-deep);
   box-shadow: var(--we-shadow-stamp-up);
-  transition: background 0.18s, box-shadow 0.05s, transform 0.05s;
+  transition: background var(--we-duration-fast) var(--we-easing-sharp), box-shadow 0.05s, transform 0.05s;
 }
 .we-btn-primary:hover:not(:disabled) {
   background: var(--we-vermilion-deep);
@@ -111,7 +111,7 @@
   color: var(--we-ink-primary);
   outline: none;
   line-height: 1.75;
-  transition: border-color 0.2s, background 0.2s;
+  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp);
 }
 .we-input:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
@@ -151,7 +151,7 @@
   box-shadow: none;
 }
 .we-card-ring {
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
 }
 .we-card-ring:hover {
   border-color: var(--we-ink-faded);
@@ -280,7 +280,7 @@
   flex-wrap: wrap;
   gap: 6px;
   cursor: text;
-  transition: border-color 0.18s;
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-tag-input:focus-within {
@@ -312,7 +312,7 @@
   padding: 0;
   line-height: 1;
   font-size: 14px;
-  transition: opacity 0.15s;
+  transition: opacity var(--we-duration-fast);
 }
 
 .we-tag button:hover { opacity: 1; }
@@ -354,7 +354,7 @@
   font-size: 13px;
   color: var(--we-ink-primary);
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: background-color var(--we-duration-fast), border-color var(--we-duration-fast);
   line-height: 1.5;
 }
 .we-option-btn:hover:not(.we-option-btn--disabled) {
@@ -419,7 +419,7 @@
   color: var(--we-ink-faded);
   cursor: pointer;
   user-select: none;
-  transition: color 0.15s;
+  transition: color var(--we-duration-fast);
 }
 
 .we-scope-check:has(.we-checkbox:checked) {
@@ -437,7 +437,7 @@
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--we-duration-fast), background var(--we-duration-fast);
 }
 
 .we-checkbox:checked {
@@ -482,7 +482,7 @@
   color: var(--we-ink-faded);
   cursor: pointer;
   outline: none;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
   text-align: left;
 }
 .we-select-trigger.has-value {
@@ -507,7 +507,7 @@
   height: 14px;
   flex-shrink: 0;
   color: var(--we-ink-faded);
-  transition: transform 0.15s;
+  transition: transform var(--we-duration-fast);
 }
 .we-select-trigger.open .we-select-chevron {
   transform: rotate(180deg);
@@ -542,7 +542,7 @@
   color: var(--we-ink-secondary);
   cursor: pointer;
   user-select: none;
-  transition: background 0.12s;
+  transition: background var(--we-duration-fast);
 }
 .we-select-option:hover {
   background: var(--we-paper-aged);
@@ -580,7 +580,7 @@
   border: none;
   padding: 6px 16px;
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color var(--we-duration-fast);
 }
 .we-confirm-cancel:hover:not(:disabled) {
   color: var(--we-ink-primary);
@@ -660,7 +660,7 @@
   border: 1px solid var(--we-paper-shadow);
   border-radius: var(--we-radius-sm);
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background var(--we-duration-fast), opacity var(--we-duration-fast);
 }
 
 .we-character-preview-item--selected {
@@ -824,7 +824,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background var(--we-duration-fast);
 }
 
 .we-avatar-mask--rect {
@@ -839,7 +839,7 @@
   color: var(--we-color-text-inverse);
   font-size: 12px;
   opacity: 0;
-  transition: opacity 0.15s;
+  transition: opacity var(--we-duration-fast);
 }
 
 .we-avatar-wrap:hover .we-avatar-mask span {

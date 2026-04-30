@@ -133,8 +133,14 @@
   --we-duration-fast:   120ms;
   --we-duration-normal: 200ms;
   --we-duration-slow:   320ms;
-  --we-easing-standard: cubic-bezier(.2,0,0,1);
-  --we-easing-emphasized: cubic-bezier(.2,0,0,1.2);
+
+  /* 具名缓动函数（对应 motion.js EASE，供 CSS transition 引用）*/
+  --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场 */
+  --we-easing-page:     cubic-bezier(.65, 0, .35, 1);    /* 翻页：页面级过渡 */
+  --we-easing-quill:    cubic-bezier(.40, 0, .20, 1);    /* 落笔：盖印/确认 */
+  --we-easing-sharp:    cubic-bezier(.25, .46, .45, .94);/* 利落：hover 色变 */
+  --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场/折叠 */
+  --we-easing-standard: cubic-bezier(.2,0,0,1);          /* 通用标准（兼容保留）*/
 
   /* === 过渡别名（向后兼容，迁移完成后可删除）=== */
   /* 颜色别名 */
@@ -259,20 +265,20 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
-  /* 旧 motion 变量，已冻结；新代码使用 --we-duration-* 系列 */
-  /* Motion Duration 旧版（保留原值不动）*/
-  --we-dur-micro:   0.10s;
-  --we-dur-quick:   0.18s;
-  --we-dur-base:    0.30s;
-  --we-dur-medium:  0.38s;
-  --we-dur-slow:    0.50s;
-  --we-dur-crawl:   0.75s;
-  --we-dur-ambient: 2.00s;
-  /* ink:     cubic-bezier(0.22, 1, 0.36, 1)       */
-  /* page:    cubic-bezier(0.65, 0, 0.35, 1)       */
-  /* quill:   cubic-bezier(0.40, 0, 0.20, 1)       */
-  /* sharp:   cubic-bezier(0.25, 0.46, 0.45, 0.94) */
-  /* retract: cubic-bezier(0.55, 0, 1, 0.45)       */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --we-duration-fast:   0ms;
+    --we-duration-normal: 0ms;
+    --we-duration-slow:   0ms;
+    --we-easing-ink:      linear;
+    --we-easing-page:     linear;
+    --we-easing-quill:    linear;
+    --we-easing-sharp:    linear;
+    --we-easing-retract:  linear;
+    --we-easing-standard: linear;
+  }
 }
 
 /* === Typography 预设（必须使用这些组合，禁止散写字号+字重）=== */

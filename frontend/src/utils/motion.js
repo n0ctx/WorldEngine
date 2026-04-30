@@ -44,14 +44,17 @@ export const BLUR = {
 
 // §2.6 预组合 variants（framer-motion variants 对象，直接展开使用）
 export const variants = {
+  // 组件级：从下浮现 + 模糊消散（主入场）
   inkRise: {
     hidden:  { opacity: 0, y: 8,  filter: 'blur(1.5px)' },
     visible: { opacity: 1, y: 0,  filter: 'blur(0px)'   },
   },
+  // 组件级：向上淡出
   inkFade: {
     visible: { opacity: 1, y: 0,  filter: 'blur(0px)' },
     hidden:  { opacity: 0, y: -6, filter: 'blur(1px)'  },
   },
+  // 列表容器：stagger 子项
   staggerList: {
     hidden:  {},
     visible: { transition: { staggerChildren: STAGGER.list } },
@@ -59,6 +62,22 @@ export const variants = {
   staggerPanel: {
     hidden:  {},
     visible: { transition: { staggerChildren: STAGGER.panel } },
+  },
+  // 列表子项：配合 staggerList / staggerPanel 使用
+  listItem: {
+    hidden:  { opacity: 0, y: 6 },
+    visible: { opacity: 1, y: 0 },
+  },
+  // 页面级：路由切换过渡（对应 DESIGN.md §9 pageTransition）
+  pageTransition: {
+    hidden:  { opacity: 0, y: 12, scale: 0.98 },
+    visible: { opacity: 1, y: 0,  scale: 1    },
+    exit:    { opacity: 0, y: -8, scale: 0.99 },
+  },
+  // overlay 级：背景遮罩淡入淡出（供 ConfirmModal 等复用）
+  overlayBackdrop: {
+    hidden:  { opacity: 0 },
+    visible: { opacity: 1 },
   },
 };
 
@@ -68,6 +87,7 @@ export const transitions = {
   quick:   { duration: DURATION.quick,  ease: EASE.sharp   },
   medium:  { duration: DURATION.medium, ease: EASE.ink     },
   slow:    { duration: DURATION.slow,   ease: EASE.page    },
+  page:    { duration: DURATION.slow,   ease: EASE.page    },
   quill:   { duration: DURATION.base,   ease: EASE.quill   },
   retract: { duration: DURATION.quick,  ease: EASE.retract },
 };

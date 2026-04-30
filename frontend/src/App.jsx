@@ -63,7 +63,7 @@ export default function App() {
     <div className="we-app-root">
       <TopBar />
       <GlobalToast />
-      <PageTransition>
+      <PageTransition locationKey={(backgroundLocation || location).pathname}>
         <Suspense fallback={<RouteFallback />}>
           <Routes location={backgroundLocation || location}>
             <Route path="/" element={<WorldsPage />} />

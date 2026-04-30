@@ -351,7 +351,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-code-block-copy:hover {
@@ -398,7 +398,7 @@
   padding: 4px;
   cursor: pointer;
   color: var(--we-ink-faded);
-  transition: color 0.15s;
+  transition: color var(--we-duration-fast);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -496,7 +496,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: color 0.15s;
+  transition: color var(--we-duration-fast);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -521,7 +521,7 @@
   position: relative;
   padding: 0 8px;
   cursor: default;
-  transition: color 0.15s;
+  transition: color var(--we-duration-fast);
 }
 
 .we-activated-entry-chip + .we-activated-entry-chip::before {
@@ -601,7 +601,7 @@
   cursor: pointer;
   background: none;
   color: var(--we-ink-secondary);
-  transition: all 0.15s;
+  transition: all var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 /* ── Prose writing mode overrides ──────────────────────── */

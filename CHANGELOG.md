@@ -1921,3 +1921,20 @@
 - `shared/chapter-constants.mjs` / `frontend/src/utils/constants.js` / `backend/utils/constants.js` — 章节分组常量抽为前后端共享单一来源，避免后续再次双写漂移。
 
 **结果**：写作模式下，前端显示出来的章节索引和后端章节标题生成使用同一套边界规则；点击“重新生成章节标题”不会再因为章节分组不一致而报错。
+
+## 2026-04-30 feat(ui): 动态化基础设施收敛（阶段 1）
+
+**背景**：前端动效存在双轨问题——`tokens.css` 和 `motion.js` 各自定义时长/缓动，CSS 文件中大量硬编码 transition 值，`PageTransition` 是空壳，`GlobalToast` 无动效且不支持队列，全局缺少 `prefers-reduced-motion` 支持。
+
+**改动**：
+- `tokens.css`：新增 5 个具名 easing CSS 变量（`--we-easing-ink/page/quill/sharp/retract`），与 `motion.js` EASE 定义一一对应；删除已冻结的旧版 `--we-dur-*` 系列（7 个变量）；新增 `@media (prefers-reduced-motion: reduce)` 块，将所有 duration token 覆盖为 `0ms`，easing 覆盖为 `linear`。
+- `motion.js`：新增 `pageTransition`（页面级路由过渡）、`overlayBackdrop`（遮罩背景）、`listItem`（列表子项）三个 variant；新增 `transitions.page` 预设。
+- `useMotion.js`：新增 `transition(preset)` 辅助函数，reduced 模式下自动将 duration 归零，供 JS 动效组件统一降级。
+- `GlobalToast.jsx`：升级为队列模式（最多同时 3 条）；每条 toast 独立 id/timer；用 `AnimatePresence` 实现 slide-up enter / fade-out exit 动效；类型扩展至 4 种（success/error/warning/info）；1500ms 内相同消息去重。
+- `toast.js`：新增 `pushWarningToast` / `pushInfoToast` 辅助函数。
+- `ConfirmModal.jsx`：接入 `AnimatePresence` + `overlayBackdrop` variant（背景）+ `inkRise` variant（内容框），补齐缺失的 enter 动效。
+- `PageTransition.jsx`：从纯布局容器升级为路由级动效容器，接入 `AnimatePresence + motion.div`，使用 `pageTransition` variant + `transitions.page`，以 `locationKey` prop 控制 key 避免 overlay 路由误触发。
+- `App.jsx`：向 `PageTransition` 传入 `(backgroundLocation || location).pathname` 作为 locationKey。
+- `ui.css` / `pages.css` / `chat.css`：所有硬编码 transition 时间值（`0.15s`、`0.18s`、`0.2s`、`0.22s`、`0.12s`）全部替换为对应 CSS token，同步补充具名 easing token 引用。
+
+**验证**：`npm run build` 构建通过（208ms）；无任何 CSS 硬编码时间残留（grep 验证）；旧版 `--we-dur-*` token 全部清除。

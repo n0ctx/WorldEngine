@@ -4,6 +4,6 @@ export function pushToast(message, type = 'success') {
   }));
 }
 
-export function pushErrorToast(message) {
-  pushToast(message, 'error');
-}
+export function pushErrorToast(message)   { pushToast(message, 'error');   }
+export function pushWarningToast(message) { pushToast(message, 'warning'); }
+export function pushInfoToast(message)    { pushToast(message, 'info');    }
