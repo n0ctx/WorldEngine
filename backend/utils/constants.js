@@ -20,6 +20,7 @@ export const ASYNC_QUEUE_MAX_SIZE = 20;
 export const CONTEXT_MIN_HISTORY_ROUNDS = 4;
 export const PROMPT_ENTRY_SCAN_WINDOW = 5;       // 关键词兜底：扫描最近几条消息
 export const PROMPT_ENTRY_LLM_MAX_TOKENS = 300;  // LLM preflight：最大输出 token 数
+export const SUGGESTION_TOKEN_RESERVE = 200;     // 选项生成预留输出空间：标签20t+三条中文选项~100t+换行~10t≈130t，取200安全余量
 
 // ============================
 // 记忆召回

@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-01 fix(prompt): Deepseek 选项生成不稳定修复——Token 预留 + 模板精简
+
+**问题**：开启选项功能后，Deepseek 有时输出选项有时不输出。
+
+**根本原因**：
+1. 主回复占满 `max_tokens`（如 2048），选项 `<next_prompt>` 块被截断
+2. 尾部用户消息中格式约束在长上下文中注意力权重降低
+
+**修复**：
+- `constants.js`：新增 `SUGGESTION_TOKEN_RESERVE = 200`（选项约需 130t，取 200 安全余量）
+- `assembler.js`：`buildPrompt` / `buildWritingPrompt` 中，`suggestion_enabled=true` 时 `maxTokens` 自动预留 200，下限 500；关闭时行为不变
+- `shared-suggestion.md`：模板精简，从 150+ tokens 压缩至约 40 tokens
+
+**约束**：不改变消息结构，continue/impersonate 不受影响（Codex 审查确认）。
+
 ## 2026-04-30 perf(ui): PageTransition 页面切换动画提速——总等待从 ~1000ms 压缩到 ~260ms
 
 - `motion.js`：`pageTransition` variant 各状态嵌入独立 transition；exit 改为纯淡出（80ms retract），visible 改为 180ms ink 入场；去掉 scale/y 偏移；`transitions.page` 同步更新为 quick+ink（兜底用）

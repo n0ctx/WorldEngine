@@ -50,7 +50,7 @@ import {
 } from '../memory/recall.js';
 import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
 import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
-import { MEMORY_EXPAND_MAX_TOKENS } from '../utils/constants.js';
+import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
@@ -322,7 +322,10 @@ export async function buildPrompt(sessionId, options = {}) {
   }
 
   const temperature = world.temperature ?? config.llm.temperature;
-  const maxTokens = world.max_tokens ?? config.llm.max_tokens;
+  const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
+  const maxTokens = config.suggestion_enabled
+    ? Math.max(baseMaxTokens - SUGGESTION_TOKEN_RESERVE, 500)
+    : baseMaxTokens;
 
   const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
 
@@ -530,7 +533,10 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
-  const maxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
+  const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
+  const maxTokens = writing.suggestion_enabled
+    ? Math.max(baseMaxTokens - SUGGESTION_TOKEN_RESERVE, 500)
+    : baseMaxTokens;
   const model = writing.model || null;
 
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
