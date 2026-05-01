@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { DURATION, EASE } from '../../utils/motion.js';
 
@@ -14,9 +15,9 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' })
   // 记录 mousedown 是否发生在背景本身（而非弹窗内容）
   const mouseDownOnBackdrop = useRef(false);
 
-  return (
+  return createPortal(
     <MotionDiv
-      className="we-modal-backdrop fixed inset-0 z-50 flex items-center justify-center"
+      className="we-modal-backdrop fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{   opacity: 0 }}
@@ -37,6 +38,7 @@ export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' })
       >
         {children}
       </MotionDiv>
-    </MotionDiv>
+    </MotionDiv>,
+    document.body
   );
 }

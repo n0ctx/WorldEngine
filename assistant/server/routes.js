@@ -276,7 +276,13 @@ router.post('/extract-characters', async (req, res) => {
     // 构建 LLM 任务描述
     const existingNames = existingChars.map((c) => c.name).join('、') || '（无）';
     const sfDesc = stateFields.length > 0
-      ? stateFields.map((f) => `- ${f.field_key}（${f.label}，类型：${f.type}${f.description ? '，说明：' + f.description : ''}）`).join('\n')
+      ? stateFields.map((f) => {
+          let extra = '';
+          if (f.type === 'enum' && Array.isArray(f.enum_options) && f.enum_options.length > 0) {
+            extra = `，可选值：[${f.enum_options.map((o) => `"${o}"`).join(', ')}]`;
+          }
+          return `- ${f.field_key}（${f.label}，类型：${f.type}${extra}${f.description ? '，说明：' + f.description : ''}）`;
+        }).join('\n')
       : '（无状态字段定义）';
 
     const task = [

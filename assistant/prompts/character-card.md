@@ -110,12 +110,13 @@
 - `field_key` 必须来自 `preview_card` 返回的 `existingCharacterStateFields`
 - `value_json` 必须是 JSON 字符串或 `null`
 - 只能填写值，不能删除值，不能新增字段
+- **enum 类型字段**：`value_json` 的字符串值必须是该字段 `enum_options` 列表中的某一项，禁止填写列表之外的任何值
 
 常见 `value_json` 写法：
 
 - number → `"50"`
 - text → `"\"警觉\""`
-- enum → `"\"轻伤\""`
+- enum → `"\"轻伤\""` （值必须来自该字段的 `enum_options`）
 - list → `"[\"短刀\",\"钥匙\"]"`
 - boolean → `"true"`
 - 清空且字段允许为空 → `null`
