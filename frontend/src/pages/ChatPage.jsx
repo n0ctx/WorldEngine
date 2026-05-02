@@ -134,7 +134,7 @@ export default function ChatPage() {
     // 将当前轮次选项冻结到最后一条 assistant 消息上（再次生成时保留历史选项）
     // 重新生成 / 编辑重生 / 重试场景下，选项属于即将被替换的消息，不应冻结到上一条 assistant
     if (freezeOptions && currentOptionsRef.current.length > 0) {
-      messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, optionCollapsedRef.current);
+      messageListRef.current?.freezeOptions?.(currentOptionsRef.current, selectedOptionIndexRef.current, true);
       selectedOptionIndexRef.current = -1;
       setOptionCollapsed(false);
     }

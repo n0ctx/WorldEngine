@@ -153,7 +153,7 @@ function UserMessage({ msg, onEdit, onDelete }) {
 
   return (
     <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-      <div style={{ maxWidth: '80%' }}>
+      <div style={{ maxWidth: '80%', ...(editing ? { width: '80%' } : {}) }}>
         {editing ? (
           <div>
             <textarea
