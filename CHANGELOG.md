@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-02 fix(assistant): planner 校验失败重试时携带允许操作列表，并禁止 preview 作为 operation
+
+**问题**：写卡助手规划器连续 3 次输出 `operation: "preview"` 均未通过校验（`world-card` 只允许 `create/update/delete`），导致 `task_failed`。根本原因是校验失败的重试反馈只说"不匹配"，没有告知 LLM 允许的值；同时 prompt 也未明确禁止 `preview/read/query` 作为 operation。
+
+**修复**（`assistant/server/task-planner.js`）：
+- **validator 错误消息**：从 `"operation 与 targetType 不匹配：X / Y"` 改为 `"operation "Y" 不在 X 允许的操作内（允许：create, update, delete）；preview/read/query 不是合法 operation，若只是查看卡片请改为 mode='answer'"`，让 LLM 重试时有明确修正方向
+- **planner prompt**：新增一句明确约束——`operation` 只能是 `create/update/delete` 之一，`preview/read/query/view` 绝对不合法；若任务只是查看卡片内容，必须改为 `mode="answer"`
+
+**验证**：校验失败重试时日志 `PLAN RETRY reason` 字段携带"允许：create, update, delete"；查看类请求输出 `mode="answer"` 而非包含 preview step 的 plan。
+
 ## 2026-05-01 fix(ui): 新流式选项出现时不再隐藏上一轮冻结卡
 
 **问题**：恢复流式选项渲染后，`MessageList.jsx` 里“只要有活跃 options 就隐藏最后一张冻结卡”的规则仍然存在，导致新一轮 `<next_prompt>` 一出现，上一轮历史选项卡立刻消失，页面高度突变。

@@ -69,6 +69,7 @@ function buildPlannerPrompt({ message, history, context, research = null, retryF
         '规划前先在内部判断任务类型：单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡；不要输出分类，只按分类选择步骤模板。' +
         '复杂世界卡或状态机世界卡必须优先拆步，而不是让一个 world-card 步骤同时承担全部设定、字段、触发条目和初始状态。' +
         '计划中的每个 step 只能交给一个资源域代理：world-card / character-card / persona-card / global-config / css-snippet / regex-rule。' +
+        '每个 step 的 operation 只能是 create / update / delete 之一（world-card 允许 create/update/delete；persona-card 只允许 create/update；global-config 只允许 update）；preview / read / query / view 绝对不是合法的 operation；若任务只是查看或说明卡片内容，必须改为 mode="answer" 而不是生成一个 plan step。' +
         'step 字段固定包含：id、title、targetType、operation、entityRef、dependsOn、task、riskLevel、rationale、inputs、expectedOutput、acceptance、rollbackRisk。' +
         'entityRef 使用 null、"context.worldId"、"context.characterId" 或 "step:<stepId>"。' +
         'dependsOn 必须是已出现 step.id 数组；若 entityRef 使用 step:<stepId>，该 stepId 必须同时出现在 dependsOn。' +
@@ -222,7 +223,8 @@ function validatePlanSteps(rawSteps, context = {}) {
       errors.push(`steps[${step.index}].targetType 非法：${step.targetType || '(空)'}`);
     }
     if (!VALID_OPERATIONS[step.targetType]?.has(step.operation)) {
-      errors.push(`steps[${step.index}].operation 与 targetType 不匹配：${step.targetType || '(空)'} / ${step.operation || '(空)'}`);
+      const allowed = VALID_OPERATIONS[step.targetType] ? [...VALID_OPERATIONS[step.targetType]].join(', ') : '（targetType 非法）';
+      errors.push(`steps[${step.index}].operation "${step.operation || '(空)'}" 不在 ${step.targetType || '(空)'} 允许的操作内（允许：${allowed}）；preview/read/query 不是合法 operation，若只是查看卡片请改为 mode="answer"`);
     }
     if (!step.task) {
       errors.push(`steps[${step.index}].task 不能为空`);
