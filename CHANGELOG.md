@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-02 fix(prompt): 写作模式 {{char}} 改为中立叙述者身份
+
+**问题**：`buildWritingPrompt` 中全局 `tv()` 函数将 `{{char}}` 绑定到第一个激活角色名（`primaryCharacterName`），导致无激活角色时为空字符串、多角色激活时语义错误——全局 system prompt、世界条目、召回摘要等非角色专属段都会错误地指向某个具体角色。
+
+**修复**（`backend/prompts/assembler.js`）：
+- 删除 `primaryCharacterName` 变量
+- 全局 `tv()` 的 `char` 固定为 `'叙述者'`，赋予 LLM 上帝视角中立身份
+- `tvChar()` 保持不变，仍按各角色名展开，用于 `[3] 角色人设` 和 `[7] 角色状态` 的逐角色渲染段
+
+**验证**：写作模式发消息，日志 prompt 中 `{{char}}` 位置显示为"叙述者"；0 个或多个激活角色下行为一致。
+
 ## 2026-05-02 fix(assistant): planner 校验失败重试时携带允许操作列表，并禁止 preview 作为 operation
 
 **问题**：写卡助手规划器连续 3 次输出 `operation: "preview"` 均未通过校验（`world-card` 只允许 `create/update/delete`），导致 `task_failed`。根本原因是校验失败的重试反馈只说"不匹配"，没有告知 LLM 允许的值；同时 prompt 也未明确禁止 `preview/read/query` 作为 operation。

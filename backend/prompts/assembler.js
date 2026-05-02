@@ -377,10 +377,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const charNames = activeCharacters.map((c) => c.name).join(', ');
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
 
-  const primaryCharacterName = activeCharacters[0]?.name || '';
   const tv = (t) => applyTemplateVars(t, {
     user: personaName,
-    char: primaryCharacterName,
+    char: '叙述者',
     world: world.name,
   });
   const tvChar = (t, character) => applyTemplateVars(t, {
