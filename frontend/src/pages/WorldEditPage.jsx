@@ -39,6 +39,7 @@ export default function WorldEditPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [coverPath, setCoverPath] = useState(null);
+  const [coverBustKey, setCoverBustKey] = useState(0);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverFileInputRef = useRef(null);
 
@@ -146,6 +147,7 @@ export default function WorldEditPage() {
     try {
       const result = await uploadWorldCover(worldId, file);
       setCoverPath(result.cover_path);
+      setCoverBustKey(Date.now());
       window.dispatchEvent(new Event('we:world-updated'));
     } catch (err) {
       pushErrorToast(`封面上传失败：${err.message}`);
@@ -187,7 +189,7 @@ export default function WorldEditPage() {
             <FormGroup label="封面图" hint="铺满世界卡片背景，建议比例 16:10 或横向图片">
               <AvatarUpload
                 name={name}
-                avatarUrl={getAvatarUrl(coverPath)}
+                avatarUrl={coverBustKey ? `${getAvatarUrl(coverPath)}?t=${coverBustKey}` : getAvatarUrl(coverPath)}
                 avatarColor={getAvatarColor(worldId)}
                 avatarUploading={coverUploading}
                 fileInputRef={coverFileInputRef}

@@ -172,7 +172,7 @@ export default function WorldsPage() {
             >
               {world.cover_path && (
                 <>
-                  <img src={getAvatarUrl(world.cover_path)} alt="" className="we-world-card-bg" />
+                  <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
                   <div className="we-world-card-overlay" />
                 </>
               )}
