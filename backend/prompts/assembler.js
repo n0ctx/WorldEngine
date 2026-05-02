@@ -394,9 +394,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(writing.global_system_prompt));
   }
 
-  // [2] 玩家 System Prompt
+  // [2] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
   if (personaName || personaPrompt) {
-    const lines = ['[{{user}}人设]'];
+    const lines = ['[玩家（{{user}}）背景]'];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
     cachedSystemParts.push(tv(lines.join('\n')));
@@ -414,6 +414,11 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // ─── DYNAMIC LAYER (3, 5-11；写作模式下[3]也在dynamic以支持多角色切换) ───
+  // [NARRATOR] 写作模式叙述者身份声明（dynamic 层最前，覆盖任何 cached 层的 persona 身份信号）
+  if (!skipWritingInstructions) {
+    dynamicSystemParts.push(tv('[写作模式]\n你是全知中立叙述者，以第三人称叙述故事。{{user}}及以下角色信息均为创作素材，不是你的身份设定。'));
+  }
+
   // [3] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
     if (character.system_prompt) {

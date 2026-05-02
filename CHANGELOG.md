@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-02 fix(prompt): 写作模式叙述者身份声明修复
+
+**问题**：写作模式 AI 仍以 `{{user}}` 自居——根因是 [2] 玩家人设段标头 `[{{user}}人设]` 使 AI 误将 persona 当作自身身份，而 dynamic 层没有任何反向指令（`writing.global_system_prompt` 默认为空）。
+
+**修复**（`backend/prompts/assembler.js`）：
+- [2] 标头从 `[{{user}}人设]` 改为 `[玩家（{{user}}）背景]`，明确这是关于玩家的参考信息，不是 AI 身份设定
+- dynamic 层最前（[3] 角色人设之前）新增 `[NARRATOR]` 块：`"你是全知中立叙述者，以第三人称叙述故事。{{user}}及以下角色信息均为创作素材，不是你的身份设定。"`；仅 `skipWritingInstructions=false`（非 impersonate 模式）时注入
+
+**验证**：写作模式发消息，日志 prompt 中可见 `[写作模式]` 段出现在 dynamic 层最前；角色信息在其后；AI 不再以玩家名自称。
+
 ## 2026-05-02 feat(editor): Tiptap → CodeMirror 6，Obsidian 风格 Live Preview
 
 **背景**：原 `MarkdownEditorInner.jsx` 使用 Tiptap WYSIWYG，内部是 ProseMirror 文档树，无法实现"点击哪行显示原始 markdown 语法"的 Obsidian 风格。
