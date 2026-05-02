@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-02 feat(editor): Tiptap → CodeMirror 6，Obsidian 风格 Live Preview
+
+**背景**：原 `MarkdownEditorInner.jsx` 使用 Tiptap WYSIWYG，内部是 ProseMirror 文档树，无法实现"点击哪行显示原始 markdown 语法"的 Obsidian 风格。
+
+**改动**：
+- **移除** `@tiptap/react`、`@tiptap/starter-kit`、`@tiptap/extension-placeholder`、`tiptap-markdown`
+- **新增** `codemirror`、`@codemirror/lang-markdown`、`@codemirror/language`（@codemirror/view/state/commands 随 codemirror 一并安装）
+- **`MarkdownEditorInner.jsx`** 完全重写：用 `EditorView`（CodeMirror 6）替代 Tiptap；实现 `ViewPlugin`（`livePreviewPlugin`），扫描语法树，对**非光标行**的 `HeaderMark`、`EmphasisMark`、`QuoteMark`、`CodeMark` 加 `cm-md-hide`（`font-size:0`）装饰，光标进入该行时恢复原始 markdown；对 `ATXHeading1/2/3` 添加行级 `cm-md-h1/2/3` 装饰；对 `StrongEmphasis`/`Emphasis`/`InlineCode` 添加 `cm-md-strong`/`cm-md-em`/`cm-md-inline-code` 内联装饰；工具栏改用 CM6 命令（`wrapWithMark`/`toggleLinePrefix`）；对外 API 不变（`value`/`onChange`/`placeholder`/`minHeight`/`className`）
+- **`MarkdownEditor.jsx`**：fallback 容器 `height` 改为 `minHeight`
+- **`index.css`**：移除全部 `.we-md-content .ProseMirror` 样式块；`.we-md-content` 移除 padding（改由 `.cm-content` 承载）；新增 `.cm-editor`/`.cm-scroller`/`.cm-content`/`.cm-line` 基础样式 + 5 个 Live Preview 装饰类
+
+**效果**：5 个使用点（PersonaEditPage、CharacterEditPage、EntryEditor、StateFieldEditor、PromptConfigPanel）统一升级为 Obsidian Live Preview 风格。构建 `✓ built in 215ms`，无任何报错/警告。
+
+**注意**：toolbard 的"激活"态检测（`isActive`）通过 `syntaxTree.resolveInner` 遍历光标祖先节点实现，每次光标移动触发一次 React `setActiveMarks` 更新（5 个按钮，性能无影响）。
+
 ## 2026-05-02 fix(prompt): 写作模式 {{char}} 改为中立叙述者身份
 
 **问题**：`buildWritingPrompt` 中全局 `tv()` 函数将 `{{char}}` 绑定到第一个激活角色名（`primaryCharacterName`），导致无激活角色时为空字符串、多角色激活时语义错误——全局 system prompt、世界条目、召回摘要等非角色专属段都会错误地指向某个具体角色。

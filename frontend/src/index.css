@@ -250,23 +250,13 @@ body {
   opacity: 1;
 }
 
-/* 编辑区 */
+/* 编辑区容器（CodeMirror 6 挂载点） */
 .we-md-content {
-  padding: 10px 14px;
-  overflow-y: auto;
+  overflow: hidden;
   flex: 1;
   min-height: 0;
   box-sizing: border-box;
   background: var(--we-paper-base);
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-paper-shadow) transparent;
-}
-
-.we-md-content::-webkit-scrollbar { width: 4px; }
-.we-md-content::-webkit-scrollbar-track { background: transparent; }
-.we-md-content::-webkit-scrollbar-thumb {
-  background: var(--we-paper-shadow);
-  border-radius: var(--we-radius-full);
 }
 
 .entry-editor-panel::-webkit-scrollbar { width: 4px; }
@@ -424,54 +414,112 @@ body {
   opacity: 0.6;
 }
 
-.we-md-content .ProseMirror {
+/* =========================================================
+   CodeMirror 6 编辑器 — Obsidian 风格 Live Preview
+   ========================================================= */
+
+.we-md-content .cm-editor {
+  height: 100%;
   outline: none;
-  min-height: inherit;
+}
+
+.we-md-content .cm-focused {
+  outline: none !important;
+}
+
+.we-md-content .cm-scroller {
   font-family: var(--we-font-serif);
   font-size: 15px;
   line-height: 1.85;
   color: var(--we-ink-primary);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
 }
 
+.we-md-content .cm-scroller::-webkit-scrollbar { width: 4px; }
+.we-md-content .cm-scroller::-webkit-scrollbar-track { background: transparent; }
+.we-md-content .cm-scroller::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
+}
 
-/* 占位符（由 @tiptap/extension-placeholder 注入） */
-.we-md-content .ProseMirror .is-editor-empty:first-child::before,
-.we-md-content .ProseMirror.is-editor-empty:first-child::before {
-  content: attr(data-placeholder);
-  font-family: var(--we-font-serif);
+.we-md-content .cm-content {
+  padding: 10px 14px;
+  caret-color: var(--we-ink-primary);
+}
+
+.we-md-content .cm-line {
+  padding: 0;
+}
+
+/* Placeholder */
+.we-md-content .cm-placeholder {
   font-style: italic;
   color: var(--we-ink-faded);
-  pointer-events: none;
-  float: left;
-  height: 0;
 }
 
-/* 富文本排版 */
-.we-md-content .ProseMirror h1,
-.we-md-content .ProseMirror h2,
-.we-md-content .ProseMirror h3 {
+/* 语法标记隐藏（非光标行） */
+.cm-md-hide {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  vertical-align: baseline;
+}
+
+/* 标题行样式 */
+.cm-line.cm-md-h1 {
   font-family: var(--we-font-display);
-  color: var(--we-ink-primary);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  line-height: 1.3;
-}
-
-.we-md-content .ProseMirror h1 {
   font-size: 1.35rem;
-  margin: 0.8em 0 0.3em;
-  padding-bottom: 0.2em;
+  font-weight: 400;
+  color: var(--we-ink-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
   border-bottom: 1px solid var(--we-paper-shadow);
+  padding-bottom: 0.15em;
 }
-.we-md-content .ProseMirror h2 { font-size: 1.15rem; margin: 0.6em 0 0.25em; }
-.we-md-content .ProseMirror h3 { font-size: 1.02rem; margin: 0.5em 0 0.2em; }
 
-.we-md-content .ProseMirror p { margin: 0.4em 0; }
+.cm-line.cm-md-h2 {
+  font-family: var(--we-font-display);
+  font-size: 1.15rem;
+  font-weight: 400;
+  color: var(--we-ink-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
 
-.we-md-content .ProseMirror strong { font-weight: 700; color: var(--we-ink-primary); }
-.we-md-content .ProseMirror em { font-style: italic; }
+.cm-line.cm-md-h3 {
+  font-family: var(--we-font-display);
+  font-size: 1.02rem;
+  font-weight: 400;
+  color: var(--we-ink-primary);
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
 
-.we-md-content .ProseMirror code {
+/* 引用块行样式 */
+.cm-line.cm-md-blockquote {
+  border-left: 2.5px solid var(--we-gold-leaf);
+  background: color-mix(in srgb, var(--we-base-paper-400) 15%, transparent);
+  color: var(--we-ink-secondary);
+  padding-left: 14px;
+  font-style: italic;
+  border-radius: 0 1px 1px 0;
+}
+
+/* 内联样式（非光标行的 span 装饰） */
+.cm-md-strong {
+  font-weight: 700;
+  color: var(--we-ink-primary);
+}
+
+.cm-md-em {
+  font-style: italic;
+}
+
+.cm-md-inline-code {
   background: var(--we-paper-aged);
   color: var(--we-ink-secondary);
   font-family: var(--we-font-mono);
@@ -480,46 +528,6 @@ body {
   border-radius: 1px;
   padding: 1px 5px;
 }
-
-.we-md-content .ProseMirror pre {
-  background: var(--we-paper-aged);
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: 1px;
-  padding: 10px 14px;
-  overflow-x: auto;
-  margin: 0.5em 0;
-}
-
-.we-md-content .ProseMirror pre code {
-  background: transparent;
-  border: none;
-  padding: 0;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.we-md-content .ProseMirror blockquote {
-  border-left: 2.5px solid var(--we-gold-leaf);
-  background: color-mix(in srgb, var(--we-base-paper-400) 15%, transparent);
-  color: var(--we-ink-secondary);
-  padding: 6px 14px;
-  margin: 0.6em 0;
-  font-style: italic;
-  border-radius: 0 1px 1px 0;
-}
-
-.we-md-content .ProseMirror ul,
-.we-md-content .ProseMirror ol {
-  padding-left: 1.6em;
-  margin: 0.35em 0;
-}
-
-.we-md-content .ProseMirror ul { list-style: disc; }
-.we-md-content .ProseMirror ol { list-style: decimal; }
-
-.we-md-content .ProseMirror li { margin: 0.15em 0; }
-.we-md-content .ProseMirror ul li::marker { color: var(--we-vermilion); }
-.we-md-content .ProseMirror ol li::marker { color: var(--we-ink-faded); }
 
 /* =========================================================
    ModelCombobox 焦点态
