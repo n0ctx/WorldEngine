@@ -180,6 +180,7 @@ export default function MarkdownEditorInner({ value = '', onChange, placeholder,
       history(),
       markdown(),
       livePreviewPlugin,
+      EditorView.lineWrapping,
       keymap.of([...defaultKeymap, ...historyKeymap]),
       CM_BASE_THEME,
       EditorView.updateListener.of((update) => {
