@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-03 fix(prompt): assembler [13] 后置注入优化，提升 LLM 遵从性
+
+**问题**：LLM 遵从性不足，具体表现：写作模式叙述者捏造 `{{user}}` 玩家名、`<next_prompt>` 格式错误、忽略指令。对比 SillyTavern（同提示词遵从性更好）排查根因。
+
+**根本原因**：
+1. 写作模式 [13] 无玩家名提醒，长对话后叙述者遗忘玩家名
+2. SUGGESTION_PROMPT 拼在 [14] 用户消息末尾，格式指令权重低（model 视作用户话语）
+3. 聊天模式 `character.post_prompt` 为空时 [13] 无任何角色特定内容，12 轮历史后 [3] 角色定义距离生成点过远
+
+**修复**（`backend/prompts/assembler.js`）：
+- `buildWritingPrompt` [13]：`personaName` 非空时自动注入 `（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）`
+- `buildPrompt` [13]：`character.post_prompt` 为空时自动注入 `（你正在扮演{{char}}，请严格保持角色名字和设定。）`
+- 两个函数均将 `SUGGESTION_PROMPT` 从 [14] 用户消息末尾迁移到 [13] system 消息，使格式指令以系统指令权重生效
+
+**坑点**：续写路径 `buildContinuationMessages` 不经过此函数，不受影响；`suggestionText` 返回值不变，前端解析逻辑无需修改。`SUGGESTION_TOKEN_RESERVE` 扣减逻辑不变。
+
 ## 2026-05-02 fix(prompt): 写作模式叙述者身份声明修复
 
 **问题**：写作模式 AI 仍以 `{{user}}` 自居——根因是 [2] 玩家人设段标头 `[{{user}}人设]` 使 AI 误将 persona 当作自身身份，而 dynamic 层没有任何反向指令（`writing.global_system_prompt` 默认为空）。

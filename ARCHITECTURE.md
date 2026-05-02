@@ -204,8 +204,8 @@ POST /api/sessions/:sessionId/chat
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| **[13]** | **Bottom** | 后置提示词：历史消息之后的独立 `role:system`（`global_post_prompt` → `character.post_prompt`） | 均空跳过 |
-| [14] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；`suggestion_enabled=true` 时在末尾追加 `SUGGESTION_PROMPT`（选项指令紧贴生成前最后位置，提升模型遵从率）。`buildPrompt` / `buildWritingPrompt` 同时把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块 | — |
+| **[13]** | **Bottom** | 后置提示词：历史消息之后的独立 `role:system`（`global_post_prompt` → `character.post_prompt`）；**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入本段**（格式指令以 system 权重生效，不再拼入用户消息） | 所有 postParts 均空时跳过（当前因兜底逻辑总会有内容） |
+| [14] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；内容保持干净，不再附加 `SUGGESTION_PROMPT`。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块 | — |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -230,8 +230,8 @@ POST /api/sessions/:sessionId/chat
 | [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
 | [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| **[13]** | 写作后置提示词：历史消息之后的独立 `role:system`；仅注入 `writing.global_post_prompt`，`skipWritingInstructions=true` 时整段跳过 |
-| [14] | `writing.suggestion_enabled=true` 时同 buildPrompt，在末尾追加 `SUGGESTION_PROMPT`；当前 user 消息本体不再附带后置提示词 |
+| **[13]** | 写作后置提示词：历史消息之后的独立 `role:system`；注入 `writing.global_post_prompt`；**`personaName` 非空时自动注入玩家名提醒**（`玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。`）；**`writing.suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入本段**；`skipWritingInstructions=true` 时整段跳过 |
+| [14] | 当前 user 消息本体，经 `applyRules` 处理；内容保持干净，`SUGGESTION_PROMPT` 已移至 [13] |
 | 返回值 | 含 `recallHitCount` 和 `model`（若配置了 `writing.model` 则覆盖全局） |
 
 ---
@@ -465,7 +465,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 - 记忆面板”重置”会清空该会话 `session_*_state_values` 对应记录，显示层自动回退到全局默认值
 - 消息回滚（删除消息）时，清空该会话三张 session 状态表并删除超出轮次的 turn_records
 
-**persona 与世界的关系**：每个世界对应唯一 persona（`personas.world_id UNIQUE`）；persona 的 name / system_prompt 注入 assembler.js [3] 位置。
+**persona 与世界的关系**：每个世界对应唯一 persona（`personas.world_id UNIQUE`）；persona 的 name / system_prompt 注入 assembler.js [2] 位置（格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}`）。
 
 ---
 

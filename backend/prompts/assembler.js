@@ -308,16 +308,20 @@ export async function buildPrompt(sessionId, options = {}) {
     config.global_post_prompt,
     character.post_prompt,
   ].filter(Boolean).map(tv);
+  // character.post_prompt 为空时自动注入角色名兜底，防止长对话后身份漂移
+  if (!character.post_prompt) {
+    postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
+  }
+  // suggestion 并入 [13] system 消息，使格式指令以系统指令权重生效
+  if (config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
   if (postParts.length > 0) {
     messages.push({ role: 'system', content: postParts.join('\n\n') });
   }
 
-  // [14] 当前用户消息（最新 1 条 user）；suggestion 仍保持贴在最后一个 user message
+  // [14] 当前用户消息（最新 1 条 user；suggestion 已移至 [13]）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
-    if (config.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
-
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
@@ -522,17 +526,21 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [13] 后置提示词：历史消息之后、当前 user 之前的独立 system message
   if (!skipWritingInstructions) {
     const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+    // 有玩家名时自动注入提醒，防止长对话后叙述者捏造或混淆玩家名
+    if (personaName) {
+      postParts.push(tv('（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）'));
+    }
+    // suggestion 并入 [13] system 消息
+    if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
     if (postParts.length > 0) {
       messages.push({ role: 'system', content: postParts.join('\n\n') });
     }
   }
 
-  // [14] 当前用户消息（写作模式无角色后置提示词；impersonate 时 suggestion 逻辑保持不变）
+  // [14] 当前用户消息（写作模式；suggestion 已移至 [13]）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
-    let content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
-    if (writing.suggestion_enabled) content += '\n\n' + tv(SUGGESTION_PROMPT);
-
+    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
     messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
   }
 
