@@ -3,6 +3,33 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 fix(assistant): 规划器对确定性错误自动修复，避免空耗 3 次重试
+
+**动机**：日志统计显示 `as-plan` 重试三连失败的高频原因都是机械错误：① `dependsOn:["1"]` 写裸数字（应为 `"step-1"`）；② `delete` / 含"清空/重置"关键词的步骤 `riskLevel` 漏标 `high`；③ `operation:"preview"|"read"|"query"` 这种不存在的动作。前两类纯属格式问题，让模型重写一遍 JSON 只是浪费 token；第三类是规划意图错误，需要让模型看到自己的输出再纠正。
+
+**改动**
+
+- `assistant/server/task-planner.js`
+  - 新增 `coerceRawSteps()`：在校验前做一次确定性规范化——补齐 step.id、把 `dependsOn` 中纯数字字符串映射回已存在的 `step-N`、`operation==='delete'` 或 `task` 命中 `HIGH_RISK_TASK_RE` 时强制 `riskLevel='high'`、自动补全 character/persona create 的世界来源。`normalizeSteps` / `validatePlanSteps` 都基于这份输出，避免两处重复实现走偏。
+  - `validatePlanSteps` 返回结构由 `string[]` 改为 `{errors, offending}`，`offending` 记录出错 step 的 index。删除原本检测 `riskLevel 必须为 high` 的规则（已被 coerce 接管）。
+  - `planTask` 在重试反馈里加上越界 step 的实际 JSON 片段（最多 3 条，每条 ≤600 字符），让模型能看到自己写错的字段而不是只看到规则文字。
+  - `buildPlannerPrompt` 末尾追加一段 5 行 JSON 示例，明确演示 `id:"step-1"` / `dependsOn:["step-1"]` 的字符串 ID 形式，禁止用数字 `1`。
+  - 安全网保持：`riskFlags` 的派生（`assistant/server/routes.js:192`）独立检测 `operation==='delete'`，不依赖规划器自报的 `riskLevel`，coerce 自动提升不会绕过审批门。
+
+- `assistant/tests/task-planner.test.js`
+  - 旧测试断言"删除步骤漏标 high → 报错"改为断言"已在 coerce 阶段被静默修正"。
+  - 新增一条 `coerceRawSteps` 单测：覆盖 `dependsOn:["1"]` 映射、`delete` 步骤 riskLevel 自动提升。
+  - 适配 `validatePlanSteps` 新返回结构。
+
+**验证**
+
+- `node --test assistant/tests/*.test.js` → 72 pass / 0 fail。
+- 已确认审批门安全网（`classifyRiskFlags` 独立判 delete）覆盖被自动提升 high 的步骤，没有静默放过审批的风险。
+
+**残留**
+
+- 第三类（`operation:"preview"`）只能靠 prompt 示例 + 越界 step 反馈缓解，无法机械修复；若日志再次出现高频，可考虑在 prompt 顶部把"禁止 preview/read/query"提到与示例相邻的位置。
+
 ## 2026-05-06 fix(assistant): 收紧 datetime 字段在写卡助手侧的格式校验
 
 **动机**：上一条放行 `datetime` + `prefix` 后留两条软风险——非 datetime 字段也能写入 `prefix`（无渲染但落库）；datetime 的 `default_value` 没有正则校验，LLM 偶发吐 `"2024-01-01 12:00"` 等非 ISO 格式会原样落库。本轮把这两个口收紧到 proposal 归一化层。

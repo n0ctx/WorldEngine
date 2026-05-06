@@ -11,9 +11,9 @@ after(() => {
   sandbox.cleanup();
 });
 
-test('validatePlanSteps 会拒绝缺失 world 依赖和高风险漏标记', async () => {
+test('validatePlanSteps 会拒绝缺失 world 依赖；删除步骤 riskLevel 由 coerce 自动提升到 high', async () => {
   const { __testables } = await importPlanner();
-  const errors = __testables.validatePlanSteps([
+  const { errors } = __testables.validatePlanSteps([
     {
       id: 'step-create-char',
       title: '创建角色',
@@ -37,7 +37,19 @@ test('validatePlanSteps 会拒绝缺失 world 依赖和高风险漏标记', asyn
   ], {});
 
   assert.ok(errors.some((item) => item.includes('character-card create 缺少世界来源') || item.includes('character-card create 缺少 entityRef')));
-  assert.ok(errors.some((item) => item.includes('riskLevel 必须为 high')));
+  // riskLevel 在 coerce 阶段已被强制改为 high，不再触发该错误
+  assert.ok(!errors.some((item) => item.includes('riskLevel 必须为 high')));
+});
+
+test('coerceRawSteps 会把 dependsOn 中的裸数字映射为 step-N 并在 delete 步骤强制 riskLevel=high', async () => {
+  const { __testables } = await importPlanner();
+  const coerced = __testables.coerceRawSteps?.([
+    { id: 'step-1', title: '基础', targetType: 'world-card', operation: 'create', dependsOn: [], task: '创建', riskLevel: 'low' },
+    { id: 'step-2', title: '补条目', targetType: 'world-card', operation: 'update', entityRef: 'step:step-1', dependsOn: ['1'], task: '追加条目', riskLevel: 'low' },
+    { id: 'step-3', title: '清空', targetType: 'world-card', operation: 'delete', entityRef: 'context.worldId', dependsOn: [], task: '清空旧世界', riskLevel: 'low' },
+  ], { worldId: 'w-1' });
+  assert.equal(coerced[1].dependsOn.includes('step-1'), true);
+  assert.equal(coerced[2].riskLevel, 'high');
 });
 
 test('buildPlannerPrompt 会要求 CUD 计划统一使用占位符术语', async () => {

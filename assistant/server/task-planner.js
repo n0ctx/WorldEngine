@@ -43,6 +43,13 @@ function summarizeResearchForPrompt(research) {
   return lines.join('\n') || '无';
 }
 
+const PLAN_JSON_EXAMPLE = `示例（只示范字段格式，不是要你照抄内容）：
+{"mode":"plan","summary":"创建世界并填充常驻条目","assumptions":["未指定题材，默认日式异世界"],"steps":[
+  {"id":"step-1","title":"创建世界基础结构","targetType":"world-card","operation":"create","entityRef":null,"dependsOn":[],"task":"创建世界卡 ...","riskLevel":"low","rationale":"...","inputs":[],"expectedOutput":"world-card create proposal","acceptance":["世界卡已生成"],"rollbackRisk":"低"},
+  {"id":"step-2","title":"补充 LLM 召回条目","targetType":"world-card","operation":"update","entityRef":"step:step-1","dependsOn":["step-1"],"task":"为世界卡追加 trigger_type:\\"llm\\" 条目 ...","riskLevel":"low","rationale":"...","inputs":["step-1 产物"],"expectedOutput":"world-card update proposal","acceptance":["新增条目数量正确"],"rollbackRisk":"低"}
+]}
+注意：id 必须形如 "step-1"、"step-2"；dependsOn / entityRef 必须用同样形式的字符串，不能写成 "1" / 1。`;
+
 function buildPlannerPrompt({ message, history, context, research = null, retryFeedback = [] }) {
   const world = context?.world;
   const character = context?.character;
@@ -51,7 +58,7 @@ function buildPlannerPrompt({ message, history, context, research = null, retryF
     ? history.slice(-8).map((item) => `${item.role}: ${String(item.content ?? '').slice(0, 180)}`).join('\n')
     : '';
   const retryHint = retryFeedback.length > 0
-    ? `\n上一次输出未通过校验，必须修正以下问题后重写完整 JSON：\n- ${retryFeedback.join('\n- ')}\n`
+    ? `\n上一次输出未通过校验，必须修正以下问题后重写完整 JSON：\n${retryFeedback.map((line) => `- ${line}`).join('\n')}\n`
     : '';
 
   return [
@@ -86,7 +93,8 @@ function buildPlannerPrompt({ message, history, context, research = null, retryF
         'rationale 写为什么需要此步骤；inputs 写会用到的上下文或前序 step 产物；expectedOutput 写本步骤应产出的 proposal 类型和关键内容；acceptance 写 1-3 条可检查验收点；rollbackRisk 写失败或误操作影响，低风险也要写“低”。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +
         '【世界条目 UI 用语映射，禁止误译】用户/UI 说"常驻条目" → trigger_type:"always"；"关键词条目" → "keyword"；**"AI 召回条目" / "AI召回" / "AI 召回" → trigger_type:"llm"**（由 LLM 读条目 description 字段判定是否注入；不是向量召回，更不是关键词或常驻）；"状态条目" / "状态条件条目" → "state"。step.task 中遇到这些 UI 用语必须翻译成对应 trigger_type 并明确指示子代理使用，禁止降级为 keyword 或 always。' +
-        '输出 schema：{"mode":"answer|clarify|plan","summary":"","answer":"","clarificationQuestions":[],"assumptions":[],"steps":[]}',
+        '输出 schema：{"mode":"answer|clarify|plan","summary":"","answer":"","clarificationQuestions":[],"assumptions":[],"steps":[]}\n\n' +
+        PLAN_JSON_EXAMPLE,
     },
     {
       role: 'user',
@@ -106,73 +114,95 @@ function normalizeQuestions(raw) {
   return raw.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3);
 }
 
-function normalizeSteps(rawSteps, context = {}) {
+// 把模型给出的原始 step 数组做一次确定性规范化：补 id、把 dependsOn 中的裸数字 / 数字字符串映射回 step-N、
+// 在 operation=delete 或 task 命中高风险关键词时强制 riskLevel="high"，并自动补全 character/persona create 的世界来源。
+// validate 与 normalize 都基于这份输出，避免模型为这类机械问题反复重试。
+function coerceRawSteps(rawSteps, context = {}) {
   if (!Array.isArray(rawSteps)) return [];
   const contextWorldId = context?.worldId || context?.world?.id || null;
-
-  // 找计划内的 world-card create 步骤（用 filter 后的下标计算 normalized id，与后续 map 保持一致）
   const filtered = rawSteps.filter((step) => step && typeof step === 'object');
+
+  // 第一遍：分配/读取 id，建立 index → id 与 id → exists 的映射
+  const indexedIds = filtered.map((step, index) => (
+    typeof step.id === 'string' && step.id.trim() ? step.id.trim() : `step-${index + 1}`
+  ));
+  const idSet = new Set(indexedIds);
+
   const worldCreateStepId = (() => {
     for (let i = 0; i < filtered.length; i++) {
       const s = filtered[i];
-      if (
-        (typeof s.targetType === 'string' ? s.targetType.trim() : '') === 'world-card' &&
-        (typeof s.operation === 'string' ? s.operation.trim() : '') === 'create'
-      ) {
-        return typeof s.id === 'string' && s.id.trim() ? s.id.trim() : `step-${i + 1}`;
-      }
+      const targetType = typeof s.targetType === 'string' ? s.targetType.trim() : '';
+      const operation = typeof s.operation === 'string' ? s.operation.trim() : '';
+      if (targetType === 'world-card' && operation === 'create') return indexedIds[i];
     }
     return null;
   })();
 
-  return filtered
-    .map((step, index) => {
-      const targetType = typeof step.targetType === 'string' ? step.targetType.trim() : '';
-      const operation = typeof step.operation === 'string' ? step.operation.trim() : 'update';
-      const rawEntityRef = typeof step.entityRef === 'string' && step.entityRef.trim() ? step.entityRef.trim() : null;
-      let entityRef = rawEntityRef;
-      if ((targetType === 'character-card' || targetType === 'persona-card') && operation === 'create' && !rawEntityRef) {
-        if (worldCreateStepId) {
-          // 计划内有 world-card create 步骤时优先引用其产物，不能使用旧的 context.worldId
-          entityRef = `step:${worldCreateStepId}`;
-        } else if (contextWorldId) {
-          entityRef = 'context.worldId';
+  return filtered.map((step, index) => {
+    const id = indexedIds[index];
+    const targetType = typeof step.targetType === 'string' ? step.targetType.trim() : '';
+    const operation = typeof step.operation === 'string' ? step.operation.trim() : 'update';
+    const rawEntityRef = typeof step.entityRef === 'string' && step.entityRef.trim() ? step.entityRef.trim() : null;
+    let entityRef = rawEntityRef;
+    if ((targetType === 'character-card' || targetType === 'persona-card') && operation === 'create' && !rawEntityRef) {
+      if (worldCreateStepId) entityRef = `step:${worldCreateStepId}`;
+      else if (contextWorldId) entityRef = 'context.worldId';
+    }
+
+    // dependsOn：把裸数字 / 纯数字字符串映射成 step-N（仅当目标 id 存在时）
+    const dependsOn = (Array.isArray(step.dependsOn) ? step.dependsOn : [])
+      .map((item) => String(item ?? '').trim())
+      .filter(Boolean)
+      .map((dep) => {
+        if (idSet.has(dep)) return dep;
+        if (/^\d+$/.test(dep)) {
+          const candidate = `step-${dep}`;
+          if (idSet.has(candidate)) return candidate;
         }
-      }
-      const riskLevel = typeof step.riskLevel === 'string' ? step.riskLevel.trim() : 'low';
-      const rawDependsOn = Array.isArray(step.dependsOn) ? step.dependsOn.map((item) => String(item ?? '').trim()).filter(Boolean) : [];
-      // 若 entityRef 自动补填为 step:X，确保 dependsOn 包含该 stepId
-      if (entityRef && entityRef.startsWith('step:')) {
-        const refId = entityRef.slice(5);
-        if (refId && !rawDependsOn.includes(refId)) rawDependsOn.push(refId);
-      }
-      return {
-        id: typeof step.id === 'string' && step.id.trim() ? step.id.trim() : `step-${index + 1}`,
-        title: typeof step.title === 'string' && step.title.trim() ? step.title.trim() : `步骤 ${index + 1}`,
-        kind: 'proposal',
-        targetType,
-        operation,
-        entityRef,
-        dependsOn: rawDependsOn,
-        task: typeof step.task === 'string' ? step.task.trim() : '',
-        riskLevel,
-        approvalPolicy: riskLevel === 'high' ? 'requires_step_approval' : 'plan_only',
-        rationale: typeof step.rationale === 'string' && step.rationale.trim() ? step.rationale.trim() : '按计划拆分执行',
-        inputs: Array.isArray(step.inputs) ? step.inputs.map((item) => String(item ?? '').trim()).filter(Boolean) : [],
-        expectedOutput: typeof step.expectedOutput === 'string' && step.expectedOutput.trim()
-          ? step.expectedOutput.trim()
-          : `${targetType} ${operation} proposal`,
-        acceptance: Array.isArray(step.acceptance)
-          ? step.acceptance.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3)
-          : [],
-        rollbackRisk: typeof step.rollbackRisk === 'string' && step.rollbackRisk.trim() ? step.rollbackRisk.trim() : '低',
-        status: 'pending',
-        proposal: null,
-        result: null,
-        error: null,
-      };
-    })
-    .filter((step) => step.targetType && step.operation && step.task);
+        return dep;
+      });
+    // entityRef 是 step:X 时同步保证 dependsOn 包含该 id
+    if (entityRef && entityRef.startsWith('step:')) {
+      const refId = entityRef.slice(5);
+      if (refId && !dependsOn.includes(refId)) dependsOn.push(refId);
+    }
+
+    const task = typeof step.task === 'string' ? step.task.trim() : '';
+    let riskLevel = typeof step.riskLevel === 'string' ? step.riskLevel.trim() : 'low';
+    // 删除 / 高风险关键词的步骤强制 high；validate 不再为 riskLevel 机械错误回退到模型重试
+    if (operation === 'delete' || HIGH_RISK_TASK_RE.test(task)) riskLevel = 'high';
+    if (!VALID_RISK_LEVELS.has(riskLevel)) riskLevel = 'low';
+
+    return {
+      id,
+      title: typeof step.title === 'string' && step.title.trim() ? step.title.trim() : `步骤 ${index + 1}`,
+      kind: 'proposal',
+      targetType,
+      operation,
+      entityRef,
+      dependsOn,
+      task,
+      riskLevel,
+      approvalPolicy: riskLevel === 'high' ? 'requires_step_approval' : 'plan_only',
+      rationale: typeof step.rationale === 'string' && step.rationale.trim() ? step.rationale.trim() : '按计划拆分执行',
+      inputs: Array.isArray(step.inputs) ? step.inputs.map((item) => String(item ?? '').trim()).filter(Boolean) : [],
+      expectedOutput: typeof step.expectedOutput === 'string' && step.expectedOutput.trim()
+        ? step.expectedOutput.trim()
+        : `${targetType} ${operation} proposal`,
+      acceptance: Array.isArray(step.acceptance)
+        ? step.acceptance.map((item) => String(item ?? '').trim()).filter(Boolean).slice(0, 3)
+        : [],
+      rollbackRisk: typeof step.rollbackRisk === 'string' && step.rollbackRisk.trim() ? step.rollbackRisk.trim() : '低',
+      status: 'pending',
+      proposal: null,
+      result: null,
+      error: null,
+    };
+  });
+}
+
+function normalizeSteps(rawSteps, context = {}) {
+  return coerceRawSteps(rawSteps, context).filter((step) => step.targetType && step.operation && step.task);
 }
 
 function inferAnswer(message) {
@@ -192,27 +222,32 @@ function parsePlannerJson(raw, message) {
 
 function validatePlanSteps(rawSteps, context = {}) {
   if (!Array.isArray(rawSteps) || rawSteps.length === 0) {
-    return ['steps 必须是至少包含 1 个步骤的数组'];
+    return { errors: ['steps 必须是至少包含 1 个步骤的数组'], offending: [] };
   }
   const errors = [];
-  const steps = rawSteps
-    .filter((step) => step && typeof step === 'object')
-    .map((step, index) => ({
-      index,
-      id: typeof step.id === 'string' && step.id.trim() ? step.id.trim() : `step-${index + 1}`,
-      targetType: typeof step.targetType === 'string' ? step.targetType.trim() : '',
-      operation: typeof step.operation === 'string' ? step.operation.trim() : '',
-      entityRef: typeof step.entityRef === 'string' && step.entityRef.trim() ? step.entityRef.trim() : null,
-      dependsOn: Array.isArray(step.dependsOn) ? step.dependsOn.map((item) => String(item ?? '').trim()).filter(Boolean) : [],
-      task: typeof step.task === 'string' ? step.task.trim() : '',
-      riskLevel: typeof step.riskLevel === 'string' ? step.riskLevel.trim() : '',
-    }));
+  const offendingIndices = new Set();
+  const fail = (index, message) => {
+    errors.push(message);
+    if (typeof index === 'number') offendingIndices.add(index);
+  };
+  const coerced = coerceRawSteps(rawSteps, context);
+  const steps = coerced.map((step, index) => ({
+    index,
+    rawIndex: index,
+    id: step.id,
+    targetType: step.targetType,
+    operation: step.operation,
+    entityRef: step.entityRef,
+    dependsOn: step.dependsOn,
+    task: step.task,
+    riskLevel: step.riskLevel,
+  }));
   const ids = new Set();
   const stepMap = new Map();
 
   for (const step of steps) {
     if (ids.has(step.id)) {
-      errors.push(`steps[${step.index}] 的 id "${step.id}" 重复`);
+      fail(step.index, `steps[${step.index}] 的 id "${step.id}" 重复`);
       continue;
     }
     ids.add(step.id);
@@ -221,57 +256,57 @@ function validatePlanSteps(rawSteps, context = {}) {
 
   for (const step of steps) {
     if (!VALID_TARGET_TYPES.has(step.targetType)) {
-      errors.push(`steps[${step.index}].targetType 非法：${step.targetType || '(空)'}`);
+      fail(step.index, `steps[${step.index}].targetType 非法：${step.targetType || '(空)'}`);
     }
     if (!VALID_OPERATIONS[step.targetType]?.has(step.operation)) {
       const allowed = VALID_OPERATIONS[step.targetType] ? [...VALID_OPERATIONS[step.targetType]].join(', ') : '（targetType 非法）';
-      errors.push(`steps[${step.index}].operation "${step.operation || '(空)'}" 不在 ${step.targetType || '(空)'} 允许的操作内（允许：${allowed}）；preview/read/query 不是合法 operation，若只是查看卡片请改为 mode="answer"`);
+      fail(step.index, `steps[${step.index}].operation "${step.operation || '(空)'}" 不在 ${step.targetType || '(空)'} 允许的操作内（允许：${allowed}）；preview/read/query 不是合法 operation，若只是查看卡片请改为 mode="answer"`);
     }
     if (!step.task) {
-      errors.push(`steps[${step.index}].task 不能为空`);
+      fail(step.index, `steps[${step.index}].task 不能为空`);
     }
     if (!VALID_RISK_LEVELS.has(step.riskLevel)) {
-      errors.push(`steps[${step.index}].riskLevel 非法：${step.riskLevel || '(空)'}`);
+      fail(step.index, `steps[${step.index}].riskLevel 非法：${step.riskLevel || '(空)'}`);
     }
     if (!Array.isArray(step.dependsOn)) {
-      errors.push(`steps[${step.index}].dependsOn 必须是数组`);
+      fail(step.index, `steps[${step.index}].dependsOn 必须是数组`);
     }
     for (const depId of step.dependsOn) {
       if (!stepMap.has(depId)) {
-        errors.push(`steps[${step.index}].dependsOn 引用了不存在的 step：${depId}`);
+        fail(step.index, `steps[${step.index}].dependsOn 引用了不存在的 step：${depId}`);
       }
       if (depId === step.id) {
-        errors.push(`steps[${step.index}].dependsOn 不能依赖自己`);
+        fail(step.index, `steps[${step.index}].dependsOn 不能依赖自己`);
       }
     }
 
     if (step.entityRef === 'context.worldId' && !context?.worldId && !context?.world?.id) {
-      errors.push(`steps[${step.index}].entityRef 使用了 context.worldId，但当前上下文没有 worldId`);
+      fail(step.index, `steps[${step.index}].entityRef 使用了 context.worldId，但当前上下文没有 worldId`);
     }
     if (step.entityRef === 'context.characterId' && !context?.characterId && !context?.character?.id) {
-      errors.push(`steps[${step.index}].entityRef 使用了 context.characterId，但当前上下文没有 characterId`);
+      fail(step.index, `steps[${step.index}].entityRef 使用了 context.characterId，但当前上下文没有 characterId`);
     }
     if (step.entityRef && step.entityRef.startsWith('step:')) {
       const refStepId = step.entityRef.slice(5);
       const refStep = stepMap.get(refStepId);
       if (!refStep) {
-        errors.push(`steps[${step.index}].entityRef 引用了不存在的 step：${refStepId}`);
+        fail(step.index, `steps[${step.index}].entityRef 引用了不存在的 step：${refStepId}`);
       } else {
         if (!step.dependsOn.includes(refStepId)) {
-          errors.push(`steps[${step.index}] 使用 step:${refStepId} 作为 entityRef 时，dependsOn 必须包含该 stepId`);
+          fail(step.index, `steps[${step.index}] 使用 step:${refStepId} 作为 entityRef 时，dependsOn 必须包含该 stepId`);
         }
         if (refStep.operation !== 'create') {
-          errors.push(`steps[${step.index}] 的 entityRef=step:${refStepId} 必须引用 create 步骤`);
+          fail(step.index, `steps[${step.index}] 的 entityRef=step:${refStepId} 必须引用 create 步骤`);
         }
       }
     }
 
     if (step.operation !== 'create' && !step.entityRef) {
-      errors.push(`steps[${step.index}] 的 ${step.operation} 步骤必须提供 entityRef`);
+      fail(step.index, `steps[${step.index}] 的 ${step.operation} 步骤必须提供 entityRef`);
     }
 
     if (step.targetType === 'world-card' && step.operation === 'create' && step.entityRef) {
-      errors.push(`steps[${step.index}] 的 world-card create 不应提供 entityRef`);
+      fail(step.index, `steps[${step.index}] 的 world-card create 不应提供 entityRef`);
     }
 
     if ((step.targetType === 'character-card' || step.targetType === 'persona-card') && step.operation === 'create') {
@@ -279,28 +314,25 @@ function validatePlanSteps(rawSteps, context = {}) {
         const hasContextWorld = !!(context?.worldId || context?.world?.id);
         const hasWorldCreateStep = steps.some((s) => s.targetType === 'world-card' && s.operation === 'create');
         if (!hasContextWorld && !hasWorldCreateStep) {
-          errors.push(
-            `steps[${step.index}] 的 ${step.targetType} create 缺少世界来源：请先添加 world-card create 步骤，再通过 entityRef="step:<world-step-id>" 引用其产物`,
-          );
+          fail(step.index, `steps[${step.index}] 的 ${step.targetType} create 缺少世界来源：请先添加 world-card create 步骤，再通过 entityRef="step:<world-step-id>" 引用其产物`);
         }
         // hasContextWorld 或 hasWorldCreateStep 时 normalizeSteps 会自动补填，无需报错
       } else if (step.entityRef === 'context.characterId') {
-        errors.push(`steps[${step.index}] 的 ${step.targetType} create 不能把 context.characterId 作为实体来源`);
+        fail(step.index, `steps[${step.index}] 的 ${step.targetType} create 不能把 context.characterId 作为实体来源`);
       } else if (step.entityRef.startsWith('step:')) {
         const refStep = stepMap.get(step.entityRef.slice(5));
         if (refStep && refStep.targetType !== 'world-card') {
-          errors.push(`steps[${step.index}] 的 ${step.targetType} create 只能引用 world-card create 结果作为 step entityRef`);
+          fail(step.index, `steps[${step.index}] 的 ${step.targetType} create 只能引用 world-card create 结果作为 step entityRef`);
         }
       }
     }
 
-    const requiresHighRisk = step.operation === 'delete' || HIGH_RISK_TASK_RE.test(step.task);
-    if (requiresHighRisk && step.riskLevel !== 'high') {
-      errors.push(`steps[${step.index}] 是高风险操作，riskLevel 必须为 high`);
-    }
+    // 注：riskLevel 已由 coerceRawSteps 在 delete / 高风险关键词命中时强制设为 high，
+    // 这里不再为这一类机械错误触发模型重试。
   }
 
-  return errors;
+  const offending = [...offendingIndices].sort((a, b) => a - b);
+  return { errors, offending };
 }
 
 export async function planTask({ message, history = [], context = {}, research = null }) {
@@ -335,9 +367,14 @@ export async function planTask({ message, history = [], context = {}, research =
     }
 
     if (mode === 'plan') {
-      const validationErrors = validatePlanSteps(parsed.steps, context);
+      const { errors: validationErrors, offending } = validatePlanSteps(parsed.steps, context);
       if (validationErrors.length > 0) {
-        retryFeedback = validationErrors;
+        const offendingSnippets = offending
+          .map((idx) => Array.isArray(parsed.steps) ? parsed.steps[idx] : null)
+          .filter((s) => s && typeof s === 'object')
+          .slice(0, 3)
+          .map((s, i) => `出错 step[${offending[i]}] 实际 JSON：${JSON.stringify(s).slice(0, 600)}`);
+        retryFeedback = [...validationErrors, ...offendingSnippets];
         log.warn(`PLAN RETRY  ${formatMeta({ attempt, reason: validationErrors[0] })}`);
         if (attempt < PLAN_RETRY_MAX) continue;
         throw new Error(`规划器输出连续 ${PLAN_RETRY_MAX} 次未通过校验：${validationErrors.join('；')}`);
@@ -386,4 +423,5 @@ export const __testables = {
   buildPlannerPrompt,
   summarizeResearchForPrompt,
   validatePlanSteps,
+  coerceRawSteps,
 };
