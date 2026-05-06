@@ -91,7 +91,7 @@ create 操作省略"当前状态"部分。
 | [4] | {{user}} 状态 | `{{user}}` 动态数值 |
 | [5] | 角色 system prompt | 角色性格、说话方式、背景 |
 | [6] | 角色状态 | 角色动态数值 |
-| [7] | 世界 Prompt 条目 | 触发型知识库；always 每轮必注入；keyword 关键词匹配；llm 向量召回；state 状态条件满足时注入 |
+| [7] | 世界 Prompt 条目 | 触发型知识库；always 每轮必注入；keyword 关键词匹配；llm 由 LLM 读条目 description 判定是否注入（关键词兜底）；state 状态条件满足时注入 |
 | [8] | 历史记忆召回 | 跨会话 turn summary 向量检索结果 |
 | [9] | 记忆展开 | LLM 决定展开的 turn summary 原文 |
 | [10] | 日记注入 | 前端一次性注入的日记文本（仅生效一轮） |
@@ -102,10 +102,24 @@ create 操作省略"当前状态"部分。
 ### 关键功能说明
 
 **Prompt 条目（Entries）**
-- 世界级条目分四种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（向量相似度召回时注入）、state（当前会话状态满足所有条件时注入）
-- 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm/state）、keywords（关键词数组，keyword 类型使用）、token（注入顺序权重，整数，越小越靠前）
+- 世界级条目分四种触发类型：always（常驻，每轮必注入）、keyword（关键词命中时注入）、llm（由 LLM 读条目的 description 字段判断当前情境是否需要注入，关键词兜底；**不是向量召回**）、state（当前会话状态满足所有条件时注入）
+- 每条有：title（标题）、content（注入内容）、trigger_type（always/keyword/llm/state）、description（仅 llm 类型用，写"何时触发"供 LLM 判定）、keywords（关键词数组，keyword 类型使用）、token（注入顺序权重，整数，越小越靠前）
 - 所有命中的世界条目统一在 [7] 位置注入（position 字段已废弃，不再消费）
 - `state` 条目条件必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`；这是现有数据标签格式，条目内容里仍统一写 `{{user}}` / `{{char}}`
+
+**前后端术语对照（用户用 UI 用语提需求时按此映射，不要把它们当作不同概念）**
+
+| 用户/UI 用语 | schema 字段值 | 含义 |
+|---|---|---|
+| 常驻条目 | `trigger_type:"always"` | 每轮必注入 |
+| 关键词条目 | `trigger_type:"keyword"` | 关键词命中时注入 |
+| AI 召回条目 / AI召回 | `trigger_type:"llm"` | LLM 读 description 字段判定是否注入（关键词兜底）|
+| 状态条目 | `trigger_type:"state"` | 状态条件全部满足时注入（需配 conditions）|
+| 触发条件描述 | 条目的 `description` 字段 | 仅 llm 条目用；写"何时触发"，不是内容摘要 |
+| 关键词作用域 | `keyword_scope` | `user` / `assistant` / `user,assistant` |
+| LLM 自动 / AI 自动 | 状态字段 `update_mode:"llm_auto"` | 每轮对话后由 LLM 自动更新 |
+| 手动 | 状态字段 `update_mode:"manual"` | 仅写卡助手或前端显式写入 |
+| 历史记忆召回 / 跨会话召回 | [8] turn summary 向量检索 | 与世界条目无关，写卡助手不直接管 |
 
 **状态字段（State Fields）**
 - 动态数值，如"体力""当前位置""天气"

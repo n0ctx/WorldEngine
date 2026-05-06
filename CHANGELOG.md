@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 fix(assistant): 修正 trigger_type:"llm" 描述 + 补前后端术语对照
+
+**问题**：写卡助手 prompt / CONTRACT 把 `trigger_type:"llm"` 描述为"向量召回 / 向量相似度召回"。实际后端 `entry-matcher.js` L268-284 是 LLM 读条目 `description` 字段做语义判定 + 关键词兜底，不是向量召回。前端 UI 此类条目称为"AI 召回条目"。术语漂移导致助手不理解用户用 UI 用语提的需求。
+
+**修复**
+- `assistant/prompts/main.md`：[7] 行与 Prompt 条目段的"向量召回"措辞改为"LLM 读 description 判定"；新增"前后端术语对照"表（UI 用语 ↔ schema 字段值）。
+- `assistant/prompts/world-card.md`：硬规则后追加同款"前后端术语对照"小表，明确"AI 召回条目 = trigger_type:\"llm\"，不是向量召回"。
+- `assistant/CONTRACT.md`：trigger_type 取值 `llm` 的描述改写，并显式说明向量检索仅用于 [8] 历史记忆 turn summary。
+
+**未改**
+- 后端 entry-matcher 行为；SCHEMA.md / ARCHITECTURE.md（运行时未变）；task-planner.js 内联 prompt（未含错误措辞）。
+
 ## 2026-05-06 feat(state): datetime 字段支持中文渲染与可选展示前缀
 
 **新增 prefix 列**

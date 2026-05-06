@@ -33,6 +33,20 @@
 - `trigger_type:”keyword”` 的条目，`keywords` 数组至少有 1 项；若关键词为空，请改用 `trigger_type:”llm”` 或 `trigger_type:”always”`，不要输出空 keywords 的 keyword 条目
 - `trigger_type:”state”` 的条目，`conditions` 数组至少有 1 项；不要输出 conditions 为空的 state 条目——空 conditions 意味着该条目永远不触发
 
+## 前后端术语对照
+
+用户用前端 UI 用语提需求时按此映射，不要当作不同概念：
+
+| 用户/UI 用语 | schema | 含义 |
+|---|---|---|
+| 常驻条目 | `trigger_type:"always"` | 每轮必注入 |
+| 关键词条目 | `trigger_type:"keyword"` | 关键词命中时注入 |
+| **AI 召回条目 / AI召回** | `trigger_type:"llm"` | LLM 读条目 `description` 字段判定是否注入（关键词兜底）；**不是向量召回** |
+| 状态条目 | `trigger_type:"state"` | conditions 全部满足时注入 |
+| 触发条件描述 | 条目的 `description` 字段 | 仅 llm 条目用，写"何时触发"，不是内容摘要 |
+| LLM 自动 / AI 自动 | 状态字段 `update_mode:"llm_auto"` | 每轮对话后由 LLM 自动更新 |
+| 手动 | 状态字段 `update_mode:"manual"` | 不参与自动更新 |
+
 ---
 
 ## 你负责什么
