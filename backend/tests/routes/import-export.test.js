@@ -150,7 +150,7 @@ test('导入世界卡时未知字段会被忽略而合法字段正常导入', as
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       format: 'worldengine-world-v1',
-      world: { name: '未知字段世界', system_prompt: '设定', unknown_key: 'ignored' },
+      world: { name: '未知字段世界', unknown_key: 'ignored' },
       prompt_entries: [],
       world_state_fields: [],
       character_state_fields: [],
@@ -164,11 +164,8 @@ test('导入世界卡时未知字段会被忽略而合法字段正常导入', as
 
   assert.equal(res.status, 201);
   const world = await res.json();
-  // system_prompt 已废弃，导入时转为 always 条目，不再写入 worlds 表
-  const row = ctx.sandbox.db.prepare('SELECT name, system_prompt FROM worlds WHERE id = ?').get(world.id);
-  assert.deepEqual(row, { name: '未知字段世界', system_prompt: '' });
-  const entries = ctx.sandbox.db.prepare('SELECT title, content FROM world_prompt_entries WHERE world_id = ?').all(world.id);
-  assert.ok(entries.some((e) => e.title === '世界系统提示' && e.content === '设定'));
+  const row = ctx.sandbox.db.prepare('SELECT name FROM worlds WHERE id = ?').get(world.id);
+  assert.deepEqual(row, { name: '未知字段世界' });
 });
 
 test('导入世界卡时缺少必填字段返回 400 且不创建世界', async () => {

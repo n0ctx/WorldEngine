@@ -896,7 +896,7 @@ MAX_ATTACHMENT_SIZE_MB = 5
 | POST | /api/assistant/tasks/:taskId/cancel | 取消任务 |
 | GET | /api/assistant/tasks/:taskId | 获取任务快照 |
 | POST | /api/assistant/execute | 应用提案（body: token/worldRefId/editedProposal；token 一次性消费，TTL 30 分钟） |
-| POST | /api/assistant/extract-characters | 从写作会话的一条 assistant 消息及其前一条 user 消息中提取非 `{{user}}` 角色，自动建卡并激活（SSE）；body: `{ worldId, sessionId, assistantMessageId }`；SSE 事件：`extract_done { count }`、`character_found { name }`、`card_activated { characterId, character }`、`error { error }`、`done` |
+| POST | /api/assistant/extract-characters | 从写作会话的一条 assistant 消息及其前一条 user 消息中提取非 `{{user}}` 角色，自动建卡并激活（SSE）；body: `{ worldId, sessionId, assistantMessageId }`；task 输入包含：用户输入、AI 回复、本轮 LLM 实际看到的世界书条目（always 常驻 + `messages.activated_entries` 保存的命中条目，按 id 去重，从 `world_prompt_entries` 取完整 content）、已有角色名、状态字段定义；SSE 事件：`extract_done { count }`、`character_found { name }`、`card_activated { characterId, character }`、`error { error }`、`done` |
 
 **world-card assistant 对齐规则**：
 - `preview_card(target="world-card")` 返回现有世界条目时，会为 `trigger_type='state'` 的条目附带 `conditions`

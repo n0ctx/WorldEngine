@@ -1,12 +1,8 @@
-import crypto from 'node:crypto';
-
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
   id                TEXT PRIMARY KEY,
   name              TEXT NOT NULL,
   description       TEXT NOT NULL DEFAULT '',
-  system_prompt     TEXT NOT NULL DEFAULT '',
-  post_prompt       TEXT NOT NULL DEFAULT '',
   temperature       REAL,
   max_tokens        INTEGER,
   active_persona_id TEXT,
@@ -389,7 +385,7 @@ export function initSchema(db) {
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN position TEXT NOT NULL DEFAULT 'post'"); } catch (_) {}
   try { db.exec("ALTER TABLE world_prompt_entries ADD COLUMN trigger_type TEXT NOT NULL DEFAULT 'always'"); } catch (_) {}
   migrateTriggerTypeInitial(db);
-  migrateLegacyWorldPromptColumns(db);
+  migrateDropWorldsLegacyPromptColumns(db);
   // personas 多对一：移除 world_id UNIQUE 约束
   migratePersonasMultiPerWorld(db);
   // 废除触发器三表，新增 entry_conditions 表
@@ -556,59 +552,13 @@ function migrateTriggerTypeInitial(db) {
   }
 }
 
-function migrateLegacyWorldPromptColumns(db) {
-  const migKey = 'migration:t182_world_prompt_columns_to_state_entries';
-  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
-  if (already) return;
-
-  const now = Date.now();
-  const worlds = db.prepare('SELECT id, system_prompt, post_prompt FROM worlds').all();
-  const hasMatchingEntry = db.prepare(`
-    SELECT id
-    FROM world_prompt_entries
-    WHERE world_id = ?
-      AND trigger_type = 'always'
-      AND position = ?
-      AND content = ?
-    LIMIT 1
-  `);
-  const getMaxSortOrder = db.prepare('SELECT MAX(sort_order) AS m FROM world_prompt_entries WHERE world_id = ?');
-  const insertEntry = db.prepare(`
-    INSERT INTO world_prompt_entries (
-      id, world_id, title, description, content, keywords, keyword_scope,
-      position, trigger_type, sort_order, created_at, updated_at
-    ) VALUES (?, ?, ?, '', ?, NULL, 'user,assistant', ?, 'always', ?, ?, ?)
-  `);
-
-  db.exec('BEGIN');
-  try {
-    for (const world of worlds) {
-      const entries = [
-        { title: '世界系统提示', position: 'system', content: world.system_prompt },
-        { title: '世界后置提示词', position: 'post', content: world.post_prompt },
-      ].filter((item) => typeof item.content === 'string' && item.content.trim());
-
-      for (const entry of entries) {
-        const existing = hasMatchingEntry.get(world.id, entry.position, entry.content);
-        if (existing) continue;
-        const maxRow = getMaxSortOrder.get(world.id);
-        insertEntry.run(
-          crypto.randomUUID(),
-          world.id,
-          entry.title,
-          entry.content,
-          entry.position,
-          (maxRow?.m ?? -1) + 1,
-          now,
-          now,
-        );
-      }
-    }
-    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, now);
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
+function migrateDropWorldsLegacyPromptColumns(db) {
+  const cols = db.pragma('table_info(worlds)').map((col) => col.name);
+  if (cols.includes('system_prompt')) {
+    try { db.exec('ALTER TABLE worlds DROP COLUMN system_prompt'); } catch {}
+  }
+  if (cols.includes('post_prompt')) {
+    try { db.exec('ALTER TABLE worlds DROP COLUMN post_prompt'); } catch {}
   }
 }
 

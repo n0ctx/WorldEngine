@@ -87,12 +87,8 @@ test('POST /api/assistant/execute 会消费 token 并落库 world-card create', 
   assert.equal(body.ok, true);
   assert.equal(body.result.name, '新世界');
 
-  const worlds = sandbox.db.prepare('SELECT name, system_prompt, post_prompt FROM worlds').all();
-  assert.deepEqual(worlds, [{
-    name: '新世界',
-    system_prompt: '',
-    post_prompt: '',
-  }]);
+  const worlds = sandbox.db.prepare('SELECT name FROM worlds').all();
+  assert.deepEqual(worlds, [{ name: '新世界' }]);
   assert.equal(__testables.proposalStore.has('token-create-world'), false);
 });
 
@@ -531,11 +527,7 @@ test('POST /api/assistant/execute 对重复 stateField 幂等跳过而非报错�
 });
 
 test('POST /api/assistant/execute 对 editedProposal 只接受内容覆盖，不允许改写锁定元信息', async () => {
-  const world = insertWorld(sandbox.db, {
-    name: '旧世界',
-    system_prompt: '旧设定',
-    post_prompt: '旧后置',
-  });
+  const world = insertWorld(sandbox.db, { name: '旧世界' });
   const { __testables } = await import('../server/routes.js');
   __testables.proposalStore.set('token-edit-world', {
     expiresAt: Date.now() + 60_000,
@@ -584,13 +576,11 @@ test('POST /api/assistant/execute 对 editedProposal 只接受内容覆盖，不
   assert.equal(body.result.id, world.id);
 
   const worldRow = sandbox.db.prepare(
-    'SELECT id, name, system_prompt, post_prompt FROM worlds WHERE id = ?',
+    'SELECT id, name FROM worlds WHERE id = ?',
   ).get(world.id);
   assert.deepEqual(worldRow, {
     id: world.id,
     name: '新世界名',
-    system_prompt: '旧设定',
-    post_prompt: '旧后置',
   });
 
   const entries = sandbox.db.prepare(

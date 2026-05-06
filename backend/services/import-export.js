@@ -347,51 +347,27 @@ export function importWorld(data) {
 
     // 插入世界
     db.prepare(`
-      INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, cover_path, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, description, temperature, max_tokens, cover_path, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
       data.world.description ?? '',
-      '',
-      '',
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,
       coverPath,
       now, now,
     );
 
-    // 兼容旧格式：将 world.system_prompt / post_prompt 转为 always 条目
-    const legacyEntries = [];
-    if (typeof data.world?.system_prompt === 'string' && data.world.system_prompt.trim()) {
-      legacyEntries.push({
-        title: '世界系统提示',
-        content: data.world.system_prompt.trim(),
-        trigger_type: 'always',
-        sort_order: 0,
-        token: 1,
-      });
-    }
-    if (typeof data.world?.post_prompt === 'string' && data.world.post_prompt.trim()) {
-      legacyEntries.push({
-        title: '世界后置提示词',
-        content: data.world.post_prompt.trim(),
-        trigger_type: 'always',
-        sort_order: (legacyEntries.length),
-        token: 1,
-      });
-    }
-
-    // 插入 persona（兼容旧格式：world.persona_name / persona_prompt 字段）
-    const personaName = data.persona?.name ?? data.world?.persona_name ?? '';
-    const personaSystemPrompt = data.persona?.system_prompt ?? data.world?.persona_prompt ?? '';
+    // 插入 persona
+    const personaName = data.persona?.name ?? '';
+    const personaSystemPrompt = data.persona?.system_prompt ?? '';
     db.prepare(`
       INSERT INTO personas (id, world_id, name, system_prompt, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(crypto.randomUUID(), worldId, personaName, personaSystemPrompt, now, now);
 
-    // 合并新旧条目
-    const allPromptEntries = [...legacyEntries, ...(data.prompt_entries ?? [])];
+    const allPromptEntries = data.prompt_entries ?? [];
 
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`

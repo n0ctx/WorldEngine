@@ -24,6 +24,7 @@ import { getOrCreatePersona, updatePersona } from '../../backend/services/person
 import { getConfig, updateConfig, getAuxLlmConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
+  getWorldPromptEntryById,
   listWorldPromptEntries,
   updateWorldPromptEntry,
   deleteWorldPromptEntry,
@@ -285,6 +286,24 @@ router.post('/extract-characters', async (req, res) => {
         }).join('\n')
       : '（无状态字段定义）';
 
+    // 收集本轮 LLM 实际看到的世界书条目：always 常驻条目 + 该 assistant message 保存的命中条目
+    const allWorldEntries = listWorldPromptEntries(worldId);
+    const alwaysEntries = allWorldEntries.filter((e) => e.trigger_type === 'always');
+    const savedActivated = Array.isArray(assistantMsg.activated_entries) ? assistantMsg.activated_entries : [];
+    const seenIds = new Set(alwaysEntries.map((e) => e.id));
+    const triggeredEntries = [];
+    for (const item of savedActivated) {
+      if (!item?.id || seenIds.has(item.id)) continue;
+      const full = getWorldPromptEntryById(item.id);
+      if (!full) continue;
+      triggeredEntries.push(full);
+      seenIds.add(item.id);
+    }
+    const contextEntries = [...alwaysEntries, ...triggeredEntries];
+    const entriesDesc = contextEntries.length > 0
+      ? contextEntries.map((e) => `### ${e.title || '（无标题）'}\n${e.content || ''}`.trim()).join('\n\n')
+      : '（无世界书条目）';
+
     const task = [
       '## 用户输入',
       userMsg?.content ? userMsg.content : '（无用户输入）',
@@ -292,12 +311,14 @@ router.post('/extract-characters', async (req, res) => {
       '## AI 回复',
       assistantMsg.content || '（内容为空）',
       '',
+      `## 世界书条目（仅供参考世界设定，不要直接照抄）\n${entriesDesc}`,
+      '',
       `## 世界中已有角色（请排除）\n${existingNames}`,
       '',
       `## 角色状态字段定义\n${sfDesc}`,
     ].join('\n');
 
-    log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length })}`);
+    log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length, entryCount: contextEntries.length })}`);
 
     const messages = buildAgentMessages('extract_characters', task);
     const config = getConfig();

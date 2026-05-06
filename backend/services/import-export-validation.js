@@ -158,7 +158,6 @@ export function validateWorldImportPayload(data) {
   assertPlainObject(data.world, 'world');
   assertRequiredString(data.world.name, 'world.name', MAX_NAME_LENGTH);
   assertOptionalString(data.world.description, 'world.description');
-  // world.system_prompt / post_prompt 已废弃，由 prompt_entries 接管；保留读取兼容，无需验证
   assertOptionalNumber(data.world.temperature, 'world.temperature');
   assertOptionalNumber(data.world.max_tokens, 'world.max_tokens');
   assertOptionalString(data.world.cover_path, 'world.cover_path', MAX_TEXT_FIELD_LENGTH);

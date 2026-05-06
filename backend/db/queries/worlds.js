@@ -10,15 +10,13 @@ export function createWorld(data) {
   const maxRow = db.prepare('SELECT MAX(sort_order) AS max_sort FROM worlds').get();
   const sortOrder = (maxRow?.max_sort ?? -1) + 1;
   const stmt = db.prepare(`
-    INSERT INTO worlds (id, name, description, system_prompt, post_prompt, temperature, max_tokens, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO worlds (id, name, description, temperature, max_tokens, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
   stmt.run(
     id,
     data.name,
     data.description ?? '',
-    data.system_prompt ?? '',
-    data.post_prompt ?? '',
     data.temperature ?? null,
     data.max_tokens ?? null,
     sortOrder,
@@ -60,7 +58,7 @@ export function reorderWorlds(items) {
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  const allowedFields = ['name', 'description', 'system_prompt', 'post_prompt', 'temperature', 'max_tokens', 'cover_path'];
+  const allowedFields = ['name', 'description', 'temperature', 'max_tokens', 'cover_path'];
   const sets = [];
   const values = [];
 

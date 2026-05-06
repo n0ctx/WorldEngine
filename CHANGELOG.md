@@ -3,6 +3,26 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 feat(assistant): 制卡注入当轮激活世界书条目 + 清理 worlds.system_prompt/post_prompt 残留
+
+**变更 1：写作模式制卡传入世界书上下文**
+- `assistant/server/routes.js` `POST /api/assistant/extract-characters` task 拼装新增"世界书条目"段，注入两类条目内容：
+  - 该世界所有 `trigger_type='always'` 的常驻条目
+  - 目标 assistant 消息保存的 `messages.activated_entries` 中命中条目（按 id 去重后从 `world_prompt_entries` 取 content）
+- 不再重新跑命中逻辑，直接读取该 message 生成时已落库的 `activated_entries`，与原始那一轮 LLM 看到的条目集合保持一致
+
+**变更 2：彻底删除 worlds.system_prompt / post_prompt 列**
+- `backend/db/schema.js`：worlds CREATE TABLE 移除两列；删除 `migrateLegacyWorldPromptColumns`（旧迁移会把列内容搬到 `world_prompt_entries`，已不再需要）；新增 `migrateDropWorldsLegacyPromptColumns` 通过 `pragma table_info` 检测旧库后 `ALTER TABLE DROP COLUMN`
+- `backend/db/queries/worlds.js`：`createWorld` / `updateWorld` 不再写两列
+- `backend/services/import-export.js`：导入侧移除 system_prompt/post_prompt → always 条目兼容；导出侧之前已不写
+- `backend/services/import-export-validation.js` / `backend/tests/helpers/fixtures.js`：清理对应字段
+- 测试文件：`assistant/tests/routes-integration.test.js`、`assistant/tests/tools/card-preview.test.js`、`backend/tests/routes/import-export.test.js` 同步修正
+
+**坑点**：
+- `migrateDropWorldsLegacyPromptColumns` 使用 try/catch + 列存在性检测，新库（直接按新 CREATE TABLE 建表）和旧库（曾有列）都正确
+- 之前迁移到 `world_prompt_entries` 的"世界系统提示"/"世界后置提示词"条目仍保留在 entries 表中，无需清理
+- 导入旧 `.weworld.json`（含 `world.system_prompt`/`post_prompt` 字段）后这两个字段会被静默丢弃，不再转 always 条目
+
 ## 2026-05-06 fix(ui): 状态栏展示层支持 {{user}}/{{char}}/{{world}} 替换
 
 **问题**：状态栏直接显示 `{{user}}的奴隶` 等原始模板字符串，未做变量替换。状态值可能由 LLM 写入或玩家手动填入含模板占位符的文本，但前端 `StatusSection` 只读取 `effective_value_json` 后原样渲染。
