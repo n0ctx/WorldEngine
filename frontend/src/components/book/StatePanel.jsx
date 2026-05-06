@@ -86,6 +86,11 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const [personaResetting, setPersonaResetting] = useState(false);
   const [charResetting, setCharResetting] = useState(false);
   const [worldName, setWorldName] = useState(null);
+  const templateCtx = useMemo(() => ({
+    user: persona?.name ?? '',
+    char: character?.name ?? '',
+    world: worldName ?? '',
+  }), [persona?.name, character?.name, worldName]);
 
   // 折叠状态
   const [diaryOpen, setDiaryOpen] = useState(true);
@@ -239,6 +244,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             onReset={handleResetWorld}
             resetting={worldResetting}
             onSave={handleSaveWorld}
+            templateCtx={templateCtx}
             collapsible
           />
 
@@ -250,6 +256,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             onReset={handleResetPersona}
             resetting={personaResetting}
             onSave={handleSavePersona}
+            templateCtx={templateCtx}
             collapsible
           />
 
@@ -261,6 +268,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             onReset={handleResetChar}
             resetting={charResetting}
             onSave={handleSaveCharacter}
+            templateCtx={templateCtx}
             collapsible
           />
 

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
+import { applyTemplateVars } from '../../utils/template-vars.js';
 
 function parseValue(effectiveValueJson, type) {
   if (effectiveValueJson == null) return null;
@@ -155,6 +156,7 @@ export default function StatusSection({
   className,
   collapsible = false,
   defaultOpen = true,
+  templateCtx,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [editingKey, setEditingKey] = useState(null);
@@ -178,7 +180,7 @@ export default function StatusSection({
           {hasName && (
             <div className="we-status-field" style={{ animationDelay: '0ms' }}>
               <span className="we-status-key">姓名</span>
-              <span className="we-status-value">{pinnedName}</span>
+              <span className="we-status-value">{applyTemplateVars(pinnedName, templateCtx)}</span>
             </div>
           )}
           {rows?.map((row, i) => {
@@ -212,7 +214,9 @@ export default function StatusSection({
                     title={isManual && onSave ? '点击编辑' : undefined}
                   >
                     {display != null ? (
-                      isNumber && max != null ? `${display} / ${max}` : display
+                      isNumber && max != null
+                        ? `${display} / ${max}`
+                        : applyTemplateVars(display, templateCtx)
                     ) : (isManual && onSave ? '点击编辑' : '—')}
                   </span>
                 )}

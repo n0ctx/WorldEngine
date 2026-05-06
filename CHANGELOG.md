@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 fix(ui): 状态栏展示层支持 {{user}}/{{char}}/{{world}} 替换
+
+**问题**：状态栏直接显示 `{{user}}的奴隶` 等原始模板字符串，未做变量替换。状态值可能由 LLM 写入或玩家手动填入含模板占位符的文本，但前端 `StatusSection` 只读取 `effective_value_json` 后原样渲染。
+
+**修复**：
+- 新增 `frontend/src/utils/template-vars.js`，与 `backend/utils/template-vars.js` 等价，仅用于展示层替换
+- `StatusSection.jsx` 新增 `templateCtx` prop，对 `pinnedName`（姓名行）和非数值类 `display`（list/string/boolean 通过字符串展示）应用替换；编辑态使用 `parseRawValue` 不受影响，DB 写入仍为原始文本
+- `StatePanel.jsx` 异步加载 `worldName` 后，构造 `{ user: persona?.name, char: character?.name, world: worldName }` 并传入 3 个 `StatusSection`
+- `CastPanel.jsx` 新增 `worldName` 加载与 `templateCtx`，世界/玩家区直接用全局 ctx；`CharacterBlock` 接收 ctx 后注入对应角色的 `char` 名
+
+**坑点**：数值类型（带 max 的 `${display} / ${max}`）跳过模板替换以避免 NaN 拼接；编辑态读取 raw 值确保用户可继续编辑原始 `{{user}}` 字符串；持久化层完全不变。
+
 ## 2026-05-03 fix(prompt): assembler [13] 后置注入优化，提升 LLM 遵从性
 
 **问题**：LLM 遵从性不足，具体表现：写作模式叙述者捏造 `{{user}}` 玩家名、`<next_prompt>` 格式错误、忽略指令。对比 SillyTavern（同提示词遵从性更好）排查根因。

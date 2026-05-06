@@ -17,6 +17,7 @@ import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
 import ModalShell from '../ui/ModalShell.jsx';
 import { getCharactersByWorld } from '../../api/characters.js';
+import { getWorld } from '../../api/worlds.js';
 import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
@@ -71,7 +72,7 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
   );
 }
 
-function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTick }) {
+function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTick, templateCtx }) {
   const [stateValues, setStateValues] = useState(null);
   const [resetting, setResetting] = useState(false);
 
@@ -149,7 +150,13 @@ function CharacterBlock({ char, sessionId, expanded, onToggle, onRemove, stateTi
         overflow: 'hidden',
       }}>
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
-          <StatusSection title="" rows={stateValues} onSave={handleSave} className="we-cast-char-inner" />
+          <StatusSection
+            title=""
+            rows={stateValues}
+            onSave={handleSave}
+            className="we-cast-char-inner"
+            templateCtx={{ ...(templateCtx ?? {}), char: char?.name ?? '' }}
+          />
         </div>
       </div>
     </div>
@@ -236,7 +243,23 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
   const [diaryOpen, setDiaryOpen] = useState(true);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
+  const [worldName, setWorldName] = useState(null);
   const firstActiveCharacterId = activeCharacters[0]?.id;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!worldId) { setWorldName(null); return; }
+    getWorld(worldId).then((w) => {
+      if (!cancelled) setWorldName(w?.name ?? null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [worldId]);
+
+  const templateCtx = useMemo(() => ({
+    user: persona?.name ?? '',
+    char: '',
+    world: worldName ?? '',
+  }), [persona?.name, worldName]);
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -386,6 +409,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           onReset={handleResetWorldState}
           resetting={worldResetting}
           onSave={handleSaveWorld}
+          templateCtx={templateCtx}
           collapsible
         />
 
@@ -396,6 +420,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
           onReset={handleResetPersonaState}
           resetting={personaResetting}
           onSave={handleSavePersona}
+          templateCtx={templateCtx}
           collapsible
         />
 
@@ -410,6 +435,7 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
               onToggle={() => toggleExpand(char.id)}
               onRemove={handleRemove}
               stateTick={stateTick}
+              templateCtx={templateCtx}
             />
           ))}
           {activeCharacters.length === 0 && (
