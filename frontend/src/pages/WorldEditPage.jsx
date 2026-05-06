@@ -16,7 +16,6 @@ import {
 } from '../api/world-state-fields';
 import { getConfig } from '../api/config';
 import { getAvatarUrl, getAvatarColor } from '../utils/avatar';
-import { getWorldStateValues, updateWorldStateValue } from '../api/world-state-values.js';
 import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
@@ -25,7 +24,6 @@ import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/persona-state-fields';
-import StateValueField from '../components/state/StateValueField';
 import { pushErrorToast } from '../utils/toast';
 
 export default function WorldEditPage() {
@@ -47,7 +45,6 @@ export default function WorldEditPage() {
   const [description, setDescription] = useState('');
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
-  const [stateFields, setStateFields] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState('virtual');
 
@@ -81,16 +78,12 @@ export default function WorldEditPage() {
 
   useEffect(() => {
     if (isCreate) return;
-    Promise.all([
-      getWorld(worldId),
-      getWorldStateValues(worldId),
-    ]).then(([w, fields]) => {
+    getWorld(worldId).then((w) => {
       setName(w.name ?? '');
       setDescription(w.description ?? '');
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setCoverPath(w.cover_path ?? null);
-      setStateFields(fields);
       setLoading(false);
     });
   }, [worldId, reloadKey, isCreate]);
@@ -100,14 +93,6 @@ export default function WorldEditPage() {
     window.addEventListener('we:world-updated', h);
     return () => window.removeEventListener('we:world-updated', h);
   }, []);
-
-  async function handleStateValueSave(fieldKey, valueJson) {
-    try {
-      await updateWorldStateValue(worldId, fieldKey, valueJson);
-    } catch (err) {
-      pushErrorToast(err.message || '世界状态默认值保存失败');
-    }
-  }
 
   async function handleSave() {
     if (!name.trim()) { setSaveError('名称为必填项'); return; }
@@ -243,23 +228,6 @@ export default function WorldEditPage() {
       label: '状态模板',
       content: (
         <div>
-          {stateFields.length > 0 && (
-            <div className="we-edit-form-group">
-              <h3 className="we-edit-subsection-title">世界默认状态值</h3>
-              <div className="we-state-value-list">
-                {stateFields.map(f => (
-                  <div key={f.field_key} className="we-state-value-row">
-                    <div>
-                      <p className="we-state-value-label">{f.label}</p>
-                      <p className="we-state-value-key">{f.field_key}</p>
-                    </div>
-                    <StateValueField field={f} onSave={handleStateValueSave} />
-                  </div>
-                ))}
-              </div>
-              <div className="we-edit-state-sep" />
-            </div>
-          )}
           <StateFieldList
             scope="world"
             worldId={worldId}
