@@ -3,6 +3,39 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 feat(assistant): 写卡助手识别并支持 datetime 状态字段类型
+
+**动机**：上一轮 `feat(state): datetime 字段类型 + diary_time 切 ISO`（commit 58c7a87）只接通了主流程（schema/服务层/状态更新/条件比较/前端渲染），写卡助手侧未同步：`assistant/server/routes.js` 的 `VALID_STATE_TYPES` 不含 `datetime`，prompt 也没教 LLM 这个类型，导致 LLM 即使尝试输出 `type:"datetime"` 也会被 `normalizeProposal()` 直接拒掉。
+
+**改动**
+
+- `assistant/server/routes.js`
+  - `VALID_STATE_TYPES` 加 `'datetime'`；下游 `world-state-fields.js` 等服务层与 DB queries 早已支持。
+  - `STATE_FIELD_KEYS` 加 `'prefix'`；`normalizeStateFieldOps` create/update 分支均放行 `prefix` 字符串透传（datetime 展示前缀，如 "第三纪元 "）。
+  - `extract-characters` 字段列表渲染：`f.type === 'datetime'` 时附加格式提示 `格式：ISO 局部时间 "YYYY-MM-DDTHH:mm"`，避免 LLM 输出非法格式。
+
+- `assistant/CONTRACT.md`
+  - §7 `stateFieldOps`：`type` 取值列出 `datetime`，追加 `prefix` 字段说明。
+  - §6 `state` 条目 conditions：datetime 字段使用数值操作符 + ISO 字典序比较。
+  - §8 `stateValueOps`：`value_json` 列说明 datetime 字段必须写 `"\"YYYY-MM-DDTHH:mm\""`。
+
+- `assistant/prompts/world-card.md`
+  - 类型选择顺序由 **boolean → number → enum → list → text** 改为 **boolean → number → datetime → enum → list → text**（自检条与 stateFieldOps 段顶部告警同步）。
+  - `type` 列表加 `"datetime"`；`default_value` 写法表加 datetime 行（`"\"1000-03-15T14:30\""`）。
+  - 类型选择指南决策流加"可比较的时间点？→ datetime"；详细规则表加 datetime 行。
+  - state 条目 `operator` 区追加 datetime 比较规则。
+
+- `assistant/prompts/character-card.md` / `persona-card.md` / `extract-characters.md`
+  - `value_json` / `state_values` 示例追加 datetime 写法与格式约束。
+
+**验证**
+
+- 直发提案：`{ "op":"create", "target":"world", "field_key":"current_time", "label":"当前时间", "type":"datetime", "default_value":"\"1000-03-15T14:30\"", "prefix":"第三纪元 " }` 走 `/api/assistant/execute`，应当落库成功；旧 enum/number 字段提案不受影响。
+- 助手对话："给这个世界加一个游戏内当前时间字段"应输出 datetime 提案；执行后世界状态字段编辑页可见该字段，前端按 ISO 字符串渲染并拼接 `prefix`。
+- 提取角色：含 datetime 角色字段的世界，`/extract-characters` 输出的 `state_values` 中该字段为 ISO 局部时间。
+
+**未触碰**：backend/services、backend/memory、frontend 主流程；datetime 在主流程的支持已在 commit 58c7a87 完成。
+
 ## 2026-05-06 docs: 削减 ARCHITECTURE.md / SCHEMA.md 与代码重复内容
 
 **动机**：`ARCHITECTURE.md §13 数值常量速查` 已与 `backend/utils/constants.js` 漂移（`MEMORY_RECALL_SIMILARITY_THRESHOLD` 文档 0.84 实际 0.75，`SAME_SESSION_THRESHOLD` 文档 0.72 实际 0.6）；`§14.1 完整端点列表`、`§2 目录结构` 大部分内容可直接从 `backend/routes/*.js` 与目录树读出，反而成为漂移源。`SCHEMA.md` 中 22 张表的 `CREATE TABLE` DDL 与 `backend/db/schema.js` 高度重复。

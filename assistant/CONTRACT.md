@@ -543,6 +543,7 @@ agent 执行失败时发送。
 - `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`，不要只写裸 `field_key`
 - 数值操作符：`>` / `<` / `=` / `>=` / `<=` / `!=`
 - 文本操作符：`包含` / `等于` / `不包含`
+- datetime 字段使用数值操作符；`value` 写完整 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`，按字典序即时间序比较
 
 常驻条目 create 示例：
 ```json
@@ -570,7 +571,7 @@ agent 执行失败时发送。
   "target": "world|persona|character",
   "field_key": "hp",
   "label": "生命值",
-  "type": "number|text|enum|list|boolean",
+  "type": "number|text|enum|list|boolean|datetime",
   "description": "字段描述",
   "default_value": "100",
   "update_mode": "llm_auto|manual",
@@ -578,7 +579,8 @@ agent 执行失败时发送。
   "enum_options": ["正常", "受伤"],
   "min_value": 0,
   "max_value": 100,
-  "allow_empty": 1
+  "allow_empty": 1,
+  "prefix": "第三纪元 "
 }
 ```
 
@@ -592,6 +594,9 @@ agent 执行失败时发送。
 | `update_instruction` | — | 全部；`llm_auto` 时说明更新规则 |
 | `enum_options` | — | `enum` 专用 |
 | `min_value` / `max_value` | — | `number` 专用 |
+| `prefix` | — | `datetime` 专用，展示前缀字符串（如 `"第三纪元 "`），仅前端渲染用，不参与 LLM 比较 |
+
+`type` 取值约束：`datetime` 字段的 `default_value` 与运行时值必须使用 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`（年份 4 位、月日时分各 2 位，例 `"1000-03-15T14:30"`），不接受其他格式。
 
 ### update
 
@@ -621,7 +626,7 @@ agent 执行失败时发送。
 
 | 约束 | 说明 |
 |---|---|
-| `value_json` | JSON 字符串或 `null` |
+| `value_json` | JSON 字符串或 `null`；`datetime` 字段必须写 `"\"YYYY-MM-DDTHH:mm\""`（如 `"\"1000-03-15T14:30\""`） |
 | `character-card` | 只允许 `target:"character"` |
 | `persona-card` | 只允许 `target:"persona"` |
 | `world-card` | 不允许 `stateValueOps` |

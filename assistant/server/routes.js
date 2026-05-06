@@ -94,7 +94,7 @@ setInterval(() => {
 }, 10 * 60 * 1000).unref();
 const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
 const VALID_MODES = new Set(['chat', 'writing']);
-const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean']);
+const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime']);
 const VALID_UPDATE_MODES = new Set(['llm_auto', 'manual']);
 const PROPOSAL_ALLOWED_OPERATIONS = {
   'world-card': new Set(['create', 'update', 'delete']),
@@ -281,6 +281,8 @@ router.post('/extract-characters', async (req, res) => {
           let extra = '';
           if (f.type === 'enum' && Array.isArray(f.enum_options) && f.enum_options.length > 0) {
             extra = `，可选值：[${f.enum_options.map((o) => `"${o}"`).join(', ')}]`;
+          } else if (f.type === 'datetime') {
+            extra = '，格式：ISO 局部时间 "YYYY-MM-DDTHH:mm"（如 "1000-03-15T14:30"）';
           }
           return `- ${f.field_key}（${f.label}，类型：${f.type}${extra}${f.description ? '，说明：' + f.description : ''}）`;
         }).join('\n')
@@ -1119,6 +1121,7 @@ const STATE_FIELD_KEYS = [
   'field_key', 'label', 'type', 'description', 'default_value',
   'update_mode', 'update_instruction',
   'enum_options', 'min_value', 'max_value', 'allow_empty',
+  'prefix',
 ];
 
 function normalizeProposal(raw, locked = {}) {
@@ -1515,6 +1518,7 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);
       if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
       if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
+      if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
       return normalized;
     }
     let fieldKey = normalizeString(raw.field_key);
@@ -1539,6 +1543,7 @@ function normalizeStateFieldOps(rawOps, type) {
     if ('enum_options' in raw) normalized.enum_options = normalizeStringArrayOrNull(raw.enum_options);
     if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
+    if ('prefix' in raw) normalized.prefix = String(raw.prefix ?? '');
     return normalized;
   });
 }

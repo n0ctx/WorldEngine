@@ -21,7 +21,7 @@
 1. 先判断任务类型：新建世界、修复已有世界、扩展状态机、补 lore、补状态字段。
 2. 如果是复杂新建世界，先规划三块内容：基础设定与 always 条目、状态字段模板、keyword/llm/state 触发条目。
 3. 如果是状态机世界，先确定唯一阶段字段，再为每个阶段创建对应 state 条目；所有阶段条目的 `conditions[].target_field` 必须引用同一个真实字段 label。
-4. 输出 JSON 前自检：keyword 条目 keywords 非空；state 条目 conditions 非空；condition 引用的 label 与已有字段或本提案新建字段完全一致；初始状态值不放在 world-card；每个 `stateFieldOps.create` 必须按 **boolean → number → enum → list → text** 顺序逐项排除，不允许直接落 number 或 text 而跳过前面的检查——是/否二元状态必须选 boolean，有限固定选项必须选 enum，可增减集合必须选 list，只有真正无法用前四种覆盖时才能用 text。
+4. 输出 JSON 前自检：keyword 条目 keywords 非空；state 条目 conditions 非空；condition 引用的 label 与已有字段或本提案新建字段完全一致；初始状态值不放在 world-card；每个 `stateFieldOps.create` 必须按 **boolean → number → datetime → enum → list → text** 顺序逐项排除，不允许直接落 number 或 text 而跳过前面的检查——是/否二元状态必须选 boolean，可比较的时间点（年/月/日/时/分）必须选 datetime，有限固定选项必须选 enum，可增减集合必须选 list，只有真正无法用前五种覆盖时才能用 text。
 
 ## 硬规则
 
@@ -257,10 +257,11 @@
 
 - 数值：`>` `<` `=` `>=` `<=` `!=`
 - 文本：`包含` `等于` `不包含`
+- datetime：使用数值操作符（`>` `<` `=` `>=` `<=` `!=`），`value` 必须写完整 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`（如 `"1000-03-15T14:30"`），按字典序即时间序比较
 
 ### `stateFieldOps`
 
-> ⚠️ **选 type 前必须过下方[状态字段类型选择指南]**，按 boolean → number → enum → list → text 顺序排查，不允许跳步直接写 number 或 text。
+> ⚠️ **选 type 前必须过下方[状态字段类型选择指南]**，按 boolean → number → datetime → enum → list → text 顺序排查，不允许跳步直接写 number 或 text。
 
 每项 `op` 只能是 `create` / `update` / `delete`。
 
@@ -306,6 +307,7 @@
 - `"enum"`
 - `"list"`
 - `"boolean"`
+- `"datetime"`（ISO 局部时间 `"YYYY-MM-DDTHH:mm"`，年份 4 位、月日时分各 2 位，例 `"1000-03-15T14:30"`；可选 `prefix` 字段写展示前缀，如 `"第三纪元 "`）
 
 `update_mode` 只允许：
 
@@ -319,6 +321,7 @@
 - `enum` → `"\"序章\""`
 - `list` → `"[]"`（空数组；如需预设值：`"[\"线索A\"]"`）
 - `boolean` → `"false"`
+- `datetime` → `"\"1000-03-15T14:30\""`（ISO 局部时间，年/月/日/时/分各位数固定，禁止其他格式）
 
 ---
 
@@ -331,6 +334,7 @@
 ```
 该值是 是/否 二元状态？ → boolean
 该值是纯数字（HP、金币、好感、计数）？ → number
+该值是可比较的时间点（年月日时分、可排序）？ → datetime
 该值只能从有限几个固定选项中选一个？ → enum
 该值是可增减的项目集合（背包、清单、已知信息）？ → list
 以上都不符合，是自由描述文字？ → text
@@ -344,6 +348,7 @@
 | `boolean` | 二元标记：是否死亡、是否已完成、是否已解锁 | `已入伙: false`、`任务完成: true` | 有多个选项的状态（用 enum）|
 | `enum` | 有固定可枚举选项的状态：天气、剧情阶段、情绪、关系状态 | `天气: 酸雨/晴天/暴雪`、`剧情阶段: 序章/冲突/决战` | 数量无限或自由填写的值 |
 | `list` | 可增减的集合：背包物品、已知线索、持有技能、激活任务 | `背包: ["火把", "解毒药"]` | 只有一个值的字段（用 enum/text）|
+| `datetime` | 可比较的时间点：游戏内当前日期时间、剧情时间线、约定截止时间 | `当前时间: "1000-03-15T14:30"`、`截止时间: "2099-12-31T23:59"` | 时长/间隔（用 number）；模糊的时间段描述（用 text/enum）|
 | `text` | 真正需要自由描述的状态：当前伤势详情、特殊buff描述 | `伤势描述: "右臂骨折"` | 一切可用上面类型覆盖的场景 |
 
 ---
