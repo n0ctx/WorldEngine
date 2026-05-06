@@ -16,7 +16,13 @@ export function createWorldStateField(worldId, data) {
 }
 export const getWorldStateFieldById = (id)           => dbGetById(id);
 export const listWorldStateFields   = (worldId)      => dbList(worldId);
-export const updateWorldStateField  = (id, patch)    => dbUpdate(id, patch);
+export function updateWorldStateField(id, patch) {
+  const field = dbUpdate(id, patch);
+  if (field && Object.hasOwn(patch, 'default_value')) {
+    upsertWorldStateValue(field.world_id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
+  }
+  return field;
+}
 export function deleteWorldStateField(id) {
   const field = dbGetById(id);
   if (field) {

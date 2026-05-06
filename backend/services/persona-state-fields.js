@@ -21,7 +21,11 @@ export function getPersonaStateFieldsByWorldId(worldId) {
 }
 
 export function updatePersonaStateField(id, patch) {
-  return dbUpdate(id, patch);
+  const field = dbUpdate(id, patch);
+  if (field && Object.hasOwn(patch, 'default_value')) {
+    upsertPersonaStateValue(field.world_id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
+  }
+  return field;
 }
 
 export function deletePersonaStateField(id) {

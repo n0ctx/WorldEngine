@@ -20,7 +20,16 @@ export function createCharacterStateField(worldId, data) {
 }
 export const getCharacterStateFieldById = (id)           => dbGetById(id);
 export const listCharacterStateFields   = (worldId)      => dbList(worldId);
-export const updateCharacterStateField  = (id, patch)    => dbUpdate(id, patch);
+export function updateCharacterStateField(id, patch) {
+  const field = dbUpdate(id, patch);
+  if (field && Object.hasOwn(patch, 'default_value')) {
+    const characters = getCharactersByWorldId(field.world_id);
+    for (const character of characters) {
+      upsertCharacterStateValue(character.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
+    }
+  }
+  return field;
+}
 export function deleteCharacterStateField(id) {
   const field = dbGetById(id);
   if (field) {
