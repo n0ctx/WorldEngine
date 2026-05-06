@@ -2108,3 +2108,25 @@
 - `ui.css` / `pages.css` / `chat.css`：所有硬编码 transition 时间值（`0.15s`、`0.18s`、`0.2s`、`0.22s`、`0.12s`）全部替换为对应 CSS token，同步补充具名 easing token 引用。
 
 **验证**：`npm run build` 构建通过（208ms）；无任何 CSS 硬编码时间残留（grep 验证）；旧版 `--we-dur-*` token 全部清除。
+
+## 2026-05-06 fix(llm): 各 provider 思考链按真实 API 语法正确分派
+
+**背景**：上一条修复只是把 `reasoning_effort` 一刀切式地下发给所有 OpenAI 兼容 provider。但实际上各 provider 的思考开关字段差异极大：DeepSeek-V3.1 用 `thinking: {type}`，GLM 用 `thinking: {type}`，OpenRouter 归一成 `reasoning: {effort}` / `reasoning: {enabled}`，Qwen / SiliconFlow 用 `enable_thinking + thinking_budget`，Grok 仅支持 `low/high`（无 medium），kimi-k2-thinking / minimax-m2 由模型自身决定无需参数。错误下发要么被静默忽略，要么 400 拒绝。
+
+**改动**：
+- `backend/llm/providers/_utils.js` — 新增 `applyThinkingToOpenAICompatibleBody(body, config)` 总分派器与 `resolveQwenBudget()`：按 `config.provider` 写入正确字段，返回 `'enabled' | 'disabled' | null` 给调用方决定是否抑制 temperature。Grok 的 `effort_medium` 兜底向上取 `high` 防 400；deepseek/kimi/minimax 不识别的命名空间静默忽略。
+- `backend/llm/providers/openai-compatible.js` — 删除 `resolveReasoningEffort()`，4 处调用（streamChat / complete / completeWithTools / resolveToolContext）改为通过 `applyThinkingToOpenAICompatibleBody` 写入 + 根据返回状态抑制 temperature。
+- `frontend/src/components/settings/SettingsConstants.js` — `getProviderThinkingOptions()` 按 provider 返回各自合法选项命名空间：`effort_*`（openai / xiaomi / openai_compatible）、`reasoning.effort`（openrouter，并多出 `thinking_enabled/disabled` 走 `reasoning.enabled`）、`effort_low/high`（grok）、`thinking_enabled/disabled`（glm / glm-coding / deepseek）、`thinking_*` + `qwen_*`（qwen / siliconflow）、空数组（kimi / minimax）。
+- `frontend/src/components/settings/ProviderBlock.jsx` — kimi / minimax 显示禁用态"模型驱动"输入框，告知用户思考由所选模型自身决定。
+- `backend/tests/llm/providers-utils.test.js` — 12 条新单测覆盖每个 provider 分支与边界（grok medium 兜底、命名空间不匹配静默忽略、空 thinking_level 等）。
+
+**Schema 兼容**：`thinking_level` 仍是同一个字符串字段；旧值（`effort_*` / `budget_*` / null）保持有效。新增的命名空间（`thinking_enabled/disabled`、`qwen_*`）与旧值并存，无需迁移。
+
+**验证**：
+- 单测：`cd backend && node --test tests/llm/providers-utils.test.js` 全 15 通过。
+- 前端构建：`cd frontend && npm run build` 通过（222ms）。
+- 人工：进入「设置 → LLM 配置」依次切换 provider，确认下拉项与该 provider 实际 API 文档一致；选中后发起一次会话，从 `data/logs/worldengine-*.log` 的 `LLM_RAW` dump 验证请求体字段是否正确（如 deepseek 应看到 `thinking: {type: enabled}`，openrouter 应看到 `reasoning: {effort: high}`）。
+
+**残留风险**：
+- DeepSeek 的 `thinking` 参数仅 v3.1+ 支持；老 `deepseek-chat` / `deepseek-reasoner` 可能忽略此字段（前者一定不思考，后者一定思考）。这是模型层面的硬约束，不是代码问题。
+- Grok 的 `reasoning_effort` 仅 `grok-3-mini` 系列支持；`grok-4` / `grok-4-fast` 等设置任何 effort 都会 400。UI 已在标签里加了"仅 grok-3-mini"提示。

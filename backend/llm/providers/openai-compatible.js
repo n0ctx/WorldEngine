@@ -1,12 +1,6 @@
-import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError } from './_utils.js';
+import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError, applyThinkingToOpenAICompatibleBody } from './_utils.js';
 import { recordTokenUsage } from './cache-usage.js';
 import { logRawRequest } from '../raw-logger.js';
-
-/** thinking_level → OpenAI reasoning_effort */
-function resolveReasoningEffort(thinking_level) {
-  if (!thinking_level || !thinking_level.startsWith('effort_')) return null;
-  return thinking_level.replace('effort_', '');
-}
 
 function assertOpenAICompatibleData(data, config) {
   const providerError = extractProviderError(data);
@@ -70,7 +64,6 @@ export async function* streamOpenAICompatible(messages, config) {
   const url = `${baseUrl}/chat/completions`;
   const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
 
-  const effort = resolveReasoningEffort(config.thinking_level);
   const body = {
     model: config.model,
     messages: normalizedMessages,
@@ -78,12 +71,9 @@ export async function* streamOpenAICompatible(messages, config) {
     stream: true,
     stream_options: { include_usage: true },
   };
-  // reasoning_effort 不兼容 temperature，有 effort 时不传 temperature
-  if (effort) {
-    body.reasoning_effort = effort;
-  } else {
-    body.temperature = config.temperature;
-  }
+  const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
+  // 思考开启时不传 temperature（OpenAI o-series / DeepSeek thinking 模式不兼容 temperature）
+  if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
   logRawRequest(body, config, config.callType || 'stream');
   const resp = await fetch(url, {
@@ -137,18 +127,14 @@ export async function completeOpenAICompatible(messages, config) {
   const url = `${baseUrl}/chat/completions`;
   const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
 
-  const effort = resolveReasoningEffort(config.thinking_level);
   const body = {
     model: config.model,
     messages: normalizedMessages,
     max_tokens: config.max_tokens,
     stream: false,
   };
-  if (effort) {
-    body.reasoning_effort = effort;
-  } else {
-    body.temperature = config.temperature;
-  }
+  const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
+  if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
   logRawRequest(body, config, config.callType || 'complete');
   const resp = await fetch(url, {
@@ -181,10 +167,9 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
   let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
 
   for (let i = 0; i < 5; i++) {
-    const effort = resolveReasoningEffort(config.thinking_level);
     const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: config.max_tokens, stream: false };
-    if (effort) body.reasoning_effort = effort;
-    else body.temperature = config.temperature;
+    const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
+    if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, {
@@ -229,10 +214,9 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
   let enriched = false;
 
   for (let i = 0; i < 5; i++) {
-    const effort = resolveReasoningEffort(config.thinking_level);
     const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: i === 0 ? 1000 : config.max_tokens, stream: false };
-    if (effort) body.reasoning_effort = effort;
-    else body.temperature = config.temperature ?? 0;
+    const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
+    if (thinkingState !== 'enabled') body.temperature = config.temperature ?? 0;
 
     logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });

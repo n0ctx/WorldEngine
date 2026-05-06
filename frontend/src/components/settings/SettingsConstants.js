@@ -94,6 +94,15 @@ export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };
 
 export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
 
+/**
+ * 各 provider 思考链配置选项 — 与 backend/llm/providers/_utils.js#applyThinkingToOpenAICompatibleBody 严格对应
+ *
+ * 编码命名空间：
+ *   effort_*           → reasoning_effort 或 reasoning.effort（OpenAI o-series / OpenRouter / Grok / Xiaomi）
+ *   budget_*           → thinking.budget_tokens / thinkingConfig.thinkingBudget（Anthropic / Gemini / kimi-coding / minimax-coding）
+ *   thinking_enabled/disabled → thinking: { type } 或 reasoning: { enabled } 或 enable_thinking 开关
+ *   qwen_*             → enable_thinking=true + thinking_budget 数值（Qwen / SiliconFlow）
+ */
 export function getProviderThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
@@ -106,12 +115,47 @@ export function getProviderThinkingOptions(provider) {
         { value: 'budget_high', label: '思考：高（16384 tokens）' },
       ];
     case 'openai':
+    case 'xiaomi':
+    case 'openai_compatible':
+      return [
+        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
+        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
+        { value: 'effort_high', label: '推理：高（reasoning_effort=high）' },
+      ];
+    case 'openrouter':
+      return [
+        { value: 'effort_low', label: '推理：低（reasoning.effort=low）' },
+        { value: 'effort_medium', label: '推理：中（reasoning.effort=medium）' },
+        { value: 'effort_high', label: '推理：高（reasoning.effort=high）' },
+        { value: 'thinking_enabled', label: '思考：开启（reasoning.enabled=true）' },
+        { value: 'thinking_disabled', label: '思考：关闭（reasoning.enabled=false）' },
+      ];
+    case 'grok':
+      return [
+        { value: 'effort_low', label: '推理：低（仅 grok-3-mini）' },
+        { value: 'effort_high', label: '推理：高（仅 grok-3-mini）' },
+      ];
+    case 'glm':
     case 'glm-coding':
       return [
-        { value: 'effort_low', label: '推理：低（仅 o-series）' },
-        { value: 'effort_medium', label: '推理：中（仅 o-series）' },
-        { value: 'effort_high', label: '推理：高（仅 o-series）' },
+        { value: 'thinking_enabled', label: '思考：开启（thinking.type=enabled）' },
+        { value: 'thinking_disabled', label: '思考：关闭（thinking.type=disabled）' },
       ];
+    case 'deepseek':
+      return [
+        { value: 'thinking_enabled', label: '思考：开启（thinking.type=enabled，仅 v3.1+）' },
+        { value: 'thinking_disabled', label: '思考：关闭（thinking.type=disabled，仅 v3.1+）' },
+      ];
+    case 'qwen':
+    case 'siliconflow':
+      return [
+        { value: 'thinking_disabled', label: '思考：关闭（enable_thinking=false）' },
+        { value: 'thinking_enabled', label: '思考：开启（enable_thinking=true）' },
+        { value: 'qwen_low', label: '思考：低（thinking_budget=1024）' },
+        { value: 'qwen_medium', label: '思考：中（thinking_budget=8192）' },
+        { value: 'qwen_high', label: '思考：高（thinking_budget=16384）' },
+      ];
+    // kimi / minimax：模型驱动（kimi-k2-thinking / minimax-m2 等模型自动思考），不暴露开关
     default:
       return [];
   }

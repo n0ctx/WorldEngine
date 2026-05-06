@@ -11,6 +11,8 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(config.provider) : [];
+  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
+    && (config.provider === 'kimi' || config.provider === 'minimax');
   const providerHint = PROVIDER_HINTS[config.provider] || null;
 
   async function handleSaveKey() {
@@ -107,6 +109,12 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
             onChange={(v) => onThinkingLevelChange(v || null)}
             options={[{ value: '', label: '自动（模型默认）' }, ...thinkingOptions]}
           />
+        </FormGroup>
+      )}
+
+      {isModelDrivenThinking && (
+        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换">
+          <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
     </div>
