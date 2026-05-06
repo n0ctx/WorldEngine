@@ -3,6 +3,25 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 docs: 削减 ARCHITECTURE.md / SCHEMA.md 与代码重复内容
+
+**动机**：`ARCHITECTURE.md §13 数值常量速查` 已与 `backend/utils/constants.js` 漂移（`MEMORY_RECALL_SIMILARITY_THRESHOLD` 文档 0.84 实际 0.75，`SAME_SESSION_THRESHOLD` 文档 0.72 实际 0.6）；`§14.1 完整端点列表`、`§2 目录结构` 大部分内容可直接从 `backend/routes/*.js` 与目录树读出，反而成为漂移源。`SCHEMA.md` 中 22 张表的 `CREATE TABLE` DDL 与 `backend/db/schema.js` 高度重复。
+
+**ARCHITECTURE.md（937 → 665 行）**
+- §13：删除常量数值列表，改为指向 `backend/utils/constants.js` + 保留代码注释看不出的分组语义（阈值松紧关系、压缩阈值与目标值的关系等）
+- §14.1：删除完整端点表（约 240 行），改为非显然约束清单 —— 路由注册顺序坑、SSE 路由集合、provider-key 端点约束、写卡助手两条链路差异、计划闸门、子代理重试、CUD 术语、world-card / character-card / persona-card / global-config 对齐规则
+- §2：砍掉"文件名 + 一句话"枚举条目，保留锁定文件标注、副作用入口、provider 适配表、`shared/` 双向同步约束等代码读不出的信息
+
+**SCHEMA.md（1068 → 950 行）**
+- 表结构段顶部加"DDL 实际定义见 backend/db/schema.js"指针
+- 22 张表的 ` ```sql CREATE TABLE``` ` 块统一改为 `| 字段 | 类型 | 说明 |` markdown 字段表，类型列用紧凑形式（`TEXT PK`、`TEXT FK→worlds.id CASCADE`），字段中文注释完整保留
+- 简单单列索引删除；复合索引（如 `idx_messages_session_compressed (session_id, is_compressed, created_at)`）保留为表后单行说明
+- `entry_conditions` 已有 markdown 字段表，移除其后冗余 SQL 块
+- 删除文末 `## 常见查询示例` 整段
+- 未触碰 `## 向量文件结构` / `## 全局配置文件结构` / `## 导入导出 JSON 格式` / `## 关键约束汇总`
+
+**Git 跟踪状态**：根目录 markdown 文档大多在 `.gitignore` 中，仅 `ARCHITECTURE.md` / `CHANGELOG.md` / `README.md` 被跟踪。`SCHEMA.md` 改动不进 git，仅本地优化。
+
 ## 2026-05-06 fix(assistant): 修正 trigger_type:"llm" 描述 + 补前后端术语对照
 
 **问题**：写卡助手 prompt / CONTRACT 把 `trigger_type:"llm"` 描述为"向量召回 / 向量相似度召回"。实际后端 `entry-matcher.js` L268-284 是 LLM 读条目 `description` 字段做语义判定 + 关键词兜底，不是向量召回。前端 UI 此类条目称为"AI 召回条目"。术语漂移导致助手不理解用户用 UI 用语提的需求。
