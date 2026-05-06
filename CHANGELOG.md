@@ -3,6 +3,29 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 fix(assistant): 收紧 datetime 字段在写卡助手侧的格式校验
+
+**动机**：上一条放行 `datetime` + `prefix` 后留两条软风险——非 datetime 字段也能写入 `prefix`（无渲染但落库）；datetime 的 `default_value` 没有正则校验，LLM 偶发吐 `"2024-01-01 12:00"` 等非 ISO 格式会原样落库。本轮把这两个口收紧到 proposal 归一化层。
+
+**改动**
+
+- `assistant/server/routes.js`
+  - 新增常量 `ISO_LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/` 与辅助函数 `assertDatetimeDefaultValue()`：解析 `default_value`（JSON 字符串），校验内容是否匹配 ISO 局部时间；空值/`null` 放行（由 `allow_empty` 控制）。
+  - `normalizeStateFieldOps` create 分支：`fieldType === 'datetime'` 时强制校验 `default_value`；非 datetime 字段若带非空 `prefix` 直接拒绝。
+  - `normalizeStateFieldOps` update 分支：仅当本次 update 显式带 `type` 时才施加同等约束（缺省 type 时无法判断原字段类型，留给业务层兜底）。
+
+- `assistant/tests/routes.test.js`
+  - 新增 4 条断言：合法 datetime 字段透传；datetime `default_value` 非 ISO 时拒绝；非 datetime 字段写 `prefix` 时拒绝；update 改类型为非 datetime 且带 `prefix` 时拒绝。
+
+**验证**
+
+- `npm --prefix assistant test` 全部通过（79 → 83，全部 pass）。
+- 手动跑：合法 datetime create / 非法 default_value / 非 datetime 带 prefix / update 改类型为 text 带 prefix —— 行为符合预期。
+
+**残留**
+
+- `stateValueOps.value_json` 在写卡助手侧仍未做 datetime 格式校验：normalizeStateValueOps 没有 worldId 通路反查字段类型，跨卡引用复杂度高；非法 ISO 在 entry-matcher 比较时会按规则跳过条件，副作用有限。后续如需收紧，建议在 character/persona state-value 服务层入参校验时做。
+
 ## 2026-05-06 feat(assistant): 写卡助手识别并支持 datetime 状态字段类型
 
 **动机**：上一轮 `feat(state): datetime 字段类型 + diary_time 切 ISO`（commit 58c7a87）只接通了主流程（schema/服务层/状态更新/条件比较/前端渲染），写卡助手侧未同步：`assistant/server/routes.js` 的 `VALID_STATE_TYPES` 不含 `datetime`，prompt 也没教 LLM 这个类型，导致 LLM 即使尝试输出 `type:"datetime"` 也会被 `normalizeProposal()` 直接拒掉。

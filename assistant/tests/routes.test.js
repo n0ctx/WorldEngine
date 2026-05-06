@@ -410,3 +410,79 @@ test('normalizeProposal 会在 world-card explanation 中提示非法字段', ()
   assert.equal(proposal.changes.post_prompt, undefined);
   assert.match(proposal.explanation, /世界卡不支持 system_prompt, post_prompt/);
 });
+
+test('normalizeProposal 接受合法的 datetime 字段（含 prefix 与 ISO 默认值）', () => {
+  const proposal = __testables.normalizeProposal({
+    type: 'world-card',
+    operation: 'update',
+    entityId: 'world-123',
+    stateFieldOps: [{
+      op: 'create',
+      target: 'world',
+      field_key: 'current_time',
+      label: '当前时间',
+      type: 'datetime',
+      default_value: '"1000-03-15T14:30"',
+      prefix: '第三纪元 ',
+    }],
+  });
+  assert.equal(proposal.stateFieldOps[0].type, 'datetime');
+  assert.equal(proposal.stateFieldOps[0].prefix, '第三纪元 ');
+  assert.equal(proposal.stateFieldOps[0].default_value, '"1000-03-15T14:30"');
+});
+
+test('normalizeProposal 拒绝 datetime 字段格式不合法的 default_value', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'world-card',
+      operation: 'update',
+      entityId: 'world-123',
+      stateFieldOps: [{
+        op: 'create',
+        target: 'world',
+        field_key: 'bad_time',
+        label: '错误时间',
+        type: 'datetime',
+        default_value: '"2024-01-01 12:00"',
+      }],
+    }),
+    /datetime 格式/,
+  );
+});
+
+test('normalizeProposal 拒绝非 datetime 字段写入 prefix', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'world-card',
+      operation: 'update',
+      entityId: 'world-123',
+      stateFieldOps: [{
+        op: 'create',
+        target: 'world',
+        field_key: 'mood',
+        label: '心情',
+        type: 'text',
+        prefix: '前缀 ',
+      }],
+    }),
+    /prefix 仅 datetime/,
+  );
+});
+
+test('normalizeProposal 在 update 改类型为非 datetime 且带 prefix 时拒绝', () => {
+  assert.throws(
+    () => __testables.normalizeProposal({
+      type: 'world-card',
+      operation: 'update',
+      entityId: 'world-123',
+      stateFieldOps: [{
+        op: 'update',
+        target: 'world',
+        id: 'sf-1',
+        type: 'text',
+        prefix: '前缀 ',
+      }],
+    }),
+    /prefix 仅 datetime/,
+  );
+});

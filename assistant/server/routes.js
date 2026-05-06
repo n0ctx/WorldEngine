@@ -96,6 +96,7 @@ const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', '
 const VALID_MODES = new Set(['chat', 'writing']);
 const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime']);
 const VALID_UPDATE_MODES = new Set(['llm_auto', 'manual']);
+const ISO_LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const PROPOSAL_ALLOWED_OPERATIONS = {
   'world-card': new Set(['create', 'update', 'delete']),
   'character-card': new Set(['create', 'update', 'delete']),
@@ -1519,6 +1520,16 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
       if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
       if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
+      // 仅在本次 update 显式带上 type 时校验类型相关约束；type 缺省时无法判定原字段类型，留给后续业务层
+      if ('type' in data) {
+        const isDatetime = data.type === 'datetime';
+        if (!isDatetime && normalized.prefix && normalized.prefix.trim()) {
+          throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
+        }
+        if (isDatetime && 'default_value' in data) {
+          assertDatetimeDefaultValue(normalized.default_value, idx);
+        }
+      }
       return normalized;
     }
     let fieldKey = normalizeString(raw.field_key);
@@ -1544,6 +1555,11 @@ function normalizeStateFieldOps(rawOps, type) {
     if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
     if ('prefix' in raw) normalized.prefix = String(raw.prefix ?? '');
+    if (fieldType === 'datetime') {
+      assertDatetimeDefaultValue(normalized.default_value, idx);
+    } else if (normalized.prefix && normalized.prefix.trim()) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
+    }
     return normalized;
   });
 }
@@ -1597,6 +1613,16 @@ function normalizeIntegerOrNull(value) {
   if (value == null || value === '') return null;
   const num = Number(value);
   return Number.isInteger(num) ? num : null;
+}
+function assertDatetimeDefaultValue(defaultValue, idx) {
+  if (defaultValue == null || defaultValue === '') return;
+  let parsed;
+  try { parsed = JSON.parse(defaultValue); } catch {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 必须是 JSON 字符串（datetime 字段写成 "\\"YYYY-MM-DDTHH:mm\\"" 形式）`);
+  }
+  if (typeof parsed !== 'string' || !ISO_LOCAL_DATETIME_RE.test(parsed)) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 不符合 datetime 格式 "YYYY-MM-DDTHH:mm"（年份 4 位、月日时分各 2 位）`);
+  }
 }
 function normalizeStringArrayOrNull(value) {
   if (value == null || !Array.isArray(value)) return null;
