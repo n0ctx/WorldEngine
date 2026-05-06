@@ -40,7 +40,7 @@ function formatRealTimeDiaryStr() {
   return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
 }
 
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
 
@@ -104,7 +104,7 @@ function buildFieldsDesc(fields, valueMap) {
         line += `，范围：${lo} ~ ${hi}`;
       }
       if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
-      if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份 4 位、月日时分各 2 位，例 "1000-03-15T14:30"），不得使用其他格式`;
+      if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位，例 "1000-03-15T14:30" 或 "238-04-20T00:00"），不得使用其他格式`;
       const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
       line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
       if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;

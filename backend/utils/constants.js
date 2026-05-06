@@ -49,7 +49,7 @@ export const WORLD_TIMELINE_RECENT_LIMIT = 5;
 /** 日记时间字段的保留 field_key（不可修改）*/
 export const DIARY_TIME_FIELD_KEY = 'diary_time';
 /** 虚拟日期模式下的固定 update_instruction */
-export const DIARY_TIME_UPDATE_INSTRUCTION = '每轮对话必须更新此字段。根据本轮内容判断时间流逝了多少（几分钟/几小时/几天均可），在当前运行时值基础上推进，不得重复上一轮的值。格式必须严格为 ISO 局部时间 YYYY-MM-DDTHH:mm（年份 4 位、月日时分各 2 位，例：1000-03-15T14:30），不得省略任何部分，不得使用其他格式。';
+export const DIARY_TIME_UPDATE_INSTRUCTION = '每轮对话必须更新此字段。根据本轮内容判断时间流逝了多少（几分钟/几小时/几天均可），在当前运行时值基础上推进，不得重复上一轮的值。格式必须严格为 ISO 局部时间 YYYY-MM-DDTHH:mm（年份为正整数、可任意位数；月/日/时/分各 2 位，例：1000-03-15T14:30 或 238-04-20T00:00），不得省略任何部分，不得使用其他格式。';
 /** 日记时间字段的内置 description（用于 LLM 理解字段用途）*/
 export const DIARY_TIME_DESCRIPTION = '故事世界中当前的时间节点（世界内时间，非现实时间）';
 /** 日记面板默认展示条数（最近 N 条展开，其余折叠）*/

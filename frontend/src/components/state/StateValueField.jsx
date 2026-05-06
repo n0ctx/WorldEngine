@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
+import DatetimeSplitInput from './DatetimeSplitInput';
 
 /**
  * 状态字段值编辑控件
@@ -46,12 +47,11 @@ export default function StateValueField({ field, onSave }) {
     );
   }
   if (field.type === 'datetime') {
-    const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
     return (
-      <Input
-        type="datetime-local"
+      <DatetimeSplitInput
         value={typeof local === 'string' && ISO_DATETIME_RE.test(local) ? local : ''}
-        onChange={(e) => setLocal(e.target.value)}
+        onChange={(v) => setLocal(v)}
         onBlur={() => {
           if (local && ISO_DATETIME_RE.test(local)) saveValue(local);
           else if (!local) saveValue(null);

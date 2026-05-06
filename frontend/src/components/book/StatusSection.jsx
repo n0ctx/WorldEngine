@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
+import DatetimeSplitInput from '../state/DatetimeSplitInput.jsx';
 import { applyTemplateVars } from '../../utils/template-vars.js';
 
-const ISO_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
 /** datetime ISO 字符串渲染为 "{prefix}X年X月X日X时X分"（去前导零） */
 function formatDatetimeChinese(iso, prefix) {
@@ -147,14 +148,13 @@ function InlineEditor({ row, onCommit, onCancel }) {
   if (type === 'datetime') {
     const dtVal = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
     return (
-      <input
-        ref={inputRef}
-        type="datetime-local"
+      <DatetimeSplitInput
         value={dtVal}
-        onChange={(e) => setDraft(e.target.value)}
+        autoFocus
+        onChange={(v) => setDraft(v)}
         onBlur={() => commit(draft)}
         onKeyDown={handleKey}
-        className="we-input we-status-inline-input"
+        className="we-status-inline-input"
       />
     );
   }

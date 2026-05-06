@@ -96,7 +96,7 @@ const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', '
 const VALID_MODES = new Set(['chat', 'writing']);
 const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime']);
 const VALID_UPDATE_MODES = new Set(['llm_auto', 'manual']);
-const ISO_LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+const ISO_LOCAL_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const PROPOSAL_ALLOWED_OPERATIONS = {
   'world-card': new Set(['create', 'update', 'delete']),
   'character-card': new Set(['create', 'update', 'delete']),
@@ -1621,7 +1621,7 @@ function assertDatetimeDefaultValue(defaultValue, idx) {
     throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 必须是 JSON 字符串（datetime 字段写成 "\\"YYYY-MM-DDTHH:mm\\"" 形式）`);
   }
   if (typeof parsed !== 'string' || !ISO_LOCAL_DATETIME_RE.test(parsed)) {
-    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 不符合 datetime 格式 "YYYY-MM-DDTHH:mm"（年份 4 位、月日时分各 2 位）`);
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 不符合 datetime 格式 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位）`);
   }
 }
 function normalizeStringArrayOrNull(value) {

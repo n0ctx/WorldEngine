@@ -465,7 +465,7 @@ function migrateDiaryTimeToIso(db) {
     );
     const now = Date.now();
     for (const row of fieldRows) {
-      const iso = toIsoBare(row.default_value) ?? (row.default_value && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(row.default_value) ? row.default_value : null);
+      const iso = toIsoBare(row.default_value) ?? (row.default_value && /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/.test(row.default_value) ? row.default_value : null);
       updField.run(iso, now, row.id);
     }
 
@@ -514,7 +514,7 @@ function looksIsoJson(raw) {
   if (raw == null) return false;
   try {
     const v = JSON.parse(raw);
-    return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v);
+    return typeof v === 'string' && /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v);
   } catch {
     return false;
   }

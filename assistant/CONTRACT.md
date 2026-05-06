@@ -596,7 +596,7 @@ agent 执行失败时发送。
 | `min_value` / `max_value` | — | `number` 专用 |
 | `prefix` | — | `datetime` 专用，展示前缀字符串（如 `"第三纪元 "`），仅前端渲染用，不参与 LLM 比较 |
 
-`type` 取值约束：`datetime` 字段的 `default_value` 与运行时值必须使用 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`（年份 4 位、月日时分各 2 位，例 `"1000-03-15T14:30"`），不接受其他格式。
+`type` 取值约束：`datetime` 字段的 `default_value` 与运行时值必须使用 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`（年份为正整数、可任意位数；月/日/时/分各 2 位，例 `"1000-03-15T14:30"` 或 `"238-04-20T00:00"`），不接受其他格式。比较按段位解析为整数后逐段比较（年份不需要等宽零填充）。
 
 ### update
 

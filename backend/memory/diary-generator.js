@@ -41,8 +41,8 @@ const DATA_DIR = process.env.WE_DATA_DIR
 
 // ─── 日期解析 ─────────────────────────────────────────────────────
 
-/** 虚拟日期解析正则：ISO 局部时间 "YYYY-MM-DDTHH:mm" */
-const VIRTUAL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}$/;
+/** 虚拟日期解析正则：ISO 局部时间 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数） */
+const VIRTUAL_DATE_RE = /^(\d+)-(\d{2})-(\d{2})T\d{2}:\d{2}$/;
 
 /**
  * 从 JSON 编码的字段值（runtime_value_json）解析虚拟日期

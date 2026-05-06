@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
+import DatetimeSplitInput from './DatetimeSplitInput';
 
 const TYPE_OPTIONS = [
   { value: 'text',     label: '文本' },
@@ -21,7 +22,7 @@ const labelCls = 'we-dialog-label';
 const requiredMark = <span className="we-state-field-required">*</span>;
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 /**
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
@@ -89,7 +90,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
     if (!form.label.trim())     { setError('label 为必填项'); return; }
     if (!form.type)             { setError('type 为必填项'); return; }
     if (form.type === 'datetime' && form.default_value && !ISO_DATETIME_RE.test(form.default_value)) {
-      setError('默认值格式必须为 YYYY-MM-DDTHH:mm');
+      setError('默认值格式必须为 YYYY-MM-DDTHH:mm（年份为正整数，月/日/时/分各 2 位）');
       return;
     }
 
@@ -270,11 +271,9 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
             <div>
               <label className={labelCls}>默认值</label>
               {form.type === 'datetime' ? (
-                <input
-                  type="datetime-local"
-                  className={inputCls}
+                <DatetimeSplitInput
                   value={ISO_DATETIME_RE.test(form.default_value) ? form.default_value : ''}
-                  onChange={(e) => set('default_value', e.target.value)}
+                  onChange={(v) => set('default_value', v)}
                   disabled={isRealDiary}
                 />
               ) : (

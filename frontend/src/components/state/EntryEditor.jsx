@@ -5,6 +5,7 @@ import { listCharacterStateFields } from '../../api/character-state-fields';
 import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
+import DatetimeSplitInput from './DatetimeSplitInput';
 import { pushErrorToast } from '../../utils/toast';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
@@ -291,13 +292,21 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
                       options={ops}
                     />
                   </div>
-                  <input
-                    type={isDatetimeField ? 'datetime-local' : 'text'}
-                    value={cond.value}
-                    onChange={(e) => updateCondition(i, { value: e.target.value })}
-                    placeholder={isDatetimeField ? '' : '值'}
-                    className="we-entry-condition-input we-entry-condition-value"
-                  />
+                  {isDatetimeField ? (
+                    <DatetimeSplitInput
+                      value={cond.value}
+                      onChange={(v) => updateCondition(i, { value: v })}
+                      className="we-entry-condition-value"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={cond.value}
+                      onChange={(e) => updateCondition(i, { value: e.target.value })}
+                      placeholder="值"
+                      className="we-entry-condition-input we-entry-condition-value"
+                    />
+                  )}
                   <button
                     onClick={() => setConditions((prev) => prev.filter((_, idx) => idx !== i))}
                     className="we-entry-condition-icon-btn we-entry-condition-icon-btn--danger"

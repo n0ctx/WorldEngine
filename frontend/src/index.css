@@ -1110,6 +1110,14 @@ body {
   min-width: 0;
   width: 100%;
 }
+.we-datetime-split.we-status-inline-input {
+  width: auto;
+  padding: 0;
+}
+.we-datetime-split.we-status-inline-input .we-datetime-split-sep {
+  font-size: 12.5px;
+  padding: 0 2px;
+}
 
 /* 进度条 */
 .we-status-bar {

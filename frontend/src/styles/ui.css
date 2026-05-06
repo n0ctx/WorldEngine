@@ -132,6 +132,30 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ── Datetime Split Input（年/月/日/时/分 五段拆分输入）── */
+.we-datetime-split {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+.we-datetime-split-seg {
+  display: inline-flex;
+  align-items: center;
+}
+.we-datetime-split-sep {
+  padding: 0 4px;
+  color: var(--we-ink-faded);
+  user-select: none;
+  font-family: var(--we-font-serif);
+}
+.we-datetime-split .we-input {
+  width: auto;
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
 .we-textarea {
   resize: vertical;
   align-self: flex-start;

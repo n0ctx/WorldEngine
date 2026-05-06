@@ -312,7 +312,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
   ├─ roundIndex ≤ 1 → 跳过（首轮不做判断）
   ├─ 取 session.diary_date_mode → NULL 时退出
   ├─ 取全部 turn_records 快照，比较本轮与上轮日期
-  │    virtual：解析 state_snapshot.world.diary_time → /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}$/（ISO 局部时间，`datetime` 类型字段）
+  │    virtual：解析 state_snapshot.world.diary_time → /^(\d+)-(\d{2})-(\d{2})T\d{2}:\d{2}$/（ISO 局部时间，`datetime` 类型字段；年份为正整数、可任意位数）
   │    real：使用 turn_records.created_at 时间戳格式化为 YYYY-MM-DD
   ├─ 日期未跨越 → 退出
   ├─ 收集前一日全部 user+assistant 消息原文（via user_message_id/asst_message_id 查 messages）

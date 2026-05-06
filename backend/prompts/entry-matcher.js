@@ -123,7 +123,24 @@ export const __testables = {
 
 const NUMERIC_OPS = new Set(['>', '<', '=', '>=', '<=', '!=']);
 const TEXT_OPS = new Set(['包含', '等于', '不包含']);
-const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/**
+ * 数值比较 datetime 字符串：解析年份为整数（允许任意正整数位数），
+ * 月/日/时/分固定 2 位。返回 -1 / 0 / 1。
+ */
+function compareDatetime(a, b) {
+  const ma = a.match(ISO_DATETIME_RE);
+  const mb = b.match(ISO_DATETIME_RE);
+  if (!ma || !mb) return null;
+  for (let i = 1; i <= 5; i++) {
+    const av = parseInt(ma[i], 10);
+    const bv = parseInt(mb[i], 10);
+    if (av < bv) return -1;
+    if (av > bv) return 1;
+  }
+  return 0;
+}
 
 function evaluateCondition(condition, stateMap) {
   const { target_field, operator, value } = condition;
@@ -142,15 +159,16 @@ function evaluateCondition(condition, stateMap) {
         case '!=': return cur !== thr;
       }
     }
-    // datetime 字段：YYYY-MM-DDTHH:mm 字典序即时间序
-    if (ISO_DATETIME_RE.test(current) && ISO_DATETIME_RE.test(value)) {
+    // datetime 字段：解析每段为整数后逐段比较（年份允许任意正整数位数）
+    const cmp = compareDatetime(current, value);
+    if (cmp != null) {
       switch (operator) {
-        case '>':  return current > value;
-        case '<':  return current < value;
-        case '=':  return current === value;
-        case '>=': return current >= value;
-        case '<=': return current <= value;
-        case '!=': return current !== value;
+        case '>':  return cmp > 0;
+        case '<':  return cmp < 0;
+        case '=':  return cmp === 0;
+        case '>=': return cmp >= 0;
+        case '<=': return cmp <= 0;
+        case '!=': return cmp !== 0;
       }
     }
     return false;
