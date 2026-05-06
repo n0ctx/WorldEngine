@@ -7,7 +7,7 @@ import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
 import { pushErrorToast } from '../../utils/toast';
 
-const NUMERIC_TYPES = new Set(['number', 'integer', 'float']);
+const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
 const NUMERIC_OPS = [
   { value: '>', label: '>' },
   { value: '<', label: '<' },
@@ -273,6 +273,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             <label className="we-entry-editor-label">状态条件（全部满足时注入）</label>
             {conditions.map((cond, i) => {
               const ops = getOpsForField(cond.target_field, fieldTypeMap);
+              const isDatetimeField = fieldTypeMap.get(cond.target_field) === 'datetime';
               return (
                 <div key={i} className="we-entry-condition">
                   <div className="we-entry-condition-field">
@@ -291,9 +292,10 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
                     />
                   </div>
                   <input
+                    type={isDatetimeField ? 'datetime-local' : 'text'}
                     value={cond.value}
                     onChange={(e) => updateCondition(i, { value: e.target.value })}
-                    placeholder="值"
+                    placeholder={isDatetimeField ? '' : '值'}
                     className="we-entry-condition-input we-entry-condition-value"
                   />
                   <button

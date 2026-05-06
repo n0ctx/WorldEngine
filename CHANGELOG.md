@@ -3,6 +3,54 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-06 feat(state): datetime 字段支持中文渲染与可选展示前缀
+
+**新增 prefix 列**
+- `world_state_fields` / `character_state_fields` / `persona_state_fields` 三表新增 `prefix TEXT NOT NULL DEFAULT ''`
+- schema.js CREATE TABLE 加列 + ALTER TABLE 兼容旧库；SCHEMA.md 同步表结构与 .weworld.json 导出格式
+- queries 层透传：`createXxx` INSERT、`updateXxx` allowed 列表、5 个 session-state-values join SELECT、3 个 WithFields SELECT 都加 `prefix`
+- `services/import-export.js` 三处 SELECT/INSERT 加 prefix；`import-export-validation.js` 加 `prefix` 字段长度校验（≤64）
+
+**前端**
+- `StateFieldEditor` 当 `type='datetime'` 时显示"展示前缀"输入；保存时仅 datetime 写 prefix，其他类型强制清空为 ''
+- `StatusSection.parseValue` datetime 分支改用 `formatDatetimeChinese(iso, prefix)`，输出 `{prefix}X年X月X日X时X分`（去前导零，与原 ISO 紧凑展示替换）；`InlineEditor` 仍用 `datetime-local`（编辑时不带 prefix），commit 校验同前
+- `parseValue` 签名加第三个参数 prefix，渲染处传 `row.prefix`
+
+**坑点**
+- prefix 仅前端渲染层使用：LLM 提示词、状态条件比较（entry-matcher 字典序）、导入导出 JSON 都不依赖 prefix
+- 编辑器仍弹原生 `datetime-local`，prefix 不在编辑控件中显示——避免用户把 prefix 误填进 ISO 值
+- prefix 长度限制 64 字符，避免恶意大字段串污染 UI
+
+## 2026-05-06 feat(state): 新增 datetime 类型字段 + diary_time 切换为 ISO 格式
+
+**新字段类型 datetime**
+- 状态字段 `type` 取值新增 `'datetime'`，存储格式固定为 ISO 局部时间 `YYYY-MM-DDTHH:mm`（精度到分钟，年份 4 位）
+- 用途：状态条件条目可表达"在某时间到某时间之间触发"——加两条 AND 条件即可（如 `世界.时间 >= 1000-03-15T08:00` AND `世界.时间 <= 1000-03-15T18:00`），未引入新 operator
+- `entry-matcher.js` 数值操作符分支：`Number()` 转换失败时若两侧均匹配 ISO datetime 正则则按字符串字典序比较（YYYY-MM-DDTHH:mm 字典序即时间序），其余情况跳过
+- `combined-state-updater.js` 提示词渲染加 datetime 提示行，validateValue 加 datetime 分支（仅放行匹配正则的字符串）
+- 前端：`StateFieldEditor` TYPE_OPTIONS 加"时间"项，默认值控件改用 `<input type="datetime-local">`；`StateValueField` 加 datetime 分支；`StateFieldList` TYPE_LABEL 加映射；`EntryEditor` NUMERIC_TYPES 加 `datetime`，state 条件值输入按字段类型自动切换为 datetime-local
+
+**diary_time 切换到 datetime 类型 + ISO 格式**
+- `services/worlds.js`：字段 type 改为 `'datetime'`，default_value 改为 `'1000-01-01T00:00'`；`ensureDiaryTimeField` 的 needsUpdate 检查覆盖 type 漂移，旧 text 字段会自动升级为 datetime
+- `constants.js`：`DIARY_TIME_UPDATE_INSTRUCTION` 改为要求 LLM 输出 `YYYY-MM-DDTHH:mm`
+- `combined-state-updater.js` `formatRealTimeDiaryStr`：真实日期模式输出 ISO 格式
+- `diary-generator.js` `parseVirtualDate`：正则切到 ISO，旧 `N年N月N日` 不再支持
+- `StateFieldEditor`：移除 diary_time 专用编辑器（年/月/日/时/分 5 列输入），统一走 datetime-local；real-mode 时禁用默认值输入并加只读提示
+
+**一次性迁移 migrateDiaryTimeToIso**
+- `backend/db/schema.js` 新增 `migrateDiaryTimeToIso`，由 internal_meta key `migration:diary_time_to_iso_datetime` 控制只跑一次
+- 扫描三处旧格式残留：`world_state_fields.default_value`（裸字符串）、`world_state_values.{default,runtime}_value_json`（JSON 编码字符串）、`session_world_state_values.runtime_value_json`，匹配 `N年N月N日N时(N分)?` 转 ISO；无法解析的值置 NULL
+- 同时把 `world_state_fields.type='text'` 强制改为 `'datetime'`，避免与新 `ensureDiaryTimeField` 漂移检查并行触发
+
+**展示与编辑（StatusSection）**
+- `parseValue` 加 datetime 分支：ISO 字符串展示为 "YYYY-MM-DD HH:mm"（去掉 T 分隔符）
+- `InlineEditor` 加 datetime 分支：行内编辑切到 `<input type="datetime-local">`，commit 时校验 ISO 正则，非法则置 NULL
+
+**坑点**
+- ISO datetime 字典序比较仅在两侧均严格匹配 `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$` 时生效；混入其他格式直接跳过条件
+- HTML `<input type="datetime-local">` 要求 4 位年份，本项目用 `padStart(4)` 保证；年份 1–999 也合法
+- 迁移正则要求时间部分含"时"；旧库若有进一步异类格式（如纯日期、自定义历法）不会被识别，会留为 NULL，下一轮 LLM 状态更新会按新 instruction 覆写
+
 ## 2026-05-06 feat(assistant): 制卡注入当轮激活世界书条目 + 清理 worlds.system_prompt/post_prompt 残留
 
 **变更 1：写作模式制卡传入世界书上下文**

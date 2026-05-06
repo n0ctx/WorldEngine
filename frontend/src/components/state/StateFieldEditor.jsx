@@ -3,11 +3,12 @@ import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 
 const TYPE_OPTIONS = [
-  { value: 'text',    label: '文本' },
-  { value: 'number',  label: '数值' },
-  { value: 'boolean', label: '布尔' },
-  { value: 'enum',    label: '枚举' },
-  { value: 'list',    label: '列表' },
+  { value: 'text',     label: '文本' },
+  { value: 'number',   label: '数值' },
+  { value: 'boolean',  label: '布尔' },
+  { value: 'enum',     label: '枚举' },
+  { value: 'list',     label: '列表' },
+  { value: 'datetime', label: '时间' },
 ];
 
 const UPDATE_MODE_OPTIONS = [
@@ -20,16 +21,7 @@ const labelCls = 'we-dialog-label';
 const requiredMark = <span className="we-state-field-required">*</span>;
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
-
-/** 从 "N年N月N日N时N分" 字符串解析出 5 个整数，失败时返回默认值 */
-function parseDiaryTimeDefault(str) {
-  const m = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时(\d+)分/);
-  if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10), hour: parseInt(m[4], 10), minute: parseInt(m[5], 10) };
-  // 兼容旧格式 "N年N月N日N时"（无分）
-  const m2 = (str ?? '').match(/^(\d+)年(\d+)月(\d+)日(\d+)时/);
-  if (m2) return { year: parseInt(m2[1], 10), month: parseInt(m2[2], 10), day: parseInt(m2[3], 10), hour: parseInt(m2[4], 10), minute: 0 };
-  return { year: 1000, month: 1, day: 1, hour: 0, minute: 0 };
-}
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 /**
  * StateFieldEditor — 创建/编辑状态字段的模态弹窗
@@ -60,6 +52,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
       max_value:          field?.max_value ?? '',
       allow_empty:        field?.allow_empty ?? 1,
       update_instruction: field?.update_instruction ?? '',
+      prefix:             field?.prefix ?? '',
       default_value:      field?.type === 'list' ? '' : (field?.default_value ?? ''),
     };
   });
@@ -95,6 +88,10 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
     if (!form.field_key.trim()) { setError('field_key 为必填项'); return; }
     if (!form.label.trim())     { setError('label 为必填项'); return; }
     if (!form.type)             { setError('type 为必填项'); return; }
+    if (form.type === 'datetime' && form.default_value && !ISO_DATETIME_RE.test(form.default_value)) {
+      setError('默认值格式必须为 YYYY-MM-DDTHH:mm');
+      return;
+    }
 
     setSaving(true);
     setError('');
@@ -118,6 +115,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
         max_value:          form.type === 'number' && form.max_value !== '' ? Number(form.max_value) : null,
         allow_empty:        1,
         update_instruction: form.update_instruction,
+        prefix:             form.type === 'datetime' ? (form.prefix ?? '') : '',
         default_value:      defaultValue,
       };
       await onSave(payload);
@@ -129,81 +127,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
   }
 
   const isDiaryTime = field?.field_key === DIARY_TIME_FIELD_KEY;
-
-  // ── diary_time 特殊编辑器 ──────────────────────────────────────────
-  if (isDiaryTime) {
-    const isReal = diaryDateMode === 'real';
-    const dtParsed = parseDiaryTimeDefault(form.default_value);
-
-    function setDt(k, v) {
-      const next = { ...dtParsed, [k]: parseInt(v, 10) || 0 };
-      set('default_value', `${next.year}年${next.month}月${next.day}日${next.hour}时${next.minute}分`);
-    }
-
-    return (
-      <div
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4"
-        onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
-        onClick={() => { if (mouseDownOnBackdrop.current) onClose(); }}
-      >
-        <div className="we-dialog-panel w-full max-w-sm flex flex-col">
-          <div className="we-dialog-header">
-            <h2>日记时间字段</h2>
-          </div>
-          <div className="we-dialog-body flex flex-col gap-4">
-            <div>
-              <label className={labelCls}>label {requiredMark}</label>
-              <input className={inputCls} value={form.label} onChange={(e) => set('label', e.target.value)} />
-            </div>
-            {isReal ? (
-              <p className="we-state-field-note">
-                当前为<strong>真实日期</strong>模式，此字段由系统自动更新，无法手动编辑。
-              </p>
-            ) : (
-              <>
-                <p className="we-state-field-hint">
-                  虚拟日期模式：设置故事的初始时间。格式固定为 <code>N年N月N日N时N分</code>，由 AI 每轮自动更新。
-                </p>
-                <div className="grid grid-cols-5 gap-2">
-                  {[
-                    { key: 'year',   label: '年', min: 1 },
-                    { key: 'month',  label: '月', min: 1, max: 12 },
-                    { key: 'day',    label: '日', min: 1, max: 31 },
-                    { key: 'hour',   label: '时', min: 0, max: 23 },
-                    { key: 'minute', label: '分', min: 0, max: 59 },
-                  ].map(({ key, label, min, max }) => (
-                    <div key={key}>
-                      <label className={labelCls}>{label}</label>
-                      <input
-                        type="number"
-                        className={inputCls}
-                        value={dtParsed[key]}
-                        min={min}
-                        max={max}
-                        onChange={(e) => setDt(key, e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <p className="we-state-field-hint">
-                  初始时间：<strong>{form.default_value || `${dtParsed.year}年${dtParsed.month}月${dtParsed.day}日${dtParsed.hour}时${dtParsed.minute}分`}</strong>
-                </p>
-              </>
-            )}
-            {error && (
-              <p className="we-state-field-error">{error}</p>
-            )}
-          </div>
-          <div className="we-dialog-footer">
-            <button onClick={onClose} className="we-btn we-btn-sm we-btn-secondary">关闭</button>
-            <button onClick={handleSave} disabled={saving} className="we-btn we-btn-sm we-btn-primary">
-              {saving ? '保存中…' : '保存'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const isRealDiary = isDiaryTime && diaryDateMode === 'real';
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
@@ -231,8 +155,15 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
           {/* 类型 */}
           <div>
             <label className={labelCls}>类型 {requiredMark}</label>
-            <Select value={form.type} onChange={(v) => set('type', v)} options={TYPE_OPTIONS} />
+            <Select value={form.type} onChange={(v) => set('type', v)} options={TYPE_OPTIONS} disabled={isDiaryTime} />
           </div>
+          {isDiaryTime && (
+            <p className="we-state-field-hint">
+              {isRealDiary
+                ? <>当前为<strong>真实日期</strong>模式，此字段由系统每轮自动写入当前时间。</>
+                : <>虚拟日期模式：设置故事的初始时间，由 AI 每轮自动推进。</>}
+            </p>
+          )}
 
           {/* 枚举选项（type=enum 时显示） */}
           {form.type === 'enum' && (
@@ -324,13 +255,33 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
             </div>
           )}
 
+          {/* 展示前缀（仅 datetime 类型显示，如"第三纪元 "） */}
+          {form.type === 'datetime' && (
+            <div>
+              <label className={labelCls}>展示前缀（可选，前端渲染 X年X月X日X时X分 时拼接到最前）</label>
+              <input className={inputCls} value={form.prefix}
+                onChange={(e) => set('prefix', e.target.value)}
+                placeholder="如：第三纪元 / 公元" />
+            </div>
+          )}
+
           {/* 默认值（list 类型用上方"默认条目"代替，此处不显示） */}
           {form.type !== 'list' && (
             <div>
               <label className={labelCls}>默认值</label>
-              <input className={inputCls} value={form.default_value}
-                onChange={(e) => set('default_value', e.target.value)}
-                placeholder="留空表示无默认值" />
+              {form.type === 'datetime' ? (
+                <input
+                  type="datetime-local"
+                  className={inputCls}
+                  value={ISO_DATETIME_RE.test(form.default_value) ? form.default_value : ''}
+                  onChange={(e) => set('default_value', e.target.value)}
+                  disabled={isRealDiary}
+                />
+              ) : (
+                <input className={inputCls} value={form.default_value}
+                  onChange={(e) => set('default_value', e.target.value)}
+                  placeholder="留空表示无默认值" />
+              )}
             </div>
           )}
 

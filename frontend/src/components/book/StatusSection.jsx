@@ -2,7 +2,18 @@ import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
 import { applyTemplateVars } from '../../utils/template-vars.js';
 
-function parseValue(effectiveValueJson, type) {
+const ISO_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/** datetime ISO 字符串渲染为 "{prefix}X年X月X日X时X分"（去前导零） */
+function formatDatetimeChinese(iso, prefix) {
+  const m = iso.match(ISO_DATETIME_RE);
+  if (!m) return iso;
+  const [, y, mo, d, h, min] = m;
+  const strip = (s) => String(parseInt(s, 10));
+  return `${prefix ?? ''}${strip(y)}年${strip(mo)}月${strip(d)}日${strip(h)}时${strip(min)}分`;
+}
+
+function parseValue(effectiveValueJson, type, prefix) {
   if (effectiveValueJson == null) return null;
   try {
     const v = JSON.parse(effectiveValueJson);
@@ -12,6 +23,9 @@ function parseValue(effectiveValueJson, type) {
     if (type === 'list') {
       if (!Array.isArray(v) || v.length === 0) return null;
       return v.join('、');
+    }
+    if (type === 'datetime' && typeof v === 'string' && ISO_DATETIME_RE.test(v)) {
+      return formatDatetimeChinese(v, prefix);
     }
     return String(v);
   } catch {
@@ -84,6 +98,8 @@ function InlineEditor({ row, onCommit, onCancel }) {
     } else if (type === 'list') {
       const arr = String(value).split(/[,，、]/).map((s) => s.trim()).filter(Boolean);
       valueJson = JSON.stringify(arr);
+    } else if (type === 'datetime') {
+      valueJson = value && ISO_DATETIME_RE.test(value) ? JSON.stringify(value) : null;
     } else {
       valueJson = value === '' ? null : JSON.stringify(String(value));
     }
@@ -125,6 +141,21 @@ function InlineEditor({ row, onCommit, onCancel }) {
         <option value="">—</option>
         {options.map((o) => <option key={o} value={o}>{o}</option>)}
       </select>
+    );
+  }
+
+  if (type === 'datetime') {
+    const dtVal = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
+    return (
+      <input
+        ref={inputRef}
+        type="datetime-local"
+        value={dtVal}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => commit(draft)}
+        onKeyDown={handleKey}
+        className="we-input we-status-inline-input"
+      />
     );
   }
 
@@ -185,7 +216,7 @@ export default function StatusSection({
           )}
           {rows?.map((row, i) => {
             const type = row.field_type ?? row.type;
-            const display = parseValue(row.effective_value_json, type);
+            const display = parseValue(row.effective_value_json, type, row.prefix);
             const max = row.max_value ?? row.max ?? null;
             const isNumber = type === 'number';
             const numVal = isNumber && display != null ? parseFloat(display) : null;

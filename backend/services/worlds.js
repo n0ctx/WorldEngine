@@ -52,12 +52,12 @@ export function ensureDiaryTimeField(worldId) {
       field_key: DIARY_TIME_FIELD_KEY,
       label: '时间',
       description: DIARY_TIME_DESCRIPTION,
-      type: 'text',
+      type: 'datetime',
       update_mode: dateMode === 'real' ? 'system_rule' : 'llm_auto',
       update_instruction: dateMode === 'real' ? '' : DIARY_TIME_UPDATE_INSTRUCTION,
       allow_empty: 1,
       sort_order: 0,
-      default_value: '1000年1月1日0时0分',
+      default_value: '1000-01-01T00:00',
     });
   } else if (!isDiaryEnabled && timeField) {
     deleteWorldStateField(timeField.id);
@@ -68,13 +68,15 @@ export function ensureDiaryTimeField(worldId) {
       timeField.update_mode !== expectedMode ||
       timeField.update_instruction !== expectedInstruction ||
       timeField.description !== DIARY_TIME_DESCRIPTION ||
-      timeField.sort_order !== 0;
+      timeField.sort_order !== 0 ||
+      timeField.type !== 'datetime';
     if (needsUpdate) {
       updateWorldStateField(timeField.id, {
         update_mode: expectedMode,
         update_instruction: expectedInstruction,
         description: DIARY_TIME_DESCRIPTION,
         sort_order: 0,
+        type: 'datetime',
       });
     }
   }

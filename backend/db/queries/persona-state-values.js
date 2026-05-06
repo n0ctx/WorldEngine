@@ -86,6 +86,7 @@ export function getPersonaStateValuesWithFields(worldId) {
       psf.field_key,
       psf.label,
       psf.type,
+      psf.prefix,
       psf.sort_order,
       psf.enum_options,
       psf.default_value AS field_default_value,

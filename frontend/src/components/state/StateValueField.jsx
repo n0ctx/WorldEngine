@@ -5,7 +5,7 @@ import Select from '../ui/Select';
 /**
  * 状态字段值编辑控件
  *
- * 根据 field.type（boolean/number/enum/list/text）渲染对应输入控件。
+ * 根据 field.type（boolean/number/enum/list/datetime/text）渲染对应输入控件。
  * 用于 WorldEditPage 和 CharacterEditPage 的状态字段列表行。
  *
  * @param {{ field_key, type, default_value_json, enum_options }} field
@@ -42,6 +42,20 @@ export default function StateValueField({ field, onSave }) {
         value={local ?? ''}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
+      />
+    );
+  }
+  if (field.type === 'datetime') {
+    const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+    return (
+      <Input
+        type="datetime-local"
+        value={typeof local === 'string' && ISO_DATETIME_RE.test(local) ? local : ''}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => {
+          if (local && ISO_DATETIME_RE.test(local)) saveValue(local);
+          else if (!local) saveValue(null);
+        }}
       />
     );
   }

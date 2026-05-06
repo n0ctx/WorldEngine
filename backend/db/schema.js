@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS persona_state_fields (
   max_value          REAL,
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
+  prefix             TEXT NOT NULL DEFAULT '',
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -118,6 +119,7 @@ CREATE TABLE IF NOT EXISTS world_state_fields (
   max_value          REAL,
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
+  prefix             TEXT NOT NULL DEFAULT '',
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -148,6 +150,7 @@ CREATE TABLE IF NOT EXISTS character_state_fields (
   max_value          REAL,
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
+  prefix             TEXT NOT NULL DEFAULT '',
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -415,6 +418,106 @@ export function initSchema(db) {
   migratePersonasBackfillSortOrder(db);
   // 状态字段触发方式已取消：自动字段统一每轮更新，删除历史配置列
   migrateDropStateFieldTriggerColumns(db);
+  // diary_time 切换到 datetime 类型 + ISO 格式
+  migrateDiaryTimeToIso(db);
+  // state_fields 加 prefix 列（datetime 显示前缀）
+  for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
+    try { db.exec(`ALTER TABLE ${t} ADD COLUMN prefix TEXT NOT NULL DEFAULT ''`); } catch {}
+  }
+}
+
+/**
+ * 将历史 "N年N月N日N时N分" / "N年N月N日N时" 格式的 diary_time 值转为 ISO 局部时间
+ * "YYYY-MM-DDTHH:mm"（4 位年份补零）。无法解析的值置 NULL。
+ * 同时把 world_state_fields.type 由 'text' 修正为 'datetime'。
+ */
+function migrateDiaryTimeToIso(db) {
+  const key = 'migration:diary_time_to_iso_datetime';
+  if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
+
+  const RE = /^(\d+)年(\d+)月(\d+)日(\d+)时(?:(\d+)分)?$/;
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  const toIso = (raw) => {
+    if (raw == null) return null;
+    let str = raw;
+    try { const parsed = JSON.parse(raw); if (typeof parsed === 'string') str = parsed; } catch {}
+    if (typeof str !== 'string') return null;
+    const m = str.match(RE);
+    if (!m) return null;
+    return `${pad(m[1], 4)}-${pad(m[2])}-${pad(m[3])}T${pad(m[4])}:${pad(m[5] ?? 0)}`;
+  };
+  // 字段层 default_value 是裸字符串（非 JSON），单独处理
+  const toIsoBare = (raw) => {
+    if (typeof raw !== 'string') return null;
+    const m = raw.match(RE);
+    if (!m) return null;
+    return `${pad(m[1], 4)}-${pad(m[2])}-${pad(m[3])}T${pad(m[4])}:${pad(m[5] ?? 0)}`;
+  };
+
+  db.exec('BEGIN');
+  try {
+    // world_state_fields：type 升级 + default_value 文本转 ISO
+    const fieldRows = db.prepare(
+      `SELECT id, type, default_value FROM world_state_fields WHERE field_key = 'diary_time'`
+    ).all();
+    const updField = db.prepare(
+      `UPDATE world_state_fields SET type = 'datetime', default_value = ?, updated_at = ? WHERE id = ?`
+    );
+    const now = Date.now();
+    for (const row of fieldRows) {
+      const iso = toIsoBare(row.default_value) ?? (row.default_value && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(row.default_value) ? row.default_value : null);
+      updField.run(iso, now, row.id);
+    }
+
+    // world_state_values：default_value_json / runtime_value_json
+    const valueRows = db.prepare(
+      `SELECT id, default_value_json, runtime_value_json FROM world_state_values
+       WHERE field_key = 'diary_time'`
+    ).all();
+    const updValue = db.prepare(
+      `UPDATE world_state_values SET default_value_json = ?, runtime_value_json = ?, updated_at = ? WHERE id = ?`
+    );
+    for (const row of valueRows) {
+      const dIso = toIso(row.default_value_json);
+      const rIso = toIso(row.runtime_value_json);
+      const dOut = dIso != null ? JSON.stringify(dIso) : (looksIsoJson(row.default_value_json) ? row.default_value_json : null);
+      const rOut = rIso != null ? JSON.stringify(rIso) : (looksIsoJson(row.runtime_value_json) ? row.runtime_value_json : null);
+      updValue.run(dOut, rOut, now, row.id);
+    }
+
+    // session_world_state_values：runtime_value_json
+    const sessionRows = db.prepare(
+      `SELECT id, runtime_value_json FROM session_world_state_values
+       WHERE field_key = 'diary_time'`
+    ).all();
+    const updSession = db.prepare(
+      `UPDATE session_world_state_values SET runtime_value_json = ?, updated_at = ? WHERE id = ?`
+    );
+    for (const row of sessionRows) {
+      const iso = toIso(row.runtime_value_json);
+      const out = iso != null ? JSON.stringify(iso) : (looksIsoJson(row.runtime_value_json) ? row.runtime_value_json : null);
+      updSession.run(out, now, row.id);
+    }
+
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function looksIsoJson(raw) {
+  if (raw == null) return false;
+  try {
+    const v = JSON.parse(raw);
+    return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v);
+  } catch {
+    return false;
+  }
 }
 
 function migrateDropStateFieldTriggerColumns(db) {

@@ -31,13 +31,16 @@ import { resolveAuxScope } from '../utils/aux-scope.js';
 const log = createLogger('all-state');
 
 /**
- * 格式化当前时间为日记时间字符串（上海时区），如 "2026年4月21日14时"
+ * 格式化当前时间为日记时间字符串（上海时区），ISO 局部时间 "YYYY-MM-DDTHH:mm"
  */
 function formatRealTimeDiaryStr() {
   const now = new Date();
   const local = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' }));
-  return `${local.getFullYear()}年${local.getMonth() + 1}月${local.getDate()}日${local.getHours()}时${local.getMinutes()}分`;
+  const pad = (n, w = 2) => String(n).padStart(w, '0');
+  return `${pad(local.getFullYear(), 4)}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`;
 }
+
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 // ── 辅助函数（模块级） ──────────────────────────────────────────────────────
 
@@ -101,6 +104,7 @@ function buildFieldsDesc(fields, valueMap) {
         line += `，范围：${lo} ~ ${hi}`;
       }
       if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
+      if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份 4 位、月日时分各 2 位，例 "1000-03-15T14:30"），不得使用其他格式`;
       const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
       line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
       if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
@@ -436,6 +440,10 @@ function validateValue(value, field) {
       if (typeof value !== 'string') return undefined;
       if (field.enum_options && !field.enum_options.includes(value)) return undefined;
       return value;
+    }
+    case 'datetime': {
+      if (typeof value !== 'string') return undefined;
+      return ISO_DATETIME_RE.test(value) ? value : undefined;
     }
     case 'list': {
       if (typeof value === 'string') {

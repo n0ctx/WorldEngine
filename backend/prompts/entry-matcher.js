@@ -123,6 +123,7 @@ export const __testables = {
 
 const NUMERIC_OPS = new Set(['>', '<', '=', '>=', '<=', '!=']);
 const TEXT_OPS = new Set(['包含', '等于', '不包含']);
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 function evaluateCondition(condition, stateMap) {
   const { target_field, operator, value } = condition;
@@ -131,15 +132,28 @@ function evaluateCondition(condition, stateMap) {
   if (NUMERIC_OPS.has(operator)) {
     const cur = Number(current);
     const thr = Number(value);
-    if (!Number.isFinite(cur) || !Number.isFinite(thr)) return false;
-    switch (operator) {
-      case '>':  return cur > thr;
-      case '<':  return cur < thr;
-      case '=':  return cur === thr;
-      case '>=': return cur >= thr;
-      case '<=': return cur <= thr;
-      case '!=': return cur !== thr;
+    if (Number.isFinite(cur) && Number.isFinite(thr)) {
+      switch (operator) {
+        case '>':  return cur > thr;
+        case '<':  return cur < thr;
+        case '=':  return cur === thr;
+        case '>=': return cur >= thr;
+        case '<=': return cur <= thr;
+        case '!=': return cur !== thr;
+      }
     }
+    // datetime 字段：YYYY-MM-DDTHH:mm 字典序即时间序
+    if (ISO_DATETIME_RE.test(current) && ISO_DATETIME_RE.test(value)) {
+      switch (operator) {
+        case '>':  return current > value;
+        case '<':  return current < value;
+        case '=':  return current === value;
+        case '>=': return current >= value;
+        case '<=': return current <= value;
+        case '!=': return current !== value;
+      }
+    }
+    return false;
   }
   if (TEXT_OPS.has(operator)) {
     switch (operator) {

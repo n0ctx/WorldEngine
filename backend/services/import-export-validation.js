@@ -123,6 +123,7 @@ function assertStateFields(fields, label) {
       assert(field.allow_empty === 0 || field.allow_empty === 1, `${label}[${index}].allow_empty 必须为 0 或 1`);
     }
     assertOptionalString(field.update_instruction, `${label}[${index}].update_instruction`);
+    assertOptionalString(field.prefix, `${label}[${index}].prefix`, 64);
     assertOptionalNumber(field.sort_order, `${label}[${index}].sort_order`);
   }
 }
