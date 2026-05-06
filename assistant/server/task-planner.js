@@ -85,6 +85,7 @@ function buildPlannerPrompt({ message, history, context, research = null, retryF
         '高风险步骤 riskLevel 取 high，其余取 low 或 medium。' +
         'rationale 写为什么需要此步骤；inputs 写会用到的上下文或前序 step 产物；expectedOutput 写本步骤应产出的 proposal 类型和关键内容；acceptance 写 1-3 条可检查验收点；rollbackRisk 写失败或误操作影响，低风险也要写“低”。' +
         'CUD 规划术语必须统一：写入 step.title、step.task、assumptions、summary 时，代入者统一写 {{user}}，模型扮演或回应的角色统一写 {{char}}；不要混写“用户”“玩家”“AI”“NPC”等称呼。接口字段名和枚举值（如 persona-card、character-card、user_input、ai_output）按 schema 保持不变。' +
+        '【世界条目 UI 用语映射，禁止误译】用户/UI 说"常驻条目" → trigger_type:"always"；"关键词条目" → "keyword"；**"AI 召回条目" / "AI召回" / "AI 召回" → trigger_type:"llm"**（由 LLM 读条目 description 字段判定是否注入；不是向量召回，更不是关键词或常驻）；"状态条目" / "状态条件条目" → "state"。step.task 中遇到这些 UI 用语必须翻译成对应 trigger_type 并明确指示子代理使用，禁止降级为 keyword 或 always。' +
         '输出 schema：{"mode":"answer|clarify|plan","summary":"","answer":"","clarificationQuestions":[],"assumptions":[],"steps":[]}',
     },
     {

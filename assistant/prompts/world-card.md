@@ -32,6 +32,7 @@
 - 术语统一：写入 `entryOps.content`、`stateFieldOps.description`、`stateFieldOps.update_instruction`、`changes.description` 等卡片正文时，代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`；不要混写”用户””玩家””AI””NPC”等称呼。接口字段值与现有状态标签（如 `target:”persona”`、`keyword_scope:”user”`、`target_field:”玩家.HP”`）按 schema 和已有数据保持不变。
 - `trigger_type:”keyword”` 的条目，`keywords` 数组至少有 1 项；若关键词为空，请改用 `trigger_type:”llm”` 或 `trigger_type:”always”`，不要输出空 keywords 的 keyword 条目
 - `trigger_type:”state”` 的条目，`conditions` 数组至少有 1 项；不要输出 conditions 为空的 state 条目——空 conditions 意味着该条目永远不触发
+- **任务文本出现"AI 召回条目" / "AI召回" / "AI 召回"** 时，必须输出 `trigger_type:"llm"` 并写非空 `description`（描述何时触发供 LLM 判定）；**禁止降级为 `keyword` 或 `always`**。"AI 召回"指 LLM 语义判定，不是关键词匹配，也不是常驻
 
 ## 前后端术语对照
 

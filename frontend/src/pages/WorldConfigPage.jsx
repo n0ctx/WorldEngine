@@ -17,6 +17,12 @@ export default function WorldConfigPage() {
     listWorldEntries(worldId).then(setEntries).catch(() => {});
   }
 
+  useEffect(() => {
+    const h = () => refresh();
+    window.addEventListener('we:world-updated', h);
+    return () => window.removeEventListener('we:world-updated', h);
+  }, [worldId]);
+
   const alwaysEntries  = entries.filter((e) => e.trigger_type === 'always');
   const keywordEntries = entries.filter((e) => e.trigger_type === 'keyword');
   const llmEntries     = entries.filter((e) => e.trigger_type === 'llm');

@@ -22,6 +22,16 @@
 
 **Git 跟踪状态**：根目录 markdown 文档大多在 `.gitignore` 中，仅 `ARCHITECTURE.md` / `CHANGELOG.md` / `README.md` 被跟踪。`SCHEMA.md` 改动不进 git，仅本地优化。
 
+## 2026-05-06 fix(assistant): planner 加 UI 用语映射 + WorldConfigPage 监听刷新事件
+
+**追加修复（在前一条基础上）**
+
+- `assistant/server/task-planner.js`：planner system prompt 加"世界条目 UI 用语映射"段，明确 "AI 召回条目" / "AI召回" → `trigger_type:"llm"`，禁止降级为 keyword/always；planner 输出的 step.task 翻译规则统一。
+- `assistant/prompts/world-card.md`：硬规则区追加一条强制规则——任务文本出现"AI 召回条目"等用语时必须输出 `trigger_type:"llm"` 并填非空 description，禁止降级。
+- `frontend/src/pages/WorldConfigPage.jsx`：补 `we:world-updated` 监听，写卡助手 apply 后无须刷新页面即可看到条目变化（之前只有 useEffect 依赖 worldId 触发首次加载）。
+
+**未改**：WorldBuildPage 已被 `/build → /config` 重定向覆盖（App.jsx:81），不再触达，不必同步修。
+
 ## 2026-05-06 fix(assistant): 修正 trigger_type:"llm" 描述 + 补前后端术语对照
 
 **问题**：写卡助手 prompt / CONTRACT 把 `trigger_type:"llm"` 描述为"向量召回 / 向量相似度召回"。实际后端 `entry-matcher.js` L268-284 是 LLM 读条目 `description` 字段做语义判定 + 关键词兜底，不是向量召回。前端 UI 此类条目称为"AI 召回条目"。术语漂移导致助手不理解用户用 UI 用语提的需求。
