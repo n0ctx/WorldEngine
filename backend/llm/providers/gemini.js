@@ -10,6 +10,13 @@ const cacheLog = createLogger('gemini-cache', 'cyan');
 // Gemini 3.x implicit cache 在常见区间存在 dead zone（issue #2064），强制走 explicit cachedContents。
 // 2.5 系列 implicit 已稳定命中，不启用 explicit 以避免引入额外 HTTP 调用。
 const EXPLICIT_CACHE_MIN_CHARS = 4000;
+
+const SAFETY_SETTINGS_OFF = [
+  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'OFF' },
+  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'OFF' },
+];
 function shouldUseExplicitCache(config) {
   if (!config.cacheableSystem || config.cacheableSystem.length < EXPLICIT_CACHE_MIN_CHARS) return false;
   const model = (config.model || '').toLowerCase();
@@ -94,6 +101,7 @@ export async function* streamGemini(messages, config) {
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType || 'stream');
   const resp = await fetch(url, {
     method: 'POST',
@@ -159,6 +167,7 @@ export async function completeGemini(messages, config) {
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType || 'complete');
   const resp = await fetch(url, {
     method: 'POST',
@@ -200,6 +209,7 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
   if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
 
+  body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType ? `${config.callType}:native` : 'complete-native');
   const resp = await fetch(url, {
     method: 'POST',
@@ -238,6 +248,7 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
     body.generationConfig = {};
     if (config.temperature != null) body.generationConfig.temperature = config.temperature;
     if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
+    body.safetySettings = SAFETY_SETTINGS_OFF;
 
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
@@ -287,6 +298,7 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
     const body = { contents: nativeContents, tools: toGeminiTools(toolDefs) };
     if (systemInstruction) body.systemInstruction = systemInstruction;
     body.generationConfig = { maxOutputTokens: i === 0 ? 1000 : config.max_tokens, temperature: 0 };
+    body.safetySettings = SAFETY_SETTINGS_OFF;
 
     logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
