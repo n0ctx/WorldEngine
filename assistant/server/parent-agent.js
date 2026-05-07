@@ -7,8 +7,9 @@
  *   1. 拼装 system prompt（parent-agent.md + CONTRACT.md，每轮注入）
  *   2. 取出 task.messages 作为对话历史，并附加一条上下文 user 消息（status / worldId / characterId / plan-doc 全文）
  *   3. 把 userInput 入栈到 task.messages（包含 `<<approved>>` sentinel 的特殊化处理）
- *   4. 调 backend/llm/completeWithTools 走非流式 tool-use 循环
- *   5. 把最终文本作为单条 `delta` SSE 事件发出 + `done` 事件 + appendMessage
+ *   4. 调 backend/llm/resolveToolContext 走非流式 tool-use 循环，得到富化后的 messages
+ *   5. 调 backend/llm/chat 流式生成最终文本，按 chunk 发 `delta` SSE 事件（带 messageId）
+ *   6. 流式结束后把累积文本回填到预占的 assistant 消息，并发 `done` 事件
  *
  * 注意：
  *   - LLM 提供商若非流式 + tool-use，则降级为 complete()；这里不区分。
@@ -444,27 +445,56 @@ export async function runParentAgent(task, userInput, opts = {}) {
     input: previewText(visibleUserInput, { limit: 120 }),
   })}`);
 
-  let finalText = '';
+  let assistantMsgId = null;
+  let accumulated = '';
   try {
-    const raw = await llm.completeWithTools(messages, tools, {
+    // Step 1：非流式 tool-use 循环 → 富化后的 messages
+    const enriched = await llm.resolveToolContext(messages, tools, {
       temperature: 0.3,
       thinking_level: null,
       configScope,
     });
-    finalText = String(raw ?? '').trim();
-    log.info(`DONE  ${formatMeta({ taskId: task.id, chars: finalText.length, status: task.status })}`);
+    log.info(`TOOLS_RESOLVED  ${formatMeta({ taskId: task.id, totalMsgs: enriched.length })}`);
+
+    // 提前落一条空的 assistant 消息，把 id 带在每个 delta 上，前端会 adopt 这个 id 替换本地占位
+    const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
+    assistantMsgId = stamped?.id ?? null;
+
+    // Step 2：流式生成最终文本
+    for await (const chunk of llm.chat(enriched, {
+      temperature: 0.7,
+      thinking_level: null,
+      configScope,
+    })) {
+      if (!chunk) continue;
+      accumulated += chunk;
+      taskStore.emit(task.id, { type: 'delta', delta: chunk, messageId: assistantMsgId });
+    }
+
+    // 把累积文本回填到 task.messages 中预占的那条消息
+    if (assistantMsgId) {
+      const t = taskStore.__testables?.tasks?.get(task.id);
+      const m = t?.messages.find((x) => x.id === assistantMsgId);
+      if (m) m.content = accumulated;
+    }
+
+    log.info(`DONE  ${formatMeta({ taskId: task.id, chars: accumulated.length, status: task.status })}`);
   } catch (err) {
     log.error(`FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+    // 错误路径：移除预占的 assistant 消息（可能为空或半成品），保持 task.messages 干净
+    if (assistantMsgId) {
+      const t = taskStore.__testables?.tasks?.get(task.id);
+      if (t) {
+        const idx = t.messages.findIndex((x) => x.id === assistantMsgId);
+        if (idx >= 0) t.messages.splice(idx, 1);
+      }
+    }
     taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message });
     taskStore.setStatus(task.id, 'failed');
     taskStore.emit(task.id, { type: 'done', done: true });
     throw err;
   }
 
-  if (finalText) {
-    const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: finalText });
-    taskStore.emit(task.id, { type: 'delta', delta: finalText, messageId: stamped?.id });
-  }
   taskStore.emit(task.id, { type: 'done', done: true });
 }
 
