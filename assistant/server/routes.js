@@ -363,40 +363,56 @@ router.post('/agent', async (req, res) => {
   res.flushHeaders?.();
 
   let task = taskId ? taskStore.getTask(taskId) : null;
+  const isNew = !task;
   if (!task) {
     task = taskStore.createTask({ context });
     res.write(`data: ${JSON.stringify({ type: 'task_created', taskId: task.id, task })}\n\n`);
   }
   taskStore.attachSse(task.id, res);
-  req.on('close', () => taskStore.detachSse(task.id, res));
+  // 注意：必须用 res.on('close')，不能用 req.on('close')。
+  // express.json() 消费完请求体后 IncomingMessage 立即 emit 'close'，
+  // 导致 SSE 客户端在 LLM 还在跑时就被提前 detach（事件全丢）。
+  res.on('close', () => taskStore.detachSse(task.id, res));
+
+  log.info(`/agent  ${formatMeta({ taskId: task.id, status: task.status, isNew, msgChars: (message ?? '').length })}`);
 
   try {
     if (task.status === 'executing') {
       // executing 时仅入队；当前 step 跑完后 dispatch_subagent 钩子会消费 pendingMessages
       // 并把任务切到 paused（spec §6.4）。下一轮用户消息进入 paused 分支才触发 LLM。
       taskStore.queueUserMessage(task.id, message);
+      log.info(`/agent QUEUE  ${formatMeta({ taskId: task.id, queueSize: task.pendingUserMessages.length })}`);
       return; // 保持 SSE 连接
     }
     // planning / awaiting_approval / clarifying / paused 都直接走父代理
     await runParentAgent(task, message);
   } catch (err) {
+    log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
   }
 });
 
 router.post('/agent/:taskId/approve', async (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
-  if (!task || task.status !== 'awaiting_approval') return res.status(400).json({ error: 'not awaiting approval' });
+  if (!task || task.status !== 'awaiting_approval') {
+    log.warn(`/agent/approve REJECT  ${formatMeta({ taskId: req.params.taskId, status: task?.status ?? 'missing' })}`);
+    return res.status(400).json({ error: 'not awaiting approval' });
+  }
+  log.info(`/agent/approve  ${formatMeta({ taskId: task.id })}`);
   taskStore.setStatus(task.id, 'executing');
   taskStore.emit(task.id, { type: 'plan_approved', taskId: task.id });
   // 触发 parent-agent 继续派发；用一个空消息触发执行循环
-  runParentAgent(task, '<<approved>>').catch((err) => taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message }));
+  runParentAgent(task, '<<approved>>').catch((err) => {
+    log.error(`/agent/approve RESUME_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+    taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message });
+  });
   res.json({ ok: true });
 });
 
 router.post('/agent/:taskId/cancel', async (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
+  log.info(`/agent/cancel  ${formatMeta({ taskId: task.id, fromStatus: task.status })}`);
   await planDoc.deletePlanDoc(task.id);
   taskStore.setStatus(task.id, 'cancelled');
   taskStore.emit(task.id, { type: 'task_cancelled', taskId: task.id });

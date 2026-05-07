@@ -7,6 +7,9 @@
 // 注意：旧 API（updateTask / appendTaskEvent / clearExpiredTasks）已被删除；
 // 仅 routes.js 仍引用旧 API，将在 Phase 7 一并清理。
 import { randomUUID } from 'node:crypto';
+import { createLogger, formatMeta } from '../../backend/utils/logger.js';
+
+const log = createLogger('as-store', 'magenta');
 
 const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
@@ -23,6 +26,7 @@ export function createTask({ context } = {}) {
     currentStepId: null,
   };
   tasks.set(id, task);
+  log.info(`CREATE  ${formatMeta({ taskId: id, hasWorld: Boolean(context?.worldId), hasChar: Boolean(context?.characterId) })}`);
   return task;
 }
 
@@ -32,7 +36,10 @@ export function getTask(id) {
 
 export function setStatus(id, status) {
   const t = tasks.get(id);
-  if (t) t.status = status;
+  if (!t) return;
+  const prev = t.status;
+  t.status = status;
+  if (prev !== status) log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
 }
 
 export function deleteTask(id) {
@@ -61,19 +68,30 @@ export function takeUserMessages(id) {
 export function attachSse(taskId, res) {
   if (!sseClients.has(taskId)) sseClients.set(taskId, new Set());
   sseClients.get(taskId).add(res);
+  log.debug(`ATTACH  ${formatMeta({ taskId, subscribers: sseClients.get(taskId).size })}`);
 }
 
 export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
+  log.debug(`DETACH  ${formatMeta({ taskId, remaining: sseClients.get(taskId)?.size ?? 0 })}`);
 }
 
 export function emit(taskId, event) {
   const clients = sseClients.get(taskId);
+  const subscribers = clients?.size ?? 0;
+  log.debug(`EMIT  ${formatMeta({ taskId, type: event.type, subscribers })}`);
   if (!clients) return;
   const line = `data: ${JSON.stringify(event)}\n\n`;
+  let dropped = 0;
   for (const res of clients) {
-    try { res.write(line); } catch { /* SSE 客户端已断开，忽略 */ }
+    try {
+      res.write(line);
+    } catch (err) {
+      dropped += 1;
+      log.warn(`EMIT_DROP  ${formatMeta({ taskId, type: event.type, error: err.message })}`);
+    }
   }
+  if (dropped > 0) log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped, ofTotal: subscribers })}`);
 }
 
 export const __testables = { tasks, sseClients };
