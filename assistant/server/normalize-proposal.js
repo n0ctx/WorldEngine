@@ -48,7 +48,7 @@ import {
 import {
   replaceEntryConditions,
 } from '../../backend/db/queries/entry-conditions.js';
-import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
+import { createPersona as createPersonaDb, setActivePersona } from '../../backend/db/queries/personas.js';
 import {
   updateCharacterDefaultStateValueValidated,
   updatePersonaDefaultStateValueValidated,
@@ -186,6 +186,8 @@ async function applyProposal(proposal, worldRefId = null) {
           description: safeChanges.description || '',
           system_prompt: safeChanges.system_prompt || '',
         });
+        // 新建 persona 立即设为 active，后续 stateValueOps 写入其独立状态值行
+        setActivePersona(worldId, newPersona.id);
         for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
           applyStateValueOp(op, { worldId });
         }

@@ -70,6 +70,12 @@ export const __testables = {
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
 export function renderPersonaState(worldId, sessionId) {
+  // 解析当前激活 persona（active_persona_id 为 NULL 时回退到最早创建的 persona）
+  const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  const personaId = worldRow?.active_persona_id ??
+    db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id ??
+    null;
+
   const rows = sessionId
     ? db.prepare(`
         SELECT
@@ -79,20 +85,20 @@ export function renderPersonaState(worldId, sessionId) {
         LEFT JOIN session_persona_state_values spsv
           ON spsv.world_id = psf.world_id AND spsv.field_key = psf.field_key AND spsv.session_id = ?
         LEFT JOIN persona_state_values psv
-          ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+          ON psv.persona_id = ? AND psv.field_key = psf.field_key
         WHERE psf.world_id = ?
         ORDER BY psf.sort_order ASC, psf.created_at ASC
-      `).all(sessionId, worldId)
+      `).all(sessionId, personaId, worldId)
     : db.prepare(`
         SELECT
           psf.label,
           COALESCE(psv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
         FROM persona_state_fields psf
         LEFT JOIN persona_state_values psv
-          ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+          ON psv.persona_id = ? AND psv.field_key = psf.field_key
         WHERE psf.world_id = ?
         ORDER BY psf.sort_order ASC, psf.created_at ASC
-      `).all(worldId);
+      `).all(personaId, worldId);
 
   return rowsToStateText(rows, '[{{user}}状态]');
 }

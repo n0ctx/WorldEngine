@@ -78,7 +78,7 @@ persona-card **仅允许 `create` / `update`**，**不允许 `delete`**。
 
 | operation | entityId 取值 | 备注 |
 |---|---|---|
-| `create` | 所属世界 ID（由父代理从 `context.worldId` 或前序 world-card 步骤注入） | create 时也可填 `stateValueOps`，但需先 `preview_card` 确认字段存在 |
+| `create` | 所属世界 ID（由父代理从 `context.worldId` 或前序 world-card 步骤注入） | create 后新卡拥有独立的状态值行，与其他玩家卡互不影响；未在 `stateValueOps` 中显式指定的字段回退到字段模板默认值 |
 | `update` | 所属世界 ID | persona 与世界绑定，update 修改的是当前激活 persona |
 | `delete` | — | **不支持** |
 

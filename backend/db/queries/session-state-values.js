@@ -42,8 +42,14 @@ export function getSessionWorldStateValues(sessionId, worldId) {
 
 /**
  * 获取玩家级有效状态值（含会话运行时覆盖）
+ * 按该世界的激活 persona 过滤 persona_state_values，避免多 persona 数据泄漏。
  */
 export function getSessionPersonaStateValues(sessionId, worldId) {
+  const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  const personaId = worldRow?.active_persona_id
+    ?? db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id
+    ?? null;
+
   return db.prepare(`
     SELECT
       psf.field_key,
@@ -60,10 +66,10 @@ export function getSessionPersonaStateValues(sessionId, worldId) {
     LEFT JOIN session_persona_state_values spsv
       ON spsv.world_id = psf.world_id AND spsv.field_key = psf.field_key AND spsv.session_id = ?
     LEFT JOIN persona_state_values psv
-      ON psf.world_id = psv.world_id AND psf.field_key = psv.field_key
+      ON psv.persona_id = ? AND psv.field_key = psf.field_key
     WHERE psf.world_id = ?
     ORDER BY psf.sort_order ASC
-  `).all(sessionId, worldId);
+  `).all(sessionId, personaId, worldId);
 }
 
 /**

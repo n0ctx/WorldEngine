@@ -3,10 +3,14 @@ import path from 'node:path';
 import { getCharacterById } from './characters.js';
 import { getWorldById } from './worlds.js';
 import { getOrCreatePersona } from './personas.js';
+import { getPersonaById } from '../db/queries/personas.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
-import { upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
+import {
+  upsertPersonaStateValue,
+  upsertPersonaStateValueByPersonaId,
+} from '../db/queries/persona-state-values.js';
 import { getWorldStateFieldsByWorldId } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
 
@@ -142,6 +146,40 @@ export function resetPersonaStateValuesValidated(worldId) {
   const fields = getPersonaStateFieldsByWorldId(worldId);
   for (const field of fields) {
     upsertPersonaStateValue(worldId, field.field_key, {
+      runtimeValueJson: null,
+      touchUpdatedAt: false,
+      skipCreate: true,
+    });
+  }
+}
+
+export function updatePersonaDefaultStateValueByPersonaIdValidated(personaId, worldId, fieldKey, valueJson) {
+  const world = getWorldById(worldId);
+  if (!world) throw new Error('世界不存在');
+
+  const persona = getPersonaById(personaId);
+  if (!persona || persona.world_id !== worldId) throw new Error('persona 不属于该世界');
+
+  const fields = getPersonaStateFieldsByWorldId(worldId);
+  const field = getFieldMap(fields).get(fieldKey);
+  if (!field) throw new Error('状态字段不存在');
+
+  return upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, {
+    defaultValueJson: normalizeStateValueJson(valueJson, field),
+    touchUpdatedAt: false,
+  });
+}
+
+export function resetPersonaStateValuesByPersonaIdValidated(personaId, worldId) {
+  const world = getWorldById(worldId);
+  if (!world) throw new Error('世界不存在');
+
+  const persona = getPersonaById(personaId);
+  if (!persona || persona.world_id !== worldId) throw new Error('persona 不属于该世界');
+
+  const fields = getPersonaStateFieldsByWorldId(worldId);
+  for (const field of fields) {
+    upsertPersonaStateValueByPersonaId(personaId, worldId, field.field_key, {
       runtimeValueJson: null,
       touchUpdatedAt: false,
       skipCreate: true,

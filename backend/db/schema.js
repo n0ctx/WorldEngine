@@ -46,12 +46,13 @@ CREATE TABLE IF NOT EXISTS persona_state_fields (
 
 CREATE TABLE IF NOT EXISTS persona_state_values (
   id             TEXT PRIMARY KEY,
+  persona_id     TEXT NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
   world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   field_key      TEXT NOT NULL,
   default_value_json TEXT,
   runtime_value_json TEXT,
   updated_at     INTEGER NOT NULL,
-  UNIQUE(world_id, field_key)
+  UNIQUE(persona_id, field_key)
 );
 
 CREATE TABLE IF NOT EXISTS characters (
@@ -424,6 +425,10 @@ export function initSchema(db) {
   for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
     try { db.exec(`ALTER TABLE ${t} ADD COLUMN prefix TEXT NOT NULL DEFAULT ''`); } catch {}
   }
+  // persona_state_values 按 persona 拆分：UNIQUE 键从 (world_id, field_key) 改为 (persona_id, field_key)
+  migratePersonaStateValuesPerPersona(db);
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_persona_id ON persona_state_values(persona_id, field_key)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key)`); } catch {}
 }
 
 /**
@@ -764,6 +769,63 @@ function migratePersonasBackfillSortOrder(db) {
     `).run(key, now);
   });
   tx();
+}
+
+function migratePersonaStateValuesPerPersona(db) {
+  const migKey = 'migration:persona_state_values_per_persona';
+  const already = db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(migKey);
+  if (already) return;
+
+  const cols = db.pragma('table_info(persona_state_values)').map((c) => c.name);
+  if (cols.includes('persona_id')) {
+    // 新建库 DDL 已包含 persona_id，直接标记完成
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    return;
+  }
+
+  // 旧库迁移：表重建，UNIQUE 从 (world_id, field_key) 改为 (persona_id, field_key)
+  db.pragma('foreign_keys = OFF');
+  db.exec('BEGIN');
+  try {
+    db.exec(`CREATE TABLE persona_state_values_new (
+      id             TEXT PRIMARY KEY,
+      persona_id     TEXT NOT NULL REFERENCES personas(id) ON DELETE CASCADE,
+      world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+      field_key      TEXT NOT NULL,
+      default_value_json TEXT,
+      runtime_value_json TEXT,
+      updated_at     INTEGER NOT NULL,
+      UNIQUE(persona_id, field_key)
+    )`);
+    // 将旧行挂到该世界当前 active_persona；无 active_persona 则取最早创建的 persona
+    db.exec(`
+      INSERT INTO persona_state_values_new (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+      SELECT
+        psv.id,
+        COALESCE(w.active_persona_id,
+          (SELECT p.id FROM personas p WHERE p.world_id = psv.world_id ORDER BY p.created_at ASC, p.id ASC LIMIT 1)
+        ) AS persona_id,
+        psv.world_id,
+        psv.field_key,
+        psv.default_value_json,
+        psv.runtime_value_json,
+        psv.updated_at
+      FROM persona_state_values psv
+      JOIN worlds w ON w.id = psv.world_id
+      WHERE COALESCE(w.active_persona_id,
+        (SELECT p2.id FROM personas p2 WHERE p2.world_id = psv.world_id ORDER BY p2.created_at ASC, p2.id ASC LIMIT 1)
+      ) IS NOT NULL
+    `);
+    db.exec('DROP TABLE persona_state_values');
+    db.exec('ALTER TABLE persona_state_values_new RENAME TO persona_state_values');
+    db.prepare("INSERT OR REPLACE INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)").run(migKey, Date.now());
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
 }
 
 function migrateLegacyStateValueColumns(db) {

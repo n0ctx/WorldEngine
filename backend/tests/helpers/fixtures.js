@@ -167,7 +167,26 @@ export function insertCharacterStateValue(db, characterId, patch = {}) {
 }
 
 export function insertPersonaStateValue(db, worldId, patch = {}) {
-  return insertStateValue(db, 'persona_state_values', 'world_id', worldId, patch);
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.updated_at);
+  const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  const personaId = patch.persona_id ??
+    world?.active_persona_id ??
+    db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id;
+  if (!personaId) throw new Error(`insertPersonaStateValue: no persona found for world ${worldId}`);
+  db.prepare(`
+    INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    personaId,
+    worldId,
+    patch.field_key ?? 'field',
+    patch.default_value_json ?? null,
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, persona_id: personaId, world_id: worldId, ...patch, updated_at: now };
 }
 
 export function insertSessionWorldStateValue(db, sessionId, worldId, patch = {}) {

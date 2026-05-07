@@ -18,7 +18,7 @@ import { getConfig } from './config.js';
 import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION, DIARY_TIME_DESCRIPTION } from '../utils/constants.js';
 import { upsertPersona } from '../db/queries/personas.js';
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
-import { upsertPersonaStateValue } from '../db/queries/persona-state-values.js';
+import { upsertPersonaStateValueByPersonaId } from '../db/queries/persona-state-values.js';
 import { getSessionIdsByWorldId } from '../db/queries/characters.js';
 import { deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
@@ -94,14 +94,14 @@ export function createWorld(data) {
     upsertWorldStateValue(world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   }
   // 创建 persona 行（带 persona data 则顺带写入，否则创建空行）
-  upsertPersona(world.id, {
+  const persona = upsertPersona(world.id, {
     name: data.persona_name ?? '',
     system_prompt: data.persona_system_prompt ?? '',
   });
   // 根据已有 persona_state_fields 初始化状态值（导入场景；新建时无字段，为 no-op）
   const personaFields = getPersonaStateFieldsByWorldId(world.id);
   for (const field of personaFields) {
-    upsertPersonaStateValue(world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
+    upsertPersonaStateValueByPersonaId(persona.id, world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   }
   return world;
 }

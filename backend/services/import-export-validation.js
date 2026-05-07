@@ -164,10 +164,22 @@ export function validateWorldImportPayload(data) {
   assertOptionalString(data.world.cover_path, 'world.cover_path', MAX_TEXT_FIELD_LENGTH);
   assertAvatarPayload(data.world.cover_base64, data.world.cover_mime, 'world');
 
-  if (data.persona !== undefined && data.persona !== null) {
-    assertPlainObject(data.persona, 'persona');
-    assertOptionalString(data.persona.name, 'persona.name', MAX_NAME_LENGTH);
-    assertOptionalString(data.persona.system_prompt, 'persona.system_prompt');
+  if (Array.isArray(data.personas)) {
+    // 新格式：personas 数组，每项携带自己的 persona_state_values
+    for (const [i, p] of data.personas.entries()) {
+      assertPlainObject(p, `personas[${i}]`);
+      assertOptionalString(p.name, `personas[${i}].name`, MAX_NAME_LENGTH);
+      assertOptionalString(p.system_prompt, `personas[${i}].system_prompt`);
+      assertStateValues(p.persona_state_values ?? [], `personas[${i}].persona_state_values`);
+    }
+  } else {
+    // 旧格式向下兼容：单 persona 对象 + 顶层 persona_state_values
+    if (data.persona !== undefined && data.persona !== null) {
+      assertPlainObject(data.persona, 'persona');
+      assertOptionalString(data.persona.name, 'persona.name', MAX_NAME_LENGTH);
+      assertOptionalString(data.persona.system_prompt, 'persona.system_prompt');
+    }
+    assertStateValues(data.persona_state_values ?? [], 'persona_state_values');
   }
 
   assertPromptEntries(data.prompt_entries ?? [], 'prompt_entries');
@@ -175,7 +187,6 @@ export function validateWorldImportPayload(data) {
   assertStateFields(data.character_state_fields ?? [], 'character_state_fields');
   assertStateFields(data.persona_state_fields ?? [], 'persona_state_fields');
   assertStateValues(data.world_state_values ?? [], 'world_state_values');
-  assertStateValues(data.persona_state_values ?? [], 'persona_state_values');
 
   assertArray(data.characters ?? [], 'characters');
   for (const [index, character] of (data.characters ?? []).entries()) {
