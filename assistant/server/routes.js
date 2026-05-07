@@ -1,83 +1,34 @@
 /**
  * 写卡助手后端路由
  *
- * POST /api/assistant/chat                   — 兼容旧版 SSE 对话（主代理 + 执行子代理）
- * POST /api/assistant/execute               — 应用提案（写入数据库）
- * POST /api/assistant/extract-characters    — 从写作轮次提取角色并自动创建角色卡（SSE）
- * POST /api/assistant/tasks                 — 通用 agent 任务入口（SSE）
- * POST /api/assistant/tasks/:taskId/answer  — 回答澄清问题（SSE）
- * POST /api/assistant/tasks/:taskId/approve-plan — 确认计划并执行（SSE）
- * POST /api/assistant/tasks/:taskId/approve-step — 确认高风险步骤（SSE）
- * GET  /api/assistant/tasks/:taskId         — 获取任务快照
+ * POST /api/assistant/extract-characters    — 从写作轮次提取角色（SSE）
+ * POST /api/assistant/confirm-characters    — 确认提取结果并创建角色卡（SSE）
+ * POST /api/assistant/agent                 — 单代理入口（SSE）
+ * POST /api/assistant/agent/:taskId/approve — 批准计划
+ * POST /api/assistant/agent/:taskId/cancel  — 取消任务
+ * GET  /api/assistant/agent/:taskId/plan-doc — 读取临时计划文档
+ * GET  /api/assistant/agent/:taskId         — 任务快照
  */
 
-import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
-import { runAgent } from './main-agent.js';
-import { READ_FILE_TOOL } from './tools/project-reader.js';
-import { createPreviewCardTool } from './tools/card-preview.js';
-import { ALL_AGENTS } from './agents/index.js';
-import { createAgentTool, buildAgentMessages } from './agent-factory.js';
-import { getWorldById, createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
-import { getCharacterById, getCharactersByWorldId, createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
-import { getOrCreatePersona, updatePersona } from '../../backend/services/personas.js';
-import { getConfig, updateConfig, getAuxLlmConfig } from '../../backend/services/config.js';
+import { getCharactersByWorldId, createCharacter } from '../../backend/services/characters.js';
+import { getConfig } from '../../backend/services/config.js';
 import {
-  createWorldPromptEntry,
   getWorldPromptEntryById,
   listWorldPromptEntries,
-  updateWorldPromptEntry,
-  deleteWorldPromptEntry,
 } from '../../backend/services/prompt-entries.js';
-import {
-  createWorldStateField,
-  listWorldStateFields,
-  updateWorldStateField,
-  deleteWorldStateField,
-} from '../../backend/services/world-state-fields.js';
-import {
-  createCharacterStateField,
-  listCharacterStateFields,
-  updateCharacterStateField,
-  deleteCharacterStateField,
-} from '../../backend/services/character-state-fields.js';
-import {
-  createPersonaStateField,
-  getPersonaStateFieldsByWorldId,
-  updatePersonaStateField,
-  deletePersonaStateField,
-} from '../../backend/services/persona-state-fields.js';
-import {
-  createCustomCssSnippet,
-  updateCustomCssSnippet,
-  deleteCustomCssSnippet,
-} from '../../backend/db/queries/custom-css-snippets.js';
-import {
-  createRegexRule,
-  updateRegexRule,
-  deleteRegexRule,
-} from '../../backend/db/queries/regex-rules.js';
-import {
-  replaceEntryConditions,
-} from '../../backend/db/queries/entry-conditions.js';
-import { createPersona as createPersonaDb } from '../../backend/db/queries/personas.js';
+import { listCharacterStateFields } from '../../backend/services/character-state-fields.js';
 import { getMessagesBySessionId, getMessageById } from '../../backend/db/queries/messages.js';
 import { addWritingSessionCharacter, getWritingSessionById } from '../../backend/db/queries/writing-sessions.js';
 import { deleteCharacter as dbDeleteCharacter } from '../../backend/db/queries/characters.js';
 import { upsertCharacterStateValue } from '../../backend/db/queries/character-state-values.js';
-import {
-  updateCharacterDefaultStateValueValidated,
-  updatePersonaDefaultStateValueValidated,
-} from '../../backend/services/state-values.js';
 import * as llm from '../../backend/llm/index.js';
-import { createLogger, formatMeta, previewJson, previewText, shouldLogRaw } from '../../backend/utils/logger.js';
-import { createTask, getTask, updateTask, appendTaskEvent } from './task-store.js';
-import { createBaseTask, planTask } from './task-planner.js';
-import { researchTask } from './task-researcher.js';
-import { executeTaskSteps } from './task-executor.js';
+import { createLogger, formatMeta } from '../../backend/utils/logger.js';
 import {
   normalizeProposal,
-  applyProposal,
   normalizeEntryOps,
   normalizeStateFieldOps,
   normalizeStateValueOps,
@@ -85,15 +36,20 @@ import {
   pickAllowed,
   deepOmit,
 } from './normalize-proposal.js';
+import * as taskStore from './task-store.js';
+import * as planDoc from './plan-doc.js';
+import { runParentAgent } from './parent-agent.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
 
-// ─── 服务端提案存储（Token → Proposal，TTL 30 分钟） ──────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ─── 服务端提案存储（保留，供 normalize-proposal 测试用） ──────────
 const proposalStore = new Map();
 const PROPOSAL_TTL_MS = 30 * 60 * 1000;
 
-// 每 10 分钟清理过期提案，防止内存泄漏
 setInterval(() => {
   const now = Date.now();
   let removed = 0;
@@ -131,98 +87,22 @@ function endSSE(res) {
   res.end();
 }
 
-function snapshotTask(task) {
-  if (!task) return null;
-  const { events: _events, ...rest } = task;
-  return rest;
-}
-
-function buildTaskEmitter(res, taskId) {
-  return (event) => {
-    const storedEvent = {
-      ...event,
-      task: snapshotTask(event.task),
-    };
-    appendTaskEvent(taskId, storedEvent);
-    sendSSE(res, event);
-  };
-}
-
-async function enrichAssistantContext(context = {}) {
-  const next = { ...context };
-  const worldId = next?.worldId ?? next?.world?.id ?? null;
-  if (worldId) {
-    try {
-      const entries = listWorldPromptEntries(worldId);
-      const worldSf = listWorldStateFields(worldId);
-      const personaSf = getPersonaStateFieldsByWorldId(worldId);
-      const charSf = listCharacterStateFields(worldId);
-      next._worldSummary = {
-        entryCount: entries.length,
-        alwaysCount: entries.filter((e) => e.trigger_type === 'always').length,
-        keywordCount: entries.filter((e) => e.trigger_type === 'keyword').length,
-        llmCount: entries.filter((e) => e.trigger_type === 'llm').length,
-        stateCount: entries.filter((e) => e.trigger_type === 'state').length,
-        worldStateFieldCount: worldSf.length,
-        personaStateFieldCount: personaSf.length,
-        characterStateFieldCount: charSf.length,
-      };
-    } catch {
-      // 摘要查询失败不阻断流程
-    }
+// 极简 prompt 加载器（仅供 /extract-characters 使用）
+// 旧版 buildAgentMessages 的简化版：按 "## 本次任务" 分割 system / user
+function buildPromptMessages(promptFileBaseName, taskContent) {
+  const filePath = path.resolve(__dirname, '../prompts', `${promptFileBaseName}.md`);
+  const raw = readFileSync(filePath, 'utf-8');
+  const TASK_SECTION = '\n## 本次任务\n';
+  const idx = raw.indexOf(TASK_SECTION);
+  if (idx !== -1) {
+    const systemPart = raw.slice(0, idx).trim();
+    const userPart = raw.slice(idx + TASK_SECTION.length).replace('{{TASK}}', taskContent).trim();
+    return [
+      { role: 'system', content: systemPart },
+      { role: 'user', content: userPart },
+    ];
   }
-  return next;
-}
-
-function classifyRiskFlags(steps) {
-  return steps
-    .filter((step) => step.riskLevel === 'high' || step.operation === 'delete')
-    .map((step) => `${step.targetType}:${step.operation}:${step.title}`);
-}
-
-function isWriteApprovalOperation(step) {
-  return step.operation === 'update' || step.operation === 'delete';
-}
-
-// 简单低风险 create 可快进；复杂写入、已有实体改删、研究阶段标记的任务都先过计划闸门
-function isDirectExecute(graph, riskFlags, research) {
-  return graph.length > 0
-    && graph.length < 3
-    && riskFlags.length === 0
-    && !research?.needsPlanApproval
-    && !graph.some(isWriteApprovalOperation);
-}
-
-async function streamTaskAnswer({ res, task, message, history = [], context = {} }) {
-  const worldId = context?.worldId ?? context?.world?.id ?? null;
-  const previewCardTool = createPreviewCardTool(context);
-  const agentTools = ALL_AGENTS.map((def) =>
-    createAgentTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
-  );
-  const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
-  const gen = runAgent(message, history, context, allTools, {
-    onToolCall: (name) => sendSSE(res, { type: 'tool_call', name, taskId: task.id }),
-  });
-
-  log.info(`task ANSWER  ${formatMeta({ taskId: task.id, worldId })}`);
-  for await (const chunk of gen) {
-    sendSSE(res, { delta: chunk, taskId: task.id });
-  }
-  updateTask(task.id, { status: 'completed' });
-  appendTaskEvent(task.id, { type: 'task_completed', taskId: task.id });
-  sendSSE(res, { type: 'task_completed', taskId: task.id });
-}
-
-function compileTaskGraph(steps = []) {
-  return steps.map((step) => ({
-    ...step,
-    status: 'pending',
-    approved: false,
-    proposal: null,
-    result: null,
-    error: null,
-    entityId: null,
-  }));
+  return [{ role: 'user', content: raw.replace('{{TASK}}', taskContent) }];
 }
 
 // ─── POST /api/assistant/extract-characters ──────────────────────────
@@ -310,7 +190,7 @@ router.post('/extract-characters', async (req, res) => {
 
     log.info(`extract-chars START  ${formatMeta({ worldId, sessionId, existingCount: existingChars.length, sfCount: stateFields.length, entryCount: contextEntries.length })}`);
 
-    const messages = buildAgentMessages('extract_characters', task);
+    const messages = buildPromptMessages('extract-characters', task);
     const config = getConfig();
     const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
     let raw = await llm.complete(messages, { temperature: 0.3, thinking_level: null, configScope });
@@ -462,421 +342,7 @@ router.post('/confirm-characters', async (req, res) => {
   endSSE(res);
 });
 
-// ─── POST /api/assistant/chat ─────────────────────────────────────
-
-router.post('/chat', async (req, res) => {
-  const { message, history = [], context = {} } = req.body;
-
-  if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ error: 'message 为必填项' });
-  }
-
-  openSSE(res);
-  const enrichedContext = await enrichAssistantContext(context);
-  const worldId = enrichedContext?.worldId ?? enrichedContext?.world?.id ?? null;
-
-  log.info(`chat START  ${formatMeta({
-    message: previewText(message, { limit: 160 }),
-    history: Array.isArray(history) ? history.length : 0,
-    worldId,
-    characterId: context?.characterId ?? context?.character?.id ?? null,
-  })}`);
-
-  // 构建按请求绑定的完整工具集
-  const previewCardTool = createPreviewCardTool(enrichedContext);
-  const agentTools = ALL_AGENTS.map((def) =>
-    createAgentTool(def, { res, proposalStore, normalizeProposal, previewCardTool }),
-  );
-  const allTools = [READ_FILE_TOOL, previewCardTool, ...agentTools];
-
-  try {
-    const gen = runAgent(message, history, enrichedContext, allTools, {
-      onToolCall: (name) => sendSSE(res, { type: 'tool_call', name }),
-    });
-    for await (const chunk of gen) {
-      sendSSE(res, { delta: chunk });
-    }
-    log.info(`chat DONE`);
-  } catch (err) {
-    log.error(`chat FAIL  ${formatMeta({ error: err.message, message: previewText(message, { limit: 120 }) })}`);
-    sendSSE(res, { type: 'error', error: err.message });
-  } finally {
-    endSSE(res);
-  }
-});
-
-router.post('/tasks', async (req, res) => {
-  const { message, history = [], context = {} } = req.body;
-  if (!message || typeof message !== 'string' || !message.trim()) {
-    return res.status(400).json({ error: 'message 为必填项' });
-  }
-
-  openSSE(res);
-  const enrichedContext = await enrichAssistantContext(context);
-  const task = createTask({
-    ...createBaseTask({ message, context: enrichedContext }),
-    context: {
-      worldId: enrichedContext?.worldId ?? enrichedContext?.world?.id ?? null,
-      characterId: enrichedContext?.characterId ?? enrichedContext?.character?.id ?? null,
-      world: enrichedContext?.world ?? null,
-      character: enrichedContext?.character ?? null,
-      config: enrichedContext?.config ?? null,
-    },
-    sourceHistory: history,
-  });
-  const emit = buildTaskEmitter(res, task.id);
-  emit({ type: 'task_created', taskId: task.id, task });
-
-  try {
-    emit({ type: 'research_started', taskId: task.id, task: updateTask(task.id, { status: 'researching' }) });
-    const research = await researchTask({ message, context: enrichedContext });
-    const researchedTask = updateTask(task.id, { research });
-    emit({ type: 'research_ready', taskId: task.id, research, task: researchedTask });
-
-    const planned = await planTask({ message, history, context: enrichedContext, research });
-    if (planned.kind === 'clarify') {
-      const next = updateTask(task.id, {
-        status: 'clarifying',
-        summary: planned.summary,
-        pendingQuestions: planned.clarificationQuestions,
-        research,
-      });
-      emit({
-        type: 'clarification_requested',
-        taskId: task.id,
-        summary: planned.summary,
-        questions: planned.clarificationQuestions,
-        task: next,
-      });
-      return;
-    }
-
-    if (planned.kind === 'answer') {
-      updateTask(task.id, { status: 'executing', summary: planned.summary, research });
-      await streamTaskAnswer({ res, task, message, history, context: enrichedContext });
-      return;
-    }
-
-    const graph = compileTaskGraph(planned.steps);
-    const riskFlags = classifyRiskFlags(graph);
-    const planPayload = {
-      summary: planned.summary,
-      assumptions: planned.assumptions,
-      researchSummary: research.summary,
-      steps: graph,
-    };
-
-    if (isDirectExecute(graph, riskFlags, research)) {
-      // 简单任务：跳过 plan_approval，直接执行；用 status='executing' 告知前端无需弹卡
-      const next = updateTask(task.id, {
-        status: 'executing',
-        summary: planned.summary,
-        plan: planPayload,
-        graph,
-        riskFlags,
-        research,
-      });
-      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
-      await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
-    } else {
-      // 复杂任务（≥3步或有高风险）：等待用户确认
-      const next = updateTask(task.id, {
-        status: 'awaiting_plan_approval',
-        summary: planned.summary,
-        plan: planPayload,
-        graph,
-        riskFlags,
-        research,
-      });
-      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
-    }
-  } catch (error) {
-    const next = updateTask(task.id, { status: 'failed', error: error.message });
-    emit({
-      type: 'task_failed',
-      taskId: task.id,
-      error: error.message,
-      task: next,
-    });
-  } finally {
-    endSSE(res);
-  }
-});
-
-router.post('/tasks/:taskId/answer', async (req, res) => {
-  const task = getTask(req.params.taskId);
-  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
-  if (task.status !== 'clarifying') return res.status(400).json({ error: '当前任务不处于待澄清状态' });
-  const { answer } = req.body;
-  if (!answer || typeof answer !== 'string' || !answer.trim()) {
-    return res.status(400).json({ error: 'answer 为必填项' });
-  }
-
-  openSSE(res);
-  const emit = buildTaskEmitter(res, task.id);
-  const clarifications = [...(task.clarifications || []), answer.trim()];
-  const mergedMessage = `${task.goal}\n\n补充信息：\n${clarifications.map((item, index) => `${index + 1}. ${item}`).join('\n')}`;
-  const nextBase = updateTask(task.id, {
-    status: 'planning',
-    clarifications,
-    pendingQuestions: [],
-  });
-  emit({
-    type: 'clarification_answered',
-    taskId: task.id,
-    answer: answer.trim(),
-    task: nextBase,
-  });
-
-  try {
-    emit({ type: 'research_started', taskId: task.id, task: nextBase });
-    const research = await researchTask({ message: mergedMessage, context: task.context });
-    const researchedTask = updateTask(task.id, { research });
-    emit({ type: 'research_ready', taskId: task.id, research, task: researchedTask });
-
-    const planned = await planTask({
-      message: mergedMessage,
-      history: task.sourceHistory || [],
-      context: task.context,
-      research,
-    });
-    if (planned.kind === 'clarify') {
-      const next = updateTask(task.id, {
-        status: 'clarifying',
-        summary: planned.summary,
-        pendingQuestions: planned.clarificationQuestions,
-        research,
-      });
-      emit({
-        type: 'clarification_requested',
-        taskId: task.id,
-        summary: planned.summary,
-        questions: planned.clarificationQuestions,
-        task: next,
-      });
-      return;
-    }
-
-    if (planned.kind === 'answer') {
-      updateTask(task.id, { status: 'executing', summary: planned.summary, research });
-      await streamTaskAnswer({ res, task, message: mergedMessage, history: task.sourceHistory || [], context: task.context });
-      return;
-    }
-
-    const graph = compileTaskGraph(planned.steps);
-    const riskFlags = classifyRiskFlags(graph);
-    const planPayload = {
-      summary: planned.summary,
-      assumptions: planned.assumptions,
-      researchSummary: research.summary,
-      steps: graph,
-    };
-
-    if (isDirectExecute(graph, riskFlags, research)) {
-      const next = updateTask(task.id, {
-        status: 'executing',
-        summary: planned.summary,
-        plan: planPayload,
-        graph,
-        riskFlags,
-        research,
-      });
-      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
-      await executeTaskSteps({ task: next, normalizeProposal, applyProposal, emit });
-    } else {
-      const next = updateTask(task.id, {
-        status: 'awaiting_plan_approval',
-        summary: planned.summary,
-        plan: planPayload,
-        graph,
-        riskFlags,
-        research,
-      });
-      emit({ type: 'plan_ready', taskId: task.id, plan: next.plan, riskFlags, task: next });
-    }
-  } catch (error) {
-    const next = updateTask(task.id, { status: 'failed', error: error.message });
-    emit({
-      type: 'task_failed',
-      taskId: task.id,
-      error: error.message,
-      task: next,
-    });
-  } finally {
-    endSSE(res);
-  }
-});
-
-router.post('/tasks/:taskId/approve-plan', async (req, res) => {
-  const task = getTask(req.params.taskId);
-  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
-  if (task.status !== 'awaiting_plan_approval') return res.status(400).json({ error: '当前任务不处于待确认计划状态' });
-
-  openSSE(res);
-  const emit = buildTaskEmitter(res, task.id);
-  const next = updateTask(task.id, { status: 'executing' });
-  emit({
-    type: 'plan_approved',
-    taskId: task.id,
-    task: next,
-  });
-
-  try {
-    await executeTaskSteps({
-      task: next,
-      normalizeProposal,
-      applyProposal,
-      emit,
-    });
-  } catch (error) {
-    updateTask(task.id, { status: 'failed', error: error.message });
-    emit({
-      type: 'task_failed',
-      taskId: task.id,
-      error: error.message,
-    });
-  } finally {
-    endSSE(res);
-  }
-});
-
-router.post('/tasks/:taskId/approve-step', async (req, res) => {
-  const task = getTask(req.params.taskId);
-  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
-  const stepId = req.body?.stepId || task.awaitingStepId;
-  const editedProposal = req.body?.editedProposal;
-  if (task.status !== 'awaiting_step_approval' || !stepId) {
-    return res.status(400).json({ error: '当前任务不处于待确认步骤状态' });
-  }
-  const step = task.graph.find((item) => item.id === stepId);
-  if (!step) return res.status(404).json({ error: '步骤不存在' });
-  if (!step.proposal) {
-    return res.status(400).json({ error: '当前步骤提案尚未生成，无法审阅确认' });
-  }
-  if (editedProposal) {
-    try {
-      const base = step.proposal;
-      step.proposal = normalizeProposal({
-        ...base,
-        explanation: typeof editedProposal.explanation === 'string' ? editedProposal.explanation : base.explanation,
-        changes: editedProposal.changes ?? base.changes,
-        entryOps: Array.isArray(editedProposal.entryOps) ? editedProposal.entryOps : base.entryOps,
-        stateFieldOps: Array.isArray(editedProposal.stateFieldOps) ? editedProposal.stateFieldOps : base.stateFieldOps,
-        stateValueOps: Array.isArray(editedProposal.stateValueOps) ? editedProposal.stateValueOps : base.stateValueOps,
-      }, {
-        type: base.type,
-        operation: base.operation,
-        entityId: base.entityId ?? null,
-      });
-    } catch (error) {
-      return res.status(400).json({ error: error.message });
-    }
-  }
-
-  openSSE(res);
-  step.approved = true;
-  step.status = 'pending';
-  const emit = buildTaskEmitter(res, task.id);
-  const next = updateTask(task.id, {
-    status: 'executing',
-    awaitingStepId: null,
-    graph: task.graph,
-  });
-  emit({
-    type: 'step_approved',
-    taskId: task.id,
-    stepId,
-    task: next,
-  });
-
-  try {
-    await executeTaskSteps({
-      task: next,
-      normalizeProposal,
-      applyProposal,
-      emit,
-      startFromStepId: stepId,
-    });
-  } catch (error) {
-    updateTask(task.id, { status: 'failed', error: error.message });
-    emit({
-      type: 'task_failed',
-      taskId: task.id,
-      error: error.message,
-    });
-  } finally {
-    endSSE(res);
-  }
-});
-
-router.post('/tasks/:taskId/cancel', (req, res) => {
-  const task = getTask(req.params.taskId);
-  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
-  const next = updateTask(task.id, { status: 'cancelled' });
-  appendTaskEvent(task.id, { type: 'task_cancelled', taskId: task.id });
-  res.json({ ok: true, task: next });
-});
-
-router.get('/tasks/:taskId', (req, res) => {
-  const task = getTask(req.params.taskId);
-  if (!task) return res.status(404).json({ error: '任务不存在或已过期' });
-  res.json(task);
-});
-
-// ─── POST /api/assistant/execute ─────────────────────────────────
-
-router.post('/execute', async (req, res) => {
-  const { token, worldRefId, editedProposal } = req.body;
-  log.info(`execute START  ${formatMeta({ token: typeof token === 'string' ? token.slice(0, 8) : null, worldRefId: worldRefId ? String(worldRefId).slice(0, 8) : null, edited: !!editedProposal })}`);
-
-  if (!token) return res.status(400).json({ error: 'token 为必填项' });
-
-  const entry = proposalStore.get(token);
-  if (!entry) return res.status(400).json({ error: '提案不存在或已过期，请重新生成' });
-  if (Date.now() > entry.expiresAt) {
-    proposalStore.delete(token);
-    return res.status(400).json({ error: '提案已过期，请重新生成' });
-  }
-  proposalStore.delete(token); // 一次性消费
-
-  // 用户编辑：以 token 锚定的 type/operation/entityId 为准，内容字段可被覆盖
-  const base = entry.proposal;
-  const effective = editedProposal
-    ? normalizeProposal({
-        ...base,
-        changes: editedProposal.changes ?? base.changes,
-        entryOps: Array.isArray(editedProposal.entryOps) ? editedProposal.entryOps : base.entryOps,
-        stateFieldOps: Array.isArray(editedProposal.stateFieldOps) ? editedProposal.stateFieldOps : base.stateFieldOps,
-        stateValueOps: Array.isArray(editedProposal.stateValueOps) ? editedProposal.stateValueOps : base.stateValueOps,
-      }, {
-        type: base.type,
-        operation: base.operation,
-        entityId: base.entityId ?? null,
-      })
-    : base;
-
-  try {
-    log.info(`execute APPLY  ${formatMeta({
-      token: token.slice(0, 8),
-      type: effective.type,
-      operation: effective.operation,
-      entityId: effective.entityId ?? null,
-      changeKeys: Object.keys(effective.changes || {}),
-      entryOps: Array.isArray(effective.entryOps) ? effective.entryOps.length : undefined,
-      stateFieldOps: Array.isArray(effective.stateFieldOps) ? effective.stateFieldOps.length : undefined,
-      stateValueOps: Array.isArray(effective.stateValueOps) ? effective.stateValueOps.length : undefined,
-      preview: shouldLogRaw('llm_raw') ? previewJson(effective) : undefined,
-    })}`);
-    const result = await applyProposal(effective, worldRefId);
-    log.info(`execute DONE  ${formatMeta({ token: token.slice(0, 8), type: effective.type, operation: effective.operation, resultKeys: result && typeof result === 'object' ? Object.keys(result) : undefined })}`);
-    res.json({ ok: true, result });
-  } catch (err) {
-    log.error(`execute FAIL  ${formatMeta({ token: token.slice(0, 8), error: err.message })}`);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── 提案执行器与归一化已移至 ./normalize-proposal.js ────────────
+// ─── 提案归一化已移至 ./normalize-proposal.js ─────────────────────
 
 export const __testables = {
   normalizeProposal,
@@ -889,10 +355,7 @@ export const __testables = {
   proposalStore,
 };
 
-// === 新单代理端点 ===
-import * as taskStore from './task-store.js';
-import * as planDoc from './plan-doc.js';
-import { runParentAgent } from './parent-agent.js';
+// === 单代理端点 ===
 
 router.post('/agent', async (req, res) => {
   const { taskId, message, context } = req.body ?? {};
