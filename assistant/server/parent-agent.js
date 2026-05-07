@@ -277,6 +277,7 @@ function buildMetaTools(task) {
         if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
         if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
         taskStore.emit(task.id, { type: 'step_started', taskId: task.id, stepId: step.id, title: step.title });
+        let outcome;
         try {
           const result = await dispatchSubAgent({
             stepId: step.id,
@@ -288,14 +289,28 @@ function buildMetaTools(task) {
           });
           if (result?.success === false) {
             taskStore.emit(task.id, { type: 'step_failed', taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
-            return { ok: true, success: false, error: result.error ?? 'unknown' };
+            outcome = { ok: true, success: false, error: result.error ?? 'unknown' };
+          } else {
+            taskStore.emit(task.id, { type: 'step_completed', taskId: task.id, stepId: step.id, result });
+            outcome = { ok: true, success: true, summary: result?.summary ?? '' };
           }
-          taskStore.emit(task.id, { type: 'step_completed', taskId: task.id, stepId: step.id, result });
-          return { ok: true, success: true, summary: result?.summary ?? '' };
         } catch (err) {
           taskStore.emit(task.id, { type: 'step_failed', taskId: task.id, stepId: step.id, error: err.message });
-          return { ok: false, error: err.message };
+          outcome = { ok: false, error: err.message };
         }
+
+        // 暂停语义闭环（spec §6.4）：step 终态写入后，检查 pendingUserMessages。
+        // 有挂起消息 → 切 paused、emit、把消息追加到 task.messages，提示 LLM 停止后续 dispatch。
+        const pending = taskStore.takeUserMessages(task.id);
+        if (pending.length > 0) {
+          taskStore.setStatus(task.id, 'paused');
+          taskStore.emit(task.id, { type: 'paused', taskId: task.id });
+          for (const m of pending) {
+            taskStore.appendMessage(task.id, { role: 'user', content: m });
+          }
+          return { ...outcome, paused: true, pendingMessages: pending };
+        }
+        return outcome;
       } catch (err) {
         return { ok: false, error: err.message };
       }

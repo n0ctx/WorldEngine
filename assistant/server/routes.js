@@ -372,10 +372,12 @@ router.post('/agent', async (req, res) => {
 
   try {
     if (task.status === 'executing') {
+      // executing 时仅入队；当前 step 跑完后 dispatch_subagent 钩子会消费 pendingMessages
+      // 并把任务切到 paused（spec §6.4）。下一轮用户消息进入 paused 分支才触发 LLM。
       taskStore.queueUserMessage(task.id, message);
-      // 不立即触发：当前 step 跑完 executor 自己会切 paused 并喂 pendingMessages
-      return; // 保持连接
+      return; // 保持 SSE 连接
     }
+    // planning / awaiting_approval / clarifying / paused 都直接走父代理
     await runParentAgent(task, message);
   } catch (err) {
     res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);

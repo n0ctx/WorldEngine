@@ -3,6 +3,26 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-07 feat(assistant): Phase 9 暂停语义闭环
+
+**动机**：spec §6.4 要求 executing 中收到的新用户消息能够触发暂停 → 由父代理基于"修改意见"调整未完成步骤 → 用户再次 /approve 续派。Phase 7 已经实现 `queueUserMessage` 与 `pendingUserMessages` 数据结构，Phase 9 补齐父代理侧的消费钩子和提示词约束。
+
+**改动**
+
+- `assistant/server/parent-agent.js`：`dispatch_subagent` 工具的 execute 重构为先把 step 终态记进 `outcome`，再调 `taskStore.takeUserMessages(task.id)`；若有挂起消息则切 `paused`、emit `paused` 事件、把消息追加到 `task.messages`，并在 tool result 上透传 `paused: true` + `pendingMessages` 让 LLM 立即停止后续 dispatch。成功 / 失败 / 异常三个分支都会经过这层闭环。
+- `assistant/server/routes.js` `/agent` 端点：注释更新，明确仅 `executing` 早返；`paused / clarifying / awaiting_approval / planning` 都直接走 `runParentAgent`。
+- `assistant/prompts/parent-agent.md`：在"暂停（spec §6.4）"段落末尾追加一句关于 `paused: true` tool result 的处理指引，避免 LLM 看到 paused 标记后继续派发。
+
+**验证**
+
+- `node --check assistant/server/parent-agent.js && node --check assistant/server/routes.js`
+- `cd backend && npm run dev` 启动 4s 检查，日志干净（`SERVER_READY:3000`）
+- 集成测试留待 Phase 10。
+
+**锁定文件**：未触碰 `prompts/assembler.js` / `utils/constants.js` / `db/schema.js` / `store/index.js`；`task-store.js` 已具备 queue/take API，无需改动。
+
+**残留**：暂停后若用户输入触发新一轮 LLM 调用前正好碰到 dispatch 钩子内的 race（双客户端同时 POST），`pendingUserMessages` 仍按 FIFO 收敛，无重复消费风险；前端 SSE 暂停态展示由 Phase 8 提供。
+
 ## 2026-05-06 fix(assistant): 规划器对确定性错误自动修复，避免空耗 3 次重试
 
 **动机**：日志统计显示 `as-plan` 重试三连失败的高频原因都是机械错误：① `dependsOn:["1"]` 写裸数字（应为 `"step-1"`）；② `delete` / 含"清空/重置"关键词的步骤 `riskLevel` 漏标 `high`；③ `operation:"preview"|"read"|"query"` 这种不存在的动作。前两类纯属格式问题，让模型重写一遍 JSON 只是浪费 token；第三类是规划意图错误，需要让模型看到自己的输出再纠正。
