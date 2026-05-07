@@ -3,6 +3,8 @@
 **本地优先的 AI 角色扮演引擎**  
 状态驱动叙事 · 分层记忆召回 · 动态提示词注入 · Chat / Writing 双模式
 
+![书架界面](docs/images/bookshelf.png)
+
 ---
 
 ## 为什么不用普通 AI 聊天？
