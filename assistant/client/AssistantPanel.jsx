@@ -7,7 +7,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
-import { streamAgent, approveTask, cancelTask } from './api.js';
+import {
+  streamAgent,
+  approveTask,
+  cancelTask,
+  truncateFrom as apiTruncateFrom,
+  deleteMessage as apiDeleteMessage,
+} from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
 import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
@@ -56,30 +62,89 @@ export default function AssistantPanel() {
     return context;
   }, [currentWorldId, currentCharacterId]);
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
-    if (!text) return;
-    setInput('');
-    pushUserMessage(text);
-    const context = await buildContext();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    try {
-      await streamAgent({
-        taskId,
-        message: text,
-        context,
-        onEvent: ingestEvent,
-        signal: ctrl.signal,
-      });
-    } catch (err) {
-      if (err?.name !== 'AbortError') {
-        ingestEvent({ type: 'task_failed', error: err?.message || '请求失败' });
+  const handleSend = useCallback(
+    async (overrideText) => {
+      const useOverride = typeof overrideText === 'string';
+      const text = (useOverride ? overrideText : input).trim();
+      if (!text) return;
+      if (!useOverride) setInput('');
+      const messageId = `msg-${
+        globalThis.crypto?.randomUUID?.().slice(0, 8) ??
+        Math.random().toString(36).slice(2, 10)
+      }`;
+      pushUserMessage(text, messageId);
+      const context = await buildContext();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      try {
+        await streamAgent({
+          taskId,
+          message: text,
+          messageId,
+          context,
+          onEvent: ingestEvent,
+          signal: ctrl.signal,
+        });
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          ingestEvent({ type: 'task_failed', error: err?.message || '请求失败' });
+        }
+      } finally {
+        if (abortRef.current === ctrl) abortRef.current = null;
       }
-    } finally {
-      if (abortRef.current === ctrl) abortRef.current = null;
-    }
-  }, [input, taskId, buildContext, ingestEvent, pushUserMessage]);
+    },
+    [input, taskId, buildContext, ingestEvent, pushUserMessage],
+  );
+
+  const handleEdit = useCallback(
+    async (msgId, newContent) => {
+      if (!taskId || !msgId) return;
+      try {
+        await apiTruncateFrom(taskId, msgId);
+      } catch (err) {
+        ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
+        return;
+      }
+      useAssistantStore.getState().truncateFromId(msgId);
+      await handleSend(newContent);
+    },
+    [taskId, ingestEvent, handleSend],
+  );
+
+  const handleDelete = useCallback(
+    async (msgId) => {
+      if (!taskId || !msgId) return;
+      try {
+        await apiDeleteMessage(taskId, msgId);
+      } catch (err) {
+        ingestEvent({ type: 'task_failed', error: err?.message || '删除失败' });
+        return;
+      }
+      useAssistantStore.getState().deleteMessage(msgId);
+    },
+    [taskId, ingestEvent],
+  );
+
+  const handleRegenerate = useCallback(
+    async (assistantMsgId) => {
+      if (!taskId || !assistantMsgId) return;
+      const msgs = useAssistantStore.getState().messages;
+      const idx = msgs.findIndex((m) => m.id === assistantMsgId);
+      if (idx <= 0) return;
+      const prev = msgs[idx - 1];
+      if (prev?.role !== 'user' || !prev.content) return;
+      // 截断到 prev.id（含），既丢掉 assistant 又丢掉对应 user，避免后续重发造成重复
+      try {
+        await apiTruncateFrom(taskId, prev.id);
+      } catch (err) {
+        ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
+        return;
+      }
+      useAssistantStore.getState().truncateFromId(prev.id);
+      await handleSend(prev.content);
+    },
+    [taskId, ingestEvent, handleSend],
+  );
 
   const handleApprove = useCallback(() => {
     if (!taskId) return;
@@ -145,7 +210,12 @@ export default function AssistantPanel() {
 
         {/* 消息流 */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <MessageList messages={messages} />
+          <MessageList
+            messages={messages}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onRegenerate={handleRegenerate}
+          />
           {planDoc && (
             <div className="flex-shrink-0 border-t border-black/5">
               <PlanDocViewer content={planDoc} />

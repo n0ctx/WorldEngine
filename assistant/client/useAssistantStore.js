@@ -62,7 +62,12 @@ export const useAssistantStore = create(
             case 'task_cancelled':
               return { ...s, status: 'cancelled', planDoc: '' };
             case 'delta':
-              return { ...s, messages: appendDelta(s.messages, evt.delta) };
+              return { ...s, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
+            case 'user_message':
+              // 服务端落库后回传 messageId；把最近一条无 id 的 user 消息补 id（一般本地已带 id 时直接命中）
+              return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
+            case 'messages_changed':
+              return { ...s, messages: Array.isArray(evt.messages) ? evt.messages : s.messages };
             case 'step_started':
               return { ...s, currentStepId: evt.stepId };
             case 'step_completed':
@@ -74,12 +79,35 @@ export const useAssistantStore = create(
                 error: `Step ${evt.stepId} 失败：${evt.error}`,
               };
             default:
+              if (evt.done === true) {
+                // SSE 末尾的 { done: true } 帧：清除最后一条 assistant 的 streaming 标志，使 ActionBar 可显示
+                return { ...s, messages: clearStreamingFlag(s.messages) };
+              }
               return s;
           }
         }),
 
-      pushUserMessage: (content) =>
-        set((s) => ({ ...s, messages: [...s.messages, { role: 'user', content }] })),
+      pushUserMessage: (content, id) =>
+        set((s) => ({
+          ...s,
+          messages: [
+            ...s.messages,
+            { id: id ?? `msg-${cryptoRandomId()}`, role: 'user', content },
+          ],
+        })),
+
+      deleteMessage: (id) =>
+        set((s) => ({ ...s, messages: s.messages.filter((m) => m.id !== id) })),
+
+      truncateFromId: (id) =>
+        set((s) => {
+          const idx = s.messages.findIndex((m) => m.id === id);
+          if (idx < 0) return s;
+          return { ...s, messages: s.messages.slice(0, idx) };
+        }),
+
+      replaceMessages: (msgs) =>
+        set((s) => ({ ...s, messages: Array.isArray(msgs) ? msgs : s.messages })),
 
       // ─── 面板抽屉显隐（不属于任务状态机） ──────────────────────
       isOpen: false,
@@ -95,15 +123,52 @@ export const useAssistantStore = create(
   ),
 );
 
-function appendDelta(messages, delta) {
+function cryptoRandomId() {
+  try {
+    return globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+  } catch {
+    return Math.random().toString(36).slice(2, 10);
+  }
+}
+
+function appendDelta(messages, delta, messageId) {
   const last = messages[messages.length - 1];
   if (last && last.role === 'assistant' && last.streaming) {
     return [
       ...messages.slice(0, -1),
-      { ...last, content: (last.content || '') + delta },
+      { ...last, id: messageId ?? last.id, content: (last.content || '') + delta },
     ];
   }
-  return [...messages, { role: 'assistant', content: delta, streaming: true }];
+  return [
+    ...messages,
+    {
+      id: messageId ?? `msg-${cryptoRandomId()}`,
+      role: 'assistant',
+      content: delta,
+      streaming: true,
+    },
+  ];
 }
 
-export const __testables = { appendDelta };
+function adoptUserMessageId(messages, messageId) {
+  if (!messageId) return messages;
+  // 若已存在该 id 直接返回；否则把最近一条无 id 的 user 消息补 id
+  if (messages.some((m) => m.id === messageId)) return messages;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'user' && !messages[i].id) {
+      const next = messages.slice();
+      next[i] = { ...messages[i], id: messageId };
+      return next;
+    }
+  }
+  return messages;
+}
+
+function clearStreamingFlag(messages) {
+  if (messages.length === 0) return messages;
+  const last = messages[messages.length - 1];
+  if (!last.streaming) return messages;
+  return [...messages.slice(0, -1), { ...last, streaming: false }];
+}
+
+export const __testables = { appendDelta, adoptUserMessageId, clearStreamingFlag };

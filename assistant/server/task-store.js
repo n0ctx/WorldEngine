@@ -49,7 +49,28 @@ export function deleteTask(id) {
 
 export function appendMessage(id, msg) {
   const t = tasks.get(id);
-  if (t) t.messages.push(msg);
+  if (!t) return null;
+  const stamped = { id: msg?.id ?? `msg-${randomUUID().slice(0, 8)}`, ...msg };
+  t.messages.push(stamped);
+  return stamped;
+}
+
+export function deleteMessage(taskId, messageId) {
+  const t = tasks.get(taskId);
+  if (!t) return false;
+  const idx = t.messages.findIndex((m) => m.id === messageId);
+  if (idx < 0) return false;
+  t.messages.splice(idx, 1);
+  return true;
+}
+
+export function truncateFrom(taskId, messageId) {
+  const t = tasks.get(taskId);
+  if (!t) return -1;
+  const idx = t.messages.findIndex((m) => m.id === messageId);
+  if (idx < 0) return -1;
+  const dropped = t.messages.splice(idx);
+  return dropped.length;
 }
 
 export function queueUserMessage(id, msg) {

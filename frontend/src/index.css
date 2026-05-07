@@ -164,6 +164,18 @@ body {
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
+/* 写卡助手消息气泡入场动效 */
+@keyframes we-bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 写卡助手流式光标闪烁 */
+@keyframes we-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
 .we-app-root {
   display: flex;
   flex-direction: column;

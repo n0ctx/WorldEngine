@@ -358,7 +358,7 @@ export const __testables = {
 // === 单代理端点 ===
 
 router.post('/agent', async (req, res) => {
-  const { taskId, message, context } = req.body ?? {};
+  const { taskId, message, messageId, context } = req.body ?? {};
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders?.();
 
@@ -385,7 +385,7 @@ router.post('/agent', async (req, res) => {
       return; // 保持 SSE 连接
     }
     // planning / awaiting_approval / clarifying / paused 都直接走父代理
-    await runParentAgent(task, message);
+    await runParentAgent(task, message, { userMessageId: messageId });
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
@@ -417,6 +417,36 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   taskStore.setStatus(task.id, 'cancelled');
   taskStore.emit(task.id, { type: 'task_cancelled', taskId: task.id });
   res.json({ ok: true });
+});
+
+router.post('/agent/:taskId/truncate', (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'not found' });
+  if (task.status === 'executing') {
+    log.warn(`/agent/truncate REJECT  ${formatMeta({ taskId: task.id, status: task.status })}`);
+    return res.status(400).json({ error: 'cannot truncate while executing' });
+  }
+  const messageId = req.body?.messageId;
+  const dropped = taskStore.truncateFrom(task.id, messageId);
+  if (dropped < 0) return res.status(404).json({ error: 'message not found' });
+  log.info(`/agent/truncate  ${formatMeta({ taskId: task.id, messageId, dropped })}`);
+  taskStore.emit(task.id, { type: 'messages_changed', taskId: task.id, messages: task.messages });
+  res.json({ ok: true, messages: task.messages });
+});
+
+router.post('/agent/:taskId/delete', (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'not found' });
+  if (task.status === 'executing') {
+    log.warn(`/agent/delete REJECT  ${formatMeta({ taskId: task.id, status: task.status })}`);
+    return res.status(400).json({ error: 'cannot delete while executing' });
+  }
+  const messageId = req.body?.messageId;
+  const ok = taskStore.deleteMessage(task.id, messageId);
+  if (!ok) return res.status(404).json({ error: 'message not found' });
+  log.info(`/agent/delete  ${formatMeta({ taskId: task.id, messageId })}`);
+  taskStore.emit(task.id, { type: 'messages_changed', taskId: task.id, messages: task.messages });
+  res.json({ ok: true, messages: task.messages });
 });
 
 router.get('/agent/:taskId/plan-doc', async (req, res) => {

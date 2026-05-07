@@ -386,7 +386,7 @@ function buildContextBlock(task, planDocContent) {
   ].join('\n');
 }
 
-export async function runParentAgent(task, userInput) {
+export async function runParentAgent(task, userInput, opts = {}) {
   if (!task) throw new Error('runParentAgent: task is required');
 
   // sentinel：/approve 触发执行循环
@@ -395,7 +395,14 @@ export async function runParentAgent(task, userInput) {
     ? '（系统）用户已确认计划，请按 plan doc 顺序派发未完成步骤。'
     : String(userInput ?? '');
 
-  taskStore.appendMessage(task.id, { role: 'user', content: visibleUserInput });
+  const stampedUser = taskStore.appendMessage(task.id, {
+    id: opts.userMessageId,
+    role: 'user',
+    content: visibleUserInput,
+  });
+  if (stampedUser) {
+    taskStore.emit(task.id, { type: 'user_message', taskId: task.id, messageId: stampedUser.id });
+  }
 
   const systemPrompt = await loadSystemPrompt();
   const planDocContent = await planDoc.readPlanDoc(task.id).catch(() => '');
@@ -455,8 +462,8 @@ export async function runParentAgent(task, userInput) {
   }
 
   if (finalText) {
-    taskStore.emit(task.id, { type: 'delta', delta: finalText });
-    taskStore.appendMessage(task.id, { role: 'assistant', content: finalText });
+    const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: finalText });
+    taskStore.emit(task.id, { type: 'delta', delta: finalText, messageId: stamped?.id });
   }
   taskStore.emit(task.id, { type: 'done', done: true });
 }

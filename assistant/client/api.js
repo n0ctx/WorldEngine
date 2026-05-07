@@ -20,11 +20,11 @@ const BASE = '/api/assistant';
  * @param {(evt:object)=>void} args.onEvent 每条事件回调
  * @param {AbortSignal?} args.signal 外部 abort
  */
-export async function streamAgent({ taskId, message, context, onEvent, signal }) {
+export async function streamAgent({ taskId, message, messageId, context, onEvent, signal }) {
   const res = await fetch(`${BASE}/agent`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ taskId, message, context }),
+    body: JSON.stringify({ taskId, message, messageId, context }),
     signal,
   });
   if (!res.ok || !res.body) {
@@ -69,6 +69,26 @@ export async function approveTask(taskId) {
 
 export async function cancelTask(taskId) {
   await fetch(`${BASE}/agent/${taskId}/cancel`, { method: 'POST' });
+}
+
+export async function truncateFrom(taskId, messageId) {
+  const r = await fetch(`${BASE}/agent/${taskId}/truncate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId }),
+  });
+  if (!r.ok) throw new Error(`truncate failed: ${r.status}`);
+  return r.json();
+}
+
+export async function deleteMessage(taskId, messageId) {
+  const r = await fetch(`${BASE}/agent/${taskId}/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId }),
+  });
+  if (!r.ok) throw new Error(`delete failed: ${r.status}`);
+  return r.json();
 }
 
 export async function fetchPlanDoc(taskId) {
