@@ -59,6 +59,9 @@ export { default as CharacterPreviewModal } from './writing/CharacterPreviewModa
 // — Session 专属 —
 export { default as LongTermMemoryModal } from './session/LongTermMemoryModal';
 
+// — Assistant 专属 —
+export { default as PlanDocViewer }       from './assistant/PlanDocViewer';
+
 // — Settings 配置块 —
 export { default as AuxLlmBlock }         from './settings/AuxLlmBlock';
 export { default as AssistantModelBlock } from './settings/AssistantModelBlock';
