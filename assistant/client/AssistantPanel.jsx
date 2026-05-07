@@ -26,6 +26,8 @@ const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
+  const width = useAssistantStore((s) => s.width);
+  const setWidth = useAssistantStore((s) => s.setWidth);
   const close = useAssistantStore((s) => s.close);
   const taskId = useAssistantStore((s) => s.taskId);
   const status = useAssistantStore((s) => s.status);
@@ -63,17 +65,23 @@ export default function AssistantPanel() {
   }, [currentWorldId, currentCharacterId]);
 
   const handleSend = useCallback(
-    async (overrideText) => {
+    async (overrideText, opts = {}) => {
       const useOverride = typeof overrideText === 'string';
       const text = (useOverride ? overrideText : input).trim();
       if (!text) return;
       if (!useOverride) setInput('');
-      const messageId = `msg-${
-        globalThis.crypto?.randomUUID?.().slice(0, 8) ??
-        Math.random().toString(36).slice(2, 10)
-      }`;
-      pushUserMessage(text, messageId);
+      const messageId =
+        opts.messageId ??
+        `msg-${
+          globalThis.crypto?.randomUUID?.().slice(0, 8) ??
+          Math.random().toString(36).slice(2, 10)
+        }`;
+      if (!opts.skipPush) pushUserMessage(text, messageId);
       const context = await buildContext();
+      // 关键：开新流前先 abort 上一条尚未关闭的 SSE 连接，
+      // 否则旧的 fetch reader 仍订阅 sseClients，会和新流并行收到同一份 delta
+      // → 文本字符级双写（"你你好好…"）
+      abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       try {
@@ -99,14 +107,20 @@ export default function AssistantPanel() {
   const handleEdit = useCallback(
     async (msgId, newContent) => {
       if (!taskId || !msgId) return;
+      // 先 abort 上一条仍挂着的 SSE：truncate 路由会广播 messages_changed
+      // 给所有已订阅 sseClients 的连接，旧 fetch 收到后会用服务端"已截断"的
+      // 消息数组覆盖本地 store，把刚 replaceTailWithUser 写入的新 user 消息吞掉
+      abortRef.current?.abort?.();
       try {
         await apiTruncateFrom(taskId, msgId);
       } catch (err) {
         ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
         return;
       }
-      useAssistantStore.getState().truncateFromId(msgId);
-      await handleSend(newContent);
+      // 复用原 messageId：让 React 以同 key 复用 user 气泡 DOM，避免
+      // unmount→remount 重新触发 we-bubble-in 入场动画导致的"页面刷新感"
+      useAssistantStore.getState().replaceTailWithUser(msgId, newContent, msgId);
+      await handleSend(newContent, { skipPush: true, messageId: msgId });
     },
     [taskId, ingestEvent, handleSend],
   );
@@ -133,6 +147,9 @@ export default function AssistantPanel() {
       if (idx <= 0) return;
       const prev = msgs[idx - 1];
       if (prev?.role !== 'user' || !prev.content) return;
+      // 先 abort 上一条仍挂着的 SSE（同 handleEdit 注释），否则 truncate 广播
+      // messages_changed 给旧 fetch，会把新 user 消息从本地 store 中吞掉
+      abortRef.current?.abort?.();
       // 截断到 prev.id（含），既丢掉 assistant 又丢掉对应 user，避免后续重发造成重复
       try {
         await apiTruncateFrom(taskId, prev.id);
@@ -140,8 +157,11 @@ export default function AssistantPanel() {
         ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
         return;
       }
-      useAssistantStore.getState().truncateFromId(prev.id);
-      await handleSend(prev.content);
+      // 原子替换：单次 set 完成"丢尾 + push 新 user"，避免中间空帧引起页面闪烁。
+      // 复用 prev.id 作为新消息 id：React 以同 key 复用 user 气泡 DOM，
+      // 避免 unmount→remount 触发 we-bubble-in 入场动画造成的"页面刷新感"。
+      useAssistantStore.getState().replaceTailWithUser(prev.id, prev.content, prev.id);
+      await handleSend(prev.content, { skipPush: true, messageId: prev.id });
     },
     [taskId, ingestEvent, handleSend],
   );
@@ -163,6 +183,39 @@ export default function AssistantPanel() {
   }, [reset]);
 
   const inputDisabled = TERMINAL_STATUSES.has(status);
+  const lastMsg = messages[messages.length - 1];
+  const pendingAssistant =
+    !!lastMsg &&
+    lastMsg.role === 'user' &&
+    !TERMINAL_STATUSES.has(status);
+
+  // 左边沿拖拽改宽：监听器绑在 document 上，确保 pointer 移出把手后仍能响应
+  const startResize = useCallback(
+    (e) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startW = width;
+      const targetEl = e.currentTarget;
+      try { targetEl.setPointerCapture?.(e.pointerId); } catch { /* 不支持时由 document 监听器兜底 */ }
+      const prevUserSelect = document.body.style.userSelect;
+      document.body.style.userSelect = 'none';
+      const onMove = (ev) => {
+        // 抽屉在右侧、把手在左边沿：往左拖（clientX 减小）应放大宽度
+        setWidth(startW + (startX - ev.clientX));
+      };
+      const onUp = (ev) => {
+        document.body.style.userSelect = prevUserSelect;
+        try { targetEl.releasePointerCapture?.(ev.pointerId); } catch { /* ignore */ }
+        document.removeEventListener('pointermove', onMove);
+        document.removeEventListener('pointerup', onUp);
+        document.removeEventListener('pointercancel', onUp);
+      };
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onUp);
+      document.addEventListener('pointercancel', onUp);
+    },
+    [width, setWidth],
+  );
 
   return (
     <>
@@ -176,10 +229,21 @@ export default function AssistantPanel() {
       )}
       <aside
         aria-hidden={!isOpen}
-        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex w-[400px] flex-col border-l border-black/10 bg-[var(--we-paper-base)] shadow-2xl transition-transform duration-200 ease-out ${
+        style={{ width: `${width}px` }}
+        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex flex-col border-l border-black/10 bg-[var(--we-paper-base)] shadow-2xl transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
+        {/* 左边沿拖拽手柄：4px 命中区，hover 显示 1px 朱砂线 */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="拖动调整助手宽度"
+          onPointerDown={startResize}
+          className="group absolute -left-1 top-0 z-10 h-full w-2 cursor-ew-resize touch-none"
+        >
+          <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-transparent transition-colors duration-150 group-hover:bg-[var(--we-vermilion)]/40" />
+        </div>
         {/* 标题栏 */}
         <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-paper-aged)] px-3">
           <span
@@ -215,6 +279,7 @@ export default function AssistantPanel() {
             onEdit={handleEdit}
             onDelete={handleDelete}
             onRegenerate={handleRegenerate}
+            pending={pendingAssistant}
           />
           {planDoc && (
             <div className="flex-shrink-0 border-t border-black/5">

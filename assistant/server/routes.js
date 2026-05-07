@@ -376,19 +376,44 @@ router.post('/agent', async (req, res) => {
 
   log.info(`/agent  ${formatMeta({ taskId: task.id, status: task.status, isNew, msgChars: (message ?? '').length })}`);
 
+  // executing 分支会把 res 留作长连接订阅后续 step 事件，不主动结束；
+  // 其余分支跑完 runParentAgent 后必须主动 res.end()，
+  // 否则旧 fetch 一直挂在 reader.read()，下一次 send/regen 会出现多客户端订阅
+  // 同一份 emit 的并发写入（"你你好好"字符级双写）以及 messages_changed 广播
+  // 误覆盖本地 store 等竞态。
+  let keepAlive = false;
   try {
     if (task.status === 'executing') {
       // executing 时仅入队；当前 step 跑完后 dispatch_subagent 钩子会消费 pendingMessages
       // 并把任务切到 paused（spec §6.4）。下一轮用户消息进入 paused 分支才触发 LLM。
       taskStore.queueUserMessage(task.id, message);
       log.info(`/agent QUEUE  ${formatMeta({ taskId: task.id, queueSize: task.pendingUserMessages.length })}`);
-      return; // 保持 SSE 连接
+      keepAlive = true; // 保持 SSE 连接
+      return;
     }
     // planning / awaiting_approval / clarifying / paused 都直接走父代理
     await runParentAgent(task, message, { userMessageId: messageId });
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
-    res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
+    if (!res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
+    }
+  } finally {
+    // 关闭策略：
+    // - 直接对话回复（status 仍是 planning，本轮 runParentAgent 已 emit done）→ res.end()
+    // - 终态（completed / failed / cancelled）→ res.end()
+    // - awaiting_approval / paused / executing：仍需等用户 /approve 或后续 step 事件
+    //   通过本连接广播，保留长连接，依赖客户端 abort（handleSend / handleRegenerate
+    //   / handleEdit 起新流前会主动 abort 上一条）解订阅
+    const finalStatus = task.status;
+    const longLived =
+      finalStatus === 'awaiting_approval' ||
+      finalStatus === 'paused' ||
+      finalStatus === 'executing';
+    if (!keepAlive && !longLived && !res.writableEnded) {
+      taskStore.detachSse(task.id, res);
+      res.end();
+    }
   }
 });
 

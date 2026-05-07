@@ -176,6 +176,24 @@ body {
   51%, 100% { opacity: 0; }
 }
 
+/* 写卡助手流式光标——平滑脉冲（取代 step-end 硬切换，避免视觉鬼畜） */
+@keyframes we-stream-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1;    }
+}
+
+/* 流式气泡末尾光标：贴在最后一个块级子元素的行尾，不会换行另起 */
+.we-stream-bubble > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--we-vermilion);
+  animation: we-stream-pulse 1.2s ease-in-out infinite;
+}
+
 .we-app-root {
   display: flex;
   flex-direction: column;

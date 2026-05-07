@@ -605,6 +605,9 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 - **暂停语义（spec §6.4）**：`executing` 期间用户消息 enqueue 到 `task.pendingUserMessages`，不打断当前 step；step 跑完后父代理 `dispatch_subagent` 工具内调用 `taskStore.takeUserMessages()`，若有挂起消息则切 `paused`、emit `paused` 并把消息追加到 `task.messages`，tool result 上透传 `paused: true` 让 LLM 立即停止后续派发；父代理随后 `update_plan_doc` 调整未完成步骤，等用户再次 `/approve` 续派。
 - **SSE 事件清单（16 类）**：`delta`（自批 A 起携带 `messageId`，标记该流式气泡服务端落库后的稳定 id）/ `thinking` / `user_message`（用户消息落库后回传服务端 `messageId`，前端用于补 id）/ `messages_changed`（truncate / delete 后推送全量 messages）/ `plan_doc_updated` / `awaiting_approval` / `plan_approved` / `step_started` / `step_completed` / `step_failed` / `paused` / `task_completed` / `task_failed` / `task_cancelled` / `done` / `error`。
 - **稳定 messageId**：`task-store.appendMessage` 为每条消息打 `id`（调用方传入或 `msg-<uuid8>`）；前端在 `streamAgent` 调用时即生成 user 消息 id 一并 POST，使 truncate / delete 端点能直接用同一 id 操作；assistant 终稿落库后通过 `delta` 事件回传服务端 id，前端覆盖到流式气泡上。
+- **SSE 关闭时机**（`/api/assistant/agent` finally 分支判定 `task.status`）：
+  - `planning`（直接对话回复完成）/ `completed` / `failed` / `cancelled` → `detachSse` + `res.end()`，客户端 `reader.read()` 收到 EOF 后 `streamAgent` 自然 resolve；
+  - `awaiting_approval` / `paused` / `executing` → 保留长连接，等用户 `/approve` 或后续 step 事件通过本连接广播；客户端 `handleSend` / `handleRegenerate` / `handleEdit` 起新流前会主动 `abortRef.current.abort()` 触发浏览器断流，Node `res.on('close')` 进而 `detachSse`，避免旧/新连接并发订阅同一份 `emit`（否则会出现 `delta` 字符级双写、`messages_changed` 广播误覆盖本地 store 等竞态）。
 - **落库安全边界**：所有写操作（包括子代理与父代理 simple-mode 直 apply）一律先过 `normalizeProposal()`（`assistant/server/normalize-proposal.js`），再交给 `applyProposal()` 调资源域服务；契约失败抛错后由调用方决定 retry 或上报。
 
 详细字段、proposal schema、operation 约束、知识文件分工见设计文档 `docs/superpowers/specs/2026-05-07-assistant-redesign-design.md` 与 `assistant/knowledge/CONTRACT.md`。

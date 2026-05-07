@@ -35,22 +35,26 @@
 .we-chat-area,
 .we-settings-body,
 .we-persona-drawer-body,
-.we-edit-panel-overlay {
+.we-edit-panel-overlay,
+.we-assistant-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--we-paper-shadow) transparent;
 }
 .we-chat-area::-webkit-scrollbar,
 .we-settings-body::-webkit-scrollbar,
 .we-persona-drawer-body::-webkit-scrollbar,
-.we-edit-panel-overlay::-webkit-scrollbar { width: 4px; }
+.we-edit-panel-overlay::-webkit-scrollbar,
+.we-assistant-scroll::-webkit-scrollbar { width: 4px; }
 .we-chat-area::-webkit-scrollbar-thumb,
 .we-settings-body::-webkit-scrollbar-thumb,
 .we-persona-drawer-body::-webkit-scrollbar-thumb,
-.we-edit-panel-overlay::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
+.we-edit-panel-overlay::-webkit-scrollbar-thumb,
+.we-assistant-scroll::-webkit-scrollbar-thumb { background: var(--we-paper-shadow); border-radius: var(--we-radius-full); }
 .we-chat-area::-webkit-scrollbar-track,
 .we-settings-body::-webkit-scrollbar-track,
 .we-persona-drawer-body::-webkit-scrollbar-track,
-.we-edit-panel-overlay::-webkit-scrollbar-track { background: transparent; }
+.we-edit-panel-overlay::-webkit-scrollbar-track,
+.we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .we-prose-message-list {
   max-width: 1100px;

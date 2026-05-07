@@ -158,7 +158,7 @@ function UserMessage({ msg, onEdit, onDelete }) {
 
   return (
     <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-end">
-      <div className={editing ? 'w-[85%]' : 'group max-w-[80%]'}>
+      <div className={editing ? 'w-[85%]' : 'group flex max-w-[80%] flex-col items-end'}>
         {editing ? (
           <div>
             <textarea
@@ -210,7 +210,11 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
   return (
     <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
       <div className="group max-w-[90%]">
-        <div className="rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)]">
+        <div
+          className={`rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] ${
+            msg.streaming && msg.content ? 'we-stream-bubble' : ''
+          }`}
+        >
           {msg.streaming && !msg.content ? (
             <div className="we-typing-dots">
               <span className="typing-dot" />
@@ -218,15 +222,7 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
               <span className="typing-dot" />
             </div>
           ) : (
-            <>
-              <SimpleMarkdown content={msg.content} />
-              {msg.streaming && (
-                <span
-                  aria-hidden="true"
-                  className="ml-0.5 inline-block h-3.5 w-[7px] align-middle bg-[var(--we-vermilion)] animate-[we-blink_0.8s_step-end_infinite]"
-                />
-              )}
-            </>
+            <SimpleMarkdown content={msg.content} />
           )}
         </div>
         {!msg.streaming && (
@@ -253,7 +249,21 @@ function ErrorMessage({ msg }) {
   );
 }
 
-export default function MessageList({ messages, onEdit, onDelete, onRegenerate }) {
+function PendingBubble() {
+  return (
+    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
+      <div className="rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2">
+        <div className="we-typing-dots" aria-label="助手正在思考">
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -263,6 +273,10 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate }
     }
     prevCountRef.current = messages.length;
   }, [messages]);
+
+  useEffect(() => {
+    if (pending) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [pending]);
 
   if (messages.length === 0) {
     return (
@@ -281,7 +295,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate }
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-3 py-3">
+    <div className="we-assistant-scroll flex-1 overflow-y-auto px-3 py-3">
       {messages.map((msg, idx) => {
         const key = msg.id || `${msg.role}-${idx}`;
         if (msg.role === 'user') {
@@ -300,6 +314,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate }
         if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
         return null;
       })}
+      {pending && <PendingBubble />}
       <div ref={bottomRef} />
     </div>
   );

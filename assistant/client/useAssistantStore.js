@@ -106,19 +106,37 @@ export const useAssistantStore = create(
           return { ...s, messages: s.messages.slice(0, idx) };
         }),
 
+      // 重新生成 / 重发：原子地"截断到 prevId 并立即用同 id-不同 newId 的 user 消息替换尾部"。
+      // 单次 set，避免 truncate→render(空)→push→render(填回) 的中间空帧导致页面闪烁跳动。
+      replaceTailWithUser: (prevId, content, id) =>
+        set((s) => {
+          const idx = s.messages.findIndex((m) => m.id === prevId);
+          if (idx < 0) return s;
+          return {
+            ...s,
+            messages: [
+              ...s.messages.slice(0, idx),
+              { id, role: 'user', content },
+            ],
+          };
+        }),
+
       replaceMessages: (msgs) =>
         set((s) => ({ ...s, messages: Array.isArray(msgs) ? msgs : s.messages })),
 
-      // ─── 面板抽屉显隐（不属于任务状态机） ──────────────────────
+      // ─── 面板抽屉显隐 + 宽度（不属于任务状态机） ──────────────
       isOpen: false,
+      width: 400,
       toggle: () => set((s) => ({ isOpen: !s.isOpen })),
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
+      setWidth: (w) =>
+        set(() => ({ width: Math.min(Math.max(Math.round(w), 320), 720) })),
     }),
     {
       name: 'we-assistant-v2',
-      // 仅持久化面板显隐偏好；任务态在页面刷新后丢失（SSE 流无法恢复）
-      partialize: (s) => ({ isOpen: s.isOpen }),
+      // 仅持久化面板显隐 + 宽度偏好；任务态在页面刷新后丢失（SSE 流无法恢复）
+      partialize: (s) => ({ isOpen: s.isOpen, width: s.width }),
     },
   ),
 );
