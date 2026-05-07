@@ -1,159 +1,275 @@
 /**
- * 写卡助手 Zustand Store（localStorage 持久化）
+ * 写卡助手 Zustand Store（单接口模型）
  *
- * 消息类型：
- *   user      — 用户发送的消息
- *   assistant — 助手文字回复
- *   proposal  — 子代理生成的变更提案卡
- *   routing   — 路由提示（正在调用子代理）
- *   error     — 错误消息
+ * 状态机：idle → planning → awaiting_approval → executing → (paused|completed|failed|cancelled)
+ *           （追问留在 planning 内，由父代理用普通 delta 文本完成，不切独立状态）
+ *
+ * 服务端 SSE 事件由 ingestEvent 集中消费，
+ * UI 仅订阅 taskId/status/planDoc/messages/error。
+ *
+ * 兼容字段：isOpen / open / close / toggle 仅用于面板抽屉显隐，
+ *           不参与任务状态机；持久化以避免页面刷新后丢面板偏好。
  */
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const MAX_MESSAGES = 60;
-
 export const useAssistantStore = create(
   persist(
     (set) => ({
-      isOpen: false,
-      messages: [],
-      isStreaming: false,
-      currentTask: null,
-      // worldRef 依赖解析表：{ [taskId]: createdEntityId }
-      resolvedIds: {},
+      // ─── 任务状态 ────────────────────────────────────────────
+      taskId: null,
+      status: 'idle',
+      planDoc: '',
+      messages: [], // [{ role, content, streaming? }]
+      error: null,
+      currentStepId: null,
+      // 当前任务在 messages 数组中的起始偏移（task_created 时记录），
+      // 用于限制 tool_call_started 复用失败行的查找范围，避免跨任务污染历史
+      taskMsgOffset: 0,
 
-      // ─── 面板开关 ───────────────────────────────────────────────
+      reset: () =>
+        set({
+          taskId: null,
+          status: 'idle',
+          planDoc: '',
+          messages: [],
+          error: null,
+          currentStepId: null,
+          taskMsgOffset: 0,
+        }),
+
+      // 仅重置任务态，保留消息历史（面板重开时使用）
+      resetTask: () =>
+        set((s) => ({
+          ...s,
+          taskId: null,
+          status: 'idle',
+          planDoc: '',
+          error: null,
+          currentStepId: null,
+          taskMsgOffset: 0,
+        })),
+
+      ingestEvent: (evt) =>
+        set((s) => {
+          switch (evt.type) {
+            case 'task_created':
+              return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
+            case 'plan_doc_updated': {
+              // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）
+              const existingIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
+              const planDocMsg = { id: 'plan-doc', role: 'plan_doc', content: evt.content };
+              const newMessages =
+                existingIdx >= 0
+                  ? s.messages.map((m, i) => (i === existingIdx ? planDocMsg : m))
+                  : [...s.messages, planDocMsg];
+              return { ...s, planDoc: evt.content, messages: newMessages };
+            }
+            case 'awaiting_approval':
+              return { ...s, status: 'awaiting_approval' };
+            case 'plan_approved':
+              return { ...s, status: 'executing' };
+            case 'paused':
+              return { ...s, status: 'paused' };
+            case 'task_completed':
+              return {
+                ...s,
+                status: 'completed',
+                messages: evt.summary
+                  ? [...s.messages, { role: 'assistant', content: evt.summary }]
+                  : s.messages,
+              };
+            case 'task_failed':
+              return { ...s, status: 'failed', error: evt.error };
+            case 'task_cancelled':
+              return { ...s, status: 'cancelled' };
+            case 'delta':
+              return { ...s, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
+            case 'user_message':
+              // 服务端落库后回传 messageId；把最近一条无 id 的 user 消息补 id（一般本地已带 id 时直接命中）
+              return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
+            case 'messages_changed': {
+              if (!Array.isArray(evt.messages)) return s;
+              const planDocEntry = s.messages.find((m) => m.role === 'plan_doc');
+              if (!planDocEntry) return { ...s, messages: evt.messages };
+              // Re-insert the synthetic plan_doc row at its original index (clamped)
+              const prevIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
+              const next = [...evt.messages];
+              next.splice(Math.min(prevIdx, next.length), 0, planDocEntry);
+              return { ...s, messages: next };
+            }
+            case 'tool_call_started': {
+              // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
+              // 仅在 taskMsgOffset 之后搜索，防止跨任务覆盖历史失败记录
+              const prevFailedIdx = s.messages.reduce(
+                (found, m, i) =>
+                  i >= s.taskMsgOffset && m.role === 'tool_call' && m.toolName === evt.toolName && m.status === 'error'
+                    ? i
+                    : found,
+                -1,
+              );
+              if (prevFailedIdx >= 0) {
+                const next = [...s.messages];
+                next[prevFailedIdx] = { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' };
+                return { ...s, messages: next };
+              }
+              return {
+                ...s,
+                messages: [
+                  ...s.messages,
+                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' },
+                ],
+              };
+            }
+            case 'tool_call_completed':
+              return {
+                ...s,
+                messages: s.messages.map((m) =>
+                  m.id === evt.callId ? { ...m, status: evt.success ? 'done' : 'error' } : m,
+                ),
+              };
+            case 'step_started': {
+              const stepExists = s.messages.some((m) => m.id === evt.stepId);
+              return {
+                ...s,
+                currentStepId: evt.stepId,
+                messages: stepExists
+                  ? s.messages.map((m) =>
+                      m.id === evt.stepId ? { ...m, title: evt.title, status: 'running' } : m,
+                    )
+                  : [
+                      ...s.messages,
+                      { id: evt.stepId, role: 'step', stepId: evt.stepId, title: evt.title, status: 'running' },
+                    ],
+              };
+            }
+            case 'step_completed':
+              return {
+                ...s,
+                currentStepId: null,
+                messages: s.messages.map((m) =>
+                  m.id === evt.stepId ? { ...m, status: 'done' } : m,
+                ),
+              };
+            case 'step_failed':
+              return {
+                ...s,
+                currentStepId: null,
+                error: `Step ${evt.stepId} 失败：${evt.error}`,
+                messages: s.messages.map((m) =>
+                  m.id === evt.stepId ? { ...m, status: 'error', error: evt.error } : m,
+                ),
+              };
+            default:
+              if (evt.done === true) {
+                // SSE 末尾的 { done: true } 帧：清除最后一条 assistant 的 streaming 标志，使 ActionBar 可显示
+                return { ...s, messages: clearStreamingFlag(s.messages) };
+              }
+              return s;
+          }
+        }),
+
+      pushUserMessage: (content, id) =>
+        set((s) => ({
+          ...s,
+          messages: [
+            ...s.messages,
+            { id: id ?? `msg-${cryptoRandomId()}`, role: 'user', content },
+          ],
+        })),
+
+      deleteMessage: (id) =>
+        set((s) => ({ ...s, messages: s.messages.filter((m) => m.id !== id) })),
+
+      truncateFromId: (id) =>
+        set((s) => {
+          const idx = s.messages.findIndex((m) => m.id === id);
+          if (idx < 0) return s;
+          return { ...s, messages: s.messages.slice(0, idx) };
+        }),
+
+      // 重新生成 / 重发：原子地"截断到 prevId 并立即用同 id-不同 newId 的 user 消息替换尾部"。
+      // 单次 set，避免 truncate→render(空)→push→render(填回) 的中间空帧导致页面闪烁跳动。
+      replaceTailWithUser: (prevId, content, id) =>
+        set((s) => {
+          const idx = s.messages.findIndex((m) => m.id === prevId);
+          if (idx < 0) return s;
+          return {
+            ...s,
+            messages: [
+              ...s.messages.slice(0, idx),
+              { id, role: 'user', content },
+            ],
+          };
+        }),
+
+      replaceMessages: (msgs) =>
+        set((s) => ({ ...s, messages: Array.isArray(msgs) ? msgs : s.messages })),
+
+      // ─── 面板抽屉显隐 + 宽度（不属于任务状态机） ──────────────
+      isOpen: false,
+      width: 400,
       toggle: () => set((s) => ({ isOpen: !s.isOpen })),
       open: () => set({ isOpen: true }),
       close: () => set({ isOpen: false }),
-
-      // ─── 消息操作 ───────────────────────────────────────────────
-      addMessage: (msg) =>
-        set((s) => ({
-          messages: [
-            ...s.messages,
-            { id: `${Date.now()}-${Math.random()}`, timestamp: Date.now(), ...msg },
-          ].slice(-MAX_MESSAGES),
-        })),
-
-      /** 追加文字到最后一条 assistant 消息（流式增量） */
-      appendToLastAssistant: (text) =>
-        set((s) => {
-          const msgs = [...s.messages];
-          const idx = msgs.findLastIndex((m) => m.role === 'assistant' && m.streaming);
-          if (idx >= 0) {
-            msgs[idx] = { ...msgs[idx], content: (msgs[idx].content || '') + text };
-          }
-          return { messages: msgs };
-        }),
-
-      /** 标记最后一条 assistant 消息流式结束 */
-      finalizeLastAssistant: () =>
-        set((s) => {
-          const msgs = [...s.messages];
-          const idx = msgs.findLastIndex((m) => m.role === 'assistant' && m.streaming);
-          if (idx >= 0) {
-            msgs[idx] = { ...msgs[idx], streaming: false };
-          }
-          return { messages: msgs };
-        }),
-
-      /** 将对应 taskId 的 routing 消息替换为 proposal 消息 */
-      replaceRoutingWithProposal: (taskId, token, proposal) =>
-        set((s) => {
-          const msgs = [...s.messages];
-          // 优先按 taskId 匹配，回退到最后一条 routing
-          const idx = taskId
-            ? msgs.findLastIndex((m) => m.role === 'routing' && m.taskId === taskId)
-            : msgs.findLastIndex((m) => m.role === 'routing');
-          const proposalMsg = {
-            id: `${Date.now()}-${Math.random()}`,
-            timestamp: Date.now(),
-            role: 'proposal',
-            taskId,
-            token,
-            proposal,
-            applied: false,
-          };
-          if (idx >= 0) {
-            msgs[idx] = proposalMsg;
-          } else {
-            msgs.push(proposalMsg);
-          }
-          return { messages: msgs };
-        }),
-
-      /** 记录已应用的 create 提案结果 ID（供 worldRef 依赖解析） */
-      setResolvedId: (taskId, entityId) =>
-        set((s) => ({ resolvedIds: { ...s.resolvedIds, [taskId]: entityId } })),
-
-      /** 记录 thinking 心跳，更新对应 routing 消息的时间戳 */
-      updateRoutingThinking: (taskId) =>
-        set((s) => {
-          const msgs = [...s.messages];
-          const idx = taskId
-            ? msgs.findLastIndex((m) => m.role === 'routing' && m.taskId === taskId)
-            : msgs.findLastIndex((m) => m.role === 'routing');
-          if (idx >= 0) msgs[idx] = { ...msgs[idx], lastThinkingAt: Date.now() };
-          return { messages: msgs };
-        }),
-
-      /** 标记提案已应用 */
-      markProposalApplied: (id) =>
-        set((s) => ({
-          messages: s.messages.map((m) => (m.id === id ? { ...m, applied: true } : m)),
-        })),
-
-      /** 编辑某条消息内容 */
-      editMessage: (id, content) =>
-        set((s) => ({
-          messages: s.messages.map((m) => (m.id === id ? { ...m, content } : m)),
-        })),
-
-      /** 截断到某条消息（不含该条）——重新生成用 */
-      truncateToMessage: (id) =>
-        set((s) => {
-          const idx = s.messages.findIndex((m) => m.id === id);
-          if (idx <= 0) return s;
-          return { messages: s.messages.slice(0, idx) };
-        }),
-
-      /** 删除某条消息 */
-      deleteMessage: (id) =>
-        set((s) => ({
-          messages: s.messages.filter((m) => m.id !== id),
-        })),
-
-      setStreaming: (val) => set({ isStreaming: val }),
-
-      setCurrentTask: (task) => set({ currentTask: task || null }),
-      patchCurrentTask: (patch) =>
-        set((s) => ({
-          currentTask: s.currentTask ? { ...s.currentTask, ...patch } : patch,
-        })),
-      updateTaskStep: (stepId, updater) =>
-        set((s) => {
-          if (!s.currentTask?.plan?.steps) return s;
-          const steps = s.currentTask.plan.steps.map((step) => (
-            step.id === stepId ? updater(step) : step
-          ));
-          return {
-            currentTask: {
-              ...s.currentTask,
-              plan: { ...s.currentTask.plan, steps },
-              graph: steps,
-            },
-          };
-        }),
-
-      clearMessages: () => set({ messages: [], resolvedIds: {}, isStreaming: false, currentTask: null }),
+      setWidth: (w) =>
+        set(() => ({ width: Math.min(Math.max(Math.round(w), 320), 720) })),
     }),
     {
-      name: 'we-assistant-v1',
-      // 只持久化消息历史，不持久化 isOpen/isStreaming
-      partialize: (s) => ({ messages: s.messages, currentTask: s.currentTask }),
+      name: 'we-assistant-v2',
+      // 仅持久化面板显隐 + 宽度偏好；任务态在页面刷新后丢失（SSE 流无法恢复）
+      partialize: (s) => ({ isOpen: s.isOpen, width: s.width }),
     },
   ),
 );
+
+function cryptoRandomId() {
+  try {
+    return globalThis.crypto?.randomUUID?.().slice(0, 8) ?? Math.random().toString(36).slice(2, 10);
+  } catch {
+    return Math.random().toString(36).slice(2, 10);
+  }
+}
+
+function appendDelta(messages, delta, messageId) {
+  const last = messages[messages.length - 1];
+  if (last && last.role === 'assistant' && last.streaming) {
+    return [
+      ...messages.slice(0, -1),
+      { ...last, id: messageId ?? last.id, content: (last.content || '') + delta },
+    ];
+  }
+  return [
+    ...messages,
+    {
+      id: messageId ?? `msg-${cryptoRandomId()}`,
+      role: 'assistant',
+      content: delta,
+      streaming: true,
+    },
+  ];
+}
+
+function adoptUserMessageId(messages, messageId) {
+  if (!messageId) return messages;
+  // 若已存在该 id 直接返回；否则把最近一条无 id 的 user 消息补 id
+  if (messages.some((m) => m.id === messageId)) return messages;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role === 'user' && !messages[i].id) {
+      const next = messages.slice();
+      next[i] = { ...messages[i], id: messageId };
+      return next;
+    }
+  }
+  return messages;
+}
+
+function clearStreamingFlag(messages) {
+  if (messages.length === 0) return messages;
+  const last = messages[messages.length - 1];
+  if (!last.streaming) return messages;
+  return [...messages.slice(0, -1), { ...last, streaming: false }];
+}
+
+export const __testables = { appendDelta, adoptUserMessageId, clearStreamingFlag };

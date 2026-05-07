@@ -16,6 +16,7 @@
 2. **通用子代理**：子代理不再按资源域分文件，统一为"干净上下文 + 父代理派发的 task 描述 + 对应资源知识库 + apply 工具集"的通用执行器。
 3. **知识库重整**：拆出 7 份独立 markdown，`CONTRACT.md` 每轮自动注入父代理（产品契约 + 指路引用），其余 6 份按 task 类型按需注入。
 4. **保留落库安全边界**：现有 `normalizeProposal()` 不动，包装为 `apply_*` 工具集供子代理调用。
+5. **读能力跨边界**：`preview_card` 已支持任意 `entityId`（不限当前页面 / 当前世界），新增 `list_resources` 工具支持列表查询（所有世界、某世界下所有角色、所有 css/regex 等），父代理与子代理均可调用。
 
 **非目标**：
 
@@ -36,12 +37,12 @@ POST /api/assistant/agent (SSE)
 父代理 (parent-agent.js)
   ├─ 持续上下文（每轮注入 CONTRACT.md + 历史对话 + 当前 plan doc）
   ├─ 工具:
-  │    read_file / preview_card
+  │    read_file / preview_card / list_resources
   │    write_plan_doc / edit_plan_doc / delete_plan_doc
   │    dispatch_subagent
   │    finalize_task
   └─ 行为：
-       ① 理解需求（必要时 clarifying 追问）
+       ① 理解需求（必要时用普通文本追问，不切独立状态）
        ② 调 preview_card / read_file 收集事实
        ③ write_plan_doc 落计划文档到 /.temp/assistant/<taskId>.md
        ④ 等用户"确认"或"修改意见" → 反复 edit_plan_doc
@@ -53,7 +54,7 @@ POST /api/assistant/agent (SSE)
         ├─ 干净上下文（不继承父代理对话历史）
         ├─ 注入：父代理派发的 task 描述 + 对应 *CARD.md / *.md 知识
         ├─ 工具:
-        │    preview_card / read_file
+        │    preview_card / read_file / list_resources
         │    apply_world_card / apply_character_card / apply_persona_card
         │    apply_global_config / apply_css_snippet / apply_regex_rule
         └─ 每个 apply_* 工具内部：
@@ -76,27 +77,29 @@ POST /api/assistant/agent (SSE)
         idle
          │ 用户首次消息
          ↓
-    ┌─ planning ─┐
-    │            │
-    │  父代理判断步骤数：
-    │   <3 → 走 simple path（自己调 apply_*）
-    │   ≥3 → 走 plan path（写文档 + 派发子代理）
-    │            │
-    │            ├──── simple ────→ completed (直接 apply 落库 + 发总结)
-    │            │
-    ↓            ↓ plan
-clarifying    awaiting_approval
-    │            │ 用户确认
-    │ 用户回答    ↓
-    └─ planning  executing
-                  │
-                  ├─ paused (用户在执行中发消息)
-                  │   ↓ 跑完当前 step
-                  │   planning  ← 父代理把消息当作修改意见 edit_plan_doc
-                  │
-                  ├─→ completed   delete_plan_doc + finalize_task
-                  ├─→ failed      delete_plan_doc + 错误总结
-                  └─→ cancelled   delete_plan_doc
+      planning ──┐
+         │       │
+         │  父代理判断步骤数：
+         │   <3 → 走 simple path（自己调 apply_*）
+         │   ≥3 → 走 plan path（写文档 + 派发子代理）
+         │       │
+         │       ├──── simple ────→ completed (直接 apply 落库 + 发总结)
+         │       │
+         │       ↓ plan
+         │   awaiting_approval
+         │       │ 用户确认
+         │       ↓
+         │   executing
+         │       │
+         │       ├─ paused (用户在执行中发消息)
+         │       │   ↓ 跑完当前 step
+         │       │   planning  ← 父代理把消息当作修改意见 edit_plan_doc
+         │       │
+         │       ├─→ completed   delete_plan_doc + finalize_task
+         │       ├─→ failed      delete_plan_doc + 错误总结
+         │       └─→ cancelled   delete_plan_doc
+         │
+         └─ 信息不足：父代理用普通 delta 文本追问，留在 planning，不发结构化事件
 ```
 
 约束：
@@ -147,7 +150,6 @@ clarifying    awaiting_approval
 | 事件 | 时机 | payload |
 |---|---|---|
 | `task_created` | 新任务建立 | `{ type, taskId, task }` |
-| `clarification_requested` | 父代理需要追问 | `{ type, taskId, summary, questions, task }` |
 | `plan_doc_updated` | 父代理每次 write/edit 文档 | `{ type, taskId, content, version }`（content 为 markdown 全文） |
 | `awaiting_approval` | 计划文档写完，等用户确认 | `{ type, taskId, task }` |
 | `plan_approved` | 用户调 `/approve`，进入 executing | `{ type, taskId, task }` |
@@ -159,6 +161,8 @@ clarifying    awaiting_approval
 | `task_failed` | 任务失败，文档已删除 | `{ type, taskId, error }` |
 | `task_cancelled` | 用户 cancel，文档已删除 | `{ type, taskId }` |
 | `delta` / `done` | 父代理纯文字回复（追问 / 修改回声 / 总结消息） | `{ delta }` / `{ done: true }` |
+
+**追问通过普通 delta 文本完成，不发结构化事件**（无 `clarification_requested`，状态留在 `planning`）。
 
 **前端拉文档策略**：收到 `plan_doc_updated` 后，前端可以直接用 payload 里的 content 渲染（推荐），或调 `GET /plan-doc` 兜底拉取。
 
@@ -299,7 +303,8 @@ clarifying    awaiting_approval
 
 | 工具 | 用途 |
 |---|---|
-| `preview_card` | 查询现有实体（与父代理同源） |
+| `preview_card` | 查询任意实体（接受任意 entityId，不限当前世界/角色） |
+| `list_resources` | 列表查询：所有世界 / 某世界下角色 / 所有 css 片段 / 所有 regex 规则 等 |
 | `read_file` | 兜底；通常子代理用不到，知识已在 prompt |
 | `apply_world_card` | 入参 `{ operation, entityId, changes, entryOps, stateFieldOps }`，内部 normalizeProposal + 落库 |
 | `apply_character_card` | 入参 `{ operation, entityId, changes, stateValueOps }` |
@@ -454,7 +459,7 @@ clarifying    awaiting_approval
 ### 10.2 集成测试
 
 - 主路径：开任务 → planning → awaiting_approval → approve → executing → completed → 文档已删除 → 总结消息正确
-- clarifying：父代理追问 → 用户回答 → 重新 planning
+- 追问回合：父代理用普通文本追问 → 用户回答 → 状态仍在 planning，重新拆步骤
 - 暂停：executing 中发消息 → 跑完当前 step → paused → edit_plan_doc → approve → 继续
 - 失败：模拟某 apply 工具报错 → step_failed → task_failed → 文档已删除
 - 取消：awaiting_approval / executing 阶段 cancel → 文档已删除
@@ -474,7 +479,7 @@ clarifying    awaiting_approval
 
 - **plan doc 解析鲁棒性**：父代理可能写出格式偏离的步骤行，导致解析失败。应对：parent-agent.md 给严格示例 + plan-doc.js 解析失败时把错误反馈给父代理 retry 一次。
 - **暂停语义边界**：用户在 `awaiting_approval` 阶段发消息算"修改意见"还是"新任务"？规则：activeTask 未终态前，所有消息都视为对当前任务的输入。
-- **clarifying 与 planning 切换**：父代理需明确什么时候追问、什么时候直接写文档。CONTRACT.md 给判断准则（信息完整度评估）。
+- **追问与直接写文档的切换**：父代理需明确什么时候用普通文本追问、什么时候直接写文档（追问不切独立状态，仍属 planning）。CONTRACT.md 给判断准则（信息完整度评估）。
 - **knowledge 文件膨胀**：CONTRACT.md 设硬上限 200 行；WORLDCARD.md 等可大但需在末尾保留"快速速查"小节给模型快速命中。
 
 ### 11.2 开放点（实现期再决策，不阻塞 spec 落地）

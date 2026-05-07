@@ -80,7 +80,9 @@ assistant/client/ChangeProposalCard.jsx
 
 ## Phase 0：准备
 
-### Task 0.1: 建分支前准备 + 临时目录
+> 分支 `feat/assistant-redesign` 已由 controller 在执行前建立。Phase 0 仅处理临时目录。
+
+### Task 0.1: 临时目录占位
 
 **Files:**
 - Create: `.temp/assistant/.gitkeep`
@@ -738,6 +740,81 @@ git add assistant/server/tools/apply-global-config.js assistant/server/tools/app
 git commit -m "feat(assistant): 添加 apply_global_config / apply_css_snippet / apply_regex_rule 工具"
 ```
 
+### Task 4.4: list_resources 工具（跨世界 / 跨角色列表查询）
+
+**Files:**
+- Create: `assistant/server/tools/list-resources.js`
+
+**目的**：补齐"读能力跨边界"。`preview_card` 拿到任意单个实体；这个工具拿"列表"，让父/子代理可以发现：哪些世界存在、某世界下有哪些角色、有哪些 css/regex 规则等，不被当前页面或当前世界限制。
+
+- [ ] **Step 1: 实现**
+
+```js
+// assistant/server/tools/list-resources.js
+import { listWorlds } from '../../../backend/db/queries/worlds.js';
+import { listCharactersByWorldId } from '../../../backend/db/queries/characters.js';
+import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
+import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
+
+const MAX = 200;
+
+function trim(rows) {
+  if (!Array.isArray(rows)) return rows;
+  if (rows.length <= MAX) return rows;
+  return { _truncated: true, total: rows.length, limit: MAX, data: rows.slice(0, MAX) };
+}
+
+export const definition = {
+  type: 'function',
+  function: {
+    name: 'list_resources',
+    description:
+      '跨世界 / 跨角色的列表查询。target 选择资源类型；characters 必须传 worldId（或省略代表所有世界）。' +
+      'preview_card 用于查单个实体的完整详情，list_resources 用于发现"有哪些"。',
+    parameters: {
+      type: 'object',
+      properties: {
+        target: { type: 'string', enum: ['worlds', 'characters', 'css-snippets', 'regex-rules'] },
+        worldId: { type: 'string', description: 'characters 时可传：限定世界；省略返回全部' },
+      },
+      required: ['target'],
+    },
+  },
+};
+
+export async function execute({ target, worldId }) {
+  switch (target) {
+    case 'worlds':
+      return JSON.stringify(trim(listWorlds()));
+    case 'characters': {
+      // 如果项目没有 listCharactersAll，按 worldId 必传处理；否则两种都支持
+      if (!worldId) throw new Error('characters target 需要 worldId');
+      return JSON.stringify(trim(listCharactersByWorldId(worldId)));
+    }
+    case 'css-snippets':
+      return JSON.stringify(trim(listCustomCssSnippets()));
+    case 'regex-rules':
+      return JSON.stringify(trim(listRegexRules()));
+    default:
+      throw new Error(`未知 target: ${target}`);
+  }
+}
+```
+
+> 实施时确认 `backend/db/queries/worlds.js` 是否暴露 `listWorlds`；若叫别的名字（比如 `listAllWorlds`），照实际改 import。`listCharactersByWorldId` 同理。
+
+- [ ] **Step 2: 冒烟检查**
+
+Run: `node -e "import('./assistant/server/tools/list-resources.js').then(m => console.log(Object.keys(m)))"`
+Expected: `[ 'definition', 'execute' ]`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add assistant/server/tools/list-resources.js
+git commit -m "feat(assistant): 添加 list_resources 工具（跨世界/跨角色列表查询）"
+```
+
 ---
 
 ## Phase 5：sub-agent.js（通用子代理）
@@ -793,6 +870,7 @@ import * as applyCssSnippet from './tools/apply-css-snippet.js';
 import * as applyRegexRule from './tools/apply-regex-rule.js';
 import { previewCardTool } from './tools/card-preview.js';
 import { readFileTool } from './tools/project-reader.js';
+import * as listResources from './tools/list-resources.js';
 
 const APPLY_BY_TYPE = {
   'world-card': applyWorldCard,
@@ -830,7 +908,7 @@ export async function dispatchSubAgent({ stepId, targetType, operation, entityRe
   if (!apply) throw new Error(`No apply tool for ${targetType}`);
 
   const systemPrompt = `${await loadPrompt()}\n\n---\n\n${await loadKnowledge(targetType)}`;
-  const tools = [previewCardTool.definition, readFileTool.definition, apply.definition];
+  const tools = [previewCardTool.definition, readFileTool.definition, listResources.definition, apply.definition];
   const userMsg = `# Step: ${stepId}
 - targetType: ${targetType}
 - operation: ${operation}
@@ -851,6 +929,7 @@ ${task}
     toolHandlers: {
       [previewCardTool.definition.name]: (args) => previewCardTool.execute(args, context),
       [readFileTool.definition.name]: (args) => readFileTool.execute(args),
+      [listResources.definition.function.name]: (args) => listResources.execute(args),
       [apply.definition.name]: (args) => apply.execute(args, { worldRefId: entityRef === 'context.worldId' ? context.worldId : null }),
     },
     maxIterations: 4,
@@ -1010,6 +1089,7 @@ import * as taskStore from './task-store.js';
 import { dispatchSubAgent } from './sub-agent.js';
 import { previewCardTool } from './tools/card-preview.js';
 import { readFileTool } from './tools/project-reader.js';
+import * as listResources from './tools/list-resources.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -1031,6 +1111,7 @@ async function loadSystemPrompt() {
 const TOOLS = [
   previewCardTool.definition,
   readFileTool.definition,
+  listResources.definition,
   ...APPLY_TOOLS.map((t) => t.definition),
   {
     name: 'write_plan_doc',
@@ -1086,6 +1167,7 @@ function makeToolHandlers(task) {
   return {
     [previewCardTool.definition.name]: (args) => previewCardTool.execute(args, task.context),
     [readFileTool.definition.name]: (args) => readFileTool.execute(args),
+    [listResources.definition.function.name]: (args) => listResources.execute(args),
 
     // simple mode：父代理直接落库
     ...Object.fromEntries(APPLY_TOOLS.map((t) => [

@@ -9,7 +9,12 @@ import {
   createPersona,
   uploadPersonaAvatarById,
 } from '../api/personas';
-import { getPersonaStateValues, updatePersonaStateValue } from '../api/persona-state-values';
+import {
+  getPersonaStateValues,
+  updatePersonaStateValue,
+  getPersonaStateValuesByPersonaId,
+  updatePersonaStateValueByPersonaId,
+} from '../api/persona-state-values';
 import { downloadPersonaCard } from '../api/import-export';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
@@ -60,10 +65,10 @@ export default function PersonaEditPage() {
     }
 
     if (personaIdParam) {
-      // 按 id 加载
+      // 按 id 加载，状态值也按该 persona 的 id 精确拉取
       Promise.all([
         getPersonaById(personaIdParam),
-        getPersonaStateValues(worldId),
+        getPersonaStateValuesByPersonaId(worldId, personaIdParam),
       ]).then(([p, fields]) => {
         if (p) {
           setResolvedPersonaId(p.id);
@@ -103,7 +108,11 @@ export default function PersonaEditPage() {
 
   async function handleStateValueSave(fieldKey, valueJson) {
     try {
-      await updatePersonaStateValue(worldId, fieldKey, valueJson);
+      if (resolvedPersonaId) {
+        await updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, fieldKey, valueJson);
+      } else {
+        await updatePersonaStateValue(worldId, fieldKey, valueJson);
+      }
     } catch (err) {
       pushErrorToast(err.message || '状态值保存失败');
     }

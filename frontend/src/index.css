@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../assistant/client/**/*.{js,jsx}";
 
 /* =========================================================
    WorldEngine — Claude 风格设计令牌层 (T29A)
@@ -162,6 +163,51 @@ body {
 
 .typing-dot:nth-child(2) { animation-delay: 0.2s; }
 .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* 写卡助手消息气泡入场动效 */
+@keyframes we-bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 写卡助手 verbose 模式：tool call / step 条目的 spinner */
+@keyframes we-spin {
+  to { transform: rotate(360deg); }
+}
+.we-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--we-ink-faint);
+  border-top-color: var(--we-vermilion);
+  border-radius: 50%;
+  animation: we-spin 0.6s linear infinite;
+}
+
+/* 写卡助手流式光标闪烁 */
+@keyframes we-blink {
+  0%, 50%   { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* 写卡助手流式光标——平滑脉冲（取代 step-end 硬切换，避免视觉鬼畜） */
+@keyframes we-stream-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1;    }
+}
+
+/* 流式气泡末尾光标：贴在最后一个块级子元素的行尾，不会换行另起 */
+.we-stream-bubble > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--we-vermilion);
+  animation: we-stream-pulse 1.2s ease-in-out infinite;
+}
 
 .we-app-root {
   display: flex;

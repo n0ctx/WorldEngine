@@ -1,11 +1,14 @@
 /**
  * 写卡助手输入框
+ *
+ * `disabled` 仅在终态（completed/failed/cancelled）传入；
+ * 其余状态（含 executing/awaiting_approval）允许排队消息。
+ * `isStreaming` 为 true 时将发送键换成停止键。
  */
 
-import { useRef, useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
-export default function InputBox({ value, onChange, onSend, onStop, isStreaming }) {
-  const disabled = isStreaming;
+export default function InputBox({ value, onChange, onSend, onStop, disabled = false, isStreaming = false }) {
   const textareaRef = useRef(null);
 
   // 自动调整高度
@@ -19,72 +22,50 @@ export default function InputBox({ value, onChange, onSend, onStop, isStreaming 
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!disabled && value.trim()) onSend();
+      if (isStreaming) {
+        onStop?.();
+      } else if (!disabled && value.trim()) {
+        onSend();
+      }
     }
   }
 
+  const sendDisabled = disabled || !value.trim();
+
   return (
-    <div
-      style={{
-        borderTop: '1px solid rgba(0,0,0,0.08)',
-        padding: '10px 12px',
-        display: 'flex',
-        gap: '8px',
-        alignItems: 'flex-end',
-        background: 'var(--we-paper-base, #f4ede4)',
-      }}
-    >
+    <div className="flex flex-shrink-0 items-end gap-2 border-t border-black/10 bg-[var(--we-paper-base)] px-3 py-2">
       <textarea
         ref={textareaRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder="Enter 发送，Shift+Enter 换行"
+        placeholder={disabled ? '任务已结束，点击「清空」开始新任务' : 'Enter 发送，Shift+Enter 换行'}
         rows={1}
-        style={{
-          flex: 1,
-          resize: 'none',
-          border: '1px solid rgba(0,0,0,0.12)',
-          borderRadius: '6px',
-          padding: '7px 10px',
-          fontSize: '13px',
-          fontFamily: 'var(--we-font-body)',
-          background: disabled ? 'rgba(0,0,0,0.04)' : '#fff',
-          color: 'var(--we-ink-primary, #3d2e22)',
-          lineHeight: '1.5',
-          outline: 'none',
-          transition: 'border-color 0.15s',
-          minHeight: '36px',
-          maxHeight: '120px',
-          overflowY: 'auto',
-        }}
-        onFocus={(e) => { e.target.style.borderColor = 'rgba(138,94,74,0.4)'; }}
-        onBlur={(e) => { e.target.style.borderColor = 'rgba(0,0,0,0.12)'; }}
+        className={`min-h-[36px] max-h-[120px] flex-1 resize-none rounded border border-black/15 bg-white px-3 py-1.5 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-black/5`}
+        style={{ fontFamily: 'var(--we-font-body)' }}
       />
-      <button
-        onClick={isStreaming ? onStop : onSend}
-        disabled={!isStreaming && !value.trim()}
-        style={{
-          padding: '7px 14px',
-          background: isStreaming
-            ? 'rgba(192,57,43,0.85)'
-            : !value.trim() ? 'rgba(138,94,74,0.3)' : 'var(--we-vermilion, #8a5e4a)',
-          color: '#fff',
-          border: 'none',
-          borderRadius: '6px',
-          fontSize: '13px',
-          fontFamily: 'var(--we-font-display)',
-          fontStyle: isStreaming ? 'normal' : 'italic',
-          cursor: !isStreaming && !value.trim() ? 'default' : 'pointer',
-          transition: 'background 0.15s',
-          flexShrink: 0,
-          height: '36px',
-          minWidth: '52px',
-        }}
-      >
-        {isStreaming ? '■ 停止' : '发送'}
-      </button>
+      {isStreaming ? (
+        <button
+          type="button"
+          onClick={onStop}
+          aria-label="停止生成"
+          className="h-9 min-w-[52px] flex-shrink-0 rounded border border-[var(--we-vermilion)] bg-white px-3 text-[13px] italic text-[var(--we-vermilion)] transition-opacity hover:bg-[var(--we-vermilion)]/10"
+          style={{ fontFamily: 'var(--we-font-display)' }}
+        >
+          停止
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={sendDisabled}
+          className="h-9 min-w-[52px] flex-shrink-0 rounded bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
+          style={{ fontFamily: 'var(--we-font-display)' }}
+        >
+          发送
+        </button>
+      )}
     </div>
   );
 }

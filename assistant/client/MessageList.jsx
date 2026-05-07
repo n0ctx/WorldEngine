@@ -1,11 +1,110 @@
 /**
- * 写卡助手消息列表
+ * 写卡助手消息列表（单接口模型）
+ *
+ * 仅渲染 user / assistant / error 三类消息；
+ * 计划进度由 PlanDocViewer 单独承载，本组件不再处理 routing/proposal/task 卡。
+ *
+ * 交互恢复（批 A）：
+ *   - 气泡入场动效（we-bubble-in）
+ *   - typing dots（流式开始 + 首字未到时）
+ *   - 流式光标（首字到达后）
+ *   - hover 显示按钮：
+ *       user      → 复制 / 编辑 / 删除
+ *       assistant → 复制 / 重新生成 / 删除
+ *   - 编辑 user 消息确认后自动重新生成（由 AssistantPanel 的 onEdit 实现）
+ *   - 删除采用两段确认（首次"确认？"，2 秒内再次点击才真正删除）
  */
 
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import ChangeProposalCard from './ChangeProposalCard.jsx';
+import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
+
+const TOOL_LABELS = {
+  preview_card: '预览卡片',
+  list_resources: '列出资源',
+  read_file: '读取文件',
+  apply_world_card: '写入世界卡',
+  apply_character_card: '写入角色卡',
+  apply_persona_card: '写入用户卡',
+  apply_global_config: '写入全局设置',
+  apply_css_snippet: '写入 CSS 片段',
+  apply_regex_rule: '写入正则规则',
+  write_plan_doc: '编写计划',
+  edit_plan_doc: '更新计划',
+  dispatch_subagent: '派发子任务',
+  delete_plan_doc: '清除计划',
+  finalize_task: '完成任务',
+};
+
+function parseStreamingBlocks(text) {
+  const blocks = [];
+  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
+  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
+  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
+  let inThink = false;
+  let current = '';
+  for (const seg of segments) {
+    if (OPEN_TAG.test(seg)) {
+      const trimmed = current.replace(/^\n+/, '');
+      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+      current = '';
+      inThink = true;
+    } else if (CLOSE_TAG.test(seg)) {
+      if (inThink) {
+        blocks.push({ type: 'thinking', content: current, open: false });
+        current = '';
+        inThink = false;
+      }
+    } else {
+      current += seg;
+    }
+  }
+  if (inThink) {
+    blocks.push({ type: 'thinking', content: current, open: true });
+  } else {
+    const trimmed = current.replace(/^\n+/, '');
+    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+  }
+  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
+}
+
+function ThinkBlock({ content, open = false }) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div className="we-think-block">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
+        aria-expanded={expanded}
+        className="we-think-block-toggle"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        思考过程{open && <span className="we-think-block-dots">…</span>}
+      </button>
+      <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
+        <div className="we-think-block-body-inner">
+          <div className="we-think-block-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SimpleMarkdown({ content }) {
   if (!content) return null;
@@ -13,47 +112,34 @@ function SimpleMarkdown({ content }) {
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       components={{
-        p: ({ children }) => (
-          <p style={{ margin: '0 0 6px', lineHeight: '1.6', wordBreak: 'break-word' }}>{children}</p>
-        ),
-        h1: ({ children }) => (
-          <h1 style={{ fontSize: '1.1em', fontWeight: 700, margin: '8px 0 4px' }}>{children}</h1>
-        ),
-        h2: ({ children }) => (
-          <h2 style={{ fontSize: '1.05em', fontWeight: 700, margin: '8px 0 4px' }}>{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 style={{ fontSize: '1em', fontWeight: 600, margin: '6px 0 3px' }}>{children}</h3>
-        ),
-        ul: ({ children }) => (
-          <ul style={{ margin: '4px 0 6px', paddingLeft: '18px' }}>{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol style={{ margin: '4px 0 6px', paddingLeft: '18px' }}>{children}</ol>
-        ),
-        li: ({ children }) => (
-          <li style={{ marginBottom: '2px', lineHeight: '1.5' }}>{children}</li>
-        ),
+        p: ({ children }) => <p className="my-1 break-words leading-relaxed">{children}</p>,
+        h1: ({ children }) => <h1 className="my-1 text-[14px] font-semibold">{children}</h1>,
+        h2: ({ children }) => <h2 className="my-1 text-[13px] font-semibold">{children}</h2>,
+        h3: ({ children }) => <h3 className="my-1 text-[12px] font-semibold">{children}</h3>,
+        ul: ({ children }) => <ul className="my-1 list-disc pl-5">{children}</ul>,
+        ol: ({ children }) => <ol className="my-1 list-decimal pl-5">{children}</ol>,
+        li: ({ children }) => <li className="mb-0.5 leading-snug">{children}</li>,
         code: ({ inline, children }) =>
           inline ? (
-            <code style={{ background: 'rgba(0,0,0,0.08)', padding: '1px 4px', borderRadius: '3px', fontFamily: 'monospace', fontSize: '0.9em' }}>
-              {children}
-            </code>
+            <code className="rounded bg-black/10 px-1 py-0.5 font-mono text-[11px]">{children}</code>
           ) : (
-            <pre style={{ background: 'rgba(0,0,0,0.06)', padding: '8px 10px', borderRadius: '6px', overflowX: 'auto', margin: '6px 0' }}>
-              <code style={{ fontFamily: 'monospace', fontSize: '0.88em' }}>{children}</code>
+            <pre className="my-1 overflow-x-auto rounded bg-black/5 p-2 font-mono text-[11px]">
+              <code>{children}</code>
             </pre>
           ),
         blockquote: ({ children }) => (
-          <blockquote style={{ borderLeft: '3px solid var(--we-vermilion, #8a5e4a)', margin: '4px 0', paddingLeft: '10px', color: 'var(--we-ink-muted, #9c8a7e)', fontStyle: 'italic' }}>
+          <blockquote className="my-1 border-l-2 border-[var(--we-vermilion)] pl-3 italic text-[var(--we-ink-muted)]">
             {children}
           </blockquote>
         ),
-        hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(0,0,0,0.12)', margin: '8px 0' }} />,
-        strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
-        em: ({ children }) => <em>{children}</em>,
+        hr: () => <hr className="my-2 border-t border-black/10" />,
         a: ({ href, children }) => (
-          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--we-vermilion, #8a5e4a)', textDecoration: 'underline' }}>
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[var(--we-vermilion)] underline"
+          >
             {children}
           </a>
         ),
@@ -64,39 +150,15 @@ function SimpleMarkdown({ content }) {
   );
 }
 
-// 悬浮操作按钮区
-function ActionBar({ children }) {
-  return (
-    <div
-      className="we-assistant-actions"
-      style={{
-        display: 'flex',
-        gap: '4px',
-        marginTop: '4px',
-        opacity: 0,
-        transition: 'opacity 0.15s',
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function ActionBtn({ onClick, title, danger, children }) {
+function ActionBtn({ onClick, danger, children, ariaLabel }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      title={title}
-      style={{
-        background: 'none',
-        border: '1px solid rgba(0,0,0,0.12)',
-        borderRadius: '4px',
-        cursor: 'pointer',
-        fontSize: '11px',
-        padding: '2px 7px',
-        color: danger ? '#c0392b' : 'var(--we-ink-muted, #9c8a7e)',
-        lineHeight: '1.4',
-      }}
+      aria-label={ariaLabel}
+      className={`rounded border border-black/12 bg-transparent px-1.5 py-0.5 text-[11px] leading-tight transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--we-vermilion)] ${
+        danger ? 'text-[var(--we-vermilion)]' : 'text-[var(--we-ink-muted)]'
+      }`}
     >
       {children}
     </button>
@@ -105,12 +167,23 @@ function ActionBtn({ onClick, title, danger, children }) {
 
 function CopyBtn({ getText }) {
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef(null);
   function copy() {
-    navigator.clipboard.writeText(getText());
+    try {
+      navigator.clipboard?.writeText?.(getText());
+    } catch {
+      // 静默失败：浏览器无 clipboard 权限
+    }
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setCopied(false), 1500);
   }
-  return <ActionBtn onClick={copy}>{copied ? '已复制' : '复制'}</ActionBtn>;
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  return (
+    <ActionBtn onClick={copy} ariaLabel="复制">
+      {copied ? '已复制' : '复制'}
+    </ActionBtn>
+  );
 }
 
 function DeleteBtn({ onDelete }) {
@@ -127,7 +200,19 @@ function DeleteBtn({ onDelete }) {
     }
   }
   useEffect(() => () => clearTimeout(timerRef.current), []);
-  return <ActionBtn onClick={handleClick} danger>{confirming ? '确认？' : '删除'}</ActionBtn>;
+  return (
+    <ActionBtn onClick={handleClick} danger ariaLabel="删除">
+      {confirming ? '确认？' : '删除'}
+    </ActionBtn>
+  );
+}
+
+function ActionBar({ children }) {
+  return (
+    <div className="mt-1 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+      {children}
+    </div>
+  );
 }
 
 function UserMessage({ msg, onEdit, onDelete }) {
@@ -135,25 +220,32 @@ function UserMessage({ msg, onEdit, onDelete }) {
   const [draft, setDraft] = useState('');
   const taRef = useRef(null);
 
-  function startEdit() { setDraft(msg.content); setEditing(true); }
+  function startEdit() {
+    setDraft(msg.content);
+    setEditing(true);
+  }
   function confirmEdit() {
     const trimmed = draft.trim();
-    if (trimmed && trimmed !== msg.content.trim()) onEdit?.(msg.id, trimmed);
+    setEditing(false);
+    if (trimmed && trimmed !== (msg.content || '').trim()) {
+      onEdit?.(msg.id, trimmed);
+    }
+  }
+  function cancelEdit() {
     setEditing(false);
   }
-  function cancelEdit() { setEditing(false); }
 
   useEffect(() => {
     if (editing && taRef.current) {
       taRef.current.focus();
       taRef.current.style.height = 'auto';
-      taRef.current.style.height = taRef.current.scrollHeight + 'px';
+      taRef.current.style.height = `${taRef.current.scrollHeight}px`;
     }
   }, [editing]);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-      <div style={{ maxWidth: '80%', ...(editing ? { width: '80%' } : {}) }}>
+    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-end">
+      <div className={editing ? 'w-[85%]' : 'group flex max-w-[80%] flex-col items-end'}>
         {editing ? (
           <div>
             <textarea
@@ -162,56 +254,39 @@ function UserMessage({ msg, onEdit, onDelete }) {
               onChange={(e) => {
                 setDraft(e.target.value);
                 e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
+                e.target.style.height = `${e.target.scrollHeight}px`;
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') cancelEdit();
-                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  cancelEdit();
+                }
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  confirmEdit();
+                }
               }}
               rows={2}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                borderRadius: '8px',
-                border: '1px solid var(--we-vermilion, #8a5e4a)',
-                fontSize: '13px',
-                resize: 'none',
-                background: 'var(--we-paper-base, #f4ede4)',
-                color: 'var(--we-ink-primary, #3d2e22)',
-              }}
+              className="w-full resize-none rounded border border-[var(--we-vermilion)] bg-[var(--we-paper-base)] px-2 py-1.5 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none"
             />
-            <div style={{ display: 'flex', gap: '6px', marginTop: '4px', justifyContent: 'flex-end' }}>
-              <ActionBtn onClick={cancelEdit}>取消</ActionBtn>
-              <ActionBtn onClick={confirmEdit}>确认</ActionBtn>
+            <div className="mt-1 flex justify-end gap-1">
+              <ActionBtn onClick={cancelEdit} ariaLabel="取消编辑">取消</ActionBtn>
+              <ActionBtn onClick={confirmEdit} ariaLabel="确认编辑">确认</ActionBtn>
             </div>
           </div>
         ) : (
-          <div
-            className="we-assistant-msg-wrap"
-            style={{ position: 'relative' }}
-            onMouseEnter={(e) => { const bar = e.currentTarget.querySelector('.we-assistant-actions'); if (bar) bar.style.opacity = '1'; }}
-            onMouseLeave={(e) => { const bar = e.currentTarget.querySelector('.we-assistant-actions'); if (bar) bar.style.opacity = '0'; }}
-          >
-            <div
-              style={{
-                padding: '8px 12px',
-                background: 'var(--we-vermilion, #8a5e4a)',
-                color: '#fff',
-                borderRadius: '12px 12px 2px 12px',
-                fontSize: '13px',
-                lineHeight: '1.5',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
+          <>
+            <div className="whitespace-pre-wrap break-words rounded-[12px_12px_2px_12px] bg-[var(--we-vermilion)] px-3 py-2 text-[13px] leading-relaxed text-white">
               {msg.content}
             </div>
             <ActionBar>
-              <CopyBtn getText={() => msg.content} />
-              <ActionBtn onClick={startEdit}>编辑</ActionBtn>
-              {onDelete && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
+              <CopyBtn getText={() => msg.content || ''} />
+              {onEdit && (
+                <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>
+              )}
+              {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
             </ActionBar>
-          </div>
+          </>
         )}
       </div>
     </div>
@@ -219,409 +294,156 @@ function UserMessage({ msg, onEdit, onDelete }) {
 }
 
 function AssistantMessage({ msg, onRegenerate, onDelete }) {
+  const hasExtraActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
   return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '10px' }}>
-      <div style={{ maxWidth: '90%' }}>
+    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
+      <div className="group max-w-[90%]">
         <div
-          className="we-assistant-msg-wrap"
-          style={{ position: 'relative' }}
-          onMouseEnter={(e) => { const bar = e.currentTarget.querySelector('.we-assistant-actions'); if (bar) bar.style.opacity = '1'; }}
-          onMouseLeave={(e) => { const bar = e.currentTarget.querySelector('.we-assistant-actions'); if (bar) bar.style.opacity = '0'; }}
+          className={`rounded-[2px_12px_12px_12px] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] ${
+            msg.streaming && msg.content ? 'we-stream-bubble' : ''
+          }`}
         >
-          <div
-            style={{
-              padding: '8px 12px',
-              background: 'var(--we-paper-aged, #ede6da)',
-              color: 'var(--we-ink-primary, #3d2e22)',
-              borderRadius: '2px 12px 12px 12px',
-              fontSize: '13px',
-              lineHeight: '1.6',
-              border: '1px solid rgba(0,0,0,0.07)',
-            }}
-          >
-            {msg.streaming && !msg.content ? (
-              // 流式开始但首字未到：显示 typing dots（与对话"AI输出中"一致）
-              <div className="we-typing-dots">
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-                <span className="typing-dot" />
-              </div>
-            ) : (
-              <>
-                <SimpleMarkdown content={msg.content} />
-                {msg.streaming && (
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '7px',
-                      height: '14px',
-                      background: 'var(--we-vermilion, #8a5e4a)',
-                      marginLeft: '2px',
-                      verticalAlign: 'middle',
-                      animation: 'we-blink 0.8s step-end infinite',
-                    }}
-                  />
-                )}
-              </>
-            )}
-          </div>
+          {msg.streaming && !msg.content ? (
+            <div className="we-typing-dots">
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+              <span className="typing-dot" />
+            </div>
+          ) : (
+            parseStreamingBlocks(msg.content || '').map((block, i) =>
+              block.type === 'thinking' ? (
+                <ThinkBlock key={i} content={block.content} open={!!msg.streaming && block.open} />
+              ) : (
+                <SimpleMarkdown key={i} content={block.content} />
+              )
+            )
+          )}
           {!msg.streaming && (
-            <ActionBar>
-              <CopyBtn getText={() => msg.content} />
-              {onRegenerate && <ActionBtn onClick={() => onRegenerate(msg.id)}>重新生成</ActionBtn>}
-              {onDelete && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
-            </ActionBar>
+            <div className="mt-2 flex justify-end opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+              <CopyBtn getText={() => msg.content || ''} />
+            </div>
           )}
         </div>
+        {hasExtraActions && (
+          <ActionBar>
+            {onRegenerate && msg.id && (
+              <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
+                重新生成
+              </ActionBtn>
+            )}
+            {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
+          </ActionBar>
+        )}
       </div>
-    </div>
-  );
-}
-
-const TARGET_LABELS = {
-  'world-card': '世界卡',
-  'character-card': '角色卡',
-  'persona-card': '玩家卡',
-  'global-prompt': '全局设置',
-  'css-snippet': '自定义 CSS',
-  'regex-rule': '正则规则',
-};
-
-const TOOL_LABELS = {
-  preview_card: '正在查询卡片',
-  read_file: '正在读取文件',
-};
-
-function MainAgentThinking({ toolName }) {
-  const label = (toolName && TOOL_LABELS[toolName]) || '正在处理';
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '5px',
-        padding: '4px 2px',
-        margin: '4px 0',
-        fontSize: '11px',
-        color: 'var(--we-ink-muted, #9c8a7e)',
-        fontStyle: 'italic',
-      }}
-    >
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span>{label}…</span>
-    </div>
-  );
-}
-
-function RoutingMessage({ msg }) {
-  const label = TARGET_LABELS[msg.target] || msg.target;
-  const isDeepThinking = !!msg.lastThinkingAt;
-  const verb = isDeepThinking ? '正在构建' : '正在分析';
-  // msg.task 是主代理传入的自然语言任务描述，截取前 36 字显示
-  const taskHint = msg.task ? msg.task.slice(0, 36) : null;
-
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '5px',
-        padding: '4px 2px',
-        margin: '4px 0',
-        fontSize: '11px',
-        color: 'var(--we-ink-muted, #9c8a7e)',
-        fontStyle: 'italic',
-      }}
-    >
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span className="typing-dot" style={{ background: 'var(--we-vermilion, #8a5e4a)', opacity: 0.75 }} />
-      <span>
-        {verb} {label}
-        {taskHint ? `：${taskHint}${msg.task.length > 36 ? '…' : ''}` : '…'}
-      </span>
     </div>
   );
 }
 
 function ErrorMessage({ msg }) {
   return (
-    <div
-      style={{
-        margin: '4px 0 10px',
-        padding: '8px 12px',
-        background: 'rgba(192,57,43,0.08)',
-        border: '1px solid rgba(192,57,43,0.2)',
-        borderRadius: '6px',
-        fontSize: '12px',
-        color: '#c0392b',
-      }}
-    >
-      ⚠️ {msg.content}
+    <div className="my-2 animate-[we-bubble-in_0.2s_ease-out] rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
+      {msg.content}
     </div>
   );
 }
 
-function TaskBadge({ children, tone = 'default' }) {
-  const colors = tone === 'danger'
-    ? { bg: 'rgba(192,57,43,0.08)', border: 'rgba(192,57,43,0.2)', color: '#c0392b' }
-    : tone === 'success'
-      ? { bg: 'rgba(90,138,90,0.1)', border: 'rgba(90,138,90,0.18)', color: '#5a8a5a' }
-      : { bg: 'rgba(0,0,0,0.04)', border: 'rgba(0,0,0,0.08)', color: 'var(--we-ink-muted, #9c8a7e)' };
+function CheckIcon() {
   return (
-    <span style={{
-      fontSize: '11px',
-      padding: '2px 6px',
-      borderRadius: '999px',
-      background: colors.bg,
-      border: `1px solid ${colors.border}`,
-      color: colors.color,
-    }}>
-      {children}
-    </span>
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-success)" />
+      <polyline
+        points="3.5,6 5,7.5 8.5,4"
+        stroke="var(--we-color-text-inverse)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
-const TERMINAL_STATUSES = new Set(['completed', 'cancelled', 'failed']);
-
-const TASK_STATUS_LABELS = {
-  pending: '等待中',
-  researching: '探索中',
-  clarifying: '待澄清',
-  planning: '规划中',
-  awaiting_plan_approval: '待确认计划',
-  executing: '执行中',
-  awaiting_step_approval: '待确认步骤',
-  completed: '已完成',
-  failed: '失败',
-  cancelled: '已取消',
-};
-
-const STEP_STATUS_LABELS = {
-  pending: '待执行',
-  running: '执行中',
-  awaiting_approval: '待确认',
-  completed: '已完成',
-  failed: '失败',
-  blocked: '等待依赖',
-  skipped: '已跳过',
-};
-
-function MiniList({ title, items }) {
-  const normalized = Array.isArray(items)
-    ? items.map((item) => String(item ?? '').trim()).filter(Boolean)
-    : [];
-  if (normalized.length === 0) return null;
+function ErrorIcon() {
   return (
-    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-      <div style={{ color: 'var(--we-ink-primary, #3d2e22)', fontWeight: 600 }}>{title}</div>
-      {normalized.slice(0, 3).map((item, index) => (
-        <div key={`${title}-${index}`}>- {item}</div>
-      ))}
-    </div>
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-danger)" />
+      <line x1="4" y1="4" x2="8" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="8" y1="4" x2="4" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
   );
 }
 
-function TaskPanel({ task, onApprovePlan, onApproveStep, onCancelTask, onDismissTask }) {
-  if (!task) return null;
+function StatusIcon({ status }) {
+  if (status === 'running') return <span className="we-spinner flex-shrink-0" aria-label="执行中" />;
+  if (status === 'done') return <span className="flex-shrink-0" aria-label="完成"><CheckIcon /></span>;
+  return <span className="flex-shrink-0" aria-label="失败"><ErrorIcon /></span>;
+}
 
-  const steps = task.plan?.steps || task.graph || [];
-  const awaitingStepId = task.awaitingStepId || steps.find((step) => step.status === 'awaiting_approval')?.id || null;
-  const research = task.research;
+function VerboseMessage({ msg }) {
+  const isStep = msg.role === 'step';
+  const label = isStep
+    ? (msg.title ?? msg.stepId)
+    : (TOOL_LABELS[msg.toolName] ?? msg.toolName);
+  const isRunning = msg.status === 'running';
+  const isFailed = msg.status === 'error';
   return (
-    <div
-      style={{
-        margin: '0 0 12px',
-        padding: '10px 12px',
-        borderRadius: '10px',
-        background: 'rgba(255,255,255,0.45)',
-        border: '1px solid rgba(0,0,0,0.08)',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <strong style={{ fontSize: '13px', color: 'var(--we-ink-primary, #3d2e22)' }}>当前任务</strong>
-        <TaskBadge tone={task.status === 'failed' ? 'danger' : task.status === 'completed' ? 'success' : 'default'}>
-          {TASK_STATUS_LABELS[task.status] || task.status}
-        </TaskBadge>
-      </div>
-      <div style={{ fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)', lineHeight: '1.6' }}>
-        {task.summary || task.goal}
-      </div>
-      {research?.summary && (
-        <div
-          style={{
-            marginTop: '8px',
-            padding: '8px 9px',
-            borderRadius: '8px',
-            background: 'rgba(138,94,74,0.06)',
-            border: '1px solid rgba(138,94,74,0.12)',
-            fontSize: '11px',
-            color: 'var(--we-ink-muted, #9c8a7e)',
-            lineHeight: '1.5',
-          }}
-        >
-          <div style={{ color: 'var(--we-ink-primary, #3d2e22)', fontWeight: 600, marginBottom: '3px' }}>探索依据</div>
-          <div>{research.summary}</div>
-          <MiniList title="约束" items={research.constraints} />
-          <MiniList title="缺口" items={research.gaps} />
-        </div>
-      )}
-      {Array.isArray(task.pendingQuestions) && task.pendingQuestions.length > 0 && (
-        <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--we-ink-primary, #3d2e22)' }}>
-          {task.pendingQuestions.map((item, index) => (
-            <div key={`${task.id}-q-${index}`}>{index + 1}. {item}</div>
-          ))}
-        </div>
-      )}
-      {steps.length > 0 && (
-        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {steps.map((step) => {
-            const isCompleted = step.status === 'completed';
-            const isRunning = step.status === 'running';
-            const isFailed = step.status === 'failed';
-            return (
-            <div
-              key={step.id}
-              style={{
-                padding: '8px 9px',
-                borderRadius: '8px',
-                background: isCompleted
-                  ? 'rgba(90,138,90,0.07)'
-                  : isRunning
-                    ? 'rgba(138,94,74,0.06)'
-                    : isFailed
-                      ? 'rgba(192,57,43,0.05)'
-                      : 'rgba(0,0,0,0.03)',
-                border: isCompleted
-                  ? '1px solid rgba(90,138,90,0.18)'
-                  : isRunning
-                    ? '1px solid rgba(138,94,74,0.15)'
-                    : isFailed
-                      ? '1px solid rgba(192,57,43,0.15)'
-                      : '1px solid rgba(0,0,0,0.05)',
-                transition: 'background 0.2s, border-color 0.2s',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '12px', color: isCompleted ? 'var(--we-ink-secondary, #6b5a4e)' : 'var(--we-ink-primary, #3d2e22)', flex: 1 }}>
-                  {isCompleted && <span style={{ color: '#5a8a5a', marginRight: '4px' }}>✓</span>}
-                  {isRunning && <span style={{ marginRight: '4px', opacity: 0.7 }}>⋯</span>}
-                  {step.title}
-                </span>
-                <TaskBadge tone={isFailed ? 'danger' : isCompleted ? 'success' : 'default'}>
-                  {STEP_STATUS_LABELS[step.status] || step.status}
-                </TaskBadge>
-              </div>
-              <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-                {step.targetType} · {step.operation}
-              </div>
-              {step.rationale && (
-                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-                  目的：{step.rationale}
-                </div>
-              )}
-              {step.expectedOutput && (
-                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-                  产出：{step.expectedOutput}
-                </div>
-              )}
-              <MiniList title="输入" items={step.inputs} />
-              <MiniList title="验收" items={step.acceptance} />
-              {step.rollbackRisk && (
-                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-                  风险：{step.rollbackRisk}
-                </div>
-              )}
-              {step.proposalSummary && (
-                <div style={{ marginTop: '4px', fontSize: '11px', color: 'var(--we-ink-muted, #9c8a7e)', lineHeight: '1.5' }}>
-                  changes: {step.proposalSummary.changeKeys?.join(', ') || '无'}
-                  {step.proposalSummary.entryCount ? ` · 条目 ${step.proposalSummary.entryCount}` : ''}
-                  {step.proposalSummary.stateFieldCount ? ` · 字段 ${step.proposalSummary.stateFieldCount}` : ''}
-                </div>
-              )}
-              {awaitingStepId === step.id && step.proposal && (
-                <div style={{ marginTop: '8px' }}>
-                  <ChangeProposalCard
-                    messageId={null}
-                    proposal={step.proposal}
-                    applied={step.status === 'completed'}
-                    onApplyProposal={({ editedProposal }) => onApproveStep?.(step.id, editedProposal)}
-                    applyLabel="确认并执行"
-                  />
-                </div>
-              )}
-              {awaitingStepId === step.id && !step.proposal && (
-                <div style={{ marginTop: '6px', display: 'flex', gap: '6px' }}>
-                  <ActionBtn onClick={() => onApproveStep?.(step.id)}>确认此步骤</ActionBtn>
-                </div>
-              )}
-            </div>
-          );
-          })}
-        </div>
-      )}
-      <div style={{ marginTop: '10px', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        {task.status === 'awaiting_plan_approval' && (
-          <ActionBtn onClick={onApprovePlan}>确认计划</ActionBtn>
-        )}
-        {task.status !== 'completed' && task.status !== 'cancelled' && task.status !== 'failed' && (
-          <ActionBtn onClick={onCancelTask} danger>取消任务</ActionBtn>
-        )}
-        {TERMINAL_STATUSES.has(task.status) && (
-          <ActionBtn onClick={onDismissTask}>关闭</ActionBtn>
-        )}
+    <div className="mb-1.5 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
+      <div
+        className={`flex items-center gap-2 rounded-[2px_12px_12px_12px] border px-3 py-1.5 transition-colors ${
+          isFailed
+            ? 'border-[var(--we-color-status-danger)]/40 bg-[var(--we-color-status-danger)]/5 text-[var(--we-color-status-danger)]'
+            : isRunning
+            ? 'border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] text-[var(--we-color-text-secondary)]'
+            : 'border-[var(--we-color-border-subtle)]/50 bg-[var(--we-color-bg-surface)]/40 text-[var(--we-color-text-tertiary)]'
+        }`}
+      >
+        <StatusIcon status={msg.status} />
+        <span className={isStep ? 'text-[12px] font-medium' : 'font-mono text-[11px]'}>
+          {label}
+        </span>
       </div>
     </div>
   );
 }
 
-export default function MessageList({
-  messages,
-  currentTask,
-  onUserEdit,
-  onAssistantRegenerate,
-  onDeleteMessage,
-  onApprovePlan,
-  onApproveStep,
-  onCancelTask,
-  onDismissTask,
-  isStreaming,
-  activeToolCall,
-}) {
+function PendingBubble() {
+  return (
+    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
+      <div className="rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2">
+        <div className="we-typing-dots" aria-label="助手正在思考">
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
   useEffect(() => {
-    // 只在消息数量增加时（新消息到达）才滚动到底部
-    // 已有消息的状态更新（如 applied 变更）不触发滚动
     if (messages.length > prevCountRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     prevCountRef.current = messages.length;
   }, [messages]);
 
+  useEffect(() => {
+    if (pending) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [pending]);
 
-  if (messages.length === 0 && !currentTask) {
+  if (messages.length === 0) {
     return (
-      <div
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--we-ink-muted, #9c8a7e)',
-          fontSize: '13px',
-          padding: '24px',
-          textAlign: 'center',
-          gap: '8px',
-        }}
-      >
-        <div style={{ fontSize: '28px', opacity: 0.5 }}>✦</div>
-        <div style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>写卡助手</div>
-        <div style={{ fontSize: '12px', lineHeight: '1.6', maxWidth: '220px' }}>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-6 text-center text-[13px] text-[var(--we-ink-muted)]">
+        <div
+          className="text-[14px] italic"
+          style={{ fontFamily: 'var(--we-font-display)' }}
+        >
+          写卡助手
+        </div>
+        <div className="max-w-[240px] text-[12px] leading-relaxed">
           可以帮你写世界卡、角色卡、全局设置，或回答关于 WorldEngine 的问题
         </div>
       </div>
@@ -629,88 +451,30 @@ export default function MessageList({
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px' }}>
-      <style>{`
-        @keyframes we-blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0; }
+    <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      {messages.map((msg, i) => {
+        const key = msg.id ?? `${msg.role}-${i}`;
+        if (msg.role === 'step' || msg.role === 'tool_call') {
+          return <VerboseMessage key={key} msg={msg} />;
         }
-        @keyframes we-proposal-in {
-          from { opacity: 0; transform: translateY(6px); }
-          to   { opacity: 1; transform: translateY(0); }
+        if (msg.role === 'user') {
+          return <UserMessage key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
         }
-      `}</style>
-      {(() => {
-        const taskSteps = currentTask?.plan?.steps || currentTask?.graph || [];
-        const taskHasHighRisk = taskSteps.some((s) => s.riskLevel === 'high');
-        // 需要用户交互（审批/澄清）或步骤数 ≥3 时才渲染任务卡片；
-        // 简单任务（status='executing' 且步骤数 <3 且无高风险）静默执行不弹卡
-        const shouldShowTaskPanel = !currentTask
-          ? false
-          : currentTask.status === 'awaiting_plan_approval'
-          || currentTask.status === 'awaiting_step_approval'
-          || currentTask.status === 'executing'
-          || currentTask.status === 'clarifying'
-          || TERMINAL_STATUSES.has(currentTask.status)
-          || taskSteps.length > 2
-          || taskHasHighRisk;
-        const taskPanel = shouldShowTaskPanel ? (
-          <TaskPanel
-            key={`task-${currentTask.id}`}
-            task={currentTask}
-            onApprovePlan={onApprovePlan}
-            onApproveStep={onApproveStep}
-            onCancelTask={onCancelTask}
-            onDismissTask={onDismissTask}
-          />
-        ) : null;
-        const anchorId = currentTask?.anchorMessageId;
-        let taskRendered = false;
-        const items = messages.map((msg) => {
-          let node = null;
-          if (msg.role === 'user') node = (
-            <UserMessage
-              key={msg.id}
-              msg={msg}
-              onEdit={onUserEdit}
-              onDelete={onDeleteMessage}
-            />
-          );
-          else if (msg.role === 'assistant') node = (
+        if (msg.role === 'assistant') {
+          return (
             <AssistantMessage
-              key={msg.id}
+              key={key}
               msg={msg}
-              onRegenerate={onAssistantRegenerate}
-              onDelete={onDeleteMessage}
+              onRegenerate={onRegenerate}
+              onDelete={onDelete}
             />
           );
-          else if (msg.role === 'routing') node = <RoutingMessage key={msg.id} msg={msg} />;
-          else if (msg.role === 'proposal') node = (
-            <div key={msg.id} style={{ animation: 'we-proposal-in 0.28s ease forwards' }}>
-              <ChangeProposalCard
-                messageId={msg.id}
-                taskId={msg.taskId}
-                token={msg.token}
-                proposal={msg.proposal}
-                applied={msg.applied}
-              />
-            </div>
-          );
-          else if (msg.role === 'error') node = <ErrorMessage key={msg.id} msg={msg} />;
-          if (!node) return null;
-          if (taskPanel && anchorId && anchorId === msg.id) {
-            // eslint-disable-next-line react-hooks/immutability
-            taskRendered = true;
-            return [node, taskPanel];
-          }
-          return node;
-        });
-        return [items, taskPanel && !taskRendered ? taskPanel : null];
-      })()}
-      {isStreaming
-        && !messages.some((m) => m.role === 'routing')
-        && !messages.some((m) => m.role === 'assistant' && m.streaming)
-        && <MainAgentThinking toolName={activeToolCall} />}
+        }
+        if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
+        if (msg.role === 'plan_doc') return <PlanDocViewer key={key} content={msg.content} />;
+        return null;
+      })}
+      {pending && <PendingBubble />}
       <div ref={bottomRef} />
     </div>
   );
