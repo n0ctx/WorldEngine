@@ -461,6 +461,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     const TERMINAL_AFTER_TOOLS = new Set(['completed', 'failed', 'cancelled']);
     if (TERMINAL_AFTER_TOOLS.has(task.status)) {
       taskStore.emit(task.id, { type: 'done', done: true });
+      taskStore.endAllSse(task.id);
       return;
     }
     if (task.status === 'awaiting_approval') {
@@ -504,6 +505,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message });
     taskStore.setStatus(task.id, 'failed');
     taskStore.emit(task.id, { type: 'done', done: true });
+    taskStore.endAllSse(task.id);
     throw err;
   }
 

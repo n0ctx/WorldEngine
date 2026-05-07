@@ -97,6 +97,18 @@ export function detachSse(taskId, res) {
   log.debug(`DETACH  ${formatMeta({ taskId, remaining: sseClients.get(taskId)?.size ?? 0 })}`);
 }
 
+export function endAllSse(taskId) {
+  const clients = sseClients.get(taskId);
+  if (!clients || clients.size === 0) return;
+  log.debug(`END_ALL_SSE  ${formatMeta({ taskId, count: clients.size })}`);
+  for (const res of clients) {
+    try {
+      if (!res.writableEnded) res.end();
+    } catch { /* ignore */ }
+  }
+  clients.clear();
+}
+
 export function emit(taskId, event) {
   const clients = sseClients.get(taskId);
   const subscribers = clients?.size ?? 0;
