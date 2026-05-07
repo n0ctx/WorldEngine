@@ -50,6 +50,15 @@ export default function AssistantPanel() {
     return () => abortRef.current?.abort?.();
   }, []);
 
+  // 面板重新打开时若任务处于终态，自动重置，避免「已完成」状态导致输入框一直禁用
+  const prevIsOpenRef = useRef(isOpen);
+  useEffect(() => {
+    if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status)) {
+      reset();
+    }
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, status, reset]);
+
   // 任务完成后通知主界面刷新角色/世界/persona 列表
   const prevStatusRef = useRef(status);
   useEffect(() => {
@@ -239,6 +248,14 @@ export default function AssistantPanel() {
 
   return (
     <>
+      {/* 背景遮罩：虚化底层内容，点击可关闭抽屉 */}
+      {isOpen && (
+        <div
+          className="fixed inset-x-0 bottom-0 top-[40px] z-[199] cursor-default bg-black/20"
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
       <aside
         aria-hidden={!isOpen}
         style={{ width: `${width}px` }}
