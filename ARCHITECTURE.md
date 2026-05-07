@@ -597,11 +597,11 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 写卡助手当前为单链路 **父代理 + 通用执行子代理 + 计划文档** 架构：
 
 - **接口**：单一主接口 `POST /api/assistant/agent`（SSE，driver 入口），辅助接口 `POST /agent/:taskId/approve`、`POST /agent/:taskId/cancel`、`GET /agent/:taskId/plan-doc`、`GET /agent/:taskId`（任务快照）。
-- **父代理（`assistant/server/parent-agent.js`）**：长生命周期上下文，每轮在首条 system 自动注入 `assistant/knowledge/CONTRACT.md`；工具集 = 3 读（`read_resource` / `list_resources` / `read_file`）+ 6 apply（每个 targetType 各一）+ 5 meta（`update_plan_doc` / `dispatch_subagent` / `request_clarification` / `complete_task` / `fail_task`）。负责对话理解、计划文档维护、子代理派发与终态回收。
+- **父代理（`assistant/server/parent-agent.js`）**：长生命周期上下文，每轮在首条 system 自动注入 `assistant/knowledge/CONTRACT.md`；工具集 = 3 读（`preview_card` / `list_resources` / `read_file`）+ 6 apply（simple mode 直执行，每个 targetType 各一：`apply_world_card` / `apply_character_card` / `apply_persona_card` / `apply_global_config` / `apply_css_snippet` / `apply_regex_rule`）+ 5 meta（`write_plan_doc` / `edit_plan_doc` / `delete_plan_doc` / `dispatch_subagent` / `finalize_task`）。负责对话理解、计划文档维护、子代理派发与终态回收；追问通过普通 delta 文本完成，不发结构化事件。
 - **通用子代理（`assistant/server/sub-agent.js`）**：每个 step 起一个干净上下文，按 `task.targetType` 注入 `assistant/knowledge/<TARGET>.md`（一次只一份，互不串味）；工具集 = 3 读 + 1 个对应 targetType 的 `apply_*` 工具。子代理直接执行 `normalizeProposal` + 资源落库，把结构化结果回给父代理。
-- **任务规模判定（simple / plan）**：父代理在首轮根据需求拆出步骤计划；步骤数 < 3 走 simple mode，父代理直接调用对应 `apply_*` 落库；步骤数 ≥ 3 走 plan mode，调用 `update_plan_doc` 写计划 → 切 `awaiting_approval` → 等用户 `/approve` → 父代理逐步 `dispatch_subagent`。
-- **计划文档**：物理文件落在 `/.temp/assistant/<taskId>.md`（`assistant/server/plan-doc.js` 维护原子读写、状态字段切换），每次 `update_plan_doc` 后 emit `plan_doc_updated` SSE，前端 `PlanDocViewer` 渲染。
-- **任务状态机**：`planning → clarifying → awaiting_approval → executing → paused → completed | failed | cancelled`。`clarifying` 由 `request_clarification` 工具进入；`paused` 由执行中用户消息触发。
+- **任务规模判定（simple / plan）**：父代理在首轮根据需求拆出步骤计划；步骤数 < 3 走 simple mode，父代理直接调用对应 `apply_*` 落库；步骤数 ≥ 3 走 plan mode，调用 `write_plan_doc` 写计划 → 切 `awaiting_approval` → 等用户 `/approve` → 父代理逐步 `dispatch_subagent`，并按需 `edit_plan_doc` 维护勾选与日志。
+- **计划文档**：物理文件落在 `/.temp/assistant/<taskId>.md`（`assistant/server/plan-doc.js` 维护原子读写、状态字段切换），每次 `write_plan_doc` / `edit_plan_doc` 后 emit `plan_doc_updated` SSE，前端 `PlanDocViewer` 渲染。
+- **任务状态机**：`planning → awaiting_approval → executing → paused → completed | failed | cancelled`。追问留在 `planning` 内，由父代理用普通文本对话完成，不切独立状态；`paused` 由执行中用户消息触发。
 - **暂停语义（spec §6.4）**：`executing` 期间用户消息 enqueue 到 `task.pendingUserMessages`，不打断当前 step；step 跑完后父代理 `dispatch_subagent` 工具内调用 `taskStore.takeUserMessages()`，若有挂起消息则切 `paused`、emit `paused` 并把消息追加到 `task.messages`，tool result 上透传 `paused: true` 让 LLM 立即停止后续派发；父代理随后 `update_plan_doc` 调整未完成步骤，等用户再次 `/approve` 续派。
 - **SSE 事件清单（14 类）**：`delta` / `thinking` / `plan_doc_updated` / `awaiting_approval` / `plan_approved` / `step_started` / `step_completed` / `step_failed` / `paused` / `task_completed` / `task_failed` / `task_cancelled` / `done` / `error`。
 - **落库安全边界**：所有写操作（包括子代理与父代理 simple-mode 直 apply）一律先过 `normalizeProposal()`（`assistant/server/normalize-proposal.js`），再交给 `applyProposal()` 调资源域服务；契约失败抛错后由调用方决定 retry 或上报。
@@ -638,16 +638,16 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 **CUD 术语约束**：父代理 / 子代理在卡片正文、条目内容、状态字段说明、开场白、计划文档 step 描述中统一用 `{{user}}` 指代代入者，`{{char}}` 指代模型扮演角色；schema 字段值与历史状态标签保持原格式（如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"`）。
 
 **world-card 子代理对齐规则**：
-- `read_resource(target="world-card")` 返回 `trigger_type='state'` 条目时附带 `conditions`
+- `preview_card(target="world-card")` 返回 `trigger_type='state'` 条目时附带 `conditions`
 - proposal `entryOps[].conditions` 与 `entry_conditions` 表同构：`target_field` 用 `世界.xxx / 玩家.xxx / 角色.xxx`，`operator` 用当前评估器支持的符号/中文操作符
 
 **character-card / persona-card / global-config 对齐规则**：
 - 已支持 `description` 字段，对齐当前编辑页
-- `read_resource(target="character-card" | "persona-card")` 附带世界名、简介、现有世界条目、现有状态字段、当前默认状态值
+- `preview_card(target="character-card" | "persona-card")` 附带世界名、简介、现有世界条目、现有状态字段、当前默认状态值
 - `character-card` / `persona-card` 不允许携带 `stateFieldOps`（状态字段创建/改/删只走 `world-card`）；新增 `stateValueOps` 只能填写已存在字段的默认值，未知 `field_key` 执行时拒绝
 - `global-config` 不再暴露 `entryOps`（全局关键词条目能力已移除）
 
-**辅助工具 `read_resource` / `list_resources` / `read_file`** 对父代理和子代理均可用；proposal schema、operation 白名单、knowledge 文件分工见 `assistant/knowledge/CONTRACT.md` 与设计文档 `docs/superpowers/specs/2026-05-07-assistant-redesign-design.md`。
+**辅助工具 `preview_card` / `list_resources` / `read_file`** 对父代理和子代理均可用；proposal schema、operation 白名单、knowledge 文件分工见 `assistant/knowledge/CONTRACT.md` 与设计文档 `docs/superpowers/specs/2026-05-07-assistant-redesign-design.md`。
 
 ---
 

@@ -111,7 +111,7 @@ export default function AssistantPanel() {
       )}
       <aside
         aria-hidden={!isOpen}
-        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex w-[400px] flex-col border-l border-black/10 bg-[var(--we-paper-base)] shadow-[-4px_0_24px_rgba(0,0,0,0.15)] transition-transform duration-200 ease-out ${
+        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex w-[400px] flex-col border-l border-black/10 bg-[var(--we-paper-base)] shadow-2xl transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
@@ -152,7 +152,7 @@ export default function AssistantPanel() {
             </div>
           )}
           {error && status === 'failed' && (
-            <div className="mx-3 my-2 rounded border border-[rgba(192,57,43,0.2)] bg-[rgba(192,57,43,0.08)] px-3 py-2 text-[12px] text-[#c0392b]">
+            <div className="mx-3 my-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
               {error}
             </div>
           )}

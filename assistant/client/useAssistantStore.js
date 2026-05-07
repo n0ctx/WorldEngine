@@ -1,7 +1,8 @@
 /**
  * 写卡助手 Zustand Store（单接口模型）
  *
- * 状态机：idle → planning → (clarifying|awaiting_approval) → executing → (paused|completed|failed|cancelled)
+ * 状态机：idle → planning → awaiting_approval → executing → (paused|completed|failed|cancelled)
+ *           （追问留在 planning 内，由父代理用普通 delta 文本完成，不切独立状态）
  *
  * 服务端 SSE 事件由 ingestEvent 集中消费，
  * UI 仅订阅 taskId/status/planDoc/messages/error。
@@ -22,9 +23,17 @@ export const useAssistantStore = create(
       planDoc: '',
       messages: [], // [{ role, content, streaming? }]
       error: null,
+      currentStepId: null,
 
       reset: () =>
-        set({ taskId: null, status: 'idle', planDoc: '', messages: [], error: null }),
+        set({
+          taskId: null,
+          status: 'idle',
+          planDoc: '',
+          messages: [],
+          error: null,
+          currentStepId: null,
+        }),
 
       ingestEvent: (evt) =>
         set((s) => {
@@ -54,6 +63,16 @@ export const useAssistantStore = create(
               return { ...s, status: 'cancelled', planDoc: '' };
             case 'delta':
               return { ...s, messages: appendDelta(s.messages, evt.delta) };
+            case 'step_started':
+              return { ...s, currentStepId: evt.stepId };
+            case 'step_completed':
+              return { ...s, currentStepId: null };
+            case 'step_failed':
+              return {
+                ...s,
+                currentStepId: null,
+                error: `Step ${evt.stepId} 失败：${evt.error}`,
+              };
             default:
               return s;
           }
