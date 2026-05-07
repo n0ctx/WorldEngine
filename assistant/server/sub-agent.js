@@ -92,6 +92,29 @@ function toLLMTool(input, executeOverride) {
   throw new Error('toLLMTool: unrecognized definition shape');
 }
 
+/**
+ * 包装工具 execute：在执行前后发 tool_call_started / tool_call_completed SSE 事件。
+ */
+function wrapToolEvents(tool, emitFn) {
+  if (!emitFn) return tool;
+  const name = tool.function?.name ?? 'unknown';
+  return {
+    ...tool,
+    execute: async (args) => {
+      const callId = Math.random().toString(36).slice(2, 8);
+      emitFn({ type: 'tool_call_started', toolName: name, callId });
+      try {
+        const result = await tool.execute(args);
+        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: true });
+        return result;
+      } catch (err) {
+        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
+        throw err;
+      }
+    },
+  };
+}
+
 async function loadPrompt() {
   return readFile(PROMPT_PATH, 'utf-8');
 }
@@ -151,6 +174,7 @@ export async function dispatchSubAgent({
   entityRef = null,
   task = '',
   context = {},
+  emitFn = null,
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
@@ -169,10 +193,10 @@ export async function dispatchSubAgent({
   });
 
   const tools = [
-    toLLMTool(previewTool),
-    toLLMTool(listResources),
-    toLLMTool(READ_FILE_TOOL),
-    toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })),
+    wrapToolEvents(toLLMTool(previewTool), emitFn),
+    wrapToolEvents(toLLMTool(listResources), emitFn),
+    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn),
+    wrapToolEvents(toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })), emitFn),
   ];
 
   const messages = [

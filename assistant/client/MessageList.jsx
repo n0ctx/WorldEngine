@@ -19,6 +19,18 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const TOOL_LABELS = {
+  preview_card: '预览卡片',
+  list_resources: '列出资源',
+  read_file: '读取文件',
+  apply_world_card: '写入世界卡',
+  apply_character_card: '写入角色卡',
+  apply_persona_card: '写入用户卡',
+  apply_global_config: '写入全局设置',
+  apply_css_snippet: '写入 CSS 片段',
+  apply_regex_rule: '写入正则规则',
+};
+
 function parseStreamingBlocks(text) {
   const blocks = [];
   const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
@@ -324,6 +336,41 @@ function ErrorMessage({ msg }) {
   );
 }
 
+function StatusIcon({ status }) {
+  if (status === 'running') return <span className="we-spinner" aria-label="执行中" />;
+  if (status === 'done') return <span className="text-[var(--we-ink-faint)] text-[11px] leading-none">✓</span>;
+  return <span className="text-[var(--we-vermilion)] text-[11px] leading-none">✗</span>;
+}
+
+function ToolCallItem({ msg }) {
+  const label = TOOL_LABELS[msg.toolName] ?? msg.toolName;
+  const isDone = msg.status !== 'running';
+  return (
+    <div
+      className={`mb-1 flex items-center gap-1.5 pl-4 text-[11px] leading-none transition-colors ${
+        isDone ? 'text-[var(--we-ink-faint)]' : 'text-[var(--we-ink-muted)]'
+      }`}
+    >
+      <StatusIcon status={msg.status} />
+      <span className="font-mono">{label}</span>
+    </div>
+  );
+}
+
+function StepItem({ msg }) {
+  const isDone = msg.status !== 'running';
+  return (
+    <div
+      className={`mb-1.5 flex items-center gap-2 px-2 py-1 text-[12px] leading-snug transition-colors ${
+        isDone ? 'text-[var(--we-ink-muted)]' : 'text-[var(--we-ink-primary)] font-medium'
+      }`}
+    >
+      <StatusIcon status={msg.status} />
+      <span>{msg.title ?? msg.stepId}</span>
+    </div>
+  );
+}
+
 function PendingBubble() {
   return (
     <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
@@ -387,6 +434,8 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
           );
         }
         if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
+        if (msg.role === 'step') return <StepItem key={key} msg={msg} />;
+        if (msg.role === 'tool_call') return <ToolCallItem key={key} msg={msg} />;
         return null;
       })}
       {pending && <PendingBubble />}

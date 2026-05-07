@@ -170,6 +170,21 @@ body {
   to   { opacity: 1; transform: none; }
 }
 
+/* 写卡助手 verbose 模式：tool call / step 条目的 spinner */
+@keyframes we-spin {
+  to { transform: rotate(360deg); }
+}
+.we-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--we-ink-faint);
+  border-top-color: var(--we-vermilion);
+  border-radius: 50%;
+  animation: we-spin 0.6s linear infinite;
+}
+
 /* 写卡助手流式光标闪烁 */
 @keyframes we-blink {
   0%, 50%   { opacity: 1; }

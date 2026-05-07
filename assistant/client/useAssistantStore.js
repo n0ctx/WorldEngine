@@ -68,15 +68,52 @@ export const useAssistantStore = create(
               return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
             case 'messages_changed':
               return { ...s, messages: Array.isArray(evt.messages) ? evt.messages : s.messages };
-            case 'step_started':
-              return { ...s, currentStepId: evt.stepId };
+            case 'tool_call_started':
+              return {
+                ...s,
+                messages: [
+                  ...s.messages,
+                  { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' },
+                ],
+              };
+            case 'tool_call_completed':
+              return {
+                ...s,
+                messages: s.messages.map((m) =>
+                  m.id === evt.callId ? { ...m, status: evt.success ? 'done' : 'error' } : m,
+                ),
+              };
+            case 'step_started': {
+              const stepExists = s.messages.some((m) => m.id === evt.stepId);
+              return {
+                ...s,
+                currentStepId: evt.stepId,
+                messages: stepExists
+                  ? s.messages.map((m) =>
+                      m.id === evt.stepId ? { ...m, title: evt.title, status: 'running' } : m,
+                    )
+                  : [
+                      ...s.messages,
+                      { id: evt.stepId, role: 'step', stepId: evt.stepId, title: evt.title, status: 'running' },
+                    ],
+              };
+            }
             case 'step_completed':
-              return { ...s, currentStepId: null };
+              return {
+                ...s,
+                currentStepId: null,
+                messages: s.messages.map((m) =>
+                  m.id === evt.stepId ? { ...m, status: 'done' } : m,
+                ),
+              };
             case 'step_failed':
               return {
                 ...s,
                 currentStepId: null,
                 error: `Step ${evt.stepId} 失败：${evt.error}`,
+                messages: s.messages.map((m) =>
+                  m.id === evt.stepId ? { ...m, status: 'error', error: evt.error } : m,
+                ),
               };
             default:
               if (evt.done === true) {

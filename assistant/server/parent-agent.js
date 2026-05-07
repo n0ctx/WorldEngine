@@ -98,6 +98,31 @@ async function loadSystemPrompt() {
 }
 
 /**
+ * 包装工具 execute：在执行前后发 tool_call_started / tool_call_completed SSE 事件。
+ * 仅用于 apply_* / preview / list / read_file；5 个编排 meta 工具已有语义事件，不需包装。
+ */
+function wrapToolEvents(tool, emitFn) {
+  if (!emitFn) return tool;
+  const name = tool.function?.name ?? 'unknown';
+  return {
+    ...tool,
+    execute: async (args) => {
+      const callId = Math.random().toString(36).slice(2, 8);
+      emitFn({ type: 'tool_call_started', toolName: name, callId });
+      try {
+        const result = await tool.execute(args);
+        const success = !(result && result.ok === false);
+        emitFn({ type: 'tool_call_completed', toolName: name, callId, success });
+        return result;
+      } catch (err) {
+        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
+        throw err;
+      }
+    },
+  };
+}
+
+/**
  * 包装 apply_* execute：捕获异常并转为 { ok:false, error } 让 LLM 在 tool 循环内重试。
  */
 function wrapApply(applyMod, ctx) {
@@ -116,7 +141,7 @@ function wrapApply(applyMod, ctx) {
  * 5 个编排专用工具的内联定义。每个都返回 { definition, execute }。
  * execute 闭包捕获 task，所以必须在每次 runParentAgent 内构造一次。
  */
-function buildMetaTools(task) {
+function buildMetaTools(task, emitFn) {
   const writePlanDoc = {
     definition: {
       type: 'function',
@@ -287,6 +312,7 @@ function buildMetaTools(task) {
             entityRef: step.dependsOn[0] ?? null,
             task: step.task,
             context: task.context,
+            emitFn,
           });
           if (result?.success === false) {
             taskStore.emit(task.id, { type: 'step_failed', taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
@@ -418,13 +444,15 @@ export async function runParentAgent(task, userInput, opts = {}) {
   });
 
   const applyCtx = { worldRefId: task.context?.worldId ?? null };
+  const emitFn = (evt) => taskStore.emit(task.id, evt);
 
   const tools = [
-    toLLMTool(previewTool),
-    toLLMTool(listResources),
-    toLLMTool(READ_FILE_TOOL),
-    ...Object.entries(APPLY_TOOLS).map(([, mod]) => toLLMTool(mod, wrapApply(mod, applyCtx))),
-    ...buildMetaTools(task).map((t) => toLLMTool(t)),
+    wrapToolEvents(toLLMTool(previewTool), emitFn),
+    wrapToolEvents(toLLMTool(listResources), emitFn),
+    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn),
+    ...Object.entries(APPLY_TOOLS).map(([, mod]) =>
+      wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn)),
+    ...buildMetaTools(task, emitFn).map((t) => toLLMTool(t)),
   ];
 
   // 历史 + 当前轮上下文
