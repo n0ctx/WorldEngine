@@ -24,6 +24,9 @@ export const useAssistantStore = create(
       messages: [], // [{ role, content, streaming? }]
       error: null,
       currentStepId: null,
+      // 当前任务在 messages 数组中的起始偏移（task_created 时记录），
+      // 用于限制 tool_call_started 复用失败行的查找范围，避免跨任务污染历史
+      taskMsgOffset: 0,
 
       reset: () =>
         set({
@@ -33,6 +36,7 @@ export const useAssistantStore = create(
           messages: [],
           error: null,
           currentStepId: null,
+          taskMsgOffset: 0,
         }),
 
       // 仅重置任务态，保留消息历史（面板重开时使用）
@@ -44,13 +48,14 @@ export const useAssistantStore = create(
           planDoc: '',
           error: null,
           currentStepId: null,
+          taskMsgOffset: 0,
         })),
 
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {
             case 'task_created':
-              return { ...s, taskId: evt.taskId, status: 'planning', error: null };
+              return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
             case 'plan_doc_updated': {
               // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）
               const existingIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
@@ -94,7 +99,21 @@ export const useAssistantStore = create(
               next.splice(Math.min(prevIdx, next.length), 0, planDocEntry);
               return { ...s, messages: next };
             }
-            case 'tool_call_started':
+            case 'tool_call_started': {
+              // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
+              // 仅在 taskMsgOffset 之后搜索，防止跨任务覆盖历史失败记录
+              const prevFailedIdx = s.messages.reduce(
+                (found, m, i) =>
+                  i >= s.taskMsgOffset && m.role === 'tool_call' && m.toolName === evt.toolName && m.status === 'error'
+                    ? i
+                    : found,
+                -1,
+              );
+              if (prevFailedIdx >= 0) {
+                const next = [...s.messages];
+                next[prevFailedIdx] = { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' };
+                return { ...s, messages: next };
+              }
               return {
                 ...s,
                 messages: [
@@ -102,6 +121,7 @@ export const useAssistantStore = create(
                   { id: evt.callId, role: 'tool_call', toolName: evt.toolName, status: 'running' },
                 ],
               };
+            }
             case 'tool_call_completed':
               return {
                 ...s,
