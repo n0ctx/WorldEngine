@@ -212,11 +212,12 @@ export default function AssistantPanel() {
   }, [reset]);
 
   const inputDisabled = TERMINAL_STATUSES.has(status);
-  const lastMsg = messages[messages.length - 1];
-  const pendingAssistant =
-    !!lastMsg &&
-    lastMsg.role === 'user' &&
-    !TERMINAL_STATUSES.has(status);
+  const ACTIVE_STATUSES = new Set(['planning', 'executing', 'paused']);
+  const isActiveTask = ACTIVE_STATUSES.has(status);
+  const hasRunningItem = messages.some(
+    (m) => m.status === 'running' || m.streaming === true,
+  );
+  const pendingAssistant = isActiveTask && !hasRunningItem;
 
   // 左边沿拖拽改宽：监听器绑在 document 上，确保 pointer 移出把手后仍能响应
   const startResize = useCallback(
