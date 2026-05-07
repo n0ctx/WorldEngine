@@ -969,17 +969,18 @@ git commit -m "refactor(assistant): task-store 简化为新单代理模型"
 2. 你拥有的工具：
    - `preview_card(entityType, entityId)` 读现有实体
    - `read_file(path)` 读 knowledge/ 下其他知识文件
-   - `write_plan_doc({title, intent, assumptions, steps})` 首次落计划文档
+   - `apply_world_card / apply_character_card / apply_persona_card / apply_global_config / apply_css_snippet / apply_regex_rule` —— **simple mode 直接落库**（≤2 步任务自己调，不走子代理）
+   - `write_plan_doc({title, intent, assumptions, steps})` plan mode 首次落计划文档
    - `edit_plan_doc({op:'replace_steps'|'mark_done'|'append_log', ...})` 修改文档
-   - `dispatch_subagent({stepId})` 派发子代理执行某 step
+   - `dispatch_subagent({stepId})` plan mode 派发子代理执行某 step
    - `delete_plan_doc()`
-   - `finalize_task({summary})` 发送终态总结消息
+   - `finalize_task({summary, terminalStatus})` 发送终态总结消息（completed/failed/cancelled）
 3. 工作流：
    - 收到用户首条消息 → 判断意图分类（参考 CONTRACT.md）→ 必要时通过普通文本追问（clarifying）→ 信息够了再 read_file 拉对应 CARD.md
-   - 准备好后 write_plan_doc，状态自动转 awaiting_approval
-   - 用户确认（前端调 /approve）→ 状态进 executing → 你按 plan 顺序 dispatch_subagent
-   - 收到 step 完成 → edit_plan_doc(mark_done) + edit_plan_doc(append_log)
-   - 全部完成 → delete_plan_doc + finalize_task
+   - **任务规模判定**：评估拆几步。**<3 步（1 或 2 步）走 simple mode**：直接调 `apply_*` 完成 → `finalize_task({terminalStatus:'completed', summary})`；**≥3 步走 plan mode**：write_plan_doc → 等审批 → dispatch
+   - **删除类高风险操作**即使 1 步也走 plan mode（写文档让用户审）
+   - plan mode：write_plan_doc → 等用户 /approve → 按 plan 顺序 dispatch_subagent → 收到完成 edit_plan_doc(mark_done) + append_log → 全部完成 delete_plan_doc + finalize_task
+   - simple mode 中途若 preview 后发现实际需要 3+ 步，调 write_plan_doc 升级到 plan mode
 4. 暂停：当 task 切到 paused 状态，你会收到 pendingUserMessages，按修改意见 edit_plan_doc，然后用普通文本回复"已根据你的意见修改计划，请确认是否继续"
 5. 失败：某 step apply 报错（子代理返回 success:false）→ delete_plan_doc + finalize_task("任务失败: ...")，状态转 failed
 6. 步骤行格式必须严格遵守（CONTRACT.md §任务流程契约 引用）
@@ -1009,6 +1010,14 @@ import * as taskStore from './task-store.js';
 import { dispatchSubAgent } from './sub-agent.js';
 import { previewCardTool } from './tools/card-preview.js';
 import { readFileTool } from './tools/project-reader.js';
+import * as applyWorldCard from './tools/apply-world-card.js';
+import * as applyCharCard from './tools/apply-character-card.js';
+import * as applyPersonaCard from './tools/apply-persona-card.js';
+import * as applyGlobalConfig from './tools/apply-global-config.js';
+import * as applyCssSnippet from './tools/apply-css-snippet.js';
+import * as applyRegexRule from './tools/apply-regex-rule.js';
+
+const APPLY_TOOLS = [applyWorldCard, applyCharCard, applyPersonaCard, applyGlobalConfig, applyCssSnippet, applyRegexRule];
 
 const KNOWLEDGE_DIR = path.resolve(process.cwd(), 'assistant/knowledge');
 const PROMPT_PATH = path.resolve(process.cwd(), 'assistant/prompts/parent-agent.md');
@@ -1022,6 +1031,7 @@ async function loadSystemPrompt() {
 const TOOLS = [
   previewCardTool.definition,
   readFileTool.definition,
+  ...APPLY_TOOLS.map((t) => t.definition),
   {
     name: 'write_plan_doc',
     description: '首次落计划文档；状态自动转 awaiting_approval。',
@@ -1076,6 +1086,12 @@ function makeToolHandlers(task) {
   return {
     [previewCardTool.definition.name]: (args) => previewCardTool.execute(args, task.context),
     [readFileTool.definition.name]: (args) => readFileTool.execute(args),
+
+    // simple mode：父代理直接落库
+    ...Object.fromEntries(APPLY_TOOLS.map((t) => [
+      t.definition.name,
+      (args) => t.execute(args, { worldRefId: task.context?.worldId ?? null }),
+    ])),
 
     write_plan_doc: async (args) => {
       const steps = (args.steps ?? []).map((s, i) => ({ ...s, id: s.id ?? `step-${i+1}`, done: false }));

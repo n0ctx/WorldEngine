@@ -62,7 +62,7 @@ POST /api/assistant/agent (SSE)
 
 **关键点**：
 
-- 父代理是**长上下文 + 多工具**，子代理是**短上下文 + 单一资源 apply**
+- 父代理是**长上下文 + 多工具**（包含 6 个 `apply_*`，用于 simple mode 自执行），子代理是**短上下文 + 单一资源 apply**（plan mode 派发）
 - 落库安全边界（`normalizeProposal`）完全不动，只是从"路由层归一化执行子代理输出"变成"apply 工具内部归一化"
 - 所有 SSE 事件统一由父代理这一层发出，子代理的执行细节不直接暴露给前端
 
@@ -70,15 +70,21 @@ POST /api/assistant/agent (SSE)
 
 ## 3. 任务状态机
 
+**双路径**：父代理在 planning 阶段判定任务规模——预计 **≥3 步** 走 plan mode（写计划文档 + 等审批 + 派发子代理）；预计 **<3 步**（即 1 或 2 步）走 simple mode（父代理自己调 `apply_*` 工具直接落库，跳过 plan doc 与 awaiting_approval）。simple mode 完成后直接发总结消息进入 completed。
+
 ```
         idle
          │ 用户首次消息
          ↓
     ┌─ planning ─┐
     │            │
-    │  父代理写/改文档；中间可能切到 clarifying
+    │  父代理判断步骤数：
+    │   <3 → 走 simple path（自己调 apply_*）
+    │   ≥3 → 走 plan path（写文档 + 派发子代理）
     │            │
-    ↓            ↓
+    │            ├──── simple ────→ completed (直接 apply 落库 + 发总结)
+    │            │
+    ↓            ↓ plan
 clarifying    awaiting_approval
     │            │ 用户确认
     │ 用户回答    ↓
@@ -204,6 +210,18 @@ clarifying    awaiting_approval
 ---
 
 ## 6. 父代理行为规范
+
+### 6.0 任务规模判定（plan mode vs simple mode）
+
+父代理在 planning 阶段第一步必须输出对任务的拆解评估：列出预计步骤数。判定规则：
+
+- **<3 步**（1 或 2 步）→ **simple mode**：父代理直接调用对应的 `apply_*` 工具完成落库（必要时先 `preview_card`），完成后调 `finalize_task` 发总结消息，状态直接 `planning → completed`。**不写 plan doc，不发 `awaiting_approval` / `plan_approved` / `step_*` 事件**，但仍发 `delta` 文本回复 + `task_completed`。
+- **≥3 步** → **plan mode**：走原 §6.2–§6.5 流程（写计划文档、等审批、派发子代理、勾选、删文档）。
+
+边界场景：
+- 删除类操作（高风险）即使 1 步也建议走 plan mode 以提供审批机会；具体由父代理 prompt 描述（CONTRACT.md / parent-agent.md 给指引）。
+- simple mode 中途如果父代理发现任务比想象复杂（preview_card 后发现要拆 3+ 步），允许切到 plan mode：调 `write_plan_doc` 即视为升级。
+- simple mode 中 apply 失败 → 直接 `finalize_task({terminalStatus:'failed'})`，不重试任务级（apply 工具内部仍可 retry）。
 
 ### 6.1 每轮注入
 
