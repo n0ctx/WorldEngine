@@ -51,8 +51,16 @@ export const useAssistantStore = create(
           switch (evt.type) {
             case 'task_created':
               return { ...s, taskId: evt.taskId, status: 'planning', error: null };
-            case 'plan_doc_updated':
-              return { ...s, planDoc: evt.content };
+            case 'plan_doc_updated': {
+              // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）
+              const existingIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
+              const planDocMsg = { id: 'plan-doc', role: 'plan_doc', content: evt.content };
+              const newMessages =
+                existingIdx >= 0
+                  ? s.messages.map((m, i) => (i === existingIdx ? planDocMsg : m))
+                  : [...s.messages, planDocMsg];
+              return { ...s, planDoc: evt.content, messages: newMessages };
+            }
             case 'awaiting_approval':
               return { ...s, status: 'awaiting_approval' };
             case 'plan_approved':
@@ -76,8 +84,16 @@ export const useAssistantStore = create(
             case 'user_message':
               // 服务端落库后回传 messageId；把最近一条无 id 的 user 消息补 id（一般本地已带 id 时直接命中）
               return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
-            case 'messages_changed':
-              return { ...s, messages: Array.isArray(evt.messages) ? evt.messages : s.messages };
+            case 'messages_changed': {
+              if (!Array.isArray(evt.messages)) return s;
+              const planDocEntry = s.messages.find((m) => m.role === 'plan_doc');
+              if (!planDocEntry) return { ...s, messages: evt.messages };
+              // Re-insert the synthetic plan_doc row at its original index (clamped)
+              const prevIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
+              const next = [...evt.messages];
+              next.splice(Math.min(prevIdx, next.length), 0, planDocEntry);
+              return { ...s, messages: next };
+            }
             case 'tool_call_started':
               return {
                 ...s,

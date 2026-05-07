@@ -452,7 +452,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn),
     ...Object.entries(APPLY_TOOLS).map(([, mod]) =>
       wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn)),
-    ...buildMetaTools(task, emitFn).map((t) => toLLMTool(t)),
+    ...buildMetaTools(task, emitFn).map((t) => wrapToolEvents(toLLMTool(t), emitFn)),
   ];
 
   // 历史 + 当前轮上下文

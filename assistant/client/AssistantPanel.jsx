@@ -309,7 +309,6 @@ export default function AssistantPanel() {
             onDelete={handleDelete}
             onRegenerate={handleRegenerate}
             pending={pendingAssistant}
-            planDoc={planDoc}
           />
           {error && status === 'failed' && (
             <div className="mx-3 my-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">

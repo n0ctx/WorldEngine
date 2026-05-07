@@ -30,6 +30,11 @@ const TOOL_LABELS = {
   apply_global_config: '写入全局设置',
   apply_css_snippet: '写入 CSS 片段',
   apply_regex_rule: '写入正则规则',
+  write_plan_doc: '编写计划',
+  edit_plan_doc: '更新计划',
+  dispatch_subagent: '派发子任务',
+  delete_plan_doc: '清除计划',
+  finalize_task: '完成任务',
 };
 
 function parseStreamingBlocks(text) {
@@ -373,85 +378,29 @@ function StatusIcon({ status }) {
   return <span className="flex-shrink-0" aria-label="失败"><ErrorIcon /></span>;
 }
 
-function ToolCallItem({ msg }) {
-  const label = TOOL_LABELS[msg.toolName] ?? msg.toolName;
+function VerboseMessage({ msg }) {
+  const isStep = msg.role === 'step';
+  const label = isStep
+    ? (msg.title ?? msg.stepId)
+    : (TOOL_LABELS[msg.toolName] ?? msg.toolName);
   const isRunning = msg.status === 'running';
   const isFailed = msg.status === 'error';
   return (
-    <div
-      className={`flex items-center gap-2 py-0.5 pl-5 font-mono text-[10px] leading-snug transition-colors ${
-        isFailed
-          ? 'text-[var(--we-color-status-danger)]'
-          : isRunning
-          ? 'text-[var(--we-color-text-secondary)]'
-          : 'text-[var(--we-color-text-tertiary)]'
-      }`}
-    >
-      <StatusIcon status={msg.status} />
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function StepItem({ msg }) {
-  const isRunning = msg.status === 'running';
-  const isFailed = msg.status === 'error';
-  return (
-    <div
-      className={`flex items-center gap-2 py-0.5 text-[12px] leading-snug transition-colors ${
-        isFailed
-          ? 'text-[var(--we-color-status-danger)]'
-          : isRunning
-          ? 'font-medium text-[var(--we-color-text-primary)]'
-          : 'text-[var(--we-color-text-tertiary)]'
-      }`}
-    >
-      <StatusIcon status={msg.status} />
-      <span>{msg.title ?? msg.stepId}</span>
-    </div>
-  );
-}
-
-function getGroupState(items) {
-  if (items.some((m) => m.status === 'running')) return 'running';
-  if (items.some((m) => m.status === 'error')) return 'failed';
-  return 'done';
-}
-
-function groupMessages(messages) {
-  const blocks = [];
-  let i = 0;
-  while (i < messages.length) {
-    const msg = messages[i];
-    if (msg.role === 'step' || msg.role === 'tool_call') {
-      const startIdx = i;
-      const items = [];
-      while (i < messages.length && (messages[i].role === 'step' || messages[i].role === 'tool_call')) {
-        items.push(messages[i]);
-        i++;
-      }
-      blocks.push({ type: 'step_group', key: items[0].id ?? `sg-${startIdx}`, items });
-    } else {
-      blocks.push({ type: 'message', key: msg.id ?? `${msg.role}-${i}`, msg });
-      i++;
-    }
-  }
-  return blocks;
-}
-
-function StepGroup({ items }) {
-  const state = getGroupState(items);
-  const archived = state !== 'running';
-  return (
-    <div
-      className={`we-step-group we-step-group--${state}${archived ? ' we-step-group--archived' : ''} mb-2 animate-[we-bubble-in_0.2s_ease-out] px-3 py-2`}
-    >
-      {items.map((msg, idx) => {
-        const k = msg.id ?? `item-${idx}`;
-        if (msg.role === 'step') return <StepItem key={k} msg={msg} />;
-        if (msg.role === 'tool_call') return <ToolCallItem key={k} msg={msg} />;
-        return null;
-      })}
+    <div className="mb-1.5 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
+      <div
+        className={`flex items-center gap-2 rounded-[2px_12px_12px_12px] border px-3 py-1.5 transition-colors ${
+          isFailed
+            ? 'border-[var(--we-color-status-danger)]/40 bg-[var(--we-color-status-danger)]/5 text-[var(--we-color-status-danger)]'
+            : isRunning
+            ? 'border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] text-[var(--we-color-text-secondary)]'
+            : 'border-[var(--we-color-border-subtle)]/50 bg-[var(--we-color-bg-surface)]/40 text-[var(--we-color-text-tertiary)]'
+        }`}
+      >
+        <StatusIcon status={msg.status} />
+        <span className={isStep ? 'text-[12px] font-medium' : 'font-mono text-[11px]'}>
+          {label}
+        </span>
+      </div>
     </div>
   );
 }
@@ -470,7 +419,7 @@ function PendingBubble() {
   );
 }
 
-export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending, planDoc }) {
+export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -503,29 +452,29 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
 
   return (
     <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
-      {groupMessages(messages).map((block) => {
-        if (block.type === 'step_group') {
-          return <StepGroup key={block.key} items={block.items} />;
+      {messages.map((msg, i) => {
+        const key = msg.id ?? `${msg.role}-${i}`;
+        if (msg.role === 'step' || msg.role === 'tool_call') {
+          return <VerboseMessage key={key} msg={msg} />;
         }
-        const { msg } = block;
         if (msg.role === 'user') {
-          return <UserMessage key={block.key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
+          return <UserMessage key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
         }
         if (msg.role === 'assistant') {
           return (
             <AssistantMessage
-              key={block.key}
+              key={key}
               msg={msg}
               onRegenerate={onRegenerate}
               onDelete={onDelete}
             />
           );
         }
-        if (msg.role === 'error') return <ErrorMessage key={block.key} msg={msg} />;
+        if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
+        if (msg.role === 'plan_doc') return <PlanDocViewer key={key} content={msg.content} />;
         return null;
       })}
       {pending && <PendingBubble />}
-      {planDoc && <PlanDocViewer content={planDoc} />}
       <div ref={bottomRef} />
     </div>
   );
