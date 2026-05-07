@@ -35,6 +35,17 @@ export const useAssistantStore = create(
           currentStepId: null,
         }),
 
+      // 仅重置任务态，保留消息历史（面板重开时使用）
+      resetTask: () =>
+        set((s) => ({
+          ...s,
+          taskId: null,
+          status: 'idle',
+          planDoc: '',
+          error: null,
+          currentStepId: null,
+        })),
+
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {

@@ -36,6 +36,7 @@ export default function AssistantPanel() {
   const ingestEvent = useAssistantStore((s) => s.ingestEvent);
   const pushUserMessage = useAssistantStore((s) => s.pushUserMessage);
   const reset = useAssistantStore((s) => s.reset);
+  const resetTask = useAssistantStore((s) => s.resetTask);
 
   const currentWorldId = useStore((s) => s.currentWorldId);
   const currentCharacterId = useStore((s) => s.currentCharacterId);
@@ -49,14 +50,14 @@ export default function AssistantPanel() {
     return () => abortRef.current?.abort?.();
   }, []);
 
-  // 面板重新打开时若任务处于终态，自动重置，避免「已完成」状态导致输入框一直禁用
+  // 面板重新打开时若任务处于终态，仅重置任务态（保留消息），避免输入框一直禁用
   const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
     if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status)) {
-      reset();
+      resetTask();
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, status, reset]);
+  }, [isOpen, status, resetTask]);
 
   // 任务完成后通知主界面刷新角色/世界/persona 列表
   const prevStatusRef = useRef(status);
