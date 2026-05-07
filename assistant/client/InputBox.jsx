@@ -3,11 +3,12 @@
  *
  * `disabled` 仅在终态（completed/failed/cancelled）传入；
  * 其余状态（含 executing/awaiting_approval）允许排队消息。
+ * `isStreaming` 为 true 时将发送键换成停止键。
  */
 
 import { useEffect, useRef } from 'react';
 
-export default function InputBox({ value, onChange, onSend, disabled = false }) {
+export default function InputBox({ value, onChange, onSend, onStop, disabled = false, isStreaming = false }) {
   const textareaRef = useRef(null);
 
   // 自动调整高度
@@ -21,7 +22,11 @@ export default function InputBox({ value, onChange, onSend, disabled = false }) 
   function handleKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!disabled && value.trim()) onSend();
+      if (isStreaming) {
+        onStop?.();
+      } else if (!disabled && value.trim()) {
+        onSend();
+      }
     }
   }
 
@@ -40,15 +45,27 @@ export default function InputBox({ value, onChange, onSend, disabled = false }) 
         className={`min-h-[36px] max-h-[120px] flex-1 resize-none rounded border border-black/15 bg-white px-3 py-1.5 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-black/5`}
         style={{ fontFamily: 'var(--we-font-body)' }}
       />
-      <button
-        type="button"
-        onClick={onSend}
-        disabled={sendDisabled}
-        className="h-9 min-w-[52px] flex-shrink-0 rounded bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
-        style={{ fontFamily: 'var(--we-font-display)' }}
-      >
-        发送
-      </button>
+      {isStreaming ? (
+        <button
+          type="button"
+          onClick={onStop}
+          aria-label="停止生成"
+          className="h-9 min-w-[52px] flex-shrink-0 rounded border border-[var(--we-vermilion)] bg-white px-3 text-[13px] italic text-[var(--we-vermilion)] transition-opacity hover:bg-[var(--we-vermilion)]/10"
+          style={{ fontFamily: 'var(--we-font-display)' }}
+        >
+          停止
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onSend}
+          disabled={sendDisabled}
+          className="h-9 min-w-[52px] flex-shrink-0 rounded bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
+          style={{ fontFamily: 'var(--we-font-display)' }}
+        >
+          发送
+        </button>
+      )}
     </div>
   );
 }

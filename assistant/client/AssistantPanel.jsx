@@ -42,6 +42,7 @@ export default function AssistantPanel() {
   const currentCharacterId = useStore((s) => s.currentCharacterId);
 
   const [input, setInput] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef(null);
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
@@ -95,6 +96,7 @@ export default function AssistantPanel() {
       abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      setIsStreaming(true);
       try {
         await streamAgent({
           taskId,
@@ -110,6 +112,7 @@ export default function AssistantPanel() {
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
+        setIsStreaming(false);
       }
     },
     [input, taskId, buildContext, ingestEvent, pushUserMessage],
@@ -186,7 +189,13 @@ export default function AssistantPanel() {
     if (!taskId) return;
     cancelTask(taskId).catch(() => {});
     abortRef.current?.abort?.();
+    setIsStreaming(false);
   }, [taskId]);
+
+  const handleStop = useCallback(() => {
+    abortRef.current?.abort?.();
+    setIsStreaming(false);
+  }, []);
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort?.();
@@ -230,14 +239,6 @@ export default function AssistantPanel() {
 
   return (
     <>
-      {isOpen && (
-        <button
-          type="button"
-          aria-label="关闭助手"
-          onClick={close}
-          className="fixed inset-0 z-[199] cursor-default bg-black/20"
-        />
-      )}
       <aside
         aria-hidden={!isOpen}
         style={{ width: `${width}px` }}
@@ -327,7 +328,9 @@ export default function AssistantPanel() {
           value={input}
           onChange={setInput}
           onSend={handleSend}
+          onStop={handleStop}
           disabled={inputDisabled}
+          isStreaming={isStreaming}
         />
       </aside>
     </>
