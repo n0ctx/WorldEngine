@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
 
 const TOOL_LABELS = {
   preview_card: '预览卡片',
@@ -469,7 +470,7 @@ function PendingBubble() {
   );
 }
 
-export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
+export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending, planDoc }) {
   const bottomRef = useRef(null);
   const prevCountRef = useRef(0);
 
@@ -524,6 +525,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
         return null;
       })}
       {pending && <PendingBubble />}
+      {planDoc && <PlanDocViewer content={planDoc} />}
       <div ref={bottomRef} />
     </div>
   );

@@ -16,7 +16,6 @@ import {
 } from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
-import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
 import { getCharacter } from '../../frontend/src/api/characters.js';
@@ -309,12 +308,8 @@ export default function AssistantPanel() {
             onDelete={handleDelete}
             onRegenerate={handleRegenerate}
             pending={pendingAssistant}
+            planDoc={planDoc}
           />
-          {planDoc && (
-            <div className="flex-shrink-0 border-t border-black/5">
-              <PlanDocViewer content={planDoc} />
-            </div>
-          )}
           {error && status === 'failed' && (
             <div className="mx-3 my-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
               {error}

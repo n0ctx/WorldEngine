@@ -52,15 +52,14 @@ export const useAssistantStore = create(
               return {
                 ...s,
                 status: 'completed',
-                planDoc: '',
                 messages: evt.summary
                   ? [...s.messages, { role: 'assistant', content: evt.summary }]
                   : s.messages,
               };
             case 'task_failed':
-              return { ...s, status: 'failed', planDoc: '', error: evt.error };
+              return { ...s, status: 'failed', error: evt.error };
             case 'task_cancelled':
-              return { ...s, status: 'cancelled', planDoc: '' };
+              return { ...s, status: 'cancelled' };
             case 'delta':
               return { ...s, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
             case 'user_message':
