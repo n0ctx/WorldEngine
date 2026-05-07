@@ -19,6 +19,75 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+function parseStreamingBlocks(text) {
+  const blocks = [];
+  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
+  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
+  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
+  let inThink = false;
+  let current = '';
+  for (const seg of segments) {
+    if (OPEN_TAG.test(seg)) {
+      const trimmed = current.replace(/^\n+/, '');
+      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+      current = '';
+      inThink = true;
+    } else if (CLOSE_TAG.test(seg)) {
+      if (inThink) {
+        blocks.push({ type: 'thinking', content: current, open: false });
+        current = '';
+        inThink = false;
+      }
+    } else {
+      current += seg;
+    }
+  }
+  if (inThink) {
+    blocks.push({ type: 'thinking', content: current, open: true });
+  } else {
+    const trimmed = current.replace(/^\n+/, '');
+    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+  }
+  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
+}
+
+function ThinkBlock({ content, open = false }) {
+  const [expanded, setExpanded] = useState(true);
+  return (
+    <div className="we-think-block">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
+        aria-expanded={expanded}
+        className="we-think-block-toggle"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        思考过程{open && <span className="we-think-block-dots">…</span>}
+      </button>
+      <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
+        <div className="we-think-block-body-inner">
+          <div className="we-think-block-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SimpleMarkdown({ content }) {
   if (!content) return null;
   return (
@@ -222,7 +291,13 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
               <span className="typing-dot" />
             </div>
           ) : (
-            <SimpleMarkdown content={msg.content} />
+            parseStreamingBlocks(msg.content || '').map((block, i) =>
+              block.type === 'thinking' ? (
+                <ThinkBlock key={i} content={block.content} open={!!msg.streaming && block.open} />
+              ) : (
+                <SimpleMarkdown key={i} content={block.content} />
+              )
+            )
           )}
         </div>
         {!msg.streaming && (
@@ -295,7 +370,7 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
   }
 
   return (
-    <div className="we-assistant-scroll flex-1 overflow-y-auto px-3 py-3">
+    <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
       {messages.map((msg, idx) => {
         const key = msg.id || `${msg.role}-${idx}`;
         if (msg.role === 'user') {

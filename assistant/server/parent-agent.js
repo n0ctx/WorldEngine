@@ -456,11 +456,23 @@ export async function runParentAgent(task, userInput, opts = {}) {
     });
     log.info(`TOOLS_RESOLVED  ${formatMeta({ taskId: task.id, totalMsgs: enriched.length })}`);
 
+    // Step 1 内 finalize_task / write_plan_doc 可能已改变状态；终态跳过 Step 2，
+    // 避免在 task_completed 气泡后再追加一条流式气泡。
+    const TERMINAL_AFTER_TOOLS = new Set(['completed', 'failed', 'cancelled']);
+    if (TERMINAL_AFTER_TOOLS.has(task.status)) {
+      taskStore.emit(task.id, { type: 'done', done: true });
+      return;
+    }
+    if (task.status === 'awaiting_approval') {
+      // 连接须保持以接收 plan_approved，不发 done 也不关流
+      return;
+    }
+
     // 提前落一条空的 assistant 消息，把 id 带在每个 delta 上，前端会 adopt 这个 id 替换本地占位
     const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
     assistantMsgId = stamped?.id ?? null;
 
-    // Step 2：流式生成最终文本
+    // Step 2：流式生成最终文本（仅 planning 状态，即纯对话路径）
     for await (const chunk of llm.chat(enriched, {
       temperature: 0.7,
       thinking_level: null,

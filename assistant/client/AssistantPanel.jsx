@@ -49,6 +49,17 @@ export default function AssistantPanel() {
     return () => abortRef.current?.abort?.();
   }, []);
 
+  // 任务完成后通知主界面刷新角色/世界/persona 列表
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    if (prevStatusRef.current !== 'completed' && status === 'completed') {
+      window.dispatchEvent(new Event('we:character-updated'));
+      window.dispatchEvent(new Event('we:world-updated'));
+      window.dispatchEvent(new Event('we:persona-updated'));
+    }
+    prevStatusRef.current = status;
+  }, [status]);
+
   const buildContext = useCallback(async () => {
     let context = { worldId: currentWorldId, characterId: currentCharacterId };
     try {
