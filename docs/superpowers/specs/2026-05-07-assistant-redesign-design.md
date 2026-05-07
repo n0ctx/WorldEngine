@@ -16,6 +16,7 @@
 2. **通用子代理**：子代理不再按资源域分文件，统一为"干净上下文 + 父代理派发的 task 描述 + 对应资源知识库 + apply 工具集"的通用执行器。
 3. **知识库重整**：拆出 7 份独立 markdown，`CONTRACT.md` 每轮自动注入父代理（产品契约 + 指路引用），其余 6 份按 task 类型按需注入。
 4. **保留落库安全边界**：现有 `normalizeProposal()` 不动，包装为 `apply_*` 工具集供子代理调用。
+5. **读能力跨边界**：`preview_card` 已支持任意 `entityId`（不限当前页面 / 当前世界），新增 `list_resources` 工具支持列表查询（所有世界、某世界下所有角色、所有 css/regex 等），父代理与子代理均可调用。
 
 **非目标**：
 
@@ -36,7 +37,7 @@ POST /api/assistant/agent (SSE)
 父代理 (parent-agent.js)
   ├─ 持续上下文（每轮注入 CONTRACT.md + 历史对话 + 当前 plan doc）
   ├─ 工具:
-  │    read_file / preview_card
+  │    read_file / preview_card / list_resources
   │    write_plan_doc / edit_plan_doc / delete_plan_doc
   │    dispatch_subagent
   │    finalize_task
@@ -53,7 +54,7 @@ POST /api/assistant/agent (SSE)
         ├─ 干净上下文（不继承父代理对话历史）
         ├─ 注入：父代理派发的 task 描述 + 对应 *CARD.md / *.md 知识
         ├─ 工具:
-        │    preview_card / read_file
+        │    preview_card / read_file / list_resources
         │    apply_world_card / apply_character_card / apply_persona_card
         │    apply_global_config / apply_css_snippet / apply_regex_rule
         └─ 每个 apply_* 工具内部：
@@ -299,7 +300,8 @@ clarifying    awaiting_approval
 
 | 工具 | 用途 |
 |---|---|
-| `preview_card` | 查询现有实体（与父代理同源） |
+| `preview_card` | 查询任意实体（接受任意 entityId，不限当前世界/角色） |
+| `list_resources` | 列表查询：所有世界 / 某世界下角色 / 所有 css 片段 / 所有 regex 规则 等 |
 | `read_file` | 兜底；通常子代理用不到，知识已在 prompt |
 | `apply_world_card` | 入参 `{ operation, entityId, changes, entryOps, stateFieldOps }`，内部 normalizeProposal + 落库 |
 | `apply_character_card` | 入参 `{ operation, entityId, changes, stateValueOps }` |
