@@ -288,11 +288,12 @@ function UserMessage({ msg, onEdit, onDelete }) {
 }
 
 function AssistantMessage({ msg, onRegenerate, onDelete }) {
+  const hasExtraActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
   return (
     <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
       <div className="group max-w-[90%]">
         <div
-          className={`rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] ${
+          className={`rounded-[2px_12px_12px_12px] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] ${
             msg.streaming && msg.content ? 'we-stream-bubble' : ''
           }`}
         >
@@ -311,10 +312,14 @@ function AssistantMessage({ msg, onRegenerate, onDelete }) {
               )
             )
           )}
+          {!msg.streaming && (
+            <div className="mt-2 flex justify-end opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+              <CopyBtn getText={() => msg.content || ''} />
+            </div>
+          )}
         </div>
-        {!msg.streaming && (
+        {hasExtraActions && (
           <ActionBar>
-            <CopyBtn getText={() => msg.content || ''} />
             {onRegenerate && msg.id && (
               <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
                 重新生成
@@ -336,37 +341,116 @@ function ErrorMessage({ msg }) {
   );
 }
 
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-success)" />
+      <polyline
+        points="3.5,6 5,7.5 8.5,4"
+        stroke="var(--we-color-text-inverse)"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ErrorIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-danger)" />
+      <line x1="4" y1="4" x2="8" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
+      <line x1="8" y1="4" x2="4" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function StatusIcon({ status }) {
-  if (status === 'running') return <span className="we-spinner" aria-label="执行中" />;
-  if (status === 'done') return <span className="text-[var(--we-ink-faint)] text-[11px] leading-none">✓</span>;
-  return <span className="text-[var(--we-vermilion)] text-[11px] leading-none">✗</span>;
+  if (status === 'running') return <span className="we-spinner flex-shrink-0" aria-label="执行中" />;
+  if (status === 'done') return <span className="flex-shrink-0" aria-label="完成"><CheckIcon /></span>;
+  return <span className="flex-shrink-0" aria-label="失败"><ErrorIcon /></span>;
 }
 
 function ToolCallItem({ msg }) {
   const label = TOOL_LABELS[msg.toolName] ?? msg.toolName;
-  const isDone = msg.status !== 'running';
+  const isRunning = msg.status === 'running';
+  const isFailed = msg.status === 'error';
   return (
     <div
-      className={`mb-1 flex items-center gap-1.5 pl-4 text-[11px] leading-none transition-colors ${
-        isDone ? 'text-[var(--we-ink-faint)]' : 'text-[var(--we-ink-muted)]'
+      className={`flex items-center gap-2 py-0.5 pl-5 font-mono text-[10px] leading-snug transition-colors ${
+        isFailed
+          ? 'text-[var(--we-color-status-danger)]'
+          : isRunning
+          ? 'text-[var(--we-color-text-secondary)]'
+          : 'text-[var(--we-color-text-tertiary)]'
       }`}
     >
       <StatusIcon status={msg.status} />
-      <span className="font-mono">{label}</span>
+      <span>{label}</span>
     </div>
   );
 }
 
 function StepItem({ msg }) {
-  const isDone = msg.status !== 'running';
+  const isRunning = msg.status === 'running';
+  const isFailed = msg.status === 'error';
   return (
     <div
-      className={`mb-1.5 flex items-center gap-2 px-2 py-1 text-[12px] leading-snug transition-colors ${
-        isDone ? 'text-[var(--we-ink-muted)]' : 'text-[var(--we-ink-primary)] font-medium'
+      className={`flex items-center gap-2 py-0.5 text-[12px] leading-snug transition-colors ${
+        isFailed
+          ? 'text-[var(--we-color-status-danger)]'
+          : isRunning
+          ? 'font-medium text-[var(--we-color-text-primary)]'
+          : 'text-[var(--we-color-text-tertiary)]'
       }`}
     >
       <StatusIcon status={msg.status} />
       <span>{msg.title ?? msg.stepId}</span>
+    </div>
+  );
+}
+
+function getGroupState(items) {
+  if (items.some((m) => m.status === 'running')) return 'running';
+  if (items.some((m) => m.status === 'error')) return 'failed';
+  return 'done';
+}
+
+function groupMessages(messages) {
+  const blocks = [];
+  let i = 0;
+  while (i < messages.length) {
+    const msg = messages[i];
+    if (msg.role === 'step' || msg.role === 'tool_call') {
+      const startIdx = i;
+      const items = [];
+      while (i < messages.length && (messages[i].role === 'step' || messages[i].role === 'tool_call')) {
+        items.push(messages[i]);
+        i++;
+      }
+      blocks.push({ type: 'step_group', key: items[0].id ?? `sg-${startIdx}`, items });
+    } else {
+      blocks.push({ type: 'message', key: msg.id ?? `${msg.role}-${i}`, msg });
+      i++;
+    }
+  }
+  return blocks;
+}
+
+function StepGroup({ items }) {
+  const state = getGroupState(items);
+  const archived = state !== 'running';
+  return (
+    <div
+      className={`we-step-group we-step-group--${state}${archived ? ' we-step-group--archived' : ''} mb-2 animate-[we-bubble-in_0.2s_ease-out] px-3 py-2`}
+    >
+      {items.map((msg, idx) => {
+        const k = msg.id ?? `item-${idx}`;
+        if (msg.role === 'step') return <StepItem key={k} msg={msg} />;
+        if (msg.role === 'tool_call') return <ToolCallItem key={k} msg={msg} />;
+        return null;
+      })}
     </div>
   );
 }
@@ -418,24 +502,25 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
 
   return (
     <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
-      {messages.map((msg, idx) => {
-        const key = msg.id || `${msg.role}-${idx}`;
+      {groupMessages(messages).map((block) => {
+        if (block.type === 'step_group') {
+          return <StepGroup key={block.key} items={block.items} />;
+        }
+        const { msg } = block;
         if (msg.role === 'user') {
-          return <UserMessage key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
+          return <UserMessage key={block.key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
         }
         if (msg.role === 'assistant') {
           return (
             <AssistantMessage
-              key={key}
+              key={block.key}
               msg={msg}
               onRegenerate={onRegenerate}
               onDelete={onDelete}
             />
           );
         }
-        if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
-        if (msg.role === 'step') return <StepItem key={key} msg={msg} />;
-        if (msg.role === 'tool_call') return <ToolCallItem key={key} msg={msg} />;
+        if (msg.role === 'error') return <ErrorMessage key={block.key} msg={msg} />;
         return null;
       })}
       {pending && <PendingBubble />}

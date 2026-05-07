@@ -1236,3 +1236,32 @@
 .we-frozen-card-appear {
   animation: weInkRise var(--we-duration-normal) var(--we-easing-sharp) both;
 }
+
+/* ── Assistant: Step Group ─────────────────────────────── */
+
+.we-step-group {
+  border-left: 2px solid var(--we-color-border-default);
+  border-radius: 0 var(--we-radius-md) var(--we-radius-md) 0;
+  background-color: var(--we-color-bg-subtle);
+  transition:
+    background-color var(--we-duration-slow) var(--we-easing-sharp),
+    border-color     var(--we-duration-slow) var(--we-easing-sharp),
+    opacity          var(--we-duration-slow) var(--we-easing-sharp);
+}
+
+.we-step-group--running {
+  border-left-color: var(--we-color-accent);
+}
+
+.we-step-group--done {
+  border-left-color: var(--we-color-status-success);
+}
+
+.we-step-group--failed {
+  border-left-color: var(--we-color-status-danger);
+}
+
+.we-step-group--archived {
+  background-color: var(--we-color-bg-canvas);
+  opacity: 0.72;
+}
