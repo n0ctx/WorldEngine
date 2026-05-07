@@ -889,4 +889,64 @@ export const __testables = {
   proposalStore,
 };
 
+// === 新单代理端点 ===
+import * as taskStore from './task-store.js';
+import * as planDoc from './plan-doc.js';
+import { runParentAgent } from './parent-agent.js';
+
+router.post('/agent', async (req, res) => {
+  const { taskId, message, context } = req.body ?? {};
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  res.flushHeaders?.();
+
+  let task = taskId ? taskStore.getTask(taskId) : null;
+  if (!task) {
+    task = taskStore.createTask({ context });
+    res.write(`data: ${JSON.stringify({ type: 'task_created', taskId: task.id, task })}\n\n`);
+  }
+  taskStore.attachSse(task.id, res);
+  req.on('close', () => taskStore.detachSse(task.id, res));
+
+  try {
+    if (task.status === 'executing') {
+      taskStore.queueUserMessage(task.id, message);
+      // 不立即触发：当前 step 跑完 executor 自己会切 paused 并喂 pendingMessages
+      return; // 保持连接
+    }
+    await runParentAgent(task, message);
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
+  }
+});
+
+router.post('/agent/:taskId/approve', async (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task || task.status !== 'awaiting_approval') return res.status(400).json({ error: 'not awaiting approval' });
+  taskStore.setStatus(task.id, 'executing');
+  taskStore.emit(task.id, { type: 'plan_approved', taskId: task.id });
+  // 触发 parent-agent 继续派发；用一个空消息触发执行循环
+  runParentAgent(task, '<<approved>>').catch((err) => taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message }));
+  res.json({ ok: true });
+});
+
+router.post('/agent/:taskId/cancel', async (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'not found' });
+  await planDoc.deletePlanDoc(task.id);
+  taskStore.setStatus(task.id, 'cancelled');
+  taskStore.emit(task.id, { type: 'task_cancelled', taskId: task.id });
+  res.json({ ok: true });
+});
+
+router.get('/agent/:taskId/plan-doc', async (req, res) => {
+  const content = await planDoc.readPlanDoc(req.params.taskId).catch(() => '');
+  res.json({ content });
+});
+
+router.get('/agent/:taskId', (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'not found' });
+  res.json({ task });
+});
+
 export default router;
