@@ -37,7 +37,7 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
       </div>
 
       <div className="we-dialog-body">
-        <p className="we-settings-toggle-hint" style={{ marginBottom: 8 }}>
+        <p className="we-settings-toggle-hint mb-2">
           每行一条，10–20 字。可加 [年月日] 或 [年月日时分] 时间前缀。开关关闭仅停止再产出与注入，已有内容保留。
         </p>
         {loading ? (
@@ -52,7 +52,7 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
           />
         )}
         {error && (
-          <p className="we-settings-toggle-hint" style={{ color: 'var(--we-vermilion)', marginTop: 8 }}>
+          <p className="we-settings-toggle-hint mt-2 text-[var(--we-vermilion)]">
             {error}
           </p>
         )}

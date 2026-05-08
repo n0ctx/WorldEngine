@@ -32,13 +32,12 @@ export default function ConfirmModal({
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
         variants={variants.overlayBackdrop}
         initial="hidden"
         animate="visible"
         exit="hidden"
         transition={transitions.quick}
-        style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         onMouseDown={(e) => { mouseDownOnBackdrop.current = e.target === e.currentTarget; }}
         onClick={() => { if (mouseDownOnBackdrop.current && !confirming) onClose(); }}
       >
