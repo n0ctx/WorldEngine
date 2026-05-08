@@ -1303,6 +1303,40 @@
   font-family: var(--we-font-serif);
 }
 
+.we-entry-condition-logic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--we-space-xs);
+}
+.we-entry-condition-logic-row .we-entry-editor-label {
+  margin-bottom: 0;
+}
+.we-entry-condition-logic-toggle {
+  display: flex;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.we-entry-condition-logic-btn {
+  padding: 2px 10px;
+  font-size: 11px;
+  font-family: var(--we-font-ui, var(--we-font-sans));
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--we-color-text-secondary);
+  line-height: 1.6;
+}
+.we-entry-condition-logic-btn + .we-entry-condition-logic-btn {
+  border-left: 1px solid var(--we-paper-shadow);
+}
+.we-entry-condition-logic-btn.active {
+  background: var(--we-vermilion);
+  color: #fff;
+}
+
 
 /* ── RegexRuleEditor ── */
 .we-regex-dialog-close {

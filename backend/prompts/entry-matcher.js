@@ -301,26 +301,27 @@ export async function matchEntries(sessionId, entries, worldId = null) {
     }
   }
 
-  // state：实时评估状态条件（AND 逻辑，所有条件满足才触发）
+  // state：实时评估状态条件（AND = 全部满足，OR = 任一满足）
   if (stateEntries.length > 0 && worldId) {
     const session = getSessionById(sessionId);
     const sharedMap = buildSharedStateMap(worldId, sessionId);
 
     if (session?.mode === 'writing') {
-      // writing 模式：对每个激活角色评估；任一角色满足所有条件即触发
+      // writing 模式：对每个激活角色评估；任一角色满足条件组合即触发
       const writingChars = getWritingSessionCharacters(sessionId);
       for (const entry of stateEntries) {
         const conditions = listConditionsByEntry(entry.id);
         if (conditions.length === 0) continue;
+        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
         const hasCharCond = conditions.some((c) => c.target_field.startsWith('角色.'));
         let allMet = false;
         if (hasCharCond && writingChars.length > 0) {
           allMet = writingChars.some((char) => {
             const charMap = buildCharacterStateMap(worldId, sessionId, char.id);
-            return conditions.every((c) => evaluateCondition(c, mergeStateMaps(sharedMap, charMap)));
+            return conditions[check]((c) => evaluateCondition(c, mergeStateMaps(sharedMap, charMap)));
           });
         } else {
-          allMet = conditions.every((c) => evaluateCondition(c, sharedMap));
+          allMet = conditions[check]((c) => evaluateCondition(c, sharedMap));
         }
         if (allMet) triggered.add(entry.id);
       }
@@ -333,7 +334,8 @@ export async function matchEntries(sessionId, entries, worldId = null) {
       for (const entry of stateEntries) {
         const conditions = listConditionsByEntry(entry.id);
         if (conditions.length === 0) continue;
-        if (conditions.every((c) => evaluateCondition(c, stateMap))) {
+        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
+        if (conditions[check]((c) => evaluateCondition(c, stateMap))) {
           triggered.add(entry.id);
         }
       }

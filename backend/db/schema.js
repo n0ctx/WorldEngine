@@ -169,16 +169,17 @@ CREATE TABLE IF NOT EXISTS character_state_values (
 );
 
 CREATE TABLE IF NOT EXISTS world_prompt_entries (
-  id             TEXT PRIMARY KEY,
-  world_id       TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
-  title          TEXT NOT NULL,
-  description    TEXT NOT NULL DEFAULT '',
-  content        TEXT NOT NULL DEFAULT '',
-  keywords       TEXT,
-  keyword_scope  TEXT NOT NULL DEFAULT 'user,assistant',
-  sort_order     INTEGER NOT NULL DEFAULT 0,
-  created_at     INTEGER NOT NULL,
-  updated_at     INTEGER NOT NULL
+  id              TEXT PRIMARY KEY,
+  world_id        TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  title           TEXT NOT NULL,
+  description     TEXT NOT NULL DEFAULT '',
+  content         TEXT NOT NULL DEFAULT '',
+  keywords        TEXT,
+  keyword_scope   TEXT NOT NULL DEFAULT 'user,assistant',
+  condition_logic TEXT NOT NULL DEFAULT 'AND',
+  sort_order      INTEGER NOT NULL DEFAULT 0,
+  created_at      INTEGER NOT NULL,
+  updated_at      INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS custom_css_snippets (
@@ -431,6 +432,8 @@ export function initSchema(db) {
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key)`); } catch {}
   // enabled 开关：条目可单独禁用，禁用时不注入提示词
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
+  // condition_logic：状态条件逻辑模式（'AND' | 'OR'），默认全部满足（AND）
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN condition_logic TEXT NOT NULL DEFAULT 'AND'`); } catch {}
 }
 
 /**

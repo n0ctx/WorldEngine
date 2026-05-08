@@ -56,8 +56,8 @@ export function createWorldEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.world_id,
@@ -67,6 +67,7 @@ export function createWorldEntry(data) {
     data.keywords != null ? JSON.stringify(data.keywords) : null,
     normalizeKeywordScopeValue(data.keyword_scope),
     data.trigger_type ?? 'always',
+    data.condition_logic === 'OR' ? 'OR' : 'AND',
     sortOrder,
     normalizeToken(data.token, data.trigger_type ?? 'always'),
     now,
@@ -84,7 +85,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'token', 'enabled'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'condition_logic', 'token', 'enabled'];
   const sets = [];
   const values = [];
 

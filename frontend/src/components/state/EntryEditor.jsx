@@ -48,6 +48,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     description: entry?.description ?? '',
     keywords: entry?.keywords ?? [],
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
+    condition_logic: entry?.condition_logic ?? 'AND',
     token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
@@ -138,6 +139,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       description: form.description,
       keywords: form.trigger_type === 'keyword' ? finalKeywords : null,
       trigger_type: form.trigger_type,
+      condition_logic: form.condition_logic,
       token: clampToken(form.token, form.trigger_type),
     };
     try {
@@ -271,7 +273,23 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {/* 状态条件（仅 state 类型） */}
         {form.trigger_type === 'state' && (
           <>
-            <label className="we-entry-editor-label">状态条件（全部满足时注入）</label>
+            <div className="we-entry-condition-logic-row">
+              <label className="we-entry-editor-label">
+                状态条件（{form.condition_logic === 'OR' ? '任一满足时注入' : '全部满足时注入'}）
+              </label>
+              <div className="we-entry-condition-logic-toggle">
+                <button
+                  type="button"
+                  className={`we-entry-condition-logic-btn${form.condition_logic === 'AND' ? ' active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, condition_logic: 'AND' }))}
+                >AND</button>
+                <button
+                  type="button"
+                  className={`we-entry-condition-logic-btn${form.condition_logic === 'OR' ? ' active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, condition_logic: 'OR' }))}
+                >OR</button>
+              </div>
+            </div>
             {conditions.map((cond, i) => {
               const ops = getOpsForField(cond.target_field, fieldTypeMap);
               const isDatetimeField = fieldTypeMap.get(cond.target_field) === 'datetime';
