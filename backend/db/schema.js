@@ -429,6 +429,8 @@ export function initSchema(db) {
   migratePersonaStateValuesPerPersona(db);
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_persona_id ON persona_state_values(persona_id, field_key)`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key)`); } catch {}
+  // enabled 开关：条目可单独禁用，禁用时不注入提示词
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
 }
 
 /**

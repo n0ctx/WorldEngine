@@ -84,7 +84,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'token'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'token', 'enabled'];
   const sets = [];
   const values = [];
 

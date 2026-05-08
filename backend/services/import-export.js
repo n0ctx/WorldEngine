@@ -55,6 +55,7 @@ function insertPromptEntries(stmt, entityId, entries, now) {
       entry.trigger_type ?? 'always',
       entry.sort_order ?? 0,
       normalizeToken(entry.token, entry.trigger_type ?? 'always'),
+      entry.enabled ?? 1,
       now, now,
     );
     ids.push(id);
@@ -222,7 +223,7 @@ export function exportWorld(worldId) {
   if (!world) throw new Error('世界不存在');
 
   const worldPromptEntries = db.prepare(
-    'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, enabled FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((e) => {
     const entry = {
       ...e,
@@ -381,8 +382,8 @@ export function importWorld(data) {
 
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`
-      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, sort_order, token, enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const entryIds = insertPromptEntries(insertWorldEntry, worldId, allPromptEntries, now);
 

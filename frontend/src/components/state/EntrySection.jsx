@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import EntryEditor from './EntryEditor';
-import { deleteWorldEntry, reorderWorldEntries } from '../../api/prompt-entries';
+import { deleteWorldEntry, reorderWorldEntries, updateWorldEntry } from '../../api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { pushErrorToast } from '../../utils/toast';
@@ -75,7 +75,17 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
 
   async function handleReorderEnd(finalItems) {
     await reorderWorldEntries(worldId, finalItems.map((entry) => entry.id));
-    // 不调用 onRefresh — 顺序已由 SortableList 乐观更新，无需重新拉取
+  }
+
+  async function handleToggleEnabled(entry) {
+    const newEnabled = entry.enabled === 0 ? 1 : 0;
+    setLocalEntries((prev) => prev.map((e) => e.id === entry.id ? { ...e, enabled: newEnabled } : e));
+    try {
+      await updateWorldEntry(entry.id, { enabled: newEnabled });
+    } catch (e) {
+      setLocalEntries((prev) => prev.map((ee) => ee.id === entry.id ? { ...ee, enabled: entry.enabled } : ee));
+      pushErrorToast('切换失败：' + (e?.message || '未知错误'));
+    }
   }
 
   if (localEntries.length === 0) {
@@ -89,11 +99,11 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
       onReorderEnd={handleReorderEnd}
       style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
       renderItem={(entry) => (
-        <div className="we-entry-section-row">
+        <div className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
           <span className="we-entry-section-drag">⠿</span>
           <div className="we-entry-section-main">
             <span className="we-entry-section-name">{entry.title}</span>
-            {triggerType === 'always' && entry.token === 0 && (
+            {triggerType === 'always' && entry.token === 0 && entry.enabled !== 0 && (
               <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">
                 CACHED
               </span>
@@ -105,6 +115,14 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
             )}
           </div>
           <div className="we-entry-section-actions">
+            <button
+              onClick={(e) => { e.stopPropagation(); handleToggleEnabled(entry); }}
+              className={`we-entry-section-toggle${entry.enabled === 0 ? ' we-entry-section-toggle--off' : ''}`}
+              aria-label={entry.enabled === 0 ? '启用条目' : '禁用条目'}
+              title={entry.enabled === 0 ? '已禁用，点击启用' : '点击禁用'}
+            >
+              <span className="we-entry-section-toggle-thumb" />
+            </button>
             <button
               onClick={() => onEdit(entry)}
               className="we-entry-section-action"

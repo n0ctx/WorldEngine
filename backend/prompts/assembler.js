@@ -198,7 +198,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
-  const allWorldEntries = getAllWorldEntries(world.id);
+  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
   const cachedEntries = allWorldEntries
     .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
   if (cachedEntries.length > 0) {
@@ -408,7 +408,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 写作模式下 cached layer 含 [1][2][4]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
-  const allWorldEntries = getAllWorldEntries(world.id);
+  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
   const cachedEntries = allWorldEntries
     .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
   if (cachedEntries.length > 0) {
