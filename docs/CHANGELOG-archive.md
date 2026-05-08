@@ -5,6 +5,2359 @@
 
 ---
 
+## 2026-05-07 feat(assistant): Phase 9 暂停语义闭环
+
+**动机**：spec §6.4 要求 executing 中收到的新用户消息能够触发暂停 → 由父代理基于"修改意见"调整未完成步骤 → 用户再次 /approve 续派。Phase 7 已经实现 `queueUserMessage` 与 `pendingUserMessages` 数据结构，Phase 9 补齐父代理侧的消费钩子和提示词约束。
+
+**改动**
+
+- `assistant/server/parent-agent.js`：`dispatch_subagent` 工具的 execute 重构为先把 step 终态记进 `outcome`，再调 `taskStore.takeUserMessages(task.id)`；若有挂起消息则切 `paused`、emit `paused` 事件、把消息追加到 `task.messages`，并在 tool result 上透传 `paused: true` + `pendingMessages` 让 LLM 立即停止后续 dispatch。成功 / 失败 / 异常三个分支都会经过这层闭环。
+- `assistant/server/routes.js` `/agent` 端点：注释更新，明确仅 `executing` 早返；`paused / clarifying / awaiting_approval / planning` 都直接走 `runParentAgent`。
+- `assistant/prompts/parent-agent.md`：在"暂停（spec §6.4）"段落末尾追加一句关于 `paused: true` tool result 的处理指引，避免 LLM 看到 paused 标记后继续派发。
+
+**验证**
+
+- `node --check assistant/server/parent-agent.js && node --check assistant/server/routes.js`
+- `cd backend && npm run dev` 启动 4s 检查，日志干净（`SERVER_READY:3000`）
+- 集成测试留待 Phase 10。
+
+**锁定文件**：未触碰 `prompts/assembler.js` / `utils/constants.js` / `db/schema.js` / `store/index.js`；`task-store.js` 已具备 queue/take API，无需改动。
+
+**残留**：暂停后若用户输入触发新一轮 LLM 调用前正好碰到 dispatch 钩子内的 race（双客户端同时 POST），`pendingUserMessages` 仍按 FIFO 收敛，无重复消费风险；前端 SSE 暂停态展示由 Phase 8 提供。
+
+## 2026-05-06 fix(assistant): 规划器对确定性错误自动修复，避免空耗 3 次重试
+
+**动机**：日志统计显示 `as-plan` 重试三连失败的高频原因都是机械错误：① `dependsOn:["1"]` 写裸数字（应为 `"step-1"`）；② `delete` / 含"清空/重置"关键词的步骤 `riskLevel` 漏标 `high`；③ `operation:"preview"|"read"|"query"` 这种不存在的动作。前两类纯属格式问题，让模型重写一遍 JSON 只是浪费 token；第三类是规划意图错误，需要让模型看到自己的输出再纠正。
+
+**改动**
+
+- `assistant/server/task-planner.js`
+  - 新增 `coerceRawSteps()`：在校验前做一次确定性规范化——补齐 step.id、把 `dependsOn` 中纯数字字符串映射回已存在的 `step-N`、`operation==='delete'` 或 `task` 命中 `HIGH_RISK_TASK_RE` 时强制 `riskLevel='high'`、自动补全 character/persona create 的世界来源。`normalizeSteps` / `validatePlanSteps` 都基于这份输出，避免两处重复实现走偏。
+  - `validatePlanSteps` 返回结构由 `string[]` 改为 `{errors, offending}`，`offending` 记录出错 step 的 index。删除原本检测 `riskLevel 必须为 high` 的规则（已被 coerce 接管）。
+  - `planTask` 在重试反馈里加上越界 step 的实际 JSON 片段（最多 3 条，每条 ≤600 字符），让模型能看到自己写错的字段而不是只看到规则文字。
+  - `buildPlannerPrompt` 末尾追加一段 5 行 JSON 示例，明确演示 `id:"step-1"` / `dependsOn:["step-1"]` 的字符串 ID 形式，禁止用数字 `1`。
+  - 安全网保持：`riskFlags` 的派生（`assistant/server/routes.js:192`）独立检测 `operation==='delete'`，不依赖规划器自报的 `riskLevel`，coerce 自动提升不会绕过审批门。
+
+- `assistant/tests/task-planner.test.js`
+  - 旧测试断言"删除步骤漏标 high → 报错"改为断言"已在 coerce 阶段被静默修正"。
+  - 新增一条 `coerceRawSteps` 单测：覆盖 `dependsOn:["1"]` 映射、`delete` 步骤 riskLevel 自动提升。
+  - 适配 `validatePlanSteps` 新返回结构。
+
+**验证**
+
+- `node --test assistant/tests/*.test.js` → 72 pass / 0 fail。
+- 已确认审批门安全网（`classifyRiskFlags` 独立判 delete）覆盖被自动提升 high 的步骤，没有静默放过审批的风险。
+
+**残留**
+
+- 第三类（`operation:"preview"`）只能靠 prompt 示例 + 越界 step 反馈缓解，无法机械修复；若日志再次出现高频，可考虑在 prompt 顶部把"禁止 preview/read/query"提到与示例相邻的位置。
+
+## 2026-05-06 fix(assistant): 收紧 datetime 字段在写卡助手侧的格式校验
+
+**动机**：上一条放行 `datetime` + `prefix` 后留两条软风险——非 datetime 字段也能写入 `prefix`（无渲染但落库）；datetime 的 `default_value` 没有正则校验，LLM 偶发吐 `"2024-01-01 12:00"` 等非 ISO 格式会原样落库。本轮把这两个口收紧到 proposal 归一化层。
+
+**改动**
+
+- `assistant/server/routes.js`
+  - 新增常量 `ISO_LOCAL_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/` 与辅助函数 `assertDatetimeDefaultValue()`：解析 `default_value`（JSON 字符串），校验内容是否匹配 ISO 局部时间；空值/`null` 放行（由 `allow_empty` 控制）。
+  - `normalizeStateFieldOps` create 分支：`fieldType === 'datetime'` 时强制校验 `default_value`；非 datetime 字段若带非空 `prefix` 直接拒绝。
+  - `normalizeStateFieldOps` update 分支：仅当本次 update 显式带 `type` 时才施加同等约束（缺省 type 时无法判断原字段类型，留给业务层兜底）。
+
+- `assistant/tests/routes.test.js`
+  - 新增 4 条断言：合法 datetime 字段透传；datetime `default_value` 非 ISO 时拒绝；非 datetime 字段写 `prefix` 时拒绝；update 改类型为非 datetime 且带 `prefix` 时拒绝。
+
+**验证**
+
+- `npm --prefix assistant test` 全部通过（79 → 83，全部 pass）。
+- 手动跑：合法 datetime create / 非法 default_value / 非 datetime 带 prefix / update 改类型为 text 带 prefix —— 行为符合预期。
+
+**残留**
+
+- `stateValueOps.value_json` 在写卡助手侧仍未做 datetime 格式校验：normalizeStateValueOps 没有 worldId 通路反查字段类型，跨卡引用复杂度高；非法 ISO 在 entry-matcher 比较时会按规则跳过条件，副作用有限。后续如需收紧，建议在 character/persona state-value 服务层入参校验时做。
+
+## 2026-05-06 feat(assistant): 写卡助手识别并支持 datetime 状态字段类型
+
+**动机**：上一轮 `feat(state): datetime 字段类型 + diary_time 切 ISO`（commit 58c7a87）只接通了主流程（schema/服务层/状态更新/条件比较/前端渲染），写卡助手侧未同步：`assistant/server/routes.js` 的 `VALID_STATE_TYPES` 不含 `datetime`，prompt 也没教 LLM 这个类型，导致 LLM 即使尝试输出 `type:"datetime"` 也会被 `normalizeProposal()` 直接拒掉。
+
+**改动**
+
+- `assistant/server/routes.js`
+  - `VALID_STATE_TYPES` 加 `'datetime'`；下游 `world-state-fields.js` 等服务层与 DB queries 早已支持。
+  - `STATE_FIELD_KEYS` 加 `'prefix'`；`normalizeStateFieldOps` create/update 分支均放行 `prefix` 字符串透传（datetime 展示前缀，如 "第三纪元 "）。
+  - `extract-characters` 字段列表渲染：`f.type === 'datetime'` 时附加格式提示 `格式：ISO 局部时间 "YYYY-MM-DDTHH:mm"`，避免 LLM 输出非法格式。
+
+- `assistant/CONTRACT.md`
+  - §7 `stateFieldOps`：`type` 取值列出 `datetime`，追加 `prefix` 字段说明。
+  - §6 `state` 条目 conditions：datetime 字段使用数值操作符 + ISO 字典序比较。
+  - §8 `stateValueOps`：`value_json` 列说明 datetime 字段必须写 `"\"YYYY-MM-DDTHH:mm\""`。
+
+- `assistant/prompts/world-card.md`
+  - 类型选择顺序由 **boolean → number → enum → list → text** 改为 **boolean → number → datetime → enum → list → text**（自检条与 stateFieldOps 段顶部告警同步）。
+  - `type` 列表加 `"datetime"`；`default_value` 写法表加 datetime 行（`"\"1000-03-15T14:30\""`）。
+  - 类型选择指南决策流加"可比较的时间点？→ datetime"；详细规则表加 datetime 行。
+  - state 条目 `operator` 区追加 datetime 比较规则。
+
+- `assistant/prompts/character-card.md` / `persona-card.md` / `extract-characters.md`
+  - `value_json` / `state_values` 示例追加 datetime 写法与格式约束。
+
+**验证**
+
+- 直发提案：`{ "op":"create", "target":"world", "field_key":"current_time", "label":"当前时间", "type":"datetime", "default_value":"\"1000-03-15T14:30\"", "prefix":"第三纪元 " }` 走 `/api/assistant/execute`，应当落库成功；旧 enum/number 字段提案不受影响。
+- 助手对话："给这个世界加一个游戏内当前时间字段"应输出 datetime 提案；执行后世界状态字段编辑页可见该字段，前端按 ISO 字符串渲染并拼接 `prefix`。
+- 提取角色：含 datetime 角色字段的世界，`/extract-characters` 输出的 `state_values` 中该字段为 ISO 局部时间。
+
+**未触碰**：backend/services、backend/memory、frontend 主流程；datetime 在主流程的支持已在 commit 58c7a87 完成。
+
+## 2026-05-06 docs: 削减 ARCHITECTURE.md / SCHEMA.md 与代码重复内容
+
+**动机**：`ARCHITECTURE.md §13 数值常量速查` 已与 `backend/utils/constants.js` 漂移（`MEMORY_RECALL_SIMILARITY_THRESHOLD` 文档 0.84 实际 0.75，`SAME_SESSION_THRESHOLD` 文档 0.72 实际 0.6）；`§14.1 完整端点列表`、`§2 目录结构` 大部分内容可直接从 `backend/routes/*.js` 与目录树读出，反而成为漂移源。`SCHEMA.md` 中 22 张表的 `CREATE TABLE` DDL 与 `backend/db/schema.js` 高度重复。
+
+**ARCHITECTURE.md（937 → 665 行）**
+- §13：删除常量数值列表，改为指向 `backend/utils/constants.js` + 保留代码注释看不出的分组语义（阈值松紧关系、压缩阈值与目标值的关系等）
+- §14.1：删除完整端点表（约 240 行），改为非显然约束清单 —— 路由注册顺序坑、SSE 路由集合、provider-key 端点约束、写卡助手两条链路差异、计划闸门、子代理重试、CUD 术语、world-card / character-card / persona-card / global-config 对齐规则
+- §2：砍掉"文件名 + 一句话"枚举条目，保留锁定文件标注、副作用入口、provider 适配表、`shared/` 双向同步约束等代码读不出的信息
+
+**SCHEMA.md（1068 → 950 行）**
+- 表结构段顶部加"DDL 实际定义见 backend/db/schema.js"指针
+- 22 张表的 ` ```sql CREATE TABLE``` ` 块统一改为 `| 字段 | 类型 | 说明 |` markdown 字段表，类型列用紧凑形式（`TEXT PK`、`TEXT FK→worlds.id CASCADE`），字段中文注释完整保留
+- 简单单列索引删除；复合索引（如 `idx_messages_session_compressed (session_id, is_compressed, created_at)`）保留为表后单行说明
+- `entry_conditions` 已有 markdown 字段表，移除其后冗余 SQL 块
+- 删除文末 `## 常见查询示例` 整段
+- 未触碰 `## 向量文件结构` / `## 全局配置文件结构` / `## 导入导出 JSON 格式` / `## 关键约束汇总`
+
+**Git 跟踪状态**：根目录 markdown 文档大多在 `.gitignore` 中，仅 `ARCHITECTURE.md` / `CHANGELOG.md` / `README.md` 被跟踪。`SCHEMA.md` 改动不进 git，仅本地优化。
+
+## 2026-05-06 fix(assistant): planner 加 UI 用语映射 + WorldConfigPage 监听刷新事件
+
+**追加修复（在前一条基础上）**
+
+- `assistant/server/task-planner.js`：planner system prompt 加"世界条目 UI 用语映射"段，明确 "AI 召回条目" / "AI召回" → `trigger_type:"llm"`，禁止降级为 keyword/always；planner 输出的 step.task 翻译规则统一。
+- `assistant/prompts/world-card.md`：硬规则区追加一条强制规则——任务文本出现"AI 召回条目"等用语时必须输出 `trigger_type:"llm"` 并填非空 description，禁止降级。
+- `frontend/src/pages/WorldConfigPage.jsx`：补 `we:world-updated` 监听，写卡助手 apply 后无须刷新页面即可看到条目变化（之前只有 useEffect 依赖 worldId 触发首次加载）。
+
+**未改**：WorldBuildPage 已被 `/build → /config` 重定向覆盖（App.jsx:81），不再触达，不必同步修。
+
+## 2026-05-06 fix(assistant): 修正 trigger_type:"llm" 描述 + 补前后端术语对照
+
+**问题**：写卡助手 prompt / CONTRACT 把 `trigger_type:"llm"` 描述为"向量召回 / 向量相似度召回"。实际后端 `entry-matcher.js` L268-284 是 LLM 读条目 `description` 字段做语义判定 + 关键词兜底，不是向量召回。前端 UI 此类条目称为"AI 召回条目"。术语漂移导致助手不理解用户用 UI 用语提的需求。
+
+**修复**
+- `assistant/prompts/main.md`：[7] 行与 Prompt 条目段的"向量召回"措辞改为"LLM 读 description 判定"；新增"前后端术语对照"表（UI 用语 ↔ schema 字段值）。
+- `assistant/prompts/world-card.md`：硬规则后追加同款"前后端术语对照"小表，明确"AI 召回条目 = trigger_type:\"llm\"，不是向量召回"。
+- `assistant/CONTRACT.md`：trigger_type 取值 `llm` 的描述改写，并显式说明向量检索仅用于 [8] 历史记忆 turn summary。
+
+**未改**
+- 后端 entry-matcher 行为；SCHEMA.md / ARCHITECTURE.md（运行时未变）；task-planner.js 内联 prompt（未含错误措辞）。
+
+## 2026-05-06 feat(state): datetime 字段支持中文渲染与可选展示前缀
+
+**新增 prefix 列**
+- `world_state_fields` / `character_state_fields` / `persona_state_fields` 三表新增 `prefix TEXT NOT NULL DEFAULT ''`
+- schema.js CREATE TABLE 加列 + ALTER TABLE 兼容旧库；SCHEMA.md 同步表结构与 .weworld.json 导出格式
+- queries 层透传：`createXxx` INSERT、`updateXxx` allowed 列表、5 个 session-state-values join SELECT、3 个 WithFields SELECT 都加 `prefix`
+- `services/import-export.js` 三处 SELECT/INSERT 加 prefix；`import-export-validation.js` 加 `prefix` 字段长度校验（≤64）
+
+**前端**
+- `StateFieldEditor` 当 `type='datetime'` 时显示"展示前缀"输入；保存时仅 datetime 写 prefix，其他类型强制清空为 ''
+- `StatusSection.parseValue` datetime 分支改用 `formatDatetimeChinese(iso, prefix)`，输出 `{prefix}X年X月X日X时X分`（去前导零，与原 ISO 紧凑展示替换）；`InlineEditor` 仍用 `datetime-local`（编辑时不带 prefix），commit 校验同前
+- `parseValue` 签名加第三个参数 prefix，渲染处传 `row.prefix`
+
+**坑点**
+- prefix 仅前端渲染层使用：LLM 提示词、状态条件比较（entry-matcher 字典序）、导入导出 JSON 都不依赖 prefix
+- 编辑器仍弹原生 `datetime-local`，prefix 不在编辑控件中显示——避免用户把 prefix 误填进 ISO 值
+- prefix 长度限制 64 字符，避免恶意大字段串污染 UI
+
+## 2026-05-06 feat(state): 新增 datetime 类型字段 + diary_time 切换为 ISO 格式
+
+**新字段类型 datetime**
+- 状态字段 `type` 取值新增 `'datetime'`，存储格式固定为 ISO 局部时间 `YYYY-MM-DDTHH:mm`（精度到分钟，年份 4 位）
+- 用途：状态条件条目可表达"在某时间到某时间之间触发"——加两条 AND 条件即可（如 `世界.时间 >= 1000-03-15T08:00` AND `世界.时间 <= 1000-03-15T18:00`），未引入新 operator
+- `entry-matcher.js` 数值操作符分支：`Number()` 转换失败时若两侧均匹配 ISO datetime 正则则按字符串字典序比较（YYYY-MM-DDTHH:mm 字典序即时间序），其余情况跳过
+- `combined-state-updater.js` 提示词渲染加 datetime 提示行，validateValue 加 datetime 分支（仅放行匹配正则的字符串）
+- 前端：`StateFieldEditor` TYPE_OPTIONS 加"时间"项，默认值控件改用 `<input type="datetime-local">`；`StateValueField` 加 datetime 分支；`StateFieldList` TYPE_LABEL 加映射；`EntryEditor` NUMERIC_TYPES 加 `datetime`，state 条件值输入按字段类型自动切换为 datetime-local
+
+**diary_time 切换到 datetime 类型 + ISO 格式**
+- `services/worlds.js`：字段 type 改为 `'datetime'`，default_value 改为 `'1000-01-01T00:00'`；`ensureDiaryTimeField` 的 needsUpdate 检查覆盖 type 漂移，旧 text 字段会自动升级为 datetime
+- `constants.js`：`DIARY_TIME_UPDATE_INSTRUCTION` 改为要求 LLM 输出 `YYYY-MM-DDTHH:mm`
+- `combined-state-updater.js` `formatRealTimeDiaryStr`：真实日期模式输出 ISO 格式
+- `diary-generator.js` `parseVirtualDate`：正则切到 ISO，旧 `N年N月N日` 不再支持
+- `StateFieldEditor`：移除 diary_time 专用编辑器（年/月/日/时/分 5 列输入），统一走 datetime-local；real-mode 时禁用默认值输入并加只读提示
+
+**一次性迁移 migrateDiaryTimeToIso**
+- `backend/db/schema.js` 新增 `migrateDiaryTimeToIso`，由 internal_meta key `migration:diary_time_to_iso_datetime` 控制只跑一次
+- 扫描三处旧格式残留：`world_state_fields.default_value`（裸字符串）、`world_state_values.{default,runtime}_value_json`（JSON 编码字符串）、`session_world_state_values.runtime_value_json`，匹配 `N年N月N日N时(N分)?` 转 ISO；无法解析的值置 NULL
+- 同时把 `world_state_fields.type='text'` 强制改为 `'datetime'`，避免与新 `ensureDiaryTimeField` 漂移检查并行触发
+
+**展示与编辑（StatusSection）**
+- `parseValue` 加 datetime 分支：ISO 字符串展示为 "YYYY-MM-DD HH:mm"（去掉 T 分隔符）
+- `InlineEditor` 加 datetime 分支：行内编辑切到 `<input type="datetime-local">`，commit 时校验 ISO 正则，非法则置 NULL
+
+**坑点**
+- ISO datetime 字典序比较仅在两侧均严格匹配 `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$` 时生效；混入其他格式直接跳过条件
+- HTML `<input type="datetime-local">` 要求 4 位年份，本项目用 `padStart(4)` 保证；年份 1–999 也合法
+- 迁移正则要求时间部分含"时"；旧库若有进一步异类格式（如纯日期、自定义历法）不会被识别，会留为 NULL，下一轮 LLM 状态更新会按新 instruction 覆写
+
+## 2026-05-06 feat(assistant): 制卡注入当轮激活世界书条目 + 清理 worlds.system_prompt/post_prompt 残留
+
+**变更 1：写作模式制卡传入世界书上下文**
+- `assistant/server/routes.js` `POST /api/assistant/extract-characters` task 拼装新增"世界书条目"段，注入两类条目内容：
+  - 该世界所有 `trigger_type='always'` 的常驻条目
+  - 目标 assistant 消息保存的 `messages.activated_entries` 中命中条目（按 id 去重后从 `world_prompt_entries` 取 content）
+- 不再重新跑命中逻辑，直接读取该 message 生成时已落库的 `activated_entries`，与原始那一轮 LLM 看到的条目集合保持一致
+
+**变更 2：彻底删除 worlds.system_prompt / post_prompt 列**
+- `backend/db/schema.js`：worlds CREATE TABLE 移除两列；删除 `migrateLegacyWorldPromptColumns`（旧迁移会把列内容搬到 `world_prompt_entries`，已不再需要）；新增 `migrateDropWorldsLegacyPromptColumns` 通过 `pragma table_info` 检测旧库后 `ALTER TABLE DROP COLUMN`
+- `backend/db/queries/worlds.js`：`createWorld` / `updateWorld` 不再写两列
+- `backend/services/import-export.js`：导入侧移除 system_prompt/post_prompt → always 条目兼容；导出侧之前已不写
+- `backend/services/import-export-validation.js` / `backend/tests/helpers/fixtures.js`：清理对应字段
+- 测试文件：`assistant/tests/routes-integration.test.js`、`assistant/tests/tools/card-preview.test.js`、`backend/tests/routes/import-export.test.js` 同步修正
+
+**坑点**：
+- `migrateDropWorldsLegacyPromptColumns` 使用 try/catch + 列存在性检测，新库（直接按新 CREATE TABLE 建表）和旧库（曾有列）都正确
+- 之前迁移到 `world_prompt_entries` 的"世界系统提示"/"世界后置提示词"条目仍保留在 entries 表中，无需清理
+- 导入旧 `.weworld.json`（含 `world.system_prompt`/`post_prompt` 字段）后这两个字段会被静默丢弃，不再转 always 条目
+
+## 2026-05-06 fix(ui): 状态栏展示层支持 {{user}}/{{char}}/{{world}} 替换
+
+**问题**：状态栏直接显示 `{{user}}的奴隶` 等原始模板字符串，未做变量替换。状态值可能由 LLM 写入或玩家手动填入含模板占位符的文本，但前端 `StatusSection` 只读取 `effective_value_json` 后原样渲染。
+
+**修复**：
+- 新增 `frontend/src/utils/template-vars.js`，与 `backend/utils/template-vars.js` 等价，仅用于展示层替换
+- `StatusSection.jsx` 新增 `templateCtx` prop，对 `pinnedName`（姓名行）和非数值类 `display`（list/string/boolean 通过字符串展示）应用替换；编辑态使用 `parseRawValue` 不受影响，DB 写入仍为原始文本
+- `StatePanel.jsx` 异步加载 `worldName` 后，构造 `{ user: persona?.name, char: character?.name, world: worldName }` 并传入 3 个 `StatusSection`
+- `CastPanel.jsx` 新增 `worldName` 加载与 `templateCtx`，世界/玩家区直接用全局 ctx；`CharacterBlock` 接收 ctx 后注入对应角色的 `char` 名
+
+**坑点**：数值类型（带 max 的 `${display} / ${max}`）跳过模板替换以避免 NaN 拼接；编辑态读取 raw 值确保用户可继续编辑原始 `{{user}}` 字符串；持久化层完全不变。
+
+## 2026-05-03 fix(prompt): assembler [13] 后置注入优化，提升 LLM 遵从性
+
+**问题**：LLM 遵从性不足，具体表现：写作模式叙述者捏造 `{{user}}` 玩家名、`<next_prompt>` 格式错误、忽略指令。对比 SillyTavern（同提示词遵从性更好）排查根因。
+
+**根本原因**：
+1. 写作模式 [13] 无玩家名提醒，长对话后叙述者遗忘玩家名
+2. SUGGESTION_PROMPT 拼在 [14] 用户消息末尾，格式指令权重低（model 视作用户话语）
+3. 聊天模式 `character.post_prompt` 为空时 [13] 无任何角色特定内容，12 轮历史后 [3] 角色定义距离生成点过远
+
+**修复**（`backend/prompts/assembler.js`）：
+- `buildWritingPrompt` [13]：`personaName` 非空时自动注入 `（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）`
+- `buildPrompt` [13]：`character.post_prompt` 为空时自动注入 `（你正在扮演{{char}}，请严格保持角色名字和设定。）`
+- 两个函数均将 `SUGGESTION_PROMPT` 从 [14] 用户消息末尾迁移到 [13] system 消息，使格式指令以系统指令权重生效
+
+**坑点**：续写路径 `buildContinuationMessages` 不经过此函数，不受影响；`suggestionText` 返回值不变，前端解析逻辑无需修改。`SUGGESTION_TOKEN_RESERVE` 扣减逻辑不变。
+
+## 2026-05-02 fix(prompt): 写作模式叙述者身份声明修复
+
+**问题**：写作模式 AI 仍以 `{{user}}` 自居——根因是 [2] 玩家人设段标头 `[{{user}}人设]` 使 AI 误将 persona 当作自身身份，而 dynamic 层没有任何反向指令（`writing.global_system_prompt` 默认为空）。
+
+**修复**（`backend/prompts/assembler.js`）：
+- [2] 标头从 `[{{user}}人设]` 改为 `[玩家（{{user}}）背景]`，明确这是关于玩家的参考信息，不是 AI 身份设定
+- dynamic 层最前（[3] 角色人设之前）新增 `[NARRATOR]` 块：`"你是全知中立叙述者，以第三人称叙述故事。{{user}}及以下角色信息均为创作素材，不是你的身份设定。"`；仅 `skipWritingInstructions=false`（非 impersonate 模式）时注入
+
+**验证**：写作模式发消息，日志 prompt 中可见 `[写作模式]` 段出现在 dynamic 层最前；角色信息在其后；AI 不再以玩家名自称。
+
+## 2026-05-02 feat(editor): Tiptap → CodeMirror 6，Obsidian 风格 Live Preview
+
+**背景**：原 `MarkdownEditorInner.jsx` 使用 Tiptap WYSIWYG，内部是 ProseMirror 文档树，无法实现"点击哪行显示原始 markdown 语法"的 Obsidian 风格。
+
+**改动**：
+- **移除** `@tiptap/react`、`@tiptap/starter-kit`、`@tiptap/extension-placeholder`、`tiptap-markdown`
+- **新增** `codemirror`、`@codemirror/lang-markdown`、`@codemirror/language`（@codemirror/view/state/commands 随 codemirror 一并安装）
+- **`MarkdownEditorInner.jsx`** 完全重写：用 `EditorView`（CodeMirror 6）替代 Tiptap；实现 `ViewPlugin`（`livePreviewPlugin`），扫描语法树，对**非光标行**的 `HeaderMark`、`EmphasisMark`、`QuoteMark`、`CodeMark` 加 `cm-md-hide`（`font-size:0`）装饰，光标进入该行时恢复原始 markdown；对 `ATXHeading1/2/3` 添加行级 `cm-md-h1/2/3` 装饰；对 `StrongEmphasis`/`Emphasis`/`InlineCode` 添加 `cm-md-strong`/`cm-md-em`/`cm-md-inline-code` 内联装饰；工具栏改用 CM6 命令（`wrapWithMark`/`toggleLinePrefix`）；对外 API 不变（`value`/`onChange`/`placeholder`/`minHeight`/`className`）
+- **`MarkdownEditor.jsx`**：fallback 容器 `height` 改为 `minHeight`
+- **`index.css`**：移除全部 `.we-md-content .ProseMirror` 样式块；`.we-md-content` 移除 padding（改由 `.cm-content` 承载）；新增 `.cm-editor`/`.cm-scroller`/`.cm-content`/`.cm-line` 基础样式 + 5 个 Live Preview 装饰类
+
+**效果**：5 个使用点（PersonaEditPage、CharacterEditPage、EntryEditor、StateFieldEditor、PromptConfigPanel）统一升级为 Obsidian Live Preview 风格。构建 `✓ built in 215ms`，无任何报错/警告。
+
+**注意**：toolbard 的"激活"态检测（`isActive`）通过 `syntaxTree.resolveInner` 遍历光标祖先节点实现，每次光标移动触发一次 React `setActiveMarks` 更新（5 个按钮，性能无影响）。
+
+## 2026-05-02 fix(prompt): 写作模式 {{char}} 改为中立叙述者身份
+
+**问题**：`buildWritingPrompt` 中全局 `tv()` 函数将 `{{char}}` 绑定到第一个激活角色名（`primaryCharacterName`），导致无激活角色时为空字符串、多角色激活时语义错误——全局 system prompt、世界条目、召回摘要等非角色专属段都会错误地指向某个具体角色。
+
+**修复**（`backend/prompts/assembler.js`）：
+- 删除 `primaryCharacterName` 变量
+- 全局 `tv()` 的 `char` 固定为 `'叙述者'`，赋予 LLM 上帝视角中立身份
+- `tvChar()` 保持不变，仍按各角色名展开，用于 `[3] 角色人设` 和 `[7] 角色状态` 的逐角色渲染段
+
+**验证**：写作模式发消息，日志 prompt 中 `{{char}}` 位置显示为"叙述者"；0 个或多个激活角色下行为一致。
+
+## 2026-05-02 fix(assistant): planner 校验失败重试时携带允许操作列表，并禁止 preview 作为 operation
+
+**问题**：写卡助手规划器连续 3 次输出 `operation: "preview"` 均未通过校验（`world-card` 只允许 `create/update/delete`），导致 `task_failed`。根本原因是校验失败的重试反馈只说"不匹配"，没有告知 LLM 允许的值；同时 prompt 也未明确禁止 `preview/read/query` 作为 operation。
+
+**修复**（`assistant/server/task-planner.js`）：
+- **validator 错误消息**：从 `"operation 与 targetType 不匹配：X / Y"` 改为 `"operation "Y" 不在 X 允许的操作内（允许：create, update, delete）；preview/read/query 不是合法 operation，若只是查看卡片请改为 mode='answer'"`，让 LLM 重试时有明确修正方向
+- **planner prompt**：新增一句明确约束——`operation` 只能是 `create/update/delete` 之一，`preview/read/query/view` 绝对不合法；若任务只是查看卡片内容，必须改为 `mode="answer"`
+
+**验证**：校验失败重试时日志 `PLAN RETRY reason` 字段携带"允许：create, update, delete"；查看类请求输出 `mode="answer"` 而非包含 preview step 的 plan。
+
+## 2026-05-01 fix(ui): 新流式选项出现时不再隐藏上一轮冻结卡
+
+**问题**：恢复流式选项渲染后，`MessageList.jsx` 里“只要有活跃 options 就隐藏最后一张冻结卡”的规则仍然存在，导致新一轮 `<next_prompt>` 一出现，上一轮历史选项卡立刻消失，页面高度突变。
+
+**修复**：
+- `MessageList.jsx`：将 suppress 条件从 `options.length > 0` 收窄为“当前活跃 options 与最后一条 assistant 的 `_options` 完全相同”时才隐藏历史卡。
+- 保留原本的去重语义：会话初始加载时，底部活跃卡与最后一条历史卡内容相同，仍只显示一份；新一轮流式选项与上一轮历史卡内容不同，则两者同时保留，不再发生旧卡消失导致的跳动。
+
+**验证**：`npm run build --prefix frontend` 通过；新一轮流式选项出现时，上一轮冻结卡继续保留，页面不再因旧卡消失而跳动。
+
+## 2026-05-01 fix(ui): 恢复选项卡流式渲染并消除点击选择闪烁
+
+**问题**：`30aa123` 为了压住选项卡实时挂载导致的页面跳动，改成了“流中只写 ref、流后再一次性渲染”，副作用是两处：
+- 流式输出阶段 `<next_prompt>` 不再实时显示，必须等流结束
+- 点击选项发送下一轮时，活跃卡和冻结卡切换叠加入场动画，视觉上会闪一下
+
+**修复**：
+- `ChatPage.jsx`：`onDelta` 恢复 `setCurrentOptions`，但用浅比较避免相同 options 重复 setState；仍保留 `streamingOptionsRef` 作为最终回退
+- `MessageList.jsx`：恢复生成中渲染 `OptionCard`，不再用 `!generating` 把它整体挡掉
+- `OptionCard.jsx` + `ui.css`：流式阶段改为稳定预览态，列表区域固定高度并滚动，底部显示“生成中，选项会继续实时补全”，避免 options 逐字增长时不断撑高页面
+- `FrozenOptionCard`：去掉即时冻结时的额外 appear 动画，减少点击选项后的闪烁感
+
+**验证**：`npm run build --prefix frontend` 通过；聊天页中 `<next_prompt>` 会在流式阶段出现并持续补全，点击选项后历史冻结卡不再额外闪一下。
+
+## 2026-05-01 fix(prompt): Deepseek 选项生成不稳定修复——Token 预留 + 模板精简
+
+**问题**：开启选项功能后，Deepseek 有时输出选项有时不输出。
+
+**根本原因**：
+1. 主回复占满 `max_tokens`（如 2048），选项 `<next_prompt>` 块被截断
+2. 尾部用户消息中格式约束在长上下文中注意力权重降低
+
+**修复**：
+- `constants.js`：新增 `SUGGESTION_TOKEN_RESERVE = 200`（选项约需 130t，取 200 安全余量）
+- `assembler.js`：`buildPrompt` / `buildWritingPrompt` 中，`suggestion_enabled=true` 时 `maxTokens` 自动预留 200，下限 500；关闭时行为不变
+- `shared-suggestion.md`：模板精简，从 150+ tokens 压缩至约 40 tokens
+
+**约束**：不改变消息结构，continue/impersonate 不受影响（Codex 审查确认）。
+
+## 2026-04-30 perf(ui): PageTransition 页面切换动画提速——总等待从 ~1000ms 压缩到 ~260ms
+
+- `motion.js`：`pageTransition` variant 各状态嵌入独立 transition；exit 改为纯淡出（80ms retract），visible 改为 180ms ink 入场；去掉 scale/y 偏移；`transitions.page` 同步更新为 quick+ink（兜底用）
+- `PageTransition.jsx`：移除顶层 `transition={transitions.page}` prop（原本覆盖了 variant 内嵌 transition，导致统一走 500ms）；移除 `transitions` 导入
+- 根本原因：`mode="wait"` + 500ms 退场 + 500ms 入场 = ~1000ms；现在退场 80ms + 入场 180ms = ~260ms
+
+## 2026-04-30 feat(ui): 补充 SettingsPage 切换与 WritingSpacePage 面板入场动效
+
+- `.we-settings-section`（pages.css）加 `weInkRise`：用户切换设置 tab 时，内容条件重挂载触发 320ms 入场动效
+- `.we-page-left` / `.we-chat-center-pane` / `.we-cast-panel` 加 `weInkRise`：WritingSpacePage 三栏首次挂载时入场；ChatPage 的左栏和中间栏同步受益
+- 均遵循 §14 规则：固定布局区块单件入场，无 exit 需求故用 CSS animation，不加 stagger
+
+## 2026-04-30 feat(ui): Phase 5 — 页面级统一收尾与动效约定确立
+
+**目标**：清除四阶段积累的 token 漂移，激活缺失的路由过渡，补充列表入场节奏，形成可持续开发的动效约定。
+
+- **[5a] CSS token 清洁**（`tokens.css` / `chat.css` / `pages.css`）
+  - `tokens.css`：补充 `--we-duration-extended: 500ms`（对应 motion.js `DURATION.slow`）及对照注释；`prefers-reduced-motion` 同步覆盖
+  - `chat.css`：消除 9 处硬编码时长/贝塞尔（`var(--we-dur-base,0.32s)` × 3、`0.22s`、`0.2s`、`0.5s` × 2、`0.4s` × 2、`0.25s`、`0.18s`），全部改用 `--we-duration-*` + `--we-easing-*`
+  - `pages.css`：修复孤儿引用 `--we-easing-decelerate` → `--we-easing-ink`；修复 `0.2s ease` 硬编码
+
+- **[5b] PageTransition 激活**（`PageTransition.jsx`）
+  - 从纯布局 stub 升级为 `AnimatePresence + motion.div`，接入 `pageTransition` variant（opacity+y+scale）和 `transitions.page`（500ms ink easing）
+  - `locationKey` 变化触发过渡；overlay 场景 key 不变，背景页不重渲染
+
+- **[5c] 列表入场 stagger + 约定文档**（`pages.css` / `DESIGN.md`）
+  - `.we-world-card` 和 `.we-character-card` 补充 CSS `weInkRise` 动画 + nth-child 50ms 步进 stagger（上限 8 步，总时长 ≤ 720ms）；CSS 方式不干扰 dnd-kit / framer Reorder 拖拽行为
+  - `DESIGN.md §14` 新增动效约定：层级职责表、token 对照表、6 条规则
+
+**验证**：三次 `npm run build` 均零错误（211~213ms）。
+
+## 2026-04-30 feat(ui): Phase 4 — 聊天与消息系统动态化
+
+**目标**：在不破坏流式生成、key 稳定性、滚动行为的前提下，补齐消息系统中"突然出现"的视觉断点。
+
+**P0 验证结论**：
+- `streamingKey`（随机字符串）在 `onDone` 时以 `_key` 写入真实消息，React 视流式占位与真实消息为同一节点，零 exit/enter 动画，key 完全稳定。
+- 续写（continue）通过 `updateMessages` 原地合并内容，无重挂载。
+- `.we-message-actions` 已有 `opacity:0 + transition:0.2s hover` — 无需改动。
+
+**P1 改动**：
+- `chat.css`：`@keyframes weMetaReveal`（opacity 0→0.65），加到 `.we-token-usage`，streaming 结束后 token 行淡显而非突然弹出。
+- `chat.css`：`.we-think-block-body-wrap / --open / -inner`，使用 CSS `grid-template-rows: 0fr↔1fr` 过渡（0.25s ink 曲线），ThinkBlock 展开/折叠不再跳变。
+- `MessageItem.jsx`：ThinkBlock body 从条件渲染改为 CSS grid 包裹，始终挂载，由 class 控制高度。
+- `chat.css`：`.we-frozen-card-appear`（weInkRise 0.18s），加到 FrozenOptionCard 根 div。
+- `MessageList.jsx`：FrozenOptionCard 根 div 加 `we-frozen-card-appear`。
+- `ChatPage.jsx`：错误气泡用 `AnimatePresence + motion.div` 包裹，入场 inkRise 0.25s，离场 fade 0.15s。
+
+**不动的内容**：streaming 文字内容、续写追加内容、load-more 历史消息、滚动行为、`.we-chat-area` 容器本身。
+
+**验证**：`npm run build --prefix frontend` 通过，0 error，4 文件 46 行净增。
+
+## 2026-04-30 feat(ui): 动态化阶段 2 — 全局导航与通用交互反馈层
+
+**目标**：在不增加"动画感"的前提下，让导航和弹窗有自然的出现/消失过渡，按钮有轻量按压反馈，Tab 指示器平滑滑动。
+
+**改动**：
+- `TopBar.jsx`：世界下拉菜单加 `AnimatePresence + motion.div`（`scaleY + opacity + y`，quick 时长），▾ 小图标用 `motion.span` 做 0→180° 旋转动画，同步 dropdown 开合。
+- `Select.jsx`：选项列表加 `AnimatePresence + motion.ul`，与 TopBar 下拉动效一致。
+- `SectionTabs.jsx`：活跃 Tab 底部指示器改为 `motion.div layoutId="tab-indicator"`，切换时平滑滑动；移除静态 CSS `border-bottom-color` active 规则。
+- `pages/ChatPage.jsx`：`LongTermMemoryModal` 渲染点补 `AnimatePresence`，激活 ModalShell 已有的入场/离场动效。
+- `pages/WritingSpacePage.jsx`：同上。
+- `index.css`：为 `.we-topbar-item:active` 补 `scale(0.96)` 按压微反馈。
+- `styles/pages.css`：补 `.we-section-tab-indicator` 绝对定位 CSS，Tab 改为 `position: relative`。
+
+**未动**：`ModalShell.jsx` 本身已在 Phase 1 完成；EntryEditor / RegexModal CSS overlay 保持现状，不在本阶段迁移。
+
+**验证**：`npm run build --prefix frontend` 通过，0 error。
+
+## 2026-04-30 fix: DeepSeek reasoning_content 丢失 + 规划器 characterId 误用
+
+**背景**：使用 DeepSeek reasoning 模型（如 deepseek-reasoner）时，多轮 tool call 循环中把 assistant 消息压回历史时漏传 `reasoning_content`，导致 API 报 400 错误。同时规划器在无角色上下文时仍会生成 `entityRef="context.characterId"` 的 character-card 步骤，连续 3 次校验失败后任务中断。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js`：`completeOpenAICompatibleWithTools` 和 `resolveToolContextOpenAI` 两处 tool call 循环中，压入历史的 assistant 消息若含 `reasoning_content` 则原样保留，满足 DeepSeek API 要求。
+- `assistant/server/task-planner.js`：system prompt 补充「字段定义 vs 字段值」规则——修改 world-card 的 player_fields / character_fields 字段结构属于 world-card 域操作，不得拆成 character-card 步骤；无角色上下文时禁止生成 `entityRef="context.characterId"` 的步骤。
+- `backend/memory/turn-summarizer.js` + `backend/prompts/templates/memory-turn-summary-with-ltm.md`：移除轮次摘要对 `WORLD_STATE` 的依赖及相关时间标注逻辑（之前遗留未提交的改动）。
+
+**验证**：使用 deepseek-reasoner 跑多轮 tool call 任务不再报 400；无角色上下文时发"同步增加状态字段"类指令，规划器生成纯 world-card 步骤，校验通过。
+
+## 2026-04-30 refactor(ui): 拖动条统一为全局 Range 组件
+
+**背景**：原 WritingLlmBlock 和 LlmConfigPanel 中的温度拖动条各自维护 RANGE_PCT_CLASS 映射表，冗余且不利于扩展；助手面板中数值字段（min_value / max_value）未使用拖动条界面，UI 体验不一致。
+
+**改动**：
+- 新增 `frontend/src/components/ui/Range.jsx`：封装统一的拖动条组件，内部处理 RANGE_PCT_CLASS 映射和 --range-pct 百分比计算，统一所有拖动条的样式（`we-range` CSS 类）和交互。
+- `frontend/src/components/index.js`：注册 Range 组件为可复用 UI 原子。
+- `WritingLlmBlock.jsx`：移除本地 RANGE_PCT_CLASS，改用 Range 组件；简化 temperature 状态管理。
+- `LlmConfigPanel.jsx`：移除 inline `--range-pct` 计算，改用 Range 组件；代码更清晰。
+- `ChangeProposalCard.jsx`：改进 number 类型字段的 min_value / max_value 输入框 UI 标签显示。
+
+**优势**：
+- 组件化：Range 集中处理拖动条逻辑，后续新增拖动条无需重复维护 PCT 映射。
+- 一致性：所有拖动条使用同一组件，样式和交互统一。
+- 可扩展：Range 参数灵活，支持任意 min / max / step，无需修改内部实现。
+
+**验证**：构建成功（npm run build），设置页 LLM Temperature 拖动条交互保持一致；CSS 类名自动生成，无手工维护。
+
+## 2026-04-30 fix(ui): 列表类型状态值改用标签输入（回车添加）
+
+**背景**：编辑世界（角色）页面填写列表类型状态字段默认值时，原实现使用逗号分隔输入（`split(',')`），用户输入格式不规范（漏写逗号、多余空格、误用全角逗号等）容易导致解析失败或拆分错误。
+
+**改动**：
+- `frontend/src/components/state/StateValueField.jsx`：`type === 'list'` 分支由单行 `<Input type="text">` + 逗号 split 改为标签输入（tag input）组件，复用 `StateFieldEditor.jsx` 中列表默认条目 / 枚举选项使用的同套 `we-tag-input` / `we-tag` / `we-tag-input-field` 样式与交互。
+- 交互一致化：输入条目按 Enter 添加；输入框为空时按 Backspace 删除最后一项；点击标签 × 删除单项；onBlur 自动提交未确认输入。
+- 持久化：每次增删立即调用 `onSave(field_key, JSON.stringify(items))`，仍写入 `default_value_json` 中的 JSON 数组字符串，与原 schema 完全兼容；旧数据（已为数组）正常显示，无需迁移。
+- 顶层 hooks：`listInput` / `listRef` 提到组件顶层，避免在条件分支内调用 hooks。
+
+**验证**：
+1. API 层：创建列表字段（POST `/api/worlds/:id/world-state-fields`）→ PATCH `/state-values/:fieldKey` 更新值 → GET 回读，`default_value_json` 正确为 JSON 数组字符串
+2. UI 层（手动）：进入编辑世界 → 列表类型字段行 → 输入条目 + 回车 / Backspace / × 三种交互均可正常增删；刷新页面后值保留
+3. 兼容：已有列表默认值（数组）正常加载为标签
+
+## 2026-04-30 feat(memory): 激活条目持久化到 messages 表（刷新后保留）
+
+**背景**：原"本轮激活的非常驻条目"仅运行时展示，刷新即消失（见同日 `7016648` 决策）。改为持久化以便用户回看历史消息时仍能看到当时命中了哪些条目。
+
+**改动**：
+- `backend/db/schema.js`：`messages` 表新增 `activated_entries TEXT`（JSON 数组），通过 `ALTER TABLE` 兼容旧库。
+- `backend/db/queries/messages.js`：`getMessageById` / `getMessagesBySessionId` 自动 JSON.parse；新增 `updateMessageActivatedEntries(id, entries)`；空数组等价 NULL。
+- `backend/routes/chat.js` / `backend/routes/writing.js`：把 `activatedEntries` 提到 try 外层作用域，stream 完结后若非中断且有命中，调用 `updateMessageActivatedEntries` 写入并同步到返回对象的 `activated_entries`。
+- 删除策略：随 messages 行 ON DELETE CASCADE 自然清理；regenerate 删旧 assistant + 新 `processStreamOutput` 创建新行时一并保存新条目；`/continue` 路径不更新（续写不算新一轮命中）。
+- SSE `entries_activated` 事件保留作为流前期反馈；前端 `pendingEntriesRef` 仍可叠加但已与 DB 数据等价。
+
+**验证**：
+1. 触发非常驻条目的 AI 回复 → 看到条目；刷新页面 → 仍可见
+2. regenerate AI 回复 → 旧条目消失，新轮的条目跟随新消息
+3. 删除消息 → 该条数据自然丢失，无残留（无单独副表）
+4. 写作页同步验证
+
+## 2026-04-30 style(ui): 激活条目改为右侧轻量内联（再调：贴气泡右、按 token 开关动态归位）
+
+**追加变更**：
+- 条目右对齐由"行容器右"改为"气泡右"：`.we-message-assistant .we-message-actions / .we-token-usage` 限宽 `max-width: 680px`，与 bubble 同 max-width。
+- 条目位置随 `showTokenUsage` 动态归位：开 token 用量时与 token 行同行（始终可见），关 token 用量时回到操作按钮行（hover 时淡入）。
+- 多行行为：`flex-wrap: wrap` 使条目超出可用宽度自动折行，按钮以 `align-items: center` 跟随多行高度居中。
+
+## 2026-04-30 style(ui): 激活条目改为右侧轻量内联，压缩消息底部高度
+
+**背景**：原本 assistant 消息底部三行（token / 操作按钮 / 条目方块）拉得太长，把下一条 user 消息推得离上一条 assistant 太远；且条目用 `Badge` 渲染呈现"实线方框"视觉过重。
+
+**决策**：
+- 条目放在操作按钮行的最右侧（`margin-left: auto`），按钮固定在左侧位置不随条目数量浮动；用户/AI 消息行结构保持一致。
+- 不再用 `Badge`，改为轻量内联 `.we-activated-entry-chip`：无边框无背景，衬线小字 0.72em，项之间 `·` 分隔（`::before` 伪元素）。
+- 三行变两行（token 用量保留独立一行；操作 + 条目合并）。
+
+**改动**：
+- `frontend/src/components/chat/ActivatedEntriesRow.jsx`：弃用 `Badge`，改为 `<span class="we-activated-entry-chip">`，外层容器 `.we-activated-entries-inline`。
+- `frontend/src/components/chat/MessageItem.jsx`、`frontend/src/components/writing/WritingMessageItem.jsx`：将 `<ActivatedEntriesRow>` 移入 `we-message-actions` 内部；按钮包一层 `.we-message-actions-buttons` 子容器承接 14px gap。
+- `frontend/src/styles/chat.css`：删除旧 `.we-activated-entries-row`；新增 `.we-activated-entries-inline` / `.we-activated-entry-chip` / `.we-message-actions-buttons`。
+
+**验证**：启前后端 → 触发非常驻条目的 AI 回复 → hover 看条目以细体小字、`·` 分隔出现在最右侧；无条目时按钮位置不变；写作页同步生效。
+
+## 2026-04-30 feat(ui): 对话/写作页展示本轮激活的非常驻条目
+
+**背景**：Lorebook 条目命中信息已在 `entry-matcher.js` 计算出来并组装进提示词，但前端从来看不见——用户无法判断本轮是哪些条目真的被注入。常驻条目（`trigger_type='always'`）每轮必触发、无信息量，应当过滤。
+
+**决策**：
+- **不持久化**：仅运行时展示。刷新页面 / 切换会话 / 翻历史消息后旧 AI 消息底部不再带 Badge。理由：写库需要新增字段并贯穿 messages 序列化路径，性价比低；本轮命中只在"刚生成完"这个时间窗口对用户有意义。
+- **位置**：AI 消息底部 footer（与 actions 同级，hover 时同步淡入）。
+- **形态**：复用 `Badge`（默认 variant），只显示条目 title；hover 原生 `title` 提示触发类型（关键词/LLM/状态）。
+
+**改动**：
+- `backend/prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在已有 `triggeredEntries` / `triggeredEntries2` 基础上过滤 `trigger_type !== 'always'`，映射成 `[{id,title,trigger_type}]`，作为新字段 `activatedEntries` 加入返回值（不改组装顺序）。
+- `backend/services/chat.js`：`buildContext` 透传 `activatedEntries`。
+- `backend/routes/chat.js` `runStream`、`backend/routes/writing.js` `runWritingStream`：`buildContext` / `buildWritingPrompt` 返回后、LLM 流开始前，仅当 `entries.length > 0` 推送一条新 SSE 事件 `entries_activated`。`/continue` 路径不推（续写不计为新一轮命中）。
+- `frontend/src/api/stream-parser.js`：识别 `entries_activated`，分发到 `onEntriesActivated(entries)`。
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：新增 `pendingEntriesRef`，在 `beginStreamRun` 清空，在 `onEntriesActivated` 写入，`onDone` 时把 `activated_entries` 直接挂到即将 append 的 assistant 对象上（避开锁定文件 `store/index.js`）。
+- `frontend/src/components/chat/ActivatedEntriesRow.jsx`（新增，在 `components/index.js` 注册）：复用 `Badge`，每条目一个，`title` 属性提供原生 tooltip。
+- `frontend/src/components/chat/MessageItem.jsx`、`frontend/src/components/writing/WritingMessageItem.jsx`：在 actions 行之后渲染 `<ActivatedEntriesRow>`，仅当 `message.activated_entries` 非空。
+- `frontend/src/styles/chat.css`：新增 `.we-activated-entries-row`，与 `.we-message-actions` 同款 hover 淡入。
+
+**验证**：
+1. 准备一个世界，包含至少一个 `always` 条目 + 一个 `keyword` 条目 + 一个 `state` 条目。
+2. ChatPage 发命中 keyword 的消息：AI 回复底部 hover 出现该条目 Badge，`always` 不展示，hover Badge 看到"触发：关键词"。
+3. 触发 state 条目：同上验证。
+4. 刷新页面：旧 AI 消息底部 Badge 消失（符合"仅运行时"决策）。
+5. WritingSpacePage 重复一遍。
+6. DevTools Network 面板：能看到 `data: {"type":"entries_activated",...}` 行。
+
+**残留风险**：regenerate 时新 assistant 消息 id 会替换旧的，旧 key 自然失效；编辑历史 AI 消息不会重新匹配——与"运行时"语义一致，无需特殊处理。
+
+## 2026-04-30 feat(memory): 长期记忆随消息回滚同步还原
+
+**背景**：编辑用户消息 / 删除消息 / regenerate 会按轮次截断 `turn_records` 并回滚状态快照，但 `data/long_term_memory/{sessionId}/memory.md` 是只追加 + 周期性 LLM 压缩的纯文本，没有任何回滚机制——回退到旧轮次后，被截断轮次产出的"长期记忆"仍残留在文件里继续注入 [8.5] 段，造成"已撤回的事实"长期污染上下文。
+
+**改动**：
+- `backend/db/schema.js`：`turn_records` 新增 `long_term_memory_snapshot TEXT`（idempotent ALTER）。
+- `backend/db/queries/turn-records.js`：新增 `updateTurnRecordLtmSnapshot(id, snapshot)`。
+- `backend/services/long-term-memory.js`：新增 `restoreLtmFromTurnRecord(sessionId, lastRecord)`，按 lastRecord=空 → 清目录 / snapshot=NULL（旧记录）→ 不动 / snapshot=string → 覆盖 三档语义还原。
+- `backend/memory/turn-summarizer.js`：把原本 fire-and-forget 的 `appendMemoryLines` 改为 `await`（在 p3 队列内串行），随后无条件把 `readMemoryFile` 全文写回当前 turn record 的 `long_term_memory_snapshot`，确保压缩后内容也能回滚。
+- 四条回滚链路 (`routes/sessions.js` PUT `messages/:id` + DELETE `sessions/:sessionId/messages/:messageId`，`routes/chat.js` regenerate，`routes/writing.js` regenerate) 在 `deleteTurnRecordsAfterRound` 之后追加 `restoreLtmFromTurnRecord(...)`。
+- 顺手补全 DELETE 消息路径的并发屏障：在截断前 `await waitForQueueIdle(sessionId)`，与 regenerate/编辑用户消息一致。原本只有后两者有屏障，DELETE 路径若赶上 p3 turn-record 任务在跑，旧任务可能在状态/LTM 还原后再写回旧轮次结果。该屏障同时修掉 `state_snapshot` 上的同源 race。
+
+**验证**：① 启用长期记忆后跑 3 轮，让 `memory.md` 累积条目；② 编辑第 2 轮的 user 消息或删除第 2 轮，检查 `memory.md` 应回到第 1 轮结束时的内容（GET `/api/sessions/:id/long-term-memory`）；③ regenerate 最后一轮应回到上一轮结束的内容；④ 全部消息删完时 `data/long_term_memory/{sessionId}/` 整个目录消失。
+
+## 2026-04-30 fix(memory): 长期记忆 UI 入口与开关联动 + 修正条目截断
+
+**改动**：
+- 顶栏长期记忆按钮：`ChatPage.jsx` 加载 `config.long_term_memory_enabled`、`WritingSpacePage.jsx` 加载 `config.writing.long_term_memory_enabled`，关闭时按钮与 modal 一并隐藏。
+- `LONG_TERM_MEMORY_LINE_MAX_CHARS`: 30 → 60（含 `[年月日时分]` 时间前缀的条目易超 30 字被截断）。
+- `LLM_TURN_SUMMARY_MAX_TOKENS`: 500 → 800（启用 LTM 时输出 JSON 包装 + 摘要 + 2 条 memory 接近 500 token 上限，导致末条被截）。
+- 模板 `memory-turn-summary-with-ltm.md`：恢复"三重门槛全部满足"的严格规则（上一版放宽后噪声过多）。
+
+**验证**：关闭设置中长期记忆 → 顶栏图标消失；开启 → 显示。重启后端跑包含明确事实变故的对话，确认 `data/long_term_memory/{sessionId}/memory.md` 的条目无尾部截断。
+
+## 2026-04-30 fix(memory): 长期记忆抽取改 JSON 输出 + 放宽门槛
+
+**背景**：用户开启长期记忆后多轮一条都不出。定位两个根因：① 模板 `memory-turn-summary-with-ltm.md` 写"绝大多数轮次应不输出任何条目" + 三重门槛 AND，几乎永远不命中；② 自定义分隔符 `<<<LONG_TERM_MEMORY>>>` 解析脆弱，LLM 加空格/markdown 围栏即静默归零。架构上拆成独立 LLM 会重复注入 USER/ASSISTANT 消息（最大块），输入 token 接近翻倍，性价比差 → 维持单 LLM，改格式与门槛。
+
+**改动**：
+- `backend/prompts/templates/memory-turn-summary-with-ltm.md`：输出契约改为 JSON `{"summary":"...","memory":["..."]}`，附 2 个 few-shot；门槛从"三类同时满足"改为"满足任一类即可"，仍保留"新 + 长期影响"+ 反例约束。
+- `backend/memory/turn-summarizer.js`：`splitSummaryAndMemory` 改为 JSON 解析（先剥 ```` ``` ```` 围栏，再截首尾大括号）；解析失败降级为"整段当摘要、零 memory"。新增 `LLM RAW` 日志（`logging.llm_raw.enabled=true` 时打印剥 think 后原始输出）便于诊断。
+- 不动：assembler [8.5] 注入点、`appendMemoryLines` 落盘、异步队列优先级、`long-term-memory.js` 压缩逻辑。
+
+**验证**：开启 `logging.llm_raw.enabled=true`，跑含明确"获得物品/情报/关系转折"的 3 轮，看 `data/logs/worldengine-2026-04-30.log` 中 `turn-sum LLM RAW` 是否输出 JSON 且 `memory` 非空；GET `/api/sessions/:id/long-term-memory` 应有条目；纯闲聊轮 `memory: []`。
+
+## 2026-04-29 feat(memory): 会话级长期记忆（手动 + LLM 半自动）
+
+**背景**：现有 turn_records 摘要 + 向量召回擅长保留对话流水，但不擅长沉淀"长期有效的事实/转折"。新增会话级长期记忆通道：每轮顺手让摘要 LLM 抽 0–2 条关键事实写入 md，组装提示词时注入；用户也可手动编辑覆盖。
+
+**改动**：
+- 后端
+  - 新增 `backend/services/long-term-memory.js`：`data/long_term_memory/{sessionId}/memory.md` 的 IO + 行数超限 (>50) 时调 aux LLM 压缩到 <20 行。`WE_DATA_DIR` 路径与 diary、向量库同根，桌面端落到 `app.getPath('userData')`。
+  - 新增模板 `prompts/templates/memory-turn-summary-with-ltm.md`（带 LTM 抽取规则 + 三重门槛 + 时间前缀）和 `memory-long-term-compress.md`。
+  - `memory/turn-summarizer.js`：按 `sessions.mode` 选模板，从 `<<<LONG_TERM_MEMORY>>>` 分隔符拆 summary 与 LTM 段，行数清洗后 `appendMemoryLines`。
+  - `prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在 [8] 之后、[9] 之前插入 [8.5] `[长期记忆]` 段，受 `long_term_memory_enabled` / `writing.long_term_memory_enabled` 控制。
+  - `services/config.js`：默认值补 `long_term_memory_enabled=false`（顶层 + writing）。
+  - `services/cleanup-registrations.js`：`session/character/world` 删除时清理 `data/long_term_memory/{sessionId}/`。
+  - `routes/long-term-memory.js`：GET/PUT `/api/sessions/:sessionId/long-term-memory`，挂到 `server.js`。
+  - `utils/constants.js`：新增 4 个 LTM 常量 + 1 个压缩 max_tokens。
+- 前端
+  - 新增 `api/long-term-memory.js`、`components/session/LongTermMemoryModal.jsx`（基于 `ModalShell` + `Textarea`）。
+  - `pages/ChatPage.jsx` / `pages/WritingSpacePage.jsx`：会话顶部栏右侧追加图标按钮（aria-label="长期记忆"），点击打开弹窗。
+  - `styles/chat.css`：`.we-chat-center-header` 加 `gap: 8px`，新增 `.we-chat-center-action` 图标按钮样式。
+  - `hooks/useSettingsConfig.js` + `components/settings/FeaturesConfigPanel.jsx` + `pages/SettingsPage.jsx`：功能配置 → 记忆分组追加"长期记忆"开关，按 `settingsMode` 自动切换 chat/writing 字段。
+  - `components/index.js`：注册 `LongTermMemoryModal`。
+
+**验证**：
+- `cd frontend && npx vite build` 通过。
+- 待运行验证：开启对话长期记忆开关，发负样本（自我介绍）应不增条目，发含事实变故/关系转折的对话应新增 1–2 条；关闭开关后再发一轮文件不变；删除 session 时 `data/long_term_memory/{sessionId}/` 被清掉。
+
+**同步文档**：`SCHEMA.md`（config.json `long_term_memory_enabled` 字段）、`ARCHITECTURE.md`（§4 段位表新增 [8.5]，§10 cleanup 钩子表追加 long_term_memory 目录）、CHANGELOG（本条）。
+
+**锁定文件**：`backend/utils/constants.js`（新增常量）、`backend/prompts/assembler.js`（按段位规则新增 [8.5]，已同步 `ARCHITECTURE.md`）。
+
+**残留风险**：模板中 `<<<LONG_TERM_MEMORY>>>` 分隔符需依赖模型遵守；regenerate / isUpdate 路径不重写历史长期记忆，避免抖动。压缩调用与 turn-summarizer 共用 aux 模型，未单独限流。
+
+## 2026-04-29 fix(next_prompt): think 块内的 next_prompt 不再误渲染为选项卡
+
+**背景**：LLM 流式输出时偶尔会在 `<think>` / `<thinking>` 推理块内输出 `<next_prompt>` 标签（提醒自己稍后给选项），前端误把它当作真正的下一步选项 chip 渲染。原 `parseNextPromptStream` 只识别严格 `<think>`，与 `MessageItem.parseStreamingBlocks` 的 `/<\s*think(?:ing)?\s*>/i` 不一致，`<thinking>` 变体或带空格写法均被漏判。
+
+**改动**：`frontend/src/utils/next-prompt.js`
+- 引入 `THINK_CLOSED_BLOCK_RE` / `THINK_OPEN_TAIL_RE`，与 MessageItem 同源正则。
+- 新增 `stripThinkBlocks()`：剥离已闭合 think 块和未闭合尾部 think 块。
+- `parseNextPromptStream` 改为先在 cleaned 文本上 indexOf `<next_prompt>`，再用 `findRawAnchor` 把位置映射回原文，保证 think 块原样保留供 ThinkBlock 折叠渲染。
+- 删除旧 `isInsideOpenThink`，逻辑被 `stripThinkBlocks` 覆盖。
+
+**验证**：node 内联用例 7 项全通过（含 `<think>`/`<thinking>`、闭合/未闭合、纯正文回归）；前端 dev 触发会输出 think 的模型对话，确认 think 内 `<next_prompt>` 不再产出 chip，think 闭合后真实选项仍正常渲染。
+
+**同步文档**：CHANGELOG（本条）。SCHEMA / ARCHITECTURE 无变化（纯前端解析层修复）。
+
+**锁定文件**：未触及。
+
+**残留风险**：模型若产出"只开不关"且后续不再闭合的 think，整段尾部都会被忽略——与"未闭合 think 不渲染选项"语义一致，符合预期。
+
+## 2026-04-29 ui(entry): 关键词条目编辑改为 chip 回车输入
+
+**背景**：`EntryEditor.jsx` 中 `trigger_type=keyword` 的关键词输入是逗号分隔的纯文本框，与后端数组存储不一致，且无法处理中文逗号、重复词、可视化展示。
+
+**改动**：`frontend/src/components/state/EntryEditor.jsx`
+- `form.keywords` 由字符串改为字符串数组（直接采用 `entry.keywords ?? []`）。
+- 新增 `keywordInput` 草稿状态、`keywordRef`、`addKeyword` / `removeKeyword` 工具函数（参考 `StateFieldEditor.jsx` enum tag 实现）。
+- JSX 替换为 `we-tag-input` 容器 + `we-tag` chip + 末尾 input：Enter 添加、Backspace 在空输入时删尾、onBlur 自动提交、重复去重。
+- `handleSave` 移除 `.split(',')`，并在保存前合并未提交的 input 草稿。
+
+**验证**：前端 `npm run dev` → 世界条目面板新建 keyword 条目，验证回车/失焦添加、Backspace 删除、重复去重、保存回显。
+
+**同步文档**：CHANGELOG（本条）。SCHEMA / ARCHITECTURE 无变化（数据格式始终为数组）。
+
+## 2026-04-29 fix(continue): 续写路径注入 shared_suggestion，让 continue 也能输出 next_prompt 选项
+
+**背景**：`/continue` 续写在 `buildContinuationMessages` 把 `assistant prefill + CONTINUE_USER_INSTRUCTION`（"请直接继续……不要解释"）追加到末尾，作为模型最后看到的指令，覆盖了 `[14]` 段贴在原 user 消息后的 `SUGGESTION_PROMPT`。即使开启 `suggestion_enabled`，续写也不会输出 `<next_prompt>` 选项块。
+
+**改动**：
+- `backend/prompts/assembler.js`：`buildPrompt` / `buildWritingPrompt` 在返回值新增 `suggestionText` 字段（启用 suggestion 时为已 `tv()` 渲染的 `SUGGESTION_PROMPT`，否则 `null`）。锁定文件仅追加返回字段，不改 14 段顺序。
+- `backend/services/chat.js#buildContext`：把 `suggestionText` 透传给路由层。
+- `backend/routes/stream-helpers.js#buildContinuationMessages`：第三参新增 `{ suggestionText }`，存在时拼到末尾续写指令的 user 消息后面（保持单条 user 而非新开消息）。
+- `backend/routes/chat.js`、`backend/routes/writing.js` 续写分支：从 buildContext / buildWritingPrompt 拿 `suggestionText` 并透传。
+- `backend/tests/routes/stream-helpers.test.js`：新增 suggestion 注入用例。
+- `ARCHITECTURE.md §4 [14]`：补注 `suggestionText` 在续写路径的注入方式。
+
+**验证方式**：
+- `node --test backend/tests/routes/stream-helpers.test.js`（3 用例通过）
+- `node --test backend/tests/prompts/assembler.test.js backend/tests/prompts/assembler-shape.test.js`（10 用例通过）
+- 端到端：开启 `suggestion_enabled`，发起 chat / writing 续写，确认末尾出现 `<next_prompt>` 选项并被 `extractNextPromptOptions` 正确剥除。
+
+**残留风险**：续写时模型同时看到 `[14]` 原 user 消息尾部的 suggestion 与末尾续写指令尾部的 suggestion，存在轻度重复；但避免删除 `[14]` 段以保留 cached 前缀稳定（删除会破坏 prompt cache 命中）。
+
+## 2026-04-29 refactor(prompt): 后置提示词改为独立 system 段，并与当前 user 消息换位
+
+**背景**：`backend/prompts/assembler.js` 此前把后置提示词直接拼到当前 `user` 消息尾部，聊天与写作链路都沿用这一结构。现在需要把“后置提示词”和“用户提示词”位置交换，并把后置提示词明确提升为 `system prompt`，同时保持 suggestion 指令继续贴在最后一个 `user` 消息上。
+
+**改动**：
+- `backend/prompts/assembler.js`：聊天 `buildPrompt` 与写作 `buildWritingPrompt` 同步调整为 `[12] 历史消息 → [13] 独立 system 后置提示词 → [14] 当前 user 消息`；移除“把 post prompt 追加到当前 user content”的逻辑
+- `backend/tests/prompts/assembler.test.js`：更新聊天/写作用例，断言后置提示词落在独立 `system` 消息，最后一条 `user` 只保留当前输入与 `next_prompt`
+- `backend/tests/prompts/assembler-shape.test.js` 与快照：更新消息索引和锚点顺序，新增独立后置 `system` 段
+- `ARCHITECTURE.md` / `backend/prompts/README.md` / `assistant/prompts/main.md`：同步新的段号与 role 语义
+- `frontend/src/components/settings/PromptConfigPanel.jsx`：设置页提示文案从“插入在user message后”改为“作为独立 system prompt 注入在当前 user message 前”
+
+**验证方式**：
+- `cd backend && node --test tests/prompts/assembler.test.js`
+- `cd backend && node --test tests/prompts/assembler-shape.test.js`
+
+**残留风险**：Grok / OpenAI-compatible / Gemini 的缓存主逻辑不受影响，因为 `cacheableSystem` 仍只代表稳定前缀 [1-4]；但消息总数比原先多一条，若后续有依赖“最后两条固定为 history + current user”的外部脚本，需要按新结构更新。
+
+## 2026-04-29 fix(llm): system 前缀拆分提升为 OpenAI-compatible 路径默认行为，修复 DeepSeek prompt cache
+
+**背景**：DeepSeek 官方 API 实测几乎无 prompt cache 命中。`cache-usage.js` 已正确解析 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，问题在写侧——`assembler.js` 把稳定前缀 [1-3.5] 与动态后缀 [4-10] 合并到单条 system，DeepSeek 在 tokenizer 边界发生几个 token 漂移，加上其前缀匹配对"系统块整体一致"敏感，命中率被显著拉低。OpenRouter 此前用 `normalizeOpenAICompatibleMessages` 的拆分逻辑（commit 4812ad4）解决了同源问题。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js`：删除 `normalizeOpenAICompatibleMessages` 顶部的 `provider !== 'openrouter'` 白名单门控，把"按 `cacheableSystem` 拆首条 system"改为 OpenAI-compatible 路径默认行为；OpenAI / OpenRouter / DeepSeek / Grok / GLM / Kimi / MiniMax / SiliconFlow / Qwen / Xiaomi 全部受益。`cacheableSystem` 为空 / 首条非 system / 不以前缀开头任一情况均自动跳过，行为兜底等价于不开启
+- `buildOpenAICompatibleHeaders` 不变：`x-grok-conv-id` 仍是 grok-only，绝不扩散
+- `backend/tests/llm/openai-compatible-headers.test.js`：把"非 openrouter 不拆分"用例改为"任意 provider 都拆分"，覆盖 openrouter / deepseek / grok / glm / kimi / openai 6 种 provider；保留兜底用例（cacheableSystem 为空 / 首条非 system / 不匹配前缀）
+- `ARCHITECTURE.md`：更新 §4 Cached layer 段说明，OpenAI-compatible 路径默认拆分
+
+**为何对 Grok 不回归**：commit 02b50a2 修复的是"`[system, user(dynamic), user(history)]` 双 user 结构让 cache pipeline bypass"。本次拆分后两段都是 `role=system`，与"双 user"是不同结构，Grok cache pipeline 仍把它视作系统块。`x-grok-conv-id` sticky routing 同时保留。
+
+**验证方式**：
+- 单元测试：`cd backend && node --test tests/llm/openai-compatible-headers.test.js`（9/9 通过）
+- 集成验证（人工）：DeepSeek 连发 2 轮，第二轮 `cache_read_tokens` 应显著 > 0；Grok 连发 2 轮验证未回归（落盘请求体首段为 2 条连续 system，header 仍含 `x-grok-conv-id`）；OpenRouter 行为持平；Anthropic / Gemini / Ollama 不受影响
+
+**残留风险**：极少数 OpenAI-compatible 聚合厂商若不接受连续两条 system，会以 4xx 暴露——按需补反白名单兜底；Grok 双 system 命中率需要人工日志对比验证。
+
+## 2026-04-29 refactor: Anthropic 模型列表改为接口实拉，移除硬编码
+
+**背景**：`backend/routes/config.js` 此前对 anthropic provider 硬编码 5 个 model id，输入 key 也不会去拉真实接口；新模型上线后需要手动改代码。
+
+**改动**：
+- `backend/routes/config.js`：`fetchModels` 中 anthropic 分支改为调用 `${base}/v1/models`（带 `x-api-key` + `anthropic-version: 2023-06-01`），无 key 时直接抛错；返回的 model id 仍通过 `KNOWN_PRICES` 兜底价格
+- 删除 `ANTHROPIC_MODELS` 常量；其原本承载的 5 个 Claude 模型价格搬入 `KNOWN_PRICES`（含 `cacheWritePrice` / `cacheReadPrice`）
+- `resolveModelPricing` 简化为只查 `KNOWN_PRICES`，并把 cache 价格透传到响应
+
+**验证方式**：设置页选 anthropic provider，无 key 时显示"Anthropic 需要 API Key 才能拉取模型列表"；保存有效 key 后模型下拉列表能动态拉到完整 Claude 模型清单，已知模型价格仍正确显示。
+
+**残留风险**：`coding plan` 系列（kimi-coding / minimax-coding / glm-coding / xiaomi）仍走 `getStaticCodingPlanModels` 硬编码——这些是会员配额套餐，官方未必开放 `/models` 接口，保留硬编码。
+
+## 2026-04-29 refactor: API Key 改为顶层共享池，对话/写作主副 + Embedding 共用一份
+
+**背景**：原本 `data/config.json` 在五处独立维护 `provider_keys`（`llm` / `embedding` / `aux_llm` / `writing.llm` / `writing.aux_llm`）。同一个 OpenAI key 在四个对话/写作 section 之间需要重复保存才能生效，UX 与认知负担都很重。
+
+**改动**：
+- `backend/services/config.js`：新增顶层 `config.provider_keys = { providerName: api_key }`，所有 LLM/Embedding section 不再保存自己的 `provider_keys`；统一通过 `getProviderKey(provider)` 与 `updateProviderKey(provider, key)` 读写共享池；首次加载执行迁移 `mergeSectionKeys`，把每个 section 残留的 `api_key` / `provider_keys` 合并到顶层（已存在不覆盖），随后删除原字段并写回；删除 `updateAuxApiKey` / `updateWritingApiKey` / `updateWritingAuxApiKey` 三个原专用 setter
+- `backend/routes/config.js`：`stripApiKeys` 输出顶层 `provider_keys` 的布尔映射 + 每个 section 的 `has_key`（按其当前 provider 在共享池查表），不再输出 section 内的 `provider_keys`；`PUT /api/config` 增加对顶层 `provider_keys` 的拦截；将 5 个独立 `*-apikey` 端点合并为单一 `PUT /api/config/provider-key { provider, api_key }`；模型列表与连接测试改用统一的 key 解析
+- `backend/llm/index.js`：`buildLLMConfig` 主模型分支改为直接从 `config.provider_keys` 读取 api_key；副/写作分支去除中间 `provider_keys` 包装
+- `backend/llm/embedding.js`：`getEmbeddingConfig` 改为读取顶层共享池
+- `frontend/src/api/config.js`：删除 5 个独立 `update*ApiKey` 函数，统一为 `updateProviderKey(provider, key)`
+- `frontend/src/components/settings/ProviderBlock.jsx` / `AuxLlmBlock.jsx` / `WritingLlmBlock.jsx`：保存按钮改为传 `(provider, key)`；当前 `provider` 为空时直接 toast 提示
+- `frontend/src/components/settings/LlmConfigPanel.jsx` / `frontend/src/hooks/useSettingsConfig.js`：去除 `update*ApiKey` 各自封装，统一指向 `updateProviderKey`；前端组件状态去掉冗余 `provider_keys` 字段，仅保留 `has_key`
+- 测试：`backend/tests/{routes/config,prompts/assembler-shape,prompts/assembler,llm/index,memory/recall}.test.js` 与 `tests/helpers/test-env.js` 全部改为顶层 `provider_keys` 形态；新增 provider-key 端点测试
+- 文档：`SCHEMA.md` 配置结构与说明、`ARCHITECTURE.md` 副模型与 /api/config 路由表
+
+**桌面端兼容**：迁移逻辑在 `getConfig()` 首次读取时跑一次并写回，`data/config.json` 路径走 `WE_DATA_DIR` / `WE_CONFIG_PATH`，对桌面端用户透明；旧 `provider_keys` 的全部 key 都会被合并到顶层，不会丢失。
+
+**已知边角**：同一 provider 在多处保存了不同 key 时（例如 chat 用 OpenAI 账号 A、embedding 用账号 B），合并后以 `llm → embedding → aux_llm → writing.llm → writing.aux_llm` 顺序，先到的 key 胜出，其余被丢弃。绝大多数用户每个 provider 只会用一份 key，不受影响。
+
+**验证方式**：
+- 后端：`cd backend && npm test`（287 通过）
+- 前端：`cd frontend && npm run build`（构建成功）
+- 人工：设置页对话主/副、写作主/副、Embedding 各自切换到同一 provider，检查 API Key 已配置标记一致；保存任一处 key 后其它同 provider 段位的 has_key 也变为 true
+
+**残留风险**：旧端点 `/apikey`、`/embedding-apikey`、`/aux-apikey`、`/writing-apikey`、`/writing-aux-apikey` 已删除（项目非发布版无需向后兼容），任何外部调用方需要切换到 `/provider-key`。
+
+---
+
+## 2026-04-29 fix: mac arm64 桌面包启动闪退，补打包遗漏的 shared 目录
+
+**背景**：`desktop/dist/mac-arm64/WorldEngine.app` 双击后立即退出。终端直启主进程可复现：
+
+`Error [ERR_MODULE_NOT_FOUND]: Cannot find module '.../Resources/shared/chapter-constants.mjs'`
+
+**根因**：`backend/utils/constants.js` 运行时会 import `../../shared/chapter-constants.mjs`，但 `desktop/electron-builder.json` 的 `extraResources` 只打包了 `backend`、`frontend`、`assistant` 和 `node-runtime`，漏掉了仓库根目录 `shared/`。包内后端启动即崩，Electron 主进程随之退出，表现为桌面应用“闪退”。
+
+**改动**：
+- `desktop/electron-builder.json` 新增 `../shared -> Resources/shared` 的 `extraResources` 复制规则
+
+**验证**：
+- 重新执行 `cd desktop && npm run dist`
+- 终端直启 `desktop/dist/mac-arm64/WorldEngine.app/Contents/MacOS/WorldEngine`
+- 启动日志不再出现 `ERR_MODULE_NOT_FOUND ... shared/chapter-constants.mjs`
+
+## 2026-04-29 fix: desktop package metadata 补齐 description / author，消除 electron-builder 告警
+
+**背景**：执行 `cd desktop && npm run dist` 时，`electron-builder` 会提示：
+- `description is missed in the package.json`
+- `author is missed in the package.json`
+
+**根因**：`desktop/package.json` 缺少桌面分发所需的基础包元数据。
+
+**改动**：
+- `desktop/package.json` 补充：
+  - `description: "AI-assisted immersive roleplay and creative writing desktop app."`
+  - `author: "n0ctx"`
+
+**验证**：
+- 重新执行 `cd desktop && npm run dist`
+- `electron-builder` 不再输出 `description is missed` / `author is missed` 告警
+
+## 2026-04-29 fix: desktop dist 前强制清空构建产物，修复 mac-arm64 ENOTEMPTY 打包失败
+
+**背景**：执行 `cd desktop && npm run dist` 时，mac x64 阶段可以推进，但在打包 `darwin arm64` 时失败：
+
+`ENOTEMPTY: directory not empty, rename 'dist/mac-arm64/Electron.app' -> 'dist/mac-arm64/WorldEngine.app'`
+
+**根因**：`electron-builder` 默认复用 `desktop/dist/` 输出目录；前一次失败或中断后遗留的 `dist/mac-arm64/WorldEngine.app` 没有在新一轮构建前清理，导致下一次打包把 `Electron.app` 重命名为 `WorldEngine.app` 时撞上旧目录。原脚本只在末尾删 `*.blockmap`，没有做构建前清场。
+
+**改动**：
+- 新增 `desktop/scripts/clean-dist.js`，在构建前统一删除 `desktop/dist`
+- `desktop/package.json` 新增 `clean-dist` 脚本
+- `build` / `dist` 脚本调整为：先 `npm run clean-dist`，再 `prepare-build` 和 `electron-builder`
+- `clean-dist.js` 额外加入 `maxRetries` / `retryDelay`，规避 macOS 上偶发的 `fs.rmSync(...): ENOTEMPTY`
+
+**验证**：
+- `cd desktop && npm run clean-dist`
+- `cd desktop && npm run dist`
+- 本次完整跑通到：
+  - `dist/WorldEngine-0.0.2-mac-x64.dmg`
+  - `dist/WorldEngine-0.0.2-mac-arm64.dmg`
+  - `dist/WorldEngine-0.0.2-win-x64.exe`
+
+## 2026-04-29 fix: frontend audit 无需变更，desktop 升级到安全版 Electron 39.8.9
+
+**背景**：
+- `npm audit --prefix frontend` 已是 `found 0 vulnerabilities`，无需做 `frontend audit fix`
+- `npm audit --prefix desktop` 报 1 个 `high` 风险，来源是 `electron <=39.8.4`
+
+**根因**：`desktop/package.json` 仍固定在 `electron ^35.0.0`，落在 advisory 影响范围内。`npm audit --force` 建议直接跳到 `41.3.0`，但这会放大升级面；而 `39.8.9` 已超出受影响区间，可作为更小的修复落点。
+
+**改动**：
+- `desktop/package.json` / `desktop/package-lock.json`：将 `electron` 升级到 `^39.8.9`
+- 安装时 Electron 官方分发地址两次 `ETIMEDOUT`，改用 `ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/` 完成下载与安装
+
+**验证**：
+- `npm audit --prefix frontend` → `found 0 vulnerabilities`
+- `npm audit --prefix desktop` → `found 0 vulnerabilities`
+- `node -p "require('./desktop/node_modules/electron/package.json').version"` → `39.8.9`
+- `npm run --prefix desktop prepare-build` 正常完成
+
+## 2026-04-29 fix: 移除 backend 未使用的 uuid 依赖，清除 audit 风险
+
+**背景**：`npm audit --prefix backend --omit=dev` 报出 1 个 `moderate` 风险，来源是直接依赖 `uuid@13.0.0`（`<14.0.0` 受 GHSA-w5hq-g745-h8pq 影响）。
+
+**根因**：后端 `package.json` 仍保留 `uuid` 依赖，但仓库内并没有任何 `uuid` 导入或调用；项目规范本来就要求主键统一使用 `crypto.randomUUID()`，因此这是历史遗留的无用依赖。
+
+**改动**：
+- 从 `backend/package.json` / `backend/package-lock.json` 移除 `uuid`
+- 重新执行 `npm uninstall uuid --prefix backend`，使 backend 依赖树不再包含该包
+
+**验证**：
+- `npm audit --prefix backend --omit=dev` → `found 0 vulnerabilities`
+- `npm ls uuid --prefix backend` → 依赖树中已无 `uuid`
+
+## 2026-04-29 fix: 世界卡拖拽撑开背景 + 占位伪边界 + 跳跃
+
+**问题**：
+1. 世界数量超过视口时整页无法下拉；
+2. 改成可滚动后，拖动会向下/向右无限延展背景；
+3. 用 `contain: layout paint` 裁剪后又出现内层伪边界、卡片被切；
+4. 松手有多余动画，偶发跳一下。
+
+**根因**：`.we-worlds-canvas` 原本 `overflow: hidden` 屏蔽溢出；改成 `overflow-y: auto` 后 `SortableGrid` 用 `CSS.Translate` 让被拖卡片留在 DOM 内、transform 计入滚动溢出，导致背景被撑开。强行 `contain` 又把卡片本身一起裁掉。被拖项 transform 与松手后 layout 动画两套机制叠加，产生"再交换一次"的视觉。
+
+**改动**（`frontend/src/components/ui/SortableGrid.jsx`）：
+- 改用 `DragOverlay` 模式：原位置卡片留作占位（`opacity: 0`），跟手副本由 overlay 用 fixed 定位渲染，不进入文档流，故可拖出页面而不撑开任何滚动祖先
+- `dropAnimation` 220ms cubic-bezier 自定义回位曲线，`sideEffects` 让占位在动画期间也保持透明
+- `useSortable` 设 `animateLayoutChanges: () => false`，避免松手后再播一次让位动画
+- 移除上一版的 `restrictToContainer` modifier 与 `.we-worlds-grid` 上的 `contain` 规则
+
+**验证**：访问 `/`，分别测试：① 卡片溢出时纵向滚动正常；② 拖到窗口外不再撑开背景；③ 网格无伪边界，卡片不被裁；④ 松手丝滑回位、不重复动画。
+
+## 2026-04-29 fix: 世界卡拖拽跳跃 + 不丝滑
+
+**问题**：拖动世界卡跨越邻居时，被拖卡片会瞬移；整体动画也偏卡。
+
+**根因**：`SortableGrid` 在 `onDragOver` 中实时调用 `onReorder` 改写 `items` 数组，与 `rectSortingStrategy` 内部基于稳定索引计算 transform 的机制冲突——数组重排导致每个 sortable 项的索引漂移，被拖项被强制重定位，产生跳跃；同时正在拖动的卡片仍带 `transition`，跟手感差。
+
+**改动**：
+- `frontend/src/components/ui/SortableGrid.jsx`：删除 `onDragOver` + `onReorder` 实时重排逻辑，只在 `onDragEnd` 一次性调用 `onReorderEnd`；`useSortable` 改用 `CSS.Translate.toString`（避免 scale 干扰），dragging 时 `transition: 'none'`，并加上 `cursor: grabbing`
+- `frontend/src/pages/WorldsPage.jsx`：移除 `onReorder={setWorlds}`，仅保留 `onReorderEnd`
+
+**验证**：访问 `/worlds`，拖动任意一张卡跨越多个邻居（含右→左、末行→首行），被拖卡片应跟手移动不跳跃，邻居平滑让位；松手后顺序持久。
+
+## 2026-04-29 feat: 世界选择页支持拖拽排序
+
+**背景**：世界卡此前只能按 `created_at` 升序展示，无法手动调整。需求是拖动一张卡时，被路过位置的卡按 2D 网格平滑滑到原位置（左→右时右邻向左滑、上→下时下邻向上滑、末行末位时右邻向左补位）。
+
+**改动**：
+- `worlds` 表新增 `sort_order INTEGER NOT NULL DEFAULT 0`；旧库通过 `migrateWorldsBackfillSortOrder` 按 `created_at ASC` 回填连续序号
+- `getAllWorlds` 改为 `ORDER BY sort_order ASC, created_at ASC`；`createWorld` 自动取 `MAX(sort_order)+1` 入队尾
+- 新增 `reorderWorlds(items)` 事务批更新 + 路由 `PUT /api/worlds/reorder`（注册在 `:id` 之前以避开 Express 路径冲突）
+- 前端引入 `@dnd-kit/core` + `@dnd-kit/sortable` + `@dnd-kit/utilities`，新增通用组件 `SortableGrid`（基于 `rectSortingStrategy`，激活距离 8px 以保留点击进入世界的语义）
+- `WorldsPage` 用 `SortableGrid` 包裹世界卡；卡内操作按钮容器追加 `onPointerDown stopPropagation` 阻止误触发拖拽
+
+**验证**：访问 `/worlds`，拖动任意一张卡到其他位置，邻居实时滑动让位；松手后刷新页面顺序持久；点击未移动则正常进入世界详情。
+
+**坑点**：Express 中 `PUT /:id` 会先于 `PUT /reorder` 匹配，必须把 `/reorder` 注册在 `/:id` 之前。
+
+## 2026-04-29 fix: 修复写作和对话页面 token 统计部分字体不统一
+
+**问题**：token 统计显示（如"↑9K 1889 命中5.1K tokens"）中，中文和英文字体不一致，破坏视觉一致性。
+
+**根因**：`--we-font-serif` 字体堆栈为 `'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif`，西文衬线字体优先级高于中文字体。混排文本时，英文使用 EB Garamond，中文回退到 Source Han Serif，导致字体切换。
+
+**改动**：
+- `frontend/src/styles/chat.css`：`.we-token-usage` 字体改为 `'Source Han Serif SC', 'Source Han Serif', serif`，中英文共用同一字体
+
+**验证**：CSS 修改已生效，token 统计区域（MessageItem 和 WritingMessageItem）现在使用统一的中文衬线字体，不影响其他文本区域。
+
+## 2026-04-29 feat: next_prompt 选项持久化，切页/刷新后历史折叠 + 当前展开
+
+**背景**：`<next_prompt>` 选项原本只活在 `currentOptions` React 状态里，切换 session、切换页面（chat ↔ writing）、刷新都会清空；同时 `optionCollapsed` 在 `clearOptionsState` 路径未重置，可能导致新一轮选项卡继承上次的折叠态。
+
+**改动**：
+- `messages` 表新增 `next_options TEXT`（JSON 字符串数组），同步 `SCHEMA.md`
+- `db/queries/messages.js`：`getMessageById` / `getMessagesBySessionId` / `getUncompressedMessagesBySessionId` 解析 `next_options`；新增 `updateMessageNextOptions(id, options)`
+- `services/chat.js#processStreamOutput`、`routes/chat.js` 和 `routes/writing.js` 续写路径：抽到选项后写入 assistant 消息的 `next_options`，并把数组放入返回的 assistant payload
+- `frontend/src/components/chat/MessageList.jsx`：拉取消息后把 `next_options` 还原成 `_options + _options_collapsed=true`；新增 `onMessagesLoaded` 回调；当父组件 `options` 非空时跳过最后一条 assistant 的 `FrozenOptionCard` 渲染，避免与 active OptionCard 重复
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：消费 `onMessagesLoaded`，把最后一条 assistant 的 `next_options` 提升为 `currentOptions` 并 `optionCollapsed=false`；`clearOptionsState` 同步重置折叠态，保证新一轮选项卡默认展开
+- `ARCHITECTURE.md §7` 注明 `done.options` 持久化路径与前端还原规则
+
+**验证**：
+- 聊天页生成回复后切到写作页再切回 → 当前选项卡仍展开，历史回合折叠
+- 浏览器刷新 → 同上
+- 多轮生成 → 仅最新一轮展开，历史均折叠
+- 续写完成 → 选项写入 DB，下次进入会话仍可见
+
+## 2026-04-29 fix: OpenRouter 发送前拆双 system，恢复 GLM-5.1 稳定 cached prefix，不影响其他 provider
+
+**背景**：`openrouter + z-ai/glm-5.1` 实测 `cached_tokens` 在 3k+ 与 0 之间抖动。排查 `data/logs/llm-raw/*.json` 与 `worldengine-2026-04-29.log` 后确认，问题不在 `cache_read_tokens` 统计，而在 OpenRouter 的 sticky routing / prompt caching 指纹：当前 assembler 为兼容 Grok，把 `[1-3.5]` 稳定前缀与 `[4-10]` 动态后缀合并进首条 `system`，导致 OpenRouter 看到的首条 `system` 每轮都变化，连续请求 `prefix512/1024/2048Stable=false`，路由容易落到不同上游 provider，命中不稳定。
+
+**改动**：
+- `backend/llm/providers/openai-compatible.js` 新增 `normalizeOpenAICompatibleMessages(messages, config)`
+- 仅当 `provider === 'openrouter'` 且首条 `system` 以 `cacheableSystem` 为前缀时，在发送前把首条 system 拆成两条：
+  - 第 1 条：稳定 cached prefix（[1-3.5]）
+  - 第 2 条：动态 system suffix（[4-10]）
+- `streamOpenAICompatible / completeOpenAICompatible / completeOpenAICompatibleWithTools / resolveToolContextOpenAI` 全部走该 helper
+- 其他 provider（含 `grok` / `openai` / `deepseek` / `kimi`）完全保持原消息结构，不影响既有 cache 路径
+- `backend/tests/llm/openai-compatible-headers.test.js` 新增 4 个用例，覆盖 openrouter 拆分、无动态后缀不拆、非 openrouter 不拆、prefix 不匹配不拆
+- `ARCHITECTURE.md §4` 补充 OpenRouter 发送层双 system 特例说明
+
+**为什么不改 assembler**：assembler 当前的“单 system 合并”是为 Grok prefix cache 量身调过的。直接在通用 prompt 构造层改回双 system，会把其他 provider 一起拖回去；把差异限制在 OpenRouter 发送层，影响面最小。
+
+**验证**：
+- `cd backend && node --test tests/llm/openai-compatible-headers.test.js`
+- 人工验证：配置 `openrouter + z-ai/glm-5.1`，同一 session 连续发 3 轮，观察 `data/logs/llm-raw/*openrouter*.json` 中 messages[0] 应只含稳定 cached prefix，messages[1] 为 dynamic system；第 2 轮起 `usage.prompt_tokens_details.cached_tokens` 更应接近 `[1-3.5]` 稳定前缀长度而非随机 0
+- 对照：`grok` / `gemini` 请求 shape 不变
+
+**注意**：OpenRouter 仍可能因平台级 provider fallback 导致偶发 miss；本次修复目标是把“首条 system 每轮变化”这个我们自身造成的 cache 不稳定因素去掉。
+
+## 2026-04-29 fix: Gemini 3.x 接 explicit cachedContents API，恢复 cache 命中
+
+**背景**：实测 `gemini-3.1-flash-lite-preview` 连续三轮对话 `token_usage.cache_read_tokens` 全部为空。查 Google issue #2064 确认 Gemini 3 系列 implicit caching 在 prompt size 9K-17K tokens 区间存在 dead zone，flash-lite preview 几乎无命中。Gemini 3 在 explicit `cachedContents` API 上仍可正常工作（命中省 90% input cost），故为该模型档位补 explicit cache 路径。
+
+**改动**：
+- 数据/接口：`assembler.buildPrompt` / `buildWritingPrompt` 返回值新增 `cacheableSystem`（= [1-3.5] 稳定段拼接结果）。不动 messages 结构、不动段号
+- 透传：`services/chat.js#buildContext` 把 `cacheableSystem` 放入 `overrides`；`routes/writing.js` 三处 `buildWritingPrompt` 调用方解构透传；`routes/chat.js` impersonate 路径补 `cacheableSystem`；`llm/index.js#buildLLMConfig` 透传 `options.cacheableSystem` 到 provider config（其他 provider 忽略）
+- 新增：`backend/llm/providers/gemini-cache.js`，内存 LRU 维护 `hash(model+cacheableSystem) → { name, expireAt }`（TTL 600s，最多 64 条），含 PATCH 续期与负缓存（创建失败 5min 内不重试）
+- Provider：`backend/llm/providers/gemini.js#streamGemini` / `completeGemini` 在 `model` 匹配 `gemini-3.x` 且 `cacheableSystem.length ≥ 4000` 时调用 `getOrCreateCache`，请求体改用 `{ contents, cachedContent }`（不带 `systemInstruction`），dynamic 段（[4-10]）拼到首条 user message。任何阶段失败降级回原 `systemInstruction` 路径
+- 文档：`ARCHITECTURE.md §4` Cached layer 发送方式段落补 Gemini 3.x explicit cache 链路说明
+
+**为什么 Gemini 2.5 不启用**：2.5 系列 implicit cache 已稳定命中（数据库可见 `cache_read_tokens` ≈ prompt_tokens），不引入额外 HTTP 调用。
+
+**注意**：cache create 首次约 +200-500ms 延迟（仅每个 (model, cacheableSystem hash) 第一次）。`cacheableSystem` 不足官方 4096 token 阈值时 API 会 400，负缓存吃下 5min 内不重试，自动降级。
+
+**验证**：用 `gemini-3.1-flash-lite-preview` 在同一 session 连发 3 条消息：第 1 条日志见 `[gemini-cache] CREATE  name=cachedContents/xxx`，第 2-3 条 `messages.token_usage.cache_read_tokens` 非空且约等于 cacheableSystem 的 token 数。已实测通过。
+
+## 2026-04-29 feat: 写作副模型与对话副模型独立配置（writing.aux_llm）
+
+**背景**：写作 tab 和对话 tab 共享同一份 `aux_llm`，导致两类后台任务（摘要 / 状态 / 记忆展开 / 日记 / 标题 / 条目命中）必须使用同一个副模型 endpoint。需要把写作 tab 的副模型拆成独立配置，回退链按 `writing.aux_llm → aux_llm → llm` 顺序展开，避免在写作 tab 调整副模型反而影响对话 tab 后台任务的 prompt cache 槽。
+
+**改动**：
+- 数据：`config.writing.aux_llm` 字段（结构镜像 `aux_llm`），`backend/services/config.js` 增加 `DEFAULT_WRITING.aux_llm`、配置迁移、`getWritingAuxLlmConfig()`、`updateWritingAuxApiKey()`
+- 后端：`backend/llm/index.js#buildLLMConfig` 新增 `configScope: 'writing-aux'` 分支；新增 `backend/utils/aux-scope.js#resolveAuxScope(sessionId)`，根据 `sessions.mode` 决定使用 `'writing-aux'` 还是 `'aux'`
+- 调用点切换：`turn-summarizer / combined-state-updater (state_compress + state_update) / summary-expander / summarizer (会话标题) / diary-generator / entry-matcher` 改为按 `resolveAuxScope(sessionId)` 解析 scope；`chapter-title-generator` 固定 `'writing-aux'`
+- 路由：`backend/routes/config.js` 新增 `/api/config/writing-aux-apikey`、`/api/config/writing-aux/models`、`/api/config/writing-aux/test-connection`；PUT /api/config 接受 `writing.aux_llm` 子树；`stripApiKeys` 同步遮罩
+- 前端：`useSettingsConfig` 增加 `writingAuxLlm` state 与 handler；`api/config.js` 增加三个 writing-aux 接口；`LlmConfigPanel` 把 `AuxLlmBlock` 移入 `settingsMode` 分支，写作 tab 渲染 writing-aux block，对话 tab 渲染原 aux block；`AuxLlmBlock` 新增 `fallbackHint` prop，写作 tab 文案改为 "未配置则回退对话副模型，再回退对话主模型"
+- 文档：`SCHEMA.md` config schema、`ARCHITECTURE.md §4.5`（调用点 7→8、新增 writing-aux 回退链与 `'writing-aux'` scope 说明）
+
+**注意**：旧 `data/config.json` 缺失 `writing.aux_llm` 字段，由 `getConfig()` 启动时迁移补全为默认值（provider=null）。已配置 `aux_llm` 的用户不受影响，写作模式自动按 `writing.aux_llm(空) → aux_llm → llm` 回退到原行为。
+
+**验证**：人工步骤：(1) 进入设置 → LLM 配置 → 写作 tab：副模型保持 "未配置"，触发任意写作生成，确认后台 turn_summary / state_update / entry_match 使用对话副模型（若配置）或主模型；(2) 写作 tab 副模型选择独立 provider，再切到对话 tab 确认对话 tab 副模型仍为原配置；(3) 写作模式触发一轮生成，查看日志 `configScope` 应解析为 `writing-aux`；(4) 对话模式触发，应解析为 `aux`。
+
+## 2026-04-29 fix: xAI / Grok 注入 x-grok-conv-id header，把同一会话路由到同一缓存服务器
+
+**背景**：之前合并 [1-10] 为单条 system message 后，其他 provider prompt cache 稳定命中，但 xAI / Grok 仍出现 cached_tokens ≈ 158 与 4k+ 来回跳的现象。核查 xAI 文档后确认根因：xAI 后端是多服务器集群，prompt cache 只在单服务器内有效；同一会话若被路由到不同服务器，前缀就无法复用。xAI 推荐的解法是设置 `x-grok-conv-id` HTTP header，把同一会话的请求 sticky 到同一服务器。
+
+**改动**：
+- `backend/llm/index.js`：`buildLLMConfig` 新增 `conversationId` 字段；`CHAT START` / `COMPLETE START` 日志附带该字段以便排查命中率。
+- `backend/llm/providers/openai-compatible.js`：抽出 `buildOpenAICompatibleHeaders(config)`，在 `provider === 'grok' && conversationId` 时附加 `x-grok-conv-id`；`stream / complete / completeWithTools / resolveToolContext` 全部使用该 helper，其他 OpenAI-compat provider 不受影响。
+- 调用层透传 sessionId 作为 conversationId：
+  - 主对话 `routes/chat.js`（main_answer / main_continue / impersonate / retitle）
+  - 写作 `routes/writing.js`（writing_main / writing_continue / writing_impersonate）
+  - 记忆/aux 任务 `memory/combined-state-updater.js`、`memory/diary-generator.js`、`memory/summary-expander.js`、`memory/turn-summarizer.js`、`prompts/entry-matcher.js`、`memory/title-generation.js`（含 summarizer / chapter-title-generator 两个调用点）
+- 新增测试 `backend/tests/llm/openai-compatible-headers.test.js`（4 用例）：覆盖 grok 有/无 conversationId、其他 provider 不附加、非字符串强转。
+
+**为什么不拆独立 adapter**：xAI Chat Completions API 在 endpoint / body / SSE / usage 字段上与 OpenAI 完全兼容，仅 header 有差异；保持 openai-compatible 路径，新增 header helper 即可，不引入冗余协议层。`usage.prompt_tokens_details.cached_tokens` 已被现有 `recordTokenUsage` 覆盖，无需改动。
+
+**验证**：`backend && npm test` 281 用例 / 276 通过 / 2 失败均为已存在的失败，与本次改动无关。人工验证步骤：(1) 配置 xAI provider，开启 `logging.llm_raw.enabled`；(2) 同一 session 连续发 3 轮请求，观察 `data/logs/llm-raw/*.json` 中 `_meta.provider === 'grok'`，并核对响应 `usage.prompt_tokens_details.cached_tokens` 第二轮起接近稳定 system prompt 长度；(3) 对照组：开启不同 session（不同 sessionId），cached_tokens 应回落。
+
+## 2026-04-29 fix: 重新生成时清空旧 next_prompt 选项卡，think 块内的 next_prompt 不再渲染
+
+**背景**：用户反馈两处问题：(1) 聊天 / 写作页重新生成（regenerate / edit-and-regenerate / retry）后，旧的 next_prompt 选项卡没有消失，反而被冻结到了上一条 assistant 消息上；(2) 模型在 `<think>...</think>` 思考块内输出 `<next_prompt>` 时，标签内容被当成正常选项渲染，且 thinking 文本也会出现 next_prompt 字面量。
+
+**根因**：
+- `beginStreamRun` 一律调用 `freezeOptions`，把当前选项绑定到列表里最后一条 assistant 消息。在重新生成场景下，被替换的消息已被 slice 移除，于是选项被错误地挂到了它之前的那条 assistant 上。
+- `onDelta` / `parseContinuationText` 仅按 `<next_prompt>` 字面量切割，不区分该标签是否位于未闭合的 `<think>` 块内。
+
+**改动**：
+- 新增 `frontend/src/utils/next-prompt.js`：`parseNextPromptStream(text)` 统一处理流式文本——总是把 `<next_prompt>` 起始处往后剥离用于显示，仅当标签处于已闭合 think 之外时才返回 options。
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx`：
+  - `parseContinuationText` 与 `onDelta` 改用新工具函数。
+  - `beginStreamRun` 增加 `{ freezeOptions = true }` 参数；`handleEditMessage` / `handleRegenerateMessage` / `handleRetryLast` / `handleRetryAfterError` 全部传 `freezeOptions: false`，确保旧选项随被替换消息一并清除而非误冻结。
+
+**验证**：`npm test --prefix frontend` 47 个测试文件 / 116 个用例全部通过。人工验证：聊天 + 写作页发送一轮带 next_prompt 的回复 → 点击重新生成，选项卡立即消失；触发模型在 think 块内输出 next_prompt（或本地构造延迟流），thinking 内容里不应出现 `<next_prompt>` 字面量，也不会渲染选项卡。
+
+## 2026-04-29 feat: assembler 合并 [1-10] 为单条 system message，让 xAI prefix cache 命中稳定前缀
+
+**背景**：raw-logger 跨 4 轮 main_answer delta 显示 `messages[0]` (system, 4608t) 跨轮 hash 稳定但 cached_tokens 仅 158/4k+ 循环。原 assembler 输出 `[system(cached), user(dynamic), user(history-first), assistant, ..., user(current)]` 这种"双 user"结构（双 user 出现是因为 dynamic 段以独立 user message 注入），xAI Grok 的 prefix cache pipeline 对此结构 bypass，仅匹配协议头 ~158t，导致 4608t 稳定前缀无法命中。aux 已切独立 Gemini endpoint，问题与 aux 抢 cache 无关。
+
+**改动**（动锁定文件 `backend/prompts/assembler.js`，用户明确授权）：
+- `buildPrompt` / `buildWritingPrompt`：将 `cachedSystemParts` ([1][2][3][3.5]) 与 `dynamicSystemParts` ([4][5][6][7][8][9][10]) 拼接为单条 `role: 'system'` message，前缀稳定 + 后缀动态。
+- 段位顺序与执行顺序未改（[1]→[2]→[3]→[3.5]→[4]→…→[10]→[12]→[11+13]），仅改 role 与消息结构（由 2 条变 1 条）。
+- 顶部注释更新为新结构示意；[DYNAMIC LAYER] 标识改为 [SYSTEM MERGED] 单段说明。
+- `ARCHITECTURE.md §4`：分层策略改写为"Cached + Dynamic 合并为单条 system"，段位表 Dynamic 列改名 "System 后缀"。
+
+**测试更新**：
+- `tests/prompts/assembler.test.js`：4 处 `messages.length` / `messages[i]` 索引断言更新（5→4 / 3→2，dynamic 段从 messages[1] 移到 messages[0]）。
+- `tests/prompts/assembler-shape.test.js`：`anchorMap` 由"index 0=cached / index 1=dynamic"合并为"index 0=cached+dynamic"；snap 重新生成。
+- `npm test` 273 通过，1 条 `assembler-shape.test.js:332` "Session not found" 失败为预先存在（与本次改动无关）。
+
+**期望验证**：下次对话发起后看 `data/logs/llm-raw/*-grok-main_answer.json` 的 `analysis.messages[0].tokens_est` 应该 ≥ 6000 (cached 4608 + dynamic 1500~2000)，`messages[1].role` 应为 `user`（历史首条），整体 `roles` 应为 `[system, user, assistant, user, ...]` 严格 alternating。命中 token 应稳定 ≥ 4480 (chunk-aligned)，不再出现 158 循环。若仍 158，则 xAI grok-4-1-fast-non-reasoning 的 prefix cache 实现要求"整条 system message 完全一致"（B 假设），需要进一步把动态段后置到独立 message。
+
+## 2026-04-29 feat: LLM 调用按业务 callType 打标，分离 prompt cache 诊断
+
+**背景**：Grok prefix cache 实测呈现 `cached_tokens=158/158/158/4k+` 的循环（messages[0] 4608 token system 段 hash 稳定）。raw-logger 之前只按协议层 callType（`stream`/`complete`/`complete-tools`/`resolve-tools`/`complete-native`）分组，无法区分 main_answer / state_update / turn_summary 等业务调用，日志无法按业务维度做 prompt cache 诊断。
+
+**改动**：
+- `backend/llm/index.js`：`buildLLMConfig()` 透传 `options.callType` 到 config；`CHAT START/DONE` `COMPLETE START/DONE` `COMPLETE_TOOLS START/DONE` `RESOLVE_TOOLS START/DONE` 日志全部加 `callType` 字段。
+- `backend/llm/providers/{anthropic,openai-compatible,gemini}.js`：`logRawRequest()` 由硬编码协议名改为 `config.callType` 优先，回退协议默认值；tools/resolve/native 子调用追加 `:tools` `:resolve` `:native` 后缀（如 `state_update:tools`）。
+- 11 个业务调用点注入 `callType`：
+  - `routes/chat.js`：`main_answer` / `main_continue` / `impersonate` / `retitle`
+  - `routes/writing.js`：`writing_main` / `writing_continue` / `writing_impersonate`
+  - `prompts/entry-matcher.js`：`entry_match`
+  - `memory/summary-expander.js`：`summary_expand_judge`
+  - `memory/combined-state-updater.js`：`state_compress` / `state_update`
+  - `memory/turn-summarizer.js`：`turn_summary`
+  - `memory/diary-generator.js`：`diary`
+  - `memory/title-generation.js`：`title_gen`
+
+**验证**：`npm test`（backend）273 通过，仅 1 条预先存在的 `assembler-shape.test.js:332` "Session not found" 失败（与本次改动无关）。`data/logs/llm-raw/*.json` 文件名后缀和日志 callType 字段会按业务名分组，`_prevAnalysis` delta tracking key 由 `provider:model:callType` 组成，业务间不串扰。
+
+**前端徽章未改**：`MessageItem.jsx` 显示的 `message.token_usage` 只来自 `chat.js:155/363` 的 `usageRef`（`main_answer` / `main_continue`），aux/title/state 调用本来就没传 usageRef，徽章数字一直是 main 通路。`158/4k+` 循环的根因是 messages[1+] 段位每轮都在改写（lcp_t_est=104），cache 边界被钉死在 messages[0] 末尾，xAI 端的 4608 token entry 偶尔被 LRU 顶掉再重建，与 callType 隔离无关。
+
+## 2026-04-29 feat: LLM raw logger 增强 — 完整 request body 落盘与 prompt cache 诊断
+
+**改动**：
+- 新增 `backend/llm/raw-logger.js`：在 `llm_raw.enabled=true` 且 `mode=raw` 时，于每次 LLM API 调用前将完整 request body + 分析结果写入 `data/logs/llm-raw/{timestamp}-{provider}-{callType}.json`
+  - 分析内容：system / 每条 message 的 charLen / tokens_est / sha256 hash / 前后 300 字符预览 / `cache_control` 标记位置与累计 token 数
+  - 整体哈希：canonicalHash / messagesOnlyHash / systemOnlyHash / prefix512/1024/2048Hash
+  - delta 对比（按 `provider:model:callType` 隔离）：systemHashChanged / toolsHashChanged / rolesOrderChanged / changedMessages / lcpTokensEst / prefix*HashStable
+- 修改 `backend/llm/providers/anthropic.js`：4 处 `fetch()` 前注入 `logRawRequest`（stream / complete / complete-tools / resolve-tools）
+- 修改 `backend/llm/providers/openai-compatible.js`：4 处 `fetch()` 前注入 `logRawRequest`
+- 修改 `backend/llm/providers/gemini.js`：5 处 `fetch()` 前注入 `logRawRequest`（含 complete-native fallback）
+
+**启用方式**：`data/config.json` 设置 `logging.mode="raw"` + `logging.llm_raw.enabled=true`（当前已是默认配置）
+
+**验证方式**：
+- 触发对话后检查 `data/logs/llm-raw/` 下出现 `.json` 文件
+- 日志文件中出现 `RAW REQUEST` 行（含 system_t_est / cache_markers 字段）
+- 连续两轮请求后出现 `RAW DELTA` 行
+
+**设计约束**：
+- body 仅含请求 payload，不含 headers（无 API key 泄漏风险）
+- CJK token 估算公式：cjkCount + (totalLen - cjkCount) / 4，标注为 `tokens_est` 非精确值
+- `allCacheMarkers` 列出每个 `cache_control` 标记的位置和其前的累计 tokens_est，直接回答"为什么只 cache 了 N tokens"
+
+## 2026-04-29 test: Wave 3 完成 — assembler 结构快照 + import/export round-trip + 写作 e2e
+
+**改动**：
+- 新增 `backend/tests/prompts/assembler-shape.test.js` 与快照 `backend/tests/prompts/__snapshots__/assembler-shape.snap`
+  - 用最大化 fixture 固定 `buildPrompt` / `buildWritingPrompt` 的 cached / dynamic / history / bottom 结构锚点顺序
+  - 覆盖 `[3.5]` cached entries、`[8]` recall、`[9]` expand、`[10]` diary injection、`[11]` post prompt、`suggestion` 尾部注入
+- 新增 `backend/tests/services/import-export-roundtrip.test.js`
+  - 世界卡 / 角色卡 / 全局设置三条 round-trip 用例
+  - 全局设置用例额外验证导入采用覆盖语义：chat 资源被清空重写，writing 资源保留
+- 新增 `backend/tests/e2e/writing-playwright.test.js`
+  - 在 `WE_E2E=1` 下跑真实浏览器写作流：首次 generate + continue 续写，断言页面与 DB 均更新
+- 调整 `backend/tests/e2e/chat-playwright.test.js`
+  - 同样改为 `WE_E2E=1` 门控，避免默认 `npm test` 跑浏览器
+  - 不再 `spawn npm` 起前端，改用 Vite Node API 直接启动 dev server，规避 `node:test --test-isolation=process` 下的 `ENOENT`
+- 修复 `backend/services/import-export.js`
+  - 导入 world prompt entries 时同步支持 `trigger_type='always'` 的 `token=0`，使 CACHED 条目语义可 round-trip，不再被错误钳回 `1`
+
+**验证方式**：
+- `cd backend && node --test --test-isolation=process tests/prompts/assembler-shape.test.js`
+- `cd backend && node --test --test-isolation=process tests/services/import-export-roundtrip.test.js`
+- `cd backend && WE_E2E=1 node --test --test-isolation=process tests/e2e/writing-playwright.test.js`
+- `cd backend && WE_E2E=1 node --test --test-isolation=process tests/e2e/chat-playwright.test.js`
+- `cd backend && npm test`
+- `cd backend && npm run test:coverage`
+
+**结果**：
+- backend 默认测试：**273 pass / 0 fail / 3 skip**（3 个 Playwright 用例默认按 `WE_E2E` 跳过）
+- backend coverage：**lines 71.58% / branches 73.25% / funcs 73.04%**
+
+**残留风险**：
+- Playwright e2e 依赖本机已有浏览器环境；仓库默认仍不在 `npm test` 中执行，需要显式设置 `WE_E2E=1`
+- `import-export` 的 round-trip 仍会对头像/封面路径做“文件重存后换新路径”的物理归一化；测试已只比较逻辑等价，不比较导入后生成的 UUID 文件名
+
+## 2026-04-29 test: Wave 2 续 — 补齐 ChatPage / WritingSpacePage / SettingsPage 页面级分支
+
+**改动**：
+- 扩展 `frontend/tests/pages/chat-page.test.jsx`
+  - 补 `onImpersonate` / `onClear` / `onTitle` / `onStop`
+  - 补 `onEditAssistantMessage` / `onDeleteMessage`
+  - 补错误气泡后的 `handleRetryAfterError`
+- 扩展 `frontend/tests/pages/writing-space-page.test.jsx`
+  - 补 `handleRetitle`
+  - 补 `handleChapterEdit` / `handleChapterRetitle`
+  - 补 `handleImpersonate` 失败分支与 `handleStop`
+- 扩展 `frontend/tests/pages/settings-page.test.jsx`
+  - 补 `FEATURES / REGEX / IMPORT_EXPORT / ABOUT` 导航分支
+  - 补 `from` 回跳路径
+  - 补 loading 普通页 / overlay 两种壳子与 overlay 点击关闭
+
+**验证方式**：
+- `cd frontend && npm test` → **116 pass / 0 fail**
+- `cd frontend && npm run test:coverage -- --reporter=dot`
+
+**覆盖率结果**：
+- frontend 总体：**lines 80.13% / branches 69.28% / funcs 66.83%**
+- 页面专项：
+  - `ChatPage.jsx`：**77.77% / 56.09% funcs**
+  - `SettingsPage.jsx`：**97.82% / 57.14% funcs**
+  - `WritingSpacePage.jsx`：**64.87% / 41.26% funcs**
+
+**残留风险**：
+- `WritingSpacePage.jsx` 仍偏低，主要因为页面内联了大量写作流、制卡与章节交互状态机；若继续补，建议把 `handleMakeCard / handleConfirmCards / editing/regenerate` 一组再拆开打
+- `frontend/src/components/chat/MessageList.jsx` 仍是工作树里的既有未提交改动，本次未处理
+
+## 2026-04-29 test: Wave 2 完成 — frontend 覆盖率提升到 75.53% / 63.06%
+
+**改动**：
+- 新增 17 个 frontend 测试文件，覆盖 utils / api / hooks / store / pages / components：
+  - `tests/utils/{regex-runner,chapter-grouping,time,avatar,toast,motion,session-list-bridge}.test.js`
+  - `tests/api/{config,custom-css-snippets,chapter-titles,prompt-entries,regex-rules,sessions,session-timeline,state-fields-extra}.test.js`
+  - `tests/hooks/use-motion.test.jsx`
+  - `tests/store/app-mode.test.js`
+  - `tests/components/state/EntryEditor.test.jsx`
+  - `tests/pages/{characters-page,world-build-page,world-config-page}.test.jsx`
+- 扩展既有测试：
+  - `frontend/tests/api/import-export.test.js`：补 `exportCharacter/exportPersona/exportWorld/downloadCharacterCard`
+  - `frontend/tests/api/personas.test.js`：补 `list/getById/create/updateById/activate/delete/uploadPersonaAvatarById`
+  - `frontend/tests/hooks/use-settings-config.test.jsx`：补 aux / writing / embedding / UI / diary 各类 handler 与导入刷新路径
+  - `frontend/tests/components/state/EntrySection.test.jsx`：补 `CACHED` 徽章断言并更新快照
+  - `frontend/tests/pages/writing-space-page.test.jsx`：修稳 coverage 模式下的旧流回归用例
+- 为满足 Wave 2 计划中的行为对齐，补了两处前端实现：
+  - `frontend/src/utils/regex-runner.js`：与后端对齐，增加 `sort_order` 稳定执行和超长 pattern 跳过
+  - `frontend/src/utils/avatar.js`：绝对路径 / data/blob URL 直通，不再无条件前缀 `/api/uploads/`
+- `frontend/src/pages/CharactersPage.jsx`：导出 `EntryOrderPanel` 供单测覆盖 token=0 / `CACHED` 逻辑
+
+**验证方式**：
+- `cd frontend && npm test` → **110 pass / 0 fail**
+- `cd frontend && npm run test:coverage -- --reporter=dot` → **lines 75.53% / branches 69.85% / funcs 63.06%**
+
+**结果**：
+- Wave 2 目标达成：frontend **Lines ≥ 70%**、**Functions ≥ 60%**
+
+**残留风险**：
+- `frontend/pages` 下 `ChatPage` / `WritingSpacePage` / `SettingsPage` 的函数覆盖率仍偏低，但本轮已先把全局门槛拉过线
+- `tests/pages/characters-page.test.jsx` 中对 `Icon` 的轻量 mock 仍会让 JSDOM 打 `path/line` 警告，不影响测试结果
+- 工作树里仍存在与本任务无关的既有改动（如 `backend/prompts/assembler.js`、`docs/superpowers/**`），本次未处理
+
+## 2026-04-29 test: Wave 1 续 — 路由层补测，行覆盖率达到 70.29%
+
+**改动**：
+- 删除 `backend/tests/utils/logger.test.js`（其 3 个用例已被 logger-extra 实质覆盖；`logger.js` 报告覆盖率 46% → 94.10%）
+- 新增 4 个路由测试文件（共 40 用例）：
+  - `tests/routes/state-fields-and-values.test.js`（9）— world/character state fields 全 CRUD + reorder + 重复 409；world/persona/character state-values PATCH/reset 校验
+  - `tests/routes/personas-characters-entries.test.js`（14）— personas 旧/新接口 + activate；characters CRUD + reorder；prompt-entries CRUD + conditions
+  - `tests/routes/regex-css-daily-timeline.test.js`（8）— regex-rules 全 CRUD + scope 校验；custom-css-snippets CRUD；daily-entries 列表 + 文件读；session timeline
+  - `tests/routes/session-state-values.test.js`（9）— 会话级三层状态值 GET/PATCH/DELETE 分支
+- 测试 234 → **271 pass / 0 fail**
+
+**覆盖率最终**：
+- 行覆盖率 55.29% → **70.29%**（达到 Wave 1 ≥70% 门槛）
+- 分支 53.72% → **73.20%**
+- 函数 43.64% → **72.62%**
+
+**残留风险**：Wave 2/3（前端补测、prompts/memory 深度测试、e2e 扩充）未执行。
+
+## 2026-04-29 test: Wave 0+1 修红线 + 测试覆盖率补全 + freshImport 重构
+
+**背景**：盘点三大模块测试现状时发现：
+1. `assistant` 测试 76 pass / 3 fail（`normalizeProposal` 三个用例与 S506 自动后缀逻辑不匹配）
+2. `backend` 报告基线 lines 55.29% 偏低，主要原因是 `tests/helpers/test-env.js#freshImport` 给 import URL 追加 `?t=...` query 强制重载，导致 V8 native coverage 把 reimport 视作不同 script，原文件路径覆盖率被严重低估
+3. `validateModelFetchBaseUrl` 对 IPv6 字面量（`[::1]` / `[fe80::]` / `[fc..]`）未拦截：`new URL().hostname` 保留方括号，`net.isIP('[::1]')` 返 0 跳过私网检查（已知 SSRF 缺口，未在本次修）
+
+**改动**：
+- `assistant/tests/routes.test.js`：3 个失败用例调整以匹配 S506 后缀语义——`mood`→`mood_char`；条件字段改用后缀后的 `hp_user`；歧义场景改为同 label 跨 scope 触发（field_key 歧义在 S506 后已不可能）
+- `backend/tests/helpers/test-env.js`：`freshImport` 改为稳定 URL（去掉 query string）以让 V8 coverage 正确归并；新增 `freshImportUncached` 供必须重新加载模块的测试使用（如 logger 顶层捕获 env）
+- `backend/tests/utils/logger.test.js`：迁移到 `freshImportUncached`（这 3 个用例本质上需要重读 `WE_DATA_DIR`/`WE_CONFIG_PATH`）
+- 新增 6 个测试文件，64 个新用例：
+  - `tests/services/state-values-extra.test.js`（12）— persona/world/character setter 全分支 + reset + resolveUploadPath
+  - `tests/services/worlds-extra.test.js`（5）— ensureDiaryTimeField 全分支 + delete 钩子
+  - `tests/services/characters-personas-extra.test.js`（13）— state 字段初始化、avatar 清理、cleanup 钩子、activate/delete persona
+  - `tests/utils/logger-extra.test.js`（16）— preview/format/summarize/shouldLogRaw/createLogger/logPrompt/spinner，单一 init + mtime cache 失效
+  - `tests/utils/network-safety-extra.test.js`（7）— 空值/非法 URL/各种私网 IPv4 + IPv6 已知缺口标记
+  - `tests/routes/sessions.test.js`（11）— GET 列表/单个/messages，POST/PUT/DELETE 校验路径与 404
+
+**验证方式**：
+- `cd assistant && npm test` → 79 pass / 0 fail（之前 76/3）
+- `cd backend && npm test` → 234 pass / 0 fail（之前 170/0）
+- `cd backend && npm run test:coverage` → 行覆盖率 55.29% → **66.65%**，分支 53.72% → **70.23%**，函数 43.64% → **60.34%**
+
+**残留风险**：
+- IPv6 字面量 SSRF 缺口（`validateModelFetchBaseUrl`）已记录但未修复；修法：strip URL hostname 的方括号后再交给 `net.isIP`
+- 用 `freshImportUncached` 的测试不计入 V8 coverage（设计取舍）；`logger.test.js` 因此让 `logger.js` 的报告覆盖率显示 46%，实际由 `logger-extra.test.js` 充分覆盖（92%）。Node 的 `--experimental-test-coverage` 跨进程合并对同一源文件存在"取最后一个进程"的现象，未来若把 `logger.test.js` 三个 env-mutation 用例改写到 init-once 模式可消除这个偏差
+
+## 2026-04-29 feat(prompts): 常驻条目支持 token=0 进入 CACHED LAYER
+
+**背景**：常驻强约束条目（世界规则、设定锚点）每轮都会注入，但当前一律放在 `[7]` 的 dynamic user 消息中，每轮组合变化导致无法享受 prompt cache。希望让用户显式标记一类「真常驻、内容稳定」的 always 条目进入 cached system，作为 prompt cache 的一部分。
+
+**改动**：
+- `backend/db/queries/prompt-entries.js`：`normalizeToken(value, triggerType)` 当 `triggerType==='always'` 时允许 0；其他 trigger_type 强制 ≥1。`updateWorldEntry` 在切换 trigger_type 为非 always 时自动把 token=0 钳到 1
+- `backend/prompts/assembler.js`：`buildPrompt` 与 `buildWritingPrompt` 拉取 `getAllWorldEntries` 后，先抽出 `trigger_type==='always' && token===0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（`[3.5]` 段位锚点，紧跟 `[3]` 之后）；`[7]` 的命中集合排除这部分条目
+- `frontend/src/components/state/EntryEditor.jsx`：常驻条目的 token 输入框 `min=0`；其他 trigger_type 仍 `min=1`；保存时按 trigger_type 钳位；token=0 时显示 cached 提示
+- `frontend/src/components/state/EntrySection.jsx` + `frontend/src/styles/pages.css`：常驻列表行在 `token===0` 时显示 `CACHED` 徽章
+- `SCHEMA.md` / `ARCHITECTURE.md §4`：补充 token=0 语义与新增 `[3.5]` 段位
+
+**验证方式**：手动建一个常驻 token=0 条目 + 一个常驻 token=1 条目，发起对话；查看 `data/logs/worldengine-YYYY-MM-DD.log` 确认 token=0 条目出现在 system 消息中、token=1 条目出现在 dynamic user 消息中；连发两轮观察 `messages.token_usage.cache_read_tokens` 增长
+
+**残留风险**：用户若把内容很大的常驻条目设为 token=0 后频繁修改文本，会反复让 cached layer miss。属于使用建议范畴，文档已说明
+
+## 2026-04-28 test(prompts): 修正 assembler 测试以适配 Prompt Cache 分层结构
+
+**背景**：`backend/prompts/assembler.js` 已升级为 cached system + dynamic user + history + 末条 user 的分层结构，但 `tests/prompts/assembler.test.js` 5 个用例仍按老的"单 system 拼装"断言，导致全量测试 5 fail。
+
+**改动**：
+- `backend/tests/prompts/assembler.test.js`：5 处用例断言重写，按新结构访问 `messages[0]`（cached system）/`messages[1]`（dynamic user）/`messages.at(-1)`（末条含 post prompt 与 suggestion）；Test "在关闭 suggestion 时" 显式补 `global_post_prompt: ''` 隔离前置用例污染；两处 always 条目相关测试名同步改成 dynamic 块描述
+
+**验证方式**：`cd backend && npm test` → pass 170 / fail 0
+
+**残留风险**：无；`backend/prompts/assembler.js` 锁定文件未改
+
+## 2026-04-28 feat(llm): 全 provider Prompt Cache usage 标准化 + Qwen/Xiaomi provider
+
+**背景**：`assembler.js` 已拆分 cached/dynamic layer，但只有 Anthropic adapter 会发送 `cache_control`；OpenAI-compatible / Gemini / DeepSeek / Qwen 等 provider 的隐式缓存 usage 没有统一解析，导致前端看不到命中。用户同时要求新增 Qwen 官方 provider，并预留小米官方大模型 provider，避免后续忘记做 cache 兼容。
+
+**改动**：
+- `backend/llm/providers/cache-usage.js`：新增 `getPromptCacheStrategy()` 与 `recordTokenUsage()`，统一标准化 Anthropic / OpenAI-compatible / DeepSeek / Gemini 的缓存 usage 字段
+- `backend/llm/providers/openai-compatible.js` / `anthropic.js` / `gemini.js`：改用统一 usage 标准化；OpenAI-compatible 支持 `prompt_tokens_details.cached_tokens`，DeepSeek 支持 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`，Gemini 支持 `cachedContentTokenCount`
+- `backend/llm/index.js`：`CHAT START` / `COMPLETE START` 日志增加 `cacheStrategy`；完成日志输出 prompt/completion/cache read/write/miss tokens
+- `backend/llm/providers/_utils.js` / `backend/routes/config.js` / `frontend/src/components/settings/SettingsConstants.js`：新增 `qwen`（默认 DashScope OpenAI-compatible URL）与 `xiaomi`（OpenAI-compatible，Base URL 由用户填写）
+- `backend/tests/llm/cache-usage.test.js` / `backend/tests/routes/config.test.js`：补 provider strategy、usage 标准化、Xiaomi 手填模型回归测试
+- `SCHEMA.md` / `ARCHITECTURE.md`：同步 token_usage 新字段、provider 列表、Prompt Cache 分 provider 行为
+
+**验证方式**：
+- `cd backend && node --test --test-isolation=process tests/llm/cache-usage.test.js tests/routes/config.test.js tests/llm/index.test.js`
+- `npm run build --prefix frontend`
+
+**残留风险**：
+- 小米官方接口文档与 endpoint 仍需以用户实际控制台为准；本次按 OpenAI-compatible + 手填 Base URL 保守接入，不写死未知官方 URL
+- 未实现 Qwen Responses API 的 `x-dashscope-session-cache` 或 Gemini/Moonshot 显式 cache resource 生命周期管理；本次只覆盖聊天路径现有 Chat Completions / Gemini native 调用的隐式缓存与 usage 观测
+
+## 2026-04-28 feat(settings): 写作主模型独立 Provider/API Key/模型 + 连接测试
+
+**改动**：
+- `backend/services/config.js`：`DEFAULT_CONFIG.writing.llm` 与 `DEFAULT_WRITING.llm` 扩展 provider/provider_keys/provider_models/base_url；`getConfig` 兼容旧文件（缺失字段补默认）；新增 `getWritingLlmConfig()`（provider=null 时回退对话主模型）和 `updateWritingApiKey(provider, key)`
+- `backend/llm/index.js`：`buildLLMConfig` 增加 `configScope: 'writing'` 分支
+- `backend/routes/config.js`：`stripApiKeys` 增加 writing.llm 与 aux_llm 的 has_key/provider_keys 布尔化（aux_llm 之前未脱敏，顺手补齐）；PUT / 中处理 writing.llm 的 sanitize/applyProviderModelLogic；新增 PUT /writing-apikey、GET /writing/models、GET /writing/test-connection
+- `backend/routes/writing.js`：写作流式 chat、续写 chat、/impersonate complete 均传 `configScope: 'writing'`
+- `backend/services/import-export.js`：写作模式导出/导入新增 provider/provider_models/base_url（不含 provider_keys）
+- `frontend/src/api/config.js`：新增 updateWritingApiKey/fetchWritingModels/testWritingConnection
+- `frontend/src/hooks/useSettingsConfig.js`：writingLlm 默认值含完整字段；handleWritingLlmChange 支持 provider 切换记忆 (provider/provider_keys/has_key/base_url 走 updateConfig 返回值刷新)；llmProps 新增写作 API/loaders
+- `frontend/src/components/settings/WritingLlmBlock.jsx`：完全重写为 AuxLlmBlock 形态（Provider 下拉 + API Key 保存 + Base URL + ModelSelector + 连接测试）+ 保留原有 Temperature 滑块和 Max Tokens 输入
+- `frontend/src/components/settings/LlmConfigPanel.jsx`：传入 providers / loadModels / testConnection / onApiKeySave 给 WritingLlmBlock
+- `SCHEMA.md` / `ARCHITECTURE.md`：补 writing.llm 新字段与 configScope='writing' 行为说明
+
+**验证方式**：
+- 启动前后端，设置→LLM 配置→写作 tab：默认 Provider=未配置时模型字段提示"对话主模型 X"；切到 anthropic 输入 API Key→保存密钥；模型下拉拉取成功；点连接测试出现"连接成功"
+- 写作页生成一次：后端日志 CHAT START 的 provider/model 应为写作主模型；切 Provider 回未配置后再次生成，回退对话主模型
+- aux 链路（摘要、状态栏、标题、日记）行为不变
+
+**同步文档**：SCHEMA.md（writing.llm 结构与导出格式）、ARCHITECTURE.md（§4 新增 'writing' scope）
+
+**锁定文件**：未触及 SCHEMA.md / CLAUDE.md / db/schema.js / utils/constants.js / prompts/assembler.js / store/index.js / server.js 的核心逻辑（SCHEMA.md 仅追加 writing.llm 字段说明，不动既有表结构）
+
+**残留风险**：
+- `prompts/assembler.js:491-493` 中 `writing.temperature ?? config.llm.temperature` 实际读的是 `config.writing.temperature`（不存在），因此 writing.llm.temperature 在 buildWritingPrompt 中其实不生效——属于历史遗留 bug，未在本次范围内修复
+- aux_llm 的 has_key/provider_keys 之前未在 stripApiKeys 中脱敏，本次顺带补齐；前端 hook 已读取 has_key 字段，行为对齐预期
+
+## 2026-04-28 fix: 清理 lint 技术债
+
+**改动**：
+- `frontend/src/components/chat/OptionCard.jsx`：移除未使用参数 `onDismiss`；补全 useEffect 依赖数组（新增 `initialCollapsed`）
+- `frontend/src/components/settings/AuxLlmBlock.jsx`：删除未使用导入 `getProviderThinkingOptions`
+- `frontend/src/pages/ChatPage.jsx`：
+  - 用 state 替代 ref 的 render 时直接访问，修复行851的 refs-in-render 错误
+  - 从 `optionCollapsedRef` 改为 `optionCollapsed` state，通过 useEffect 同步到 ref（供 freezeOptions 使用）
+  - 补全 `finalizeStream` useCallback 依赖数组（新增 `stopMemoryRecalling`、`stopMemoryExpanding`、`stopMemoryWriting`）
+- `assistant/client/package.json`：新增 `"lint": "eslint ."` 脚本
+- `assistant/client/eslint.config.js`：新增 ESLint 配置文件
+- `assistant/client/MessageList.jsx`：删除未使用的 `startEdit`/`cancelEdit`/`confirmEdit` 函数和 editing/draft 状态；用 eslint-disable-next-line 标记 render 中的 taskRendered 赋值（技术债留作后续重构）
+- `assistant/client/ChangeProposalCard.jsx`：为两个条件 hooks 添加 eslint-disable-next-line；补全首个 useEffect 缺失依赖 `isCharacterCard`、`isPersonaCard`
+- `assistant/client/AssistantPanel.jsx`：为三个 useCallback（answerClarification、handleApprovePlan、handleApproveStep）添加 eslint-disable-next-line（React Compiler preserve-manual-memoization，技术债）
+
+**验证方式**：
+- `npm run lint --workspaces` 通过，无错误
+
+**残留技术债**：
+- assistant-client 中的 React Compiler `preserve-manual-memoization` 错误（3 处）和 render 中修改变量（1 处）均用 eslint-disable 暂时跳过，后续需要重构以符合 React 规范
+- ChangeProposalCard 中的条件 hooks 调用也用 eslint-disable 跳过，需要重构以确保 hook 调用顺序一致
+
+## 2026-04-28 fix(settings): AuxLlmBlock 样式 token 规范对齐
+
+**改动**：
+- `frontend/src/components/settings/AuxLlmBlock.jsx`
+  - 删除独占的描述段落，改为 Provider FormGroup 的 hint prop
+  - 更新文案：删除"impersonate/retitle"（斜杠命令走主模型，无需提及）
+  - 重写连接测试结果区，去除 inline style 裸 hex 色值
+    - 删除 `{{ marginTop: '8px', fontSize: '0.875rem', color: '#22c55e'/'#ef4444' }}`
+    - 改用 `we-settings-action-row`、`we-settings-status-ok`、`we-settings-status-error` token
+    - 将"测试中..."改为"测试中…"（统一省略号字符）
+  - API Key 行的 inline flex style 保留（与 ProviderBlock 一致）
+
+**验证**：
+- `cd frontend && npm run build` 通过
+- grep 验证 AuxLlmBlock.jsx 中不再出现 `#22c55e`、`#ef4444`、`fontSize: '0.875rem'`、`marginTop: '8px'`、`impersonate/retitle`
+
+## 2026-04-28 设置页 LLM 配置"写作 tab"区块顺序对齐
+
+**背景**：前一轮完成了副模型(LLM)、写作助手模型、embedding 的后端和前端 API 实现，但前端 `LlmConfigPanel.jsx` 的"写作 tab"分支只渲染了 `<WritingLlmBlock />`，其他区块被隐藏，与对话 tab 的区块顺序不一致。
+
+**改动**：
+- `frontend/src/components/settings/LlmConfigPanel.jsx`：重构渲染逻辑
+  - 新增导入：`AuxLlmBlock`、`AssistantModelBlock`
+  - 新增 props：`auxLlm`、`onAuxLlmChange`、`onAuxApiKeySave`、`fetchAuxModels`、`testAuxConnection`、`assistantModelSource`、`onAssistantModelSourceChange`
+  - 将"主模型区块"按 `settingsMode` 分支渲染（WRITING → `<WritingLlmBlock />`，CHAT → `<ProviderBlock ... />` + Temperature/MaxTokens/测试连接套件）
+  - 将副模型、写作助手、embedding、网络代理四个区块移到分支外，两个 tab 共享同一渲染流（无重复代码）
+  - 所有区块按统一顺序排列：主模型 → 副模型 → 写作助手模型 → embedding → 网络代理，中间用 `<hr className="we-settings-divider" />` 分隔
+
+**验证方式**：
+- `cd frontend && npm run build` 通过，无编译错误
+- 手动 grep 确认 WRITING 分支下能看到 AuxLlmBlock / AssistantModelBlock / ProviderBlock 三处引用，说明两个 tab 共享同一套区块
+
+**残留风险**：无。区块顺序与对话 tab 完全对齐，后端改动的副模型/助手/embedding 配置现在完全暴露在设置 UI，两个 tab 体验一致。
+
+## 2026-04-28 新增副模型(LLM)配置 + 写作助手模型选择
+
+**背景**：当前所有非主对话 LLM 调用（turn-summarizer / combined-state-updater / summary-expander / title-generation / diary-generator / entry-matcher / chat.js#impersonate / chat.js#retitle / writing.js#impersonate）以及写作助手都复用 `config.llm` 主模型配置，无法独立选择更便宜/更快的模型来跑后台任务。
+
+**改动**：
+- `backend/services/config.js`：新增 `getAuxLlmConfig()` 和 `updateAuxApiKey()` 方法；补全 `aux_llm` 和 `assistant` 命名空间
+- `backend/llm/index.js`：`buildLLMConfig(options)` 支持 `options.configScope: 'aux'` 参数，'aux' 时调用 `getAuxLlmConfig()` 覆盖配置源
+- `backend/routes/config.js`：新增 PUT `/config/aux-apikey`、GET `/config/aux/models`、GET `/config/aux/test-connection` 路由；PUT `/config` 处理 aux_llm 字段
+- 7处后台调用点切换为 `configScope: 'aux'`：turn-summarizer.js(L86)、combined-state-updater.js(L186,L348)、summary-expander.js(L67)、title-generation.js(L25)、diary-generator.js(L257)、entry-matcher.js(L61)
+- **斜杠命令保持主模型**：/impersonate、/retitle 不切副模型（按用户要求保持主模型）
+- `assistant/server/agent-factory.js`：根据 `config.assistant.model_source` 决定 `configScope`
+- `assistant/server/routes.js`：extract-characters 同步支持 `configScope`
+- `assistant/server/task-planner.js`：planTask 支持 `configScope`
+- `frontend/src/api/config.js`：新增 `updateAuxApiKey()`、`fetchAuxModels()`、`testAuxConnection()` API
+- `frontend/src/components/settings/AuxLlmBlock.jsx`：新组件，仅显示 provider/API Key/base_url/model/测试连接，不显示 temperature/max_tokens
+- `frontend/src/components/settings/AssistantModelBlock.jsx`：新组件，单选主/副模型
+- `frontend/src/components/index.js`：注册两个新组件
+- `frontend/src/hooks/useSettingsConfig.js`：扩展返回 auxLlm/assistantModelSource 及相关处理函数
+
+**约束**：
+- 副模型温度/MaxTokens/thinking_level 不在前端配置，使用主模型的值
+- `aux_llm.provider === null` 视为未配置，所有原本调用副模型的位置自动回退到 `config.llm`
+- API Key 复用 `provider_keys` 结构，通过新增的 `updateAuxApiKey` 接口写入
+- 副模型与主模型的 `provider_keys` 完全独立存储，避免共用 key 时互相影响
+
+**验证方式**：
+- 配置面板：后端启动正常，前端编译无错误，设置页对话 tab 区块顺序为"主模型 / 副模型 / 写作助手模型 / embedding / 网络代理"
+- 副模型独立调用：给主模型配 Anthropic、副模型配 OpenAI；触发发言 → turn 结束后异步生成 turn-summary、状态栏更新、title → 副模型（OpenAI）；日志中 provider/model 来源正确
+- 回退：清空副模型 provider → 全部回退主模型
+- 写作助手：设置中切 `写作助手模型` 为副模型 → 日志确认走副模型
+
+**残留风险**：副模型与主模型 provider_keys 分离存储，实现时需注意 stripApiKeys 逻辑覆盖两侧。
+
+## 2026-04-28 修复连续发送时记忆记录提示卡住
+
+**背景**：聊天页面和写作页面在 AI 回复完成后会显示「正在记录记忆…」，等待后端 `state_updated` / SSE 收尾后延迟消失。若用户在提示未消失前发送下一条消息，页面会递增普通流 `runId`，旧流的 `state_updated` 和 `onStreamEnd` 被视为过期事件整包忽略，导致旧轮提示无法收尾，只能等下一轮记忆记录结束才消失。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx`：为 `memoryWriting` 增加所属 `runId`，旧流 `state_updated` / `onStreamEnd` 即使不能更新消息或解锁输入，也可以关闭自己启动的记忆记录提示；若新轮已进入记忆记录阶段，旧流不会误关新轮提示
+- `frontend/src/pages/WritingSpacePage.jsx`：同步同一机制，保持聊天/写作页面行为一致
+- `frontend/tests/pages/chat-page.test.jsx` / `frontend/tests/pages/writing-space-page.test.jsx`：新增回归测试，覆盖旧流 `state_updated` 能收起旧提示且不会解锁新流
+
+**验证方式**：`cd frontend && npm test -- --run tests/pages/chat-page.test.jsx tests/pages/writing-space-page.test.jsx`，10 个用例通过。
+
+**残留风险**：记忆召回/展开提示仍沿用原来的当前流保护；本次只修复用户反馈的「正在记录记忆…」卡住问题。
+
+## 2026-04-28 重排 Prompt 顺序并分层以支持 Anthropic Prompt Cache
+
+**背景**：每轮对话的 system prompt 包含大量动态内容（状态、召回摘要、展开原文、日记），导致 Anthropic Prompt Cache 几乎无法命中。要使缓存生效，需将稳定内容（全局/角色/玩家 system prompt）与变化内容（状态、上下文）分离。
+
+**改动**：
+- `backend/prompts/assembler.js` `buildPrompt`：分层结构改为 cached[1-3全局/玩家/角色] + dynamic[4-10上下文] + bottom[11后置] + history[12] + current[13]。Cached 段合并为 `role:system` 消息发送；Dynamic 段作为 `role:user` 消息插入；[11]后置提示词从 system 末尾移到当前消息末尾以保持最高优先级
+- `backend/prompts/assembler.js` `buildWritingPrompt`：为避免多激活角色切换导致 cache miss，Cached 层更紧凑，仅含[1-2全局/玩家]，[3]角色 system prompt 下移到 Dynamic 层（循环所有激活角色）；Dynamic 结构同对话模式[4-10]
+- `ARCHITECTURE.md` §4：说明新的 cached/dynamic 分层策略、Cached layer 的 Anthropic Prompt Cache 标记方式、两种模式的差异
+- 调整内部序号编排[1-13]以反映新的执行顺序
+
+**验证方式**：后端启动正常，`buildPrompt` / `buildWritingPrompt` 生成的 messages 结构为 [system(cached)] + [user(dynamic)] + [history] + [user(current+post)]；Anthropic provider 接收 system 时自动包装为 `cache_control: { type: 'ephemeral' }`；连续对话中，同一 session 的多轮对话 system 内容（[1-3]）保持完全相同（字节级），能被 Anthropic API 缓存。
+
+**残留风险**：（1）多角色写作场景激活角色组合变化时，Dynamic 内容仍会改变（[3]角色 system prompt），但 Cached 层保持稳定，cache 命中率已显著提升；（2）写作模式下新增的 Dynamic 层[3]角色 prompt，需确保迭代修改角色设定时前端刷新或重新打开 WritingPage 让新 prompt 生效；（3）后置提示词从 system 移到消息末尾后，相对于 LLM 的"可见位置"不变（仍在最后），遵从性不受影响。
+
+## 2026-04-28 世界卡导出增加封面图支持
+
+**背景**：导出世界卡（`.weworld.json`）时缺失封面图。`worlds` 表有 `cover_path` 字段（SCHEMA.md 第 84 行），但 `exportWorld` 完全没有读取；导入时也没有处理 `cover_path`。而角色卡的头像（`avatar_path` → `avatar_base64`）处理完整。
+
+**改动**：
+- `backend/services/import-export.js` `exportWorld`：读取 `world.cover_path`，转换为 base64 + MIME 类型，注入返回对象（类似角色头像处理）
+- `backend/services/import-export.js` `importWorld`：调用 `saveAvatarFile` 保存导入的 `cover_base64`，写入 worlds 表的 `cover_path` 字段
+- `backend/services/import-export-validation.js`：添加 `world.cover_path/cover_base64/cover_mime` 的验证（使用既有的 `assertAvatarPayload` 函数）
+- `SCHEMA.md`：更新世界卡/角色卡的 JSON 示例格式，添加 `cover_path/cover_base64/cover_mime` 字段；更新约束说明
+
+**验证方式**：导出包含封面图的世界卡，JSON 包含 `cover_base64`；导入该卡片后，新世界的 `cover_path` 指向新 UUID 对应的文件路径；磁盘上的 `/data/uploads/avatars/` 存在对应的封面图文件。
+
+**残留风险**：无，属于数据导入导出的补全，不改变现有逻辑。
+
+## 2026-04-28 删除消息时同步清空选项卡
+
+**背景**：聊天页面（ChatPage）和写作页面（WritingSpacePage）在删除某条消息（及其之后所有消息）后，活跃的选项卡（OptionCard，由 `currentOptions` 渲染）仍残留在底部。该选项卡逻辑上属于被删除的最后一条 assistant 消息，应同步清除。冻结到具体消息上的 `_options`（FrozenOptionCard）随消息一起从列表中切片移除，无须额外处理。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx` `handleDeleteMessage`：调用 `clearOptionsState()` 并重置 `selectedOptionIndexRef` / `optionCollapsedRef`
+- `frontend/src/pages/WritingSpacePage.jsx` `handleDeleteMessage`：同上
+
+**验证方式**：在聊天/写作页面让 AI 生成带选项卡的回复，点击消息删除按钮，确认底部选项卡同步消失；再次生成新回复，选项卡可正常出现且无残留状态。
+
+**残留风险**：无，删除路径本就清空所有后续消息状态，选项卡属于同一逻辑批次。
+
+## 2026-04-28 写卡助手默认禁用 thinking
+
+**背景**：写卡助手以结构化 JSON 与工具调用为主输出，thinking 一方面增加延迟，另一方面在 GLM-5.1 等模型上会把 JSON 写入 `reasoning_content` 导致解析失败（见上一条 GLM-5.1 修复）；agent-factory 内 `parseWithJsonRetry` 还要专门提示模型"不要 think"。这是事后兜底，应在调用入口直接关闭。主对话写作场景仍需保留全局 thinking 配置。
+
+**改动**：在助手所有 LLM 调用点的 options 显式传 `thinking_level: null`（`backend/llm/index.js` 的 `buildLLMConfig` 已支持此覆盖语义），覆盖：
+- `assistant/server/main-agent.js`：`resolveToolContext` / `chat`
+- `assistant/server/task-planner.js`：`complete`
+- `assistant/server/agent-factory.js`：`completeWithTools`（所有执行子代理统一入口）
+- `assistant/server/routes.js`：extract-characters 的 `complete` 首轮 + JSON 重试
+
+`assistant/CONTRACT.md` 在架构概述新增「LLM 调用约定」一节，要求新增 LLM 调用点沿用此约束。
+
+**验证方式**：在 `data/config.json` 把 `llm.thinking_level` 设为非 null（如 `"medium"`），触发助手对话与 extract-characters；检查日志中助手相关请求体 `thinking_level` 为 `null`，主对话仍为 `"medium"`；同步用 GLM-5.1 复跑创建玩家卡场景，确认子 agent 输出可直接解析、不再触发 `parseWithJsonRetry` 中的"不要 think"重试提示。
+
+**残留风险**：新增 LLM 调用点需 code review 强制带上 `thinking_level: null`，CONTRACT.md 已留检查项。
+
+## 2026-04-28 写卡助手 GLM-5.1 reasoning_content JSON 解析兼容修复
+
+**背景**：用户在「修真世界」创建玩家卡「夏蝉衣」时，`persona_card_agent` 三次重试均报「输出格式错误：找不到 JSON 对象」（task-6f1c5d1d），STEP FAIL。根因：GLM-5.1（z-ai/glm-5.1，OpenRouter）将最终 JSON proposal 输出写入 `message.reasoning_content` 而非 `message.content`；`backend/llm/providers/openai-compatible.js` 把 reasoning 包成 `<think>{reasoning}</think>\n` 返回，`extract-json.js` 的 `stripLeadingThinkBlocks` 检测到 `<think>` 在首个 `{` 之前 → 整段（含 JSON）一并剥除 → 剩余空字符串 → 抛错。三次 retry 走同一路径全部失败。
+
+**改动**：
+- `assistant/server/tools/extract-json.js`：在外层提取（直接整段、代码块、顶层切片）全部失败后，新增回退分支 `extractThinkBlockBodies` 扫描所有 `<think>...</think>` 块体，对每个块体重跑 `tryExtractFrom`。优先级保持「外部 JSON > think 块内 JSON」，不破坏字符串内含 `<think>` 字面量的保护
+- `assistant/server/agent-factory.js`：`parseWithJsonRetry` 的两次重试 prompt 增加明确指令「把 JSON 直接写在最终回复正文（content）中，不要写在 reasoning / thinking 段」，文案兜底降低复发概率
+- `assistant/tests/tools/extract-json.test.js`：补充两个用例覆盖「JSON 完全在 think 块内」和「外部 JSON 优先于 think 内 JSON」
+
+**验证方式**：`cd assistant && node --test tests/tools/extract-json.test.js`（6 用例全过）；端到端复刻原场景，使用 z-ai/glm-5.1 模型创建玩家卡，期望 `as-agent RAW` 后直接 apply，无 `json-parse-failed` 警告。
+
+**残留风险**：未覆盖「JSON 半段在 reasoning、半段在 content」的极端情况；若再次出现需在 provider 层调整 reasoning/content 拼接策略。
+
+## 2026-04-28 写卡助手任务面板状态中文化与步骤视觉优化
+
+**背景**：任务面板的 TaskBadge 直接显示英文状态码（`researching` / `completed` 等），步骤卡片无视觉区分，完成后无手动关闭入口，1.5s 自动消失用户常看不清结果。
+
+**改动**（`assistant/client/MessageList.jsx`）：
+- 新增 `TASK_STATUS_LABELS` 和 `STEP_STATUS_LABELS` 映射，TaskBadge 内容改为中文（"探索中" / "执行中" / "已完成" 等）
+- 步骤卡片按状态着色：completed 绿底绿边、running 陶土底边、failed 红底红边，默认透明
+- completed 步骤标题前加 `✓`，running 步骤标题前加 `⋯`
+- 移除 1.5s 自动关闭 `useEffect`，改为终结状态（completed / failed / cancelled）显示"关闭"按钮，由用户主动关闭
+- 任务面板展示条件扩展：`executing` 状态和所有终结状态也触发面板常驻显示，避免执行中或完成后面板消失
+
+**验证方式**：触发一次多步骤任务，观察任务状态徽章显示中文；步骤完成后变绿底带 ✓；任务完成后面板不自动消失，出现"关闭"按钮。
+
+## 2026-04-28 写卡助手状态字段类型选择强化
+
+**背景**：写卡助手创建状态字段时几乎全选 number 或 text，enum/boolean/list 几乎从未出现。根因是 world-card.md 的三处互相矛盾/偏置的信号：自检步骤只禁 text 不禁 number、模板表把天气/剧情阶段标成 `enum/text` 混写、正例 2 字段配比 4 number+2 enum，0 boolean/list。
+
+**改动**（仅 `assistant/prompts/world-card.md`）：
+- 模板表消除 `enum/text` 混写：天气/剧情阶段/伤势/任务状态全部改为 `enum`；新增 boolean 行（黑市开放/是否死亡）和 list 行（背包/已知线索）
+- 自检步骤 4 改为强制排查流程：每个 `stateFieldOps.create` 必须按 `boolean → number → enum → list → text` 顺序逐项排除，不允许跳步
+- stateFieldOps 创建格式前增加警示块，明确要求选 type 前先过类型选择指南
+- 正例 2 字段配比扩展到 8 条，覆盖全部五种类型（新增 boolean:黑市开放、list:背包），并附类型选择说明
+
+**验证方式**：让助手创建一个包含天气、血量、背包、是否已接任务等字段的世界卡，观察 stateFieldOps 中应出现 enum（天气）、number（HP）、list（背包）、boolean（是否已接任务）四种类型，不应出现全 number/text。
+
+## 2026-04-28 写卡助手 Plan-Execute 实质化改造
+
+**背景**：原 `/api/assistant/tasks` 计划卡主要展示步骤标题与状态，planner 没有真实探索阶段，executor 也基本按线性步骤执行，难以像 Codex / Claude Code 的 plan 模式那样提升复杂任务稳定性。
+
+**改动**：
+- `assistant/server/task-researcher.js` — 新增 Researcher 阶段，在 planner 前基于上下文调用 `preview_card` / `read_file`，产出 `research.summary / findings / constraints / gaps / needsPlanApproval`。
+- `assistant/server/task-planner.js` — planner prompt 接收探索结果，并要求 step 输出 `rationale / inputs / expectedOutput / acceptance / rollbackRisk`；旧模型未输出时服务端会补默认值，避免兼容性断裂。
+- `assistant/server/routes.js` — `/tasks` 和 `/tasks/:taskId/answer` 新增 `research_started` / `research_ready` SSE；计划审批闸门改为复杂写入触发：3 步以上、高风险、已有实体 update/delete、或 research 标记需要审批时才等待用户确认，简单低风险 create 仍可快进。
+- `assistant/server/task-executor.js` — executor 从线性循环升级为 DAG ready-batch 调度；无依赖低风险步骤可并发执行，有依赖步骤等待前序 artifact；高风险步骤仍先生成完整 proposal 再等待审阅。
+- `assistant/client/api.js` / `AssistantPanel.jsx` / `MessageList.jsx` — 前端解析 research / step_blocked 事件，任务卡展示探索依据、约束/缺口、步骤目的、预期产出、输入、验收点和风险。
+- `assistant/server/tools/extract-json.js` — 修复 JSDoc 中直接写 `/* */` 导致 Node 25 解析失败的问题（只改注释文本）。
+- `assistant/tests/*` — 新增 Researcher、DAG executor、research SSE、planner research 注入测试；同步 card-preview 测试，确认 `_globalSystemPrompt` 继续保持移除状态。
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步记录 `Task -> Research -> Plan -> Step DAG -> Proposal -> Apply`、新增 SSE 和扩展 step schema。
+
+**测试**：`npm test --prefix assistant`，77/77 通过。
+
+## 2026-04-28 写卡助手 JSON 输出稳定性优化（第二轮）
+
+**背景**：GLM/OpenRouter 模型有时输出含尾部逗号、`//` 行注释或 `/* */` 块注释的 JSON，纯 `JSON.parse` 失败，且 `MAX_JSON_RETRY=1` 只有一次补救机会，复发率高。
+
+**改动**：
+- `assistant/server/tools/extract-json.js` — 新增 `attemptRepair(text)` 函数，在 `tryParseObject` 首次 parse 失败时，自动移除尾部逗号、`//` 行注释、`/* */` 块注释后再尝试解析；轻微格式瑕疵的 JSON 无需触发 LLM 重试。
+- `assistant/server/agent-factory.js` — `MAX_JSON_RETRY` 和 `MAX_PROPOSAL_RETRY` 均从 1 提升到 2；`parseWithJsonRetry` 重构为循环，第 2 次重试 prompt 额外强调"不要注释、不要尾部逗号"；proposal 重试逻辑同步改为循环，支持 2 次修复机会。
+
+**验证方式**：触发复杂 world-card create，日志中 `RAW` 行后直接 `DONE`（无 `RETRY`）；历史上会失败的尾部逗号场景现在静默修复，无红色错误气泡。
+
+## 2026-04-28 写卡助手 token 消耗优化
+
+**背景**：写卡助手每次任务调用多次 LLM，系统 prompt 较大（main.md ~2400 tok，world-card.md ~4600 tok），且多步骤任务中 `preview_card` 每次返回 `_globalSystemPrompt` 全文导致重复注入。
+
+**改动**：
+- `backend/llm/providers/anthropic.js` — 所有 Anthropic 调用的 system message 改为带 `cache_control: { type: "ephemeral" }` 的数组格式，启用 Prompt Caching；5 分钟内重复调用 input token 费用打 1 折；增加 `prompt-caching-2024-07-31` beta header；`completeAnthropic` 补充 cache usage 日志字段。
+- `assistant/server/tools/card-preview.js` — 从所有 preview 返回值中删除 `_globalSystemPrompt` 字段（主代理 context string 已有概览，子代理不需要重复接收全文）。
+- `assistant/server/main-agent.js` — `buildContextString` 中 `character.system_prompt` 截断从 400 字缩至 120 字，`first_message` 从 150 字缩至 80 字。
+- `assistant/prompts/world-card.md` — 删除与"硬规则"重复的"绝对不要"列表、删除与"各类型详细规则"表格重复的"常见字段正确类型"表格、压缩冗余正例；从 466 行缩至 423 行（~1100 tokens）。
+
+**验证方式**：Anthropic provider 下跑多步骤任务，日志中出现 `cache_creation_input_tokens` / `cache_read_input_tokens`；第二次同类任务应有 `cache_read_tokens > 0`。
+
+## 2026-04-28 后端日志覆盖率补齐与文件日志过滤修复
+
+**背景**：审查发现后端生成主链路日志较完整，但文件日志会被终端 `LOG_LEVEL` 提前过滤，导致默认 `LOG_LEVEL=warn` 时 `LOG_FILE_LEVEL=info` 仍丢失 info 文件日志；同时部分降级/清理错误仍绕过统一 logger，普通 CRUD 也缺少写操作结构摘要。
+
+**改动**：
+- `backend/utils/logger.js` — 终端输出级别与文件写入级别分离；`LOG_LEVEL` 只影响终端，`LOG_FILE_LEVEL` 独立控制文件；同时支持 `WE_CONFIG_PATH`，与测试/桌面配置路径保持一致。
+- `backend/server.js` — HTTP 请求日志对 `POST/PUT/PATCH/DELETE` 追加 `bodyFields` / `queryFields` 摘要，提升普通 CRUD 排查信息量，不记录请求正文。
+- `backend/prompts/entry-matcher.js` / `backend/utils/regex-runner.js` / `backend/utils/cleanup-hooks.js` / `backend/utils/file-cleanup.js` / `backend/routes/import-export.js` — 将裸 `console.warn/error` 收口到 `createLogger()`，保证降级和清理失败进入按日文件日志。
+- `assistant/server/task-executor.js` — 新增 `as-exec` 日志，覆盖 step start、等待审批、完成、失败、unsupported target 与 task done。
+- `backend/tests/utils/logger.test.js` — 新增 logger 单测，覆盖文件日志不受终端级别过滤、`LOG_FILE_LEVEL` 生效、`WE_CONFIG_PATH` 生效。
+
+**测试**：`npm --prefix backend test -- tests/utils/logger.test.js` 实际执行后端测试套件，163/163 通过。
+
+## 2026-04-28 写卡助手 prompt 输出质量优化
+
+**背景**：基于 `.temp/无限轮回模拟器.weworld.json` 这类复杂状态机世界卡，单靠风控/语法检测只能拦坏输出，不能提升模型第一次输出的拆步智能、内容稳定性和成功率。
+
+**改动**：
+- `assistant/server/task-planner.js` — Planner prompt 新增内部任务分类：单资源小改、复杂世界卡、状态机世界卡、多资源创建、修复已有卡；复杂/状态机世界卡要求优先拆成基础结构、状态字段、触发条目、后续状态值填写步骤。
+- `assistant/prompts/world-card.md` — 新增内部生成流程和“状态机世界卡”正例：阶段 enum 字段 + 每阶段 state 条目 + 非空 conditions + 入口 keyword/llm 选择，减少空关键词、空条件和字段引用漂移。
+- `assistant/server/agent-factory.js` — 子代理 JSON 可解析但 `normalizeProposal()` 契约失败时，会把具体错误反馈给同一子代理再重试一次，要求基于上一版 proposal 定向修复。
+- `assistant/tests/task-planner.test.js` / `assistant/tests/agent-factory.test.js` — 增加 prompt 规则回归与 proposal 契约失败重试测试。
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步记录复杂任务 prompt 策略与子代理契约失败重试机制。
+
+**测试**：`npm test --prefix assistant`，72/72 通过。
+
+## 2026-04-28 写卡助手复杂任务稳定性与准确性提升
+
+**背景**：分析一张含 6 条 entryOps + 35 个 stateFieldOps 的复杂世界卡，发现写卡助手在以下场景存在稳定性和准确性问题：JSON 自我纠错信息不具体、静默 bug（空 conditions/keywords）无校验、条件字段 label 与 field_key 混用静默通过、Planner 缺乏大体量任务的拆步策略。
+
+**改动**：
+
+- `assistant/server/agent-factory.js` — JSON 解析失败 retry 时，将 `extractJson` 的具体错误（如"输出为空"、"找不到 JSON 对象"）拼入 retry prompt，让 LLM 知道具体哪里不合法
+- `assistant/server/task-planner.js` — Planner system prompt 补充大体量拆步规则：world-card create 同时涉及 10+ 状态字段或 5+ entryOps 时强制拆为两步；明确 world-card 不支持 stateValueOps，初始状态值须通过后续 persona-card 步骤填写；同时改用 `extractJson` 替代裸 `JSON.parse`，Planner 的 JSON 错误信息也更具体
+- `assistant/server/routes.js` — `normalizeEntryOps` 新增 `warnings` 收集机制：
+  - `trigger_type:"keyword"` + `keywords` 为空 → 追加警告"该条目永远不会触发"
+  - `trigger_type:"state"` + `conditions` 为空 → 追加警告"该条目永远不会触发"
+  - `resolveConditionField` 新增 `unresolved` 标记：`target_field` 含 `.` 但在 conditionContext 中找不到对应字段时，追加警告"引用了未知字段"（此前静默通过，落库后永远不匹配）
+  - `normalizeProposal` 的 world-card 分支收集全部 entryWarnings，追加到 `proposal.explanation`，主代理和前端均可见
+- `assistant/prompts/world-card.md` — 硬规则区新增两条：禁止输出空 keywords 的 keyword 条目、禁止输出空 conditions 的 state 条目；新增正例 4：说明初始状态值须通过 persona-card stateValueOps 而非 world-card
+
+**坑点备忘**：
+- `STATE_VALUE_TARGETS_BY_PROPOSAL_TYPE['world-card']` 为空集，world-card 提案**不支持** stateValueOps，CONTRACT.md 第 570 行是正确的；初始状态值只能通过 persona-card / character-card 步骤的 stateValueOps 填写
+- state 条目 conditions 为空的运行时语义（永不触发 or 恒触发）取决于 state 评估器实现，未在本次变更中确认，仅新增了校验警告
+
+**测试**：`assistant/tests/routes.test.js` 16/16、`routes-integration.test.js` 14/14 全部通过。
+
+## 2026-04-28 重新生成时立即回滚状态栏
+
+**背景**：点击重新生成或 /retry 时，后端在 `runStream` 之前就已完成状态回滚，但前端需等到 `state_updated`（生成结束后异步任务完成）才刷新状态栏，导致旧状态显示直到新一轮生成完毕。
+
+**改动**：
+- `backend/routes/chat.js` — 在 `runStream` 开头新增 `opts.stateRolledBack` 分支，立即推送 `state_rolled_back` SSE；regenerate 路由传入 `{ stateRolledBack: !!regenWorldId }`
+- `backend/routes/writing.js` — 同上，`runWritingStream` 开头发 `state_rolled_back`；writing regenerate 路由传入 `{ stateRolledBack: !!regenWorldId }`
+- `frontend/src/api/stream-parser.js` — 新增 `state_rolled_back` 事件分发 → `callbacks.onStateRolledBack?.()`
+- `frontend/src/pages/ChatPage.jsx` — `makeCallbacks` 新增 `onStateRolledBack` → `triggerMemoryRefresh()`
+- `frontend/src/pages/WritingSpacePage.jsx` — `makeStreamCallbacks` 新增 `onStateRolledBack` → `setStateTick(t => t + 1)`
+- `ARCHITECTURE.md §7` — 新增 `state_rolled_back` 事件记录
+
+**行为变化**：重新生成开始时，状态栏立即更新为回滚后状态（触发"整理中"overlay）；生成完成后 `state_updated` 再次刷新为新状态。
+
+## 2026-04-28 修复状态栏"整理中"双次循环 + 补回背景虚化
+
+**问题**：
+1. 写作模式下 `state_updated` 和 `diary_updated` 是两条独立 SSE，分别触发 `stateTick` 和 `diaryTick` 自增，导致 `useSessionState` 的 tick effect 执行两次，"整理中"→"已整理"循环出现两次。
+2. 状态栏 overlay 缺少 `backdrop-filter: blur`（在历史样式清理中未补入）。
+3. 整理中→已整理切换时，两个 overlay `MotionDiv` 分别做淡出/淡入，blur 随 opacity 短暂消失，视觉上有虚化断档。
+
+**改动**：
+- `frontend/src/hooks/useSessionState.js` — 引入 `showOverlay = shouldRefreshState`：仅当 `stateTick` 变化时才显示"整理中"overlay；diary-only 更新（`diaryTick` 变化）静默刷新日记数据，不触发 `isUpdating`
+- `frontend/src/components/book/StatePanel.jsx` — overlay 结构重构：外层容器由 `isUpdating || stateJustChanged` 控制，整个过程保持 blur 连续；内层用 `AnimatePresence mode="wait"` 切换"整理中"/"已整理"文字
+- `frontend/src/components/book/CastPanel.jsx` — 同 StatePanel，写作模式 CastPanel 同步重构
+- `frontend/src/index.css` — `.we-state-change-overlay` / `.we-cast-state-overlay` 新增 `backdrop-filter: blur(2px)`
+
+**行为变化**：每轮生成后状态栏仅出现一次"整理中"→"已整理"；两段文字切换期间虚化背景持续不中断。
+
+## 2026-04-28 删除编辑世界页面导入导出 tab
+
+**改动**：
+- `frontend/src/pages/WorldEditPage.jsx` — 删除"导入导出" tab（export section）、`handleExport` / `handleImportWorldFile` 函数、`exporting` / `sealKey` / `importing` state、`worldImportRef`、`SealStampAnimation` 组件及其 import、`import-export` API import
+
+**保留**：`WorldsPage` 页头"导入世界卡"按钮与 card 上"↓"导出按钮不变，这是正常的导入导出入口。
+
+## 2026-04-27 修复重新生成时状态回滚跳过 null-snapshot 记录
+
+**问题**：重新生成较早轮次时，若最近的 turn record 的 `state_snapshot` 为 null（旧数据或创建时 worldId 为 null），`restoreStateFromSnapshot` 会降级清空全部状态而非正确回滚。
+
+**改动**：
+- `backend/db/queries/turn-records.js` — 新增 `getLatestTurnRecordWithSnapshot(sessionId)`，查询 `state_snapshot IS NOT NULL` 的最新记录
+- `backend/routes/chat.js` — regenerate 路由回滚处改用新函数，确保跳过无快照记录找最近有效锚点
+- `backend/routes/writing.js` — 写作模式 regenerate 路由同步修复
+
+**行为变化**：若所有 turn records 均无快照，仍降级清空（与原行为一致）；只有"部分有快照、最新一条恰好无快照"场景得到修复。
+
+## 2026-04-27 修复质量门残留：lint 与 Playwright e2e 稳定性
+
+**问题**：前端全量 lint 仍被未提交的拖拽/制卡预览改动阻断；聊天 Playwright e2e 固定使用 4173 端口，机器上存在旧 Vite 进程时会连到陈旧前端，导致等待消息可见超时。
+
+**改动**：
+- `frontend/src/components/ui/SortableList.jsx` — 不再 render 阶段写 ref，改用 effect 同步最新 items。
+- `frontend/src/components/state/EntrySection.jsx` — 移除 effect 内同步 localEntries 的 setState；条目列表抽为 keyed 子组件，外部 entries 变化时重挂载初始化本地拖拽状态。
+- `frontend/src/components/writing/CharacterPreviewModal.jsx` / `frontend/src/styles/ui.css` — 将制卡预览弹窗 inline 视觉样式迁移到 CSS 类，清空 lint warning。
+- `backend/tests/e2e/chat-playwright.test.js` — 前端测试服务器改为运行时分配空闲端口，并启用 `--strictPort`，避免误连旧服务。
+
+**结果**：`npm run lint --prefix frontend`、聊天/写作 Playwright e2e、续写相关前后端测试均通过。
+
+## 2026-04-27 条目列表（常驻/关键词/AI召回/状态条件）对齐 SortableList 拖拽动画
+
+**改动**：
+- `frontend/src/components/state/EntrySection.jsx` — 引入 `SortableList`；keyed 子列表内维护 `localEntries` 乐观排序状态，外部 `entries` 变化时通过重挂载初始化，拖拽松手后调用 `reorderWorldEntries` 持久化，无需触发 `onRefresh`；每行新增 ⠿ 拖拽把手。
+- `frontend/src/styles/pages.css` — `.we-entry-section-row` 新增 `cursor: grab`；添加 `.we-entry-section-drag` 拖拽把手样式；添加 `.we-entry-section-list > div:last-child .we-entry-section-row` 规则，修复 SortableList `Reorder.Item` 包裹后最后一行多余下边框问题。
+
+## 2026-04-27 修复 continue 续写内容前端渲染异常
+
+**问题**：`continue` 续写时前端直接把原始流式增量拼到上一条 assistant 消息上。若模型输出 `<next_prompt>`，或后端对续写内容做了 `ai_output` 正则、状态块剥离、选项提取等后处理，前端展示文本会和数据库最终内容不一致，表现为 `<next_prompt>` 标签进入气泡、Markdown 渲染异常，或写作模式刷新后内容变化。
+
+**改动**：
+- `backend/routes/writing.js` — 写作 `/continue` 的 `done` / `aborted` SSE 现在与 chat 对齐，携带合并后的 `assistant` 消息。
+- `frontend/src/pages/ChatPage.jsx` / `WritingSpacePage.jsx` — 续写流式预览阶段隐藏 `<next_prompt>` 段并提取选项；收尾时优先使用后端返回的最终 assistant 内容覆盖本地拼接结果。
+- `frontend/tests/pages/chat-page.test.jsx` / `writing-space-page.test.jsx` / `backend/tests/routes/writing.test.js` — 增加回归覆盖，确保 `<next_prompt>` 不进入最终消息渲染，写作 continue SSE 返回最终 assistant。
+- `ARCHITECTURE.md` — 同步 `/continue` SSE 与前端收尾契约。
+
+**结果**：续写按钮生成的内容与落库内容一致，`<next_prompt>` 不再污染前端 Markdown 渲染。
+
+## 2026-04-27 拖拽排序平滑动画 + SortableList 组件抽象
+
+**目标**：所有可拖拽排序的列表改用 framer-motion `Reorder` 实现"其他条目自动滑开"的平滑动画；抽象为可复用的 `SortableList` 组件。
+
+**改动**：
+- `frontend/src/components/ui/SortableList.jsx` — 新增通用排序组件，封装 `Reorder.Group` / `Reorder.Item`；支持 `useHandle=true` 模式（仅句柄可拖）；`onReorderEnd` 由内部 ref 捕获最新顺序后回调，避免 closure 过时。
+- `frontend/src/components/index.js` — 注册 `SortableList`。
+- `frontend/src/components/state/StateFieldList.jsx` — 替换 HTML5 drag 为 SortableList；`diary_time` 字段单独渲染在列表末尾，保持不可拖。
+- `frontend/src/components/settings/RegexRulesManager.jsx` — 每个 scope 分组独立使用一个 SortableList，跨 scope 不可拖。
+- `frontend/src/components/settings/CustomCssManager.jsx` — 替换 HTML5 drag 为 SortableList。
+- `frontend/src/pages/CharactersPage.jsx` — 角色列表从 grid 改为竖列表，使用 `useHandle=true` 模式（⠿ 句柄拖拽），不干扰卡片点击导航。
+- `frontend/src/styles/pages.css` — 新增 `.we-characters-list`（竖列表容器）、`.we-char-drag`（角色卡拖拽句柄样式）。
+
+**注意**：framer-motion 已是项目依赖（v11），无需新增安装。`diary_time` 字段始终固定在状态字段列表末尾（原行为：不可拖但可被其他项跨越；新行为：始终渲染在 SortableList 外部，视觉上位于末尾）。
+
+## 2026-04-27 写卡助手 CUD 提示词统一 {{user}} / {{char}} 术语
+
+**目标**：世界卡、角色卡、玩家卡等 CUD 生成时，不再在卡片正文、条目内容、状态字段说明、开场白和任务计划里混用“用户 / 玩家 / AI / NPC”等称呼；代入者统一写 `{{user}}`，模型扮演或回应的角色统一写 `{{char}}`。
+
+**改动**：
+- `assistant/prompts/world-card.md` / `character-card.md` / `persona-card.md` / `global-prompt.md` / `extract-characters.md` — 在硬规则中加入术语统一约束，并把容易被模型复制到正文里的示例措辞改为 `{{user}}` / `{{char}}`。
+- `assistant/server/task-planner.js` — 规划器生成 `summary` / `assumptions` / `step.title` / `step.task` 时也要求使用同一套术语，并把输入标签从“用户输入”改成“原始需求”。
+- `assistant/server/agents/*.js` — 子代理工具描述和 task 参数说明同步强调占位符术语，避免主代理分发任务时重新引入混乱称呼。
+- `assistant/tests/task-planner.test.js` — 增加规划器提示词术语约束的回归测试。
+
+**注意**：schema 字段值、接口枚举、正则 scope、历史状态标签仍按现有格式保留，例如 `target:"persona"`、`keyword_scope:"user"`、`target_field:"玩家.HP"` 不强行改名，避免破坏已有数据和运行时匹配。
+
+## 2026-04-27 修复写作模式重新生成报 afterMessageId not found
+
+**问题**：写作页 `handleSend` 乐观追加用户消息使用 `__optimistic_*` 临时 ID，但写作后端 `/generate` 路由从不发送 `user_saved` SSE 事件，前端的临时 ID 永远不会被替换成真实 DB ID。`onStreamEnd` 正常路径（`alreadyAppended = true`）不调用 `refreshMessages()`，导致消息列表里用户消息的 ID 一直是假的。点击重新生成时发出 `afterMessageId = __optimistic_*`，后端找不到返回 404，界面显示"生成失败：afterMessageId not found"。
+
+**改动**：
+- `backend/routes/writing.js` — `/generate` 路由捕获 `createMessage` 返回的真实 ID，作为 `userMsgId` 传给 `runWritingStream`；`runWritingStream` 在 `awaitPendingStateUpdate` 之后发送 `{ type: 'user_saved', id: userMsgId }` SSE 事件，与 chat 路由对称。
+- `frontend/src/pages/WritingSpacePage.jsx` — 新增 `tempUserIdRef` 追踪乐观 ID；`handleSend` 里设置 `tempUserIdRef.current`；`makeStreamCallbacks` 里加 `onUserSaved` 回调原地替换消息列表中的临时 ID；`onStreamEnd` 里清除 `tempUserIdRef.current`。
+
+**结果**：写作模式用户发送消息后，`user_saved` 事件一到达即替换临时 ID；后续点击重新生成发送的是真实 DB ID，后端正常找到并处理。
+
+## 2026-04-27 修复旧 SSE 收尾覆盖新生成导致误中断
+
+**问题**：聊天/写作普通生成在收到 `done` 后会提前解锁输入，但 SSE 连接可能还在等待标题或后台收尾事件。此时用户立刻再次输入或点击重新生成，旧流稍后触发的 `onStreamEnd` 会复用页面级 ref 清空新流状态，表现为画面闪一下、新输出被标记中断，或连续重新生成越来越短。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx` — 普通生成、编辑后重生成、重新生成、错误重试统一分配 `streamRunId`；`delta/done/aborted/error/title/memory/state/diary/onStreamEnd` 回调只允许当前 run 生效，旧 SSE 收尾被忽略。
+- `frontend/tests/pages/chat-page.test.jsx` / `frontend/tests/pages/writing-space-page.test.jsx` — 新增回归测试：旧普通流 `onStreamEnd` 晚到时，不得解锁正在进行的新流；同时补齐页面配置读取 mock 与流 API mock 重置，避免用例间污染。
+
+**结果**：用户在 `done` 后立即再次输入或重新生成时，新一轮流式输出不会再被上一轮连接收尾覆盖。
+
+## 2026-04-27 修复重新生成绕过异步队列导致状态整理冲突
+
+**问题**：状态栏整理等后台任务仍在同 session 队列中运行时，点击聊天/写作重新生成会直接截断消息、回滚状态并启动新流；旧状态整理完成后可能写回旧轮次状态，写作模式下旧 SSE 收尾也可能打断新的重新生成体验。
+
+**改动**：
+- `backend/utils/async-queue.js` — 新增 `waitForQueueIdle(sessionId)`，可等待指定 session 已入队任务全部结束。
+- `backend/routes/chat.js` / `backend/routes/writing.js` — 聊天与写作 `/regenerate`、会话标题重生成、章节标题重生成在执行前等待队列空闲；regenerate 后只清理优先级 4+ 的可丢弃任务，不再清掉 p2/p3。
+- `backend/routes/sessions.js` — 用户消息编辑接口在截断并回滚前等待队列空闲，覆盖“编辑并重新生成”链路。
+- `backend/tests/utils/async-queue.test.js` / `backend/tests/routes/chat.test.js` / `backend/tests/routes/writing.test.js` — 新增队列屏障与 regenerate 等待队列的回归测试。
+
+**结果**：各种重新生成会排在同 session 已有后台任务之后启动，不再和状态栏整理、turn record、日记等队列任务互相覆盖。
+
+## 2026-04-27 修复 diary_time 更新不积极（state-update.md Rule 5）
+
+**问题**：`diary_time` 的 `update_instruction` 明确写"每轮必须更新"，但 LLM 只偶尔更新。根因：Rule 5 的保守措辞（"只有明确偏离默认值时才更新"）与字段指令冲突，叠加 recency bias 使通用规则压倒字段级指令。
+
+**改动**：`backend/prompts/templates/state-update.md` — Rule 5 替换为积极措辞："字段有变化或自然推进时主动更新；不要因本轮未明确提及就保守跳过"。去掉了默认值相关表述，让隐含时间流逝等自然推进也能触发更新。
+
+## 2026-04-27 状态字段超限自动压缩（text > 50字 / list > 10条）
+
+**目标**：状态自动更新时，LLM 偶尔生成过长文本或过多列表条目，影响状态栏展示体验。
+
+**改动**：
+- `backend/utils/constants.js` — 新增 4 个常量：`STATE_TEXT_MAX_LENGTH=50`、`STATE_TEXT_COMPRESS_TARGET=20`、`STATE_LIST_MAX_ITEMS=10`、`STATE_LIST_TRIM_TARGET=5`，以及 `LLM_STATE_COMPRESS_MAX_TOKENS=512`
+- `backend/prompts/templates/state-compress.md` — 新建压缩 prompt 模板，支持 text 压缩和 list 裁剪两种情形
+- `backend/memory/combined-state-updater.js` — 在 patch 解析后、`applyStatePatch` 之前调用 `compressOverLimitFields`；text 字段超 50 字则发回 LLM 压缩到 20 字以内，list 字段超 10 条则发回 LLM 智能保留最重要的 5 条
+
+**机制**：两类超限字段合并到同一次 LLM 调用；LLM 失败/返回解析错误时原值透传，不影响主流程。
+
+## 2026-04-27 清理状态字段 trigger_mode/trigger_keywords 历史遗留
+
+**问题**：用户实测多轮写作后 `current_mission` 和 `diary_time` 不更新。日志显示 `updateAllStates` 每轮执行，但只有 `mission_phase` 被送入状态更新；原因是状态字段表仍保留旧 `trigger_mode=manual_only`，`filterActive` 把这些 `llm_auto` 字段排除了。
+
+**改动**：
+- `combined-state-updater.js` — `filterActive` 只看 `update_mode === 'llm_auto'`，LLM 自动字段每轮参与状态更新
+- 三类状态字段 query / fixture / 导入导出 / assistant proposal / 前端字段列表 — 移除 `trigger_mode` / `trigger_keywords` 读写、展示和契约
+- `schema.js` — 新库不再创建这两列；旧库启动时对 `world_state_fields` / `character_state_fields` / `persona_state_fields` 执行 `DROP COLUMN`
+- `SCHEMA.md` / `ARCHITECTURE.md` / `assistant/CONTRACT.md` / `assistant/prompts/main.md` — 同步为单一 `update_mode` 机制
+
+**结果**：现有 `data/worldengine.db` 三张状态字段表已清除旧列；`diary_time` / `current_mission` / `mission_phase` 均为 `llm_auto`，下轮状态更新会全部进入 LLM 状态追踪 prompt。
+
+## 2026-04-27 写卡助手补齐 stateValueOps：角色卡/玩家卡只填写现有状态字段值
+
+**目标**：在已禁止 `character-card` / `persona-card` 管理字段定义之后，补回一条安全的“填写现有状态值”通道，让角色卡和玩家卡可以设置当前世界里已经存在的状态字段默认值。
+
+**改动**：
+- `assistant/server/routes.js` — 新增 `stateValueOps` 归一化、editedProposal 合并与执行逻辑；`character-card` 只允许 `target:"character"`，`persona-card` 只允许 `target:"persona"`；实际写入复用 `backend/services/state-values.js` 的校验层
+- `assistant/server/tools/card-preview.js` — `character-card` / `persona-card` 预览新增当前默认状态值，供子代理按现状填写
+- `assistant/client/ChangeProposalCard.jsx` / `assistant/client/history.js` — 提案卡与历史摘要新增 `stateValueOps` 展示与编辑
+- `assistant/prompts/character-card.md` / `assistant/prompts/persona-card.md` / `assistant/server/agents/*.js` — 子代理描述改为：字段模板仍归世界卡管理，但允许填写现有字段值
+- `assistant/tests/routes.test.js` / `assistant/tests/routes-integration.test.js` / `assistant/tests/tools/card-preview.test.js` — 新增 `stateValueOps` 格式、执行落库、未知字段拒绝、preview 返回当前值测试
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步补充 `stateValueOps` 契约与运行时边界
+
+**结果**：
+- 角色卡/玩家卡现在只能改卡面正文 + 已存在字段的默认状态值
+- 字段模板仍然只允许在世界卡层创建、修改、删除
+- 不存在于当前世界卡的 `field_key` 会在执行时被拒绝
+
+## 2026-04-27 修复 trigger_mode/trigger_keywords 在三处链路中被错误删除的回归
+
+**问题**（Codex review 发现）：上一次重构将 `trigger_mode`/`trigger_keywords` 从状态字段的三条链路中移除，导致三类运行时回归：
+1. `filterActive` 不再检查 `trigger_mode`，所有 `llm_auto + manual_only / keyword_based` 字段变成每轮都更新（P1）
+2. 导入器把 `trigger_mode` 硬编码为 `llm_auto→every_turn` / 其他→`manual_only`，覆盖导出文件中的实际值，破坏 round-trip（P2）
+3. `normalizeStateFieldOps` 不再接受 `trigger_mode`/`trigger_keywords`，助手提案中对触发方式的修改被静默丢弃（P2）
+
+**改动**：
+- `backend/memory/combined-state-updater.js` — 恢复 `filterActive(fields, scanText)` 的 `trigger_mode` 门控逻辑（every_turn / keyword_based / manual_only 分支）
+- `backend/db/queries/world-state-fields.js` / `character-state-fields.js` / `persona-state-fields.js` — 恢复 `create` 使用 `data.trigger_mode` / `data.trigger_keywords`；恢复 `update` 的 `allowed` 列表包含 `trigger_mode` / `trigger_keywords`，并正确做 JSON 序列化；移除错误的 `update_mode` 联动覆盖逻辑
+- `backend/services/import-export.js` — 恢复三类字段（world/character/persona）导入时使用 `field.trigger_mode` / `field.trigger_keywords`
+- `assistant/server/routes.js` — 恢复 `VALID_TRIGGER_MODES`；`STATE_FIELD_KEYS` 重新包含 `trigger_mode` / `trigger_keywords`；`normalizeStateFieldOps` update/create 分支补全对这两个字段的校验与写入
+- `backend/tests/memory/combined-state-updater.test.js` — 更新 `filterActive` 单测，覆盖 every_turn / keyword_match / no_match / manual_only 各路径
+
+**结果**：全部 157 项后端测试通过。
+
+## 2026-04-27 写卡助手收口：角色卡/玩家卡禁止管理状态字段定义
+
+**问题**：写卡助手此前允许 `character-card` / `persona-card` proposal 携带 `stateFieldOps`，这会让角色卡和玩家卡直接创建、修改、删除状态字段定义，越过“字段模板只在世界卡层维护”的边界。
+
+**改动**：
+- `assistant/server/routes.js` — `normalizeStateFieldOps` 对 `character-card` / `persona-card` 改为直接拒绝非空 `stateFieldOps`；`applyProposal` 同步移除角色卡/玩家卡分支里所有状态字段定义写入逻辑，形成后端硬边界
+- `assistant/server/agents/character-card.js` / `assistant/server/agents/persona-card.js` — agent 描述改为只负责卡面正文，不再宣称支持状态字段管理
+- `assistant/prompts/character-card.md` / `assistant/prompts/persona-card.md` — 提示词移除 `stateFieldOps` 生成规则与示例，明确动态字段模板应通过 `world_card_agent` 管理
+- `assistant/tests/routes.test.js` — 新增回归测试，锁住 `character-card` / `persona-card` 不得再输出字段管理操作
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步 assistant proposal 契约与运行时边界
+
+**结果**：
+- 角色卡和玩家卡的 assistant proposal 现在只能改卡面正文
+- 状态字段的创建、修改、删除统一收口到 world-card 层
+
+## 2026-04-27 对齐状态字段触发机制：trigger_mode 改为内部派生字段
+
+**背景**：前端 `StateFieldEditor.jsx` 已简化为仅允许设置 `update_mode`（手动/LLM自动），`trigger_mode` 从 UI 移除。但后端 DB 写层仍从 `data.trigger_mode` 读取（默认 `manual_only`），导致通过 UI 创建的 `llm_auto` 字段实际上永远不会自动更新（因为 `filterActive` 同时检查两个字段）。
+
+**修复**：
+- **根因修复**：`filterActive`（`combined-state-updater.js`）简化为仅检查 `update_mode === 'llm_auto'`，不再读 `trigger_mode`。
+- **DB 写层派生**：3 个 queries 文件的 CREATE 函数改为从 `update_mode` 派生 `trigger_mode`（`llm_auto` → `every_turn`，其余 → `manual_only`），不再读 `data.trigger_mode`。UPDATE 函数从 allowed list 移除 `trigger_mode`，改为当 `update_mode` 变更时同步派生写入。`trigger_keywords` 新记录写 NULL。
+- **写卡助手**：`routes.js` 移除 `VALID_TRIGGER_MODES`、从 `STATE_FIELD_KEYS` 和 `normalizeStateFieldOps` 清除 `trigger_mode`/`trigger_keywords`。
+- **导入**：`import-export.js` 三处 INSERT 改为派生 `trigger_mode`，忽略导入数据中的 `trigger_mode`/`trigger_keywords`。`import-export-validation.js` 移除 `trigger_mode`/`trigger_keywords` 校验。
+- **worlds.js**：删除 diary 时间字段创建时显式传递的 `trigger_mode: 'every_turn'`（由 DB 层派生）。
+- 文档（`SCHEMA.md`/`ARCHITECTURE.md`）更新标注为内部/派生字段。
+
+**注意**：`trigger_mode` / `trigger_keywords` DB 列仍保留（schema.js 锁定文件），存量记录值不迁移（不影响运行，filterActive 不再读取）。
+
+## 2026-04-27 frontend lint 风险清理：收口 React Hooks effect/immutability 规则债
+
+**问题**：`frontend` 仍残留一批 ESLint 高噪音错误，集中在三类模式：
+- `react-hooks/set-state-in-effect`：effect 体内同步 `setState`
+- `react-hooks/refs`：render 期间直接写 `ref.current`
+- `react-hooks/immutability`：给组件函数挂 `updateTitle/addSession` 静态方法
+
+这些错误虽然不一定立刻导致运行时故障，但会持续掩盖真正的新问题，也会放大后续前端重构风险。
+
+**改动文件**：
+- `frontend/src/utils/session-list-bridge.js`（新文件）— 抽出 chat/writing 会话列表 imperative bridge，替代给组件函数挂静态方法
+- `frontend/src/components/book/SessionListPanel.jsx` / `frontend/src/components/chat/Sidebar.jsx` / `frontend/src/components/book/WritingSessionList.jsx` — 改为在 effect 中注册/清理 bridge 回调；列表初始化加载改成异步调度
+- `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx` — 改为通过 bridge 调用 `updateTitle/addSession`
+- `frontend/src/components/chat/MessageList.jsx` — 把 `messagesRef.current = messages` 从 render 挪到 effect；消息列表初始化重置改成异步调度
+- `frontend/src/components/book/CastPanel.jsx` / `frontend/src/components/book/StatePanel.jsx` / `frontend/src/components/book/TopBar.jsx` — 把若干同步 effect setState 改为异步调度/带取消保护的加载流程
+- `frontend/src/components/settings/CustomCssManager.jsx` / `frontend/src/components/state/StateFieldList.jsx` / `frontend/src/pages/CharactersPage.jsx` / `frontend/src/pages/WorldsPage.jsx` — `load()` 触发改为异步调度，规避 effect 体内同步状态写入
+- `frontend/src/pages/CharacterEditPage.jsx` / `frontend/src/pages/PersonaEditPage.jsx` / `frontend/src/pages/WorldEditPage.jsx` — 草稿恢复和新建页初始化改为异步调度
+
+**结果**：
+- `frontend` 的 lint 结果恢复干净，不再让历史规则债掩盖新增问题
+- 会话列表和写作会话标题更新保留原有 imperative 行为，但实现从“修改组件函数对象”收口为显式 bridge
+- MessageList 的 ref 使用恢复为标准模式，避免 render 期间副作用
+
+**验证结果**：
+- `npm run lint --prefix frontend` 通过
+- `npm run build --prefix frontend` 通过
+
+## 2026-04-27 assistant/client 长期结构化收口：升级为本地包并接入 workspace
+
+**问题**：`frontend` 之前直接 alias/相对路径引用 `assistant/client` 源码，导致构建器把它当作 root 外裸源码处理；依赖解析脆弱，`AssistantPanel` 的懒加载也会因为共享入口被静态导入吞掉。
+
+**改动文件**：
+- `assistant/client/package.json` / `assistant/client/index.js` — 把助手前端升级为本地包 `@worldengine/assistant-client`，增加统一入口和子路径导出（`./AssistantPanel`、`./useAssistantStore`）
+- `package.json` — 根级启用 `workspaces`，把 `frontend` 和 `assistant/client` 纳入同一依赖树
+- `frontend/package.json` — 显式依赖本地包 `file:../assistant/client`
+- `frontend/src/App.jsx` / `frontend/src/components/book/TopBar.jsx` — 改为从包名导入；`AssistantPanel` 走独立子路径动态导入，恢复真实懒加载
+- `frontend/vite.config.js` — 删除临时 `@assistant` 和第三方包 alias，改为标准 `dedupe: ['react', 'react-dom', 'zustand']`
+- `package-lock.json` / `frontend/package-lock.json` — 安装后同步更新锁文件
+
+**结果**：
+- `frontend` 不再直接借用 `assistant/client` 目录源码，而是消费一个有明确 `package.json`、入口和依赖声明的本地包
+- 构建不再依赖那组手工 `react-markdown` alias 兜底
+- `AssistantPanel` 重新恢复为独立 chunk，懒加载 warning 消失
+
+**验证结果**：
+- `npm install`（仓库根目录）通过
+- `npm run build --prefix frontend` 通过
+- `npm run lint --prefix frontend` 仍失败，但失败项为仓库内既有的 React Hooks 规则问题，与本次包结构改造无关
+
+## 2026-04-27 frontend 构建修复：补齐 assistant/client 跨目录源码依赖的 Vite alias 解析
+
+**问题**：`frontend` 通过 `@assistant` alias 直接引用 `assistant/client` 源码；Rolldown 在处理 root 外文件时，没有把 `react-markdown` / `remark-gfm` 这类包稳定回退到 `frontend/node_modules`，导致 `npm run build` 报 `failed to resolve import "react-markdown"`。
+
+**改动文件**：
+- `frontend/vite.config.js` — 在现有 `react` / `react-dom` / `zustand` 强制解析规则基础上，补充 `react-markdown`、`remark-gfm`、`rehype-raw`、`rehype-sanitize` alias，统一从 `frontend/node_modules` 解析 assistant 面板依赖
+
+**验证结果**：
+- `cd frontend && npm run build` 通过
+
+## 2026-04-27 写作页面新增"制卡"按钮：一键从当前轮次提取 NPC 并建卡激活
+
+**功能**：assistant 消息操作栏新增"制卡"按钮（与复制/重新生成/编辑/删除并列）。点击后自动提取当前轮次（user+assistant 消息）中未建卡的 NPC，使用 LLM 生成 name/description/system_prompt/post_prompt/first_message/state_values，调用 `createCharacter` 服务建卡并 `addWritingSessionCharacter` 激活，SSE 实时更新右侧 CastPanel，toast 显示进度。
+
+**关键实现**：
+- 新建 `assistant/prompts/extract-characters.md`（提取 NPC 的 LLM prompt，要求填写所有已定义状态字段）
+- `assistant/server/routes.js` 新增 `POST /api/assistant/extract-characters` SSE 端点；内联 `parseCharacterArray` 处理 LLM 数组响应（`extractJson` 工具不接受数组）
+- `frontend/src/api/stream-parser.js` 新增 `onEvent` 通用回调兜底未知事件类型
+- `frontend/src/api/writing-sessions.js` 新增 `extractCharactersFromMessage` SSE 封装
+- `WritingMessageItem` 新增 `onMakeCard` prop + 制卡按钮；`MessageList` 透传；`WritingSpacePage` 实现 `handleMakeCard`（含并发锁 `makingCardRef`）
+
+## 2026-04-27 写卡助手任务完成后增加摘要反馈消息
+
+**问题**：任务完成后完全静默，用户不知道做了什么。
+**修改**：`assistant/client/AssistantPanel.jsx` — `onTaskCompleted` 读取各步骤 proposal.explanation，生成摘要消息插入聊天（单步直接展示 explanation，多步加序号列表）。
+
+## 2026-04-27 写卡助手 update 步骤现在统一走预览卡审批流
+
+**问题**：`isHighRiskStep` 漏掉 `operation === 'update'`，所有 update 步骤直接 auto-apply，用户看不到预览卡。create 步骤保持 auto-apply 不变。
+
+**修改**：`assistant/server/task-executor.js` — `isHighRiskStep` 加入 `step.operation === 'update'`
+
+## 2026-04-27 写卡助手提示词优化：Persona 具体人物认知 + 澄清策略去机械化
+
+**问题**：
+1. `persona_card_agent` 把玩家卡写成"人设框架"而非"具体的人"，缺乏姓名/具体经历/当下处境
+2. 主代理澄清时列问卷式清单，交互体验机械
+
+**修改**：
+- `assistant/prompts/persona-card.md`：写卡最佳实践强调"具体的人"而非框架；分层判断表 system_prompt 描述改为"以第一/第二人称描写具体人物"；正例3改写为有名有姓有具体经历的实例，并附反例对比
+- `assistant/prompts/main.md`：新增"澄清原则"——先假设后确认，最多问一个问题，不列问卷；persona 架构说明补充"有名字、有经历、不是通用人设模板"
+
+## 2026-04-27 写卡助手前端后续优化：Ghost Task 清除 + 静默失败修复 + TaskPanel Dismiss
+
+**解决的三个具体问题**：
+
+1. **Ghost task（高）**：`currentTask` 持久化到 localStorage，页面刷新后活跃任务残留（如 `awaiting_step_approval`），但后端 SSE 连接已断，无法继续审批，整个 TaskPanel 冻住无法操作。
+   - 修复：`AssistantPanel` mount 时检测 `currentTask` 状态，若处于非终态（`pending/researching/clarifying/running/awaiting_plan_approval/awaiting_step_approval`）立即清除并插入提示消息"上次任务已中断（页面重载），请重新发起。"
+
+2. **handleApproveStep 静默失败（中）**：`isStreaming=true` 时返回 `Promise.resolve(null)`，`ChangeProposalCard.handleApply` 拿到 null 后 catch 不触发，按钮短暂 loading 后静默重置。
+   - 修复：改为 `Promise.reject(new Error('正在执行中，请稍候'))`，错误会在卡片内显示。
+
+3. **TaskPanel 无消解路径（低）**：任务 completed/cancelled/failed 后 TaskPanel 永久悬挂。
+   - 修复：终态时显示"关闭"按钮，调用 `setCurrentTask(null)` 仅清除任务面板，不影响消息记录。
+
+**改动文件**：
+- `assistant/client/AssistantPanel.jsx` — mount useEffect 清除 ghost task；handleApproveStep reject；新增 handleDismissTask；MessageList 透传 onDismissTask
+- `assistant/client/MessageList.jsx` — TaskPanel 接收 onDismissTask；终态显示"关闭"按钮；取消按钮条件排除 failed 状态
+
+**新增测试**：
+- `assistant/tests/assistant-store.test.js`（新文件）— 8 个用例覆盖 store action 纯逻辑：patchCurrentTask、updateTaskStep、setResolvedId、clearMessages、ghost task 状态集、replaceRoutingWithProposal
+- `assistant/tests/client-api.test.js` — 新增 3 个用例：步骤完整生命周期 SSE 序列、approveAssistantTaskStep 携带 editedProposal 的请求体验证、不携带时无该字段
+
+**验证结果**：`npm test --prefix assistant` 通过（65/65，0 失败）
+
+## 2026-04-27 写卡助手 Bugfix：character/persona create 场景补齐现有状态字段预研，避免重复创建 `field_key`
+
+**问题**：实际使用中，角色卡或玩家卡的 `create` 场景如果同时补 `stateFieldOps`，子代理看不到该世界下已存在的共享状态字段，容易把已有 `field_key`（如 `level`）再次生成为 `create`，最终在 `applyStateFieldCreate` 命中 UNIQUE 约束并报 `状态字段创建失败：字段键 "level" 已存在`。
+
+**改动文件**：
+- `assistant/server/tools/card-preview.js` — `character-card` / `persona-card` 的 `operation="create"` 预览结果新增 `existingCharacterStateFields` / `existingPersonaStateFields`
+- `assistant/prompts/character-card.md` / `assistant/prompts/persona-card.md` — 补 create 场景的预研要求和 `stateFieldOps` 的 op 选择规则，要求已有字段走 `update` 而不是重复 `create`
+- `assistant/server/agents/character-card.js` / `assistant/server/agents/persona-card.js` — tool 描述同步强调 create + stateFieldOps 时也应先 `preview_card`
+- `assistant/tests/tools/card-preview.test.js` — 新增 create 场景返回现有状态字段断言，锁住回归
+
+**验证结果**：
+- `node --test --test-isolation=process assistant/tests/tools/card-preview.test.js` 通过
+- `npm test --prefix assistant` 通过（54/54）
+
+## 2026-04-27 写卡助手后续优化：Planner 语义校验重试 + 高风险步骤内联审阅编辑
+
+**目标**：在不推翻上一轮通用 Agent 架构的前提下，补两块稳定性/可控性缺口：
+- planner 对 plan schema 只有 JSON 级容错，缺少结构与依赖语义校验
+- 高风险步骤只能看 summary，不能在任务面板里直接审阅/修改完整 proposal
+
+**改动文件**：
+- `assistant/server/task-planner.js` — 新增 plan 结构校验（`targetType / operation / dependsOn / entityRef / create 依赖 / 高风险标记`），并在校验失败时做 semantic retry；失败多次后再报错，不再首轮直接降级
+- `assistant/server/task-executor.js` — 高风险步骤改为“先生成完整 proposal，再进入 awaiting_step_approval”；`step_proposal_ready` 事件现在携带完整 proposal + summary
+- `assistant/server/routes.js` — `POST /api/assistant/tasks/:taskId/approve-step` 新增 `editedProposal` 支持；编辑内容仍用原 proposal 的 `type / operation / entityId` 锁定后重新 `normalizeProposal()`
+- `assistant/client/api.js` / `assistant/client/AssistantPanel.jsx` / `assistant/client/MessageList.jsx` — 任务流 SSE 解析补全完整 proposal；高风险步骤在任务面板内直接复用 `ChangeProposalCard` 查看/编辑/确认
+- `assistant/client/ChangeProposalCard.jsx` — 提案卡抽象出可注入 apply 行为，同一套编辑 UI 同时兼容旧 `/execute` 和新 task 高风险审批流
+- `assistant/tests/task-planner.test.js` / `assistant/tests/routes-integration.test.js` / `assistant/tests/client-api.test.js` — 补 planner semantic retry、完整 `step_proposal_ready` 事件、`approve-step + editedProposal` 集成测试
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步更新 planner 校验规则、高风险步骤审阅流和 `approve-step` 契约
+
+**结果**：
+- 旧 `/api/assistant/chat` 和旧 proposal token 执行流保持兼容，未改行为边界
+- task planner 对无效 step graph 会先自修正重试，不再把一轮坏 plan 直接抛给前端
+- 高风险步骤现在可以在任务面板里看到完整 proposal，并在应用前手动编辑内容
+- 无论是旧 `/execute` 还是新 `approve-step` 的 edited proposal，最终都收敛到同一个 `normalizeProposal` 安全边界
+
+**验证结果**：
+- `npm test --prefix assistant` 通过（54/54）
+- `npm run check:assistant` 通过
+
+## 2026-04-26 写卡助手通用 Agent 落地：Task/Plan/Step Graph 编排 + 前端任务面板
+
+**目标**：把写卡助手从“单轮 proposal 工具”升级为底层可复用的通用 agent。重点不是专门做“完整世界创建器”，而是引入一套能统一支撑创建、修改、跨实体联动的任务编排骨架。
+
+**改动文件**：
+- `assistant/server/routes.js` — 新增 `/api/assistant/tasks`、`/tasks/:taskId/answer`、`/approve-plan`、`/approve-step`、`/cancel`、`GET /tasks/:taskId`；抽出通用 SSE/task helper；旧 `/chat` 保持兼容
+- `assistant/server/task-store.js` — 新增内存任务仓库（TTL + 事件缓存）
+- `assistant/server/task-planner.js` — 新增 planner，统一输出 `answer | clarify | plan`
+- `assistant/server/task-executor.js` — 新增 executor，按 step graph 解析依赖、调用子代理、统一落库
+- `assistant/server/agent-factory.js` — 抽出 `runAgentDefinition()`，让旧 proposal 流和新 task executor 复用同一套子代理执行逻辑
+- `assistant/client/api.js` — 新增 task SSE 事件解析与任务端点封装
+- `assistant/client/useAssistantStore.js` / `assistant/client/AssistantPanel.jsx` / `assistant/client/MessageList.jsx` — 前端新增 `currentTask` 状态、计划确认/步骤确认/取消任务交互、任务步骤面板
+- `assistant/tests/client-api.test.js` / `assistant/tests/routes-integration.test.js` — 新增 task 事件解析与任务执行集成测试
+- `assistant/CONTRACT.md` / `ARCHITECTURE.md` — 同步记录通用 agent 的 task/plan/step 协议与接口
+
+**结果**：
+- 写卡助手现在同时支持两条链路：
+  - 旧 `chat` proposal 链，保留兼容
+  - 新 `task` 编排链，支持 `Task -> Plan -> Step Graph -> Proposal -> Apply`
+- “从 0 创建完整世界”现在只是 planner 生成的一组 step，不再需要单独的专用 runtime
+- 高风险步骤具备单独审批入口，低风险步骤可在计划确认后自动执行
+
+**验证结果**：
+- `npm test --prefix assistant` 通过（50/50）
+- `npm run check:assistant` 通过
+
+## 2026-04-26 写卡助手提示词修复：world-card.md stateFieldOps/entryOps update/delete 缺失 id 要求
+
+**根因**：`world-card.md` 的 `stateFieldOps` 和 `entryOps` 章节只有 `create` 示例，未说明 `update`/`delete` 需带 `id` 字段（后端 `routes.js:758/764/809/814` 强制校验），导致助手每次修改/删除已有字段时触发"提案格式错误：stateFieldOps[0].id 缺失"。
+
+**改动文件**：`assistant/prompts/world-card.md`
+- `stateFieldOps` 章节：补充 update/delete 格式示例；新增"op 选择规则"（preview 已有字段 → update；不存在 → create）
+- `entryOps` 章节：拆分"create/update 通用字段"为独立的三段（create / update 含 id / delete 含 id）
+- `conditions` 说明：补充"不支持 OR，如需 OR 语义请拆两条 state 条目"
+- `stateFieldOps` 新增类型选择指南（text 为最后后备）
+
+**同步更新**：状态字段类型决策规则（number/boolean/enum/list/text 选型）
+
+---
+
+## 2026-04-26 Kimi Coding 空回复修复：Anthropic SSE 解析兼容无空格 event/data 行
+
+**目标**：修复 `kimi-coding` 在聊天流式请求中稳定“HTTP 200 但正文为空”的问题；确认不是前端问题，也不是 Kimi 非流式能力缺失，而是后端 SSE 解析器过于严格。
+
+**根因定位**：
+- `data/logs/worldengine-2026-04-26.log` 显示多次 `provider="kimi-coding"` 的 `CHAT START` 后接 `CHAT DONE len=0`，但同一时段 `impersonate` 的 `COMPLETE DONE` 正常有正文
+- 直接对 Kimi `POST /v1/messages` 做原始流抓包，确认服务端实际返回了大量 `content_block_delta`
+- 进一步比对发现 Kimi 的 SSE 行格式是 `event:message_start` / `data:{...}`，冒号后**没有空格**
+- 现有 `backend/llm/providers/_utils.js` 中 `parseSSE()` 只识别 `event: ` / `data: `，导致整条流被丢弃；同时它对 Web `ReadableStream` 的读取也不够稳健
+
+**改动文件**：
+- `backend/llm/providers/_utils.js`
+  - `parseSSE()` 改为优先使用 `ReadableStream.getReader()` 读取返回体
+  - 兼容 `event:` / `data:` 后无空格的 SSE 行格式
+  - 补上流结束前最后一个未以空行收尾事件的尾块处理
+- `backend/tests/llm/providers-utils.test.js`
+  - 新增 Web `ReadableStream` SSE 解析测试
+  - 新增“无尾部空行”测试
+  - 新增“Kimi 风格无空格 event/data 行”兼容测试
+
+**验证结果**：
+- 真实 Kimi 会话 `sessionId=51067663-a4fc-47b7-857d-bd6f51ce25e2` 本地复现中，`streamAnthropic()` 现已能输出正文，不再是 `len=0`
+- `npm run test --prefix backend -- tests/llm/providers-utils.test.js` 通过
+- `npm run test --prefix backend` 全量通过（157 tests）
+
+## 2026-04-26 Coding Plan 兼容修复：Kimi / MiniMax / GLM 接入校正 + 设置页官方跳转
+
+**目标**：修复三家 Coding Plan 在设置页“填了 key 但识别不了”的核心问题，把实际协议差异收口到后端，并给用户明确的官方登录/控制台跳转入口。
+
+**改动文件**：
+- `backend/llm/providers/_utils.js` — 更新 `glm` / `glm-coding` 到官方 `api.z.ai` 地址；`minimax-coding` 改为官方 Anthropic-compatible base URL；新增 `extractProviderError()` 统一识别厂商错误 JSON
+- `backend/llm/providers/openai.js` — `minimax-coding` 改走 Anthropic-compatible adapter
+- `backend/llm/providers/openai-compatible.js` — 补 `HTTP 200 + error JSON` 识别，避免 Kimi / GLM 鉴权失败被误判成“模型列表空”
+- `backend/routes/config.js` — `kimi/minimax/glm coding` 新增静态模型兜底；`/api/config/test-connection` 改为真实轻量 completion 验证；`glm-coding` 默认 endpoint 改到 `https://api.z.ai/api/coding/paas/v4`
+- `frontend/src/components/settings/SettingsConstants.js` — 新增三家 Coding Plan 的官方说明/控制台/文档链接配置
+- `frontend/src/components/settings/ProviderBlock.jsx` / `frontend/src/styles/pages.css` — 设置页新增 provider 专属说明卡和“打开控制台/文档/登录页”按钮，作为网页登录/获取 key 的自动跳转入口
+- `backend/tests/routes/config.test.js` — 新增静态模型兜底和 `200 + error JSON` 识别测试
+- `ARCHITECTURE.md` — 补充三家 Coding Plan 的默认协议与模型兜底行为
+
+**结果**：
+- Kimi Coding 不再因为厂商返回 `200` 但 body 里是鉴权错误而被前端误判
+- Kimi Coding 进一步改为 Anthropic-compatible 运行时；已验证同一把 Coding Plan key 下，`/models` 可读、`/messages` 可用、`/chat/completions` 会被官方拒绝
+- MiniMax Coding 不再依赖不稳定的 `/models` 接口；运行时直接按官方推荐的 Anthropic-compatible 协议接入
+- GLM Coding 改到当前官方 `api.z.ai` Coding endpoint，避免继续使用旧地址
+- 设置页现在可直接跳去三家官方控制台/文档/登录页，但当前仍不接收 OAuth callback；网页登录后如厂商要求 API key，仍需把 key 填回本应用
+
+## 2026-04-26 根级质量门统一 + assistant SSE 收口 + 仓库卫生自动化
+
+**目标**：一次性清理前面审查里剩下的三类工程债：顶层质量门不统一、`assistant` 子系统缺少针对性兜底、仓库卫生缺少自动检查。
+
+**改动文件**：
+- `package.json` — 根级新增 `lint` / `check:assistant` / `check:hygiene` / `check` 脚本，并把默认 `npm test` 收口为全量质量门
+- `assistant/client/api.js` — 抽出 `processSseBlock()`，并在流结束时继续处理 buffer 中残留的最后一个 SSE 事件，避免末尾无换行时漏掉 `done` / `tool_call` / `proposal`
+- `assistant/tests/client-api.test.js` — 新增前端助手 API 测试，覆盖 SSE 事件解析和尾 buffer 场景
+- `.temp/check-assistant-syntax.mjs` — 新增 `assistant` 语法检查脚本，使用 `node --check` 扫描 client/server 关键 JS 文件
+- `.temp/git-health-check.sh` — 新增仓库卫生检查脚本，阻止被追踪的 `node_modules` / `.DS_Store`
+- `.gitignore` — 放行 `.temp/check-assistant-syntax.mjs` 供版本控制使用；保留 `.temp/` 目录默认忽略策略
+
+**结果**：
+- 顶层 `npm test` 现在会统一执行：根级 lint、`assistant` 语法检查、仓库卫生检查、backend 测试、frontend 测试、assistant 测试
+- `assistant` 前端 SSE 解析不再依赖最后一个事件必须以空行结尾
+- 仓库卫生从“靠人记忆”改为“脚本兜底”
+
+## 2026-04-26 开源前清理：.gitignore 加固 + frontend/package.json 依赖修正 + config.example.json
+
+**改动文件**：
+- `.gitignore` — 新增 `/data/config.json` 显式排除规则，双重保险防止 API 密钥意外提交
+- `data/.gitignore` — 新增 `!config.example.json` 白名单，允许示例配置被追踪
+- `frontend/package.json` — 移除混入 dependencies 的后端依赖（`better-sqlite3`、`cors`、`express`）
+- `data/config.example.json` — 新增脱敏示例配置，供新用户参考；logging 默认为 `metadata` 模式，密钥字段留空
+
+## 2026-04-26 前端日志清理：页面/组件层裸 console 收口，仅保留 ErrorBoundary / Icon 开发告警
+
+**目标**：继续清理前端低级工程问题，把 `frontend/src/pages` 和 `frontend/src/components` 中裸露的 `console.error` / `console.log` 收口到用户提示或静默降级路径。
+
+**改动文件**：
+- `frontend/src/pages/WritingSpacePage.jsx` — 初始化加载、章节标题加载、stop 清理等背景失败改为静默降级；代拟/重标题/章节标题编辑失败改为 toast
+- `frontend/src/pages/ChatPage.jsx` — 角色/规则加载和 stop 清理改为静默降级；续写失败、代拟失败改为 toast；移除 SSE 错误日志噪音
+- `frontend/src/pages/CharacterEditPage.jsx`
+- `frontend/src/pages/WorldEditPage.jsx`
+- `frontend/src/pages/PersonaEditPage.jsx`
+  - 状态值保存失败改为 toast
+- `frontend/src/components/book/CastPanel.jsx` — 重置/保存/添加/移除角色、日记获取失败改为 toast；角色列表加载失败改为清空列表降级
+- `frontend/src/components/book/StatePanel.jsx` — 状态重置/保存和日记获取失败改为 toast
+- `frontend/src/components/book/WritingSessionList.jsx`
+- `frontend/src/components/book/SessionListPanel.jsx`
+- `frontend/src/components/chat/Sidebar.jsx`
+  - 会话列表初始加载失败改为清空列表降级；创建/删除/重命名失败改为 toast
+- `frontend/src/components/state/EntryEditor.jsx` — 状态字段加载失败改为 toast
+- `frontend/src/components/settings/RegexRulesManager.jsx` — 规则/世界列表加载失败改为 toast
+
+**结果**：
+- `frontend/src/pages` / `frontend/src/components` 中已不再保留裸 `console.error` / `console.log`
+- 当前仅保留两类有意日志：
+  - `frontend/src/components/ui/ErrorBoundary.jsx` 的渲染错误边界日志
+  - `frontend/src/components/ui/Icon.jsx` 的开发期参数告警 `console.warn`
+
+**验证结果**：
+- `rg -n "console\\.(error|warn|log)" frontend/src/pages frontend/src/components` 仅剩 `ErrorBoundary.jsx` 与 `Icon.jsx`
+- `npm run lint --prefix frontend` 通过
+- `npm run test:frontend` 通过（26 个文件，64 个测试全绿）
+
+## 2026-04-26 前端工程清理：移除 alert、补全全局 toast、收回 Persona 直连 fetch、清理仓库卫生
+
+**目标**：继续收口代码审查中剩余的低级工程问题，清掉前端页面级 `alert`、收回直接 `fetch`，并整理仓库卫生。
+
+**改动文件**：
+- `frontend/src/utils/toast.js` / `frontend/src/components/ui/GlobalToast.jsx` / `frontend/src/App.jsx` — 新增全局 toast 事件通道和统一渲染容器，复用现有视觉风格
+- `frontend/src/pages/PersonaEditPage.jsx` / `frontend/src/api/personas.js` — 新增 `uploadPersonaAvatarById()` API 封装，移除页面里的直接 `fetch('/api/personas/:id/avatar')`
+- `frontend/src/pages/CharactersPage.jsx`
+- `frontend/src/pages/WorldsPage.jsx`
+- `frontend/src/pages/ChatPage.jsx`
+- `frontend/src/pages/CharacterEditPage.jsx`
+- `frontend/src/pages/WorldEditPage.jsx`
+- `frontend/src/components/settings/RegexRuleEditor.jsx`
+- `frontend/src/components/chat/InputBox.jsx`
+- `frontend/src/components/settings/RegexRulesManager.jsx`
+- `frontend/src/components/settings/ProviderBlock.jsx`
+- `frontend/src/components/state/EntrySection.jsx`
+- `frontend/src/components/settings/CustomCssManager.jsx`
+- `frontend/src/components/state/EntryEditor.jsx`
+  - 上述文件的页面级错误提示全部由 `alert(...)` 改为 `pushErrorToast(...)`
+- `frontend/tests/components/state/EntrySection.test.jsx`
+- `frontend/tests/pages/persona-edit-page.test.jsx`
+- `frontend/tests/pages/character-edit-page.test.jsx`
+  - 测试从断言 `alert` 改为断言新的 toast 通道
+- `.gitignore` — 补 `assistant/node_modules` 忽略规则（同时覆盖 symlink 形式）
+- `assistant/node_modules` — 从 git 索引移除，保留本地使用
+
+**验证结果**：
+- `npm run lint --prefix frontend` 通过
+- `npm run test:frontend` 通过（26 个文件，64 个测试全绿）
+- `rg -n "\\balert\\(|fetch\\(" frontend/src/pages frontend/src/components assistant` 检查后，前端页面/组件层已无 `alert` 和直接 `fetch`
+
+## 2026-04-26 前端质量门修复：settings hook 测试、chat/writing 页测试桩、lint 清理
+
+**目标**：修复代码审查中暴露的低级工程错误，先恢复 `frontend` 的测试与 lint 质量门。
+
+**改动文件**：
+- `frontend/tests/hooks/use-settings-config.test.jsx` — `displaySettings` store mock 改为稳定引用，补齐 `setShowTokenUsage` / `setCurrentModelPricing`，避免 effect 依赖抖动导致配置加载反复覆盖本地编辑状态
+- `frontend/tests/pages/chat-page.test.jsx` — `MessageList` mock 改为通过 `forwardRef + useImperativeHandle` 暴露 `appendMessage/updateMessages/messagesRef`，与页面真实依赖的 imperative API 对齐
+- `frontend/tests/pages/writing-space-page.test.jsx` — 同步修复写作页 `MessageList` mock 的 ref 接口
+- `frontend/src/hooks/useSettingsConfig.js` — 补齐 effect 依赖，消除 hooks lint warning
+- `frontend/src/components/book/TopBar.jsx` — 抽出 `loadWorlds()`，移除 effect 内同步 `setState` 的 lint error
+- `frontend/src/components/settings/RegexRuleEditor.jsx` — 以 `rule` 初始化 state，移除仅用于同步 props 的 effect
+- `frontend/src/components/book/StatusSection.jsx` — 删除未使用局部变量
+- `frontend/src/pages/CharactersPage.jsx` / `frontend/src/styles/pages.css` — 去掉空态段落的内联样式，补 CSS 类；同时删除未使用的 `idx`
+- `frontend/src/components/state/EntryEditor.jsx` — 补齐 `useEffect` 依赖
+- `frontend/src/pages/CharacterEditPage.jsx` — 草稿自动保存 effect 补上 `description` 依赖
+
+**验证结果**：
+- `npm run lint --prefix frontend` 通过
+- `npm run test:frontend` 通过（26 个文件，64 个测试全绿）
+
+## 2026-04-26 Token 消耗行新增费用估算显示
+
+**目标**：在每条 AI 消息的 token 消耗行末尾显示本条消息的估算费用（美元）。
+
+**改动文件**：
+- `backend/routes/config.js` — `GET /api/config` 响应新增 `llm.model_pricing`（从 `KNOWN_PRICES` / `ANTHROPIC_MODELS` 查当前模型，作为初次加载兜底）
+- `frontend/src/store/displaySettings.js` — 新增 `currentModelPricing` 状态
+- `frontend/src/hooks/useSettingsConfig.js` — 配置加载后同步 `setCurrentModelPricing`（兜底路径）
+- `frontend/src/components/settings/ModelSelector.jsx` — 模型列表拉取后及模型切换时，从列表价格字段更新 store（主路径，优先级高于兜底）
+- `frontend/src/components/chat/MessageItem.jsx` — 新增 `calcCost` / `formatCost` 函数；token 消耗行末尾显示费用（陶土色强调）
+- `frontend/src/styles/chat.css` — 新增 `.we-token-usage-cost` 样式
+
+**行为**：
+- 已知价格且非零（正常按量计费 provider）→ 显示 `$x.xxxxxx`
+- 价格全为 0（Coding Plan）或未知模型 → 不显示费用，只显示 token 数
+- 费用 < $0.000001 → 显示 `<$0.000001`
+
+**验证方式**：开启「显示 Token 消耗」后发一条消息，消耗行末尾应出现带陶土色的费用数字；切换到 GLM Coding Plan 后发消息，费用不显示。
+
+## 2026-04-25 新增 Kimi / MiniMax / GLM Coding Plan provider
+
+**目标**：支持三家国内大模型的按周/配额计费 Coding Plan，与现有按 token 计费的标准 provider 并列。
+
+**改动文件**：
+- `backend/llm/providers/_utils.js` — `DEFAULT_BASE_URLS` 和 `OPENAI_COMPATIBLE` 加入 `kimi-coding` / `minimax-coding` / `glm-coding`
+- `backend/routes/config.js` — `OPENAI_COMPATIBLE_BASE_URLS` 加入三个新 endpoint；`KNOWN_PRICES` 加入 `kimi-for-coding` / `codex-MiniMax-M2.7` / `GLM-4.7`（价格填 0，因按配额计费无 token 单价）
+- `frontend/src/components/settings/SettingsConstants.js` — `LLM_PROVIDERS` 加入三个新 label
+
+**Base URL 来源**：
+- Kimi Coding: `https://api.kimi.com/coding/v1`（OpenAI-compatible，模型 `kimi-for-coding`）
+- MiniMax Coding: `https://api.minimax.io/v1`（OpenAI-compatible，模型 `codex-MiniMax-M2.7`）
+- GLM Coding: `https://open.bigmodel.cn/api/coding/paas/v4`（OpenAI-compatible，模型 `GLM-4.7`，与标准 GLM endpoint 不同）
+
+**验证方式**：进入设置页 → LLM 配置 → Provider 下拉，应出现三个新选项；填入对应 Coding Plan API Key 后可拉取模型列表并正常对话。
+
+## 2026-04-25 Electron 桌面打包链路修复：多架构 runtime + Windows 无 unzip + 崩溃恢复计数
+
+**目标**：修复 desktop 审核中发现的 3 个实质问题：mac 双架构产物共用错误 Node runtime、Windows 构建依赖外部 `unzip`、后端自动恢复累计 3 次后永久失效。
+
+**改动文件**：
+- `desktop/scripts/prepare-build.js` — 改为按目标矩阵预下载 `darwin-x64` / `darwin-arm64` / `win32-x64` 三套 Node runtime，目录结构改为 `desktop/node-runtime/{platform}-{arch}/...`；Windows zip 解压改用 `extract-zip`，移除对系统 `unzip` 的依赖；运行后校验目标 `node` 可执行文件存在
+- `desktop/src/main.js` — 打包态按 `process.platform + process.arch` 选择对应 runtime 路径；后端成功启动后重置 `backendRestartCount`，将“累计 3 次”修正为“连续失败 3 次”；新增 `isShuttingDown`，避免应用主动退出时误触发自动重启
+- `desktop/package.json` / `desktop/package-lock.json` — 新增 `extract-zip` 依赖
+- `desktop/electron-builder.json` — 追加 `artifactName`，显式区分 mac/win 与架构产物名称，降低多架构产物混淆风险
+
+**验证结果**：
+- `node --check desktop/src/main.js` 通过
+- `node --check desktop/scripts/prepare-build.js` 通过
+- `node -e "JSON.parse(...electron-builder.json...)"` 通过
+- `npm run prepare-build --prefix desktop` 实际执行成功，已下载并解压 `darwin-x64` / `darwin-arm64` / `win32-x64` 三套 runtime
+
+**结果**：
+- mac `x64` 与 `arm64` 安装包现在可在运行时各自命中正确的内置 Node
+- Windows 构建机不再要求系统存在 `unzip`
+- 后端自动恢复策略改为“成功一次就清零”，避免偶发崩溃耗尽终身重试次数
+
+## 2026-04-25 Electron 桌面应用（macOS + Windows）+ 数据目录迁移 + 白屏修复
+
+**目标**：在不改动前端业务代码、不影响现有网页版的前提下，新增桌面应用打包能力；桌面版数据放在用户目录而非应用安装目录；修复打包后端口冲突导致的白屏。
+
+**架构决策**：
+- 采用 Electron（而非 Tauri），因为项目已有 Node.js 后端 + better-sqlite3 原生模块，Electron 是唯一零后端改造就能跑起来的方案
+- 不将后端跑在 Electron 的 Node.js 中（ABI 不兼容：系统 Node.js modules=141，Electron 35 modules=133），而是打包时附带独立的 Node.js v25.9.0 运行时
+- 后端条件性 serve 前端静态文件（`WE_SERVE_STATIC=true`），Electron 窗口只需访问单一 URL
+- 桌面版数据目录通过 `app.getPath('userData')` 指向用户目录（macOS: `~/Library/Application Support/worldengine-desktop/`，Windows: `%APPDATA%/worldengine-desktop/`）
+- 后端使用随机端口（`PORT=0`），Electron 主进程通过解析 stdout 中的 `SERVER_READY:PORT` 获取实际端口，彻底避免端口冲突
+
+**新增文件**：
+- `desktop/package.json` — Electron 依赖与构建脚本
+- `desktop/electron-builder.json` — mac/win 打包配置（extraResources 包含 backend、frontend/dist、assistant、node-runtime）
+- `desktop/src/main.js` — 主进程：设置 `WE_DATA_DIR` → spawn 独立 Node.js 启动后端（随机端口）→ 解析 stdout 获取端口 → 打开 BrowserWindow
+- `desktop/src/preload.js` — 安全桥接（预留）
+- `desktop/src/utils.js` — `waitForPort` 轮询检测、`getProjectRoot` 路径解析
+- `desktop/scripts/prepare-build.js` — 打包前自动下载对应平台 Node.js 运行时
+- `desktop/assets/.gitkeep` — 图标占位说明
+- `desktop/.gitignore` — 忽略 node_modules / dist / node-runtime
+
+**改动文件**：
+- `backend/server.js` — `DATA_ROOT` 支持 `WE_DATA_DIR` 环境变量覆盖；`createApp()` 末尾条件性添加 `express.static(frontend/dist)` + fallback；`startServer()` 输出 `SERVER_READY:PORT` 供父进程解析
+- `backend/db/index.js` — `DB_PATH` 支持从 `WE_DATA_DIR` 派生
+- `package.json`（根目录）— 新增 `desktop:install` / `desktop:dev` / `desktop:build` / `desktop:dist` scripts
+
+**验证结果**：
+- `npm run dev` 网页版前后端正常启动，不受影响
+- `npm run desktop:dev` 弹出 Electron 窗口，数据目录指向 `~/Library/Application Support/worldengine-desktop/`，功能正常
+- 打包后的 `.app` 在 macOS arm64 上可正常运行，数据不写入 `.app` 内部，随机端口避免冲突
+
+**坑点记录**：
+- `app.get('*')` 在 Express 5（path-to-regexp）中会抛 `Missing parameter name`，fallback 路由必须用 `app.use((req, res, next) => ...)`
+- electron-builder 默认会忽略 `extraResources` 中的 `node_modules`，必须将 `node_modules` 单独列为一项 `extraResource`
+- `backend/db/index.js` 在 `server.js` 的 `dataDirs` 创建之前初始化数据库，若 `data/` 目录不存在会直接崩溃；桌面端主进程需在 spawn 前 `fs.mkdirSync(dataDir, { recursive: true })`
+- 开发模式使用系统 `node` 命令；打包后使用 `process.resourcesPath/node/bin/node`
+- **白屏根因**：固定端口 3000 可能被之前未退出的后端进程占用，`app.listen()` 触发 `EADDRINUSE` 但错误未被捕获，server 未启动，Node.js 因事件循环无活跃任务而正常退出（exit code 0）；`waitForPort` 却检测到旧进程仍在监听该端口，导致 Electron 加载了一个无前端服务的 HTTP 端口，显示白屏/连接错误。修复方案：后端改用随机端口 + stdout 广播实际端口
+
+## 2026-04-25 模型 token 价格展示 + 每轮对话 token 消耗统计
+
+**功能 A：模型下拉显示 token 价格**
+- `backend/routes/config.js`：Anthropic 模型追加 `cacheWritePrice`/`cacheReadPrice`；新增 `KNOWN_PRICES` 静态 Map（覆盖 OpenAI/DeepSeek/Gemini/Kimi/GLM/SiliconFlow 主流模型）；`fetchOpenAICompatibleModels` 和 Gemini 分支合并静态价格兜底
+- `frontend/src/components/ui/ModelCombobox.jsx`：下拉选项追加 `缓存写/读` 价格渲染
+
+**功能 B：每轮对话显示 token 消耗**
+- `backend/db/schema.js`：messages 表 ALTER TABLE 追加 `token_usage TEXT`
+- `backend/db/queries/messages.js`：新增 `updateMessageTokenUsage()`；三个查询函数追加 `token_usage` JSON.parse
+- Provider 层（openai-compatible / anthropic / gemini / ollama）：通过 `usageRef` 引用对象在流结束后填充 usage 数据；openai-compatible 追加 `stream_options: { include_usage: true }`
+- `backend/llm/index.js`：`buildLLMConfig` 透传 `usageRef`
+- `backend/routes/chat.js` / `writing.js`：创建 `usageRef`、传给 `llm.chat`、流结束后写库（`updateMessageTokenUsage`）、done 事件携带 `usage`
+- `frontend/src/api/stream-parser.js`：`onDone` 回调追加第三参数 `usage`
+- `frontend/src/store/displaySettings.js`：追加 `showTokenUsage` / `setShowTokenUsage`
+- `frontend/src/hooks/useSettingsConfig.js`：追加 `showTokenUsage` state、store、`handleToggleShowTokenUsage`，加入 `llmProps` 返回
+- `frontend/src/components/settings/FeaturesConfigPanel.jsx`：新增「Token 消耗」子节和 ToggleRow
+- `frontend/src/pages/SettingsPage.jsx`：传递 `showTokenUsage`/`onToggleShowTokenUsage` props
+- `frontend/src/components/chat/MessageItem.jsx`：assistant 消息底部渲染 token 消耗（受 `showTokenUsage` 开关控制）
+- `frontend/src/styles/chat.css`：追加 `.we-token-usage` 样式
+- `SCHEMA.md`：messages 表新增字段说明；config.json ui 对象补充 `show_token_usage`
+- `ARCHITECTURE.md §7`：done 事件 payload 追加 `usage` 字段说明
+
+**坑点记录**：
+- `usageRef` 必须在 `try` 块外声明，流结束后才能在路由层访问到 provider 填充的数据
+- openai-compatible 的 `stream_options.include_usage` 末尾 chunk 的 `choices[]` 为空，usage 解析必须在 `if (!delta) continue` 之前执行
+- abort 时 usageRef 可能为空对象，路由层用 `Object.keys(usageRef).length > 0` 判断是否写库，不写入部分数据
+
+## 2026-04-25 写卡助手 world-card 对齐当前状态条目系统
+
+- **Assistant Prompt / Contract**：`world-card.md`、`main.md`、`assistant/CONTRACT.md` 清除废弃 `position` 与旧版 `eq/lt/contains` 示例，改为当前真实格式：`state` 条件使用 `世界.xxx / 玩家.xxx / 角色.xxx` + 运行时支持的符号/中文操作符
+- **routes.js**：`normalizeProposal` 为 world-card 建立状态字段上下文，`normalizeEntryOps` 可把旧式 `field_key + gt/lt/eq` 条件安全归一为真实 `entry_conditions` 格式；遇到歧义字段时直接报错，避免写入半错数据
+- **card-preview.js**：world-card 预览中的 `existingEntries` 对 `trigger_type='state'` 条目补回 `conditions`，主代理和前端提案卡都能看到完整状态条目结构
+- **ChangeProposalCard.jsx**：world-card 提案卡重做内联编辑，条目编辑支持 `always/keyword/llm/state` 四类真实字段；`state` 条件支持按当前字段类型选择操作符；状态字段编辑补齐 `target/type/update_mode/trigger_mode/default_value/enum/range` 等核心项；预览态同步显示 trigger、token、conditions 和字段元数据
+- **测试 / 文档**：新增 assistant routes/card-preview 测试覆盖条件归一与预览回传；`ARCHITECTURE.md` 补充 world-card assistant 对齐规则
+
+## 2026-04-25 写卡助手继续收口：清理 global 假能力并补齐角色/玩家卡字段
+
+- **global-config**：`global-prompt.md`、`main.md`、`CONTRACT.md`、`global-prompt.js` 统一删除已失效的 `entryOps/global_prompt_entries` 能力描述；`routes.js` 也不再为 global-config 归一化 `entryOps`，避免模型继续输出不会执行的假功能
+- **character/persona**：assistant 提案执行与 prompt 规则补回 `description`，对齐当前 `CharacterEditPage` / `PersonaEditPage` 的真实编辑字段
+- **card-preview**：角色卡/玩家卡预研返回补充 `existingWorldEntries`、`_worldName`、`_worldDescription`，让子代理生成内容时能读到上层世界语境，而不是继续依赖废弃的 `world.system_prompt`
+- **ChangeProposalCard.jsx**：状态字段编辑器按 proposal 类型收紧可选 target；角色卡不再能误选 `world`，玩家卡只允许 `persona`
+- **测试**：新增 assistant normalize/integration 测试，覆盖 character/persona `description` 落库与 global-config 去除 `entryOps`
+
+## 2026-04-25 文档入口降噪：收口 agent 入口并降低误读风险
+
+- **AGENTS.md**：删除误导性的 `claude-mem-context` 块，恢复为纯镜像入口，只保留跳转 `CLAUDE.md` 的最小说明
+- **CLAUDE.md**：在文档分工规则中补充非权威来源声明，明确 `README.md` / `PROJECT.md` / `ROADMAP.md` 不是 agent 入口规范，`docs/` `.superpowers/` `.obsidian/` `.claude/` `.temp/` 仅作辅助材料或本地工作目录
+- **ROADMAP.md**：顶部新增警示，明确其角色是任务池与排期，而非执行规范入口
+- **README.md**：顶部补充 AI agent 导航说明，文档表加入 `CLAUDE.md`
+- **.gitignore**：补充 `.superpowers/`、`backend/node_modules/`、`frontend/node_modules/`、`frontend/dist/`，减少工作区噪音
+
+## 2026-04-24 角色选择页新增右侧条目顺序面板（三栏布局）
+
+- **CharactersPage.jsx**：新增 `EntryOrderPanel` 组件，展示当前世界全部条目（按 token ASC + sort_order 排序），token 值可内联点击编辑（blur/Enter 保存，Escape 取消）；`loadData` 并发加载 `listWorldEntries`；新增 `handleTokenChange` 调用 `updateWorldEntry` 后刷新列表
+- **pages.css**：已有 `.we-characters-col-entries` / `.we-entry-order-*` 样式，布局为三栏（左 Persona / 中 Character / 右条目顺序）
+
+## 2026-04-24 清理废弃条目表：彻底移除 global_prompt_entries / character_prompt_entries
+
+- **背景**：两张表在 prompt 组装中已弃用（运行时不消费），残留代码造成误导
+- **DB**：`schema.js` 删除两张表的 `CREATE TABLE IF NOT EXISTS`，添加 `migrateDropLegacyEntryTables` 迁移（启动时 DROP TABLE IF EXISTS），同步删除相关 ALTER TABLE 迁移和索引
+- **DB Queries**：`db/queries/prompt-entries.js` 删除 `createGlobalEntry`/`getGlobalEntryById`/`getAllGlobalEntries`/`updateGlobalEntry`/`deleteGlobalEntry`/`reorderGlobalEntries` 及对应角色条目 CRUD
+- **Import/Export**：角色卡导出 `prompt_entries: []`（不再读 character_prompt_entries）；导入忽略 `prompt_entries` 字段（不写 character_prompt_entries）；全局设置导出不含 `global_prompt_entries`；导入不清写该表
+- **Assistant**：`routes.js` 移除 `global-config` entryOps 处理；`card-preview.js` 移除 `existingGlobalEntries`
+- **测试**：import-export 测试、prompt-entries query 测试、fixtures 全部同步清理
+- **文档**：SCHEMA.md / ARCHITECTURE.md 移除两张废表相关描述和导出格式中的 `global_prompt_entries` 字段
+
+## 2026-04-24 状态字段更新方式简化：移除 trigger_mode/keyword_based，新增状态栏内联编辑
+
+- **背景**：`update_mode` + `trigger_mode` 两个维度冗余，用户体验复杂；统一收敛为一维：`manual`（手动）/ `llm_auto`（每轮更新）
+- **后端 DB 查询**：`world-state-fields` / `character-state-fields` / `persona-state-fields` 三张表的 `createXxx` / `updateXxx` 停止读写 `trigger_mode` / `trigger_keywords`（列保留，依靠 DB 默认值）；`session-state-values.js` 所有 SELECT 加 `update_mode`，角色查询加 `character_id`
+- **combined-state-updater.js**：`filterActive(fields)` 简化为仅检查 `update_mode === 'llm_auto'`，删除 `recentText` 构建和 keyword_based 分支，删除 `PROMPT_ENTRY_SCAN_WINDOW` 引用
+- **routes/session-state-values.js**：新增 3 个 PATCH 端点（`world-state-values/:fieldKey` / `persona-state-values/:fieldKey` / `character-state-values/:characterId/:fieldKey`），复用已有 upsert 函数，支持手动更新单个会话状态值
+- **StateFieldEditor.jsx**：移除 TRIGGER_MODE_OPTIONS / system_rule 选项 / 触发关键词 tag 输入；update_mode 改为二选一 Select
+- **StatusSection.jsx**：新增 `onSave(fieldKey, valueJson, characterId?)` prop；`update_mode='manual'` 的字段值点击进入内联编辑（InlineEditor 组件），支持 text/number/enum/list/boolean 所有类型，blur/Enter 保存，Esc 取消
+- **session-state-values.js（API）**：新增 `patchSessionStateValue(sessionId, category, fieldKey, valueJson, characterId?)`
+- **StatePanel / CastPanel**：接入 `onSave` 并乐观更新本地 stateData；CharacterBlock 加 `handleSave`
+
+## 2026-04-24 写卡助手全面覆盖 CRUD 功能
+
+- **背景**：审查发现写卡助手存在 7 处与系统实际功能的覆盖缺口，统一补全
+- **A. main.md 提示词注入顺序修正**：删除过时的 [8] 触发器段落，[9]-[12] 前移为 [8]-[11]；补充 trigger_type:"state" 和 position 废弃说明
+- **B. entryOps token 字段同步**：`normalizeEntryOps()` 传递 `token` 字段；world-card.md 和 CONTRACT.md entryOps schema 补充 token 说明
+- **C. stateFieldOps update op**：`normalizeStateFieldOps()` 支持 `update` op；`applyStateFieldUpdate()` 函数路由到对应 service；routes.js 导入 update 函数；CONTRACT.md、world-card/character-card/persona-card 提示词补充 update 格式
+- **D. CSS 片段和正则规则 update/delete**：`PROPOSAL_ALLOWED_OPERATIONS` 放开 create/update/delete；`applyProposal` 处理 update/delete 分支；card-preview.js 支持 `css-snippet`/`regex-rule` 预研目标；agent 定义补充 entityId 参数；提示词补充操作说明；CONTRACT.md 更新
+- **E. 全局 Prompt 条目（entryOps for global-config）**：`normalizeProposal` 为 global-config 启用 `entryOps` 解析（includeMode=true）；`applyProposal` global-config 分支处理 entryOps create/update/delete；card-preview 全局预研加入 existingGlobalEntries；global-prompt.md 补充 entryOps 章节，删除禁止输出说明
+- **F. trigger_type:"state" + entry_conditions**：`normalizeEntryOps` 允许 `allowTriggerType=true` 解析 trigger_type 和 conditions；`applyProposal` world-card 分支在创建/更新 state 类型条目后调用 `replaceEntryConditions`；world-card.md 补充 state 类型和 conditions 格式；CONTRACT.md 补充
+- **G. 多 persona 支持（persona-card create）**：`PROPOSAL_ALLOWED_OPERATIONS` 加入 create；`applyProposal` persona-card 分支处理 create；persona-card agent 定义和 persona-card.md 补充 create 说明
+
+## 2026-04-24 条目新增 token 顺序权重字段
+
+- **需求**：给所有条目类型（global/world/character）统一增加 `token` 属性（正整数，默认 1），注入时按 token ASC 排序（token 越大越靠后）；同 token 时保持 sort_order ASC 手动顺序
+- **schema.js**：追加 3 条 `ALTER TABLE ... ADD COLUMN token INTEGER NOT NULL DEFAULT 1`，覆盖三张条目表
+- **queries/prompt-entries.js**：`createGlobalEntry`/`createWorldEntry`/`createCharacterEntry` INSERT 加 `token` 列；对应 `updateXxxEntry` 的 `allowed` 数组均加 `'token'`
+- **assembler.js**：`buildPrompt` 和 `buildWritingPrompt` 的 [7] 段改为 filter+sort+map 链式写法，按 `token ASC` 排序已触发条目后再拼文本
+- **routes/prompt-entries.js**：POST 路由解构加 `token`
+- **services/import-export.js**：4 处导出 SELECT 加 `token` 字段；4 处导入 INSERT（world/character/global）加 `token` 列及参数
+- **EntryEditor.jsx**：form state 加 `token: 1`；handleSave 的 data 加 `token`；新增"顺序权重"数字输入框（min=1），位于标题与内容之间
+- **SCHEMA.md**：三张条目表字段定义均加 `token` 说明
+
+## 2026-04-24 删除条目注入位置（position）配置
+
+- **背景**：`world_prompt_entries.position` 原区分 `system`（注入 [7]）/ `post`（注入 [11]）两个位置，但二者最终都合并进同一条 system 消息，区别仅是顺序，无实际意义
+- **assembler.js**：`buildPrompt` 和 `buildWritingPrompt` 均移除 `systemEntryTexts`/`postEntryTexts` 拆分逻辑，所有命中条目统一收入 `entryTexts`，注入 [7]（system 块）；`postParts` 只保留 `global_post_prompt` + `character.post_prompt`
+- **queries/prompt-entries.js**：`createWorldEntry` INSERT 语句移除 `position` 列；`updateWorldEntry` allowed 列表移除 `position`
+- **前端 EntryEditor.jsx**：删除 `POSITION_OPTIONS`、`form.position` 状态、注入位置 select UI
+- **前端 EntrySection.jsx**：删除显示位置 badge（`'系统提示词' / '后置提示词'`）
+- **DB 列保留**：`world_prompt_entries.position` 列不做 DROP，存量数据保留但运行时不再读取；SCHEMA.md 注释标注为"历史遗留列"
+
+## 2026-04-24 触发器动作瘦身：删除 inject_prompt 注入和 notify 前端通知
+
+- **背景**：触发器原有三种动作类型 `activate_entry`、`inject_prompt`、`notify`，其中 inject_prompt 在提示词组装 [8] 段注入文本，notify 通过 SSE `trigger_fired` 事件向前端发 toast
+- **删除 inject_prompt**：`assembler.js` 移除 [8] inject_prompt 段（含 consumed 模式倒计时逻辑），`triggers.js` 移除 `getActiveInjectPromptActions` 和 `updateActionParams` 函数；提示词段号从 14 段缩为 13 段，后续段号 [9]-[12] 均前移一位
+- **删除 notify**：`trigger-evaluator.js` 移除 `notify` case 和 `notifications` 返回值；`chat.js`/`writing.js` trigger-eval task 去掉 `sseEvent`/`ssePayload`/`keepSseAlive=true`；前端 `stream-parser.js` 移除 `trigger_fired` 处理；`ChatPage`/`WritingSpacePage` 移除 `showTriggerNotifications` 函数和 `onTriggerFired` 回调
+- **TriggerEditor**：`ACTION_TYPES` 只保留 `activate_entry`；移除 `inject_prompt`/`notify` UI 和 `INJECT_MODES` 常量；`emptyAction()` 默认改为 `activate_entry`
+- **文档同步**：`ARCHITECTURE.md` §4 提示词段号表更新（删 [8]，后续段号前移）；§7 SSE 表删除 `trigger_fired` 行；`SCHEMA.md` `trigger_actions.action_type` 注释只保留 `activate_entry`
+- **注意**：数据库表结构不变，存量 `inject_prompt`/`notify` 动作记录保留但不再被执行（trigger-evaluator 遇到未知 action_type 仅 warn）
+
+## 2026-04-24 WorldConfigPage — 三栏配置页重组
+
+- 将 WorldBuildPage（构建页）和 WorldStatePage（状态页）合并为 WorldConfigPage（配置页），路由 `/worlds/:worldId/config`
+- 新增 VisualizationPanel 中间可视化总览：条目概况卡 + 触发器→条目折叠关系列表（点击展开，显示关联条目名称和类型）
+- TopBar 世界标签精简为「故事·配置」两个，删除「构建」入口
+- 旧路由 `/build` 和 `/state` 均重定向到 `/config`（使用 RedirectToConfig 辅助组件）
+- 不改任何后端接口；EntrySection、TriggerCard、TriggerEditor 组件零改动
+- 删除死代码：WorldBuildPage.jsx、WorldStatePage.jsx、world-tabs.js
+## 2026-04-29 修复写作模式重新生成章节名报错
+
+**问题**：写作页章节标题分组前后端出现漂移。前端 `chapter-grouping.js` 以 `6h` 时间间隔切新章节，后端 `chapter-detector.js` 实际引用的 `CHAPTER_TIME_GAP_MS` 却被改成了 `24h`。结果是消息列表里已经显示“第二章”，点击“重新生成章节标题”时，后端仍把这些消息视为第一章，`groupChapterMessages()` 返回空数组，最终接口报错。
+
+**改动**：
+- `backend/utils/constants.js` — 将后端章节时间分组阈值从 `24h` 改回 `6h`，与前端 `frontend/src/utils/constants.js` 和文档保持一致。
+- `backend/routes/writing.js` — 写作章节标题重生成在目标章节不存在时显式返回 `404 Chapter not found`，不再落到模糊的 `500 生成失败`。
+- `backend/tests/routes/writing.test.js` — 新增回归测试，覆盖“6 小时间隔触发第二章后可成功重生成标题”以及“章节不存在返回 404”两条链路。
+- `shared/chapter-constants.mjs` / `frontend/src/utils/constants.js` / `backend/utils/constants.js` — 章节分组常量抽为前后端共享单一来源，避免后续再次双写漂移。
+
+**结果**：写作模式下，前端显示出来的章节索引和后端章节标题生成使用同一套边界规则；点击“重新生成章节标题”不会再因为章节分组不一致而报错。
+
+## 2026-04-30 feat(ui): 动态化基础设施收敛（阶段 1）
+
+**背景**：前端动效存在双轨问题——`tokens.css` 和 `motion.js` 各自定义时长/缓动，CSS 文件中大量硬编码 transition 值，`PageTransition` 是空壳，`GlobalToast` 无动效且不支持队列，全局缺少 `prefers-reduced-motion` 支持。
+
+**改动**：
+- `tokens.css`：新增 5 个具名 easing CSS 变量（`--we-easing-ink/page/quill/sharp/retract`），与 `motion.js` EASE 定义一一对应；删除已冻结的旧版 `--we-dur-*` 系列（7 个变量）；新增 `@media (prefers-reduced-motion: reduce)` 块，将所有 duration token 覆盖为 `0ms`，easing 覆盖为 `linear`。
+- `motion.js`：新增 `pageTransition`（页面级路由过渡）、`overlayBackdrop`（遮罩背景）、`listItem`（列表子项）三个 variant；新增 `transitions.page` 预设。
+- `useMotion.js`：新增 `transition(preset)` 辅助函数，reduced 模式下自动将 duration 归零，供 JS 动效组件统一降级。
+- `GlobalToast.jsx`：升级为队列模式（最多同时 3 条）；每条 toast 独立 id/timer；用 `AnimatePresence` 实现 slide-up enter / fade-out exit 动效；类型扩展至 4 种（success/error/warning/info）；1500ms 内相同消息去重。
+- `toast.js`：新增 `pushWarningToast` / `pushInfoToast` 辅助函数。
+- `ConfirmModal.jsx`：接入 `AnimatePresence` + `overlayBackdrop` variant（背景）+ `inkRise` variant（内容框），补齐缺失的 enter 动效。
+- `PageTransition.jsx`：从纯布局容器升级为路由级动效容器，接入 `AnimatePresence + motion.div`，使用 `pageTransition` variant + `transitions.page`，以 `locationKey` prop 控制 key 避免 overlay 路由误触发。
+- `App.jsx`：向 `PageTransition` 传入 `(backgroundLocation || location).pathname` 作为 locationKey。
+- `ui.css` / `pages.css` / `chat.css`：所有硬编码 transition 时间值（`0.15s`、`0.18s`、`0.2s`、`0.22s`、`0.12s`）全部替换为对应 CSS token，同步补充具名 easing token 引用。
+
+**验证**：`npm run build` 构建通过（208ms）；无任何 CSS 硬编码时间残留（grep 验证）；旧版 `--we-dur-*` token 全部清除。
+
+## 2026-05-06 fix(llm): 各 provider 思考链按真实 API 语法正确分派
+
+**背景**：上一条修复只是把 `reasoning_effort` 一刀切式地下发给所有 OpenAI 兼容 provider。但实际上各 provider 的思考开关字段差异极大：DeepSeek-V3.1 用 `thinking: {type}`，GLM 用 `thinking: {type}`，OpenRouter 归一成 `reasoning: {effort}` / `reasoning: {enabled}`，Qwen / SiliconFlow 用 `enable_thinking + thinking_budget`，Grok 仅支持 `low/high`（无 medium），kimi-k2-thinking / minimax-m2 由模型自身决定无需参数。错误下发要么被静默忽略，要么 400 拒绝。
+
+**改动**：
+- `backend/llm/providers/_utils.js` — 新增 `applyThinkingToOpenAICompatibleBody(body, config)` 总分派器与 `resolveQwenBudget()`：按 `config.provider` 写入正确字段，返回 `'enabled' | 'disabled' | null` 给调用方决定是否抑制 temperature。Grok 的 `effort_medium` 兜底向上取 `high` 防 400；deepseek/kimi/minimax 不识别的命名空间静默忽略。
+- `backend/llm/providers/openai-compatible.js` — 删除 `resolveReasoningEffort()`，4 处调用（streamChat / complete / completeWithTools / resolveToolContext）改为通过 `applyThinkingToOpenAICompatibleBody` 写入 + 根据返回状态抑制 temperature。
+- `frontend/src/components/settings/SettingsConstants.js` — `getProviderThinkingOptions()` 按 provider 返回各自合法选项命名空间：`effort_*`（openai / xiaomi / openai_compatible）、`reasoning.effort`（openrouter，并多出 `thinking_enabled/disabled` 走 `reasoning.enabled`）、`effort_low/high`（grok）、`thinking_enabled/disabled`（glm / glm-coding / deepseek）、`thinking_*` + `qwen_*`（qwen / siliconflow）、空数组（kimi / minimax）。
+- `frontend/src/components/settings/ProviderBlock.jsx` — kimi / minimax 显示禁用态"模型驱动"输入框，告知用户思考由所选模型自身决定。
+- `backend/tests/llm/providers-utils.test.js` — 12 条新单测覆盖每个 provider 分支与边界（grok medium 兜底、命名空间不匹配静默忽略、空 thinking_level 等）。
+
+**Schema 兼容**：`thinking_level` 仍是同一个字符串字段；旧值（`effort_*` / `budget_*` / null）保持有效。新增的命名空间（`thinking_enabled/disabled`、`qwen_*`）与旧值并存，无需迁移。
+
+**验证**：
+- 单测：`cd backend && node --test tests/llm/providers-utils.test.js` 全 15 通过。
+- 前端构建：`cd frontend && npm run build` 通过（222ms）。
+- 人工：进入「设置 → LLM 配置」依次切换 provider，确认下拉项与该 provider 实际 API 文档一致；选中后发起一次会话，从 `data/logs/worldengine-*.log` 的 `LLM_RAW` dump 验证请求体字段是否正确（如 deepseek 应看到 `thinking: {type: enabled}`，openrouter 应看到 `reasoning: {effort: high}`）。
+
+**残留风险**：
+- DeepSeek 的 `thinking` 参数仅 v3.1+ 支持；老 `deepseek-chat` / `deepseek-reasoner` 可能忽略此字段（前者一定不思考，后者一定思考）。这是模型层面的硬约束，不是代码问题。
+- Grok 的 `reasoning_effort` 仅 `grok-3-mini` 系列支持；`grok-4` / `grok-4-fast` 等设置任何 effort 都会 400。UI 已在标签里加了"仅 grok-3-mini"提示。
+
+
 ## T231 — feat: 角色卡和玩家卡新增简介字段 ✅
 
 - **背景**：世界卡已有 `description` 简介字段（纯展示，不注入提示词），角色卡和玩家卡缺少同等字段

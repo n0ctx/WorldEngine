@@ -50,7 +50,7 @@
 
 | 层 | 技术 |
 |---|---|
-| 前端 | React 18 + Vite + TailwindCSS + Zustand |
+| 前端 | React 19 + Vite + TailwindCSS + Zustand |
 | 后端 | Node.js + Express + ES Modules |
 | 数据库 | SQLite（better-sqlite3） |
 | 向量 | OpenAI embeddings 或 Ollama embeddings（可选） |
@@ -62,8 +62,14 @@
 ```
 /frontend/src/api/              # 所有 fetch 封装，禁止在组件内直接调用
 /frontend/src/styles/           # CSS 变量与全局样式（tokens.css 定义所有 --we-* 变量）
-/frontend/src/components/book/  # 书卷风 UI 组件（TopBar、SealStampAnimation、CharacterSeal、BookSpread 等）
-/backend/routes/                # HTTP 路由，只做参数校验，不含业务逻辑
+/frontend/src/components/book/   # 书卷风 UI 组件（TopBar、SealStampAnimation、CharacterSeal、BookSpread 等）
+/frontend/src/components/state/  # 状态字段组件（StateFieldEditor、StateFieldList、StateValueField、EntryEditor、EntrySection 等）
+/frontend/src/components/chat/   # 聊天消息渲染（MessageItem、ChatHistory 等）
+/frontend/src/components/ui/     # 通用 UI 原子（ConfirmModal、FormGroup、EditPageShell 等）
+/frontend/src/components/{worlds,characters,session,settings,prompt,writing,blocks,assistant}/
+                                 # 各业务域功能组件，按领域分包
+/frontend/src/pages/             # 页面级组合（ChatPage、CharacterEditPage、WorldEditPage 等 10 个页面）
+/backend/routes/                 # HTTP 路由，只做参数校验，不含业务逻辑
 /backend/services/              # 业务逻辑层
 /backend/db/queries/            # 所有 DB 操作，路由层禁止直接查询
 /backend/memory/recall.js       # 状态/时间线/摘要渲染，注入 [5][6][7][9][10]
@@ -89,25 +95,16 @@ cd frontend && npm run dev     # 前端 http://localhost:5173
 cd backend  && npm run dev     # 后端 http://localhost:3000
 cd frontend && npm run build   # 构建前端
 cd backend  && npm run db:reset  # 重置数据库（开发用）
+npm run check                  # 全量检查：lint + 前后端 + assistant 单测（提交前必跑）
+npm run test:frontend          # 仅跑前端单测（vitest run）
+npm run test:backend           # 仅跑后端单测
+npm run lint                   # eslint + assistant 语法检查 + git 健康检查
+npm run test:e2e               # 端到端测试（需 backend 已启动）
 ```
 
 日志模式通过 `data/config.json` 的 `logging` 配置块控制：默认 `mode="metadata"`；需要原文预览时切到 `mode="raw"`，并按需开启 `logging.prompt.enabled` / `logging.llm_raw.enabled`。
 
 **日志文件**：`data/logs/worldengine-YYYY-MM-DD.log`（按日轮换），如 `data/logs/worldengine-2026-04-20.log`。
-
----
-
-## 执行清单
-
-开始任务前：
-- 先读 `CLAUDE.md`、`SCHEMA.md`、`ARCHITECTURE.md`、`CHANGELOG.md`
-- 修改任何文件前，先读该文件当前内容
-- 任务超过 3 步时，先列计划并等用户确认
-
-结束任务前：
-- 明确写出验证方式，而不是只说“已完成”
-- 判断是否需要同步更新 `SCHEMA.md` / `ARCHITECTURE.md` / `CHANGELOG.md`
-- 若改动影响入口规范，只更新 `CLAUDE.md`，不要把正文再复制进 `AGENTS.md`
 
 ---
 
@@ -120,11 +117,6 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 | 修改 agent 规则、任务流程、锁定文件规则、文档分工 | `CLAUDE.md` |
 | 引入新的兼容约束、隐性坑点、人工决策、迁移注意事项 | `CHANGELOG.md` |
 
-禁止事项：
-- 不要只改 `CHANGELOG.md` 来描述当前行为
-- 不要在 `CLAUDE.md` 重复维护会频繁漂移的运行时细节
-- 不要在 `SCHEMA.md` 记录 UI 或 prompt 运行流程
-
 ---
 
 ## 任务回执模板
@@ -132,11 +124,11 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 任务结束时，回复至少包含以下 5 项：
 
 ```md
-修改文件：
-验证方式：
-同步文档：
-锁定文件：
-残留风险：
+修改文件：<逐文件列出，含路径>
+验证方式：<具体操作步骤，如"访问 /worlds → 创建世界 → 确认字段 X 显示正确"，禁止写"运行项目"等模糊描述>
+同步文档：<列出已更新的文档，或写"无需同步"并说明理由>
+锁定文件：<是否碰了锁定文件；碰了须说明改动点；未碰写"无">
+残留风险：<已知但未处理的问题，或写"无">
 ```
 
 ---
@@ -228,6 +220,10 @@ cd backend  && npm run db:reset  # 重置数据库（开发用）
 - 确认弹窗统一用 `ConfirmModal`，禁止页面内联定义局部弹窗
 - 新组件需同步在 `components/index.js` 中注册后方可使用
 - 没有现成组件时，先参照现有组件风格和 `DESIGN.md` 指引创建，放入 `components/ui/`
+
+**已知技术债（勿重复踩）**
+- `DatetimeSplitInput.jsx` / `DatetimePartInput.jsx` 位于 `components/state/`，尚未注册进 `components/index.js`，只能通过直接 import 使用；修改该目录时须补全注册
+- `type='table'` 状态字段有独立渲染和列编辑器逻辑，见 `StateFieldEditor.jsx`；向 state 系统新增类型时需同步参照
 
 **文件命名约定**
 - 前端 `frontend/src/api/`：统一 kebab-case（如 `import-export.js`、`session-timeline.js`）
