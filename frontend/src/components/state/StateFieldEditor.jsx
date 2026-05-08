@@ -204,7 +204,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
-      <div className="we-dialog-panel w-full max-w-lg flex flex-col max-h-[90vh]">
+      <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header">
           <h2>{field ? '编辑字段' : '新建字段'}</h2>
         </div>

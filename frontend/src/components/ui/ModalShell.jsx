@@ -11,7 +11,7 @@ const MotionDiv = motion.div;
  * - 容器：paper-base 底色，顶部陶土细线，多层阴影体现悬浮质感
  * - 无内置 padding，由子组件自行控制布局
  */
-export default function ModalShell({ children, onClose, maxWidth = 'max-w-lg' }) {
+export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' }) {
   // 记录 mousedown 是否发生在背景本身（而非弹窗内容）
   const mouseDownOnBackdrop = useRef(false);
 
