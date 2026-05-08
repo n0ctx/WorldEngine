@@ -27,5 +27,7 @@ export async function execute(args, ctx = {}) {
   };
   const normalized = normalizeProposal(proposal);
   const result = await applyProposal(normalized, ctx.worldRefId ?? null);
-  return { success: true, type: 'persona-card', operation: args.operation, entityId: result.entityId ?? null, summary: `${args.operation} 玩家卡 ${args.changes?.name ?? args.entityId ?? ''}` };
+  // persona-card 的 entityId 始终是 worldId（create/update 都依赖 worldId 定位 persona），
+  // 不能用 result.id（新 persona 的主键）覆盖，否则后续链式 update 会拿 personaId 当 worldId 查表。
+  return { success: true, type: 'persona-card', operation: args.operation, entityId: args.entityId ?? null, personaId: result?.id ?? null, summary: `${args.operation} 玩家卡 ${args.changes?.name ?? args.entityId ?? ''}` };
 }

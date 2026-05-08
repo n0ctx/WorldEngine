@@ -1,7 +1,7 @@
 {
   "type": "module",
   "scripts": {
-    "test": "node --test --test-isolation=process \"tests/**/*.test.js\"",
-    "test:coverage": "node --test --test-isolation=process --experimental-test-coverage \"tests/**/*.test.js\""
+    "test": "node --test --test-isolation=process \"tests/**/*.test.{js,mjs}\"",
+    "test:coverage": "node --test --test-isolation=process --experimental-test-coverage --test-coverage-include=\"server/**\" \"tests/**/*.test.{js,mjs}\""
   }
 }

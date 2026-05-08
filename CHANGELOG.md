@@ -3,6 +3,102 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-08 fix(assistant): 修复 codex review 指出的两处回归
+
+**背景**：上一次覆盖率改动引入两个 P2 回归，由 `/codex:review` 检出。
+
+- `assistant/package.json`：`test:coverage` 的 `--test-coverage-include` 改用双引号包裹 glob。原单引号在 Windows `cmd.exe` 下不会被剥离，glob 字面传入会匹配不到任何文件，导致覆盖率统计在 Windows 下完全失效。
+- `assistant/server/tools/apply-persona-card.js`：persona-card 的 `entityId` 在 create/update 中始终代表 worldId（与 `normalize-proposal.js` 语义一致）。原实现把 create 后的返回值改为 `result.id`（新 persona 主键），后续链式 update 会拿 personaId 当 worldId 查表导致失败。修复：始终回填 `args.entityId`，新 persona 主键单独放到 `personaId` 字段。
+
+**验证**：`npm run -s test --prefix assistant` 全 115 个用例通过。
+
+## 2026-05-08 test(coverage): assistant 单测覆盖率拉到 92%+
+
+**背景**：上一轮覆盖率任务遗留 `assistant/` 自身覆盖率仅 46.58%；`parent-agent.js`/`routes.js`/`sub-agent.js`/`task-store.js`/`plan-doc.js` 等大文件覆盖率均偏低。本次专项补测把 assistant workspace 拉到 92.47% 行覆盖（≥ 80% 目标达成）。
+
+**配置调整**
+- `assistant/package.json`：
+  - `test` glob 改为 `tests/**/*.test.{js,mjs}`，修复历史遗留——原 `*.test.js` 不匹配 `parent-agent.test.mjs` / `plan-doc.test.mjs`，导致它们从未被执行（隐藏问题）。
+  - `test:coverage` 加 `--test-coverage-include='server/**'`，只统计 assistant 自身；不再把 import 进来的 backend/shared 代码记入 assistant 覆盖率。
+
+**新增/扩充测试（5 → 13 文件，34 → 113 tests）**
+- 新增 `tests/task-store.test.js`：CRUD + SSE 订阅/广播/失败客户端隔离/endAllSse 等全路径。
+- 扩充 `tests/plan-doc.test.mjs`：补 `writePlanDoc/readPlanDoc/deletePlanDoc/ensurePlanDir`、空文档解析、completedAt 渲染。
+- 扩充 `tests/parent-agent.test.mjs`：通过 `__testables` 覆盖 `wrapApply` 异常捕获、`buildContextBlock`、`buildMetaTools` 5 个工具的成功/失败/dispatch 分支；用 mock LLM 跑通 `runParentAgent` 的流式成功 / 流式抛错 / approved sentinel 三条路径。
+- 新增 `tests/sub-agent.test.js`：`__testables` 三种 `toLLMTool` 形态、`resolveEntityRef`、`buildUserMessage`；`dispatchSubAgent` 走 mock LLM 的成功 / LLM 抛错 / tool 抛错 / emitFn 事件序列。
+- 新增 `tests/normalize-proposal-extra.test.js`：补 `stateFieldOps` 表格类型校验（columns/min/max/重复 key/未声明列等 8 个分支）、`normalizeEntryOps` 校验全路径、`applyProposal` 的 world-card delete / character-card delete / persona-card create / state field update + delete / UNIQUE 冲突幂等 / 各种 entityId 缺失抛错。
+- 新增 `tests/routes-http.test.js`：用 Express + `node:http` 装路由，覆盖 `/extract-characters` `/confirm-characters` `/agent` `/agent/:id/cancel|approve|truncate|delete|plan-doc` 全部端点 + SSE 收流。
+- 新增 `tests/tools/apply-tools.test.js`：6 个 apply_* 工具的 create / update / delete 全路径（用 backend 测试沙盒里的真 SQLite + mock LLM），含 `apply_global_config` 的 api_key 剥离。
+- 新增 `tests/tools/list-resources.test.js`：4 个 target、worldId 必填校验、>200 条截断。
+- 新增 `tests/tools/project-reader.test.js`：路径越界拒绝、读真实文件、50KB 截断。
+
+**结果**
+- 113 tests 全绿；`assistant/server/**` 行覆盖 50.25% → **92.47%**：
+  - `task-store.js` 33% → 100%
+  - `plan-doc.js` 24% → 100%
+  - `sub-agent.js` 35% → 100%
+  - `parent-agent.js` 16% → 89.82%
+  - `routes.js` 23% → 80.74%
+  - `normalize-proposal.js` 60% → 93.22%
+  - 6 个 `tools/apply-*.js` 均到 100%
+  - `tools/list-resources.js` 57% → 100%
+
+**修复了上一次列出的两个残留风险**
+- 修：`apply_world_card` / `apply_character_card` / `apply_persona_card` / `apply_css_snippet` / `apply_regex_rule` 的 `entityId` 回填逻辑——原 `result.entityId ?? null` 与下游 service 返回的 `{id}` 字段名不一致，create 时永远回填为 null。改为 `result?.id ?? result?.entityId ?? args.entityId ?? null`，create 后正确回填新建实体 id；apply-tools 测试加 `assert.equal(created.entityId, db_row.id)` 防回归。
+- 测：补 `runParentAgent` 在 Step 1（resolveToolContext）通过工具调用切到 `completed` / `awaiting_approval` 时的两条早返回分支：用 `MOCK_LLM_TOOL_CALLS` 注入 `finalize_task` / `write_plan_doc` 触发，断言 `delta` 不再发出、终态分支发 done、awaiting_approval 分支不发 done 保持长连接。`parent-agent.js` funcs 91.67% → **100%**，line 89.82% → **92.55%**。
+
+**残留风险**
+- assistant 测试沙盒共享 backend 的 `createTestSandbox`，启动时间对 list-resources 的 200 条截断测试约 65ms，可接受。
+
+## 2026-05-08 test(coverage): 前后端单测覆盖率拉到 80%+
+
+**背景**：基线前端 78.18%、后端 71.16%，多个薄弱模块仅有部分测试覆盖。本次集中补测使两端均超过 80% 行覆盖。
+
+**新增/扩充前端单测（135 → 139）**
+- 新增 `tests/api/long-term-memory.test.js`：覆盖读取/更新与 HTTP 错误。
+- 扩充 `tests/api/worlds.test.js`：补 `reorderWorlds` / `uploadWorldCover`（含 body.error 优先级与 body 解析失败兜底）。
+- 扩充 `tests/api/chat.test.js`：补 `editAssistantMessage` / `retitle` / `impersonate` / `stopGeneration` / `regenerate` 错误回调。
+- 扩充 `tests/api/persona-state-values.test.js`：补 `*ByPersonaId` 系列与 `reset*` 兜底分支。
+- 扩充 `tests/api/session-state-values.test.js`：补 `patchSessionStateValue` 三个 category 分支与失败错误。
+- 扩充 `tests/api/character-state-values.test.js` / `world-state-values.test.js`：补 `.json()` 解析失败的状态码兜底。
+
+**新增后端单测（≈45 个新用例）**
+- `tests/routes/worlds.test.js`：覆盖 11 个 handler 的参数校验、404、reorder、cover 上传 400/404。
+- `tests/routes/chat-extra.test.js`：补 `/chat`/`/regenerate`/`/continue`/`/edit-assistant`/`/retitle`/`/impersonate` 的参数校验、404、retitle 空标题、retitle LLM 抛错 500、impersonate 空 character/world 400。
+- `tests/services/long-term-memory.test.js`：覆盖读写、append（含触发 compress、空内容跳过）、compress（剥 `<think>`、空返回、LLM 抛错被吞）、`restoreLtmFromTurnRecord` 三种分支。
+- `tests/services/persona-state-fields.test.js`：create 初始化所有 persona、update 仅刷新未自定义、delete 级联删除、reorder 排序。
+- `tests/utils/session-summary-vector-store.test.js`：loadStore 缺文件/损坏、deleteBySessionId 不写盘、search 各种过滤/topK/维度/零向量。
+- `tests/utils/turn-dialogue.test.js` + `tests/utils/token-counter.test.js`：边界与 nullish 安全。
+
+**配置调整**
+- `backend/package.json`：`test:coverage` 增加 `--test-coverage-exclude="../assistant/**"` 与 `--test-coverage-exclude="tests/**"`。理由：assistant 是独立 workspace，有自己的 `npm run test:coverage`；后端覆盖率不应再把 assistant 代码计入。tests 目录自身为测试代码，无需被计入。
+
+**结果**
+- 前端：47 → 48 files、116 → 139 tests 全绿；`All files` 行覆盖 78.18% → **80.25%**。
+- 后端：314 → 359 tests 全绿（3 skip）；`all files` 行覆盖（已排除 assistant）71.16% → **81.16%**。
+- 已知未达成：`assistant/` 自身覆盖率仍为 46.58%（落在另一 workspace 的 `npm run test:coverage:assistant`），其 `parent-agent.js`/`routes.js`/`normalize-proposal.js` 等大文件需要专门的 LLM mock 与 plan-doc fixture，本轮未触及。
+
+**残留风险**
+- `routes/worlds.js` 的 cover 上传成功路径（`updateWorld(cover_path)`）未测：multer 在 Express 5 + Node 25 自带 `fetch`+`FormData` 上传时，req.file 在我们的服务器入口下未被填充（隔离环境可复现）。改为只测 400/404 分支，cover_path 写库由 `updateWorld` 的现有测试间接覆盖。
+- `chat.js` 流式生成主循环（`runStream`）仍由 `chat.test.js` 既有 SSE 测试覆盖，本次未深入流内分支。
+
+## 2026-05-08 fix(tests): 修复前端 15 个历史遗留测试 failures
+
+**背景**：上一次修复后剩余的 15 个前端测试失败均为生产代码已演化但测试未同步，全部是测试侧问题。
+
+**修复（116 tests, 0 failures）**
+- `tests/assistant/api.test.js`：旧 `chatAssistant`/`executeProposal` API 已被 `streamAgent`/`approveTask` 替换；改写为单 `onEvent` 回调断言事件序列，并断言 `approveTask` 命中 `/api/assistant/agent/:id/approve`
+- `tests/api/config.test.js`：移除已删除的 `updateApiKey`/`updateAuxApiKey`/`updateEmbeddingApiKey`/`updateWritingApiKey`，改测唯一的 `updateProviderKey(provider, key)` 命中 `/api/config/provider-key`
+- `tests/hooks/use-settings-config.test.jsx`：mock 与断言全部从分散的 `update*ApiKey` 收敛到 `updateProviderKey`
+- `tests/pages/settings-page.test.jsx`：overlay 关闭从 `click` 改为 `mouseDown`+`mouseUp`（生产代码使用按下/抬起一致性判定）
+- `tests/pages/world-edit-page.test.jsx`：`WorldEditPage` 不再在页内编辑默认状态值，移除 save-weather 交互与 `updateWorldStateValue` 断言
+- `tests/pages/persona-edit-page.test.jsx`：补 `updatePersonaStateValueByPersonaId`/`getPersonaStateValuesByPersonaId` mock；状态值保存断言改为 `(worldId, personaId, fieldKey, valueJson)` 四参数
+- `tests/components/state/EntryEditor.test.jsx`：作用域/字段已拆为两个 Select；先选 `世界` 再选 `温度`，option 文本断言对应去掉 scope 前缀
+- `tests/components/state/EntrySection.test.jsx`：`-u` 重新生成快照，纳入新增的禁用切换按钮
+- `tests/pages/chat-page.test.jsx`：`InputBox` 不再暴露 `onClear`，移除清空消息交互与对应 `confirm` 断言
+
+**验证**：`cd frontend && npx vitest run` → 47 files / 116 tests 全绿；`npm run lint` 通过。
+
 ## 2026-05-08 fix(tests): 修复前后端测试套件，消除 lint 错误
 
 **背景**：`npm run check` 跑出 10 个 ESLint 错误 + 7 个后端测试失败，均为前几次功能迭代遗留。
