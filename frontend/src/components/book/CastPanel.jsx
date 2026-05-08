@@ -248,9 +248,9 @@ export default function CastPanel({ worldId, sessionId, activeCharacters, onActi
 
   useEffect(() => {
     let cancelled = false;
-    if (!worldId) { setWorldName(null); return; }
-    getWorld(worldId).then((w) => {
-      if (!cancelled) setWorldName(w?.name ?? null);
+    const p = worldId ? getWorld(worldId) : Promise.resolve(null);
+    p.then((w) => {
+      if (!cancelled) setWorldName(worldId ? (w?.name ?? null) : null);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [worldId]);

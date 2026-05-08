@@ -5,6 +5,7 @@ import { createTestSandbox, freshImport } from '../../helpers/test-env.js';
 import {
   insertCharacter,
   insertCharacterStateField,
+  insertPersona,
   insertPersonaStateField,
   insertWorld,
   insertWorldStateField,
@@ -71,6 +72,7 @@ const valueSuites = [
     },
     createOwner() {
       const world = insertWorld(sandbox.db, { name: '值世界-persona' });
+      insertPersona(sandbox.db, world.id, { name: '测试玩家' });
       return { worldId: world.id, lookupId: world.id, fieldKey: 'trust' };
     },
     upsertName: 'upsertPersonaStateValue',

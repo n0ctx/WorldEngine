@@ -11,12 +11,9 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
     getLongTermMemory(sessionId)
-      .then((res) => { if (!cancelled) setContent(res?.content ?? ''); })
-      .catch((err) => { if (!cancelled) setError(err.message || '加载失败'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .then((res) => { if (!cancelled) { setError(''); setContent(res?.content ?? ''); setLoading(false); } })
+      .catch((err) => { if (!cancelled) { setError(err.message || '加载失败'); setLoading(false); } });
     return () => { cancelled = true; };
   }, [sessionId]);
 

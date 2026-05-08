@@ -92,6 +92,7 @@ test('updateWorldDefaultStateValueValidated 在世界或字段不存在时抛错
 
 test('resetPersonaStateValuesValidated 会清空 runtime 但保留 default，并自动 ensure persona', async () => {
   const world = insertWorld(sandbox.db, { name: 'persona-重置' });
+  insertPersona(sandbox.db, world.id, { name: '重置玩家' });
   insertPersonaStateField(sandbox.db, world.id, {
     field_key: 'gold',
     label: '金币',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { listWorldEntries } from '../api/prompt-entries';
 import EntrySection from '../components/state/EntrySection';
@@ -9,19 +9,16 @@ export default function WorldConfigPage() {
   const navigate = useNavigate();
   const [entries, setEntries] = useState([]);
 
-  useEffect(() => {
+  const refresh = useCallback(() => {
     listWorldEntries(worldId).then(setEntries).catch(() => {});
   }, [worldId]);
 
-  function refresh() {
-    listWorldEntries(worldId).then(setEntries).catch(() => {});
-  }
+  useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
-    const h = () => refresh();
-    window.addEventListener('we:world-updated', h);
-    return () => window.removeEventListener('we:world-updated', h);
-  }, [worldId]);
+    window.addEventListener('we:world-updated', refresh);
+    return () => window.removeEventListener('we:world-updated', refresh);
+  }, [refresh]);
 
   const alwaysEntries  = entries.filter((e) => e.trigger_type === 'always');
   const keywordEntries = entries.filter((e) => e.trigger_type === 'keyword');

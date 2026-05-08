@@ -37,11 +37,10 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  *   onClose()
  */
 export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose }) {
-  const mouseDownOnBackdrop = useRef(false);
   // 已落库的列 key 不允许重命名：列 key 是 *_state_values 的 JSON key，也是 entry_conditions.target_field 的列定位。
   // 改名会让历史值/条件失联，且不做后端迁移。
-  const lockedColumnKeys = useRef(
-    new Set(
+  const [lockedColumnKeys] = useState(
+    () => new Set(
       (field?.type === 'table' && Array.isArray(field?.table_columns))
         ? field.table_columns.map((c) => c?.key).filter(Boolean)
         : []
@@ -318,7 +317,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
               <label className={labelCls}>表格列（仅支持数值，最少 1 列）</label>
               <div className="we-state-table-cols">
                 {form.table_columns.map((col, idx) => {
-                  const keyLocked = lockedColumnKeys.current.has(col.key);
+                  const keyLocked = lockedColumnKeys.has(col.key);
                   return (
                     <div key={idx} className="we-state-table-col-card">
                       <div className="we-state-table-col-header">

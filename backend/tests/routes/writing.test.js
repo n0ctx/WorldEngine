@@ -28,7 +28,7 @@ const ctx = createRouteTestContext('writing-route-suite');
 
 after(() => ctx.close());
 
-test('写作会话角色管理与消息清空路由可正常工作', async () => {
+test('写作会话角色管理路由可正常工作', async () => {
   resetMockEnv();
 
   const world = insertWorld(ctx.sandbox.db, { name: '写作世界' });
@@ -47,19 +47,6 @@ test('写作会话角色管理与消息清空路由可正常工作', async () =>
   const activeCharacters = await res.json();
   assert.equal(activeCharacters.length, 1);
   assert.equal(activeCharacters[0].id, character.id);
-
-  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '旧消息', created_at: 1 });
-  insertTurnRecord(ctx.sandbox.db, session.id, { round_index: 1, summary: '旧摘要' });
-
-  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/messages`, {
-    method: 'DELETE',
-  });
-  assert.equal(res.status, 200);
-
-  const msgCount = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM messages WHERE session_id = ?').get(session.id).c;
-  const turnCount = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM turn_records WHERE session_id = ?').get(session.id).c;
-  assert.equal(msgCount, 0);
-  assert.equal(turnCount, 0);
 });
 
 test('写作 generate 与 continue 路由会落库并返回 SSE', async () => {

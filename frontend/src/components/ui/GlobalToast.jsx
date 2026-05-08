@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants, transitions } from '../../utils/motion.js';
+import { transitions } from '../../utils/motion.js';
 
 const MAX_TOASTS = 3;
 const DEDUP_MS   = 1500;

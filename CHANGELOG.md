@@ -3,6 +3,27 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-08 fix(tests): 修复前后端测试套件，消除 lint 错误
+
+**背景**：`npm run check` 跑出 10 个 ESLint 错误 + 7 个后端测试失败，均为前几次功能迭代遗留。
+
+**前端 ESLint 修复（0 errors，4 warnings 均为已知 warn-only）**
+- `frontend/eslint.config.js`：安装 `eslint-plugin-react`，添加 `react/jsx-uses-vars` 规则，消除 `<motion.X>` 引用对象被误报未使用的假阳性
+- `GlobalToast.jsx`：删除真正未使用的 `variants` import
+- `StateFieldEditor.jsx`：删除未使用的 `mouseDownOnBackdrop` ref；将 `lockedColumnKeys` 从 `useRef` 改为 `useState` 初始化函数（修复渲染期 ref.current 访问）
+- `LongTermMemoryModal.jsx`：将同步 `setLoading/setError` 移到 Promise 回调，修复 effect 同步 setState 警告
+- `CastPanel.jsx`：同上，`setWorldName(null)` 移至 Promise 链，消除同步 setState
+- `WorldConfigPage.jsx`：`refresh` 改为 `useCallback`，修复 `exhaustive-deps` 警告
+
+**后端测试修复（301 tests, 0 failures）**
+- `state-values.test.js`：persona 套件 `createOwner` 加入 `insertPersona`，使 `upsertPersonaStateValue` 能找到 active persona
+- `state-values-extra.test.js`：`resetPersonaStateValuesValidated` 测试在 `insertPersonaStateValue` 前先创建 persona
+- `assembler.test.js`：`messages.length 2→3`（identity drift 兜底消息总在 [13]）；`maxTokens 777→577`（写作建议保留 200 token）；`next_prompt` 断言改到 messages[3]/messages[1] 而非末尾 user 消息；`char` 占位符在写作 global prompt 改为 `叙述者`
+- `assembler-shape.test.js` + `assembler-shape.snap`：`next_prompt` 锚点从 user 消息（index 4）移到 post-system（index 3）；snapshot `maxTokens 444→500`（suggestion 预留后的最低保证值）
+- `writing.test.js`：删除已被 `refactor: 移除写作会话的 clearMessages API` 移除的 DELETE messages 路由相关断言
+
+**坑点**：前端 15 个测试失败为历史遗留（git stash 验证），与本次修改无关。
+
 ## 2026-05-08 feat(entries): 状态条件 datetime 字段改为部分选择模式
 
 **背景**：datetime 类型状态字段的条件值原来是 5 段 ISO 输入框（YYYY-MM-DD T HH:MM），需要填写完整时间才能判断，无法只对"年份"或"月份"单独比较。
