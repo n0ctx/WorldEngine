@@ -29,7 +29,7 @@ function parseValue(raw) {
 }
 
 function compose(part, num) {
-  if (!part || num === '') return '';
+  if (!part) return '';
   return `${part}:${num}`;
 }
 

@@ -190,7 +190,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       }
       if (form.trigger_type === 'state') {
         const entryId = isNew ? saved.id : entry.id;
-        const validConditions = conditions.filter((c) => c.target_field && c.value);
+        const validConditions = conditions.filter((c) => c.target_field && c.value && !/^(year|month|day|hour|minute):$/.test(c.value));
         await replaceEntryConditions(entryId, validConditions);
       }
       onSave();
