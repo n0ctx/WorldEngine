@@ -124,6 +124,21 @@ export const __testables = {
 const NUMERIC_OPS = new Set(['>', '<', '=', '>=', '<=', '!=']);
 const TEXT_OPS = new Set(['包含', '等于', '不包含']);
 const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+const DATETIME_PART_RE = /^(year|month|day|hour|minute):(\d+)$/;
+
+const DATETIME_PART_INDEX = { year: 1, month: 2, day: 3, hour: 4, minute: 5 };
+
+/**
+ * 从 ISO datetime 字符串中提取指定部分（year/month/day/hour/minute）的整数值。
+ * 返回 null 表示解析失败。
+ */
+function extractDatetimePart(isoStr, part) {
+  const m = isoStr.match(ISO_DATETIME_RE);
+  if (!m) return null;
+  const idx = DATETIME_PART_INDEX[part];
+  if (!idx) return null;
+  return parseInt(m[idx], 10);
+}
 
 /**
  * 数值比较 datetime 字符串：解析年份为整数（允许任意正整数位数），
@@ -142,6 +157,18 @@ function compareDatetime(a, b) {
   return 0;
 }
 
+function applyNumericOp(cur, thr, operator) {
+  switch (operator) {
+    case '>':  return cur > thr;
+    case '<':  return cur < thr;
+    case '=':  return cur === thr;
+    case '>=': return cur >= thr;
+    case '<=': return cur <= thr;
+    case '!=': return cur !== thr;
+    default:   return false;
+  }
+}
+
 function evaluateCondition(condition, stateMap) {
   const { target_field, operator, value } = condition;
   if (!stateMap.has(target_field)) return false;
@@ -150,16 +177,18 @@ function evaluateCondition(condition, stateMap) {
     const cur = Number(current);
     const thr = Number(value);
     if (Number.isFinite(cur) && Number.isFinite(thr)) {
-      switch (operator) {
-        case '>':  return cur > thr;
-        case '<':  return cur < thr;
-        case '=':  return cur === thr;
-        case '>=': return cur >= thr;
-        case '<=': return cur <= thr;
-        case '!=': return cur !== thr;
-      }
+      return applyNumericOp(cur, thr, operator);
     }
-    // datetime 字段：解析每段为整数后逐段比较（年份允许任意正整数位数）
+    // datetime 部分比较："year:2024" / "month:3" 等格式
+    const partMatch = value.match(DATETIME_PART_RE);
+    if (partMatch) {
+      const partVal = extractDatetimePart(current, partMatch[1]);
+      if (partVal != null) {
+        return applyNumericOp(partVal, parseInt(partMatch[2], 10), operator);
+      }
+      return false;
+    }
+    // 兼容旧格式：全量 ISO datetime 字符串对比
     const cmp = compareDatetime(current, value);
     if (cmp != null) {
       switch (operator) {

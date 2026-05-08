@@ -134,6 +134,12 @@
 }
 
 /* ── Datetime Split Input（年/月/日/时/分 五段拆分输入）── */
+.we-datetime-part-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
 .we-datetime-split {
   display: inline-flex;
   align-items: center;

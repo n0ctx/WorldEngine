@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-08 feat(entries): 状态条件 datetime 字段改为部分选择模式
+
+**背景**：datetime 类型状态字段的条件值原来是 5 段 ISO 输入框（YYYY-MM-DD T HH:MM），需要填写完整时间才能判断，无法只对"年份"或"月份"单独比较。
+
+**改动**
+- `frontend/src/components/state/DatetimePartInput.jsx`（新增）：下拉选年/月/日/时/分 + 单个数字输入框，value 格式为 `"year:2024"`、`"month:3"` 等。
+- `frontend/src/components/state/EntryEditor.jsx`：条件行的 datetime 字段从 `DatetimeSplitInput` 换为 `DatetimePartInput`。
+- `frontend/src/styles/ui.css`：新增 `.we-datetime-part-input` flex 容器样式。
+- `backend/prompts/entry-matcher.js`：`evaluateCondition` 新增对 `"part:number"` 格式的识别，提取 datetime 状态值中对应段位后做数值比较；旧的全量 ISO 比较作为兼容路径保留。
+
+**不变**：`DatetimeSplitInput` 保留供状态值编辑器（StatusSection 等）使用；entry_conditions 表结构无变化，value 字段改存 part 格式字符串。
+
 ## 2026-05-08 feat(entries): 状态条件字段选择器拆分为 2-3 级联下拉
 
 **背景**：原来的状态条件下拉把所有字段平铺成"世界.时间""角色.xxx""玩家.xxx.col"，用户很难快速找到目标字段。

@@ -5,7 +5,7 @@ import { listCharacterStateFields } from '../../api/character-state-fields';
 import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
-import DatetimeSplitInput from './DatetimeSplitInput';
+import DatetimePartInput from './DatetimePartInput';
 import { pushErrorToast } from '../../utils/toast';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
@@ -363,7 +363,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
                     />
                   </div>
                   {isDatetimeField ? (
-                    <DatetimeSplitInput
+                    <DatetimePartInput
                       value={cond.value}
                       onChange={(v) => updateCondition(i, { value: v })}
                       className="we-entry-condition-value"
