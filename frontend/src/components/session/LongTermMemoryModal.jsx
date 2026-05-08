@@ -38,7 +38,7 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
 
       <div className="we-dialog-body">
         <p className="we-settings-toggle-hint mb-2">
-          每行一条，10–20 字。可加 [年月日] 或 [年月日时分] 时间前缀。开关关闭仅停止再产出与注入，已有内容保留。
+          每行一条，10–20 字。开关关闭仅停止再产出与注入，已有内容保留。
         </p>
         {loading ? (
           <p className="we-settings-toggle-hint">加载中…</p>

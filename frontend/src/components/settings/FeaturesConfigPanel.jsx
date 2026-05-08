@@ -108,8 +108,6 @@ export default function FeaturesConfigPanel({
           onChange={onToggleLtmCurrent}
         />
 
-        <hr className="we-settings-divider" />
-
         <ToggleRow
           label={isChat ? '对话日记' : '写作日记'}
           hint={isChat
