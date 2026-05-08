@@ -105,6 +105,14 @@ function buildFieldsDesc(fields, valueMap) {
       }
       if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
       if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位，例 "1000-03-15T14:30" 或 "238-04-20T00:00"），不得使用其他格式`;
+      if (f.type === 'table' && Array.isArray(f.table_columns) && f.table_columns.length) {
+        const colDesc = f.table_columns.map((c) => {
+          const lo = c.min != null ? c.min : '不限';
+          const hi = c.max != null ? c.max : '不限';
+          return `${c.key}（${c.label ?? c.key}，${lo}~${hi}）`;
+        }).join(' / ');
+        line += `，请返回对象 {列key: 数值,...}，列：[${colDesc}]，仅数值类型`;
+      }
       const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
       line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
       if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
@@ -453,6 +461,29 @@ function validateValue(value, field) {
       const items = value.map(String).filter(Boolean);
       if (items.length === 0) return field.allow_empty ? [] : undefined;
       return items;
+    }
+    case 'table': {
+      const cols = Array.isArray(field.table_columns) ? field.table_columns : [];
+      if (cols.length === 0) return undefined;
+      let obj = value;
+      if (typeof obj === 'string') {
+        try { obj = JSON.parse(obj); } catch { return undefined; }
+      }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return undefined;
+      const out = {};
+      for (const col of cols) {
+        if (!col || typeof col.key !== 'string') continue;
+        if (!(col.key in obj)) continue;
+        const raw = obj[col.key];
+        const num = typeof raw === 'number' ? raw : Number(raw);
+        if (!isFinite(num)) continue;
+        let v = num;
+        if (col.min != null && v < col.min) v = col.min;
+        if (col.max != null && v > col.max) v = col.max;
+        out[col.key] = v;
+      }
+      if (Object.keys(out).length === 0) return field.allow_empty ? {} : undefined;
+      return out;
     }
     default:
       return undefined;

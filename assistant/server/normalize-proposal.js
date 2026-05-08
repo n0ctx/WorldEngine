@@ -59,7 +59,8 @@ const log = createLogger('as-route', 'yellow');
 
 const VALID_REGEX_SCOPES = new Set(['user_input', 'ai_output', 'display_only', 'prompt_only']);
 const VALID_MODES = new Set(['chat', 'writing']);
-const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime']);
+const VALID_STATE_TYPES = new Set(['number', 'text', 'enum', 'list', 'boolean', 'datetime', 'table']);
+const COLUMN_KEY_RE = /^[a-zA-Z0-9_]+$/;
 const VALID_UPDATE_MODES = new Set(['llm_auto', 'manual']);
 const ISO_LOCAL_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const PROPOSAL_ALLOWED_OPERATIONS = {
@@ -316,7 +317,7 @@ const STATE_FIELD_KEYS = [
   'field_key', 'label', 'type', 'description', 'default_value',
   'update_mode', 'update_instruction',
   'enum_options', 'min_value', 'max_value', 'allow_empty',
-  'prefix',
+  'prefix', 'table_columns',
 ];
 
 function normalizeProposal(raw, locked = {}) {
@@ -714,14 +715,27 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('max_value' in data) normalized.max_value = normalizeNumberOrNull(data.max_value);
       if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
       if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
+      if ('table_columns' in data) normalized.table_columns = normalizeTableColumns(data.table_columns, idx);
       // 仅在本次 update 显式带上 type 时校验类型相关约束；type 缺省时无法判定原字段类型，留给后续业务层
       if ('type' in data) {
         const isDatetime = data.type === 'datetime';
+        const isTable = data.type === 'table';
         if (!isDatetime && normalized.prefix && normalized.prefix.trim()) {
           throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
         }
         if (isDatetime && 'default_value' in data) {
           assertDatetimeDefaultValue(normalized.default_value, idx);
+        }
+        if (isTable) {
+          if (!Array.isArray(normalized.table_columns) || normalized.table_columns.length === 0) {
+            throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是非空数组（type='table' 时）`);
+          }
+          if (normalized.enum_options || normalized.min_value != null || normalized.max_value != null || (normalized.prefix && normalized.prefix.trim())) {
+            throw new Error(`提案格式错误：stateFieldOps[${idx}] type='table' 时禁止填写 enum_options / min_value / max_value / prefix`);
+          }
+          if ('default_value' in data) assertTableDefaultValue(normalized.default_value, normalized.table_columns, idx);
+        } else if (normalized.table_columns) {
+          throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
         }
       }
       return normalized;
@@ -749,13 +763,87 @@ function normalizeStateFieldOps(rawOps, type) {
     if ('min_value' in raw) normalized.min_value = normalizeNumberOrNull(raw.min_value);
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
     if ('prefix' in raw) normalized.prefix = String(raw.prefix ?? '');
+    if ('table_columns' in raw) normalized.table_columns = normalizeTableColumns(raw.table_columns, idx);
     if (fieldType === 'datetime') {
       assertDatetimeDefaultValue(normalized.default_value, idx);
-    } else if (normalized.prefix && normalized.prefix.trim()) {
-      throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
+    } else if (fieldType === 'table') {
+      if (!Array.isArray(normalized.table_columns) || normalized.table_columns.length === 0) {
+        throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是非空数组（type='table' 时）`);
+      }
+      if (normalized.enum_options || normalized.min_value != null || normalized.max_value != null || (normalized.prefix && normalized.prefix.trim())) {
+        throw new Error(`提案格式错误：stateFieldOps[${idx}] type='table' 时禁止填写 enum_options / min_value / max_value / prefix`);
+      }
+      assertTableDefaultValue(normalized.default_value, normalized.table_columns, idx);
+    } else {
+      if (normalized.prefix && normalized.prefix.trim()) {
+        throw new Error(`提案格式错误：stateFieldOps[${idx}].prefix 仅 datetime 类型字段允许使用`);
+      }
+      if (normalized.table_columns) {
+        throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 仅 type='table' 时允许使用`);
+      }
     }
     return normalized;
   });
+}
+
+function normalizeTableColumns(value, idx) {
+  if (value == null) return null;
+  let arr = value;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是数组或合法 JSON 字符串`);
+    }
+  }
+  if (!Array.isArray(arr)) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns 必须是数组`);
+  }
+  const seen = new Set();
+  return arr.map((col, ci) => {
+    if (!col || typeof col !== 'object' || Array.isArray(col)) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns[${ci}] 必须是对象`);
+    }
+    const key = typeof col.key === 'string' ? col.key.trim() : '';
+    if (!COLUMN_KEY_RE.test(key)) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns[${ci}].key 不合法（仅允许字母数字下划线）`);
+    }
+    if (seen.has(key)) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns[${ci}].key "${key}" 重复`);
+    }
+    seen.add(key);
+    const label = typeof col.label === 'string' && col.label.trim() ? col.label.trim() : key;
+    const out = { key, label };
+    if (col.min != null && col.min !== '') {
+      const n = Number(col.min);
+      if (!Number.isFinite(n)) throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns[${ci}].min 必须是数值`);
+      out.min = n;
+    }
+    if (col.max != null && col.max !== '') {
+      const n = Number(col.max);
+      if (!Number.isFinite(n)) throw new Error(`提案格式错误：stateFieldOps[${idx}].table_columns[${ci}].max 必须是数值`);
+      out.max = n;
+    }
+    return out;
+  });
+}
+
+function assertTableDefaultValue(defaultValue, columns, idx) {
+  if (defaultValue == null || defaultValue === '') return;
+  let parsed;
+  try { parsed = JSON.parse(defaultValue); } catch {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 必须是 JSON 字符串（type='table' 字段写成对象 JSON，例 "{\\"atk\\":10}"）`);
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 必须解析为对象（type='table'）`);
+  }
+  const colKeys = new Set(columns.map((c) => c.key));
+  for (const [k, v] of Object.entries(parsed)) {
+    if (!colKeys.has(k)) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value 包含未声明列 "${k}"`);
+    }
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new Error(`提案格式错误：stateFieldOps[${idx}].default_value["${k}"] 必须是数值`);
+    }
+  }
 }
 
 function normalizeStateValueOps(rawOps, type) {

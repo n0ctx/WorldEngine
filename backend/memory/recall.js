@@ -35,6 +35,11 @@ function parseValueForDisplay(valueJson) {
       if (parsed.length === 0) return null;
       return parsed.join('、');
     }
+    if (typeof parsed === 'object') {
+      const entries = Object.entries(parsed);
+      if (entries.length === 0) return null;
+      return entries.map(([k, v]) => `${k}=${v}`).join('，');
+    }
     return String(parsed);
   } catch {
     return String(valueJson);

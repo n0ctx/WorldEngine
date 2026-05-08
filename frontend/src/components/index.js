@@ -46,6 +46,7 @@ export { default as SectionTabs }         from './book/SectionTabs';
 export { default as SessionListPanel }    from './book/SessionListPanel';
 export { default as StatePanel }          from './book/StatePanel';
 export { default as StatusSection }       from './book/StatusSection';
+export { default as StatusTable }          from './book/StatusTable';
 export { default as TopBar }              from './book/TopBar';
 export { default as WritingPageLeft }     from './book/WritingPageLeft';
 export { default as WritingSessionList }  from './book/WritingSessionList';

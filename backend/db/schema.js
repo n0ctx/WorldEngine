@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS persona_state_fields (
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
   prefix             TEXT NOT NULL DEFAULT '',
+  table_columns      TEXT,
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -121,6 +122,7 @@ CREATE TABLE IF NOT EXISTS world_state_fields (
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
   prefix             TEXT NOT NULL DEFAULT '',
+  table_columns      TEXT,
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -152,6 +154,7 @@ CREATE TABLE IF NOT EXISTS character_state_fields (
   allow_empty        INTEGER NOT NULL DEFAULT 1,
   update_instruction TEXT NOT NULL DEFAULT '',
   prefix             TEXT NOT NULL DEFAULT '',
+  table_columns      TEXT,
   sort_order         INTEGER NOT NULL DEFAULT 0,
   created_at         INTEGER NOT NULL,
   updated_at         INTEGER NOT NULL,
@@ -425,6 +428,10 @@ export function initSchema(db) {
   // state_fields 加 prefix 列（datetime 显示前缀）
   for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
     try { db.exec(`ALTER TABLE ${t} ADD COLUMN prefix TEXT NOT NULL DEFAULT ''`); } catch {}
+  }
+  // state_fields 加 table_columns 列（type='table' 时存储列定义 JSON：[{key,label,min?,max?}]）
+  for (const t of ['world_state_fields', 'character_state_fields', 'persona_state_fields']) {
+    try { db.exec(`ALTER TABLE ${t} ADD COLUMN table_columns TEXT`); } catch {}
   }
   // persona_state_values 按 persona 拆分：UNIQUE 键从 (world_id, field_key) 改为 (persona_id, field_key)
   migratePersonaStateValuesPerPersona(db);

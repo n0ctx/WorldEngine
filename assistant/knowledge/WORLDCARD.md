@@ -119,7 +119,7 @@ update / delete：
 
 ### 7 种 type
 
-> 选 type 前按 **boolean → number → datetime → enum → list → text** 顺序逐项排除，不允许跳步。默认禁止 `text`，必须先排除其他 6 种。
+> 选 type 前按 **boolean → number → datetime → enum → list → table → text** 顺序逐项排除，不允许跳步。默认禁止 `text`，必须先排除其他 6 种。
 
 | type | 用于 | 正例 | 不要用于 |
 |---|---|---|---|
@@ -128,6 +128,7 @@ update / delete：
 | `datetime` | 可比较的时间点：游戏内当前日期时间、剧情时间线、约定截止时间 | `当前时间: "1000-03-15T14:30"` | 时长（用 number）；模糊时段（用 text/enum）|
 | `enum` | 有固定可枚举选项：天气、剧情阶段、情绪、关系状态 | `天气: 酸雨/晴天/暴雪` | 数量无限或自由填写 |
 | `list` | 可增减集合：背包、清单、已知线索、激活任务 | `背包: ["火把", "解毒药"]` | 单值字段（用 enum/text）|
+| `table` | 一组同结构的并列数值：六维属性、攻防速、左右手装备耐久 | `三围: {atk:30, def:20, spd:15}` | 列数会变化的数据（用 list）；非数值字段 |
 | `text` | 真正需要自由描述的状态：当前伤势详情 | `伤势描述: "右臂骨折"` | 一切可用前 6 种覆盖的场景 |
 
 datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数（1-N 位均可），月/日/时/分各 2 位（例 `"1000-03-15T14:30"` 或 `"238-04-20T00:00"`）。比较按段位解析为整数后逐段比较，不需要等宽零填充年份。
@@ -149,6 +150,11 @@ datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数（
 - list → `"[]"`（空数组；预设值如 `"[\"线索A\"]"`）
 - boolean → `"false"`
 - datetime → `"\"1000-03-15T14:30\""`
+- table → `"{\"atk\":10,\"def\":5}"`（对象；key 必须是 `table_columns` 里声明过的列 key，值必须是数值）
+
+### table_columns（仅 type='table'）
+
+`type='table'` 字段必须填写 `table_columns`：JSON 数组，每项 `{ "key": "atk", "label": "攻", "min": 0, "max": 99 }`。`key` 仅允许字母数字下划线且列内唯一；`label` 是表头展示文本；`min` / `max` 可选，前端按上下限渲染进度条。`type='table'` 时禁止填写 `enum_options` / `min_value` / `max_value` / `prefix`。
 
 ### 示例
 
@@ -175,6 +181,26 @@ delete：
 ```json
 { "op": "delete", "target": "world", "id": "现有字段ID" }
 ```
+
+create（table 类型示例）：
+```json
+{
+  "op": "create", "target": "character", "field_key": "stats",
+  "label": "三围", "type": "table",
+  "description": "角色基础属性，按攻/防/速三列存储",
+  "default_value": "{\"atk\":30,\"def\":20,\"spd\":15}",
+  "table_columns": [
+    { "key": "atk", "label": "攻", "min": 0, "max": 99 },
+    { "key": "def", "label": "防", "min": 0, "max": 99 },
+    { "key": "spd", "label": "速", "min": 0, "max": 99 }
+  ],
+  "update_mode": "llm_auto",
+  "update_instruction": "战斗结果或装备变化后更新对应列",
+  "allow_empty": 1
+}
+```
+
+> 状态条目 (`trigger_type='state'`) 的条件 `target_field` 可定位到具体一列，格式 `角色.三围.atk`（即 `scope.field_label.column_key`）。
 
 ## 操作手册
 

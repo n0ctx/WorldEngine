@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
 import DatetimeSplitInput from '../state/DatetimeSplitInput.jsx';
+import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../utils/template-vars.js';
 
 const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
@@ -36,6 +37,23 @@ function parseValue(effectiveValueJson, type, prefix) {
     }
     return String(effectiveValueJson);
   }
+}
+
+function parseTableColumns(raw) {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch { return []; }
+}
+
+function parseTableValue(effectiveValueJson) {
+  if (effectiveValueJson == null) return {};
+  try {
+    const v = JSON.parse(effectiveValueJson);
+    return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+  } catch { return {}; }
 }
 
 function parseRawValue(effectiveValueJson, type) {
@@ -220,13 +238,39 @@ export default function StatusSection({
           )}
           {rows?.map((row, i) => {
             const type = row.field_type ?? row.type;
+            const isManual = row.update_mode === 'manual';
+            const editKey = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
+
+            if (type === 'table') {
+              const cols = parseTableColumns(row.table_columns);
+              const valObj = parseTableValue(row.effective_value_json);
+              return (
+                <div
+                  key={editKey}
+                  className="we-status-field we-status-field--table"
+                  style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
+                >
+                  <span className="we-status-key">{row.label}</span>
+                  <StatusTable
+                    columns={cols}
+                    values={valObj}
+                    editable={isManual && !!onSave}
+                    onCellCommit={(colKey, num) => {
+                      const next = { ...valObj };
+                      if (num == null) delete next[colKey]; else next[colKey] = num;
+                      const valueJson = Object.keys(next).length ? JSON.stringify(next) : null;
+                      onSave?.(row.field_key, valueJson, row.character_id);
+                    }}
+                  />
+                </div>
+              );
+            }
+
             const display = parseValue(row.effective_value_json, type, row.prefix);
             const max = row.max_value ?? row.max ?? null;
             const isNumber = type === 'number';
             const numVal = isNumber && display != null ? parseFloat(display) : null;
             const pct = max != null && numVal != null ? Math.min(100, (numVal / max) * 100) : null;
-            const isManual = row.update_mode === 'manual';
-            const editKey = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
             const isEditing = editingKey === editKey;
 
             return (

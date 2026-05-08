@@ -397,7 +397,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **会话级隔离**（T103）：状态运行时值现在存储在 `session_*_state_values` 三张表，由 `session_id ON DELETE CASCADE` 控制生命周期，各会话彼此完全独立。
 
-**state 条目字段语义**：TriggerEditor（现为 EntryEditor state 模式）的条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不按具体角色名展开。chat 会话中的 `角色.xxx` 映射当前角色；writing 会话中若条件包含 `角色.xxx`，`entry-matcher.js` state 分支（`buildSharedStateMap` + `buildCharacterStateMap`）会对当前会话激活角色逐个评估，同一角色需满足该条目的全部 entry_conditions，只要任一角色满足即触发（OR over characters，AND within conditions）。
+**state 条目字段语义**：TriggerEditor（现为 EntryEditor state 模式）的条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不按具体角色名展开。chat 会话中的 `角色.xxx` 映射当前角色；writing 会话中若条件包含 `角色.xxx`，`entry-matcher.js` state 分支（`buildSharedStateMap` + `buildCharacterStateMap`）会对当前会话激活角色逐个评估，同一角色需满足该条目的全部 entry_conditions，只要任一角色满足即触发（OR over characters，AND within conditions）。`type='table'` 字段在条件 UI 中展开为 `scope.field_label.column_key` 三段格式（前缀仍为 `世界.` / `玩家.` / `角色.`），`entry-matcher.js` 的 `setStateMapRow()` 把表格值对象按列展平到状态 Map 中，仅参与数值比较。
 
 **state 条目评估时机**：提示词组装时（[7] 段），`matchEntries()` state 分支实时读取 `entry_conditions` 表和当前 session 状态值，同步评估后决定该条目是否命中；评估结果不持久化到数据库。条件为空的 state 条目不触发。
 
@@ -405,8 +405,10 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **combined-state-updater.js**：`updateAllStates` 现在写 `session_*_state_values` 表而非全局 `*_state_values.runtime_value_json`。
 
-**字段类型**：`text / number / boolean / enum / list`
+**字段类型**：`text / number / boolean / enum / list / datetime / table`
 - `list`：值存储为 JSON 数组字符串，渲染时解析为顿号分隔的字符串
+- `datetime`：值存储为 ISO 局部时间字符串 `"YYYY-MM-DDTHH:mm"`（年份任意正整数位数）
+- `table`：固定 2 行 N 列结构。列定义存 `*_state_fields.table_columns`（JSON 数组：`[{key,label,min?,max?}]`，仅数值列）；值存为对象 JSON `{col_key: number}`。右侧状态栏由 `frontend/src/components/book/StatusTable.jsx` 渲染（表头行 + 数值行，按 min/max 渲染进度条）；`combined-state-updater.js validateValue()` 按列校验 + 上下限裁剪；`recall.js parseValueForDisplay()` 渲染为 `key=val,...`；条目条件可定位到具体列（见上文）
 
 **update_mode**：
 - `manual`：不参与自动更新

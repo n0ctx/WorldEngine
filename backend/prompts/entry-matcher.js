@@ -194,15 +194,34 @@ function parseStateValue(effectiveValueJson) {
   }
 }
 
+/**
+ * 将 row 写入 stateMap：
+ *   - 普通字段：`scope.label` → 字符串值
+ *   - type='table' 字段：除写入整体值外，再按列展开为 `scope.label.column_key` → 数值字符串
+ */
+function setStateMapRow(map, scope, row) {
+  if (row.type === 'table' && row.effective_value_json != null) {
+    let obj;
+    try { obj = JSON.parse(row.effective_value_json); } catch { obj = null; }
+    if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+      for (const [colKey, colVal] of Object.entries(obj)) {
+        if (colVal == null) continue;
+        map.set(`${scope}.${row.label}.${colKey}`, String(colVal));
+      }
+    }
+    return;
+  }
+  const val = parseStateValue(row.effective_value_json);
+  if (val != null) map.set(`${scope}.${row.label}`, val);
+}
+
 function buildSharedStateMap(worldId, sessionId) {
   const map = new Map();
   for (const row of getSessionWorldStateValues(sessionId, worldId)) {
-    const val = parseStateValue(row.effective_value_json);
-    if (val != null) map.set(`世界.${row.label}`, val);
+    setStateMapRow(map, '世界', row);
   }
   for (const row of getSessionPersonaStateValues(sessionId, worldId)) {
-    const val = parseStateValue(row.effective_value_json);
-    if (val != null) map.set(`玩家.${row.label}`, val);
+    setStateMapRow(map, '玩家', row);
   }
   return map;
 }
@@ -211,8 +230,7 @@ function buildCharacterStateMap(worldId, sessionId, characterId) {
   const map = new Map();
   if (!characterId) return map;
   for (const row of getSingleCharacterSessionStateValues(sessionId, characterId, worldId)) {
-    const val = parseStateValue(row.effective_value_json);
-    if (val != null) map.set(`角色.${row.label}`, val);
+    setStateMapRow(map, '角色', row);
   }
   return map;
 }

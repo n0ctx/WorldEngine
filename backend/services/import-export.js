@@ -240,17 +240,19 @@ export function exportWorld(worldId) {
   });
 
   const worldStateFields = db.prepare(
-    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, sort_order FROM world_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, table_columns, sort_order FROM world_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((f) => ({
     ...f,
     enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
+    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
   }));
 
   const characterStateFields = db.prepare(
-    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, sort_order FROM character_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, table_columns, sort_order FROM character_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((f) => ({
     ...f,
     enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
+    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
   }));
 
   const worldStateValues = db.prepare(
@@ -302,10 +304,11 @@ export function exportWorld(worldId) {
   });
 
   const personaStateFields = db.prepare(
-    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, sort_order FROM persona_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT field_key, label, type, description, default_value, update_mode, enum_options, min_value, max_value, allow_empty, update_instruction, prefix, table_columns, sort_order FROM persona_state_fields WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((f) => ({
     ...f,
     enum_options: f.enum_options ? JSON.parse(f.enum_options) : null,
+    table_columns: f.table_columns ? JSON.parse(f.table_columns) : null,
   }));
 
   const allPersonaRows = db.prepare(
@@ -402,8 +405,8 @@ export function importWorld(data) {
         id, world_id, field_key, label, type, description,
         default_value, update_mode,
         enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        update_instruction, prefix, table_columns, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const field of (data.world_state_fields ?? [])) {
       insertWorldField.run(
@@ -418,6 +421,7 @@ export function importWorld(data) {
         field.allow_empty ?? 1,
         field.update_instruction ?? '',
         field.prefix ?? '',
+        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
         field.sort_order ?? 0,
         now, now,
       );
@@ -429,8 +433,8 @@ export function importWorld(data) {
         id, world_id, field_key, label, type, description,
         default_value, update_mode,
         enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        update_instruction, prefix, table_columns, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const field of (data.character_state_fields ?? [])) {
       insertCharField.run(
@@ -445,6 +449,7 @@ export function importWorld(data) {
         field.allow_empty ?? 1,
         field.update_instruction ?? '',
         field.prefix ?? '',
+        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
         field.sort_order ?? 0,
         now, now,
       );
@@ -464,8 +469,8 @@ export function importWorld(data) {
         id, world_id, field_key, label, type, description,
         default_value, update_mode,
         enum_options, min_value, max_value, allow_empty,
-        update_instruction, prefix, sort_order, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        update_instruction, prefix, table_columns, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     for (const field of (data.persona_state_fields ?? [])) {
       insertPersonaField.run(
@@ -480,6 +485,7 @@ export function importWorld(data) {
         field.allow_empty ?? 1,
         field.update_instruction ?? '',
         field.prefix ?? '',
+        field.table_columns != null ? JSON.stringify(field.table_columns) : null,
         field.sort_order ?? 0,
         now, now,
       );

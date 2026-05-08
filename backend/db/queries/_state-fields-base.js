@@ -15,6 +15,7 @@ export function parseRow(row) {
   return {
     ...row,
     enum_options: row.enum_options ? JSON.parse(row.enum_options) : null,
+    table_columns: row.table_columns ? JSON.parse(row.table_columns) : null,
   };
 }
 

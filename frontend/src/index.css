@@ -1179,6 +1179,51 @@ body {
   transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* ── 表格状态（type='table'）：2 行 N 列 ─── */
+.we-status-table {
+  display: grid;
+  grid-template-columns: repeat(var(--we-status-table-cols, 1), minmax(0, 1fr));
+  margin-top: 4px;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
+}
+.we-status-table-row {
+  display: contents;
+}
+.we-status-table-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 4px 6px;
+  min-width: 0;
+}
+.we-status-table-cell + .we-status-table-cell {
+  border-left: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+.we-status-table-head-cell {
+  font-family: var(--we-font-display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--we-ink-faded);
+  opacity: 0.75;
+  background: color-mix(in srgb, var(--we-base-ink-900) 4%, transparent);
+}
+.we-status-table-body-cell .we-status-table-value {
+  font-family: var(--we-font-serif);
+  font-size: 12.5px;
+  color: var(--we-ink-secondary);
+  line-height: 1.4;
+  text-align: center;
+}
+.we-status-table-bar {
+  margin-top: 4px;
+}
+.we-status-table-input {
+  text-align: center;
+}
+
 .we-status-collapse {
   display: grid;
   grid-template-rows: 0fr;

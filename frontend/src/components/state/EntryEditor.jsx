@@ -83,21 +83,24 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         ]);
         const opts = [];
         const typeMap = new Map();
-        for (const f of worldFields) {
-          const key = `世界.${f.label}`;
-          opts.push({ value: key, label: key });
-          typeMap.set(key, f.type);
-        }
-        for (const f of personaFields) {
-          const key = `玩家.${f.label}`;
-          opts.push({ value: key, label: key });
-          typeMap.set(key, f.type);
-        }
-        for (const f of charFields) {
-          const key = `角色.${f.label}`;
-          opts.push({ value: key, label: key });
-          typeMap.set(key, f.type);
-        }
+        const pushField = (scope, f) => {
+          const baseKey = `${scope}.${f.label}`;
+          if (f.type === 'table') {
+            const cols = Array.isArray(f.table_columns) ? f.table_columns : [];
+            for (const col of cols) {
+              if (!col?.key) continue;
+              const colKey = `${baseKey}.${col.key}`;
+              opts.push({ value: colKey, label: `${baseKey}·${col.label || col.key}` });
+              typeMap.set(colKey, 'number');
+            }
+            return;
+          }
+          opts.push({ value: baseKey, label: baseKey });
+          typeMap.set(baseKey, f.type);
+        };
+        for (const f of worldFields) pushField('世界', f);
+        for (const f of personaFields) pushField('玩家', f);
+        for (const f of charFields) pushField('角色', f);
         setFieldOptions(opts);
         setFieldTypeMap(typeMap);
 

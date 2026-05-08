@@ -18,8 +18,8 @@ export function createWorldStateField(worldId, data) {
       id, world_id, field_key, label, type, description,
       default_value, update_mode,
       enum_options, min_value, max_value, allow_empty,
-      update_instruction, prefix, sort_order, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      update_instruction, prefix, table_columns, sort_order, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, worldId,
     data.field_key, data.label, data.type,
@@ -32,6 +32,7 @@ export function createWorldStateField(worldId, data) {
     data.allow_empty ?? 1,
     data.update_instruction ?? '',
     data.prefix ?? '',
+    data.table_columns != null ? JSON.stringify(data.table_columns) : null,
     sortOrder,
     now, now,
   );
@@ -63,7 +64,7 @@ export function updateWorldStateField(id, patch) {
   const allowed = [
     'field_key', 'label', 'type', 'description', 'default_value',
     'update_mode', 'enum_options',
-    'min_value', 'max_value', 'allow_empty', 'update_instruction', 'prefix', 'sort_order',
+    'min_value', 'max_value', 'allow_empty', 'update_instruction', 'prefix', 'table_columns', 'sort_order',
   ];
   const sets = [];
   const values = [];
@@ -71,7 +72,7 @@ export function updateWorldStateField(id, patch) {
   for (const field of allowed) {
     if (!(field in patch)) continue;
     sets.push(`${field} = ?`);
-    if (field === 'enum_options') {
+    if (field === 'enum_options' || field === 'table_columns') {
       values.push(patch[field] != null ? JSON.stringify(patch[field]) : null);
     } else {
       values.push(patch[field]);
