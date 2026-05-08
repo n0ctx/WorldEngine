@@ -24,4 +24,15 @@ describe('character state values api', () => {
     }));
     expect(fetch).toHaveBeenNthCalledWith(3, '/api/characters/char-1/state-values/reset', expect.objectContaining({ method: 'POST' }));
   });
+
+  it('GET / PATCH / reset 失败时优先 body.error，body 解析失败回退状态码', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({ error: '不存在' }) });
+    await expect(getCharacterStateValues('c1')).rejects.toThrow('不存在');
+
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => { throw new Error('parse'); } });
+    await expect(updateCharacterStateValue('c1', 'hp', '0')).rejects.toThrow('请求失败：500');
+
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => { throw new Error('parse'); } });
+    await expect(resetCharacterStateValues('c1')).rejects.toThrow('重置失败：500');
+  });
 });

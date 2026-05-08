@@ -29,4 +29,14 @@ describe('world state values api', () => {
     fetch.mockResolvedValueOnce({ ok: false, json: async () => ({ error: '更新失败' }) });
     await expect(updateWorldStateValue('world-1', 'weather', '"雪"')).rejects.toThrow('更新失败');
   });
+
+  it('GET 失败 body 解析失败时回退状态码', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => { throw new Error('parse'); } });
+    await expect(getWorldStateValues('w1')).rejects.toThrow('请求失败：500');
+  });
+
+  it('reset 失败 body 解析失败时回退状态码', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => { throw new Error('parse'); } });
+    await expect(resetWorldStateValues('w1')).rejects.toThrow('重置失败：500');
+  });
 });

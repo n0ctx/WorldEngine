@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   uploadPersonaAvatar: vi.fn(),
   getPersonaStateValues: vi.fn(),
   updatePersonaStateValue: vi.fn(),
+  getPersonaStateValuesByPersonaId: vi.fn(),
+  updatePersonaStateValueByPersonaId: vi.fn(),
   downloadPersonaCard: vi.fn(),
   pushErrorToast: vi.fn(),
 }));
@@ -32,6 +34,8 @@ vi.mock('../../src/api/personas', () => ({
 vi.mock('../../src/api/persona-state-values', () => ({
   getPersonaStateValues: (...args) => mocks.getPersonaStateValues(...args),
   updatePersonaStateValue: (...args) => mocks.updatePersonaStateValue(...args),
+  getPersonaStateValuesByPersonaId: (...args) => mocks.getPersonaStateValuesByPersonaId(...args),
+  updatePersonaStateValueByPersonaId: (...args) => mocks.updatePersonaStateValueByPersonaId(...args),
 }));
 vi.mock('../../src/api/import-export', () => ({
   downloadPersonaCard: (...args) => mocks.downloadPersonaCard(...args),
@@ -75,6 +79,8 @@ describe('PersonaEditPage', () => {
     mocks.updatePersona.mockResolvedValue({ id: 'persona-1' });
     mocks.updatePersonaById.mockResolvedValue({ id: 'persona-1' });
     mocks.updatePersonaStateValue.mockResolvedValue({ success: true });
+    mocks.updatePersonaStateValueByPersonaId.mockResolvedValue({ success: true });
+    mocks.getPersonaStateValuesByPersonaId.mockResolvedValue([{ field_key: 'mood', label: '心境' }]);
     mocks.downloadPersonaCard.mockResolvedValue(undefined);
     mocks.uploadPersonaAvatar.mockResolvedValue({ avatar_path: 'avatars/persona.png' });
     mocks.pushErrorToast.mockReset();
@@ -87,7 +93,7 @@ describe('PersonaEditPage', () => {
     fireEvent.change(screen.getByDisplayValue('旅者'), { target: { value: '行者' } });
     fireEvent.click(screen.getByText('save-mood'));
 
-    await waitFor(() => expect(mocks.updatePersonaStateValue).toHaveBeenCalledWith('world-1', 'mood', '"玩家值"'));
+    await waitFor(() => expect(mocks.updatePersonaStateValueByPersonaId).toHaveBeenCalledWith('world-1', 'persona-1', 'mood', '"玩家值"'));
 
     fireEvent.click(screen.getByText('导出玩家卡'));
     await waitFor(() => expect(mocks.downloadPersonaCard).toHaveBeenCalledWith('world-1', '行者.wechar.json'));

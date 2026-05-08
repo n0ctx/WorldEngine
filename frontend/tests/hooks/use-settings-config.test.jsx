@@ -13,13 +13,11 @@ const displaySettingsStore = vi.hoisted(() => ({
 vi.mock('../../src/api/config.js', () => ({
   getConfig: vi.fn(),
   updateConfig: vi.fn(),
-  updateAuxApiKey: vi.fn(),
+  updateProviderKey: vi.fn(),
   fetchAuxModels: vi.fn(),
   testAuxConnection: vi.fn(),
-  updateWritingApiKey: vi.fn(),
   fetchWritingModels: vi.fn(),
   testWritingConnection: vi.fn(),
-  updateWritingAuxApiKey: vi.fn(),
   fetchWritingAuxModels: vi.fn(),
   testWritingAuxConnection: vi.fn(),
 }));
@@ -34,9 +32,8 @@ import {
   getConfig,
   testAuxConnection,
   testWritingConnection,
-  updateAuxApiKey,
   updateConfig,
-  updateWritingApiKey,
+  updateProviderKey,
 } from '../../src/api/config.js';
 import { useSettingsConfig } from '../../src/hooks/useSettingsConfig.js';
 
@@ -77,8 +74,7 @@ describe('useSettingsConfig', () => {
       aux_llm: { provider: 'openai', model: 'gpt-4.1-mini', base_url: '', has_key: true, provider_keys: { openai: true } },
       writing: { llm: { provider: 'openai', model: 'writer-next', base_url: '', has_key: true, provider_keys: { openai: true } } },
     });
-    updateAuxApiKey.mockResolvedValue({});
-    updateWritingApiKey.mockResolvedValue({});
+    updateProviderKey.mockResolvedValue({});
     fetchAuxModels.mockResolvedValue([]);
     fetchWritingModels.mockResolvedValue([]);
     testAuxConnection.mockResolvedValue({ success: false, error: 'aux failed' });
@@ -175,8 +171,8 @@ describe('useSettingsConfig', () => {
       await result.current.llmProps.onWritingApiKeySave('writing-key');
     });
 
-    expect(updateAuxApiKey).toHaveBeenCalledWith('aux-key');
-    expect(updateWritingApiKey).toHaveBeenCalledWith('writing-key');
+    expect(updateProviderKey).toHaveBeenCalledWith('aux-key');
+    expect(updateProviderKey).toHaveBeenCalledWith('writing-key');
   });
 
   it('导入完成后会重新拉取并刷新 prompt / diary 相关状态', async () => {

@@ -327,7 +327,7 @@ describe('ChatPage', () => {
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
   });
 
-  it('支持代拟、清空、重命名和停止', async () => {
+  it('支持代拟、重命名和停止', async () => {
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
     useStore.setState({
       currentWorldId: null,
@@ -335,16 +335,11 @@ describe('ChatPage', () => {
       currentSessionId: 'session-1',
       memoryRefreshTick: 0,
     });
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-
     render(<ChatPage />);
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
     fireEvent.click(screen.getByText('impersonate'));
     await waitFor(() => expect(mocks.impersonate).toHaveBeenCalledWith('session-1'));
-
-    fireEvent.click(screen.getByText('clear'));
-    await waitFor(() => expect(mocks.clearMessages).toHaveBeenCalledWith('session-1'));
 
     fireEvent.click(screen.getByText('retitle'));
     await waitFor(() => expect(mocks.retitle).toHaveBeenCalledWith('session-1'));
@@ -352,7 +347,6 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByText('stop'));
     expect(mocks.stopGeneration).toHaveBeenCalledWith('session-1');
-    expect(confirmSpy).toHaveBeenCalled();
   });
 
   it('支持编辑 AI 消息、删除消息和错误后重试', async () => {

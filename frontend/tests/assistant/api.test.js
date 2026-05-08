@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { chatAssistant, executeProposal } from '../../../assistant/client/api.js';
+import { streamAgent, approveTask } from '../../../assistant/client/api.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();
@@ -19,41 +19,30 @@ describe('assistant client api', () => {
     global.fetch = vi.fn();
   });
 
-  it('chatAssistant 会解析 delta/routing/proposal/done', async () => {
+  it('streamAgent 会逐帧解析 SSE 事件并按序回调', async () => {
     fetch.mockResolvedValue(createSseResponse([
       { type: 'routing', taskId: 'task-1', target: 'world-card', task: '改世界卡' },
-      { delta: '已' },
-      { delta: '完成' },
+      { type: 'delta', delta: '已' },
+      { type: 'delta', delta: '完成' },
       { type: 'proposal', taskId: 'task-1', token: 'token-1', proposal: { type: 'world-card' } },
-      { done: true },
+      { type: 'done' },
     ]));
 
-    const calls = [];
-    await new Promise((resolve) => {
-      chatAssistant({ message: 'hi' }, {
-        onRouting: (evt) => calls.push(['routing', evt.taskId]),
-        onDelta: (delta) => calls.push(['delta', delta]),
-        onProposal: (taskId, token) => calls.push(['proposal', taskId, token]),
-        onDone: () => calls.push(['done']),
-        onStreamEnd: resolve,
-      });
+    const events = [];
+    await streamAgent({
+      message: 'hi',
+      onEvent: (evt) => events.push(evt),
     });
 
-    expect(calls).toEqual([
-      ['routing', 'task-1'],
-      ['delta', '已'],
-      ['delta', '完成'],
-      ['proposal', 'task-1', 'token-1'],
-      ['done'],
-    ]);
+    expect(events.map((e) => e.type)).toEqual(['routing', 'delta', 'delta', 'proposal', 'done']);
+    expect(events[0].taskId).toBe('task-1');
+    expect(events[1].delta).toBe('已');
+    expect(events[3].token).toBe('token-1');
   });
 
-  it('executeProposal 会在错误时抛出后端 error', async () => {
-    fetch.mockResolvedValue({
-      ok: false,
-      status: 400,
-      json: async () => ({ error: '提案已过期' }),
-    });
-    await expect(executeProposal('bad-token')).rejects.toThrow('提案已过期');
+  it('approveTask 会向后端发送 POST 请求', async () => {
+    fetch.mockResolvedValue({ ok: true });
+    await approveTask('task-1');
+    expect(fetch).toHaveBeenCalledWith('/api/assistant/agent/task-1/approve', { method: 'POST' });
   });
 });

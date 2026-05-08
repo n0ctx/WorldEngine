@@ -25,5 +25,5 @@ export async function execute(args) {
   };
   const normalized = normalizeProposal(proposal);
   const result = await applyProposal(normalized, null);
-  return { success: true, type: 'css-snippet', operation: args.operation, entityId: result.entityId ?? null, summary: `${args.operation} CSS 片段 ${args.changes?.name ?? args.entityId ?? ''}` };
+  return { success: true, type: 'css-snippet', operation: args.operation, entityId: result?.id ?? result?.entityId ?? args.entityId ?? null, summary: `${args.operation} CSS 片段 ${args.changes?.name ?? args.entityId ?? ''}` };
 }

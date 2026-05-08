@@ -1,12 +1,18 @@
 // assistant/tests/plan-doc.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import {
   renderPlanDoc,
   parsePlanDoc,
   pickNextStep,
   markStepDone,
   appendLog,
+  writePlanDoc,
+  readPlanDoc,
+  deletePlanDoc,
+  ensurePlanDir,
+  planDocPath,
 } from '../server/plan-doc.js';
 
 test('renderPlanDoc 生成符合 spec §5 模板', () => {
@@ -77,4 +83,46 @@ test('appendLog 追加到执行日志小节', () => {
   const md = `## 执行日志\n`;
   const out = appendLog(md, 'step-1 done');
   assert.match(out, /## 执行日志\n.*step-1 done/s);
+});
+
+test('renderPlanDoc 可序列化已完成 step 的 completedAt 与日志行', () => {
+  const md = renderPlanDoc({
+    title: 'T',
+    status: 'executing',
+    createdAt: 'now',
+    intent: 'i',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: true, completedAt: 'ts1' },
+    ],
+    log: ['line-1', 'line-2'],
+  });
+  assert.match(md, /- \[x\] \*\*step-1\*\*/);
+  assert.match(md, /完成于 ts1/);
+  assert.match(md, /line-1\nline-2/);
+});
+
+test('parsePlanDoc 处理空文档与无意义首行', () => {
+  const parsed = parsePlanDoc('# 不匹配\n');
+  assert.equal(parsed.title, '');
+  assert.equal(parsed.status, 'planning');
+  assert.deepEqual(parsed.steps, []);
+});
+
+test('pickNextStep 全部完成时返回 null', () => {
+  assert.equal(pickNextStep([{ id: 's1', done: true, dependsOn: [] }]), null);
+});
+
+test('writePlanDoc / readPlanDoc / deletePlanDoc 全链路', async () => {
+  const taskId = `task-tmp-${Date.now()}`;
+  await ensurePlanDir();
+  const filePath = planDocPath(taskId);
+  assert.match(filePath, /\.temp\/assistant\//);
+  await writePlanDoc(taskId, 'hello world');
+  const got = await readPlanDoc(taskId);
+  assert.equal(got, 'hello world');
+  await deletePlanDoc(taskId);
+  // 二次删除不抛
+  await deletePlanDoc(taskId);
+  await assert.rejects(() => fs.stat(filePath));
 });

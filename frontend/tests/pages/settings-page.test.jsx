@@ -101,7 +101,8 @@ describe('SettingsPage', () => {
     useLocationMock.mockReturnValue({ state: { backgroundLocation: { pathname: '/' } } });
     rerender(<SettingsPage />);
     const overlay = document.querySelector('.we-settings-overlay');
-    fireEvent.click(overlay);
+    fireEvent.mouseDown(overlay);
+    fireEvent.mouseUp(overlay);
     expect(navigate).toHaveBeenCalledWith(-1);
   });
 });

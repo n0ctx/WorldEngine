@@ -4,7 +4,15 @@ vi.mock('../../src/api/sessions.js', () => ({
   editMessage: vi.fn(async (messageId, content) => ({ id: `${messageId}-edited`, content })),
 }));
 
-import { continueGeneration, retitle, sendMessage } from '../../src/api/chat.js';
+import {
+  continueGeneration,
+  editAssistantMessage,
+  impersonate,
+  regenerate,
+  retitle,
+  sendMessage,
+  stopGeneration,
+} from '../../src/api/chat.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();
@@ -79,5 +87,58 @@ describe('chat api', () => {
     });
 
     await expect(retitle('session-2')).rejects.toThrow('retitle failed');
+  });
+
+  it('editAssistantMessage 成功时返回响应 JSON，失败时优先抛 body.error', async () => {
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    await expect(editAssistantMessage('s1', 'm1', '新内容')).resolves.toEqual({ ok: true });
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/s1/edit-assistant', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ messageId: 'm1', content: '新内容' }),
+    }));
+
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: '编辑失败' }) });
+    await expect(editAssistantMessage('s1', 'm1', 'x')).rejects.toThrow('编辑失败');
+
+    fetch.mockResolvedValueOnce({ ok: false, status: 502, json: async () => { throw new Error('boom'); } });
+    await expect(editAssistantMessage('s1', 'm1', 'x')).rejects.toThrow('HTTP 502');
+  });
+
+  it('retitle 在 body 解析失败时回退到 HTTP 状态码', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 503, json: async () => { throw new Error('parse'); } });
+    await expect(retitle('s9')).rejects.toThrow('HTTP 503');
+  });
+
+  it('impersonate 成功时返回 content', async () => {
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ content: '替你说' }) });
+    await expect(impersonate('s1')).resolves.toEqual({ content: '替你说' });
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/s1/impersonate', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('impersonate 失败时优先 body.error，否则 HTTP 状态', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 502, json: async () => ({ error: '代入失败' }) });
+    await expect(impersonate('s1')).rejects.toThrow('代入失败');
+
+    fetch.mockResolvedValueOnce({ ok: false, status: 504, json: async () => { throw new Error('p'); } });
+    await expect(impersonate('s1')).rejects.toThrow('HTTP 504');
+  });
+
+  it('stopGeneration 调用 stop endpoint', async () => {
+    fetch.mockResolvedValueOnce({ ok: true });
+    await stopGeneration('s1');
+    expect(fetch).toHaveBeenCalledWith('/api/sessions/s1/stop', { method: 'POST' });
+  });
+
+  it('regenerate 在 HTTP 错误时回调 onError', async () => {
+    fetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ error: '重新生成失败' }) });
+    await new Promise((resolve) => {
+      regenerate('s1', 'm1', {
+        onError: (msg) => {
+          expect(msg).toBe('重新生成失败');
+          resolve();
+        },
+        onStreamEnd: () => {},
+      });
+    });
   });
 });

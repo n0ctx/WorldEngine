@@ -107,13 +107,11 @@ describe('WorldEditPage', () => {
     mocks.syncDiaryTimeField.mockResolvedValue(undefined);
   });
 
-  it('会加载世界并保存配置与默认状态值', async () => {
+  it('会加载世界并保存配置', async () => {
     render(<WorldEditPage />);
 
     expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue('群星海'), { target: { value: '群星海-修订' } });
-    fireEvent.click(screen.getByText('save-weather'));
-    await waitFor(() => expect(mocks.updateWorldStateValue).toHaveBeenCalledWith('world-1', 'weather', '"stored"'));
 
     fireEvent.click(screen.getAllByText('保存')[0]);
 

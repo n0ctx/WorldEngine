@@ -100,9 +100,10 @@ describe('EntryEditor', () => {
     fillBasicForm();
 
     await waitFor(() => expect(mocks.listWorldStateFields).toHaveBeenCalledWith('world-1'));
-    await waitFor(() => expect(screen.getAllByRole('option').some((option) => option.textContent === '世界.温度')).toBe(true));
     const selects = screen.getAllByLabelText('select');
-    fireEvent.change(selects[0], { target: { value: '世界.温度' } });
+    fireEvent.change(selects[0], { target: { value: '世界' } });
+    await waitFor(() => expect(screen.getAllByRole('option').some((option) => option.textContent === '温度')).toBe(true));
+    fireEvent.change(screen.getAllByLabelText('select')[1], { target: { value: '温度' } });
     const valueInput = screen.getByPlaceholderText('值');
     fireEvent.change(valueInput, { target: { value: '10' } });
 

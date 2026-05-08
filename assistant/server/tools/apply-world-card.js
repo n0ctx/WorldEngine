@@ -34,7 +34,7 @@ export async function execute(args, ctx = {}) {
     success: true,
     type: 'world-card',
     operation: args.operation,
-    entityId: result.entityId ?? args.entityId ?? null,
+    entityId: result?.id ?? result?.entityId ?? args.entityId ?? null,
     summary: summarize(args),
   };
 }

@@ -67,6 +67,15 @@ exports[`EntrySection > 默认状态快照 1`] = `
             class="we-entry-section-actions"
           >
             <button
+              aria-label="禁用条目"
+              class="we-entry-section-toggle"
+              title="点击禁用"
+            >
+              <span
+                class="we-entry-section-toggle-thumb"
+              />
+            </button>
+            <button
               class="we-entry-section-action"
             >
               编辑
@@ -103,6 +112,15 @@ exports[`EntrySection > 默认状态快照 1`] = `
           <div
             class="we-entry-section-actions"
           >
+            <button
+              aria-label="禁用条目"
+              class="we-entry-section-toggle"
+              title="点击禁用"
+            >
+              <span
+                class="we-entry-section-toggle-thumb"
+              />
+            </button>
             <button
               class="we-entry-section-action"
             >

@@ -41,7 +41,7 @@
 - `keywords`：关键词数组（`keyword` 类型必填且至少 1 项）
 - `keyword_scope`：`"user"` / `"assistant"` / `"user,assistant"`（默认）
 - `trigger_type`：`always` / `keyword` / `llm` / `state`（必填）
-- `token`：注入顺序权重，整数 ≥ 1，越小越靠前（默认 1）
+- `token`：注入顺序权重，整数 ≥ 1，**越小越靠前、越大越靠后**（默认 1）。这是排序权重，不是优先级。LLM 对靠后的内容 recency 更强，因此**越靠后（token 数越大）实际优先级越高**；越靠前（token 数越小）越容易被后续内容覆盖。需要 LLM 严格遵守的规则应放大 token 让其靠后注入，背景设定可放小 token 靠前注入。回复用户时禁止把 "token=1" 描述为 "优先级最高"
 
 > `position` 字段已废弃，禁止输出。所有命中条目统一在 [7] 注入。
 
