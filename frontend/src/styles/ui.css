@@ -566,7 +566,6 @@
 .we-select-dropdown {
   position: absolute;
   z-index: var(--we-z-dropdown);
-  top: calc(100% + 2px);
   left: 0;
   right: 0;
   background: var(--we-paper-base);
