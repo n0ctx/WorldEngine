@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
 import { buildContext, activeStreams, saveAttachments, processStreamOutput } from '../services/chat.js';
+import { getConfig } from '../services/config.js';
 import {
   createMessage,
   getMessageById,
@@ -35,6 +36,7 @@ import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader
 import {
   beginStreamSession,
   buildContinuationMessages,
+  supportsPrefill,
   sendSse,
 } from './stream-helpers.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
@@ -371,7 +373,8 @@ router.post('/:sessionId/continue', async (req, res) => {
 
   try {
     const { messages, overrides, suggestionText } = await buildContext(sessionId);
-    const continuationMessages = buildContinuationMessages(messages, originalContent, { suggestionText });
+    const usePrefill = supportsPrefill(getConfig()?.llm?.provider);
+    const continuationMessages = buildContinuationMessages(messages, originalContent, { suggestionText, usePrefill });
 
     const stream = llm.chat(continuationMessages, { ...overrides, signal: ac.signal, usageRef, callType: 'main_continue', conversationId: sessionId });
     for await (const chunk of stream) {

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompts/assembler.js';
+import { getWritingLlmConfig } from '../services/config.js';
 import { activeStreams, processStreamOutput } from '../services/chat.js';
 import { logPrompt } from '../utils/logger.js';
 import {
@@ -44,6 +45,7 @@ import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import {
   beginStreamSession,
   buildContinuationMessages,
+  supportsPrefill,
   sendSse,
 } from './stream-helpers.js';
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
@@ -388,7 +390,8 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     const { messages, temperature, maxTokens, model, cacheableSystem, suggestionText } = await buildWritingPrompt(sessionId);
     log.info(`CONTINUE PROMPT READY  ${formatMeta({ session: sid, msgs: messages.length, model: model || '', temperature, maxTokens })}`);
     logPrompt(sessionId, messages);
-    const continuationMessages = buildContinuationMessages(messages, originalContent, { suggestionText });
+    const usePrefill = supportsPrefill(getWritingLlmConfig()?.provider);
+    const continuationMessages = buildContinuationMessages(messages, originalContent, { suggestionText, usePrefill });
 
     const stream = llm.chat(continuationMessages, { temperature, maxTokens, model, cacheableSystem, signal: ac.signal, usageRef, configScope: 'writing', callType: 'writing_continue', conversationId: sessionId });
     for await (const chunk of stream) {
