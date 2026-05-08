@@ -1266,6 +1266,18 @@
 .we-entry-condition-field {
   flex: 2;
   min-width: 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.we-entry-condition-field .we-select {
+  flex: 1;
+  min-width: 60px;
+}
+
+.we-entry-condition-field .we-select:first-child {
+  flex: 0 0 88px;
 }
 
 .we-entry-condition-op {

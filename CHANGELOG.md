@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-08 feat(entries): 状态条件字段选择器拆分为 2-3 级联下拉
+
+**背景**：原来的状态条件下拉把所有字段平铺成"世界.时间""角色.xxx""玩家.xxx.col"，用户很难快速找到目标字段。
+
+**改动**
+- `frontend/src/components/state/EntryEditor.jsx`：
+  - `emptyCondition()` 新增 `scope / field_label / col_key` 三个子字段
+  - 新增 `parseTargetField(tf)` 将已有 `target_field` 反解为三个子字段（用于回填编辑）
+  - 新增 `SCOPE_OPTIONS / getFieldOptions / getColOptions` 三个辅助函数
+  - 用 `rawFieldsByScope`（按范围分组的字段对象）替换原有平铺 `fieldOptions`
+  - `updateCondition` 处理级联清空：切换范围→清空字段和列，切换字段→清空列，并重组 `target_field`
+  - 渲染层：单个 Select 换成 2-3 级联 Select（第三级仅 table 类型时出现）
+- `frontend/src/styles/ui.css`：`.we-entry-condition-field` 改为 flex 容器（含 gap + `min-width: 60px` 约束），兼容 2-3 个下拉横排
+
+**不变**：`target_field` 存储格式（"世界.时间" / "世界.属性.atk"）不变，后端零改动
+
 ## 2026-05-08 feat(state): 新增 type='table' 状态字段（2 行 N 列）
 
 **背景**：状态字段此前仅支持 6 种原子类型；本次需要"一组同结构的并列数值"的紧凑表达（六维属性、攻防速等）。新增 `type='table'`：第 1 行表头 + 第 2 行数值，列数固定，仅支持数值列，每列可选独立上下限；条件条目可定位到具体一列。

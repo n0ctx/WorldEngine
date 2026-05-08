@@ -22,9 +22,32 @@ const TEXT_OPS = [
   { value: '等于', label: '等于' },
   { value: '不包含', label: '不包含' },
 ];
+const SCOPE_OPTIONS = [
+  { value: '世界', label: '世界' },
+  { value: '角色', label: '角色' },
+  { value: '玩家', label: '玩家' },
+];
 
 function emptyCondition() {
-  return { target_field: '', operator: '>', value: '' };
+  return { scope: '', field_label: '', col_key: '', target_field: '', operator: '>', value: '' };
+}
+
+function parseTargetField(tf) {
+  const parts = tf ? tf.split('.') : [];
+  if (parts.length === 3) return { scope: parts[0], field_label: parts[1], col_key: parts[2] };
+  if (parts.length === 2) return { scope: parts[0], field_label: parts[1], col_key: '' };
+  return { scope: '', field_label: '', col_key: '' };
+}
+
+function getFieldOptions(rawFieldsByScope, scope) {
+  return (rawFieldsByScope[scope] || []).map((f) => ({ value: f.label, label: f.label }));
+}
+
+function getColOptions(rawFieldsByScope, scope, fieldLabel) {
+  const f = (rawFieldsByScope[scope] || []).find((x) => x.label === fieldLabel);
+  if (f?.type !== 'table') return null;
+  const cols = Array.isArray(f.table_columns) ? f.table_columns : [];
+  return cols.map((c) => ({ value: c.key, label: c.label || c.key }));
 }
 
 function clampToken(value, triggerType) {
@@ -68,7 +91,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
 
   // state 类型专用
   const [conditions, setConditions] = useState([emptyCondition()]);
-  const [fieldOptions, setFieldOptions] = useState([]);
+  const [rawFieldsByScope, setRawFieldsByScope] = useState({});
   const [fieldTypeMap, setFieldTypeMap] = useState(new Map());
 
   // 当 trigger_type 切换为 state 时，加载字段选项 + 已有条件
@@ -81,32 +104,31 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           listCharacterStateFields(worldId),
           listPersonaStateFields(worldId),
         ]);
-        const opts = [];
+        setRawFieldsByScope({ 世界: worldFields, 玩家: personaFields, 角色: charFields });
         const typeMap = new Map();
-        const pushField = (scope, f) => {
-          const baseKey = `${scope}.${f.label}`;
-          if (f.type === 'table') {
-            const cols = Array.isArray(f.table_columns) ? f.table_columns : [];
-            for (const col of cols) {
-              if (!col?.key) continue;
-              const colKey = `${baseKey}.${col.key}`;
-              opts.push({ value: colKey, label: `${baseKey}·${col.label || col.key}` });
-              typeMap.set(colKey, 'number');
+        const rebuildTypeMap = (scope, fields) => {
+          for (const f of fields) {
+            const baseKey = `${scope}.${f.label}`;
+            if (f.type === 'table') {
+              const cols = Array.isArray(f.table_columns) ? f.table_columns : [];
+              for (const col of cols) {
+                if (col?.key) typeMap.set(`${baseKey}.${col.key}`, 'number');
+              }
+            } else {
+              typeMap.set(baseKey, f.type);
             }
-            return;
           }
-          opts.push({ value: baseKey, label: baseKey });
-          typeMap.set(baseKey, f.type);
         };
-        for (const f of worldFields) pushField('世界', f);
-        for (const f of personaFields) pushField('玩家', f);
-        for (const f of charFields) pushField('角色', f);
-        setFieldOptions(opts);
+        rebuildTypeMap('世界', worldFields);
+        rebuildTypeMap('玩家', personaFields);
+        rebuildTypeMap('角色', charFields);
         setFieldTypeMap(typeMap);
 
         if (!isNew && form.trigger_type === 'state') {
           const conds = await getEntryConditions(entry.id);
-          setConditions(conds.length > 0 ? conds.map((c) => ({ ...c })) : [emptyCondition()]);
+          setConditions(conds.length > 0
+            ? conds.map((c) => ({ ...c, ...parseTargetField(c.target_field) }))
+            : [emptyCondition()]);
         } else {
           setConditions([emptyCondition()]);
         }
@@ -121,7 +143,21 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     setConditions((prev) => prev.map((c, i) => {
       if (i !== index) return c;
       const next = { ...c, ...patch };
-      if (patch.target_field !== undefined) {
+      if ('scope' in patch) {
+        next.field_label = '';
+        next.col_key = '';
+      }
+      if ('field_label' in patch) {
+        next.col_key = '';
+      }
+      if (next.scope && next.field_label) {
+        next.target_field = next.col_key
+          ? `${next.scope}.${next.field_label}.${next.col_key}`
+          : `${next.scope}.${next.field_label}`;
+      } else {
+        next.target_field = '';
+      }
+      if ('scope' in patch || 'field_label' in patch || 'col_key' in patch) {
         const ops = getOpsForField(next.target_field, fieldTypeMap);
         next.operator = ops[0].value;
       }
@@ -296,15 +332,28 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             {conditions.map((cond, i) => {
               const ops = getOpsForField(cond.target_field, fieldTypeMap);
               const isDatetimeField = fieldTypeMap.get(cond.target_field) === 'datetime';
+              const colOpts = getColOptions(rawFieldsByScope, cond.scope, cond.field_label);
               return (
                 <div key={i} className="we-entry-condition">
                   <div className="we-entry-condition-field">
                     <Select
-                      value={cond.target_field}
-                      onChange={(v) => updateCondition(i, { target_field: v })}
-                      options={fieldOptions}
-                      disabled={fieldOptions.length === 0}
+                      value={cond.scope}
+                      onChange={(v) => updateCondition(i, { scope: v })}
+                      options={SCOPE_OPTIONS}
                     />
+                    <Select
+                      value={cond.field_label}
+                      onChange={(v) => updateCondition(i, { field_label: v })}
+                      options={getFieldOptions(rawFieldsByScope, cond.scope)}
+                      disabled={!cond.scope}
+                    />
+                    {colOpts && (
+                      <Select
+                        value={cond.col_key}
+                        onChange={(v) => updateCondition(i, { col_key: v })}
+                        options={colOpts}
+                      />
+                    )}
                   </div>
                   <div className="we-entry-condition-op">
                     <Select
