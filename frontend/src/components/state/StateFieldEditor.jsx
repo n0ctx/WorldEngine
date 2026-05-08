@@ -314,39 +314,67 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
 
           {/* 表格列定义（type=table 时显示） */}
           {form.type === 'table' && (
-            <div>
+            <div className="flex flex-col gap-3">
               <label className={labelCls}>表格列（仅支持数值，最少 1 列）</label>
               <div className="we-state-table-cols">
                 {form.table_columns.map((col, idx) => {
                   const keyLocked = lockedColumnKeys.current.has(col.key);
                   return (
-                  <div key={idx} className="we-state-table-col-row">
-                    <input className={inputCls} value={col.key}
-                      onChange={(e) => updateColumn(idx, { key: e.target.value.replace(/\s/g, '_') })}
-                      placeholder="列key" aria-label="列 key"
-                      disabled={keyLocked}
-                      title={keyLocked ? '已落库列的 key 不可修改（会导致历史值与条件失联）；如需更名请先删除该列再新增' : undefined} />
-                    <input className={inputCls} value={col.label}
-                      onChange={(e) => updateColumn(idx, { label: e.target.value })}
-                      placeholder="表头" aria-label="列表头" />
-                    <input type="number" className={inputCls} value={col.min ?? ''}
-                      onChange={(e) => updateColumn(idx, { min: e.target.value })}
-                      placeholder="min" aria-label="列下限" />
-                    <input type="number" className={inputCls} value={col.max ?? ''}
-                      onChange={(e) => updateColumn(idx, { max: e.target.value })}
-                      placeholder="max" aria-label="列上限" />
-                    <input type="number" className={inputCls}
-                      value={form.table_defaults[col.key] ?? ''}
-                      onChange={(e) => set('table_defaults', { ...form.table_defaults, [col.key]: e.target.value })}
-                      placeholder="默认值" aria-label="列默认值" />
-                    <button type="button" onClick={() => removeColumn(idx)}
-                      className="we-btn we-btn-sm we-btn-secondary" aria-label="删除列">×</button>
-                  </div>
+                    <div key={idx} className="we-state-table-col-card">
+                      <div className="we-state-table-col-header">
+                        <span className="we-state-table-col-title">列 {idx + 1}</span>
+                        {keyLocked && (
+                          <span className="we-state-table-col-badge" title="已落库列的 key 不可修改；如需更名请先删除该列再新增">已落库</span>
+                        )}
+                        <button type="button" onClick={() => removeColumn(idx)}
+                          className="we-state-table-col-del" aria-label="删除列">删除</button>
+                      </div>
+                      <div className="we-state-table-col-body">
+                        <div className="we-state-table-col-row2">
+                          <div className="we-state-table-col-field">
+                            <span className="we-state-table-col-field-label">字段 key</span>
+                            <input className={inputCls} value={col.key}
+                              onChange={(e) => updateColumn(idx, { key: e.target.value.replace(/\s/g, '_') })}
+                              placeholder="如 strength"
+                              aria-label="列 key"
+                              disabled={keyLocked} />
+                          </div>
+                          <div className="we-state-table-col-field">
+                            <span className="we-state-table-col-field-label">表头名称</span>
+                            <input className={inputCls} value={col.label}
+                              onChange={(e) => updateColumn(idx, { label: e.target.value })}
+                              placeholder="如 力量"
+                              aria-label="列表头" />
+                          </div>
+                        </div>
+                        <div className="we-state-table-col-row3">
+                          <div className="we-state-table-col-field">
+                            <span className="we-state-table-col-field-label">最小值</span>
+                            <input type="number" className={inputCls} value={col.min ?? ''}
+                              onChange={(e) => updateColumn(idx, { min: e.target.value })}
+                              placeholder="—" aria-label="列下限" />
+                          </div>
+                          <div className="we-state-table-col-field">
+                            <span className="we-state-table-col-field-label">最大值</span>
+                            <input type="number" className={inputCls} value={col.max ?? ''}
+                              onChange={(e) => updateColumn(idx, { max: e.target.value })}
+                              placeholder="—" aria-label="列上限" />
+                          </div>
+                          <div className="we-state-table-col-field">
+                            <span className="we-state-table-col-field-label">默认值</span>
+                            <input type="number" className={inputCls}
+                              value={form.table_defaults[col.key] ?? ''}
+                              onChange={(e) => set('table_defaults', { ...form.table_defaults, [col.key]: e.target.value })}
+                              placeholder="0" aria-label="列默认值" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   );
                 })}
-                <button type="button" onClick={addColumn}
-                  className="we-btn we-btn-sm we-btn-secondary">+ 添加列</button>
               </div>
+              <button type="button" onClick={addColumn}
+                className="we-btn we-btn-sm we-btn-secondary self-start">+ 添加列</button>
             </div>
           )}
 

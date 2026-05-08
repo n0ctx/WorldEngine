@@ -2034,6 +2034,93 @@
   color: var(--we-vermilion);
 }
 
+/* 表格列编辑器 */
+.we-state-table-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.we-state-table-col-card {
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-md);
+  background: var(--we-paper-base);
+  overflow: hidden;
+}
+
+.we-state-table-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--we-paper-aged);
+  border-bottom: 1px solid var(--we-paper-shadow);
+}
+
+.we-state-table-col-title {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--we-ink-secondary);
+  flex: 1;
+}
+
+.we-state-table-col-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: var(--we-radius-full);
+  background: var(--we-paper-shadow);
+  color: var(--we-ink-faded);
+  cursor: help;
+}
+
+.we-state-table-col-del {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: var(--we-radius-sm);
+  color: var(--we-ink-faded);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.we-state-table-col-del:hover {
+  color: var(--we-vermilion);
+  background: var(--we-vermilion-bg);
+}
+
+.we-state-table-col-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.we-state-table-col-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.we-state-table-col-row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.we-state-table-col-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.we-state-table-col-field-label {
+  font-size: 11px;
+  color: var(--we-ink-faded);
+  font-style: italic;
+}
+
 /* CSS reference collapsible block */
 .we-css-reference {
   margin-bottom: 20px;
