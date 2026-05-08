@@ -30,6 +30,10 @@ function parseValue(effectiveValueJson, type, prefix) {
     }
     return String(v);
   } catch {
+    // wsf.default_value 是裸字符串（非 JSON 编码），datetime 字段直接尝试格式化
+    if (type === 'datetime' && typeof effectiveValueJson === 'string' && ISO_DATETIME_RE.test(effectiveValueJson)) {
+      return formatDatetimeChinese(effectiveValueJson, prefix);
+    }
     return String(effectiveValueJson);
   }
 }
