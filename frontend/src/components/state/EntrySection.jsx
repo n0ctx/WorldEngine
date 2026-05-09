@@ -108,6 +108,11 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
                 CACHED
               </span>
             )}
+            {triggerType === 'keyword' && entry.active_turns === 0 && entry.enabled !== 0 && (
+              <span className="we-entry-cached-badge" title="命中后永久生效">
+                永久
+              </span>
+            )}
             {triggerType === 'keyword' && entry.keywords?.length > 0 && (
               <span className="we-entry-section-keywords">
                 触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}

@@ -268,7 +268,8 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           {form.trigger_type === 'keyword' && (
             <div className="we-entry-editor-inline-col">
               <label className="we-entry-editor-label">
-                生效轮数（0=永久，默认 1）
+                生效轮数（默认 1）
+                <span className="we-entry-editor-hint"> · 设为 0 永久生效</span>
               </label>
               <input
                 type="number"
@@ -289,7 +290,15 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             ✦ 此条目将进入 CACHED LAYER，每轮稳定注入，作为 prompt cache 的一部分。
           </div>
         )}
-        {!(form.trigger_type === 'always' && form.token === 0) && (
+        {form.trigger_type === 'keyword' && form.active_turns === 0 && (
+          <div className="we-entry-editor-cached-note we-entry-editor-field-mb">
+            ✦ 此条目一旦命中将永久生效，不再随轮次衰减。
+          </div>
+        )}
+        {!(
+          (form.trigger_type === 'always' && form.token === 0) ||
+          (form.trigger_type === 'keyword' && form.active_turns === 0)
+        ) && (
           <div className="we-entry-editor-field-mb" />
         )}
 

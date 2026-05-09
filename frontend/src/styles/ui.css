@@ -1163,7 +1163,7 @@
 .we-entry-editor-cached-note {
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
-  margin: calc(-1 * var(--we-space-sm)) 0 var(--we-space-md);
+  margin: var(--we-space-sm) 0 var(--we-space-md);
   padding: var(--we-space-xs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
   box-shadow: 0 0 0 1px var(--we-color-border-default);
@@ -1376,6 +1376,36 @@
   font-size: 12px;
   color: var(--we-color-text-secondary);
   cursor: pointer;
+}
+.we-entry-editor-scope-item input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-none);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+  transition: border-color var(--we-duration-fast), background var(--we-duration-fast);
+}
+.we-entry-editor-scope-item input[type="checkbox"]:hover {
+  border-color: var(--we-vermilion);
+}
+.we-entry-editor-scope-item input[type="checkbox"]:checked {
+  background-color: var(--we-vermilion);
+  border-color: var(--we-vermilion-deep);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='none' stroke='%23f5ecd6' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' d='M3.5 8.5l3 3 6-6.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px 12px;
+}
+.we-entry-editor-scope-item input[type="checkbox"]:focus-visible {
+  outline: 1px solid var(--we-vermilion);
+  outline-offset: 1px;
 }
 
 

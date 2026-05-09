@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(entry): 关键词条目 active_turns=0 增加永久生效提示与列表徽标
+
+**改动**：
+- `EntryEditor.jsx`：关键词类型 `active_turns=0` 时，在输入框下方显示书卷风提示框 "✦ 此条目一旦命中将永久生效，不再随轮次衰减。"，并在标签后追加 hint " · 设为 0 永久生效"。
+- `EntrySection.jsx`：关键词条目 `active_turns=0` 且未禁用时，在标题后渲染"永久"徽标（复用 `we-entry-cached-badge` 样式），与 always token=0 的 CACHED 徽标统一。
+
+**验证**：编辑关键词条目把生效轮数改为 0 → 编辑器内出现永久生效提示；列表中标题旁出现"永久"徽标。
+
+## 2026-05-10 style(entry): 触发范围复选框统一书卷风 + 修复 CACHED LAYER 提示覆盖
+
+**改动**：
+- `frontend/src/styles/ui.css` 给 `.we-entry-editor-scope-item input[type="checkbox"]` 增加书卷风样式：`appearance:none`、`--we-paper-shadow` 直角描边，勾选时 `--we-vermilion` 填充 + 内嵌 SVG 对勾（米色描边居中），去掉浏览器蓝勾，也避免 `✓` 字符在 13px 方块内偏移细弱。
+- `.we-entry-editor-cached-note` 去掉负 `margin-top`，改为正 `--we-space-sm`，修复 "✦ 此条目将进入 CACHED LAYER..." 提示覆盖到上方"顺序权重"输入框的问题。
+
+**验证**：(1) 条目编辑器 `trigger_type='keyword'` 下勾选/取消触发范围，复选框为陶土色直角方块 + 米色对勾；(2) `trigger_type='always'` 且 token=0 时，CACHED LAYER 提示在输入框下方独立成行不重叠。
+
 ## 2026-05-10 feat(entry): 关键词条目支持 AND/OR、user/assistant 触发范围、生效轮数
 
 **目标**：把关键词条目升级到与状态条件条目同等的表达能力。三个新能力：(1) 关键词命中支持 AND/OR；(2) `keyword_scope` 暴露到前端，可选 user / assistant（多选，默认 user，空选保存报错）；(3) 关键词命中后可"持续生效 N 轮"（`active_turns`，0=永久、1=本轮、N=之后 N 轮）。
