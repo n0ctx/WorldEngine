@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(db): session-nearby-characters queries + 单测
+
+**背景**：附近角色特性 Task 2 — 在 schema（Task 1）之上为 `session_nearby_characters` 表提供 CRUD + 清理 queries 层。
+
+**改动**：
+- `backend/db/queries/session-nearby-characters.js`：新增 `createNearbyCharacter` / `getNearbyById` / `getNearbyByName` / `listNearbyBySessionId` / `updateNearbyName` / `updateNearbyMemory` / `updateNearbyIsSaved` / `deleteNearbyById` / `deleteTransientNotInIds`。沿用 `import db from '../index.js'` 项目惯例；id 用 `crypto.randomUUID()`，时间戳用 `Date.now()`。`listNearbyBySessionId` 排序为 `is_saved DESC, created_at ASC`（saved 置顶）。`updateNearbyIsSaved` 接 truthy/falsy 一律转 0/1。`getNearbyById` / `getNearbyByName` 未命中返回 `null`（`?? null`）。
+- `backend/tests/db/queries/session-nearby-characters.test.js`：node:test + sandbox/fixtures 模式（项目实际惯例，非 plan 文中 vitest），10 个测试覆盖默认值、UNIQUE 冲突、列表排序、命中/未命中、updated_at 刷新、is_saved 强转、删除、cleanup 保留 saved/白名单、空 keepIds。
+
+**坑点**：`deleteTransientNotInIds(sessionId, [])` 若直接拼 `id NOT IN (NULL)`，SQLite 三值逻辑下整体为 NULL（≠ TRUE），结果一行都不删——与"清空白名单 = 删全部 transient"语义相反。实现里改成 `keepIds.length === 0` 时走不带 `NOT IN` 的分支，单测 `空数组时删除所有 transient` 专门覆盖此路径。
+
+**验证**：`cd backend && node --test tests/db/queries/session-nearby-characters.test.js` → 10/10 pass。
+
 ## 2026-05-10 feat(db): 新增 session_nearby_characters 表与 character_state_fields.nearby_enabled 列
 
 **背景**：实施"附近 / 登场角色"特性 Task 1（DB schema），spec `docs/superpowers/specs/2026-05-10-nearby-characters-design.md` §3。
