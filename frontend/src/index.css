@@ -1148,6 +1148,31 @@ body {
   color: var(--we-color-gold);
   border-bottom-color: var(--we-color-gold);
 }
+/* list 字段标签组 */
+.we-status-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 1px;
+}
+.we-status-tag {
+  font-family: var(--we-font-serif);
+  font-size: 11.5px;
+  color: var(--we-ink-secondary);
+  background: var(--we-color-bg-subtle);
+  border: 1px solid var(--we-color-border-strong);
+  border-radius: 3px;
+  padding: 1px 6px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.we-status-tags.we-status-editable {
+  cursor: pointer;
+}
+.we-status-tags.we-status-editable:hover .we-status-tag {
+  border-color: color-mix(in srgb, var(--we-color-gold) 60%, transparent);
+}
+
 .we-status-inline-input {
   font-family: var(--we-font-serif);
   font-size: 12.5px;

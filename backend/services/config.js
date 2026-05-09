@@ -13,6 +13,7 @@ const DEFAULT_AUX_LLM = {
   provider_models: {},
   base_url: null,
   model: null,
+  thinking_level: null,
 };
 
 const DEFAULT_ASSISTANT = {
@@ -365,6 +366,7 @@ export function getAuxLlmConfig() {
       api_key: config.provider_keys?.[config.llm.provider] || '',
       base_url: config.llm.base_url,
       model: config.llm.model,
+      thinking_level: config.llm.thinking_level ?? null,
     };
   }
 
@@ -373,6 +375,7 @@ export function getAuxLlmConfig() {
     api_key: config.provider_keys?.[auxLlm.provider] || '',
     base_url: auxLlm.base_url,
     model: auxLlm.model,
+    thinking_level: auxLlm.thinking_level ?? null,
   };
 }
 
@@ -415,6 +418,7 @@ export function getWritingAuxLlmConfig() {
       api_key: config.provider_keys?.[writingAux.provider] || '',
       base_url: writingAux.base_url,
       model: writingAux.model,
+      thinking_level: writingAux.thinking_level ?? null,
     };
   }
 

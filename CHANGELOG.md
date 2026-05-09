@@ -3,6 +3,26 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 fix(title): 标题生成尊重用户思考链配置，修复 DeepSeek thinking 内容写入标题
+
+**背景**：DeepSeek v4 flash 等默认开启思考的模型，用户在设置中已配置 `thinking_disabled`，但 `generateTitleWithRetry` 硬编码 `thinking_level: null`（不传参），导致：
+1. 模型默认开启思考，响应 `reasoning_content` 有内容、`content` 为空 → "生成失败"
+2. 此前错误修复用 `unwrapSoloThinkBlock` 提取推理过程作为标题，推理内容被截断写入标题栏
+
+**修复**：移除 `backend/memory/title-generation.js` `generateTitleWithRetry` 中的 `thinking_level: null` 硬编码，让调用方 scope 配置的思考级别（用户设置的 `thinking_disabled`）正常生效。DeepSeek 将按 `thinking: {type: "disabled"}` 发送，避免思考。
+
+---
+
+## 2026-05-09 feat(settings): 副模型支持独立思考链级别配置
+
+**变更**：
+- `backend/services/config.js`：`DEFAULT_AUX_LLM` 新增 `thinking_level: null` 字段；`getAuxLlmConfig` / `getWritingAuxLlmConfig` 透传 `thinking_level`
+- `backend/llm/index.js`：aux / writing-aux scope 改用自身的 `thinking_level`（原来统一回退主模型）
+- `frontend/src/components/settings/AuxLlmBlock.jsx`：新增 `onThinkingLevelChange` prop，复用 `getProviderThinkingOptions` 渲染与主模型相同的思考链选择器
+- `frontend/src/components/settings/LlmConfigPanel.jsx`：对话副模型与写作副模型均传入 `onThinkingLevelChange` 回调
+
+**行为**：副模型未配置 `thinking_level`（null）时，`getAuxLlmConfig` 回退主模型时会继承其 `thinking_level`；副模型独立配置后使用自身值。
+
 ## 2026-05-09 feat(ui): 美化「已中断」徽章样式
 
 **变更**：

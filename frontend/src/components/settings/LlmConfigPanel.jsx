@@ -148,6 +148,7 @@ export default function LlmConfigPanel({
           onProviderChange={(v) => onWritingAuxLlmChange('provider', v)}
           onBaseUrlChange={(v) => onWritingAuxLlmChange('base_url', v)}
           onModelChange={(v) => onWritingAuxLlmChange('model', v)}
+          onThinkingLevelChange={(v) => onWritingAuxLlmChange('thinking_level', v)}
           onApiKeySave={onWritingAuxApiKeySave}
           onApiKeySaved={() => onWritingAuxLlmChange('has_key', true)}
           testConnection={testWritingAuxConnection}
@@ -161,6 +162,7 @@ export default function LlmConfigPanel({
           onProviderChange={(v) => onAuxLlmChange('provider', v)}
           onBaseUrlChange={(v) => onAuxLlmChange('base_url', v)}
           onModelChange={(v) => onAuxLlmChange('model', v)}
+          onThinkingLevelChange={(v) => onAuxLlmChange('thinking_level', v)}
           onApiKeySave={onAuxApiKeySave}
           onApiKeySaved={() => onAuxLlmChange('has_key', true)}
           testConnection={testAuxConnection}

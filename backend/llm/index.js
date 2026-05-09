@@ -64,10 +64,10 @@ function buildLLMConfig(options = {}) {
       provider: auxConfig.provider,
       base_url: auxConfig.base_url,
       model: auxConfig.model,
-      // 副模型不暴露 temperature / max_tokens / thinking_level，使用主模型的值
+      // 副模型不暴露 temperature / max_tokens，使用主模型的值；thinking_level 独立配置
       temperature: config.llm.temperature,
       max_tokens: config.llm.max_tokens,
-      thinking_level: config.llm.thinking_level,
+      thinking_level: auxConfig.thinking_level,
     };
     api_key = auxConfig.api_key;
   } else if (options.configScope === 'writing-aux') {
@@ -82,7 +82,7 @@ function buildLLMConfig(options = {}) {
       model: writingAuxConfig.model,
       temperature: config.llm.temperature,
       max_tokens: config.llm.max_tokens,
-      thinking_level: config.llm.thinking_level,
+      thinking_level: writingAuxConfig.thinking_level,
     };
     api_key = writingAuxConfig.api_key;
   } else if (options.configScope === 'writing') {

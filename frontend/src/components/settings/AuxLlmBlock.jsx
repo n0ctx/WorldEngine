@@ -4,15 +4,15 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from './SettingsConstants';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from './SettingsConstants';
 import { pushErrorToast } from '../../utils/toast';
 
 /**
  * 副模型(LLM)配置区块
- * 仅显示 provider / API Key / base_url / model / 测试连接按钮
- * 不显示 temperature / max_tokens / thinking_level
+ * 显示 provider / API Key / base_url / model / thinking_level / 测试连接按钮
+ * 不显示 temperature / max_tokens
  */
-export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
+export default function AuxLlmBlock({ providers, config, onProviderChange, onBaseUrlChange, onModelChange, onThinkingLevelChange, onApiKeySave, onApiKeySaved, testConnection, loadModels, fallbackHint = '未配置则回退主模型' }) {
   const [apiKey, setApiKey] = useState('');
   const [apiKeySaved, setApiKeySaved] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -50,6 +50,9 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
   const isLocal = config.provider && LOCAL_PROVIDERS.includes(config.provider);
   const needsBaseUrl = config.provider && NEEDS_BASE_URL_PROVIDERS.has(config.provider);
   const providerHint = config.provider ? (PROVIDER_HINTS[config.provider] || null) : null;
+  const thinkingOptions = onThinkingLevelChange ? getProviderThinkingOptions(config.provider) : [];
+  const isModelDrivenThinking = onThinkingLevelChange && thinkingOptions.length === 0
+    && (config.provider === 'kimi' || config.provider === 'minimax');
 
   return (
     <div className="we-settings-field-group">
@@ -120,6 +123,22 @@ export default function AuxLlmBlock({ providers, config, onProviderChange, onBas
             onChange={onModelChange}
             loadModels={loadModels}
           />
+        </FormGroup>
+      )}
+
+      {thinkingOptions.length > 0 && onThinkingLevelChange && (
+        <FormGroup label="思考链级别" hint="auto = 不传参数，使用模型默认行为">
+          <Select
+            value={config.thinking_level || ''}
+            onChange={(v) => onThinkingLevelChange(v || null)}
+            options={[{ value: '', label: '自动（模型默认）' }, ...thinkingOptions]}
+          />
+        </FormGroup>
+      )}
+
+      {isModelDrivenThinking && (
+        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换">
+          <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}
 

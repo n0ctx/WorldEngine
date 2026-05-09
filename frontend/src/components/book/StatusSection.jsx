@@ -286,7 +286,32 @@ export default function StatusSection({
                     onCommit={(vj) => handleCommit(row, vj)}
                     onCancel={() => setEditingKey(null)}
                   />
-                ) : (
+                ) : type === 'list' ? (() => {
+                  const arr = parseRawValue(row.effective_value_json, 'list');
+                  const editable = isManual && !!onSave;
+                  if (arr.length === 0) {
+                    return (
+                      <span
+                        className={`we-status-value we-status-null${editable ? ' we-status-editable' : ''}`}
+                        onClick={editable ? () => setEditingKey(editKey) : undefined}
+                        title={editable ? '点击编辑' : undefined}
+                      >
+                        {editable ? '点击编辑' : '—'}
+                      </span>
+                    );
+                  }
+                  return (
+                    <div
+                      className={`we-status-tags${editable ? ' we-status-editable' : ''}`}
+                      onClick={editable ? () => setEditingKey(editKey) : undefined}
+                      title={editable ? '点击编辑' : undefined}
+                    >
+                      {arr.map((item, idx) => (
+                        <span key={idx} className="we-status-tag">{item}</span>
+                      ))}
+                    </div>
+                  );
+                })() : (
                   <span
                     className={`we-status-value${display == null ? ' we-status-null' : ''}${isManual && onSave ? ' we-status-editable' : ''}`}
                     onClick={isManual && onSave ? () => setEditingKey(editKey) : undefined}
