@@ -25,6 +25,7 @@ dist/
 /assistant/node_modules
 /assistant/node_modules/
 /frontend/dist/
+/desktop/
 
 # User data (config contains API keys, never track)
 # Note: data/ directory itself is tracked via data/.gitkeep structure.
