@@ -310,7 +310,7 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
           0: [
             'ANCHOR_[1]_CHAT_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA', 'ANCHOR_[3]_CHAR_ALPHA',
             'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE', 'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY',
-            '[历史记忆召回]', 'ANCHOR_[8]_RECALL_CHAT', '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_CHAT',
+            '<recalled_memories>', 'ANCHOR_[8]_RECALL_CHAT', '<expanded_dialogues>', 'ANCHOR_[10]_DIARY_CHAT',
           ],
           1: ['旧轮用户消息'],
           2: ['旧轮助手消息'],
@@ -326,7 +326,7 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
           0: [
             'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA',
             'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3]_CHAR_BETA', 'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE',
-            'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '[历史记忆召回]', 'ANCHOR_[8]_RECALL_WRITING', '[历史对话原文展开]', 'ANCHOR_[10]_DIARY_WRITING',
+            'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '<recalled_memories>', 'ANCHOR_[8]_RECALL_WRITING', '<expanded_dialogues>', 'ANCHOR_[10]_DIARY_WRITING',
           ],
           1: ['旧写作用户消息'],
           2: ['旧写作助手消息'],

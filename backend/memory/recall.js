@@ -47,17 +47,17 @@ function parseValueForDisplay(valueJson) {
 }
 
 /**
- * 将 rows（含 label / effective_value_json）渲染为带标题行的状态文本。
+ * 将 rows（含 label / effective_value_json）渲染为状态文本（无标题行，由调用方 XML 包裹）。
  * 无行或全为 null 值时返回空字符串。
  */
-function rowsToStateText(rows, header) {
+function rowsToStateText(rows) {
   if (rows.length === 0) return '';
-  const lines = [header];
+  const lines = [];
   for (const row of rows) {
     const value = parseValueForDisplay(row.effective_value_json);
     if (value !== null) lines.push(`- ${row.label}：${value}`);
   }
-  if (lines.length === 1) return '';
+  if (lines.length === 0) return '';
   return lines.join('\n');
 }
 
@@ -105,7 +105,7 @@ export function renderPersonaState(worldId, sessionId) {
         ORDER BY psf.sort_order ASC, psf.created_at ASC
       `).all(personaId, worldId);
 
-  return rowsToStateText(rows, '[{{user}}状态]');
+  return rowsToStateText(rows);
 }
 
 /**
@@ -141,7 +141,7 @@ export function renderWorldState(worldId, sessionId) {
         ORDER BY wsf.sort_order ASC, wsf.created_at ASC
       `).all(worldId);
 
-  return rowsToStateText(rows, '[{{world}}状态]');
+  return rowsToStateText(rows);
 }
 
 /**
@@ -180,7 +180,7 @@ export function renderCharacterState(characterId, sessionId) {
         ORDER BY csf.sort_order ASC, csf.created_at ASC
       `).all(characterId, character.world_id);
 
-  return rowsToStateText(rows, '[{{char}}状态]');
+  return rowsToStateText(rows);
 }
 
 /**
@@ -287,7 +287,7 @@ export async function searchRecalledSummaries(worldId, sessionId) {
 export function renderRecalledSummaries(recalled) {
   if (!recalled || recalled.length === 0) return '';
 
-  const lines = ['[历史记忆召回]'];
+  const lines = [];
   for (const item of recalled) {
     const dateStr = new Date(item.created_at).toISOString().slice(0, 10);
     lines.push(`- 【#${item.ref}】【${dateStr} · ${item.session_title}】${item.content}`);

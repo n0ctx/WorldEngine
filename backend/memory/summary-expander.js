@@ -134,5 +134,5 @@ export function renderExpandedTurnRecords(turnRecordIds, tokenBudget) {
 
   if (sections.length === 0) return '';
 
-  return '[历史对话原文展开]\n\n' + sections.join('\n\n');
+  return sections.join('\n\n');
 }

@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { applyRules } from '../../utils/regex-runner.js';
+import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 import CharacterSeal from '../book/CharacterSeal.jsx';
@@ -57,6 +58,7 @@ function parseStreamingBlocks(text) {
 function ThinkBlock({ content, open = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
+  const cleanContent = stripNextPromptBlocks(content);
 
   return (
     <div className="we-think-block">
@@ -78,7 +80,7 @@ function ThinkBlock({ content, open = false }) {
         <div className="we-think-block-body-inner">
           <div className="we-think-block-body">
             <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
-              {content}
+              {cleanContent}
             </ReactMarkdown>
           </div>
         </div>

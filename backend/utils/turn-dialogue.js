@@ -30,9 +30,35 @@ export function stripAsstContext(raw) {
   return stripDialoguePrefix(stripTrailingStateBlocks(raw), ['{{char}}：', 'AI：']);
 }
 
+// think block 剥除（与前端 next-prompt.js 保持一致）
+// 注意：THINK_OPEN_TEST_RE 不能带 g flag，否则 .test() 会累积 lastIndex 导致跨调用状态泄漏
+const THINK_CLOSED_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
+const THINK_OPEN_TEST_RE = /<\s*think(?:ing)?\s*>/i;
+const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
+
+function stripThinkBlocksFromText(text) {
+  let cleaned = text.replace(THINK_CLOSED_RE, '');
+  if (THINK_OPEN_TEST_RE.test(cleaned)) {
+    cleaned = cleaned.replace(THINK_OPEN_TAIL_RE, '');
+  }
+  return cleaned;
+}
+
+// 在原始文本中找到对应 stripped 文本中 idxInStripped 位置的 <next_prompt> 的原始偏移量
+function findRawNextPromptIdx(raw, idxInStripped) {
+  let from = 0;
+  while (from <= raw.length) {
+    const pos = raw.indexOf('<next_prompt>', from);
+    if (pos === -1) return -1;
+    if (stripThinkBlocksFromText(raw.slice(0, pos)).length === idxInStripped) return pos;
+    from = pos + 1;
+  }
+  return -1;
+}
+
 /**
  * 从 AI 输出中提取 <next_prompt> 选项块并剥除该标签。
- * 仅处理首个 <next_prompt>...</next_prompt> 块，支持任意行数的选项。
+ * 先剥除 think 块再查找，避免 think 内的示例标签被误提取。
  * 兼容模型未输出闭合标签的情形（回退到匹配到字符串末尾）。
  * @param {string} text
  * @returns {{ content: string, options: string[] }}
@@ -40,19 +66,29 @@ export function stripAsstContext(raw) {
 export function extractNextPromptOptions(text) {
   if (!text) return { content: text ?? '', options: [] };
 
-  // 优先匹配有闭合标签的完整块
+  // 剥除 think 块后再查找，防止 think 内的 <next_prompt> 被误提取
+  const stripped = stripThinkBlocksFromText(text);
+  const npIdxInStripped = stripped.indexOf('<next_prompt>');
+  if (npIdxInStripped === -1) {
+    // 若 <next_prompt> 仅存在于 think 块内，返回已剥除 think 的文本，
+    // 防止推理链中的 next_prompt 残留被持久化到助手消息。
+    return { content: text.includes('<next_prompt>') ? stripped : text, options: [] };
+  }
+
+  // 映射回原始文本中的位置
+  const rawNpIdx = findRawNextPromptIdx(text, npIdxInStripped);
+  if (rawNpIdx === -1) return { content: text, options: [] };
+
+  // 提取选项内容（优先匹配闭合标签，回退到字符串末尾）
   let inner;
-  const fullMatch = text.match(/<next_prompt>([\s\S]*?)<\/next_prompt>/);
-  if (fullMatch) {
-    inner = fullMatch[1];
+  const closeIdx = text.indexOf('</next_prompt>', rawNpIdx);
+  if (closeIdx !== -1) {
+    inner = text.slice(rawNpIdx + '<next_prompt>'.length, closeIdx);
   } else {
-    // 回退：模型截断时无闭合标签，匹配到字符串末尾
-    const openIdx = text.indexOf('<next_prompt>');
-    if (openIdx === -1) return { content: text, options: [] };
-    inner = text.slice(openIdx + '<next_prompt>'.length);
+    inner = text.slice(rawNpIdx + '<next_prompt>'.length);
   }
 
   const options = inner.split('\n').map((s) => s.trim()).filter(Boolean);
-  const content = text.slice(0, text.indexOf('<next_prompt>')).replace(/\n+$/, '');
+  const content = text.slice(0, rawNpIdx).replace(/\n+$/, '');
   return { content, options };
 }

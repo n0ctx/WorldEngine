@@ -8,6 +8,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import { applyRules } from '../../utils/regex-runner.js';
+import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 
 const MotionDiv = motion.div;
@@ -81,6 +82,7 @@ function parseStreamingBlocks(text) {
 function ThinkBlock({ content, open = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
+  const cleanContent = stripNextPromptBlocks(content);
 
   return (
     <div className="we-writing-think">
@@ -96,7 +98,7 @@ function ThinkBlock({ content, open = false }) {
       {expanded && (
         <div className="we-writing-think-body">
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
-            {content}
+            {cleanContent}
           </ReactMarkdown>
         </div>
       )}

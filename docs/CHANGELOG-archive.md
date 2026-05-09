@@ -638,7 +638,7 @@
 - `backend/tests/prompts/assembler.test.js`：更新聊天/写作用例，断言后置提示词落在独立 `system` 消息，最后一条 `user` 只保留当前输入与 `next_prompt`
 - `backend/tests/prompts/assembler-shape.test.js` 与快照：更新消息索引和锚点顺序，新增独立后置 `system` 段
 - `ARCHITECTURE.md` / `backend/prompts/README.md` / `assistant/prompts/main.md`：同步新的段号与 role 语义
-- `frontend/src/components/settings/PromptConfigPanel.jsx`：设置页提示文案从“插入在user message后”改为“作为独立 system prompt 注入在当前 user message 前”
+- `frontend/src/components/settings/PromptConfigPanel.jsx`：设置页提示文案从“插入在user message后”改为“作为user prompt 注入在当前 user message 后”
 
 **验证方式**：
 - `cd backend && node --test tests/prompts/assembler.test.js`

@@ -3,8 +3,8 @@ const CLOSE_TAG = '</think>';
 const NEXT_OPEN = '<next_prompt>';
 const NEXT_CLOSE = '</next_prompt>';
 
-const THINK_OPEN_RE = /<\s*think(?:ing)?\s*>/gi;
-const THINK_CLOSE_RE = /<\s*\/\s*think(?:ing)?\s*>/gi;
+// 仅用于 .test() 存在性检查，不能带 g flag（g flag 会累积 lastIndex 导致跨调用状态泄漏）
+const THINK_OPEN_RE = /<\s*think(?:ing)?\s*>/i;
 // 已闭合的 think/thinking 块，整段（含标签）替换掉
 const THINK_CLOSED_BLOCK_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
 // 未闭合的尾部 think 块：最后一个开标签到文本末尾
@@ -56,6 +56,17 @@ function findRawAnchor(raw, cleaned, idxInCleaned) {
     from = pos + 1;
   }
   return -1;
+}
+
+/**
+ * 剥除文本中的 <next_prompt> 块（用于 think block 渲染前清理）。
+ * - 已闭合块：连同标签和内容一起删除
+ * - 未闭合的尾部块：从开标签到末尾全部删除
+ */
+export function stripNextPromptBlocks(text) {
+  let cleaned = text.replace(/<\s*next_prompt\s*>[\s\S]*?<\s*\/\s*next_prompt\s*>/gi, '');
+  cleaned = cleaned.replace(/<\s*next_prompt\s*>[\s\S]*$/i, '');
+  return cleaned;
 }
 
 export { OPEN_TAG, CLOSE_TAG, NEXT_OPEN, NEXT_CLOSE };

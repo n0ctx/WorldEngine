@@ -140,7 +140,7 @@ test('buildPrompt 在开启状态栏、召回展开、日记注入与 suggestion
   assert.match(result.messages[0].content, /天气/);
   assert.match(result.messages[0].content, /体力/);
   assert.match(result.messages[0].content, /心情/);
-  assert.match(result.messages[0].content, /\[日记注入\]\n昨天的日记摘要/);
+  assert.match(result.messages[0].content, /<diary>\n昨天的日记摘要/);
   assert.equal(result.messages[1].content, '旧问题');
   assert.equal(result.messages[2].content, '旧回答');
   assert.equal(result.messages.at(-1).role, 'user');
