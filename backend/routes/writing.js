@@ -12,6 +12,13 @@ import {
   getWritingSessionCharacters,
   addWritingSessionCharacter,
   removeWritingSessionCharacter,
+  listNearby,
+  addSavedFromCharacter,
+  removeNearby,
+  setNearbyIsSaved,
+  patchNearbyMemory,
+  renameNearby,
+  patchNearbyState,
   createMessage,
   getMessageById,
   getMessagesBySessionId,
@@ -135,6 +142,98 @@ router.delete('/:worldId/writing-sessions/:sessionId/characters/:characterId', (
   if (!assertExists(res, session, 'Session not found')) return;
   removeWritingSessionCharacter(sessionId, characterId);
   res.json({ success: true });
+});
+
+// ── 登场角色（nearby characters） ──
+
+function handleNearbyError(err, res) {
+  if (err && err.code === 'NEARBY_NAME_CONFLICT') {
+    return res.status(409).json({ error: err.message });
+  }
+  const msg = err?.message ?? '';
+  if (/not found/i.test(msg)) {
+    return res.status(404).json({ error: msg });
+  }
+  if (/required|not enabled|world mismatch|not in this world/i.test(msg)) {
+    return res.status(400).json({ error: msg });
+  }
+  log.error(`NEARBY ERROR  ${formatMeta({ error: msg })}`);
+  return res.status(500).json({ error: msg || 'Internal error' });
+}
+
+// GET /api/worlds/:worldId/writing-sessions/:sessionId/nearby
+router.get('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
+  const { sessionId } = req.params;
+  try {
+    const list = listNearby(sessionId);
+    res.json(list);
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/nearby
+router.post('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
+  const { sessionId } = req.params;
+  const characterId = req.body?.character_id;
+  if (!characterId || typeof characterId !== 'string') {
+    return res.status(400).json({ error: 'character_id is required' });
+  }
+  try {
+    const id = addSavedFromCharacter(sessionId, characterId);
+    res.status(201).json({ id });
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
+});
+
+// PATCH /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId
+router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res) => {
+  const { sessionId, nearbyId } = req.params;
+  const { is_saved, memory, name } = req.body ?? {};
+  try {
+    if (typeof name === 'string') {
+      renameNearby(sessionId, nearbyId, name);
+    }
+    if (is_saved !== undefined) {
+      setNearbyIsSaved(sessionId, nearbyId, is_saved ? 1 : 0);
+    }
+    if (memory !== undefined) {
+      patchNearbyMemory(sessionId, nearbyId, memory);
+    }
+    const list = listNearby(sessionId);
+    const row = list.find((n) => n.id === nearbyId);
+    if (!row) return res.status(404).json({ error: 'nearby not found in session' });
+    res.json(row);
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
+});
+
+// PATCH /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state
+router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state', (req, res) => {
+  const { sessionId, nearbyId } = req.params;
+  const { field_key, value_json } = req.body ?? {};
+  if (!field_key || typeof field_key !== 'string') {
+    return res.status(400).json({ error: 'field_key is required' });
+  }
+  try {
+    patchNearbyState(sessionId, nearbyId, field_key, value_json ?? null);
+    res.json({ ok: true });
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
+});
+
+// DELETE /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId
+router.delete('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res) => {
+  const { sessionId, nearbyId } = req.params;
+  try {
+    removeNearby(sessionId, nearbyId);
+    res.status(204).end();
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
 });
 
 // ── 世界所有角色列表（用于角色选择器） ──

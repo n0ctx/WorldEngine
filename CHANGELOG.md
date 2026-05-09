@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(route): nearby characters HTTP 路由 + 集成测试
+
+**背景**：附近角色特性 Task 5 — 在 service 层（Task 4）之上暴露写作会话登场角色 HTTP 路由。
+
+**改动**：
+- `backend/routes/writing.js`：新增登场角色路由段（按现有 `/:worldId/writing-sessions/:sessionId/...` mount 风格落点）：
+  - `GET    /:worldId/writing-sessions/:sessionId/nearby` → 200 list
+  - `POST   /:worldId/writing-sessions/:sessionId/nearby`（body `{ character_id }`） → 201 `{ id }`；缺 `character_id` 返回 400（路由层校验，不进 service）
+  - `PATCH  /:worldId/writing-sessions/:sessionId/nearby/:nearbyId`（body `{ is_saved? | memory? | name? }`）按 name → is_saved → memory 顺序调用 service，最后 `listNearby` 取该项返回；重名 409
+  - `PATCH  /:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state`（body `{ field_key, value_json }`） → 200 `{ ok: true }`；缺 `field_key` 400；字段未启用 400
+  - `DELETE /:worldId/writing-sessions/:sessionId/nearby/:nearbyId` → 204
+  - `handleNearbyError(err, res)` 统一映射：`code === 'NEARBY_NAME_CONFLICT'` → 409；`/not found/i` → 404；`/required|not enabled|world mismatch|not in this world/i` → 400；其它 500 + log.error
+- `backend/tests/routes/writing-nearby.test.js`：node:test + `createRouteTestContext` + fetch（与 `writing.test.js` 一致风格）8 个用例覆盖：POST+GET 正常路径、POST 缺参 400、POST 重名 409、PATCH is_saved 切换 200、PATCH 重命名冲突 409、PATCH state 200、PATCH state 缺 field_key 400、DELETE 204。
+
+**坑点**：service 实际抛错文案是 `character world mismatch: ...` 而非 plan 描述里的 `'Character not in this world'`，因此 `handleNearbyError` 的 400 正则把 `world mismatch` 也加进去（兼容 plan）。POST 缺 `character_id` 走路由层校验（400），不走 service 的「character not found」路径（那条是 404），语义不同。
+
+**验证**：`npm run test:backend` → 401/404 pass（3 skipped，无回归，新增 8 个 nearby 路由用例全部通过）。
+
 ## 2026-05-10 feat(service): nearby characters CRUD service 层 + 单测
 
 **背景**：附近角色特性 Task 4 — 在 queries 层（Task 2/3）之上提供写作会话级登场角色 CRUD 业务逻辑层。
