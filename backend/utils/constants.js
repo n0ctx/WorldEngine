@@ -106,7 +106,7 @@ export const STATE_TEXT_COMPRESS_TARGET = 20;
 /** list 字段触发裁剪的条目数阈值 */
 export const STATE_LIST_MAX_ITEMS = 10;
 /** list 字段裁剪目标条目数 */
-export const STATE_LIST_TRIM_TARGET = 5;
+export const STATE_LIST_TRIM_TARGET = 8;
 /** Ollama 工具调用 resolveToolContext 首轮最大 token 数 */
 export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
 

@@ -3,6 +3,8 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import DatetimeSplitInput from './DatetimeSplitInput';
 
+const STATE_LIST_MAX_ITEMS = 10;
+
 /**
  * 状态字段值编辑控件
  *
@@ -79,10 +81,13 @@ export default function StateValueField({ field, onSave }) {
     function addListItem(raw) {
       const v = raw.trim();
       if (!v || items.includes(v)) return;
+      if (items.length >= STATE_LIST_MAX_ITEMS) return;
       setLocal([...items, v]);
       setListInput('');
       saveValue([...items, v]);
     }
+
+    const atMax = items.length >= STATE_LIST_MAX_ITEMS;
 
     function removeListItem(v) {
       const updated = items.filter((e) => e !== v);
@@ -112,6 +117,7 @@ export default function StateValueField({ field, onSave }) {
         ))}
         <input ref={listRef} className="we-tag-input-field"
           value={listInput} onChange={(e) => setListInput(e.target.value)}
+          disabled={atMax}
           onKeyDown={(e) => {
             if (e.key === 'Enter') { e.preventDefault(); addListItem(listInput); }
             else if (e.key === 'Backspace' && listInput === '' && items.length) {
@@ -119,7 +125,7 @@ export default function StateValueField({ field, onSave }) {
             }
           }}
           onBlur={() => { if (listInput.trim()) addListItem(listInput); }}
-          placeholder={items.length === 0 ? '输入条目后按回车' : ''}
+          placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条，请先删除` : (items.length === 0 ? '输入条目后按回车' : '')}
         />
       </div>
     );

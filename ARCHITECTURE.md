@@ -558,7 +558,7 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 分组语义（代码注释看不出的约束）：
 - **记忆召回阈值**：跨 session 比同 session 严格（避免无关会话污染）；阈值变动会直接改变召回命中率，调整前需评估
 - **MEMORY_RECALL_MAX_TOKENS**：限制召回片段总长度，超过后按相似度截断；与 `MEMORY_EXPAND_MAX_TOKENS` 共同决定 [12] 段位的预算
-- **STATE_TEXT_MAX_LENGTH / STATE_LIST_MAX_ITEMS**：状态字段超过阈值后触发 LLM 压缩（state-compress），压缩目标值由 `_TARGET` / `_COMPRESS_TARGET` 控制，两者关系：阈值 > 目标
+- **STATE_TEXT_MAX_LENGTH / STATE_LIST_MAX_ITEMS**：状态字段超过阈值后触发 LLM 压缩（state-compress），压缩目标值由 `_TARGET` / `_COMPRESS_TARGET` 控制，两者关系：阈值 > 目标。list 当前为 `MAX=10 / TRIM=8`；`combined-state-updater.js validateValue()` 还会在 list 写入前做硬截断到 `STATE_LIST_MAX_ITEMS`，作为压缩兜底失败时的最后保护；prompt（`state-update.md` 第 6 条）同时告知 LLM 上限 10、满则先删
 - **LONG_TERM_MEMORY_MAX_LINES / TARGET_LINES**：长期记忆 md 文件超过阈值触发压缩，目标小于阈值
 - **LLM_THINKING_BUDGET_***：Anthropic / Gemini extended thinking 三档预算，按用户在配置里选择的等级映射
 - **DIARY_TIME_***：日记时间字段是保留 `field_key`，`update_instruction` / `description` 由后端写死，UI 不允许编辑

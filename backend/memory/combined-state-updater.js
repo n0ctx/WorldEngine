@@ -219,9 +219,11 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
     }
     for (const { entityKey, fieldKey } of overLengthList) {
       const val = compressed?.[entityKey]?.[fieldKey];
-      if (Array.isArray(val) && val.length > 0) {
+      if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
         patch[entityKey][fieldKey] = val;
         log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
+      } else {
+        log.warn(`COMPRESS LIST FAIL  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, returned: Array.isArray(val) ? val.length : typeof val })}`);
       }
     }
   } catch {
@@ -461,6 +463,10 @@ function validateValue(value, field) {
       if (!Array.isArray(value)) return undefined;
       const items = value.map(String).filter(Boolean);
       if (items.length === 0) return field.allow_empty ? [] : undefined;
+      if (items.length > STATE_LIST_MAX_ITEMS) {
+        log.warn(`LIST HARD TRUNCATE  ${formatMeta({ field: field.field_key, from: items.length, to: STATE_LIST_MAX_ITEMS })}`);
+        return items.slice(-STATE_LIST_MAX_ITEMS);
+      }
       return items;
     }
     case 'table': {

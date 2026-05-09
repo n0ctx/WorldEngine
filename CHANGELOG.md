@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 fix(state): list 字段硬上限 10、满则先删；修复压缩兜底静默失败导致列表无限增长
+
+**Bug**：`combined-state-updater.js#compressOverLimitFields()` 在调用 LLM 压缩超长 list 时，若压缩调用返回空字符串、JSON 解析失败、或返回结构缺字段，会静默放过原 patch；而 `validateValue` 的 `case 'list'` 没有任何长度校验，导致超长数组（实测 20+ 条）原样写入 `runtime_value_json`，下一轮 prompt 又把全部条目展示给 LLM，越滚越多。
+
+**修复**：
+1. `validateValue` list 分支末尾增加硬截断：长度 > `STATE_LIST_MAX_ITEMS` 时保留**末尾** 10 条（`slice(-10)`）+ 输出 `LIST HARD TRUNCATE` 警告，作为兜底兜底；保留尾部而非头部是因为 LLM "替换整个列表"通常把新事实追加在末尾，截头部会丢本轮新增。
+2. `compressOverLimitFields` 接收压缩结果时，要求返回数组长度在 `[1, STATE_LIST_MAX_ITEMS]` 区间内才覆盖 patch，否则记录 `COMPRESS LIST FAIL` 让硬截断接手。
+3. `STATE_LIST_TRIM_TARGET`：`5` → `8`（按用户要求保留更多上下文）。
+4. `state-update.md` 第 6 条改写：明确告知 LLM 每个 list 字段最多 10 个条目，已满 10 又要新增时必须先剔除一条旧条目。
+5. 前端 `StateValueField.jsx` list 编辑器同步硬限制 10：满额时输入框 `disabled` 并显示「已达上限 10 条，请先删除」，`addListItem` 在 `>=10` 时直接 return。
+
+**未改**：不动 DB schema，现有超长列表会在下一次 LLM 状态更新或用户编辑时被硬截断/压缩自然收敛。
+
+---
+
 ## 2026-05-09 feat(state): 数值类型状态字段支持单位
 
 **变更**：`world_state_fields` / `character_state_fields` / `persona_state_fields` 新增 `unit TEXT NOT NULL DEFAULT ''` 列（schema.js 用 ALTER 迁移）。`StateFieldEditor` 在 type=number 时新增「单位」输入（最长 16 字符，与 min/max 同行）。
