@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(api): session-nearby 前端 API 封装
+
+**背景**：附近角色特性 Task 9 — 给前端补齐 nearby 全链路 API 封装，配合 Task 5/8 的后端路由。
+
+**改动**：
+- `frontend/src/api/session-nearby.js`（新文件，~60 行）：基于现有 `request` wrapper 导出 10 个方法 — `fetchNearby` / `addSavedNearbyFromCharacter` / `patchNearby` / `setNearbySaved` / `patchNearbyMemory` / `patchNearbyName` / `patchNearbyState` / `removeNearby` / `analyzeNearbyForCard` / `createCharacterFromNearby`；URL 前缀 `/api/worlds/:worldId/writing-sessions/:sessionId/nearby/...`。
+
+**验证**：人工 grep 确认 import 路径与方法名；调用方接入留待 Task 10/11。
+
+**坑点**：`writing-sessions.js` 用裸 `fetch`、`characters.js` 用 `request` wrapper；新文件统一走 `request` 以获得 4xx/5xx 自动抛错和 204 处理。`activateCharacter` / `deactivateCharacter` 暂留在 `writing-sessions.js`，由 Task 11 统一清理。
+
 ## 2026-05-10 feat(card): nearby → 公共角色卡 制卡服务 + 路由
 
 **背景**：附近角色特性 Task 8 — 让用户把会话内的 nearby 角色"制成"公共角色卡，分两步：先 LLM 生成草稿，再用户确认后落库。
