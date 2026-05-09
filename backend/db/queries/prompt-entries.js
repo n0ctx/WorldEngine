@@ -34,6 +34,37 @@ function normalizeKeywordScopeValue(value) {
   return unique.join(',');
 }
 
+export class KeywordScopeEmptyError extends Error {
+  constructor() {
+    super('keyword_scope 必须勾选 user 或 assistant 至少一项');
+    this.name = 'KeywordScopeEmptyError';
+    this.code = 'KEYWORD_SCOPE_EMPTY';
+  }
+}
+
+// 用户显式提交了 keyword_scope（含空数组、空字符串）时严格校验，空则抛错；
+// 未提交（undefined）时回退默认 'user,assistant'。
+function normalizeKeywordScopeStrict(value) {
+  if (value === undefined) return 'user,assistant';
+  const normalized = normalizeKeywordScopeValue(value);
+  // 仅当用户输入是数组/字符串等"显式输入"且最终为空时才报错；
+  // normalizeKeywordScopeValue 在 typeof !== 'string' && !Array 时已回退默认值。
+  if ((Array.isArray(value) || typeof value === 'string') && !normalized) {
+    throw new KeywordScopeEmptyError();
+  }
+  return normalized || 'user,assistant';
+}
+
+function normalizeKeywordLogic(value) {
+  return value === 'AND' ? 'AND' : 'OR';
+}
+
+function normalizeActiveTurns(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return n;
+}
+
 function parseKeywords(row) {
   if (!row) return row;
   return {
@@ -56,8 +87,8 @@ export function createWorldEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.world_id,
@@ -65,9 +96,11 @@ export function createWorldEntry(data) {
     data.description ?? '',
     data.content ?? '',
     data.keywords != null ? JSON.stringify(data.keywords) : null,
-    normalizeKeywordScopeValue(data.keyword_scope),
+    normalizeKeywordScopeStrict(data.keyword_scope),
     data.trigger_type ?? 'always',
     data.condition_logic === 'OR' ? 'OR' : 'AND',
+    normalizeKeywordLogic(data.keyword_logic),
+    normalizeActiveTurns(data.active_turns ?? 1),
     sortOrder,
     normalizeToken(data.token, data.trigger_type ?? 'always'),
     now,
@@ -85,7 +118,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'condition_logic', 'token', 'enabled'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'condition_logic', 'keyword_logic', 'active_turns', 'token', 'enabled'];
   const sets = [];
   const values = [];
 
@@ -101,10 +134,14 @@ export function updateWorldEntry(id, patch) {
       values.push(field === 'keywords'
         ? (patch.keywords != null ? JSON.stringify(patch.keywords) : null)
         : field === 'keyword_scope'
-          ? normalizeKeywordScopeValue(patch.keyword_scope)
-          : field === 'token'
-            ? normalizeToken(patch.token, effectiveTriggerType)
-            : patch[field]);
+          ? normalizeKeywordScopeStrict(patch.keyword_scope)
+          : field === 'keyword_logic'
+            ? normalizeKeywordLogic(patch.keyword_logic)
+            : field === 'active_turns'
+              ? normalizeActiveTurns(patch.active_turns)
+              : field === 'token'
+                ? normalizeToken(patch.token, effectiveTriggerType)
+                : patch[field]);
     }
   }
 

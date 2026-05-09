@@ -57,6 +57,21 @@ function clampToken(value, triggerType) {
   return Math.max(min, n);
 }
 
+function clampActiveTurns(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return n;
+}
+
+function parseKeywordScope(raw) {
+  if (Array.isArray(raw)) {
+    return raw.filter((v) => v === 'user' || v === 'assistant');
+  }
+  if (typeof raw !== 'string') return ['user'];
+  const items = raw.split(',').map((s) => s.trim().toLowerCase()).filter((v) => v === 'user' || v === 'assistant');
+  return [...new Set(items)];
+}
+
 function getOpsForField(targetField, fieldTypeMap) {
   const type = fieldTypeMap.get(targetField);
   if (!type) return [...NUMERIC_OPS, ...TEXT_OPS];
@@ -72,6 +87,9 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
     keywords: entry?.keywords ?? [],
     trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
     condition_logic: entry?.condition_logic ?? 'AND',
+    keyword_logic: entry?.keyword_logic === 'AND' ? 'AND' : 'OR',
+    keyword_scope: entry ? parseKeywordScope(entry.keyword_scope) : ['user', 'assistant'],
+    active_turns: clampActiveTurns(entry?.active_turns ?? 1),
     token: entry?.token ?? 1,
   });
   const [saving, setSaving] = useState(false);
@@ -167,6 +185,10 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
 
   async function handleSave() {
     if (!form.title.trim()) return;
+    if (form.trigger_type === 'keyword' && form.keyword_scope.length === 0) {
+      pushErrorToast('必须勾选 user 或 assistant 至少一项');
+      return;
+    }
     setSaving(true);
     const draft = keywordInput.trim();
     const finalKeywords = draft && !form.keywords.includes(draft)
@@ -179,6 +201,9 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       keywords: form.trigger_type === 'keyword' ? finalKeywords : null,
       trigger_type: form.trigger_type,
       condition_logic: form.condition_logic,
+      keyword_logic: form.keyword_logic,
+      keyword_scope: form.keyword_scope.join(','),
+      active_turns: clampActiveTurns(form.active_turns),
       token: clampToken(form.token, form.trigger_type),
     };
     try {
@@ -219,28 +244,53 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           className="we-entry-editor-field we-entry-editor-field-mb"
         />
 
-        {/* 顺序权重 */}
-        <label className="we-entry-editor-label">
-          顺序权重（越大越靠后，默认 1）
-          {form.trigger_type === 'always' && (
-            <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER</span>
+        {/* 顺序权重 / 生效轮数（同一行） */}
+        <div className="we-entry-editor-inline-row">
+          <div className="we-entry-editor-inline-col">
+            <label className="we-entry-editor-label">
+              顺序权重（越大越靠后，默认 1）
+              {form.trigger_type === 'always' && (
+                <span className="we-entry-editor-hint"> · 设为 0 进入 CACHED LAYER</span>
+              )}
+            </label>
+            <input
+              type="number"
+              min={form.trigger_type === 'always' ? 0 : 1}
+              step={1}
+              value={form.token}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, token: clampToken(e.target.value, f.trigger_type) }));
+              }}
+              className="we-entry-editor-field"
+              style={{ width: '80px' }}
+            />
+          </div>
+          {form.trigger_type === 'keyword' && (
+            <div className="we-entry-editor-inline-col">
+              <label className="we-entry-editor-label">
+                生效轮数（0=永久，默认 1）
+              </label>
+              <input
+                type="number"
+                min={0}
+                step={1}
+                value={form.active_turns}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, active_turns: clampActiveTurns(e.target.value) }));
+                }}
+                className="we-entry-editor-field"
+                style={{ width: '80px' }}
+              />
+            </div>
           )}
-        </label>
-        <input
-          type="number"
-          min={form.trigger_type === 'always' ? 0 : 1}
-          step={1}
-          value={form.token}
-          onChange={(e) => {
-            setForm((f) => ({ ...f, token: clampToken(e.target.value, f.trigger_type) }));
-          }}
-          className="we-entry-editor-field we-entry-editor-field-mb"
-          style={{ width: '80px' }}
-        />
+        </div>
         {form.trigger_type === 'always' && form.token === 0 && (
-          <div className="we-entry-editor-cached-note">
+          <div className="we-entry-editor-cached-note we-entry-editor-field-mb">
             ✦ 此条目将进入 CACHED LAYER，每轮稳定注入，作为 prompt cache 的一部分。
           </div>
+        )}
+        {!(form.trigger_type === 'always' && form.token === 0) && (
+          <div className="we-entry-editor-field-mb" />
         )}
 
         {/* 内容 */}
@@ -257,7 +307,48 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         {/* 关键词（仅 keyword 类型） */}
         {form.trigger_type === 'keyword' && (
           <>
-            <label className="we-entry-editor-label">触发关键词（回车添加）</label>
+            {/* 触发范围 */}
+            <label className="we-entry-editor-label">触发范围（命中后注入；至少勾选一项）</label>
+            <div className="we-entry-editor-scope-row we-entry-editor-field-mb">
+              {['user', 'assistant'].map((scope) => {
+                const checked = form.keyword_scope.includes(scope);
+                return (
+                  <label key={scope} className="we-entry-editor-scope-item">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        setForm((f) => {
+                          const set = new Set(f.keyword_scope);
+                          if (set.has(scope)) set.delete(scope); else set.add(scope);
+                          return { ...f, keyword_scope: ['user', 'assistant'].filter((s) => set.has(s)) };
+                        });
+                      }}
+                    />
+                    {scope === 'user' ? 'user 消息' : 'assistant 消息'}
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* 关键词 + AND/OR 切换 */}
+            <div className="we-entry-condition-logic-row">
+              <label className="we-entry-editor-label">
+                触发关键词（{form.keyword_logic === 'AND' ? '全部命中时注入' : '任一命中时注入'}，回车添加）
+              </label>
+              <div className="we-entry-condition-logic-toggle">
+                <button
+                  type="button"
+                  className={`we-entry-condition-logic-btn${form.keyword_logic === 'AND' ? ' active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, keyword_logic: 'AND' }))}
+                >AND</button>
+                <button
+                  type="button"
+                  className={`we-entry-condition-logic-btn${form.keyword_logic === 'OR' ? ' active' : ''}`}
+                  onClick={() => setForm((f) => ({ ...f, keyword_logic: 'OR' }))}
+                >OR</button>
+              </div>
+            </div>
             <div
               className="we-tag-input we-entry-editor-field-mb"
               onClick={() => keywordRef.current?.focus()}

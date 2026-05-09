@@ -1354,6 +1354,30 @@
   color: #fff;
 }
 
+/* 顺序权重 + 生效轮数 同行布局；触发范围多选 */
+.we-entry-editor-inline-row {
+  display: flex;
+  gap: var(--we-space-md);
+  align-items: flex-start;
+}
+.we-entry-editor-inline-col {
+  display: flex;
+  flex-direction: column;
+}
+.we-entry-editor-scope-row {
+  display: flex;
+  gap: var(--we-space-md);
+  align-items: center;
+}
+.we-entry-editor-scope-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-size: 12px;
+  color: var(--we-color-text-secondary);
+  cursor: pointer;
+}
+
 
 /* ── RegexRuleEditor ── */
 .we-regex-dialog-close {

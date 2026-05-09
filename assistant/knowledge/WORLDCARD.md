@@ -39,7 +39,9 @@
 - `description`：1-2 句话描述**何时**触发（仅 `llm` 类型必填；`always`/`keyword`/`state` 可留空）
 - `content`：完整注入内容（受术语约束：`{{user}}` / `{{char}}`）
 - `keywords`：关键词数组（`keyword` 类型必填且至少 1 项）
-- `keyword_scope`：`"user"` / `"assistant"` / `"user,assistant"`（默认）
+- `keyword_scope`：`"user"` / `"assistant"` / `"user,assistant"`；**仅 `keyword` 类型生效**；至少包含一项，留空会被后端拒绝
+- `keyword_logic`：`"AND"` / `"OR"`；**仅 `keyword` 类型生效**；`AND` = 所有关键词都出现才命中，`OR` = 任一关键词出现即命中（默认 `OR`）
+- `active_turns`：非负整数；**仅 `keyword` 类型生效**；`0` = 命中后永久生效；`1` = 仅命中当轮；`N` = 命中后续 N 轮（默认 `1`）
 - `trigger_type`：`always` / `keyword` / `llm` / `state`（必填）
 - `token`：注入顺序权重，整数 ≥ 1，**越小越靠前、越大越靠后**（默认 1）。这是排序权重，不是优先级。LLM 对靠后的内容 recency 更强，因此**越靠后（token 数越大）实际优先级越高**；越靠前（token 数越小）越容易被后续内容覆盖。需要 LLM 严格遵守的规则应放大 token 让其靠后注入，背景设定可放小 token 靠前注入。回复用户时禁止把 "token=1" 描述为 "优先级最高"
 
@@ -85,7 +87,21 @@
 
 create 常驻：
 ```json
-{ "op": "create", "title": "世界背景", "description": "", "content": "完整内容", "keywords": [], "keyword_scope": "user,assistant", "trigger_type": "always", "token": 1 }
+{ "op": "create", "title": "世界背景", "description": "", "content": "完整内容", "keywords": [], "trigger_type": "always", "token": 1 }
+```
+
+create 关键词（AND + 仅 user 消息触发 + 命中后保持 3 轮）：
+```json
+{
+  "op": "create", "title": "黑市暗号", "description": "",
+  "content": "{{user}} 报出暗号后，黑市探子会暗中跟踪…",
+  "keywords": ["影笺", "暗号"],
+  "keyword_scope": "user",
+  "keyword_logic": "AND",
+  "active_turns": 3,
+  "trigger_type": "keyword",
+  "token": 5
+}
 ```
 
 create 状态触发：

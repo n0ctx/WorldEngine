@@ -27,6 +27,12 @@ function normalizeToken(value, triggerType = 'always') {
   return n >= 1 ? n : 1;
 }
 
+function normalizeActiveTurnsImport(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n) || n < 0) return 1;
+  return n;
+}
+
 /**
  * 保存 base64 头像到磁盘，返回 `avatars/<filename>` 相对路径；无数据或失败返回 null。
  * 注意：文件系统操作在事务内调用，不受 SQLite 事务保护（已知限制）。
@@ -54,6 +60,8 @@ function insertPromptEntries(stmt, entityId, entries, now) {
       entry.keyword_scope ?? 'user,assistant',
       entry.trigger_type ?? 'always',
       entry.condition_logic === 'OR' ? 'OR' : 'AND',
+      entry.keyword_logic === 'AND' ? 'AND' : 'OR',
+      normalizeActiveTurnsImport(entry.active_turns),
       entry.sort_order ?? 0,
       normalizeToken(entry.token, entry.trigger_type ?? 'always'),
       entry.enabled ?? 1,
@@ -224,7 +232,7 @@ export function exportWorld(worldId) {
   if (!world) throw new Error('世界不存在');
 
   const worldPromptEntries = db.prepare(
-    'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token, enabled FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
+    'SELECT id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, enabled FROM world_prompt_entries WHERE world_id = ? ORDER BY sort_order ASC',
   ).all(worldId).map((e) => {
     const entry = {
       ...e,
@@ -386,8 +394,8 @@ export function importWorld(data) {
 
     // 插入世界 prompt_entries
     const insertWorldEntry = db.prepare(`
-      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token, enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, enabled, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const entryIds = insertPromptEntries(insertWorldEntry, worldId, allPromptEntries, now);
 

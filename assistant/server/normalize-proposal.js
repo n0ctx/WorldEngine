@@ -129,7 +129,7 @@ async function applyProposal(proposal, worldRefId = null) {
             replaceEntryConditions(entry.id, op.conditions);
           }
         } else if (op.op === 'update' && op.id) {
-          updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'trigger_type', 'token']));
+          updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
           if (op.trigger_type === 'state' && Array.isArray(op.conditions)) {
             replaceEntryConditions(op.id, op.conditions);
           }
@@ -643,7 +643,26 @@ function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = fal
     if ('description' in raw) normalized.description = String(raw.description ?? '');
     if ('content' in raw) normalized.content = String(raw.content ?? '');
     if ('keywords' in raw) normalized.keywords = normalizeStringArrayOrNull(raw.keywords);
-    if ('keyword_scope' in raw) normalized.keyword_scope = raw.keyword_scope;
+    if ('keyword_scope' in raw) {
+      // 助手侧宽容回退：归一化为 'user' / 'assistant' / 'user,assistant'，空值回退默认
+      const items = Array.isArray(raw.keyword_scope)
+        ? raw.keyword_scope
+        : typeof raw.keyword_scope === 'string'
+          ? raw.keyword_scope.split(',')
+          : [];
+      const filtered = items
+        .map((s) => String(s).trim().toLowerCase())
+        .filter((v) => v === 'user' || v === 'assistant');
+      const unique = [...new Set(filtered)];
+      normalized.keyword_scope = unique.length > 0 ? unique.join(',') : 'user,assistant';
+    }
+    if ('keyword_logic' in raw) {
+      normalized.keyword_logic = raw.keyword_logic === 'AND' ? 'AND' : 'OR';
+    }
+    if ('active_turns' in raw) {
+      const t = parseInt(raw.active_turns, 10);
+      normalized.active_turns = Number.isFinite(t) && t >= 0 ? t : 1;
+    }
     if ('token' in raw) {
       const t = parseInt(raw.token, 10);
       normalized.token = Number.isFinite(t) && t >= 1 ? t : 1;

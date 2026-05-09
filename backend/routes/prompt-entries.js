@@ -4,6 +4,7 @@ import {
 } from '../services/prompt-entries.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
+import { KeywordScopeEmptyError } from '../db/queries/prompt-entries.js';
 
 const router = Router();
 
@@ -16,10 +17,17 @@ router.get('/worlds/:worldId/entries', (req, res) => {
 
 // POST /api/worlds/:worldId/entries
 router.post('/worlds/:worldId/entries', (req, res) => {
-  const { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token } = req.body;
+  const { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
-  const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, sort_order, token });
-  res.status(201).json(entry);
+  try {
+    const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token });
+    res.status(201).json(entry);
+  } catch (err) {
+    if (err instanceof KeywordScopeEmptyError) {
+      return res.status(400).json({ error: err.message, code: err.code });
+    }
+    throw err;
+  }
 });
 
 // ─── reorder ─────────────────────────────────────────────────────
@@ -50,8 +58,15 @@ router.get('/world-entries/:id', (req, res) => {
 
 // PUT /api/world-entries/:id
 router.put('/world-entries/:id', (req, res) => {
-  const entry = updateWorldPromptEntry(req.params.id, req.body);
-
+  let entry;
+  try {
+    entry = updateWorldPromptEntry(req.params.id, req.body);
+  } catch (err) {
+    if (err instanceof KeywordScopeEmptyError) {
+      return res.status(400).json({ error: err.message, code: err.code });
+    }
+    throw err;
+  }
   if (!assertExists(res, entry, 'Entry not found')) return;
   res.json(entry);
 });

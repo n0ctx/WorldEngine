@@ -21,6 +21,7 @@ import {
 } from '../db/queries/session-state-values.js';
 import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
+import { getKeywordActiveState, setKeywordActiveState } from '../db/queries/session-active-entries.js';
 import * as llm from '../llm/index.js';
 import {
   PROMPT_ENTRY_SCAN_WINDOW,
@@ -108,9 +109,15 @@ function resolveKeywordScopes(rawScope) {
 function matchByKeywords(entry, userScanText, asstScanText) {
   if (!entry.keywords || entry.keywords.length === 0) return false;
   const scopes = resolveKeywordScopes(entry.keyword_scope);
-  const hitUser = scopes.has('user') && entry.keywords.some((kw) => userScanText.includes(kw.toLowerCase()));
-  const hitAsst = scopes.has('assistant') && entry.keywords.some((kw) => asstScanText.includes(kw.toLowerCase()));
-  return hitUser || hitAsst;
+  const includesIn = (kw) => {
+    const lower = kw.toLowerCase();
+    return (scopes.has('user') && userScanText.includes(lower))
+      || (scopes.has('assistant') && asstScanText.includes(lower));
+  };
+  if (entry.keyword_logic === 'AND') {
+    return entry.keywords.every(includesIn);
+  }
+  return entry.keywords.some(includesIn);
 }
 
 export const __testables = {
@@ -322,10 +329,51 @@ export async function matchEntries(sessionId, entries, worldId = null) {
     triggered.add(entry.id);
   }
 
-  // keyword：只走关键词匹配
-  for (const entry of keywordEntries) {
-    if (matchByKeywords(entry, userScanText, asstScanText)) {
-      triggered.add(entry.id);
+  // keyword：先用本轮关键词扫描得到本轮新命中；再叠加跨轮"生效轮数"内仍存活的旧命中；
+  // 最后把本轮命中刷新写回 sessions.keyword_active_state，并清理已过期 / 不再存在的条目。
+  if (keywordEntries.length > 0) {
+    const freshHits = new Set();
+    for (const entry of keywordEntries) {
+      if (matchByKeywords(entry, userScanText, asstScanText)) {
+        freshHits.add(entry.id);
+      }
+    }
+
+    // currentRound：以 session 内 user 消息总数为单调计数（regenerate 不增、edit 后会回退，符合直觉）
+    const currentRound = allMessages.reduce((c, m) => c + (m.role === 'user' ? 1 : 0), 0);
+
+    const prevState = getKeywordActiveState(sessionId);
+    const entryById = new Map(keywordEntries.map((e) => [e.id, e]));
+    const nextState = {};
+
+    // 旧命中携带：仍在 TTL 内且条目仍存在 → 视为已激活
+    // 历史回退保护：当 record.round > currentRound 时，说明会话被删消息 / 编辑早期消息 / 清空，
+    // 触发它的消息已不存在；丢弃该记录，避免幽灵注入（尤其 active_turns=0 永久条目）。
+    for (const [entryId, record] of Object.entries(prevState)) {
+      if (!entryById.has(entryId)) continue; // 条目被删除：不携带
+      const ttl = Number(record?.ttl);
+      const round = Number(record?.round);
+      if (!Number.isFinite(round)) continue;
+      if (round > currentRound) continue; // 历史被回退到激活点之前：丢弃
+      const stillActive = ttl === 0 || (Number.isFinite(ttl) && ttl > 0 && currentRound - round < ttl);
+      if (stillActive) {
+        triggered.add(entryId);
+        nextState[entryId] = { round, ttl };
+      }
+    }
+
+    // 本轮新命中：刷新 round 与 ttl，覆盖旧记录
+    for (const id of freshHits) {
+      triggered.add(id);
+      const ttl = Number(entryById.get(id)?.active_turns ?? 1);
+      nextState[id] = { round: currentRound, ttl: Number.isFinite(ttl) && ttl >= 0 ? ttl : 1 };
+    }
+
+    // 持久化（只在有变化时写）
+    const changed = JSON.stringify(prevState) !== JSON.stringify(nextState);
+    if (changed) {
+      try { setKeywordActiveState(sessionId, nextState); }
+      catch (err) { log.warn(`持久化 keyword_active_state 失败: ${err.message}`); }
     }
   }
 

@@ -83,7 +83,9 @@ describe('EntryEditor', () => {
     render(<EntryEditor worldId="world-1" defaultTriggerType="keyword" onClose={vi.fn()} onSave={onSave} />);
 
     fillBasicForm();
-    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0' } });
+    // keyword 类型下有两个 spinbutton：顺序权重(token) 与 生效轮数(active_turns)，token 是第一个
+    const spinbuttons = screen.getAllByRole('spinbutton');
+    fireEvent.change(spinbuttons[0], { target: { value: '0' } });
     fireEvent.click(screen.getByText('保存'));
 
     await waitFor(() => expect(mocks.createWorldEntry).toHaveBeenCalledWith('world-1', expect.objectContaining({

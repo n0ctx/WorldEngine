@@ -448,6 +448,12 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
   // condition_logic：状态条件逻辑模式（'AND' | 'OR'），默认全部满足（AND）
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN condition_logic TEXT NOT NULL DEFAULT 'AND'`); } catch {}
+  // keyword_logic：关键词命中逻辑（'AND' | 'OR'），仅 trigger_type='keyword' 生效；默认 OR 保持向后兼容
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN keyword_logic TEXT NOT NULL DEFAULT 'OR'`); } catch {}
+  // active_turns：关键词命中后持续生效的轮数（0=永久；1=本轮；N=触发后续 N 轮），默认 1
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN active_turns INTEGER NOT NULL DEFAULT 1`); } catch {}
+  // sessions.keyword_active_state：跨轮持久化关键词激活状态（JSON：{ entry_id: { round, ttl } }）
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN keyword_active_state TEXT NOT NULL DEFAULT '{}'`); } catch {}
 }
 
 /**

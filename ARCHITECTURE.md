@@ -153,7 +153,7 @@ POST /api/sessions/:sessionId/chat
 | [5] | System 后缀 | `renderWorldState(world.id)` | 无字段/值时跳过 |
 | [6] | System 后缀 | `renderPersonaState(world.id)` | 空跳过 |
 | [7] | System 后缀 | `renderCharacterState(character.id)` | 空跳过 |
-| [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [2] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
+| [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配（`keyword_logic` AND/OR + `keyword_scope` 限定 user/assistant 扫描面 + `active_turns` 跨轮持续生效，状态持久化在 `sessions.keyword_active_state`）；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、`condition_logic` AND/OR 评估。所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [2] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
 | [8.5] | System 后缀 | **长期记忆**：开关 `config.long_term_memory_enabled`（写作模式读 `config.writing.long_term_memory_enabled`）启用且 `data/long_term_memory/{sessionId}/memory.md` 非空时，注入 `[长期记忆]\n{content}`，经 `tv()` 渲染模板变量。开关关闭只停止注入，磁盘文件保留 | 关闭或文件为空时跳过 |
 | [9] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |

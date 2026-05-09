@@ -3,6 +3,40 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(entry): 关键词条目支持 AND/OR、user/assistant 触发范围、生效轮数
+
+**目标**：把关键词条目升级到与状态条件条目同等的表达能力。三个新能力：(1) 关键词命中支持 AND/OR；(2) `keyword_scope` 暴露到前端，可选 user / assistant（多选，默认 user，空选保存报错）；(3) 关键词命中后可"持续生效 N 轮"（`active_turns`，0=永久、1=本轮、N=之后 N 轮）。
+
+**Schema 变更**（`backend/db/schema.js`，全部 ALTER 追加）：
+- `world_prompt_entries`：新增 `keyword_logic TEXT NOT NULL DEFAULT 'OR'`、`active_turns INTEGER NOT NULL DEFAULT 1`。`keyword_logic` 默认 OR 保持向后兼容（命中等同改造前）。仅对 `trigger_type='keyword'` 生效。
+- `sessions`：新增 `keyword_active_state TEXT NOT NULL DEFAULT '{}'`，JSON 结构 `{ entry_id: { round, ttl } }`，跨轮持久化激活状态。
+
+**命中匹配（`backend/prompts/entry-matcher.js`）**：
+- `matchByKeywords` 改写：先用 `keyword_scope` 限定扫描面（user / assistant 任一 scope 出现即视为该关键词命中），再按 `keyword_logic` 决定 AND（所有关键词都命中）或 OR（任一命中）。
+- 新增跨轮 TTL 逻辑：`currentRound` 取 session 内 user 消息总数（regenerate 不增、edit 后回退，符合直觉）；本轮新命中刷新 `state[id] = { round, ttl }`；旧记录 `ttl=0` 永久生效，`ttl>=1` 在 `currentRound - round < ttl` 期间继续注入；过期 / 条目被删自动清理。状态写入 `sessions.keyword_active_state`，新建 `backend/db/queries/session-active-entries.js` 封装读写。
+
+**校验**：`backend/db/queries/prompt-entries.js` 新增 `KeywordScopeEmptyError`，前端显式提交空 `keyword_scope`（数组 / 字符串）时抛错；`backend/routes/prompt-entries.js` 在 POST/PUT 捕获并返回 400 + 中文提示。前端保存按钮也先做一次校验，双层防护。
+
+**前端 EntryEditor**（`frontend/src/components/state/EntryEditor.jsx` + `frontend/src/styles/ui.css`）：
+- 顺序权重与生效轮数同行布局（`we-entry-editor-inline-row` / `we-entry-editor-inline-col`），生效轮数仅在 keyword 类型显示。
+- 关键词类条目新增触发范围多选（user / assistant 复选框）+ AND/OR 切换（复用状态条件已有的 `we-entry-condition-logic-row` 样式）。
+- form 状态加载时把 `keyword_scope` 字符串解析为数组，提交前 `.join(',')` 转回字符串。新建条目默认勾选 `['user']`。
+
+**导入导出**（`backend/services/import-export.js`）：`exportWorld` SELECT 增加 `keyword_logic` / `active_turns`；`insertPromptEntries` INSERT 列、参数同步扩展，旧卡缺字段时回退 `'OR'` / `1`。
+
+**写卡助手对齐**（`assistant/`）：
+- `knowledge/WORLDCARD.md` 字段说明加入 `keyword_logic` / `active_turns`，并补充 AND + 仅 user + 持续 3 轮的示例；`keyword_scope` 同步标注"留空会被后端拒绝"。
+- `server/normalize-proposal.js` 解析时归一化两个新字段，`keyword_scope` 空集合宽容回退 `'user,assistant'`（避免提案直接被后端 400）；`updateWorldPromptEntry` 的 pickAllowed 白名单补 `keyword_logic` / `active_turns` / `condition_logic`（同步修复 condition_logic 之前未列入的遗漏）。
+- `server/tools/apply-world-card.js` 的工具描述补一句字段提示，让 LLM 在不读 WORLDCARD.md 的情况下也能感知新字段。
+
+**坑点 / 已知约束**：
+- AND 语义判断的是"所有关键词在所选 scope 集合中至少各出现过一次"，不要求同一句、同一条消息、同一 scope。如需"同消息共存"语义，未来再扩展。
+- TTL 计数挂在 session.user 消息总数上。**历史回退保护**（Codex review 修复）：当 `record.round > currentRound`（用户删消息 / 编辑早期消息 / 清空会话）时，触发该条目的消息已不存在，直接丢弃 carry-over 记录，避免 `active_turns=0` 永久条目变成幽灵注入。
+- `condition_logic` 与 `keyword_logic` 故意分开两列：语义不同（一个针对 entry_conditions 行集，一个针对 keywords 数组），分开避免未来歧义。
+- 前端 EntryEditor 新建关键词条目时 `keyword_scope` 默认勾选 user + assistant（与后端 schema、写卡助手归一化、导入兜底全部对齐；初版只勾 user 为不一致 bug，已修）。
+
+---
+
 ## 2026-05-09 fix(state): list 字段硬上限 10、满则先删；修复压缩兜底静默失败导致列表无限增长
 
 **Bug**：`combined-state-updater.js#compressOverLimitFields()` 在调用 LLM 压缩超长 list 时，若压缩调用返回空字符串、JSON 解析失败、或返回结构缺字段，会静默放过原 patch；而 `validateValue` 的 `case 'list'` 没有任何长度校验，导致超长数组（实测 20+ 条）原样写入 `runtime_value_json`，下一轮 prompt 又把全部条目展示给 LLM，越滚越多。
