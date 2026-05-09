@@ -167,16 +167,34 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
   const overLengthText = [];
   const overLengthList = [];
 
-  for (const { entityKey, fields, patchData } of entityFieldPairs) {
-    if (!patchData) continue;
+  for (const { entityKey, fields, patchData, valueMap } of entityFieldPairs) {
     const fieldMap = Object.fromEntries(fields.map((f) => [f.field_key, f]));
-    for (const [key, value] of Object.entries(patchData)) {
-      const field = fieldMap[key];
-      if (!field) continue;
-      if (field.type === 'text' && typeof value === 'string' && value.length > STATE_TEXT_MAX_LENGTH) {
-        overLengthText.push({ entityKey, fieldKey: key, value });
-      } else if (field.type === 'list' && Array.isArray(value) && value.length > STATE_LIST_MAX_ITEMS) {
-        overLengthList.push({ entityKey, fieldKey: key, value });
+    if (patchData) {
+      for (const [key, value] of Object.entries(patchData)) {
+        const field = fieldMap[key];
+        if (!field) continue;
+        if (field.type === 'text' && typeof value === 'string' && value.length > STATE_TEXT_MAX_LENGTH) {
+          overLengthText.push({ entityKey, fieldKey: key, value });
+        } else if (field.type === 'list' && Array.isArray(value) && value.length > STATE_LIST_MAX_ITEMS) {
+          overLengthList.push({ entityKey, fieldKey: key, value });
+        }
+      }
+    }
+    // 兜底：LLM 未在本轮 patch 中提及的字段，若现有运行时值已超限，也加入压缩队列；
+    // 否则一旦历史数据超过阈值，将永远无法被收敛回上限。
+    if (!valueMap) continue;
+    for (const field of fields) {
+      const key = field.field_key;
+      if (patchData && Object.prototype.hasOwnProperty.call(patchData, key)) continue;
+      const cur = valueMap[key];
+      const json = cur?.runtimeValueJson;
+      if (!json) continue;
+      let parsed;
+      try { parsed = JSON.parse(json); } catch { continue; }
+      if (field.type === 'text' && typeof parsed === 'string' && parsed.length > STATE_TEXT_MAX_LENGTH) {
+        overLengthText.push({ entityKey, fieldKey: key, value: parsed });
+      } else if (field.type === 'list' && Array.isArray(parsed) && parsed.length > STATE_LIST_MAX_ITEMS) {
+        overLengthList.push({ entityKey, fieldKey: key, value: parsed });
       }
     }
   }
@@ -198,36 +216,49 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
   const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
 
   const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'state_compress', conversationId: sessionId });
-  if (!raw) return;
 
-  try {
-    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
-    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-    if (!match) return;
-    let compressed;
-    try { compressed = JSON.parse(match[0]); }
-    catch { compressed = JSON.parse(repairTruncatedJson(match[0])); }
-    if (!compressed || typeof compressed !== 'object') return;
+  let compressed = null;
+  if (raw) {
+    try {
+      const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
+      const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
+      if (match) {
+        try { compressed = JSON.parse(match[0]); }
+        catch { compressed = JSON.parse(repairTruncatedJson(match[0])); }
+      }
+    } catch {
+      log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+    }
+  }
+  if (!compressed || typeof compressed !== 'object') compressed = {};
 
-    for (const { entityKey, fieldKey } of overLengthText) {
-      const val = compressed?.[entityKey]?.[fieldKey];
-      if (typeof val === 'string' && val.length > 0) {
-        patch[entityKey][fieldKey] = val;
-        log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
-      }
+  // 确保 patch[entityKey] 是普通对象；若 LLM 返回畸形桶（字符串/数字/数组等），
+  // 直接覆盖为 {}，避免给非对象赋属性触发严格模式 TypeError 中断整个更新流程。
+  const ensureBucket = (entityKey) => {
+    const cur = patch[entityKey];
+    if (!cur || typeof cur !== 'object' || Array.isArray(cur)) patch[entityKey] = {};
+    return patch[entityKey];
+  };
+
+  for (const { entityKey, fieldKey } of overLengthText) {
+    const val = compressed?.[entityKey]?.[fieldKey];
+    if (typeof val === 'string' && val.length > 0) {
+      ensureBucket(entityKey)[fieldKey] = val;
+      log.info(`COMPRESS TEXT OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, chars: val.length })}`);
     }
-    for (const { entityKey, fieldKey } of overLengthList) {
-      const val = compressed?.[entityKey]?.[fieldKey];
-      if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
-        patch[entityKey][fieldKey] = val;
-        log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
-      } else {
-        log.warn(`COMPRESS LIST FAIL  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, returned: Array.isArray(val) ? val.length : typeof val })}`);
-      }
+  }
+  for (const { entityKey, fieldKey, value: original } of overLengthList) {
+    const val = compressed?.[entityKey]?.[fieldKey];
+    if (Array.isArray(val) && val.length > 0 && val.length <= STATE_LIST_MAX_ITEMS) {
+      ensureBucket(entityKey)[fieldKey] = val;
+      log.info(`COMPRESS LIST OK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, items: val.length })}`);
+    } else {
+      // 兜底：LLM 未返回有效裁剪结果时，硬截取最近的 STATE_LIST_TRIM_TARGET 条，避免列表无限增长
+      const trimmed = original.slice(-STATE_LIST_TRIM_TARGET);
+      ensureBucket(entityKey)[fieldKey] = trimmed;
+      log.warn(`COMPRESS LIST FALLBACK  ${formatMeta({ session: sid, field: `${entityKey}.${fieldKey}`, from: original.length, to: trimmed.length })}`);
     }
-  } catch {
-    log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
   }
 }
 
@@ -278,9 +309,12 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   // ── 组装 prompt 各节 ──
   const sections = [];
   const responseKeys = [];
+  let worldValueMap = null;
+  const charValueMaps = [];
+  let personaValueMap = null;
 
   if (worldActiveFields.length > 0) {
-    const worldValueMap = mergeSessionValues(
+    worldValueMap = mergeSessionValues(
       buildValueMap(getAllWorldStateValues(worldId)),
       getSessionWorldStateValues(sessionId, worldId)
     );
@@ -295,6 +329,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       buildValueMap(getAllCharacterStateValues(char.id)),
       getSessionCharacterStateValues(sessionId, char.id)
     );
+    charValueMaps[i] = charValueMap;
     sections.push(
       `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
         `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
@@ -304,7 +339,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
 
   if (personaActiveFields.length > 0) {
-    const personaValueMap = mergeSessionValues(
+    personaValueMap = mergeSessionValues(
       buildValueMap(getAllPersonaStateValues(worldId)),
       getSessionPersonaStateValues(sessionId, worldId)
     );
@@ -389,9 +424,9 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
 
   // ── 字数/列表检查：超限时压缩后再写入 ──
   await compressOverLimitFields(patch, [
-    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world }] : []),
-    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`] })),
-    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona }] : []),
+    ...(worldActiveFields.length > 0 ? [{ entityKey: 'world', fields: worldActiveFields, patchData: patch.world, valueMap: worldValueMap }] : []),
+    ...charactersWithFields.map((_, i) => ({ entityKey: `char_${i}`, fields: charSchemaFields, patchData: patch[`char_${i}`], valueMap: charValueMaps[i] })),
+    ...(personaActiveFields.length > 0 ? [{ entityKey: 'persona', fields: personaActiveFields, patchData: patch.persona, valueMap: personaValueMap }] : []),
   ], sid, sessionId);
 
   // ── 写入各类状态（会话级） ──

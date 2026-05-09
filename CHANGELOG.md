@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(state): list 字段超限不收敛的兜底链路
+
+**问题**：用户反馈 `外貌` list 字段累计 13+ 条，多轮对话后仍未收敛到 8。原因是 `compressOverLimitFields` 只检查本轮 patch 中出现的字段；若 LLM 当轮没有把该字段塞进 patch（外貌等"近似静态"字段常如此），即使现有 runtime 值已远超 10，也不会进入压缩或硬截断分支，于是历史超限永远保留。
+
+**改动**（`backend/memory/combined-state-updater.js`）：
+1. `compressOverLimitFields` 新增 `valueMap` 参数，对每个活跃实体也扫描现有 runtime 值；patch 未提及但已超限的 text/list 字段同样进入压缩队列。
+2. `updateAllStates` 把已计算的 `worldValueMap` / `charValueMaps[i]` / `personaValueMap` 提升到外层作用域并下传给压缩函数，避免重复查询。
+3. 压缩 LLM 返回失败/空/格式不符时，原本"静默放弃"，现改为以 `value.slice(-STATE_LIST_TRIM_TARGET)` 硬截取作为兜底写回 patch；新增 `ensureBucket(entityKey)`：当 LLM 返回畸形顶层桶（如 `"world": "..."`、`"char_0": 1`）时直接覆盖为 `{}`，避免对字符串/数字赋属性触发严格模式 TypeError 中断整个状态更新（修复 codex review 指出的回归）。
+
+**验证**：(1) `npm run test:backend` 全绿（369 通过）；(2) 用户场景下次状态更新轮触发：日志会出现 `COMPRESS  list=1`，并写出 `COMPRESS LIST OK` 或 `COMPRESS LIST FALLBACK`，前端列表收敛到 ≤8 条。
+
 ## 2026-05-10 feat(entry): 关键词条目 active_turns=0 增加永久生效提示与列表徽标
 
 **改动**：
