@@ -59,14 +59,12 @@ function findRawAnchor(raw, cleaned, idxInCleaned) {
 }
 
 /**
- * 剥除文本中的 <next_prompt> 块（用于 think block 渲染前清理）。
- * - 已闭合块：连同标签和内容一起删除
- * - 未闭合的尾部块：从开标签到末尾全部删除
+ * 剥除 think block 内的 <next_prompt> 标签，保留标签内文本内容，
+ * 使其在 think 面板中以普通文本形式展示而非被隐藏。
  */
 export function stripNextPromptBlocks(text) {
-  let cleaned = text.replace(/<\s*next_prompt\s*>[\s\S]*?<\s*\/\s*next_prompt\s*>/gi, '');
-  cleaned = cleaned.replace(/<\s*next_prompt\s*>[\s\S]*$/i, '');
-  return cleaned;
+  return text
+    .replace(/<\s*\/?\s*next_prompt\s*>/gi, '');
 }
 
 export { OPEN_TAG, CLOSE_TAG, NEXT_OPEN, NEXT_CLOSE };
