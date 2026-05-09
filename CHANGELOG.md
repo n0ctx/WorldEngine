@@ -3,6 +3,29 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(state): turn_records snapshot 增加 nearby 层 + 回滚还原
+
+**背景**：附近角色特性 Task 7 — 让每轮 turn record 的 `state_snapshot` 同时记录 nearby 池与其状态，使消息编辑/regenerate 回滚能精确还原"本轮登场角色"。
+
+**改动**：
+- `backend/memory/turn-summarizer.js`：在 `captureStateSnapshot` 之后，仅当 `session.mode === 'writing'` 时把 `listNearbyBySessionId` + `getStateValuesByNearbyId` 拼成 `snapshot.nearby = [{id,name,memory,is_saved,state}]`，与 world/persona/character 并列写入 JSON。chat 模式不写该字段（向下兼容）。
+- `backend/memory/state-rollback.js`：`restoreStateFromSnapshot`
+  - `snapshot=null` 分支追加：清空 nearby 两张表（CASCADE）。
+  - 主路径末尾追加：先 `deleteNearbyById` 全删旧 nearby（CASCADE 同步清 state values），再按 `snapshot.nearby` 数组用 `createNearbyCharacter` + `upsertNearbyStateValue` 重建；id 不复用、新发 UUID；缺失/非数组（旧记录） → 仅清空（向下兼容）。
+- `backend/tests/memory/state-rollback.test.js`：新增 2 个用例
+  - 含 nearby 层 → 还原后旧 nearby 被清掉、name/memory/is_saved/state 全部回写、id 不复用；
+  - 缺 nearby 字段（旧记录） → nearby 两张表清空。
+- `SCHEMA.md`（本地，gitignored）：`turn_records.state_snapshot` JSON 示例添加 nearby 层 + 还原行为说明。
+
+**验证**：
+- `cd backend && node --test tests/memory/state-rollback.test.js` → 5/5 pass（原 3 + 新 2）。
+- `npm run test:backend` → 409 pass / 0 fail / 3 skip，无回归。
+
+**坑点**：
+- snapshot 中保存的 nearby `id` 不复用：写作模式下 turn 之间不依赖 id 稳定（语义层只关心 name/state/memory/is_saved），新发 UUID 与池内现有约束更安全。
+- `nearby: []` 与 `undefined nearby` 必须区分——前者代表"启用 nearby 但本轮空池，回滚要清干净"，后者代表旧记录无该字段、走向下兼容（同样清空，但语义不同）。
+- nearby 层只在 `mode==='writing'` 时写入；chat 会话的 `session_nearby_characters` 始终为空，CASCADE 自然处理，无需特殊分支。
+
 ## 2026-05-10 feat(state): combined-state-updater 集成 nearby pool + applyNearbyResult
 
 **背景**：附近角色特性 Task 6 — 在 `mode === 'writing'` 的同一次状态更新 LLM 调用里，让模型同时输出 `nearby_characters` 数组（本轮登场角色），并应用到 `session_nearby_characters` / `session_nearby_character_state_values`。

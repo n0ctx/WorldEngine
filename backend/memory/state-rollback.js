@@ -15,6 +15,12 @@ import {
   clearSingleCharacterSessionStateValues,
   clearSessionCharacterStateValues,
 } from '../db/queries/session-character-state-values.js';
+import {
+  listNearbyBySessionId,
+  deleteNearbyById,
+  createNearbyCharacter,
+} from '../db/queries/session-nearby-characters.js';
+import { upsertNearbyStateValue } from '../db/queries/session-nearby-character-state-values.js';
 
 /**
  * 捕获当前会话的三层状态快照（从 session_*_state_values 表读取）
@@ -71,6 +77,7 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
     clearSessionWorldStateValues(sessionId);
     clearSessionPersonaStateValues(sessionId);
     clearSessionCharacterStateValues(sessionId);
+    for (const r of listNearbyBySessionId(sessionId)) deleteNearbyById(r.id);
     return;
   }
 
@@ -94,6 +101,24 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
       for (const [key, valueJson] of Object.entries(cs)) {
         upsertSessionCharacterStateValue(sessionId, cid, key, valueJson);
       }
+    }
+  }
+
+  // nearby 层：先全删（CASCADE 清掉 state values），再按 snapshot.nearby 重建。
+  // snapshot.nearby 缺失/非数组（旧记录） → 仅清空（向下兼容）。
+  for (const r of listNearbyBySessionId(sessionId)) deleteNearbyById(r.id);
+  const nearbyArr = Array.isArray(snapshot.nearby) ? snapshot.nearby : [];
+  for (const n of nearbyArr) {
+    if (!n || typeof n.name !== 'string' || !n.name) continue;
+    const newId = createNearbyCharacter({
+      sessionId,
+      name: n.name,
+      memory: n.memory ?? '',
+      isSaved: n.is_saved ? 1 : 0,
+    });
+    const state = n.state ?? {};
+    for (const [k, v] of Object.entries(state)) {
+      upsertNearbyStateValue({ sessionId, nearbyId: newId, fieldKey: k, valueJson: v });
     }
   }
 }

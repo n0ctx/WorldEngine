@@ -25,6 +25,8 @@ import {
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { captureStateSnapshot } from './state-rollback.js';
+import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
+import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
 import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.js';
@@ -163,6 +165,20 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     characterIds = getWritingSessionCharacters(sessionId).map((c) => c.id);
   }
   const snapshot = worldId ? captureStateSnapshot(sessionId, worldId, characterIds) : null;
+
+  // nearby 层快照：写作模式始终写入（即便为空），chat 模式不写（向下兼容）。
+  // 旧记录回滚时缺 nearby 字段→清空两张表（state-rollback 处理）。
+  if (snapshot && isWriting) {
+    const nearbyRows = listNearbyBySessionId(sessionId);
+    snapshot.nearby = nearbyRows.map((r) => {
+      const sv = getStateValuesByNearbyId(r.id);
+      const state = {};
+      for (const s of sv) {
+        if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
+      }
+      return { id: r.id, name: r.name, memory: r.memory, is_saved: r.is_saved, state };
+    });
+  }
 
   // 写入 DB（upsert by session_id + round_index），存指针而非内容副本
   const record = upsertTurnRecord({
