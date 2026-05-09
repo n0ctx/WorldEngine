@@ -12,6 +12,7 @@ import {
 } from '../services/characters.js';
 import { getWorldById } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createCharacterFromNearby } from '../services/nearby-card-maker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -42,6 +43,38 @@ router.get('/worlds/:worldId/characters', (req, res) => {
   if (!assertExists(res, world, '世界不存在')) return;
   const characters = getCharactersByWorldId(req.params.worldId);
   res.json(characters);
+});
+
+// POST /api/worlds/:worldId/characters/from-nearby — 把 nearby 角色制成公共角色卡
+router.post('/worlds/:worldId/characters/from-nearby', (req, res) => {
+  const { worldId } = req.params;
+  const world = getWorldById(worldId);
+  if (!assertExists(res, world, '世界不存在')) return;
+  const { session_id, nearby_id, name, system_prompt, description, first_message } = req.body ?? {};
+  try {
+    const id = createCharacterFromNearby({
+      worldId,
+      sessionId: session_id,
+      nearbyId: nearby_id,
+      name,
+      system_prompt,
+      description,
+      first_message,
+    });
+    res.status(201).json({ id });
+  } catch (err) {
+    const code = err?.code;
+    if (code === 'NEARBY_NOT_FOUND' || code === 'SESSION_NOT_FOUND') {
+      return res.status(404).json({ error: err.message });
+    }
+    if (code === 'NEARBY_SESSION_MISMATCH' || code === 'SESSION_WORLD_MISMATCH') {
+      return res.status(400).json({ error: err.message });
+    }
+    if (/required/i.test(err?.message ?? '')) {
+      return res.status(400).json({ error: err.message });
+    }
+    return res.status(500).json({ error: err?.message || 'Internal error' });
+  }
 });
 
 // POST /api/worlds/:worldId/characters — 创建角色

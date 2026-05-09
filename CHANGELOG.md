@@ -3,6 +3,28 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(card): nearby → 公共角色卡 制卡服务 + 路由
+
+**背景**：附近角色特性 Task 8 — 让用户把会话内的 nearby 角色"制成"公共角色卡，分两步：先 LLM 生成草稿，再用户确认后落库。
+
+**改动**：
+- `backend/services/nearby-card-maker.js`（新文件）：
+  - `analyzeNearbyForCard(sessionId, nearbyId)`：取 nearby 行 + state values + 最近 6 轮（≤12 条）消息，拼 prompt 调 `llm.complete`（temp 0.7、max 1024、`configScope = resolveAuxScope(sessionId)`、`callType: 'nearby_card_analyze'`）。返回 `{ name, system_prompt, description, first_message }`，`name` 透传 nearby 当前名；LLM 非法 JSON 抛 `Error('LLM returned invalid JSON')`。
+  - `createCharacterFromNearby({ worldId, sessionId, nearbyId, name, system_prompt, description, first_message })`：校验 session 属 world、nearby 属 session；`createCharacter` 写入 `characters` 表（`post_prompt=''`、`avatar_path=null`）；过滤 `character_state_fields.nearby_enabled === 1` 的字段，把 nearby 的 `runtime_value_json` 写入新角色的 `default_value_json`（不写 runtime、不带 memory、不带 nearby id）。返回新 charId。校验失败抛带 `code` 的 Error（`NEARBY_NOT_FOUND` / `SESSION_NOT_FOUND` / `NEARBY_SESSION_MISMATCH` / `SESSION_WORLD_MISMATCH`）。
+- `backend/routes/writing.js`：新增 `POST /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze`；错误走既有 `handleNearbyError`。
+- `backend/routes/characters.js`：新增 `POST /api/worlds/:worldId/characters/from-nearby`，必须排在 `:id` 系列前。错误码映射：`NEARBY_NOT_FOUND`/`SESSION_NOT_FOUND` → 404，`*_MISMATCH` 与 `name required` → 400，其它 500。
+- `backend/tests/services/nearby-card-maker.test.js`（新文件，4 用例）：mock LLM 走 `MOCK_LLM_COMPLETE` 环境变量；用例覆盖①草稿 name 透传 + LLM 三字段、②LLM 非 JSON 抛错、③仅启用字段写 default_value_json + runtime/memory/nearby id 不写、④校验错误（缺 name / nearby 不存在 / session 跨 world）。
+
+**验证**：
+- `cd backend && node --test tests/services/nearby-card-maker.test.js` → 4/4 pass。
+- `npm run test:backend` → 413 pass / 0 fail / 3 skip，无回归。
+- `npm run lint` → 通过。
+
+**坑点**：
+- writing session 与 chat session 共用 `sessions` 表（`mode='writing'`），无独立 `writing_sessions` 表；`getWritingSessionById` 仅多一个 `mode='writing'` 过滤。
+- mock LLM 的标准做法是 `process.env.MOCK_LLM_COMPLETE = ...`，无需 `mock.method` / 注入参数；service 不为测试改生产 API。
+- characters 路由把 `from-nearby` 放在 `:id` 系列之前，避免 Express 把 `from-nearby` 当作 `:id`。
+
 ## 2026-05-10 feat(state): turn_records snapshot 增加 nearby 层 + 回滚还原
 
 **背景**：附近角色特性 Task 7 — 让每轮 turn record 的 `state_snapshot` 同时记录 nearby 池与其状态，使消息编辑/regenerate 回滚能精确还原"本轮登场角色"。

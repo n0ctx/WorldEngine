@@ -58,6 +58,7 @@ import {
 import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { analyzeNearbyForCard } from '../services/nearby-card-maker.js';
 
 const router = Router();
 const log = createLogger('writing');
@@ -220,6 +221,18 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state', (re
   try {
     patchNearbyState(sessionId, nearbyId, field_key, value_json ?? null);
     res.json({ ok: true });
+  } catch (err) {
+    handleNearbyError(err, res);
+  }
+});
+
+// POST /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze
+// 调 LLM 给 nearby 生成角色卡草稿（不落库）
+router.post('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze', async (req, res) => {
+  const { sessionId, nearbyId } = req.params;
+  try {
+    const draft = await analyzeNearbyForCard(sessionId, nearbyId);
+    res.json(draft);
   } catch (err) {
     handleNearbyError(err, res);
   }
