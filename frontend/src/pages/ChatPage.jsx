@@ -399,7 +399,13 @@ export default function ChatPage() {
   }, [isCurrentStreamRun, stopMemoryRecalling, stopMemoryExpanding, stopMemoryWriting]);
 
   // 共用 SSE callbacks
-  function makeCallbacks(runId) {
+  // sessionIdHint：调用方显式传入回调归属的 sessionId，用于"首次发送时新建 session"
+  // 这种 currentSessionIdRef 还没被 effect 同步到位的场景；其他场景可省略，默认取 ref。
+  function makeCallbacks(runId, sessionIdHint = null) {
+    // 捕获本次回调对应的 session：用于 title/state 这类 session 级事件的迟到判断。
+    // 只要回调到达时仍处于同一个 session，就应当刷新；切换到别的 session 才丢弃。
+    const callbackSessionId = sessionIdHint ?? currentSessionIdRef.current;
+    const isSameSession = () => currentSessionIdRef.current === callbackSessionId;
     return {
       onDelta(delta) {
         if (!isCurrentStreamRun(runId)) return;
@@ -464,23 +470,22 @@ export default function ChatPage() {
         // 不直接 finalize，交给 onStreamEnd 统一处理，避免第二次 finalize 回退到 refreshMessages 引发重挂载
       },
       onTitleUpdated(title) {
-        if (!isCurrentStreamRun(runId)) return;
-        setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
-        if (chatSessionListBridge.updateTitle && currentSessionIdRef.current) {
-          chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
+        // title 写入本回调所属的 session：侧边栏始终更新该 session；当前页只在同 session 时同步。
+        if (chatSessionListBridge.updateTitle && callbackSessionId) {
+          chatSessionListBridge.updateTitle(callbackSessionId, title);
+        }
+        if (isSameSession()) {
+          setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
         }
       },
       onStateUpdated() {
-        if (!isCurrentStreamRun(runId)) {
-          stopMemoryWriting(runId);
-          return;
-        }
+        // 状态是 session 级数据：同 session 内迟到事件（用户已开新一轮）也必须刷新面板，
+        // 否则第 N 轮 state_updated 会被丢弃，造成"过了一轮才看到状态更新"。切到别的 session 才丢弃。
         stopMemoryWriting(runId);
-        useStore.getState().triggerMemoryRefresh();
+        if (isSameSession()) useStore.getState().triggerMemoryRefresh();
       },
       onStateRolledBack() {
-        if (!isCurrentStreamRun(runId)) return;
-        useStore.getState().triggerMemoryRefresh();
+        if (isSameSession()) useStore.getState().triggerMemoryRefresh();
       },
       onMemoryRecallStart() {
         if (!isCurrentStreamRun(runId)) return;
@@ -547,7 +552,7 @@ export default function ChatPage() {
 
     const inject = pendingDiaryInject;
     setPendingDiaryInject(null);
-    const stop = sendMessage(sessionId, content, attachments, makeCallbacks(runId), inject ? { diaryInjection: inject } : {});
+    const stop = sendMessage(sessionId, content, attachments, makeCallbacks(runId, sessionId), inject ? { diaryInjection: inject } : {});
     stopRef.current = stop;
   }
 
@@ -625,6 +630,7 @@ export default function ChatPage() {
     setContinuingText('');
     setGenerating(true);
 
+    const continuationSessionId = currentSessionIdRef.current;
     const callbacks = {
       onDelta(delta) {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -640,7 +646,7 @@ export default function ChatPage() {
         if (options?.length) pendingOptionsRef.current = options;
       },
       onStateUpdated() {
-        if (continuationTokenRef.current !== continuationToken) return;
+        if (currentSessionIdRef.current !== continuationSessionId) return;
         useStore.getState().triggerMemoryRefresh();
       },
       onAborted(assistant) {

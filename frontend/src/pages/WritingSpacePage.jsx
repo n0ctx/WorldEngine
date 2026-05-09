@@ -320,8 +320,14 @@ export default function WritingSpacePage() {
     return streamRunIdRef.current === runId;
   }
 
-  function makeStreamCallbacks(runId) {
+  // sessionIdHint：调用方显式传入回调归属的 sessionId（应对 ref 同步未到位的场景）；
+  // 省略时回退到 currentSessionRef。
+  function makeStreamCallbacks(runId, sessionIdHint = null) {
     const streamKey = streamingKeyRef.current;
+    // 捕获本次回调对应的 session：title/state 这类 session 级事件的迟到判断；
+    // 切到别的 session 才丢弃，同 session 内迟到（用户已开新一轮）也必须刷新。
+    const callbackSessionId = sessionIdHint ?? currentSessionRef.current?.id ?? null;
+    const isSameSession = () => (currentSessionRef.current?.id ?? null) === callbackSessionId;
     return {
       onDelta(delta) {
         if (!isCurrentStreamRun(runId)) return;
@@ -378,25 +384,23 @@ export default function WritingSpacePage() {
         stopRef.current = null;
       },
       onTitleUpdated(title) {
-        if (!isCurrentStreamRun(runId)) return;
-        setCurrentSession((prev) => prev ? { ...prev, title } : prev);
-        writingSessionListBridge.updateTitle?.(currentSessionRef.current?.id, title);
+        // title 写入本回调所属的 session：侧边栏始终用 callbackSessionId 更新；当前页只在同 session 时同步。
+        if (callbackSessionId) writingSessionListBridge.updateTitle?.(callbackSessionId, title);
+        if (isSameSession()) {
+          setCurrentSession((prev) => prev ? { ...prev, title } : prev);
+        }
       },
       onChapterTitleUpdated(chapterIndex, title) {
-        if (!isCurrentStreamRun(runId)) return;
+        if (!isSameSession()) return;
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
       onStateUpdated() {
-        if (!isCurrentStreamRun(runId)) {
-          stopMemoryWriting(runId);
-          return;
-        }
+        // 状态是 session 级数据：同 session 内迟到事件（用户已开新一轮）也必须刷新；切到别的 session 才丢弃。
         stopMemoryWriting(runId);
-        setStateTick((tick) => tick + 1);
+        if (isSameSession()) setStateTick((tick) => tick + 1);
       },
       onStateRolledBack() {
-        if (!isCurrentStreamRun(runId)) return;
-        setStateTick((tick) => tick + 1);
+        if (isSameSession()) setStateTick((tick) => tick + 1);
       },
       onDiaryUpdated() {
         if (!isCurrentStreamRun(runId)) return;
@@ -481,7 +485,7 @@ export default function WritingSpacePage() {
     const inject = pendingDiaryInject;
     setPendingDiaryInject(null);
     const runId = beginStreamRun();
-    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks(runId), inject ? { diaryInjection: inject } : {});
+    stopRef.current = generate(worldId, session.id, content || '', makeStreamCallbacks(runId, session.id), inject ? { diaryInjection: inject } : {});
   }
 
   function handleEditMessage(messageId, newContent) {
@@ -499,7 +503,7 @@ export default function WritingSpacePage() {
     setStreamingText('');
     streamingTextRef.current = '';
     const runId = beginStreamRun({ freezeOptions: false });
-    stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks(runId));
+    stopRef.current = editAndRegenerateWriting(worldId, session.id, messageId, newContent, makeStreamCallbacks(runId, session.id));
   }
 
   function handleRegenerateMessage(assistantMessageId) {
@@ -518,7 +522,7 @@ export default function WritingSpacePage() {
     setStreamingText('');
     streamingTextRef.current = '';
     const runId = beginStreamRun({ freezeOptions: false });
-    stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks(runId));
+    stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks(runId, session.id));
   }
 
   async function handleEditAssistantMessage(messageId, newContent) {
@@ -611,6 +615,7 @@ export default function WritingSpacePage() {
       stopRef.current = null;
     };
 
+    const continuationSessionId = session.id;
     stopRef.current = continueGeneration(worldId, session.id, {
       onDelta(delta) {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -643,9 +648,10 @@ export default function WritingSpacePage() {
         stopRef.current = null;
       },
       onStateUpdated() {
-        if (continuationTokenRef.current !== continuationToken) return;
         stopMemoryWriting();
-        setStateTick((tick) => tick + 1);
+        if (currentSessionRef.current?.id === continuationSessionId) {
+          setStateTick((tick) => tick + 1);
+        }
       },
       onDiaryUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;

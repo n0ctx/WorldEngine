@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(frontend): 状态栏迟到事件不再被丢弃，修复连续对话状态/dairy_time 延迟一轮才更新
+
+**问题**：用户连发消息时，状态面板（含 real_time 模式的 `dairy_time`）经常延迟一轮甚至几轮才刷新。后端 `updateAllStates` 实际上每轮都把 `dairy_time` 同步写进了 DB，且 `state_updated` SSE 也通过上一轮 response 流（`keepSseAlive=true`）正常发出；问题出在前端：`ChatPage.jsx` / `WritingSpacePage.jsx` 的 `onStateUpdated`/`onStateRolledBack` 用 `isCurrentStreamRun(runId)` 或 `continuationTokenRef` 拦截"非当前轮"的事件——一旦用户在第 N 轮 p2 任务完成前提交第 N+1 轮，第 N 轮迟到的 `state_updated` 即被丢弃，面板要等下一轮刷新才能看到第 N 轮已写入 DB 的状态。
+
+**改动**：
+- `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx`：把 `onStateUpdated`/`onStateRolledBack`/`onTitleUpdated`/`onChapterTitleUpdated` 这些 session 级事件的门控从 stream 级的 `runId`/`continuationToken` 换成 **session 级**比较——回调创建时捕获 `callbackSessionId`，事件到达时只比较当前 session 是否仍是同一个：
+  - 同 session 内迟到事件（用户已开新一轮）必须刷新 → 修复"过了一轮才更新"。
+  - 切到别的 session 时丢弃 → 防止跨 session 状态/标题串台。
+  - `onTitleUpdated` 把侧边栏 `updateTitle` 始终用捕获的 `callbackSessionId` 推送，保证哪怕用户切走，目标 session 的标题仍能在列表里更新；只有"当前页 setCurrentSession"才按 isSameSession 门控。
+- `stopMemoryWriting(runId)` 自带 runId 自守卫保留不变（仅关闭本轮 UI 动画）。
+- 后端不动。
+
+**Codex review 反馈修复**：`makeCallbacks(runId, sessionIdHint?)` / `makeStreamCallbacks(runId, sessionIdHint?)` 接受调用方显式传入 sessionId。`handleSend` 首次发送时会先 `createSession + enterSession` 再立即构造回调，此时 `currentSessionIdRef` 还未被 effect 同步，若仍读 ref 会捕获到 `null`，导致首轮 `state_updated`/`title_updated` 被丢弃；现在三个调用点（chat sendMessage、writing generate/edit-regen/regen）均显式传入对应 sessionId 兜底。
+
+**验证**：连发 3-5 轮消息（每次 assistant 输出后立即再发），状态面板的 LLM 字段与 `dairy_time` 应在该轮 p2 完成后及时更新，不再"过了一轮才看到"。
+
 ## 2026-05-10 fix(state): list 字段超限不收敛的兜底链路
 
 **问题**：用户反馈 `外貌` list 字段累计 13+ 条，多轮对话后仍未收敛到 8。原因是 `compressOverLimitFields` 只检查本轮 patch 中出现的字段；若 LLM 当轮没有把该字段塞进 patch（外貌等"近似静态"字段常如此），即使现有 runtime 值已远超 10，也不会进入压缩或硬截断分支，于是历史超限永远保留。
