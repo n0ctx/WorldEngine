@@ -9,10 +9,10 @@
         "role": "system",
         "orderedAnchors": [
           "ANCHOR_[1]_CHAT_GLOBAL",
-          "ANCHOR_[2]_PERSONA",
-          "ANCHOR_[3]_CHAR_ALPHA",
           "ANCHOR_[3.5]_CACHED_TITLE",
           "ANCHOR_[3.5]_CACHED_BODY",
+          "ANCHOR_[2]_PERSONA",
+          "ANCHOR_[3]_CHAR_ALPHA",
           "ANCHOR_[4]_WORLD_STATE",
           "ANCHOR_[5]_PERSONA_STATE",
           "ANCHOR_[6]_CHAR_STATE",
@@ -72,9 +72,9 @@
         "role": "system",
         "orderedAnchors": [
           "ANCHOR_[1]_WRITING_GLOBAL",
-          "ANCHOR_[2]_PERSONA",
           "ANCHOR_[3.5]_CACHED_TITLE",
           "ANCHOR_[3.5]_CACHED_BODY",
+          "ANCHOR_[2]_PERSONA",
           "ANCHOR_[3]_CHAR_ALPHA",
           "ANCHOR_[3]_CHAR_BETA",
           "ANCHOR_[4]_WORLD_STATE",

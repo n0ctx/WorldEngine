@@ -147,13 +147,13 @@ POST /api/sessions/:sessionId/chat
 | 段 | 层 | 来源 | 跳过条件 |
 |---|---|---|---|
 | **[1]** | **Cached** | `config.global_system_prompt` | 空字符串跳过 |
-| **[2]** | **Cached** | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
-| **[3]** | **Cached** | `[{{char}}人设]\n${character.system_prompt}` | 空跳过 |
-| **[4]** | **Cached** | 常驻 cached 条目：`world_prompt_entries` 中 `trigger_type='always'` 且 `token=0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（每条格式：`【${title}】\n${content}`）；不参与 `matchEntries` | 无此类条目时跳过 |
+| **[2]** | **Cached** | 常驻 cached 条目：`world_prompt_entries` 中 `trigger_type='always'` 且 `token=0` 的条目，按 `sort_order ASC, created_at ASC` 稳定排序拼到 cached system 末尾（每条格式：`【${title}】\n${content}`）；不参与 `matchEntries` | 无此类条目时跳过 |
+| **[3]** | **Cached** | persona，格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}` | name 和 system_prompt 均空时整段跳过 |
+| **[4]** | **Cached** | `[{{char}}人设]\n${character.system_prompt}` | 空跳过 |
 | [5] | System 后缀 | `renderWorldState(world.id)` | 无字段/值时跳过 |
 | [6] | System 后缀 | `renderPersonaState(world.id)` | 空跳过 |
 | [7] | System 后缀 | `renderCharacterState(character.id)` | 空跳过 |
-| [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [4] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
+| [8] | System 后缀 | 世界 State 条目（仅 `world_prompt_entries`；`matchEntries(sessionId, worldEntries, worldId)` 支持四类分支：always 直接命中；keyword 关键词匹配；llm AI 预判+关键词兜底；state 加载 entry_conditions、读取当前 session 状态、AND 逻辑全部满足才命中；所有命中条目统一注入此处，`position` 字段已废弃不再消费）。**`trigger_type='always'` 且 `token=0` 的条目已在 [2] 进入 cached 前缀，不再参与本段命中/排序** | 无条目时跳过 |
 | [8.5] | System 后缀 | **长期记忆**：开关 `config.long_term_memory_enabled`（写作模式读 `config.writing.long_term_memory_enabled`）启用且 `data/long_term_memory/{sessionId}/memory.md` 非空时，注入 `[长期记忆]\n{content}`，经 `tv()` 渲染模板变量。开关关闭只停止注入，磁盘文件保留 | 关闭或文件为空时跳过 |
 | [9] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
@@ -174,11 +174,11 @@ POST /api/sessions/:sessionId/chat
 
 与 `buildPrompt` 的差异：
 
-**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 玩家 +（如有）[4] 常驻 cached 条目，[3] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
+**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 常驻 cached 条目 +（如有）[3] 玩家，[4] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
 
 | 段 | 差异 |
 |---|---|
-| **[3]** | **[3] 角色 system prompt 移到 Dynamic 层**（循环所有激活角色，每个格式：`[{{char}}人设]\n${system_prompt}`，用该角色名字替换 `{{char}}`）—— 为避免多角色组合变化导致 cache miss |
+| **[4]** | **[4] 角色 system prompt 移到 Dynamic 层**（循环所有激活角色，每个格式：`[{{char}}人设]\n${system_prompt}`，用该角色名字替换 `{{char}}`）—— 为避免多角色组合变化导致 cache miss |
 | [5] | `renderWorldState(world.id)` |
 | [6] | `renderPersonaState(world.id)` |
 | [7] | 循环所有激活角色调用 `renderCharacterState`，用各自角色名替换 `{{char}}` |

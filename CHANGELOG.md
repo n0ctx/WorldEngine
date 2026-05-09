@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 refactor(prompts): cached layer 编号重排，[4] 常驻条目上移至 [2]
+
+**变更**：`assembler.js` cached layer 顺序调整为 [1] 全局 → [2] 常驻条目 → [3] 玩家 → [4] 角色（原顺序 [1][2][3][4] = 全局/玩家/角色/常驻）。写作模式同步调整：cached layer 变为 [1][2][3]，dynamic 层角色提示词从 [3] 改为 [4]。仅代码位置和注释编号变化，功能不变。同步更新 `ARCHITECTURE.md` §4 表格与说明。
+
 ## 2026-05-09 feat(prompts): 删除写作模式叙述者身份声明
 
 **变更**：移除 `backend/prompts/assembler.js` 中 `[NARRATOR]` 段——写作模式 dynamic 层最前的硬编码身份声明 `[写作模式]\n你是全知中立叙述者…` 已删除。

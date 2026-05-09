@@ -3,9 +3,9 @@
  *
  *   [SYSTEM MERGED: 单条 system message，前缀稳定 + 后缀动态]
  *   [1]  全局 System Prompt          ┐
- *   [2]  玩家 System Prompt           │ 稳定前缀
- *   [3]  角色 System Prompt           │ （cached 部分）
- *   [4]  常驻 cached 条目（trigger_type=always 且 token=0）┘
+ *   [2]  常驻 cached 条目（trigger_type=always 且 token=0）│ 稳定前缀
+ *   [3]  玩家 System Prompt           │ （cached 部分）
+ *   [4]  角色 System Prompt           ┘
  *   [5]  世界状态                    ┐
  *   [6]  玩家状态                     │
  *   [7]  角色状态                     │
@@ -141,7 +141,7 @@ export const __testables = {
  * 构建发送给 LLM 的完整 messages 数组
  *
  * 新的 prompt 组装顺序（为支持 Prompt Cache 分层）：
- *   Cached system [1, 2, 3, 4]：全局 + 玩家 + 角色 + 常驻 cached 条目
+ *   Cached system [1, 2, 3, 4]：全局 + 常驻 cached 条目 + 玩家 + 角色
  *   Dynamic system [5-11]：世界状态 + 玩家状态 + 角色状态 + State 条目 + 召回摘要 + 展开原文 + 日记
  *   History [12]：历史 user/assistant 交替
  *   Bottom: [13] 后置提示词（system）→ [14] 当前用户消息（尾部 user）
@@ -177,26 +177,13 @@ export async function buildPrompt(sessionId, options = {}) {
   const ctx = { user: personaName, char: character.name, world: world.name };
   const tv = (t) => applyTemplateVars(t, ctx);
 
-  // ─── CACHED LAYER (1, 2, 3) ───
+  // ─── CACHED LAYER (1, 2, 3, 4) ───
   // [1] 全局 System Prompt
   if (config.global_system_prompt) {
     cachedSystemParts.push(tv(config.global_system_prompt));
   }
 
-  // [2] 玩家 System Prompt
-  if (personaName || personaPrompt) {
-    const lines = ['[{{user}}人设]'];
-    if (personaName) lines.push(`名字：${personaName}`);
-    if (personaPrompt) lines.push(tv(personaPrompt));
-    cachedSystemParts.push(tv(lines.join('\n')));
-  }
-
-  // [3] 角色 System Prompt
-  if (character.system_prompt) {
-    cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
-  }
-
-  // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
   const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
   const cachedEntries = allWorldEntries
@@ -204,7 +191,20 @@ export async function buildPrompt(sessionId, options = {}) {
   if (cachedEntries.length > 0) {
     const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
     cachedSystemParts.push(cachedTexts.join('\n\n'));
-    log.debug(`│  [4] cached entries  count=${cachedEntries.length}`);
+    log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
+  }
+
+  // [3] 玩家 System Prompt
+  if (personaName || personaPrompt) {
+    const lines = ['[{{user}}人设]'];
+    if (personaName) lines.push(`名字：${personaName}`);
+    if (personaPrompt) lines.push(tv(personaPrompt));
+    cachedSystemParts.push(tv(lines.join('\n')));
+  }
+
+  // [4] 角色 System Prompt
+  if (character.system_prompt) {
+    cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
   }
 
   // ─── DYNAMIC LAYER (5-11) ───
@@ -344,13 +344,13 @@ export async function buildPrompt(sessionId, options = {}) {
 
 /**
  * 写作版本：支持多个激活角色，[8-10] 向量召回与记忆展开同 buildPrompt。
- * 组装顺序与 buildPrompt 不同：为避免多角色切换导致 cache miss，[3] 角色 system prompt 移到 dynamic 层。
+ * 组装顺序与 buildPrompt 不同：为避免多角色切换导致 cache miss，[4] 角色 system prompt 移到 dynamic 层。
  *
- * Cached layer: [1] 全局、[2] 玩家、[4] 常驻 cached 条目（保持稳定）
- * Dynamic layer: [3] 所有激活角色 system prompt + [5-11] 上下文
+ * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家（保持稳定）
+ * Dynamic layer: [4] 所有激活角色 system prompt + [5-11] 上下文
  * Bottom: [12] 历史消息，[13] 后置提示词（system），[14] 当前消息
  *
- * [3] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
+ * [4] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -392,13 +392,24 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     world: world.name,
   });
 
-  // ─── CACHED LAYER (1, 2, 4) ───
+  // ─── CACHED LAYER (1, 2, 3) ───
   // [1] 全局 System Prompt（使用写作专属配置；impersonate 时跳过）
   if (writing.global_system_prompt && !skipWritingInstructions) {
     cachedSystemParts.push(tv(writing.global_system_prompt));
   }
 
-  // [2] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
+  // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
+  // 写作模式下 cached layer 含 [1][2][3]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
+  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
+  const cachedEntries = allWorldEntries
+    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
+  if (cachedEntries.length > 0) {
+    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
+    cachedSystemParts.push(cachedTexts.join('\n\n'));
+    log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
+  }
+
+  // [3] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
   if (personaName || personaPrompt) {
     const lines = ['[玩家（{{user}}）背景]'];
     if (personaName) lines.push(`名字：${personaName}`);
@@ -406,19 +417,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(lines.join('\n')));
   }
 
-  // [4] 常驻 cached 条目（trigger_type=always 且 token=0）
-  // 写作模式下 cached layer 含 [1][2][4]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
-  const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
-  const cachedEntries = allWorldEntries
-    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
-  if (cachedEntries.length > 0) {
-    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-    cachedSystemParts.push(cachedTexts.join('\n\n'));
-    log.debug(`│  [4] cached entries  count=${cachedEntries.length}`);
-  }
-
-  // ─── DYNAMIC LAYER (3, 5-11；写作模式下[3]也在dynamic以支持多角色切换) ───
-  // [3] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
+  // ─── DYNAMIC LAYER (4, 5-11；写作模式下[4]也在dynamic以支持多角色切换) ───
+  // [4] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
     if (character.system_prompt) {
       dynamicSystemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`, character));
