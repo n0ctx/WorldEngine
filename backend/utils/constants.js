@@ -85,8 +85,8 @@ export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 // ============================
 // 长期记忆（会话级 md 文件）
 // ============================
-/** 单轮长期记忆条目数上限（与 memory-turn-summary-with-ltm.md 模板中的 3 条一致） */
-export const LONG_TERM_MEMORY_PER_TURN_MAX = 3;
+/** 单轮长期记忆条目数上限（与 memory-turn-summary-with-ltm.md 模板中的 2 条一致） */
+export const LONG_TERM_MEMORY_PER_TURN_MAX = 2;
 /** 单条长期记忆字符上限（含 [年月日时分] 时间前缀的条目易超 30 字被截断，放到 60） */
 export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 60;
 /** 长期记忆文档触发压缩的行数阈值 */
