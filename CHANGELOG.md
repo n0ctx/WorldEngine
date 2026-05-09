@@ -3,6 +3,22 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(service): nearby characters CRUD service 层 + 单测
+
+**背景**：附近角色特性 Task 4 — 在 queries 层（Task 2/3）之上提供写作会话级登场角色 CRUD 业务逻辑层。
+
+**改动**：
+- `backend/services/writing-sessions.js`：追加 7 个导出函数 `listNearby` / `addSavedFromCharacter` / `removeNearby` / `setNearbyIsSaved` / `patchNearbyMemory` / `renameNearby` / `patchNearbyState`，以及内部辅助 `ensureWritingSession` / `ensureNearbyOwned` / `getNearbyEnabledFields` / `buildNearbyRow` / `nameConflictError`。
+  - `addSavedFromCharacter`：校验 session 存在、character 存在且 world 匹配、name 在 session 内未被占用（占用抛 `Error.code='NEARBY_NAME_CONFLICT'`）；建 nearby（is_saved=1, memory=''），从 `character_state_values.default_value_json` 复制到 nearby state，仅复制 `nearby_enabled=1` 字段，`default_value_json IS NULL` 跳过。
+  - `renameNearby`：trim 后非空校验；与当前 name 一致时为 no-op；其它人占用抛 `NEARBY_NAME_CONFLICT`。
+  - `patchNearbyState`：写入字段必须存在于该 world 且 `nearby_enabled=1`，否则抛错。
+  - `listNearby` 返回结构：`{ id, session_id, name, memory, is_saved, created_at, updated_at, state: [{ field_key, label, type, description, enum_options, min_value, max_value, prefix, unit, table_columns, runtime_value_json }] }`，state 仅包含启用字段，未写入字段 `runtime_value_json=null`。
+- `backend/tests/services/nearby-characters.test.js`：node:test 9 个用例覆盖：仅复制启用字段 + listNearby 形状、name 占用冲突、跨 world 拒绝、CASCADE 删 state、跨 session 拒绝、is_saved 切换、memory null→空串、改名/重名/同名 no-op/空名拒绝、patchNearbyState 启用 OK/未启用拒绝/不存在拒绝。
+
+**坑点**：fixtures `insertCharacterStateField` 的 INSERT 不含 `nearby_enabled` 列（schema ALTER 加默认值 1，因此插入后默认为 1）；要测"未启用字段"需在测试 setup 用 raw SQL `UPDATE character_state_fields SET nearby_enabled=0` 显式置 0，避免改 fixtures.js 影响面。`getCharacterStateFieldsByWorldId` 用 `SELECT *` 已自动带出 `nearby_enabled` 列。
+
+**验证**：`cd backend && node --test tests/services/nearby-characters.test.js` → 9/9 pass；`npm run test:backend` → 393/396 pass（3 skipped，无回归）。
+
 ## 2026-05-10 feat(db): session-nearby-characters queries + 单测
 
 **背景**：附近角色特性 Task 2 — 在 schema（Task 1）之上为 `session_nearby_characters` 表提供 CRUD + 清理 queries 层。
