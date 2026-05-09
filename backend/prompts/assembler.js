@@ -62,6 +62,16 @@ const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
 
+/** 转义 XML 元素内容中的特殊字符，防止用户文本提前关闭 XML 标签 */
+function escapeXmlContent(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** 转义 XML 属性值中的特殊字符 */
+function escapeXmlAttr(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = process.env.WE_UPLOADS_DIR
   ? path.resolve(process.env.WE_UPLOADS_DIR)
@@ -189,35 +199,35 @@ export async function buildPrompt(sessionId, options = {}) {
     .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
   if (cachedEntries.length > 0) {
     const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-    cachedSystemParts.push(cachedTexts.join('\n\n'));
+    cachedSystemParts.push(`<world_entries>\n${cachedTexts.join('\n\n')}\n</world_entries>`);
     log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
   }
 
   // [3] 玩家 System Prompt
   if (personaName || personaPrompt) {
-    const lines = ['[{{user}}人设]'];
+    const lines = [];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    cachedSystemParts.push(tv(lines.join('\n')));
+    cachedSystemParts.push(tv(`<user_info>\n${lines.join('\n')}\n</user_info>`));
   }
 
   // [4] 角色 System Prompt
   if (character.system_prompt) {
-    cachedSystemParts.push(tv(`[{{char}}人设]\n${character.system_prompt}`));
+    cachedSystemParts.push(tv(`<char_info>\n${character.system_prompt}\n</char_info>`));
   }
 
   // ─── DYNAMIC LAYER (5-11) ───
   // [5] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
+  if (worldStateText) dynamicSystemParts.push(`<world_state>\n${tv(worldStateText)}\n</world_state>`);
 
   // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
+  if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
 
   // [7] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
-  if (characterStateText) dynamicSystemParts.push(tv(characterStateText));
+  if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
   const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
@@ -234,14 +244,14 @@ export async function buildPrompt(sessionId, options = {}) {
   const entryTexts = triggeredEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
 
   if (entryTexts.length > 0) {
-    dynamicSystemParts.push(entryTexts.join('\n\n'));
+    dynamicSystemParts.push(`<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`);
   }
 
   // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
   if (config.long_term_memory_enabled === true) {
     const ltm = readLongTermMemory(sessionId).trim();
     if (ltm) {
-      dynamicSystemParts.push(`[长期记忆]\n${tv(ltm)}`);
+      dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
       log.debug(`│  [8.5] long-term memory injected  chars=${ltm.length}`);
     }
   }
@@ -250,7 +260,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
+  if (recalledSummariesText) dynamicSystemParts.push(`<recalled_memories>\n${tv(recalledSummariesText)}\n</recalled_memories>`);
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
@@ -269,7 +279,7 @@ export async function buildPrompt(sessionId, options = {}) {
     if (expandIds.length > 0) {
       expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
-        dynamicSystemParts.push(tv(expandedText));
+        dynamicSystemParts.push(`<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>`);
         log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
@@ -280,7 +290,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
-    dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
+    dynamicSystemParts.push(`<diary>\n${diaryInjection}\n</diary>`);
     log.debug('│  [11] diary injection applied');
   }
 
@@ -410,38 +420,38 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
   if (cachedEntries.length > 0) {
     const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-    cachedSystemParts.push(cachedTexts.join('\n\n'));
+    cachedSystemParts.push(`<world_entries>\n${cachedTexts.join('\n\n')}\n</world_entries>`);
     log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
   }
 
   // [3] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
   if (personaName || personaPrompt) {
-    const lines = ['[玩家（{{user}}）背景]'];
+    const lines = [];
     if (personaName) lines.push(`名字：${personaName}`);
     if (personaPrompt) lines.push(tv(personaPrompt));
-    cachedSystemParts.push(tv(lines.join('\n')));
+    cachedSystemParts.push(tv(`<user_info>\n${lines.join('\n')}\n</user_info>`));
   }
 
   // ─── DYNAMIC LAYER (4, 5-11；写作模式下[4]也在dynamic以支持多角色切换) ───
   // [4] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
   for (const character of activeCharacters) {
     if (character.system_prompt) {
-      dynamicSystemParts.push(tvChar(`[{{char}}人设]\n${character.system_prompt}`, character));
+      dynamicSystemParts.push(tvChar(`<char_info>\n${escapeXmlContent(character.system_prompt)}\n</char_info>`, character));
     }
   }
 
   // [5] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) dynamicSystemParts.push(tv(worldStateText));
+  if (worldStateText) dynamicSystemParts.push(`<world_state>\n${tv(worldStateText)}\n</world_state>`);
 
   // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) dynamicSystemParts.push(tv(personaStateText));
+  if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
 
   // [7] 所有激活角色的角色状态
   for (const character of activeCharacters) {
     const charStateText = renderCharacterState(character.id, sessionId);
-    if (charStateText) dynamicSystemParts.push(tvChar(charStateText, character));
+    if (charStateText) dynamicSystemParts.push(`<char_state name="${escapeXmlAttr(character.name)}">\n${tvChar(charStateText, character)}\n</char_state>`);
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
@@ -455,13 +465,13 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
   const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-  if (entryTexts.length > 0) dynamicSystemParts.push(entryTexts.join('\n\n'));
+  if (entryTexts.length > 0) dynamicSystemParts.push(`<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`);
 
   // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
   if (writing.long_term_memory_enabled === true) {
     const ltm = readLongTermMemory(sessionId).trim();
     if (ltm) {
-      dynamicSystemParts.push(`[长期记忆]\n${tv(ltm)}`);
+      dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
       log.debug(`│  [8.5] long-term memory injected (writing)  chars=${ltm.length}`);
     }
   }
@@ -470,7 +480,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
   const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) dynamicSystemParts.push(tv(recalledSummariesText));
+  if (recalledSummariesText) dynamicSystemParts.push(`<recalled_memories>\n${tv(recalledSummariesText)}\n</recalled_memories>`);
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
@@ -488,7 +498,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (expandIds.length > 0) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
-        dynamicSystemParts.push(tv(expandedText));
+        dynamicSystemParts.push(`<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>`);
         log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
       onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
@@ -499,7 +509,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   // [11] 日记注入（一次性，仅本轮生效）
   if (diaryInjection && typeof diaryInjection === 'string') {
-    dynamicSystemParts.push(`[日记注入]\n${diaryInjection}`);
+    dynamicSystemParts.push(`<diary>\n${diaryInjection}\n</diary>`);
     log.debug('│  [11] diary injection applied (writing)');
   }
 

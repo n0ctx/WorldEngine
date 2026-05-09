@@ -3,6 +3,35 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 fix(prompts): XML 注入修复——转义 char_info 内容与 char_state name 属性
+
+**变更**：`backend/prompts/assembler.js` 新增 `escapeXmlContent` / `escapeXmlAttr` 辅助函数。
+- P1：`character.system_prompt` 插入 `<char_info>` 前先经 `escapeXmlContent` 转义，防止用户提示词中包含 `</char_info>` 等标签提前关闭 XML 块。
+- P2：`character.name` 作为 `<char_state name="...">` 属性时先经 `escapeXmlAttr` 转义，防止角色名含 `"` / `<` / `&` 导致属性格式错误。
+
+---
+
+## 2026-05-09 refactor(prompts): 全段 XML 标签包裹，提升结构清晰度，减少身份漂移
+
+**变更**：`buildPrompt` / `buildWritingPrompt` 中所有"参考数据块"统一用 XML 标签包裹；渲染函数内的中文方括号节头同步清除（已由 XML 标签语义覆盖）。
+
+- `[2]` 世界知识条目（always-on & 触发） → `<world_entries>`
+- `[3]` 玩家人设 → `<user_info>`（原内部节头 `[{{user}}人设]` / `[玩家背景]` 删除）
+- `[4]` 角色人设 → `<char_info>`（原内部节头 `[{{char}}人设]` 删除）
+- `[5]` 世界状态 → `<world_state>`（`renderWorldState` 不再输出节头行）
+- `[6]` 玩家状态 → `<user_state>`（`renderPersonaState` 不再输出节头行）
+- `[7]` 角色状态 → `<char_state>`；写作模式多角色用 `name` 属性区分（`renderCharacterState` 不再输出节头行）
+- `[8]` 触发条目 → `<world_entries>`
+- `[8.5]` 长期记忆 → `<long_term_memory>`（原 `[长期记忆]` 前缀删除）
+- `[9]` 召回摘要 → `<recalled_memories>`（`renderRecalledSummaries` 不再输出节头行）
+- `[10]` 展开原文 → `<expanded_dialogues>`（`renderExpandedTurnRecords` 不再输出节头行）
+- `[11]` 日记注入 → `<diary>`（原 `[日记注入]` 前缀删除）
+- `[1]` 全局 System Prompt 不包裹（IS 指令根节点）
+
+**原因**：LLM 有时把玩家/角色人设解读为自身身份（漂移）。XML 标签创造明确的知识块边界，Claude 对其语义理解优于纯文本节头。项目已有先例（`shared-suggestion.md` 的 `<suggestion>`）。
+
+**修改文件**：`backend/prompts/assembler.js`（锁定文件）、`backend/memory/recall.js`、`backend/memory/summary-expander.js`；测试断言同步更新（3 个测试文件 + 1 个 snap 文件）。
+
 ## 2026-05-09 refactor(prompts): 后置提示词从独立 system message 合并入当前用户消息
 
 **变更**：`buildPrompt` / `buildWritingPrompt` 中 [13] 后置提示词（`global_post_prompt`、`character.post_prompt`、兜底角色名、`SUGGESTION_PROMPT`）不再作为独立的 `role:system` 消息发送，改为追加到 [14] 当前用户消息末尾，合并为一条 `role:user`。附件消息（vision 数组格式）以额外 `type:text` part 追加。
