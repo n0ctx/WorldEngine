@@ -3,6 +3,31 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(state): combined-state-updater 集成 nearby pool + applyNearbyResult
+
+**背景**：附近角色特性 Task 6 — 在 `mode === 'writing'` 的同一次状态更新 LLM 调用里，让模型同时输出 `nearby_characters` 数组（本轮登场角色），并应用到 `session_nearby_characters` / `session_nearby_character_state_values`。
+
+**改动**：
+- 新建 `backend/prompts/nearby-prompt.js`：`buildNearbyPromptSection(pool, fields)`，渲染池条目 + nearby_enabled 字段定义 + 5 条任务说明；空池有简化文案。
+- `backend/memory/combined-state-updater.js`：
+  - 引入 nearby queries 与 `buildNearbyPromptSection`；
+  - `updateAllStates` 按 `session?.mode === 'writing'` 组装 pool（`{id, name, is_saved, memory, state}`，state 由 `getStateValuesByNearbyId` 反序列化），追加 nearby 段，response keys 增加 `nearby_characters`；
+  - 解析 patch 后，`isWriting` 时调用新增导出 `applyNearbyResult({ sessionId, worldId, fields, nearby_characters, pool })`；chat 模式分支不动；
+  - `applyNearbyResult` 实现 6 条规则：ref_id 命中→更新 name/memory/state；ref_id=null+name 命中等同更新；ref_id=null+name 不在池→创建 transient（is_saved=0）；非法 ref_id 整条丢弃；池里没回的 transient 由 `deleteTransientNotInIds` 删（saved 全部保留）；未启用字段直接跳过。**复用本文件已有 `validateValue`**，避免与主 state patch 行为漂移。
+  - `__testables` 新增 `applyNearbyResult` 导出。
+- 新建 `backend/tests/memory/combined-state-updater-nearby.test.js`（node:test + sandbox），6 个场景全部 PASS。
+
+**验证**：
+- `cd backend && node --test tests/memory/combined-state-updater-nearby.test.js` → 6/6 pass。
+- `cd backend && node --test tests/memory/combined-state-updater.test.js` → 4/4 pass，无回归。
+- `npm run test:backend` → 410 pass / 0 fail / 3 skip。
+
+**坑点**：
+- `validateValue` 故意未抽出到独立 helper 文件——它依赖闭包 logger/常量；与 `applyNearbyResult` 同文件共享同一份校验，避免 serializer 漂移（spec 强调"必须复用"）。
+- 改名时先在池里查同名占用，避免 nearby `(session_id, name)` UNIQUE 冲突；冲突仅 warn 不抛。
+- 新建 transient 若仍 UNIQUE 冲突（极端情况），降级为复用同名既存行，不阻塞主流程。
+- nearby 段插在 sections 末尾（与 persona 并列），response keys 同步追加；位置不影响协议正确性。
+
 ## 2026-05-10 feat(route): nearby characters HTTP 路由 + 集成测试
 
 **背景**：附近角色特性 Task 5 — 在 service 层（Task 4）之上暴露写作会话登场角色 HTTP 路由。
