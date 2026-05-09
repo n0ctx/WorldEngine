@@ -60,3 +60,17 @@ test('extractNextPromptOptions：空输入安全', () => {
   assert.deepEqual(extractNextPromptOptions(''), { content: '', options: [] });
   assert.deepEqual(extractNextPromptOptions(null), { content: '', options: [] });
 });
+
+test('extractNextPromptOptions：think 内含 <next_prompt> 字面但正文未输出选项时，保留 think 块原样', () => {
+  const raw = '<think>推理：我需要在末尾输出 <next_prompt> 标签</think>\n\n💕\n\n正文内容';
+  const r = extractNextPromptOptions(raw);
+  assert.equal(r.content, raw);
+  assert.deepEqual(r.options, []);
+});
+
+test('extractNextPromptOptions：think 块外有合法 next_prompt 时正常提取且保留 think', () => {
+  const raw = '<think>推理 <next_prompt> 字样</think>\n回复\n<next_prompt>\n选项A\n选项B\n</next_prompt>';
+  const r = extractNextPromptOptions(raw);
+  assert.equal(r.content, '<think>推理 <next_prompt> 字样</think>\n回复');
+  assert.deepEqual(r.options, ['选项A', '选项B']);
+});

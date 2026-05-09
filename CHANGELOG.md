@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 fix(turn-dialogue): 修复 think 内含 <next_prompt> 字面字符串时整段 think 块被吞
+
+**现象**：writing 会话用 DeepSeek thinking 模型生成时，流式期间前端能看到 ThinkBlock + 正文，SSE done 后 ThinkBlock 消失只剩正文。
+
+**根因**：`extractNextPromptOptions`（`backend/utils/turn-dialogue.js:96`）的"防止 think 内 next_prompt 残留"分支错误剥光整个 think 块。当模型在 `<think>` 推理中复述了 shared-suggestion.md 的 `<next_prompt>` 格式指令但本轮正文未真的输出选项时，`stripped.indexOf('<next_prompt>') === -1` 但 `text.includes('<next_prompt>') === true` 命中分支返回 `stripped`（去 think 后的文本），落库后 think 标签丢失，前端 `parseStreamingBlocks` 重渲染时找不到 think。
+
+**修复**：该分支直接返回 `{ content: text, options: [] }` 保留 think 块原样。think 内的 `<next_prompt>` 字面字符串：历史回灌前 `stripThinkBlocksFromText` 会剥除 think；前端 `ThinkBlock` 用 `stripNextPromptBlocks`（`frontend/src/utils/next-prompt.js`）屏蔽字面标签。两个出口都不会泄漏，无需代价整段剥光。
+
+**测试**：`backend/tests/utils/turn-dialogue.test.js` 新增两条用例覆盖（think 内 next_prompt 字面 / think 块外合法 next_prompt 共存）。
+
+---
+
 ## 2026-05-09 fix(title): 标题生成尊重用户思考链配置，修复 DeepSeek thinking 内容写入标题
 
 **背景**：DeepSeek v4 flash 等默认开启思考的模型，用户在设置中已配置 `thinking_disabled`，但 `generateTitleWithRetry` 硬编码 `thinking_level: null`（不传参），导致：

@@ -91,9 +91,10 @@ export function extractNextPromptOptions(text) {
   const stripped = stripThinkBlocksFromText(text);
   const npIdxInStripped = stripped.indexOf('<next_prompt>');
   if (npIdxInStripped === -1) {
-    // 若 <next_prompt> 仅存在于 think 块内，返回已剥除 think 的文本，
-    // 防止推理链中的 next_prompt 残留被持久化到助手消息。
-    return { content: text.includes('<next_prompt>') ? stripped : text, options: [] };
+    // 去 think 后无 <next_prompt>，无合法选项可提取。
+    // 即使 think 内含 <next_prompt> 字面字符串也保留 think 块原样：
+    // 历史回灌前 stripThinkBlocksFromText 会剥除 think；前端 ThinkBlock 用 stripNextPromptBlocks 屏蔽字面标签。
+    return { content: text, options: [] };
   }
 
   // 映射回原始文本中的位置
