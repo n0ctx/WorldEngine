@@ -134,7 +134,7 @@ JSON 增加 `nearby` 层：
 `backend/services/writing-sessions.js` 增加：
 - `listNearby(sessionId)` → `[{ id, name, memory, is_saved, state: [{ field_key, label, type, ..., runtime_value_json }] }]`，仅含 nearby_enabled=1 字段
 - `addSavedFromCharacter(sessionId, characterId)` → 校验 name 唯一；初始 state = 该公共角色 `character_state_values.default_value_json`（仅启用字段）；初始 memory=''
-- `removeSaved(sessionId, nearbyId)` → 删除 saved；若该角色"本轮"仍登场（最近一条 turn_records 中 nearby 含此 name），降级为 transient 而非删除（保留 state/memory）。简化方案：直接 DELETE，等下一轮 LLM 重新提取（用户认可这一损失）— **采用简化方案以避免和 turn 链路耦合**
+- `removeSaved(sessionId, nearbyId)` → 直接 DELETE 该 nearby 行（state values 由 CASCADE 同步删除）。下一轮 LLM 若再次识别到该名字，会以 transient 重新出现；用户认可此次"删除即清空 state/memory"的损失，避免与 turn 链路耦合
 - `patchNearbyMemory(sessionId, nearbyId, memory)` — 用户手动编辑 memory
 - `patchNearbyState(sessionId, nearbyId, fieldKey, valueJson)` — 用户手动编辑某字段
 - `setNearbyIsSaved(sessionId, nearbyId, isSaved)` — transient → saved 切换
@@ -230,7 +230,9 @@ state values 的写入：仅启用字段（nearby_enabled=1）；未知字段忽
 - `analyzeNearbyForCardCreation(sessionId, nearbyId)` → 调用 `writing.aux_llm → aux_llm → llm`，传入：name + memory + 当前 state + 最近 N 轮文本（参考现有制卡的上下文窗口）→ LLM 返回 `{ system_prompt, description, first_message }`
 - `confirmCreateCharacterCard(worldId, sessionId, nearbyId, { name, system_prompt, description, first_message })` → 在 characters 表创建新行；写入 `character_state_values.default_value_json` 仅启用字段的当前值；不写 memory、不写 nearby id
 
-路由：`POST /api/writing-sessions/:sessionId/nearby/:nearbyId/analyze`、`POST /api/worlds/:worldId/characters/from-nearby`（或复用现有 character POST + 扩展参数）。
+路由：
+- `POST /api/writing-sessions/:sessionId/nearby/:nearbyId/analyze` → 返回 LLM 生成的 `{ system_prompt, description, first_message }` 草稿，不落库
+- `POST /api/worlds/:worldId/characters/from-nearby` body `{ session_id, nearby_id, name, system_prompt, description, first_message }` → 落库并返回新 character；不复用现有 character POST，独立路由便于鉴权与逻辑分离
 
 ### 4.7 副作用清理
 
