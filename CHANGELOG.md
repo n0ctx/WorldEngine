@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(db): 新增 session_nearby_characters 表与 character_state_fields.nearby_enabled 列
+
+**背景**：实施"附近 / 登场角色"特性 Task 1（DB schema），spec `docs/superpowers/specs/2026-05-10-nearby-characters-design.md` §3。
+
+**改动**：
+- `backend/db/schema.js`：在 TABLES 字符串内 `writing_session_characters` 块之后追加两张新表 `session_nearby_characters`（session 内出场角色，含 transient 与 saved 两类，UNIQUE(session_id, name)）和 `session_nearby_character_state_values`（nearby 角色的会话级状态值，UNIQUE(nearby_id, field_key)）；外键全部 `ON DELETE CASCADE`。在 `initSchema` 末尾追加 `ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`，旧行由 SQLite 默认值自动填 1；同时为两张新表补建索引 `idx_session_nearby_characters_session_id`、`idx_session_nearby_character_state_values_nearby_id`。
+- `SCHEMA.md`：在 `writing_session_characters` 段加上"将整表删除"备注；新增 `session_nearby_characters` / `session_nearby_character_state_values` 两节；`character_state_fields` 表加上 `nearby_enabled` 行。
+
+**注意**：本仓库迁移段统一用 `try { db.exec(\`ALTER TABLE ... ADD COLUMN ...\`); } catch {}` 模式，不存在 plan 文中提到的 `ensureColumn` 助手；沿用现有模式即可达到"列已存在则忽略"的效果。
+
+**验证**：`cd backend && npm test` 全绿（369 pass / 3 skip）。
+
 ## 2026-05-10 chore(desktop): 瘦身 Node 运行时 + 限制 Electron 语言包，三平台再减重 ~25%
 
 **问题**：在按 arch 过滤 Node 运行时之后（前一条 changelog），mac-arm64 .app 仍 516M。继续拆解发现两块冗余：

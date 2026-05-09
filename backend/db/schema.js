@@ -90,6 +90,27 @@ CREATE TABLE IF NOT EXISTS writing_session_characters (
   UNIQUE(session_id, character_id)
 );
 
+CREATE TABLE IF NOT EXISTS session_nearby_characters (
+  id          TEXT PRIMARY KEY,
+  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  memory      TEXT NOT NULL DEFAULT '',
+  is_saved    INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  UNIQUE(session_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS session_nearby_character_state_values (
+  id                 TEXT PRIMARY KEY,
+  session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  nearby_id          TEXT NOT NULL REFERENCES session_nearby_characters(id) ON DELETE CASCADE,
+  field_key          TEXT NOT NULL,
+  runtime_value_json TEXT,
+  updated_at         INTEGER NOT NULL,
+  UNIQUE(nearby_id, field_key)
+);
+
 CREATE TABLE IF NOT EXISTS messages (
   id             TEXT PRIMARY KEY,
   session_id     TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -454,6 +475,11 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN active_turns INTEGER NOT NULL DEFAULT 1`); } catch {}
   // sessions.keyword_active_state：跨轮持久化关键词激活状态（JSON：{ entry_id: { round, ttl } }）
   try { db.exec(`ALTER TABLE sessions ADD COLUMN keyword_active_state TEXT NOT NULL DEFAULT '{}'`); } catch {}
+  // 附近角色：character_state_fields 新增 nearby_enabled 列；旧行由 SQLite 默认值自动填 1
+  try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
+  // 附近角色：两张新表的检索索引
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_characters_session_id ON session_nearby_characters(session_id)`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_character_state_values_nearby_id ON session_nearby_character_state_values(nearby_id, field_key)`); } catch {}
 }
 
 /**
