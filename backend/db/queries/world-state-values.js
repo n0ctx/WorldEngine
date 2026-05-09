@@ -101,6 +101,7 @@ export function getWorldStateValuesWithFields(worldId) {
       wsf.label,
       wsf.type,
       wsf.prefix,
+      wsf.unit,
       wsf.sort_order,
       wsf.default_value AS field_default_value,
       wsv.default_value_json AS stored_default_value_json,

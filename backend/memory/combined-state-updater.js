@@ -102,6 +102,7 @@ function buildFieldsDesc(fields, valueMap) {
         const lo = f.min_value != null ? f.min_value : '不限';
         const hi = f.max_value != null ? f.max_value : '不限';
         line += `，范围：${lo} ~ ${hi}`;
+        if (f.unit) line += `，单位：${f.unit}（仅展示用途，写入值仍为纯数字）`;
       }
       if (f.type === 'list') line += `，请返回字符串数组（如 ["条目1","条目2"]），替换整个列表`;
       if (f.type === 'datetime') line += `，请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份为正整数、可任意位数；月/日/时/分各 2 位，例 "1000-03-15T14:30" 或 "238-04-20T00:00"），不得使用其他格式`;

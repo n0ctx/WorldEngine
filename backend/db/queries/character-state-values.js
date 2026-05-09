@@ -101,6 +101,7 @@ export function getCharacterStateValuesWithFields(characterId) {
       csf.label,
       csf.type,
       csf.prefix,
+      csf.unit,
       csf.sort_order,
       csf.enum_options,
       csf.default_value AS field_default_value,

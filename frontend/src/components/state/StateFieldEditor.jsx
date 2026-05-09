@@ -73,6 +73,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
       allow_empty:        field?.allow_empty ?? 1,
       update_instruction: field?.update_instruction ?? '',
       prefix:             field?.prefix ?? '',
+      unit:               field?.unit ?? '',
       default_value:      (field?.type === 'list' || field?.type === 'table') ? '' : (field?.default_value ?? ''),
     };
   });
@@ -187,6 +188,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
         allow_empty:        1,
         update_instruction: form.update_instruction,
         prefix:             form.type === 'datetime' ? (form.prefix ?? '') : '',
+        unit:               form.type === 'number' ? (form.unit ?? '').trim().slice(0, 16) : '',
         table_columns:      tableColumnsPayload,
         default_value:      defaultValue,
       };
@@ -379,7 +381,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
 
           {/* 数值范围（type=number 时显示） */}
           {form.type === 'number' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className={labelCls}>最小值</label>
                 <input type="number" className={inputCls} value={form.min_value}
@@ -389,6 +391,12 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
                 <label className={labelCls}>最大值</label>
                 <input type="number" className={inputCls} value={form.max_value}
                   onChange={(e) => set('max_value', e.target.value)} placeholder="不限" />
+              </div>
+              <div>
+                <label className={labelCls}>单位</label>
+                <input className={inputCls} value={form.unit}
+                  onChange={(e) => set('unit', e.target.value)} maxLength={16}
+                  placeholder="如 元 / 万元 / %" />
               </div>
             </div>
           )}

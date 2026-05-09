@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 feat(state): 数值类型状态字段支持单位
+
+**变更**：`world_state_fields` / `character_state_fields` / `persona_state_fields` 新增 `unit TEXT NOT NULL DEFAULT ''` 列（schema.js 用 ALTER 迁移）。`StateFieldEditor` 在 type=number 时新增「单位」输入（最长 16 字符，与 min/max 同行）。
+
+**渲染**：`StatusSection` 数值显示在末尾拼上单位（含 max 进度条形态：`100 / 1000 元`）；`StateValueField` 数值编辑控件右侧加灰色单位提示。
+
+**LLM 提示**：`combined-state-updater.js#buildFieldsDesc` 状态更新提示词在 number 字段 `unit` 非空时追加「单位：xxx（仅展示用途，写入值仍为纯数字）」，避免 LLM 把单位写进数值。同时 `memory/recall.js` 三个 `render*State` 函数（注入 [6] 状态段）的 `rowsToStateText` 在 number 字段渲染时拼接 ` ${unit}`，让正文生成路径也能感知单位（避免 UI 显示「100 元」但 LLM 仍按裸数字 100 生成的尺度错位）。空 `unit` 时不输出该后缀，保持现有提示词缓存前缀稳定。
+
+**导入导出**：`exportWorld` / `importWorldCard` SELECT 与 INSERT 加 `unit` 字段；`import-export-validation.js` 加 `assertOptionalString(field.unit, ..., 16)`。旧卡缺 `unit` 字段时按 `''` 兜底。
+
+**未改 LLM/条件比较**：`unit` 不参与条件求值，也不会包进 LLM 写入的 patch（与 `prefix` 一致）。
+
+---
+
 ## 2026-05-09 fix(turn-dialogue): 修复 think 内含 <next_prompt> 字面字符串时整段 think 块被吞
 
 **现象**：writing 会话用 DeepSeek thinking 模型生成时，流式期间前端能看到 ThinkBlock + 正文，SSE done 后 ThinkBlock 消失只剩正文。

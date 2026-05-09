@@ -124,6 +124,7 @@ function assertStateFields(fields, label) {
     }
     assertOptionalString(field.update_instruction, `${label}[${index}].update_instruction`);
     assertOptionalString(field.prefix, `${label}[${index}].prefix`, 64);
+    assertOptionalString(field.unit, `${label}[${index}].unit`, 16);
     if (field.table_columns !== undefined && field.table_columns !== null) {
       assertArray(field.table_columns, `${label}[${index}].table_columns`);
     }

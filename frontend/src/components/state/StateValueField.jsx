@@ -37,13 +37,17 @@ export default function StateValueField({ field, onSave }) {
     );
   }
   if (field.type === 'number') {
+    const unit = field.unit ?? '';
     return (
-      <Input
-        type="number"
-        value={local ?? ''}
-        onChange={(e) => setLocal(e.target.value)}
-        onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
-      />
+      <div className="flex items-center gap-2">
+        <Input
+          type="number"
+          value={local ?? ''}
+          onChange={(e) => setLocal(e.target.value)}
+          onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
+        />
+        {unit && <span className="text-xs text-text-secondary opacity-70 flex-shrink-0">{unit}</span>}
+      </div>
     );
   }
   if (field.type === 'datetime') {

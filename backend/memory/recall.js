@@ -55,7 +55,9 @@ function rowsToStateText(rows) {
   const lines = [];
   for (const row of rows) {
     const value = parseValueForDisplay(row.effective_value_json);
-    if (value !== null) lines.push(`- ${row.label}：${value}`);
+    if (value === null) continue;
+    const suffix = row.type === 'number' && row.unit ? ` ${row.unit}` : '';
+    lines.push(`- ${row.label}：${value}${suffix}`);
   }
   if (lines.length === 0) return '';
   return lines.join('\n');
@@ -85,6 +87,8 @@ export function renderPersonaState(worldId, sessionId) {
     ? db.prepare(`
         SELECT
           psf.label,
+          psf.type,
+          psf.unit,
           COALESCE(spsv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
         FROM persona_state_fields psf
         LEFT JOIN session_persona_state_values spsv
@@ -97,6 +101,8 @@ export function renderPersonaState(worldId, sessionId) {
     : db.prepare(`
         SELECT
           psf.label,
+          psf.type,
+          psf.unit,
           COALESCE(psv.runtime_value_json, psv.default_value_json, psf.default_value) AS effective_value_json
         FROM persona_state_fields psf
         LEFT JOIN persona_state_values psv
@@ -121,6 +127,8 @@ export function renderWorldState(worldId, sessionId) {
     ? db.prepare(`
         SELECT
           wsf.label,
+          wsf.type,
+          wsf.unit,
           COALESCE(swsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
         FROM world_state_fields wsf
         LEFT JOIN session_world_state_values swsv
@@ -133,6 +141,8 @@ export function renderWorldState(worldId, sessionId) {
     : db.prepare(`
         SELECT
           wsf.label,
+          wsf.type,
+          wsf.unit,
           COALESCE(wsv.runtime_value_json, wsv.default_value_json, wsf.default_value) AS effective_value_json
         FROM world_state_fields wsf
         LEFT JOIN world_state_values wsv
@@ -160,6 +170,8 @@ export function renderCharacterState(characterId, sessionId) {
     ? db.prepare(`
         SELECT
           csf.label,
+          csf.type,
+          csf.unit,
           COALESCE(scsv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
         FROM character_state_fields csf
         LEFT JOIN session_character_state_values scsv
@@ -172,6 +184,8 @@ export function renderCharacterState(characterId, sessionId) {
     : db.prepare(`
         SELECT
           csf.label,
+          csf.type,
+          csf.unit,
           COALESCE(csv.runtime_value_json, csv.default_value_json, csf.default_value) AS effective_value_json
         FROM character_state_fields csf
         LEFT JOIN character_state_values csv

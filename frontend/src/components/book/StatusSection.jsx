@@ -318,8 +318,10 @@ export default function StatusSection({
                     title={isManual && onSave ? '点击编辑' : undefined}
                   >
                     {display != null ? (
-                      isNumber && max != null
-                        ? `${display} / ${max}`
+                      isNumber
+                        ? (max != null
+                            ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
+                            : `${display}${row.unit ? ' ' + row.unit : ''}`)
                         : applyTemplateVars(display, templateCtx)
                     ) : (isManual && onSave ? '点击编辑' : '—')}
                   </span>
