@@ -99,6 +99,10 @@
   --we-color-accent-border:     rgba(162, 59, 46, 0.25); /* ~25% — tag/badge 边框 */
   --we-color-accent-border-sm:  rgba(162, 59, 46, 0.22); /* ~22% — entry/field badge 边框 */
 
+  /* 警告色透明叠加（用于中断徽章背景）*/
+  /* amber-600: 139,90,31 */
+  --we-color-warning-bg: rgba(139, 90, 31, 0.08); /* ~8% — 中断徽章底色 */
+
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
   --we-space-xs:  4px;

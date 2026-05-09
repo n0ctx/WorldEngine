@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 feat(ui): 美化「已中断」徽章样式
+
+**变更**：
+- `frontend/src/styles/tokens.css`：新增 `--we-color-warning-bg`（amber 8% 透明叠加），用于中断徽章底色
+- `frontend/src/styles/chat.css`：`.we-message-interrupted` 升级为精致徽章风格
+  - `border: 1px solid` → `box-shadow: 0 0 0 1px`（匹配项目环形阴影设计语言）
+  - 新增 `background: var(--we-color-warning-bg)`（浅琥珀底色）
+  - 字号 9px → 10px，间距 `1px 5px` → `2px 6px`
+  - 颜色从废弃的 `--we-amber` 迁移到 `--we-color-status-warning`
+  - 去掉 `opacity: 0.7`（颜色透明度已由 token 本身控制）
+
 ## 2026-05-09 fix(llm): DeepSeek 全量 think 包裹导致消息丢失的修复
 
 **背景**：DeepSeek 开启 thinking 时，偶发将正文（含 `<next_prompt>`）也写入 `reasoning_content` 而非 `content`，导致 streaming 层输出 `<think>全部内容</think>`。`extractNextPromptOptions` 剥除 think 块后内容为空，消息未持久化，会话历史中断。

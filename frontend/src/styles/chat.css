@@ -560,13 +560,13 @@
 /* ── Interrupted tag ───────────────────────────────────── */
 
 .we-message-interrupted {
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  color: var(--we-amber);
-  border: 1px solid var(--we-amber);
-  padding: 1px 5px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--we-color-status-warning);
+  background: var(--we-color-warning-bg);
+  box-shadow: 0 0 0 1px var(--we-color-status-warning);
+  padding: 2px 6px;
   border-radius: var(--we-radius-none);
-  opacity: 0.7;
 }
 
 /* ── Edit state ────────────────────────────────────────── */
