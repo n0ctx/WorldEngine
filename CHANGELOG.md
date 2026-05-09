@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 refactor(prompts): 后置提示词从独立 system message 合并入当前用户消息
+
+**变更**：`buildPrompt` / `buildWritingPrompt` 中 [13] 后置提示词（`global_post_prompt`、`character.post_prompt`、兜底角色名、`SUGGESTION_PROMPT`）不再作为独立的 `role:system` 消息发送，改为追加到 [14] 当前用户消息末尾，合并为一条 `role:user`。附件消息（vision 数组格式）以额外 `type:text` part 追加。
+
+**原因**：部分 provider 对 system 消息位置有限制，合并为 user 消息可提高兼容性，同时减少消息总数。
+
+**影响**：历史消息之后不再有独立的 system 后置消息；`messages.length` 减少 1；ARCHITECTURE.md §4 表格已同步更新。
+
+**续写路径（`buildContinuationMessages`）核查**：无需改动。续写时 rawMessages 末尾仍是 `role:user`（[13+14] 合并消息），三条分支（prefill、role≠user 守卫、主路径）行为均与改前等价；suggestion 在原始请求和续写指令中各出现一次，职责分开不冲突，与改前相同。
+
 ## 2026-05-09 refactor(prompts): cached layer 编号重排，[4] 常驻条目上移至 [2]
 
 **变更**：`assembler.js` cached layer 顺序调整为 [1] 全局 → [2] 常驻条目 → [3] 玩家 → [4] 角色（原顺序 [1][2][3][4] = 全局/玩家/角色/常驻）。写作模式同步调整：cached layer 变为 [1][2][3]，dynamic 层角色提示词从 [3] 改为 [4]。仅代码位置和注释编号变化，功能不变。同步更新 `ARCHITECTURE.md` §4 表格与说明。

@@ -18,9 +18,8 @@
  *   [历史消息：role:user/assistant 交替]
  *   [12] 历史消息（稳定使用原始 messages 窗口）
  *
- *   [BOTTOM: 历史之后，当前 user 之前]
- *   [13] 后置提示词（独立 system message；全局+角色，均空跳过）
- *   [14] 当前用户消息（唯一的尾部 user 消息）
+ *   [BOTTOM: 历史之后]
+ *   [13+14] 后置提示词 + 当前用户消息（合并为一条 user message；后置提示词追加在用户消息之后）
  *
  *
  * 对外暴露：
@@ -303,7 +302,7 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
-  // [13] 后置提示词：历史消息之后、当前 user 之前的独立 system message
+  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后
   const postParts = [
     config.global_post_prompt,
     character.post_prompt,
@@ -312,17 +311,23 @@ export async function buildPrompt(sessionId, options = {}) {
   if (!character.post_prompt) {
     postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
   }
-  // suggestion 并入 [13] system 消息，使格式指令以系统指令权重生效
   if (config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-  if (postParts.length > 0) {
-    messages.push({ role: 'system', content: postParts.join('\n\n') });
-  }
 
-  // [14] 当前用户消息（最新 1 条 user；suggestion 已移至 [13]）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
-    messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
+    const formatted = formatMessageForLLM({ ...currentUserMsg, content });
+    if (postParts.length > 0) {
+      const postContent = postParts.join('\n\n');
+      if (Array.isArray(formatted.content)) {
+        formatted.content.push({ type: 'text', text: postContent });
+      } else {
+        formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+      }
+    }
+    messages.push(formatted);
+  } else if (postParts.length > 0) {
+    messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
 
   const temperature = world.temperature ?? config.llm.temperature;
@@ -348,7 +353,7 @@ export async function buildPrompt(sessionId, options = {}) {
  *
  * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家（保持稳定）
  * Dynamic layer: [4] 所有激活角色 system prompt + [5-11] 上下文
- * Bottom: [12] 历史消息，[13] 后置提示词（system），[14] 当前消息
+ * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
  *
  * [4] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
@@ -518,25 +523,32 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [13] 后置提示词：历史消息之后、当前 user 之前的独立 system message
+  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后
+  const postParts = [];
   if (!skipWritingInstructions) {
-    const postParts = [writing.global_post_prompt].filter(Boolean).map(tv);
+    if (writing.global_post_prompt) postParts.push(tv(writing.global_post_prompt));
     // 有玩家名时自动注入提醒，防止长对话后叙述者捏造或混淆玩家名
     if (personaName) {
       postParts.push(tv('（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）'));
     }
-    // suggestion 并入 [13] system 消息
     if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-    if (postParts.length > 0) {
-      messages.push({ role: 'system', content: postParts.join('\n\n') });
-    }
   }
 
-  // [14] 当前用户消息（写作模式；suggestion 已移至 [13]）
   const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
   if (currentUserMsg?.role === 'user') {
     const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
-    messages.push(formatMessageForLLM({ ...currentUserMsg, content }));
+    const formatted = formatMessageForLLM({ ...currentUserMsg, content });
+    if (postParts.length > 0) {
+      const postContent = postParts.join('\n\n');
+      if (Array.isArray(formatted.content)) {
+        formatted.content.push({ type: 'text', text: postContent });
+      } else {
+        formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+      }
+    }
+    messages.push(formatted);
+  } else if (postParts.length > 0) {
+    messages.push({ role: 'user', content: postParts.join('\n\n') });
   }
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;

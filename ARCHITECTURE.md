@@ -142,7 +142,7 @@ POST /api/sessions/:sessionId/chat
 
 `assembler.js` 只负责拼装顺序与运行时数据；固定后端模板（如 suggestion prompt）统一存放在 `backend/prompts/templates/` 的分组目录下，通过 `prompt-loader.js` 读取。
 
-14 段顺序（以执行顺序编号），**[1-11] 段合并为单条 `role:system`（前缀 [1][2][3][4] 稳定，后缀 [5-11] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 为“独立 `system` 后置提示词 + 尾部 `user`”：
+14 段顺序（以执行顺序编号），**[1-11] 段合并为单条 `role:system`（前缀 [1][2][3][4] 稳定，后缀 [5-11] 动态）**，Historical 为多条 `role:user/assistant`，Bottom 为”[13+14] 后置提示词追加到当前用户消息末尾，合并为一条 `role:user`”：
 
 | 段 | 层 | 来源 | 跳过条件 |
 |---|---|---|---|
@@ -159,8 +159,7 @@ POST /api/sessions/:sessionId/chat
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| **[13]** | **Bottom** | 后置提示词：历史消息之后的独立 `role:system`（`global_post_prompt` → `character.post_prompt`）；**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入本段**（格式指令以 system 权重生效，不再拼入用户消息） | 所有 postParts 均空时跳过（当前因兜底逻辑总会有内容） |
-| [14] | — | 当前用户消息：DB 中最新的 `role:user` 消息（刚存入的那条），经 `applyRules` 处理；内容保持干净，不再附加 `SUGGESTION_PROMPT`。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块 | — |
+| **[13+14]** | **Bottom** | 当前用户消息 + 后置提示词：DB 中最新的 `role:user` 消息（经 `applyRules` 处理）追加后置提示词（`global_post_prompt` → `character.post_prompt`），合并为一条 `role:user` 消息。**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**。附件消息（vision 数组格式）追加为额外 `type:text` part。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块 | 无当前用户消息时，若 postParts 非空仍单独发出一条 user message |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -185,8 +184,7 @@ POST /api/sessions/:sessionId/chat
 | [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
 | [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
-| **[13]** | 写作后置提示词：历史消息之后的独立 `role:system`；注入 `writing.global_post_prompt`；**`personaName` 非空时自动注入玩家名提醒**（`玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。`）；**`writing.suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入本段**；`skipWritingInstructions=true` 时整段跳过 |
-| [14] | 当前 user 消息本体，经 `applyRules` 处理；内容保持干净，`SUGGESTION_PROMPT` 已移至 [13] |
+| **[13+14]** | 写作后置提示词追加到当前用户消息末尾，合并为一条 `role:user`；注入 `writing.global_post_prompt`；**`personaName` 非空时自动注入玩家名提醒**；**`writing.suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**；`skipWritingInstructions=true` 时 postParts 为空（只保留用户消息本体） |
 | 返回值 | 含 `recallHitCount` 和 `model`（若配置了 `writing.model` 则覆盖全局） |
 
 ---
