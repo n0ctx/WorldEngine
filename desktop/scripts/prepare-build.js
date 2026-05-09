@@ -133,6 +133,19 @@ function getNodeExecutablePath(runtimeDir, platform) {
     : path.join(runtimeDir, 'bin', 'node');
 }
 
+// 仅保留运行 backend 所需的 node 可执行文件，删除 npm/headers/docs/locale 等多余内容。
+// 三平台累计可减重 ~110MB（mac 各约 -80MB，win32 -14MB）。
+function slimRuntime(runtimeDir, platform) {
+  const commonJunk = ['README.md', 'CHANGELOG.md', 'LICENSE'];
+  const posixJunk = ['include', 'share', path.join('lib', 'node_modules'), path.join('bin', 'npm'), path.join('bin', 'npx')];
+  const win32Junk = ['node_modules', 'npm', 'npm.cmd', 'npm.ps1', 'npx', 'npx.cmd', 'npx.ps1', 'install_tools.bat', 'nodevars.bat'];
+
+  const targets = [...commonJunk, ...(platform === 'win32' ? win32Junk : posixJunk)];
+  for (const rel of targets) {
+    fs.rmSync(path.join(runtimeDir, rel), { recursive: true, force: true });
+  }
+}
+
 function flattenExtractedDir(runtimeDir) {
   const extractedDir = fs.readdirSync(runtimeDir).find((entry) => entry.startsWith('node-v'));
   if (!extractedDir) {
@@ -152,6 +165,8 @@ async function prepareRuntime(target) {
   const nodeExe = getNodeExecutablePath(runtimeDir, target.platform);
 
   if (fs.existsSync(nodeExe)) {
+    // 已下载过的旧缓存可能仍带 npm/headers/docs；每次都重新瘦身保证幂等。
+    slimRuntime(runtimeDir, target.platform);
     console.log(`Node.js 运行时已就绪: ${runtimeKey}`);
     return;
   }
@@ -178,6 +193,7 @@ async function prepareRuntime(target) {
     throw new Error(`运行时解压完成但未找到 node 可执行文件: ${runtimeKey}`);
   }
 
+  slimRuntime(runtimeDir, target.platform);
   console.log(`Node.js 运行时准备完成: ${runtimeKey}`);
 }
 

@@ -307,7 +307,7 @@ export default function StatusSection({
                       title={editable ? '点击编辑' : undefined}
                     >
                       {arr.map((item, idx) => (
-                        <span key={idx} className="we-status-tag">{item}</span>
+                        <span key={idx} className="we-status-tag">{applyTemplateVars(item, templateCtx)}</span>
                       ))}
                     </div>
                   );

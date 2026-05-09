@@ -3,6 +3,67 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 chore(desktop): 瘦身 Node 运行时 + 限制 Electron 语言包，三平台再减重 ~25%
+
+**问题**：在按 arch 过滤 Node 运行时之后（前一条 changelog），mac-arm64 .app 仍 516M。继续拆解发现两块冗余：
+- 每份打包内的 Node 运行时附带 `include/`（66M C++ 头文件）、`lib/node_modules/npm`（15M）、`share/`、`README.md`/`CHANGELOG.md`/`LICENSE`、以及 `bin/{npm,npx}` 软链；win32 同理含 `node_modules/npm`、`npm*`/`npx*` 启动脚本和 `install_tools.bat` 等。Backend 通过 `spawn(node, ['server.js'])` 调用，根本不用这些。
+- Electron 默认随包附带 55 套 .lproj 语言资源（mac 约 45M），WorldEngine 是简中应用，不需要其它语言。
+
+**改动**：
+- `desktop/scripts/prepare-build.js`：新增 `slimRuntime(runtimeDir, platform)`，在 `prepareRuntime()` 末尾调用；同时在缓存命中分支也调一次保证旧缓存幂等清理。darwin 删 `include/`、`share/`、`lib/node_modules/`、`bin/npm`、`bin/npx`、根目录三份文档；win32 删 `node_modules/`、所有 `npm*`/`npx*` 启动脚本、`install_tools.bat`、`nodevars.bat`、文档。瘦身后 darwin 仅留 `bin/node`，win32 仅留 `node.exe`。
+- `desktop/electron-builder.json`：顶层加 `"electronLanguages": ["en", "zh_CN", "zh_TW"]`，把 Electron 语言资源从 55 套裁到 3 套。
+
+**实测结果**（与"前一条 changelog 后"对比）：
+
+| 产物 | 上轮 | 这轮 |
+|---|---|---|
+| mac-arm64 .app | 516M | **390M** |
+| mac-x64 .app | 551M | **420M** |
+| win-unpacked | ~520M | **433M** |
+| mac-arm64.dmg | 174M | **151M** |
+| mac-x64.dmg | 182M | **159M** |
+| win-x64.exe (nsis) | — | **119M** |
+
+累计三平台 DMG/EXE 较最初分别减重 44% / 42% / 59%。
+
+**验证**：`cd desktop && npm run dist` → 检查 `dist/{mac-arm64,mac}/WorldEngine.app/Contents/Resources/node/<arch>/` 仅含 `bin/node`；`dist/win-unpacked/resources/node/win32-x64/` 仅含 `node.exe`；mac .app 中 `Frameworks/Electron Framework.framework/Versions/A/Resources/` 仅含 `en.lproj`/`zh_CN.lproj`/`zh_TW.lproj`。启动 .app 后通过 `pgrep` 确认后端进程使用瘦身后的 `bin/node` 正常拉起。已实测通过。
+
+---
+
+## 2026-05-10 chore(desktop): 按目标 arch 过滤 Node 运行时，安装包减重 ~38%
+
+**问题**：mac arm64 .app 实测 832MB（DMG 272MB），其中 `Resources/node/` 单独占 522MB——每个平台/架构的安装包都把全部三套 Node.js 运行时（darwin-arm64 / darwin-x64 / win32-x64）一起打了进去。`desktop/electron-builder.json` 顶层 `extraResources` 把 `node-runtime/` 整目录无差别注入，没按目标平台过滤。
+
+**改动**：`desktop/electron-builder.json`：
+- 删除顶层 `extraResources` 中 `node-runtime → node` 那条。
+- `mac.extraResources` 新增 `{ from: "node-runtime/darwin-${arch}", to: "node/darwin-${arch}" }`，多 arch 构建时 `${arch}` 会按 arm64/x64 分别展开，各包只包含自身 runtime。
+- `win.extraResources` 同理 `win32-${arch}`。
+- `desktop/scripts/prepare-build.js` 不变，开发期仍预下载三套以便复用缓存。
+- `desktop/src/main.js` 的 `node/${process.platform}-${process.arch}` 路径解析与新目录天然吻合，无需改动。
+
+**实测结果**（electron-builder 26.8.1）：
+
+| 产物 | 改前 | 改后 |
+|---|---|---|
+| mac-arm64 .app | 832M | **516M**（-316M / -38%） |
+| mac-x64 .app | ~830M | **551M** |
+| mac-arm64.dmg | 272M | **174M** |
+| mac-x64.dmg | 272M | **182M** |
+
+**验证**：`cd desktop && npm run build` → 检查 `dist/mac-arm64/WorldEngine.app/Contents/Resources/node/` 应**仅含** `darwin-arm64`（mac-x64 同理仅含 `darwin-x64`）；启动 .app 后通过 `pgrep` 确认后端进程使用包内 `darwin-arm64/bin/node` 拉起 `backend/server.js`。已实测通过。
+
+---
+
+## 2026-05-10 fix(frontend): list 类型状态字段 chip 展开模板变量
+
+**问题**：`StatusSection.jsx` 新增 tag 渲染路径时直接输出原始 `item`，导致 list 字段中的 `{{user}}`/`{{char}}`/`{{world}}` 显示为字面量，而 text 字段仍正常展开。
+
+**改动**：`arr.map` 内每个 chip 改为 `applyTemplateVars(item, templateCtx)` 展开后渲染，与 text 字段行为一致。
+
+**验证**：在状态栏 list 字段写入含 `{{user}}` 或 `{{char}}` 的条目，确认书卷面板显示展开后的名称。
+
+---
+
 ## 2026-05-10 fix(frontend): 状态栏迟到事件不再被丢弃，修复连续对话状态/dairy_time 延迟一轮才更新
 
 **问题**：用户连发消息时，状态面板（含 real_time 模式的 `dairy_time`）经常延迟一轮甚至几轮才刷新。后端 `updateAllStates` 实际上每轮都把 `dairy_time` 同步写进了 DB，且 `state_updated` SSE 也通过上一轮 response 流（`keepSseAlive=true`）正常发出；问题出在前端：`ChatPage.jsx` / `WritingSpacePage.jsx` 的 `onStateUpdated`/`onStateRolledBack` 用 `isCurrentStreamRun(runId)` 或 `continuationTokenRef` 拦截"非当前轮"的事件——一旦用户在第 N 轮 p2 任务完成前提交第 N+1 轮，第 N 轮迟到的 `state_updated` 即被丢弃，面板要等下一轮刷新才能看到第 N 轮已写入 DB 的状态。
