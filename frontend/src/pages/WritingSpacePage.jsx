@@ -11,7 +11,6 @@ import useStore from '../store/index.js';
 import {
   listWritingSessions,
   createWritingSession,
-  listActiveCharacters,
   generate,
   stopGeneration,
   continueGeneration,
@@ -28,7 +27,7 @@ import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
 import BookSpread from '../components/book/BookSpread.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
-import CastPanel from '../components/book/CastPanel.jsx';
+import NearbyPanel from '../components/book/NearbyPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
@@ -74,7 +73,6 @@ export default function WritingSpacePage() {
 
   const [persona, setPersona] = useState(null);
   const [currentSession, setCurrentSession] = useState(null);
-  const [activeCharacters, setActiveCharacters] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [ltmOpen, setLtmOpen] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -250,13 +248,6 @@ export default function WritingSpacePage() {
     setChapterTitles({});
     clearMemoryState();
     refreshMessages();
-
-    try {
-      const chars = await listActiveCharacters(worldId, session.id);
-      setActiveCharacters(chars);
-    } catch {
-      setActiveCharacters([]);
-    }
 
     // 加载章节标题（异步，不阻塞进入会话）
     getChapterTitles(worldId, session.id)
@@ -782,10 +773,6 @@ export default function WritingSpacePage() {
           if (evt.type === 'card_activated' && evt.character) {
             doneCount += 1;
             onProgress(doneCount);
-            setActiveCharacters((prev) => {
-              if (prev.some((c) => c.id === evt.character.id)) return prev;
-              return [...prev, evt.character];
-            });
           } else if (evt.type === 'error') {
             pushErrorToast(evt.error || '角色创建失败');
           }
@@ -924,11 +911,9 @@ export default function WritingSpacePage() {
             />
           </div>
 
-          <CastPanel
+          <NearbyPanel
             worldId={worldId}
             sessionId={currentSession?.id}
-            activeCharacters={activeCharacters}
-            onActiveCharactersChange={setActiveCharacters}
             stateTick={stateTick}
             diaryTick={diaryTick}
             persona={persona}

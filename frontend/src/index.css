@@ -1983,3 +1983,45 @@ body {
   border: none;
   cursor: pointer;
 }
+
+/* — NearbyPanel — */
+.we-nearby-seal {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--we-vermilion);
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.we-nearby-memory {
+  font-size: var(--we-text-sm);
+  color: var(--we-ink-faded);
+  padding: 4px 8px;
+  border-left: 1px solid var(--we-color-border-default);
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.we-nearby-memory-text {
+  cursor: pointer;
+  display: block;
+  white-space: pre-wrap;
+}
+.we-nearby-memory-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.we-nearby-memory-edit textarea {
+  width: 100%;
+  font-size: var(--we-text-sm);
+  resize: vertical;
+}
+.we-nearby-memory-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.we-nearby-section .we-state-section-reset + .we-state-section-reset {
+  margin-left: 8px;
+}

@@ -90,6 +90,7 @@ vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({
   ),
 }));
 vi.mock('../../src/components/book/CastPanel.jsx', () => ({ default: () => <div data-testid="cast" /> }));
+vi.mock('../../src/components/book/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
 vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
@@ -192,7 +193,7 @@ describe('WritingSpacePage', () => {
     render(<WritingSpacePage />);
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
-    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
     fireEvent.click(screen.getByText('continue-writing'));
@@ -250,7 +251,7 @@ describe('WritingSpacePage', () => {
     render(<WritingSpacePage />);
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
-    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
 
     fireEvent.click(screen.getByText('send-writing'));
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
@@ -285,7 +286,7 @@ describe('WritingSpacePage', () => {
     render(<WritingSpacePage />);
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
-    await waitFor(() => expect(mocks.listActiveCharacters).toHaveBeenCalledWith('world-1', 'ws-1'));
+    await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
 
     fireEvent.click(screen.getByText('send-writing'));
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));

@@ -3,6 +3,28 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(ui): NearbyPanel 替换 CastPanel — 附近区块 + 角色卡添加
+
+**背景**：附近角色特性 Task 10 — 写作页右侧栏从 Cast（激活角色）切到 Nearby（附近角色池）。CastPanel 暂留文件系统（Task 11 删），与 `activeCharacters` 概念一同退出 WritingSpacePage。
+
+**改动**：
+- 新增 `frontend/src/components/book/NearbyPanel.jsx`：复制 CastPanel 骨架，去掉顶部印章行（无 Cast 概念），新增「附近」段（标题栏右侧两个动作 `＋角色卡` / `制卡`），保留「世界 / {{user}} / TIMELINE」三段。`useSessionState` 不动；nearby 由面板内 `useEffect + fetchNearby` 自管，依赖 `[worldId, sessionId, stateTick]`，setState 走 `Promise.resolve().then(...)` 规避 `react-hooks/set-state-in-effect`。
+- 新增 `frontend/src/components/book/NearbyCharacterBlock.jsx`：单角色折叠块。已保存角色头部显示朱砂圆点 `we-nearby-seal`；记忆段 `we-nearby-memory` 点击进入编辑（textarea + 保存/取消）；状态部分复用 `StatusSection`，将后端的 `runtime_value_json` 一次性映射为 `effective_value_json` 给 StatusSection 读。写操作走 `setNearbySaved` / `patchNearbyMemory` / `patchNearbyState` / `removeNearby`，完成后 `onChange()` 触发父级 reload。
+- 新增 `frontend/src/components/book/AddSavedNearbyModal.jsx`：列出 `getCharactersByWorld(worldId)`，按 nearby 当前名字集合去重（同名禁用「已在池中」），调 `addSavedNearbyFromCharacter`；409 提示「名字已在登场角色池中」。
+- 新增 `frontend/src/components/book/MakeCardModal.jsx`：Task 12 占位，`return null`；保证 NearbyPanel 「制卡」按钮可挂接不崩。
+- `frontend/src/pages/WritingSpacePage.jsx`：删除 `listActiveCharacters` import / `activeCharacters` state / `enterSession` 内 active chars 加载 / `handleConfirmCards` 内 `setActiveCharacters` 注入；`<CastPanel>` → `<NearbyPanel>`（去掉 `activeCharacters` / `onActiveCharactersChange` props）。CastPanel 保留在文件系统但不再被引用，待 Task 11 删除。
+- `frontend/src/components/index.js`：注册 `NearbyPanel` / `NearbyCharacterBlock` / `AddSavedNearbyModal` / `MakeCardModal`。
+- `frontend/src/index.css`：cast 块下追加 NearbyPanel 子样式 — `we-nearby-seal`（朱砂圆点 `var(--we-vermilion)` 8×8）、`we-nearby-memory`（左竖线 + 缩进段，`var(--we-text-sm)` + `var(--we-ink-faded)`）、`we-nearby-memory-edit/-actions`（编辑态布局）、`we-nearby-section .we-state-section-reset` 兄弟间距。
+- `frontend/tests/pages/writing-space-page.test.jsx`：新增 `NearbyPanel.jsx` 模块 mock；将三处 `waitFor(listActiveCharacters)` 断言换成 `waitFor(listWritingSessions)`，因为 active chars 加载链路已删。
+
+**验证**：`npm run lint` 全过；`cd frontend && npm run test` → 48 文件 / 139 测试全过。
+
+**坑点**：
+- `StatusSection` 只读 `effective_value_json`，nearby 后端只给 `runtime_value_json`，必须在 NearbyCharacterBlock 内做一次映射；`onSave` 仍传原始 valueJson 给 `patchNearbyState`。
+- `react-compiler` 严格 useMemo 依赖：`[nearby?.state]` 被判 "less specific than inferred"，改成 `[nearby]` 才过 lint。
+- 旧 `handleConfirmCards`（章节内提取角色）仍可调；现在不再写 `activeCharacters`，新角色卡直接落库到 `characters` 表，由 Task 11 后续统一清理 active 概念。
+- `MakeCardModal` 在 NearbyPanel 内是真打开（state 控制），但组件 `return null`；点击「制卡」无可见反馈是预期，Task 12 才补可视实现。
+
 ## 2026-05-10 feat(api): session-nearby 前端 API 封装
 
 **背景**：附近角色特性 Task 9 — 给前端补齐 nearby 全链路 API 封装，配合 Task 5/8 的后端路由。
