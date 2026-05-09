@@ -9,7 +9,7 @@ import { logPrompt } from '../utils/logger.js';
 import { getConfig } from './config.js';
 import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
-import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
+import { stripAsstContext, extractNextPromptOptions, unwrapSoloThinkBlock } from '../utils/turn-dialogue.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACHMENTS_DIR = process.env.WE_DATA_DIR
@@ -130,7 +130,10 @@ export function processStreamOutput(rawContent, aborted, worldId, sessionId, opt
     touchSessionFn = touchSession,
   } = opts;
 
-  let content = rawContent;
+  // DeepSeek 有时将正文也写入 reasoning_content，导致整体被 <think>...</think> 包裹。
+  // 解包后再走正常处理流程，避免消息丢失或历史上下文为空。
+  // 中断时不解包：用户中止时模型可能仍在推理阶段，应保留 think 包裹避免 CoT 泄漏。
+  let content = aborted ? rawContent : unwrapSoloThinkBlock(rawContent);
 
   if (content) content = stripAsstContext(content);
 

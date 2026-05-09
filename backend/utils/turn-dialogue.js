@@ -35,6 +35,8 @@ export function stripAsstContext(raw) {
 const THINK_CLOSED_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
 const THINK_OPEN_TEST_RE = /<\s*think(?:ing)?\s*>/i;
 const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
+// 单个 think 块匹配（用于提取内容，不带 g 以避免 lastIndex 副作用）
+const THINK_SINGLE_RE = /<\s*think(?:ing)?\s*>([\s\S]*?)(?:<\s*\/\s*think(?:ing)?\s*>|$)/i;
 
 function stripThinkBlocksFromText(text) {
   let cleaned = text.replace(THINK_CLOSED_RE, '');
@@ -54,6 +56,25 @@ function findRawNextPromptIdx(raw, idxInStripped) {
     from = pos + 1;
   }
   return -1;
+}
+
+/**
+ * 若整段文本完全被单个 <think>...</think> 包裹（外侧无实际内容），
+ * 则提取并返回 think 块内部的内容；否则原样返回。
+ *
+ * 处理 DeepSeek 有时将正文也写入 reasoning_content 的 API 异常：
+ * streaming 层在 delta.content 始终为空时会产生 <think>全部内容</think> 的输出，
+ * 本函数在持久化前将其解包，确保消息正常保存和历史上下文不丢失。
+ */
+export function unwrapSoloThinkBlock(text) {
+  if (!text?.trim()) return text;
+  const outer = text
+    .replace(THINK_CLOSED_RE, '')
+    .replace(THINK_OPEN_TAIL_RE, '')
+    .trim();
+  if (outer) return text;
+  const m = text.match(THINK_SINGLE_RE);
+  return m?.[1] ?? text;
 }
 
 /**

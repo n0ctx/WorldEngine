@@ -65,3 +65,56 @@ test('processStreamOutput 在 aborted 时保留原始内容并追加中断标记
   assert.match(result.savedContent, /未完成内容/);
   assert.match(result.savedContent, /\[已中断\]/);
 });
+
+test('processStreamOutput 解包 DeepSeek 全量 think 包裹——无 next_prompt', async () => {
+  const world = insertWorld(sandbox.db, { name: '聊天世界-think解包' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = processStreamOutput(
+    '<think>这是推理内容\n这是正文内容</think>\n',
+    false,
+    world.id,
+    session.id,
+  );
+
+  assert.ok(result.savedAssistant, '消息应被保存');
+  assert.match(result.savedContent, /正文内容/);
+  assert.doesNotMatch(result.savedContent, /<think>/);
+});
+
+test('processStreamOutput 解包 DeepSeek 全量 think 包裹——含 next_prompt', async () => {
+  const world = insertWorld(sandbox.db, { name: '聊天世界-think解包选项' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = processStreamOutput(
+    '<think>推理内容\n正文<next_prompt>选项A\n选项B</next_prompt></think>',
+    false,
+    world.id,
+    session.id,
+  );
+
+  assert.ok(result.savedAssistant, '消息应被保存');
+  assert.match(result.savedContent, /正文/);
+  assert.doesNotMatch(result.savedContent, /<think>/);
+  assert.deepEqual(result.options, ['选项A', '选项B']);
+});
+
+test('processStreamOutput 保留正常混合内容（think + 正文）不解包', async () => {
+  const world = insertWorld(sandbox.db, { name: '聊天世界-混合内容' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = processStreamOutput(
+    '<think>推理</think>\n正常正文内容',
+    false,
+    world.id,
+    session.id,
+  );
+
+  assert.ok(result.savedAssistant, '消息应被保存');
+  assert.match(result.savedContent, /正常正文内容/);
+  // think 标签在 DB 中保留，由前端 parseStreamingBlocks 渲染成折叠面板
+  assert.match(result.savedContent, /<think>/);
+});

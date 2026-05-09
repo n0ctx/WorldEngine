@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-09 fix(llm): DeepSeek 全量 think 包裹导致消息丢失的修复
+
+**背景**：DeepSeek 开启 thinking 时，偶发将正文（含 `<next_prompt>`）也写入 `reasoning_content` 而非 `content`，导致 streaming 层输出 `<think>全部内容</think>`。`extractNextPromptOptions` 剥除 think 块后内容为空，消息未持久化，会话历史中断。
+
+**修复**：
+- `backend/utils/turn-dialogue.js`：新增导出函数 `unwrapSoloThinkBlock(text)`——若文本完全被单个 `<think>...</think>` 包裹（外侧无实际内容），提取并返回内部文本，否则原样返回。
+- `backend/services/chat.js` `processStreamOutput`：在入口对 `rawContent` 调用 `unwrapSoloThinkBlock`，确保 DeepSeek 异常输出能正常持久化。
+
+**已知限制**：streaming 阶段（`</think>` 前），前端仍会显示 think 面板；`done` 事件到达后前端用已正确保存的消息替换展示，视觉短暂异常但数据正确。若模型将 CoT 推理混入正文，CoT 内容也会一并写入助手消息。
+
+**测试**：新增 3 个后端测试覆盖解包路径（全量包裹无 next_prompt、含 next_prompt、正常混合不解包）。
+
+---
+
 ## 2026-05-09 fix(prompts): XML 注入修复——转义 char_info 内容与 char_state name 属性
 
 **变更**：`backend/prompts/assembler.js` 新增 `escapeXmlContent` / `escapeXmlAttr` 辅助函数。
