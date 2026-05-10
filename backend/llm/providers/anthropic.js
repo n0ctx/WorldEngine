@@ -2,6 +2,19 @@ import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget 
 import { convertToAnthropicMessages } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
 import { logRawRequest } from '../raw-logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
+
+const log = createLogger('llm', 'magenta');
+
+function logUsage(model, usage) {
+  if (!usage) return;
+  log.info('provider.usage', formatMeta({
+    provider: 'anthropic',
+    model,
+    prompt_tokens: usage.input_tokens,
+    completion_tokens: usage.output_tokens,
+  }));
+}
 
 // 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching。
 // 若 config.cacheableSystem 提供了稳定前缀（assembler [1-3.5]），则把 system 拆成
@@ -32,6 +45,7 @@ function toAnthropicTools(toolDefs) {
 }
 
 export async function* streamAnthropic(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
@@ -62,29 +76,33 @@ export async function* streamAnthropic(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
   // 跟踪当前是否在 thinking block 中（extended thinking 专用）
   let inThinkingBlock = false;
+  let lastUsage = null;
 
   for await (const { event, data } of parseSSE(resp.body)) {
     if (event === 'message_start') {
       try {
         const parsed = JSON.parse(data);
         const u = parsed.message?.usage;
-        if (u && config.usageRef) {
-          recordTokenUsage(config.usageRef, u, config.provider);
+        if (u) {
+          lastUsage = { ...(lastUsage || {}), ...u };
+          if (config.usageRef) recordTokenUsage(config.usageRef, u, config.provider);
         }
-      } catch { /* skip */ }
+      } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
     } else if (event === 'message_delta') {
       try {
         const parsed = JSON.parse(data);
         const u = parsed.usage;
-        if (u?.output_tokens != null && config.usageRef) {
-          recordTokenUsage(config.usageRef, u, config.provider);
+        if (u?.output_tokens != null) {
+          lastUsage = { ...(lastUsage || {}), ...u };
+          if (config.usageRef) recordTokenUsage(config.usageRef, u, config.provider);
         }
-      } catch { /* skip */ }
+      } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
     } else if (event === 'content_block_start') {
       try {
         const parsed = JSON.parse(data);
@@ -110,15 +128,17 @@ export async function* streamAnthropic(messages, config) {
           const text = parsed.delta.text;
           if (text) yield text;
         }
-      } catch { /* skip */ }
+      } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
     }
   }
 
   // 安全兜底：确保 thinking block 已关闭
   if (inThinkingBlock) yield '</think>';
+  logUsage(config.model, lastUsage);
 }
 
 export async function completeAnthropic(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
@@ -147,12 +167,20 @@ export async function completeAnthropic(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
-  const data = await resp.json();
-  if (data.usage && config.usageRef) {
-    recordTokenUsage(config.usageRef, data.usage, config.provider);
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message }));
+    throw err;
+  }
+  if (data.usage) {
+    logUsage(config.model, data.usage);
+    if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
   }
   return (data.content || []).map((block) => {
     if (block.type === 'thinking') return `<think>${block.thinking}</think>`;
@@ -162,6 +190,7 @@ export async function completeAnthropic(messages, config) {
 }
 
 export async function completeAnthropicWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
   const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
@@ -177,11 +206,13 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
       if (resp.status === 400 || resp.status === 422) return completeAnthropic(messages, config);
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
+    if (data.usage) logUsage(config.model, data.usage);
     const content = data.content || [];
     const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
     const textContent = content.filter((b) => b.type === 'text').map((b) => b.text).join('');
@@ -203,6 +234,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
 }
 
 export async function resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
   const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
@@ -218,10 +250,12 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
+    if (data.usage) logUsage(config.model, data.usage);
     const content = data.content || [];
     const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
     if (!toolUseBlocks.length) return enriched ? currentMessages : messages;

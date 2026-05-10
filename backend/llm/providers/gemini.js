@@ -3,9 +3,20 @@ import { convertToGeminiContents } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
 import { getOrCreateCache } from './gemini-cache.js';
 import { logRawRequest } from '../raw-logger.js';
-import { createLogger } from '../../utils/logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
+const log = createLogger('llm', 'magenta');
+
+function logGeminiUsage(model, meta) {
+  if (!meta) return;
+  log.info('provider.usage', formatMeta({
+    provider: 'gemini',
+    model,
+    prompt_tokens: meta.promptTokenCount,
+    completion_tokens: meta.candidatesTokenCount,
+  }));
+}
 
 // Gemini 3.x implicit cache 在常见区间存在 dead zone（issue #2064），强制走 explicit cachedContents。
 // 2.5 系列 implicit 已稳定命中，不启用 explicit 以避免引入额外 HTTP 调用。
@@ -74,6 +85,7 @@ function toGeminiTools(toolDefs) {
 }
 
 export async function* streamGemini(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:streamGenerateContent?key=${config.api_key}&alt=sse`;
@@ -112,16 +124,19 @@ export async function* streamGemini(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
   let inThinking = false;
+  let lastUsage = null;
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
       const meta = parsed.usageMetadata;
-      if (meta && config.usageRef) {
-        recordTokenUsage(config.usageRef, meta, config.provider);
+      if (meta) {
+        lastUsage = meta;
+        if (config.usageRef) recordTokenUsage(config.usageRef, meta, config.provider);
       }
       const parts = parsed.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
@@ -134,12 +149,14 @@ export async function* streamGemini(messages, config) {
           yield part.text;
         }
       }
-    } catch { /* skip */ }
+    } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'gemini', msg: err.message })); }
   }
   if (inThinking) yield '</think>\n';
+  logGeminiUsage(config.model, lastUsage);
 }
 
 export async function completeGemini(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'complete' }));
   const baseUrl = getBaseUrl(config);
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
@@ -178,12 +195,20 @@ export async function completeGemini(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
-  const data = await resp.json();
-  if (data.usageMetadata && config.usageRef) {
-    recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    log.error('provider.parse_error', formatMeta({ provider: 'gemini', msg: err.message }));
+    throw err;
+  }
+  if (data.usageMetadata) {
+    logGeminiUsage(config.model, data.usageMetadata);
+    if (config.usageRef) recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
   }
   const parts = data.candidates?.[0]?.content?.parts || [];
   let result = '';
@@ -220,10 +245,12 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
   const data = await resp.json();
+  if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
   const parts = data.candidates?.[0]?.content?.parts || [];
   let result = '';
   for (const part of parts) {
@@ -234,6 +261,7 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
 }
 
 export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
   const baseUrl = getBaseUrl(config);
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
@@ -254,11 +282,13 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
       if (resp.status === 400 || resp.status === 422) return completeGeminiFromNative(initialContents, systemInstruction, config);
       throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
+    if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
     const parts = data.candidates?.[0]?.content?.parts || [];
     const functionCalls = parts.filter((p) => p.functionCall);
     const textContent = parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('');
@@ -284,6 +314,7 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
 }
 
 export async function resolveToolContextGemini(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
   const baseUrl = getBaseUrl(config);
   const model = (config.model || 'gemini-pro').replace(/^models\//, '');
   const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
@@ -304,10 +335,12 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
       throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
+    if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
     const parts = data.candidates?.[0]?.content?.parts || [];
     const functionCalls = parts.filter((p) => p.functionCall);
     if (!functionCalls.length) return enriched ? currentMessages : messages;

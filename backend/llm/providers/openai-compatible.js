@@ -1,6 +1,19 @@
 import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError, applyThinkingToOpenAICompatibleBody } from './_utils.js';
 import { recordTokenUsage } from './cache-usage.js';
 import { logRawRequest } from '../raw-logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
+
+const log = createLogger('llm', 'magenta');
+
+function logOpenAIUsage(provider, model, usage) {
+  if (!usage) return;
+  log.info('provider.usage', formatMeta({
+    provider: provider || 'openai',
+    model,
+    prompt_tokens: usage.prompt_tokens,
+    completion_tokens: usage.completion_tokens,
+  }));
+}
 
 function assertOpenAICompatibleData(data, config) {
   const providerError = extractProviderError(data);
@@ -60,6 +73,7 @@ export function buildOpenAICompatibleHeaders(config) {
 }
 
 export async function* streamOpenAICompatible(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
   const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
@@ -85,6 +99,7 @@ export async function* streamOpenAICompatible(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -96,12 +111,14 @@ export async function* streamOpenAICompatible(messages, config) {
   }
 
   let inThinking = false;
+  let lastUsage = null;
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
       // 末尾 chunk 携带 usage（stream_options.include_usage: true）
-      if (parsed.usage && config.usageRef) {
-        recordTokenUsage(config.usageRef, parsed.usage, config.provider);
+      if (parsed.usage) {
+        lastUsage = parsed.usage;
+        if (config.usageRef) recordTokenUsage(config.usageRef, parsed.usage, config.provider);
       }
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
@@ -115,14 +132,16 @@ export async function* streamOpenAICompatible(messages, config) {
         if (inThinking) { yield '</think>\n'; inThinking = false; }
         yield delta.content;
       }
-    } catch {
-      // 跳过无法解析的行
+    } catch (err) {
+      log.error('provider.parse_error', formatMeta({ provider: config.provider || 'openai', msg: err.message }));
     }
   }
   if (inThinking) yield '</think>\n';
+  logOpenAIUsage(config.provider, config.model, lastUsage);
 }
 
 export async function completeOpenAICompatible(messages, config) {
+  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'complete' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
   const normalizedMessages = normalizeOpenAICompatibleMessages(messages, config);
@@ -146,13 +165,21 @@ export async function completeOpenAICompatible(messages, config) {
 
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
 
-  const data = await resp.json();
+  let data;
+  try {
+    data = await resp.json();
+  } catch (err) {
+    log.error('provider.parse_error', formatMeta({ provider: config.provider || 'openai', msg: err.message }));
+    throw err;
+  }
   assertOpenAICompatibleData(data, config);
-  if (data.usage && config.usageRef) {
-    recordTokenUsage(config.usageRef, data.usage, config.provider);
+  if (data.usage) {
+    logOpenAIUsage(config.provider, config.model, data.usage);
+    if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
   }
   const msg = data.choices?.[0]?.message;
   if (!msg) return '';
@@ -162,6 +189,7 @@ export async function completeOpenAICompatible(messages, config) {
 }
 
 export async function completeOpenAICompatibleWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
   let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
@@ -181,12 +209,14 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
       if (resp.status === 400 || resp.status === 422) return completeOpenAICompatible(currentMessages, config);
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
     assertOpenAICompatibleData(data, config);
+    if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
     const message = data.choices?.[0]?.message;
     if (!message) return '';
 
@@ -208,6 +238,7 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
 }
 
 export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/chat/completions`;
   let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
@@ -222,11 +253,13 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
     const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
+      log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
     assertOpenAICompatibleData(data, config);
+    if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
     const message = data.choices?.[0]?.message;
     if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
 

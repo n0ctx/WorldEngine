@@ -9,7 +9,7 @@
  * 失败一律 throw，调用方降级到无缓存路径。
  */
 import crypto from 'node:crypto';
-import { createLogger } from '../../utils/logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
 
 const log = createLogger('gemini-cache', 'cyan');
 
@@ -56,6 +56,7 @@ async function createCachedContent({ model, systemText, baseUrl, apiKey, signal 
   });
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('cache.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text, op: 'create' }));
     throw new Error(`cache create ${resp.status} ${text}`);
   }
   const data = await resp.json();
@@ -72,6 +73,7 @@ async function refreshCachedContent({ name, baseUrl, apiKey, signal }) {
   });
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
+    log.error('cache.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text, op: 'refresh' }));
     throw new Error(`cache refresh ${resp.status} ${text}`);
   }
 }
