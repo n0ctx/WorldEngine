@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import reactPlugin from 'eslint-plugin-react'
 import { defineConfig, globalIgnores } from 'eslint/config'
+import noDirectToastImport from '../eslint-rules/no-direct-toast-import.js'
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -16,6 +17,7 @@ export default defineConfig([
     ],
     plugins: {
       react: reactPlugin,
+      'we-local': { rules: { 'no-direct-toast-import': noDirectToastImport } },
     },
     languageOptions: {
       ecmaVersion: 2020,
@@ -29,6 +31,7 @@ export default defineConfig([
     rules: {
       'react/jsx-uses-vars': 'error',
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'we-local/no-direct-toast-import': 'error',
       // 禁止内联 style 设置视觉属性，新代码守卫规则（warn 不阻断 CI）
       'no-restricted-syntax': [
         'warn',
