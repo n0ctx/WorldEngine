@@ -36,7 +36,7 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  *   onSave(data)  — 父组件负责调用 API，返回 Promise
  *   onClose()
  */
-export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose }) {
+export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose }) {
   // 已落库的列 key 不允许重命名：列 key 是 *_state_values 的 JSON key，也是 entry_conditions.target_field 的列定位。
   // 改名会让历史值/条件失联，且不做后端迁移。
   const [lockedColumnKeys] = useState(
@@ -75,6 +75,7 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
       prefix:             field?.prefix ?? '',
       unit:               field?.unit ?? '',
       default_value:      (field?.type === 'list' || field?.type === 'table') ? '' : (field?.default_value ?? ''),
+      nearby_enabled:     field?.nearby_enabled == null ? 1 : (field.nearby_enabled ? 1 : 0),
     };
   });
 
@@ -192,6 +193,9 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
         table_columns:      tableColumnsPayload,
         default_value:      defaultValue,
       };
+      if (scope === 'character') {
+        payload.nearby_enabled = form.nearby_enabled ? 1 : 0;
+      }
       await onSave(payload);
       onClose();
     } catch (e) {
@@ -445,6 +449,24 @@ export default function StateFieldEditor({ field, diaryDateMode, onSave, onClose
             <label className={labelCls}>更新方式</label>
             <Select value={form.update_mode} onChange={(v) => set('update_mode', v)} options={UPDATE_MODE_OPTIONS} />
           </div>
+
+          {/* 登场角色启用（仅角色字段显示） */}
+          {scope === 'character' && (
+            <div>
+              <label className={labelCls}>登场角色启用</label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.nearby_enabled !== 0}
+                  onChange={(e) => set('nearby_enabled', e.target.checked ? 1 : 0)}
+                  aria-label="登场角色启用"
+                />
+                <span className="text-xs text-[var(--we-ink-faded)]">
+                  关闭后，该字段不会出现在登场角色面板与自动状态更新中
+                </span>
+              </label>
+            </div>
+          )}
 
           {/* 更新指令（LLM 自动时显示） */}
           {form.update_mode === 'llm_auto' && (

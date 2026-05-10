@@ -75,3 +75,54 @@ for (const suite of fieldSuites) {
     assert.deepEqual(rows.map((row) => row.sort_order), [0, 1]);
   });
 }
+
+test('character_state_fields nearby_enabled 默认 1，可显式设 0，update 切换可读回', async () => {
+  const world = insertWorld(sandbox.db, { name: 'nearby-enabled-world' });
+  const mod = await freshImport('backend/db/queries/character-state-fields.js');
+  const { createCharacterStateField, updateCharacterStateField, getCharacterStateFieldsByWorldId } = mod;
+
+  const defaulted = createCharacterStateField(world.id, {
+    field_key: 'mood',
+    label: '心情',
+    type: 'text',
+  });
+  assert.equal(defaulted.nearby_enabled, 1);
+
+  const explicit = createCharacterStateField(world.id, {
+    field_key: 'secret',
+    label: '隐藏',
+    type: 'text',
+    nearby_enabled: 0,
+  });
+  assert.equal(explicit.nearby_enabled, 0);
+
+  const toggledOff = updateCharacterStateField(defaulted.id, { nearby_enabled: 0 });
+  assert.equal(toggledOff.nearby_enabled, 0);
+
+  const toggledOn = updateCharacterStateField(explicit.id, { nearby_enabled: 1 });
+  assert.equal(toggledOn.nearby_enabled, 1);
+
+  const rows = getCharacterStateFieldsByWorldId(world.id);
+  const byKey = Object.fromEntries(rows.map((r) => [r.field_key, r]));
+  assert.equal(byKey.mood.nearby_enabled, 0);
+  assert.equal(byKey.secret.nearby_enabled, 1);
+});
+
+test('persona/world state fields 不含 nearby_enabled 列', async () => {
+  const world = insertWorld(sandbox.db, { name: 'nearby-scope-world' });
+  const personaMod = await freshImport('backend/db/queries/persona-state-fields.js');
+  const worldMod = await freshImport('backend/db/queries/world-state-fields.js');
+
+  const personaField = personaMod.createPersonaStateField(world.id, {
+    field_key: 'p_mood',
+    label: '玩家心情',
+    type: 'text',
+  });
+  const worldField = worldMod.createWorldStateField(world.id, {
+    field_key: 'w_weather',
+    label: '天气',
+    type: 'text',
+  });
+  assert.equal(personaField.nearby_enabled, undefined);
+  assert.equal(worldField.nearby_enabled, undefined);
+});

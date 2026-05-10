@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(state): character_state_fields 增加 nearby_enabled 编辑入口（Nearby Task 13）
+
+**背景**：Task 1 在 `character_state_fields` 上加了 `nearby_enabled INTEGER NOT NULL DEFAULT 1` 列，但 CRUD 链路一直忽略它，UI 也没有控制入口。本任务把它从 DB → service → route → frontend API → 编辑器 UI 打通。
+
+**改动**：
+- `backend/db/queries/character-state-fields.js`：INSERT 列表追加 `nearby_enabled`（默认 1，显式传 0 / false 才落 0）；UPDATE allowed 列表追加 `nearby_enabled`，写入时归一为 0/1
+- `backend/tests/db/queries/state-fields.test.js`：新增 2 个用例 — character 默认/显式/update 切换可读回；persona/world 字段对象上不应出现 `nearby_enabled` 键
+- `frontend/src/components/state/StateFieldEditor.jsx`：新增 `scope` prop（StateFieldList 早就传了，编辑器之前没用）；form 初值从 `field.nearby_enabled` 读取，缺省 1；仅 `scope === 'character'` 时在"更新方式"下方渲染复选框，并把 `nearby_enabled` 加进 onSave payload；world / persona 编辑面板完全不显示该项
+
+**未改动（已自然透传）**：
+- `backend/services/character-state-fields.js`：直接转发 `data` / `patch`，无白名单
+- `backend/routes/state-fields.js`：`req.body` 整体透传到 service
+- `frontend/src/api/character-state-fields.js` + `state-fields-factory.js`：data / patch 整体作为 body 发送
+
+**验证**：`backend npm run test` 414/417 pass（3 skip 与本任务无关）；`frontend npm run lint` 0 错；`frontend npm run test` 139/139 pass。
+
+**残留**：该字段是否真的在 nearby 面板/状态更新中起作用由后续任务读取该列实现。
+
 ## 2026-05-10 feat(ui): 制卡 modal 重写 — 候选改为本轮登场角色（Nearby Task 12）
 
 **背景**：Nearby Characters Task 12 — 把 stub 状态的 `MakeCardModal` 实装为基于 `nearby` 池的两步制卡流程；同时清理 Task 11 残留的 legacy "提取角色" UI 链路（前端按钮已无对应后端可用入口，属死代码）。

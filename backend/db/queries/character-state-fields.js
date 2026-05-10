@@ -19,8 +19,9 @@ export function createCharacterStateField(worldId, data) {
       id, world_id, field_key, label, type, description,
       default_value, update_mode,
       enum_options, min_value, max_value, allow_empty,
-      update_instruction, prefix, unit, table_columns, sort_order, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      update_instruction, prefix, unit, table_columns, sort_order,
+      nearby_enabled, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id, worldId,
     data.field_key, data.label, data.type,
@@ -36,6 +37,7 @@ export function createCharacterStateField(worldId, data) {
     data.unit ?? '',
     data.table_columns != null ? JSON.stringify(data.table_columns) : null,
     sortOrder,
+    data.nearby_enabled == null ? 1 : (data.nearby_enabled ? 1 : 0),
     now, now,
   );
   return getCharacterStateFieldById(id);
@@ -67,6 +69,7 @@ export function updateCharacterStateField(id, patch) {
     'field_key', 'label', 'type', 'description', 'default_value',
     'update_mode', 'enum_options',
     'min_value', 'max_value', 'allow_empty', 'update_instruction', 'prefix', 'unit', 'table_columns', 'sort_order',
+    'nearby_enabled',
   ];
   const sets = [];
   const values = [];
@@ -76,6 +79,8 @@ export function updateCharacterStateField(id, patch) {
     sets.push(`${field} = ?`);
     if (field === 'enum_options' || field === 'table_columns') {
       values.push(patch[field] != null ? JSON.stringify(patch[field]) : null);
+    } else if (field === 'nearby_enabled') {
+      values.push(patch[field] ? 1 : 0);
     } else {
       values.push(patch[field]);
     }
