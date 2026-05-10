@@ -19,8 +19,10 @@ import {
   reorderRegexRules,
 } from '../services/regex-rules.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('regex-rules', 'cyan');
 
 router.get('/regex-rules', (req, res) => {
   const { scope, worldId, mode } = req.query;
@@ -33,12 +35,16 @@ router.get('/regex-rules', (req, res) => {
 
 router.post('/regex-rules', (req, res) => {
   const { name, pattern, scope } = req.body;
-  if (!name) return res.status(400).json({ error: 'name 为必填项' });
-  if (!pattern) return res.status(400).json({ error: 'pattern 为必填项' });
-  if (!scope) return res.status(400).json({ error: 'scope 为必填项' });
+  if (!name || !pattern || !scope) {
+    log.warn(`regex-rules.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'name/pattern/scope required', missing: { name: !name, pattern: !pattern, scope: !scope } })}`);
+    if (!name) return res.status(400).json({ error: 'name 为必填项' });
+    if (!pattern) return res.status(400).json({ error: 'pattern 为必填项' });
+    if (!scope) return res.status(400).json({ error: 'scope 为必填项' });
+  }
 
   const VALID_SCOPES = ['user_input', 'ai_output', 'display_only', 'prompt_only'];
   if (!VALID_SCOPES.includes(scope)) {
+    log.warn(`regex-rules.bad_request ${formatMeta({ method: req.method, path: req.path, reason: `invalid scope: ${scope}` })}`);
     return res.status(400).json({ error: `scope 必须是以下之一：${VALID_SCOPES.join(', ')}` });
   }
 
@@ -50,6 +56,7 @@ router.post('/regex-rules', (req, res) => {
 router.put('/regex-rules/reorder', (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
+    log.warn(`regex-rules.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'items must be non-empty array' })}`);
     return res.status(400).json({ error: 'items 为必填数组' });
   }
   reorderRegexRules(items);

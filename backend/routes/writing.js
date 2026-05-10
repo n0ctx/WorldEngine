@@ -146,6 +146,7 @@ router.post('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
   const { sessionId } = req.params;
   const characterId = req.body?.character_id;
   if (!characterId || typeof characterId !== 'string') {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'character_id is required' })}`);
     return res.status(400).json({ error: 'character_id is required' });
   }
   try {
@@ -172,7 +173,10 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res
     }
     const list = listNearby(sessionId);
     const row = list.find((n) => n.id === nearbyId);
-    if (!row) return res.status(404).json({ error: 'nearby not found in session' });
+    if (!row) {
+      log.warn(`writing.not_found ${formatMeta({ method: req.method, path: req.path, id: nearbyId })}`);
+      return res.status(404).json({ error: 'nearby not found in session' });
+    }
     res.json(row);
   } catch (err) {
     handleNearbyError(err, res);
@@ -184,6 +188,7 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state', (re
   const { sessionId, nearbyId } = req.params;
   const { field_key, value_json } = req.body ?? {};
   if (!field_key || typeof field_key !== 'string') {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'field_key is required' })}`);
     return res.status(400).json({ error: 'field_key is required' });
   }
   try {
@@ -448,10 +453,12 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   const lastAssistantIndex = allMsgs.map((m) => m.role).lastIndexOf('assistant');
   const lastAssistant = lastAssistantIndex >= 0 ? allMsgs[lastAssistantIndex] : null;
   if (!lastAssistant) {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '当前会话没有 AI 回复可续写' })}`);
     return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
   }
   const hasUserBeforeAssistant = allMsgs.slice(0, lastAssistantIndex).some((m) => m.role === 'user');
   if (!hasUserBeforeAssistant) {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '当前会话没有可续写的用户-助手轮次' })}`);
     return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
   }
 
@@ -619,6 +626,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     res.json({ content: cleaned });
   } catch (err) {
+    log.error(`writing.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -628,18 +636,24 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   const { sessionId } = req.params;
   const { afterMessageId } = req.body;
 
-  if (!afterMessageId) return res.status(400).json({ error: 'afterMessageId is required' });
+  if (!afterMessageId) {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId is required' })}`);
+    return res.status(400).json({ error: 'afterMessageId is required' });
+  }
 
   const session = dbGetWritingSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
   const afterMessage = getMessageById(afterMessageId);
   if (!afterMessage) {
+    log.warn(`writing.not_found ${formatMeta({ method: req.method, path: req.path, id: afterMessageId })}`);
     return res.status(404).json({ error: 'afterMessageId not found' });
   }
   if (afterMessage.session_id !== sessionId) {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId does not belong to this session' })}`);
     return res.status(400).json({ error: 'afterMessageId does not belong to this session' });
   }
   if (afterMessage.role !== 'user') {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId must be a user message' })}`);
     return res.status(400).json({ error: 'afterMessageId must be a user message' });
   }
 
@@ -682,6 +696,7 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
   const { messageId, content } = req.body;
 
   if (!messageId || !content || typeof content !== 'string') {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'messageId and content are required' })}`);
     return res.status(400).json({ error: 'messageId and content are required' });
   }
 
@@ -719,6 +734,7 @@ router.put('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex',
   const { sessionId, chapterIndex } = req.params;
   const { title } = req.body;
   if (!title || typeof title !== 'string' || !title.trim()) {
+    log.warn(`writing.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'title is required' })}`);
     return res.status(400).json({ error: 'title is required' });
   }
   const session = dbGetWritingSessionById(sessionId);
@@ -738,6 +754,7 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const chapterMsgs = groupChapterMessages(allMsgs, idx);
   if (chapterMsgs.length === 0) {
+    log.warn(`writing.not_found ${formatMeta({ method: req.method, path: req.path, id: `chapter:${idx}` })}`);
     return res.status(404).json({ error: 'Chapter not found' });
   }
 
@@ -745,9 +762,13 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
     await waitForQueueIdle(sessionId);
 
     const title = await generateChapterTitle(sessionId, idx, chapterMsgs);
-    if (!title) return res.status(500).json({ error: '生成失败' });
+    if (!title) {
+      log.error(`writing.unhandled ${formatMeta({ method: req.method, path: req.path, msg: 'generateChapterTitle returned empty' })}`);
+      return res.status(500).json({ error: '生成失败' });
+    }
     res.json({ title, chapterIndex: idx });
   } catch (err) {
+    log.error(`writing.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -766,6 +787,7 @@ router.post('/:worldId/writing-sessions/:sessionId/retitle', async (req, res) =>
     if (!title) return res.json({ title: null });
     res.json({ title });
   } catch (err) {
+    log.error(`writing.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });

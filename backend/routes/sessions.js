@@ -20,8 +20,10 @@ import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('sessions', 'cyan');
 
 // GET /api/characters/:characterId/sessions — 获取某角色下的会话列表
 router.get('/characters/:characterId/sessions', (req, res) => {
@@ -88,6 +90,7 @@ router.post('/sessions/:id/messages', (req, res) => {
   if (!assertExists(res, session, '会话不存在')) return;
   const { role, content } = req.body;
   if (!role || !content) {
+    log.warn(`sessions.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'role 和 content 为必填项' })}`);
     return res.status(400).json({ error: 'role 和 content 为必填项' });
   }
   const msg = createMessage({ session_id: req.params.id, role, content, attachments: req.body.attachments });
@@ -100,6 +103,7 @@ router.put('/messages/:id', async (req, res) => {
   if (!assertExists(res, msg, '消息不存在')) return;
   const { content } = req.body;
   if (typeof content !== 'string') {
+    log.warn(`sessions.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'content 为必填项' })}`);
     return res.status(400).json({ error: 'content 为必填项' });
   }
 
@@ -142,7 +146,10 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   if (!assertExists(res, session, '会话不存在')) return;
 
   const msg = getMessageById(messageId);
-  if (!msg || msg.session_id !== sessionId) return res.status(404).json({ error: '消息不存在' });
+  if (!msg || msg.session_id !== sessionId) {
+    log.warn(`sessions.not_found ${formatMeta({ method: req.method, path: req.path, id: messageId })}`);
+    return res.status(404).json({ error: '消息不存在' });
+  }
 
   // 与 regenerate / 编辑用户消息一致：先等同 session 已入队任务（p2 状态更新、p3 turn-record/长期记忆抽取）跑完，
   // 否则截断完成后旧任务仍可能写回旧轮次的状态/turn_record/长期记忆，覆盖刚还原的快照。

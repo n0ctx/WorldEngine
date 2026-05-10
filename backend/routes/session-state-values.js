@@ -33,8 +33,10 @@ import {
   clearSingleCharacterSessionStateValues,
   upsertSessionCharacterStateValue,
 } from '../db/queries/session-character-state-values.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('session-state-values', 'cyan');
 
 // ── GET /api/sessions/:sessionId/state-values ─────────────────────
 
@@ -64,7 +66,10 @@ router.patch('/:sessionId/world-state-values/:fieldKey', (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, '会话不存在')) return;
   const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
-  if (!worldId) return res.status(400).json({ error: '无法确定 worldId' });
+  if (!worldId) {
+    log.warn(`session-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '无法确定 worldId' })}`);
+    return res.status(400).json({ error: '无法确定 worldId' });
+  }
   const { value_json } = req.body;
   upsertSessionWorldStateValue(sessionId, worldId, fieldKey, value_json ?? null);
   res.json({ ok: true });
@@ -77,7 +82,10 @@ router.patch('/:sessionId/persona-state-values/:fieldKey', (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, '会话不存在')) return;
   const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
-  if (!worldId) return res.status(400).json({ error: '无法确定 worldId' });
+  if (!worldId) {
+    log.warn(`session-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '无法确定 worldId' })}`);
+    return res.status(400).json({ error: '无法确定 worldId' });
+  }
   const { value_json } = req.body;
   upsertSessionPersonaStateValue(sessionId, worldId, fieldKey, value_json ?? null);
   res.json({ ok: true });

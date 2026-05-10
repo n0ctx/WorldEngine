@@ -13,6 +13,9 @@ import {
 import { getWorldById } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createCharacterFromNearby } from '../services/nearby-card-maker.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('characters', 'cyan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -65,14 +68,18 @@ router.post('/worlds/:worldId/characters/from-nearby', (req, res) => {
   } catch (err) {
     const code = err?.code;
     if (code === 'NEARBY_NOT_FOUND' || code === 'SESSION_NOT_FOUND') {
+      log.warn(`characters.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
       return res.status(404).json({ error: err.message });
     }
     if (code === 'NEARBY_SESSION_MISMATCH' || code === 'SESSION_WORLD_MISMATCH') {
+      log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message, code })}`);
       return res.status(400).json({ error: err.message });
     }
     if (/required/i.test(err?.message ?? '')) {
+      log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
       return res.status(400).json({ error: err.message });
     }
+    log.error(`characters.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     return res.status(500).json({ error: err?.message || 'Internal error' });
   }
 });
@@ -83,6 +90,7 @@ router.post('/worlds/:worldId/characters', (req, res) => {
   if (!assertExists(res, world, '世界不存在')) return;
   const { name } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
+    log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'name missing' })}`);
     return res.status(400).json({ error: 'name 为必填项' });
   }
   const character = createCharacter({ ...req.body, world_id: req.params.worldId });
@@ -93,6 +101,7 @@ router.post('/worlds/:worldId/characters', (req, res) => {
 router.put('/characters/reorder', (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
+    log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'items must be non-empty array' })}`);
     return res.status(400).json({ error: 'items 为必填数组' });
   }
   reorderCharacters(items);
@@ -127,6 +136,7 @@ router.post('/characters/:id/avatar', upload.single('avatar'), async (req, res) 
   const existing = getCharacterById(req.params.id);
   if (!assertExists(res, existing, '角色不存在')) return;
   if (!req.file) {
+    log.warn(`characters.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
     return res.status(400).json({ error: '未收到文件' });
   }
   // 存储相对路径，如 avatars/abc123.png

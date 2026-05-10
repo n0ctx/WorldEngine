@@ -13,6 +13,9 @@ import {
   reorderWorlds,
 } from '../services/worlds.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('worlds', 'cyan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -47,6 +50,7 @@ router.get('/', (_req, res) => {
 router.post('/', (req, res) => {
   const { name } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
+    log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'name 为必填项' })}`);
     return res.status(400).json({ error: 'name 为必填项' });
   }
   const world = createWorld(req.body);
@@ -57,6 +61,7 @@ router.post('/', (req, res) => {
 router.put('/reorder', (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
+    log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'items must be non-empty array' })}`);
     return res.status(400).json({ error: 'items 为必填数组' });
   }
   reorderWorlds(items);
@@ -96,7 +101,10 @@ router.post('/clear-all-diaries', (_req, res) => {
 router.post('/:id/cover', upload.single('cover'), async (req, res) => {
   const existing = getWorldById(req.params.id);
   if (!assertExists(res, existing, '世界不存在')) return;
-  if (!req.file) return res.status(400).json({ error: '未收到图片文件' });
+  if (!req.file) {
+    log.warn(`worlds.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
+    return res.status(400).json({ error: '未收到图片文件' });
+  }
   const relativePath = `avatars/world_${req.params.id}${path.extname(req.file.originalname).toLowerCase() || '.jpg'}`;
   const updated = updateWorld(req.params.id, { cover_path: relativePath });
   res.json({ cover_path: updated.cover_path });

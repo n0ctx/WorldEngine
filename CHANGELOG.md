@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(logger): routes 全量补齐 warn(校验失败/404) + error(500)
+
+Task 17：对 `backend/routes/*.js` 19 个文件（不含已完成的 `client-logs.js` 与无路由的 `stream-helpers.js`）补齐域级日志：
+
+- 每个 `res.status(400)` 之前加 `log.warn('<file>.bad_request ...')`，附 `method/path/reason` 元数据。
+- 每个直接 `res.status(404)`（非 assertExists 路径）加 `log.warn('<file>.not_found ...')`，附 `id`。
+- 每个 try/catch 兜底 500 加 `log.error('<file>.unhandled ...')`，附 `msg`。
+- 集中改造 `backend/utils/route-helpers.js` 的 `assertExists`：内部 log.warn `routes.not_found`（带 method/originalUrl/reason），所有 assertExists 调用点自动覆盖。
+- 缺 logger 的文件统一引入 `import { createLogger, formatMeta } from '../utils/logger.js'` + `const log = createLogger('<routeName>', 'cyan')`。
+
+未触碰 `client-logs.js`（已自管 400/413/429）、`stream-helpers.js`（无路由）、`session-timeline.js`（仅 assertExists 已覆盖）。`backend/llm/providers/gemini.js` 不在本任务范围。
+
+**验证**：`cd backend && npm test` → 429 pass / 0 fail / 3 skipped。`npm run lint` 后端无新增错误（前端 ToastCard 已存在的 warning 与本任务无关）。
+
 ## 2026-05-10 fix(provider): Anthropic adapter 拆 cache_control prefix + 修 Gemini 思考块缺失
 
 **Issue 1 — Gemini 思考块"被自动隐藏"**

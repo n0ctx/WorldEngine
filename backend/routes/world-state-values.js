@@ -12,8 +12,10 @@ import {
   resetWorldStateValuesValidated,
   updateWorldDefaultStateValueValidated,
 } from '../services/state-values.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('world-state-values', 'cyan');
 
 router.get('/worlds/:worldId/state-values', (req, res) => {
   const rows = getWorldStateValuesWithFields(req.params.worldId);
@@ -24,6 +26,7 @@ router.patch('/worlds/:worldId/state-values/:fieldKey', (req, res) => {
   const { worldId, fieldKey } = req.params;
   const { value_json } = req.body;
   if (value_json === undefined) {
+    log.warn(`world-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'value_json 为必填项' })}`);
     return res.status(400).json({ error: 'value_json 为必填项' });
   }
 
@@ -32,10 +35,12 @@ router.patch('/worlds/:worldId/state-values/:fieldKey', (req, res) => {
     res.json({ success: true });
   } catch (err) {
     if (err.message === '世界不存在') {
+      log.warn(`world-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: worldId })}`);
       res.status(404).json({ error: err.message });
       return;
     }
 
+    log.warn(`world-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -46,10 +51,12 @@ router.post('/worlds/:worldId/state-values/reset', (req, res) => {
     res.json(getWorldStateValuesWithFields(req.params.worldId));
   } catch (err) {
     if (err.message === '世界不存在') {
+      log.warn(`world-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: req.params.worldId })}`);
       res.status(404).json({ error: err.message });
       return;
     }
 
+    log.warn(`world-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });

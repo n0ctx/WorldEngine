@@ -13,6 +13,9 @@ import {
   reorderPersonas,
 } from '../services/personas.js';
 import { getPersonaById } from '../db/queries/personas.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('personas', 'cyan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -77,13 +80,17 @@ router.patch('/worlds/:worldId/persona', async (req, res) => {
     const persona = await updatePersona(req.params.worldId, patch);
     res.json(persona);
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
 
 // POST /api/worlds/:worldId/persona/avatar — 上传 active persona 头像（旧接口）
 router.post('/worlds/:worldId/persona/avatar', uploadByWorld.single('avatar'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '未收到文件' });
+  if (!req.file) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
+    return res.status(400).json({ error: '未收到文件' });
+  }
   const relativePath = `avatars/${req.file.filename}`;
   const persona = await updatePersona(req.params.worldId, { avatar_path: relativePath });
   res.json({ avatar_path: persona.avatar_path });
@@ -97,6 +104,7 @@ router.get('/worlds/:worldId/personas', (req, res) => {
     const personas = listPersonas(req.params.worldId);
     res.json(personas);
   } catch (err) {
+    log.error(`personas.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -108,6 +116,7 @@ router.post('/worlds/:worldId/personas', (req, res) => {
     const persona = createPersona(req.params.worldId, { name, description, system_prompt });
     res.status(201).json(persona);
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -118,6 +127,7 @@ router.patch('/worlds/:worldId/personas/:personaId/activate', (req, res) => {
     const personas = activatePersona(req.params.worldId, req.params.personaId);
     res.json(personas);
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -126,6 +136,7 @@ router.patch('/worlds/:worldId/personas/:personaId/activate', (req, res) => {
 router.put('/personas/reorder', (req, res) => {
   const { items } = req.body;
   if (!Array.isArray(items) || items.length === 0) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'items must be non-empty array' })}`);
     return res.status(400).json({ error: 'items 为必填数组' });
   }
   reorderPersonas(items);
@@ -135,7 +146,10 @@ router.put('/personas/reorder', (req, res) => {
 // GET /api/personas/:id — 按 id 获取 persona
 router.get('/personas/:id', (req, res) => {
   const persona = getPersonaById(req.params.id);
-  if (!persona) return res.status(404).json({ error: '玩家卡不存在' });
+  if (!persona) {
+    log.warn(`personas.not_found ${formatMeta({ method: req.method, path: req.path, id: req.params.id })}`);
+    return res.status(404).json({ error: '玩家卡不存在' });
+  }
   res.json(persona);
 });
 
@@ -150,6 +164,7 @@ router.patch('/personas/:id', async (req, res) => {
     const persona = await updatePersonaByIdService(req.params.id, patch);
     res.json(persona);
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
@@ -160,18 +175,23 @@ router.delete('/personas/:id', async (req, res) => {
     await deletePersonaService(req.params.id);
     res.status(204).end();
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });
 
 // POST /api/personas/:personaId/avatar — 按 id 上传头像
 router.post('/personas/:personaId/avatar', uploadById.single('avatar'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '未收到文件' });
+  if (!req.file) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'no file received' })}`);
+    return res.status(400).json({ error: '未收到文件' });
+  }
   const relativePath = `avatars/${req.file.filename}`;
   try {
     const persona = await updatePersonaByIdService(req.params.personaId, { avatar_path: relativePath });
     res.json({ avatar_path: persona.avatar_path });
   } catch (err) {
+    log.warn(`personas.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
   }
 });

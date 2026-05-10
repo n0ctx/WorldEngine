@@ -11,7 +11,10 @@ router.get('/characters/:id/export', (req, res) => {
     const data = exportCharacter(req.params.id);
     res.json(data);
   } catch (err) {
-    if (err.message === '角色不存在') return res.status(404).json({ error: err.message });
+    if (err.message === '角色不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
     log.error(`EXPORT CHARACTER FAIL  ${formatMeta({ id: req.params.id, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
@@ -23,8 +26,12 @@ router.post('/worlds/:worldId/import-character', (req, res) => {
     const character = importCharacter(req.params.worldId, req.body);
     res.status(201).json(character);
   } catch (err) {
-    if (err.message === '世界不存在') return res.status(404).json({ error: err.message });
+    if (err.message === '世界不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
     if (err.message.includes('角色卡') || err.message.includes('character') || err.message.includes('prompt_entries') || err.message.includes('state_values')) {
+      log.warn(`import.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
       return res.status(400).json({ error: err.message });
     }
     log.error(`IMPORT CHARACTER FAIL  ${formatMeta({ worldId: req.params.worldId, error: err.message })}`);
@@ -38,7 +45,10 @@ router.get('/worlds/:worldId/persona/export', (req, res) => {
     const data = exportPersona(req.params.worldId);
     res.json(data);
   } catch (err) {
-    if (err.message === '玩家不存在') return res.status(404).json({ error: err.message });
+    if (err.message === '玩家不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
     log.error(`EXPORT PERSONA FAIL  ${formatMeta({ worldId: req.params.worldId, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
@@ -50,7 +60,10 @@ router.get('/worlds/:id/export', (req, res) => {
     const data = exportWorld(req.params.id);
     res.json(data);
   } catch (err) {
-    if (err.message === '世界不存在') return res.status(404).json({ error: err.message });
+    if (err.message === '世界不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
     log.error(`EXPORT WORLD FAIL  ${formatMeta({ id: req.params.id, error: err.message })}`);
     res.status(500).json({ error: '导出失败' });
   }
@@ -63,6 +76,7 @@ router.post('/worlds/import', (req, res) => {
     res.status(201).json(world);
   } catch (err) {
     if (err.message.includes('世界卡') || err.message.includes('world.') || err.message.includes('persona') || err.message.includes('characters[')) {
+      log.warn(`import.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
       return res.status(400).json({ error: err.message });
     }
     log.error(`IMPORT WORLD FAIL  ${formatMeta({ error: err.message })}`);
@@ -89,6 +103,7 @@ router.post('/global-settings/import', (req, res) => {
     res.json(result);
   } catch (err) {
     if (err.message === '全局设置文件格式不正确') {
+      log.warn(`import.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
       return res.status(400).json({ error: err.message });
     }
     log.error(`IMPORT GLOBAL FAIL  ${formatMeta({ error: err.message })}`);

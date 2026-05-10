@@ -26,8 +26,10 @@ import {
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
 } from '../services/character-state-fields.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('state-fields', 'cyan');
 
 // ── 世界状态字段 ──────────────────────────────────────────────────
 
@@ -38,6 +40,7 @@ router.get('/worlds/:worldId/world-state-fields', (req, res) => {
 router.post('/worlds/:worldId/world-state-fields', (req, res) => {
   const { field_key, label, type } = req.body;
   if (!field_key || !label || !type) {
+    log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'field_key, label, type 为必填项' })}`);
     return res.status(400).json({ error: 'field_key, label, type 为必填项' });
   }
   try {
@@ -45,6 +48,7 @@ router.post('/worlds/:worldId/world-state-fields', (req, res) => {
     res.status(201).json(field);
   } catch (e) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: `duplicate field_key: ${field_key}` })}`);
       return res.status(409).json({ error: `field_key "${field_key}" 在该世界下已存在` });
     }
     throw e;
@@ -55,6 +59,7 @@ router.post('/worlds/:worldId/world-state-fields', (req, res) => {
 router.put('/worlds/:worldId/world-state-fields/reorder', (req, res) => {
   const { orderedIds } = req.body;
   if (!Array.isArray(orderedIds)) {
+    log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'orderedIds must be an array' })}`);
     return res.status(400).json({ error: 'orderedIds must be an array' });
   }
   reorderWorldStateFields(req.params.worldId, orderedIds);
@@ -81,6 +86,7 @@ router.get('/worlds/:worldId/character-state-fields', (req, res) => {
 router.post('/worlds/:worldId/character-state-fields', (req, res) => {
   const { field_key, label, type } = req.body;
   if (!field_key || !label || !type) {
+    log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'field_key, label, type 为必填项' })}`);
     return res.status(400).json({ error: 'field_key, label, type 为必填项' });
   }
   try {
@@ -88,6 +94,7 @@ router.post('/worlds/:worldId/character-state-fields', (req, res) => {
     res.status(201).json(field);
   } catch (e) {
     if (e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: `duplicate field_key: ${field_key}` })}`);
       return res.status(409).json({ error: `field_key "${field_key}" 在该世界下已存在` });
     }
     throw e;
@@ -97,6 +104,7 @@ router.post('/worlds/:worldId/character-state-fields', (req, res) => {
 router.put('/worlds/:worldId/character-state-fields/reorder', (req, res) => {
   const { orderedIds } = req.body;
   if (!Array.isArray(orderedIds)) {
+    log.warn(`state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'orderedIds must be an array' })}`);
     return res.status(400).json({ error: 'orderedIds must be an array' });
   }
   reorderCharacterStateFields(req.params.worldId, orderedIds);

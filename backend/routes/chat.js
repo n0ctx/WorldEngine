@@ -239,6 +239,7 @@ router.post('/:sessionId/chat', async (req, res) => {
   const { content, attachments, diaryInjection } = req.body;
 
   if (!content || typeof content !== 'string') {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'content is required' })}`);
     return res.status(400).json({ error: 'content is required' });
   }
 
@@ -279,6 +280,7 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   const { afterMessageId } = req.body;
 
   if (!afterMessageId) {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId is required' })}`);
     return res.status(400).json({ error: 'afterMessageId is required' });
   }
 
@@ -286,12 +288,15 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   if (!assertExists(res, session, 'Session not found')) return;
   const afterMessage = getMessageById(afterMessageId);
   if (!afterMessage) {
+    log.warn(`chat.not_found ${formatMeta({ method: req.method, path: req.path, id: afterMessageId })}`);
     return res.status(404).json({ error: 'afterMessageId not found' });
   }
   if (afterMessage.session_id !== sessionId) {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId does not belong to this session' })}`);
     return res.status(400).json({ error: 'afterMessageId does not belong to this session' });
   }
   if (afterMessage.role !== 'user') {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'afterMessageId must be a user message' })}`);
     return res.status(400).json({ error: 'afterMessageId must be a user message' });
   }
 
@@ -353,10 +358,12 @@ router.post('/:sessionId/continue', async (req, res) => {
   const lastAssistantIndex = allMsgs.map((m) => m.role).lastIndexOf('assistant');
   const lastAssistant = lastAssistantIndex >= 0 ? allMsgs[lastAssistantIndex] : null;
   if (!lastAssistant) {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '当前会话没有 AI 回复可续写' })}`);
     return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
   }
   const hasUserBeforeAssistant = allMsgs.slice(0, lastAssistantIndex).some((m) => m.role === 'user');
   if (!hasUserBeforeAssistant) {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: '当前会话没有可续写的用户-助手轮次' })}`);
     return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
   }
 
@@ -474,6 +481,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
   const character = session.character_id ? getCharacterById(session.character_id) : null;
   const world = character?.world_id ? getWorldById(character.world_id) : null;
   if (!character || !world) {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'Session is missing character/world context' })}`);
     return res.status(400).json({ error: 'Session is missing character/world context' });
   }
 
@@ -502,6 +510,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
     const content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
     res.json({ content });
   } catch (err) {
+    log.error(`chat.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });
@@ -513,6 +522,7 @@ router.post('/:sessionId/edit-assistant', async (req, res) => {
   const { messageId, content } = req.body;
 
   if (!messageId || !content || typeof content !== 'string') {
+    log.warn(`chat.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'messageId and content are required' })}`);
     return res.status(400).json({ error: 'messageId and content are required' });
   }
 
@@ -589,6 +599,7 @@ router.post('/:sessionId/retitle', async (req, res) => {
     log.info(`retitle DONE  session=${sessionId.slice(0, 8)}  title="${title}"`);
     res.json({ title });
   } catch (err) {
+    log.error(`chat.unhandled ${formatMeta({ method: req.method, path: req.path, msg: err?.message })}`);
     res.status(500).json({ error: err.message });
   }
 });

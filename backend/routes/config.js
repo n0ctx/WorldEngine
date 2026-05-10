@@ -176,9 +176,11 @@ router.put('/', (req, res) => {
 router.put('/provider-key', (req, res) => {
   const { provider, api_key } = req.body || {};
   if (typeof provider !== 'string' || !provider) {
+    log.warn(`config.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'provider 必须为非空字符串' })}`);
     return res.status(400).json({ error: 'provider 必须为非空字符串' });
   }
   if (typeof api_key !== 'string') {
+    log.warn(`config.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'api_key 必须为字符串' })}`);
     return res.status(400).json({ error: 'api_key 必须为字符串' });
   }
   try {

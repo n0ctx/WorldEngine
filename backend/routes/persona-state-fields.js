@@ -17,8 +17,10 @@ import {
   reorderPersonaStateFields,
 } from '../services/persona-state-fields.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
+const log = createLogger('persona-state-fields', 'cyan');
 
 router.get('/worlds/:worldId/persona-state-fields', (req, res) => {
   res.json(getPersonaStateFieldsByWorldId(req.params.worldId));
@@ -27,6 +29,7 @@ router.get('/worlds/:worldId/persona-state-fields', (req, res) => {
 router.post('/worlds/:worldId/persona-state-fields', (req, res) => {
   const { field_key, label, type } = req.body;
   if (!field_key || !label || !type) {
+    log.warn(`persona-state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'field_key, label, type 为必填项' })}`);
     return res.status(400).json({ error: 'field_key, label, type 为必填项' });
   }
   const field = createPersonaStateField(req.params.worldId, req.body);
@@ -37,6 +40,7 @@ router.post('/worlds/:worldId/persona-state-fields', (req, res) => {
 router.put('/worlds/:worldId/persona-state-fields/reorder', (req, res) => {
   const { orderedIds } = req.body;
   if (!Array.isArray(orderedIds)) {
+    log.warn(`persona-state-fields.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'orderedIds must be an array' })}`);
     return res.status(400).json({ error: 'orderedIds must be an array' });
   }
   reorderPersonaStateFields(req.params.worldId, orderedIds);
