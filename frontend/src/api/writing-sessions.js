@@ -62,24 +62,6 @@ export async function listMessages(worldId, sessionId) {
   return res.json();
 }
 
-// ─── 助手建卡（角色提取/确认） ───────────────────────────────────────
-
-export function extractCharactersFromMessage(worldId, sessionId, assistantMessageId, callbacks, { dryRun = false } = {}) {
-  return streamPost(
-    '/api/assistant/extract-characters',
-    { worldId, sessionId, assistantMessageId, dryRun },
-    callbacks,
-  );
-}
-
-export function confirmCharacters(worldId, sessionId, characters, callbacks) {
-  return streamPost(
-    '/api/assistant/confirm-characters',
-    { worldId, sessionId, characters },
-    callbacks,
-  );
-}
-
 // ─── 世界角色列表 ──────────────────────────────────────────────────────
 
 export async function listWorldCharacters(worldId) {

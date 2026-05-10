@@ -3,6 +3,27 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(ui): 制卡 modal 重写 — 候选改为本轮登场角色（Nearby Task 12）
+
+**背景**：Nearby Characters Task 12 — 把 stub 状态的 `MakeCardModal` 实装为基于 `nearby` 池的两步制卡流程；同时清理 Task 11 残留的 legacy "提取角色" UI 链路（前端按钮已无对应后端可用入口，属死代码）。
+
+**改动**：
+- `frontend/src/components/book/MakeCardModal.jsx`：实装 pick → preview 两步骤；pick 列出本轮 nearby（含已保存标记），点击触发 `analyzeNearbyForCard`；preview 四字段（name / description / system_prompt / first_message）可编辑，确认调用 `createCharacterFromNearby`；包含 loading（按钮 disabled + 文案）/ empty（"本轮无登场角色"）/ error（pushErrorToast，409 提示同名占用）三态；视觉沿用 `we-cast-add-modal-*`，新增 `we-make-card-modal-*` 字段块（无 hex/rgba，全部走 `--we-*` token）
+- `frontend/src/index.css`：在 `we-cast-add-modal-close` 之后新增 `we-make-card-modal-preview/field/label/input/textarea/footer` 样式块
+- `frontend/src/styles/ui.css`：删除 `we-character-preview-*`（98 行）与 `we-character-analyzing-*`（28 行）样式块；保留 `@keyframes we-spin`（其它消费者仍在用，定义另在 index.css）
+- `frontend/src/components/writing/CharacterPreviewModal.jsx`：**删除**
+- `frontend/src/components/writing/CharacterAnalyzingModal.jsx`：**删除**
+- `frontend/src/components/index.js`：删除 `CharacterPreviewModal` 导出与空的 `// — Writing 专属 —` 段
+- `frontend/src/pages/WritingSpacePage.jsx`：删除 `CharacterPreviewModal` / `CharacterAnalyzingModal` import；删除 `extractCharactersFromMessage` / `confirmCharacters` import；删除 state `cardPreviewChars` / `cardAnalyzing` 与 ref `makingCardRef`；删除 `handleMakeCard` / `handleConfirmCards` 两个函数；删除 `MessageList` 上的 `onMakeCard` prop；删除底部 AnimatePresence 中的两个 modal 块；移除空 import `pushToast`
+- `frontend/src/api/writing-sessions.js`：删除 `extractCharactersFromMessage` / `confirmCharacters` 两个函数（对应后端路由仍在 `assistant/server/routes.js`，留给 Task 14 写卡助手对接处理）
+- `frontend/src/components/chat/MessageList.jsx`：删除 `onMakeCard` prop 与转发
+- `frontend/src/components/writing/WritingMessageItem.jsx`：删除 `onMakeCard` prop 与"制卡"按钮
+- `frontend/tests/pages/writing-space-page.test.jsx`：删除 `extractCharactersFromMessage` / `confirmCharacters` mock 与 `CharacterPreviewModal` / `CharacterAnalyzingModal` 两个 vi.mock
+
+**验证**：`npm run check` 全绿（frontend 48 文件 139 测试、backend、assistant 115 测试 + lint 全部通过）。
+
+**残留**：assistant 端 `/api/assistant/extract-characters` `/confirm-characters` 路由及其测试仍在，由 Task 14 写卡助手对接统一处理；前端已无任何调用方。
+
 ## 2026-05-10 refactor: 整表删除 writing_session_characters；写作主 prompt 移除 [4]/[7] 角色段
 
 **背景**：附近角色特性 Task 11（Option C）— 写作模式不再有"激活角色"概念，主 prompt 中的角色级段在写作模式下整体消失，角色出场由叙事文本驱动，nearby 池（Task 10 已落库）由副 LLM 单独维护状态。承接 Task 10 暂留的 CastPanel 文件与三个 active 角色 API。

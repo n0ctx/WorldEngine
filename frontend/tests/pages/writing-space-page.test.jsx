@@ -61,8 +61,6 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   editAndRegenerateWriting: vi.fn(),
   editWritingAssistantMessage: vi.fn(),
   impersonateWriting: (...args) => mocks.impersonateWriting(...args),
-  extractCharactersFromMessage: vi.fn(),
-  confirmCharacters: vi.fn(),
   retitleWritingSession: (...args) => mocks.retitleWritingSession(...args),
 }));
 vi.mock('../../src/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
@@ -113,9 +111,6 @@ vi.mock('../../src/utils/toast.js', () => ({
   pushToast: vi.fn(),
   pushErrorToast: (...args) => mocks.pushErrorToast(...args),
 }));
-vi.mock('../../src/components/writing/CharacterPreviewModal.jsx', () => ({ default: () => <div data-testid="preview-modal" /> }));
-vi.mock('../../src/components/writing/CharacterAnalyzingModal.jsx', () => ({ default: () => <div data-testid="analyzing-modal" /> }));
-
 import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
 
 describe('WritingSpacePage', () => {

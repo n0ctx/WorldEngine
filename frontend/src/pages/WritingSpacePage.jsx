@@ -19,8 +19,6 @@ import {
   editWritingAssistantMessage,
   impersonateWriting,
   retitleWritingSession,
-  extractCharactersFromMessage,
-  confirmCharacters,
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
@@ -31,12 +29,10 @@ import NearbyPanel from '../components/book/NearbyPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
 import WritingSessionList from '../components/book/WritingSessionList.jsx';
-import CharacterPreviewModal from '../components/writing/CharacterPreviewModal.jsx';
-import CharacterAnalyzingModal from '../components/writing/CharacterAnalyzingModal.jsx';
 import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
-import { pushToast, pushErrorToast } from '../utils/toast.js';
+import { pushErrorToast } from '../utils/toast.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
 import { parseNextPromptStream } from '../utils/next-prompt.js';
 
@@ -84,8 +80,6 @@ export default function WritingSpacePage() {
   const [diaryTick, setDiaryTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
-  const [cardPreviewChars, setCardPreviewChars] = useState(null); // null = 弹窗关闭，[] = 打开
-  const [cardAnalyzing, setCardAnalyzing] = useState(false);
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
   const [memoryWriting, setMemoryWriting] = useState(false);
@@ -111,7 +105,6 @@ export default function WritingSpacePage() {
   const currentSessionRef = useRef(null);
   // 本轮乐观追加的 user 消息 temp id（用于收到 user_saved 后原地替换为真实 id）
   const tempUserIdRef = useRef(null);
-  const makingCardRef = useRef(false);
   const memoryRecallingStartRef = useRef(null);
   const memoryExpandingStartRef = useRef(null);
   const memoryWritingStartRef = useRef(null);
@@ -727,69 +720,6 @@ export default function WritingSpacePage() {
     }
   }
 
-  // 阶段一：提取角色（dry-run），弹出预览弹窗
-  function handleMakeCard(assistantMessageId) {
-    if (makingCardRef.current) return;
-    makingCardRef.current = true;
-    const session = currentSessionRef.current;
-    if (!session) { makingCardRef.current = false; return; }
-    setCardAnalyzing(true);
-    extractCharactersFromMessage(worldId, session.id, assistantMessageId, {
-      onEvent(evt) {
-        if (evt.type === 'characters_extracted') {
-          makingCardRef.current = false;
-          setCardAnalyzing(false);
-          if (evt.count === 0) {
-            pushToast('未发现新角色');
-          } else {
-            setCardPreviewChars(evt.characters);
-          }
-        } else if (evt.type === 'error') {
-          setCardAnalyzing(false);
-          pushErrorToast(evt.error || '提取失败');
-        }
-      },
-      onStreamEnd() {
-        makingCardRef.current = false;
-        setCardAnalyzing(false);
-      },
-      onError(err) {
-        makingCardRef.current = false;
-        setCardAnalyzing(false);
-        pushErrorToast(err || '提取请求失败');
-      },
-    }, { dryRun: true });
-  }
-
-  // 阶段二：用户确认后创建角色卡
-  function handleConfirmCards(chosen, onProgress) {
-    const session = currentSessionRef.current;
-    if (!session) return Promise.resolve();
-
-    return new Promise((resolve) => {
-      let doneCount = 0;
-      confirmCharacters(worldId, session.id, chosen, {
-        onEvent(evt) {
-          if (evt.type === 'card_activated' && evt.character) {
-            doneCount += 1;
-            onProgress(doneCount);
-          } else if (evt.type === 'error') {
-            pushErrorToast(evt.error || '角色创建失败');
-          }
-        },
-        onStreamEnd() {
-          if (doneCount > 0) pushToast(`制卡完成，共激活 ${doneCount} 个角色`);
-          setCardPreviewChars(null);
-          resolve();
-        },
-        onError(err) {
-          pushErrorToast(err || '创建请求失败');
-          resolve();
-        },
-      });
-    });
-  }
-
   return (
     <>
     <BookSpread>
@@ -865,7 +795,6 @@ export default function WritingSpacePage() {
               onRegenerateMessage={handleRegenerateMessage}
               onEditAssistantMessage={handleEditAssistantMessage}
               onDeleteMessage={handleDeleteMessage}
-              onMakeCard={handleMakeCard}
               prose
               chapterTitles={chapterTitles}
               onChapterEdit={handleChapterEdit}
@@ -923,18 +852,6 @@ export default function WritingSpacePage() {
         </div>
       </PageRight>
     </BookSpread>
-
-    <AnimatePresence>
-      {cardAnalyzing && <CharacterAnalyzingModal key="analyzing" />}
-      {cardPreviewChars !== null && (
-        <CharacterPreviewModal
-          key="preview"
-          characters={cardPreviewChars}
-          onConfirm={handleConfirmCards}
-          onClose={() => setCardPreviewChars(null)}
-        />
-      )}
-    </AnimatePresence>
     </>
   );
 }

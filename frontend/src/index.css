@@ -1984,6 +1984,53 @@ body {
   cursor: pointer;
 }
 
+/* — MakeCardModal 预览步骤 — */
+.we-make-card-modal-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.we-make-card-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.we-make-card-modal-label {
+  font-family: var(--we-font-serif);
+  font-size: 12px;
+  color: var(--we-ink-secondary);
+  letter-spacing: 0.04em;
+}
+.we-make-card-modal-input,
+.we-make-card-modal-textarea {
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  color: var(--we-ink-primary);
+  background: var(--we-paper-base);
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: 3px;
+  padding: 6px 8px;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+.we-make-card-modal-input:focus-visible,
+.we-make-card-modal-textarea:focus-visible {
+  outline: none;
+  border-color: var(--we-vermilion);
+}
+.we-make-card-modal-input:disabled,
+.we-make-card-modal-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.we-make-card-modal-footer {
+  justify-content: space-between;
+  gap: 12px;
+}
+
 /* — NearbyPanel — */
 .we-nearby-seal {
   display: inline-block;
