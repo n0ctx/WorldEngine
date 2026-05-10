@@ -4,7 +4,7 @@ import {
   analyzeNearbyForCard,
   createCharacterFromNearby,
 } from '../../api/session-nearby.js';
-import { pushErrorToast, pushToast } from '../../utils/toast.js';
+import { log } from '../../utils/logger.js';
 
 /**
  * 制卡 Modal — 两步流程
@@ -36,7 +36,7 @@ export default function MakeCardModal({ worldId, sessionId, nearby, onDone, onCl
       });
       setStep('preview');
     } catch (e) {
-      pushErrorToast(e?.message || '分析失败');
+      log.error('card.analyze_failed', e, { toast: e?.message || '分析失败' });
       setSelectedId(null);
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export default function MakeCardModal({ worldId, sessionId, nearby, onDone, onCl
   async function handleConfirm() {
     if (!draft || !selectedId) return;
     if (!draft.name.trim()) {
-      pushErrorToast('名字不能为空');
+      log.error('card.name.invalid', null, { toast: '名字不能为空' });
       return;
     }
     setLoading(true);
@@ -66,11 +66,11 @@ export default function MakeCardModal({ worldId, sessionId, nearby, onDone, onCl
         description: draft.description,
         first_message: draft.first_message,
       });
-      pushToast('已保存为角色卡');
+      log.info('card.create.success', null, { toast: '已保存为角色卡' });
       onDone?.();
     } catch (e) {
-      if (e?.status === 409) pushErrorToast('该名字已被占用');
-      else pushErrorToast(e?.message || '创建失败');
+      if (e?.status === 409) log.error('card.name.duplicate', e, { toast: '该名字已被占用' });
+      else log.error('card.create_failed', e, { toast: e?.message || '创建失败' });
     } finally {
       setLoading(false);
     }

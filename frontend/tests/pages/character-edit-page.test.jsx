@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
   uploadAvatar: vi.fn(),
   getCharacterStateValues: vi.fn(),
   updateCharacterStateValue: vi.fn(),
-  pushErrorToast: vi.fn(),
+  logError: vi.fn(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -33,8 +33,13 @@ vi.mock('../../src/api/character-state-values', () => ({
   getCharacterStateValues: (...args) => mocks.getCharacterStateValues(...args),
   updateCharacterStateValue: (...args) => mocks.updateCharacterStateValue(...args),
 }));
-vi.mock('../../src/utils/toast', () => ({
-  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+vi.mock('../../src/utils/logger.js', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...args) => mocks.logError(...args),
+  },
 }));
 vi.mock('../../src/utils/avatar', () => ({
   getAvatarColor: () => '#946',
@@ -82,7 +87,7 @@ describe('CharacterEditPage', () => {
     mocks.updateCharacter.mockResolvedValue({ id: 'char-1' });
     mocks.updateCharacterStateValue.mockResolvedValue({ success: true });
     mocks.uploadAvatar.mockResolvedValue({ avatar_path: 'avatars/char-1.png' });
-    mocks.pushErrorToast.mockReset();
+    mocks.logError.mockReset();
   });
 
   it('会保存角色编辑结果并保存状态初始值', async () => {
@@ -115,6 +120,10 @@ describe('CharacterEditPage', () => {
     const input = fileInput || document.querySelector('input[type="file"]');
     fireEvent.change(input, { target: { files: [new File(['x'], 'avatar.png', { type: 'image/png' })] } });
 
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('头像上传失败：文件过大'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'character.avatar.upload_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '头像上传失败：文件过大' }),
+    ));
   });
 });

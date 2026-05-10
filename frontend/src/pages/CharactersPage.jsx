@@ -18,7 +18,7 @@ import {
 import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
 import Icon from '../components/ui/Icon.jsx';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 
 const TRIGGER_LABEL = {
   always: '常驻',
@@ -341,7 +341,7 @@ export default function CharactersPage() {
       const chars = await getCharactersByWorld(worldId);
       setCharacters(chars);
     } catch (err) {
-      pushErrorToast(`删除失败：${err.message}`);
+      log.error('character.delete_failed', err, { toast: `删除失败：${err.message}` });
     }
   }
 
@@ -352,7 +352,7 @@ export default function CharactersPage() {
       const ps = await listPersonas(worldId);
       setPersonas(ps);
     } catch (err) {
-      pushErrorToast(`删除失败：${err.message}`);
+      log.error('character.delete_failed', err, { toast: `删除失败：${err.message}` });
       setDeletingPersona(null);
     }
   }
@@ -362,7 +362,7 @@ export default function CharactersPage() {
       const ps = await activatePersona(worldId, personaId);
       setPersonas(ps);
     } catch (err) {
-      pushErrorToast(`激活失败：${err.message}`);
+      log.error('character.activate_failed', err, { toast: `激活失败：${err.message}` });
     }
   }
 
@@ -380,7 +380,7 @@ export default function CharactersPage() {
           .filter((sv) => !worldFieldKeys.has(sv.field_key))
           .map((sv) => sv.field_key);
         if (incompatibleKeys.length > 0) {
-          pushErrorToast(`导入失败：该角色卡包含与当前世界不兼容的状态字段：${incompatibleKeys.join('、')}。请在同一世界中导入。`);
+          log.error('character.import.incompatible', null, { toast: `导入失败：该角色卡包含与当前世界不兼容的状态字段：${incompatibleKeys.join('、')}。请在同一世界中导入。` });
           return;
         }
       }
@@ -388,7 +388,7 @@ export default function CharactersPage() {
       const chars = await getCharactersByWorld(worldId);
       setCharacters(chars);
     } catch (err) {
-      pushErrorToast(`导入失败：${err.message}`);
+      log.error('character.import_failed', err, { toast: `导入失败：${err.message}` });
     } finally {
       setImportingChar(false);
       e.target.value = '';
@@ -408,7 +408,7 @@ export default function CharactersPage() {
       const ps = await listPersonas(worldId);
       setPersonas(ps);
     } catch (err) {
-      pushErrorToast(`导入失败：${err.message}`);
+      log.error('character.import_failed', err, { toast: `导入失败：${err.message}` });
     } finally {
       setImportingPersona(false);
       e.target.value = '';
@@ -421,7 +421,7 @@ export default function CharactersPage() {
       const updated = await listWorldEntries(worldId);
       setEntries(updated);
     } catch (err) {
-      pushErrorToast(`更新失败：${err.message}`);
+      log.error('character.update_failed', err, { toast: `更新失败：${err.message}` });
     }
   }
 

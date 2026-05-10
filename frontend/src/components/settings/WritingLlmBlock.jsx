@@ -7,7 +7,7 @@ import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from './SettingsConstants';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 /**
  * 写作主模型(LLM)配置区块
@@ -33,7 +33,7 @@ export default function WritingLlmBlock({
 
   async function handleSaveKey() {
     if (!config.provider) {
-      pushErrorToast('请先选择 Provider 再保存密钥');
+      log.error('settings.writing_llm.no_provider', null, { toast: '请先选择 Provider 再保存密钥' });
       return;
     }
     try {
@@ -43,7 +43,7 @@ export default function WritingLlmBlock({
       onWritingLlmChange?.('has_key', true);
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
-      pushErrorToast(`保存失败：${e.message}`);
+      log.error('settings.writing_llm.save_failed', e, { toast: `保存失败：${e.message}` });
     }
   }
 

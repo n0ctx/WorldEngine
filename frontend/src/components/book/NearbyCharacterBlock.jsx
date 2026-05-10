@@ -7,7 +7,7 @@ import {
   patchNearbyState,
   removeNearby,
 } from '../../api/session-nearby.js';
-import { pushErrorToast } from '../../utils/toast.js';
+import { log } from '../../utils/logger.js';
 
 function Chevron({ open }) {
   return (
@@ -71,7 +71,7 @@ export default function NearbyCharacterBlock({
       await setNearbySaved(worldId, sessionId, nearby.id, !nearby.is_saved);
       onChange?.();
     } catch (err) {
-      pushErrorToast(err?.message || '切换保存失败');
+      log.error('nearby.toggle_failed', err, { toast: err?.message || '切换保存失败' });
     } finally {
       setBusy(false);
     }
@@ -85,7 +85,7 @@ export default function NearbyCharacterBlock({
       await removeNearby(worldId, sessionId, nearby.id);
       onChange?.();
     } catch (err) {
-      pushErrorToast(err?.message || '移除失败');
+      log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
     } finally {
       setBusy(false);
     }
@@ -96,7 +96,7 @@ export default function NearbyCharacterBlock({
       await patchNearbyState(worldId, sessionId, nearby.id, fieldKey, valueJson);
       onChange?.();
     } catch (err) {
-      pushErrorToast(err?.message || '更新状态失败');
+      log.error('nearby.state.update_failed', err, { toast: err?.message || '更新状态失败' });
     }
   }
 
@@ -106,7 +106,7 @@ export default function NearbyCharacterBlock({
       setEditingMemory(false);
       onChange?.();
     } catch (err) {
-      pushErrorToast(err?.message || '更新记忆失败');
+      log.error('nearby.memory.update_failed', err, { toast: err?.message || '更新记忆失败' });
     }
   }
 

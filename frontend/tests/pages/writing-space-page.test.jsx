@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => {
     updateChapterTitle: vi.fn(),
     retitleChapter: vi.fn(),
     impersonateWriting: vi.fn(),
-    pushErrorToast: vi.fn(),
+    logError: vi.fn(),
     getChapterTitles: vi.fn(),
     MessageListState: createMessageListMock(),
     WritingSessionListMock,
@@ -107,9 +107,13 @@ vi.mock('../../src/api/chapter-titles.js', () => ({
   updateChapterTitle: (...args) => mocks.updateChapterTitle(...args),
   retitleChapter: (...args) => mocks.retitleChapter(...args),
 }));
-vi.mock('../../src/utils/toast.js', () => ({
-  pushToast: vi.fn(),
-  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+vi.mock('../../src/utils/logger.js', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...args) => mocks.logError(...args),
+  },
 }));
 import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
 
@@ -128,7 +132,7 @@ describe('WritingSpacePage', () => {
     mocks.updateChapterTitle.mockReset();
     mocks.retitleChapter.mockReset();
     mocks.impersonateWriting.mockReset();
-    mocks.pushErrorToast.mockReset();
+    mocks.logError.mockReset();
     mocks.getChapterTitles.mockResolvedValue([]);
     mocks.retitleWritingSession.mockResolvedValue({ title: '新章节名' });
     mocks.updateChapterTitle.mockResolvedValue({ title: '手改标题' });
@@ -330,12 +334,24 @@ describe('WritingSpacePage', () => {
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
     fireEvent.click(screen.getByText('impersonate-writing'));
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('代拟失败'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'writing.proxy_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '代拟失败' }),
+    ));
 
     fireEvent.click(screen.getByText('edit-chapter'));
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('保存失败'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'writing.chapter.title.save_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '保存失败' }),
+    ));
 
     fireEvent.click(screen.getByText('retitle-chapter'));
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('重拟失败'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'writing.chapter.title.generate_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '重拟失败' }),
+    ));
   });
 });

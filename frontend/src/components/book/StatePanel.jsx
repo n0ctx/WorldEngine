@@ -25,7 +25,7 @@ import { getWorld } from '../../api/worlds.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
-import { pushErrorToast } from '../../utils/toast.js';
+import { log } from '../../utils/logger.js';
 
 const MotionDiv = motion.div;
 
@@ -125,7 +125,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     try {
       const newState = await resetSessionWorldStateValues(sessionId);
       setStateData(newState);
-    } catch (e) { pushErrorToast(e.message || '重置世界状态失败'); }
+    } catch (e) { log.error('state.world.reset_failed', e, { toast: e.message || '重置世界状态失败' }); }
     finally { setWorldResetting(false); }
   }
 
@@ -135,7 +135,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     try {
       const newState = await resetSessionPersonaStateValues(sessionId);
       setStateData(newState);
-    } catch (e) { pushErrorToast(e.message || '重置玩家状态失败'); }
+    } catch (e) { log.error('state.player.reset_failed', e, { toast: e.message || '重置玩家状态失败' }); }
     finally { setPersonaResetting(false); }
   }
 
@@ -145,7 +145,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     try {
       const newState = await resetSessionCharacterStateValues(sessionId);
       setStateData(newState);
-    } catch (e) { pushErrorToast(e.message || '重置角色状态失败'); }
+    } catch (e) { log.error('state.character.reset_failed', e, { toast: e.message || '重置角色状态失败' }); }
     finally { setCharResetting(false); }
   }
 
@@ -156,7 +156,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         ...prev,
         world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { pushErrorToast(e.message || '更新世界状态失败'); }
+    } catch (e) { log.error('state.world.update_failed', e, { toast: e.message || '更新世界状态失败' }); }
   }
 
   async function handleSavePersona(fieldKey, valueJson) {
@@ -166,7 +166,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         ...prev,
         persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { pushErrorToast(e.message || '更新玩家状态失败'); }
+    } catch (e) { log.error('state.player.update_failed', e, { toast: e.message || '更新玩家状态失败' }); }
   }
 
   async function handleSaveCharacter(fieldKey, valueJson, characterId) {
@@ -176,7 +176,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         ...prev,
         character: prev.character.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { pushErrorToast(e.message || '更新角色状态失败'); }
+    } catch (e) { log.error('state.character.update_failed', e, { toast: e.message || '更新角色状态失败' }); }
   }
 
   // ── 日记点击注入 ─────────────────────────────────────────
@@ -192,7 +192,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       const content = await fetchDiaryContent(sessionId, entry.date_str);
       onDiaryInject?.(content);
     } catch (e) {
-      pushErrorToast(e.message || '获取日记内容失败');
+      log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
     }
   }
 

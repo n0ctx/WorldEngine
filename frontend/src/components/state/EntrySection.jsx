@@ -3,7 +3,7 @@ import EntryEditor from './EntryEditor';
 import { deleteWorldEntry, reorderWorldEntries, updateWorldEntry } from '../../api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
   const [editing, setEditing] = useState(null);
@@ -18,7 +18,7 @@ export default function EntrySection({ title, icon, desc, triggerType, entries, 
       setConfirmingDeleteEntry(null);
       onRefresh();
     } catch (e) {
-      pushErrorToast('删除失败：' + (e?.message || '未知错误'));
+      log.error('entry.delete_failed', e, { toast: '删除失败：' + (e?.message || '未知错误') });
     }
   }
 
@@ -84,7 +84,7 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
       await updateWorldEntry(entry.id, { enabled: newEnabled });
     } catch (e) {
       setLocalEntries((prev) => prev.map((ee) => ee.id === entry.id ? { ...ee, enabled: entry.enabled } : ee));
-      pushErrorToast('切换失败：' + (e?.message || '未知错误'));
+      log.error('entry.toggle_failed', e, { toast: '切换失败：' + (e?.message || '未知错误') });
     }
   }
 

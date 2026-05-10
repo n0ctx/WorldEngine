@@ -24,7 +24,7 @@ import StateValueField from '../components/state/StateValueField';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 
 export default function PersonaEditPage() {
   const { worldId, personaId: personaIdParam } = useParams();
@@ -114,7 +114,7 @@ export default function PersonaEditPage() {
         await updatePersonaStateValue(worldId, fieldKey, valueJson);
       }
     } catch (err) {
-      pushErrorToast(err.message || '状态值保存失败');
+      log.error('persona.state.save_failed', err, { toast: err.message || '状态值保存失败' });
     }
   }
 
@@ -132,7 +132,7 @@ export default function PersonaEditPage() {
       setAvatarPath(result.avatar_path);
       window.dispatchEvent(new Event('we:persona-updated'));
     } catch (err) {
-      pushErrorToast(`头像上传失败：${err.message}`);
+      log.error('persona.avatar.upload_failed', err, { toast: `头像上传失败：${err.message}` });
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -162,7 +162,7 @@ export default function PersonaEditPage() {
         navigate(-1);
       }
     } catch (err) {
-      pushErrorToast(`保存失败：${err.message}`);
+      log.error('persona.save_failed', err, { toast: `保存失败：${err.message}` });
       setSaving(false);
     }
   }
@@ -171,7 +171,7 @@ export default function PersonaEditPage() {
     try {
       await downloadPersonaCard(worldId, `${name || '玩家'}.wechar.json`);
     } catch (err) {
-      pushErrorToast(`导出失败：${err.message}`);
+      log.error('persona.export_failed', err, { toast: `导出失败：${err.message}` });
     }
   }
 

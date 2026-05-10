@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   updateWorldEntry: vi.fn(),
   setCurrentCharacterId: vi.fn(),
   setCurrentPersonaId: vi.fn(),
-  pushErrorToast: vi.fn(),
+  logError: vi.fn(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -56,8 +56,13 @@ vi.mock('../../src/store/index', () => ({
     setCurrentPersonaId: mocks.setCurrentPersonaId,
   }),
 }));
-vi.mock('../../src/utils/toast', () => ({
-  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+vi.mock('../../src/utils/logger.js', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...args) => mocks.logError(...args),
+  },
 }));
 vi.mock('../../src/components', () => ({
   ConfirmModal: ({ title, confirmText, onConfirm, onClose, message }) => (

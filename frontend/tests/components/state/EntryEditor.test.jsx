@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
   listWorldStateFields: vi.fn(),
   listCharacterStateFields: vi.fn(),
   listPersonaStateFields: vi.fn(),
-  pushErrorToast: vi.fn(),
+  logError: vi.fn(),
 }));
 
 vi.mock('../../../src/api/prompt-entries', () => ({
@@ -28,8 +28,13 @@ vi.mock('../../../src/api/character-state-fields', () => ({
 vi.mock('../../../src/api/persona-state-fields', () => ({
   listPersonaStateFields: (...args) => mocks.listPersonaStateFields(...args),
 }));
-vi.mock('../../../src/utils/toast', () => ({
-  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+vi.mock('../../../src/utils/logger.js', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...args) => mocks.logError(...args),
+  },
 }));
 vi.mock('../../../src/components/ui/MarkdownEditor', () => ({
   default: ({ value, onChange, placeholder }) => (
@@ -124,6 +129,10 @@ describe('EntryEditor', () => {
     fillBasicForm();
     fireEvent.click(screen.getByText('保存'));
 
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('保存失败：boom'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'entry.save_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '保存失败：boom' }),
+    ));
   });
 });

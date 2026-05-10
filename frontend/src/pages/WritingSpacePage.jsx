@@ -32,7 +32,7 @@ import WritingSessionList from '../components/book/WritingSessionList.jsx';
 import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
-import { pushErrorToast } from '../utils/toast.js';
+import { log } from '../utils/logger.js';
 import { writingSessionListBridge } from '../utils/session-list-bridge.js';
 import { parseNextPromptStream } from '../utils/next-prompt.js';
 
@@ -673,7 +673,7 @@ export default function WritingSpacePage() {
       const { content } = await impersonateWriting(worldId, session.id);
       if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
-      pushErrorToast(err.message || '代拟失败');
+      log.error('writing.proxy_failed', err, { toast: err.message || '代拟失败' });
     } finally {
       setImpersonating(false);
     }
@@ -690,7 +690,7 @@ export default function WritingSpacePage() {
         writingSessionListBridge.updateTitle?.(session.id, title);
       }
     } catch (err) {
-      pushErrorToast(err.message || '标题生成失败');
+      log.error('writing.title.generate_failed', err, { toast: err.message || '标题生成失败' });
     }
   }
 
@@ -702,7 +702,7 @@ export default function WritingSpacePage() {
       await updateChapterTitle(worldId, session.id, chapterIndex, newTitle);
       setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title: newTitle, is_default: 0 } }));
     } catch (err) {
-      pushErrorToast(err.message || '章节标题保存失败');
+      log.error('writing.chapter.title.save_failed', err, { toast: err.message || '章节标题保存失败' });
     }
   }
 
@@ -716,7 +716,7 @@ export default function WritingSpacePage() {
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       }
     } catch (err) {
-      pushErrorToast(err.message || '章节标题生成失败');
+      log.error('writing.chapter.title.generate_failed', err, { toast: err.message || '章节标题生成失败' });
     }
   }
 

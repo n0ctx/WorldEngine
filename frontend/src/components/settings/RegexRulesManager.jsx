@@ -13,7 +13,7 @@ import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from './SettingsConstants';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',
@@ -47,7 +47,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       invalidateCache();
       await loadRules(settingsMode);
     } catch (e) {
-      pushErrorToast(e.message || '加载规则失败');
+      log.error('regex.rules.load_failed', e, { toast: e.message || '加载规则失败' });
     }
   }, [settingsMode]);
 
@@ -76,7 +76,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
       setConfirmingDeleteRule(null);
       await refresh();
     } catch (e) {
-      pushErrorToast('删除失败：' + (e?.message || '未知错误'));
+      log.error('regex.rules.delete_failed', e, { toast: '删除失败：' + (e?.message || '未知错误') });
     }
   }
 

@@ -9,7 +9,7 @@ import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
 import { SETTINGS_MODE } from './SettingsConstants';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 :root {
@@ -245,7 +245,7 @@ function SnippetEditor({ snippet, onSave, onClose }) {
       await onSave({ name: name.trim(), content });
       onClose();
     } catch (err) {
-      pushErrorToast(`保存失败：${err.message}`);
+      log.error('css.snippets.save_failed', err, { toast: `保存失败：${err.message}` });
       setSaving(false);
     }
   }

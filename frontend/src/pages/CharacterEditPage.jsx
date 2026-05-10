@@ -13,7 +13,7 @@ import StateValueField from '../components/state/StateValueField';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 
 export default function CharacterEditPage() {
   const { characterId, worldId } = useParams();
@@ -92,7 +92,7 @@ export default function CharacterEditPage() {
     try {
       await updateCharacterStateValue(characterId, fieldKey, valueJson);
     } catch (err) {
-      pushErrorToast(err.message || '状态值保存失败');
+      log.error('character.state.save_failed', err, { toast: err.message || '状态值保存失败' });
     }
   }
 
@@ -109,7 +109,7 @@ export default function CharacterEditPage() {
       setAvatarPath(result.avatar_path);
       window.dispatchEvent(new Event('we:character-updated'));
     } catch (err) {
-      pushErrorToast(`头像上传失败：${err.message}`);
+      log.error('character.avatar.upload_failed', err, { toast: `头像上传失败：${err.message}` });
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
@@ -123,7 +123,7 @@ export default function CharacterEditPage() {
       await downloadCharacterCard(characterId, `${safeName}.wechar.json`);
       setSealKey(k => k + 1);
     } catch (err) {
-      pushErrorToast(`导出失败：${err.message}`);
+      log.error('character.export_failed', err, { toast: `导出失败：${err.message}` });
     } finally {
       setExporting(false);
     }

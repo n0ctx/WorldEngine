@@ -6,7 +6,7 @@ import { listPersonaStateFields } from '../../api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
 import DatetimePartInput from './DatetimePartInput';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
 const NUMERIC_OPS = [
@@ -151,7 +151,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
           setConditions([emptyCondition()]);
         }
       } catch (err) {
-        pushErrorToast(err.message || '加载状态字段失败');
+        log.error('entry.fields.load_failed', err, { toast: err.message || '加载状态字段失败' });
       }
     }
     load();
@@ -186,7 +186,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
   async function handleSave() {
     if (!form.title.trim()) return;
     if (form.trigger_type === 'keyword' && form.keyword_scope.length === 0) {
-      pushErrorToast('必须勾选 user 或 assistant 至少一项');
+      log.error('entry.role.invalid', null, { toast: '必须勾选 user 或 assistant 至少一项' });
       return;
     }
     setSaving(true);
@@ -220,7 +220,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
       }
       onSave();
     } catch (err) {
-      pushErrorToast(`保存失败：${err.message}`);
+      log.error('entry.save_failed', err, { toast: `保存失败：${err.message}` });
       setSaving(false);
     }
   }

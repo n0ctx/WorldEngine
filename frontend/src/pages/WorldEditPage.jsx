@@ -24,7 +24,7 @@ import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
 } from '../api/persona-state-fields';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 
 export default function WorldEditPage() {
   const { worldId } = useParams();
@@ -135,7 +135,7 @@ export default function WorldEditPage() {
       setCoverBustKey(Date.now());
       window.dispatchEvent(new Event('we:world-updated'));
     } catch (err) {
-      pushErrorToast(`封面上传失败：${err.message}`);
+      log.error('world.cover.upload_failed', err, { toast: `封面上传失败：${err.message}` });
     } finally {
       setCoverUploading(false);
       e.target.value = '';

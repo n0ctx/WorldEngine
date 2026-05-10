@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => ({
   getPersonaStateValuesByPersonaId: vi.fn(),
   updatePersonaStateValueByPersonaId: vi.fn(),
   downloadPersonaCard: vi.fn(),
-  pushErrorToast: vi.fn(),
+  logError: vi.fn(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -40,8 +40,13 @@ vi.mock('../../src/api/persona-state-values', () => ({
 vi.mock('../../src/api/import-export', () => ({
   downloadPersonaCard: (...args) => mocks.downloadPersonaCard(...args),
 }));
-vi.mock('../../src/utils/toast', () => ({
-  pushErrorToast: (...args) => mocks.pushErrorToast(...args),
+vi.mock('../../src/utils/logger.js', () => ({
+  log: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: (...args) => mocks.logError(...args),
+  },
 }));
 vi.mock('../../src/utils/avatar', () => ({
   getAvatarColor: () => '#333',
@@ -83,7 +88,7 @@ describe('PersonaEditPage', () => {
     mocks.getPersonaStateValuesByPersonaId.mockResolvedValue([{ field_key: 'mood', label: '心境' }]);
     mocks.downloadPersonaCard.mockResolvedValue(undefined);
     mocks.uploadPersonaAvatar.mockResolvedValue({ avatar_path: 'avatars/persona.png' });
-    mocks.pushErrorToast.mockReset();
+    mocks.logError.mockReset();
   });
 
   it('会保存玩家信息并支持导出', async () => {
@@ -115,6 +120,10 @@ describe('PersonaEditPage', () => {
     await screen.findByDisplayValue('旅者');
     fireEvent.click(screen.getByText('保存'));
 
-    await waitFor(() => expect(mocks.pushErrorToast).toHaveBeenCalledWith('保存失败：保存失败'));
+    await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
+      'persona.save_failed',
+      expect.anything(),
+      expect.objectContaining({ toast: '保存失败：保存失败' }),
+    ));
   });
 });

@@ -15,7 +15,7 @@ import {
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import { fetchNearby } from '../../api/session-nearby.js';
-import { pushErrorToast } from '../../utils/toast.js';
+import { log } from '../../utils/logger.js';
 
 const MotionDiv = motion.div;
 const DIARY_TIME_FIELD_KEY = 'diary_time';
@@ -149,7 +149,7 @@ export default function NearbyPanel({
     if (!sessionId || worldResetting) return;
     setWorldResetting(true);
     try { setStateData(await resetSessionWorldStateValues(sessionId)); }
-    catch (e) { pushErrorToast(e.message || '重置世界状态失败'); }
+    catch (e) { log.error('state.world.reset_failed', e, { toast: e.message || '重置世界状态失败' }); }
     finally { setWorldResetting(false); }
   }
 
@@ -157,7 +157,7 @@ export default function NearbyPanel({
     if (!sessionId || personaResetting) return;
     setPersonaResetting(true);
     try { setStateData(await resetSessionPersonaStateValues(sessionId)); }
-    catch (e) { pushErrorToast(e.message || '重置玩家状态失败'); }
+    catch (e) { log.error('state.player.reset_failed', e, { toast: e.message || '重置玩家状态失败' }); }
     finally { setPersonaResetting(false); }
   }
 
@@ -168,7 +168,7 @@ export default function NearbyPanel({
         ...prev,
         world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { pushErrorToast(e.message || '更新世界状态失败'); }
+    } catch (e) { log.error('state.world.update_failed', e, { toast: e.message || '更新世界状态失败' }); }
   }
 
   async function handleSavePersona(fieldKey, valueJson) {
@@ -178,7 +178,7 @@ export default function NearbyPanel({
         ...prev,
         persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { pushErrorToast(e.message || '更新玩家状态失败'); }
+    } catch (e) { log.error('state.player.update_failed', e, { toast: e.message || '更新玩家状态失败' }); }
   }
 
   async function handleDiarySelect(entry) {
@@ -192,7 +192,7 @@ export default function NearbyPanel({
       const content = await fetchDiaryContent(sessionId, entry.date_str);
       onDiaryInject?.(content);
     } catch (e) {
-      pushErrorToast(e.message || '获取日记内容失败');
+      log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
     }
   }
 

@@ -18,7 +18,7 @@ import StatePanel from '../components/book/StatePanel.jsx';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 import { getConfig } from '../api/config.js';
 import { useDisplaySettingsStore } from '../store/displaySettings.js';
 import { chatSessionListBridge } from '../utils/session-list-bridge.js';
@@ -655,7 +655,7 @@ export default function ChatPage() {
       },
       onError(err) {
         if (continuationTokenRef.current !== continuationToken) return;
-        pushErrorToast(typeof err === 'string' ? err : (err?.message || '续写失败'));
+        log.error('chat.continue_failed', err, { toast: typeof err === 'string' ? err : (err?.message || '续写失败') });
       },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -676,7 +676,7 @@ export default function ChatPage() {
       const { content } = await impersonate(currentSessionId);
       if (content) inputBoxRef.current?.fillText(content);
     } catch (err) {
-      pushErrorToast(err.message || '代拟失败');
+      log.error('chat.proxy_failed', err, { toast: err.message || '代拟失败' });
     } finally {
       setImpersonating(false);
     }

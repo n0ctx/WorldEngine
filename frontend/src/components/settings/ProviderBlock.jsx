@@ -5,7 +5,7 @@ import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from './SettingsConstants';
-import { pushErrorToast } from '../../utils/toast';
+import { log } from '../../utils/logger.js';
 
 export default function ProviderBlock({ title, providers, config, onProviderChange, onBaseUrlChange, onModelChange, onApiKeySave, onApiKeySaved, onThinkingLevelChange, loadModels }) {
   const [apiKey, setApiKey] = useState('');
@@ -17,7 +17,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
 
   async function handleSaveKey() {
     if (!config.provider) {
-      pushErrorToast('请先选择 Provider 再保存密钥');
+      log.error('settings.provider.no_provider', null, { toast: '请先选择 Provider 再保存密钥' });
       return;
     }
     try {
@@ -27,7 +27,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       onApiKeySaved?.();
       setTimeout(() => setApiKeySaved(false), 2000);
     } catch (e) {
-      pushErrorToast(`保存失败：${e.message}`);
+      log.error('settings.provider.save_failed', e, { toast: `保存失败：${e.message}` });
     }
   }
 

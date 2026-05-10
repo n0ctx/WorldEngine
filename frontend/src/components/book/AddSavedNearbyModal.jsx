@@ -3,7 +3,7 @@ import ModalShell from '../ui/ModalShell.jsx';
 import CharacterSeal from './CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../api/characters.js';
 import { addSavedNearbyFromCharacter } from '../../api/session-nearby.js';
-import { pushErrorToast } from '../../utils/toast.js';
+import { log } from '../../utils/logger.js';
 
 export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdded, onClose }) {
   const [chars, setChars] = useState(null); // null = loading, [] = empty
@@ -25,8 +25,8 @@ export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdde
       await addSavedNearbyFromCharacter(worldId, sessionId, charId);
       onAdded?.();
     } catch (e) {
-      if (e?.status === 409) pushErrorToast('名字已在登场角色池中');
-      else pushErrorToast(e?.message || '添加失败');
+      if (e?.status === 409) log.error('nearby.add.duplicate', e, { toast: '名字已在登场角色池中' });
+      else log.error('nearby.add.failed', e, { toast: e?.message || '添加失败' });
     } finally {
       setAdding(null);
     }

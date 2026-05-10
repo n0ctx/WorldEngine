@@ -9,7 +9,7 @@ import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
 import { relativeTime } from '../utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
-import { pushErrorToast } from '../utils/toast';
+import { log } from '../utils/logger.js';
 
 export default function WorldsPage() {
   const navigate = useNavigate();
@@ -73,7 +73,7 @@ export default function WorldsPage() {
       const safeName = world.name.replace(/[^\w一-龥]/g, '_');
       await downloadWorldCard(world.id, `${safeName}.weworld.json`);
     } catch (err) {
-      pushErrorToast(`导出失败：${err.message}`);
+      log.error('world.export_failed', err, { toast: `导出失败：${err.message}` });
     } finally {
       setExportingWorldId(null);
     }
@@ -84,7 +84,7 @@ export default function WorldsPage() {
     try {
       await reorderWorlds(finalItems.map((w, i) => ({ id: w.id, sort_order: i })));
     } catch (err) {
-      pushErrorToast(`排序保存失败：${err.message}`);
+      log.error('world.sort.save_failed', err, { toast: `排序保存失败：${err.message}` });
       await loadWorlds();
     }
   }
@@ -98,7 +98,7 @@ export default function WorldsPage() {
       await importWorld(data);
       await loadWorlds();
     } catch (err) {
-      pushErrorToast(`导入失败：${err.message}`);
+      log.error('world.import_failed', err, { toast: `导入失败：${err.message}` });
     } finally {
       setImportingWorld(false);
       e.target.value = '';
