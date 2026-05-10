@@ -5,11 +5,15 @@ import { render, screen, act, fireEvent, cleanup } from '@testing-library/react'
 // exiting nodes mounted under fake timers.
 vi.mock('framer-motion', async () => {
   const React = await import('react');
+  const MOTION_PROPS = new Set([
+    'initial', 'animate', 'exit', 'transition', 'whileHover', 'whileTap',
+    'variants', 'layout', 'layoutId', 'drag',
+  ]);
   const passthrough = (tag) => React.forwardRef(function MotionTag(props, ref) {
-    const {
-      initial, animate, exit, transition, whileHover, whileTap,
-      variants, layout, layoutId, drag, ...rest
-    } = props;
+    const rest = {};
+    for (const k of Object.keys(props)) {
+      if (!MOTION_PROPS.has(k)) rest[k] = props[k];
+    }
     return React.createElement(tag, { ...rest, ref });
   });
   const motion = new Proxy({}, { get: (_t, key) => passthrough(key) });
