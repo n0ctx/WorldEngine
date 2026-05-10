@@ -3,6 +3,26 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(prompt-entries): keyword 条目 active_turns=1 实际跨多轮生效
+
+用户反馈关键词条目设 `active_turns=1`（仅当轮）后仍持续多轮注入。
+
+**根因**：`entry-matcher.js` 的 fresh hit 扫描使用最近 5 条消息的滑动窗口（`PROMPT_ENTRY_SCAN_WINDOW=5`）。命中关键词所在的旧消息只要还在窗口内，每轮都被识别为"本轮新命中"，反复刷新 `keyword_active_state` 的 `round` 字段，导致 TTL 永远归零、`active_turns=1` 等不到失效时机。
+
+**修复**
+- `backend/prompts/entry-matcher.js`：keyword fresh hit 改为只扫"本轮"最新一条 user / assistant 消息（即与 LLM preflight 同一份 `contextLines` 来源），不再使用 5 条滑动窗口。跨轮持续完全交给 `active_turns` / TTL。
+- `backend/utils/constants.js`：删除已不再被引用的 `PROMPT_ENTRY_SCAN_WINDOW` 常量。
+- `backend/tests/prompts/entry-matcher.test.js`：更新 active_turns 跨轮测试用例与说明，反映新语义（`active_turns=N` = 命中当轮 + 后续 N-1 轮 carry-over）。
+- `SCHEMA.md`：同步 `keyword_active_state` 与 `active_turns` 字段说明。
+
+**新语义**
+- `active_turns=1`：仅命中当轮；下一轮新消息不含关键词即失效。
+- `active_turns=N (N≥2)`：命中当轮 + 后续 N-1 轮 carry-over，共 N 轮。
+- `active_turns=0`：永久。
+- AI 回复中出现关键词依旧会触发（fresh hit 同时扫最新一条 assistant 消息）。
+
+验证：`backend && node --test tests/prompts/entry-matcher.test.js` → 21/21 通过。
+
 ## 2026-05-11 fix(nearby): 排除玩家被误识别为登场角色
 
 写作模式下副 LLM 偶尔把玩家（persona）写进 `nearby_characters`。Prompt 没显式告知玩家是谁，LLM 仅靠"玩家："对话标签自行判断，识别不稳定。

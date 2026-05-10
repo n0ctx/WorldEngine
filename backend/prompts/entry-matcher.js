@@ -23,7 +23,6 @@ import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
 import { getKeywordActiveState, setKeywordActiveState } from '../db/queries/session-active-entries.js';
 import * as llm from '../llm/index.js';
 import {
-  PROMPT_ENTRY_SCAN_WINDOW,
   PROMPT_ENTRY_LLM_MAX_TOKENS,
   ALL_MESSAGES_LIMIT,
 } from '../utils/constants.js';
@@ -295,9 +294,10 @@ export async function matchEntries(sessionId, entries, worldId = null) {
     lastUser ? `用户：${lastUser.content}` : '',
   ].filter(Boolean).join('\n');
 
-  const recentMessages = allMessages.slice(-PROMPT_ENTRY_SCAN_WINDOW);
-  const userScanText = recentMessages.filter((m) => m.role === 'user').map((m) => m.content).join('\n').toLowerCase();
-  const asstScanText = recentMessages.filter((m) => m.role === 'assistant').map((m) => m.content).join('\n').toLowerCase();
+  // 关键词只扫最新一条 user / assistant 消息（"本轮"内容）。跨轮持续完全交给 active_turns / TTL，
+  // 避免旧消息留在窗口里被反复当作 fresh hit、不断刷新 round 导致 active_turns=1 失效。
+  const userScanText = (lastUser?.content || '').toLowerCase();
+  const asstScanText = (lastAsst?.content || '').toLowerCase();
 
   const triggered = new Set();
 

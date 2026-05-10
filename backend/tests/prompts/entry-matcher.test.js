@@ -252,15 +252,15 @@ describe('matchEntries — state 类型条件评估', () => {
 });
 
 // ─── 关键词 active_turns 跨轮持续生效 ────────────────────────
-// 注：PROMPT_ENTRY_SCAN_WINDOW=5 — 关键词在最近 5 条消息之内时仍会被 matchByKeywords 当作"本轮新命中"，
-// 每轮 fresh hit 都会刷新 state.round。只有当关键词消息滑出该窗口后，TTL 才独立生效。
+// 注：keyword 匹配只扫最新一条 user / assistant 消息（"本轮"），跨轮持续完全由 active_turns 控制：
+//   active_turns=1 → 仅命中当轮；active_turns=N → 命中当轮 + 后续 N-1 轮 carry-over；active_turns=0 → 永久。
 describe('matchEntries — keyword active_turns 跨轮持续', () => {
   function pushAssistantUserPair(db, sessionId, base, userText = '其他内容') {
     insertMessage(db, sessionId, { role: 'assistant', content: 'a', created_at: base });
     insertMessage(db, sessionId, { role: 'user', content: userText, created_at: base + 1 });
   }
 
-  test('active_turns=1：关键词滑出 scan window 后立即失效', async () => {
+  test('active_turns=1：下一轮新消息不含关键词时立即失效', async () => {
     const world = insertWorld(sandbox.db, { name: 'TTL-1' });
     const character = insertCharacter(sandbox.db, world.id, { name: '角色TTL1' });
     const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
@@ -270,23 +270,22 @@ describe('matchEntries — keyword active_turns 跨轮持续', () => {
     const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
     const entry = { id: 'kw-ttl-1', title: '龙', keywords: ['龙'], keyword_scope: 'user', keyword_logic: 'OR', trigger_type: 'keyword', active_turns: 1 };
 
-    // 轮 1（u1）：本轮命中
+    // 轮 1：本轮命中
     let matched = await matchEntries(session.id, [entry], world.id);
     assert.ok(matched.has(entry.id), '轮 1 命中');
 
-    // 轮 2 / 3：龙仍在最近 5 条窗口内，每轮 fresh hit 刷新 state.round
-    pushAssistantUserPair(sandbox.db, session.id, 2);   // a2,u3
-    pushAssistantUserPair(sandbox.db, session.id, 4);   // a4,u5
+    // 轮 2：新 user 消息不含关键词，无 fresh hit；carry-over: round=1, ttl=1, 2-1=1 不 <1 → 失效
+    pushAssistantUserPair(sandbox.db, session.id, 2);
     matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(matched.has(entry.id), '轮 3 仍在 window 内');
+    assert.ok(!matched.has(entry.id), '轮 2 不应再触发（active_turns=1 仅本轮）');
 
-    // 轮 4：window=[u3,a4,u5,a6,u7]，u1 滑出。无 fresh hit；carry-over: round=3, ttl=1, 4-3=1 不 <1 → 失效
-    pushAssistantUserPair(sandbox.db, session.id, 6);
+    // 轮 3：依然不应触发
+    pushAssistantUserPair(sandbox.db, session.id, 4);
     matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(!matched.has(entry.id), '轮 4 关键词滑出窗口且 TTL=1 已用尽');
+    assert.ok(!matched.has(entry.id), '轮 3 仍不触发');
   });
 
-  test('active_turns=3：关键词滑出窗口后再保持 2 轮，第 6 轮失效', async () => {
+  test('active_turns=3：命中当轮 + 后续 2 轮 carry-over，第 4 轮失效', async () => {
     const world = insertWorld(sandbox.db, { name: 'TTL-3' });
     const character = insertCharacter(sandbox.db, world.id, { name: '角色TTL3' });
     const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
@@ -296,30 +295,24 @@ describe('matchEntries — keyword active_turns 跨轮持续', () => {
     const { matchEntries } = await freshImport('backend/prompts/entry-matcher.js');
     const entry = { id: 'kw-ttl-3', title: '龙', keywords: ['龙'], keyword_scope: 'user', keyword_logic: 'OR', trigger_type: 'keyword', active_turns: 3 };
 
-    // 轮 1-3：龙都在窗口内，fresh hit 刷新 state.round 到 3
+    // 轮 1：fresh hit, round=1, ttl=3
     let matched = await matchEntries(session.id, [entry], world.id);
     assert.ok(matched.has(entry.id), '轮 1');
+
+    // 轮 2：新消息不含关键词，carry-over: 2-1=1<3 → active
     pushAssistantUserPair(sandbox.db, session.id, 2);
     matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(matched.has(entry.id), '轮 2');
+    assert.ok(matched.has(entry.id), '轮 2 carry-over');
+
+    // 轮 3：3-1=2<3 → active
     pushAssistantUserPair(sandbox.db, session.id, 4);
     matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(matched.has(entry.id), '轮 3');
+    assert.ok(matched.has(entry.id), '轮 3 carry-over');
 
-    // 轮 4：u1 滑出。carry-over: 4-3=1<3 → active
+    // 轮 4：4-1=3 不 <3 → 失效
     pushAssistantUserPair(sandbox.db, session.id, 6);
     matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(matched.has(entry.id), '轮 4 carry-over 内');
-
-    // 轮 5：5-3=2<3 → active
-    pushAssistantUserPair(sandbox.db, session.id, 8);
-    matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(matched.has(entry.id), '轮 5 carry-over 内');
-
-    // 轮 6：6-3=3 不 <3 → 失效
-    pushAssistantUserPair(sandbox.db, session.id, 10);
-    matched = await matchEntries(session.id, [entry], world.id);
-    assert.ok(!matched.has(entry.id), '轮 6 carry-over 已耗尽');
+    assert.ok(!matched.has(entry.id), '轮 4 carry-over 已耗尽');
   });
 
   test('历史回退到激活点之前时，carry-over 自动失效（防止幽灵注入）', async () => {
@@ -342,7 +335,7 @@ describe('matchEntries — keyword active_turns 跨轮持续', () => {
     assert.ok(!matched.has(entry.id), '历史被清空后，旧 carry-over (round=1) > currentRound=0，应丢弃');
   });
 
-  test('active_turns=0：关键词滑出窗口后仍永久注入', async () => {
+  test('active_turns=0：关键词永久注入', async () => {
     const world = insertWorld(sandbox.db, { name: 'TTL-0' });
     const character = insertCharacter(sandbox.db, world.id, { name: '角色TTL0' });
     const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id, mode: 'chat' });
@@ -355,7 +348,7 @@ describe('matchEntries — keyword active_turns 跨轮持续', () => {
     let matched = await matchEntries(session.id, [entry], world.id);
     assert.ok(matched.has(entry.id), '轮 1');
 
-    // 推 6 轮无关键词，u1 早已滑出窗口，但 ttl=0 永久生效
+    // 推 6 轮无关键词，ttl=0 永久生效
     for (let i = 0; i < 6; i++) {
       pushAssistantUserPair(sandbox.db, session.id, 2 + i * 2);
       matched = await matchEntries(session.id, [entry], world.id);
