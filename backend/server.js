@@ -39,6 +39,7 @@ import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import longTermMemoryRoutes from './routes/long-term-memory.js';
 import assistantRoutes from '../assistant/server/routes.js';
+import clientLogsRoutes from './routes/client-logs.js';
 import { resolveUploadPath } from './services/state-values.js';
 import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
 import { requestIdMiddleware } from './middleware/request-id.js';
@@ -167,6 +168,7 @@ export function createApp() {
   app.use('/api', personaStateValuesRoutes);
   app.use('/api/worlds', writingRoutes);
   app.use('/api/assistant', assistantRoutes);
+  app.use('/api/client-logs', clientLogsRoutes);
 
   // 桌面模式：后端同时 serve 前端打包产物，Electron 窗口只需访问单一 URL
   if (process.env.WE_SERVE_STATIC === 'true') {
