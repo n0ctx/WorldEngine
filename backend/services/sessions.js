@@ -3,6 +3,7 @@ import {
   getSessionById as dbGetSessionById,
   getSessionsByCharacterId as dbGetSessionsByCharacterId,
   getLatestChatSessionByWorldId as dbGetLatestChatSessionByWorldId,
+  getLatestSessionByWorldId as dbGetLatestSessionByWorldId,
   updateSessionTitle as dbUpdateSessionTitle,
   touchSession as dbTouchSession,
   deleteSession as dbDeleteSession,
@@ -66,6 +67,10 @@ export function getSessionsByCharacterId(characterId, limit, offset) {
 
 export function getLatestChatSessionByWorldId(worldId) {
   return dbGetLatestChatSessionByWorldId(worldId);
+}
+
+export function getLatestSessionByWorldId(worldId) {
+  return dbGetLatestSessionByWorldId(worldId);
 }
 
 export function updateSessionTitle(id, title) {

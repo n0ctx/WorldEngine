@@ -6,6 +6,8 @@ import Icon from '../ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../api/worlds.js';
 import { getCharacter } from '../../api/characters.js';
+import { getLatestSession } from '../../api/sessions.js';
+import { log } from '../../utils/logger.js';
 import useStore from '../../store/index.js';
 import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
 
@@ -44,6 +46,7 @@ export default function TopBar() {
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
+  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
   const toggleAssistant = useAssistantStore((s) => s.toggle);
   const isAssistantOpen = useAssistantStore((s) => s.isOpen);
 
@@ -218,6 +221,42 @@ export default function TopBar() {
 
       {!isWorldsList && effectiveWorldId && (
         <>
+          <span className="we-topbar-sep">·</span>
+
+          {/* 会话：跳到该世界最近一条会话所在页（chat 或 writing） */}
+          <button
+            className={`we-topbar-item${
+              /^\/characters\/[\w-]+\/chat$/.test(topbarPathname) ||
+              topbarPathname === `/worlds/${effectiveWorldId}/writing`
+                ? ' we-topbar-item--active'
+                : ''
+            }`}
+            onClick={async () => {
+              try {
+                const session = await getLatestSession(effectiveWorldId);
+                if (!session) {
+                  log.info('暂无会话记录');
+                  return;
+                }
+                if (session.mode === 'writing') {
+                  // 用 store 通知 WritingSpacePage 切到目标会话；不能依赖 navigate
+                  // —— 已在 /worlds/:wid/writing 时同 URL navigate 是 no-op，会留在旧 session。
+                  setCurrentWritingSessionId(session.id);
+                  navigate(`/worlds/${effectiveWorldId}/writing`);
+                } else {
+                  setCurrentCharacterId(session.character_id);
+                  setCurrentSessionId(session.id);
+                  navigate(`/characters/${session.character_id}/chat`);
+                }
+              } catch (e) {
+                log.error('加载最近会话失败', e);
+              }
+            }}
+            aria-label="进入最近会话"
+          >
+            会话
+          </button>
+
           <span className="we-topbar-sep">·</span>
 
           {/* 故事 */}

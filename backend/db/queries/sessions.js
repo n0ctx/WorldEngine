@@ -47,6 +47,22 @@ export function getLatestChatSessionByWorldId(worldId) {
 }
 
 /**
+ * 获取某世界最近更新的一条会话（不限 mode，跨 chat/writing）
+ * chat 会话通过 character_id → characters.world_id 关联世界；
+ * writing 会话直接挂 sessions.world_id。
+ */
+export function getLatestSessionByWorldId(worldId) {
+  return db.prepare(`
+    SELECT s.*
+    FROM sessions s
+    LEFT JOIN characters c ON c.id = s.character_id
+    WHERE c.world_id = ? OR s.world_id = ?
+    ORDER BY s.updated_at DESC
+    LIMIT 1
+  `).get(worldId, worldId);
+}
+
+/**
  * 更新会话标题
  */
 export function updateSessionTitle(id, title) {

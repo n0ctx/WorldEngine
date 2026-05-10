@@ -4,6 +4,7 @@ import {
   getSessionById,
   getSessionsByCharacterId,
   getLatestChatSessionByWorldId,
+  getLatestSessionByWorldId,
   updateSessionTitle,
   deleteSession,
   getMessagesBySessionId,
@@ -39,6 +40,13 @@ router.get('/characters/:characterId/sessions', (req, res) => {
 router.get('/worlds/:worldId/latest-chat-session', (req, res) => {
   const session = getLatestChatSessionByWorldId(req.params.worldId);
   if (!assertExists(res, session, '该世界暂无对话会话')) return;
+  res.json(session);
+});
+
+// GET /api/worlds/:worldId/latest-session — 获取某世界最近活跃的会话（不限 mode）
+router.get('/worlds/:worldId/latest-session', (req, res) => {
+  const session = getLatestSessionByWorldId(req.params.worldId);
+  if (!assertExists(res, session, '该世界暂无会话')) return;
   res.json(session);
 });
 

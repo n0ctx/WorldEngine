@@ -21,7 +21,7 @@ import {
   retitleWritingSession,
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
-import { deleteMessage as deleteMessageApi } from '../api/sessions.js';
+import { deleteMessage as deleteMessageApi, getSession } from '../api/sessions.js';
 import BookSpread from '../components/book/BookSpread.jsx';
 import PageRight from '../components/book/PageRight.jsx';
 import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
@@ -45,6 +45,8 @@ export default function WritingSpacePage() {
   const { worldId } = useParams();
   const setAppMode = useAppModeStore((s) => s.setAppMode);
   const currentPersonaId = useStore((s) => s.currentPersonaId);
+  const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
+  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
 
@@ -156,21 +158,47 @@ export default function WritingSpacePage() {
   }, []);
 
   // 初始化：加载或自动创建第一个会话
+  // 若 currentWritingSessionId 给了目标 session（来自 TopBar「会话」入口），优先选它；
+  // 命中失败/无 hint 时落到 sessions[0]（列表已按 updated_at DESC 排序，即最新一条）。
   useEffect(() => {
     if (!worldId) return;
     listWritingSessions(worldId).then((sessions) => {
-      if (sessions.length > 0) {
-        enterSession(sessions[0]);
-      } else {
+      const hintId = useStore.getState().currentWritingSessionId;
+      if (sessions.length === 0) {
         createWritingSession(worldId).then((s) => {
           writingSessionListBridge.addSession?.(s);
           enterSession(s);
         }).catch(() => {});
+        return;
       }
+      const target = (hintId && sessions.find((s) => s.id === hintId)) || sessions[0];
+      enterSession(target);
     }).catch(() => {});
     // enterSession is intentionally kept as the page-level imperative transition used by stream callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldId]);
+
+  // 已在写作页时 TopBar 再次下发「会话」hint：切到目标 session 后清空 hint。
+  // 与 init 效应配合：若 hint 在 mount 时已被 init 消费命中，进入此效应后 ids 相同直接清 hint；
+  // 不一致（用户在另一会话编辑期间，目标 session 的 updated_at 已变成更新一条）则按 id 拉取并切换。
+  useEffect(() => {
+    if (!currentWritingSessionId) return;
+    if (!currentSession) return;
+    if (currentSession.id === currentWritingSessionId) {
+      setCurrentWritingSessionId(null);
+      return;
+    }
+    let cancelled = false;
+    getSession(currentWritingSessionId).then((s) => {
+      if (cancelled) return;
+      if (s && s.mode === 'writing') enterSession(s);
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setCurrentWritingSessionId(null);
+    });
+    return () => { cancelled = true; };
+    // enterSession 是 page 内命令式入口，跟 store setter 一样不需要进 deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWritingSessionId, currentSession]);
 
   function refreshMessages() {
     setMessageListKey((k) => k + 1);

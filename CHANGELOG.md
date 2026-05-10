@@ -3,6 +3,12 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(ui): 顶部栏新增「会话」入口，跨 mode 跳到最近会话
+
+`TopBar.jsx` 在「故事」左侧新增一项「会话」按钮：点击调用新增的 `GET /api/worlds/:worldId/latest-session`，按 `updated_at` 取该世界最近一条会话（chat 或 writing 都看），mode='writing' → `/worlds/:worldId/writing`，mode='chat' → 先把 `currentCharacterId/currentSessionId` 写入 store 再跳 `/characters/:characterId/chat`，与 ChatPage 的 store 驱动会话加载逻辑（`ChatPage.jsx:264`）对齐。无会话时 info 日志、不跳转。Active 高亮在 chat 或 writing 路径下生效。后端：`db/queries/sessions.js` 新增 `getLatestSessionByWorldId`（chat 走 `characters.world_id`，writing 走 `sessions.world_id`，LEFT JOIN + OR）；`services/sessions.js` 转出；`routes/sessions.js` 新增路由。
+
+writing 模式特殊处理：用户已在 `/worlds/:wid/writing` 时，单纯 `navigate(同 URL)` 是 no-op，会停留在旧的 active session（`WritingSpacePage` 把当前 session 存在组件本地 state，只在 worldId effect 首次 list 时挑 sessions[0]）——Codex review 指出。修复：`store/index.js` 新增 `currentWritingSessionId`（命中即消费），TopBar writing 分支 `setCurrentWritingSessionId(session.id)` 后再 navigate；`WritingSpacePage` 在 init 阶段优先按 hint 命中、post-mount 再加一段 effect 监听 hint 变化，按 id `getSession` 后 `enterSession` 并清空 hint。`store/index.js` 是锁定文件，本次因新增字段必要性明确而修改。
+
 ## 2026-05-10 fix(ui): 状态字段「登场角色启用」勾选框换为陶土红主题色
 
 `StateFieldEditor.jsx` 中该 checkbox 沿用浏览器默认蓝色 accent，与书卷风羊皮纸/陶土红主题不符。加上 `accent-[var(--we-color-accent-deep)]` 让填充色与主题强调色一致。仅样式微调。
