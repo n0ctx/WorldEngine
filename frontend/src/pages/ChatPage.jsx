@@ -81,6 +81,8 @@ export default function ChatPage() {
   const memoryExpandingStartRef = useRef(null);
   const memoryWritingStartRef = useRef(null);
   const memoryWritingRunIdRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
   const memoryRecallingTimerRef = useRef(null);
   const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
@@ -386,6 +388,7 @@ export default function ChatPage() {
     if (finalOpts.length > 0) {
       setCurrentOptions(finalOpts);
       requestAnimationFrame(() => {
+        if (!mountedRef.current) return;
         messageListRef.current?.scrollToBottom();
       });
     }
