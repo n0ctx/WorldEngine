@@ -2042,12 +2042,11 @@ body {
   flex-shrink: 0;
 }
 .we-nearby-memory {
-  font-size: var(--we-text-sm);
-  color: var(--we-ink-faded);
-  padding: 4px 8px;
-  border-left: 1px solid var(--we-color-border-default);
-  margin: 8px 0;
-  line-height: 1.5;
+  font-size: var(--we-text-base);
+  color: var(--we-ink);
+  padding: 4px 0 8px;
+  margin: 0;
+  line-height: 1.55;
 }
 .we-nearby-memory-text {
   cursor: pointer;

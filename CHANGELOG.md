@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 ui+prompt: nearby 记忆段视觉与状态字段统一；prompt 重构去冗余 + 修示例 bug
+
+**视觉**：附近面板里"记忆"段之前用独立小字+左侧粗 border 风格（we-nearby-memory: text-sm + ink-faded + border-left），与下方状态字段（StatusSection）的 label+body 双层结构不一致，看起来像引文块、字号偏小、颜色偏淡。改：
+- `NearbyCharacterBlock.jsx`：在记忆文本前加 `<div class="we-state-section-title"><span class="we-section-label">记忆</span><span class="we-section-rule"/></div>`，与下方各字段标题同构（小字间距大写 label + 横线）
+- `index.css/.we-nearby-memory`：font-size 从 `--we-text-sm` 升到 `--we-text-base`（16.5px），color 从 `--we-ink-faded` 改为 `--we-ink`，去掉左侧 border 与多余 padding，line-height 微调；记忆正文与下方字段值的字号、字重、颜色完全一致
+
+**prompt**：上次给 nearby-prompt 加了「关键约束块 + few-shot example」，但发现两个问题：① few-shot 硬编码示例值"专注/柜台后方/正在核对今日账目"塞前 3 个字段，不感知字段 type — 若第 3 字段是 number/enum 会把字符串塞进去，反而误导 LLM；② 任务说明 1-5 项与约束块多处重复（"新登场必填""稀疏 patch""字段 type 约束"各讲两遍）；③ 结构散乱（池→字段→约束→示例→任务列表，读者要回看）。重写：
+- 用 `## 标题` 划分四段：附近角色池 / 启用字段 / 输出 / 新登场规则 / 稀疏 patch 规则 / 示例
+- 示例改为不绑定具体值的占位符示例（`{a: <a的合规值>, b: ..., c: ...}`），只示范 key 集合而非误导值
+- 砍重复：原"任务"列表 1-5 合并入"输出"段
+- 字符数 1550 → 1219（-21%），行数 36 → 30，结构清晰且语义不丢
+
+**验证**：`combined-state-updater-nearby.test.js` 6/6 pass；`frontend npm run lint && npm run test` 139/139 pass。
+
 ## 2026-05-10 fix(prompt): nearby fieldsDesc 补齐 enum/number/list/datetime/table/boolean 完整约束
 
 **背景**：3e6197f 强化新登场必填后，仍发现枚举类字段普遍空缺。根因：`backend/prompts/nearby-prompt.js` 的 `fieldsDesc` 只输出 `key（label，类型：xxx）+ description`，**没有把 enum 的可选值、number 的 range/unit、list/datetime/table/boolean 的格式说明**告诉 LLM。LLM 不知道枚举值集合 → 要么乱写 → apply 层 `validateValue` 判定非法 → 字段被丢弃 → 看起来"空了"。

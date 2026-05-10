@@ -158,6 +158,10 @@ export default function NearbyCharacterBlock({
       >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
           {/* 记忆段 */}
+          <div className="we-state-section-title">
+            <span className="we-section-label">记忆</span>
+            <span className="we-section-rule" />
+          </div>
           <div className="we-nearby-memory">
             {editingMemory ? (
               <div className="we-nearby-memory-edit">
