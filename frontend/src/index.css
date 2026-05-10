@@ -2038,7 +2038,7 @@ body {
   font-weight: 700;
   text-shadow: 0 0 0.4px var(--we-vermilion), 0 0 0.4px var(--we-vermilion);
 }
-.we-nearby-memory {
+.we-nearby-persona {
   font-family: var(--we-font-serif);
   font-size: 12.5px;
   color: var(--we-ink-secondary);
@@ -2048,22 +2048,22 @@ body {
   word-break: break-word;
   overflow-wrap: anywhere;
 }
-.we-nearby-memory-text {
+.we-nearby-persona-text {
   cursor: pointer;
   display: block;
   white-space: pre-wrap;
 }
-.we-nearby-memory-edit {
+.we-nearby-persona-edit {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-.we-nearby-memory-edit textarea {
+.we-nearby-persona-edit textarea {
   width: 100%;
   font-size: var(--we-text-sm);
   resize: vertical;
 }
-.we-nearby-memory-actions {
+.we-nearby-persona-actions {
   display: flex;
   gap: 8px;
   justify-content: flex-end;

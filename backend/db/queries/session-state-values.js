@@ -47,10 +47,15 @@ export function getSessionWorldStateValues(sessionId, worldId) {
  * 按该世界的激活 persona 过滤 persona_state_values，避免多 persona 数据泄漏。
  */
 export function getSessionPersonaStateValues(sessionId, worldId) {
-  const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
-  const personaId = worldRow?.active_persona_id
-    ?? db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id
-    ?? null;
+  // writing session 自带 persona_id；chat session / 无 persona_id 时回退世界级 active
+  const sessionRow = db.prepare('SELECT persona_id FROM sessions WHERE id = ?').get(sessionId);
+  let personaId = sessionRow?.persona_id ?? null;
+  if (!personaId) {
+    const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+    personaId = worldRow?.active_persona_id
+      ?? db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id
+      ?? null;
+  }
 
   return db.prepare(`
     SELECT

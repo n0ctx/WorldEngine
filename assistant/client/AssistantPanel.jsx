@@ -202,9 +202,16 @@ export default function AssistantPanel() {
   }, [taskId]);
 
   const handleStop = useCallback(() => {
+    // 先 abort 本地 SSE：阻止后续 delta 涌入；
+    // 因 abort 后 SSE 不再回传 task_cancelled，需本地注入终态事件，
+    // 否则 status 会卡在 planning/executing → pendingAssistant 仍为 true → 输入气泡的省略号不消失
     abortRef.current?.abort?.();
     setIsStreaming(false);
-  }, []);
+    if (taskId) {
+      cancelTask(taskId).catch(() => {});
+    }
+    ingestEvent({ type: 'task_cancelled', taskId });
+  }, [taskId, ingestEvent]);
 
   const handleReset = useCallback(() => {
     abortRef.current?.abort?.();
@@ -212,12 +219,14 @@ export default function AssistantPanel() {
   }, [reset]);
 
   const inputDisabled = TERMINAL_STATUSES.has(status);
-  const ACTIVE_STATUSES = new Set(['planning', 'executing', 'paused']);
-  const isActiveTask = ACTIVE_STATUSES.has(status);
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
-  const pendingAssistant = isActiveTask && !hasRunningItem;
+  // 省略号气泡仅在「SSE 正在跑且尚无任何 streaming/running 项」时出现：
+  // 不要用 status 当判据——一轮 delta 结束后 done:true 会清掉 streaming 标志,
+  // 而 status 仍可能停在 planning/executing/paused（等下一轮用户输入或审批），
+  // 此时若按 status 判断会让省略号气泡"复活",视觉上像是死循环。
+  const pendingAssistant = isStreaming && !hasRunningItem;
 
   // 左边沿拖拽改宽：监听器绑在 document 上，确保 pointer 移出把手后仍能响应
   const startResize = useCallback(

@@ -592,7 +592,6 @@
 }
 
 .we-persona-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--we-shadow-paper-stack-hover);
 }
 

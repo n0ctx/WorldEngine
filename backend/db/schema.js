@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
   id                TEXT PRIMARY KEY,
@@ -86,7 +88,7 @@ CREATE TABLE IF NOT EXISTS session_nearby_characters (
   id          TEXT PRIMARY KEY,
   session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
-  memory      TEXT NOT NULL DEFAULT '',
+  persona     TEXT NOT NULL DEFAULT '',
   is_saved    INTEGER NOT NULL DEFAULT 0,
   created_at  INTEGER NOT NULL,
   updated_at  INTEGER NOT NULL,
@@ -472,7 +474,83 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE character_state_fields ADD COLUMN nearby_enabled INTEGER NOT NULL DEFAULT 1`); } catch {}
   // 附近角色：两张新表的检索索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_characters_session_id ON session_nearby_characters(session_id)`); } catch {}
+  // 附近角色：memory 列改名为 persona（语义从"与玩家一句话交互总结"改为"一句话人物设定"）
+  try {
+    const cols = db.prepare(`PRAGMA table_info(session_nearby_characters)`).all();
+    const hasMemory = cols.some((c) => c.name === 'memory');
+    const hasPersona = cols.some((c) => c.name === 'persona');
+    if (hasMemory && !hasPersona) {
+      db.exec(`ALTER TABLE session_nearby_characters RENAME COLUMN memory TO persona`);
+    }
+  } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_session_nearby_character_state_values_nearby_id ON session_nearby_character_state_values(nearby_id, field_key)`); } catch {}
+  // 写作会话与玩家卡绑定：sessions.persona_id（仅 writing 使用，chat 维持 NULL）
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN persona_id TEXT REFERENCES personas(id) ON DELETE CASCADE`); } catch {}
+  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_persona ON sessions(world_id, persona_id, mode, updated_at)`); } catch {}
+  migrateBackfillWritingSessionPersonaId(db);
+}
+
+/**
+ * 一次性迁移：为现存 mode='writing' 且 persona_id IS NULL 的 session
+ * 回填其世界的 active_persona_id；active 为 NULL 时回退到该世界最早创建的 persona。
+ * 没有任何 persona 的世界保持 NULL（后续会被自然清理或拒绝写入）。
+ */
+function migrateBackfillWritingSessionPersonaId(db) {
+  const key = 'migration:writing_session_persona_id_backfill';
+  if (db.prepare('SELECT value FROM internal_meta WHERE key = ?').get(key)?.value === '1') return;
+
+  const now = Date.now();
+  db.exec('BEGIN');
+  try {
+    // 第一步：能从 worlds.active_persona_id 或最早 persona 解析出 persona 的，直接回填
+    db.prepare(`
+      UPDATE sessions
+      SET persona_id = (
+        SELECT COALESCE(
+          w.active_persona_id,
+          (SELECT p.id FROM personas p WHERE p.world_id = sessions.world_id ORDER BY p.created_at ASC, p.id ASC LIMIT 1)
+        )
+        FROM worlds w WHERE w.id = sessions.world_id
+      )
+      WHERE mode = 'writing' AND persona_id IS NULL AND world_id IS NOT NULL
+    `).run();
+
+    // 第二步：仍为 NULL 的写作 session = 该世界没任何 persona。
+    // 为这些孤儿 session 各自所在的世界建一张兜底 persona，然后把孤儿挂上去；
+    // 否则它们会在 list 接口（按 active persona 过滤）下从 UI 中消失，等同数据丢失。
+    const orphanWorlds = db.prepare(`
+      SELECT DISTINCT world_id FROM sessions
+      WHERE mode = 'writing' AND persona_id IS NULL AND world_id IS NOT NULL
+    `).all();
+    if (orphanWorlds.length > 0) {
+      const insertPersona = db.prepare(`
+        INSERT INTO personas (id, world_id, name, description, system_prompt, sort_order, created_at, updated_at)
+        VALUES (?, ?, '玩家', '', '', 0, ?, ?)
+      `);
+      const updateWorldActive = db.prepare(`
+        UPDATE worlds SET active_persona_id = ? WHERE id = ? AND active_persona_id IS NULL
+      `);
+      const reassignSessions = db.prepare(`
+        UPDATE sessions SET persona_id = ?
+        WHERE mode = 'writing' AND persona_id IS NULL AND world_id = ?
+      `);
+      for (const row of orphanWorlds) {
+        const personaId = randomUUID();
+        insertPersona.run(personaId, row.world_id, now, now);
+        updateWorldActive.run(personaId, row.world_id);
+        reassignSessions.run(personaId, row.world_id);
+      }
+    }
+
+    db.prepare(`
+      INSERT INTO internal_meta (key, value, updated_at) VALUES (?, '1', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    `).run(key, now);
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
 }
 
 /**

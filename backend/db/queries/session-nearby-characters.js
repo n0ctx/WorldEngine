@@ -3,16 +3,16 @@ import db from '../index.js';
 
 /**
  * 创建临时角色（nearby character）
- * @param {{ sessionId: string, name: string, memory?: string, isSaved?: 0|1|boolean }} data
+ * @param {{ sessionId: string, name: string, persona?: string, isSaved?: 0|1|boolean }} data
  * @returns {string} 新行 id
  */
-export function createNearbyCharacter({ sessionId, name, memory = '', isSaved = 0 }) {
+export function createNearbyCharacter({ sessionId, name, persona = '', isSaved = 0 }) {
   const id = crypto.randomUUID();
   const now = Date.now();
   db.prepare(`
-    INSERT INTO session_nearby_characters (id, session_id, name, memory, is_saved, created_at, updated_at)
+    INSERT INTO session_nearby_characters (id, session_id, name, persona, is_saved, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, sessionId, name, memory, isSaved ? 1 : 0, now, now);
+  `).run(id, sessionId, name, persona, isSaved ? 1 : 0, now, now);
   return id;
 }
 
@@ -42,10 +42,10 @@ export function updateNearbyName(id, name) {
   ).run(name, Date.now(), id);
 }
 
-export function updateNearbyMemory(id, memory) {
+export function updateNearbyPersona(id, persona) {
   db.prepare(
-    `UPDATE session_nearby_characters SET memory = ?, updated_at = ? WHERE id = ?`,
-  ).run(memory, Date.now(), id);
+    `UPDATE session_nearby_characters SET persona = ?, updated_at = ? WHERE id = ?`,
+  ).run(persona, Date.now(), id);
 }
 
 export function updateNearbyIsSaved(id, isSaved) {

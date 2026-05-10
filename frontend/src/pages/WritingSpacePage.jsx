@@ -44,7 +44,6 @@ function parseContinuationText(text) {
 export default function WritingSpacePage() {
   const { worldId } = useParams();
   const setAppMode = useAppModeStore((s) => s.setAppMode);
-  const currentPersonaId = useStore((s) => s.currentPersonaId);
   const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
@@ -142,14 +141,20 @@ export default function WritingSpacePage() {
     if (!worldId) return;
     const timeoutId = setTimeout(() => {
       clearOptionsState();
-      const loadPersona = currentPersonaId
-        ? getPersonaById(currentPersonaId).catch(() => getPersona(worldId))
-        : getPersona(worldId);
-      loadPersona.then(setPersona).catch(() => {});
+      // writing session 自带 persona_id；session 加载完成后再由专门 effect 同步 persona 头像
+      // 此处先按世界 active persona 兜底渲染，避免顶栏闪空
+      getPersona(worldId).then(setPersona).catch(() => {});
       syncDiaryTimeField(worldId).catch(() => {});
     }, 0);
     return () => clearTimeout(timeoutId);
-  }, [worldId, currentPersonaId]);
+  }, [worldId]);
+
+  // session 切换时，按 session.persona_id 重新加载 persona 头像/名字
+  useEffect(() => {
+    const personaId = currentSession?.persona_id;
+    if (!personaId) return;
+    getPersonaById(personaId).then(setPersona).catch(() => {});
+  }, [currentSession?.persona_id]);
 
   useEffect(() => {
     return () => {

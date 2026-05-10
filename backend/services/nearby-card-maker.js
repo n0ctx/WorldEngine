@@ -2,15 +2,17 @@
  * nearby-card-maker.js — 把会话内的 nearby 角色"制成"公共角色卡。
  *
  * 两步：
- *   1) analyzeNearbyForCard：调 LLM 总结 nearby 在最近 6 轮里的形象，输出
- *      { name, system_prompt, description, first_message } 草稿（name 透传）。
+ *   1) analyzeNearbyForCard：调 LLM 把 nearby.persona（一句话人设）扩写为完整
+ *      system_prompt，并生成 first_message；description 直接复用 nearby.persona。
+ *      返回 { name, system_prompt, description, first_message } 草稿（name 透传）。
  *   2) createCharacterFromNearby：写入 characters 表 + 把 nearby_enabled=1 的
  *      字段当前值写入 character_state_values.default_value_json（不写 runtime、
- *      不带 memory、不带 nearby id）。
+ *      不带 persona、不带 nearby id）。
  */
 
 import * as llm from '../llm/index.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { buildNearbyCardAnalyzePrompt } from '../prompts/nearby-card-prompt.js';
 import { getNearbyById } from '../db/queries/session-nearby-characters.js';
 import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
@@ -98,40 +100,13 @@ export async function analyzeNearbyForCard(sessionId, nearbyId) {
   const stateValues = getStateValuesByNearbyId(nearbyId);
   const recentMsgs = pickRecentMessages(sessionId, RECENT_TEXT_ROUNDS);
 
-  const stateLines = stateValues
-    .filter((v) => v.runtime_value_json != null)
-    .map((v) => `- ${v.field_key}: ${v.runtime_value_json}`)
-    .join('\n');
-
-  const recentText = recentMsgs
-    .map((m) => `[${m.role}] ${m.content ?? ''}`)
-    .join('\n\n');
-
-  const prompt = [
-    {
-      role: 'user',
-      content: [
-        '你是一名角色卡撰写助手。请根据以下信息，为名为「' + nearby.name + '」的登场角色撰写一张角色卡草稿。',
-        '',
-        '## 该角色的状态字段（来自会话 nearby 状态）',
-        stateLines || '（无）',
-        '',
-        '## 角色的隐藏笔记（仅供你参考，不要直接抄入卡片）',
-        nearby.memory || '（无）',
-        '',
-        `## 最近 ${RECENT_TEXT_ROUNDS} 轮原文（按时间顺序）`,
-        recentText || '（无）',
-        '',
-        '## 输出要求',
-        '只输出 JSON，结构如下，不要包含 markdown 代码块以外的解释：',
-        '{',
-        '  "system_prompt": "用于驱动该角色的系统提示词，第二人称写法，简体中文，2-6 段",',
-        '  "description": "对该角色的客观介绍，1-3 段，简体中文",',
-        '  "first_message": "该角色的开场白/初次出场台词，简体中文，可包含动作描写"',
-        '}',
-      ].join('\n'),
-    },
-  ];
+  const prompt = buildNearbyCardAnalyzePrompt({
+    name: nearby.name,
+    persona: nearby.persona,
+    stateValues,
+    recentMessages: recentMsgs,
+    recentRounds: RECENT_TEXT_ROUNDS,
+  });
 
   const raw = await llm.complete(prompt, {
     temperature: ANALYZE_TEMPERATURE,
@@ -150,7 +125,8 @@ export async function analyzeNearbyForCard(sessionId, nearbyId) {
   return {
     name: nearby.name,
     system_prompt: typeof parsed.system_prompt === 'string' ? parsed.system_prompt : '',
-    description: typeof parsed.description === 'string' ? parsed.description : '',
+    // description 直接采用 nearby 的一句话人设；LLM 不再生成 description 字段
+    description: typeof nearby.persona === 'string' ? nearby.persona : '',
     first_message: typeof parsed.first_message === 'string' ? parsed.first_message : '',
   };
 }

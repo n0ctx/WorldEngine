@@ -6,13 +6,12 @@ import {
   reorderCharacters,
 } from '../api/characters';
 import useStore from '../store/index';
-import { importCharacter, readJsonFile } from '../api/import-export';
+import { importCharacter, importPersona, readJsonFile } from '../api/import-export';
 import { listCharacterStateFields } from '../api/character-state-fields';
 import {
   listPersonas,
   activatePersona,
   deletePersona,
-  createPersona,
   reorderPersonas,
 } from '../api/personas';
 import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
@@ -140,13 +139,17 @@ function useDragAwareClick(onClick) {
 
 function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, onCardClick }) {
   const isActive = !!persona.is_active;
-  const clickProps = useDragAwareClick(onCardClick);
+  // 写作 session 与玩家卡强绑定：只有激活的玩家卡可点击进入写作页
+  const clickProps = useDragAwareClick(isActive ? onCardClick : undefined);
 
   return (
     <div
-      className={`we-persona-card${isActive ? ' we-persona-card--active' : ''}`}
-      onMouseDown={clickProps.onMouseDown}
-      onClick={clickProps.onClick}
+      className={`we-persona-card${isActive ? ' we-persona-card--active' : ' we-persona-card--inactive'}`}
+      onMouseDown={isActive ? clickProps.onMouseDown : undefined}
+      onClick={isActive ? clickProps.onClick : undefined}
+      aria-disabled={isActive ? undefined : true}
+      title={isActive ? undefined : '先激活该玩家卡再进入写作'}
+      style={isActive ? undefined : { cursor: 'not-allowed' }}
     >
       <div className="we-character-card-body">
         {dragHandleProps && <span className="we-char-drag" {...dragHandleProps}>⠿</span>}
@@ -280,7 +283,7 @@ export default function CharactersPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
-  const setCurrentPersonaId = useStore((s) => s.setCurrentPersonaId);
+  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
   const [characters, setCharacters] = useState([]);
   const [personas, setPersonas] = useState([]);
@@ -361,6 +364,8 @@ export default function CharactersPage() {
     try {
       const ps = await activatePersona(worldId, personaId);
       setPersonas(ps);
+      // 激活切换后写作 session hint 可能指向旧 persona 的 session，清掉避免误命中
+      setCurrentWritingSessionId(null);
     } catch (err) {
       log.error('character.activate_failed', err, { toast: `激活失败：${err.message}` });
     }
@@ -401,10 +406,7 @@ export default function CharactersPage() {
     setImportingPersona(true);
     try {
       const data = await readJsonFile(file);
-      await createPersona(worldId, {
-        name: data.character?.name ?? data.name ?? data.data?.name ?? '',
-        system_prompt: data.character?.system_prompt ?? data.system_prompt ?? data.data?.system_prompt ?? '',
-      });
+      await importPersona(worldId, data);
       const ps = await listPersonas(worldId);
       setPersonas(ps);
     } catch (err) {
@@ -472,7 +474,7 @@ export default function CharactersPage() {
               <input
                 ref={personaImportRef}
                 type="file"
-                accept=".json,.wechar.json"
+                accept=".json,.wepersona.json,.wechar.json"
                 className="hidden"
                 onChange={handleImportPersonaFile}
               />
@@ -505,7 +507,8 @@ export default function CharactersPage() {
                     persona={{ ...p, _isLast: personas.length === 1 }}
                     dragHandleProps={dragHandleProps}
                     onCardClick={() => {
-                      setCurrentPersonaId(p.id);
+                      // 切换 persona 时清掉旧 writing session hint，避免误命中其他 persona 的 session
+                      setCurrentWritingSessionId(null);
                       navigate(`/worlds/${worldId}/writing`);
                     }}
                     onActivate={() => handleActivatePersona(p.id)}

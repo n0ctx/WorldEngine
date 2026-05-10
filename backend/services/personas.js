@@ -11,6 +11,8 @@ import {
 } from '../db/queries/personas.js';
 import { unlinkUploadFile } from '../utils/file-cleanup.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import db from '../db/index.js';
+import { deleteWritingSession } from './writing-sessions.js';
 
 const log = createLogger('svc', 'green');
 
@@ -57,16 +59,35 @@ export async function updatePersona(worldId, patch) {
   return updatePersonaByIdService(persona.id, patch);
 }
 
-/** 删除 persona（不能删最后一张） */
+/**
+ * 删除 persona（不能删最后一张）。
+ *
+ * 写作 session 与 persona 强绑定：删 persona 前先逐条 deleteWritingSession，
+ * 让 cleanup-hooks（长期记忆/日记目录/附件等磁盘资源）正常触发。
+ * 之后 DB 层 ON DELETE CASCADE 不会再有 session 行需要级联。
+ */
 export async function deletePersonaService(id) {
   const persona = getPersonaById(id);
   if (!persona) throw new Error('玩家卡不存在');
   const oldAvatarPath = persona.avatar_path;
+
+  // "至少保留一张"检查必须在删 session 之前执行，否则一旦失败 session 已被永久清空。
+  // 复用 deletePersonaById 的同一条件，保持单一来源。
+  const count = db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(persona.world_id);
+  if (count.c <= 1) throw new Error('至少需要保留一张玩家卡');
+
+  const sessionRows = db.prepare(
+    "SELECT id FROM sessions WHERE persona_id = ? AND mode = 'writing'"
+  ).all(id);
+  for (const row of sessionRows) {
+    await deleteWritingSession(row.id);
+  }
+
   deletePersonaById(id);
   if (oldAvatarPath) {
     await unlinkUploadFile(oldAvatarPath).catch(() => {});
   }
-  log.info(`persona.delete  ${formatMeta({ personaId: id, worldId: persona.world_id, name: persona.name })}`);
+  log.info(`persona.delete  ${formatMeta({ personaId: id, worldId: persona.world_id, name: persona.name, writingSessions: sessionRows.length })}`);
 }
 
 /** 设置激活 persona */

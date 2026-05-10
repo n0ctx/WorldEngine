@@ -113,7 +113,7 @@ export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snaps
     const newId = createNearbyCharacter({
       sessionId,
       name: n.name,
-      memory: n.memory ?? '',
+      persona: n.persona ?? n.memory ?? '',
       isSaved: n.is_saved ? 1 : 0,
     });
     const state = n.state ?? {};

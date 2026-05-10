@@ -99,7 +99,7 @@ test('restoreStateFromSnapshot 会清空旧值并仅恢复快照中存在的字�
   }]);
 });
 
-test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/memory/is_saved/state）', async () => {
+test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/persona/is_saved/state）', async () => {
   const world = insertWorld(sandbox.db, { name: '回滚世界-nearby' });
   const character = insertCharacter(sandbox.db, world.id, { name: '己' });
   const session = insertSession(sandbox.db, { character_id: character.id });
@@ -108,7 +108,7 @@ test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/memory/is_saved
   const { upsertNearbyStateValue, getStateValuesByNearbyId } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
 
   // 预置一个旧 nearby（应被清空）
-  const oldId = createNearbyCharacter({ sessionId: session.id, name: '旧人', memory: '旧记忆', isSaved: 0 });
+  const oldId = createNearbyCharacter({ sessionId: session.id, name: '旧人', persona: '旧人设', isSaved: 0 });
   upsertNearbyStateValue({ sessionId: session.id, nearbyId: oldId, fieldKey: 'mood', valueJson: '"焦虑"' });
 
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');
@@ -120,14 +120,14 @@ test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/memory/is_saved
       {
         id: 'snapshot-id-ignored',
         name: '路人甲',
-        memory: '在街角遇到',
+        persona: '街角小贩',
         is_saved: 0,
         state: { hp: '50', mood: '"警惕"' },
       },
       {
         id: 'snapshot-id-ignored-2',
         name: '路人乙',
-        memory: '',
+        persona: '',
         is_saved: 1,
         state: {},
       },
@@ -140,7 +140,7 @@ test('restoreStateFromSnapshot 还原 snapshot.nearby 层（name/memory/is_saved
   // listNearby 排序：is_saved DESC, created_at ASC → 先 路人乙(is_saved=1)，再 路人甲
   const byName = Object.fromEntries(rows.map((r) => [r.name, r]));
   assert.ok(byName['路人甲'] && byName['路人乙']);
-  assert.equal(byName['路人甲'].memory, '在街角遇到');
+  assert.equal(byName['路人甲'].persona, '街角小贩');
   assert.equal(byName['路人甲'].is_saved, 0);
   assert.equal(byName['路人乙'].is_saved, 1);
   // 旧 id 不复用
@@ -169,7 +169,7 @@ test('restoreStateFromSnapshot 在 snapshot 缺 nearby 字段时清空 nearby（
   const { createNearbyCharacter, listNearbyBySessionId } = await freshImport('backend/db/queries/session-nearby-characters.js');
   const { upsertNearbyStateValue } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
 
-  const nid = createNearbyCharacter({ sessionId: session.id, name: '残留', memory: '', isSaved: 0 });
+  const nid = createNearbyCharacter({ sessionId: session.id, name: '残留', persona: '', isSaved: 0 });
   upsertNearbyStateValue({ sessionId: session.id, nearbyId: nid, fieldKey: 'hp', valueJson: '1' });
 
   const { restoreStateFromSnapshot } = await freshImport('backend/memory/state-rollback.js');

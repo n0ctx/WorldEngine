@@ -25,7 +25,7 @@ test('createNearbyCharacter + getNearbyById：默认值与字段一致', async (
   assert.equal(row.id, id);
   assert.equal(row.session_id, sessionId);
   assert.equal(row.name, '张三');
-  assert.equal(row.memory, '');
+  assert.equal(row.persona, '');
   assert.equal(row.is_saved, 0);
   assert.ok(typeof row.created_at === 'number');
   assert.ok(typeof row.updated_at === 'number');
@@ -68,19 +68,19 @@ test('getNearbyByName 命中与未命中', async () => {
   assert.equal(getNearbyByName(sessionId, '王五'), null);
 });
 
-test('updateNearbyName / updateNearbyMemory 同步刷新 updated_at', async () => {
+test('updateNearbyName / updateNearbyPersona 同步刷新 updated_at', async () => {
   const sessionId = makeSession('update');
-  const { createNearbyCharacter, getNearbyById, updateNearbyName, updateNearbyMemory } =
+  const { createNearbyCharacter, getNearbyById, updateNearbyName, updateNearbyPersona } =
     await freshImport('backend/db/queries/session-nearby-characters.js');
 
   const id = createNearbyCharacter({ sessionId, name: 'A' });
   const before = getNearbyById(id).updated_at;
   await new Promise((r) => setTimeout(r, 2));
   updateNearbyName(id, 'A2');
-  updateNearbyMemory(id, '记忆 X');
+  updateNearbyPersona(id, '冷静的剑客');
   const after = getNearbyById(id);
   assert.equal(after.name, 'A2');
-  assert.equal(after.memory, '记忆 X');
+  assert.equal(after.persona, '冷静的剑客');
   assert.ok(after.updated_at >= before);
 });
 

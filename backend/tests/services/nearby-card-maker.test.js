@@ -43,7 +43,7 @@ test('analyzeNearbyForCard：返回 LLM 草稿（name 透传 + LLM 三字段）'
   });
   setNearbyEnabled(sandbox.db, moodField.id, 1);
 
-  const character = insertCharacter(sandbox.db, worldId, { name: '阿绪' });
+  const character = insertCharacter(sandbox.db, worldId, { name: '阿绪', description: '一个内敛的青年。' });
 
   const { addSavedFromCharacter, patchNearbyState } =
     await freshImport('backend/services/writing-sessions.js');
@@ -54,10 +54,9 @@ test('analyzeNearbyForCard：返回 LLM 草稿（name 透传 + LLM 三字段）'
   insertMessage(sandbox.db, sessionId, { role: 'user', content: '你好啊' });
   insertMessage(sandbox.db, sessionId, { role: 'assistant', content: '你好。' });
 
-  // mock LLM 返回固定 JSON
+  // mock LLM 返回固定 JSON（不再包含 description；description 由 nearby.persona 决定）
   process.env.MOCK_LLM_COMPLETE = JSON.stringify({
-    system_prompt: '你扮演阿绪，性格沉静。',
-    description: '一个内敛的青年。',
+    system_prompt: '阿绪性格沉静，言语克制，习惯先观察再开口。',
     first_message: '（轻轻点头）你好。',
   });
 
@@ -66,7 +65,8 @@ test('analyzeNearbyForCard：返回 LLM 草稿（name 透传 + LLM 三字段）'
   const draft = await analyzeNearbyForCard(sessionId, nearbyId);
 
   assert.equal(draft.name, '阿绪');
-  assert.equal(draft.system_prompt, '你扮演阿绪，性格沉静。');
+  assert.equal(draft.system_prompt, '阿绪性格沉静，言语克制，习惯先观察再开口。');
+  // description 直接来自 nearby.persona（addSavedFromCharacter 时从 character.description 拷贝）
   assert.equal(draft.description, '一个内敛的青年。');
   assert.equal(draft.first_message, '（轻轻点头）你好。');
 });
@@ -88,7 +88,7 @@ test('analyzeNearbyForCard：LLM 返回非法 JSON 抛错', async () => {
   );
 });
 
-test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 default_value_json；不写 runtime；不带 memory；不带 nearby id', async () => {
+test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 default_value_json；不写 runtime；不带 persona；不带 nearby id', async () => {
   const { worldId, sessionId } = makeWorldAndWritingSession('create');
   const moodField = insertCharacterStateField(sandbox.db, worldId, {
     field_key: 'mood', label: '心情', type: 'text',
@@ -100,7 +100,7 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
   setNearbyEnabled(sandbox.db, hpField.id, 0);
 
   const seedCharacter = insertCharacter(sandbox.db, worldId, { name: '种子' });
-  const { addSavedFromCharacter, patchNearbyState, patchNearbyMemory } =
+  const { addSavedFromCharacter, patchNearbyState, patchNearbyPersona } =
     await freshImport('backend/services/writing-sessions.js');
   const nearbyId = addSavedFromCharacter(sessionId, seedCharacter.id);
 
@@ -112,7 +112,7 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
      (id, session_id, nearby_id, field_key, runtime_value_json, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(crypto.randomUUID(), sessionId, nearbyId, 'hp', JSON.stringify(33), Date.now());
-  patchNearbyMemory(sessionId, nearbyId, '私下笔记不应进卡');
+  patchNearbyPersona(sessionId, nearbyId, '私下人设占位');
 
   const { createCharacterFromNearby } =
     await freshImport('backend/services/nearby-card-maker.js');
@@ -146,10 +146,10 @@ test('createCharacterFromNearby：落库；仅 nearby_enabled=1 字段写 defaul
   assert.equal(values[0].default_value_json, JSON.stringify('愤怒'));
   assert.equal(values[0].runtime_value_json, null);
 
-  // memory 不应写到 character row 任何字段；characters 表无 memory 列就行
+  // persona 不应写到 character row 任何字段（createCharacterFromNearby 用调用方传入的入参）
   // 描述/系统提示词都应是入参原值
-  assert.ok(!row.description.includes('私下笔记'));
-  assert.ok(!row.system_prompt.includes('私下笔记'));
+  assert.ok(!row.description.includes('私下人设占位'));
+  assert.ok(!row.system_prompt.includes('私下人设占位'));
 });
 
 test('createCharacterFromNearby：name 缺失 / nearby 不属于 session / session 不属于 world 抛错', async () => {
@@ -185,4 +185,3 @@ test('createCharacterFromNearby：name 缺失 / nearby 不属于 session / sessi
     (err) => err.code === 'SESSION_WORLD_MISMATCH',
   );
 });
-

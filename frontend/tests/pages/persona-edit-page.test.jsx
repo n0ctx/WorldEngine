@@ -101,7 +101,7 @@ describe('PersonaEditPage', () => {
     await waitFor(() => expect(mocks.updatePersonaStateValueByPersonaId).toHaveBeenCalledWith('world-1', 'persona-1', 'mood', '"玩家值"'));
 
     fireEvent.click(screen.getByText('导出玩家卡'));
-    await waitFor(() => expect(mocks.downloadPersonaCard).toHaveBeenCalledWith('world-1', '行者.wechar.json'));
+    await waitFor(() => expect(mocks.downloadPersonaCard).toHaveBeenCalledWith('persona-1', '行者.wepersona.json'));
 
     fireEvent.click(screen.getByText('保存'));
     await waitFor(() => expect(mocks.updatePersonaById).toHaveBeenCalledWith('persona-1', {

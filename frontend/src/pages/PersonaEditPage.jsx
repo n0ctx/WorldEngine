@@ -168,8 +168,9 @@ export default function PersonaEditPage() {
   }
 
   async function handleExport() {
+    if (!resolvedPersonaId) return;
     try {
-      await downloadPersonaCard(worldId, `${name || '玩家'}.wechar.json`);
+      await downloadPersonaCard(resolvedPersonaId, `${name || '玩家'}.wepersona.json`);
     } catch (err) {
       log.error('persona.export_failed', err, { toast: `导出失败：${err.message}` });
     }

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportGlobalSettings, importGlobalSettings } from '../services/import-export.js';
+import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportPersonaById, importPersona, exportGlobalSettings, importGlobalSettings } from '../services/import-export.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
@@ -39,13 +39,47 @@ router.post('/worlds/:worldId/import-character', (req, res) => {
   }
 });
 
-// GET /api/worlds/:worldId/persona/export — 导出玩家为角色卡
+// POST /api/worlds/:worldId/import-persona — 导入玩家卡到指定世界
+router.post('/worlds/:worldId/import-persona', (req, res) => {
+  try {
+    const persona = importPersona(req.params.worldId, req.body);
+    res.status(201).json(persona);
+  } catch (err) {
+    if (err.message === '世界不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
+    if (err.message.includes('玩家卡') || err.message.includes('角色卡') || err.message.includes('persona') || err.message.includes('character_state_values') || err.message.includes('persona_state_values')) {
+      log.warn(`import.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(400).json({ error: err.message });
+    }
+    log.error(`IMPORT PERSONA FAIL  ${formatMeta({ worldId: req.params.worldId, error: err.message })}`);
+    res.status(500).json({ error: '导入失败' });
+  }
+});
+
+// GET /api/personas/:id/export — 按 personaId 精确导出玩家卡
+router.get('/personas/:id/export', (req, res) => {
+  try {
+    const data = exportPersonaById(req.params.id);
+    res.json(data);
+  } catch (err) {
+    if (err.message === '玩家不存在') {
+      log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(404).json({ error: err.message });
+    }
+    log.error(`EXPORT PERSONA FAIL  ${formatMeta({ personaId: req.params.id, error: err.message })}`);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
+// GET /api/worlds/:worldId/persona/export — 导出当前激活玩家卡
 router.get('/worlds/:worldId/persona/export', (req, res) => {
   try {
     const data = exportPersona(req.params.worldId);
     res.json(data);
   } catch (err) {
-    if (err.message === '玩家不存在') {
+    if (err.message === '玩家不存在' || err.message === '世界不存在') {
       log.warn(`import.not_found ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
       return res.status(404).json({ error: err.message });
     }

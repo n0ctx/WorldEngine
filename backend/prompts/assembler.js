@@ -43,6 +43,7 @@ import {
   renderPersonaState,
   renderWorldState,
   renderCharacterState,
+  renderNearbyCharacters,
   searchRecalledSummaries,
   renderRecalledSummaries,
 } from '../memory/recall.js';
@@ -347,12 +348,13 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 /**
- * 写作版本：写作模式没有固定角色身份，[4] 角色 System Prompt / [7] 角色状态段
- * 在写作 prompt 中不再注入；角色出场由叙事文本自行驱动，附近角色池（nearby）
- * 通过副 LLM 维护状态。
+ * 写作版本：写作模式没有固定角色身份，[4] 角色 System Prompt 不注入；
+ * 角色出场由叙事文本自行驱动，[7] 角色状态段由"附近角色池（nearby）"替代，
+ * nearby 由副 LLM 维护状态，主写作模型据此沿用既定名字与状态。
  *
  * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
- * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [8] 世界条目 / [8.5] 长期记忆
+ * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [7] 附近角色（nearby_characters）
+ *                / [8] 世界条目 / [8.5] 长期记忆
  *                / [9] 召回摘要 / [10] 记忆展开 / [11] 日记
  * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
  *
@@ -421,6 +423,14 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
+
+  // [7] 附近角色（写作模式专属，替代 chat 模式的 character_state）
+  const nearbyText = renderNearbyCharacters(world.id, sessionId);
+  if (nearbyText) {
+    dynamicSystemParts.push(
+      `<nearby_characters>\n以下角色已在本会话登场。叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名。\n${tv(nearbyText)}\n</nearby_characters>`
+    );
+  }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
   const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));

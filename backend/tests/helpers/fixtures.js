@@ -26,12 +26,13 @@ export function insertPersona(db, worldId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO personas (id, world_id, name, system_prompt, avatar_path, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO personas (id, world_id, name, description, system_prompt, avatar_path, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     worldId,
     patch.name ?? '',
+    patch.description ?? '',
     patch.system_prompt ?? '',
     patch.avatar_path ?? null,
     now,
@@ -44,12 +45,13 @@ export function insertCharacter(db, worldId, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO characters (id, world_id, name, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     worldId,
     patch.name ?? '测试角色',
+    patch.description ?? '',
     patch.system_prompt ?? '',
     patch.post_prompt ?? '',
     patch.first_message ?? '',

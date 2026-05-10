@@ -50,6 +50,73 @@ test('角色导出与导入路由会过滤未知状态字段', async () => {
   assert.deepEqual(importedValues, [{ field_key: 'mood', default_value_json: '"平静"' }]);
 });
 
+test('玩家导出与导入路由会使用独立玩家卡格式并过滤未知状态字段', async () => {
+  const sourceWorld = insertWorld(ctx.sandbox.db, { name: '源世界-玩家路由' });
+  const targetWorld = insertWorld(ctx.sandbox.db, { name: '目标世界-玩家路由' });
+  const persona = insertPersona(ctx.sandbox.db, sourceWorld.id, {
+    name: '星旅者',
+    description: '背着风琴箱的人',
+    system_prompt: '谨慎而敏锐',
+  });
+  ctx.sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(persona.id, sourceWorld.id);
+  ctx.sandbox.db.prepare(`
+    INSERT INTO persona_state_fields (id, world_id, field_key, label, type, description, default_value, update_mode, allow_empty, update_instruction, sort_order, created_at, updated_at)
+    VALUES ('psf-source', ?, 'focus', '专注', 'text', '', NULL, 'manual', 1, '', 0, 1, 1)
+  `).run(sourceWorld.id);
+  ctx.sandbox.db.prepare(`
+    INSERT INTO persona_state_fields (id, world_id, field_key, label, type, description, default_value, update_mode, allow_empty, update_instruction, sort_order, created_at, updated_at)
+    VALUES ('psf-target', ?, 'focus', '专注', 'text', '', NULL, 'manual', 1, '', 0, 1, 1)
+  `).run(targetWorld.id);
+  ctx.sandbox.db.prepare(`
+    INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+    VALUES ('psv-1', ?, ?, 'focus', '"凝神"', NULL, 1)
+  `).run(persona.id, sourceWorld.id);
+
+  let res = await ctx.request(`/api/worlds/${sourceWorld.id}/persona/export`);
+  assert.equal(res.status, 200);
+  const exported = await res.json();
+
+  assert.equal(exported.format, 'worldengine-persona-v1');
+  assert.equal(exported.persona.name, '星旅者');
+  assert.equal(exported.persona_state_values.length, 1);
+
+  exported.persona_state_values.push({ field_key: 'unknown', value_json: '"忽略"' });
+  res = await ctx.request(`/api/worlds/${targetWorld.id}/import-persona`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(exported),
+  });
+  assert.equal(res.status, 201);
+  const imported = await res.json();
+
+  const importedValues = ctx.sandbox.db.prepare(
+    'SELECT field_key, default_value_json FROM persona_state_values WHERE persona_id = ? ORDER BY field_key ASC',
+  ).all(imported.id);
+  assert.deepEqual(importedValues, [{ field_key: 'focus', default_value_json: '"凝神"' }]);
+});
+
+test('按 personaId 导出会返回指定玩家，而不是 world 的 active 玩家', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '精确导出世界' });
+  const activePersona = insertPersona(ctx.sandbox.db, world.id, {
+    name: '当前激活',
+    description: 'active',
+    system_prompt: 'active prompt',
+  });
+  const targetPersona = insertPersona(ctx.sandbox.db, world.id, {
+    name: '非激活目标',
+    description: 'target',
+    system_prompt: 'target prompt',
+  });
+  ctx.sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(activePersona.id, world.id);
+
+  const res = await ctx.request(`/api/personas/${targetPersona.id}/export`);
+  assert.equal(res.status, 200);
+  const exported = await res.json();
+
+  assert.equal(exported.persona.name, '非激活目标');
+  assert.equal(exported.persona.description, 'target');
+});
+
 test('全局设置导出导入会按 mode 替换资源并更新 config', async () => {
   ctx.sandbox.writeConfig({
     ...ctx.sandbox.readConfig(),
@@ -142,6 +209,23 @@ test('导入角色卡时缺少必填字段返回 400 且不创建角色', async 
   assert.match(body.error, /character\.name/);
   const count = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM characters WHERE world_id = ?').get(targetWorld.id).c;
   assert.equal(count, 0);
+});
+
+test('导入玩家卡时非法格式返回 400 且不创建玩家', async () => {
+  const targetWorld = insertWorld(ctx.sandbox.db, { name: '目标世界-玩家非法导入' });
+
+  const beforeCount = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(targetWorld.id).c;
+  const res = await ctx.request(`/api/worlds/${targetWorld.id}/import-persona`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ format: 'bad-persona-format', persona: { name: '坏玩家' } }),
+  });
+
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.match(body.error, /不支持的玩家卡格式|不支持的角色卡格式/);
+  const afterCount = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(targetWorld.id).c;
+  assert.equal(afterCount, beforeCount);
 });
 
 test('导入世界卡时未知字段会被忽略而合法字段正常导入', async () => {

@@ -173,7 +173,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       for (const s of sv) {
         if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
       }
-      return { id: r.id, name: r.name, memory: r.memory, is_saved: r.is_saved, state };
+      return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
     });
   }
 

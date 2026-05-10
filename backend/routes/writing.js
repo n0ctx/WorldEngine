@@ -6,14 +6,14 @@ import { activeStreams, processStreamOutput } from '../services/chat.js';
 import { logPrompt } from '../utils/logger.js';
 import {
   createWritingSession,
-  getWritingSessionsByWorldId,
+  getActiveWritingSessionsByWorldId,
   getWritingSessionById,
   deleteWritingSession,
   listNearby,
   addSavedFromCharacter,
   removeNearby,
   setNearbyIsSaved,
-  patchNearbyMemory,
+  patchNearbyPersona,
   renameNearby,
   patchNearbyState,
   createMessage,
@@ -80,7 +80,7 @@ router.get('/:worldId/writing-sessions', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
   if (!assertExists(res, world, 'World not found')) return;
-  const sessions = getWritingSessionsByWorldId(worldId);
+  const sessions = getActiveWritingSessionsByWorldId(worldId);
   res.json(sessions);
 });
 
@@ -160,7 +160,7 @@ router.post('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
 // PATCH /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId
 router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res) => {
   const { sessionId, nearbyId } = req.params;
-  const { is_saved, memory, name } = req.body ?? {};
+  const { is_saved, persona, name } = req.body ?? {};
   try {
     if (typeof name === 'string') {
       renameNearby(sessionId, nearbyId, name);
@@ -168,8 +168,8 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res
     if (is_saved !== undefined) {
       setNearbyIsSaved(sessionId, nearbyId, is_saved ? 1 : 0);
     }
-    if (memory !== undefined) {
-      patchNearbyMemory(sessionId, nearbyId, memory);
+    if (persona !== undefined) {
+      patchNearbyPersona(sessionId, nearbyId, persona);
     }
     const list = listNearby(sessionId);
     const row = list.find((n) => n.id === nearbyId);

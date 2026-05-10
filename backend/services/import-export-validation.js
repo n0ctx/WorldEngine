@@ -156,6 +156,19 @@ export function validateCharacterImportPayload(data) {
   assertStateValues(data.character_state_values ?? [], 'character_state_values');
 }
 
+export function validatePersonaImportPayload(data) {
+  assertPayloadSize(data);
+  assertPlainObject(data, '玩家卡');
+  assert(data.format === 'worldengine-persona-v1', '不支持的玩家卡格式');
+  assertPlainObject(data.persona, 'persona');
+  assertRequiredString(data.persona.name, 'persona.name', MAX_NAME_LENGTH);
+  assertOptionalString(data.persona.description, 'persona.description');
+  assertOptionalString(data.persona.system_prompt, 'persona.system_prompt');
+  assertOptionalString(data.persona.avatar_path, 'persona.avatar_path', MAX_TEXT_FIELD_LENGTH);
+  assertAvatarPayload(data.persona.avatar_base64, data.persona.avatar_mime, 'persona');
+  assertStateValues(data.persona_state_values ?? [], 'persona_state_values');
+}
+
 export function validateWorldImportPayload(data) {
   assertPayloadSize(data);
   assertPlainObject(data, '世界卡');

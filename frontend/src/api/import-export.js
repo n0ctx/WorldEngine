@@ -56,24 +56,34 @@ export async function downloadWorldCard(worldId, filename) {
 }
 
 /**
- * 导出玩家为角色卡，返回 JSON 数据对象
+ * 导出玩家卡，返回 JSON 数据对象
  */
-export function exportPersona(worldId) {
-  return request(`${BASE}/worlds/${worldId}/persona/export`);
+export function exportPersona(personaId) {
+  return request(`${BASE}/personas/${personaId}/export`);
 }
 
 /**
- * 下载玩家卡为 .wechar.json 文件
+ * 下载玩家卡为 .wepersona.json 文件
  */
-export async function downloadPersonaCard(worldId, filename) {
-  const data = await exportPersona(worldId);
+export async function downloadPersonaCard(personaId, filename) {
+  const data = await exportPersona(personaId);
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = filename || 'persona.wechar.json';
+  a.download = filename || 'persona.wepersona.json';
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * 导入玩家卡到指定世界，返回新建玩家
+ */
+export function importPersona(worldId, data) {
+  return request(`${BASE}/worlds/${worldId}/import-persona`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 /**

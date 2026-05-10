@@ -61,7 +61,7 @@ test('addSavedFromCharacter：仅复制 nearby_enabled=1 字段的 default 值�
   assert.equal(row.session_id, sessionId);
   assert.equal(row.name, '阿绪');
   assert.equal(row.is_saved, 1);
-  assert.equal(row.memory, '');
+  assert.equal(row.persona, '');
   assert.ok(Array.isArray(row.state));
   // 仅 nearby_enabled=1 的 mood 出现，hp 不应出现
   assert.equal(row.state.length, 1);
@@ -141,17 +141,17 @@ test('setNearbyIsSaved：transient → saved 切换', async () => {
   assert.equal(listNearby(sessionId)[0].is_saved, 1);
 });
 
-test('patchNearbyMemory：null/undefined 存为空串', async () => {
-  const { worldId, sessionId } = makeWorldAndSession('memory');
+test('patchNearbyPersona：null/undefined 存为空串', async () => {
+  const { worldId, sessionId } = makeWorldAndSession('persona');
   const character = insertCharacter(sandbox.db, worldId, { name: 'A' });
-  const { addSavedFromCharacter, patchNearbyMemory, listNearby } =
+  const { addSavedFromCharacter, patchNearbyPersona, listNearby } =
     await freshImport('backend/services/writing-sessions.js');
 
   const id = addSavedFromCharacter(sessionId, character.id);
-  patchNearbyMemory(sessionId, id, '今天打了一架');
-  assert.equal(listNearby(sessionId)[0].memory, '今天打了一架');
-  patchNearbyMemory(sessionId, id, null);
-  assert.equal(listNearby(sessionId)[0].memory, '');
+  patchNearbyPersona(sessionId, id, '冷静的剑客');
+  assert.equal(listNearby(sessionId)[0].persona, '冷静的剑客');
+  patchNearbyPersona(sessionId, id, null);
+  assert.equal(listNearby(sessionId)[0].persona, '');
 });
 
 test('renameNearby：正常改名 + 重名抛 NEARBY_NAME_CONFLICT + 同名 no-op 通过', async () => {

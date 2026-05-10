@@ -13,6 +13,9 @@
 import db from '../db/index.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getTurnRecordById } from '../db/queries/turn-records.js';
+import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
+import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
+import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { embed } from '../llm/embedding.js';
 import { search } from '../utils/turn-summary-vector-store.js';
 import { countTokens } from '../utils/token-counter.js';
@@ -77,11 +80,19 @@ export const __testables = {
  * @returns {string} 渲染结果，无状态字段时返回空字符串
  */
 export function renderPersonaState(worldId, sessionId) {
-  // 解析当前激活 persona（active_persona_id 为 NULL 时回退到最早创建的 persona）
-  const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
-  const personaId = worldRow?.active_persona_id ??
-    db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id ??
-    null;
+  // writing session 自带 persona_id（与会话强绑定）；chat session 或无 session 时回退到世界级 active_persona_id；
+  // active 为 NULL 再回退到最早创建的 persona
+  let personaId = null;
+  if (sessionId) {
+    const sessionRow = db.prepare('SELECT persona_id FROM sessions WHERE id = ?').get(sessionId);
+    if (sessionRow?.persona_id) personaId = sessionRow.persona_id;
+  }
+  if (!personaId) {
+    const worldRow = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+    personaId = worldRow?.active_persona_id ??
+      db.prepare('SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1').get(worldId)?.id ??
+      null;
+  }
 
   const rows = sessionId
     ? db.prepare(`
@@ -195,6 +206,56 @@ export function renderCharacterState(characterId, sessionId) {
       `).all(characterId, character.world_id);
 
   return rowsToStateText(rows);
+}
+
+/**
+ * 渲染写作模式的"附近角色"为可读文本（替代 chat 模式的 character_state）。
+ *
+ * 数据来源：session_nearby_characters + session_nearby_character_state_values；
+ * 字段集：character_state_fields 中 nearby_enabled=1 的字段。
+ *
+ * 每个 nearby 渲染为：
+ *   【name】
+ *   人设：<persona>          （persona 为空时省略此行）
+ *   - 字段label：值
+ *   ...
+ *
+ * 无 nearby 或全为空时返回空字符串，调用方据此决定是否注入。
+ *
+ * @param {string} worldId
+ * @param {string} sessionId
+ * @returns {string}
+ */
+export function renderNearbyCharacters(worldId, sessionId) {
+  if (!worldId || !sessionId) return '';
+  const rows = listNearbyBySessionId(sessionId);
+  if (rows.length === 0) return '';
+
+  const fields = getCharacterStateFieldsByWorldId(worldId)
+    .filter((f) => Number(f.nearby_enabled) === 1);
+  // 字段排序与 getCharacterStateFieldsByWorldId 内部一致（sort_order ASC, created_at ASC）
+
+  const blocks = [];
+  for (const nearby of rows) {
+    const values = getStateValuesByNearbyId(nearby.id);
+    const valueMap = new Map(values.map((v) => [v.field_key, v.runtime_value_json]));
+    const stateRows = fields.map((f) => ({
+      label: f.label,
+      type: f.type,
+      unit: f.unit,
+      effective_value_json: valueMap.get(f.field_key) ?? null,
+    }));
+    const stateText = rowsToStateText(stateRows);
+    const lines = [`【${nearby.name}】`];
+    if (nearby.persona && nearby.persona.trim()) {
+      lines.push(`人设：${nearby.persona.trim()}`);
+    }
+    if (stateText) lines.push(stateText);
+    // 仅有名字、无 persona 也无状态值时仍输出，便于主模型知道该名字已被占用
+    blocks.push(lines.join('\n'));
+  }
+  if (blocks.length === 0) return '';
+  return blocks.join('\n\n');
 }
 
 /**

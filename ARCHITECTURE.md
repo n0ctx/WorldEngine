@@ -175,14 +175,16 @@ POST /api/sessions/:sessionId/chat
 
 **Cached layer**：仅含 [1] 全局 + [2] 常驻 cached 条目 +（如有）[3] 玩家。
 
-**写作模式不再注入角色身份**：[4] 角色 System Prompt 与 [7] 角色状态段在写作 prompt 中**整体移除**——写作模式没有固定角色身份，角色出场由叙事文本自行驱动；nearby 角色池（`session_nearby_characters`）由副 LLM 单独维护状态，不进入主 prompt。
+**写作模式不再注入角色身份**：[4] 角色 System Prompt 在写作 prompt 中**整体移除**——写作模式没有固定角色身份，角色出场由叙事文本自行驱动。
+
+**[7] 角色状态段在写作模式被 nearby 替代**：写作模式下 [7] 注入 `<nearby_characters>` 段，列出 `session_nearby_characters` 中所有登场角色的 `name + persona（一句话人设）+ nearby_enabled=1 的状态字段值`，提示主模型沿用既定名字，避免下一轮正文里给同一角色起新名（导致 nearby 状态栏与正文人名脱钩）。nearby 池仍由副 LLM 在状态更新阶段维护；nearby→character 制卡时 `persona` 直接作为新角色 `description` 的基底（LLM 仅扩写 `system_prompt` 与 `first_message`）。
 
 | 段 | 差异 |
 |---|---|
 | **[4]** | **不注入**（写作模式没有固定角色 system prompt） |
 | [5] | `renderWorldState(world.id, sessionId)` |
 | [6] | `renderPersonaState(world.id, sessionId)` |
-| **[7]** | **不注入**（写作模式没有固定角色状态段；nearby 状态由副 LLM 维护，不进入主 prompt） |
+| **[7]** | `renderNearbyCharacters(world.id, sessionId)`：替代角色状态段，输出 `<nearby_characters>` 包裹的多角色块。每个角色：`【name】` + 可选 `人设：<persona>` + 启用字段的状态行。nearby 池为空或全字段无值时跳过整段。 |
 | [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目；含 `角色.*` 条件的 state 条目在写作模式下不会触发 |
 | [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
@@ -334,7 +336,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 | 函数签名 | 渲染标签 | 说明 |
 |---|---|---|
-| `renderPersonaState(worldId)` → string | `[玩家状态]` | LEFT JOIN persona_state_fields + values；按 sort_order ASC |
+| `renderPersonaState(worldId, sessionId?)` → string | `[玩家状态]` | LEFT JOIN persona_state_fields + values；按 sort_order ASC。**persona 解析**：传 `sessionId` 时优先用 `sessions.persona_id`（写作 session 强绑定的玩家卡），缺失则回退 `worlds.active_persona_id`，再回退到该世界最早创建的 persona；chat session 因 `persona_id=NULL` 直接走全局 active 路径 |
 | `renderCharacterState(characterId)` → string | `[角色状态]` | LEFT JOIN character_state_fields + values；按 sort_order ASC |
 | `renderWorldState(worldId)` → string | `[世界状态]` | LEFT JOIN world_state_fields + values；按 sort_order ASC |
 | `renderTimeline(sessionId, limit=5)` → string | `[会话摘要]` | 取当前会话最近 limit 轮 turn_records 摘要；**不再注入 prompt（[11] 已删）；T155 后前端 Timeline 面板改用 daily_entries，此函数已无调用方，保留供兼容** |
@@ -422,7 +424,13 @@ checkAndGenerateDiary(sessionId, roundIndex)
 - 记忆面板”重置”会清空该会话 `session_*_state_values` 对应记录，显示层自动回退到全局默认值
 - 消息回滚（删除消息）时，清空该会话三张 session 状态表并删除超出轮次的 turn_records
 
-**persona 与世界的关系**：每个世界对应唯一 persona（`personas.world_id UNIQUE`）；persona 的 name / system_prompt 注入 assembler.js [2] 位置（格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}`）。
+**persona 与会话的绑定关系**：
+- 一个世界可拥有多个 persona；`worlds.active_persona_id` 标记当前激活的玩家卡
+- **chat 会话**：`sessions.persona_id = NULL`；记忆召回与状态读取统一走 `worlds.active_persona_id`（这是 chat 模式选 persona 的唯一入口，因为 chat 进入流程没有 persona 选择 UI）
+- **writing 会话**：`sessions.persona_id` 在创建时快照当时世界的 active persona，**之后与 session 强绑定**；切换世界的 active persona 不会影响已有写作 session
+- **前端入口约束**：`CharactersPage` 的玩家卡列表中，只有当前 active 的卡可以点击进入写作页。要写另一个 persona 的内容须先点该卡的「激活」按钮再点击进入
+- **删除 persona**：service 层 `deletePersonaService` 先逐条 `deleteWritingSession` 触发 cleanup 钩子，再 `DELETE FROM personas`（DB 层 `ON DELETE CASCADE` 兜底剩余行）
+- persona 的 name / system_prompt 注入 assembler.js [2] 位置（格式：`[{{user}}人设]\n名字：${name}\n${system_prompt}`）
 
 ---
 
@@ -652,7 +660,7 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 
 **配置接口分组**（routes/config.js 内多组并列）：每个 LLM section（对话主 / 对话副 / 写作主 / 写作副）独立有 `models` + `test-connection` 两个 GET 端点；Embedding 单独一组。所有 API Key 写入走 `PUT /api/config/provider-key` 顶层共享池，禁止通过 `PUT /api/config` 更新 `provider_keys` / `api_key`。
 
-**导入导出**：全局设置导出/导入按 `?mode=chat|writing` 分流；导入为覆盖模式（先按 mode 清空 `custom_css_snippets` / `regex_rules` 中 `world_id IS NULL` 的记录）。
+**导入导出**：全局设置导出/导入按 `?mode=chat|writing` 分流；导入为覆盖模式（先按 mode 清空 `custom_css_snippets` / `regex_rules` 中 `world_id IS NULL` 的记录）。玩家卡现有独立格式 `.wepersona.json`（`worldengine-persona-v1`）；同时仍兼容把旧 `.wechar.json` 角色卡导入为 persona。
 
 **写卡助手单链路（父代理 + 通用子代理 + 计划文档）**：详见 §14 末尾。
 

@@ -80,15 +80,11 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       {...motionProps}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5"
-      style={{
-        background: 'var(--we-color-bg-canvas)',
-        boxShadow: '0 0 0 1px var(--we-color-border-subtle), 0 4px 12px rgba(0,0,0,0.08)',
-        borderLeft: `4px solid ${meta.color}`,
-      }}
+      className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5 bg-[var(--we-color-bg-canvas)] shadow-[0_0_0_1px_var(--we-color-border-subtle),0_4px_12px_rgba(0,0,0,0.08)] border-l-4 border-l-[var(--toast-color)]"
+      style={{ '--toast-color': meta.color }}
     >
       <div className="flex items-start gap-2">
-        <span style={{ color: meta.color, marginTop: 2 }} aria-hidden>
+        <span className="text-[var(--toast-color)] mt-0.5" aria-hidden>
           <Icon size={16}>{meta.iconPaths}</Icon>
         </span>
         <div className="flex-1 min-w-0">
@@ -112,8 +108,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       </div>
       <span
         aria-hidden
-        className="absolute bottom-1 right-2 font-serif text-[20px] select-none pointer-events-none"
-        style={{ color: meta.color, opacity: 0.18 }}
+        className="absolute bottom-1 right-2 font-serif text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
       >
         {meta.seal}
       </span>

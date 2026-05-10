@@ -23,7 +23,7 @@ import {
   getNearbyByName,
   listNearbyBySessionId,
   updateNearbyName,
-  updateNearbyMemory,
+  updateNearbyPersona,
   updateNearbyIsSaved,
   deleteNearbyById,
 } from '../db/queries/session-nearby-characters.js';
@@ -35,20 +35,47 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import db from '../db/index.js';
+import { createPersona as dbCreatePersona } from '../db/queries/personas.js';
 
 const log = createLogger('svc', 'green');
+
+/**
+ * 解析某世界当前应当用于新写作 session 的 persona_id：
+ * 优先 worlds.active_persona_id，回退到该世界最早创建的 persona。
+ * 世界下无任何 persona 时自动建一张默认 persona 并返回其 id（写作 session 强制要求 persona）。
+ */
+function resolveActivePersonaId(worldId) {
+  const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  if (world?.active_persona_id) return world.active_persona_id;
+  const fallback = db.prepare(
+    'SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1'
+  ).get(worldId);
+  if (fallback?.id) return fallback.id;
+  // 兜底：世界无 persona 时建一张默认 persona，避免写作 session 因 FK 约束创建失败
+  const created = dbCreatePersona(worldId, { name: '玩家' });
+  log.info(`persona.auto_create  ${formatMeta({ worldId, personaId: created.id, reason: 'writing_session_bootstrap' })}`);
+  return created.id;
+}
 
 export function createWritingSession(worldId) {
   const config = getConfig();
   const diaryWriting = config.diary?.writing;
   const diary_date_mode = diaryWriting?.enabled ? (diaryWriting.date_mode ?? 'virtual') : null;
-  const session = dbCreateWritingSession(worldId, { diary_date_mode });
-  log.info(`writing_session.create  ${formatMeta({ sessionId: session.id, worldId })}`);
+  const personaId = resolveActivePersonaId(worldId);
+  const session = dbCreateWritingSession(worldId, { diary_date_mode, persona_id: personaId });
+  log.info(`writing_session.create  ${formatMeta({ sessionId: session.id, worldId, personaId })}`);
   return session;
 }
 
-export function getWritingSessionsByWorldId(worldId) {
-  return dbGetWritingSessionsByWorldId(worldId);
+export function getWritingSessionsByWorldId(worldId, personaId) {
+  return dbGetWritingSessionsByWorldId(worldId, personaId);
+}
+
+export function getActiveWritingSessionsByWorldId(worldId) {
+  const personaId = resolveActivePersonaId(worldId);
+  if (!personaId) return [];
+  return dbGetWritingSessionsByWorldId(worldId, personaId);
 }
 
 export function getWritingSessionById(id) {
@@ -155,7 +182,7 @@ function buildNearbyRow(row, fields, valueMap) {
     id: row.id,
     session_id: row.session_id,
     name: row.name,
-    memory: row.memory,
+    persona: row.persona,
     is_saved: row.is_saved,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -188,7 +215,7 @@ export function addSavedFromCharacter(sessionId, characterId) {
   const nearbyId = createNearbyCharacter({
     sessionId,
     name: character.name,
-    memory: '',
+    persona: typeof character.description === 'string' ? character.description : '',
     isSaved: 1,
   });
 
@@ -222,11 +249,11 @@ export function setNearbyIsSaved(sessionId, nearbyId, isSaved) {
   updateNearbyIsSaved(nearbyId, isSaved);
 }
 
-export function patchNearbyMemory(sessionId, nearbyId, memory) {
+export function patchNearbyPersona(sessionId, nearbyId, persona) {
   ensureWritingSession(sessionId);
   ensureNearbyOwned(sessionId, nearbyId);
-  const value = memory == null ? '' : String(memory);
-  updateNearbyMemory(nearbyId, value);
+  const value = persona == null ? '' : String(persona);
+  updateNearbyPersona(nearbyId, value);
 }
 
 export function renameNearby(sessionId, nearbyId, name) {

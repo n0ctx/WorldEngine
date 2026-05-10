@@ -3,7 +3,7 @@ import Icon from '../ui/Icon.jsx';
 import StatusSection from './StatusSection.jsx';
 import {
   setNearbySaved,
-  patchNearbyMemory,
+  patchNearbyPersona,
   patchNearbyState,
   removeNearby,
 } from '../../api/session-nearby.js';
@@ -45,8 +45,8 @@ export default function NearbyCharacterBlock({
   onChange,
   templateCtx,
 }) {
-  const [editingMemory, setEditingMemory] = useState(false);
-  const [memoryDraft, setMemoryDraft] = useState(nearby?.memory ?? '');
+  const [editingPersona, setEditingPersona] = useState(false);
+  const [personaDraft, setPersonaDraft] = useState(nearby?.persona ?? '');
   const [busy, setBusy] = useState(false);
 
   // StatusSection 读取 effective_value_json；nearby 状态使用 runtime_value_json，
@@ -96,13 +96,13 @@ export default function NearbyCharacterBlock({
     }
   }
 
-  async function handleSaveMemory() {
+  async function handleSavePersona() {
     try {
-      await patchNearbyMemory(worldId, sessionId, nearby.id, memoryDraft);
-      setEditingMemory(false);
+      await patchNearbyPersona(worldId, sessionId, nearby.id, personaDraft);
+      setEditingPersona(false);
       onChange?.();
     } catch (err) {
-      log.error('nearby.memory.update_failed', err, { toast: err?.message || '更新记忆失败' });
+      log.error('nearby.persona.update_failed', err, { toast: err?.message || '更新人设失败' });
     }
   }
 
@@ -164,25 +164,25 @@ export default function NearbyCharacterBlock({
         }}
       >
         <div style={{ overflow: 'hidden', minHeight: 0 }}>
-          {/* 记忆段 */}
+          {/* 人设段 */}
           <div className="we-state-section-title">
-            <span className="we-section-label">记忆</span>
+            <span className="we-section-label">人设</span>
           </div>
-          <div className="we-nearby-memory">
-            {editingMemory ? (
-              <div className="we-nearby-memory-edit">
+          <div className="we-nearby-persona">
+            {editingPersona ? (
+              <div className="we-nearby-persona-edit">
                 <textarea
                   className="we-input"
-                  value={memoryDraft}
-                  onChange={(ev) => setMemoryDraft(ev.target.value)}
+                  value={personaDraft}
+                  onChange={(ev) => setPersonaDraft(ev.target.value)}
                   rows={3}
-                  placeholder="对该角色的记忆…"
+                  placeholder="一句话人物设定（性格 / 身份 / 关键标签）…"
                 />
-                <div className="we-nearby-memory-actions">
+                <div className="we-nearby-persona-actions">
                   <button
                     type="button"
                     className="we-state-section-reset"
-                    onClick={handleSaveMemory}
+                    onClick={handleSavePersona}
                   >
                     保存
                   </button>
@@ -190,8 +190,8 @@ export default function NearbyCharacterBlock({
                     type="button"
                     className="we-state-section-reset"
                     onClick={() => {
-                      setEditingMemory(false);
-                      setMemoryDraft(nearby?.memory ?? '');
+                      setEditingPersona(false);
+                      setPersonaDraft(nearby?.persona ?? '');
                     }}
                   >
                     取消
@@ -200,14 +200,14 @@ export default function NearbyCharacterBlock({
               </div>
             ) : (
               <span
-                className="we-nearby-memory-text"
+                className="we-nearby-persona-text"
                 onClick={() => {
-                  setMemoryDraft(nearby?.memory ?? '');
-                  setEditingMemory(true);
+                  setPersonaDraft(nearby?.persona ?? '');
+                  setEditingPersona(true);
                 }}
-                title="点击编辑记忆"
+                title="点击编辑人设"
               >
-                {nearby?.memory || '（无记忆）'}
+                {nearby?.persona || '（无人设）'}
               </span>
             )}
           </div>

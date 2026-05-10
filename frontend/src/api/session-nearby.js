@@ -28,8 +28,8 @@ export function setNearbySaved(worldId, sessionId, nearbyId, isSaved) {
   return patchNearby(worldId, sessionId, nearbyId, { is_saved: isSaved });
 }
 
-export function patchNearbyMemory(worldId, sessionId, nearbyId, memory) {
-  return patchNearby(worldId, sessionId, nearbyId, { memory });
+export function patchNearbyPersona(worldId, sessionId, nearbyId, persona) {
+  return patchNearby(worldId, sessionId, nearbyId, { persona });
 }
 
 export function patchNearbyName(worldId, sessionId, nearbyId, name) {

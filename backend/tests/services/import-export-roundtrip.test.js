@@ -24,6 +24,8 @@ const {
   importWorld,
   exportCharacter,
   importCharacter,
+  exportPersona,
+  importPersona,
   exportGlobalSettings,
   importGlobalSettings,
 } = await freshImport('backend/services/import-export.js');
@@ -40,6 +42,9 @@ function normalizeWorldPackage(payload) {
   const cloned = stripExportMeta(payload);
   if (cloned.world) {
     delete cloned.world.cover_path;
+  }
+  for (const persona of cloned.personas ?? []) {
+    delete persona.avatar_path;
   }
   for (const character of cloned.characters ?? []) {
     delete character.avatar_path;
@@ -64,6 +69,14 @@ function normalizeCharacterPackage(payload) {
   return cloned;
 }
 
+function normalizePersonaPackage(payload) {
+  const cloned = stripExportMeta(payload);
+  if (cloned.persona) {
+    delete cloned.persona.avatar_path;
+  }
+  return cloned;
+}
+
 test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => {
   const world = insertWorld(sandbox.db, {
     name: '圆环世界',
@@ -76,8 +89,11 @@ test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => 
 
   insertPersona(sandbox.db, world.id, {
     name: '见证者',
+    description: '记录万象的旅人',
     system_prompt: '记录一切的人',
+    avatar_path: 'avatars/persona.png',
   });
+  writeUploadFile(sandbox, 'avatars/persona.png', 'persona-avatar');
   insertWorldEntry(sandbox.db, world.id, {
     title: '常驻法则',
     description: 'cached entry',
@@ -131,7 +147,9 @@ test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => 
 
   const character = insertCharacter(sandbox.db, world.id, {
     name: '诺拉',
+    description: '边境哨兵',
     system_prompt: '守望者',
+    post_prompt: '继续保持警觉',
     first_message: '欢迎来到圆环世界',
     avatar_path: 'avatars/nora.png',
     sort_order: 0,
@@ -164,7 +182,9 @@ test('角色卡 round-trip 保持角色主体与合法状态值等价', async ()
 
   const character = insertCharacter(sandbox.db, sourceWorld.id, {
     name: '阿塔',
+    description: '巡视林地的猎手',
     system_prompt: '巡林人',
+    post_prompt: '保持沉默',
     first_message: '先别出声',
     avatar_path: 'avatars/ata.png',
   });
@@ -179,6 +199,39 @@ test('角色卡 round-trip 保持角色主体与合法状态值等价', async ()
   const reExported = exportCharacter(imported.id);
 
   assert.deepEqual(normalizeCharacterPackage(reExported), normalizeCharacterPackage(exported));
+});
+
+test('玩家卡 round-trip 保持玩家主体与合法状态值等价', async () => {
+  const sourceWorld = insertWorld(sandbox.db, { name: '源世界-玩家' });
+  const targetWorld = insertWorld(sandbox.db, { name: '目标世界-玩家' });
+  const persona = insertPersona(sandbox.db, sourceWorld.id, {
+    name: '璃音',
+    description: '失乡旅人',
+    system_prompt: '谨慎观察世界的人',
+    avatar_path: 'avatars/persona-hero.png',
+  });
+  writeUploadFile(sandbox, 'avatars/persona-hero.png', 'persona-hero');
+  sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(persona.id, sourceWorld.id);
+  insertPersonaStateField(sandbox.db, sourceWorld.id, {
+    field_key: 'stamina',
+    label: '体力',
+  });
+  insertPersonaStateField(sandbox.db, targetWorld.id, {
+    field_key: 'stamina',
+    label: '体力',
+  });
+  insertPersonaStateValue(sandbox.db, sourceWorld.id, {
+    persona_id: persona.id,
+    field_key: 'stamina',
+    default_value_json: '"充沛"',
+  });
+
+  const exported = exportPersona(sourceWorld.id);
+  const imported = importPersona(targetWorld.id, exported);
+  sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(imported.id, targetWorld.id);
+  const reExported = exportPersona(targetWorld.id);
+
+  assert.deepEqual(normalizePersonaPackage(reExported), normalizePersonaPackage(exported));
 });
 
 test('全局设置 round-trip 采用覆盖语义并保留导出内容等价', async () => {

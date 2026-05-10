@@ -106,6 +106,17 @@ export function getAllPersonaStateValues(worldId) {
 }
 
 /**
+ * 按 persona_id 直接获取该 persona 的所有状态值（不依赖世界 active）。
+ * 用于写作 session：session 自带 persona_id，无需再走 active 路径。
+ */
+export function getAllPersonaStateValuesByPersonaId(personaId) {
+  if (!personaId) return [];
+  return db.prepare(
+    'SELECT * FROM persona_state_values WHERE persona_id = ? ORDER BY field_key ASC',
+  ).all(personaId);
+}
+
+/**
  * 联表查询：玩家状态字段定义 + 当前激活 persona 的值，按 sort_order 升序
  * @param {string} worldId
  * @returns {{ field_key, label, type, sort_order, value_json }[]}
