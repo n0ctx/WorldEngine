@@ -258,13 +258,22 @@ export function summarizeMessages(messages = []) {
   return { count: messages.length, chars, roles };
 }
 
+const META_KEY_ORDER = ['requestId', 'sessionId', 'characterId', 'worldId', 'module'];
+
 export function formatMeta(meta = {}) {
-  return Object.entries(meta)
-    .filter(([, value]) => value !== undefined)
+  const entries = Object.entries(meta).filter(([, v]) => v !== undefined && v !== null);
+  entries.sort(([a], [b]) => {
+    const ai = META_KEY_ORDER.indexOf(a);
+    const bi = META_KEY_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+  return entries
     .map(([key, value]) => {
-      if (value === null) return `${key}=null`;
-      if (typeof value === 'string') return `${key}=${JSON.stringify(value)}`;
-      if (Array.isArray(value)) return `${key}=${JSON.stringify(value)}`;
+      if (typeof value === 'string') return `${key}=${JSON.stringify(previewText(value))}`;
+      if (Array.isArray(value)) return `${key}=${previewJson(value)}`;
       if (typeof value === 'object') return `${key}=${previewJson(value)}`;
       return `${key}=${String(value)}`;
     })

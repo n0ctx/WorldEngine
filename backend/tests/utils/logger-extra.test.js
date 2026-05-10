@@ -92,13 +92,13 @@ test('summarizeMessages 计数角色与内容长度，支持数组型 content', 
   assert.equal(result.roles.unknown, 1);
 });
 
-test('formatMeta 格式化各种类型并跳过 undefined', () => {
+test('formatMeta 格式化各种类型并跳过 null/undefined', () => {
   const out = mod.formatMeta({
     a: 'hello', b: 42, c: null, d: undefined, e: [1, 2], f: { x: 1 },
   });
   assert.match(out, /a="hello"/);
   assert.match(out, /b=42/);
-  assert.match(out, /c=null/);
+  assert.doesNotMatch(out, /c=/);
   assert.doesNotMatch(out, /d=/);
   assert.match(out, /e=\[1,2\]/);
   assert.match(out, /f=\{"x":1\}/);
@@ -202,4 +202,23 @@ test('spinnerAdd / spinnerRemove 在非 TTY 下安全 no-op', () => {
   assert.equal(typeof id, 'number');
   mod.spinnerRemove(id);
   mod.spinnerRemove(id);
+});
+
+test('formatMeta 强化：保留固定字段顺序 requestId→sessionId→characterId→worldId→module→其他', () => {
+  const out = mod.formatMeta({ foo: 1, sessionId: 's1', module: 'mem', requestId: 'r1', worldId: 'w1', characterId: 'c1' });
+  assert.equal(out, 'requestId="r1"  sessionId="s1"  characterId="c1"  worldId="w1"  module="mem"  foo=1');
+});
+
+test('formatMeta 强化：null 与 undefined 都被跳过', () => {
+  writeConfig({ logging: {} });
+  const out = mod.formatMeta({ a: null, b: undefined, c: 1 });
+  assert.equal(out, 'c=1');
+});
+
+test('formatMeta 强化：字符串值超长按 max_preview_chars 截断（默认 600）', () => {
+  writeConfig({ logging: {} });
+  const long = 'x'.repeat(800);
+  const out = mod.formatMeta({ msg: long });
+  assert.match(out, /SNIP/);
+  assert.ok(out.length < 800);
 });
