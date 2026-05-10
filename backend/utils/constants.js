@@ -132,3 +132,13 @@ export const CHAPTER_MESSAGE_SIZE = SHARED_CHAPTER_MESSAGE_SIZE;
 export const CHAPTER_TIME_GAP_MS  = SHARED_CHAPTER_TIME_GAP_MS;
 /** 章节标题生成最大 token 数 */
 export const LLM_CHAPTER_TITLE_MAX_TOKENS = 30;
+
+// ============================
+// 前端日志上报（client-logs）
+// ============================
+/** 单次 POST 最大日志条数 */
+export const CLIENT_LOG_MAX_BATCH = 100;
+/** 单次 POST 体积上限（256KB） */
+export const CLIENT_LOG_MAX_PAYLOAD_BYTES = 256 * 1024;
+/** 每 IP 每秒上报次数上限 */
+export const CLIENT_LOG_RATE_PER_SEC = 10;
