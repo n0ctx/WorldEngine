@@ -1,6 +1,14 @@
 const LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
 const TOAST_TYPE = { error: 'error', warn: 'warning', info: 'info', success: 'success' };
 
+const FLUSH_BATCH = 20;
+const FLUSH_INTERVAL_MS = 5000;
+const BUFFER_CAP = 500;
+const RETRY_KEY = 'we:log:retry';
+const RETRY_CAP = 200;
+const POST_BATCH_MAX = 100;
+const DEDUP_MS = 1500;
+
 let consoleLevel = (() => {
   try {
     const fromUrl = new URLSearchParams(globalThis.location?.search || '').get('debug');
@@ -15,7 +23,10 @@ let consoleLevel = (() => {
 
 let _buffer = [];
 let _dedupe = new Map();
-const DEDUP_MS = 1500;
+let _flushTimer = null;
+let _droppedCount = 0;
+let _feSessionId = null;
+let _flushing = false;
 
 function dedupeKey(level, event, msg) { return `${level}|${event}|${msg}`; }
 
@@ -74,7 +85,12 @@ export function __getBuffer() { return _buffer; }
 export function __resetLoggerForTest() {
   _buffer = [];
   _dedupe = new Map();
-  _maybeFlush = () => {};
+  if (_flushTimer) { clearTimeout(_flushTimer); _flushTimer = null; }
+  _droppedCount = 0;
+  _flushing = false;
+  if (typeof localStorage !== 'undefined') {
+    try { localStorage.removeItem('we:log:retry'); } catch { /* ignore */ }
+  }
 }
 
 export const log = {
@@ -83,3 +99,118 @@ export const log = {
   warn: makeLog('warn'),
   error: makeLog('error'),
 };
+
+function feSession() {
+  if (_feSessionId) return _feSessionId;
+  try {
+    let id = sessionStorage.getItem('we:log:session');
+    if (!id) {
+      id = crypto.randomUUID();
+      sessionStorage.setItem('we:log:session', id);
+    }
+    _feSessionId = id;
+  } catch {
+    _feSessionId = crypto.randomUUID();
+  }
+  return _feSessionId;
+}
+
+function loadRetry() {
+  try {
+    return JSON.parse(localStorage.getItem(RETRY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveRetry(arr) {
+  try {
+    localStorage.setItem(RETRY_KEY, JSON.stringify(arr.slice(-RETRY_CAP)));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clientMeta() {
+  return {
+    ua: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    page: typeof location !== 'undefined' ? location.pathname + location.search : '',
+    session: feSession(),
+    ts: Date.now(),
+  };
+}
+
+async function doFlush({ useBeacon = false } = {}) {
+  if (_flushing && !useBeacon) return;
+  if (_flushTimer) {
+    clearTimeout(_flushTimer);
+    _flushTimer = null;
+  }
+  const retry = loadRetry();
+  if (_buffer.length === 0 && retry.length === 0) return;
+
+  const merged = [...retry, ..._buffer].slice(-POST_BATCH_MAX);
+  _buffer = [];
+  saveRetry([]);
+
+  const body = {
+    client: { ...clientMeta(), dropped: _droppedCount },
+    logs: merged,
+  };
+  _droppedCount = 0;
+  const json = JSON.stringify(body);
+
+  if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
+    try {
+      navigator.sendBeacon('/api/client-logs', new Blob([json], { type: 'application/json' }));
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
+
+  _flushing = true;
+  try {
+    await fetch('/api/client-logs', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: json,
+      keepalive: true,
+    });
+  } catch {
+    saveRetry([...loadRetry(), ...merged]);
+  } finally {
+    _flushing = false;
+  }
+}
+
+function scheduleFlush() {
+  if (_flushTimer) return;
+  _flushTimer = setTimeout(() => {
+    _flushTimer = null;
+    doFlush();
+  }, FLUSH_INTERVAL_MS);
+}
+
+__setFlush(() => {
+  if (_buffer.length > BUFFER_CAP) {
+    _droppedCount += _buffer.length - BUFFER_CAP;
+    _buffer = _buffer.slice(-BUFFER_CAP);
+  }
+  if (_buffer.length >= FLUSH_BATCH) {
+    doFlush();
+    return;
+  }
+  if (_buffer.some((e) => e.level === 'error')) {
+    doFlush();
+    return;
+  }
+  scheduleFlush();
+});
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') doFlush({ useBeacon: true });
+  });
+  window.addEventListener('pagehide', () => doFlush({ useBeacon: true }));
+}
