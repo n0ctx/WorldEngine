@@ -317,7 +317,7 @@ const STATE_FIELD_KEYS = [
   'field_key', 'label', 'type', 'description', 'default_value',
   'update_mode', 'update_instruction',
   'enum_options', 'min_value', 'max_value', 'allow_empty',
-  'prefix', 'table_columns',
+  'prefix', 'table_columns', 'nearby_enabled',
 ];
 
 function normalizeProposal(raw, locked = {}) {
@@ -735,6 +735,12 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('allow_empty' in data) normalized.allow_empty = normalizeEnabled(data.allow_empty);
       if ('prefix' in data) normalized.prefix = String(data.prefix ?? '');
       if ('table_columns' in data) normalized.table_columns = normalizeTableColumns(data.table_columns, idx);
+      if ('nearby_enabled' in data) {
+        if (target !== 'character') {
+          throw new Error(`提案格式错误：stateFieldOps[${idx}].nearby_enabled 仅 target='character' 时允许使用`);
+        }
+        normalized.nearby_enabled = data.nearby_enabled ? 1 : 0;
+      }
       // 仅在本次 update 显式带上 type 时校验类型相关约束；type 缺省时无法判定原字段类型，留给后续业务层
       if ('type' in data) {
         const isDatetime = data.type === 'datetime';
@@ -783,6 +789,12 @@ function normalizeStateFieldOps(rawOps, type) {
     if ('max_value' in raw) normalized.max_value = normalizeNumberOrNull(raw.max_value);
     if ('prefix' in raw) normalized.prefix = String(raw.prefix ?? '');
     if ('table_columns' in raw) normalized.table_columns = normalizeTableColumns(raw.table_columns, idx);
+    if ('nearby_enabled' in raw) {
+      if (target !== 'character') {
+        throw new Error(`提案格式错误：stateFieldOps[${idx}].nearby_enabled 仅 target='character' 时允许使用`);
+      }
+      normalized.nearby_enabled = raw.nearby_enabled ? 1 : 0;
+    }
     if (fieldType === 'datetime') {
       assertDatetimeDefaultValue(normalized.default_value, idx);
     } else if (fieldType === 'table') {

@@ -3,6 +3,31 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(assistant): 写卡助手知识 + 工具同步 nearby_enabled；清理 legacy extract/confirm 路由（Nearby Task 14）
+
+**背景**：Task 13 把 `nearby_enabled` 字段从 DB 打通到前端编辑器，但写卡助手（assistant 子代理）的知识层、normalize-proposal 校验层尚未感知该字段，LLM 输出 `nearby_enabled` 会被静默丢弃。同时 Task 12 报告了 assistant 端 `/extract-characters` `/confirm-characters` 路由仍在但前端已无调用方，需要本任务统一清理。
+
+**改动 — 同步 nearby_enabled**：
+- `assistant/server/normalize-proposal.js`：`STATE_FIELD_KEYS` 追加 `nearby_enabled`（apply 时 `pickAllowed` 自动透传）；create/update 两条归一化路径分别加 explicit 处理 — `target='character'` 时归一为 0/1，其它 target 出现该键直接抛 `nearby_enabled 仅 target='character' 时允许使用`；缺省时不补默认值，留 DB 默认 1
+- `assistant/knowledge/WORLDCARD.md`：在"prefix（仅 datetime）"之后新增"nearby_enabled（仅 `target:"character"`）"小节，说明语义、用例（HP/MP/复杂数值表只对正式角色有意义时设 false）、target 限制与"不要主动补 1"规则
+- `assistant/knowledge/CHARCARD.md`：在 `stateValueOps 规则` 段添加一句备注 — 字段定义上的 `nearby_enabled` 由 world-card 管理，character-card 不感知不应输出
+- `assistant/tests/normalize-proposal-extra.test.js`：新增 1 个用例覆盖 6 个分支（character + 0/true/缺省 / world 拒绝 / persona 拒绝 / update + character 切换 / update + world 拒绝）
+
+**改动 — 清理 legacy 路由**（Task 12 残留）：
+- `assistant/server/routes.js`：删除 `POST /api/assistant/extract-characters`（含其使用的 `parseCharacterArray` 内联函数、`buildPromptMessages` 加载器、`SSE` 工具 `openSSE` / `sendSSE` / `endSSE`）与 `POST /api/assistant/confirm-characters`；同步删除 9 个仅供这两个路由使用的 import：`readFileSync` / `path` / `fileURLToPath` / `getCharactersByWorldId` / `createCharacter` / `getConfig` / `getWorldPromptEntryById` / `listWorldPromptEntries` / `listCharacterStateFields` / `getMessagesBySessionId` / `getMessageById` / `getWritingSessionById` / `dbDeleteCharacter` / `upsertCharacterStateValue` / `llm`；同时清理无引用的 `proposalStore` Map + `PROPOSAL_TTL_MS` + 其 GC `setInterval`（曾标注"保留供测试用"，全仓零引用）；header 注释更新为只列 `/agent*` 端点；`__testables` 不再导出 `proposalStore`
+- `assistant/prompts/extract-characters.md`：整文件删除（仅供已删路由使用）
+- `assistant/tests/routes-http.test.js`：删除 4 个 `/extract-characters` `/confirm-characters` 用例（参数校验 + 走完一轮 ×2）；删除仅供这些用例使用的 `insertWritingSession` 本地 helper 与 `insertWorld` / `insertMessage` import；保留 `sandbox` 与 `postSSE`（仍被 `/agent` 用例使用）
+- `ARCHITECTURE.md` §4.x 写作助手模型切换：移除 `routes.js（extract-characters）` 括号注释，只列 parent-agent / sub-agent
+
+**未改动**：
+- `assistant/server/tools/apply-world-card.js`：tool schema 中 `stateFieldOps: { type: 'array' }` 已是 open 数组，不限制内层字段；`apply_world_card` 透传到 `normalizeProposal`，nearby_enabled 走新加的归一化分支即可，无需改 tool definition
+- `assistant/server/tools/apply-character-card.js`：character-card 提案不携带 stateFieldOps（白名单 `STATE_TARGETS_BY_PROPOSAL_TYPE['character-card']` 为空集，已在 normalize 处拒绝），nearby_enabled 不可能从 character-card 路径进入，无需改动
+- `assistant/knowledge/CONTRACT.md`：契约表格只列 proposal 顶层结构，不展开字段细节，无需改动
+
+**验证**：`assistant npm test` 全绿（含新加 nearby_enabled 用例）；`backend npm run test` 全绿；`frontend npm run test` 全绿；`npm run lint` 全绿。
+
+**残留**：无。
+
 ## 2026-05-10 feat(state): character_state_fields 增加 nearby_enabled 编辑入口（Nearby Task 13）
 
 **背景**：Task 1 在 `character_state_fields` 上加了 `nearby_enabled INTEGER NOT NULL DEFAULT 1` 列，但 CRUD 链路一直忽略它，UI 也没有控制入口。本任务把它从 DB → service → route → frontend API → 编辑器 UI 打通。

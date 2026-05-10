@@ -158,6 +158,17 @@ datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数（
 
 `datetime` 字段可选 `prefix` 字段，写展示前缀字符串（如 `"第三纪元 "`），仅前端渲染用，**不参与 LLM 比较**。
 
+### nearby_enabled（仅 `target:"character"`）
+
+可选布尔字段，默认 `true`（DB 层默认值 1）。控制该字段是否被"附近 / 登场角色"（session 内的临时角色池）继承：
+
+- `true`：登场角色面板会显示该字段，每轮自动状态更新会维护它的值；玩家把临时角色升级为正式角色时，字段值会迁移
+- `false`：字段仅作用于正式角色卡（chat 模式与角色编辑入口），登场角色不显示也不写入
+
+使用场景：当某些字段（HP / MP / 复杂数值表 / 长篇人物档案）只对正式 `{{char}}` 有意义、登场角色不需要继承时，建议把这些字段标记为 `nearby_enabled: false`，避免污染本轮临时角色池。
+
+仅 `target:"character"` 字段允许填写；`target:"world"` / `target:"persona"` 出现 `nearby_enabled` 会被 normalize 拒绝。LLM 在 create / update 中如果不显式输出，DB 默认值 1 生效，不要为了"补全"主动填 `nearby_enabled: 1`。
+
 ### default_value 写法
 
 - number → `"100"`

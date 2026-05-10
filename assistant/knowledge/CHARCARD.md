@@ -38,6 +38,8 @@
 
 仅填写**已存在**的状态字段值。不能创建字段、不能删除字段，新字段需通过 world-card 任务管理。
 
+> 字段定义上的 `nearby_enabled` 开关由 world-card 管理，character-card 不感知该字段，也不应在 `stateValueOps` 中输出该键。
+
 ### 格式
 
 ```json

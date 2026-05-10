@@ -236,7 +236,7 @@ POST /api/sessions/:sessionId/chat
 
 ### 写作助手模型切换
 
-`assistant/server/parent-agent.js`、`assistant/server/sub-agent.js`、`assistant/server/routes.js`（extract-characters）在每次 LLM 调用前读取 `getConfig().assistant.model_source`，决定 `configScope` 取 `'main'` 还是 `'aux'`。
+`assistant/server/parent-agent.js`、`assistant/server/sub-agent.js` 在每次 LLM 调用前读取 `getConfig().assistant.model_source`，决定 `configScope` 取 `'main'` 还是 `'aux'`。
 
 ---
 

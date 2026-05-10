@@ -136,6 +136,58 @@ test('stateFieldOps update type=table 与 type 切换约束', () => {
   }], 'world-card'), /不符合 datetime 格式/);
 });
 
+test('stateFieldOps nearby_enabled 仅 target=character 可用', () => {
+  // create + character + nearby_enabled=0 → 通过，落 0
+  const ok0 = normalizeStateFieldOps([{
+    op: 'create', target: 'character',
+    field_key: 'hp', label: 'HP', type: 'number',
+    nearby_enabled: 0,
+  }], 'world-card');
+  assert.equal(ok0[0].nearby_enabled, 0);
+
+  // create + character + nearby_enabled=true → 落 1
+  const ok1 = normalizeStateFieldOps([{
+    op: 'create', target: 'character',
+    field_key: 'mp', label: 'MP', type: 'number',
+    nearby_enabled: true,
+  }], 'world-card');
+  assert.equal(ok1[0].nearby_enabled, 1);
+
+  // create + character 未提供 → normalized 不带该键，留 DB 默认
+  const okMissing = normalizeStateFieldOps([{
+    op: 'create', target: 'character',
+    field_key: 'sp', label: 'SP', type: 'number',
+  }], 'world-card');
+  assert.equal('nearby_enabled' in okMissing[0], false);
+
+  // create + target=world + nearby_enabled → 拒绝
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'create', target: 'world',
+    field_key: 'phase', label: '阶段', type: 'enum', enum_options: ['a'],
+    nearby_enabled: 1,
+  }], 'world-card'), /nearby_enabled 仅 target='character' 时允许使用/);
+
+  // create + target=persona + nearby_enabled → 拒绝
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'create', target: 'persona',
+    field_key: 'role', label: '角色', type: 'text',
+    nearby_enabled: 0,
+  }], 'world-card'), /nearby_enabled 仅 target='character' 时允许使用/);
+
+  // update + character + nearby_enabled 切换
+  const okUpd = normalizeStateFieldOps([{
+    op: 'update', target: 'character', id: 'f1',
+    nearby_enabled: 0,
+  }], 'world-card');
+  assert.equal(okUpd[0].nearby_enabled, 0);
+
+  // update + target=world + nearby_enabled → 拒绝
+  assert.throws(() => normalizeStateFieldOps([{
+    op: 'update', target: 'world', id: 'f1',
+    nearby_enabled: 1,
+  }], 'world-card'), /nearby_enabled 仅 target='character' 时允许使用/);
+});
+
 test('stateFieldOps create non-table 不允许 table_columns', () => {
   assert.throws(() => normalizeStateFieldOps([{
     op: 'create', target: 'world', field_key: 'x', label: 'X', type: 'text',

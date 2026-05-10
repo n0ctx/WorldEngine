@@ -4,20 +4,6 @@ import http from 'node:http';
 import express from '../../backend/node_modules/express/index.js';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../../backend/tests/helpers/test-env.js';
-import {
-  insertWorld,
-  insertMessage,
-} from '../../backend/tests/helpers/fixtures.js';
-
-function insertWritingSession(db, worldId, patch = {}) {
-  const id = patch.id ?? `s-${Math.random().toString(16).slice(2, 8)}`;
-  const now = Date.now();
-  db.prepare(
-    `INSERT INTO sessions (id, character_id, world_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
-     VALUES (?, NULL, ?, 'writing', NULL, NULL, NULL, ?, ?)`,
-  ).run(id, worldId, now, now);
-  return { id, world_id: worldId };
-}
 
 const sandbox = createTestSandbox('assistant-routes-http');
 sandbox.setEnv();
@@ -178,52 +164,3 @@ test('POST /agent 在 executing 任务上仅入队', async () => {
   assert.equal(t.pendingUserMessages.length, 1);
 });
 
-test('POST /extract-characters 参数缺失返回 400', async () => {
-  const r = await postJSON('/extract-characters', {});
-  assert.equal(r.status, 400);
-});
-
-test('POST /extract-characters 走完一轮（dryRun）', async () => {
-  const world = insertWorld(sandbox.db, { name: 'extract-w' });
-  const session = insertWritingSession(sandbox.db, world.id, { id: 's1' });
-  const userMsg = insertMessage(sandbox.db, session.id, { role: 'user', content: '场景：城里出现一个铁匠' });
-  const aMsg = insertMessage(sandbox.db, session.id, { role: 'assistant', content: '铁匠张三敲打着铁锤' });
-
-  // 校验：session 不属于 world → 400
-  const r400a = await postJSON('/extract-characters', { worldId: 'wrong', sessionId: session.id, assistantMessageId: aMsg.id });
-  assert.equal(r400a.status, 400);
-  // 校验：消息 id 错误 → 400
-  const r400b = await postJSON('/extract-characters', { worldId: world.id, sessionId: session.id, assistantMessageId: userMsg.id });
-  assert.equal(r400b.status, 400);
-
-  // mock LLM 返回一个角色数组
-  process.env.MOCK_LLM_COMPLETE = JSON.stringify([{ name: '张三', description: '铁匠' }]);
-  const r = await postSSE('/extract-characters', { worldId: world.id, sessionId: session.id, assistantMessageId: aMsg.id, dryRun: true });
-  assert.equal(r.status, 200);
-  const types = r.events.map((e) => e.type);
-  assert.ok(types.includes('characters_extracted'));
-  delete process.env.MOCK_LLM_COMPLETE;
-});
-
-test('POST /confirm-characters 参数缺失返回 400', async () => {
-  const r = await postJSON('/confirm-characters', {});
-  assert.equal(r.status, 400);
-});
-
-test('POST /confirm-characters 走完一轮', async () => {
-  const world = insertWorld(sandbox.db, { name: 'confirm-w' });
-  const session = insertWritingSession(sandbox.db, world.id, { id: 'cs1' });
-
-  // session 不属于 world → 400
-  const r400 = await postJSON('/confirm-characters', { worldId: 'wrong', sessionId: session.id, characters: [{ name: 'x' }] });
-  assert.equal(r400.status, 400);
-
-  const r = await postSSE('/confirm-characters', {
-    worldId: world.id,
-    sessionId: session.id,
-    characters: [{ name: '李四', description: '商人' }],
-  });
-  assert.equal(r.status, 200);
-  const types = r.events.map((e) => e.type);
-  assert.ok(types.some((t) => ['card_activated', 'character_found'].includes(t)));
-});
