@@ -34,12 +34,17 @@ import {
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { getCharacterById } from '../db/queries/characters.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 export function createWritingSession(worldId) {
   const config = getConfig();
   const diaryWriting = config.diary?.writing;
   const diary_date_mode = diaryWriting?.enabled ? (diaryWriting.date_mode ?? 'virtual') : null;
-  return dbCreateWritingSession(worldId, { diary_date_mode });
+  const session = dbCreateWritingSession(worldId, { diary_date_mode });
+  log.info(`writing_session.create  ${formatMeta({ sessionId: session.id, worldId })}`);
+  return session;
 }
 
 export function getWritingSessionsByWorldId(worldId) {
@@ -56,7 +61,9 @@ export async function deleteWritingSession(id) {
     await runOnDelete('message', mid);
   }
   await runOnDelete('session', id);
-  return dbDeleteWritingSession(id);
+  const result = dbDeleteWritingSession(id);
+  log.info(`writing_session.delete  ${formatMeta({ sessionId: id, messages: ids.length })}`);
+  return result;
 }
 
 export function updateWritingSessionTitle(id, title) {
@@ -86,7 +93,9 @@ export async function deleteMessagesAfter(messageId) {
   for (const mid of ids) {
     await runOnDelete('message', mid);
   }
-  return dbDeleteMessagesAfter(messageId);
+  const result = dbDeleteMessagesAfter(messageId);
+  log.info(`writing_message.delete_after  ${formatMeta({ messageId, count: ids.length })}`);
+  return result;
 }
 
 export async function deleteAllMessages(sessionId) {
@@ -94,7 +103,9 @@ export async function deleteAllMessages(sessionId) {
   for (const mid of ids) {
     await runOnDelete('message', mid);
   }
-  return dbDeleteAllMessagesBySessionId(sessionId);
+  const result = dbDeleteAllMessagesBySessionId(sessionId);
+  log.info(`writing_message.delete_all  ${formatMeta({ sessionId, count: ids.length })}`);
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -194,13 +205,15 @@ export function addSavedFromCharacter(sessionId, characterId) {
       valueJson: v.default_value_json,
     });
   }
+  log.info(`nearby.add_from_character  ${formatMeta({ sessionId, characterId, nearbyId, name: character.name })}`);
   return nearbyId;
 }
 
 export function removeNearby(sessionId, nearbyId) {
   ensureWritingSession(sessionId);
-  ensureNearbyOwned(sessionId, nearbyId);
+  const row = ensureNearbyOwned(sessionId, nearbyId);
   deleteNearbyById(nearbyId);
+  log.info(`nearby.remove  ${formatMeta({ sessionId, nearbyId, name: row.name })}`);
 }
 
 export function setNearbyIsSaved(sessionId, nearbyId, isSaved) {

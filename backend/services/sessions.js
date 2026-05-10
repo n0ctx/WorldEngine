@@ -24,6 +24,9 @@ import { runOnDelete } from '../utils/cleanup-hooks.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getConfig } from './config.js';
 import { ensureDiaryTimeField } from './worlds.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 /**
  * 创建会话；若角色有 first_message 则自动插入开场白
@@ -49,6 +52,7 @@ export function createSession(characterId) {
     });
   }
 
+  log.info(`session.create  ${formatMeta({ sessionId: session.id, characterId, worldId: character?.world_id })}`);
   return session;
 }
 
@@ -74,7 +78,9 @@ export function touchSession(id) {
 
 export async function deleteSession(id) {
   await runOnDelete('session', id);
-  return dbDeleteSession(id);
+  const result = dbDeleteSession(id);
+  log.info(`session.delete  ${formatMeta({ sessionId: id })}`);
+  return result;
 }
 
 // ── 消息 ──
@@ -100,12 +106,15 @@ export function getMessagesBySessionId(sessionId, limit, offset) {
 export async function updateMessageAndDeleteAfter(id, content) {
   const updated = dbUpdateMessageContent(id, content);
   await deleteMessagesAfter(id);
+  log.info(`message.edit_and_truncate  ${formatMeta({ messageId: id, sessionId: updated?.session_id })}`);
   return updated;
 }
 
 export async function deleteMessage(id) {
   await runOnDelete('message', id);
-  return dbDeleteMessage(id);
+  const result = dbDeleteMessage(id);
+  log.info(`message.delete  ${formatMeta({ messageId: id })}`);
+  return result;
 }
 
 export async function deleteMessagesAfter(messageId) {
@@ -113,7 +122,9 @@ export async function deleteMessagesAfter(messageId) {
   for (const mid of ids) {
     await runOnDelete('message', mid);
   }
-  return dbDeleteMessagesAfter(messageId);
+  const result = dbDeleteMessagesAfter(messageId);
+  log.info(`message.delete_after  ${formatMeta({ messageId, count: ids.length })}`);
+  return result;
 }
 
 export async function deleteAllMessagesBySessionId(sessionId) {
@@ -121,7 +132,9 @@ export async function deleteAllMessagesBySessionId(sessionId) {
   for (const mid of ids) {
     await runOnDelete('message', mid);
   }
-  return dbDeleteAllMessagesBySessionId(sessionId);
+  const result = dbDeleteAllMessagesBySessionId(sessionId);
+  log.info(`message.delete_all  ${formatMeta({ sessionId, count: ids.length })}`);
+  return result;
 }
 
 export function updateMessageContent(id, content) {

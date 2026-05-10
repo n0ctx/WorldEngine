@@ -9,6 +9,9 @@ import {
   validateWorldImportPayload,
 } from './import-export-validation.js';
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_ROOT = process.env.WE_DATA_DIR
@@ -222,7 +225,9 @@ export function importCharacter(worldId, data) {
     return db.prepare('SELECT * FROM characters WHERE id = ?').get(characterId);
   });
 
-  return doImport();
+  const created = doImport();
+  log.info(`character.import  ${formatMeta({ characterId: created?.id, worldId, name: created?.name })}`);
+  return created;
 }
 
 // ─── 导出世界卡 ──────────────────────────────────────────────────────────────
@@ -551,7 +556,15 @@ export function importWorld(data) {
     return db.prepare('SELECT * FROM worlds WHERE id = ?').get(worldId);
   });
 
-  return doImport();
+  const created = doImport();
+  log.info(`world.import  ${formatMeta({
+    worldId: created?.id,
+    name: created?.name,
+    characters: (data.characters ?? []).length,
+    promptEntries: (data.prompt_entries ?? []).length,
+    personas: Array.isArray(data.personas) ? data.personas.length : 1,
+  })}`);
+  return created;
 }
 
 // ─── 导出全局设置 ─────────────────────────────────────────────────────────────
@@ -691,5 +704,10 @@ export function importGlobalSettings(data) {
     if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
   }
 
+  log.info(`global_settings.import  ${formatMeta({
+    mode,
+    cssSnippets: (data.custom_css_snippets ?? []).length,
+    regexRules: (data.regex_rules ?? []).length,
+  })}`);
   return { ok: true, mode };
 }

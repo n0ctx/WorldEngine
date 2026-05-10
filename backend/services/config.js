@@ -1,6 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = process.env.WE_CONFIG_PATH
@@ -324,6 +327,7 @@ export function updateConfig(patch) {
   const current = getConfig();
   const merged = deepMerge(current, patch);
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf-8');
+  log.info(`config.update  ${formatMeta({ keys: Object.keys(patch ?? {}) })}`);
   return merged;
 }
 
@@ -348,6 +352,7 @@ export function updateProviderKey(provider, key) {
   }
   current.provider_keys[provider] = key;
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  log.info(`config.update_provider_key  ${formatMeta({ provider, hasKey: !!key })}`);
   return current;
 }
 

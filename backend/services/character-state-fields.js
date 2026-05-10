@@ -9,6 +9,9 @@ import {
 import { getCharactersByWorldId } from '../db/queries/characters.js';
 import { upsertCharacterStateValue, deleteCharacterStateValue } from '../db/queries/character-state-values.js';
 import { getInitialValueJson } from './_state-field-helpers.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 export function createCharacterStateField(worldId, data) {
   const field = dbCreate(worldId, data);
@@ -16,6 +19,7 @@ export function createCharacterStateField(worldId, data) {
   for (const character of characters) {
     upsertCharacterStateValue(character.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   }
+  log.info(`character_state_field.create  ${formatMeta({ worldId, fieldId: field.id, fieldKey: field.field_key, type: field.type })}`);
   return field;
 }
 export const getCharacterStateFieldById = (id)           => dbGetById(id);
@@ -27,6 +31,7 @@ export function updateCharacterStateField(id, patch) {
     for (const character of characters) {
       upsertCharacterStateValue(character.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
     }
+    log.info(`character_state_field.update_default  ${formatMeta({ worldId: field.world_id, fieldId: field.id, fieldKey: field.field_key })}`);
   }
   return field;
 }
@@ -38,6 +43,10 @@ export function deleteCharacterStateField(id) {
       deleteCharacterStateValue(character.id, field.field_key);
     }
   }
-  return dbDelete(id);
+  const result = dbDelete(id);
+  if (field) {
+    log.info(`character_state_field.delete  ${formatMeta({ worldId: field.world_id, fieldId: id, fieldKey: field.field_key })}`);
+  }
+  return result;
 }
 export const reorderCharacterStateFields = (worldId, orderedIds) => dbReorder(worldId, orderedIds);

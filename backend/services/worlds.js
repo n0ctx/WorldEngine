@@ -22,6 +22,9 @@ import { upsertPersonaStateValueByPersonaId } from '../db/queries/persona-state-
 import { getSessionIdsByWorldId } from '../db/queries/characters.js';
 import { deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 function getInitialValueJson(field) {
   return field.default_value ?? null;
@@ -103,6 +106,7 @@ export function createWorld(data) {
   for (const field of personaFields) {
     upsertPersonaStateValueByPersonaId(persona.id, world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
   }
+  log.info(`world.create  ${formatMeta({ worldId: world.id, name: world.name })}`);
   return world;
 }
 
@@ -115,7 +119,11 @@ export function getAllWorlds() {
 }
 
 export function updateWorld(id, patch) {
-  return dbUpdateWorld(id, patch);
+  const updated = dbUpdateWorld(id, patch);
+  if (updated) {
+    log.info(`world.update  ${formatMeta({ worldId: id, fields: Object.keys(patch) })}`);
+  }
+  return updated;
 }
 
 export function reorderWorlds(items) {
@@ -123,8 +131,11 @@ export function reorderWorlds(items) {
 }
 
 export async function deleteWorld(id) {
+  const existing = dbGetWorldById(id);
   await runOnDelete('world', id);
-  return dbDeleteWorld(id);
+  const result = dbDeleteWorld(id);
+  log.info(`world.delete  ${formatMeta({ worldId: id, name: existing?.name })}`);
+  return result;
 }
 
 /**

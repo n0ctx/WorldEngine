@@ -10,6 +10,9 @@ import {
   reorderPersonas as dbReorderPersonas,
 } from '../db/queries/personas.js';
 import { unlinkUploadFile } from '../utils/file-cleanup.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 /** 获取激活的 persona，不存在则创建空 persona（兼容旧接口） */
 export function getOrCreatePersona(worldId) {
@@ -27,7 +30,9 @@ export function listPersonas(worldId) {
 
 /** 创建新 persona */
 export function createPersona(worldId, data) {
-  return dbCreatePersona(worldId, data);
+  const persona = dbCreatePersona(worldId, data);
+  log.info(`persona.create  ${formatMeta({ worldId, personaId: persona.id, name: persona.name })}`);
+  return persona;
 }
 
 /** 按 id 更新 persona，处理旧头像文件清理 */
@@ -39,6 +44,9 @@ export async function updatePersonaByIdService(id, patch) {
   const persona = updatePersonaById(id, patch);
   if (oldAvatarPath && oldAvatarPath !== patch.avatar_path) {
     await unlinkUploadFile(oldAvatarPath);
+  }
+  if (persona) {
+    log.info(`persona.update  ${formatMeta({ personaId: id, worldId: persona.world_id, fields: Object.keys(patch) })}`);
   }
   return persona;
 }
@@ -58,6 +66,7 @@ export async function deletePersonaService(id) {
   if (oldAvatarPath) {
     await unlinkUploadFile(oldAvatarPath).catch(() => {});
   }
+  log.info(`persona.delete  ${formatMeta({ personaId: id, worldId: persona.world_id, name: persona.name })}`);
 }
 
 /** 设置激活 persona */
@@ -65,6 +74,7 @@ export function activatePersona(worldId, personaId) {
   const persona = getPersonaById(personaId);
   if (!persona || persona.world_id !== worldId) throw new Error('玩家卡不属于该世界');
   setActivePersona(worldId, personaId);
+  log.info(`persona.activate  ${formatMeta({ worldId, personaId })}`);
   return getPersonasByWorldId(worldId);
 }
 

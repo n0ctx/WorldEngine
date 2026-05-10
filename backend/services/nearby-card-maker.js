@@ -19,6 +19,9 @@ import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { createCharacter } from '../db/queries/characters.js';
 import { upsertCharacterStateValue } from '../db/queries/character-state-values.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
+
+const log = createLogger('svc', 'green');
 
 const RECENT_TEXT_ROUNDS = 6;
 const ANALYZE_MAX_TOKENS = 1024;
@@ -135,6 +138,7 @@ export async function analyzeNearbyForCard(sessionId, nearbyId) {
 
   const parsed = tryParseJson(raw);
   if (!parsed || typeof parsed !== 'object') {
+    log.error(`nearby_card.analyze.failed  ${formatMeta({ sessionId, nearbyId, msg: 'LLM returned invalid JSON' })}`);
     throw new Error('LLM returned invalid JSON');
   }
 
@@ -200,5 +204,6 @@ export function createCharacterFromNearby({
     });
   }
 
+  log.info(`nearby_card.create_character  ${formatMeta({ sessionId, worldId, nearbyId, characterId: character.id, name: trimmedName })}`);
   return character.id;
 }

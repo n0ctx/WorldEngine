@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat(logger): services 关键状态变更 info + 异常 error
+
+Task 18：对 `backend/services/*.js` 21 个文件补齐域级日志，统一 tag `svc`（color `green`），格式 `<域>.<动作>`：
+
+- 状态变更 info：`world.create/update/delete`、`character.create/update/delete`、`session.create/delete`、`writing_session.create/delete`、`persona.create/update/delete/activate`、`message.delete/delete_after/delete_all/edit_and_truncate`、`writing_message.delete_after/delete_all`、`{world,character,persona}_state_field.create/update_default/delete`、`prompt_entry.create/update/delete`、`regex_rule.create/update/delete`、`css_snippet.create/update/delete`、`config.update`、`config.update_provider_key`、`character.import`、`world.import`、`global_settings.import`、`nearby.add_from_character/remove`、`nearby_card.create_character`。
+- error：`nearby_card.analyze.failed`（LLM 返回非法 JSON 时记录后再抛）。其余服务的 throw 都是参数校验/资源不存在，由路由层 Task 17 的 500 兜底捕获，避免重复日志。
+- 跳过：`_state-field-helpers.js`（helper）、`cleanup-registrations.js`（Task 21 接管）、`client-log-ingest.js`（Task 5 自身就是日志消费者）、`import-export-validation.js`（纯校验，无副作用）、`state-values.js`（字段级 upsert 属内部步骤，不算公共 API 完成点）、`long-term-memory.js`（已有 `ltm` 自有 logger）、`chat.js`（`processStreamOutput` 每轮触发，日志归属 routes/SSE 层）。
+- `worlds.createWorld` 会经 `ensureDiaryTimeField` 触发 `world_state_field.create` 等子日志，每个仍独立成行，符合"每个状态变更记一条"的原则。
+
+**验证**：`cd backend && npm test` → 429 pass / 0 fail / 3 skipped。
+
 ## 2026-05-10 feat(logger): routes 全量补齐 warn(校验失败/404) + error(500)
 
 Task 17：对 `backend/routes/*.js` 19 个文件（不含已完成的 `client-logs.js` 与无路由的 `stream-helpers.js`）补齐域级日志：
