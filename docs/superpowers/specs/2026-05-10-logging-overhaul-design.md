@@ -156,7 +156,7 @@ log.error('background.task.failed', err, { silent: true });      // 仅 console 
 - **触发条件**（任一满足即 flush）：缓冲达 **20 条** / 距上次 flush **5 秒** / 缓冲含 `error` 级
 - **页面卸载兜底**：`visibilitychange→hidden` 和 `pagehide` 用 `navigator.sendBeacon('/api/client-logs', blob)`
 - **失败处理**：fetch 失败 → 写 `localStorage['we:log:retry']`（上限 200 条 FIFO）→ 下次启动 + 每次 flush 前合并重发
-- **节流保护**：单次 POST 上限 100 条；超量按时间窗最旧的丢弃，记录 `dropped` 计数随下一批上报
+- **节流保护**：单次 POST 上限 100 条；缓冲队列上限 500 条，超出按 FIFO 丢弃最旧，丢弃数累加到 `dropped` 计数器，随下一批上报（作为一条 `meta.dropped` 字段附在 client 区块）
 
 ### 5.2 上报载荷
 
