@@ -16,6 +16,7 @@ dist/
 
 # Local agent / tooling files
 /.superpowers/
+/docs/superpowers/
 /.claude/
 /.obsidian/
 /.playwright-cli/
