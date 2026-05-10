@@ -3,9 +3,23 @@ import { convertToAnthropicMessages } from './_converters.js';
 import { recordTokenUsage } from './cache-usage.js';
 import { logRawRequest } from '../raw-logger.js';
 
-// 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching
-function withCacheControl(system) {
+// 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching。
+// 若 config.cacheableSystem 提供了稳定前缀（assembler [1-3.5]），则把 system 拆成
+// stable prefix + dynamic suffix 两段，cache_control 只标在 prefix 上 —— 避免 dynamic
+// 段（时间/状态/附近角色等每轮变化）破坏 cache hash，等价于 openai-compatible 路径
+// 已做的 normalizeOpenAICompatibleMessages 优化。
+function withCacheControl(system, config) {
   if (!system) return undefined;
+  const cacheable = config?.cacheableSystem;
+  if (cacheable && system.startsWith(cacheable)) {
+    const dynamic = system.slice(cacheable.length).replace(/^\s*\n+/, '');
+    if (dynamic) {
+      return [
+        { type: 'text', text: cacheable, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: dynamic },
+      ];
+    }
+  }
   return [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }];
 }
 
@@ -32,7 +46,7 @@ export async function* streamAnthropic(messages, config) {
   // extended thinking 不兼容 temperature（必须为 1），有 thinking 时不传 temperature
   if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (system) body.system = withCacheControl(system);
+  if (system) body.system = withCacheControl(system, config);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -117,7 +131,7 @@ export async function completeAnthropic(messages, config) {
   };
   if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
-  if (system) body.system = withCacheControl(system);
+  if (system) body.system = withCacheControl(system, config);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -157,7 +171,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: config.max_tokens || 4096 };
     if (config.temperature != null) body.temperature = config.temperature;
-    if (system) body.system = withCacheControl(system);
+    if (system) body.system = withCacheControl(system, config);
 
     logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
@@ -198,7 +212,7 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
   for (let i = 0; i < 5; i++) {
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
-    if (system) body.system = withCacheControl(system);
+    if (system) body.system = withCacheControl(system, config);
 
     logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });

@@ -3,6 +3,40 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(provider): Anthropic adapter 拆 cache_control prefix + 修 Gemini 思考块缺失
+
+**Issue 1 — Gemini 思考块"被自动隐藏"**
+
+根因：`backend/llm/providers/gemini.js` 中 `streamGemini` / `completeGemini` 两处构造 `thinkingConfig` 时只传了 `thinkingBudget`，未传 `includeThoughts`。Gemini API 该字段默认 `false`，模型仍消耗 thinking budget 但响应 parts 不下发 `thought: true` 块 → `streamGemini` 走不到 `<think>` 分支 → 前端 `parseStreamingBlocks` 拿不到可解析的标签。这是与 Anthropic（`thinking.type=enabled` 即返回完整 thinking block）的真实机制差异。
+
+改动：[backend/llm/providers/gemini.js:102](backend/llm/providers/gemini.js:102) 与 [:168](backend/llm/providers/gemini.js:168) 两处 `thinkingConfig = { thinkingBudget }` 改为 `{ thinkingBudget, includeThoughts: true }`。`completeGeminiFromNative`（line 210，工具/记忆路径）不动 — 输出不展示给用户，加 think 块只会污染中间轮次 nativeContents。
+
+注意：Gemini 返回的是 thought summary 而非完整推理链，长度通常远短于 Anthropic 的 thinking 块，这是 API 限制无法对齐。
+
+**Issue 2 — kimi-coding 缓存命中率低**
+
+通过临时 SSE 响应埋点抓到 kimi-coding 的 `message_delta.usage` 真实包含 `cache_read_input_tokens=3072 / cached_tokens=3072`（Moonshot 同时返回 Anthropic 字段和 OpenAI 字段），代码解析逻辑无 bug，命中数据能正确入账。但前几轮 cache_read 恒为 0 的根因找到一个真实可改进点：
+
+[anthropic.js:7-10](backend/llm/providers/anthropic.js:7) 的 `withCacheControl` 把 `cache_control: ephemeral` 打在**整段 system** 上。但 assembler 输出的 system 是 `[1-3.5 稳定段]+[4-10 动态段]` 合并体，每轮内容会变（时间、状态字段、附近角色），整段 hash 不稳定 → 缓存边界跟着失效。这与 [openai-compatible.js:28](backend/llm/providers/openai-compatible.js:28) `normalizeOpenAICompatibleMessages` 已做的"拆稳定前缀 + 动态后缀"优化是一致的，但 anthropic 路径漏了。
+
+改动：[anthropic.js:6-24](backend/llm/providers/anthropic.js:6) `withCacheControl` 接收 `config` 参数，若 `config.cacheableSystem` 提供了稳定前缀且 system 以其开头，则把 system 拆成两段——`{ type:'text', text:cacheable, cache_control:ephemeral }` + `{ type:'text', text:dynamic }`，cache_control 只标在 prefix 上。四处 caller 同步传入 config（streamAnthropic / completeAnthropic / completeAnthropicWithTools / resolveToolContextAnthropic）。影响范围：anthropic / kimi-coding / minimax-coding 三家命中稳定性。
+
+**验证**：`npm run test:backend` 414/414 pass。端到端：
+- Gemini：前端选 Gemini 模型 + 任意 thinking 档位发消息，预期消息上方出现可折叠"思考过程"块。
+- kimi-coding：连续两轮使用同一 session（system 稳定前缀不变），第二轮起 token 用量面板看到 `cache_read_tokens > 0`。
+
+
+
+**症状**：用户反馈 Gemini 模型的思考块在 UI 上"被自动隐藏"。
+
+**根因**：`backend/llm/providers/gemini.js` 中 `streamGemini` / `completeGemini` 两处构造 `thinkingConfig` 时只传了 `thinkingBudget`，未传 `includeThoughts`。Gemini API 该字段默认为 `false`，模型仍消耗 thinking budget 但响应 parts 不下发 `thought: true` 块 → `streamGemini` 走不到 `<think>` 分支 → 前端 `parseStreamingBlocks` 拿不到可解析的标签 → 用户感知为思考块"被隐藏"。这是与 Anthropic（`thinking.type=enabled` 即返回完整 thinking block）的真实机制差异。
+
+**改动**：[backend/llm/providers/gemini.js:102](backend/llm/providers/gemini.js:102) 与 [:168](backend/llm/providers/gemini.js:168) 两处 `thinkingConfig = { thinkingBudget }` 改为 `{ thinkingBudget, includeThoughts: true }`。`completeGeminiFromNative`（line 210，工具/记忆路径）不动 — 该路径输出不展示给用户，加 think 块只会污染 nativeContents 中间轮次。
+
+**验证**：`npm run test:backend` 414/414 pass。端到端验证需在前端选 Gemini 模型 + 任意 thinking 档位发消息，预期消息上方出现可折叠"思考过程"块。注意：Gemini 返回的是 thought summary 而非完整推理链，长度通常远短于 Anthropic 的 thinking 块，这是 API 限制。
+
+**未解决**：用户同时反馈 kimi-coding 缓存命中恒为 0，待用户提供 raw 日志（`message_start` / `message_delta` 的 usage 原文）后再定位字段名 / beta 头 / 断点哪类问题。
+
 ## 2026-05-10 ui+prompt: nearby 记忆段视觉与状态字段统一；prompt 重构去冗余 + 修示例 bug
 
 **视觉**：附近面板里"记忆"段之前用独立小字+左侧粗 border 风格（we-nearby-memory: text-sm + ink-faded + border-left），与下方状态字段（StatusSection）的 label+body 双层结构不一致，看起来像引文块、字号偏小、颜色偏淡。改：

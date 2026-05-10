@@ -99,7 +99,7 @@ export async function* streamGemini(messages, config) {
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
 
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
-  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
+  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget, includeThoughts: true };
 
   body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType || 'stream');
@@ -165,7 +165,7 @@ export async function completeGemini(messages, config) {
   if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
 
   const thinkingBudget = resolveThinkingBudget(config.thinking_level);
-  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget };
+  if (thinkingBudget != null) body.generationConfig.thinkingConfig = { thinkingBudget, includeThoughts: true };
 
   body.safetySettings = SAFETY_SETTINGS_OFF;
   logRawRequest(body, config, config.callType || 'complete');
