@@ -3,6 +3,145 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(import-export): persona 排序在导入/导出中保留;同步 CharactersPage 测试
+
+Codex review 指出三处问题:
+1. 单卡 `importPersona` 走 `INSERT INTO personas` 时未填 `sort_order`,新导入的 persona 都拿到默认值 `0`,与 `createPersona()` 的"追加到末尾"行为不一致。修复:导入前查 `MAX(sort_order)+1`。
+2. 世界卡导出 personas 时未带 `sort_order`,且 `ORDER BY created_at ASC, id ASC`;导入时也不读 `sort_order`。导出再导入会把用户手动调整过的 persona 顺序打乱。修复:导出 SQL 改为 `ORDER BY sort_order ASC, created_at ASC, id ASC`,payload 增加 `sort_order` 字段;导入时按 payload 原值写回(缺省回退到数组下标)。
+3. `frontend/tests/pages/characters-page.test.jsx` mock 仍是 `setCurrentPersonaId`、未导出 `importPersona`,导致页面运行时 store/import-export api 缺函数。修复:mock 同步为 `setCurrentWritingSessionId` 与 `importPersona`。
+
+涉及文件:`backend/services/import-export.js`、`frontend/tests/pages/characters-page.test.jsx`、`CHANGELOG.md`。
+验证:`npm run lint`、`npm run test` 全 backend 433/0、`vitest run` 全 frontend 151/0。
+
+## 2026-05-11 style(persona-card): 去掉 hover 上移效果
+
+`frontend/src/styles/pages.css` 中 `.we-persona-card:hover` 移除 `transform: translateY(-2px)`，hover 时仅保留阴影变化，不再产生位移。
+
+## 2026-05-11 refactor(nearby): `memory` 改名为 `persona`，语义从交互摘要改为一句话人设；nearby 制卡 description 直接复用 persona
+
+**目标**：让"附近角色"的人设标签贯穿"副 LLM 维护状态 → 主 LLM 沿用人名 → 制卡"全链路；同时把字段语义从"与 user 一句话交互总结"改为"一句话人物设定（性格 / 身份 / 关键标签）"，制卡时 description 直接复用，不再让 LLM 二次创作客观介绍。
+
+**DB**
+- `session_nearby_characters.memory` 重命名为 `persona`。`backend/db/schema.js` 在迁移段新增 `ALTER TABLE ... RENAME COLUMN memory TO persona`，通过 `PRAGMA table_info` 守门避免重复执行；CREATE TABLE 也同步改为 `persona`。
+- `SCHEMA.md`：`session_nearby_characters` 表 + turn_records.state_snapshot 的 `nearby[]` 块字段名同步。
+
+**Backend**
+- `db/queries/session-nearby-characters.js`：`createNearbyCharacter` 参数 `memory`→`persona`；`updateNearbyMemory`→`updateNearbyPersona`。
+- `services/writing-sessions.js`：`patchNearbyMemory`→`patchNearbyPersona`；`addSavedFromCharacter` 创建 nearby 时把 `character.description` 拷贝到 `persona`（对称：从 character 进 pool 时把客观介绍当作初始人设）。`buildNearbyRow` 返回字段 `memory`→`persona`。
+- `routes/writing.js`：PATCH body 字段名同步。
+- `memory/combined-state-updater.js`：pool 渲染、`applyPatch`、新建 transient 全部使用 `persona`；注释中"name/memory/state" → "name/persona/state"。
+- `memory/recall.js#renderNearbyCharacters`：渲染行从"记忆：xxx"改为"人设：xxx"。
+- `memory/state-rollback.js`：从 snapshot.nearby 重建时读 `n.persona ?? n.memory ?? ''`（兼容旧 turn_record 快照）；新增 nearby 使用 `persona`。
+- `memory/turn-summarizer.js`：写入 `state_snapshot.nearby[].persona`。
+- `prompts/nearby-prompt.js`：pool 段"记忆：→人设："；契约 `"memory":"新一句话总结" → "persona":"一句话人物设定"`；新登场必填，已有角色仅在身份描述需要补充修正时输出。
+- `prompts/nearby-card-prompt.js` + `templates/writing-nearby-card-analyze.md`：模板变量 `MEMORY`→`PERSONA`，文案改为"该角色现有的一句话人设（将作为角色卡 description 的基底）"，输出 JSON 删除 `description` 字段，仅生成 `system_prompt`、`first_message`。
+- `services/nearby-card-maker.js`：`analyzeNearbyForCard` 把 `nearby.persona` 透传给 prompt；返回 `description = nearby.persona`（不再依赖 LLM 输出 description）。
+
+**Frontend**
+- `api/session-nearby.js`：`patchNearbyMemory` → `patchNearbyPersona`，body key 改 `persona`。
+- `components/book/NearbyCharacterBlock.jsx`：变量 `memoryDraft`/状态/标签"记忆"→"人设"；占位文案改"一句话人物设定（性格 / 身份 / 关键标签）…"；空态"（无记忆）"→"（无人设）"；日志 key 改 `nearby.persona.update_failed`。
+- `index.css`：5 个 class `.we-nearby-memory*` 全部改名 `.we-nearby-persona*`。
+
+**Tests**
+- 同步更新：`tests/db/queries/session-nearby-characters.test.js`、`tests/services/nearby-characters.test.js`、`tests/services/nearby-card-maker.test.js`（analyze 测试不再 mock LLM 的 description；用 character.description 作为初始 persona 验证透传链路）、`tests/memory/state-rollback.test.js`、`tests/memory/combined-state-updater-nearby.test.js`。
+- 现状：`npm run test:backend` 436 tests / 433 pass / 0 fail / 3 skipped；`npm run test:frontend` 151 pass。
+
+验证：
+1. 重启后端，原有 DB 自动迁移 `memory → persona`（PRAGMA 守门）；
+2. 写作模式触发副 LLM 状态更新 → 检查 `data/logs/worldengine-*.log` 主 prompt 含 `<nearby_characters>` 段，每条角色显示"人设：xxx"；
+3. 点击 nearby 角色的人设编辑（之前的"记忆"位置），可保存并立即回显；
+4. nearby 角色调用"分析为角色卡" → 弹窗 description 字段等于该 nearby 的 persona 文本，system_prompt 由 LLM 扩写。
+
+## 2026-05-11 fix(import-export): 玩家卡独立格式落地，补齐世界/角色导出遗漏字段
+
+导入导出这一层长期漂移已收口：
+
+- `backend/services/import-export.js`
+  - 玩家导出从旧的伪角色卡改为独立 `worldengine-persona-v1` / `.wepersona.json`，导出当前 active persona 的 `name/description/system_prompt/avatar(_base64/_mime)` 与 `persona_state_values`
+  - 新增 `importPersona(worldId, data)`，支持两类输入：新 `.wepersona.json`；旧 `.wechar.json` 角色卡兼容导入为 persona
+  - `exportCharacter` / `importCharacter` 补齐 `description`、`post_prompt`
+  - `exportWorld` / `importWorld` 补齐 `personas[].description/avatar*` 与 `characters[].description/post_prompt`
+- `backend/services/import-export-validation.js`：新增 `validatePersonaImportPayload`
+- `backend/routes/import-export.js`：新增 `POST /api/worlds/:worldId/import-persona`
+- 前端：
+  - `frontend/src/api/import-export.js` 新增 `importPersona`
+  - `CharactersPage` 的玩家导入改走后端 `import-persona`，`accept` 扩为 `.wepersona.json,.wechar.json`
+  - `PersonaEditPage` 导出文件名改为 `.wepersona.json`
+  - `ImportExportPanel` 文案修正：写作全局导出实际包含 `writing.llm`，但仍不含 API Key
+- 文档：
+  - `SCHEMA.md` 新增玩家卡格式章节，更新世界卡/角色卡样例字段
+  - 修正 `SCHEMA.md` 里“每个世界一对一持有 persona”的过时描述
+  - `ARCHITECTURE.md` 记录玩家卡新格式与旧 `.wechar` 兼容导入
+- 测试：
+  - `backend/tests/services/import-export-roundtrip.test.js` 新增 persona round-trip，并覆盖 persona/world/character 新字段
+  - `backend/tests/routes/import-export.test.js` 新增玩家导出/导入路由与非法格式分支
+  - `frontend/tests/api/import-export.test.js` / `frontend/tests/pages/persona-edit-page.test.jsx` 同步更新新 API 与新后缀
+
+验证：
+- `node --test backend/tests/services/import-export-roundtrip.test.js backend/tests/routes/import-export.test.js`
+- `cd frontend && npx vitest run tests/api/import-export.test.js tests/pages/persona-edit-page.test.jsx`
+
+## 2026-05-11 fix(writing): 写作主 prompt 注入 nearby 状态段，修正下一轮正文给同一角色起新名
+
+**现象**：写作模式下，nearby 状态栏里的角色名（副 LLM 创建时合理虚构，如"林婉清"）和下一轮正文里的人名（如"叶诗晴"）不一致。
+
+**根因**：`buildWritingPrompt` 完全没有把 nearby 池注入主写作模型上下文（旧策略：nearby 仅由副 LLM 维护，不进主 prompt）。主模型生成下一轮时只能看到最近 12 轮历史正文，正文里之前是"短发女子/那女人"等模糊描述、没有真名，于是主模型自由发挥重新起名；下一轮状态更新副 LLM 又把新名字按"稀疏 patch"挂到旧 ref_id 上，DB 名字保留旧名，状态值却已被覆盖。
+
+**修复**：
+- 新增 `backend/memory/recall.js#renderNearbyCharacters(worldId, sessionId)`：读取 `session_nearby_characters` 全部行，按 `character_state_fields.nearby_enabled=1` 字段渲染每个角色为 `【name】\n记忆：<memory>\n- 字段：值` 文本块；空池或全字段无值时返回空串。
+- `backend/prompts/assembler.js#buildWritingPrompt` 在 [6] 玩家状态后注入 `<nearby_characters>` 段，包含提示语「叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名」。位置语义对应 chat 模式的 [7] 角色状态段。
+- 同步修订 assembler.js 顶部的 dynamic layer 段位注释、ARCHITECTURE.md §4 写作模式表格 [7] 行。
+
+**不区分**已保存 / 临时（用户决策：主模型只需要看到"这些名字已经被占用"），**包含** `memory`（一句话交互总结对叙事连贯有帮助）。
+
+验证：（1）写作 session 出现第一个无名角色 → 状态更新生成名字 X →下一轮发送消息，查看 `data/logs/worldengine-*.log` 的 prompt 段（开启 `logging.prompt.enabled`），确认 `<nearby_characters>` 段含 X 名字；（2）下一轮 AI 生成正文应使用 X 而非新名字。`npm run test:backend` 0 fail。
+
+## 2026-05-11 feat(session): 写作 session 与玩家卡强绑定，仅 active 玩家卡可进入写作
+
+此前同一世界下所有 writing session 共享 `worlds.active_persona_id`，切换 active persona 会让原本写作 session 的"玩家身份"被覆盖；而前端 `currentPersonaId` 只控制顶栏头像显示，与后端拼提示词的 persona 不一致。改造：
+
+- `sessions` 表新增 `persona_id TEXT FK→personas.id ON DELETE CASCADE NULLABLE`（writing 用，chat 维持 NULL），新增索引 `(world_id, persona_id, mode, updated_at)`。一次性迁移把现存 writing session 回填到当时世界的 active persona（active 为 NULL 时回退到最早创建的 persona）。
+- `services/writing-sessions.createWritingSession` 创建时把 active persona 快照写入 `sessions.persona_id`；世界无 persona 时自动创建一张"玩家"兜底（避免 FK 失败）。`GET /api/worlds/:id/writing-sessions` 改为仅返回当前 active persona 名下的会话。
+- `memory/recall.js#renderPersonaState` 与 `db/queries/session-state-values.js#getSessionPersonaStateValues` 都改为优先 `sessions.persona_id`，回退到 `worlds.active_persona_id` → 最早 persona。`memory/combined-state-updater.js` 读取 persona 默认值层时按 `session.persona_id` 取 `getAllPersonaStateValuesByPersonaId`，否则回退原 `getAllPersonaStateValues(worldId)`（chat）。
+- `services/personas.deletePersonaService` 在 DB DELETE 之前先逐条调用 `deleteWritingSession`，让 cleanup 钩子（长期记忆/日记目录/附件等磁盘资源）正常触发。
+- 前端：`store.currentPersonaId` 删除；`CharactersPage` PersonaCard 非 active 卡点击禁用（`aria-disabled` + 灰态 + `cursor:not-allowed`），active 卡点击仅清空 `currentWritingSessionId` 后跳 `/worlds/:wid/writing`；激活其他 persona 也清空 hint。`WritingSpacePage` 改为按 `currentSession.persona_id` 加载顶栏头像。
+
+验证：（1）多 persona 世界激活 A → 写作页只显示 A 的 session；激活 B 后点 B 卡 → 切到 B 的 session 列表；（2）非 active 卡视觉禁用且无法点击进入；（3）删除 persona A 后 A 名下所有写作 session 消失，`data/long_term_memory/{sid}/` 等磁盘目录被清理；（4）chat 模式 persona 选择仍由 `worlds.active_persona_id` 决定，行为未变。`npm run check` 全绿。
+
+## 2026-05-11 fix(assistant): 写卡助手人设正文统一改为第三人称
+
+写卡助手此前对 persona 卡的知识约束明确写了“第一/第二人称落笔”，写作模式 nearby 制卡模板也把 `system_prompt` 输出要求写死成“第二人称写法”，导致助手生成的人设正文持续偏向“你是/你会/你身处……”式表述。现统一改为第三人称：
+
+- `assistant/knowledge/USERCARD.md`：`system_prompt` 说明改为“统一用第三人称落笔”。
+- `assistant/knowledge/CHARCARD.md`：补充角色卡 `system_prompt` 也统一用第三人称写角色人设，避免角色卡与 persona 卡风格分裂。
+- `backend/prompts/templates/writing-nearby-card-analyze.md`：nearby 制卡草稿的 `system_prompt` 输出要求由“第二人称写法”改为“第三人称写法”。
+- `backend/tests/services/nearby-card-maker.test.js`：测试 mock 与断言改为第三人称示例，避免继续固化旧风格。
+
+验证：`npm run test:backend -- nearby-card-maker.test.js` 应通过；写卡助手新建/改写 persona 或 nearby 制卡时，生成的人设正文应表现为“某人如何、身处何处、具有什么经历”的第三人称叙述，而非“你如何”的第二人称。
+
+## 2026-05-11 fix(assistant): 写卡助手 typing 省略号在一轮输出结束后"复活"
+
+`AssistantPanel.jsx` 原 `pendingAssistant = isActiveTask && !hasRunningItem`,以 `status ∈ {planning, executing, paused}` 作为"还在跑"的判据。问题:一轮 SSE 结束时服务端发 `done:true`,store 清掉 last assistant 的 `streaming` 标志 → `hasRunningItem` 变 false;而 `status` 在父代理仍等用户下一句/审批时不会推到终态——`pendingAssistant` 因此从 false 反弹回 true,省略号气泡在"已经输出完"的 assistant 气泡之后又冒出来,看起来像永远转圈。改为 `pendingAssistant = isStreaming && !hasRunningItem`:`isStreaming` 是 fetch 真正在跑的本地标志,SSE reader 结束后立刻 false,无歧义。
+
+验证:正常一轮对话,等输出完整结束 → assistant 气泡下方不再有 typing 省略号;期间仍能在"已发送、尚无 delta"窗口内看到省略号。
+
+## 2026-05-11 fix(assistant): 写卡助手「停止」按钮无反馈
+
+`assistant/client/AssistantPanel.jsx` 的 `handleStop` 仅 abort 本地 SSE 与 `setIsStreaming(false)`，未触达后端任务也未推进本地 store 状态机；status 仍卡在 `planning/executing`，`pendingAssistant=isActiveTask && !hasRunningItem` 维持为 true，输入气泡的 typing 省略号不消失，用户视觉上"完全没反馈"。修正：abort 后 ① `cancelTask(taskId)` 通知后端停任务（仅当已有 taskId）② 本地 `ingestEvent({ type: 'task_cancelled', taskId })` 注入终态事件——因 abort 后 SSE 不再回传 `task_cancelled`，必须本地注入才能把 status 推到 `cancelled`，让 `pendingAssistant` 变 false、省略号气泡消失，同时输入框走入终态占位文案"任务已结束，点击「清空」开始新任务"。
+
+验证：打开写卡助手 → 发送任意消息 → 在出现省略号气泡时点击「停止」→ 省略号立即消失，输入框 placeholder 切到终态文案，点击「清空」可继续对话。
+
+## 2026-05-11 refactor: 抽离写作"附近"角色制卡 prompt 到 backend/prompts
+
+将 `backend/services/nearby-card-maker.js` 中 `analyzeNearbyForCard` 内联硬拼的 LLM 提示词搬到 `backend/prompts`，与现有 `nearby-prompt.js`（writing 模式 nearby pool 段）和模板体系对齐。
+
+- 新增 `backend/prompts/templates/writing-nearby-card-analyze.md`：制卡 prompt 模板，含 `{{NAME}}` / `{{STATE_LINES}}` / `{{MEMORY}}` / `{{RECENT_ROUNDS}}` / `{{RECENT_TEXT}}` 变量。
+- 新增 `backend/prompts/nearby-card-prompt.js`：导出 `buildNearbyCardAnalyzePrompt({ name, memory, stateValues, recentMessages, recentRounds })`，内部用 `renderBackendPrompt` 渲染模板，返回 `[{ role:'user', content }]`。
+- `backend/services/nearby-card-maker.js`：删除内联 `stateLines / recentText / prompt` 三段，改为调用 `buildNearbyCardAnalyzePrompt`；其余行为（`llm.complete` 参数、`tryParseJson`、错误日志、返回结构）保持不变。
+- 更新 `backend/prompts/README.md`：`代码文件` 段新增 `nearby-card-prompt.js`；模板清单"标题生成"分类下追加 `writing-nearby-card-analyze.md` 条目。
+
+验证：`node -e "..."` 实际调用新 builder 渲染输出，与原硬编码字符串逐行一致（`## 该角色的状态字段` / `## 输出要求` 等段落与变量替换全部正确）。无 schema/接口/数据库变更。
+
 ## 2026-05-11 docs: 修订 README / ARCHITECTURE / backend prompts README / frontend README 的过时信息
 
 四处事实漂移修正，均不动代码与 schema：

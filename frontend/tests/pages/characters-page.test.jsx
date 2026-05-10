@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   deleteCharacter: vi.fn(),
   reorderCharacters: vi.fn(),
   importCharacter: vi.fn(),
+  importPersona: vi.fn(),
   readJsonFile: vi.fn(),
   listCharacterStateFields: vi.fn(),
   listPersonas: vi.fn(),
@@ -19,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   listWorldEntries: vi.fn(),
   updateWorldEntry: vi.fn(),
   setCurrentCharacterId: vi.fn(),
-  setCurrentPersonaId: vi.fn(),
+  setCurrentWritingSessionId: vi.fn(),
   logError: vi.fn(),
 }));
 
@@ -35,6 +36,7 @@ vi.mock('../../src/api/characters', () => ({
 }));
 vi.mock('../../src/api/import-export', () => ({
   importCharacter: (...args) => mocks.importCharacter(...args),
+  importPersona: (...args) => mocks.importPersona(...args),
   readJsonFile: (...args) => mocks.readJsonFile(...args),
 }));
 vi.mock('../../src/api/character-state-fields', () => ({
@@ -53,7 +55,7 @@ vi.mock('../../src/api/prompt-entries', () => ({
 vi.mock('../../src/store/index', () => ({
   default: (selector) => selector({
     setCurrentCharacterId: mocks.setCurrentCharacterId,
-    setCurrentPersonaId: mocks.setCurrentPersonaId,
+    setCurrentWritingSessionId: mocks.setCurrentWritingSessionId,
   }),
 }));
 vi.mock('../../src/utils/logger.js', () => ({
@@ -120,7 +122,7 @@ describe('CharactersPage', () => {
     render(<CharactersPage />);
     await screen.findAllByText('阿塔');
 
-    const fileInput = document.querySelectorAll('input[type="file"][accept=".json,.wechar.json"]')[1];
+    const fileInput = document.querySelector('input[type="file"][accept=".json,.wechar.json"]');
     const file = new File(['{}'], 'char.wechar.json', { type: 'application/json' });
     fireEvent.change(fileInput, { target: { files: [file] } });
 

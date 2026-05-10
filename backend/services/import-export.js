@@ -6,6 +6,7 @@ import db from '../db/index.js';
 import { getConfig, updateConfig } from './config.js';
 import {
   validateCharacterImportPayload,
+  validatePersonaImportPayload,
   validateWorldImportPayload,
 } from './import-export-validation.js';
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
@@ -99,7 +100,9 @@ function importSingleCharacter(characterId, worldId, charData, validCharFieldKey
   stmts.insertChar.run(
     characterId, worldId,
     charData.name,
+    charData.description ?? '',
     charData.system_prompt ?? '',
+    charData.post_prompt ?? '',
     charData.first_message ?? '',
     avatarPath,
     charData.sort_order ?? 0,
@@ -134,7 +137,9 @@ export function exportCharacter(characterId) {
     format: 'worldengine-character-v1',
     character: {
       name: character.name,
+      description: character.description ?? '',
       system_prompt: character.system_prompt,
+      post_prompt: character.post_prompt ?? '',
       first_message: character.first_message,
       avatar_path: character.avatar_path ?? null,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
@@ -144,10 +149,9 @@ export function exportCharacter(characterId) {
   };
 }
 
-// ─── 导出玩家为角色卡 ────────────────────────────────────────────────────────
+// ─── 导出玩家卡 ──────────────────────────────────────────────────────────────
 
-export function exportPersona(worldId) {
-  const persona = db.prepare('SELECT name, system_prompt, avatar_path FROM personas WHERE world_id = ?').get(worldId);
+function buildPersonaExportPayload(persona) {
   if (!persona) throw new Error('玩家不存在');
 
   let avatarBase64 = null;
@@ -162,17 +166,40 @@ export function exportPersona(worldId) {
   }
 
   return {
-    format: 'worldengine-character-v1',
-    character: {
+    format: 'worldengine-persona-v1',
+    persona: {
       name: persona.name,
+      description: persona.description ?? '',
       system_prompt: persona.system_prompt,
-      first_message: '',
-      post_prompt: '',
+      avatar_path: persona.avatar_path ?? null,
       ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
     },
-    prompt_entries: [],
-    character_state_values: [],
+    persona_state_values: db.prepare(
+      'SELECT field_key, default_value_json AS value_json FROM persona_state_values WHERE persona_id = ?',
+    ).all(persona.id),
   };
+}
+
+export function exportPersona(worldId) {
+  const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  if (!world) throw new Error('世界不存在');
+  const persona = db.prepare(`
+    SELECT id, name, description, system_prompt, avatar_path
+    FROM personas
+    WHERE id = COALESCE(?, (
+      SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1
+    ))
+  `).get(world.active_persona_id, worldId);
+  return buildPersonaExportPayload(persona);
+}
+
+export function exportPersonaById(personaId) {
+  const persona = db.prepare(`
+    SELECT id, name, description, system_prompt, avatar_path
+    FROM personas
+    WHERE id = ?
+  `).get(personaId);
+  return buildPersonaExportPayload(persona);
 }
 
 // ─── 导入角色卡 ──────────────────────────────────────────────────────────────
@@ -203,12 +230,14 @@ export function importCharacter(worldId, data) {
 
     // 插入角色
     db.prepare(`
-      INSERT INTO characters (id, world_id, name, system_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       characterId, worldId,
       data.character.name,
+      data.character.description ?? '',
       data.character.system_prompt ?? '',
+      data.character.post_prompt ?? '',
       data.character.first_message ?? '',
       avatarPath,
       sortOrder,
@@ -227,6 +256,85 @@ export function importCharacter(worldId, data) {
 
   const created = doImport();
   log.info(`character.import  ${formatMeta({ characterId: created?.id, worldId, name: created?.name })}`);
+  return created;
+}
+
+function normalizePersonaImportData(data) {
+  if (data?.format === 'worldengine-persona-v1') {
+    validatePersonaImportPayload(data);
+    return {
+      persona: data.persona,
+      personaStateValues: data.persona_state_values ?? [],
+    };
+  }
+
+  if (data?.format !== 'worldengine-character-v1') {
+    throw new Error('不支持的玩家卡格式');
+  }
+
+  validateCharacterImportPayload(data);
+  return {
+    persona: {
+      name: data.character?.name ?? '',
+      description: data.character?.description ?? '',
+      system_prompt: data.character?.system_prompt ?? '',
+      avatar_path: data.character?.avatar_path ?? null,
+      avatar_base64: data.character?.avatar_base64,
+      avatar_mime: data.character?.avatar_mime,
+    },
+    personaStateValues: data.character_state_values ?? [],
+  };
+}
+
+export function importPersona(worldId, data) {
+  const world = db.prepare('SELECT id FROM worlds WHERE id = ?').get(worldId);
+  if (!world) throw new Error('世界不存在');
+
+  const { persona, personaStateValues } = normalizePersonaImportData(data);
+  const validFieldKeys = new Set(
+    db.prepare('SELECT field_key FROM persona_state_fields WHERE world_id = ?')
+      .all(worldId)
+      .map((r) => r.field_key),
+  );
+
+  const doImport = db.transaction(() => {
+    const now = Date.now();
+    const personaId = crypto.randomUUID();
+    const avatarPath = saveAvatarFile(personaId, persona.avatar_base64, persona.avatar_mime);
+    const maxSortRow = db.prepare(
+      'SELECT MAX(sort_order) AS max_sort FROM personas WHERE world_id = ?',
+    ).get(worldId);
+    const sortOrder = (maxSortRow?.max_sort ?? -1) + 1;
+
+    db.prepare(`
+      INSERT INTO personas (id, world_id, name, description, system_prompt, avatar_path, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      personaId,
+      worldId,
+      persona.name,
+      persona.description ?? '',
+      persona.system_prompt ?? '',
+      avatarPath,
+      sortOrder,
+      now,
+      now,
+    );
+
+    const insertValue = db.prepare(`
+      INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?)
+    `);
+    for (const sv of personaStateValues) {
+      if (!validFieldKeys.has(sv.field_key)) continue;
+      insertValue.run(crypto.randomUUID(), personaId, worldId, sv.field_key, sv.value_json, now);
+    }
+
+    return db.prepare('SELECT * FROM personas WHERE id = ?').get(personaId);
+  });
+
+  const created = doImport();
+  log.info(`persona.import  ${formatMeta({ personaId: created?.id, worldId, name: created?.name })}`);
   return created;
 }
 
@@ -306,7 +414,9 @@ export function exportWorld(worldId) {
 
     return {
       name: character.name,
+      description: character.description ?? '',
       system_prompt: character.system_prompt,
+      post_prompt: character.post_prompt ?? '',
       first_message: character.first_message,
       avatar_path: character.avatar_path ?? null,
       sort_order: character.sort_order,
@@ -325,19 +435,36 @@ export function exportWorld(worldId) {
   }));
 
   const allPersonaRows = db.prepare(
-    'SELECT id, name, system_prompt FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC',
+    'SELECT id, name, description, system_prompt, avatar_path, sort_order FROM personas WHERE world_id = ? ORDER BY sort_order ASC, created_at ASC, id ASC',
   ).all(worldId);
   const worldActivePersonaId = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId)?.active_persona_id;
   const resolvedActivePersonaId = worldActivePersonaId ?? allPersonaRows[0]?.id ?? null;
   const getPersonaStateValuesStmt = db.prepare(
     'SELECT field_key, default_value_json AS value_json FROM persona_state_values WHERE persona_id = ?',
   );
-  const personas = allPersonaRows.map((p) => ({
-    name: p.name,
-    system_prompt: p.system_prompt,
-    is_active: p.id === resolvedActivePersonaId,
-    persona_state_values: getPersonaStateValuesStmt.all(p.id),
-  }));
+  const personas = allPersonaRows.map((p) => {
+    let avatarBase64 = null;
+    let avatarMime = null;
+    if (p.avatar_path) {
+      const avatarFile = path.join(DATA_ROOT, 'uploads', p.avatar_path);
+      if (fs.existsSync(avatarFile)) {
+        const ext = path.extname(avatarFile).toLowerCase().replace('.', '');
+        avatarMime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        avatarBase64 = fs.readFileSync(avatarFile).toString('base64');
+      }
+    }
+
+    return {
+      name: p.name,
+      description: p.description ?? '',
+      system_prompt: p.system_prompt,
+      avatar_path: p.avatar_path ?? null,
+      ...(avatarBase64 ? { avatar_base64: avatarBase64, avatar_mime: avatarMime } : {}),
+      is_active: p.id === resolvedActivePersonaId,
+      sort_order: p.sort_order ?? 0,
+      persona_state_values: getPersonaStateValuesStmt.all(p.id),
+    };
+  });
 
   return {
     format: 'worldengine-world-v1',
@@ -390,7 +517,11 @@ export function importWorld(data) {
       ? data.personas
       : [{
           name: data.persona?.name ?? '',
+          description: data.persona?.description ?? '',
           system_prompt: data.persona?.system_prompt ?? '',
+          avatar_path: data.persona?.avatar_path ?? null,
+          avatar_base64: data.persona?.avatar_base64,
+          avatar_mime: data.persona?.avatar_mime,
           is_active: true,
           persona_state_values: data.persona_state_values ?? [],
         }];
@@ -509,8 +640,8 @@ export function importWorld(data) {
 
     // 插入所有 personas 及其状态值，同时记录激活 persona id
     const insertPersonaStmt = db.prepare(`
-      INSERT INTO personas (id, world_id, name, system_prompt, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO personas (id, world_id, name, description, system_prompt, avatar_path, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertPersonaValue = db.prepare(`
       INSERT INTO persona_state_values (id, persona_id, world_id, field_key, default_value_json, runtime_value_json, updated_at)
@@ -519,10 +650,22 @@ export function importWorld(data) {
     const validPersonaFieldKeys = new Set((data.persona_state_fields ?? []).map((f) => f.field_key));
     let activePersonaId = null;
     let firstPersonaId = null;
-    for (const pData of personaList) {
+    for (let i = 0; i < personaList.length; i++) {
+      const pData = personaList[i];
       const pId = crypto.randomUUID();
       if (firstPersonaId === null) firstPersonaId = pId;
-      insertPersonaStmt.run(pId, worldId, pData.name ?? '', pData.system_prompt ?? '', now, now);
+      const avatarPath = saveAvatarFile(pId, pData.avatar_base64, pData.avatar_mime);
+      insertPersonaStmt.run(
+        pId,
+        worldId,
+        pData.name ?? '',
+        pData.description ?? '',
+        pData.system_prompt ?? '',
+        avatarPath,
+        pData.sort_order ?? i,
+        now,
+        now,
+      );
       for (const sv of (pData.persona_state_values ?? [])) {
         if (!validPersonaFieldKeys.has(sv.field_key)) continue;
         insertPersonaValue.run(crypto.randomUUID(), pId, worldId, sv.field_key, sv.value_json, now);
@@ -540,8 +683,8 @@ export function importWorld(data) {
 
     // 插入角色
     const insertCharacter = db.prepare(`
-      INSERT INTO characters (id, world_id, name, system_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO characters (id, world_id, name, description, system_prompt, post_prompt, first_message, avatar_path, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insertCharValue = db.prepare(`
       INSERT INTO character_state_values (id, character_id, field_key, default_value_json, runtime_value_json, updated_at)
