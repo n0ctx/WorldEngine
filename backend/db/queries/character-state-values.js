@@ -104,6 +104,7 @@ export function getCharacterStateValuesWithFields(characterId) {
       csf.unit,
       csf.sort_order,
       csf.enum_options,
+      csf.table_columns,
       csf.default_value AS field_default_value,
       csv.default_value_json AS stored_default_value_json,
       csv.runtime_value_json,

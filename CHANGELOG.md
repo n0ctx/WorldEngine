@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(state): table 类型默认值在角色/玩家编辑页可编辑且通过校验
+
+**背景**：`type='table'` 状态字段在「编辑角色 / 编辑玩家(persona)」页的默认值输入框显示 `[object Object]`，保存时后端报 `字段 X 的值不符合类型约束`。三个根因合一：① 前端 `StateValueField.jsx` 未给 table 类型加渲染分支，对象被 `String()` 转成字面量；② 后端 `validateStateValue()` switch 缺 `case 'table'`，落到 `default` 返回 `undefined` 触发抛错；③ `getCharacterStateValuesWithFields` / `getPersonaStateValuesWithFields(ByPersonaId)` / `getWorldStateValuesWithFields` 三个 SELECT 漏取 `table_columns`，前端拿不到列定义。
+
+**改动**：
+- `backend/services/state-values.js`：`validateStateValue()` 新增 `case 'table'`，按 `field.table_columns` 解析列定义，逐列校验数值并应用 min/max；空值列跳过（稀疏），全空时按 `allow_empty` 判定。
+- `backend/db/queries/{character,persona,world}-state-values.js`：三处 with-fields SELECT 补 `table_columns` 字段。
+- `frontend/src/components/state/StateValueField.jsx`：新增 `field.type === 'table'` 渲染分支，按列展开数字输入框；onBlur 时以 `{colKey: number}` 形式 saveValue，与 `StateFieldEditor` 默认值序列化口径一致。
+
+**约束**：列校验和 StateFieldEditor 列默认值序列化（`StateFieldEditor.jsx:157-165`）三方对齐，统一只接受数字、跳过空列。
+
+**验证**：`npm run lint` 通过；`npm run test:backend` 414/414 pass。
+
+**补丁**：`backend/db/queries/world-state-values.js` 的 `getWorldStateValuesWithFields` SELECT 同步补 `wsf.enum_options`（历史遗漏，与 character/persona 三方对齐），便于世界级 enum 字段在编辑页正确渲染选项。
+
 ## 2026-05-10 fix(prompt): nearby 新登场必填强化 — 关键约束块前置 + few-shot example + 缺字段 warn 日志
 
 **背景**：上一轮（f6e92cf）把"新登场必填"加进 prompt 后，LLM 仍倾向只写正文显式提到的字段，新 transient 大量字段空缺。原因：规则放在任务说明第 6 条，注意力权重不够；缺少具体示例；缺少诊断手段。

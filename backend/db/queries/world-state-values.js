@@ -103,6 +103,8 @@ export function getWorldStateValuesWithFields(worldId) {
       wsf.prefix,
       wsf.unit,
       wsf.sort_order,
+      wsf.enum_options,
+      wsf.table_columns,
       wsf.default_value AS field_default_value,
       wsv.default_value_json AS stored_default_value_json,
       wsv.runtime_value_json,

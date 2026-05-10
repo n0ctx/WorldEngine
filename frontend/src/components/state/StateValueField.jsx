@@ -8,7 +8,7 @@ const STATE_LIST_MAX_ITEMS = 10;
 /**
  * 状态字段值编辑控件
  *
- * 根据 field.type（boolean/number/enum/list/datetime/text）渲染对应输入控件。
+ * 根据 field.type（boolean/number/enum/list/datetime/table/text）渲染对应输入控件。
  * 用于 WorldEditPage 和 CharacterEditPage 的状态字段列表行。
  *
  * @param {{ field_key, type, default_value_json, enum_options }} field
@@ -127,6 +127,38 @@ export default function StateValueField({ field, onSave }) {
           onBlur={() => { if (listInput.trim()) addListItem(listInput); }}
           placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条，请先删除` : (items.length === 0 ? '输入条目后按回车' : '')}
         />
+      </div>
+    );
+  }
+  if (field.type === 'table') {
+    let columns = [];
+    try { columns = JSON.parse(field.table_columns || '[]'); } catch { columns = []; }
+    const obj = (local && typeof local === 'object' && !Array.isArray(local)) ? local : {};
+
+    if (columns.length === 0) {
+      return <span className="text-xs text-text-secondary opacity-70">未配置列</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap gap-3">
+        {columns.map((col) => (
+          <label key={col.key} className="flex items-center gap-2">
+            <span className="text-xs text-text-secondary">{col.label || col.key}</span>
+            <Input
+              type="number"
+              value={obj[col.key] ?? ''}
+              onChange={(e) => setLocal({ ...obj, [col.key]: e.target.value })}
+              onBlur={(e) => {
+                const raw = e.target.value;
+                const next = { ...obj };
+                if (raw === '' || raw == null) delete next[col.key];
+                else next[col.key] = Number(raw);
+                setLocal(next);
+                saveValue(next);
+              }}
+            />
+          </label>
+        ))}
       </div>
     );
   }

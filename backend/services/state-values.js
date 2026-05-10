@@ -67,6 +67,24 @@ function validateStateValue(value, field) {
       if (items.length === 0) return field.allow_empty ? [] : undefined;
       return items;
     }
+    case 'table': {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+      let columns = [];
+      try { columns = JSON.parse(field.table_columns || '[]'); } catch { columns = []; }
+      if (!Array.isArray(columns) || columns.length === 0) return undefined;
+      const out = {};
+      for (const col of columns) {
+        const raw = value[col.key];
+        if (raw === '' || raw == null) continue;
+        const num = typeof raw === 'number' ? raw : Number(raw);
+        if (!Number.isFinite(num)) return undefined;
+        if (col.min != null && col.min !== '' && num < Number(col.min)) return undefined;
+        if (col.max != null && col.max !== '' && num > Number(col.max)) return undefined;
+        out[col.key] = num;
+      }
+      if (Object.keys(out).length === 0) return field.allow_empty ? {} : undefined;
+      return out;
+    }
     default:
       return undefined;
   }
