@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Icon from './Icon.jsx';
 
 const TYPE_META = {
@@ -56,16 +56,28 @@ const CLOSE_PATHS = (
 export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }) {
   const meta = TYPE_META[toast.type] || TYPE_META.info;
   const isAssertive = toast.type === 'error';
+  const reduced = useReducedMotion();
+
+  const motionProps = reduced
+    ? {
+      initial: { opacity: 0 },
+      animate: { opacity: 1 },
+      exit: { opacity: 0, transition: { duration: 0.18 } },
+      transition: { duration: 0.2 },
+    }
+    : {
+      initial: { opacity: 0, scale: 0.9, y: -8 },
+      animate: { opacity: 1, scale: 1, y: 0 },
+      exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } },
+      transition: { type: 'spring', stiffness: 420, damping: 22, mass: 0.6 },
+      whileHover: { scale: 1.01 },
+    };
 
   return (
     <motion.div
       role={isAssertive ? 'alert' : 'status'}
       aria-live={isAssertive ? 'assertive' : 'polite'}
-      initial={{ opacity: 0, scale: 0.9, y: -8 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } }}
-      transition={{ type: 'spring', stiffness: 420, damping: 22, mass: 0.6 }}
-      whileHover={{ scale: 1.01 }}
+      {...motionProps}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5"
