@@ -12,7 +12,7 @@ import { log } from '../../utils/logger.js';
 function Chevron({ open }) {
   return (
     <Icon
-      size={16}
+      size={12}
       viewBox="0 0 10 10"
       strokeWidth="2.5"
       className="we-cast-chevron"

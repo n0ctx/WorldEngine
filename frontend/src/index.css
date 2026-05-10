@@ -1034,7 +1034,7 @@ body {
 
 .we-section-label {
   font-family: var(--we-font-display);
-  font-size: 9.5px;
+  font-size: 11.5px;
   letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--we-ink-faded);
@@ -1053,7 +1053,7 @@ body {
 .we-state-section-reset {
   font-family: var(--we-font-display);
   font-style: italic;
-  font-size: 9.5px;
+  font-size: 11.5px;
   color: transparent;
   background: none;
   border: none;
@@ -1121,7 +1121,7 @@ body {
 }
 .we-status-key {
   font-family: var(--we-font-display);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--we-ink-faded);
@@ -1228,7 +1228,7 @@ body {
 }
 .we-status-table-head-cell {
   font-family: var(--we-font-display);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--we-ink-faded);

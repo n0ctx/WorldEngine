@@ -5,7 +5,7 @@
 
 ## 2026-05-10 fix(ui): 状态字段标签与世界/玩家/附近/角色名字号上调
 
-`index.css`：`.we-section-label` 9.5px → 11.5px（世界/玩家名/附近/TIMELINE 区块标题，及附近角色名）；`.we-status-key` 9px → 11px（状态字段标签，如 储物/队友/属性点 等）；`.we-status-table-head-cell` 9px → 11px（table 类型字段的列名）。原字号在常见显示密度下偏小，识别困难。
+`index.css`：`.we-section-label` 9.5px → 11.5px（世界/玩家名/附近/TIMELINE 区块标题，及附近角色名）；`.we-status-key` 9px → 11px（状态字段标签，如 储物/队友/属性点 等）；`.we-status-table-head-cell` 9px → 11px（table 类型字段的列名）；`.we-state-section-reset` 9.5px → 11.5px（hover 时显现的「保存/取消/移除/+角色卡/制卡/重置」等区块操作按钮）。原字号在常见显示密度下偏小，识别困难。同时 `NearbyCharacterBlock.jsx` 角色块 chevron `size` 16 → 12，使「附近」与其下角色形成明显层级差。
 
 ## 2026-05-10 feat(ui): 附近角色块未保存态新增「移除」按钮，已保存态「移除」改为「取消」
 
