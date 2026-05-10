@@ -3,7 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
-## 2026-05-10 feat(assistant): 写卡助手知识 + 工具同步 nearby_enabled；清理 legacy extract/confirm 路由（Nearby Task 14）
+## 2026-05-10 fix(prompt): nearby state 更新规则——新登场/空字段必须创作补全，已有字段稀疏 patch
+
+**背景**：Task 6 的 nearby prompt 没明确"新登场角色 state 必须填齐"，LLM 倾向只写正文显式提到的字段，导致新 transient 仅 1-2 个字段有值，其余永远为空，附近面板看起来"信息残缺"。
+
+**改动**：`backend/prompts/nearby-prompt.js`：在任务说明中追加 state 写入规则三分支 — (a) 新登场角色必须填齐所有启用字段，正文未提及的依据姓名/记忆/上下文推理性创作合理值，禁止占位符；(b) 池中已有角色仅输出变更字段（稀疏 patch）；(c) 池中已有但某字段当前为空 —— 本轮必须补全。空池分支同步加新登场必填提示。
+
+**约束**：服务端不做 fallback 创作，避免幻觉与事实污染；约束完全靠 prompt 表达 + LLM 自觉。
+
+**验证**：`tests/memory/combined-state-updater-nearby.test.js` 6/6 pass（apply 层未变，行为兼容）。
+
 
 **背景**：Task 13 把 `nearby_enabled` 字段从 DB 打通到前端编辑器，但写卡助手（assistant 子代理）的知识层、normalize-proposal 校验层尚未感知该字段，LLM 输出 `nearby_enabled` 会被静默丢弃。同时 Task 12 报告了 assistant 端 `/extract-characters` `/confirm-characters` 路由仍在但前端已无调用方，需要本任务统一清理。
 
