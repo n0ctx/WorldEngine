@@ -3,6 +3,14 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(prompt): 写作模式 nearby 新登场角色名禁止描述短语，必须真名
+
+`prompts/nearby-prompt.js` 的「新登场角色」段原先只对 state 字段做严格约束，对 `name` 没要求，导致 LLM 经常把"短发女猎人""黑衣男人""神秘女子"等职业/外貌描述短语当 name 写进 nearby pool。补一条 name 规则：必须是专有人名（真名/化名/昵称均可）；正文未给名时按身份/性别/世界观虚构一个真名；显式列举 5 类禁用例。仅写作模式生效（chat 模式不走 nearby pool）。验证：新开写作 session，正文只描述未具名角色后触发自动状态更新，附近面板新增的角色应显示具体人名而非描述短语。
+
+## 2026-05-10 fix(ui): 附近面板「记忆」分段标签去掉右侧分隔线
+
+`NearbyCharacterBlock.jsx` 内嵌的「记忆」分段沿用 `we-state-section-title` 结构带 `we-section-rule`（横向分隔线），与上方「附近 / 角色名」一行已有的横线视觉重复。仅这一处去掉 rule，其它分段（外貌等）保留。
+
 ## 2026-05-10 feat(ui): 顶部栏新增「会话」入口，跨 mode 跳到最近会话
 
 `TopBar.jsx` 在「故事」左侧新增一项「会话」按钮：点击调用新增的 `GET /api/worlds/:worldId/latest-session`，按 `updated_at` 取该世界最近一条会话（chat 或 writing 都看），mode='writing' → `/worlds/:worldId/writing`，mode='chat' → 先把 `currentCharacterId/currentSessionId` 写入 store 再跳 `/characters/:characterId/chat`，与 ChatPage 的 store 驱动会话加载逻辑（`ChatPage.jsx:264`）对齐。无会话时 info 日志、不跳转。Active 高亮在 chat 或 writing 路径下生效。后端：`db/queries/sessions.js` 新增 `getLatestSessionByWorldId`（chat 走 `characters.world_id`，writing 走 `sessions.world_id`，LEFT JOIN + OR）；`services/sessions.js` 转出；`routes/sessions.js` 新增路由。
