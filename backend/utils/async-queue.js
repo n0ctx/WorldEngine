@@ -1,5 +1,5 @@
 import { ASYNC_QUEUE_MAX_SIZE } from './constants.js';
-import { createLogger } from './logger.js';
+import { createLogger, formatMeta } from './logger.js';
 
 const log = createLogger('queue');
 
@@ -46,7 +46,7 @@ async function drain(sessionId) {
       log.debug(`DONE   ${tag} +${Date.now() - t0}ms`);
       entry.resolve(result);
     } catch (err) {
-      log.debug(`FAIL   ${tag} +${Date.now() - t0}ms  err=${err.message}`);
+      log.warn(`queue.task_failed  ${formatMeta({ sessionId: sid, priority: entry.priority, label: entry.label || null, ms: Date.now() - t0, msg: err?.message })}`);
       entry.reject(err);
     }
   }
@@ -100,14 +100,19 @@ export function clearPending(sessionId, minPriority) {
   if (!q) return;
 
   const kept = [];
+  let dropped = 0;
   for (const entry of q.items) {
     if (entry.priority >= minPriority) {
       entry.reject(new Error('Task cleared'));
+      dropped++;
     } else {
       kept.push(entry);
     }
   }
   q.items = kept;
+  if (dropped > 0) {
+    log.info(`queue.dropped  ${formatMeta({ sessionId: sessionId.slice(0, 8), count: dropped, minPriority })}`);
+  }
 }
 
 /**
