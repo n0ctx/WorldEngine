@@ -888,8 +888,9 @@ export default function ChatPage() {
           optionCollapsed={optionCollapsed}
           onOptionCollapsedChange={setOptionCollapsed}
           onMessagesLoaded={(msgs) => {
-            const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
-            const opts = lastAsst?.next_options;
+            const last = msgs[msgs.length - 1];
+            if (!last || last.role !== 'assistant') return;
+            const opts = last.next_options;
             if (Array.isArray(opts) && opts.length > 0) {
               setCurrentOptions(opts);
               setOptionCollapsed(false);

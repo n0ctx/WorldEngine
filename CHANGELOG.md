@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(chat): 流式输出中途刷新后上一轮选项卡重复出现
+
+用户反馈：在 assistant 给出选项卡后点击其中一项，新一轮流式输出中刷新页面，刷新后底部又出现了"上一轮"的同一组选项卡——本应已被消费掉。
+
+**根因**：`frontend/src/pages/ChatPage.jsx` 的 `onMessagesLoaded` 回调用 `[...msgs].reverse().find(m => m.role === 'assistant')` 取**最近一条 assistant**，只要它带 `next_options` 就恢复到底部活跃 `OptionCard`。当用户已选中选项后写入了新的 user 消息，但新一轮 assistant 流式被中断且无任何已落盘内容时（`backend/services/chat.js` 的 `if (content)` 守卫会跳过保存），DB 末尾仍然是"上一轮 assistant + 用户的选择 user 消息"，前端误以为选项还有效。
+
+**修复**
+- `frontend/src/pages/ChatPage.jsx`：`onMessagesLoaded` 改为只看消息列表**最后一条**——只有当 last 是带 `next_options` 的 assistant 时才恢复 `currentOptions`。如最后一条是 user（说明选项已被响应过）或 `[已中断]` assistant（无 `next_options`），则保持空状态。
+
+**未改动的相关点**
+- `backend/services/chat.js`：中断且无内容时不写 assistant 占位的现状保留；前端层已能识别"最后一条不是 assistant"，无需后端额外清空 DB。
+- `backend/services/chat.js` / `MessageList.jsx` 的冻结卡 (`FrozenOptionCard`) 渲染逻辑与 `suppressLastFrozen` 不受影响，行为一致。
+
+验证：见 `/Users/yunzhiwang/.claude/plans/humble-frolicking-dragon.md` 的"验证方式"小节（手动浏览器复现 + 回归正常通路 + 回归切换历史会话）。
+
+---
+
 ## 2026-05-11 fix(prompt-entries): keyword 条目 active_turns=1 实际跨多轮生效
 
 用户反馈关键词条目设 `active_turns=1`（仅当轮）后仍持续多轮注入。
