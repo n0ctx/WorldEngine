@@ -1,6 +1,6 @@
 {
   "name": "worldengine-backend",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "dev": "LOG_LEVEL=debug node --watch server.js",
     "start": "node server.js",
     "db:reset": "node db/reset.js",
+    "lint": "eslint .",
     "test": "node --test --test-isolation=process \"tests/**/*.test.js\"",
     "test:coverage": "node --test --test-isolation=process --experimental-test-coverage --test-coverage-exclude=\"../assistant/**\" --test-coverage-exclude=\"tests/**\" \"tests/**/*.test.js\""
   },
@@ -17,5 +18,10 @@
     "express": "^5.2.1",
     "multer": "^2.1.1",
     "undici": "^8.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0"
   }
 }

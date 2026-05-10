@@ -188,7 +188,6 @@ export function startServer({ host = HOST, port = PORT } = {}) {
   const srv = app.listen(port, host, () => {
     const actualPort = srv.address().port;
     // 向父进程（Electron）广播实际端口，不受日志级别过滤影响
-    // eslint-disable-next-line we-local/no-backend-console -- 必须直接 stdout，供 Electron 父进程解析
     console.log(`SERVER_READY:${actualPort}`);
     const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
     serverLog.info(`WorldEngine backend running on http://${host}:${actualPort}  日志级别: ${level}`);
