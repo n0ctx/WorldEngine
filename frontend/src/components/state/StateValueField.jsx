@@ -140,25 +140,42 @@ export default function StateValueField({ field, onSave }) {
     }
 
     return (
-      <div className="flex flex-wrap gap-3">
-        {columns.map((col) => (
-          <label key={col.key} className="flex items-center gap-2">
-            <span className="text-xs text-text-secondary">{col.label || col.key}</span>
-            <Input
-              type="number"
-              value={obj[col.key] ?? ''}
-              onChange={(e) => setLocal({ ...obj, [col.key]: e.target.value })}
-              onBlur={(e) => {
-                const raw = e.target.value;
-                const next = { ...obj };
-                if (raw === '' || raw == null) delete next[col.key];
-                else next[col.key] = Number(raw);
-                setLocal(next);
-                saveValue(next);
-              }}
-            />
-          </label>
-        ))}
+      <div
+        className="we-status-table"
+        style={{ '--we-status-table-cols': columns.length }}
+        role="table"
+        aria-label="表格状态默认值"
+      >
+        <div className="we-status-table-row we-status-table-head" role="row">
+          {columns.map((col) => (
+            <span key={col.key} className="we-status-table-cell we-status-table-head-cell" role="columnheader">
+              {col.label || col.key}
+            </span>
+          ))}
+        </div>
+        <div className="we-status-table-row we-status-table-body" role="row">
+          {columns.map((col) => (
+            <span key={col.key} className="we-status-table-cell we-status-table-body-cell" role="cell">
+              <input
+                type="number"
+                className="we-input we-status-inline-input we-status-table-input"
+                value={obj[col.key] ?? ''}
+                min={col.min ?? undefined}
+                max={col.max ?? undefined}
+                onChange={(e) => setLocal({ ...obj, [col.key]: e.target.value })}
+                onBlur={(e) => {
+                  const raw = e.target.value;
+                  const next = { ...obj };
+                  if (raw === '' || raw == null) delete next[col.key];
+                  else next[col.key] = Number(raw);
+                  setLocal(next);
+                  saveValue(next);
+                }}
+                aria-label={col.label || col.key}
+              />
+            </span>
+          ))}
+        </div>
       </div>
     );
   }

@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(state): table 类型默认值编辑器改为表格布局
+
+`StateValueField` 中 `type=table` 的默认值原渲染为 `flex flex-wrap` + 每列「label + 数值输入」的横向小卡片，列多时会换行散开（参见角色页"属性"行的 力量/敏捷/体力/精神/战斗力）。改为复用 `we-status-table`（表头行 + 输入行）结构，与右侧状态栏 `StatusTable` 视觉一致；保留原 setLocal/saveValue/min/max 行为。
+
 ## 2026-05-10 feat: 日志补齐与通知体系总览（24 任务）
 
 按 `docs/superpowers/plans/2026-05-10-logging-overhaul.md` 完成日志体系重构。本条是阶段性 ROLLUP，下方各小条记录单独 commit。
