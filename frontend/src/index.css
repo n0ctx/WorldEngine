@@ -2032,14 +2032,11 @@ body {
 }
 
 /* — NearbyPanel — */
-.we-nearby-seal {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--we-vermilion);
-  margin-right: 6px;
-  flex-shrink: 0;
+/* 已保存的附近角色：名字用强调色 + 加粗（中文字重靠 text-shadow 假粗） */
+.we-section-label.we-section-label--saved {
+  color: var(--we-vermilion);
+  font-weight: 700;
+  text-shadow: 0 0 0.4px var(--we-vermilion), 0 0 0.4px var(--we-vermilion);
 }
 .we-nearby-memory {
   font-family: var(--we-font-serif);

@@ -27,10 +27,6 @@ function Chevron({ open }) {
   );
 }
 
-function SealDot() {
-  return <span className="we-nearby-seal" aria-label="已保存" title="已保存" />;
-}
-
 /**
  * NearbyCharacterBlock — 单个 nearby 角色块。
  *
@@ -120,8 +116,7 @@ export default function NearbyCharacterBlock({
         onClick={onToggle}
       >
         <Chevron open={expanded} />
-        {isSaved && <SealDot />}
-        <span className="we-section-label">{nearby?.name || '（未命名）'}</span>
+        <span className={`we-section-label${isSaved ? ' we-section-label--saved' : ''}`}>{nearby?.name || '（未命名）'}</span>
         <span className="we-section-rule" />
         {isSaved ? (
           <button

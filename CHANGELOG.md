@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(ui): 附近角色「已保存」标识改为名字加粗强调色
+
+`NearbyCharacterBlock.jsx` 原来在角色名前渲染一个朱红小圆点（`we-nearby-seal`）表示已保存，与书卷风视觉风格不搭。改为给 `we-section-label` 增加 `--saved` 修饰类，已保存时名字本身变 `--we-vermilion` + `font-weight:600`。同步删除 `index.css` 内 `.we-nearby-seal` 旧规则。
+
 ## 2026-05-10 fix(prompt): 写作模式 nearby 新登场角色名禁止描述短语，必须真名
 
 `prompts/nearby-prompt.js` 的「新登场角色」段原先只对 state 字段做严格约束，对 `name` 没要求，导致 LLM 经常把"短发女猎人""黑衣男人""神秘女子"等职业/外貌描述短语当 name 写进 nearby pool。补一条 name 规则：必须是专有人名（真名/化名/昵称均可）；正文未给名时按身份/性别/世界观虚构一个真名；显式列举 5 类禁用例。仅写作模式生效（chat 模式不走 nearby pool）。验证：新开写作 session，正文只描述未具名角色后触发自动状态更新，附近面板新增的角色应显示具体人名而非描述短语。
