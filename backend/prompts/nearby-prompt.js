@@ -9,12 +9,15 @@
 /**
  * 构建 nearby pool 段。
  *
- * @param {Array<{id:string,name:string,is_saved:0|1,memory:string,state:Record<string,*>}>} pool
+ * @param {Array<{id:string,name:string,is_saved:0|1,persona:string,state:Record<string,*>}>} pool
  *   当前 saved + 上轮 transient 池。state 为字段key→反序列化后的值映射；可为空对象。
  * @param {Array<object>} fields  nearby_enabled=1 的 character_state_fields
+ * @param {object} [opts]
+ * @param {string} [opts.playerName]  当前玩家（persona）名，用于显式排除其被识别为登场角色
  * @returns {string}
  */
-export function buildNearbyPromptSection(pool, fields) {
+export function buildNearbyPromptSection(pool, fields, opts = {}) {
+  const playerName = typeof opts.playerName === 'string' ? opts.playerName.trim() : '';
   const fieldKeys = fields.map((f) => f.field_key);
   const fieldKeysCsv = fieldKeys.join(', ');
 
@@ -50,7 +53,7 @@ export function buildNearbyPromptSection(pool, fields) {
       const stateStr = p.state && Object.keys(p.state).length
         ? Object.entries(p.state).map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ')
         : '（无）';
-      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '已保存' : '临时'}）｜记忆：${p.memory || '（无）'}｜上轮状态：{${stateStr}}`;
+      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '已保存' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}`;
     }).join('\n')
     : '（空）';
 
@@ -63,8 +66,12 @@ export function buildNearbyPromptSection(pool, fields) {
     '',
     '## 输出',
     '识别本轮以「名字、对话或动作主体」形式登场的角色（仅被路人提及不算），写入 nearby_characters：',
-    '  [{ "ref_id": "<池中id 或 null（新角色）>", "name": "...", "state": {...}, "memory": "新一句话总结" }, ...]',
-    '池里有但本轮不在场的角色：不要输出。memory：覆盖式，一句话总结与{{user}}的交互历史。',
+    '  [{ "ref_id": "<池中id 或 null（新角色）>", "name": "...", "state": {...}, "persona": "一句话人物设定" }, ...]',
+    '池里有但本轮不在场的角色：不要输出。',
+    playerName
+      ? `严禁：玩家「${playerName}」是叙事视角主体（即"我/你/玩家"），永远不算登场角色。即使其名字、对话或动作出现在本轮正文中，也绝不可写入 nearby_characters，也不可在池中以该名建立新条目。`
+      : '严禁：叙事视角主体（玩家本人）永远不算登场角色，即使其名字、对话或动作出现在本轮正文中，也不可写入 nearby_characters。',
+    'persona：一句话人物设定（性格 / 身份 / 关键标签）。新登场必填；已有角色仅在身份/性格描述需要补充或修正时输出，否则省略字段（不强制每轮重写）。',
     '',
     '## 新登场角色（ref_id=null）—— state 必须填齐所有启用字段',
     `KEY 集合必须等于：[${fieldKeysCsv}]`,
@@ -82,7 +89,7 @@ export function buildNearbyPromptSection(pool, fields) {
     '例外：上轮状态显示某字段缺失/为空时，按"新登场"规则补全。',
     '',
     '## 示例（启用字段假设为 [a, b, c]）',
-    '✓ 新登场：{ "ref_id": null, "name": "...", "state": { "a": <a的合规值>, "b": <b的合规值>, "c": <c的合规值> }, "memory": "..." }',
+    '✓ 新登场：{ "ref_id": null, "name": "...", "state": { "a": <a的合规值>, "b": <b的合规值>, "c": <c的合规值> }, "persona": "..." }',
     '✗ 新登场缺字段：{ "ref_id": null, "name": "...", "state": { "a": ... } }   ← 错：state 必须含 a/b/c 全部',
     '✓ 已有角色（仅 b 变化）：{ "ref_id": "<id>", "state": { "b": ... } }',
   ].join('\n');

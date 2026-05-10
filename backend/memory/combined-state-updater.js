@@ -19,7 +19,8 @@ import { getAllCharacterStateValues } from '../db/queries/character-state-values
 import { upsertSessionCharacterStateValue, getSessionCharacterStateValues } from '../db/queries/session-character-state-values.js';
 
 import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
-import { getAllPersonaStateValues } from '../db/queries/persona-state-values.js';
+import { getPersonaById } from '../db/queries/personas.js';
+import { getAllPersonaStateValues, getAllPersonaStateValuesByPersonaId } from '../db/queries/persona-state-values.js';
 import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '../db/queries/session-persona-state-values.js';
 
 import {
@@ -27,7 +28,7 @@ import {
   deleteTransientNotInIds,
   getNearbyByName,
   listNearbyBySessionId,
-  updateNearbyMemory,
+  updateNearbyPersona,
   updateNearbyName,
 } from '../db/queries/session-nearby-characters.js';
 import {
@@ -364,8 +365,12 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   }
 
   if (personaActiveFields.length > 0) {
+    // writing session 自带 persona_id；chat / 无 persona_id 时回退到 active persona
+    const personaDefaults = session?.persona_id
+      ? getAllPersonaStateValuesByPersonaId(session.persona_id)
+      : getAllPersonaStateValues(worldId);
     personaValueMap = mergeSessionValues(
-      buildValueMap(getAllPersonaStateValues(worldId)),
+      buildValueMap(personaDefaults),
       getSessionPersonaStateValues(sessionId, worldId)
     );
     sections.push(
@@ -381,7 +386,12 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const isWriting = session?.mode === 'writing';
   let nearbyPool = null;
   let nearbyEnabledFields = null;
+  let nearbyPlayerName = '';
   if (isWriting && charWorldId) {
+    if (session?.persona_id) {
+      const persona = getPersonaById(session.persona_id);
+      nearbyPlayerName = typeof persona?.name === 'string' ? persona.name.trim() : '';
+    }
     nearbyEnabledFields = getCharacterStateFieldsByWorldId(charWorldId)
       .filter((f) => Number(f.nearby_enabled) === 1);
     const rows = listNearbyBySessionId(sessionId);
@@ -397,13 +407,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         id: row.id,
         name: row.name,
         is_saved: Number(row.is_saved) === 1 ? 1 : 0,
-        memory: row.memory ?? '',
+        persona: row.persona ?? '',
         state,
       };
     });
     sections.push(
       `=== 登场角色（nearby_characters）===\n` +
-        buildNearbyPromptSection(nearbyPool, nearbyEnabledFields)
+        buildNearbyPromptSection(nearbyPool, nearbyEnabledFields, { playerName: nearbyPlayerName })
     );
     responseKeys.push('"nearby_characters"（本轮登场角色，数组）');
   }
@@ -518,6 +528,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       fields: nearbyEnabledFields,
       nearby_characters: patch.nearby_characters,
       pool: nearbyPool,
+      playerName: nearbyPlayerName,
     });
   }
 }
@@ -526,7 +537,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
  * 把 LLM 输出的 nearby_characters 应用到 DB（写作模式）。
  *
  * 规则：
- *  1. ref_id 命中池 → 更新该 nearby（name/memory/state）
+ *  1. ref_id 命中池 → 更新该 nearby（name/persona/state）
  *  2. ref_id 不命中 → 整条丢弃（log.warn）
  *  3. ref_id=null + name 命中池 → 等同 ref_id 命中
  *  4. ref_id=null + name 不在池 → 新建 transient（is_saved=0），写入 state
@@ -540,13 +551,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
  * @param {*}        params.nearby_characters   LLM 输出（可能不是数组）
  * @param {Array<{id:string,name:string,is_saved:0|1}>} params.pool
  */
-export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby_characters, pool }) {
+export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby_characters, pool, playerName = '' }) {
   const items = Array.isArray(nearby_characters) ? nearby_characters : [];
   const enabledKeys = new Set(fields.map((f) => f.field_key));
   const fieldByKey = Object.fromEntries(fields.map((f) => [f.field_key, f]));
   const poolById = Object.fromEntries(pool.map((p) => [p.id, p]));
   const poolByName = Object.fromEntries(pool.map((p) => [p.name, p]));
   const seenIds = new Set();
+  const playerNameTrim = typeof playerName === 'string' ? playerName.trim() : '';
 
   const applyState = (targetId, stateObj) => {
     if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return;
@@ -562,8 +574,8 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
 
   const applyPatch = (targetId, item) => {
     const poolItem = poolById[targetId];
-    if (typeof item.memory === 'string') {
-      updateNearbyMemory(targetId, item.memory);
+    if (typeof item.persona === 'string') {
+      updateNearbyPersona(targetId, item.persona);
     }
     // 改名：仅当 LLM 给了非空 name 且与现有不同 且 池内无同名占用
     if (typeof item.name === 'string' && item.name.trim() && poolItem && item.name !== poolItem.name) {
@@ -582,6 +594,11 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
 
   for (const item of items) {
     if (!item || typeof item !== 'object') continue;
+    const itemName = typeof item.name === 'string' ? item.name.trim() : '';
+    if (playerNameTrim && itemName && itemName === playerNameTrim) {
+      log.warn(`NEARBY DROP PLAYER  ${formatMeta({ session: sessionId.slice(0, 8), name: itemName })}`);
+      continue;
+    }
     const refId = item.ref_id ?? null;
     if (refId) {
       if (poolById[refId]) {
@@ -600,10 +617,10 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
     }
     // 新建 transient
     // 同步到 DB 之前，先确认 name 在 DB 层不会重复（与池一致即可，因为池源自 list）
-    const memory = typeof item.memory === 'string' ? item.memory : '';
+    const persona = typeof item.persona === 'string' ? item.persona : '';
     let newId;
     try {
-      newId = createNearbyCharacter({ sessionId, name, memory, isSaved: 0 });
+      newId = createNearbyCharacter({ sessionId, name, persona, isSaved: 0 });
     } catch (err) {
       // UNIQUE 冲突等场景兜底
       log.warn(`NEARBY CREATE FAIL  ${formatMeta({ session: sessionId.slice(0, 8), name, error: err.message })}`);

@@ -3,6 +3,17 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(nearby): 排除玩家被误识别为登场角色
+
+写作模式下副 LLM 偶尔把玩家（persona）写进 `nearby_characters`。Prompt 没显式告知玩家是谁，LLM 仅靠"玩家："对话标签自行判断，识别不稳定。
+
+**修复**
+- `backend/prompts/nearby-prompt.js`：`buildNearbyPromptSection` 新增 `opts.playerName` 参数；输出段追加硬性排除规则——玩家是叙事视角主体，名字/对话/动作出现在本轮也不算登场角色。
+- `backend/memory/combined-state-updater.js`：写作分支取 `session.persona_id` → `getPersonaById` 解析玩家名，传给 prompt 构造器；`applyNearbyResult` 新增 `playerName` 兜底，丢弃 name 与 playerName 完全相等（trim）的项并 `NEARBY DROP PLAYER` warn。
+- `session.persona_id` 为 NULL 或 persona 已删时 `playerName` 为空字符串，回退到通用版排除规则（不带名字），不影响行为。
+
+验证：`npm run lint` 通过；`node --test tests/memory/combined-state-updater-nearby.test.js` 6/6 通过（旧用例签名兼容，未传 playerName 行为不变）。
+
 ## 2026-05-11 fix(import-export): persona 排序在导入/导出中保留;同步 CharactersPage 测试
 
 Codex review 指出三处问题:
