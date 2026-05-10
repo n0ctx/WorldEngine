@@ -62,6 +62,16 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  * 补全被截断的 JSON：通过括号栈追踪未闭合的 { 和 [，在末尾追加缺失的关闭符号。
  * 仅处理缺少关闭括号的情况（LLM 输出被 maxTokens 截断时最常见）。
  */
+// 部分 reasoning 模型即便已通过副模型配置关闭思考，仍可能在输出里夹带 <think>…</think>（或服务端故障重开思考）。
+// 思考块里包含大量 {/} 会污染贪婪 JSON 提取，解析前先剥离做 defense-in-depth。
+function stripThinkBlocks(text) {
+  if (typeof text !== 'string') return text;
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/gi, '')
+    .trim();
+}
+
 function repairTruncatedJson(text) {
   const stack = [];
   let inString = false;
@@ -229,13 +239,14 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
 
   const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
 
-  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'state_compress', conversationId: sessionId });
+  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_compress', conversationId: sessionId });
 
   let compressed = null;
   if (raw) {
     try {
-      const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
+      const cleaned = stripThinkBlocks(raw);
+      const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+      const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
       const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
       if (match) {
         try { compressed = JSON.parse(match[0]); }
@@ -441,15 +452,16 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     promptChars: prompt[0].content.length,
   })}`);
 
-  // thinking_level: null — 显式禁用 thinking，防止 thinking tokens 占用 maxOutputTokens 配额导致 JSON 输出被截断
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
+  // thinking_level 由副模型配置决定（用户在 UI 选择，例如 deepseek 选 thinking_disabled）；这里不再硬编码 null 覆盖。
+  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
   if (!raw) return;
   log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
 
   let patch;
   try {
-    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonSource = codeBlock ? codeBlock[1].trim() : raw;
+    const cleaned = stripThinkBlocks(raw);
+    const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
     // 优先匹配完整 JSON 对象；若 LLM 截断导致末尾无 }，则取从 { 开始的所有内容
     const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
     if (!match) return;

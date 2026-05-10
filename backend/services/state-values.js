@@ -69,8 +69,10 @@ function validateStateValue(value, field) {
     }
     case 'table': {
       if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
-      let columns = [];
-      try { columns = JSON.parse(field.table_columns || '[]'); } catch { columns = []; }
+      let columns = field.table_columns;
+      if (typeof columns === 'string') {
+        try { columns = JSON.parse(columns || '[]'); } catch { columns = []; }
+      }
       if (!Array.isArray(columns) || columns.length === 0) return undefined;
       const out = {};
       for (const col of columns) {

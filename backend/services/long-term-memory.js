@@ -134,7 +134,6 @@ export async function compressMemory(sessionId) {
   const raw = await llm.complete(prompt, {
     temperature: LLM_TASK_TEMPERATURE,
     maxTokens: LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS,
-    thinking_level: null,
     configScope: resolveAuxScope(sessionId),
     callType: 'long_term_memory_compress',
     conversationId: sessionId,

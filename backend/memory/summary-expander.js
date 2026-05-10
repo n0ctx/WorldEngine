@@ -68,7 +68,6 @@ export async function decideExpansion({ sessionId, recalled }) {
     const raw = await llm.complete(messages, {
       temperature: 0,
       maxTokens: MEMORY_EXPAND_DECISION_MAX_TOKENS,
-      thinking_level: null,
       configScope: resolveAuxScope(sessionId),
       callType: 'summary_expand_judge',
       conversationId: sessionId,

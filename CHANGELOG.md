@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(llm): 副模型/写作模型 thinking_level 用户配置被 hardcode 覆盖
+
+副模型设置里选 `thinking.type=disabled`（deepseek v3.1+ 关思考）后，状态栏/摘要/日记/标题等任务仍出现 `<think>…</think>`。根因不在 UI，而在所有副模型/写作模型 scope 的 `llm.complete` 调用都硬编码了 `thinking_level: null`：`backend/llm/index.js:115` 用 `hasOwnProperty` 区分"显式 null"与"未传"，调用方传了 null 就强制覆盖副模型配置；而 `_utils.js:179` 对 deepseek/glm 来说 `null` ≠ `'thinking_disabled'`，前者是"完全不下发 thinking 字段、走模型默认"，所以 deepseek-v4-flash 默认开思考——用户的设置永远没机会落到请求体上。
+
+修复：移除 `combined-state-updater.js`(state_update + state_compress)、`turn-summarizer.js`、`summary-expander.js`、`diary-generator.js`、`entry-matcher.js`、`nearby-card-maker.js`、`long-term-memory.js`、`routes/writing.js`(writing_impersonate) 共 8 处 aux/writing 调用的 `thinking_level: null` 硬编码，让用户在副模型/写作模型 UI 设置的 thinking_level 通过 `buildLLMConfig` 自然透传。`routes/chat.js` 的 impersonate / retitle 走主模型 scope，不在本次修改范围。同时保留前一条 `stripThinkBlocks` 解析容错作为 defense-in-depth（万一服务端故障重开思考、或用户故意把副模型 thinking 开成 enabled，仍能解析 JSON）。验证：429 后端单测全过；真实回归看 deepseek 副模型请求体应包含 `"thinking":{"type":"disabled"}` 而非缺失字段。
+
+## 2026-05-10 fix(state): 状态更新 JSON 解析被 reasoning 模型 `<think>` 块污染
+
+`combined-state-updater.js` 与 `nearby-card-maker.js` 用贪婪正则 `/\{[\s\S]*\}/` 从 LLM 输出抓 JSON。deepseek 思考型模型（如 `deepseek-v4-flash`）即使设置 `thinking_level: null`（该开关只对 Anthropic 生效）仍会输出 `<think>…</think>`，思考块里包含大量讨论性的 `{}` 片段，会让正则把"think 内首个 `{` → 真 JSON 末尾 `}`"全段抓走，拼成非法字符串导致 `JSON PARSE FAIL`，整轮状态/nearby 草稿静默不写入。修复：解析前先 `replace(/<think>[\s\S]*?<\/think>/gi, '')` 再剥未闭合的 `<think>...$`，三处提取点（`updateAllStates`、`compressOverLimitFields`、`tryParseJson`）统一处理。session `6139b9ee` 的三轮 `JSON PARSE FAIL` 由此触发；问题对所有 reasoning 系列的 aux 模型通用。验证：跑 `tests/memory/combined-state-updater*.test.js` + `tests/services/nearby-card-maker.test.js` 共 14 测全过；后续真实对话观察 `[all-state] JSON PARSE FAIL` 警告应消失。
+
+## 2026-05-10 fix(state): table 类型状态值保存因二次解析 table_columns 报"不符合类型约束"
+
+`backend/db/queries/_state-fields-base.js` 的 `parseRow` 已经把 `table_columns` 从 JSON 字符串解析为数组；但 `backend/services/state-values.js` 的 `validateStateValue` 在 `case 'table'` 仍然 `JSON.parse(field.table_columns)`，对数组再次解析必然抛错被 catch → `columns=[]` → 直接返回 undefined → 报"字段 X 的值不符合类型约束"。修复：在校验里兼容数组/字符串两种形态（仅当为字符串才 `JSON.parse`）。影响所有 `type='table'` 的世界/角色/玩家状态字段保存路径。验证：PATCH /api/worlds/:wid/personas/:pid/state-values/attributes_user 返回 `{success:true}`，前端 toast 不再触发。
+
 ## 2026-05-10 fix(ui): ToastCard 修复无效 CSS 变量导致 toast 透明/黑字不可读
 
 `ToastCard.jsx` 引用了仓库中不存在的 token：`--we-color-surface-paper`、`--we-color-ink-primary/secondary/tertiary`，导致背景透明、文字回退到默认黑，叠在深色 TopBar 上几乎不可见。改为已定义的 `--we-color-bg-canvas` 与 `--we-color-text-primary/secondary/tertiary`。验证：dispatch `we:toast` error 后 bg=`rgb(237,227,208)`、msg color=`rgb(83,66,54)`。

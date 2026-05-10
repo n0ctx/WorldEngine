@@ -617,7 +617,6 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       maxTokens: 1000,
       model,
       cacheableSystem,
-      thinking_level: null,
       configScope: 'writing',
       callType: 'writing_impersonate',
       conversationId: sessionId,

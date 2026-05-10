@@ -61,7 +61,7 @@ async function tryLlmMatch(entriesWithDesc, contextLines, sessionId) {
       },
     ];
 
-    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'entry_match', conversationId: sessionId });
+    const raw = await llm.complete(messages, { temperature: 0, maxTokens: PROMPT_ENTRY_LLM_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'entry_match', conversationId: sessionId });
 
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')

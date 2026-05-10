@@ -127,7 +127,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       ASSISTANT_MESSAGE: asstMsg.content,
     };
     const prompt = [{ role: 'user', content: renderBackendPrompt(tplName, vars) }];
-    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, thinking_level: null, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
+    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
     // 剥除 <think>...</think> 推理链
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')

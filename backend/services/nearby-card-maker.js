@@ -66,9 +66,15 @@ function pickRecentMessages(sessionId, rounds) {
 
 function tryParseJson(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return null;
+  // 剥离 reasoning 模型的 <think>…</think> 块，避免污染 JSON 提取
+  const stripped = raw
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/gi, '')
+    .trim();
+  if (!stripped) return null;
   // 兼容 ```json ... ``` 包裹
-  const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = codeBlock ? codeBlock[1].trim() : raw.trim();
+  const codeBlock = stripped.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = codeBlock ? codeBlock[1].trim() : stripped;
   // 再退一步：抓第一个 {...}
   const objMatch = candidate.match(/\{[\s\S]*\}/);
   const source = objMatch ? objMatch[0] : candidate;
@@ -130,7 +136,6 @@ export async function analyzeNearbyForCard(sessionId, nearbyId) {
   const raw = await llm.complete(prompt, {
     temperature: ANALYZE_TEMPERATURE,
     maxTokens: ANALYZE_MAX_TOKENS,
-    thinking_level: null,
     configScope: resolveAuxScope(sessionId),
     callType: 'nearby_card_analyze',
     conversationId: sessionId,
