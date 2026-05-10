@@ -362,3 +362,9 @@ export function logBootBanner({ dataDir }) {
     dataDir,
   })}`);
 }
+
+let _clientLogger = null;
+export function getClientLogger() {
+  if (!_clientLogger) _clientLogger = createLogger('client', 'magenta');
+  return _clientLogger;
+}
