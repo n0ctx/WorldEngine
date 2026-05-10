@@ -3,6 +3,38 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 feat: 日志补齐与通知体系总览（24 任务）
+
+按 `docs/superpowers/plans/2026-05-10-logging-overhaul.md` 完成日志体系重构。本条是阶段性 ROLLUP，下方各小条记录单独 commit。
+
+**后端 logger 加固**
+- `formatMeta` 强制字段顺序（requestId/sessionId/characterId/worldId/module）+ null 跳过 + 字符串截断
+- `requestId` AsyncLocalStorage 透传，每行日志自动带 `rid=xxxx`，response header 加 `x-request-id`
+- 启动横幅打印 LOG_LEVEL/mode/dataDir
+- db 层包装 prepare → 慢查询 (>=200ms) warn + SQL 异常 error
+- routes/services/llm/memory/queue/cleanup/assistant 全量分级日志补齐
+- 新增 `getClientLogger()` 子 logger，tag `client`
+
+**后端 client-logs 接收**
+- 新增 `POST /api/client-logs`：256KB body cap (413) / batch ≤100 (截断) / IP rate ≤10/s (429) / 数组校验 (400)
+- 同一日志文件 + `[client]` tag
+
+**前端 logger（新增）**
+- `utils/logger.js` 4 级 API + 3 通道（toast / console / 上报后端）
+- 缓冲：20 条 / 5s / 含 error 触发 flush；sendBeacon 卸载兜底；localStorage 重试队列（FIFO 200）
+- 50+ `pushErrorToast` 调用全量迁移为 `log.error(event, err, { toast })`，event 命名 `<域>.<动作>.<结果>`
+- ESLint 自定义规则 `no-direct-toast-import` 守门组件直接 import
+
+**通知 UI 重写**
+- 印章/签封风 `ToastCard`（羊皮纸底 + 4px 左色条 + SVG icon + 半透印章水印 驳/警/录/成）
+- 右上角堆叠（`top-4 right-4`），移动端贴边，MAX_TOASTS=3
+- 入场 spring 弹跳 + 出场右滑 fade，hover 暂停消失计时 + 关闭键 ✖
+- 时长分级：error/warn 5s, info/success 3s
+
+**ESLint 规则**：`eslint-rules/no-direct-toast-import.js`（已接前端 lint）、`eslint-rules/no-backend-console.js`（待 backend 引入 lint pipeline 启用）
+
+**测试**：`backend npm test` 429 pass；`frontend npm test` 151 pass。
+
 ## 2026-05-10 feat(logger): services 关键状态变更 info + 异常 error
 
 Task 18：对 `backend/services/*.js` 21 个文件补齐域级日志，统一 tag `svc`（color `green`），格式 `<域>.<动作>`：

@@ -184,6 +184,7 @@ npm run test:e2e               # 端到端测试（需 backend 已启动）
 
 **前端**
 - 所有 fetch 调用封装在 `/frontend/src/api/`，组件内禁止直接调用
+- 组件不得直接 import `utils/toast.js`，所有日志/通知必须经 `utils/logger.js` 的 `log.{debug,info,warn,error}` API（lint 已守门）
 - 样式只用 TailwindCSS 工具类，不写内联 style；颜色/字体/圆角/阴影/z-index 统一走 CSS 变量（`--we-*` 前缀，定义于 `frontend/src/styles/tokens.css`），禁止硬编码色值；间距必须是 4 的倍数
 - 禁止：裸 hex（`color: #xxx`）、`rgba()` 拼色、非 token 圆角/z-index；禁止渐变背景、glassmorphism、发光效果、装饰性 emoji
 - 每个异步区块必须有 loading/empty/error 三态；可交互组件须覆盖 hover/active/focus-visible/disabled；icon-only 按钮须有 `aria-label`
