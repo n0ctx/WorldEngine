@@ -40,7 +40,8 @@ import sessionStateValuesRoutes from './routes/session-state-values.js';
 import longTermMemoryRoutes from './routes/long-term-memory.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import { resolveUploadPath } from './services/state-values.js';
-import { createLogger, formatMeta } from './utils/logger.js';
+import { createLogger, formatMeta, logBootBanner } from './utils/logger.js';
+import { requestIdMiddleware } from './middleware/request-id.js';
 
 const serverLog = createLogger('http', 'cyan');
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -98,6 +99,7 @@ initSchema(db);
 
 export function createApp() {
   const app = express();
+  app.use(requestIdMiddleware);
   app.use(cors({
     origin(origin, callback) {
       callback(null, isAllowedOrigin(origin));
@@ -187,6 +189,7 @@ export function startServer({ host = HOST, port = PORT } = {}) {
     console.log(`SERVER_READY:${actualPort}`);
     const level = (process.env.LOG_LEVEL || 'warn').toUpperCase();
     serverLog.info(`WorldEngine backend running on http://${host}:${actualPort}  日志级别: ${level}`);
+    logBootBanner({ dataDir: DATA_ROOT });
   });
   return srv;
 }

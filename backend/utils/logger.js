@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getRequestId } from './request-context.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = process.env.WE_DATA_DIR
@@ -296,12 +297,15 @@ function write(level, tag, tagColor, args) {
   const icon = LEVEL_ICON[level];
   const ts = `${C.dim}${timestamp()}${C.reset}`;
   const lvl = `${lc}${level.toUpperCase().padEnd(5)}${C.reset}`;
-  const tagPad = (tag ?? '').padEnd(8);
+  const tagPad = (tag ?? '').padEnd(12);
   const tagStr = `${tc}[${tagPad}]${C.reset}`;
+  const requestId = getRequestId();
+  const ridStr = requestId ? `${C.dim}rid=${requestId}${C.reset} ` : '';
+  const ridPlain = requestId ? `rid=${requestId} ` : '';
   const msg = args.map(formatArg).join(' ');
 
-  const colorLine = `${ts} ${lvl} ${tagStr} ${lc}${icon}${C.reset} ${msg}`;
-  const plainLine = `${timestamp()} ${level.toUpperCase().padEnd(5)} [${tagPad}] ${icon} ${msg}`;
+  const colorLine = `${ts} ${lvl} ${tagStr} ${lc}${icon}${C.reset} ${ridStr}${msg}`;
+  const plainLine = `${timestamp()} ${level.toUpperCase().padEnd(5)} [${tagPad}] ${icon} ${ridPlain}${msg}`;
 
   if (LEVEL_ORDER[level] >= currentLevel) {
     // spinner 活跃时先清空动画行，避免与日志文字重叠
@@ -345,4 +349,16 @@ export function logPrompt(sessionId, messages) {
     return `#${index}:${msg.role}:${previewText(text)}`;
   });
   logger.debug(`PROMPT RAW  ${formatMeta({ session: sid, items: previews })}`);
+}
+
+export function logBootBanner({ dataDir }) {
+  const log = createLogger('boot', 'green');
+  const cfg = getLoggingConfig();
+  const levelName = (n) => Object.keys(LEVEL_ORDER).find((k) => LEVEL_ORDER[k] === n);
+  log.info(`logger ready ${formatMeta({
+    LOG_LEVEL: levelName(currentLevel),
+    LOG_FILE_LEVEL: levelName(fileLogLevel),
+    mode: cfg.mode,
+    dataDir,
+  })}`);
 }

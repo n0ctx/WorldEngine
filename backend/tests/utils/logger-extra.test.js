@@ -1,8 +1,9 @@
-import test, { before, afterEach, after } from 'node:test';
+import test, { before, afterEach, after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { runWithContext } from '../../utils/request-context.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
@@ -221,4 +222,21 @@ test('formatMeta 强化：字符串值超长按 max_preview_chars 截断（默�
   const out = mod.formatMeta({ msg: long });
   assert.match(out, /SNIP/);
   assert.ok(out.length < 800);
+});
+
+describe('createLogger — requestId 自动注入', () => {
+  it('在 runWithContext 内调用 logger，输出含 rid=xxx', () => {
+    const lines = [];
+    const orig = console.error;
+    console.error = (line) => lines.push(line);
+    try {
+      runWithContext({ requestId: 'rid-abc' }, () => {
+        const log = mod.createLogger('test', 'cyan');
+        log.error('hello');
+      });
+    } finally {
+      console.error = orig;
+    }
+    assert.ok(lines.some(l => l.includes('rid=rid-abc')), `expected rid=rid-abc in: ${lines.join('|')}`);
+  });
 });
