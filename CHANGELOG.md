@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 docs: 修订 README / ARCHITECTURE / backend prompts README / frontend README 的过时信息
+
+四处事实漂移修正，均不动代码与 schema：
+
+- `README.md:100` 与 `ARCHITECTURE.md:32` 的"React 18"改为"React 19"，与 `frontend/package.json`（`react ^19.2.4`）和 `CLAUDE.md:53` 对齐。`docs/CHANGELOG-archive.md` 内的 React 18 提及为历史决策记录，保留不动。
+- `frontend/README.md` 原为 Vite 默认模板（"React + Vite"+ESLint 引导），与项目无关。重写为 WorldEngine 前端的入口说明：技术栈一句话、本目录命令清单（dev/build/preview/lint/test/test:watch）、指向根 `README.md` / `CLAUDE.md` / `DESIGN.md` / `ARCHITECTURE.md`。
+- `backend/prompts/README.md` 模板清单与 `templates/` 实际内容显著漂移：删除已不存在的 `writing-impersonate.md`；按"Prompt 条目命中 / 记忆与摘要 / 标题生成 / 状态更新与压缩 / 用户操作辅助 / 其他"6 个分类重列全部 18 个模板，每条注明用途与调用方（逐个 grep 验证，未凭印象）；代码文件段补入 `nearby-prompt.js`（写作模式 nearby pool 段构建）；订正 `chat-impersonate.md` 调用方（聊天与写作均使用，原 README 仅写聊天路由）。
+
+验证：`grep -n "React 18" README.md ARCHITECTURE.md CLAUDE.md` 无输出；`ls backend/prompts/templates/` 与 README 列表 diff 仅差 README.md 自身；`ls backend/prompts/*.js` 4 个文件全部出现在 README "代码文件"段。
+
 ## 2026-05-10 fix(ui): 状态字段标签与世界/玩家/附近/角色名字号上调
 
 `index.css`：`.we-section-label` 9.5px → 11.5px（世界/玩家名/附近/TIMELINE 区块标题，及附近角色名）；`.we-status-key` 9px → 11px（状态字段标签，如 储物/队友/属性点 等）；`.we-status-table-head-cell` 9px → 11px（table 类型字段的列名）；`.we-state-section-reset` 9.5px → 11.5px（hover 时显现的「保存/取消/移除/+角色卡/制卡/重置」等区块操作按钮）。原字号在常见显示密度下偏小，识别困难。同时 `NearbyCharacterBlock.jsx` 角色块 chevron `size` 16 → 12，使「附近」与其下角色形成明显层级差。

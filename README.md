@@ -97,7 +97,7 @@ cd backend  && npm run dev   # http://localhost:3000
 
 Prompt 按 14 段顺序组装，前 4 段走 Prompt Cache 层（全局提示词 + Persona + 角色 system prompt + 常驻条目），后续段动态拼接（状态、召回摘要、历史消息、后置提示词、当前消息）。各 provider 缓存策略自动适配（Anthropic `cache_control`、OpenAI-compatible 稳定前缀、Gemini explicit cache）。
 
-技术栈：React 18 + Vite + TailwindCSS + Zustand（前端）/ Node.js + Express + ES Modules（后端）/ SQLite（better-sqlite3）/ OpenAI 或 Ollama embeddings（可选）/ Electron（桌面端）
+技术栈：React 19 + Vite + TailwindCSS + Zustand（前端）/ Node.js + Express + ES Modules（后端）/ SQLite（better-sqlite3）/ OpenAI 或 Ollama embeddings（可选）/ Electron（桌面端）
 
 LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / SiliconFlow / Grok 等）· Google Gemini · Ollama 本地模型
 
