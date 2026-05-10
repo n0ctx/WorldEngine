@@ -600,6 +600,12 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
       newId = existed.id;
     }
     applyState(newId, item.state);
+    // 诊断：新登场角色按 prompt 约束应填齐所有启用字段，缺字段时 warn
+    const stateKeys = item.state && typeof item.state === 'object' ? Object.keys(item.state) : [];
+    const missing = fields.map((f) => f.field_key).filter((k) => !stateKeys.includes(k));
+    if (missing.length) {
+      log.warn(`NEARBY NEW MISSING FIELDS  ${formatMeta({ session: sessionId.slice(0, 8), name, missing: missing.join(',') })}`);
+    }
     seenIds.add(newId);
   }
 

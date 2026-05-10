@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(prompt): nearby 新登场必填强化 — 关键约束块前置 + few-shot example + 缺字段 warn 日志
+
+**背景**：上一轮（f6e92cf）把"新登场必填"加进 prompt 后，LLM 仍倾向只写正文显式提到的字段，新 transient 大量字段空缺。原因：规则放在任务说明第 6 条，注意力权重不够；缺少具体示例；缺少诊断手段。
+
+**改动**：
+- `backend/prompts/nearby-prompt.js`：把"新登场必填"提到任务说明前作为「关键约束 ‖ 新登场角色 state 字段必须 100% 填齐」块（带加重符号），并显式列出所有启用字段 key 的并集，要求 state 对象 key 严格等于该集合；增加三档值决定优先级（正文事实 → 暗示推理 → 合理性创作）；禁止占位符列表扩充至 "未知/待定/暂无/不详/无/N/A"；附 few-shot 示例（✓ 全填齐 / ✗ 缺字段）。空池与有池分支共享同一约束文本。
+- `backend/memory/combined-state-updater.js`：`applyNearbyResult` 新建 transient 时检测 LLM 返回的 state key 集合，缺字段时写 `NEARBY NEW MISSING FIELDS` warn 日志（含 session、name、missing 字段名），便于诊断 LLM 是否仍未遵守约束。
+
+**约束**：服务端不做 fallback 创作（避免幻觉污染事实），约束完全靠 prompt 表达 + LLM 自觉；warn 日志仅供诊断。
+
+**验证**：`tests/memory/combined-state-updater-nearby.test.js` 6/6 pass（apply 层只加日志，行为不变）。
+
 ## 2026-05-10 fix(prompt): nearby state 更新规则——新登场/空字段必须创作补全，已有字段稀疏 patch
 
 **背景**：Task 6 的 nearby prompt 没明确"新登场角色 state 必须填齐"，LLM 倾向只写正文显式提到的字段，导致新 transient 仅 1-2 个字段有值，其余永远为空，附近面板看起来"信息残缺"。
