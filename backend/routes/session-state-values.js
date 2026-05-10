@@ -19,7 +19,6 @@ import { Router } from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { getCharacterById } from '../db/queries/characters.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import {
   getSessionWorldStateValues,
   getSessionPersonaStateValues,
@@ -47,10 +46,9 @@ router.get('/:sessionId/state-values', (req, res) => {
   const worldId = session.world_id ?? getCharacterById(session.character_id)?.world_id;
   if (!worldId) return res.json({ world: [], persona: [], character: [] });
 
-  // 写作模式：取所有激活角色；对话模式：取绑定角色
-  const characterIds = session.mode === 'writing'
-    ? getWritingSessionCharacters(sessionId).map((c) => c.id)
-    : session.character_id ? [session.character_id] : [];
+  // 写作模式没有固定角色身份（角色由 nearby 池单独管理），返回空 character 段；
+  // 对话模式取绑定角色
+  const characterIds = session.character_id ? [session.character_id] : [];
 
   const world = getSessionWorldStateValues(sessionId, worldId);
   const persona = getSessionPersonaStateValues(sessionId, worldId);

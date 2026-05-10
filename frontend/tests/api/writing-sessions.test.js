@@ -4,7 +4,6 @@ import {
   createWritingSession,
   editAndRegenerateWriting,
   generate,
-  listActiveCharacters,
 } from '../../src/api/writing-sessions.js';
 
 function createSseResponse(events) {
@@ -25,12 +24,8 @@ describe('writing api', () => {
   });
 
   it('CRUD 接口会返回 JSON 数据', async () => {
-    fetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'writing-1' }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'char-1' }]) });
-
+    fetch.mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'writing-1' }) });
     await expect(createWritingSession('world-1')).resolves.toEqual({ id: 'writing-1' });
-    await expect(listActiveCharacters('world-1', 'writing-1')).resolves.toEqual([{ id: 'char-1' }]);
   });
 
   it('generate 会解析 SSE 事件并在 AbortError 时触发 onStreamEnd', async () => {

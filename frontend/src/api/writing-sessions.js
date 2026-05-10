@@ -62,22 +62,7 @@ export async function listMessages(worldId, sessionId) {
   return res.json();
 }
 
-// ─── 激活角色 ─────────────────────────────────────────────────────────
-
-export async function listActiveCharacters(worldId, sessionId) {
-  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/characters`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function activateCharacter(worldId, sessionId, characterId) {
-  const res = await fetch(
-    `/api/worlds/${worldId}/writing-sessions/${sessionId}/characters/${characterId}`,
-    { method: 'PUT' }
-  );
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+// ─── 助手建卡（角色提取/确认） ───────────────────────────────────────
 
 export function extractCharactersFromMessage(worldId, sessionId, assistantMessageId, callbacks, { dryRun = false } = {}) {
   return streamPost(
@@ -93,15 +78,6 @@ export function confirmCharacters(worldId, sessionId, characters, callbacks) {
     { worldId, sessionId, characters },
     callbacks,
   );
-}
-
-export async function deactivateCharacter(worldId, sessionId, characterId) {
-  const res = await fetch(
-    `/api/worlds/${worldId}/writing-sessions/${sessionId}/characters/${characterId}`,
-    { method: 'DELETE' }
-  );
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 // ─── 世界角色列表 ──────────────────────────────────────────────────────

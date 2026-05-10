@@ -31,7 +31,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getSessionById } from '../db/queries/sessions.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getWorldById } from '../db/queries/worlds.js';
 import { getUncompressedMessagesBySessionId } from '../db/queries/messages.js';
@@ -61,16 +60,6 @@ const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
-
-/** 转义 XML 元素内容中的特殊字符，防止用户文本提前关闭 XML 标签 */
-function escapeXmlContent(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** 转义 XML 属性值中的特殊字符 */
-function escapeXmlAttr(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = process.env.WE_UPLOADS_DIR
@@ -358,14 +347,14 @@ export async function buildPrompt(sessionId, options = {}) {
 }
 
 /**
- * 写作版本：支持多个激活角色，[8-10] 向量召回与记忆展开同 buildPrompt。
- * 组装顺序与 buildPrompt 不同：为避免多角色切换导致 cache miss，[4] 角色 system prompt 移到 dynamic 层。
+ * 写作版本：写作模式没有固定角色身份，[4] 角色 System Prompt / [7] 角色状态段
+ * 在写作 prompt 中不再注入；角色出场由叙事文本自行驱动，附近角色池（nearby）
+ * 通过副 LLM 维护状态。
  *
- * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家（保持稳定）
- * Dynamic layer: [4] 所有激活角色 system prompt + [5-11] 上下文
+ * Cached layer: [1] 全局、[2] 常驻 cached 条目、[3] 玩家
+ * Dynamic layer: [5] 世界状态 / [6] 玩家状态 / [8] 世界条目 / [8.5] 长期记忆
+ *                / [9] 召回摘要 / [10] 记忆展开 / [11] 日记
  * Bottom: [12] 历史消息，[13+14] 后置提示词 + 当前消息（合并为一条 user message）
- *
- * [4] 和 [7] 针对所有激活角色展开；无后置提示词对角色分别应用。
  *
  * @param {string} sessionId
  * @param {object} [options]
@@ -380,8 +369,6 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const world = getWorldById(session.world_id);
   if (!world) throw new Error(`World not found: ${session.world_id}`);
 
-  const activeCharacters = getWritingSessionCharacters(sessionId).filter(Boolean);
-
   const config = getConfig();
   const writing = config.writing || {};
   const cachedSystemParts = [];
@@ -393,17 +380,11 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const personaName = persona?.name || '';
   const personaPrompt = persona?.system_prompt || '';
 
-  const charNames = activeCharacters.map((c) => c.name).join(', ');
-  log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"  chars=${activeCharacters.length}${charNames ? `  [${charNames}]` : ''}`);
+  log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
   const tv = (t) => applyTemplateVars(t, {
     user: personaName,
     char: '叙述者',
-    world: world.name,
-  });
-  const tvChar = (t, character) => applyTemplateVars(t, {
-    user: personaName,
-    char: character.name,
     world: world.name,
   });
 
@@ -432,14 +413,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     cachedSystemParts.push(tv(`<user_info>\n${lines.join('\n')}\n</user_info>`));
   }
 
-  // ─── DYNAMIC LAYER (4, 5-11；写作模式下[4]也在dynamic以支持多角色切换) ───
-  // [4] 所有激活角色 System Prompt（移到 dynamic 避免多角色组合变化导致 cache miss）
-  for (const character of activeCharacters) {
-    if (character.system_prompt) {
-      dynamicSystemParts.push(tvChar(`<char_info>\n${escapeXmlContent(character.system_prompt)}\n</char_info>`, character));
-    }
-  }
-
+  // ─── DYNAMIC LAYER (5-11；写作模式下 [4] 角色 system prompt 与 [7] 角色状态段不注入) ───
   // [5] 世界状态
   const worldStateText = renderWorldState(world.id, sessionId);
   if (worldStateText) dynamicSystemParts.push(`<world_state>\n${tv(worldStateText)}\n</world_state>`);
@@ -447,12 +421,6 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [6] 玩家状态
   const personaStateText = renderPersonaState(world.id, sessionId);
   if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
-
-  // [7] 所有激活角色的角色状态
-  for (const character of activeCharacters) {
-    const charStateText = renderCharacterState(character.id, sessionId);
-    if (charStateText) dynamicSystemParts.push(`<char_state name="${escapeXmlAttr(character.name)}">\n${tvChar(charStateText, character)}\n</char_state>`);
-  }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
   const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));

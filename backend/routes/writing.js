@@ -9,9 +9,6 @@ import {
   getWritingSessionsByWorldId,
   getWritingSessionById,
   deleteWritingSession,
-  getWritingSessionCharacters,
-  addWritingSessionCharacter,
-  removeWritingSessionCharacter,
   listNearby,
   addSavedFromCharacter,
   removeNearby,
@@ -114,35 +111,6 @@ router.get('/:worldId/writing-sessions/:sessionId/messages', (req, res) => {
   if (!assertExists(res, session, 'Session not found')) return;
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   res.json(messages);
-});
-
-// ── 激活角色管理 ──
-
-// GET /api/worlds/:worldId/writing-sessions/:sessionId/characters
-router.get('/:worldId/writing-sessions/:sessionId/characters', (req, res) => {
-  const { sessionId } = req.params;
-  const session = dbGetWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  const characters = getWritingSessionCharacters(sessionId);
-  res.json(characters);
-});
-
-// PUT /api/worlds/:worldId/writing-sessions/:sessionId/characters/:characterId
-router.put('/:worldId/writing-sessions/:sessionId/characters/:characterId', (req, res) => {
-  const { sessionId, characterId } = req.params;
-  const session = dbGetWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  addWritingSessionCharacter(sessionId, characterId);
-  res.json({ success: true });
-});
-
-// DELETE /api/worlds/:worldId/writing-sessions/:sessionId/characters/:characterId
-router.delete('/:worldId/writing-sessions/:sessionId/characters/:characterId', (req, res) => {
-  const { sessionId, characterId } = req.params;
-  const session = dbGetWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  removeWritingSessionCharacter(sessionId, characterId);
-  res.json({ success: true });
 });
 
 // ── 登场角色（nearby characters） ──
@@ -353,7 +321,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
     const hasUserMsg = msgs.some((m) => m.role === 'user');
 
     if (hasUserMsg) {
-      const activeCharacters = getWritingSessionCharacters(sessionId);
+      // 写作模式无固定角色，characterIds 传 [] 即可（nearby 状态由 combined-state-updater 单独处理）
 
       // 章节标题条件：本轮 AI 回复是某章节第一条，且 DB 尚无记录
       const newChapter = detectNewChapter(msgs);
@@ -392,11 +360,11 @@ async function runWritingStream(sessionId, res, opts = {}) {
           ssePayload: (title) => title ? { type: 'chapter_title_updated', chapterIndex, title } : null,
           keepSseAlive: true,
         },
-        // all-state（p2）：writing 模式推 state_updated SSE（CastPanel/StatePanel 按事件刷新）
+        // all-state（p2）：writing 模式推 state_updated SSE（NearbyPanel/StatePanel 按事件刷新）
         {
           label: 'all-state',
           priority: 2,
-          fn: () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId),
+          fn: () => updateAllStates(worldId, [], sessionId),
           tracksState: true,
           sseEvent: 'state_updated',
           ssePayload: () => ({ type: 'state_updated' }),
@@ -569,15 +537,14 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 
   // 续写正常完成后保持 SSE 连接，等后台任务推送完事件后再关闭
   if (!aborted && newContent) {
-    const activeCharacters = getWritingSessionCharacters(sessionId);
-
+    // 写作模式无固定角色，characterIds 传 [] 即可
     // continue 不触发新章节（轮次未变），故无 title/chapterTitle 任务
     const taskSpecs = [
       // all-state（p2）：writing 模式推 state_updated SSE
       {
         label: 'all-state',
         priority: 2,
-        fn: () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId),
+        fn: () => updateAllStates(worldId, [], sessionId),
         tracksState: true,
         sseEvent: 'state_updated',
         ssePayload: () => ({ type: 'state_updated' }),
@@ -698,10 +665,10 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
   // 状态回滚：恢复到最近保留的 turn record 快照（无快照时清空回 default）
   const regenWorldId = session.world_id;
   if (regenWorldId) {
-    const activeChars = getWritingSessionCharacters(sessionId);
+    // 写作模式无固定角色（nearby 状态由 turn snapshot 中的 nearby 段独立回滚）
     const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
     restoreStateFromSnapshot(
-      sessionId, regenWorldId, activeChars.map((c) => c.id),
+      sessionId, regenWorldId, [],
       lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
     );
   }
@@ -726,8 +693,8 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistant = [...allMsgs].reverse().find((m) => m.role === 'assistant');
   if (lastAssistant?.id === messageId) {
-    const activeCharacters = getWritingSessionCharacters(sessionId);
-    enqueue(sessionId, () => updateAllStates(worldId, activeCharacters.map((c) => c.id), sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
+    // 写作模式无固定角色，characterIds 传 [] 即可
+    enqueue(sessionId, () => updateAllStates(worldId, [], sessionId), 2, 'all-state').catch(err => log.warn('后台任务失败:', err.message));
   }
 
   enqueue(sessionId, () => createTurnRecord(sessionId, { isUpdate: true }), 3, 'turn-record').catch(err => log.warn('后台任务失败:', err.message));

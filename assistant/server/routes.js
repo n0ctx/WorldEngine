@@ -22,7 +22,7 @@ import {
 } from '../../backend/services/prompt-entries.js';
 import { listCharacterStateFields } from '../../backend/services/character-state-fields.js';
 import { getMessagesBySessionId, getMessageById } from '../../backend/db/queries/messages.js';
-import { addWritingSessionCharacter, getWritingSessionById } from '../../backend/db/queries/writing-sessions.js';
+import { getWritingSessionById } from '../../backend/db/queries/writing-sessions.js';
 import { deleteCharacter as dbDeleteCharacter } from '../../backend/db/queries/characters.js';
 import { upsertCharacterStateValue } from '../../backend/db/queries/character-state-values.js';
 import * as llm from '../../backend/llm/index.js';
@@ -255,7 +255,6 @@ router.post('/extract-characters', async (req, res) => {
               }
             }
           }
-          addWritingSessionCharacter(sessionId, char.id);
           existingNameSet.add(name.toLowerCase());
           log.info(`extract-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
           sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });
@@ -324,7 +323,6 @@ router.post('/confirm-characters', async (req, res) => {
           }
         }
 
-        addWritingSessionCharacter(sessionId, char.id);
         existingNameSet.add(name.toLowerCase());
         log.info(`confirm-chars CREATED  ${formatMeta({ characterId: char.id, name: char.name })}`);
         sendSSE(res, { type: 'card_activated', characterId: char.id, character: char });

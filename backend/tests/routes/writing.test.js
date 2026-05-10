@@ -5,7 +5,6 @@ import { createRouteTestContext } from '../helpers/http.js';
 import { resetMockEnv } from '../helpers/test-env.js';
 import { enqueue } from '../../utils/async-queue.js';
 import {
-  insertCharacter,
   insertMessage,
   insertSession,
   insertTurnRecord,
@@ -28,27 +27,6 @@ const ctx = createRouteTestContext('writing-route-suite');
 
 after(() => ctx.close());
 
-test('写作会话角色管理路由可正常工作', async () => {
-  resetMockEnv();
-
-  const world = insertWorld(ctx.sandbox.db, { name: '写作世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '席恩' });
-
-  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
-  assert.equal(res.status, 200);
-  const session = await res.json();
-
-  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, {
-    method: 'PUT',
-  });
-  assert.equal(res.status, 200);
-
-  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters`);
-  const activeCharacters = await res.json();
-  assert.equal(activeCharacters.length, 1);
-  assert.equal(activeCharacters[0].id, character.id);
-});
-
 test('写作 generate 与 continue 路由会落库并返回 SSE', async () => {
   resetMockEnv();
   ctx.sandbox.writeConfig({
@@ -59,13 +37,8 @@ test('写作 generate 与 continue 路由会落库并返回 SSE', async () => {
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一句', '第二句']);
 
   const world = insertWorld(ctx.sandbox.db, { name: '流式世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '莲' });
   let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
   const session = await res.json();
-
-  await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, {
-    method: 'PUT',
-  });
 
   res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
     method: 'POST',
@@ -109,12 +82,8 @@ test('写作 generate 的 SSE 流包含 state_updated 事件', async () => {
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['片段']);
 
   const world = insertWorld(ctx.sandbox.db, { name: '状态世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '奥梅' });
   let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
   const session = await res.json();
-  await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, {
-    method: 'PUT',
-  });
 
   res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
     method: 'POST',
@@ -136,12 +105,8 @@ test('写作 continue 的 SSE 流包含 state_updated 事件', async () => {
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['续写片段']);
 
   const world = insertWorld(ctx.sandbox.db, { name: '续写状态世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '塔拉' });
   let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
   const session = await res.json();
-  await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, {
-    method: 'PUT',
-  });
 
   // 先 generate 一轮（含 user 消息）
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['初始回复']);
@@ -180,10 +145,8 @@ test('写作 generate 在空流时不落 assistant 消息且不推后台事件',
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify([]);
 
   const world = insertWorld(ctx.sandbox.db, { name: '空流写作世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '塞拉' });
   let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
   const session = await res.json();
-  await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, { method: 'PUT' });
 
   res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
     method: 'POST',
@@ -330,10 +293,8 @@ test('写作 generate 在存在新章节时会推 title_updated 与 chapter_titl
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify(['会话标题', '章节标题']);
 
   const world = insertWorld(ctx.sandbox.db, { name: '章节世界' });
-  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '蕾雅' });
   let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
   const session = await res.json();
-  await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/characters/${character.id}`, { method: 'PUT' });
 
   res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
     method: 'POST',

@@ -5,9 +5,6 @@ import {
   deleteWritingSession as dbDeleteWritingSession,
   updateWritingSessionTitle as dbUpdateWritingSessionTitle,
   touchWritingSession as dbTouchWritingSession,
-  getWritingSessionCharacters as dbGetWritingSessionCharacters,
-  addWritingSessionCharacter as dbAddWritingSessionCharacter,
-  removeWritingSessionCharacter as dbRemoveWritingSessionCharacter,
 } from '../db/queries/writing-sessions.js';
 import {
   createMessage as dbCreateMessage,
@@ -68,18 +65,6 @@ export function updateWritingSessionTitle(id, title) {
 
 export function touchWritingSession(id) {
   return dbTouchWritingSession(id);
-}
-
-export function getWritingSessionCharacters(sessionId) {
-  return dbGetWritingSessionCharacters(sessionId);
-}
-
-export function addWritingSessionCharacter(sessionId, characterId) {
-  return dbAddWritingSessionCharacter(sessionId, characterId);
-}
-
-export function removeWritingSessionCharacter(sessionId, characterId) {
-  return dbRemoveWritingSessionCharacter(sessionId, characterId);
 }
 
 export function createMessage(data) {

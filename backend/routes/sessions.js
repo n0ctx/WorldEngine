@@ -15,7 +15,6 @@ import {
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound, getLatestTurnRecord } from '../db/queries/turn-records.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
@@ -123,10 +122,8 @@ router.put('/messages/:id', async (req, res) => {
   const editChar = editCharId ? getCharacterById(editCharId) : null;
   const editWorldId = editChar?.world_id ?? editSession?.world_id ?? null;
   if (editWorldId) {
-    let editCharIds = editCharId ? [editCharId] : [];
-    if (!editCharId && editSession?.mode === 'writing') {
-      editCharIds = getWritingSessionCharacters(editSessionId).map((c) => c.id);
-    }
+    // 写作模式没有固定角色身份，editCharIds 留空即可（nearby 状态由专属表回滚）
+    const editCharIds = editCharId ? [editCharId] : [];
     const editLastRecord = getLatestTurnRecord(editSessionId);
     restoreStateFromSnapshot(
       editSessionId, editWorldId, editCharIds,
@@ -170,10 +167,8 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const character = characterId ? getCharacterById(characterId) : null;
   const worldId = character?.world_id ?? session.world_id ?? null;
   if (worldId) {
-    let characterIds = characterId ? [characterId] : [];
-    if (!characterId && session.mode === 'writing') {
-      characterIds = getWritingSessionCharacters(sessionId).map((c) => c.id);
-    }
+    // 写作模式无固定角色，characterIds 留空（nearby 状态由专属表回滚）
+    const characterIds = characterId ? [characterId] : [];
     const lastRecord = getLatestTurnRecord(sessionId);
     restoreStateFromSnapshot(
       sessionId, worldId, characterIds,

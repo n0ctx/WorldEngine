@@ -31,7 +31,6 @@ export { default as BackButton }      from './blocks/BackButton';
 // — Book 专属 —
 export { default as BookSpread }          from './book/BookSpread';
 export { default as Bookmark }            from './book/Bookmark';
-export { default as CastPanel }           from './book/CastPanel';
 export { default as NearbyPanel }         from './book/NearbyPanel';
 export { default as NearbyCharacterBlock } from './book/NearbyCharacterBlock';
 export { default as AddSavedNearbyModal } from './book/AddSavedNearbyModal';

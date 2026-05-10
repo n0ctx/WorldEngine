@@ -3,6 +3,45 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 refactor: 整表删除 writing_session_characters；写作主 prompt 移除 [4]/[7] 角色段
+
+**背景**：附近角色特性 Task 11（Option C）— 写作模式不再有"激活角色"概念，主 prompt 中的角色级段在写作模式下整体消失，角色出场由叙事文本驱动，nearby 池（Task 10 已落库）由副 LLM 单独维护状态。承接 Task 10 暂留的 CastPanel 文件与三个 active 角色 API。
+
+**Prompt 段位变更**（`backend/prompts/assembler.js` `buildWritingPrompt`）：
+- **[4] 角色 System Prompt 不注入**（`<char_info>` 段移除）
+- **[7] 角色状态段不注入**（`<char_state>` 段移除）
+- 写作 prompt 现含：[1] 全局 + [2] 常驻 cached + [3] 玩家 + [5] 世界状态 + [6] 玩家状态 + [8] 世界条目 + [8.5] 长期记忆 + [9] 召回摘要 + [10] 记忆展开 + [11] 日记 + [12] 历史 + [13+14] 后置/当前消息
+- 锁定文件 `assembler.js` 已通过任务授权改动；`buildPrompt`（chat 模式）保持不变
+
+**改动**：
+- `backend/db/schema.js`：删除 `CREATE TABLE IF NOT EXISTS writing_session_characters` 块与 `CREATE INDEX ... idx_writing_session_characters_session_id`；在 `initSchema` 末尾追加迁移 `DROP TABLE IF EXISTS writing_session_characters`
+- `backend/prompts/assembler.js`：`buildWritingPrompt` 删除 [4]/[7] 注入循环、`activeCharacters` 变量、`getWritingSessionCharacters` import、`tvChar` 闭包、`escapeXmlContent`/`escapeXmlAttr` 工具函数（仅这两段使用）；改写头部 jsdoc 与 cached/dynamic layer 注释；chat 路径完全未动
+- `backend/prompts/entry-matcher.js`：state 条件评估写作分支由"对每个激活角色逐个评估"改为"含 `角色.*` 条件直接跳过"；删除 `getWritingSessionCharacters` import（chat 分支保留 `buildCharacterStateMap`/`mergeStateMaps`）
+- `backend/memory/turn-summarizer.js`：写作模式 `characterIds` 直接置 `[]`（nearby snapshot 由本文件下方 nearby 段独立写入）；删除 `getWritingSessionCharacters` import
+- `backend/routes/sessions.js`：编辑/删除消息路径写作模式 `characterIds = []`；删除 `getWritingSessionCharacters` import
+- `backend/routes/session-state-values.js`：`/state-values` 写作模式不再聚合多角色 character 段，统一返回 `[]`；删除 import
+- `backend/routes/writing.js`：删除 `GET/PUT/DELETE /:worldId/writing-sessions/:sessionId/characters` 三个端点；`runWritingStream` / `continue` / `regenerate` / `edit-assistant` 中所有 `getWritingSessionCharacters(...).map(c => c.id)` 替换为 `[]`；移除相关 import 与"CastPanel"日志注释
+- `backend/services/writing-sessions.js`：删除 `getWritingSessionCharacters` / `addWritingSessionCharacter` / `removeWritingSessionCharacter` 三个 wrapper 与对应 db import 别名
+- `backend/db/queries/writing-sessions.js`：删除同名三个查询函数；文件保留（其余 session CRUD 仍在用）
+- `assistant/server/routes.js`：`/extract-characters` 与 `/confirm-characters` 创建角色卡后不再 `addWritingSessionCharacter`；删除 import；角色卡仍正常落 `characters` 表，只是不自动激活
+- `frontend/src/components/book/CastPanel.jsx`：**删除**
+- `frontend/src/components/index.js`：删除 `CastPanel` 导出
+- `frontend/src/api/writing-sessions.js`：删除 `listActiveCharacters` / `activateCharacter` / `deactivateCharacter` 三个函数
+- 测试同步：`backend/tests/prompts/assembler.test.js` 把"buildWritingPrompt 合并多角色条目"改写为"写作模式不注入 [4]/[7] 角色段"断言（`assert.doesNotMatch <char_info>/<char_state>`）；`backend/tests/prompts/assembler-shape.test.js` 删除 `INSERT INTO writing_session_characters`，写作分支锚点列表去掉 `ANCHOR_[3]_CHAR_*` 与 `ANCHOR_[6]_CHAR_STATE`；`__snapshots__/assembler-shape.snap` 同步更新；`backend/tests/routes/writing.test.js` 删除"写作会话角色管理路由可正常工作"测试与其他测试中残留的 `PUT /characters/:id` 调用与 `insertCharacter` 引用；`frontend/tests/api/writing-sessions.test.js` / `writing-space-page.test.jsx` 删除 `listActiveCharacters` 导入/mock 与 CastPanel mock
+- 文档：`SCHEMA.md` 删除 `### writing_session_characters` 整节、删除策略段引用、state 条目语义段写作模式行为更新；`ARCHITECTURE.md` §4 buildWritingPrompt 段位差异表改写、§8 state 字段语义段更新、§9 writing 模式 `{{char}}` 替换说明、§11 数据模型表"激活角色"行替换为 nearby、§12 路由表注释更新
+
+**验证**：
+- `npm run test:backend` → 412 pass / 0 fail / 3 skip
+- `npm run test:frontend` → 48 文件 / 139 测试全过
+- `npm run lint` → 全过（前端 ESLint + assistant 语法检查 + git hygiene）
+- grep 全 src 已无 `writing_session_characters` / `activateCharacter` / `deactivateCharacter` / `listActiveCharacters` / `CastPanel` / `getWritingSessionCharacters` / `addWritingSessionCharacter` 残留（仅 schema.js 的 DROP 迁移、CHANGELOG/SCHEMA/ARCHITECTURE 备忘、NearbyPanel.jsx 一行历史注释保留）
+
+**坑点**：
+- `entry-matcher` writing 分支只是"角色级条件不再触发"——选择的是 spec Option (a)。不重定向到 nearby，因为 nearby 的状态字段集是 character_state_fields 的子集（`nearby_enabled=1`），且 nearby 由副 LLM 维护，不参与世界 prompt 条目触发；如果未来需要 nearby 触发条目，再独立设计
+- `captureStateSnapshot` / `restoreStateFromSnapshot` / `getSessionCharacterStateValues` 等下游均能正确处理 `characterIds=[]`（早就有 `if (characterIds.length === 0) return []` 类保护），实测验证通过
+- `writing-session-characters.js` queries 文件保留为该文件还有 `getWritingSessionById` / `createWritingSession` 等 session CRUD；只删了 3 个角色相关函数
+- `messages` 仍是 PUT 的 404：`backend/tests/routes/writing.test.js` 删除涉及该端点的所有调用，连带删除一并失效的 `insertCharacter` import
+
 ## 2026-05-10 feat(ui): NearbyPanel 替换 CastPanel — 附近区块 + 角色卡添加
 
 **背景**：附近角色特性 Task 10 — 写作页右侧栏从 Cast（激活角色）切到 Nearby（附近角色池）。CastPanel 暂留文件系统（Task 11 删），与 `activeCharacters` 概念一同退出 WritingSpacePage。

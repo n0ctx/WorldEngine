@@ -236,10 +236,7 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
       mode: 'writing',
       title: '写作会话',
     });
-    sandbox.db.prepare(`
-      INSERT INTO writing_session_characters (id, session_id, character_id, created_at)
-      VALUES ('w-alpha', ?, ?, 1), ('w-beta', ?, ?, 2)
-    `).run(writingSession.id, alpha.id, writingSession.id, beta.id);
+    // 写作模式没有固定角色身份；不再向 writing_session_characters 插行
     const writingRecallUser = insertMessage(sandbox.db, writingSession.id, {
       role: 'user',
       content: '召回写作用户消息',
@@ -325,7 +322,8 @@ test('buildPrompt / buildWritingPrompt 的结构锚点顺序保持稳定', async
         messages: extractMessageShape(writingResult.messages, {
           0: [
             'ANCHOR_[1]_WRITING_GLOBAL', 'ANCHOR_[3.5]_CACHED_TITLE', 'ANCHOR_[3.5]_CACHED_BODY', 'ANCHOR_[2]_PERSONA',
-            'ANCHOR_[3]_CHAR_ALPHA', 'ANCHOR_[3]_CHAR_BETA', 'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE', 'ANCHOR_[6]_CHAR_STATE',
+            // 写作模式不再注入 [3] 角色 system_prompt / [6] 角色状态段
+            'ANCHOR_[4]_WORLD_STATE', 'ANCHOR_[5]_PERSONA_STATE',
             'ANCHOR_[7]_ENTRY_TITLE', 'ANCHOR_[7]_ENTRY_BODY', '<recalled_memories>', 'ANCHOR_[8]_RECALL_WRITING', '<expanded_dialogues>', 'ANCHOR_[10]_DIARY_WRITING',
           ],
           1: ['旧写作用户消息'],

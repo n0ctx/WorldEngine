@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => {
     getPersonaById: vi.fn(),
     listWritingSessions: vi.fn(),
     createWritingSession: vi.fn(),
-    listActiveCharacters: vi.fn(),
     generate: vi.fn(),
     continueGeneration: vi.fn(),
     stopGeneration: vi.fn(),
@@ -55,7 +54,6 @@ vi.mock('../../src/api/personas.js', () => ({
 vi.mock('../../src/api/writing-sessions.js', () => ({
   listWritingSessions: (...args) => mocks.listWritingSessions(...args),
   createWritingSession: (...args) => mocks.createWritingSession(...args),
-  listActiveCharacters: (...args) => mocks.listActiveCharacters(...args),
   generate: (...args) => mocks.generate(...args),
   stopGeneration: (...args) => mocks.stopGeneration(...args),
   continueGeneration: (...args) => mocks.continueGeneration(...args),
@@ -89,7 +87,6 @@ vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({
     <div data-testid="left">{memoryWriting ? 'memory-writing' : 'memory-idle'}</div>
   ),
 }));
-vi.mock('../../src/components/book/CastPanel.jsx', () => ({ default: () => <div data-testid="cast" /> }));
 vi.mock('../../src/components/book/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
 vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
@@ -129,7 +126,6 @@ describe('WritingSpacePage', () => {
     mocks.getPersonaById.mockRejectedValue(new Error('no persona id'));
     mocks.listWritingSessions.mockResolvedValue([]);
     mocks.createWritingSession.mockResolvedValue({ id: 'ws-1', title: null });
-    mocks.listActiveCharacters.mockResolvedValue([{ id: 'char-1', name: '阿塔' }]);
     mocks.continueGeneration.mockReset();
     mocks.generate.mockReset();
     mocks.stopGeneration.mockReset();

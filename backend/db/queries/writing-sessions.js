@@ -42,30 +42,3 @@ export function touchWritingSession(id) {
   db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(Date.now(), id);
 }
 
-export function getWritingSessionCharacters(sessionId) {
-
-  return db.prepare(
-    `SELECT c.*, wsc.created_at AS activated_at
-     FROM writing_session_characters wsc
-     JOIN characters c ON c.id = wsc.character_id
-     WHERE wsc.session_id = ?
-     ORDER BY wsc.created_at ASC`
-  ).all(sessionId);
-}
-
-export function addWritingSessionCharacter(sessionId, characterId) {
-
-  const id = crypto.randomUUID();
-  const now = Date.now();
-  db.prepare(
-    `INSERT OR IGNORE INTO writing_session_characters (id, session_id, character_id, created_at)
-     VALUES (?, ?, ?, ?)`
-  ).run(id, sessionId, characterId, now);
-}
-
-export function removeWritingSessionCharacter(sessionId, characterId) {
-
-  db.prepare(
-    'DELETE FROM writing_session_characters WHERE session_id = ? AND character_id = ?'
-  ).run(sessionId, characterId);
-}

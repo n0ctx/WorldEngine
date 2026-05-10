@@ -173,15 +173,17 @@ POST /api/sessions/:sessionId/chat
 
 与 `buildPrompt` 的差异：
 
-**Cached layer 更紧凑**：仅含 [1] 全局 + [2] 常驻 cached 条目 +（如有）[3] 玩家，[4] 角色 system prompt 下移到 Dynamic 层。原因：多激活角色切换时，角色组合变化会导致 cached system 内容改变，全部 cache miss；改为 Dynamic 后，无论角色如何组合切换，cached layer 保持稳定。
+**Cached layer**：仅含 [1] 全局 + [2] 常驻 cached 条目 +（如有）[3] 玩家。
+
+**写作模式不再注入角色身份**：[4] 角色 System Prompt 与 [7] 角色状态段在写作 prompt 中**整体移除**——写作模式没有固定角色身份，角色出场由叙事文本自行驱动；nearby 角色池（`session_nearby_characters`）由副 LLM 单独维护状态，不进入主 prompt。
 
 | 段 | 差异 |
 |---|---|
-| **[4]** | **[4] 角色 system prompt 移到 Dynamic 层**（循环所有激活角色，每个格式：`[{{char}}人设]\n${system_prompt}`，用该角色名字替换 `{{char}}`）—— 为避免多角色组合变化导致 cache miss |
-| [5] | `renderWorldState(world.id)` |
-| [6] | `renderPersonaState(world.id)` |
-| [7] | 循环所有激活角色调用 `renderCharacterState`，用各自角色名替换 `{{char}}` |
-| [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目 |
+| **[4]** | **不注入**（写作模式没有固定角色 system prompt） |
+| [5] | `renderWorldState(world.id, sessionId)` |
+| [6] | `renderPersonaState(world.id, sessionId)` |
+| **[7]** | **不注入**（写作模式没有固定角色状态段；nearby 状态由副 LLM 维护，不进入主 prompt） |
+| [8] | 仅注入世界 State 条目；写作模式不再消费全局/角色 Prompt 条目；含 `角色.*` 条件的 state 条目在写作模式下不会触发 |
 | [9-10] | 同 buildPrompt；[10] 受 `writing.memory_expansion_enabled` 控制 |
 | [12] | 同 buildPrompt，稳定使用原始 `messages` 窗口 |
 | **[13+14]** | 写作后置提示词追加到当前用户消息末尾，合并为一条 `role:user`；注入 `writing.global_post_prompt`；**`personaName` 非空时自动注入玩家名提醒**；**`writing.suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**；`skipWritingInstructions=true` 时 postParts 为空（只保留用户消息本体） |
@@ -395,7 +397,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **会话级隔离**（T103）：状态运行时值现在存储在 `session_*_state_values` 三张表，由 `session_id ON DELETE CASCADE` 控制生命周期，各会话彼此完全独立。
 
-**state 条目字段语义**：TriggerEditor（现为 EntryEditor state 模式）的条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不按具体角色名展开。chat 会话中的 `角色.xxx` 映射当前角色；writing 会话中若条件包含 `角色.xxx`，`entry-matcher.js` state 分支（`buildSharedStateMap` + `buildCharacterStateMap`）会对当前会话激活角色逐个评估，同一角色需满足该条目的全部 entry_conditions，只要任一角色满足即触发（OR over characters，AND within conditions）。`type='table'` 字段在条件 UI 中展开为 `scope.field_label.column_key` 三段格式（前缀仍为 `世界.` / `玩家.` / `角色.`），`entry-matcher.js` 的 `setStateMapRow()` 把表格值对象按列展平到状态 Map 中，仅参与数值比较。
+**state 条目字段语义**：TriggerEditor（现为 EntryEditor state 模式）的条件选项按 `世界.xxx` / `玩家.xxx` / `角色.xxx` 三类生成；`character_state_fields` 不按具体角色名展开。chat 会话中的 `角色.xxx` 映射当前角色；writing 会话没有固定角色身份（角色由 nearby 池单独管理），含 `角色.xxx` 条件的条目在写作模式下不会触发，`entry-matcher.js` state 分支仅按 world+persona shared map 评估并跳过 `角色.*` 条件项。`type='table'` 字段在条件 UI 中展开为 `scope.field_label.column_key` 三段格式（前缀仍为 `世界.` / `玩家.` / `角色.`），`entry-matcher.js` 的 `setStateMapRow()` 把表格值对象按列展平到状态 Map 中，仅参与数值比较。
 
 **state 条目评估时机**：提示词组装时（[7] 段），`matchEntries()` state 分支实时读取 `entry_conditions` 表和当前 session 状态值，同步评估后决定该条目是否命中；评估结果不持久化到数据库。条件为空的 state 条目不触发。
 
@@ -457,7 +459,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **应用范围**：[1]–[11] 所有 systemParts 注入点。**不替换** [12] 历史消息和 [13] 当前用户消息（对话内容非配置模板）。
 
-**写作模式多角色**：共享段（[1][2][4][5][6][8][9][10][11][12]）以首个激活角色名作为 `{{char}}` fallback；[3][7] 各自使用所属角色名。
+**写作模式 `{{char}}`**：写作 prompt 没有固定角色身份（[4]/[7] 不注入），共享段 `{{char}}` 统一替换为「叙述者」字面量。
 
 **实现**：`backend/utils/template-vars.js` → `applyTemplateVars(text, ctx)`；assembler.js 内以闭包 `const tv = t => applyTemplateVars(t, ctx)` 调用。
 
@@ -493,7 +495,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `sessions.character_id` | 非空，绑定单个角色 | 可空 |
 | `sessions.world_id` | 通常为 `NULL`，世界通过 character 反查 | 非空 |
 | `sessions.mode` | `'chat'` | `'writing'` |
-| 激活角色 | 无 | `writing_session_characters` 联结表（支持动态增删） |
+| 出场角色 | 无 | `session_nearby_characters`（nearby 池：transient + saved），由副 LLM 自动维护，不进入主 prompt |
 
 **提示词**：调用 `buildWritingPrompt(sessionId)` 而非 `buildPrompt()`；差异见 §4。
 
@@ -589,7 +591,7 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 | `/api` | routes/personas.js | 玩家（persona）读写、头像上传 |
 | `/api` | routes/persona-state-fields.js | 玩家状态字段 CRUD + 排序 |
 | `/api` | routes/persona-state-values.js | 玩家状态值（全局默认层）读写 + 重置 |
-| `/api/worlds` | routes/writing.js | 写作会话 CRUD、激活角色管理、流式生成、章节标题管理 |
+| `/api/worlds` | routes/writing.js | 写作会话 CRUD、nearby 角色池管理、流式生成、章节标题管理 |
 | `/api/assistant` | assistant/server/routes.js | 写卡助手对话（SSE）、提案执行 |
 
 **中间件顺序**：CORS（仅 localhost/127.0.0.1 origin）→ JSON 解析（limit: 20MB）→ HTTP 请求日志（info 级，仅 `/api/`，跳过 `/api/uploads/`）→ `/api` 本机访问限制（`localOnly`）→ 受保护的 `/api/uploads/*path` 文件访问 → 路由。

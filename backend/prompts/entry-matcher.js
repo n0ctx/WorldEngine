@@ -19,7 +19,6 @@ import {
   getSessionPersonaStateValues,
   getSingleCharacterSessionStateValues,
 } from '../db/queries/session-state-values.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { listConditionsByEntry } from '../db/queries/entry-conditions.js';
 import { getKeywordActiveState, setKeywordActiveState } from '../db/queries/session-active-entries.js';
 import * as llm from '../llm/index.js';
@@ -402,23 +401,18 @@ export async function matchEntries(sessionId, entries, worldId = null) {
     const sharedMap = buildSharedStateMap(worldId, sessionId);
 
     if (session?.mode === 'writing') {
-      // writing 模式：对每个激活角色评估；任一角色满足条件组合即触发
-      const writingChars = getWritingSessionCharacters(sessionId);
+      // writing 模式：没有固定角色身份，仅按 world+persona shared map 评估；
+      // 含「角色.*」条件的条目在写作模式下无法命中，跳过即可（Option C，nearby 池
+      // 由副 LLM 单独维护，不参与世界 prompt 条目触发）。
       for (const entry of stateEntries) {
         const conditions = listConditionsByEntry(entry.id);
         if (conditions.length === 0) continue;
-        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
         const hasCharCond = conditions.some((c) => c.target_field.startsWith('角色.'));
-        let allMet = false;
-        if (hasCharCond && writingChars.length > 0) {
-          allMet = writingChars.some((char) => {
-            const charMap = buildCharacterStateMap(worldId, sessionId, char.id);
-            return conditions[check]((c) => evaluateCondition(c, mergeStateMaps(sharedMap, charMap)));
-          });
-        } else {
-          allMet = conditions[check]((c) => evaluateCondition(c, sharedMap));
+        if (hasCharCond) continue;
+        const check = entry.condition_logic === 'OR' ? 'some' : 'every';
+        if (conditions[check]((c) => evaluateCondition(c, sharedMap))) {
+          triggered.add(entry.id);
         }
-        if (allMet) triggered.add(entry.id);
       }
     } else {
       // chat 模式：使用 world + persona + 当前角色状态

@@ -82,14 +82,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   updated_at          INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS writing_session_characters (
-  id          TEXT PRIMARY KEY,
-  session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  character_id TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
-  created_at  INTEGER NOT NULL,
-  UNIQUE(session_id, character_id)
-);
-
 CREATE TABLE IF NOT EXISTS session_nearby_characters (
   id          TEXT PRIMARY KEY,
   session_id  TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -346,7 +338,7 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE sessions ADD COLUMN compressed_context TEXT`); } catch {}
   // T32: 字段迁移完成后才能创建依赖 is_compressed 的索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_session_compressed ON messages(session_id, is_compressed, created_at)`); } catch {}
-  // T34: sessions 表改造 — character_id 改为 nullable，新增 world_id / mode；新建 writing_session_characters 表
+  // T34: sessions 表改造 — character_id 改为 nullable，新增 world_id / mode
   const colInfo = db.pragma('table_info(sessions)');
   const charCol = colInfo.find(c => c.name === 'character_id');
   if (charCol && charCol.notnull === 1) {
@@ -387,8 +379,9 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE persona_state_values ADD COLUMN runtime_value_json TEXT`); } catch {}
   migrateLegacyStateValueColumns(db);
   // T34: 补充索引
-  try { db.exec(`CREATE INDEX IF NOT EXISTS idx_writing_session_characters_session_id ON writing_session_characters(session_id)`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id, mode, created_at)`); } catch {}
+  // Task 11 (nearby): 整表删除 writing_session_characters，由 nearby 全面替代
+  try { db.exec(`DROP TABLE IF EXISTS writing_session_characters`); } catch {}
   // per-turn 摘要系统：新增 turn_records 表索引
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_turn_records_session ON turn_records(session_id, round_index)`); } catch {}
   // 双模式全局设置：为两张表添加 mode 列（'chat' | 'writing'）

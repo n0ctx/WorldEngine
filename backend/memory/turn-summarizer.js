@@ -12,7 +12,6 @@ import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
 import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById, updateTurnRecordLtmSnapshot } from '../db/queries/turn-records.js';
-import { getWritingSessionCharacters } from '../db/queries/writing-sessions.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
@@ -160,10 +159,8 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
   }
 
   // 捕获当前三层状态快照（优先级 2 状态更新已完成，此处拿到的是本轮最终状态）
-  let characterIds = session.character_id ? [session.character_id] : [];
-  if (!session.character_id && session.mode === 'writing' && worldId) {
-    characterIds = getWritingSessionCharacters(sessionId).map((c) => c.id);
-  }
+  // 写作模式没有固定角色身份，characterIds 留空；nearby 层快照由下方专属逻辑写入。
+  const characterIds = session.character_id ? [session.character_id] : [];
   const snapshot = worldId ? captureStateSnapshot(sessionId, worldId, characterIds) : null;
 
   // nearby 层快照：写作模式始终写入（即便为空），chat 模式不写（向下兼容）。
