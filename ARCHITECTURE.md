@@ -507,6 +507,25 @@ checkAndGenerateDiary(sessionId, roundIndex)
 
 **appMode 状态**：`store/appMode.js`（独立 Zustand store），写作页面挂载时设置为 `'writing'`，其他页面设置为 `'chat'`；`refreshCustomCss(mode)` 按当前 appMode 加载对应 CSS 片段注入 `<style id="we-custom-css">`。
 
+### §11.1 Nearby Characters（写作模式专属）
+
+写作模式没有"激活角色"概念，角色出场由叙事文本驱动；本子系统由副 LLM 单独维护出场角色池，不进入主 prompt。承接旧 `writing_session_characters` 表（已整表删除）。
+
+- **数据模型**：`session_nearby_characters` + `session_nearby_character_state_values` 两张 session 级表（CASCADE 跟随 session 删除，无需独立 cleanup hook）；`character_state_fields.nearby_enabled INTEGER NOT NULL DEFAULT 1` 控制字段是否参与 nearby 流程
+- **类型**：`is_saved=0` transient（本轮未回则删）；`is_saved=1` saved（跨轮持久，UI 上有印章标记）
+- **唯一性**：`(session_id, name)` 全局唯一（saved + transient 同池）；`ref_id` 仅作防御性兜底，不参与去重
+- **触发链路**：写作模式 `combined-state-updater`（异步队列优先级 2）单次 LLM 调用同时完成 pre-flight、nearby 提取、字段过滤后的状态/记忆更新，零额外 LLM 调用
+- **字段过滤**：仅 `character_state_fields.nearby_enabled=1` 的字段进入 prompt 与状态更新；persona / world 字段不参与 nearby
+- **LLM 输出协议**：现有 JSON 顶层新增 `nearby_characters: [{ ref_id, name, state, memory }]`
+- **命中规则**：`ref_id ∈ pool` → 更新该条；`ref_id=null` 且 `name` 命中池中已有 → 更新（兜底）；`ref_id=null` 且 `name` 不在池 → 新建 transient；`ref_id` 非法（不在池中）→ 整条丢弃，避免幻觉 ID 制造孤儿
+- **轮末清理**：池里 transient 但本轮未 seen → 删除；saved 保留 state/memory 不动
+- **回滚**：`turn_records.state_snapshot.nearby` 层快照本轮池状态；`memory/state-rollback.js` 还原；旧记录无该层 → 还原时清空两张 nearby 表（向下兼容）
+- **删除回滚**：`removeNearby` = 直接 DELETE，不降级为 transient（避免与 turn 链路耦合）
+- **写作主 prompt 改动**：写作模式 [4] `<char_info>` 与 [7] `<char_state>` 段彻底取消，主 prompt 不再注入"角色级"内容；chat 模式 `buildPrompt` 完全不变。详见 §4 `buildWritingPrompt` 表格
+- **entry-matcher 联动**：写作模式 state 条目评估跳过含 `角色.*` 的条件项（角色由 nearby 池单独管理），仅按 world+persona shared map 评估
+- **制卡链路**：写作页"附近"区块"制卡"按钮 → 候选 = 本轮登场 nearby 角色 → `writing.aux_llm` 调用补 `system_prompt` / `description` / `first_message` → 落库到 `characters` 表；仅 `nearby_enabled=1` 字段写入 `default_value_json`，不带 memory / nearbyId
+- **写卡助手对接**：`character_state_fields.nearby_enabled` 通过 `apply_world_card` 工具的 `stateFieldOps` 接受；`normalize-proposal` 校验 `target='character'` 才允许该键，其余 target 出现该键直接拒绝
+
 ---
 
 ## §12 前端架构
