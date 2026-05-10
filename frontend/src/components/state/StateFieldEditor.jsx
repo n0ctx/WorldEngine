@@ -460,6 +460,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                   checked={form.nearby_enabled !== 0}
                   onChange={(e) => set('nearby_enabled', e.target.checked ? 1 : 0)}
                   aria-label="登场角色启用"
+                  className="accent-[var(--we-color-accent-deep)]"
                 />
                 <span className="text-xs text-[var(--we-ink-faded)]">
                   关闭后，该字段不会出现在登场角色面板与自动状态更新中

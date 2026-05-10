@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(ui): 状态字段「登场角色启用」勾选框换为陶土红主题色
+
+`StateFieldEditor.jsx` 中该 checkbox 沿用浏览器默认蓝色 accent，与书卷风羊皮纸/陶土红主题不符。加上 `accent-[var(--we-color-accent-deep)]` 让填充色与主题强调色一致。仅样式微调。
+
 ## 2026-05-10 fix(llm): 副模型/写作模型 thinking_level 用户配置被 hardcode 覆盖
 
 副模型设置里选 `thinking.type=disabled`（deepseek v3.1+ 关思考）后，状态栏/摘要/日记/标题等任务仍出现 `<think>…</think>`。根因不在 UI，而在所有副模型/写作模型 scope 的 `llm.complete` 调用都硬编码了 `thinking_level: null`：`backend/llm/index.js:115` 用 `hasOwnProperty` 区分"显式 null"与"未传"，调用方传了 null 就强制覆盖副模型配置；而 `_utils.js:179` 对 deepseek/glm 来说 `null` ≠ `'thinking_disabled'`，前者是"完全不下发 thinking 字段、走模型默认"，所以 deepseek-v4-flash 默认开思考——用户的设置永远没机会落到请求体上。
