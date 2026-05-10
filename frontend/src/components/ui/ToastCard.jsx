@@ -82,7 +82,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       onMouseLeave={onMouseLeave}
       className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5"
       style={{
-        background: 'var(--we-color-surface-paper)',
+        background: 'var(--we-color-bg-canvas)',
         boxShadow: '0 0 0 1px var(--we-color-border-subtle), 0 4px 12px rgba(0,0,0,0.08)',
         borderLeft: `4px solid ${meta.color}`,
       }}
@@ -93,11 +93,11 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
         </span>
         <div className="flex-1 min-w-0">
           {toast.title ? (
-            <div className="font-serif text-[14px] leading-tight text-[var(--we-color-ink-primary)]">
+            <div className="font-serif text-[14px] leading-tight text-[var(--we-color-text-primary)]">
               {toast.title}
             </div>
           ) : null}
-          <div className="text-[12.5px] leading-snug text-[var(--we-color-ink-secondary)] break-words">
+          <div className="text-[12.5px] leading-snug text-[var(--we-color-text-secondary)] break-words">
             {toast.message}
           </div>
         </div>
@@ -105,7 +105,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
           type="button"
           aria-label="关闭通知"
           onClick={onClose}
-          className="text-[var(--we-color-ink-tertiary)] hover:text-[var(--we-color-ink-primary)] -mt-1"
+          className="text-[var(--we-color-text-tertiary)] hover:text-[var(--we-color-text-primary)] -mt-1"
         >
           <Icon size={16}>{CLOSE_PATHS}</Icon>
         </button>

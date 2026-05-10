@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(ui): ToastCard 修复无效 CSS 变量导致 toast 透明/黑字不可读
+
+`ToastCard.jsx` 引用了仓库中不存在的 token：`--we-color-surface-paper`、`--we-color-ink-primary/secondary/tertiary`，导致背景透明、文字回退到默认黑，叠在深色 TopBar 上几乎不可见。改为已定义的 `--we-color-bg-canvas` 与 `--we-color-text-primary/secondary/tertiary`。验证：dispatch `we:toast` error 后 bg=`rgb(237,227,208)`、msg color=`rgb(83,66,54)`。
+
 ## 2026-05-10 fix(state): table 类型默认值编辑器改为表格布局
 
 `StateValueField` 中 `type=table` 的默认值原渲染为 `flex flex-wrap` + 每列「label + 数值输入」的横向小卡片，列多时会换行散开（参见角色页"属性"行的 力量/敏捷/体力/精神/战斗力）。改为复用 `we-status-table`（表头行 + 输入行）结构，与右侧状态栏 `StatusTable` 视觉一致；保留原 setLocal/saveValue/min/max 行为。
