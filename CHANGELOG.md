@@ -3,6 +3,21 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(prompt): nearby fieldsDesc 补齐 enum/number/list/datetime/table/boolean 完整约束
+
+**背景**：3e6197f 强化新登场必填后，仍发现枚举类字段普遍空缺。根因：`backend/prompts/nearby-prompt.js` 的 `fieldsDesc` 只输出 `key（label，类型：xxx）+ description`，**没有把 enum 的可选值、number 的 range/unit、list/datetime/table/boolean 的格式说明**告诉 LLM。LLM 不知道枚举值集合 → 要么乱写 → apply 层 `validateValue` 判定非法 → 字段被丢弃 → 看起来"空了"。
+
+**改动**：`backend/prompts/nearby-prompt.js` 的 `fieldsDesc` 补齐与主 state updater (`combined-state-updater.js`/`buildFieldsDesc`) 同等详细的字段约束渲染：
+- enum：列出 `可选值（必须从中选一个）：[opt1 / opt2]`
+- number：`范围：lo ~ hi` + `单位：xxx`
+- list：要求字符串数组格式
+- datetime：要求 ISO 局部时间字符串格式
+- table：列出列定义 `{key(label, lo~hi)}`
+- boolean：要求 true/false
+- update_instruction：单独换行附在字段后
+
+**验证**：`combined-state-updater-nearby.test.js` 6/6 pass。
+
 ## 2026-05-10 fix(state): table 类型默认值在角色/玩家编辑页可编辑且通过校验
 
 **背景**：`type='table'` 状态字段在「编辑角色 / 编辑玩家(persona)」页的默认值输入框显示 `[object Object]`，保存时后端报 `字段 X 的值不符合类型约束`。三个根因合一：① 前端 `StateValueField.jsx` 未给 table 类型加渲染分支，对象被 `String()` 转成字面量；② 后端 `validateStateValue()` switch 缺 `case 'table'`，落到 `default` 返回 `undefined` 触发抛错；③ `getCharacterStateValuesWithFields` / `getPersonaStateValuesWithFields(ByPersonaId)` / `getWorldStateValuesWithFields` 三个 SELECT 漏取 `table_columns`，前端拿不到列定义。

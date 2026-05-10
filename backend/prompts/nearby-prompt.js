@@ -20,7 +20,28 @@ export function buildNearbyPromptSection(pool, fields) {
 
   const fieldsDesc = fields.map((f) => {
     let line = `  - ${f.field_key}（${f.label}，类型：${f.type}）`;
-    if (f.description) line += `；${f.description}`;
+    if (f.description) line += `；说明：${f.description}`;
+    if (f.type === 'enum' && Array.isArray(f.enum_options) && f.enum_options.length) {
+      line += `；可选值（必须从中选一个）：[${f.enum_options.join(' / ')}]`;
+    }
+    if (f.type === 'number') {
+      const lo = f.min_value != null ? f.min_value : '不限';
+      const hi = f.max_value != null ? f.max_value : '不限';
+      line += `；范围：${lo} ~ ${hi}`;
+      if (f.unit) line += `；单位：${f.unit}（仅展示，写入仍为纯数字）`;
+    }
+    if (f.type === 'list') line += '；请返回字符串数组（如 ["条目1","条目2"]），替换整个列表';
+    if (f.type === 'datetime') line += '；请返回 ISO 局部时间字符串 "YYYY-MM-DDTHH:mm"（年份正整数任意位数；月/日/时/分各 2 位，例 "1000-03-15T14:30"）';
+    if (f.type === 'table' && Array.isArray(f.table_columns) && f.table_columns.length) {
+      const colDesc = f.table_columns.map((c) => {
+        const lo = c.min != null ? c.min : '不限';
+        const hi = c.max != null ? c.max : '不限';
+        return `${c.key}（${c.label ?? c.key}，${lo}~${hi}）`;
+      }).join(' / ');
+      line += `；请返回对象 {列key: 数值,...}，列：[${colDesc}]，仅数值类型`;
+    }
+    if (f.type === 'boolean') line += '；请返回 true 或 false';
+    if (f.update_instruction) line += `\n    更新说明：${f.update_instruction}`;
     return line;
   }).join('\n');
 
