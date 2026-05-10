@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-10 fix(ui): 状态字段标签与世界/玩家/附近/角色名字号上调
+
+`index.css`：`.we-section-label` 9.5px → 11.5px（世界/玩家名/附近/TIMELINE 区块标题，及附近角色名）；`.we-status-key` 9px → 11px（状态字段标签，如 储物/队友/属性点 等）；`.we-status-table-head-cell` 9px → 11px（table 类型字段的列名）。原字号在常见显示密度下偏小，识别困难。
+
+## 2026-05-10 feat(ui): 附近角色块未保存态新增「移除」按钮，已保存态「移除」改为「取消」
+
+`NearbyCharacterBlock.jsx` 原本在标题行根据 `is_saved` 互斥渲染单个按钮（未保存只有「保存」、已保存只有「移除」），用户在未保存态没有"丢弃这个新登场角色"的入口。改为：
+- **未保存**：并列 `[保存][移除]`。`保存` 调 `setNearbySaved(true)`；`移除` 调 `removeNearby` 物理删除（DELETE 行 + state CASCADE 同步删），下轮提示词不再注入。
+- **已保存**：单个 `[取消]`，调 `setNearbySaved(false)` 仅把 `is_saved` 翻回 0；DB 记录保留，前端列表仍显示，下轮提示词组装仍注入该角色。
+
+⚠️ 关键语义：「移除」≠「取消」。移除是物理删除（彻底丢弃），取消只是取消保存（保留临时记录）。两个按钮各调一个已存在的接口，后端零改动。仅前端 `NearbyCharacterBlock.jsx` 一个文件。
+
 ## 2026-05-10 fix(ui): 附近角色「已保存」标识改为名字加粗强调色
 
 `NearbyCharacterBlock.jsx` 原来在角色名前渲染一个朱红小圆点（`we-nearby-seal`）表示已保存，与书卷风视觉风格不搭。改为给 `we-section-label` 增加 `--saved` 修饰类，已保存时名字本身变 `--we-vermilion` + `font-weight:600`。同步删除 `index.css` 内 `.we-nearby-seal` 旧规则。

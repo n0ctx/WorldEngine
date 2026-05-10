@@ -122,24 +122,36 @@ export default function NearbyCharacterBlock({
           <button
             type="button"
             className="we-state-section-reset"
-            onClick={handleRemove}
-            disabled={busy}
-            aria-label={`移除 ${nearby?.name || ''}`}
-            title="移除"
-          >
-            移除
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="we-state-section-reset"
             onClick={handleToggleSaved}
             disabled={busy}
-            aria-label={`保存 ${nearby?.name || ''}`}
-            title="保存到附近角色池"
+            aria-label={`取消保存 ${nearby?.name || ''}`}
+            title="取消保存（保留记录，下轮仍注入）"
           >
-            保存
+            取消
           </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="we-state-section-reset"
+              onClick={handleToggleSaved}
+              disabled={busy}
+              aria-label={`保存 ${nearby?.name || ''}`}
+              title="保存到附近角色池"
+            >
+              保存
+            </button>
+            <button
+              type="button"
+              className="we-state-section-reset ml-1"
+              onClick={handleRemove}
+              disabled={busy}
+              aria-label={`移除 ${nearby?.name || ''}`}
+              title="移除（物理删除，下轮不再注入）"
+            >
+              移除
+            </button>
+          </>
         )}
       </div>
 
