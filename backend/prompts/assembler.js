@@ -297,7 +297,11 @@ export async function buildPrompt(sessionId, options = {}) {
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
   for (const msg of history) {
-    const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
+    let content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
+    if (config.suggestion_enabled && msg.role === 'assistant' && msg.next_options?.length > 0) {
+      const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', world.id, 'chat');
+      content += `\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
+    }
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
   log.debug(`│  [12] history  raw_messages=${history.length}`);
@@ -507,7 +511,11 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     writing.context_history_rounds ?? config.context_history_rounds ?? 12,
   );
   for (const msg of history) {
-    const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
+    let content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
+    if (writing.suggestion_enabled && msg.role === 'assistant' && msg.next_options?.length > 0) {
+      const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', world.id, 'writing');
+      content += `\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
+    }
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
