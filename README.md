@@ -1,9 +1,27 @@
 # WorldEngine
 
-**本地优先的 AI 角色扮演引擎**  
+**本地优先的 AI 角色扮演引擎**
 状态驱动叙事 · 分层记忆召回 · 动态提示词注入 · Chat / Writing 双模式
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/n0ctx/WorldEngine?include_prereleases&label=release)](https://github.com/n0ctx/WorldEngine/releases)
+[![Stars](https://img.shields.io/github/stars/n0ctx/WorldEngine?style=social)](https://github.com/n0ctx/WorldEngine/stargazers)
+[![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+
 ![书架界面](docs/images/bookshelf.png)
+
+---
+
+## 目录
+
+- [为什么不用普通 AI 聊天？](#为什么不用普通-ai-聊天)
+- [快速上手](#快速上手)
+- [核心能力](#核心能力)
+- [技术架构速览](#技术架构速览)
+- [导入导出格式](#导入导出格式)
+- [文档](#文档)
+- [开发与构建](#开发与构建)
+- [社区](#社区)
 
 ---
 
@@ -69,7 +87,7 @@ cd backend  && npm run dev   # http://localhost:3000
 
 ### 分层记忆系统
 
-每轮 AI 回复后异步生成摘要并建向量索引。新消息发送时，语义召回历史相关片段注入上下文，同 session 阈值 0.6，跨 session 默认关闭可手动开启。LLM进一步判断是否展开原文（智能展开），在保持上下文简洁的同时让细节可追溯。长期记忆通过独立的 `memory.md` 文件持久化，按轮次快照，支持随消息回滚还原。
+每轮 AI 回复后异步生成摘要并建向量索引。新消息发送时，语义召回历史相关片段注入上下文，同 session 阈值 0.6，跨 session 默认关闭可手动开启。LLM 进一步判断是否展开原文（智能展开），在保持上下文简洁的同时让细节可追溯。长期记忆通过独立的 `memory.md` 文件持久化，按轮次快照，支持随消息回滚还原。
 
 ### 状态驱动叙事
 
@@ -103,6 +121,16 @@ LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / 
 
 ---
 
+## 导入导出格式
+
+| 格式 | 内容 |
+|---|---|
+| `.wechar.json` | 单角色（含状态字段定义和默认值） |
+| `.weworld.json` | 完整世界（含所有角色、配置、会话历史） |
+| `.weglobal.json` | 全局设置（提示词、CSS、正则，不含 API Key） |
+
+---
+
 ## 文档
 
 | 文档 | 说明 |
@@ -116,23 +144,7 @@ LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / 
 
 ---
 
-## 导入导出格式
-
-| 格式 | 内容 |
-|---|---|
-| `.wechar.json` | 单角色（含状态字段定义和默认值） |
-| `.weworld.json` | 完整世界（含所有角色、配置、会话历史） |
-| `.weglobal.json` | 全局设置（提示词、CSS、正则，不含 API Key） |
-
----
-
-## 社区
-
-QQ 群：**964968606**
-
----
-
-## 开发命令
+## 开发与构建
 
 ```bash
 # 重置数据库（开发用）
@@ -145,6 +157,15 @@ cd frontend && npm run build
 npm run desktop:dist
 ```
 
-打包产物在 `desktop/dist/`。数据目录：macOS `~/Library/Application Support/worldengine-desktop/`，Windows `%APPDATA%\worldengine-desktop\`。
+桌面打包产物在 `desktop/dist/`。数据目录：
+
+- macOS：`~/Library/Application Support/worldengine-desktop/`
+- Windows：`%APPDATA%\worldengine-desktop\`
 
 日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
+
+---
+
+## 社区
+
+QQ 群：**964968606**
