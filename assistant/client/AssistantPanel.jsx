@@ -207,9 +207,15 @@ export default function AssistantPanel() {
   }, [taskId, ingestEvent]);
 
   const handleReset = useCallback(() => {
+    // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
+    // 残留循环会继续调用 apply_* 等落库工具，造成"清空后旧任务仍在执行"的错觉
+    if (taskId) {
+      cancelTask(taskId).catch(() => {});
+    }
     abortRef.current?.abort?.();
+    setIsStreaming(false);
     reset();
-  }, [reset]);
+  }, [taskId, reset]);
 
   const inputDisabled = TERMINAL_STATUSES.has(status);
   const hasRunningItem = messages.some(

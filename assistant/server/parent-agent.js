@@ -110,16 +110,32 @@ async function loadSystemPrompt() {
  * 包装工具 execute：在执行前后发 tool_call_started / tool_call_completed SSE 事件。
  * 仅用于 apply_* / preview / list / read_file；5 个编排 meta 工具已有语义事件，不需包装。
  */
-function wrapToolEvents(tool, emitFn) {
+function wrapToolEvents(tool, emitFn, task) {
   if (!emitFn) return tool;
   const name = tool.function?.name ?? 'unknown';
   return {
     ...tool,
     execute: async (args) => {
+      // 前置闸门：任务已被前端 /cancel，跳过执行（包括 apply_* 这类会落库的副作用工具）
+      // 也不发 tool_call_started/completed 事件，避免在已断开的 SSE 上残留运行行
+      if (task && task.status === 'cancelled') {
+        return { ok: false, error: 'task cancelled' };
+      }
       const callId = Math.random().toString(36).slice(2, 8);
       emitFn({ type: 'tool_call_started', toolName: name, callId });
       try {
         const result = await tool.execute(args);
+        // 后置闸门：execute 启动后用户点了清空，本次落库无法回滚（better-sqlite3
+        // 同步事务 + apply_* 不接受 AbortSignal），但要做两件事——
+        //   1. SSE 上把这一行标成失败，UI 显示"已取消"而不是绿色成功；
+        //   2. 喂给 LLM 一个 ok:false 结果，阻断后续工具基于本次产物链式继续
+        //      （例：create world 完成后立刻又 apply character 引用刚刚的 worldId）。
+        // resolveToolContext 下一轮会观察 task.status === 'cancelled' 直接终止循环。
+        if (task && task.status === 'cancelled') {
+          emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
+          log.warn(`TOOL_CANCELLED_MID_FLIGHT  ${formatMeta({ taskId: task.id, tool: name })}`);
+          return { ok: false, error: 'task cancelled mid-execution' };
+        }
         const success = !(result && result.ok === false);
         emitFn({ type: 'tool_call_completed', toolName: name, callId, success });
         return result;
@@ -458,12 +474,12 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const emitFn = (evt) => taskStore.emit(task.id, evt);
 
   const tools = [
-    wrapToolEvents(toLLMTool(previewTool), emitFn),
-    wrapToolEvents(toLLMTool(listResources), emitFn),
-    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn),
+    wrapToolEvents(toLLMTool(previewTool), emitFn, task),
+    wrapToolEvents(toLLMTool(listResources), emitFn, task),
+    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, task),
     ...Object.entries(APPLY_TOOLS).map(([, mod]) =>
-      wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn)),
-    ...buildMetaTools(task, emitFn).map((t) => wrapToolEvents(toLLMTool(t), emitFn)),
+      wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn, task)),
+    ...buildMetaTools(task, emitFn).map((t) => wrapToolEvents(toLLMTool(t), emitFn, task)),
   ];
 
   // 历史 + 当前轮上下文
@@ -518,6 +534,8 @@ export async function runParentAgent(task, userInput, opts = {}) {
       thinking_level: null,
       configScope,
     })) {
+      // 中途被前端 /cancel：丢弃剩余 delta，立即跳出流式循环
+      if (task.status === 'cancelled') break;
       if (!chunk) continue;
       accumulated += chunk;
       taskStore.emit(task.id, { type: 'delta', delta: chunk, messageId: assistantMsgId });

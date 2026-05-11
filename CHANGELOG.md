@@ -3,7 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
-## 2026-05-11 fix(worlds): 世界卡拖拽邻居滑动动效回归
+## 2026-05-11 fix(assistant): 写卡助手响应中点"清空"未真正中断后端
+
+**问题**：写卡助手正在响应时点击"清空"，再发新任务，旧任务仍会继续执行（如继续调用 `apply_*` 落库），表现为"清空后助手还在完成清空前的任务"。
+
+**根因**：`handleReset` 只 `abortRef.current.abort()` + 本地 `reset()`，没调 `cancelTask(taskId)`。后端 `runParentAgent` 的 LLM 工具循环并不会因 HTTP 响应关闭而停止（Node 不会自动取消已 await 的 Promise），于是 `wrapToolEvents` 包装下的 `apply_world_card` / `apply_character_card` 等仍按部就班把变更落库。
+
+**修复**：
+- `assistant/client/AssistantPanel.jsx`：`handleReset` 中先 `cancelTask(taskId)`（即触发后端 `/cancel`：删除 plan-doc、`setStatus('cancelled')`、emit `task_cancelled`），再 abort 本地 SSE 并 `reset()`。
+- `assistant/server/parent-agent.js`：`wrapToolEvents` 新增 `task` 参数：
+  - **前置闸门**：执行前判断 `task.status === 'cancelled'` 即短路返回 `{ ok:false, error:'task cancelled' }`，跳过工具实际执行与 `tool_call_*` 事件。
+  - **后置闸门**：`tool.execute` 启动后用户点击清空，本次落库无法回滚（better-sqlite3 同步事务 + `apply_*` 不接受 AbortSignal），改为返回 `{ ok:false, error:'task cancelled mid-execution' }` 并把 `tool_call_completed.success=false`：(a) UI 上把该行标成"已取消"而非绿色成功；(b) 喂给 LLM 失败结果，阻断后续工具链式引用（例如 create world 完成后又 apply character 引用刚 create 的 worldId）。
+  - Step 2 流式 `for await` 循环每轮检查 `task.status === 'cancelled'` 立即 break，丢弃剩余 delta。`resolveToolContext` 之后的 `TERMINAL_AFTER_TOOLS` 集合已含 `cancelled`，无需额外处理。
+
+**已知限制**：单个已经进入 `apply_*` 的 DB 写入无法中途取消（同步 sqlite + 现有 apply 接口不支持 AbortSignal）。该写入会完成，但不会被后续工具引用、也不会触发后续工具循环。彻底回滚需把 apply 链路改造为接受 AbortSignal 并在事务边界检查；当前迭代不做。
+
+**验证**：`/worlds` 或 `/characters` 进入聊天 → 给写卡助手布置一个会调用多个 `apply_*` 的任务 → 在流式响应中或工具循环中点击右上角"清空" → 旧任务不再继续落库（数据无新增/变更），新任务从干净状态开始。
+
+
 
 **问题**：`/worlds` 拖拽世界卡时，附近卡片让位变成瞬移，丢失左右/上下滑动过渡。
 
