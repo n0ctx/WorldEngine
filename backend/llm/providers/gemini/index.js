@@ -6,8 +6,7 @@ import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
-import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
-import { isToolLoopCancelledError } from '../../tool-loop-control.js';
+import { runToolLoop } from '../../tool-loop-control.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');
@@ -264,30 +263,48 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   return result;
 }
 
-export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
+// Gemini 工具循环 4 原语适配器：保留原生 nativeContents 数组以避免
+// thought_signature 在 OpenAI 格式往返中丢失。
+const geminiToolLoopProvider = {
+  initState(messages) {
+    const { contents, systemInstruction } = convertToGeminiContents(messages);
+    return {
+      messages: [...messages],
+      nativeContents: [...contents],
+      initialContents: [...contents],
+      systemInstruction,
+    };
+  },
 
-  // 维护 Gemini 原生格式，避免 thought_signature 在 OpenAI 格式往返中丢失
-  const { contents: initialContents, systemInstruction } = convertToGeminiContents(messages);
-  let nativeContents = [...initialContents];
+  async oneTurn(state, toolDefs, mode, iter, config) {
+    const baseUrl = getBaseUrl(config);
+    const model = (config.model || 'gemini-pro').replace(/^models\//, '');
+    const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
 
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const body = { contents: nativeContents, tools: toGeminiTools(toolDefs) };
-    if (systemInstruction) body.systemInstruction = systemInstruction;
+    const body = { contents: state.nativeContents, tools: toGeminiTools(toolDefs) };
+    if (state.systemInstruction) body.systemInstruction = state.systemInstruction;
     body.generationConfig = {};
-    if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-    if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
+    if (mode === 'resolve') {
+      body.generationConfig.maxOutputTokens = iter === 0 ? 1000 : config.max_tokens;
+      body.generationConfig.temperature = 0;
+    } else {
+      if (config.temperature != null) body.generationConfig.temperature = config.temperature;
+      if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
+    }
     body.safetySettings = SAFETY_SETTINGS_OFF;
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
-    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
+    const suffix = mode === 'resolve' ? 'resolve' : 'tools';
+    logRawRequest(body, config, config.callType ? `${config.callType}:${suffix}` : `${mode === 'resolve' ? 'resolve' : 'complete'}-tools`);
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: config.signal,
+    });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
-      if (resp.status === 400 || resp.status === 422) return completeGeminiFromNative(initialContents, systemInstruction, config);
+      if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
     }
 
@@ -297,83 +314,77 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
     const functionCalls = parts.filter((p) => p.functionCall);
     const textContent = parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('');
 
-    if (!functionCalls.length) return textContent;
+    if (!functionCalls.length) return { kind: 'text', text: textContent };
 
-    // 保留原始 parts（含 thought_signature）直接追加，不做格式转换
-    nativeContents = [...nativeContents, { role: 'model', parts }];
+    const toolCalls = functionCalls.map((p, idx) => ({
+      id: `gc_${iter}_${idx}`,
+      name: p.functionCall.name,
+      arguments: p.functionCall.args || {},
+    }));
+    // 同步维护 OpenAI 格式 assistantBlock,挂 _geminiParts 保留 thought_signature
+    const assistantBlock = {
+      role: 'assistant',
+      content: textContent || null,
+      tool_calls: toolCalls.map((c) => ({
+        id: c.id,
+        type: 'function',
+        function: { name: c.name, arguments: JSON.stringify(c.arguments) },
+      })),
+      _geminiParts: parts,
+    };
+    return { kind: 'tools', toolCalls, assistantBlock, _rawParts: parts };
+  },
 
-    const fnResponses = [];
-    for (const p of functionCalls) {
-      const fc = p.functionCall;
-      const fn = toolHandlers[fc.name];
-      let result;
-      try { result = fn ? String(await fn(fc.args || {})) : `工具未定义：${fc.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
-      fnResponses.push({ functionResponse: { name: fc.name, response: { output: result } } });
-    }
-    nativeContents = [...nativeContents, { role: 'user', parts: fnResponses }];
-  }
+  appendToolTurn(state, turn, results) {
+    const fnResponses = turn.toolCalls.map((c, i) => ({
+      functionResponse: { name: c.name, response: { output: results[i] } },
+    }));
+    const toolMsgs = turn.toolCalls.map((c, i) => ({
+      role: 'tool',
+      tool_call_id: c.id,
+      content: results[i],
+    }));
+    return {
+      ...state,
+      nativeContents: [
+        ...state.nativeContents,
+        { role: 'model', parts: turn._rawParts },
+        { role: 'user', parts: fnResponses },
+      ],
+      messages: [...state.messages, turn.assistantBlock, ...toolMsgs],
+    };
+  },
 
-  return completeGeminiFromNative(nativeContents, systemInstruction, config);
+  async completeNoTools(state, config) {
+    // fallback 用初始 contents,对齐原 completeGeminiWithTools 4xx 行为
+    return completeGeminiFromNative(state.initialContents, state.systemInstruction, config);
+  },
+
+  stateToMessages(state) {
+    return state.messages;
+  },
+};
+
+export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
+  return runToolLoop({
+    provider: geminiToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'complete',
+  });
 }
 
 export async function resolveToolContextGemini(messages, toolDefs, toolHandlers, config) {
   log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const model = (config.model || 'gemini-pro').replace(/^models\//, '');
-  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
-
-  // 维护 Gemini 原生格式，避免 thought_signature 在 OpenAI 格式往返中丢失
-  const { contents: initialContents, systemInstruction } = convertToGeminiContents(messages);
-  let nativeContents = [...initialContents];
-  let currentMessages = [...messages];
-  let enriched = false;
-
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const body = { contents: nativeContents, tools: toGeminiTools(toolDefs) };
-    if (systemInstruction) body.systemInstruction = systemInstruction;
-    body.generationConfig = { maxOutputTokens: i === 0 ? 1000 : config.max_tokens, temperature: 0 };
-    body.safetySettings = SAFETY_SETTINGS_OFF;
-
-    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
-    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: config.signal });
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
-      throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
-    }
-
-    const data = await resp.json();
-    if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
-    const parts = data.candidates?.[0]?.content?.parts || [];
-    const functionCalls = parts.filter((p) => p.functionCall);
-    if (!functionCalls.length) return enriched ? currentMessages : messages;
-
-    // 保留原始 parts（含 thought_signature）直接追加，不做格式转换
-    nativeContents = [...nativeContents, { role: 'model', parts }];
-
-    // 同步维护 OpenAI 格式的 currentMessages，供调用方（streamGemini）使用
-    // 附加 _geminiParts 以便 convertToGeminiContents 能还原 thought_signature
-    const textContent = parts.filter((p) => p.text && !p.thought).map((p) => p.text).join('');
-    const openaiToolCalls = functionCalls.map((p, idx) => ({ id: `gc_${i}_${idx}`, type: 'function', function: { name: p.functionCall.name, arguments: JSON.stringify(p.functionCall.args || {}) } }));
-    currentMessages.push({ role: 'assistant', content: textContent || null, tool_calls: openaiToolCalls, _geminiParts: parts });
-
-    const fnResponses = [];
-    for (let j = 0; j < functionCalls.length; j++) {
-      const fc = functionCalls[j].functionCall;
-      const fn = toolHandlers[fc.name];
-      let result;
-      try { result = fn ? String(await fn(fc.args || {})) : `工具未定义：${fc.name}`; }
-      catch (e) {
-        if (isToolLoopCancelledError(e)) throw e;
-        result = `工具执行失败：${e.message}`;
-      }
-      fnResponses.push({ functionResponse: { name: fc.name, response: { output: result } } });
-      currentMessages.push({ role: 'tool', tool_call_id: openaiToolCalls[j].id, content: result });
-    }
-    nativeContents = [...nativeContents, { role: 'user', parts: fnResponses }];
-    enriched = true;
-  }
-
-  return enriched ? currentMessages : messages;
+  return runToolLoop({
+    provider: geminiToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'resolve',
+  });
 }
