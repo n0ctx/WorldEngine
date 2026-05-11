@@ -311,10 +311,10 @@ test('runParentAgent: SSE 事件携带 runId', async () => {
   const parsed = events
     .map((e) => { try { return JSON.parse(e.replace(/^data: /, '').trim()); } catch { return null; } })
     .filter(Boolean);
-  const withRun = parsed.filter((e) => typeof e.runId === 'string' && e.runId.length > 0);
-  assert.ok(withRun.length > 0, '至少有一些事件携带 runId');
-  const ids = new Set(withRun.map((e) => e.runId));
-  assert.equal(ids.size, 1, `同一次 run 的 runId 应一致,实际有 ${ids.size} 个`);
+  const withoutRun = parsed.filter((e) => typeof e.runId !== 'string' || e.runId.length === 0);
+  assert.equal(withoutRun.length, 0, `所有事件都应携带 runId,缺失:${JSON.stringify(withoutRun)}`);
+  const ids = new Set(parsed.map((e) => e.runId));
+  assert.equal(ids.size, 1, `同一次 run 的 runId 应一致,实际:${[...ids].join(',')}`);
   delete process.env.MOCK_LLM_STREAM;
 });
 

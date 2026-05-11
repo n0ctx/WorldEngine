@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(assistant): 强化 runId 断言为全部事件检查,杜绝偶然事件遮蔽
 - feat(assistant): 写卡助手父代理执行加入 runId,贯穿日志与 SSE 事件便于排查
 - fix(assistant): parsePlanDoc 补 completedAt 解析,replace_steps id 自动生成防碰撞 (intent/assumptions/log 重渲染丢失为预存在限制,留待后续修复)
 - fix(assistant): edit_plan_doc.replace_steps 强制保留已完成步骤，防止误覆盖
