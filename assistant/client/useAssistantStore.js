@@ -88,9 +88,13 @@ export const useAssistantStore = create(
             case 'task_created':
               return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
             case 'plan_doc_updated': {
-              // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）
-              const existingIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
-              const planDocMsg = { id: 'plan-doc', role: 'plan_doc', content: evt.content };
+              // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）。
+              // id 必须按 taskId 区分：同一 session 内的第二个任务有自己的 plan_doc，
+              // 不能复用上一个任务的 plan_doc 行（否则会就地替换历史上方的旧计划行，
+              // 新计划无法出现在当前任务底部，表现为"第二次没显示计划"）。
+              const planDocId = `plan-doc-${evt.taskId ?? s.taskId ?? 'unknown'}`;
+              const existingIdx = s.messages.findIndex((m) => m.id === planDocId);
+              const planDocMsg = { id: planDocId, role: 'plan_doc', content: evt.content };
               const newMessages =
                 existingIdx >= 0
                   ? s.messages.map((m, i) => (i === existingIdx ? planDocMsg : m))

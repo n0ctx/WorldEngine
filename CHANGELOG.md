@@ -3,6 +3,14 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(assistant): 同一 session 内第二个任务的 plan_doc 未显示
+
+**问题**：助手在同一会话内连续接两个需要审批的任务时，第二个任务的「计划文档」在审批按钮上方不显示。
+
+**根因**：`useAssistantStore.js` 处理 `plan_doc_updated` 事件时，用硬编码 id `'plan-doc'` 在 messages 中查找复用，命中的是上一个任务遗留在历史中的旧 plan_doc 行，新内容被就地写回旧位置（滚动视口外），新任务底部因此看不到计划。
+
+**修复**：plan_doc 行的 id 改为按 taskId 区分（`plan-doc-${taskId}`）。`assistant/client/useAssistantStore.js`：第 90–104 行。旧任务的 plan_doc 行保留在历史中作为记录，新任务追加自己的行到底部。
+
 ## 2026-05-11 fix(assistant): 4 个体验问题集中修复
 
 **问题**
