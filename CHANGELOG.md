@@ -3,6 +3,11 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 chore(ltm): 长期记忆压缩阈值调整为 >20 行触发、压缩到 <10 行
+
+- `LONG_TERM_MEMORY_MAX_LINES` 50 → 20（超过 20 行即触发压缩，触发条件是硬编码行数检测，不走 LLM）
+- `LONG_TERM_MEMORY_TARGET_LINES` 20 → 10（LLM 压缩后 `.slice(0, 10)` 硬截断保底）
+
 ## 2026-05-11 fix(suggestion): 补选项成功后立即渲染选项，不等 keepSseAlive 任务关闭连接
 
 **动机**：`onDone` 收到选项后只存入 `pendingOptionsRef`，实际渲染推迟到 `onStreamEnd`；而 `onStreamEnd` 要等 HTTP 连接关闭（即 title/state/chapter-title 等 `keepSseAlive` 异步任务全部完成后 `res.end()` 才触发），延迟通常数秒。

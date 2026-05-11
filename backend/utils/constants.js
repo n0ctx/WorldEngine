@@ -90,10 +90,10 @@ export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 export const LONG_TERM_MEMORY_PER_TURN_MAX = 2;
 /** 单条长期记忆字符上限（含 [年月日时分] 时间前缀的条目易超 30 字被截断，放到 60） */
 export const LONG_TERM_MEMORY_LINE_MAX_CHARS = 60;
-/** 长期记忆文档触发压缩的行数阈值 */
-export const LONG_TERM_MEMORY_MAX_LINES = 50;
-/** 长期记忆压缩目标行数 */
-export const LONG_TERM_MEMORY_TARGET_LINES = 20;
+/** 长期记忆文档触发压缩的行数阈值（硬编码行数检测，不走 LLM） */
+export const LONG_TERM_MEMORY_MAX_LINES = 20;
+/** 长期记忆压缩目标行数（LLM 输出后硬截断到此上限） */
+export const LONG_TERM_MEMORY_TARGET_LINES = 10;
 /** 长期记忆压缩调用最大 token 数 */
 export const LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS = 1024;
 
