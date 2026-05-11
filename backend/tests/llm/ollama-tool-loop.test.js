@@ -187,25 +187,20 @@ test('resolveToolContext: 工具调用 → 返回 enriched messages 含 role:too
   } finally { restore(); }
 });
 
-test('resolveToolContext: handler 抛 ToolLoopCancelledError → 基线行为为字符串化喂回(不透传)', async () => {
-  // 注意：基线 (未迁移) 行为是 catch 后字符串化喂回模型，本测试锁定该基线。
-  // 步骤 2 迁移到 runToolLoop 后，此测试将失败 → 届时更新为断言透传。
-  const { calls, restore } = mockFetchSequence([
+test('resolveToolContext: handler 抛 ToolLoopCancelledError → 透传不吞(迁移后行为)', async () => {
+  const { restore } = mockFetchSequence([
     { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-    { json: chatResp({ content: 'final' }) },
   ]);
   try {
-    const out = await resolveToolContext(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
-      baseConfig(),
+    await assert.rejects(
+      () => resolveToolContext(
+        [{ role: 'user', content: 'hi' }],
+        sampleToolDefs,
+        { lookup: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
+        baseConfig(),
+      ),
+      (err) => err.name === 'ToolLoopCancelledError' && /mock cancel/.test(err.message),
     );
-    assert.ok(Array.isArray(out));
-    const tool = out.find((m) => m.role === 'tool');
-    assert.ok(tool, 'baseline: error is stringified and fed back as tool message');
-    assert.match(tool.content, /工具执行失败/);
-    assert.equal(calls.length, 2);
   } finally { restore(); }
 });
 

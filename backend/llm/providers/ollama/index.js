@@ -8,9 +8,8 @@ import {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
   LLM_TOOL_RESOLUTION_MAX_TOKENS,
-  LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
 } from '../../../utils/constants.js';
-import { isToolLoopCancelledError } from '../../tool-loop-control.js';
+import { runToolLoop } from '../../tool-loop-control.js';
 
 const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
@@ -132,60 +131,94 @@ async function callWithTools(messages, toolDefs, config) {
     }),
     signal: config.signal,
   });
-  if (!resp.ok) return null; // 降级信号
+  if (!resp.ok) return null; // 降级信号(4xx/5xx 一视同仁,与历史行为对齐)
   return resp.json();
 }
 
-export async function completeWithTools(messages, toolDefs, toolHandlers, config) {
-  let currentMessages = [...messages];
+// runToolLoop 4 原语 provider 适配
+const ollamaToolLoopProvider = {
+  initState(messages) {
+    return { messages: [...messages] };
+  },
 
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const data = await callWithTools(currentMessages, toolDefs, config).catch(() => null);
-    if (!data) return complete(currentMessages, config); // 模型不支持 tool-use，降级
+  async oneTurn(state, toolDefs, mode, iter, config) {
+    // resolve 模式: 首轮 max_tokens 锁定为 RESOLUTION 常量,temperature 始终为 0; 二轮起仅锁 temperature
+    let effectiveConfig = config;
+    if (mode === 'resolve') {
+      effectiveConfig = iter === 0
+        ? { ...config, max_tokens: LLM_TOOL_RESOLUTION_MAX_TOKENS, temperature: 0 }
+        : { ...config, temperature: 0 };
+    }
+
+    const data = await callWithTools(state.messages, toolDefs, effectiveConfig).catch(() => null);
+    if (!data) return { kind: 'fallback' };
 
     const message = data.choices?.[0]?.message;
-    if (!message) return '';
+    if (!message) return { kind: 'text', text: '' };
 
-    if (!message.tool_calls?.length) return message.content || '';
-
-    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
-    for (const tc of message.tool_calls) {
-      const fn = toolHandlers[tc.function?.name];
-      let result;
-      try { result = fn ? String(await fn(JSON.parse(tc.function.arguments || '{}'))) : `工具未定义：${tc.function?.name}`; }
-      catch (e) {
-        if (isToolLoopCancelledError(e)) throw e;
-        result = `工具执行失败：${e.message}`;
-      }
-      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
+    if (!message.tool_calls?.length) {
+      return { kind: 'text', text: message.content || '' };
     }
-  }
 
-  return complete(currentMessages, config);
+    const toolCalls = message.tool_calls.map((tc) => {
+      let parsedArgs;
+      try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); }
+      catch { parsedArgs = {}; }
+      return {
+        id: tc.id,
+        name: tc.function?.name,
+        arguments: parsedArgs,
+      };
+    });
+
+    // assistantBlock 保留 OpenAI 原生格式,直接回写到 messages 数组
+    const assistantBlock = {
+      role: 'assistant',
+      content: message.content || null,
+      tool_calls: message.tool_calls,
+    };
+
+    return { kind: 'tools', toolCalls, assistantBlock };
+  },
+
+  appendToolTurn(state, turn, results) {
+    const toolMessages = turn.toolCalls.map((c, i) => ({
+      role: 'tool',
+      tool_call_id: c.id,
+      content: results[i],
+    }));
+    return {
+      messages: [...state.messages, turn.assistantBlock, ...toolMessages],
+    };
+  },
+
+  completeNoTools(state, config) {
+    return complete(state.messages, config);
+  },
+
+  stateToMessages(state) {
+    return state.messages;
+  },
+};
+
+export async function completeWithTools(messages, toolDefs, toolHandlers, config) {
+  return runToolLoop({
+    provider: ollamaToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'complete',
+  });
 }
 
 export async function resolveToolContext(messages, toolDefs, toolHandlers, config) {
-  let currentMessages = [...messages];
-  let enriched = false;
-
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const overrideConfig = i === 0 ? { ...config, max_tokens: LLM_TOOL_RESOLUTION_MAX_TOKENS, temperature: 0 } : { ...config, temperature: 0 };
-    const data = await callWithTools(currentMessages, toolDefs, overrideConfig).catch(() => null);
-    if (!data) return enriched ? currentMessages : messages;
-
-    const message = data.choices?.[0]?.message;
-    if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
-
-    currentMessages.push({ role: 'assistant', content: message.content || null, tool_calls: message.tool_calls });
-    for (const tc of message.tool_calls) {
-      const fn = toolHandlers[tc.function?.name];
-      let result;
-      try { result = fn ? String(await fn(JSON.parse(tc.function.arguments || '{}'))) : `工具未定义：${tc.function?.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
-      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
-    }
-    enriched = true;
-  }
-
-  return enriched ? currentMessages : messages;
+  return runToolLoop({
+    provider: ollamaToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'resolve',
+  });
 }
