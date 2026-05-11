@@ -1,7 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
-import { __testables } from '../server/routes.js';
+// 用临时目录隔离 ASSISTANT_STATE_DIR,避免静态 import routes.js → task-store.js
+// 在模块加载期跑 hydrate() 改写真实 .temp/assistant/ 中残留的非终态 JSON。
+const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-routes-'));
+process.env.ASSISTANT_STATE_DIR = stateDir;
+const { __testables } = await import('../server/routes.js');
+
+test.after(() => {
+  try { fs.rmSync(stateDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  delete process.env.ASSISTANT_STATE_DIR;
+});
 
 test('normalizeProposal 会过滤敏感字段并规范 global-config changes', () => {
   const proposal = __testables.normalizeProposal({

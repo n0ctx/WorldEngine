@@ -92,10 +92,12 @@ export function createTestSandbox(name, configPatch = {}) {
   const configPath = path.join(root, 'config.json');
   const uploadsDir = path.join(root, 'uploads');
   const vectorsDir = path.join(root, 'vectors');
+  const assistantStateDir = path.join(root, 'assistant-state');
   const turnSummaryStorePath = path.join(vectorsDir, 'turn_summaries.json');
 
   fs.mkdirSync(uploadsDir, { recursive: true });
   fs.mkdirSync(vectorsDir, { recursive: true });
+  fs.mkdirSync(assistantStateDir, { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(createTestConfig(configPatch), null, 2));
 
   const db = new Database(dbPath);
@@ -108,6 +110,7 @@ export function createTestSandbox(name, configPatch = {}) {
     configPath,
     uploadsDir,
     vectorsDir,
+    assistantStateDir,
     turnSummaryStorePath,
     db,
     setEnv() {
@@ -116,6 +119,7 @@ export function createTestSandbox(name, configPatch = {}) {
       process.env.WE_DATA_DIR = root;
       process.env.WE_UPLOADS_DIR = uploadsDir;
       process.env.WE_TURN_SUMMARY_STORE_PATH = turnSummaryStorePath;
+      process.env.ASSISTANT_STATE_DIR = assistantStateDir;
       process.env.WE_DISABLE_AUTOSTART = 'true';
       process.env.WE_LLM_RETRY_MAX = '0';
       process.env.WE_LLM_RETRY_DELAY_MS = '0';
