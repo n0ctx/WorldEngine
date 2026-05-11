@@ -89,6 +89,15 @@ function toLLMTool(input, executeOverride) {
   throw new Error('toLLMTool: unrecognized definition shape');
 }
 
+function unescapeLiteralWhitespace(s) {
+  if (typeof s !== 'string') return s;
+  return s
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\t/g, '\t');
+}
+
 async function loadSystemPrompt() {
   const [prompt, contract] = await Promise.all([
     readFile(PROMPT_PATH, 'utf-8'),
@@ -382,13 +391,15 @@ function buildMetaTools(task, emitFn) {
     execute: async (args) => {
       try {
         taskStore.setStatus(task.id, args.terminalStatus);
-        taskStore.appendMessage(task.id, { role: 'assistant', content: args.summary });
+        // 模型偶尔会把转义符号自身又转义一次（"\\n"），导致字面 \n 出现在总结正文里。
+        const summary = unescapeLiteralWhitespace(args.summary);
+        taskStore.appendMessage(task.id, { role: 'assistant', content: summary });
         const eventType = args.terminalStatus === 'completed'
           ? 'task_completed'
           : args.terminalStatus === 'failed'
             ? 'task_failed'
             : 'task_cancelled';
-        taskStore.emit(task.id, { type: eventType, taskId: task.id, summary: args.summary });
+        taskStore.emit(task.id, { type: eventType, taskId: task.id, summary });
         return { ok: true };
       } catch (err) {
         return { ok: false, error: err.message };

@@ -3,6 +3,16 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(assistant): finalize_task summary 反转义字面换行符
+
+**问题**：写卡助手任务结束的总结气泡里出现大量字面 `\n`，导致整段文本不换行。模型在 `finalize_task` 的 `summary` 参数里把转义符号自身又转义了一次（`"\\n"`），JSON 解析后落入消息内容的就是字面 `\` + `n`。
+
+**改动**
+- `assistant/server/parent-agent.js`：新增 `unescapeLiteralWhitespace`，在 `finalize_task.execute` 写入 `task.messages` 与发 `task_completed/failed/cancelled` 事件前，对 `summary` 做一次轻量反转义（`\\n` / `\\r\\n` / `\\r` → `\n`，`\\t` → `\t`）。
+- 只在 `finalize_task` 入口收敛，不影响流式 `delta` 路径（流式 token 本身没有这层 JSON 转义问题）。
+
+**残留风险**：旧任务历史消息里的字面 `\n` 不会被自动清洗，重新加载仍按字面显示——属预期，新任务即可正确换行。
+
 ## 2026-05-11 fix(assistant): 写卡助手支持识别和操作非激活玩家卡
 
 **动机**：`list_resources` 没有 `personas` target，`preview_card` / `apply_persona_card` 只能访问当前激活玩家卡，导致助手无法发现或修改世界下的其他玩家卡。
