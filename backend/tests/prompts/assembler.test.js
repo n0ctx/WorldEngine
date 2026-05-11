@@ -266,13 +266,14 @@ test('buildWritingPrompt 写作模式不注入 [4] 角色 system_prompt 与 [7] 
   assert.equal(result.model, 'writer-model');
   assert.equal(result.messages.length, 2);
   // 写作 system 段：保留 [1][2][3][5][6][8]，不再含角色 system_prompt 与 char_state
-  assert.match(result.messages[0].content, /写作系统：群像世界 \/ 叙述者/);
+  // 写作模式无主角色概念，{{char}} 保留字面量交给 LLM 上下文判断（不再硬塞"叙述者"）
+  assert.match(result.messages[0].content, /写作系统：群像世界 \/ \{\{char\}\}/);
   assert.match(result.messages[0].content, /世界知识：群像世界/);
   assert.doesNotMatch(result.messages[0].content, /<char_info>/);
   assert.doesNotMatch(result.messages[0].content, /<char_state/);
   assert.doesNotMatch(result.messages[0].content, /角色一：阿尔法/);
   assert.equal(result.messages.at(-1).role, 'user');
-  assert.match(result.messages.at(-1).content, /写作后置：叙述者/);
+  assert.match(result.messages.at(-1).content, /写作后置：\{\{char\}\}/);
   assert.match(result.messages.at(-1).content, /当前场景/);
   assert.match(result.messages.at(-1).content, /next_prompt/i);
 });

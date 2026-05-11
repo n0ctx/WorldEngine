@@ -15,9 +15,11 @@
  */
 export function applyTemplateVars(text, ctx = {}) {
   if (!text) return text;
-  const { user = '', char = '', world = '' } = ctx;
-  return text
-    .replace(/\{\{user\}\}/gi, user)
-    .replace(/\{\{char\}\}/gi, char)
-    .replace(/\{\{world\}\}/gi, world);
+  // ctx[key] === null 视为"不替换该占位符"（保留 `{{xxx}}` 原文交给 LLM 上下文判断），
+  // 与 undefined/缺省的语义不同 — 后者会回退为空串再替换，从而清掉占位符。
+  let out = text;
+  if (ctx.user !== null) out = out.replace(/\{\{user\}\}/gi, ctx.user ?? '');
+  if (ctx.char !== null) out = out.replace(/\{\{char\}\}/gi, ctx.char ?? '');
+  if (ctx.world !== null) out = out.replace(/\{\{world\}\}/gi, ctx.world ?? '');
+  return out;
 }

@@ -15,10 +15,10 @@
  */
 export function applyTemplateVars(text, ctx = {}) {
   if (text == null) return text;
-  const s = typeof text === 'string' ? text : String(text);
-  const { user = '', char = '', world = '' } = ctx;
-  return s
-    .replace(/\{\{user\}\}/gi, user ?? '')
-    .replace(/\{\{char\}\}/gi, char ?? '')
-    .replace(/\{\{world\}\}/gi, world ?? '');
+  let out = typeof text === 'string' ? text : String(text);
+  // ctx[key] === null 视为"不替换该占位符"，与 backend/utils/template-vars.js 一致
+  if (ctx.user !== null) out = out.replace(/\{\{user\}\}/gi, ctx.user ?? '');
+  if (ctx.char !== null) out = out.replace(/\{\{char\}\}/gi, ctx.char ?? '');
+  if (ctx.world !== null) out = out.replace(/\{\{world\}\}/gi, ctx.world ?? '');
+  return out;
 }

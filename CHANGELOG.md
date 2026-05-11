@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(writing): 写作模式 {{char}} 不再被同化成"叙述者"
+
+**问题**：写作模式下，世界条目 / 全局提示词 / 历史记忆里所有 `{{char}}` 占位符都被统一替换成字面量"叙述者"，不再对应任何角色卡名字。
+
+**根因**：commit `40e4198` 删除 `writing_session_characters` 表后，`assembler.buildWritingPrompt` 失去"按激活角色逐个展开 {{char}}"的能力，简化成 `tv = applyTemplateVars(text, { char: '叙述者' })`。所有共享段落（[1] 全局 / [2] 常驻条目 / [8-11] 召回 / [13] post / [14] 当前消息）的 {{char}} 都被同化。而 `[7] nearby_characters` 拼成一个大块后再走同一个 tv()，nearby 自己 persona 文本里的 {{char}} 也被替换成"叙述者"而非该 nearby 自己的名字。
+
+**修复**
+- `backend/utils/template-vars.js` + `frontend/src/utils/template-vars.js`：`ctx[key] === null` 视为"不替换该占位符"（保留字面量），与缺省/`undefined`（回退空串后替换）的语义区分开。
+- `backend/prompts/assembler.js`：写作模式 tv 改用 `char: null`，让 {{char}} 在共享段落里保留字面量交给 LLM 上下文判断。
+- `backend/memory/recall.js`：`renderNearbyCharacters` 在拼装每个 nearby 块之前，先用 `applyTemplateVars(persona, { char: nearby.name })` 按本 nearby 自己的名字替换其 persona 文本里的 {{char}}，避免上层 tv() 再次扫到。
+- `backend/tests/prompts/assembler.test.js`：更新写作模式断言（{{char}} 保留字面量）。
+
 ## 2026-05-11 fix(assistant): 同一 session 内第二个任务的 plan_doc 未显示
 
 **问题**：助手在同一会话内连续接两个需要审批的任务时，第二个任务的「计划文档」在审批按钮上方不显示。

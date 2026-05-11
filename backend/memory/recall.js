@@ -16,6 +16,7 @@ import { getTurnRecordById } from '../db/queries/turn-records.js';
 import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
 import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
+import { applyTemplateVars } from '../utils/template-vars.js';
 import { embed } from '../llm/embedding.js';
 import { search } from '../utils/turn-summary-vector-store.js';
 import { countTokens } from '../utils/token-counter.js';
@@ -248,7 +249,11 @@ export function renderNearbyCharacters(worldId, sessionId) {
     const stateText = rowsToStateText(stateRows);
     const lines = [`【${nearby.name}】`];
     if (nearby.persona && nearby.persona.trim()) {
-      lines.push(`人设：${nearby.persona.trim()}`);
+      // 写作模式没有"主角色"概念，调用方传入的 char 默认是叙述者占位；
+      // nearby 的 persona 文本里 {{char}} 应指代该 nearby 自己（与角色卡同义），
+      // 这里先按"该角色名"展开，避免上层 tv(nearbyText) 把所有 {{char}} 统一替换成叙述者。
+      const personaText = applyTemplateVars(nearby.persona.trim(), { char: nearby.name });
+      lines.push(`人设：${personaText}`);
     }
     if (stateText) lines.push(stateText);
     // 仅有名字、无 persona 也无状态值时仍输出，便于主模型知道该名字已被占用

@@ -388,9 +388,14 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   log.info(`┌─ buildWritingPrompt  session=${sid}  world="${world.name}"`);
 
+  // 写作模式没有单一"主角色"概念（writing_session_characters 表已废弃），
+  // 全局 / 世界条目 / 历史摘要里的 {{char}} 没有合适的统一替换值：
+  // 替换成"叙述者"会让所有 {{char}} 都被同化成同一标签（之前的 bug）；
+  // 这里改为保留 {{char}} 字面量交给 LLM 按上下文判断，nearby_characters 渲染
+  // 时另在 renderNearbyCharacters 内部按每个 nearby 名字单独替换。
   const tv = (t) => applyTemplateVars(t, {
     user: personaName,
-    char: '叙述者',
+    char: null,
     world: world.name,
   });
 
