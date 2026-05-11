@@ -20,11 +20,15 @@
   - `continue` 先走后处理再 merge 回最后一条 assistant，并覆写 `messages.next_options`。
   - `regenerate` / 无请求体重放场景会从当前 session 回推最后一条 user 消息，供 fallback 使用。
   - 当真正进入补选项分支时，先推 SSE `suggestion_fallback_started`，用于前端 toast 感知。
-- `frontend/src/api/stream-parser.js` / `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx`
+  - `frontend/src/api/stream-parser.js` / `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx`
   - 前端识别 `suggestion_fallback_started` 事件，并在 chat / writing 页面各自弹出“本轮选项缺失，正在补全…” toast。
+  - 后续补充 `suggestion_fallback_succeeded` / `suggestion_fallback_failed`，补选项成功与失败都会 toast，避免用户只看到“补中”却没有结果反馈。
+- Prompt / 落库语义澄清
+  - fallback 补出来的选项不会进入 `[14]` 当前 user 段；下一轮会作为上一条 assistant history 的一部分，在 `assembler.js` 的 `[12]` 历史消息阶段重新拼成 `<next_prompt>...</next_prompt>` 一起送入上下文。
+  - DB 里 assistant 正文和选项分字段存：`messages.content` 保存可见正文，`messages.next_options` 单独保存三选项数组；不会把 `<next_prompt>` 原样并回正文落库。
 - 测试与文档
   - `backend/tests/services/chat.test.js` 补：正常闭合不触发 fallback、fallback 成功、fallback 失败、think block 剥离检测。
-  - `backend/tests/routes/chat.test.js` / `backend/tests/routes/writing.test.js` 补：chat generate、writing generate、writing continue 的补齐回归，并断言 SSE 发出 `suggestion_fallback_started`。
+  - `backend/tests/routes/chat.test.js` / `backend/tests/routes/writing.test.js` 补：chat generate、writing generate、writing continue 的补齐回归，并断言 SSE 发出 `suggestion_fallback_started` / `suggestion_fallback_succeeded` / `suggestion_fallback_failed`。
   - `ARCHITECTURE.md` / `backend/prompts/README.md` / `backend/prompts/templates/README.md` 同步说明新链路与模板。
 
 ## 2026-05-11 fix(state-bar): 整理中时机对齐 + 失败 Toast 通知

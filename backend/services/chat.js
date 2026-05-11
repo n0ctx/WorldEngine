@@ -173,6 +173,8 @@ async function resolveSuggestionOptions({
   configScope = 'aux',
   sessionId,
   onSuggestionFallback,
+  onSuggestionFallbackSucceeded,
+  onSuggestionFallbackFailed,
 }) {
   if (!content) return { content: content ?? '', options: [] };
   content = trimAfterLastNextPromptClose(content);
@@ -191,10 +193,13 @@ async function resolveSuggestionOptions({
     });
     const extracted = extractNextPromptOptions(fallbackRaw);
     if (extracted.options.length > 0) {
+      onSuggestionFallbackSucceeded?.();
       return { content, options: extracted.options };
     }
+    onSuggestionFallbackFailed?.('empty');
     log.warn(`SUGGESTION FALLBACK EMPTY  session=${sessionId.slice(0, 8)}  preview=${JSON.stringify(previewText(fallbackRaw))}`);
   } catch (err) {
+    onSuggestionFallbackFailed?.('error');
     log.warn(`SUGGESTION FALLBACK FAIL  session=${sessionId.slice(0, 8)}  error=${err.message}`);
   }
 
@@ -215,6 +220,8 @@ async function resolveSuggestionOptions({
  * @param {string} [opts.currentUserContent='']     本轮 user message
  * @param {string} [opts.configScope='aux']         fallback 所用模型配置域
  * @param {function} [opts.onSuggestionFallback]    进入补选项分支时的回调
+ * @param {function} [opts.onSuggestionFallbackSucceeded] fallback 成功时的回调
+ * @param {function} [opts.onSuggestionFallbackFailed]    fallback 失败时的回调
  * @returns {Promise<{ savedContent: string, options: string[], savedAssistant: object|null }>}
  */
 export async function processStreamOutput(rawContent, aborted, worldId, sessionId, opts = {}) {
@@ -226,6 +233,8 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
     currentUserContent = '',
     configScope = 'aux',
     onSuggestionFallback = undefined,
+    onSuggestionFallbackSucceeded = undefined,
+    onSuggestionFallbackFailed = undefined,
   } = opts;
 
   // DeepSeek 有时将正文也写入 reasoning_content，导致整体被 <think>...</think> 包裹。
@@ -243,6 +252,8 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
     configScope,
     sessionId,
     onSuggestionFallback,
+    onSuggestionFallbackSucceeded,
+    onSuggestionFallbackFailed,
   });
   content = resolved.content;
   const options = resolved.options;

@@ -391,6 +391,14 @@ export default function WritingSpacePage() {
         if (!isCurrentStreamRun(runId)) return;
         log.warn('writing.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
       },
+      onSuggestionFallbackSucceeded() {
+        if (!isCurrentStreamRun(runId)) return;
+        log.info('writing.suggestion_fallback_succeeded', null, { toast: '选项补全成功' });
+      },
+      onSuggestionFallbackFailed() {
+        if (!isCurrentStreamRun(runId)) return;
+        log.error('writing.suggestion_fallback_failed', null, { toast: '选项补全失败' });
+      },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         clearTimeout(memoryWritingTimerRef.current);
@@ -699,6 +707,14 @@ export default function WritingSpacePage() {
       onSuggestionFallbackStarted() {
         if (continuationTokenRef.current !== continuationToken) return;
         log.warn('writing.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
+      },
+      onSuggestionFallbackSucceeded() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        log.info('writing.suggestion_fallback_succeeded', null, { toast: '选项补全成功' });
+      },
+      onSuggestionFallbackFailed() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        log.error('writing.suggestion_fallback_failed', null, { toast: '选项补全失败' });
       },
       onDiaryUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;

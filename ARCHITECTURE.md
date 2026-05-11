@@ -126,7 +126,7 @@ POST /api/sessions/:sessionId/chat
   │    │    ├─ `extractNextPromptOptions()`：提取 `<next_prompt>` 三选项，不把标签写入 DB
   │    │    └─ `applyRules(content, 'ai_output', worldId)`：仅对可见 assistant 正文做输出正则
   │    ├─ createMessage(sessionId, 'assistant', processedContent)  ← 写 DB
-  │    ├─ 有选项时 `messages.next_options` 落库
+  │    ├─ 有选项时 `messages.next_options` 单独落库（不拼回 content）
   │    └─ 推送 SSE: done
   │
   └─ 异步任务入队（见 §5）
@@ -165,8 +165,8 @@ POST /api/sessions/:sessionId/chat
 | [9] | System 后缀 | 召回摘要：`searchRecalledSummaries` → `renderRecalledSummaries`；**已排除上下文窗口内最近 `context_history_rounds` 轮** | 无命中时跳过 |
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
-| [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| **[13+14]** | **Bottom** | 当前用户消息 + 后置提示词：DB 中最新的 `role:user` 消息（经 `applyRules` 处理）追加后置提示词（`global_post_prompt` → `character.post_prompt`），合并为一条 `role:user` 消息。**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**。附件消息（vision 数组格式）追加为额外 `type:text` part。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块。若主模型本轮最终未以 `</next_prompt>` 结尾，后处理阶段会再走一次副模型 fallback 补齐，避免前端收到空选项区 | 无当前用户消息时，若 postParts 非空仍单独发出一条 user message |
+| [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理。若该 assistant 行带 `messages.next_options`，则会把选项重新拼成 `<next_prompt>...</next_prompt>` 追加到同一条 assistant history content 尾部，一起送入下一轮上下文 | — |
+| **[13+14]** | **Bottom** | 当前用户消息 + 后置提示词：DB 中最新的 `role:user` 消息（经 `applyRules` 处理）追加后置提示词（`global_post_prompt` → `character.post_prompt`），合并为一条 `role:user` 消息。**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**。附件消息（vision 数组格式）追加为额外 `type:text` part。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块。若主模型本轮最终未以 `</next_prompt>` 结尾，后处理阶段会再走一次副模型 fallback 补齐，期间会额外推送 `suggestion_fallback_started`，成功后推 `suggestion_fallback_succeeded`，失败则推 `suggestion_fallback_failed`，避免前端静默等待 | 无当前用户消息时，若 postParts 非空仍单独发出一条 user message |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 

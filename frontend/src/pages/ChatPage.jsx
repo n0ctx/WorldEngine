@@ -459,6 +459,14 @@ export default function ChatPage() {
         if (!isCurrentStreamRun(runId)) return;
         showToast('本轮选项缺失，正在补全…', 'success');
       },
+      onSuggestionFallbackSucceeded() {
+        if (!isCurrentStreamRun(runId)) return;
+        showToast('选项补全成功', 'success');
+      },
+      onSuggestionFallbackFailed() {
+        if (!isCurrentStreamRun(runId)) return;
+        showToast('选项补全失败', 'error');
+      },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
@@ -677,6 +685,14 @@ export default function ChatPage() {
       onSuggestionFallbackStarted() {
         if (continuationTokenRef.current !== continuationToken) return;
         showToast('本轮选项缺失，正在补全…', 'success');
+      },
+      onSuggestionFallbackSucceeded() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        showToast('选项补全成功', 'success');
+      },
+      onSuggestionFallbackFailed() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        showToast('选项补全失败', 'error');
       },
       onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;

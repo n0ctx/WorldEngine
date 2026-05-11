@@ -105,6 +105,7 @@ test('写作 generate 与 continue 在选项区未闭合时会用副模型补齐
   });
   const generateEvents = parseSsePayloads(await res.text());
   assert.ok(generateEvents.some((event) => event.type === 'suggestion_fallback_started'));
+  assert.ok(generateEvents.some((event) => event.type === 'suggestion_fallback_succeeded'));
   const generateDone = generateEvents.find((event) => event.done);
   assert.ok(generateDone);
   assert.deepEqual(generateDone.options, ['继续潜入禁区', '点火制造混乱', '立刻回头撤退']);
@@ -115,6 +116,7 @@ test('写作 generate 与 continue 在选项区未闭合时会用副模型补齐
   });
   const continueEvents = parseSsePayloads(await res.text());
   assert.ok(continueEvents.some((event) => event.type === 'suggestion_fallback_started'));
+  assert.ok(continueEvents.some((event) => event.type === 'suggestion_fallback_succeeded'));
   const continueDone = continueEvents.find((event) => event.done);
   assert.ok(continueDone);
   assert.deepEqual(continueDone.options, ['顺着线索再追一层', '故意暴露引蛇出洞', '停笔改写上一段伏笔']);
@@ -124,6 +126,43 @@ test('写作 generate 与 continue 在选项区未闭合时会用副模型补齐
   ).get(session.id, 'assistant');
   assert.match(assistant.content, /写作正文没有结尾选项/);
   assert.deepEqual(JSON.parse(assistant.next_options), ['顺着线索再追一层', '故意暴露引蛇出洞', '停笔改写上一段伏笔']);
+});
+
+test('写作 generate 在补选项失败时发送 failed 事件且保留正文落库', async () => {
+  resetMockEnv();
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    writing: {
+      ...ctx.sandbox.readConfig().writing,
+      suggestion_enabled: true,
+    },
+  });
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['写作正文没有结尾选项']);
+  process.env.MOCK_LLM_COMPLETE = '';
+
+  const world = insertWorld(ctx.sandbox.db, { name: '写作补齐失败世界' });
+  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
+  const session = await res.json();
+
+  res = await ctx.request(`/api/worlds/${world.id}/writing-sessions/${session.id}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '继续写下去' }),
+  });
+
+  const events = parseSsePayloads(await res.text());
+  assert.ok(events.some((event) => event.type === 'suggestion_fallback_started'));
+  assert.ok(events.some((event) => event.type === 'suggestion_fallback_failed'));
+  const doneEvent = events.find((event) => event.done);
+  assert.ok(doneEvent);
+  assert.deepEqual(doneEvent.options, []);
+  assert.equal(doneEvent.assistant.content, '写作正文没有结尾选项');
+
+  const assistant = ctx.sandbox.db.prepare(
+    'SELECT content, next_options FROM messages WHERE session_id = ? AND role = ? ORDER BY created_at DESC LIMIT 1',
+  ).get(session.id, 'assistant');
+  assert.equal(assistant.content, '写作正文没有结尾选项');
+  assert.equal(assistant.next_options, null);
 });
 
 test('写作 generate 的 SSE 流包含 state_updated 事件', async () => {

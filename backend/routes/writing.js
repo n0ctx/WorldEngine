@@ -309,6 +309,12 @@ async function runWritingStream(sessionId, res, opts = {}) {
       onSuggestionFallback() {
         if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
       },
+      onSuggestionFallbackSucceeded() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_succeeded' });
+      },
+      onSuggestionFallbackFailed() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_failed' });
+      },
     }
   );
   fullContent = savedContent;
@@ -527,6 +533,12 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
       configScope: 'writing-aux',
       onSuggestionFallback() {
         if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
+      },
+      onSuggestionFallbackSucceeded() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_succeeded' });
+      },
+      onSuggestionFallbackFailed() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_failed' });
       },
       createMessageFn: () => null,
       touchSessionFn: () => {},
