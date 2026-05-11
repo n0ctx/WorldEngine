@@ -7,6 +7,8 @@
  *   GET  /api/assistant/agent/:id/plan-doc —— 拉取最新计划文档
  */
 
+import { SSE_EVENTS } from '../server/sse-events.js';
+
 const BASE = '/api/assistant';
 
 /**
@@ -35,7 +37,7 @@ export async function streamAgent({ taskId, message, messageId, context, onEvent
     } catch {
       // ignore
     }
-    onEvent({ type: 'task_failed', error: errMsg });
+    onEvent({ type: SSE_EVENTS.TASK_FAILED, error: errMsg });
     return;
   }
 

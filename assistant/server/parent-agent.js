@@ -32,6 +32,7 @@ import * as planDoc from './plan-doc.js';
 import * as taskStore from './task-store.js';
 import { dispatchSubAgent } from './sub-agent.js';
 
+import { SSE_EVENTS } from './sse-events.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
@@ -161,8 +162,8 @@ function buildMetaTools(task, emitFn, runId = null) {
         });
         await planDoc.writePlanDoc(task.id, md);
         taskStore.setStatus(task.id, 'awaiting_approval');
-        emitFn({ type: 'plan_doc_updated', taskId: task.id, content: md });
-        emitFn({ type: 'awaiting_approval', taskId: task.id });
+        emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
+        emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
         return { ok: true };
       } catch (err) {
         return { ok: false, error: err.message };
@@ -240,7 +241,7 @@ function buildMetaTools(task, emitFn, runId = null) {
           return { ok: false, error: `unknown op: ${args.op}` };
         }
         await planDoc.writePlanDoc(task.id, md);
-        emitFn({ type: 'plan_doc_updated', taskId: task.id, content: md });
+        emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
         return { ok: true };
       } catch (err) {
         return { ok: false, error: err.message };
@@ -268,7 +269,7 @@ function buildMetaTools(task, emitFn, runId = null) {
         const step = parsed.steps.find((s) => s.id === args.stepId);
         if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
         if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
-        emitFn({ type: 'step_started', taskId: task.id, stepId: step.id, title: step.title });
+        emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: step.id, title: step.title });
         let outcome;
         try {
           const result = await dispatchSubAgent({
@@ -283,14 +284,14 @@ function buildMetaTools(task, emitFn, runId = null) {
             cancelCheck: () => task.status === 'cancelled',
           });
           if (result?.success === false) {
-            emitFn({ type: 'step_failed', taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
+            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
             outcome = { ok: false, error: result.error ?? 'subagent reported failure' };
           } else {
-            emitFn({ type: 'step_completed', taskId: task.id, stepId: step.id, result });
+            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: step.id, result });
             outcome = { ok: true, summary: result?.summary ?? '' };
           }
         } catch (err) {
-          emitFn({ type: 'step_failed', taskId: task.id, stepId: step.id, error: err.message });
+          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: err.message });
           outcome = { ok: false, error: err.message };
         }
 
@@ -299,7 +300,7 @@ function buildMetaTools(task, emitFn, runId = null) {
         const pending = taskStore.takeUserMessages(task.id);
         if (pending.length > 0) {
           taskStore.setStatus(task.id, 'paused');
-          emitFn({ type: 'paused', taskId: task.id });
+          emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id });
           for (const m of pending) {
             taskStore.appendMessage(task.id, { role: 'user', content: m });
           }
@@ -400,7 +401,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     content: visibleUserInput,
   });
   if (stampedUser) {
-    taskStore.emit(task.id, { type: 'user_message', taskId: task.id, messageId: stampedUser.id, runId });
+    taskStore.emit(task.id, { type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stampedUser.id, runId });
   }
 
   const systemPrompt = await loadSystemPrompt();
@@ -465,7 +466,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     // 避免在 task_completed 气泡后再追加一条流式气泡。
     const TERMINAL_AFTER_TOOLS = new Set(['completed', 'failed', 'cancelled']);
     if (TERMINAL_AFTER_TOOLS.has(task.status)) {
-      emitFn({ type: 'done', done: true });
+      emitFn({ type: SSE_EVENTS.DONE, done: true });
       taskStore.endAllSse(task.id);
       return;
     }
@@ -488,7 +489,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
       if (task.status === 'cancelled') break;
       if (!chunk) continue;
       accumulated += chunk;
-      emitFn({ type: 'delta', delta: chunk, messageId: assistantMsgId });
+      emitFn({ type: SSE_EVENTS.DELTA, delta: chunk, messageId: assistantMsgId });
     }
 
     // 把累积文本回填到 task.messages 中预占的那条消息
@@ -502,7 +503,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
   } catch (err) {
     if (isToolLoopCancelledError(err) && task.status === 'cancelled') {
       log.info(`CANCELLED  ${formatMeta({ runId, taskId: task.id })}`);
-      emitFn({ type: 'done', done: true });
+      emitFn({ type: SSE_EVENTS.DONE, done: true });
       taskStore.endAllSse(task.id);
       return;
     }
@@ -515,14 +516,14 @@ export async function runParentAgent(task, userInput, opts = {}) {
         if (idx >= 0) t.messages.splice(idx, 1);
       }
     }
-    emitFn({ type: 'task_failed', taskId: task.id, error: err.message });
+    emitFn({ type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
     taskStore.setStatus(task.id, 'failed');
-    emitFn({ type: 'done', done: true });
+    emitFn({ type: SSE_EVENTS.DONE, done: true });
     taskStore.endAllSse(task.id);
     throw err;
   }
 
-  emitFn({ type: 'done', done: true });
+  emitFn({ type: SSE_EVENTS.DONE, done: true });
 }
 
 export const __testables = {

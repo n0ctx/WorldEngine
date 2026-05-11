@@ -13,6 +13,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { SSE_EVENTS } from '../server/sse-events.js';
 
 // 写入类工具 → 主界面 reload 事件：tool_call_completed 时按工具名实时派发，
 // 让主界面列表不必等到 task_completed 才刷新（修复"必须刷新才看到新卡"问题）
@@ -85,9 +86,9 @@ export const useAssistantStore = create(
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {
-            case 'task_created':
+            case SSE_EVENTS.TASK_CREATED:
               return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
-            case 'plan_doc_updated': {
+            case SSE_EVENTS.PLAN_DOC_UPDATED: {
               // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）。
               // id 必须按 taskId 区分：同一 session 内的第二个任务有自己的 plan_doc，
               // 不能复用上一个任务的 plan_doc 行（否则会就地替换历史上方的旧计划行，
@@ -101,11 +102,11 @@ export const useAssistantStore = create(
                   : [...s.messages, planDocMsg];
               return { ...s, planDoc: evt.content, messages: newMessages };
             }
-            case 'awaiting_approval':
+            case SSE_EVENTS.AWAITING_APPROVAL:
               return { ...s, status: 'awaiting_approval' };
-            case 'plan_approved':
+            case SSE_EVENTS.PLAN_APPROVED:
               return { ...s, status: 'executing' };
-            case 'paused':
+            case SSE_EVENTS.PAUSED:
               return { ...s, status: 'paused' };
             case 'task_completed':
               return {
@@ -115,16 +116,16 @@ export const useAssistantStore = create(
                   ? [...s.messages, { role: 'assistant', content: evt.summary }]
                   : s.messages,
               };
-            case 'task_failed':
+            case SSE_EVENTS.TASK_FAILED:
               return { ...s, status: 'failed', error: evt.error };
-            case 'task_cancelled':
+            case SSE_EVENTS.TASK_CANCELLED:
               return { ...s, status: 'cancelled' };
-            case 'delta':
+            case SSE_EVENTS.DELTA:
               return { ...s, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
-            case 'user_message':
+            case SSE_EVENTS.USER_MESSAGE:
               // 服务端落库后回传 messageId；把最近一条无 id 的 user 消息补 id（一般本地已带 id 时直接命中）
               return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
-            case 'messages_changed': {
+            case SSE_EVENTS.MESSAGES_CHANGED: {
               if (!Array.isArray(evt.messages)) return s;
               const planDocEntry = s.messages.find((m) => m.role === 'plan_doc');
               if (!planDocEntry) return { ...s, messages: evt.messages };
@@ -134,7 +135,7 @@ export const useAssistantStore = create(
               next.splice(Math.min(prevIdx, next.length), 0, planDocEntry);
               return { ...s, messages: next };
             }
-            case 'tool_call_started': {
+            case SSE_EVENTS.TOOL_CALL_STARTED: {
               // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
               // 仅在 taskMsgOffset 之后搜索，防止跨任务覆盖历史失败记录
               const prevFailedIdx = s.messages.reduce(
@@ -157,7 +158,7 @@ export const useAssistantStore = create(
                 ],
               };
             }
-            case 'tool_call_completed': {
+            case SSE_EVENTS.TOOL_CALL_COMPLETED: {
               if (evt.success) {
                 const toolName = s.messages.find((m) => m.id === evt.callId)?.toolName;
                 const eventName = toolName ? TOOL_REFRESH_EVENTS[toolName] : null;
@@ -172,7 +173,7 @@ export const useAssistantStore = create(
                 ),
               };
             }
-            case 'step_started': {
+            case SSE_EVENTS.STEP_STARTED: {
               const stepExists = s.messages.some((m) => m.id === evt.stepId);
               return {
                 ...s,
@@ -187,7 +188,7 @@ export const useAssistantStore = create(
                     ],
               };
             }
-            case 'step_completed':
+            case SSE_EVENTS.STEP_COMPLETED:
               return {
                 ...s,
                 currentStepId: null,
@@ -195,7 +196,7 @@ export const useAssistantStore = create(
                   m.id === evt.stepId ? { ...m, status: 'done' } : m,
                 ),
               };
-            case 'step_failed':
+            case SSE_EVENTS.STEP_FAILED:
               return {
                 ...s,
                 currentStepId: null,

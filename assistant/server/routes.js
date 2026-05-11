@@ -23,6 +23,7 @@ import {
 import * as taskStore from './task-store.js';
 import * as planDoc from './plan-doc.js';
 import { runParentAgent } from './parent-agent.js';
+import { SSE_EVENTS } from './sse-events.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
@@ -53,7 +54,7 @@ router.post('/agent', async (req, res) => {
   const runId = randomUUID().slice(0, 8);
   if (!task) {
     task = taskStore.createTask({ context });
-    res.write(`data: ${JSON.stringify({ type: 'task_created', taskId: task.id, task, runId })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: SSE_EVENTS.TASK_CREATED, taskId: task.id, task, runId })}\n\n`);
   }
   taskStore.attachSse(task.id, res);
   // 注意：必须用 res.on('close')，不能用 req.on('close')。
@@ -83,7 +84,7 @@ router.post('/agent', async (req, res) => {
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: 'task_failed', taskId: task.id, error: err.message })}\n\n`);
+      res.write(`data: ${JSON.stringify({ type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message })}\n\n`);
     }
   } finally {
     // 关闭策略：
@@ -112,11 +113,11 @@ router.post('/agent/:taskId/approve', async (req, res) => {
   }
   log.info(`/agent/approve  ${formatMeta({ taskId: task.id })}`);
   taskStore.setStatus(task.id, 'executing');
-  taskStore.emit(task.id, { type: 'plan_approved', taskId: task.id });
+  taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_APPROVED, taskId: task.id });
   // 触发 parent-agent 继续派发；用一个空消息触发执行循环
   runParentAgent(task, '<<approved>>').catch((err) => {
     log.error(`/agent/approve RESUME_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
-    taskStore.emit(task.id, { type: 'task_failed', taskId: task.id, error: err.message });
+    taskStore.emit(task.id, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
   });
   res.json({ ok: true });
 });
@@ -130,7 +131,7 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   }
   await planDoc.deletePlanDoc(task.id);
   taskStore.setStatus(task.id, 'cancelled');
-  taskStore.emit(task.id, { type: 'task_cancelled', taskId: task.id });
+  taskStore.emit(task.id, { type: SSE_EVENTS.TASK_CANCELLED, taskId: task.id });
   res.json({ ok: true });
 });
 
@@ -145,7 +146,7 @@ router.post('/agent/:taskId/truncate', (req, res) => {
   const dropped = taskStore.truncateFrom(task.id, messageId);
   if (dropped < 0) return res.status(404).json({ error: 'message not found' });
   log.info(`/agent/truncate  ${formatMeta({ taskId: task.id, messageId, dropped })}`);
-  taskStore.emit(task.id, { type: 'messages_changed', taskId: task.id, messages: task.messages });
+  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
   res.json({ ok: true, messages: task.messages });
 });
 
@@ -160,7 +161,7 @@ router.post('/agent/:taskId/delete', (req, res) => {
   const ok = taskStore.deleteMessage(task.id, messageId);
   if (!ok) return res.status(404).json({ error: 'message not found' });
   log.info(`/agent/delete  ${formatMeta({ taskId: task.id, messageId })}`);
-  taskStore.emit(task.id, { type: 'messages_changed', taskId: task.id, messages: task.messages });
+  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
   res.json({ ok: true, messages: task.messages });
 });
 

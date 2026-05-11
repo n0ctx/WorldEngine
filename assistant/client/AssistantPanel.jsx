@@ -16,6 +16,7 @@ import {
 } from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
+import { SSE_EVENTS } from '../server/sse-events.js';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
 import { getCharacter } from '../../frontend/src/api/characters.js';
@@ -111,7 +112,7 @@ export default function AssistantPanel() {
         });
       } catch (err) {
         if (err?.name !== 'AbortError') {
-          ingestEvent({ type: 'task_failed', error: err?.message || '请求失败' });
+          ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '请求失败' });
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
@@ -131,7 +132,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
+        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
         return;
       }
       // 复用原 messageId：让 React 以同 key 复用 user 气泡 DOM，避免
@@ -148,7 +149,7 @@ export default function AssistantPanel() {
       try {
         await apiDeleteMessage(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: 'task_failed', error: err?.message || '删除失败' });
+        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '删除失败' });
         return;
       }
       useAssistantStore.getState().deleteMessage(msgId);
@@ -171,7 +172,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, prev.id);
       } catch (err) {
-        ingestEvent({ type: 'task_failed', error: err?.message || '截断失败' });
+        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
         return;
       }
       // 原子替换：单次 set 完成"丢尾 + push 新 user"，避免中间空帧引起页面闪烁。
@@ -204,7 +205,7 @@ export default function AssistantPanel() {
     if (taskId) {
       cancelTask(taskId).catch(() => {});
     }
-    ingestEvent({ type: 'task_cancelled', taskId });
+    ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
   }, [taskId, ingestEvent]);
 
   const handleReset = useCallback(() => {

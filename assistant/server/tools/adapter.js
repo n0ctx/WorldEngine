@@ -7,6 +7,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { ToolLoopCancelledError } from '../../../backend/llm/tool-loop-control.js';
+import { SSE_EVENTS } from '../sse-events.js';
 
 export function toLLMTool(input, executeOverride) {
   if (input && input.type === 'function' && input.function && typeof input.execute === 'function' && !executeOverride) {
@@ -47,19 +48,19 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
     execute: async (args) => {
       if (cancelCheck()) throw new ToolLoopCancelledError('task cancelled');
       const callId = makeCallId();
-      emitFn({ type: 'tool_call_started', toolName: name, callId });
+      emitFn({ type: SSE_EVENTS.TOOL_CALL_STARTED, toolName: name, callId });
       try {
         const result = await tool.execute(args);
         if (cancelCheck()) {
-          emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
+          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false });
           onCancelLog(name);
           throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
         const success = !(result && result.ok === false);
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success });
+        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success });
         return result;
       } catch (err) {
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
+        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false });
         throw err;
       }
     },
