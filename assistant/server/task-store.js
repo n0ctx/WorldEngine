@@ -27,6 +27,7 @@ function persist(task) {
       pendingUserMessages: task.pendingUserMessages,
       createdAt: task.createdAt,
       currentStepId: task.currentStepId,
+      error: task.error,
     });
   } catch (err) {
     log.warn(`PERSIST_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
@@ -58,9 +59,10 @@ export function setStatus(id, status) {
   const t = tasks.get(id);
   if (!t) return;
   const prev = t.status;
+  if (prev === status) return;
   t.status = status;
   persist(t);
-  if (prev !== status) log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
+  log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
 }
 
 export function deleteTask(id) {
