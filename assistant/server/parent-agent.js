@@ -43,6 +43,13 @@ import * as applyRegexRule from './tools/apply-regex-rule.js';
 import * as listResources from './tools/list-resources.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
 import { READ_FILE_TOOL } from './tools/project-reader.js';
+import {
+  writePlanDocDefinition,
+  editPlanDocDefinition,
+  dispatchSubagentDefinition,
+  deletePlanDocDefinition,
+  finalizeTaskDefinition,
+} from './tools/meta/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-parent', 'cyan');
@@ -99,47 +106,7 @@ function wrapApply(applyMod, ctx) {
  */
 function buildMetaTools(task, emitFn, runId = null) {
   const writePlanDoc = {
-    definition: {
-      type: 'function',
-      function: {
-        name: 'write_plan_doc',
-        description:
-          'plan mode 首次落计划文档；状态自动转 awaiting_approval，等待用户 /approve。' +
-          'steps[].id 可省略（自动生成 step-N）。',
-        parameters: {
-          type: 'object',
-          properties: {
-            title: { type: 'string', description: '任务标题（短）' },
-            intent: { type: 'string', description: '对用户需求的复述，1-3 句' },
-            assumptions: {
-              type: 'array',
-              items: { type: 'string' },
-              description: '来自 preview_card / read_file 的事实假设',
-            },
-            steps: {
-              type: 'array',
-              description: '步骤数组，每项含 id?, title, targetType, operation, dependsOn, task',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  title: { type: 'string' },
-                  targetType: {
-                    type: 'string',
-                    enum: ['world-card', 'character-card', 'persona-card', 'global-config', 'css-snippet', 'regex-rule'],
-                  },
-                  operation: { type: 'string', enum: ['create', 'update', 'delete'] },
-                  dependsOn: { type: 'array', items: { type: 'string' } },
-                  task: { type: 'string' },
-                },
-                required: ['title', 'targetType', 'operation', 'task'],
-              },
-            },
-          },
-          required: ['title', 'intent', 'steps'],
-        },
-      },
-    },
+    definition: writePlanDocDefinition,
     execute: async (args) => {
       try {
         const steps = (args.steps ?? []).map((s, i) => ({
@@ -172,29 +139,7 @@ function buildMetaTools(task, emitFn, runId = null) {
   };
 
   const editPlanDoc = {
-    definition: {
-      type: 'function',
-      function: {
-        name: 'edit_plan_doc',
-        description:
-          '修改计划文档。op=mark_done 勾选某 step 已完成；op=append_log 追加执行日志行；' +
-          'op=replace_steps 替换未完成步骤（已完成步骤始终保留，无法通过此操作覆盖）。',
-        parameters: {
-          type: 'object',
-          properties: {
-            op: { type: 'string', enum: ['mark_done', 'append_log', 'replace_steps'] },
-            stepId: { type: 'string', description: 'mark_done 时必填' },
-            line: { type: 'string', description: 'append_log 时必填' },
-            steps: {
-              type: 'array',
-              description: 'replace_steps 时必填，结构同 write_plan_doc 的 steps',
-              items: { type: 'object' },
-            },
-          },
-          required: ['op'],
-        },
-      },
-    },
+    definition: editPlanDocDefinition,
     execute: async (args) => {
       try {
         let md = await planDoc.readPlanDoc(task.id);
@@ -250,18 +195,7 @@ function buildMetaTools(task, emitFn, runId = null) {
   };
 
   const dispatchSubagent = {
-    definition: {
-      type: 'function',
-      function: {
-        name: 'dispatch_subagent',
-        description: '派发子代理执行计划文档中某未完成的 step；返回 { ok:true, summary } 或 { ok:false, error }。',
-        parameters: {
-          type: 'object',
-          properties: { stepId: { type: 'string' } },
-          required: ['stepId'],
-        },
-      },
-    },
+    definition: dispatchSubagentDefinition,
     execute: async (args) => {
       try {
         const md = await planDoc.readPlanDoc(task.id);
@@ -314,14 +248,7 @@ function buildMetaTools(task, emitFn, runId = null) {
   };
 
   const deletePlanDocTool = {
-    definition: {
-      type: 'function',
-      function: {
-        name: 'delete_plan_doc',
-        description: '删除计划文档（终态前调用）。',
-        parameters: { type: 'object', properties: {} },
-      },
-    },
+    definition: deletePlanDocDefinition,
     execute: async () => {
       try {
         await planDoc.deletePlanDoc(task.id);
@@ -333,21 +260,7 @@ function buildMetaTools(task, emitFn, runId = null) {
   };
 
   const finalizeTask = {
-    definition: {
-      type: 'function',
-      function: {
-        name: 'finalize_task',
-        description: '发送总结消息并把任务设为终态。terminalStatus ∈ {completed, failed, cancelled}。',
-        parameters: {
-          type: 'object',
-          properties: {
-            summary: { type: 'string' },
-            terminalStatus: { type: 'string', enum: ['completed', 'failed', 'cancelled'] },
-          },
-          required: ['summary', 'terminalStatus'],
-        },
-      },
-    },
+    definition: finalizeTaskDefinition,
     execute: async (args) => {
       try {
         taskStore.setStatus(task.id, args.terminalStatus);

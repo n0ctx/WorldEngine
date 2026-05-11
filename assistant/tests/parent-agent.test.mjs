@@ -72,7 +72,7 @@ test('buildMetaTools：5 个工具与各分支', async () => {
   assert.equal(tools.length, 5);
 
   const writePlan = tools[0];
-  assert.equal(writePlan.definition.function.name, 'write_plan_doc');
+  assert.equal(writePlan.definition.name, 'write_plan_doc');
   const r = await writePlan.execute({
     title: 'T', intent: '描述',
     steps: [{ title: '建世界', targetType: 'world-card', operation: 'create', task: '...' }],
