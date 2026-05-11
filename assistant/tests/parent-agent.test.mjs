@@ -296,6 +296,59 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   const doneStep = parsed.steps.find((s) => s.id === 'step-1');
   assert.ok(doneStep, 'step-1 必须保留');
   assert.equal(doneStep.done, true, 'step-1.done 必须仍为 true');
+  assert.match(newMd, /完成于 12:00:00/, '已完成步骤的完成时间必须保留在原始文档中');
+  assert.equal(doneStep.completedAt, '12:00:00', 'parsePlanDoc 必须解析 completedAt');
+
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('edit_plan_doc.replace_steps: 非连续 done 不会触发 id 碰撞', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+  const tools = __testables.buildMetaTools(task, () => {});
+
+  const md = [
+    '# 任务：T',
+    '',
+    '> 状态：executing · 创建时间：x',
+    '',
+    '## 用户意图',
+    'i',
+    '',
+    '## 假设与约束',
+    '- 无',
+    '',
+    '## 步骤',
+    '',
+    '- [x] **step-1** d1（world-card.create）',
+    '  - 依赖：无',
+    '  - 任务：a',
+    '  - 完成于 12:00:00',
+    '- [ ] **step-2** todo（character-card.create）',
+    '  - 依赖：无',
+    '  - 任务：b',
+    '- [x] **step-3** d3（character-card.update）',
+    '  - 依赖：无',
+    '  - 任务：c',
+    '  - 完成于 12:05:00',
+    '',
+    '## 执行日志',
+    '',
+  ].join('\n');
+  await planDoc.writePlanDoc(task.id, md);
+
+  const editPlan = tools[1];
+  const r = await editPlan.execute({
+    op: 'replace_steps',
+    steps: [{ title: '新步骤', targetType: 'character-card', operation: 'update', task: 't' }],
+  });
+  assert.equal(r.ok, true);
+
+  const parsed = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const ids = parsed.steps.map((s) => s.id);
+  const uniqueIds = new Set(ids);
+  assert.equal(ids.length, uniqueIds.size, `id 不应重复,实际:${ids.join(',')}`);
+  assert.ok(ids.includes('step-4'), `应包含 step-4,实际:${ids.join(',')}`);
 
   await planDoc.deletePlanDoc(task.id);
 });

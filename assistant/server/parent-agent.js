@@ -209,10 +209,14 @@ function buildMetaTools(task, emitFn) {
           // 若 LLM 在 args.steps 中重复了已完成步骤的 id，以原文档为准忽略。
           const doneSteps = parsed.steps.filter((s) => s.done);
           const doneIds = new Set(doneSteps.map((s) => s.id));
+          const allIdNums = parsed.steps
+            .map((s) => parseInt(String(s.id ?? '').replace(/^step-/, ''), 10))
+            .filter((n) => Number.isFinite(n));
+          const maxIdNum = allIdNums.length > 0 ? Math.max(...allIdNums) : 0;
           const incoming = args.steps
             .filter((s) => !s.id || !doneIds.has(s.id))
             .map((s, i) => ({
-              id: s.id ?? `step-${doneSteps.length + i + 1}`,
+              id: s.id ?? `step-${maxIdNum + i + 1}`,
               title: s.title,
               targetType: s.targetType,
               operation: s.operation,

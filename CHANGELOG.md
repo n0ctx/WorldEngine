@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): parsePlanDoc 补 completedAt 解析,replace_steps id 自动生成防碰撞 (intent/assumptions/log 重渲染丢失为预存在限制,留待后续修复)
 - fix(assistant): edit_plan_doc.replace_steps 强制保留已完成步骤，防止误覆盖
 - refactor(assistant): 工具适配器文件按项目惯例改名 _adapter → adapter
 - refactor(assistant): 下沉 toLLMTool / wrapToolEvents 到 assistant/server/tools/adapter.js，父子代理共享；wrapToolEvents 通过 opts 注入 cancelCheck / onCancelLog，callId 改用 crypto.randomUUID

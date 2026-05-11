@@ -43,6 +43,7 @@ ${logLines}
 const STEP_RE = /^- \[(x| )\] \*\*(step-\d+)\*\* (.+?)（([\w-]+)\.(create|update|delete)）$/;
 const DEP_RE = /^  - 依赖：(.+)$/;
 const TASK_RE = /^  - 任务：(.+)$/;
+const COMPLETED_AT_RE = /^  - 完成于 (.+)$/;
 
 export function parsePlanDoc(md) {
   const lines = md.split('\n');
@@ -55,7 +56,7 @@ export function parsePlanDoc(md) {
   for (const line of lines) {
     const m = line.match(STEP_RE);
     if (m) {
-      cur = { id: m[2], done: m[1] === 'x', title: m[3], targetType: m[4], operation: m[5], dependsOn: [], task: '' };
+      cur = { id: m[2], done: m[1] === 'x', title: m[3], targetType: m[4], operation: m[5], dependsOn: [], task: '', completedAt: null };
       steps.push(cur);
       continue;
     }
@@ -66,7 +67,12 @@ export function parsePlanDoc(md) {
       continue;
     }
     const tm = line.match(TASK_RE);
-    if (tm) cur.task = tm[1];
+    if (tm) {
+      cur.task = tm[1];
+      continue;
+    }
+    const cm = line.match(COMPLETED_AT_RE);
+    if (cm) cur.completedAt = cm[1];
   }
   return { title, status, steps };
 }
