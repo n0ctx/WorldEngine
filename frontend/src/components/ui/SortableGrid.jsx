@@ -39,9 +39,12 @@ import { CSS } from '@dnd-kit/utilities';
 const dropAnimation = {
   duration: 220,
   easing: 'cubic-bezier(0.18, 0.67, 0.32, 1.0)',
+  // 用 visibility 而非 opacity 隐藏原位卡片：
+  // 入场 weInkRise 关键帧 fill-mode:both 把 opacity 永久钉在 1，inline opacity:0 无效；
+  // visibility 不在关键帧里，inline 设置生效，且不影响布局占位。
   sideEffects: defaultDropAnimationSideEffects({
     styles: {
-      active: { opacity: '0' },
+      active: { visibility: 'hidden' },
     },
   }),
 };
@@ -115,14 +118,16 @@ export default function SortableGrid({
 }
 
 function SortableGridItem({ item, renderItem }) {
+  // 不覆盖 animateLayoutChanges：默认 defaultAnimateLayoutChanges 在 drop 后通过 FLIP
+  // 把位移过的卡片从旧位置平滑过渡到新位置，避免松手瞬间 transform 突变与新 grid
+  // 位置叠加出现的"双重位移"闪烁。
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({
     id: item.id,
-    animateLayoutChanges: () => false,
   });
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0 : 1,
+    visibility: isDragging ? 'hidden' : 'visible',
     cursor: isDragging ? 'grabbing' : 'grab',
     touchAction: 'none',
   };

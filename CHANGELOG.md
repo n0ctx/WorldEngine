@@ -3,6 +3,40 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(worlds): 世界卡拖拽邻居滑动动效回归
+
+**问题**：`/worlds` 拖拽世界卡时，附近卡片让位变成瞬移，丢失左右/上下滑动过渡。
+
+**根因**：`weInkRise` 关键帧把入场动画写在 `transform: translateY(...)` 上，配合 `animation-fill-mode: both` 在动画结束后仍长期把 `transform` 钉在 `translateY(0)`。CSS 动画的级联优先级高于 inline style，dnd-kit 在拖拽中给邻居 inline 设的 `transform: translate3d(...)` 因此完全失效，邻居根本不移动。
+
+（先排查过的 `animateLayoutChanges: () => false` 实际只影响 drop 后的 FLIP 补播，不影响 sorting 期间的 transition；保持原样。）
+
+**修复**：把 `weInkRise` 关键帧的 `transform` 换成独立的 CSS `translate` 属性（两者是合成上独立的属性，互不覆盖）：
+
+```css
+@keyframes weInkRise {
+  from { opacity: 0; translate: 0 8px; filter: blur(1.5px); }
+  to   { opacity: 1; translate: 0 0;   filter: blur(0);     }
+}
+```
+
+视觉效果完全一致；dnd-kit 设的 inline `transform` 不再被入场动画覆盖，邻居恢复 200ms ease 滑动。
+
+**影响面**：`weInkRise` 共 6 处调用（chat 4、pages 3），均为纯入场效果，不依赖动画结束后的 `transform` 状态。`.we-world-card:hover { transform: translateY(-2px); }` 等 hover transform 与 keyframe `translate` 是独立属性，无冲突。
+
+**验证**：`/worlds` 拖动一张卡，邻居平滑滑动让位；松手 220ms 缓动落定；刷新后顺序持久化。chat 等其他使用 `weInkRise` 的入场动画视觉无变化。
+
+**追加 fix（重排后部分卡闪烁）**：松手后 `setWorlds(finalItems)` 触发 React 重排 DOM，被拖卡之后所有卡的 `:nth-child` 位置都变了，`pages.css` 的 `:nth-child(N) { animation-delay: ... }` 规则使每张卡的 `animation-delay` 被重算成新值。浏览器把已经完成的 `weInkRise` 视作"有变更"，按新延迟回放一次，整片卡同时闪一下入场动画。删除 `:nth-child` 级联延迟规则后，所有卡共用 0ms 延迟，重排时 `animation-delay` 不再变化，不会回放。初次入场不再有 stagger，但卡片仍有 `weInkRise` 基础动画。
+
+**追加 fix（向左换位时右侧邻居仍闪烁）**：上一步压住了 `weInkRise` 重播，但还有第二处闪烁——`useSortable` 的 `animateLayoutChanges: () => false` 禁用了 dnd-kit 的 FLIP。松手瞬间被位移过的邻居 inline `transform` 立刻置 0，而它的 grid 位置又因 `setWorlds` 切到新槽位，新位置 + 残留 transform 出现一帧"双重位移"。移除该覆盖后，默认 `defaultAnimateLayoutChanges` 在 drop 时通过 FLIP 把卡片从旧坐标补一帧反向 transform，再用 200ms 过渡回 0，邻居平滑入位无跳变。
+
+**追加 fix（被拖卡本身也闪一次）**：到此前的几轮都还压不住"被移动的卡 + 右侧邻居"在 drop 后再闪一次入场动画。继续在 `weInkRise` 与 dnd-kit 之间打补丁性价比已经不高，最后干脆把 `.we-world-card` 的 `animation: weInkRise ...` 整条删掉。世界卡入场不再有飘入动效，但拖拽彻底干净：FLIP 平滑入位、`opacity`/`transform` 不被 keyframe 钉死、DOM 重排也不再触发任何 keyframe 重播。其他用 `weInkRise` 的地方（chat 等）不受影响。
+
+**追加 fix（透明占位 + 落位闪烁）**：
+
+- 第一版补丁用 `[data-dragging] { animation: none }` 释放 opacity，但松手时 `data-dragging` 被移除，animation-name 从 `none` 切回 `weInkRise`，浏览器视为新动画重新跑 600ms，期间 opacity 0→1 + translate 8px→0 导致占位实体化+位置闪烁，并与 DragOverlay 副本 220ms 飞回叠在一起看起来重叠。
+- 改用关键帧不涉及的 `visibility` 隐藏占位：拖拽中 inline `visibility: hidden`；`dropAnimation.sideEffects` 也改成 `active: { visibility: 'hidden' }`，覆盖 220ms 落位期。`visibility` 不在 `weInkRise` 关键帧里，不被 CSS 动画级联钉死，也不触发 animation 重播。透明占位 + 无闪烁同时成立。
+
 ## 2026-05-11 fix(writing): 写作模式 {{char}} 不再被同化成"叙述者"
 
 **问题**：写作模式下，世界条目 / 全局提示词 / 历史记忆里所有 `{{char}}` 占位符都被统一替换成字面量"叙述者"，不再对应任何角色卡名字。
