@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- feat(assistant): task-store 每次改写后落 JSON sidecar 到 .temp/assistant/<taskId>.json(写入原子,支持 ASSISTANT_STATE_DIR 覆盖)
 - fix(llm): completeWithTools 重试 catch 透传 ToolLoopCancelledError,与 resolveToolContext 对齐,避免 cancel 触发无谓重试
 - fix(assistant): 子代理工具循环响应父代理 cancel,user 点清空后正在落库的子代理立即中断
 - fix(llm): anthropic provider resolveToolContext 透传 ToolLoopCancelledError,与 completeWithTools 对齐

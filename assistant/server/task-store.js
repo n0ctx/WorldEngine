@@ -8,11 +8,30 @@
 // 仅 routes.js 仍引用旧 API，将在 Phase 7 一并清理。
 import { randomUUID } from 'node:crypto';
 import { createLogger, formatMeta } from '../../backend/utils/logger.js';
+import { writeTaskFile, deleteTaskFile } from './state-store.js';
 
 const log = createLogger('as-store', 'magenta');
 
 const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
+
+function persist(task) {
+  if (!task) return;
+  try {
+    writeTaskFile(task.id, {
+      version: 1,
+      id: task.id,
+      status: task.status,
+      context: task.context,
+      messages: task.messages,
+      pendingUserMessages: task.pendingUserMessages,
+      createdAt: task.createdAt,
+      currentStepId: task.currentStepId,
+    });
+  } catch (err) {
+    log.warn(`PERSIST_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+  }
+}
 
 export function createTask({ context } = {}) {
   const id = `task-${randomUUID().slice(0, 8)}`;
@@ -26,6 +45,7 @@ export function createTask({ context } = {}) {
     currentStepId: null,
   };
   tasks.set(id, task);
+  persist(task);
   log.info(`CREATE  ${formatMeta({ taskId: id, hasWorld: Boolean(context?.worldId), hasChar: Boolean(context?.characterId) })}`);
   return task;
 }
@@ -39,12 +59,16 @@ export function setStatus(id, status) {
   if (!t) return;
   const prev = t.status;
   t.status = status;
+  persist(t);
   if (prev !== status) log.info(`STATUS  ${formatMeta({ taskId: id, from: prev, to: status })}`);
 }
 
 export function deleteTask(id) {
   tasks.delete(id);
   sseClients.delete(id);
+  try { deleteTaskFile(id); } catch (err) {
+    log.warn(`DELETE_FILE_FAIL  ${formatMeta({ taskId: id, error: err.message })}`);
+  }
 }
 
 export function appendMessage(id, msg) {
@@ -52,6 +76,7 @@ export function appendMessage(id, msg) {
   if (!t) return null;
   const stamped = { id: msg?.id ?? `msg-${randomUUID().slice(0, 8)}`, ...msg };
   t.messages.push(stamped);
+  persist(t);
   return stamped;
 }
 
@@ -61,6 +86,7 @@ export function deleteMessage(taskId, messageId) {
   const idx = t.messages.findIndex((m) => m.id === messageId);
   if (idx < 0) return false;
   t.messages.splice(idx, 1);
+  persist(t);
   return true;
 }
 
@@ -70,12 +96,16 @@ export function truncateFrom(taskId, messageId) {
   const idx = t.messages.findIndex((m) => m.id === messageId);
   if (idx < 0) return -1;
   const dropped = t.messages.splice(idx);
+  persist(t);
   return dropped.length;
 }
 
 export function queueUserMessage(id, msg) {
   const t = tasks.get(id);
-  if (t) t.pendingUserMessages.push(msg);
+  if (t) {
+    t.pendingUserMessages.push(msg);
+    persist(t);
+  }
 }
 
 export function takeUserMessages(id) {
@@ -83,6 +113,7 @@ export function takeUserMessages(id) {
   if (!t) return [];
   const msgs = t.pendingUserMessages;
   t.pendingUserMessages = [];
+  persist(t);
   return msgs;
 }
 
