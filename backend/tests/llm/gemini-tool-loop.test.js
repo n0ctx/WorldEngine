@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { completeGeminiWithTools, resolveToolContextGemini } from '../../llm/providers/gemini/index.js';
-import { ToolLoopCancelledError } from '../../llm/tool-loop-control.js';
+import { completeGeminiWithTools } from '../../llm/providers/gemini/index.js';
 
 // 通用 fetch mock 工厂：按顺序返回预设响应；记录每次入参以便断言
 function mockFetchSequence(responses) {
@@ -130,96 +129,3 @@ test('completeGeminiWithTools: 400 → 降级到无工具补全', async () => {
   } finally { restore(); }
 });
 
-// =========================
-// resolveToolContextGemini
-// =========================
-
-test('resolveToolContextGemini: 单轮文本 → 返回原 messages 引用', async () => {
-  const { restore } = mockFetchSequence([
-    { json: gemResp({ text: 'no-tools' }) },
-  ]);
-  const original = [{ role: 'user', content: 'hi' }];
-  try {
-    const out = await resolveToolContextGemini(
-      original,
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    assert.equal(out, original, 'must return the same reference when no tools were invoked');
-  } finally { restore(); }
-});
-
-test('resolveToolContextGemini: 工具调用 → enriched messages 含 _geminiParts 与 thoughtSignature', async () => {
-  const { restore } = mockFetchSequence([
-    { json: gemResp({ toolCalls: [{ name: 'lookup', args: { q: 'x' }, signature: 'sig-abc' }] }) },
-    { json: gemResp({ text: 'final' }) },
-  ]);
-  try {
-    const out = await resolveToolContextGemini(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'res' },
-      baseConfig(),
-    );
-    assert.ok(Array.isArray(out), 'must return enriched messages array');
-    const assistant = out.find((m) => m.role === 'assistant');
-    assert.ok(assistant, 'enriched messages must include assistant entry');
-    assert.ok(Array.isArray(assistant._geminiParts), 'assistant entry must carry _geminiParts');
-    const hasSig = assistant._geminiParts.some((p) => p.thoughtSignature === 'sig-abc');
-    assert.equal(hasSig, true, '_geminiParts must preserve thoughtSignature');
-  } finally { restore(); }
-});
-
-test('resolveToolContextGemini: handler 抛 ToolLoopCancelledError → 透传不吞', async () => {
-  const { restore } = mockFetchSequence([
-    { json: gemResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-  ]);
-  try {
-    await assert.rejects(
-      () => resolveToolContextGemini(
-        [{ role: 'user', content: 'hi' }],
-        sampleToolDefs,
-        { lookup: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
-        baseConfig(),
-      ),
-      (err) => err.name === 'ToolLoopCancelledError' && /mock cancel/.test(err.message),
-    );
-  } finally { restore(); }
-});
-
-test('resolveToolContextGemini: 首轮 fetch body 含 maxOutputTokens=1000 + temperature=0', async () => {
-  const { calls, restore } = mockFetchSequence([
-    { json: gemResp({ text: 'no-tools' }) },
-  ]);
-  try {
-    await resolveToolContextGemini(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    const gen = calls[0].body.generationConfig || {};
-    assert.equal(gen.maxOutputTokens, 1000);
-    assert.equal(gen.temperature, 0);
-  } finally { restore(); }
-});
-
-test('resolveToolContextGemini: 二轮 fetch body 含 maxOutputTokens=config.max_tokens', async () => {
-  const { calls, restore } = mockFetchSequence([
-    { json: gemResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-    { json: gemResp({ text: 'final' }) },
-  ]);
-  try {
-    await resolveToolContextGemini(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'r' },
-      { ...baseConfig(), max_tokens: 8000 },
-    );
-    assert.equal(calls.length, 2);
-    const gen = calls[1].body.generationConfig || {};
-    assert.equal(gen.maxOutputTokens, 8000);
-    assert.equal(gen.temperature, 0);
-  } finally { restore(); }
-});

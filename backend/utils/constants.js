@@ -113,9 +113,7 @@ export const STATE_TEXT_COMPRESS_TARGET = 20;
 export const STATE_LIST_MAX_ITEMS = 10;
 /** list 字段裁剪目标条目数 */
 export const STATE_LIST_TRIM_TARGET = 8;
-/** Ollama 工具调用 resolveToolContext 首轮最大 token 数 */
-export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
-/** 工具调用循环（complete-with-tools / resolveToolContext）最大轮数：写卡助手 dispatch_subagent 多步派发场景需要更大上限，原硬编码 5 在多步任务下会让模型未消化的 tool_use 漏到 Step 2 流式文本里（产生 <｜DSML｜...> 泄漏） */
+/** 工具调用循环（complete-with-tools）最大轮数：写卡助手 dispatch_subagent 多步派发场景需要更大上限，原硬编码 5 在多步任务下会让模型未消化的 tool_use 漏到普通文本里（产生 <｜DSML｜...> 泄漏） */
 export const LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25;
 
 // ============================

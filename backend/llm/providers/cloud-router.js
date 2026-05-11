@@ -1,7 +1,7 @@
 /**
  * 云端 LLM Provider 适配 — 路由层
  *
- * 将 streamChat / complete / completeWithTools / resolveToolContext
+ * 将 streamChat / complete / completeWithTools
  * 路由到各 provider 实现模块：
  *   openai-compatible/  OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow
  *   anthropic/          Anthropic Messages API
@@ -14,19 +14,16 @@ import {
   streamOpenAICompatible,
   completeOpenAICompatible,
   completeOpenAICompatibleWithTools,
-  resolveToolContextOpenAI,
 } from './openai-compatible/index.js';
 import {
   streamAnthropic,
   completeAnthropic,
   completeAnthropicWithTools,
-  resolveToolContextAnthropic,
 } from './anthropic/index.js';
 import {
   streamGemini,
   completeGemini,
   completeGeminiWithTools,
-  resolveToolContextGemini,
 } from './gemini/index.js';
 
 const NAMED_ADAPTERS = {
@@ -34,25 +31,21 @@ const NAMED_ADAPTERS = {
     stream: streamAnthropic,
     complete: completeAnthropic,
     completeWithTools: completeAnthropicWithTools,
-    resolveToolContext: resolveToolContextAnthropic,
   },
   'minimax-coding': {
     stream: streamAnthropic,
     complete: completeAnthropic,
     completeWithTools: completeAnthropicWithTools,
-    resolveToolContext: resolveToolContextAnthropic,
   },
   anthropic: {
     stream: streamAnthropic,
     complete: completeAnthropic,
     completeWithTools: completeAnthropicWithTools,
-    resolveToolContext: resolveToolContextAnthropic,
   },
   gemini: {
     stream: streamGemini,
     complete: completeGemini,
     completeWithTools: completeGeminiWithTools,
-    resolveToolContext: resolveToolContextGemini,
   },
 };
 
@@ -60,7 +53,6 @@ const OPENAI_COMPATIBLE_ADAPTER = {
   stream: streamOpenAICompatible,
   complete: completeOpenAICompatible,
   completeWithTools: completeOpenAICompatibleWithTools,
-  resolveToolContext: resolveToolContextOpenAI,
 };
 
 function getAdapter(provider) {
@@ -85,10 +77,4 @@ export async function completeWithTools(messages, toolDefs, toolHandlers, config
   const adapter = getAdapter(config.provider);
   if (!adapter) throw apiError(`不支持的 provider: ${config.provider}`, 400);
   return adapter.completeWithTools(messages, toolDefs, toolHandlers, config);
-}
-
-export async function resolveToolContext(messages, toolDefs, toolHandlers, config) {
-  const adapter = getAdapter(config.provider);
-  if (!adapter) return messages; // 未知 provider 原样返回
-  return adapter.resolveToolContext(messages, toolDefs, toolHandlers, config);
 }

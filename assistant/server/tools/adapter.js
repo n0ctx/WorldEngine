@@ -6,7 +6,10 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { ToolLoopCancelledError } from '../../../backend/llm/tool-loop-control.js';
+import {
+  ToolLoopCancelledError,
+  isToolLoopControlSignal,
+} from '../../../backend/llm/tool-loop-control.js';
 import { SSE_EVENTS } from '../sse-events.js';
 
 export function toLLMTool(input, executeOverride) {
@@ -60,6 +63,10 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
         emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success });
         return result;
       } catch (err) {
+        if (isToolLoopControlSignal(err)) {
+          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: true });
+          throw err;
+        }
         emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false });
         throw err;
       }

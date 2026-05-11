@@ -1,8 +1,8 @@
 // assistant/server/state-store.js
 //
-// 写卡助手任务态 JSON sidecar 持久化:每个 task 对应 <ASSISTANT_STATE_DIR>/<taskId>.json。
-// 写入采用 *.json.tmp + renameSync 原子替换;读取扫目录,损坏文件跳过不抛。
-// 不依赖 task-store,纯 IO 层,可独立测试。
+// 写卡助手旧版 JSON sidecar 兼容层。
+// 当前权威持久化已迁到 SQLite `assistant_tasks` 表；本文件只负责读取/删除
+// 旧 <ASSISTANT_STATE_DIR>/<taskId>.json，用于启动时一次性导入与测试隔离。
 //
 // 设计:
 // - 同步 API:写入频次低(每次用户消息/状态切换/单条 message append),

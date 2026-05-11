@@ -202,33 +202,22 @@ const openaiCompatibleToolLoopProvider = {
     return { messages: [...messages] };
   },
 
-  async oneTurn(state, toolDefs, mode, iter, config) {
+  async oneTurn(state, toolDefs, _iter, config) {
     const baseUrl = getBaseUrl(config);
     const url = `${baseUrl}/chat/completions`;
-
-    // resolve 模式: 首轮 max_tokens=1000, 二轮起沿用 config.max_tokens; temperature 默认 0
-    let effectiveMaxTokens = config.max_tokens;
-    let effectiveTemperature = config.temperature;
-    if (mode === 'resolve') {
-      effectiveMaxTokens = iter === 0 ? 1000 : config.max_tokens;
-      effectiveTemperature = config.temperature ?? 0;
-    }
 
     const body = {
       model: config.model,
       messages: state.messages,
       tools: toolDefs,
       tool_choice: 'auto',
-      max_tokens: effectiveMaxTokens,
+      max_tokens: config.max_tokens,
       stream: false,
     };
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-    if (thinkingState !== 'enabled') body.temperature = effectiveTemperature;
+    if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
-    const callType = mode === 'resolve'
-      ? (config.callType ? `${config.callType}:resolve` : 'resolve-tools')
-      : (config.callType ? `${config.callType}:tools` : 'complete-tools');
-    logRawRequest(body, config, callType);
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
 
     const resp = await fetch(url, {
       method: 'POST',
@@ -240,11 +229,8 @@ const openaiCompatibleToolLoopProvider = {
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
-      // 历史行为: complete 路径 400/422 才降级到 completeOpenAICompatible(无 tools), 其余 status 抛错;
-      // resolve 路径任何 !resp.ok 都直接抛(由 runToolLoop 之外的调用方处理)。
-      if (mode === 'complete' && (resp.status === 400 || resp.status === 422)) {
-        return { kind: 'fallback' };
-      }
+      // 400/422 退到无工具补全
+      if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
     }
 
@@ -309,18 +295,6 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
     toolDefs,
     toolHandlers,
     config,
-    mode: 'complete',
-  });
-}
-
-export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  return runToolLoop({
-    provider: openaiCompatibleToolLoopProvider,
-    messages: normalizeOpenAICompatibleMessages(messages, config),
-    toolDefs,
-    toolHandlers,
-    config,
-    mode: 'resolve',
+    completeResultMode: config.toolResultMode ?? 'text',
   });
 }

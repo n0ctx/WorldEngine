@@ -5,7 +5,7 @@
  *   - llm 模块为 ESM 默认导出，难以在测试内可靠覆盖；
  *   - cacheableSystem 是纯 cache 提示字段，传不传不影响业务逻辑，spy 注入收益低。
  *
- * 检查目标：parent-agent.js 至少 2 处（resolveToolContext + chat），
+ * 检查目标：parent-agent.js 至少 2 处（context summary complete + completeWithToolsDetailed），
  *           sub-agent.js 至少 1 处（completeWithTools）。
  */
 import test from 'node:test';

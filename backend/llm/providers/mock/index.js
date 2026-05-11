@@ -95,7 +95,7 @@ export async function complete() {
   return getMockText('complete');
 }
 
-export async function completeWithTools(messages, _defs, handlers) {
+export async function completeWithTools(messages, _defs, handlers, config = {}) {
   maybeThrow('complete');
   const toolCalls = parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
   for (const call of toolCalls) {
@@ -103,20 +103,10 @@ export async function completeWithTools(messages, _defs, handlers) {
     if (typeof handler !== 'function') continue;
     await handler(call.arguments ?? {});
   }
-  return getMockText('complete');
+  const text = getMockText('complete');
+  if (config.toolResultMode === 'detail') {
+    return { text, messages };
+  }
+  return text;
 }
 
-export async function resolveToolContext(messages, _defs, handlers) {
-  const toolCalls = parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
-  const enriched = [...messages];
-  for (const call of toolCalls) {
-    const handler = handlers?.[call?.name];
-    if (typeof handler !== 'function') continue;
-    const result = await handler(call.arguments ?? {});
-    enriched.push({
-      role: 'tool',
-      content: typeof result === 'string' ? result : JSON.stringify(result),
-    });
-  }
-  return enriched;
-}

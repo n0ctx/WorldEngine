@@ -3,19 +3,20 @@
  *
  * runParentAgent(task, userInput) → Promise<void>
  *
- * 一次完整的工具循环：
+ * 一次完整的单通道工具循环：
  *   1. 拼装 system prompt（parent-agent.md + CONTRACT.md，每轮注入）
  *   2. 取出 task.messages 作为对话历史，并附加一条上下文 user 消息（status / worldId / characterId / plan-doc 全文）
  *   3. 把 userInput 入栈到 task.messages（包含 `<<approved>>` sentinel 的特殊化处理）
- *   4. 调 backend/llm/resolveToolContext 走非流式 tool-use 循环，得到富化后的 messages
- *   5. 调 backend/llm/chat 流式生成最终文本，按 chunk 发 `delta` SSE 事件（带 messageId）
- *   6. 流式结束后把累积文本回填到预占的 assistant 消息，并发 `done` 事件
+ *   4. 调 backend/llm/completeWithToolsDetailed 走非流式 tool-use 循环，拿到最终文本 + 富化后的 messages
+ *   5. 若本轮有普通 assistant 文本，则服务端按固定窗口切片，逐条发 `delta` SSE 事件（带 messageId）
+ *   6. 文本切片发送完毕后回填 assistant 消息，并发 `done` 事件
  *
  * 注意：
+ *   - 父代理不再在工具循环后额外发起第二次 `llm.chat()`；普通文本回复必须在同一轮 tool-loop 终态给出。
  *   - LLM 提供商若非流式 + tool-use，则降级为 complete()；这里不区分。
  *   - apply_* 工具的异常被捕获并以 { ok:false, error } 形式返回给 LLM，让它在循环内自行重试。
  *   - 5 个编排专用工具（write_plan_doc / edit_plan_doc / dispatch_subagent / delete_plan_doc / finalize_task）
- *     的 schema 定义在 ./tools/meta/，execute 闭包在本文件的 buildMetaTools 内构造（闭包需捕获 task）。
+ *     的 schema 定义在 ./tools/meta/，runtime execute 闭包在 ./tools/meta/runtime.js 构造。
  *     `toLLMTool` / `wrapToolEvents` 已下沉到 ./tools/adapter.js。
  */
 
@@ -25,13 +26,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as llm from '../../backend/llm/index.js';
-import { isToolLoopCancelledError } from '../../backend/llm/tool-loop-control.js';
+import {
+  isToolLoopCancelledError,
+  isToolLoopControlSignal,
+  TOOL_LOOP_SIGNAL,
+} from '../../backend/llm/tool-loop-control.js';
 import { getConfig } from '../../backend/services/config.js';
-import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
+import { createLogger, formatMeta, previewText, summarizeMessages } from '../../backend/utils/logger.js';
 
 import * as planDoc from './plan-doc.js';
 import * as taskStore from './task-store.js';
-import { dispatchSubAgent } from './sub-agent.js';
 
 import { SSE_EVENTS } from './sse-events.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
@@ -44,13 +48,7 @@ import * as applyRegexRule from './tools/apply-regex-rule.js';
 import * as listResources from './tools/list-resources.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
 import { READ_FILE_TOOL } from './tools/project-reader.js';
-import {
-  writePlanDocDefinition,
-  editPlanDocDefinition,
-  dispatchSubagentDefinition,
-  deletePlanDocDefinition,
-  finalizeTaskDefinition,
-} from './tools/meta/index.js';
+import { buildMetaTools } from './tools/meta/runtime.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const log = createLogger('as-parent', 'cyan');
@@ -68,14 +66,18 @@ const APPLY_TOOLS = {
 };
 
 const APPROVED_SENTINEL = '<<approved>>';
+const ASSISTANT_CONTEXT_RAW_LIMIT = 8;
+const ASSISTANT_CONTEXT_CHAR_LIMIT = 24_000;
+const ASSISTANT_DELTA_CHUNK_SIZE = 48;
 
-function unescapeLiteralWhitespace(s) {
-  if (typeof s !== 'string') return s;
-  return s
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\n')
-    .replace(/\\t/g, '\t');
+function clearModelContext(task) {
+  if (!task?.modelContext) return null;
+  taskStore.setModelContext(task.id, null);
+  return null;
+}
+
+function yieldToEventLoop() {
+  return new Promise((resolve) => setImmediate(resolve));
 }
 
 async function loadSystemPrompt() {
@@ -101,189 +103,6 @@ function wrapApply(applyMod, ctx) {
   };
 }
 
-/**
- * 构造 5 个编排专用工具的 execute 闭包。schema 定义见 ./tools/meta/；
- * 闭包捕获 task / emitFn / runId，每次 runParentAgent 均需重建。
- */
-function buildMetaTools(task, emitFn, runId = null) {
-  const writePlanDoc = {
-    definition: writePlanDocDefinition,
-    execute: async (args) => {
-      try {
-        const steps = (args.steps ?? []).map((s, i) => ({
-          id: s.id ?? `step-${i + 1}`,
-          title: s.title,
-          targetType: s.targetType,
-          operation: s.operation,
-          dependsOn: s.dependsOn ?? [],
-          task: s.task,
-          done: false,
-        }));
-        const md = planDoc.renderPlanDoc({
-          title: args.title,
-          status: 'awaiting_approval',
-          createdAt: new Date().toISOString(),
-          intent: args.intent,
-          assumptions: args.assumptions ?? [],
-          steps,
-          log: [],
-        });
-        await planDoc.writePlanDoc(task.id, md);
-        taskStore.setStatus(task.id, 'awaiting_approval');
-        emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
-        emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
-        return { ok: true };
-      } catch (err) {
-        return { ok: false, error: err.message };
-      }
-    },
-  };
-
-  const editPlanDoc = {
-    definition: editPlanDocDefinition,
-    execute: async (args) => {
-      try {
-        let md = await planDoc.readPlanDoc(task.id);
-        if (args.op === 'mark_done') {
-          if (!args.stepId) return { ok: false, error: 'mark_done 需要 stepId' };
-          md = planDoc.markStepDone(md, args.stepId, new Date().toISOString().slice(11, 19));
-        } else if (args.op === 'append_log') {
-          if (!args.line) return { ok: false, error: 'append_log 需要 line' };
-          md = planDoc.appendLog(md, args.line);
-        } else if (args.op === 'replace_steps') {
-          if (!Array.isArray(args.steps)) return { ok: false, error: 'replace_steps 需要 steps 数组' };
-          const parsed = planDoc.parsePlanDoc(md);
-          // 防御：已完成步骤强制保留（按原顺序），新提供的 steps 视为"未完成的剩余步骤"。
-          // 若 LLM 在 args.steps 中重复了已完成步骤的 id，以原文档为准忽略。
-          const doneSteps = parsed.steps.filter((s) => s.done);
-          const doneIds = new Set(doneSteps.map((s) => s.id));
-          const allIdNums = parsed.steps
-            .map((s) => parseInt(String(s.id ?? '').replace(/^step-/, ''), 10))
-            .filter((n) => Number.isFinite(n));
-          const maxIdNum = allIdNums.length > 0 ? Math.max(...allIdNums) : 0;
-          const incoming = args.steps
-            .filter((s) => !s.id || !doneIds.has(s.id))
-            .map((s, i) => ({
-              id: s.id ?? `step-${maxIdNum + i + 1}`,
-              title: s.title,
-              targetType: s.targetType,
-              operation: s.operation,
-              dependsOn: s.dependsOn ?? [],
-              task: s.task,
-              done: false,
-              completedAt: null,
-            }));
-          const finalSteps = [...doneSteps, ...incoming];
-          md = planDoc.renderPlanDoc({
-            title: parsed.title,
-            status: parsed.status,
-            createdAt: new Date().toISOString(),
-            intent: '',
-            assumptions: [],
-            steps: finalSteps,
-            log: [],
-          });
-        } else {
-          return { ok: false, error: `unknown op: ${args.op}` };
-        }
-        await planDoc.writePlanDoc(task.id, md);
-        emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
-        return { ok: true };
-      } catch (err) {
-        return { ok: false, error: err.message };
-      }
-    },
-  };
-
-  const dispatchSubagent = {
-    definition: dispatchSubagentDefinition,
-    execute: async (args) => {
-      try {
-        const md = await planDoc.readPlanDoc(task.id);
-        const parsed = planDoc.parsePlanDoc(md);
-        const step = parsed.steps.find((s) => s.id === args.stepId);
-        if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
-        if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
-        emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: step.id, title: step.title });
-        let outcome;
-        try {
-          const result = await dispatchSubAgent({
-            stepId: step.id,
-            targetType: step.targetType,
-            operation: step.operation,
-            entityRef: step.dependsOn[0] ?? null,
-            task: step.task,
-            context: task.context,
-            emitFn,
-            runId,
-            cancelCheck: () => task.status === 'cancelled',
-          });
-          if (result?.success === false) {
-            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
-            outcome = { ok: false, error: result.error ?? 'subagent reported failure' };
-          } else {
-            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: step.id, result });
-            outcome = { ok: true, summary: result?.summary ?? '' };
-          }
-        } catch (err) {
-          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: err.message });
-          outcome = { ok: false, error: err.message };
-        }
-
-        // 暂停语义闭环（spec §6.4）：step 终态写入后，检查 pendingUserMessages。
-        // 有挂起消息 → 切 paused、emit、把消息追加到 task.messages，提示 LLM 停止后续 dispatch。
-        const pending = taskStore.takeUserMessages(task.id);
-        if (pending.length > 0) {
-          taskStore.setStatus(task.id, 'paused');
-          emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id });
-          for (const m of pending) {
-            taskStore.appendMessage(task.id, { role: 'user', content: m });
-          }
-          return { ...outcome, paused: true, pendingMessages: pending };
-        }
-        return outcome;
-      } catch (err) {
-        return { ok: false, error: err.message };
-      }
-    },
-  };
-
-  const deletePlanDocTool = {
-    definition: deletePlanDocDefinition,
-    execute: async () => {
-      try {
-        await planDoc.deletePlanDoc(task.id);
-        return { ok: true };
-      } catch (err) {
-        return { ok: false, error: err.message };
-      }
-    },
-  };
-
-  const finalizeTask = {
-    definition: finalizeTaskDefinition,
-    execute: async (args) => {
-      try {
-        taskStore.setStatus(task.id, args.terminalStatus);
-        // 模型偶尔会把转义符号自身又转义一次（"\\n"），导致字面 \n 出现在总结正文里。
-        const summary = unescapeLiteralWhitespace(args.summary);
-        taskStore.appendMessage(task.id, { role: 'assistant', content: summary });
-        const eventType = args.terminalStatus === 'completed'
-          ? SSE_EVENTS.TASK_COMPLETED
-          : args.terminalStatus === 'failed'
-            ? SSE_EVENTS.TASK_FAILED
-            : SSE_EVENTS.TASK_CANCELLED;
-        emitFn({ type: eventType, taskId: task.id, summary });
-        return { ok: true };
-      } catch (err) {
-        return { ok: false, error: err.message };
-      }
-    },
-  };
-
-  return [writePlanDoc, editPlanDoc, dispatchSubagent, deletePlanDocTool, finalizeTask];
-}
-
 function buildContextBlock(task, planDocContent) {
   return [
     `# 任务上下文`,
@@ -296,6 +115,100 @@ function buildContextBlock(task, planDocContent) {
     ``,
     planDocContent ? planDocContent : '（尚未生成）',
   ].join('\n');
+}
+
+async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId }) {
+  const all = Array.isArray(task.messages) ? task.messages : [];
+  const totalChars = summarizeMessages(all).chars;
+  let prefixCount = Math.max(0, all.length - ASSISTANT_CONTEXT_RAW_LIMIT);
+  if (prefixCount === 0 && all.length > 1 && totalChars > ASSISTANT_CONTEXT_CHAR_LIMIT) {
+    prefixCount = all.length - 1;
+  }
+  if (prefixCount <= 0) return clearModelContext(task);
+
+  const prefix = all.slice(0, prefixCount);
+  const prefixChars = summarizeMessages(prefix).chars;
+  if (prefix.length <= ASSISTANT_CONTEXT_RAW_LIMIT && prefixChars <= ASSISTANT_CONTEXT_CHAR_LIMIT) {
+    return clearModelContext(task);
+  }
+
+  const lastSummaryId = task.modelContext?.summarizedUntilMessageId ?? null;
+  const latestPrefixId = prefix.at(-1)?.id ?? null;
+  if (lastSummaryId === latestPrefixId && task.modelContext?.summary) {
+    return task.modelContext;
+  }
+
+  const summaryMessages = [
+    {
+      role: 'system',
+      content: [
+        '你在为写卡助手压缩对话上下文。',
+        '输出 6 行以内中文摘要。',
+        '只保留：用户目标、已确认约束、已完成/失败步骤、未决问题、下一步待办。',
+        '不要复述无关细节，不要使用 Markdown 标题。',
+      ].join('\n'),
+    },
+    {
+      role: 'user',
+      content: prefix.map((m) => `${m.role}: ${m.content}`).join('\n\n'),
+    },
+  ];
+  const summary = String(await llm.complete(summaryMessages, {
+    temperature: 0.2,
+    thinking_level: null,
+    configScope,
+    cacheableSystem: systemPrompt,
+  }) ?? '').trim();
+  const modelContext = {
+    summary,
+    summarizedUntilMessageId: latestPrefixId,
+    sourceMessageCount: prefix.length,
+    sourceChars: prefixChars,
+  };
+  taskStore.setModelContext(task.id, modelContext);
+  log.info(`CONTEXT_SUMMARY  ${formatMeta({ runId, taskId: task.id, sourceMsgs: prefix.length, sourceChars: prefixChars, summaryChars: summary.length })}`);
+  return modelContext;
+}
+
+function buildModelMessages(task, systemPrompt, contextBlock) {
+  const all = Array.isArray(task.messages) ? task.messages : [];
+  const modelContext = task.modelContext;
+  let rawStart = 0;
+  if (modelContext?.summarizedUntilMessageId) {
+    const idx = all.findIndex((m) => m.id === modelContext.summarizedUntilMessageId);
+    rawStart = idx >= 0 ? idx + 1 : 0;
+  }
+  const rawTail = all.slice(rawStart);
+  const messages = [{ role: 'system', content: systemPrompt }];
+  if (modelContext?.summary) {
+    messages.push({
+      role: 'system',
+      content: [
+        '# 历史摘要',
+        modelContext.summary,
+        `（已压缩 ${modelContext.sourceMessageCount ?? 0} 条消息，约 ${modelContext.sourceChars ?? 0} 字）`,
+      ].join('\n'),
+    });
+  }
+  messages.push(...rawTail.map((m) => ({ role: m.role, content: m.content })));
+  messages.push({ role: 'user', content: contextBlock });
+  return {
+    messages,
+    contextCharsBefore: summarizeMessages(all).chars,
+    contextCharsAfter: summarizeMessages(rawTail).chars + String(modelContext?.summary ?? '').length + contextBlock.length,
+    summaryUsed: Boolean(modelContext?.summary),
+    tailMessageCount: rawTail.length,
+  };
+}
+
+function chunkAssistantText(text, chunkSize = ASSISTANT_DELTA_CHUNK_SIZE) {
+  const raw = String(text ?? '');
+  if (!raw) return [];
+  const chunks = [];
+  for (let i = 0; i < raw.length; i += chunkSize) {
+    chunks.push(raw.slice(i, i + chunkSize));
+  }
+  return chunks;
 }
 
 export async function runParentAgent(task, userInput, opts = {}) {
@@ -321,6 +234,10 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const systemPrompt = await loadSystemPrompt();
   const planDocContent = await planDoc.readPlanDoc(task.id).catch(() => '');
   const contextBlock = buildContextBlock(task, planDocContent);
+  const config = getConfig();
+  const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
+  await refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId });
+  const modelPayload = buildModelMessages(task, systemPrompt, contextBlock);
 
   // 工具组装
   const previewTool = createPreviewCardTool({
@@ -346,76 +263,54 @@ export async function runParentAgent(task, userInput, opts = {}) {
     ...buildMetaTools(task, emitFn, runId).map((t) => wrapToolEvents(toLLMTool(t), emitFn, wrapOpts)),
   ];
 
-  // 历史 + 当前轮上下文
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...task.messages.map((m) => ({ role: m.role, content: m.content })),
-    { role: 'user', content: contextBlock },
-  ];
-
-  const config = getConfig();
-  const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
-
   log.info(`START  ${formatMeta({
     runId,
     taskId: task.id,
     status: task.status,
     sentinel: isApprovedSentinel,
     msgs: task.messages.length,
+    contextCharsBefore: modelPayload.contextCharsBefore,
+    contextCharsAfter: modelPayload.contextCharsAfter,
+    summaryUsed: modelPayload.summaryUsed,
+    tailMessageCount: modelPayload.tailMessageCount,
     input: previewText(visibleUserInput, { limit: 120 }),
   })}`);
 
   let assistantMsgId = null;
   let accumulated = '';
   try {
-    // Step 1：非流式 tool-use 循环 → 富化后的 messages
-    const enriched = await llm.resolveToolContext(messages, tools, {
+    const result = await llm.completeWithToolsDetailed(modelPayload.messages, tools, {
       temperature: 0.3,
       thinking_level: null,
       configScope,
-      // 稳定 system prefix（parent-agent.md + CONTRACT.md），用于 provider 显式缓存提示：
-      // Anthropic 自动 prefix cache；Gemini 触发 cachedContents；其他 provider 忽略。
       cacheableSystem: systemPrompt,
     });
-    log.info(`TOOLS_RESOLVED  ${formatMeta({ runId, taskId: task.id, totalMsgs: enriched.length })}`);
+    accumulated = String(result?.text ?? '');
+    log.info(`TOOLS_DONE  ${formatMeta({
+      runId,
+      taskId: task.id,
+      totalMsgs: Array.isArray(result?.messages) ? result.messages.length : modelPayload.messages.length,
+      chars: accumulated.length,
+    })}`);
 
-    // Step 1 内 finalize_task / write_plan_doc 可能已改变状态；终态跳过 Step 2，
-    // 避免在 task_completed 气泡后再追加一条流式气泡。
-    const TERMINAL_AFTER_TOOLS = new Set(['completed', 'failed', 'cancelled']);
-    if (TERMINAL_AFTER_TOOLS.has(task.status)) {
-      emitFn({ type: SSE_EVENTS.DONE, done: true });
-      taskStore.endAllSse(task.id);
-      return;
-    }
-    if (task.status === 'awaiting_approval') {
-      // 连接须保持以接收 plan_approved，不发 done 也不关流
-      return;
-    }
-
-    // 提前落一条空的 assistant 消息，把 id 带在每个 delta 上，前端会 adopt 这个 id 替换本地占位
-    const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
-    assistantMsgId = stamped?.id ?? null;
-
-    // Step 2：流式生成最终文本（仅 planning 状态，即纯对话路径）
-    for await (const chunk of llm.chat(enriched, {
-      temperature: 0.7,
-      thinking_level: null,
-      configScope,
-      // 稳定 system prefix 同上：仅为 cache 提示，不影响 prompt 内容。
-      cacheableSystem: systemPrompt,
-    })) {
-      // 中途被前端 /cancel：丢弃剩余 delta，立即跳出流式循环
-      if (task.status === 'cancelled') break;
-      if (!chunk) continue;
-      accumulated += chunk;
-      emitFn({ type: SSE_EVENTS.DELTA, delta: chunk, messageId: assistantMsgId });
-    }
-
-    // 把累积文本回填到 task.messages 中预占的那条消息
-    if (assistantMsgId) {
-      const t = taskStore.__testables?.tasks?.get(task.id);
-      const m = t?.messages.find((x) => x.id === assistantMsgId);
-      if (m) m.content = accumulated;
+    if (accumulated) {
+      const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
+      assistantMsgId = stamped?.id ?? null;
+      let emittedText = '';
+      for (const chunk of chunkAssistantText(accumulated)) {
+        await yieldToEventLoop();
+        if (task.status === 'cancelled') break;
+        emittedText += chunk;
+        emitFn({ type: SSE_EVENTS.DELTA, delta: chunk, messageId: assistantMsgId });
+      }
+      if (assistantMsgId) {
+        if (task.status === 'cancelled' && emittedText.length === 0) {
+          taskStore.deleteMessage(task.id, assistantMsgId);
+          assistantMsgId = null;
+        } else {
+          taskStore.updateMessageContent(task.id, assistantMsgId, task.status === 'cancelled' ? emittedText : accumulated);
+        }
+      }
     }
 
     log.info(`DONE  ${formatMeta({ runId, taskId: task.id, chars: accumulated.length, status: task.status })}`);
@@ -426,17 +321,24 @@ export async function runParentAgent(task, userInput, opts = {}) {
       taskStore.endAllSse(task.id);
       return;
     }
+    if (isToolLoopControlSignal(err)) {
+      log.info(`CONTROL  ${formatMeta({ runId, taskId: task.id, kind: err.kind, terminalStatus: err.payload?.terminalStatus })}`);
+      if (err.kind === TOOL_LOOP_SIGNAL.TERMINAL) {
+        emitFn({ type: SSE_EVENTS.DONE, done: true });
+        taskStore.endAllSse(task.id);
+        return;
+      }
+      if (err.kind === TOOL_LOOP_SIGNAL.AWAITING_APPROVAL || err.kind === TOOL_LOOP_SIGNAL.PAUSED) {
+        return;
+      }
+    }
     log.error(`FAIL  ${formatMeta({ runId, taskId: task.id, error: err.message })}`);
     // 错误路径：移除预占的 assistant 消息（可能为空或半成品），保持 task.messages 干净
     if (assistantMsgId) {
-      const t = taskStore.__testables?.tasks?.get(task.id);
-      if (t) {
-        const idx = t.messages.findIndex((x) => x.id === assistantMsgId);
-        if (idx >= 0) t.messages.splice(idx, 1);
-      }
+      taskStore.deleteMessage(task.id, assistantMsgId);
     }
     emitFn({ type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
-    taskStore.setStatus(task.id, 'failed');
+    taskStore.setStatus(task.id, 'failed', { error: err.message });
     emitFn({ type: SSE_EVENTS.DONE, done: true });
     taskStore.endAllSse(task.id);
     throw err;
@@ -450,6 +352,9 @@ export const __testables = {
   wrapApply,
   buildContextBlock,
   buildMetaTools,
+  chunkAssistantText,
+  clearModelContext,
   loadSystemPrompt,
   APPROVED_SENTINEL,
+  yieldToEventLoop,
 };

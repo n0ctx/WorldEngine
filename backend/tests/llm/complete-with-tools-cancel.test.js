@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 
 // 回归测试: completeWithTools 顶层入口的重试 catch 必须透传 ToolLoopCancelledError,
-// 不可走 retry 循环 (与 resolveToolContext 对齐)。
+// 不可走 retry 循环。
 test('completeWithTools: 工具抛 ToolLoopCancelledError 不进入重试循环', async (t) => {
   const sandbox = createTestSandbox('llm-complete-tools-cancel', {
     provider_keys: { mock: 'secret' },

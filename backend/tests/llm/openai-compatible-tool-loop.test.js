@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 
 import {
   completeOpenAICompatibleWithTools,
-  resolveToolContextOpenAI,
   buildOpenAICompatibleHeaders,
 } from '../../llm/providers/openai-compatible/index.js';
 import { ToolLoopCancelledError } from '../../llm/tool-loop-control.js';
@@ -193,87 +192,9 @@ test('completeWithTools: handler 抛 ToolLoopCancelledError → 透传不吞', a
   } finally { restore(); }
 });
 
-// =========================
-// resolveToolContextOpenAI
-// =========================
-
-test('resolveToolContext: 单轮无 tool_calls → 返回原 messages 引用', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ content: 'no-tools' }) },
-  ]);
-  const original = [{ role: 'user', content: 'hi' }];
-  try {
-    const out = await resolveToolContextOpenAI(
-      original,
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    assert.equal(out, original, 'must return same reference when no tools were invoked');
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 工具调用 → 返回 enriched messages 含 role:tool 与 assistant.tool_calls', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: { q: 'x' } }] }) },
-    { json: chatResp({ content: 'final' }) },
-  ]);
-  try {
-    const out = await resolveToolContextOpenAI(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'res' },
-      baseConfig(),
-    );
-    assert.ok(Array.isArray(out), 'must return enriched messages array');
-    const assistant = out.find((m) => m.role === 'assistant');
-    assert.ok(assistant, 'enriched messages must include assistant entry');
-    assert.ok(Array.isArray(assistant.tool_calls) && assistant.tool_calls.length > 0, 'assistant must carry tool_calls');
-    const tool = out.find((m) => m.role === 'tool');
-    assert.ok(tool, 'enriched messages must include a role:tool entry');
-    assert.equal(tool.content, 'res');
-  } finally { restore(); }
-});
-
-test('resolveToolContext: handler 抛 ToolLoopCancelledError → 透传不吞', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-  ]);
-  try {
-    await assert.rejects(
-      () => resolveToolContextOpenAI(
-        [{ role: 'user', content: 'hi' }],
-        sampleToolDefs,
-        { lookup: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
-        baseConfig(),
-      ),
-      (err) => err.name === 'ToolLoopCancelledError' && /mock cancel/.test(err.message),
-    );
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 首轮 fetch body 含 max_tokens=1000;二轮含 max_tokens=config.max_tokens', async () => {
-  const { calls, restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-    { json: chatResp({ content: 'final' }) },
-  ]);
-  try {
-    await resolveToolContextOpenAI(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'r' },
-      { ...baseConfig(), max_tokens: 8000 },
-    );
-    assert.equal(calls.length, 2);
-    assert.equal(calls[0].body.max_tokens, 1000, '首轮 max_tokens 应为 1000');
-    assert.equal(calls[1].body.max_tokens, 8000, '二轮 max_tokens 应沿用 config.max_tokens');
-  } finally { restore(); }
-});
-
-// 该测试断言两条路径(complete/resolve)的 Authorization/header 由 buildOpenAICompatibleHeaders 统一构造:
-// grok+conversationId 场景下 resolve 路径应同样附加 x-grok-conv-id。
-// 迁移到 runToolLoop 后两路统一使用 buildOpenAICompatibleHeaders, 该测试启用。
-test('Authorization header 一致性: complete 与 resolve 都用 buildOpenAICompatibleHeaders(含 grok x-grok-conv-id)', async () => {
+// completeWithTools header 由 buildOpenAICompatibleHeaders 统一构造:
+// grok+conversationId 场景下应附加 x-grok-conv-id。
+test('Authorization header: completeWithTools 使用 buildOpenAICompatibleHeaders(含 grok x-grok-conv-id)', async () => {
   const cfg = {
     ...baseConfig(),
     provider: 'grok',
@@ -281,8 +202,7 @@ test('Authorization header 一致性: complete 与 resolve 都用 buildOpenAICom
     conversationId: 'conv_abc',
   };
 
-  // 1. completeWithTools 单轮
-  const seq1 = mockFetchSequence([{ json: chatResp({ content: 'a' }) }]);
+  const { calls, restore } = mockFetchSequence([{ json: chatResp({ content: 'a' }) }]);
   try {
     await completeOpenAICompatibleWithTools(
       [{ role: 'user', content: 'hi' }],
@@ -290,20 +210,8 @@ test('Authorization header 一致性: complete 与 resolve 都用 buildOpenAICom
       {},
       cfg,
     );
-  } finally { seq1.restore(); }
-
-  // 2. resolveToolContext 单轮
-  const seq2 = mockFetchSequence([{ json: chatResp({ content: 'b' }) }]);
-  try {
-    await resolveToolContextOpenAI(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      {},
-      cfg,
-    );
-  } finally { seq2.restore(); }
+  } finally { restore(); }
 
   const expected = buildOpenAICompatibleHeaders(cfg);
-  assert.deepEqual(seq1.calls[0].headers, expected, 'complete path headers must equal buildOpenAICompatibleHeaders');
-  assert.deepEqual(seq2.calls[0].headers, expected, 'resolve path headers must equal buildOpenAICompatibleHeaders');
+  assert.deepEqual(calls[0].headers, expected, 'complete path headers must equal buildOpenAICompatibleHeaders');
 });

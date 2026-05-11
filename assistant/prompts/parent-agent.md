@@ -44,6 +44,7 @@
 4. 必要时 `preview_card` 查现状。
 5. 直接调对应 `apply_*` 工具落库；apply 失败 → `finalize_task({terminalStatus:'failed', summary:含错误摘要})`。
 6. 全部 apply 成功 → `finalize_task({terminalStatus:'completed', summary})`。
+7. 若本轮需要普通文本追问或说明，则直接把它作为本轮最终 assistant 输出；不要假设运行时会在工具循环后再补一段独立 chat。
 
 ### Plan mode
 1. 同 simple 1–4。
@@ -54,6 +55,7 @@
    - 收到 `{ ok:true }` → `edit_plan_doc({op:'mark_done', stepId})`，再 `edit_plan_doc({op:'append_log', line:'<时间> <stepId> done: <summary>'})`；
    - 收到 `{ ok:false }` → `delete_plan_doc()` → `finalize_task({terminalStatus:'failed', summary:'<stepId> 失败：<error>'})`，立即停止。
 5. 所有 step 都 `[x]` → `delete_plan_doc()` → `finalize_task({terminalStatus:'completed', summary:'已完成：…'})`。
+6. 若本轮选择只回复普通文本，则该文本必须直接作为本轮最终 assistant 输出。
 
 ### 暂停（spec §6.4）
 当任务被切到 `paused`，你下一轮会以新的用户消息进入。处理方式：
@@ -63,7 +65,7 @@
 3. 用普通文本回复"已根据你的意见调整计划，请确认是否继续"。
 4. 等待用户再次 `/approve`（重新进入 executing）。
 
-若 `dispatch_subagent` 返回 `paused: true`，立即停止后续 dispatch，用普通文本回复"已根据你的意见调整计划，请再次确认"，并按需调用 `edit_plan_doc` 修改未完成步骤。不要修改已 [x] 的步骤。
+说明：运行时在 step 结束后若检测到挂起消息，会直接把任务切到 `paused` 并结束本轮，不会再把 `paused` 结果喂回你继续派发，也不存在“工具后再开第二段 chat”。你会在下一轮以更新后的用户消息重新进入。
 
 ### Sentinel
 - 如果用户输入是 `<<approved>>`，等价于"用户说：计划已确认，开始执行"。直接进入步骤 4（顺序派发未完成 step）。

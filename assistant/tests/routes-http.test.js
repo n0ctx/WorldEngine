@@ -151,7 +151,7 @@ test('POST /agent/:taskId/truncate 与 /delete 边界', async () => {
 });
 
 test('POST /agent 创建新任务并通过 SSE 收到 task_created + done', async () => {
-  process.env.MOCK_LLM_STREAM = 'hi';
+  process.env.MOCK_LLM_COMPLETE = 'hi';
   const r = await postSSE('/agent', { message: '你好' });
   assert.equal(r.status, 200);
   const types = r.events.map((e) => e.type ?? (e.done ? 'done-flag' : 'unknown'));
@@ -161,7 +161,7 @@ test('POST /agent 创建新任务并通过 SSE 收到 task_created + done', asyn
   assert.ok(taskCreated?.runId, 'task_created 事件应携带 runId');
   assert.equal(typeof taskCreated.runId, 'string');
   assert.ok(r.events.some((e) => e.done));
-  delete process.env.MOCK_LLM_STREAM;
+  delete process.env.MOCK_LLM_COMPLETE;
 });
 
 test('POST /agent 在 executing 任务上仅入队', async () => {

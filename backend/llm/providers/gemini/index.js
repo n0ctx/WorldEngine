@@ -276,7 +276,7 @@ const geminiToolLoopProvider = {
     };
   },
 
-  async oneTurn(state, toolDefs, mode, iter, config) {
+  async oneTurn(state, toolDefs, iter, config) {
     const baseUrl = getBaseUrl(config);
     const model = (config.model || 'gemini-pro').replace(/^models\//, '');
     const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${config.api_key}`;
@@ -284,17 +284,11 @@ const geminiToolLoopProvider = {
     const body = { contents: state.nativeContents, tools: toGeminiTools(toolDefs) };
     if (state.systemInstruction) body.systemInstruction = state.systemInstruction;
     body.generationConfig = {};
-    if (mode === 'resolve') {
-      body.generationConfig.maxOutputTokens = iter === 0 ? 1000 : config.max_tokens;
-      body.generationConfig.temperature = 0;
-    } else {
-      if (config.temperature != null) body.generationConfig.temperature = config.temperature;
-      if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
-    }
+    if (config.temperature != null) body.generationConfig.temperature = config.temperature;
+    if (config.max_tokens != null) body.generationConfig.maxOutputTokens = config.max_tokens;
     body.safetySettings = SAFETY_SETTINGS_OFF;
 
-    const suffix = mode === 'resolve' ? 'resolve' : 'tools';
-    logRawRequest(body, config, config.callType ? `${config.callType}:${suffix}` : `${mode === 'resolve' ? 'resolve' : 'complete'}-tools`);
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -373,18 +367,6 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
     toolDefs,
     toolHandlers,
     config,
-    mode: 'complete',
-  });
-}
-
-export async function resolveToolContextGemini(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: 'gemini', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  return runToolLoop({
-    provider: geminiToolLoopProvider,
-    messages,
-    toolDefs,
-    toolHandlers,
-    config,
-    mode: 'resolve',
+    completeResultMode: config.toolResultMode ?? 'text',
   });
 }

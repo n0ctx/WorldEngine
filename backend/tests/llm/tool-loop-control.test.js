@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   runToolLoop,
   ToolLoopCancelledError,
+  ToolLoopControlSignal,
   isToolLoopCancelledError,
+  isToolLoopControlSignal,
 } from '../../llm/tool-loop-control.js';
 
 // fake provider 工厂:turns 为每次 oneTurn 返回的结果数组
@@ -38,7 +40,6 @@ test('runToolLoop: 首轮就返回 text → 直接结束', async () => {
     toolDefs: [],
     toolHandlers: {},
     config: {},
-    mode: 'complete',
   });
   assert.equal(out, 'hello');
 });
@@ -58,9 +59,30 @@ test('runToolLoop: 工具调用 → 二轮文本', async () => {
     toolDefs: [],
     toolHandlers: { foo: async () => 'foo-result' },
     config: {},
-    mode: 'complete',
   });
   assert.equal(out, 'done');
+});
+
+test('runToolLoop: completeResultMode=detail 返回文本与富化消息', async () => {
+  const provider = fakeProvider([
+    {
+      kind: 'tools',
+      toolCalls: [{ id: 't1', name: 'foo', arguments: {} }],
+      assistantBlock: { role: 'assistant', content: null, tool_calls: [{ id: 't1' }] },
+    },
+    { kind: 'text', text: 'done' },
+  ]);
+  const out = await runToolLoop({
+    provider,
+    messages: [{ role: 'user', content: 'go' }],
+    toolDefs: [],
+    toolHandlers: { foo: async () => 'foo-result' },
+    config: {},
+    completeResultMode: 'detail',
+  });
+  assert.equal(out.text, 'done');
+  assert.ok(Array.isArray(out.messages));
+  assert.equal(out.messages.at(-1).role, 'tool');
 });
 
 test('runToolLoop: cancel 信号透传(handler 抛 ToolLoopCancelledError)', async () => {
@@ -78,9 +100,28 @@ test('runToolLoop: cancel 信号透传(handler 抛 ToolLoopCancelledError)', asy
       toolDefs: [],
       toolHandlers: { cancelTool: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
       config: {},
-      mode: 'complete',
-    }),
+      }),
     (err) => err.name === 'ToolLoopCancelledError' && /mock cancel/.test(err.message),
+  );
+});
+
+test('runToolLoop: control signal 透传(handler 抛 ToolLoopControlSignal)', async () => {
+  const provider = fakeProvider([
+    {
+      kind: 'tools',
+      toolCalls: [{ id: 't1', name: 'pauseTool', arguments: {} }],
+      assistantBlock: { role: 'assistant', tool_calls: [{ id: 't1' }] },
+    },
+  ]);
+  await assert.rejects(
+    () => runToolLoop({
+      provider,
+      messages: [{ role: 'user', content: 'x' }],
+      toolDefs: [],
+      toolHandlers: { pauseTool: async () => { throw new ToolLoopControlSignal('paused', { taskId: 't' }); } },
+      config: {},
+      }),
+    (err) => isToolLoopControlSignal(err) && err.kind === 'paused',
   );
 });
 
@@ -88,7 +129,7 @@ test('runToolLoop: 工具普通 error 被字符串化喂回模型', async () => 
   let fedBack;
   const provider = {
     initState: (messages) => ({ messages: [...messages] }),
-    oneTurn: async (state, defs, mode, iter) => {
+    oneTurn: async (state, defs, iter) => {
       if (iter === 0) {
         return {
           kind: 'tools',
@@ -116,7 +157,6 @@ test('runToolLoop: 工具普通 error 被字符串化喂回模型', async () => 
     toolDefs: [],
     toolHandlers: { boom: async () => { throw new Error('kaboom'); } },
     config: {},
-    mode: 'complete',
   });
   assert.equal(out, 'ok');
   assert.match(fedBack.content, /kaboom/);
@@ -130,7 +170,6 @@ test('runToolLoop: kind=fallback 走 completeNoTools', async () => {
     toolDefs: [],
     toolHandlers: {},
     config: {},
-    mode: 'complete',
   });
   assert.equal(out, 'fallback-no-tools');
 });
@@ -149,51 +188,19 @@ test('runToolLoop: 超 maxIterations 兜底 completeNoTools', async () => {
     toolDefs: [],
     toolHandlers: { foo: async () => 'r' },
     config: {},
-    mode: 'complete',
     maxIterations: 3,
   });
   assert.equal(out, 'fallback-no-tools');
-});
-
-test('runToolLoop: mode=resolve 终态返回 enriched messages', async () => {
-  const provider = fakeProvider([
-    {
-      kind: 'tools',
-      toolCalls: [{ id: 't1', name: 'foo', arguments: {} }],
-      assistantBlock: { role: 'assistant', tool_calls: [{ id: 't1' }] },
-    },
-    { kind: 'text', text: 'final' },
-  ]);
-  const out = await runToolLoop({
-    provider,
-    messages: [{ role: 'user', content: 'x' }],
-    toolDefs: [],
-    toolHandlers: { foo: async () => 'r' },
-    config: {},
-    mode: 'resolve',
-  });
-  assert.ok(Array.isArray(out));
-  // 至少包含 user + assistant + tool 三条
-  assert.ok(out.length >= 3);
-  assert.equal(out[out.length - 1].role, 'tool');
-});
-
-test('runToolLoop: mode=resolve 且首轮 text → 返回原 messages 引用(未 enriched)', async () => {
-  const provider = fakeProvider([{ kind: 'text', text: 'no-tools' }]);
-  const original = [{ role: 'user', content: 'x' }];
-  const out = await runToolLoop({
-    provider,
-    messages: original,
-    toolDefs: [],
-    toolHandlers: {},
-    config: {},
-    mode: 'resolve',
-  });
-  assert.strictEqual(out, original);
 });
 
 test('isToolLoopCancelledError 识别错误', () => {
   assert.equal(isToolLoopCancelledError(new ToolLoopCancelledError('x')), true);
   assert.equal(isToolLoopCancelledError(new Error('x')), false);
   assert.equal(isToolLoopCancelledError({ name: 'ToolLoopCancelledError' }), true);
+});
+
+test('isToolLoopControlSignal 识别错误', () => {
+  assert.equal(isToolLoopControlSignal(new ToolLoopControlSignal('terminal')), true);
+  assert.equal(isToolLoopControlSignal(new Error('x')), false);
+  assert.equal(isToolLoopControlSignal({ name: 'ToolLoopControlSignal' }), true);
 });

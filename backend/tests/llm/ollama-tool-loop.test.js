@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { completeWithTools, resolveToolContext } from '../../llm/providers/ollama/index.js';
+import { completeWithTools } from '../../llm/providers/ollama/index.js';
 import { ToolLoopCancelledError } from '../../llm/tool-loop-control.js';
-import { LLM_TOOL_RESOLUTION_MAX_TOKENS } from '../../utils/constants.js';
 
 // 通用 fetch mock 工厂：按顺序返回预设响应；记录每次入参以便断言
 function mockFetchSequence(responses) {
@@ -145,112 +144,3 @@ test('completeWithTools: handler 抛 ToolLoopCancelledError → 透传不吞', a
   } finally { restore(); }
 });
 
-// =========================
-// resolveToolContext
-// =========================
-
-test('resolveToolContext: 单轮无 tool_calls → 返回原 messages 引用', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ content: 'no-tools' }) },
-  ]);
-  const original = [{ role: 'user', content: 'hi' }];
-  try {
-    const out = await resolveToolContext(
-      original,
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    assert.equal(out, original, 'must return same reference when no tools were invoked');
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 工具调用 → 返回 enriched messages 含 role:tool 与 assistant.tool_calls', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: { q: 'x' } }] }) },
-    { json: chatResp({ content: 'final' }) },
-  ]);
-  try {
-    const out = await resolveToolContext(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'res' },
-      baseConfig(),
-    );
-    assert.ok(Array.isArray(out), 'must return enriched messages array');
-    const assistant = out.find((m) => m.role === 'assistant');
-    assert.ok(assistant, 'enriched messages must include assistant entry');
-    assert.ok(Array.isArray(assistant.tool_calls) && assistant.tool_calls.length > 0, 'assistant entry must carry tool_calls');
-    const tool = out.find((m) => m.role === 'tool');
-    assert.ok(tool, 'enriched messages must include a role:tool entry');
-    assert.equal(tool.content, 'res');
-  } finally { restore(); }
-});
-
-test('resolveToolContext: handler 抛 ToolLoopCancelledError → 透传不吞(迁移后行为)', async () => {
-  const { restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-  ]);
-  try {
-    await assert.rejects(
-      () => resolveToolContext(
-        [{ role: 'user', content: 'hi' }],
-        sampleToolDefs,
-        { lookup: async () => { throw new ToolLoopCancelledError('mock cancel'); } },
-        baseConfig(),
-      ),
-      (err) => err.name === 'ToolLoopCancelledError' && /mock cancel/.test(err.message),
-    );
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 首轮 fetch body 含 temperature=0 + max_tokens=LLM_TOOL_RESOLUTION_MAX_TOKENS', async () => {
-  const { calls, restore } = mockFetchSequence([
-    { json: chatResp({ content: 'no-tools' }) },
-  ]);
-  try {
-    await resolveToolContext(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    assert.equal(calls[0].body.temperature, 0);
-    assert.equal(calls[0].body.max_tokens, LLM_TOOL_RESOLUTION_MAX_TOKENS);
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 二轮 fetch body temperature=0,max_tokens 沿用 config.max_tokens', async () => {
-  const { calls, restore } = mockFetchSequence([
-    { json: chatResp({ toolCalls: [{ name: 'lookup', args: {} }] }) },
-    { json: chatResp({ content: 'final' }) },
-  ]);
-  try {
-    await resolveToolContext(
-      [{ role: 'user', content: 'hi' }],
-      sampleToolDefs,
-      { lookup: async () => 'r' },
-      { ...baseConfig(), max_tokens: 8000 },
-    );
-    assert.equal(calls.length, 2);
-    assert.equal(calls[1].body.temperature, 0);
-    assert.equal(calls[1].body.max_tokens, 8000);
-    assert.notEqual(calls[1].body.max_tokens, LLM_TOOL_RESOLUTION_MAX_TOKENS, '二轮不应再用 RESOLUTION_MAX_TOKENS');
-  } finally { restore(); }
-});
-
-test('resolveToolContext: 4xx 且未 enriched → 返回原 messages 引用', async () => {
-  const { restore } = mockFetchSequence([
-    { status: 500, text: 'oops' },
-  ]);
-  const original = [{ role: 'user', content: 'hi' }];
-  try {
-    const out = await resolveToolContext(
-      original,
-      sampleToolDefs,
-      {},
-      baseConfig(),
-    );
-    assert.equal(out, original, 'fallback before any enrichment must return original reference');
-  } finally { restore(); }
-});

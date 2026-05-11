@@ -7,7 +7,6 @@
 import {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
-  LLM_TOOL_RESOLUTION_MAX_TOKENS,
 } from '../../../utils/constants.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 
@@ -141,16 +140,8 @@ const ollamaToolLoopProvider = {
     return { messages: [...messages] };
   },
 
-  async oneTurn(state, toolDefs, mode, iter, config) {
-    // resolve 模式: 首轮 max_tokens 锁定为 RESOLUTION 常量,temperature 始终为 0; 二轮起仅锁 temperature
-    let effectiveConfig = config;
-    if (mode === 'resolve') {
-      effectiveConfig = iter === 0
-        ? { ...config, max_tokens: LLM_TOOL_RESOLUTION_MAX_TOKENS, temperature: 0 }
-        : { ...config, temperature: 0 };
-    }
-
-    const data = await callWithTools(state.messages, toolDefs, effectiveConfig).catch(() => null);
+  async oneTurn(state, toolDefs, _iter, config) {
+    const data = await callWithTools(state.messages, toolDefs, config).catch(() => null);
     if (!data) return { kind: 'fallback' };
 
     const message = data.choices?.[0]?.message;
@@ -208,17 +199,6 @@ export async function completeWithTools(messages, toolDefs, toolHandlers, config
     toolDefs,
     toolHandlers,
     config,
-    mode: 'complete',
-  });
-}
-
-export async function resolveToolContext(messages, toolDefs, toolHandlers, config) {
-  return runToolLoop({
-    provider: ollamaToolLoopProvider,
-    messages,
-    toolDefs,
-    toolHandlers,
-    config,
-    mode: 'resolve',
+    completeResultMode: config.toolResultMode ?? 'text',
   });
 }

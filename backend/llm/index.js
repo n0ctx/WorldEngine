@@ -2,10 +2,10 @@
  * LLM 接入层 — 统一入口
  *
  * 对外暴露：
- *   chat(messages, options)                  — 流式，返回 AsyncGenerator<string>
- *   complete(messages, options)              — 非流式，返回 string
- *   completeWithTools(messages, tools, opts) — 非流式 + tool-use 循环，返回 string
- *   resolveToolContext(messages, tools, opts) — 流式预检，返回富化后的 messages
+ *   chat(messages, options)                          — 流式，返回 AsyncGenerator<string>
+ *   complete(messages, options)                      — 非流式，返回 string
+ *   completeWithTools(messages, tools, opts)         — 非流式 + tool-use 循环，返回 string
+ *   completeWithToolsDetailed(messages, tools, opts) — 非流式 + tool-use 循环，返回 { text, messages }
  */
 
 import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from '../services/config.js';
@@ -15,7 +15,7 @@ import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
 import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
-import { isToolLoopCancelledError } from './tool-loop-control.js';
+import { isToolLoopCancelledError, isToolLoopControlSignal } from './tool-loop-control.js';
 
 const log = createLogger('llm');
 
@@ -282,6 +282,11 @@ export const __testables = {
  * 若 provider 不支持 tool-use，静默降级为 complete()。
  */
 export async function completeWithTools(messages, tools, options = {}) {
+  const result = await completeWithToolsDetailed(messages, tools, options);
+  return result.text;
+}
+
+export async function completeWithToolsDetailed(messages, tools, options = {}) {
   const llmConfig = buildLLMConfig(options);
   const provider = getProvider(llmConfig.provider);
   const cacheStrategy = getPromptCacheStrategy(llmConfig.provider);
@@ -291,7 +296,10 @@ export async function completeWithTools(messages, tools, options = {}) {
 
   if (typeof provider.completeWithTools !== 'function') {
     log.info(`COMPLETE_TOOLS FALLBACK  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', reason: 'provider-no-tool-use' })}`);
-    return provider.complete(messages, llmConfig);
+    return {
+      text: await provider.complete(messages, llmConfig),
+      messages,
+    };
   }
 
   const { defs, handlers } = splitTools(tools);
@@ -310,24 +318,28 @@ export async function completeWithTools(messages, tools, options = {}) {
   try {
     for (let attempt = 0; attempt <= retry.max; attempt++) {
       try {
-        const result = await provider.completeWithTools(messages, defs, handlers, llmConfig);
+        const result = await provider.completeWithTools(messages, defs, handlers, {
+          ...llmConfig,
+          toolResultMode: 'detail',
+        });
+        const text = typeof result === 'string' ? result : (result?.text ?? '');
         log.info(`COMPLETE_TOOLS DONE  ${formatMeta({
           callType: llmConfig.callType,
           provider: llmConfig.provider,
           model: llmConfig.model || '',
-          len: result?.length ?? 0,
+          len: text.length,
           ms: Date.now() - startedAt,
           promptTokens: llmConfig.usageRef?.prompt_tokens,
           completionTokens: llmConfig.usageRef?.completion_tokens,
           cacheReadTokens: llmConfig.usageRef?.cache_read_tokens,
           cacheCreationTokens: llmConfig.usageRef?.cache_creation_tokens,
           cacheMissTokens: llmConfig.usageRef?.cache_miss_tokens,
-          preview: shouldLogRaw('llm_raw') ? previewText(result) : undefined,
+          preview: shouldLogRaw('llm_raw') ? previewText(text) : undefined,
         })}`);
-        return result;
+        return typeof result === 'string' ? { text: result, messages } : result;
       } catch (err) {
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
-        if (isToolLoopCancelledError(err)) throw err;
+        if (isToolLoopCancelledError(err) || isToolLoopControlSignal(err)) throw err;
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
         lastError = err;
         log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
@@ -342,47 +354,6 @@ export async function completeWithTools(messages, tools, options = {}) {
     throw wrapError(lastError, llmConfig.provider);
   } finally {
     spinnerRemove(spinnerId);
-  }
-}
-
-/**
- * 流式回复前的工具预检：允许 LLM 读取项目文件，返回注入了工具结果的 messages。
- * 若 provider 不支持或出错，静默降级返回原始 messages。
- */
-export async function resolveToolContext(messages, tools, options = {}) {
-  const llmConfig = buildLLMConfig(options);
-  const provider = getProvider(llmConfig.provider);
-  const summary = summarizeMessages(messages);
-
-  if (typeof provider.resolveToolContext !== 'function') return messages;
-
-  const { defs, handlers } = splitTools(tools);
-  log.info(`RESOLVE_TOOLS START  ${formatMeta({
-    callType: llmConfig.callType,
-    provider: llmConfig.provider,
-    model: llmConfig.model || '',
-    msgs: summary.count,
-    chars: summary.chars,
-    tools: defs.map((tool) => tool.function.name),
-  })}`);
-
-  try {
-    const enriched = await provider.resolveToolContext(messages, defs, handlers, llmConfig);
-    const added = enriched.length - messages.length;
-    // 从 enriched 消息里提取实际调用了哪些 tool
-    const calledTools = enriched
-      .filter((m) => m.role === 'assistant' && Array.isArray(m.tool_calls))
-      .flatMap((m) => m.tool_calls.map((tc) => tc.function?.name))
-      .filter(Boolean);
-    log.info(`RESOLVE_TOOLS DONE  ${formatMeta({ callType: llmConfig.callType, provider: llmConfig.provider, model: llmConfig.model || '', added, calledTools: calledTools.length ? calledTools : undefined })}`);
-    return enriched;
-  } catch (err) {
-    if (isToolLoopCancelledError(err)) {
-      log.info(`RESOLVE_TOOLS CANCELLED  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '' })}`);
-      throw err;
-    }
-    log.warn(`RESOLVE_TOOLS FAIL  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', error: err.message })}`);
-    throw wrapError(err, llmConfig.provider);
   }
 }
 

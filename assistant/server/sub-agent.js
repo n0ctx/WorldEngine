@@ -176,8 +176,6 @@ export async function dispatchSubAgent({
       temperature: 0.3,
       thinking_level: null,
       configScope,
-      // 稳定 system prefix（sub-agent.md + 当前 targetType 对应 knowledge.md），用于 provider 显式缓存提示：
-      // Anthropic 自动 prefix cache；Gemini 触发 cachedContents；其他 provider 忽略。
       cacheableSystem: systemPrompt,
     });
     const summary = String(raw ?? '').trim().slice(0, 400);

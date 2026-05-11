@@ -257,6 +257,19 @@ CREATE TABLE IF NOT EXISTS internal_meta (
   updated_at      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS assistant_tasks (
+  id                         TEXT PRIMARY KEY,
+  status                     TEXT NOT NULL,
+  context_json               TEXT NOT NULL,
+  messages_json              TEXT NOT NULL,
+  pending_user_messages_json TEXT NOT NULL,
+  model_context_json         TEXT,
+  created_at                 INTEGER NOT NULL,
+  current_step_id            TEXT,
+  error                      TEXT,
+  updated_at                 INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS session_world_state_values (
   id                 TEXT PRIMARY KEY,
   session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -320,6 +333,7 @@ CREATE INDEX IF NOT EXISTS idx_regex_rules_scope ON regex_rules(scope, sort_orde
 CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
+CREATE INDEX IF NOT EXISTS idx_assistant_tasks_status_updated_at ON assistant_tasks(status, updated_at);
 `;
 
 export function initSchema(db) {

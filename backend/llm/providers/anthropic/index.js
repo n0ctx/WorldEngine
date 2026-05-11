@@ -204,7 +204,7 @@ const anthropicToolLoopProvider = {
     return { messages: [...messages] };
   },
 
-  async oneTurn(state, toolDefs, mode, iter, config) {
+  async oneTurn(state, toolDefs, _iter, config) {
     const baseUrl = getBaseUrl(config);
     const url = `${baseUrl}/v1/messages`;
     const headers = {
@@ -219,24 +219,17 @@ const anthropicToolLoopProvider = {
       model: config.model,
       messages: anthropicMsgs,
       tools: toAnthropicTools(toolDefs),
+      max_tokens: config.max_tokens || 4096,
     };
-    if (mode === 'resolve') {
-      // 对齐原 resolveToolContextAnthropic:首轮 max_tokens 收紧 + temperature=0
-      body.max_tokens = iter === 0 ? 1000 : (config.max_tokens || 4096);
-      body.temperature = 0;
-    } else {
-      body.max_tokens = config.max_tokens || 4096;
-      if (config.temperature != null) body.temperature = config.temperature;
-    }
+    if (config.temperature != null) body.temperature = config.temperature;
     if (system) body.system = withCacheControl(system, config);
 
-    const callTypeSuffix = mode === 'resolve' ? 'resolve' : 'tools';
-    logRawRequest(body, config, config.callType ? `${config.callType}:${callTypeSuffix}` : (mode === 'resolve' ? 'resolve-tools' : 'complete-tools'));
+    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
-      // complete 模式下 400/422 退到无工具补全;resolve 模式向 runToolLoop 一并表达 fallback
+      // 400/422 退到无工具补全
       if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
     }
@@ -293,18 +286,6 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     toolDefs,
     toolHandlers,
     config,
-    mode: 'complete',
-  });
-}
-
-export async function resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  return runToolLoop({
-    provider: anthropicToolLoopProvider,
-    messages,
-    toolDefs,
-    toolHandlers,
-    config,
-    mode: 'resolve',
+    completeResultMode: config.toolResultMode ?? 'text',
   });
 }
