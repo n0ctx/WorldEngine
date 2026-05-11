@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(llm): 补 Gemini 工具循环单测(thought_signature/fallback/cancel),覆盖 completeGeminiWithTools 与 resolveToolContextGemini 的基线行为,为迁移 runToolLoop 提供回归保护
 - refactor(llm): tool-loop-control.js 暴露 runToolLoop 骨架;Anthropic provider 迁移到 4 原语接口(initState/oneTurn/appendToolTurn/completeNoTools/stateToMessages),删除 completeAnthropicWithTools 与 resolveToolContextAnthropic 内的重复循环
 
 - feat(assistant): 父子代理向 llm.* 传 cacheableSystem 选项，触发 Gemini explicit cache 摊薄稳定 prefix 成本
