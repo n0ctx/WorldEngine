@@ -275,7 +275,10 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
       const fn = toolHandlers[block.name];
       let result;
       try { result = fn ? String(await fn(block.input)) : `工具未定义：${block.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
+      catch (e) {
+        if (isToolLoopCancelledError(e)) throw e;
+        result = `工具执行失败：${e.message}`;
+      }
       currentMessages.push({ role: 'tool', tool_call_id: block.id, content: result });
     }
     enriched = true;
