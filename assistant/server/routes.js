@@ -9,6 +9,7 @@
  */
 
 import { Router } from 'express';
+import { randomUUID } from 'node:crypto';
 import { createLogger, formatMeta } from '../../backend/utils/logger.js';
 import {
   normalizeProposal,
@@ -48,9 +49,12 @@ router.post('/agent', async (req, res) => {
 
   let task = taskId ? taskStore.getTask(taskId) : null;
   const isNew = !task;
+  // 与 runParentAgent 内部 run 共享同一 runId，保证 task_created 事件也携带 runId，
+  // 满足 ARCHITECTURE.md §14 "所有由 runParentAgent 触发的 SSE 事件携带 runId" 的契约。
+  const runId = randomUUID().slice(0, 8);
   if (!task) {
     task = taskStore.createTask({ context });
-    res.write(`data: ${JSON.stringify({ type: 'task_created', taskId: task.id, task })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'task_created', taskId: task.id, task, runId })}\n\n`);
   }
   taskStore.attachSse(task.id, res);
   // 注意：必须用 res.on('close')，不能用 req.on('close')。
@@ -76,7 +80,7 @@ router.post('/agent', async (req, res) => {
       return;
     }
     // planning / awaiting_approval / clarifying / paused 都直接走父代理
-    await runParentAgent(task, message, { userMessageId: messageId });
+    await runParentAgent(task, message, { runId, userMessageId: messageId });
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     if (!res.writableEnded) {

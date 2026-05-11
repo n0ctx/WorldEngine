@@ -156,6 +156,10 @@ test('POST /agent 创建新任务并通过 SSE 收到 task_created + done', asyn
   assert.equal(r.status, 200);
   const types = r.events.map((e) => e.type ?? (e.done ? 'done-flag' : 'unknown'));
   assert.ok(types.includes('task_created'));
+  // task_created 事件必须携带 runId（ARCHITECTURE.md §14 契约）
+  const taskCreated = r.events.find((e) => e.type === 'task_created');
+  assert.ok(taskCreated?.runId, 'task_created 事件应携带 runId');
+  assert.equal(typeof taskCreated.runId, 'string');
   assert.ok(r.events.some((e) => e.done));
   delete process.env.MOCK_LLM_STREAM;
 });

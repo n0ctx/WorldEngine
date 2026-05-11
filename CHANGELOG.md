@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): task_created SSE 事件补齐 runId,与 runParentAgent 内部 run 共享同一 runId
 - chore(assistant): 补 callId 形态断言测试,防止默认实现回退到 Math.random
 - test(assistant): 强化 runId 断言为全部事件检查,杜绝偶然事件遮蔽
 - feat(assistant): 写卡助手父代理执行加入 runId,贯穿日志与 SSE 事件便于排查
