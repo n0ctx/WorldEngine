@@ -314,7 +314,7 @@ function buildMetaTools(task, emitFn) {
       type: 'function',
       function: {
         name: 'dispatch_subagent',
-        description: '派发子代理执行计划文档中某未完成的 step；返回 { ok, success, summary } 或 { ok:false, error }。',
+        description: '派发子代理执行计划文档中某未完成的 step；返回 { ok:true, summary } 或 { ok:false, error }。',
         parameters: {
           type: 'object',
           properties: { stepId: { type: 'string' } },

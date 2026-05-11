@@ -22,7 +22,7 @@
 
 - `write_plan_doc({ title, intent, assumptions, steps })`：plan mode 首次落计划文档，状态自动转 `awaiting_approval`。
 - `edit_plan_doc({ op, ... })`：修改文档。`op='replace_steps'` 整体替换未完成步骤；`op='mark_done'(stepId)` 勾选已完成步骤；`op='append_log'(line)` 追加执行日志行。
-- `dispatch_subagent({ stepId })`：派发子代理执行计划中某未完成 step；返回 `{ ok, success, summary }`。
+- `dispatch_subagent({ stepId })`：派发子代理执行计划中某未完成 step；返回 `{ ok:true, summary }` 或 `{ ok:false, error }`。
 - `delete_plan_doc()`：删除计划文档（终态前必调）。
 - `finalize_task({ summary, terminalStatus })`：发总结消息并把任务设为终态；`terminalStatus ∈ {'completed','failed','cancelled'}`。**任何路径都必须以此结束**。
 
@@ -51,8 +51,8 @@
 3. **停笔等待用户 /approve**（`<<approved>>` sentinel 触发执行循环）。
 4. 收到 sentinel 后，顺序处理未完成 step：
    - 调 `dispatch_subagent({stepId})`；
-   - 收到 `{ok:true, success:true}` → `edit_plan_doc({op:'mark_done', stepId})`，再 `edit_plan_doc({op:'append_log', line:'<时间> <stepId> done: <summary>'})`；
-   - 收到 `{ok:false}` 或 `{success:false}` → `delete_plan_doc()` → `finalize_task({terminalStatus:'failed', summary:'<stepId> 失败：<error>'})`，立即停止。
+   - 收到 `{ ok:true }` → `edit_plan_doc({op:'mark_done', stepId})`，再 `edit_plan_doc({op:'append_log', line:'<时间> <stepId> done: <summary>'})`；
+   - 收到 `{ ok:false }` → `delete_plan_doc()` → `finalize_task({terminalStatus:'failed', summary:'<stepId> 失败：<error>'})`，立即停止。
 5. 所有 step 都 `[x]` → `delete_plan_doc()` → `finalize_task({terminalStatus:'completed', summary:'已完成：…'})`。
 
 ### 暂停（spec §6.4）
