@@ -343,10 +343,10 @@ function buildMetaTools(task, emitFn) {
           });
           if (result?.success === false) {
             taskStore.emit(task.id, { type: 'step_failed', taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
-            outcome = { ok: true, success: false, error: result.error ?? 'unknown' };
+            outcome = { ok: false, error: result.error ?? 'subagent reported failure' };
           } else {
             taskStore.emit(task.id, { type: 'step_completed', taskId: task.id, stepId: step.id, result });
-            outcome = { ok: true, success: true, summary: result?.summary ?? '' };
+            outcome = { ok: true, summary: result?.summary ?? '' };
           }
         } catch (err) {
           taskStore.emit(task.id, { type: 'step_failed', taskId: task.id, stepId: step.id, error: err.message });

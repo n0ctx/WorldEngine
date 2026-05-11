@@ -233,3 +233,22 @@ test('runParentAgent：approved sentinel 替换文案', async () => {
   assert.match(firstUser.content, /用户已确认计划/);
   delete process.env.MOCK_LLM_STREAM;
 });
+
+test('dispatch_subagent: 子代理软失败统一映射为 ok:false', async () => {
+  // 让子代理 llm.completeWithTools 抛错 → dispatchSubAgent 返回 {success:false}
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'subagent boom';
+  const task = taskStore.createTask({ context: {} });
+  const md = `# 任务：T\n\n> 状态：executing · 创建时间：x\n\n## 用户意图\ni\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n\n## 执行日志\n`;
+  await planDoc.writePlanDoc(task.id, md);
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  const tools = __testables.buildMetaTools(task, () => {});
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: 'step-1' });
+
+  assert.equal(r.ok, false);
+  assert.ok(r.error, '应当带 error 字段');
+
+  await planDoc.deletePlanDoc(task.id);
+  delete process.env.MOCK_LLM_COMPLETE_ERROR;
+});

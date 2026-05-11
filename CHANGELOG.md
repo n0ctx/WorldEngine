@@ -3,6 +3,8 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): dispatch_subagent 软失败统一返回 {ok:false},避免父代理 LLM 误判推进
+
 ## 2026-05-11 fix(assistant): 取消真正中断 provider tool loop，清空不再篡改终态任务
 
 **问题**：
