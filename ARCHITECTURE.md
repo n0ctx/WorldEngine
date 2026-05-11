@@ -692,6 +692,54 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 
 ---
 
+## §16 Hook 系统
+
+**设计目标**：以会话消息队列为核心，向内部开发者和用户暴露可扩展接入点。
+
+### §16.1 架构
+
+| 文件 | 职责 |
+|---|---|
+| `backend/hooks/hook-registry.js` | 核心引擎：`registerHook(event, fn, opts)` / `runHook(event, payload)` / `listHooks()` |
+| `backend/utils/hook-loader.js` | 启动时扫描 `hooks/` 根目录所有 `.js` 文件（字母序），动态 import 并调用默认导出 |
+| `hooks/` | 用户 DIY 接入点，根目录 `.js` 文件自动加载，`examples/` 子目录不加载 |
+
+**加载时序**：server.js 先 `import './services/cleanup-registrations.js'` 注册内置清理钩子，随后执行 `initSchema(db)`，最后调用 `loadUserHooks()` 扫描 `hooks/`；用户 hook 运行时可安全读取已初始化的数据库 schema。
+
+**失败策略**：单个 hook 抛错只 warn，不中断后续 hook，不影响主流程。
+
+### §16.2 完整事件清单
+
+| 事件 | 触发时机 | 触发位置 | payload 关键字段 |
+|---|---|---|---|
+| `generation:post` | LLM 生成完毕，任务入队前 | `routes/chat.js`（generate/continue）、`routes/writing.js`（generate/continue）| `sessionId`, `worldId`, `taskSpecs[]`, `mode` |
+| `message:user:before` | 用户消息保存前 | `routes/chat.js` POST /chat | `sessionId`, `content`, `attachments` |
+| `message:user:saved` | 用户消息最终持久化后（含附件路径已写回 DB） | `routes/chat.js` POST /chat；`routes/writing.js` generate | `message`, `sessionId` |
+| `message:assistant:saved` | AI 消息保存后 | `services/chat.js` processStreamOutput | `message`, `sessionId`, `aborted` |
+| `message:deleted` | 消息删除后 | `routes/sessions.js` DELETE /messages/:id | `id`, `sessionId` |
+| `message:edited` | 消息内容更新后 | `routes/chat.js` POST /edit-assistant | `id`, `sessionId`, `content` |
+| `queue:task:start` | 队列任务开始执行（非阻塞观测事件） | `utils/async-queue.js` drain | `sessionId`, `label`, `priority` |
+| `queue:task:done` | 队列任务成功完成（非阻塞观测事件） | `utils/async-queue.js` drain | `sessionId`, `label`, `priority`, `ms` |
+| `queue:task:fail` | 队列任务执行失败（非阻塞观测事件） | `utils/async-queue.js` drain | `sessionId`, `label`, `priority`, `error` |
+
+### §16.3 generation:post 的 TaskSpec 接口
+
+`generation:post` 的 `taskSpecs` 是数组引用，用户 hook 可 push 自定义 TaskSpec，复用 `post-gen-runner.js` 和 `async-queue.js` 的全部能力：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `label` | string | 任务标签，用于日志和队列标识 |
+| `priority` | number | 优先级（数字越小越高；内置最低为 4，自定义建议 ≥5） |
+| `fn` | async function | 任务主体 |
+| `condition` | boolean | false 时跳过（默认 true） |
+| `startSseEvent` | string? | 任务开始时推送的 SSE 事件名 |
+| `sseEvent` | string? | 任务完成后推送的 SSE 事件名 |
+| `ssePayload` | function? | 自定义 SSE payload 构造器 |
+| `keepSseAlive` | boolean | true 时阻止 SSE 连接关闭，等待此任务推送完事件 |
+| `tracksState` | boolean? | 注册为状态更新追踪（state 任务专用） |
+
+---
+
 ## §15 文件存储结构
 
 | 路径 | 内容 | 备注 |

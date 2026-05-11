@@ -39,6 +39,7 @@ import {
   sendSse,
 } from './stream-helpers.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { runHook } from '../hooks/hook-registry.js';
 
 const router = Router();
 const log = createLogger('chat');
@@ -239,6 +240,7 @@ async function runStream(sessionId, res, opts = {}) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {
       const taskSpecs = buildChatTaskSpecs({ sessionId, sid, worldId, characterId, session, streamState, res });
+      await runHook('generation:post', { sessionId, worldId, taskSpecs, mode: 'chat' });
       const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
         res, streamState, sid,
         emitSse: (payload) => emitSse(res, sid, payload),
@@ -266,15 +268,17 @@ router.post('/:sessionId/chat', async (req, res) => {
 
   log.info(`POST /chat  ${formatMeta({ session: sessionId.slice(0, 8), len: content.length, attachments: attachments?.length ?? 0, hasDiaryInject: !!diaryInjection })}`);
 
+  await runHook('message:user:before', { sessionId, content, attachments: attachments ?? [] });
   // 保存用户消息
   const userMsg = createMessage({ session_id: sessionId, role: 'user', content });
   touchSession(sessionId);
 
   // 保存附件（写磁盘 + 更新 DB）
   if (attachments && attachments.length > 0) {
-    saveAttachments(userMsg.id, attachments);
+    userMsg.attachments = saveAttachments(userMsg.id, attachments);
     log.info(`ATTACHMENTS SAVED  ${formatMeta({ session: sessionId.slice(0, 8), userMsgId: userMsg.id.slice(0, 8), count: attachments.length })}`);
   }
+  await runHook('message:user:saved', { message: userMsg, sessionId });
 
   await runStream(sessionId, res, {
     userMsgId: userMsg.id,
@@ -479,6 +483,7 @@ router.post('/:sessionId/continue', async (req, res) => {
         sessionId, sid, worldId, characterId, session, streamState, res,
         turnRecordOpts: { isUpdate: true },
       });
+      await runHook('generation:post', { sessionId, worldId, taskSpecs, mode: 'chat' });
       const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
         res, streamState, sid,
         emitSse: (payload) => emitSse(res, sid, payload),
@@ -549,7 +554,9 @@ router.post('/:sessionId/edit-assistant', async (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
 
-  updateMessageContent(messageId, content.trim());
+  const trimmedContent = content.trim();
+  updateMessageContent(messageId, trimmedContent);
+  await runHook('message:edited', { id: messageId, sessionId, content: trimmedContent });
 
   // 仅在编辑当前最后一条 assistant 消息时，重跑状态更新，
   // 避免编辑历史 AI 消息时直接改写当前状态。

@@ -3,6 +3,46 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(hooks): 观测事件改非阻塞，附件消息与启动时序修正
+
+**动机**：首版 hooks 接入把观测事件直接串进主时序，导致慢 hook 会卡住异步队列；`message:user:saved` 在附件落盘前触发；fresh data dir 下用户 hook 可能早于 schema 初始化而加载失败。
+
+**改动**
+- `backend/utils/async-queue.js`：新增 `emitObserverHook()`，`queue:task:start/done/fail` 改为 fire-and-forget；即使 hook 很慢或异常，也不再阻塞任务 resolve、后续队列任务或 SSE 收尾。
+- `backend/services/chat.js`：`saveAttachments()` 改为返回最终相对路径数组，供调用方复用最终态消息对象。
+- `backend/routes/chat.js`：`message:user:saved` 挪到附件保存之后触发；若本轮有附件，会先把 `userMsg.attachments` 更新为最终路径数组，再把 payload 发给 hook。
+- `backend/utils/hook-loader.js` / `backend/server.js`：`hook-loader` 改为显式导出 `loadUserHooks()`；server 在 `initSchema(db)` 之后再调用，确保用户 hook 启动期可安全查询表。
+- `backend/tests/utils/async-queue.test.js`、`backend/tests/routes/chat-extra.test.js`、`backend/tests/server-hooks.test.js`：补队列非阻塞、附件最终态、冷启动 schema 顺序三条回归测试。
+- `ARCHITECTURE.md`：同步修正文档中的 hook 加载顺序、`message:user:saved` 语义和 queue 观测事件语义。
+
+**影响**
+- `queue:task:*` 明确是“观测型、非阻塞”事件；需要强事务语义的 hook 不应挂在这些事件上。
+- `message:user:saved` 现在对附件消息也代表最终 DB 状态，可安全用于镜像/索引/上传处理。
+
+---
+
+## 2026-05-11 feat(hooks): 根目录 hooks/ 系统 — 以会话消息队列为核心
+
+**动机**：允许内部开发者和用户在不改动核心代码的情况下，向会话消息队列注入自定义任务、监听消息生命周期、观测队列任务执行事件。
+
+**改动**
+- 新增 `backend/hooks/hook-registry.js` — 通用 hook 引擎（registerHook / runHook / listHooks）
+- 新增 `backend/utils/hook-loader.js` — 启动时扫描根目录 `hooks/*.js` 并自动加载
+- `backend/server.js` — 新增 `import './utils/hook-loader.js'` 副作用 import
+- `backend/utils/async-queue.js` — drain 函数加 `queue:task:start/done/fail` hook
+- `backend/services/chat.js` — processStreamOutput 加 `message:assistant:saved` hook
+- `backend/routes/chat.js` — POST /chat 加 `message:user:before/saved`；edit-assistant 加 `message:edited`；generate/continue 两处加 `generation:post`
+- `backend/routes/writing.js` — generate/continue 两处加 `generation:post`
+- `backend/routes/sessions.js` — DELETE /messages/:id 加 `message:deleted`
+- 新增 `hooks/` 根目录（README.md + .gitkeep + examples/ 三个示例文件）
+- `ARCHITECTURE.md` 新增 §16 Hook 系统
+
+**用户 DIY 方式**：在 `hooks/` 根目录放 `.js` 文件，默认导出 `({ registerHook }) => {}` 函数，重启后端即生效。
+
+**完整事件**：`generation:post` / `message:user:before/saved` / `message:assistant:saved` / `message:deleted` / `message:edited` / `queue:task:start/done/fail`
+
+---
+
 ## 2026-05-11 fix(suggestion): 选项区增加末尾闭合检测 + 副模型兜底补齐
 
 **动机**：开启选项功能后，主模型偶发不输出完整的 `<next_prompt>...</next_prompt>`，或被额外的 think/thinking block 干扰，导致前端本轮拿不到选项区。

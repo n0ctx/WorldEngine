@@ -2,6 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createRouteTestContext } from '../helpers/http.js';
+import { freshImport } from '../helpers/test-env.js';
 import { insertCharacter, insertMessage, insertSession, insertWorld } from '../helpers/fixtures.js';
 import { resetMockEnv } from '../helpers/test-env.js';
 
@@ -130,6 +131,41 @@ test('POST /retitle：LLM 抛错时返回 500', async () => {
   process.env.MOCK_LLM_COMPLETE_ERROR = 'llm dead';
   const r = await postJson(`/api/sessions/${session.id}/retitle`);
   assert.equal(r.status, 500);
+});
+
+test('POST /chat：message:user:saved hook 可拿到已持久化的附件路径', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify([]);
+  const { registerHook } = await freshImport('backend/hooks/hook-registry.js');
+
+  const world = insertWorld(ctx.sandbox.db, { name: '附件城' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: '文件观察者' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  let savedPayload = null;
+
+  registerHook('message:user:saved', async (payload) => {
+    if (payload.sessionId === session.id) {
+      savedPayload = payload;
+    }
+  }, { label: 'message-user-saved-attachments-test' });
+
+  const res = await postJson(`/api/sessions/${session.id}/chat`, {
+    content: '看图',
+    attachments: [{
+      type: 'image',
+      mimeType: 'image/png',
+      data: Buffer.from('fake-png').toString('base64'),
+    }],
+  });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  assert.ok(savedPayload);
+  assert.equal(savedPayload.message.id.length > 0, true);
+  assert.deepEqual(savedPayload.message.attachments, [`attachments/${savedPayload.message.id}_0.png`]);
+
+  const row = ctx.sandbox.db.prepare('SELECT attachments FROM messages WHERE id = ?').get(savedPayload.message.id);
+  assert.equal(row.attachments, JSON.stringify([`attachments/${savedPayload.message.id}_0.png`]));
 });
 
 test('POST /impersonate：session 不存在 → 404；缺 character/world → 400；正常返回 content', async () => {

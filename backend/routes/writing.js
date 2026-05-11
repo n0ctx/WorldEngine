@@ -54,6 +54,7 @@ import {
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { analyzeNearbyForCard } from '../services/nearby-card-maker.js';
+import { runHook } from '../hooks/hook-registry.js';
 
 const router = Router();
 const log = createLogger('writing');
@@ -417,6 +418,7 @@ async function runWritingStream(sessionId, res, opts = {}) {
         },
       ];
 
+      await runHook('generation:post', { sessionId, worldId, taskSpecs, mode: 'writing' });
       const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
         res, streamState, sid,
         emitSse: (payload) => emitSse(res, sid, payload),
@@ -439,10 +441,13 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
   // 若有用户输入则先保存
   let userMsgId = null;
   if (content && typeof content === 'string' && content.trim()) {
-    const userMsg = createMessage({ session_id: sessionId, role: 'user', content: content.trim() });
+    const trimmedContent = content.trim();
+    await runHook('message:user:before', { sessionId, content: trimmedContent, attachments: [] });
+    const userMsg = createMessage({ session_id: sessionId, role: 'user', content: trimmedContent });
     userMsgId = userMsg.id;
     touchWritingSession(sessionId);
-    log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: content.trim().length })}`);
+    await runHook('message:user:saved', { message: userMsg, sessionId });
+    log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: trimmedContent.length })}`);
   }
 
   await runWritingStream(sessionId, res, {
@@ -606,6 +611,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
       },
     ];
 
+    await runHook('generation:post', { sessionId, worldId, taskSpecs, mode: 'writing' });
     const { hasSseWaits } = runPostGenTasks(sessionId, taskSpecs, {
       res, streamState, sid,
       emitSse: (payload) => emitSse(res, sid, payload),

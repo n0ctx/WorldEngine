@@ -18,6 +18,7 @@ import { getConfig as _getStartupConfig } from './services/config.js';
 import './services/cleanup-registrations.js';
 import db from './db/index.js';
 import { initSchema } from './db/schema.js';
+import { loadUserHooks } from './utils/hook-loader.js';
 import configRoutes from './routes/config.js';
 import worldsRoutes from './routes/worlds.js';
 import charactersRoutes from './routes/characters.js';
@@ -97,6 +98,7 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+await loadUserHooks();
 
 export function createApp() {
   const app = express();

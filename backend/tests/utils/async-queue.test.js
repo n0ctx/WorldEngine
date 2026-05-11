@@ -114,3 +114,33 @@ test('waitForQueueIdle 会等待同 session 已入队任务全部结束', async 
   await Promise.all([first, second, idle]);
   assert.deepEqual(order, ['first-start', 'first-end', 'second', 'idle']);
 });
+
+test('queue 观测 hook 不会阻塞任务 resolve', async () => {
+  const { enqueue } = await freshImport('backend/utils/async-queue.js');
+  const { registerHook } = await freshImport('backend/hooks/hook-registry.js');
+  const sessionId = 'session-hook-nonblocking';
+  let releaseHook;
+  const hookGate = new Promise((resolve) => {
+    releaseHook = resolve;
+  });
+  let hookStarted = false;
+
+  registerHook('queue:task:done', async (payload) => {
+    if (payload.sessionId !== sessionId) return;
+    hookStarted = true;
+    await hookGate;
+  }, { label: 'queue-done-nonblocking-test' });
+
+  let resolved = false;
+  const task = enqueue(sessionId, async () => 'ok', 2, 'nonblocking').then((value) => {
+    resolved = true;
+    return value;
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(hookStarted, true);
+  assert.equal(resolved, true);
+  assert.equal(await task, 'ok');
+
+  releaseHook();
+});

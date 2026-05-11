@@ -22,6 +22,7 @@ import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { runHook } from '../hooks/hook-registry.js';
 
 const router = Router();
 const log = createLogger('sessions', 'cyan');
@@ -167,6 +168,7 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   await deleteMessagesAfter(messageId);
   // 删除该消息自身
   await deleteMessage(messageId);
+  await runHook('message:deleted', { id: messageId, sessionId });
 
   // 计算剩余 user 消息数 R，删除 round_index > R-1 的 turn records
   const remaining = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);

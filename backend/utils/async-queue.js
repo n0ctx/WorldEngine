@@ -1,5 +1,6 @@
 import { ASYNC_QUEUE_MAX_SIZE } from './constants.js';
 import { createLogger, formatMeta } from './logger.js';
+import { runHook } from '../hooks/hook-registry.js';
 
 const log = createLogger('queue');
 
@@ -30,6 +31,14 @@ function insertSorted(items, entry) {
   items.splice(i, 0, entry);
 }
 
+function emitObserverHook(event, payload) {
+  Promise.resolve()
+    .then(() => runHook(event, payload))
+    .catch((err) => {
+      log.warn(`queue.hook_failed  ${formatMeta({ event, error: err?.message })}`);
+    });
+}
+
 async function drain(sessionId) {
   const q = queues.get(sessionId);
   if (!q || q.running) return;
@@ -41,12 +50,16 @@ async function drain(sessionId) {
     const tag = `session=${sid} p=${entry.priority} [${entry.label || '?'}]`;
     log.debug(`START  ${tag}`);
     const t0 = Date.now();
+    emitObserverHook('queue:task:start', { sessionId, label: entry.label, priority: entry.priority });
     try {
       const result = await entry.taskFn();
-      log.debug(`DONE   ${tag} +${Date.now() - t0}ms`);
+      const ms = Date.now() - t0;
+      log.debug(`DONE   ${tag} +${ms}ms`);
+      emitObserverHook('queue:task:done', { sessionId, label: entry.label, priority: entry.priority, ms });
       entry.resolve(result);
     } catch (err) {
       log.warn(`queue.task_failed  ${formatMeta({ sessionId: sid, priority: entry.priority, label: entry.label || null, ms: Date.now() - t0, msg: err?.message })}`);
+      emitObserverHook('queue:task:fail', { sessionId, label: entry.label, priority: entry.priority, error: err?.message });
       entry.reject(err);
     }
   }

@@ -12,6 +12,7 @@ import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { stripAsstContext, extractNextPromptOptions, unwrapSoloThinkBlock } from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { runHook } from '../hooks/hook-registry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ATTACHMENTS_DIR = process.env.WE_DATA_DIR
@@ -40,9 +41,10 @@ const MIME_EXT = {
  * 保存 base64 附件到磁盘，并更新消息的 attachments 字段
  * @param {string} messageId
  * @param {Array<{type, data, mimeType}>} attachments
+ * @returns {string[]}
  */
 export function saveAttachments(messageId, attachments) {
-  if (!attachments || attachments.length === 0) return;
+  if (!attachments || attachments.length === 0) return [];
 
   const paths = [];
   const limit = Math.min(attachments.length, MAX_ATTACHMENTS_PER_MESSAGE);
@@ -63,6 +65,8 @@ export function saveAttachments(messageId, attachments) {
   if (paths.length > 0) {
     updateMessageAttachments(messageId, paths);
   }
+
+  return paths;
 }
 
 /**
@@ -269,6 +273,7 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
       updateMessageNextOptions(savedAssistant.id, options);
       savedAssistant.next_options = options;
     }
+    await runHook('message:assistant:saved', { message: savedAssistant, sessionId, aborted: !!aborted });
     touchSessionFn(sessionId);
   }
 
