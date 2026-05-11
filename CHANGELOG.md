@@ -3,6 +3,8 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- refactor(llm): tool-loop-control.js 暴露 runToolLoop 骨架;Anthropic provider 迁移到 4 原语接口(initState/oneTurn/appendToolTurn/completeNoTools/stateToMessages),删除 completeAnthropicWithTools 与 resolveToolContextAnthropic 内的重复循环
+
 - feat(assistant): 父子代理向 llm.* 传 cacheableSystem 选项，触发 Gemini explicit cache 摊薄稳定 prefix 成本
 
 - refactor(assistant): meta 工具 5 件套 schema 外移到 assistant/server/tools/meta/ 子目录

@@ -1,13 +1,12 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE, executeToolCall } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
-import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
-import { isToolLoopCancelledError } from '../../tool-loop-control.js';
+import { runToolLoop } from '../../tool-loop-control.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -21,10 +20,10 @@ function logUsage(model, usage) {
   }));
 }
 
-// 将 system 字符串转为带 cache_control 的数组格式，启用 Anthropic Prompt Caching。
-// 若 config.cacheableSystem 提供了稳定前缀（assembler [1-3.5]），则把 system 拆成
-// stable prefix + dynamic suffix 两段，cache_control 只标在 prefix 上 —— 避免 dynamic
-// 段（时间/状态/附近角色等每轮变化）破坏 cache hash，等价于 openai-compatible 路径
+// 将 system 字符串转为带 cache_control 的数组格式,启用 Anthropic Prompt Caching。
+// 若 config.cacheableSystem 提供了稳定前缀(assembler [1-3.5]),则把 system 拆成
+// stable prefix + dynamic suffix 两段,cache_control 只标在 prefix 上 —— 避免 dynamic
+// 段(时间/状态/附近角色等每轮变化)破坏 cache hash,等价于 openai-compatible 路径
 // 已做的 normalizeOpenAICompatibleMessages 优化。
 function withCacheControl(system, config) {
   if (!system) return undefined;
@@ -62,7 +61,7 @@ export async function* streamAnthropic(messages, config) {
     max_tokens: config.max_tokens || 4096,
     stream: true,
   };
-  // extended thinking 不兼容 temperature（必须为 1），有 thinking 时不传 temperature
+  // extended thinking 不兼容 temperature(必须为 1),有 thinking 时不传 temperature
   if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
   if (system) body.system = withCacheControl(system, config);
@@ -85,7 +84,7 @@ export async function* streamAnthropic(messages, config) {
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
-  // 跟踪当前是否在 thinking block 中（extended thinking 专用）
+  // 跟踪当前是否在 thinking block 中(extended thinking 专用)
   let inThinkingBlock = false;
   let lastUsage = null;
 
@@ -137,7 +136,7 @@ export async function* streamAnthropic(messages, config) {
     }
   }
 
-  // 安全兜底：确保 thinking block 已关闭
+  // 安全兜底:确保 thinking block 已关闭
   if (inThinkingBlock) yield '</think>';
   logUsage(config.model, lastUsage);
 }
@@ -194,25 +193,51 @@ export async function completeAnthropic(messages, config) {
   }).join('');
 }
 
-export async function completeAnthropicWithTools(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': ANTHROPIC_API_VERSION, 'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA };
-  let currentMessages = [...messages];
+// ---------- 工具循环 4 原语 provider ----------
+//
+// state 结构:{ messages }(OpenAI-style 累积消息;每轮 oneTurn 重新 convertToAnthropicMessages)
+// turn   结构:{ kind, toolCalls?, assistantBlock?, text? }
+//   - toolCalls   : OpenAI-style 兼容(供 handler 调度)
+//   - assistantBlock: OpenAI-style 的 assistant 消息(textContent + tool_calls),append 用
+const anthropicToolLoopProvider = {
+  initState(messages) {
+    return { messages: [...messages] };
+  },
 
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
-    const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: config.max_tokens || 4096 };
-    if (config.temperature != null) body.temperature = config.temperature;
+  async oneTurn(state, toolDefs, mode, iter, config) {
+    const baseUrl = getBaseUrl(config);
+    const url = `${baseUrl}/v1/messages`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': config.api_key,
+      'anthropic-version': ANTHROPIC_API_VERSION,
+      'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA,
+    };
+
+    const { system, messages: anthropicMsgs } = convertToAnthropicMessages(state.messages);
+    const body = {
+      model: config.model,
+      messages: anthropicMsgs,
+      tools: toAnthropicTools(toolDefs),
+    };
+    if (mode === 'resolve') {
+      // 对齐原 resolveToolContextAnthropic:首轮 max_tokens 收紧 + temperature=0
+      body.max_tokens = iter === 0 ? 1000 : (config.max_tokens || 4096);
+      body.temperature = 0;
+    } else {
+      body.max_tokens = config.max_tokens || 4096;
+      if (config.temperature != null) body.temperature = config.temperature;
+    }
     if (system) body.system = withCacheControl(system, config);
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
+    const callTypeSuffix = mode === 'resolve' ? 'resolve' : 'tools';
+    logRawRequest(body, config, config.callType ? `${config.callType}:${callTypeSuffix}` : (mode === 'resolve' ? 'resolve-tools' : 'complete-tools'));
     const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
-      if (resp.status === 400 || resp.status === 422) return completeAnthropic(messages, config);
+      // complete 模式下 400/422 退到无工具补全;resolve 模式向 runToolLoop 一并表达 fallback
+      if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
       throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
     }
 
@@ -222,67 +247,64 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
     const textContent = content.filter((b) => b.type === 'text').map((b) => b.text).join('');
 
-    if (!toolUseBlocks.length) return textContent;
-
-    const openaiToolCalls = toolUseBlocks.map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input) } }));
-    currentMessages.push({ role: 'assistant', content: textContent || null, tool_calls: openaiToolCalls });
-    for (const block of toolUseBlocks) {
-      const fn = toolHandlers[block.name];
-      let result;
-      try { result = fn ? String(await fn(block.input)) : `工具未定义：${block.name}`; }
-      catch (e) {
-        if (isToolLoopCancelledError(e)) throw e;
-        result = `工具执行失败：${e.message}`;
-      }
-      currentMessages.push({ role: 'tool', tool_call_id: block.id, content: result });
+    if (!toolUseBlocks.length) {
+      return { kind: 'text', text: textContent };
     }
-  }
 
-  return completeAnthropic(currentMessages, config);
+    const toolCalls = toolUseBlocks.map((b) => ({ id: b.id, name: b.name, arguments: b.input }));
+    const openaiToolCalls = toolUseBlocks.map((b) => ({
+      id: b.id,
+      type: 'function',
+      function: { name: b.name, arguments: JSON.stringify(b.input) },
+    }));
+    return {
+      kind: 'tools',
+      toolCalls,
+      assistantBlock: { role: 'assistant', content: textContent || null, tool_calls: openaiToolCalls },
+    };
+  },
+
+  appendToolTurn(state, turn, results) {
+    const next = { ...state, messages: [...state.messages, turn.assistantBlock] };
+    for (let i = 0; i < turn.toolCalls.length; i++) {
+      next.messages.push({
+        role: 'tool',
+        tool_call_id: turn.toolCalls[i].id,
+        content: results[i],
+      });
+    }
+    return next;
+  },
+
+  async completeNoTools(state, config) {
+    return completeAnthropic(state.messages, config);
+  },
+
+  stateToMessages(state) {
+    return state.messages;
+  },
+};
+
+export async function completeAnthropicWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
+  return runToolLoop({
+    provider: anthropicToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'complete',
+  });
 }
 
 export async function resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': ANTHROPIC_API_VERSION, 'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA };
-  let currentMessages = [...messages];
-  let enriched = false;
-
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
-    const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
-    if (system) body.system = withCacheControl(system, config);
-
-    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
-    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
-      throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
-    }
-
-    const data = await resp.json();
-    if (data.usage) logUsage(config.model, data.usage);
-    const content = data.content || [];
-    const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
-    if (!toolUseBlocks.length) return enriched ? currentMessages : messages;
-
-    const openaiToolCalls = toolUseBlocks.map((b) => ({ id: b.id, type: 'function', function: { name: b.name, arguments: JSON.stringify(b.input) } }));
-    const textContent = content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-    currentMessages.push({ role: 'assistant', content: textContent || null, tool_calls: openaiToolCalls });
-    for (const block of toolUseBlocks) {
-      const fn = toolHandlers[block.name];
-      let result;
-      try { result = fn ? String(await fn(block.input)) : `工具未定义：${block.name}`; }
-      catch (e) {
-        if (isToolLoopCancelledError(e)) throw e;
-        result = `工具执行失败：${e.message}`;
-      }
-      currentMessages.push({ role: 'tool', tool_call_id: block.id, content: result });
-    }
-    enriched = true;
-  }
-
-  return enriched ? currentMessages : messages;
+  return runToolLoop({
+    provider: anthropicToolLoopProvider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'resolve',
+  });
 }
