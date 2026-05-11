@@ -97,6 +97,20 @@ test('POST /agent/:taskId/cancel 切换状态并清理 plan doc', async () => {
   assert.equal(r404.status, 404);
 });
 
+test('POST /agent/:taskId/cancel 对终态任务为 no-op', async () => {
+  const t = taskStore.createTask({ context: {} });
+  t.status = 'completed';
+  await planDoc.writePlanDoc(t.id, '# keep');
+
+  const r = await postJSON(`/agent/${t.id}/cancel`, {});
+  assert.equal(r.status, 200);
+  assert.equal(t.status, 'completed');
+
+  const plan = await getJSON(`/agent/${t.id}/plan-doc`);
+  assert.equal(plan.status, 200);
+  assert.equal(plan.json.content, '# keep');
+});
+
 test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () => {
   const t = taskStore.createTask({ context: {} });
   const r = await postJSON(`/agent/${t.id}/approve`, {});
@@ -163,4 +177,3 @@ test('POST /agent 在 executing 任务上仅入队', async () => {
   await promise;
   assert.equal(t.pendingUserMessages.length, 1);
 });
-

@@ -169,6 +169,30 @@ test('runParentAgent：finalize_task 在 Step 1 切终态后跳过流式', async
   delete process.env.MOCK_LLM_STREAM;
 });
 
+test('runParentAgent：已取消任务会中断 tool loop，不走 failed 分支', async () => {
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'list_resources', arguments: { target: 'worlds' } },
+  ]);
+  process.env.MOCK_LLM_STREAM = 'should-not-appear';
+  const task = taskStore.createTask({ context: {} });
+  taskStore.setStatus(task.id, 'cancelled');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '取消中的任务');
+
+  assert.equal(task.status, 'cancelled');
+  const hasFailed = events.some((e) => /"type":"task_failed"/.test(e));
+  const hasDone = events.some((e) => /"done":\s*true/.test(e));
+  const hasDelta = events.some((e) => /"type":"delta"/.test(e));
+  assert.equal(hasFailed, false);
+  assert.equal(hasDone, true);
+  assert.equal(hasDelta, false);
+
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_STREAM;
+});
+
 test('runParentAgent：write_plan_doc 后停在 awaiting_approval（不发 done）', async () => {
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
     {

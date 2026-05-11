@@ -7,6 +7,7 @@ import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constant
 import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
+import { isToolLoopCancelledError } from '../../tool-loop-control.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -229,7 +230,10 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
       const fn = toolHandlers[block.name];
       let result;
       try { result = fn ? String(await fn(block.input)) : `工具未定义：${block.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
+      catch (e) {
+        if (isToolLoopCancelledError(e)) throw e;
+        result = `工具执行失败：${e.message}`;
+      }
       currentMessages.push({ role: 'tool', tool_call_id: block.id, content: result });
     }
   }

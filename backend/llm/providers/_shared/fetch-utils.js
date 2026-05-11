@@ -1,4 +1,5 @@
 // 跨 provider 共用的 fetch / SSE / 错误处理 / data URL 解析等纯工具。
+import { isToolLoopCancelledError } from '../../tool-loop-control.js';
 
 /** 解析 data URL → { mimeType, data } */
 export function parseDataUrl(dataUrl) {
@@ -87,6 +88,7 @@ export async function executeToolCall(tc, toolHandlers) {
     const args = JSON.parse(tc.function.arguments || '{}');
     return String(await fn(args));
   } catch (e) {
+    if (isToolLoopCancelledError(e)) throw e;
     return `工具执行失败：${e.message}`;
   }
 }

@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as llm from '../../backend/llm/index.js';
+import { ToolLoopCancelledError, isToolLoopCancelledError } from '../../backend/llm/tool-loop-control.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
@@ -119,7 +120,7 @@ function wrapToolEvents(tool, emitFn, task) {
       // 前置闸门：任务已被前端 /cancel，跳过执行（包括 apply_* 这类会落库的副作用工具）
       // 也不发 tool_call_started/completed 事件，避免在已断开的 SSE 上残留运行行
       if (task && task.status === 'cancelled') {
-        return { ok: false, error: 'task cancelled' };
+        throw new ToolLoopCancelledError('task cancelled');
       }
       const callId = Math.random().toString(36).slice(2, 8);
       emitFn({ type: 'tool_call_started', toolName: name, callId });
@@ -130,11 +131,12 @@ function wrapToolEvents(tool, emitFn, task) {
         //   1. SSE 上把这一行标成失败，UI 显示"已取消"而不是绿色成功；
         //   2. 喂给 LLM 一个 ok:false 结果，阻断后续工具基于本次产物链式继续
         //      （例：create world 完成后立刻又 apply character 引用刚刚的 worldId）。
-        // resolveToolContext 下一轮会观察 task.status === 'cancelled' 直接终止循环。
+        // 这里直接抛 ToolLoopCancelledError，让 provider 侧 tool loop 立刻终止，
+        // 而不是把“已取消”当普通 tool result 再喂回模型继续下一轮。
         if (task && task.status === 'cancelled') {
           emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
           log.warn(`TOOL_CANCELLED_MID_FLIGHT  ${formatMeta({ taskId: task.id, tool: name })}`);
-          return { ok: false, error: 'task cancelled mid-execution' };
+          throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
         const success = !(result && result.ok === false);
         emitFn({ type: 'tool_call_completed', toolName: name, callId, success });
@@ -550,6 +552,12 @@ export async function runParentAgent(task, userInput, opts = {}) {
 
     log.info(`DONE  ${formatMeta({ taskId: task.id, chars: accumulated.length, status: task.status })}`);
   } catch (err) {
+    if (isToolLoopCancelledError(err) && task.status === 'cancelled') {
+      log.info(`CANCELLED  ${formatMeta({ taskId: task.id })}`);
+      taskStore.emit(task.id, { type: 'done', done: true });
+      taskStore.endAllSse(task.id);
+      return;
+    }
     log.error(`FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     // 错误路径：移除预占的 assistant 消息（可能为空或半成品），保持 task.messages 干净
     if (assistantMsgId) {

@@ -3,6 +3,24 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(assistant): 取消真正中断 provider tool loop，清空不再篡改终态任务
+
+**问题**：
+- 写卡助手任务被取消后，`resolveToolContext()` 内的 provider tool loop 仍会把 `{ ok:false, error:'task cancelled' }` 当普通 tool result 继续喂回模型，导致取消后还会额外消耗若干轮 LLM / tool iteration。
+- 面板点击“清空”时，只要还有 `taskId` 就会调用 `/cancel`；对已 `completed` / `failed` 的任务，这会把终态结果改写成 `cancelled`，并删除 plan doc。
+
+**修复**：
+- 新增 `backend/llm/tool-loop-control.js`，定义 `ToolLoopCancelledError`。
+- `assistant/server/parent-agent.js`：`wrapToolEvents` 在任务已取消或工具中途取消时，改为抛出 `ToolLoopCancelledError`，不再返回普通 `{ ok:false }`；`runParentAgent()` 捕获该取消哨兵后直接收尾并结束 SSE，不落 `task_failed`。
+- `backend/llm/providers/_shared/fetch-utils.js` 与 anthropic / gemini / ollama provider 的 `resolveToolContext` 工具执行路径：遇到 `ToolLoopCancelledError` 直接上抛，立即终止 provider tool loop；其他工具异常仍维持原有“字符串化失败结果”语义。
+- `backend/llm/index.js`：`resolveToolContext()` 识别取消哨兵，单独记录 `RESOLVE_TOOLS CANCELLED`，不包成普通 LLMError。
+- `assistant/server/routes.js`：`POST /agent/:taskId/cancel` 对 `completed / failed / cancelled` 改为 no-op，不删除 plan doc、不回写状态。
+- `assistant/client/AssistantPanel.jsx`：`handleReset()` 只对 `planning / awaiting_approval / executing / paused` 调 `/cancel`；终态任务仅清本地 UI。
+
+**验证**：
+- `node --test assistant/tests/parent-agent.test.mjs assistant/tests/routes-http.test.js`
+- 手动：让写卡助手进入工具循环后点击“清空”或“停止”，确认旧任务不再继续发起后续 tool call；对已完成任务点“清空”，重新打开面板后其服务端状态与 plan doc 仍保留原终态。
+
 ## 2026-05-11 fix(assistant): 写卡助手响应中点"清空"未真正中断后端
 
 **问题**：写卡助手正在响应时点击"清空"，再发新任务，旧任务仍会继续执行（如继续调用 `apply_*` 落库），表现为"清空后助手还在完成清空前的任务"。

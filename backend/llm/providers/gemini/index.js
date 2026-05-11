@@ -7,6 +7,7 @@ import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
+import { isToolLoopCancelledError } from '../../tool-loop-control.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');
@@ -363,7 +364,10 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
       const fn = toolHandlers[fc.name];
       let result;
       try { result = fn ? String(await fn(fc.args || {})) : `工具未定义：${fc.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
+      catch (e) {
+        if (isToolLoopCancelledError(e)) throw e;
+        result = `工具执行失败：${e.message}`;
+      }
       fnResponses.push({ functionResponse: { name: fc.name, response: { output: result } } });
       currentMessages.push({ role: 'tool', tool_call_id: openaiToolCalls[j].id, content: result });
     }

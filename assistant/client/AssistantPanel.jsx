@@ -22,6 +22,7 @@ import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
+const ACTIVE_CANCELABLE_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
@@ -209,13 +210,13 @@ export default function AssistantPanel() {
   const handleReset = useCallback(() => {
     // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
     // 残留循环会继续调用 apply_* 等落库工具，造成"清空后旧任务仍在执行"的错觉
-    if (taskId) {
+    if (taskId && ACTIVE_CANCELABLE_STATUSES.has(status)) {
       cancelTask(taskId).catch(() => {});
     }
     abortRef.current?.abort?.();
     setIsStreaming(false);
     reset();
-  }, [taskId, reset]);
+  }, [taskId, status, reset]);
 
   const inputDisabled = TERMINAL_STATUSES.has(status);
   const hasRunningItem = messages.some(

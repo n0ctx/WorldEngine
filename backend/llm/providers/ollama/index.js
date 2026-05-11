@@ -10,6 +10,7 @@ import {
   LLM_TOOL_RESOLUTION_MAX_TOKENS,
   LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
 } from '../../../utils/constants.js';
+import { isToolLoopCancelledError } from '../../tool-loop-control.js';
 
 const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
@@ -152,7 +153,10 @@ export async function completeWithTools(messages, toolDefs, toolHandlers, config
       const fn = toolHandlers[tc.function?.name];
       let result;
       try { result = fn ? String(await fn(JSON.parse(tc.function.arguments || '{}'))) : `工具未定义：${tc.function?.name}`; }
-      catch (e) { result = `工具执行失败：${e.message}`; }
+      catch (e) {
+        if (isToolLoopCancelledError(e)) throw e;
+        result = `工具执行失败：${e.message}`;
+      }
       currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: result });
     }
   }

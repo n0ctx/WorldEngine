@@ -15,6 +15,7 @@ import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
 import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
+import { isToolLoopCancelledError } from './tool-loop-control.js';
 
 const log = createLogger('llm');
 
@@ -375,6 +376,10 @@ export async function resolveToolContext(messages, tools, options = {}) {
     log.info(`RESOLVE_TOOLS DONE  ${formatMeta({ callType: llmConfig.callType, provider: llmConfig.provider, model: llmConfig.model || '', added, calledTools: calledTools.length ? calledTools : undefined })}`);
     return enriched;
   } catch (err) {
+    if (isToolLoopCancelledError(err)) {
+      log.info(`RESOLVE_TOOLS CANCELLED  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '' })}`);
+      throw err;
+    }
     log.warn(`RESOLVE_TOOLS FAIL  ${formatMeta({ provider: llmConfig.provider, model: llmConfig.model || '', error: err.message })}`);
     throw wrapError(err, llmConfig.provider);
   }
