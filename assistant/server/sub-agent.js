@@ -118,6 +118,7 @@ export async function dispatchSubAgent({
   context = {},
   emitFn = null,
   runId = null,
+  cancelCheck = null,
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
@@ -135,11 +136,12 @@ export async function dispatchSubAgent({
     character: context?.character ?? null,
   });
 
+  const wrapOpts = cancelCheck ? { cancelCheck } : undefined;
   const tools = [
-    wrapToolEvents(toLLMTool(previewTool), emitFn),
-    wrapToolEvents(toLLMTool(listResources), emitFn),
-    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn),
-    wrapToolEvents(toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })), emitFn),
+    wrapToolEvents(toLLMTool(previewTool), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(listResources), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })), emitFn, wrapOpts),
   ];
 
   const messages = [

@@ -280,6 +280,7 @@ function buildMetaTools(task, emitFn, runId = null) {
             context: task.context,
             emitFn,
             runId,
+            cancelCheck: () => task.status === 'cancelled',
           });
           if (result?.success === false) {
             emitFn({ type: 'step_failed', taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });

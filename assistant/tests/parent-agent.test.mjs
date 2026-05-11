@@ -318,6 +318,37 @@ test('runParentAgent: SSE 事件携带 runId', async () => {
   delete process.env.MOCK_LLM_STREAM;
 });
 
+test('dispatchSubAgent: task.status===cancelled 时子代理工具循环立即中断', async () => {
+  // mock 让子代理想连续调 list_resources → apply_world_card
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'list_resources', arguments: { target: 'worlds' } },
+    { name: 'apply_world_card', arguments: { name: 'w', system_prompt: 'p' } },
+  ]);
+
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  const md = `# 任务：T\n\n> 状态：executing · 创建时间：x\n\n## 用户意图\ni\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n\n## 执行日志\n`;
+  await planDoc.writePlanDoc(task.id, md);
+
+  // 在执行 dispatch 前就把 task 标 cancelled,模拟"用户已点清空"
+  taskStore.setStatus(task.id, 'cancelled');
+
+  const tools = __testables.buildMetaTools(task, () => {}, 'run-12345678');
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: 'step-1' });
+
+  // 期望:子代理在第一轮 tool 调用前的 cancelCheck 命中,
+  //   throw ToolLoopCancelledError → completeWithTools 透传 →
+  //   dispatchSubAgent catch 转 {success:false, error: 'task cancelled'}
+  //   父代理 dispatch_subagent.execute 映射为 {ok:false, error}(Sprint A Task 1)
+  assert.equal(r.ok, false);
+  assert.match(r.error ?? '', /cancel/i);
+
+  await planDoc.deletePlanDoc(task.id);
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+});
+
 test('edit_plan_doc.replace_steps: 非连续 done 不会触发 id 碰撞', async () => {
   const task = taskStore.createTask({ context: {} });
   taskStore.attachSse(task.id, { write: () => {} });
