@@ -3,6 +3,18 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 feat(state-updater): 状态栏更新增加失败重试和 JSON 宽解析兼容
+
+**动机**：LLM 偶发返回带尾部逗号、单行注释或末尾截断的 JSON 时，原实现直接放弃整轮状态更新（`return`），导致状态丢失无感知。
+
+**改动**
+- `backend/utils/constants.js`：新增 `STATE_UPDATE_JSON_RETRY_MAX = 2`（JSON 解析失败时额外重试次数）。
+- `backend/memory/combined-state-updater.js`：
+  - `repairTruncatedJson` 升级为 `repairJsonIssues`（单遍状态机），新增处理：尾部逗号（`{"a":1,}`）、字符串外单行注释（`// ...`），原截断补全功能保留；进入 `inString` 后所有修复逻辑跳过，不破坏字符串内容。
+  - 提取 `extractJsonPatch(raw, sid)` 内部函数，封装 stripThink → 提取 JSON → 标准解析 → repairJsonIssues 修复解析全链路；返回 null 表示解析彻底失败。
+  - LLM 调用+解析段改为 `for (attempt <= STATE_UPDATE_JSON_RETRY_MAX)` 重试循环：JSON 解析失败时记 `JSON RETRY n/N` warn 日志并重新调用 LLM；LLM API 本身失败（`!raw`）不触发重试；全部尝试耗尽后仍失败才记 `JSON PARSE FAIL`。
+  - 压缩路径（`compressOverLimitFields`）的修复调用同步从 `repairTruncatedJson` 更新为 `repairJsonIssues`。
+
 ## 2026-05-11 fix(chat): 流式输出中途刷新后上一轮选项卡重复出现
 
 用户反馈：在 assistant 给出选项卡后点击其中一项，新一轮流式输出中刷新页面，刷新后底部又出现了"上一轮"的同一组选项卡——本应已被消费掉。

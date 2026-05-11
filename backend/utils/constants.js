@@ -78,6 +78,8 @@ export const LLM_TITLE_MAX_TOKENS = 30;
 export const LLM_TURN_SUMMARY_MAX_TOKENS = 900;
 /** 状态更新（combined-state-updater）最大 token 数 */
 export const LLM_STATE_UPDATE_MAX_TOKENS = 2048;
+/** 状态更新 JSON 解析失败时，额外重新调用 LLM 的最大次数（共 1+N 次机会） */
+export const STATE_UPDATE_JSON_RETRY_MAX = 2;
 /** 状态压缩（state-compress）最大 token 数 */
 export const LLM_STATE_COMPRESS_MAX_TOKENS = 512;
 

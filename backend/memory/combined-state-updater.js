@@ -37,7 +37,7 @@ import {
 } from '../db/queries/session-nearby-character-state-values.js';
 import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_UPDATE_JSON_RETRY_MAX } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -73,20 +73,72 @@ function stripThinkBlocks(text) {
     .trim();
 }
 
-function repairTruncatedJson(text) {
+/**
+ * 修复常见 LLM JSON 输出问题（单遍状态机）：
+ *  1. 补全截断括号（原 repairTruncatedJson 功能保留）
+ *  2. 去除字符串外的尾部逗号（{"a":1,} 或 [1,2,]）
+ *  3. 去除字符串外的 JavaScript 单行注释（// ...）
+ *
+ * 进入 inString=true 后所有修复逻辑均跳过，不会破坏字符串内容。
+ */
+function repairJsonIssues(text) {
+  const out = [];
   const stack = [];
   let inString = false;
   let escape = false;
-  for (const ch of text) {
-    if (escape) { escape = false; continue; }
-    if (ch === '\\' && inString) { escape = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
-    if (inString) continue;
-    if (ch === '{') stack.push('}');
-    else if (ch === '[') stack.push(']');
-    else if (ch === '}' || ch === ']') stack.pop();
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { out.push(ch); escape = false; continue; }
+    if (ch === '\\' && inString) { out.push(ch); escape = true; continue; }
+    if (ch === '"') { out.push(ch); inString = !inString; continue; }
+    if (inString) { out.push(ch); continue; }
+
+    // 单行注释：跳过直到行尾
+    if (ch === '/' && i + 1 < text.length && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+      continue;
+    }
+    // 尾部逗号：下一个非空字符是 } 或 ] 时跳过
+    if (ch === ',') {
+      let j = i + 1;
+      while (j < text.length && (text[j] === ' ' || text[j] === '\t' || text[j] === '\n' || text[j] === '\r')) j++;
+      if (text[j] === '}' || text[j] === ']') continue;
+      out.push(ch);
+      continue;
+    }
+    if (ch === '{') { out.push(ch); stack.push('}'); continue; }
+    if (ch === '[') { out.push(ch); stack.push(']'); continue; }
+    if (ch === '}' || ch === ']') { out.push(ch); stack.pop(); continue; }
+    out.push(ch);
   }
-  return text + stack.reverse().join('');
+  return out.join('') + stack.reverse().join('');
+}
+
+/**
+ * 从 LLM 原始输出中提取并解析 JSON patch 对象。
+ * 依次尝试：直接解析 → repairJsonIssues 修复后解析。
+ * 成功返回 patch 对象；失败返回 null。
+ */
+function extractJsonPatch(raw, sid) {
+  try {
+    const cleaned = stripThinkBlocks(raw);
+    const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
+    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
+    if (!match) return null;
+    const jsonStr = match[0];
+    try {
+      return JSON.parse(jsonStr);
+    } catch {
+      const repaired = repairJsonIssues(jsonStr);
+      const result = JSON.parse(repaired);
+      log.info(`JSON REPAIRED  ${formatMeta({ session: sid, appended: repaired.length - jsonStr.length })}`);
+      return result;
+    }
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -251,7 +303,7 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
       const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
       if (match) {
         try { compressed = JSON.parse(match[0]); }
-        catch { compressed = JSON.parse(repairTruncatedJson(match[0])); }
+        catch { compressed = JSON.parse(repairJsonIssues(match[0])); }
       }
     } catch {
       log.warn(`COMPRESS PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
@@ -463,29 +515,26 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   })}`);
 
   // thinking_level 由副模型配置决定（用户在 UI 选择，例如 deepseek 选 thinking_disabled）；这里不再硬编码 null 覆盖。
-  const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
-  if (!raw) return;
-  log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+  // ── LLM 调用 + JSON 解析（含 JSON 失败重试） ────────────────────────────
+  let patch = null;
+  let lastRaw = null;
 
-  let patch;
-  try {
-    const cleaned = stripThinkBlocks(raw);
-    const codeBlock = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-    const jsonSource = codeBlock ? codeBlock[1].trim() : cleaned;
-    // 优先匹配完整 JSON 对象；若 LLM 截断导致末尾无 }，则取从 { 开始的所有内容
-    const match = jsonSource.match(/\{[\s\S]*\}/) || jsonSource.match(/\{[\s\S]*/);
-    if (!match) return;
-    let jsonStr = match[0];
-    try {
-      patch = JSON.parse(jsonStr);
-    } catch {
-      // 尝试补全截断的 JSON（追加缺失的 } / ]）
-      const repaired = repairTruncatedJson(jsonStr);
-      patch = JSON.parse(repaired);
-      log.info(`JSON REPAIRED  ${formatMeta({ session: sid, appended: repaired.length - jsonStr.length })}`);
+  for (let attempt = 0; attempt <= STATE_UPDATE_JSON_RETRY_MAX; attempt++) {
+    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
+    if (!raw) return;  // LLM API 失败，不进入 JSON 重试
+    lastRaw = raw;
+    log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);
+
+    patch = extractJsonPatch(raw, sid);
+    if (patch !== null) break;
+
+    if (attempt < STATE_UPDATE_JSON_RETRY_MAX) {
+      log.warn(`JSON RETRY ${attempt + 1}/${STATE_UPDATE_JSON_RETRY_MAX}  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
     }
-  } catch {
-    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(raw) })}`);
+  }
+
+  if (patch === null) {
+    log.warn(`JSON PARSE FAIL  ${formatMeta({ session: sid, preview: previewText(lastRaw) })}`);
     return;
   }
   if (!patch || typeof patch !== 'object' || Array.isArray(patch)) return;
