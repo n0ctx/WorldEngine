@@ -9,7 +9,8 @@ process.env.ASSISTANT_STATE_DIR = stateDir;
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import * as taskStore from '../server/task-store.js';
+// 动态 import:避免 ESM hoist 把 task-store 抬到 env 注入之前,导致 hydrate() 污染真实 .temp/assistant/
+const taskStore = await import('../server/task-store.js');
 
 function freshTask(ctx = {}) {
   return taskStore.createTask({ context: ctx });
