@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(assistant): 父代理 happy path 集成测(write_plan_doc → approve → dispatch_subagent → finalize_task)
 - fix(assistant): task-store 单测改用动态 import,避免 ESM hoist 导致 hydrate 污染真实 .temp/assistant/
 - test(assistant): task-store 单测走临时目录,不污染 .temp/assistant/
 - refactor(assistant): TERMINAL_TASK_STATUSES 统一在 task-store.js 导出,消除 routes 重复定义
