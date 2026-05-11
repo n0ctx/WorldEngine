@@ -53,7 +53,7 @@ export function buildNearbyPromptSection(pool, fields, opts = {}) {
       const stateStr = p.state && Object.keys(p.state).length
         ? Object.entries(p.state).map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ')
         : '（无）';
-      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '已保存' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}`;
+      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '持续追踪' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}`;
     }).join('\n')
     : '（空）';
 
