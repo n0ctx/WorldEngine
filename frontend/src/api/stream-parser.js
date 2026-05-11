@@ -13,7 +13,9 @@
  *   onMemoryExpandStart(evt)    — 记忆展开开始
  *   onMemoryExpandDone(evt)     — 记忆展开完成
  *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作）
- *   onStateUpdated()            — 状态栏异步更新完成（writing 专有）
+ *   onStateQueued()             — 状态栏整理 LLM 开始调用（整理中出现时机）
+ *   onStateUpdated()            — 状态栏异步更新完成
+ *   onStateUpdateFailed(evt)    — 状态栏更新失败，evt.error 为错误信息
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
  *   onEntriesActivated(entries) — 本轮激活的非常驻条目（运行时展示，不持久化）
  */
@@ -46,7 +48,9 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'memory_expand_start') callbacks.onMemoryExpandStart?.(evt);
           else if (evt.type === 'memory_expand_done') callbacks.onMemoryExpandDone?.(evt);
           else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
+          else if (evt.type === 'state_queued') callbacks.onStateQueued?.();
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
+          else if (evt.type === 'state_update_failed') callbacks.onStateUpdateFailed?.(evt);
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);

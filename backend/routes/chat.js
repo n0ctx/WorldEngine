@@ -82,6 +82,7 @@ function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamSt
       priority: 2,
       fn: () => updateAllStates(worldId, characterId ? [characterId] : [], sessionId),
       tracksState: true,
+      startSseEvent: 'state_queued',
       sseEvent: 'state_updated',
       ssePayload: () => ({ type: 'state_updated' }),
       keepSseAlive: true,

@@ -20,6 +20,7 @@ const log = createLogger('post-gen');
  * @property {number}               priority      — 队列优先级（数字越小越优先）
  * @property {() => Promise<any>}   fn            — 任务函数
  * @property {boolean}              [condition]   — false 时跳过，默认 true
+ * @property {string}               [startSseEvent] — 任务实际开始执行时推送的 SSE event type
  * @property {string}               [sseEvent]    — 完成后推送的 SSE event type（不设则不推）
  * @property {(result: any) => object} [ssePayload] — SSE payload 构造器（默认使用 { type: sseEvent }）
  * @property {boolean}              [keepSseAlive] — 是否将此任务加入 ssePromises 控制连接关闭时机
@@ -37,7 +38,15 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
 
     log.info(`QUEUE ${spec.label.toUpperCase()}  ${formatMeta({ session: sid, priority: spec.priority })}`);
 
-    const rawPromise = enqueue(sessionId, spec.fn, spec.priority, spec.label);
+    // startSseEvent：任务被 dequeue 并实际开始执行时推送（在调用原 fn 之前）
+    const taskFn = spec.startSseEvent
+      ? async () => {
+          if (!streamState.isClientClosed()) emitSse({ type: spec.startSseEvent });
+          return spec.fn();
+        }
+      : spec.fn;
+
+    const rawPromise = enqueue(sessionId, taskFn, spec.priority, spec.label);
 
     // state 任务：记录 Promise，供下一轮 buildContext/buildWritingPrompt 前 await
     if (spec.tracksState) {
@@ -55,7 +64,13 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
             if (payload) emitSse(payload);
           }
         })
-        .catch((err) => log.warn(`后台任务失败 [${spec.label}]:`, err.message));
+        .catch((err) => {
+          log.warn(`后台任务失败 [${spec.label}]:`, err.message);
+          // tracksState 任务失败时通知前端，避免"整理中"状态永久卡住
+          if (spec.tracksState && !streamState.isClientClosed()) {
+            emitSse({ type: 'state_update_failed', error: err.message });
+          }
+        });
       ssePromises.push(ssePromise);
     } else {
       rawPromise.catch((err) => log.warn(`后台任务失败 [${spec.label}]:`, err.message));

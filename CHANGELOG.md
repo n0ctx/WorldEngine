@@ -3,6 +3,23 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(state-bar): 整理中时机对齐 + 失败 Toast 通知
+
+**动机**："整理中" overlay 在状态整理 LLM 完成后才出现（时机错误），且 `updateAllStates()` 失败时前端无任何反馈（静默失败）。
+
+**改动**
+- `backend/utils/post-gen-runner.js`：新增 `TaskSpec.startSseEvent` 字段——任务被 dequeue 并实际开始执行时（调用原 fn 之前）立即推送该 SSE 事件；`keepSseAlive` 任务失败时若 `tracksState=true`，额外推送 `state_update_failed` SSE 事件。
+- `backend/routes/chat.js` / `backend/routes/writing.js`：all-state 任务 spec 加 `startSseEvent: 'state_queued'`（两处 generate/continue）。
+- `frontend/src/api/stream-parser.js`：新增 `state_queued` → `onStateQueued?.()`、`state_update_failed` → `onStateUpdateFailed?.(evt)` 分发。
+- `frontend/src/store/index.js`（锁定文件，最小改动）：追加 `stateQueuedRefreshTick` + `triggerStateQueued()`。
+- `frontend/src/hooks/useSessionState.js`：新增第 4 参数 `stateQueuedTick`；原单一 effect 拆分为两个——Effect A（`stateQueuedTick` 变化 → 立即 `setIsUpdating(true)`），Effect B（`stateTick` 变化 → fetch 数据 → `setIsUpdating(false)`）；sessionId 切换时同步重置 `stateQueuedTickRef`。
+- `frontend/src/components/book/StatePanel.jsx`：从 store 读 `stateQueuedRefreshTick` 作为第 4 参数传给 hook。
+- `frontend/src/components/book/NearbyPanel.jsx`：新增 `stateQueuedTick` prop，透传给 hook。
+- `frontend/src/pages/ChatPage.jsx`：generate/continue 回调新增 `onStateQueued` → `triggerStateQueued()`、`onStateUpdateFailed` → Toast 错误 + `triggerMemoryRefresh()`。
+- `frontend/src/pages/WritingSpacePage.jsx`：新增 `stateQueuedTick` state，generate/continue 回调新增 `onStateQueued` / `onStateUpdateFailed`，`NearbyPanel` 补传 `stateQueuedTick` prop。
+
+**注意**：`writing.js:711` 的直接 `enqueue()`（编辑消息路径）为 REST 端点无 SSE，不支持 startSseEvent，保持原样。
+
 ## 2026-05-11 feat(state-updater): 状态栏更新增加失败重试和 JSON 宽解析兼容
 
 **动机**：LLM 偶发返回带尾部逗号、单行注释或末尾截断的 JSON 时，原实现直接放弃整轮状态更新（`return`），导致状态丢失无感知。

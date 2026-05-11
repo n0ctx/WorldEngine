@@ -95,7 +95,14 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
     set('enum_options', [...form.enum_options, v]);
     setEnumInput('');
   }
-  function removeEnum(v) { set('enum_options', form.enum_options.filter((e) => e !== v)); }
+  function removeEnum(v) {
+    const next = form.enum_options.filter((e) => e !== v);
+    setForm((f) => ({
+      ...f,
+      enum_options: next,
+      default_value: next.includes(f.default_value) ? f.default_value : '',
+    }));
+  }
 
   // ── 列表默认条目 tags ──
   function addListDef(raw) {
@@ -424,6 +431,15 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                   value={ISO_DATETIME_RE.test(form.default_value) ? form.default_value : ''}
                   onChange={(v) => set('default_value', v)}
                   disabled={isRealDiary}
+                />
+              ) : form.type === 'enum' ? (
+                <Select
+                  value={form.default_value}
+                  onChange={(v) => set('default_value', v)}
+                  options={[
+                    { value: '', label: '-' },
+                    ...form.enum_options.map((opt) => ({ value: opt, label: opt })),
+                  ]}
                 />
               ) : (
                 <input className={inputCls} value={form.default_value}
