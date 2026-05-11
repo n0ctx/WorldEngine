@@ -8,7 +8,7 @@
 // 仅 routes.js 仍引用旧 API，将在 Phase 7 一并清理。
 import { randomUUID } from 'node:crypto';
 import { createLogger, formatMeta } from '../../backend/utils/logger.js';
-import { writeTaskFile, deleteTaskFile } from './state-store.js';
+import { writeTaskFile, deleteTaskFile, readAllTasks } from './state-store.js';
 
 const log = createLogger('as-store', 'magenta');
 
@@ -159,5 +159,46 @@ export function emit(taskId, event) {
   }
   if (dropped > 0) log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped, ofTotal: subscribers })}`);
 }
+
+// ─── 启动时同步 hydrate ──────────────────────────────────────────────
+// 把磁盘上的 JSON 反序列化回内存 Map;非终态任务统一转 failed,
+// 因为父代理循环已随上次进程一起死了,继续标 executing 会让前端永远等。
+const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
+function hydrate() {
+  let raw;
+  try {
+    raw = readAllTasks();
+  } catch (err) {
+    log.warn(`HYDRATE_SCAN_FAIL  ${formatMeta({ error: err.message })}`);
+    return;
+  }
+  let restored = 0;
+  let orphaned = 0;
+  for (const data of raw) {
+    if (!data || typeof data.id !== 'string') continue;
+    const task = {
+      id: data.id,
+      status: data.status,
+      context: data.context ?? {},
+      messages: Array.isArray(data.messages) ? data.messages : [],
+      pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
+      createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
+      currentStepId: data.currentStepId ?? null,
+    };
+    if (typeof data.error === 'string') task.error = data.error;
+    if (!TERMINAL.has(task.status)) {
+      task.status = 'failed';
+      task.error = 'interrupted by restart';
+      orphaned += 1;
+      // 同步写回,避免下次再被识为非终态
+      persist(task);
+    }
+    tasks.set(task.id, task);
+    restored += 1;
+  }
+  if (restored > 0) log.info(`HYDRATE  ${formatMeta({ restored, orphaned })}`);
+}
+
+hydrate();
 
 export const __testables = { tasks, sseClients };

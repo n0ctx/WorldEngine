@@ -648,6 +648,7 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
   - `planning`（直接对话回复完成）/ `completed` / `failed` / `cancelled` → `detachSse` + `res.end()`，客户端 `reader.read()` 收到 EOF 后 `streamAgent` 自然 resolve；
   - `awaiting_approval` / `paused` / `executing` → 保留长连接，等用户 `/approve` 或后续 step 事件通过本连接广播；客户端 `handleSend` / `handleRegenerate` / `handleEdit` 起新流前会主动 `abortRef.current.abort()` 触发浏览器断流，Node `res.on('close')` 进而 `detachSse`，避免旧/新连接并发订阅同一份 `emit`（否则会出现 `delta` 字符级双写、`messages_changed` 广播误覆盖本地 store 等竞态）。
 - **落库安全边界**：所有写操作（包括子代理与父代理 simple-mode 直 apply）一律先过 `normalizeProposal()`（`assistant/server/normalize-proposal.js`），再交给 `applyProposal()` 调资源域服务；契约失败抛错后由调用方决定 retry 或上报。
+- **任务态 JSON sidecar**：每次 mutator（createTask / setStatus / appendMessage / deleteMessage / truncateFrom / queueUserMessage / takeUserMessages）同步原子写到 `.temp/assistant/<taskId>.json`（目录可由 `ASSISTANT_STATE_DIR` 覆盖；`assistant/server/state-store.js` 用 `*.json.tmp + renameSync` 落盘，`deleteTask` 同步删文件）。`task-store.js` 模块加载时同步扫目录 hydrate 到内存 Map；非终态（`planning` / `awaiting_approval` / `clarifying` / `paused` / `executing`）统一转 `failed` + `error='interrupted by restart'` 并同步写回磁盘，避免父代理循环已死的 orphan 任务被前端误当活任务。SSE 客户端不持久化。Schema 顶层 `version=1`。
 
 详细字段、proposal schema、operation 约束、知识文件分工见设计文档 `docs/superpowers/specs/2026-05-07-assistant-redesign-design.md` 与 `assistant/knowledge/CONTRACT.md`。
 

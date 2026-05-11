@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- feat(assistant): 进程启动时 hydrate 磁盘任务态,非终态统一转 failed 避免 orphan 任务
 - fix(assistant): persist 序列化补 error 字段;setStatus no-op 时跳过落盘
 - feat(assistant): task-store 每次改写后落 JSON sidecar 到 .temp/assistant/<taskId>.json(写入原子,支持 ASSISTANT_STATE_DIR 覆盖)
 - fix(llm): completeWithTools 重试 catch 透传 ToolLoopCancelledError,与 resolveToolContext 对齐,避免 cancel 触发无谓重试
