@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(llm): 补 Ollama 工具循环单测(complete/resolve 两路 11 测,覆盖 4xx fallback、tool args JSON 解析、cancel 透传基线行为、resolve 首/二轮 max_tokens 切换),为迁移 runToolLoop 提供回归保护
 - refactor(llm): Gemini provider 迁移到 runToolLoop 4 原语(保留 thought_signature 与 nativeContents 原生数组);completeGeminiWithTools 与 resolveToolContextGemini 改为薄包装,删除两份重复 for 循环;cancel 透传统一在 runToolLoop 中处理(complete 路径补齐 cancel 透传);complete 模式 4xx fallback 仍走 initialContents,resolve 模式 4xx 由原 throw 改为 fallback(等价"无可 enrich",Task 4 已批准的差异)
 - test(llm): 补 Gemini 工具循环单测(thought_signature/fallback/cancel),覆盖 completeGeminiWithTools 与 resolveToolContextGemini 的基线行为,为迁移 runToolLoop 提供回归保护
 - refactor(llm): tool-loop-control.js 暴露 runToolLoop 骨架;Anthropic provider 迁移到 4 原语接口(initState/oneTurn/appendToolTurn/completeNoTools/stateToMessages),删除 completeAnthropicWithTools 与 resolveToolContextAnthropic 内的重复循环
