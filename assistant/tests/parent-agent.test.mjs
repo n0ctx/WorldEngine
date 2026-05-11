@@ -476,3 +476,63 @@ test('edit_plan_doc.replace_steps: 非连续 done 不会触发 id 碰撞', async
 
   await planDoc.deletePlanDoc(task.id);
 });
+
+test('runParentAgent: dispatch_subagent 软失败时父代理不应推进到 completed', async () => {
+  // 准备:计划文档含一个未完成 step;task 切到 executing 模拟已 approved
+  const task = taskStore.createTask({ context: {} });
+  const md = [
+    '# 任务：T', '', '> 状态：executing · 创建时间：x', '',
+    '## 用户意图', 'i', '',
+    '## 假设与约束', '- 无', '',
+    '## 步骤', '',
+    '- [ ] **step-1** A（world-card.create）',
+    '  - 依赖：无',
+    '  - 任务：a',
+    '',
+    '## 执行日志', '',
+  ].join('\n');
+  await planDoc.writePlanDoc(task.id, md);
+  taskStore.setStatus(task.id, 'executing');
+
+  // 父代理本轮只调一次 dispatch_subagent;不追加 finalize_task,
+  // 因为我们的核心断言是"软失败不应误标 completed"
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'dispatch_subagent', arguments: { stepId: 'step-1' } },
+  ]);
+  // 子代理走 llm.completeWithTools 时抛错 → dispatchSubAgent 返回 success:false →
+  // 父代理 dispatch_subagent.execute 映射为 {ok:false, error}(Sprint A Task 1)
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'subagent boom';
+  // Step 2 流式阶段不写任何文本,避免影响断言
+  process.env.MOCK_LLM_STREAM = '';
+
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, __testables.APPROVED_SENTINEL);
+
+  const parsed = events
+    .map((e) => { try { return JSON.parse(e.replace(/^data: /, '').trim()); } catch { return null; } })
+    .filter(Boolean);
+
+  // 断言 1: dispatch_subagent 的 tool_call_completed 出现且 success:false
+  const dispatchDone = parsed.find(
+    (e) => e.type === 'tool_call_completed' && e.toolName === 'dispatch_subagent',
+  );
+  assert.ok(dispatchDone, '应有 dispatch_subagent 的 tool_call_completed 事件');
+  assert.equal(dispatchDone.success, false, 'dispatch_subagent 软失败时 success 应为 false');
+
+  // 断言 2: parent task 不应被标 completed(也不应是其他终态——软失败仍可重试)
+  assert.notEqual(taskStore.getTask(task.id).status, 'completed',
+    `软失败后 task.status 不应为 completed,实际:${taskStore.getTask(task.id).status}`);
+
+  // 断言 3: 计划文档仍存在,step-1 未被标 done
+  const after = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const step1 = after.steps.find((s) => s.id === 'step-1');
+  assert.ok(step1, '软失败后 step-1 仍应存在');
+  assert.equal(step1.done, false, '软失败时 step-1 不应被标 done');
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_COMPLETE_ERROR;
+  delete process.env.MOCK_LLM_STREAM;
+});
