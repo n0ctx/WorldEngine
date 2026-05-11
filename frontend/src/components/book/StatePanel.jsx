@@ -78,7 +78,9 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
-  const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, tick);
+  const queuedTick = useStore((s) => s.stateQueuedRefreshTick);
+  const failedTick = useStore((s) => s.stateFailedTick);
+  const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, tick, tick, queuedTick, failedTick);
 
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 

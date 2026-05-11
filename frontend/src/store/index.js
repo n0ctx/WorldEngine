@@ -15,6 +15,12 @@ const useStore = create((set) => ({
 
   memoryRefreshTick: 0,
   triggerMemoryRefresh: () => set((s) => ({ memoryRefreshTick: s.memoryRefreshTick + 1 })),
+
+  stateQueuedRefreshTick: 0,
+  triggerStateQueued: () => set((s) => ({ stateQueuedRefreshTick: s.stateQueuedRefreshTick + 1 })),
+
+  stateFailedTick: 0,
+  triggerStateFailed: () => set((s) => ({ stateFailedTick: s.stateFailedTick + 1 })),
 }));
 
 export default useStore;

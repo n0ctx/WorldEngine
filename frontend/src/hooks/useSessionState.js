@@ -4,23 +4,25 @@ import { fetchDailyEntries } from '../api/daily-entries.js';
 
 const EMPTY_STATE = { world: [], persona: [], character: [] };
 
-export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick) {
+export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick, stateQueuedTick = stateTick, stateFailedTick = 0) {
   const [stateData, setStateData] = useState(null);
   const [diaryEntries, setDiaryEntries] = useState(null);
   const [stateJustChanged, setStateJustChanged] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const latestTicksRef = useRef({ stateTick, diaryTick });
+  const latestTicksRef = useRef({ stateTick, diaryTick, stateQueuedTick });
   const stateTickRef = useRef(stateTick);
   const diaryTickRef = useRef(diaryTick);
+  const stateQueuedTickRef = useRef(stateQueuedTick);
+  const stateFailedTickRef = useRef(stateFailedTick);
   const changedTimerRef = useRef(null);
   const updatingStartRef = useRef(null);
   const stateDataRef = useRef(stateData);
   const diaryEntriesRef = useRef(diaryEntries);
 
   useEffect(() => {
-    latestTicksRef.current = { stateTick, diaryTick };
-  }, [stateTick, diaryTick]);
+    latestTicksRef.current = { stateTick, diaryTick, stateQueuedTick };
+  }, [stateTick, diaryTick, stateQueuedTick]);
 
   useEffect(() => {
     stateDataRef.current = stateData;
@@ -30,6 +32,7 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     diaryEntriesRef.current = diaryEntries;
   }, [diaryEntries]);
 
+  // sessionId 变化：重置所有 tick ref 并重新加载初始数据
   useEffect(() => {
     let cancelled = false;
 
@@ -37,10 +40,12 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
       clearTimeout(changedTimerRef.current);
       stateTickRef.current = latestTicksRef.current.stateTick;
       diaryTickRef.current = latestTicksRef.current.diaryTick;
+      stateQueuedTickRef.current = latestTicksRef.current.stateQueuedTick;
       Promise.resolve().then(() => {
         if (cancelled) return;
         setStateData(EMPTY_STATE);
         setDiaryEntries([]);
+        setIsUpdating(false);
       });
       return () => {
         cancelled = true;
@@ -50,10 +55,12 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     clearTimeout(changedTimerRef.current);
     stateTickRef.current = latestTicksRef.current.stateTick;
     diaryTickRef.current = latestTicksRef.current.diaryTick;
+    stateQueuedTickRef.current = latestTicksRef.current.stateQueuedTick;
     Promise.resolve().then(() => {
       if (cancelled) return;
       setStateData(null);
       setDiaryEntries(null);
+      setIsUpdating(false);
     });
 
     fetchSessionStateValues(sessionId)
@@ -76,6 +83,25 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     };
   }, [sessionId]);
 
+  // Effect A：stateQueuedTick 变化 → 立即显示"整理中" overlay，记录开始时间
+  useEffect(() => {
+    if (!sessionId) return;
+    if (stateQueuedTick === stateQueuedTickRef.current) return;
+    stateQueuedTickRef.current = stateQueuedTick;
+    updatingStartRef.current = Date.now();
+    setIsUpdating(true);
+  }, [sessionId, stateQueuedTick]);
+
+  // Effect C：stateFailedTick 变化 → 仅清除 overlay，不走成功动画
+  useEffect(() => {
+    if (!sessionId) return;
+    if (stateFailedTick === stateFailedTickRef.current) return;
+    stateFailedTickRef.current = stateFailedTick;
+    updatingStartRef.current = null;
+    setIsUpdating(false);
+  }, [sessionId, stateFailedTick]);
+
+  // Effect B：stateTick / diaryTick 变化 → 拉取新数据并隐藏 overlay
   useEffect(() => {
     if (!sessionId) return;
 
@@ -86,16 +112,13 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
     stateTickRef.current = stateTick;
     diaryTickRef.current = diaryTick;
 
-    // diary-only 更新（stateTick 未变）静默刷新，不显示"整理中"overlay
+    // diary-only 更新（stateTick 未变）静默刷新，不显示/隐藏"整理中"overlay
     const showOverlay = shouldRefreshState;
     let cancelled = false;
 
-    if (showOverlay) {
-      updatingStartRef.current = Date.now();
-      setIsUpdating(true);
-    }
-
     (async () => {
+      // 快照本轮 overlay 的"开始时间戳"，用于检测本轮 fetch 完成前是否有新一轮入队
+      const capturedUpdatingStart = updatingStartRef.current;
       try {
         const [nextState, nextDiary] = await Promise.all([
           shouldRefreshState ? fetchSessionStateValues(sessionId) : Promise.resolve(stateDataRef.current),
@@ -104,7 +127,8 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
         if (cancelled) return;
 
         if (showOverlay) {
-          const elapsed = Date.now() - (updatingStartRef.current ?? 0);
+          // 保证 overlay 至少显示 1500ms（从 stateQueuedTick 触发时开始计）
+          const elapsed = Date.now() - (capturedUpdatingStart ?? Date.now());
           const remaining = Math.max(0, 1500 - elapsed);
           await new Promise((resolve) => setTimeout(resolve, remaining));
           if (cancelled) return;
@@ -114,14 +138,18 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
         if (shouldRefreshDiary) setDiaryEntries(nextDiary ?? []);
 
         if (showOverlay) {
-          setIsUpdating(false);
-          clearTimeout(changedTimerRef.current);
-          setStateJustChanged(true);
-          changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1500);
+          // 仅当没有更新的一轮 stateQueuedTick 入队时才清除 overlay 和播放成功动画；
+          // 若 updatingStartRef 已被新一轮 Effect A 改写，说明新一轮"整理中"正在进行，不能打断它。
+          if (updatingStartRef.current === capturedUpdatingStart) {
+            setIsUpdating(false);
+            clearTimeout(changedTimerRef.current);
+            setStateJustChanged(true);
+            changedTimerRef.current = setTimeout(() => setStateJustChanged(false), 1500);
+          }
         }
       } catch {
         if (cancelled) return;
-        if (showOverlay) setIsUpdating(false);
+        if (showOverlay && updatingStartRef.current === capturedUpdatingStart) setIsUpdating(false);
         if (shouldRefreshState) setStateData((prev) => prev ?? EMPTY_STATE);
         if (shouldRefreshDiary) setDiaryEntries((prev) => prev ?? []);
       }
@@ -129,7 +157,6 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick)
 
     return () => {
       cancelled = true;
-      if (showOverlay) setIsUpdating(false);
     };
   }, [sessionId, stateTick, diaryTick]);
 

@@ -75,10 +75,12 @@ export default function NearbyPanel({
   persona,
   stateTick = 0,
   diaryTick = 0,
+  stateQueuedTick = 0,
+  stateFailedTick = 0,
   onDiaryInject,
 }) {
   const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } =
-    useSessionState(sessionId, stateTick, diaryTick);
+    useSessionState(sessionId, stateTick, diaryTick, stateQueuedTick, stateFailedTick);
 
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 

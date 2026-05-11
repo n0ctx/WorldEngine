@@ -481,11 +481,20 @@ export default function ChatPage() {
           setCurrentSession((prev) => (prev ? { ...prev, title } : prev));
         }
       },
+      onStateQueued() {
+        if (isSameSession()) useStore.getState().triggerStateQueued();
+      },
       onStateUpdated() {
         // 状态是 session 级数据：同 session 内迟到事件（用户已开新一轮）也必须刷新面板，
         // 否则第 N 轮 state_updated 会被丢弃，造成"过了一轮才看到状态更新"。切到别的 session 才丢弃。
         stopMemoryWriting(runId);
         if (isSameSession()) useStore.getState().triggerMemoryRefresh();
+      },
+      onStateUpdateFailed(evt) {
+        if (isSameSession()) {
+          useStore.getState().triggerStateFailed();
+          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+        }
       },
       onStateRolledBack() {
         if (isSameSession()) useStore.getState().triggerMemoryRefresh();
@@ -648,9 +657,18 @@ export default function ChatPage() {
         if (assistant) pendingAssistantRef.current = assistant;
         if (options?.length) pendingOptionsRef.current = options;
       },
+      onStateQueued() {
+        if (currentSessionIdRef.current !== continuationSessionId) return;
+        useStore.getState().triggerStateQueued();
+      },
       onStateUpdated() {
         if (currentSessionIdRef.current !== continuationSessionId) return;
         useStore.getState().triggerMemoryRefresh();
+      },
+      onStateUpdateFailed(evt) {
+        if (currentSessionIdRef.current !== continuationSessionId) return;
+        useStore.getState().triggerStateFailed();
+        log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
       },
       onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;

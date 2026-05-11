@@ -79,6 +79,8 @@ export default function WritingSpacePage() {
   const [impersonating, setImpersonating] = useState(false);
   const [stateTick, setStateTick] = useState(0);
   const [diaryTick, setDiaryTick] = useState(0);
+  const [stateQueuedTick, setStateQueuedTick] = useState(0);
+  const [stateFailedTick, setStateFailedTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
   const [error, setError] = useState(null);
   const [memoryRecalling, setMemoryRecalling] = useState(false);
@@ -411,10 +413,19 @@ export default function WritingSpacePage() {
         if (!isSameSession()) return;
         setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title, is_default: 0 } }));
       },
+      onStateQueued() {
+        if (isSameSession()) setStateQueuedTick((tick) => tick + 1);
+      },
       onStateUpdated() {
         // 状态是 session 级数据：同 session 内迟到事件（用户已开新一轮）也必须刷新；切到别的 session 才丢弃。
         stopMemoryWriting(runId);
         if (isSameSession()) setStateTick((tick) => tick + 1);
+      },
+      onStateUpdateFailed(evt) {
+        if (isSameSession()) {
+          setStateFailedTick((tick) => tick + 1);
+          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+        }
       },
       onStateRolledBack() {
         if (isSameSession()) setStateTick((tick) => tick + 1);
@@ -664,10 +675,21 @@ export default function WritingSpacePage() {
         setGenerating(false);
         stopRef.current = null;
       },
+      onStateQueued() {
+        if (currentSessionRef.current?.id === continuationSessionId) {
+          setStateQueuedTick((tick) => tick + 1);
+        }
+      },
       onStateUpdated() {
         stopMemoryWriting();
         if (currentSessionRef.current?.id === continuationSessionId) {
           setStateTick((tick) => tick + 1);
+        }
+      },
+      onStateUpdateFailed(evt) {
+        if (currentSessionRef.current?.id === continuationSessionId) {
+          setStateFailedTick((tick) => tick + 1);
+          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
         }
       },
       onDiaryUpdated() {
@@ -878,6 +900,8 @@ export default function WritingSpacePage() {
             sessionId={currentSession?.id}
             stateTick={stateTick}
             diaryTick={diaryTick}
+            stateQueuedTick={stateQueuedTick}
+            stateFailedTick={stateFailedTick}
             persona={persona}
             onDiaryInject={setPendingDiaryInject}
           />
