@@ -272,8 +272,8 @@ test('resolveToolContext: 首轮 fetch body 含 max_tokens=1000;二轮含 max_to
 
 // 该测试断言两条路径(complete/resolve)的 Authorization/header 由 buildOpenAICompatibleHeaders 统一构造:
 // grok+conversationId 场景下 resolve 路径应同样附加 x-grok-conv-id。
-// 当前(迁移前)resolve 路径硬编码 headers 缺 x-grok-conv-id，迁移后才一致 — commit 1 先 skip。
-test.skip('Authorization header 一致性: complete 与 resolve 都用 buildOpenAICompatibleHeaders(含 grok x-grok-conv-id)', async () => {
+// 迁移到 runToolLoop 后两路统一使用 buildOpenAICompatibleHeaders, 该测试启用。
+test('Authorization header 一致性: complete 与 resolve 都用 buildOpenAICompatibleHeaders(含 grok x-grok-conv-id)', async () => {
   const cfg = {
     ...baseConfig(),
     provider: 'grok',

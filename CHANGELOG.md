@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- refactor(llm): OpenAI-compatible provider 迁移到 runToolLoop 4 原语(initState/oneTurn/appendToolTurn/completeNoTools/stateToMessages);completeOpenAICompatibleWithTools 与 resolveToolContextOpenAI 改为薄包装;reasoning_content 透传(循环内 assistantBlock + 终态 <think>...</think> 拼接)与 4xx 行为差异(complete 400/422 fallback、resolve 任意非 ok 抛错)均保留;executeToolCall 不再被引用(cancel 透传/普通错误字符串化 由 runToolLoop 统一处理);**顺手统一**: resolve 路径原本硬编码 `{ Content-Type, Authorization }` headers,迁移后改用 buildOpenAICompatibleHeaders, 与 complete/stream 路径对齐(grok+conversationId 场景下 resolve 也会附加 x-grok-conv-id);279 → 326 行,主要换取删除两份重复 for 循环 + 两条路径 header 一致
 - test(llm): 补 OpenAI-compatible 工具循环单测(complete/resolve 两路 11 测,覆盖 reasoning_content 终态/透传、4xx fallback、tool args JSON 解析、cancel 透传基线行为、resolve 首/二轮 max_tokens 切换;另含 1 个 grok header 一致性 skip 测,等迁移后启用),为迁移 runToolLoop 提供回归保护
 - refactor(llm): Ollama provider 迁移到 runToolLoop 4 原语(initState/oneTurn/appendToolTurn/completeNoTools/stateToMessages);completeWithTools 与 resolveToolContext 改为薄包装;callWithTools 保留为 fetch+4xx 降级辅助;resolve 路径 cancel 透传由 runToolLoop 统一处理(原 catch 字符串化喂回 → 透传,小幅修复);191 → 235 行,但删除了两份重复 for 循环
 - test(llm): 补 Ollama 工具循环单测(complete/resolve 两路 11 测,覆盖 4xx fallback、tool args JSON 解析、cancel 透传基线行为、resolve 首/二轮 max_tokens 切换),为迁移 runToolLoop 提供回归保护

@@ -1,10 +1,10 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE, executeToolCall, extractProviderError } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE, extractProviderError } from '../_shared/fetch-utils.js';
 import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
-import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
+import { runToolLoop } from '../../tool-loop-control.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -191,18 +191,45 @@ export async function completeOpenAICompatible(messages, config) {
   return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
 }
 
-export async function completeOpenAICompatibleWithTools(messages, toolDefs, toolHandlers, config) {
-  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/chat/completions`;
-  let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
+// ============================================================
+// 工具循环（runToolLoop 4 原语 provider 适配）
+// ============================================================
 
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: config.max_tokens, stream: false };
+// runToolLoop 4 原语 provider 适配
+// 注意: initState 入参 messages 已由薄包装层提前 normalize, 这里直接拷贝即可。
+const openaiCompatibleToolLoopProvider = {
+  initState(messages) {
+    return { messages: [...messages] };
+  },
+
+  async oneTurn(state, toolDefs, mode, iter, config) {
+    const baseUrl = getBaseUrl(config);
+    const url = `${baseUrl}/chat/completions`;
+
+    // resolve 模式: 首轮 max_tokens=1000, 二轮起沿用 config.max_tokens; temperature 默认 0
+    let effectiveMaxTokens = config.max_tokens;
+    let effectiveTemperature = config.temperature;
+    if (mode === 'resolve') {
+      effectiveMaxTokens = iter === 0 ? 1000 : config.max_tokens;
+      effectiveTemperature = config.temperature ?? 0;
+    }
+
+    const body = {
+      model: config.model,
+      messages: state.messages,
+      tools: toolDefs,
+      tool_choice: 'auto',
+      max_tokens: effectiveMaxTokens,
+      stream: false,
+    };
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-    if (thinkingState !== 'enabled') body.temperature = config.temperature;
+    if (thinkingState !== 'enabled') body.temperature = effectiveTemperature;
 
-    logRawRequest(body, config, config.callType ? `${config.callType}:tools` : 'complete-tools');
+    const callType = mode === 'resolve'
+      ? (config.callType ? `${config.callType}:resolve` : 'resolve-tools')
+      : (config.callType ? `${config.callType}:tools` : 'complete-tools');
+    logRawRequest(body, config, callType);
+
     const resp = await fetch(url, {
       method: 'POST',
       headers: buildOpenAICompatibleHeaders(config),
@@ -213,67 +240,87 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
-      if (resp.status === 400 || resp.status === 422) return completeOpenAICompatible(currentMessages, config);
+      // 历史行为: complete 路径 400/422 才降级到 completeOpenAICompatible(无 tools), 其余 status 抛错;
+      // resolve 路径任何 !resp.ok 都直接抛(由 runToolLoop 之外的调用方处理)。
+      if (mode === 'complete' && (resp.status === 400 || resp.status === 422)) {
+        return { kind: 'fallback' };
+      }
       throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
     }
 
     const data = await resp.json();
     assertOpenAICompatibleData(data, config);
     if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
+
     const message = data.choices?.[0]?.message;
-    if (!message) return '';
+    if (!message) return { kind: 'text', text: '' };
 
     if (!message.tool_calls?.length) {
+      // 终态文本: 保留 reasoning_content 拼接格式
       const reasoning = message.reasoning || message.reasoning_content;
       const content = message.content || '';
-      return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
+      return { kind: 'text', text: reasoning ? `<think>${reasoning}</think>\n${content}` : content };
     }
 
-    const assistantMsg = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
-    if (message.reasoning_content) assistantMsg.reasoning_content = message.reasoning_content;
-    currentMessages.push(assistantMsg);
-    for (const tc of message.tool_calls) {
-      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: await executeToolCall(tc, toolHandlers) });
-    }
-  }
+    // 工具调用: tool args JSON 字符串 → 对象, runToolLoop 内部以 fn(call.arguments) 调用 handler
+    const toolCalls = message.tool_calls.map((tc) => {
+      let parsedArgs;
+      try { parsedArgs = JSON.parse(tc.function?.arguments || '{}'); }
+      catch { parsedArgs = {}; }
+      return {
+        id: tc.id,
+        name: tc.function?.name,
+        arguments: parsedArgs,
+      };
+    });
 
-  return completeOpenAICompatible(currentMessages, config);
+    // assistantBlock 保留 OpenAI 原生 tool_calls 结构 + reasoning_content 透传到下一轮
+    const assistantBlock = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
+    if (message.reasoning_content) assistantBlock.reasoning_content = message.reasoning_content;
+
+    return { kind: 'tools', toolCalls, assistantBlock };
+  },
+
+  appendToolTurn(state, turn, results) {
+    const toolMessages = turn.toolCalls.map((c, i) => ({
+      role: 'tool',
+      tool_call_id: c.id,
+      content: results[i],
+    }));
+    return {
+      messages: [...state.messages, turn.assistantBlock, ...toolMessages],
+    };
+  },
+
+  completeNoTools(state, config) {
+    return completeOpenAICompatible(state.messages, config);
+  },
+
+  stateToMessages(state) {
+    return state.messages;
+  },
+};
+
+export async function completeOpenAICompatibleWithTools(messages, toolDefs, toolHandlers, config) {
+  log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
+  return runToolLoop({
+    provider: openaiCompatibleToolLoopProvider,
+    messages: normalizeOpenAICompatibleMessages(messages, config),
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'complete',
+  });
 }
 
 export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers, config) {
   log.debug('provider.request', formatMeta({ provider: config.provider || 'openai', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
-  const baseUrl = getBaseUrl(config);
-  const url = `${baseUrl}/chat/completions`;
-  let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
-  let enriched = false;
-
-  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
-    const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: i === 0 ? 1000 : config.max_tokens, stream: false };
-    const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
-    if (thinkingState !== 'enabled') body.temperature = config.temperature ?? 0;
-
-    logRawRequest(body, config, config.callType ? `${config.callType}:resolve` : 'resolve-tools');
-    const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.api_key}` }, body: JSON.stringify(body), signal: config.signal });
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
-      throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
-    }
-
-    const data = await resp.json();
-    assertOpenAICompatibleData(data, config);
-    if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
-    const message = data.choices?.[0]?.message;
-    if (!message || !message.tool_calls?.length) return enriched ? currentMessages : messages;
-
-    const assistantMsg2 = { role: 'assistant', content: message.content || null, tool_calls: message.tool_calls };
-    if (message.reasoning_content) assistantMsg2.reasoning_content = message.reasoning_content;
-    currentMessages.push(assistantMsg2);
-    for (const tc of message.tool_calls) {
-      currentMessages.push({ role: 'tool', tool_call_id: tc.id, content: await executeToolCall(tc, toolHandlers) });
-    }
-    enriched = true;
-  }
-
-  return enriched ? currentMessages : messages;
+  return runToolLoop({
+    provider: openaiCompatibleToolLoopProvider,
+    messages: normalizeOpenAICompatibleMessages(messages, config),
+    toolDefs,
+    toolHandlers,
+    config,
+    mode: 'resolve',
+  });
 }
