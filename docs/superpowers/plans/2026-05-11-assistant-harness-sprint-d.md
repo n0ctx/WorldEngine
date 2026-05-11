@@ -2,14 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 落地体检报告(`/Users/yunzhiwang/.claude/plans/assistant-harness-agent-harness-enginee-jiggly-lighthouse.md`)中 Sprint D 三项 P3 锦上添花,**严格限定在 `assistant/` 内**:(3.11) SSE 事件类型集中常量、(3.13) Meta 工具 5 件套 schema 外移、(3.12) Knowledge / 稳定 system prefix 通过 `cacheableSystem` 选项透传以摊薄 Gemini explicit cache 成本。
+**Goal:** 落地体检报告(`/Users/yunzhiwang/.claude/plans/assistant-harness-agent-harness-enginee-jiggly-lighthouse.md`)中 Sprint D 四项:(3.11) SSE 事件类型集中常量、(3.13) Meta 工具 5 件套 schema 外移、(3.12) Knowledge / 稳定 system prefix 通过 `cacheableSystem` 选项透传摊薄 Gemini explicit cache 成本、(3.5) tool loop provider-agnostic 抽象 **覆盖所有 4 个 provider**(anthropic / gemini / ollama / openai-compatible)。Task 1-3 在 `assistant/` 内;Task 4-7 触达 `backend/llm/`,显式打破"严格限定 assistant/"边界(已与用户对齐)。
 
-**Architecture:** 三项均为定点改动,**不动锁定文件,不动 `backend/llm/`,不动 `frontend/`**(除非任务明确)。
+**Architecture:**
 - Task 1(3.11):新增 `assistant/server/sse-events.js` 导出常量对象 `SSE_EVENTS = { TASK_CREATED: 'task_created', ... }`,把 4 处现存 emit 调用从字符串字面替换为常量引用;前端 `AssistantPanel` 同步消费(共享常量通过 ESM import,不复制定义)。
 - Task 2(3.13):把 `parent-agent.js` 中 5 件套 meta 工具的 `definition`(schema 部分,约 400 行)外移到 `assistant/server/tools/meta/<name>.js`,每个文件导出 `definition`;`buildMetaTools` 仍闭包 `task` / `emitFn` / `runId` 在 parent-agent.js 内拼接 execute。execute 函数体不动。
 - Task 3(3.12):`assistant/server/parent-agent.js` 与 `sub-agent.js` 在调 `llm.resolveToolContext` / `llm.completeWithTools` / `llm.chat` 时新增 `cacheableSystem` 选项,值为"该 agent 当前的稳定 system prefix"(父:parent-agent.md + CONTRACT.md;子:sub-agent.md + 当前 targetType 的 knowledge.md)。`backend/llm/index.js:127` 已支持此选项,Anthropic/Ollama/OpenAI 忽略,Gemini 触发 explicit cachedContents。**只是把已存在的字符串多塞进一个选项,不重写任何 prompt 组装逻辑**。
+- Task 4-7(3.5):把 `for(i<25) {…}` 工具循环骨架抽到 `backend/llm/tool-loop-control.js`,导出 `runToolLoop({ provider, messages, toolDefs, toolHandlers, config, mode })`(mode='complete' | 'resolve');每个 provider 改为只暴露 4 个原语 — `initState(messages)` / `oneTurn(state, defs, mode, iter, config)` / `appendToolTurn(state, calls, results)` / `completeNoTools(state, config)`,内部不再写循环。Task 4 建骨架 + Anthropic 迁移;Task 5/6/7 分别迁 Gemini / Ollama / OpenAI-compat,每 provider 单独 commit 控制 blast radius。验证:每 task 后跑相应 provider 的 backend 测试 + assistant 集成测全 PASS。
 
-**Tech Stack:** Node.js ESM、React(前端共享常量)、node:test、Anthropic/Gemini provider(只读引用)。
+**Tech Stack:** Node.js ESM、React(前端共享常量)、node:test、4 个 LLM provider(Task 4-7 各自迁移)。
 
 **前置阅读(任何 task 开始前必读)**:
 - `assistant/server/parent-agent.js`(535 行)— 主修改点
@@ -24,12 +25,11 @@
 **项目约束(摘自 `CLAUDE.md`)**:
 - 中文 commit / 注释;一次 task 一个 commit
 - 不动锁定文件:`SCHEMA.md` / `CLAUDE.md` / `backend/db/schema.js` / `backend/utils/constants.js` / `backend/prompts/assembler.js` / `frontend/src/store/index.js` / `server.js`
-- 不动 `backend/llm/providers/*/index.js`(3.5 在范围外)
+- **Task 4-7 显式允许改 `backend/llm/tool-loop-control.js` 与 `backend/llm/providers/*/index.js`**(4 个 provider)
 - 直接 commit 到 main 分支(用户偏好,无 PR)
-- 测试通过 `npm run check`(lint + 前后端 + assistant 单测)
+- 测试通过 `npm run check`(lint + 前后端 + assistant 单测);Task 4-7 每次都需跑 `backend/tests/llm/` 全套 + assistant 集成测
 
 **不在本 Sprint 范围:**
-- **3.5 tool loop provider-agnostic 抽象** — 全在 `backend/llm/providers/`,与 assistant 正交,留作独立任务
 - **3.1 父代理两阶段架构重构** — 需要更深入设计讨论
 - **3.4 上下文压缩策略** — 当前未触 token 痛点,先加 token-count 守门日志再决策(不在本 Sprint)
 - **3.12 长期切片** — 当前 knowledge ~43KB 不到 token 痛点,只做"短期"的 cacheableSystem 透传
@@ -500,6 +500,682 @@ messages_changed, user_message
 
 ---
 
+## Task 4: 3.5 建立 runToolLoop 骨架 + 迁移 Anthropic(P1,审计 3.5)
+
+**问题:** 体检报告 3.5:`resolveToolContext` / `completeWithTools` 的工具循环逻辑在 4 个 provider 中各写一遍(~80 行 × 8 处 ≈ 600 行重复骨架),cancel 信号 / max-iter 上限 / cache_control / 错误降级等任何修改都要 ×4,容易漂移。
+
+**思路(provider 原语接口):**
+
+`backend/llm/tool-loop-control.js` 暴露 `runToolLoop({ provider, ... })`。provider 不再写 `for` 循环,只暴露 4 个原语:
+
+```typescript
+interface ToolLoopProvider {
+  // 把 OpenAI 格式 messages 初始化为 provider 内部 state(对 Anthropic 是直接拷贝;对 Gemini 是转 nativeContents)
+  initState(messages: Message[]): State;
+
+  // 跑一轮 LLM 调用;mode='complete'|'resolve' 影响首轮 config 覆盖、终态返回类型
+  // iter 用于 provider 决定是否首轮(max_tokens=1000 + temperature=0)
+  // 返回:
+  //   { kind: 'text', text }                          模型给纯文本 → 终态
+  //   { kind: 'tools', toolCalls, assistantBlock }    模型要调工具 → 继续
+  //   { kind: 'fallback' }                            400/422 → 退到 completeNoTools
+  oneTurn(state: State, defs, mode, iter, config): Promise<TurnResult>;
+
+  // 把本轮 assistant block + tool results 写回 state(provider 决定写 native 还是 OpenAI 格式)
+  appendToolTurn(state: State, calls, results): State;
+
+  // 25 轮兜底 / fallback 时跑无工具版本,返回文本
+  completeNoTools(state: State, config): Promise<string>;
+
+  // 仅 mode='resolve' 终态需要:把 state 还原成 OpenAI 格式 messages 返回给 assistant
+  stateToMessages?(state: State): Message[];
+}
+```
+
+**`runToolLoop` 骨架伪代码:**
+
+```javascript
+export async function runToolLoop({
+  provider, messages, toolDefs, toolHandlers, config,
+  mode = 'complete',  // 'complete' → 返回 string;'resolve' → 返回 Message[]
+  maxIterations = LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
+}) {
+  let state = provider.initState(messages);
+  let enriched = false;
+
+  for (let i = 0; i < maxIterations; i++) {
+    const turn = await provider.oneTurn(state, toolDefs, mode, i, config);
+
+    if (turn.kind === 'text') {
+      return mode === 'complete'
+        ? turn.text
+        : (enriched ? provider.stateToMessages(state) : messages);
+    }
+    if (turn.kind === 'fallback') {
+      return mode === 'complete'
+        ? await provider.completeNoTools(state, config)
+        : (enriched ? provider.stateToMessages(state) : messages);
+    }
+    // turn.kind === 'tools'
+    const results = [];
+    for (const call of turn.toolCalls) {
+      const fn = toolHandlers[call.name];
+      try {
+        results.push(fn ? String(await fn(call.args)) : `工具未定义:${call.name}`);
+      } catch (err) {
+        if (isToolLoopCancelledError(err)) throw err;
+        results.push(`工具执行失败:${err.message}`);
+      }
+    }
+    state = provider.appendToolTurn(state, turn, results);
+    enriched = true;
+  }
+
+  // 25 轮兜底
+  return mode === 'complete'
+    ? await provider.completeNoTools(state, config)
+    : (enriched ? provider.stateToMessages(state) : messages);
+}
+```
+
+**Files (Task 4):**
+- Modify: `backend/llm/tool-loop-control.js`(从 10 行扩到 ~80 行,加 `runToolLoop`)
+- Modify: `backend/llm/providers/anthropic/index.js`(删除两份循环,改为暴露 4 个原语 + 两个薄包装函数)
+- Test: `backend/tests/llm/tool-loop-control.test.js`(新建,纯 loop 骨架单测,用 fake provider)
+- 不动:gemini / ollama / openai-compat(Task 5/6/7 各自迁)
+
+- [ ] **Step 1: 写 runToolLoop 骨架单测(fake provider)**
+
+  新建 `backend/tests/llm/tool-loop-control.test.js`:
+
+  ```javascript
+  import test from 'node:test';
+  import assert from 'node:assert/strict';
+  import { runToolLoop, ToolLoopCancelledError, isToolLoopCancelledError } from '../../llm/tool-loop-control.js';
+
+  function fakeProvider(turns) {
+    // turns: 数组,每项是 oneTurn 应返回的 TurnResult
+    let i = 0;
+    return {
+      initState: (messages) => ({ messages: [...messages] }),
+      oneTurn: async () => turns[i++] ?? { kind: 'text', text: 'fallback-text' },
+      // appendToolTurn 收到完整 turn,可读 turn.assistantBlock / turn.toolCalls / 自定义字段
+      appendToolTurn: (state, turn, results) => ({
+        ...state,
+        messages: [...state.messages,
+          turn.assistantBlock ?? { role: 'assistant', tool_calls: turn.toolCalls },
+          ...results.map((r, k) => ({ role: 'tool', tool_call_id: turn.toolCalls[k].id, content: r }))],
+      }),
+      completeNoTools: async () => 'fallback-no-tools',
+      stateToMessages: (state) => state.messages,
+    };
+  }
+
+  test('runToolLoop: 首轮就返回 text → 直接结束', async () => {
+    const result = await runToolLoop({
+      provider: fakeProvider([{ kind: 'text', text: 'hello' }]),
+      messages: [{ role: 'user', content: 'hi' }],
+      toolDefs: [],
+      toolHandlers: {},
+      config: {},
+      mode: 'complete',
+    });
+    assert.equal(result, 'hello');
+  });
+
+  test('runToolLoop: 工具调用 → 二轮文本', async () => {
+    const handlers = { add: async ({ a, b }) => String(a + b) };
+    const result = await runToolLoop({
+      provider: fakeProvider([
+        { kind: 'tools', toolCalls: [{ id: 'c1', name: 'add', args: { a: 1, b: 2 } }] },
+        { kind: 'text', text: 'done=3' },
+      ]),
+      messages: [{ role: 'user', content: 'calc' }],
+      toolDefs: [],
+      toolHandlers: handlers,
+      config: {},
+      mode: 'complete',
+    });
+    assert.equal(result, 'done=3');
+  });
+
+  test('runToolLoop: cancel 信号透传(handler 抛 ToolLoopCancelledError)', async () => {
+    const handlers = { x: async () => { throw new ToolLoopCancelledError('cancel'); } };
+    await assert.rejects(() => runToolLoop({
+      provider: fakeProvider([
+        { kind: 'tools', toolCalls: [{ id: 'c1', name: 'x', args: {} }] },
+      ]),
+      messages: [{ role: 'user', content: 'go' }],
+      toolDefs: [],
+      toolHandlers: handlers,
+      config: {},
+      mode: 'complete',
+    }), ToolLoopCancelledError);
+  });
+
+  test('runToolLoop: 工具普通 error 被字符串化喂回模型,不抛', async () => {
+    const handlers = { x: async () => { throw new Error('boom'); } };
+    const result = await runToolLoop({
+      provider: fakeProvider([
+        { kind: 'tools', toolCalls: [{ id: 'c1', name: 'x', args: {} }] },
+        { kind: 'text', text: 'recovered' },
+      ]),
+      messages: [{ role: 'user', content: 'go' }],
+      toolDefs: [],
+      toolHandlers: handlers,
+      config: {},
+      mode: 'complete',
+    });
+    assert.equal(result, 'recovered');
+  });
+
+  test('runToolLoop: kind=fallback 走 completeNoTools', async () => {
+    const result = await runToolLoop({
+      provider: fakeProvider([{ kind: 'fallback' }]),
+      messages: [{ role: 'user', content: 'go' }],
+      toolDefs: [],
+      toolHandlers: {},
+      config: {},
+      mode: 'complete',
+    });
+    assert.equal(result, 'fallback-no-tools');
+  });
+
+  test('runToolLoop: 超 maxIterations 兜底 completeNoTools', async () => {
+    const turns = Array.from({ length: 30 }, () =>
+      ({ kind: 'tools', toolCalls: [{ id: 'c', name: 'noop', args: {} }] }));
+    const handlers = { noop: async () => 'ok' };
+    const result = await runToolLoop({
+      provider: fakeProvider(turns),
+      messages: [],
+      toolDefs: [],
+      toolHandlers: handlers,
+      config: {},
+      mode: 'complete',
+      maxIterations: 3,
+    });
+    assert.equal(result, 'fallback-no-tools');
+  });
+
+  test('runToolLoop: mode=resolve 终态返回 enriched messages', async () => {
+    const handlers = { add: async () => '3' };
+    const result = await runToolLoop({
+      provider: fakeProvider([
+        { kind: 'tools', toolCalls: [{ id: 'c1', name: 'add', args: {} }] },
+        { kind: 'text', text: 'final' },
+      ]),
+      messages: [{ role: 'user', content: 'go' }],
+      toolDefs: [],
+      toolHandlers: handlers,
+      config: {},
+      mode: 'resolve',
+    });
+    assert.ok(Array.isArray(result));
+    assert.ok(result.length > 1, 'enriched 应该比原 messages 长');
+  });
+
+  test('runToolLoop: mode=resolve 且首轮 text → 返回原 messages(未 enriched)', async () => {
+    const original = [{ role: 'user', content: 'go' }];
+    const result = await runToolLoop({
+      provider: fakeProvider([{ kind: 'text', text: 'no-tools-needed' }]),
+      messages: original,
+      toolDefs: [],
+      toolHandlers: {},
+      config: {},
+      mode: 'resolve',
+    });
+    assert.equal(result, original);  // 引用相等
+  });
+
+  test('isToolLoopCancelledError 识别错误', () => {
+    assert.equal(isToolLoopCancelledError(new ToolLoopCancelledError()), true);
+    assert.equal(isToolLoopCancelledError(new Error('other')), false);
+  });
+  ```
+
+- [ ] **Step 2: 跑测试确认失败**
+
+  ```bash
+  cd /Users/yunzhiwang/Desktop/WorldEngine && node --test backend/tests/llm/tool-loop-control.test.js 2>&1 | tail -10
+  ```
+
+  Expected: FAIL — `runToolLoop` not exported。
+
+- [ ] **Step 3: 实现 `tool-loop-control.js`**
+
+  完整替换 `backend/llm/tool-loop-control.js`:
+
+  ```javascript
+  // backend/llm/tool-loop-control.js
+  //
+  // Provider-agnostic 工具循环骨架。所有 LLM provider 通过暴露 4 个原语接入此循环。
+  // 不要在 provider 内再写 for (i < 25) {...} 工具循环。
+
+  import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../utils/constants.js';
+
+  export class ToolLoopCancelledError extends Error {
+    constructor(message = 'tool loop cancelled') {
+      super(message);
+      this.name = 'ToolLoopCancelledError';
+    }
+  }
+
+  export function isToolLoopCancelledError(err) {
+    return err instanceof ToolLoopCancelledError || err?.name === 'ToolLoopCancelledError';
+  }
+
+  /**
+   * @param {Object} opts
+   * @param {ToolLoopProvider} opts.provider  - 暴露 initState/oneTurn/appendToolTurn/completeNoTools(可选 stateToMessages)
+   * @param {Array} opts.messages              - 初始 OpenAI 格式 messages
+   * @param {Array} opts.toolDefs              - provider-native tool 定义(由调用方提前转换)
+   * @param {Object} opts.toolHandlers         - { toolName: async (args) => string | any }
+   * @param {Object} opts.config               - LLM config 透传
+   * @param {'complete'|'resolve'} [opts.mode] - 'complete' 返回最终文本;'resolve' 返回 enriched messages
+   * @param {number} [opts.maxIterations]      - 默认 LLM_TOOL_RESOLUTION_MAX_ITERATIONS
+   * @returns {Promise<string|Array>}
+   */
+  export async function runToolLoop({
+    provider,
+    messages,
+    toolDefs,
+    toolHandlers,
+    config,
+    mode = 'complete',
+    maxIterations = LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
+  }) {
+    let state = provider.initState(messages);
+    let enriched = false;
+
+    for (let i = 0; i < maxIterations; i++) {
+      const turn = await provider.oneTurn(state, toolDefs, mode, i, config);
+
+      if (turn.kind === 'text') {
+        if (mode === 'complete') return turn.text;
+        return enriched ? provider.stateToMessages(state) : messages;
+      }
+      if (turn.kind === 'fallback') {
+        if (mode === 'complete') return await provider.completeNoTools(state, config);
+        return enriched ? provider.stateToMessages(state) : messages;
+      }
+
+      // turn.kind === 'tools'
+      const results = [];
+      for (const call of turn.toolCalls) {
+        const fn = toolHandlers[call.name];
+        let result;
+        try {
+          result = fn ? String(await fn(call.args ?? {})) : `工具未定义:${call.name}`;
+        } catch (err) {
+          if (isToolLoopCancelledError(err)) throw err;
+          result = `工具执行失败:${err.message}`;
+        }
+        results.push(result);
+      }
+      state = provider.appendToolTurn(state, turn.toolCalls, results);
+      enriched = true;
+    }
+
+    // 超 maxIterations 兜底
+    if (mode === 'complete') return await provider.completeNoTools(state, config);
+    return enriched ? provider.stateToMessages(state) : messages;
+  }
+  ```
+
+- [ ] **Step 4: 跑骨架测试通过**
+
+  ```bash
+  node --test backend/tests/llm/tool-loop-control.test.js 2>&1 | tail -10
+  ```
+
+  Expected: 9 个测试全 PASS。
+
+- [ ] **Step 5: 迁移 Anthropic provider**
+
+  在 `backend/llm/providers/anthropic/index.js` 中:
+
+  (a) 在文件顶部 import `runToolLoop`:
+  ```javascript
+  import { runToolLoop, isToolLoopCancelledError } from '../../tool-loop-control.js';
+  ```
+
+  (b) 新增 4 个原语函数(放在 `completeAnthropicWithTools` 函数之前):
+
+  ```javascript
+  // ─── tool loop primitives for runToolLoop ──────────────────────────
+  const anthropicToolLoopProvider = {
+    initState(messages) {
+      // Anthropic 内部就用 OpenAI 格式 messages,转换在 oneTurn 内做
+      return { messages: [...messages] };
+    },
+
+    async oneTurn(state, toolDefs, mode, iter, config) {
+      const baseUrl = getBaseUrl(config);
+      const url = `${baseUrl}/v1/messages`;
+      const headers = {
+        'Content-Type': 'application/json',
+        'x-api-key': config.api_key,
+        'anthropic-version': ANTHROPIC_API_VERSION,
+        'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA,
+      };
+      const { system, messages: anthropicMsgs } = convertToAnthropicMessages(state.messages);
+      const body = {
+        model: config.model,
+        messages: anthropicMsgs,
+        tools: toolDefs,
+        // resolve 模式首轮限 1000 tokens + temperature=0(对齐原 resolveToolContextAnthropic 行为)
+        max_tokens: mode === 'resolve' && iter === 0 ? 1000 : (config.max_tokens || 4096),
+      };
+      if (mode === 'resolve') body.temperature = 0;
+      else if (config.temperature != null) body.temperature = config.temperature;
+      if (system) body.system = withCacheControl(system, config);
+
+      logRawRequest(body, config, config.callType ? `${config.callType}:${mode}` : `${mode}-tools`);
+      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: config.signal });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+        if (resp.status === 400 || resp.status === 422) return { kind: 'fallback' };
+        throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
+      }
+
+      const data = await resp.json();
+      if (data.usage) {
+        logUsage(config.model, data.usage);
+        if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
+      }
+      const content = data.content || [];
+      const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
+      const textContent = content.filter((b) => b.type === 'text').map((b) => b.text).join('');
+
+      if (!toolUseBlocks.length) return { kind: 'text', text: textContent };
+
+      const toolCalls = toolUseBlocks.map((b) => ({ id: b.id, name: b.name, args: b.input }));
+      const assistantBlock = {
+        role: 'assistant',
+        content: textContent || null,
+        tool_calls: toolUseBlocks.map((b) => ({
+          id: b.id, type: 'function',
+          function: { name: b.name, arguments: JSON.stringify(b.input) },
+        })),
+      };
+      return { kind: 'tools', toolCalls, assistantBlock };
+    },
+
+    appendToolTurn(state, turn, results) {
+      // runToolLoop 把整个 turn 透传过来,直接复用 oneTurn 构造的 assistantBlock(含 textContent)
+      const toolMsgs = turn.toolCalls.map((c, i) => ({ role: 'tool', tool_call_id: c.id, content: results[i] }));
+      return { messages: [...state.messages, turn.assistantBlock, ...toolMsgs] };
+    },
+
+    async completeNoTools(state, config) {
+      return await completeAnthropic(state.messages, config);
+    },
+
+    stateToMessages(state) {
+      return state.messages;
+    },
+  };
+  ```
+
+  (c) 重写 `completeAnthropicWithTools` 和 `resolveToolContextAnthropic` 为薄包装,删除内联循环:
+
+  ```javascript
+  export async function completeAnthropicWithTools(messages, toolDefs, toolHandlers, config) {
+    log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
+    return await runToolLoop({
+      provider: anthropicToolLoopProvider,
+      messages,
+      toolDefs: toAnthropicTools(toolDefs),
+      toolHandlers,
+      config,
+      mode: 'complete',
+    });
+  }
+
+  export async function resolveToolContextAnthropic(messages, toolDefs, toolHandlers, config) {
+    log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
+    return await runToolLoop({
+      provider: anthropicToolLoopProvider,
+      messages,
+      toolDefs: toAnthropicTools(toolDefs),
+      toolHandlers,
+      config,
+      mode: 'resolve',
+    });
+  }
+  ```
+
+- [ ] **Step 6: 跑 Anthropic 全部测试 + assistant 集成测**
+
+  ```bash
+  node --test backend/tests/llm/tool-loop-control.test.js \
+              backend/tests/llm/anthropic-tool-loop-cancel.test.js \
+              backend/tests/llm/cache-usage.test.js \
+              backend/tests/llm/complete-with-tools-cancel.test.js \
+              backend/tests/llm/index.test.js 2>&1 | tail -20
+  node --test assistant/tests/parent-agent.test.mjs 2>&1 | tail -10
+  ```
+
+  Expected: 全 PASS。
+
+  特别关注:
+  - `anthropic-tool-loop-cancel.test.js` 应能验证 cancel 透传(Sprint A `dc6d6c0` 修复过)
+  - `cache-usage.test.js` 应验证 cache_control 仍按预期注入(via `withCacheControl`)
+
+- [ ] **Step 7: 验证 anthropic 文件 LOC 显著下降**
+
+  ```bash
+  wc -l backend/llm/providers/anthropic/index.js
+  ```
+
+  Expected: 从 288 行降到约 200 行(净减 ~80 行重复循环)。
+
+- [ ] **Step 8: CHANGELOG + Commit**
+
+  ```markdown
+  - refactor(llm): tool-loop-control.js 暴露 runToolLoop 骨架;Anthropic provider 迁移到 4 原语接口
+  ```
+
+  ```bash
+  git add backend/llm/tool-loop-control.js backend/llm/providers/anthropic/index.js backend/tests/llm/tool-loop-control.test.js CHANGELOG.md && git commit -m "refactor(llm): runToolLoop 骨架 + Anthropic 迁移到 4 原语"
+  ```
+
+---
+
+## Task 5: 3.5 迁移 Gemini provider
+
+**特殊性:** Gemini 必须保留 `thought_signature`(在 native `parts` 里),OpenAI 格式 ↔ Gemini 格式往返会丢失。原代码用 `nativeContents` 数组并行维护,通过 `_geminiParts` 字段在 OpenAI 消息上挂载原始 parts。
+
+**Files:**
+- Modify: `backend/llm/providers/gemini/index.js`
+
+- [ ] **Step 1: 设计 Gemini state**
+
+  Gemini state 不能只放 OpenAI messages,还需 nativeContents 与 systemInstruction:
+
+  ```javascript
+  initState(messages) {
+    const { contents, systemInstruction } = convertToGeminiContents(messages);
+    return {
+      messages: [...messages],
+      nativeContents: [...contents],
+      systemInstruction,
+    };
+  }
+  ```
+
+- [ ] **Step 2: 实现 `oneTurn`**
+
+  内部用 `state.nativeContents` 而不是 messages 构造请求(保留 thought_signature)。返回 `{ kind, ..., _rawParts }`(把模型返回的 parts 数组保留,用于后续 appendToolTurn 加回 nativeContents)。
+
+  关键参数:`generationConfig.maxOutputTokens = mode === 'resolve' && iter === 0 ? 1000 : config.max_tokens`;`generationConfig.temperature = mode === 'resolve' ? 0 : config.temperature`。
+
+- [ ] **Step 3: 实现 `appendToolTurn`**
+
+  ```javascript
+  appendToolTurn(state, turn, results) {
+    // turn._rawParts: 原始 Gemini parts(含 thought_signature)
+    const nextNative = [
+      ...state.nativeContents,
+      { role: 'model', parts: turn._rawParts },
+      { role: 'user', parts: turn.toolCalls.map((c, i) => ({
+        functionResponse: { name: c.name, response: { output: results[i] } },
+      })) },
+    ];
+    // 同步维护 OpenAI 格式 messages 给 stateToMessages 用
+    const assistantMsg = {
+      role: 'assistant',
+      content: turn._textContent || null,
+      tool_calls: turn.toolCalls.map((c) => ({
+        id: c.id, type: 'function',
+        function: { name: c.name, arguments: JSON.stringify(c.args) },
+      })),
+      _geminiParts: turn._rawParts,
+    };
+    const toolMsgs = turn.toolCalls.map((c, i) => ({ role: 'tool', tool_call_id: c.id, content: results[i] }));
+    return {
+      ...state,
+      nativeContents: nextNative,
+      messages: [...state.messages, assistantMsg, ...toolMsgs],
+    };
+  }
+  ```
+
+- [ ] **Step 4: 实现 `completeNoTools`**
+
+  ```javascript
+  async completeNoTools(state, config) {
+    return await completeGeminiFromNative(state.nativeContents, state.systemInstruction, config);
+  }
+  ```
+
+- [ ] **Step 5: 把 `completeGeminiWithTools` / `resolveToolContextGemini` 改为薄包装**
+
+  同 Anthropic Step 5(c)。
+
+- [ ] **Step 6: 跑 Gemini 测试 + assistant 集成测**
+
+  ```bash
+  node --test backend/tests/llm/ assistant/tests/parent-agent.test.mjs 2>&1 | tail -20
+  ```
+
+  Expected: 全 PASS。注意:gemini 单测可能稀薄,若发现 nothing-tests-gemini-tool-loop 的情况,**先停下报告**,不要硬迁。
+
+- [ ] **Step 7: CHANGELOG + Commit**
+
+  ```markdown
+  - refactor(llm): Gemini provider 迁移到 runToolLoop 4 原语接口(保留 thought_signature)
+  ```
+
+  ```bash
+  git add backend/llm/providers/gemini/index.js CHANGELOG.md && git commit -m "refactor(llm): Gemini 迁移到 runToolLoop 4 原语"
+  ```
+
+---
+
+## Task 6: 3.5 迁移 Ollama provider
+
+**特殊性:** Ollama 的 `callWithTools` 在 4xx 时返回 `null` 作为"降级信号",当前实现是 `if (!data) return complete(currentMessages, config)`(走非工具版本)。迁移后这等价于 `oneTurn` 返回 `{ kind: 'fallback' }`。
+
+**Files:**
+- Modify: `backend/llm/providers/ollama/index.js`
+
+- [ ] **Step 1: 实现 4 原语**
+
+  state 是 OpenAI 格式 messages 即可(Ollama 用 OpenAI-compat 协议)。`oneTurn` 内调 `callWithTools`:
+  - 返回 null → `{ kind: 'fallback' }`
+  - 无 tool_calls → `{ kind: 'text', text: message.content || '' }`
+  - 有 tool_calls → `{ kind: 'tools', toolCalls: [...], assistantBlock: {...} }`
+
+  `appendToolTurn`:push `turn.assistantBlock` + tool result messages。
+
+  `completeNoTools`:调 `complete(state.messages, config)`。
+
+- [ ] **Step 2: 把 `completeWithTools` / `resolveToolContext` 改为薄包装**
+
+- [ ] **Step 3: 跑测试**
+
+  ```bash
+  node --test backend/tests/llm/ assistant/tests/parent-agent.test.mjs 2>&1 | tail -10
+  ```
+
+  Expected: 全 PASS。
+
+- [ ] **Step 4: CHANGELOG + Commit**
+
+  ```markdown
+  - refactor(llm): Ollama provider 迁移到 runToolLoop 4 原语接口
+  ```
+
+  ```bash
+  git add backend/llm/providers/ollama/index.js CHANGELOG.md && git commit -m "refactor(llm): Ollama 迁移到 runToolLoop 4 原语"
+  ```
+
+---
+
+## Task 7: 3.5 迁移 OpenAI-compatible provider
+
+**特殊性:** OpenAI-compat 有 `executeToolCall` 辅助函数和 `reasoning_content` 字段处理,迁移时要保留这些副细节。Resolve 模式与 complete 模式的请求头略有差异(`Authorization: Bearer ...` 在 resolve 中硬编码,而 complete 用 `buildOpenAICompatibleHeaders` — 这个不一致可在迁移时顺手统一为后者)。
+
+**Files:**
+- Modify: `backend/llm/providers/openai-compatible/index.js`
+
+- [ ] **Step 1: 实现 4 原语**
+
+  state 是 normalized OpenAI 格式 messages(用 `normalizeOpenAICompatibleMessages` 处理过)。`oneTurn` 调用 `chat/completions`,根据 mode 决定 `max_tokens` 与 `temperature`:
+
+  ```javascript
+  body.max_tokens = mode === 'resolve' && iter === 0 ? 1000 : config.max_tokens;
+  if (thinkingState !== 'enabled') body.temperature = mode === 'resolve' ? (config.temperature ?? 0) : config.temperature;
+  ```
+
+  注意:**统一用 `buildOpenAICompatibleHeaders(config)`,不要重复硬编码 Authorization**(顺手清理 resolve 函数当前的偏差)。
+
+  4xx 时返回 `{ kind: 'fallback' }`(与原代码 `if (resp.status === 400 || resp.status === 422)` 行为一致)。
+
+  保留 `reasoning_content` 字段处理:在 `appendToolTurn` 中,如果 turn.assistantBlock 有 `reasoning_content`,透传。
+
+- [ ] **Step 2: 把 `completeOpenAICompatibleWithTools` / `resolveToolContextOpenAI` 改为薄包装**
+
+- [ ] **Step 3: 跑测试**
+
+  ```bash
+  node --test backend/tests/llm/openai-compatible-headers.test.js backend/tests/llm/ assistant/tests/parent-agent.test.mjs 2>&1 | tail -15
+  ```
+
+  Expected: 全 PASS。`openai-compatible-headers.test.js` 应能验证 Authorization 注入仍正确。
+
+- [ ] **Step 4: CHANGELOG + Commit**
+
+  ```markdown
+  - refactor(llm): OpenAI-compatible provider 迁移到 runToolLoop 4 原语接口
+  ```
+
+  ```bash
+  git add backend/llm/providers/openai-compatible/index.js CHANGELOG.md && git commit -m "refactor(llm): OpenAI-compatible 迁移到 runToolLoop 4 原语"
+  ```
+
+---
+
+## Task 8(可选,Task 4-7 完成后跑):验证全 provider 一致性
+
+跑全量回归并对比改动前后的代码减量:
+
+```bash
+cd /Users/yunzhiwang/Desktop/WorldEngine && npm run check
+wc -l backend/llm/providers/*/index.js backend/llm/tool-loop-control.js
+```
+
+Expected:
+- npm run check 全 PASS
+- 4 个 provider 文件合计净减约 250-300 行(8 处重复循环骨架被替换为薄包装)
+- `tool-loop-control.js` 从 10 行扩到 ~80 行
+
+如有任何 provider 单测覆盖稀薄,在 CHANGELOG 备注"TODO:补 X provider 工具循环单测"。
+
+---
+
 ## 收尾验证
 
 - [ ] **Step 1: 全量回归**
@@ -541,7 +1217,17 @@ assistant/client/                            # Task 1(前端消费侧)
 assistant/tests/sse-events.test.js          # 新建,Task 1
 assistant/tests/tools/meta-schemas.test.js  # 新建,Task 2
 assistant/tests/cacheable-system.test.js    # 新建,Task 3
-backend/llm/index.js                        # 只读引用,line 127 确认 cacheableSystem 字段
+backend/llm/index.js                        # Task 3 只读引用 line 127 确认 cacheableSystem 字段
+backend/llm/tool-loop-control.js            # Task 4 重写(10 行 → ~80 行 runToolLoop 骨架)
+backend/llm/providers/anthropic/index.js    # Task 4 迁移到 4 原语
+backend/llm/providers/gemini/index.js       # Task 5 迁移到 4 原语(保留 thought_signature)
+backend/llm/providers/ollama/index.js       # Task 6 迁移到 4 原语
+backend/llm/providers/openai-compatible/index.js  # Task 7 迁移到 4 原语
+backend/tests/llm/tool-loop-control.test.js # 新建,Task 4(骨架单测 + fake provider)
+backend/tests/llm/anthropic-tool-loop-cancel.test.js  # Task 4 现有测试不破坏
+backend/tests/llm/cache-usage.test.js       # Task 4 现有测试不破坏
+backend/tests/llm/complete-with-tools-cancel.test.js # Task 4 现有测试不破坏
+backend/tests/llm/openai-compatible-headers.test.js  # Task 7 现有测试不破坏
 ARCHITECTURE.md                             # Task 3 同步
 CHANGELOG.md                                # 每 task 末尾追加
 ```
@@ -550,15 +1236,17 @@ CHANGELOG.md                                # 每 task 末尾追加
 
 ## 自查清单
 
-- [x] Sprint D 三项(3.11 / 3.13 / 3.12 短期)全部覆盖,每 task 独立 commit
+- [x] Sprint D 四项(3.11 / 3.13 / 3.12 短期 / 3.5 全 provider)全部覆盖,每 task 独立 commit
 - [x] 每个 task 含 TDD 五步骨架
 - [x] 所有代码块为可粘贴的完整片段
 - [x] 文件路径精确;mutator 改动位置给出行号近似(实施时按当前代码 grep 校准)
-- [x] 测试代码完整给出
-- [x] 跨 task 类型/函数名一致:`SSE_EVENTS` / `cacheableSystem` / `writePlanDocDefinition` 等
+- [x] 测试代码完整给出(尤其 Task 4 的 fake provider + 9 个骨架单测)
+- [x] 跨 task 类型/函数名一致:`SSE_EVENTS` / `cacheableSystem` / `writePlanDocDefinition` / `runToolLoop` / `initState` / `oneTurn` / `appendToolTurn` / `completeNoTools` / `stateToMessages`
+- [x] `appendToolTurn` 签名最终为 `(state, turn, results)` — 让 provider 可读 turn.assistantBlock(含 textContent / thought_signature 等)
 - [x] CHANGELOG 模板逐 task 给出
-- [x] 没碰锁定文件
-- [x] **严格不动 `backend/llm/providers/*/`**(3.5 留作独立任务,不在本 Sprint)
-- [x] 不动主数据库 schema / backend services
-- [x] 验证方式具体(命令 + 期望输出 + UI 冒烟)
-- [x] 明确不在范围的项(3.5 / 3.1 / 3.4 / 3.12 长期切片)
+- [x] 没碰锁定文件(SCHEMA.md / CLAUDE.md / schema.js / constants.js / assembler.js / store/index.js / server.js)
+- [x] **Task 4-7 显式触达 `backend/llm/tool-loop-control.js` + 4 个 provider index.js**(已与用户对齐 Sprint D 范围)
+- [x] 不动主数据库 schema / backend services / frontend(除 Task 1 SSE 常量消费)
+- [x] 验证方式具体(命令 + 期望输出 + UI 冒烟 + Task 4-7 逐 provider 跑 backend/tests/llm/ 全套)
+- [x] 明确不在范围的项(3.1 / 3.4 / 3.12 长期切片)
+- [x] Task 5(Gemini)特别提示:thought_signature 必须保留;Task 7(OpenAI-compat)特别提示:顺手统一 Authorization 注入
