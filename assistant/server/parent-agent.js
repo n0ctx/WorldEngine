@@ -15,7 +15,7 @@
  *   - LLM 提供商若非流式 + tool-use，则降级为 complete()；这里不区分。
  *   - apply_* 工具的异常被捕获并以 { ok:false, error } 形式返回给 LLM，让它在循环内自行重试。
  *   - 5 个编排专用工具（write_plan_doc / edit_plan_doc / dispatch_subagent / delete_plan_doc / finalize_task）
- *     在本文件内联定义，不抽公共模块（与 sub-agent.js 的 toLLMTool 适配器同源；Phase 5 已确认暂不下沉）。
+ *     在本文件内联定义。`toLLMTool` / `wrapToolEvents` 已下沉到 ./tools/adapter.js。
  */
 
 import { readFile } from 'node:fs/promises';
@@ -31,7 +31,7 @@ import * as planDoc from './plan-doc.js';
 import * as taskStore from './task-store.js';
 import { dispatchSubAgent } from './sub-agent.js';
 
-import { toLLMTool, wrapToolEvents } from './tools/_adapter.js';
+import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';

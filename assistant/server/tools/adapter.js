@@ -1,4 +1,4 @@
-// assistant/server/tools/_adapter.js
+// assistant/server/tools/adapter.js
 //
 // 公共工具适配器：把多种工具导出形态归一为 splitTools 期望形态；
 // 包装 execute 时统一发 tool_call_started / tool_call_completed SSE 事件，

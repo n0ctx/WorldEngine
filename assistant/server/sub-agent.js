@@ -22,7 +22,7 @@ import * as llm from '../../backend/llm/index.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
-import { toLLMTool, wrapToolEvents } from './tools/_adapter.js';
+import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';

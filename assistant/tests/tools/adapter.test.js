@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { toLLMTool, wrapToolEvents } from '../../server/tools/_adapter.js';
+import { toLLMTool, wrapToolEvents } from '../../server/tools/adapter.js';
 
 test('toLLMTool: 三种形态归一', () => {
   const exec = async () => 'ok';
