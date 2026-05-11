@@ -26,7 +26,6 @@ import { runParentAgent } from './parent-agent.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
-const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 // ─── 提案归一化已移至 ./normalize-proposal.js ─────────────────────
 
@@ -126,7 +125,7 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
   log.info(`/agent/cancel  ${formatMeta({ taskId: task.id, fromStatus: task.status })}`);
-  if (TERMINAL_TASK_STATUSES.has(task.status)) {
+  if (taskStore.TERMINAL_TASK_STATUSES.has(task.status)) {
     return res.json({ ok: true, ignored: true });
   }
   await planDoc.deletePlanDoc(task.id);

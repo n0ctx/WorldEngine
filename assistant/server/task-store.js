@@ -163,7 +163,7 @@ export function emit(taskId, event) {
 // ─── 启动时同步 hydrate ──────────────────────────────────────────────
 // 把磁盘上的 JSON 反序列化回内存 Map;非终态任务统一转 failed,
 // 因为父代理循环已随上次进程一起死了,继续标 executing 会让前端永远等。
-const TERMINAL = new Set(['completed', 'failed', 'cancelled']);
+export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 function hydrate() {
   let raw;
   try {
@@ -186,7 +186,7 @@ function hydrate() {
       currentStepId: data.currentStepId ?? null,
     };
     if (typeof data.error === 'string') task.error = data.error;
-    if (!TERMINAL.has(task.status)) {
+    if (!TERMINAL_TASK_STATUSES.has(task.status)) {
       task.status = 'failed';
       task.error = 'interrupted by restart';
       orphaned += 1;
