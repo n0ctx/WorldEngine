@@ -302,6 +302,22 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   await planDoc.deletePlanDoc(task.id);
 });
 
+test('runParentAgent: SSE 事件携带 runId', async () => {
+  process.env.MOCK_LLM_STREAM = 'hi';
+  const task = taskStore.createTask({ context: {} });
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+  await runParentAgent(task, '你好');
+  const parsed = events
+    .map((e) => { try { return JSON.parse(e.replace(/^data: /, '').trim()); } catch { return null; } })
+    .filter(Boolean);
+  const withRun = parsed.filter((e) => typeof e.runId === 'string' && e.runId.length > 0);
+  assert.ok(withRun.length > 0, '至少有一些事件携带 runId');
+  const ids = new Set(withRun.map((e) => e.runId));
+  assert.equal(ids.size, 1, `同一次 run 的 runId 应一致,实际有 ${ids.size} 个`);
+  delete process.env.MOCK_LLM_STREAM;
+});
+
 test('edit_plan_doc.replace_steps: 非连续 done 不会触发 id 碰撞', async () => {
   const task = taskStore.createTask({ context: {} });
   taskStore.attachSse(task.id, { write: () => {} });

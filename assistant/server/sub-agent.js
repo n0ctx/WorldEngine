@@ -117,6 +117,7 @@ export async function dispatchSubAgent({
   task = '',
   context = {},
   emitFn = null,
+  runId = null,
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
@@ -160,6 +161,7 @@ export async function dispatchSubAgent({
   const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
 
   log.info(`START  ${formatMeta({
+    runId,
     stepId,
     targetType,
     operation,
@@ -174,10 +176,10 @@ export async function dispatchSubAgent({
       configScope,
     });
     const summary = String(raw ?? '').trim().slice(0, 400);
-    log.info(`DONE  ${formatMeta({ stepId, targetType, chars: summary.length })}`);
+    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, chars: summary.length })}`);
     return { success: true, summary };
   } catch (err) {
-    log.error(`FAIL  ${formatMeta({ stepId, targetType, error: err.message })}`);
+    log.error(`FAIL  ${formatMeta({ runId, stepId, targetType, error: err.message })}`);
     return { success: false, error: err.message };
   }
 }
