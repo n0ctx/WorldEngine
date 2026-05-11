@@ -373,6 +373,9 @@ export async function runParentAgent(task, userInput, opts = {}) {
       temperature: 0.3,
       thinking_level: null,
       configScope,
+      // 稳定 system prefix（parent-agent.md + CONTRACT.md），用于 provider 显式缓存提示：
+      // Anthropic 自动 prefix cache；Gemini 触发 cachedContents；其他 provider 忽略。
+      cacheableSystem: systemPrompt,
     });
     log.info(`TOOLS_RESOLVED  ${formatMeta({ runId, taskId: task.id, totalMsgs: enriched.length })}`);
 
@@ -398,6 +401,8 @@ export async function runParentAgent(task, userInput, opts = {}) {
       temperature: 0.7,
       thinking_level: null,
       configScope,
+      // 稳定 system prefix 同上：仅为 cache 提示，不影响 prompt 内容。
+      cacheableSystem: systemPrompt,
     })) {
       // 中途被前端 /cancel：丢弃剩余 delta，立即跳出流式循环
       if (task.status === 'cancelled') break;

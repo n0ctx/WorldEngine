@@ -3,6 +3,8 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- feat(assistant): 父子代理向 llm.* 传 cacheableSystem 选项，触发 Gemini explicit cache 摊薄稳定 prefix 成本
+
 - refactor(assistant): meta 工具 5 件套 schema 外移到 assistant/server/tools/meta/ 子目录
 - refactor(assistant): SSE 事件类型集中到 sse-events.js 常量,前后端共享
 - test(assistant): 后端测试沙箱自动注入 ASSISTANT_STATE_DIR;server-hooks 子进程同步透传,避免 hydrate 污染默认 .temp/assistant/
