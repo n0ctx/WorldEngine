@@ -15,7 +15,8 @@
  *   - LLM 提供商若非流式 + tool-use，则降级为 complete()；这里不区分。
  *   - apply_* 工具的异常被捕获并以 { ok:false, error } 形式返回给 LLM，让它在循环内自行重试。
  *   - 5 个编排专用工具（write_plan_doc / edit_plan_doc / dispatch_subagent / delete_plan_doc / finalize_task）
- *     在本文件内联定义。`toLLMTool` / `wrapToolEvents` 已下沉到 ./tools/adapter.js。
+ *     的 schema 定义在 ./tools/meta/，execute 闭包在本文件的 buildMetaTools 内构造（闭包需捕获 task）。
+ *     `toLLMTool` / `wrapToolEvents` 已下沉到 ./tools/adapter.js。
  */
 
 import { randomUUID } from 'node:crypto';
@@ -101,8 +102,8 @@ function wrapApply(applyMod, ctx) {
 }
 
 /**
- * 5 个编排专用工具的内联定义。每个都返回 { definition, execute }。
- * execute 闭包捕获 task，所以必须在每次 runParentAgent 内构造一次。
+ * 构造 5 个编排专用工具的 execute 闭包。schema 定义见 ./tools/meta/；
+ * 闭包捕获 task / emitFn / runId，每次 runParentAgent 均需重建。
  */
 function buildMetaTools(task, emitFn, runId = null) {
   const writePlanDoc = {
