@@ -252,3 +252,50 @@ test('dispatch_subagent: 子代理软失败统一映射为 ok:false', async () =
   await planDoc.deletePlanDoc(task.id);
   delete process.env.MOCK_LLM_COMPLETE_ERROR;
 });
+
+test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+  const tools = __testables.buildMetaTools(task, () => {});
+
+  const md = [
+    '# 任务：T',
+    '',
+    '> 状态：executing · 创建时间：x',
+    '',
+    '## 用户意图',
+    'i',
+    '',
+    '## 假设与约束',
+    '- 无',
+    '',
+    '## 步骤',
+    '',
+    '- [x] **step-1** done（world-card.create）',
+    '  - 依赖：无',
+    '  - 任务：a',
+    '  - 完成于 12:00:00',
+    '- [ ] **step-2** todo（character-card.create）',
+    '  - 依赖：无',
+    '  - 任务：b',
+    '',
+    '## 执行日志',
+    '',
+  ].join('\n');
+  await planDoc.writePlanDoc(task.id, md);
+
+  const editPlan = tools[1];
+  const r = await editPlan.execute({
+    op: 'replace_steps',
+    steps: [{ title: '只剩这个', targetType: 'character-card', operation: 'update', task: 't' }],
+  });
+  assert.equal(r.ok, true);
+
+  const newMd = await planDoc.readPlanDoc(task.id);
+  const parsed = planDoc.parsePlanDoc(newMd);
+  const doneStep = parsed.steps.find((s) => s.id === 'step-1');
+  assert.ok(doneStep, 'step-1 必须保留');
+  assert.equal(doneStep.done, true, 'step-1.done 必须仍为 true');
+
+  await planDoc.deletePlanDoc(task.id);
+});

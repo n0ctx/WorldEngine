@@ -176,7 +176,7 @@ function buildMetaTools(task, emitFn) {
         name: 'edit_plan_doc',
         description:
           '修改计划文档。op=mark_done 勾选某 step 已完成；op=append_log 追加执行日志行；' +
-          'op=replace_steps 整体替换步骤（仅替换未完成步骤；不要修改已 [x] 的步骤）。',
+          'op=replace_steps 替换未完成步骤（已完成步骤始终保留，无法通过此操作覆盖）。',
         parameters: {
           type: 'object',
           properties: {
@@ -205,23 +205,30 @@ function buildMetaTools(task, emitFn) {
         } else if (args.op === 'replace_steps') {
           if (!Array.isArray(args.steps)) return { ok: false, error: 'replace_steps 需要 steps 数组' };
           const parsed = planDoc.parsePlanDoc(md);
-          const normalized = args.steps.map((s, i) => ({
-            id: s.id ?? `step-${i + 1}`,
-            title: s.title,
-            targetType: s.targetType,
-            operation: s.operation,
-            dependsOn: s.dependsOn ?? [],
-            task: s.task,
-            done: !!s.done,
-            completedAt: s.completedAt ?? null,
-          }));
+          // 防御：已完成步骤强制保留（按原顺序），新提供的 steps 视为"未完成的剩余步骤"。
+          // 若 LLM 在 args.steps 中重复了已完成步骤的 id，以原文档为准忽略。
+          const doneSteps = parsed.steps.filter((s) => s.done);
+          const doneIds = new Set(doneSteps.map((s) => s.id));
+          const incoming = args.steps
+            .filter((s) => !s.id || !doneIds.has(s.id))
+            .map((s, i) => ({
+              id: s.id ?? `step-${doneSteps.length + i + 1}`,
+              title: s.title,
+              targetType: s.targetType,
+              operation: s.operation,
+              dependsOn: s.dependsOn ?? [],
+              task: s.task,
+              done: false,
+              completedAt: null,
+            }));
+          const finalSteps = [...doneSteps, ...incoming];
           md = planDoc.renderPlanDoc({
             title: parsed.title,
             status: parsed.status,
             createdAt: new Date().toISOString(),
             intent: '',
             assumptions: [],
-            steps: normalized,
+            steps: finalSteps,
             log: [],
           });
         } else {

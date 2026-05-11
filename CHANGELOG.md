@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): edit_plan_doc.replace_steps 强制保留已完成步骤，防止误覆盖
 - refactor(assistant): 工具适配器文件按项目惯例改名 _adapter → adapter
 - refactor(assistant): 下沉 toLLMTool / wrapToolEvents 到 assistant/server/tools/adapter.js，父子代理共享；wrapToolEvents 通过 opts 注入 cancelCheck / onCancelLog，callId 改用 crypto.randomUUID
 - fix(assistant): 同步 parent-agent.md 与 dispatch_subagent schema 中的返回形态描述（测试通过 sub-agent hard-fail 路径间接覆盖软失败映射；直接 mock soft-fail 受 ESM 限制暂留）
