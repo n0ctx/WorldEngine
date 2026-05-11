@@ -369,7 +369,11 @@ export default function WritingSpacePage() {
       },
       onDone(assistant, options) {
         if (!isCurrentStreamRun(runId)) return;
-        if (options?.length) pendingOptionsRef.current = options;
+        if (options?.length) {
+          pendingOptionsRef.current = options;
+          // 立即渲染选项，不等 onStreamEnd（后者要等 keepSseAlive 异步任务全部完成才触发）
+          setCurrentOptions(options);
+        }
         if (assistant && pendingEntriesRef.current.length > 0) {
           assistant = { ...assistant, activated_entries: pendingEntriesRef.current };
         }
@@ -668,7 +672,10 @@ export default function WritingSpacePage() {
       onDone(assistant, options) {
         if (continuationTokenRef.current !== continuationToken) return;
         if (assistant) pendingAssistantRef.current = assistant;
-        if (options?.length) pendingOptionsRef.current = options;
+        if (options?.length) {
+          pendingOptionsRef.current = options;
+          setCurrentOptions(options);
+        }
         startMemoryWriting();
       },
       onAborted(assistant) {

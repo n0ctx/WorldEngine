@@ -3,6 +3,15 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(suggestion): 补选项成功后立即渲染选项，不等 keepSseAlive 任务关闭连接
+
+**动机**：`onDone` 收到选项后只存入 `pendingOptionsRef`，实际渲染推迟到 `onStreamEnd`；而 `onStreamEnd` 要等 HTTP 连接关闭（即 title/state/chapter-title 等 `keepSseAlive` 异步任务全部完成后 `res.end()` 才触发），延迟通常数秒。
+
+**改动**
+- `frontend/src/pages/WritingSpacePage.jsx`：普通生成和续写两处 `onDone` 回调中，当 `options?.length > 0` 时，立即调用 `setCurrentOptions(options)` 渲染，同时保留 `pendingOptionsRef` 供 `onStreamEnd` 兜底幂等写入。
+
+**根因**：`onStreamEnd` = `parseSSEStream` 返回后调用，`parseSSEStream` 读到 stream 关闭，stream 关闭 = `res.end()`，`res.end()` 在 `runPostGenTasks` 所有 `keepSseAlive` 任务完成后才调用。
+
 ## 2026-05-11 fix(hooks): 观测事件改非阻塞，附件消息与启动时序修正
 
 **动机**：首版 hooks 接入把观测事件直接串进主时序，导致慢 hook 会卡住异步队列；`message:user:saved` 在附件落盘前触发；fresh data dir 下用户 hook 可能早于 schema 初始化而加载失败。
