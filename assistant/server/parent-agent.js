@@ -355,10 +355,10 @@ function buildMetaTools(task, emitFn, runId = null) {
         const summary = unescapeLiteralWhitespace(args.summary);
         taskStore.appendMessage(task.id, { role: 'assistant', content: summary });
         const eventType = args.terminalStatus === 'completed'
-          ? 'task_completed'
+          ? SSE_EVENTS.TASK_COMPLETED
           : args.terminalStatus === 'failed'
-            ? 'task_failed'
-            : 'task_cancelled';
+            ? SSE_EVENTS.TASK_FAILED
+            : SSE_EVENTS.TASK_CANCELLED;
         emitFn({ type: eventType, taskId: task.id, summary });
         return { ok: true };
       } catch (err) {

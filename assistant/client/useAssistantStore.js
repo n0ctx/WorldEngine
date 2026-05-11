@@ -108,7 +108,7 @@ export const useAssistantStore = create(
               return { ...s, status: 'executing' };
             case SSE_EVENTS.PAUSED:
               return { ...s, status: 'paused' };
-            case 'task_completed':
+            case SSE_EVENTS.TASK_COMPLETED:
               return {
                 ...s,
                 status: 'completed',
