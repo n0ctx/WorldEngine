@@ -8,6 +8,7 @@ import {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
   LLM_TOOL_RESOLUTION_MAX_TOKENS,
+  LLM_TOOL_RESOLUTION_MAX_ITERATIONS,
 } from '../../../utils/constants.js';
 
 const DEFAULT_BASE_URLS = {
@@ -137,7 +138,7 @@ async function callWithTools(messages, toolDefs, config) {
 export async function completeWithTools(messages, toolDefs, toolHandlers, config) {
   let currentMessages = [...messages];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const data = await callWithTools(currentMessages, toolDefs, config).catch(() => null);
     if (!data) return complete(currentMessages, config); // 模型不支持 tool-use，降级
 
@@ -163,7 +164,7 @@ export async function resolveToolContext(messages, toolDefs, toolHandlers, confi
   let currentMessages = [...messages];
   let enriched = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const overrideConfig = i === 0 ? { ...config, max_tokens: LLM_TOOL_RESOLUTION_MAX_TOKENS, temperature: 0 } : { ...config, temperature: 0 };
     const data = await callWithTools(currentMessages, toolDefs, overrideConfig).catch(() => null);
     if (!data) return enriched ? currentMessages : messages;

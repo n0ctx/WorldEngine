@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
+import { stripToolCallLeakage } from './useAssistantStore.js';
 
 const TOOL_LABELS = {
   preview_card: '预览卡片',
@@ -37,7 +38,9 @@ const TOOL_LABELS = {
   finalize_task: '完成任务',
 };
 
-function parseStreamingBlocks(text) {
+function parseStreamingBlocks(rawText) {
+  // 先剥掉模型在普通文本流里泄漏的工具调用 token / XML，再走思考块解析
+  const text = stripToolCallLeakage(rawText);
   const blocks = [];
   const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
   const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;

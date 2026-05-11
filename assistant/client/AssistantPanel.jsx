@@ -59,16 +59,9 @@ export default function AssistantPanel() {
     prevIsOpenRef.current = isOpen;
   }, [isOpen, status, resetTask]);
 
-  // 任务完成后通知主界面刷新角色/世界/persona 列表
-  const prevStatusRef = useRef(status);
-  useEffect(() => {
-    if (prevStatusRef.current !== 'completed' && status === 'completed') {
-      window.dispatchEvent(new Event('we:character-updated'));
-      window.dispatchEvent(new Event('we:world-updated'));
-      window.dispatchEvent(new Event('we:persona-updated'));
-    }
-    prevStatusRef.current = status;
-  }, [status]);
+  // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
+  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/executing 阶段已经写入
+  // 但列表迟迟不更新的体验问题。
 
   const buildContext = useCallback(async () => {
     let context = { worldId: currentWorldId, characterId: currentCharacterId };
@@ -222,11 +215,14 @@ export default function AssistantPanel() {
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
-  // 省略号气泡仅在「SSE 正在跑且尚无任何 streaming/running 项」时出现：
-  // 不要用 status 当判据——一轮 delta 结束后 done:true 会清掉 streaming 标志,
-  // 而 status 仍可能停在 planning/executing/paused（等下一轮用户输入或审批），
-  // 此时若按 status 判断会让省略号气泡"复活",视觉上像是死循环。
-  const pendingAssistant = isStreaming && !hasRunningItem;
+  // 省略号气泡仅在「LLM 真的在吐 token」的极短窗口出现：
+  // - isStreaming：本地 SSE fetch 仍在进行
+  // - !hasRunningItem：没有"运行中"占位（step / tool_call）抢眼
+  // - status === 'planning'：仅 planning 阶段会有自由文本流式输出；进入
+  //   awaiting_approval / paused / executing / 终态后 LLM 不再吐 token，
+  //   省略号必须立刻消失（之前 awaiting_approval 长连接保持时 isStreaming 一直为 true,
+  //   导致省略号常驻，造成"还在跑"的错觉）。
+  const pendingAssistant = isStreaming && !hasRunningItem && status === 'planning';
 
   // 左边沿拖拽改宽：监听器绑在 document 上，确保 pointer 移出把手后仍能响应
   const startResize = useCallback(

@@ -4,6 +4,7 @@ import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
+import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -196,7 +197,7 @@ export async function completeOpenAICompatibleWithTools(messages, toolDefs, tool
   const url = `${baseUrl}/chat/completions`;
   let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: config.max_tokens, stream: false };
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
     if (thinkingState !== 'enabled') body.temperature = config.temperature;
@@ -246,7 +247,7 @@ export async function resolveToolContextOpenAI(messages, toolDefs, toolHandlers,
   let currentMessages = normalizeOpenAICompatibleMessages(messages, config);
   let enriched = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const body = { model: config.model, messages: currentMessages, tools: toolDefs, tool_choice: 'auto', max_tokens: i === 0 ? 1000 : config.max_tokens, stream: false };
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
     if (thinkingState !== 'enabled') body.temperature = config.temperature ?? 0;

@@ -6,6 +6,8 @@ import GlobalToast from './components/ui/GlobalToast.jsx';
 import { refreshCustomCss } from './api/custom-css-snippets';
 import { getConfig } from './api/config';
 import { useDisplaySettingsStore } from './store/displaySettings';
+import { useAppModeStore } from './store/appMode';
+import { invalidateCache, loadRules } from './utils/regex-runner.js';
 import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
 
 const WorldsPage = lazy(() => import('./pages/WorldsPage'));
@@ -41,6 +43,7 @@ export default function App() {
   const setAutoCollapseThinking = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const isAssistantOpen = useAssistantStore((s) => s.isOpen);
+  const appMode = useAppModeStore((s) => s.appMode);
   const [assistantLoaded, setAssistantLoaded] = useState(false);
 
   useEffect(() => {
@@ -51,6 +54,24 @@ export default function App() {
       setShowTokenUsage(c.ui?.show_token_usage === true);
     }).catch(() => {});
   }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage]);
+
+  // 写卡助手在 apply_css_snippet / apply_regex_rule 成功后会派发对应事件；
+  // 监听必须挂在 App（而非设置页内组件）上，否则用户停留在聊天/世界/角色页时
+  // 设置组件未挂载，事件没人接 → 注入的 <style id="we-custom-css"> 和正则缓存
+  // 都不会更新，必须刷新页面才能看到效果。
+  useEffect(() => {
+    const onCssUpdated = () => { refreshCustomCss(appMode).catch(() => {}); };
+    const onRegexUpdated = () => {
+      invalidateCache();
+      loadRules(appMode).catch(() => {});
+    };
+    window.addEventListener('we:css-updated', onCssUpdated);
+    window.addEventListener('we:regex-updated', onRegexUpdated);
+    return () => {
+      window.removeEventListener('we:css-updated', onCssUpdated);
+      window.removeEventListener('we:regex-updated', onRegexUpdated);
+    };
+  }, [appMode]);
 
   useEffect(() => {
     if (isAssistantOpen) {

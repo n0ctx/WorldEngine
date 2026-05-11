@@ -14,6 +14,37 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+// 写入类工具 → 主界面 reload 事件：tool_call_completed 时按工具名实时派发，
+// 让主界面列表不必等到 task_completed 才刷新（修复"必须刷新才看到新卡"问题）
+const TOOL_REFRESH_EVENTS = {
+  apply_world_card: 'we:world-updated',
+  apply_character_card: 'we:character-updated',
+  apply_persona_card: 'we:persona-updated',
+  apply_css_snippet: 'we:css-updated',
+  apply_regex_rule: 'we:regex-updated',
+  apply_global_config: 'we:global-config-updated',
+};
+
+// 移除模型在普通文本流里泄漏的工具调用 token / XML。
+// 触发场景：父代理 Step 1 工具循环触顶后，Step 2 不再传 tools，模型仍想调用，
+// 把内部 function-call 文本（DSML 特殊 token / 裸 <tool_calls>/<invoke>/<parameter>）
+// 直接吐到普通文本里。根因已经通过提升 LLM_TOOL_RESOLUTION_MAX_ITERATIONS 缓解，
+// 但本函数仍作为渲染前的兜底，避免本地小模型 / 非 function-call provider 再次泄漏。
+export function stripToolCallLeakage(text) {
+  if (typeof text !== 'string' || !text) return text;
+  let out = text;
+  // DeepSeek 等模型使用 <｜DSML｜...｜> 特殊 token 包裹 function-call 段（｜是全角竖线 U+FF5C）
+  out = out.replace(/<｜[\s\S]*?｜>/g, '');
+  // 裸 XML 工具调用块（含跨段）
+  out = out.replace(/<tool_calls>[\s\S]*?<\/tool_calls>/gi, '');
+  out = out.replace(/<invoke\b[\s\S]*?<\/invoke>/gi, '');
+  out = out.replace(/<parameter\b[\s\S]*?<\/parameter>/gi, '');
+  // 未闭合的尾巴（流式中段时常见）：扫到行尾切掉
+  out = out.replace(/<tool_calls>[\s\S]*$/i, '');
+  out = out.replace(/<invoke\b[\s\S]*$/i, '');
+  return out;
+}
+
 export const useAssistantStore = create(
   persist(
     (set) => ({
@@ -122,13 +153,21 @@ export const useAssistantStore = create(
                 ],
               };
             }
-            case 'tool_call_completed':
+            case 'tool_call_completed': {
+              if (evt.success) {
+                const toolName = s.messages.find((m) => m.id === evt.callId)?.toolName;
+                const eventName = toolName ? TOOL_REFRESH_EVENTS[toolName] : null;
+                if (eventName && typeof window !== 'undefined') {
+                  window.dispatchEvent(new Event(eventName));
+                }
+              }
               return {
                 ...s,
                 messages: s.messages.map((m) =>
                   m.id === evt.callId ? { ...m, status: evt.success ? 'done' : 'error' } : m,
                 ),
               };
+            }
             case 'step_started': {
               const stepExists = s.messages.some((m) => m.id === evt.stepId);
               return {
@@ -218,8 +257,21 @@ export const useAssistantStore = create(
     }),
     {
       name: 'we-assistant-v2',
-      // 仅持久化面板显隐 + 宽度偏好；任务态在页面刷新后丢失（SSE 流无法恢复）
-      partialize: (s) => ({ isOpen: s.isOpen, width: s.width }),
+      // 持久化面板偏好 + 对话历史（user / assistant 消息）；
+      // 任务态字段（taskId / status / planDoc / error / currentStepId / taskMsgOffset）
+      // 不持久化，因为 SSE 流刷新后无法恢复。
+      partialize: (s) => ({
+        isOpen: s.isOpen,
+        width: s.width,
+        messages: sanitizeMessagesForPersist(s.messages),
+      }),
+      // rehydrate 时再过一次清洗：兼容旧版本写入的脏数据，保证刷新后不残留
+      // streaming 标志和"运行中"占位行。
+      onRehydrateStorage: () => (state) => {
+        if (state && Array.isArray(state.messages)) {
+          state.messages = sanitizeMessagesForPersist(state.messages);
+        }
+      },
     },
   ),
 );
@@ -272,4 +324,19 @@ function clearStreamingFlag(messages) {
   return [...messages.slice(0, -1), { ...last, streaming: false }];
 }
 
-export const __testables = { appendDelta, adoptUserMessageId, clearStreamingFlag };
+// 持久化用清洗：丢掉 plan_doc / tool_call / step 这类与任务态绑定的瞬时占位行，
+// 同时把残留的 streaming 标志抹掉，只留下 user / assistant 文本气泡。
+function sanitizeMessagesForPersist(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
+    .map((m) => (m.streaming ? { ...m, streaming: false } : m));
+}
+
+export const __testables = {
+  appendDelta,
+  adoptUserMessageId,
+  clearStreamingFlag,
+  sanitizeMessagesForPersist,
+  stripToolCallLeakage,
+};

@@ -4,6 +4,7 @@ import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToAnthropicMessages } from '../_shared/converters.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
+import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 
@@ -199,7 +200,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
   const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': ANTHROPIC_API_VERSION, 'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA };
   let currentMessages = [...messages];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: config.max_tokens || 4096 };
     if (config.temperature != null) body.temperature = config.temperature;
@@ -244,7 +245,7 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
   let currentMessages = [...messages];
   let enriched = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(currentMessages);
     const body = { model: config.model, messages: anthropicMsgs, tools: toAnthropicTools(toolDefs), max_tokens: i === 0 ? 1000 : (config.max_tokens || 4096), temperature: 0 };
     if (system) body.system = withCacheControl(system, config);

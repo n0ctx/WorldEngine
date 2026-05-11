@@ -6,6 +6,7 @@ import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
+import { LLM_TOOL_RESOLUTION_MAX_ITERATIONS } from '../../../utils/constants.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');
@@ -272,7 +273,7 @@ export async function completeGeminiWithTools(messages, toolDefs, toolHandlers, 
   const { contents: initialContents, systemInstruction } = convertToGeminiContents(messages);
   let nativeContents = [...initialContents];
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const body = { contents: nativeContents, tools: toGeminiTools(toolDefs) };
     if (systemInstruction) body.systemInstruction = systemInstruction;
     body.generationConfig = {};
@@ -327,7 +328,7 @@ export async function resolveToolContextGemini(messages, toolDefs, toolHandlers,
   let currentMessages = [...messages];
   let enriched = false;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < LLM_TOOL_RESOLUTION_MAX_ITERATIONS; i++) {
     const body = { contents: nativeContents, tools: toGeminiTools(toolDefs) };
     if (systemInstruction) body.systemInstruction = systemInstruction;
     body.generationConfig = { maxOutputTokens: i === 0 ? 1000 : config.max_tokens, temperature: 0 };

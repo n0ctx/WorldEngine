@@ -3,6 +3,32 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(assistant): 4 个体验问题集中修复
+
+**问题**
+1. 写卡助手成功写入世界卡 / 角色卡 / 用户卡 / 全局设置 / CSS / 正则后，主界面列表必须手动刷新页面才能看到新内容。
+2. 浏览器刷新后助手对话历史完全丢失（应保留，直到用户主动点「清空」）。
+3. 进入 `awaiting_approval` 等待确认计划期间，输入气泡区的「…」省略号气泡常驻不消失（LLM 已经不再吐 token）。
+4. 父代理 Step 2 流式文本里偶现 `<｜DSML｜tool_calls>...<｜DSML｜invoke name="dispatch_subagent">...` 一类的原始工具调用 token 泄漏到普通文本。
+
+**修复**
+- `assistant/client/useAssistantStore.js`：新增 `TOOL_REFRESH_EVENTS` 映射，`tool_call_completed`（success）时按工具名实时派发 `we:world-updated` / `we:character-updated` / `we:persona-updated` / `we:css-updated` / `we:regex-updated` / `we:global-config-updated`，不再等到 `task_completed`。`partialize` 扩展为持久化 `messages`（user / assistant 文本），任务态字段（taskId / status / planDoc / 等）不持久化；新增 `sanitizeMessagesForPersist` 与 `onRehydrateStorage` 兜底清洗，去除 plan_doc / tool_call / step 占位行与残留 streaming 标志。新增并导出 `stripToolCallLeakage`：移除 `<｜DSML｜...｜>` 特殊 token 与裸 `<tool_calls>/<invoke>/<parameter>` XML（含未闭合尾巴）。
+- `assistant/client/AssistantPanel.jsx`：移除基于 `status === 'completed'` 的总派发（由 tool_call_completed 增量派发替代）。`pendingAssistant` 条件加上 `status === 'planning'`，仅 LLM 真的在吐 token 的窗口显示「…」。
+- `assistant/client/MessageList.jsx`：`parseStreamingBlocks` 调用前先 `stripToolCallLeakage` 兜底。
+- `backend/utils/constants.js`：新增 `LLM_TOOL_RESOLUTION_MAX_ITERATIONS = 25`，替换 4 个 provider（anthropic / openai-compatible / gemini / ollama）中硬编码的 `for (let i = 0; i < 5; i++)` 工具循环上限（写卡助手多步 dispatch_subagent 场景 5 轮远远不够，触顶后 Step 2 不再传 tools，模型把工具调用以原始 token 形式吐到普通文本，造成 DSML 泄漏）。
+- `frontend/src/App.jsx`：在应用顶层挂全局 `we:css-updated` / `we:regex-updated` 监听 —— 命中后分别调用 `refreshCustomCss(appMode)` 与 `invalidateCache() + loadRules(appMode)`。Codex review 指出：原本只在 `CustomCssManager` / `RegexRulesManager` 内部监听时，用户停在聊天/世界页（设置组件未挂载）就接不到事件，CSS 注入与正则缓存仍是旧的。
+- `frontend/src/components/settings/CustomCssManager.jsx` / `RegexRulesManager.jsx`：同时保留本地监听以刷新设置面板自己的列表 state（App 层只负责注入 / 缓存失效，不更新 manager 的本地列表）。`useSettingsConfig` 已有 `we:global-config-updated` 监听，无需补。
+
+**结果**：助手写卡后主界面实时刷新；刷新页面对话历史保留；等待确认计划期间不再有「…」假动效；DSML 工具调用 token 不再泄漏到文本。
+
+## 2026-05-11 docs(readme): 重构结构、补徽章与目录锚点
+
+**变更**
+- `README.md`：开头新增 License / Release / Stars / Node ≥18 徽章行，主图下方加 TOC 锚点导航。
+- 章节顺序调整为「卖点 → 上手 → 能力 → 技术 → 导入导出 → 文档 → 开发与构建 → 社区」，递进更清晰。
+- 合并原"开发命令"与桌面端数据目录段落为"开发与构建"，消除两处重复，数据目录用列表呈现。
+- 不改动任何能力描述、命令、链接与截图路径。
+
 ## 2026-05-11 fix(release): 在 npm version 提交前同步子包版本号
 
 **问题**：根 `package.json` 把自动同步挂在 `postversion`，执行时机晚于 `npm version` 创建 commit/tag，导致子包 `package.json` 的版本变更不会进入 release tag。

@@ -53,6 +53,16 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
     return () => clearTimeout(timeoutId);
   }, [load]);
 
+  // 写卡助手在 apply_css_snippet 成功后会派发 we:css-updated，主界面随之 reload
+  useEffect(() => {
+    const onUpdated = () => {
+      void load();
+      void refreshCustomCss(appMode);
+    };
+    window.addEventListener('we:css-updated', onUpdated);
+    return () => window.removeEventListener('we:css-updated', onUpdated);
+  }, [load, appMode]);
+
   async function handleSave(data) {
     if (editingSnippet) {
       await updateSnippet(editingSnippet.id, data);

@@ -57,6 +57,13 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
+  // 写卡助手在 apply_regex_rule 成功后会派发 we:regex-updated，主界面随之 reload
+  useEffect(() => {
+    const onUpdated = () => { void refresh(); };
+    window.addEventListener('we:regex-updated', onUpdated);
+    return () => window.removeEventListener('we:regex-updated', onUpdated);
+  }, [refresh]);
+
   function openCreate() { setEditingRule(null); setEditorOpen(true); }
   function openEdit(rule) { setEditingRule(rule); setEditorOpen(true); }
 
