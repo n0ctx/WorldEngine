@@ -1,3 +1,11 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+
+// 在加载 task-store 前指定隔离的状态目录,避免污染默认 .temp/assistant/
+const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'we-taskstore-'));
+process.env.ASSISTANT_STATE_DIR = stateDir;
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -124,4 +132,9 @@ test('deleteTask 移除 task 与订阅者集合', () => {
   taskStore.deleteTask(t.id);
   assert.equal(taskStore.getTask(t.id), null);
   assert.equal(taskStore.__testables.sseClients.has(t.id), false);
+});
+
+test.after(() => {
+  try { fs.rmSync(stateDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  delete process.env.ASSISTANT_STATE_DIR;
 });

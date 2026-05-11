@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(assistant): task-store 单测走临时目录,不污染 .temp/assistant/
 - refactor(assistant): TERMINAL_TASK_STATUSES 统一在 task-store.js 导出,消除 routes 重复定义
 - feat(assistant): 进程启动时 hydrate 磁盘任务态,非终态统一转 failed 避免 orphan 任务
 - fix(assistant): persist 序列化补 error 字段;setStatus no-op 时跳过落盘
