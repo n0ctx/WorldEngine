@@ -3,6 +3,7 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- test(assistant): wrapToolEvents cancel 三时机回归保护(前/中/后)
 - test(assistant): 父代理在 dispatch_subagent 软失败时不应推进到 completed(回归保护)
 - test(assistant): 父代理 happy path 集成测(write_plan_doc → approve → dispatch_subagent → finalize_task)
 - fix(assistant): task-store 单测改用动态 import,避免 ESM hoist 导致 hydrate 污染真实 .temp/assistant/
