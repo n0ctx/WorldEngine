@@ -10,7 +10,7 @@
 
 import { createWorld, updateWorld, deleteWorld } from '../../backend/services/worlds.js';
 import { createCharacter, updateCharacter, deleteCharacter } from '../../backend/services/characters.js';
-import { updatePersona } from '../../backend/services/personas.js';
+import { updatePersona, updatePersonaByIdService } from '../../backend/services/personas.js';
 import { updateConfig } from '../../backend/services/config.js';
 import {
   createWorldPromptEntry,
@@ -195,12 +195,20 @@ async function applyProposal(proposal, worldRefId = null) {
         return newPersona;
       }
       // update
-      const worldId = entityId;
-      if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）');
       const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
-      const updated = await updatePersona(worldId, safeChanges);
+      let updated;
+      if (proposal.personaId) {
+        // 直接按 personaId 更新指定玩家卡
+        updated = await updatePersonaByIdService(proposal.personaId, safeChanges);
+      } else {
+        // 兼容旧接口：按 worldId 更新激活玩家卡
+        const worldId = entityId;
+        if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
+        updated = await updatePersona(worldId, safeChanges);
+      }
+      const resolvedWorldId = updated?.world_id ?? entityId;
       for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-        applyStateValueOp(op, { worldId });
+        applyStateValueOp(op, { worldId: resolvedWorldId });
       }
       return updated;
     }

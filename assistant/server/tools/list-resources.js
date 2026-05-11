@@ -1,6 +1,7 @@
 // assistant/server/tools/list-resources.js
 import { getAllWorlds } from '../../../backend/db/queries/worlds.js';
 import { getCharactersByWorldId } from '../../../backend/db/queries/characters.js';
+import { listPersonas } from '../../../backend/services/personas.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 
@@ -22,8 +23,8 @@ export const definition = {
     parameters: {
       type: 'object',
       properties: {
-        target: { type: 'string', enum: ['worlds', 'characters', 'css-snippets', 'regex-rules'] },
-        worldId: { type: 'string', description: 'characters 时可传：限定世界；省略返回全部' },
+        target: { type: 'string', enum: ['worlds', 'characters', 'personas', 'css-snippets', 'regex-rules'] },
+        worldId: { type: 'string', description: 'characters / personas 时必传：限定世界' },
       },
       required: ['target'],
     },
@@ -38,6 +39,10 @@ export async function execute({ target, worldId }) {
       // 项目暂未提供 listCharactersAll；按 worldId 必传处理
       if (!worldId) throw new Error('characters target 需要 worldId');
       return JSON.stringify(trim(getCharactersByWorldId(worldId)));
+    }
+    case 'personas': {
+      if (!worldId) throw new Error('personas target 需要 worldId');
+      return JSON.stringify(trim(listPersonas(worldId)));
     }
     case 'css-snippets':
       return JSON.stringify(trim(listCustomCssSnippets()));

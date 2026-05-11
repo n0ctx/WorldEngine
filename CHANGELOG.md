@@ -3,6 +3,19 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(assistant): 写卡助手支持识别和操作非激活玩家卡
+
+**动机**：`list_resources` 没有 `personas` target，`preview_card` / `apply_persona_card` 只能访问当前激活玩家卡，导致助手无法发现或修改世界下的其他玩家卡。
+
+**改动**
+- `assistant/server/tools/list-resources.js`：新增 `personas` target（需传 `worldId`），调用 `listPersonas` 返回含 `is_active` 的全列表。
+- `assistant/server/tools/card-preview.js`：`preview_card` 新增 `personaId` 参数；persona-card 查询时若传入 `personaId` 则直接定位该玩家卡，否则回退到激活玩家卡（兼容原行为）。
+- `assistant/server/tools/apply-persona-card.js`：`apply_persona_card` 新增 `personaId` 参数；update 操作若传 `personaId` 则直接修改指定玩家卡，否则修改激活玩家卡（兼容原行为）。
+- `assistant/server/normalize-proposal.js`：persona-card update 路径优先使用 `proposal.personaId` 调 `updatePersonaByIdService`；无 personaId 则走旧路径 `updatePersona(worldId)`，`stateValueOps` 中的 worldId 改从 `updated.world_id` 取。
+- `assistant/knowledge/USERCARD.md`：更新 operation 表，说明 personaId 用法和 list_resources personas 用法。
+
+**残留风险**：`normalize-proposal` 的 create 路径在新建 persona 后自动 `setActivePersona`，若未来需要"新建但不激活"的场景需单独处理。
+
 ## 2026-05-11 chore(ltm): 长期记忆压缩阈值调整为 >20 行触发、压缩到 <10 行
 
 - `LONG_TERM_MEMORY_MAX_LINES` 50 → 20（超过 20 行即触发压缩，触发条件是硬编码行数检测，不走 LLM）

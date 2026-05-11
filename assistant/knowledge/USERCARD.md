@@ -77,13 +77,15 @@ allowed keys（**仅 3 个**）：
 
 persona-card **仅允许 `create` / `update`**，**不允许 `delete`**。
 
-| operation | entityId 取值 | 备注 |
-|---|---|---|
-| `create` | 所属世界 ID（由父代理从 `context.worldId` 或前序 world-card 步骤注入） | create 后新卡拥有独立的状态值行，与其他玩家卡互不影响；未在 `stateValueOps` 中显式指定的字段回退到字段模板默认值 |
-| `update` | 所属世界 ID | persona 与世界绑定，update 修改的是当前激活 persona |
-| `delete` | — | **不支持** |
+| operation | entityId | personaId | 备注 |
+|---|---|---|---|
+| `create` | 所属世界 ID（由父代理从 `context.worldId` 或前序 world-card 步骤注入） | — | create 后新卡拥有独立的状态值行，与其他玩家卡互不影响 |
+| `update` | 所属世界 ID（省略 personaId 时必填） | 可选：直接定位特定玩家卡；省略则修改当前激活玩家卡 | 若已通过 `list_resources` 获取到 personaId，优先传 personaId |
+| `delete` | — | — | **不支持** |
 
 > 创建依赖约束：`persona-card create` 必须依赖世界来源（`context.worldId` 或前序 `step:<world-card-create>`），与 character-card 同样的依赖规则。
+
+> 发现世界下所有玩家卡：`list_resources` with `target:"personas"` + `worldId`，返回结果含 `id`（即 personaId）和 `is_active` 标记。
 
 ## 操作手册
 

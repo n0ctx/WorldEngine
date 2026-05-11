@@ -7,6 +7,7 @@
 import { getWorldById } from '../../../backend/services/worlds.js';
 import { getCharacterById } from '../../../backend/services/characters.js';
 import { getOrCreatePersona } from '../../../backend/services/personas.js';
+import { getPersonaById } from '../../../backend/db/queries/personas.js';
 import { getConfig } from '../../../backend/services/config.js';
 import { getAllWorldEntries } from '../../../backend/db/queries/prompt-entries.js';
 import { listConditionsByEntry } from '../../../backend/db/queries/entry-conditions.js';
@@ -49,15 +50,19 @@ export function createPreviewCardTool(context) {
             type: 'string',
             description:
               '实体 ID（world-card update/delete 时为世界 ID；character-card update/delete 时为角色 ID；' +
-              'persona-card 时为世界 ID）。create 操作或使用上下文默认值时可省略。',
+              'persona-card 时为世界 ID，若已知 personaId 则优先传 personaId 字段代替）。create 操作或使用上下文默认值时可省略。',
+          },
+          personaId: {
+            type: 'string',
+            description: '仅 persona-card 使用：指定玩家卡 ID；省略则查询当前激活玩家卡。',
           },
         },
         required: ['target'],
       },
     },
-    execute: async ({ target, operation = 'update', entityId = null }) => {
+    execute: async ({ target, operation = 'update', entityId = null, personaId = null }) => {
       try {
-        const data = loadEntityData(target, operation, entityId, context);
+        const data = loadEntityData(target, operation, entityId, context, personaId);
         return JSON.stringify(data, null, 2);
       } catch (err) {
         return `错误：${err.message}`;
@@ -69,7 +74,7 @@ export function createPreviewCardTool(context) {
 /**
  * 加载实体数据，逻辑与原 routes.js 的 loadEntityData 一致。
  */
-function loadEntityData(target, operation, entityId, context) {
+function loadEntityData(target, operation, entityId, context, personaId = null) {
   const withEntryConditions = (entries) => entries.map((entry) => (
     entry.trigger_type === 'state'
       ? { ...entry, conditions: listConditionsByEntry(entry.id) }
@@ -160,9 +165,17 @@ function loadEntityData(target, operation, entityId, context) {
       };
     }
     case 'persona-card': {
-      const worldId = entityId || context?.worldId;
-      if (!worldId) throw Object.assign(new Error('请先选择一个世界，再查询玩家卡'), { userFacing: true });
-      const persona = getOrCreatePersona(worldId);
+      let persona;
+      let worldId;
+      if (personaId) {
+        persona = getPersonaById(personaId);
+        if (!persona) throw Object.assign(new Error(`找不到玩家卡 ${personaId}，可能已被删除`), { userFacing: true });
+        worldId = persona.world_id;
+      } else {
+        worldId = entityId || context?.worldId;
+        if (!worldId) throw Object.assign(new Error('请先选择一个世界，再查询玩家卡'), { userFacing: true });
+        persona = getOrCreatePersona(worldId);
+      }
       const world = getWorldById(worldId);
       const personaEntriesMeta = maybeTruncate(world ? withEntryConditions(getAllWorldEntries(world.id)) : [], MAX_PREVIEW_ENTRIES, '现有世界条目');
       const personaSfMeta = maybeTruncate(getPersonaStateFieldsByWorldId(worldId), MAX_PREVIEW_FIELDS, '玩家状态字段');
