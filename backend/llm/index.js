@@ -327,6 +327,7 @@ export async function completeWithTools(messages, tools, options = {}) {
         return result;
       } catch (err) {
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
+        if (isToolLoopCancelledError(err)) throw err;
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
         lastError = err;
         log.warn(`COMPLETE_TOOLS RETRY  ${formatMeta({
