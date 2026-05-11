@@ -38,3 +38,14 @@ test('wrapToolEvents: execute 抛错时发 success:false 并透传', async () =>
   await assert.rejects(() => wrapped.execute({}), /boom/);
   assert.equal(events.at(-1).success, false);
 });
+
+test('wrapToolEvents: 默认 callId 来自 crypto.randomUUID(8 位 hex)', async () => {
+  const events = [];
+  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ ok: true }) };
+  const wrapped = wrapToolEvents(tool, (e) => events.push(e));
+  await wrapped.execute({});
+  const started = events.find((e) => e.type === 'tool_call_started');
+  assert.ok(started.callId, '应有 callId');
+  // crypto.randomUUID 形如 "12345678-..." → slice(0,8) 为 8 位 16 进制
+  assert.match(started.callId, /^[0-9a-f]{8}$/, `callId 应为 8 位 hex,实际:${started.callId}`);
+});
