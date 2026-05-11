@@ -22,6 +22,7 @@ import * as llm from '../../backend/llm/index.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
+import { toLLMTool, wrapToolEvents } from './tools/_adapter.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -55,65 +56,6 @@ const KNOWLEDGE_BY_TYPE = {
 
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');
 const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
-
-/**
- * 把任意一种工具导出形态规整成 splitTools 期望的形态：
- *   { type:'function', function:{name,description,parameters}, execute }
- *
- * 支持三种入参：
- *   - bare definition + execute：{ definition: { name, description, parameters }, execute }
- *   - wrapped definition + execute：{ definition: { type, function }, execute }
- *   - 已成形的 tool 对象：{ type, function, execute }
- */
-function toLLMTool(input, executeOverride) {
-  // 已是成形 tool（card-preview 工厂返回值即此形态）
-  if (input && input.type === 'function' && input.function && typeof input.execute === 'function') {
-    return input;
-  }
-  const def = input?.definition ?? input;
-  const exec = executeOverride ?? input?.execute;
-  if (typeof exec !== 'function') {
-    throw new Error('toLLMTool: missing execute function');
-  }
-  if (def?.type === 'function' && def.function) {
-    return { type: 'function', function: def.function, execute: exec };
-  }
-  if (def?.name) {
-    return {
-      type: 'function',
-      function: {
-        name: def.name,
-        description: def.description,
-        parameters: def.parameters,
-      },
-      execute: exec,
-    };
-  }
-  throw new Error('toLLMTool: unrecognized definition shape');
-}
-
-/**
- * 包装工具 execute：在执行前后发 tool_call_started / tool_call_completed SSE 事件。
- */
-function wrapToolEvents(tool, emitFn) {
-  if (!emitFn) return tool;
-  const name = tool.function?.name ?? 'unknown';
-  return {
-    ...tool,
-    execute: async (args) => {
-      const callId = Math.random().toString(36).slice(2, 8);
-      emitFn({ type: 'tool_call_started', toolName: name, callId });
-      try {
-        const result = await tool.execute(args);
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: true });
-        return result;
-      } catch (err) {
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
-        throw err;
-      }
-    },
-  };
-}
 
 async function loadPrompt() {
   return readFile(PROMPT_PATH, 'utf-8');

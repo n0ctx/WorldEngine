@@ -23,7 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as llm from '../../backend/llm/index.js';
-import { ToolLoopCancelledError, isToolLoopCancelledError } from '../../backend/llm/tool-loop-control.js';
+import { isToolLoopCancelledError } from '../../backend/llm/tool-loop-control.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
@@ -31,6 +31,7 @@ import * as planDoc from './plan-doc.js';
 import * as taskStore from './task-store.js';
 import { dispatchSubAgent } from './sub-agent.js';
 
+import { toLLMTool, wrapToolEvents } from './tools/_adapter.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -58,38 +59,6 @@ const APPLY_TOOLS = {
 
 const APPROVED_SENTINEL = '<<approved>>';
 
-/**
- * 把任意一种工具导出形态规整成 splitTools 期望的形态：
- *   { type:'function', function:{name,description,parameters}, execute }
- *
- * 与 sub-agent.js 的同名函数等价；Phase 5/6 暂不下沉公共模块，等共识稳定再合并。
- */
-function toLLMTool(input, executeOverride) {
-  if (input && input.type === 'function' && input.function && typeof input.execute === 'function' && !executeOverride) {
-    return input;
-  }
-  const def = input?.definition ?? input;
-  const exec = executeOverride ?? input?.execute;
-  if (typeof exec !== 'function') {
-    throw new Error('toLLMTool: missing execute function');
-  }
-  if (def?.type === 'function' && def.function) {
-    return { type: 'function', function: def.function, execute: exec };
-  }
-  if (def?.name) {
-    return {
-      type: 'function',
-      function: {
-        name: def.name,
-        description: def.description,
-        parameters: def.parameters,
-      },
-      execute: exec,
-    };
-  }
-  throw new Error('toLLMTool: unrecognized definition shape');
-}
-
 function unescapeLiteralWhitespace(s) {
   if (typeof s !== 'string') return s;
   return s
@@ -105,48 +74,6 @@ async function loadSystemPrompt() {
     readFile(CONTRACT_PATH, 'utf-8'),
   ]);
   return `${prompt}\n\n---\n\n# 助手契约（每轮注入）\n\n${contract}`;
-}
-
-/**
- * 包装工具 execute：在执行前后发 tool_call_started / tool_call_completed SSE 事件。
- * 仅用于 apply_* / preview / list / read_file；5 个编排 meta 工具已有语义事件，不需包装。
- */
-function wrapToolEvents(tool, emitFn, task) {
-  if (!emitFn) return tool;
-  const name = tool.function?.name ?? 'unknown';
-  return {
-    ...tool,
-    execute: async (args) => {
-      // 前置闸门：任务已被前端 /cancel，跳过执行（包括 apply_* 这类会落库的副作用工具）
-      // 也不发 tool_call_started/completed 事件，避免在已断开的 SSE 上残留运行行
-      if (task && task.status === 'cancelled') {
-        throw new ToolLoopCancelledError('task cancelled');
-      }
-      const callId = Math.random().toString(36).slice(2, 8);
-      emitFn({ type: 'tool_call_started', toolName: name, callId });
-      try {
-        const result = await tool.execute(args);
-        // 后置闸门：execute 启动后用户点了清空，本次落库无法回滚（better-sqlite3
-        // 同步事务 + apply_* 不接受 AbortSignal），但要做两件事——
-        //   1. SSE 上把这一行标成失败，UI 显示"已取消"而不是绿色成功；
-        //   2. 喂给 LLM 一个 ok:false 结果，阻断后续工具基于本次产物链式继续
-        //      （例：create world 完成后立刻又 apply character 引用刚刚的 worldId）。
-        // 这里直接抛 ToolLoopCancelledError，让 provider 侧 tool loop 立刻终止，
-        // 而不是把“已取消”当普通 tool result 再喂回模型继续下一轮。
-        if (task && task.status === 'cancelled') {
-          emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
-          log.warn(`TOOL_CANCELLED_MID_FLIGHT  ${formatMeta({ taskId: task.id, tool: name })}`);
-          throw new ToolLoopCancelledError('task cancelled mid-execution');
-        }
-        const success = !(result && result.ok === false);
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success });
-        return result;
-      } catch (err) {
-        emitFn({ type: 'tool_call_completed', toolName: name, callId, success: false });
-        throw err;
-      }
-    },
-  };
 }
 
 /**
@@ -475,13 +402,17 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const applyCtx = { worldRefId: task.context?.worldId ?? null };
   const emitFn = (evt) => taskStore.emit(task.id, evt);
 
+  const cancelCheck = () => task.status === 'cancelled';
+  const onCancelLog = (toolName) => log.warn(`TOOL_CANCELLED_MID_FLIGHT  ${formatMeta({ taskId: task.id, tool: toolName })}`);
+  const wrapOpts = { cancelCheck, onCancelLog };
+
   const tools = [
-    wrapToolEvents(toLLMTool(previewTool), emitFn, task),
-    wrapToolEvents(toLLMTool(listResources), emitFn, task),
-    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, task),
+    wrapToolEvents(toLLMTool(previewTool), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(listResources), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
     ...Object.entries(APPLY_TOOLS).map(([, mod]) =>
-      wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn, task)),
-    ...buildMetaTools(task, emitFn).map((t) => wrapToolEvents(toLLMTool(t), emitFn, task)),
+      wrapToolEvents(toLLMTool(mod, wrapApply(mod, applyCtx)), emitFn, wrapOpts)),
+    ...buildMetaTools(task, emitFn).map((t) => wrapToolEvents(toLLMTool(t), emitFn, wrapOpts)),
   ];
 
   // 历史 + 当前轮上下文
