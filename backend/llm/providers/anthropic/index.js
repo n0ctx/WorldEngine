@@ -1,8 +1,11 @@
-import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
-import { convertToAnthropicMessages } from './_converters.js';
-import { recordTokenUsage } from './cache-usage.js';
-import { logRawRequest } from '../raw-logger.js';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { getBaseUrl } from '../_shared/base-urls.js';
+import { apiError, parseSSE, executeToolCall } from '../_shared/fetch-utils.js';
+import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
+import { convertToAnthropicMessages } from '../_shared/converters.js';
+import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constants.js';
+import { logRawRequest } from '../../raw-logger.js';
+import { createLogger, formatMeta } from '../../../utils/logger.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -65,9 +68,9 @@ export async function* streamAnthropic(messages, config) {
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': config.api_key,
-    'anthropic-version': '2023-06-01',
+    'anthropic-version': ANTHROPIC_API_VERSION,
   };
-  const betas = ['prompt-caching-2024-07-31'];
+  const betas = [ANTHROPIC_PROMPT_CACHING_BETA];
   if (budgetTokens) betas.push('interleaved-thinking-2025-05-14');
   headers['anthropic-beta'] = betas.join(',');
 
@@ -156,9 +159,9 @@ export async function completeAnthropic(messages, config) {
   const headers = {
     'Content-Type': 'application/json',
     'x-api-key': config.api_key,
-    'anthropic-version': '2023-06-01',
+    'anthropic-version': ANTHROPIC_API_VERSION,
   };
-  const betasC = ['prompt-caching-2024-07-31'];
+  const betasC = [ANTHROPIC_PROMPT_CACHING_BETA];
   if (budgetTokens) betasC.push('interleaved-thinking-2025-05-14');
   headers['anthropic-beta'] = betasC.join(',');
 
@@ -193,7 +196,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'complete-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
+  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': ANTHROPIC_API_VERSION, 'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA };
   let currentMessages = [...messages];
 
   for (let i = 0; i < 5; i++) {
@@ -237,7 +240,7 @@ export async function resolveToolContextAnthropic(messages, toolDefs, toolHandle
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'resolve-tools' }));
   const baseUrl = getBaseUrl(config);
   const url = `${baseUrl}/v1/messages`;
-  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': '2023-06-01', 'anthropic-beta': 'prompt-caching-2024-07-31' };
+  const headers = { 'Content-Type': 'application/json', 'x-api-key': config.api_key, 'anthropic-version': ANTHROPIC_API_VERSION, 'anthropic-beta': ANTHROPIC_PROMPT_CACHING_BETA };
   let currentMessages = [...messages];
   let enriched = false;
 

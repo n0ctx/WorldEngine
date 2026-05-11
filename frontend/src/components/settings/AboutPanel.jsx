@@ -8,7 +8,7 @@ export default function AboutPanel() {
             WorldEngine
           </p>
           <p className="we-settings-about-version">
-            版本 0.0.0（开发版）
+            版本 {__APP_VERSION__}（开发版）
           </p>
         </div>
 

@@ -8,7 +8,7 @@ import {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
   LLM_TOOL_RESOLUTION_MAX_TOKENS,
-} from '../../utils/constants.js';
+} from '../../../utils/constants.js';
 
 const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,

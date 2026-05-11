@@ -3,6 +3,13 @@ import {
   CHAPTER_TIME_GAP_MS as SHARED_CHAPTER_TIME_GAP_MS,
 } from '../../shared/chapter-constants.mjs';
 
+export {
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  MAX_ATTACHMENT_SIZE_MB,
+  OLLAMA_DEFAULT_BASE_URL,
+  LMSTUDIO_DEFAULT_BASE_URL,
+} from '../../shared/runtime-constants.mjs';
+
 // ============================
 // LLM 调用
 // ============================
@@ -62,10 +69,8 @@ export const LLM_DIARY_MAX_TOKENS = 2000;
 export const ALL_MESSAGES_LIMIT = 9999;
 
 // ============================
-// 附件
+// 附件 / 本地 LLM 默认 URL：见文件顶部 re-export，单一来源在 shared/runtime-constants.mjs
 // ============================
-export const MAX_ATTACHMENTS_PER_MESSAGE = 3;
-export const MAX_ATTACHMENT_SIZE_MB = 5;
 
 // ============================
 // LLM 生成参数（非流式记忆/工具任务）
@@ -117,12 +122,6 @@ export const LLM_TOOL_RESOLUTION_MAX_TOKENS = 200;
 export const LLM_THINKING_BUDGET_LOW    = 1024;
 export const LLM_THINKING_BUDGET_MEDIUM = 8192;
 export const LLM_THINKING_BUDGET_HIGH   = 16384;
-
-// ============================
-// 本地 LLM 服务默认地址
-// ============================
-export const OLLAMA_DEFAULT_BASE_URL   = 'http://localhost:11434';
-export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';
 
 // ============================
 // 章节分组（前后端共享单一来源）

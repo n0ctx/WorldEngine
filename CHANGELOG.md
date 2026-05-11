@@ -3,6 +3,53 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(release): 在 npm version 提交前同步子包版本号
+
+**问题**：根 `package.json` 把自动同步挂在 `postversion`，执行时机晚于 `npm version` 创建 commit/tag，导致子包 `package.json` 的版本变更不会进入 release tag。
+
+**修复**
+- 根 `package.json`：保留手动 `version:sync` 脚本，但把自动钩子从 `postversion` 改为 `version`。
+- `sync-version.mjs` 继续读取已经更新过的根版本号，并在 release commit/tag 创建前把 `frontend/backend/desktop/assistant/client` 等子包版本一并改好。
+
+**结果**：后续执行 `npm version patch|minor|major` 时，根包与子包版本会一起进入同一版 release commit/tag。
+
+## 2026-05-11 refactor: LLM provider 按文件夹分包 + 散落常量收敛 + lint 兜底
+
+**动机**：清扫一批仍硬编码在多处的常量（导入导出格式版本、Anthropic API 版本头、附件大小、本地 LLM 默认 URL），同时把 `backend/llm/providers/` 从扁平结构改为"每个 provider 一个文件夹"，让每个 provider 的私有常量自然落在自己的 `constants.js`。
+
+**Provider 目录重组**（行为不变，仅文件位置与导入路径调整）
+- 新结构：`_shared/{base-urls,fetch-utils,thinking-budget,converters,cache-usage}.js` + `{anthropic,openai-compatible,gemini,ollama,mock}/index.js`（gemini 含 `cache.js`、openai-compatible 含 `thinking.js`、anthropic 含 `constants.js`）+ `cloud-router.js`（原 `openai.js`，重命名以反映分发器职责）。
+- 原 `_utils.js` 拆为 `_shared/base-urls.js`（DEFAULT_BASE_URLS / OPENAI_COMPATIBLE / getBaseUrl）、`_shared/fetch-utils.js`（parseSSE / apiError / extractProviderError / parseDataUrl / executeToolCall / safeParseJson）、`_shared/thinking-budget.js`（resolveThinkingBudget，Anthropic + Gemini 共用）、`openai-compatible/thinking.js`（applyThinkingToOpenAICompatibleBody + resolveQwenBudget，OpenAI-compatible 系专属）。
+- 调用方更新：`backend/llm/index.js`、`backend/routes/config.js`、`backend/llm/embedding.js`、3 个 provider 相关测试文件。
+
+**常量收敛**
+- 新增 `backend/services/import-export-constants.js`，导出 4 个 `EXPORT_FORMAT_*`；`import-export.js` / `import-export-validation.js` 共 9 处字面量改用常量。
+- 新增 `backend/llm/providers/anthropic/constants.js`，定义 `ANTHROPIC_API_VERSION` / `ANTHROPIC_PROMPT_CACHING_BETA`；`anthropic/index.js`（5 处）+ `routes/config.js`（1 处）改用常量。
+- 新增 `shared/runtime-constants.mjs`，统一 `MAX_ATTACHMENT_SIZE_MB` / `MAX_ATTACHMENTS_PER_MESSAGE` / `OLLAMA_DEFAULT_BASE_URL` / `LMSTUDIO_DEFAULT_BASE_URL` 单一来源；`backend/utils/constants.js` 与 `frontend/src/utils/constants.js` 双侧 re-export。
+- `frontend/src/components/chat/InputBox.jsx` 用 `MAX_ATTACHMENT_SIZE_MB` / `MAX_ATTACHMENTS_PER_MESSAGE` 替换硬编码；toast 文案改模板字符串。
+- `frontend/src/components/settings/SettingsConstants.js` 改 import `OLLAMA_DEFAULT_BASE_URL` / `LMSTUDIO_DEFAULT_BASE_URL`。
+
+**Lint 兜底**（轻量 no-restricted-syntax）
+- `backend/eslint.config.js` 新增 10 条字面量禁用规则（4 个 format 字符串 + 2 个 API host + 2 个 Anthropic header + 2 个本地 LLM URL），并在常量定义文件 + `routes/config.js` 单独豁免。
+- `frontend/eslint.config.js` 现有 `no-restricted-syntax` 数组追加 2 条（本地 LLM URL）。
+
+**有意保留的 drift**：`routes/config.js` 内 `OPENAI_COMPATIBLE_BASE_URLS` 与 `_shared/base-urls.js` 内 `DEFAULT_BASE_URLS` 看似重复，但 `kimi-coding` 的 `/models` 端点（`/coding/v1`）与 chat 端点（`/coding`）路径不同，两份映射必须独立维护。`config.js` 因此在 lint 豁免名单内，并在文件内加注释。
+
+**验证**：`npm run check` 全过（backend 445 / frontend 151 / assistant 112 测试全绿，lint clean）。lint 守门通过临时探针文件验证有效（往 services/ 投放含 `'worldengine-character-v1'` 的文件能触发错误）。
+
+## 2026-05-11 chore: 统一版本号来源（根 package.json）
+
+**动机**：版本号原先在 4 个 `package.json` + `AboutPanel.jsx` 共 5 处硬编码，每次发版要手改多处。
+
+**改动**
+- `frontend/vite.config.js`：读取根 `package.json`，通过 `define` 注入 `__APP_VERSION__` 全局常量。
+- `frontend/src/components/settings/AboutPanel.jsx`：版本号改读 `__APP_VERSION__`，移除硬编码 `0.1.1`。
+- `frontend/eslint.config.js`：将 `__APP_VERSION__` 加入 globals，避免 `no-undef` 误报。
+- 新增 `scripts/sync-version.mjs`：以根 `package.json` 为唯一来源，同步到 frontend/backend/desktop/assistant/assistant-client 五个子包。
+- 根 `package.json` 新增 `version:sync` 脚本和 `version` 钩子（`npm version` 在创建 release commit/tag 前自动同步）。
+
+**使用**：改版本只需改根 `package.json`，或跑 `npm version <new>`；显示位会自动跟随重新构建。
+
 ## 2026-05-11 fix(assistant): finalize_task summary 反转义字面换行符
 
 **问题**：写卡助手任务结束的总结气泡里出现大量字面 `\n`，导致整段文本不换行。模型在 `finalize_task` 的 `summary` 参数里把转义符号自身又转义了一次（`"\\n"`），JSON 解析后落入消息内容的就是字面 `\` + `n`。

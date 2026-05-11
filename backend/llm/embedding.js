@@ -14,11 +14,12 @@
 
 import { getConfig } from '../services/config.js';
 import { OLLAMA_DEFAULT_BASE_URL } from '../utils/constants.js';
+import { DEFAULT_BASE_URLS as PROVIDER_BASE_URLS } from './providers/_shared/base-urls.js';
 
 // ─── 默认 Base URL ───────────────────────────────────────────────
 
 const DEFAULT_BASE_URLS = {
-  openai: 'https://api.openai.com/v1',
+  openai: PROVIDER_BASE_URLS.openai,
 };
 
 const OLLAMA_DEFAULT_BASE = OLLAMA_DEFAULT_BASE_URL;

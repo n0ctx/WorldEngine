@@ -4,7 +4,9 @@ import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
 import { complete } from '../llm/index.js';
-import { DEFAULT_BASE_URLS, extractProviderError } from '../llm/providers/_utils.js';
+import { DEFAULT_BASE_URLS } from '../llm/providers/_shared/base-urls.js';
+import { extractProviderError } from '../llm/providers/_shared/fetch-utils.js';
+import { ANTHROPIC_API_VERSION } from '../llm/providers/anthropic/constants.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
 import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
 
@@ -351,7 +353,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
     const resp = await fetch(`${base}/v1/models`, {
       headers: {
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'anthropic-version': ANTHROPIC_API_VERSION,
       },
     });
     if (!resp.ok) {

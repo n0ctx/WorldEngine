@@ -9,7 +9,7 @@
  * 失败一律 throw，调用方降级到无缓存路径。
  */
 import crypto from 'node:crypto';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { createLogger, formatMeta } from '../../../utils/logger.js';
 
 const log = createLogger('gemini-cache', 'cyan');
 

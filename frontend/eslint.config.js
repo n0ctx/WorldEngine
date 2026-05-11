@@ -21,7 +21,7 @@ export default defineConfig([
     },
     languageOptions: {
       ecmaVersion: 2020,
-      globals: globals.browser,
+      globals: { ...globals.browser, __APP_VERSION__: 'readonly' },
       parserOptions: {
         ecmaVersion: 'latest',
         ecmaFeatures: { jsx: true },
@@ -32,13 +32,16 @@ export default defineConfig([
       'react/jsx-uses-vars': 'error',
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
       'we-local/no-direct-toast-import': 'error',
-      // 禁止内联 style 设置视觉属性，新代码守卫规则（warn 不阻断 CI）
       'no-restricted-syntax': [
         'warn',
+        // 禁止内联 style 设置视觉属性
         {
           selector: "JSXAttribute[name.name='style'] > JSXExpressionContainer > ObjectExpression > Property[key.name=/^(color|background|backgroundColor|border|borderColor|fontFamily|fontSize|fontWeight|letterSpacing|lineHeight|padding|paddingTop|paddingLeft|paddingRight|paddingBottom|margin|marginTop|marginLeft|marginRight|marginBottom|boxShadow|textShadow|opacity|fill|stroke|outline|zIndex|backdropFilter|WebkitBackdropFilter)$/]",
           message: '禁止内联 style 设置视觉属性，请使用 CSS 类或 CSS 变量。豁免：animationDelay、transform、transition。',
         },
+        // 禁止重复硬编码已有单一来源的字面量；常量定义在 shared/runtime-constants.mjs，通过 src/utils/constants.js re-export
+        { selector: "Literal[value='http://localhost:11434']", message: "用 OLLAMA_DEFAULT_BASE_URL（src/utils/constants.js）替代字面量。" },
+        { selector: "Literal[value='http://localhost:1234']",  message: "用 LMSTUDIO_DEFAULT_BASE_URL（src/utils/constants.js）替代字面量。" },
       ],
     },
   },

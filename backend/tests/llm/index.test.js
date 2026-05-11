@@ -46,7 +46,7 @@ test('getProvider 能路由到 mock provider', async (t) => {
 
   const [{ __testables }, mockProvider] = await Promise.all([
     freshImport('backend/llm/index.js'),
-    freshImport('backend/llm/providers/mock.js'),
+    freshImport('backend/llm/providers/mock/index.js'),
   ]);
 
   assert.equal(typeof __testables.getProvider('mock').complete, 'function');

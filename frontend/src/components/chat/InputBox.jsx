@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 're
 import { applyRules } from '../../utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
 import { log } from '../../utils/logger.js';
+import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../utils/constants.js';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
@@ -128,10 +129,9 @@ const InputBox = forwardRef(function InputBox({
   function handleFileChange(e) {
     const files = Array.from(e.target.files || []);
     e.target.value = '';
-    const MAX_IMAGES = 3;
-    const MAX_SIZE = 5 * 1024 * 1024;
+    const MAX_SIZE = MAX_ATTACHMENT_SIZE_MB * 1024 * 1024;
 
-    const remaining = MAX_IMAGES - attachments.length;
+    const remaining = MAX_ATTACHMENTS_PER_MESSAGE - attachments.length;
     const selected = files.slice(0, remaining);
     const rejected = [];
 
@@ -155,7 +155,7 @@ const InputBox = forwardRef(function InputBox({
     Promise.all(readers).then((results) => {
       const valid = results.filter(Boolean);
       if (rejected.length) {
-        log.error('chat.image.too_large', null, { toast: `以下图片超过 5MB，已跳过：${rejected.join(', ')}` });
+        log.error('chat.image.too_large', null, { toast: `以下图片超过 ${MAX_ATTACHMENT_SIZE_MB}MB，已跳过：${rejected.join(', ')}` });
       }
       if (valid.length) {
         setAttachments((prev) => [...prev, ...valid]);

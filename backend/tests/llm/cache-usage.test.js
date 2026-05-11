@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getPromptCacheStrategy, recordTokenUsage } from '../../llm/providers/cache-usage.js';
-import { OPENAI_COMPATIBLE } from '../../llm/providers/_utils.js';
+import { getPromptCacheStrategy, recordTokenUsage } from '../../llm/providers/_shared/cache-usage.js';
+import { OPENAI_COMPATIBLE } from '../../llm/providers/_shared/base-urls.js';
 
 test('getPromptCacheStrategy 覆盖全部云端预设 provider', () => {
   const expected = new Map([

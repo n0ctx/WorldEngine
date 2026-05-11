@@ -1,9 +1,11 @@
-import { getBaseUrl, apiError, parseSSE, executeToolCall, resolveThinkingBudget } from './_utils.js';
-import { convertToGeminiContents } from './_converters.js';
-import { recordTokenUsage } from './cache-usage.js';
-import { getOrCreateCache } from './gemini-cache.js';
-import { logRawRequest } from '../raw-logger.js';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { getBaseUrl } from '../_shared/base-urls.js';
+import { apiError, parseSSE, executeToolCall } from '../_shared/fetch-utils.js';
+import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
+import { convertToGeminiContents } from '../_shared/converters.js';
+import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { getOrCreateCache } from './cache.js';
+import { logRawRequest } from '../../raw-logger.js';
+import { createLogger, formatMeta } from '../../../utils/logger.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');

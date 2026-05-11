@@ -1,3 +1,5 @@
+import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../../utils/constants.js';
+
 export const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },
@@ -85,8 +87,8 @@ export const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
 export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
 
 export const DEFAULT_BASE_URLS = {
-  ollama: 'http://localhost:11434',
-  lmstudio: 'http://localhost:1234',
+  ollama: OLLAMA_DEFAULT_BASE_URL,
+  lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   xiaomi: 'https://your-xiaomi-api-endpoint/v1',
 };
 
@@ -95,7 +97,7 @@ export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };
 export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
 
 /**
- * 各 provider 思考链配置选项 — 与 backend/llm/providers/_utils.js#applyThinkingToOpenAICompatibleBody 严格对应
+ * 各 provider 思考链配置选项 — 与 backend/llm/providers/openai-compatible/thinking.js#applyThinkingToOpenAICompatibleBody 严格对应
  *
  * 编码命名空间：
  *   effort_*           → reasoning_effort 或 reasoning.effort（OpenAI o-series / OpenRouter / Grok / Xiaomi）

@@ -3,30 +3,31 @@
  *
  * 将 streamChat / complete / completeWithTools / resolveToolContext
  * 路由到各 provider 实现模块：
- *   openai-compatible.js  OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow
- *   anthropic.js          Anthropic Messages API
- *   gemini.js             Gemini generateContent API
+ *   openai-compatible/  OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow
+ *   anthropic/          Anthropic Messages API
+ *   gemini/             Gemini generateContent API
  */
 
-import { OPENAI_COMPATIBLE, apiError } from './_utils.js';
+import { OPENAI_COMPATIBLE } from './_shared/base-urls.js';
+import { apiError } from './_shared/fetch-utils.js';
 import {
   streamOpenAICompatible,
   completeOpenAICompatible,
   completeOpenAICompatibleWithTools,
   resolveToolContextOpenAI,
-} from './openai-compatible.js';
+} from './openai-compatible/index.js';
 import {
   streamAnthropic,
   completeAnthropic,
   completeAnthropicWithTools,
   resolveToolContextAnthropic,
-} from './anthropic.js';
+} from './anthropic/index.js';
 import {
   streamGemini,
   completeGemini,
   completeGeminiWithTools,
   resolveToolContextGemini,
-} from './gemini.js';
+} from './gemini/index.js';
 
 const NAMED_ADAPTERS = {
   'kimi-coding': {

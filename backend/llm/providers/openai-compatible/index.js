@@ -1,7 +1,9 @@
-import { getBaseUrl, apiError, parseSSE, executeToolCall, extractProviderError, applyThinkingToOpenAICompatibleBody } from './_utils.js';
-import { recordTokenUsage } from './cache-usage.js';
-import { logRawRequest } from '../raw-logger.js';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { getBaseUrl } from '../_shared/base-urls.js';
+import { apiError, parseSSE, executeToolCall, extractProviderError } from '../_shared/fetch-utils.js';
+import { applyThinkingToOpenAICompatibleBody } from './thinking.js';
+import { recordTokenUsage } from '../_shared/cache-usage.js';
+import { logRawRequest } from '../../raw-logger.js';
+import { createLogger, formatMeta } from '../../../utils/logger.js';
 
 const log = createLogger('llm', 'magenta');
 

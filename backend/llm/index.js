@@ -10,10 +10,10 @@
 
 import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from '../services/config.js';
 import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
-import * as cloudProvider from './providers/openai.js';
-import * as localProvider from './providers/ollama.js';
-import * as mockProvider from './providers/mock.js';
-import { getPromptCacheStrategy } from './providers/cache-usage.js';
+import * as cloudProvider from './providers/cloud-router.js';
+import * as localProvider from './providers/ollama/index.js';
+import * as mockProvider from './providers/mock/index.js';
+import { getPromptCacheStrategy } from './providers/_shared/cache-usage.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw, summarizeMessages, spinnerAdd, spinnerRemove } from '../utils/logger.js';
 
 const log = createLogger('llm');

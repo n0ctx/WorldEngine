@@ -2,11 +2,16 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const rootPkg = JSON.parse(readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'))
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(rootPkg.version),
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     dedupe: ['react', 'react-dom', 'zustand'],

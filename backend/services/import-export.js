@@ -11,6 +11,12 @@ import {
 } from './import-export-validation.js';
 import { listConditionsByEntry, replaceEntryConditions } from '../db/queries/entry-conditions.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import {
+  EXPORT_FORMAT_CHARACTER,
+  EXPORT_FORMAT_PERSONA,
+  EXPORT_FORMAT_WORLD,
+  EXPORT_FORMAT_GLOBAL_SETTINGS,
+} from './import-export-constants.js';
 
 const log = createLogger('svc', 'green');
 
@@ -134,7 +140,7 @@ export function exportCharacter(characterId) {
   }
 
   return {
-    format: 'worldengine-character-v1',
+    format: EXPORT_FORMAT_CHARACTER,
     character: {
       name: character.name,
       description: character.description ?? '',
@@ -166,7 +172,7 @@ function buildPersonaExportPayload(persona) {
   }
 
   return {
-    format: 'worldengine-persona-v1',
+    format: EXPORT_FORMAT_PERSONA,
     persona: {
       name: persona.name,
       description: persona.description ?? '',
@@ -260,7 +266,7 @@ export function importCharacter(worldId, data) {
 }
 
 function normalizePersonaImportData(data) {
-  if (data?.format === 'worldengine-persona-v1') {
+  if (data?.format === EXPORT_FORMAT_PERSONA) {
     validatePersonaImportPayload(data);
     return {
       persona: data.persona,
@@ -268,7 +274,7 @@ function normalizePersonaImportData(data) {
     };
   }
 
-  if (data?.format !== 'worldengine-character-v1') {
+  if (data?.format !== EXPORT_FORMAT_CHARACTER) {
     throw new Error('不支持的玩家卡格式');
   }
 
@@ -467,7 +473,7 @@ export function exportWorld(worldId) {
   });
 
   return {
-    format: 'worldengine-world-v1',
+    format: EXPORT_FORMAT_WORLD,
     world: {
       name: world.name,
       description: world.description ?? '',
@@ -725,7 +731,7 @@ export function exportGlobalSettings(mode = 'chat') {
   ).all(mode);
 
   const base = {
-    format: 'worldengine-global-settings-v1',
+    format: EXPORT_FORMAT_GLOBAL_SETTINGS,
     mode,
     exported_at: new Date().toISOString(),
     custom_css_snippets: cssSnippets,
@@ -767,7 +773,7 @@ export function exportGlobalSettings(mode = 'chat') {
 // ─── 导入全局设置 ─────────────────────────────────────────────────────────────
 
 export function importGlobalSettings(data) {
-  if (!data || data.format !== 'worldengine-global-settings-v1') {
+  if (!data || data.format !== EXPORT_FORMAT_GLOBAL_SETTINGS) {
     throw new Error('全局设置文件格式不正确');
   }
 

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseSSE, applyThinkingToOpenAICompatibleBody } from '../../llm/providers/_utils.js';
+import { parseSSE } from '../../llm/providers/_shared/fetch-utils.js';
+import { applyThinkingToOpenAICompatibleBody } from '../../llm/providers/openai-compatible/thinking.js';
 
 test('parseSSE 支持 Web ReadableStream 返回体', async () => {
   const encoder = new TextEncoder();

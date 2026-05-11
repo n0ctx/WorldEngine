@@ -1,4 +1,9 @@
 import { MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
+import {
+  EXPORT_FORMAT_CHARACTER,
+  EXPORT_FORMAT_PERSONA,
+  EXPORT_FORMAT_WORLD,
+} from './import-export-constants.js';
 
 const MAX_CARD_PAYLOAD_BYTES = 8 * 1024 * 1024;
 const MAX_CARD_ARRAY_ITEMS = 500;
@@ -150,7 +155,7 @@ function assertPayloadSize(data) {
 export function validateCharacterImportPayload(data) {
   assertPayloadSize(data);
   assertPlainObject(data, '角色卡');
-  assert(data.format === 'worldengine-character-v1', '不支持的角色卡格式');
+  assert(data.format === EXPORT_FORMAT_CHARACTER, '不支持的角色卡格式');
   assertCharacterCore(data.character, 'character');
   assertPromptEntries(data.prompt_entries ?? [], 'prompt_entries');
   assertStateValues(data.character_state_values ?? [], 'character_state_values');
@@ -159,7 +164,7 @@ export function validateCharacterImportPayload(data) {
 export function validatePersonaImportPayload(data) {
   assertPayloadSize(data);
   assertPlainObject(data, '玩家卡');
-  assert(data.format === 'worldengine-persona-v1', '不支持的玩家卡格式');
+  assert(data.format === EXPORT_FORMAT_PERSONA, '不支持的玩家卡格式');
   assertPlainObject(data.persona, 'persona');
   assertRequiredString(data.persona.name, 'persona.name', MAX_NAME_LENGTH);
   assertOptionalString(data.persona.description, 'persona.description');
@@ -172,7 +177,7 @@ export function validatePersonaImportPayload(data) {
 export function validateWorldImportPayload(data) {
   assertPayloadSize(data);
   assertPlainObject(data, '世界卡');
-  assert(data.format === 'worldengine-world-v1', '不支持的世界卡格式');
+  assert(data.format === EXPORT_FORMAT_WORLD, '不支持的世界卡格式');
   assertPlainObject(data.world, 'world');
   assertRequiredString(data.world.name, 'world.name', MAX_NAME_LENGTH);
   assertOptionalString(data.world.description, 'world.description');

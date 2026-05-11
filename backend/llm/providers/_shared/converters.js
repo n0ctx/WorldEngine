@@ -1,4 +1,4 @@
-import { parseDataUrl, safeParseJson } from './_utils.js';
+import { parseDataUrl, safeParseJson } from './fetch-utils.js';
 
 /**
  * 内部格式 → Anthropic Messages API 格式

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildOpenAICompatibleHeaders, normalizeOpenAICompatibleMessages } from '../../llm/providers/openai-compatible.js';
+import { buildOpenAICompatibleHeaders, normalizeOpenAICompatibleMessages } from '../../llm/providers/openai-compatible/index.js';
 
 test('grok provider 在有 conversationId 时附加 x-grok-conv-id header', () => {
   const headers = buildOpenAICompatibleHeaders({
