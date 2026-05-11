@@ -387,6 +387,10 @@ export default function WritingSpacePage() {
         if (!isCurrentStreamRun(runId)) return;
         pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
       },
+      onSuggestionFallbackStarted() {
+        if (!isCurrentStreamRun(runId)) return;
+        log.warn('writing.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
+      },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         clearTimeout(memoryWritingTimerRef.current);
@@ -691,6 +695,10 @@ export default function WritingSpacePage() {
           setStateFailedTick((tick) => tick + 1);
           log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
         }
+      },
+      onSuggestionFallbackStarted() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        log.warn('writing.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
       },
       onDiaryUpdated() {
         if (continuationTokenRef.current !== continuationToken) return;

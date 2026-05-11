@@ -455,6 +455,10 @@ export default function ChatPage() {
         if (!isCurrentStreamRun(runId)) return;
         pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
       },
+      onSuggestionFallbackStarted() {
+        if (!isCurrentStreamRun(runId)) return;
+        showToast('本轮选项缺失，正在补全…', 'success');
+      },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
@@ -669,6 +673,10 @@ export default function ChatPage() {
         if (currentSessionIdRef.current !== continuationSessionId) return;
         useStore.getState().triggerStateFailed();
         log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+      },
+      onSuggestionFallbackStarted() {
+        if (continuationTokenRef.current !== continuationToken) return;
+        showToast('本轮选项缺失，正在补全…', 'success');
       },
       onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;

@@ -114,6 +114,41 @@ test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', a
   assert.equal(activeStreams.size, 0);
 });
 
+test('POST /api/sessions/:sessionId/chat 在选项区未闭合时会调用副模型补齐选项', async () => {
+  resetMockEnv();
+  sandbox.writeConfig({
+    ...sandbox.readConfig(),
+    suggestion_enabled: true,
+  });
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['正文没有选项结尾']);
+  process.env.MOCK_LLM_COMPLETE = '<next_prompt>\n继续追问\n转身离开\n突然出手\n</next_prompt>';
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '补齐世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '林恩' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '现在怎么办？' }),
+  });
+
+  const events = parseSsePayloads(await response.text());
+  assert.ok(events.some((event) => event.type === 'suggestion_fallback_started'));
+  const doneEvent = events.find((event) => event.done);
+  assert.ok(doneEvent);
+  assert.deepEqual(doneEvent.options, ['继续追问', '转身离开', '突然出手']);
+  assert.equal(doneEvent.assistant.content, '正文没有选项结尾');
+
+  const row = sandbox.db.prepare(
+    'SELECT content, next_options FROM messages WHERE session_id = ? AND role = ? ORDER BY created_at DESC LIMIT 1',
+  ).get(session.id, 'assistant');
+  assert.equal(row.content, '正文没有选项结尾');
+  assert.deepEqual(JSON.parse(row.next_options), ['继续追问', '转身离开', '突然出手']);
+});
+
 test('POST /api/sessions/:sessionId/chat 在 LLM 返回空内容时不落 assistant 消息', async () => {
   resetMockEnv();
 

@@ -28,7 +28,6 @@ import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
 import { updateMessageTokenUsage, updateMessageNextOptions, updateMessageActivatedEntries } from '../db/queries/messages.js';
-import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';
@@ -39,7 +38,6 @@ import {
   supportsPrefill,
   sendSse,
 } from './stream-helpers.js';
-import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 import { assertExists } from '../utils/route-helpers.js';
 
 const router = Router();
@@ -106,6 +104,12 @@ function buildChatTaskSpecs({ sessionId, worldId, characterId, session, streamSt
       keepSseAlive: false,
     },
   ];
+}
+
+function getLastUserContent(sessionId) {
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const lastUser = [...allMsgs].reverse().find((m) => m.role === 'user');
+  return lastUser?.content ?? '';
 }
 
 /**
@@ -193,7 +197,14 @@ async function runStream(sessionId, res, opts = {}) {
   const worldId = character?.world_id ?? null;
 
   // 保存 AI 回复（剥除状态块 + 提取选项 + 应用规则）
-  const { savedContent, options, savedAssistant } = processStreamOutput(fullContent, aborted, worldId, sessionId);
+  const { savedContent, options, savedAssistant } = await processStreamOutput(fullContent, aborted, worldId, sessionId, {
+    suggestionEnabled: !!getConfig().suggestion_enabled,
+    currentUserContent: opts.userContent ?? getLastUserContent(sessionId),
+    configScope: 'aux',
+    onSuggestionFallback() {
+      if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
+    },
+  });
   fullContent = savedContent;
 
   // 持久化 token usage，并同步到返回对象
@@ -261,6 +272,7 @@ router.post('/:sessionId/chat', async (req, res) => {
 
   await runStream(sessionId, res, {
     userMsgId: userMsg.id,
+    userContent: content,
     diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
   });
 });
@@ -375,6 +387,7 @@ router.post('/:sessionId/continue', async (req, res) => {
   await awaitPendingStateUpdate(sessionId);
 
   const originalContent = lastAssistant.content;
+  const lastUser = [...allMsgs.slice(0, lastAssistantIndex)].reverse().find((m) => m.role === 'user');
   let newContent = '';
   let aborted = false;
   const usageRef = {};
@@ -407,29 +420,23 @@ router.post('/:sessionId/continue', async (req, res) => {
   const character = characterId ? getCharacterById(characterId) : null;
   const worldId = character?.world_id ?? null;
 
-  if (newContent) {
-    newContent = stripAsstContext(newContent);
-  }
-
-  // 提取 <next_prompt> 选项（仅非中断时；剥除后内容不入 DB）
-  let continueOptions = [];
-  if (!aborted && newContent) {
-    const extracted = extractNextPromptOptions(newContent);
-    newContent = extracted.content;
-    continueOptions = extracted.options;
-  }
-
-  if (aborted && newContent) {
-    newContent += '\n\n[已中断]';
-  }
-
   let mergedAssistant = null;
   let mergedContent = '';
+  let continueOptions = [];
   if (newContent) {
-    // ai_output scope 仅作用于新生成的内容；再剥除末尾状态块
-    const processedNew = aborted
-      ? newContent
-      : stripAsstContext(applyRules(newContent, 'ai_output', worldId, session.mode));
+    const processed = await processStreamOutput(newContent, aborted, worldId, sessionId, {
+      mode: session.mode,
+      suggestionEnabled: !!getConfig().suggestion_enabled,
+      currentUserContent: lastUser?.content ?? '',
+      configScope: 'aux',
+      onSuggestionFallback() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
+      },
+      createMessageFn: () => null,
+      touchSessionFn: () => {},
+    });
+    const processedNew = processed.savedContent;
+    continueOptions = processed.options;
     mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
     updateMessageContent(lastAssistant.id, mergedContent);
     if (!aborted && Object.keys(usageRef).length > 0) {
@@ -453,7 +460,7 @@ router.post('/:sessionId/continue', async (req, res) => {
   streamState.clear();
 
   // 正常完成且有内容时，入队后台任务；有 keepSseAlive 任务时连接由 Promise.allSettled 关闭
-  if (!aborted && newContent) {
+  if (!aborted && mergedContent) {
     const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
     if (msgs.some((m) => m.role === 'user')) {
       const taskSpecs = buildChatTaskSpecs({

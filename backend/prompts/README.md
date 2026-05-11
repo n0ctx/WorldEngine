@@ -95,6 +95,9 @@
 - `templates/shared-suggestion.md`
   选项生成功能的后置 prompt，要求模型在正文末尾输出 `<next_prompt>` 选项块。
   调用方：`backend/prompts/assembler.js`
+- `templates/shared-suggestion-fallback.md`
+  当主回复未以 `</next_prompt>` 结尾时，交给副模型补齐 `<next_prompt>` 选项块的兜底 prompt。
+  调用方：`backend/services/chat.js`
 
 ### 其他
 

@@ -3,6 +3,30 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+## 2026-05-11 fix(suggestion): 选项区增加末尾闭合检测 + 副模型兜底补齐
+
+**动机**：开启选项功能后，主模型偶发不输出完整的 `<next_prompt>...</next_prompt>`，或被额外的 think/thinking block 干扰，导致前端本轮拿不到选项区。
+
+**改动**
+- `backend/services/chat.js`
+  - `processStreamOutput()` 改为异步统一出口，chat / writing / continue 共用。
+  - 新增“末尾硬检测”：开启 suggestion 时，先剥离 think/thinking block，再检查 assistant 文本 `trimEnd()` 后是否以 `</next_prompt>` 结尾。
+  - 若未闭合：调用一次 `llm.complete()` 兜底补齐选项块。聊天走 `configScope='aux'`，写作走 `configScope='writing-aux'`，只传“本轮 user message + assistant message”。
+  - fallback 失败或返回非法内容时仅 warn，不阻断主回复落库。
+- `backend/prompts/templates/shared-suggestion-fallback.md`
+  - 新增副模型专用模板，基于 `shared-suggestion.md` 收窄成“只输出一个完整 `<next_prompt>` 块，不重写正文”。
+- `backend/routes/chat.js` / `backend/routes/writing.js`
+  - 主生成、续写、重生成路径全部接入新的异步后处理。
+  - `continue` 先走后处理再 merge 回最后一条 assistant，并覆写 `messages.next_options`。
+  - `regenerate` / 无请求体重放场景会从当前 session 回推最后一条 user 消息，供 fallback 使用。
+  - 当真正进入补选项分支时，先推 SSE `suggestion_fallback_started`，用于前端 toast 感知。
+- `frontend/src/api/stream-parser.js` / `frontend/src/pages/ChatPage.jsx` / `frontend/src/pages/WritingSpacePage.jsx`
+  - 前端识别 `suggestion_fallback_started` 事件，并在 chat / writing 页面各自弹出“本轮选项缺失，正在补全…” toast。
+- 测试与文档
+  - `backend/tests/services/chat.test.js` 补：正常闭合不触发 fallback、fallback 成功、fallback 失败、think block 剥离检测。
+  - `backend/tests/routes/chat.test.js` / `backend/tests/routes/writing.test.js` 补：chat generate、writing generate、writing continue 的补齐回归，并断言 SSE 发出 `suggestion_fallback_started`。
+  - `ARCHITECTURE.md` / `backend/prompts/README.md` / `backend/prompts/templates/README.md` 同步说明新链路与模板。
+
 ## 2026-05-11 fix(state-bar): 整理中时机对齐 + 失败 Toast 通知
 
 **动机**："整理中" overlay 在状态整理 LLM 完成后才出现（时机错误），且 `updateAllStates()` 失败时前端无任何反馈（静默失败）。

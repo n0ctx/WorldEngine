@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompts/assembler.js';
-import { getWritingLlmConfig } from '../services/config.js';
+import { getConfig, getWritingLlmConfig } from '../services/config.js';
 import { activeStreams, processStreamOutput } from '../services/chat.js';
 import { logPrompt } from '../utils/logger.js';
 import {
@@ -31,7 +31,6 @@ import { runPostGenTasks } from '../utils/post-gen-runner.js';
 import { generateTitle } from '../memory/summarizer.js';
 import { updateAllStates } from '../memory/combined-state-updater.js';
 import { clearCompressedContext } from '../db/queries/sessions.js';
-import { applyRules } from '../utils/regex-runner.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { awaitPendingStateUpdate } from '../utils/state-update-tracker.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
@@ -52,13 +51,18 @@ import {
   supportsPrefill,
   sendSse,
 } from './stream-helpers.js';
-import { stripAsstContext, extractNextPromptOptions } from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { analyzeNearbyForCard } from '../services/nearby-card-maker.js';
 
 const router = Router();
 const log = createLogger('writing');
+
+function getLastUserContent(sessionId) {
+  const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const lastUser = [...allMsgs].reverse().find((m) => m.role === 'user');
+  return lastUser?.content ?? '';
+}
 
 function emitSse(res, sid, payload, { logEvent = true } = {}) {
   if (logEvent && payload?.type && payload.type !== 'delta') {
@@ -293,9 +297,19 @@ async function runWritingStream(sessionId, res, opts = {}) {
     }
   }
 
-  const { savedContent, options, savedAssistant } = processStreamOutput(
+  const { savedContent, options, savedAssistant } = await processStreamOutput(
     fullContent, aborted, worldId, sessionId,
-    { mode: 'writing', createMessageFn: createMessage, touchSessionFn: touchWritingSession }
+    {
+      mode: 'writing',
+      createMessageFn: createMessage,
+      touchSessionFn: touchWritingSession,
+      suggestionEnabled: !!getConfig().writing?.suggestion_enabled,
+      currentUserContent: opts.userContent ?? getLastUserContent(sessionId),
+      configScope: 'writing-aux',
+      onSuggestionFallback() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
+      },
+    }
   );
   fullContent = savedContent;
 
@@ -427,6 +441,7 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
 
   await runWritingStream(sessionId, res, {
     userMsgId,
+    userContent: typeof content === 'string' ? content.trim() : '',
     diaryInjection: typeof diaryInjection === 'string' ? diaryInjection : undefined,
   });
 });
@@ -470,6 +485,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   await awaitPendingStateUpdate(sessionId);
 
   const originalContent = lastAssistant.content;
+  const lastUser = [...allMsgs.slice(0, lastAssistantIndex)].reverse().find((m) => m.role === 'user');
   let newContent = '';
   let aborted = false;
   const usageRef = {};
@@ -500,26 +516,24 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     }
   }
 
-  if (newContent) {
-    newContent = stripAsstContext(newContent);
-  }
-
-  // 提取 <next_prompt> 选项（仅非中断时；剥除后内容不入 DB）
-  let continueOptions = [];
-  if (!aborted && newContent) {
-    const extracted = extractNextPromptOptions(newContent);
-    newContent = extracted.content;
-    continueOptions = extracted.options;
-  }
-
-  if (aborted && newContent) {
-    newContent += '\n\n[已中断]';
-  }
-
   let mergedAssistant = null;
+  let mergedContent = '';
+  let continueOptions = [];
   if (newContent) {
-    const processedNew = aborted ? newContent : applyRules(newContent, 'ai_output', worldId, 'writing');
-    const mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
+    const processed = await processStreamOutput(newContent, aborted, worldId, sessionId, {
+      mode: 'writing',
+      suggestionEnabled: !!getConfig().writing?.suggestion_enabled,
+      currentUserContent: lastUser?.content ?? '',
+      configScope: 'writing-aux',
+      onSuggestionFallback() {
+        if (!streamState.isClientClosed()) emitSse(res, sid, { type: 'suggestion_fallback_started' });
+      },
+      createMessageFn: () => null,
+      touchSessionFn: () => {},
+    });
+    const processedNew = processed.savedContent;
+    continueOptions = processed.options;
+    mergedContent = originalContent + '\n\n' + processedNew.replace(/^\n+/, '');
     updateMessageContent(lastAssistant.id, mergedContent);
     if (!aborted && Object.keys(usageRef).length > 0) {
       updateMessageTokenUsage(lastAssistant.id, usageRef);
@@ -533,7 +547,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
     touchWritingSession(sessionId);
   }
 
-  log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: newContent.length, aborted })}`);
+  log.info(`CONTINUE END  ${formatMeta({ session: sid, chars: mergedContent.length || newContent.length, aborted })}`);
 
   if (!streamState.isClientClosed()) {
     emitSse(res, sid, aborted
@@ -544,7 +558,7 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   streamState.clear();
 
   // 续写正常完成后保持 SSE 连接，等后台任务推送完事件后再关闭
-  if (!aborted && newContent) {
+  if (!aborted && mergedContent) {
     // 写作模式无固定角色，characterIds 传 [] 即可
     // continue 不触发新章节（轮次未变），故无 title/chapterTitle 任务
     const taskSpecs = [

@@ -32,3 +32,5 @@
   聊天模式和写作模式共用的代拟用户输入的模板。
 - `shared-suggestion.md`
   生成 `<next_prompt>` 选项块的共享模板。
+- `shared-suggestion-fallback.md`
+  当主回复末尾未正确闭合 `</next_prompt>` 时，用副模型补齐 `<next_prompt>` 选项块的兜底模板。

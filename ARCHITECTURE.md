@@ -118,8 +118,15 @@ POST /api/sessions/:sessionId/chat
   │    └─ 逐 chunk 推送 SSE: delta
   │
   ├─ 流结束后：
-  │    ├─ applyRules(content, 'ai_output', worldId)  ← 正则处理
+  │    ├─ `processStreamOutput()` 统一后处理
+  │    │    ├─ `unwrapSoloThinkBlock()`：仅整段被单个 `<think>` 包裹时解包正文
+  │    │    ├─ `stripAsstContext()`：剥掉 `{{char}}：` / `AI：`
+  │    │    ├─ suggestion 开启时，先剥离 think/thinking block 再检测 assistant 文本是否以 `</next_prompt>` 结尾
+  │    │    ├─ 若未闭合：调用一次副模型 `llm.complete()`（chat 用 `configScope='aux'`，writing 用 `configScope='writing-aux'`），只传“本轮 user message + assistant message”，使用 `shared-suggestion-fallback.md` 补齐选项块
+  │    │    ├─ `extractNextPromptOptions()`：提取 `<next_prompt>` 三选项，不把标签写入 DB
+  │    │    └─ `applyRules(content, 'ai_output', worldId)`：仅对可见 assistant 正文做输出正则
   │    ├─ createMessage(sessionId, 'assistant', processedContent)  ← 写 DB
+  │    ├─ 有选项时 `messages.next_options` 落库
   │    └─ 推送 SSE: done
   │
   └─ 异步任务入队（见 §5）
@@ -159,7 +166,7 @@ POST /api/sessions/:sessionId/chat
 | [10] | System 后缀 | 展开原文：`decideExpansion` → `renderExpandedTurnRecords` | 无展开时跳过 |
 | [11] | System 后缀 | **日记注入**：`[日记注入]\n{content}`；来源为前端请求体 `diaryInjection` 字段；仅生效一次（前端发送后清空） | `diaryInjection` 为空时跳过 |
 | [12] | — | 历史消息：稳定使用原始 `messages` 窗口；仅移除当前 user，并按最近 `context_history_rounds` 个已完成 user 轮次截窗；每条 content 经 `applyRules(content, 'prompt_only', worldId)` 处理 | — |
-| **[13+14]** | **Bottom** | 当前用户消息 + 后置提示词：DB 中最新的 `role:user` 消息（经 `applyRules` 处理）追加后置提示词（`global_post_prompt` → `character.post_prompt`），合并为一条 `role:user` 消息。**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**。附件消息（vision 数组格式）追加为额外 `type:text` part。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块 | 无当前用户消息时，若 postParts 非空仍单独发出一条 user message |
+| **[13+14]** | **Bottom** | 当前用户消息 + 后置提示词：DB 中最新的 `role:user` 消息（经 `applyRules` 处理）追加后置提示词（`global_post_prompt` → `character.post_prompt`），合并为一条 `role:user` 消息。**`character.post_prompt` 为空时自动注入角色名兜底**（`你正在扮演{{char}}，请严格保持角色名字和设定。`），防止长对话后角色身份漂移；**`suggestion_enabled=true` 时 `SUGGESTION_PROMPT` 并入末尾**。附件消息（vision 数组格式）追加为额外 `type:text` part。`buildPrompt` / `buildWritingPrompt` 仍把已 `tv()` 渲染的 suggestion 文本作为 `suggestionText` 字段返回供前端使用；续写路径在 `buildContinuationMessages` 拼到 `CONTINUE_USER_INSTRUCTION` 末尾，使续写也能输出 `<next_prompt>` 选项块。若主模型本轮最终未以 `</next_prompt>` 结尾，后处理阶段会再走一次副模型 fallback 补齐，避免前端收到空选项区 | 无当前用户消息时，若 postParts 非空仍单独发出一条 user message |
 
 **生成参数**：`world.temperature ?? config.llm.temperature`，`world.max_tokens ?? config.llm.max_tokens`
 
@@ -308,7 +315,7 @@ createTurnRecord(sessionId, { isUpdate? })
 
 **regenerate**：先校验 `afterMessageId` 存在、归属当前 session，且 `role='user'`；校验通过后删除最后一轮 turn record，再 `clearPending(sessionId, 4)` 清空优先级 ≥4 的待处理任务，然后正常入队（新生成完成后 `createTurnRecord`）。regenerate 还需清除可能被新轮次覆盖的日记：`getDailyEntriesAfterRound(sessionId, R)` 取受影响条目 → 删除对应磁盘文件 → `deleteDailyEntriesAfterRound(sessionId, R)`。
 
-**continue**：续写前必须先找到当前 session 的最后一条 assistant，并确认它之前至少已有一条 user；只有在存在完整 user→assistant 轮次时才允许继续。通过校验后不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令（模板文件：`backend/prompts/templates/continue-user-instruction.md`），避免模型把尾 assistant 误判为已完成回复。完成后更新原 assistant 消息，`done` / `aborted` 事件携带合并后的 `assistant`；前端续写流式预览会隐藏 `<next_prompt>` 段，最终以服务端返回的 assistant 覆盖本地拼接结果，避免原始流文本和落库文本不一致。随后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
+**continue**：续写前必须先找到当前 session 的最后一条 assistant，并确认它之前至少已有一条 user；只有在存在完整 user→assistant 轮次时才允许继续。通过校验后不再手工 pop/push 历史轮次；保留 assembler 已组装好的 system/history/post prompt，统一改写为 `assistant(originalContent)` 后再补一条 user 指令（模板文件：`backend/prompts/templates/continue-user-instruction.md`），避免模型把尾 assistant 误判为已完成回复。续写增量在更新原 assistant 前，同样走 `processStreamOutput()`：先剥离 think block / 上下文前缀，再在 suggestion 开启时用副模型补齐未闭合的 `</next_prompt>`，最后仅把可见正文 merge 回原 assistant，并把新选项覆写到 `messages.next_options`。`done` / `aborted` 事件携带合并后的 `assistant`；前端续写流式预览会隐藏 `<next_prompt>` 段，最终以服务端返回的 assistant 覆盖本地拼接结果，避免原始流文本和落库文本不一致。随后入队 `updateAllStates` → `createTurnRecord(sessionId, { isUpdate: true })` → `checkAndGenerateDiary`，UPSERT 覆盖最后一轮 turn record（不新增轮次）；状态和日记后台任务完成时分别推送 `state_updated` / `diary_updated`，连接保持到对应 Promise settle 后再关闭。前端对 `continue` 的再次触发必须等到 SSE `onStreamEnd`，不能在 `done` 事件时提前解锁，否则旧续写请求的收尾会和下一次续写共享同一组局部状态，导致互相覆盖。
 
 **checkAndGenerateDiary 内部流程**（Priority 4，每轮正常完成后执行）：
 
@@ -371,6 +378,7 @@ checkAndGenerateDiary(sessionId, roundIndex)
 | `chapter_title_updated` | 章节标题 LLM 生成完成（writing 专有） | `{ type: "chapter_title_updated", chapterIndex: 1, title: "初入茫茫" }` |
 | `state_updated` | writing 模式后台状态刷新完成 | `{ type: "state_updated" }` |
 | `diary_updated` | writing 模式后台日记刷新完成 | `{ type: "diary_updated" }` |
+| `suggestion_fallback_started` | assistant 末尾缺少 `</next_prompt>`，后端已触发副模型补选项 | `{ type: "suggestion_fallback_started" }` |
 | `state_rolled_back` | regenerate 开始前状态已回滚到快照（chat + writing） | `{ type: "state_rolled_back" }` |
 | `memory_recall_start` | 进入 buildContext 前 | `{ type: "memory_recall_start" }` |
 | `memory_recall_done` | buildContext 返回后 | `{ type: "memory_recall_done", hit: 2 }` |
