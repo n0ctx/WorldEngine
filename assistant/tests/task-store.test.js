@@ -99,6 +99,54 @@ test('attachSse / emit / detachSse 推送事件并隔离失败客户端', () => 
   assert.equal(events1.length, 1);
 });
 
+test('emit 持久化工具、步骤、计划 UI 记录', () => {
+  const t = freshTask();
+  taskStore.emit(t.id, { type: 'tool_call_started', taskId: t.id, callId: 'call-1', toolName: 'preview_card' });
+  taskStore.emit(t.id, { type: 'tool_call_completed', taskId: t.id, callId: 'call-1', toolName: 'preview_card', success: true });
+  taskStore.emit(t.id, { type: 'step_started', taskId: t.id, stepId: 'step-1', title: '写入角色' });
+  taskStore.emit(t.id, { type: 'step_failed', taskId: t.id, stepId: 'step-1', error: 'boom' });
+  taskStore.emit(t.id, { type: 'plan_doc_updated', taskId: t.id, content: '# plan' });
+
+  assert.deepEqual(
+    t.messages.map((m) => [m.role, m.id, m.status ?? null]),
+    [
+      ['tool_call', 'call-1', 'done'],
+      ['step', 'step-1', 'error'],
+      ['plan_doc', `plan-doc-${t.id}`, null],
+    ],
+  );
+  assert.equal(t.messages[0].toolName, 'preview_card');
+  assert.equal(t.messages[1].error, 'boom');
+  assert.equal(t.messages[2].content, '# plan');
+
+  const row = sandbox.db.prepare('SELECT messages_json FROM assistant_tasks WHERE id = ?').get(t.id);
+  const persisted = JSON.parse(row.messages_json);
+  assert.equal(persisted.length, 3);
+  assert.equal(persisted[0].role, 'tool_call');
+  assert.equal(persisted[1].role, 'step');
+  assert.equal(persisted[2].role, 'plan_doc');
+});
+
+test('emit 持久化工具重试时复用同名失败行', () => {
+  const t = freshTask();
+  taskStore.emit(t.id, { type: 'tool_call_started', taskId: t.id, callId: 'call-fail', toolName: 'preview_card' });
+  taskStore.emit(t.id, { type: 'tool_call_completed', taskId: t.id, callId: 'call-fail', toolName: 'preview_card', success: false });
+  taskStore.emit(t.id, { type: 'tool_call_started', taskId: t.id, callId: 'call-retry', toolName: 'preview_card' });
+  taskStore.emit(t.id, { type: 'tool_call_completed', taskId: t.id, callId: 'call-retry', toolName: 'preview_card', success: true });
+
+  assert.deepEqual(
+    t.messages.filter((m) => m.role === 'tool_call').map((m) => [m.id, m.toolName, m.status]),
+    [['call-retry', 'preview_card', 'done']],
+  );
+
+  const row = sandbox.db.prepare('SELECT messages_json FROM assistant_tasks WHERE id = ?').get(t.id);
+  const persisted = JSON.parse(row.messages_json);
+  assert.deepEqual(
+    persisted.filter((m) => m.role === 'tool_call').map((m) => [m.id, m.toolName, m.status]),
+    [['call-retry', 'preview_card', 'done']],
+  );
+});
+
 test('endAllSse 关闭未结束的客户端流，已结束的不二次 end', () => {
   const t = freshTask();
   let endedA = false;

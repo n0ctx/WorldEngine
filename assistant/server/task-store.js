@@ -14,6 +14,7 @@ import {
 } from '../../backend/db/queries/assistant-tasks.js';
 
 import { deleteTaskFile, readAllTasks } from './state-store.js';
+import { SSE_EVENTS } from './sse-events.js';
 
 const log = createLogger('as-store', 'magenta');
 
@@ -52,13 +53,28 @@ function touch(task) {
   task.updatedAt = Date.now();
 }
 
+function normalizeRecoveredUiMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages.map((m) => {
+    if (!m || typeof m !== 'object') return m;
+    if ((m.role === 'tool_call' || m.role === 'step') && m.status === 'running') {
+      return { ...m, status: 'error', error: m.error ?? 'interrupted by restart' };
+    }
+    if (m.role === 'assistant' && m.streaming) {
+      const { streaming, ...rest } = m;
+      return rest;
+    }
+    return m;
+  });
+}
+
 function hydrateTask(data) {
   if (!data || typeof data.id !== 'string') return null;
   const task = {
     id: data.id,
     status: data.status,
     context: data.context ?? {},
-    messages: Array.isArray(data.messages) ? data.messages : [],
+    messages: normalizeRecoveredUiMessages(data.messages),
     pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
@@ -67,6 +83,111 @@ function hydrateTask(data) {
   };
   if (typeof data.error === 'string') task.error = data.error;
   return task;
+}
+
+function upsertMessageById(task, message) {
+  if (!task || !message?.id) return false;
+  const idx = task.messages.findIndex((m) => m?.id === message.id);
+  if (idx >= 0) {
+    task.messages[idx] = { ...task.messages[idx], ...message };
+  } else {
+    task.messages.push(message);
+  }
+  touch(task);
+  persist(task);
+  return true;
+}
+
+function upsertToolCallStarted(task, event) {
+  if (!task || !event?.callId) return false;
+  const message = {
+    id: event.callId,
+    role: 'tool_call',
+    toolName: event.toolName,
+    status: 'running',
+  };
+
+  const existingIdx = task.messages.findIndex((m) => m?.id === event.callId);
+  if (existingIdx >= 0) {
+    task.messages[existingIdx] = { ...task.messages[existingIdx], ...message };
+  } else {
+    const prevFailedIdx = event.toolName
+      ? task.messages.reduce(
+        (found, m, i) =>
+          m?.role === 'tool_call' && m.toolName === event.toolName && m.status === 'error'
+            ? i
+            : found,
+        -1,
+      )
+      : -1;
+    if (prevFailedIdx >= 0) {
+      task.messages[prevFailedIdx] = message;
+    } else {
+      task.messages.push(message);
+    }
+  }
+  touch(task);
+  persist(task);
+  return true;
+}
+
+function persistUiEvent(taskId, event) {
+  const t = tasks.get(taskId);
+  if (!t || !event?.type) return;
+  switch (event.type) {
+    case SSE_EVENTS.PLAN_DOC_UPDATED: {
+      const planTaskId = event.taskId ?? taskId;
+      upsertMessageById(t, {
+        id: `plan-doc-${planTaskId}`,
+        role: 'plan_doc',
+        content: event.content ?? '',
+      });
+      return;
+    }
+    case SSE_EVENTS.TOOL_CALL_STARTED:
+      upsertToolCallStarted(t, event);
+      return;
+    case SSE_EVENTS.TOOL_CALL_COMPLETED:
+      if (!event.callId) return;
+      upsertMessageById(t, {
+        id: event.callId,
+        role: 'tool_call',
+        toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName,
+        status: event.success ? 'done' : 'error',
+      });
+      return;
+    case SSE_EVENTS.STEP_STARTED:
+      if (!event.stepId) return;
+      upsertMessageById(t, {
+        id: event.stepId,
+        role: 'step',
+        stepId: event.stepId,
+        title: event.title,
+        status: 'running',
+      });
+      return;
+    case SSE_EVENTS.STEP_COMPLETED:
+      if (!event.stepId) return;
+      upsertMessageById(t, {
+        id: event.stepId,
+        role: 'step',
+        stepId: event.stepId,
+        status: 'done',
+      });
+      return;
+    case SSE_EVENTS.STEP_FAILED:
+      if (!event.stepId) return;
+      upsertMessageById(t, {
+        id: event.stepId,
+        role: 'step',
+        stepId: event.stepId,
+        status: 'error',
+        error: event.error,
+      });
+      return;
+    default:
+      return;
+  }
 }
 
 function importLegacySidecars() {
@@ -282,6 +403,7 @@ export function endAllSse(taskId) {
 }
 
 export function emit(taskId, event) {
+  persistUiEvent(taskId, event);
   const clients = sseClients.get(taskId);
   const subscribers = clients?.size ?? 0;
   log.debug(`EMIT  ${formatMeta({ taskId, type: event.type, subscribers })}`);
