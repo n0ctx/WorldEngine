@@ -20,6 +20,7 @@ test('createTask 生成 task 并标准化 context', () => {
   assert.deepEqual(t.context, { worldId: 'w1', characterId: 'c1' });
   assert.deepEqual(t.messages, []);
   assert.deepEqual(t.pendingUserMessages, []);
+  assert.equal(t.planDocContent, '');
   assert.equal(t.currentStepId, null);
   assert.equal(typeof t.createdAt, 'number');
   // context 默认空对象
@@ -77,6 +78,18 @@ test('queueUserMessage / takeUserMessages 取出后清空', () => {
   assert.deepEqual(taskStore.takeUserMessages('nope'), []);
 });
 
+test('detachSse 在 executing 且最后一个订阅者断开时请求 step 后暂停', () => {
+  const t = freshTask();
+  taskStore.setStatus(t.id, 'executing');
+  const res = { write: () => {} };
+  taskStore.attachSse(t.id, res);
+
+  taskStore.detachSse(t.id, res);
+
+  assert.equal(taskStore.consumePauseAfterCurrentStep(t.id), true);
+  assert.equal(taskStore.consumePauseAfterCurrentStep(t.id), false);
+});
+
 test('attachSse / emit / detachSse 推送事件并隔离失败客户端', () => {
   const t = freshTask();
   const events1 = [];
@@ -125,6 +138,8 @@ test('emit 持久化工具、步骤、计划 UI 记录', () => {
   assert.equal(persisted[0].role, 'tool_call');
   assert.equal(persisted[1].role, 'step');
   assert.equal(persisted[2].role, 'plan_doc');
+  const persistedPlan = sandbox.db.prepare('SELECT plan_doc_content FROM assistant_tasks WHERE id = ?').get(t.id);
+  assert.equal(persistedPlan.plan_doc_content, '# plan');
 });
 
 test('emit 持久化工具重试时复用同名失败行', () => {
@@ -178,6 +193,23 @@ test('deleteTask 移除 task 与订阅者集合', () => {
   taskStore.deleteTask(t.id);
   assert.equal(taskStore.getTask(t.id), null);
   assert.equal(taskStore.__testables.sseClients.has(t.id), false);
+});
+
+test('buildTaskSnapshot 与 getLatestRecoverableTask 返回可恢复快照', () => {
+  const oldTask = freshTask();
+  taskStore.setStatus(oldTask.id, 'awaiting_approval');
+  taskStore.emit(oldTask.id, { type: 'plan_doc_updated', taskId: oldTask.id, content: '# old' });
+
+  const latestTask = freshTask();
+  taskStore.setStatus(latestTask.id, 'failed', { error: taskStore.__testables.RESTART_INTERRUPTED_ERROR });
+  taskStore.emit(latestTask.id, { type: 'plan_doc_updated', taskId: latestTask.id, content: '# latest' });
+
+  const recovered = taskStore.getLatestRecoverableTask();
+  assert.equal(recovered.id, latestTask.id);
+
+  const snapshot = taskStore.buildTaskSnapshot(recovered);
+  assert.equal(snapshot.planDocContent, '# latest');
+  assert.equal(snapshot.error, taskStore.__testables.RESTART_INTERRUPTED_ERROR);
 });
 
 test.after(() => {

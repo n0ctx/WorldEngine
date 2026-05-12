@@ -263,6 +263,7 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   context_json               TEXT NOT NULL,
   messages_json              TEXT NOT NULL,
   pending_user_messages_json TEXT NOT NULL,
+  plan_doc_content           TEXT NOT NULL DEFAULT '',
   model_context_json         TEXT,
   created_at                 INTEGER NOT NULL,
   current_step_id            TEXT,
@@ -346,6 +347,8 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE characters ADD COLUMN post_prompt TEXT NOT NULL DEFAULT ''`); } catch {}
   // T35: 为现有数据库添加 worlds.description 列
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T-assistant-resume: 为现有数据库补持久化计划文档正文
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_content TEXT NOT NULL DEFAULT ''`); } catch {}
   // T-desc: 为现有数据库添加 characters.description / personas.description 列
   try { db.exec(`ALTER TABLE characters ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE personas ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}

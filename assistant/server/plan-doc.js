@@ -1,15 +1,15 @@
-// assistant/server/plan-doc.js
-import fs from 'node:fs/promises';
-import path from 'node:path';
-
-const PLAN_DIR = path.resolve(process.cwd(), '.temp/assistant');
+import {
+  getAssistantTask,
+  upsertAssistantTask,
+} from '../../backend/db/queries/assistant-tasks.js';
+import { setPlanDocContent } from './task-store.js';
 
 export async function ensurePlanDir() {
-  await fs.mkdir(PLAN_DIR, { recursive: true });
+  // 兼容旧调用方；计划文档现已完全持久化到 assistant_tasks.plan_doc_content。
 }
 
 export function planDocPath(taskId) {
-  return path.join(PLAN_DIR, `${taskId}.md`);
+  return `.temp/assistant/${taskId}.md`;
 }
 
 export function renderPlanDoc({ title, status, createdAt, intent, assumptions = [], steps = [], log = [] }) {
@@ -89,7 +89,6 @@ export function markStepDone(md, stepId, completedAt) {
     const m = lines[i].match(STEP_RE);
     if (m && m[2] === stepId) {
       out.push(lines[i].replace(/^- \[ \]/, '- [x]'));
-      // 寻找该 step 的下一个非缩进-2 行作为插入完成时间的位置
       let j = i + 1;
       const block = [];
       while (j < lines.length && lines[j].startsWith('  - ')) {
@@ -110,15 +109,36 @@ export function appendLog(md, line) {
   return md.replace(/(## 执行日志\n)/, `$1${line}\n`);
 }
 
+function getPersistedTask(taskId) {
+  return getAssistantTask(taskId);
+}
+
+function upsertPlanDocContent(taskId, content) {
+  const task = getPersistedTask(taskId);
+  if (!task) throw new Error(`task not found: ${taskId}`);
+  upsertAssistantTask({
+    ...task,
+    planDocContent: typeof content === 'string' ? content : '',
+    updatedAt: Date.now(),
+  });
+}
+
 export async function readPlanDoc(taskId) {
-  return fs.readFile(planDocPath(taskId), 'utf8');
+  return getPersistedTask(taskId)?.planDocContent ?? '';
 }
 
 export async function writePlanDoc(taskId, content) {
-  await ensurePlanDir();
-  await fs.writeFile(planDocPath(taskId), content, 'utf8');
+  upsertPlanDocContent(taskId, content);
+  setPlanDocContent(taskId, content);
 }
 
 export async function deletePlanDoc(taskId) {
-  await fs.unlink(planDocPath(taskId)).catch(() => {});
+  const task = getPersistedTask(taskId);
+  if (!task) return;
+  upsertAssistantTask({
+    ...task,
+    planDocContent: '',
+    updatedAt: Date.now(),
+  });
+  setPlanDocContent(taskId, '');
 }

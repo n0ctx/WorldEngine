@@ -225,17 +225,19 @@ export async function runParentAgent(task, userInput, opts = {}) {
 
   // sentinel：/approve 触发执行循环
   const isApprovedSentinel = userInput === APPROVED_SENTINEL;
-  const visibleUserInput = isApprovedSentinel
+  const modelUserInput = isApprovedSentinel
     ? '（系统）用户已确认计划，请按 plan doc 顺序派发未完成步骤。'
     : String(userInput ?? '');
 
-  const stampedUser = taskStore.appendMessage(task.id, {
-    id: opts.userMessageId,
-    role: 'user',
-    content: visibleUserInput,
-  });
-  if (stampedUser) {
-    taskStore.emit(task.id, { type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stampedUser.id, runId });
+  if (!isApprovedSentinel) {
+    const stampedUser = taskStore.appendMessage(task.id, {
+      id: opts.userMessageId,
+      role: 'user',
+      content: modelUserInput,
+    });
+    if (stampedUser) {
+      taskStore.emit(task.id, { type: SSE_EVENTS.USER_MESSAGE, taskId: task.id, messageId: stampedUser.id, runId });
+    }
   }
 
   const systemPrompt = await loadSystemPrompt();
@@ -245,6 +247,9 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
   await refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId });
   const modelPayload = buildModelMessages(task, systemPrompt, contextBlock);
+  if (isApprovedSentinel) {
+    modelPayload.messages.splice(-1, 0, { role: 'user', content: modelUserInput });
+  }
 
   // 工具组装
   const previewTool = createPreviewCardTool({
@@ -280,7 +285,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     contextCharsAfter: modelPayload.contextCharsAfter,
     summaryUsed: modelPayload.summaryUsed,
     tailMessageCount: modelPayload.tailMessageCount,
-    input: previewText(visibleUserInput, { limit: 120 }),
+    input: previewText(modelUserInput, { limit: 120 }),
   })}`);
 
   let assistantMsgId = null;

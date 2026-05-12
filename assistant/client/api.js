@@ -4,6 +4,8 @@
  *   POST /api/assistant/agent             —— SSE 流式入口
  *   POST /api/assistant/agent/:id/approve —— 批准计划
  *   POST /api/assistant/agent/:id/cancel  —— 取消任务
+ *   GET  /api/assistant/agent/recover     —— 找回最近可恢复任务
+ *   GET  /api/assistant/agent/:id/stream  —— 补订阅任务 SSE
  *   GET  /api/assistant/agent/:id/plan-doc —— 拉取最新计划文档
  */
 
@@ -29,6 +31,18 @@ export async function streamAgent({ taskId, message, messageId, context, onEvent
     body: JSON.stringify({ taskId, message, messageId, context }),
     signal,
   });
+  await consumeSseResponse(res, onEvent);
+}
+
+export async function subscribeTask({ taskId, onEvent, signal }) {
+  const res = await fetch(`${BASE}/agent/${taskId}/stream`, {
+    method: 'GET',
+    signal,
+  });
+  await consumeSseResponse(res, onEvent);
+}
+
+async function consumeSseResponse(res, onEvent) {
   if (!res.ok || !res.body) {
     let errMsg = `HTTP ${res.status}`;
     try {
@@ -63,6 +77,38 @@ export async function streamAgent({ taskId, message, messageId, context, onEvent
       }
     }
   }
+}
+
+export async function fetchTask(taskId) {
+  const r = await fetch(`${BASE}/agent/${taskId}`);
+  if (!r.ok) {
+    let errMsg = `HTTP ${r.status}`;
+    try {
+      const j = await r.json();
+      errMsg = j.error || errMsg;
+    } catch {
+      // ignore
+    }
+    throw new Error(errMsg);
+  }
+  const j = await r.json();
+  return j.task || null;
+}
+
+export async function recoverTask() {
+  const r = await fetch(`${BASE}/agent/recover`);
+  if (!r.ok) {
+    let errMsg = `HTTP ${r.status}`;
+    try {
+      const j = await r.json();
+      errMsg = j.error || errMsg;
+    } catch {
+      // ignore
+    }
+    throw new Error(errMsg);
+  }
+  const j = await r.json();
+  return j.task || null;
 }
 
 export async function approveTask(taskId) {

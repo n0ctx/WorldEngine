@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { createLogger, formatMeta } from '../../backend/utils/logger.js';
 import {
   deleteAssistantTask,
+  getLatestAssistantTask,
   listAssistantTasks,
   upsertAssistantTask,
 } from '../../backend/db/queries/assistant-tasks.js';
@@ -23,6 +24,8 @@ const sseClients = new Map(); // taskId -> Set<res>
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 const RESUMABLE_TASK_STATUSES = new Set(['awaiting_approval', 'paused']);
+const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
 
 function cloneTaskForPersist(task) {
   return {
@@ -31,6 +34,7 @@ function cloneTaskForPersist(task) {
     context: task.context ?? {},
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
+    planDocContent: typeof task.planDocContent === 'string' ? task.planDocContent : '',
     modelContext: task.modelContext ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
     currentStepId: task.currentStepId ?? null,
@@ -76,9 +80,11 @@ function hydrateTask(data) {
     context: data.context ?? {},
     messages: normalizeRecoveredUiMessages(data.messages),
     pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
+    planDocContent: typeof data.planDocContent === 'string' ? data.planDocContent : '',
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     currentStepId: data.currentStepId ?? null,
+    pauseRequested: false,
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : (typeof data.createdAt === 'number' ? data.createdAt : Date.now()),
   };
   if (typeof data.error === 'string') task.error = data.error;
@@ -137,6 +143,7 @@ function persistUiEvent(taskId, event) {
   switch (event.type) {
     case SSE_EVENTS.PLAN_DOC_UPDATED: {
       const planTaskId = event.taskId ?? taskId;
+      t.planDocContent = event.content ?? '';
       upsertMessageById(t, {
         id: `plan-doc-${planTaskId}`,
         role: 'plan_doc',
@@ -233,7 +240,7 @@ function hydrate() {
     if (!task) continue;
     if (!TERMINAL_TASK_STATUSES.has(task.status) && !RESUMABLE_TASK_STATUSES.has(task.status)) {
       task.status = 'failed';
-      task.error = 'interrupted by restart';
+      task.error = RESTART_INTERRUPTED_ERROR;
       touch(task);
       persist(task);
       orphaned += 1;
@@ -253,6 +260,7 @@ export function createTask({ context } = {}) {
     context: context ?? {},
     messages: [],
     pendingUserMessages: [],
+    planDocContent: '',
     modelContext: null,
     createdAt: now,
     currentStepId: null,
@@ -266,6 +274,29 @@ export function createTask({ context } = {}) {
 
 export function getTask(id) {
   return tasks.get(id) ?? null;
+}
+
+function isRestartInterruptedTask(task) {
+  return task?.status === 'failed' && task?.error === RESTART_INTERRUPTED_ERROR;
+}
+
+function isRecoverableTask(task) {
+  return LIVE_RECOVERABLE_TASK_STATUSES.has(task?.status) || isRestartInterruptedTask(task);
+}
+
+export function getLatestRecoverableTask() {
+  let latest = null;
+  for (const task of tasks.values()) {
+    if (!isRecoverableTask(task)) continue;
+    if (!latest || (task.updatedAt ?? 0) > (latest.updatedAt ?? 0)) {
+      latest = task;
+    }
+  }
+  if (latest) return latest;
+  return getLatestAssistantTask(`
+    status IN ('planning', 'awaiting_approval', 'executing', 'paused')
+    OR (status = 'failed' AND error = '${RESTART_INTERRUPTED_ERROR}')
+  `);
 }
 
 export function setStatus(id, status, { error } = {}) {
@@ -301,6 +332,30 @@ export function setModelContext(id, modelContext) {
   t.modelContext = next;
   touch(t);
   persist(t);
+}
+
+export function setPlanDocContent(id, content) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = typeof content === 'string' ? content : '';
+  if (t.planDocContent === next) return;
+  t.planDocContent = next;
+  touch(t);
+  persist(t);
+}
+
+export function requestPauseAfterCurrentStep(id) {
+  const t = tasks.get(id);
+  if (!t || t.pauseRequested) return;
+  t.pauseRequested = true;
+}
+
+export function consumePauseAfterCurrentStep(id) {
+  const t = tasks.get(id);
+  if (!t) return false;
+  const requested = t.pauseRequested === true;
+  t.pauseRequested = false;
+  return requested;
 }
 
 export function deleteTask(id) {
@@ -387,7 +442,13 @@ export function attachSse(taskId, res) {
 
 export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
-  log.debug(`DETACH  ${formatMeta({ taskId, remaining: sseClients.get(taskId)?.size ?? 0 })}`);
+  const remaining = sseClients.get(taskId)?.size ?? 0;
+  const task = tasks.get(taskId);
+  if (remaining === 0 && task?.status === 'executing') {
+    requestPauseAfterCurrentStep(taskId);
+    log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId, currentStepId: task.currentStepId ?? null })}`);
+  }
+  log.debug(`DETACH  ${formatMeta({ taskId, remaining })}`);
 }
 
 export function endAllSse(taskId) {
@@ -421,6 +482,29 @@ export function emit(taskId, event) {
   if (dropped > 0) log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped, ofTotal: subscribers })}`);
 }
 
+export function buildTaskSnapshot(task) {
+  if (!task) return null;
+  return {
+    id: task.id,
+    status: task.status,
+    context: task.context ?? {},
+    messages: Array.isArray(task.messages) ? task.messages : [],
+    pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
+    planDocContent: typeof task.planDocContent === 'string' ? task.planDocContent : '',
+    modelContext: task.modelContext ?? null,
+    createdAt: task.createdAt ?? null,
+    currentStepId: task.currentStepId ?? null,
+    error: task.error,
+    updatedAt: task.updatedAt ?? null,
+  };
+}
+
 hydrate();
 
-export const __testables = { tasks, sseClients };
+export const __testables = {
+  tasks,
+  sseClients,
+  RESTART_INTERRUPTED_ERROR,
+  isRecoverableTask,
+  buildTaskSnapshot,
+};

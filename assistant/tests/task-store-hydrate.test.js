@@ -12,19 +12,19 @@ const now = Date.now();
 const insert = sandbox.db.prepare(`
   INSERT INTO assistant_tasks (
     id, status, context_json, messages_json, pending_user_messages_json,
-    model_context_json, created_at, current_step_id, error, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    plan_doc_content, model_context_json, created_at, current_step_id, error, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 const seeds = [
-  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
-  { id: 'task-bbbbbbb1', status: 'executing', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
+  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
+  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
+  { id: 'task-bbbbbbb1', status: 'executing', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
   { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [
     { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'running' },
     { id: 'step-1', role: 'step', stepId: 'step-1', title: '执行中', status: 'running' },
     { id: 'plan-doc-task-bbbbbbb2', role: 'plan_doc', content: '# plan' },
-  ], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
+  ], pendingUserMessages: [], planDocContent: '# plan', createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
+  { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], planDocContent: '# paused plan', createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
 ];
 for (const s of seeds) {
   insert.run(
@@ -33,6 +33,7 @@ for (const s of seeds) {
     JSON.stringify(s.context),
     JSON.stringify(s.messages),
     JSON.stringify(s.pendingUserMessages),
+    s.planDocContent,
     s.modelContext ? JSON.stringify(s.modelContext) : null,
     s.createdAt,
     s.currentStepId,
@@ -70,6 +71,7 @@ test('hydrate: executing 等不可恢复中的非终态转 failed', () => {
   // messages 与 currentStepId 等其他字段保留
   assert.equal(t1.messages.length, 1);
   assert.equal(t1.currentStepId, 'step-1');
+  assert.equal(t1.planDocContent, '# live plan');
 });
 
 test('hydrate: awaiting_approval / paused 保留为可恢复状态', () => {
@@ -86,6 +88,7 @@ test('hydrate: awaiting_approval / paused 保留为可恢复状态', () => {
   assert.equal(t3.status, 'paused');
   assert.deepEqual(t3.pendingUserMessages, ['继续']);
   assert.equal(t3.modelContext.summary, 'old');
+  assert.equal(t3.planDocContent, '# paused plan');
 });
 
 test('hydrate: 转 failed 后同步写回数据库', () => {

@@ -21,6 +21,7 @@ function decodeRow(row) {
     context: parseJson(row.context_json, {}),
     messages: parseJson(row.messages_json, []),
     pendingUserMessages: parseJson(row.pending_user_messages_json, []),
+    planDocContent: typeof row.plan_doc_content === 'string' ? row.plan_doc_content : '',
     modelContext: parseJson(row.model_context_json, null),
     createdAt: row.created_at,
     currentStepId: row.current_step_id ?? null,
@@ -32,14 +33,15 @@ function decodeRow(row) {
 export function upsertAssistantTask(task) {
   db.prepare(`
     INSERT INTO assistant_tasks (
-      id, status, context_json, messages_json, pending_user_messages_json,
+      id, status, context_json, messages_json, pending_user_messages_json, plan_doc_content,
       model_context_json, created_at, current_step_id, error, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       status = excluded.status,
       context_json = excluded.context_json,
       messages_json = excluded.messages_json,
       pending_user_messages_json = excluded.pending_user_messages_json,
+      plan_doc_content = excluded.plan_doc_content,
       model_context_json = excluded.model_context_json,
       created_at = excluded.created_at,
       current_step_id = excluded.current_step_id,
@@ -51,6 +53,7 @@ export function upsertAssistantTask(task) {
     encodeJson(task.context, {}),
     encodeJson(task.messages, []),
     encodeJson(task.pendingUserMessages, []),
+    typeof task.planDocContent === 'string' ? task.planDocContent : '',
     task.modelContext == null ? null : encodeJson(task.modelContext, null),
     task.createdAt,
     task.currentStepId ?? null,
@@ -69,4 +72,10 @@ export function getAssistantTask(id) {
 
 export function listAssistantTasks() {
   return db.prepare('SELECT * FROM assistant_tasks ORDER BY created_at ASC').all().map(decodeRow);
+}
+
+export function getLatestAssistantTask(whereSql = '1 = 1') {
+  return decodeRow(
+    db.prepare(`SELECT * FROM assistant_tasks WHERE ${whereSql} ORDER BY updated_at DESC LIMIT 1`).get(),
+  );
 }

@@ -15,6 +15,7 @@
 export const SSE_EVENTS = Object.freeze({
   // 任务生命周期
   TASK_CREATED: 'task_created',
+  TASK_SNAPSHOT: 'task_snapshot',
   TASK_COMPLETED: 'task_completed',
   TASK_FAILED: 'task_failed',
   TASK_CANCELLED: 'task_cancelled',

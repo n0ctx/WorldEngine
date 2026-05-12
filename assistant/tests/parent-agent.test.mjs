@@ -140,6 +140,30 @@ test('dispatch_subagent 工具：未找到 / 已完成', async () => {
   await planDoc.deletePlanDoc(task.id);
 });
 
+test('dispatch_subagent 在断连请求暂停后于 step 收尾切到 paused', async () => {
+  process.env.MOCK_LLM_COMPLETE = 'subagent ok';
+  const task = taskStore.createTask({ context: {} });
+  taskStore.setStatus(task.id, 'executing');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+  const tools = __testables.buildMetaTools(task, (e) => taskStore.emit(task.id, e));
+  const dispatch = tools[2];
+  await planDoc.writePlanDoc(task.id,
+    '# 任务：T\n\n> 状态：executing · 创建时间：x\n\n## 用户意图\ni\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** do it（world-card.update）\n  - 依赖：无\n  - 任务：只总结，不调用工具\n\n## 执行日志\n');
+  taskStore.requestPauseAfterCurrentStep(task.id);
+
+  await assert.rejects(
+    () => dispatch.execute({ stepId: 'step-1' }),
+    (err) => isToolLoopControlSignal(err) && err.kind === 'paused',
+  );
+
+  assert.equal(task.status, 'paused');
+  assert.ok(events.some((e) => /"type":"paused"/.test(e)));
+
+  await planDoc.deletePlanDoc(task.id);
+  delete process.env.MOCK_LLM_COMPLETE;
+});
+
 test('runParentAgent：单通道回复 + done 事件', async () => {
   process.env.MOCK_LLM_COMPLETE = 'hello';
   const task = taskStore.createTask({ context: { worldId: null } });
@@ -296,13 +320,13 @@ test('runParentAgent：历史被截短到阈值内时清空旧 modelContext', as
   delete process.env.MOCK_LLM_COMPLETE_QUEUE;
 });
 
-test('runParentAgent：approved sentinel 替换文案', async () => {
+test('runParentAgent：approved sentinel 不写入可见 user 消息', async () => {
   process.env.MOCK_LLM_COMPLETE = 'ok';
   const task = taskStore.createTask({ context: {} });
   taskStore.attachSse(task.id, { write: () => {} });
   await runParentAgent(task, __testables.APPROVED_SENTINEL);
   const firstUser = task.messages.find((m) => m.role === 'user');
-  assert.match(firstUser.content, /用户已确认计划/);
+  assert.equal(firstUser, undefined);
   delete process.env.MOCK_LLM_COMPLETE;
 });
 

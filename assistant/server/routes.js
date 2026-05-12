@@ -4,7 +4,9 @@
  * POST /api/assistant/agent                 — 单代理入口（SSE）
  * POST /api/assistant/agent/:taskId/approve — 批准计划
  * POST /api/assistant/agent/:taskId/cancel  — 取消任务
- * GET  /api/assistant/agent/:taskId/plan-doc — 读取临时计划文档
+ * GET  /api/assistant/agent/recover         — 找回最近可恢复任务
+ * GET  /api/assistant/agent/:taskId/stream  — 只订阅任务 SSE
+ * GET  /api/assistant/agent/:taskId/plan-doc — 读取持久化计划文档
  * GET  /api/assistant/agent/:taskId         — 任务快照
  */
 
@@ -27,6 +29,14 @@ import { SSE_EVENTS } from './sse-events.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
+
+function writeSse(res, payload) {
+  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+}
+
+function buildTaskResponse(task) {
+  return task ? { task: taskStore.buildTaskSnapshot(task) } : { task: null };
+}
 
 // ─── 提案归一化已移至 ./normalize-proposal.js ─────────────────────
 
@@ -54,7 +64,7 @@ router.post('/agent', async (req, res) => {
   const runId = randomUUID().slice(0, 8);
   if (!task) {
     task = taskStore.createTask({ context });
-    res.write(`data: ${JSON.stringify({ type: SSE_EVENTS.TASK_CREATED, taskId: task.id, task, runId })}\n\n`);
+    writeSse(res, { type: SSE_EVENTS.TASK_CREATED, taskId: task.id, task: taskStore.buildTaskSnapshot(task), runId });
   }
   taskStore.attachSse(task.id, res);
   // 注意：必须用 res.on('close')，不能用 req.on('close')。
@@ -79,12 +89,17 @@ router.post('/agent', async (req, res) => {
       keepAlive = true; // 保持 SSE 连接
       return;
     }
+    if (task.status !== 'planning') {
+      // paused / awaiting_approval / recoverable failed 等恢复后，用户主动发新消息
+      // 视为重新进入 planning；这样前端 dots / 流式状态与父代理语义一致。
+      taskStore.setStatus(task.id, 'planning', { error: null });
+    }
     // planning / awaiting_approval / clarifying / paused 都直接走父代理
     await runParentAgent(task, message, { runId, userMessageId: messageId });
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message })}\n\n`);
+      writeSse(res, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
     }
   } finally {
     // 关闭策略：
@@ -165,6 +180,22 @@ router.post('/agent/:taskId/delete', (req, res) => {
   res.json({ ok: true, messages: task.messages });
 });
 
+router.get('/agent/recover', (req, res) => {
+  const task = taskStore.getLatestRecoverableTask();
+  if (!task) return res.json({ task: null });
+  res.json(buildTaskResponse(task));
+});
+
+router.get('/agent/:taskId/stream', (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task) return res.status(404).json({ error: 'not found' });
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  res.flushHeaders?.();
+  taskStore.attachSse(task.id, res);
+  res.on('close', () => taskStore.detachSse(task.id, res));
+  writeSse(res, { type: SSE_EVENTS.TASK_SNAPSHOT, taskId: task.id, task: taskStore.buildTaskSnapshot(task) });
+});
+
 router.get('/agent/:taskId/plan-doc', async (req, res) => {
   const content = await planDoc.readPlanDoc(req.params.taskId).catch(() => '');
   res.json({ content });
@@ -173,7 +204,7 @@ router.get('/agent/:taskId/plan-doc', async (req, res) => {
 router.get('/agent/:taskId', (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
-  res.json({ task });
+  res.json(buildTaskResponse(task));
 });
 
 export default router;

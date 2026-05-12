@@ -1344,9 +1344,9 @@
 .we-asst-entry--tool,
 .we-asst-entry--tool-running {
   padding: var(--we-space-xs) var(--we-space-md);
-  box-shadow: none;
+  box-shadow: var(--we-shadow-paper-lift);
   border-color: var(--we-color-border-subtle);
-  background: transparent;
+  background: var(--we-paper-base);
 }
 
 .we-asst-entry--tool .we-asst-entry__head,
@@ -1712,7 +1712,7 @@
 .we-asst-bubble--user {
   background: var(--we-vermilion);
   color: var(--we-color-text-inverse);
-  border-radius: var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-none) var(--we-radius-lg);
+  border-radius: var(--we-radius-sm);
   box-shadow: var(--we-shadow-paper-lift);
 }
 
@@ -1720,7 +1720,7 @@
   background: var(--we-paper-base);
   color: var(--we-ink-primary);
   border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-none) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
+  border-radius: var(--we-radius-sm);
   box-shadow: var(--we-shadow-paper-lift);
 }
 

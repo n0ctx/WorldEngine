@@ -9,6 +9,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
+  subscribeTask,
+  fetchTask,
+  recoverTask,
   approveTask,
   cancelTask,
   truncateFrom as apiTruncateFrom,
@@ -22,9 +25,11 @@ import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
 import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
+import { log } from '../../frontend/src/utils/logger.js';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 const ACTIVE_CANCELABLE_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
@@ -40,6 +45,7 @@ export default function AssistantPanel() {
   const pushUserMessage = useAssistantStore((s) => s.pushUserMessage);
   const reset = useAssistantStore((s) => s.reset);
   const resetTask = useAssistantStore((s) => s.resetTask);
+  const replaceTaskSnapshot = useAssistantStore((s) => s.replaceTaskSnapshot);
 
   const currentWorldId = useStore((s) => s.currentWorldId);
   const currentCharacterId = useStore((s) => s.currentCharacterId);
@@ -47,6 +53,10 @@ export default function AssistantPanel() {
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef(null);
+  const recoveringRef = useRef(false);
+  const recoveryToastKeyRef = useRef('');
+
+  const isRecoverableTerminal = status === 'failed' && error === RECOVERABLE_TERMINAL_ERROR;
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
   useEffect(() => {
@@ -56,11 +66,11 @@ export default function AssistantPanel() {
   // 面板重新打开时若任务处于终态，仅重置任务态（保留消息），避免输入框一直禁用
   const prevIsOpenRef = useRef(isOpen);
   useEffect(() => {
-    if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status)) {
+    if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status) && !isRecoverableTerminal) {
       resetTask();
     }
     prevIsOpenRef.current = isOpen;
-  }, [isOpen, status, resetTask]);
+  }, [isOpen, status, resetTask, isRecoverableTerminal]);
 
   // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
   // 不再等到 task_completed 才统一通知，避免 awaiting_approval/executing 阶段已经写入
@@ -80,6 +90,84 @@ export default function AssistantPanel() {
     }
     return context;
   }, [currentWorldId, currentCharacterId]);
+
+  const attachRecoveryStream = useCallback(
+    async (nextTaskId) => {
+      if (!nextTaskId) return;
+      abortRef.current?.abort?.();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setIsStreaming(false);
+      try {
+        await subscribeTask({
+          taskId: nextTaskId,
+          onEvent: ingestEvent,
+          signal: ctrl.signal,
+        });
+      } catch (err) {
+        if (err?.name !== 'AbortError') {
+          log.error('assistant.resume.subscribe_failed', err, { toast: err?.message || '断点续传订阅失败' });
+          ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
+        }
+      } finally {
+        if (abortRef.current === ctrl) abortRef.current = null;
+      }
+    },
+    [ingestEvent],
+  );
+
+  useEffect(() => {
+    if (!isOpen || recoveringRef.current || isStreaming) return;
+    const shouldRecover =
+      Boolean(taskId) ||
+      status === 'awaiting_approval' ||
+      status === 'paused' ||
+      status === 'executing' ||
+      status === 'planning' ||
+      isRecoverableTerminal;
+    if (!shouldRecover) return;
+
+    recoveringRef.current = true;
+    (async () => {
+      try {
+        let task = null;
+        let recoveryMode = 'existing';
+        if (taskId) {
+          task = await fetchTask(taskId).catch(() => null);
+        }
+        if (!task) {
+          task = await recoverTask().catch(() => null);
+          recoveryMode = 'latest';
+        }
+        if (!task) {
+          if (taskId) resetTask();
+          return;
+        }
+        replaceTaskSnapshot(task);
+        const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
+        if (recoveryToastKeyRef.current !== toastKey) {
+          recoveryToastKeyRef.current = toastKey;
+          if (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR) {
+            log.warn('assistant.resume.interrupted', null, {
+              toast: '已恢复中断前快照，旧执行因服务重启已停止',
+            });
+          } else if (recoveryMode === 'latest') {
+            log.info('assistant.resume.latest', null, { toast: '已恢复最近的写卡助手任务' });
+          } else {
+            log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
+          }
+        }
+        const shouldAttach =
+          !TERMINAL_STATUSES.has(task.status) ||
+          (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR);
+        if (shouldAttach) {
+          await attachRecoveryStream(task.id);
+        }
+      } finally {
+        recoveringRef.current = false;
+      }
+    })();
+  }, [isOpen, isStreaming, taskId, status, isRecoverableTerminal, replaceTaskSnapshot, attachRecoveryStream, resetTask]);
 
   const handleSend = useCallback(
     async (overrideText, opts = {}) => {
@@ -220,7 +308,9 @@ export default function AssistantPanel() {
     reset();
   }, [taskId, status, reset]);
 
-  const inputDisabled = TERMINAL_STATUSES.has(status);
+  const inputDisabled =
+    status === 'cancelled' ||
+    (status === 'failed' && !isRecoverableTerminal);
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
@@ -299,7 +389,7 @@ export default function AssistantPanel() {
             onRegenerate={handleRegenerate}
             pending={pendingAssistant}
           />
-          {error && status === 'failed' && (
+          {error && status === 'failed' && !isRecoverableTerminal && (
             <div className="mx-3 my-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
               {error}
             </div>

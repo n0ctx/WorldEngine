@@ -80,10 +80,25 @@ test('GET /agent/:taskId 404 / 200', async () => {
   assert.equal(r.json.task.id, t.id);
 });
 
-test('GET /agent/:taskId/plan-doc 文件不存在返回空字符串', async () => {
+test('GET /agent/:taskId/plan-doc 任务不存在时返回空字符串', async () => {
   const r = await getJSON('/agent/no-task/plan-doc');
   assert.equal(r.status, 200);
   assert.equal(r.json.content, '');
+});
+
+test('GET /agent/recover 返回最近可恢复任务', async () => {
+  const oldTask = taskStore.createTask({ context: { worldId: 'old' } });
+  taskStore.setStatus(oldTask.id, 'awaiting_approval');
+  await planDoc.writePlanDoc(oldTask.id, '# old');
+
+  const latestTask = taskStore.createTask({ context: { worldId: 'latest' } });
+  taskStore.setStatus(latestTask.id, 'failed', { error: taskStore.__testables.RESTART_INTERRUPTED_ERROR });
+  await planDoc.writePlanDoc(latestTask.id, '# latest');
+
+  const r = await getJSON('/agent/recover');
+  assert.equal(r.status, 200);
+  assert.equal(r.json.task.id, latestTask.id);
+  assert.equal(r.json.task.planDocContent, '# latest');
 });
 
 test('POST /agent/:taskId/cancel 切换状态并清理 plan doc', async () => {
@@ -109,6 +124,22 @@ test('POST /agent/:taskId/cancel 对终态任务为 no-op', async () => {
   const plan = await getJSON(`/agent/${t.id}/plan-doc`);
   assert.equal(plan.status, 200);
   assert.equal(plan.json.content, '# keep');
+});
+
+test('GET /agent/:taskId/stream 立即下发 task_snapshot', async () => {
+  const t = taskStore.createTask({ context: {} });
+  taskStore.appendMessage(t.id, { id: 'm1', role: 'user', content: 'hello' });
+  await planDoc.writePlanDoc(t.id, '# live');
+
+  const res = await fetch(`${base}/agent/${t.id}/stream`);
+  assert.equal(res.status, 200);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  const { value } = await reader.read();
+  const text = decoder.decode(value, { stream: true });
+  await reader.cancel();
+  assert.match(text, /"type":"task_snapshot"/);
+  assert.match(text, /"planDocContent":"# live"/);
 });
 
 test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () => {
@@ -180,4 +211,26 @@ test('POST /agent 在 executing 任务上仅入队', async () => {
   ac.abort();
   await promise;
   assert.equal(t.pendingUserMessages.length, 1);
+});
+
+test('POST /agent 在 paused / failed 恢复后会先切回 planning 再继续流式', async () => {
+  process.env.MOCK_LLM_COMPLETE = '恢复后回复';
+
+  const pausedTask = taskStore.createTask({ context: {} });
+  taskStore.setStatus(pausedTask.id, 'paused');
+  const pausedResult = await postSSE('/agent', { taskId: pausedTask.id, message: '继续' });
+  assert.equal(pausedResult.status, 200);
+  assert.equal(pausedTask.status, 'planning');
+  assert.equal(pausedTask.error, undefined);
+  assert.ok(pausedResult.events.some((e) => e.type === 'delta'));
+
+  const failedTask = taskStore.createTask({ context: {} });
+  taskStore.setStatus(failedTask.id, 'failed', { error: 'interrupted by restart' });
+  const failedResult = await postSSE('/agent', { taskId: failedTask.id, message: '继续' });
+  assert.equal(failedResult.status, 200);
+  assert.equal(failedTask.status, 'planning');
+  assert.equal(failedTask.error, undefined);
+  assert.ok(failedResult.events.some((e) => e.type === 'delta'));
+
+  delete process.env.MOCK_LLM_COMPLETE;
 });

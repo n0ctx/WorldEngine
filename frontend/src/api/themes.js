@@ -3,6 +3,11 @@ import { request } from './request.js';
 const BASE = '/api/themes';
 export const DEFAULT_THEME_ID = 'classic-parchment';
 
+let activeThemeId = DEFAULT_THEME_ID;
+export function getActiveThemeId() {
+  return activeThemeId;
+}
+
 export function listThemes() {
   return request(BASE);
 }
@@ -49,6 +54,12 @@ export async function downloadTheme(id, filename) {
   URL.revokeObjectURL(url);
 }
 
+if (import.meta.hot) {
+  import.meta.hot.on('we:theme-css-changed', () => {
+    refreshThemeCss(activeThemeId, { silent: true });
+  });
+}
+
 export async function refreshThemeCss(id, options = {}) {
   try {
     const css = await fetchThemeCss(id);
@@ -60,6 +71,7 @@ export async function refreshThemeCss(id, options = {}) {
       document.head.insertBefore(el, customCss || null);
     }
     el.textContent = css;
+    activeThemeId = id;
     window.dispatchEvent(new CustomEvent('we:theme-updated', { detail: { id } }));
   } catch (err) {
     // 主题加载失败时保留核心样式，不阻塞应用启动。

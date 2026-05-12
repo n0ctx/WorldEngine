@@ -32,3 +32,34 @@ test('clearStreamingFlag 清理最近的 streaming assistant 而不是只看最�
   assert.equal(got[0].streaming, false);
   assert.equal(got[1].role, 'tool_call');
 });
+
+test('applyTaskSnapshot 用服务端快照整体替换任务态', () => {
+  const state = {
+    taskId: 'task-old',
+    status: 'planning',
+    planDoc: '',
+    messages: [{ id: 'old', role: 'assistant', content: '旧内容' }],
+    error: null,
+    currentStepId: null,
+    taskMsgOffset: 3,
+  };
+  const next = __testables.applyTaskSnapshot(state, {
+    id: 'task-new',
+    status: 'awaiting_approval',
+    planDocContent: '# plan',
+    messages: [
+      { id: 'u1', role: 'user', content: '你好' },
+      { id: 'p1', role: 'plan_doc', content: '# plan' },
+    ],
+    error: 'interrupted by restart',
+    currentStepId: 'step-1',
+  });
+
+  assert.equal(next.taskId, 'task-new');
+  assert.equal(next.status, 'awaiting_approval');
+  assert.equal(next.planDoc, '# plan');
+  assert.equal(next.messages.length, 2);
+  assert.equal(next.error, 'interrupted by restart');
+  assert.equal(next.currentStepId, 'step-1');
+  assert.equal(next.taskMsgOffset, 0);
+});

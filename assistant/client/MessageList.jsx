@@ -328,7 +328,7 @@ function ToolEntry({ msg }) {
   const sub = msg.subtitle ?? STATUS_TEXT[msg.status] ?? '';
   const emoji = isStep ? '◦' : (TOOL_EMOJI[msg.toolName] ?? '🔹');
   const variantClass = isError
-    ? 'we-asst-entry--error'
+    ? 'we-asst-entry--tool we-asst-entry--error'
     : isRunning
       ? 'we-asst-entry--tool-running'
       : 'we-asst-entry--tool';
@@ -352,7 +352,7 @@ function ToolEntry({ msg }) {
 
 function ErrorEntry({ msg }) {
   return (
-    <div className="we-asst-entry we-asst-entry--error" role="alert">
+    <div className="we-asst-entry we-asst-entry--tool we-asst-entry--error" role="alert">
       <div className="we-asst-entry__head">
         <span className="we-asst-entry__title">出错</span>
         <ErrorDot />
@@ -378,15 +378,13 @@ function PlanEntry({ content }) {
 
 function PendingEntry() {
   return (
-    <div className="we-asst-row we-asst-row--assistant" role="status" aria-label="助手正在思考">
-      <div className="we-asst-bubble we-asst-bubble--assistant">
-        <div className="we-asst-bubble__body">
-          <span className="we-asst-entry__pending">
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-            <span className="typing-dot typing-dot-accent" />
-          </span>
-        </div>
+    <div className="we-asst-entry we-asst-entry--tool" role="status" aria-label="助手正在思考">
+      <div className="we-asst-entry__head">
+        <span className="we-asst-entry__pending">
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+        </span>
       </div>
     </div>
   );

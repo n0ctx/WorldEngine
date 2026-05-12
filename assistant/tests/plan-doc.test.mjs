@@ -1,8 +1,13 @@
-// assistant/tests/plan-doc.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs/promises';
-import {
+
+import { createTestSandbox, freshImport } from '../../backend/tests/helpers/test-env.js';
+
+const sandbox = createTestSandbox('assistant-plan-doc');
+sandbox.setEnv();
+
+const taskStore = await freshImport('assistant/server/task-store.js');
+const {
   renderPlanDoc,
   parsePlanDoc,
   pickNextStep,
@@ -13,7 +18,11 @@ import {
   deletePlanDoc,
   ensurePlanDir,
   planDocPath,
-} from '../server/plan-doc.js';
+} = await freshImport('assistant/server/plan-doc.js');
+
+test.after(() => {
+  sandbox.cleanup();
+});
 
 test('renderPlanDoc 生成符合 spec §5 模板', () => {
   const md = renderPlanDoc({
@@ -113,16 +122,20 @@ test('pickNextStep 全部完成时返回 null', () => {
   assert.equal(pickNextStep([{ id: 's1', done: true, dependsOn: [] }]), null);
 });
 
-test('writePlanDoc / readPlanDoc / deletePlanDoc 全链路', async () => {
-  const taskId = `task-tmp-${Date.now()}`;
+test('writePlanDoc / readPlanDoc / deletePlanDoc 走 assistant_tasks 持久化', async () => {
+  const task = taskStore.createTask({ context: {} });
   await ensurePlanDir();
-  const filePath = planDocPath(taskId);
-  assert.match(filePath, /\.temp\/assistant\//);
-  await writePlanDoc(taskId, 'hello world');
-  const got = await readPlanDoc(taskId);
-  assert.equal(got, 'hello world');
-  await deletePlanDoc(taskId);
-  // 二次删除不抛
-  await deletePlanDoc(taskId);
-  await assert.rejects(() => fs.stat(filePath));
+  assert.match(planDocPath(task.id), /\.temp\/assistant\//);
+
+  await writePlanDoc(task.id, 'hello world');
+  assert.equal(await readPlanDoc(task.id), 'hello world');
+  assert.equal(taskStore.getTask(task.id).planDocContent, 'hello world');
+
+  const row = sandbox.db.prepare('SELECT plan_doc_content FROM assistant_tasks WHERE id = ?').get(task.id);
+  assert.equal(row.plan_doc_content, 'hello world');
+
+  await deletePlanDoc(task.id);
+  assert.equal(await readPlanDoc(task.id), '');
+  const afterDelete = sandbox.db.prepare('SELECT plan_doc_content FROM assistant_tasks WHERE id = ?').get(task.id);
+  assert.equal(afterDelete.plan_doc_content, '');
 });

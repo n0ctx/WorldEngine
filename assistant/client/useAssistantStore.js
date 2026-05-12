@@ -83,11 +83,16 @@ export const useAssistantStore = create(
           taskMsgOffset: 0,
         })),
 
+      replaceTaskSnapshot: (task) =>
+        set((s) => applyTaskSnapshot(s, task)),
+
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {
             case SSE_EVENTS.TASK_CREATED:
               return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
+            case SSE_EVENTS.TASK_SNAPSHOT:
+              return applyTaskSnapshot(s, evt.task);
             case SSE_EVENTS.PLAN_DOC_UPDATED: {
               // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）。
               // id 必须按 taskId 区分：同一 session 内的第二个任务有自己的 plan_doc，
@@ -256,13 +261,15 @@ export const useAssistantStore = create(
     }),
     {
       name: 'we-assistant-v2',
-      // 持久化面板偏好 + 对话历史 / 工具记录 / 计划记录；
-      // 任务态字段（taskId / status / planDoc / error / currentStepId / taskMsgOffset）
-      // 不持久化，因为 SSE 流刷新后无法恢复。
+      // 持久化面板偏好 + 最小恢复态；真正任务真相源仍以后端 task snapshot 为准。
       partialize: (s) => ({
         isOpen: s.isOpen,
         width: s.width,
+        taskId: s.taskId,
+        status: s.status,
+        planDoc: s.planDoc,
         messages: sanitizeMessagesForPersist(s.messages),
+        error: s.error,
       }),
       // rehydrate 时再过一次清洗：兼容旧版本写入的脏数据，保证刷新后不残留
       // streaming 标志和"运行中"占位行。
@@ -346,10 +353,38 @@ function sanitizeMessagesForPersist(messages) {
     });
 }
 
+function applyTaskSnapshot(state, task) {
+  if (!task || typeof task !== 'object') {
+    return {
+      ...state,
+      taskId: null,
+      status: 'idle',
+      planDoc: '',
+      messages: state.messages,
+      error: null,
+      currentStepId: null,
+      taskMsgOffset: 0,
+    };
+  }
+  const sanitizedMessages = sanitizeMessagesForPersist(task.messages);
+  const fallbackPlanDoc = sanitizedMessages.find((m) => m.role === 'plan_doc')?.content ?? '';
+  return {
+    ...state,
+    taskId: task.id ?? null,
+    status: task.status ?? 'idle',
+    planDoc: typeof task.planDocContent === 'string' ? task.planDocContent : fallbackPlanDoc,
+    messages: sanitizedMessages,
+    error: task.error ?? null,
+    currentStepId: task.currentStepId ?? null,
+    taskMsgOffset: 0,
+  };
+}
+
 export const __testables = {
   appendDelta,
   adoptUserMessageId,
   clearStreamingFlag,
   sanitizeMessagesForPersist,
+  applyTaskSnapshot,
   stripToolCallLeakage,
 };

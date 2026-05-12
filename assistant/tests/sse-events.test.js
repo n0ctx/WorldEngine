@@ -4,7 +4,7 @@ import { SSE_EVENTS } from '../server/sse-events.js';
 
 test('SSE_EVENTS 导出所有写卡助手用到的事件类型', () => {
   const expected = [
-    'TASK_CREATED', 'TASK_COMPLETED', 'TASK_FAILED', 'TASK_CANCELLED',
+    'TASK_CREATED', 'TASK_SNAPSHOT', 'TASK_COMPLETED', 'TASK_FAILED', 'TASK_CANCELLED',
     'PLAN_DOC_UPDATED', 'PLAN_APPROVED',
     'AWAITING_APPROVAL', 'PAUSED',
     'STEP_STARTED', 'STEP_COMPLETED', 'STEP_FAILED',

@@ -148,7 +148,8 @@ export function buildMetaTools(task, emitFn, runId = null) {
         }
 
         const pending = taskStore.takeUserMessages(task.id);
-        if (pending.length > 0) {
+        const pauseRequested = taskStore.consumePauseAfterCurrentStep(task.id);
+        if (pending.length > 0 || pauseRequested) {
           taskStore.setStatus(task.id, 'paused');
           emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id });
           for (const m of pending) {
@@ -157,6 +158,7 @@ export function buildMetaTools(task, emitFn, runId = null) {
           throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
             taskId: task.id,
             pendingMessages: pending,
+            pauseReason: pauseRequested && pending.length === 0 ? 'detach' : 'user_message',
             outcome,
           });
         }
