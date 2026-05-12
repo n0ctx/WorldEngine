@@ -8,13 +8,11 @@ import { getCharacter } from '../api/characters.js';
 import { getPersona } from '../api/personas.js';
 import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, editAssistantMessage, retitle } from '../api/chat.js';
 import { createSession, getSession, deleteMessage as deleteMessageApi } from '../api/sessions.js';
-import SessionListPanel from '../components/book/SessionListPanel.jsx';
+import SessionListPanel from '../components/session/SessionListPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
-import BookSpread from '../components/book/BookSpread.jsx';
-import PageLeft from '../components/book/PageLeft.jsx';
-import PageRight from '../components/book/PageRight.jsx';
-import StatePanel from '../components/book/StatePanel.jsx';
+import PageLayout from '../core/layout/PageLayout.jsx';
+import StatePanel from '../components/state/StatePanel.jsx';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { loadRules } from '../utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../utils/avatar.js';
@@ -838,9 +836,8 @@ export default function ChatPage() {
   }
 
   return (
-    <BookSpread>
-      {/* Toast 提示 */}
-      {toast && (
+    <PageLayout
+      overlay={toast ? (
         <div
           className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
             toast.type === 'error'
@@ -850,27 +847,19 @@ export default function ChatPage() {
         >
           {toast.msg}
         </div>
+      ) : null}
+      left={(
+        <SessionListPanel
+          character={character}
+          currentSessionId={currentSessionId}
+          onSessionSelect={handleSessionSelect}
+          onSessionCreate={handleSessionCreate}
+          onSessionDelete={handleSessionDelete}
+        />
       )}
-
-      {/* 左页：会话列表 */}
-      <PageLeft
-        character={character}
-        currentSessionId={currentSessionId}
-        onSessionSelect={handleSessionSelect}
-        onSessionCreate={handleSessionCreate}
-        onSessionDelete={handleSessionDelete}
-        memoryRecalling={memoryRecalling}
-        memoryExpanding={memoryExpanding}
-        memoryWriting={memoryWriting}
-        recallSummary={recallSummary}
-      />
-
-      {/* 右页：对话区 + 记忆面板 */}
-      <PageRight className="!p-0">
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-
-      {/* 中栏：对话区（弹性，内容最大 800px 居中） */}
-      <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
+      recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+      main={(
+        <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* 顶部栏 */}
         <div className="we-chat-center-header">
           {currentSession ? (
@@ -1008,19 +997,17 @@ export default function ChatPage() {
           worldId={character?.world_id ?? null}
           mode="chat"
         />
-      </div>
-
-      {/* 右侧状态面板 */}
-      <StatePanel
-        sessionId={currentSessionId}
-        character={character}
-        persona={persona}
-        worldId={character?.world_id ?? null}
-        onDiaryInject={setPendingDiaryInject}
-      />
-
         </div>
-      </PageRight>
-    </BookSpread>
+      )}
+      right={(
+        <StatePanel
+          sessionId={currentSessionId}
+          character={character}
+          persona={persona}
+          worldId={character?.world_id ?? null}
+          onDiaryInject={setPendingDiaryInject}
+        />
+      )}
+    />
   );
 }

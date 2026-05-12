@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import StatusSection from './StatusSection.jsx';
-import PanelCard from './PanelCard.jsx';
+import StatusSection from '../state/StatusSection.jsx';
+import PanelCard from '../ui/PanelCard.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
-import SectionTabs from './SectionTabs.jsx';
+import SectionTabs from '../ui/SectionTabs.jsx';
 import { getWorld } from '../../api/worlds.js';
 import { getConfig } from '../../api/config.js';
 import {

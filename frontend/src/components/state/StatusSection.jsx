@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
-import DatetimeSplitInput from '../state/DatetimeSplitInput.jsx';
+import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../utils/template-vars.js';
 

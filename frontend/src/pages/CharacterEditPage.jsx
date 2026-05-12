@@ -7,8 +7,8 @@ import { getCharacterStateValues, updateCharacterStateValue } from '../api/chara
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import SectionTabs from '../components/book/SectionTabs';
-import SealStampAnimation from '../components/book/SealStampAnimation';
+import SectionTabs from '../components/ui/SectionTabs.jsx';
+import SealStampAnimation from '../components/ui/SealStampAnimation.jsx';
 import StateValueField from '../components/state/StateValueField';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';

@@ -54,7 +54,6 @@ const TOOL_EMOJI = {
 
 const STATUS_TEXT = {
   running: '运行中…',
-  done: '已完成',
   error: '失败',
 };
 
@@ -181,22 +180,20 @@ function DeleteBtn({ onDelete }) {
   );
 }
 
-function StatusDot({ status }) {
-  if (status === 'done') {
-    return <span className="we-asst-entry__dot we-asst-entry__dot--done" aria-label="已完成" />;
-  }
-  if (status === 'error') {
-    return <span className="we-asst-entry__dot we-asst-entry__dot--error" aria-label="失败" />;
-  }
-  return null;
+function ErrorDot() {
+  return <span className="we-asst-entry__dot we-asst-entry__dot--error" aria-label="失败" />;
 }
 
 function UserEntry({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
+  const [editWidth, setEditWidth] = useState(null);
   const taRef = useRef(null);
+  const bubbleRef = useRef(null);
 
   function startEdit() {
+    const rect = bubbleRef.current?.getBoundingClientRect();
+    if (rect?.width) setEditWidth(rect.width);
     setDraft(msg.content);
     setEditing(true);
   }
@@ -223,7 +220,10 @@ function UserEntry({ msg, onEdit, onDelete }) {
     <div className="we-asst-row we-asst-row--user">
       {editing ? (
         <>
-          <div className="we-asst-bubble we-asst-bubble--user">
+          <div
+            className="we-asst-bubble we-asst-bubble--user"
+            style={editWidth ? { width: editWidth } : undefined}
+          >
             <textarea
               ref={taRef}
               value={draft}
@@ -253,7 +253,7 @@ function UserEntry({ msg, onEdit, onDelete }) {
         </>
       ) : (
         <>
-          <div className="we-asst-bubble we-asst-bubble--user">
+          <div ref={bubbleRef} className="we-asst-bubble we-asst-bubble--user">
             <div className="we-asst-bubble__body we-asst-bubble__body--pre">
               {msg.content}
             </div>
@@ -342,7 +342,9 @@ function ToolEntry({ msg }) {
         <span className="we-asst-tool__icon" aria-hidden="true">{emoji}</span>
         <span className="we-asst-entry__title">{title}</span>
         {sub && <span className="we-asst-entry__sub">{sub}</span>}
-        <StatusDot status={msg.status} />
+        {isRunning && (
+          <span className="we-asst-tool__spinner" aria-hidden="true" />
+        )}
       </div>
     </div>
   );
@@ -353,7 +355,7 @@ function ErrorEntry({ msg }) {
     <div className="we-asst-entry we-asst-entry--error" role="alert">
       <div className="we-asst-entry__head">
         <span className="we-asst-entry__title">出错</span>
-        <StatusDot status="error" />
+        <ErrorDot />
       </div>
       <div className="we-asst-entry__body">{msg.content}</div>
     </div>

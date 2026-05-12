@@ -9,7 +9,7 @@ import { applyRules } from '../../utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
-import CharacterSeal from '../book/CharacterSeal.jsx';
+import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from '../ui/InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import { variants, transitions } from '../../utils/motion.js';

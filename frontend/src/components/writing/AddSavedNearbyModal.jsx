@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import ModalShell from '../ui/ModalShell.jsx';
-import CharacterSeal from './CharacterSeal.jsx';
+import CharacterSeal from '../chat/CharacterSeal.jsx';
 import { getCharactersByWorld } from '../../api/characters.js';
 import { addSavedNearbyFromCharacter } from '../../api/session-nearby.js';
 import { log } from '../../utils/logger.js';

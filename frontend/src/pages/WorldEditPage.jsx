@@ -6,7 +6,7 @@ import StateFieldList from '../components/state/StateFieldList';
 import AvatarUpload from '../components/ui/AvatarUpload';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import SectionTabs from '../components/book/SectionTabs';
+import SectionTabs from '../components/ui/SectionTabs.jsx';
 import EditPageShell from '../components/ui/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import {

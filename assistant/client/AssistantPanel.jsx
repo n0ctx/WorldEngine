@@ -16,6 +16,7 @@ import {
 } from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
+import DragHandle from './DragHandle.jsx';
 import { SSE_EVENTS } from '../server/sse-events.js';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
@@ -232,33 +233,6 @@ export default function AssistantPanel() {
   //   导致省略号常驻，造成"还在跑"的错觉）。
   const pendingAssistant = isStreaming && !hasRunningItem && status === 'planning';
 
-  // 左边沿拖拽改宽：监听器绑在 document 上，确保 pointer 移出把手后仍能响应
-  const startResize = useCallback(
-    (e) => {
-      e.preventDefault();
-      const startX = e.clientX;
-      const startW = width;
-      const targetEl = e.currentTarget;
-      try { targetEl.setPointerCapture?.(e.pointerId); } catch { /* 不支持时由 document 监听器兜底 */ }
-      const prevUserSelect = document.body.style.userSelect;
-      document.body.style.userSelect = 'none';
-      const onMove = (ev) => {
-        // 抽屉在右侧、把手在左边沿：往左拖（clientX 减小）应放大宽度
-        setWidth(startW + (startX - ev.clientX));
-      };
-      const onUp = (ev) => {
-        document.body.style.userSelect = prevUserSelect;
-        try { targetEl.releasePointerCapture?.(ev.pointerId); } catch { /* ignore */ }
-        document.removeEventListener('pointermove', onMove);
-        document.removeEventListener('pointerup', onUp);
-        document.removeEventListener('pointercancel', onUp);
-      };
-      document.addEventListener('pointermove', onMove);
-      document.addEventListener('pointerup', onUp);
-      document.addEventListener('pointercancel', onUp);
-    },
-    [width, setWidth],
-  );
 
   return (
     <>
@@ -277,16 +251,17 @@ export default function AssistantPanel() {
           isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
-        {/* 左边沿拖拽手柄：4px 命中区，hover 显示 1px 朱砂线 */}
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="拖动调整助手宽度"
-          onPointerDown={startResize}
-          className="group absolute -left-1 top-0 z-10 h-full w-2 cursor-ew-resize touch-none"
-        >
-          <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-transparent transition-colors duration-150 group-hover:bg-[var(--we-vermilion)]/40" />
-        </div>
+        {/* 左边沿拖拽手柄 */}
+        <DragHandle
+          value={width}
+          onChange={setWidth}
+          min={320}
+          max={720}
+          orientation="vertical"
+          inverted
+          ariaLabel="拖动调整助手宽度"
+          className="absolute -left-1 top-0 h-full w-2"
+        />
         {/* 标题栏 */}
         <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-paper-aged)] px-3">
           <span
