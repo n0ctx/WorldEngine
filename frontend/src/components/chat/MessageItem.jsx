@@ -10,6 +10,7 @@ import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 
 import CharacterSeal from '../book/CharacterSeal.jsx';
+import InterruptedMark from '../ui/InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import { variants, transitions } from '../../utils/motion.js';
 
@@ -55,7 +56,7 @@ function parseStreamingBlocks(text) {
  * open=true：think 块正在流式输出并自动展开
  * open=false：think 块已完成，折叠状态由 autoCollapseThinking 决定
  */
-function ThinkBlock({ content, open = false }) {
+function ThinkBlock({ content, open = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
   const cleanContent = stripNextPromptBlocks(content);
@@ -82,6 +83,7 @@ function ThinkBlock({ content, open = false }) {
             <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS} rehypePlugins={THINK_REHYPE_PLUGINS}>
               {cleanContent}
             </ReactMarkdown>
+            {interrupted && <InterruptedMark />}
           </div>
         </div>
       </div>
@@ -286,16 +288,17 @@ export default function MessageItem({
 
   let displayContent = isStreaming ? (streamingText || '') : (message.content || '');
   let interrupted = false;
-  if (displayContent.includes('[已中断]')) {
-    displayContent = displayContent.replace(/\n?\n?\[已中断\]/, '').trimEnd();
+  if (/\n{0,2}\[已中断\]\s*$/.test(displayContent)) {
+    displayContent = displayContent.replace(/\n{0,2}\[已中断\]\s*$/, '');
     interrupted = true;
   }
   if (!isStreaming) {
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
   }
 
-  // 统一解析为 blocks（流式和非流式共用）
+  // 统一解析为 blocks（流式和非流式共用）;中断标记挂到最后一个 block。
   const blocks = parseStreamingBlocks(displayContent);
+  const lastBlockIndex = blocks.length - 1;
 
   function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
   function confirmEdit() {
@@ -376,7 +379,6 @@ export default function MessageItem({
           <div className="we-message-body">
             <div className="we-message-label">
               {speakerName}
-              {interrupted && <span className="we-message-interrupted">已中断</span>}
             </div>
             <div className="we-message-bubble-user">
               {editing ? (
@@ -469,9 +471,17 @@ export default function MessageItem({
             ) : (
               <div className="we-message-content">
                 {blocks.map((block, i) => {
+                  const isLast = i === lastBlockIndex;
                   if (block.type === 'thinking') {
                     if (!showThinking) return null;
-                    return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
+                    return (
+                      <ThinkBlock
+                        key={i}
+                        content={block.content}
+                        open={isStreaming && block.open}
+                        interrupted={interrupted && isLast}
+                      />
+                    );
                   }
                   return (
                     <div key={i}>
@@ -480,6 +490,7 @@ export default function MessageItem({
                           {block.content}
                         </ReactMarkdown>
                       )}
+                      {interrupted && isLast && <InterruptedMark />}
                     </div>
                   );
                 })}

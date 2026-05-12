@@ -10,6 +10,7 @@ import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import { applyRules } from '../../utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
+import InterruptedMark from '../ui/InterruptedMark.jsx';
 
 const MotionDiv = motion.div;
 
@@ -79,7 +80,7 @@ function parseStreamingBlocks(text) {
   return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
 }
 
-function ThinkBlock({ content, open = false }) {
+function ThinkBlock({ content, open = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
   const [expanded, setExpanded] = useState(!autoCollapse);
   const cleanContent = stripNextPromptBlocks(content);
@@ -100,6 +101,7 @@ function ThinkBlock({ content, open = false }) {
           <ReactMarkdown remarkPlugins={THINK_REMARK_PLUGINS_W} rehypePlugins={THINK_REHYPE_PLUGINS_W}>
             {cleanContent}
           </ReactMarkdown>
+          {interrupted && <InterruptedMark />}
         </div>
       )}
     </div>
@@ -172,11 +174,17 @@ export default function WritingMessageItem({
   const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
   const currentModelPricing = useDisplaySettingsStore((s) => s.currentWritingModelPricing);
 
-  let displayContent = isStreaming ? rawContent : rawContent;
+  let displayContent = rawContent;
+  let interrupted = false;
+  if (/\n{0,2}\[已中断\]\s*$/.test(displayContent)) {
+    displayContent = displayContent.replace(/\n{0,2}\[已中断\]\s*$/, '');
+    interrupted = true;
+  }
   if (!isStreaming) {
     displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
   }
   const blocks = parseStreamingBlocks(displayContent);
+  const lastBlockIndex = blocks.length - 1;
   const content = displayContent;
 
   const [editing, setEditing] = useState(false);
@@ -309,9 +317,17 @@ export default function WritingMessageItem({
         <>
           <div className="we-message-content">
             {blocks.map((block, i) => {
+              const isLast = i === lastBlockIndex;
               if (block.type === 'thinking') {
                 if (!showThinking) return null;
-                return <ThinkBlock key={i} content={block.content} open={isStreaming && block.open} />;
+                return (
+                  <ThinkBlock
+                    key={i}
+                    content={block.content}
+                    open={isStreaming && block.open}
+                    interrupted={interrupted && isLast}
+                  />
+                );
               }
               return (
                 <div key={i}>
@@ -320,6 +336,7 @@ export default function WritingMessageItem({
                       {block.content}
                     </ReactMarkdown>
                   )}
+                  {interrupted && isLast && <InterruptedMark />}
                 </div>
               );
             })}

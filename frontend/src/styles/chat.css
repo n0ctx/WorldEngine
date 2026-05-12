@@ -557,16 +557,40 @@
   letter-spacing: 0.05em;
 }
 
-/* ── Interrupted tag ───────────────────────────────────── */
+/* ── Interrupted mark（内联书签风：双侧细笔触 + 衬线斜体） ───── */
 
-.we-message-interrupted {
-  font-size: 10px;
-  letter-spacing: 0.12em;
+.we-interrupted-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-sm);
+  margin: var(--we-space-md) 0 var(--we-space-xs);
   color: var(--we-color-status-warning);
-  background: var(--we-color-warning-bg);
-  box-shadow: 0 0 0 1px var(--we-color-status-warning);
-  padding: 2px 6px;
-  border-radius: var(--we-radius-none);
+  font-family: var(--we-font-serif);
+  font-style: italic;
+  font-size: var(--we-text-xs);
+  letter-spacing: 0.24em;
+  opacity: 0.7;
+  user-select: none;
+  pointer-events: none;
+}
+
+.we-interrupted-mark__rule {
+  flex: 0 1 56px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.we-interrupted-mark__label {
+  white-space: nowrap;
+}
+
+/* think block 内部更紧凑，无外间距 */
+.we-think-block-body .we-interrupted-mark,
+.we-writing-think-body .we-interrupted-mark {
+  margin: var(--we-space-sm) 0 0;
+  opacity: 0.6;
 }
 
 /* ── Edit state ────────────────────────────────────────── */
