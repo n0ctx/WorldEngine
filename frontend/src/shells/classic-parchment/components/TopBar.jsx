@@ -1,14 +1,14 @@
-/* DESIGN.md §5.2 */
+/* DESIGN.md §5.2 — classic-parchment shell top bar */
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../utils/motion.js';
-import Icon from '../ui/Icon.jsx';
+import { DURATION, EASE } from '../../../utils/motion.js';
+import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds } from '../../api/worlds.js';
-import { getCharacter } from '../../api/characters.js';
-import { getLatestSession } from '../../api/sessions.js';
-import { log } from '../../utils/logger.js';
-import useStore from '../../store/index.js';
+import { getWorlds } from '../../../api/worlds.js';
+import { getCharacter } from '../../../api/characters.js';
+import { getLatestSession } from '../../../api/sessions.js';
+import { log } from '../../../utils/logger.js';
+import useStore from '../../../store/index.js';
 import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
 
 function extractIds(pathname) {
@@ -20,7 +20,7 @@ function extractIds(pathname) {
   };
 }
 
-// Overlay routes that should not affect topbar state — mirrors App.jsx's background <Routes> block.
+// Overlay routes that should not affect topbar state — mirrors AppRoot's background <Routes> block.
 const OVERLAY_PATTERNS = [
   /^\/worlds\/new$/,
   /^\/worlds\/[\w-]+\/edit$/,
@@ -126,10 +126,8 @@ export default function TopBar() {
 
   const effectiveWorldId = worldId ?? chatWorldId ?? currentWorldId;
 
-  // 从 worlds 列表里找当前 worldId 对应的名字
   const currentWorld = worlds.find((w) => w.id === effectiveWorldId);
 
-  // 点击外部关闭下拉
   useEffect(() => {
     function handler(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -149,7 +147,6 @@ export default function TopBar() {
 
   return (
     <div className="we-topbar">
-      {/* 世界选择器 */}
       <div ref={dropdownRef} className="we-topbar-world-wrap">
         {isWorldsList ? (
           <span className="we-topbar-item we-topbar-item--static">
@@ -223,7 +220,6 @@ export default function TopBar() {
         <>
           <span className="we-topbar-sep">·</span>
 
-          {/* 会话：跳到该世界最近一条会话所在页（chat 或 writing） */}
           <button
             className={`we-topbar-item${
               /^\/characters\/[\w-]+\/chat$/.test(topbarPathname) ||
@@ -239,8 +235,6 @@ export default function TopBar() {
                   return;
                 }
                 if (session.mode === 'writing') {
-                  // 用 store 通知 WritingSpacePage 切到目标会话；不能依赖 navigate
-                  // —— 已在 /worlds/:wid/writing 时同 URL navigate 是 no-op，会留在旧 session。
                   setCurrentWritingSessionId(session.id);
                   navigate(`/worlds/${effectiveWorldId}/writing`);
                 } else {
@@ -259,7 +253,6 @@ export default function TopBar() {
 
           <span className="we-topbar-sep">·</span>
 
-          {/* 故事 */}
           <button
             className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}` ? ' we-topbar-item--active' : ''}`}
             onClick={() => navigate(`/worlds/${effectiveWorldId}`)}
@@ -270,7 +263,6 @@ export default function TopBar() {
 
           <span className="we-topbar-sep">·</span>
 
-          {/* 配置 */}
           <button
             className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}/config` ? ' we-topbar-item--active' : ''}`}
             onClick={() => navigate(`/worlds/${effectiveWorldId}/config`)}
@@ -283,7 +275,6 @@ export default function TopBar() {
 
       <div className="we-topbar-spacer" />
 
-      {/* 写卡助手 */}
       <button
         className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}
         onClick={toggleAssistant}
@@ -296,7 +287,6 @@ export default function TopBar() {
 
       <span className="we-topbar-sep">·</span>
 
-      {/* 设置 */}
       <button
         className="we-topbar-item we-topbar-settings-btn"
         aria-label="打开设置"

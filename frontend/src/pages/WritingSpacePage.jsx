@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { syncDiaryTimeField } from '../api/world-state-fields.js';
 import { useAppModeStore } from '../store/appMode.js';
 import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
@@ -22,13 +22,11 @@ import {
 } from '../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi, getSession } from '../api/sessions.js';
-import BookSpread from '../components/book/BookSpread.jsx';
-import PageRight from '../components/book/PageRight.jsx';
-import WritingPageLeft from '../components/book/WritingPageLeft.jsx';
-import NearbyPanel from '../components/book/NearbyPanel.jsx';
+import PageLayout from '../core/layout/PageLayout.jsx';
+import NearbyPanel from '../components/writing/NearbyPanel.jsx';
 import MessageList from '../components/chat/MessageList.jsx';
 import InputBox from '../components/chat/InputBox.jsx';
-import WritingSessionList from '../components/book/WritingSessionList.jsx';
+import WritingSessionList from '../components/writing/WritingSessionList.jsx';
 import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
@@ -43,6 +41,7 @@ function parseContinuationText(text) {
 
 export default function WritingSpacePage() {
   const { worldId } = useParams();
+  const navigate = useNavigate();
   const setAppMode = useAppModeStore((s) => s.setAppMode);
   const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
@@ -809,25 +808,20 @@ export default function WritingSpacePage() {
   }
 
   return (
-    <>
-    <BookSpread>
-      <WritingPageLeft
-        worldId={worldId}
-        currentSessionId={currentSession?.id}
-        onSessionSelect={enterSession}
-        onSessionCreate={handleSessionCreate}
-        onSessionDelete={handleSessionDelete}
-        memoryRecalling={memoryRecalling}
-        memoryExpanding={memoryExpanding}
-        memoryWriting={memoryWriting}
-        recallSummary={recallSummary}
-      />
-
-      <PageRight className="!p-0">
-        <div className="flex flex-1 min-h-0 overflow-hidden">
-
-          {/* 中间消息区 */}
-          <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
+    <PageLayout
+      left={(
+        <WritingSessionList
+          worldId={worldId}
+          currentSessionId={currentSession?.id}
+          onSessionSelect={enterSession}
+          onSessionCreate={handleSessionCreate}
+          onSessionDelete={handleSessionDelete}
+          onBack={() => navigate(`/worlds/${worldId}`)}
+        />
+      )}
+      recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
+      main={(
+        <div className="we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden relative">
             {/* 章节标题区 */}
             <div className="we-chat-center-header">
               {currentSession ? (
@@ -926,22 +920,20 @@ export default function WritingSpacePage() {
               onImpersonate={handleImpersonate}
               onTitle={handleRetitle}
             />
-          </div>
-
-          <NearbyPanel
-            worldId={worldId}
-            sessionId={currentSession?.id}
-            stateTick={stateTick}
-            diaryTick={diaryTick}
-            stateQueuedTick={stateQueuedTick}
-            stateFailedTick={stateFailedTick}
-            persona={persona}
-            onDiaryInject={setPendingDiaryInject}
-          />
-
         </div>
-      </PageRight>
-    </BookSpread>
-    </>
+      )}
+      right={(
+        <NearbyPanel
+          worldId={worldId}
+          sessionId={currentSession?.id}
+          stateTick={stateTick}
+          diaryTick={diaryTick}
+          stateQueuedTick={stateQueuedTick}
+          stateFailedTick={stateFailedTick}
+          persona={persona}
+          onDiaryInject={setPendingDiaryInject}
+        />
+      )}
+    />
   );
 }

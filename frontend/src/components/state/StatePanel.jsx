@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import SectionTabs from './SectionTabs.jsx';
+import SectionTabs from '../ui/SectionTabs.jsx';
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 
@@ -25,7 +25,7 @@ import { getWorld } from '../../api/worlds.js';
 import { getConfig } from '../../api/config.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import StatusSection from './StatusSection.jsx';
-import PanelCard from './PanelCard.jsx';
+import PanelCard from '../ui/PanelCard.jsx';
 import { log } from '../../utils/logger.js';
 
 

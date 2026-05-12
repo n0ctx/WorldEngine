@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import StatusSection from './StatusSection.jsx';
+import StatusSection from '../state/StatusSection.jsx';
 import {
   patchNearbyPersona,
   patchNearbyState,

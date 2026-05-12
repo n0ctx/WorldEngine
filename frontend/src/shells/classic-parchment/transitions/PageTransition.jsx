@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants } from '../../utils/motion.js';
+import { variants } from '../../../utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -15,8 +15,9 @@ const containerStyle = {
 };
 
 /**
- * 路由级过渡容器。locationKey 变化时触发 pageTransition 动效；
- * overlay 场景（backgroundLocation 激活时 locationKey 不变）不触发。
+ * Route-level transition container for the classic-parchment shell.
+ * locationKey changes trigger pageTransition motion; overlay routes
+ * (backgroundLocation active → locationKey unchanged) do not.
  */
 export default function PageTransition({ children, locationKey }) {
   if (!ENABLED) {

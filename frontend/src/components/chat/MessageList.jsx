@@ -5,7 +5,7 @@ import WritingMessageItem from '../writing/WritingMessageItem.jsx';
 import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../api/sessions.js';
 import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
-import ChapterDivider from '../book/ChapterDivider.jsx';
+import ChapterDivider from './ChapterDivider.jsx';
 
 const NOOP = () => {};
 
