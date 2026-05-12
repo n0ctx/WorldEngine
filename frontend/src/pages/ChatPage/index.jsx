@@ -6,7 +6,7 @@ import Icon from '../../components/ui/Icon.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import { getCharacter } from '../../api/characters.js';
 import { getPersona } from '../../api/personas.js';
-import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, editAssistantMessage, retitle } from '../../api/chat.js';
+import { sendMessage, stopGeneration, regenerate, editAndRegenerate, continueGeneration, impersonate, editAssistantMessage, retitle, recoverChatStream, subscribeChatStream } from '../../api/chat.js';
 import { createSession, getSession, deleteMessage as deleteMessageApi } from '../../api/sessions.js';
 import SessionListPanel from './components/SessionListPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
@@ -20,12 +20,8 @@ import { log } from '../../utils/logger.js';
 import { getConfig } from '../../api/config.js';
 import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import { chatSessionListBridge } from '../../utils/session-list-bridge.js';
-import { parseNextPromptStream } from '../../utils/next-prompt.js';
-
-function parseContinuationText(text) {
-  const { display, options } = parseNextPromptStream(text);
-  return { content: display, options };
-}
+import { parseNextPromptStream, parseContinuationText } from '../../utils/next-prompt.js';
+import { RESTART_INTERRUPTED_ERROR } from '../../utils/constants.js';
 
 function areOptionsEqual(a, b) {
   if (a === b) return true;
@@ -34,6 +30,30 @@ function areOptionsEqual(a, b) {
     if (a[i] !== b[i]) return false;
   }
   return true;
+}
+
+function materializeInterruptedMessages(task) {
+  const base = Array.isArray(task?.messages) ? task.messages : [];
+  if (task?.continuingMessageId && task?.continuingText) {
+    return base.map((msg) =>
+      msg.id === task.continuingMessageId
+        ? { ...msg, content: `${msg.content}\n\n${parseContinuationText(task.continuingText).content}` }
+        : msg
+    );
+  }
+  if (task?.streamingText) {
+    return [
+      ...base,
+      {
+        id: `__recovered_${task.id}`,
+        _key: `__recovered_${task.id}`,
+        role: 'assistant',
+        content: task.streamingText,
+        created_at: Date.now(),
+      },
+    ];
+  }
+  return base;
 }
 
 export default function ChatPage() {
@@ -73,6 +93,7 @@ export default function ChatPage() {
   const [streamingKey, setStreamingKey] = useState('__stream_init__');
 
   const stopRef = useRef(null);
+  const recoveryStopRef = useRef(null);
   const currentSessionIdRef = useRef(currentSessionId);
   const optionCollapsedRef = useRef(false);
   const memoryRecallingStartRef = useRef(null);
@@ -108,6 +129,7 @@ export default function ChatPage() {
   const streamRunIdRef = useRef(0);
   // 用户主动点击停止时置 true；防止无内容时 finalizeStream 兜底触发 refreshMessages
   const streamAbortedRef = useRef(false);
+  const recoveryToastKeyRef = useRef('');
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const currentOptionsRef = useRef([]);
@@ -151,6 +173,10 @@ export default function ChatPage() {
   }, [beginStreamingKey, clearOptionsState]);
 
   const isCurrentStreamRun = useCallback((runId) => streamRunIdRef.current === runId, []);
+
+  const invalidateCurrentRun = useCallback(() => {
+    streamRunIdRef.current += 1;
+  }, []);
 
   const startMemoryRecalling = useCallback(() => {
     clearTimeout(memoryRecallingTimerRef.current);
@@ -207,6 +233,9 @@ export default function ChatPage() {
   }, [optionCollapsed]);
 
   const clearActiveSession = useCallback(() => {
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
     clearOptionsState();
     setCurrentSessionId(null);
     setCurrentSession(null);
@@ -229,7 +258,7 @@ export default function ChatPage() {
     continuingTextRef.current = '';
     stopRef.current = null;
     setMessageListKey((k) => k + 1);
-  }, [clearOptionsState, setCurrentSessionId]);
+  }, [clearOptionsState, invalidateCurrentRun, setCurrentSessionId]);
 
   // 加载角色信息
   useEffect(() => {
@@ -289,12 +318,17 @@ export default function ChatPage() {
 
   useEffect(() => {
     return () => {
+      invalidateCurrentRun();
+      recoveryStopRef.current?.();
       clearOptionsState();
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
-  }, [clearOptionsState]);
+  }, [clearOptionsState, invalidateCurrentRun]);
 
   function enterSession(session) {
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
     clearOptionsState();
     setCurrentSessionId(session.id);
     setCurrentSession(session);
@@ -335,6 +369,75 @@ export default function ChatPage() {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ msg, type });
     toastTimerRef.current = setTimeout(() => setToast(null), 3000);
+  }
+
+  function showRecoveryToast(task) {
+    const key = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
+    if (recoveryToastKeyRef.current === key) return;
+    recoveryToastKeyRef.current = key;
+    if (task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR) {
+      showToast('已恢复中断前内容，旧生成因服务重启已停止', 'error');
+      return;
+    }
+    showToast('已恢复生成连接');
+  }
+
+  function applyRecoveredSnapshot(task) {
+    const interrupted = task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR;
+    const nextMessages = interrupted ? materializeInterruptedMessages(task) : (task.messages ?? []);
+    messageListRef.current?.updateMessages?.(() => nextMessages);
+    pendingOptionsRef.current = Array.isArray(task.options) ? task.options : [];
+    streamingOptionsRef.current = Array.isArray(task.options) ? task.options : [];
+    pendingEntriesRef.current = Array.isArray(task.activatedEntries) ? task.activatedEntries : [];
+    if (Array.isArray(task.options) && task.options.length > 0) {
+      setCurrentOptions(task.options);
+      setOptionCollapsed(false);
+    } else {
+      setCurrentOptions([]);
+    }
+    if (task.continuingMessageId && !interrupted) {
+      continuingMessageIdRef.current = task.continuingMessageId;
+      continuingTextRef.current = task.continuingText || '';
+      setContinuingMessageId(task.continuingMessageId);
+      setContinuingText(parseContinuationText(task.continuingText || '').content);
+      streamingTextRef.current = '';
+      setStreamingText('');
+    } else {
+      continuingMessageIdRef.current = null;
+      continuingTextRef.current = '';
+      setContinuingMessageId(null);
+      setContinuingText('');
+      streamingTextRef.current = interrupted ? '' : (task.streamingText || '');
+      setStreamingText(interrupted ? '' : (task.streamingText || ''));
+    }
+    if (interrupted && task.streamingText) {
+      setErrorBubble({ partialContent: task.streamingText, errorMsg: task.error });
+    }
+    setGenerating(!interrupted);
+  }
+
+  async function recoverLiveStream(sessionId) {
+    if (!sessionId) return;
+    try {
+      const task = await recoverChatStream(sessionId);
+      if (!task || currentSessionIdRef.current !== sessionId) return;
+      applyRecoveredSnapshot(task);
+      showRecoveryToast(task);
+      if (task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR) return;
+      recoveryStopRef.current?.();
+      const runId = streamRunIdRef.current + 1;
+      streamRunIdRef.current = runId;
+      recoveryStopRef.current = subscribeChatStream(sessionId, {
+        ...makeCallbacks(runId, sessionId),
+        onStreamSnapshot: (snapshot) => {
+          if (snapshot && currentSessionIdRef.current === sessionId) {
+            applyRecoveredSnapshot(snapshot);
+          }
+        },
+      });
+    } catch (err) {
+      showToast(err.message || '断点续传恢复失败', 'error');
+    }
   }
 
   // 流状态清理
@@ -545,6 +648,9 @@ export default function ChatPage() {
   // 发送消息
   async function handleSend(content, attachments) {
     if (generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     let sessionId = currentSessionId;
     if (!sessionId) {
@@ -591,6 +697,9 @@ export default function ChatPage() {
   // 编辑并重新生成
   function handleEditMessage(messageId, newContent) {
     if (generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     setErrorBubble(null);
     streamingTextRef.current = '';
@@ -615,6 +724,9 @@ export default function ChatPage() {
   // 重新生成 assistant 消息
   function handleRegenerateMessage(assistantMessageId) {
     if (generating || !currentSessionId) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     setErrorBubble(null);
     streamingTextRef.current = '';
@@ -640,6 +752,9 @@ export default function ChatPage() {
   // 续写最后一条 assistant 消息
   function handleContinue() {
     if (generating || !currentSessionId) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     const msgs = messageListRef.current?.messagesRef?.current ?? [];
     const lastAssistant = [...msgs].reverse().find((m) => m.role === 'assistant');
@@ -923,12 +1038,14 @@ export default function ChatPage() {
           onOptionCollapsedChange={setOptionCollapsed}
           onMessagesLoaded={(msgs) => {
             const last = msgs[msgs.length - 1];
-            if (!last || last.role !== 'assistant') return;
-            const opts = last.next_options;
-            if (Array.isArray(opts) && opts.length > 0) {
-              setCurrentOptions(opts);
-              setOptionCollapsed(false);
+            if (last?.role === 'assistant') {
+              const opts = last.next_options;
+              if (Array.isArray(opts) && opts.length > 0) {
+                setCurrentOptions(opts);
+                setOptionCollapsed(false);
+              }
             }
+            void recoverLiveStream(currentSessionIdRef.current);
           }}
         />
 

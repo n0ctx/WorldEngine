@@ -1,9 +1,7 @@
-import { beginStreamSession, sendSse } from '../../../routes/stream-helpers.js';
 import { awaitPendingStateUpdate } from '../../../utils/state-update-tracker.js';
 
 export async function runStreamLifecycle({
   sessionId,
-  res,
   activeStreams,
   emitSse,
   stateRolledBack = false,
@@ -13,17 +11,28 @@ export async function runStreamLifecycle({
   onError,
   onDone,
 }) {
-  const streamState = beginStreamSession(sessionId, res, activeStreams);
-  const controller = streamState.controller;
+  const existing = activeStreams.get(sessionId);
+  if (existing) existing.abort();
+
+  const controller = new AbortController();
+  activeStreams.set(sessionId, controller);
   const sid = sessionId.slice(0, 8);
+  const streamState = {
+    controller,
+    clear() {
+      if (activeStreams.get(sessionId) === controller) {
+        activeStreams.delete(sessionId);
+      }
+    },
+  };
 
   await awaitPendingStateUpdate(sessionId);
 
-  if (stateRolledBack && !streamState.isClientClosed()) {
+  if (stateRolledBack) {
     emitSse({ type: 'state_rolled_back' });
   }
 
-  if (userMsgId && !streamState.isClientClosed()) {
+  if (userMsgId) {
     emitSse({ type: 'user_saved', id: userMsgId });
   }
 
@@ -36,7 +45,7 @@ export async function runStreamLifecycle({
     const stream = await createStream({ sid, streamState, controller, setup });
     for await (const chunk of stream) {
       fullContent += chunk;
-      if (!streamState.isClientClosed()) sendSse(res, { delta: chunk });
+      emitSse({ delta: chunk });
     }
   } catch (err) {
     if (err.name === 'AbortError' || controller.signal.aborted) {
@@ -50,9 +59,8 @@ export async function runStreamLifecycle({
         streamState,
         controller,
       });
-      if (outcome?.endResponse) {
+      if (outcome?.stopLifecycle) {
         streamState.clear();
-        if (!streamState.isClientClosed()) res.end();
         return outcome;
       }
     }

@@ -19,6 +19,12 @@ import {
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { createLogger, formatMeta, logPrompt } from '../../utils/logger.js';
 import {
+  closeSessionStreamSse,
+  completeSessionStreamTask,
+  createSessionStreamTask,
+  failSessionStreamTask,
+} from '../../services/session-stream-task-store.js';
+import {
   buildContinuationMessages,
   supportsPrefill,
 } from '../../routes/stream-helpers.js';
@@ -47,7 +53,7 @@ function resolveContinuationBase(sessionId) {
   return { lastAssistant, lastUser };
 }
 
-export async function runWritingContinue({ sessionId, res, emitSse, activeStreams }) {
+export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attachSse, activeStreams }) {
   const session = getWritingSessionById(sessionId);
   const worldId = session.world_id;
   const { lastAssistant, lastUser } = resolveContinuationBase(sessionId);
@@ -59,10 +65,18 @@ export async function runWritingContinue({ sessionId, res, emitSse, activeStream
       worldId: worldId?.slice(0, 8) ?? null,
     })}`
   );
+  const task = createSessionStreamTask({
+    sessionId,
+    mode: 'writing',
+    messages: getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0),
+    continuingMessageId: lastAssistant.id,
+  });
+  attachSse?.(task);
+  const taskId = task.id;
+  const emitSse = (payload, opts) => rawEmitSse(payload, { ...opts, taskId });
 
   return runStreamLifecycle({
     sessionId,
-    res,
     activeStreams,
     emitSse,
     beforeStream: async ({ sid }) => {
@@ -116,8 +130,14 @@ export async function runWritingContinue({ sessionId, res, emitSse, activeStream
       }),
     onError: async ({ err, sid, fullContent, streamState }) => {
       log.error(`CONTINUE ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      if (!streamState.isClientClosed()) emitSse({ type: 'error', error: err.message });
-      return fullContent ? null : { endResponse: true };
+      emitSse({ type: 'error', error: err.message });
+      if (!fullContent) {
+        streamState.clear();
+        failSessionStreamTask(sessionId, err.message, taskId);
+        closeSessionStreamSse(sessionId, taskId);
+        return { stopLifecycle: true };
+      }
+      return null;
     },
     onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       let mergedAssistant = null;
@@ -131,19 +151,13 @@ export async function runWritingContinue({ sessionId, res, emitSse, activeStream
           currentUserContent: lastUser?.content ?? '',
           configScope: 'writing-aux',
           onSuggestionFallback() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_started' });
-            }
+            emitSse({ type: 'suggestion_fallback_started' });
           },
           onSuggestionFallbackSucceeded() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_succeeded' });
-            }
+            emitSse({ type: 'suggestion_fallback_succeeded' });
           },
           onSuggestionFallbackFailed() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_failed' });
-            }
+            emitSse({ type: 'suggestion_fallback_failed' });
           },
           createMessageFn: () => null,
           touchSessionFn: () => {},
@@ -198,15 +212,23 @@ export async function runWritingContinue({ sessionId, res, emitSse, activeStream
           worldId,
           mode: 'writing',
           taskSpecs,
-          res,
           streamState,
           sid,
           emitSse,
+          onAllSettled() {
+            completeSessionStreamTask(sessionId, taskId);
+            closeSessionStreamSse(sessionId, taskId);
+          },
         });
         if (hasSseWaits) return;
       }
 
-      if (!streamState.isClientClosed()) res.end();
+      if (aborted) {
+        setTimeout(() => closeSessionStreamSse(sessionId, taskId), 0);
+        return;
+      }
+      completeSessionStreamTask(sessionId, taskId);
+      closeSessionStreamSse(sessionId, taskId);
     },
   });
 }

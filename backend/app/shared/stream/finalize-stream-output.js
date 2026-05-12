@@ -10,7 +10,6 @@ export function finalizeStreamOutput({
   usageRef = {},
   activatedEntries = [],
   emitSse,
-  streamState,
 }) {
   if (!aborted && assistant && Object.keys(usageRef).length > 0) {
     updateMessageTokenUsage(assistant.id, usageRef);
@@ -22,18 +21,16 @@ export function finalizeStreamOutput({
     assistant.activated_entries = activatedEntries;
   }
 
-  if (!streamState.isClientClosed()) {
-    emitSse(
-      aborted
-        ? { aborted: true, assistant }
-        : {
-            done: true,
-            assistant,
-            options,
-            usage: Object.keys(usageRef).length > 0 ? usageRef : undefined,
-          }
-    );
-  }
+  emitSse(
+    aborted
+      ? { aborted: true, assistant }
+      : {
+          done: true,
+          assistant,
+          options,
+          usage: Object.keys(usageRef).length > 0 ? usageRef : undefined,
+        }
+  );
 
   return assistant;
 }

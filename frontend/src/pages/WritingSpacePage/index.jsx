@@ -19,6 +19,8 @@ import {
   editWritingAssistantMessage,
   impersonateWriting,
   retitleWritingSession,
+  recoverWritingStream,
+  subscribeWritingStream,
 } from '../../api/writing-sessions.js';
 import { getChapterTitles, updateChapterTitle, retitleChapter } from '../../api/chapter-titles.js';
 import { deleteMessage as deleteMessageApi, getSession } from '../../api/sessions.js';
@@ -32,11 +34,31 @@ import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { log } from '../../utils/logger.js';
 import { writingSessionListBridge } from '../../utils/session-list-bridge.js';
-import { parseNextPromptStream } from '../../utils/next-prompt.js';
+import { parseNextPromptStream, parseContinuationText } from '../../utils/next-prompt.js';
+import { RESTART_INTERRUPTED_ERROR } from '../../utils/constants.js';
 
-function parseContinuationText(text) {
-  const { display, options } = parseNextPromptStream(text);
-  return { content: display, options };
+function materializeInterruptedMessages(task) {
+  const base = Array.isArray(task?.messages) ? task.messages : [];
+  if (task?.continuingMessageId && task?.continuingText) {
+    return base.map((msg) =>
+      msg.id === task.continuingMessageId
+        ? { ...msg, content: `${msg.content}\n\n${parseContinuationText(task.continuingText).content}` }
+        : msg
+    );
+  }
+  if (task?.streamingText) {
+    return [
+      ...base,
+      {
+        id: `__recovered_${task.id}`,
+        _key: `__recovered_${task.id}`,
+        role: 'assistant',
+        content: task.streamingText,
+        created_at: Date.now(),
+      },
+    ];
+  }
+  return base;
 }
 
 export default function WritingSpacePage() {
@@ -90,6 +112,7 @@ export default function WritingSpacePage() {
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
   const stopRef = useRef(null);
+  const recoveryStopRef = useRef(null);
   const streamingTextRef = useRef('');
   const streamingKeyRef = useRef('__ws_stream_init__');
   const continuingMessageIdRef = useRef(null);
@@ -115,6 +138,7 @@ export default function WritingSpacePage() {
   const memoryExpandingTimerRef = useRef(null);
   const memoryWritingTimerRef = useRef(null);
   const recallSummaryTimerRef = useRef(null);
+  const recoveryToastKeyRef = useRef('');
 
   const [currentOptions, setCurrentOptions] = useState([]);
   const currentOptionsRef = useRef([]);
@@ -159,6 +183,8 @@ export default function WritingSpacePage() {
 
   useEffect(() => {
     return () => {
+      invalidateCurrentRun();
+      recoveryStopRef.current?.();
       clearOptionsState();
     };
   }, []);
@@ -262,6 +288,9 @@ export default function WritingSpacePage() {
   }
 
   async function enterSession(session) {
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
     clearOptionsState();
     setCurrentSession(session);
     setGenerating(false);
@@ -308,6 +337,72 @@ export default function WritingSpacePage() {
     stopGeneration(worldId, currentSessionRef.current?.id).catch(() => {});
   }
 
+  function showRecoveryToast(task) {
+    const key = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
+    if (recoveryToastKeyRef.current === key) return;
+    recoveryToastKeyRef.current = key;
+    if (task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR) {
+      log.warn('writing.resume.interrupted', null, { toast: '已恢复中断前内容，旧生成因服务重启已停止' });
+      return;
+    }
+    log.info('writing.resume.reconnected', null, { toast: '已恢复生成连接' });
+  }
+
+  function applyRecoveredSnapshot(task) {
+    const interrupted = task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR;
+    const nextMessages = interrupted ? materializeInterruptedMessages(task) : (task.messages ?? []);
+    messageListRef.current?.updateMessages?.(() => nextMessages);
+    pendingOptionsRef.current = Array.isArray(task.options) ? task.options : [];
+    if (Array.isArray(task.options) && task.options.length > 0) {
+      setCurrentOptions(task.options);
+    } else {
+      setCurrentOptions([]);
+    }
+    if (task.continuingMessageId && !interrupted) {
+      continuingMessageIdRef.current = task.continuingMessageId;
+      continuingTextRef.current = task.continuingText || '';
+      setContinuingMessageId(task.continuingMessageId);
+      setContinuingText(parseContinuationText(task.continuingText || '').content);
+      streamingTextRef.current = '';
+      setStreamingText('');
+    } else {
+      continuingMessageIdRef.current = null;
+      continuingTextRef.current = '';
+      setContinuingMessageId(null);
+      setContinuingText('');
+      streamingTextRef.current = interrupted ? '' : (task.streamingText || '');
+      setStreamingText(interrupted ? '' : (task.streamingText || ''));
+    }
+    if (interrupted && task.streamingText) {
+      setError(task.error);
+    }
+    setGenerating(!interrupted);
+  }
+
+  async function recoverLiveStream(sessionId) {
+    if (!sessionId) return;
+    try {
+      const task = await recoverWritingStream(worldId, sessionId);
+      if (!task || currentSessionRef.current?.id !== sessionId) return;
+      applyRecoveredSnapshot(task);
+      showRecoveryToast(task);
+      if (task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR) return;
+      recoveryStopRef.current?.();
+      const runId = streamRunIdRef.current + 1;
+      streamRunIdRef.current = runId;
+      recoveryStopRef.current = subscribeWritingStream(worldId, sessionId, {
+        ...makeStreamCallbacks(runId, sessionId),
+        onStreamSnapshot: (snapshot) => {
+          if (snapshot && currentSessionRef.current?.id === sessionId) {
+            applyRecoveredSnapshot(snapshot);
+          }
+        },
+      });
+    } catch (err) {
+      log.error('writing.resume.failed', err, { toast: err.message || '断点续传恢复失败' });
+    }
+  }
+
   function beginStreamingKey() {
     const k = `__ws_stream_${Date.now()}_${Math.random().toString(36).slice(2, 7)}__`;
     streamingKeyRef.current = k;
@@ -336,6 +431,10 @@ export default function WritingSpacePage() {
 
   function isCurrentStreamRun(runId) {
     return streamRunIdRef.current === runId;
+  }
+
+  function invalidateCurrentRun() {
+    streamRunIdRef.current += 1;
   }
 
   // sessionIdHint：调用方显式传入回调归属的 sessionId（应对 ref 同步未到位的场景）；
@@ -505,6 +604,9 @@ export default function WritingSpacePage() {
   function handleSend(content) {
     const session = currentSessionRef.current;
     if (!session || generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     setError(null);
     clearOptionsState();
@@ -536,6 +638,9 @@ export default function WritingSpacePage() {
   function handleEditMessage(messageId, newContent) {
     const session = currentSessionRef.current;
     if (!session || generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
     setError(null);
     if (messageListRef.current?.updateMessages) {
       messageListRef.current.updateMessages((prev) => {
@@ -554,6 +659,9 @@ export default function WritingSpacePage() {
   function handleRegenerateMessage(assistantMessageId) {
     const session = currentSessionRef.current;
     if (!session || generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
     setError(null);
     const msgs = messageListRef.current?.messagesRef?.current ?? [];
     const idx = msgs.findIndex((m) => m.id === assistantMessageId);
@@ -613,6 +721,9 @@ export default function WritingSpacePage() {
   function handleContinue() {
     const session = currentSessionRef.current;
     if (!session || generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
 
     clearOptionsState();
 
@@ -893,6 +1004,7 @@ export default function WritingSpacePage() {
                   setCurrentOptions(opts);
                   optionCollapsedRef.current = false;
                 }
+                void recoverLiveStream(currentSessionRef.current?.id ?? null);
               }}
             />
 

@@ -296,7 +296,7 @@ test('POST /stop 会中断当前流并保存已生成的部分内容', async () 
   assert.equal(activeStreams.size, 0);
 });
 
-test('POST /api/sessions/:sessionId/chat 在客户端提前关闭时不落 assistant 消息并清理 activeStreams', async () => {
+test('POST /api/sessions/:sessionId/chat 在客户端提前关闭时服务端继续完成并落库，且最终清理 activeStreams', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一段', '第二段']);
   process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([0, 200]);
@@ -316,12 +316,13 @@ test('POST /api/sessions/:sessionId/chat 在客户端提前关闭时不落 assis
   const reader = response.body.getReader();
   await reader.read();
   await reader.cancel();
-  await new Promise((resolve) => setTimeout(resolve, 250));
+  await new Promise((resolve) => setTimeout(resolve, 600));
 
   const rows = sandbox.db.prepare('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC').all(session.id);
   assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
   assert.match(rows[1].content, /第一段/);
-  assert.match(rows[1].content, /\[已中断\]/);
+  assert.match(rows[1].content, /第二段/);
+  assert.doesNotMatch(rows[1].content, /\[已中断\]/);
   assert.equal(activeStreams.size, 0);
 });
 

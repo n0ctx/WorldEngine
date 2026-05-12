@@ -22,6 +22,16 @@
  *   onSuggestionFallbackFailed() — 补选项失败
  *   onEntriesActivated(entries) — 本轮激活的非常驻条目（运行时展示，不持久化）
  */
+export async function subscribeSse(url, callbacks, signal) {
+  const res = await fetch(url, { method: 'GET', signal });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    callbacks.onError?.(err.error || `HTTP ${res.status}`);
+    return;
+  }
+  await parseSSEStream(res, callbacks);
+}
+
 export async function parseSSEStream(response, callbacks) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -60,6 +70,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'suggestion_fallback_failed') callbacks.onSuggestionFallbackFailed?.();
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
+          else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);
           else callbacks.onEvent?.(evt);
         } catch {
           // ignore malformed events

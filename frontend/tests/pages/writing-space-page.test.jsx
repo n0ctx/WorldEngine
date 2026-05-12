@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
     listWritingSessions: vi.fn(),
     createWritingSession: vi.fn(),
     generate: vi.fn(),
+    recoverWritingStream: vi.fn(),
+    subscribeWritingStream: vi.fn(),
     continueGeneration: vi.fn(),
     stopGeneration: vi.fn(),
     retitleWritingSession: vi.fn(),
@@ -56,6 +58,8 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   listWritingSessions: (...args) => mocks.listWritingSessions(...args),
   createWritingSession: (...args) => mocks.createWritingSession(...args),
   generate: (...args) => mocks.generate(...args),
+  recoverWritingStream: (...args) => mocks.recoverWritingStream(...args),
+  subscribeWritingStream: (...args) => mocks.subscribeWritingStream(...args),
   stopGeneration: (...args) => mocks.stopGeneration(...args),
   continueGeneration: (...args) => mocks.continueGeneration(...args),
   regenerateWriting: vi.fn(),
@@ -72,6 +76,9 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
       updateMessages: mocks.MessageListState.updateMessages,
       messagesRef: mocks.MessageListState.messagesRef,
     }));
+    React.useEffect(() => {
+      props.onMessagesLoaded?.(mocks.MessageListState.messagesRef.current ?? []);
+    }, [props]);
     return (
       <div data-testid="message-list">
         {props.sessionId || 'none'}
@@ -132,6 +139,8 @@ describe('WritingSpacePage', () => {
     mocks.listWritingSessions.mockResolvedValue([]);
     mocks.createWritingSession.mockResolvedValue({ id: 'ws-1', title: null });
     mocks.continueGeneration.mockReset();
+    mocks.recoverWritingStream.mockReset();
+    mocks.subscribeWritingStream.mockReset();
     mocks.generate.mockReset();
     mocks.stopGeneration.mockReset();
     mocks.retitleWritingSession.mockReset();
@@ -145,6 +154,8 @@ describe('WritingSpacePage', () => {
     mocks.retitleChapter.mockResolvedValue({ title: 'AI 章节名' });
     mocks.impersonateWriting.mockResolvedValue({ content: '写作代拟' });
     mocks.stopGeneration.mockResolvedValue({});
+    mocks.recoverWritingStream.mockResolvedValue(null);
+    mocks.subscribeWritingStream.mockImplementation(() => vi.fn());
     mocks.generate.mockImplementation((_wid, _sid, _content, callbacks) => {
       callbacks.onDone?.({ id: 'asst-1', content: '段落' }, ['下一步']);
       callbacks.onStreamEnd?.();
@@ -274,6 +285,53 @@ describe('WritingSpacePage', () => {
     });
     fireEvent.click(screen.getByText('send-writing'));
     await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(3));
+  });
+
+  it('进入已有写作 session 时会尝试恢复断点续传并补订阅', async () => {
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.recoverWritingStream.mockResolvedValue({
+      id: 'stream-1',
+      sessionId: 'ws-1',
+      status: 'streaming',
+      messages: [{ id: 'user-1', role: 'user', content: '上一句' }],
+      streamingText: '恢复中的段落',
+      continuingMessageId: null,
+      continuingText: '',
+      options: ['下一步'],
+      activatedEntries: [],
+      updatedAt: 1,
+    });
+
+    renderWritingSpacePage();
+
+    await waitFor(() => expect(mocks.recoverWritingStream).toHaveBeenCalledWith('world-1', 'ws-1'));
+    await waitFor(() => expect(mocks.subscribeWritingStream).toHaveBeenCalled());
+    expect(mocks.subscribeWritingStream.mock.calls[0][0]).toBe('world-1');
+    expect(mocks.subscribeWritingStream.mock.calls[0][1]).toBe('ws-1');
+    expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
+  });
+
+  it('写作恢复到 restart 中断快照时不会补订阅', async () => {
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.recoverWritingStream.mockResolvedValue({
+      id: 'stream-1',
+      sessionId: 'ws-1',
+      status: 'failed',
+      error: 'interrupted by restart',
+      messages: [{ id: 'user-1', role: 'user', content: '上一句' }],
+      streamingText: '中断前段落',
+      continuingMessageId: null,
+      continuingText: '',
+      options: [],
+      activatedEntries: [],
+      updatedAt: 2,
+    });
+
+    renderWritingSpacePage();
+
+    await waitFor(() => expect(mocks.recoverWritingStream).toHaveBeenCalledWith('world-1', 'ws-1'));
+    expect(mocks.subscribeWritingStream).not.toHaveBeenCalled();
+    expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
   });
 
   it('旧普通写作流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {

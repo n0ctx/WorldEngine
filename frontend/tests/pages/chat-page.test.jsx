@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => {
     createSession: vi.fn(),
     getSession: vi.fn(),
     sendMessage: vi.fn(),
+    recoverChatStream: vi.fn(),
+    subscribeChatStream: vi.fn(),
     continueGeneration: vi.fn(),
     stopGeneration: vi.fn(),
     regenerate: vi.fn(),
@@ -48,6 +50,8 @@ vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorl
 vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
 vi.mock('../../src/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
+  recoverChatStream: (...args) => mocks.recoverChatStream(...args),
+  subscribeChatStream: (...args) => mocks.subscribeChatStream(...args),
   stopGeneration: (...args) => mocks.stopGeneration(...args),
   regenerate: (...args) => mocks.regenerate(...args),
   editAndRegenerate: (...args) => mocks.editAndRegenerate(...args),
@@ -71,6 +75,9 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
       updateMessages: mocks.MessageListState.updateMessages,
       messagesRef: mocks.MessageListState.messagesRef,
     }));
+    React.useEffect(() => {
+      props.onMessagesLoaded?.(mocks.MessageListState.messagesRef.current ?? []);
+    }, [props]);
     return (
       <div data-testid="message-list">
         <div data-testid="session-id">{props.sessionId || 'none'}</div>
@@ -128,6 +135,8 @@ describe('ChatPage', () => {
     mocks.MessageListState.messagesRef.current = [];
     mocks.SessionListPanelMock.addSession.mockReset();
     mocks.continueGeneration.mockReset();
+    mocks.recoverChatStream.mockReset();
+    mocks.subscribeChatStream.mockReset();
     mocks.sendMessage.mockReset();
     mocks.stopGeneration.mockReset();
     mocks.regenerate.mockReset();
@@ -147,6 +156,8 @@ describe('ChatPage', () => {
     mocks.editAssistantMessage.mockResolvedValue({ ok: true });
     mocks.retitle.mockResolvedValue({ title: '新标题' });
     mocks.stopGeneration.mockResolvedValue({});
+    mocks.recoverChatStream.mockResolvedValue(null);
+    mocks.subscribeChatStream.mockImplementation(() => vi.fn());
     mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
       callbacks.onUserSaved?.('user-1');
       callbacks.onDone?.({ id: 'asst-1', content: '你好' }, ['继续']);
@@ -285,6 +296,64 @@ describe('ChatPage', () => {
     });
     fireEvent.click(screen.getByText('send'));
     await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(3));
+  });
+
+  it('进入已有 session 时会尝试恢复断点续传并补订阅', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    mocks.recoverChatStream.mockResolvedValue({
+      id: 'stream-1',
+      sessionId: 'session-1',
+      status: 'streaming',
+      messages: [{ id: 'user-1', role: 'user', content: '上一句' }],
+      streamingText: '恢复中的回复',
+      continuingMessageId: null,
+      continuingText: '',
+      options: ['继续'],
+      activatedEntries: [],
+      updatedAt: 1,
+    });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => expect(mocks.recoverChatStream).toHaveBeenCalledWith('session-1'));
+    await waitFor(() => expect(mocks.subscribeChatStream).toHaveBeenCalled());
+    expect(mocks.subscribeChatStream.mock.calls[0][0]).toBe('session-1');
+    expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
+  });
+
+  it('恢复到 restart 中断快照时不会补订阅', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    mocks.recoverChatStream.mockResolvedValue({
+      id: 'stream-1',
+      sessionId: 'session-1',
+      status: 'failed',
+      error: 'interrupted by restart',
+      messages: [{ id: 'user-1', role: 'user', content: '上一句' }],
+      streamingText: '中断前文本',
+      continuingMessageId: null,
+      continuingText: '',
+      options: [],
+      activatedEntries: [],
+      updatedAt: 2,
+    });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+
+    renderChatPage();
+
+    await waitFor(() => expect(mocks.recoverChatStream).toHaveBeenCalledWith('session-1'));
+    expect(mocks.subscribeChatStream).not.toHaveBeenCalled();
+    expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
   });
 
   it('旧普通流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {

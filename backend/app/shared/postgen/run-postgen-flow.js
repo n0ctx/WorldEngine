@@ -6,16 +6,16 @@ export async function runPostGenFlow({
   worldId,
   mode,
   taskSpecs,
-  res,
   streamState,
   sid,
   emitSse,
+  onAllSettled,
 }) {
   await runHook('generation:post', { sessionId, worldId, taskSpecs, mode });
   return runPostGenTasks(sessionId, taskSpecs, {
-    res,
     streamState,
     sid,
     emitSse,
+    onAllSettled,
   });
 }

@@ -29,26 +29,28 @@ import {
   LLM_TASK_TEMPERATURE,
   LLM_TITLE_MAX_TOKENS,
 } from '../utils/constants.js';
-import {
-  buildContinuationMessages,
-  sendSse,
-  supportsPrefill,
-} from './stream-helpers.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { runHook } from '../hooks/hook-registry.js';
 import { runChatContinue } from '../app/chat/run-chat-continue.js';
 import { runChatRegenerate } from '../app/chat/run-chat-regenerate.js';
 import { runChatStream } from '../app/chat/run-chat-stream.js';
+import {
+  attachSessionStreamSse,
+  buildSessionStreamSnapshot,
+  emitSessionStreamEvent,
+  getRecoverableSessionStreamTask,
+  writeSessionStreamSse,
+} from '../services/session-stream-task-store.js';
 
 const router = Router();
 const log = createLogger('chat');
 
-function emitSse(res, sid, payload, { logEvent = true } = {}) {
+function emitSse(sessionId, payload, { logEvent = true, taskId } = {}) {
   if (logEvent && payload?.type && payload.type !== 'delta') {
     log.info(
       `SSE ${payload.type.toUpperCase()}  ${formatMeta({
-        session: sid,
+        session: sessionId.slice(0, 8),
         keys: Object.keys(payload),
         hit: payload.hit,
         candidates: Array.isArray(payload.candidates) ? payload.candidates.length : undefined,
@@ -59,7 +61,7 @@ function emitSse(res, sid, payload, { logEvent = true } = {}) {
       })}`
     );
   }
-  sendSse(res, payload);
+  emitSessionStreamEvent(sessionId, payload, { taskId });
 }
 
 router.post('/:sessionId/chat', async (req, res) => {
@@ -108,8 +110,8 @@ router.post('/:sessionId/chat', async (req, res) => {
 
   await runChatStream({
     sessionId,
-    res,
-    emitSse: (payload, options) => emitSse(res, sessionId.slice(0, 8), payload, options),
+    emitSse: (payload, options) => emitSse(sessionId, payload, options),
+    attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
     activeStreams,
     userMsgId: userMsg.id,
     userContent: content,
@@ -177,8 +179,8 @@ router.post('/:sessionId/regenerate', async (req, res) => {
   await runChatRegenerate({
     sessionId,
     afterMessageId,
-    res,
-    emitSse: (payload, options) => emitSse(res, sessionId.slice(0, 8), payload, options),
+    emitSse: (payload, options) => emitSse(sessionId, payload, options),
+    attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
     activeStreams,
   });
 });
@@ -187,12 +189,23 @@ router.post('/:sessionId/continue', async (req, res) => {
   const { sessionId } = req.params;
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, 'Session not found')) return;
+  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+  const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
+  if (lastAssistantIndex < 0) {
+    return res.status(400).json({ error: '当前会话没有 AI 回复可续写' });
+  }
+  const hasUserBeforeAssistant = messages
+    .slice(0, lastAssistantIndex)
+    .some((message) => message.role === 'user');
+  if (!hasUserBeforeAssistant) {
+    return res.status(400).json({ error: '当前会话没有可续写的用户-助手轮次' });
+  }
 
   try {
     await runChatContinue({
       sessionId,
-      res,
-      emitSse: (payload, options) => emitSse(res, sessionId.slice(0, 8), payload, options),
+      emitSse: (payload, options) => emitSse(sessionId, payload, options),
+      attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
       activeStreams,
     });
   } catch (err) {
@@ -208,6 +221,18 @@ router.post('/:sessionId/continue', async (req, res) => {
     }
     throw err;
   }
+});
+
+router.get('/:sessionId/recover-stream', (req, res) => {
+  const task = getRecoverableSessionStreamTask(req.params.sessionId);
+  res.json({ task: task ? buildSessionStreamSnapshot(task) : null });
+});
+
+router.get('/:sessionId/stream', (req, res) => {
+  const task = getRecoverableSessionStreamTask(req.params.sessionId);
+  if (!task) return res.status(404).json({ error: 'stream task not found' });
+  attachSessionStreamSse(req.params.sessionId, task.id, res);
+  writeSessionStreamSse(res, { type: 'stream_snapshot', task: buildSessionStreamSnapshot(task) });
 });
 
 router.post('/:sessionId/impersonate', async (req, res) => {

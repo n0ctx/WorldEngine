@@ -19,6 +19,12 @@ import {
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { createLogger, formatMeta } from '../../utils/logger.js';
 import {
+  closeSessionStreamSse,
+  completeSessionStreamTask,
+  createSessionStreamTask,
+  failSessionStreamTask,
+} from '../../services/session-stream-task-store.js';
+import {
   buildContinuationMessages,
   supportsPrefill,
 } from '../../routes/stream-helpers.js';
@@ -47,16 +53,24 @@ function resolveContinuationBase(sessionId) {
   return { messages, lastAssistant, lastUser };
 }
 
-export async function runChatContinue({ sessionId, res, emitSse, activeStreams }) {
+export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSse, activeStreams }) {
   const session = getSessionById(sessionId);
-  const { lastAssistant, lastUser } = resolveContinuationBase(sessionId);
+  const { messages: baseMessages, lastAssistant, lastUser } = resolveContinuationBase(sessionId);
   const originalContent = lastAssistant.content;
 
   log.info(`POST /continue  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
+  const task = createSessionStreamTask({
+    sessionId,
+    mode: 'chat',
+    messages: baseMessages,
+    continuingMessageId: lastAssistant.id,
+  });
+  attachSse?.(task);
+  const taskId = task.id;
+  const emitSse = (payload, opts) => rawEmitSse(payload, { ...opts, taskId });
 
   return runStreamLifecycle({
     sessionId,
-    res,
     activeStreams,
     emitSse,
     beforeStream: async ({ sid }) => {
@@ -89,8 +103,14 @@ export async function runChatContinue({ sessionId, res, emitSse, activeStreams }
       }),
     onError: async ({ err, sid, fullContent, streamState }) => {
       log.error(`CONTINUE ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      if (!streamState.isClientClosed()) emitSse({ type: 'error', error: err.message });
-      return fullContent ? null : { endResponse: true };
+      emitSse({ type: 'error', error: err.message });
+      if (!fullContent) {
+        streamState.clear();
+        failSessionStreamTask(sessionId, err.message, taskId);
+        closeSessionStreamSse(sessionId, taskId);
+        return { stopLifecycle: true };
+      }
+      return null;
     },
     onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       const characterId = session.character_id;
@@ -108,19 +128,13 @@ export async function runChatContinue({ sessionId, res, emitSse, activeStreams }
           currentUserContent: lastUser?.content ?? '',
           configScope: 'aux',
           onSuggestionFallback() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_started' });
-            }
+            emitSse({ type: 'suggestion_fallback_started' });
           },
           onSuggestionFallbackSucceeded() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_succeeded' });
-            }
+            emitSse({ type: 'suggestion_fallback_succeeded' });
           },
           onSuggestionFallbackFailed() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_failed' });
-            }
+            emitSse({ type: 'suggestion_fallback_failed' });
           },
           createMessageFn: () => null,
           touchSessionFn: () => {},
@@ -168,16 +182,24 @@ export async function runChatContinue({ sessionId, res, emitSse, activeStreams }
             worldId,
             mode: 'chat',
             taskSpecs,
-            res,
             streamState,
             sid,
             emitSse,
+            onAllSettled() {
+              completeSessionStreamTask(sessionId, taskId);
+              closeSessionStreamSse(sessionId, taskId);
+            },
           });
           if (hasSseWaits) return;
         }
       }
 
-      if (!streamState.isClientClosed()) res.end();
+      if (aborted) {
+        setTimeout(() => closeSessionStreamSse(sessionId, taskId), 0);
+        return;
+      }
+      completeSessionStreamTask(sessionId, taskId);
+      closeSessionStreamSse(sessionId, taskId);
     },
   });
 }

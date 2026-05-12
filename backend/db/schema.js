@@ -271,6 +271,22 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   updated_at                 INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS session_stream_tasks (
+  id                     TEXT PRIMARY KEY,
+  session_id             TEXT NOT NULL UNIQUE REFERENCES sessions(id) ON DELETE CASCADE,
+  mode                   TEXT NOT NULL,
+  status                 TEXT NOT NULL,
+  messages_json          TEXT NOT NULL,
+  streaming_text         TEXT NOT NULL DEFAULT '',
+  continuing_message_id  TEXT,
+  continuing_text        TEXT NOT NULL DEFAULT '',
+  options_json           TEXT NOT NULL,
+  activated_entries_json TEXT NOT NULL,
+  error                  TEXT,
+  created_at             INTEGER NOT NULL,
+  updated_at             INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS session_world_state_values (
   id                 TEXT PRIMARY KEY,
   session_id         TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -335,6 +351,7 @@ CREATE INDEX IF NOT EXISTS idx_regex_rules_world_id ON regex_rules(world_id);
 CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
 CREATE INDEX IF NOT EXISTS idx_assistant_tasks_status_updated_at ON assistant_tasks(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_session_stream_tasks_status_updated_at ON session_stream_tasks(status, updated_at);
 `;
 
 export function initSchema(db) {
@@ -349,6 +366,12 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   // T-assistant-resume: 为现有数据库补持久化计划文档正文
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_content TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T-chat-writing-resume: 为现有数据库补 session 级流快照字段
+  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN streaming_text TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_message_id TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_text TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN options_json TEXT NOT NULL DEFAULT '[]'`); } catch {}
+  try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN activated_entries_json TEXT NOT NULL DEFAULT '[]'`); } catch {}
   // T-desc: 为现有数据库添加 characters.description / personas.description 列
   try { db.exec(`ALTER TABLE characters ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE personas ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}

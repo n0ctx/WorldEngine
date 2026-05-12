@@ -17,6 +17,12 @@ import {
 } from '../../services/writing-sessions.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { createLogger, formatMeta, logPrompt } from '../../utils/logger.js';
+import {
+  closeSessionStreamSse,
+  completeSessionStreamTask,
+  createSessionStreamTask,
+  failSessionStreamTask,
+} from '../../services/session-stream-task-store.js';
 
 const log = createLogger('writing');
 
@@ -28,8 +34,8 @@ function getLastUserContent(sessionId) {
 
 export async function runWritingStream({
   sessionId,
-  res,
-  emitSse,
+  emitSse: rawEmitSse,
+  attachSse,
   activeStreams,
   userMsgId,
   userContent,
@@ -45,21 +51,28 @@ export async function runWritingStream({
       worldId: worldId?.slice(0, 8) ?? null,
     })}`
   );
+  const task = createSessionStreamTask({
+    sessionId,
+    mode: 'writing',
+    messages: getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0),
+  });
+  attachSse?.(task);
+  const taskId = task.id;
+  const emitSse = (payload, opts) => rawEmitSse(payload, { ...opts, taskId });
 
   return runStreamLifecycle({
     sessionId,
-    res,
     activeStreams,
     emitSse,
     stateRolledBack,
     userMsgId,
-    beforeStream: async ({ sid, streamState }) => {
+    beforeStream: async ({ sid }) => {
       const usageRef = {};
       let activatedEntries = [];
 
-      if (!streamState.isClientClosed()) emitSse({ type: 'memory_recall_start' });
+      emitSse({ type: 'memory_recall_start' });
       const onRecallEvent = (name, payload) => {
-        if (!streamState.isClientClosed()) emitSse({ type: name, ...payload });
+        emitSse({ type: name, ...payload });
       };
       const {
         messages,
@@ -81,7 +94,7 @@ export async function runWritingStream({
         })}`
       );
       logPrompt(sessionId, messages);
-      if (activatedEntries.length > 0 && !streamState.isClientClosed()) {
+      if (activatedEntries.length > 0) {
         emitSse({ type: 'entries_activated', entries: activatedEntries });
       }
 
@@ -109,8 +122,14 @@ export async function runWritingStream({
       }),
     onError: async ({ err, sid, fullContent, streamState }) => {
       log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      if (!streamState.isClientClosed()) emitSse({ type: 'error', error: err.message });
-      return fullContent ? null : { endResponse: true };
+      emitSse({ type: 'error', error: err.message });
+      if (!fullContent) {
+        streamState.clear();
+        failSessionStreamTask(sessionId, err.message, taskId);
+        closeSessionStreamSse(sessionId, taskId);
+        return { stopLifecycle: true };
+      }
+      return null;
     },
     onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       const { savedContent, options, savedAssistant } = await processStreamOutput(
@@ -126,19 +145,13 @@ export async function runWritingStream({
           currentUserContent: userContent ?? getLastUserContent(sessionId),
           configScope: 'writing-aux',
           onSuggestionFallback() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_started' });
-            }
+            emitSse({ type: 'suggestion_fallback_started' });
           },
           onSuggestionFallbackSucceeded() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_succeeded' });
-            }
+            emitSse({ type: 'suggestion_fallback_succeeded' });
           },
           onSuggestionFallbackFailed() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_failed' });
-            }
+            emitSse({ type: 'suggestion_fallback_failed' });
           },
         }
       );
@@ -177,16 +190,24 @@ export async function runWritingStream({
             worldId,
             mode: 'writing',
             taskSpecs,
-            res,
             streamState,
             sid,
             emitSse,
+            onAllSettled() {
+              completeSessionStreamTask(sessionId, taskId);
+              closeSessionStreamSse(sessionId, taskId);
+            },
           });
           if (hasSseWaits) return;
         }
       }
 
-      if (!streamState.isClientClosed()) res.end();
+      if (aborted) {
+        setTimeout(() => closeSessionStreamSse(sessionId, taskId), 0);
+        return;
+      }
+      completeSessionStreamTask(sessionId, taskId);
+      closeSessionStreamSse(sessionId, taskId);
     },
   });
 }

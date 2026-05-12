@@ -1,4 +1,4 @@
-import { parseSSEStream } from './stream-parser.js';
+import { parseSSEStream, subscribeSse } from './stream-parser.js';
 
 /**
  * 内部辅助：POST 请求 + SSE 流解析（写作版）
@@ -197,4 +197,25 @@ export function continueGeneration(worldId, sessionId, callbacks) {
     undefined,
     callbacks
   );
+}
+
+export async function recoverWritingStream(worldId, sessionId) {
+  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/recover-stream`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  return json.task || null;
+}
+
+export function subscribeWritingStream(worldId, sessionId, callbacks) {
+  const controller = new AbortController();
+  (async () => {
+    try {
+      await subscribeSse(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stream`, callbacks, controller.signal);
+    } catch (err) {
+      if (err.name !== 'AbortError') callbacks.onError?.(err.message);
+    } finally {
+      callbacks.onStreamEnd?.();
+    }
+  })();
+  return () => controller.abort();
 }

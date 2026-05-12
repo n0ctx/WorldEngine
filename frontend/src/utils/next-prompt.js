@@ -68,4 +68,9 @@ export function stripNextPromptBlocks(text) {
     .replace(/<\s*\/?\s*next_prompt\s*>/gi, '');
 }
 
+export function parseContinuationText(text) {
+  const { display, options } = parseNextPromptStream(text);
+  return { content: display, options };
+}
+
 export { OPEN_TAG, CLOSE_TAG, NEXT_OPEN, NEXT_CLOSE };

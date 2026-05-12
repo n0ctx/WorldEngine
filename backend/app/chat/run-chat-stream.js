@@ -9,6 +9,12 @@ import { getCharacterById } from '../../services/characters.js';
 import { getMessagesBySessionId, getSessionById } from '../../services/sessions.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 import { createLogger, formatMeta } from '../../utils/logger.js';
+import {
+  closeSessionStreamSse,
+  completeSessionStreamTask,
+  createSessionStreamTask,
+  failSessionStreamTask,
+} from '../../services/session-stream-task-store.js';
 
 const log = createLogger('chat');
 
@@ -20,8 +26,8 @@ function getLastUserContent(sessionId) {
 
 export async function runChatStream({
   sessionId,
-  res,
-  emitSse,
+  emitSse: rawEmitSse,
+  attachSse,
   activeStreams,
   userMsgId,
   userContent,
@@ -36,34 +42,37 @@ export async function runChatStream({
       userMsgId: userMsgId?.slice(0, 8) ?? null,
     })}`
   );
+  const task = createSessionStreamTask({
+    sessionId,
+    mode: 'chat',
+    messages: getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0),
+  });
+  attachSse?.(task);
+  const taskId = task.id;
+  const emitSse = (payload, opts) => rawEmitSse(payload, { ...opts, taskId });
 
   return runStreamLifecycle({
     sessionId,
-    res,
     activeStreams,
     emitSse,
     stateRolledBack,
     userMsgId,
-    beforeStream: async ({ streamState, sid }) => {
+    beforeStream: async ({ sid }) => {
       const usageRef = {};
       let activatedEntries = [];
 
-      if (!streamState.isClientClosed()) emitSse({ type: 'memory_recall_start' });
+      emitSse({ type: 'memory_recall_start' });
       const { messages, overrides, recallHitCount, activatedEntries: entries } =
         await buildContext(sessionId, {
           onRecallEvent(name, payload) {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: name, ...payload });
-            }
+            emitSse({ type: name, ...payload });
           },
           diaryInjection,
         });
 
       activatedEntries = entries ?? [];
-      if (!streamState.isClientClosed()) {
-        emitSse({ type: 'memory_recall_done', hit: recallHitCount });
-      }
-      if (activatedEntries.length > 0 && !streamState.isClientClosed()) {
+      emitSse({ type: 'memory_recall_done', hit: recallHitCount });
+      if (activatedEntries.length > 0) {
         emitSse({ type: 'entries_activated', entries: activatedEntries });
       }
 
@@ -89,8 +98,14 @@ export async function runChatStream({
       }),
     onError: async ({ err, sid, fullContent, streamState }) => {
       log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      if (!streamState.isClientClosed()) emitSse({ type: 'error', error: err.message });
-      return fullContent ? null : { endResponse: true };
+      emitSse({ type: 'error', error: err.message });
+      if (!fullContent) {
+        streamState.clear();
+        failSessionStreamTask(sessionId, err.message, taskId);
+        closeSessionStreamSse(sessionId, taskId);
+        return { stopLifecycle: true };
+      }
+      return null;
     },
     onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       log.info(
@@ -117,19 +132,13 @@ export async function runChatStream({
           currentUserContent: userContent ?? getLastUserContent(sessionId),
           configScope: 'aux',
           onSuggestionFallback() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_started' });
-            }
+            emitSse({ type: 'suggestion_fallback_started' });
           },
           onSuggestionFallbackSucceeded() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_succeeded' });
-            }
+            emitSse({ type: 'suggestion_fallback_succeeded' });
           },
           onSuggestionFallbackFailed() {
-            if (!streamState.isClientClosed()) {
-              emitSse({ type: 'suggestion_fallback_failed' });
-            }
+            emitSse({ type: 'suggestion_fallback_failed' });
           },
         }
       );
@@ -160,16 +169,24 @@ export async function runChatStream({
             worldId,
             mode: 'chat',
             taskSpecs,
-            res,
             streamState,
             sid,
             emitSse,
+            onAllSettled() {
+              completeSessionStreamTask(sessionId, taskId);
+              closeSessionStreamSse(sessionId, taskId);
+            },
           });
           if (hasSseWaits) return;
         }
       }
 
-      if (!streamState.isClientClosed()) res.end();
+      if (aborted) {
+        setTimeout(() => closeSessionStreamSse(sessionId, taskId), 0);
+        return;
+      }
+      completeSessionStreamTask(sessionId, taskId);
+      closeSessionStreamSse(sessionId, taskId);
     },
   });
 }

@@ -4,15 +4,15 @@ import { runChatStream } from './run-chat-stream.js';
 export async function runChatRegenerate({
   sessionId,
   afterMessageId,
-  res,
   emitSse,
+  attachSse,
   activeStreams,
 }) {
   const { stateRolledBack } = await rollbackChatSession(sessionId, afterMessageId);
   return runChatStream({
     sessionId,
-    res,
     emitSse,
+    attachSse,
     activeStreams,
     stateRolledBack,
   });

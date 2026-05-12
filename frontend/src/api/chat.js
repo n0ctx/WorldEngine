@@ -1,5 +1,5 @@
 import { editMessage } from './sessions.js';
-import { parseSSEStream } from './stream-parser.js';
+import { parseSSEStream, subscribeSse } from './stream-parser.js';
 
 /**
  * 内部辅助：POST 请求 + SSE 流解析
@@ -96,6 +96,27 @@ export function editAndRegenerate(sessionId, messageId, newContent, callbacks) {
  */
 export function continueGeneration(sessionId, callbacks) {
   return streamPost(`/api/sessions/${sessionId}/continue`, undefined, callbacks);
+}
+
+export async function recoverChatStream(sessionId) {
+  const res = await fetch(`/api/sessions/${sessionId}/recover-stream`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+  return json.task || null;
+}
+
+export function subscribeChatStream(sessionId, callbacks) {
+  const controller = new AbortController();
+  (async () => {
+    try {
+      await subscribeSse(`/api/sessions/${sessionId}/stream`, callbacks, controller.signal);
+    } catch (err) {
+      if (err.name !== 'AbortError') callbacks.onError?.(err.message);
+    } finally {
+      callbacks.onStreamEnd?.();
+    }
+  })();
+  return () => controller.abort();
 }
 
 /**

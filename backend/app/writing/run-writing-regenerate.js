@@ -4,15 +4,15 @@ import { runWritingStream } from './run-writing-stream.js';
 export async function runWritingRegenerate({
   sessionId,
   afterMessageId,
-  res,
   emitSse,
+  attachSse,
   activeStreams,
 }) {
   const { stateRolledBack } = await rollbackWritingSession(sessionId, afterMessageId);
   return runWritingStream({
     sessionId,
-    res,
     emitSse,
+    attachSse,
     activeStreams,
     stateRolledBack,
   });

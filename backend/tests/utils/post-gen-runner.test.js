@@ -3,9 +3,6 @@ import assert from 'node:assert/strict';
 
 import { freshImport } from '../helpers/test-env.js';
 
-/**
- * 构造最小测试上下文；endPromise 在 res.end() 被调用时 resolve。
- */
 function makeCtx(overrides = {}) {
   const emitted = [];
   let endResolve;
@@ -14,10 +11,10 @@ function makeCtx(overrides = {}) {
   return {
     emitted,
     endPromise,
-    res: { end: () => endResolve() },
-    streamState: { isClientClosed: () => false },
+    streamState: {},
     sid: 'test1234',
     emitSse: (payload) => emitted.push(payload),
+    onAllSettled: () => endResolve(),
     ...overrides,
   };
 }

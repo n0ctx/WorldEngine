@@ -99,6 +99,8 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+const { hydrateSessionStreamTasks } = await import('./services/session-stream-task-store.js');
+hydrateSessionStreamTasks();
 await loadUserHooks();
 
 export function createApp() {

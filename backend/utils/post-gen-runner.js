@@ -10,10 +10,10 @@ const log = createLogger('post-gen');
  * @param {string} sessionId
  * @param {Array<TaskSpec>} taskSpecs  — 任务描述列表，按声明顺序入队
  * @param {object} ctx
- * @param {object} ctx.res             — Express Response，用于推送 SSE 和关闭连接
- * @param {object} ctx.streamState     — beginStreamSession 返回的 streamState 对象
+ * @param {object} ctx.streamState     — 当前流运行态
  * @param {string} ctx.sid             — sessionId 短前缀（8 字符），用于日志
  * @param {function} ctx.emitSse       — (payload) => void，推送单条 SSE 事件
+ * @param {function} ctx.onAllSettled  — keepSseAlive 任务全部结束后的收尾逻辑
  *
  * @typedef {object} TaskSpec
  * @property {string}               label         — 日志/队列标签
@@ -29,7 +29,7 @@ const log = createLogger('post-gen');
  * @returns {{ hasSseWaits: boolean }}
  *   hasSseWaits=true 时调用方应立即 return（连接由 Promise.allSettled 关闭）
  */
-export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, emitSse }) {
+export function runPostGenTasks(sessionId, taskSpecs, { streamState, sid, emitSse, onAllSettled }) {
   const ssePromises = [];
 
   for (const spec of taskSpecs) {
@@ -41,7 +41,7 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
     // startSseEvent：任务被 dequeue 并实际开始执行时推送（在调用原 fn 之前）
     const taskFn = spec.startSseEvent
       ? async () => {
-          if (!streamState.isClientClosed()) emitSse({ type: spec.startSseEvent });
+          emitSse({ type: spec.startSseEvent });
           return spec.fn();
         }
       : spec.fn;
@@ -56,7 +56,7 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
     if (spec.keepSseAlive) {
       const ssePromise = rawPromise
         .then((result) => {
-          if (spec.sseEvent && !streamState.isClientClosed()) {
+          if (spec.sseEvent) {
             const payload = spec.ssePayload
               ? spec.ssePayload(result)
               : { type: spec.sseEvent };
@@ -67,7 +67,7 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
         .catch((err) => {
           log.warn(`后台任务失败 [${spec.label}]:`, err.message);
           // tracksState 任务失败时通知前端，避免"整理中"状态永久卡住
-          if (spec.tracksState && !streamState.isClientClosed()) {
+          if (spec.tracksState) {
             emitSse({ type: 'state_update_failed', error: err.message });
           }
         });
@@ -78,9 +78,7 @@ export function runPostGenTasks(sessionId, taskSpecs, { res, streamState, sid, e
   }
 
   if (ssePromises.length > 0) {
-    Promise.allSettled(ssePromises).finally(() => {
-      if (!streamState.isClientClosed()) res.end();
-    });
+    Promise.allSettled(ssePromises).finally(() => onAllSettled?.());
     return { hasSseWaits: true };
   }
 
