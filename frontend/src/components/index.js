@@ -30,35 +30,36 @@ export { default as SortableGrid }    from './ui/SortableGrid';
 // — Blocks 结构模式 —
 export { default as BackButton }      from './blocks/BackButton';
 
-// — classic-parchment shell — 详见 frontend/src/shells/README.md
-// 下列组件被视为 classic-parchment shell 的实现细节；目前为迁移安全保留在
-// components/book/ 下，TopBar 与 PageTransition 已迁入 shell，旧路径仅做兼容
-// 再导出。新代码请通过 shell 入口或本 barrel 引用，禁止深入 shell 内部路径。
-export { default as BookSpread }          from './book/BookSpread';
-export { default as Bookmark }            from './book/Bookmark';
-export { default as NearbyPanel }         from './book/NearbyPanel';
-export { default as NearbyCharacterBlock } from './book/NearbyCharacterBlock';
-export { default as AddSavedNearbyModal } from './book/AddSavedNearbyModal';
-export { default as MakeCardModal }       from './book/MakeCardModal';
-export { default as ChapterDivider }      from './book/ChapterDivider';
-export { default as CharacterSeal }       from './book/CharacterSeal';
-export { default as FleuronLine }         from './book/FleuronLine';
-export { default as MarginaliaList }      from './book/MarginaliaList';
-export { default as PageFooter }          from './book/PageFooter';
-export { default as PageLeft }            from './book/PageLeft';
-export { default as PageRight }           from './book/PageRight';
-export { default as PageTransition }      from './book/PageTransition';
-export { default as PanelCard }           from './book/PanelCard';
-export { default as ParchmentTexture }    from './book/ParchmentTexture';
-export { default as SealStampAnimation }  from './book/SealStampAnimation';
-export { default as SectionTabs }         from './book/SectionTabs';
-export { default as SessionListPanel }    from './book/SessionListPanel';
-export { default as StatePanel }          from './book/StatePanel';
-export { default as StatusSection }       from './book/StatusSection';
-export { default as StatusTable }          from './book/StatusTable';
-export { default as TopBar }              from './book/TopBar';
-export { default as WritingPageLeft }     from './book/WritingPageLeft';
-export { default as WritingSessionList }  from './book/WritingSessionList';
+// — 通用 UI 原子（自 components/book 拆分迁出，保留 barrel 兼容） —
+export { default as PanelCard }           from './ui/PanelCard.jsx';
+export { default as SectionTabs }         from './ui/SectionTabs.jsx';
+export { default as SealStampAnimation }  from './ui/SealStampAnimation.jsx';
+export { default as MarginaliaList }      from './ui/MarginaliaList.jsx';
+
+// — 状态系统组件 —
+export { default as StatePanel }          from './state/StatePanel.jsx';
+export { default as StatusSection }       from './state/StatusSection.jsx';
+export { default as StatusTable }         from './state/StatusTable.jsx';
+
+// — 会话列表 —
+export { default as SessionListPanel }    from './session/SessionListPanel.jsx';
+
+// — 写作面板 —
+export { default as WritingSessionList }  from './writing/WritingSessionList.jsx';
+export { default as NearbyPanel }         from './writing/NearbyPanel.jsx';
+export { default as NearbyCharacterBlock } from './writing/NearbyCharacterBlock.jsx';
+export { default as AddSavedNearbyModal } from './writing/AddSavedNearbyModal.jsx';
+export { default as MakeCardModal }       from './writing/MakeCardModal.jsx';
+
+// — 聊天装饰 —
+export { default as ChapterDivider }      from './chat/ChapterDivider.jsx';
+export { default as CharacterSeal }       from './chat/CharacterSeal.jsx';
+
+// 注：classic-parchment shell 的结构性 chrome（BookSpread / PageLeft / PageRight /
+// WritingPageLeft / Bookmark / ParchmentTexture / PageFooter / FleuronLine /
+// TopBar / PageTransition / MemoryRecallOverlay）已迁入
+// frontend/src/shells/classic-parchment/，禁止在 components barrel 中再导出，
+// 也禁止页面直接 import。页面应通过 core/layout/PageLayout 描述布局。
 
 // — Chat 专属 —
 export { default as ActivatedEntriesRow } from './chat/ActivatedEntriesRow';
