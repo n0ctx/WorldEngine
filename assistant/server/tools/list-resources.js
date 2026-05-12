@@ -1,7 +1,8 @@
 // assistant/server/tools/list-resources.js
 import { getAllWorlds } from '../../../backend/db/queries/worlds.js';
-import { getCharactersByWorldId } from '../../../backend/db/queries/characters.js';
+import { getCharactersByWorldId, getAllCharacters } from '../../../backend/db/queries/characters.js';
 import { listPersonas } from '../../../backend/services/personas.js';
+import { getAllPersonas } from '../../../backend/db/queries/personas.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 
@@ -18,13 +19,13 @@ export const definition = {
   function: {
     name: 'list_resources',
     description:
-      '跨世界 / 跨角色的列表查询。target 选择资源类型；characters 必须传 worldId（或省略代表所有世界）。' +
+      '跨世界 / 跨角色的列表查询。target 选择资源类型；characters / personas 的 worldId 可选，省略则返回所有世界。' +
       'preview_card 用于查单个实体的完整详情，list_resources 用于发现"有哪些"。',
     parameters: {
       type: 'object',
       properties: {
         target: { type: 'string', enum: ['worlds', 'characters', 'personas', 'css-snippets', 'regex-rules'] },
-        worldId: { type: 'string', description: 'characters / personas 时必传：限定世界' },
+        worldId: { type: 'string', description: 'characters / personas 时可选：限定世界；省略则返回所有世界' },
       },
       required: ['target'],
     },
@@ -36,12 +37,11 @@ export async function execute({ target, worldId }) {
     case 'worlds':
       return JSON.stringify(trim(getAllWorlds()));
     case 'characters': {
-      // 项目暂未提供 listCharactersAll；按 worldId 必传处理
-      if (!worldId) throw new Error('characters target 需要 worldId');
+      if (!worldId) return JSON.stringify(trim(getAllCharacters()));
       return JSON.stringify(trim(getCharactersByWorldId(worldId)));
     }
     case 'personas': {
-      if (!worldId) throw new Error('personas target 需要 worldId');
+      if (!worldId) return JSON.stringify(trim(getAllPersonas()));
       return JSON.stringify(trim(listPersonas(worldId)));
     }
     case 'css-snippets':

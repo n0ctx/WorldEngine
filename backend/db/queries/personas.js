@@ -138,3 +138,26 @@ export function getPersonaAvatarPathByWorldId(worldId) {
   const persona = getPersonaByWorldId(worldId);
   return persona?.avatar_path ?? null;
 }
+
+/**
+ * 获取所有玩家卡（跨世界），附带所属世界名称和激活状态。
+ * 与世界内查询保持一致：若 worlds.active_persona_id 为 NULL，
+ * 则该世界 sort_order 最小、最早创建的 persona 视为 active。
+ */
+export function getAllPersonas() {
+  return db.prepare(
+    `SELECT p.*, w.name AS world_name,
+        CASE
+          WHEN p.id = w.active_persona_id THEN 1
+          WHEN w.active_persona_id IS NULL
+               AND p.id = (SELECT p2.id FROM personas p2
+                            WHERE p2.world_id = p.world_id
+                            ORDER BY p2.sort_order ASC, p2.created_at ASC
+                            LIMIT 1) THEN 1
+          ELSE 0
+        END AS is_active
+     FROM personas p
+     JOIN worlds w ON p.world_id = w.id
+     ORDER BY w.sort_order ASC, p.sort_order ASC, p.created_at ASC`,
+  ).all();
+}

@@ -11,7 +11,7 @@
 读类工具（任何模式都可调）：
 
 - `preview_card(target, operation, entityId?)`：查询单个实体（世界卡 / 角色卡 / 玩家卡 / 全局配置 / CSS 片段 / 正则规则）的现有数据。
-- `list_resources(target, worldId?)`：跨实体的列表查询（worlds / characters / css-snippets / regex-rules）。
+- `list_resources(target, worldId?)`：跨实体的列表查询（worlds / characters / personas / css-snippets / regex-rules）。characters 和 personas 的 worldId 可选，省略则返回所有世界。
 - `read_file(path)`：读 `assistant/knowledge/<对应>.md` 等项目内文件，补充类型化知识。
 
 写类工具（**simple mode 你自己直接调，plan mode 由子代理在 dispatch 中调**）：

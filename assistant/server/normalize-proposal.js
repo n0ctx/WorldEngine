@@ -145,8 +145,8 @@ async function applyProposal(proposal, worldRefId = null) {
 
     case 'character-card': {
       if (operation === 'create') {
-        const worldId = worldRefId || entityId;
-        if (!worldId) throw new Error('character-card create 需要 worldId（请先应用对应的世界卡提案）');
+        const worldId = changes.world_id ?? worldRefId ?? entityId;
+        if (!worldId) throw new Error('character-card create 需要 worldId（entityId、changes.world_id 或上下文 worldId）');
         const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
         const newChar = createCharacter({
           world_id: worldId,
@@ -179,8 +179,8 @@ async function applyProposal(proposal, worldRefId = null) {
 
     case 'persona-card': {
       if (operation === 'create') {
-        const worldId = entityId;
-        if (!worldId) throw new Error('persona-card create 需要 worldId（entityId）');
+        const worldId = changes.world_id ?? entityId;
+        if (!worldId) throw new Error('persona-card create 需要 worldId（entityId 或 changes.world_id）');
         const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
         const newPersona = createPersonaDb(worldId, {
           name: safeChanges.name || '新玩家',
@@ -436,16 +436,28 @@ function normalizeWorldChanges(changes) {
 }
 
 function normalizeCharacterChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
+  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message', 'world_id']);
   const normalized = {};
-  for (const key of Object.keys(picked)) normalized[key] = String(picked[key] ?? '');
+  for (const key of Object.keys(picked)) {
+    if (key === 'world_id') {
+      normalized[key] = normalizeEntityId(picked[key]);
+    } else {
+      normalized[key] = String(picked[key] ?? '');
+    }
+  }
   return normalized;
 }
 
 function normalizePersonaChanges(changes) {
-  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt']);
+  const picked = pickAllowed(changes, ['name', 'description', 'system_prompt', 'world_id']);
   const normalized = {};
-  for (const key of Object.keys(picked)) normalized[key] = String(picked[key] ?? '');
+  for (const key of Object.keys(picked)) {
+    if (key === 'world_id') {
+      normalized[key] = normalizeEntityId(picked[key]);
+    } else {
+      normalized[key] = String(picked[key] ?? '');
+    }
+  }
   return normalized;
 }
 

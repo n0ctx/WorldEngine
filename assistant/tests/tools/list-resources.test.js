@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport } from '../../../backend/tests/helpers/test-env.js';
-import { insertWorld, insertCharacter, insertRegexRule } from '../../../backend/tests/helpers/fixtures.js';
+import { insertWorld, insertCharacter, insertPersona, insertRegexRule } from '../../../backend/tests/helpers/fixtures.js';
 
 const sandbox = createTestSandbox('assistant-list-resources');
 sandbox.setEnv();
@@ -25,8 +25,13 @@ test('worlds target 返回 JSON', async () => {
   assert.ok(arr.some((w) => w.name === 'lr-w1'));
 });
 
-test('characters target 缺 worldId 时报错', async () => {
-  await assert.rejects(() => listResources.execute({ target: 'characters' }), /worldId/);
+test('characters target 缺 worldId 时返回所有角色', async () => {
+  const w = insertWorld(sandbox.db, { name: 'lr-w-all' });
+  insertCharacter(sandbox.db, w.id, { name: 'lr-c-all' });
+  const out = await listResources.execute({ target: 'characters' });
+  const arr = JSON.parse(out);
+  assert.ok(Array.isArray(arr));
+  assert.ok(arr.some((c) => c.name === 'lr-c-all'));
 });
 
 test('characters target 按 worldId 返回', async () => {
@@ -36,6 +41,24 @@ test('characters target 按 worldId 返回', async () => {
   const arr = JSON.parse(out);
   assert.equal(arr.length, 1);
   assert.equal(arr[0].name, 'lr-c1');
+});
+
+test('personas target 缺 worldId 时返回所有玩家卡', async () => {
+  const w = insertWorld(sandbox.db, { name: 'lr-p-all' });
+  insertPersona(sandbox.db, w.id, { name: 'lr-p-all' });
+  const out = await listResources.execute({ target: 'personas' });
+  const arr = JSON.parse(out);
+  assert.ok(Array.isArray(arr));
+  assert.ok(arr.some((p) => p.name === 'lr-p-all'));
+});
+
+test('personas target 按 worldId 返回', async () => {
+  const w = insertWorld(sandbox.db, { name: 'lr-w-personas' });
+  insertPersona(sandbox.db, w.id, { name: 'lr-p1' });
+  const out = await listResources.execute({ target: 'personas', worldId: w.id });
+  const arr = JSON.parse(out);
+  assert.equal(arr.length, 1);
+  assert.equal(arr[0].name, 'lr-p1');
 });
 
 test('css-snippets / regex-rules target', async () => {

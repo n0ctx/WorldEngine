@@ -17,7 +17,7 @@
 
 - 读：
   - `preview_card(target, operation, entityId)`：在 `update` / `delete` 时拉取实体当前完整数据（含 Prompt 条目、状态字段）
-  - `list_resources(target, worldId?)`：发现某类资源现有列表（例如查 css 片段已用名称、正则规则现状等）
+  - `list_resources(target, worldId?)`：发现某类资源现有列表。characters / personas 的 worldId 可选，省略则返回所有世界。
   - `read_file(path)`：兜底文档查询，仅在确有必要时使用，通常无需调用
 - 落库：恰好 1 个 `apply_*` 工具（由父代理在派发时锁定为 `targetType` 对应的那一个，其它 apply 不会暴露给你，也禁止尝试调用）
 

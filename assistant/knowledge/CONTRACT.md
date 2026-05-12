@@ -36,8 +36,8 @@
 | type | create | update | delete |
 |---|---|---|---|
 | `world-card` | `{entityId:null, changes, entryOps, stateFieldOps}` | `{entityId, changes?, entryOps?, stateFieldOps?}` | `{entityId}` |
-| `character-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId, changes?, stateValueOps?}` | `{entityId}` |
-| `persona-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId:worldId, changes?, stateValueOps?}` | — (不允许 delete) |
+| `character-card` | `{entityId:worldId, changes, stateValueOps}`（changes 可含 `world_id` 跨世界创建） | `{entityId, changes?, stateValueOps?}` | `{entityId}` |
+| `persona-card` | `{entityId:worldId, changes, stateValueOps}`（changes 可含 `world_id` 跨世界创建） | `{entityId:worldId, changes?, stateValueOps?}` | — (不允许 delete) |
 | `global-config` | — | `{changes}` | — |
 | `css-snippet` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
 | `regex-rule` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
@@ -86,7 +86,7 @@
 
 ### 资源依赖约束
 
-- `character-card create` / `persona-card create` 必须依赖世界来源：`context.worldId` 或前序 `step:<world-card-create>`
+- `character-card create` / `persona-card create` 必须指定世界来源：`context.worldId`、前序 `step:<world-card-create>`、显式 `entityId`（worldId）或 `changes.world_id`。支持跨世界创建（例如把当前世界的角色复制到另一个世界）。
 - `update` / `delete` 步骤必须带可解析的 entityRef
 - 删除/清空/覆盖类步骤必须显式标记为高风险
 

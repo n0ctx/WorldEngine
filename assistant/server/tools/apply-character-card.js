@@ -3,13 +3,13 @@ import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 
 export const definition = {
   name: 'apply_character_card',
-  description: '落库角色卡变更。operation 取 create/update/delete。create 时 entityId 为 worldId（依赖关系），update/delete 时为 characterId。',
+  description: '落库角色卡变更。operation 取 create/update/delete。create 时 entityId 为目标 worldId（可跨世界，不限于当前世界；也可在 changes.world_id 中指定），update/delete 时为 characterId。',
   parameters: {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update', 'delete'] },
       entityId: { type: ['string', 'null'] },
-      changes: { type: 'object' },
+      changes: { type: 'object', description: 'create 时可额外包含 world_id 指定目标世界（优先于 entityId）' },
       stateValueOps: { type: 'array' },
       explanation: { type: 'string' },
     },

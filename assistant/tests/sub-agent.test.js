@@ -136,9 +136,9 @@ test('dispatchSubAgent emitFn 触发 tool_call_started/completed 事件', async 
 
 test('dispatchSubAgent 内部 tool 抛错时 emit success=false', async () => {
   process.env.MOCK_LLM_COMPLETE = 'done';
-  // 调用 list_resources characters 但不传 worldId → 触发抛错
+  // 调用 list_resources 传未知 target → 触发抛错
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
-    { name: 'list_resources', arguments: { target: 'characters' } },
+    { name: 'list_resources', arguments: { target: 'unknown' } },
   ]);
   const events = [];
   await dispatchSubAgent({

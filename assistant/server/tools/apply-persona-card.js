@@ -4,14 +4,15 @@ export const definition = {
   name: 'apply_persona_card',
   description:
     '落库玩家卡（persona）变更。operation 仅支持 create/update。' +
-    'entityId 为 worldId。update 时可额外传 personaId 直接定位特定玩家卡；省略则修改当前激活玩家卡。',
+    'create 时 entityId 为目标 worldId（可跨世界，不限于当前世界；也可在 changes.world_id 中指定）。' +
+    'update 时可额外传 personaId 直接定位特定玩家卡；省略则修改当前激活玩家卡。',
   parameters: {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update'] },
       entityId: { type: ['string', 'null'], description: '所属世界 ID' },
       personaId: { type: ['string', 'null'], description: 'update 时可选：直接指定玩家卡 ID；省略则修改激活玩家卡' },
-      changes: { type: 'object' },
+      changes: { type: 'object', description: 'create 时可额外包含 world_id 指定目标世界（优先于 entityId）' },
       stateValueOps: { type: 'array' },
       explanation: { type: 'string' },
     },

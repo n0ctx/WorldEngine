@@ -50,6 +50,18 @@ export function getCharactersByWorldId(worldId) {
 }
 
 /**
+ * 获取所有角色（跨世界），附带所属世界名称
+ */
+export function getAllCharacters() {
+  return db.prepare(
+    `SELECT c.*, w.name AS world_name
+     FROM characters c
+     JOIN worlds w ON c.world_id = w.id
+     ORDER BY w.sort_order ASC, c.sort_order ASC, c.created_at ASC`,
+  ).all();
+}
+
+/**
  * 部分更新角色字段
  */
 export function updateCharacter(id, patch) {
