@@ -1330,10 +1330,15 @@
 
 .we-asst-entry--user::before     { background: var(--we-ink-primary); }
 .we-asst-entry--assistant::before { background: var(--we-ink-faded); }
+.we-asst-entry--tool,
+.we-asst-entry--tool-running {
+  max-width: 88%;
+  align-self: flex-start;
+}
 .we-asst-entry--tool::before,
 .we-asst-entry--tool-running::before { display: none; }
 .we-asst-entry--error::before    { background: var(--we-vermilion-deep); }
-.we-asst-entry--plan::before     { background: var(--we-vermilion); }
+.we-asst-entry--plan::before     { display: none; }
 
 /* 工具卡：缩小 + 淡色 + emoji（弱化为过程信息，不与对话气泡争视觉） */
 .we-asst-entry--tool,
@@ -1348,6 +1353,7 @@
 .we-asst-entry--tool-running .we-asst-entry__head {
   font-size: var(--we-text-xs);
   gap: var(--we-space-xs);
+  flex-wrap: wrap;
 }
 
 .we-asst-entry--tool .we-asst-entry__title,
@@ -1414,6 +1420,28 @@
   flex-shrink: 0;
 }
 
+/* 流式运行指示器（替代红绿点） */
+.we-asst-tool__spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--we-ink-faded);
+  border-top-color: transparent;
+  border-radius: var(--we-radius-full);
+  animation: we-tool-spin 0.8s linear infinite;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.we-asst-entry--tool-running .we-asst-tool__spinner {
+  border-color: var(--we-vermilion);
+  border-top-color: transparent;
+}
+
+@keyframes we-tool-spin {
+  to { transform: rotate(360deg); }
+}
+
 .we-asst-entry__dot {
   width: 6px;
   height: 6px;
@@ -1421,7 +1449,6 @@
   flex-shrink: 0;
 }
 
-.we-asst-entry__dot--done  { background: var(--we-color-status-success); }
 .we-asst-entry__dot--error { background: var(--we-color-status-danger); }
 
 .we-asst-entry__body {
@@ -1759,11 +1786,17 @@
   line-height: 1.6;
   color: var(--we-ink-primary);
   outline: none;
+  box-sizing: border-box;
 }
 
 .we-asst-bubble__edit:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: -1px;
+}
+
+/* 编辑态气泡宽度与非编辑态一致（由 JS 测量并内联设置） */
+.we-asst-bubble--user:has(.we-asst-bubble__edit) {
+  width: auto;
 }
 
 .we-asst-bubble__actions {
