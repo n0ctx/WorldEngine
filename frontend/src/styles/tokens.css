@@ -1,24 +1,41 @@
-/* WorldEngine 视觉 token — 权威定义见 DESIGN.md §2 */
+/* WorldEngine 核心视觉 token — 默认值保持中性；具体风格由主题 CSS 覆盖。 */
 
 :root {
   /* === 基础色（仅供语义色引用，组件禁止直接使用）=== */
-  --we-base-paper-100: #ede3d0;   /* 原 --we-paper-base */
-  --we-base-paper-200: #d9ccb0;   /* 原 --we-paper-aged */
-  --we-base-paper-300: #c8b99a;   /* 原 --we-paper-shadow */
-  --we-base-paper-400: #b8a882;   /* 原 --we-paper-deep */
-  --we-base-ink-900:   #2a1f17;   /* 原 --we-ink-primary */
-  --we-base-ink-700:   #534236;   /* 原 --we-ink-secondary */
-  --we-base-ink-500:   #6d5c4b;   /* 原 --we-ink-faded */
-  --we-base-vermilion-600: #a23b2e; /* 原 --we-vermilion */
-  --we-base-vermilion-800: #7c2a20; /* 原 --we-vermilion-deep */
-  --we-base-gold-600:  #a0833f;   /* 原 --we-gold-leaf */
-  --we-base-gold-400:  #c9a85a;   /* 原 --we-gold-pale */
-  --we-base-moss-600:  #5c6b3a;   /* 原 --we-moss */
-  --we-base-amber-600: #8b5a1f;   /* 原 --we-amber */
-  --we-base-slate-600: #4a5568;   /* 原 --we-slate */
-  --we-base-book-bg:   #4a3728;   /* 原 --we-book-bg */
+  --we-core-surface-100: #f7f7f4;
+  --we-core-surface-200: #ffffff;
+  --we-core-surface-300: #e2e2dc;
+  --we-core-surface-400: #c9c9c0;
+  --we-core-ink-900:     #171717;
+  --we-core-ink-700:     #525252;
+  --we-core-ink-500:     #737373;
+  --we-core-accent-600:  #9f4f36;
+  --we-core-accent-800:  #733724;
+  --we-core-ornament-600:#8a6f2f;
+  --we-core-ornament-400:#b7923b;
+  --we-core-success-600: #3f6f4a;
+  --we-core-warning-600: #9a5b18;
+  --we-core-info-600:    #4b5563;
+  --we-core-shell-bg:    #2f3136;
+
+  /* Legacy 基础变量：现阶段保留给既有组件和用户 CSS，取值由中性核心或主题覆盖。 */
+  --we-base-paper-100: var(--we-core-surface-100);
+  --we-base-paper-200: var(--we-core-surface-200);
+  --we-base-paper-300: var(--we-core-surface-300);
+  --we-base-paper-400: var(--we-core-surface-400);
+  --we-base-ink-900:   var(--we-core-ink-900);
+  --we-base-ink-700:   var(--we-core-ink-700);
+  --we-base-ink-500:   var(--we-core-ink-500);
+  --we-base-vermilion-600: var(--we-core-accent-600);
+  --we-base-vermilion-800: var(--we-core-accent-800);
+  --we-base-gold-600:  var(--we-core-ornament-600);
+  --we-base-gold-400:  var(--we-core-ornament-400);
+  --we-base-moss-600:  var(--we-core-success-600);
+  --we-base-amber-600: var(--we-core-warning-600);
+  --we-base-slate-600: var(--we-core-info-600);
+  --we-base-book-bg:   var(--we-core-shell-bg);
   --we-base-white:     #ffffff;
-  --we-base-peach-200: #ffc8a0;
+  --we-base-peach-200: #f0c4a4;
 
   /* === 语义色（组件必须使用这些，禁止直接用基础色）=== */
 
@@ -35,8 +52,7 @@
   --we-color-bg-surface: var(--we-base-paper-200);  /* 卡片/面板 */
   --we-color-bg-subtle:  var(--we-base-paper-300);
   --we-color-bg-muted:   var(--we-base-paper-400);
-  /* 42,31,23 = --we-base-ink-900 的 RGB；如调整基础色需同步更新此值 */
-  --we-color-bg-overlay: rgba(42, 31, 23, 0.5);     /* 遮罩层 */
+  --we-color-bg-overlay: rgba(23, 23, 23, 0.5);
   --we-color-bg-inverse: var(--we-base-book-bg);
 
   /* 边框色 */
@@ -54,27 +70,25 @@
   /* 强调色 */
   --we-color-accent:      var(--we-base-vermilion-600);
   --we-color-accent-deep: var(--we-base-vermilion-800);
-  /* 162,59,46 = --we-base-vermilion-600 的 RGB；CSS 暂不支持从变量提取 RGB，如调整基础色需同步更新此值 */
-  --we-color-accent-bg:   rgba(162, 59, 46, 0.08);
+  --we-color-accent-bg:   rgba(159, 79, 54, 0.08);
   --we-color-gold:        var(--we-base-gold-600);
   --we-color-gold-pale:   var(--we-base-gold-400);
 
   /* 头像占位背景 */
   --we-color-avatar-placeholder: var(--we-base-peach-200);
 
-  /* 墨水渐淡色（ink wash）— 用于背景填充，禁止组件直接用 --we-base-ink-* */
-  /* 42,31,23 = --we-base-ink-900 的 RGB；如调整基础色需同步更新 */
-  --we-color-ink-wash:          rgba(42, 31, 23, 0.035); /* 输入框/选择框背景 ~3.5% */
-  --we-color-ink-wash-md:       rgba(42, 31, 23, 0.06);  /* 悬停背景 ~6% */
-  --we-color-ink-wash-strong:   rgba(42, 31, 23, 0.13);  /* 激活背景 ~13% */
+  /* 中性墨色透明层 */
+  --we-color-ink-wash:          rgba(23, 23, 23, 0.035);
+  --we-color-ink-wash-md:       rgba(23, 23, 23, 0.06);
+  --we-color-ink-wash-strong:   rgba(23, 23, 23, 0.13);
   /* sm/md/lg/xl 表示不透明度从低到高，非空间尺寸 */
-  --we-color-shadow-sm:         rgba(42, 31, 23, 0.08);  /* 浅色调 ~8%（细微阴影/边框） */
-  --we-color-shadow-md:         rgba(42, 31, 23, 0.14);  /* 中色调 ~14%（常规阴影） */
-  --we-color-shadow-lg:         rgba(42, 31, 23, 0.20);  /* 深色调 ~20%（强调阴影） */
-  --we-color-shadow-xl:         rgba(42, 31, 23, 0.30);  /* 最深色调 ~30%（遮罩/浮层背景） */
-  --we-color-overlay-light:     rgba(42, 31, 23, 0.15);  /* 轻遮罩 ~15% */
-  --we-color-overlay-medium:    rgba(42, 31, 23, 0.35);  /* 中遮罩 ~35% */
-  --we-color-overlay-heavy:     rgba(42, 31, 23, 0.60);  /* 重遮罩 ~60% (头像上传) */
+  --we-color-shadow-sm:         rgba(23, 23, 23, 0.08);
+  --we-color-shadow-md:         rgba(23, 23, 23, 0.14);
+  --we-color-shadow-lg:         rgba(23, 23, 23, 0.20);
+  --we-color-shadow-xl:         rgba(23, 23, 23, 0.30);
+  --we-color-overlay-light:     rgba(23, 23, 23, 0.15);
+  --we-color-overlay-medium:    rgba(23, 23, 23, 0.35);
+  --we-color-overlay-heavy:     rgba(23, 23, 23, 0.60);
 
   /* 白色透明叠加（用于高光）*/
   /* 255,255,255 = --we-base-white 的 RGB */
@@ -82,26 +96,22 @@
   --we-color-white-sheen-sm:    rgba(255, 255, 255, 0.12); /* ~12% 白色高光（按钮） */
   --we-color-white-sheen-md:    rgba(255, 255, 255, 0.22); /* ~22% 白色高光（卡片） */
 
-  /* 纸张色透明叠加（用于 blockquote、代码块等）*/
-  /* paper-300: 200,185,154 | paper-400: 184,168,130 | paper-100: 237,227,208 */
-  --we-color-paper-wash:        rgba(237, 227, 208, 0.28); /* paper-100 28% — 代码块底色 */
-  --we-color-paper-tint:        rgba(200, 185, 154, 0.45); /* paper-300 45% — 表格边框 */
-  --we-color-paper-muted:       rgba(200, 185, 154, 0.30); /* paper-300 30% — tab 分隔线 */
-  --we-color-paper-overlay:     rgba(184, 168, 130, 0.12); /* paper-400 12% — blockquote 背景 */
+  /* 表面透明叠加 */
+  --we-color-paper-wash:        rgba(247, 247, 244, 0.28);
+  --we-color-paper-tint:        rgba(226, 226, 220, 0.45);
+  --we-color-paper-muted:       rgba(226, 226, 220, 0.30);
+  --we-color-paper-overlay:     rgba(201, 201, 192, 0.12);
 
   /* 墨水次色透明叠加（用于代码块边框）*/
-  /* ink-700: 83,66,54 */
-  --we-color-ink-secondary-wash:    rgba(83, 66, 54, 0.16); /* ink-700 16% — 代码块边框 */
-  --we-color-ink-secondary-wash-sm: rgba(83, 66, 54, 0.12); /* ink-700 12% — 代码块头边框 */
+  --we-color-ink-secondary-wash:    rgba(82, 82, 82, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
 
   /* 强调色透明叠加（用于 tag 边框）*/
-  /* vermilion-600: 162,59,46 */
-  --we-color-accent-border:     rgba(162, 59, 46, 0.25); /* ~25% — tag/badge 边框 */
-  --we-color-accent-border-sm:  rgba(162, 59, 46, 0.22); /* ~22% — entry/field badge 边框 */
+  --we-color-accent-border:     rgba(159, 79, 54, 0.25);
+  --we-color-accent-border-sm:  rgba(159, 79, 54, 0.22);
 
   /* 警告色透明叠加（用于中断徽章背景）*/
-  /* amber-600: 139,90,31 */
-  --we-color-warning-bg: rgba(139, 90, 31, 0.08); /* ~8% — 中断徽章底色 */
+  --we-color-warning-bg: rgba(154, 91, 24, 0.08);
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
@@ -172,6 +182,17 @@
   --we-border:       1px solid var(--we-color-border-default);
   --we-border-faint: 1px solid color-mix(in srgb, var(--we-base-paper-300) 50%, transparent);
 
+  /* === Component skin tokens === */
+  --we-card-bg: var(--we-color-bg-canvas);
+  --we-card-border: 1px solid var(--we-color-border-default);
+  --we-card-radius: var(--we-radius-sm);
+  --we-card-shadow: var(--we-shadow-paper-lift);
+  --we-card-hover-shadow: var(--we-card-shadow);
+  --we-panel-card-bg: var(--we-color-bg-surface);
+  --we-panel-card-border: 1px solid var(--we-color-border-default);
+  --we-panel-card-radius: var(--we-radius-md);
+  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
   /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
   --we-range-track-bg: linear-gradient(
@@ -182,42 +203,41 @@
     var(--we-paper-shadow) 100%
   );
 
-  /* §5.2 顶栏深色层（保留原值不动）*/
-  --we-topbar-bg:             #3d2e22;
-  --we-topbar-border:         rgba(255,255,255,0.06);
-  --we-topbar-item:           rgba(255,255,255,0.5);
-  --we-topbar-item-hover:     rgba(255,255,255,0.75);
-  --we-topbar-sep:            rgba(255,255,255,0.2);
-  --we-topbar-active-bg:      rgba(201,168,90,0.08);
-  --we-topbar-active-ring:    rgba(201,168,90,0.3);
-  --we-topbar-dropdown-bg:    #3d2e22;
-  --we-topbar-dropdown-border: rgba(255,255,255,0.1);
-  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  --we-topbar-item-hover-bg:  rgba(255,255,255,0.05); /* 世界下拉悬停背景 */
-  --we-topbar-item-dim:       rgba(255,255,255,0.3);
-  --we-topbar-item-muted:     rgba(255,255,255,0.35);
-  --we-topbar-item-faint:     rgba(255,255,255,0.6);
-  --we-topbar-divider:        rgba(255,255,255,0.06);
+  /* === 壳层、分隔与质感 token：核心提供中性值，主题可覆盖 === */
+  --we-topbar-bg:              #2f3136;
+  --we-topbar-border:          rgba(255, 255, 255, 0.08);
+  --we-topbar-item:            rgba(255, 255, 255, 0.58);
+  --we-topbar-item-hover:      rgba(255, 255, 255, 0.82);
+  --we-topbar-sep:             rgba(255, 255, 255, 0.22);
+  --we-topbar-active-bg:       rgba(183, 146, 59, 0.10);
+  --we-topbar-active-ring:     rgba(183, 146, 59, 0.32);
+  --we-topbar-dropdown-bg:     #2f3136;
+  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.12);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --we-topbar-item-hover-bg:   rgba(255, 255, 255, 0.06);
+  --we-topbar-item-dim:        rgba(255, 255, 255, 0.34);
+  --we-topbar-item-muted:      rgba(255, 255, 255, 0.40);
+  --we-topbar-item-faint:      rgba(255, 255, 255, 0.66);
+  --we-topbar-divider:         rgba(255, 255, 255, 0.08);
 
-  /* §脊柱阴影（保留原值不动）*/
   --we-spine-shadow: linear-gradient(
     to right,
-    rgba(0, 0, 0, 0.22) 0%,
-    rgba(0, 0, 0, 0.06) 12%,
+    rgba(0, 0, 0, 0.16) 0%,
+    rgba(0, 0, 0, 0.04) 12%,
     transparent 25%,
     transparent 75%,
-    rgba(0, 0, 0, 0.06) 88%,
-    rgba(0, 0, 0, 0.22) 100%
+    rgba(0, 0, 0, 0.04) 88%,
+    rgba(0, 0, 0, 0.16) 100%
   );
   --we-spine-shadow-left: linear-gradient(
     to right,
-    rgba(0, 0, 0, 0.14) 0%,
-    rgba(0, 0, 0, 0.04) 40%,
+    rgba(0, 0, 0, 0.10) 0%,
+    rgba(0, 0, 0, 0.03) 40%,
     transparent 100%
   );
   --we-spine-shadow-right: linear-gradient(
     to left,
-    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.07) 0%,
     rgba(0, 0, 0, 0.02) 40%,
     transparent 100%
   );
@@ -234,42 +254,42 @@
   --we-leading-normal: 1.75;
   --we-leading-loose:  1.95;
 
-  /* §物理质感阴影系统（保留原值不动）*/
+  /* 物理质感阴影：默认中性，主题可替换为纸张、印章等具体材质。 */
   --we-shadow-stamp-up:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    0 2px 0 var(--we-vermilion-deep),
-    0 4px 8px rgba(124, 42, 32, 0.32);
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 2px 0 var(--we-color-accent-deep),
+    0 4px 8px rgba(115, 55, 36, 0.28);
   --we-shadow-stamp-down:
-    inset 0 2px 4px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(0, 0, 0, 0.12),
-    0 1px 0 var(--we-vermilion-deep);
+    inset 0 2px 4px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(0, 0, 0, 0.10),
+    0 1px 0 var(--we-color-accent-deep);
   --we-shadow-paper-stack:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    1px 2px 0 var(--we-paper-deep),
-    2px 4px 0 var(--we-paper-shadow),
-    0 6px 18px rgba(0, 0, 0, 0.14),
-    0 2px 4px rgba(0, 0, 0, 0.08);
+    1px 2px 0 var(--we-color-bg-muted),
+    2px 4px 0 var(--we-color-border-default),
+    0 6px 18px rgba(0, 0, 0, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.07);
   --we-shadow-paper-stack-hover:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    1px 2px 0 var(--we-paper-deep),
-    2px 4px 0 var(--we-paper-shadow),
-    0 14px 32px rgba(0, 0, 0, 0.22),
-    0 4px 8px rgba(0, 0, 0, 0.12);
+    1px 2px 0 var(--we-color-bg-muted),
+    2px 4px 0 var(--we-color-border-default),
+    0 14px 32px rgba(0, 0, 0, 0.18),
+    0 4px 8px rgba(0, 0, 0, 0.10);
   --we-shadow-paper-lift:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 1px 0 rgba(200, 185, 154, 0.4),
-    0 3px 8px rgba(42, 31, 23, 0.06),
-    0 8px 18px rgba(42, 31, 23, 0.04);
+    0 1px 0 rgba(226, 226, 220, 0.5),
+    0 3px 8px rgba(23, 23, 23, 0.06),
+    0 8px 18px rgba(23, 23, 23, 0.04);
   --we-shadow-paper-indent:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 2px 6px rgba(42, 31, 23, 0.07),
+    inset 0 2px 6px rgba(23, 23, 23, 0.07),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 2px 6px rgba(42, 31, 23, 0.08),
-    0 1px 0 rgba(42, 31, 23, 0.05);
+    0 2px 6px rgba(23, 23, 23, 0.08),
+    0 1px 0 rgba(23, 23, 23, 0.05);
 
 }
 

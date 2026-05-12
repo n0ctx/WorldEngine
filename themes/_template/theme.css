@@ -1,26 +1,66 @@
 :root {
-  /* 基础纸面 */
-  --we-base-paper-100: #ede3d0;
-  --we-base-paper-200: #d9ccb0;
-  --we-base-paper-300: #c8b99a;
-  --we-base-paper-400: #b8a882;
+  /*
+   * Theme template.
+   * Copy this directory, rename it, and keep the directory name equal to theme.json "id".
+   * Prefer token overrides. Do not copy component selectors such as .we-world-card here.
+   */
+
+  /* 基础表面：主画布、卡片表面、边框层级 */
+  --we-base-paper-100: #f7f7f4;
+  --we-base-paper-200: #ffffff;
+  --we-base-paper-300: #e2e2dc;
+  --we-base-paper-400: #c9c9c0;
 
   /* 基础文字 */
-  --we-base-ink-900: #2a1f17;
-  --we-base-ink-700: #534236;
-  --we-base-ink-500: #6d5c4b;
+  --we-base-ink-900: #171717;
+  --we-base-ink-700: #525252;
+  --we-base-ink-500: #737373;
 
-  /* 基础强调 */
-  --we-base-vermilion-600: #a23b2e;
-  --we-base-vermilion-800: #7c2a20;
-  --we-base-gold-600: #a0833f;
-  --we-base-gold-400: #c9a85a;
-
-  /* 状态与外层背景 */
-  --we-base-moss-600: #5c6b3a;
-  --we-base-amber-600: #8b5a1f;
-  --we-base-slate-600: #4a5568;
-  --we-base-book-bg: #4a3728;
+  /* 强调、装饰、状态 */
+  --we-base-vermilion-600: #9f4f36;
+  --we-base-vermilion-800: #733724;
+  --we-base-gold-600: #8a6f2f;
+  --we-base-gold-400: #b7923b;
+  --we-base-moss-600: #3f6f4a;
+  --we-base-amber-600: #9a5b18;
+  --we-base-slate-600: #4b5563;
+  --we-base-book-bg: #2f3136;
   --we-base-white: #ffffff;
-  --we-base-peach-200: #ffc8a0;
+  --we-base-peach-200: #f0c4a4;
+
+  /* 可选：透明叠加层。若大幅调整色板，可同步校准这些 RGB 派生值。 */
+  --we-color-bg-overlay: rgba(23, 23, 23, 0.5);
+  --we-color-accent-bg: rgba(159, 79, 54, 0.08);
+  --we-color-ink-wash: rgba(23, 23, 23, 0.035);
+  --we-color-ink-wash-md: rgba(23, 23, 23, 0.06);
+  --we-color-ink-wash-strong: rgba(23, 23, 23, 0.13);
+  --we-color-shadow-sm: rgba(23, 23, 23, 0.08);
+  --we-color-shadow-md: rgba(23, 23, 23, 0.14);
+  --we-color-shadow-lg: rgba(23, 23, 23, 0.20);
+  --we-color-shadow-xl: rgba(23, 23, 23, 0.30);
+
+  /* 可选：卡片与面板皮肤。 */
+  --we-card-bg: var(--we-paper-base);
+  --we-card-border: 1px solid var(--we-color-border-default);
+  --we-card-radius: var(--we-radius-sm);
+  --we-card-shadow: var(--we-shadow-paper-lift);
+  --we-card-hover-shadow: var(--we-card-shadow);
+  --we-panel-card-bg: var(--we-color-bg-surface);
+  --we-panel-card-border: 1px solid var(--we-color-border-default);
+  --we-panel-card-radius: var(--we-radius-md);
+  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+
+  /* 可选：壳层与全局质感。 */
+  --we-topbar-bg: #2f3136;
+  --we-topbar-dropdown-bg: #2f3136;
+  --we-spine-shadow-left: linear-gradient(to right, rgba(0, 0, 0, 0.10), transparent);
+  --we-spine-shadow-right: linear-gradient(to left, rgba(0, 0, 0, 0.07), transparent);
+
+  /* 可选：动效节奏。 */
+  --we-duration-fast: 120ms;
+  --we-duration-normal: 200ms;
+  --we-duration-slow: 320ms;
+  --we-duration-extended: 500ms;
+  --we-easing-ink: cubic-bezier(.22, 1, .36, 1);
+  --we-easing-sharp: cubic-bezier(.25, .46, .45, .94);
 }

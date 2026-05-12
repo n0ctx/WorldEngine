@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- docs(theme): 更新主题文件夹文档与模板。`themes/README.md` 补齐快速开始、推荐覆盖 token、卡片/面板皮肤 token、全局质感 token、分层边界与“不建议做的事”，明确主题只覆盖视觉取值，不复制组件选择器、不控制 icon/双页布局等 React 结构。`themes/_template/theme.css` 扩展为更完整的中性 token 模板，覆盖基础色、透明叠加、卡片/面板皮肤、壳层质感与动效节奏；`theme.json` 预览色与描述改为中性模板。
+
+- refactor(theme): 执行主题内核分离一阶段。`frontend/src/styles/tokens.css` 的默认取值改为中性核心 token，原羊皮纸色板、透明叠加、顶栏深色层、书脊阴影、纸张/印章阴影、卡片/面板皮肤迁入 `themes/classic-parchment/theme.css`；旧变量名（如 `--we-paper-base` / `--we-vermilion`）保留为兼容别名，避免一次性改动组件结构。新增 `--we-card-*` / `--we-panel-card-*` 组件皮肤 token，并让世界卡、角色卡、玩家卡、通用 Card、PanelCard 使用这些 token，以便主题控制卡片边框/阴影/圆角。`themes/_template/theme.css` 与 `themes/README.md` 改为中性主题模板和分层说明；`DESIGN.md` / `CLAUDE.md` 明确羊皮纸是默认主题而非核心视觉内核。
+
 - fix(characters): 角色卡拖动换位时被换位的卡片仍会闪一下。`.we-character-card` 的入场动画 `animation: weInkRise ... both` 配合 `:nth-child(N)` 的 `animation-delay` 阶梯，意味着两张卡片换位后会匹配到不同的 nth-child 选择器、得到不同的 `animation-delay`，Chrome 会就此重新评估动画并触发短暂闪烁。玩家卡没有这个入场动画因此一直顺滑。直接移除角色卡的入场动画与 nth-child 延时分组，保留拖拽过渡由 framer-motion 独占驱动。`frontend/src/styles/pages.css`。
 
 - fix(characters): 角色卡拖动重排途中不丝滑。`.we-character-card` 的 `transition` 同时声明了 `transform` 与 `box-shadow`，而 framer-motion 的 `Reorder.Item` 在拖拽过程中直接以 `transform` 驱动布局位移；CSS 过渡会试图在每一帧再插值一次 transform，与 framer-motion 自身的动画双重叠加，导致中段出现停顿。hover 态实际只改 `box-shadow`，因此从 transition 列表里去掉 `transform` 即可，玩家卡此前 hover 未触发 transform 变化所以无感。`frontend/src/styles/pages.css`。

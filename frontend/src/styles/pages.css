@@ -84,12 +84,12 @@
 }
 
 .we-world-card {
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
+  background: var(--we-card-bg);
+  border: var(--we-card-border);
+  border-radius: var(--we-card-radius);
   padding: var(--we-space-lg);
   position: relative;
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-shadow);
   cursor: pointer;
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
@@ -99,12 +99,12 @@
 
 .we-world-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-hover-shadow);
 }
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-hover-shadow);
 }
 
 .we-world-card[data-dragging]:hover {
@@ -563,14 +563,14 @@
 /* ── PersonaCard ── */
 
 .we-persona-card {
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
+  background: var(--we-card-bg);
+  border: var(--we-card-border);
   border-left: 3px solid transparent;
-  border-radius: var(--we-radius-sm);
+  border-radius: var(--we-card-radius);
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-shadow);
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard),
               border-left-color var(--we-duration-normal) var(--we-easing-standard),
@@ -580,7 +580,7 @@
 }
 
 .we-persona-card:hover {
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-hover-shadow);
 }
 
 .we-persona-card:hover .we-character-card-actions {
@@ -716,19 +716,19 @@
 }
 
 .we-character-card {
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
+  background: var(--we-card-bg);
+  border: var(--we-card-border);
+  border-radius: var(--we-card-radius);
   padding: var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-shadow);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
 }
 
 .we-character-card:hover {
-  box-shadow: var(--we-shadow-paper-lift);
+  box-shadow: var(--we-card-hover-shadow);
 }
 
 .we-character-card:hover .we-character-card-actions {

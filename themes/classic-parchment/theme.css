@@ -1,11 +1,16 @@
 :root {
+  /* 基础纸面 */
   --we-base-paper-100: #ede3d0;
   --we-base-paper-200: #d9ccb0;
   --we-base-paper-300: #c8b99a;
   --we-base-paper-400: #b8a882;
+
+  /* 基础文字 */
   --we-base-ink-900: #2a1f17;
   --we-base-ink-700: #534236;
   --we-base-ink-500: #6d5c4b;
+
+  /* 朱砂、金箔与状态色 */
   --we-base-vermilion-600: #a23b2e;
   --we-base-vermilion-800: #7c2a20;
   --we-base-gold-600: #a0833f;
@@ -16,4 +21,114 @@
   --we-base-book-bg: #4a3728;
   --we-base-white: #ffffff;
   --we-base-peach-200: #ffc8a0;
+
+  /* 透明叠加层：与羊皮纸色板绑定，覆盖核心中性值。 */
+  --we-color-bg-overlay: rgba(42, 31, 23, 0.5);
+  --we-color-accent-bg: rgba(162, 59, 46, 0.08);
+  --we-color-ink-wash: rgba(42, 31, 23, 0.035);
+  --we-color-ink-wash-md: rgba(42, 31, 23, 0.06);
+  --we-color-ink-wash-strong: rgba(42, 31, 23, 0.13);
+  --we-color-shadow-sm: rgba(42, 31, 23, 0.08);
+  --we-color-shadow-md: rgba(42, 31, 23, 0.14);
+  --we-color-shadow-lg: rgba(42, 31, 23, 0.20);
+  --we-color-shadow-xl: rgba(42, 31, 23, 0.30);
+  --we-color-overlay-light: rgba(42, 31, 23, 0.15);
+  --we-color-overlay-medium: rgba(42, 31, 23, 0.35);
+  --we-color-overlay-heavy: rgba(42, 31, 23, 0.60);
+  --we-color-paper-wash: rgba(237, 227, 208, 0.28);
+  --we-color-paper-tint: rgba(200, 185, 154, 0.45);
+  --we-color-paper-muted: rgba(200, 185, 154, 0.30);
+  --we-color-paper-overlay: rgba(184, 168, 130, 0.12);
+  --we-color-ink-secondary-wash: rgba(83, 66, 54, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(83, 66, 54, 0.12);
+  --we-color-accent-border: rgba(162, 59, 46, 0.25);
+  --we-color-accent-border-sm: rgba(162, 59, 46, 0.22);
+  --we-color-warning-bg: rgba(139, 90, 31, 0.08);
+
+  /* 书卷壳层 */
+  --we-topbar-bg: #3d2e22;
+  --we-topbar-border: rgba(255, 255, 255, 0.06);
+  --we-topbar-item: rgba(255, 255, 255, 0.5);
+  --we-topbar-item-hover: rgba(255, 255, 255, 0.75);
+  --we-topbar-sep: rgba(255, 255, 255, 0.2);
+  --we-topbar-active-bg: rgba(201, 168, 90, 0.08);
+  --we-topbar-active-ring: rgba(201, 168, 90, 0.3);
+  --we-topbar-dropdown-bg: #3d2e22;
+  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.1);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.05);
+  --we-topbar-item-dim: rgba(255, 255, 255, 0.3);
+  --we-topbar-item-muted: rgba(255, 255, 255, 0.35);
+  --we-topbar-item-faint: rgba(255, 255, 255, 0.6);
+  --we-topbar-divider: rgba(255, 255, 255, 0.06);
+
+  --we-spine-shadow: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.06) 12%,
+    transparent 25%,
+    transparent 75%,
+    rgba(0, 0, 0, 0.06) 88%,
+    rgba(0, 0, 0, 0.22) 100%
+  );
+  --we-spine-shadow-left: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.14) 0%,
+    rgba(0, 0, 0, 0.04) 40%,
+    transparent 100%
+  );
+  --we-spine-shadow-right: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.02) 40%,
+    transparent 100%
+  );
+
+  /* 纸张与印章质感 */
+  --we-shadow-stamp-up:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
+    0 2px 0 var(--we-vermilion-deep),
+    0 4px 8px rgba(124, 42, 32, 0.32);
+  --we-shadow-stamp-down:
+    inset 0 2px 4px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(0, 0, 0, 0.12),
+    0 1px 0 var(--we-vermilion-deep);
+  --we-shadow-paper-stack:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    1px 2px 0 var(--we-paper-deep),
+    2px 4px 0 var(--we-paper-shadow),
+    0 6px 18px rgba(0, 0, 0, 0.14),
+    0 2px 4px rgba(0, 0, 0, 0.08);
+  --we-shadow-paper-stack-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    1px 2px 0 var(--we-paper-deep),
+    2px 4px 0 var(--we-paper-shadow),
+    0 14px 32px rgba(0, 0, 0, 0.22),
+    0 4px 8px rgba(0, 0, 0, 0.12);
+  --we-shadow-paper-lift:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 1px 0 rgba(200, 185, 154, 0.4),
+    0 3px 8px rgba(42, 31, 23, 0.06),
+    0 8px 18px rgba(42, 31, 23, 0.04);
+  --we-shadow-paper-indent:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 2px 6px rgba(42, 31, 23, 0.07),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 2px 6px rgba(42, 31, 23, 0.08),
+    0 1px 0 rgba(42, 31, 23, 0.05);
+
+  /* 卡片皮肤 */
+  --we-card-bg: var(--we-paper-base);
+  --we-card-border: 1px solid var(--we-paper-shadow);
+  --we-card-radius: var(--we-radius-sm);
+  --we-card-shadow: var(--we-shadow-paper-lift);
+  --we-card-hover-shadow: var(--we-shadow-paper-lift);
+  --we-panel-card-bg: var(--we-paper-aged);
+  --we-panel-card-border: 1px solid var(--we-paper-shadow);
+  --we-panel-card-radius: var(--we-radius-md);
+  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 }

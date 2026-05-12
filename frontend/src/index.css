@@ -2094,10 +2094,10 @@ body {
 
 /* PanelCard */
 .we-panel-card {
-  background: var(--we-paper-card, var(--we-paper-aged));
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-md, 8px);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+  background: var(--we-panel-card-bg);
+  border: var(--we-panel-card-border);
+  border-radius: var(--we-panel-card-radius);
+  box-shadow: var(--we-panel-card-shadow);
   overflow: hidden;
 }
 .we-panel-card-header {

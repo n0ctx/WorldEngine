@@ -3,10 +3,10 @@
   "name": "我的主题",
   "version": "1.0.0",
   "author": "",
-  "description": "一句话说明主题风格。",
+  "description": "中性主题模板：只覆盖 token，不复制组件结构 CSS。",
   "preview": {
-    "paper": "#ede3d0",
-    "accent": "#a23b2e",
-    "ink": "#2a1f17"
+    "paper": "#f7f7f4",
+    "accent": "#9f4f36",
+    "ink": "#171717"
   }
 }

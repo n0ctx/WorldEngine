@@ -171,9 +171,9 @@
 
 /* ── Card ── */
 .we-card {
-  background: var(--we-paper-base);
-  border: 1px solid var(--we-paper-shadow);
-  border-radius: var(--we-radius-sm);
+  background: var(--we-card-bg);
+  border: var(--we-card-border);
+  border-radius: var(--we-card-radius);
   padding: 20px;
 }
 .we-card-flat {
@@ -188,7 +188,7 @@
   box-shadow: 0 0 0 1px var(--we-ink-faded);
 }
 .we-card-whisper {
-  box-shadow: 0 1px 3px var(--we-color-shadow-sm);
+  box-shadow: var(--we-card-shadow);
 }
 
 /* ── Badge ── */
