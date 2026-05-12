@@ -11,7 +11,7 @@ import { useEffect, useRef } from 'react';
 export default function InputBox({ value, onChange, onSend, onStop, disabled = false, isStreaming = false }) {
   const textareaRef = useRef(null);
 
-  // 自动调整高度
+  // 自动调整高度，但限制在面板内的安全高度范围，超出后走内部滚动。
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -42,7 +42,7 @@ export default function InputBox({ value, onChange, onSend, onStop, disabled = f
         disabled={disabled}
         placeholder={disabled ? '任务已结束，点击「清空」开始新任务' : 'Enter 发送，Shift+Enter 换行'}
         rows={1}
-        className={`min-h-[36px] max-h-[120px] flex-1 resize-none rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-paper-base)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-[var(--we-paper-aged)]`}
+        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-auto rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-paper-base)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-[var(--we-paper-aged)]"
         style={{ fontFamily: 'var(--we-font-body)' }}
       />
       {isStreaming ? (

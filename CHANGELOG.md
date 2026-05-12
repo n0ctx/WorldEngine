@@ -5,6 +5,8 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): 恢复写卡助手输入框的高度上限，避免长文本把固定高度抽屉挤坏。`assistant/client/InputBox.jsx` 的自动增高重新改回 `Math.min(scrollHeight, 120)`，并恢复 `max-h-[120px] + overflow-y-auto`，让输入框在 120px 内自适应、超过后在内部滚动，不再把消息列表和发送/停止按钮挤出视口。验证：在写卡助手里粘贴多段长文本，输入框增长到约 120px 后停止继续扩张，消息列表仍保持可见，发送/停止按钮不被顶出面板。
+
 - docs(theme): 更新主题文件夹文档与模板。`themes/README.md` 补齐快速开始、推荐覆盖 token、卡片/面板皮肤 token、全局质感 token、分层边界与“不建议做的事”，明确主题只覆盖视觉取值，不复制组件选择器、不控制 icon/双页布局等 React 结构。`themes/_template/theme.css` 扩展为更完整的中性 token 模板，覆盖基础色、透明叠加、卡片/面板皮肤、壳层质感与动效节奏；`theme.json` 预览色与描述改为中性模板。
 
 - refactor(theme): 执行主题内核分离一阶段。`frontend/src/styles/tokens.css` 的默认取值改为中性核心 token，原羊皮纸色板、透明叠加、顶栏深色层、书脊阴影、纸张/印章阴影、卡片/面板皮肤迁入 `themes/classic-parchment/theme.css`；旧变量名（如 `--we-paper-base` / `--we-vermilion`）保留为兼容别名，避免一次性改动组件结构。新增 `--we-card-*` / `--we-panel-card-*` 组件皮肤 token，并让世界卡、角色卡、玩家卡、通用 Card、PanelCard 使用这些 token，以便主题控制卡片边框/阴影/圆角。`themes/_template/theme.css` 与 `themes/README.md` 改为中性主题模板和分层说明；`DESIGN.md` / `CLAUDE.md` 明确羊皮纸是默认主题而非核心视觉内核。
