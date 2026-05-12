@@ -1090,6 +1090,11 @@ body {
 }
 
 /* ── 字段列表 ─── */
+.we-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 .we-fields-list .we-status-field {
   animation: wePanelFadeIn 0.28s ease-out both;
 }
@@ -1117,7 +1122,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin-bottom: 10px;
   min-width: 0;
 }
 .we-status-key {
@@ -2196,9 +2200,6 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 16px;
   row-gap: 12px;
-}
-.we-fields-list--grid .we-status-field {
-  margin-bottom: 0;
 }
 .we-fields-list--grid .we-status-field--long {
   grid-column: 1 / -1;
