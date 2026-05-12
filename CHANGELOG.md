@@ -3,6 +3,10 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(characters): 角色卡拖动换位时被换位的卡片仍会闪一下。`.we-character-card` 的入场动画 `animation: weInkRise ... both` 配合 `:nth-child(N)` 的 `animation-delay` 阶梯，意味着两张卡片换位后会匹配到不同的 nth-child 选择器、得到不同的 `animation-delay`，Chrome 会就此重新评估动画并触发短暂闪烁。玩家卡没有这个入场动画因此一直顺滑。直接移除角色卡的入场动画与 nth-child 延时分组，保留拖拽过渡由 framer-motion 独占驱动。`frontend/src/styles/pages.css`。
+
+- fix(characters): 角色卡拖动重排途中不丝滑。`.we-character-card` 的 `transition` 同时声明了 `transform` 与 `box-shadow`，而 framer-motion 的 `Reorder.Item` 在拖拽过程中直接以 `transform` 驱动布局位移；CSS 过渡会试图在每一帧再插值一次 transform，与 framer-motion 自身的动画双重叠加，导致中段出现停顿。hover 态实际只改 `box-shadow`，因此从 transition 列表里去掉 `transform` 即可，玩家卡此前 hover 未触发 transform 变化所以无感。`frontend/src/styles/pages.css`。
+
 - style(characters): 移除激活玩家卡的 `personaActivate` 缩放动效。该动画绑定在 `.we-persona-card--active` 上，每次进入角色选择页（组件挂载）都会触发"跳一下"，干扰阅读。删除 `animation` 声明与 `@keyframes personaActivate`，激活态仅保留陶土色左边框与背景填充作为视觉标识。`frontend/src/styles/pages.css`。
 
 - fix(theme): 主题 CSS 加载失败不再被用户切换流程静默吞掉。`refreshThemeCss(id)` 默认会抛出 `/api/themes/:id/css` 的加载错误，仅应用启动路径显式传 `{ silent: true }` 保持核心样式兜底；设置页手动切换主题时先保存后加载 CSS，只有 CSS 注入和自定义 CSS 刷新成功后才更新本地 active 状态。若保存 active theme 后 CSS 加载失败，会尝试把后端 active theme 回滚到原主题并提示“切换失败”，避免设置页显示新主题、实际页面仍套旧 `<style id="we-theme-css">` 的不一致状态。验证：`npm --prefix frontend test -- --run src/api/__tests__/themes.test.js src/components/settings/__tests__/ThemeManager.test.jsx`。
