@@ -1,14 +1,16 @@
 /**
  * Neutral page layout contract.
  *
- * A page declares its structure by passing named slot React nodes. The
+ * A page declares its structure by passing named slot React nodes; the
  * active shell decides how to arrange them visually (parchment two-page,
  * single-pane modern, etc.). This API stays style-agnostic on purpose —
  * do not introduce shell-specific vocabulary (book, paper, parchment, …)
  * here.
  *
- * Pages may also opt out by rendering their own composition; this primitive
- * is offered for new pages and migration, not enforced.
+ * This is the preferred composition path for shell-structured pages
+ * (today: ChatPage, WritingSpacePage). Pages MUST NOT import shell chrome
+ * directly; if a new page needs shell framing, route it through these
+ * slots so any shell can render it.
  *
  * Usage:
  *   <PageLayout
@@ -20,9 +22,10 @@
  *     overlay={<Toast />}
  *   />
  *
- * The default DOM rendering below is a sensible fallback when the active
- * shell does not provide its own slot renderer. Shells SHOULD provide
- * their own renderer to integrate with chrome and transitions.
+ * The default DOM rendering below is a neutral fallback used when no shell
+ * provides a renderer (e.g. tests, future shells under construction).
+ * Shells should always install their own renderer via
+ * `PageLayoutRendererProvider` to integrate with chrome and transitions.
  */
 import { createContext, useContext } from 'react';
 

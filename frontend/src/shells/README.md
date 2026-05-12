@@ -54,9 +54,9 @@ A shell MUST NOT own:
 - **`classic-parchment/`** — the default shell. Implements the book/parchment
   experience: serif chrome, top bar, page transitions, and the
   `PageLayout` renderer that arranges page slots into the parchment two-page
-  spread. Shell-internal chrome (BookSpread, PageLeft, PageRight,
-  WritingPageLeft, Bookmark, ParchmentTexture, PageFooter, FleuronLine,
-  MemoryRecallOverlay, TopBar, PageTransition) lives under
+  spread. Shell-internal chrome (BookSpread, PageLeft, PageRight, Bookmark,
+  ParchmentTexture, PageFooter, FleuronLine, MemoryRecallOverlay, TopBar,
+  PageTransition) lives under
   `shells/classic-parchment/{layout,components,transitions}/` and MUST NOT
   be imported by pages or by neutral `components/` modules. Pages declare
   layout via `core/layout/PageLayout` slots and let the shell render them.
