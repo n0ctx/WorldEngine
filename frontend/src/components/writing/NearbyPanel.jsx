@@ -24,6 +24,63 @@ const MotionDiv = motion.div;
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 const DIARY_RECENT_LIMIT = 5;
 
+function RefreshIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+      <polyline points="21 4 21 10 15 10" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
+}
+
+function NotebookIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 4h13a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4z" />
+      <line x1="8" y1="4" x2="8" y2="20" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+    </svg>
+  );
+}
+
+function CancelIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="8" y1="8" x2="16" y2="16" />
+    </svg>
+  );
+}
+
 /** 将 diary_time 行排到首位，其余行顺序不变 */
 function pinDiaryTimeFirst(rows) {
   if (!Array.isArray(rows)) return rows;
@@ -205,25 +262,27 @@ export default function NearbyPanel({
   const renderResetAction = (onClick, busy) => (
     <button
       type="button"
-      className="we-state-section-reset we-panel-card-action"
+      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
       onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
       disabled={busy}
     >
-      {busy ? '…' : '重置'}
+      {busy ? '…' : (<><RefreshIcon /><span>重置</span></>)}
     </button>
   );
 
   const worldTab = (
     <div className="we-panel-tab-body">
-      <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorldState, worldResetting)}>
-        <StatusSection
-          headerless
-          gridLayout
-          rows={worldRows}
-          onSave={handleSaveWorld}
-          templateCtx={templateCtx}
-        />
-      </PanelCard>
+      <div className="we-world-frame">
+        <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorldState, worldResetting)}>
+          <StatusSection
+            headerless
+            gridLayout
+            rows={worldRows}
+            onSave={handleSaveWorld}
+            templateCtx={templateCtx}
+          />
+        </PanelCard>
+      </div>
     </div>
   );
 
@@ -241,27 +300,28 @@ export default function NearbyPanel({
     </div>
   );
 
+  const addNearbyGlobalAction = (
+    <button
+      type="button"
+      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip we-panel-card-action--icon"
+      onClick={() => setAddModalOpen(true)}
+      aria-label="从角色卡添加"
+      title="从角色卡添加"
+    >
+      <PlusIcon />
+    </button>
+  );
+
   const nearbyToolbarBase = (
-    <>
-      <button
-        type="button"
-        className="we-state-section-reset we-panel-card-action"
-        onClick={() => setAddModalOpen(true)}
-        aria-label="从角色卡添加"
-        title="从角色卡添加"
-      >
-        ＋角色卡
-      </button>
-      <button
-        type="button"
-        className="we-state-section-reset we-panel-card-action"
-        onClick={() => setMakeCardOpen(true)}
-        aria-label="制卡"
-        title="制卡"
-      >
-        制卡
-      </button>
-    </>
+    <button
+      type="button"
+      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+      onClick={() => setMakeCardOpen(true)}
+      aria-label="制卡"
+      title="制卡"
+    >
+      <NotebookIcon /><span>制卡</span>
+    </button>
   );
 
   const handleToggleSavedFor = async (n) => {
@@ -288,29 +348,29 @@ export default function NearbyPanel({
         {isSaved ? (
           <button
             type="button"
-            className="we-state-section-reset we-panel-card-action"
+            className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
             onClick={() => handleToggleSavedFor(n)}
             title="取消保存（保留记录，下轮仍注入）"
           >
-            取消
+            <CancelIcon /><span>取消</span>
           </button>
         ) : (
           <>
             <button
               type="button"
-              className="we-state-section-reset we-panel-card-action"
+              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
               onClick={() => handleToggleSavedFor(n)}
               title="保存到附近角色池"
             >
-              保存
+              <SaveIcon /><span>保存</span>
             </button>
             <button
               type="button"
-              className="we-state-section-reset we-panel-card-action"
+              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
               onClick={() => handleRemoveFor(n)}
               title="移除（物理删除，下轮不再注入）"
             >
-              移除
+              <TrashIcon /><span>移除</span>
             </button>
           </>
         )}
@@ -441,7 +501,9 @@ export default function NearbyPanel({
           <span className="we-fleuron-symbol">❦</span>
           <span className="we-fleuron-line" />
         </div>
-        <SectionTabs sections={sections} defaultKey="player" />
+        <div className="we-cast-card">
+          <SectionTabs sections={sections} defaultKey="player" globalActions={addNearbyGlobalAction} />
+        </div>
 
         <AnimatePresence>
           {addModalOpen && (

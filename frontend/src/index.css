@@ -2236,6 +2236,73 @@ body {
   border-top: none !important;
 }
 
+/* 世界状态卡 / 角色 tab 区共用同一外框样式 */
+.we-world-frame,
+.we-cast-card {
+  background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--we-paper-shadow) 55%, transparent);
+  border-radius: var(--we-radius-md);
+  padding: 8px 10px 10px;
+}
+/* 与下方 cast-card 对齐：world-frame 已在 .we-panel-tab-body(padding 0 12px) 里，无需再加横向 margin */
+.we-world-frame { margin: 0; }
+.we-cast-card { margin: 0 12px; }
+.we-cast-card .we-section-tabs-bar {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* 动作按钮 chip 修饰 */
+.we-panel-card-action--chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--we-paper-shadow) 70%, transparent) !important;
+  background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 60%, transparent);
+  padding: 3px 9px !important;
+  border-radius: 4px;
+  font-family: var(--we-font-display);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.we-panel-card-action--chip:hover {
+  background: color-mix(in srgb, var(--we-vermilion) 8%, transparent) !important;
+}
+.we-panel-card-action--chip svg {
+  flex-shrink: 0;
+}
+.we-panel-card-action--icon {
+  padding: 3px 6px !important;
+}
+
+/* 重置 chip：取消默认的 hover-only 显隐 */
+.we-state-section .we-state-section-reset.we-panel-card-action--chip,
+.we-state-section-reset.we-panel-card-action--chip {
+  color: var(--we-ink-faded) !important;
+}
+.we-state-section-reset.we-panel-card-action--chip:hover {
+  color: var(--we-vermilion) !important;
+}
+
+/* SectionTabs：tab 名行 + 操作行 */
+.we-section-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.we-section-tabs-row > .we-section-tabs-list {
+  flex: 1;
+  min-width: 0;
+}
+.we-section-tabs-globals {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-right: 2px;
+}
+
 /* 2 列短值网格 */
 .we-fields-list--grid {
   display: grid;

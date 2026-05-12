@@ -33,6 +33,15 @@ const MotionDiv = motion.div;
 
 const RECENT_LIMIT = 5;
 
+function RefreshIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-3-6.7" />
+      <polyline points="21 4 21 10 15 10" />
+    </svg>
+  );
+}
+
 // ── 日记条目 ────────────────────────────────────────────────
 function DiaryEntry({ entry, index, selected, onSelect }) {
   return (
@@ -208,26 +217,28 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const renderResetAction = (onClick, busy) => (
     <button
       type="button"
-      className="we-state-section-reset we-panel-card-action"
+      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
       onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
       disabled={busy}
     >
-      {busy ? '…' : '重置'}
+      {busy ? '…' : (<><RefreshIcon /><span>重置</span></>)}
     </button>
   );
 
   const worldTab = (
     <div className="we-panel-tab-body">
-      <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorld, worldResetting)}>
-        <StatusSection
-          headerless
-          gridLayout
-          className="we-status-world"
-          rows={worldRows}
-          onSave={handleSaveWorld}
-          templateCtx={templateCtx}
-        />
-      </PanelCard>
+      <div className="we-world-frame">
+        <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorld, worldResetting)}>
+          <StatusSection
+            headerless
+            gridLayout
+            className="we-status-world"
+            rows={worldRows}
+            onSave={handleSaveWorld}
+            templateCtx={templateCtx}
+          />
+        </PanelCard>
+      </div>
     </div>
   );
 
@@ -343,7 +354,9 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           <span className="we-fleuron-symbol">❦</span>
           <span className="we-fleuron-line" />
         </div>
-        <SectionTabs sections={sections} defaultKey="player" />
+        <div className="we-cast-card">
+          <SectionTabs sections={sections} defaultKey="player" />
+        </div>
       </div>
 
       <AnimatePresence>

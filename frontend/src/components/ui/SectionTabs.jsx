@@ -14,7 +14,7 @@ const MotionDiv = motion.div;
  *   - active tab 变化时自动 scrollIntoView,让横向滚动条跟随当前 tab
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
-export default function SectionTabs({ sections, defaultKey, variant }) {
+export default function SectionTabs({ sections, defaultKey, variant, globalActions }) {
   const reactId = useId();
   const layoutId = `tab-indicator-${reactId}`;
   const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
@@ -66,6 +66,7 @@ export default function SectionTabs({ sections, defaultKey, variant }) {
   return (
     <div className={`we-section-tabs${variant ? ` we-section-tabs--${variant}` : ''}`}>
       <div className="we-section-tabs-bar">
+        <div className="we-section-tabs-row">
         <div
           ref={listRef}
           className="we-section-tabs-list"
@@ -96,6 +97,10 @@ export default function SectionTabs({ sections, defaultKey, variant }) {
               )}
             </button>
           ))}
+        </div>
+          {globalActions && (
+            <span className="we-section-tabs-globals">{globalActions}</span>
+          )}
         </div>
         {current?.actions && (
           <div className="we-section-tabs-actions">{current.actions}</div>
