@@ -1118,21 +1118,24 @@ body {
   flex-direction: column;
   gap: 2px;
   margin-bottom: 10px;
+  min-width: 0;
 }
 .we-status-key {
   font-family: var(--we-font-display);
-  font-size: 11px;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: var(--we-ink-faded);
+}
+.we-status-key:lang(en) {
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--we-ink-faded);
-  opacity: 0.75;
 }
 .we-status-value {
   font-family: var(--we-font-serif);
   font-size: 12.5px;
   color: var(--we-ink-secondary);
   line-height: 1.5;
-  word-break: break-word;
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
 .we-status-null {
@@ -2071,3 +2074,136 @@ body {
 .we-nearby-section .we-state-section-reset + .we-state-section-reset {
   margin-left: 8px;
 }
+
+/* =========================================================
+   右侧栏：PanelCard（参考 Image #3 布局）
+   ========================================================= */
+
+/* tab 内容容器（card 间距） */
+.we-state-panel .we-panel-tab-body,
+.we-cast-panel .we-panel-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 12px 16px;
+}
+
+/* PanelCard */
+.we-panel-card {
+  background: var(--we-paper-card, var(--we-paper-aged));
+  border: 1px solid var(--we-paper-shadow);
+  border-radius: var(--we-radius-md, 8px);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+  overflow: hidden;
+}
+.we-panel-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+}
+.we-panel-card-header--clickable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s ease;
+}
+.we-panel-card-header--clickable:hover {
+  background: color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+}
+.we-panel-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--we-vermilion);
+  flex-shrink: 0;
+}
+.we-panel-card-title {
+  flex: 1;
+  font-family: var(--we-font-serif);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--we-ink-primary);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.we-panel-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.we-panel-card-action {
+  /* 在 card header 中常驻显示（不再依赖 hover-to-show） */
+  color: var(--we-ink-faded) !important;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.we-panel-card-action:hover {
+  color: var(--we-vermilion) !important;
+  border-color: color-mix(in srgb, var(--we-vermilion) 35%, transparent);
+  background: color-mix(in srgb, var(--we-vermilion) 6%, transparent);
+}
+.we-panel-card-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.we-panel-card-chevron {
+  flex-shrink: 0;
+  color: var(--we-ink-faded);
+  opacity: 0.6;
+  transition: transform 0.2s ease;
+}
+.we-panel-card-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.we-panel-card-collapse--open {
+  grid-template-rows: 1fr;
+}
+.we-panel-card-body {
+  min-height: 0;
+  overflow: hidden;
+}
+.we-panel-card-collapse--open > .we-panel-card-body {
+  padding: 0 14px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--we-paper-shadow) 60%, transparent);
+}
+
+/* headerless StatusSection（在 PanelCard 内）去掉旧分隔线和顶部内边距 */
+.we-panel-card-body .we-state-section--headerless {
+  padding: 10px 0 2px;
+  border-top: none !important;
+}
+
+/* card 内的 timeline：取消 border-top 与额外 padding */
+.we-timeline--in-card {
+  padding: 10px 0 4px;
+  border-top: none !important;
+}
+
+/* 2 列短值网格 */
+.we-fields-list--grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 12px;
+}
+.we-fields-list--grid .we-status-field {
+  margin-bottom: 0;
+}
+.we-fields-list--grid .we-status-field--long {
+  grid-column: 1 / -1;
+}
+
+/* 隐藏旧 panel header 在新布局中（角色 tab 不再渲染 we-state-panel-header） */
+/* —— 保留原 .we-state-panel-header 样式以兼容其他位置，未在新组件中使用 —— */
+

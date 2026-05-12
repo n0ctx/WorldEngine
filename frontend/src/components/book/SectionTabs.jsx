@@ -7,8 +7,10 @@ const MotionDiv = motion.div;
 export default function SectionTabs({ sections, defaultKey, variant }) {
   const reactId = useId();
   const layoutId = `tab-indicator-${reactId}`;
-  const [active, setActive] = useState(defaultKey ?? sections[0]?.key);
+  const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
   const [prevIndex, setPrevIndex] = useState(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
+  // sections 热更新时，若 active 已不在列表中，回退到第一个（仅渲染期推导，不写回状态）
+  const active = sections.some((s) => s.key === storedActive) ? storedActive : sections[0]?.key;
   const current = sections.find(s => s.key === active);
   const activeIndex = sections.findIndex(s => s.key === active);
   // dir > 0：向右（内容从右滑入），dir < 0：向左
@@ -36,11 +38,6 @@ export default function SectionTabs({ sections, defaultKey, variant }) {
             )}
           </button>
         ))}
-      </div>
-      <div className="we-section-tabs-sep">
-        <div className="we-section-tabs-sep-line" />
-        <span className="we-section-tabs-sep-fleuron">❦</span>
-        <div className="we-section-tabs-sep-line" />
       </div>
       <AnimatePresence mode="wait" initial={false}>
         <MotionDiv

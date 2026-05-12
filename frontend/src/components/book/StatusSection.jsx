@@ -199,6 +199,13 @@ function InlineEditor({ row, onCommit, onCancel }) {
   );
 }
 
+/** 判断字段是否短值（适合放进 2 列网格） */
+function isShortField(row) {
+  const type = row.field_type ?? row.type;
+  if (type === 'table' || type === 'list' || type === 'datetime') return false;
+  return true;
+}
+
 export default function StatusSection({
   title,
   rows,
@@ -210,6 +217,8 @@ export default function StatusSection({
   collapsible = false,
   defaultOpen = true,
   templateCtx,
+  headerless = false,
+  gridLayout = false,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [editingKey, setEditingKey] = useState(null);
@@ -229,9 +238,9 @@ export default function StatusSection({
       {isLoading && <SkeletonRows />}
       {isEmpty && <p className="we-section-empty">暂无数据</p>}
       {!isLoading && !isEmpty && (
-        <div className="we-fields-list">
+        <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
           {hasName && (
-            <div className="we-status-field" style={{ animationDelay: '0ms' }}>
+            <div className={`we-status-field${gridLayout ? ' we-status-field--short' : ''}`} style={{ animationDelay: '0ms' }}>
               <span className="we-status-key">姓名</span>
               <span className="we-status-value">{applyTemplateVars(pinnedName, templateCtx)}</span>
             </div>
@@ -241,13 +250,16 @@ export default function StatusSection({
             const isManual = row.update_mode === 'manual';
             const editKey = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
 
+            const short = gridLayout && isShortField(row);
+            const fieldExtra = gridLayout ? (short ? ' we-status-field--short' : ' we-status-field--long') : '';
+
             if (type === 'table') {
               const cols = parseTableColumns(row.table_columns);
               const valObj = parseTableValue(row.effective_value_json);
               return (
                 <div
                   key={editKey}
-                  className="we-status-field we-status-field--table"
+                  className={`we-status-field we-status-field--table${fieldExtra}`}
                   style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
                 >
                   <span className="we-status-key">{row.label}</span>
@@ -276,7 +288,7 @@ export default function StatusSection({
             return (
               <div
                 key={editKey}
-                className="we-status-field"
+                className={`we-status-field${fieldExtra}`}
                 style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
               >
                 <span className="we-status-key">{row.label}</span>
@@ -338,6 +350,14 @@ export default function StatusSection({
       )}
     </>
   );
+
+  if (headerless) {
+    return (
+      <div className={`we-state-section we-state-section--headerless ${className || ''}`}>
+        {body}
+      </div>
+    );
+  }
 
   const showTitle = title || collapsible || onReset;
 

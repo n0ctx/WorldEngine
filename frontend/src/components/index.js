@@ -45,6 +45,7 @@ export { default as PageFooter }          from './book/PageFooter';
 export { default as PageLeft }            from './book/PageLeft';
 export { default as PageRight }           from './book/PageRight';
 export { default as PageTransition }      from './book/PageTransition';
+export { default as PanelCard }           from './book/PanelCard';
 export { default as ParchmentTexture }    from './book/ParchmentTexture';
 export { default as SealStampAnimation }  from './book/SealStampAnimation';
 export { default as SectionTabs }         from './book/SectionTabs';

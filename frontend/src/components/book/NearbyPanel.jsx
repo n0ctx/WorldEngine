@@ -2,7 +2,38 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import StatusSection from './StatusSection.jsx';
+import PanelCard from './PanelCard.jsx';
+import Icon from '../ui/Icon.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
+
+const GlobeIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a14 14 0 0 1 0 18" />
+    <path d="M12 3a14 14 0 0 0 0 18" />
+  </Icon>
+);
+const UserIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6" />
+  </Icon>
+);
+const UsersIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="9" cy="9" r="3.2" />
+    <circle cx="17" cy="11" r="2.4" />
+    <path d="M2.5 19c1.2-3.4 3.8-5 6.5-5s5.3 1.6 6.5 5" />
+    <path d="M16.5 19c.8-2.2 2.4-3.4 4-3.4" />
+  </Icon>
+);
+const BookIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <path d="M4 5c3 0 5.5 1 8 2v13c-2.5-1-5-2-8-2V5z" />
+    <path d="M20 5c-3 0-5.5 1-8 2v13c2.5-1 5-2 8-2V5z" />
+  </Icon>
+);
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import SectionTabs from './SectionTabs.jsx';
@@ -200,103 +231,101 @@ export default function NearbyPanel({
     }
   }
 
+  const renderResetAction = (onClick, busy) => (
+    <button
+      type="button"
+      className="we-state-section-reset we-panel-card-action"
+      onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
+      disabled={busy}
+    >
+      {busy ? '…' : '重置'}
+    </button>
+  );
+
   const worldTab = (
     <div className="we-panel-tab-body">
-      {worldName && <p className="we-panel-world-name we-panel-tab-caption">{worldName}</p>}
-      <StatusSection
-        title="世界"
-        rows={worldRows}
-        onReset={handleResetWorldState}
-        resetting={worldResetting}
-        onSave={handleSaveWorld}
-        templateCtx={templateCtx}
-      />
+      <PanelCard icon={GlobeIcon} title="世界状态" actions={renderResetAction(handleResetWorldState, worldResetting)}>
+        <StatusSection
+          headerless
+          gridLayout
+          rows={worldRows}
+          onSave={handleSaveWorld}
+          templateCtx={templateCtx}
+        />
+      </PanelCard>
     </div>
   );
 
   const playerTab = (
     <div className="we-panel-tab-body">
-      <StatusSection
-        title={persona?.name || '玩家'}
-        rows={stateData?.persona ?? null}
-        onReset={handleResetPersonaState}
-        resetting={personaResetting}
-        onSave={handleSavePersona}
-        templateCtx={templateCtx}
-      />
+      <PanelCard icon={UserIcon} title={persona?.name ? `玩家 · ${persona.name}` : '玩家状态'} actions={renderResetAction(handleResetPersonaState, personaResetting)}>
+        <StatusSection
+          headerless
+          gridLayout
+          rows={stateData?.persona ?? null}
+          onSave={handleSavePersona}
+          templateCtx={templateCtx}
+        />
+      </PanelCard>
     </div>
   );
 
-  const nearbyTab = (
-    <div className="we-panel-tab-body we-nearby-tab">
-      <div className="we-nearby-tab-actions">
-        <button
-          type="button"
-          className="we-state-section-reset"
-          onClick={() => setAddModalOpen(true)}
-          aria-label="从角色卡添加"
-          title="从角色卡添加"
-        >
-          ＋角色卡
-        </button>
-        <button
-          type="button"
-          className="we-state-section-reset"
-          onClick={() => setMakeCardOpen(true)}
-          aria-label="制卡"
-          title="制卡"
-        >
-          制卡
-        </button>
-      </div>
+  const nearbyToolbarActions = (
+    <>
+      <button
+        type="button"
+        className="we-state-section-reset we-panel-card-action"
+        onClick={() => setAddModalOpen(true)}
+        aria-label="从角色卡添加"
+        title="从角色卡添加"
+      >
+        ＋角色卡
+      </button>
+      <button
+        type="button"
+        className="we-state-section-reset we-panel-card-action"
+        onClick={() => setMakeCardOpen(true)}
+        aria-label="制卡"
+        title="制卡"
+      >
+        制卡
+      </button>
+    </>
+  );
 
-      {nearby === null && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {[80, 65, 70].map((w, i) => (
-            <div key={i} className="we-skel" style={{ height: 12, width: `${w}%` }} />
-          ))}
-        </div>
-      )}
-      {nearby !== null && nearby.length === 0 && (
-        <p className="we-cast-empty">暂无附近角色</p>
-      )}
-      {nearby !== null && nearby.length === 1 && (
-        <div className="we-cast-characters">
-          <NearbyCharacterBlock
-            key={nearby[0].id}
-            worldId={worldId}
-            sessionId={sessionId}
-            nearby={nearby[0]}
-            expanded={true}
-            onToggle={() => {}}
-            onChange={reloadNearby}
-            templateCtx={templateCtx}
-          />
-        </div>
-      )}
-      {nearby !== null && nearby.length > 1 && (
-        <SectionTabs
-          key={`nearby-sub-${nearby.map((n) => n.id).join('|')}`}
-          variant="sub"
-          sections={nearby.map((n) => ({
-            key: n.id,
-            label: n.name || '未命名',
-            content: (
-              <div className="we-cast-characters">
-                <NearbyCharacterBlock
-                  worldId={worldId}
-                  sessionId={sessionId}
-                  nearby={n}
-                  expanded={true}
-                  onToggle={() => {}}
-                  onChange={reloadNearby}
-                  templateCtx={templateCtx}
-                />
-              </div>
-            ),
-          }))}
-        />
-      )}
+  const perCharSections = (Array.isArray(nearby) ? nearby : []).map((n) => ({
+    key: n.id,
+    label: n.name || '未命名',
+    content: (
+      <div className="we-panel-tab-body we-nearby-tab">
+        <PanelCard icon={UsersIcon} title={n.name || '未命名'} actions={nearbyToolbarActions}>
+          <div className="we-cast-characters">
+            <NearbyCharacterBlock
+              worldId={worldId}
+              sessionId={sessionId}
+              nearby={n}
+              onChange={reloadNearby}
+              templateCtx={templateCtx}
+            />
+          </div>
+        </PanelCard>
+      </div>
+    ),
+  }));
+
+  const emptyNearbyTab = (
+    <div className="we-panel-tab-body we-nearby-tab">
+      <PanelCard icon={UsersIcon} title="附近角色" actions={nearbyToolbarActions}>
+        {nearby === null ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[80, 65, 70].map((w, i) => (
+              <div key={i} className="we-skel" style={{ height: 12, width: `${w}%` }} />
+            ))}
+          </div>
+        ) : (
+          <p className="we-cast-empty">暂无附近角色</p>
+        )}
+      </PanelCard>
     </div>
   );
 
@@ -308,7 +337,8 @@ export default function NearbyPanel({
 
   const diaryTab = (
     <div className="we-panel-tab-body">
-      <div className="we-timeline">
+      <PanelCard icon={BookIcon} title="日记">
+      <div className="we-timeline we-timeline--in-card">
         {diaryEntries === null ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[85, 65, 90].map((w, i) => (
@@ -350,13 +380,16 @@ export default function NearbyPanel({
           </div>
         )}
       </div>
+      </PanelCard>
     </div>
   );
 
+  const hasNearby = Array.isArray(nearby) && nearby.length > 0;
   const sections = [
-    { key: 'world', label: '世界', content: worldTab },
-    { key: 'player', label: '玩家', content: playerTab },
-    { key: 'nearby', label: '附近', content: nearbyTab },
+    { key: 'player', label: persona?.name || '玩家', content: playerTab },
+    ...(hasNearby
+      ? perCharSections
+      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab }]),
     ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
   ];
 
@@ -365,7 +398,8 @@ export default function NearbyPanel({
       <div className="we-cast-spine" />
 
       <div className="we-cast-scroll">
-        <SectionTabs sections={sections} defaultKey="world" />
+        {worldTab}
+        <SectionTabs sections={sections} defaultKey="player" />
 
         <AnimatePresence>
           {addModalOpen && (

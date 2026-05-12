@@ -586,6 +586,14 @@ Actions：`setCurrentWorldId / setCurrentCharacterId / setCurrentSessionId / tri
 - 跨页面共享状态才进入 `store/`；一次性页面状态不要提升到全局
 - 与视觉 token、全局 CSS 变量相关的改动优先落在 `styles/`
 
+**右侧状态栏布局**（chat=`StatePanel` / writing=`NearbyPanel`）：
+- 顶部常驻「世界状态」`PanelCard`（不在 tab 内，切 tab 不影响其显示）
+- 下方 `SectionTabs` 横向切换：chat = `{{user}} / {{char}} / 日记`（tab 标签为 persona/character 运行时姓名，缺失时回退到「玩家」/「角色」）；writing = `{{user}} / 每个 nearby 角色一个 tab / 日记`（无附近角色时显示一个空「附近」占位 tab 承载 +角色卡 / 制卡 工具栏）；日记 tab 受 `config.diary.{chat,writing}.enabled` 控制
+- 每个 tab 内容由 `PanelCard`（icon + 标题 + actions，无折叠按钮、永远展开）包裹 `StatusSection`/日记列表/`NearbyCharacterBlock`
+- `StatusSection` 在卡片内运行于 `headerless` + `gridLayout` 模式：短值字段（boolean/number/enum/datetime/单行 text）走 2 列网格，长值（list/table）跨满整行
+- 重置按钮挪到 PanelCard `actions` 槽常驻显示
+- `SectionTabs` 在 `sections` 热更新（如 nearby 列表变化）时，若 active key 不在新列表中会在渲染期回退到第一个，不写状态、不触发 effect 反馈循环
+
 ---
 
 ## §13 数值常量

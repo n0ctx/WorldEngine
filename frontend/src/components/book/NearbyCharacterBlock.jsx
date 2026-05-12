@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import Icon from '../ui/Icon.jsx';
 import StatusSection from './StatusSection.jsx';
 import {
   setNearbySaved,
@@ -9,30 +8,11 @@ import {
 } from '../../api/session-nearby.js';
 import { log } from '../../utils/logger.js';
 
-function Chevron({ open }) {
-  return (
-    <Icon
-      size={12}
-      viewBox="0 0 10 10"
-      strokeWidth="2.5"
-      className="we-cast-chevron"
-      style={{
-        flexShrink: 0,
-        transition: 'transform 0.2s ease',
-        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
-      }}
-    >
-      <polyline points="2,3.5 5,6.5 8,3.5" />
-    </Icon>
-  );
-}
-
 /**
- * NearbyCharacterBlock — 单个 nearby 角色块。
+ * NearbyCharacterBlock — 单个 nearby 角色块（不折叠，常驻展开）。
  *
  * Props:
  *  - worldId, sessionId, nearby（含 state[] 数组）
- *  - expanded, onToggle: 折叠状态由父组件控制
  *  - onChange: 任意写操作完成后通知父组件刷新 nearby 列表
  *  - templateCtx: StatusSection 模板上下文
  */
@@ -40,8 +20,6 @@ export default function NearbyCharacterBlock({
   worldId,
   sessionId,
   nearby,
-  expanded,
-  onToggle,
   onChange,
   templateCtx,
 }) {
@@ -110,12 +88,7 @@ export default function NearbyCharacterBlock({
 
   return (
     <div className="we-cast-character-block we-state-section">
-      <div
-        className="we-state-section-title"
-        style={{ cursor: 'pointer', userSelect: 'none' }}
-        onClick={onToggle}
-      >
-        <Chevron open={expanded} />
+      <div className="we-state-section-title">
         <span className={`we-section-label${isSaved ? ' we-section-label--saved' : ''}`}>{nearby?.name || '（未命名）'}</span>
         <span className="we-section-rule" />
         {isSaved ? (
@@ -155,15 +128,8 @@ export default function NearbyCharacterBlock({
         )}
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateRows: expanded ? '1fr' : '0fr',
-          transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ overflow: 'hidden', minHeight: 0 }}>
+      <div>
+        <div>
           {/* 人设段 */}
           <div className="we-state-section-title">
             <span className="we-section-label">人设</span>

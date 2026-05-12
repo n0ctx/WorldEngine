@@ -24,9 +24,39 @@ import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { getWorld } from '../../api/worlds.js';
 import { getConfig } from '../../api/config.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
-import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
+import PanelCard from './PanelCard.jsx';
+import Icon from '../ui/Icon.jsx';
 import { log } from '../../utils/logger.js';
+
+const GlobeIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18" />
+    <path d="M12 3a14 14 0 0 1 0 18" />
+    <path d="M12 3a14 14 0 0 0 0 18" />
+  </Icon>
+);
+const UserIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6" />
+  </Icon>
+);
+const UsersIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <circle cx="9" cy="9" r="3.2" />
+    <circle cx="17" cy="11" r="2.4" />
+    <path d="M2.5 19c1.2-3.4 3.8-5 6.5-5s5.3 1.6 6.5 5" />
+    <path d="M16.5 19c.8-2.2 2.4-3.4 4-3.4" />
+  </Icon>
+);
+const BookIcon = (
+  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
+    <path d="M4 5c3 0 5.5 1 8 2v13c-2.5-1-5-2-8-2V5z" />
+    <path d="M20 5c-3 0-5.5 1-8 2v13c2.5-1 5-2 8-2V5z" />
+  </Icon>
+);
 
 const MotionDiv = motion.div;
 
@@ -204,64 +234,71 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const olderDiary = reversedDiary.slice(RECENT_LIMIT);
   const hasMore = olderDiary.length > 0;
 
+  const renderResetAction = (onClick, busy) => (
+    <button
+      type="button"
+      className="we-state-section-reset we-panel-card-action"
+      onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
+      disabled={busy}
+    >
+      {busy ? '…' : '重置'}
+    </button>
+  );
+
   const worldTab = (
     <div className="we-panel-tab-body">
-      {worldName && <p className="we-panel-world-name we-panel-tab-caption">{worldName}</p>}
-      <StatusSection
-        title="WORLD"
-        className="we-status-world"
-        rows={worldRows}
-        onReset={handleResetWorld}
-        resetting={worldResetting}
-        onSave={handleSaveWorld}
-        templateCtx={templateCtx}
-      />
+      <PanelCard icon={GlobeIcon} title="世界状态" actions={renderResetAction(handleResetWorld, worldResetting)}>
+        <StatusSection
+          headerless
+          gridLayout
+          className="we-status-world"
+          rows={worldRows}
+          onSave={handleSaveWorld}
+          templateCtx={templateCtx}
+        />
+      </PanelCard>
     </div>
   );
 
   const playerTab = (
     <div className="we-panel-tab-body">
-      <StatusSection
-        title="PLAYER"
-        className="we-status-player"
-        rows={stateData?.persona ?? null}
-        pinnedName={persona?.name}
-        onReset={handleResetPersona}
-        resetting={personaResetting}
-        onSave={handleSavePersona}
-        templateCtx={templateCtx}
-      />
+      <PanelCard icon={UserIcon} title="玩家状态" actions={renderResetAction(handleResetPersona, personaResetting)}>
+        <StatusSection
+          headerless
+          gridLayout
+          className="we-status-player"
+          rows={stateData?.persona ?? null}
+          pinnedName={persona?.name}
+          onSave={handleSavePersona}
+          templateCtx={templateCtx}
+        />
+      </PanelCard>
     </div>
   );
 
   const characterTab = (
     <div className="we-panel-tab-body">
-      <div className="we-state-panel-header we-panel-tab-header">
-        <div className="we-seal-wrap">
-          <CharacterSeal character={character} size={80} />
-        </div>
+      <PanelCard icon={UsersIcon} title="角色状态" actions={renderResetAction(handleResetChar, charResetting)}>
         {character ? (
-          <p className="we-panel-char-name">{character.name}</p>
+          <StatusSection
+            headerless
+            gridLayout
+            className="we-status-character"
+            rows={stateData?.character ?? null}
+            onSave={handleSaveCharacter}
+            templateCtx={templateCtx}
+          />
         ) : (
-          <p className="we-panel-placeholder">尚未选择角色</p>
+          <p className="we-section-empty">尚未选择角色</p>
         )}
-      </div>
-      <StatusSection
-        title="CHARACTER"
-        className="we-status-character"
-        rows={stateData?.character ?? null}
-        pinnedName={character?.name}
-        onReset={handleResetChar}
-        resetting={charResetting}
-        onSave={handleSaveCharacter}
-        templateCtx={templateCtx}
-      />
+      </PanelCard>
     </div>
   );
 
   const diaryTab = (
     <div className="we-panel-tab-body">
-      <div className="we-timeline">
+      <PanelCard icon={BookIcon} title="日记">
+      <div className="we-timeline we-timeline--in-card">
         {diaryEntries === null ? (
           <div className="we-state-skeleton-list">
             {[85, 65, 90].map((w, i) => (
@@ -303,13 +340,13 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           </div>
         )}
       </div>
+      </PanelCard>
     </div>
   );
 
   const sections = [
-    { key: 'world', label: '世界', content: worldTab },
-    { key: 'player', label: '玩家', content: playerTab },
-    { key: 'character', label: '角色', content: characterTab },
+    { key: 'player', label: persona?.name || '玩家', content: playerTab },
+    { key: 'character', label: character?.name || '角色', content: characterTab },
     ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
   ];
 
@@ -318,7 +355,8 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       <div className="we-state-spine" />
 
       <div className="we-state-scroll">
-        <SectionTabs sections={sections} defaultKey="world" />
+        {worldTab}
+        <SectionTabs sections={sections} defaultKey="player" />
       </div>
 
       <AnimatePresence>
