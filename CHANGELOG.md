@@ -1,3 +1,5 @@
+- refactor(backend): 抽出后端应用编排层，瘦身 `backend/routes/chat.js` 与 `backend/routes/writing.js`。新增 `backend/app/chat/`、`backend/app/writing/`、`backend/app/shared/`，把主流式生成、continue、regenerate/rollback、post-generation task builder 和 postgen/stream 骨架从 route 中迁出；route 现在主要保留参数校验、存在性检查、SSE/response 接线与轻控制器逻辑。共享层只收敛 stream lifecycle、收尾持久化、post-gen 调度与 rollback 骨架，chat/writing 语义差异（world/character vs writing nearby、chapter title、writing configScope 等）仍保留在各自 orchestrator。验证：`npm run lint --prefix backend`，`npm run test --prefix backend`。
+
 # Changelog
 
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
