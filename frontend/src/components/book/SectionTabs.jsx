@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DURATION, EASE } from '../../utils/motion';
 
 const MotionDiv = motion.div;
 
-export default function SectionTabs({ sections, defaultKey }) {
+export default function SectionTabs({ sections, defaultKey, variant }) {
+  const reactId = useId();
+  const layoutId = `tab-indicator-${reactId}`;
   const [active, setActive] = useState(defaultKey ?? sections[0]?.key);
   const [prevIndex, setPrevIndex] = useState(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
   const current = sections.find(s => s.key === active);
@@ -13,7 +15,7 @@ export default function SectionTabs({ sections, defaultKey }) {
   const dir = activeIndex > prevIndex ? 1 : -1;
 
   return (
-    <div className="we-section-tabs">
+    <div className={`we-section-tabs${variant ? ` we-section-tabs--${variant}` : ''}`}>
       <div className="we-section-tabs-bar">
         {sections.map((s) => (
           <button
@@ -28,7 +30,7 @@ export default function SectionTabs({ sections, defaultKey }) {
             {active === s.key && (
               <motion.div
                 className="we-section-tab-indicator"
-                layoutId="tab-indicator"
+                layoutId={layoutId}
                 transition={{ duration: DURATION.quick, ease: EASE.ink }}
               />
             )}

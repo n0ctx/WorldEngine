@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import Icon from '../ui/Icon.jsx';
+import SectionTabs from './SectionTabs.jsx';
 
 const DIARY_TIME_FIELD_KEY = 'diary_time';
 
@@ -22,37 +22,13 @@ import {
 } from '../../api/session-state-values.js';
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { getWorld } from '../../api/worlds.js';
+import { getConfig } from '../../api/config.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import CharacterSeal from './CharacterSeal.jsx';
 import StatusSection from './StatusSection.jsx';
 import { log } from '../../utils/logger.js';
 
 const MotionDiv = motion.div;
-
-// ── 金箔装饰分隔线 ──────────────────────────────────────────
-function GoldDivider() {
-  return (
-    <div className="we-panel-divider" aria-hidden="true">
-      <span className="we-panel-divider-line" />
-      <span className="we-panel-divider-gem">✦</span>
-      <span className="we-panel-divider-line" />
-    </div>
-  );
-}
-
-// ── 折叠箭头 ────────────────────────────────────────────────
-function Chevron({ open }) {
-  return (
-    <Icon
-      size={16}
-      viewBox="0 0 10 10"
-      strokeWidth="2.5"
-      className={`we-state-chevron${open ? ' we-state-chevron--open' : ''}`}
-    >
-      <polyline points="2,3.5 5,6.5 8,3.5" />
-    </Icon>
-  );
-}
 
 const RECENT_LIMIT = 5;
 
@@ -88,17 +64,14 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const [personaResetting, setPersonaResetting] = useState(false);
   const [charResetting, setCharResetting] = useState(false);
   const [worldName, setWorldName] = useState(null);
+  const [diaryEnabled, setDiaryEnabled] = useState(true);
   const templateCtx = useMemo(() => ({
     user: persona?.name ?? '',
     char: character?.name ?? '',
     world: worldName ?? '',
   }), [persona?.name, character?.name, worldName]);
 
-  // 折叠状态
-  const [diaryOpen, setDiaryOpen] = useState(true);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
-
-  // 已选中（待注入）的日记条目
   const [selectedEntry, setSelectedEntry] = useState(null);
 
   useEffect(() => {
@@ -119,6 +92,29 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       cancelled = true;
     };
   }, [worldId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      getConfig().then((c) => {
+        if (!cancelled) setDiaryEnabled(c?.diary?.chat?.enabled !== false);
+      }).catch(() => {});
+    };
+    load();
+    const onConfigUpdated = (e) => {
+      const next = e?.detail;
+      if (next && typeof next === 'object' && next.diary) {
+        setDiaryEnabled(next?.diary?.chat?.enabled !== false);
+      } else {
+        load();
+      }
+    };
+    window.addEventListener('we:global-config-updated', onConfigUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('we:global-config-updated', onConfigUpdated);
+    };
+  }, []);
 
   // ── 重置处理 ──────────────────────────────────────────────
   async function handleResetWorld() {
@@ -184,7 +180,6 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   // ── 日记点击注入 ─────────────────────────────────────────
   async function handleDiarySelect(entry) {
     if (selectedEntry?.date_str === entry.date_str) {
-      // 再次点击取消
       setSelectedEntry(null);
       onDiaryInject?.(null);
       return;
@@ -198,142 +193,134 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     }
   }
 
-  // 当 sessionId 变化时清空已选
   useEffect(() => {
     const timeoutId = setTimeout(() => setSelectedEntry(null), 0);
     return () => clearTimeout(timeoutId);
   }, [sessionId]);
 
   const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
-  // 从近到远排列
   const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
   const recentDiary = reversedDiary.slice(0, RECENT_LIMIT);
   const olderDiary = reversedDiary.slice(RECENT_LIMIT);
   const hasMore = olderDiary.length > 0;
 
+  const worldTab = (
+    <div className="we-panel-tab-body">
+      {worldName && <p className="we-panel-world-name we-panel-tab-caption">{worldName}</p>}
+      <StatusSection
+        title="WORLD"
+        className="we-status-world"
+        rows={worldRows}
+        onReset={handleResetWorld}
+        resetting={worldResetting}
+        onSave={handleSaveWorld}
+        templateCtx={templateCtx}
+      />
+    </div>
+  );
+
+  const playerTab = (
+    <div className="we-panel-tab-body">
+      <StatusSection
+        title="PLAYER"
+        className="we-status-player"
+        rows={stateData?.persona ?? null}
+        pinnedName={persona?.name}
+        onReset={handleResetPersona}
+        resetting={personaResetting}
+        onSave={handleSavePersona}
+        templateCtx={templateCtx}
+      />
+    </div>
+  );
+
+  const characterTab = (
+    <div className="we-panel-tab-body">
+      <div className="we-state-panel-header we-panel-tab-header">
+        <div className="we-seal-wrap">
+          <CharacterSeal character={character} size={80} />
+        </div>
+        {character ? (
+          <p className="we-panel-char-name">{character.name}</p>
+        ) : (
+          <p className="we-panel-placeholder">尚未选择角色</p>
+        )}
+      </div>
+      <StatusSection
+        title="CHARACTER"
+        className="we-status-character"
+        rows={stateData?.character ?? null}
+        pinnedName={character?.name}
+        onReset={handleResetChar}
+        resetting={charResetting}
+        onSave={handleSaveCharacter}
+        templateCtx={templateCtx}
+      />
+    </div>
+  );
+
+  const diaryTab = (
+    <div className="we-panel-tab-body">
+      <div className="we-timeline">
+        {diaryEntries === null ? (
+          <div className="we-state-skeleton-list">
+            {[85, 65, 90].map((w, i) => (
+              <div key={i} className="we-skel we-state-skeleton-line" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+        ) : !hasDiary ? (
+          <p className="we-section-empty">暂无日记</p>
+        ) : (
+          <div className="we-timeline-list">
+            {recentDiary.map((entry, i) => (
+              <DiaryEntry
+                key={entry.date_str}
+                entry={entry}
+                index={i}
+                selected={selectedEntry?.date_str === entry.date_str}
+                onSelect={handleDiarySelect}
+              />
+            ))}
+            {hasMore && (
+              <>
+                {diaryExpanded && olderDiary.map((entry, i) => (
+                  <DiaryEntry
+                    key={entry.date_str}
+                    entry={entry}
+                    index={RECENT_LIMIT + i}
+                    selected={selectedEntry?.date_str === entry.date_str}
+                    onSelect={handleDiarySelect}
+                  />
+                ))}
+                <div
+                  className="we-diary-more"
+                  onClick={() => setDiaryExpanded((v) => !v)}
+                >
+                  {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const sections = [
+    { key: 'world', label: '世界', content: worldTab },
+    { key: 'player', label: '玩家', content: playerTab },
+    { key: 'character', label: '角色', content: characterTab },
+    ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
+  ];
+
   return (
     <div className="we-state-panel">
-      {/* 书脊阴影 */}
       <div className="we-state-spine" />
 
-      {/* 滚动内容层 */}
       <div className="we-state-scroll">
-
-        {/* ── 头部 ── */}
-        <div className="we-state-panel-header">
-          <div className="we-seal-wrap">
-            <CharacterSeal character={character} size={80} />
-          </div>
-          {character ? (
-            <>
-              <p className="we-panel-char-name">{character.name}</p>
-              {worldName && <p className="we-panel-world-name">{worldName}</p>}
-            </>
-          ) : (
-            <p className="we-panel-placeholder">尚未选择角色</p>
-          )}
-        </div>
-
-        <GoldDivider />
-
-        {/* ── 内容区 ── */}
-        <div className="we-panel-body">
-
-          <StatusSection
-            title="WORLD"
-            className="we-status-world"
-            rows={worldRows}
-            onReset={handleResetWorld}
-            resetting={worldResetting}
-            onSave={handleSaveWorld}
-            templateCtx={templateCtx}
-            collapsible
-          />
-
-          <StatusSection
-            title="PLAYER"
-            className="we-status-player"
-            rows={stateData?.persona ?? null}
-            pinnedName={persona?.name}
-            onReset={handleResetPersona}
-            resetting={personaResetting}
-            onSave={handleSavePersona}
-            templateCtx={templateCtx}
-            collapsible
-          />
-
-          <StatusSection
-            title="CHARACTER"
-            className="we-status-character"
-            rows={stateData?.character ?? null}
-            pinnedName={character?.name}
-            onReset={handleResetChar}
-            resetting={charResetting}
-            onSave={handleSaveCharacter}
-            templateCtx={templateCtx}
-            collapsible
-          />
-
-          {/* ── 日记时间线（可折叠） ── */}
-          <div className="we-timeline">
-            <div
-              className="we-state-section-title we-state-section-title--toggle"
-              onClick={() => setDiaryOpen((o) => !o)}
-            >
-              <Chevron open={diaryOpen} />
-              <span className="we-section-label">TIMELINE</span>
-              <span className="we-section-rule" />
-            </div>
-            <div className={`we-state-collapse${diaryOpen ? ' we-state-collapse--open' : ''}`}>
-              <div className="we-state-collapse-inner">
-                {diaryEntries === null ? (
-                  <div className="we-state-skeleton-list">
-                    {[85, 65, 90].map((w, i) => (
-                      <div key={i} className="we-skel we-state-skeleton-line" style={{ width: `${w}%` }} />
-                    ))}
-                  </div>
-                ) : !hasDiary ? (
-                  <p className="we-section-empty">暂无日记</p>
-                ) : (
-                  <div className="we-timeline-list">
-                    {recentDiary.map((entry, i) => (
-                      <DiaryEntry
-                        key={entry.date_str}
-                        entry={entry}
-                        index={i}
-                        selected={selectedEntry?.date_str === entry.date_str}
-                        onSelect={handleDiarySelect}
-                      />
-                    ))}
-                    {hasMore && (
-                      <>
-                        {diaryExpanded && olderDiary.map((entry, i) => (
-                          <DiaryEntry
-                            key={entry.date_str}
-                            entry={entry}
-                            index={RECENT_LIMIT + i}
-                            selected={selectedEntry?.date_str === entry.date_str}
-                            onSelect={handleDiarySelect}
-                          />
-                        ))}
-                        <div
-                          className="we-diary-more"
-                          onClick={() => setDiaryExpanded((v) => !v)}
-                        >
-                          {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-        </div>
+        <SectionTabs sections={sections} defaultKey="world" />
       </div>
 
-      {/* ── 悬浮状态卡 ── */}
       <AnimatePresence>
         {(isUpdating || stateJustChanged) && (
           <MotionDiv

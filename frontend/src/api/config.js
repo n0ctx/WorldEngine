@@ -10,6 +10,11 @@ export function updateConfig(patch) {
   return request(BASE, {
     method: 'PUT',
     body: JSON.stringify(patch),
+  }).then((res) => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('we:global-config-updated', { detail: res }));
+    }
+    return res;
   });
 }
 

@@ -746,7 +746,6 @@
 .we-character-card:nth-child(n+7) { animation-delay: 300ms; }
 
 .we-character-card:hover {
-  transform: translateY(-2px);
   box-shadow: var(--we-shadow-paper-stack-hover);
 }
 
@@ -1516,6 +1515,49 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* SectionTabs 子级（嵌套）变体：更紧凑、无 fleuron 分隔 */
+.we-section-tabs--sub .we-section-tab {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+.we-section-tabs--sub .we-section-tabs-sep {
+  margin: 0 0 12px;
+}
+.we-section-tabs--sub .we-section-tabs-sep-fleuron {
+  display: none;
+}
+.we-section-tabs--sub .we-section-tabs-sep-line {
+  background: transparent;
+}
+
+/* StatePanel / NearbyPanel：tab 内容区 */
+.we-panel-tab-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.we-panel-tab-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.we-panel-tab-caption {
+  font-family: var(--we-font-display);
+  font-size: 12px;
+  font-style: italic;
+  color: var(--we-ink-faded);
+  text-align: center;
+  margin: 0 0 4px;
+}
+.we-nearby-tab-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 4px;
 }
 
 /* ── Persona 抽屉 ── */

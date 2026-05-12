@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getConfig, updateConfig, updateProviderKey, fetchAuxModels, testAuxConnection, fetchWritingModels, testWritingConnection, fetchWritingAuxModels, testWritingAuxConnection } from '../api/config';
 import { useDisplaySettingsStore } from '../store/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
@@ -88,13 +88,21 @@ export function useSettingsConfig() {
     setShowTokenUsageStore,
   ]);
 
+  const suppressNextReloadRef = useRef(false);
   useEffect(() => {
-    const h = () => setReloadKey((k) => k + 1);
+    const h = () => {
+      if (suppressNextReloadRef.current) {
+        suppressNextReloadRef.current = false;
+        return;
+      }
+      setReloadKey((k) => k + 1);
+    };
     window.addEventListener('we:global-config-updated', h);
     return () => window.removeEventListener('we:global-config-updated', h);
   }, []);
 
   async function patchConfig(patch) {
+    suppressNextReloadRef.current = true;
     await updateConfig(patch);
   }
 

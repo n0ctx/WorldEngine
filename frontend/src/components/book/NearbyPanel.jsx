@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import Icon from '../ui/Icon.jsx';
 import StatusSection from './StatusSection.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
+import SectionTabs from './SectionTabs.jsx';
 import { getWorld } from '../../api/worlds.js';
+import { getConfig } from '../../api/config.js';
 import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
@@ -29,24 +30,6 @@ function pinDiaryTimeFirst(rows) {
   const result = [...rows];
   result.unshift(result.splice(idx, 1)[0]);
   return result;
-}
-
-function Chevron({ open }) {
-  return (
-    <Icon
-      size={16}
-      viewBox="0 0 10 10"
-      strokeWidth="2.5"
-      className="we-cast-chevron"
-      style={{
-        flexShrink: 0,
-        transition: 'transform 0.2s ease',
-        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
-      }}
-    >
-      <polyline points="2,3.5 5,6.5 8,3.5" />
-    </Icon>
-  );
 }
 
 function DiaryEntry({ entry, index, selected, onSelect }) {
@@ -85,18 +68,16 @@ export default function NearbyPanel({
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
-  const [expandedIds, setExpandedIds] = useState([]);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
 
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [makeCardOpen, setMakeCardOpen] = useState(false);
 
-  const [diaryOpen, setDiaryOpen] = useState(true);
   const [diaryExpanded, setDiaryExpanded] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState(null);
   const [worldName, setWorldName] = useState(null);
-  const [nearbySectionOpen, setNearbySectionOpen] = useState(true);
+  const [diaryEnabled, setDiaryEnabled] = useState(true);
 
   const reloadNearby = useCallback(() => {
     if (!worldId || !sessionId) {
@@ -114,7 +95,6 @@ export default function NearbyPanel({
     return () => { cancelled = true; };
   }, [worldId, sessionId]);
 
-  // 拉取 nearby：sessionId / stateTick 变化时
   useEffect(() => {
     let cancelled = false;
     if (!worldId || !sessionId) {
@@ -135,13 +115,35 @@ export default function NearbyPanel({
     return () => { cancelled = true; };
   }, [worldId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      getConfig().then((c) => {
+        if (!cancelled) setDiaryEnabled(c?.diary?.writing?.enabled !== false);
+      }).catch(() => {});
+    };
+    load();
+    const onConfigUpdated = (e) => {
+      const next = e?.detail;
+      if (next && typeof next === 'object' && next.diary) {
+        setDiaryEnabled(next?.diary?.writing?.enabled !== false);
+      } else {
+        load();
+      }
+    };
+    window.addEventListener('we:global-config-updated', onConfigUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('we:global-config-updated', onConfigUpdated);
+    };
+  }, []);
+
   const templateCtx = useMemo(() => ({
     user: persona?.name ?? '',
     char: '',
     world: worldName ?? '',
   }), [persona?.name, worldName]);
 
-  // sessionId 变化清空已选日记
   useEffect(() => {
     const t = setTimeout(() => setSelectedEntry(null), 0);
     return () => clearTimeout(t);
@@ -198,177 +200,172 @@ export default function NearbyPanel({
     }
   }
 
-  function toggleExpand(nearbyId) {
-    setExpandedIds((prev) =>
-      prev.includes(nearbyId) ? prev.filter((id) => id !== nearbyId) : [...prev, nearbyId]
-    );
-  }
+  const worldTab = (
+    <div className="we-panel-tab-body">
+      {worldName && <p className="we-panel-world-name we-panel-tab-caption">{worldName}</p>}
+      <StatusSection
+        title="世界"
+        rows={worldRows}
+        onReset={handleResetWorldState}
+        resetting={worldResetting}
+        onSave={handleSaveWorld}
+        templateCtx={templateCtx}
+      />
+    </div>
+  );
+
+  const playerTab = (
+    <div className="we-panel-tab-body">
+      <StatusSection
+        title={persona?.name || '玩家'}
+        rows={stateData?.persona ?? null}
+        onReset={handleResetPersonaState}
+        resetting={personaResetting}
+        onSave={handleSavePersona}
+        templateCtx={templateCtx}
+      />
+    </div>
+  );
+
+  const nearbyTab = (
+    <div className="we-panel-tab-body we-nearby-tab">
+      <div className="we-nearby-tab-actions">
+        <button
+          type="button"
+          className="we-state-section-reset"
+          onClick={() => setAddModalOpen(true)}
+          aria-label="从角色卡添加"
+          title="从角色卡添加"
+        >
+          ＋角色卡
+        </button>
+        <button
+          type="button"
+          className="we-state-section-reset"
+          onClick={() => setMakeCardOpen(true)}
+          aria-label="制卡"
+          title="制卡"
+        >
+          制卡
+        </button>
+      </div>
+
+      {nearby === null && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[80, 65, 70].map((w, i) => (
+            <div key={i} className="we-skel" style={{ height: 12, width: `${w}%` }} />
+          ))}
+        </div>
+      )}
+      {nearby !== null && nearby.length === 0 && (
+        <p className="we-cast-empty">暂无附近角色</p>
+      )}
+      {nearby !== null && nearby.length === 1 && (
+        <div className="we-cast-characters">
+          <NearbyCharacterBlock
+            key={nearby[0].id}
+            worldId={worldId}
+            sessionId={sessionId}
+            nearby={nearby[0]}
+            expanded={true}
+            onToggle={() => {}}
+            onChange={reloadNearby}
+            templateCtx={templateCtx}
+          />
+        </div>
+      )}
+      {nearby !== null && nearby.length > 1 && (
+        <SectionTabs
+          key={`nearby-sub-${nearby.map((n) => n.id).join('|')}`}
+          variant="sub"
+          sections={nearby.map((n) => ({
+            key: n.id,
+            label: n.name || '未命名',
+            content: (
+              <div className="we-cast-characters">
+                <NearbyCharacterBlock
+                  worldId={worldId}
+                  sessionId={sessionId}
+                  nearby={n}
+                  expanded={true}
+                  onToggle={() => {}}
+                  onChange={reloadNearby}
+                  templateCtx={templateCtx}
+                />
+              </div>
+            ),
+          }))}
+        />
+      )}
+    </div>
+  );
+
+  const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
+  const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
+  const recentDiary = reversedDiary.slice(0, DIARY_RECENT_LIMIT);
+  const olderDiary = reversedDiary.slice(DIARY_RECENT_LIMIT);
+  const hasMore = olderDiary.length > 0;
+
+  const diaryTab = (
+    <div className="we-panel-tab-body">
+      <div className="we-timeline">
+        {diaryEntries === null ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[85, 65, 90].map((w, i) => (
+              <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
+            ))}
+          </div>
+        ) : !hasDiary ? (
+          <p className="we-section-empty">暂无日记</p>
+        ) : (
+          <div className="we-timeline-list">
+            {recentDiary.map((entry, i) => (
+              <DiaryEntry
+                key={entry.date_str}
+                entry={entry}
+                index={i}
+                selected={selectedEntry?.date_str === entry.date_str}
+                onSelect={handleDiarySelect}
+              />
+            ))}
+            {hasMore && (
+              <>
+                {diaryExpanded && olderDiary.map((entry, i) => (
+                  <DiaryEntry
+                    key={entry.date_str}
+                    entry={entry}
+                    index={DIARY_RECENT_LIMIT + i}
+                    selected={selectedEntry?.date_str === entry.date_str}
+                    onSelect={handleDiarySelect}
+                  />
+                ))}
+                <div
+                  className="we-cast-diary-more"
+                  onClick={() => setDiaryExpanded((v) => !v)}
+                >
+                  {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const sections = [
+    { key: 'world', label: '世界', content: worldTab },
+    { key: 'player', label: '玩家', content: playerTab },
+    { key: 'nearby', label: '附近', content: nearbyTab },
+    ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
+  ];
 
   return (
     <div className="we-cast-panel">
       <div className="we-cast-spine" />
 
       <div className="we-cast-scroll">
-
-        {/* 世界状态 */}
-        <StatusSection
-          title="世界"
-          rows={worldRows}
-          onReset={handleResetWorldState}
-          resetting={worldResetting}
-          onSave={handleSaveWorld}
-          templateCtx={templateCtx}
-          collapsible
-        />
-
-        {/* 玩家状态 */}
-        <StatusSection
-          title={persona?.name || '玩家'}
-          rows={stateData?.persona ?? null}
-          onReset={handleResetPersonaState}
-          resetting={personaResetting}
-          onSave={handleSavePersona}
-          templateCtx={templateCtx}
-          collapsible
-        />
-
-        {/* 附近 */}
-        <div className="we-state-section we-nearby-section">
-          <div
-            className="we-state-section-title"
-            style={{ cursor: 'pointer', userSelect: 'none' }}
-            onClick={() => setNearbySectionOpen((o) => !o)}
-          >
-            <Chevron open={nearbySectionOpen} />
-            <span className="we-section-label">附近</span>
-            <span className="we-section-rule" />
-            <button
-              type="button"
-              className="we-state-section-reset"
-              onClick={(e) => { e.stopPropagation(); setAddModalOpen(true); }}
-              aria-label="从角色卡添加"
-              title="从角色卡添加"
-            >
-              ＋角色卡
-            </button>
-            <button
-              type="button"
-              className="we-state-section-reset"
-              onClick={(e) => { e.stopPropagation(); setMakeCardOpen(true); }}
-              aria-label="制卡"
-              title="制卡"
-            >
-              制卡
-            </button>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateRows: nearbySectionOpen ? '1fr' : '0fr',
-              transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-              overflow: 'hidden',
-            }}
-          >
-            <div style={{ overflow: 'hidden', minHeight: 0 }}>
-              <div className="we-cast-characters">
-                {nearby === null && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {[80, 65, 70].map((w, i) => (
-                      <div key={i} className="we-skel" style={{ height: 12, width: `${w}%` }} />
-                    ))}
-                  </div>
-                )}
-                {nearby !== null && nearby.length === 0 && (
-                  <p className="we-cast-empty">暂无附近角色</p>
-                )}
-                {nearby !== null && nearby.map((n) => (
-                  <NearbyCharacterBlock
-                    key={n.id}
-                    worldId={worldId}
-                    sessionId={sessionId}
-                    nearby={n}
-                    expanded={expandedIds.includes(n.id)}
-                    onToggle={() => toggleExpand(n.id)}
-                    onChange={reloadNearby}
-                    templateCtx={templateCtx}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TIMELINE */}
-        {(() => {
-          const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
-          const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
-          const recentDiary = reversedDiary.slice(0, DIARY_RECENT_LIMIT);
-          const olderDiary = reversedDiary.slice(DIARY_RECENT_LIMIT);
-          const hasMore = olderDiary.length > 0;
-          return (
-            <div className="we-timeline">
-              <div
-                className="we-state-section-title"
-                style={{ cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => setDiaryOpen((o) => !o)}
-              >
-                <Chevron open={diaryOpen} />
-                <span className="we-section-label">TIMELINE</span>
-                <span className="we-section-rule" />
-              </div>
-              <div style={{
-                display: 'grid',
-                gridTemplateRows: diaryOpen ? '1fr' : '0fr',
-                transition: 'grid-template-rows 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
-                overflow: 'hidden',
-              }}>
-                <div style={{ overflow: 'hidden', minHeight: 0 }}>
-                  {diaryEntries === null ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[85, 65, 90].map((w, i) => (
-                        <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
-                      ))}
-                    </div>
-                  ) : !hasDiary ? (
-                    <p className="we-section-empty">暂无日记</p>
-                  ) : (
-                    <div className="we-timeline-list">
-                      {recentDiary.map((entry, i) => (
-                        <DiaryEntry
-                          key={entry.date_str}
-                          entry={entry}
-                          index={i}
-                          selected={selectedEntry?.date_str === entry.date_str}
-                          onSelect={handleDiarySelect}
-                        />
-                      ))}
-                      {hasMore && (
-                        <>
-                          {diaryExpanded && olderDiary.map((entry, i) => (
-                            <DiaryEntry
-                              key={entry.date_str}
-                              entry={entry}
-                              index={DIARY_RECENT_LIMIT + i}
-                              selected={selectedEntry?.date_str === entry.date_str}
-                              onSelect={handleDiarySelect}
-                            />
-                          ))}
-                          <div
-                            className="we-cast-diary-more"
-                            onClick={() => setDiaryExpanded((v) => !v)}
-                          >
-                            {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
+        <SectionTabs sections={sections} defaultKey="world" />
 
         <AnimatePresence>
           {addModalOpen && (
@@ -392,7 +389,6 @@ export default function NearbyPanel({
         </AnimatePresence>
       </div>
 
-      {/* 悬浮状态卡（与 CastPanel 一致） */}
       <AnimatePresence>
         {(isUpdating || stateJustChanged) && (
           <MotionDiv
