@@ -93,7 +93,7 @@
   width: 100%;
   padding: 7px 0;
   border: 1.5px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-md);
+  border-radius: var(--we-radius-none);
   background: none;
   cursor: pointer;
   font-size: 12px;

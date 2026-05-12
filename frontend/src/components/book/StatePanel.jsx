@@ -26,37 +26,8 @@ import { getConfig } from '../../api/config.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
 import StatusSection from './StatusSection.jsx';
 import PanelCard from './PanelCard.jsx';
-import Icon from '../ui/Icon.jsx';
 import { log } from '../../utils/logger.js';
 
-const GlobeIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M3 12h18" />
-    <path d="M12 3a14 14 0 0 1 0 18" />
-    <path d="M12 3a14 14 0 0 0 0 18" />
-  </Icon>
-);
-const UserIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6" />
-  </Icon>
-);
-const UsersIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="9" cy="9" r="3.2" />
-    <circle cx="17" cy="11" r="2.4" />
-    <path d="M2.5 19c1.2-3.4 3.8-5 6.5-5s5.3 1.6 6.5 5" />
-    <path d="M16.5 19c.8-2.2 2.4-3.4 4-3.4" />
-  </Icon>
-);
-const BookIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <path d="M4 5c3 0 5.5 1 8 2v13c-2.5-1-5-2-8-2V5z" />
-    <path d="M20 5c-3 0-5.5 1-8 2v13c2.5-1 5-2 8-2V5z" />
-  </Icon>
-);
 
 const MotionDiv = motion.div;
 
@@ -247,7 +218,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
   const worldTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={GlobeIcon} title="世界状态" actions={renderResetAction(handleResetWorld, worldResetting)}>
+      <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorld, worldResetting)}>
         <StatusSection
           headerless
           gridLayout
@@ -262,7 +233,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
   const playerTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={UserIcon} title="玩家状态" actions={renderResetAction(handleResetPersona, personaResetting)}>
+      <PanelCard variant="headerless">
         <StatusSection
           headerless
           gridLayout
@@ -278,7 +249,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
   const characterTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={UsersIcon} title="角色状态" actions={renderResetAction(handleResetChar, charResetting)}>
+      <PanelCard variant="headerless">
         {character ? (
           <StatusSection
             headerless
@@ -297,7 +268,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
   const diaryTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={BookIcon} title="日记">
+      <PanelCard variant="headerless">
       <div className="we-timeline we-timeline--in-card">
         {diaryEntries === null ? (
           <div className="we-state-skeleton-list">
@@ -345,9 +316,21 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   );
 
   const sections = [
-    { key: 'player', label: persona?.name || '玩家', content: playerTab },
-    { key: 'character', label: character?.name || '角色', content: characterTab },
-    ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
+    {
+      key: 'player',
+      label: persona?.name || '玩家',
+      content: playerTab,
+      actions: renderResetAction(handleResetPersona, personaResetting),
+    },
+    {
+      key: 'character',
+      label: character?.name || '角色',
+      content: characterTab,
+      actions: renderResetAction(handleResetChar, charResetting),
+    },
+    ...(diaryEnabled
+      ? [{ key: 'diary', label: '日记', content: diaryTab }]
+      : []),
   ];
 
   return (
@@ -356,6 +339,11 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
 
       <div className="we-state-scroll">
         {worldTab}
+        <div className="we-cast-fleuron we-chapter-divider we-fleuron--visible" aria-hidden="true">
+          <span className="we-fleuron-line" />
+          <span className="we-fleuron-symbol">❦</span>
+          <span className="we-fleuron-line" />
+        </div>
         <SectionTabs sections={sections} defaultKey="player" />
       </div>
 

@@ -1689,7 +1689,7 @@ body {
   padding: 7px 0;
   margin-top: 10px;
   border: 1.5px dashed var(--we-vermilion);
-  border-radius: var(--we-radius-md);
+  border-radius: var(--we-radius-none);
   background: none;
   cursor: pointer;
   font-size: 12px;
@@ -2088,8 +2088,8 @@ body {
 .we-cast-panel .we-panel-tab-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 8px 12px 16px;
+  gap: 8px;
+  padding: 0 12px 12px;
 }
 
 /* PanelCard */
@@ -2128,13 +2128,16 @@ body {
 .we-panel-card-title {
   flex: 1;
   font-family: var(--we-font-serif);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   color: var(--we-ink-primary);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.12em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.we-panel-card-title:lang(en) {
+  letter-spacing: 0.06em;
 }
 .we-panel-card-actions {
   display: inline-flex;
@@ -2188,6 +2191,45 @@ body {
   border-top: none !important;
 }
 
+/* ── PanelCard variant: flush（融入纸面，章节式 header） ─────── */
+.we-panel-card--flush {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.we-panel-card--flush > .we-panel-card-header {
+  padding: 2px 12px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--we-paper-shadow) 55%, transparent);
+}
+.we-panel-card--flush .we-panel-card-collapse--open > .we-panel-card-body {
+  padding: 10px 12px 4px;
+  border-top: none;
+}
+
+/* 右栏:世界状态(flush)与下方 tab 区之间用 FleuronLine 章节分隔 */
+.we-state-panel .we-state-scroll > .we-cast-fleuron,
+.we-cast-panel .we-cast-scroll > .we-cast-fleuron {
+  margin: 6px 12px 8px;
+  opacity: 1;
+  clip-path: none;
+  animation: none;
+}
+
+/* ── PanelCard variant: headerless（无 header，内容直接开始） ─── */
+.we-panel-card--headerless {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow: visible;
+}
+.we-panel-card--headerless .we-panel-card-collapse--open > .we-panel-card-body {
+  padding: 4px;
+  border-top: none;
+}
+
 /* card 内的 timeline：取消 border-top 与额外 padding */
 .we-timeline--in-card {
   padding: 10px 0 4px;
@@ -2207,4 +2249,3 @@ body {
 
 /* 隐藏旧 panel header 在新布局中（角色 tab 不再渲染 we-state-panel-header） */
 /* —— 保留原 .we-state-panel-header 样式以兼容其他位置，未在新组件中使用 —— */
-

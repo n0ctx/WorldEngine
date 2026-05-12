@@ -3,37 +3,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import StatusSection from './StatusSection.jsx';
 import PanelCard from './PanelCard.jsx';
-import Icon from '../ui/Icon.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
-const GlobeIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="12" cy="12" r="9" />
-    <path d="M3 12h18" />
-    <path d="M12 3a14 14 0 0 1 0 18" />
-    <path d="M12 3a14 14 0 0 0 0 18" />
-  </Icon>
-);
-const UserIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="12" cy="8" r="4" />
-    <path d="M4 21c1.5-4 5-6 8-6s6.5 2 8 6" />
-  </Icon>
-);
-const UsersIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <circle cx="9" cy="9" r="3.2" />
-    <circle cx="17" cy="11" r="2.4" />
-    <path d="M2.5 19c1.2-3.4 3.8-5 6.5-5s5.3 1.6 6.5 5" />
-    <path d="M16.5 19c.8-2.2 2.4-3.4 4-3.4" />
-  </Icon>
-);
-const BookIcon = (
-  <Icon size={16} viewBox="0 0 24 24" strokeWidth="1.6">
-    <path d="M4 5c3 0 5.5 1 8 2v13c-2.5-1-5-2-8-2V5z" />
-    <path d="M20 5c-3 0-5.5 1-8 2v13c2.5-1 5-2 8-2V5z" />
-  </Icon>
-);
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import SectionTabs from './SectionTabs.jsx';
@@ -46,7 +17,7 @@ import {
 } from '../../api/session-state-values.js';
 import { fetchDiaryContent } from '../../api/daily-entries.js';
 import { useSessionState } from '../../hooks/useSessionState.js';
-import { fetchNearby } from '../../api/session-nearby.js';
+import { fetchNearby, setNearbySaved, removeNearby } from '../../api/session-nearby.js';
 import { log } from '../../utils/logger.js';
 
 const MotionDiv = motion.div;
@@ -244,7 +215,7 @@ export default function NearbyPanel({
 
   const worldTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={GlobeIcon} title="世界状态" actions={renderResetAction(handleResetWorldState, worldResetting)}>
+      <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorldState, worldResetting)}>
         <StatusSection
           headerless
           gridLayout
@@ -258,7 +229,7 @@ export default function NearbyPanel({
 
   const playerTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={UserIcon} title={persona?.name ? `玩家 · ${persona.name}` : '玩家状态'} actions={renderResetAction(handleResetPersonaState, personaResetting)}>
+      <PanelCard variant="headerless">
         <StatusSection
           headerless
           gridLayout
@@ -270,7 +241,7 @@ export default function NearbyPanel({
     </div>
   );
 
-  const nearbyToolbarActions = (
+  const nearbyToolbarBase = (
     <>
       <button
         type="button"
@@ -293,12 +264,72 @@ export default function NearbyPanel({
     </>
   );
 
-  const perCharSections = (Array.isArray(nearby) ? nearby : []).map((n) => ({
+  const handleToggleSavedFor = async (n) => {
+    try {
+      await setNearbySaved(worldId, sessionId, n.id, !n.is_saved);
+      reloadNearby();
+    } catch (err) {
+      log.error('nearby.toggle_failed', err, { toast: err?.message || '切换保存失败' });
+    }
+  };
+  const handleRemoveFor = async (n) => {
+    try {
+      await removeNearby(worldId, sessionId, n.id);
+      reloadNearby();
+    } catch (err) {
+      log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
+    }
+  };
+  const nearbyToolbarFor = (n) => {
+    const isSaved = Number(n?.is_saved) === 1;
+    return (
+      <>
+        {nearbyToolbarBase}
+        {isSaved ? (
+          <button
+            type="button"
+            className="we-state-section-reset we-panel-card-action"
+            onClick={() => handleToggleSavedFor(n)}
+            title="取消保存（保留记录，下轮仍注入）"
+          >
+            取消
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="we-state-section-reset we-panel-card-action"
+              onClick={() => handleToggleSavedFor(n)}
+              title="保存到附近角色池"
+            >
+              保存
+            </button>
+            <button
+              type="button"
+              className="we-state-section-reset we-panel-card-action"
+              onClick={() => handleRemoveFor(n)}
+              title="移除（物理删除，下轮不再注入）"
+            >
+              移除
+            </button>
+          </>
+        )}
+      </>
+    );
+  };
+
+  const perCharSections = (Array.isArray(nearby) ? nearby : []).map((n) => {
+    const isSaved = Number(n?.is_saved) === 1;
+    const name = n.name || '未命名';
+    return {
     key: n.id,
-    label: n.name || '未命名',
+    label: isSaved ? (
+      <span className="we-section-tab-label--saved">{name}</span>
+    ) : name,
+    actions: nearbyToolbarFor(n),
     content: (
       <div className="we-panel-tab-body we-nearby-tab">
-        <PanelCard icon={UsersIcon} title={n.name || '未命名'} actions={nearbyToolbarActions}>
+        <PanelCard variant="headerless">
           <div className="we-cast-characters">
             <NearbyCharacterBlock
               worldId={worldId}
@@ -311,11 +342,12 @@ export default function NearbyPanel({
         </PanelCard>
       </div>
     ),
-  }));
+    };
+  });
 
   const emptyNearbyTab = (
     <div className="we-panel-tab-body we-nearby-tab">
-      <PanelCard icon={UsersIcon} title="附近角色" actions={nearbyToolbarActions}>
+      <PanelCard variant="headerless">
         {nearby === null ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[80, 65, 70].map((w, i) => (
@@ -337,7 +369,7 @@ export default function NearbyPanel({
 
   const diaryTab = (
     <div className="we-panel-tab-body">
-      <PanelCard icon={BookIcon} title="日记">
+      <PanelCard variant="headerless">
       <div className="we-timeline we-timeline--in-card">
         {diaryEntries === null ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -386,10 +418,15 @@ export default function NearbyPanel({
 
   const hasNearby = Array.isArray(nearby) && nearby.length > 0;
   const sections = [
-    { key: 'player', label: persona?.name || '玩家', content: playerTab },
+    {
+      key: 'player',
+      label: persona?.name || '玩家',
+      content: playerTab,
+      actions: renderResetAction(handleResetPersonaState, personaResetting),
+    },
     ...(hasNearby
       ? perCharSections
-      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab }]),
+      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase }]),
     ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
   ];
 
@@ -399,6 +436,11 @@ export default function NearbyPanel({
 
       <div className="we-cast-scroll">
         {worldTab}
+        <div className="we-cast-fleuron we-chapter-divider we-fleuron--visible" aria-hidden="true">
+          <span className="we-fleuron-line" />
+          <span className="we-fleuron-symbol">❦</span>
+          <span className="we-fleuron-line" />
+        </div>
         <SectionTabs sections={sections} defaultKey="player" />
 
         <AnimatePresence>

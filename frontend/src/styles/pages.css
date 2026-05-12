@@ -89,7 +89,7 @@
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-lg);
   position: relative;
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
   cursor: pointer;
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
@@ -99,12 +99,12 @@
 
 .we-world-card:hover {
   transform: translateY(-2px);
-  box-shadow: var(--we-shadow-paper-stack-hover);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
-  box-shadow: var(--we-shadow-paper-stack-hover);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-world-card[data-dragging]:hover {
@@ -570,7 +570,7 @@
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard),
               border-left-color var(--we-duration-normal) var(--we-easing-standard),
@@ -580,7 +580,7 @@
 }
 
 .we-persona-card:hover {
-  box-shadow: var(--we-shadow-paper-stack-hover);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-persona-card:hover .we-character-card-actions {
@@ -729,7 +729,7 @@
   padding: var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
@@ -746,7 +746,7 @@
 .we-character-card:nth-child(n+7) { animation-delay: 300ms; }
 
 .we-character-card:hover {
-  box-shadow: var(--we-shadow-paper-stack-hover);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-character-card:hover .we-character-card-actions {
@@ -1456,10 +1456,47 @@
 
 .we-section-tabs-bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 0;
   margin-bottom: 0;
   padding-left: 12px;
+}
+
+.we-section-tabs-list {
+  display: flex;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  outline: none;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--we-paper-shadow) 70%, transparent) transparent;
+}
+
+.we-section-tabs-list::-webkit-scrollbar {
+  height: 6px;
+}
+.we-section-tabs-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.we-section-tabs-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--we-paper-shadow) 70%, transparent);
+  border-radius: 3px;
+}
+
+.we-section-tabs-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 4px 8px 0 0;
+}
+
+/* 状态/角色面板：tab 行右侧留出微小缓冲（移除底部细划线，紧贴下方内容） */
+.we-state-panel .we-section-tabs-bar,
+.we-cast-panel .we-section-tabs-bar {
+  padding-right: 4px;
 }
 
 .we-section-tab {
@@ -1473,6 +1510,8 @@
   cursor: pointer;
   position: relative;
   transition: color var(--we-duration-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .we-section-tab:hover {
@@ -1481,6 +1520,14 @@
 
 .we-section-tab.active {
   color: var(--we-ink-primary);
+}
+
+.we-section-tab-label--saved {
+  color: var(--we-vermilion);
+  font-weight: 600;
+}
+.we-section-tab.active .we-section-tab-label--saved {
+  color: var(--we-vermilion);
 }
 
 .we-section-tab-indicator {

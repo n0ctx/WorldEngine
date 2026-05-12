@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react';
 import StatusSection from './StatusSection.jsx';
 import {
-  setNearbySaved,
   patchNearbyPersona,
   patchNearbyState,
-  removeNearby,
 } from '../../api/session-nearby.js';
 import { log } from '../../utils/logger.js';
 
@@ -25,7 +23,6 @@ export default function NearbyCharacterBlock({
 }) {
   const [editingPersona, setEditingPersona] = useState(false);
   const [personaDraft, setPersonaDraft] = useState(nearby?.persona ?? '');
-  const [busy, setBusy] = useState(false);
 
   // StatusSection 读取 effective_value_json；nearby 状态使用 runtime_value_json，
   // 此处做一次映射，不影响后端字段语义。
@@ -36,34 +33,6 @@ export default function NearbyCharacterBlock({
       effective_value_json: r.runtime_value_json ?? null,
     }));
   }, [nearby]);
-
-  async function handleToggleSaved(e) {
-    e?.stopPropagation?.();
-    if (busy) return;
-    setBusy(true);
-    try {
-      await setNearbySaved(worldId, sessionId, nearby.id, !nearby.is_saved);
-      onChange?.();
-    } catch (err) {
-      log.error('nearby.toggle_failed', err, { toast: err?.message || '切换保存失败' });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRemove(e) {
-    e?.stopPropagation?.();
-    if (busy) return;
-    setBusy(true);
-    try {
-      await removeNearby(worldId, sessionId, nearby.id);
-      onChange?.();
-    } catch (err) {
-      log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function handleSaveState(fieldKey, valueJson) {
     try {
@@ -84,50 +53,8 @@ export default function NearbyCharacterBlock({
     }
   }
 
-  const isSaved = Number(nearby?.is_saved) === 1;
-
   return (
     <div className="we-cast-character-block we-state-section">
-      <div className="we-state-section-title">
-        <span className={`we-section-label${isSaved ? ' we-section-label--saved' : ''}`}>{nearby?.name || '（未命名）'}</span>
-        <span className="we-section-rule" />
-        {isSaved ? (
-          <button
-            type="button"
-            className="we-state-section-reset"
-            onClick={handleToggleSaved}
-            disabled={busy}
-            aria-label={`取消保存 ${nearby?.name || ''}`}
-            title="取消保存（保留记录，下轮仍注入）"
-          >
-            取消
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="we-state-section-reset"
-              onClick={handleToggleSaved}
-              disabled={busy}
-              aria-label={`保存 ${nearby?.name || ''}`}
-              title="保存到附近角色池"
-            >
-              保存
-            </button>
-            <button
-              type="button"
-              className="we-state-section-reset ml-1"
-              onClick={handleRemove}
-              disabled={busy}
-              aria-label={`移除 ${nearby?.name || ''}`}
-              title="移除（物理删除，下轮不再注入）"
-            >
-              移除
-            </button>
-          </>
-        )}
-      </div>
-
       <div>
         <div>
           {/* 人设段 */}
@@ -180,6 +107,8 @@ export default function NearbyCharacterBlock({
 
           <StatusSection
             title=""
+            headerless
+            gridLayout
             rows={stateRows}
             onSave={handleSaveState}
             className="we-cast-char-inner"
