@@ -74,6 +74,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     return (
       <div data-testid="message-list">
         {props.sessionId || 'none'}
+        <div data-testid="options">{(props.options || []).join(',')}</div>
         <button onClick={() => props.onChapterEdit?.(1, '手改标题')}>edit-chapter</button>
         <button onClick={() => props.onChapterRetitle?.(1)}>retitle-chapter</button>
       </div>
@@ -303,6 +304,37 @@ describe('WritingSpacePage', () => {
 
     fireEvent.click(screen.getByText('send-writing'));
     expect(mocks.generate).toHaveBeenCalledTimes(2);
+  });
+
+  it('写作中断后的流式临时选项不会残留到下一轮', async () => {
+    const callbacksRef = { current: null };
+    mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
+    mocks.generate.mockImplementation((_wid, _sid, _content, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    render(<WritingSpacePage />);
+
+    await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
+
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onDelta?.('段落<next_prompt>\n旧选项');
+    });
+    expect(screen.getByTestId('options')).toHaveTextContent('旧选项');
+
+    await act(async () => {
+      callbacksRef.current.onAborted?.({ id: 'asst-abort', content: '段落\n\n[已中断]' });
+      callbacksRef.current.onStreamEnd?.();
+    });
+    expect(screen.getByTestId('options')).toHaveTextContent('');
+
+    fireEvent.click(screen.getByText('send-writing'));
+    await waitFor(() => expect(mocks.generate).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('options')).toHaveTextContent('');
   });
 
   it('支持重命名会话、编辑章节、AI 重拟章节和停止', async () => {

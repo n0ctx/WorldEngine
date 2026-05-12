@@ -382,9 +382,10 @@ export default function ChatPage() {
     setContinuingText('');
     stopRef.current = null;
     // 设置本轮选项；后端最终解析结果优先，否则回落到流式检测到的内容
-    const finalOpts = pendingOptionsRef.current.length > 0
-      ? pendingOptionsRef.current
-      : streamingOptionsRef.current;
+    const wasAborted = streamAbortedRef.current;
+    const finalOpts = wasAborted
+      ? []
+      : (pendingOptionsRef.current.length > 0 ? pendingOptionsRef.current : streamingOptionsRef.current);
     if (finalOpts.length > 0) {
       setCurrentOptions(finalOpts);
       requestAnimationFrame(() => {
@@ -396,7 +397,6 @@ export default function ChatPage() {
     streamingOptionsRef.current = [];
     // 兜底：后端未回传 assistant（例如旧后端 / 错误路径已消费），降级为重拉刷新
     // 用户主动停止时（streamAbortedRef=true）跳过刷新，避免页面闪烁跳顶
-    const wasAborted = streamAbortedRef.current;
     streamAbortedRef.current = false;
     if (!wasContinuing && !appendedAssistant && !wasAborted) refreshMessages();
   }, [isCurrentStreamRun, stopMemoryRecalling, stopMemoryExpanding, stopMemoryWriting]);
@@ -470,6 +470,9 @@ export default function ChatPage() {
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
         // 中断事件仅记录 pending，统一由 onStreamEnd 调用 finalizeStream，避免双重 finalize
+        pendingOptionsRef.current = [];
+        streamingOptionsRef.current = [];
+        setCurrentOptions([]);
         streamingTextRef.current = '';
         clearTimeout(memoryWritingTimerRef.current);
         memoryWritingRunIdRef.current = null;

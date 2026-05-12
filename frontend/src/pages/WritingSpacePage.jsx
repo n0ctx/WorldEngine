@@ -405,6 +405,8 @@ export default function WritingSpacePage() {
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
+        pendingOptionsRef.current = [];
+        setCurrentOptions([]);
         clearTimeout(memoryWritingTimerRef.current);
         memoryWritingRunIdRef.current = null;
         setMemoryWriting(false);
@@ -489,7 +491,7 @@ export default function WritingSpacePage() {
         setStreamingText('');
         stopMemoryWriting(runId);
         stopRef.current = null;
-        if (pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
+        if (!wasAborted && pendingOptions?.length > 0) setCurrentOptions(pendingOptions);
         if (!alreadyAppended) {
           if (pending && messageListRef.current?.appendMessage) {
             messageListRef.current.appendMessage({ ...pending, _key: streamKey });

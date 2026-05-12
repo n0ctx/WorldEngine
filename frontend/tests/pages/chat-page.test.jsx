@@ -75,6 +75,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
       <div data-testid="message-list">
         <div data-testid="session-id">{props.sessionId || 'none'}</div>
         <div data-testid="world-id">{props.worldId || 'none'}</div>
+        <div data-testid="options">{(props.options || []).join(',')}</div>
         <button onClick={() => props.onEditAssistantMessage?.('asst-1', '改写后的回复')}>edit-assistant</button>
         <button onClick={() => props.onDeleteMessage?.('msg-1')}>delete-message</button>
         <button onClick={() => props.onRegenerateMessage?.('asst-1')}>regenerate-message</button>
@@ -325,6 +326,43 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByText('send'));
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it('中断后的流式临时选项不会残留到下一轮', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    render(<ChatPage />);
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onDelta?.('回复正文<next_prompt>\n旧选项');
+    });
+    expect(screen.getByTestId('options')).toHaveTextContent('旧选项');
+
+    await act(async () => {
+      callbacksRef.current.onAborted?.({ id: 'asst-abort', content: '回复正文\n\n[已中断]' });
+      callbacksRef.current.onStreamEnd?.();
+    });
+    expect(screen.getByTestId('options')).toHaveTextContent('');
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(2));
+    expect(screen.getByTestId('options')).toHaveTextContent('');
   });
 
   it('支持代拟、重命名和停止', async () => {
