@@ -69,6 +69,7 @@ const APPROVED_SENTINEL = '<<approved>>';
 const ASSISTANT_CONTEXT_RAW_LIMIT = 8;
 const ASSISTANT_CONTEXT_CHAR_LIMIT = 24_000;
 const ASSISTANT_DELTA_CHUNK_SIZE = 48;
+const MODEL_MESSAGE_ROLES = new Set(['user', 'assistant']);
 
 function clearModelContext(task) {
   if (!task?.modelContext) return null;
@@ -118,7 +119,7 @@ function buildContextBlock(task, planDocContent) {
 }
 
 async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId }) {
-  const all = Array.isArray(task.messages) ? task.messages : [];
+  const all = getModelHistoryMessages(task);
   const totalChars = summarizeMessages(all).chars;
   let prefixCount = Math.max(0, all.length - ASSISTANT_CONTEXT_RAW_LIMIT);
   if (prefixCount === 0 && all.length > 1 && totalChars > ASSISTANT_CONTEXT_CHAR_LIMIT) {
@@ -171,7 +172,7 @@ async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, ru
 }
 
 function buildModelMessages(task, systemPrompt, contextBlock) {
-  const all = Array.isArray(task.messages) ? task.messages : [];
+  const all = getModelHistoryMessages(task);
   const modelContext = task.modelContext;
   let rawStart = 0;
   if (modelContext?.summarizedUntilMessageId) {
@@ -199,6 +200,12 @@ function buildModelMessages(task, systemPrompt, contextBlock) {
     summaryUsed: Boolean(modelContext?.summary),
     tailMessageCount: rawTail.length,
   };
+}
+
+function getModelHistoryMessages(task) {
+  return (Array.isArray(task?.messages) ? task.messages : [])
+    .filter((m) => MODEL_MESSAGE_ROLES.has(m?.role))
+    .map((m) => ({ role: m.role, content: m.content ?? '', id: m.id }));
 }
 
 function chunkAssistantText(text, chunkSize = ASSISTANT_DELTA_CHUNK_SIZE) {
@@ -354,6 +361,8 @@ export const __testables = {
   buildMetaTools,
   chunkAssistantText,
   clearModelContext,
+  getModelHistoryMessages,
+  buildModelMessages,
   loadSystemPrompt,
   APPROVED_SENTINEL,
   yieldToEventLoop,

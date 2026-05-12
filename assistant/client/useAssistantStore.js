@@ -127,13 +127,7 @@ export const useAssistantStore = create(
               return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
             case SSE_EVENTS.MESSAGES_CHANGED: {
               if (!Array.isArray(evt.messages)) return s;
-              const planDocEntry = s.messages.find((m) => m.role === 'plan_doc');
-              if (!planDocEntry) return { ...s, messages: evt.messages };
-              // Re-insert the synthetic plan_doc row at its original index (clamped)
-              const prevIdx = s.messages.findIndex((m) => m.role === 'plan_doc');
-              const next = [...evt.messages];
-              next.splice(Math.min(prevIdx, next.length), 0, planDocEntry);
-              return { ...s, messages: next };
+              return { ...s, messages: sanitizeMessagesForPersist(evt.messages) };
             }
             case SSE_EVENTS.TOOL_CALL_STARTED: {
               // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
@@ -262,7 +256,7 @@ export const useAssistantStore = create(
     }),
     {
       name: 'we-assistant-v2',
-      // 持久化面板偏好 + 对话历史（user / assistant 消息）；
+      // 持久化面板偏好 + 对话历史 / 工具记录 / 计划记录；
       // 任务态字段（taskId / status / planDoc / error / currentStepId / taskMsgOffset）
       // 不持久化，因为 SSE 流刷新后无法恢复。
       partialize: (s) => ({
@@ -324,18 +318,32 @@ function adoptUserMessageId(messages, messageId) {
 
 function clearStreamingFlag(messages) {
   if (messages.length === 0) return messages;
-  const last = messages[messages.length - 1];
-  if (!last.streaming) return messages;
-  return [...messages.slice(0, -1), { ...last, streaming: false }];
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    const msg = messages[i];
+    if (msg?.role === 'assistant' && msg.streaming) {
+      return messages.map((m, idx) => (idx === i ? { ...m, streaming: false } : m));
+    }
+  }
+  return messages;
 }
 
-// 持久化用清洗：丢掉 plan_doc / tool_call / step 这类与任务态绑定的瞬时占位行，
-// 同时把残留的 streaming 标志抹掉，只留下 user / assistant 文本气泡。
+// 持久化用清洗：保留可回放的对话和助手 UI 记录；刷新后不能恢复真实运行态，
+// 因此把残留 running 标为 error，避免显示一条永远运行中的工具/步骤。
 function sanitizeMessagesForPersist(messages) {
   if (!Array.isArray(messages)) return [];
   return messages
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant'))
-    .map((m) => (m.streaming ? { ...m, streaming: false } : m));
+    .filter((m) => m && ['user', 'assistant', 'tool_call', 'step', 'plan_doc'].includes(m.role))
+    .map((m) => {
+      if (m.role === 'assistant' && m.streaming) {
+        const rest = { ...m };
+        delete rest.streaming;
+        return rest;
+      }
+      if ((m.role === 'tool_call' || m.role === 'step') && m.status === 'running') {
+        return { ...m, status: 'error', error: m.error ?? '刷新后运行状态已中断' };
+      }
+      return m;
+    });
 }
 
 export const __testables = {

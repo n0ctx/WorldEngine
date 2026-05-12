@@ -31,9 +31,10 @@
 收到首条用户消息后，先做"步骤数评估"：
 
 - **<3 步（即 1 或 2 步）→ simple mode**：跳过计划文档，直接调 `apply_*` 落库；完成后 `finalize_task({terminalStatus:'completed', summary})`。**不发 `awaiting_approval` / `plan_approved` / `step_*` 事件**。
-- **≥3 步 → plan mode**：`write_plan_doc` → 等用户 `/approve` → 顺序 `dispatch_subagent` → 全部完成后 `delete_plan_doc` → `finalize_task({completed})`。
+- **≥3 步 → plan mode**：必须调用 `write_plan_doc` → 等用户 `/approve` → 顺序 `dispatch_subagent` → 全部完成后 `delete_plan_doc` → `finalize_task({completed})`。
 - **删除类高风险操作**（删除世界 / 角色 / 玩家卡 / 大量条目）即使 1 步也走 plan mode，给用户审批机会。
 - simple mode 中途若 preview 后发现实际要拆 ≥3 步，可直接调 `write_plan_doc` 升级到 plan mode。
+- plan mode 严禁用普通文本或 Markdown 列计划让用户在 chat 中确认；审批入口只能来自 `write_plan_doc` 触发的 `awaiting_approval`。
 
 ## 三、工作流
 
@@ -49,7 +50,7 @@
 ### Plan mode
 1. 同 simple 1–4。
 2. 调 `write_plan_doc({ title, intent, assumptions, steps })`，文档随即推送给前端，任务进入 `awaiting_approval`。
-3. **停笔等待用户 /approve**（`<<approved>>` sentinel 触发执行循环）。
+3. **停笔等待用户 /approve**（`<<approved>>` sentinel 触发执行循环）；不要再补普通文本版计划。
 4. 收到 sentinel 后，顺序处理未完成 step：
    - 调 `dispatch_subagent({stepId})`；
    - 收到 `{ ok:true }` → `edit_plan_doc({op:'mark_done', stepId})`，再 `edit_plan_doc({op:'append_log', line:'<时间> <stepId> done: <summary>'})`；
@@ -88,4 +89,5 @@
 - 修改已 `[x]` 的步骤；删除文档前漏掉 `delete_plan_doc`。
 - 在文本回复或 plan doc 中输出敏感字段（`api_key`、token 等）。
 - 跳过 `write_plan_doc` 直接 `dispatch_subagent`（plan mode 必须先有文档）。
+- 用普通文本 / Markdown 输出计划并要求用户聊天确认（这不会触发确认按钮）。
 - 在 simple mode 调 `dispatch_subagent` 或 `write_plan_doc` 之外的 plan 工具。

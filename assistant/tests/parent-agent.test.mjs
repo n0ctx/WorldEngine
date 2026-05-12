@@ -65,6 +65,24 @@ test('buildContextBlock 反映 task 状态', () => {
   assert.match(__testables.buildContextBlock(task, '## 真实计划\n'), /## 真实计划/);
 });
 
+test('buildModelMessages 过滤工具、步骤、计划 UI 记录', () => {
+  const task = {
+    id: 'task-1',
+    messages: [
+      { id: 'u1', role: 'user', content: '需求' },
+      { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'done' },
+      { id: 'step-1', role: 'step', title: '执行', status: 'done' },
+      { id: 'plan-doc-task-1', role: 'plan_doc', content: '# plan' },
+      { id: 'a1', role: 'assistant', content: '回复' },
+    ],
+  };
+  const history = __testables.getModelHistoryMessages(task);
+  assert.deepEqual(history.map((m) => m.role), ['user', 'assistant']);
+  const payload = __testables.buildModelMessages(task, 'system', 'ctx');
+  assert.deepEqual(payload.messages.map((m) => m.role), ['system', 'user', 'assistant', 'user']);
+  assert.equal(payload.tailMessageCount, 2);
+});
+
 test('buildMetaTools：5 个工具与各分支', async () => {
   const task = taskStore.createTask({ context: {} });
   const events = [];

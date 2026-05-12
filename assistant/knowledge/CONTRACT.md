@@ -98,7 +98,7 @@
 
 ## 任务规模判定
 
-父代理在 planning 第一步必须输出对任务的步骤数预估。
+父代理在 planning 第一步必须完成任务步骤数预估；除非是在追问信息，不要把预估作为普通文本输出。
 
 ### simple mode（< 3 步）
 
@@ -109,7 +109,8 @@
 
 ### plan mode（≥ 3 步）
 
-- 写计划文档 → 等用户 `/approve` → executing → 逐步 `dispatch_subagent` → 勾选 `[x]` 并追加日志 → 全部完成后删文档 + 总结
+- 必须调用 `write_plan_doc` 写计划文档 → 等用户 `/approve` → executing → 逐步 `dispatch_subagent` → 勾选 `[x]` 并追加日志 → 全部完成后删文档 + 总结
+- 严禁用普通文本或 Markdown 计划替代 `write_plan_doc`；普通文本计划不会触发前端确认按钮
 
 ### 边界规则
 

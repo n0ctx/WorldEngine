@@ -19,7 +19,11 @@ const seeds = [
   { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
   { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
   { id: 'task-bbbbbbb1', status: 'executing', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
-  { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
+  { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [
+    { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'running' },
+    { id: 'step-1', role: 'step', stepId: 'step-1', title: '执行中', status: 'running' },
+    { id: 'plan-doc-task-bbbbbbb2', role: 'plan_doc', content: '# plan' },
+  ], pendingUserMessages: [], createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
   { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
 ];
 for (const s of seeds) {
@@ -72,6 +76,11 @@ test('hydrate: awaiting_approval / paused 保留为可恢复状态', () => {
   const t2 = taskStore.getTask('task-bbbbbbb2');
   assert.equal(t2.status, 'awaiting_approval');
   assert.deepEqual(t2.context, { worldId: 'w' });
+  assert.equal(t2.messages[0].role, 'tool_call');
+  assert.equal(t2.messages[0].status, 'error');
+  assert.equal(t2.messages[1].role, 'step');
+  assert.equal(t2.messages[1].status, 'error');
+  assert.equal(t2.messages[2].role, 'plan_doc');
 
   const t3 = taskStore.getTask('task-ccccccc1');
   assert.equal(t3.status, 'paused');

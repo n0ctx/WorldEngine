@@ -1310,7 +1310,7 @@
   background: var(--we-paper-base);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
   font-family: var(--we-font-serif);
   color: var(--we-ink-primary);
   animation: we-bubble-in 0.2s var(--we-easing-ink) both;
@@ -1335,13 +1335,45 @@
 .we-asst-entry--error::before    { background: var(--we-vermilion-deep); }
 .we-asst-entry--plan::before     { background: var(--we-vermilion); }
 
+/* 工具卡：缩小 + 淡色 + emoji（弱化为过程信息，不与对话气泡争视觉） */
 .we-asst-entry--tool,
 .we-asst-entry--tool-running {
-  padding-left: var(--we-space-md);
+  padding: var(--we-space-xs) var(--we-space-md);
+  box-shadow: none;
+  border-color: var(--we-color-border-subtle);
+  background: transparent;
 }
 
+.we-asst-entry--tool .we-asst-entry__head,
+.we-asst-entry--tool-running .we-asst-entry__head {
+  font-size: var(--we-text-xs);
+  gap: var(--we-space-xs);
+}
+
+.we-asst-entry--tool .we-asst-entry__title,
 .we-asst-entry--tool-running .we-asst-entry__title {
-  color: var(--we-ink-secondary);
+  font-weight: 400;
+  color: var(--we-ink-faded);
+  font-size: var(--we-text-xs);
+}
+
+.we-asst-entry--tool .we-asst-entry__sub,
+.we-asst-entry--tool-running .we-asst-entry__sub {
+  font-size: var(--we-text-xs);
+  color: var(--we-ink-faded);
+  opacity: 0.85;
+}
+
+.we-asst-entry--tool-running .we-asst-entry__title,
+.we-asst-entry--tool-running .we-asst-entry__sub {
+  opacity: 0.7;
+}
+
+.we-asst-tool__icon {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+  font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
 }
 
 .we-asst-entry--error {
@@ -1630,11 +1662,12 @@
 
 .we-asst-row {
   display: flex;
+  flex-direction: column;
   width: 100%;
 }
 
-.we-asst-row--user      { justify-content: flex-end; }
-.we-asst-row--assistant { justify-content: flex-start; }
+.we-asst-row--user      { align-items: flex-end; }
+.we-asst-row--assistant { align-items: flex-start; }
 
 .we-asst-bubble {
   position: relative;
@@ -1653,7 +1686,7 @@
   background: var(--we-vermilion);
   color: var(--we-color-text-inverse);
   border-radius: var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-none) var(--we-radius-lg);
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-asst-bubble--assistant {
@@ -1661,7 +1694,7 @@
   color: var(--we-ink-primary);
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-none) var(--we-radius-lg) var(--we-radius-lg) var(--we-radius-lg);
-  box-shadow: var(--we-shadow-paper-stack);
+  box-shadow: var(--we-shadow-paper-lift);
 }
 
 .we-asst-bubble__body {
@@ -1743,21 +1776,10 @@
 
 .we-asst-row--user .we-asst-bubble__actions { justify-content: flex-end; }
 
-.we-asst-bubble:hover .we-asst-bubble__actions,
-.we-asst-bubble:focus-within .we-asst-bubble__actions,
+.we-asst-row:hover .we-asst-bubble__actions,
+.we-asst-row:focus-within .we-asst-bubble__actions,
 .we-asst-bubble__actions--visible {
   opacity: 1;
-}
-
-.we-asst-bubble--user .we-asst-entry__action {
-  color: color-mix(in srgb, var(--we-color-text-inverse) 75%, transparent);
-}
-.we-asst-bubble--user .we-asst-entry__action:hover {
-  color: var(--we-color-text-inverse);
-  border-color: color-mix(in srgb, var(--we-color-text-inverse) 35%, transparent);
-}
-.we-asst-bubble--user .we-asst-entry__action--danger {
-  color: color-mix(in srgb, var(--we-color-text-inverse) 90%, transparent);
 }
 
 /* Pending typing dots（沿用 we-typing-dots 的容器样式） */

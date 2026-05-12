@@ -35,6 +35,23 @@ const TOOL_LABELS = {
   finalize_task: '完成任务',
 };
 
+const TOOL_EMOJI = {
+  preview_card: '👁',
+  list_resources: '📋',
+  read_file: '📖',
+  apply_world_card: '🌍',
+  apply_character_card: '🧑',
+  apply_persona_card: '👤',
+  apply_global_config: '⚙️',
+  apply_css_snippet: '🎨',
+  apply_regex_rule: '🔧',
+  write_plan_doc: '📝',
+  edit_plan_doc: '✏️',
+  dispatch_subagent: '📤',
+  delete_plan_doc: '🗑',
+  finalize_task: '✅',
+};
+
 const STATUS_TEXT = {
   running: '运行中…',
   done: '已完成',
@@ -204,9 +221,9 @@ function UserEntry({ msg, onEdit, onDelete }) {
 
   return (
     <div className="we-asst-row we-asst-row--user">
-      <div className="we-asst-bubble we-asst-bubble--user">
-        {editing ? (
-          <>
+      {editing ? (
+        <>
+          <div className="we-asst-bubble we-asst-bubble--user">
             <textarea
               ref={taRef}
               value={draft}
@@ -228,24 +245,26 @@ function UserEntry({ msg, onEdit, onDelete }) {
               rows={2}
               className="we-asst-bubble__edit"
             />
-            <div className="we-asst-bubble__actions we-asst-bubble__actions--visible">
-              <ActionBtn onClick={cancelEdit} ariaLabel="取消编辑">取消</ActionBtn>
-              <ActionBtn onClick={confirmEdit} ariaLabel="确认编辑">确认</ActionBtn>
-            </div>
-          </>
-        ) : (
-          <>
+          </div>
+          <div className="we-asst-bubble__actions we-asst-bubble__actions--visible">
+            <ActionBtn onClick={cancelEdit} ariaLabel="取消编辑">取消</ActionBtn>
+            <ActionBtn onClick={confirmEdit} ariaLabel="确认编辑">确认</ActionBtn>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="we-asst-bubble we-asst-bubble--user">
             <div className="we-asst-bubble__body we-asst-bubble__body--pre">
               {msg.content}
             </div>
-            <div className="we-asst-bubble__actions">
-              <CopyBtn getText={() => msg.content || ''} />
-              {onEdit && <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>}
-              {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
-            </div>
-          </>
-        )}
-      </div>
+          </div>
+          <div className="we-asst-bubble__actions">
+            <CopyBtn getText={() => msg.content || ''} />
+            {onEdit && <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>}
+            {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -255,6 +274,7 @@ function AssistantEntry({ msg, onRegenerate, onDelete }) {
     ? null
     : parseStreamingBlocks(msg.content || '');
   const hasActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
+  const showActions = !msg.streaming && msg.content && (msg.id || true);
   return (
     <div className="we-asst-row we-asst-row--assistant">
       <div className="we-asst-bubble we-asst-bubble--assistant">
@@ -280,10 +300,10 @@ function AssistantEntry({ msg, onRegenerate, onDelete }) {
         {msg.streaming && msg.content && (
           <span className="we-asst-stream-cursor" aria-hidden="true" />
         )}
+      </div>
+      {showActions && (
         <div className="we-asst-bubble__actions">
-          {!msg.streaming && msg.content && (
-            <CopyBtn getText={() => msg.content || ''} />
-          )}
+          <CopyBtn getText={() => msg.content || ''} />
           {hasActions && onRegenerate && msg.id && (
             <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
               重新生成
@@ -293,7 +313,7 @@ function AssistantEntry({ msg, onRegenerate, onDelete }) {
             <DeleteBtn onDelete={() => onDelete(msg.id)} />
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -306,6 +326,7 @@ function ToolEntry({ msg }) {
   const isRunning = msg.status === 'running';
   const isError = msg.status === 'error';
   const sub = msg.subtitle ?? STATUS_TEXT[msg.status] ?? '';
+  const emoji = isStep ? '◦' : (TOOL_EMOJI[msg.toolName] ?? '🔹');
   const variantClass = isError
     ? 'we-asst-entry--error'
     : isRunning
@@ -318,6 +339,7 @@ function ToolEntry({ msg }) {
       aria-live={isRunning ? 'polite' : undefined}
     >
       <div className="we-asst-entry__head">
+        <span className="we-asst-tool__icon" aria-hidden="true">{emoji}</span>
         <span className="we-asst-entry__title">{title}</span>
         {sub && <span className="we-asst-entry__sub">{sub}</span>}
         <StatusDot status={msg.status} />
