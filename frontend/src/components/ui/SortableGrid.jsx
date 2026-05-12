@@ -57,6 +57,7 @@ export default function SortableGrid({
   activationDistance = 8,
 }) {
   const [activeId, setActiveId] = useState(null);
+  const [isDropping, setIsDropping] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: activationDistance } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -68,6 +69,8 @@ export default function SortableGrid({
 
   function handleDragEnd(event) {
     setActiveId(null);
+    setIsDropping(true);
+    setTimeout(() => setIsDropping(false), 300);
     const { active, over } = event;
     if (!over) return;
     const oldIndex = items.findIndex((i) => i.id === active.id);
@@ -92,7 +95,7 @@ export default function SortableGrid({
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-        <div className={className}>
+        <div className={className} data-dropping={isDropping || undefined}>
           {items.map((item) => (
             <SortableGridItem
               key={item.id}

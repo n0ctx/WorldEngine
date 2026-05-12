@@ -115,6 +115,12 @@
   opacity: 1;
 }
 
+/* 拖拽排序放下动画期间禁用 opacity 过渡，防止 hover 状态因 FLIP 位移动画暂时丢失而闪烁 */
+.we-worlds-grid[data-dropping] .we-world-card-desc,
+.we-worlds-grid[data-dropping] .we-world-card-actions {
+  transition: none;
+}
+
 .we-world-card-seal {
   position: absolute;
   top: 16px;
