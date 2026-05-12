@@ -14,41 +14,7 @@ import TopBar from './components/TopBar.jsx';
 import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../core/layout/PageLayout.jsx';
-import BookSpread from './layout/BookSpread.jsx';
-import PageLeft from './layout/PageLeft.jsx';
-import PageRight from './layout/PageRight.jsx';
-import MemoryRecallOverlay from './components/MemoryRecallOverlay.jsx';
-
-function renderPageLayout({
-  header = null,
-  left = null,
-  main = null,
-  right = null,
-  inspector = null,
-  overlay = null,
-  recall = null,
-}) {
-  return (
-    <>
-      <BookSpread>
-        {left != null ? (
-          <PageLeft recall={recall ? <MemoryRecallOverlay {...recall} /> : null}>
-            {left}
-          </PageLeft>
-        ) : null}
-        <PageRight className="!p-0">
-          {header}
-          <div className="flex flex-1 min-h-0 overflow-hidden">
-            {main}
-            {right}
-            {inspector}
-          </div>
-        </PageRight>
-      </BookSpread>
-      {overlay}
-    </>
-  );
-}
+import renderPageLayout from './layout/pageLayoutRenderer.jsx';
 
 export default function AppShell({ children, locationKey }) {
   return (

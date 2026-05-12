@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
+  useNavigate: () => vi.fn(),
 }));
 vi.mock('../../src/store/appMode.js', () => ({
   useAppModeStore: (selector) => selector({ setAppMode: mocks.setAppMode }),
@@ -81,13 +82,8 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/book/WritingPageLeft.jsx', () => ({
-  default: ({ memoryWriting }) => (
-    <div data-testid="left">{memoryWriting ? 'memory-writing' : 'memory-idle'}</div>
-  ),
-}));
-vi.mock('../../src/components/book/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
-vi.mock('../../src/components/book/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
+vi.mock('../../src/components/writing/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
+vi.mock('../../src/components/writing/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
@@ -116,7 +112,16 @@ vi.mock('../../src/utils/logger.js', () => ({
     error: (...args) => mocks.logError(...args),
   },
 }));
+import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
+import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
 import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
+
+const renderWritingSpacePage = () =>
+  render(
+    <PageLayoutRendererProvider render={renderPageLayout}>
+      <WritingSpacePage />
+    </PageLayoutRendererProvider>,
+  );
 
 describe('WritingSpacePage', () => {
   beforeEach(() => {
@@ -153,7 +158,7 @@ describe('WritingSpacePage', () => {
   });
 
   it('首次进入会创建写作会话并切到 writing 模式，发送时调用 generate', async () => {
-    const { unmount } = render(<WritingSpacePage />);
+    const { unmount } = renderWritingSpacePage();
 
     await waitFor(() => expect(mocks.setAppMode).toHaveBeenCalledWith('writing'));
     expect(mocks.refreshCustomCss).toHaveBeenCalledWith('writing');
@@ -186,7 +191,7 @@ describe('WritingSpacePage', () => {
       { id: 'asst-1', role: 'assistant', content: '第一段' },
     ];
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
@@ -219,7 +224,7 @@ describe('WritingSpacePage', () => {
       { id: 'asst-1', role: 'assistant', content: '第一段' },
     ];
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
     fireEvent.click(screen.getByText('continue-writing'));
@@ -244,7 +249,7 @@ describe('WritingSpacePage', () => {
       return vi.fn();
     });
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
@@ -279,7 +284,7 @@ describe('WritingSpacePage', () => {
       return vi.fn();
     });
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalledWith('world-1'));
     await waitFor(() => expect(mocks.listWritingSessions).toHaveBeenCalled());
@@ -290,7 +295,7 @@ describe('WritingSpacePage', () => {
     await act(async () => {
       callbacks[0].onDone?.({ id: 'asst-1', content: '第一段' }, []);
     });
-    expect(screen.getByTestId('left')).toHaveTextContent('memory-writing');
+    expect(screen.getByText('正在记录记忆…')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('send-writing'));
     expect(mocks.generate).toHaveBeenCalledTimes(2);
@@ -300,7 +305,7 @@ describe('WritingSpacePage', () => {
       callbacks[0].onStateUpdated?.();
       vi.advanceTimersByTime(1500);
     });
-    expect(screen.getByTestId('left')).toHaveTextContent('memory-idle');
+    expect(screen.queryByText('正在记录记忆…')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('send-writing'));
     expect(mocks.generate).toHaveBeenCalledTimes(2);
@@ -314,7 +319,7 @@ describe('WritingSpacePage', () => {
       return vi.fn();
     });
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
@@ -339,7 +344,7 @@ describe('WritingSpacePage', () => {
 
   it('支持重命名会话、编辑章节、AI 重拟章节和停止', async () => {
     mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
 
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
@@ -362,7 +367,7 @@ describe('WritingSpacePage', () => {
     mocks.updateChapterTitle.mockRejectedValue(new Error('保存失败'));
     mocks.retitleChapter.mockRejectedValue(new Error('重拟失败'));
 
-    render(<WritingSpacePage />);
+    renderWritingSpacePage();
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
     fireEvent.click(screen.getByText('impersonate-writing'));

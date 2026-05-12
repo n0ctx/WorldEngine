@@ -83,7 +83,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/book/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
+vi.mock('../../src/components/session/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
@@ -100,20 +100,19 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/book/BookSpread.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('../../src/components/book/PageLeft.jsx', () => ({
-  default: ({ children, memoryWriting }) => (
-    <div data-testid="left-page">
-      {memoryWriting ? 'memory-writing' : 'memory-idle'}
-      {children}
-    </div>
-  ),
-}));
-vi.mock('../../src/components/book/PageRight.jsx', () => ({ default: ({ children }) => <div>{children}</div> }));
-vi.mock('../../src/components/book/StatePanel.jsx', () => ({ default: (props) => <div data-testid="state-panel">{props.worldId}</div> }));
+vi.mock('../../src/components/state/StatePanel.jsx', () => ({ default: (props) => <div data-testid="state-panel">{props.worldId}</div> }));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
 
+import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
+import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
 import ChatPage from '../../src/pages/ChatPage.jsx';
+
+const renderChatPage = () =>
+  render(
+    <PageLayoutRendererProvider render={renderPageLayout}>
+      <ChatPage />
+    </PageLayoutRendererProvider>,
+  );
 
 describe('ChatPage', () => {
   beforeEach(() => {
@@ -161,7 +160,7 @@ describe('ChatPage', () => {
   });
 
   it('首次发送会自动建会话并调用 sendMessage', async () => {
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
     fireEvent.click(screen.getByText('send'));
@@ -195,7 +194,7 @@ describe('ChatPage', () => {
       return vi.fn();
     });
 
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
@@ -232,7 +231,7 @@ describe('ChatPage', () => {
       return vi.fn();
     });
 
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
     fireEvent.click(screen.getByText('continue'));
@@ -262,7 +261,7 @@ describe('ChatPage', () => {
       return vi.fn();
     });
 
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
@@ -302,7 +301,7 @@ describe('ChatPage', () => {
       return vi.fn();
     });
 
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
@@ -312,7 +311,7 @@ describe('ChatPage', () => {
     await act(async () => {
       callbacks[0].onDone?.({ id: 'asst-1', content: '第一轮' }, []);
     });
-    expect(screen.getByTestId('left-page')).toHaveTextContent('memory-writing');
+    expect(screen.getByText('正在记录记忆…')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('send'));
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
@@ -322,7 +321,7 @@ describe('ChatPage', () => {
       callbacks[0].onStateUpdated?.();
       vi.advanceTimersByTime(1500);
     });
-    expect(screen.getByTestId('left-page')).toHaveTextContent('memory-idle');
+    expect(screen.queryByText('正在记录记忆…')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('send'));
     expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
@@ -342,7 +341,7 @@ describe('ChatPage', () => {
       return vi.fn();
     });
 
-    render(<ChatPage />);
+    renderChatPage();
 
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
@@ -373,7 +372,7 @@ describe('ChatPage', () => {
       currentSessionId: 'session-1',
       memoryRefreshTick: 0,
     });
-    render(<ChatPage />);
+    renderChatPage();
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
     fireEvent.click(screen.getByText('impersonate'));
@@ -406,7 +405,7 @@ describe('ChatPage', () => {
     });
     mocks.regenerate.mockImplementation(() => vi.fn());
 
-    render(<ChatPage />);
+    renderChatPage();
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
     fireEvent.click(screen.getByText('edit-assistant'));
