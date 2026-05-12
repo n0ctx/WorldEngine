@@ -30,7 +30,10 @@ export { default as SortableGrid }    from './ui/SortableGrid';
 // — Blocks 结构模式 —
 export { default as BackButton }      from './blocks/BackButton';
 
-// — Book 专属 —
+// — classic-parchment shell — 详见 frontend/src/shells/README.md
+// 下列组件被视为 classic-parchment shell 的实现细节；目前为迁移安全保留在
+// components/book/ 下，TopBar 与 PageTransition 已迁入 shell，旧路径仅做兼容
+// 再导出。新代码请通过 shell 入口或本 barrel 引用，禁止深入 shell 内部路径。
 export { default as BookSpread }          from './book/BookSpread';
 export { default as Bookmark }            from './book/Bookmark';
 export { default as NearbyPanel }         from './book/NearbyPanel';
