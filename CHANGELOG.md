@@ -1,8 +1,11 @@
+- refactor(backend): 抽出后端应用编排层，瘦身 `backend/routes/chat.js` 与 `backend/routes/writing.js`。新增 `backend/app/chat/`、`backend/app/writing/`、`backend/app/shared/`，把主流式生成、continue、regenerate/rollback、post-generation task builder 和 postgen/stream 骨架从 route 中迁出；route 现在主要保留参数校验、存在性检查、SSE/response 接线与轻控制器逻辑。共享层只收敛 stream lifecycle、收尾持久化、post-gen 调度与 rollback 骨架，chat/writing 语义差异（world/character vs writing nearby、chapter title、writing configScope 等）仍保留在各自 orchestrator。验证：`npm run lint --prefix backend`，`npm run test --prefix backend`。
+
 # Changelog
 
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- fix(assistant): 恢复写卡助手输入框的高度上限，避免长文本把固定高度抽屉挤坏。`assistant/client/InputBox.jsx` 的自动增高重新改回 `Math.min(scrollHeight, 120)`，并恢复 `max-h-[120px] + overflow-y-auto`，让输入框在 120px 内自适应、超过后在内部滚动，不再把消息列表和发送/停止按钮挤出视口。验证：在写卡助手里粘贴多段长文本，输入框增长到约 120px 后停止继续扩张，消息列表仍保持可见，发送/停止按钮不被顶出面板。
 - style(assistant): 写卡助手两处微调。① 任务计划条目（`.we-asst-entry--plan`）和工具调用条目（`.we-asst-entry--tool` / `--tool-running`）去掉左侧朱砂/灰色竖线锚点（`::before` 改为 `display:none`），与图卡视觉对齐避免重复强调；② 输入框 textarea 改为完全自适应高度，移除 `max-h-[120px]` 上限与 `we-assistant-scroll` 滚动条样式，`overflow-hidden` 防止过渡帧出现滚动条，`useEffect` 中 `style.height = scrollHeight + 'px'` 不再 clamp。验证：在 `/characters/:id/chat` 打开写卡助手，多次 Shift+Enter 换行时输入框应同步加高、不出现滚动条；任务计划卡片左侧无朱砂细线。
 
 - style(assistant): 写卡助手输入框 textarea 的滚动条复用 `.we-assistant-scroll` 羊皮纸样式（4px 宽、`--we-paper-shadow` 拇指、透明轨道），与上方消息列表保持一致。原先 macOS 系统默认深色竖条不再出现。`assistant/client/InputBox.jsx` 给 textarea 加上该 class，其余样式不动。验证：在 `/characters/:id/chat` 打开写卡助手，向输入框粘贴多行文本至超过 max-h(120px) 时，右侧滚动条应为细窄陶土色而非系统深色。
