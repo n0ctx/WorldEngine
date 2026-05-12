@@ -21,9 +21,9 @@ import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import StateValueField from '../components/state/StateValueField';
-import EditPageShell from '../components/ui/EditPageShell';
+import EditPageShell from '../components/edit/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
-import AvatarUpload from '../components/ui/AvatarUpload';
+import AvatarUpload from '../components/edit/AvatarUpload';
 import { log } from '../utils/logger.js';
 
 export default function PersonaEditPage() {

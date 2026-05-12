@@ -1,24 +1,24 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import StatusSection from '../state/StatusSection.jsx';
-import PanelCard from '../ui/PanelCard.jsx';
+import StatusSection from '../../../components/state/StatusSection.jsx';
+import PanelCard from '../../../components/ui/PanelCard.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
-import SectionTabs from '../ui/SectionTabs.jsx';
-import { getWorld } from '../../api/worlds.js';
-import { getConfig } from '../../api/config.js';
+import SectionTabs from '../../../components/ui/SectionTabs.jsx';
+import { getWorld } from '../../../api/worlds.js';
+import { getConfig } from '../../../api/config.js';
 import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   patchSessionStateValue,
-} from '../../api/session-state-values.js';
-import { fetchDiaryContent } from '../../api/daily-entries.js';
-import { useSessionState } from '../../hooks/useSessionState.js';
-import { fetchNearby, setNearbySaved, removeNearby } from '../../api/session-nearby.js';
-import { log } from '../../utils/logger.js';
+} from '../../../api/session-state-values.js';
+import { fetchDiaryContent } from '../../../api/daily-entries.js';
+import { useSessionState } from '../../../hooks/useSessionState.js';
+import { fetchNearby, setNearbySaved, removeNearby } from '../../../api/session-nearby.js';
+import { log } from '../../../utils/logger.js';
 
 const MotionDiv = motion.div;
 const DIARY_TIME_FIELD_KEY = 'diary_time';

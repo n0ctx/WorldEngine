@@ -65,9 +65,9 @@ vi.mock('../../src/components/ui/Select', () => ({ default: () => <div /> }));
 vi.mock('../../src/components/ui/SectionTabs.jsx', () => ({
   default: ({ sections }) => <div>{sections.map((section) => <div key={section.key}>{section.content}</div>)}</div>,
 }));
-vi.mock('../../src/components/ui/SealStampAnimation.jsx', () => ({ default: () => null }));
+vi.mock('../../src/pages/CharacterEditPage/components/SealStampAnimation.jsx', () => ({ default: () => null }));
 
-import CharacterEditPage from '../../src/pages/CharacterEditPage.jsx';
+import CharacterEditPage from '../../src/pages/CharacterEditPage/index.jsx';
 
 describe('CharacterEditPage', () => {
   beforeEach(() => {

@@ -1,4 +1,3 @@
-// frontend/src/components/ui/AvatarUpload.jsx
 export default function AvatarUpload({
   name,
   avatarUrl,

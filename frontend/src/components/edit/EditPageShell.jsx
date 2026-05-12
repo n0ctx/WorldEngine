@@ -1,4 +1,3 @@
-// frontend/src/components/ui/EditPageShell.jsx
 import { useRef } from 'react';
 
 export default function EditPageShell({

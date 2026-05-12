@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { syncDiaryTimeField } from '../api/world-state-fields.js';
-import { useAppModeStore } from '../store/appMode.js';
-import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
-import { refreshCustomCss } from '../api/custom-css-snippets.js';
-import { getConfig } from '../api/config.js';
-import { useDisplaySettingsStore } from '../store/displaySettings.js';
-import { getPersona, getPersonaById } from '../api/personas.js';
-import useStore from '../store/index.js';
+import { syncDiaryTimeField } from '../../api/world-state-fields.js';
+import { useAppModeStore } from '../../store/appMode.js';
+import { SETTINGS_MODE } from '../../components/settings/SettingsConstants';
+import { refreshCustomCss } from '../../api/custom-css-snippets.js';
+import { getConfig } from '../../api/config.js';
+import { useDisplaySettingsStore } from '../../store/displaySettings.js';
+import { getPersona, getPersonaById } from '../../api/personas.js';
+import useStore from '../../store/index.js';
 import {
   listWritingSessions,
   createWritingSession,
@@ -19,20 +19,20 @@ import {
   editWritingAssistantMessage,
   impersonateWriting,
   retitleWritingSession,
-} from '../api/writing-sessions.js';
-import { getChapterTitles, updateChapterTitle, retitleChapter } from '../api/chapter-titles.js';
-import { deleteMessage as deleteMessageApi, getSession } from '../api/sessions.js';
-import PageLayout from '../core/layout/PageLayout.jsx';
-import NearbyPanel from '../components/writing/NearbyPanel.jsx';
-import MessageList from '../components/chat/MessageList.jsx';
-import InputBox from '../components/chat/InputBox.jsx';
-import WritingSessionList from '../components/writing/WritingSessionList.jsx';
-import LongTermMemoryModal from '../components/session/LongTermMemoryModal.jsx';
-import Icon from '../components/ui/Icon.jsx';
+} from '../../api/writing-sessions.js';
+import { getChapterTitles, updateChapterTitle, retitleChapter } from '../../api/chapter-titles.js';
+import { deleteMessage as deleteMessageApi, getSession } from '../../api/sessions.js';
+import PageLayout from '../../core/layout/PageLayout.jsx';
+import NearbyPanel from './components/NearbyPanel.jsx';
+import MessageList from '../../components/chat/MessageList.jsx';
+import InputBox from '../../components/chat/InputBox.jsx';
+import WritingSessionList from './components/WritingSessionList.jsx';
+import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
+import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
-import { log } from '../utils/logger.js';
-import { writingSessionListBridge } from '../utils/session-list-bridge.js';
-import { parseNextPromptStream } from '../utils/next-prompt.js';
+import { log } from '../../utils/logger.js';
+import { writingSessionListBridge } from '../../utils/session-list-bridge.js';
+import { parseNextPromptStream } from '../../utils/next-prompt.js';
 
 function parseContinuationText(text) {
   const { display, options } = parseNextPromptStream(text);

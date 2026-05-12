@@ -10,7 +10,7 @@ import { useDisplaySettingsStore } from '../../store/displaySettings.js';
 import { applyRules } from '../../utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
-import InterruptedMark from '../ui/InterruptedMark.jsx';
+import InterruptedMark from '../chat/InterruptedMark.jsx';
 
 const MotionDiv = motion.div;
 

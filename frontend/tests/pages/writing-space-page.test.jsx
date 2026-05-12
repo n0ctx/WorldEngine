@@ -82,8 +82,8 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/writing/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
-vi.mock('../../src/components/writing/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
+vi.mock('../../src/pages/WritingSpacePage/components/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
+vi.mock('../../src/pages/WritingSpacePage/components/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
@@ -114,7 +114,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 }));
 import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
 import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
-import WritingSpacePage from '../../src/pages/WritingSpacePage.jsx';
+import WritingSpacePage from '../../src/pages/WritingSpacePage/index.jsx';
 
 const renderWritingSpacePage = () =>
   render(

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import Icon from '../ui/Icon.jsx';
-import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../api/writing-sessions.js';
-import { renameSession } from '../../api/sessions.js';
-import { log } from '../../utils/logger.js';
-import { writingSessionListBridge } from '../../utils/session-list-bridge.js';
+import Icon from '../../../components/ui/Icon.jsx';
+import { listWritingSessions, createWritingSession, deleteWritingSession } from '../../../api/writing-sessions.js';
+import { renameSession } from '../../../api/sessions.js';
+import { log } from '../../../utils/logger.js';
+import { writingSessionListBridge } from '../../../utils/session-list-bridge.js';
 
 function formatDate(ts) {
   const d = new Date(ts);

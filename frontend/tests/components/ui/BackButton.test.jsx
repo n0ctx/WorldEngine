@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import BackButton from '../../../src/components/blocks/BackButton.jsx';
+import BackButton from '../../../src/components/ui/BackButton.jsx';
 
 describe('BackButton', () => {
   it('默认 label "返回" 快照', () => {

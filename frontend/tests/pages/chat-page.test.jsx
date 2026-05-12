@@ -83,7 +83,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/session/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
+vi.mock('../../src/pages/ChatPage/components/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));
@@ -105,7 +105,7 @@ vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options
 
 import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
 import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
-import ChatPage from '../../src/pages/ChatPage.jsx';
+import ChatPage from '../../src/pages/ChatPage/index.jsx';
 
 const renderChatPage = () =>
   render(

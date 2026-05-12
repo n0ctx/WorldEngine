@@ -3,11 +3,11 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../api/worlds';
 
 import StateFieldList from '../components/state/StateFieldList';
-import AvatarUpload from '../components/ui/AvatarUpload';
+import AvatarUpload from '../components/edit/AvatarUpload';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import SectionTabs from '../components/ui/SectionTabs.jsx';
-import EditPageShell from '../components/ui/EditPageShell';
+import EditPageShell from '../components/edit/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import {
   listWorldStateFields, createWorldStateField,

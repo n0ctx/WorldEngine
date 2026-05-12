@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import ModalShell from '../ui/ModalShell.jsx';
+import ModalShell from '../../../components/ui/ModalShell.jsx';
 import {
   analyzeNearbyForCard,
   createCharacterFromNearby,
-} from '../../api/session-nearby.js';
-import { log } from '../../utils/logger.js';
+} from '../../../api/session-nearby.js';
+import { log } from '../../../utils/logger.js';
 
 /**
  * 制卡 Modal — 两步流程

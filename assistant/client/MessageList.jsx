@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import PlanDocViewer from '../../frontend/src/components/assistant/PlanDocViewer.jsx';
+import PlanDocViewer from './PlanDocViewer.jsx';
 import { stripToolCallLeakage } from './useAssistantStore.js';
 
 const TOOL_LABELS = {

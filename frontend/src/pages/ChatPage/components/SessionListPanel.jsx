@@ -1,11 +1,11 @@
 /* DESIGN.md §5.3 — 左页会话列表面板（无 Tab） */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Icon from '../ui/Icon.jsx';
+import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
-import SessionItem from '../chat/SessionItem.jsx';
-import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../api/sessions.js';
-import { log } from '../../utils/logger.js';
-import { chatSessionListBridge } from '../../utils/session-list-bridge.js';
+import SessionItem from '../../../components/chat/SessionItem.jsx';
+import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../../api/sessions.js';
+import { log } from '../../../utils/logger.js';
+import { chatSessionListBridge } from '../../../utils/session-list-bridge.js';
 
 const PAGE_SIZE = 20;
 
