@@ -42,7 +42,7 @@ export default function InputBox({ value, onChange, onSend, onStop, disabled = f
         disabled={disabled}
         placeholder={disabled ? '任务已结束，点击「清空」开始新任务' : 'Enter 发送，Shift+Enter 换行'}
         rows={1}
-        className={`min-h-[36px] max-h-[120px] flex-1 resize-none rounded border border-black/15 bg-white px-3 py-1.5 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-black/5`}
+        className={`min-h-[36px] max-h-[120px] flex-1 resize-none rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-paper-base)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-[var(--we-paper-aged)]`}
         style={{ fontFamily: 'var(--we-font-body)' }}
       />
       {isStreaming ? (
@@ -50,7 +50,7 @@ export default function InputBox({ value, onChange, onSend, onStop, disabled = f
           type="button"
           onClick={onStop}
           aria-label="停止生成"
-          className="h-9 min-w-[52px] flex-shrink-0 rounded border border-[var(--we-vermilion)] bg-white px-3 text-[13px] italic text-[var(--we-vermilion)] transition-opacity hover:bg-[var(--we-vermilion)]/10"
+          className="h-9 min-w-[52px] flex-shrink-0 rounded-[var(--we-radius-sm)] border border-[var(--we-vermilion)] bg-[var(--we-paper-base)] px-3 text-[13px] italic text-[var(--we-vermilion)] transition-opacity hover:bg-[var(--we-vermilion)]/10"
           style={{ fontFamily: 'var(--we-font-display)' }}
         >
           停止
@@ -60,7 +60,7 @@ export default function InputBox({ value, onChange, onSend, onStop, disabled = f
           type="button"
           onClick={onSend}
           disabled={sendDisabled}
-          className="h-9 min-w-[52px] flex-shrink-0 rounded bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
+          className="h-9 min-w-[52px] flex-shrink-0 rounded-[var(--we-radius-sm)] bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
           style={{ fontFamily: 'var(--we-font-display)' }}
         >
           发送

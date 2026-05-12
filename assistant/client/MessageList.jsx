@@ -1,18 +1,15 @@
 /**
- * 写卡助手消息列表（单接口模型）
+ * 写卡助手消息列表 — 卷宗条目（Scroll Entries）
  *
- * 仅渲染 user / assistant / error 三类消息；
- * 计划进度由 PlanDocViewer 单独承载，本组件不再处理 routing/proposal/task 卡。
+ * 所有消息（user / assistant / step / tool_call / plan_doc / error）共用同一卡片原子
+ * `.we-asst-entry`，通过左侧细竖线区分语义；不再用气泡 + 紧凑工具条混排。
  *
- * 交互恢复（批 A）：
- *   - 气泡入场动效（we-bubble-in）
- *   - typing dots（流式开始 + 首字未到时）
+ * 交互保留：
+ *   - 入场动效（we-bubble-in）
  *   - 流式光标（首字到达后）
- *   - hover 显示按钮：
- *       user      → 复制 / 编辑 / 删除
- *       assistant → 复制 / 重新生成 / 删除
- *   - 编辑 user 消息确认后自动重新生成（由 AssistantPanel 的 onEdit 实现）
- *   - 删除采用两段确认（首次"确认？"，2 秒内再次点击才真正删除）
+ *   - hover 显示按钮：user → 复制/编辑/删除；assistant → 复制/重新生成/删除
+ *   - 编辑 user 消息确认后自动重新生成（由 AssistantPanel.handleEdit 实现）
+ *   - 删除两段确认（首次"确认？"，2 秒内再次点击才真正删除）
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -38,8 +35,13 @@ const TOOL_LABELS = {
   finalize_task: '完成任务',
 };
 
+const STATUS_TEXT = {
+  running: '运行中…',
+  done: '已完成',
+  error: '失败',
+};
+
 function parseStreamingBlocks(rawText) {
-  // 先剥掉模型在普通文本流里泄漏的工具调用 token / XML，再走思考块解析
   const text = stripToolCallLeakage(rawText);
   const blocks = [];
   const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
@@ -72,84 +74,38 @@ function parseStreamingBlocks(rawText) {
   return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
 }
 
-function ThinkBlock({ content, open = false }) {
-  const [expanded, setExpanded] = useState(true);
+function previewLine(text) {
+  const flat = (text || '').replace(/\s+/g, ' ').trim();
+  return flat.length > 80 ? `${flat.slice(0, 78)}…` : flat;
+}
+
+function ThinkLine({ content, open = false }) {
+  const [expanded, setExpanded] = useState(false);
+  const preview = previewLine(content) || '思考中…';
   return (
-    <div className="we-think-block">
+    <div>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
         aria-expanded={expanded}
-        className="we-think-block-toggle"
+        aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
+        className="we-asst-think-line"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className={`we-think-block-chevron${expanded ? ' we-think-block-chevron--expanded' : ''}`}
-        >
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-        思考过程{open && <span className="we-think-block-dots">…</span>}
+        <span className="we-asst-think-line__mark" aria-hidden="true">◦</span>
+        <span className="we-asst-think-line__label">思考</span>
+        {!expanded && (
+          <span className="we-asst-think-line__preview">
+            {preview}
+            {open && '…'}
+          </span>
+        )}
       </button>
-      <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
-        <div className="we-think-block-body-inner">
-          <div className="we-think-block-body">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-          </div>
+      {expanded && (
+        <div className="we-asst-think-line__body">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
-      </div>
+      )}
     </div>
-  );
-}
-
-function SimpleMarkdown({ content }) {
-  if (!content) return null;
-  return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        p: ({ children }) => <p className="my-1 break-words leading-relaxed">{children}</p>,
-        h1: ({ children }) => <h1 className="my-1 text-[14px] font-semibold">{children}</h1>,
-        h2: ({ children }) => <h2 className="my-1 text-[13px] font-semibold">{children}</h2>,
-        h3: ({ children }) => <h3 className="my-1 text-[12px] font-semibold">{children}</h3>,
-        ul: ({ children }) => <ul className="my-1 list-disc pl-5">{children}</ul>,
-        ol: ({ children }) => <ol className="my-1 list-decimal pl-5">{children}</ol>,
-        li: ({ children }) => <li className="mb-0.5 leading-snug">{children}</li>,
-        code: ({ inline, children }) =>
-          inline ? (
-            <code className="rounded bg-black/10 px-1 py-0.5 font-mono text-[11px]">{children}</code>
-          ) : (
-            <pre className="my-1 overflow-x-auto rounded bg-black/5 p-2 font-mono text-[11px]">
-              <code>{children}</code>
-            </pre>
-          ),
-        blockquote: ({ children }) => (
-          <blockquote className="my-1 border-l-2 border-[var(--we-vermilion)] pl-3 italic text-[var(--we-ink-muted)]">
-            {children}
-          </blockquote>
-        ),
-        hr: () => <hr className="my-2 border-t border-black/10" />,
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[var(--we-vermilion)] underline"
-          >
-            {children}
-          </a>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
   );
 }
 
@@ -159,9 +115,7 @@ function ActionBtn({ onClick, danger, children, ariaLabel }) {
       type="button"
       onClick={onClick}
       aria-label={ariaLabel}
-      className={`rounded border border-black/12 bg-transparent px-1.5 py-0.5 text-[11px] leading-tight transition-colors hover:bg-black/5 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--we-vermilion)] ${
-        danger ? 'text-[var(--we-vermilion)]' : 'text-[var(--we-ink-muted)]'
-      }`}
+      className={`we-asst-entry__action${danger ? ' we-asst-entry__action--danger' : ''}`}
     >
       {children}
     </button>
@@ -210,15 +164,17 @@ function DeleteBtn({ onDelete }) {
   );
 }
 
-function ActionBar({ children }) {
-  return (
-    <div className="mt-1 flex gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-      {children}
-    </div>
-  );
+function StatusDot({ status }) {
+  if (status === 'done') {
+    return <span className="we-asst-entry__dot we-asst-entry__dot--done" aria-label="已完成" />;
+  }
+  if (status === 'error') {
+    return <span className="we-asst-entry__dot we-asst-entry__dot--error" aria-label="失败" />;
+  }
+  return null;
 }
 
-function UserMessage({ msg, onEdit, onDelete }) {
+function UserEntry({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const taRef = useRef(null);
@@ -247,10 +203,10 @@ function UserMessage({ msg, onEdit, onDelete }) {
   }, [editing]);
 
   return (
-    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-end">
-      <div className={editing ? 'w-[85%]' : 'group flex max-w-[80%] flex-col items-end'}>
+    <div className="we-asst-row we-asst-row--user">
+      <div className="we-asst-bubble we-asst-bubble--user">
         {editing ? (
-          <div>
+          <>
             <textarea
               ref={taRef}
               value={draft}
@@ -270,25 +226,23 @@ function UserMessage({ msg, onEdit, onDelete }) {
                 }
               }}
               rows={2}
-              className="w-full resize-none rounded border border-[var(--we-vermilion)] bg-[var(--we-paper-base)] px-2 py-1.5 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none"
+              className="we-asst-bubble__edit"
             />
-            <div className="mt-1 flex justify-end gap-1">
+            <div className="we-asst-bubble__actions we-asst-bubble__actions--visible">
               <ActionBtn onClick={cancelEdit} ariaLabel="取消编辑">取消</ActionBtn>
               <ActionBtn onClick={confirmEdit} ariaLabel="确认编辑">确认</ActionBtn>
             </div>
-          </div>
+          </>
         ) : (
           <>
-            <div className="whitespace-pre-wrap break-words rounded-[12px_12px_2px_12px] bg-[var(--we-vermilion)] px-3 py-2 text-[13px] leading-relaxed text-white">
+            <div className="we-asst-bubble__body we-asst-bubble__body--pre">
               {msg.content}
             </div>
-            <ActionBar>
+            <div className="we-asst-bubble__actions">
               <CopyBtn getText={() => msg.content || ''} />
-              {onEdit && (
-                <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>
-              )}
+              {onEdit && <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>}
               {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
-            </ActionBar>
+            </div>
           </>
         )}
       </div>
@@ -296,126 +250,118 @@ function UserMessage({ msg, onEdit, onDelete }) {
   );
 }
 
-function AssistantMessage({ msg, onRegenerate, onDelete }) {
-  const hasExtraActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
+function AssistantEntry({ msg, onRegenerate, onDelete }) {
+  const blocks = msg.streaming && !msg.content
+    ? null
+    : parseStreamingBlocks(msg.content || '');
+  const hasActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
   return (
-    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
-      <div className="group max-w-[90%]">
-        <div
-          className={`rounded-[2px_12px_12px_12px] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] ${
-            msg.streaming && msg.content ? 'we-stream-bubble' : ''
-          }`}
-        >
-          {msg.streaming && !msg.content ? (
-            <div className="we-typing-dots">
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-              <span className="typing-dot" />
-            </div>
-          ) : (
-            parseStreamingBlocks(msg.content || '').map((block, i) =>
-              block.type === 'thinking' ? (
-                <ThinkBlock key={i} content={block.content} open={!!msg.streaming && block.open} />
-              ) : (
-                <SimpleMarkdown key={i} content={block.content} />
-              )
-            )
+    <div className="we-asst-row we-asst-row--assistant">
+      <div className="we-asst-bubble we-asst-bubble--assistant">
+        {blocks === null ? (
+          <div className="we-asst-bubble__body">
+            <span className="we-asst-entry__pending" aria-label="助手正在思考">
+              <span className="typing-dot typing-dot-accent" />
+              <span className="typing-dot typing-dot-accent" />
+              <span className="typing-dot typing-dot-accent" />
+            </span>
+          </div>
+        ) : (
+          blocks.map((block, i) =>
+            block.type === 'thinking' ? (
+              <ThinkLine key={i} content={block.content} open={!!msg.streaming && block.open} />
+            ) : (
+              <div key={i} className="we-asst-bubble__body">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
+              </div>
+            ),
+          )
+        )}
+        {msg.streaming && msg.content && (
+          <span className="we-asst-stream-cursor" aria-hidden="true" />
+        )}
+        <div className="we-asst-bubble__actions">
+          {!msg.streaming && msg.content && (
+            <CopyBtn getText={() => msg.content || ''} />
           )}
-          {!msg.streaming && (
-            <div className="mt-2 flex justify-end opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-              <CopyBtn getText={() => msg.content || ''} />
-            </div>
+          {hasActions && onRegenerate && msg.id && (
+            <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
+              重新生成
+            </ActionBtn>
+          )}
+          {hasActions && onDelete && msg.id && (
+            <DeleteBtn onDelete={() => onDelete(msg.id)} />
           )}
         </div>
-        {hasExtraActions && (
-          <ActionBar>
-            {onRegenerate && msg.id && (
-              <ActionBtn onClick={() => onRegenerate(msg.id)} ariaLabel="重新生成">
-                重新生成
-              </ActionBtn>
-            )}
-            {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
-          </ActionBar>
-        )}
       </div>
     </div>
   );
 }
 
-function ErrorMessage({ msg }) {
-  return (
-    <div className="my-2 animate-[we-bubble-in_0.2s_ease-out] rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
-      {msg.content}
-    </div>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-success)" />
-      <polyline
-        points="3.5,6 5,7.5 8.5,4"
-        stroke="var(--we-color-text-inverse)"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ErrorIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-      <circle cx="6" cy="6" r="5.5" fill="var(--we-color-status-danger)" />
-      <line x1="4" y1="4" x2="8" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
-      <line x1="8" y1="4" x2="4" y2="8" stroke="var(--we-color-text-inverse)" strokeWidth="1.4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function StatusIcon({ status }) {
-  if (status === 'running') return <span className="we-spinner flex-shrink-0" aria-label="执行中" />;
-  if (status === 'done') return <span className="flex-shrink-0" aria-label="完成"><CheckIcon /></span>;
-  return <span className="flex-shrink-0" aria-label="失败"><ErrorIcon /></span>;
-}
-
-function VerboseMessage({ msg }) {
+function ToolEntry({ msg }) {
   const isStep = msg.role === 'step';
-  const label = isStep
+  const title = isStep
     ? (msg.title ?? msg.stepId)
     : (TOOL_LABELS[msg.toolName] ?? msg.toolName);
   const isRunning = msg.status === 'running';
-  const isFailed = msg.status === 'error';
+  const isError = msg.status === 'error';
+  const sub = msg.subtitle ?? STATUS_TEXT[msg.status] ?? '';
+  const variantClass = isError
+    ? 'we-asst-entry--error'
+    : isRunning
+      ? 'we-asst-entry--tool-running'
+      : 'we-asst-entry--tool';
   return (
-    <div className="mb-1.5 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
-      <div
-        className={`flex items-center gap-2 rounded-[2px_12px_12px_12px] border px-3 py-1.5 transition-colors ${
-          isFailed
-            ? 'border-[var(--we-color-status-danger)]/40 bg-[var(--we-color-status-danger)]/5 text-[var(--we-color-status-danger)]'
-            : isRunning
-            ? 'border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-surface)] text-[var(--we-color-text-secondary)]'
-            : 'border-[var(--we-color-border-subtle)]/50 bg-[var(--we-color-bg-surface)]/40 text-[var(--we-color-text-tertiary)]'
-        }`}
-      >
-        <StatusIcon status={msg.status} />
-        <span className={isStep ? 'text-[12px] font-medium' : 'font-mono text-[11px]'}>
-          {label}
-        </span>
+    <div
+      className={`we-asst-entry ${variantClass}`}
+      role={isRunning ? 'status' : undefined}
+      aria-live={isRunning ? 'polite' : undefined}
+    >
+      <div className="we-asst-entry__head">
+        <span className="we-asst-entry__title">{title}</span>
+        {sub && <span className="we-asst-entry__sub">{sub}</span>}
+        <StatusDot status={msg.status} />
       </div>
     </div>
   );
 }
 
-function PendingBubble() {
+function ErrorEntry({ msg }) {
   return (
-    <div className="mb-2 flex animate-[we-bubble-in_0.2s_ease-out] justify-start">
-      <div className="rounded-[2px_12px_12px_12px] border border-black/10 bg-[var(--we-paper-aged)] px-3 py-2">
-        <div className="we-typing-dots" aria-label="助手正在思考">
-          <span className="typing-dot typing-dot-accent" />
-          <span className="typing-dot typing-dot-accent" />
-          <span className="typing-dot typing-dot-accent" />
+    <div className="we-asst-entry we-asst-entry--error" role="alert">
+      <div className="we-asst-entry__head">
+        <span className="we-asst-entry__title">出错</span>
+        <StatusDot status="error" />
+      </div>
+      <div className="we-asst-entry__body">{msg.content}</div>
+    </div>
+  );
+}
+
+function PlanEntry({ content }) {
+  return (
+    <div className="we-asst-entry we-asst-entry--plan">
+      <div className="we-asst-entry__head">
+        <span className="we-asst-entry__title">任务计划</span>
+      </div>
+      <div className="we-asst-entry__fleuron" aria-hidden="true">❦</div>
+      <div className="we-asst-entry__body">
+        <PlanDocViewer content={content} variant="plain" />
+      </div>
+    </div>
+  );
+}
+
+function PendingEntry() {
+  return (
+    <div className="we-asst-row we-asst-row--assistant" role="status" aria-label="助手正在思考">
+      <div className="we-asst-bubble we-asst-bubble--assistant">
+        <div className="we-asst-bubble__body">
+          <span className="we-asst-entry__pending">
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
+            <span className="typing-dot typing-dot-accent" />
+          </span>
         </div>
       </div>
     </div>
@@ -439,33 +385,30 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-6 text-center text-[13px] text-[var(--we-ink-muted)]">
-        <div
-          className="text-[14px] italic"
-          style={{ fontFamily: 'var(--we-font-display)' }}
-        >
-          写卡助手
-        </div>
-        <div className="max-w-[240px] text-[12px] leading-relaxed">
-          可以帮你写世界卡、角色卡、全局设置，或回答关于 WorldEngine 的问题
+      <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto">
+        <div className="we-asst-empty">
+          <div className="we-asst-empty__title">写卡助手</div>
+          <div className="we-asst-empty__hint">
+            可以帮你写世界卡、角色卡、全局设置，或回答关于 WorldEngine 的问题
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="we-assistant-scroll min-h-0 flex-1 overflow-y-auto px-3 py-3">
+    <div className="we-assistant-scroll we-asst-stream min-h-0 flex-1 overflow-y-auto">
       {messages.map((msg, i) => {
         const key = msg.id ?? `${msg.role}-${i}`;
         if (msg.role === 'step' || msg.role === 'tool_call') {
-          return <VerboseMessage key={key} msg={msg} />;
+          return <ToolEntry key={key} msg={msg} />;
         }
         if (msg.role === 'user') {
-          return <UserMessage key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
+          return <UserEntry key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
         }
         if (msg.role === 'assistant') {
           return (
-            <AssistantMessage
+            <AssistantEntry
               key={key}
               msg={msg}
               onRegenerate={onRegenerate}
@@ -473,11 +416,11 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
             />
           );
         }
-        if (msg.role === 'error') return <ErrorMessage key={key} msg={msg} />;
-        if (msg.role === 'plan_doc') return <PlanDocViewer key={key} content={msg.content} />;
+        if (msg.role === 'error') return <ErrorEntry key={key} msg={msg} />;
+        if (msg.role === 'plan_doc') return <PlanEntry key={key} content={msg.content} />;
         return null;
       })}
-      {pending && <PendingBubble />}
+      {pending && <PendingEntry />}
       <div ref={bottomRef} />
     </div>
   );

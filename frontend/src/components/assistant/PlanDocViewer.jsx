@@ -8,11 +8,10 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-export default function PlanDocViewer({ content }) {
+export default function PlanDocViewer({ content, variant = 'card' }) {
   if (!content) return null;
-  return (
-    <div className="we-plan-doc mx-3 my-2 rounded-lg bg-[var(--we-paper-aged)] p-3 text-[12px] leading-relaxed text-[var(--we-ink-primary)] ring-1 ring-black/10">
-      <ReactMarkdown
+  const inner = (
+    <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           input: ({ checked, type }) =>
@@ -68,9 +67,14 @@ export default function PlanDocViewer({ content }) {
             </a>
           ),
         }}
-      >
-        {content}
-      </ReactMarkdown>
+    >
+      {content}
+    </ReactMarkdown>
+  );
+  if (variant === 'plain') return inner;
+  return (
+    <div className="we-plan-doc mx-3 my-2 rounded-lg bg-[var(--we-paper-aged)] p-3 text-[12px] leading-relaxed text-[var(--we-ink-primary)] ring-1 ring-black/10">
+      {inner}
     </div>
   );
 }
