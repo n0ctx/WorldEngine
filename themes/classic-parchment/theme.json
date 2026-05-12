@@ -1,0 +1,12 @@
+{
+  "id": "classic-parchment",
+  "name": "羊皮纸",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "WorldEngine 默认书卷风主题。",
+  "preview": {
+    "paper": "#ede3d0",
+    "accent": "#a23b2e",
+    "ink": "#2a1f17"
+  }
+}

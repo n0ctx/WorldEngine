@@ -390,7 +390,7 @@ export default function ChatPage() {
       setCurrentOptions(finalOpts);
       requestAnimationFrame(() => {
         if (!mountedRef.current) return;
-        messageListRef.current?.scrollToBottom();
+        messageListRef.current?.scrollToBottom?.();
       });
     }
     pendingOptionsRef.current = [];
@@ -1000,7 +1000,7 @@ export default function ChatPage() {
           onStop={handleStop}
           generating={generating}
           impersonating={impersonating}
-          onScrollToBottom={() => messageListRef.current?.scrollToBottom()}
+          onScrollToBottom={() => messageListRef.current?.scrollToBottom?.()}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           onRetry={handleRetryLast}

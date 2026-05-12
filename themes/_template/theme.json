@@ -1,0 +1,12 @@
+{
+  "id": "my-theme",
+  "name": "我的主题",
+  "version": "1.0.0",
+  "author": "",
+  "description": "一句话说明主题风格。",
+  "preview": {
+    "paper": "#ede3d0",
+    "accent": "#a23b2e",
+    "ink": "#2a1f17"
+  }
+}

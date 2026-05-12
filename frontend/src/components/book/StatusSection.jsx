@@ -209,7 +209,6 @@ function isShortField(row) {
 export default function StatusSection({
   title,
   rows,
-  pinnedName,
   onReset,
   resetting,
   onSave,
@@ -224,9 +223,8 @@ export default function StatusSection({
   const [editingKey, setEditingKey] = useState(null);
 
   const isLoading = rows === null;
-  const hasName = pinnedName != null && pinnedName !== '';
   const hasRows = Array.isArray(rows) && rows.length > 0;
-  const isEmpty = !isLoading && !hasName && !hasRows;
+  const isEmpty = !isLoading && !hasRows;
 
   function handleCommit(row, valueJson) {
     setEditingKey(null);
@@ -239,12 +237,6 @@ export default function StatusSection({
       {isEmpty && <p className="we-section-empty">暂无数据</p>}
       {!isLoading && !isEmpty && (
         <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
-          {hasName && (
-            <div className={`we-status-field${gridLayout ? ' we-status-field--short' : ''}`} style={{ animationDelay: '0ms' }}>
-              <span className="we-status-key">姓名</span>
-              <span className="we-status-value">{applyTemplateVars(pinnedName, templateCtx)}</span>
-            </div>
-          )}
           {rows?.map((row, i) => {
             const type = row.field_type ?? row.type;
             const isManual = row.update_mode === 'manual';
@@ -260,7 +252,7 @@ export default function StatusSection({
                 <div
                   key={editKey}
                   className={`we-status-field we-status-field--table${fieldExtra}`}
-                  style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
+                  style={{ animationDelay: `${i * 45}ms` }}
                 >
                   <span className="we-status-key">{row.label}</span>
                   <StatusTable
@@ -289,7 +281,7 @@ export default function StatusSection({
               <div
                 key={editKey}
                 className={`we-status-field${fieldExtra}`}
-                style={{ animationDelay: `${(i + (hasName ? 1 : 0)) * 45}ms` }}
+                style={{ animationDelay: `${i * 45}ms` }}
               >
                 <span className="we-status-key">{row.label}</span>
                 {isEditing ? (

@@ -34,7 +34,7 @@
     }
   },
   "ui": {
-    "theme": "dark",
+    "theme": "classic-parchment",
     "font_size": 16,
     "custom_css": "",
     "show_thinking": true,

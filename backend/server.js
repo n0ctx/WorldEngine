@@ -30,6 +30,7 @@ import worldStateValuesRoutes from './routes/world-state-values.js';
 import characterStateValuesRoutes from './routes/character-state-values.js';
 import importExportRoutes from './routes/import-export.js';
 import customCssSnippetsRoutes from './routes/custom-css-snippets.js';
+import themesRoutes from './routes/themes.js';
 import regexRulesRoutes from './routes/regex-rules.js';
 import personasRoutes from './routes/personas.js';
 import personaStateFieldsRoutes from './routes/persona-state-fields.js';
@@ -164,6 +165,7 @@ export function createApp() {
   app.use('/api', characterStateValuesRoutes);
   app.use('/api', importExportRoutes);
   app.use('/api', customCssSnippetsRoutes);
+  app.use('/api', themesRoutes);
   app.use('/api', regexRulesRoutes);
   app.use('/api', personasRoutes);
   app.use('/api', personaStateFieldsRoutes);

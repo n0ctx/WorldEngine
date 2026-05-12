@@ -239,7 +239,6 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           gridLayout
           className="we-status-player"
           rows={stateData?.persona ?? null}
-          pinnedName={persona?.name}
           onSave={handleSavePersona}
           templateCtx={templateCtx}
         />

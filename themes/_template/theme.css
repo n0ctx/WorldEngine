@@ -1,0 +1,26 @@
+:root {
+  /* 基础纸面 */
+  --we-base-paper-100: #ede3d0;
+  --we-base-paper-200: #d9ccb0;
+  --we-base-paper-300: #c8b99a;
+  --we-base-paper-400: #b8a882;
+
+  /* 基础文字 */
+  --we-base-ink-900: #2a1f17;
+  --we-base-ink-700: #534236;
+  --we-base-ink-500: #6d5c4b;
+
+  /* 基础强调 */
+  --we-base-vermilion-600: #a23b2e;
+  --we-base-vermilion-800: #7c2a20;
+  --we-base-gold-600: #a0833f;
+  --we-base-gold-400: #c9a85a;
+
+  /* 状态与外层背景 */
+  --we-base-moss-600: #5c6b3a;
+  --we-base-amber-600: #8b5a1f;
+  --we-base-slate-600: #4a5568;
+  --we-base-book-bg: #4a3728;
+  --we-base-white: #ffffff;
+  --we-base-peach-200: #ffc8a0;
+}

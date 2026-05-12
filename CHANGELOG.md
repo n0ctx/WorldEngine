@@ -3,6 +3,20 @@
 > 每次任务完成后，在最上方追加一条记录。这是项目的"记忆"，给自己和 AI 看。  
 > 新开对话时让 Claude Code 先读此文件，了解项目现状。
 
+- style(characters): 移除激活玩家卡的 `personaActivate` 缩放动效。该动画绑定在 `.we-persona-card--active` 上，每次进入角色选择页（组件挂载）都会触发"跳一下"，干扰阅读。删除 `animation` 声明与 `@keyframes personaActivate`，激活态仅保留陶土色左边框与背景填充作为视觉标识。`frontend/src/styles/pages.css`。
+
+- fix(theme): 主题 CSS 加载失败不再被用户切换流程静默吞掉。`refreshThemeCss(id)` 默认会抛出 `/api/themes/:id/css` 的加载错误，仅应用启动路径显式传 `{ silent: true }` 保持核心样式兜底；设置页手动切换主题时先保存后加载 CSS，只有 CSS 注入和自定义 CSS 刷新成功后才更新本地 active 状态。若保存 active theme 后 CSS 加载失败，会尝试把后端 active theme 回滚到原主题并提示“切换失败”，避免设置页显示新主题、实际页面仍套旧 `<style id="we-theme-css">` 的不一致状态。验证：`npm --prefix frontend test -- --run src/api/__tests__/themes.test.js src/components/settings/__tests__/ThemeManager.test.jsx`。
+
+- docs(theme): 补齐 `themes/README.md` 与 `themes/_template/`，明确主题开发契约：主题只覆盖 `--we-*` token，不复制组件结构 CSS；未来修改前端组件时，新增视觉语义应先落在核心样式 / `tokens.css` 默认 token 层，主题会自动继承新界面，只有主题主动想改新 token 取值时才需要更新。默认羊皮纸内置主题目录/id 从 `parchment` 改为更明确的 `classic-parchment`，并在配置迁移中兼容旧 `dark` / `parchment` 值自动回落到新默认 id；主题扫描忽略 `_` 开头模板目录。
+
+- feat(theme): 引入前端主题包架构。新增根目录 `themes/classic-parchment/` 作为默认内置羊皮纸主题，用户导入主题落到 `data/themes/{id}/theme.json + theme.css`；`config.ui.theme` 默认值从旧 `dark` 迁移为 `classic-parchment`。后端新增 `/api/themes` 系列接口：列表、CSS、切换 active、JSON 主题包导入/导出、删除用户主题（内置主题拒绝删除）。前端新增 `api/themes.js` 与设置页「主题」入口，启动加载顺序固定为核心 CSS → 当前主题 `<style id="we-theme-css">` → 自定义 CSS `<style id="we-custom-css">`，切换主题后派发 `we:theme-updated` 并重新刷新自定义 CSS 以保持用户覆盖层最高优先级。同步更新 `SCHEMA.md` / `ARCHITECTURE.md` / `DESIGN.md` / `CLAUDE.md`。
+
+- fix(chat,writing): `parseNextPromptStream` 取 think 之外的**最后一个** `<next_prompt>` 作为切点，避免模型在正文中段先吐一次草稿就把后续正文一刀切掉。`frontend/src/utils/next-prompt.js`：`indexOf` → `lastIndexOf`；`findRawAnchor` 改为从原文末尾向前扫描，匹配 `stripThinkBlocks(prefix).length === idxInCleaned` 的位置。think 块内的 `<next_prompt>` 仍由 `stripThinkBlocks` 提前剥除，不参与匹配。验证：聊天/写作页生成消息，若模型 thinking 中草拟过 `<next_prompt>`、随后正文又输出真正的 `<next_prompt>`，正文显示完整无中段截断，选项按钮使用正文末尾那组。
+
+- refactor(book): 彻底移除 `StatusSection` 的 `pinnedName` 死代码。删除 props 解构项、`hasName` 派生与"姓名 | XXX"合成行；动画延时回归 `i * 45ms`。`pinnedName` 已无任何调用方，保留只会污染 API；如未来需要顶置展示名字，可在调用方自己组装字段行。
+
+- style(chat): 移除聊天页玩家 tab 顶部冗余的"姓名"合成行。`StatePanel.jsx` 的 playerTab 不再向 `StatusSection` 传 `pinnedName={persona?.name}`，与 NearbyPanel(写作页) 对齐——tab 标签本身已显示 persona 名字，不必在字段表里再钉一行。验证：访问 `/chat`，玩家 tab 不再出现"姓名 | XXX"行，下面直接是真实状态字段。
+
 - style(chat,writing): 去掉 tab 行 actions 下的章节细线与多余空白。`.we-state-panel/.we-cast-panel .we-section-tabs-bar` 移除 `border-bottom`；`.we-section-tabs-actions` 上下内边距由 `6px/6px` 收到 `4px/0`；`.we-state-panel/.we-cast-panel .we-panel-tab-body` 顶部 `padding` 由 `4px` 改为 `0`，让 tab 内容紧贴 actions 行。验证：访问 `/writing`/`/chat`，切到附近角色 tab，"+角色卡 制卡 取消"下方不再出现横线和大段留白。
 
 - style(chat,writing): 修复附近角色 tab 名字被挤成两行（如"王守寂"显示成"王守/寂"）的问题。`.we-section-tab` 补 `white-space: nowrap` + `flex-shrink: 0`，让 tab 保持完整单行宽度；溢出时由 `.we-section-tabs-list` 的 `overflow-x: auto` 接管出现横向拖动条；点击右侧 off-screen tab 时已有的 `scrollIntoView({inline:'nearest'})` 自然让拖动条向右跟移，反之亦然。验证：访问 `/writing`，附近角色超过 5–6 个时 tab 行出现横向滚动条，每个名字单行显示。

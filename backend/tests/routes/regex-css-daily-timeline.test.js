@@ -162,6 +162,53 @@ test('custom-css-snippets 完整 CRUD + reorder', async () => {
   assert.equal(del.status, 204);
 });
 
+// ─── themes ────────────────────────────────────────────────────────
+
+test('themes API 支持列表、切换、CSS、导入、导出、删除', async () => {
+  const list = await ctx.request('/api/themes');
+  assert.equal(list.status, 200);
+  const listed = await list.json();
+  assert.equal(listed.activeTheme, 'classic-parchment');
+  assert.ok(listed.themes.some((theme) => theme.id === 'classic-parchment' && theme.builtin));
+
+  const css = await ctx.request('/api/themes/classic-parchment/css');
+  assert.equal(css.status, 200);
+  assert.match(await css.text(), /--we-base-paper-100/);
+
+  const missingCss = await ctx.request('/api/themes/no-such/css');
+  assert.equal(missingCss.status, 404);
+
+  const imported = await ctx.request('/api/themes/import', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      format: 'worldengine-theme-v1',
+      theme: { id: 'route-theme', name: '路由主题', version: '1.0.0' },
+      css: ':root { --we-base-paper-100: white; }',
+    }),
+  });
+  assert.equal(imported.status, 201);
+
+  const switched = await ctx.request('/api/themes/active', {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: 'route-theme' }),
+  });
+  assert.equal(switched.status, 200);
+  assert.equal(ctx.sandbox.readConfig().ui.theme, 'route-theme');
+
+  const exported = await ctx.request('/api/themes/route-theme/export');
+  assert.equal(exported.status, 200);
+  const pkg = await exported.json();
+  assert.equal(pkg.format, 'worldengine-theme-v1');
+  assert.equal(pkg.theme.id, 'route-theme');
+
+  const deleteBuiltin = await ctx.request('/api/themes/classic-parchment', { method: 'DELETE' });
+  assert.equal(deleteBuiltin.status, 400);
+
+  const deleted = await ctx.request('/api/themes/route-theme', { method: 'DELETE' });
+  assert.equal(deleted.status, 204);
+  assert.equal(ctx.sandbox.readConfig().ui.theme, 'classic-parchment');
+});
+
 // ─── daily-entries ──────────────────────────────────────────────────
 
 test('GET /api/sessions/:sessionId/daily-entries 列表与 404', async () => {

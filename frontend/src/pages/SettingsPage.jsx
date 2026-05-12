@@ -9,6 +9,7 @@ import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
 import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
+import ThemeManager from '../components/settings/ThemeManager.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../components/settings/SettingsConstants';
 
 export default function SettingsPage() {
@@ -139,6 +140,12 @@ export default function SettingsPage() {
               <h2 className="we-settings-section-title">自定义 CSS</h2>
               <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
               <CustomCssManager settingsMode={settingsMode} />
+            </div>
+          )}
+          {activeSection === NAV_KEY.THEME && (
+            <div className="we-settings-section">
+              <h2 className="we-settings-section-title">主题</h2>
+              <ThemeManager />
             </div>
           )}
           {activeSection === NAV_KEY.REGEX && (

@@ -52,11 +52,12 @@ export function createTestConfig(patch = {}) {
       model: '',
     },
     ui: {
-      theme: 'dark',
+      theme: 'classic-parchment',
       font_size: 16,
       custom_css: '',
       show_thinking: true,
       auto_collapse_thinking: true,
+      show_token_usage: false,
     },
     context_history_rounds: 3,
     global_system_prompt: '',

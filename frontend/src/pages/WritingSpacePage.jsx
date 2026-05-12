@@ -921,7 +921,7 @@ export default function WritingSpacePage() {
               lastUserContent=""
               worldId={worldId}
               mode="writing"
-              onScrollToBottom={() => messageListRef.current?.scrollToBottom()}
+              onScrollToBottom={() => messageListRef.current?.scrollToBottom?.()}
               onContinue={handleContinue}
               onImpersonate={handleImpersonate}
               onTitle={handleRetitle}

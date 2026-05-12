@@ -5,6 +5,7 @@ import PageTransition from './components/book/PageTransition.jsx';
 import GlobalToast from './components/ui/GlobalToast.jsx';
 import { refreshCustomCss } from './api/custom-css-snippets';
 import { getConfig } from './api/config';
+import { DEFAULT_THEME_ID, refreshThemeCss } from './api/themes.js';
 import { useDisplaySettingsStore } from './store/displaySettings';
 import { useAppModeStore } from './store/appMode';
 import { invalidateCache, loadRules } from './utils/regex-runner.js';
@@ -47,11 +48,13 @@ export default function App() {
   const [assistantLoaded, setAssistantLoaded] = useState(false);
 
   useEffect(() => {
-    refreshCustomCss('chat');
     getConfig().then((c) => {
       setShowThinking(c.ui?.show_thinking !== false);
       setAutoCollapseThinking(c.ui?.auto_collapse_thinking !== false);
       setShowTokenUsage(c.ui?.show_token_usage === true);
+      return refreshThemeCss(c.ui?.theme || DEFAULT_THEME_ID, { silent: true });
+    }).then(() => {
+      return refreshCustomCss('chat');
     }).catch(() => {});
   }, [setAutoCollapseThinking, setShowThinking, setShowTokenUsage]);
 

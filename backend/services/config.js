@@ -23,6 +23,15 @@ const DEFAULT_ASSISTANT = {
   model_source: 'main',
 };
 
+const DEFAULT_UI = {
+  theme: 'classic-parchment',
+  font_size: 16,
+  custom_css: '',
+  show_thinking: true,
+  auto_collapse_thinking: true,
+  show_token_usage: false,
+};
+
 const DEFAULT_CONFIG = {
   version: 1,
   proxy_url: '',
@@ -43,13 +52,7 @@ const DEFAULT_CONFIG = {
     base_url: '',
     model: 'text-embedding-3-small',
   },
-  ui: {
-    theme: 'dark',
-    font_size: 16,
-    custom_css: '',
-    show_thinking: true,
-    auto_collapse_thinking: true,
-  },
+  ui: structuredClone(DEFAULT_UI),
   context_history_rounds: 10,
   global_system_prompt: '',
   global_post_prompt: '',
@@ -254,6 +257,17 @@ export function getConfig() {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
   }
 
+  if (!config.ui || typeof config.ui !== 'object') {
+    config.ui = structuredClone(DEFAULT_UI);
+    dirty = true;
+  } else {
+    config.ui = { ...DEFAULT_UI, ...config.ui };
+    if (config.ui.theme === 'dark' || config.ui.theme === 'parchment') {
+      config.ui.theme = DEFAULT_UI.theme;
+      dirty = true;
+    }
+  }
+
   // 补全 writing 命名空间（旧配置文件无此字段）
   if (!config.writing || typeof config.writing !== 'object') {
     config.writing = structuredClone(DEFAULT_WRITING);
@@ -315,6 +329,10 @@ export function getConfig() {
     config.assistant = structuredClone(DEFAULT_ASSISTANT);
   } else {
     config.assistant = { ...DEFAULT_ASSISTANT, ...config.assistant };
+  }
+
+  if (dirty) {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
   }
 
   return config;
