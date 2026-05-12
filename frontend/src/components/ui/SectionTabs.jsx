@@ -101,8 +101,11 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
           {globalActions && (
             <span className="we-section-tabs-globals">{globalActions}</span>
           )}
+          {!globalActions && current?.actions && (
+            <span className="we-section-tabs-globals">{current.actions}</span>
+          )}
         </div>
-        {current?.actions && (
+        {globalActions && current?.actions && (
           <div className="we-section-tabs-actions">{current.actions}</div>
         )}
       </div>

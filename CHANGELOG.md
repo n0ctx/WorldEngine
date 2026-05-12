@@ -1,3 +1,23 @@
+- style(frontend): 去掉可编辑字段值的金色虚线下划线。`.we-status-editable` 移除 `border-bottom: 1px dashed`，仅保留 hover 时颜色由 ink-secondary → color-gold 的提示；点击编辑入口仍可发现（依赖 hover 颜色 + 现有 hover 提示气泡）。
+
+- fix(frontend): writing 右栏 actions 浮动定位锚点修正。`.we-cast-card .we-section-tabs-bar` 改为 `position: relative`，`.we-section-tabs-actions` 由 `top: 38px`（相对 cast-card）改为 `top: calc(100% + 14px)`（相对 tabs-bar 底部 + content 上 padding 14px ≈ 人设 label 顶部），让 chip 与"人设"首行对齐。
+
+- style(frontend): writing 右栏取消第二行 actions，浮到 tab 内容右上角。`.we-cast-card { position: relative }`，`.we-section-tabs-bar > .we-section-tabs-actions` 改 `position: absolute; top: 38px; right: 0`，与首字段同行（附近角色第一行恒为 `人设`，玩家首字段强制全宽：`.we-cast-card .we-status-player .we-fields-list--grid > *:first-child { grid-column: 1 / -1 }`，并在 `NearbyPanel.jsx` 给 player StatusSection 补 `className="we-status-player"` 让规则命中）。chat StatePanel 走的是 inline globalActions slot 路径，未渲染 `.we-section-tabs-actions`，不受新规则影响。
+
+- style(frontend): chat 右栏「重置」chip 上移到 tab 行同行。`SectionTabs.jsx` 增加 fallback：当未传 `globalActions` 时（chat 场景），per-tab `actions` 自动渲染到 tabs 行右侧的 `we-section-tabs-globals` 位，第二行 `we-section-tabs-actions` 不再生成；writing 场景仍有 `globalActions=+`，per-tab actions 维持第二行行为不变。视觉效果：chat 玩家/角色 tab 行末尾出现「重置」chip，原独占行删除。
+
+- style(frontend): 角色 tab 行的全局 `+` 按钮去框透明化。`.we-panel-card-action--icon` 追加 `border-color: transparent` 与 `background: transparent`（含 hover 态），让仅图标的 chip（当前仅 NearbyPanel `+` 按钮使用）显示为裸图标，颜色仍走 chip 的 `--we-ink-faded → --we-vermilion` hover 切换。
+
+- style(frontend): 世界卡标题与角色 tab 行下方采用同款柔化渐变分隔线。`.we-panel-card--flush > .we-panel-card-header` 改为 `background-image: linear-gradient(...)` 1px 渐变（两端淡出），代替原 `border-bottom: 1px solid`；`.we-cast-card .we-section-tabs-bar` 追加同款渐变分隔线 + `padding-bottom: 4px`，让人名行（玩家/角色/日记 tabs）下方也有一致的横线视觉。颜色仍走 `--we-paper-shadow`，未引入新色。
+
+- style(frontend): 缩小世界卡下方留白。`.we-state-panel .we-panel-tab-body` / `.we-cast-panel .we-panel-tab-body` padding 由 `0 0 12px` 改为 `0`，让世界框与 fleuron 之间的间距收敛到 fleuron 自身的 8px margin。
+
+- style(frontend): 右栏中间 fleuron 分隔线居中并对齐卡片边界。`.we-state-panel .we-cast-fleuron` / `.we-cast-panel .we-cast-fleuron` margin 由 `6px 12px 8px` 改为 `8px 0`，上下间距相等，左右与上下卡片边框平齐。
+
+- style(frontend): 收紧 chat/writing 右栏世界/角色卡左右留白。`.we-state-panel .we-panel-tab-body` / `.we-cast-panel .we-panel-tab-body` 横向 padding 由 `0 12px 12px` 改为 `0 0 12px`；`.we-cast-card` margin 由 `0 12px` 改为 `0`。横向缩进收敛为仅 scroll 容器的 14px，整体看更紧凑。验证：`/chat?session=…` 与 `/writing?session=…` 世界框/角色框左右留白比之前小。
+
+- style(frontend): 微调 chat 右栏世界卡视觉。①`.we-state-scroll` 追加 `padding: 14px`，让 chat StatePanel 顶部不再贴顶（与 writing `.we-cast-scroll` 一致）；同时让 `.we-world-frame` 与 `.we-cast-card` 在两个页面下的横向缩进对齐。②`.we-world-frame` / `.we-cast-card` 圆角由 `--we-radius-md`(8px) 降到 `--we-radius-sm`(6px)，与写卡助手气泡 `.we-asst-bubble--*` 对齐；追加 `--we-shadow-paper-lift` 环绕阴影。改动只触 `frontend/src/index.css`，未触主题层与组件结构。验证：`/chat?session=…` 右栏顶部留白且与 `/writing?session=…` 视觉一致；世界框与下方角色框圆角和阴影同步。
+
 - fix(assistant): 修复写卡助手任务恢复的两个回归。`assistant/server/tools/meta/runtime.js` 现在会在每个 step 收尾同时消费 `takeUserMessages()` 和 `consumePauseAfterCurrentStep()`；因此最后一个 SSE 订阅者断开后，`task-store.js` 写下的 `pauseRequested` 不再是死标记，任务会在当前 step 结束后真实切到 `paused`，后续重连可从稳定断点恢复。前端 `assistant/client/AssistantPanel.jsx` 不再把 `completed` 当成输入禁用态，保留已完成任务的恢复快照同时允许用户直接继续发送下一条消息；`InputBox.jsx` 的终态占位文案同步改为只覆盖不可续聊的 `failed/cancelled`。补充测试：`assistant/tests/task-store.test.js` 覆盖断连置 pause 标记，`assistant/tests/parent-agent.test.mjs` 覆盖 step 收尾消费该标记并发出 `paused`。同步 `ARCHITECTURE.md`。验证：`node --test assistant/tests/task-store.test.js assistant/tests/parent-agent.test.mjs`。
 
 - chore(frontend/assistant): 清理上次分类 pass 的残留风险。①`frontend/src/pages/WorldBuildPage.jsx` 与 `frontend/tests/pages/world-build-page.test.jsx` 物理删除（AppRoot 路由不含它，老 CHANGELOG-archive 也确认 `/build → /config` 已重定向覆盖，仅剩孤立测试在跑）。②`components/assistant/PlanDocViewer.jsx` 搬到 `assistant/client/PlanDocViewer.jsx`，由其唯一消费方 `assistant/client/MessageList.jsx` 改为同目录 `./PlanDocViewer.jsx` import，跨工程根的 `../../frontend/src/...` 相对路径消除；空目录 `frontend/src/components/assistant/` 一并退役。`CLAUDE.md` 与 `ARCHITECTURE.md §2` 同步删除 `components/assistant/` 行。验证：`npm run check` 全绿（前端 158 / 后端 478 / assistant 153 用例）。

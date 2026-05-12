@@ -292,6 +292,7 @@ export default function NearbyPanel({
         <StatusSection
           headerless
           gridLayout
+          className="we-status-player"
           rows={stateData?.persona ?? null}
           onSave={handleSavePersona}
           templateCtx={templateCtx}

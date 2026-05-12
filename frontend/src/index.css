@@ -926,6 +926,7 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 14px;
   scrollbar-width: thin;
   scrollbar-color: var(--we-paper-shadow) transparent;
   display: flex;
@@ -1148,12 +1149,10 @@ body {
 }
 .we-status-editable {
   cursor: pointer;
-  border-bottom: 1px dashed color-mix(in srgb, var(--we-color-gold) 50%, transparent);
-  transition: border-color 0.15s, color 0.15s;
+  transition: color 0.15s;
 }
 .we-status-editable:hover {
   color: var(--we-color-gold);
-  border-bottom-color: var(--we-color-gold);
 }
 /* list 字段标签组 */
 .we-status-tags {
@@ -2089,7 +2088,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 12px 12px;
+  padding: 0;
 }
 
 /* PanelCard */
@@ -2201,7 +2200,52 @@ body {
 }
 .we-panel-card--flush > .we-panel-card-header {
   padding: 2px 12px 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--we-paper-shadow) 55%, transparent);
+  border-bottom: none;
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--we-paper-shadow) 80%, transparent) 14%,
+    color-mix(in srgb, var(--we-paper-shadow) 80%, transparent) 86%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: bottom;
+}
+
+/* 角色 tab 行下方分隔线（与世界卡 header 同款） */
+.we-cast-card .we-section-tabs-bar {
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--we-paper-shadow) 80%, transparent) 14%,
+    color-mix(in srgb, var(--we-paper-shadow) 80%, transparent) 86%,
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: bottom;
+  padding-bottom: 4px;
+}
+
+/* writing: per-tab actions 浮到 tab 内容右上角，与首字段同行 */
+.we-cast-card {
+  position: relative;
+}
+.we-cast-card .we-section-tabs-bar {
+  position: relative;
+}
+.we-cast-card .we-section-tabs-bar > .we-section-tabs-actions {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  padding: 0;
+  margin: 0;
+  z-index: 2;
+}
+/* 玩家 tab 首字段强制独占一行，让右上角 actions 不与字段碰撞 */
+.we-cast-card .we-status-player .we-fields-list--grid > *:first-child {
+  grid-column: 1 / -1;
 }
 .we-panel-card--flush .we-panel-card-collapse--open > .we-panel-card-body {
   padding: 10px 12px 4px;
@@ -2211,7 +2255,7 @@ body {
 /* 右栏:世界状态(flush)与下方 tab 区之间用 FleuronLine 章节分隔 */
 .we-state-panel .we-state-scroll > .we-cast-fleuron,
 .we-cast-panel .we-cast-scroll > .we-cast-fleuron {
-  margin: 6px 12px 8px;
+  margin: 8px 0;
   opacity: 1;
   clip-path: none;
   animation: none;
@@ -2241,12 +2285,13 @@ body {
 .we-cast-card {
   background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 35%, transparent);
   border: 1px solid color-mix(in srgb, var(--we-paper-shadow) 55%, transparent);
-  border-radius: var(--we-radius-md);
+  border-radius: var(--we-radius-sm);
+  box-shadow: var(--we-shadow-paper-lift);
   padding: 8px 10px 10px;
 }
 /* 与下方 cast-card 对齐：world-frame 已在 .we-panel-tab-body(padding 0 12px) 里，无需再加横向 margin */
 .we-world-frame { margin: 0; }
-.we-cast-card { margin: 0 12px; }
+.we-cast-card { margin: 0; }
 .we-cast-card .we-section-tabs-bar {
   padding-left: 0 !important;
   padding-right: 0 !important;
@@ -2273,6 +2318,12 @@ body {
 }
 .we-panel-card-action--icon {
   padding: 3px 6px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+.we-panel-card-action--icon:hover {
+  background: transparent !important;
+  border-color: transparent !important;
 }
 
 /* 重置 chip：取消默认的 hover-only 显隐 */
