@@ -1459,13 +1459,14 @@
   flex-wrap: wrap;
   gap: 0;
   margin-bottom: 0;
+  padding-left: 12px;
 }
 
 .we-section-tab {
   font-family: var(--we-font-display);
   font-size: 13px;
   font-style: italic;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border: none;
   background: none;
   color: var(--we-ink-faded);
@@ -1485,8 +1486,8 @@
 .we-section-tab-indicator {
   position: absolute;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 14px;
+  right: 14px;
   height: 2px;
   background: var(--we-gold-leaf);
   border-radius: 1px;
