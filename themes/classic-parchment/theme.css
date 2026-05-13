@@ -1,3 +1,15 @@
+/*
+ * classic-parchment 主题覆盖层
+ *
+ * 关键语义值最终解析结果（供调试参考）：
+ *   --we-color-bg-canvas  → #ede3d0  （羊皮纸浅面，via --we-base-paper-100）
+ *   --we-color-bg-surface → #d9ccb0  （羊皮纸中面，via --we-base-paper-200）
+ *   --we-color-bg-muted   → #b8a882  （羊皮纸深面，via --we-base-paper-400）
+ *   --we-color-bg-inverse → #1f1611  （书卷底色/大背景，via --we-base-book-bg）
+ *   --we-color-accent     → #a23b2e  （朱砂主色，via --we-base-vermilion-600）
+ *   --we-topbar-bg        → #18110c  （TopBar 底色，比页面大背景再暗一阶）
+ */
+
 :root {
   /* 基础纸面 */
   --we-base-paper-100: #ede3d0;
@@ -18,7 +30,7 @@
   --we-base-moss-600: #5c6b3a;
   --we-base-amber-600: #8b5a1f;
   --we-base-slate-600: #4a5568;
-  --we-base-book-bg: #4a3728;
+  --we-base-book-bg: #1f1611;
   --we-base-white: #ffffff;
   --we-base-peach-200: #ffc8a0;
 
@@ -46,14 +58,14 @@
   --we-color-warning-bg: rgba(139, 90, 31, 0.08);
 
   /* 书卷壳层 */
-  --we-topbar-bg: #3d2e22;
+  --we-topbar-bg: #18110c;
   --we-topbar-border: rgba(255, 255, 255, 0.06);
   --we-topbar-item: rgba(255, 255, 255, 0.5);
   --we-topbar-item-hover: rgba(255, 255, 255, 0.75);
   --we-topbar-sep: rgba(255, 255, 255, 0.2);
-  --we-topbar-active-bg: rgba(201, 168, 90, 0.08);
+  --we-topbar-active-bg: rgba(201, 168, 90, 0.14);
   --we-topbar-active-ring: rgba(201, 168, 90, 0.3);
-  --we-topbar-dropdown-bg: #3d2e22;
+  --we-topbar-dropdown-bg: #18110c;
   --we-topbar-dropdown-border: rgba(255, 255, 255, 0.1);
   --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.05);
@@ -88,24 +100,24 @@
   --we-shadow-stamp-up:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
     inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    0 2px 0 var(--we-vermilion-deep),
+    0 2px 0 var(--we-color-accent-deep),
     0 4px 8px rgba(124, 42, 32, 0.32);
   --we-shadow-stamp-down:
     inset 0 2px 4px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(0, 0, 0, 0.12),
-    0 1px 0 var(--we-vermilion-deep);
+    0 1px 0 var(--we-color-accent-deep);
   --we-shadow-paper-stack:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 0 0 1px rgba(255, 255, 255, 0.06),
-    1px 2px 0 var(--we-paper-deep),
-    2px 4px 0 var(--we-paper-shadow),
+    1px 2px 0 var(--we-color-bg-muted),
+    2px 4px 0 var(--we-color-border-default),
     0 6px 18px rgba(0, 0, 0, 0.14),
     0 2px 4px rgba(0, 0, 0, 0.08);
   --we-shadow-paper-stack-hover:
     inset 0 1px 0 rgba(255, 255, 255, 0.28),
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    1px 2px 0 var(--we-paper-deep),
-    2px 4px 0 var(--we-paper-shadow),
+    1px 2px 0 var(--we-color-bg-muted),
+    2px 4px 0 var(--we-color-border-default),
     0 14px 32px rgba(0, 0, 0, 0.22),
     0 4px 8px rgba(0, 0, 0, 0.12);
   --we-shadow-paper-lift:
@@ -119,13 +131,13 @@
     0 1px 0 rgba(42, 31, 23, 0.05);
 
   /* 卡片皮肤 */
-  --we-card-bg: var(--we-paper-base);
-  --we-card-border: 1px solid var(--we-paper-shadow);
-  --we-card-radius: var(--we-radius-sm);
+  --we-card-bg: var(--we-color-bg-canvas);
+  --we-card-border: 1px solid var(--we-color-border-default);
+  --we-card-radius: var(--we-radius-md);
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-shadow-paper-lift);
-  --we-panel-card-bg: var(--we-paper-aged);
-  --we-panel-card-border: 1px solid var(--we-paper-shadow);
+  --we-panel-card-bg: var(--we-color-bg-surface);
+  --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
-  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+  --we-panel-card-shadow: 0 0 0 1px rgba(42, 31, 23, 0.03);
 }

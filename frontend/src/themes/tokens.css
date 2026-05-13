@@ -191,6 +191,7 @@
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
+  --we-panel-card-shadow: 0 0 0 1px rgba(23, 23, 23, 0.03); /* fallback: older browsers */
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */

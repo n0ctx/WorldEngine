@@ -325,11 +325,21 @@
 
 .we-characters-canvas {
   background: var(--we-book-bg);
-  min-height: 100vh;
+  height: calc(100vh - 40px);
   padding: 40px 32px;
   position: relative;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
+}
+.we-characters-canvas::-webkit-scrollbar { width: 4px; }
+.we-characters-canvas::-webkit-scrollbar-track { background: transparent; }
+.we-characters-canvas::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 
 .we-characters-header {

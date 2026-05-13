@@ -382,6 +382,14 @@
   min-height: 96px;
   max-height: 96px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
+}
+.we-option-card--streaming .we-option-list::-webkit-scrollbar { width: 4px; }
+.we-option-card--streaming .we-option-list::-webkit-scrollbar-track { background: transparent; }
+.we-option-card--streaming .we-option-list::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 
 .we-option-btn {

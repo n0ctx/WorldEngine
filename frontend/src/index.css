@@ -1997,6 +1997,14 @@ body {
   gap: 12px;
   max-height: 60vh;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
+}
+.we-make-card-modal-preview::-webkit-scrollbar { width: 4px; }
+.we-make-card-modal-preview::-webkit-scrollbar-track { background: transparent; }
+.we-make-card-modal-preview::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 .we-make-card-modal-field {
   display: flex;

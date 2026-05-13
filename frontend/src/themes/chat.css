@@ -371,6 +371,8 @@
   margin: 0;
   padding: 11px 14px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
   font-family: var(--we-font-mono);
   font-size: 12.5px;
   line-height: 1.65;
@@ -382,6 +384,12 @@
   background: none;
   padding: 0;
   box-shadow: none;
+}
+.we-code-block pre::-webkit-scrollbar { width: 4px; height: 4px; }
+.we-code-block pre::-webkit-scrollbar-track { background: transparent; }
+.we-code-block pre::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 
 .we-chat-center-pane {
@@ -1488,8 +1496,16 @@
   background: var(--we-paper-aged);
   border-radius: var(--we-radius-sm);
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
   font-family: var(--we-font-mono);
   font-size: var(--we-text-xs);
+}
+.we-asst-entry__body pre::-webkit-scrollbar { height: 4px; }
+.we-asst-entry__body pre::-webkit-scrollbar-track { background: transparent; }
+.we-asst-entry__body pre::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 .we-asst-entry__body blockquote {
   border-left: 2px solid var(--we-vermilion);
@@ -1764,8 +1780,16 @@
   background: var(--we-paper-aged);
   border-radius: var(--we-radius-sm);
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--we-paper-shadow) transparent;
   font-family: var(--we-font-mono);
   font-size: var(--we-text-xs);
+}
+.we-asst-bubble__body pre::-webkit-scrollbar { height: 4px; }
+.we-asst-bubble__body pre::-webkit-scrollbar-track { background: transparent; }
+.we-asst-bubble__body pre::-webkit-scrollbar-thumb {
+  background: var(--we-paper-shadow);
+  border-radius: var(--we-radius-full);
 }
 .we-asst-bubble__body blockquote {
   border-left: 2px solid var(--we-vermilion);
