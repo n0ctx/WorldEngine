@@ -22,6 +22,7 @@ import * as llm from '../../backend/llm/index.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
+import * as taskStore from './task-store.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import { loadWithCache } from './knowledge-cache.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
@@ -117,6 +118,7 @@ export async function dispatchSubAgent({
   entityRef = null,
   task = '',
   context = {},
+  taskId = null,
   emitFn = null,
   runId = null,
   cancelCheck = null,
@@ -142,6 +144,14 @@ export async function dispatchSubAgent({
   let applySuccessCount = 0;
   let lastApplyError = null;
   let previewedThisRun = false;
+  // preview 缓存 key：task 内同实体的多步 update 共享，避免每步都重新拉一次 preview。
+  // 没有 taskId / entityId 时回退到 run 内 flag。
+  const previewCacheKey = (resolvedEntityId && taskId)
+    ? `${targetType}:${resolvedEntityId}`
+    : null;
+  if (previewCacheKey && taskStore.hasFreshPreview(taskId, previewCacheKey)) {
+    previewedThisRun = true;
+  }
   // 包一层 preview_card,记录已经 preview 过
   const wrappedPreview = {
     type: 'function',
@@ -149,6 +159,10 @@ export async function dispatchSubAgent({
     execute: async (args) => {
       const res = await previewTool.execute(args);
       previewedThisRun = true;
+      const entityId = args?.entityId ?? resolvedEntityId ?? null;
+      if (taskId && entityId) {
+        taskStore.markPreviewed(taskId, `${args?.target ?? targetType}:${entityId}`);
+      }
       return res;
     },
   };
@@ -225,7 +239,12 @@ export async function dispatchSubAgent({
       configScope,
       cacheableSystem: systemPrompt,
     });
-    const summary = String(raw ?? '').trim().slice(0, 400);
+    // 子代理总结截断策略：
+    // - 命中错误关键词（失败 / 不存在 / 字段缺失 / 校验 等）→ 不截断，原样回传给父代理，避免修复建议被切掉
+    // - 否则提高上限到 1500 字符（旧值 400 太紧，会丢失多步骤报告的尾部）
+    const rawText = String(raw ?? '').trim();
+    const ERROR_KEYWORDS = /(error|失败|错误|不存在|未找到|缺失|无法|拒绝|invalid|forbidden|conflict|未通过|校验|冲突)/i;
+    const summary = ERROR_KEYWORDS.test(rawText) ? rawText : rawText.slice(0, 1500);
     if (applySuccessCount === 0) {
       log.warn(`FAIL_NO_APPLY  ${formatMeta({ runId, stepId, targetType, lastError: lastApplyError, summary: previewText(summary, { limit: 80 }) })}`);
       return {

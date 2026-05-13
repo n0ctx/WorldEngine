@@ -1,13 +1,14 @@
-// 验证 meta/index.js 导出 5 件套 definition,且形态为扁平 schema。
+// 验证 meta/index.js 导出 4 件套 definition,且形态为扁平 schema。
+// 注：finalize_task 已下线，统一走 reply_to_user 收尾。
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const expectedTools = [
   'write_plan_doc', 'edit_plan_doc', 'dispatch_subagent',
-  'delete_plan_doc', 'finalize_task',
+  'delete_plan_doc',
 ];
 
-test('meta/index.js 导出 5 件套 definition', async () => {
+test('meta/index.js 导出 4 件套 definition', async () => {
   const mod = await import('../../server/tools/meta/index.js');
   for (const name of expectedTools) {
     const def = mod[toCamel(name)];

@@ -9,17 +9,7 @@ import {
   editPlanDocDefinition,
   dispatchSubagentDefinition,
   deletePlanDocDefinition,
-  finalizeTaskDefinition,
 } from './index.js';
-
-function unescapeLiteralWhitespace(s) {
-  if (typeof s !== 'string') return s;
-  return s
-    .replace(/\\r\\n/g, '\n')
-    .replace(/\\n/g, '\n')
-    .replace(/\\r/g, '\n')
-    .replace(/\\t/g, '\t');
-}
 
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
   const writePlanDoc = {
@@ -175,6 +165,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             entityRef: resolved.dependsOn?.[0] ?? null,
             task: resolved.task,
             context: task.context,
+            taskId: task.id,
             emitFn,
             runId,
             cancelCheck: () => task.status === 'cancelled',
@@ -238,30 +229,5 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
     },
   };
 
-  const finalizeTask = {
-    definition: finalizeTaskDefinition,
-    execute: async (args) => {
-      try {
-        taskStore.setStatus(task.id, args.terminalStatus);
-        const summary = unescapeLiteralWhitespace(args.summary);
-        taskStore.appendMessage(task.id, { role: 'assistant', content: summary });
-        const eventType = args.terminalStatus === 'completed'
-          ? SSE_EVENTS.TASK_COMPLETED
-          : args.terminalStatus === 'failed'
-            ? SSE_EVENTS.TASK_FAILED
-            : SSE_EVENTS.TASK_CANCELLED;
-        emitFn({ type: eventType, taskId: task.id, summary });
-        throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.TERMINAL, {
-          taskId: task.id,
-          terminalStatus: args.terminalStatus,
-          summary,
-        });
-      } catch (err) {
-        if (err instanceof ToolLoopControlSignal) throw err;
-        return { success: false, error: err.message };
-      }
-    },
-  };
-
-  return [writePlanDoc, editPlanDoc, dispatchSubagent, deletePlanDocTool, finalizeTask];
+  return [writePlanDoc, editPlanDoc, dispatchSubagent, deletePlanDocTool];
 }

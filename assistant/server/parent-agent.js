@@ -177,6 +177,32 @@ function detectPlanFirstPolicy(userInput) {
   };
 }
 
+// 从 user 消息序列中抽取"硬约束"片段：摘要 6 行可能丢字段名、ID、命名约定等关键决策，
+// 先做规则提取，再把这些不可省略的片段单独附在摘要后。
+const HARD_CONSTRAINT_PATTERNS = [
+  /[^。！？\n]*(?:字段名|field_key|key)[^。！？\n]*(?:必须|应当|要求|是|为|=|叫)[^。！？\n]+/gi,
+  /[^。！？\n]*(?:ID|id)\s*[:：=]\s*[^\s，。！？\n]+/g,
+  /[^。！？\n]*(?:命名|命名规则|约定)[^。！？\n]+/g,
+  /[^。！？\n]*(?:不要|禁止|必须|一定要|绝不|千万不要)[^。！？\n]+/g,
+  /[^。！？\n]*(?:目标世界|目标角色|目标卡)[^。！？\n]+/g,
+];
+
+function extractHardConstraints(messages) {
+  const found = new Set();
+  for (const msg of messages) {
+    if (msg.role !== 'user' || typeof msg.content !== 'string') continue;
+    for (const re of HARD_CONSTRAINT_PATTERNS) {
+      const matches = msg.content.match(re);
+      if (!matches) continue;
+      for (const m of matches) {
+        const trimmed = m.trim();
+        if (trimmed.length >= 4 && trimmed.length <= 120) found.add(trimmed);
+      }
+    }
+  }
+  return [...found].slice(0, 8);
+}
+
 async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId }) {
   const all = getModelHistoryMessages(task);
   const totalChars = summarizeMessages(all).chars;
@@ -213,12 +239,16 @@ async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, ru
       content: prefix.map((m) => `${m.role}: ${m.content}`).join('\n\n'),
     },
   ];
-  const summary = String(await llm.complete(summaryMessages, {
+  const rawSummary = String(await llm.complete(summaryMessages, {
     temperature: 0.2,
     thinking_level: null,
     configScope,
     cacheableSystem: systemPrompt,
   }) ?? '').trim();
+  const hardConstraints = extractHardConstraints(prefix);
+  const summary = hardConstraints.length > 0
+    ? `${rawSummary}\n\n# 不可省略的硬约束（自动提取自用户消息）\n${hardConstraints.map((s) => `- ${s}`).join('\n')}`
+    : rawSummary;
   const modelContext = {
     summary,
     summarizedUntilMessageId: latestPrefixId,
@@ -338,7 +368,6 @@ function buildToolRegistry(task, emitFn, runId, options = {}) {
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(buildReplyToUserTool()), emitFn, wrapOpts),
     ...buildMetaTools(task, emitFn, runId, options)
-      .filter((tool) => tool.definition?.name !== 'finalize_task')
       .map((tool) => wrapToolEvents(toLLMTool(tool), emitFn, wrapOpts)),
   ];
 
@@ -426,23 +455,23 @@ async function pauseForRecoverableHarnessIssue(task, emitFn, runId, reason, mess
 
 function buildEmptyReplyRecoveryMessage() {
   return [
-    '我这轮没有拿到有效的模型回复，所以先停在这里，避免把空结果当成完成。',
-    '你可以直接继续追问或换个说法，我会沿用当前上下文继续处理。',
+    '刚才这轮没拿到完整回复，我先停下来等你的下一句。',
+    '当前对话上下文已保留，请直接继续告诉我接下来想做什么。',
   ].join('\n');
 }
 
 function buildClaimedExecutionRecoveryMessage() {
   return [
-    '我刚才没有拿到真实的子代理执行记录，所以不会把“已执行/已创建”当成完成结果。',
-    '我已先停住。你可以直接继续说明要做的改动，我会重新按工具结果推进。',
+    '我先停一下：刚才的回复像是"已经做完了"，但其实还没有真正落库。',
+    '为了避免把空结果误报成完成，我已暂停在这一步。你可以直接继续说要做的改动，我会重新执行。',
   ].join('\n');
 }
 
 function buildProviderErrorRecoveryMessage(err) {
-  const msg = err?.message ? `：${err.message}` : '';
+  const msg = err?.message ? `（${err.message}）` : '';
   return [
-    `这轮模型调用没有成功${msg}`,
-    '我已保留当前任务上下文。你可以继续追问，或调整模型配置后再继续。',
+    `刚才处理时出了点问题${msg}，但任务上下文已保留。`,
+    '你可以继续告诉我要做什么，或检查模型配置后再继续。',
   ].join('\n');
 }
 

@@ -270,6 +270,44 @@ test('POST /agent 在 paused / failed / completed 上继续对话会转 running 
   delete process.env.MOCK_LLM_COMPLETE;
 });
 
+test('GET /agent/recover 按 context 严格匹配；无匹配返回 null', async () => {
+  const a = taskStore.createTask({ context: { worldId: 'rec-A', characterId: null } });
+  taskStore.setStatus(a.id, 'awaiting_approval');
+  const b = taskStore.createTask({ context: { worldId: 'rec-B', characterId: null } });
+  taskStore.setStatus(b.id, 'paused');
+
+  const hit = await getJSON('/agent/recover?worldId=rec-A');
+  assert.equal(hit.status, 200);
+  assert.equal(hit.json.task?.id, a.id, 'rec-A 应找到 a');
+
+  const miss = await getJSON('/agent/recover?worldId=rec-C');
+  assert.equal(miss.status, 200);
+  assert.equal(miss.json.task, null, 'rec-C 无匹配应返回 null，不再跨上下文兜底');
+});
+
+test('GET /agent/recoverable-tasks 排除当前 context，列出其它可恢复任务', async () => {
+  const a = taskStore.createTask({ context: { worldId: 'list-A', characterId: null } });
+  taskStore.setStatus(a.id, 'awaiting_approval');
+  const b = taskStore.createTask({ context: { worldId: 'list-B', characterId: null } });
+  taskStore.setStatus(b.id, 'paused');
+
+  const r = await getJSON('/agent/recoverable-tasks?worldId=list-A');
+  assert.equal(r.status, 200);
+  const ids = (r.json.tasks ?? []).map((t) => t.id);
+  assert.ok(ids.includes(b.id), '应包含其它 context 任务');
+  assert.ok(!ids.includes(a.id), '不应包含当前 context');
+});
+
+test('POST /agent 拒绝跨上下文请求（context mismatch → 409）', async () => {
+  const t = taskStore.createTask({ context: { worldId: 'ctx-A', characterId: null } });
+  const res = await fetch(`${base}/agent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ taskId: t.id, message: '哎', context: { worldId: 'ctx-B' } }),
+  });
+  assert.equal(res.status, 409);
+});
+
 test('POST /agent 在 paused / interrupted 上可静默 resume，且不追加空 user 消息', async () => {
   process.env.MOCK_LLM_COMPLETE = '后台继续完成';
 

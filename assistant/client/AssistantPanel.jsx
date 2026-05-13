@@ -244,13 +244,24 @@ export default function AssistantPanel() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setIsStreaming(true);
+      // 进入 awaiting_approval / paused 时 SSE 仍保持长连，但 LLM 已停止吐 token；
+      // 此时 isStreaming 应立即置 false，否则发送按钮卡在"停止"态、省略号常驻。
+      const handleEvent = (event) => {
+        if (
+          event?.type === SSE_EVENTS.AWAITING_APPROVAL ||
+          event?.type === SSE_EVENTS.PAUSED
+        ) {
+          setIsStreaming(false);
+        }
+        ingestEvent(event);
+      };
       try {
         await streamAgent({
           taskId,
           message: text,
           messageId,
           context,
-          onEvent: ingestEvent,
+          onEvent: handleEvent,
           signal: ctrl.signal,
         });
       } catch (err) {
@@ -346,17 +357,30 @@ export default function AssistantPanel() {
       });
   }, [taskId, replaceTaskSnapshot]);
 
-  const handleStop = useCallback(() => {
-    // 先 abort 本地 SSE：阻止后续 delta 涌入；
-  // 因 abort 后 SSE 不再回传 task_cancelled，需本地注入终态事件，
-  // 否则 status 会卡在 running → pendingAssistant 仍为 true → 输入气泡的省略号不消失
+  const handleStop = useCallback(async () => {
+    // 改为"请求取消"流程：
+    // 1) abort 本地 SSE 防止 delta 继续涌入，立即解锁 isStreaming
+    // 2) 调用 cancelTask 等后端确认；abort 后本地收不到 SSE，所以再 fetchTask 拿权威终态
+    // 3) 仅在后端确实没进入终态时本地注入 TASK_CANCELLED，避免覆盖刚到达的 TASK_COMPLETED
     abortRef.current?.abort?.();
     setIsStreaming(false);
-    if (taskId) {
-      cancelTask(taskId).catch(() => {});
+    if (!taskId) {
+      ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+      return;
+    }
+    try {
+      await cancelTask(taskId);
+      const task = await fetchTask(taskId).catch(() => null);
+      const terminal = task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled');
+      if (task && terminal) {
+        replaceTaskSnapshot(task);
+        return;
+      }
+    } catch {
+      // ignore：fall through to local fallback
     }
     ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-  }, [taskId, ingestEvent]);
+  }, [taskId, ingestEvent, replaceTaskSnapshot]);
 
   const handleReset = useCallback(() => {
     // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，

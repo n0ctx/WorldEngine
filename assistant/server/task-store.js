@@ -444,6 +444,34 @@ export function isExecutionActive(id) {
   return tasks.get(id)?.executionActive === true;
 }
 
+// preview 缓存：子代理在 update/delete 前必须 preview_card；同一 task 内的多个步骤可能针对同一实体，
+// 各自独立跑 preview 浪费时间 / token。这里把命中标记落在 task 内存上，TTL 30s 内同 key 直接放行。
+const PREVIEW_CACHE_TTL_MS = 30_000;
+
+function previewCacheMap(task) {
+  if (!task.previewCache) task.previewCache = new Map();
+  return task.previewCache;
+}
+
+export function markPreviewed(id, key) {
+  const t = tasks.get(id);
+  if (!t || !key) return;
+  previewCacheMap(t).set(key, Date.now() + PREVIEW_CACHE_TTL_MS);
+}
+
+export function hasFreshPreview(id, key) {
+  const t = tasks.get(id);
+  if (!t || !key) return false;
+  const cache = previewCacheMap(t);
+  const expiresAt = cache.get(key);
+  if (!expiresAt) return false;
+  if (expiresAt < Date.now()) {
+    cache.delete(key);
+    return false;
+  }
+  return true;
+}
+
 export function recordAppliedResource(id, entry) {
   const t = tasks.get(id);
   if (!t || !entry) return;

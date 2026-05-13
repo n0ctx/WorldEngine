@@ -64,13 +64,11 @@ export const __testables = {
 
 router.post('/agent', async (req, res) => {
   const { taskId, message, messageId, context, resume = false } = req.body ?? {};
-  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-  res.flushHeaders?.();
 
+  // 跨上下文请求拒绝必须在 SSE 头 flush 前完成，否则 status 改不了。
+  // 场景：标签页 A（世界 a）拿着 task X 切到世界 b 后再发送，会把另一个世界的消息塞进 X 串台。
   let task = taskId ? taskStore.getTask(taskId) : null;
   if (task && context && !contextMatchesTask(context, task)) {
-    // 跨上下文请求拒绝：标签页 A（世界 a）拿着 task X 切到世界 b 后再发送，
-    // 会把另一个世界的消息塞进 X 的 pendingUserMessages 串台。
     log.warn(`/agent REJECT_CROSS_CONTEXT  ${formatMeta({
       taskId,
       reqWorld: context.worldId ?? null,
@@ -78,11 +76,12 @@ router.post('/agent', async (req, res) => {
       reqChar: context.characterId ?? null,
       taskChar: task.context?.characterId ?? null,
     })}`);
-    res.status(409);
-    writeSse(res, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: 'context mismatch' });
-    res.end();
+    res.status(409).json({ error: 'context mismatch' });
     return;
   }
+
+  res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  res.flushHeaders?.();
   const isNew = !task;
   // 与 runParentAgent 内部 run 共享同一 runId，保证 task_created 事件也携带 runId，
   // 满足 ARCHITECTURE.md §14 "所有由 runParentAgent 触发的 SSE 事件携带 runId" 的契约。

@@ -153,12 +153,12 @@ test('buildModelMessages 过滤工具、步骤、计划 UI 记录', () => {
   assert.equal(payload.tailMessageCount, 2);
 });
 
-test('buildMetaTools：5 个工具与各分支', async () => {
+test('buildMetaTools：4 个工具与各分支', async () => {
   const task = taskStore.createTask({ context: {} });
   const events = [];
   taskStore.attachSse(task.id, { write: (l) => events.push(l) });
   const tools = __testables.buildMetaTools(task, (e) => taskStore.emit(task.id, e));
-  assert.equal(tools.length, 5);
+  assert.equal(tools.length, 4);
 
   const writePlan = tools[0];
   assert.equal(writePlan.definition.name, 'write_plan_doc');
@@ -241,7 +241,7 @@ test('runParentAgent: 模型空返回 → 暂停并给出可继续提示', async
   assert.equal(task.error, undefined);
   assert.ok(parsed.some((e) => e.type === 'paused'));
   assert.ok(parsed.some((e) => e.done === true));
-  assert.match(task.messages.at(-1).content, /没有拿到有效的模型回复/);
+  assert.match(task.messages.at(-1).content, /没拿到完整回复/);
   clearMockEnv();
 });
 
@@ -271,7 +271,7 @@ test('runParentAgent: 口头声称派发子代理但本轮没真实 dispatch →
   assert.ok(parsed.some((e) => e.type === 'paused'));
   assert.ok(parsed.some((e) => e.done === true));
   assert.equal(task.messages.some((m) => m.role === 'step'), false);
-  assert.match(task.messages.at(-1).content, /没有拿到真实的子代理执行记录/);
+  assert.match(task.messages.at(-1).content, /还没有真正落库/);
   clearMockEnv();
 });
 
@@ -395,7 +395,7 @@ test('runParentAgent: provider 抛错 → 暂停保留上下文并允许继续',
   assert.equal(task.error, undefined);
   assert.ok(parsed.some((e) => e.type === 'paused'));
   assert.ok(parsed.some((e) => e.done === true));
-  assert.match(task.messages.at(-1).content, /模型调用没有成功/);
+  assert.match(task.messages.at(-1).content, /刚才处理时出了点问题/);
   clearMockEnv();
 });
 
