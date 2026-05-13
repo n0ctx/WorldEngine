@@ -1687,22 +1687,23 @@ body {
   width: 100%;
   padding: 7px 0;
   margin-top: 10px;
-  border: 1.5px dashed var(--we-vermilion);
+  border: 1px solid var(--we-color-border-strong);
   border-radius: var(--we-radius-none);
   background: none;
   cursor: pointer;
   font-size: 12px;
   font-family: var(--we-font-serif);
-  color: var(--we-vermilion);
+  color: var(--we-color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast), color var(--we-duration-fast);
 }
 
 .we-session-list-create:hover {
-  background: var(--we-vermilion-bg);
+  background: var(--we-color-ink-wash-md);
+  color: var(--we-color-text-primary);
 }
 
 .we-session-list-scroll {

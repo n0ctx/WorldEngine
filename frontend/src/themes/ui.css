@@ -73,12 +73,13 @@
 
 /* variant: ghost */
 .we-btn-ghost {
-  border: 1px dashed var(--we-vermilion);
-  color: var(--we-vermilion);
+  border: 1px solid var(--we-color-border-strong);
+  color: var(--we-color-text-secondary);
   background: transparent;
 }
 .we-btn-ghost:hover:not(:disabled) {
-  background: var(--we-vermilion-bg);
+  background: var(--we-color-ink-wash-md);
+  color: var(--we-color-text-primary);
 }
 
 /* variant: danger */
@@ -111,7 +112,8 @@
   color: var(--we-ink-primary);
   outline: none;
   line-height: 1.75;
-  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp);
+  box-shadow: var(--we-shadow-paper-indent);
+  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
 }
 .we-input:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
@@ -119,8 +121,9 @@
 }
 .we-input:focus,
 .we-textarea:focus {
-  border-color: var(--we-ink-faded);
+  border-color: var(--we-color-border-focus);
   background: var(--we-color-ink-wash);
+  box-shadow: var(--we-shadow-paper-indent), 0 0 0 2px var(--we-color-accent-bg);
 }
 .we-input::placeholder,
 .we-textarea::placeholder {

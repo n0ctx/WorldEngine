@@ -5,11 +5,7 @@ import { renameSession } from '../../../core/api/sessions.js';
 import { log } from '../../../core/utils/logger.js';
 import { writingSessionListBridge } from '../../../core/utils/session-list-bridge.js';
 
-function formatDate(ts) {
-  const d = new Date(ts);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+import { formatDateLiterary } from '../../../core/utils/date-format.js';
 
 function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename }) {
   const [editing, setEditing] = useState(false);
@@ -17,7 +13,7 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
   const [confirmDelete, setConfirmDelete] = useState(false);
   const inputRef = useRef(null);
 
-  const displayTitle = session.title || formatDate(session.created_at);
+  const displayTitle = session.title || formatDateLiterary(session.created_at);
 
   function startEdit(e) {
     e.stopPropagation();
@@ -85,7 +81,7 @@ function WritingSessionItem({ session, isActive, onSelect, onDelete, onRename })
           </p>
         )}
         <p className="we-session-item__date">
-          {formatDate(session.updated_at)}
+          {formatDateLiterary(session.updated_at)}
         </p>
       </div>
 

@@ -5,9 +5,9 @@
  *   --we-color-bg-canvas  → #ede3d0  （羊皮纸浅面，via --we-base-paper-100）
  *   --we-color-bg-surface → #d9ccb0  （羊皮纸中面，via --we-base-paper-200）
  *   --we-color-bg-muted   → #b8a882  （羊皮纸深面，via --we-base-paper-400）
- *   --we-color-bg-inverse → #1f1611  （书卷底色/大背景，via --we-base-book-bg）
+ *   --we-color-bg-inverse → #3f2f22  （书卷底色/大背景，via --we-base-book-bg）
  *   --we-color-accent     → #a23b2e  （朱砂主色，via --we-base-vermilion-600）
- *   --we-topbar-bg        → #18110c  （TopBar 底色，比页面大背景再暗一阶）
+ *   --we-topbar-bg        → #34271c  （TopBar 底色，比页面大背景再暗一阶）
  */
 
 :root {
@@ -30,7 +30,7 @@
   --we-base-moss-600: #5c6b3a;
   --we-base-amber-600: #8b5a1f;
   --we-base-slate-600: #4a5568;
-  --we-base-book-bg: #1f1611;
+  --we-base-book-bg: #3f2f22;
   --we-base-white: #ffffff;
   --we-base-peach-200: #ffc8a0;
 
@@ -58,14 +58,14 @@
   --we-color-warning-bg: rgba(139, 90, 31, 0.08);
 
   /* 书卷壳层 */
-  --we-topbar-bg: #18110c;
+  --we-topbar-bg: #34271c;
   --we-topbar-border: rgba(255, 255, 255, 0.06);
   --we-topbar-item: rgba(255, 255, 255, 0.5);
   --we-topbar-item-hover: rgba(255, 255, 255, 0.75);
   --we-topbar-sep: rgba(255, 255, 255, 0.2);
   --we-topbar-active-bg: rgba(201, 168, 90, 0.14);
   --we-topbar-active-ring: rgba(201, 168, 90, 0.3);
-  --we-topbar-dropdown-bg: #18110c;
+  --we-topbar-dropdown-bg: #34271c;
   --we-topbar-dropdown-border: rgba(255, 255, 255, 0.1);
   --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.05);

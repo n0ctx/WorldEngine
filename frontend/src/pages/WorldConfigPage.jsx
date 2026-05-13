@@ -27,11 +27,11 @@ export default function WorldConfigPage() {
 
   return (
     <div className="we-characters-canvas">
-      <BackButton onClick={() => navigate('/')} label="所有世界" />
+      <BackButton onClick={() => navigate('/')} label="书架" />
 
       <div className="we-config-grid">
         {/* 第1列：常驻条目 */}
-        <div className="we-config-col">
+        <div className="we-config-col" data-type="always">
           <EntrySection
             title="常驻条目"
             icon="❦"
@@ -44,7 +44,7 @@ export default function WorldConfigPage() {
         </div>
 
         {/* 第2列：关键词条目 */}
-        <div className="we-config-col">
+        <div className="we-config-col" data-type="keyword">
           <EntrySection
             title="关键词条目"
             icon="❦"
@@ -57,7 +57,7 @@ export default function WorldConfigPage() {
         </div>
 
         {/* 第3列：AI召回条目 */}
-        <div className="we-config-col">
+        <div className="we-config-col" data-type="llm">
           <EntrySection
             title="AI 召回条目"
             icon="❦"
@@ -70,7 +70,7 @@ export default function WorldConfigPage() {
         </div>
 
         {/* 第4列：状态条件条目 */}
-        <div className="we-config-col">
+        <div className="we-config-col" data-type="state">
           <EntrySection
             title="状态条件条目"
             icon="❦"
