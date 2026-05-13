@@ -351,6 +351,8 @@ function buildReplyToUserTool() {
   };
 }
 
+const CONSECUTIVE_FAILURE_PAUSE_THRESHOLD = 3;
+
 function buildToolRegistry(task, emitFn, runId, options = {}) {
   const previewTool = createPreviewCardTool({
     worldId: task.context?.worldId ?? null,
@@ -360,7 +362,31 @@ function buildToolRegistry(task, emitFn, runId, options = {}) {
   });
   const cancelCheck = () => task.status === 'cancelled';
   const onCancelLog = (toolName) => log.warn(`TOOL_CANCELLED_MID_FLIGHT  ${formatMeta({ runId, taskId: task.id, tool: toolName })}`);
-  const wrapOpts = { cancelCheck, onCancelLog };
+  // 连续失败熔断：本轮内连续 N 次失败 → 立即暂停等用户介入。
+  // 模型在错误状态（参数错、entity 不存在、字段缺失等）下会反复重试同一个调用，
+  // 即使加了 lastToolFailure 提示也修不动 —— 此时继续 burn token 收益为零。
+  const afterCompleted = ({ success, error, name: toolName }) => {
+    if (success) {
+      taskStore.resetConsecutiveFailure(task.id);
+      return;
+    }
+    const count = taskStore.bumpConsecutiveFailure(task.id);
+    if (count >= CONSECUTIVE_FAILURE_PAUSE_THRESHOLD) {
+      taskStore.resetConsecutiveFailure(task.id);
+      log.warn(`CONSECUTIVE_FAILURE_PAUSE  ${formatMeta({ runId, taskId: task.id, tool: toolName, error, count })}`);
+      const hint = [
+        `刚才 ${toolName} 连续失败 ${count} 次（最近一次：${error ?? '未知错误'}）。`,
+        '为避免继续在错误状态下反复尝试，我先停下来。',
+        '请告诉我下一步怎么处理（修改参数 / 跳过这一步 / 调整计划），我会按你的指示继续。',
+      ].join('\n');
+      throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
+        taskId: task.id,
+        pauseReason: 'consecutive_tool_failures',
+        message: hint,
+      });
+    }
+  };
+  const wrapOpts = { cancelCheck, onCancelLog, afterCompleted };
 
   const baseTools = [
     wrapToolEvents(toLLMTool(previewTool), emitFn, wrapOpts),
@@ -500,10 +526,11 @@ export async function runParentAgent(task, userInput, opts = {}) {
   taskStore.setExecutionActive(task.id, true);
   try {
     if (!isApprovedSentinel && !isResumeSentinel) {
-      // 新一轮 user turn:清空 appliedResources / 最近失败痕迹，避免污染下一轮决策
+      // 新一轮 user turn:清空 appliedResources / 最近失败痕迹 / 连续失败计数，避免污染下一轮决策
       taskStore.clearAppliedResources(task.id);
       taskStore.setLastToolFailure(task.id, null);
       taskStore.setLastSubagentResult(task.id, null);
+      taskStore.resetConsecutiveFailure(task.id);
 
       const stampedUser = taskStore.appendMessage(task.id, {
         id: opts.userMessageId,

@@ -64,6 +64,36 @@ test('wrapToolEvents: 读取类工具返回任意 payload 视为成功（避免 
   }
 });
 
+test('wrapToolEvents: afterCompleted 在成功 / 失败两条路径都被调用，含 success 与 error', async () => {
+  const calls = [];
+  const okTool = { type: 'function', function: { name: 'ok' }, execute: async () => ({ success: true }) };
+  const failTool = { type: 'function', function: { name: 'bad' }, execute: async () => ({ success: false, error: 'boom' }) };
+  const throwTool = { type: 'function', function: { name: 'throws' }, execute: async () => { throw new Error('explode'); } };
+
+  await wrapToolEvents(okTool, () => {}, { afterCompleted: (info) => calls.push(info) }).execute({});
+  await wrapToolEvents(failTool, () => {}, { afterCompleted: (info) => calls.push(info) }).execute({});
+  await assert.rejects(
+    () => wrapToolEvents(throwTool, () => {}, { afterCompleted: (info) => calls.push(info) }).execute({}),
+    /explode/,
+  );
+
+  assert.deepEqual(calls[0], { success: true, error: undefined, name: 'ok' });
+  assert.deepEqual(calls[1], { success: false, error: 'boom', name: 'bad' });
+  assert.deepEqual(calls[2], { success: false, error: 'explode', name: 'throws' });
+});
+
+test('wrapToolEvents: afterCompleted 抛 ToolLoopControlSignal 可中断循环', async () => {
+  const { ToolLoopControlSignal, TOOL_LOOP_SIGNAL } = await import('../../../backend/llm/tool-loop-control.js');
+  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: false, error: 'x' }) };
+  const afterCompleted = () => {
+    throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, { message: '熔断' });
+  };
+  await assert.rejects(
+    () => wrapToolEvents(tool, () => {}, { afterCompleted }).execute({}),
+    (err) => err.name === 'ToolLoopControlSignal' && err.kind === TOOL_LOOP_SIGNAL.PAUSED,
+  );
+});
+
 test('wrapToolEvents: 默认 callId 来自 crypto.randomUUID(8 位 hex)', async () => {
   const events = [];
   const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: true }) };

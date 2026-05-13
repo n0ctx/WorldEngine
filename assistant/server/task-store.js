@@ -444,6 +444,21 @@ export function isExecutionActive(id) {
   return tasks.get(id)?.executionActive === true;
 }
 
+// 连续失败计数：父代理工具循环里若同一轮内连续 N 次失败，主动暂停等用户介入，
+// 避免模型在错误状态下无意义反复重试 → 5/10/25 个失败气泡刷屏。
+export function bumpConsecutiveFailure(id) {
+  const t = tasks.get(id);
+  if (!t) return 0;
+  t.consecutiveFailures = Number.isFinite(t.consecutiveFailures) ? t.consecutiveFailures + 1 : 1;
+  return t.consecutiveFailures;
+}
+
+export function resetConsecutiveFailure(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  if (t.consecutiveFailures) t.consecutiveFailures = 0;
+}
+
 // preview 缓存：子代理在 update/delete 前必须 preview_card；同一 task 内的多个步骤可能针对同一实体，
 // 各自独立跑 preview 浪费时间 / token。这里把命中标记落在 task 内存上，TTL 30s 内同 key 直接放行。
 const PREVIEW_CACHE_TTL_MS = 30_000;

@@ -39,6 +39,9 @@ export function toLLMTool(input, executeOverride) {
  *   opts.cancelCheck: () => boolean。若返回 true，在 execute 前/后立刻抛 ToolLoopCancelledError。
  *   opts.makeCallId:  () => string。默认 crypto.randomUUID().slice(0,8)。
  *   opts.onCancelLog: (toolName) => void。命中后置闸门时的日志钩子。
+ *   opts.afterCompleted: ({ success, error, name }) => void | throws。
+ *     在 tool_call_completed 事件发出后调用，调用方可在此累计失败次数；
+ *     抛 ToolLoopControlSignal 会向上传播，终止工具循环（用于"连续失败 → 暂停等用户"）。
  */
 export function wrapToolEvents(tool, emitFn, opts = {}) {
   if (!emitFn) return tool;
@@ -46,6 +49,7 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
   const cancelCheck = opts.cancelCheck ?? (() => false);
   const makeCallId = opts.makeCallId ?? defaultCallId;
   const onCancelLog = opts.onCancelLog ?? (() => {});
+  const afterCompleted = opts.afterCompleted ?? (() => {});
   return {
     ...tool,
     execute: async (args) => {
@@ -71,13 +75,15 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
           !Array.isArray(result) &&
           Object.prototype.hasOwnProperty.call(result, 'success');
         const success = hasSuccessField ? result.success === true : true;
+        const error = success ? undefined : (result?.error ?? 'tool failed');
         emitFn({
           type: SSE_EVENTS.TOOL_CALL_COMPLETED,
           toolName: name,
           callId,
           success,
-          error: success ? undefined : (result?.error ?? 'tool failed'),
+          error,
         });
+        afterCompleted({ success, error, name });
         return result;
       } catch (err) {
         if (isToolLoopControlSignal(err)) {
@@ -85,6 +91,12 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
           throw err;
         }
         emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: err.message });
+        // 抛错路径也通知 afterCompleted；它内部若再抛 ToolLoopControlSignal 会终止循环
+        try {
+          afterCompleted({ success: false, error: err.message, name });
+        } catch (signal) {
+          if (isToolLoopControlSignal(signal)) throw signal;
+        }
         throw err;
       }
     },
