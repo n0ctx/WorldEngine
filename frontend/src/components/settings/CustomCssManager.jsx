@@ -100,7 +100,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
           <div className="we-css-reference-body">
             <pre className="we-css-reference-code">{CSS_REFERENCE_EXAMPLE}</pre>
             <p className="we-css-reference-note">
-              稳定锚点类名清单见 DESIGN.md §10.2，标 ⚠️ 的类名可能随版本变化请谨慎。
+              稳定锚点类名与 token 规则以当前前端文档为准，标 ⚠️ 的类名可能随版本变化请谨慎。
             </p>
           </div>
         </details>

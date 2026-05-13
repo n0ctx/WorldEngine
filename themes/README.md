@@ -27,7 +27,7 @@ frontend/src/shells/
 - 主题系统现在只接受正式语义 token 和基础色板 token，旧兼容别名已全部移除。
 - 新主题请优先覆盖 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*`。
 - 如果你的历史主题包或自定义 CSS 仍引用旧别名，需要手动迁移到当前 token 名。
-- `lovable-cream` 现在使用自托管 `Instrument Sans` 变量字体近似 `DESIGN.md` 中的 Camera Plain 观感；主题层仍只通过 `--we-font-*` token 引用字体，不在主题包里声明 `@font-face`。
+- `lovable-cream` 现在使用自托管 `Instrument Sans` 变量字体近似 `docs/references/frontend/ui-and-theme.md` 中记录的暖 cream 方向；主题层仍只通过 `--we-font-*` token 引用字体，不在主题包里声明 `@font-face`。
 
 ## 主题包结构
 
@@ -104,7 +104,7 @@ cp -R themes/_template themes/my-theme
 
 `classic-parchment/` 是默认内置主题，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感。
 
-`lovable-cream/` 走另一条更轻的暖 cream 路线，强调奶油底色、charcoal opacity 中性色、边框驱动的层级和更克制的阴影；当前是基于 `DESIGN.md` 的严格 cream 适配版。
+`lovable-cream/` 走另一条更轻的暖 cream 路线，强调奶油底色、charcoal opacity 中性色、边框驱动的层级和更克制的阴影；当前以 `docs/references/frontend/ui-and-theme.md` 记录的方向为准。
 
 这两个主题都只能覆盖 token，不能直接改结构。
 

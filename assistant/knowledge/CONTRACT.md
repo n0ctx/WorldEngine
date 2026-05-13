@@ -67,7 +67,7 @@
 
 ### 计划文档（plan mode 专属）
 
-- 路径：`/.temp/assistant/<taskId>.md`
+- 真源：`assistant_tasks.plan_doc_content`
 - 格式：Markdown，步骤行 `- [ ] **step-N** <标题>（<targetType>.<operation>）`
 - 派发规则：找第一个 `[ ]` 且依赖均已 `[x]` 的步骤，调 `dispatch_subagent`
 - 收尾：需要清理计划文档时，先调 `delete_plan_doc`；最终答复统一通过 `reply_to_user` 收尾

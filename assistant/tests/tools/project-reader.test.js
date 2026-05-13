@@ -33,8 +33,7 @@ test('executeReadFile 读取真实存在的文件', () => {
 });
 
 test('executeReadFile 截断超过 50KB 的内容', () => {
-  // CLAUDE.md / SCHEMA.md 大概率超过 50KB；用 SCHEMA.md
-  const content = executeReadFile({ path: 'SCHEMA.md' });
+  const content = executeReadFile({ path: 'docs/references/backend/schema-and-storage.md' });
   // 只校验长度合理；如果文件 < 50KB 则没有截断标记，所以分支考虑两种
   if (content.includes('[已截断')) {
     assert.match(content, /\[已截断，仅显示前 50 KB\]$/);

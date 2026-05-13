@@ -19,6 +19,6 @@ npm run test:watch # vitest 监听模式
 ## 进一步阅读
 
 - 项目总体说明：[`../README.md`](../README.md)
-- 协作规范、目录约束、组件分层规则：[`../CLAUDE.md`](../CLAUDE.md)
-- 视觉与设计规范：[`../DESIGN.md`](../DESIGN.md)
-- 运行时行为与数据流：[`../ARCHITECTURE.md`](../ARCHITECTURE.md)
+- agent 协作入口：[`../CLAUDE.md`](../CLAUDE.md)
+- 前端文档索引：[`../docs/references/frontend/index.md`](../docs/references/frontend/index.md)
+- 主题与 token 规则：[`../docs/references/frontend/ui-and-theme.md`](../docs/references/frontend/ui-and-theme.md)

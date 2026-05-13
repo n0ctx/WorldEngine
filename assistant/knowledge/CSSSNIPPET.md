@@ -54,7 +54,7 @@ allowed keys：
 
 ## 仅使用 CSS 变量（强约束）
 
-WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/styles/tokens.css`。详细规范见根 `CLAUDE.md`、`DESIGN.md`。
+WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/themes/tokens.css`。详细规范见根 `CLAUDE.md` 与 `docs/references/frontend/ui-and-theme.md`。
 
 写片段时遵循：
 
@@ -64,15 +64,15 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 
 ### 常用 CSS 变量
 
-- `--we-paper-base`：基础羊皮纸底色
-- `--we-paper-aged`：陈旧羊皮纸色（强调底色）
-- `--we-book-bg`：书卷背景色
-- `--we-ink-primary`：主文字色（陶土色调）
-- `--we-ink-secondary`：次要文字色
-- `--we-vermilion`：朱红强调色（印章 / 关键标记）
-- `--we-gold-pale`：浅金色
+- `--we-color-bg-canvas`：页面大背景
+- `--we-color-bg-surface`：卡片 / 面板背景
+- `--we-color-text-primary`：主文字色
+- `--we-color-text-secondary`：次要文字色
+- `--we-color-border-default`：默认边框
+- `--we-card-bg` / `--we-panel-card-bg`：组件皮肤背景
+- `--we-radius-sm` / `--we-radius-md`：圆角
 
-> 完整变量清单见 `frontend/src/styles/tokens.css`；新片段不要发明新变量名，覆盖现有变量即可。
+> 完整变量清单见 `frontend/src/themes/tokens.css`；新片段不要发明新变量名，覆盖现有变量即可。
 
 ### 常用目标类
 
