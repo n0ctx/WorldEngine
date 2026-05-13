@@ -1,0 +1,155 @@
+/*
+ * lovable-cream 主题覆盖层
+ *
+ * 受 Lovable 设计系统启发的暖 cream 中性主题：
+ *   - 奶油色画布 #f7f4ed 作为全局底色（非纯白）
+ *   - 炭灰色 #1c1c1c 驱动全部文字与中性层级
+ *   - 灰色仅由 #1c1c1c 透明度派生 + #5f5f5d muted gray（DESIGN.md 明确给出的独立色值）
+ *   - 层级由边框 #eceae4 定义，而非阴影
+ *   - 深色按钮使用多层 inset shadow 作为 signature tactile detail
+ *   - 无书脊、无纸张堆叠、无印章质感的极简现代风格
+ *
+ * 关键语义值最终解析结果（供调试参考）：
+ *   --we-color-bg-canvas  → #f7f4ed  （奶油色画布）
+ *   --we-color-bg-surface → #f7f4ed  （与画布无缝融合）
+ *   --we-color-bg-muted   → #eceae4  （Light Cream）
+ *   --we-color-bg-inverse → #1c1c1c  （炭灰壳层/深色按钮）
+ *   --we-color-accent     → #1c1c1c  （炭灰主交互色，无饱和强调）
+ *   --we-color-border-strong → rgba(28,28,28,0.4)  （交互边框）
+ *   --we-topbar-bg        → #1c1c1c  （TopBar 深色底色）
+ */
+
+:root {
+  /* ========== 字体族（Lovable：humanist sans-serif） ========== */
+  --we-font-serif:   ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-display: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-seal:    ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-sans:    ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-ui:      ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* ========== 圆角 Scale（Lovable：6px 按钮/输入框、12px 卡片、16px 大容器） ========== */
+  --we-radius-sm:   6px;
+  --we-radius-md:   12px;
+  --we-radius-lg:   16px;
+
+  /* ========== 基础表面 ========== */
+  /* Lovable 只有两种表面色：Cream #f7f4ed 和 Light Cream #eceae4 */
+  --we-base-paper-100: #f7f4ed;
+  --we-base-paper-200: #f7f4ed;
+  --we-base-paper-300: #eceae4;
+  --we-base-paper-400: #eceae4;
+
+  /* ========== 基础文字 ========== */
+  /* 主文字 = Charcoal；次要 = Muted Gray #5f5f5d（DESIGN.md 明确给出的独立色值） */
+  --we-base-ink-900: #1c1c1c;
+  --we-base-ink-700: #5f5f5d;
+  --we-base-ink-500: rgba(28, 28, 28, 0.4);
+
+  /* ========== 强调与装饰 ========== */
+  /* Lovable 无饱和强调色，主交互色 = 炭灰 */
+  --we-base-vermilion-600: #1c1c1c;
+  --we-base-vermilion-800: #1c1c1c;
+  --we-base-gold-600: #5f5f5d;
+  --we-base-gold-400: #5f5f5d;
+
+  /* ========== 状态色（功能性但去饱和） ========== */
+  --we-base-moss-600: #4a5d4a;
+  --we-base-amber-600: #8b6b3a;
+  --we-base-slate-600: #5f5f5d;
+
+  /* ========== 壳层与反色 ========== */
+  --we-base-book-bg: #1c1c1c;
+  --we-base-white: #fcfbf8;
+  --we-base-peach-200: #eceae4;
+
+  /* ========== 语义色直接覆盖（基础 token 无法满足时） ========== */
+  /* Lovable 的 stronger border 是 rgba(28,28,28,0.4)，不是 paper-400 派生 */
+  --we-color-border-strong: rgba(28, 28, 28, 0.4);
+  /* Lovable 没有独立 muted surface，用 Light Cream */
+  --we-color-bg-muted: #eceae4;
+  /* 文字层级主要靠 size/weight，tertiary 与 secondary 同色 */
+  --we-color-text-tertiary: #5f5f5d;
+
+  /* ========== 透明叠加层 ========== */
+  /* shadow 用 rgba(0,0,0,...)（Lovable 的实际做法），overlay 用 rgba(28,28,28,...) */
+  --we-color-bg-overlay: rgba(0, 0, 0, 0.5);
+  --we-color-accent-bg: rgba(28, 28, 28, 0.04);
+  --we-color-ink-wash: rgba(28, 28, 28, 0.03);
+  --we-color-ink-wash-md: rgba(28, 28, 28, 0.04);
+  --we-color-ink-wash-strong: rgba(28, 28, 28, 0.1);
+  --we-color-shadow-sm: rgba(0, 0, 0, 0.05);
+  --we-color-shadow-md: rgba(0, 0, 0, 0.08);
+  --we-color-shadow-lg: rgba(0, 0, 0, 0.12);
+  --we-color-shadow-xl: rgba(0, 0, 0, 0.20);
+  --we-color-overlay-light: rgba(0, 0, 0, 0.08);
+  --we-color-overlay-medium: rgba(0, 0, 0, 0.25);
+  --we-color-overlay-heavy: rgba(0, 0, 0, 0.55);
+  --we-color-paper-wash: rgba(247, 244, 237, 0.28);
+  --we-color-paper-tint: rgba(236, 234, 228, 0.45);
+  --we-color-paper-muted: rgba(236, 234, 228, 0.30);
+  --we-color-paper-overlay: rgba(236, 234, 228, 0.12);
+  --we-color-ink-secondary-wash: rgba(95, 95, 93, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(95, 95, 93, 0.12);
+  --we-color-accent-border: rgba(28, 28, 28, 0.25);
+  --we-color-accent-border-sm: rgba(28, 28, 28, 0.22);
+  --we-color-warning-bg: rgba(139, 107, 58, 0.08);
+
+  /* ========== 壳层（TopBar 深色底色 + off-white 文字） ========== */
+  --we-topbar-bg: #1c1c1c;
+  --we-topbar-border: rgba(252, 251, 248, 0.06);
+  --we-topbar-item: rgba(252, 251, 248, 0.58);
+  --we-topbar-item-hover: rgba(252, 251, 248, 0.82);
+  --we-topbar-sep: rgba(252, 251, 248, 0.22);
+  --we-topbar-active-bg: rgba(252, 251, 248, 0.10);
+  --we-topbar-active-ring: rgba(252, 251, 248, 0.32);
+  --we-topbar-dropdown-bg: #1c1c1c;
+  --we-topbar-dropdown-border: rgba(252, 251, 248, 0.10);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --we-topbar-item-hover-bg: rgba(252, 251, 248, 0.05);
+  --we-topbar-item-dim: rgba(252, 251, 248, 0.34);
+  --we-topbar-item-muted: rgba(252, 251, 248, 0.40);
+  --we-topbar-item-faint: rgba(252, 251, 248, 0.66);
+  --we-topbar-divider: rgba(252, 251, 248, 0.08);
+
+  /* ========== 书脊阴影（Lovable 无书脊概念，全部透明） ========== */
+  --we-spine-shadow: linear-gradient(to right, transparent, transparent);
+  --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
+  --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
+
+  /* ========== 物理质感阴影（Lovable 风格：极度克制，inset 为核心） ========== */
+  /* 深色按钮 signature multi-layer inset shadow */
+  --we-shadow-stamp-up:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  --we-shadow-stamp-down:
+    inset 0 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+
+  /* Lovable 无纸张堆叠概念，shadow 极度轻微 */
+  --we-shadow-paper-stack:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+  --we-shadow-paper-stack-hover:
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+
+  /* 由边框承担层级，lift/indent 只做极细微辅助 */
+  --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --we-shadow-paper-indent:
+    inset 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  /* ========== 卡片与面板皮肤 ========== */
+  /* Lovable：卡片背景与页面同色，靠 #eceae4 边框定义边界，无阴影 */
+  --we-card-bg: var(--we-color-bg-canvas);
+  --we-card-border: 1px solid var(--we-color-border-default);
+  --we-card-radius: 12px;
+  --we-card-shadow: none;
+  --we-card-hover-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+
+  --we-panel-card-bg: var(--we-color-bg-canvas);
+  --we-panel-card-border: 1px solid var(--we-color-border-default);
+  --we-panel-card-radius: 12px;
+  --we-panel-card-shadow: none;
+}

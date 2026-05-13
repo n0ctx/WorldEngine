@@ -1,0 +1,12 @@
+{
+  "id": "lovable-cream",
+  "name": "simple",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "受 Lovable 启发的暖 cream 中性主题。奶油色画布、炭灰色文字、边框驱动的层级、极度克制的阴影。",
+  "preview": {
+    "paper": "#f7f4ed",
+    "accent": "#1c1c1c",
+    "ink": "#1c1c1c"
+  }
+}

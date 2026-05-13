@@ -5,7 +5,7 @@ exports[`BackButton > 自定义 label 快照 1`] = `
   class="we-back-btn"
 >
   ← 
-  所有世界
+  书架
 </button>
 `;
 

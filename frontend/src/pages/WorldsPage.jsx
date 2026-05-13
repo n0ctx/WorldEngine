@@ -166,65 +166,69 @@ export default function WorldsPage() {
               style={style}
               {...attributes}
               {...listeners}
-              data-dragging={isDragging || undefined}
-              className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ''}`}
-              onClick={() => { if (!isDragging) handleEnterWorld(world); }}
+              className="we-world-card-shell"
             >
-              {world.cover_path && (
-                <>
-                  <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
-                  <div className="we-world-card-overlay" />
-                </>
-              )}
-              {!world.cover_path && (
-                <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
-              )}
-              <h3 className="we-world-card-name">{world.name}</h3>
-              <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>
-                {world.description || '暂无描述'}
-              </p>
-              <div className="we-world-card-meta">
-                <span>{world.character_count} 角色</span>
-                <span>·</span>
-                <span>{relativeTime(world.updated_at)}</span>
-              </div>
-
-              {/* hover 操作按钮 */}
               <div
-                className="we-world-card-actions"
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
+                data-dragging={isDragging || undefined}
+                className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ''}`}
+                onClick={() => { if (!isDragging) handleEnterWorld(world); }}
               >
-                <button
-                  className="we-world-card-action-btn"
-                  onClick={(e) => handleExportWorld(world, e)}
-                  disabled={exportingWorldId === world.id}
-                  title="导出世界卡"
+                {world.cover_path && (
+                  <>
+                    <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
+                    <div className="we-world-card-overlay" />
+                  </>
+                )}
+                {!world.cover_path && (
+                  <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
+                )}
+                <h3 className="we-world-card-name">{world.name}</h3>
+                <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>
+                  {world.description || '暂无描述'}
+                </p>
+                <div className="we-world-card-meta">
+                  <span>{world.character_count} 角色</span>
+                  <span>·</span>
+                  <span>{relativeTime(world.updated_at)}</span>
+                </div>
+
+                {/* hover 操作按钮 */}
+                <div
+                  className="we-world-card-actions"
+                  onClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
-                  ↓
-                </button>
-                <button
-                  className="we-world-card-action-btn"
-                  onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
-                  title="编辑"
-                  aria-label="编辑世界"
-                >
-                  <Icon size={16}>
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                  </Icon>
-                </button>
-                <button
-                  className="we-world-card-action-btn danger"
-                  onClick={() => setDeletingWorld(world)}
-                  title="删除"
-                  aria-label="删除世界"
-                >
-                  <Icon size={16}>
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </Icon>
-                </button>
+                  <button
+                    className="we-world-card-action-btn"
+                    onClick={(e) => handleExportWorld(world, e)}
+                    disabled={exportingWorldId === world.id}
+                    title="导出世界卡"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    className="we-world-card-action-btn"
+                    onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
+                    title="编辑"
+                    aria-label="编辑世界"
+                  >
+                    <Icon size={16}>
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                    </Icon>
+                  </button>
+                  <button
+                    className="we-world-card-action-btn danger"
+                    onClick={() => setDeletingWorld(world)}
+                    title="删除"
+                    aria-label="删除世界"
+                  >
+                    <Icon size={16}>
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </Icon>
+                  </button>
+                </div>
               </div>
             </div>
           )}

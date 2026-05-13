@@ -453,7 +453,7 @@ export default function CharactersPage() {
   return (
     <div className="we-characters-canvas">
       {/* 导航 */}
-      <BackButton onClick={() => navigate('/')} label="所有世界" />
+      <BackButton onClick={() => navigate('/')} label="书架" />
 
       {/* 双栏布局 */}
       <div className="we-characters-layout">

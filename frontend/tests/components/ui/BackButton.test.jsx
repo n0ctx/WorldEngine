@@ -10,7 +10,7 @@ describe('BackButton', () => {
   });
 
   it('自定义 label 快照', () => {
-    const { container } = render(<BackButton onClick={vi.fn()} label="所有世界" />);
+    const { container } = render(<BackButton onClick={vi.fn()} label="书架" />);
     expect(container.firstChild).toMatchSnapshot();
   });
 
@@ -20,8 +20,8 @@ describe('BackButton', () => {
   });
 
   it('渲染自定义 label 文本', () => {
-    render(<BackButton onClick={vi.fn()} label="所有世界" />);
-    expect(screen.getByText(/所有世界/)).toBeInTheDocument();
+    render(<BackButton onClick={vi.fn()} label="书架" />);
+    expect(screen.getByText(/书架/)).toBeInTheDocument();
   });
 
   it('点击调用 onClick', () => {

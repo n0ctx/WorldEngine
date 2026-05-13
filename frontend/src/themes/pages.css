@@ -76,11 +76,16 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   column-gap: 2%;
-  row-gap: 10%;
+  row-gap: var(--we-space-xl);
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
   align-items: start;
+}
+
+.we-world-card-shell {
+  width: 100%;
+  touch-action: none;
 }
 
 .we-world-card {
@@ -95,6 +100,7 @@
               box-shadow var(--we-duration-normal) var(--we-easing-standard);
   overflow: hidden;
   aspect-ratio: 16 / 10;
+  width: 100%;
 }
 
 .we-world-card:hover {
