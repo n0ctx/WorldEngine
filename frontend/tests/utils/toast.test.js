@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { pushErrorToast, pushToast } from '../../src/utils/toast.js';
+import { pushErrorToast, pushToast } from '../../src/core/utils/toast.js';
 
 describe('toast utils', () => {
   it('分发全局 toast 事件，并支持错误类型', () => {

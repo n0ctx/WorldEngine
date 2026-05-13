@@ -3,9 +3,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate } from 'react-router-dom';
 import SessionItem from '../../../components/chat/SessionItem.jsx';
-import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../../api/sessions.js';
-import { log } from '../../../utils/logger.js';
-import { chatSessionListBridge } from '../../../utils/session-list-bridge.js';
+import { getSessions, createSession, deleteSession, renameSession, getSession } from '../../../core/api/sessions.js';
+import { log } from '../../../core/utils/logger.js';
+import { chatSessionListBridge } from '../../../core/utils/session-list-bridge.js';
 
 const PAGE_SIZE = 20;
 

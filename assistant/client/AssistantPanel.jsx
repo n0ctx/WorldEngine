@@ -7,6 +7,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
@@ -27,11 +29,11 @@ import PlanTaskHud from './PlanTaskHud.jsx';
 import DragHandle from './DragHandle.jsx';
 import { findRegenerateSource } from './message-helpers.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
-import useStore from '../../frontend/src/store/index.js';
-import { getWorld } from '../../frontend/src/api/worlds.js';
-import { getCharacter } from '../../frontend/src/api/characters.js';
-import { getConfig } from '../../frontend/src/api/config.js';
-import { log } from '../../frontend/src/utils/logger.js';
+import useStore from '../../frontend/src/core/state/index.js';
+import { getWorld } from '../../frontend/src/core/api/worlds.js';
+import { getCharacter } from '../../frontend/src/core/api/characters.js';
+import { getConfig } from '../../frontend/src/core/api/config.js';
+import { log } from '../../frontend/src/core/utils/logger.js';
 
 const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
@@ -70,6 +72,7 @@ export default function AssistantPanel() {
 
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [reviseInput, setReviseInput] = useState('');
   const abortRef = useRef(null);
   const recoveringRef = useRef(false);
   const recoveryToastKeyRef = useRef('');
@@ -396,6 +399,22 @@ export default function AssistantPanel() {
       });
   }, [taskId, replaceTaskSnapshot]);
 
+  const handleRevise = useCallback(async () => {
+    const text = reviseInput.trim();
+    if (!text || !taskId) return;
+    setReviseInput('');
+    try {
+      const task = await rejectPlan(taskId);
+      abortRef.current?.abort?.();
+      setIsStreaming(false);
+      if (task) replaceTaskSnapshot(task);
+    } catch (err) {
+      log.warn('assistant.revise_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
+      return;
+    }
+    await handleSend(text, { skipPush: false });
+  }, [reviseInput, taskId, replaceTaskSnapshot, handleSend]);
+
   const handleReset = useCallback(() => {
     // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
     // 残留循环会继续调用 apply_* 等落库工具，造成"清空后旧任务仍在执行"的错觉
@@ -494,21 +513,51 @@ export default function AssistantPanel() {
             </div>
           )}
           {status === 'awaiting_approval' && (
-            <div className="flex flex-shrink-0 gap-2 border-t border-black/5 px-3 py-2">
-              <button
-                type="button"
-                onClick={handleApprove}
-                className="rounded bg-[var(--we-vermilion)] px-3 py-1.5 text-[12px] text-white hover:opacity-90"
-              >
-                确认执行
-              </button>
-              <button
-                type="button"
-                onClick={handleRejectPlan}
-                className="rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-primary)] hover:bg-black/5"
-              >
-                拒绝计划
-              </button>
+            <div className="flex flex-shrink-0 flex-col border-t border-black/5">
+              {planDoc && (
+                <div className="we-plan-doc-preview max-h-60 overflow-y-auto bg-[var(--we-paper-aged)] px-3 py-2 text-[12px] leading-relaxed text-[var(--we-ink-primary)]">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
+                </div>
+              )}
+              <div className="flex gap-1.5 border-t border-black/5 px-3 py-2">
+                <textarea
+                  value={reviseInput}
+                  onChange={(e) => setReviseInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      if (reviseInput.trim()) handleRevise();
+                    }
+                  }}
+                  placeholder="填写修改建议（Ctrl+Enter 提交）"
+                  rows={2}
+                  className="min-h-[2.5rem] flex-1 resize-none rounded border border-black/10 bg-[var(--we-paper-base)] px-2 py-1 text-[12px] text-[var(--we-ink-primary)] placeholder-[var(--we-ink-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--we-vermilion)]/30"
+                />
+                <button
+                  type="button"
+                  onClick={handleRevise}
+                  disabled={!reviseInput.trim()}
+                  className="self-end rounded border border-black/15 px-2.5 py-1.5 text-[11px] text-[var(--we-ink-primary)] hover:bg-black/5 disabled:opacity-40"
+                >
+                  按建议修改
+                </button>
+              </div>
+              <div className="flex gap-2 border-t border-black/5 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  className="rounded bg-[var(--we-vermilion)] px-3 py-1.5 text-[12px] text-white hover:opacity-90"
+                >
+                  确认执行
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectPlan}
+                  className="rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-primary)] hover:bg-black/5"
+                >
+                  拒绝计划
+                </button>
+              </div>
             </div>
           )}
         </div>

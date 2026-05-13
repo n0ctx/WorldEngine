@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/api/regex-rules.js', () => ({
+vi.mock('../../src/core/api/regex-rules.js', () => ({
   listRegexRules: vi.fn(),
 }));
 
-import { listRegexRules } from '../../src/api/regex-rules.js';
-import { applyRules, invalidateCache, loadRules } from '../../src/utils/regex-runner.js';
+import { listRegexRules } from '../../src/core/api/regex-rules.js';
+import { applyRules, invalidateCache, loadRules } from '../../src/core/utils/regex-runner.js';
 
 describe('frontend regex runner', () => {
   beforeEach(() => {

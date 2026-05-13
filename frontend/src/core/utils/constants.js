@@ -3,7 +3,7 @@
 export {
   CHAPTER_MESSAGE_SIZE,
   CHAPTER_TIME_GAP_MS,
-} from '../../../shared/chapter-constants.mjs';
+} from '../../../../shared/chapter-constants.mjs';
 
 export {
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -11,4 +11,4 @@ export {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
   RESTART_INTERRUPTED_ERROR,
-} from '../../../shared/runtime-constants.mjs';
+} from '../../../../shared/runtime-constants.mjs';

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchSessionTimeline } from '../../src/api/session-timeline.js';
+import { fetchSessionTimeline } from '../../src/core/api/session-timeline.js';
 
 describe('session timeline api', () => {
   beforeEach(() => {

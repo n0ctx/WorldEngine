@@ -6,10 +6,10 @@
 //    session / state / settings / assistant / edit）或 page-local 组件。
 // 2. domain 组件必须通过其所在目录直接 import，例如：
 //      import StatePanel from '../components/state/StatePanel.jsx';
-//      import EditPageShell from '../components/edit/EditPageShell';
+//      import EditPageShell from '../pages/layout/EditPageShell';
 // 3. page-local 组件位于 pages/<Page>/components/，仅供该页面使用。
 // 4. classic-parchment shell 的结构性 chrome 位于 frontend/src/shells/，
-//    禁止在此处导出，也禁止页面直接 import。页面应通过 core/layout/PageLayout 描述布局。
+//    禁止在此处导出，也禁止页面直接 import。页面应通过 pages/layout/PageLayout 描述布局。
 
 // — UI 原子 —
 export { default as Button }          from './ui/Button';

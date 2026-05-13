@@ -13,20 +13,20 @@ function pinDiaryTimeFirst(rows) {
   result.unshift(result.splice(idx, 1)[0]);
   return result;
 }
-import useStore from '../../store/index.js';
+import useStore from '../../core/state/index.js';
 import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   resetSessionCharacterStateValues,
   patchSessionStateValue,
-} from '../../api/session-state-values.js';
-import { fetchDiaryContent } from '../../api/daily-entries.js';
-import { getWorld } from '../../api/worlds.js';
-import { getConfig } from '../../api/config.js';
-import { useSessionState } from '../../hooks/useSessionState.js';
+} from '../../core/api/session-state-values.js';
+import { fetchDiaryContent } from '../../core/api/daily-entries.js';
+import { getWorld } from '../../core/api/worlds.js';
+import { getConfig } from '../../core/api/config.js';
+import { useSessionState } from '../../core/hooks/useSessionState.js';
 import StatusSection from './StatusSection.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 
 const MotionDiv = motion.div;

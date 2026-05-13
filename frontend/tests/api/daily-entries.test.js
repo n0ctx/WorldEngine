@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { fetchDailyEntries, fetchDiaryContent } from '../../src/api/daily-entries.js';
+import { fetchDailyEntries, fetchDiaryContent } from '../../src/core/api/daily-entries.js';
 
 describe('daily entries api', () => {
   beforeEach(() => {

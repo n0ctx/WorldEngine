@@ -7,12 +7,12 @@ import {
   listThemes,
   refreshThemeCss,
   setActiveTheme,
-} from '../../api/themes.js';
-import { refreshCustomCss } from '../../api/custom-css-snippets.js';
-import { readJsonFile } from '../../api/import-export.js';
-import { useAppModeStore } from '../../store/appMode.js';
+} from '../../core/api/themes.js';
+import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
+import { readJsonFile } from '../../core/api/import-export.js';
+import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
   const [themes, setThemes] = useState([]);

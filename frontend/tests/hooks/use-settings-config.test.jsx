@@ -10,7 +10,7 @@ const displaySettingsStore = vi.hoisted(() => ({
   setCurrentWritingModelPricing: vi.fn(),
 }));
 
-vi.mock('../../src/api/config.js', () => ({
+vi.mock('../../src/core/api/config.js', () => ({
   getConfig: vi.fn(),
   updateConfig: vi.fn(),
   updateProviderKey: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock('../../src/api/config.js', () => ({
   testWritingAuxConnection: vi.fn(),
 }));
 
-vi.mock('../../src/store/displaySettings.js', () => ({
+vi.mock('../../src/core/state/displaySettings.js', () => ({
   useDisplaySettingsStore: (selector) => selector(displaySettingsStore),
 }));
 
@@ -34,8 +34,8 @@ import {
   testWritingConnection,
   updateConfig,
   updateProviderKey,
-} from '../../src/api/config.js';
-import { useSettingsConfig } from '../../src/hooks/useSettingsConfig.js';
+} from '../../src/core/api/config.js';
+import { useSettingsConfig } from '../../src/core/hooks/useSettingsConfig.js';
 
 describe('useSettingsConfig', () => {
   beforeEach(() => {

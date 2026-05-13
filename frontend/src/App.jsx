@@ -3,12 +3,12 @@
  *
  * Anything visual (top bar, transitions, panels, decoration) is owned by
  * the shell at `frontend/src/shells/<id>/AppShell.jsx`. Anything routing /
- * lifecycle / data lives in `core/app/AppRoot.jsx`. This file only wires
+ * lifecycle / data lives in `core/router/AppRouter.jsx`. This file only wires
  * them together.
  */
 import { useLocation } from 'react-router-dom';
-import { selectShell } from './core/app/selectShell.js';
-import AppRoot from './core/app/AppRoot.jsx';
+import { selectShell } from './core/router/selectShell.js';
+import AppRouter from './core/router/AppRouter.jsx';
 
 const AppShell = selectShell();
 
@@ -18,7 +18,7 @@ export default function App() {
   const locationKey = (backgroundLocation || location).pathname;
   return (
     <AppShell locationKey={locationKey}>
-      <AppRoot />
+      <AppRouter />
     </AppShell>
   );
 }

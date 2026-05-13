@@ -2,7 +2,7 @@ import ToggleSwitch from '../ui/ToggleSwitch';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
 import ModeSwitch from './ModeSwitch';
-import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
+import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
   return (

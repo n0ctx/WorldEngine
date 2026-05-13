@@ -44,17 +44,17 @@ vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => vi.fn(),
 }));
-vi.mock('../../src/store/appMode.js', () => ({
+vi.mock('../../src/core/state/appMode.js', () => ({
   useAppModeStore: (selector) => selector({ setAppMode: mocks.setAppMode }),
 }));
-vi.mock('../../src/api/custom-css-snippets.js', () => ({ refreshCustomCss: (...args) => mocks.refreshCustomCss(...args) }));
-vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, writing: {} })) }));
-vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
-vi.mock('../../src/api/personas.js', () => ({
+vi.mock('../../src/core/api/custom-css-snippets.js', () => ({ refreshCustomCss: (...args) => mocks.refreshCustomCss(...args) }));
+vi.mock('../../src/core/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, writing: {} })) }));
+vi.mock('../../src/core/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
+vi.mock('../../src/core/api/personas.js', () => ({
   getPersona: (...args) => mocks.getPersona(...args),
   getPersonaById: (...args) => mocks.getPersonaById(...args),
 }));
-vi.mock('../../src/api/writing-sessions.js', () => ({
+vi.mock('../../src/core/api/writing-sessions.js', () => ({
   listWritingSessions: (...args) => mocks.listWritingSessions(...args),
   createWritingSession: (...args) => mocks.createWritingSession(...args),
   generate: (...args) => mocks.generate(...args),
@@ -68,7 +68,7 @@ vi.mock('../../src/api/writing-sessions.js', () => ({
   impersonateWriting: (...args) => mocks.impersonateWriting(...args),
   retitleWritingSession: (...args) => mocks.retitleWritingSession(...args),
 }));
-vi.mock('../../src/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
+vi.mock('../../src/core/api/sessions.js', () => ({ deleteMessage: vi.fn() }));
 vi.mock('../../src/components/chat/MessageList.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({
@@ -106,12 +106,12 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   }),
 }));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
-vi.mock('../../src/api/chapter-titles.js', () => ({
+vi.mock('../../src/core/api/chapter-titles.js', () => ({
   getChapterTitles: (...args) => mocks.getChapterTitles(...args),
   updateChapterTitle: (...args) => mocks.updateChapterTitle(...args),
   retitleChapter: (...args) => mocks.retitleChapter(...args),
 }));
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -119,7 +119,7 @@ vi.mock('../../src/utils/logger.js', () => ({
     error: (...args) => mocks.logError(...args),
   },
 }));
-import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
+import { PageLayoutRendererProvider } from '../../src/pages/layout/PageLayout.jsx';
 import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
 import WritingSpacePage from '../../src/pages/WritingSpacePage/index.jsx';
 

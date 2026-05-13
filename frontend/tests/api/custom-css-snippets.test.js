@@ -7,7 +7,7 @@ import {
   refreshCustomCss,
   reorderSnippets,
   updateSnippet,
-} from '../../src/api/custom-css-snippets.js';
+} from '../../src/core/api/custom-css-snippets.js';
 
 describe('custom css snippets api', () => {
   beforeEach(() => {

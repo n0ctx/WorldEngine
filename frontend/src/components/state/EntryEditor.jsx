@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions } from '../../api/prompt-entries';
-import { listWorldStateFields } from '../../api/world-state-fields';
-import { listCharacterStateFields } from '../../api/character-state-fields';
-import { listPersonaStateFields } from '../../api/persona-state-fields';
+import { createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions } from '../../core/api/prompt-entries';
+import { listWorldStateFields } from '../../core/api/world-state-fields';
+import { listCharacterStateFields } from '../../core/api/character-state-fields';
+import { listPersonaStateFields } from '../../core/api/persona-state-fields';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
 import DatetimePartInput from './DatetimePartInput';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
 const NUMERIC_OPS = [

@@ -7,7 +7,7 @@ import {
   resetPersonaStateValuesByPersonaId,
   updatePersonaStateValue,
   updatePersonaStateValueByPersonaId,
-} from '../../src/api/persona-state-values.js';
+} from '../../src/core/api/persona-state-values.js';
 
 describe('persona state values api', () => {
   beforeEach(() => {

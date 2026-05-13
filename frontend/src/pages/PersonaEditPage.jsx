@@ -8,23 +8,23 @@ import {
   updatePersonaById,
   createPersona,
   uploadPersonaAvatarById,
-} from '../api/personas';
+} from '../core/api/personas';
 import {
   getPersonaStateValues,
   updatePersonaStateValue,
   getPersonaStateValuesByPersonaId,
   updatePersonaStateValueByPersonaId,
-} from '../api/persona-state-values';
-import { downloadPersonaCard } from '../api/import-export';
-import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
+} from '../core/api/persona-state-values';
+import { downloadPersonaCard } from '../core/api/import-export';
+import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import StateValueField from '../components/state/StateValueField';
-import EditPageShell from '../components/edit/EditPageShell';
+import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
-import AvatarUpload from '../components/edit/AvatarUpload';
-import { log } from '../utils/logger.js';
+import AvatarUpload from '../components/ui/AvatarUpload';
+import { log } from '../core/utils/logger.js';
 
 export default function PersonaEditPage() {
   const { worldId, personaId: personaIdParam } = useParams();

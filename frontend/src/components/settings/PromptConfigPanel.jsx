@@ -2,7 +2,7 @@ import Button from '../ui/Button';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
-import { SETTINGS_MODE } from './SettingsConstants';
+import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function PromptConfigPanel({
   settingsMode, onModeChange,

@@ -1,19 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../../api/characters';
-import { getAvatarColor, getAvatarUrl } from '../../utils/avatar';
-import { downloadCharacterCard } from '../../api/import-export';
-import { getCharacterStateValues, updateCharacterStateValue } from '../../api/character-state-values';
+import { getCharacter, updateCharacter, uploadAvatar, createCharacter } from '../../core/api/characters';
+import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar';
+import { downloadCharacterCard } from '../../core/api/import-export';
+import { getCharacterStateValues, updateCharacterStateValue } from '../../core/api/character-state-values';
 import MarkdownEditor from '../../components/ui/MarkdownEditor';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import SectionTabs from '../../components/ui/SectionTabs.jsx';
 import SealStampAnimation from './components/SealStampAnimation.jsx';
 import StateValueField from '../../components/state/StateValueField';
-import EditPageShell from '../../components/edit/EditPageShell';
+import EditPageShell from '../layout/EditPageShell';
 import FormGroup from '../../components/ui/FormGroup';
-import AvatarUpload from '../../components/edit/AvatarUpload';
-import { log } from '../../utils/logger.js';
+import AvatarUpload from '../../components/ui/AvatarUpload';
+import { log } from '../../core/utils/logger.js';
 
 export default function CharacterEditPage() {
   const { characterId, worldId } = useParams();

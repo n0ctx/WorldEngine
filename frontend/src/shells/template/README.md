@@ -1,7 +1,7 @@
 # Shell template
 
 Scaffold for a new shell implementation. Copy this folder, rename it, and
-register the new shell in `frontend/src/core/app/selectShell.js`.
+register the new shell in `frontend/src/core/router/selectShell.js`.
 
 ## Steps
 
@@ -17,7 +17,7 @@ register the new shell in `frontend/src/core/app/selectShell.js`.
    - Render any global chrome (top bar, side rail, ambient overlays).
    - Wrap `children` in its transition container.
    - Reference visual values through `--we-*` tokens only.
-   - NOT import routing/state/business modules from `core/app/`.
+   - NOT import routing/state/business modules from `core/router/`.
 
 3. Optionally add subfolders:
 
@@ -34,7 +34,7 @@ register the new shell in `frontend/src/core/app/selectShell.js`.
 4. Register the shell:
 
    ```js
-   // frontend/src/core/app/selectShell.js
+   // frontend/src/core/router/selectShell.js
    import ClassicParchmentShell from '../../shells/classic-parchment';
    import MyShell from '../../shells/my-shell';
 
@@ -48,8 +48,8 @@ register the new shell in `frontend/src/core/app/selectShell.js`.
 
 ## Boundaries
 
-- A shell MUST NOT import from `frontend/src/core/app/`.
+- A shell MUST NOT import from `frontend/src/core/router/`.
 - A shell MAY import from `frontend/src/components/ui` and shared utilities.
-- A shell SHOULD render slots from `frontend/src/core/layout/PageLayout`
+- A shell SHOULD render slots from `frontend/src/pages/layout/PageLayout`
   (`HeaderSlot`, `MainContentSlot`, etc.) when a page describes layout
   neutrally. Pages MUST NOT know which shell will render their slots.

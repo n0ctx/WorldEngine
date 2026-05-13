@@ -4,8 +4,8 @@ import Select from '../ui/Select';
 import Button from '../ui/Button';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from './SettingsConstants';
-import { log } from '../../utils/logger.js';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS, getProviderThinkingOptions } from '../../core/constants/settings';
+import { log } from '../../core/utils/logger.js';
 
 /**
  * 副模型(LLM)配置区块

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
+import { SETTINGS_MODE } from '../constants/settings';
 
 export const useAppModeStore = create((set) => ({
   appMode: SETTINGS_MODE.CHAT,

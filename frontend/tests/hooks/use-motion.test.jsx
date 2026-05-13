@@ -10,7 +10,7 @@ vi.mock('framer-motion', () => ({
   useReducedMotion: () => mocks.useReducedMotion(),
 }));
 
-import { useMotion } from '../../src/hooks/useMotion.js';
+import { useMotion } from '../../src/core/hooks/useMotion.js';
 
 describe('useMotion', () => {
   beforeEach(() => {

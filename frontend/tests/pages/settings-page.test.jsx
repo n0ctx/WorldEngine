@@ -19,7 +19,7 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => useLocationMock(),
 }));
 
-vi.mock('../../src/hooks/useSettingsConfig.js', () => ({
+vi.mock('../../src/core/hooks/useSettingsConfig.js', () => ({
   useSettingsConfig: () => settingsHook.value,
 }));
 

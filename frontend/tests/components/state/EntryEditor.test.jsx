@@ -13,22 +13,22 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock('../../../src/api/prompt-entries', () => ({
+vi.mock('../../../src/core/api/prompt-entries', () => ({
   createWorldEntry: (...args) => mocks.createWorldEntry(...args),
   updateWorldEntry: (...args) => mocks.updateWorldEntry(...args),
   getEntryConditions: (...args) => mocks.getEntryConditions(...args),
   replaceEntryConditions: (...args) => mocks.replaceEntryConditions(...args),
 }));
-vi.mock('../../../src/api/world-state-fields', () => ({
+vi.mock('../../../src/core/api/world-state-fields', () => ({
   listWorldStateFields: (...args) => mocks.listWorldStateFields(...args),
 }));
-vi.mock('../../../src/api/character-state-fields', () => ({
+vi.mock('../../../src/core/api/character-state-fields', () => ({
   listCharacterStateFields: (...args) => mocks.listCharacterStateFields(...args),
 }));
-vi.mock('../../../src/api/persona-state-fields', () => ({
+vi.mock('../../../src/core/api/persona-state-fields', () => ({
   listPersonaStateFields: (...args) => mocks.listPersonaStateFields(...args),
 }));
-vi.mock('../../../src/utils/logger.js', () => ({
+vi.mock('../../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),

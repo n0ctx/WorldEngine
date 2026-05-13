@@ -1,19 +1,20 @@
 /**
  * Core app composition: routes and overlays, no shell-specific UI.
  *
- * `AppRoot` is rendered as the `children` of the active shell (see App.jsx
+ * `AppRouter` is rendered as the `children` of the active shell (see App.jsx
  * and `selectShell.js`). It contains nothing about top bars, transitions,
  * or visual frames — those belong to the shell.
  */
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
-import { refreshCustomCss } from '../../api/custom-css-snippets';
-import { getConfig } from '../../api/config';
-import { DEFAULT_THEME_ID, refreshThemeCss } from '../../api/themes.js';
-import { useDisplaySettingsStore } from '../../store/displaySettings';
-import { useAppModeStore } from '../../store/appMode';
-import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
-import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
+import { refreshCustomCss } from '../api/custom-css-snippets';
+import { getConfig } from '../api/config';
+import { DEFAULT_THEME_ID, refreshThemeCss } from '../api/themes.js';
+import { useDisplaySettingsStore } from '../state/displaySettings';
+import { useAppModeStore } from '../state/appMode';
+import { invalidateCache, loadRules } from '../utils/regex-runner.js';
+import { useAssistantPanel } from '../features/assistant/index.js';
+import { OVERLAY_ROUTES } from './route-constants.js';
 
 const WorldsPage = lazy(() => import('../../pages/WorldsPage'));
 const WorldEditPage = lazy(() => import('../../pages/WorldEditPage'));
@@ -24,7 +25,7 @@ const ChatPage = lazy(() => import('../../pages/ChatPage'));
 const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('../../pages/WritingSpacePage'));
 const WorldConfigPage = lazy(() => import('../../pages/WorldConfigPage'));
-const AssistantPanel = lazy(() => import('@worldengine/assistant-client/AssistantPanel'));
+const AssistantPanel = lazy(() => import('../features/assistant/AssistantPanelHost.jsx'));
 
 function RedirectToConfig() {
   const { worldId } = useParams();
@@ -39,15 +40,25 @@ function RouteFallback() {
   );
 }
 
-export default function AppRoot() {
+export default function AppRouter() {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
   const setShowThinking = useDisplaySettingsStore((s) => s.setShowThinking);
   const setAutoCollapseThinking = useDisplaySettingsStore((s) => s.setAutoCollapseThinking);
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
-  const isAssistantOpen = useAssistantStore((s) => s.isOpen);
+  const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
   const appMode = useAppModeStore((s) => s.appMode);
   const [assistantLoaded, setAssistantLoaded] = useState(false);
+  const overlayElements = {
+    '/worlds/new': <WorldEditPage />,
+    '/worlds/:worldId/edit': <WorldEditPage />,
+    '/worlds/:worldId/persona': <PersonaEditPage />,
+    '/worlds/:worldId/personas/new': <PersonaEditPage />,
+    '/worlds/:worldId/personas/:personaId/edit': <PersonaEditPage />,
+    '/worlds/:worldId/characters/new': <CharacterEditPage />,
+    '/characters/:characterId/edit': <CharacterEditPage />,
+    '/settings': <SettingsPage />,
+  };
 
   useEffect(() => {
     getConfig().then((c) => {
@@ -117,14 +128,9 @@ export default function AppRoot() {
       {backgroundLocation && (
         <Suspense fallback={null}>
           <Routes>
-            <Route path="/worlds/new" element={<WorldEditPage />} />
-            <Route path="/worlds/:worldId/edit" element={<WorldEditPage />} />
-            <Route path="/worlds/:worldId/persona" element={<PersonaEditPage />} />
-            <Route path="/worlds/:worldId/personas/new" element={<PersonaEditPage />} />
-            <Route path="/worlds/:worldId/personas/:personaId/edit" element={<PersonaEditPage />} />
-            <Route path="/worlds/:worldId/characters/new" element={<CharacterEditPage />} />
-            <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            {OVERLAY_ROUTES.map((path) => (
+              <Route key={path} path={path} element={overlayElements[path]} />
+            ))}
           </Routes>
         </Suspense>
       )}

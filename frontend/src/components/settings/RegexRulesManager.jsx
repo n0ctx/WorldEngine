@@ -5,15 +5,15 @@ import {
   updateRegexRule,
   deleteRegexRule,
   reorderRegexRules,
-} from '../../api/regex-rules.js';
-import { getWorlds } from '../../api/worlds.js';
-import { invalidateCache, loadRules } from '../../utils/regex-runner.js';
+} from '../../core/api/regex-rules.js';
+import { getWorlds } from '../../core/api/worlds.js';
+import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
-import { SETTINGS_MODE } from './SettingsConstants';
-import { log } from '../../utils/logger.js';
+import { SETTINGS_MODE } from '../../core/constants/settings';
+import { log } from '../../core/utils/logger.js';
 
 const SCOPE_LABELS = {
   user_input: '用户输入',

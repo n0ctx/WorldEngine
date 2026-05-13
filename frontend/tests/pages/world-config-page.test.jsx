@@ -12,7 +12,7 @@ vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
   useNavigate: () => mocks.navigate,
 }));
-vi.mock('../../src/api/prompt-entries', () => ({
+vi.mock('../../src/core/api/prompt-entries', () => ({
   listWorldEntries: (...args) => mocks.listWorldEntries(...args),
 }));
 vi.mock('../../src/components', () => ({

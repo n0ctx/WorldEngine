@@ -3,10 +3,10 @@ import { AnimatePresence } from 'framer-motion';
 import MessageItem from './MessageItem.jsx';
 import WritingMessageItem from '../writing/WritingMessageItem.jsx';
 import OptionCard from './OptionCard.jsx';
-import { getMessages } from '../../api/sessions.js';
-import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
+import { getMessages } from '../../core/api/sessions.js';
+import { groupMessagesIntoChapters } from '../../core/utils/chapter-grouping.js';
 import ChapterDivider from './ChapterDivider.jsx';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 const NOOP = () => {};
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getWorldStateValues, resetWorldStateValues, updateWorldStateValue } from '../../src/api/world-state-values.js';
+import { getWorldStateValues, resetWorldStateValues, updateWorldStateValue } from '../../src/core/api/world-state-values.js';
 
 describe('world state values api', () => {
   beforeEach(() => {

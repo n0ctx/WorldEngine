@@ -29,36 +29,36 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.navigate,
   useLocation: () => mocks.useLocation(),
 }));
-vi.mock('../../src/api/characters', () => ({
+vi.mock('../../src/core/api/characters', () => ({
   getCharactersByWorld: (...args) => mocks.getCharactersByWorld(...args),
   deleteCharacter: (...args) => mocks.deleteCharacter(...args),
   reorderCharacters: (...args) => mocks.reorderCharacters(...args),
 }));
-vi.mock('../../src/api/import-export', () => ({
+vi.mock('../../src/core/api/import-export', () => ({
   importCharacter: (...args) => mocks.importCharacter(...args),
   importPersona: (...args) => mocks.importPersona(...args),
   readJsonFile: (...args) => mocks.readJsonFile(...args),
 }));
-vi.mock('../../src/api/character-state-fields', () => ({
+vi.mock('../../src/core/api/character-state-fields', () => ({
   listCharacterStateFields: (...args) => mocks.listCharacterStateFields(...args),
 }));
-vi.mock('../../src/api/personas', () => ({
+vi.mock('../../src/core/api/personas', () => ({
   listPersonas: (...args) => mocks.listPersonas(...args),
   activatePersona: (...args) => mocks.activatePersona(...args),
   deletePersona: (...args) => mocks.deletePersona(...args),
   createPersona: (...args) => mocks.createPersona(...args),
 }));
-vi.mock('../../src/api/prompt-entries', () => ({
+vi.mock('../../src/core/api/prompt-entries', () => ({
   listWorldEntries: (...args) => mocks.listWorldEntries(...args),
   updateWorldEntry: (...args) => mocks.updateWorldEntry(...args),
 }));
-vi.mock('../../src/store/index', () => ({
+vi.mock('../../src/core/state/index', () => ({
   default: (selector) => selector({
     setCurrentCharacterId: mocks.setCurrentCharacterId,
     setCurrentWritingSessionId: mocks.setCurrentWritingSessionId,
   }),
 }));
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),

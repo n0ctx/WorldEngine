@@ -6,8 +6,8 @@ import Range from '../ui/Range';
 import ModelSelector from './ModelSelector';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from './SettingsConstants';
-import { log } from '../../utils/logger.js';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DEFAULT_BASE_URLS, PROVIDER_HINTS } from '../../core/constants/settings';
+import { log } from '../../core/utils/logger.js';
 
 /**
  * 写作主模型(LLM)配置区块

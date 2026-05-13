@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getLongTermMemory, updateLongTermMemory } from '../../src/api/long-term-memory.js';
+import { getLongTermMemory, updateLongTermMemory } from '../../src/core/api/long-term-memory.js';
 
 describe('long-term-memory api', () => {
   beforeEach(() => {

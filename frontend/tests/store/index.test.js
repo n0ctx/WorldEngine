@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import useStore from '../../src/store/index.js';
+import useStore from '../../src/core/state/index.js';
 
 describe('frontend store', () => {
   beforeEach(() => {

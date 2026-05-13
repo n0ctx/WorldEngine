@@ -4,20 +4,20 @@ import {
   getCharactersByWorld,
   deleteCharacter,
   reorderCharacters,
-} from '../api/characters';
-import useStore from '../store/index';
-import { importCharacter, importPersona, readJsonFile } from '../api/import-export';
-import { listCharacterStateFields } from '../api/character-state-fields';
+} from '../core/api/characters';
+import useStore from '../core/state/index';
+import { importCharacter, importPersona, readJsonFile } from '../core/api/import-export';
+import { listCharacterStateFields } from '../core/api/character-state-fields';
 import {
   listPersonas,
   activatePersona,
   deletePersona,
   reorderPersonas,
-} from '../api/personas';
-import { listWorldEntries, updateWorldEntry } from '../api/prompt-entries';
+} from '../core/api/personas';
+import { listWorldEntries, updateWorldEntry } from '../core/api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
 import Icon from '../components/ui/Icon.jsx';
-import { log } from '../utils/logger.js';
+import { log } from '../core/utils/logger.js';
 
 const TRIGGER_LABEL = {
   always: '常驻',

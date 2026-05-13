@@ -4,13 +4,13 @@ const mocks = vi.hoisted(() => ({
   logWarn: vi.fn(),
 }));
 
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     warn: (...args) => mocks.logWarn(...args),
   },
 }));
 
-import { parseSSEStream } from '../../src/api/stream-parser.js';
+import { parseSSEStream } from '../../src/core/api/stream-parser.js';
 
 describe('parseSSEStream', () => {
   it('遇到 malformed event 时记录日志并继续处理后续事件', async () => {

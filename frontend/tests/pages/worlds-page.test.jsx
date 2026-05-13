@@ -18,22 +18,22 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.useNavigate,
   useLocation: () => mocks.useLocation(),
 }));
-vi.mock('../../src/store/index', () => ({
+vi.mock('../../src/core/state/index', () => ({
   default: (selector) => selector({ setCurrentWorldId: mocks.setCurrentWorldId }),
 }));
-vi.mock('../../src/api/worlds', () => ({
+vi.mock('../../src/core/api/worlds', () => ({
   getWorlds: (...args) => mocks.getWorlds(...args),
   deleteWorld: (...args) => mocks.deleteWorld(...args),
 }));
-vi.mock('../../src/api/characters', () => ({
+vi.mock('../../src/core/api/characters', () => ({
   getCharactersByWorld: (...args) => mocks.getCharactersByWorld(...args),
 }));
-vi.mock('../../src/api/import-export', () => ({
+vi.mock('../../src/core/api/import-export', () => ({
   readJsonFile: (...args) => mocks.readJsonFile(...args),
   importWorld: (...args) => mocks.importWorld(...args),
   downloadWorldCard: (...args) => mocks.downloadWorldCard(...args),
 }));
-vi.mock('../../src/utils/avatar', () => ({
+vi.mock('../../src/core/utils/avatar', () => ({
   getAvatarColor: () => '#caa272',
 }));
 

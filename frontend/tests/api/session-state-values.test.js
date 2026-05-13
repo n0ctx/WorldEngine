@@ -8,7 +8,7 @@ import {
   resetSessionCharacterStateValuesByChar,
   resetSessionPersonaStateValues,
   resetSessionWorldStateValues,
-} from '../../src/api/session-state-values.js';
+} from '../../src/core/api/session-state-values.js';
 
 describe('session state values api', () => {
   beforeEach(() => {

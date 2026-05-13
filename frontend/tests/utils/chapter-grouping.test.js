@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { CHAPTER_MESSAGE_SIZE, CHAPTER_TIME_GAP_MS } from '../../src/utils/constants.js';
-import { groupMessagesIntoChapters } from '../../src/utils/chapter-grouping.js';
+import { CHAPTER_MESSAGE_SIZE, CHAPTER_TIME_GAP_MS } from '../../src/core/utils/constants.js';
+import { groupMessagesIntoChapters } from '../../src/core/utils/chapter-grouping.js';
 
 describe('chapter grouping', () => {
   it('空输入返回空数组，单条消息生成单章节', () => {

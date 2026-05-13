@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/api/sessions.js', () => ({
+vi.mock('../../src/core/api/sessions.js', () => ({
   editMessage: vi.fn(async (messageId, content) => ({ id: `${messageId}-edited`, content })),
 }));
 
@@ -12,7 +12,7 @@ import {
   retitle,
   sendMessage,
   stopGeneration,
-} from '../../src/api/chat.js';
+} from '../../src/core/api/chat.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();

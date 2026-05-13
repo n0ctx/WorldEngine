@@ -1,4 +1,4 @@
-// frontend/src/utils/time.js
+// frontend/src/core/utils/time.js
 export function relativeTime(ts) {
   if (!ts) return '';
   const diff = Date.now() - ts;

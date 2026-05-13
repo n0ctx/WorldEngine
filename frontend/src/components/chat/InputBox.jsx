@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
-import { applyRules } from '../../utils/regex-runner.js';
+import { applyRules } from '../../core/utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
-import { log } from '../../utils/logger.js';
-import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../utils/constants.js';
+import { log } from '../../core/utils/logger.js';
+import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../core/utils/constants.js';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },

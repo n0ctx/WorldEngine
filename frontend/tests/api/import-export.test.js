@@ -14,7 +14,7 @@ import {
   importGlobalSettings,
   importWorld,
   readJsonFile,
-} from '../../src/api/import-export.js';
+} from '../../src/core/api/import-export.js';
 
 describe('import export api', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BLUR, DURATION, EASE, STAGGER, transitions, variants } from '../../src/utils/motion.js';
+import { BLUR, DURATION, EASE, STAGGER, transitions, variants } from '../../src/core/utils/motion.js';
 
 describe('motion utils', () => {
   it('导出稳定的动效 token 和预组合配置', () => {

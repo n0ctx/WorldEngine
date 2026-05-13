@@ -7,11 +7,11 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock('../../../src/api/prompt-entries', () => ({
+vi.mock('../../../src/core/api/prompt-entries', () => ({
   deleteWorldEntry: (...args) => mocks.deleteWorldEntry(...args),
 }));
 
-vi.mock('../../../src/utils/logger.js', () => ({
+vi.mock('../../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),

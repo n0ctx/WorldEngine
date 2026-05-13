@@ -8,7 +8,7 @@ import {
   reorderWorlds,
   updateWorld,
   uploadWorldCover,
-} from '../../src/api/worlds.js';
+} from '../../src/core/api/worlds.js';
 
 describe('worlds api', () => {
   beforeEach(() => {

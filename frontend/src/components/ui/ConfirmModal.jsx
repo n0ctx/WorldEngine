@@ -1,7 +1,7 @@
 // frontend/src/components/ui/ConfirmModal.jsx
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants, transitions } from '../../utils/motion.js';
+import { variants, transitions } from '../../core/utils/motion.js';
 
 /**
  * 通用确认弹窗。

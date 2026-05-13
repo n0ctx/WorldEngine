@@ -19,21 +19,21 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.useNavigate,
   useLocation: () => mocks.useLocation(),
 }));
-vi.mock('../../src/api/characters', () => ({
+vi.mock('../../src/core/api/characters', () => ({
   getCharacter: (...args) => mocks.getCharacter(...args),
   updateCharacter: (...args) => mocks.updateCharacter(...args),
   uploadAvatar: (...args) => mocks.uploadAvatar(...args),
 }));
-vi.mock('../../src/api/import-export', () => ({
+vi.mock('../../src/core/api/import-export', () => ({
   downloadCharacterCard: vi.fn(),
   importCharacter: vi.fn(),
   readJsonFile: vi.fn(),
 }));
-vi.mock('../../src/api/character-state-values', () => ({
+vi.mock('../../src/core/api/character-state-values', () => ({
   getCharacterStateValues: (...args) => mocks.getCharacterStateValues(...args),
   updateCharacterStateValue: (...args) => mocks.updateCharacterStateValue(...args),
 }));
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -41,7 +41,7 @@ vi.mock('../../src/utils/logger.js', () => ({
     error: (...args) => mocks.logError(...args),
   },
 }));
-vi.mock('../../src/utils/avatar', () => ({
+vi.mock('../../src/core/utils/avatar', () => ({
   getAvatarColor: () => '#946',
   getAvatarUrl: (path) => (path ? `/uploads/${path}` : ''),
 }));

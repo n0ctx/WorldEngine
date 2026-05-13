@@ -12,7 +12,7 @@ import {
   testWritingConnection,
   updateConfig,
   updateProviderKey,
-} from '../../src/api/config.js';
+} from '../../src/core/api/config.js';
 
 describe('config api', () => {
   beforeEach(() => {

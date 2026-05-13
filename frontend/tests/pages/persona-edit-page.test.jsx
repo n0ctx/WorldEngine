@@ -24,23 +24,23 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.useNavigate,
   useLocation: () => mocks.useLocation(),
 }));
-vi.mock('../../src/api/personas', () => ({
+vi.mock('../../src/core/api/personas', () => ({
   getPersona: (...args) => mocks.getPersona(...args),
   getPersonaById: (...args) => mocks.getPersonaById(...args),
   updatePersona: (...args) => mocks.updatePersona(...args),
   updatePersonaById: (...args) => mocks.updatePersonaById(...args),
   uploadPersonaAvatar: (...args) => mocks.uploadPersonaAvatar(...args),
 }));
-vi.mock('../../src/api/persona-state-values', () => ({
+vi.mock('../../src/core/api/persona-state-values', () => ({
   getPersonaStateValues: (...args) => mocks.getPersonaStateValues(...args),
   updatePersonaStateValue: (...args) => mocks.updatePersonaStateValue(...args),
   getPersonaStateValuesByPersonaId: (...args) => mocks.getPersonaStateValuesByPersonaId(...args),
   updatePersonaStateValueByPersonaId: (...args) => mocks.updatePersonaStateValueByPersonaId(...args),
 }));
-vi.mock('../../src/api/import-export', () => ({
+vi.mock('../../src/core/api/import-export', () => ({
   downloadPersonaCard: (...args) => mocks.downloadPersonaCard(...args),
 }));
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     debug: vi.fn(),
     info: vi.fn(),
@@ -48,7 +48,7 @@ vi.mock('../../src/utils/logger.js', () => ({
     error: (...args) => mocks.logError(...args),
   },
 }));
-vi.mock('../../src/utils/avatar', () => ({
+vi.mock('../../src/core/utils/avatar', () => ({
   getAvatarColor: () => '#333',
   getAvatarUrl: (path) => (path ? `/uploads/${path}` : ''),
 }));

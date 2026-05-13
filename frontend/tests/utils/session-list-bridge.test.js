@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { chatSessionListBridge, writingSessionListBridge } from '../../src/utils/session-list-bridge.js';
+import { chatSessionListBridge, writingSessionListBridge } from '../../src/core/utils/session-list-bridge.js';
 
 describe('session list bridge', () => {
   it('暴露可变桥接函数槽位', () => {

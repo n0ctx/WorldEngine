@@ -19,16 +19,16 @@ vi.mock('react-router-dom', () => ({
   useNavigate: () => mocks.useNavigate,
   useLocation: () => mocks.useLocation(),
 }));
-vi.mock('../../src/api/worlds', () => ({
+vi.mock('../../src/core/api/worlds', () => ({
   getWorld: (...args) => mocks.getWorld(...args),
   updateWorld: (...args) => mocks.updateWorld(...args),
 }));
-vi.mock('../../src/api/import-export', () => ({
+vi.mock('../../src/core/api/import-export', () => ({
   downloadWorldCard: vi.fn(),
   importWorld: vi.fn(),
   readJsonFile: vi.fn(),
 }));
-vi.mock('../../src/api/world-state-fields', () => ({
+vi.mock('../../src/core/api/world-state-fields', () => ({
   listWorldStateFields: vi.fn(),
   createWorldStateField: vi.fn(),
   updateWorldStateField: vi.fn(),
@@ -36,25 +36,25 @@ vi.mock('../../src/api/world-state-fields', () => ({
   reorderWorldStateFields: vi.fn(),
   syncDiaryTimeField: (...args) => mocks.syncDiaryTimeField(...args),
 }));
-vi.mock('../../src/api/world-state-values.js', () => ({
+vi.mock('../../src/core/api/world-state-values.js', () => ({
   getWorldStateValues: (...args) => mocks.getWorldStateValues(...args),
   updateWorldStateValue: (...args) => mocks.updateWorldStateValue(...args),
 }));
-vi.mock('../../src/api/character-state-fields', () => ({
+vi.mock('../../src/core/api/character-state-fields', () => ({
   listCharacterStateFields: vi.fn(),
   createCharacterStateField: vi.fn(),
   updateCharacterStateField: vi.fn(),
   deleteCharacterStateField: vi.fn(),
   reorderCharacterStateFields: vi.fn(),
 }));
-vi.mock('../../src/api/persona-state-fields', () => ({
+vi.mock('../../src/core/api/persona-state-fields', () => ({
   listPersonaStateFields: vi.fn(),
   createPersonaStateField: vi.fn(),
   updatePersonaStateField: vi.fn(),
   deletePersonaStateField: vi.fn(),
   reorderPersonaStateFields: vi.fn(),
 }));
-vi.mock('../../src/api/config', () => ({
+vi.mock('../../src/core/api/config', () => ({
   getConfig: (...args) => mocks.getConfig(...args),
 }));
 vi.mock('../../src/components/state/StateFieldList', () => ({ default: ({ scope }) => <div>{scope}-fields</div> }));

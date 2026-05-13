@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getChapterTitles, retitleChapter, updateChapterTitle } from '../../src/api/chapter-titles.js';
+import { getChapterTitles, retitleChapter, updateChapterTitle } from '../../src/core/api/chapter-titles.js';
 
 describe('chapter titles api', () => {
   beforeEach(() => {

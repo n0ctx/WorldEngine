@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import ModalShell from '../ui/ModalShell.jsx';
 import Textarea from '../ui/Textarea.jsx';
-import { getLongTermMemory, updateLongTermMemory } from '../../api/long-term-memory.js';
+import { getLongTermMemory, updateLongTermMemory } from '../../core/api/long-term-memory.js';
 
 export default function LongTermMemoryModal({ sessionId, onClose }) {
   const [content, setContent] = useState('');

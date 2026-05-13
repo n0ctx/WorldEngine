@@ -8,17 +8,17 @@ import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
 import SectionTabs from '../../../components/ui/SectionTabs.jsx';
-import { getWorld } from '../../../api/worlds.js';
-import { getConfig } from '../../../api/config.js';
+import { getWorld } from '../../../core/api/worlds.js';
+import { getConfig } from '../../../core/api/config.js';
 import {
   resetSessionWorldStateValues,
   resetSessionPersonaStateValues,
   patchSessionStateValue,
-} from '../../../api/session-state-values.js';
-import { fetchDiaryContent } from '../../../api/daily-entries.js';
-import { useSessionState } from '../../../hooks/useSessionState.js';
-import { fetchNearby, setNearbySaved, removeNearby } from '../../../api/session-nearby.js';
-import { log } from '../../../utils/logger.js';
+} from '../../../core/api/session-state-values.js';
+import { fetchDiaryContent } from '../../../core/api/daily-entries.js';
+import { useSessionState } from '../../../core/hooks/useSessionState.js';
+import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
+import { log } from '../../../core/utils/logger.js';
 
 const MotionDiv = motion.div;
 const DIARY_TIME_FIELD_KEY = 'diary_time';

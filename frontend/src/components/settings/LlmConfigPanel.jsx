@@ -3,7 +3,7 @@ import {
   updateProviderKey,
   fetchModels, fetchEmbeddingModels,
   testConnection, testEmbeddingConnection,
-} from '../../api/config';
+} from '../../core/api/config';
 import ProviderBlock from './ProviderBlock';
 import WritingLlmBlock from './WritingLlmBlock';
 import AuxLlmBlock from './AuxLlmBlock';
@@ -14,7 +14,7 @@ import FieldLabel from '../ui/FieldLabel';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Range from '../ui/Range';
-import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from './SettingsConstants';
+import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,

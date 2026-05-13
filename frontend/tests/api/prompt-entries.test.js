@@ -8,7 +8,7 @@ import {
   reorderWorldEntries,
   replaceEntryConditions,
   updateWorldEntry,
-} from '../../src/api/prompt-entries.js';
+} from '../../src/core/api/prompt-entries.js';
 
 describe('prompt entries api', () => {
   beforeEach(() => {

@@ -7,10 +7,10 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock('../../src/utils/regex-runner.js', () => ({
+vi.mock('../../src/core/utils/regex-runner.js', () => ({
   applyRules: (...args) => mocks.applyRules(...args),
 }));
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../src/core/utils/logger.js', () => ({
   log: {
     error: (...args) => mocks.logError(...args),
   },

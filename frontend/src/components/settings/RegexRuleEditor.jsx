@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 const SCOPE_OPTIONS = [
   { value: 'user_input', label: '用户输入', desc: '发送前处理，影响存库与 LLM' },
