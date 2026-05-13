@@ -3,6 +3,7 @@
  *
  *   POST /api/assistant/agent             —— SSE 流式入口
  *   POST /api/assistant/agent/:id/approve —— 批准计划
+ *   POST /api/assistant/agent/:id/reject  —— 拒绝当前计划，保留任务继续对话
  *   POST /api/assistant/agent/:id/cancel  —— 取消任务
  *   GET  /api/assistant/agent/recover     —— 找回最近可恢复任务
  *   GET  /api/assistant/agent/:id/stream  —— 补订阅任务 SSE
@@ -29,6 +30,16 @@ export async function streamAgent({ taskId, message, messageId, context, onEvent
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ taskId, message, messageId, context }),
+    signal,
+  });
+  await consumeSseResponse(res, onEvent);
+}
+
+export async function resumeTask({ taskId, onEvent, signal }) {
+  const res = await fetch(`${BASE}/agent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ taskId, resume: true }),
     signal,
   });
   await consumeSseResponse(res, onEvent);
@@ -71,7 +82,12 @@ async function consumeSseResponse(res, onEvent) {
       const payload = line.slice(6).trim();
       if (!payload) continue;
       try {
-        onEvent(JSON.parse(payload));
+        const event = JSON.parse(payload);
+        onEvent(event);
+        if (event?.done === true) {
+          await reader.cancel().catch(() => {});
+          return;
+        }
       } catch {
         // 忽略畸形帧
       }
@@ -95,8 +111,17 @@ export async function fetchTask(taskId) {
   return j.task || null;
 }
 
-export async function recoverTask() {
-  const r = await fetch(`${BASE}/agent/recover`);
+function buildContextQuery(context) {
+  if (!context) return '';
+  const params = new URLSearchParams();
+  if (context.worldId) params.set('worldId', context.worldId);
+  if (context.characterId) params.set('characterId', context.characterId);
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
+
+export async function recoverTask(context = null) {
+  const r = await fetch(`${BASE}/agent/recover${buildContextQuery(context)}`);
   if (!r.ok) {
     let errMsg = `HTTP ${r.status}`;
     try {
@@ -111,8 +136,22 @@ export async function recoverTask() {
   return j.task || null;
 }
 
+export async function listRecoverableTasks(excludeContext = null) {
+  const r = await fetch(`${BASE}/agent/recoverable-tasks${buildContextQuery(excludeContext)}`);
+  if (!r.ok) return [];
+  const j = await r.json().catch(() => ({}));
+  return Array.isArray(j.tasks) ? j.tasks : [];
+}
+
 export async function approveTask(taskId) {
   await fetch(`${BASE}/agent/${taskId}/approve`, { method: 'POST' });
+}
+
+export async function rejectPlan(taskId) {
+  const r = await fetch(`${BASE}/agent/${taskId}/reject`, { method: 'POST' });
+  if (!r.ok) throw new Error(`reject failed: ${r.status}`);
+  const j = await r.json().catch(() => ({}));
+  return j.task || null;
 }
 
 export async function cancelTask(taskId) {

@@ -6,6 +6,7 @@ import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../api/sessions.js';
 import { groupMessagesIntoChapters } from '../../utils/chapter-grouping.js';
 import ChapterDivider from './ChapterDivider.jsx';
+import { log } from '../../utils/logger.js';
 
 const NOOP = () => {};
 
@@ -82,9 +83,12 @@ const MessageList = forwardRef(function MessageList({
 }, ref) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMoreError, setLoadingMoreError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [reloadToken, setReloadToken] = useState(0);
   const listRef = useRef(null);
   const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
@@ -106,6 +110,7 @@ const MessageList = forwardRef(function MessageList({
         setMessages([]);
         setOffset(0);
         setHasMore(false);
+        setLoadError(null);
       }, 0);
       return () => {
         cancelled = true;
@@ -117,6 +122,7 @@ const MessageList = forwardRef(function MessageList({
       await Promise.resolve();
       if (cancelled) return;
       setLoading(true);
+      setLoadError(null);
       setMessages([]);
       setOffset(0);
       setHasMore(false);
@@ -134,19 +140,24 @@ const MessageList = forwardRef(function MessageList({
         setHasMore(hydrated.length === PAGE_SIZE);
         setLoading(false);
         handleMessagesLoaded(hydrated);
-      } catch {
-        if (!cancelled) setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadError('消息加载失败，请重试');
+          log.error('chat.messages.load_failed', err);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, reloadToken]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || !hasMore || !sessionId) return;
     setLoadingMore(true);
+    setLoadingMoreError(null);
     const el = listRef.current;
     if (el) prevScrollHeight.current = el.scrollHeight;
 
@@ -167,7 +178,11 @@ const MessageList = forwardRef(function MessageList({
           });
         }
       })
-      .catch(() => setLoadingMore(false));
+      .catch((err) => {
+        setLoadingMore(false);
+        setLoadingMoreError('加载更多失败，请稍后重试');
+        log.error('chat.messages.load_more_failed', err);
+      });
   }, [loadingMore, hasMore, sessionId, offset]);
 
   // 监听滚动：到顶部时加载更多
@@ -267,6 +282,21 @@ const MessageList = forwardRef(function MessageList({
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-[var(--we-color-text-danger)]">{loadError}</p>
+        <button
+          type="button"
+          className="we-panel-card-action we-panel-card-action--chip"
+          onClick={() => setReloadToken((token) => token + 1)}
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
+
 
   return (
     <div className="relative flex-1 min-h-0">
@@ -274,6 +304,9 @@ const MessageList = forwardRef(function MessageList({
       {/* 加载更多指示器 */}
       {loadingMore && (
         <div className="text-center text-xs opacity-40 py-3">加载历史消息…</div>
+      )}
+      {loadingMoreError && (
+        <div className="text-center text-xs text-[var(--we-color-text-danger)] py-2">{loadingMoreError}</div>
       )}
       {!hasMore && messages.length > 0 && (
         <div className="text-center text-xs opacity-25 py-2">— 对话开始 —</div>

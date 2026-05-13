@@ -9,10 +9,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
+  resumeTask,
   subscribeTask,
   fetchTask,
   recoverTask,
+  listRecoverableTasks,
   approveTask,
+  rejectPlan,
   cancelTask,
   truncateFrom as apiTruncateFrom,
   deleteMessage as apiDeleteMessage,
@@ -20,6 +23,7 @@ import {
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
 import DragHandle from './DragHandle.jsx';
+import { findRegenerateSource } from './message-helpers.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
@@ -27,9 +31,17 @@ import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
 import { log } from '../../frontend/src/utils/logger.js';
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
-const ACTIVE_CANCELABLE_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
+const HARNESS_ERROR_PREFIX = 'agent loop error: ';
+const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
+
+function isRestartInterrupted(error) {
+  return error === RECOVERABLE_TERMINAL_ERROR;
+}
+function isHarnessSoftFail(error) {
+  return typeof error === 'string' && error.startsWith(HARNESS_ERROR_PREFIX);
+}
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
@@ -43,6 +55,7 @@ export default function AssistantPanel() {
   const error = useAssistantStore((s) => s.error);
   const ingestEvent = useAssistantStore((s) => s.ingestEvent);
   const pushUserMessage = useAssistantStore((s) => s.pushUserMessage);
+  const beginUserTurn = useAssistantStore((s) => s.beginUserTurn);
   const reset = useAssistantStore((s) => s.reset);
   const resetTask = useAssistantStore((s) => s.resetTask);
   const replaceTaskSnapshot = useAssistantStore((s) => s.replaceTaskSnapshot);
@@ -56,24 +69,18 @@ export default function AssistantPanel() {
   const recoveringRef = useRef(false);
   const recoveryToastKeyRef = useRef('');
 
-  const isRecoverableTerminal = status === 'failed' && error === RECOVERABLE_TERMINAL_ERROR;
+  // 只有"服务重启被打断"才需要自动恢复 + 重新订阅 SSE；harness 软失败仅放开输入框。
+  const isRestartRecoverable = status === 'failed' && isRestartInterrupted(error);
+  const isHarnessRecoverable = status === 'failed' && isHarnessSoftFail(error);
+  const isRecoverableTerminal = isRestartRecoverable || isHarnessRecoverable;
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
   useEffect(() => {
     return () => abortRef.current?.abort?.();
   }, []);
 
-  // 面板重新打开时若任务处于终态，仅重置任务态（保留消息），避免输入框一直禁用
-  const prevIsOpenRef = useRef(isOpen);
-  useEffect(() => {
-    if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status) && !isRecoverableTerminal) {
-      resetTask();
-    }
-    prevIsOpenRef.current = isOpen;
-  }, [isOpen, status, resetTask, isRecoverableTerminal]);
-
   // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
-  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/executing 阶段已经写入
+  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/running 阶段已经写入
   // 但列表迟迟不更新的体验问题。
 
   const buildContext = useCallback(async () => {
@@ -91,29 +98,47 @@ export default function AssistantPanel() {
     return context;
   }, [currentWorldId, currentCharacterId]);
 
-  const attachRecoveryStream = useCallback(
-    async (nextTaskId) => {
+  const openRecoveryStream = useCallback(
+    async (nextTaskId, mode = 'subscribe') => {
       if (!nextTaskId) return;
       abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setIsStreaming(false);
+      setIsStreaming(mode === 'resume');
       try {
-        await subscribeTask({
-          taskId: nextTaskId,
-          onEvent: ingestEvent,
-          signal: ctrl.signal,
-        });
+        if (mode === 'resume') {
+          await resumeTask({
+            taskId: nextTaskId,
+            onEvent: ingestEvent,
+            signal: ctrl.signal,
+          });
+        } else {
+          await subscribeTask({
+            taskId: nextTaskId,
+            onEvent: ingestEvent,
+            signal: ctrl.signal,
+          });
+        }
       } catch (err) {
         if (err?.name !== 'AbortError') {
-          log.error('assistant.resume.subscribe_failed', err, { toast: err?.message || '断点续传订阅失败' });
+          log.error(`assistant.resume.${mode}_failed`, err, {
+            toast: err?.message || (mode === 'resume' ? '断点续传恢复失败' : '断点续传订阅失败'),
+          });
           ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
+        setIsStreaming(false);
       }
     },
     [ingestEvent],
+  );
+
+  const attachRecoveryStream = useCallback(
+    async (nextTaskId) => {
+      await openRecoveryStream(nextTaskId, 'subscribe');
+    },
+    [openRecoveryStream],
   );
 
   useEffect(() => {
@@ -122,9 +147,8 @@ export default function AssistantPanel() {
       Boolean(taskId) ||
       status === 'awaiting_approval' ||
       status === 'paused' ||
-      status === 'executing' ||
-      status === 'planning' ||
-      isRecoverableTerminal;
+      status === 'running' ||
+      isRestartRecoverable;
     if (!shouldRecover) return;
 
     recoveringRef.current = true;
@@ -136,18 +160,42 @@ export default function AssistantPanel() {
           task = await fetchTask(taskId).catch(() => null);
         }
         if (!task) {
-          task = await recoverTask().catch(() => null);
+          // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
+          const recoverContext = {
+            worldId: currentWorldId ?? null,
+            characterId: currentCharacterId ?? null,
+          };
+          task = await recoverTask(recoverContext).catch(() => null);
           recoveryMode = 'latest';
         }
         if (!task) {
           if (taskId) resetTask();
+          // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
+          try {
+            const others = await listRecoverableTasks({
+              worldId: currentWorldId ?? null,
+              characterId: currentCharacterId ?? null,
+            });
+            if (others.length > 0) {
+              log.info('assistant.resume.other_context', null, {
+                toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
+              });
+            }
+          } catch {
+            // 忽略列表查询失败
+          }
           return;
         }
         replaceTaskSnapshot(task);
         const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
-        if (recoveryToastKeyRef.current !== toastKey) {
+        const shouldToastRecovery =
+          task.status === 'running' ||
+          task.status === 'paused' ||
+          task.status === 'awaiting_approval' ||
+          (task.status === 'failed' && isRestartInterrupted(task.error));
+        if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
           recoveryToastKeyRef.current = toastKey;
-          if (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR) {
+          if (task.status === 'failed' && isRestartInterrupted(task.error)) {
             log.warn('assistant.resume.interrupted', null, {
               toast: '已恢复中断前快照，旧执行因服务重启已停止',
             });
@@ -157,17 +205,22 @@ export default function AssistantPanel() {
             log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
           }
         }
-        const shouldAttach =
-          !TERMINAL_STATUSES.has(task.status) ||
-          (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR);
-        if (shouldAttach) {
+        const isUserRejectedPlanPause =
+          task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
+        const shouldAutoResume =
+          task.status === 'running' ||
+          (task.status === 'paused' && !isUserRejectedPlanPause) ||
+          (task.status === 'failed' && isRestartInterrupted(task.error));
+        if (shouldAutoResume) {
+          await openRecoveryStream(task.id, 'resume');
+        } else if (task.status === 'awaiting_approval') {
           await attachRecoveryStream(task.id);
         }
       } finally {
         recoveringRef.current = false;
       }
     })();
-  }, [isOpen, isStreaming, taskId, status, isRecoverableTerminal, replaceTaskSnapshot, attachRecoveryStream, resetTask]);
+  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
 
   const handleSend = useCallback(
     async (overrideText, opts = {}) => {
@@ -182,6 +235,7 @@ export default function AssistantPanel() {
           Math.random().toString(36).slice(2, 10)
         }`;
       if (!opts.skipPush) pushUserMessage(text, messageId);
+      if (taskId) beginUserTurn(taskId);
       const context = await buildContext();
       // 关键：开新流前先 abort 上一条尚未关闭的 SSE 连接，
       // 否则旧的 fetch reader 仍订阅 sseClients，会和新流并行收到同一份 delta
@@ -190,13 +244,24 @@ export default function AssistantPanel() {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
       setIsStreaming(true);
+      // 进入 awaiting_approval / paused 时 SSE 仍保持长连，但 LLM 已停止吐 token；
+      // 此时 isStreaming 应立即置 false，否则发送按钮卡在"停止"态、省略号常驻。
+      const handleEvent = (event) => {
+        if (
+          event?.type === SSE_EVENTS.AWAITING_APPROVAL ||
+          event?.type === SSE_EVENTS.PAUSED
+        ) {
+          setIsStreaming(false);
+        }
+        ingestEvent(event);
+      };
       try {
         await streamAgent({
           taskId,
           message: text,
           messageId,
           context,
-          onEvent: ingestEvent,
+          onEvent: handleEvent,
           signal: ctrl.signal,
         });
       } catch (err) {
@@ -208,7 +273,7 @@ export default function AssistantPanel() {
         setIsStreaming(false);
       }
     },
-    [input, taskId, buildContext, ingestEvent, pushUserMessage],
+    [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn],
   );
 
   const handleEdit = useCallback(
@@ -221,7 +286,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
+        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
         return;
       }
       // 复用原 messageId：让 React 以同 key 复用 user 气泡 DOM，避免
@@ -229,31 +294,32 @@ export default function AssistantPanel() {
       useAssistantStore.getState().replaceTailWithUser(msgId, newContent, msgId);
       await handleSend(newContent, { skipPush: true, messageId: msgId });
     },
-    [taskId, ingestEvent, handleSend],
+    [taskId, handleSend],
   );
 
   const handleDelete = useCallback(
     async (msgId) => {
       if (!taskId || !msgId) return;
+      // 删除失败（如 400 任务运行中 / 404 消息不存在）只是局部操作失败，
+      // 不应把整个任务推入 failed 终态从而封禁输入框。仅 toast 提示并返回。
       try {
         await apiDeleteMessage(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '删除失败' });
+        log.warn('assistant.delete_message_failed', err, { toast: err?.message || '删除失败' });
         return;
       }
       useAssistantStore.getState().deleteMessage(msgId);
     },
-    [taskId, ingestEvent],
+    [taskId],
   );
 
   const handleRegenerate = useCallback(
     async (assistantMsgId) => {
       if (!taskId || !assistantMsgId) return;
       const msgs = useAssistantStore.getState().messages;
-      const idx = msgs.findIndex((m) => m.id === assistantMsgId);
-      if (idx <= 0) return;
-      const prev = msgs[idx - 1];
-      if (prev?.role !== 'user' || !prev.content) return;
+      const source = findRegenerateSource(msgs, assistantMsgId);
+      const prev = source?.message;
+      if (!prev?.id || !prev.content) return;
       // 先 abort 上一条仍挂着的 SSE（同 handleEdit 注释），否则 truncate 广播
       // messages_changed 给旧 fetch，会把新 user 消息从本地 store 中吞掉
       abortRef.current?.abort?.();
@@ -261,7 +327,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, prev.id);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
+        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
         return;
       }
       // 原子替换：单次 set 完成"丢尾 + push 新 user"，避免中间空帧引起页面闪烁。
@@ -270,7 +336,7 @@ export default function AssistantPanel() {
       useAssistantStore.getState().replaceTailWithUser(prev.id, prev.content, prev.id);
       await handleSend(prev.content, { skipPush: true, messageId: prev.id });
     },
-    [taskId, ingestEvent, handleSend],
+    [taskId, handleSend],
   );
 
   const handleApprove = useCallback(() => {
@@ -278,24 +344,43 @@ export default function AssistantPanel() {
     approveTask(taskId).catch(() => {});
   }, [taskId]);
 
-  const handleCancel = useCallback(() => {
+  const handleRejectPlan = useCallback(() => {
     if (!taskId) return;
-    cancelTask(taskId).catch(() => {});
-    abortRef.current?.abort?.();
-    setIsStreaming(false);
-  }, [taskId]);
+    rejectPlan(taskId)
+      .then((task) => {
+        abortRef.current?.abort?.();
+        setIsStreaming(false);
+        if (task) replaceTaskSnapshot(task);
+      })
+      .catch((err) => {
+        log.warn('assistant.reject_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
+      });
+  }, [taskId, replaceTaskSnapshot]);
 
-  const handleStop = useCallback(() => {
-    // 先 abort 本地 SSE：阻止后续 delta 涌入；
-    // 因 abort 后 SSE 不再回传 task_cancelled，需本地注入终态事件，
-    // 否则 status 会卡在 planning/executing → pendingAssistant 仍为 true → 输入气泡的省略号不消失
+  const handleStop = useCallback(async () => {
+    // 改为"请求取消"流程：
+    // 1) abort 本地 SSE 防止 delta 继续涌入，立即解锁 isStreaming
+    // 2) 调用 cancelTask 等后端确认；abort 后本地收不到 SSE，所以再 fetchTask 拿权威终态
+    // 3) 仅在后端确实没进入终态时本地注入 TASK_CANCELLED，避免覆盖刚到达的 TASK_COMPLETED
     abortRef.current?.abort?.();
     setIsStreaming(false);
-    if (taskId) {
-      cancelTask(taskId).catch(() => {});
+    if (!taskId) {
+      ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+      return;
+    }
+    try {
+      await cancelTask(taskId);
+      const task = await fetchTask(taskId).catch(() => null);
+      const terminal = task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled');
+      if (task && terminal) {
+        replaceTaskSnapshot(task);
+        return;
+      }
+    } catch {
+      // ignore：fall through to local fallback
     }
     ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-  }, [taskId, ingestEvent]);
+  }, [taskId, ingestEvent, replaceTaskSnapshot]);
 
   const handleReset = useCallback(() => {
     // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
@@ -308,20 +393,20 @@ export default function AssistantPanel() {
     reset();
   }, [taskId, status, reset]);
 
-  const inputDisabled =
-    status === 'cancelled' ||
-    (status === 'failed' && !isRecoverableTerminal);
+  // 后端允许在 paused / completed / failed / cancelled 等状态上继续开新一轮对话；
+  // 前端不再用任务状态封锁用户输入。真正终止执行由"停止"与"清空"负责。
+  const inputDisabled = false;
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
   // 省略号气泡仅在「LLM 真的在吐 token」的极短窗口出现：
   // - isStreaming：本地 SSE fetch 仍在进行
   // - !hasRunningItem：没有"运行中"占位（step / tool_call）抢眼
-  // - status === 'planning'：仅 planning 阶段会有自由文本流式输出；进入
-  //   awaiting_approval / paused / executing / 终态后 LLM 不再吐 token，
+  // - status === 'running'：仅 running 阶段会有自由文本流式输出；进入
+  //   awaiting_approval / paused / 终态后 LLM 不再吐 token，
   //   省略号必须立刻消失（之前 awaiting_approval 长连接保持时 isStreaming 一直为 true,
   //   导致省略号常驻，造成"还在跑"的错觉）。
-  const pendingAssistant = isStreaming && !hasRunningItem && status === 'planning';
+  const pendingAssistant = isStreaming && !hasRunningItem && status === 'running';
 
 
   return (
@@ -405,10 +490,10 @@ export default function AssistantPanel() {
               </button>
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={handleRejectPlan}
                 className="rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-primary)] hover:bg-black/5"
               >
-                取消
+                拒绝计划
               </button>
             </div>
           )}

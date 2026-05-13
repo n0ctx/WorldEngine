@@ -31,14 +31,55 @@ const InputBox = forwardRef(function InputBox({
   const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const draftKey = `we:chat-draft:${mode}:${globalThis.location?.pathname || ''}`;
+
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem(draftKey);
+      if (savedDraft) setText(savedDraft);
+    } catch {
+      // ignore draft restore failures
+    }
+  }, [draftKey]);
+
+  useEffect(() => {
+    try {
+      if (text) sessionStorage.setItem(draftKey, text);
+      else sessionStorage.removeItem(draftKey);
+    } catch {
+      // ignore draft persistence failures
+    }
+  }, [draftKey, text]);
+
+  function clearDraft() {
+    try {
+      sessionStorage.removeItem(draftKey);
+    } catch {
+      // ignore draft cleanup failures
+    }
+  }
+
+  function canExecuteCommand(cmd) {
+    if (generating) return false;
+    if (impersonating && cmd === '/impersonate') return false;
+    return true;
+  }
 
   // 暴露命令式 fillText 给父组件
   useImperativeHandle(ref, () => ({
-    fillText(value) {
+    fillText(value, opts = {}) {
+      const { force = false, focus = false } = opts;
+      if (!force && text.trim()) return false;
       setText(value);
-      setTimeout(() => textareaRef.current?.focus(), 0);
+      if (focus) {
+        setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
+      }
+      return true;
     },
-  }));
+    hasText() {
+      return text.trim().length > 0;
+    },
+  }), [text]);
 
   // 自动调整高度（运行时动态值，保留）
   function adjustHeight() {
@@ -69,8 +110,10 @@ const InputBox = forwardRef(function InputBox({
   }
 
   function executeCommand(cmd) {
+    if (!canExecuteCommand(cmd)) return;
     setText('');
     setSlashOpen(false);
+    clearDraft();
     switch (cmd) {
       case '/continue':    onContinue?.();    break;
       case '/impersonate': onImpersonate?.(); break;
@@ -120,10 +163,12 @@ const InputBox = forwardRef(function InputBox({
     if (!trimmed || generating) return;
     // user_input scope：发送前应用正则替换
     const processed = applyRules(trimmed, 'user_input', worldId ?? null, mode);
+    if (!processed.trim()) return;
     onSend(processed, attachments);
     setText('');
     setAttachments([]);
     setSlashOpen(false);
+    clearDraft();
   }
 
   function handleFileChange(e) {
@@ -133,13 +178,14 @@ const InputBox = forwardRef(function InputBox({
 
     const remaining = MAX_ATTACHMENTS_PER_MESSAGE - attachments.length;
     const selected = files.slice(0, remaining);
-    const rejected = [];
+    const oversized = [];
+    const unreadable = [];
 
     const readers = selected.map(
       (file) =>
         new Promise((resolve) => {
           if (file.size > MAX_SIZE) {
-            rejected.push(file.name);
+            oversized.push(file.name);
             resolve(null);
             return;
           }
@@ -148,14 +194,21 @@ const InputBox = forwardRef(function InputBox({
             const base64 = ev.target.result.split(',')[1];
             resolve({ type: 'image', data: base64, mimeType: file.type, preview: ev.target.result });
           };
+          reader.onerror = () => {
+            unreadable.push(file.name);
+            resolve(null);
+          };
           reader.readAsDataURL(file);
         }),
     );
 
     Promise.all(readers).then((results) => {
       const valid = results.filter(Boolean);
-      if (rejected.length) {
-        log.error('chat.image.too_large', null, { toast: `以下图片超过 ${MAX_ATTACHMENT_SIZE_MB}MB，已跳过：${rejected.join(', ')}` });
+      if (oversized.length) {
+        log.error('chat.image.too_large', null, { toast: `以下图片超过 ${MAX_ATTACHMENT_SIZE_MB}MB，已跳过：${oversized.join(', ')}` });
+      }
+      if (unreadable.length) {
+        log.error('chat.image.read_failed', null, { toast: `以下图片无法读取，已跳过：${unreadable.join(', ')}` });
       }
       if (valid.length) {
         setAttachments((prev) => [...prev, ...valid]);

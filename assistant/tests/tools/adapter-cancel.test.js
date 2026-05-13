@@ -13,7 +13,7 @@ import { ToolLoopCancelledError } from '../../../backend/llm/tool-loop-control.j
 
 test('cancel 时机 A: tool 执行前已 cancelled → 直接抛 ToolLoopCancelledError,无 started 事件', async () => {
   const events = [];
-  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ ok: true }) };
+  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: true }) };
   const wrapped = wrapToolEvents(tool, (e) => events.push(e), { cancelCheck: () => true });
   await assert.rejects(() => wrapped.execute({}), ToolLoopCancelledError);
   assert.equal(
@@ -38,7 +38,7 @@ test('cancel 时机 B: tool 执行中变 cancelled → 发 completed(success:fal
     execute: async () => {
       // 模拟工具执行期间外部触发了 cancel
       cancelled = true;
-      return { ok: true };
+      return { success: true };
     },
   };
   const wrapped = wrapToolEvents(tool, (e) => events.push(e), {
@@ -57,10 +57,10 @@ test('cancel 时机 B: tool 执行中变 cancelled → 发 completed(success:fal
 
 test('cancel 时机 C: 未 cancel → 正常 success:true', async () => {
   const events = [];
-  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ ok: true }) };
+  const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: true }) };
   const wrapped = wrapToolEvents(tool, (e) => events.push(e), { cancelCheck: () => false });
   const r = await wrapped.execute({});
-  assert.deepEqual(r, { ok: true });
+  assert.deepEqual(r, { success: true });
   const started = events.find((e) => e.type === 'tool_call_started');
   const done = events.find((e) => e.type === 'tool_call_completed');
   assert.ok(started, '应发 started');

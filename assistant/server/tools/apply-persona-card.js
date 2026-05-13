@@ -4,8 +4,8 @@ export const definition = {
   name: 'apply_persona_card',
   description:
     '落库玩家卡（persona）变更。operation 仅支持 create/update。' +
-    'create 时 entityId 为目标 worldId（可跨世界，不限于当前世界；也可在 changes.world_id 中指定）。' +
-    'update 时可额外传 personaId 直接定位特定玩家卡；省略则修改当前激活玩家卡。',
+    'create 时 entityId 为目标 worldId；update 可额外传 personaId 定位特定玩家卡。' +
+    '参数结构详见 CONTRACT.md / USERCARD.md。',
   parameters: {
     type: 'object',
     properties: {

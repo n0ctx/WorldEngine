@@ -22,7 +22,9 @@ import * as llm from '../../backend/llm/index.js';
 import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
+import * as taskStore from './task-store.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
+import { loadWithCache } from './knowledge-cache.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -57,15 +59,26 @@ const KNOWLEDGE_BY_TYPE = {
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');
 const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
 
+// 子代理总结截断策略：
+// - 命中错误关键词（失败 / 不存在 / 字段缺失 / 校验 等）→ 不截断，原样回传给父代理，避免修复建议被切掉
+// - 否则提高上限到 1500 字符（旧值 400 太紧，会丢失多步骤报告的尾部）
+const ERROR_KEYWORDS_RE = /(error|失败|错误|不存在|未找到|缺失|无法|拒绝|invalid|forbidden|conflict|未通过|校验|冲突)/i;
+
+export function summarizeSubagentText(raw) {
+  const text = String(raw ?? '').trim();
+  if (ERROR_KEYWORDS_RE.test(text)) return text;
+  return text.slice(0, 1500);
+}
+
 async function loadPrompt() {
-  return readFile(PROMPT_PATH, 'utf-8');
+  return loadWithCache(PROMPT_PATH);
 }
 
 async function loadKnowledge(targetType) {
   const fileName = KNOWLEDGE_BY_TYPE[targetType];
   if (!fileName) throw new Error(`No knowledge file for targetType "${targetType}"`);
   const full = path.join(KNOWLEDGE_DIR, fileName);
-  return readFile(full, 'utf-8');
+  return loadWithCache(full);
 }
 
 function buildUserMessage({ stepId, targetType, operation, entityRef, task, context }) {
@@ -116,9 +129,11 @@ export async function dispatchSubAgent({
   entityRef = null,
   task = '',
   context = {},
+  taskId = null,
   emitFn = null,
   runId = null,
   cancelCheck = null,
+  onApplied = null,
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
@@ -137,11 +152,68 @@ export async function dispatchSubAgent({
   });
 
   const wrapOpts = cancelCheck ? { cancelCheck } : undefined;
+  let applySuccessCount = 0;
+  let lastApplyError = null;
+  let previewedThisRun = false;
+  // preview 缓存 key：task 内同实体的多步 update 共享，避免每步都重新拉一次 preview。
+  // 没有 taskId / entityId 时回退到 run 内 flag。
+  const previewCacheKey = (resolvedEntityId && taskId)
+    ? `${targetType}:${resolvedEntityId}`
+    : null;
+  if (previewCacheKey && taskStore.hasFreshPreview(taskId, previewCacheKey)) {
+    previewedThisRun = true;
+  }
+  // 包一层 preview_card,记录已经 preview 过
+  const wrappedPreview = {
+    type: 'function',
+    function: previewTool.function,
+    execute: async (args) => {
+      const res = await previewTool.execute(args);
+      previewedThisRun = true;
+      const entityId = args?.entityId ?? resolvedEntityId ?? null;
+      if (taskId && entityId) {
+        taskStore.markPreviewed(taskId, `${args?.target ?? targetType}:${entityId}`);
+      }
+      return res;
+    },
+  };
   const tools = [
-    wrapToolEvents(toLLMTool(previewTool), emitFn, wrapOpts),
+    wrapToolEvents(wrappedPreview, emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(listResources), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
-    wrapToolEvents(toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(apply, async (args) => {
+      const op = args.operation ?? operation;
+      if ((op === 'update' || op === 'delete') && !previewedThisRun) {
+        // 闸门:update / delete 必须先 preview_card 拉现状,否则极易写错字段 / ID
+        const hint = `请先调用 preview_card(target="${targetType}", operation="${op}"`
+          + (resolvedEntityId ? `, entityId="${resolvedEntityId}"` : '')
+          + ') 拉取当前数据,再决定 apply 入参。这次先不真正落库,看到 preview 结果后重试。';
+        lastApplyError = hint;
+        return { success: false, error: hint };
+      }
+      try {
+        const res = await apply.execute(args, { worldRefId });
+        if (res?.success !== false) {
+          applySuccessCount += 1;
+          if (onApplied) {
+            try {
+              onApplied({
+                kind: targetType,
+                op,
+                name: args.changes?.name ?? null,
+                refId: res?.personaId ?? res?.entityId ?? res?.id ?? null,
+              });
+            } catch { /* ignore */ }
+          }
+        } else {
+          lastApplyError = res?.error ?? `${apply.definition.name} 返回 success:false`;
+        }
+        return res;
+      } catch (err) {
+        lastApplyError = err?.message ?? String(err);
+        throw err;
+      }
+    }), emitFn, wrapOpts),
   ];
 
   const messages = [
@@ -178,8 +250,17 @@ export async function dispatchSubAgent({
       configScope,
       cacheableSystem: systemPrompt,
     });
-    const summary = String(raw ?? '').trim().slice(0, 400);
-    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, chars: summary.length })}`);
+    const summary = summarizeSubagentText(raw);
+    if (applySuccessCount === 0) {
+      log.warn(`FAIL_NO_APPLY  ${formatMeta({ runId, stepId, targetType, lastError: lastApplyError, summary: previewText(summary, { limit: 80 }) })}`);
+      return {
+        success: false,
+        error: lastApplyError
+          ? `子代理未成功落库（${apply.definition.name} 最后一次错误：${lastApplyError}）；模型自述：${summary || '(空)'}`
+          : `子代理未成功调用 ${apply.definition.name}（apply 工具一次都没执行成功）；模型自述：${summary || '(空)'}`,
+      };
+    }
+    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, applyCount: applySuccessCount, chars: summary.length })}`);
     return { success: true, summary };
   } catch (err) {
     log.error(`FAIL  ${formatMeta({ runId, stepId, targetType, error: err.message })}`);
@@ -191,6 +272,7 @@ export const __testables = {
   toLLMTool,
   resolveEntityRef,
   buildUserMessage,
+  summarizeSubagentText,
   KNOWLEDGE_BY_TYPE,
   APPLY_BY_TYPE,
 };

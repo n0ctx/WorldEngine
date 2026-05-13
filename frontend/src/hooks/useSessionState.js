@@ -7,8 +7,11 @@ const EMPTY_STATE = { world: [], persona: [], character: [] };
 export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick, stateQueuedTick = stateTick, stateFailedTick = 0) {
   const [stateData, setStateData] = useState(null);
   const [diaryEntries, setDiaryEntries] = useState(null);
+  const [stateError, setStateError] = useState(null);
+  const [diaryError, setDiaryError] = useState(null);
   const [stateJustChanged, setStateJustChanged] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
   const latestTicksRef = useRef({ stateTick, diaryTick, stateQueuedTick });
   const stateTickRef = useRef(stateTick);
@@ -45,6 +48,8 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
         if (cancelled) return;
         setStateData(EMPTY_STATE);
         setDiaryEntries([]);
+        setStateError(null);
+        setDiaryError(null);
         setIsUpdating(false);
       });
       return () => {
@@ -60,28 +65,42 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
       if (cancelled) return;
       setStateData(null);
       setDiaryEntries(null);
+      setStateError(null);
+      setDiaryError(null);
       setIsUpdating(false);
     });
 
     fetchSessionStateValues(sessionId)
       .then((data) => {
-        if (!cancelled) setStateData(data);
+        if (!cancelled) {
+          setStateData(data);
+          setStateError(null);
+        }
       })
       .catch(() => {
-        if (!cancelled) setStateData(EMPTY_STATE);
+        if (!cancelled) {
+          setStateData(EMPTY_STATE);
+          setStateError('状态加载失败');
+        }
       });
     fetchDailyEntries(sessionId)
       .then((entries) => {
-        if (!cancelled) setDiaryEntries(entries);
+        if (!cancelled) {
+          setDiaryEntries(entries);
+          setDiaryError(null);
+        }
       })
       .catch(() => {
-        if (!cancelled) setDiaryEntries([]);
+        if (!cancelled) {
+          setDiaryEntries([]);
+          setDiaryError('日记加载失败');
+        }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, reloadToken]);
 
   // Effect A：stateQueuedTick 变化 → 立即显示"整理中" overlay，记录开始时间
   useEffect(() => {
@@ -134,8 +153,14 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
           if (cancelled) return;
         }
 
-        if (shouldRefreshState) setStateData(nextState ?? EMPTY_STATE);
-        if (shouldRefreshDiary) setDiaryEntries(nextDiary ?? []);
+        if (shouldRefreshState) {
+          setStateData(nextState ?? EMPTY_STATE);
+          setStateError(null);
+        }
+        if (shouldRefreshDiary) {
+          setDiaryEntries(nextDiary ?? []);
+          setDiaryError(null);
+        }
 
         if (showOverlay) {
           // 仅当没有更新的一轮 stateQueuedTick 入队时才清除 overlay 和播放成功动画；
@@ -150,8 +175,14 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
       } catch {
         if (cancelled) return;
         if (showOverlay && updatingStartRef.current === capturedUpdatingStart) setIsUpdating(false);
-        if (shouldRefreshState) setStateData((prev) => prev ?? EMPTY_STATE);
-        if (shouldRefreshDiary) setDiaryEntries((prev) => prev ?? []);
+        if (shouldRefreshState) {
+          setStateData((prev) => prev ?? EMPTY_STATE);
+          setStateError('状态加载失败');
+        }
+        if (shouldRefreshDiary) {
+          setDiaryEntries((prev) => prev ?? []);
+          setDiaryError('日记加载失败');
+        }
       }
     })();
 
@@ -162,5 +193,15 @@ export function useSessionState(sessionId, stateTick = 0, diaryTick = stateTick,
 
   useEffect(() => () => clearTimeout(changedTimerRef.current), []);
 
-  return { stateData, setStateData, diaryEntries, setDiaryEntries, stateJustChanged, isUpdating };
+  return {
+    stateData,
+    setStateData,
+    diaryEntries,
+    setDiaryEntries,
+    stateError,
+    diaryError,
+    stateJustChanged,
+    isUpdating,
+    retryStateLoad: () => setReloadToken((token) => token + 1),
+  };
 }

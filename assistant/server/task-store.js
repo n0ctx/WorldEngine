@@ -23,9 +23,14 @@ const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
-const RESUMABLE_TASK_STATUSES = new Set(['awaiting_approval', 'paused']);
-const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const RESUMABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
+const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
+export const HARNESS_ERROR_PREFIX = 'agent loop error: ';
+
+export function isHarnessError(err) {
+  return typeof err === 'string' && err.startsWith(HARNESS_ERROR_PREFIX);
+}
 
 function cloneTaskForPersist(task) {
   return {
@@ -38,6 +43,10 @@ function cloneTaskForPersist(task) {
     modelContext: task.modelContext ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
     currentStepId: task.currentStepId ?? null,
+    lastToolFailure: task.lastToolFailure ?? null,
+    lastSubagentResult: task.lastSubagentResult ?? null,
+    approvalCheckpoint: task.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
     error: typeof task.error === 'string' ? task.error : undefined,
     updatedAt: typeof task.updatedAt === 'number' ? task.updatedAt : Date.now(),
   };
@@ -84,7 +93,13 @@ function hydrateTask(data) {
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     currentStepId: data.currentStepId ?? null,
+    lastToolFailure: data.lastToolFailure ?? null,
+    lastSubagentResult: data.lastSubagentResult ?? null,
+    approvalCheckpoint: data.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(data.loopIteration) ? data.loopIteration : 0,
     pauseRequested: false,
+    executionActive: false,
+    appliedResources: [],
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : (typeof data.createdAt === 'number' ? data.createdAt : Date.now()),
   };
   if (typeof data.error === 'string') task.error = data.error;
@@ -162,6 +177,15 @@ function persistUiEvent(taskId, event) {
         toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName,
         status: event.success ? 'done' : 'error',
       });
+      t.lastToolFailure = event.success
+        ? null
+        : {
+            toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName ?? null,
+            error: event.error ?? 'tool failed',
+            at: Date.now(),
+          };
+      touch(t);
+      persist(t);
       return;
     case SSE_EVENTS.STEP_STARTED:
       if (!event.stepId) return;
@@ -256,7 +280,7 @@ export function createTask({ context } = {}) {
   const now = Date.now();
   const task = {
     id,
-    status: 'planning',
+    status: 'idle',
     context: context ?? {},
     messages: [],
     pendingUserMessages: [],
@@ -264,6 +288,12 @@ export function createTask({ context } = {}) {
     modelContext: null,
     createdAt: now,
     currentStepId: null,
+    lastToolFailure: null,
+    lastSubagentResult: null,
+    approvalCheckpoint: null,
+    loopIteration: 0,
+    executionActive: false,
+    appliedResources: [],
     updatedAt: now,
   };
   tasks.set(id, task);
@@ -284,19 +314,60 @@ function isRecoverableTask(task) {
   return LIVE_RECOVERABLE_TASK_STATUSES.has(task?.status) || isRestartInterruptedTask(task);
 }
 
-export function getLatestRecoverableTask() {
+function contextMatches(task, context) {
+  if (!context) return true;
+  const want = {
+    worldId: context.worldId ?? null,
+    characterId: context.characterId ?? null,
+  };
+  const got = {
+    worldId: task?.context?.worldId ?? null,
+    characterId: task?.context?.characterId ?? null,
+  };
+  return got.worldId === want.worldId && got.characterId === want.characterId;
+}
+
+/**
+ * 找回当前 context 下最近的可恢复任务。
+ * - 传入 context（含 worldId / characterId）：仅返回 context 严格匹配的任务，无匹配返回 null（不再跨上下文兜底，避免任务串台）。
+ * - 不传 context：保持旧行为，返回最近任意可恢复任务（向后兼容）。
+ */
+export function getLatestRecoverableTask(context = null) {
   let latest = null;
   for (const task of tasks.values()) {
     if (!isRecoverableTask(task)) continue;
+    if (!contextMatches(task, context)) continue;
     if (!latest || (task.updatedAt ?? 0) > (latest.updatedAt ?? 0)) {
       latest = task;
     }
   }
   if (latest) return latest;
+  // 内存缓存覆盖 hydrate 后的全部任务，跨上下文兜底查询只在无 context 时走 DB。
+  if (context) return null;
   return getLatestAssistantTask(`
-    status IN ('planning', 'awaiting_approval', 'executing', 'paused')
+    status IN ('running', 'awaiting_approval', 'paused')
     OR (status = 'failed' AND error = '${RESTART_INTERRUPTED_ERROR}')
   `);
+}
+
+/**
+ * 列出所有可恢复任务的轻量摘要；可选排除某个 context（用于"当前世界没有任务，但其他世界还有 N 个未完成"提示）。
+ */
+export function listRecoverableTasks({ excludeContext = null } = {}) {
+  const out = [];
+  for (const task of tasks.values()) {
+    if (!isRecoverableTask(task)) continue;
+    if (excludeContext && contextMatches(task, excludeContext)) continue;
+    out.push({
+      id: task.id,
+      status: task.status,
+      context: task.context ?? {},
+      updatedAt: task.updatedAt ?? 0,
+      title: task.approvalCheckpoint?.title ?? null,
+    });
+  }
+  out.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  return out;
 }
 
 export function setStatus(id, status, { error } = {}) {
@@ -320,6 +391,134 @@ export function setCurrentStep(id, stepId) {
   if (!t) return;
   if (t.currentStepId === stepId) return;
   t.currentStepId = stepId ?? null;
+  touch(t);
+  persist(t);
+}
+
+export function setLastToolFailure(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.lastToolFailure ?? null) === JSON.stringify(next)) return;
+  t.lastToolFailure = next;
+  touch(t);
+  persist(t);
+}
+
+export function setLastSubagentResult(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.lastSubagentResult ?? null) === JSON.stringify(next)) return;
+  t.lastSubagentResult = next;
+  touch(t);
+  persist(t);
+}
+
+export function setApprovalCheckpoint(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.approvalCheckpoint ?? null) === JSON.stringify(next)) return;
+  t.approvalCheckpoint = next;
+  touch(t);
+  persist(t);
+}
+
+export function incrementLoopIteration(id) {
+  const t = tasks.get(id);
+  if (!t) return 0;
+  t.loopIteration = Number.isFinite(t.loopIteration) ? t.loopIteration + 1 : 1;
+  touch(t);
+  persist(t);
+  return t.loopIteration;
+}
+
+export function setExecutionActive(id, active) {
+  const t = tasks.get(id);
+  if (!t) return;
+  t.executionActive = active === true;
+}
+
+export function isExecutionActive(id) {
+  return tasks.get(id)?.executionActive === true;
+}
+
+// 连续失败计数：父代理工具循环里若同一轮内连续 N 次失败，主动暂停等用户介入，
+// 避免模型在错误状态下无意义反复重试 → 5/10/25 个失败气泡刷屏。
+export function bumpConsecutiveFailure(id) {
+  const t = tasks.get(id);
+  if (!t) return 0;
+  t.consecutiveFailures = Number.isFinite(t.consecutiveFailures) ? t.consecutiveFailures + 1 : 1;
+  return t.consecutiveFailures;
+}
+
+export function resetConsecutiveFailure(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  if (t.consecutiveFailures) t.consecutiveFailures = 0;
+}
+
+// preview 缓存：子代理在 update/delete 前必须 preview_card；同一 task 内的多个步骤可能针对同一实体，
+// 各自独立跑 preview 浪费时间 / token。这里把命中标记落在 task 内存上，TTL 30s 内同 key 直接放行。
+const PREVIEW_CACHE_TTL_MS = 30_000;
+
+function previewCacheMap(task) {
+  if (!task.previewCache) task.previewCache = new Map();
+  return task.previewCache;
+}
+
+export function markPreviewed(id, key) {
+  const t = tasks.get(id);
+  if (!t || !key) return;
+  previewCacheMap(t).set(key, Date.now() + PREVIEW_CACHE_TTL_MS);
+}
+
+export function hasFreshPreview(id, key) {
+  const t = tasks.get(id);
+  if (!t || !key) return false;
+  const cache = previewCacheMap(t);
+  const expiresAt = cache.get(key);
+  if (!expiresAt) return false;
+  if (expiresAt < Date.now()) {
+    cache.delete(key);
+    return false;
+  }
+  return true;
+}
+
+export function recordAppliedResource(id, entry) {
+  const t = tasks.get(id);
+  if (!t || !entry) return;
+  if (!Array.isArray(t.appliedResources)) t.appliedResources = [];
+  t.appliedResources.push({ at: Date.now(), ...entry });
+  touch(t);
+}
+
+export function findAppliedResource(id, predicate) {
+  const t = tasks.get(id);
+  if (!t || typeof predicate !== 'function') return null;
+  const list = Array.isArray(t.appliedResources) ? t.appliedResources : [];
+  return list.find(predicate) ?? null;
+}
+
+export function clearAppliedResources(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  if (!Array.isArray(t.appliedResources) || t.appliedResources.length === 0) return;
+  t.appliedResources = [];
+  touch(t);
+}
+
+export function resetLoopState(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  t.lastToolFailure = null;
+  t.lastSubagentResult = null;
+  t.approvalCheckpoint = null;
+  t.currentStepId = null;
+  t.loopIteration = 0;
+  t.pauseRequested = false;
   touch(t);
   persist(t);
 }
@@ -444,7 +643,7 @@ export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
   const remaining = sseClients.get(taskId)?.size ?? 0;
   const task = tasks.get(taskId);
-  if (remaining === 0 && task?.status === 'executing') {
+  if (remaining === 0 && task?.status === 'running') {
     requestPauseAfterCurrentStep(taskId);
     log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId, currentStepId: task.currentStepId ?? null })}`);
   }
@@ -494,6 +693,11 @@ export function buildTaskSnapshot(task) {
     modelContext: task.modelContext ?? null,
     createdAt: task.createdAt ?? null,
     currentStepId: task.currentStepId ?? null,
+    lastToolFailure: task.lastToolFailure ?? null,
+    lastSubagentResult: task.lastSubagentResult ?? null,
+    approvalCheckpoint: task.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
+    appliedResources: Array.isArray(task.appliedResources) ? task.appliedResources : [],
     error: task.error,
     updatedAt: task.updatedAt ?? null,
   };

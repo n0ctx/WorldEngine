@@ -18,10 +18,13 @@ export default function SessionListPanel({
 }) {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
+  const [loadError, setLoadError] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingMoreError, setLoadingMoreError] = useState(null);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
   const listRef = useRef(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
     if (!character?.id) return;
@@ -33,6 +36,8 @@ export default function SessionListPanel({
       setSessions([]);
       setOffset(0);
       setHasMore(false);
+      setLoadError(null);
+      setLoadingMoreError(null);
 
       try {
         const data = await getSessions(character.id, PAGE_SIZE, 0);
@@ -40,29 +45,37 @@ export default function SessionListPanel({
         setSessions(data);
         setOffset(data.length);
         setHasMore(data.length === PAGE_SIZE);
-      } catch {
-        if (!cancelled) setSessions([]);
+      } catch (err) {
+        if (!cancelled) {
+          setSessions([]);
+          setLoadError('会话列表加载失败，请重试');
+          log.error('session.list.load_failed', err);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [character?.id]);
+  }, [character?.id, reloadToken]);
 
   // 滚动到底部时加载更多
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return;
     setLoadingMore(true);
+    setLoadingMoreError(null);
     try {
       const more = await getSessions(character.id, PAGE_SIZE, offset);
       setSessions((prev) => [...prev, ...more]);
       setOffset((o) => o + more.length);
       setHasMore(more.length === PAGE_SIZE);
+    } catch (err) {
+      setLoadingMoreError('加载更多会话失败');
+      log.error('session.list.load_more_failed', err);
     } finally {
       setLoadingMore(false);
     }
-  }, [character?.id, hasMore, loadingMore, offset]);
+  }, [character, hasMore, loadingMore, offset]);
 
   useEffect(() => {
     const el = listRef.current;
@@ -158,7 +171,18 @@ export default function SessionListPanel({
       </div>
 
       <div ref={listRef} className="we-session-list-scroll">
-        {sessions.length === 0 && (
+        {loadError ? (
+          <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+            <p className="text-sm text-[var(--we-color-text-danger)]">{loadError}</p>
+            <button
+              type="button"
+              className="we-panel-card-action we-panel-card-action--chip"
+              onClick={() => setReloadToken((token) => token + 1)}
+            >
+              重试
+            </button>
+          </div>
+        ) : sessions.length === 0 && (
           <p className="we-session-list-empty">
             暂无对话
           </p>
@@ -176,6 +200,11 @@ export default function SessionListPanel({
         {loadingMore && (
           <p className="we-session-list-loading">
             加载中…
+          </p>
+        )}
+        {loadingMoreError && (
+          <p className="we-session-list-loading text-[var(--we-color-text-danger)]">
+            {loadingMoreError}
           </p>
         )}
       </div>

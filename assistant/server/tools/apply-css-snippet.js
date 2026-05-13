@@ -2,7 +2,7 @@ import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 
 export const definition = {
   name: 'apply_css_snippet',
-  description: '落库 CSS 片段变更。operation 取 create/update/delete；update/delete 必传 entityId。',
+  description: '落库 CSS 片段变更。operation 取 create/update/delete；update/delete 必传 entityId。参数结构详见 CONTRACT.md / CSSSNIPPET.md。',
   parameters: {
     type: 'object',
     properties: {

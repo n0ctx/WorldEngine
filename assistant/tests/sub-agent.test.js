@@ -85,8 +85,8 @@ test('dispatchSubAgent 未知 targetType 抛错', async () => {
   );
 });
 
-test('dispatchSubAgent 调用 mock LLM 完成一次（无 tool 调用）', async () => {
-  // mock llm 返回固定文本
+test('dispatchSubAgent: 模型谎报"已完成"但 apply 一次都没成功 → success=false', async () => {
+  // 仿真：sub-agent LLM 完全不调 apply_* 工具，只输出"已经创建了世界卡 X"
   process.env.MOCK_LLM_COMPLETE = '已经创建了世界卡 X';
   const world = insertWorld(sandbox.db, { name: 'subagent-world' });
   const result = await dispatchSubAgent({
@@ -97,8 +97,10 @@ test('dispatchSubAgent 调用 mock LLM 完成一次（无 tool 调用）', async
     task: '改世界描述',
     context: { worldId: world.id },
   });
-  assert.equal(result.success, true);
-  assert.match(result.summary, /已经创建了世界卡 X/);
+  assert.equal(result.success, false);
+  assert.match(result.error, /未成功落库|未成功调用/);
+  assert.match(result.error, /已经创建了世界卡 X/);
+  delete process.env.MOCK_LLM_COMPLETE;
 });
 
 test('dispatchSubAgent 在 LLM 抛错时返回 success=false', async () => {
@@ -119,17 +121,63 @@ test('dispatchSubAgent emitFn 触发 tool_call_started/completed 事件', async 
     { name: 'list_resources', arguments: { target: 'worlds' } },
   ]);
   const events = [];
-  const result = await dispatchSubAgent({
+  // 注：未调 apply_*，按新规约 success 应为 false；本用例仅验证 SSE 事件发出
+  await dispatchSubAgent({
     targetType: 'world-card',
     operation: 'update',
     task: 'x',
     context: {},
     emitFn: (e) => events.push(e),
   });
-  assert.equal(result.success, true);
   const types = events.map((e) => e.type);
   assert.ok(types.includes('tool_call_started'));
   assert.ok(types.includes('tool_call_completed'));
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_COMPLETE;
+});
+
+test('dispatchSubAgent: update/delete 没 preview 就 apply → 被闸门拦截 success=false', async () => {
+  const world = insertWorld(sandbox.db, { name: 'gate-world' });
+  process.env.MOCK_LLM_COMPLETE = '直接 update';
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'apply_world_card', arguments: { operation: 'update', entityId: world.id, changes: { description: 'x' } } },
+  ]);
+  const result = await dispatchSubAgent({
+    targetType: 'world-card', operation: 'update', entityRef: world.id,
+    task: 'x', context: { worldId: world.id },
+  });
+  assert.equal(result.success, false);
+  assert.match(result.error, /preview_card/);
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_COMPLETE;
+});
+
+test('dispatchSubAgent: 先 preview 再 apply → success=true', async () => {
+  const world = insertWorld(sandbox.db, { name: 'subagent-success-world' });
+  process.env.MOCK_LLM_COMPLETE = '已更新';
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    { name: 'preview_card', arguments: { target: 'world-card', operation: 'update', entityId: world.id } },
+    {
+      name: 'apply_world_card',
+      arguments: {
+        operation: 'update',
+        entityId: world.id,
+        changes: { description: 'new desc' },
+      },
+    },
+  ]);
+  const applied = [];
+  const result = await dispatchSubAgent({
+    targetType: 'world-card',
+    operation: 'update',
+    entityRef: world.id,
+    task: '改世界描述',
+    context: { worldId: world.id },
+    onApplied: (e) => applied.push(e),
+  });
+  assert.equal(result.success, true);
+  assert.equal(applied.length, 1);
+  assert.equal(applied[0].kind, 'world-card');
   delete process.env.MOCK_LLM_TOOL_CALLS;
   delete process.env.MOCK_LLM_COMPLETE;
 });
@@ -154,4 +202,24 @@ test('dispatchSubAgent 内部 tool 抛错时 emit success=false', async () => {
   }
   delete process.env.MOCK_LLM_TOOL_CALLS;
   delete process.env.MOCK_LLM_COMPLETE;
+});
+
+test('summarizeSubagentText: 普通文本截到 1500 字符', () => {
+  const long = 'a'.repeat(2000);
+  const out = __testables.summarizeSubagentText(long);
+  assert.equal(out.length, 1500);
+});
+
+test('summarizeSubagentText: 含错误关键词时整段保留，不截断', () => {
+  const long = '前 100 字'.padEnd(2000, '正常文本')
+    + ' 字段 X 不存在，需先创建';
+  const out = __testables.summarizeSubagentText(long);
+  assert.ok(out.length > 1500, '错误关键词触发时应返回原长度');
+  assert.match(out, /字段 X 不存在/);
+});
+
+test('summarizeSubagentText: 空 / 非字符串安全', () => {
+  assert.equal(__testables.summarizeSubagentText(null), '');
+  assert.equal(__testables.summarizeSubagentText(undefined), '');
+  assert.equal(__testables.summarizeSubagentText(''), '');
 });

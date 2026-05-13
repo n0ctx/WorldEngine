@@ -89,11 +89,39 @@ describe('useSessionState', () => {
     await flushAsync();
     expect(result.current.stateData).toEqual({ world: [], persona: [], character: [] });
     expect(result.current.diaryEntries).toEqual([]);
+    expect(result.current.stateError).toBe('状态加载失败');
+    expect(result.current.diaryError).toBe('日记加载失败');
 
     rerender({ sessionId: null });
     await flushAsync();
     expect(result.current.stateData).toEqual({ world: [], persona: [], character: [] });
     expect(result.current.diaryEntries).toEqual([]);
+    expect(result.current.stateError).toBeNull();
+    expect(result.current.diaryError).toBeNull();
+  });
+
+  it('支持失败后重试并清除错误状态', async () => {
+    mocks.fetchSessionStateValues.mockRejectedValueOnce(new Error('boom'));
+    mocks.fetchDailyEntries.mockRejectedValueOnce(new Error('boom'));
+
+    const { result } = renderHook(() => useSessionState('session-1'));
+
+    await flushAsync();
+    expect(result.current.stateError).toBe('状态加载失败');
+    expect(result.current.diaryError).toBe('日记加载失败');
+
+    mocks.fetchSessionStateValues.mockResolvedValueOnce({ world: [{ field_key: 'weather' }], persona: [], character: [] });
+    mocks.fetchDailyEntries.mockResolvedValueOnce([{ date_str: '2026-04-24' }]);
+
+    act(() => {
+      result.current.retryStateLoad();
+    });
+    await flushAsync();
+
+    expect(result.current.stateData).toEqual({ world: [{ field_key: 'weather' }], persona: [], character: [] });
+    expect(result.current.diaryEntries).toEqual([{ date_str: '2026-04-24' }]);
+    expect(result.current.stateError).toBeNull();
+    expect(result.current.diaryError).toBeNull();
   });
 
   it('卸载时会清理变更定时器', async () => {

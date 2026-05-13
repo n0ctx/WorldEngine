@@ -60,18 +60,9 @@ allowed keys（**仅 3 个**）：
 - enum 字段：`value_json` 字符串值必须来自该字段的 `enum_options`，禁止填列表外值
 - 写入范围：只写默认状态值，不改运行时会话状态
 
-### value_json 写法（按 type）
+### value_json 写法
 
-| type | 写法 |
-|---|---|
-| number | `"100"` |
-| text | `"\"正常\""` |
-| enum | `"\"警觉\""`（值来自该字段 `enum_options`）|
-| list | `"[\"草药包\",\"绷带\"]"` |
-| boolean | `"false"` |
-| datetime | `"\"1000-03-15T14:30\""`（ISO 局部时间 `YYYY-MM-DDTHH:mm`；年份为正整数、可任意位数；月/日/时/分各 2 位）|
-| table | `"{\"hp\":80,\"mp\":40}"`（对象 JSON；key 必须是该字段 `table_columns` 已声明的列 key，值必须是数值；未列出的列保持缺省）|
-| 清空且字段允许为空 | `null` |
+见 `assistant/knowledge/STATEVALUE-CHEATSHEET.md`。
 
 ## operation 限制
 

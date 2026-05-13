@@ -47,6 +47,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../src/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
 vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
+vi.mock('../../src/api/world-state-fields.js', () => ({ syncDiaryTimeField: vi.fn(async () => ({})) }));
 vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
 vi.mock('../../src/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
@@ -107,7 +108,14 @@ vi.mock('../../src/components/chat/InputBox.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/components/state/StatePanel.jsx', () => ({ default: (props) => <div data-testid="state-panel">{props.worldId}</div> }));
+vi.mock('../../src/components/state/StatePanel.jsx', () => ({
+  default: (props) => (
+    <div data-testid="state-panel">
+      {props.worldId}
+      <button onClick={() => props.onDiaryInject?.('日记注入内容')}>inject-diary</button>
+    </div>
+  ),
+}));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
 
 import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
@@ -453,6 +461,65 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByText('stop'));
     expect(mocks.stopGeneration).toHaveBeenCalledWith('session-1');
+  });
+
+  it('生成中不会触发重命名', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByText('retitle'));
+    expect(mocks.retitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      callbacksRef.current.onStreamEnd?.();
+    });
+    fireEvent.click(screen.getByText('retitle'));
+    await waitFor(() => expect(mocks.retitle).toHaveBeenCalledWith('session-1'));
+  });
+
+  it('切换角色后不会带着旧日记注入到新会话', async () => {
+    mocks.useParams.mockReturnValue({ characterId: 'char-1' });
+    mocks.getCharacter
+      .mockResolvedValueOnce({ id: 'char-1', world_id: 'world-1', name: '阿塔' })
+      .mockResolvedValueOnce({ id: 'char-2', world_id: 'world-2', name: '贝拉' });
+    mocks.getPersona
+      .mockResolvedValueOnce({ name: '旅者' })
+      .mockResolvedValueOnce({ name: '旅者' });
+
+    const view = renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('inject-diary'));
+
+    mocks.useParams.mockReturnValue({ characterId: 'char-2' });
+    view.rerender(
+      <PageLayoutRendererProvider render={renderPageLayout}>
+        <ChatPage />
+      </PageLayoutRendererProvider>,
+    );
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-2'));
+    fireEvent.click(screen.getByText('send'));
+
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalled());
+    const lastCall = mocks.sendMessage.mock.calls.at(-1);
+    expect(lastCall[4]).toEqual({});
   });
 
   it('支持编辑 AI 消息、删除消息和错误后重试', async () => {

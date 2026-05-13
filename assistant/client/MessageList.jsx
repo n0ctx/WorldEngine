@@ -32,7 +32,6 @@ const TOOL_LABELS = {
   edit_plan_doc: '更新计划',
   dispatch_subagent: '派发子任务',
   delete_plan_doc: '清除计划',
-  finalize_task: '完成任务',
 };
 
 const TOOL_EMOJI = {
@@ -49,7 +48,6 @@ const TOOL_EMOJI = {
   edit_plan_doc: '✏️',
   dispatch_subagent: '📤',
   delete_plan_doc: '🗑',
-  finalize_task: '✅',
 };
 
 const STATUS_TEXT = {
@@ -390,20 +388,49 @@ function PendingEntry() {
   );
 }
 
+const STICKY_BOTTOM_THRESHOLD_PX = 200;
+
 export default function MessageList({ messages, onEdit, onDelete, onRegenerate, pending }) {
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
   const prevCountRef = useRef(0);
+  const [hasUnread, setHasUnread] = useState(false);
+
+  // 用户向上滚出 STICKY_BOTTOM_THRESHOLD_PX 范围后，新消息不再强制滚到底部，
+  // 改为右下角弹出"↓ 新消息"按钮；用户主动点击或重新滚回底部时再清除。
+  const isNearBottom = () => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= STICKY_BOTTOM_THRESHOLD_PX;
+  };
 
   useEffect(() => {
-    if (messages.length > prevCountRef.current) {
+    if (messages.length <= prevCountRef.current) {
+      prevCountRef.current = messages.length;
+      return;
+    }
+    const nearBottom = isNearBottom();
+    if (nearBottom) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
+    // 推迟一帧再 setState：满足 react-hooks/set-state-in-effect 不允许在 effect 中同步 setState 的规则，
+    // 同时保留"消息增加时根据滚动位置决定是否提示新消息"的语义。
+    queueMicrotask(() => setHasUnread(!nearBottom));
     prevCountRef.current = messages.length;
   }, [messages]);
 
   useEffect(() => {
-    if (pending) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (pending && isNearBottom()) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [pending]);
+
+  const handleScroll = () => {
+    if (hasUnread && isNearBottom()) setHasUnread(false);
+  };
+
+  const jumpToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setHasUnread(false);
+  };
 
   if (messages.length === 0) {
     return (
@@ -419,31 +446,48 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
   }
 
   return (
-    <div className="we-assistant-scroll we-asst-stream min-h-0 flex-1 overflow-y-auto">
-      {messages.map((msg, i) => {
-        const key = msg.id ?? `${msg.role}-${i}`;
-        if (msg.role === 'step' || msg.role === 'tool_call') {
-          return <ToolEntry key={key} msg={msg} />;
-        }
-        if (msg.role === 'user') {
-          return <UserEntry key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
-        }
-        if (msg.role === 'assistant') {
-          return (
-            <AssistantEntry
-              key={key}
-              msg={msg}
-              onRegenerate={onRegenerate}
-              onDelete={onDelete}
-            />
-          );
-        }
-        if (msg.role === 'error') return <ErrorEntry key={key} msg={msg} />;
-        if (msg.role === 'plan_doc') return <PlanEntry key={key} content={msg.content} />;
-        return null;
-      })}
-      {pending && <PendingEntry />}
-      <div ref={bottomRef} />
+    <div className="relative min-h-0 flex-1">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="we-assistant-scroll we-asst-stream min-h-0 h-full overflow-y-auto"
+      >
+        {messages.map((msg, i) => {
+          const key = msg.id ?? `${msg.role}-${i}`;
+          if (msg.role === 'step' || msg.role === 'tool_call') {
+            if (msg.toolName === 'reply_to_user') return null;
+            return <ToolEntry key={key} msg={msg} />;
+          }
+          if (msg.role === 'user') {
+            return <UserEntry key={key} msg={msg} onEdit={onEdit} onDelete={onDelete} />;
+          }
+          if (msg.role === 'assistant') {
+            return (
+              <AssistantEntry
+                key={key}
+                msg={msg}
+                onRegenerate={onRegenerate}
+                onDelete={onDelete}
+              />
+            );
+          }
+          if (msg.role === 'error') return <ErrorEntry key={key} msg={msg} />;
+          if (msg.role === 'plan_doc') return <PlanEntry key={key} content={msg.content} />;
+          return null;
+        })}
+        {pending && <PendingEntry />}
+        <div ref={bottomRef} />
+      </div>
+      {hasUnread && (
+        <button
+          type="button"
+          onClick={jumpToBottom}
+          className="absolute bottom-3 right-4 z-10 rounded-full border border-[color:var(--we-border)] bg-[color:var(--we-bg-elevated)] px-3 py-1 text-xs text-[color:var(--we-fg)] shadow-sm transition hover:bg-[color:var(--we-bg-hover)]"
+          aria-label="跳到最新消息"
+        >
+          ↓ 新消息
+        </button>
+      )}
     </div>
   );
 }

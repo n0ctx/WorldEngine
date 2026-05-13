@@ -1,8 +1,7 @@
 /**
  * 写卡助手 Zustand Store（单接口模型）
  *
- * 状态机：idle → planning → awaiting_approval → executing → (paused|completed|failed|cancelled)
- *           （追问留在 planning 内，由父代理用普通 delta 文本完成，不切独立状态）
+ * 状态机：idle → running → awaiting_approval → paused → (completed|failed|cancelled)
  *
  * 服务端 SSE 事件由 ingestEvent 集中消费，
  * UI 仅订阅 taskId/status/planDoc/messages/error。
@@ -86,11 +85,20 @@ export const useAssistantStore = create(
       replaceTaskSnapshot: (task) =>
         set((s) => applyTaskSnapshot(s, task)),
 
+      beginUserTurn: (taskId) =>
+        set((s) => ({
+          ...s,
+          taskId: taskId ?? s.taskId,
+          status: 'running',
+          error: null,
+          taskMsgOffset: s.messages.length,
+        })),
+
       ingestEvent: (evt) =>
         set((s) => {
           switch (evt.type) {
             case SSE_EVENTS.TASK_CREATED:
-              return { ...s, taskId: evt.taskId, status: 'planning', error: null, taskMsgOffset: s.messages.length };
+              return { ...s, taskId: evt.taskId, status: 'running', error: null, taskMsgOffset: s.messages.length };
             case SSE_EVENTS.TASK_SNAPSHOT:
               return applyTaskSnapshot(s, evt.task);
             case SSE_EVENTS.PLAN_DOC_UPDATED: {
@@ -110,16 +118,13 @@ export const useAssistantStore = create(
             case SSE_EVENTS.AWAITING_APPROVAL:
               return { ...s, status: 'awaiting_approval' };
             case SSE_EVENTS.PLAN_APPROVED:
-              return { ...s, status: 'executing' };
+              return { ...s, status: 'running' };
             case SSE_EVENTS.PAUSED:
               return { ...s, status: 'paused' };
             case SSE_EVENTS.TASK_COMPLETED:
               return {
                 ...s,
                 status: 'completed',
-                messages: evt.summary
-                  ? [...s.messages, { role: 'assistant', content: evt.summary }]
-                  : s.messages,
               };
             case SSE_EVENTS.TASK_FAILED:
               return { ...s, status: 'failed', error: evt.error };
