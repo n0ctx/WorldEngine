@@ -42,6 +42,16 @@ function readNewLog() {
   return readLatestLog().slice(logCheckpoint);
 }
 
+async function waitForLogMatch(pattern, { timeoutMs = 1500, intervalMs = 10 } = {}) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt <= timeoutMs) {
+    const content = readNewLog();
+    if (pattern.test(content)) return content;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return readNewLog();
+}
+
 after(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
@@ -144,8 +154,7 @@ test('getLoggingConfig 在 max_preview_chars 非法时使用最小值 120', () =
 test('createLogger 写入日志文件并按级别过滤（debug 级别）', async () => {
   writeConfig({ logging: {} });
   mod.createLogger('dbg-test').debug('debug-msg-write');
-  await new Promise((r) => setTimeout(r, 25));
-  const content = readNewLog();
+  const content = await waitForLogMatch(/debug-msg-write/);
   assert.match(content, /debug-msg-write/);
 });
 
@@ -154,8 +163,7 @@ test('createLogger 写入 info/warn/error 三种级别', async () => {
   log.info('info-line');
   log.warn('warn-line');
   log.error('error-line');
-  await new Promise((r) => setTimeout(r, 25));
-  const content = readNewLog();
+  const content = await waitForLogMatch(/error-line/);
   assert.match(content, /info-line/);
   assert.match(content, /warn-line/);
   assert.match(content, /error-line/);
@@ -169,8 +177,7 @@ test('logPrompt 在 prompt.enabled+raw 时写 RAW 行', async () => {
     { role: 'user', content: [{ type: 'text', text: 'q' }] },
     { role: 'assistant', content: [{ type: 'image' }] },
   ]);
-  await new Promise((r) => setTimeout(r, 25));
-  const content = readNewLog();
+  const content = await waitForLogMatch(/PROMPT RAW/);
   assert.match(content, /PROMPT/);
   assert.match(content, /PROMPT RAW/);
   process.env.LOG_LEVEL = 'error';
@@ -180,8 +187,7 @@ test('logPrompt 在 prompt.enabled=false 时只写 META，不写 RAW', async () 
   writeConfig({ logging: { mode: 'raw', prompt: { enabled: false } } });
   process.env.LOG_LEVEL = 'debug';
   mod.logPrompt('session-disabled', [{ role: 'user', content: 'x' }]);
-  await new Promise((r) => setTimeout(r, 25));
-  const content = readNewLog();
+  const content = await waitForLogMatch(/PROMPT/);
   assert.match(content, /PROMPT/);
   assert.doesNotMatch(content, /PROMPT RAW/);
   process.env.LOG_LEVEL = 'error';
@@ -191,8 +197,7 @@ test('logPrompt 在 mode=metadata + prompt.enabled 时写 META disabled 提示',
   writeConfig({ logging: { mode: 'metadata', prompt: { enabled: true } } });
   process.env.LOG_LEVEL = 'debug';
   mod.logPrompt('session-meta', [{ role: 'user', content: 'x' }]);
-  await new Promise((r) => setTimeout(r, 25));
-  const content = readNewLog();
+  const content = await waitForLogMatch(/PROMPT META/);
   assert.match(content, /PROMPT META/);
   assert.match(content, /disabled\(raw=false\)/);
   process.env.LOG_LEVEL = 'error';
