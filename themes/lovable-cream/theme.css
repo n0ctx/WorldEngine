@@ -1,31 +1,21 @@
 /*
  * lovable-cream 主题覆盖层
  *
- * 受 Lovable 设计系统启发的暖 cream 中性主题：
- *   - 奶油色画布 #f7f4ed 作为全局底色（非纯白）
- *   - 炭灰色 #1c1c1c 驱动全部文字与中性层级
- *   - 灰色仅由 #1c1c1c 透明度派生 + #5f5f5d muted gray（DESIGN.md 明确给出的独立色值）
- *   - 层级由边框 #eceae4 定义，而非阴影
- *   - 深色按钮使用多层 inset shadow 作为 signature tactile detail
- *   - 无书脊、无纸张堆叠、无印章质感的极简现代风格
- *
- * 关键语义值最终解析结果（供调试参考）：
- *   --we-color-bg-canvas  → #f7f4ed  （奶油色画布）
- *   --we-color-bg-surface → #f7f4ed  （与画布无缝融合）
- *   --we-color-bg-muted   → #eceae4  （Light Cream）
- *   --we-color-bg-inverse → #1c1c1c  （炭灰壳层/深色按钮）
- *   --we-color-accent     → #1c1c1c  （炭灰主交互色，无饱和强调）
- *   --we-color-border-strong → rgba(28,28,28,0.4)  （交互边框）
- *   --we-topbar-bg        → #1c1c1c  （TopBar 深色底色）
+ * 严格按 DESIGN.md 的 Lovable cream 体系收口：
+ *   - page / card / panel 统一回到奶油底色 #f7f4ed
+ *   - 全部中性色从 #1c1c1c 及其透明度派生，辅以 #5f5f5d muted gray
+ *   - 被动边框统一 #eceae4，交互边框统一 rgba(28,28,28,0.4)
+ *   - 深色反相区统一 charcoal + off-white，不混入棕灰偏色
+ *   - 仅保留极浅阴影与深色按钮 inset tactile detail
  */
 
 :root {
-  /* ========== 字体族（Lovable：humanist sans-serif） ========== */
-  --we-font-serif:   ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --we-font-display: ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --we-font-seal:    ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --we-font-sans:    ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --we-font-ui:      ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* ========== 字体族：使用自托管 Instrument Sans 近似 Camera Plain ========== */
+  --we-font-serif:   'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-display: 'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-seal:    'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-sans:    'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --we-font-ui:      'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
   /* ========== 圆角 Scale（Lovable：6px 按钮/输入框、12px 卡片、16px 大容器） ========== */
@@ -34,66 +24,61 @@
   --we-radius-lg:   16px;
 
   /* ========== 基础表面 ========== */
-  /* Lovable 只有两种表面色：Cream #f7f4ed 和 Light Cream #eceae4 */
   --we-base-paper-100: #f7f4ed;
   --we-base-paper-200: #f7f4ed;
   --we-base-paper-300: #eceae4;
   --we-base-paper-400: #eceae4;
 
   /* ========== 基础文字 ========== */
-  /* 主文字 = Charcoal；次要 = Muted Gray #5f5f5d（DESIGN.md 明确给出的独立色值） */
   --we-base-ink-900: #1c1c1c;
-  --we-base-ink-700: #5f5f5d;
-  --we-base-ink-500: rgba(28, 28, 28, 0.4);
+  --we-base-ink-700: rgba(28, 28, 28, 0.83);
+  --we-base-ink-500: #5f5f5d;
 
   /* ========== 强调与装饰 ========== */
-  /* Lovable 无饱和强调色，主交互色 = 炭灰 */
   --we-base-vermilion-600: #1c1c1c;
   --we-base-vermilion-800: #1c1c1c;
   --we-base-gold-600: #5f5f5d;
   --we-base-gold-400: #5f5f5d;
 
-  /* ========== 状态色（功能性但去饱和） ========== */
-  --we-base-moss-600: #4a5d4a;
-  --we-base-amber-600: #8b6b3a;
-  --we-base-slate-600: #5f5f5d;
+  /* ========== 状态色（功能性但低饱和，不抢暖奶油基调） ========== */
+  --we-base-moss-600: #556253;
+  --we-base-amber-600: #7b6a4a;
+  --we-base-slate-600: #666664;
 
   /* ========== 壳层与反色 ========== */
   --we-base-book-bg: #1c1c1c;
   --we-base-white: #fcfbf8;
   --we-base-peach-200: #eceae4;
 
-  /* ========== 语义色直接覆盖（基础 token 无法满足时） ========== */
-  /* Lovable 的 stronger border 是 rgba(28,28,28,0.4)，不是 paper-400 派生 */
-  --we-color-border-strong: rgba(28, 28, 28, 0.4);
-  /* Lovable 没有独立 muted surface，用 Light Cream */
-  --we-color-bg-muted: #eceae4;
-  /* 文字层级主要靠 size/weight，tertiary 与 secondary 同色 */
+  /* ========== 语义色直接覆盖 ========== */
+  --we-color-text-secondary: rgba(28, 28, 28, 0.82);
   --we-color-text-tertiary: #5f5f5d;
+  --we-color-border-strong: rgba(28, 28, 28, 0.4);
+  --we-color-bg-muted: #eceae4;
+  --we-color-border-focus: rgba(59, 130, 246, 0.5);
 
   /* ========== 透明叠加层 ========== */
-  /* shadow 用 rgba(0,0,0,...)（Lovable 的实际做法），overlay 用 rgba(28,28,28,...) */
-  --we-color-bg-overlay: rgba(0, 0, 0, 0.5);
+  --we-color-bg-overlay: rgba(28, 28, 28, 0.5);
   --we-color-accent-bg: rgba(28, 28, 28, 0.04);
   --we-color-ink-wash: rgba(28, 28, 28, 0.03);
   --we-color-ink-wash-md: rgba(28, 28, 28, 0.04);
   --we-color-ink-wash-strong: rgba(28, 28, 28, 0.1);
   --we-color-shadow-sm: rgba(0, 0, 0, 0.05);
-  --we-color-shadow-md: rgba(0, 0, 0, 0.08);
+  --we-color-shadow-md: rgba(0, 0, 0, 0.1);
   --we-color-shadow-lg: rgba(0, 0, 0, 0.12);
   --we-color-shadow-xl: rgba(0, 0, 0, 0.20);
   --we-color-overlay-light: rgba(0, 0, 0, 0.08);
-  --we-color-overlay-medium: rgba(0, 0, 0, 0.25);
+  --we-color-overlay-medium: rgba(28, 28, 28, 0.24);
   --we-color-overlay-heavy: rgba(0, 0, 0, 0.55);
   --we-color-paper-wash: rgba(247, 244, 237, 0.28);
   --we-color-paper-tint: rgba(236, 234, 228, 0.45);
   --we-color-paper-muted: rgba(236, 234, 228, 0.30);
   --we-color-paper-overlay: rgba(236, 234, 228, 0.12);
-  --we-color-ink-secondary-wash: rgba(95, 95, 93, 0.16);
-  --we-color-ink-secondary-wash-sm: rgba(95, 95, 93, 0.12);
+  --we-color-ink-secondary-wash: rgba(28, 28, 28, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(28, 28, 28, 0.12);
   --we-color-accent-border: rgba(28, 28, 28, 0.25);
   --we-color-accent-border-sm: rgba(28, 28, 28, 0.22);
-  --we-color-warning-bg: rgba(139, 107, 58, 0.08);
+  --we-color-warning-bg: rgba(123, 106, 74, 0.1);
 
   /* ========== 壳层（TopBar 深色底色 + off-white 文字） ========== */
   --we-topbar-bg: #1c1c1c;
@@ -117,8 +102,7 @@
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
-  /* ========== 物理质感阴影（Lovable 风格：极度克制，inset 为核心） ========== */
-  /* 深色按钮 signature multi-layer inset shadow */
+  /* ========== 物理质感阴影（克制，仅保留 Lovable 风格的 inset tactile detail） ========== */
   --we-shadow-stamp-up:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.2),
@@ -127,29 +111,83 @@
     inset 0 1px 2px rgba(0, 0, 0, 0.1),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
 
-  /* Lovable 无纸张堆叠概念，shadow 极度轻微 */
   --we-shadow-paper-stack:
-    0 1px 3px rgba(0, 0, 0, 0.04),
     0 1px 2px rgba(0, 0, 0, 0.03);
   --we-shadow-paper-stack-hover:
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    0 1px 3px rgba(0, 0, 0, 0.04);
+    0 4px 12px rgba(0, 0, 0, 0.1);
 
-  /* 由边框承担层级，lift/indent 只做极细微辅助 */
   --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
-  --we-shadow-paper-indent:
-    inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.03);
 
   /* ========== 卡片与面板皮肤 ========== */
-  /* Lovable：卡片背景与页面同色，靠 #eceae4 边框定义边界，无阴影 */
   --we-card-bg: var(--we-color-bg-canvas);
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: 12px;
   --we-card-shadow: none;
-  --we-card-hover-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --we-card-hover-shadow: 0 0 0 1px rgba(28, 28, 28, 0.04);
 
   --we-panel-card-bg: var(--we-color-bg-canvas);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: 12px;
   --we-panel-card-shadow: none;
+
+  /* ========== 页面大画布（无暗书架，回到整页奶油底） ========== */
+  --we-page-canvas-bg: var(--we-color-bg-canvas);
+  --we-page-canvas-fg: var(--we-color-text-primary);
+  --we-page-canvas-fg-muted: var(--we-color-text-tertiary);
+  --we-page-canvas-fg-deep: var(--we-color-border-strong);
+  --we-page-canvas-title-style: normal;
+  --we-page-canvas-title-weight: 600;
+  --we-page-canvas-subtitle-display: none;
+  --we-card-name-font-style: normal;
+  --we-card-name-font-weight: 400;
+
+  /* ========== 世界卡封面图文字（暗图上浅色文字 + 底部渐变遮罩） ========== */
+  --we-card-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 55%, transparent 80%);
+  --we-card-cover-text-color: #fcfbf8;
+  --we-card-cover-meta-color: rgba(252, 251, 248, 0.72);
+
+  /* ========== 关闭装饰性视觉，实现 Lovable 极简风格 ========== */
+  --we-canvas-texture-image: none;
+  --we-col-header-border-color: #eceae4;
+  --we-col-btn-border-color: rgba(28, 28, 28, 0.4);
+  --we-col-btn-color: rgba(28, 28, 28, 0.82);
+  --we-entry-meta-color: #5f5f5d;
+  --we-entry-header-decor-bg: linear-gradient(
+    to right,
+    rgba(28, 28, 28, 0.12) 0%,
+    rgba(28, 28, 28, 0.05) 50%,
+    transparent 80%
+  );
+  --we-parchment-display: none;
+  --we-parchment-fiber-opacity: 0;
+  --we-spine-display: none;
+  --we-bookmark-display: none;
+
+  /* ========== 视觉层次：白底卡片浮于奶油画布之上 ========== */
+
+  /* 条目行（WorldConfigPage 四列）：白底 + 轻微投影 */
+  --we-entry-row-bg: #ffffff;
+  --we-entry-row-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+
+  /* 世界/角色卡片：白底 + 立体感 */
+  --we-card-bg: #ffffff;
+  --we-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --we-card-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* 面板卡片（State Panel、Chat 侧边等）：白底 + 细描边 */
+  --we-panel-card-bg: #ffffff;
+  --we-panel-card-shadow: 0 0 0 1px rgba(28, 28, 28, 0.06);
+
+  /* hover 边框：更明显的交互反馈 */
+  --we-color-gold: rgba(28, 28, 28, 0.5);
+
+  /* 交互 Wash：提高感知度（按钮 hover / active 背景） */
+  --we-color-ink-wash: rgba(28, 28, 28, 0.05);
+  --we-color-ink-wash-md: rgba(28, 28, 28, 0.07);
+
+  /* 抬起阴影：按钮及可点击元素立体感 */
+  --we-shadow-paper-lift: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --we-shadow-paper-stack: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --we-shadow-paper-stack-hover: 0 4px 12px rgba(0, 0, 0, 0.10);
 }

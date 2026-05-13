@@ -18,7 +18,7 @@ test('主题扫描合并内置与 data 主题，并返回当前主题', async ()
     name: '墨色',
     version: '1.0.0',
   }), 'utf-8');
-  fs.writeFileSync(path.join(userDir, 'theme.css'), ':root { --we-paper-base: black; }', 'utf-8');
+  fs.writeFileSync(path.join(userDir, 'theme.css'), ':root { --we-color-bg-canvas: black; }', 'utf-8');
 
   const { listThemes } = await freshImport('backend/services/themes.js');
   const data = listThemes();
@@ -53,7 +53,7 @@ test('导入主题校验格式、重复 id 与路径穿越', async () => {
   const imported = importThemePackage({
     format: 'worldengine-theme-v1',
     theme: { id: 'paper2', name: '纸二', version: '1.0.0' },
-    css: ':root { --we-vermilion: red; }',
+    css: ':root { --we-color-accent: red; }',
   });
   assert.equal(imported.id, 'paper2');
   assert.ok(fs.existsSync(path.join(sandbox.root, 'themes', 'paper2', 'theme.css')));

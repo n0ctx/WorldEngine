@@ -436,7 +436,7 @@ export default function MessageItem({
               </div>
             )}
           </div>
-          <CharacterSeal character={persona} size={32} color="var(--we-amber)" />
+          <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
         </div>
       </MotionDiv>
     );

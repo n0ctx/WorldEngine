@@ -39,16 +39,16 @@ export default function SealStampAnimation({ visible, trigger, text = '成' }) {
         >
           <svg viewBox="0 0 76 76" fill="none" className="we-seal-stamp-svg">
             <rect x="4" y="4" width="68" height="68" rx="2"
-              stroke="var(--we-vermilion)" strokeWidth="2.5" />
+              stroke="var(--we-color-accent)" strokeWidth="2.5" />
             <rect x="8.5" y="8.5" width="59" height="59" rx="1"
-              stroke="var(--we-vermilion)" strokeWidth="0.8"
+              stroke="var(--we-color-accent)" strokeWidth="0.8"
               strokeDasharray="3 2" opacity="0.6" />
             <text
               x="38" y="48"
               textAnchor="middle"
               fontFamily="ZCOOL XiaoWei, LXGW WenKai TC, serif"
               fontSize="28"
-              fill="var(--we-vermilion)"
+              fill="var(--we-color-accent)"
             >
               {text}
             </text>

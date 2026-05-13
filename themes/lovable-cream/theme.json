@@ -1,12 +1,12 @@
 {
   "id": "lovable-cream",
-  "name": "simple",
+  "name": "Lovable Cream",
   "version": "1.0.0",
   "author": "WorldEngine",
-  "description": "受 Lovable 启发的暖 cream 中性主题。奶油色画布、炭灰色文字、边框驱动的层级、极度克制的阴影。",
+  "description": "基于 DESIGN.md 的严格 cream 适配版。奶油画布、charcoal opacity 中性色、边框驱动层级，并通过自托管 Instrument Sans 近似 Lovable 的 humanist sans 观感。",
   "preview": {
     "paper": "#f7f4ed",
     "accent": "#1c1c1c",
-    "ink": "#1c1c1c"
+    "ink": "#5f5f5d"
   }
 }

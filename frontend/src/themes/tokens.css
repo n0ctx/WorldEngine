@@ -9,16 +9,16 @@
   --we-core-ink-900:     #171717;
   --we-core-ink-700:     #525252;
   --we-core-ink-500:     #737373;
-  --we-core-accent-600:  #9f4f36;
-  --we-core-accent-800:  #733724;
-  --we-core-ornament-600:#8a6f2f;
-  --we-core-ornament-400:#b7923b;
-  --we-core-success-600: #3f6f4a;
-  --we-core-warning-600: #9a5b18;
-  --we-core-info-600:    #4b5563;
+  --we-core-accent-600:  #7d766f;
+  --we-core-accent-800:  #5f5852;
+  --we-core-ornament-600:#8b867e;
+  --we-core-ornament-400:#b3aea5;
+  --we-core-success-600: #4f6a58;
+  --we-core-warning-600: #9a6c35;
+  --we-core-info-600:    #586174;
   --we-core-shell-bg:    #2f3136;
 
-  /* Legacy 基础变量：现阶段保留给既有组件和用户 CSS，取值由中性核心或主题覆盖。 */
+  /* 基础色板变量：语义 token 从这里派生，主题可通过覆盖它们批量换肤。 */
   --we-base-paper-100: var(--we-core-surface-100);
   --we-base-paper-200: var(--we-core-surface-200);
   --we-base-paper-300: var(--we-core-surface-300);
@@ -70,7 +70,7 @@
   /* 强调色 */
   --we-color-accent:      var(--we-base-vermilion-600);
   --we-color-accent-deep: var(--we-base-vermilion-800);
-  --we-color-accent-bg:   rgba(159, 79, 54, 0.08);
+  --we-color-accent-bg:   rgba(125, 118, 111, 0.08);
   --we-color-gold:        var(--we-base-gold-600);
   --we-color-gold-pale:   var(--we-base-gold-400);
 
@@ -107,11 +107,11 @@
   --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
 
   /* 强调色透明叠加（用于 tag 边框）*/
-  --we-color-accent-border:     rgba(159, 79, 54, 0.25);
-  --we-color-accent-border-sm:  rgba(159, 79, 54, 0.22);
+  --we-color-accent-border:     rgba(125, 118, 111, 0.25);
+  --we-color-accent-border-sm:  rgba(125, 118, 111, 0.22);
 
   /* 警告色透明叠加（用于中断徽章背景）*/
-  --we-color-warning-bg: rgba(154, 91, 24, 0.08);
+  --we-color-warning-bg: rgba(154, 108, 53, 0.08);
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
@@ -158,32 +158,20 @@
   --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场/折叠 */
   --we-easing-standard: cubic-bezier(.2,0,0,1);          /* 通用标准（兼容保留）*/
 
-  /* === 过渡别名（向后兼容，迁移完成后可删除）=== */
-  /* 颜色别名 */
-  --we-paper-base:   var(--we-color-bg-canvas);
-  --we-paper-aged:   var(--we-color-bg-surface);
-  --we-paper-shadow: var(--we-color-border-default);
-  --we-paper-deep:   var(--we-color-bg-muted);
-  --we-book-bg:      var(--we-color-bg-inverse);
-  --we-ink-primary:   var(--we-color-text-primary);
-  --we-ink-secondary: var(--we-color-text-secondary);
-  --we-ink-faded:     var(--we-color-text-tertiary);
-  --we-vermilion:      var(--we-color-accent);
-  --we-vermilion-deep: var(--we-color-accent-deep);
-  --we-vermilion-bg:   var(--we-color-accent-bg);
-  --we-gold-leaf: var(--we-color-gold);
-  --we-gold-pale: var(--we-color-gold-pale);
-  --we-moss:  var(--we-color-status-success);
-  --we-amber: var(--we-color-status-warning);
-  --we-slate: var(--we-color-status-info);
-  /* --we-radius-sm 和 --we-radius-md 保持原值，已在新 scale 中保留 */
-  /* --we-border 和 --we-border-faint 是含 1px solid 的 shorthand，
-     新代码应使用 --we-color-border-* + CSS 类；迁移完成后可删除 */
-  --we-border:       1px solid var(--we-color-border-default);
-  --we-border-faint: 1px solid color-mix(in srgb, var(--we-base-paper-300) 50%, transparent);
+  /* === 页面大画布 token（WorldsPage / CharactersPage / 编辑页大背景）=== */
+  /* 主题通过覆盖这些 token 在中性画布与不同审美之间切换，无需改组件 CSS */
+  --we-page-canvas-bg:                var(--we-color-bg-canvas);      /* 画布大背景 */
+  --we-page-canvas-fg:                var(--we-color-text-primary);   /* 画布上主文字 */
+  --we-page-canvas-fg-muted:          var(--we-color-text-secondary); /* 画布上次要文字 / 细边框 */
+  --we-page-canvas-fg-deep:           var(--we-color-border-strong);  /* 画布上按钮较深边框 */
+  --we-page-canvas-title-style:       normal;  /* 画布页标题字形 */
+  --we-page-canvas-title-weight:      600;     /* 画布页标题字重 */
+  --we-page-canvas-subtitle-display:  block;   /* 画布页副标题可见性 */
+  --we-card-name-font-style:          normal;  /* 卡片名称字形 */
+  --we-card-name-font-weight:         400;     /* 卡片名称字重 */
 
   /* === Component skin tokens === */
-  --we-card-bg: var(--we-color-bg-canvas);
+  --we-card-bg: var(--we-color-bg-surface);
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
@@ -194,14 +182,31 @@
   --we-panel-card-shadow: 0 0 0 1px rgba(23, 23, 23, 0.03); /* fallback: older browsers */
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 
+  /* === 装饰 & 纹理 token（主题可控制显隐与视觉）=== */
+  --we-canvas-texture-image:    none;
+  --we-card-overlay-bg:         transparent;
+  --we-card-cover-text-color:   var(--we-color-text-primary);
+  --we-card-cover-meta-color:   var(--we-color-text-secondary);
+  --we-col-header-border-color: var(--we-color-border-default);
+  --we-col-btn-border-color:    var(--we-color-border-strong);
+  --we-col-btn-color:           var(--we-color-text-secondary);
+  --we-entry-meta-color:        var(--we-color-text-tertiary);
+  --we-entry-header-decor-bg:   none;
+  --we-entry-row-bg:            var(--we-color-bg-canvas);  /* 条目行背景，主题可覆盖以区分前景/背景 */
+  --we-entry-row-shadow:        none;                       /* 条目行阴影，主题可覆盖以增加层次感 */
+  --we-parchment-display:       none;
+  --we-parchment-fiber-opacity: 0;
+  --we-spine-display:           none;
+  --we-bookmark-display:        none;
+
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
   /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
   --we-range-track-bg: linear-gradient(
     to right,
-    var(--we-vermilion) 0%,
-    var(--we-vermilion) calc(var(--range-pct, 0%)),
-    var(--we-paper-shadow) calc(var(--range-pct, 0%)),
-    var(--we-paper-shadow) 100%
+    var(--we-color-accent) 0%,
+    var(--we-color-accent) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) 100%
   );
 
   /* === 壳层、分隔与质感 token：核心提供中性值，主题可覆盖 === */

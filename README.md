@@ -164,6 +164,12 @@ npm run desktop:dist
 
 日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`，级别通过 `data/config.json` 的 `logging` 配置块控制。
 
+## 主题系统
+
+前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。
+
+`lovable-cream` 仍以 `DESIGN.md` 为目标，但仓库当前未内置合法 `Camera Plain` 字体文件，因此只提供接近该方向的 humanist sans 降级栈；若后续补入授权字体文件，主题会再切到真实字体。
+
 ---
 
 ## 社区

@@ -478,7 +478,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                   aria-label="登场角色启用"
                   className="accent-[var(--we-color-accent-deep)]"
                 />
-                <span className="text-xs text-[var(--we-ink-faded)]">
+                <span className="text-xs text-[var(--we-color-text-tertiary)]">
                   关闭后，该字段不会出现在登场角色面板与自动状态更新中
                 </span>
               </label>

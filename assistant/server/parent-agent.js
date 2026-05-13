@@ -633,7 +633,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
       );
       return;
     }
-    if (text && task.lastSubagentResult?.success === false) {
+    if (task.lastSubagentResult?.success === false) {
       const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
       // 二次清洗 think 块，防止 sub-agent 层面的截断策略漏过的残留
       const errDetail = (task.lastSubagentResult.error ?? '未知错误')
@@ -641,7 +641,9 @@ export async function runParentAgent(task, userInput, opts = {}) {
       await pauseSubagentFailed(
         task, emitFn, runId,
         'model claimed completed but last subagent step failed',
-        `子任务"${title}"执行失败（${errDetail}），但助手误报了成功，已暂停。请告诉我如何处理这个失败步骤。`,
+        text
+          ? `子任务"${title}"执行失败（${errDetail}），但助手误报了成功，已暂停。请告诉我如何处理这个失败步骤。`
+          : `子任务"${title}"执行失败（${errDetail}），已暂停。请告诉我如何处理这个失败步骤。`,
       );
       return;
     }
@@ -678,7 +680,17 @@ export async function runParentAgent(task, userInput, opts = {}) {
         return;
       }
       if (kind === TOOL_LOOP_SIGNAL.PAUSED) {
-        if (payload?.message) {
+        if (payload?.reason === 'subagent_failed') {
+          const title = payload?.title ?? task.lastSubagentResult?.title ?? task.lastSubagentResult?.stepId ?? '子任务';
+          const errDetail = String(payload?.error ?? task.lastSubagentResult?.error ?? '未知错误').trim();
+          await pauseSubagentFailed(
+            task,
+            emitFn,
+            runId,
+            'subagent tool reported failure',
+            payload?.message ?? `子任务"${title}"执行失败（${errDetail}），已暂停。请告诉我如何处理这个失败步骤。`,
+          );
+        } else if (payload?.message) {
           await finalizePaused(task, emitFn, payload.message);
         }
         return;

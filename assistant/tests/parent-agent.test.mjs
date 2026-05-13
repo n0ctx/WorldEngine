@@ -581,6 +581,55 @@ test('runParentAgent: happy path（write_plan_doc → approve → dispatch_subag
   clearMockEnv();
 });
 
+test('runParentAgent: 子代理失败时立即暂停，不再继续输出完成口径', async () => {
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    {
+      name: 'write_plan_doc',
+      arguments: {
+        title: '建一个世界',
+        intent: '用户想要新建一个世界卡',
+        steps: [
+          { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡' },
+          { title: '补条目', targetType: 'world-card', operation: 'update', task: '补充基础条目' },
+          { title: '核对', targetType: 'world-card', operation: 'update', task: '核对世界卡内容' },
+        ],
+      },
+    },
+  ]);
+  process.env.MOCK_LLM_COMPLETE = '';
+
+  const task = taskStore.createTask({ context: { worldId: null } });
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '帮我建个世界');
+  assert.equal(task.status, 'awaiting_approval');
+
+  taskStore.setStatus(task.id, 'running');
+  process.env.MOCK_LLM_TOOL_CALLS_QUEUE = JSON.stringify([
+    [
+      { name: 'dispatch_subagent', arguments: { stepId: 'step-1' } },
+      { name: 'reply_to_user', arguments: { message: '世界已创建' } },
+    ],
+    [],
+  ]);
+  process.env.MOCK_LLM_COMPLETE = '子代理嘴上说已经做完，但实际上没有落库。';
+
+  const phaseStart = events.length;
+  await runParentAgent(task, __testables.APPROVED_SENTINEL);
+
+  const phaseEvents = events.slice(phaseStart).map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'paused');
+  assert.equal(task.error, 'harness recoverable pause');
+  assert.ok(phaseEvents.some((e) => e.type === 'paused'));
+  assert.equal(phaseEvents.some((e) => e.type === 'task_completed'), false);
+  assert.equal(task.messages.some((m) => m.role === 'assistant' && m.content === '世界已创建'), false);
+  assert.match(task.messages.at(-1).content, /执行失败/);
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
 test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不回到 awaiting_approval', async () => {
   const task = taskStore.createTask({ context: {} });
   await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({

@@ -13,8 +13,8 @@ import { log } from '../../core/utils/logger.js';
 
 const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 :root {
-  --we-paper-base: #e8dcc8;
-  --we-vermilion: #8b2e24;
+  --we-color-bg-canvas: #e8dcc8;
+  --we-color-accent: #8b2e24;
 }
 
 /* ✅ 推荐：改消息样式 */
@@ -107,7 +107,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-ink-faded)' }}>
+        <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-color-text-tertiary)' }}>
           自定义 CSS 片段
         </span>
         <Button
@@ -120,11 +120,11 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       </div>
 
       {loading ? (
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-text-tertiary)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
           加载中…
         </p>
       ) : snippets.length === 0 ? (
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-ink-faded)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-text-tertiary)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
           暂无 CSS 片段
         </p>
       ) : (
@@ -171,24 +171,24 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
-        background: 'var(--we-paper-aged)',
-        border: '1px solid var(--we-paper-shadow)',
+        background: 'var(--we-color-bg-surface)',
+        border: '1px solid var(--we-color-border-default)',
         padding: '8px 12px',
         cursor: 'grab',
         userSelect: 'none',
         transition: 'border-color 0.15s',
       }}
-      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--we-ink-faded)'}
-      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--we-paper-shadow)'}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--we-color-text-tertiary)'}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--we-color-border-default)'}
     >
-      <span style={{ color: 'var(--we-ink-faded)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
+      <span style={{ color: 'var(--we-color-text-tertiary)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-ink-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-color-text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {snippet.name}
         </span>
         {snippet.content && (
-          <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-ink-faded)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {snippet.content.trim().slice(0, 40)}{snippet.content.trim().length > 40 ? '…' : ''}
           </span>
         )}
@@ -202,9 +202,9 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
             fontFamily: 'var(--we-font-serif)',
             fontSize: '11px',
             padding: '2px 8px',
-            border: `1px solid ${snippet.enabled ? 'var(--we-vermilion)' : 'var(--we-paper-shadow)'}`,
-            color: snippet.enabled ? 'var(--we-vermilion)' : 'var(--we-ink-faded)',
-            background: snippet.enabled ? 'var(--we-vermilion-bg)' : 'transparent',
+            border: `1px solid ${snippet.enabled ? 'var(--we-color-accent)' : 'var(--we-color-border-default)'}`,
+            color: snippet.enabled ? 'var(--we-color-accent)' : 'var(--we-color-text-tertiary)',
+            background: snippet.enabled ? 'var(--we-color-accent-bg)' : 'transparent',
             cursor: 'pointer',
             transition: 'all 0.15s',
           }}
@@ -218,11 +218,11 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
             width: '24px', height: '24px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'transparent', border: 'none',
-            color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px',
+            color: 'var(--we-color-text-tertiary)', cursor: 'pointer', fontSize: '12px',
             transition: 'color 0.15s',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-ink-primary)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-color-text-primary)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-color-text-tertiary)'}
         >✎</button>
         <button
           onClick={onDelete}
@@ -231,11 +231,11 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
             width: '24px', height: '24px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: 'transparent', border: 'none',
-            color: 'var(--we-ink-faded)', cursor: 'pointer', fontSize: '12px',
+            color: 'var(--we-color-text-tertiary)', cursor: 'pointer', fontSize: '12px',
             transition: 'color 0.15s',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-vermilion)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-ink-faded)'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-color-accent)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-color-text-tertiary)'}
         >✕</button>
       </div>
     </div>
@@ -263,8 +263,8 @@ function SnippetEditor({ snippet, onSave, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
       <div style={{
-        background: 'var(--we-paper-base)',
-        border: '1px solid var(--we-paper-shadow)',
+        background: 'var(--we-color-bg-canvas)',
+        border: '1px solid var(--we-color-border-default)',
         borderRadius: 'var(--we-radius-sm)',
         boxShadow: '0 16px 48px var(--we-color-shadow-xl)',
         width: '100%',
@@ -275,7 +275,7 @@ function SnippetEditor({ snippet, onSave, onClose }) {
         flexDirection: 'column',
         gap: '16px',
       }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-ink-primary)', margin: 0 }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-color-text-primary)', margin: 0 }}>
           {snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}
         </h2>
 
@@ -324,8 +324,8 @@ function DeleteConfirm({ onConfirm, onClose }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
       <div style={{
-        background: 'var(--we-paper-base)',
-        border: '1px solid var(--we-paper-shadow)',
+        background: 'var(--we-color-bg-canvas)',
+        border: '1px solid var(--we-color-border-default)',
         borderRadius: 'var(--we-radius-sm)',
         boxShadow: '0 16px 48px var(--we-color-shadow-xl)',
         width: '100%',
@@ -333,10 +333,10 @@ function DeleteConfirm({ onConfirm, onClose }) {
         margin: '0 16px',
         padding: '24px',
       }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-ink-primary)', margin: '0 0 8px' }}>
+        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-color-text-primary)', margin: '0 0 8px' }}>
           确认删除
         </h2>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-vermilion)', margin: '0 0 20px' }}>
+        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-accent)', margin: '0 0 20px' }}>
           此操作无法撤销。
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>

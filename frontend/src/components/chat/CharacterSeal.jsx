@@ -1,13 +1,13 @@
 import { getAvatarUrl } from '../../core/utils/avatar.js';
 
-export default function CharacterSeal({ character, size = 80, color = 'var(--we-vermilion)' }) {
+export default function CharacterSeal({ character, size = 80, color = 'var(--we-color-accent)' }) {
   const sealVars = { '--seal-size': `${size}px`, '--seal-color': color };
 
   if (!character) {
     return (
       <svg viewBox="0 0 76 76" fill="none" className="we-character-seal we-character-seal--empty" style={sealVars}>
-        <rect x="4" y="4" width="68" height="68" rx="2" stroke="var(--we-ink-faded)" strokeWidth="2" />
-        <rect x="8.5" y="8.5" width="59" height="59" rx="1" stroke="var(--we-ink-faded)" strokeWidth="0.7" strokeDasharray="3 2" opacity="0.5" />
+        <rect x="4" y="4" width="68" height="68" rx="2" stroke="var(--we-color-text-tertiary)" strokeWidth="2" />
+        <rect x="8.5" y="8.5" width="59" height="59" rx="1" stroke="var(--we-color-text-tertiary)" strokeWidth="0.7" strokeDasharray="3 2" opacity="0.5" />
       </svg>
     );
   }

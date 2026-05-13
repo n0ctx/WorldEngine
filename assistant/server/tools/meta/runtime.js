@@ -185,11 +185,11 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: resolved.id, title: resolved.title });
         let outcome;
         try {
-          const result = await dispatchSubAgent({
-            stepId: resolved.id,
-            targetType: resolved.targetType,
-            operation: resolved.operation,
-            entityRef: resolved.dependsOn?.[0] ?? null,
+        const result = await dispatchSubAgent({
+          stepId: resolved.id,
+          targetType: resolved.targetType,
+          operation: resolved.operation,
+          entityRef: resolved.dependsOn?.[0] ?? null,
             task: resolved.task,
             context: task.context,
             taskId: task.id,
@@ -198,13 +198,25 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             cancelCheck: () => task.status === 'cancelled',
             onApplied: (entry) => taskStore.recordAppliedResource(task.id, { ...entry, stepId: resolved.id }),
           });
-          if (result?.success === false) {
-            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
-            outcome = { success: false, error: result.error ?? 'subagent reported failure' };
-          } else {
-            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
-            outcome = { success: true, summary: result?.summary ?? '' };
-          }
+        if (result?.success === false) {
+          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
+          outcome = { success: false, error: result.error ?? 'subagent reported failure' };
+          const errDetail = outcome.error;
+          const pauseMessage = [
+            `子任务"${resolved.title}"执行失败（${errDetail}）。`,
+            '我先暂停，等你确认是要改参数、改计划，还是换一种方式继续。',
+          ].join('');
+          throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
+            reason: 'subagent_failed',
+            stepId: resolved.id,
+            title: resolved.title,
+            error: errDetail,
+            message: pauseMessage,
+          });
+        } else {
+          emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
+          outcome = { success: true, summary: result?.summary ?? '' };
+        }
         } catch (err) {
           emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: err.message });
           outcome = { success: false, error: err.message };

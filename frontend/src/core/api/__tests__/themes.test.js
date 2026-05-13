@@ -25,7 +25,7 @@ describe('themes api', () => {
       if (url === '/api/themes/import') return jsonResponse({ id: JSON.parse(init.body).theme.id }, { status: 201 });
       if (url === '/api/themes/demo/export') return jsonResponse({ format: 'worldengine-theme-v1' });
       if (url === '/api/themes/demo') return new Response(null, { status: 204 });
-      if (url === '/api/themes/demo/css') return new Response(':root { --we-paper-base: red; }', { status: 200 });
+      if (url === '/api/themes/demo/css') return new Response(':root { --we-color-bg-canvas: red; }', { status: 200 });
       return jsonResponse({ error: 'nope' }, { status: 404 });
     });
   });
@@ -39,7 +39,7 @@ describe('themes api', () => {
   });
 
   it('fetchThemeCss 返回 CSS 文本', async () => {
-    await expect(fetchThemeCss('demo')).resolves.toContain('--we-paper-base');
+    await expect(fetchThemeCss('demo')).resolves.toContain('--we-color-bg-canvas');
   });
 
   it('refreshThemeCss 写入 we-theme-css 并派发事件', async () => {
@@ -48,7 +48,7 @@ describe('themes api', () => {
 
     await refreshThemeCss('demo');
 
-    expect(document.getElementById('we-theme-css').textContent).toContain('--we-paper-base');
+    expect(document.getElementById('we-theme-css').textContent).toContain('--we-color-bg-canvas');
     expect(listener).toHaveBeenCalledTimes(1);
     expect(listener.mock.calls[0][0].detail).toEqual({ id: 'demo' });
   });

@@ -52,7 +52,7 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
           />
         )}
         {error && (
-          <p className="we-settings-toggle-hint mt-2 text-[var(--we-vermilion)]">
+          <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]">
             {error}
           </p>
         )}

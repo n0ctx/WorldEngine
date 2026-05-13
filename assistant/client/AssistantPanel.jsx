@@ -521,13 +521,15 @@ export default function AssistantPanel() {
 
         {/* 消息流 */}
         <div className="flex flex-1 flex-col overflow-hidden">
-          <MessageList
-            messages={messages}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onRegenerate={handleRegenerate}
-            pending={pendingAssistant}
-          />
+          {!(status === 'awaiting_approval' && planDoc) && (
+            <MessageList
+              messages={messages}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onRegenerate={handleRegenerate}
+              pending={pendingAssistant}
+            />
+          )}
           {error && status === 'failed' && !isRecoverableTerminal && (
             <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
               <span className="flex-1">{error}</span>
@@ -541,20 +543,20 @@ export default function AssistantPanel() {
             </div>
           )}
           {status === 'awaiting_approval' && (
-            <div className="flex flex-shrink-0 flex-col border-t border-black/10 bg-[var(--we-paper-aged)]">
+            <div className={`flex flex-col border-t border-black/10 bg-[var(--we-paper-aged)] ${planDoc ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
               {/* 计划文档预览区 */}
               {planDoc && (
-                <>
+                <div className="flex flex-1 min-h-0 flex-col">
                   <div className="flex items-center gap-1.5 border-b border-black/5 px-3 py-1.5">
                     <span className="text-[11px] font-medium tracking-wide text-[var(--we-ink-muted)]" style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>
                       计划草案
                     </span>
                     <span className="ml-auto rounded bg-[var(--we-vermilion)]/10 px-1.5 py-0.5 text-[10px] text-[var(--we-vermilion)]">待审批</span>
                   </div>
-                  <div className="we-plan-doc-preview max-h-56 overflow-y-auto px-3 py-2">
+                  <div className="we-plan-doc-preview flex-1 min-h-0 overflow-y-auto px-3 py-2">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
                   </div>
-                </>
+                </div>
               )}
               {/* 确认 / 拒绝 / 修改建议输入 / 确认修改 — 同一行 */}
               <div className="flex items-center gap-2 border-t border-black/10 px-3 py-2">

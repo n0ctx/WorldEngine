@@ -1,36 +1,49 @@
 :root {
   /*
-   * Theme template.
-   * Copy this directory, rename it, and keep the directory name equal to theme.json "id".
-   * Prefer token overrides. Do not copy component selectors such as .we-world-card here.
+   * WorldEngine 主题模板
+   * 复制本目录并重命名后，只保留你需要覆盖的 token。
+   *
+   * 规则：
+   *   1. 主题只改值，不写组件选择器
+   *   2. 先改语义色和字体，再决定是否下沉到基础色板
+   *   3. 如果缺 token，先补 frontend/src/themes/tokens.css，再回到这里覆盖
    */
 
-  /* 基础表面：主画布、卡片表面、边框层级 */
-  --we-base-paper-100: #f7f7f4;
-  --we-base-paper-200: #ffffff;
-  --we-base-paper-300: #e2e2dc;
-  --we-base-paper-400: #c9c9c0;
+  /* ──────────────────────────────────────────────────────────────
+     § 1 语义色与透明层
+     ────────────────────────────────────────────────────────────── */
 
-  /* 基础文字 */
-  --we-base-ink-900: #171717;
-  --we-base-ink-700: #525252;
-  --we-base-ink-500: #737373;
+  --we-color-text-primary: #171717;
+  --we-color-text-secondary: #525252;
+  --we-color-text-tertiary: #737373;
+  --we-color-text-disabled: #e2e2dc;
+  --we-color-text-inverse: #ffffff;
+  --we-color-text-danger: #7d766f;
 
-  /* 强调、装饰、状态 */
-  --we-base-vermilion-600: #9f4f36;
-  --we-base-vermilion-800: #733724;
-  --we-base-gold-600: #8a6f2f;
-  --we-base-gold-400: #b7923b;
-  --we-base-moss-600: #3f6f4a;
-  --we-base-amber-600: #9a5b18;
-  --we-base-slate-600: #4b5563;
-  --we-base-book-bg: #2f3136;
-  --we-base-white: #ffffff;
-  --we-base-peach-200: #f0c4a4;
-
-  /* 可选：透明叠加层。若大幅调整色板，可同步校准这些 RGB 派生值。 */
+  --we-color-bg-canvas: #f7f7f4;
+  --we-color-bg-surface: #ffffff;
+  --we-color-bg-subtle: #e2e2dc;
+  --we-color-bg-muted: #c9c9c0;
   --we-color-bg-overlay: rgba(23, 23, 23, 0.5);
-  --we-color-accent-bg: rgba(159, 79, 54, 0.08);
+  --we-color-bg-inverse: #2f3136;
+
+  --we-color-border-default: #e2e2dc;
+  --we-color-border-subtle: #ffffff;
+  --we-color-border-strong: #c9c9c0;
+  --we-color-border-focus: #7d766f;
+
+  --we-color-status-success: #4f6a58;
+  --we-color-status-warning: #9a6c35;
+  --we-color-status-danger: #7d766f;
+  --we-color-status-info: #586174;
+
+  --we-color-accent: #7d766f;
+  --we-color-accent-deep: #5f5852;
+  --we-color-accent-bg: rgba(125, 118, 111, 0.08);
+  --we-color-gold: #8b867e;
+  --we-color-gold-pale: #b3aea5;
+  --we-color-avatar-placeholder: #f0c4a4;
+
   --we-color-ink-wash: rgba(23, 23, 23, 0.035);
   --we-color-ink-wash-md: rgba(23, 23, 23, 0.06);
   --we-color-ink-wash-strong: rgba(23, 23, 23, 0.13);
@@ -38,9 +51,45 @@
   --we-color-shadow-md: rgba(23, 23, 23, 0.14);
   --we-color-shadow-lg: rgba(23, 23, 23, 0.20);
   --we-color-shadow-xl: rgba(23, 23, 23, 0.30);
+  --we-color-overlay-light: rgba(23, 23, 23, 0.15);
+  --we-color-overlay-medium: rgba(23, 23, 23, 0.35);
+  --we-color-overlay-heavy: rgba(23, 23, 23, 0.60);
+  --we-color-paper-wash: rgba(247, 247, 244, 0.28);
+  --we-color-paper-tint: rgba(226, 226, 220, 0.45);
+  --we-color-paper-muted: rgba(226, 226, 220, 0.30);
+  --we-color-paper-overlay: rgba(201, 201, 192, 0.12);
+  --we-color-ink-secondary-wash: rgba(82, 82, 82, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
+  --we-color-accent-border: rgba(125, 118, 111, 0.25);
+  --we-color-accent-border-sm: rgba(125, 118, 111, 0.22);
+  --we-color-warning-bg: rgba(154, 108, 53, 0.08);
 
-  /* 可选：卡片与面板皮肤。 */
-  --we-card-bg: var(--we-paper-base);
+  /* ──────────────────────────────────────────────────────────────
+     § 2 字体与页面排版
+     ────────────────────────────────────────────────────────────── */
+
+  --we-font-serif: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  --we-font-seal: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  --we-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+
+  --we-page-canvas-bg: var(--we-color-bg-canvas);
+  --we-page-canvas-fg: var(--we-color-text-primary);
+  --we-page-canvas-fg-muted: var(--we-color-text-secondary);
+  --we-page-canvas-fg-deep: var(--we-color-border-strong);
+  --we-page-canvas-title-style: normal;
+  --we-page-canvas-title-weight: 600;
+  --we-page-canvas-subtitle-display: block;
+  --we-card-name-font-style: normal;
+  --we-card-name-font-weight: 400;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 3 卡片与面板皮肤
+     ────────────────────────────────────────────────────────────── */
+
+  --we-card-bg: var(--we-color-bg-surface);
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
@@ -48,19 +97,96 @@
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
-  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
+  --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, #171717 3%, transparent);
 
-  /* 可选：壳层与全局质感。 */
+  /* ──────────────────────────────────────────────────────────────
+     § 4 壳层与质感
+     ────────────────────────────────────────────────────────────── */
+
   --we-topbar-bg: #2f3136;
+  --we-topbar-border: rgba(255, 255, 255, 0.08);
+  --we-topbar-item: rgba(255, 255, 255, 0.58);
+  --we-topbar-item-hover: rgba(255, 255, 255, 0.82);
+  --we-topbar-sep: rgba(255, 255, 255, 0.22);
+  --we-topbar-active-bg: rgba(183, 146, 59, 0.10);
+  --we-topbar-active-ring: rgba(183, 146, 59, 0.32);
   --we-topbar-dropdown-bg: #2f3136;
-  --we-spine-shadow-left: linear-gradient(to right, rgba(0, 0, 0, 0.10), transparent);
-  --we-spine-shadow-right: linear-gradient(to left, rgba(0, 0, 0, 0.07), transparent);
+  --we-topbar-dropdown-border: rgba(255, 255, 255, 0.12);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --we-topbar-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --we-topbar-item-dim: rgba(255, 255, 255, 0.34);
+  --we-topbar-item-muted: rgba(255, 255, 255, 0.40);
+  --we-topbar-item-faint: rgba(255, 255, 255, 0.66);
+  --we-topbar-divider: rgba(255, 255, 255, 0.08);
 
-  /* 可选：动效节奏。 */
+  --we-canvas-texture-image: none;
+  --we-card-overlay-bg: transparent;
+  --we-card-cover-text-color: var(--we-color-text-primary);
+  --we-card-cover-meta-color: var(--we-color-text-secondary);
+  --we-col-header-border-color: var(--we-color-border-default);
+  --we-col-btn-border-color: var(--we-color-border-strong);
+  --we-col-btn-color: var(--we-color-text-secondary);
+  --we-entry-meta-color: var(--we-color-text-tertiary);
+  --we-entry-header-decor-bg: none;
+  --we-parchment-display: none;
+  --we-parchment-fiber-opacity: 0;
+  --we-spine-display: none;
+  --we-bookmark-display: none;
+
+  --we-spine-shadow: linear-gradient(to right, transparent, transparent);
+  --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
+  --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
+
+  /* ──────────────────────────────────────────────────────────────
+     § 5 基础色板
+     ────────────────────────────────────────────────────────────── */
+
+  --we-base-paper-100: #f7f7f4;
+  --we-base-paper-200: #ffffff;
+  --we-base-paper-300: #e2e2dc;
+  --we-base-paper-400: #c9c9c0;
+  --we-base-ink-900: #171717;
+  --we-base-ink-700: #525252;
+  --we-base-ink-500: #737373;
+  --we-base-vermilion-600: #7d766f;
+  --we-base-vermilion-800: #5f5852;
+  --we-base-gold-600: #8b867e;
+  --we-base-gold-400: #b3aea5;
+  --we-base-moss-600: #4f6a58;
+  --we-base-amber-600: #9a6c35;
+  --we-base-slate-600: #586174;
+  --we-base-book-bg: #2f3136;
+  --we-base-white: #ffffff;
+  --we-base-peach-200: #f0c4a4;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 6 阴影 / 圆角 / 动效
+     ────────────────────────────────────────────────────────────── */
+
+  --we-shadow-stamp-up:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.05);
+  --we-shadow-stamp-down:
+    inset 0 1px 2px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
+  --we-shadow-paper-stack:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.03);
+  --we-shadow-paper-stack-hover:
+    0 2px 6px rgba(0, 0, 0, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.04);
+  --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --we-shadow-paper-indent:
+    inset 0 1px 2px rgba(0, 0, 0, 0.03);
+
+  --we-radius-sm: 6px;
+  --we-radius-md: 12px;
+  --we-radius-lg: 16px;
+  --we-radius-full: 9999px;
+
   --we-duration-fast: 120ms;
   --we-duration-normal: 200ms;
   --we-duration-slow: 320ms;
   --we-duration-extended: 500ms;
-  --we-easing-ink: cubic-bezier(.22, 1, .36, 1);
-  --we-easing-sharp: cubic-bezier(.25, .46, .45, .94);
 }

@@ -172,9 +172,9 @@ function ThemeSwatch({ theme }) {
       className="we-theme-swatch"
       aria-hidden="true"
       style={{
-        '--theme-paper': preview.paper || 'var(--we-paper-base)',
-        '--theme-accent': preview.accent || 'var(--we-vermilion)',
-        '--theme-ink': preview.ink || 'var(--we-ink-primary)',
+        '--theme-paper': preview.paper || 'var(--we-color-bg-canvas)',
+        '--theme-accent': preview.accent || 'var(--we-color-accent)',
+        '--theme-ink': preview.ink || 'var(--we-color-text-primary)',
       }}
     >
       <span />

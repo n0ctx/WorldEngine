@@ -6,7 +6,7 @@
   "description": "中性主题模板：只覆盖 token，不复制组件结构 CSS。",
   "preview": {
     "paper": "#f7f7f4",
-    "accent": "#9f4f36",
+    "accent": "#7d766f",
     "ink": "#171717"
   }
 }
