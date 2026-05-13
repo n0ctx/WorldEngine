@@ -138,6 +138,17 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
+  /* 页面大画布（深色书架背景，同 book-bg = bg-inverse） */
+  --we-page-canvas-bg:               var(--we-color-bg-inverse);
+  --we-page-canvas-fg:               rgba(237, 227, 208, 0.90);
+  --we-page-canvas-fg-muted:         rgba(200, 185, 154, 0.55);
+  --we-page-canvas-fg-deep:          rgba(200, 185, 154, 0.30);
+  --we-page-canvas-title-style:      italic;
+  --we-page-canvas-title-weight:     600;
+  --we-page-canvas-subtitle-display: block;
+  --we-card-name-font-style:         italic;
+  --we-card-name-font-weight:        400;
+
   /* 卡片皮肤 */
   --we-card-bg: var(--we-color-bg-canvas);
   --we-card-border: 1px solid var(--we-color-border-default);
