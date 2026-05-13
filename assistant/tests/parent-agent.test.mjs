@@ -44,6 +44,14 @@ function clearMockEnv() {
   delete process.env.MOCK_LLM_ACTION_QUEUE;
 }
 
+function threePlanSteps(prefix = '步骤') {
+  return [
+    { title: `${prefix}一`, targetType: 'world-card', operation: 'update', task: `${prefix}一` },
+    { title: `${prefix}二`, targetType: 'world-card', operation: 'update', task: `${prefix}二` },
+    { title: `${prefix}三`, targetType: 'world-card', operation: 'update', task: `${prefix}三` },
+  ];
+}
+
 test('plan_doc_updated 事件携带文档全文', async () => {
   const task = taskStore.createTask({ context: { worldId: null } });
   const events = [];
@@ -201,7 +209,7 @@ test('buildMetaTools：4 个工具与各分支', async () => {
     () => writePlan.execute({
       title: 'T',
       intent: '描述',
-      steps: [{ title: '建世界', targetType: 'world-card', operation: 'create', task: '...' }],
+      steps: threePlanSteps('建世界'),
     }),
     (err) => isToolLoopControlSignal(err) && err.kind === 'awaiting_approval',
   );
@@ -213,6 +221,40 @@ test('buildMetaTools：4 个工具与各分支', async () => {
   const editPlan = tools[1];
   assert.equal((await editPlan.execute({ op: 'append_log', line: 'log-1' })).success, false);
   assert.equal((await editPlan.execute({ op: 'mark_done' })).success, false);
+});
+
+test('write_plan_doc: 少于 3 个 step 时拒绝且不进入审批态', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const events = [];
+  const tools = __testables.buildMetaTools(task, (e) => events.push(e));
+  const writePlan = tools[0];
+  const r = await writePlan.execute({
+    title: '单步计划',
+    intent: '只做一件事',
+    steps: [{ title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡' }],
+  });
+  assert.equal(r.success, false);
+  assert.match(r.error, /至少需要 3 个/);
+  assert.equal(task.status, 'idle');
+  assert.equal(task.approvalCheckpoint, null);
+  assert.equal(await planDoc.readPlanDoc(task.id), '');
+  assert.deepEqual(events.map((e) => e.type), []);
+});
+
+test('write_plan_doc: 已批准续跑阶段拒绝二次计划', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.setStatus(task.id, 'running');
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planAlreadyApproved: true });
+  const writePlan = tools[0];
+  const r = await writePlan.execute({
+    title: '重复计划',
+    intent: '重复确认',
+    steps: threePlanSteps('重复'),
+  });
+  assert.equal(r.success, false);
+  assert.match(r.error, /当前计划已批准/);
+  assert.equal(task.status, 'running');
+  assert.equal(await planDoc.readPlanDoc(task.id), '');
 });
 
 test('dispatch_subagent: 已 applied 过 create 时拒绝重复', async () => {
@@ -327,7 +369,7 @@ test('runParentAgent: write_plan_doc 后停在 awaiting_approval（不发 done�
       arguments: {
         title: 'T',
         intent: '建一个世界',
-        steps: [{ title: '建世界', targetType: 'world-card', operation: 'create', task: '...' }],
+        steps: threePlanSteps('建世界'),
       },
     },
   ]);
@@ -359,7 +401,7 @@ test('runParentAgent: 用户拒绝旧计划后写新计划 → 旧 plan_doc 文�
       arguments: {
         title: '新方案',
         intent: '换个方向',
-        steps: [{ title: '新步骤', targetType: 'world-card', operation: 'create', task: '...' }],
+        steps: threePlanSteps('新步骤'),
       },
     },
   ]);
@@ -491,6 +533,8 @@ test('runParentAgent: happy path（write_plan_doc → approve → dispatch_subag
         intent: '用户想要新建一个世界卡',
         steps: [
           { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡' },
+          { title: '补条目', targetType: 'world-card', operation: 'update', task: '补充基础条目' },
+          { title: '核对', targetType: 'world-card', operation: 'update', task: '核对世界卡内容' },
         ],
       },
     },
@@ -505,9 +549,20 @@ test('runParentAgent: happy path（write_plan_doc → approve → dispatch_subag
   assert.equal(task.status, 'awaiting_approval');
 
   taskStore.setStatus(task.id, 'running');
-  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
-    { name: 'dispatch_subagent', arguments: { stepId: 'step-1' } },
-    { name: 'reply_to_user', arguments: { message: '世界已创建' } },
+  process.env.MOCK_LLM_TOOL_CALLS_QUEUE = JSON.stringify([
+    [
+      { name: 'dispatch_subagent', arguments: { stepId: 'step-1' } },
+      { name: 'reply_to_user', arguments: { message: '世界已创建' } },
+    ],
+    [
+      {
+        name: 'apply_world_card',
+        arguments: {
+          operation: 'create',
+          changes: { name: '测试世界', description: '描述' },
+        },
+      },
+    ],
   ]);
   process.env.MOCK_LLM_COMPLETE = '';
 
@@ -521,6 +576,46 @@ test('runParentAgent: happy path（write_plan_doc → approve → dispatch_subag
   assert.ok(phase2Types.includes('task_completed'));
   assert.equal(phase2Events.some((e) => e.type === 'delta'), true);
   assert.ok(task.messages.find((m) => m.role === 'assistant' && m.content === '世界已创建'));
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
+test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不回到 awaiting_approval', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+    title: '已确认计划',
+    status: 'awaiting_approval',
+    createdAt: '2026-05-13T00:00:00.000Z',
+    updatedAt: '2026-05-13T00:00:00.000Z',
+    intent: '测试重复确认',
+    assumptions: [],
+    steps: threePlanSteps('已确认'),
+  }));
+  taskStore.setStatus(task.id, 'running');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    {
+      name: 'write_plan_doc',
+      arguments: {
+        title: '重复计划',
+        intent: '模型误要求二次确认',
+        steps: threePlanSteps('重复'),
+      },
+    },
+    { name: 'reply_to_user', arguments: { message: '继续执行，不再重复确认。' } },
+  ]);
+  process.env.MOCK_LLM_COMPLETE = '';
+
+  const phaseStart = events.length;
+  await runParentAgent(task, __testables.APPROVED_SENTINEL);
+  assert.equal(task.status, 'completed');
+  const phaseEvents = events.slice(phaseStart).map(parseEventLine).filter(Boolean);
+  assert.equal(phaseEvents.some((e) => e.type === 'awaiting_approval'), false);
+  assert.equal(phaseEvents.some((e) => e.type === 'plan_doc_updated'), false);
+  assert.ok(task.messages.find((m) => m.role === 'assistant' && m.content === '继续执行，不再重复确认。'));
 
   await planDoc.deletePlanDoc(task.id).catch(() => {});
   clearMockEnv();
@@ -583,9 +678,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
         title: '建世界 X',
         intent: '用户要建一个完整的赛博朋克世界',
         assumptions: ['世界尚未存在', 'persona 已就位'],
-        steps: [
-          { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建' },
-        ],
+        steps: threePlanSteps('建世界'),
       },
     },
   ]);

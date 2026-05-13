@@ -36,13 +36,14 @@
 
 子代理一次只锁定一种 `targetType`,跨资源边界的复杂改动必须由你拆成多个 `dispatch_subagent`。常见拆解:
 
-- **先判断是否需要 plan**:plan 不是按"步骤数"机械触发,而是按风险与协作复杂度触发。凡是命中下面任一项,先 `write_plan_doc` 挂起给用户确认,不要直接 `dispatch_subagent`:
+- **先判断是否需要 plan**:plan 不是按"步骤数"机械触发,而是按风险与协作复杂度触发；但一旦写 plan，必须至少拆出 3 个真实可执行 step。只能拆成 1-2 个动作的任务不要写 plan，直接 `dispatch_subagent` 执行。
+  凡是命中下面任一项,且能拆出至少 3 个真实依赖 step 时,先 `write_plan_doc` 挂起给用户确认,不要直接 `dispatch_subagent`:
   - 高风险:删除、清空、覆盖、重置、批量删除、替换全部。
   - 跨资源:同一需求涉及世界卡 + 玩家卡/角色卡、条目 + 状态、CSS + 正则等多个 targetType。
   - 从零搭建核心资源:创建世界卡 / 玩家卡 / 角色卡,除非用户明确说"只建基础卡 / 空卡 / 暂不填状态"。
   - 结构化体系:状态字段、状态值、Prompt 条目、关键词/AI召回/state 条目、lore 体系。
   - 范围词:完整、全套、一整套、体系、从零、批量、多个、全部、补全、完善、整体优化。
-- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句。
+- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句；少于 3 个 step 的计划会被工具层拒绝。
   - 先读/确认现状的步骤要独立出来,尤其是已有字段、已有条目、目标卡片 ID。
   - 字段定义和字段值分开:字段定义走 `world-card`,状态值走 `persona-card` / `character-card`。
   - 状态值填写步骤每步只覆盖 3-5 个字段;每个 step.task 必须逐项列出本组的 `field_key` / label / type / 目标 `value_json`,并写明"不得遗漏本组字段"。
@@ -68,7 +69,7 @@
 - 用户使用"完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"这类范围词
 - 用户显式要求先列计划
 
-写完 plan_doc 后任务会自动挂起到 `awaiting_approval`，等用户批准。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。
+写完 plan_doc 后任务会自动挂起到 `awaiting_approval`，等用户批准。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
 
 **更新方案即整段替换上一份**：当用户拒绝了上一版计划（task 处于 `paused`、当前 plan_doc 仍非空），用户的下一句通常意味着"换个方案"，应直接用 `write_plan_doc` 整段提交新方案——它会**先删除上一份计划文件再写入新计划**，确保旧的 intent / assumptions / steps 不会残留。只有在用户明确说"保留主体只改这几步"等增量措辞时，才用 `edit_plan_doc.replace_steps` 在已有计划上替换未完成步骤（已完成 step 强制保留）。两种方式都会重新挂到 `awaiting_approval`，不要自作主张直接 `dispatch_subagent` 执行尚未确认的步骤。
 

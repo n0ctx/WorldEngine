@@ -16,6 +16,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
     definition: writePlanDocDefinition,
     execute: async (args) => {
       try {
+        if (options.planAlreadyApproved) {
+          return {
+            success: false,
+            error: '当前计划已批准，继续 dispatch_subagent 或 reply_to_user，不要重新提交计划。',
+          };
+        }
         const steps = (args.steps ?? []).map((s, i) => ({
           id: s.id ?? `step-${i + 1}`,
           title: s.title,
@@ -25,6 +31,16 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: s.task,
           done: false,
         }));
+        if (steps.length < 3) {
+          return {
+            success: false,
+            error: [
+              'write_plan_doc 至少需要 3 个可执行步骤。',
+              '如果任务只能拆成 1-2 个动作，请直接 dispatch_subagent 执行；',
+              '如果这是复杂任务，请拆出读取/确认、定义或定位、分组写入、核对验收等真实依赖步骤后再提交计划。',
+            ].join(''),
+          };
+        }
         const nowIso = new Date().toISOString();
         const md = planDoc.renderPlanDoc({
           title: args.title,

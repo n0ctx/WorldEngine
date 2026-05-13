@@ -1,3 +1,5 @@
+- fix(assistant): 修复写卡助手重复确认与低质量计划。`write_plan_doc` 新增两道工具层硬护栏：用户批准计划后的续跑阶段拒绝再次提交计划，避免 Task HUD 消失后又回到 `awaiting_approval` 二次确认；计划至少需要 3 个可执行 step，1-2 个动作直接派发子代理执行，不写 plan、不设置审批 checkpoint、不发 `plan_doc_updated/awaiting_approval`。同步更新父代理 prompt、CONTRACT 与 ARCHITECTURE 的计划门槛描述，并补回归覆盖少于 3 步拒绝、批准后重复 `write_plan_doc` 被拦、3 步计划仍可审批执行。
+
 - style(config): WorldConfigPage 去卡片化 + 去立体效果。① `.we-config-col` 移除白色面板背景、边框、圆角和 `--we-shadow-paper-stack` 立体阴影，改为透明容器直接浮于深棕画布上；② `.we-entry-section-row` 去掉 `inset` 内光和外阴影，改为无阴影平面风格；hover 态保留金色边框变色，移除浮起阴影；③ 新建按钮移除 `--we-shadow-stamp-up`/`stamp-down` 印章立体效果，active 态改为 opacity 反馈；④ 在 `.we-config-col` 上下文中将 desc 文字色从深墨色覆盖为 `--we-color-border-default`（暖浅灰 #e2e2dc），确保在暗色背景下可读。
 
 - style(config): WorldConfigPage 视觉微调。① `.we-entry-section-desc` 颜色从边框色（`--we-paper-shadow`）改为次要文字色（`--we-color-text-secondary`），解决副标题几乎不可读的问题；② `.we-config-grid` 列间距从 `--we-space-sm`(8px) 增至 `--we-space-md`(12px)，顶部留白从 `--we-space-lg`(16px) 减至 `--we-space-sm`(8px)；③ 四列图标从统一 ❦ 改为语义符号（常驻⚓ / 关键词◈ / AI召回✦ / 状态条件⬡）。
