@@ -487,6 +487,25 @@ async function pauseForRecoverableHarnessIssue(task, emitFn, runId, reason, mess
   taskStore.endAllSse(task.id);
 }
 
+// 子代理失败暂停：用 assistant 消息气泡展示，支持 <think> 折叠，而非压缩进 step title。
+// 仍打 HARNESS_RECOVERABLE_PAUSE_REASON 防止自动 resume。
+async function pauseSubagentFailed(task, emitFn, runId, reason, displayMessage) {
+  log.warn(`SUBAGENT_FAIL_PAUSE  ${formatMeta({ runId, taskId: task.id, reason })}`);
+  if (task.status !== 'cancelled' && displayMessage) {
+    await streamAssistantText(task, displayMessage, emitFn);
+  }
+  if (task.status === 'cancelled') {
+    emitFn({ type: SSE_EVENTS.DONE, done: true });
+    taskStore.endAllSse(task.id);
+    return;
+  }
+  taskStore.setStatus(task.id, 'paused', { error: HARNESS_RECOVERABLE_PAUSE_REASON });
+  emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id, reason });
+  emitTaskSnapshot(task, emitFn, { recoverable: true });
+  emitFn({ type: SSE_EVENTS.DONE, done: true });
+  taskStore.endAllSse(task.id);
+}
+
 // 三类 harness 软失败的"恢复文案"——挂在一条紧凑 step 条目的 title 上，
 // 不再以完整 assistant 文本气泡播报，避免反复循环时屏幕被同一段话刷屏。
 function buildEmptyReplyRecoveryMessage() {
@@ -613,6 +632,18 @@ export async function runParentAgent(task, userInput, opts = {}) {
       );
       return;
     }
+    if (text && task.lastSubagentResult?.success === false) {
+      const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
+      // 二次清洗 think 块，防止 sub-agent 层面的截断策略漏过的残留
+      const errDetail = (task.lastSubagentResult.error ?? '未知错误')
+        .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '').trim();
+      await pauseSubagentFailed(
+        task, emitFn, runId,
+        'model claimed completed but last subagent step failed',
+        `子任务"${title}"执行失败（${errDetail}），但助手误报了成功，已暂停。请告诉我如何处理这个失败步骤。`,
+      );
+      return;
+    }
     await finalizeCompleted(task, emitFn, text);
   } catch (err) {
     if (isToolLoopCancelledError(err) && task.status === 'cancelled') {
@@ -627,6 +658,15 @@ export async function runParentAgent(task, userInput, opts = {}) {
       if (kind === TOOL_LOOP_SIGNAL.TERMINAL) {
         if (payload.terminalStatus === 'failed') {
           await finalizeFailed(task, emitFn, payload.message ?? '', payload.message ?? 'task failed');
+        } else if (task.lastSubagentResult?.success === false) {
+          const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
+          const errDetail = (task.lastSubagentResult.error ?? '未知错误')
+            .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '').trim();
+          await pauseSubagentFailed(
+            task, emitFn, runId,
+            'model claimed completed but last subagent step failed',
+            `子任务"${title}"执行失败（${errDetail}），但助手误报了成功，已暂停。请告诉我如何处理这个失败步骤。`,
+          );
         } else {
           await finalizeCompleted(task, emitFn, payload.message ?? '');
         }

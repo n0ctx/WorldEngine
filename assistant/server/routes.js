@@ -200,7 +200,7 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   res.json({ ok: true });
 });
 
-router.post('/agent/:taskId/truncate', (req, res) => {
+router.post('/agent/:taskId/truncate', async (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
   if (task.status === 'running') {
@@ -208,9 +208,20 @@ router.post('/agent/:taskId/truncate', (req, res) => {
     return res.status(400).json({ error: 'cannot truncate while running' });
   }
   const messageId = req.body?.messageId;
+  // 记录截断前是否有 plan_doc 消息，用于决定是否清理 plan doc 文件
+  const hadPlanDoc = task.messages.some((m) => m.role === 'plan_doc');
   const dropped = taskStore.truncateFrom(task.id, messageId);
   if (dropped < 0) return res.status(404).json({ error: 'message not found' });
   log.info(`/agent/truncate  ${formatMeta({ taskId: task.id, messageId, dropped })}`);
+  // 若截断导致 plan_doc 消息被删除，同步清理文件和内存中的 plan doc 状态，
+  // 否则重新生成时 parent-agent 会读到旧 plan doc 并跳过 write_plan_doc 直接执行
+  const stillHasPlanDoc = task.messages.some((m) => m.role === 'plan_doc');
+  if (hadPlanDoc && !stillHasPlanDoc) {
+    taskStore.setPlanDocContent(task.id, '');
+    taskStore.setApprovalCheckpoint(task.id, null);
+    planDoc.deletePlanDoc(task.id).catch(() => {});
+    taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: '' });
+  }
   taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
   res.json({ ok: true, messages: task.messages });
 });

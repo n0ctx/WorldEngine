@@ -3,6 +3,11 @@
  *
  * 挂载于输入框正上方，紧凑展示当前 plan_doc 中的任务勾选状态。
  * 全部勾选完成 / 任务进入终态时返回 null，不残留。
+ *
+ * 视觉规则：
+ *  - 未完成项在前，已完成项沉底
+ *  - 当前执行项（第一个未完成）显示 pulse 微动画 + ▶ 标记
+ *  - line-through 仅划文字，不划勾选框
  */
 
 import { useMemo } from 'react';
@@ -23,17 +28,33 @@ export default function PlanTaskHud() {
   const error = useAssistantStore((s) => s.error);
 
   const tasks = useMemo(() => parseTaskLines(planDoc), [planDoc]);
+
+  // 未完成项在前（执行顺序感），已完成项沉底（清晰区分完成状态）
+  // useMemo 必须在所有 early return 之前调用（Rules of Hooks）
+  const sorted = useMemo(
+    () => [...tasks].sort((a, b) => {
+      if (a.checked === b.checked) return 0;
+      return a.checked ? 1 : -1;
+    }),
+    [tasks],
+  );
+
   const total = tasks.length;
   const done = tasks.filter((t) => t.checked).length;
 
   if (HIDDEN_STATUSES.has(status)) return null;
   if (status === 'paused' && error === PLAN_REJECTED_PAUSE_REASON) return null;
   if (total === 0) return null;
-  if (done >= total) return null;
+  // 运行期间保持 HUD 可见（避免步骤完成时瞬间消失再出现的闪烁）；
+  // 仅在非运行状态下才因 done >= total 隐藏。
+  if (done >= total && status !== 'running') return null;
 
   const pct = Math.round((done / total) * 100);
-  const visible = tasks.slice(0, MAX_VISIBLE);
+  const visible = sorted.slice(0, MAX_VISIBLE);
   const overflow = total - visible.length;
+
+  // 当前执行项：已排序后第一个未完成的任务
+  const runningIndex = visible.findIndex((t) => !t.checked);
 
   return (
     <div className="flex flex-shrink-0 flex-col gap-1 border-t border-black/10 bg-[var(--we-paper-aged)] px-3 py-2 text-[12px] leading-relaxed text-[var(--we-ink-primary)]">
@@ -48,20 +69,39 @@ export default function PlanTaskHud() {
         <span>{pct}%</span>
       </div>
       <ul className="m-0 list-none p-0">
-        {visible.map((t, i) => (
-          <li
-            key={i}
-            className={
-              'flex items-start gap-1.5 ' +
-              (t.checked ? 'text-[var(--we-ink-muted)] line-through opacity-70' : '')
-            }
-          >
-            <span aria-hidden="true" className="mt-[1px] text-[var(--we-vermilion)]">
-              {t.checked ? '☑' : '☐'}
-            </span>
-            <span className="min-w-0 flex-1 truncate">{t.text}</span>
-          </li>
-        ))}
+        {visible.map((t, i) => {
+          const isRunning = i === runningIndex;
+          // 去掉 **step-n** 前缀（含全角/半角变体），只显示正文
+          const displayText = t.text.replace(/^\*{0,2}step-\d+\*{0,2}\s*/i, '');
+          return (
+            <li
+              key={i}
+              className={`flex items-center gap-1.5 transition-opacity duration-200 ${
+                t.checked ? 'opacity-40' : ''
+              }`}
+            >
+              {isRunning ? (
+                <span className="we-hud-spinner" aria-hidden="true" />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className={`flex-shrink-0 text-[11px] ${
+                    t.checked ? 'text-[var(--we-ink-muted)]' : 'text-[var(--we-ink-faded)]'
+                  }`}
+                >
+                  {t.checked ? '☑' : '☐'}
+                </span>
+              )}
+              <span
+                className={`min-w-0 flex-1 truncate ${
+                  t.checked ? 'line-through text-[var(--we-ink-muted)]' : ''
+                } ${isRunning ? 'we-hud-running-item font-medium' : ''}`}
+              >
+                {displayText}
+              </span>
+            </li>
+          );
+        })}
         {overflow > 0 && (
           <li className="mt-0.5 text-[11px] text-[var(--we-ink-muted)]">
             还有 {overflow} 项…

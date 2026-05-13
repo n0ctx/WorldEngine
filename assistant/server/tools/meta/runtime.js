@@ -147,6 +147,13 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (!resolved.targetType || !resolved.task) {
           return { success: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
         }
+        // 检测 task 字段疑似被 LLM 截断（以中/英文冒号结尾），避免子代理拿到不完整指令后白跑一次
+        if (/[：:]\s*$/.test(resolved.task.trim())) {
+          return {
+            success: false,
+            error: `dispatch_subagent 的 task 字段疑似被截断（结尾为"："，缺少具体操作内容）。请补全操作指令后重试。`,
+          };
+        }
 
         if (resolved.operation === 'create' && !args.force) {
           const dup = taskStore.findAppliedResource(task.id, (e) =>

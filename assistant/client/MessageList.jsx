@@ -198,7 +198,7 @@ function UserEntry({ msg, onEdit, onDelete }) {
   function confirmEdit() {
     const trimmed = draft.trim();
     setEditing(false);
-    if (trimmed && trimmed !== (msg.content || '').trim()) {
+    if (trimmed) {
       onEdit?.(msg.id, trimmed);
     }
   }

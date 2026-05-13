@@ -1442,6 +1442,17 @@
   to { transform: rotate(360deg); }
 }
 
+.we-hud-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--we-vermilion);
+  border-top-color: transparent;
+  border-radius: var(--we-radius-full);
+  animation: we-tool-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
 .we-asst-entry__dot {
   width: 6px;
   height: 6px;
@@ -1821,4 +1832,73 @@
   gap: 4px;
   align-items: center;
   height: 18px;
+}
+
+/* ── Plan Doc Preview（awaiting_approval 阶段的计划文档 Markdown 渲染）── */
+.we-plan-doc-preview {
+  font-family: var(--we-font-serif);
+  color: var(--we-ink-primary);
+  font-size: var(--we-text-xs);
+  line-height: 1.65;
+}
+.we-plan-doc-preview h1 {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-sm);
+  font-weight: 600;
+  font-style: italic;
+  color: var(--we-ink-primary);
+  margin: 0 0 var(--we-space-xs);
+  letter-spacing: 0.01em;
+}
+.we-plan-doc-preview h2 {
+  font-size: var(--we-text-xs);
+  font-weight: 600;
+  color: var(--we-ink-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: var(--we-space-sm) 0 2px;
+}
+.we-plan-doc-preview h3 {
+  font-size: var(--we-text-xs);
+  font-weight: 600;
+  color: var(--we-ink-primary);
+  margin: var(--we-space-xs) 0 2px;
+}
+.we-plan-doc-preview p {
+  margin: 0 0 var(--we-space-xs);
+  color: var(--we-ink-primary);
+}
+.we-plan-doc-preview p:last-child { margin-bottom: 0; }
+.we-plan-doc-preview ul,
+.we-plan-doc-preview ol {
+  padding-left: var(--we-space-lg);
+  margin: 2px 0 var(--we-space-xs);
+}
+.we-plan-doc-preview li {
+  margin-bottom: 2px;
+  line-height: 1.6;
+}
+.we-plan-doc-preview strong { font-weight: 600; }
+.we-plan-doc-preview em    { font-style: italic; }
+.we-plan-doc-preview blockquote {
+  border-left: 2px solid var(--we-color-border-subtle);
+  padding-left: var(--we-space-sm);
+  margin: 2px 0;
+  color: var(--we-ink-muted);
+}
+.we-plan-doc-preview code {
+  font-family: var(--we-font-mono);
+  font-size: 0.9em;
+  background: color-mix(in srgb, var(--we-paper-base) 60%, transparent);
+  padding: 0 3px;
+  border-radius: var(--we-radius-sm);
+}
+
+/* ── Plan HUD 当前执行项微动画 ── */
+@keyframes we-hud-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+.we-hud-running-item {
+  animation: we-hud-pulse 1.6s ease-in-out infinite;
 }

@@ -636,6 +636,13 @@ export function takeUserMessages(id) {
 export function attachSse(taskId, res) {
   if (!sseClients.has(taskId)) sseClients.set(taskId, new Set());
   sseClients.get(taskId).add(res);
+  const task = tasks.get(taskId);
+  // 重连时清除因短暂断开产生的暂停标志：用户重连说明他们仍在场，不需要暂停。
+  // 真正的用户暂停意图通过 cancelTask API 明确表达，不走此标志。
+  if (task?.status === 'running' && task.pauseRequested) {
+    task.pauseRequested = false;
+    log.info(`CLEAR_STALE_PAUSE_ON_RECONNECT  ${formatMeta({ taskId })}`);
+  }
   log.debug(`ATTACH  ${formatMeta({ taskId, subscribers: sseClients.get(taskId).size })}`);
 }
 
@@ -644,8 +651,15 @@ export function detachSse(taskId, res) {
   const remaining = sseClients.get(taskId)?.size ?? 0;
   const task = tasks.get(taskId);
   if (remaining === 0 && task?.status === 'running') {
-    requestPauseAfterCurrentStep(taskId);
-    log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId, currentStepId: task.currentStepId ?? null })}`);
+    // 子代理步骤执行期间（currentStepId 已设置），SSE 断开是预期的长连接波动，
+    // 不触发暂停——子代理结束后父代理会自然继续；子任务完成后若用户仍断线，
+    // 下一次 consumePauseAfterCurrentStep 才会看到 pauseRequested=true。
+    if (task.currentStepId) {
+      log.info(`SKIP_PAUSE_DURING_STEP  ${formatMeta({ taskId, currentStepId: task.currentStepId })}`);
+    } else {
+      requestPauseAfterCurrentStep(taskId);
+      log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId })}`);
+    }
   }
   log.debug(`DETACH  ${formatMeta({ taskId, remaining })}`);
 }

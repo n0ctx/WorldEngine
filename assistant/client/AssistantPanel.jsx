@@ -278,10 +278,11 @@ export default function AssistantPanel() {
         }`;
       if (!opts.skipPush) pushUserMessage(text, messageId);
       if (taskId) beginUserTurn(taskId);
-      const context = await buildContext();
-      // 关键：开新流前先 abort 上一条尚未关闭的 SSE 连接，
-      // 否则旧的 fetch reader 仍订阅 sseClients，会和新流并行收到同一份 delta
-      // → 文本字符级双写（"你你好好…"）
+      // 关键：abort + isStreaming 必须在任何 await 之前同步设置，
+      // 否则 beginUserTurn 触发的 recovery useEffect 在 buildContext() 期间看到
+      // isStreaming=false 而执行 replaceTaskSnapshot，把刚写入 store 的 user 气泡吞掉。
+      // React 18 会把 beginUserTurn(status:'running') 和 setIsStreaming(true) 批量合并，
+      // recovery effect 看到 isStreaming:true 直接跳过。
       abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -298,6 +299,7 @@ export default function AssistantPanel() {
         ingestEvent(event);
       };
       try {
+        const context = await buildContext();
         await streamAgent({
           taskId,
           message: text,
@@ -354,6 +356,25 @@ export default function AssistantPanel() {
     },
     [taskId],
   );
+
+  const handleRegenerateLastUser = useCallback(async () => {
+    if (!taskId) return;
+    const msgs = useAssistantStore.getState().messages;
+    let lastUserMsg = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user' && msgs[i].content) { lastUserMsg = msgs[i]; break; }
+    }
+    if (!lastUserMsg?.id || !lastUserMsg.content) return;
+    abortRef.current?.abort?.();
+    try {
+      await apiTruncateFrom(taskId, lastUserMsg.id);
+    } catch (err) {
+      log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
+      return;
+    }
+    useAssistantStore.getState().replaceTailWithUser(lastUserMsg.id, lastUserMsg.content, lastUserMsg.id);
+    await handleSend(lastUserMsg.content, { skipPush: true, messageId: lastUserMsg.id });
+  }, [taskId, handleSend]);
 
   const handleRegenerate = useCallback(
     async (assistantMsgId) => {
@@ -508,18 +529,49 @@ export default function AssistantPanel() {
             pending={pendingAssistant}
           />
           {error && status === 'failed' && !isRecoverableTerminal && (
-            <div className="mx-3 my-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
-              {error}
+            <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
+              <span className="flex-1">{error}</span>
+              <button
+                type="button"
+                onClick={handleRegenerateLastUser}
+                className="shrink-0 rounded px-2 py-0.5 hover:bg-[var(--we-vermilion)]/10"
+              >
+                重新生成
+              </button>
             </div>
           )}
           {status === 'awaiting_approval' && (
-            <div className="flex flex-shrink-0 flex-col border-t border-black/5">
+            <div className="flex flex-shrink-0 flex-col border-t border-black/10 bg-[var(--we-paper-aged)]">
+              {/* 计划文档预览区 */}
               {planDoc && (
-                <div className="we-plan-doc-preview max-h-60 overflow-y-auto bg-[var(--we-paper-aged)] px-3 py-2 text-[12px] leading-relaxed text-[var(--we-ink-primary)]">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
-                </div>
+                <>
+                  <div className="flex items-center gap-1.5 border-b border-black/5 px-3 py-1.5">
+                    <span className="text-[11px] font-medium tracking-wide text-[var(--we-ink-muted)]" style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>
+                      计划草案
+                    </span>
+                    <span className="ml-auto rounded bg-[var(--we-vermilion)]/10 px-1.5 py-0.5 text-[10px] text-[var(--we-vermilion)]">待审批</span>
+                  </div>
+                  <div className="we-plan-doc-preview max-h-56 overflow-y-auto px-3 py-2">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
+                  </div>
+                </>
               )}
-              <div className="flex gap-1.5 border-t border-black/5 px-3 py-2">
+              {/* 确认 / 拒绝 / 修改建议输入 / 确认修改 — 同一行 */}
+              <div className="flex items-center gap-2 border-t border-black/10 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={handleApprove}
+                  className="flex-shrink-0 rounded bg-[var(--we-vermilion)] px-4 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 active:opacity-80"
+                >
+                  确认执行
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectPlan}
+                  className="flex-shrink-0 rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-secondary)] hover:bg-black/5"
+                >
+                  拒绝计划
+                </button>
                 <textarea
                   value={reviseInput}
                   onChange={(e) => setReviseInput(e.target.value)}
@@ -529,33 +581,17 @@ export default function AssistantPanel() {
                       if (reviseInput.trim()) handleRevise();
                     }
                   }}
-                  placeholder="填写修改建议（Ctrl+Enter 提交）"
-                  rows={2}
-                  className="min-h-[2.5rem] flex-1 resize-none rounded border border-black/10 bg-[var(--we-paper-base)] px-2 py-1 text-[12px] text-[var(--we-ink-primary)] placeholder-[var(--we-ink-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--we-vermilion)]/30"
+                  placeholder="填写修改建议…"
+                  rows={1}
+                  className="min-w-0 flex-1 resize-none rounded border border-black/10 bg-[var(--we-paper-base)] px-2 py-1.5 text-[12px] text-[var(--we-ink-primary)] placeholder-[var(--we-ink-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--we-vermilion)]/30"
                 />
                 <button
                   type="button"
                   onClick={handleRevise}
                   disabled={!reviseInput.trim()}
-                  className="self-end rounded border border-black/15 px-2.5 py-1.5 text-[11px] text-[var(--we-ink-primary)] hover:bg-black/5 disabled:opacity-40"
+                  className="flex-shrink-0 rounded border border-black/15 bg-[var(--we-paper-base)] px-2.5 py-1.5 text-[11px] text-[var(--we-ink-secondary)] hover:bg-black/5 disabled:opacity-35"
                 >
-                  按建议修改
-                </button>
-              </div>
-              <div className="flex gap-2 border-t border-black/5 px-3 py-2">
-                <button
-                  type="button"
-                  onClick={handleApprove}
-                  className="rounded bg-[var(--we-vermilion)] px-3 py-1.5 text-[12px] text-white hover:opacity-90"
-                >
-                  确认执行
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRejectPlan}
-                  className="rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-primary)] hover:bg-black/5"
-                >
-                  拒绝计划
+                  确认修改
                 </button>
               </div>
             </div>

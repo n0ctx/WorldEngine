@@ -55,6 +55,8 @@ export const useAssistantStore = create(
       messages: [], // [{ role, content, streaming? }]
       error: null,
       currentStepId: null,
+      // replaceTailWithUser 写入后设置；防止 MESSAGES_CHANGED 广播在 abort 尚未完全生效时吞掉本地 user 消息
+      pendingUserMessageId: null,
       // 当前任务在 messages 数组中的起始偏移（task_created 时记录），
       // 用于限制 tool_call_started 复用失败行的查找范围，避免跨任务污染历史
       taskMsgOffset: 0,
@@ -68,6 +70,7 @@ export const useAssistantStore = create(
           error: null,
           currentStepId: null,
           taskMsgOffset: 0,
+          pendingUserMessageId: null,
         }),
 
       // 仅重置任务态，保留消息历史（面板重开时使用）
@@ -98,7 +101,7 @@ export const useAssistantStore = create(
         set((s) => {
           switch (evt.type) {
             case SSE_EVENTS.TASK_CREATED:
-              return { ...s, taskId: evt.taskId, status: 'running', error: null, taskMsgOffset: s.messages.length };
+              return { ...s, taskId: evt.taskId, status: 'running', error: null, taskMsgOffset: s.messages.length, pendingUserMessageId: null };
             case SSE_EVENTS.TASK_SNAPSHOT:
               return applyTaskSnapshot(s, evt.task);
             case SSE_EVENTS.PLAN_DOC_UPDATED: {
@@ -123,13 +126,19 @@ export const useAssistantStore = create(
             case SSE_EVENTS.TASK_CANCELLED:
               return { ...s, status: 'cancelled' };
             case SSE_EVENTS.DELTA:
-              return { ...s, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
+              return { ...s, pendingUserMessageId: null, messages: appendDelta(s.messages, evt.delta, evt.messageId) };
             case SSE_EVENTS.USER_MESSAGE:
               // 服务端落库后回传 messageId；把最近一条无 id 的 user 消息补 id（一般本地已带 id 时直接命中）
-              return { ...s, messages: adoptUserMessageId(s.messages, evt.messageId) };
+              return { ...s, pendingUserMessageId: null, messages: adoptUserMessageId(s.messages, evt.messageId) };
             case SSE_EVENTS.MESSAGES_CHANGED: {
               if (!Array.isArray(evt.messages)) return s;
-              return { ...s, messages: sanitizeMessagesForPersist(evt.messages) };
+              const newMessages = sanitizeMessagesForPersist(evt.messages);
+              if (s.pendingUserMessageId && !newMessages.some((m) => m.id === s.pendingUserMessageId)) {
+                // 服务端尚未收到 pending user 消息时，把它追加回去防止被吞
+                const pendingMsg = s.messages.find((m) => m.id === s.pendingUserMessageId);
+                return { ...s, messages: pendingMsg ? [...newMessages, pendingMsg] : newMessages };
+              }
+              return { ...s, messages: newMessages, pendingUserMessageId: null };
             }
             case SSE_EVENTS.TOOL_CALL_STARTED: {
               // 若当前任务内同名工具有已失败的条目，复用该条目（重试场景），避免留下永久红色失败标记
@@ -237,6 +246,7 @@ export const useAssistantStore = create(
           if (idx < 0) return s;
           return {
             ...s,
+            pendingUserMessageId: id,
             messages: [
               ...s.messages.slice(0, idx),
               { id, role: 'user', content },
