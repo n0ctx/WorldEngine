@@ -18,7 +18,7 @@ const insert = sandbox.db.prepare(`
 const seeds = [
   { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
   { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
-  { id: 'task-bbbbbbb1', status: 'executing', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
+  { id: 'task-bbbbbbb1', status: 'running', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
   { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [
     { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'running' },
     { id: 'step-1', role: 'step', stepId: 'step-1', title: '执行中', status: 'running' },
@@ -64,17 +64,13 @@ test('hydrate: 终态任务原样保留', () => {
   assert.equal(taskStore.getTask('task-aaaaaaa2').status, 'failed');
 });
 
-test('hydrate: executing 等不可恢复中的非终态转 failed', () => {
+test('hydrate: running / awaiting_approval / paused 保留为可恢复状态', () => {
   const t1 = taskStore.getTask('task-bbbbbbb1');
-  assert.equal(t1.status, 'failed');
-  assert.equal(t1.error, 'interrupted by restart');
-  // messages 与 currentStepId 等其他字段保留
+  assert.equal(t1.status, 'running');
+  assert.equal(t1.error, undefined);
   assert.equal(t1.messages.length, 1);
   assert.equal(t1.currentStepId, 'step-1');
   assert.equal(t1.planDocContent, '# live plan');
-});
-
-test('hydrate: awaiting_approval / paused 保留为可恢复状态', () => {
   const t2 = taskStore.getTask('task-bbbbbbb2');
   assert.equal(t2.status, 'awaiting_approval');
   assert.deepEqual(t2.context, { worldId: 'w' });
@@ -91,10 +87,10 @@ test('hydrate: awaiting_approval / paused 保留为可恢复状态', () => {
   assert.equal(t3.planDocContent, '# paused plan');
 });
 
-test('hydrate: 转 failed 后同步写回数据库', () => {
+test('hydrate: running 状态保持写回数据库', () => {
   const raw = sandbox.db.prepare('SELECT status, error FROM assistant_tasks WHERE id = ?').get('task-bbbbbbb1');
-  assert.equal(raw.status, 'failed');
-  assert.equal(raw.error, 'interrupted by restart');
+  assert.equal(raw.status, 'running');
+  assert.equal(raw.error, null);
 });
 
 test('hydrate: 旧 JSON sidecar 导入到 SQLite', () => {

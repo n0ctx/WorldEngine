@@ -23,9 +23,14 @@ const tasks = new Map();
 const sseClients = new Map(); // taskId -> Set<res>
 
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
-const RESUMABLE_TASK_STATUSES = new Set(['awaiting_approval', 'paused']);
-const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const RESUMABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
+const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
+export const HARNESS_ERROR_PREFIX = 'agent loop error: ';
+
+export function isHarnessError(err) {
+  return typeof err === 'string' && err.startsWith(HARNESS_ERROR_PREFIX);
+}
 
 function cloneTaskForPersist(task) {
   return {
@@ -38,6 +43,10 @@ function cloneTaskForPersist(task) {
     modelContext: task.modelContext ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
     currentStepId: task.currentStepId ?? null,
+    lastToolFailure: task.lastToolFailure ?? null,
+    lastSubagentResult: task.lastSubagentResult ?? null,
+    approvalCheckpoint: task.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
     error: typeof task.error === 'string' ? task.error : undefined,
     updatedAt: typeof task.updatedAt === 'number' ? task.updatedAt : Date.now(),
   };
@@ -84,7 +93,13 @@ function hydrateTask(data) {
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     currentStepId: data.currentStepId ?? null,
+    lastToolFailure: data.lastToolFailure ?? null,
+    lastSubagentResult: data.lastSubagentResult ?? null,
+    approvalCheckpoint: data.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(data.loopIteration) ? data.loopIteration : 0,
     pauseRequested: false,
+    executionActive: false,
+    appliedResources: [],
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : (typeof data.createdAt === 'number' ? data.createdAt : Date.now()),
   };
   if (typeof data.error === 'string') task.error = data.error;
@@ -162,6 +177,15 @@ function persistUiEvent(taskId, event) {
         toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName,
         status: event.success ? 'done' : 'error',
       });
+      t.lastToolFailure = event.success
+        ? null
+        : {
+            toolName: event.toolName ?? t.messages.find((m) => m?.id === event.callId)?.toolName ?? null,
+            error: event.error ?? 'tool failed',
+            at: Date.now(),
+          };
+      touch(t);
+      persist(t);
       return;
     case SSE_EVENTS.STEP_STARTED:
       if (!event.stepId) return;
@@ -256,7 +280,7 @@ export function createTask({ context } = {}) {
   const now = Date.now();
   const task = {
     id,
-    status: 'planning',
+    status: 'idle',
     context: context ?? {},
     messages: [],
     pendingUserMessages: [],
@@ -264,6 +288,12 @@ export function createTask({ context } = {}) {
     modelContext: null,
     createdAt: now,
     currentStepId: null,
+    lastToolFailure: null,
+    lastSubagentResult: null,
+    approvalCheckpoint: null,
+    loopIteration: 0,
+    executionActive: false,
+    appliedResources: [],
     updatedAt: now,
   };
   tasks.set(id, task);
@@ -294,7 +324,7 @@ export function getLatestRecoverableTask() {
   }
   if (latest) return latest;
   return getLatestAssistantTask(`
-    status IN ('planning', 'awaiting_approval', 'executing', 'paused')
+    status IN ('running', 'awaiting_approval', 'paused')
     OR (status = 'failed' AND error = '${RESTART_INTERRUPTED_ERROR}')
   `);
 }
@@ -320,6 +350,91 @@ export function setCurrentStep(id, stepId) {
   if (!t) return;
   if (t.currentStepId === stepId) return;
   t.currentStepId = stepId ?? null;
+  touch(t);
+  persist(t);
+}
+
+export function setLastToolFailure(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.lastToolFailure ?? null) === JSON.stringify(next)) return;
+  t.lastToolFailure = next;
+  touch(t);
+  persist(t);
+}
+
+export function setLastSubagentResult(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.lastSubagentResult ?? null) === JSON.stringify(next)) return;
+  t.lastSubagentResult = next;
+  touch(t);
+  persist(t);
+}
+
+export function setApprovalCheckpoint(id, payload) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = payload ?? null;
+  if (JSON.stringify(t.approvalCheckpoint ?? null) === JSON.stringify(next)) return;
+  t.approvalCheckpoint = next;
+  touch(t);
+  persist(t);
+}
+
+export function incrementLoopIteration(id) {
+  const t = tasks.get(id);
+  if (!t) return 0;
+  t.loopIteration = Number.isFinite(t.loopIteration) ? t.loopIteration + 1 : 1;
+  touch(t);
+  persist(t);
+  return t.loopIteration;
+}
+
+export function setExecutionActive(id, active) {
+  const t = tasks.get(id);
+  if (!t) return;
+  t.executionActive = active === true;
+}
+
+export function isExecutionActive(id) {
+  return tasks.get(id)?.executionActive === true;
+}
+
+export function recordAppliedResource(id, entry) {
+  const t = tasks.get(id);
+  if (!t || !entry) return;
+  if (!Array.isArray(t.appliedResources)) t.appliedResources = [];
+  t.appliedResources.push({ at: Date.now(), ...entry });
+  touch(t);
+}
+
+export function findAppliedResource(id, predicate) {
+  const t = tasks.get(id);
+  if (!t || typeof predicate !== 'function') return null;
+  const list = Array.isArray(t.appliedResources) ? t.appliedResources : [];
+  return list.find(predicate) ?? null;
+}
+
+export function clearAppliedResources(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  if (!Array.isArray(t.appliedResources) || t.appliedResources.length === 0) return;
+  t.appliedResources = [];
+  touch(t);
+}
+
+export function resetLoopState(id) {
+  const t = tasks.get(id);
+  if (!t) return;
+  t.lastToolFailure = null;
+  t.lastSubagentResult = null;
+  t.approvalCheckpoint = null;
+  t.currentStepId = null;
+  t.loopIteration = 0;
+  t.pauseRequested = false;
   touch(t);
   persist(t);
 }
@@ -444,7 +559,7 @@ export function detachSse(taskId, res) {
   sseClients.get(taskId)?.delete(res);
   const remaining = sseClients.get(taskId)?.size ?? 0;
   const task = tasks.get(taskId);
-  if (remaining === 0 && task?.status === 'executing') {
+  if (remaining === 0 && task?.status === 'running') {
     requestPauseAfterCurrentStep(taskId);
     log.info(`PAUSE_ON_DETACH  ${formatMeta({ taskId, currentStepId: task.currentStepId ?? null })}`);
   }
@@ -494,6 +609,11 @@ export function buildTaskSnapshot(task) {
     modelContext: task.modelContext ?? null,
     createdAt: task.createdAt ?? null,
     currentStepId: task.currentStepId ?? null,
+    lastToolFailure: task.lastToolFailure ?? null,
+    lastSubagentResult: task.lastSubagentResult ?? null,
+    approvalCheckpoint: task.approvalCheckpoint ?? null,
+    loopIteration: Number.isFinite(task.loopIteration) ? task.loopIteration : 0,
+    appliedResources: Array.isArray(task.appliedResources) ? task.appliedResources : [],
     error: task.error,
     updatedAt: task.updatedAt ?? null,
   };

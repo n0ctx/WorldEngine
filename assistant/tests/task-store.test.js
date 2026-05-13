@@ -16,7 +16,7 @@ function freshTask(ctx = {}) {
 test('createTask 生成 task 并标准化 context', () => {
   const t = freshTask({ worldId: 'w1', characterId: 'c1' });
   assert.match(t.id, /^task-/);
-  assert.equal(t.status, 'planning');
+  assert.equal(t.status, 'idle');
   assert.deepEqual(t.context, { worldId: 'w1', characterId: 'c1' });
   assert.deepEqual(t.messages, []);
   assert.deepEqual(t.pendingUserMessages, []);
@@ -78,9 +78,9 @@ test('queueUserMessage / takeUserMessages 取出后清空', () => {
   assert.deepEqual(taskStore.takeUserMessages('nope'), []);
 });
 
-test('detachSse 在 executing 且最后一个订阅者断开时请求 step 后暂停', () => {
+test('detachSse 在 running 且最后一个订阅者断开时请求 step 后暂停', () => {
   const t = freshTask();
-  taskStore.setStatus(t.id, 'executing');
+  taskStore.setStatus(t.id, 'running');
   const res = { write: () => {} };
   taskStore.attachSse(t.id, res);
 

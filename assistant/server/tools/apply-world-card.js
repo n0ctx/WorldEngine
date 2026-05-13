@@ -3,7 +3,7 @@ import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 
 export const definition = {
   name: 'apply_world_card',
-  description: '落库一个世界卡变更。operation 取 create/update/delete。create 不传 entityId；update/delete 必传 entityId（worldId）。entryOps 字段集详见 WORLDCARD.md：keyword 类条目支持 keyword_scope（user/assistant 多选，默认 user,assistant）、keyword_logic（AND/OR，默认 OR）、active_turns（非负整数，0=永久，默认 1）。',
+  description: '落库一个世界卡变更。operation 取 create/update/delete；create 不传 entityId，update/delete 必传 entityId（worldId）。参数结构详见 CONTRACT.md / WORLDCARD.md。',
   parameters: {
     type: 'object',
     properties: {

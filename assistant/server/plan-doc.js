@@ -82,6 +82,46 @@ export function pickNextStep(steps) {
   return steps.find((s) => !s.done && s.dependsOn.every((d) => doneIds.has(d))) ?? null;
 }
 
+/**
+ * 校验计划文档 Markdown 是否能被正确解析。
+ * 返回 { valid: boolean, error?: string }
+ */
+export function validatePlanDoc(md) {
+  if (typeof md !== 'string' || !md.trim()) {
+    return { valid: false, error: '计划文档为空' };
+  }
+  const parsed = parsePlanDoc(md);
+  if (!parsed.title || parsed.title.trim() === '') {
+    return { valid: false, error: '计划文档缺少标题' };
+  }
+  if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
+    return { valid: false, error: '计划文档缺少步骤' };
+  }
+  const stepIds = new Set();
+  for (const s of parsed.steps) {
+    if (!s.id || !/^step-\d+$/.test(s.id)) {
+      return { valid: false, error: `步骤 ID 格式非法: ${s.id ?? '(空)'}` };
+    }
+    if (stepIds.has(s.id)) {
+      return { valid: false, error: `步骤 ID 重复: ${s.id}` };
+    }
+    stepIds.add(s.id);
+    if (!s.title || s.title.trim() === '') {
+      return { valid: false, error: `${s.id} 缺少标题` };
+    }
+    if (!s.targetType) {
+      return { valid: false, error: `${s.id} 缺少 targetType` };
+    }
+    if (!s.operation) {
+      return { valid: false, error: `${s.id} 缺少 operation` };
+    }
+    if (!s.task || s.task.trim() === '') {
+      return { valid: false, error: `${s.id} 缺少 task 说明` };
+    }
+  }
+  return { valid: true };
+}
+
 export function markStepDone(md, stepId, completedAt) {
   const lines = md.split('\n');
   const out = [];

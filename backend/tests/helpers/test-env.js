@@ -155,7 +155,10 @@ export function resetMockEnv() {
     'MOCK_LLM_COMPLETE_ERROR',
     'MOCK_LLM_STREAM_ERROR',
     'MOCK_LLM_ERROR_STATUS',
+    'MOCK_LLM_ACTION',
+    'MOCK_LLM_ACTION_QUEUE',
     'MOCK_LLM_TOOL_CALLS',
+    'MOCK_LLM_TOOL_CALLS_QUEUE',
   ]) {
     delete process.env[key];
   }

@@ -36,7 +36,7 @@ test('clearStreamingFlag 清理最近的 streaming assistant 而不是只看最�
 test('applyTaskSnapshot 用服务端快照整体替换任务态', () => {
   const state = {
     taskId: 'task-old',
-    status: 'planning',
+    status: 'running',
     planDoc: '',
     messages: [{ id: 'old', role: 'assistant', content: '旧内容' }],
     error: null,

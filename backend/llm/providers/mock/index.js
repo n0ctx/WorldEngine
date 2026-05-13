@@ -12,6 +12,14 @@ function getResponseQueue(kind) {
   return parseJsonEnv(kind === 'stream' ? 'MOCK_LLM_STREAM_QUEUE' : 'MOCK_LLM_COMPLETE_QUEUE', null);
 }
 
+function getToolCallQueue() {
+  return parseJsonEnv('MOCK_LLM_TOOL_CALLS_QUEUE', null);
+}
+
+function getActionQueue() {
+  return parseJsonEnv('MOCK_LLM_ACTION_QUEUE', null);
+}
+
 function takeQueued(kind) {
   const envName = kind === 'stream' ? 'MOCK_LLM_STREAM_QUEUE' : 'MOCK_LLM_COMPLETE_QUEUE';
   const queue = getResponseQueue(kind);
@@ -21,7 +29,28 @@ function takeQueued(kind) {
   return next;
 }
 
-function getMockText(kind) {
+function takeQueuedToolCalls() {
+  const queue = getToolCallQueue();
+  if (!Array.isArray(queue) || queue.length === 0) return null;
+  const [next, ...rest] = queue;
+  process.env.MOCK_LLM_TOOL_CALLS_QUEUE = JSON.stringify(rest);
+  return Array.isArray(next) ? next : [];
+}
+
+function takeQueuedAction() {
+  const queue = getActionQueue();
+  if (!Array.isArray(queue) || queue.length === 0) return null;
+  const [next, ...rest] = queue;
+  process.env.MOCK_LLM_ACTION_QUEUE = JSON.stringify(rest);
+  return typeof next === 'string' ? next : JSON.stringify(next);
+}
+
+function getMockText(kind, opts = {}) {
+  if (kind === 'complete' && opts.useActionQueue !== false) {
+    const queuedAction = takeQueuedAction();
+    if (queuedAction != null) return queuedAction;
+    if (process.env.MOCK_LLM_ACTION) return process.env.MOCK_LLM_ACTION;
+  }
   const queued = takeQueued(kind);
   if (queued != null) return String(queued);
   if (kind === 'stream') return process.env.MOCK_LLM_STREAM ?? process.env.MOCK_LLM_RESPONSE ?? '';
@@ -97,16 +126,15 @@ export async function complete() {
 
 export async function completeWithTools(messages, _defs, handlers, config = {}) {
   maybeThrow('complete');
-  const toolCalls = parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
+  const toolCalls = takeQueuedToolCalls() ?? parseJsonEnv('MOCK_LLM_TOOL_CALLS', []);
   for (const call of toolCalls) {
     const handler = handlers?.[call?.name];
     if (typeof handler !== 'function') continue;
     await handler(call.arguments ?? {});
   }
-  const text = getMockText('complete');
+  const text = getMockText('complete', { useActionQueue: false });
   if (config.toolResultMode === 'detail') {
     return { text, messages };
   }
   return text;
 }
-

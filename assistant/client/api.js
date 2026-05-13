@@ -34,6 +34,16 @@ export async function streamAgent({ taskId, message, messageId, context, onEvent
   await consumeSseResponse(res, onEvent);
 }
 
+export async function resumeTask({ taskId, onEvent, signal }) {
+  const res = await fetch(`${BASE}/agent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ taskId, resume: true }),
+    signal,
+  });
+  await consumeSseResponse(res, onEvent);
+}
+
 export async function subscribeTask({ taskId, onEvent, signal }) {
   const res = await fetch(`${BASE}/agent/${taskId}/stream`, {
     method: 'GET',
@@ -71,7 +81,12 @@ async function consumeSseResponse(res, onEvent) {
       const payload = line.slice(6).trim();
       if (!payload) continue;
       try {
-        onEvent(JSON.parse(payload));
+        const event = JSON.parse(payload);
+        onEvent(event);
+        if (event?.done === true) {
+          await reader.cancel().catch(() => {});
+          return;
+        }
       } catch {
         // 忽略畸形帧
       }

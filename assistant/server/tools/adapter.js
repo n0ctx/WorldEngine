@@ -55,19 +55,25 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
       try {
         const result = await tool.execute(args);
         if (cancelCheck()) {
-          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false });
+          emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: 'task cancelled mid-execution' });
           onCancelLog(name);
           throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
         const success = !(result && result.ok === false);
-        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success });
+        emitFn({
+          type: SSE_EVENTS.TOOL_CALL_COMPLETED,
+          toolName: name,
+          callId,
+          success,
+          error: success ? undefined : (result?.error ?? 'tool failed'),
+        });
         return result;
       } catch (err) {
         if (isToolLoopControlSignal(err)) {
           emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: true });
           throw err;
         }
-        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false });
+        emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: err.message });
         throw err;
       }
     },

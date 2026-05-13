@@ -2,7 +2,7 @@
  * 写卡助手输入框
  *
  * `disabled` 仅在不可续聊的终态（failed/cancelled）传入；
- * 其余状态（含 executing/awaiting_approval）允许排队消息。
+ * 其余状态（含 running/awaiting_approval）允许排队消息。
  * `isStreaming` 为 true 时将发送键换成停止键。
  */
 

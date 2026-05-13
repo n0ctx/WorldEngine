@@ -21,7 +21,7 @@ function unescapeLiteralWhitespace(s) {
     .replace(/\\t/g, '\t');
 }
 
-export function buildMetaTools(task, emitFn, runId = null) {
+export function buildMetaTools(task, emitFn, runId = null, options = {}) {
   const writePlanDoc = {
     definition: writePlanDocDefinition,
     execute: async (args) => {
@@ -44,7 +44,16 @@ export function buildMetaTools(task, emitFn, runId = null) {
           steps,
           log: [],
         });
+        const validation = planDoc.validatePlanDoc(md);
+        if (!validation.valid) {
+          return { ok: false, error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
+        }
         await planDoc.writePlanDoc(task.id, md);
+        taskStore.setApprovalCheckpoint(task.id, {
+          at: Date.now(),
+          title: args.title,
+          stepCount: steps.length,
+        });
         taskStore.setStatus(task.id, 'awaiting_approval');
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
         emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
@@ -113,39 +122,83 @@ export function buildMetaTools(task, emitFn, runId = null) {
     definition: dispatchSubagentDefinition,
     execute: async (args) => {
       try {
-        const md = await planDoc.readPlanDoc(task.id);
-        const parsed = planDoc.parsePlanDoc(md);
-        const step = parsed.steps.find((s) => s.id === args.stepId);
-        if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
-        if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
-        taskStore.setCurrentStep(task.id, step.id);
-        emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: step.id, title: step.title });
+        if (options.requiresPlanFirst && !options.planDocExists && !args.stepId) {
+          return {
+            ok: false,
+            error: [
+              '当前用户请求属于复杂 / 高风险 / 结构化体系任务，必须先调用 write_plan_doc 拆成可审批步骤。',
+              '不要直接 dispatch_subagent。',
+              '计划至少包含：读取/确认现状、定义字段或条目、创建或定位目标资源、分组写入、最终核对。',
+            ].join(''),
+          };
+        }
+        let step = null;
+        if (args.stepId) {
+          const md = await planDoc.readPlanDoc(task.id);
+          const parsed = planDoc.parsePlanDoc(md);
+          step = parsed.steps.find((s) => s.id === args.stepId);
+          if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
+          if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
+        }
+        const resolved = step ?? {
+          id: args.stepId ?? `adhoc-${Date.now()}`,
+          title: args.task?.slice(0, 24) || '临时子任务',
+          targetType: args.targetType,
+          operation: args.operation ?? 'update',
+          dependsOn: args.entityRef ? [args.entityRef] : [],
+          task: args.task,
+        };
+        if (!resolved.targetType || !resolved.task) {
+          return { ok: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
+        }
+
+        if (resolved.operation === 'create' && !args.force) {
+          const dup = taskStore.findAppliedResource(task.id, (e) =>
+            e.kind === resolved.targetType && e.op === 'create');
+          if (dup) {
+            return {
+              ok: false,
+              error: `本轮已经成功创建过 ${resolved.targetType}（${dup.name ?? dup.refId ?? '上一条记录'}）。若用户明确还要再建一张，请在 task 字段说明差异并加 force:true；否则用 reply_to_user 告知用户已完成。`,
+            };
+          }
+        }
+        taskStore.setCurrentStep(task.id, resolved.id);
+        emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: resolved.id, title: resolved.title });
         let outcome;
         try {
           const result = await dispatchSubAgent({
-            stepId: step.id,
-            targetType: step.targetType,
-            operation: step.operation,
-            entityRef: step.dependsOn[0] ?? null,
-            task: step.task,
+            stepId: resolved.id,
+            targetType: resolved.targetType,
+            operation: resolved.operation,
+            entityRef: resolved.dependsOn?.[0] ?? null,
+            task: resolved.task,
             context: task.context,
             emitFn,
             runId,
             cancelCheck: () => task.status === 'cancelled',
+            onApplied: (entry) => taskStore.recordAppliedResource(task.id, { ...entry, stepId: resolved.id }),
           });
           if (result?.success === false) {
-            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: result.error ?? 'unknown' });
+            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
             outcome = { ok: false, error: result.error ?? 'subagent reported failure' };
           } else {
-            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: step.id, result });
+            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
             outcome = { ok: true, summary: result?.summary ?? '' };
           }
         } catch (err) {
-          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: step.id, error: err.message });
+          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: err.message });
           outcome = { ok: false, error: err.message };
         } finally {
           taskStore.setCurrentStep(task.id, null);
         }
+        taskStore.setLastSubagentResult(task.id, {
+          stepId: resolved.id,
+          title: resolved.title,
+          ok: outcome.ok,
+          summary: outcome.summary ?? null,
+          error: outcome.error ?? null,
+          at: Date.now(),
+        });
 
         const pending = taskStore.takeUserMessages(task.id);
         const pauseRequested = taskStore.consumePauseAfterCurrentStep(task.id);
@@ -175,6 +228,7 @@ export function buildMetaTools(task, emitFn, runId = null) {
     execute: async () => {
       try {
         await planDoc.deletePlanDoc(task.id);
+        taskStore.setApprovalCheckpoint(task.id, null);
         return { ok: true };
       } catch (err) {
         return { ok: false, error: err.message };

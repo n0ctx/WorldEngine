@@ -267,6 +267,10 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   model_context_json         TEXT,
   created_at                 INTEGER NOT NULL,
   current_step_id            TEXT,
+  last_tool_failure_json     TEXT,
+  last_subagent_result_json  TEXT,
+  approval_checkpoint_json   TEXT,
+  loop_iteration             INTEGER NOT NULL DEFAULT 0,
   error                      TEXT,
   updated_at                 INTEGER NOT NULL
 );
@@ -366,6 +370,10 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   // T-assistant-resume: 为现有数据库补持久化计划文档正文
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_content TEXT NOT NULL DEFAULT ''`); } catch {}
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_tool_failure_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_subagent_result_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN approval_checkpoint_json TEXT`); } catch {}
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN loop_iteration INTEGER NOT NULL DEFAULT 0`); } catch {}
   // T-chat-writing-resume: 为现有数据库补 session 级流快照字段
   try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN streaming_text TEXT NOT NULL DEFAULT ''`); } catch {}
   try { db.exec(`ALTER TABLE session_stream_tasks ADD COLUMN continuing_message_id TEXT`); } catch {}

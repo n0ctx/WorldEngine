@@ -15,7 +15,7 @@ function stripForbidden(obj) {
 
 export const definition = {
   name: 'apply_global_config',
-  description: '落库全局配置变更。仅支持 update。changes 内禁止 api_key 字段（自动剥离）。',
+  description: '落库全局配置变更。仅支持 update；changes 内禁止 api_key 字段（自动剥离）。参数结构详见 CONTRACT.md / GLOBALPROMPT.md。',
   parameters: {
     type: 'object',
     properties: {

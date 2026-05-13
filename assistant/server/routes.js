@@ -24,7 +24,7 @@ import {
 } from './normalize-proposal.js';
 import * as taskStore from './task-store.js';
 import * as planDoc from './plan-doc.js';
-import { runParentAgent } from './parent-agent.js';
+import { runParentAgent, RESUME_SENTINEL } from './parent-agent.js';
 import { SSE_EVENTS } from './sse-events.js';
 
 const router = Router();
@@ -53,7 +53,7 @@ export const __testables = {
 // === 单代理端点 ===
 
 router.post('/agent', async (req, res) => {
-  const { taskId, message, messageId, context } = req.body ?? {};
+  const { taskId, message, messageId, context, resume = false } = req.body ?? {};
   res.set({ 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.flushHeaders?.();
 
@@ -74,45 +74,55 @@ router.post('/agent', async (req, res) => {
 
   log.info(`/agent  ${formatMeta({ taskId: task.id, status: task.status, isNew, msgChars: (message ?? '').length })}`);
 
-  // executing 分支会把 res 留作长连接订阅后续 step 事件，不主动结束；
-  // 其余分支跑完 runParentAgent 后必须主动 res.end()，
-  // 否则旧 fetch 一直挂在 reader.read()，下一次 send/regen 会出现多客户端订阅
-  // 同一份 emit 的并发写入（"你你好好"字符级双写）以及 messages_changed 广播
-  // 误覆盖本地 store 等竞态。
   let keepAlive = false;
   try {
-    if (task.status === 'executing') {
-      // executing 时仅入队；当前 step 跑完后 dispatch_subagent 钩子会消费 pendingMessages
-      // 并把任务切到 paused（spec §6.4）。下一轮用户消息进入 paused 分支才触发 LLM。
-      taskStore.queueUserMessage(task.id, message);
-      log.info(`/agent QUEUE  ${formatMeta({ taskId: task.id, queueSize: task.pendingUserMessages.length })}`);
-      keepAlive = true; // 保持 SSE 连接
-      return;
+    if (task.status === 'running') {
+      if (resume) {
+        if (taskStore.isExecutionActive(task.id)) {
+          log.info(`/agent RESUME_ATTACH  ${formatMeta({ taskId: task.id })}`);
+          keepAlive = true;
+          return;
+        }
+      } else {
+        taskStore.queueUserMessage(task.id, message);
+        log.info(`/agent QUEUE  ${formatMeta({ taskId: task.id, queueSize: task.pendingUserMessages.length })}`);
+        keepAlive = true;
+        return;
+      }
     }
-    if (task.status !== 'planning') {
-      // paused / awaiting_approval / recoverable failed 等恢复后，用户主动发新消息
-      // 视为重新进入 planning；这样前端 dots / 流式状态与父代理语义一致。
-      taskStore.setStatus(task.id, 'planning', { error: null });
+    if (resume) {
+      const canResume =
+        task.status === 'paused' ||
+        task.status === 'running' ||
+        (task.status === 'failed' && task.error === taskStore.RESTART_INTERRUPTED_ERROR);
+      if (!canResume) {
+        log.warn(`/agent RESUME_REJECT  ${formatMeta({ taskId: task.id, status: task.status })}`);
+        res.status(400);
+        writeSse(res, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: 'task is not resumable' });
+        taskStore.detachSse(task.id, res);
+        res.end();
+        return;
+      }
     }
-    // planning / awaiting_approval / clarifying / paused 都直接走父代理
-    await runParentAgent(task, message, { runId, userMessageId: messageId });
+    if (task.status !== 'awaiting_approval') {
+      taskStore.setStatus(task.id, 'running', { error: null });
+    }
+    await runParentAgent(
+      task,
+      resume ? RESUME_SENTINEL : message,
+      { runId, userMessageId: resume ? undefined : messageId },
+    );
   } catch (err) {
     log.error(`/agent FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     if (!res.writableEnded) {
       writeSse(res, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
     }
   } finally {
-    // 关闭策略：
-    // - 直接对话回复（status 仍是 planning，本轮 runParentAgent 已 emit done）→ res.end()
-    // - 终态（completed / failed / cancelled）→ res.end()
-    // - awaiting_approval / paused / executing：仍需等用户 /approve 或后续 step 事件
-    //   通过本连接广播，保留长连接，依赖客户端 abort（handleSend / handleRegenerate
-    //   / handleEdit 起新流前会主动 abort 上一条）解订阅
     const finalStatus = task.status;
     const longLived =
       finalStatus === 'awaiting_approval' ||
       finalStatus === 'paused' ||
-      finalStatus === 'executing';
+      finalStatus === 'running';
     if (!keepAlive && !longLived && !res.writableEnded) {
       taskStore.detachSse(task.id, res);
       res.end();
@@ -127,9 +137,8 @@ router.post('/agent/:taskId/approve', async (req, res) => {
     return res.status(400).json({ error: 'not awaiting approval' });
   }
   log.info(`/agent/approve  ${formatMeta({ taskId: task.id })}`);
-  taskStore.setStatus(task.id, 'executing');
+  taskStore.setStatus(task.id, 'running', { error: null });
   taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_APPROVED, taskId: task.id });
-  // 触发 parent-agent 继续派发；用一个空消息触发执行循环
   runParentAgent(task, '<<approved>>').catch((err) => {
     log.error(`/agent/approve RESUME_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
     taskStore.emit(task.id, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
@@ -153,9 +162,9 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
 router.post('/agent/:taskId/truncate', (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
-  if (task.status === 'executing') {
+  if (task.status === 'running') {
     log.warn(`/agent/truncate REJECT  ${formatMeta({ taskId: task.id, status: task.status })}`);
-    return res.status(400).json({ error: 'cannot truncate while executing' });
+    return res.status(400).json({ error: 'cannot truncate while running' });
   }
   const messageId = req.body?.messageId;
   const dropped = taskStore.truncateFrom(task.id, messageId);
@@ -168,9 +177,9 @@ router.post('/agent/:taskId/truncate', (req, res) => {
 router.post('/agent/:taskId/delete', (req, res) => {
   const task = taskStore.getTask(req.params.taskId);
   if (!task) return res.status(404).json({ error: 'not found' });
-  if (task.status === 'executing') {
+  if (task.status === 'running') {
     log.warn(`/agent/delete REJECT  ${formatMeta({ taskId: task.id, status: task.status })}`);
-    return res.status(400).json({ error: 'cannot delete while executing' });
+    return res.status(400).json({ error: 'cannot delete while running' });
   }
   const messageId = req.body?.messageId;
   const ok = taskStore.deleteMessage(task.id, messageId);

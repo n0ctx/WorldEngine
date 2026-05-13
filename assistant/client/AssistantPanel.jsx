@@ -9,6 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
 import {
   streamAgent,
+  resumeTask,
   subscribeTask,
   fetchTask,
   recoverTask,
@@ -20,6 +21,7 @@ import {
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
 import DragHandle from './DragHandle.jsx';
+import { findRegenerateSource } from './message-helpers.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
 import useStore from '../../frontend/src/store/index.js';
 import { getWorld } from '../../frontend/src/api/worlds.js';
@@ -28,8 +30,16 @@ import { getConfig } from '../../frontend/src/api/config.js';
 import { log } from '../../frontend/src/utils/logger.js';
 
 const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
-const ACTIVE_CANCELABLE_STATUSES = new Set(['planning', 'awaiting_approval', 'executing', 'paused']);
+const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
+const HARNESS_ERROR_PREFIX = 'agent loop error: ';
+
+function isRestartInterrupted(error) {
+  return error === RECOVERABLE_TERMINAL_ERROR;
+}
+function isHarnessSoftFail(error) {
+  return typeof error === 'string' && error.startsWith(HARNESS_ERROR_PREFIX);
+}
 
 export default function AssistantPanel() {
   const isOpen = useAssistantStore((s) => s.isOpen);
@@ -43,6 +53,7 @@ export default function AssistantPanel() {
   const error = useAssistantStore((s) => s.error);
   const ingestEvent = useAssistantStore((s) => s.ingestEvent);
   const pushUserMessage = useAssistantStore((s) => s.pushUserMessage);
+  const beginUserTurn = useAssistantStore((s) => s.beginUserTurn);
   const reset = useAssistantStore((s) => s.reset);
   const resetTask = useAssistantStore((s) => s.resetTask);
   const replaceTaskSnapshot = useAssistantStore((s) => s.replaceTaskSnapshot);
@@ -56,7 +67,10 @@ export default function AssistantPanel() {
   const recoveringRef = useRef(false);
   const recoveryToastKeyRef = useRef('');
 
-  const isRecoverableTerminal = status === 'failed' && error === RECOVERABLE_TERMINAL_ERROR;
+  // 只有"服务重启被打断"才需要自动恢复 + 重新订阅 SSE；harness 软失败仅放开输入框。
+  const isRestartRecoverable = status === 'failed' && isRestartInterrupted(error);
+  const isHarnessRecoverable = status === 'failed' && isHarnessSoftFail(error);
+  const isRecoverableTerminal = isRestartRecoverable || isHarnessRecoverable;
 
   // 页面刷新后任务态被清；store 不持久化任务字段，这里仅做防御
   useEffect(() => {
@@ -73,7 +87,7 @@ export default function AssistantPanel() {
   }, [isOpen, status, resetTask, isRecoverableTerminal]);
 
   // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
-  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/executing 阶段已经写入
+  // 不再等到 task_completed 才统一通知，避免 awaiting_approval/running 阶段已经写入
   // 但列表迟迟不更新的体验问题。
 
   const buildContext = useCallback(async () => {
@@ -91,29 +105,47 @@ export default function AssistantPanel() {
     return context;
   }, [currentWorldId, currentCharacterId]);
 
-  const attachRecoveryStream = useCallback(
-    async (nextTaskId) => {
+  const openRecoveryStream = useCallback(
+    async (nextTaskId, mode = 'subscribe') => {
       if (!nextTaskId) return;
       abortRef.current?.abort?.();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setIsStreaming(false);
+      setIsStreaming(mode === 'resume');
       try {
-        await subscribeTask({
-          taskId: nextTaskId,
-          onEvent: ingestEvent,
-          signal: ctrl.signal,
-        });
+        if (mode === 'resume') {
+          await resumeTask({
+            taskId: nextTaskId,
+            onEvent: ingestEvent,
+            signal: ctrl.signal,
+          });
+        } else {
+          await subscribeTask({
+            taskId: nextTaskId,
+            onEvent: ingestEvent,
+            signal: ctrl.signal,
+          });
+        }
       } catch (err) {
         if (err?.name !== 'AbortError') {
-          log.error('assistant.resume.subscribe_failed', err, { toast: err?.message || '断点续传订阅失败' });
+          log.error(`assistant.resume.${mode}_failed`, err, {
+            toast: err?.message || (mode === 'resume' ? '断点续传恢复失败' : '断点续传订阅失败'),
+          });
           ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
         }
       } finally {
         if (abortRef.current === ctrl) abortRef.current = null;
+        setIsStreaming(false);
       }
     },
     [ingestEvent],
+  );
+
+  const attachRecoveryStream = useCallback(
+    async (nextTaskId) => {
+      await openRecoveryStream(nextTaskId, 'subscribe');
+    },
+    [openRecoveryStream],
   );
 
   useEffect(() => {
@@ -122,9 +154,8 @@ export default function AssistantPanel() {
       Boolean(taskId) ||
       status === 'awaiting_approval' ||
       status === 'paused' ||
-      status === 'executing' ||
-      status === 'planning' ||
-      isRecoverableTerminal;
+      status === 'running' ||
+      isRestartRecoverable;
     if (!shouldRecover) return;
 
     recoveringRef.current = true;
@@ -145,9 +176,14 @@ export default function AssistantPanel() {
         }
         replaceTaskSnapshot(task);
         const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
-        if (recoveryToastKeyRef.current !== toastKey) {
+        const shouldToastRecovery =
+          task.status === 'running' ||
+          task.status === 'paused' ||
+          task.status === 'awaiting_approval' ||
+          (task.status === 'failed' && isRestartInterrupted(task.error));
+        if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
           recoveryToastKeyRef.current = toastKey;
-          if (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR) {
+          if (task.status === 'failed' && isRestartInterrupted(task.error)) {
             log.warn('assistant.resume.interrupted', null, {
               toast: '已恢复中断前快照，旧执行因服务重启已停止',
             });
@@ -157,17 +193,20 @@ export default function AssistantPanel() {
             log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
           }
         }
-        const shouldAttach =
-          !TERMINAL_STATUSES.has(task.status) ||
-          (task.status === 'failed' && task.error === RECOVERABLE_TERMINAL_ERROR);
-        if (shouldAttach) {
+        const shouldAutoResume =
+          task.status === 'running' ||
+          task.status === 'paused' ||
+          (task.status === 'failed' && isRestartInterrupted(task.error));
+        if (shouldAutoResume) {
+          await openRecoveryStream(task.id, 'resume');
+        } else if (task.status === 'awaiting_approval') {
           await attachRecoveryStream(task.id);
         }
       } finally {
         recoveringRef.current = false;
       }
     })();
-  }, [isOpen, isStreaming, taskId, status, isRecoverableTerminal, replaceTaskSnapshot, attachRecoveryStream, resetTask]);
+  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask]);
 
   const handleSend = useCallback(
     async (overrideText, opts = {}) => {
@@ -182,6 +221,7 @@ export default function AssistantPanel() {
           Math.random().toString(36).slice(2, 10)
         }`;
       if (!opts.skipPush) pushUserMessage(text, messageId);
+      if (taskId) beginUserTurn(taskId);
       const context = await buildContext();
       // 关键：开新流前先 abort 上一条尚未关闭的 SSE 连接，
       // 否则旧的 fetch reader 仍订阅 sseClients，会和新流并行收到同一份 delta
@@ -208,7 +248,7 @@ export default function AssistantPanel() {
         setIsStreaming(false);
       }
     },
-    [input, taskId, buildContext, ingestEvent, pushUserMessage],
+    [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn],
   );
 
   const handleEdit = useCallback(
@@ -221,7 +261,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
+        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
         return;
       }
       // 复用原 messageId：让 React 以同 key 复用 user 气泡 DOM，避免
@@ -229,31 +269,32 @@ export default function AssistantPanel() {
       useAssistantStore.getState().replaceTailWithUser(msgId, newContent, msgId);
       await handleSend(newContent, { skipPush: true, messageId: msgId });
     },
-    [taskId, ingestEvent, handleSend],
+    [taskId, handleSend],
   );
 
   const handleDelete = useCallback(
     async (msgId) => {
       if (!taskId || !msgId) return;
+      // 删除失败（如 400 任务运行中 / 404 消息不存在）只是局部操作失败，
+      // 不应把整个任务推入 failed 终态从而封禁输入框。仅 toast 提示并返回。
       try {
         await apiDeleteMessage(taskId, msgId);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '删除失败' });
+        log.warn('assistant.delete_message_failed', err, { toast: err?.message || '删除失败' });
         return;
       }
       useAssistantStore.getState().deleteMessage(msgId);
     },
-    [taskId, ingestEvent],
+    [taskId],
   );
 
   const handleRegenerate = useCallback(
     async (assistantMsgId) => {
       if (!taskId || !assistantMsgId) return;
       const msgs = useAssistantStore.getState().messages;
-      const idx = msgs.findIndex((m) => m.id === assistantMsgId);
-      if (idx <= 0) return;
-      const prev = msgs[idx - 1];
-      if (prev?.role !== 'user' || !prev.content) return;
+      const source = findRegenerateSource(msgs, assistantMsgId);
+      const prev = source?.message;
+      if (!prev?.id || !prev.content) return;
       // 先 abort 上一条仍挂着的 SSE（同 handleEdit 注释），否则 truncate 广播
       // messages_changed 给旧 fetch，会把新 user 消息从本地 store 中吞掉
       abortRef.current?.abort?.();
@@ -261,7 +302,7 @@ export default function AssistantPanel() {
       try {
         await apiTruncateFrom(taskId, prev.id);
       } catch (err) {
-        ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '截断失败' });
+        log.warn('assistant.truncate_failed', err, { toast: err?.message || '截断失败' });
         return;
       }
       // 原子替换：单次 set 完成"丢尾 + push 新 user"，避免中间空帧引起页面闪烁。
@@ -270,7 +311,7 @@ export default function AssistantPanel() {
       useAssistantStore.getState().replaceTailWithUser(prev.id, prev.content, prev.id);
       await handleSend(prev.content, { skipPush: true, messageId: prev.id });
     },
-    [taskId, ingestEvent, handleSend],
+    [taskId, handleSend],
   );
 
   const handleApprove = useCallback(() => {
@@ -287,8 +328,8 @@ export default function AssistantPanel() {
 
   const handleStop = useCallback(() => {
     // 先 abort 本地 SSE：阻止后续 delta 涌入；
-    // 因 abort 后 SSE 不再回传 task_cancelled，需本地注入终态事件，
-    // 否则 status 会卡在 planning/executing → pendingAssistant 仍为 true → 输入气泡的省略号不消失
+  // 因 abort 后 SSE 不再回传 task_cancelled，需本地注入终态事件，
+  // 否则 status 会卡在 running → pendingAssistant 仍为 true → 输入气泡的省略号不消失
     abortRef.current?.abort?.();
     setIsStreaming(false);
     if (taskId) {
@@ -317,11 +358,11 @@ export default function AssistantPanel() {
   // 省略号气泡仅在「LLM 真的在吐 token」的极短窗口出现：
   // - isStreaming：本地 SSE fetch 仍在进行
   // - !hasRunningItem：没有"运行中"占位（step / tool_call）抢眼
-  // - status === 'planning'：仅 planning 阶段会有自由文本流式输出；进入
-  //   awaiting_approval / paused / executing / 终态后 LLM 不再吐 token，
+  // - status === 'running'：仅 running 阶段会有自由文本流式输出；进入
+  //   awaiting_approval / paused / 终态后 LLM 不再吐 token，
   //   省略号必须立刻消失（之前 awaiting_approval 长连接保持时 isStreaming 一直为 true,
   //   导致省略号常驻，造成"还在跑"的错觉）。
-  const pendingAssistant = isStreaming && !hasRunningItem && status === 'planning';
+  const pendingAssistant = isStreaming && !hasRunningItem && status === 'running';
 
 
   return (

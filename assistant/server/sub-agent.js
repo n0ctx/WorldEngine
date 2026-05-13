@@ -23,6 +23,7 @@ import { getConfig } from '../../backend/services/config.js';
 import { createLogger, formatMeta, previewText } from '../../backend/utils/logger.js';
 
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
+import { loadWithCache } from './knowledge-cache.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -58,14 +59,14 @@ const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');
 const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
 
 async function loadPrompt() {
-  return readFile(PROMPT_PATH, 'utf-8');
+  return loadWithCache(PROMPT_PATH);
 }
 
 async function loadKnowledge(targetType) {
   const fileName = KNOWLEDGE_BY_TYPE[targetType];
   if (!fileName) throw new Error(`No knowledge file for targetType "${targetType}"`);
   const full = path.join(KNOWLEDGE_DIR, fileName);
-  return readFile(full, 'utf-8');
+  return loadWithCache(full);
 }
 
 function buildUserMessage({ stepId, targetType, operation, entityRef, task, context }) {
@@ -119,6 +120,7 @@ export async function dispatchSubAgent({
   emitFn = null,
   runId = null,
   cancelCheck = null,
+  onApplied = null,
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
@@ -137,11 +139,56 @@ export async function dispatchSubAgent({
   });
 
   const wrapOpts = cancelCheck ? { cancelCheck } : undefined;
+  let applySuccessCount = 0;
+  let lastApplyError = null;
+  let previewedThisRun = false;
+  // 包一层 preview_card,记录已经 preview 过
+  const wrappedPreview = {
+    type: 'function',
+    function: previewTool.function,
+    execute: async (args) => {
+      const res = await previewTool.execute(args);
+      previewedThisRun = true;
+      return res;
+    },
+  };
   const tools = [
-    wrapToolEvents(toLLMTool(previewTool), emitFn, wrapOpts),
+    wrapToolEvents(wrappedPreview, emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(listResources), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
-    wrapToolEvents(toLLMTool(apply, async (args) => apply.execute(args, { worldRefId })), emitFn, wrapOpts),
+    wrapToolEvents(toLLMTool(apply, async (args) => {
+      const op = args.operation ?? operation;
+      if ((op === 'update' || op === 'delete') && !previewedThisRun) {
+        // 闸门:update / delete 必须先 preview_card 拉现状,否则极易写错字段 / ID
+        const hint = `请先调用 preview_card(target="${targetType}", operation="${op}"`
+          + (resolvedEntityId ? `, entityId="${resolvedEntityId}"` : '')
+          + ') 拉取当前数据,再决定 apply 入参。这次先不真正落库,看到 preview 结果后重试。';
+        lastApplyError = hint;
+        return { success: false, error: hint };
+      }
+      try {
+        const res = await apply.execute(args, { worldRefId });
+        if (res?.success !== false) {
+          applySuccessCount += 1;
+          if (onApplied) {
+            try {
+              onApplied({
+                kind: targetType,
+                op,
+                name: args.changes?.name ?? null,
+                refId: res?.personaId ?? res?.entityId ?? res?.id ?? null,
+              });
+            } catch { /* ignore */ }
+          }
+        } else {
+          lastApplyError = res?.error ?? `${apply.definition.name} 返回 success:false`;
+        }
+        return res;
+      } catch (err) {
+        lastApplyError = err?.message ?? String(err);
+        throw err;
+      }
+    }), emitFn, wrapOpts),
   ];
 
   const messages = [
@@ -179,7 +226,16 @@ export async function dispatchSubAgent({
       cacheableSystem: systemPrompt,
     });
     const summary = String(raw ?? '').trim().slice(0, 400);
-    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, chars: summary.length })}`);
+    if (applySuccessCount === 0) {
+      log.warn(`FAIL_NO_APPLY  ${formatMeta({ runId, stepId, targetType, lastError: lastApplyError, summary: previewText(summary, { limit: 80 }) })}`);
+      return {
+        success: false,
+        error: lastApplyError
+          ? `子代理未成功落库（${apply.definition.name} 最后一次错误：${lastApplyError}）；模型自述：${summary || '(空)'}`
+          : `子代理未成功调用 ${apply.definition.name}（apply 工具一次都没执行成功）；模型自述：${summary || '(空)'}`,
+      };
+    }
+    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, applyCount: applySuccessCount, chars: summary.length })}`);
     return { success: true, summary };
   } catch (err) {
     log.error(`FAIL  ${formatMeta({ runId, stepId, targetType, error: err.message })}`);

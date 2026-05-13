@@ -3,7 +3,7 @@ import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 
 export const definition = {
   name: 'apply_character_card',
-  description: '落库角色卡变更。operation 取 create/update/delete。create 时 entityId 为目标 worldId（可跨世界，不限于当前世界；也可在 changes.world_id 中指定），update/delete 时为 characterId。',
+  description: '落库角色卡变更。operation 取 create/update/delete；create 时 entityId 为目标 worldId，update/delete 时为 characterId。参数结构详见 CONTRACT.md / CHARCARD.md。',
   parameters: {
     type: 'object',
     properties: {
