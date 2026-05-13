@@ -466,40 +466,44 @@ async function finalizePaused(task, emitFn, message) {
 
 async function pauseForRecoverableHarnessIssue(task, emitFn, runId, reason, message) {
   log.warn(`RECOVERABLE_PAUSE  ${formatMeta({ runId, taskId: task.id, reason })}`);
-  const finalText = message ? await streamAssistantText(task, message, emitFn) : '';
+  // 用一条短 step 条目代替完整 assistant 气泡：循环触发同一类软失败时屏幕不会被同段长文反复刷屏。
+  // 标题取 buildXxxRecoveryMessage 的一句话即可；详细原因仍走 reason 字段进日志。
+  if (task.status !== 'cancelled' && message) {
+    const stepId = `harness-${randomUUID().slice(0, 8)}`;
+    emitFn({ type: SSE_EVENTS.STEP_STARTED, stepId, title: message });
+    emitFn({ type: SSE_EVENTS.STEP_FAILED, stepId, error: reason });
+  }
   if (task.status === 'cancelled') {
     emitFn({ type: SSE_EVENTS.DONE, done: true });
     taskStore.endAllSse(task.id);
     return;
   }
-  taskStore.setStatus(task.id, 'paused', { error: null });
+  // error 字段打 HARNESS_RECOVERABLE_PAUSE_REASON 标记，客户端用其识别本类暂停、禁止自动 resume，
+  // 避免"暂停→自动续传→再次软失败→再暂停"的死循环把屏幕铺满相同恢复气泡。
+  taskStore.setStatus(task.id, 'paused', { error: HARNESS_RECOVERABLE_PAUSE_REASON });
   emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id, reason });
-  emitTaskSnapshot(task, emitFn, { summary: finalText || undefined, recoverable: true });
+  emitTaskSnapshot(task, emitFn, { recoverable: true });
   emitFn({ type: SSE_EVENTS.DONE, done: true });
   taskStore.endAllSse(task.id);
 }
 
+// 三类 harness 软失败的"恢复文案"——挂在一条紧凑 step 条目的 title 上，
+// 不再以完整 assistant 文本气泡播报，避免反复循环时屏幕被同一段话刷屏。
 function buildEmptyReplyRecoveryMessage() {
-  return [
-    '刚才这轮没拿到完整回复，我先停下来等你的下一句。',
-    '当前对话上下文已保留，请直接继续告诉我接下来想做什么。',
-  ].join('\n');
+  return '刚才没拿到完整回复，已暂停等你的下一句';
 }
 
 function buildClaimedExecutionRecoveryMessage() {
-  return [
-    '我先停一下：刚才的回复像是"已经做完了"，但其实还没有真正落库。',
-    '为了避免把空结果误报成完成，我已暂停在这一步。你可以直接继续说要做的改动，我会重新执行。',
-  ].join('\n');
+  return '刚才像是"已经做完了"但没真正落库，已暂停';
 }
 
 function buildProviderErrorRecoveryMessage(err) {
   const msg = err?.message ? `（${err.message}）` : '';
-  return [
-    `刚才处理时出了点问题${msg}，但任务上下文已保留。`,
-    '你可以继续告诉我要做什么，或检查模型配置后再继续。',
-  ].join('\n');
+  return `刚才处理时出了点问题${msg}，已暂停`;
 }
+
+// task.error 上的标记：让客户端识别"harness 软失败暂停"，避免对其自动 resume。
+export const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
 
 export async function runParentAgent(task, userInput, opts = {}) {
   if (!task) throw new Error('runParentAgent: task is required');

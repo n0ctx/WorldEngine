@@ -1,7 +1,8 @@
 /**
  * 写卡助手侧边面板（单 /agent 接口模型）
  *
- * 布局：消息列表 → 计划文档（如有） → 审批按钮（awaiting_approval）→ 输入框
+ * 布局：消息列表 → 审批按钮（awaiting_approval）→ 任务进度 HUD → 输入框
+ * 计划文档不再以消息气泡嵌入消息流；任务勾选实时显示在输入框上方的 HUD。
  * 旧版 ChangeProposalCard / 计划面板 / step 审批 UI 已全部删除。
  */
 
@@ -22,6 +23,7 @@ import {
 } from './api.js';
 import MessageList from './MessageList.jsx';
 import InputBox from './InputBox.jsx';
+import PlanTaskHud from './PlanTaskHud.jsx';
 import DragHandle from './DragHandle.jsx';
 import { findRegenerateSource } from './message-helpers.js';
 import { SSE_EVENTS } from '../server/sse-events.js';
@@ -35,6 +37,9 @@ const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'pau
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 const HARNESS_ERROR_PREFIX = 'agent loop error: ';
 const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
+// 服务端 pauseForRecoverableHarnessIssue 写入 task.error 的标记；
+// 用于让面板把该类暂停视作"等待用户主动输入"，不要自动 resume 死循环。
+const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
 
 function isRestartInterrupted(error) {
   return error === RECOVERABLE_TERMINAL_ERROR;
@@ -207,9 +212,11 @@ export default function AssistantPanel() {
         }
         const isUserRejectedPlanPause =
           task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
+        const isHarnessRecoverablePause =
+          task.status === 'paused' && task.error === HARNESS_RECOVERABLE_PAUSE_REASON;
         const shouldAutoResume =
           task.status === 'running' ||
-          (task.status === 'paused' && !isUserRejectedPlanPause) ||
+          (task.status === 'paused' && !isUserRejectedPlanPause && !isHarnessRecoverablePause) ||
           (task.status === 'failed' && isRestartInterrupted(task.error));
         if (shouldAutoResume) {
           await openRecoveryStream(task.id, 'resume');
@@ -222,11 +229,43 @@ export default function AssistantPanel() {
     })();
   }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
 
+  const handleStop = useCallback(async () => {
+    // 用户敲 `/stop` 或外部触发"请求取消"流程：
+    // 1) abort 本地 SSE 防止 delta 继续涌入，立即解锁 isStreaming
+    // 2) 调用 cancelTask 等后端确认；abort 后本地收不到 SSE，所以再 fetchTask 拿权威终态
+    // 3) 仅在后端确实没进入终态时本地注入 TASK_CANCELLED，避免覆盖刚到达的 TASK_COMPLETED
+    abortRef.current?.abort?.();
+    setIsStreaming(false);
+    if (!taskId) {
+      ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+      return;
+    }
+    try {
+      await cancelTask(taskId);
+      const task = await fetchTask(taskId).catch(() => null);
+      const terminal = task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled');
+      if (task && terminal) {
+        replaceTaskSnapshot(task);
+        return;
+      }
+    } catch {
+      // ignore：fall through to local fallback
+    }
+    ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
+  }, [taskId, ingestEvent, replaceTaskSnapshot]);
+
   const handleSend = useCallback(
     async (overrideText, opts = {}) => {
       const useOverride = typeof overrideText === 'string';
       const text = (useOverride ? overrideText : input).trim();
       if (!text) return;
+      // `/stop` 是用户主动终止当前任务的"命令式"输入，不真的发送给 LLM。
+      // 走和原 handleStop 同样的取消路径，然后清空输入框直接返回。
+      if (!useOverride && text === '/stop') {
+        setInput('');
+        await handleStop();
+        return;
+      }
       if (!useOverride) setInput('');
       const messageId =
         opts.messageId ??
@@ -273,7 +312,7 @@ export default function AssistantPanel() {
         setIsStreaming(false);
       }
     },
-    [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn],
+    [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn, handleStop],
   );
 
   const handleEdit = useCallback(
@@ -356,31 +395,6 @@ export default function AssistantPanel() {
         log.warn('assistant.reject_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
       });
   }, [taskId, replaceTaskSnapshot]);
-
-  const handleStop = useCallback(async () => {
-    // 改为"请求取消"流程：
-    // 1) abort 本地 SSE 防止 delta 继续涌入，立即解锁 isStreaming
-    // 2) 调用 cancelTask 等后端确认；abort 后本地收不到 SSE，所以再 fetchTask 拿权威终态
-    // 3) 仅在后端确实没进入终态时本地注入 TASK_CANCELLED，避免覆盖刚到达的 TASK_COMPLETED
-    abortRef.current?.abort?.();
-    setIsStreaming(false);
-    if (!taskId) {
-      ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-      return;
-    }
-    try {
-      await cancelTask(taskId);
-      const task = await fetchTask(taskId).catch(() => null);
-      const terminal = task && (task.status === 'completed' || task.status === 'failed' || task.status === 'cancelled');
-      if (task && terminal) {
-        replaceTaskSnapshot(task);
-        return;
-      }
-    } catch {
-      // ignore：fall through to local fallback
-    }
-    ingestEvent({ type: SSE_EVENTS.TASK_CANCELLED, taskId });
-  }, [taskId, ingestEvent, replaceTaskSnapshot]);
 
   const handleReset = useCallback(() => {
     // 必须先通知后端 cancel：仅 abort 本地 SSE 不会中断后端 runParentAgent 的工具循环，
@@ -499,14 +513,15 @@ export default function AssistantPanel() {
           )}
         </div>
 
-        {/* 输入框 */}
+        {/* 任务进度 HUD（实时展示 plan_doc 任务勾选，全部完成时自动消失） */}
+        <PlanTaskHud />
+
+        {/* 输入框（任务执行中也可以继续输入；新消息在服务端排队，输入 `/stop` 终止当前任务） */}
         <InputBox
           value={input}
           onChange={setInput}
           onSend={handleSend}
-          onStop={handleStop}
           disabled={inputDisabled}
-          isStreaming={isStreaming}
         />
       </aside>
     </>

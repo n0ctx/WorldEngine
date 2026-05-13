@@ -1,8 +1,9 @@
 /**
  * 写卡助手消息列表 — 卷宗条目（Scroll Entries）
  *
- * 所有消息（user / assistant / step / tool_call / plan_doc / error）共用同一卡片原子
+ * 所有消息（user / assistant / step / tool_call / error）共用同一卡片原子
  * `.we-asst-entry`，通过左侧细竖线区分语义；不再用气泡 + 紧凑工具条混排。
+ * 计划文档（plan_doc）已迁移至输入框上方的 PlanTaskHud，不在消息流中渲染。
  *
  * 交互保留：
  *   - 入场动效（we-bubble-in）
@@ -15,7 +16,6 @@
 import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import PlanDocViewer from './PlanDocViewer.jsx';
 import { stripToolCallLeakage } from './useAssistantStore.js';
 
 const TOOL_LABELS = {
@@ -360,20 +360,6 @@ function ErrorEntry({ msg }) {
   );
 }
 
-function PlanEntry({ content }) {
-  return (
-    <div className="we-asst-entry we-asst-entry--plan">
-      <div className="we-asst-entry__head">
-        <span className="we-asst-entry__title">任务计划</span>
-      </div>
-      <div className="we-asst-entry__fleuron" aria-hidden="true">❦</div>
-      <div className="we-asst-entry__body">
-        <PlanDocViewer content={content} variant="plain" />
-      </div>
-    </div>
-  );
-}
-
 function PendingEntry() {
   return (
     <div className="we-asst-entry we-asst-entry--tool" role="status" aria-label="助手正在思考">
@@ -472,7 +458,8 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
             );
           }
           if (msg.role === 'error') return <ErrorEntry key={key} msg={msg} />;
-          if (msg.role === 'plan_doc') return <PlanEntry key={key} content={msg.content} />;
+          // plan_doc 历史消息（来自服务端 snapshot）静默忽略，由 PlanTaskHud 负责展示
+          if (msg.role === 'plan_doc') return null;
           return null;
         })}
         {pending && <PendingEntry />}

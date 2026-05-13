@@ -39,13 +39,17 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (!validation.valid) {
           return { success: false, error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
         }
+        // write_plan_doc 表示"提交全新方案"——先显式清掉上一份方案（被拒绝的、已完成的或废弃的），
+        // 再写入新方案；既保证 planDocContent / file 不残留旧数据，也清掉 PLAN_REJECTED 等遗留 error 标记。
+        // （writePlanDoc 本身就会覆盖文件，这里加 delete 是为了把意图说明白，并顺带把 task.error 清零。）
+        await planDoc.deletePlanDoc(task.id);
         await planDoc.writePlanDoc(task.id, md);
         taskStore.setApprovalCheckpoint(task.id, {
           at: Date.now(),
           title: args.title,
           stepCount: steps.length,
         });
-        taskStore.setStatus(task.id, 'awaiting_approval');
+        taskStore.setStatus(task.id, 'awaiting_approval', { error: null });
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
         emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
         throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.AWAITING_APPROVAL, { taskId: task.id });

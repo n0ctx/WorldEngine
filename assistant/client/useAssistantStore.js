@@ -102,18 +102,10 @@ export const useAssistantStore = create(
             case SSE_EVENTS.TASK_SNAPSHOT:
               return applyTaskSnapshot(s, evt.task);
             case SSE_EVENTS.PLAN_DOC_UPDATED: {
-              // 把计划文档注入 messages，让它成为真正的会话流成员（embedded，跟随滚动）。
-              // id 必须按 taskId 区分：同一 session 内的第二个任务有自己的 plan_doc，
-              // 不能复用上一个任务的 plan_doc 行（否则会就地替换历史上方的旧计划行，
-              // 新计划无法出现在当前任务底部，表现为"第二次没显示计划"）。
-              const planDocId = `plan-doc-${evt.taskId ?? s.taskId ?? 'unknown'}`;
-              const existingIdx = s.messages.findIndex((m) => m.id === planDocId);
-              const planDocMsg = { id: planDocId, role: 'plan_doc', content: evt.content };
-              const newMessages =
-                existingIdx >= 0
-                  ? s.messages.map((m, i) => (i === existingIdx ? planDocMsg : m))
-                  : [...s.messages, planDocMsg];
-              return { ...s, planDoc: evt.content, messages: newMessages };
+              // 计划文档不再写入 messages 流，由输入框上方的 PlanTaskHud 实时渲染。
+              // 同时清理可能从服务端 snapshot 带入的历史 plan_doc 消息行，防止旧气泡残留。
+              const cleaned = s.messages.filter((m) => m.role !== 'plan_doc');
+              return { ...s, planDoc: evt.content, messages: cleaned };
             }
             case SSE_EVENTS.AWAITING_APPROVAL:
               return { ...s, status: 'awaiting_approval' };
@@ -344,7 +336,7 @@ function clearStreamingFlag(messages) {
 function sanitizeMessagesForPersist(messages) {
   if (!Array.isArray(messages)) return [];
   return messages
-    .filter((m) => m && ['user', 'assistant', 'tool_call', 'step', 'plan_doc'].includes(m.role))
+    .filter((m) => m && ['user', 'assistant', 'tool_call', 'step'].includes(m.role))
     .map((m) => {
       if (m.role === 'assistant' && m.streaming) {
         const rest = { ...m };

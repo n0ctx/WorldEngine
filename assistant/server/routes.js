@@ -177,11 +177,11 @@ router.post('/agent/:taskId/reject', async (req, res) => {
     return res.status(400).json({ error: 'not awaiting approval' });
   }
   log.info(`/agent/reject  ${formatMeta({ taskId: task.id })}`);
-  await planDoc.deletePlanDoc(task.id);
-  taskStore.deleteMessage(task.id, `plan-doc-${task.id}`);
+  // 拒绝计划只是清掉审批 checkpoint、把任务切到 paused（带 PLAN_REJECTED 标记），
+  // 计划文档**保留**：用户随后可在同一 task 上继续对话，让父代理用 edit_plan_doc / write_plan_doc 修改方案。
+  // HUD 端通过 status==='paused' && error===PLAN_REJECTED_PAUSE_REASON 判断不显示，避免误以为已批准。
   taskStore.setApprovalCheckpoint(task.id, null);
   taskStore.setStatus(task.id, 'paused', { error: PLAN_REJECTED_PAUSE_REASON });
-  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
   taskStore.emit(task.id, { type: SSE_EVENTS.PAUSED, taskId: task.id });
   taskStore.emit(task.id, { type: SSE_EVENTS.TASK_SNAPSHOT, taskId: task.id, task: taskStore.buildTaskSnapshot(task) });
   res.json({ ok: true, task: taskStore.buildTaskSnapshot(task) });

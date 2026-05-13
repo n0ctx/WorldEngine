@@ -70,6 +70,8 @@
 
 写完 plan_doc 后任务会自动挂起到 `awaiting_approval`，等用户批准。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。
 
+**更新方案即整段替换上一份**：当用户拒绝了上一版计划（task 处于 `paused`、当前 plan_doc 仍非空），用户的下一句通常意味着"换个方案"，应直接用 `write_plan_doc` 整段提交新方案——它会**先删除上一份计划文件再写入新计划**，确保旧的 intent / assumptions / steps 不会残留。只有在用户明确说"保留主体只改这几步"等增量措辞时，才用 `edit_plan_doc.replace_steps` 在已有计划上替换未完成步骤（已完成 step 强制保留）。两种方式都会重新挂到 `awaiting_approval`，不要自作主张直接 `dispatch_subagent` 执行尚未确认的步骤。
+
 ## 收尾规则
 
 - 简单问答 / 复盘 / 解释 / 失败说明：直接 `reply_to_user`（terminal=true）。

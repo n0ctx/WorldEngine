@@ -148,7 +148,7 @@ test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () 
   assert.equal(r.status, 400);
 });
 
-test('POST /agent/:taskId/reject 拒绝计划后保留任务继续对话', async () => {
+test('POST /agent/:taskId/reject 拒绝计划后保留 plan doc，等用户继续对话修改方案', async () => {
   const t = taskStore.createTask({ context: {} });
   taskStore.setStatus(t.id, 'awaiting_approval');
   await planDoc.writePlanDoc(t.id, '# plan');
@@ -158,12 +158,13 @@ test('POST /agent/:taskId/reject 拒绝计划后保留任务继续对话', async
   assert.equal(r.status, 200);
   assert.equal(t.status, 'paused');
   assert.equal(t.error, 'plan rejected by user');
-  assert.equal(await planDoc.readPlanDoc(t.id), '');
-  assert.equal(t.planDocContent, '');
-  assert.equal(t.messages.some((m) => m.role === 'plan_doc'), false);
+  // 拒绝后 plan_doc 文件与 task.planDocContent 全部保留，方便父代理在下一轮用 edit_plan_doc 修改未完成步骤
+  assert.equal(await planDoc.readPlanDoc(t.id), '# plan');
+  assert.equal(t.planDocContent, '# plan');
+  assert.equal(t.messages.some((m) => m.role === 'plan_doc'), true);
   assert.equal(r.json.task.status, 'paused');
   assert.equal(r.json.task.error, 'plan rejected by user');
-  assert.equal(r.json.task.planDocContent, '');
+  assert.equal(r.json.task.planDocContent, '# plan');
 
   process.env.MOCK_LLM_COMPLETE = '可以，我们换个方案';
   const resumed = await postSSE('/agent', { taskId: t.id, message: '那改成只优化结算' });
