@@ -642,4 +642,8 @@ export const __testables = {
   yieldToEventLoop,
   buildToolRegistry,
   pauseForRecoverableHarnessIssue,
+  extractHardConstraints,
+  buildEmptyReplyRecoveryMessage,
+  buildClaimedExecutionRecoveryMessage,
+  buildProviderErrorRecoveryMessage,
 };

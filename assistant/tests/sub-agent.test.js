@@ -203,3 +203,23 @@ test('dispatchSubAgent 内部 tool 抛错时 emit success=false', async () => {
   delete process.env.MOCK_LLM_TOOL_CALLS;
   delete process.env.MOCK_LLM_COMPLETE;
 });
+
+test('summarizeSubagentText: 普通文本截到 1500 字符', () => {
+  const long = 'a'.repeat(2000);
+  const out = __testables.summarizeSubagentText(long);
+  assert.equal(out.length, 1500);
+});
+
+test('summarizeSubagentText: 含错误关键词时整段保留，不截断', () => {
+  const long = '前 100 字'.padEnd(2000, '正常文本')
+    + ' 字段 X 不存在，需先创建';
+  const out = __testables.summarizeSubagentText(long);
+  assert.ok(out.length > 1500, '错误关键词触发时应返回原长度');
+  assert.match(out, /字段 X 不存在/);
+});
+
+test('summarizeSubagentText: 空 / 非字符串安全', () => {
+  assert.equal(__testables.summarizeSubagentText(null), '');
+  assert.equal(__testables.summarizeSubagentText(undefined), '');
+  assert.equal(__testables.summarizeSubagentText(''), '');
+});

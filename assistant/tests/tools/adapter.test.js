@@ -39,6 +39,19 @@ test('wrapToolEvents: execute 抛错时发 success:false 并透传', async () =>
   assert.equal(events.at(-1).success, false);
 });
 
+test('wrapToolEvents: 严格判定 — 返回非 {success:true} 一律视为失败', async () => {
+  // 旧逻辑只要不是 {ok:false} 都算成功；新逻辑必须显式 success===true。
+  // 覆盖几种工具异常路径：返回字符串、返回 undefined、返回缺 success 的对象。
+  for (const ret of ['ok', undefined, { result: 'done' }, { ok: true }, null]) {
+    const events = [];
+    const tool = { type: 'function', function: { name: 'x' }, execute: async () => ret };
+    const wrapped = wrapToolEvents(tool, (e) => events.push(e));
+    await wrapped.execute({});
+    const done = events.at(-1);
+    assert.equal(done.success, false, `返回 ${JSON.stringify(ret)} 应判定失败`);
+  }
+});
+
 test('wrapToolEvents: 默认 callId 来自 crypto.randomUUID(8 位 hex)', async () => {
   const events = [];
   const tool = { type: 'function', function: { name: 'x' }, execute: async () => ({ success: true }) };

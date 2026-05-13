@@ -115,6 +115,41 @@ test('detectPlanFirstPolicy 排除纯查询动词', () => {
   assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再补全所有字段').requiresPlanFirst, true);
 });
 
+test('extractHardConstraints 抽取字段名/ID/必须禁止类硬约束', () => {
+  const messages = [
+    { role: 'user', content: '字段名必须用 player_hp，不能用别的拼法' },
+    { role: 'user', content: '目标世界 ID = world-abc' },
+    { role: 'user', content: '不要删除任何已有条目，只新增' },
+    { role: 'user', content: '随便聊聊天气和心情' },
+  ];
+  const out = __testables.extractHardConstraints(messages);
+  const joined = out.join(' | ');
+  assert.match(joined, /字段名必须用 player_hp/);
+  assert.match(joined, /world-abc/);
+  assert.match(joined, /不要删除/);
+  assert.ok(!joined.includes('随便聊聊天气'), '纯闲聊不应被当成硬约束');
+});
+
+test('extractHardConstraints 去重并限制条数', () => {
+  const messages = [
+    { role: 'user', content: '必须用 player_hp' },
+    { role: 'user', content: '必须用 player_hp' },
+  ];
+  const out = __testables.extractHardConstraints(messages);
+  assert.equal(out.length, 1);
+});
+
+test('恢复文案不再含技术术语', () => {
+  const empty = __testables.buildEmptyReplyRecoveryMessage();
+  const claimed = __testables.buildClaimedExecutionRecoveryMessage();
+  const provider = __testables.buildProviderErrorRecoveryMessage(new Error('boom'));
+  for (const text of [empty, claimed, provider]) {
+    assert.ok(!/模型调用|子代理执行记录|harness/i.test(text), `不应露技术术语：${text}`);
+    assert.ok(text.length > 0);
+  }
+  assert.match(provider, /boom/, 'provider 错误消息中应保留底层 error');
+});
+
 test('claimedExecutionWithoutRealAction 在无 tool_call 时不再误伤纯解释回复', () => {
   const task = { id: 't', messages: [], appliedResources: [] };
   assert.equal(
@@ -485,6 +520,88 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   assert.ok(doneStep);
   assert.equal(doneStep.done, true);
   assert.match(newMd, /完成于 12:00:00/);
+
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅刷新 updatedAt', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
+    {
+      name: 'write_plan_doc',
+      arguments: {
+        title: '建世界 X',
+        intent: '用户要建一个完整的赛博朋克世界',
+        assumptions: ['世界尚未存在', 'persona 已就位'],
+        steps: [
+          { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建' },
+        ],
+      },
+    },
+  ]);
+  process.env.MOCK_LLM_COMPLETE = '';
+  await runParentAgent(task, '建一个赛博朋克世界');
+  assert.equal(task.status, 'awaiting_approval');
+  const before = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  assert.equal(before.intent, '用户要建一个完整的赛博朋克世界');
+  assert.deepEqual(before.assumptions, ['世界尚未存在', 'persona 已就位']);
+  assert.ok(before.createdAt);
+
+  const tools = __testables.buildMetaTools(task, () => {});
+  const editPlan = tools[1];
+  const r = await editPlan.execute({
+    op: 'replace_steps',
+    steps: [
+      { title: '改后步骤', targetType: 'world-card', operation: 'create', task: '重新建' },
+    ],
+  });
+  assert.equal(r.success, true);
+
+  const after = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  assert.equal(after.intent, before.intent);
+  assert.deepEqual(after.assumptions, before.assumptions);
+  assert.equal(after.createdAt, before.createdAt);
+  assert.ok(after.updatedAt);
+
+  await planDoc.deletePlanDoc(task.id);
+  clearMockEnv();
+});
+
+test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  const md = [
+    '# 任务：T',
+    '',
+    '> 状态：running · 创建时间：x',
+    '',
+    '## 用户意图',
+    'i',
+    '',
+    '## 假设与约束',
+    '- 无',
+    '',
+    '## 步骤',
+    '',
+    '- [ ] **step-1** A（world-card.create）',
+    '  - 依赖：无',
+    '  - 任务：a',
+    '',
+  ].join('\n');
+  await planDoc.writePlanDoc(task.id, md);
+
+  const tools = __testables.buildMetaTools(task, () => {});
+  const editPlan = tools[1];
+  // 步骤缺少 task 字段 → validatePlanDoc 应失败
+  const r = await editPlan.execute({
+    op: 'replace_steps',
+    steps: [{ title: '不完整', targetType: 'world-card', operation: 'update' }],
+  });
+  assert.equal(r.success, false);
+  assert.match(r.error, /校验失败|缺少/);
 
   await planDoc.deletePlanDoc(task.id);
 });

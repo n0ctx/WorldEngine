@@ -59,6 +59,17 @@ const KNOWLEDGE_BY_TYPE = {
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');
 const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
 
+// 子代理总结截断策略：
+// - 命中错误关键词（失败 / 不存在 / 字段缺失 / 校验 等）→ 不截断，原样回传给父代理，避免修复建议被切掉
+// - 否则提高上限到 1500 字符（旧值 400 太紧，会丢失多步骤报告的尾部）
+const ERROR_KEYWORDS_RE = /(error|失败|错误|不存在|未找到|缺失|无法|拒绝|invalid|forbidden|conflict|未通过|校验|冲突)/i;
+
+export function summarizeSubagentText(raw) {
+  const text = String(raw ?? '').trim();
+  if (ERROR_KEYWORDS_RE.test(text)) return text;
+  return text.slice(0, 1500);
+}
+
 async function loadPrompt() {
   return loadWithCache(PROMPT_PATH);
 }
@@ -239,12 +250,7 @@ export async function dispatchSubAgent({
       configScope,
       cacheableSystem: systemPrompt,
     });
-    // 子代理总结截断策略：
-    // - 命中错误关键词（失败 / 不存在 / 字段缺失 / 校验 等）→ 不截断，原样回传给父代理，避免修复建议被切掉
-    // - 否则提高上限到 1500 字符（旧值 400 太紧，会丢失多步骤报告的尾部）
-    const rawText = String(raw ?? '').trim();
-    const ERROR_KEYWORDS = /(error|失败|错误|不存在|未找到|缺失|无法|拒绝|invalid|forbidden|conflict|未通过|校验|冲突)/i;
-    const summary = ERROR_KEYWORDS.test(rawText) ? rawText : rawText.slice(0, 1500);
+    const summary = summarizeSubagentText(raw);
     if (applySuccessCount === 0) {
       log.warn(`FAIL_NO_APPLY  ${formatMeta({ runId, stepId, targetType, lastError: lastApplyError, summary: previewText(summary, { limit: 80 }) })}`);
       return {
@@ -266,6 +272,7 @@ export const __testables = {
   toLLMTool,
   resolveEntityRef,
   buildUserMessage,
+  summarizeSubagentText,
   KNOWLEDGE_BY_TYPE,
   APPLY_BY_TYPE,
 };
