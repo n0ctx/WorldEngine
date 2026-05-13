@@ -39,16 +39,28 @@ test('wrapToolEvents: execute 抛错时发 success:false 并透传', async () =>
   assert.equal(events.at(-1).success, false);
 });
 
-test('wrapToolEvents: 严格判定 — 返回非 {success:true} 一律视为失败', async () => {
-  // 旧逻辑只要不是 {ok:false} 都算成功；新逻辑必须显式 success===true。
-  // 覆盖几种工具异常路径：返回字符串、返回 undefined、返回缺 success 的对象。
-  for (const ret of ['ok', undefined, { result: 'done' }, { ok: true }, null]) {
+test('wrapToolEvents: 写入类工具显式声明 success===false 时判定失败', async () => {
+  // 写入类（apply_*/meta）通过 { success: false } 表达失败，必须被识别。
+  for (const ret of [{ success: false, error: 'x' }, { success: 0 }, { success: 'no' }]) {
     const events = [];
     const tool = { type: 'function', function: { name: 'x' }, execute: async () => ret };
     const wrapped = wrapToolEvents(tool, (e) => events.push(e));
     await wrapped.execute({});
     const done = events.at(-1);
     assert.equal(done.success, false, `返回 ${JSON.stringify(ret)} 应判定失败`);
+  }
+});
+
+test('wrapToolEvents: 读取类工具返回任意 payload 视为成功（避免 preview/read 被误染失败）', async () => {
+  // 读取类（preview_card / read_file / list_resources）返回字符串 / JSON / 数据对象，没有 success 字段。
+  // 没 throw 就应当判定成功，否则正常 preview 也会被显示为"失败"气泡。
+  for (const ret of ['raw text', JSON.stringify([1, 2, 3]), { card: { name: 'X' } }, [1, 2], null, undefined]) {
+    const events = [];
+    const tool = { type: 'function', function: { name: 'x' }, execute: async () => ret };
+    const wrapped = wrapToolEvents(tool, (e) => events.push(e));
+    await wrapped.execute({});
+    const done = events.at(-1);
+    assert.equal(done.success, true, `返回 ${JSON.stringify(ret)} 应判定成功`);
   }
 });
 

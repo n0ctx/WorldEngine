@@ -59,10 +59,18 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
           onCancelLog(name);
           throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
-        // 严格判定：工具必须显式返回 { success: true } 才算成功。
-        // result 缺失、返回字符串/非标准对象、或显式 { success: false } 全部视为失败。
-        // apply 工具在异常时 throw（由下方 catch 捕获），其它工具走此路径。
-        const success = Boolean(result) && result.success === true;
+        // 成功判定区分两类工具：
+        // - 写入类（apply_*、meta 工具）通过返回 { success: true | false } 显式表态；
+        //   写入语义重，必须强约束："声明 success===false" / "应当声明却没声明" 都视为失败。
+        // - 读取类（preview_card / list_resources / read_file）返回任意 payload（JSON / 字符串 / 数据对象），
+        //   没有 success 字段是设计如此，只要没 throw 就算成功——否则会把"读到了数据"也染成失败气泡。
+        // 判别策略：result 是普通对象且含 success 字段 → 走严格契约；否则 → 假定成功（信任 throw 表达失败）。
+        const hasSuccessField =
+          result !== null &&
+          typeof result === 'object' &&
+          !Array.isArray(result) &&
+          Object.prototype.hasOwnProperty.call(result, 'success');
+        const success = hasSuccessField ? result.success === true : true;
         emitFn({
           type: SSE_EVENTS.TOOL_CALL_COMPLETED,
           toolName: name,
