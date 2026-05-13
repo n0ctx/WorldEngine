@@ -11,7 +11,7 @@ import {
   updatePersonaById,
   uploadPersonaAvatar,
   uploadPersonaAvatarById,
-} from '../../src/api/personas.js';
+} from '../../src/core/api/personas.js';
 
 describe('personas api', () => {
   beforeEach(() => {

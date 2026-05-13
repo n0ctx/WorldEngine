@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Button from '../ui/Button';
 import ModelCombobox from '../ui/ModelCombobox';
-import { useDisplaySettingsStore } from '../../store/displaySettings.js';
+import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 
 function extractPricing(model) {
   if (!model || typeof model !== 'object') return null;

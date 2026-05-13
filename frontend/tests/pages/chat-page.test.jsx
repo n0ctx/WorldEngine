@@ -2,7 +2,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import useStore from '../../src/store/index.js';
+import useStore from '../../src/core/state/index.js';
 
 const mocks = vi.hoisted(() => {
   function createMessageListMock() {
@@ -44,12 +44,12 @@ const mocks = vi.hoisted(() => {
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
 }));
-vi.mock('../../src/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
-vi.mock('../../src/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
-vi.mock('../../src/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
-vi.mock('../../src/api/world-state-fields.js', () => ({ syncDiaryTimeField: vi.fn(async () => ({})) }));
-vi.mock('../../src/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
-vi.mock('../../src/api/chat.js', () => ({
+vi.mock('../../src/core/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
+vi.mock('../../src/core/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
+vi.mock('../../src/core/api/worlds.js', () => ({ getWorld: (...args) => mocks.getWorld(...args) }));
+vi.mock('../../src/core/api/world-state-fields.js', () => ({ syncDiaryTimeField: vi.fn(async () => ({})) }));
+vi.mock('../../src/core/api/config.js', () => ({ getConfig: vi.fn(async () => ({ ui: {}, llm: {} })) }));
+vi.mock('../../src/core/api/chat.js', () => ({
   sendMessage: (...args) => mocks.sendMessage(...args),
   recoverChatStream: (...args) => mocks.recoverChatStream(...args),
   subscribeChatStream: (...args) => mocks.subscribeChatStream(...args),
@@ -62,13 +62,13 @@ vi.mock('../../src/api/chat.js', () => ({
   editAssistantMessage: (...args) => mocks.editAssistantMessage(...args),
   retitle: (...args) => mocks.retitle(...args),
 }));
-vi.mock('../../src/api/sessions.js', () => ({
+vi.mock('../../src/core/api/sessions.js', () => ({
   createSession: (...args) => mocks.createSession(...args),
   getSession: (...args) => mocks.getSession(...args),
   deleteMessage: vi.fn(),
 }));
-vi.mock('../../src/utils/regex-runner.js', () => ({ loadRules: (...args) => mocks.loadRules(...args) }));
-vi.mock('../../src/utils/avatar.js', () => ({ getAvatarColor: () => '#000', getAvatarUrl: () => '' }));
+vi.mock('../../src/core/utils/regex-runner.js', () => ({ loadRules: (...args) => mocks.loadRules(...args) }));
+vi.mock('../../src/core/utils/avatar.js', () => ({ getAvatarColor: () => '#000', getAvatarUrl: () => '' }));
 vi.mock('../../src/components/chat/MessageList.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({
@@ -118,7 +118,7 @@ vi.mock('../../src/components/state/StatePanel.jsx', () => ({
 }));
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
 
-import { PageLayoutRendererProvider } from '../../src/core/layout/PageLayout.jsx';
+import { PageLayoutRendererProvider } from '../../src/pages/layout/PageLayout.jsx';
 import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
 import ChatPage from '../../src/pages/ChatPage/index.jsx';
 

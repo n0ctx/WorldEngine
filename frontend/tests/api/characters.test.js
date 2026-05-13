@@ -8,7 +8,7 @@ import {
   reorderCharacters,
   updateCharacter,
   uploadAvatar,
-} from '../../src/api/characters.js';
+} from '../../src/core/api/characters.js';
 
 describe('characters api', () => {
   beforeEach(() => {

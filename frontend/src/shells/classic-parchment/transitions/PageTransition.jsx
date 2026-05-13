@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { variants } from '../../../utils/motion.js';
+import { variants } from '../../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 

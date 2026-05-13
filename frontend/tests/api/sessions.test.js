@@ -10,7 +10,7 @@ import {
   getSession,
   getSessions,
   renameSession,
-} from '../../src/api/sessions.js';
+} from '../../src/core/api/sessions.js';
 
 describe('sessions api', () => {
   beforeEach(() => {

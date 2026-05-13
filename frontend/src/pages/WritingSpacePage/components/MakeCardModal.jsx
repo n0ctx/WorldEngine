@@ -3,8 +3,8 @@ import ModalShell from '../../../components/ui/ModalShell.jsx';
 import {
   analyzeNearbyForCard,
   createCharacterFromNearby,
-} from '../../../api/session-nearby.js';
-import { log } from '../../../utils/logger.js';
+} from '../../../core/api/session-nearby.js';
+import { log } from '../../../core/utils/logger.js';
 
 /**
  * 制卡 Modal — 两步流程

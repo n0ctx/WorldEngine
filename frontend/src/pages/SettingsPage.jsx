@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSettingsConfig } from '../hooks/useSettingsConfig';
+import { useSettingsConfig } from '../core/hooks/useSettingsConfig';
 import LlmConfigPanel from '../components/settings/LlmConfigPanel';
 import PromptConfigPanel from '../components/settings/PromptConfigPanel';
 import ImportExportPanel from '../components/settings/ImportExportPanel';
@@ -10,7 +10,7 @@ import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
 import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
-import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../components/settings/SettingsConstants';
+import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 
 export default function SettingsPage() {
   const navigate = useNavigate();

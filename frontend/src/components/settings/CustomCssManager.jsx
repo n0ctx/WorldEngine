@@ -2,14 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   listSnippets, createSnippet, updateSnippet, deleteSnippet,
   reorderSnippets, refreshCustomCss,
-} from '../../api/custom-css-snippets';
-import { useAppModeStore } from '../../store/appMode';
+} from '../../core/api/custom-css-snippets';
+import { useAppModeStore } from '../../core/state/appMode';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
-import { SETTINGS_MODE } from './SettingsConstants';
-import { log } from '../../utils/logger.js';
+import { SETTINGS_MODE } from '../../core/constants/settings';
+import { log } from '../../core/utils/logger.js';
 
 const CSS_REFERENCE_EXAMPLE = `/* ✅ 推荐：改变量协调换肤 */
 :root {

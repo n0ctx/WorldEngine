@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getConfig, updateConfig, updateProviderKey, fetchAuxModels, testAuxConnection, fetchWritingModels, testWritingConnection, fetchWritingAuxModels, testWritingAuxConnection } from '../api/config';
-import { useDisplaySettingsStore } from '../store/displaySettings';
-import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../components/settings/SettingsConstants';
+import { useDisplaySettingsStore } from '../state/displaySettings';
+import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../constants/settings';
 import { useSaveState } from './useSaveState';
 
 export function useSettingsConfig() {

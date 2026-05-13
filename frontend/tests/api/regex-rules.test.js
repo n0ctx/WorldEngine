@@ -6,7 +6,7 @@ import {
   listRegexRules,
   reorderRegexRules,
   updateRegexRule,
-} from '../../src/api/regex-rules.js';
+} from '../../src/core/api/regex-rules.js';
 
 describe('regex rules api', () => {
   beforeEach(() => {

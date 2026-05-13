@@ -2,8 +2,8 @@ import { useState } from 'react';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
 import ConfirmModal from '../ui/ConfirmModal';
-import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
-import { clearAllDiaries } from '../../api/world-state-fields';
+import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
+import { clearAllDiaries } from '../../core/api/world-state-fields';
 
 function ToggleRow({ label, hint, checked, onChange }) {
   return (

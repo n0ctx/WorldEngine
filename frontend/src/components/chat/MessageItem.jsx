@@ -5,14 +5,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { applyRules } from '../../utils/regex-runner.js';
-import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
-import { useDisplaySettingsStore } from '../../store/displaySettings.js';
+import { applyRules } from '../../core/utils/regex-runner.js';
+import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
+import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
-import { variants, transitions } from '../../utils/motion.js';
+import { variants, transitions } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 

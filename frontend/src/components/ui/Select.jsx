@@ -1,7 +1,7 @@
 // frontend/src/components/ui/Select.jsx
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../utils/motion.js';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const DROPDOWN_MAX_H = 192; // 12rem = 192px，与 CSS max-height 保持一致
 const DROPDOWN_MARGIN = 2;

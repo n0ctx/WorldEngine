@@ -1,5 +1,5 @@
 import { request } from './request.js';
-import { SETTINGS_MODE } from '../components/settings/SettingsConstants';
+import { SETTINGS_MODE } from '../constants/settings';
 
 const BASE = '/api';
 

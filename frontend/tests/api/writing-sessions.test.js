@@ -4,7 +4,7 @@ import {
   createWritingSession,
   editAndRegenerateWriting,
   generate,
-} from '../../src/api/writing-sessions.js';
+} from '../../src/core/api/writing-sessions.js';
 
 function createSseResponse(events) {
   const encoder = new TextEncoder();

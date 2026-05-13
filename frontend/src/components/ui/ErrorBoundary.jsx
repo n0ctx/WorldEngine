@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 /**
  * React Error Boundary —— 捕获子组件渲染错误，防止整个应用白屏

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { getCharacterStateValues, resetCharacterStateValues, updateCharacterStateValue } from '../../src/api/character-state-values.js';
+import { getCharacterStateValues, resetCharacterStateValues, updateCharacterStateValue } from '../../src/core/api/character-state-values.js';
 
 describe('character state values api', () => {
   beforeEach(() => {

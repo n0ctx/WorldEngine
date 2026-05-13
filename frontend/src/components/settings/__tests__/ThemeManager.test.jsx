@@ -11,8 +11,8 @@ const api = vi.hoisted(() => ({
   deleteTheme: vi.fn(),
 }));
 
-vi.mock('../../../api/themes.js', () => api);
-vi.mock('../../../api/custom-css-snippets.js', () => ({ refreshCustomCss: vi.fn() }));
+vi.mock('../../../core/api/themes.js', () => api);
+vi.mock('../../../core/api/custom-css-snippets.js', () => ({ refreshCustomCss: vi.fn() }));
 
 const ThemeManager = (await import('../ThemeManager.jsx')).default;
 

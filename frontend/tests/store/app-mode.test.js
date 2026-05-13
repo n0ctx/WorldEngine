@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SETTINGS_MODE } from '../../src/components/settings/SettingsConstants.js';
-import { useAppModeStore } from '../../src/store/appMode.js';
+import { SETTINGS_MODE } from '../../src/core/constants/settings.js';
+import { useAppModeStore } from '../../src/core/state/appMode.js';
 
 describe('app mode store', () => {
   afterEach(() => {

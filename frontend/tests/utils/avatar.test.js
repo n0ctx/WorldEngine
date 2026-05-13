@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { getAvatarColor, getAvatarUrl } from '../../src/utils/avatar.js';
+import { getAvatarColor, getAvatarUrl } from '../../src/core/utils/avatar.js';
 
 describe('avatar utils', () => {
   it('空 id 使用默认颜色，同一 id 颜色稳定', () => {

@@ -6,14 +6,14 @@ const mocks = vi.hoisted(() => ({
   fetchDailyEntries: vi.fn(),
 }));
 
-vi.mock('../../src/api/session-state-values.js', () => ({
+vi.mock('../../src/core/api/session-state-values.js', () => ({
   fetchSessionStateValues: (...args) => mocks.fetchSessionStateValues(...args),
 }));
-vi.mock('../../src/api/daily-entries.js', () => ({
+vi.mock('../../src/core/api/daily-entries.js', () => ({
   fetchDailyEntries: (...args) => mocks.fetchDailyEntries(...args),
 }));
 
-import { useSessionState } from '../../src/hooks/useSessionState.js';
+import { useSessionState } from '../../src/core/hooks/useSessionState.js';
 
 async function flushAsync() {
   await act(async () => {

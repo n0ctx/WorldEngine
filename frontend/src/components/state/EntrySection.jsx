@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import EntryEditor from './EntryEditor';
-import { deleteWorldEntry, reorderWorldEntries, updateWorldEntry } from '../../api/prompt-entries';
+import { deleteWorldEntry, reorderWorldEntries, updateWorldEntry } from '../../core/api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
-import { log } from '../../utils/logger.js';
+import { log } from '../../core/utils/logger.js';
 
 export default function EntrySection({ title, icon, desc, triggerType, entries, worldId, onRefresh }) {
   const [editing, setEditing] = useState(null);

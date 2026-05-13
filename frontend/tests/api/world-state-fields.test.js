@@ -7,7 +7,7 @@ import {
   reorderWorldStateFields,
   syncDiaryTimeField,
   updateWorldStateField,
-} from '../../src/api/world-state-fields.js';
+} from '../../src/core/api/world-state-fields.js';
 
 describe('world state fields api', () => {
   beforeEach(() => {

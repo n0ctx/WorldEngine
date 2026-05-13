@@ -1,11 +1,11 @@
 import { useState, useRef } from 'react';
-import { useAppModeStore } from '../../store/appMode';
-import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../api/import-export';
-import { refreshCustomCss } from '../../api/custom-css-snippets';
-import { invalidateCache, loadRules } from '../../utils/regex-runner';
+import { useAppModeStore } from '../../core/state/appMode';
+import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../core/api/import-export';
+import { refreshCustomCss } from '../../core/api/custom-css-snippets';
+import { invalidateCache, loadRules } from '../../core/utils/regex-runner';
 import ModeSwitch from './ModeSwitch';
 import Button from '../ui/Button';
-import { SETTINGS_MODE } from './SettingsConstants';
+import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function ImportExportPanel({ onImportSuccess }) {
   const fileInputRef = useRef(null);

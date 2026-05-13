@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
-import { applyTemplateVars } from '../../utils/template-vars.js';
+import { applyTemplateVars } from '../../core/utils/template-vars.js';
 
 const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 

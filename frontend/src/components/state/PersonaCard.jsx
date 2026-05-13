@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getPersona } from '../../api/personas';
+import { getPersona } from '../../core/api/personas';
 import AvatarCircle from '../ui/AvatarCircle';
 
 /**

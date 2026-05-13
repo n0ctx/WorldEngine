@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds, deleteWorld, reorderWorlds } from '../api/worlds';
+import { getWorlds, deleteWorld, reorderWorlds } from '../core/api/worlds';
 import SortableGrid from '../components/ui/SortableGrid';
-import { getCharactersByWorld } from '../api/characters';
-import useStore from '../store/index';
-import { downloadWorldCard, importWorld, readJsonFile } from '../api/import-export';
-import { getAvatarColor, getAvatarUrl } from '../utils/avatar';
-import { relativeTime } from '../utils/time';
+import { getCharactersByWorld } from '../core/api/characters';
+import useStore from '../core/state/index';
+import { downloadWorldCard, importWorld, readJsonFile } from '../core/api/import-export';
+import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
+import { relativeTime } from '../core/utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
-import { log } from '../utils/logger.js';
+import { log } from '../core/utils/logger.js';
 
 export default function WorldsPage() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
-import { SETTINGS_MODE, DIARY_DATE_MODE } from './SettingsConstants';
+import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 export default function DiaryConfigPanel({
   settingsMode, onModeChange,

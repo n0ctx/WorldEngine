@@ -3,8 +3,8 @@ import StatusSection from '../../../components/state/StatusSection.jsx';
 import {
   patchNearbyPersona,
   patchNearbyState,
-} from '../../../api/session-nearby.js';
-import { log } from '../../../utils/logger.js';
+} from '../../../core/api/session-nearby.js';
+import { log } from '../../../core/utils/logger.js';
 
 /**
  * NearbyCharacterBlock — 单个 nearby 角色块（不折叠，常驻展开）。

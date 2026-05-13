@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import ModalShell from '../../../components/ui/ModalShell.jsx';
 import CharacterSeal from '../../../components/chat/CharacterSeal.jsx';
-import { getCharactersByWorld } from '../../../api/characters.js';
-import { addSavedNearbyFromCharacter } from '../../../api/session-nearby.js';
-import { log } from '../../../utils/logger.js';
+import { getCharactersByWorld } from '../../../core/api/characters.js';
+import { addSavedNearbyFromCharacter } from '../../../core/api/session-nearby.js';
+import { log } from '../../../core/utils/logger.js';
 
 export default function AddSavedNearbyModal({ worldId, sessionId, nearby, onAdded, onClose }) {
   const [chars, setChars] = useState(null); // null = loading, [] = empty

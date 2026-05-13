@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
-import { variants, transitions } from '../../utils/motion.js';
+import { variants, transitions } from '../../core/utils/motion.js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
-import { useDisplaySettingsStore } from '../../store/displaySettings.js';
-import { applyRules } from '../../utils/regex-runner.js';
-import { stripNextPromptBlocks } from '../../utils/next-prompt.js';
+import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
+import { applyRules } from '../../core/utils/regex-runner.js';
+import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 import InterruptedMark from '../chat/InterruptedMark.jsx';
 

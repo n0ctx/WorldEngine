@@ -1,4 +1,4 @@
-import { getAvatarUrl, getAvatarColor } from '../../utils/avatar';
+import { getAvatarUrl, getAvatarColor } from '../../core/utils/avatar';
 
 /**
  * AvatarCircle — 通用头像圆圈组件

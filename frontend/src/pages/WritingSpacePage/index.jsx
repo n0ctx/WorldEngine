@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { syncDiaryTimeField } from '../../api/world-state-fields.js';
-import { useAppModeStore } from '../../store/appMode.js';
-import { SETTINGS_MODE } from '../../components/settings/SettingsConstants';
-import { refreshCustomCss } from '../../api/custom-css-snippets.js';
-import { getConfig } from '../../api/config.js';
-import { useDisplaySettingsStore } from '../../store/displaySettings.js';
-import { getPersona, getPersonaById } from '../../api/personas.js';
-import useStore from '../../store/index.js';
+import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
+import { useAppModeStore } from '../../core/state/appMode.js';
+import { SETTINGS_MODE } from '../../core/constants/settings';
+import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
+import { getConfig } from '../../core/api/config.js';
+import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
+import { getPersona, getPersonaById } from '../../core/api/personas.js';
+import useStore from '../../core/state/index.js';
 import {
   listWritingSessions,
   createWritingSession,
@@ -21,10 +21,10 @@ import {
   retitleWritingSession,
   recoverWritingStream,
   subscribeWritingStream,
-} from '../../api/writing-sessions.js';
-import { getChapterTitles, updateChapterTitle, retitleChapter } from '../../api/chapter-titles.js';
-import { deleteMessage as deleteMessageApi, getSession } from '../../api/sessions.js';
-import PageLayout from '../../core/layout/PageLayout.jsx';
+} from '../../core/api/writing-sessions.js';
+import { getChapterTitles, updateChapterTitle, retitleChapter } from '../../core/api/chapter-titles.js';
+import { deleteMessage as deleteMessageApi, getSession } from '../../core/api/sessions.js';
+import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
@@ -32,10 +32,10 @@ import WritingSessionList from './components/WritingSessionList.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
-import { log } from '../../utils/logger.js';
-import { writingSessionListBridge } from '../../utils/session-list-bridge.js';
-import { parseNextPromptStream, parseContinuationText } from '../../utils/next-prompt.js';
-import { RESTART_INTERRUPTED_ERROR } from '../../utils/constants.js';
+import { log } from '../../core/utils/logger.js';
+import { writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
+import { parseNextPromptStream, parseContinuationText } from '../../core/utils/next-prompt.js';
+import { RESTART_INTERRUPTED_ERROR } from '../../core/utils/constants.js';
 
 function materializeInterruptedMessages(task) {
   const base = Array.isArray(task?.messages) ? task.messages : [];

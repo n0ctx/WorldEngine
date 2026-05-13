@@ -6,14 +6,14 @@ import {
   listCharacterStateFields,
   reorderCharacterStateFields,
   updateCharacterStateField,
-} from '../../src/api/character-state-fields.js';
+} from '../../src/core/api/character-state-fields.js';
 import {
   createPersonaStateField,
   deletePersonaStateField,
   listPersonaStateFields,
   reorderPersonaStateFields,
   updatePersonaStateField,
-} from '../../src/api/persona-state-fields.js';
+} from '../../src/core/api/persona-state-fields.js';
 import {
   clearAllDiaries,
   createWorldStateField,
@@ -22,7 +22,7 @@ import {
   reorderWorldStateFields,
   syncDiaryTimeField,
   updateWorldStateField,
-} from '../../src/api/world-state-fields.js';
+} from '../../src/core/api/world-state-fields.js';
 
 describe('state fields extra api', () => {
   beforeEach(() => {

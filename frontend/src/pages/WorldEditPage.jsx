@@ -1,30 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../api/worlds';
+import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../core/api/worlds';
 
 import StateFieldList from '../components/state/StateFieldList';
-import AvatarUpload from '../components/edit/AvatarUpload';
+import AvatarUpload from '../components/ui/AvatarUpload';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import SectionTabs from '../components/ui/SectionTabs.jsx';
-import EditPageShell from '../components/edit/EditPageShell';
+import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
   syncDiaryTimeField,
-} from '../api/world-state-fields';
-import { getConfig } from '../api/config';
-import { getAvatarUrl, getAvatarColor } from '../utils/avatar';
+} from '../core/api/world-state-fields';
+import { getConfig } from '../core/api/config';
+import { getAvatarUrl, getAvatarColor } from '../core/utils/avatar';
 import {
   listCharacterStateFields, createCharacterStateField,
   updateCharacterStateField, deleteCharacterStateField, reorderCharacterStateFields,
-} from '../api/character-state-fields';
+} from '../core/api/character-state-fields';
 import {
   listPersonaStateFields, createPersonaStateField,
   updatePersonaStateField, deletePersonaStateField, reorderPersonaStateFields,
-} from '../api/persona-state-fields';
-import { log } from '../utils/logger.js';
+} from '../core/api/persona-state-fields';
+import { log } from '../core/utils/logger.js';
 
 export default function WorldEditPage() {
   const { worldId } = useParams();

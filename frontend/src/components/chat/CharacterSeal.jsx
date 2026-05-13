@@ -1,4 +1,4 @@
-import { getAvatarUrl } from '../../utils/avatar.js';
+import { getAvatarUrl } from '../../core/utils/avatar.js';
 
 export default function CharacterSeal({ character, size = 80, color = 'var(--we-vermilion)' }) {
   const sealVars = { '--seal-size': `${size}px`, '--seal-color': color };

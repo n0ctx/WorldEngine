@@ -24,7 +24,7 @@ theme  (themes/, data/themes/)
   `--we-*` token overrides (see `themes/README.md`).
 
 The selected shell is chosen centrally in
-`frontend/src/core/app/selectShell.js`. Adding a new shell means dropping a new
+`frontend/src/core/router/selectShell.js`. Adding a new shell means dropping a new
 folder here and registering it there — no changes to pages, routes, or theme
 loading.
 
@@ -36,7 +36,7 @@ A shell owns:
 - **Page frame** — the visual container that wraps every route.
 - **Transitions** — route-to-route motion treatment.
 - **Decorative layout** — shell-specific wrappers, ornaments, textures.
-- **Slot rendering** — how `core/layout/PageLayout` slots (`HeaderSlot`,
+- **Slot rendering** — how `pages/layout/PageLayout` slots (`HeaderSlot`,
   `MainContentSlot`, `LeftSidebarSlot`, `RightSidebarSlot`, `InspectorSlot`,
   `OverlayLayer`) are visually arranged. Pages declare slots neutrally; the
   shell decides whether they become a parchment two-page spread, a single-panel
@@ -59,10 +59,10 @@ A shell MUST NOT own:
   PageTransition) lives under
   `shells/classic-parchment/{layout,components,transitions}/` and MUST NOT
   be imported by pages or by neutral `components/` modules. Pages declare
-  layout via `core/layout/PageLayout` slots and let the shell render them.
+  layout via `pages/layout/PageLayout` slots and let the shell render them.
 
 - **`template/`** — scaffold for creating a new shell. Copy it, rename, and
-  register it in `core/app/selectShell.js`. See `template/README.md`.
+  register it in `core/router/selectShell.js`. See `template/README.md`.
 
 ## Conventions
 

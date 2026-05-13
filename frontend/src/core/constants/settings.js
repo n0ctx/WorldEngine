@@ -1,4 +1,4 @@
-import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../../utils/constants.js';
+import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
 
 export const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },

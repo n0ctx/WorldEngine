@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../utils/motion';
+import { DURATION, EASE } from '../../core/utils/motion';
 
 const MotionDiv = motion.div;
 

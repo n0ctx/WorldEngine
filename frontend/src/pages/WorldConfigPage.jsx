@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { listWorldEntries } from '../api/prompt-entries';
+import { listWorldEntries } from '../core/api/prompt-entries';
 import EntrySection from '../components/state/EntrySection';
 import { BackButton } from '../components';
 

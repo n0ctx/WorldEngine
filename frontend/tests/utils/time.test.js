@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { relativeTime } from '../../src/utils/time.js';
+import { relativeTime } from '../../src/core/utils/time.js';
 
 describe('time utils', () => {
   beforeEach(() => {

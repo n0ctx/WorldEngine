@@ -1,15 +1,15 @@
 /* DESIGN.md §5.2 — classic-parchment shell top bar */
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { DURATION, EASE } from '../../../utils/motion.js';
+import { DURATION, EASE } from '../../../core/utils/motion.js';
 import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds } from '../../../api/worlds.js';
-import { getCharacter } from '../../../api/characters.js';
-import { getLatestSession } from '../../../api/sessions.js';
-import { log } from '../../../utils/logger.js';
-import useStore from '../../../store/index.js';
-import { useAssistantStore } from '@worldengine/assistant-client/useAssistantStore';
+import { getWorlds } from '../../../core/api/worlds.js';
+import { getCharacter } from '../../../core/api/characters.js';
+import { getLatestSession } from '../../../core/api/sessions.js';
+import { log } from '../../../core/utils/logger.js';
+import useStore from '../../../core/state/index.js';
+import { useAssistantPanel } from '../../../core/features/assistant/index.js';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
@@ -47,8 +47,8 @@ export default function TopBar() {
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
-  const toggleAssistant = useAssistantStore((s) => s.toggle);
-  const isAssistantOpen = useAssistantStore((s) => s.isOpen);
+  const toggleAssistant = useAssistantPanel((s) => s.toggle);
+  const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
 
   const [worlds, setWorlds] = useState([]);
   const [worldsLoading, setWorldsLoading] = useState(false);

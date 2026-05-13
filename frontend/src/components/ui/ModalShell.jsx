@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { DURATION, EASE } from '../../utils/motion.js';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
