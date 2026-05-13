@@ -14,6 +14,7 @@ import {
   fetchTask,
   recoverTask,
   approveTask,
+  rejectPlan,
   cancelTask,
   truncateFrom as apiTruncateFrom,
   deleteMessage as apiDeleteMessage,
@@ -29,7 +30,6 @@ import { getCharacter } from '../../frontend/src/api/characters.js';
 import { getConfig } from '../../frontend/src/api/config.js';
 import { log } from '../../frontend/src/utils/logger.js';
 
-const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 const HARNESS_ERROR_PREFIX = 'agent loop error: ';
@@ -76,15 +76,6 @@ export default function AssistantPanel() {
   useEffect(() => {
     return () => abortRef.current?.abort?.();
   }, []);
-
-  // 面板重新打开时若任务处于终态，仅重置任务态（保留消息），避免输入框一直禁用
-  const prevIsOpenRef = useRef(isOpen);
-  useEffect(() => {
-    if (!prevIsOpenRef.current && isOpen && TERMINAL_STATUSES.has(status) && !isRecoverableTerminal) {
-      resetTask();
-    }
-    prevIsOpenRef.current = isOpen;
-  }, [isOpen, status, resetTask, isRecoverableTerminal]);
 
   // 主界面刷新事件已改为按 tool_call_completed 实时派发（见 useAssistantStore），
   // 不再等到 task_completed 才统一通知，避免 awaiting_approval/running 阶段已经写入
@@ -319,12 +310,18 @@ export default function AssistantPanel() {
     approveTask(taskId).catch(() => {});
   }, [taskId]);
 
-  const handleCancel = useCallback(() => {
+  const handleRejectPlan = useCallback(() => {
     if (!taskId) return;
-    cancelTask(taskId).catch(() => {});
-    abortRef.current?.abort?.();
-    setIsStreaming(false);
-  }, [taskId]);
+    rejectPlan(taskId)
+      .then((task) => {
+        abortRef.current?.abort?.();
+        setIsStreaming(false);
+        if (task) replaceTaskSnapshot(task);
+      })
+      .catch((err) => {
+        log.warn('assistant.reject_plan_failed', err, { toast: err?.message || '拒绝计划失败' });
+      });
+  }, [taskId, replaceTaskSnapshot]);
 
   const handleStop = useCallback(() => {
     // 先 abort 本地 SSE：阻止后续 delta 涌入；
@@ -349,9 +346,9 @@ export default function AssistantPanel() {
     reset();
   }, [taskId, status, reset]);
 
-  const inputDisabled =
-    status === 'cancelled' ||
-    (status === 'failed' && !isRecoverableTerminal);
+  // 后端允许在 paused / completed / failed / cancelled 等状态上继续开新一轮对话；
+  // 前端不再用任务状态封锁用户输入。真正终止执行由"停止"与"清空"负责。
+  const inputDisabled = false;
   const hasRunningItem = messages.some(
     (m) => m.status === 'running' || m.streaming === true,
   );
@@ -446,10 +443,10 @@ export default function AssistantPanel() {
               </button>
               <button
                 type="button"
-                onClick={handleCancel}
+                onClick={handleRejectPlan}
                 className="rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-primary)] hover:bg-black/5"
               >
-                取消
+                拒绝计划
               </button>
             </div>
           )}

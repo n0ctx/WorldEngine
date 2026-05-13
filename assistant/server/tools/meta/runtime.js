@@ -40,7 +40,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           status: 'awaiting_approval',
           createdAt: new Date().toISOString(),
           intent: args.intent,
-          assumptions: args.assumptions ?? [],
+          assumptions: planDoc.normalizePlanDocList(args.assumptions ?? []),
           steps,
           log: [],
         });

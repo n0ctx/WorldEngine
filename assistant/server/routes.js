@@ -3,6 +3,7 @@
  *
  * POST /api/assistant/agent                 — 单代理入口（SSE）
  * POST /api/assistant/agent/:taskId/approve — 批准计划
+ * POST /api/assistant/agent/:taskId/reject  — 拒绝当前计划，保留任务继续对话
  * POST /api/assistant/agent/:taskId/cancel  — 取消任务
  * GET  /api/assistant/agent/recover         — 找回最近可恢复任务
  * GET  /api/assistant/agent/:taskId/stream  — 只订阅任务 SSE
@@ -144,6 +145,22 @@ router.post('/agent/:taskId/approve', async (req, res) => {
     taskStore.emit(task.id, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: err.message });
   });
   res.json({ ok: true });
+});
+
+router.post('/agent/:taskId/reject', async (req, res) => {
+  const task = taskStore.getTask(req.params.taskId);
+  if (!task || task.status !== 'awaiting_approval') {
+    log.warn(`/agent/reject REJECT  ${formatMeta({ taskId: req.params.taskId, status: task?.status ?? 'missing' })}`);
+    return res.status(400).json({ error: 'not awaiting approval' });
+  }
+  log.info(`/agent/reject  ${formatMeta({ taskId: task.id })}`);
+  await planDoc.deletePlanDoc(task.id);
+  taskStore.deleteMessage(task.id, `plan-doc-${task.id}`);
+  taskStore.setStatus(task.id, 'paused', { error: null });
+  taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
+  taskStore.emit(task.id, { type: SSE_EVENTS.PAUSED, taskId: task.id });
+  taskStore.emit(task.id, { type: SSE_EVENTS.TASK_SNAPSHOT, taskId: task.id, task: taskStore.buildTaskSnapshot(task) });
+  res.json({ ok: true, task: taskStore.buildTaskSnapshot(task) });
 });
 
 router.post('/agent/:taskId/cancel', async (req, res) => {

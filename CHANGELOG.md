@@ -1,4 +1,10 @@
+- docs(agent): 调整入口执行规则，测试无需再向用户逐项确认。`CLAUDE.md` 新增“自动测试确认”：任务完成后由 agent 根据改动范围自行判断并执行必要的单元/集成/e2e 测试，默认预期全部通过；若存在允许失败项，必须在回执说明原因、范围和后续处理；测试结束后清理本次测试产生的 `/.temp/` 临时文件。`AGENTS.md` 仍只作为镜像入口，不承载独立正文。
+
 - fix(assistant): 去掉写卡助手输入框右侧原生滚动条。`assistant/client/InputBox.jsx` 保持自动增高上限，但把内部 `textarea` 从可见 `overflow-y-auto` 改为隐藏滚动条，恢复底部输入区的干净视觉。
+
+- fix(assistant): 修复拒绝 plan 后输入框被封死，并收敛其它误阻塞输入的状态。此前前端审批区“取消”按钮复用了 `/agent/:taskId/cancel`，后端会把任务切到 `cancelled`，而输入框又把 `cancelled / failed` 当成不可继续，导致用户拒绝计划后无法继续聊天。现在新增 `POST /agent/:taskId/reject`：仅删除当前 plan doc 与对应 `plan_doc` UI 消息，任务切到 `paused` 并下发 `messages_changed + paused + task_snapshot`；前端按钮改为“拒绝计划”并调用该接口。`AssistantPanel` 同步取消基于 `failed/cancelled` 的输入禁用，因后端本就支持在 paused / completed / failed / cancelled 上同一 task 续聊；真正停止执行仍走“停止/清空”。拒绝计划成功后前端会主动 abort 旧审批订阅并恢复发送态，且不再在终态重开面板时清空 `taskId`，确保 completed / failed / cancelled 也能按同一任务续聊。补 `assistant/tests/routes-http.test.js` 回归覆盖拒绝计划后可继续对话。同步 `ARCHITECTURE.md`。
+
+- fix(assistant): 修复计划文档“假设与约束”显示 `[object Object]`。`write_plan_doc` 的 schema 虽声明 `assumptions` 为字符串数组，但模型偶发会传对象数组；旧版 `renderPlanDoc()` 直接模板字符串拼接对象，导致审批计划里出现不可读的 `[object Object]`。现在 `assistant/server/plan-doc.js` 在 Markdown 出口统一清洗宽类型输入：优先取 `text/content/fact/assumption/constraint/description/summary/title/name/value` 等字段，带 `source/from/ref` 时附加来源，兜底展开对象键值；`assistant/server/tools/meta/runtime.js` 在工具入口提前规整 assumptions。补 `assistant/tests/plan-doc.test.mjs` 回归覆盖对象形态假设。并已修复当前 `task-fc58e933` 的落库计划快照，抽屉刷新后不再显示 `[object Object]`。
 
 - fix(assistant): 修复写卡助手“回复完成后按钮仍停在停止”的假运行态。根因是前端 `consumeSseResponse()` 只等网络 EOF 才 resolve；即使后端已经发出 `{ done:true }`，只要 SSE 连接没有及时关闭，`AssistantPanel.handleSend()` 的 `finally` 就不会执行，`isStreaming` 一直为 true，输入框按钮停留在“停止”。现在 parser 收到 `done:true` 后会主动 `reader.cancel()` 并返回，立即触发 `setIsStreaming(false)`；同时补 `frontend/tests/assistant/api.test.js` 用未关闭的 ReadableStream 模拟“done 已到但连接不 EOF”的回归。验证：`cd frontend && npx vitest run tests/assistant/api.test.js`；`node --test assistant/tests/use-assistant-store.test.mjs assistant/tests/parent-agent.test.mjs assistant/tests/routes-http.test.js`。
 

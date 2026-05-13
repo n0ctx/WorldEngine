@@ -13,6 +13,7 @@ const {
   pickNextStep,
   markStepDone,
   appendLog,
+  normalizePlanDocList,
   writePlanDoc,
   readPlanDoc,
   deletePlanDoc,
@@ -40,6 +41,34 @@ test('renderPlanDoc 生成符合 spec §5 模板', () => {
   assert.match(md, /# 任务：创建世界卡《X》/);
   assert.match(md, /- \[ \] \*\*step-1\*\* 创建世界卡（world-card\.create）/);
   assert.match(md, /依赖：step-1/);
+});
+
+test('renderPlanDoc 清洗对象形态的假设与约束', () => {
+  const assumptions = [
+    { fact: '世界卡已存在', source: 'preview_card' },
+    { description: '状态机字段缺少结算枚举' },
+    { foo: 'bar', nested: { value: 'baz' } },
+  ];
+  assert.deepEqual(normalizePlanDocList(assumptions), [
+    '世界卡已存在；来源：preview_card',
+    '状态机字段缺少结算枚举',
+    'foo: bar；nested: baz',
+  ]);
+
+  const md = renderPlanDoc({
+    title: 'T',
+    status: 'planning',
+    createdAt: 'now',
+    intent: 'i',
+    assumptions,
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a' },
+    ],
+    log: [],
+  });
+  assert.doesNotMatch(md, /\[object Object\]/);
+  assert.match(md, /- 世界卡已存在；来源：preview_card/);
+  assert.match(md, /- foo: bar；nested: baz/);
 });
 
 test('parsePlanDoc 还原 steps + done 状态', () => {

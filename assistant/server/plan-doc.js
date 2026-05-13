@@ -12,21 +12,70 @@ export function planDocPath(taskId) {
   return `.temp/assistant/${taskId}.md`;
 }
 
+function normalizePlanDocText(value) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map(normalizePlanDocText).filter(Boolean).join('；');
+  }
+  if (typeof value === 'object') {
+    const preferredKeys = [
+      'text',
+      'content',
+      'fact',
+      'assumption',
+      'constraint',
+      'description',
+      'summary',
+      'title',
+      'name',
+      'value',
+    ];
+    const parts = [];
+    for (const key of preferredKeys) {
+      const text = normalizePlanDocText(value[key]).trim();
+      if (text) parts.push(text);
+    }
+    const source = normalizePlanDocText(value.source ?? value.from ?? value.ref).trim();
+    if (source) parts.push(`来源：${source}`);
+    if (parts.length) return [...new Set(parts)].join('；');
+    return Object.entries(value)
+      .map(([key, val]) => {
+        const text = normalizePlanDocText(val).trim();
+        return text ? `${key}: ${text}` : '';
+      })
+      .filter(Boolean)
+      .join('；');
+  }
+  return String(value);
+}
+
+export function normalizePlanDocList(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return values
+    .map((item) => normalizePlanDocText(item).trim())
+    .filter(Boolean);
+}
+
 export function renderPlanDoc({ title, status, createdAt, intent, assumptions = [], steps = [], log = [] }) {
   const stepLines = steps.map((s) => {
     const checkbox = s.done ? '[x]' : '[ ]';
-    const dep = s.dependsOn?.length ? s.dependsOn.join(', ') : '无';
-    const done = s.done && s.completedAt ? `\n  - 完成于 ${s.completedAt}` : '';
-    return `- ${checkbox} **${s.id}** ${s.title}（${s.targetType}.${s.operation}）\n  - 依赖：${dep}\n  - 任务：${s.task}${done}`;
+    const dep = s.dependsOn?.length ? normalizePlanDocList(s.dependsOn).join(', ') : '无';
+    const done = s.done && s.completedAt ? `\n  - 完成于 ${normalizePlanDocText(s.completedAt)}` : '';
+    return `- ${checkbox} **${normalizePlanDocText(s.id)}** ${normalizePlanDocText(s.title)}（${normalizePlanDocText(s.targetType)}.${normalizePlanDocText(s.operation)}）\n  - 依赖：${dep}\n  - 任务：${normalizePlanDocText(s.task)}${done}`;
   }).join('\n');
-  const assumptionLines = assumptions.length ? assumptions.map((a) => `- ${a}`).join('\n') : '- 无';
-  const logLines = log.length ? log.join('\n') : '';
-  return `# 任务：${title}
+  const normalizedAssumptions = normalizePlanDocList(assumptions);
+  const assumptionLines = normalizedAssumptions.length ? normalizedAssumptions.map((a) => `- ${a}`).join('\n') : '- 无';
+  const logLines = normalizePlanDocList(log).join('\n');
+  return `# 任务：${normalizePlanDocText(title)}
 
-> 状态：${status} · 创建时间：${createdAt}
+> 状态：${normalizePlanDocText(status)} · 创建时间：${normalizePlanDocText(createdAt)}
 
 ## 用户意图
-${intent}
+${normalizePlanDocText(intent)}
 
 ## 假设与约束
 ${assumptionLines}

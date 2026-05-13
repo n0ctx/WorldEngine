@@ -148,6 +148,32 @@ test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () 
   assert.equal(r.status, 400);
 });
 
+test('POST /agent/:taskId/reject 拒绝计划后保留任务继续对话', async () => {
+  const t = taskStore.createTask({ context: {} });
+  taskStore.setStatus(t.id, 'awaiting_approval');
+  await planDoc.writePlanDoc(t.id, '# plan');
+  taskStore.emit(t.id, { type: 'plan_doc_updated', taskId: t.id, content: '# plan' });
+
+  const r = await postJSON(`/agent/${t.id}/reject`, {});
+  assert.equal(r.status, 200);
+  assert.equal(t.status, 'paused');
+  assert.equal(await planDoc.readPlanDoc(t.id), '');
+  assert.equal(t.planDocContent, '');
+  assert.equal(t.messages.some((m) => m.role === 'plan_doc'), false);
+  assert.equal(r.json.task.status, 'paused');
+  assert.equal(r.json.task.planDocContent, '');
+
+  process.env.MOCK_LLM_COMPLETE = '可以，我们换个方案';
+  const resumed = await postSSE('/agent', { taskId: t.id, message: '那改成只优化结算' });
+  assert.equal(resumed.status, 200);
+  assert.equal(t.status, 'completed');
+  assert.ok(resumed.events.some((e) => e.type === 'delta'));
+  delete process.env.MOCK_LLM_COMPLETE;
+
+  const bad = await postJSON(`/agent/${t.id}/reject`, {});
+  assert.equal(bad.status, 400);
+});
+
 test('POST /agent/:taskId/truncate 与 /delete 边界', async () => {
   const t = taskStore.createTask({ context: {} });
   taskStore.appendMessage(t.id, { id: 'm1', role: 'user', content: 'a' });

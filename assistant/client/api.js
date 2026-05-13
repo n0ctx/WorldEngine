@@ -3,6 +3,7 @@
  *
  *   POST /api/assistant/agent             —— SSE 流式入口
  *   POST /api/assistant/agent/:id/approve —— 批准计划
+ *   POST /api/assistant/agent/:id/reject  —— 拒绝当前计划，保留任务继续对话
  *   POST /api/assistant/agent/:id/cancel  —— 取消任务
  *   GET  /api/assistant/agent/recover     —— 找回最近可恢复任务
  *   GET  /api/assistant/agent/:id/stream  —— 补订阅任务 SSE
@@ -128,6 +129,13 @@ export async function recoverTask() {
 
 export async function approveTask(taskId) {
   await fetch(`${BASE}/agent/${taskId}/approve`, { method: 'POST' });
+}
+
+export async function rejectPlan(taskId) {
+  const r = await fetch(`${BASE}/agent/${taskId}/reject`, { method: 'POST' });
+  if (!r.ok) throw new Error(`reject failed: ${r.status}`);
+  const j = await r.json().catch(() => ({}));
+  return j.task || null;
 }
 
 export async function cancelTask(taskId) {

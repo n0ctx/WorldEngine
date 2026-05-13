@@ -1,8 +1,8 @@
 /**
  * 写卡助手输入框
  *
- * `disabled` 仅在不可续聊的终态（failed/cancelled）传入；
- * 其余状态（含 running/awaiting_approval）允许排队消息。
+ * `disabled` 仅用于外部硬性禁用；任务状态本身不封锁输入。
+ * running/awaiting_approval/paused/终态都允许用户继续表达意图。
  * `isStreaming` 为 true 时将发送键换成停止键。
  */
 
@@ -40,7 +40,7 @@ export default function InputBox({ value, onChange, onSend, onStop, disabled = f
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder={disabled ? '任务不可继续，点击「清空」开始新任务' : 'Enter 发送，Shift+Enter 换行'}
+        placeholder={disabled ? '当前暂不可输入' : 'Enter 发送，Shift+Enter 换行'}
         rows={1}
         className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-hidden rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-paper-base)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-[var(--we-paper-aged)]"
         style={{ fontFamily: 'var(--we-font-body)' }}
