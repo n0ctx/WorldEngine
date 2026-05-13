@@ -57,12 +57,12 @@ export default function PlanTaskHud() {
   const runningIndex = visible.findIndex((t) => !t.checked);
 
   return (
-    <div className="flex flex-shrink-0 flex-col gap-1 border-t border-black/10 bg-[var(--we-paper-aged)] px-3 py-2 text-[12px] leading-relaxed text-[var(--we-ink-primary)]">
-      <div className="flex items-center gap-2 text-[11px] text-[var(--we-ink-muted)]">
-        <span className="font-medium text-[var(--we-ink-primary)]">任务进度 {done}/{total}</span>
+    <div className="flex flex-shrink-0 flex-col gap-1 border-t border-black/10 bg-[var(--we-color-bg-subtle)] px-3 py-2 text-[12px] leading-relaxed text-[var(--we-color-text-primary)]">
+      <div className="flex items-center gap-2 text-[11px] text-[var(--we-color-text-tertiary)]">
+        <span className="font-medium text-[var(--we-color-text-primary)]">任务进度 {done}/{total}</span>
         <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-black/10">
           <div
-            className="absolute inset-y-0 left-0 bg-[var(--we-vermilion)] transition-[width] duration-300 ease-out"
+            className="absolute inset-y-0 left-0 bg-[var(--we-color-accent)] transition-[width] duration-300 ease-out"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -86,7 +86,7 @@ export default function PlanTaskHud() {
                 <span
                   aria-hidden="true"
                   className={`flex-shrink-0 text-[11px] ${
-                    t.checked ? 'text-[var(--we-ink-muted)]' : 'text-[var(--we-ink-faded)]'
+                    t.checked ? 'text-[var(--we-color-text-tertiary)]' : 'text-[var(--we-color-text-disabled)]'
                   }`}
                 >
                   {t.checked ? '☑' : '☐'}
@@ -94,7 +94,7 @@ export default function PlanTaskHud() {
               )}
               <span
                 className={`min-w-0 flex-1 truncate ${
-                  t.checked ? 'line-through text-[var(--we-ink-muted)]' : ''
+                  t.checked ? 'line-through text-[var(--we-color-text-tertiary)]' : ''
                 } ${isRunning ? 'we-hud-running-item font-medium' : ''}`}
               >
                 {displayText}
@@ -103,7 +103,7 @@ export default function PlanTaskHud() {
           );
         })}
         {overflow > 0 && (
-          <li className="mt-0.5 text-[11px] text-[var(--we-ink-muted)]">
+          <li className="mt-0.5 text-[11px] text-[var(--we-color-text-tertiary)]">
             还有 {overflow} 项…
           </li>
         )}

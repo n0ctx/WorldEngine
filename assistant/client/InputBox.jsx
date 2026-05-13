@@ -33,7 +33,7 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
   const hint = placeholder ?? 'Enter 发送，Shift+Enter 换行，/stop 停止当前任务';
 
   return (
-    <div className="flex flex-shrink-0 items-end gap-2 border-t border-black/10 bg-[var(--we-paper-base)] px-3 py-2">
+    <div className="flex flex-shrink-0 items-end gap-2 border-t border-black/10 bg-[var(--we-color-bg-canvas)] px-3 py-2">
       <textarea
         ref={textareaRef}
         value={value}
@@ -42,14 +42,14 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
         disabled={disabled}
         placeholder={disabled ? '当前暂不可输入' : hint}
         rows={1}
-        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-hidden rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-paper-base)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-ink-primary)] outline-none transition-colors focus-visible:border-[var(--we-vermilion)] disabled:cursor-not-allowed disabled:bg-[var(--we-paper-aged)]"
+        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-hidden rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-canvas)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] outline-none transition-colors focus-visible:border-[var(--we-color-accent)] disabled:cursor-not-allowed disabled:bg-[var(--we-color-bg-subtle)]"
         style={{ fontFamily: 'var(--we-font-body)' }}
       />
       <button
         type="button"
         onClick={onSend}
         disabled={sendDisabled}
-        className="h-9 min-w-[52px] flex-shrink-0 rounded-[var(--we-radius-sm)] bg-[var(--we-vermilion)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-vermilion)]/30"
+        className="h-9 min-w-[52px] flex-shrink-0 rounded-[var(--we-radius-sm)] bg-[var(--we-color-accent)] px-3 text-[13px] italic text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--we-color-accent)]/30"
         style={{ fontFamily: 'var(--we-font-display)' }}
       >
         发送

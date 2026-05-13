@@ -70,7 +70,7 @@ export default function DragHandle({
       className={`group z-10 touch-none ${isVertical ? 'cursor-ew-resize' : 'cursor-ns-resize'} ${className}`}
     >
       <div
-        className={`absolute bg-transparent transition-colors duration-150 group-hover:bg-[var(--we-vermilion)]/40 ${
+        className={`absolute bg-transparent transition-colors duration-150 group-hover:bg-[var(--we-color-accent)]/40 ${
           isVertical
             ? 'left-1/2 top-0 h-full w-px -translate-x-1/2'
             : 'left-0 top-1/2 h-px w-full -translate-y-1/2'

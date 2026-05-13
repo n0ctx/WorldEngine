@@ -476,7 +476,7 @@ export default function AssistantPanel() {
       <aside
         aria-hidden={!isOpen}
         style={{ width: `${width}px` }}
-        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex flex-col border-l border-black/10 bg-[var(--we-paper-base)] shadow-2xl transition-transform duration-200 ease-out ${
+        className={`fixed right-0 bottom-0 top-[40px] z-[200] flex flex-col border-l border-black/10 bg-[var(--we-color-bg-canvas)] shadow-2xl transition-transform duration-200 ease-out ${
           isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
         }`}
       >
@@ -492,9 +492,9 @@ export default function AssistantPanel() {
           className="absolute -left-1 top-0 h-full w-2"
         />
         {/* 标题栏 */}
-        <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-paper-aged)] px-3">
+        <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-color-bg-subtle)] px-3">
           <span
-            className="flex-1 text-[14px] italic text-[var(--we-ink-primary)]"
+            className="flex-1 text-[14px] italic text-[var(--we-color-text-primary)]"
             style={{ fontFamily: 'var(--we-font-display)' }}
           >
             写卡助手
@@ -503,7 +503,7 @@ export default function AssistantPanel() {
             <button
               type="button"
               onClick={handleReset}
-              className="rounded px-2 py-0.5 text-[11px] text-[var(--we-ink-muted)] hover:bg-black/5"
+              className="rounded px-2 py-0.5 text-[11px] text-[var(--we-color-text-tertiary)] hover:bg-black/5"
               title="清空对话"
             >
               清空
@@ -513,7 +513,7 @@ export default function AssistantPanel() {
             type="button"
             onClick={close}
             aria-label="关闭"
-            className="rounded px-2 py-0.5 text-[16px] leading-none text-[var(--we-ink-muted)] hover:bg-black/5"
+            className="rounded px-2 py-0.5 text-[16px] leading-none text-[var(--we-color-text-tertiary)] hover:bg-black/5"
           >
             ×
           </button>
@@ -531,27 +531,27 @@ export default function AssistantPanel() {
             />
           )}
           {error && status === 'failed' && !isRecoverableTerminal && (
-            <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-vermilion)]/20 bg-[var(--we-vermilion)]/10 px-3 py-2 text-[12px] text-[var(--we-vermilion)]">
+            <div className="mx-3 my-2 flex items-center gap-2 rounded border border-[var(--we-color-accent)]/20 bg-[var(--we-color-accent)]/10 px-3 py-2 text-[12px] text-[var(--we-color-accent)]">
               <span className="flex-1">{error}</span>
               <button
                 type="button"
                 onClick={handleRegenerateLastUser}
-                className="shrink-0 rounded px-2 py-0.5 hover:bg-[var(--we-vermilion)]/10"
+                className="shrink-0 rounded px-2 py-0.5 hover:bg-[var(--we-color-accent)]/10"
               >
                 重新生成
               </button>
             </div>
           )}
           {status === 'awaiting_approval' && (
-            <div className={`flex flex-col border-t border-black/10 bg-[var(--we-paper-aged)] ${planDoc ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
+            <div className={`flex flex-col border-t border-black/10 bg-[var(--we-color-bg-subtle)] ${planDoc ? 'flex-1 min-h-0' : 'flex-shrink-0'}`}>
               {/* 计划文档预览区 */}
               {planDoc && (
                 <div className="flex flex-1 min-h-0 flex-col">
                   <div className="flex items-center gap-1.5 border-b border-black/5 px-3 py-1.5">
-                    <span className="text-[11px] font-medium tracking-wide text-[var(--we-ink-muted)]" style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>
+                    <span className="text-[11px] font-medium tracking-wide text-[var(--we-color-text-tertiary)]" style={{ fontFamily: 'var(--we-font-display)', fontStyle: 'italic' }}>
                       计划草案
                     </span>
-                    <span className="ml-auto rounded bg-[var(--we-vermilion)]/10 px-1.5 py-0.5 text-[10px] text-[var(--we-vermilion)]">待审批</span>
+                    <span className="ml-auto rounded bg-[var(--we-color-accent)]/10 px-1.5 py-0.5 text-[10px] text-[var(--we-color-accent)]">待审批</span>
                   </div>
                   <div className="we-plan-doc-preview flex-1 min-h-0 overflow-y-auto px-3 py-2">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{planDoc}</ReactMarkdown>
@@ -563,14 +563,14 @@ export default function AssistantPanel() {
                 <button
                   type="button"
                   onClick={handleApprove}
-                  className="flex-shrink-0 rounded bg-[var(--we-vermilion)] px-4 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 active:opacity-80"
+                  className="flex-shrink-0 rounded bg-[var(--we-color-accent)] px-4 py-1.5 text-[12px] font-medium text-white shadow-sm hover:opacity-90 active:opacity-80"
                 >
                   确认执行
                 </button>
                 <button
                   type="button"
                   onClick={handleRejectPlan}
-                  className="flex-shrink-0 rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-ink-secondary)] hover:bg-black/5"
+                  className="flex-shrink-0 rounded border border-black/15 px-3 py-1.5 text-[12px] text-[var(--we-color-text-secondary)] hover:bg-black/5"
                 >
                   拒绝计划
                 </button>
@@ -585,13 +585,13 @@ export default function AssistantPanel() {
                   }}
                   placeholder="填写修改建议…"
                   rows={1}
-                  className="min-w-0 flex-1 resize-none rounded border border-black/10 bg-[var(--we-paper-base)] px-2 py-1.5 text-[12px] text-[var(--we-ink-primary)] placeholder-[var(--we-ink-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--we-vermilion)]/30"
+                  className="min-w-0 flex-1 resize-none rounded border border-black/10 bg-[var(--we-color-bg-canvas)] px-2 py-1.5 text-[12px] text-[var(--we-color-text-primary)] placeholder-[var(--we-color-text-tertiary)] focus:outline-none focus:ring-1 focus:ring-[var(--we-color-accent)]/30"
                 />
                 <button
                   type="button"
                   onClick={handleRevise}
                   disabled={!reviseInput.trim()}
-                  className="flex-shrink-0 rounded border border-black/15 bg-[var(--we-paper-base)] px-2.5 py-1.5 text-[11px] text-[var(--we-ink-secondary)] hover:bg-black/5 disabled:opacity-35"
+                  className="flex-shrink-0 rounded border border-black/15 bg-[var(--we-color-bg-canvas)] px-2.5 py-1.5 text-[11px] text-[var(--we-color-text-secondary)] hover:bg-black/5 disabled:opacity-35"
                 >
                   确认修改
                 </button>
