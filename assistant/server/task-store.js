@@ -314,19 +314,60 @@ function isRecoverableTask(task) {
   return LIVE_RECOVERABLE_TASK_STATUSES.has(task?.status) || isRestartInterruptedTask(task);
 }
 
-export function getLatestRecoverableTask() {
+function contextMatches(task, context) {
+  if (!context) return true;
+  const want = {
+    worldId: context.worldId ?? null,
+    characterId: context.characterId ?? null,
+  };
+  const got = {
+    worldId: task?.context?.worldId ?? null,
+    characterId: task?.context?.characterId ?? null,
+  };
+  return got.worldId === want.worldId && got.characterId === want.characterId;
+}
+
+/**
+ * 找回当前 context 下最近的可恢复任务。
+ * - 传入 context（含 worldId / characterId）：仅返回 context 严格匹配的任务，无匹配返回 null（不再跨上下文兜底，避免任务串台）。
+ * - 不传 context：保持旧行为，返回最近任意可恢复任务（向后兼容）。
+ */
+export function getLatestRecoverableTask(context = null) {
   let latest = null;
   for (const task of tasks.values()) {
     if (!isRecoverableTask(task)) continue;
+    if (!contextMatches(task, context)) continue;
     if (!latest || (task.updatedAt ?? 0) > (latest.updatedAt ?? 0)) {
       latest = task;
     }
   }
   if (latest) return latest;
+  // 内存缓存覆盖 hydrate 后的全部任务，跨上下文兜底查询只在无 context 时走 DB。
+  if (context) return null;
   return getLatestAssistantTask(`
     status IN ('running', 'awaiting_approval', 'paused')
     OR (status = 'failed' AND error = '${RESTART_INTERRUPTED_ERROR}')
   `);
+}
+
+/**
+ * 列出所有可恢复任务的轻量摘要；可选排除某个 context（用于"当前世界没有任务，但其他世界还有 N 个未完成"提示）。
+ */
+export function listRecoverableTasks({ excludeContext = null } = {}) {
+  const out = [];
+  for (const task of tasks.values()) {
+    if (!isRecoverableTask(task)) continue;
+    if (excludeContext && contextMatches(task, excludeContext)) continue;
+    out.push({
+      id: task.id,
+      status: task.status,
+      context: task.context ?? {},
+      updatedAt: task.updatedAt ?? 0,
+      title: task.approvalCheckpoint?.title ?? null,
+    });
+  }
+  out.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+  return out;
 }
 
 export function setStatus(id, status, { error } = {}) {

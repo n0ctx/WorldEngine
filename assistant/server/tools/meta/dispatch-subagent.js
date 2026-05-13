@@ -2,7 +2,7 @@
 // 仅声明纯 schema,execute 闭包仍留在 parent-agent.js 内构造。
 export const dispatchSubagentDefinition = {
   name: 'dispatch_subagent',
-  description: '派发子代理执行一个任务；可引用计划文档 stepId，也可直接提供 targetType / operation / task。返回 { ok:true, summary } 或 { ok:false, error }。',
+  description: '派发子代理执行一个任务；可引用计划文档 stepId，也可直接提供 targetType / operation / task。返回 { success:true, summary } 或 { success:false, error }。',
   parameters: {
     type: 'object',
     properties: {

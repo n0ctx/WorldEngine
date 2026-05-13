@@ -73,7 +73,7 @@ test('toLLMTool / reply_to_user 工具构造', async () => {
     (err) => isToolLoopControlSignal(err) && err.kind === 'terminal',
   );
   const empty = await reply.execute({ message: '' });
-  assert.equal(empty.ok, false);
+  assert.equal(empty.success, false);
 });
 
 test('buildContextBlock 反映 task 状态与 appliedResources', () => {
@@ -105,6 +105,34 @@ test('detectPlanFirstPolicy 会识别通用计划边界', () => {
   const block = __testables.buildContextBlock(task, '', __testables.detectPlanFirstPolicy('从零创建一个角色卡并补全状态').hints);
   assert.match(block, /本轮强制编排提示/);
   assert.match(block, /必须先调用 write_plan_doc/);
+});
+
+test('detectPlanFirstPolicy 排除纯查询动词', () => {
+  assert.equal(__testables.detectPlanFirstPolicy('完整地展示一下我的角色卡').requiresPlanFirst, false);
+  assert.equal(__testables.detectPlanFirstPolicy('告诉我现在有哪些条目').requiresPlanFirst, false);
+  assert.equal(__testables.detectPlanFirstPolicy('帮我查看一下全部世界卡').requiresPlanFirst, false);
+  // 含写入意图时即使有"展示"字样也应触发
+  assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再补全所有字段').requiresPlanFirst, true);
+});
+
+test('claimedExecutionWithoutRealAction 在无 tool_call 时不再误伤纯解释回复', () => {
+  const task = { id: 't', messages: [], appliedResources: [] };
+  assert.equal(
+    __testables.claimedExecutionWithoutRealAction(task, 0, 0, '调用子代理是 agent loop 中的派发机制，下面解释 dispatch_subagent 流程。'),
+    false,
+    '纯解释 + 零工具调用应直接放行',
+  );
+  // 模型曾尝试工具但什么也没做，又声称已经派发：仍应识别
+  const taskWithCall = {
+    id: 't2',
+    messages: [{ id: 'c1', role: 'tool_call', toolName: 'preview_card', status: 'done' }],
+    appliedResources: [],
+  };
+  assert.equal(
+    __testables.claimedExecutionWithoutRealAction(taskWithCall, 0, 0, '我已经派发子代理完成了写入。'),
+    true,
+    '有 tool_call 但无 dispatch + 无 applied → 仍触发',
+  );
 });
 
 test('buildModelMessages 过滤工具、步骤、计划 UI 记录', () => {
@@ -148,8 +176,8 @@ test('buildMetaTools：5 个工具与各分支', async () => {
   assert.ok(types.includes('awaiting_approval'));
 
   const editPlan = tools[1];
-  assert.equal((await editPlan.execute({ op: 'append_log', line: 'log-1' })).ok, false);
-  assert.equal((await editPlan.execute({ op: 'mark_done' })).ok, false);
+  assert.equal((await editPlan.execute({ op: 'append_log', line: 'log-1' })).success, false);
+  assert.equal((await editPlan.execute({ op: 'mark_done' })).success, false);
 });
 
 test('dispatch_subagent: 已 applied 过 create 时拒绝重复', async () => {
@@ -158,7 +186,7 @@ test('dispatch_subagent: 已 applied 过 create 时拒绝重复', async () => {
   const tools = __testables.buildMetaTools(task, () => {});
   const dispatch = tools[2];
   const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '再建一个' });
-  assert.equal(r.ok, false);
+  assert.equal(r.success, false);
   assert.match(r.error, /本轮已经成功创建过/);
   const r2 = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '再建一个', force: true });
   // force:true 通过去重，但因 mock LLM 没装备工具调用流水，依然以 ok:true/false 形式返回（这里只验证不被去重拦住）
@@ -170,7 +198,7 @@ test('dispatch_subagent: 状态密集型任务未写计划时拒绝直接派发'
   const tools = __testables.buildMetaTools(task, () => {}, null, { requiresPlanFirst: true, planDocExists: false });
   const dispatch = tools[2];
   const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '创建玩家卡并填写全部状态字段' });
-  assert.equal(r.ok, false);
+  assert.equal(r.success, false);
   assert.match(r.error, /必须先调用 write_plan_doc/);
 });
 
@@ -449,7 +477,7 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
     op: 'replace_steps',
     steps: [{ title: '只剩这个', targetType: 'character-card', operation: 'update', task: 't' }],
   });
-  assert.equal(r.ok, true);
+  assert.equal(r.success, true);
 
   const newMd = await planDoc.readPlanDoc(task.id);
   const parsed = planDoc.parsePlanDoc(newMd);

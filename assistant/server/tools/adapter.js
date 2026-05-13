@@ -59,7 +59,10 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
           onCancelLog(name);
           throw new ToolLoopCancelledError('task cancelled mid-execution');
         }
-        const success = !(result && result.ok === false);
+        // 严格判定：工具必须显式返回 { success: true } 才算成功。
+        // result 缺失、返回字符串/非标准对象、或显式 { success: false } 全部视为失败。
+        // apply 工具在异常时 throw（由下方 catch 捕获），其它工具走此路径。
+        const success = Boolean(result) && result.success === true;
         emitFn({
           type: SSE_EVENTS.TOOL_CALL_COMPLETED,
           toolName: name,

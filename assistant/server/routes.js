@@ -40,6 +40,14 @@ function buildTaskResponse(task) {
   return task ? { task: taskStore.buildTaskSnapshot(task) } : { task: null };
 }
 
+function contextMatchesTask(reqContext, task) {
+  const taskWorld = task?.context?.worldId ?? null;
+  const taskChar = task?.context?.characterId ?? null;
+  const reqWorld = reqContext?.worldId ?? null;
+  const reqChar = reqContext?.characterId ?? null;
+  return taskWorld === reqWorld && taskChar === reqChar;
+}
+
 // ─── 提案归一化已移至 ./normalize-proposal.js ─────────────────────
 
 export const __testables = {
@@ -60,6 +68,21 @@ router.post('/agent', async (req, res) => {
   res.flushHeaders?.();
 
   let task = taskId ? taskStore.getTask(taskId) : null;
+  if (task && context && !contextMatchesTask(context, task)) {
+    // 跨上下文请求拒绝：标签页 A（世界 a）拿着 task X 切到世界 b 后再发送，
+    // 会把另一个世界的消息塞进 X 的 pendingUserMessages 串台。
+    log.warn(`/agent REJECT_CROSS_CONTEXT  ${formatMeta({
+      taskId,
+      reqWorld: context.worldId ?? null,
+      taskWorld: task.context?.worldId ?? null,
+      reqChar: context.characterId ?? null,
+      taskChar: task.context?.characterId ?? null,
+    })}`);
+    res.status(409);
+    writeSse(res, { type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: 'context mismatch' });
+    res.end();
+    return;
+  }
   const isNew = !task;
   // 与 runParentAgent 内部 run 共享同一 runId，保证 task_created 事件也携带 runId，
   // 满足 ARCHITECTURE.md §14 "所有由 runParentAgent 触发的 SSE 事件携带 runId" 的契约。
@@ -209,9 +232,27 @@ router.post('/agent/:taskId/delete', (req, res) => {
 });
 
 router.get('/agent/recover', (req, res) => {
-  const task = taskStore.getLatestRecoverableTask();
+  const { worldId, characterId } = req.query ?? {};
+  const context = (worldId !== undefined || characterId !== undefined)
+    ? {
+        worldId: worldId ? String(worldId) : null,
+        characterId: characterId ? String(characterId) : null,
+      }
+    : null;
+  const task = taskStore.getLatestRecoverableTask(context);
   if (!task) return res.json({ task: null });
   res.json(buildTaskResponse(task));
+});
+
+router.get('/agent/recoverable-tasks', (req, res) => {
+  const { worldId, characterId } = req.query ?? {};
+  const excludeContext = (worldId !== undefined || characterId !== undefined)
+    ? {
+        worldId: worldId ? String(worldId) : null,
+        characterId: characterId ? String(characterId) : null,
+      }
+    : null;
+  res.json({ tasks: taskStore.listRecoverableTasks({ excludeContext }) });
 });
 
 router.get('/agent/:taskId/stream', (req, res) => {

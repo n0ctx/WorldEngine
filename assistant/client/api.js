@@ -111,8 +111,17 @@ export async function fetchTask(taskId) {
   return j.task || null;
 }
 
-export async function recoverTask() {
-  const r = await fetch(`${BASE}/agent/recover`);
+function buildContextQuery(context) {
+  if (!context) return '';
+  const params = new URLSearchParams();
+  if (context.worldId) params.set('worldId', context.worldId);
+  if (context.characterId) params.set('characterId', context.characterId);
+  const q = params.toString();
+  return q ? `?${q}` : '';
+}
+
+export async function recoverTask(context = null) {
+  const r = await fetch(`${BASE}/agent/recover${buildContextQuery(context)}`);
   if (!r.ok) {
     let errMsg = `HTTP ${r.status}`;
     try {
@@ -125,6 +134,13 @@ export async function recoverTask() {
   }
   const j = await r.json();
   return j.task || null;
+}
+
+export async function listRecoverableTasks(excludeContext = null) {
+  const r = await fetch(`${BASE}/agent/recoverable-tasks${buildContextQuery(excludeContext)}`);
+  if (!r.ok) return [];
+  const j = await r.json().catch(() => ({}));
+  return Array.isArray(j.tasks) ? j.tasks : [];
 }
 
 export async function approveTask(taskId) {

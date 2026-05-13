@@ -13,6 +13,7 @@ import {
   subscribeTask,
   fetchTask,
   recoverTask,
+  listRecoverableTasks,
   approveTask,
   rejectPlan,
   cancelTask,
@@ -159,11 +160,30 @@ export default function AssistantPanel() {
           task = await fetchTask(taskId).catch(() => null);
         }
         if (!task) {
-          task = await recoverTask().catch(() => null);
+          // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
+          const recoverContext = {
+            worldId: currentWorldId ?? null,
+            characterId: currentCharacterId ?? null,
+          };
+          task = await recoverTask(recoverContext).catch(() => null);
           recoveryMode = 'latest';
         }
         if (!task) {
           if (taskId) resetTask();
+          // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
+          try {
+            const others = await listRecoverableTasks({
+              worldId: currentWorldId ?? null,
+              characterId: currentCharacterId ?? null,
+            });
+            if (others.length > 0) {
+              log.info('assistant.resume.other_context', null, {
+                toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
+              });
+            }
+          } catch {
+            // 忽略列表查询失败
+          }
           return;
         }
         replaceTaskSnapshot(task);
@@ -200,7 +220,7 @@ export default function AssistantPanel() {
         recoveringRef.current = false;
       }
     })();
-  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask]);
+  }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
 
   const handleSend = useCallback(
     async (overrideText, opts = {}) => {

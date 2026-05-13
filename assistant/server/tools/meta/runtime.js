@@ -35,17 +35,19 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: s.task,
           done: false,
         }));
+        const nowIso = new Date().toISOString();
         const md = planDoc.renderPlanDoc({
           title: args.title,
           status: 'awaiting_approval',
-          createdAt: new Date().toISOString(),
+          createdAt: nowIso,
+          updatedAt: nowIso,
           intent: args.intent,
           assumptions: planDoc.normalizePlanDocList(args.assumptions ?? []),
           steps,
         });
         const validation = planDoc.validatePlanDoc(md);
         if (!validation.valid) {
-          return { ok: false, error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
+          return { success: false, error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
         }
         await planDoc.writePlanDoc(task.id, md);
         taskStore.setApprovalCheckpoint(task.id, {
@@ -59,7 +61,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.AWAITING_APPROVAL, { taskId: task.id });
       } catch (err) {
         if (err instanceof ToolLoopControlSignal) throw err;
-        return { ok: false, error: err.message };
+        return { success: false, error: err.message };
       }
     },
   };
@@ -70,10 +72,10 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
       try {
         let md = await planDoc.readPlanDoc(task.id);
         if (args.op === 'mark_done') {
-          if (!args.stepId) return { ok: false, error: 'mark_done 需要 stepId' };
+          if (!args.stepId) return { success: false, error: 'mark_done 需要 stepId' };
           md = planDoc.markStepDone(md, args.stepId, new Date().toISOString().slice(11, 19));
         } else if (args.op === 'replace_steps') {
-          if (!Array.isArray(args.steps)) return { ok: false, error: 'replace_steps 需要 steps 数组' };
+          if (!Array.isArray(args.steps)) return { success: false, error: 'replace_steps 需要 steps 数组' };
           const parsed = planDoc.parsePlanDoc(md);
           const doneSteps = parsed.steps.filter((s) => s.done);
           const doneIds = new Set(doneSteps.map((s) => s.id));
@@ -96,19 +98,24 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           md = planDoc.renderPlanDoc({
             title: parsed.title,
             status: parsed.status,
-            createdAt: new Date().toISOString(),
-            intent: '',
-            assumptions: [],
+            createdAt: parsed.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            intent: parsed.intent ?? '',
+            assumptions: parsed.assumptions ?? [],
             steps: [...doneSteps, ...incoming],
           });
+          const validation = planDoc.validatePlanDoc(md);
+          if (!validation.valid) {
+            return { success: false, error: `计划文档校验失败：${validation.error}，请检查 steps 字段是否完整` };
+          }
         } else {
-          return { ok: false, error: `unknown op: ${args.op}` };
+          return { success: false, error: `unknown op: ${args.op}` };
         }
         await planDoc.writePlanDoc(task.id, md);
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
-        return { ok: true };
+        return { success: true };
       } catch (err) {
-        return { ok: false, error: err.message };
+        return { success: false, error: err.message };
       }
     },
   };
@@ -119,7 +126,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
       try {
         if (options.requiresPlanFirst && !options.planDocExists && !args.stepId) {
           return {
-            ok: false,
+            success: false,
             error: [
               '当前用户请求属于复杂 / 高风险 / 结构化体系任务，必须先调用 write_plan_doc 拆成可审批步骤。',
               '不要直接 dispatch_subagent。',
@@ -132,8 +139,8 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           const md = await planDoc.readPlanDoc(task.id);
           const parsed = planDoc.parsePlanDoc(md);
           step = parsed.steps.find((s) => s.id === args.stepId);
-          if (!step) return { ok: false, error: `step not found: ${args.stepId}` };
-          if (step.done) return { ok: false, error: `step already done: ${args.stepId}` };
+          if (!step) return { success: false, error: `step not found: ${args.stepId}` };
+          if (step.done) return { success: false, error: `step already done: ${args.stepId}` };
         }
         const resolved = step ?? {
           id: args.stepId ?? `adhoc-${Date.now()}`,
@@ -144,7 +151,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: args.task,
         };
         if (!resolved.targetType || !resolved.task) {
-          return { ok: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
+          return { success: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
         }
 
         if (resolved.operation === 'create' && !args.force) {
@@ -152,7 +159,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             e.kind === resolved.targetType && e.op === 'create');
           if (dup) {
             return {
-              ok: false,
+              success: false,
               error: `本轮已经成功创建过 ${resolved.targetType}（${dup.name ?? dup.refId ?? '上一条记录'}）。若用户明确还要再建一张，请在 task 字段说明差异并加 force:true；否则用 reply_to_user 告知用户已完成。`,
             };
           }
@@ -175,21 +182,21 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           });
           if (result?.success === false) {
             emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
-            outcome = { ok: false, error: result.error ?? 'subagent reported failure' };
+            outcome = { success: false, error: result.error ?? 'subagent reported failure' };
           } else {
             emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
-            outcome = { ok: true, summary: result?.summary ?? '' };
+            outcome = { success: true, summary: result?.summary ?? '' };
           }
         } catch (err) {
           emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: err.message });
-          outcome = { ok: false, error: err.message };
+          outcome = { success: false, error: err.message };
         } finally {
           taskStore.setCurrentStep(task.id, null);
         }
         taskStore.setLastSubagentResult(task.id, {
           stepId: resolved.id,
           title: resolved.title,
-          ok: outcome.ok,
+          success: outcome.success,
           summary: outcome.summary ?? null,
           error: outcome.error ?? null,
           at: Date.now(),
@@ -213,7 +220,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         return outcome;
       } catch (err) {
         if (err instanceof ToolLoopControlSignal) throw err;
-        return { ok: false, error: err.message };
+        return { success: false, error: err.message };
       }
     },
   };
@@ -224,9 +231,9 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
       try {
         await planDoc.deletePlanDoc(task.id);
         taskStore.setApprovalCheckpoint(task.id, null);
-        return { ok: true };
+        return { success: true };
       } catch (err) {
-        return { ok: false, error: err.message };
+        return { success: false, error: err.message };
       }
     },
   };
@@ -251,7 +258,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         });
       } catch (err) {
         if (err instanceof ToolLoopControlSignal) throw err;
-        return { ok: false, error: err.message };
+        return { success: false, error: err.message };
       }
     },
   };

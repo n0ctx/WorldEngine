@@ -60,7 +60,7 @@ export function normalizePlanDocList(value) {
     .filter(Boolean);
 }
 
-export function renderPlanDoc({ title, status, createdAt, intent, assumptions = [], steps = [] }) {
+export function renderPlanDoc({ title, status, createdAt, updatedAt, intent, assumptions = [], steps = [] }) {
   const stepLines = steps.map((s) => {
     const checkbox = s.done ? '[x]' : '[ ]';
     const dep = s.dependsOn?.length ? normalizePlanDocList(s.dependsOn).join(', ') : '无';
@@ -69,9 +69,12 @@ export function renderPlanDoc({ title, status, createdAt, intent, assumptions = 
   }).join('\n');
   const normalizedAssumptions = normalizePlanDocList(assumptions);
   const assumptionLines = normalizedAssumptions.length ? normalizedAssumptions.map((a) => `- ${a}`).join('\n') : '- 无';
+  const timeLine = updatedAt
+    ? `> 状态：${normalizePlanDocText(status)} · 创建时间：${normalizePlanDocText(createdAt)} · 更新时间：${normalizePlanDocText(updatedAt)}`
+    : `> 状态：${normalizePlanDocText(status)} · 创建时间：${normalizePlanDocText(createdAt)}`;
   return `# 任务：${normalizePlanDocText(title)}
 
-> 状态：${normalizePlanDocText(status)} · 创建时间：${normalizePlanDocText(createdAt)}
+${timeLine}
 
 ## 用户意图
 ${normalizePlanDocText(intent)}
@@ -85,17 +88,39 @@ ${stepLines}
 `;
 }
 
-const STEP_RE = /^- \[(x| )\] \*\*(step-\d+)\*\* (.+?)（([\w-]+)\.(create|update|delete)）$/;
-const DEP_RE = /^  - 依赖：(.+)$/;
-const TASK_RE = /^  - 任务：(.+)$/;
-const COMPLETED_AT_RE = /^  - 完成于 (.+)$/;
+// STEP_RE 容错：兼容全角/半角括号、行首/分隔位置多余空格；步骤行匹配不到时单步降级而非整份失败。
+const STEP_RE = /^\s*-\s*\[\s*([ x])\s*\]\s*\*\*(step-\d+)\*\*\s*(.+?)\s*[（(]\s*([\w-]+)\s*\.\s*(create|update|delete)\s*[)）]\s*$/;
+const DEP_RE = /^\s+-\s*依赖：(.+)$/;
+const TASK_RE = /^\s+-\s*任务：(.+)$/;
+const COMPLETED_AT_RE = /^\s+-\s*完成于\s*(.+)$/;
+
+function extractSection(md, startHeader, endHeaderRe) {
+  const startIdx = md.indexOf(startHeader);
+  if (startIdx < 0) return '';
+  const after = md.slice(startIdx + startHeader.length);
+  const endMatch = after.match(endHeaderRe);
+  const sectionRaw = endMatch ? after.slice(0, endMatch.index) : after;
+  return sectionRaw.replace(/^\s+|\s+$/g, '');
+}
 
 export function parsePlanDoc(md) {
   const lines = md.split('\n');
   const titleMatch = lines[0]?.match(/^# 任务：(.+)$/);
-  const title = titleMatch ? titleMatch[1] : '';
-  const statusMatch = md.match(/状态：(\w+)/);
+  const title = titleMatch ? titleMatch[1].trim() : '';
+  const statusMatch = md.match(/状态：\s*(\w+)/);
   const status = statusMatch ? statusMatch[1] : 'planning';
+  const createdAtMatch = md.match(/创建时间：\s*([^·\n]+?)\s*(?:·|$|\n)/);
+  const createdAt = createdAtMatch ? createdAtMatch[1].trim() : '';
+  const updatedAtMatch = md.match(/更新时间：\s*([^·\n]+?)\s*(?:·|$|\n)/);
+  const updatedAt = updatedAtMatch ? updatedAtMatch[1].trim() : '';
+
+  const intent = extractSection(md, '## 用户意图', /^##\s/m);
+  const assumptionsRaw = extractSection(md, '## 假设与约束', /^##\s/m);
+  const assumptions = assumptionsRaw
+    .split('\n')
+    .map((line) => line.replace(/^\s*-\s*/, '').trim())
+    .filter((line) => line && line !== '无');
+
   const steps = [];
   let cur = null;
   for (const line of lines) {
@@ -108,18 +133,18 @@ export function parsePlanDoc(md) {
     if (!cur) continue;
     const dm = line.match(DEP_RE);
     if (dm) {
-      cur.dependsOn = dm[1] === '无' ? [] : dm[1].split(',').map((x) => x.trim()).filter(Boolean);
+      cur.dependsOn = dm[1].trim() === '无' ? [] : dm[1].split(',').map((x) => x.trim()).filter(Boolean);
       continue;
     }
     const tm = line.match(TASK_RE);
     if (tm) {
-      cur.task = tm[1];
+      cur.task = tm[1].trim();
       continue;
     }
     const cm = line.match(COMPLETED_AT_RE);
-    if (cm) cur.completedAt = cm[1];
+    if (cm) cur.completedAt = cm[1].trim();
   }
-  return { title, status, steps };
+  return { title, status, createdAt, updatedAt, intent, assumptions, steps };
 }
 
 export function pickNextStep(steps) {
@@ -173,7 +198,7 @@ export function markStepDone(md, stepId, completedAt) {
   for (let i = 0; i < lines.length; i += 1) {
     const m = lines[i].match(STEP_RE);
     if (m && m[2] === stepId) {
-      out.push(lines[i].replace(/^- \[ \]/, '- [x]'));
+      out.push(lines[i].replace(/^(\s*-\s*)\[\s*\]/, '$1[x]'));
       let j = i + 1;
       const block = [];
       while (j < lines.length && lines[j].startsWith('  - ')) {

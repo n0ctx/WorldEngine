@@ -212,6 +212,35 @@ test('buildTaskSnapshot 与 getLatestRecoverableTask 返回可恢复快照', () 
   assert.equal(snapshot.error, taskStore.__testables.RESTART_INTERRUPTED_ERROR);
 });
 
+test('getLatestRecoverableTask 严格按 context 隔离，无匹配返回 null', () => {
+  const a = freshTask({ worldId: 'world-A', characterId: null });
+  const b = freshTask({ worldId: 'world-B', characterId: null });
+  taskStore.setStatus(a.id, 'awaiting_approval');
+  taskStore.setStatus(b.id, 'paused');
+
+  // 传入 world-A 上下文：应返回 a，不应跨上下文返回 b
+  const recoveredA = taskStore.getLatestRecoverableTask({ worldId: 'world-A', characterId: null });
+  assert.equal(recoveredA?.id, a.id);
+
+  // 传入 world-C（无匹配）：必须返回 null，不再兜底
+  const recoveredC = taskStore.getLatestRecoverableTask({ worldId: 'world-C', characterId: null });
+  assert.equal(recoveredC, null);
+});
+
+test('listRecoverableTasks 排除指定 context，按 updatedAt 倒序返回其它任务', () => {
+  const a = freshTask({ worldId: 'world-A', characterId: null });
+  const b = freshTask({ worldId: 'world-B', characterId: null });
+  taskStore.setStatus(a.id, 'awaiting_approval');
+  taskStore.setStatus(b.id, 'paused');
+
+  const others = taskStore.listRecoverableTasks({
+    excludeContext: { worldId: 'world-A', characterId: null },
+  });
+  const ids = others.map((t) => t.id);
+  assert.ok(ids.includes(b.id), '应包含 world-B 任务');
+  assert.ok(!ids.includes(a.id), '不应包含当前上下文 world-A');
+});
+
 test.after(() => {
   sandbox.cleanup();
 });
