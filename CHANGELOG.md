@@ -1,3 +1,5 @@
+- fix(assistant): 修复拒绝计划后又被静默恢复成新计划，并删除计划文档底部空“执行日志”。`POST /agent/:taskId/reject` 现在会清空审批 checkpoint，并把任务切到 `paused + error='plan rejected by user'`；`AssistantPanel` 识别该暂停原因，只恢复快照和输入态，不再自动 `resume:true` 触发父代理重跑。计划文档模板移除“执行日志”小节，`edit_plan_doc` 也删除 `append_log` 操作，避免审批前出现无意义尾段。同步 `SCHEMA.md` / `ARCHITECTURE.md`，更新 `assistant/tests/plan-doc.test.mjs`、`assistant/tests/parent-agent.test.mjs`、`assistant/tests/routes-http.test.js`。
+
 - docs(agent): 调整入口执行规则，测试无需再向用户逐项确认。`CLAUDE.md` 新增“自动测试确认”：任务完成后由 agent 根据改动范围自行判断并执行必要的单元/集成/e2e 测试，默认预期全部通过；若存在允许失败项，必须在回执说明原因、范围和后续处理；测试结束后清理本次测试产生的 `/.temp/` 临时文件。`AGENTS.md` 仍只作为镜像入口，不承载独立正文。
 
 - fix(assistant): 去掉写卡助手输入框右侧原生滚动条。`assistant/client/InputBox.jsx` 保持自动增高上限，但把内部 `textarea` 从可见 `overflow-y-auto` 改为隐藏滚动条，恢复底部输入区的干净视觉。

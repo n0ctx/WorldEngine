@@ -30,6 +30,7 @@ import { SSE_EVENTS } from './sse-events.js';
 
 const router = Router();
 const log = createLogger('as-route', 'yellow');
+export const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
 
 function writeSse(res, payload) {
   res.write(`data: ${JSON.stringify(payload)}\n\n`);
@@ -156,7 +157,8 @@ router.post('/agent/:taskId/reject', async (req, res) => {
   log.info(`/agent/reject  ${formatMeta({ taskId: task.id })}`);
   await planDoc.deletePlanDoc(task.id);
   taskStore.deleteMessage(task.id, `plan-doc-${task.id}`);
-  taskStore.setStatus(task.id, 'paused', { error: null });
+  taskStore.setApprovalCheckpoint(task.id, null);
+  taskStore.setStatus(task.id, 'paused', { error: PLAN_REJECTED_PAUSE_REASON });
   taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });
   taskStore.emit(task.id, { type: SSE_EVENTS.PAUSED, taskId: task.id });
   taskStore.emit(task.id, { type: SSE_EVENTS.TASK_SNAPSHOT, taskId: task.id, task: taskStore.buildTaskSnapshot(task) });

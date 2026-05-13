@@ -157,10 +157,12 @@ test('POST /agent/:taskId/reject 拒绝计划后保留任务继续对话', async
   const r = await postJSON(`/agent/${t.id}/reject`, {});
   assert.equal(r.status, 200);
   assert.equal(t.status, 'paused');
+  assert.equal(t.error, 'plan rejected by user');
   assert.equal(await planDoc.readPlanDoc(t.id), '');
   assert.equal(t.planDocContent, '');
   assert.equal(t.messages.some((m) => m.role === 'plan_doc'), false);
   assert.equal(r.json.task.status, 'paused');
+  assert.equal(r.json.task.error, 'plan rejected by user');
   assert.equal(r.json.task.planDocContent, '');
 
   process.env.MOCK_LLM_COMPLETE = '可以，我们换个方案';

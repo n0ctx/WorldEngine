@@ -33,6 +33,7 @@ import { log } from '../../frontend/src/utils/logger.js';
 const ACTIVE_CANCELABLE_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const RECOVERABLE_TERMINAL_ERROR = 'interrupted by restart';
 const HARNESS_ERROR_PREFIX = 'agent loop error: ';
+const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
 
 function isRestartInterrupted(error) {
   return error === RECOVERABLE_TERMINAL_ERROR;
@@ -184,9 +185,11 @@ export default function AssistantPanel() {
             log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
           }
         }
+        const isUserRejectedPlanPause =
+          task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
         const shouldAutoResume =
           task.status === 'running' ||
-          task.status === 'paused' ||
+          (task.status === 'paused' && !isUserRejectedPlanPause) ||
           (task.status === 'failed' && isRestartInterrupted(task.error));
         if (shouldAutoResume) {
           await openRecoveryStream(task.id, 'resume');

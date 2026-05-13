@@ -42,7 +42,6 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           intent: args.intent,
           assumptions: planDoc.normalizePlanDocList(args.assumptions ?? []),
           steps,
-          log: [],
         });
         const validation = planDoc.validatePlanDoc(md);
         if (!validation.valid) {
@@ -73,9 +72,6 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (args.op === 'mark_done') {
           if (!args.stepId) return { ok: false, error: 'mark_done 需要 stepId' };
           md = planDoc.markStepDone(md, args.stepId, new Date().toISOString().slice(11, 19));
-        } else if (args.op === 'append_log') {
-          if (!args.line) return { ok: false, error: 'append_log 需要 line' };
-          md = planDoc.appendLog(md, args.line);
         } else if (args.op === 'replace_steps') {
           if (!Array.isArray(args.steps)) return { ok: false, error: 'replace_steps 需要 steps 数组' };
           const parsed = planDoc.parsePlanDoc(md);
@@ -104,7 +100,6 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             intent: '',
             assumptions: [],
             steps: [...doneSteps, ...incoming],
-            log: [],
           });
         } else {
           return { ok: false, error: `unknown op: ${args.op}` };

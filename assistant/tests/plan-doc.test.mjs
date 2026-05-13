@@ -12,7 +12,6 @@ const {
   parsePlanDoc,
   pickNextStep,
   markStepDone,
-  appendLog,
   normalizePlanDocList,
   writePlanDoc,
   readPlanDoc,
@@ -36,11 +35,11 @@ test('renderPlanDoc 生成符合 spec §5 模板', () => {
       { id: 'step-1', title: '创建世界卡', targetType: 'world-card', operation: 'create', dependsOn: [], task: '...' },
       { id: 'step-2', title: '加状态字段', targetType: 'world-card', operation: 'update', dependsOn: ['step-1'], task: '...' },
     ],
-    log: [],
   });
   assert.match(md, /# 任务：创建世界卡《X》/);
   assert.match(md, /- \[ \] \*\*step-1\*\* 创建世界卡（world-card\.create）/);
   assert.match(md, /依赖：step-1/);
+  assert.doesNotMatch(md, /执行日志/);
 });
 
 test('renderPlanDoc 清洗对象形态的假设与约束', () => {
@@ -64,7 +63,6 @@ test('renderPlanDoc 清洗对象形态的假设与约束', () => {
     steps: [
       { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a' },
     ],
-    log: [],
   });
   assert.doesNotMatch(md, /\[object Object\]/);
   assert.match(md, /- 世界卡已存在；来源：preview_card/);
@@ -117,13 +115,7 @@ test('markStepDone 把 [ ] 改成 [x] 并追加完成时间', () => {
   assert.match(out, /完成于 14:33:05/);
 });
 
-test('appendLog 追加到执行日志小节', () => {
-  const md = `## 执行日志\n`;
-  const out = appendLog(md, 'step-1 done');
-  assert.match(out, /## 执行日志\n.*step-1 done/s);
-});
-
-test('renderPlanDoc 可序列化已完成 step 的 completedAt 与日志行', () => {
+test('renderPlanDoc 可序列化已完成 step 的 completedAt', () => {
   const md = renderPlanDoc({
     title: 'T',
     status: 'executing',
@@ -133,11 +125,10 @@ test('renderPlanDoc 可序列化已完成 step 的 completedAt 与日志行', ()
     steps: [
       { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: true, completedAt: 'ts1' },
     ],
-    log: ['line-1', 'line-2'],
   });
   assert.match(md, /- \[x\] \*\*step-1\*\*/);
   assert.match(md, /完成于 ts1/);
-  assert.match(md, /line-1\nline-2/);
+  assert.doesNotMatch(md, /执行日志/);
 });
 
 test('parsePlanDoc 处理空文档与无意义首行', () => {

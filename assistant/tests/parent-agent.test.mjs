@@ -50,7 +50,7 @@ test('plan_doc_updated 事件携带文档全文', async () => {
   const fakeRes = { write: (line) => events.push(line) };
   taskStore.attachSse(task.id, fakeRes);
   await planDoc.writePlanDoc(task.id,
-    '# 任务：T\n\n> 状态：planning · 创建时间：x\n\n## 用户意图\nx\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n\n## 执行日志\n');
+    '# 任务：T\n\n> 状态：planning · 创建时间：x\n\n## 用户意图\nx\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n');
   taskStore.emit(task.id, { type: 'plan_doc_updated', taskId: task.id, content: 'demo' });
   assert.match(events.at(-1), /plan_doc_updated/);
   assert.match(events.at(-1), /demo/);
@@ -148,7 +148,7 @@ test('buildMetaTools：5 个工具与各分支', async () => {
   assert.ok(types.includes('awaiting_approval'));
 
   const editPlan = tools[1];
-  assert.equal((await editPlan.execute({ op: 'append_log', line: 'log-1' })).ok, true);
+  assert.equal((await editPlan.execute({ op: 'append_log', line: 'log-1' })).ok, false);
   assert.equal((await editPlan.execute({ op: 'mark_done' })).ok, false);
 });
 
@@ -440,8 +440,6 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
     '- [ ] **step-2** todo（character-card.create）',
     '  - 依赖：无',
     '  - 任务：b',
-    '',
-    '## 执行日志',
     '',
   ].join('\n');
   await planDoc.writePlanDoc(task.id, md);

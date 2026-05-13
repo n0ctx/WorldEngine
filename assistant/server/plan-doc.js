@@ -60,7 +60,7 @@ export function normalizePlanDocList(value) {
     .filter(Boolean);
 }
 
-export function renderPlanDoc({ title, status, createdAt, intent, assumptions = [], steps = [], log = [] }) {
+export function renderPlanDoc({ title, status, createdAt, intent, assumptions = [], steps = [] }) {
   const stepLines = steps.map((s) => {
     const checkbox = s.done ? '[x]' : '[ ]';
     const dep = s.dependsOn?.length ? normalizePlanDocList(s.dependsOn).join(', ') : '无';
@@ -69,7 +69,6 @@ export function renderPlanDoc({ title, status, createdAt, intent, assumptions = 
   }).join('\n');
   const normalizedAssumptions = normalizePlanDocList(assumptions);
   const assumptionLines = normalizedAssumptions.length ? normalizedAssumptions.map((a) => `- ${a}`).join('\n') : '- 无';
-  const logLines = normalizePlanDocList(log).join('\n');
   return `# 任务：${normalizePlanDocText(title)}
 
 > 状态：${normalizePlanDocText(status)} · 创建时间：${normalizePlanDocText(createdAt)}
@@ -83,9 +82,6 @@ ${assumptionLines}
 ## 步骤
 
 ${stepLines}
-
-## 执行日志
-${logLines}
 `;
 }
 
@@ -192,10 +188,6 @@ export function markStepDone(md, stepId, completedAt) {
     }
   }
   return out.join('\n');
-}
-
-export function appendLog(md, line) {
-  return md.replace(/(## 执行日志\n)/, `$1${line}\n`);
 }
 
 function getPersistedTask(taskId) {
