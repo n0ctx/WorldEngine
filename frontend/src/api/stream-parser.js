@@ -1,3 +1,5 @@
+import { log } from '../utils/logger.js';
+
 /**
  * 解析 SSE 流，分发事件到对应回调
  *
@@ -72,10 +74,16 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
           else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);
           else callbacks.onEvent?.(evt);
-        } catch {
-          // ignore malformed events
+        } catch (err) {
+          log.warn('sse.malformed_event', {
+            message: err?.message || 'Malformed SSE event',
+            preview: json.slice(0, 200),
+          });
         }
       }
+    }
+    if (buffer.trim()) {
+      log.warn('sse.trailing_buffer', { preview: buffer.trim().slice(0, 200) });
     }
   } finally {
     reader.releaseLock();

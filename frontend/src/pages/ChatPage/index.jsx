@@ -144,6 +144,14 @@ export default function ChatPage() {
     setOptionCollapsed(false);
   }, []);
 
+  const resetContinuationState = useCallback(() => {
+    continuationTokenRef.current += 1;
+    continuingMessageIdRef.current = null;
+    continuingTextRef.current = '';
+    setContinuingMessageId(null);
+    setContinuingText('');
+  }, []);
+
   // 每次开启新流时调用：生成本轮唯一的占位 key
   const beginStreamingKey = useCallback(() => {
     const k = `__stream_${Date.now()}_${Math.random().toString(36).slice(2, 8)}__`;
@@ -234,6 +242,8 @@ export default function ChatPage() {
 
   const clearActiveSession = useCallback(() => {
     invalidateCurrentRun();
+    stopRef.current?.();
+    stopRef.current = null;
     recoveryStopRef.current?.();
     recoveryStopRef.current = null;
     clearOptionsState();
@@ -251,14 +261,11 @@ export default function ChatPage() {
     setMemoryExpanding(false);
     setMemoryWriting(false);
     setRecallSummary(null);
-    setContinuingMessageId(null);
-    setContinuingText('');
+    resetContinuationState();
     streamingTextRef.current = '';
-    continuingMessageIdRef.current = null;
-    continuingTextRef.current = '';
-    stopRef.current = null;
+    setPendingDiaryInject(null);
     setMessageListKey((k) => k + 1);
-  }, [clearOptionsState, invalidateCurrentRun, setCurrentSessionId]);
+  }, [clearOptionsState, invalidateCurrentRun, resetContinuationState, setCurrentSessionId]);
 
   // 加载角色信息
   useEffect(() => {
@@ -283,10 +290,16 @@ export default function ChatPage() {
         if (c.world_id) {
           getPersona(c.world_id).then((p) => {
             if (!cancelled) setPersona(p);
-          }).catch(() => {});
-          syncDiaryTimeField(c.world_id).catch(() => {});
+          }).catch((err) => {
+            log.error('chat.persona.load_failed', err, { toast: '加载玩家信息失败' });
+          });
+          syncDiaryTimeField(c.world_id).catch((err) => {
+            log.warn('chat.diary.sync_failed', err);
+          });
         }
-      }).catch(() => {});
+      }).catch((err) => {
+        log.error('chat.character.load_failed', err, { toast: '加载角色信息失败' });
+      });
 
       if (!shouldResetSession && currentSessionId) {
         getSession(currentSessionId)
@@ -327,6 +340,8 @@ export default function ChatPage() {
 
   function enterSession(session) {
     invalidateCurrentRun();
+    stopRef.current?.();
+    stopRef.current = null;
     recoveryStopRef.current?.();
     recoveryStopRef.current = null;
     clearOptionsState();
@@ -336,6 +351,8 @@ export default function ChatPage() {
     setStreamingText('');
     setErrorBubble(null);
     streamingTextRef.current = '';
+    resetContinuationState();
+    setPendingDiaryInject(null);
     setMessageListKey((k) => k + 1);
   }
 
@@ -835,7 +852,13 @@ export default function ChatPage() {
     setImpersonating(true);
     try {
       const { content } = await impersonate(currentSessionId);
-      if (content) inputBoxRef.current?.fillText(content);
+      if (content) {
+        const filled = inputBoxRef.current?.fillText(content, { focus: false });
+        if (filled === false) {
+          const confirmed = window.confirm('输入框已有内容，是否用 AI 代写结果覆盖？');
+          if (confirmed) inputBoxRef.current?.fillText(content, { force: true, focus: true });
+        }
+      }
     } catch (err) {
       log.error('chat.proxy_failed', err, { toast: err.message || '代拟失败' });
     } finally {
@@ -932,7 +955,7 @@ export default function ChatPage() {
 
 // 根据最近对话上下文重新生成标题
   async function handleRetitle() {
-    if (!currentSessionId) return;
+    if (generating || !currentSessionId) return;
     try {
       showToast('标题生成中…');
       const { title } = await retitle(currentSessionId);

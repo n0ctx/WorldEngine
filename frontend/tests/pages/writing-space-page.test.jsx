@@ -191,6 +191,20 @@ describe('WritingSpacePage', () => {
     expect(mocks.refreshCustomCss).toHaveBeenCalledWith('chat');
   });
 
+  it('初始化失败时显示错误并允许重试', async () => {
+    mocks.listWritingSessions
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce([{ id: 'ws-2', title: '第二章' }]);
+
+    renderWritingSpacePage();
+
+    expect(await screen.findByText('加载写作会话失败，请重试')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('重试'));
+
+    await waitFor(() => expect(mocks.listWritingSessions.mock.calls.length).toBeGreaterThanOrEqual(2));
+    expect(await screen.findByTestId('message-list')).toHaveTextContent('ws-2');
+  });
+
   it('writing continue 在 onStreamEnd 前不会允许重复触发', async () => {
     const callbacksRef = { current: null };
     mocks.listWritingSessions.mockResolvedValue([{ id: 'ws-1', title: '章节一' }]);
@@ -429,6 +443,7 @@ describe('WritingSpacePage', () => {
     await waitFor(() => expect(screen.getByTestId('message-list')).toHaveTextContent('ws-1'));
 
     fireEvent.click(screen.getByText('impersonate-writing'));
+    await waitFor(() => expect(mocks.impersonateWriting).toHaveBeenCalledWith('world-1', 'ws-1'));
     await waitFor(() => expect(mocks.logError).toHaveBeenCalledWith(
       'writing.proxy_failed',
       expect.anything(),

@@ -108,6 +108,9 @@ export default function WritingSpacePage() {
   const [memoryExpanding, setMemoryExpanding] = useState(false);
   const [memoryWriting, setMemoryWriting] = useState(false);
   const [recallSummary, setRecallSummary] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [initError, setInitError] = useState(null);
+  const [initRetryToken, setInitRetryToken] = useState(0);
 
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -194,21 +197,44 @@ export default function WritingSpacePage() {
   // 命中失败/无 hint 时落到 sessions[0]（列表已按 updated_at DESC 排序，即最新一条）。
   useEffect(() => {
     if (!worldId) return;
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setIsInitializing(true);
+      setInitError(null);
+    });
     listWritingSessions(worldId).then((sessions) => {
+      if (cancelled) return;
       const hintId = useStore.getState().currentWritingSessionId;
       if (sessions.length === 0) {
         createWritingSession(worldId).then((s) => {
+          if (cancelled) return;
           writingSessionListBridge.addSession?.(s);
           enterSession(s);
-        }).catch(() => {});
+          setIsInitializing(false);
+        }).catch((err) => {
+          if (cancelled) return;
+          log.error('writing.session.create_failed', err, { toast: err.message || '创建写作会话失败' });
+          setInitError('创建写作会话失败，请重试');
+          setIsInitializing(false);
+        });
         return;
       }
       const target = (hintId && sessions.find((s) => s.id === hintId)) || sessions[0];
       enterSession(target);
-    }).catch(() => {});
+      setIsInitializing(false);
+    }).catch((err) => {
+      if (cancelled) return;
+      log.error('writing.session.list_failed', err, { toast: err.message || '加载写作会话失败' });
+      setInitError('加载写作会话失败，请重试');
+      setIsInitializing(false);
+    });
+    return () => {
+      cancelled = true;
+    };
     // enterSession is intentionally kept as the page-level imperative transition used by stream callbacks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [worldId]);
+  }, [worldId, initRetryToken]);
 
   // 已在写作页时 TopBar 再次下发「会话」hint：切到目标 session 后清空 hint。
   // 与 init 效应配合：若 hint 在 mount 时已被 init 消费命中，进入此效应后 ids 相同直接清 hint；
@@ -869,7 +895,13 @@ export default function WritingSpacePage() {
     setImpersonating(true);
     try {
       const { content } = await impersonateWriting(worldId, session.id);
-      if (content) inputBoxRef.current?.fillText(content);
+      if (content) {
+        const filled = inputBoxRef.current?.fillText(content, { focus: false });
+        if (filled === false) {
+          const confirmed = window.confirm('输入框已有内容，是否用 AI 代写结果覆盖？');
+          if (confirmed) inputBoxRef.current?.fillText(content, { force: true, focus: true });
+        }
+      }
     } catch (err) {
       log.error('writing.proxy_failed', err, { toast: err.message || '代拟失败' });
     } finally {
@@ -880,9 +912,9 @@ export default function WritingSpacePage() {
   // 重新生成会话标题（修复 /title 命令）
   async function handleRetitle() {
     const session = currentSessionRef.current;
-    if (!session) return;
+    if (generating || !session) return;
     try {
-        const { title } = await retitleWritingSession(worldId, session.id);
+      const { title } = await retitleWritingSession(worldId, session.id);
       if (title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
         writingSessionListBridge.updateTitle?.(session.id, title);
@@ -895,7 +927,7 @@ export default function WritingSpacePage() {
   // 用户编辑章节标题（不调用 LLM）
   async function handleChapterEdit(chapterIndex, newTitle) {
     const session = currentSessionRef.current;
-    if (!session) return;
+    if (generating || !session) return;
     try {
       await updateChapterTitle(worldId, session.id, chapterIndex, newTitle);
       setChapterTitles((prev) => ({ ...prev, [chapterIndex]: { title: newTitle, is_default: 0 } }));
@@ -907,7 +939,7 @@ export default function WritingSpacePage() {
   // LLM 重新生成章节标题
   async function handleChapterRetitle(chapterIndex) {
     const session = currentSessionRef.current;
-    if (!session) return;
+    if (generating || !session) return;
     try {
       const { title } = await retitleChapter(worldId, session.id, chapterIndex);
       if (title) {
@@ -971,42 +1003,58 @@ export default function WritingSpacePage() {
               )}
             </AnimatePresence>
 
-            {/* 消息列表 */}
-            <MessageList
-              ref={messageListRef}
-              key={`${currentSession?.id}-${messageListKey}`}
-              sessionId={currentSession?.id}
-              character={null}
-              persona={persona}
-              worldId={worldId}
-              generating={generating}
-              streamingText={streamingText}
-              streamingKey={streamingKey}
-              continuingMessageId={continuingMessageId}
-              continuingText={continuingText}
-              onEditMessage={handleEditMessage}
-              onRegenerateMessage={handleRegenerateMessage}
-              onEditAssistantMessage={handleEditAssistantMessage}
-              onDeleteMessage={handleDeleteMessage}
-              prose
-              chapterTitles={chapterTitles}
-              onChapterEdit={handleChapterEdit}
-              onChapterRetitle={handleChapterRetitle}
-              options={currentOptions}
-              onSelectOption={(text, idx) => { selectedOptionIndexRef.current = idx; handleSend(text); }}
-              onDismissOptions={() => setCurrentOptions([])}
-              optionCollapsed={optionCollapsedRef.current}
-              onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
-              onMessagesLoaded={(msgs) => {
-                const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
-                const opts = lastAsst?.next_options;
-                if (Array.isArray(opts) && opts.length > 0) {
-                  setCurrentOptions(opts);
-                  optionCollapsedRef.current = false;
-                }
-                void recoverLiveStream(currentSessionRef.current?.id ?? null);
-              }}
-            />
+            {isInitializing ? (
+              <div className="flex-1 flex items-center justify-center text-sm text-text-secondary opacity-60">
+                正在准备写作空间…
+              </div>
+            ) : initError ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-sm text-[var(--we-color-text-danger)]">{initError}</p>
+                <button
+                  type="button"
+                  className="we-panel-card-action we-panel-card-action--chip"
+                  onClick={() => setInitRetryToken((token) => token + 1)}
+                >
+                  重试
+                </button>
+              </div>
+            ) : (
+              <MessageList
+                ref={messageListRef}
+                key={`${currentSession?.id}-${messageListKey}`}
+                sessionId={currentSession?.id}
+                character={null}
+                persona={persona}
+                worldId={worldId}
+                generating={generating}
+                streamingText={streamingText}
+                streamingKey={streamingKey}
+                continuingMessageId={continuingMessageId}
+                continuingText={continuingText}
+                onEditMessage={handleEditMessage}
+                onRegenerateMessage={handleRegenerateMessage}
+                onEditAssistantMessage={handleEditAssistantMessage}
+                onDeleteMessage={handleDeleteMessage}
+                prose
+                chapterTitles={chapterTitles}
+                onChapterEdit={handleChapterEdit}
+                onChapterRetitle={handleChapterRetitle}
+                options={currentOptions}
+                onSelectOption={(text, idx) => { selectedOptionIndexRef.current = idx; handleSend(text); }}
+                onDismissOptions={() => setCurrentOptions([])}
+                optionCollapsed={optionCollapsedRef.current}
+                onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
+                onMessagesLoaded={(msgs) => {
+                  const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
+                  const opts = lastAsst?.next_options;
+                  if (Array.isArray(opts) && opts.length > 0) {
+                    setCurrentOptions(opts);
+                    optionCollapsedRef.current = false;
+                  }
+                  void recoverLiveStream(currentSessionRef.current?.id ?? null);
+                }}
+              />
+            )}
 
             {/* 错误提示 */}
             {error && (

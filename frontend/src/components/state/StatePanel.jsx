@@ -66,7 +66,16 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const tick = useStore((s) => s.memoryRefreshTick);
   const queuedTick = useStore((s) => s.stateQueuedRefreshTick);
   const failedTick = useStore((s) => s.stateFailedTick);
-  const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } = useSessionState(sessionId, tick, tick, queuedTick, failedTick);
+  const {
+    stateData,
+    setStateData,
+    diaryEntries,
+    stateError,
+    diaryError,
+    stateJustChanged,
+    isUpdating,
+    retryStateLoad,
+  } = useSessionState(sessionId, tick, tick, queuedTick, failedTick);
 
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
@@ -194,9 +203,9 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       onDiaryInject?.(null);
       return;
     }
-    setSelectedEntry(entry);
     try {
       const content = await fetchDiaryContent(sessionId, entry.date_str);
+      setSelectedEntry(entry);
       onDiaryInject?.(content);
     } catch (e) {
       log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
@@ -225,18 +234,33 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     </button>
   );
 
+  const renderLoadError = (message) => (
+    <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+      <p className="text-sm text-[var(--we-color-text-danger)]">{message}</p>
+      <button
+        type="button"
+        className="we-panel-card-action we-panel-card-action--chip"
+        onClick={retryStateLoad}
+      >
+        重试
+      </button>
+    </div>
+  );
+
   const worldTab = (
     <div className="we-panel-tab-body">
       <div className="we-world-frame">
         <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorld, worldResetting)}>
-          <StatusSection
-            headerless
-            gridLayout
-            className="we-status-world"
-            rows={worldRows}
-            onSave={handleSaveWorld}
-            templateCtx={templateCtx}
-          />
+          {stateError ? renderLoadError('世界状态加载失败') : (
+            <StatusSection
+              headerless
+              gridLayout
+              className="we-status-world"
+              rows={worldRows}
+              onSave={handleSaveWorld}
+              templateCtx={templateCtx}
+            />
+          )}
         </PanelCard>
       </div>
     </div>
@@ -245,14 +269,16 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   const playerTab = (
     <div className="we-panel-tab-body">
       <PanelCard variant="headerless">
-        <StatusSection
-          headerless
-          gridLayout
-          className="we-status-player"
-          rows={stateData?.persona ?? null}
-          onSave={handleSavePersona}
-          templateCtx={templateCtx}
-        />
+        {stateError ? renderLoadError('玩家状态加载失败') : (
+          <StatusSection
+            headerless
+            gridLayout
+            className="we-status-player"
+            rows={stateData?.persona ?? null}
+            onSave={handleSavePersona}
+            templateCtx={templateCtx}
+          />
+        )}
       </PanelCard>
     </div>
   );
@@ -261,14 +287,16 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     <div className="we-panel-tab-body">
       <PanelCard variant="headerless">
         {character ? (
-          <StatusSection
-            headerless
-            gridLayout
-            className="we-status-character"
-            rows={stateData?.character ?? null}
-            onSave={handleSaveCharacter}
-            templateCtx={templateCtx}
-          />
+          stateError ? renderLoadError('角色状态加载失败') : (
+            <StatusSection
+              headerless
+              gridLayout
+              className="we-status-character"
+              rows={stateData?.character ?? null}
+              onSave={handleSaveCharacter}
+              templateCtx={templateCtx}
+            />
+          )
         ) : (
           <p className="we-section-empty">尚未选择角色</p>
         )}
@@ -286,6 +314,8 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               <div key={i} className="we-skel we-state-skeleton-line" style={{ width: `${w}%` }} />
             ))}
           </div>
+        ) : diaryError ? (
+          renderLoadError('日记加载失败')
         ) : !hasDiary ? (
           <p className="we-section-empty">暂无日记</p>
         ) : (

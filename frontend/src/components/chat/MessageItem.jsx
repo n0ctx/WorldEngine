@@ -183,7 +183,15 @@ function formatCost(usd) {
 
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
+  const [failed, setFailed] = useState(false);
   const url = `/api/uploads/${src}`;
+  if (failed) {
+    return (
+      <div className="we-attachment-thumbnail flex items-center justify-center text-xs opacity-60">
+        图片加载失败
+      </div>
+    );
+  }
   return (
     <>
       <img
@@ -191,13 +199,14 @@ function AttachmentThumbnail({ src }) {
         alt="附件"
         className="we-attachment-thumbnail"
         onClick={() => setEnlarged(true)}
+        onError={() => setFailed(true)}
       />
       {enlarged && (
         <div
           className="we-attachment-overlay"
           onClick={() => setEnlarged(false)}
         >
-          <img src={url} alt="附件" className="we-attachment-overlay-img" />
+          <img src={url} alt="附件" className="we-attachment-overlay-img" onError={() => setFailed(true)} />
         </div>
       )}
     </>

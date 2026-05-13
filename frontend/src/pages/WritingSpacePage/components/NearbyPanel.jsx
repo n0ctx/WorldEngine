@@ -250,9 +250,9 @@ export default function NearbyPanel({
       onDiaryInject?.(null);
       return;
     }
-    setSelectedEntry(entry);
     try {
       const content = await fetchDiaryContent(sessionId, entry.date_str);
+      setSelectedEntry(entry);
       onDiaryInject?.(content);
     } catch (e) {
       log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
