@@ -4,6 +4,14 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **refactor: 三个 CSS 文件 padding/margin/gap 替换为 --we-space-* token** — chat.css 约 55 处替换 + 23 处 design exact 标注；pages.css 约 24 处替换 + 17 处标注；ui.css 约 62 处替换 + 62 处标注；标准值（2/4/8/12/16/24/32px）替换为 var(--we-space-xxs/xs/sm/md/lg/xl/2xl)，非标准值加 `/* design exact */` 注释
+- **refactor: ui.css box-shadow 内联 color-mix 提取为 --we-shadow-* token** — 新增 3 个 token（`--we-shadow-btn-primary-inner-glow`、`--we-shadow-range-thumb`、`--we-shadow-range-thumb-active`）至 `tokens.css` 物理质感阴影区段末尾；替换 `ui.css` 4 处内联 color-mix（行 94/2255/2263/2272）；两个主题包无需额外覆写（color-mix 引用的基变量已在主题中覆写）
+- **refactor: pages.css / ui.css 硬编码 font-size 标注 no token** — 4 处 10px 及以下（7px/8px/9px×2）均无对应 token，保留原值并加 `/* no token */` 注释；仅改 `frontend/src/themes/pages.css` 和 `frontend/src/themes/ui.css`
+- **refactor: chat.css 硬编码 font-size 替换为 --we-text-* token** — 14 处替换（12px/11px/16.5px/13px×2/12.5px/15px/11px×4/12px/14px×2 → 对应 token），5 处保留原值并加 `/* no token */` 注释（9px/10px×3/16px）；仅改 `frontend/src/themes/chat.css`
+- **style: 统一所有表单框为单一蓝框样式** — select-trigger.open 改用 `--we-color-border-focus`；session-item__edit-input / flags-custom-input / chapter-edit-input / entry-order-token-input 默认边框改为 `--we-color-border-default`；number input 抑制原生 spinner 避免双框；影响 `ui.css` `chat.css` `pages.css`
+- **refactor: 主题三层对齐补全** — 新增 `check-theme-alignment.mjs` 脚本；`_template/theme.css` 补入 26 个盲区 token（bookshelf/entry-row/elevated/scrim/dialog 等）；`classic-parchment` 和 `lovable-cream` 覆盖率均升至 100%；README 补充对齐检查说明；`npm run check:themes` 注册到 package.json
+- **style: lovable-cream 严格对齐 DESIGN.md** — 修复卡片/面板/条目行背景由 #ffffff 改为 #f7f4ed、移除所有 drop-shadow 改用 border 定义边界、focus shadow 统一为 0 4px 12px rgba(0,0,0,0.1)、bookshelf 卡片背景同步为奶油色；`themes/lovable-cream/theme.css`、`theme.json`
+
 ---
 
 - **fix: assistant 消息脚注激活条目超宽截断** — `ActivatedEntriesRow` 改用 `useLayoutEffect` + ResizeObserver 直接 DOM 操作，保持单行同行展示，超宽时显示 `+n` badge，token stat span 加 `flex-shrink: 0` + `white-space: nowrap` 防止"命中"被拆字；`chat.css` + `ActivatedEntriesRow.jsx`。

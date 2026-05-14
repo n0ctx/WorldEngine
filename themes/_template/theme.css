@@ -21,6 +21,7 @@
 
   --we-color-bg-canvas: #f7f7f4;
   --we-color-bg-surface: #ffffff;
+  --we-color-bg-elevated: #ffffff;    /* 弹窗/浮层，主题可加深以制造层次 */
   --we-color-bg-subtle: #e2e2dc;
   --we-color-bg-muted: #c9c9c0;
   --we-color-bg-overlay: rgba(23, 23, 23, 0.5);
@@ -30,6 +31,7 @@
   --we-color-border-subtle: #ffffff;
   --we-color-border-strong: #c9c9c0;
   --we-color-border-focus: #7d766f;
+  --we-color-border-white-faint: rgba(255, 255, 255, 0.04); /* 深色表面上的极淡白色分隔线 */
 
   --we-color-status-success: #4f6a58;
   --we-color-status-warning: #9a6c35;
@@ -60,6 +62,9 @@
   --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
   --we-color-accent-border: rgba(125, 118, 111, 0.25);
   --we-color-accent-border-sm: rgba(125, 118, 111, 0.22);
+  --we-color-white-wash: rgba(255, 255, 255, 0.05);      /* ~5% 白色悬停 */
+  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.12);  /* ~12% 高光（按钮） */
+  --we-color-white-sheen-md: rgba(255, 255, 255, 0.22);  /* ~22% 高光（卡片） */
 
   /* ──────────────────────────────────────────────────────────────
      § 2 字体与页面排版
@@ -83,7 +88,7 @@
   --we-card-name-font-weight: 400;
 
   /* ──────────────────────────────────────────────────────────────
-     § 3 卡片与面板皮肤
+     § 3 卡片、面板与条目行
      ────────────────────────────────────────────────────────────── */
 
   --we-card-bg: var(--we-color-bg-surface);
@@ -96,8 +101,12 @@
   --we-panel-card-radius: var(--we-radius-md);
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, #171717 3%, transparent);
 
+  /* 条目行（WorldConfigPage 四列）：默认与画布同色，主题可覆盖以产生浮起感 */
+  --we-entry-row-bg: var(--we-color-bg-canvas);
+  --we-entry-row-shadow: none;
+
   /* ──────────────────────────────────────────────────────────────
-     § 4 壳层与质感
+     § 4 壳层、书架与质感
      ────────────────────────────────────────────────────────────── */
 
   --we-topbar-bg: #2f3136;
@@ -123,6 +132,7 @@
   --we-col-header-border-color: var(--we-color-border-default);
   --we-col-btn-border-color: var(--we-color-border-strong);
   --we-col-btn-color: var(--we-color-text-secondary);
+  --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12); /* 主按钮 hover 色，主题可换色调 */
   --we-entry-meta-color: var(--we-color-text-tertiary);
   --we-entry-header-decor-bg: none;
   --we-parchment-display: none;
@@ -132,6 +142,31 @@
 
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
+
+  /* 书架框架（深色主题用，浅色主题可大幅简化） */
+  --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.03);
+  --we-bookshelf-frame-border:        rgba(23, 23, 23, 0.08);
+  --we-bookshelf-frame-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 16px 40px rgba(0, 0, 0, 0.06);
+  --we-bookshelf-back-panel-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02));
+  --we-bookshelf-back-panel-border:   rgba(23, 23, 23, 0.06);
+  --we-bookshelf-card-plain-bg:       var(--we-color-bg-surface);
+  --we-bookshelf-card-plain-border:   1px solid var(--we-color-border-default);
+  --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
+  --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
+  --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.04);
+  --we-bookshelf-frame-vignette:      rgba(0, 0, 0, 0.12);
+
+  /* 设置面板加载占位 scrim */
+  --we-loading-scrim-bg:
+    linear-gradient(180deg, rgb(255 248 236 / 42%), rgb(245 233 212 / 28%));
+  --we-loading-scrim-border: rgb(120 76 33 / 10%);
+  --we-loading-scrim-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 26%),
+    0 14px 36px rgb(48 31 13 / 10%);
 
   /* ──────────────────────────────────────────────────────────────
      § 5 基础色板
@@ -172,10 +207,22 @@
   --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
   --we-shadow-paper-indent:
     inset 0 1px 2px rgba(0, 0, 0, 0.03);
+  --we-shadow-dialog:
+    0 0 0 1px rgba(23, 23, 23, 0.08),
+    0 4px 18px rgba(23, 23, 23, 0.14),
+    0 16px 48px rgba(23, 23, 23, 0.14);
+  --we-shadow-btn-primary-inner-glow: none;
+  --we-shadow-range-thumb: 0 1px 4px rgba(23, 23, 23, 0.18);
+  --we-shadow-range-thumb-active:
+    0 0 0 3px rgba(23, 23, 23, 0.15),
+    0 1px 4px rgba(23, 23, 23, 0.18);
 
+  --we-radius-none: 1px;
+  --we-radius-xs: 3px;
   --we-radius-sm: 6px;
   --we-radius-md: 12px;
   --we-radius-lg: 16px;
+  --we-radius-xl: 26px;
   --we-radius-full: 9999px;
 
   --we-duration-fast: 120ms;

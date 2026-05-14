@@ -2,11 +2,13 @@
  * lovable-cream 主题覆盖层
  *
  * 严格按 DESIGN.md 的 Lovable cream 体系收口：
- *   - page / card / panel 统一回到奶油底色 #f7f4ed
+ *   - page / card / panel / entry-row 统一回到奶油底色 #f7f4ed
  *   - 全部中性色从 #1c1c1c 及其透明度派生，辅以 #5f5f5d muted gray
  *   - 被动边框统一 #eceae4，交互边框统一 rgba(28,28,28,0.4)
  *   - 深色反相区统一 charcoal + off-white，不混入棕灰偏色
- *   - 仅保留极浅阴影与深色按钮 inset tactile detail
+ *   - 卡片/面板无 drop-shadow，用 border 定义边界
+ *   - Focus/active shadow：0 4px 12px rgba(0,0,0,0.1)（软焦光晕）
+ *   - 深色按钮保留 inset tactile detail（签名细节）
  */
 
 :root {
@@ -18,12 +20,12 @@
   --we-font-ui:      'Instrument Sans Variable', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
-  /* ========== 圆角 Scale（Lovable：6px 按钮/输入框、12px 卡片、16px 大容器） ========== */
+  /* ========== 圆角 Scale（Lovable：6px 按钮/输入框，12px 卡片，16px 大容器） ========== */
   --we-radius-sm:   6px;
   --we-radius-md:   12px;
   --we-radius-lg:   16px;
 
-  /* ========== 基础表面 ========== */
+  /* ========== 基础表面（paper-100/200 都映射到奶油底色，card 与 canvas 无层次差异） ========== */
   --we-base-paper-100: #f7f4ed;
   --we-base-paper-200: #f7f4ed;
   --we-base-paper-300: #eceae4;
@@ -50,18 +52,47 @@
   --we-base-white: #fcfbf8;
   --we-base-peach-200: #eceae4;
 
-  /* ========== 语义色直接覆盖 ========== */
+  /* ========== 语义色（全量显式，避免隐式传导导致调试困难） ========== */
+  --we-color-text-primary:   #1c1c1c;
   --we-color-text-secondary: rgba(28, 28, 28, 0.82);
-  --we-color-text-tertiary: #5f5f5d;
-  --we-color-border-strong: rgba(28, 28, 28, 0.4);
-  --we-color-bg-muted: #eceae4;
-  --we-color-border-focus: rgba(59, 130, 246, 0.5);
+  --we-color-text-tertiary:  #5f5f5d;
+  --we-color-text-inverse:   #fcfbf8;
+  --we-color-text-danger:    #1c1c1c;
+
+  --we-color-bg-canvas:   #f7f4ed;
+  /* 白卡浮于奶油画布之上；组件大量引用 --we-color-bg-surface，必须显式覆写 */
+  --we-color-bg-surface:  #ffffff;
+  --we-color-bg-elevated: #ffffff;
+  --we-color-bg-subtle:   #eceae4;
+  --we-color-bg-muted:    #eceae4;
+  --we-color-bg-inverse:  #1c1c1c;
+
+  --we-color-border-default:     #eceae4;
+  --we-color-border-subtle:      #f7f4ed;
+  --we-color-border-strong:      rgba(28, 28, 28, 0.4);
+  --we-color-border-focus:       rgba(59, 130, 246, 0.5);
+  --we-focus-ring:               0 0 0 2px rgba(59, 130, 246, 0.15);
+  --we-color-border-white-faint: rgba(252, 251, 248, 0.06);
+
+  --we-color-status-success: #556253;
+  --we-color-status-warning: #7b6a4a;
+  --we-color-status-danger:  #1c1c1c;
+  --we-color-status-info:    #666664;
+
+  --we-color-accent:      #1c1c1c;
+  --we-color-accent-deep: #1c1c1c;
+  --we-color-gold:        #5f5f5d;
+  --we-color-gold-pale:   #5f5f5d;
+
+  --we-color-white-wash:     rgba(252, 251, 248, 0.05);
+  --we-color-white-sheen-sm: rgba(252, 251, 248, 0.12);
+  --we-color-white-sheen-md: rgba(252, 251, 248, 0.22);
 
   /* ========== 透明叠加层 ========== */
   --we-color-bg-overlay: rgba(28, 28, 28, 0.5);
   --we-color-accent-bg: rgba(28, 28, 28, 0.04);
-  --we-color-ink-wash: rgba(28, 28, 28, 0.03);
-  --we-color-ink-wash-md: rgba(28, 28, 28, 0.04);
+  --we-color-ink-wash: rgba(28, 28, 28, 0.05);
+  --we-color-ink-wash-md: rgba(28, 28, 28, 0.07);
   --we-color-ink-wash-strong: rgba(28, 28, 28, 0.1);
   --we-color-shadow-sm: rgba(0, 0, 0, 0.05);
   --we-color-shadow-md: rgba(0, 0, 0, 0.1);
@@ -77,6 +108,9 @@
   --we-color-ink-secondary-wash-sm: rgba(28, 28, 28, 0.12);
   --we-color-accent-border: rgba(28, 28, 28, 0.25);
   --we-color-accent-border-sm: rgba(28, 28, 28, 0.22);
+
+  /* hover 边框：更明显的交互反馈 */
+  --we-color-gold: rgba(28, 28, 28, 0.5);
 
   /* ========== 壳层（TopBar 深色底色 + off-white 文字） ========== */
   --we-topbar-bg: #1c1c1c;
@@ -99,7 +133,9 @@
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
-  /* ========== 物理质感阴影（克制，仅保留 Lovable 风格的 inset tactile detail） ========== */
+  /* ========== 物理质感阴影 ========== */
+
+  /* 深色按钮的签名 inset tactile detail（DESIGN.md §2 & §6） */
   --we-shadow-stamp-up:
     inset 0 0.5px 0 rgba(255, 255, 255, 0.2),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.2),
@@ -108,25 +144,31 @@
     inset 0 1px 2px rgba(0, 0, 0, 0.1),
     inset 0 0 0 0.5px rgba(0, 0, 0, 0.2);
 
-  --we-shadow-paper-stack:
-    0 1px 2px rgba(0, 0, 0, 0.03);
-
-  --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
+  /* 卡片/面板无 drop-shadow（DESIGN.md §6：用 border 定义边界，不用投影） */
+  --we-shadow-paper-stack: none;
   --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.03);
 
-  /* ========== 卡片与面板皮肤 ========== */
-  --we-card-bg: var(--we-color-bg-canvas);
-  --we-card-border: 1px solid var(--we-color-border-default);
+  /* Focus / active 状态：软焦光晕（DESIGN.md §6 Level 3） */
+  --we-shadow-paper-lift: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  /* ========== 卡片与面板皮肤（白卡浮于奶油画布之上，border 定义边界） ========== */
+  /* 用 #ffffff 而非 #f7f4ed：应用 UI 比营销页更密集，需要清晰的白-奶油层次感 */
+  --we-card-bg: #ffffff;
+  --we-card-border: 1px solid #eceae4;
   --we-card-radius: 12px;
   --we-card-shadow: none;
-  --we-card-hover-shadow: 0 0 0 1px rgba(28, 28, 28, 0.04);
+  --we-card-hover-shadow: none;
 
-  --we-panel-card-bg: var(--we-color-bg-canvas);
-  --we-panel-card-border: 1px solid var(--we-color-border-default);
+  --we-panel-card-bg: #ffffff;
+  --we-panel-card-border: 1px solid #eceae4;
   --we-panel-card-radius: 12px;
   --we-panel-card-shadow: none;
 
-  /* ========== 页面大画布（无暗书架，回到整页奶油底） ========== */
+  /* ========== 条目行（WorldConfigPage 四列）：白底 + 轻描边 ========== */
+  --we-entry-row-bg: #ffffff;
+  --we-entry-row-shadow: none;
+
+  /* ========== 页面大画布（无暗书架，整页奶油底） ========== */
   --we-page-canvas-bg: var(--we-color-bg-canvas);
   --we-page-canvas-fg: var(--we-color-text-primary);
   --we-page-canvas-fg-muted: var(--we-color-text-tertiary);
@@ -136,6 +178,8 @@
   --we-page-canvas-subtitle-display: none;
   --we-card-name-font-style: normal;
   --we-card-name-font-weight: 400;
+
+  /* ========== 书架框架（Lovable 极简，轻描边 + 奶油卡片） ========== */
   --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.48);
   --we-bookshelf-frame-border:        rgba(28, 28, 28, 0.04);
   --we-bookshelf-frame-shadow:
@@ -146,8 +190,8 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(247, 244, 237, 0.92));
   --we-bookshelf-back-panel-border:   rgba(28, 28, 28, 0.06);
   --we-bookshelf-card-plain-bg:       #ffffff;
-  --we-bookshelf-card-plain-border:   1px solid rgba(28, 28, 28, 0.08);
-  --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.68);
+  --we-bookshelf-card-plain-border:   1px solid #eceae4;
+  --we-bookshelf-empty-bg:            rgba(247, 244, 237, 0.68);
   --we-bookshelf-empty-border:        rgba(28, 28, 28, 0.06);
   --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.3);
   --we-bookshelf-frame-vignette:      rgba(28, 28, 28, 0.08);
@@ -174,29 +218,34 @@
   --we-spine-display: none;
   --we-bookmark-display: none;
 
-  /* ========== 视觉层次：白底卡片浮于奶油画布之上 ========== */
+  /* 主按钮 hover：charcoal 调（Lovable 风格，无暖红色） */
+  --we-col-btn-primary-hover-bg: rgba(28, 28, 28, 0.08);
 
-  /* 条目行（WorldConfigPage 四列）：白底 + 轻微投影 */
-  --we-entry-row-bg: #ffffff;
-  --we-entry-row-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  /* 加载占位 scrim：奶油色调 */
+  --we-loading-scrim-bg:
+    linear-gradient(180deg, rgb(247 244 237 / 42%), rgb(236 234 228 / 28%));
+  --we-loading-scrim-border: rgb(28 28 28 / 6%);
+  --we-loading-scrim-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 30%),
+    0 14px 36px rgb(28 28 28 / 6%);
 
-  /* 世界/角色卡片：白底 + 立体感 */
-  --we-card-bg: #ffffff;
-  --we-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  --we-card-hover-shadow: 0 4px 12px rgba(0, 0, 0, 0.10), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  /* 弹窗阴影：软焦光晕，与 focus shadow 一致 */
+  --we-shadow-dialog:
+    0 0 0 1px rgba(28, 28, 28, 0.06),
+    0 4px 18px rgba(0, 0, 0, 0.1),
+    0 16px 48px rgba(0, 0, 0, 0.08);
+  --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
+  --we-shadow-range-thumb: 0 1px 4px rgba(28, 28, 28, 0.18);
+  --we-shadow-range-thumb-active:
+    0 0 0 3px rgba(59, 130, 246, 0.15),
+    0 1px 4px rgba(28, 28, 28, 0.18);
 
-  /* 面板卡片（State Panel、Chat 侧边等）：白底 + 细描边 */
-  --we-panel-card-bg: #ffffff;
-  --we-panel-card-shadow: 0 0 0 1px rgba(28, 28, 28, 0.06);
-
-  /* hover 边框：更明显的交互反馈 */
-  --we-color-gold: rgba(28, 28, 28, 0.5);
-
-  /* 交互 Wash：提高感知度（按钮 hover / active 背景） */
-  --we-color-ink-wash: rgba(28, 28, 28, 0.05);
-  --we-color-ink-wash-md: rgba(28, 28, 28, 0.07);
-
-  /* 抬起阴影：按钮及可点击元素立体感 */
-  --we-shadow-paper-lift: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
-  --we-shadow-paper-stack: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* 圆角阶梯 */
+  --we-radius-none: 1px;
+  --we-radius-xs:   3px;
+  --we-radius-sm:   6px;
+  --we-radius-md:   12px;
+  --we-radius-lg:   16px;
+  --we-radius-xl:   26px;
+  --we-radius-full: 9999px;
 }

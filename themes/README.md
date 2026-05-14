@@ -22,12 +22,27 @@ frontend/src/shells/
 
 核心层负责“默认可用”，主题层负责“视觉取值”，shell 负责“结构与布局”。主题不能替代 shell，也不应该把组件选择器写回主题目录。
 
+## 对齐检查
+
+运行以下命令检查内核 / 模板 / 主题三层是否对齐（无盲区、无孤悬覆盖）：
+
+```bash
+npm run check:themes
+```
+
+退出码说明：
+- `0` — 全部通过
+- `1` — 主题覆盖了内核不存在的 token（硬错误）
+- `2` — 内核 token 未出现在模板 / 主题覆盖率不足（警告）
+
+`_template/theme.css` 现在包含内核所有视觉 token（147 个），新主题从模板复制后删除不需要的行即可，无需猜哪些 token 可覆盖。
+
 ## 迁移声明
 
-- 主题系统现在只接受正式语义 token 和基础色板 token，旧兼容别名已全部移除。
-- 新主题请优先覆盖 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*`。
-- 如果你的历史主题包或自定义 CSS 仍引用旧别名，需要手动迁移到当前 token 名。
-- `lovable-cream` 现在使用自托管 `Instrument Sans` 变量字体近似 `docs/references/frontend/ui-and-theme.md` 中记录的暖 cream 方向；主题层仍只通过 `--we-font-*` token 引用字体，不在主题包里声明 `@font-face`。
+- 主题系统只接受正式语义 token 和基础色板 token，旧兼容别名已全部移除。
+- 新主题请优先覆盖 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*`、`--we-bookshelf-*`、`--we-entry-row-*`。
+- 如果你的历史主题包仍引用旧别名，需要手动迁移到当前 token 名。
+- `lovable-cream` 使用自托管 `Instrument Sans` 变量字体近似 Camera Plain 暖 cream 风格；主题层只通过 `--we-font-*` token 引用字体，不在主题包里声明 `@font-face`。
 
 ## 主题包结构
 
@@ -141,4 +156,4 @@ cp -R themes/_template themes/my-theme
 - `theme.css` 里没有组件选择器
 - 主题覆盖 token 的范围只包含视觉值
 - 核心默认值在没有主题时也能正常工作
-- 主题文档和模板里的 token 例子与实际核心 token 对齐
+- `npm run check:themes` 退出码为 0（无孤悬覆盖、无模板盲区）

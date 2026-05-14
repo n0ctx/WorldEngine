@@ -625,7 +625,7 @@
   text-align: center;
   color: var(--we-color-text-primary);
   background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-accent);
+  border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
   outline: none;
   padding: 0;
@@ -3253,7 +3253,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 14px;
+  padding: 14px; /* design exact */
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-border-default) transparent;
   display: flex;
@@ -3267,20 +3267,20 @@
 /* — Panel 头部 + 角色名 + 世界名 + 占位 + 金箔分隔 + 内容区 ─ */
 /* ── 头部 ─── */
 .we-state-panel-header {
-  padding: 24px 16px 16px;
+  padding: var(--we-space-xl) var(--we-space-lg) var(--we-space-lg);
   text-align: center;
 }
 .we-seal-wrap {
   display: flex;
   justify-content: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--we-space-md);
 }
 .we-panel-char-name {
   font-family: var(--we-font-seal);
   font-size: var(--we-text-base);
   color: var(--we-color-text-primary);
   letter-spacing: var(--we-tracking-wide);
-  margin: 0 0 4px;
+  margin: 0 0 var(--we-space-xs);
   line-height: var(--we-leading-tight);
 }
 .we-panel-world-name {
@@ -3297,7 +3297,7 @@
   font-style: italic;
   color: var(--we-color-text-tertiary);
   letter-spacing: var(--we-tracking-wide);
-  margin: 8px 0 0;
+  margin: var(--we-space-sm) 0 0;
   opacity: 0.7;
 }
 
@@ -3305,8 +3305,8 @@
 .we-panel-divider {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin: 0 20px 0;
+  gap: 6px; /* design exact */
+  margin: 0 20px 0; /* design exact */
   padding-bottom: 2px;
 }
 .we-panel-divider-line {
@@ -3319,7 +3319,7 @@
     0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 10%, transparent);
 }
 .we-panel-divider-gem {
-  font-size: 7px;
+  font-size: 7px; /* no token */
   color: var(--we-color-gold);
   opacity: 0.8;
   flex-shrink: 0;
@@ -3328,7 +3328,7 @@
 
 /* ── 内容区 ─── */
 .we-panel-body {
-  padding: 0 14px 24px;
+  padding: 0 14px var(--we-space-xl); /* 14px: design exact */
 }
 
 /* — 召回批注（marginalia）─ */
@@ -3357,14 +3357,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px 8px;
+  padding: 6px var(--we-space-lg) var(--we-space-sm); /* 6px: design exact */
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-xs);
   letter-spacing: var(--we-tracking-wide);
   color: var(--we-color-text-tertiary);
   opacity: 0.7;
-  margin-top: 12px;
+  margin-top: var(--we-space-md);
   flex-shrink: 0;
 }
 .we-page-footer-fleuron {
@@ -3393,7 +3393,7 @@
 .we-state-change-chip {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 7px; /* design exact */
   user-select: none;
 }
 
@@ -3427,7 +3427,7 @@
 }
 
 .we-session-list-back {
-  padding: 4px;
+  padding: var(--we-space-xs);
   border-radius: var(--we-radius-md);
   color: var(--we-color-text-tertiary);
   background: none;
@@ -3444,8 +3444,8 @@
 
 .we-session-list-create {
   width: 100%;
-  padding: 7px 0;
-  margin-top: 10px;
+  padding: 7px 0; /* design exact */
+  margin-top: 10px; /* design exact */
   border: 1px solid var(--we-color-border-strong);
   border-radius: var(--we-radius-none);
   background: none;
@@ -3456,7 +3456,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 5px; /* design exact */
   transition: background var(--we-duration-fast), color var(--we-duration-fast);
 }
 
@@ -3468,7 +3468,7 @@
 .we-session-list-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 8px;
+  padding: 6px var(--we-space-sm); /* 6px: design exact */
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-border-default) transparent;
 }
@@ -3481,7 +3481,7 @@
   text-align: center;
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
-  padding: 24px 0;
+  padding: var(--we-space-xl) 0;
 }
 
 .we-session-list-loading {
@@ -3489,7 +3489,7 @@
   text-align: center;
   color: var(--we-color-text-tertiary);
   opacity: 0.5;
-  padding: 8px 0;
+  padding: var(--we-space-sm) 0;
 }
 
 /* — CastPanel + 角色块 + cast 状态 overlay + cast 添加 modal ─ */
@@ -3519,7 +3519,7 @@
 .we-cast-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  padding: 14px; /* design exact */
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -3557,7 +3557,7 @@
   opacity: 0.45;
 }
 .we-cast-seal-name {
-  font-size: 8px;
+  font-size: 8px; /* no token */
   font-style: italic;
   color: var(--we-color-text-tertiary);
   max-width: 44px;
@@ -3571,13 +3571,13 @@
   position: absolute;
   top: -2px;
   right: -4px;
-  font-size: 9px;
+  font-size: 9px; /* no token */
   color: var(--we-color-text-tertiary);
   background: none;
   border: none;
   cursor: pointer;
   line-height: var(--we-leading-flush);
-  padding: 2px;
+  padding: var(--we-space-xxs);
 }
 .we-cast-seal-remove:hover,
 .we-cast-seal-remove:focus-visible {
@@ -3606,20 +3606,20 @@
   height: 1px;
   background: var(--we-color-gold);
   opacity: 0.4;
-  margin: 12px -14px;
+  margin: var(--we-space-md) -14px; /* -14px: design exact negative margin */
 }
 .we-cast-empty {
   font-size: var(--we-text-2xs);
   font-style: italic;
   color: var(--we-color-text-tertiary);
   text-align: center;
-  padding-top: 12px;
+  padding-top: var(--we-space-md);
 }
 .we-cast-diary-entry {
   position: relative;
   cursor: pointer;
   border-radius: var(--we-radius-sm);
-  padding: 3px 6px 3px 9px;
+  padding: 3px 6px 3px 9px; /* design exact */
   transition: background var(--we-duration-normal) ease, color var(--we-duration-normal) ease;
 }
 .we-cast-diary-entry::before {
@@ -3667,7 +3667,7 @@
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  padding: 4px 4px 2px;
+  padding: var(--we-space-xs) var(--we-space-xs) 2px; /* 2px: design exact */
   user-select: none;
 }
 .we-cast-state-overlay {
@@ -3698,19 +3698,19 @@
   font-size: var(--we-text-control);
   font-style: italic;
   color: var(--we-color-text-primary);
-  margin: 0 0 12px;
+  margin: 0 0 var(--we-space-md);
 }
 .we-cast-add-modal-empty {
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   font-style: italic;
-  padding: 8px 0 12px;
+  padding: var(--we-space-sm) 0 var(--we-space-md);
 }
 .we-cast-add-modal-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  gap: 10px; /* design exact */
+  padding: var(--we-space-sm) 0;
   border-bottom: 1px solid var(--we-color-border-default);
 }
 .we-cast-add-modal-name {
@@ -3757,7 +3757,7 @@
 .we-make-card-modal-preview {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--we-space-md);
   max-height: 60vh;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -3772,7 +3772,7 @@
 .we-make-card-modal-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--we-space-xs);
 }
 .we-make-card-modal-label {
   font-family: var(--we-font-serif);
@@ -3788,7 +3788,7 @@
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-xs);
-  padding: 6px 8px;
+  padding: 6px var(--we-space-sm); /* 6px: design exact */
   resize: vertical;
   width: 100%;
   box-sizing: border-box;
@@ -3808,7 +3808,7 @@
 }
 .we-make-card-modal-footer {
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--we-space-md);
 }
 
 /* — NearbyPanel ─ */
@@ -3838,7 +3838,7 @@
 .we-nearby-persona-edit {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 6px; /* design exact */
 }
 .we-nearby-persona-edit textarea {
   width: 100%;
@@ -3847,11 +3847,11 @@
 }
 .we-nearby-persona-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--we-space-sm);
   justify-content: flex-end;
 }
 .we-nearby-section .we-state-section-reset + .we-state-section-reset {
-  margin-left: 8px;
+  margin-left: var(--we-space-sm);
 }
 
 /* — marginalia date + text ─ */

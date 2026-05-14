@@ -322,6 +322,16 @@
     0 0 0 1px var(--we-color-shadow-sm),
     0 4px 18px var(--we-color-shadow-md),
     0 16px 48px var(--we-color-shadow-md);
+  /* 按钮主色悬停内发光：.we-btn-primary:hover 内侧光晕，基于 avatar-placeholder 色 */
+  --we-shadow-btn-primary-inner-glow:
+    inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
+  /* 滑块拇指默认投影 */
+  --we-shadow-range-thumb:
+    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+  /* 滑块拇指悬停/聚焦：强调环 + 投影 */
+  --we-shadow-range-thumb-active:
+    0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
+    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
 
   /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
   --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);

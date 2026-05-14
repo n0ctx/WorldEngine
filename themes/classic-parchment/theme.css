@@ -42,6 +42,40 @@
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
+  /* 语义色：显式列出，避免依赖隐式传导（调试友好） */
+  --we-color-text-primary:   #2a1f17;
+  --we-color-text-secondary: #534236;
+  --we-color-text-tertiary:  #6d5c4b;
+  --we-color-text-inverse:   #ffffff;
+  --we-color-text-danger:    #a23b2e;
+
+  --we-color-bg-canvas:   #ede3d0;
+  --we-color-bg-surface:  #d9ccb0;
+  --we-color-bg-elevated: #d9ccb0;
+  --we-color-bg-subtle:   #c8b99a;
+  --we-color-bg-muted:    #b8a882;
+  --we-color-bg-inverse:  #3f2f22;
+
+  --we-color-border-default:     #c8b99a;
+  --we-color-border-subtle:      #d9ccb0;
+  --we-color-border-strong:      #b8a882;
+  --we-color-border-focus:       #a23b2e;
+  --we-color-border-white-faint: rgba(255, 255, 255, 0.04);
+
+  --we-color-status-success: #5c6b3a;
+  --we-color-status-warning: #8b5a1f;
+  --we-color-status-danger:  #a23b2e;
+  --we-color-status-info:    #4a5568;
+
+  --we-color-accent:      #a23b2e;
+  --we-color-accent-deep: #7c2a20;
+  --we-color-gold:        #a0833f;
+  --we-color-gold-pale:   #c9a85a;
+
+  --we-color-white-wash:     rgba(255, 255, 255, 0.05);
+  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.12);
+  --we-color-white-sheen-md: rgba(255, 255, 255, 0.22);
+
   /* 透明叠加层：与羊皮纸色板绑定，覆盖核心中性值。 */
   --we-color-bg-overlay: rgba(42, 31, 23, 0.5);
   --we-color-accent-bg: rgba(162, 59, 46, 0.08);
@@ -173,4 +207,39 @@
   --we-parchment-fiber-opacity:   0.22;
   --we-spine-display:             block;
   --we-bookmark-display:          block;
+
+  /* 条目行：羊皮纸画布底色，无额外阴影 */
+  --we-entry-row-bg:     var(--we-color-bg-canvas);
+  --we-entry-row-shadow: none;
+
+  /* 主按钮 hover：朱砂调 */
+  --we-col-btn-primary-hover-bg: rgba(162, 59, 46, 0.12);
+
+  /* 加载占位 scrim：羊皮纸色调 */
+  --we-loading-scrim-bg:
+    linear-gradient(180deg, rgb(237 227 208 / 42%), rgb(217 204 176 / 28%));
+  --we-loading-scrim-border: rgb(120 76 33 / 10%);
+  --we-loading-scrim-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 22%),
+    0 14px 36px rgb(63 47 34 / 12%);
+
+  /* 弹窗阴影：带羊皮纸暗调 */
+  --we-shadow-dialog:
+    0 0 0 1px rgba(42, 31, 23, 0.12),
+    0 4px 18px rgba(42, 31, 23, 0.18),
+    0 16px 48px rgba(42, 31, 23, 0.20);
+  --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
+  --we-shadow-range-thumb: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+  --we-shadow-range-thumb-active:
+    0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
+    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+
+  /* 圆角阶梯 */
+  --we-radius-none: 1px;
+  --we-radius-xs:   3px;
+  --we-radius-sm:   6px;
+  --we-radius-md:   12px;
+  --we-radius-lg:   16px;
+  --we-radius-xl:   26px;
+  --we-radius-full: 9999px;
 }
