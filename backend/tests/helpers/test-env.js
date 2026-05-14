@@ -8,6 +8,23 @@ import { initSchema } from '../../db/schema.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 const TEMP_ROOT = path.join(REPO_ROOT, '.temp', 'backend-tests');
+const MOCK_ENV_KEYS = [
+  'MOCK_LLM_RESPONSE',
+  'MOCK_LLM_COMPLETE',
+  'MOCK_LLM_STREAM',
+  'MOCK_LLM_COMPLETE_QUEUE',
+  'MOCK_LLM_STREAM_QUEUE',
+  'MOCK_LLM_STREAM_CHUNKS',
+  'MOCK_LLM_STREAM_DELAYS',
+  'MOCK_LLM_COMPLETE_ERROR',
+  'MOCK_LLM_COMPLETE_DELAY_MS',
+  'MOCK_LLM_STREAM_ERROR',
+  'MOCK_LLM_ERROR_STATUS',
+  'MOCK_LLM_ACTION',
+  'MOCK_LLM_ACTION_QUEUE',
+  'MOCK_LLM_TOOL_CALLS',
+  'MOCK_LLM_TOOL_CALLS_QUEUE',
+];
 
 function mergeDeep(target, source) {
   if (!source || typeof source !== 'object' || Array.isArray(source)) {
@@ -144,25 +161,15 @@ export function createTestSandbox(name, configPatch = {}) {
 }
 
 export function resetMockEnv() {
-  for (const key of [
-    'MOCK_LLM_RESPONSE',
-    'MOCK_LLM_COMPLETE',
-    'MOCK_LLM_STREAM',
-    'MOCK_LLM_COMPLETE_QUEUE',
-    'MOCK_LLM_STREAM_QUEUE',
-    'MOCK_LLM_STREAM_CHUNKS',
-    'MOCK_LLM_STREAM_DELAYS',
-    'MOCK_LLM_COMPLETE_ERROR',
-    'MOCK_LLM_COMPLETE_DELAY_MS',
-    'MOCK_LLM_STREAM_ERROR',
-    'MOCK_LLM_ERROR_STATUS',
-    'MOCK_LLM_ACTION',
-    'MOCK_LLM_ACTION_QUEUE',
-    'MOCK_LLM_TOOL_CALLS',
-    'MOCK_LLM_TOOL_CALLS_QUEUE',
-  ]) {
+  for (const key of MOCK_ENV_KEYS) {
     delete process.env[key];
   }
+}
+
+export function buildChildProcessEnv(overrides = {}) {
+  const env = { ...process.env };
+  for (const key of MOCK_ENV_KEYS) delete env[key];
+  return { ...env, ...overrides };
 }
 
 /**

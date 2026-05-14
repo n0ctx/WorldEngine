@@ -214,11 +214,13 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
         <button
           onClick={onEdit}
           title="编辑"
+          aria-label="编辑正则规则"
           className="we-regex-rule-icon-btn"
         >✎</button>
         <button
           onClick={onDelete}
           title="删除"
+          aria-label="删除正则规则"
           className="we-regex-rule-icon-btn we-regex-rule-icon-btn--danger"
         >✕</button>
       </div>

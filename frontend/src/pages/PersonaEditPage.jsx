@@ -146,10 +146,15 @@ export default function PersonaEditPage() {
         // 新建：创建 persona 后跳转到编辑页
         const persona = await createPersona(worldId, { name, description, system_prompt: systemPrompt });
         window.dispatchEvent(new Event('we:persona-updated'));
+        if (isOverlay) {
+          navigate(-1);
+          return;
+        }
+        setLoading(true);
+        setSaving(false);
         // 替换路由为编辑页（不在历史里留下 /new）
         navigate(`/worlds/${worldId}/personas/${persona.id}/edit`, {
           replace: true,
-          state: location.state,
         });
       } else if (resolvedPersonaId) {
         await updatePersonaById(resolvedPersonaId, { name, description, system_prompt: systemPrompt });

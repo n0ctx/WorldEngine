@@ -50,14 +50,16 @@ export default function SettingsPage() {
     return isOverlay ? (
       <div className="we-settings-overlay" {...overlayHandlers}>
         <div ref={panelRef} className="we-settings-panel we-settings-panel-overlay">
-          <div className="we-settings-loading">
-            <p className="we-settings-loading-text">加载中…</p>
+          <div className="we-settings-loading" role="status" aria-label="设置加载中">
+            <div className="we-settings-loading-scrim" aria-hidden="true" />
           </div>
         </div>
       </div>
     ) : (
       <div className="we-edit-canvas we-settings-canvas-loading">
-        <p className="we-settings-loading-text">加载中…</p>
+        <div className="we-settings-loading" role="status" aria-label="设置加载中">
+          <div className="we-settings-loading-scrim" aria-hidden="true" />
+        </div>
       </div>
     );
   }

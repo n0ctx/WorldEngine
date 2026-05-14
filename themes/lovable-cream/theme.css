@@ -72,13 +72,11 @@
   --we-color-overlay-heavy: rgba(0, 0, 0, 0.55);
   --we-color-paper-wash: rgba(247, 244, 237, 0.28);
   --we-color-paper-tint: rgba(236, 234, 228, 0.45);
-  --we-color-paper-muted: rgba(236, 234, 228, 0.30);
   --we-color-paper-overlay: rgba(236, 234, 228, 0.12);
   --we-color-ink-secondary-wash: rgba(28, 28, 28, 0.16);
   --we-color-ink-secondary-wash-sm: rgba(28, 28, 28, 0.12);
   --we-color-accent-border: rgba(28, 28, 28, 0.25);
   --we-color-accent-border-sm: rgba(28, 28, 28, 0.22);
-  --we-color-warning-bg: rgba(123, 106, 74, 0.1);
 
   /* ========== 壳层（TopBar 深色底色 + off-white 文字） ========== */
   --we-topbar-bg: #1c1c1c;
@@ -98,7 +96,6 @@
   --we-topbar-divider: rgba(252, 251, 248, 0.08);
 
   /* ========== 书脊阴影（Lovable 无书脊概念，全部透明） ========== */
-  --we-spine-shadow: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
@@ -113,8 +110,6 @@
 
   --we-shadow-paper-stack:
     0 1px 2px rgba(0, 0, 0, 0.03);
-  --we-shadow-paper-stack-hover:
-    0 4px 12px rgba(0, 0, 0, 0.1);
 
   --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
   --we-shadow-paper-indent: inset 0 1px 2px rgba(0, 0, 0, 0.03);
@@ -141,6 +136,21 @@
   --we-page-canvas-subtitle-display: none;
   --we-card-name-font-style: normal;
   --we-card-name-font-weight: 400;
+  --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.48);
+  --we-bookshelf-frame-border:        rgba(28, 28, 28, 0.04);
+  --we-bookshelf-frame-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 24px 36px rgba(255, 255, 255, 0.08),
+    0 10px 24px rgba(28, 28, 28, 0.04);
+  --we-bookshelf-back-panel-bg:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(247, 244, 237, 0.92));
+  --we-bookshelf-back-panel-border:   rgba(28, 28, 28, 0.06);
+  --we-bookshelf-card-plain-bg:       #ffffff;
+  --we-bookshelf-card-plain-border:   1px solid rgba(28, 28, 28, 0.08);
+  --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.68);
+  --we-bookshelf-empty-border:        rgba(28, 28, 28, 0.06);
+  --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.3);
+  --we-bookshelf-frame-vignette:      rgba(28, 28, 28, 0.08);
 
   /* ========== 世界卡封面图文字（暗图上浅色文字 + 底部渐变遮罩） ========== */
   --we-card-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 55%, transparent 80%);
@@ -189,5 +199,4 @@
   /* 抬起阴影：按钮及可点击元素立体感 */
   --we-shadow-paper-lift: 0 1px 3px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04);
   --we-shadow-paper-stack: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --we-shadow-paper-stack-hover: 0 4px 12px rgba(0, 0, 0, 0.10);
 }

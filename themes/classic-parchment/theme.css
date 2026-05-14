@@ -57,13 +57,11 @@
   --we-color-overlay-heavy: rgba(42, 31, 23, 0.60);
   --we-color-paper-wash: rgba(237, 227, 208, 0.28);
   --we-color-paper-tint: rgba(200, 185, 154, 0.45);
-  --we-color-paper-muted: rgba(200, 185, 154, 0.30);
   --we-color-paper-overlay: rgba(184, 168, 130, 0.12);
   --we-color-ink-secondary-wash: rgba(83, 66, 54, 0.16);
   --we-color-ink-secondary-wash-sm: rgba(83, 66, 54, 0.12);
   --we-color-accent-border: rgba(162, 59, 46, 0.25);
   --we-color-accent-border-sm: rgba(162, 59, 46, 0.22);
-  --we-color-warning-bg: rgba(139, 90, 31, 0.08);
 
   /* 书卷壳层 */
   --we-topbar-bg: #34271c;
@@ -82,15 +80,6 @@
   --we-topbar-item-faint: rgba(255, 255, 255, 0.6);
   --we-topbar-divider: rgba(255, 255, 255, 0.06);
 
-  --we-spine-shadow: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.22) 0%,
-    rgba(0, 0, 0, 0.06) 12%,
-    transparent 25%,
-    transparent 75%,
-    rgba(0, 0, 0, 0.06) 88%,
-    rgba(0, 0, 0, 0.22) 100%
-  );
   --we-spine-shadow-left: linear-gradient(
     to right,
     rgba(0, 0, 0, 0.14) 0%,
@@ -121,13 +110,6 @@
     2px 4px 0 var(--we-color-border-default),
     0 6px 18px rgba(0, 0, 0, 0.14),
     0 2px 4px rgba(0, 0, 0, 0.08);
-  --we-shadow-paper-stack-hover:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
-    1px 2px 0 var(--we-color-bg-muted),
-    2px 4px 0 var(--we-color-border-default),
-    0 14px 32px rgba(0, 0, 0, 0.22),
-    0 4px 8px rgba(0, 0, 0, 0.12);
   --we-shadow-paper-lift:
     0 0 5px rgba(42, 31, 23, 0.12),
     0 0 12px rgba(42, 31, 23, 0.06);
@@ -148,6 +130,23 @@
   --we-page-canvas-subtitle-display: block;
   --we-card-name-font-style:         italic;
   --we-card-name-font-weight:        400;
+  --we-bookshelf-frame-bg:
+    radial-gradient(circle at top center, rgba(233, 219, 188, 0.14), transparent 42%),
+    linear-gradient(180deg, rgba(233, 219, 188, 0.04), rgba(63, 47, 34, 0.10));
+  --we-bookshelf-frame-border:       rgba(200, 185, 154, 0.08);
+  --we-bookshelf-frame-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 24px 48px rgba(255, 248, 235, 0.02),
+    0 20px 42px rgba(0, 0, 0, 0.14);
+  --we-bookshelf-back-panel-bg:
+    linear-gradient(180deg, rgba(31, 22, 15, 0.42), rgba(55, 40, 28, 0.66));
+  --we-bookshelf-back-panel-border:  rgba(200, 185, 154, 0.08);
+  --we-bookshelf-card-plain-bg:      rgba(241, 232, 214, 0.96);
+  --we-bookshelf-card-plain-border:  1px solid rgba(120, 93, 64, 0.3);
+  --we-bookshelf-empty-bg:           rgba(21, 14, 9, 0.22);
+  --we-bookshelf-empty-border:       rgba(200, 185, 154, 0.08);
+  --we-bookshelf-frame-glow:         rgba(255, 244, 220, 0.06);
+  --we-bookshelf-frame-vignette:     rgba(16, 10, 6, 0.22);
 
   /* 卡片皮肤 */
   --we-card-bg: var(--we-color-bg-canvas);

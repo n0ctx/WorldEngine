@@ -1,12 +1,12 @@
 /**
- * Classic Parchment shell — default app frame.
+ * Book-spread shell — default app frame.
  *
  * Owns global chrome (top bar, toast region), the page transition wrapper,
  * and the PageLayout slot renderer that arranges page slots inside the
- * parchment two-page spread.
+ * book two-page spread.
  *
  * Pages MUST express layout via `pages/layout/PageLayout` slots; this shell
- * decides the parchment-specific visual composition. Shell-internal chrome
+ * decides the spread-specific visual composition. Shell-internal chrome
  * (BookSpread / PageLeft / PageRight / MemoryRecallOverlay) lives under
  * `./layout` and `./components` and MUST NOT be imported by pages directly.
  */
@@ -18,7 +18,7 @@ import renderPageLayout from './layout/pageLayoutRenderer.jsx';
 
 export default function AppShell({ children, locationKey }) {
   return (
-    <div className="we-app-root we-shell-classic-parchment">
+    <div className="we-app-root we-shell-book-spread">
       <TopBar />
       <GlobalToast />
       <PageLayoutRendererProvider render={renderPageLayout}>

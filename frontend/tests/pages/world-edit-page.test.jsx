@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   useNavigate: vi.fn(),
   useLocation: vi.fn(),
   getWorld: vi.fn(),
+  createWorld: vi.fn(),
   updateWorld: vi.fn(),
   getConfig: vi.fn(),
   getWorldStateValues: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('../../src/core/api/worlds', () => ({
   getWorld: (...args) => mocks.getWorld(...args),
+  createWorld: (...args) => mocks.createWorld(...args),
   updateWorld: (...args) => mocks.updateWorld(...args),
 }));
 vi.mock('../../src/core/api/import-export', () => ({
@@ -90,6 +92,7 @@ describe('WorldEditPage', () => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.useLocation.mockReturnValue({ state: {} });
     mocks.useNavigate.mockReset();
+    mocks.createWorld.mockReset();
     mocks.updateWorld.mockReset();
     mocks.updateWorldStateValue.mockReset();
     mocks.syncDiaryTimeField.mockReset();
@@ -101,6 +104,7 @@ describe('WorldEditPage', () => {
     });
     mocks.getWorldStateValues.mockResolvedValue([{ field_key: 'weather', label: '天气' }]);
     mocks.getConfig.mockResolvedValue({ diary: { chat: { date_mode: 'real' } } });
+    mocks.createWorld.mockResolvedValue({ id: 'world-2' });
     mocks.updateWorld.mockResolvedValue({ id: 'world-1' });
     mocks.updateWorldStateValue.mockResolvedValue({ success: true });
     mocks.syncDiaryTimeField.mockResolvedValue(undefined);
@@ -133,5 +137,39 @@ describe('WorldEditPage', () => {
 
     await waitFor(() => expect(screen.getAllByText('名称为必填项')).toHaveLength(2));
     expect(mocks.updateWorld).not.toHaveBeenCalled();
+  });
+
+  it('overlay 创建成功后会关闭创建页而不是停在保存中', async () => {
+    mocks.useParams.mockReturnValue({});
+    mocks.useLocation.mockReturnValue({
+      state: { backgroundLocation: { pathname: '/' } },
+    });
+
+    render(<WorldEditPage />);
+
+    fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '新世界' } });
+    fireEvent.click(screen.getByText('创建世界'));
+
+    await waitFor(() => expect(mocks.createWorld).toHaveBeenCalledWith({
+      name: '新世界',
+      description: '',
+    }));
+    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+  });
+
+  it('直达创建成功后会切到编辑页并清掉保存态', async () => {
+    mocks.useParams.mockReturnValue({});
+    mocks.useLocation.mockReturnValue({ state: {} });
+
+    render(<WorldEditPage />);
+
+    fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '直达新世界' } });
+    fireEvent.click(screen.getByText('创建世界'));
+
+    await waitFor(() => expect(mocks.createWorld).toHaveBeenCalledWith({
+      name: '直达新世界',
+      description: '',
+    }));
+    expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-2/edit', { replace: true });
   });
 });

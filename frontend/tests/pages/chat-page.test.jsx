@@ -119,7 +119,7 @@ vi.mock('../../src/components/state/StatePanel.jsx', () => ({
 vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options }) => <div>{options.join(',')}</div> }));
 
 import { PageLayoutRendererProvider } from '../../src/pages/layout/PageLayout.jsx';
-import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
+import renderPageLayout from '../../src/shells/book-spread/layout/pageLayoutRenderer.jsx';
 import ChatPage from '../../src/pages/ChatPage/index.jsx';
 
 const renderChatPage = () =>

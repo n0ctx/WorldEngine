@@ -8,7 +8,7 @@
 //      import StatePanel from '../components/state/StatePanel.jsx';
 //      import EditPageShell from '../pages/layout/EditPageShell';
 // 3. page-local 组件位于 pages/<Page>/components/，仅供该页面使用。
-// 4. classic-parchment shell 的结构性 chrome 位于 frontend/src/shells/，
+// 4. book-spread shell 的结构性 chrome 位于 frontend/src/shells/，
 //    禁止在此处导出，也禁止页面直接 import。页面应通过 pages/layout/PageLayout 描述布局。
 
 // — UI 原子 —

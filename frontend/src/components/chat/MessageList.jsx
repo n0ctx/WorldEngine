@@ -268,7 +268,7 @@ const MessageList = forwardRef(function MessageList({
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-text-secondary opacity-50 text-sm">
+      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-secondary)] opacity-50 text-sm">
         加载中…
       </div>
     );
@@ -276,7 +276,7 @@ const MessageList = forwardRef(function MessageList({
 
   if (!sessionId) {
     return (
-      <div className="flex-1 flex items-center justify-center text-text-secondary opacity-40 text-sm">
+      <div className="flex-1 flex items-center justify-center text-[var(--we-color-text-secondary)] opacity-40 text-sm">
         请选择或创建一个对话
       </div>
     );
@@ -313,7 +313,7 @@ const MessageList = forwardRef(function MessageList({
       )}
 
       {messages.length === 0 && !generating && (
-        <div className="flex items-center justify-center h-full text-text-secondary opacity-30 text-sm">
+        <div className="flex items-center justify-center h-full text-[var(--we-color-text-secondary)] opacity-30 text-sm">
           开始对话吧
         </div>
       )}

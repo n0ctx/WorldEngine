@@ -98,7 +98,9 @@ describe('SettingsPage', () => {
     };
     useLocationMock.mockReturnValue({ state: { backgroundLocation: null } });
     const { rerender } = render(<SettingsPage />);
-    expect(screen.getByText('加载中…')).toBeInTheDocument();
+    expect(screen.queryByText('加载中…')).not.toBeInTheDocument();
+    expect(document.querySelector('.we-settings-loading-scrim')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: '设置加载中' })).toBeInTheDocument();
 
     useLocationMock.mockReturnValue({ state: { backgroundLocation: { pathname: '/' } } });
     rerender(<SettingsPage />);

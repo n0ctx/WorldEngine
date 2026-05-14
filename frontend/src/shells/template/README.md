@@ -35,11 +35,11 @@ register the new shell in `frontend/src/core/router/selectShell.js`.
 
    ```js
    // frontend/src/core/router/selectShell.js
-   import ClassicParchmentShell from '../../shells/classic-parchment';
+   import BookSpreadShell from '../../shells/book-spread';
    import MyShell from '../../shells/my-shell';
 
    export const SHELLS = {
-     'classic-parchment': ClassicParchmentShell,
+     'book-spread': BookSpreadShell,
      'my-shell': MyShell,
    };
    ```

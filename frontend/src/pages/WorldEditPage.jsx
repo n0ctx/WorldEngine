@@ -106,7 +106,13 @@ export default function WorldEditPage() {
         });
         window.dispatchEvent(new Event('we:world-updated'));
         sessionStorage.removeItem('world_create_draft');
-        navigate(`/worlds/${world.id}/edit`, { replace: true, state: location.state });
+        if (isOverlay) {
+          navigate(-1);
+          return;
+        }
+        setLoading(true);
+        setSaving(false);
+        navigate(`/worlds/${world.id}/edit`, { replace: true });
       } else {
         await updateWorld(worldId, {
           name: name.trim(),

@@ -1,10 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
+import { buildChildProcessEnv, createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
 
-test('buildLLMConfig 使用调用方 options 覆盖配置文件', async (t) => {
+const repoRoot = path.resolve(fileURLToPath(new URL('../../..', import.meta.url)));
+const llmModuleUrl = pathToFileURL(path.join(repoRoot, 'backend/llm/index.js')).href;
+
+test('buildLLMConfig 使用调用方 options 覆盖配置文件', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-config', {
     provider_keys: { mock: 'secret' },
     llm: {
@@ -40,7 +45,7 @@ test('buildLLMConfig 使用调用方 options 覆盖配置文件', async (t) => {
 });
 
 
-test('getProvider 能路由到 mock provider', async (t) => {
+test('getProvider 能路由到 mock provider', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-provider');
   t.after(() => sandbox.cleanup());
   sandbox.setEnv();
@@ -54,7 +59,7 @@ test('getProvider 能路由到 mock provider', async (t) => {
   assert.equal(typeof mockProvider.complete, 'function');
 });
 
-test('splitTools 只暴露定义并保留 execute handler', async (t) => {
+test('splitTools 只暴露定义并保留 execute handler', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-tools');
   t.after(() => sandbox.cleanup());
   sandbox.setEnv();
@@ -78,7 +83,7 @@ test('splitTools 只暴露定义并保留 execute handler', async (t) => {
   assert.equal(await handlers.save_note({}), 'done');
 });
 
-test('complete 在 provider 非流式调用超时时返回 504 LLMError', async (t) => {
+test('complete 在 provider 非流式调用超时时返回 504 LLMError', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-complete-timeout', {
     provider_keys: { mock: 'secret' },
     llm: {
@@ -95,7 +100,7 @@ test('complete 在 provider 非流式调用超时时返回 504 LLMError', async 
     '-e',
     `
       try {
-        const { complete } = await import('./backend/llm/index.js');
+        const { complete } = await import(${JSON.stringify(llmModuleUrl)});
         await complete([{ role: 'user', content: 'hello' }], { timeoutMs: 10, callType: 'timeout_test' });
         console.log(JSON.stringify({ ok: true }));
       } catch (err) {
@@ -108,9 +113,8 @@ test('complete 在 provider 非流式调用超时时返回 504 LLMError', async 
       }
     `,
   ], {
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
+    cwd: repoRoot,
+    env: buildChildProcessEnv({
       WE_DB_PATH: sandbox.dbPath,
       WE_CONFIG_PATH: sandbox.configPath,
       WE_DATA_DIR: sandbox.root,
@@ -122,7 +126,7 @@ test('complete 在 provider 非流式调用超时时返回 504 LLMError', async 
       WE_LLM_RETRY_DELAY_MS: '0',
       LOG_FILE: 'false',
       MOCK_LLM_COMPLETE_DELAY_MS: '100',
-    },
+    }),
     encoding: 'utf-8',
   });
 

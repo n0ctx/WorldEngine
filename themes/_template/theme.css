@@ -16,7 +16,6 @@
   --we-color-text-primary: #171717;
   --we-color-text-secondary: #525252;
   --we-color-text-tertiary: #737373;
-  --we-color-text-disabled: #e2e2dc;
   --we-color-text-inverse: #ffffff;
   --we-color-text-danger: #7d766f;
 
@@ -56,13 +55,11 @@
   --we-color-overlay-heavy: rgba(23, 23, 23, 0.60);
   --we-color-paper-wash: rgba(247, 247, 244, 0.28);
   --we-color-paper-tint: rgba(226, 226, 220, 0.45);
-  --we-color-paper-muted: rgba(226, 226, 220, 0.30);
   --we-color-paper-overlay: rgba(201, 201, 192, 0.12);
   --we-color-ink-secondary-wash: rgba(82, 82, 82, 0.16);
   --we-color-ink-secondary-wash-sm: rgba(82, 82, 82, 0.12);
   --we-color-accent-border: rgba(125, 118, 111, 0.25);
   --we-color-accent-border-sm: rgba(125, 118, 111, 0.22);
-  --we-color-warning-bg: rgba(154, 108, 53, 0.08);
 
   /* ──────────────────────────────────────────────────────────────
      § 2 字体与页面排版
@@ -133,7 +130,6 @@
   --we-spine-display: none;
   --we-bookmark-display: none;
 
-  --we-spine-shadow: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
@@ -173,9 +169,6 @@
   --we-shadow-paper-stack:
     0 1px 3px rgba(0, 0, 0, 0.04),
     0 1px 2px rgba(0, 0, 0, 0.03);
-  --we-shadow-paper-stack-hover:
-    0 2px 6px rgba(0, 0, 0, 0.06),
-    0 1px 3px rgba(0, 0, 0, 0.04);
   --we-shadow-paper-lift: 0 0 0 1px rgba(0, 0, 0, 0.06);
   --we-shadow-paper-indent:
     inset 0 1px 2px rgba(0, 0, 0, 0.03);

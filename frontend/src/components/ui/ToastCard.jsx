@@ -89,7 +89,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
         </span>
         <div className="flex-1 min-w-0">
           {toast.title ? (
-            <div className="font-serif text-[14px] leading-tight text-[var(--we-color-text-primary)]">
+            <div className="[font-family:var(--we-font-serif)] text-[14px] leading-tight text-[var(--we-color-text-primary)]">
               {toast.title}
             </div>
           ) : null}
@@ -108,7 +108,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       </div>
       <span
         aria-hidden
-        className="absolute bottom-1 right-2 font-serif text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
+        className="absolute bottom-1 right-2 [font-family:var(--we-font-serif)] text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
       >
         {meta.seal}
       </span>

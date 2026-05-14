@@ -3,7 +3,7 @@
   "name": "Lovable Cream",
   "version": "1.0.0",
   "author": "WorldEngine",
-  "description": "基于 DESIGN.md 的严格 cream 适配版。奶油画布、charcoal opacity 中性色、边框驱动层级，并通过自托管 Instrument Sans 近似 Lovable 的 humanist sans 观感。",
+  "description": "Simple theme for WorldEngine.",
   "preview": {
     "paper": "#f7f4ed",
     "accent": "#1c1c1c",

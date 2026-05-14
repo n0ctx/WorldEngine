@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { createTestConfig } from './helpers/test-env.js';
+import { buildChildProcessEnv, createTestConfig } from './helpers/test-env.js';
 
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const hooksDir = path.join(repoRoot, 'hooks');
@@ -55,9 +55,7 @@ export default function register({ registerHook }) {
       `,
     ], {
       cwd: repoRoot,
-      env: {
-        ...process.env,
-      },
+      env: buildChildProcessEnv(),
       encoding: 'utf-8',
     }).trim();
 

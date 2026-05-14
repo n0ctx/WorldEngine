@@ -48,7 +48,7 @@ export default function StateValueField({ field, onSave }) {
           onChange={(e) => setLocal(e.target.value)}
           onBlur={() => saveValue(local === '' || local == null ? null : Number(local))}
         />
-        {unit && <span className="text-xs text-text-secondary opacity-70 flex-shrink-0">{unit}</span>}
+        {unit && <span className="text-xs text-[var(--we-color-text-secondary)] opacity-70 flex-shrink-0">{unit}</span>}
       </div>
     );
   }
@@ -136,7 +136,7 @@ export default function StateValueField({ field, onSave }) {
     const obj = (local && typeof local === 'object' && !Array.isArray(local)) ? local : {};
 
     if (columns.length === 0) {
-      return <span className="text-xs text-text-secondary opacity-70">未配置列</span>;
+      return <span className="text-xs text-[var(--we-color-text-secondary)] opacity-70">未配置列</span>;
     }
 
     return (

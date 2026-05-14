@@ -12,12 +12,12 @@
  * becomes a real need, swap the static export below for a config-driven
  * lookup; pages and routes will not need to change.
  */
-import ClassicParchmentShell from '../../shells/classic-parchment/index.js';
+import BookSpreadShell from '../../shells/book-spread/index.js';
 
-export const DEFAULT_SHELL_ID = 'classic-parchment';
+export const DEFAULT_SHELL_ID = 'book-spread';
 
 export const SHELLS = Object.freeze({
-  'classic-parchment': ClassicParchmentShell,
+  'book-spread': BookSpreadShell,
 });
 
 export function selectShell(shellId = DEFAULT_SHELL_ID) {

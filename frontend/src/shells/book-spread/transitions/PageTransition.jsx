@@ -15,7 +15,7 @@ const containerStyle = {
 };
 
 /**
- * Route-level transition container for the classic-parchment shell.
+ * Route-level transition container for the book-spread shell.
  * locationKey changes trigger pageTransition motion; overlay routes
  * (backgroundLocation active → locationKey unchanged) do not.
  */

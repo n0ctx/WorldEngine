@@ -999,7 +999,7 @@ export default function ChatPage() {
     <PageLayout
       overlay={toast ? (
         <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-lg text-sm shadow-lg pointer-events-none ${
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-[var(--we-radius-lg)] text-sm shadow-lg pointer-events-none ${
             toast.type === 'error'
               ? 'bg-[var(--we-color-status-danger)] text-[var(--we-color-text-inverse)]'
               : 'bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)]'
@@ -1118,7 +1118,7 @@ export default function ChatPage() {
                 <div className="flex flex-col gap-1 max-w-[75%]">
                   <span className="text-xs opacity-50">{character?.name}</span>
                   {errorBubble.partialContent && (
-                    <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-ivory border border-border text-text text-sm leading-relaxed whitespace-pre-wrap opacity-60">
+                    <div className="px-4 py-3 rounded-[var(--we-radius-lg)] rounded-tl-sm bg-[var(--we-color-bg-surface)] border border-[var(--we-color-border-default)] text-[var(--we-color-text-primary)] text-sm leading-relaxed whitespace-pre-wrap opacity-60">
                       {errorBubble.partialContent}
                     </div>
                   )}
@@ -1128,7 +1128,7 @@ export default function ChatPage() {
                     </span>
                     <button
                       onClick={handleRetryAfterError}
-                      className="text-xs px-3 py-1 rounded-lg border border-border hover:bg-sand transition-colors flex items-center gap-1 text-text-secondary"
+                      className="text-xs px-3 py-1 rounded-[var(--we-radius-lg)] border border-[var(--we-color-border-default)] hover:bg-[var(--we-color-bg-subtle)] transition-colors flex items-center gap-1 text-[var(--we-color-text-secondary)]"
                     >
                       <Icon size={16}>
                         <polyline points="1 4 1 10 7 10" />

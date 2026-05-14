@@ -76,21 +76,21 @@ export default function StateFieldList({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-text-secondary uppercase tracking-wider opacity-60">
+        <span className="text-xs font-medium text-[var(--we-color-text-secondary)] uppercase tracking-wider opacity-60">
           {scope === 'world' ? '世界状态字段' : scope === 'persona' ? '玩家状态字段' : '角色状态字段'}
         </span>
         <button
           onClick={() => { setEditingField(null); setShowEditor(true); }}
-          className="text-xs px-3 py-1 bg-accent text-white rounded-lg hover:opacity-90 transition-opacity"
+          className="text-xs px-3 py-1 bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)] rounded-[var(--we-radius-lg)] hover:opacity-90 transition-opacity"
         >
           + 添加
         </button>
       </div>
 
       {loading ? (
-        <p className="text-xs text-text-secondary opacity-50 py-3 text-center">加载中…</p>
+        <p className="text-xs text-[var(--we-color-text-secondary)] opacity-50 py-3 text-center">加载中…</p>
       ) : fields.length === 0 ? (
-        <p className="text-xs text-text-secondary opacity-35 italic py-3 text-center">暂无字段</p>
+        <p className="text-xs text-[var(--we-color-text-secondary)] opacity-35 italic py-3 text-center">暂无字段</p>
       ) : (
         <div className="flex flex-col gap-2">
           {diaryField && (
@@ -145,14 +145,14 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
     <div
       className={`we-field-row group flex items-center gap-2 px-3 py-2 select-none${isDiaryTime ? '' : ' cursor-grab active:cursor-grabbing'}`}
     >
-      <span className={`text-text-secondary text-xs flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`}>⠿</span>
+      <span className={`text-[var(--we-color-text-secondary)] text-xs flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`}>⠿</span>
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
-        <span className="text-sm text-text font-medium truncate">{field.label}</span>
+        <span className="text-sm text-[var(--we-color-text-primary)] font-medium truncate">{field.label}</span>
         {isDiaryTime && (
           <span className="text-xs opacity-40 flex-shrink-0" title="日记时间字段，由系统管理">§</span>
         )}
-        <span className="text-xs text-text-secondary opacity-50 font-mono truncate">{field.field_key}</span>
+        <span className="text-xs text-[var(--we-color-text-secondary)] opacity-50 [font-family:var(--we-font-mono)] truncate">{field.field_key}</span>
         <span className="ml-auto flex gap-1 flex-shrink-0">
           <Badge label={TYPE_LABEL[field.type] ?? field.type} />
           <Badge label={UPDATE_LABEL[field.update_mode] ?? field.update_mode} dim />
@@ -161,11 +161,11 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
 
       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
         <button onClick={onEdit}
-          className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-text hover:bg-sand transition-colors text-xs"
+          className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-primary)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
           title="编辑">✎</button>
         {!isDiaryTime && (
           <button onClick={onDelete}
-            className="w-6 h-6 flex items-center justify-center rounded text-text-secondary hover:text-[var(--we-color-text-danger)] hover:bg-sand transition-colors text-xs"
+            className="w-6 h-6 flex items-center justify-center rounded text-[var(--we-color-text-secondary)] hover:text-[var(--we-color-text-danger)] hover:bg-[var(--we-color-bg-subtle)] transition-colors text-xs"
             title="删除">✕</button>
         )}
       </div>

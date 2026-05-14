@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   useLocation: vi.fn(),
   getPersona: vi.fn(),
   getPersonaById: vi.fn(),
+  createPersona: vi.fn(),
   updatePersona: vi.fn(),
   updatePersonaById: vi.fn(),
   uploadPersonaAvatar: vi.fn(),
@@ -27,6 +28,7 @@ vi.mock('react-router-dom', () => ({
 vi.mock('../../src/core/api/personas', () => ({
   getPersona: (...args) => mocks.getPersona(...args),
   getPersonaById: (...args) => mocks.getPersonaById(...args),
+  createPersona: (...args) => mocks.createPersona(...args),
   updatePersona: (...args) => mocks.updatePersona(...args),
   updatePersonaById: (...args) => mocks.updatePersonaById(...args),
   uploadPersonaAvatar: (...args) => mocks.uploadPersonaAvatar(...args),
@@ -74,6 +76,7 @@ describe('PersonaEditPage', () => {
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.useLocation.mockReturnValue({ pathname: '/worlds/world-1/persona', state: {} });
     mocks.useNavigate.mockReset();
+    mocks.createPersona.mockReset();
     mocks.getPersona.mockResolvedValue({
       id: 'persona-1',
       name: '旅者',
@@ -81,6 +84,7 @@ describe('PersonaEditPage', () => {
       avatar_path: null,
     });
     mocks.getPersonaStateValues.mockResolvedValue([{ field_key: 'mood', label: '心境' }]);
+    mocks.createPersona.mockResolvedValue({ id: 'persona-2' });
     mocks.updatePersona.mockResolvedValue({ id: 'persona-1' });
     mocks.updatePersonaById.mockResolvedValue({ id: 'persona-1' });
     mocks.updatePersonaStateValue.mockResolvedValue({ success: true });
@@ -125,5 +129,27 @@ describe('PersonaEditPage', () => {
       expect.anything(),
       expect.objectContaining({ toast: '保存失败：保存失败' }),
     ));
+  });
+
+  it('overlay 创建成功后会关闭玩家创建页', async () => {
+    mocks.useParams.mockReturnValue({ worldId: 'world-1' });
+    mocks.useLocation.mockReturnValue({
+      pathname: '/worlds/world-1/personas/new',
+      state: { backgroundLocation: { pathname: '/worlds/world-1' } },
+    });
+    mocks.getPersonaStateValues.mockResolvedValue([]);
+
+    render(<PersonaEditPage />);
+
+    await waitFor(() => expect(screen.getByText('创建')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('你在这个世界里的名字'), { target: { value: '新玩家' } });
+    fireEvent.click(screen.getByText('创建'));
+
+    await waitFor(() => expect(mocks.createPersona).toHaveBeenCalledWith('world-1', {
+      name: '新玩家',
+      description: '',
+      system_prompt: '',
+    }));
+    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
   });
 });

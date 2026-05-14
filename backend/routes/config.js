@@ -12,6 +12,8 @@ import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/con
 
 const router = Router();
 const log = createLogger('config', 'blue');
+const PRICING_TTL_MS = 6 * 60 * 60 * 1000;
+const pricingCache = new Map();
 
 /** 通过顶层共享池获取指定 section 当前 provider 的 API Key */
 function resolveApiKey(section, sharedKeys) {
@@ -46,29 +48,377 @@ function sanitizeBaseUrlPatch(section) {
   section.base_url = validateModelFetchBaseUrl(section.provider, section.base_url);
 }
 
-/** 查询当前模型的静态价格 */
-function resolveModelPricing(modelId) {
-  if (!modelId) return null;
-  const known = KNOWN_PRICES.get(modelId);
-  if (!known) return null;
+function normalizeModelId(modelId) {
+  return String(modelId || '').replace(/^models\//, '').trim();
+}
+
+function toPricingPayload(pricing) {
+  if (!pricing) return null;
   return {
-    inputPrice: known.inputPrice,
-    outputPrice: known.outputPrice,
-    cacheWritePrice: known.cacheWritePrice ?? null,
-    cacheReadPrice: known.cacheReadPrice ?? null,
+    inputPrice: pricing.inputPrice,
+    outputPrice: pricing.outputPrice,
+    cacheWritePrice: pricing.cacheWritePrice ?? null,
+    cacheReadPrice: pricing.cacheReadPrice ?? null,
   };
 }
 
+const MODEL_PRICE_ALIASES = [
+  ['gemini-2.5-flash-lite-preview', 'gemini-2.5-flash-lite'],
+  ['gemini-2.5-flash-lite', 'gemini-2.5-flash-lite'],
+  ['gemini-2.5-flash-preview', 'gemini-2.5-flash'],
+  ['gemini-2.5-flash', 'gemini-2.5-flash'],
+  ['gemini-2.5-pro-preview', 'gemini-2.5-pro'],
+  ['gemini-2.5-pro', 'gemini-2.5-pro'],
+  ['gemini-2.0-flash-lite', 'gemini-2.0-flash-lite'],
+  ['gemini-2.0-flash', 'gemini-2.0-flash'],
+  ['deepseek-v4-flash', 'deepseek-v4-flash'],
+  ['deepseek-v4-pro', 'deepseek-v4-pro'],
+  ['grok-4.20-multi-agent', 'grok-4.20-multi-agent-0309'],
+  ['grok-4.20-0309-reasoning', 'grok-4.20-0309-reasoning'],
+  ['grok-4.20-0309-non-reasoning', 'grok-4.20-0309-non-reasoning'],
+  ['grok-4-1-fast-reasoning', 'grok-4-1-fast-reasoning'],
+  ['grok-4-1-fast-non-reasoning', 'grok-4-1-fast-non-reasoning'],
+  ['grok-4.3', 'grok-4.3'],
+  ['kimi-k2.6', 'kimi-k2.6'],
+  ['kimi-k2.5', 'kimi-k2.5'],
+  ['kimi-k2-turbo', 'kimi-k2'],
+  ['kimi-k2', 'kimi-k2'],
+  ['qwen-turbo', 'qwen-turbo'],
+  ['qwen-plus', 'qwen-plus'],
+  ['qwen-max', 'qwen-max'],
+  ['qwen3-coder-plus', 'qwen3-coder-plus'],
+  ['Qwen/Qwen3-235B-A22B-Thinking', 'Qwen/Qwen3-235B-A22B-Thinking-2507'],
+  ['Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-235B-A22B-Thinking-2507'],
+  ['MiniMaxAI/MiniMax-M2', 'MiniMaxAI/MiniMax-M2'],
+  ['moonshotai/Kimi-K2-Instruct-0905', 'moonshotai/Kimi-K2-Instruct-0905'],
+];
+
+function lookupPricingFromMap(pricingMap, modelId) {
+  const normalizedId = normalizeModelId(modelId);
+  if (!normalizedId || !pricingMap) return null;
+  const direct = pricingMap.get(normalizedId);
+  if (direct) return direct;
+  for (const [prefix, target] of MODEL_PRICE_ALIASES) {
+    if (normalizedId === prefix || normalizedId.startsWith(`${prefix}-`)) {
+      return pricingMap.get(target) || null;
+    }
+  }
+  return null;
+}
+
+function getFallbackPricing(modelId) {
+  return lookupPricingFromMap(KNOWN_PRICES, modelId);
+}
+
+function stripHtmlToText(html) {
+  return String(html || '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, '\'')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSection(text, startMarker, endMarkers = []) {
+  const start = text.indexOf(startMarker);
+  if (start < 0) return '';
+  let end = text.length;
+  for (const marker of endMarkers) {
+    const idx = text.indexOf(marker, start + startMarker.length);
+    if (idx >= 0 && idx < end) end = idx;
+  }
+  return text.slice(start, end);
+}
+
+function extractFirstUsdAfter(text, label, window = 500) {
+  const start = text.indexOf(label);
+  if (start < 0) return undefined;
+  const snippet = text.slice(start, start + window);
+  const match = snippet.match(/\$([0-9]+(?:\.[0-9]+)?)/);
+  if (!match) return undefined;
+  return parseFloat(match[1]);
+}
+
+function extractUsdListAfter(text, label, count, window = 300) {
+  const start = text.indexOf(label);
+  if (start < 0) return [];
+  const snippet = text.slice(start, start + window);
+  return [...snippet.matchAll(/\$([0-9]+(?:\.[0-9]+)?)/g)]
+    .slice(0, count)
+    .map((match) => parseFloat(match[1]));
+}
+
+function extractNumberAfter(text, label, window = 240) {
+  const start = text.indexOf(label);
+  if (start < 0) return undefined;
+  const snippet = text.slice(start, start + window);
+  const match = snippet.match(/([0-9]+(?:\.[0-9]+)?)/);
+  if (!match) return undefined;
+  return parseFloat(match[1]);
+}
+
+function extractAllNumbersAfter(text, label, count, window = 600) {
+  const start = text.indexOf(label);
+  if (start < 0) return [];
+  const snippet = text.slice(start, start + window);
+  return [...snippet.matchAll(/([0-9]+(?:\.[0-9]+)?)/g)]
+    .slice(0, count)
+    .map((match) => parseFloat(match[1]));
+}
+
+function parseGeminiPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const sections = [
+    ['gemini-2.5-pro', ['gemini-2.5-flash']],
+    ['gemini-2.5-flash', ['gemini-2.5-flash-lite']],
+    ['gemini-2.5-flash-lite', ['gemini-2.5-flash-lite-preview-09-2025', 'gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.0-flash']],
+    ['gemini-2.5-flash-lite-preview-09-2025', ['gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.0-flash']],
+    ['gemini-2.0-flash', ['gemini-2.0-flash-lite']],
+    ['gemini-2.0-flash-lite', ['Imagen 4']],
+  ];
+  const pricing = new Map();
+  for (const [modelId, endMarkers] of sections) {
+    const section = extractSection(text, modelId, endMarkers);
+    if (!section) continue;
+    const entry = {
+      inputPrice: extractFirstUsdAfter(section, 'Input price'),
+      outputPrice: extractFirstUsdAfter(section, 'Output price'),
+      cacheReadPrice: extractFirstUsdAfter(section, 'Context caching price'),
+    };
+    if (Number.isFinite(entry.inputPrice) && Number.isFinite(entry.outputPrice)) {
+      pricing.set(modelId, entry);
+    }
+  }
+  return pricing;
+}
+
+function parseGrokPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const rows = [
+    'grok-4.3',
+    'grok-4.20-multi-agent-0309',
+    'grok-4.20-0309-reasoning',
+    'grok-4.20-0309-non-reasoning',
+    'grok-4-1-fast-reasoning',
+    'grok-4-1-fast-non-reasoning',
+  ];
+  const pricing = new Map();
+  for (const modelId of rows) {
+    const pattern = new RegExp(`${modelId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+\\d+M\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)`);
+    const match = text.match(pattern);
+    if (!match) continue;
+    pricing.set(modelId, {
+      inputPrice: parseFloat(match[1]),
+      cacheReadPrice: parseFloat(match[2]),
+      outputPrice: parseFloat(match[3]),
+    });
+  }
+  return pricing;
+}
+
+function parseDeepSeekPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const pricing = new Map();
+  const cacheHits = extractUsdListAfter(text, '1M INPUT TOKENS (CACHE HIT)', 2);
+  const cacheMisses = extractUsdListAfter(text, '1M INPUT TOKENS (CACHE MISS)', 2);
+  const outputs = extractUsdListAfter(text, '1M OUTPUT TOKENS', 2);
+  if (cacheHits.length >= 2 && cacheMisses.length >= 2 && outputs.length >= 2) {
+    pricing.set('deepseek-v4-flash', {
+      inputPrice: cacheMisses[0],
+      outputPrice: outputs[0],
+      cacheReadPrice: cacheHits[0],
+    });
+    pricing.set('deepseek-v4-pro', {
+      inputPrice: cacheMisses[1],
+      outputPrice: outputs[1],
+      cacheReadPrice: cacheHits[1],
+    });
+  }
+  return pricing;
+}
+
+function parseDeepSeekLegacyPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const pricing = new Map();
+  for (const modelId of ['deepseek-chat', 'deepseek-reasoner']) {
+    const pattern = new RegExp(`${modelId}\\s+.*?\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)\\s+\\$([0-9]+(?:\\.[0-9]+)?)`);
+    const match = text.match(pattern);
+    if (!match) continue;
+    pricing.set(modelId, {
+      cacheReadPrice: parseFloat(match[1]),
+      inputPrice: parseFloat(match[2]),
+      outputPrice: parseFloat(match[3]),
+    });
+  }
+  return pricing;
+}
+
+function parseKimiHomepagePricing(html) {
+  const text = stripHtmlToText(html);
+  const rows = [
+    ['kimi-k2.6', 'kimi-k2.6'],
+    ['kimi-k2.5', 'kimi-k2.5'],
+    ['kimi-k2 是一款具备超强代码和 Agent 能力的 MoE 架构基础模型', 'kimi-k2'],
+  ];
+  const pricing = new Map();
+  for (const [needle, modelId] of rows) {
+    const start = text.indexOf(needle);
+    if (start < 0) continue;
+    const snippet = text.slice(start, start + 500);
+    const cacheReadPrice = extractNumberAfter(snippet, '缓存命中');
+    const inputPrice = extractNumberAfter(snippet, '输入');
+    const outputPrice = extractNumberAfter(snippet, '输出');
+    if (Number.isFinite(inputPrice) && Number.isFinite(outputPrice)) {
+      pricing.set(modelId, { inputPrice, outputPrice, cacheReadPrice });
+    }
+  }
+  return pricing;
+}
+
+function parseQwenPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const rows = [
+    ['qwen-turbo', 'qwen-turbo'],
+    ['qwen-plus', 'qwen-plus'],
+    ['qwen-max', 'qwen-max'],
+    ['qwen3-coder-plus', 'qwen3-coder-plus'],
+  ];
+  const pricing = new Map();
+  for (const [needle, modelId] of rows) {
+    const start = text.indexOf(needle);
+    if (start < 0) continue;
+    const snippet = text.slice(start, start + 1200);
+    const numbers = [...snippet.matchAll(/([0-9]+(?:\.[0-9]+)?)\s*元/g)].map((match) => parseFloat(match[1]));
+    if (numbers.length >= 2) {
+      pricing.set(modelId, {
+        inputPrice: numbers[0],
+        outputPrice: numbers[1],
+      });
+    }
+  }
+  return pricing;
+}
+
+function parseSiliconFlowPricingPage(html) {
+  const text = stripHtmlToText(html);
+  const start = text.indexOf('SiliconFlow 平台推理模型价格表');
+  if (start < 0) return new Map();
+  const section = text.slice(start, start + 1500);
+  const rows = [
+    ['deepseek-ai/DeepSeek-V3.1-Terminus', 'deepseek-ai/DeepSeek-V3.1-Terminus'],
+    ['moonshotai/Kimi-K2-Instruct-0905', 'moonshotai/Kimi-K2-Instruct-0905'],
+    ['MiniMaxAI/MiniMax-M2', 'MiniMaxAI/MiniMax-M2'],
+    ['Qwen/Qwen3-235B-A22B-Thinking-2507', 'Qwen/Qwen3-235B-A22B-Thinking-2507'],
+    ['Qwen/QwQ-32B', 'Qwen/QwQ-32B'],
+    ['DeepSeek-V3', 'deepseek-ai/DeepSeek-V3'],
+  ];
+  const pricing = new Map();
+  for (const [needle, modelId] of rows) {
+    const pattern = new RegExp(`${needle.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\s+¥?([0-9]+(?:\\.[0-9]+)?)\\s+¥?([0-9]+(?:\\.[0-9]+)?)`);
+    const match = section.match(pattern);
+    if (!match) continue;
+    pricing.set(modelId, {
+      inputPrice: parseFloat(match[1]),
+      outputPrice: parseFloat(match[2]),
+    });
+  }
+  return pricing;
+}
+
+async function fetchDynamicPricingMap(provider) {
+  if (provider === 'gemini') {
+    const resp = await fetch('https://ai.google.dev/gemini-api/docs/pricing');
+    if (!resp.ok) throw new Error(`Gemini pricing ${resp.status}`);
+    return parseGeminiPricingPage(await resp.text());
+  }
+  if (provider === 'grok') {
+    const resp = await fetch('https://docs.x.ai/developers/pricing');
+    if (!resp.ok) throw new Error(`Grok pricing ${resp.status}`);
+    return parseGrokPricingPage(await resp.text());
+  }
+  if (provider === 'deepseek') {
+    const [currentResp, legacyResp] = await Promise.all([
+      fetch('https://api-docs.deepseek.com/quick_start/pricing'),
+      fetch('https://api-docs.deepseek.com/quick_start/pricing-details-usd'),
+    ]);
+    if (!currentResp.ok) throw new Error(`DeepSeek pricing ${currentResp.status}`);
+    if (!legacyResp.ok) throw new Error(`DeepSeek legacy pricing ${legacyResp.status}`);
+    const merged = parseDeepSeekPricingPage(await currentResp.text());
+    const legacy = parseDeepSeekLegacyPricingPage(await legacyResp.text());
+    for (const [modelId, value] of legacy.entries()) merged.set(modelId, value);
+    return merged;
+  }
+  if (provider === 'kimi') {
+    const resp = await fetch('https://platform.kimi.com/');
+    if (!resp.ok) throw new Error(`Kimi pricing ${resp.status}`);
+    return parseKimiHomepagePricing(await resp.text());
+  }
+  if (provider === 'qwen') {
+    const resp = await fetch('https://help.aliyun.com/zh/model-studio/billing-for-model-studio');
+    if (!resp.ok) throw new Error(`Qwen pricing ${resp.status}`);
+    return parseQwenPricingPage(await resp.text());
+  }
+  if (provider === 'siliconflow') {
+    const resp = await fetch('https://docs.siliconflow.cn/cn/userguide/guides/batch');
+    if (!resp.ok) throw new Error(`SiliconFlow pricing ${resp.status}`);
+    return parseSiliconFlowPricingPage(await resp.text());
+  }
+  return new Map();
+}
+
+async function getDynamicPricingMap(provider) {
+  if (!['gemini', 'grok', 'deepseek', 'kimi', 'qwen', 'siliconflow'].includes(provider)) return new Map();
+  const cached = pricingCache.get(provider);
+  const now = Date.now();
+  if (cached?.data && cached.expiresAt > now) return cached.data;
+  if (cached?.promise) return cached.promise;
+  const promise = fetchDynamicPricingMap(provider)
+    .then((data) => {
+      pricingCache.set(provider, { data, expiresAt: Date.now() + PRICING_TTL_MS });
+      return data;
+    })
+    .catch((error) => {
+      pricingCache.delete(provider);
+      throw error;
+    });
+  pricingCache.set(provider, { ...cached, promise, expiresAt: 0, data: cached?.data || null });
+  return promise;
+}
+
+async function resolveModelPricing(provider, modelId) {
+  if (!modelId) return null;
+  try {
+    const dynamicPrices = await getDynamicPricingMap(provider);
+    const dynamicMatch = lookupPricingFromMap(dynamicPrices, modelId);
+    if (dynamicMatch) return toPricingPayload(dynamicMatch);
+  } catch (error) {
+    log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, model: modelId, error: error.message })}`);
+  }
+  return toPricingPayload(getFallbackPricing(modelId));
+}
+
 // GET /api/config — 返回当前配置（去掉 api_key）
-router.get('/', (_req, res) => {
+router.get('/', async (_req, res) => {
   const config = getConfig();
   const logging = getLoggingConfig();
   const safe = stripApiKeys(config);
-  if (safe.llm) safe.llm.model_pricing = resolveModelPricing(config.llm?.model);
-  if (safe.writing?.llm) {
-    const writingModel = config.writing?.llm?.model;
-    safe.writing.llm.model_pricing = resolveModelPricing(writingModel || config.llm?.model);
-  }
+
+  const writingProvider = config.writing?.llm?.provider || config.llm?.provider;
+  const writingModel = config.writing?.llm?.model || config.llm?.model;
+
+  const [llmPricing, writingPricing] = await Promise.all([
+    safe.llm ? resolveModelPricing(config.llm?.provider, config.llm?.model) : Promise.resolve(null),
+    safe.writing?.llm ? resolveModelPricing(writingProvider, writingModel) : Promise.resolve(null),
+  ]);
+
+  if (safe.llm) safe.llm.model_pricing = llmPricing;
+  if (safe.writing?.llm) safe.writing.llm.model_pricing = writingPricing;
   log.debug(`GET /api/config  ${formatMeta({ loggingMode: logging.mode, prompt: logging.prompt?.enabled, llmRaw: logging.llm_raw?.enabled })}`);
   res.json(safe);
 });
@@ -291,6 +641,12 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
   const url = `${base.replace(/\/+$/, '')}/models`;
   const headers = {};
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  let dynamicPrices = new Map();
+  try {
+    dynamicPrices = await getDynamicPricingMap(provider);
+  } catch (error) {
+    log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
+  }
   const resp = await fetch(url, { headers });
   if (!resp.ok) throw new Error(`API ${resp.status}`);
   const data = await resp.json();
@@ -305,8 +661,8 @@ async function fetchOpenAICompatibleModels(base, apiKey, provider) {
       if (inp != null) entry.inputPrice = inp;
       if (out != null) entry.outputPrice = out;
     } else {
-      // 其他 provider：从静态价格表兜底
-      const known = KNOWN_PRICES.get(m.id);
+      // 其他 provider：优先用动态官方价格，失败再回退静态表
+      const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id);
       if (known) Object.assign(entry, known);
     }
     return entry;
@@ -369,6 +725,12 @@ async function fetchModels(provider, apiKey, baseUrl) {
 
   // Gemini — 原生接口（暂无价格）
   if (provider === 'gemini') {
+    let dynamicPrices = new Map();
+    try {
+      dynamicPrices = await getDynamicPricingMap(provider);
+    } catch (error) {
+      log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
+    }
     const resp = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
     );
@@ -376,7 +738,7 @@ async function fetchModels(provider, apiKey, baseUrl) {
     const data = await resp.json();
     return (data.models || []).map((m) => {
       const id = m.name.replace(/^models\//, '');
-      const known = KNOWN_PRICES.get(id) || {};
+      const known = lookupPricingFromMap(dynamicPrices, id) || getFallbackPricing(id) || {};
       return { id, ...known };
     });
   }

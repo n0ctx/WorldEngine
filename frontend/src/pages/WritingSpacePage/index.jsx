@@ -1024,7 +1024,7 @@ export default function WritingSpacePage() {
             </AnimatePresence>
 
             {isInitializing ? (
-              <div className="flex-1 flex items-center justify-center text-sm text-text-secondary opacity-60">
+              <div className="flex-1 flex items-center justify-center text-sm text-[var(--we-color-text-secondary)] opacity-60">
                 正在准备写作空间…
               </div>
             ) : initError ? (

@@ -1,4 +1,4 @@
-/* 记忆检索状态指示器 — classic-parchment shell 独有装饰，由 PageLayout
+/* 记忆检索状态指示器 — book-spread shell 独有装饰，由 PageLayout
  * 的 recall slot 注入到 left page 底部。 */
 const Dots = () => (
   <>
@@ -25,17 +25,17 @@ export default function MemoryRecallOverlay({
   if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
 
   if (memoryRecalling) {
-    return <Wrap><Dots /><span className="text-accent/75">正在检索记忆…</span></Wrap>;
+    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">正在检索记忆…</span></Wrap>;
   }
   if (memoryExpanding) {
     const label = recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…';
-    return <Wrap><Dots /><span className="text-accent/75">{label}</span></Wrap>;
+    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">{label}</span></Wrap>;
   }
   if (memoryWriting) {
-    return <Wrap><Dots /><span className="text-accent/75">正在记录记忆…</span></Wrap>;
+    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">正在记录记忆…</span></Wrap>;
   }
   if (recallParts.length > 0) {
-    return <Wrap><span className="text-text-secondary opacity-55">{recallParts.join(' · ')}</span></Wrap>;
+    return <Wrap><span className="text-[var(--we-color-text-secondary)] opacity-55">{recallParts.join(' · ')}</span></Wrap>;
   }
   return <Wrap>{null}</Wrap>;
 }

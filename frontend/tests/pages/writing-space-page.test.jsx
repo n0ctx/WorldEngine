@@ -120,7 +120,7 @@ vi.mock('../../src/core/utils/logger.js', () => ({
   },
 }));
 import { PageLayoutRendererProvider } from '../../src/pages/layout/PageLayout.jsx';
-import renderPageLayout from '../../src/shells/classic-parchment/layout/pageLayoutRenderer.jsx';
+import renderPageLayout from '../../src/shells/book-spread/layout/pageLayoutRenderer.jsx';
 import WritingSpacePage from '../../src/pages/WritingSpacePage/index.jsx';
 
 const renderWritingSpacePage = () =>

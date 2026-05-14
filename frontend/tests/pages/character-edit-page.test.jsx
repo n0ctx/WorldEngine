@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   useNavigate: vi.fn(),
   useLocation: vi.fn(),
   getCharacter: vi.fn(),
+  createCharacter: vi.fn(),
   updateCharacter: vi.fn(),
   uploadAvatar: vi.fn(),
   getCharacterStateValues: vi.fn(),
@@ -21,6 +22,7 @@ vi.mock('react-router-dom', () => ({
 }));
 vi.mock('../../src/core/api/characters', () => ({
   getCharacter: (...args) => mocks.getCharacter(...args),
+  createCharacter: (...args) => mocks.createCharacter(...args),
   updateCharacter: (...args) => mocks.updateCharacter(...args),
   uploadAvatar: (...args) => mocks.uploadAvatar(...args),
 }));
@@ -74,6 +76,7 @@ describe('CharacterEditPage', () => {
     mocks.useParams.mockReturnValue({ characterId: 'char-1' });
     mocks.useLocation.mockReturnValue({ state: {} });
     mocks.useNavigate.mockReset();
+    mocks.createCharacter.mockReset();
     mocks.getCharacter.mockResolvedValue({
       id: 'char-1',
       world_id: 'world-1',
@@ -84,6 +87,7 @@ describe('CharacterEditPage', () => {
       avatar_path: null,
     });
     mocks.getCharacterStateValues.mockResolvedValue([{ field_key: 'hp', label: '生命值' }]);
+    mocks.createCharacter.mockResolvedValue({ id: 'char-2' });
     mocks.updateCharacter.mockResolvedValue({ id: 'char-1' });
     mocks.updateCharacterStateValue.mockResolvedValue({ success: true });
     mocks.uploadAvatar.mockResolvedValue({ avatar_path: 'avatars/char-1.png' });
@@ -125,5 +129,26 @@ describe('CharacterEditPage', () => {
       expect.anything(),
       expect.objectContaining({ toast: '头像上传失败：文件过大' }),
     ));
+  });
+
+  it('overlay 创建成功后会关闭角色创建页', async () => {
+    mocks.useParams.mockReturnValue({ worldId: 'world-1' });
+    mocks.useLocation.mockReturnValue({
+      state: { backgroundLocation: { pathname: '/worlds/world-1' } },
+    });
+
+    render(<CharacterEditPage />);
+
+    fireEvent.change(screen.getByLabelText('角色的名字'), { target: { value: '新角色' } });
+    fireEvent.click(screen.getByText('创建角色'));
+
+    await waitFor(() => expect(mocks.createCharacter).toHaveBeenCalledWith('world-1', {
+      name: '新角色',
+      description: '',
+      system_prompt: '',
+      post_prompt: '',
+      first_message: '',
+    }));
+    expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
   });
 });

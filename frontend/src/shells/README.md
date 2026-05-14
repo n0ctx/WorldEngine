@@ -51,13 +51,13 @@ A shell MUST NOT own:
 
 ## Current shells
 
-- **`classic-parchment/`** — the default shell. Implements the book/parchment
+- **`book-spread/`** — the default shell. Implements the book/parchment
   experience: serif chrome, top bar, page transitions, and the
-  `PageLayout` renderer that arranges page slots into the parchment two-page
+  `PageLayout` renderer that arranges page slots into the two-page
   spread. Shell-internal chrome (BookSpread, PageLeft, PageRight, Bookmark,
   ParchmentTexture, PageFooter, FleuronLine, MemoryRecallOverlay, TopBar,
   PageTransition) lives under
-  `shells/classic-parchment/{layout,components,transitions}/` and MUST NOT
+  `shells/book-spread/{layout,components,transitions}/` and MUST NOT
   be imported by pages or by neutral `components/` modules. Pages declare
   layout via `pages/layout/PageLayout` slots and let the shell render them.
 
@@ -66,7 +66,7 @@ A shell MUST NOT own:
 
 ## Conventions
 
-- Shell id matches its folder name (e.g. `classic-parchment`).
+- Shell id matches its folder name (e.g. `book-spread`).
 - Each shell exports an `AppShell` component as its root frame and an `index.js`
   barrel.
 - Shells receive routed children; they do not own the `<Routes>` element.
