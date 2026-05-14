@@ -70,12 +70,16 @@ export default function SettingsPage() {
       >
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>
-          <p className="we-settings-nav-title">设置</p>
+          <div className="we-settings-nav-header">
+            <p className="we-settings-nav-eyebrow">Settings</p>
+            <p className="we-settings-nav-title">设置</p>
+          </div>
           <div className="we-settings-nav-items">
             {NAV_SECTIONS.map((s) => (
               <button
                 key={s.key}
                 className={`we-settings-nav-item${activeSection === s.key ? ' active' : ''}`}
+                aria-current={activeSection === s.key ? 'page' : undefined}
                 onClick={() => setActiveSection(s.key)}
               >
                 {s.label}
@@ -85,86 +89,88 @@ export default function SettingsPage() {
         </nav>
 
         <div className="we-settings-body">
-          {activeSection === NAV_KEY.LLM && (
-            <div className="we-settings-section">
-              <LlmConfigPanel {...llmProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
-            </div>
-          )}
-          {activeSection === NAV_KEY.PROMPT && (
-            <div className="we-settings-section">
-              <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
-            </div>
-          )}
-          {activeSection === NAV_KEY.FEATURES && (
-            <div className="we-settings-section">
-              <FeaturesConfigPanel
-                settingsMode={settingsMode}
-                onModeChange={setSettingsMode}
-                contextRounds={promptProps.contextRounds}
-                setContextRounds={promptProps.setContextRounds}
-                onSaveContextRounds={promptProps.onSaveContextRounds}
-                writingContextRounds={promptProps.writingContextRounds}
-                setWritingContextRounds={promptProps.setWritingContextRounds}
-                onSaveWritingContextRounds={promptProps.onSaveWritingContextRounds}
-                memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
-                onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
-                writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
-                onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
-                longTermMemoryEnabled={promptProps.longTermMemoryEnabled}
-                onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
-                writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
-                onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
-                chatDiaryEnabled={diaryProps.chatEnabled}
-                onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
-                chatDateMode={diaryProps.chatDateMode}
-                onChangeChatDateMode={diaryProps.onChangeChatDateMode}
-                writingDiaryEnabled={diaryProps.writingEnabled}
-                onToggleWritingDiaryEnabled={diaryProps.onToggleWritingEnabled}
-                writingDateMode={diaryProps.writingDateMode}
-                onChangeWritingDateMode={diaryProps.onChangeWritingDateMode}
-                showThinking={llmProps.showThinking}
-                onToggleShowThinking={llmProps.onToggleShowThinking}
-                autoCollapseThinking={llmProps.autoCollapseThinking}
-                onToggleAutoCollapseThinking={llmProps.onToggleAutoCollapseThinking}
-                showTokenUsage={llmProps.showTokenUsage}
-                onToggleShowTokenUsage={llmProps.onToggleShowTokenUsage}
-                suggestionEnabled={promptProps.suggestionEnabled}
-                onToggleSuggestion={promptProps.onToggleSuggestion}
-                writingSuggestionEnabled={promptProps.writingSuggestionEnabled}
-                onToggleWritingSuggestion={promptProps.onToggleWritingSuggestion}
-              />
-            </div>
-          )}
-          {activeSection === NAV_KEY.CSS && (
-            <div className="we-settings-section">
-              <h2 className="we-settings-section-title">自定义 CSS</h2>
-              <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
-              <CustomCssManager settingsMode={settingsMode} />
-            </div>
-          )}
-          {activeSection === NAV_KEY.THEME && (
-            <div className="we-settings-section">
-              <h2 className="we-settings-section-title">主题</h2>
-              <ThemeManager />
-            </div>
-          )}
-          {activeSection === NAV_KEY.REGEX && (
-            <div className="we-settings-section">
-              <h2 className="we-settings-section-title">正则规则</h2>
-              <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
-              <RegexRulesManager settingsMode={settingsMode} />
-            </div>
-          )}
-          {activeSection === NAV_KEY.IMPORT_EXPORT && (
-            <div className="we-settings-section">
-              <ImportExportPanel onImportSuccess={onImportSuccess} />
-            </div>
-          )}
-          {activeSection === NAV_KEY.ABOUT && (
-            <div className="we-settings-section">
-              <AboutPanel />
-            </div>
-          )}
+          <div className="we-settings-body-main">
+            {activeSection === NAV_KEY.LLM && (
+              <div className="we-settings-section">
+                <LlmConfigPanel {...llmProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.PROMPT && (
+              <div className="we-settings-section">
+                <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.FEATURES && (
+              <div className="we-settings-section">
+                <FeaturesConfigPanel
+                  settingsMode={settingsMode}
+                  onModeChange={setSettingsMode}
+                  contextRounds={promptProps.contextRounds}
+                  setContextRounds={promptProps.setContextRounds}
+                  onSaveContextRounds={promptProps.onSaveContextRounds}
+                  writingContextRounds={promptProps.writingContextRounds}
+                  setWritingContextRounds={promptProps.setWritingContextRounds}
+                  onSaveWritingContextRounds={promptProps.onSaveWritingContextRounds}
+                  memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
+                  onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
+                  writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
+                  onToggleWritingMemoryExpansion={promptProps.onToggleWritingMemoryExpansion}
+                  longTermMemoryEnabled={promptProps.longTermMemoryEnabled}
+                  onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
+                  writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
+                  onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
+                  chatDiaryEnabled={diaryProps.chatEnabled}
+                  onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
+                  chatDateMode={diaryProps.chatDateMode}
+                  onChangeChatDateMode={diaryProps.onChangeChatDateMode}
+                  writingDiaryEnabled={diaryProps.writingEnabled}
+                  onToggleWritingDiaryEnabled={diaryProps.onToggleWritingEnabled}
+                  writingDateMode={diaryProps.writingDateMode}
+                  onChangeWritingDateMode={diaryProps.onChangeWritingDateMode}
+                  showThinking={llmProps.showThinking}
+                  onToggleShowThinking={llmProps.onToggleShowThinking}
+                  autoCollapseThinking={llmProps.autoCollapseThinking}
+                  onToggleAutoCollapseThinking={llmProps.onToggleAutoCollapseThinking}
+                  showTokenUsage={llmProps.showTokenUsage}
+                  onToggleShowTokenUsage={llmProps.onToggleShowTokenUsage}
+                  suggestionEnabled={promptProps.suggestionEnabled}
+                  onToggleSuggestion={promptProps.onToggleSuggestion}
+                  writingSuggestionEnabled={promptProps.writingSuggestionEnabled}
+                  onToggleWritingSuggestion={promptProps.onToggleWritingSuggestion}
+                />
+              </div>
+            )}
+            {activeSection === NAV_KEY.CSS && (
+              <div className="we-settings-section">
+                <h2 className="we-settings-section-title">自定义 CSS</h2>
+                <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
+                <CustomCssManager settingsMode={settingsMode} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.THEME && (
+              <div className="we-settings-section">
+                <h2 className="we-settings-section-title">主题</h2>
+                <ThemeManager />
+              </div>
+            )}
+            {activeSection === NAV_KEY.REGEX && (
+              <div className="we-settings-section">
+                <h2 className="we-settings-section-title">正则规则</h2>
+                <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
+                <RegexRulesManager settingsMode={settingsMode} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.IMPORT_EXPORT && (
+              <div className="we-settings-section">
+                <ImportExportPanel onImportSuccess={onImportSuccess} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.ABOUT && (
+              <div className="we-settings-section">
+                <AboutPanel />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -51,8 +51,10 @@ describe('SettingsPage', () => {
     render(<SettingsPage />);
 
     expect(screen.getByText('LLM PANEL')).toBeInTheDocument();
+    expect(screen.getByText('LLM 配置')).toHaveAttribute('aria-current', 'page');
     fireEvent.click(screen.getByText('全局提示词'));
     expect(screen.getByText('PROMPT PANEL')).toBeInTheDocument();
+    expect(screen.getByText('全局提示词')).toHaveAttribute('aria-current', 'page');
 
     fireEvent.click(screen.getByText('自定义 CSS'));
     expect(screen.getByText('CSS PANEL')).toBeInTheDocument();

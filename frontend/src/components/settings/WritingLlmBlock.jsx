@@ -68,7 +68,7 @@ export default function WritingLlmBlock({
     <div className="we-settings-field-group">
       <p className="we-settings-subsection-title">主模型(LLM)</p>
 
-      <FormGroup label="Provider" hint={`用于写作页生成；未配置则回退对话主模型（${chatModel || '未配置'}）。`}>
+      <FormGroup label="Provider" hint={`用于写作页生成；未配置则回退对话主模型（${chatModel || '未配置'}）。`} variant="settings">
         <Select
           value={config.provider || ''}
           onChange={(v) => onWritingLlmChange('provider', v)}
@@ -77,12 +77,12 @@ export default function WritingLlmBlock({
       </FormGroup>
 
       {config.provider && !isLocal && (
-        <FormGroup label="API Key">
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <FormGroup label="API Key" variant="settings">
+          <div className="we-settings-inline-field-row">
             <Input
               type="password"
               autoComplete="new-password"
-              style={{ flex: 1 }}
+              className="we-settings-inline-field-input"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
@@ -116,7 +116,7 @@ export default function WritingLlmBlock({
       )}
 
       {needsBaseUrl && (
-        <FormGroup label="Base URL">
+        <FormGroup label="Base URL" variant="settings">
           <Input
             value={config.base_url || ''}
             onChange={(e) => onWritingLlmChange('base_url', e.target.value)}
@@ -126,7 +126,7 @@ export default function WritingLlmBlock({
       )}
 
       {config.provider && (
-        <FormGroup label="模型">
+        <FormGroup label="模型" variant="settings">
           <ModelSelector
             key={config.provider + (config.base_url || '') + (config.has_key ? '1' : '0')}
             value={config.model || ''}
@@ -137,7 +137,7 @@ export default function WritingLlmBlock({
       )}
 
       {config.provider && (
-        <FormGroup label="连接测试">
+        <FormGroup label="连接测试" variant="settings">
           <div className="we-settings-action-row we-settings-action-row--spaced">
             <Button
               variant="default"
@@ -156,7 +156,7 @@ export default function WritingLlmBlock({
 
       <div>
         <div className="we-settings-range-head">
-          <FieldLabel hint="拉到最左侧（0）则继承对话温度">写作 Temperature</FieldLabel>
+          <FieldLabel hint="拉到最左侧（0）则继承对话温度" variant="settings">写作 Temperature</FieldLabel>
           <span className="we-settings-range-value">
             {config.temperature != null && config.temperature > 0 ? (config.temperature).toFixed(1) : '继承'}
           </span>
@@ -173,7 +173,7 @@ export default function WritingLlmBlock({
         />
       </div>
 
-      <FormGroup label="写作 Max Tokens" hint="留空则继承对话最大 Token">
+      <FormGroup label="写作 Max Tokens" hint="留空则继承对话最大 Token" variant="settings">
         <Input
           type="number"
           min="64" max="32000" step="64"

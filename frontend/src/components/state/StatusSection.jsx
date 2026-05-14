@@ -8,6 +8,7 @@ import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.
 
 const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const STATE_LIST_MAX_ITEMS = 10;
+const EMPTY_STATUS_DISPLAY = '—';
 
 /** datetime ISO 字符串渲染为 "{prefix}X年X月X日X时X分"（去前导零） */
 function formatDatetimeChinese(iso, prefix) {
@@ -189,7 +190,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
     const valueClassName = `we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}`;
     if (type === 'list') {
       const arr = parseRawValue(row.effective_value_json, 'list');
-      if (arr.length === 0) return <span className="we-status-value we-status-null">点击编辑</span>;
+      if (arr.length === 0) return <span className="we-status-value we-status-null">{EMPTY_STATUS_DISPLAY}</span>;
       return (
         <div className="we-status-tags">
           {arr.map((item, idx) => (
@@ -200,7 +201,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
     }
     return (
       <span className={valueClassName}>
-        {display != null ? applyTemplateVars(String(display), templateCtx) : '点击编辑'}
+        {display != null ? applyTemplateVars(String(display), templateCtx) : EMPTY_STATUS_DISPLAY}
       </span>
     );
   })();
@@ -560,9 +561,8 @@ export default function StatusSection({
                       <span
                         className={`we-status-value we-status-null${editable ? ' we-status-editable' : ''}`}
                         onClick={editable ? () => setEditingKey(editKey) : undefined}
-                        title={editable ? '点击编辑' : undefined}
                       >
-                        {editable ? '点击编辑' : '—'}
+                        {EMPTY_STATUS_DISPLAY}
                       </span>
                     );
                   }
@@ -581,7 +581,7 @@ export default function StatusSection({
                   <span
                     className={`we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}${editable ? ' we-status-editable' : ''}`}
                     onClick={editable ? () => setEditingKey(editKey) : undefined}
-                    title={editable ? '点击编辑' : undefined}
+                    title={display != null && editable ? '点击编辑' : undefined}
                   >
                     {display != null ? (
                       isNumber
@@ -589,7 +589,7 @@ export default function StatusSection({
                             ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
                             : `${display}${row.unit ? ' ' + row.unit : ''}`)
                         : applyTemplateVars(display, templateCtx)
-                    ) : (editable ? '点击编辑' : '—')}
+                    ) : EMPTY_STATUS_DISPLAY}
                   </span>
                 )}
                 {pct != null && !isEditing && (

@@ -581,7 +581,7 @@ body {
 
 .we-combobox-wrap:focus-within {
   border-color: var(--we-color-accent);
-  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
+  box-shadow: var(--we-shadow-paper-indent), 0 0 0 2px var(--we-color-accent-bg);
 }
 
 .we-combobox-wrap {
@@ -592,15 +592,17 @@ body {
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-none);
   overflow: hidden;
+  box-shadow: var(--we-shadow-paper-indent);
   transition: border-color 0.18s, box-shadow 0.18s;
 }
 
 .we-combobox-input {
   flex: 1;
-  padding: 9px 12px;
+  padding: 10px 14px;
   background: transparent;
   font-family: var(--we-font-serif);
-  font-size: 14.5px;
+  font-size: 15.5px;
+  line-height: 1.75;
   color: var(--we-color-text-primary);
   border: none;
   outline: none;
@@ -613,7 +615,11 @@ body {
 }
 
 .we-combobox-toggle {
-  padding: 8px 10px;
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
   color: var(--we-color-text-tertiary);
   background: none;
   border: none;
@@ -630,6 +636,16 @@ body {
   width: 14px;
   height: 14px;
   transition: transform 0.15s;
+}
+
+.we-settings-panel .we-combobox-input {
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.we-settings-panel .we-combobox-toggle {
+  padding: 0 12px;
 }
 
 .we-combobox-dropdown {

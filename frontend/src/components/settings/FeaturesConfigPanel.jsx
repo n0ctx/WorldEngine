@@ -72,6 +72,7 @@ export default function FeaturesConfigPanel({
           <FormGroup
             label={isChat ? '上下文保留轮次' : '写作上下文保留轮次'}
             hint={isChat ? '0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+            variant="settings"
           >
             <div className="we-settings-inline-field">
               <Input

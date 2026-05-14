@@ -25,6 +25,7 @@ export default function DiaryConfigPanel({
         <FormGroup
           label={isChat ? '对话日记' : '写作日记'}
           hint="开启后世界状态将自动添加时间字段，AI 每轮更新后判断日期跨越并生成日记"
+          variant="settings"
         >
           <ToggleSwitch checked={enabled} onChange={onToggle} />
         </FormGroup>
@@ -33,6 +34,7 @@ export default function DiaryConfigPanel({
           <FormGroup
             label="日期模式"
             hint={'虚拟日期：解析世界状态时间字段中的"N年N月N日"；真实日期：使用系统时间。切换仅影响新建会话。'}
+            variant="settings"
           >
             <div className="we-settings-date-options">
               {[

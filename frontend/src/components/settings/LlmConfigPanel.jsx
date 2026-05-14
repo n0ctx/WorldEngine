@@ -71,7 +71,7 @@ export default function LlmConfigPanel({
   }
 
   return (
-    <div>
+    <div className="we-settings-llm-panel">
       <h2 className="we-settings-section-title">LLM 配置</h2>
       <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
@@ -87,7 +87,7 @@ export default function LlmConfigPanel({
           chatModel={llm.model}
         />
       ) : (
-        <div className="we-settings-field-group">
+        <div className="we-settings-field-group we-settings-field-group--tight">
           <ProviderBlock
             title="主模型（LLM）"
             providers={LLM_PROVIDERS}
@@ -101,10 +101,10 @@ export default function LlmConfigPanel({
             loadModels={fetchModels}
           />
 
-          <div className="we-settings-field-group">
-            <div>
+          <div className="we-settings-field-group we-settings-field-group--compact">
+            <div className="we-settings-inline-control-block">
               <div className="we-settings-range-head">
-                <FieldLabel>Temperature</FieldLabel>
+                <FieldLabel variant="settings">Temperature</FieldLabel>
                 <span className="we-settings-range-value">
                   {(llm.temperature ?? 0.8).toFixed(1)}
                 </span>
@@ -118,7 +118,7 @@ export default function LlmConfigPanel({
               />
             </div>
 
-            <FormGroup label="Max Tokens">
+            <FormGroup label="Max Tokens" variant="settings">
               <Input
                 type="number"
                 min="64" max="32000" step="64"
@@ -207,10 +207,10 @@ export default function LlmConfigPanel({
 
       <div className="we-settings-field-group">
         <p className="we-settings-subsection-title">网络代理</p>
-        <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。">
-          <div className="we-settings-proxy-row">
+        <FormGroup label="HTTP 代理地址" hint="仅对 LLM / Embedding 网络请求生效，留空不使用代理。支持 http:// 和 socks5:// 协议，修改后立即生效。" variant="settings">
+          <div className="we-settings-inline-field-row">
             <Input
-              className="we-settings-proxy-input"
+              className="we-settings-inline-field-input"
               value={proxyInput}
               onChange={(e) => { setProxyInput(e.target.value); setProxySaved(false); }}
               placeholder="http://127.0.0.1:7890"

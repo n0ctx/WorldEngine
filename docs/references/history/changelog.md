@@ -13,6 +13,33 @@
 ---
 以下为CHANGELOG正文部分
 
+## fix: 将设置页默认排版从宽松展示板收束为紧凑工作台
+
+- **对外接口/用户入口**：无新增接口；设置页现有分区、切换和配置项保持不变，但整体布局、导航密度、表单节奏和文字层级已统一收紧。
+- **核心行为**：`SettingsPage` 新增更窄的正文阅读宽度与更紧凑的侧栏骨架；`FormGroup` / `FieldLabel` 补 `settings` 变体，让设置页不再直接沿用编辑页的标题语义；输入框、下拉、combobox、按钮在设置页作用域内统一使用更低高度和更稳定的行高。
+- **涉及文件**：`frontend/src/pages/SettingsPage.jsx` 调整设置页导航头、正文包裹层和活跃态标识；`frontend/src/components/ui/FormGroup.jsx`、`FieldLabel.jsx` 为设置场景补专用语义变体；`frontend/src/components/settings/*.jsx` 将 LLM、提示词、导入导出等分区接入新的 settings 表单变体与分组类名；`frontend/src/themes/pages.css`、`ui.css`、`index.css` 收口设置页骨架、模式切换器、提示条、主题卡片及表单控件密度；`frontend/tests/pages/settings-page.test.jsx` 补导航活跃态回归；`docs/references/frontend/ui-and-theme.md` 记录“结构性排版问题不推给主题层”的约束。
+- **数据/兼容性约束**：无；不改配置键、保存逻辑、路由、主题文件结构或任何后端接口。
+- **UI/交互变化**：设置 overlay 外框、左侧目录、分区标题、字段标签、说明文、按钮和输入控件整体更紧凑；Provider 提示区从整块卡片收成轻信息条；导入导出与主题分区的排版也会跟随统一密度。
+- **注意事项**：后续如果再给设置页新增字段或横向“输入框 + 按钮”组合，优先复用 `variant=\"settings\"`、`we-settings-inline-field-row`、`we-settings-mode-switch` 等现有出口，不要重新混用 `we-edit-*` 语义或局部 Tailwind。
+
+## fix: 统一设置页下拉框与输入框的表单基线
+
+- **对外接口/用户入口**：设置页中的 Provider、模型、思考链级别等下拉框，现在与 API Key / Base URL / 代理地址等填写框使用同一套视觉尺寸基线；无新增入口。
+- **核心行为**：收敛配置页横向输入行的布局类，移除 `ProviderBlock`、`WritingLlmBlock`、`AuxLlmBlock` 里的内联 `flex` 样式；同时把 `Select` 与 `ModelCombobox` 的字号、行高、内边距、阴影统一到 `Input` 基准，保证同类表单控件在设置页里对齐。
+- **涉及文件**：`frontend/src/components/settings/ProviderBlock.jsx`、`AuxLlmBlock.jsx`、`WritingLlmBlock.jsx`、`LlmConfigPanel.jsx` 把 API Key / 代理输入行改为共享类名；`frontend/src/themes/ui.css` 与 `frontend/src/index.css` 对齐 select / combobox 盒模型；`frontend/src/themes/pages.css` 新增设置页共享横排表单样式。
+- **数据/兼容性约束**：无；仅调整前端样式和布局类名，不改配置键、保存逻辑或接口协议。
+- **UI/交互变化**：配置页下拉框与填写框的高度、文字落位、右侧箭头留白会按输入框基线统一，视觉上不再一组偏紧一组偏松。
+- **注意事项**：后续如果再给设置页新增“输入框 + 操作按钮”的横向行，优先复用 `we-settings-inline-field-row` / `we-settings-inline-field-input`，不要再写局部内联样式，否则容易重新出现对不齐的问题。
+
+## fix: 统一右侧状态栏空值字段不再显示“点击编辑”
+
+- **对外接口/用户入口**：chat / writing 会话页右侧状态栏里，空的可编辑字段现在统一只显示空态占位，不再有的写“点击编辑”有的不写。
+- **核心行为**：`StatusSection` 的 text / number / list 等空值阅读态统一走同一个空态占位常量；空值字段仍可点击进入编辑，但不再输出“点击编辑”文案，也不给空值挂该 tooltip。
+- **涉及文件**：`frontend/src/components/state/StatusSection.jsx` 收敛空值渲染与 tooltip 条件；`frontend/tests/components/state/StatusSection.test.jsx` 补空 text / list 字段回归。
+- **数据/兼容性约束**：无；只改前端空值展示，不改状态值存储与编辑提交格式。
+- **UI/交互变化**：右栏空状态字段视觉更一致，避免同一面板里出现文案不统一的空态提示。
+- **注意事项**：这里只去掉空值时的“点击编辑”提示；有实际值的可编辑字段仍保留 hover / title 作为可编辑暗示。
+
 ## fix: 去掉状态栏编辑态内部控件的重复焦点框
 
 - **对外接口/用户入口**：右侧状态栏字段进入编辑态时，不再同时出现 shared surface 外框和控件自身的第二层红色焦点框。

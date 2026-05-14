@@ -78,6 +78,35 @@ describe('StatusSection', () => {
     expect(container.querySelector('.we-status-value--multiline')).not.toBeNull();
   });
 
+  it('可编辑空值字段不再显示点击编辑文案', () => {
+    const { container } = render(
+      <StatusSection
+        headerless
+        rows={[
+          {
+            field_key: 'weather',
+            label: '天气',
+            type: 'text',
+            update_mode: 'manual',
+            effective_value_json: null,
+          },
+          {
+            field_key: 'inventory',
+            label: '背包',
+            type: 'list',
+            update_mode: 'manual',
+            effective_value_json: JSON.stringify([]),
+          },
+        ]}
+        onSave={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText('点击编辑')).toBeNull();
+    expect(container.querySelectorAll('.we-status-null')).toHaveLength(2);
+    expect(screen.getAllByText('—')).toHaveLength(2);
+  });
+
   it('system_rule 字段保持不可编辑', () => {
     const onSave = vi.fn();
     render(

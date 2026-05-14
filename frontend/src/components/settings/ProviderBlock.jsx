@@ -38,17 +38,17 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
     <div className="we-settings-field-group">
       {title && <p className="we-settings-subsection-title">{title}</p>}
 
-      <FormGroup label="Provider">
+      <FormGroup label="Provider" variant="settings">
         <Select value={config.provider || ''} onChange={onProviderChange} options={providers} />
       </FormGroup>
 
       {config.provider && !isLocal && (
-        <FormGroup label="API Key">
-          <div style={{ display: 'flex', gap: '8px' }}>
+        <FormGroup label="API Key" variant="settings">
+          <div className="we-settings-inline-field-row">
             <Input
               type="password"
               autoComplete="new-password"
-              style={{ flex: 1 }}
+              className="we-settings-inline-field-input"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder={config.has_key ? '••••••••（已配置，输入新密钥可覆盖）' : '输入后单独保存，不随其他配置提交'}
@@ -82,7 +82,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       )}
 
       {needsBaseUrl && (
-        <FormGroup label="Base URL">
+        <FormGroup label="Base URL" variant="settings">
           <Input
             value={config.base_url || ''}
             onChange={(e) => onBaseUrlChange(e.target.value)}
@@ -92,7 +92,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       )}
 
       {config.provider && (
-        <FormGroup label="模型">
+        <FormGroup label="模型" variant="settings">
           <ModelSelector
             key={config.provider + (config.base_url || '') + (config.has_key ? '1' : '0')}
             value={config.model || ''}
@@ -103,7 +103,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       )}
 
       {thinkingOptions.length > 0 && onThinkingLevelChange && (
-        <FormGroup label="思考链级别" hint="auto = 不传参数，使用模型默认行为">
+        <FormGroup label="思考链级别" hint="auto = 不传参数，使用模型默认行为" variant="settings">
           <Select
             value={config.thinking_level || ''}
             onChange={(v) => onThinkingLevelChange(v || null)}
@@ -113,7 +113,7 @@ export default function ProviderBlock({ title, providers, config, onProviderChan
       )}
 
       {isModelDrivenThinking && (
-        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换">
+        <FormGroup label="思考链级别" hint="该 provider 由模型决定是否思考（如 kimi-k2-thinking / minimax-m2），无需也无法在请求中切换" variant="settings">
           <Input value="模型驱动" disabled readOnly />
         </FormGroup>
       )}

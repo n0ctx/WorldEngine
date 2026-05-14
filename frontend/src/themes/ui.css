@@ -41,6 +41,17 @@
   padding: 10px 20px;
 }
 
+.we-settings-panel .we-btn {
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 7px 14px;
+}
+
+.we-settings-panel .we-btn-sm {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
 /* variant: primary */
 .we-btn-primary {
   background: var(--we-color-accent);
@@ -134,6 +145,13 @@
 .we-textarea:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.we-settings-panel .we-input,
+.we-settings-panel .we-textarea {
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.55;
 }
 
 /* ── Datetime Split Input（年/月/日/时/分 五段拆分输入）── */
@@ -599,15 +617,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 12px;
+  gap: var(--we-space-sm);
+  padding: 10px 14px;
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-none);
   font-family: var(--we-font-serif);
-  font-size: 14.5px;
+  font-size: 15.5px;
+  line-height: 1.75;
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   outline: none;
+  box-shadow: var(--we-shadow-paper-indent);
   transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
   text-align: left;
 }
@@ -624,8 +645,24 @@
 }
 .we-select-trigger:focus-visible {
   border-color: var(--we-color-border-focus);
-  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
+  box-shadow: var(--we-shadow-paper-indent), 0 0 0 2px var(--we-color-accent-bg);
   outline: none;
+}
+
+.we-select-trigger > span {
+  min-width: 0;
+  flex: 1;
+}
+
+.we-settings-panel .we-select-trigger {
+  padding: 9px 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.we-settings-panel .we-select-chevron {
+  width: 13px;
+  height: 13px;
 }
 
 .we-status-inline-select .we-select-trigger {

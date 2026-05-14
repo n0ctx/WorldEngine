@@ -21,7 +21,7 @@ export default function AboutPanel() {
           <p className="we-settings-about-desc">
             重置将清除所有数据（世界、角色、会话、消息）。请在后端目录执行：
           </p>
-          <pre className="we-settings-about-code">
+          <pre className="we-settings-about-code we-settings-about-code--content">
             {'cd backend && npm run db:reset'}
           </pre>
         </div>

@@ -22,7 +22,7 @@ export default function PromptConfigPanel({
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>
           <div className="we-settings-field-group">
-            <FormGroup label="写作系统提示词">
+            <FormGroup label="写作系统提示词" variant="settings">
               <MarkdownEditor
                 value={writingSystemPrompt}
                 onChange={setWritingSystemPrompt}
@@ -31,7 +31,7 @@ export default function PromptConfigPanel({
               />
             </FormGroup>
 
-            <FormGroup label="写作后置提示词" hint="作为user prompt 注入在当前 user message 后">
+            <FormGroup label="写作后置提示词" hint="作为user prompt 注入在当前 user message 后" variant="settings">
               <MarkdownEditor
                 value={writingPostPrompt}
                 onChange={setWritingPostPrompt}
@@ -50,7 +50,7 @@ export default function PromptConfigPanel({
       ) : (
         <>
           <div className="we-settings-field-group">
-            <FormGroup label="全局系统提示词">
+            <FormGroup label="全局系统提示词" variant="settings">
               <MarkdownEditor
                 value={globalSystemPrompt}
                 onChange={setGlobalSystemPrompt}
@@ -59,7 +59,7 @@ export default function PromptConfigPanel({
               />
             </FormGroup>
 
-            <FormGroup label="全局后置提示词" hint="作为user prompt 注入在当前 user message 后">
+            <FormGroup label="全局后置提示词" hint="作为user prompt 注入在当前 user message 后" variant="settings">
               <MarkdownEditor
                 value={globalPostPrompt}
                 onChange={setGlobalPostPrompt}

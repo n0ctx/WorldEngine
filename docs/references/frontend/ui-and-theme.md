@@ -31,6 +31,7 @@
 - 主题层只覆写 token，不写组件选择器
 - 新增 `--we-*` token 后，要同步检查内置主题、模板主题和自定义 CSS 参考文档
 - 页面层禁止为主题差异写内联 style 或硬编码颜色
+- 像设置页这类“控制面板”密度调整，优先在核心样式里做 page-scoped / feature-scoped 出口，不要把结构性排版问题推给主题层
 - 每个异步区块都应有 `loading / empty / error` 三态
 - icon-only 按钮必须有 `aria-label`
 
