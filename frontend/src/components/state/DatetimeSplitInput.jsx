@@ -33,6 +33,14 @@ const SEG_DEFS = [
   { key: 'mi', maxLen: 2, placeholder: 'mm',   width: '3em' },
 ];
 
+const COMPACT_SEG_WIDTHS = {
+  y: '4.35em',
+  mo: '2.6em',
+  d: '2.6em',
+  h: '2.6em',
+  mi: '2.6em',
+};
+
 /**
  * 拆分式 datetime 输入：年/月/日/时/分 五个独立文本输入，规避 <input type="datetime-local">
  * 在年份 < 1000 时的浏览器自动补齐 bug。
@@ -51,7 +59,7 @@ const SEG_DEFS = [
  *   className  — 同时应用到容器和每个段位 input（用于尺寸/字体定制，如 we-status-inline-input）
  */
 export default function DatetimeSplitInput({
-  value, onChange, onBlur, onKeyDown, disabled, autoFocus, className = '',
+  value, onChange, onBlur, onKeyDown, disabled, autoFocus, className = '', widthPreset = 'default',
 }) {
   const [parts, setParts] = useState(() => parse(value));
   const lastEmittedRef = useRef(compose(parse(value)));
@@ -131,7 +139,7 @@ export default function DatetimeSplitInput({
             ref={(el) => { refs.current[idx] = el; }}
             type="text" inputMode="numeric"
             className={`we-input ${className}`}
-            style={{ width: def.width }}
+            style={{ width: widthPreset === 'compact' ? COMPACT_SEG_WIDTHS[def.key] : def.width }}
             value={parts[def.key]} placeholder={def.placeholder}
             disabled={disabled}
             onChange={(e) => handleChange(idx, e.target.value)}

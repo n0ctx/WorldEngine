@@ -12,6 +12,7 @@ import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 import InterruptedMark from '../chat/InterruptedMark.jsx';
+import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 
 const MotionDiv = motion.div;
 
@@ -158,14 +159,11 @@ export default function WritingMessageItem({
 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const textareaRef = useRef(null);
-  const editInitContentRef = useRef('');
 
   const [editingAI, setEditingAI] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
-  const aiTextareaRef = useRef(null);
 
-  function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
+  function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     const trimmed = draft.trim();
     if (trimmed) onEdit?.(message.id, trimmed);
@@ -177,16 +175,6 @@ export default function WritingMessageItem({
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
   }
 
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      textareaRef.current.focus();
-      const len = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(len, len);
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [editing]);
-
   function startEditAI() { setAiDraft(message.content); setEditingAI(true); }
   function confirmEditAI() {
     if (aiDraft.trim() && aiDraft !== message.content) onEditAssistant?.(message.id, aiDraft.trim());
@@ -194,14 +182,6 @@ export default function WritingMessageItem({
   }
   function cancelEditAI() { setEditingAI(false); }
   function handleKeyDownAI(e) { if (e.key === 'Escape') cancelEditAI(); }
-
-  useEffect(() => {
-    if (editingAI && aiTextareaRef.current) {
-      aiTextareaRef.current.focus();
-      aiTextareaRef.current.style.height = 'auto';
-      aiTextareaRef.current.style.height = aiTextareaRef.current.scrollHeight + 'px';
-    }
-  }, [editingAI]);
 
   if (!content && !isStreaming) return null;
 
@@ -215,29 +195,36 @@ export default function WritingMessageItem({
         variants={variants.inkRise}
         transition={transitions.ink}
       >
-        {editing ? (
-          <div className="we-message-edit">
+        <SeamlessEditableSurface
+          editing={editing}
+          selectEnd
+          trackValue={draft}
+          surfaceClassName={editing ? 'we-writing-annotation--editing' : ''}
+          readClassName="we-writing-annotation__text"
+          renderRead={() => <span>{content}</span>}
+          renderEditor={({ editorRef, syncLayout }) => (
             <textarea
-              ref={textareaRef}
+              ref={editorRef}
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
+                syncLayout();
               }}
               onKeyDown={handleKeyDown}
               rows={2}
+              className="we-seamless-edit__textarea we-message-edit__textarea we-writing-annotation__textarea"
             />
-            <div className="we-message-edit-actions">
-              <button onClick={cancelEdit}>取消</button>
-              <button className="primary" onClick={confirmEdit}>确认</button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <span>{content}</span>
-            {!isStreaming && (
-              <div className="we-message-actions">
+          )}
+        />
+        {!isStreaming && (
+          <div className="we-message-actions">
+            {editing ? (
+              <div className="we-message-edit-actions">
+                <button onClick={cancelEdit}>取消</button>
+                <button className="primary" onClick={confirmEdit}>确认</button>
+              </div>
+            ) : (
+              <>
                 <CopyBtn getText={() => content} />
                 <button onClick={startEdit}>
                   <Icon size={16}>
@@ -247,9 +234,9 @@ export default function WritingMessageItem({
                   编辑
                 </button>
                 {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
-              </div>
+              </>
             )}
-          </>
+          </div>
         )}
       </MotionDiv>
     );
@@ -264,52 +251,54 @@ export default function WritingMessageItem({
       variants={variants.inkRise}
       transition={transitions.ink}
     >
-      {editingAI ? (
-        <div className="we-message-edit">
-          <textarea
-            ref={aiTextareaRef}
-            value={aiDraft}
-            onChange={(e) => {
-              setAiDraft(e.target.value);
-              e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + 'px';
-            }}
-            onKeyDown={handleKeyDownAI}
-            rows={6}
-          />
-          <div className="we-message-edit-actions">
-            <button onClick={cancelEditAI}>取消</button>
-            <button className="primary" onClick={confirmEditAI}>保存</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className="we-message-content">
-            {blocks.map((block, i) => {
-              const isLast = i === lastBlockIndex;
-              if (block.type === 'thinking') {
-                if (!showThinking) return null;
+      <>
+        <SeamlessEditableSurface
+          editing={editingAI}
+          trackValue={aiDraft}
+          surfaceClassName={editingAI ? 'we-writing-prose--editing' : ''}
+          readClassName="we-message-content"
+          renderRead={() => (
+            <>
+              {blocks.map((block, i) => {
+                const isLast = i === lastBlockIndex;
+                if (block.type === 'thinking') {
+                  if (!showThinking) return null;
+                  return (
+                    <ThinkBlock
+                      key={i}
+                      content={block.content}
+                      open={isStreaming && block.open}
+                      interrupted={interrupted && isLast}
+                    />
+                  );
+                }
                 return (
-                  <ThinkBlock
-                    key={i}
-                    content={block.content}
-                    open={isStreaming && block.open}
-                    interrupted={interrupted && isLast}
-                  />
+                  <div key={i}>
+                    {block.content && (
+                      <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+                        {block.content}
+                      </ReactMarkdown>
+                    )}
+                    {interrupted && isLast && <InterruptedMark />}
+                  </div>
                 );
-              }
-              return (
-                <div key={i}>
-                  {block.content && (
-                    <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
-                      {block.content}
-                    </ReactMarkdown>
-                  )}
-                  {interrupted && isLast && <InterruptedMark />}
-                </div>
-              );
-            })}
-          </div>
+              })}
+            </>
+          )}
+          renderEditor={({ editorRef, syncLayout }) => (
+            <textarea
+              ref={editorRef}
+              value={aiDraft}
+              onChange={(e) => {
+                setAiDraft(e.target.value);
+                syncLayout();
+              }}
+              onKeyDown={handleKeyDownAI}
+              rows={6}
+              className="we-seamless-edit__textarea we-message-edit__textarea"
+            />
+          )}
+        />
           {(() => {
             const tokenRowVisible = !editingAI && !isStreaming && message.token_usage && showTokenUsage;
             const hasEntries = !editingAI && !isStreaming && message.activated_entries?.length > 0;
@@ -340,25 +329,32 @@ export default function WritingMessageItem({
                 )}
                 {!isStreaming && (
                   <div className="we-message-actions">
-                    <div className="we-message-actions-buttons">
-                      <CopyBtn getText={() => content} />
-                      <button onClick={() => onRegenerate?.(message.id)}>
-                        <Icon size={16}>
-                          <polyline points="1 4 1 10 7 10" />
-                          <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                        </Icon>
-                        重新生成
-                      </button>
-                      <button onClick={startEditAI}>
-                        <Icon size={16}>
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </Icon>
-                        编辑
-                      </button>
-                      {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
-                    </div>
-                    {entriesGoWithActions && (
+                    {editingAI ? (
+                      <div className="we-message-edit-actions">
+                        <button onClick={cancelEditAI}>取消</button>
+                        <button className="primary" onClick={confirmEditAI}>保存</button>
+                      </div>
+                    ) : (
+                      <div className="we-message-actions-buttons">
+                        <CopyBtn getText={() => content} />
+                        <button onClick={() => onRegenerate?.(message.id)}>
+                          <Icon size={16}>
+                            <polyline points="1 4 1 10 7 10" />
+                            <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                          </Icon>
+                          重新生成
+                        </button>
+                        <button onClick={startEditAI}>
+                          <Icon size={16}>
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </Icon>
+                          编辑
+                        </button>
+                        {onDelete && <DeleteBtn onDelete={() => onDelete(message.id)} />}
+                      </div>
+                    )}
+                    {entriesGoWithActions && !editingAI && (
                       <ActivatedEntriesRow entries={message.activated_entries} />
                     )}
                   </div>
@@ -366,8 +362,7 @@ export default function WritingMessageItem({
               </>
             );
           })()}
-        </>
-      )}
+      </>
     </MotionDiv>
   );
 }

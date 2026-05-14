@@ -304,27 +304,31 @@
 /* 关键词/枚举 tag 容器 */
 .we-tag-input {
   width: 100%;
-  min-height: 42px;
-  padding: 6px 8px;
+  min-height: 24px;
+  padding: 1px 4px;
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-none);
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
+  align-items: flex-start;
+  align-content: flex-start;
   cursor: text;
-  transition: border-color var(--we-duration-fast) var(--we-easing-sharp);
+  box-shadow: none;
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-tag-input:focus-within {
   border-color: var(--we-color-border-focus);
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: -2px;
+  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
+  outline: none;
 }
 
 .we-tag {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   padding: 1px 8px;
   background: var(--we-color-accent-bg);
@@ -334,6 +338,13 @@
   font-size: 12px;
   color: var(--we-color-accent);
   letter-spacing: 0.02em;
+}
+
+.we-tag-input .we-tag {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .we-tag button {
@@ -352,16 +363,70 @@
 
 .we-tag-input-field {
   flex: 1;
-  min-width: 80px;
+  min-width: 64px;
   background: transparent;
   border: none;
   outline: none;
   font-family: var(--we-font-serif);
-  font-size: 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--we-color-text-primary);
 }
 .we-tag-input-field:focus-visible {
   outline: none;
+}
+
+.we-status-inline-list {
+  min-height: 24px;
+  padding: 1px 4px;
+  gap: 4px;
+  align-items: flex-start;
+  align-content: flex-start;
+  overflow: visible;
+}
+
+.we-status-inline-list .we-tag {
+  max-width: 100%;
+  position: relative;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--we-color-bg-subtle);
+  border-color: var(--we-color-border-strong);
+  color: var(--we-color-text-secondary);
+  font-size: 11.5px;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+
+.we-status-inline-list .we-tag button {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--we-color-bg-subtle) 92%, transparent);
+  font-size: 11px;
+  line-height: 10px;
+  border-radius: 999px;
+}
+
+.we-status-inline-list .we-tag:hover button,
+.we-status-inline-list .we-tag:focus-within button {
+  opacity: 0.72;
+  pointer-events: auto;
+}
+
+.we-status-inline-list__input {
+  flex: 1 1 8ch;
+  min-width: 0;
+  width: 0;
+  padding: 1px 0;
+  line-height: 1.6;
 }
 
 /* ── OptionCard ── */
@@ -561,6 +626,19 @@
   border-color: var(--we-color-border-focus);
   box-shadow: 0 0 0 2px var(--we-color-accent-bg);
   outline: none;
+}
+
+.we-status-inline-select .we-select-trigger {
+  width: 100%;
+  min-height: 22px;
+  padding: 1px 8px 1px 4px;
+  background: var(--we-color-ink-wash);
+  font-size: 12.5px;
+  line-height: 1.5;
+  box-shadow: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .we-select-chevron {

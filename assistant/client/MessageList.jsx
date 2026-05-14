@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
+import SeamlessEditableSurface from '../../shared/SeamlessEditableSurface.jsx';
 
 const TOOL_LABELS = {
   preview_card: '预览卡片',
@@ -194,13 +195,8 @@ function ErrorDot() {
 function UserEntry({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const [editWidth, setEditWidth] = useState(null);
-  const taRef = useRef(null);
-  const bubbleRef = useRef(null);
 
   function startEdit() {
-    const rect = bubbleRef.current?.getBoundingClientRect();
-    if (rect?.width) setEditWidth(rect.width);
     setDraft(msg.content);
     setEditing(true);
   }
@@ -215,29 +211,22 @@ function UserEntry({ msg, onEdit, onDelete }) {
     setEditing(false);
   }
 
-  useEffect(() => {
-    if (editing && taRef.current) {
-      taRef.current.focus();
-      taRef.current.style.height = 'auto';
-      taRef.current.style.height = `${taRef.current.scrollHeight}px`;
-    }
-  }, [editing]);
-
   return (
     <div className="we-asst-row we-asst-row--user">
-      {editing ? (
-        <>
-          <div
-            className="we-asst-bubble we-asst-bubble--user"
-            style={editWidth ? { width: editWidth } : undefined}
-          >
+      <div className={`we-asst-bubble we-asst-bubble--user${editing ? ' we-asst-bubble--editing' : ''}`}>
+        <SeamlessEditableSurface
+          editing={editing}
+          selectEnd
+          trackValue={draft}
+          readClassName="we-asst-bubble__body we-asst-bubble__body--pre"
+          renderRead={() => msg.content}
+          renderEditor={({ editorRef, syncLayout }) => (
             <textarea
-              ref={taRef}
+              ref={editorRef}
               value={draft}
               onChange={(e) => {
                 setDraft(e.target.value);
-                e.target.style.height = 'auto';
-                e.target.style.height = `${e.target.scrollHeight}px`;
+                syncLayout();
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Escape') {
@@ -250,28 +239,25 @@ function UserEntry({ msg, onEdit, onDelete }) {
                 }
               }}
               rows={2}
-              className="we-asst-bubble__edit"
+              className="we-seamless-edit__textarea we-asst-bubble__edit"
             />
-          </div>
-          <div className="we-asst-bubble__actions we-asst-bubble__actions--visible">
+          )}
+        />
+      </div>
+      <div className={`we-asst-bubble__actions${editing ? ' we-asst-bubble__actions--visible' : ''}`}>
+        {editing ? (
+          <>
             <ActionBtn onClick={cancelEdit} ariaLabel="取消编辑">取消</ActionBtn>
             <ActionBtn onClick={confirmEdit} ariaLabel="确认编辑">确认</ActionBtn>
-          </div>
-        </>
-      ) : (
-        <>
-          <div ref={bubbleRef} className="we-asst-bubble we-asst-bubble--user">
-            <div className="we-asst-bubble__body we-asst-bubble__body--pre">
-              {msg.content}
-            </div>
-          </div>
-          <div className="we-asst-bubble__actions">
+          </>
+        ) : (
+          <>
             <CopyBtn getText={() => msg.content || ''} />
             {onEdit && <ActionBtn onClick={startEdit} ariaLabel="编辑">编辑</ActionBtn>}
             {onDelete && msg.id && <DeleteBtn onDelete={() => onDelete(msg.id)} />}
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

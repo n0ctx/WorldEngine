@@ -14,6 +14,7 @@ import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
 import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import { variants, transitions } from '../../core/utils/motion.js';
+import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 
 const MotionDiv = motion.div;
 
@@ -244,12 +245,9 @@ export default function MessageItem({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
-  const textareaRef = useRef(null);
-  const editInitContentRef = useRef('');
 
   const [editingAI, setEditingAI] = useState(false);
   const [aiDraft, setAiDraft] = useState('');
-  const aiTextareaRef = useRef(null);
 
   const showThinking = useDisplaySettingsStore((s) => s.showThinking);
   const showTokenUsage = useDisplaySettingsStore((s) => s.showTokenUsage);
@@ -274,7 +272,7 @@ export default function MessageItem({
   const blocks = parseStreamingBlocks(displayContent);
   const lastBlockIndex = blocks.length - 1;
 
-  function startEdit() { editInitContentRef.current = message.content; setDraft(message.content); setEditing(true); }
+  function startEdit() { setDraft(message.content); setEditing(true); }
   function confirmEdit() {
     const trimmed = draft.trim();
     if (trimmed) onEdit(message.id, trimmed);
@@ -286,16 +284,6 @@ export default function MessageItem({
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
   }
 
-  useEffect(() => {
-    if (editing && textareaRef.current) {
-      textareaRef.current.focus();
-      const len = textareaRef.current.value.length;
-      textareaRef.current.setSelectionRange(len, len);
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
-    }
-  }, [editing]);
-
   function startEditAI() { setAiDraft(message.content); setEditingAI(true); }
   function confirmEditAI() {
     if (aiDraft.trim() && aiDraft !== message.content) onEditAssistant?.(message.id, aiDraft.trim());
@@ -303,14 +291,6 @@ export default function MessageItem({
   }
   function cancelEditAI() { setEditingAI(false); }
   function handleKeyDownAI(e) { if (e.key === 'Escape') cancelEditAI(); }
-
-  useEffect(() => {
-    if (editingAI && aiTextareaRef.current) {
-      aiTextareaRef.current.focus();
-      aiTextareaRef.current.style.height = 'auto';
-      aiTextareaRef.current.style.height = aiTextareaRef.current.scrollHeight + 'px';
-    }
-  }, [editingAI]);
 
   if (isStreaming && !streamingText) {
     return (
@@ -354,52 +334,58 @@ export default function MessageItem({
             <div className="we-message-label">
               {speakerName}
             </div>
-            <div className="we-message-bubble-user">
-              {editing ? (
-                <div className="we-message-edit">
-                  <textarea
-                    ref={textareaRef}
-                    value={draft}
-                    onChange={(e) => {
-                      setDraft(e.target.value);
-                      e.target.style.height = 'auto';
-                      e.target.style.height = e.target.scrollHeight + 'px';
-                    }}
-                    onKeyDown={handleKeyDown}
-                    rows={1}
-                  />
-                  <div className="we-message-edit-actions">
-                    <button onClick={cancelEdit}>取消</button>
-                    <button className="primary" onClick={confirmEdit}>确认</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="we-message-content">
+            <div className={`we-message-bubble-user${editing ? ' we-message-bubble--editing' : ''}`}>
+              <SeamlessEditableSurface
+                editing={editing}
+                selectEnd
+                trackValue={draft}
+                readClassName="we-message-content"
+                renderRead={() => (
                   <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
                     {displayContent}
                   </ReactMarkdown>
-                </div>
-              )}
+                )}
+                renderEditor={({ editorRef, syncLayout }) => (
+                  <textarea
+                    ref={editorRef}
+                    value={draft}
+                    onChange={(e) => {
+                      setDraft(e.target.value);
+                      syncLayout();
+                    }}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                    className="we-seamless-edit__textarea we-message-edit__textarea"
+                  />
+                )}
+              />
               {message.attachments?.length > 0 && (
                 <div className="we-message-attachments">
                   {message.attachments.map((att, i) => <AttachmentThumbnail key={i} src={att} />)}
                 </div>
               )}
             </div>
-            {!editing && (
-              <div className="we-message-actions">
-                <span className="we-action-time">{formatTime(message.created_at)}</span>
-                <CopyButton getText={() => message.content} />
-                <button onClick={startEdit} aria-label="编辑消息">
-                  <Icon size={16}>
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </Icon>
-                  编辑
-                </button>
-                {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
-              </div>
-            )}
+            <div className="we-message-actions">
+              {editing ? (
+                <div className="we-message-edit-actions">
+                  <button onClick={cancelEdit}>取消</button>
+                  <button className="primary" onClick={confirmEdit}>确认</button>
+                </div>
+              ) : (
+                <>
+                  <span className="we-action-time">{formatTime(message.created_at)}</span>
+                  <CopyButton getText={() => message.content} />
+                  <button onClick={startEdit} aria-label="编辑消息">
+                    <Icon size={16}>
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </Icon>
+                    编辑
+                  </button>
+                  {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
+                </>
+              )}
+            </div>
           </div>
           <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
         </div>
@@ -423,53 +409,53 @@ export default function MessageItem({
             {speakerName}
             {interrupted && <span className="we-message-interrupted">已中断</span>}
           </div>
-          <div className="we-message-bubble-assistant">
-            {editingAI ? (
-              <div className="we-message-edit">
+          <div className={`we-message-bubble-assistant${editingAI ? ' we-message-bubble--editing' : ''}`}>
+            <SeamlessEditableSurface
+              editing={editingAI}
+              trackValue={aiDraft}
+              readClassName="we-message-content"
+              renderRead={() => (
+                <>
+                  {blocks.map((block, i) => {
+                    const isLast = i === lastBlockIndex;
+                    if (block.type === 'thinking') {
+                      if (!showThinking) return null;
+                      return (
+                        <ThinkBlock
+                          key={i}
+                          content={block.content}
+                          open={isStreaming && block.open}
+                          interrupted={interrupted && isLast}
+                        />
+                      );
+                    }
+                    return (
+                      <div key={i}>
+                        {block.content && (
+                          <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
+                            {block.content}
+                          </ReactMarkdown>
+                        )}
+                        {interrupted && isLast && <InterruptedMark />}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+              renderEditor={({ editorRef, syncLayout }) => (
                 <textarea
-                  ref={aiTextareaRef}
+                  ref={editorRef}
                   value={aiDraft}
                   onChange={(e) => {
                     setAiDraft(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = e.target.scrollHeight + 'px';
+                    syncLayout();
                   }}
                   onKeyDown={handleKeyDownAI}
                   rows={4}
+                  className="we-seamless-edit__textarea we-message-edit__textarea"
                 />
-                <div className="we-message-edit-actions">
-                  <button onClick={cancelEditAI}>取消</button>
-                  <button className="primary" onClick={confirmEditAI}>保存</button>
-                </div>
-              </div>
-            ) : (
-              <div className="we-message-content">
-                {blocks.map((block, i) => {
-                  const isLast = i === lastBlockIndex;
-                  if (block.type === 'thinking') {
-                    if (!showThinking) return null;
-                    return (
-                      <ThinkBlock
-                        key={i}
-                        content={block.content}
-                        open={isStreaming && block.open}
-                        interrupted={interrupted && isLast}
-                      />
-                    );
-                  }
-                  return (
-                    <div key={i}>
-                      {block.content && (
-                        <ReactMarkdown remarkPlugins={REMARK_PLUGINS} rehypePlugins={REHYPE_PLUGINS} components={MD_COMPONENTS}>
-                          {block.content}
-                        </ReactMarkdown>
-                      )}
-                      {interrupted && isLast && <InterruptedMark />}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+              )}
+            />
             {message.attachments?.length > 0 && (
               <div className="we-message-attachments">
                 {message.attachments.map((att, i) => <AttachmentThumbnail key={i} src={att} />)}
@@ -504,8 +490,13 @@ export default function MessageItem({
                     )}
                   </div>
                 )}
-                {!editingAI && (
-                  <div className="we-message-actions">
+                <div className="we-message-actions">
+                  {editingAI ? (
+                    <div className="we-message-edit-actions">
+                      <button onClick={cancelEditAI}>取消</button>
+                      <button className="primary" onClick={confirmEditAI}>保存</button>
+                    </div>
+                  ) : (
                     <div className="we-message-actions-buttons">
                       <span className="we-action-time">{formatTime(message.created_at)}</span>
                       <CopyButton getText={() => displayContent} />
@@ -525,11 +516,11 @@ export default function MessageItem({
                       </button>
                       {onDelete && <DeleteButton onDelete={() => onDelete(message.id)} />}
                     </div>
-                    {entriesGoWithActions && (
-                      <ActivatedEntriesRow entries={message.activated_entries} />
-                    )}
-                  </div>
-                )}
+                  )}
+                  {entriesGoWithActions && !editingAI && (
+                    <ActivatedEntriesRow entries={message.activated_entries} />
+                  )}
+                </div>
               </>
             );
           })()}

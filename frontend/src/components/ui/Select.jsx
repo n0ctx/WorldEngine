@@ -6,6 +6,19 @@ import { DURATION, EASE } from '../../core/utils/motion.js';
 const DROPDOWN_MAX_H = 192; // 12rem = 192px，与 CSS max-height 保持一致
 const DROPDOWN_MARGIN = 2;
 
+function findClippingAncestor(node) {
+  let current = node?.parentElement;
+  while (current && current !== document.body) {
+    const style = window.getComputedStyle(current);
+    const hasClipping =
+      /(auto|scroll|hidden|clip)/.test(style.overflowY) ||
+      /(auto|scroll|hidden|clip)/.test(style.overflow);
+    if (hasClipping) return current;
+    current = current.parentElement;
+  }
+  return document.documentElement;
+}
+
 /**
  * 自定义下拉选择组件（固定选项，无自由输入）
  * options: { value: string, label: string }[]
@@ -38,8 +51,14 @@ export default function Select({
     if (disabled) return;
     if (!open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      setDropUp(spaceBelow < DROPDOWN_MAX_H + DROPDOWN_MARGIN);
+      const clippingAncestor = findClippingAncestor(triggerRef.current);
+      const bounds = clippingAncestor === document.documentElement
+        ? { top: 0, bottom: window.innerHeight }
+        : clippingAncestor.getBoundingClientRect();
+      const spaceBelow = bounds.bottom - rect.bottom;
+      const spaceAbove = rect.top - bounds.top;
+      const shouldDropUp = spaceBelow < DROPDOWN_MAX_H + DROPDOWN_MARGIN && spaceAbove > spaceBelow;
+      setDropUp(shouldDropUp);
     }
     setOpen((p) => !p);
   }

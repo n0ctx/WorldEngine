@@ -20,9 +20,9 @@ after(() => ctx.close());
 test('GET /api/sessions/:sessionId/state-values 返回三层值；会话不存在 404', async () => {
   const world = insertWorld(ctx.sandbox.db, { name: 'sess-state-世界' });
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: 'c' });
-  insertWorldStateField(ctx.sandbox.db, world.id, { field_key: 'w1', label: 'W1', type: 'text' });
-  insertPersonaStateField(ctx.sandbox.db, world.id, { field_key: 'p1', label: 'P1', type: 'text' });
-  insertCharacterStateField(ctx.sandbox.db, world.id, { field_key: 'c1', label: 'C1', type: 'text' });
+  insertWorldStateField(ctx.sandbox.db, world.id, { field_key: 'w1', label: 'W1', type: 'enum', enum_options: ['晴', '雨'] });
+  insertPersonaStateField(ctx.sandbox.db, world.id, { field_key: 'p1', label: 'P1', type: 'enum', enum_options: ['平静', '紧张'] });
+  insertCharacterStateField(ctx.sandbox.db, world.id, { field_key: 'c1', label: 'C1', type: 'enum', enum_options: ['进攻', '防御'] });
   const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
 
   const res = await ctx.request(`/api/sessions/${session.id}/state-values`);
@@ -31,6 +31,9 @@ test('GET /api/sessions/:sessionId/state-values 返回三层值；会话不存�
   assert.ok(Array.isArray(data.world));
   assert.ok(Array.isArray(data.persona));
   assert.ok(Array.isArray(data.character));
+  assert.equal(data.world[0].enum_options, JSON.stringify(['晴', '雨']));
+  assert.equal(data.persona[0].enum_options, JSON.stringify(['平静', '紧张']));
+  assert.equal(data.character[0].enum_options, JSON.stringify(['进攻', '防御']));
 
   const notFound = await ctx.request('/api/sessions/no-such/state-values');
   assert.equal(notFound.status, 404);

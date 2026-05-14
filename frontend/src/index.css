@@ -1127,6 +1127,58 @@ body {
   gap: 2px;
   min-width: 0;
 }
+.we-status-field--editing {
+  gap: 4px;
+}
+.we-status-inline-surface {
+  width: 100%;
+  min-width: 0;
+}
+.we-status-inline-surface__read {
+  width: 100%;
+  min-width: 0;
+}
+.we-status-inline-surface__editor {
+  width: 100%;
+  min-width: 0;
+}
+.we-status-inline-surface__editor--checkbox {
+  display: inline-flex;
+  align-items: center;
+}
+.we-status-inline-surface__size-proxy {
+  width: 1px;
+  height: 22px;
+}
+.we-status-inline-surface .we-seamless-edit__surface--editing {
+  border-radius: var(--we-radius-none);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--we-color-accent) 45%, transparent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 10%, transparent);
+}
+.we-status-inline-surface .we-seamless-edit__overlay {
+  display: flex;
+  align-items: stretch;
+}
+.we-status-inline-surface .we-input,
+.we-status-inline-surface .we-textarea,
+.we-status-inline-surface .we-tag-input,
+.we-status-inline-surface .we-select-trigger {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
+.we-status-inline-surface .we-input:focus,
+.we-status-inline-surface .we-input:focus-visible,
+.we-status-inline-surface .we-textarea:focus,
+.we-status-inline-surface .we-textarea:focus-visible,
+.we-status-inline-surface .we-tag-input:focus-within,
+.we-status-inline-surface .we-select-trigger:focus-visible,
+.we-status-inline-surface .we-select-trigger.open {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+}
 .we-status-key {
   font-family: var(--we-font-display);
   font-size: 11.5px;
@@ -1138,11 +1190,22 @@ body {
   text-transform: uppercase;
 }
 .we-status-value {
+  display: block;
   font-family: var(--we-font-serif);
   font-size: 12.5px;
   color: var(--we-color-text-secondary);
   line-height: 1.5;
   word-break: keep-all;
+  overflow-wrap: anywhere;
+  min-height: 22px;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--we-radius-none);
+  box-sizing: border-box;
+}
+.we-status-value--multiline {
+  white-space: pre-wrap;
+  word-break: break-word;
   overflow-wrap: anywhere;
 }
 .we-status-null {
@@ -1162,6 +1225,12 @@ body {
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 1px;
+  min-height: 24px;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--we-radius-none);
+  box-sizing: border-box;
+  align-items: flex-start;
 }
 .we-status-tag {
   font-family: var(--we-font-serif);
@@ -1184,18 +1253,32 @@ body {
 .we-status-inline-input {
   font-family: var(--we-font-serif);
   font-size: 12.5px;
+  line-height: 1.5;
   padding: 1px 4px;
   height: auto;
+  min-height: 22px;
   min-width: 0;
   width: 100%;
+  border-width: 1px;
+  box-shadow: none;
 }
 .we-datetime-split.we-status-inline-input {
-  width: auto;
+  width: 100%;
   padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
 .we-datetime-split.we-status-inline-input .we-datetime-split-sep {
   font-size: 12.5px;
   padding: 0 2px;
+  flex: none;
+}
+.we-datetime-split.we-status-inline-input .we-datetime-split-seg {
+  flex: none;
+}
+.we-datetime-split.we-status-inline-input::-webkit-scrollbar {
+  display: none;
 }
 
 /* 进度条 */
@@ -1231,6 +1314,17 @@ body {
   padding: 4px 6px;
   min-width: 0;
 }
+.we-status-table-cell--editing {
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.we-status-table-surface {
+  width: 100%;
+}
+.we-status-table-surface .we-seamless-edit__overlay {
+  display: flex;
+  align-items: stretch;
+}
 .we-status-table-cell + .we-status-table-cell {
   border-left: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
 }
@@ -1249,6 +1343,11 @@ body {
   color: var(--we-color-text-secondary);
   line-height: 1.4;
   text-align: center;
+  min-height: 22px;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: var(--we-radius-none);
+  box-sizing: border-box;
 }
 .we-status-table-bar {
   margin-top: 4px;

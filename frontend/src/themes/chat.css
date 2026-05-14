@@ -603,33 +603,54 @@
 
 /* ── Edit state ────────────────────────────────────────── */
 
-/* 编辑态：用户气泡固定为 max-width，助手气泡撑满（父容器有 flex:1 可用） */
-.we-message-bubble-user:has(.we-message-edit) {
-  width: 560px;
+.we-seamless-edit__surface {
+  position: relative;
+  min-width: 0;
 }
 
-.we-message-bubble-assistant:has(.we-message-edit) {
-  width: 100%;
+.we-seamless-edit__surface--editing {
+  position: relative;
 }
 
-.we-message-edit textarea {
+.we-seamless-edit__anchor {
+  visibility: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.we-seamless-edit__overlay {
+  position: absolute;
+  inset: 0;
+}
+
+.we-seamless-edit__textarea {
   width: 100%;
-  font-family: var(--we-font-serif);
-  font-size: 16px;
-  line-height: 1.8;
-  color: var(--we-color-text-primary);
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-default);
-  border-left: 2px solid var(--we-color-accent);
-  padding: 10px 14px;
+  min-height: 100%;
+  padding: 0;
+  margin: 0;
   resize: none;
+  background: transparent;
+  border: 0;
   outline: none;
-  border-radius: var(--we-radius-none);
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.we-message-edit-textarea:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: -1px;
+.we-message-bubble--editing {
+  box-shadow:
+    var(--we-shadow-paper-lift),
+    inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
+}
+
+.we-message-edit__textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 .we-message-edit-actions {
@@ -661,6 +682,22 @@
 
 .we-prose-item.we-message-user .we-message-actions {
   justify-content: flex-start;
+}
+
+.we-writing-annotation--editing {
+  border-left-color: var(--we-color-accent);
+  background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
+}
+
+.we-writing-annotation__text {
+  display: block;
+}
+
+.we-writing-prose--editing {
+  border-radius: var(--we-radius-sm);
+  box-shadow:
+    inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
 }
 
 .we-message-edit-actions button.primary {
@@ -1811,27 +1848,29 @@
 
 .we-asst-bubble__edit {
   width: 100%;
+  min-height: 100%;
   resize: none;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-accent);
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-sm) var(--we-space-md);
+  background: transparent;
+  border: 0;
+  padding: 0;
   font-family: var(--we-font-serif);
   font-size: var(--we-text-sm);
   line-height: 1.6;
-  color: var(--we-color-text-primary);
+  color: var(--we-color-text-inverse);
   outline: none;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .we-asst-bubble__edit:focus-visible {
-  outline: 2px solid var(--we-color-border-focus);
-  outline-offset: -1px;
+  outline: none;
 }
 
-/* 编辑态气泡宽度与非编辑态一致（由 JS 测量并内联设置） */
-.we-asst-bubble--user:has(.we-asst-bubble__edit) {
-  width: auto;
+.we-asst-bubble--editing {
+  box-shadow:
+    var(--we-shadow-paper-lift),
+    inset 0 0 0 1px color-mix(in srgb, var(--we-color-text-inverse) 55%, transparent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-bg-canvas) 18%, transparent);
 }
 
 .we-asst-bubble__actions {

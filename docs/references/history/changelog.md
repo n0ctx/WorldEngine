@@ -13,6 +13,60 @@
 ---
 以下为CHANGELOG正文部分
 
+## fix: 去掉状态栏编辑态内部控件的重复焦点框
+
+- **对外接口/用户入口**：右侧状态栏字段进入编辑态时，不再同时出现 shared surface 外框和控件自身的第二层红色焦点框。
+- **核心行为**：在状态栏 `we-status-inline-surface` 作用域内，统一关闭 `input / textarea / tag input / select trigger` 的内部 focus border、outline 与 box-shadow，只保留外层 seamless surface 的编辑态高亮。
+- **涉及文件**：`frontend/src/index.css` 增加状态栏 inline editor 的焦点样式覆盖。
+- **数据/兼容性约束**：无。
+- **UI/交互变化**：编辑态视觉从“双框叠加”收敛为单一外框，焦点状态更干净。
+- **注意事项**：这个覆盖只应存在于状态栏 shared surface 内；其他普通表单仍保留各自的输入焦点样式。
+
+## fix: 状态栏文本字段编辑改为支持自动换行
+
+- **对外接口/用户入口**：右侧状态栏中的普通文本字段，进入编辑态后现在支持多行换行，不再被单行输入框限制。
+- **核心行为**：`text` 类型状态字段的 inline editor 从单行 `input` 切到共享 surface 下的 `textarea`，继续复用自动测高；交互改为 `Enter` 正常换行，`Ctrl/Cmd+Enter` 提交，`Esc` 取消，失焦仍保存。
+- **涉及文件**：`frontend/src/components/state/StatusSection.jsx` 为 `text` 字段切换到 `textarea` 分支并补多行快捷键；`frontend/tests/components/state/StatusSection.test.jsx` 增加 `textarea` 回归。
+- **数据/兼容性约束**：无。
+- **UI/交互变化**：两列布局下文本字段也会按实际可用宽度自动折行；是否换到下一行由栏宽决定，但不会再因为控件类型是单行 input 而完全不换行。
+- **注意事项**：`number` 字段仍保持单行输入；后续如果再细分“短文本”和“长文本”，应基于字段语义做控件选择，不要把所有文本重新收敛回单行 input。
+
+## fix: 允许多行列表编辑在必要时突破阅读态高度
+
+- **对外接口/用户入口**：右侧状态栏的列表字段，如果阅读态已经占两行或更多，进入编辑态后新增输入落到下一行时，编辑框会继续长高而不是裁掉已有行。
+- **核心行为**：共享 `SeamlessEditableSurface` 的非 textarea 高度测量改为取 `rectHeight` 与 `scrollHeight` 的较大值，确保 editor 内容高度超过当前可见盒子时 surface 仍会继续扩展；状态列表编辑器去掉了会裁切内容的 `overflow: hidden`，让多行 tag 与输入可以完整参与高度计算。
+- **涉及文件**：`shared/seamless-edit.js` 调整共享高度测量逻辑；`frontend/src/themes/ui.css` 放开状态列表编辑器的内容裁切限制。
+- **数据/兼容性约束**：无。
+- **UI/交互变化**：列表编辑态在“第三行输入”这类场景下会优先完整展示已有元素，必要时编辑框比阅读态更高。
+- **注意事项**：这里的目标已经从“任何情况下都不增高”收敛为“默认不跳，但当编辑内容真实超出阅读态高度时允许扩展”，后续不要再用裁切来维持表面稳定。
+
+## fix: 修正会话状态枚举选项缺失与列表编辑态尺寸漂移
+
+- **对外接口/用户入口**：writing / chat 右侧状态栏里的枚举字段，进入编辑态后会显示真实可选项；列表字段进入编辑态时，标签尺寸不再比阅读态更大，也不再在窄宽度或恰好换行时把输入框顶出边界。
+- **核心行为**：`/api/sessions/:sessionId/state-values` 的 world / persona / character 三层返回现在都会带上字段自己的 `enum_options`；状态列表 inline editor 增加专用样式作用域，让编辑态 tag 复用阅读态的字号、行高、padding，并把删除按钮改成绝对定位覆盖层，避免按钮占宽导致编辑态更早换行；输入框改为可收缩的 `flex-basis`，保证换行后仍留在 shared surface 内。
+- **涉及文件**：`backend/db/queries/session-state-values.js` 为会话状态值查询补 `enum_options`；`backend/tests/routes/session-state-values.test.js` 补接口回归；`frontend/src/components/state/StatusSection.jsx` 给列表编辑器挂专用 class；`frontend/src/themes/ui.css` 收敛列表编辑态 tag / 删除按钮 / 输入框的盒模型；`frontend/tests/components/state/StatusSection.test.jsx` 补结构性回归。
+- **数据/兼容性约束**：无迁移；历史字段定义里的 `enum_options` 会在现有 session 接口上直接透出，对已有会话即时生效。
+- **UI/交互变化**：枚举编辑不再出现空白选项集；列表编辑态与阅读态的标签高度、宽度更一致，窄侧栏下的输入框不会跳出编辑框。
+- **注意事项**：会话态接口如果后续继续扩展字段元数据，需同步维护 world / persona / character / single-character / reset 这几条查询，避免再出现某一层漏字段的情况。
+
+## fix: 修正状态栏列表编辑换行溢出与下拉开向判断
+
+- **对外接口/用户入口**：chat / writing 右侧状态栏中的列表字段编辑态不再因长元素换行而顶出编辑框；枚举下拉在卡片底边空间不足时会优先上拉，减少被卡片边缘截断的情况。
+- **核心行为**：共享 `SeamlessEditableSurface` 现在支持测量非 textarea 编辑器高度，`list / enum / datetime / checkbox` 这类状态字段编辑器也会驱动 surface 自适应高度；`Select` 的开向判断改为优先参考最近的裁剪/滚动祖先，而不是只看 viewport。
+- **涉及文件**：`shared/seamless-edit.js` 与 `shared/SeamlessEditableSurface.jsx` 补非 textarea 测量；`frontend/src/components/state/StatusSection.jsx` 把列表/下拉/时间等编辑器的测量容器接入 shared surface；`frontend/src/components/ui/Select.jsx` 增加最近裁剪祖先空间判断；`frontend/src/themes/ui.css` 放开编辑态 tag 的内部换行并优化 tag input 排版；`frontend/tests/components/state/StatusSection.test.jsx` 补列表编辑态挂载到测量层的回归。
+- **数据/兼容性约束**：无。
+- **UI/交互变化**：长列表项在编辑态会留在边框内正常折行；接近卡片底部的枚举下拉更倾向上拉展开。
+- **注意事项**：阅读态 tag 仍保持单行紧凑风格，只有编辑态 `we-tag-input` 内的 tag 放开内部换行；后续如果新增其他非 textarea inline editor，也应把可测量容器挂到 shared surface，而不是只传实际 input ref。
+
+## fix: 收敛消息与状态字段的无缝编辑态切换
+
+- **对外接口/用户入口**：chat、writing、写卡助手中的消息编辑，以及右侧状态栏 inline 编辑，切入编辑态时改为尽量保持原有盒模型与占位，不再明显跳变。
+- **核心行为**：新增共享 `SeamlessEditableSurface` 与 `useSeamlessEditLayout`，在进入编辑态时保留阅读态镜像层并用编辑层覆盖其上，基于镜像宽高同步编辑器尺寸；chat / writing / assistant 的消息编辑统一改成这套结构，右侧状态字段与表格单元格也接入同一 shared surface，不再只是靠样式贴近阅读态。
+- **涉及文件**：`shared/SeamlessEditableSurface.jsx` 与 `shared/seamless-edit.js` 提供跨前端/assistant 共享的无缝编辑基元；`frontend/src/components/chat/MessageItem.jsx`、`frontend/src/components/writing/WritingMessageItem.jsx`、`assistant/client/MessageList.jsx` 接入镜像层编辑结构；`frontend/src/components/state/StatusSection.jsx` 与 `frontend/src/components/state/StatusTable.jsx` 把 text/number/enum/list/datetime/table-cell inline edit 收口到 shared surface；`frontend/src/index.css`、`frontend/src/themes/chat.css`、`frontend/src/themes/ui.css` 收敛消息气泡、状态字段、tag input 与 select 的编辑态样式；`frontend/tests/components/chat/MessageItem.test.jsx` 与 `frontend/tests/components/state/StatusSection.test.jsx` 覆盖消息进入编辑态、状态字段与表格单元格回归。
+- **数据/兼容性约束**：无数据库或接口变更；富文本消息仍以 textarea 作为编辑器，严格无缝依赖阅读镜像层锁定切换瞬间尺寸，而不是复刻 Markdown 每个内部元素的编辑态外观。
+- **UI/交互变化**：消息编辑态不再通过替换整块 DOM 或固定宽度 hack 进入，而是保持原气泡/批注盒子的宽高与动作区节奏；状态字段的阅读态与输入态在字号、内边距和最小高度上更贴近，列表标签与下拉框切换时抖动减小。
+- **注意事项**：后续新增可编辑消息或 inline field 时，应优先复用 `SeamlessEditableSurface` 或沿用这次收敛后的尺寸 token，不要再引入独立的编辑态盒模型；若要追求复杂 Markdown 内容的像素级零重排，需要继续在镜像层策略上扩展，而不是把 textarea 样式单独做大做厚。
+
 ## fix: 右侧状态栏改为按字段类型内联编辑且放开 llm_auto 手改
 
 - **对外接口/用户入口**：chat / writing 会话页右侧状态栏中的世界、玩家、角色与 nearby 状态字段，现已统一支持直接在侧栏内按类型编辑；不再只允许 `manual` 字段手改。

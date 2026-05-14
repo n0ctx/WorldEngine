@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 
 /**
  * StatusTable — 在右侧状态栏渲染 2 行 N 列的表格状态字段。
@@ -44,7 +45,11 @@ export default function StatusTable({ columns, values, editable, onCellCommit })
             : null;
 
           return (
-            <span key={col.key} className="we-status-table-cell we-status-table-body-cell" role="cell">
+            <span
+              key={col.key}
+              className={`we-status-table-cell we-status-table-body-cell${isEditing ? ' we-status-table-cell--editing' : ''}`}
+              role="cell"
+            >
               {isEditing ? (
                 <CellEditor
                   initial={hasNum ? num : ''}
@@ -88,19 +93,32 @@ function CellEditor({ initial, min, max, onCommit, onCancel }) {
   }
 
   return (
-    <input
-      ref={ref}
-      type="number"
-      value={draft}
-      min={min ?? undefined}
-      max={max ?? undefined}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => commit(draft)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
-        if (e.key === 'Escape') { onCancel(); }
-      }}
-      className="we-input we-status-inline-input we-status-table-input"
+    <SeamlessEditableSurface
+      editing
+      trackValue={String(draft ?? '')}
+      className="we-status-inline-surface we-status-table-surface"
+      readClassName="we-status-inline-surface__read"
+      renderRead={() => (
+        <span className={`we-status-table-value${initial === '' ? ' we-status-null' : ''}`}>
+          {initial === '' ? '—' : initial}
+        </span>
+      )}
+      renderEditor={() => (
+        <input
+          ref={ref}
+          type="number"
+          value={draft}
+          min={min ?? undefined}
+          max={max ?? undefined}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => commit(draft)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
+            if (e.key === 'Escape') { onCancel(); }
+          }}
+          className="we-input we-status-inline-input we-status-table-input"
+        />
+      )}
     />
   );
 }
