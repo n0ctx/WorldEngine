@@ -16,6 +16,7 @@
 
 ## 先读哪几页
 
+0. **[`coding-standards.md`](coding-standards.md)：前端改动必读规范**（CSS token、文件职责、主题分层、组件命名、inline style 禁令、三态、数据边界）
 1. [`architecture.md`](architecture.md)：顶层结构、核心入口、assistant 前端接入边界
 2. [`pages-and-components.md`](pages-and-components.md)：页面 / domain 组件 / UI 组件归属
 3. [`routing-and-state.md`](routing-and-state.md)：路由、共享状态、API 封装边界
@@ -25,6 +26,7 @@
 
 ## 高频任务快速分流
 
+- **任何前端改动（必读）**：[`coding-standards.md`](coding-standards.md)
 - 改 UI / 样式 / token / 自定义 CSS：读 [`ui-and-theme.md`](ui-and-theme.md)
 - 改页面结构 / 组件归属 / shell：读 [`pages-and-components.md`](pages-and-components.md)
 - 改路由 / Zustand / API 封装 / assistant 前端状态：读 [`routing-and-state.md`](routing-and-state.md)

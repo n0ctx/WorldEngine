@@ -144,7 +144,8 @@ export async function listRecoverableTasks(excludeContext = null) {
 }
 
 export async function approveTask(taskId) {
-  await fetch(`${BASE}/agent/${taskId}/approve`, { method: 'POST' });
+  const r = await fetch(`${BASE}/agent/${taskId}/approve`, { method: 'POST' });
+  if (!r.ok) throw new Error(`approve failed: ${r.status}`);
 }
 
 export async function rejectPlan(taskId) {

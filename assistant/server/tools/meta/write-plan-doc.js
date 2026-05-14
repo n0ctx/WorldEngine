@@ -3,7 +3,7 @@
 export const writePlanDocDefinition = {
   name: 'write_plan_doc',
   description:
-    'plan mode 首次落计划文档；仅适用于至少 3 个可执行步骤的任务。状态自动转 awaiting_approval，等待用户 /approve。' +
+    'plan mode 首次落计划文档；仅适用于至少 3 个可执行步骤的任务。状态自动转 awaiting_approval，UI 会显示审批按钮，无需再 reply_to_user 提示用户操作。' +
     'steps[].id 可省略（自动生成 step-N）。',
   parameters: {
     type: 'object',

@@ -378,7 +378,7 @@ const MessageList = forwardRef(function MessageList({
           <AnimatePresence mode="popLayout">
             {(() => {
               const items = [];
-              messagesForDisplay.forEach((msg) => {
+              messagesForDisplay.forEach((msg, msgIdx) => {
                 const isContinuing = continuingMessageId && msg.id === continuingMessageId;
                 const isStream = !!msg._isStream;
                 const displayMsg = isContinuing
@@ -397,6 +397,7 @@ const MessageList = forwardRef(function MessageList({
                     onRegenerate={onRegenerateMessage}
                     onEditAssistant={onEditAssistantMessage}
                     onDelete={isStream ? undefined : onDeleteMessage}
+                    isGreeting={!hasMore && msgIdx === 0 && msg.role === 'assistant' && !isStream}
                   />
                 );
                 if (displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId)) {

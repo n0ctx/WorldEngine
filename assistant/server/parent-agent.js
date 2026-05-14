@@ -352,6 +352,7 @@ function buildReplyToUserTool() {
 }
 
 const CONSECUTIVE_FAILURE_PAUSE_THRESHOLD = 3;
+export const CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON = 'consecutive tool failures';
 
 function buildToolRegistry(task, emitFn, runId, options = {}) {
   const previewTool = createPreviewCardTool({
@@ -381,7 +382,7 @@ function buildToolRegistry(task, emitFn, runId, options = {}) {
       ].join('\n');
       throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
         taskId: task.id,
-        pauseReason: 'consecutive_tool_failures',
+        pauseReason: CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON,
         message: hint,
       });
     }
@@ -401,12 +402,13 @@ function buildToolRegistry(task, emitFn, runId, options = {}) {
 }
 
 async function streamAssistantText(task, text, emitFn) {
+  const normalized = normalizeVisibleAssistantText(text);
   const stamped = taskStore.appendMessage(task.id, { role: 'assistant', content: '' });
   const assistantMsgId = stamped?.id ?? null;
   if (!assistantMsgId) return '';
 
   let emittedText = '';
-  for (const chunk of chunkAssistantText(text)) {
+  for (const chunk of chunkAssistantText(normalized)) {
     await yieldToEventLoop();
     if (task.status === 'cancelled') break;
     emittedText += chunk;
@@ -417,8 +419,20 @@ async function streamAssistantText(task, text, emitFn) {
     taskStore.deleteMessage(task.id, assistantMsgId);
     return '';
   }
-  taskStore.updateMessageContent(task.id, assistantMsgId, task.status === 'cancelled' ? emittedText : text);
-  return task.status === 'cancelled' ? emittedText : text;
+  taskStore.updateMessageContent(task.id, assistantMsgId, task.status === 'cancelled' ? emittedText : normalized);
+  return task.status === 'cancelled' ? emittedText : normalized;
+}
+
+function normalizeVisibleAssistantText(text) {
+  const raw = typeof text === 'string' ? text : String(text ?? '');
+  if (!raw.includes('\\n')) return raw;
+  // 只在"普通可见文案误把换行写成字面量 \n"时做归一化。
+  // 若同一段文本还包含其它反斜杠转义、代码围栏或 JSON/正则常见符号，保留原样，避免破坏可复制内容。
+  const strippedEscapedNewlines = raw.replace(/\\n/g, '');
+  if (/\\/.test(strippedEscapedNewlines)) return raw;
+  if (/```|`|[{}[\]]/.test(raw)) return raw;
+  if (/\/[^/\n]*\\n[^/\n]*\//.test(raw)) return raw;
+  return raw.replace(/\\n/g, '\n');
 }
 
 function emitTaskSnapshot(task, emitFn, extras = {}) {
@@ -432,6 +446,7 @@ async function finalizeCompleted(task, emitFn, message) {
     taskStore.endAllSse(task.id);
     return;
   }
+  taskStore.setApprovalCheckpoint(task.id, null);
   taskStore.setStatus(task.id, 'completed', { error: null });
   emitFn({ type: SSE_EVENTS.TASK_COMPLETED, taskId: task.id, summary: finalText });
   emitTaskSnapshot(task, emitFn, { summary: finalText });
@@ -446,6 +461,7 @@ async function finalizeFailed(task, emitFn, message, errorTag) {
     taskStore.endAllSse(task.id);
     return;
   }
+  taskStore.setApprovalCheckpoint(task.id, null);
   taskStore.setStatus(task.id, 'failed', { error: errorTag });
   emitFn({ type: SSE_EVENTS.TASK_FAILED, taskId: task.id, error: errorTag, summary: finalText || undefined });
   emitTaskSnapshot(task, emitFn, { summary: finalText || undefined });
@@ -453,15 +469,15 @@ async function finalizeFailed(task, emitFn, message, errorTag) {
   taskStore.endAllSse(task.id);
 }
 
-async function finalizePaused(task, emitFn, message) {
+async function finalizePaused(task, emitFn, message, pauseReason = null) {
   if (message) await streamAssistantText(task, message, emitFn);
   if (task.status === 'cancelled') {
     emitFn({ type: SSE_EVENTS.DONE, done: true });
     taskStore.endAllSse(task.id);
     return;
   }
-  taskStore.setStatus(task.id, 'paused', { error: null });
-  emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id });
+  taskStore.setStatus(task.id, 'paused', { error: pauseReason ?? null });
+  emitFn({ type: SSE_EVENTS.PAUSED, taskId: task.id, reason: pauseReason ?? undefined });
 }
 
 async function pauseForRecoverableHarnessIssue(task, emitFn, runId, reason, message) {
@@ -531,6 +547,10 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const emitFn = (evt) => taskStore.emit(task.id, { ...evt, runId });
   const turnStartMessageCount = Array.isArray(task.messages) ? task.messages.length : 0;
   const turnStartAppliedCount = Array.isArray(task.appliedResources) ? task.appliedResources.length : 0;
+  const resumeFromRejectedPlan = task.status === 'paused' && task.error === 'plan rejected by user';
+  const approvalState = task.approvalCheckpoint?.status ?? null;
+  const planApprovalPending = approvalState === 'pending';
+  const planExecutionApproved = approvalState === 'approved';
 
   if (task.status === 'cancelled') {
     emitFn({ type: SSE_EVENTS.DONE, done: true });
@@ -541,7 +561,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
   const isApprovedSentinel = userInput === APPROVED_SENTINEL;
   const isResumeSentinel = userInput === RESUME_SENTINEL;
   const modelUserInput = isApprovedSentinel
-    ? '（系统）用户已批准当前计划，请继续 agent loop。'
+    ? '（系统）用户已批准当前计划。请勿发送任何口头确认——直接调用 dispatch_subagent 执行计划第一个未完成步骤。'
     : isResumeSentinel
       ? '（系统）刚才的写卡助手任务在后台恢复连接，请基于当前任务状态继续 agent loop，不要把这条系统恢复说明当成用户新需求。'
       : String(userInput ?? '');
@@ -585,6 +605,9 @@ export async function runParentAgent(task, userInput, opts = {}) {
       requiresPlanFirst: planPolicy.requiresPlanFirst,
       planDocExists: Boolean(planDocContent),
       planAlreadyApproved: isApprovedSentinel,
+      planApprovalPending: planApprovalPending && !isApprovedSentinel,
+      planExecutionApproved: planExecutionApproved || isApprovedSentinel,
+      planRejectedNeedsRewrite: resumeFromRejectedPlan && Boolean(planDocContent),
     });
     await refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId });
     const modelPayload = buildModelMessages(task, systemPrompt, buildContextBlock(task, planDocContent, planPolicy.hints));
@@ -691,7 +714,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
             payload?.message ?? `子任务"${title}"执行失败（${errDetail}），已暂停。请告诉我如何处理这个失败步骤。`,
           );
         } else if (payload?.message) {
-          await finalizePaused(task, emitFn, payload.message);
+          await finalizePaused(task, emitFn, payload.message, payload.pauseReason ?? payload.reason ?? null);
         }
         return;
       }
@@ -730,4 +753,6 @@ export const __testables = {
   buildEmptyReplyRecoveryMessage,
   buildClaimedExecutionRecoveryMessage,
   buildProviderErrorRecoveryMessage,
+  normalizeVisibleAssistantText,
+  CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON,
 };

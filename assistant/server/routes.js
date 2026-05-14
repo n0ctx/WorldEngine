@@ -161,6 +161,11 @@ router.post('/agent/:taskId/approve', async (req, res) => {
     return res.status(400).json({ error: 'not awaiting approval' });
   }
   log.info(`/agent/approve  ${formatMeta({ taskId: task.id })}`);
+  taskStore.setApprovalCheckpoint(task.id, {
+    ...(task.approvalCheckpoint ?? {}),
+    status: 'approved',
+    approvedAt: Date.now(),
+  });
   taskStore.setStatus(task.id, 'running', { error: null });
   taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_APPROVED, taskId: task.id });
   runParentAgent(task, '<<approved>>').catch((err) => {

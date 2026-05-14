@@ -65,7 +65,9 @@ export function renderPlanDoc({ title, status, createdAt, updatedAt, intent, ass
     const checkbox = s.done ? '[x]' : '[ ]';
     const dep = s.dependsOn?.length ? normalizePlanDocList(s.dependsOn).join(', ') : '无';
     const done = s.done && s.completedAt ? `\n  - 完成于 ${normalizePlanDocText(s.completedAt)}` : '';
-    return `- ${checkbox} **${normalizePlanDocText(s.id)}** ${normalizePlanDocText(s.title)}（${normalizePlanDocText(s.targetType)}.${normalizePlanDocText(s.operation)}）\n  - 依赖：${dep}\n  - 任务：${normalizePlanDocText(s.task)}${done}`;
+    // 去掉模型可能在 title 里自带的 (targetType.operation) 或 （targetType.operation）后缀，避免重复
+    const rawTitle = normalizePlanDocText(s.title).replace(/\s*[（(][\w-]+\.(create|update|delete)[)）]\s*$/i, '').trim();
+    return `- ${checkbox} **${normalizePlanDocText(s.id)}** ${rawTitle}（${normalizePlanDocText(s.targetType)}.${normalizePlanDocText(s.operation)}）\n  - 依赖：${dep}\n  - 任务：${normalizePlanDocText(s.task)}${done}`;
   }).join('\n');
   const normalizedAssumptions = normalizePlanDocList(assumptions);
   const assumptionLines = normalizedAssumptions.length ? normalizedAssumptions.map((a) => `- ${a}`).join('\n') : '- 无';

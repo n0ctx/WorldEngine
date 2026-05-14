@@ -8,7 +8,7 @@
 [![Stars](https://img.shields.io/github/stars/n0ctx/WorldEngine?style=social)](https://github.com/n0ctx/WorldEngine/stargazers)
 [![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 
-![书架界面](docs/images/bookshelf.png)
+![卷宗书架界面](docs/images/bookshelf.png)
 
 ---
 

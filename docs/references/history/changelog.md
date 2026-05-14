@@ -4,7 +4,10 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **fix: 写卡助手 HUD 隐藏工具调用标注** — `PlanTaskHud.jsx` displayText 追加正则，去掉任务文本末尾的 `(xxx.update)` 格式工具名，用户不再看到底层参数
+- **fix: 写卡助手审批状态持久化并封死执行中重开计划** — `routes.js` / `parent-agent.js` / `runtime.js` 将审批 checkpoint 持久化为 `pending|approved`，禁止 `awaiting_approval` 阶段直接 `dispatch_subagent`，也禁止执行中 `replace_steps` 把前端重新打回待确认；`AssistantPanel.jsx` / `api.js` 同步补 approve 失败回滚
 - **fix: 写卡助手 agent 健壮性三项修复** — ①`runtime.js` 用 `pendingPauseSignal` 延迟抛出 ToolLoopControlSignal，修复信号被内层 catch 吞噬导致错误信息为 "tool loop control: paused" 的 bug；②同文件在 `dispatchSubAgent` 前解析 `step-N` 引用为真实 UUID（兼容 `step:N` 格式）；③`parent-agent.md` 补充 dependsOn 不可作实体 ID 的约束及核对步骤必须先 preview 的要求；④`apply-character-card.js` 分离 `id` 与 `entityId` 返回字段，语义与 persona-card 对齐
+- **fix: 写卡助手审批与恢复边界补齐** — `runtime.js` 禁止被拒计划沿用旧 `plan_doc` 直接 dispatch、`replace_steps` 继续强制至少 3 个未完成步骤；`parent-agent.js` / `AssistantPanel.jsx` 持久化并识别 `consecutive tool failures` 暂停原因；assistant 文档同步这些状态语义
 - **fix: 开场白消息 hover 不显示操作按钮** — `MessageList.jsx` 通过 `!hasMore && msgIdx===0` 检测开场白并传 `isGreeting` prop；`MessageItem.jsx` 对 assistant 消息在 `isGreeting` 为真时跳过 `.we-message-actions` 渲染
 - **fix: 写卡助手审批流 /approve 重复提示** — `edit_plan_doc replace_steps` 补触发 `AWAITING_APPROVAL` 信号（`runtime.js`）；`write_plan_doc` 工具描述去除"等待用户 /approve"字样；`parent-agent.md` 加禁令"严禁在 reply_to_user 提示用户输入 /approve"
 - **fix: 写卡助手三项 bug 修复** — ①`streamAssistantText` 归一化字面量 `\n` → 实际换行（`parent-agent.js`）；②`renderPlanDoc` 去除 title 里已带的 operation 后缀防止 HUD 重复（`plan-doc.js`）；③审批 sentinel 消息强制要求直接 dispatch 不得口头确认（`parent-agent.js`）

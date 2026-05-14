@@ -27,7 +27,7 @@ export default function WorldConfigPage() {
 
   return (
     <div className="we-characters-canvas">
-      <BackButton onClick={() => navigate('/')} label="书架" />
+      <BackButton onClick={() => navigate('/')} label="卷宗书架" />
 
       <div className="we-config-grid">
         {/* 第1列：常驻条目 */}

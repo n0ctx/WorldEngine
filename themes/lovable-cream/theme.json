@@ -3,7 +3,7 @@
   "name": "Lovable Cream",
   "version": "1.1.0",
   "author": "WorldEngine",
-  "description": "Warm parchment aesthetic inspired by Lovable's design system. Cream surfaces (#f7f4ed), charcoal typography (#1c1c1c), border-only card containment, and inset tactile detail on dark buttons.",
+  "description": "Warm parchment aesthetic inspired by Lovable's design system.",
   "preview": {
     "paper": "#f7f4ed",
     "accent": "#1c1c1c",

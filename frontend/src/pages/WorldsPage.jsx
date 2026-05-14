@@ -125,7 +125,7 @@ export default function WorldsPage() {
       {/* 页头 */}
       <div className="we-worlds-header">
         <div>
-          <h1 className="we-worlds-title">书架</h1>
+          <h1 className="we-worlds-title">卷宗书架</h1>
           <p className="we-worlds-subtitle">BOOKSHELF</p>
         </div>
         <div className="we-worlds-header-actions">
@@ -152,7 +152,7 @@ export default function WorldsPage() {
         </div>
       </div>
 
-      <section className="we-worlds-bookshelf" aria-label="世界书架">
+      <section className="we-worlds-bookshelf" aria-label="世界卷宗书架">
         <div className="we-worlds-bookshelf-inner">
           {/* 内容区 */}
           {loading ? (

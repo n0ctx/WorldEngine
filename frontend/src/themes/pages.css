@@ -639,7 +639,7 @@
 
 .we-entry-order-title {
   font-size: var(--we-text-sm);
-  color: var(--we-page-canvas-fg-muted);
+  color: var(--we-page-canvas-fg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

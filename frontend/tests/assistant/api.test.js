@@ -92,4 +92,9 @@ describe('assistant client api', () => {
     await approveTask('task-1');
     expect(fetch).toHaveBeenCalledWith('/api/assistant/agent/task-1/approve', { method: 'POST' });
   });
+
+  it('approveTask 在后端拒绝时抛错，供前端回滚状态', async () => {
+    fetch.mockResolvedValue({ ok: false, status: 400 });
+    await expect(approveTask('task-1')).rejects.toThrow('approve failed: 400');
+  });
 });

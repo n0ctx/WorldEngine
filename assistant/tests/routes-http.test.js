@@ -148,6 +148,19 @@ test('POST /agent/:taskId/approve 拒绝非 awaiting_approval 任务', async () 
   assert.equal(r.status, 400);
 });
 
+test('POST /agent/:taskId/approve 会把审批 checkpoint 持久化为 approved', async () => {
+  const t = taskStore.createTask({ context: {} });
+  taskStore.setStatus(t.id, 'awaiting_approval');
+  taskStore.setApprovalCheckpoint(t.id, { title: '计划 A', stepCount: 3, status: 'pending' });
+  process.env.MOCK_LLM_COMPLETE_ERROR = 'provider exploded';
+
+  const r = await postJSON(`/agent/${t.id}/approve`, {});
+  assert.equal(r.status, 200);
+  assert.equal(t.approvalCheckpoint?.status, 'approved');
+  assert.ok(Number.isFinite(t.approvalCheckpoint?.approvedAt));
+  delete process.env.MOCK_LLM_COMPLETE_ERROR;
+});
+
 test('POST /agent/:taskId/reject 拒绝计划后保留 plan doc，等用户继续对话修改方案', async () => {
   const t = taskStore.createTask({ context: {} });
   taskStore.setStatus(t.id, 'awaiting_approval');

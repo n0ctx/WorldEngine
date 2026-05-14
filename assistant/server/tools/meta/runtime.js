@@ -12,11 +12,12 @@ import {
 } from './index.js';
 
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
+  const MIN_PLAN_STEPS = 3;
   const writePlanDoc = {
     definition: writePlanDocDefinition,
     execute: async (args) => {
       try {
-        if (options.planAlreadyApproved) {
+        if (options.planAlreadyApproved || options.planExecutionApproved) {
           return {
             success: false,
             error: '当前计划已批准，继续 dispatch_subagent 或 reply_to_user，不要重新提交计划。',
@@ -31,11 +32,11 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: s.task,
           done: false,
         }));
-        if (steps.length < 3) {
+        if (steps.length < MIN_PLAN_STEPS) {
           return {
             success: false,
             error: [
-              'write_plan_doc 至少需要 3 个可执行步骤。',
+              `write_plan_doc 至少需要 ${MIN_PLAN_STEPS} 个可执行步骤。`,
               '如果任务只能拆成 1-2 个动作，请直接 dispatch_subagent 执行；',
               '如果这是复杂任务，请拆出读取/确认、定义或定位、分组写入、核对验收等真实依赖步骤后再提交计划。',
             ].join(''),
@@ -64,6 +65,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           at: Date.now(),
           title: args.title,
           stepCount: steps.length,
+          status: 'pending',
         });
         taskStore.setStatus(task.id, 'awaiting_approval', { error: null });
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
@@ -80,6 +82,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
     definition: editPlanDocDefinition,
     execute: async (args) => {
       try {
+        if (args.op === 'replace_steps' && options.planExecutionApproved) {
+          return {
+            success: false,
+            error: '当前计划已批准并开始执行，不要在执行中重写未完成步骤或重新发起审批。',
+          };
+        }
         let md = await planDoc.readPlanDoc(task.id);
         if (args.op === 'mark_done') {
           if (!args.stepId) return { success: false, error: 'mark_done 需要 stepId' };
@@ -89,6 +97,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           const parsed = planDoc.parsePlanDoc(md);
           const doneSteps = parsed.steps.filter((s) => s.done);
           const doneIds = new Set(doneSteps.map((s) => s.id));
+          if (args.steps.length < MIN_PLAN_STEPS) {
+            return {
+              success: false,
+              error: `replace_steps 至少需要 ${MIN_PLAN_STEPS} 个未完成步骤，避免把复杂任务缩回 1-2 步伪计划。`,
+            };
+          }
           const allIdNums = parsed.steps
             .map((s) => parseInt(String(s.id ?? '').replace(/^step-/, ''), 10))
             .filter((n) => Number.isFinite(n));
@@ -125,6 +139,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
         // replace_steps 更新了未完成步骤，需重新等待用户审批
         if (args.op === 'replace_steps') {
+          taskStore.setApprovalCheckpoint(task.id, {
+            at: Date.now(),
+            title: parsedPlanTitle(md),
+            stepCount: args.steps.length,
+            status: 'pending',
+          });
           taskStore.setStatus(task.id, 'awaiting_approval', { error: null });
           emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
           throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.AWAITING_APPROVAL, { taskId: task.id });
@@ -141,6 +161,24 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
     definition: dispatchSubagentDefinition,
     execute: async (args) => {
       try {
+        if (options.planApprovalPending) {
+          return {
+            success: false,
+            error: [
+              '当前计划还在等待用户审批，不能直接执行子任务。',
+              '如需改方案，请继续 write_plan_doc 或 edit_plan_doc.replace_steps；只有用户确认后才能 dispatch_subagent。',
+            ].join(''),
+          };
+        }
+        if (options.planRejectedNeedsRewrite) {
+          return {
+            success: false,
+            error: [
+              '上一版计划已被用户拒绝，当前计划不能直接执行。',
+              '请先调用 write_plan_doc 提交全新方案，或用 edit_plan_doc.replace_steps 更新未完成步骤并重新进入审批。',
+            ].join(''),
+          };
+        }
         if (options.requiresPlanFirst && !options.planDocExists && !args.stepId) {
           return {
             success: false,
@@ -295,4 +333,9 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
   };
 
   return [writePlanDoc, editPlanDoc, dispatchSubagent, deletePlanDocTool];
+}
+
+function parsedPlanTitle(md) {
+  const match = String(md ?? '').match(/^#\s*任务：(.+)$/m);
+  return match?.[1]?.trim() || '计划草案';
 }

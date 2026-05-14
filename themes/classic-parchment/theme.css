@@ -154,7 +154,7 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
-  /* 页面大画布（深色书架背景，同 book-bg = bg-inverse） */
+  /* 页面大画布（深色卷宗书架背景，同 book-bg = bg-inverse） */
   --we-page-canvas-bg:               var(--we-color-bg-inverse);
   --we-page-canvas-fg:               rgba(237, 227, 208, 0.90);
   --we-page-canvas-fg-muted:         rgba(200, 185, 154, 0.55);

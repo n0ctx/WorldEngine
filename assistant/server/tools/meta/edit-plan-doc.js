@@ -4,7 +4,7 @@ export const editPlanDocDefinition = {
   name: 'edit_plan_doc',
   description:
     '修改计划文档。op=mark_done 勾选某 step 已完成；' +
-    'op=replace_steps 替换未完成步骤（已完成步骤始终保留，无法通过此操作覆盖）。',
+    'op=replace_steps 替换未完成步骤（已完成步骤始终保留，无法通过此操作覆盖；替换后仍必须保留至少 3 个未完成步骤以重新进入审批）。',
   parameters: {
     type: 'object',
     properties: {

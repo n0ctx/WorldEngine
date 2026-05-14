@@ -242,6 +242,7 @@ export default function MessageItem({
   onRegenerate,
   onEditAssistant,
   onDelete,
+  isGreeting = false,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -490,6 +491,7 @@ export default function MessageItem({
                     )}
                   </div>
                 )}
+                {!isGreeting && (
                 <div className="we-message-actions">
                   {editingAI ? (
                     <div className="we-message-edit-actions">
@@ -521,6 +523,7 @@ export default function MessageItem({
                     <ActivatedEntriesRow entries={message.activated_entries} />
                   )}
                 </div>
+                )}
               </>
             );
           })()}

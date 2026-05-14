@@ -464,10 +464,11 @@ export default function MessageList({ messages, onEdit, onDelete, onRegenerate, 
         <button
           type="button"
           onClick={jumpToBottom}
-          className="absolute bottom-3 right-4 z-10 rounded-full border border-[color:var(--we-border)] bg-[color:var(--we-bg-elevated)] px-3 py-1 text-xs text-[color:var(--we-fg)] shadow-sm transition hover:bg-[color:var(--we-bg-hover)]"
+          className="we-asst-new-msg-btn"
           aria-label="跳到最新消息"
         >
-          ↓ 新消息
+          <span className="we-asst-new-msg-arrow">↓</span>
+          新消息
         </button>
       )}
     </div>

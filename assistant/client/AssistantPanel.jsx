@@ -42,6 +42,7 @@ const PLAN_REJECTED_PAUSE_REASON = 'plan rejected by user';
 // 服务端 pauseForRecoverableHarnessIssue 写入 task.error 的标记；
 // 用于让面板把该类暂停视作"等待用户主动输入"，不要自动 resume 死循环。
 const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
+const CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON = 'consecutive tool failures';
 
 function isRestartInterrupted(error) {
   return error === RECOVERABLE_TERMINAL_ERROR;
@@ -217,9 +218,14 @@ export default function AssistantPanel() {
           task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
         const isHarnessRecoverablePause =
           task.status === 'paused' && task.error === HARNESS_RECOVERABLE_PAUSE_REASON;
+        const isConsecutiveToolFailuresPause =
+          task.status === 'paused' && task.error === CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON;
         const shouldAutoResume =
           task.status === 'running' ||
-          (task.status === 'paused' && !isUserRejectedPlanPause && !isHarnessRecoverablePause) ||
+          (task.status === 'paused'
+            && !isUserRejectedPlanPause
+            && !isHarnessRecoverablePause
+            && !isConsecutiveToolFailuresPause) ||
           (task.status === 'failed' && isRestartInterrupted(task.error));
         if (shouldAutoResume) {
           await openRecoveryStream(task.id, 'resume');
@@ -407,8 +413,13 @@ export default function AssistantPanel() {
     // 乐观更新：立即隐藏审批面板，避免等 SSE PLAN_APPROVED 回来才切换状态的视觉卡顿
     beginUserTurn(taskId);
     setIsStreaming(true);
-    approveTask(taskId).catch(() => {});
-  }, [taskId, beginUserTurn]);
+    approveTask(taskId).catch(async (err) => {
+      setIsStreaming(false);
+      const task = await fetchTask(taskId).catch(() => null);
+      if (task) replaceTaskSnapshot(task);
+      log.warn('assistant.approve_plan_failed', err, { toast: err?.message || '确认执行失败' });
+    });
+  }, [taskId, beginUserTurn, replaceTaskSnapshot]);
 
   const handleRejectPlan = useCallback(() => {
     if (!taskId) return;

@@ -71,8 +71,13 @@ export default function PlanTaskHud() {
       <ul className="m-0 list-none p-0">
         {visible.map((t, i) => {
           const isRunning = i === runningIndex;
-          // 去掉 **step-n** 前缀（含全角/半角变体），只显示正文
-          const displayText = t.text.replace(/^\*{0,2}step-\d+\*{0,2}\s*/i, '');
+          // 去掉 **step-n** 前缀（含全角/半角变体），再循环去掉所有末尾的工具调用标注如 (world-card.update)／（world-card.update）
+          const TOOL_SUFFIX_RE = /\s*[（(][a-z][a-z0-9]*(?:-[a-z0-9]+)*\.[a-z][a-z0-9-]*[）)]\s*$/i;
+          let displayText = t.text.replace(/^\*{0,2}step-\d+\*{0,2}\s*/i, '');
+          while (TOOL_SUFFIX_RE.test(displayText)) {
+            displayText = displayText.replace(TOOL_SUFFIX_RE, '');
+          }
+          displayText = displayText.trim();
           return (
             <li
               key={i}

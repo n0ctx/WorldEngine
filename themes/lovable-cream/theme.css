@@ -168,7 +168,7 @@
   --we-entry-row-bg: #ffffff;
   --we-entry-row-shadow: none;
 
-  /* ========== 页面大画布（无暗书架，整页奶油底） ========== */
+  /* ========== 页面大画布（无暗卷宗书架，整页奶油底） ========== */
   --we-page-canvas-bg: var(--we-color-bg-canvas);
   --we-page-canvas-fg: var(--we-color-text-primary);
   --we-page-canvas-fg-muted: var(--we-color-text-tertiary);
@@ -179,7 +179,7 @@
   --we-card-name-font-style: normal;
   --we-card-name-font-weight: 400;
 
-  /* ========== 书架框架（Lovable 极简，轻描边 + 奶油卡片） ========== */
+  /* ========== 卷宗书架框架（Lovable 极简，轻描边 + 奶油卡片） ========== */
   --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.48);
   --we-bookshelf-frame-border:        rgba(28, 28, 28, 0.04);
   --we-bookshelf-frame-shadow:
