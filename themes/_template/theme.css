@@ -182,4 +182,37 @@
   --we-duration-normal: 200ms;
   --we-duration-slow: 320ms;
   --we-duration-extended: 500ms;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 7 排版节奏（字号 / 行高 / 字距阶梯）
+     改一个 token 影响全站对应属性；保留默认通常已够用，
+     按需覆盖以强化主题排版个性（紧凑 / 开阔 / 松弛 / 严肃）。
+     ────────────────────────────────────────────────────────────── */
+
+  /* 字号阶梯 */
+  /* --we-text-xs:      11px; */
+  /* --we-text-2xs:     12px; */
+  /* --we-text-sm:      13px; */
+  /* --we-text-body:    14px; */
+  /* --we-text-control: 15px; */
+  /* --we-text-base:    16.5px; */
+  /* --we-text-md:      18px; */
+  /* --we-text-lg:      22px; */
+  /* --we-text-xl:      28px; */
+  /* --we-text-display: 48px; */
+
+  /* 行高阶梯 */
+  /* --we-leading-flush:  1; */
+  /* --we-leading-tight:  1.3; */
+  /* --we-leading-snug:   1.5; */
+  /* --we-leading-normal: 1.75; */
+  /* --we-leading-loose:  1.95; */
+
+  /* 字距阶梯（letter-spacing） */
+  /* --we-tracking-tight:   0.02em; */
+  /* --we-tracking-normal:  0.05em; */
+  /* --we-tracking-wide:    0.08em; */
+  /* --we-tracking-wider:   0.12em; */
+  /* --we-tracking-caps:    0.18em; */
+  /* --we-tracking-display: 0.34em; */
 }

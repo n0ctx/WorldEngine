@@ -5,15 +5,6 @@ const MotionDiv = motion.div;
 
 const ENABLED = false;
 
-const containerStyle = {
-  flex: 1,
-  minHeight: 0,
-  overflowX: 'hidden',
-  overflowY: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-};
-
 /**
  * Route-level transition container for the book-spread shell.
  * locationKey changes trigger pageTransition motion; overlay routes
@@ -21,18 +12,18 @@ const containerStyle = {
  */
 export default function PageTransition({ children, locationKey }) {
   if (!ENABLED) {
-    return <div style={containerStyle}>{children}</div>;
+    return <div className="we-page-transition">{children}</div>;
   }
 
   return (
     <AnimatePresence mode="wait" initial={false}>
       <MotionDiv
         key={locationKey}
+        className="we-page-transition"
         variants={variants.pageTransition}
         initial="hidden"
         animate="visible"
         exit="exit"
-        style={containerStyle}
       >
         {children}
       </MotionDiv>

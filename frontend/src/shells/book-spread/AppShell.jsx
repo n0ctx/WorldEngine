@@ -8,9 +8,9 @@
  * Pages MUST express layout via `pages/layout/PageLayout` slots; this shell
  * decides the spread-specific visual composition. Shell-internal chrome
  * (BookSpread / PageLeft / PageRight / MemoryRecallOverlay) lives under
- * `./layout` and `./components` and MUST NOT be imported by pages directly.
+ * `./layout` and `./chrome` and MUST NOT be imported by pages directly.
  */
-import TopBar from './components/TopBar.jsx';
+import TopBar from './chrome/TopBar.jsx';
 import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';

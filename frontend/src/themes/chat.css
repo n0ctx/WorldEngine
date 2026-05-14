@@ -1962,3 +1962,235 @@
 .we-hud-running-item {
   animation: we-hud-pulse 1.6s ease-in-out infinite;
 }
+
+/* ==========================================================
+   以下规则从 frontend/src/index.css 迁移（B1 文件拆分）
+   写卡 / 对话流相关：typing 点、流式光标、章节与场景分隔
+   ========================================================= */
+
+/* — 打字三点 ─ */
+@keyframes typing-dot {
+  0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
+  40%            { opacity: 1;   transform: translateY(-4px); }
+}
+
+.typing-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--we-color-text-tertiary);
+  margin: 0 2px;
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+.typing-dot-accent {
+  background: var(--we-color-accent);
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* — 消息气泡入场 ─ */
+@keyframes we-bubble-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+
+/* — 流式光标 ─ */
+@keyframes we-stream-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 1;    }
+}
+
+/* 流式气泡末尾光标：贴在最后一个块级子元素的行尾，不会换行另起 */
+.we-stream-bubble > :last-child::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  margin-left: 3px;
+  vertical-align: -2px;
+  background: var(--we-color-accent);
+  animation: we-stream-pulse 1.2s ease-in-out infinite;
+}
+
+/* — 章节标题（WritingSpace）覆盖 chat.css 章节基础规则 ─ */
+
+/* ── 章节标题（ChapterDivider）────────────────────────────────── */
+.we-chapter-header {
+  position: relative;
+  text-align: center;
+  padding: 32px 0 16px;
+  opacity: 0;
+  transform: translateY(8px);
+  filter: blur(1.5px);
+}
+.we-chapter-header.we-chapter-header--visible {
+  animation: we-ink-rise var(--we-duration-slow) cubic-bezier(.22, 1, .36, 1) both;
+}
+@keyframes we-ink-rise {
+  from { opacity: 0; transform: translateY(8px); filter: blur(1.5px); }
+  to   { opacity: 1; transform: translateY(0);   filter: blur(0);     }
+}
+.we-chapter-num {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+  color: var(--we-color-text-tertiary);
+  margin-bottom: 6px;
+}
+.we-chapter-title {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-lg);
+  font-weight: 300;
+  color: var(--we-color-text-primary);
+  margin: 0 0 14px;
+}
+
+.we-chapter-edit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 8px;
+}
+
+.we-chapter-edit-input {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-weight: 300;
+  font-size: var(--we-text-lg);
+  text-align: center;
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-accent);
+  border-radius: var(--we-radius-sm);
+  padding: 2px 10px;
+  color: var(--we-color-text-primary);
+  outline: none;
+  width: 60%;
+  max-width: 240px;
+}
+
+.we-chapter-edit-input:focus,
+.we-chapter-edit-input:focus-visible {
+  outline: none;
+  border-color: var(--we-color-border-focus);
+  box-shadow: var(--we-focus-ring);
+}
+
+.we-chapter-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.we-chapter-edit-btn {
+  font-family: var(--we-font-sans);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+  background: none;
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-sm);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.we-chapter-edit-btn--primary {
+  color: var(--we-color-accent);
+  border-color: var(--we-color-accent);
+}
+
+.we-chapter-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--we-duration-fast);
+}
+
+/* M2: 增加 :focus-within 让键盘用户也能触发悬浮按钮 */
+.we-chapter-header:hover .we-chapter-actions,
+.we-chapter-header:focus-within .we-chapter-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.we-chapter-actions button {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-xs);
+  letter-spacing: var(--we-tracking-wider);
+  color: var(--we-color-text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: color var(--we-duration-fast);
+}
+
+.we-chapter-actions button:hover {
+  color: var(--we-color-accent);
+}
+
+.we-chapter-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.we-chapter-fleuron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: var(--we-text-control);
+  color: var(--we-color-gold);
+}
+.we-chapter-fleuron-line {
+  width: 40px;
+  height: 1px;
+  background: color-mix(in srgb, var(--we-base-gold-600) 70%, transparent);
+  display: block;
+}
+
+/* ── 场景分隔线（FleuronLine）──────────────────────────────────── */
+.we-chapter-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+  opacity: 0;
+  clip-path: inset(0 50% 0 50%);
+}
+.we-chapter-divider.we-fleuron--visible {
+  animation: we-fleuron-draw var(--we-duration-extended) cubic-bezier(.65, 0, .35, 1) both;
+}
+@keyframes we-fleuron-draw {
+  from { opacity: 0; clip-path: inset(0 50% 0 50%); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0);      }
+}
+.we-fleuron-line {
+  flex: 1;
+  height: 1px;
+  background: var(--we-color-border-default);
+  display: block;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--we-base-white) 32%, transparent),
+    0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+/* 场景分隔线：以 muted 色保留低对比装饰；与 .we-chapter-fleuron 的金色对比强弱区分章节/场景层级 */
+.we-fleuron-symbol {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-body);
+  color: var(--we-color-bg-muted);
+  line-height: var(--we-leading-flush);
+  flex-shrink: 0;
+}

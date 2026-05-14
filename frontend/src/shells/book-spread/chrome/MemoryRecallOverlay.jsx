@@ -9,9 +9,7 @@ const Dots = () => (
 );
 
 const Wrap = ({ children }) => (
-  <div className="pointer-events-none flex items-center justify-center gap-2 py-2 min-h-[32px] text-xs">
-    {children}
-  </div>
+  <div className="we-memory-recall">{children}</div>
 );
 
 export default function MemoryRecallOverlay({
@@ -25,17 +23,17 @@ export default function MemoryRecallOverlay({
   if (recallSummary?.expanded > 0) recallParts.push(`展开 ${recallSummary.expanded} 条`);
 
   if (memoryRecalling) {
-    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">正在检索记忆…</span></Wrap>;
+    return <Wrap><Dots /><span className="we-memory-recall__label">正在检索记忆…</span></Wrap>;
   }
   if (memoryExpanding) {
     const label = recallParts.length > 0 ? `${recallParts[0]} · 正在翻阅…` : '正在翻阅历史对话…';
-    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">{label}</span></Wrap>;
+    return <Wrap><Dots /><span className="we-memory-recall__label">{label}</span></Wrap>;
   }
   if (memoryWriting) {
-    return <Wrap><Dots /><span className="text-[var(--we-color-accent)]/75">正在记录记忆…</span></Wrap>;
+    return <Wrap><Dots /><span className="we-memory-recall__label">正在记录记忆…</span></Wrap>;
   }
   if (recallParts.length > 0) {
-    return <Wrap><span className="text-[var(--we-color-text-secondary)] opacity-55">{recallParts.join(' · ')}</span></Wrap>;
+    return <Wrap><span className="we-memory-recall__summary">{recallParts.join(' · ')}</span></Wrap>;
   }
   return <Wrap>{null}</Wrap>;
 }

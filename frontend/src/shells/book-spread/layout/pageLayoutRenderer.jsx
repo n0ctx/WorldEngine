@@ -8,7 +8,7 @@
 import BookSpread from './BookSpread.jsx';
 import PageLeft from './PageLeft.jsx';
 import PageRight from './PageRight.jsx';
-import MemoryRecallOverlay from '../components/MemoryRecallOverlay.jsx';
+import MemoryRecallOverlay from '../chrome/MemoryRecallOverlay.jsx';
 
 export default function renderPageLayout({
   header = null,
@@ -27,9 +27,9 @@ export default function renderPageLayout({
             {left}
           </PageLeft>
         ) : null}
-        <PageRight className="!p-0">
+        <PageRight flush>
           {header}
-          <div className="flex flex-1 min-h-0 overflow-hidden">
+          <div className="we-page-right__body">
             {main}
             {right}
             {inspector}

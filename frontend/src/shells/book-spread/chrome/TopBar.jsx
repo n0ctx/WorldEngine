@@ -165,7 +165,7 @@ export default function TopBar() {
             className="we-topbar-caret"
             animate={{ rotate: dropdownOpen ? 180 : 0 }}
             transition={{ duration: DURATION.quick, ease: EASE.sharp }}
-            style={{ display: 'inline-block' }}
+            aria-hidden="true"
           >▾</motion.span>
         </button>
         )}
@@ -178,7 +178,6 @@ export default function TopBar() {
               animate={{ opacity: 1, scaleY: 1,    y: 0 }}
               exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
               transition={{ duration: DURATION.quick, ease: EASE.ink }}
-              style={{ transformOrigin: 'top' }}
             >
               {worldsLoading ? (
                 <div className="we-topbar-dropdown-empty">
@@ -209,7 +208,7 @@ export default function TopBar() {
                 className="we-topbar-dropdown-list-btn"
                 onClick={() => { setDropdownOpen(false); navigate('/'); }}
               >
-                前往世界列表 →
+                前往世界列表
               </button>
             </motion.div>
           )}
@@ -282,7 +281,7 @@ export default function TopBar() {
         aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
         aria-pressed={isAssistantOpen}
       >
-        ✦ 助手
+        助手
       </button>
 
       <span className="we-topbar-sep">·</span>

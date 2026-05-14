@@ -1,8 +1,8 @@
 /* DESIGN.md §5.4 §8.2 */
-export default function PageRight({ children, className = '' }) {
+export default function PageRight({ children, className = '', flush = false }) {
   return (
     <div
-      className={['we-page-right', className].filter(Boolean).join(' ')}
+      className={['we-page-right', flush ? 'we-page-right--flush' : '', className].filter(Boolean).join(' ')}
     >
       {children}
     </div>

@@ -6,6 +6,10 @@
 
 ---
 
+- **fix: `shells/book-spread/` UI 规范审计 BLOCKER 全量修复** — 去除 `pageLayoutRenderer` 的 `!p-0` 越权（`PageRight` 新增 `flush` 变体 + `.we-page-right--flush` / `.we-page-right__body`）；`MemoryRecallOverlay` 改用 `.we-memory-recall*` 语义类，弃用 Tailwind 任意值 `min-h-[32px]` 与裸 opacity `/75` `/55`；`TopBar` 按钮文案去装饰符（`✦ 助手` → `助手`、`前往世界列表 →` → `前往世界列表`）、`caret` 与 `dropdown` 的 `display:inline-block` / `transform-origin` 迁回 ui.css；`PageTransition` 容器布局抽到 `.we-page-transition`，shell 层彻底无 inline style。
+- **fix: 修复 `pages.css` 中 `.we-marginalia::before` 内容被错位到文件末尾导致大段规则被 CSS 嵌套吞掉** — 第 3344 行的 `::before` 仅剩空括号开闭,真正的 `content/position/...` 声明出现在文件末尾(3849 行附近)作为孤立块,触发原生 CSS 嵌套,使 3344–3849 之间的 `.we-session-list-create` 等几百条规则变成 `.we-marginalia::before .we-xxx` 永不命中;表现为 chat/写作页"新建会话"按钮无边框、`+` 图标与文本断行。把内容搬回 `::before` 块内并删除末尾孤立片段。
+- **chore: `shells/book-spread/components/` 改名 `chrome/`** — 与通用 `frontend/src/components/` 命名解耦,语义贴近 shell chrome;同步 `AppShell.jsx` / `layout/pageLayoutRenderer.jsx` 两处 import 与 AppShell 顶部注释。
+- **refactor: index.css 组件 CSS 按域拆到 themes/{ui,pages,chat}.css + 主题可配置面扩到排版节奏** — `frontend/src/index.css` 2438 → 94 行（保留 :root 基线 / utility / prefers-reduced-motion），组件规则全量迁移；`themes/tokens.css` 新增 `--we-tracking-*` 六档字距 scale；字号/行高/圆角/duration/字距全部 token 化；可达性 outline:none 配 focus-visible 替代；`themes/README.md` 推荐覆盖顺序补 §7 排版节奏，`themes/_template/theme.css` 加 §7 注释段；现有 `classic-parchment` / `lovable-cream` 无需改动（沿用默认值，零视觉变化）。
 - **refactor: 将 `classic-parchment` shell 更名为 `book-spread`** — `frontend/src/shells/classic-parchment/` 改名 `book-spread/`，`selectShell.js` 同步 import/`DEFAULT_SHELL_ID`/`SHELLS`；主题包 `themes/classic-parchment/` 保持原名不动，区分"shell（结构）"与"theme（token）"。
 - **chore: `ui.css` 死代码清理与可达性补丁** — 删除 `.we-btn-icon`/`.we-scope-row`/`.we-scope-check`/`.we-checkbox` 零引用类；抽取公共纤细滚动条 utility；状态 tag close 按钮命中区扩至 32×32；`RegexRulesManager` icon 按钮补 `aria-label`。
 - **refactor: `ui.css` UI 规范整改，字号/行高/焦点环/弹窗阴影全部 token 化** — `tokens.css` 新增 `--we-text-2xs/-body/-control/-display`、`--we-leading-flush/-snug`、`--we-shadow-dialog`、`--we-focus-ring`；`ui.css` 替换约 60 处裸值；0.5px 字号统一就近圆整，产生轻微视觉位移。
