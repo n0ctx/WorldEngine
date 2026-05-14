@@ -2248,7 +2248,7 @@ body {
 }
 .we-cast-card .we-section-tabs-bar > .we-section-tabs-actions {
   position: absolute;
-  top: calc(100% + 14px);
+  top: calc(100% + 6px);
   right: 0;
   padding: 0;
   margin: 0;
@@ -2312,13 +2312,13 @@ body {
 .we-panel-card-action--chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   border: 1px solid color-mix(in srgb, var(--we-color-border-default) 70%, transparent) !important;
   background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 60%, transparent);
-  padding: 3px 9px !important;
+  padding: 2px 7px !important;
   border-radius: 4px;
   font-family: var(--we-font-display);
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.04em;
 }
 .we-panel-card-action--chip:hover {
@@ -2328,7 +2328,7 @@ body {
   flex-shrink: 0;
 }
 .we-panel-card-action--icon {
-  padding: 3px 6px !important;
+  padding: 2px 5px !important;
   border-color: transparent !important;
   background: transparent !important;
 }
