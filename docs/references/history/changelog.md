@@ -4,6 +4,13 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **fix: 写卡助手 agent 健壮性三项修复** — ①`runtime.js` 用 `pendingPauseSignal` 延迟抛出 ToolLoopControlSignal，修复信号被内层 catch 吞噬导致错误信息为 "tool loop control: paused" 的 bug；②同文件在 `dispatchSubAgent` 前解析 `step-N` 引用为真实 UUID（兼容 `step:N` 格式）；③`parent-agent.md` 补充 dependsOn 不可作实体 ID 的约束及核对步骤必须先 preview 的要求；④`apply-character-card.js` 分离 `id` 与 `entityId` 返回字段，语义与 persona-card 对齐
+- **fix: 开场白消息 hover 不显示操作按钮** — `MessageList.jsx` 通过 `!hasMore && msgIdx===0` 检测开场白并传 `isGreeting` prop；`MessageItem.jsx` 对 assistant 消息在 `isGreeting` 为真时跳过 `.we-message-actions` 渲染
+- **fix: 写卡助手审批流 /approve 重复提示** — `edit_plan_doc replace_steps` 补触发 `AWAITING_APPROVAL` 信号（`runtime.js`）；`write_plan_doc` 工具描述去除"等待用户 /approve"字样；`parent-agent.md` 加禁令"严禁在 reply_to_user 提示用户输入 /approve"
+- **fix: 写卡助手三项 bug 修复** — ①`streamAssistantText` 归一化字面量 `\n` → 实际换行（`parent-agent.js`）；②`renderPlanDoc` 去除 title 里已带的 operation 后缀防止 HUD 重复（`plan-doc.js`）；③审批 sentinel 消息强制要求直接 dispatch 不得口头确认（`parent-agent.js`）
+- **docs: 前端代码规范落文档并写入 CLAUDE.md 强制阅读路由** — 新增 `docs/references/frontend/coding-standards.md`（CSS token 规范、文件职责、主题分层、组件命名、inline style 禁令、三态要求、数据边界、验证清单）；CLAUDE.md 任务分流表与高频硬约束追加强制跳转；`frontend/index.md` 先读列表补第 0 项
+- **feat: 写卡助手"新消息"按钮视觉美化** — 从纯色边框卡改为 accent 朱砂色胶囊按钮，带跳动箭头动画与悬停上浮效果；样式提取为 `.we-asst-new-msg-btn` / `.we-asst-new-msg-arrow`，位于 `frontend/src/themes/chat.css`
+- **fix: 条目顺序列表标题与类型颜色区分** — `.we-entry-order-title` 从 `fg-muted`（secondary）改为 `fg`（primary），与类型文字（tertiary）形成明显层级对比；仅改 `frontend/src/themes/pages.css`
 - **refactor: 三个 CSS 文件 padding/margin/gap 替换为 --we-space-* token** — chat.css 约 55 处替换 + 23 处 design exact 标注；pages.css 约 24 处替换 + 17 处标注；ui.css 约 62 处替换 + 62 处标注；标准值（2/4/8/12/16/24/32px）替换为 var(--we-space-xxs/xs/sm/md/lg/xl/2xl)，非标准值加 `/* design exact */` 注释
 - **refactor: ui.css box-shadow 内联 color-mix 提取为 --we-shadow-* token** — 新增 3 个 token（`--we-shadow-btn-primary-inner-glow`、`--we-shadow-range-thumb`、`--we-shadow-range-thumb-active`）至 `tokens.css` 物理质感阴影区段末尾；替换 `ui.css` 4 处内联 color-mix（行 94/2255/2263/2272）；两个主题包无需额外覆写（color-mix 引用的基变量已在主题中覆写）
 - **refactor: pages.css / ui.css 硬编码 font-size 标注 no token** — 4 处 10px 及以下（7px/8px/9px×2）均无对应 token，保留原值并加 `/* no token */` 注释；仅改 `frontend/src/themes/pages.css` 和 `frontend/src/themes/ui.css`
@@ -30,14 +37,14 @@
 - **fix: 收紧编辑页标题与 tabs 之间的空白并对齐左边界** — `pages.css` 收口编辑页 `SectionTabs` 纵向 gap、tab 内边距与左侧校正。
 - **fix: 关闭世界与角色类创建抽屉的成功态卡死问题** — 创建成功后 overlay 分支不再 `replace` 到编辑页而是返回背景页；直达创建会主动清 `saving` 并开加载态。
 - **fix: 将世界卡底部角色数与时间移到左下角** — `pages.css` 调整 `we-world-card-meta` 绝对定位至左下角。
-- **fix: 拉开世界书架首排卡片与外框的顶部距离** — `we-worlds-bookshelf` 增加顶部 padding 并同步移动端。
+- **fix: 拉开世界卷宗书架首排卡片与外框的顶部距离** — `we-worlds-bookshelf` 增加顶部 padding 并同步移动端。
 - **fix: 轻微下移世界页右侧操作按钮组** — 桌面端 `we-worlds-header-actions` 微调对齐，移动端重置。
-- **fix: 收紧世界书架顶部留白并把卡片区整体上提** — 收紧 `WorldsPage` 画布/页头/书架的垂直节奏。
+- **fix: 收紧世界卷宗书架顶部留白并把卡片区整体上提** — 收紧 `WorldsPage` 画布/页头/卷宗书架的垂直节奏。
 - **fix: 清理后端测试子进程继承的 mock LLM 环境污染** — `backend/tests/helpers/test-env.js` 新增净化子进程 env helper；`llm/index.test.js`、`server-hooks.test.js` 接入。
 - **fix: 统一编辑框焦点外框并删除红色高亮残留样式** — 通用 input/textarea/聊天/章节标题焦点统一到中性外圈，删除遗留红框规则（`ui.css`/`chat.css`/`index.css`）。
-- **fix: 移除世界页层板承托并收口为纯容器书架** — `WorldsPage` 删除按行测量逻辑与 plank 主题 token，回归"容器+卡片"。
-- **fix: 为世界页补中性书架骨架并拆分主题风格化出口** — 核心层新增 frame/back-panel/plank/plain-card token，由 `classic-parchment`/`lovable-cream` 分别覆写。
-- **fix: 对齐书架页三列表头的分隔线高度** — `we-characters-col-header` 增加统一最小高度。
+- **fix: 移除世界页层板承托并收口为纯容器卷宗书架** — `WorldsPage` 删除按行测量逻辑与 plank 主题 token，回归"容器+卡片"。
+- **fix: 为世界页补中性卷宗书架骨架并拆分主题风格化出口** — 核心层新增 frame/back-panel/plank/plain-card token，由 `classic-parchment`/`lovable-cream` 分别覆写。
+- **fix: 对齐卷宗书架页三列表头的分隔线高度** — `we-characters-col-header` 增加统一最小高度。
 - **fix: 将设置弹窗加载态改为轻度模糊遮罩** — `SettingsPage` 移除"加载中…"文字，改为带 `role="status"` 的轻模糊 scrim。
 - **fix: 将更多 provider 的模型价格改为动态拉取官方定价页** — `routes/config.js` 扩展 Gemini/Grok/DeepSeek/Kimi/Qwen/SiliconFlow 动态抓取 + TTL 缓存 + 静态兜底。
 - **fix: 将设置页默认排版从宽松展示板收束为紧凑工作台** — `FormGroup`/`FieldLabel` 新增 `settings` 变体；统一控件密度与导航活跃态。

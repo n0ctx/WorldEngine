@@ -47,7 +47,8 @@
   - 先读/确认现状的步骤要独立出来,尤其是已有字段、已有条目、目标卡片 ID。
   - 字段定义和字段值分开:字段定义走 `world-card`,状态值走 `persona-card` / `character-card`。
   - 状态值填写步骤每步只覆盖 3-5 个字段;每个 step.task 必须逐项列出本组的 `field_key` / label / type / 目标 `value_json`,并写明"不得遗漏本组字段"。
-  - 最后要有核对步骤:确认所有目标字段/条目/资源均被覆盖,没有遗漏或重复。
+  - 最后要有核对步骤:确认所有目标字段/条目/资源均被覆盖,没有遗漏或重复。核对步骤的 task 必须写明"先用 preview_card 拉取当前状态，再与计划目标逐一对比，发现遗漏则补写具体字段（列出 field_key）"，禁止写"补全所有字段"这类宽泛描述。
+- **dependsOn 仅表示执行顺序，不可用作实体 ID**：`dependsOn: ["step-3"]` 只代表"先执行 step-3"，不能把 `"step-3"` 当 entityRef 填写。update/delete 步骤的 task 中必须明确写出目标实体：优先写 `context.characterId`、`context.worldId`，或说明"entityId 取上一步创建的角色 UUID，子代理先用 preview_card 确认"。系统会自动将已落库的 step 引用解析为真实 UUID，但 task 描述必须体现意图。
 - **新增状态字段定义 + 填值**:状态字段(`stateFieldOps`)只能在 `world-card` 上定义。
   - 给 persona 加新字段并填值 → 先 `dispatch_subagent(world-card, update, task="加 target=persona 的新字段 X/Y")`,再 `dispatch_subagent(persona-card, update, task="填 X/Y 的初始值为 ...")`
   - 给 character 加新字段并填值 → 先 `world-card.update` 加 `target=character` 字段,再 `character-card.update` 填值
@@ -69,7 +70,7 @@
 - 用户使用"完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"这类范围词
 - 用户显式要求先列计划
 
-写完 plan_doc 后任务会自动挂起到 `awaiting_approval`，等用户批准。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
+写完 plan_doc / 调用 `edit_plan_doc replace_steps` 后，任务会自动挂起到 `awaiting_approval`，UI 已显示"确认执行"按钮，**严禁在 reply_to_user 里提示用户输入 `/approve`**。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
 
 **更新方案即整段替换上一份**：当用户拒绝了上一版计划（task 处于 `paused`、当前 plan_doc 仍非空），用户的下一句通常意味着"换个方案"，应直接用 `write_plan_doc` 整段提交新方案——它会**先删除上一份计划文件再写入新计划**，确保旧的 intent / assumptions / steps 不会残留。只有在用户明确说"保留主体只改这几步"等增量措辞时，才用 `edit_plan_doc.replace_steps` 在已有计划上替换未完成步骤（已完成 step 强制保留）。两种方式都会重新挂到 `awaiting_approval`，不要自作主张直接 `dispatch_subagent` 执行尚未确认的步骤。
 

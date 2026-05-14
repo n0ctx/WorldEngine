@@ -28,5 +28,12 @@ export async function execute(args, ctx = {}) {
   };
   const normalized = normalizeProposal(proposal);
   const result = await applyProposal(normalized, ctx.worldRefId ?? null);
-  return { success: true, type: 'character-card', operation: args.operation, entityId: result?.id ?? result?.entityId ?? args.entityId ?? null, summary: `${args.operation} 角色卡 ${args.changes?.name ?? args.entityId}` };
+  return {
+    success: true,
+    type: 'character-card',
+    operation: args.operation,
+    id: result?.id ?? null,
+    entityId: args.entityId ?? null,
+    summary: `${args.operation} 角色卡 ${args.changes?.name ?? args.entityId}`,
+  };
 }

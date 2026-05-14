@@ -206,7 +206,7 @@ export async function dispatchSubAgent({
                 kind: targetType,
                 op,
                 name: args.changes?.name ?? null,
-                refId: res?.personaId ?? res?.entityId ?? res?.id ?? null,
+                refId: res?.personaId ?? res?.id ?? res?.entityId ?? null,
               });
             } catch { /* ignore */ }
           }

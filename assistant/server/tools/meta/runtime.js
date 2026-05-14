@@ -123,8 +123,15 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         }
         await planDoc.writePlanDoc(task.id, md);
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
+        // replace_steps 更新了未完成步骤，需重新等待用户审批
+        if (args.op === 'replace_steps') {
+          taskStore.setStatus(task.id, 'awaiting_approval', { error: null });
+          emitFn({ type: SSE_EVENTS.AWAITING_APPROVAL, taskId: task.id });
+          throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.AWAITING_APPROVAL, { taskId: task.id });
+        }
         return { success: true };
       } catch (err) {
+        if (err instanceof ToolLoopControlSignal) throw err;
         return { success: false, error: err.message };
       }
     },
@@ -181,15 +188,33 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             };
           }
         }
+        // 解析 dependsOn 中的 step 引用 → 实际资源 ID
+        // step-N 或 step:N 格式是计划步骤 ID，不能直接当 entityId 使用；需从 appliedResources 取回真实 UUID
+        let entityRefForDispatch = resolved.dependsOn?.[0] ?? null;
+        if (entityRefForDispatch && /^step[-:]\d+$/i.test(entityRefForDispatch)) {
+          const normalizedStepId = entityRefForDispatch.replace(':', '-');
+          const applied = taskStore.findAppliedResource(task.id, (e) => e.stepId === normalizedStepId);
+          if (applied?.refId) {
+            entityRefForDispatch = applied.refId;
+          } else {
+            return {
+              success: false,
+              error: `entityRef "${entityRefForDispatch}" 引用了步骤 ${normalizedStepId}，但该步骤尚未成功落库或无资源 ID。请先确认依赖步骤已完成，或直接在 task 中指定目标资源 ID。`,
+            };
+          }
+        }
+
         taskStore.setCurrentStep(task.id, resolved.id);
         emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: resolved.id, title: resolved.title });
         let outcome;
+        // pendingPauseSignal：延迟到 setLastSubagentResult 之后再抛，避免 ToolLoopControlSignal 在内层 catch 被吞噬
+        let pendingPauseSignal = null;
         try {
-        const result = await dispatchSubAgent({
-          stepId: resolved.id,
-          targetType: resolved.targetType,
-          operation: resolved.operation,
-          entityRef: resolved.dependsOn?.[0] ?? null,
+          const result = await dispatchSubAgent({
+            stepId: resolved.id,
+            targetType: resolved.targetType,
+            operation: resolved.operation,
+            entityRef: entityRefForDispatch,
             task: resolved.task,
             context: task.context,
             taskId: task.id,
@@ -198,25 +223,24 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             cancelCheck: () => task.status === 'cancelled',
             onApplied: (entry) => taskStore.recordAppliedResource(task.id, { ...entry, stepId: resolved.id }),
           });
-        if (result?.success === false) {
-          emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
-          outcome = { success: false, error: result.error ?? 'subagent reported failure' };
-          const errDetail = outcome.error;
-          const pauseMessage = [
-            `子任务"${resolved.title}"执行失败（${errDetail}）。`,
-            '我先暂停，等你确认是要改参数、改计划，还是换一种方式继续。',
-          ].join('');
-          throw new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
-            reason: 'subagent_failed',
-            stepId: resolved.id,
-            title: resolved.title,
-            error: errDetail,
-            message: pauseMessage,
-          });
-        } else {
-          emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
-          outcome = { success: true, summary: result?.summary ?? '' };
-        }
+          if (result?.success === false) {
+            emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
+            const errDetail = result.error ?? 'subagent reported failure';
+            outcome = { success: false, error: errDetail };
+            pendingPauseSignal = new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
+              reason: 'subagent_failed',
+              stepId: resolved.id,
+              title: resolved.title,
+              error: errDetail,
+              message: [
+                `子任务"${resolved.title}"执行失败（${errDetail}）。`,
+                '我先暂停，等你确认是要改参数、改计划，还是换一种方式继续。',
+              ].join(''),
+            });
+          } else {
+            emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
+            outcome = { success: true, summary: result?.summary ?? '' };
+          }
         } catch (err) {
           emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: err.message });
           outcome = { success: false, error: err.message };
@@ -247,6 +271,8 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             outcome,
           });
         }
+        // 子代理失败信号：在所有收尾记录完成后统一抛出，让外层 runParentAgent 正确处理暂停
+        if (pendingPauseSignal) throw pendingPauseSignal;
         return outcome;
       } catch (err) {
         if (err instanceof ToolLoopControlSignal) throw err;
