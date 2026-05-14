@@ -6,6 +6,8 @@
 
 ---
 
+- **fix: assistant 消息脚注激活条目超宽截断** — `ActivatedEntriesRow` 改用 `useLayoutEffect` + ResizeObserver 直接 DOM 操作，保持单行同行展示，超宽时显示 `+n` badge，token stat span 加 `flex-shrink: 0` + `white-space: nowrap` 防止"命中"被拆字；`chat.css` + `ActivatedEntriesRow.jsx`。
+- **fix: SectionTabs 内 chip 按钮样式丢失** — `.we-panel-card-action--chip` 及基础 action 样式仅对 `.we-panel-card-actions` 父级生效，`SectionTabs` 将 tab actions 渲染到 `.we-section-tabs-globals` / `.we-section-tabs-actions`，导致 NearbyPanel「制卡/保存/移除」等按钮边框/背景全部丢失；`ui.css` 将三组选择器统一追加 `.we-section-tabs-globals` / `.we-section-tabs-actions` 变体。
 - **fix: `shells/book-spread/` UI 规范审计 BLOCKER 全量修复** — 去除 `pageLayoutRenderer` 的 `!p-0` 越权（`PageRight` 新增 `flush` 变体 + `.we-page-right--flush` / `.we-page-right__body`）；`MemoryRecallOverlay` 改用 `.we-memory-recall*` 语义类，弃用 Tailwind 任意值 `min-h-[32px]` 与裸 opacity `/75` `/55`；`TopBar` 按钮文案去装饰符（`✦ 助手` → `助手`、`前往世界列表 →` → `前往世界列表`）、`caret` 与 `dropdown` 的 `display:inline-block` / `transform-origin` 迁回 ui.css；`PageTransition` 容器布局抽到 `.we-page-transition`，shell 层彻底无 inline style。
 - **fix: 修复 `pages.css` 中 `.we-marginalia::before` 内容被错位到文件末尾导致大段规则被 CSS 嵌套吞掉** — 第 3344 行的 `::before` 仅剩空括号开闭,真正的 `content/position/...` 声明出现在文件末尾(3849 行附近)作为孤立块,触发原生 CSS 嵌套,使 3344–3849 之间的 `.we-session-list-create` 等几百条规则变成 `.we-marginalia::before .we-xxx` 永不命中;表现为 chat/写作页"新建会话"按钮无边框、`+` 图标与文本断行。把内容搬回 `::before` 块内并删除末尾孤立片段。
 - **chore: `shells/book-spread/components/` 改名 `chrome/`** — 与通用 `frontend/src/components/` 命名解耦,语义贴近 shell chrome;同步 `AppShell.jsx` / `layout/pageLayoutRenderer.jsx` 两处 import 与 AppShell 顶部注释。

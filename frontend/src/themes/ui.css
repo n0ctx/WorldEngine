@@ -2827,7 +2827,9 @@
   flex-shrink: 0;
 }
 /* H1: 通过提高特异性消除 !important —— 用 .we-panel-card-actions 父级 + 自身 chip class */
-.we-panel-card-actions .we-panel-card-action {
+.we-panel-card-actions .we-panel-card-action,
+.we-section-tabs-globals .we-panel-card-action,
+.we-section-tabs-actions .we-panel-card-action {
   color: var(--we-color-text-tertiary);
   padding: 2px 8px;
   border-radius: var(--we-radius-xs);
@@ -2838,16 +2840,22 @@
     border-color var(--we-duration-fast) ease,
     background-color var(--we-duration-fast) ease;
 }
-.we-panel-card-actions .we-panel-card-action:hover {
+.we-panel-card-actions .we-panel-card-action:hover,
+.we-section-tabs-globals .we-panel-card-action:hover,
+.we-section-tabs-actions .we-panel-card-action:hover {
   color: var(--we-color-accent);
   border-color: color-mix(in srgb, var(--we-color-accent) 35%, transparent);
   background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
 }
-.we-panel-card-actions .we-panel-card-action:focus-visible {
+.we-panel-card-actions .we-panel-card-action:focus-visible,
+.we-section-tabs-globals .we-panel-card-action:focus-visible,
+.we-section-tabs-actions .we-panel-card-action:focus-visible {
   outline: 2px solid var(--we-color-border-focus);
   outline-offset: 1px;
 }
-.we-panel-card-actions .we-panel-card-action:disabled {
+.we-panel-card-actions .we-panel-card-action:disabled,
+.we-section-tabs-globals .we-panel-card-action:disabled,
+.we-section-tabs-actions .we-panel-card-action:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -2985,7 +2993,9 @@
 .we-cast-card { margin: 0; }
 
 /* 动作按钮 chip 修饰 — 通过 .we-panel-card-actions 父级提升特异性，消除 !important */
-.we-panel-card-actions .we-panel-card-action--chip {
+.we-panel-card-actions .we-panel-card-action--chip,
+.we-section-tabs-globals .we-panel-card-action--chip,
+.we-section-tabs-actions .we-panel-card-action--chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -2997,18 +3007,24 @@
   font-size: var(--we-text-xs);
   letter-spacing: var(--we-tracking-tight);
 }
-.we-panel-card-actions .we-panel-card-action--chip:hover {
+.we-panel-card-actions .we-panel-card-action--chip:hover,
+.we-section-tabs-globals .we-panel-card-action--chip:hover,
+.we-section-tabs-actions .we-panel-card-action--chip:hover {
   background: color-mix(in srgb, var(--we-color-accent) 8%, transparent);
 }
 .we-panel-card-action--chip svg {
   flex-shrink: 0;
 }
-.we-panel-card-actions .we-panel-card-action--icon {
+.we-panel-card-actions .we-panel-card-action--icon,
+.we-section-tabs-globals .we-panel-card-action--icon,
+.we-section-tabs-actions .we-panel-card-action--icon {
   padding: 2px 5px;
   border-color: transparent;
   background: transparent;
 }
-.we-panel-card-actions .we-panel-card-action--icon:hover {
+.we-panel-card-actions .we-panel-card-action--icon:hover,
+.we-section-tabs-globals .we-panel-card-action--icon:hover,
+.we-section-tabs-actions .we-panel-card-action--icon:hover {
   background: transparent;
   border-color: transparent;
 }
