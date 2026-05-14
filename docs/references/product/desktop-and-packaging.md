@@ -21,6 +21,7 @@ npm run desktop:dist
 
 - 日志文件位于 `data/logs/worldengine-YYYY-MM-DD.log`
 - 日志级别由 `data/config.json` 的 `logging` 配置块控制
+- 桌面包必须随包携带根目录 `themes/` 下的内置主题；后端主题服务会从 `resources/themes` 读取内置主题 CSS，用户导入主题则继续写入数据目录 `themes/`
 
 ## 代码入口
 

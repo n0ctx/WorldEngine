@@ -29,7 +29,7 @@
     "test:coverage:assistant": "npm run test:coverage --prefix assistant",
     "test:e2e": "npm run test:e2e --prefix backend",
     "version:sync": "node scripts/sync-version.mjs",
-    "version": "0.1.2"
+    "version": "npm run version:sync"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

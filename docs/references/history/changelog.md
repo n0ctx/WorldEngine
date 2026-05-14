@@ -4,6 +4,10 @@
 
 ---
 
+- fix(packaging): 修复桌面端主题系统与 Web 端不一致。Electron 打包资源此前漏掉根目录 `themes/`，导致桌面包内后端主题服务找不到内置主题 CSS，前端启动时静默回退到核心默认 token。现在 `desktop/electron-builder.json` 会把内置主题的 `theme.json` / `theme.css` 打进 `resources/themes`；同时排除 backend/assistant 的 `.temp`、`.DS_Store` 等打包污染，并同步桌面打包文档说明。
+
+- fix(packaging): 收口桌面端与 Web 端版本一致性。恢复根 `package.json` 的 `version` 生命周期钩子为 `npm run version:sync`，避免 `npm version` 后子包版本漂移；`scripts/sync-version.mjs` 现在同步子包 `package.json`、各包 lockfile 根版本，以及根 lockfile 的 workspace 版本条目。同步把本地忽略目录 `desktop/` 的打包脚本改为先构建 `../frontend`，避免从桌面子包直接打包时带入旧的 `frontend/dist`。
+
 - docs(coverage): 补齐文档覆盖缺口，把此前未明确收口的目录并回现有主轴。新增 `docs/references/product/desktop-runtime.md`（覆盖 `desktop/src` 与 `desktop/scripts`）、`docs/references/backend/runtime-infra.md`（覆盖 `backend/hooks`、`backend/middleware`、`backend/utils`）、`docs/references/backend/prompt-templates.md`（覆盖 `backend/prompts/templates`）、`docs/references/frontend/public-and-test-support.md`（覆盖 `frontend/public` 与前端测试 setup / helper）、`docs/references/shared/repo-tooling-and-hooks.md`（覆盖根 `scripts/`、`hooks/`、`eslint-rules/`）。同步更新 `CLAUDE.md` 与 frontend/backend/product/shared 各主轴索引，确保 agent 可以从入口直接跳到这些非主链目录。
 
 - docs(governance): 为新的渐进式披露体系补全可执行文档与自动校验。新增 `scripts/check-docs-harness.mjs` 与根脚本 `npm run check:docs`，自动检查根入口、主轴索引、叶子链接、旧文档名漂移与过薄/过重结构问题；`CLAUDE.md`、六大主轴 `index.md`、shared docs governance 全部改成统一契约（什么时候读 / 先读哪几页 / 高频任务分流 / 真源边界）。同时新增 `docs/references/backend/schema-reading-guide.md`，给 `schema-and-storage.md` 增加任务分流；将 `frontend/ui-and-theme.md`、`product/overview.md` 重写为低 token 的任务导向文档；为 backend / frontend / assistant 叶子文档补充具体代码入口。同步修复 `frontend/README.md`、`themes/README.md`、`assistant/knowledge/CONTRACT.md`、`assistant/knowledge/CSSSNIPPET.md`、`assistant/server/tools/project-reader.js`、`backend/services/import-export-constants.js`、`frontend/src/components/settings/CustomCssManager.jsx` 中的旧入口与失效引用。
