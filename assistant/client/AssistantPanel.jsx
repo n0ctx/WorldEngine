@@ -404,8 +404,11 @@ export default function AssistantPanel() {
 
   const handleApprove = useCallback(() => {
     if (!taskId) return;
+    // 乐观更新：立即隐藏审批面板，避免等 SSE PLAN_APPROVED 回来才切换状态的视觉卡顿
+    beginUserTurn(taskId);
+    setIsStreaming(true);
     approveTask(taskId).catch(() => {});
-  }, [taskId]);
+  }, [taskId, beginUserTurn]);
 
   const handleRejectPlan = useCallback(() => {
     if (!taskId) return;
