@@ -8,6 +8,12 @@
 - 调整主题 token、前端交互、页面装配方式
 - 判断前端相关测试该跑哪一层
 
+本主轴承接的高频跨模块任务片段：
+
+- chat / writing / assistant 的用户可见交互、状态展示、错误提示
+- 恢复 / 静默 resume / 流式链路落到页面后的可见行为
+- 导入导出、persona/world 编辑等功能落到页面后的入口与交互
+
 ## 先读哪几页
 
 1. [`architecture.md`](architecture.md)：顶层结构、核心入口、assistant 前端接入边界

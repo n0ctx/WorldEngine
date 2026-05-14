@@ -564,10 +564,20 @@ export default function WritingSpacePage() {
         if (isSameSession()) setStateTick((tick) => tick + 1);
       },
       onStateUpdateFailed(evt) {
+        stopMemoryWriting(runId);
         if (isSameSession()) {
           setStateFailedTick((tick) => tick + 1);
           log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
         }
+      },
+      onPostprocessFailed(evt) {
+        stopMemoryWriting(runId);
+        if (!isSameSession()) return;
+        log.error('writing.postprocess_failed', evt?.error, {
+          toast: evt?.timeout
+            ? '后台整理超时，回复已保留，标题或状态可能未更新'
+            : '后台整理失败，回复已保留，标题或状态可能未更新',
+        });
       },
       onStateRolledBack() {
         if (isSameSession()) setStateTick((tick) => tick + 1);
@@ -844,10 +854,20 @@ export default function WritingSpacePage() {
         }
       },
       onStateUpdateFailed(evt) {
+        stopMemoryWriting();
         if (currentSessionRef.current?.id === continuationSessionId) {
           setStateFailedTick((tick) => tick + 1);
           log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
         }
+      },
+      onPostprocessFailed(evt) {
+        stopMemoryWriting();
+        if (currentSessionRef.current?.id !== continuationSessionId) return;
+        log.error('writing.postprocess_failed', evt?.error, {
+          toast: evt?.timeout
+            ? '后台整理超时，回复已保留，标题或状态可能未更新'
+            : '后台整理失败，回复已保留，标题或状态可能未更新',
+        });
       },
       onSuggestionFallbackStarted() {
         if (continuationTokenRef.current !== continuationToken) return;

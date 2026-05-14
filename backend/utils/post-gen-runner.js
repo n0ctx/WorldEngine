@@ -69,6 +69,13 @@ export function runPostGenTasks(sessionId, taskSpecs, { streamState, sid, emitSs
           // tracksState 任务失败时通知前端，避免"整理中"状态永久卡住
           if (spec.tracksState) {
             emitSse({ type: 'state_update_failed', error: err.message });
+          } else {
+            emitSse({
+              type: 'postprocess_failed',
+              label: spec.label,
+              error: err.message,
+              timeout: err?.code === 'LLM_TIMEOUT' || err?.status === 504,
+            });
           }
         });
       ssePromises.push(ssePromise);

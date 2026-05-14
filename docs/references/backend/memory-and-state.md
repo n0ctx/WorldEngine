@@ -20,7 +20,7 @@
 
 - 世界、角色、persona 各有字段定义表与状态值表
 - 默认值与运行时值分离；会话运行时状态互相隔离
-- `llm_auto` 状态在 AI 回复后异步更新；`manual` 只能手动编辑
+- `llm_auto` 与 `manual` 都允许用户手动编辑当前会话值；区别仅在于 `llm_auto` 会在 AI 回复后继续参与异步状态更新，`manual` 不会被后台状态整理自动改写
 - 写作模式还有 `session_nearby_characters` / `session_nearby_character_state_values` 维护附近角色状态
 
 ## 相关真源

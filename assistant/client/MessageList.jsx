@@ -58,27 +58,36 @@ const STATUS_TEXT = {
 function parseStreamingBlocks(rawText) {
   const text = stripToolCallLeakage(rawText);
   const blocks = [];
-  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
-  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
-  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
+  const TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
   let inThink = false;
   let current = '';
-  for (const seg of segments) {
-    if (OPEN_TAG.test(seg)) {
+  let cursor = 0;
+  for (const match of text.matchAll(TAG_RE)) {
+    const token = match[0];
+    const isClose = Boolean(match[1]);
+    const index = match.index ?? 0;
+    current += text.slice(cursor, index);
+    cursor = index + token.length;
+    if (!inThink) {
+      if (isClose) {
+        current += token;
+        continue;
+      }
       const trimmed = current.replace(/^\n+/, '');
       if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
       current = '';
       inThink = true;
-    } else if (CLOSE_TAG.test(seg)) {
-      if (inThink) {
-        blocks.push({ type: 'thinking', content: current, open: false });
-        current = '';
-        inThink = false;
-      }
-    } else {
-      current += seg;
+      continue;
     }
+    if (isClose) {
+      blocks.push({ type: 'thinking', content: current, open: false });
+      current = '';
+      inThink = false;
+      continue;
+    }
+    current += token;
   }
+  current += text.slice(cursor);
   if (inThink) {
     blocks.push({ type: 'thinking', content: current, open: true });
   } else {

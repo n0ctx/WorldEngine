@@ -8,6 +8,12 @@
 - 查数据库字段、配置键、导入导出格式、存储目录
 - 改接口、SSE、memory、state、异步链路、文件存储
 
+本主轴承接的高频跨模块任务片段：
+
+- chat / writing 流式链路里的路由、SSE、后处理、hooks、队列
+- 恢复 / 断点续传里的后端状态写回、事件边界、任务存储
+- 导入导出里的 schema、存储格式、兼容与落盘约束
+
 ## 先读哪几页
 
 1. [`architecture.md`](architecture.md)：顶层目录职责、createApp 装配与分层边界

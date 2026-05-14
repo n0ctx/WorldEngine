@@ -37,7 +37,7 @@ import {
 } from '../db/queries/session-nearby-character-state-values.js';
 import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
 
-import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_UPDATE_JSON_RETRY_MAX } from '../utils/constants.js';
+import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
@@ -292,7 +292,14 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
 
   const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
 
-  const raw = await llm.complete(prompt, { temperature: 0, maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_compress', conversationId: sessionId });
+  const raw = await llm.complete(prompt, {
+    temperature: 0,
+    maxTokens: LLM_STATE_COMPRESS_MAX_TOKENS,
+    configScope: resolveAuxScope(sessionId),
+    callType: 'state_compress',
+    conversationId: sessionId,
+    timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+  });
 
   let compressed = null;
   if (raw) {
@@ -520,7 +527,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   let lastRaw = null;
 
   for (let attempt = 0; attempt <= STATE_UPDATE_JSON_RETRY_MAX; attempt++) {
-    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_STATE_UPDATE_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'state_update', conversationId: sessionId });
+    const raw = await llm.complete(prompt, {
+      temperature: LLM_TASK_TEMPERATURE,
+      maxTokens: LLM_STATE_UPDATE_MAX_TOKENS,
+      configScope: resolveAuxScope(sessionId),
+      callType: 'state_update',
+      conversationId: sessionId,
+      timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+    });
     if (!raw) return;  // LLM API 失败，不进入 JSON 重试
     lastRaw = raw;
     log.info(`RAW  ${formatMeta({ session: sid, chars: raw.length, attempt, preview: shouldLogRaw('llm_raw') ? previewText(raw) : undefined })}`);

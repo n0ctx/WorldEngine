@@ -463,6 +463,38 @@ describe('ChatPage', () => {
     expect(mocks.stopGeneration).toHaveBeenCalledWith('session-1');
   });
 
+  it('后台整理失败和超时都会显示 toast', async () => {
+    const callbacksRef = { current: null };
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, callbacks) => {
+      callbacksRef.current = callbacks;
+      return vi.fn();
+    });
+
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      callbacksRef.current.onDone?.({ id: 'asst-1', content: '第一轮' }, []);
+      callbacksRef.current.onPostprocessFailed?.({ label: 'title', error: 'timeout', timeout: true });
+    });
+    expect(await screen.findByText('后台整理超时，回复已保留，标题或状态可能未更新')).toBeInTheDocument();
+
+    await act(async () => {
+      callbacksRef.current.onPostprocessFailed?.({ label: 'title', error: 'failed', timeout: false });
+    });
+    expect(await screen.findByText('后台整理失败，回复已保留，标题或状态可能未更新')).toBeInTheDocument();
+  });
+
   it('生成中不会触发重命名', async () => {
     const callbacksRef = { current: null };
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });

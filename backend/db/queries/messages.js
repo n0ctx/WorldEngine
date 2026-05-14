@@ -60,7 +60,7 @@ function parseActivatedEntries(raw) {
  */
 export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
   const rows = db.prepare(
-    'SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC LIMIT ? OFFSET ?',
+    'SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ? OFFSET ?',
   ).all(sessionId, limit, offset);
 
   for (const row of rows) {
@@ -120,12 +120,14 @@ export function updateMessageTokenUsage(id, usage) {
  * 删除指定消息之后的所有消息（不含该消息本身），基于 created_at 排序
  */
 export function deleteMessagesAfter(messageId) {
-  const msg = db.prepare('SELECT session_id, created_at FROM messages WHERE id = ?').get(messageId);
+  const msg = db.prepare('SELECT session_id, created_at, rowid FROM messages WHERE id = ?').get(messageId);
   if (!msg) return { changes: 0 };
 
   return db.prepare(
-    'DELETE FROM messages WHERE session_id = ? AND created_at > ?',
-  ).run(msg.session_id, msg.created_at);
+    `DELETE FROM messages
+     WHERE session_id = ?
+       AND (created_at > ? OR (created_at = ? AND rowid > ?))`,
+  ).run(msg.session_id, msg.created_at, msg.created_at, msg.rowid);
 }
 
 /**
@@ -245,17 +247,21 @@ export function getUncompressedMessagesBySessionId(sessionId, limit = null, offs
   const rows = hasLimit
     ? db.prepare(`
       SELECT * FROM (
-        SELECT *
+        SELECT rowid AS __rowid, *
         FROM messages
         WHERE session_id = ? AND is_compressed = 0
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, rowid DESC
         LIMIT ? OFFSET ?
-      ) ORDER BY created_at ASC
+      ) ORDER BY created_at ASC, __rowid ASC
     `).all(sessionId, limit, offset)
-    : db.prepare(
-      'SELECT * FROM messages WHERE session_id = ? AND is_compressed = 0 ORDER BY created_at ASC',
-    ).all(sessionId);
+    : db.prepare(`
+      SELECT rowid AS __rowid, *
+      FROM messages
+      WHERE session_id = ? AND is_compressed = 0
+      ORDER BY created_at ASC, rowid ASC
+    `).all(sessionId);
   for (const row of rows) {
+    delete row.__rowid;
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
     row.next_options = parseNextOptions(row.next_options);
@@ -269,9 +275,12 @@ export function getUncompressedMessagesBySessionId(sessionId, limit = null, offs
  * @returns {string[]}
  */
 export function getMessageIdsAfter(messageId) {
-  const msg = db.prepare('SELECT session_id, created_at FROM messages WHERE id = ?').get(messageId);
+  const msg = db.prepare('SELECT session_id, created_at, rowid FROM messages WHERE id = ?').get(messageId);
   if (!msg) return [];
   return db.prepare(
-    'SELECT id FROM messages WHERE session_id = ? AND created_at > ?',
-  ).all(msg.session_id, msg.created_at).map((r) => r.id);
+    `SELECT id FROM messages
+     WHERE session_id = ?
+       AND (created_at > ? OR (created_at = ? AND rowid > ?))
+     ORDER BY created_at ASC, rowid ASC`,
+  ).all(msg.session_id, msg.created_at, msg.created_at, msg.rowid).map((r) => r.id);
 }

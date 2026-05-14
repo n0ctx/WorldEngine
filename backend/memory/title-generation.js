@@ -1,4 +1,5 @@
 import * as llm from '../llm/index.js';
+import { LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 
 const TITLE_EMPTY_RETRY_MAX = 2;
 
@@ -22,7 +23,14 @@ export async function generateTitleWithRetry({ prompts, maxTokens, temperature, 
     }
 
     const prompt = prompts[Math.min(attempt - 1, prompts.length - 1)];
-    const raw = await llm.complete(prompt, { temperature, maxTokens, configScope, callType: 'title_gen', conversationId });
+    const raw = await llm.complete(prompt, {
+      temperature,
+      maxTokens,
+      configScope,
+      callType: 'title_gen',
+      conversationId,
+      timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+    });
     const title = normalizeTitle(raw);
     if (title) {
       return { title, source: 'llm', attempts: attempt };

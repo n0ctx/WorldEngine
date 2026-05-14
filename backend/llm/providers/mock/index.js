@@ -119,8 +119,10 @@ export async function* streamChat(_messages, llmConfig = {}) {
   yield text;
 }
 
-export async function complete() {
+export async function complete(_messages, llmConfig = {}) {
   maybeThrow('complete');
+  const delayMs = Number(process.env.MOCK_LLM_COMPLETE_DELAY_MS ?? 0);
+  if (delayMs > 0) await sleep(delayMs, llmConfig.signal);
   return getMockText('complete');
 }
 

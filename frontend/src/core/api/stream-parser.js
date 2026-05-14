@@ -18,6 +18,7 @@ import { log } from '../utils/logger.js';
  *   onStateQueued()             — 状态栏整理 LLM 开始调用（整理中出现时机）
  *   onStateUpdated()            — 状态栏异步更新完成
  *   onStateUpdateFailed(evt)    — 状态栏更新失败，evt.error 为错误信息
+ *   onPostprocessFailed(evt)    — keep-alive 后处理失败/超时（如标题生成）
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
  *   onSuggestionFallbackStarted() — 选项区缺失，后端已触发副模型补选项
  *   onSuggestionFallbackSucceeded() — 补选项成功
@@ -66,6 +67,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'state_queued') callbacks.onStateQueued?.();
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
           else if (evt.type === 'state_update_failed') callbacks.onStateUpdateFailed?.(evt);
+          else if (evt.type === 'postprocess_failed') callbacks.onPostprocessFailed?.(evt);
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
           else if (evt.type === 'suggestion_fallback_started') callbacks.onSuggestionFallbackStarted?.();
           else if (evt.type === 'suggestion_fallback_succeeded') callbacks.onSuggestionFallbackSucceeded?.();

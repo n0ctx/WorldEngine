@@ -7,6 +7,12 @@
 - 改 `assistant/` 目录
 - 改 proposal、plan、父/子代理、恢复链路、知识文件
 
+本主轴承接的高频跨模块任务片段：
+
+- 恢复 / 静默 resume / 任务状态的协议、状态机和 pause 语义
+- 写卡助手 proposal / plan / 审批门与父子代理协作
+- assistant 前后端边界、知识注入和工具装配
+
 ## 先读哪几页
 
 1. [`architecture.md`](architecture.md)：前后端边界、父/子代理、task store 与工具装配

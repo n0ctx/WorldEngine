@@ -161,6 +161,18 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function buildTimedSignal(signal, timeoutMs) {
+  const parsed = Number(timeoutMs);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return { signal, didTimeout: () => false };
+  }
+  const timeoutSignal = AbortSignal.timeout(parsed);
+  return {
+    signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
+    didTimeout: () => timeoutSignal.aborted && !signal?.aborted,
+  };
+}
+
 // ============================================================
 // 对外接口
 // ============================================================
@@ -303,6 +315,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
   }
 
   const { defs, handlers } = splitTools(tools);
+  const timeout = buildTimedSignal(llmConfig.signal, options.timeoutMs);
   log.info(`COMPLETE_TOOLS START  ${formatMeta({
     callType: llmConfig.callType,
     provider: llmConfig.provider,
@@ -320,6 +333,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
       try {
         const result = await provider.completeWithTools(messages, defs, handlers, {
           ...llmConfig,
+          signal: timeout.signal,
           toolResultMode: 'detail',
         });
         const text = typeof result === 'string' ? result : (result?.text ?? '');
@@ -338,6 +352,12 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
         })}`);
         return typeof result === 'string' ? { text: result, messages } : result;
       } catch (err) {
+        if (timeout.didTimeout()) {
+          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${options.timeoutMs}ms`);
+          timeoutErr.status = 504;
+          timeoutErr.code = 'LLM_TIMEOUT';
+          throw wrapError(timeoutErr, llmConfig.provider);
+        }
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
         if (isToolLoopCancelledError(err) || isToolLoopControlSignal(err)) throw err;
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
@@ -371,6 +391,7 @@ export async function complete(messages, options = {}) {
   const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
+  const timeout = buildTimedSignal(llmConfig.signal, options.timeoutMs);
 
   log.info(`COMPLETE START  ${formatMeta({
     callType: llmConfig.callType,
@@ -391,7 +412,10 @@ export async function complete(messages, options = {}) {
   try {
     for (let attempt = 0; attempt <= retry.max; attempt++) {
       try {
-        const result = await provider.complete(messages, llmConfig);
+        const result = await provider.complete(messages, {
+          ...llmConfig,
+          signal: timeout.signal,
+        });
         const meta = formatMeta({
           callType: llmConfig.callType,
           provider: llmConfig.provider,
@@ -411,6 +435,12 @@ export async function complete(messages, options = {}) {
         }
         return result;
       } catch (err) {
+        if (timeout.didTimeout()) {
+          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${options.timeoutMs}ms`);
+          timeoutErr.status = 504;
+          timeoutErr.code = 'LLM_TIMEOUT';
+          throw wrapError(timeoutErr, llmConfig.provider);
+        }
         if (err.name === 'AbortError') throw wrapError(err, llmConfig.provider);
         if (isNonRetryable(err)) throw wrapError(err, llmConfig.provider);
 

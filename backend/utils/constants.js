@@ -15,6 +15,7 @@ export {
 // ============================
 export const LLM_RETRY_MAX = 3;
 export const LLM_RETRY_DELAY_MS = 1000;
+export const LLM_BACKGROUND_TASK_TIMEOUT_MS = Number(process.env.WE_LLM_BACKGROUND_TASK_TIMEOUT_MS) || 20_000;
 
 // ============================
 // 异步队列

@@ -26,6 +26,7 @@ import {
   LONG_TERM_MEMORY_TARGET_LINES,
   LLM_LONG_TERM_MEMORY_COMPRESS_MAX_TOKENS,
   LLM_TASK_TEMPERATURE,
+  LLM_BACKGROUND_TASK_TIMEOUT_MS,
 } from '../utils/constants.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
@@ -137,6 +138,7 @@ export async function compressMemory(sessionId) {
     configScope: resolveAuxScope(sessionId),
     callType: 'long_term_memory_compress',
     conversationId: sessionId,
+    timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
   });
 
   const cleanedRaw = (raw || '')

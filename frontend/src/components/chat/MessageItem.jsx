@@ -7,6 +7,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
+import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 
 import CharacterSeal from './CharacterSeal.jsx';
@@ -15,42 +16,6 @@ import ActivatedEntriesRow from './ActivatedEntriesRow.jsx';
 import { variants, transitions } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
-
-/**
- * 将文本解析为 [{type, content, open}] 数组，流式/非流式通用。
- * open=true 表示该 think 块尚未收到 </think>（仍在流式输出中）。
- */
-function parseStreamingBlocks(text) {
-  const blocks = [];
-  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
-  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
-  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
-  let inThink = false;
-  let current = '';
-  for (const seg of segments) {
-    if (OPEN_TAG.test(seg)) {
-      const trimmed = current.replace(/^\n+/, '');
-      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-      current = '';
-      inThink = true;
-    } else if (CLOSE_TAG.test(seg)) {
-      if (inThink) {
-        blocks.push({ type: 'thinking', content: current, open: false });
-        current = '';
-        inThink = false;
-      }
-    } else {
-      current += seg;
-    }
-  }
-  if (inThink) {
-    blocks.push({ type: 'thinking', content: current, open: true });
-  } else {
-    const trimmed = current.replace(/^\n+/, '');
-    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-  }
-  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
-}
 
 /**
  * open=true：think 块正在流式输出并自动展开

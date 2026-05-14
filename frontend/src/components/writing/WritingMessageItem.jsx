@@ -9,6 +9,7 @@ import rehypeSanitize from 'rehype-sanitize';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
+import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import ActivatedEntriesRow from '../chat/ActivatedEntriesRow.jsx';
 import InterruptedMark from '../chat/InterruptedMark.jsx';
 
@@ -46,38 +47,6 @@ function formatCost(usd) {
   if (usd < 0.001) return `$${usd.toFixed(6)}`;
   if (usd < 0.01) return `$${usd.toFixed(4)}`;
   return `$${usd.toFixed(3)}`;
-}
-
-function parseStreamingBlocks(text) {
-  const blocks = [];
-  const OPEN_TAG = /^<\s*think(?:ing)?\s*>$/i;
-  const CLOSE_TAG = /^<\s*\/\s*think(?:ing)?\s*>$/i;
-  const segments = text.split(/(<\s*think(?:ing)?\s*>|<\s*\/\s*think(?:ing)?\s*>)/i);
-  let inThink = false;
-  let current = '';
-  for (const seg of segments) {
-    if (OPEN_TAG.test(seg)) {
-      const trimmed = current.replace(/^\n+/, '');
-      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-      current = '';
-      inThink = true;
-    } else if (CLOSE_TAG.test(seg)) {
-      if (inThink) {
-        blocks.push({ type: 'thinking', content: current, open: false });
-        current = '';
-        inThink = false;
-      }
-    } else {
-      current += seg;
-    }
-  }
-  if (inThink) {
-    blocks.push({ type: 'thinking', content: current, open: true });
-  } else {
-    const trimmed = current.replace(/^\n+/, '');
-    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-  }
-  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
 }
 
 function ThinkBlock({ content, open = false, interrupted = false }) {

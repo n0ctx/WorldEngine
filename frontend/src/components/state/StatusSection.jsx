@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import Icon from '../ui/Icon.jsx';
+import Select from '../ui/Select.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 
 const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+const STATE_LIST_MAX_ITEMS = 10;
 
 /** datetime ISO 字符串渲染为 "{prefix}X年X月X日X时X分"（去前导零） */
 function formatDatetimeChinese(iso, prefix) {
@@ -68,6 +70,21 @@ function parseRawValue(effectiveValueJson, type) {
   }
 }
 
+function parseEnumOptions(raw) {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function canEditRow(row, onSave) {
+  return row.update_mode !== 'system_rule' && !!onSave;
+}
+
 function SkeletonRows() {
   return (
     <div className="we-status-skeleton">
@@ -108,8 +125,22 @@ function InlineEditor({ row, onCommit, onCancel }) {
   const rawInit = parseRawValue(row.effective_value_json, type);
   const [draft, setDraft] = useState(rawInit);
   const inputRef = useRef(null);
+  const boundaryRef = useRef(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    if (type !== 'enum' && type !== 'list') return undefined;
+
+    function handlePointerDown(event) {
+      if (!boundaryRef.current?.contains(event.target)) {
+        onCancel();
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [onCancel, type]);
 
   function commit(value) {
     let valueJson;
@@ -149,21 +180,19 @@ function InlineEditor({ row, onCommit, onCancel }) {
   }
 
   if (type === 'enum') {
-    const options = (() => {
-      try { return JSON.parse(row.enum_options || '[]'); } catch { return []; }
-    })();
+    const options = parseEnumOptions(row.enum_options);
     return (
-      <select
-        ref={inputRef}
-        value={draft ?? ''}
-        onChange={(e) => { setDraft(e.target.value); commit(e.target.value); }}
-        onBlur={() => commit(draft)}
-        onKeyDown={handleKey}
-        className="we-input we-status-inline-input"
-      >
-        <option value="">—</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+      <div ref={boundaryRef}>
+        <Select
+          value={draft ?? ''}
+          onChange={(value) => {
+            setDraft(value);
+            commit(value);
+          }}
+          options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
+          className="we-status-inline-select"
+        />
+      </div>
     );
   }
 
@@ -181,6 +210,10 @@ function InlineEditor({ row, onCommit, onCancel }) {
     );
   }
 
+  if (type === 'list') {
+    return <ListInlineEditor initial={rawInit} onCommit={onCommit} onCancel={onCancel} />;
+  }
+
   const displayDraft = type === 'list'
     ? (Array.isArray(draft) ? draft.join(', ') : String(draft ?? ''))
     : String(draft ?? '');
@@ -196,6 +229,101 @@ function InlineEditor({ row, onCommit, onCancel }) {
       className="we-input we-status-inline-input"
       placeholder={type === 'list' ? '逗号分隔' : ''}
     />
+  );
+}
+
+function ListInlineEditor({ initial, onCommit, onCancel }) {
+  const [items, setItems] = useState(() => Array.isArray(initial) ? initial : []);
+  const [input, setInput] = useState('');
+  const inputRef = useRef(null);
+  const boundaryRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handlePointerDown(event) {
+      if (!boundaryRef.current?.contains(event.target)) {
+        onCancel();
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [onCancel]);
+
+  function commit(next) {
+    onCommit(next.length > 0 ? JSON.stringify(next) : null);
+  }
+
+  function addItem(raw) {
+    const value = raw.trim();
+    if (!value || items.includes(value) || items.length >= STATE_LIST_MAX_ITEMS) return;
+    const next = [...items, value];
+    setItems(next);
+    setInput('');
+    commit(next);
+  }
+
+  function removeItem(value) {
+    const next = items.filter((item) => item !== value);
+    setItems(next);
+    setInput('');
+    commit(next);
+  }
+
+  const atMax = items.length >= STATE_LIST_MAX_ITEMS;
+
+  return (
+    <div
+      ref={boundaryRef}
+      className="we-tag-input"
+      onClick={() => inputRef.current?.focus()}
+      role="group"
+      aria-label={`${items.length > 0 ? '编辑' : '新增'}列表项`}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.currentTarget.querySelector('input')?.focus();
+        }
+      }}
+    >
+      {items.map((item) => (
+        <span key={item} className="we-tag">
+          {item}
+          <button type="button" onClick={(e) => { e.stopPropagation(); removeItem(item); }}>×</button>
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        className="we-tag-input-field"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        disabled={atMax}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addItem(input);
+            return;
+          }
+          if (e.key === 'Backspace' && input === '' && items.length > 0) {
+            e.preventDefault();
+            removeItem(items[items.length - 1]);
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onCancel();
+          }
+        }}
+        placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条` : (items.length === 0 ? '输入条目后按回车' : '')}
+      />
+    </div>
   );
 }
 
@@ -239,7 +367,7 @@ export default function StatusSection({
         <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
           {rows?.map((row, i) => {
             const type = row.field_type ?? row.type;
-            const isManual = row.update_mode === 'manual';
+            const editable = canEditRow(row, onSave);
             const editKey = row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
 
             const short = gridLayout && isShortField(row);
@@ -258,7 +386,7 @@ export default function StatusSection({
                   <StatusTable
                     columns={cols}
                     values={valObj}
-                    editable={isManual && !!onSave}
+                    editable={editable}
                     onCellCommit={(colKey, num) => {
                       const next = { ...valObj };
                       if (num == null) delete next[colKey]; else next[colKey] = num;
@@ -292,7 +420,6 @@ export default function StatusSection({
                   />
                 ) : type === 'list' ? (() => {
                   const arr = parseRawValue(row.effective_value_json, 'list');
-                  const editable = isManual && !!onSave;
                   if (arr.length === 0) {
                     return (
                       <span
@@ -317,9 +444,9 @@ export default function StatusSection({
                   );
                 })() : (
                   <span
-                    className={`we-status-value${display == null ? ' we-status-null' : ''}${isManual && onSave ? ' we-status-editable' : ''}`}
-                    onClick={isManual && onSave ? () => setEditingKey(editKey) : undefined}
-                    title={isManual && onSave ? '点击编辑' : undefined}
+                    className={`we-status-value${display == null ? ' we-status-null' : ''}${editable ? ' we-status-editable' : ''}`}
+                    onClick={editable ? () => setEditingKey(editKey) : undefined}
+                    title={editable ? '点击编辑' : undefined}
                   >
                     {display != null ? (
                       isNumber
@@ -327,7 +454,7 @@ export default function StatusSection({
                             ? `${display} / ${max}${row.unit ? ' ' + row.unit : ''}`
                             : `${display}${row.unit ? ' ' + row.unit : ''}`)
                         : applyTemplateVars(display, templateCtx)
-                    ) : (isManual && onSave ? '点击编辑' : '—')}
+                    ) : (editable ? '点击编辑' : '—')}
                   </span>
                 )}
                 {pct != null && !isEditing && (

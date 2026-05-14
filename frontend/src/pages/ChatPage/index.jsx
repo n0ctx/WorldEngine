@@ -624,10 +624,21 @@ export default function ChatPage() {
         if (isSameSession()) useStore.getState().triggerMemoryRefresh();
       },
       onStateUpdateFailed(evt) {
+        stopMemoryWriting(runId);
         if (isSameSession()) {
           useStore.getState().triggerStateFailed();
           log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
         }
+      },
+      onPostprocessFailed(evt) {
+        stopMemoryWriting(runId);
+        if (!isSameSession()) return;
+        showToast(
+          evt?.timeout
+            ? '后台整理超时，回复已保留，标题或状态可能未更新'
+            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          'error',
+        );
       },
       onStateRolledBack() {
         if (isSameSession()) useStore.getState().triggerMemoryRefresh();
@@ -811,9 +822,20 @@ export default function ChatPage() {
         useStore.getState().triggerMemoryRefresh();
       },
       onStateUpdateFailed(evt) {
+        stopMemoryWriting();
         if (currentSessionIdRef.current !== continuationSessionId) return;
         useStore.getState().triggerStateFailed();
         log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+      },
+      onPostprocessFailed(evt) {
+        stopMemoryWriting();
+        if (currentSessionIdRef.current !== continuationSessionId) return;
+        showToast(
+          evt?.timeout
+            ? '后台整理超时，回复已保留，标题或状态可能未更新'
+            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          'error',
+        );
       },
       onSuggestionFallbackStarted() {
         if (continuationTokenRef.current !== continuationToken) return;

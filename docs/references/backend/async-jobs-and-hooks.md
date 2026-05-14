@@ -8,6 +8,7 @@
 - 优先级 3：世界状态、`createTurnRecord(sessionId)` 等核心写回
 - 优先级 4/5：可丢弃或可重建的后处理任务
 - 编辑消息、删除后续消息、重新生成时，清空该 session 未开始的 4/5 级任务
+- keep-alive 的后处理任务（如标题、状态整理）若其内部 aux LLM 非流式调用超时，会以失败事件结束 SSE，避免前端永久卡在“记录记忆/整理中”；状态整理走 `state_update_failed`，其他 keep-alive 任务走 `postprocess_failed`
 
 ## 删除钩子
 

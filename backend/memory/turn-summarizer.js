@@ -20,6 +20,7 @@ import {
   LLM_TASK_TEMPERATURE,
   LLM_TURN_SUMMARY_MAX_TOKENS,
   LONG_TERM_MEMORY_PER_TURN_MAX,
+  LLM_BACKGROUND_TASK_TIMEOUT_MS,
 } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { getOrCreatePersona } from '../services/personas.js';
@@ -127,7 +128,14 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       ASSISTANT_MESSAGE: asstMsg.content,
     };
     const prompt = [{ role: 'user', content: renderBackendPrompt(tplName, vars) }];
-    const raw = await llm.complete(prompt, { temperature: LLM_TASK_TEMPERATURE, maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS, configScope: resolveAuxScope(sessionId), callType: 'turn_summary', conversationId: sessionId });
+    const raw = await llm.complete(prompt, {
+      temperature: LLM_TASK_TEMPERATURE,
+      maxTokens: LLM_TURN_SUMMARY_MAX_TOKENS,
+      configScope: resolveAuxScope(sessionId),
+      callType: 'turn_summary',
+      conversationId: sessionId,
+      timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+    });
     // 剥除 <think>...</think> 推理链
     const stripped = (raw || '')
       .replace(/<think>[\s\S]*?<\/think>\n*/g, '')

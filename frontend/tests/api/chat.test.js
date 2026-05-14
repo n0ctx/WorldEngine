@@ -63,6 +63,27 @@ describe('chat api', () => {
     ]);
   });
 
+  it('sendMessage 会分发 postprocess_failed 事件', async () => {
+    const calls = [];
+    fetch.mockResolvedValue(createSseResponse([
+      { done: true, assistant: { id: 'msg-asst', content: '你好' }, options: [] },
+      { type: 'postprocess_failed', label: 'title', error: 'timeout', timeout: true },
+    ]));
+
+    await new Promise((resolve) => {
+      sendMessage('session-1', '嗨', [], {
+        onDone: () => calls.push(['done']),
+        onPostprocessFailed: (evt) => calls.push(['postprocess_failed', evt.label, evt.timeout]),
+        onStreamEnd: resolve,
+      });
+    });
+
+    expect(calls).toEqual([
+      ['done'],
+      ['postprocess_failed', 'title', true],
+    ]);
+  });
+
   it('continueGeneration 与普通 JSON 接口会在 HTTP 错误时抛出或回调错误', async () => {
     fetch
       .mockResolvedValueOnce({
