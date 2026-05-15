@@ -127,6 +127,9 @@
 
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: transparent;
+  --we-card-overlay-hover-bg: transparent;
+  --we-card-overlay-backdrop-filter: none;
+  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color: var(--we-color-text-primary);
   --we-card-cover-meta-color: var(--we-color-text-secondary);
   --we-col-header-border-color: var(--we-color-border-default);

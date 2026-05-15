@@ -203,6 +203,10 @@
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-card-shadow);
+  /* 列表型卡（PersonaCard / CharacterCard 等窄长条 list row）：默认沿用 --we-card-shadow，
+     需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
+  --we-list-card-shadow: var(--we-card-shadow);
+  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
@@ -211,7 +215,10 @@
 
   /* === 装饰 & 纹理 token（主题可控制显隐与视觉）=== */
   --we-canvas-texture-image:    none;
-  --we-card-overlay-bg:         transparent;
+  --we-card-overlay-bg:                  transparent;
+  --we-card-overlay-hover-bg:            var(--we-card-overlay-bg);
+  --we-card-overlay-backdrop-filter:       none;
+  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color:   var(--we-color-text-primary);
   --we-card-cover-meta-color:   var(--we-color-text-secondary);
   --we-col-header-border-color: var(--we-color-border-default);

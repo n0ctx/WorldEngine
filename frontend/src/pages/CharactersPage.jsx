@@ -437,10 +437,6 @@ export default function CharactersPage() {
     await reorderPersonas(items);
   }
 
-  if (loading) {
-    return <div className="we-characters-loading">加载中…</div>;
-  }
-
   if (loadError) {
     return (
       <div className="we-characters-loading we-characters-error">
@@ -493,9 +489,11 @@ export default function CharactersPage() {
 
           <div className="we-characters-col-list">
             {personas.length === 0 ? (
-              <p className="we-characters-empty-text we-characters-empty-text--centered">
-                暂无玩家卡
-              </p>
+              loading ? null : (
+                <p className="we-characters-empty-text we-characters-empty-text--centered">
+                  暂无玩家卡
+                </p>
+              )
             ) : (
               <SortableList
                 items={personas}
@@ -557,9 +555,11 @@ export default function CharactersPage() {
 
           <div className="we-characters-col-list">
             {characters.length === 0 ? (
-              <div className="we-characters-empty">
-                <p className="we-characters-empty-text">暂无角色，点击下方新建</p>
-              </div>
+              loading ? null : (
+                <div className="we-characters-empty">
+                  <p className="we-characters-empty-text">暂无角色，点击下方新建</p>
+                </div>
+              )
             ) : (
               <SortableList
                 items={characters}

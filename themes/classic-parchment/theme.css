@@ -176,18 +176,30 @@
     linear-gradient(180deg, rgba(31, 22, 15, 0.42), rgba(55, 40, 28, 0.66));
   --we-bookshelf-back-panel-border:  rgba(200, 185, 154, 0.08);
   --we-bookshelf-card-plain-bg:      rgba(241, 232, 214, 0.96);
-  --we-bookshelf-card-plain-border:  1px solid rgba(120, 93, 64, 0.3);
+  --we-bookshelf-card-plain-border:  1px solid rgba(120, 78, 40, 0.45);
   --we-bookshelf-empty-bg:           rgba(21, 14, 9, 0.22);
   --we-bookshelf-empty-border:       rgba(200, 185, 154, 0.08);
   --we-bookshelf-frame-glow:         rgba(255, 244, 220, 0.06);
   --we-bookshelf-frame-vignette:     rgba(16, 10, 6, 0.22);
 
-  /* 卡片皮肤 */
+  /* 卡片皮肤：古籍装帧框（深皮边 + 镀金内描 + 双层投影） */
   --we-card-bg: var(--we-color-bg-canvas);
-  --we-card-border: 1px solid var(--we-color-border-default);
+  --we-card-border: 1px solid rgba(78, 56, 32, 0.78);
   --we-card-radius: var(--we-radius-md);
-  --we-card-shadow: var(--we-shadow-paper-lift);
-  --we-card-hover-shadow: var(--we-shadow-paper-lift);
+  --we-card-shadow:
+    inset 0 0 0 1px rgba(255, 236, 196, 0.22),
+    inset 0 1px 0 rgba(255, 248, 230, 0.28),
+    inset 0 -10px 24px rgba(28, 16, 6, 0.32),
+    0 0 0 1px rgba(120, 93, 64, 0.22),
+    0 2px 4px rgba(28, 16, 6, 0.22),
+    0 16px 32px rgba(0, 0, 0, 0.28);
+  --we-card-hover-shadow:
+    inset 0 0 0 1px rgba(255, 236, 196, 0.32),
+    inset 0 1px 0 rgba(255, 248, 230, 0.34),
+    inset 0 -10px 24px rgba(28, 16, 6, 0.34),
+    0 0 0 1px rgba(162, 59, 46, 0.32),
+    0 4px 8px rgba(28, 16, 6, 0.28),
+    0 22px 44px rgba(0, 0, 0, 0.34);
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
@@ -195,7 +207,10 @@
 
   /* ========== 装饰 & 纹理（保留羊皮纸外观）========== */
   --we-canvas-texture-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  --we-card-overlay-bg:           linear-gradient(160deg, rgba(20, 14, 8, 0.3) 0%, rgba(20, 14, 8, 0.7) 100%);
+  --we-card-overlay-bg:           linear-gradient(160deg, rgba(28, 18, 10, 0.32) 0%, rgba(28, 18, 10, 0.72) 100%);
+  --we-card-overlay-hover-bg:     var(--we-card-overlay-bg);
+  --we-card-overlay-backdrop-filter:       none;
+  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color:     rgba(255, 248, 235, 0.85);
   --we-card-cover-meta-color:     rgba(255, 248, 235, 0.6);
   --we-col-header-border-color:   rgba(255, 255, 255, 0.08);

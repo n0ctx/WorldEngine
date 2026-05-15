@@ -227,8 +227,21 @@
 .we-world-card-overlay {
   position: absolute;
   inset: 0;
+  /* backdrop-filter 会自建合成层，部分浏览器（Safari）不再受父级 overflow:hidden 裁剪 → 必须显式继承圆角 */
+  border-radius: inherit;
   background: var(--we-card-overlay-bg);
+  backdrop-filter: var(--we-card-overlay-backdrop-filter);
+  -webkit-backdrop-filter: var(--we-card-overlay-backdrop-filter);
   z-index: var(--we-z-card-overlay);
+  transition: background var(--we-duration-normal) var(--we-easing-standard),
+              backdrop-filter var(--we-duration-normal) var(--we-easing-standard),
+              -webkit-backdrop-filter var(--we-duration-normal) var(--we-easing-standard);
+}
+
+.we-world-card:hover .we-world-card-overlay {
+  background: var(--we-card-overlay-hover-bg);
+  backdrop-filter: var(--we-card-overlay-hover-backdrop-filter);
+  -webkit-backdrop-filter: var(--we-card-overlay-hover-backdrop-filter);
 }
 
 .we-world-card--has-cover .we-world-card-seal,
@@ -669,7 +682,7 @@
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-card-shadow);
+  box-shadow: var(--we-list-card-shadow);
   transition: transform var(--we-duration-normal) var(--we-easing-standard),
               box-shadow var(--we-duration-normal) var(--we-easing-standard),
               border-left-color var(--we-duration-normal) var(--we-easing-standard),
@@ -679,7 +692,7 @@
 }
 
 .we-persona-card:hover {
-  box-shadow: var(--we-card-hover-shadow);
+  box-shadow: var(--we-list-card-hover-shadow);
 }
 
 .we-persona-card:hover .we-character-card-actions {
@@ -822,13 +835,13 @@
   padding: var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-card-shadow);
+  box-shadow: var(--we-list-card-shadow);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
 }
 
 .we-character-card:hover {
-  box-shadow: var(--we-card-hover-shadow);
+  box-shadow: var(--we-list-card-hover-shadow);
 }
 
 .we-character-card:hover .we-character-card-actions {

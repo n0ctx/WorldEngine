@@ -153,11 +153,40 @@
 
   /* ========== 卡片与面板皮肤（白卡浮于奶油画布之上，border 定义边界） ========== */
   /* 用 #ffffff 而非 #f7f4ed：应用 UI 比营销页更密集，需要清晰的白-奶油层次感 */
+  /*
+   * 边框语言（Lovable 风格的"白瓷 hairline + 软焦光晕"，与 parchment 的"皮革+鎏金"区分）：
+   *   - hairline 极淡墨色描边
+   *   - 顶部 inset 白瓷高光制造瓷感折光
+   *   - rest：近距贴面 + 远距软焦双层投影
+   *   - hover：墨度+光晕同步加深一档（呼应 DESIGN.md §6 Level 3 软焦光晕体系）
+   */
   --we-card-bg: #ffffff;
-  --we-card-border: 1px solid #eceae4;
+  --we-card-border: 1px solid rgba(28, 28, 28, 0.08);
   --we-card-radius: 12px;
-  --we-card-shadow: none;
-  --we-card-hover-shadow: none;
+  --we-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 1px 2px rgba(28, 28, 28, 0.04),
+    0 6px 18px rgba(28, 28, 28, 0.06);
+  --we-card-hover-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+    0 4px 8px rgba(28, 28, 28, 0.08),
+    0 18px 40px rgba(28, 28, 28, 0.16);
+
+  /* 列表型卡（PersonaCard / CharacterCard）：窄长条 + col-list 的 overflow-y:auto
+     会裁掉横向 bloom，世界封面那套大光晕在这里显得太大且边缘被切。
+     给它单独的"近距薄光"，去掉远距 18px40px bloom，保留白瓷高光与极轻贴面影。 */
+  --we-list-card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+    0 1px 2px rgba(28, 28, 28, 0.04),
+    0 2px 6px rgba(28, 28, 28, 0.05);
+  --we-list-card-hover-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(28, 28, 28, 0.06),
+    0 4px 10px rgba(28, 28, 28, 0.08);
 
   --we-panel-card-bg: #ffffff;
   --we-panel-card-border: 1px solid #eceae4;
@@ -190,14 +219,26 @@
     linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(247, 244, 237, 0.92));
   --we-bookshelf-back-panel-border:   rgba(28, 28, 28, 0.06);
   --we-bookshelf-card-plain-bg:       #ffffff;
-  --we-bookshelf-card-plain-border:   1px solid #eceae4;
+  --we-bookshelf-card-plain-border:   1px solid rgba(28, 28, 28, 0.10);
   --we-bookshelf-empty-bg:            rgba(247, 244, 237, 0.68);
   --we-bookshelf-empty-border:        rgba(28, 28, 28, 0.06);
   --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.3);
   --we-bookshelf-frame-vignette:      rgba(28, 28, 28, 0.08);
 
-  /* ========== 世界卡封面图文字（暗图上浅色文字 + 底部渐变遮罩） ========== */
-  --we-card-overlay-bg: linear-gradient(to top, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.12) 55%, transparent 80%);
+  /* ========== 世界卡封面图文字（毛玻璃 rest，hover 取消显原图） ==========
+   * 设计目标：浅奶油底色 + 暗封面图反差过强，把"黑色色块"压成"毛玻璃预览"。
+   *
+   *   rest：backdrop-filter blur(18px) saturate(140%) 把图模糊化，
+   *         叠加 cream 半透明罩使整体偏暖；底部保留黑渐变托住白色卡名/meta。
+   *   hover：blur 归零、cream 罩消失，只保留底部黑渐变保证文字可读，露出原图。
+   */
+  --we-card-overlay-bg:
+    linear-gradient(to top, rgba(20, 18, 14, 0.45) 0%, rgba(20, 18, 14, 0.08) 45%, transparent 75%),
+    linear-gradient(rgba(247, 244, 237, 0.18), rgba(247, 244, 237, 0.18));
+  --we-card-overlay-hover-bg:
+    linear-gradient(to top, rgba(20, 18, 14, 0.55) 0%, rgba(20, 18, 14, 0.12) 45%, transparent 80%);
+  --we-card-overlay-backdrop-filter:       blur(8px) saturate(120%);
+  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color: #fcfbf8;
   --we-card-cover-meta-color: rgba(252, 251, 248, 0.72);
 
