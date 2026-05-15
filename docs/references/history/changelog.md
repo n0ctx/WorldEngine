@@ -4,6 +4,7 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **ui: chat/write 中间栏精修** — `MessageList.jsx` empty state 替换为 `.we-chat-empty-state` 三段类（去 inline Tailwind）；`themes/chat.css` header 加左侧 accent 短饰条与更大留白、title 升至 `--we-text-lg`、textarea 改 `--we-radius-md` 与双层 focus ring、quick-btn 改 chip 形态、send 改 36px 圆形 accent 按钮带 hover lift；两主题包零改动，视觉差异由现有 token 自动承载
 - **refactor: ChatPage 旧本地 toast 收口到全局 logger** — `pages/ChatPage/index.jsx` 删除 `toast` state、`showToast`、`PageLayout overlay` 自绘提示，所有提示改走 `log.{info,warn,error}('chat.*', payload, { toast })`，对齐 WritingSpacePage 与 GlobalToast 通道
 - **test: 同步 apply_character_card 返回结构改造** — `apply-tools.test.js` 改为断言 `created.id`，跟上 cf0b31c 把新主键放 `id`、`entityId` 透传入参的语义；测试套件回到 206/206 绿
 - **fix: 写卡助手任务进度 HUD 在 plan_doc 出现的瞬间一闪而过** — `PlanTaskHud.jsx` / `plan-doc-utils.js` 增加 `parsePlanDocStatus` 兜底，plan doc 头部仍是 `awaiting_approval` 时直接隐藏 HUD，避开 `PLAN_DOC_UPDATED` 与 `AWAITING_APPROVAL` 两条 SSE 事件之间 React 的中间渲染帧

@@ -402,8 +402,10 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-sm);
-  padding: 10px var(--we-space-lg) var(--we-space-sm); /* 10px: design exact */
+  padding: var(--we-space-sm) var(--we-space-xl);
+  background: var(--we-color-bg-surface);
   border-bottom: 1px solid var(--we-color-border-default);
+  box-shadow: 0 2px 6px var(--we-color-ink-wash);
   flex-shrink: 0;
   position: relative;
   z-index: var(--we-z-spine);
@@ -416,25 +418,70 @@
   padding: var(--we-space-xs);
   cursor: pointer;
   color: var(--we-color-text-tertiary);
-  transition: color var(--we-duration-fast);
+  border-radius: var(--we-radius-sm);
+  transition: color var(--we-duration-fast), background var(--we-duration-fast);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.we-chat-center-action:hover { color: var(--we-color-accent); }
+.we-chat-center-action:hover {
+  color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
+}
 
 .we-chat-center-title {
   flex: 1;
   margin: 0;
+  display: inline-flex;
+  align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--we-font-display);
   font-size: var(--we-text-control);
+  line-height: var(--we-leading-snug);
   font-style: italic;
   font-weight: 400;
   color: var(--we-color-text-secondary);
+}
+
+.we-chat-center-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px; /* design exact: 短饰条宽度 */
+  height: 12px; /* design exact: 与 control 字号匹配 */
+  margin-right: var(--we-space-sm);
+  background: var(--we-color-accent);
+  border-radius: var(--we-radius-xs);
+  flex-shrink: 0;
+}
+
+/* Empty state for chat / writing */
+.we-chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--we-space-md);
+  opacity: 0.6;
+}
+
+.we-chat-empty-state__ornament {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  line-height: 1;
+  color: var(--we-color-accent);
+}
+
+.we-chat-empty-state__text {
+  margin: 0;
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-base);
+  font-style: italic;
+  color: var(--we-color-text-tertiary);
+  letter-spacing: var(--we-tracking-wide);
 }
 
 /* ── Streaming Cursor ──────────────────────────────────── */
@@ -977,7 +1024,7 @@
 .we-chat-input {
   border-top: 1px solid var(--we-color-border-default);
   background: var(--we-color-bg-canvas);
-  padding: var(--we-space-md) var(--we-space-lg) var(--we-space-lg);
+  padding: var(--we-space-sm) var(--we-space-lg);
 }
 
 .we-chat-input__attachments {
@@ -1030,13 +1077,18 @@
   background: none;
   border: none;
   cursor: pointer;
-  opacity: 0.6;
-  transition: opacity var(--we-duration-fast);
+  opacity: 0.7;
+  transition: opacity var(--we-duration-fast), background var(--we-duration-fast), color var(--we-duration-fast);
   border-radius: var(--we-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .we-chat-input__attach-btn:hover:not(:disabled) {
   opacity: 1;
+  color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
 }
 
 .we-chat-input__attach-btn:disabled {
@@ -1132,23 +1184,28 @@
 }
 
 .we-chat-quick-btn {
-  width: 28px;
-  height: 28px;
+  width: 28px; /* design exact: 与 textarea padding-right:76px 锚定 */
+  height: 28px; /* design exact */
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
+  border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  opacity: 0.5;
-  transition: opacity var(--we-duration-fast), border-color var(--we-duration-fast);
+  opacity: 0.65;
+  transition: opacity var(--we-duration-fast),
+              border-color var(--we-duration-fast),
+              color var(--we-duration-fast),
+              background var(--we-duration-fast);
 }
 
 .we-chat-quick-btn:hover:not(:disabled) {
   opacity: 1;
-  border-color: var(--we-color-text-secondary);
+  color: var(--we-color-accent);
+  border-color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
 }
 
 .we-chat-quick-btn:disabled {
@@ -1160,17 +1217,17 @@
 .we-chat-textarea {
   width: 100%;
   padding: var(--we-space-sm) var(--we-space-lg);
-  padding-right: 76px;
+  padding-right: 76px; /* design exact: 容纳 we-chat-quick-actions 三按钮 */
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-md);
   font-family: var(--we-font-serif);
   font-size: var(--we-text-base);
   line-height: 1.65;
   color: var(--we-color-text-primary);
   resize: none;
   outline: none;
-  min-height: 36px;
+  min-height: 36px; /* design exact: 单行高度 */
   overflow-y: hidden;
   transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
 }
@@ -1179,7 +1236,7 @@
 .we-chat-textarea:focus-visible {
   outline: none;
   border-color: var(--we-color-border-focus);
-  box-shadow: 0 0 0 2px var(--we-color-accent-bg);
+  box-shadow: var(--we-focus-ring);
 }
 
 .we-chat-textarea:disabled {
@@ -1189,23 +1246,40 @@
 /* Send / Stop button */
 .we-chat-send-btn {
   flex-shrink: 0;
-  padding: var(--we-space-md);
+  width: 36px; /* design exact: 圆形发送按钮直径 */
+  height: 36px; /* design exact */
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--we-color-accent);
   color: var(--we-color-text-inverse);
   border: none;
-  border-radius: var(--we-radius-sm);
+  border-radius: var(--we-radius-full);
   cursor: pointer;
-  transition: opacity var(--we-duration-fast);
+  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
+  transition: transform var(--we-duration-fast),
+              box-shadow var(--we-duration-fast),
+              background var(--we-duration-fast),
+              opacity var(--we-duration-fast);
 }
 
 .we-chat-send-btn:hover:not(:disabled) {
-  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--we-color-shadow-md);
+}
+
+.we-chat-send-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
 }
 
 .we-chat-send-btn:disabled {
-  background: var(--we-color-border-default);
-  opacity: 0.5;
+  background: var(--we-color-bg-muted);
+  color: var(--we-color-text-tertiary);
+  opacity: 0.7;
   cursor: not-allowed;
+  box-shadow: none;
 }
 
 /* ── MessageItem ── */

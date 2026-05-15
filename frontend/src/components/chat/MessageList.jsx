@@ -313,8 +313,9 @@ const MessageList = forwardRef(function MessageList({
       )}
 
       {messages.length === 0 && !generating && (
-        <div className="flex items-center justify-center h-full text-[var(--we-color-text-secondary)] opacity-30 text-sm">
-          开始对话吧
+        <div className="we-chat-empty-state">
+          <span className="we-chat-empty-state__ornament" aria-hidden="true">❦</span>
+          <p className="we-chat-empty-state__text">开始对话吧</p>
         </div>
       )}
 
