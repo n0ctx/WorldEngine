@@ -1201,6 +1201,12 @@
   margin-bottom: 6px; /* design exact */
 }
 
+.we-entry-condition .we-select-trigger {
+  padding: 6px 10px;
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+}
+
 .we-entry-condition-field {
   flex: 2;
   min-width: 0;
@@ -1220,15 +1226,23 @@
 
 .we-entry-condition-op {
   flex-shrink: 0;
-  width: 90px;
+  width: 108px;
+}
+
+.we-entry-condition-op .we-select-trigger > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .we-entry-condition-value {
   flex: 1;
   min-width: 0;
   width: auto;
-  padding: 9px var(--we-space-md); /* 9px: design exact */
-  font-size: var(--we-text-body);
+  padding: 6px 10px;
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+  box-shadow: var(--we-shadow-paper-indent);
 }
 
 .we-entry-condition-icon-btn {

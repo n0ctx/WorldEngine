@@ -4,6 +4,8 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **ui(entry-editor): 状态条件行高与右侧 value 框样式统一** — `themes/ui.css` 给 `.we-entry-condition .we-select-trigger` 收紧到 `6px 10px / text-sm`，`.we-entry-condition-value` 同步 `6px 10px / text-sm` 并补 `--we-shadow-paper-indent`，左侧三个 Select 不再高于右侧输入
+- **ui(entry-editor): 状态条件 operator 列加宽防换行** — `themes/ui.css` `.we-entry-condition-op` 宽度 90→108px，并对内部 `.we-select-trigger > span` 加 `nowrap + ellipsis`，避免"不包含"等三字操作符被挤成两行
 - **ui: chat/write 中间栏精修** — `MessageList.jsx` empty state 替换为 `.we-chat-empty-state` 三段类（去 inline Tailwind）；`themes/chat.css` header 加左侧 accent 短饰条与更大留白、title 升至 `--we-text-lg`、textarea 改 `--we-radius-md` 与双层 focus ring、quick-btn 改 chip 形态、send 改 36px 圆形 accent 按钮带 hover lift；两主题包零改动，视觉差异由现有 token 自动承载
 - **refactor: ChatPage 旧本地 toast 收口到全局 logger** — `pages/ChatPage/index.jsx` 删除 `toast` state、`showToast`、`PageLayout overlay` 自绘提示，所有提示改走 `log.{info,warn,error}('chat.*', payload, { toast })`，对齐 WritingSpacePage 与 GlobalToast 通道
 - **test: 同步 apply_character_card 返回结构改造** — `apply-tools.test.js` 改为断言 `created.id`，跟上 cf0b31c 把新主键放 `id`、`entityId` 透传入参的语义；测试套件回到 206/206 绿
