@@ -87,8 +87,8 @@ export function listAssistantTasks() {
   return db.prepare('SELECT * FROM assistant_tasks ORDER BY created_at ASC').all().map(decodeRow);
 }
 
-export function getLatestAssistantTask(whereSql = '1 = 1') {
+export function getLatestAssistantTask(whereSql = '1 = 1', params = []) {
   return decodeRow(
-    db.prepare(`SELECT * FROM assistant_tasks WHERE ${whereSql} ORDER BY updated_at DESC LIMIT 1`).get(),
+    db.prepare(`SELECT * FROM assistant_tasks WHERE ${whereSql} ORDER BY updated_at DESC LIMIT 1`).get(...params),
   );
 }

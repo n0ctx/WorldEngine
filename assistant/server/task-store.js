@@ -25,7 +25,7 @@ const sseClients = new Map(); // taskId -> Set<res>
 export const TERMINAL_TASK_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 const RESUMABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
 const LIVE_RECOVERABLE_TASK_STATUSES = new Set(['running', 'awaiting_approval', 'paused']);
-const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
+export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
 export const HARNESS_ERROR_PREFIX = 'agent loop error: ';
 
 export function isHarnessError(err) {
@@ -238,7 +238,9 @@ function importLegacySidecars() {
     });
     if (!task) continue;
     try {
-      upsertAssistantTask(task);
+      // 走 cloneTaskForPersist 净化运行期字段（previewCache/executionActive/appliedResources 等），
+      // 避免把 Map/瞬时状态塞进 DB 行。
+      upsertAssistantTask(cloneTaskForPersist(task));
       imported += 1;
       try { deleteTaskFile(task.id); } catch { /* ignore */ }
     } catch (err) {
@@ -344,10 +346,11 @@ export function getLatestRecoverableTask(context = null) {
   if (latest) return latest;
   // 内存缓存覆盖 hydrate 后的全部任务，跨上下文兜底查询只在无 context 时走 DB。
   if (context) return null;
-  return getLatestAssistantTask(`
-    status IN ('running', 'awaiting_approval', 'paused')
-    OR (status = 'failed' AND error = '${RESTART_INTERRUPTED_ERROR}')
-  `);
+  return getLatestAssistantTask(
+    `status IN ('running', 'awaiting_approval', 'paused')
+     OR (status = 'failed' AND error = ?)`,
+    [RESTART_INTERRUPTED_ERROR],
+  );
 }
 
 /**
@@ -683,16 +686,20 @@ export function emit(taskId, event) {
   log.debug(`EMIT  ${formatMeta({ taskId, type: event.type, subscribers })}`);
   if (!clients) return;
   const line = `data: ${JSON.stringify(event)}\n\n`;
-  let dropped = 0;
+  let dead = null;
   for (const res of clients) {
     try {
       res.write(line);
     } catch (err) {
-      dropped += 1;
+      (dead ??= []).push(res);
       log.warn(`EMIT_DROP  ${formatMeta({ taskId, type: event.type, error: err.message })}`);
     }
   }
-  if (dropped > 0) log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped, ofTotal: subscribers })}`);
+  if (dead) {
+    // 失效连接不及时清理会让后续 emit 每次都重复抛错刷日志，长跑任务下还会泄漏内存。
+    for (const res of dead) clients.delete(res);
+    log.warn(`EMIT_PARTIAL  ${formatMeta({ taskId, type: event.type, dropped: dead.length, ofTotal: subscribers })}`);
+  }
 }
 
 export function buildTaskSnapshot(task) {

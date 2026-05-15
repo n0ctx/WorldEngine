@@ -4,6 +4,10 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **test: 同步 apply_character_card 返回结构改造** — `apply-tools.test.js` 改为断言 `created.id`，跟上 cf0b31c 把新主键放 `id`、`entityId` 透传入参的语义；测试套件回到 206/206 绿
+- **fix: 写卡助手任务进度 HUD 在 plan_doc 出现的瞬间一闪而过** — `PlanTaskHud.jsx` / `plan-doc-utils.js` 增加 `parsePlanDocStatus` 兜底，plan doc 头部仍是 `awaiting_approval` 时直接隐藏 HUD，避开 `PLAN_DOC_UPDATED` 与 `AWAITING_APPROVAL` 两条 SSE 事件之间 React 的中间渲染帧
+- **fix: 写卡助手"确认执行"后模型未收到审批信号导致重复提示** — `parent-agent.js` 在 sentinel 路径下把 `modelUserInput`（"用户已批准/任务恢复"指令）通过 `buildContextBlock` 的新 `turnTrigger` 段渲染进本轮 prompt，不污染 `task.messages` 历史；`routes.js` `/agent/approve` 同步把 plan_doc 文件头部 `状态：awaiting_approval` 改写为 `approved`，避免模型读到与 task.status 自相矛盾的快照
+- **fix: 写卡助手后端健壮性收口** — `routes.js` 给 `/agent/approve` 加 `isExecutionActive` 幂等闸、`/agent/cancel` 包 try/catch、`/agent` 入参 message 类型校验；`task-store.js` `emit` 失败时移除 dead client，`getLatestRecoverableTask` 改参数化 SQL，`importLegacy` 走 `cloneTaskForPersist` 净化；`parent-agent.js` 摘要返回时若已 cancel 不写 `modelContext`；`knowledge-cache.js` 增加并发首次加载去重；`backend/db/queries/assistant-tasks.js` 给 `getLatestAssistantTask` 增加 params 参数
 - **fix: 写卡助手 HUD 隐藏工具调用标注** — `PlanTaskHud.jsx` displayText 追加正则，去掉任务文本末尾的 `(xxx.update)` 格式工具名，用户不再看到底层参数
 - **fix: 写卡助手审批状态持久化并封死执行中重开计划** — `routes.js` / `parent-agent.js` / `runtime.js` 将审批 checkpoint 持久化为 `pending|approved`，禁止 `awaiting_approval` 阶段直接 `dispatch_subagent`，也禁止执行中 `replace_steps` 把前端重新打回待确认；`AssistantPanel.jsx` / `api.js` 同步补 approve 失败回滚
 - **fix: 写卡助手 agent 健壮性三项修复** — ①`runtime.js` 用 `pendingPauseSignal` 延迟抛出 ToolLoopControlSignal，修复信号被内层 catch 吞噬导致错误信息为 "tool loop control: paused" 的 bug；②同文件在 `dispatchSubAgent` 前解析 `step-N` 引用为真实 UUID（兼容 `step:N` 格式）；③`parent-agent.md` 补充 dependsOn 不可作实体 ID 的约束及核对步骤必须先 preview 的要求；④`apply-character-card.js` 分离 `id` 与 `entityId` 返回字段，语义与 persona-card 对齐

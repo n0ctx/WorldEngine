@@ -31,3 +31,11 @@ export function parseTaskLines(md) {
   }
   return out;
 }
+
+// 解析计划文档头部的「状态：xxx」字段。与服务端 plan-doc.js 的 parsePlanDoc 一致，
+// 仅前端 HUD 在 SSE 事件抖动期判断"plan 是否还停在 awaiting_approval"时使用，
+// 避免依赖 status SSE 事件到达顺序导致 HUD 一闪而过。
+export function parsePlanDocStatus(md) {
+  const m = String(md ?? '').match(/状态：\s*(\w+)/);
+  return m ? m[1] : null;
+}

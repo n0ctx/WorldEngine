@@ -12,7 +12,7 @@
 
 import { useMemo } from 'react';
 import { useAssistantStore } from './useAssistantStore.js';
-import { parseTaskLines } from './plan-doc-utils.js';
+import { parseTaskLines, parsePlanDocStatus } from './plan-doc-utils.js';
 
 const MAX_VISIBLE = 6;
 // HUD 只在"计划已批准、正在或可继续执行"时显示：
@@ -44,6 +44,10 @@ export default function PlanTaskHud() {
 
   if (HIDDEN_STATUSES.has(status)) return null;
   if (status === 'paused' && error === PLAN_REJECTED_PAUSE_REASON) return null;
+  // 防御 SSE 事件抖动：PLAN_DOC_UPDATED 与 AWAITING_APPROVAL 是两条独立事件，
+  // 前者先到时 store.status 还停在 'running'，HUD 会闪一帧。
+  // 直接读 plan doc 头部的"状态：xxx"作为兜底，未审批就不亮 HUD。
+  if (parsePlanDocStatus(planDoc) === 'awaiting_approval') return null;
   if (total === 0) return null;
   // 运行期间保持 HUD 可见（避免步骤完成时瞬间消失再出现的闪烁）；
   // 仅在非运行状态下才因 done >= total 隐藏。

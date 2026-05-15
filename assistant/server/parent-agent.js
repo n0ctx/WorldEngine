@@ -91,7 +91,7 @@ function renderAppliedResources(task) {
     .join('\n');
 }
 
-function buildContextBlock(task, planDocContent, policyHints = []) {
+function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger = null) {
   const lastToolFailure = task?.lastToolFailure
     ? `- 最近一次工具失败：${task.lastToolFailure.toolName ?? 'unknown'} / ${task.lastToolFailure.error ?? 'unknown'}`
     : '- 最近一次工具失败：无';
@@ -100,6 +100,11 @@ function buildContextBlock(task, planDocContent, policyHints = []) {
     : '- 最近一次子代理结果：无';
 
   return [
+    // turnTrigger 用于显式告知模型本轮是被审批/恢复事件唤醒的（不写进 task.messages 历史，
+    // 只在本轮 prompt 里出现），避免模型只看到 status=running 无从判断该执行什么。
+    ...(turnTrigger
+      ? ['# 本轮触发器', '', turnTrigger, '']
+      : []),
     '# 任务上下文',
     '',
     `- status: ${task.status}`,
@@ -245,6 +250,8 @@ async function refreshModelContextIfNeeded(task, { configScope, systemPrompt, ru
     configScope,
     cacheableSystem: systemPrompt,
   }) ?? '').trim();
+  // LLM 长调用本身不可中断，但调用返回时若用户已 cancel，不写 modelContext，避免对已取消任务产生副作用。
+  if (task.status === 'cancelled') return task.modelContext ?? null;
   const hardConstraints = extractHardConstraints(prefix);
   const summary = hardConstraints.length > 0
     ? `${rawSummary}\n\n# 不可省略的硬约束（自动提取自用户消息）\n${hardConstraints.map((s) => `- ${s}`).join('\n')}`
@@ -540,6 +547,13 @@ function buildProviderErrorRecoveryMessage(err) {
 // task.error 上的标记：让客户端识别"harness 软失败暂停"，避免对其自动 resume。
 export const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
 
+// 清洗子代理回报里残留的 <think>...</think> 块（sub-agent.js 的截断策略偶尔会漏过）。
+function stripThinkBlocks(text) {
+  return String(text ?? '')
+    .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '')
+    .trim();
+}
+
 export async function runParentAgent(task, userInput, opts = {}) {
   if (!task) throw new Error('runParentAgent: task is required');
 
@@ -610,7 +624,8 @@ export async function runParentAgent(task, userInput, opts = {}) {
       planRejectedNeedsRewrite: resumeFromRejectedPlan && Boolean(planDocContent),
     });
     await refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId });
-    const modelPayload = buildModelMessages(task, systemPrompt, buildContextBlock(task, planDocContent, planPolicy.hints));
+    const turnTrigger = (isApprovedSentinel || isResumeSentinel) ? modelUserInput : null;
+    const modelPayload = buildModelMessages(task, systemPrompt, buildContextBlock(task, planDocContent, planPolicy.hints, turnTrigger));
 
     log.info(`START  ${formatMeta({
       runId,
@@ -658,9 +673,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     }
     if (task.lastSubagentResult?.success === false) {
       const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
-      // 二次清洗 think 块，防止 sub-agent 层面的截断策略漏过的残留
-      const errDetail = (task.lastSubagentResult.error ?? '未知错误')
-        .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '').trim();
+      const errDetail = stripThinkBlocks(task.lastSubagentResult.error ?? '未知错误');
       await pauseSubagentFailed(
         task, emitFn, runId,
         'model claimed completed but last subagent step failed',
@@ -686,8 +699,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
           await finalizeFailed(task, emitFn, payload.message ?? '', payload.message ?? 'task failed');
         } else if (task.lastSubagentResult?.success === false) {
           const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
-          const errDetail = (task.lastSubagentResult.error ?? '未知错误')
-            .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '').trim();
+          const errDetail = stripThinkBlocks(task.lastSubagentResult.error ?? '未知错误');
           await pauseSubagentFailed(
             task, emitFn, runId,
             'model claimed completed but last subagent step failed',

@@ -63,11 +63,13 @@ test('apply_character_card.execute create / update / delete', async () => {
     changes: { name: '小明-apply', description: 'd', system_prompt: 's' },
   }, { worldRefId: world.id });
   assert.equal(created.success, true);
-  assert.ok(created.entityId, 'character create 必须回填 entityId');
+  // 注意：cf0b31c 起，character-card create 把新主键放在 `id` 字段，`entityId` 仅透传入参（此处是 worldId）。
+  // 这一语义与 apply-persona-card 对齐，sub-agent.onApplied 也按 personaId > id > entityId 顺序取 refId。
+  assert.ok(created.id, 'character create 必须回填新角色 id');
   const row = sandbox.db.prepare('SELECT id FROM characters WHERE name = ?').get('小明-apply');
   const cid = row?.id;
   assert.ok(cid);
-  assert.equal(created.entityId, cid);
+  assert.equal(created.id, cid);
 
   const updated = await applyCharacterCard.execute({
     operation: 'update',

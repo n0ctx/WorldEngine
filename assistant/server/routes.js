@@ -48,6 +48,17 @@ function contextMatchesTask(reqContext, task) {
   return taskWorld === reqWorld && taskChar === reqChar;
 }
 
+// 把 ?worldId=&characterId= 查询参数标准化成 { worldId, characterId }；
+// 两个参数都未提供时返回 null（表示"任意上下文"）。
+function parseContextQuery(query) {
+  const { worldId, characterId } = query ?? {};
+  if (worldId === undefined && characterId === undefined) return null;
+  return {
+    worldId: worldId ? String(worldId) : null,
+    characterId: characterId ? String(characterId) : null,
+  };
+}
+
 // ─── 提案归一化已移至 ./normalize-proposal.js ─────────────────────
 
 export const __testables = {
@@ -64,6 +75,9 @@ export const __testables = {
 
 router.post('/agent', async (req, res) => {
   const { taskId, message, messageId, context, resume = false } = req.body ?? {};
+  if (message !== undefined && message !== null && typeof message !== 'string') {
+    return res.status(400).json({ error: 'message must be a string' });
+  }
 
   // 跨上下文请求拒绝必须在 SSE 头 flush 前完成，否则 status 改不了。
   // 场景：标签页 A（世界 a）拿着 task X 切到世界 b 后再发送，会把另一个世界的消息塞进 X 串台。
@@ -160,7 +174,36 @@ router.post('/agent/:taskId/approve', async (req, res) => {
     log.warn(`/agent/approve REJECT  ${formatMeta({ taskId: req.params.taskId, status: task?.status ?? 'missing' })}`);
     return res.status(400).json({ error: 'not awaiting approval' });
   }
+  // 幂等：若已有父代理在跑（前一次 approve 还没结束，或用户重复点击），直接 ack 不再启动。
+  if (taskStore.isExecutionActive(task.id)) {
+    log.info(`/agent/approve SKIP_ACTIVE  ${formatMeta({ taskId: task.id })}`);
+    return res.json({ ok: true, alreadyRunning: true });
+  }
   log.info(`/agent/approve  ${formatMeta({ taskId: task.id })}`);
+  // 同步把 plan doc 文件头部的"状态：awaiting_approval"改为"approved"——
+  // 否则父代理新一轮读到的 plan_doc 仍标记为待审批，与 task.status 实时状态自相矛盾，
+  // 模型可能误判要再次发起审批，输出"请确认执行"之类的冗余提示。
+  try {
+    const md = await planDoc.readPlanDoc(task.id).catch(() => '');
+    if (md) {
+      const parsed = planDoc.parsePlanDoc(md);
+      if (parsed.status !== 'approved') {
+        const updated = planDoc.renderPlanDoc({
+          title: parsed.title,
+          status: 'approved',
+          createdAt: parsed.createdAt,
+          updatedAt: new Date().toISOString(),
+          intent: parsed.intent ?? '',
+          assumptions: parsed.assumptions ?? [],
+          steps: parsed.steps ?? [],
+        });
+        await planDoc.writePlanDoc(task.id, updated);
+        taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: updated });
+      }
+    }
+  } catch (err) {
+    log.warn(`/agent/approve PLAN_DOC_SYNC_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+  }
   taskStore.setApprovalCheckpoint(task.id, {
     ...(task.approvalCheckpoint ?? {}),
     status: 'approved',
@@ -199,7 +242,12 @@ router.post('/agent/:taskId/cancel', async (req, res) => {
   if (taskStore.TERMINAL_TASK_STATUSES.has(task.status)) {
     return res.json({ ok: true, ignored: true });
   }
-  await planDoc.deletePlanDoc(task.id);
+  // plan doc 删除失败不能阻塞 cancel：磁盘错误时仍要把任务标记为 cancelled。
+  try {
+    await planDoc.deletePlanDoc(task.id);
+  } catch (err) {
+    log.warn(`/agent/cancel PLAN_DOC_DELETE_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+  }
   taskStore.setStatus(task.id, 'cancelled');
   taskStore.emit(task.id, { type: SSE_EVENTS.TASK_CANCELLED, taskId: task.id });
   res.json({ ok: true });
@@ -247,27 +295,13 @@ router.post('/agent/:taskId/delete', (req, res) => {
 });
 
 router.get('/agent/recover', (req, res) => {
-  const { worldId, characterId } = req.query ?? {};
-  const context = (worldId !== undefined || characterId !== undefined)
-    ? {
-        worldId: worldId ? String(worldId) : null,
-        characterId: characterId ? String(characterId) : null,
-      }
-    : null;
-  const task = taskStore.getLatestRecoverableTask(context);
+  const task = taskStore.getLatestRecoverableTask(parseContextQuery(req.query));
   if (!task) return res.json({ task: null });
   res.json(buildTaskResponse(task));
 });
 
 router.get('/agent/recoverable-tasks', (req, res) => {
-  const { worldId, characterId } = req.query ?? {};
-  const excludeContext = (worldId !== undefined || characterId !== undefined)
-    ? {
-        worldId: worldId ? String(worldId) : null,
-        characterId: characterId ? String(characterId) : null,
-      }
-    : null;
-  res.json({ tasks: taskStore.listRecoverableTasks({ excludeContext }) });
+  res.json({ tasks: taskStore.listRecoverableTasks({ excludeContext: parseContextQuery(req.query) }) });
 });
 
 router.get('/agent/:taskId/stream', (req, res) => {
