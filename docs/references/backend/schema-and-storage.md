@@ -267,7 +267,7 @@
 | attachments | TEXT NULLABLE | JSON 数组，相对路径列表，无附件则 NULL；例：`["attachments/msg1_0.png", "attachments/msg1_1.pdf"]` |
 | is_compressed | INTEGER | T32：0=未压缩（送入 LLM），1=已压缩（仅存档）（默认 0） |
 | created_at | INTEGER | 消息发送时间，用于排序 |
-| token_usage | TEXT NULLABLE | JSON：`{ prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens?, cache_miss_tokens? }`，仅 assistant 消息填写，旧数据为 NULL |
+| token_usage | TEXT NULLABLE | JSON：`{ prompt_tokens, completion_tokens, cache_read_tokens?, cache_creation_tokens?, cache_miss_tokens? }`，仅 assistant 消息填写，旧数据为 NULL。**`prompt_tokens` 已统一归一化为「未命中输入 token」**（按 input 单价计费的部分）：Anthropic 原生即如此；OpenAI/Gemini/DeepSeek/Kimi/GLM/MiniMax/Grok/Qwen/SiliconFlow 的 provider 原值含 cache_read，写入 DB 前由 `backend/llm/providers/_shared/cache-usage.js` 的 `recordTokenUsage` 减去 `cache_read_tokens`。前端 `calcCost` 直接 `prompt_tokens*input + cache_read*cacheRead + cache_creation*cacheWrite + completion*output` 即正确。归一化只影响新写入,旧数据沿用 provider 原始口径 |
 | next_options | TEXT NULLABLE | JSON 字符串数组：本轮 `<next_prompt>` 解析出的选项；仅 assistant 消息填写，无选项时为 NULL |
 | activated_entries | TEXT NULLABLE | JSON 数组：本轮激活的非常驻 lorebook 条目 `[{id,title,trigger_type}]`；仅 assistant 消息填写，无激活条目时为 NULL |
 

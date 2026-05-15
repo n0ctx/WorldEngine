@@ -91,6 +91,40 @@ const MODEL_PRICE_ALIASES = [
   ['Qwen/Qwen3-235B-A22B', 'Qwen/Qwen3-235B-A22B-Thinking-2507'],
   ['MiniMaxAI/MiniMax-M2', 'MiniMaxAI/MiniMax-M2'],
   ['moonshotai/Kimi-K2-Instruct-0905', 'moonshotai/Kimi-K2-Instruct-0905'],
+  // Anthropic — 真实 API id 含日期后缀,startsWith 命中规范化键
+  ['claude-opus-4-7', 'claude-opus-4-7'],
+  ['claude-opus-4-6', 'claude-opus-4-6'],
+  ['claude-opus-4-5', 'claude-opus-4-5'],
+  ['claude-opus-4-1', 'claude-opus-4-1'],
+  ['claude-opus-4', 'claude-opus-4'],
+  ['claude-sonnet-4-6', 'claude-sonnet-4-6'],
+  ['claude-sonnet-4-5', 'claude-sonnet-4-5'],
+  ['claude-sonnet-4', 'claude-sonnet-4'],
+  ['claude-haiku-4-5', 'claude-haiku-4-5'],
+  ['claude-3-5-haiku', 'claude-haiku-3-5'],
+  // OpenAI — gpt-4o-2024-XX-XX 等真实 id 通过 startsWith 命中
+  ['gpt-5-pro', 'gpt-5-pro'],
+  ['gpt-5-mini', 'gpt-5-mini'],
+  ['gpt-5-nano', 'gpt-5-nano'],
+  ['gpt-5', 'gpt-5'],
+  ['gpt-4.1-mini', 'gpt-4.1-mini'],
+  ['gpt-4.1-nano', 'gpt-4.1-nano'],
+  ['gpt-4.1', 'gpt-4.1'],
+  ['gpt-4o-mini', 'gpt-4o-mini'],
+  ['gpt-4o', 'gpt-4o'],
+  ['o4-mini', 'o4-mini'],
+  ['o3-mini', 'o3-mini'],
+  ['o3-pro', 'o3-pro'],
+  ['o3', 'o3'],
+  ['o1-mini', 'o1-mini'],
+  ['o1-pro', 'o1-pro'],
+  ['o1', 'o1'],
+  // GLM — z.ai 模型名带大小写,API 返回的也是相同写法
+  ['GLM-5.1', 'GLM-5.1'],
+  ['GLM-5-Turbo', 'GLM-5-Turbo'],
+  ['GLM-5', 'GLM-5'],
+  ['GLM-4.7', 'GLM-4.7'],
+  ['GLM-4.5-Air', 'GLM-4.5-Air'],
 ];
 
 function lookupPricingFromMap(pricingMap, modelId) {
@@ -305,6 +339,87 @@ function parseQwenPricingPage(html) {
   return pricing;
 }
 
+function parseAnthropicPricingMarkdown(text) {
+  // 表行示例:
+  // | Claude Opus 4.5   | $5 / MTok | $6.25 / MTok | $10 / MTok | $0.50 / MTok | $25 / MTok |
+  const pricing = new Map();
+  const rowRe = /\|\s*(Claude\s+[A-Za-z0-9.\- ]+?)(?:\s*\(\[?[^\]\n]*\]?[^)]*\))?\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|\s*\$([0-9.]+)\s*\/\s*MTok\s*\|/g;
+  const nameToId = (name) => {
+    const m = name.trim().match(/^Claude\s+(Opus|Sonnet|Haiku)\s+([0-9]+(?:\.[0-9]+)?)$/i);
+    if (!m) return null;
+    const family = m[1].toLowerCase();
+    // 整数版本(如 Claude Sonnet 4)对应 API id `claude-sonnet-4-<date>`,不加 `-0`
+    const ver = m[2].includes('.') ? m[2].replace('.', '-') : m[2];
+    return `claude-${family}-${ver}`;
+  };
+  let match;
+  while ((match = rowRe.exec(text)) !== null) {
+    const modelId = nameToId(match[1]);
+    if (!modelId) continue;
+    // 取 5m Cache Writes 作为 cacheWritePrice(Anthropic 默认/最常用的 5 分钟缓存)
+    pricing.set(modelId, {
+      inputPrice: parseFloat(match[2]),
+      cacheWritePrice: parseFloat(match[3]),
+      cacheReadPrice: parseFloat(match[5]),
+      outputPrice: parseFloat(match[6]),
+    });
+  }
+  return pricing;
+}
+
+function parseOpenAIPricingMarkdown(text) {
+  // OpenAI docs.md 内含 JS 数组字面量:["model_id", input, cachedInput, output]
+  // 第一组表是 Standard 定价,后续表为 Batch/Flex,以 Standard 为准(取第一次出现)。
+  const pricing = new Map();
+  const rowRe = /\[\s*"([a-z0-9._-]+)(?:\s*\([^)]*\))?"\s*,\s*([0-9.]+)\s*,\s*(?:null|"-"|""|([0-9.]+))\s*,\s*([0-9.]+)\s*\]/g;
+  let match;
+  while ((match = rowRe.exec(text)) !== null) {
+    const id = match[1];
+    if (pricing.has(id)) continue;
+    const entry = {
+      inputPrice: parseFloat(match[2]),
+      outputPrice: parseFloat(match[4]),
+    };
+    if (match[3] != null) entry.cacheReadPrice = parseFloat(match[3]);
+    pricing.set(id, entry);
+  }
+  return pricing;
+}
+
+function parseGlmPricingMarkdown(text) {
+  // | GLM-5.1 | \$1.4 | \$0.26 | Limited-time Free | \$4.4 |
+  const pricing = new Map();
+  const rowRe = /\|\s*(GLM-[A-Za-z0-9.\-]+)\s*\|\s*\\?\$([0-9.]+)\s*\|\s*\\?\$([0-9.]+)\s*\|[^|]*\|\s*\\?\$([0-9.]+)\s*\|/g;
+  let match;
+  while ((match = rowRe.exec(text)) !== null) {
+    pricing.set(match[1], {
+      inputPrice: parseFloat(match[2]),
+      cacheReadPrice: parseFloat(match[3]),
+      outputPrice: parseFloat(match[4]),
+    });
+  }
+  return pricing;
+}
+
+function parseMiniMaxPricingMarkdown(text) {
+  // | **MiniMax-M2.7** | 2.1 | 8.4 | 0.42 | 2.625 |  (CNY/M tokens — 与现有 qwen 解析器同口径,原值直存)
+  const pricing = new Map();
+  const rowRe = /\|\s*\*?\*?\s*(MiniMax-[A-Za-z0-9.\-]+)\s*\*?\*?\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.—\-]+)\s*\|\s*([0-9.—\-]+)\s*\|/g;
+  let match;
+  while ((match = rowRe.exec(text)) !== null) {
+    const entry = {
+      inputPrice: parseFloat(match[2]),
+      outputPrice: parseFloat(match[3]),
+    };
+    const cacheRead = parseFloat(match[4]);
+    const cacheWrite = parseFloat(match[5]);
+    if (Number.isFinite(cacheRead)) entry.cacheReadPrice = cacheRead;
+    if (Number.isFinite(cacheWrite)) entry.cacheWritePrice = cacheWrite;
+    pricing.set(match[1], entry);
+  }
+  return pricing;
+}
+
 function parseSiliconFlowPricingPage(html) {
   const text = stripHtmlToText(html);
   const start = text.indexOf('SiliconFlow 平台推理模型价格表');
@@ -369,11 +484,31 @@ async function fetchDynamicPricingMap(provider) {
     if (!resp.ok) throw new Error(`SiliconFlow pricing ${resp.status}`);
     return parseSiliconFlowPricingPage(await resp.text());
   }
+  if (provider === 'anthropic') {
+    const resp = await fetch('https://docs.anthropic.com/en/docs/about-claude/pricing.md');
+    if (!resp.ok) throw new Error(`Anthropic pricing ${resp.status}`);
+    return parseAnthropicPricingMarkdown(await resp.text());
+  }
+  if (provider === 'openai') {
+    const resp = await fetch('https://platform.openai.com/docs/pricing.md');
+    if (!resp.ok) throw new Error(`OpenAI pricing ${resp.status}`);
+    return parseOpenAIPricingMarkdown(await resp.text());
+  }
+  if (provider === 'glm') {
+    const resp = await fetch('https://docs.z.ai/guides/overview/pricing.md');
+    if (!resp.ok) throw new Error(`GLM pricing ${resp.status}`);
+    return parseGlmPricingMarkdown(await resp.text());
+  }
+  if (provider === 'minimax') {
+    const resp = await fetch('https://platform.minimaxi.com/docs/guides/pricing-paygo.md');
+    if (!resp.ok) throw new Error(`MiniMax pricing ${resp.status}`);
+    return parseMiniMaxPricingMarkdown(await resp.text());
+  }
   return new Map();
 }
 
 async function getDynamicPricingMap(provider) {
-  if (!['gemini', 'grok', 'deepseek', 'kimi', 'qwen', 'siliconflow'].includes(provider)) return new Map();
+  if (!['gemini', 'grok', 'deepseek', 'kimi', 'qwen', 'siliconflow', 'anthropic', 'openai', 'glm', 'minimax'].includes(provider)) return new Map();
   const cached = pricingCache.get(provider);
   const now = Date.now();
   if (cached?.data && cached.expiresAt > now) return cached.data;
@@ -555,8 +690,8 @@ const KNOWN_PRICES = new Map([
   ['claude-opus-4-5',   { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
   ['claude-sonnet-4-5', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
   ['claude-haiku-4-5',  { inputPrice: 0.8, outputPrice: 4,  cacheWritePrice: 1,     cacheReadPrice: 0.08 }],
-  ['claude-opus-4-0',   { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
-  ['claude-sonnet-4-0', { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
+  ['claude-opus-4',     { inputPrice: 15,  outputPrice: 75, cacheWritePrice: 18.75, cacheReadPrice: 1.5  }],
+  ['claude-sonnet-4',   { inputPrice: 3,   outputPrice: 15, cacheWritePrice: 3.75,  cacheReadPrice: 0.3  }],
   // OpenAI
   ['gpt-4o',                { inputPrice: 2.5,   outputPrice: 10    }],
   ['gpt-4o-mini',           { inputPrice: 0.15,  outputPrice: 0.6   }],
@@ -720,7 +855,16 @@ async function fetchModels(provider, apiKey, baseUrl) {
       throw new Error(providerError || `API ${resp.status}`);
     }
     const data = await resp.json();
-    return (data.data || []).map((m) => ({ id: m.id, ...(KNOWN_PRICES.get(m.id) || {}) }));
+    let dynamicPrices = new Map();
+    try {
+      dynamicPrices = await getDynamicPricingMap('anthropic');
+    } catch (error) {
+      log.warn(`pricing.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
+    }
+    return (data.data || []).map((m) => {
+      const known = lookupPricingFromMap(dynamicPrices, m.id) || getFallbackPricing(m.id) || {};
+      return { id: m.id, ...known };
+    });
   }
 
   // Gemini — 原生接口（暂无价格）

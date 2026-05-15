@@ -83,6 +83,24 @@ export function recordTokenUsage(usageRef, usage, provider) {
     promptDetails.prompt_cache_miss_tokens,
     promptDetails.promptCacheMissTokens,
   ));
+
+  // 归一化:让 prompt_tokens 始终表示「按 input 单价计费的 未命中输入 token 数」。
+  // Anthropic 的 input_tokens 本就已经是未命中输入,跳过;其他 provider 的 prompt_tokens
+  // 包含 cache_read(及/或 cache_creation),否则前端会把命中部分按 input 和 cache_read 各算一次。
+  const strategy = getPromptCacheStrategy(provider);
+  const cacheRead = Number.isFinite(usageRef.cache_read_tokens) ? usageRef.cache_read_tokens : 0;
+  const cacheMiss = Number.isFinite(usageRef.cache_miss_tokens) ? usageRef.cache_miss_tokens : 0;
+
+  if (strategy === 'deepseek-prefix' && cacheMiss > 0) {
+    usageRef.prompt_tokens = cacheMiss;
+  } else if (
+    (strategy === 'openai-prefix' || strategy === 'gemini-implicit' || strategy === 'deepseek-prefix')
+    && Number.isFinite(usageRef.prompt_tokens)
+    && cacheRead > 0
+    && usageRef.prompt_tokens >= cacheRead
+  ) {
+    usageRef.prompt_tokens = usageRef.prompt_tokens - cacheRead;
+  }
 }
 
 export const __testables = {
