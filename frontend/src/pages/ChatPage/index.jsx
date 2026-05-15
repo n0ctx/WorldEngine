@@ -86,8 +86,6 @@ export default function ChatPage() {
   const [continuingText, setContinuingText] = useState('');
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
-  const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
   const [errorBubble, setErrorBubble] = useState(null); // { partialContent, errorMsg }
   // 本轮流式占位节点的 React key（每次新流都换，避免相邻两轮 key 冲突）
   const [streamingKey, setStreamingKey] = useState('__stream_init__');
@@ -334,7 +332,6 @@ export default function ChatPage() {
       invalidateCurrentRun();
       recoveryStopRef.current?.();
       clearOptionsState();
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, [clearOptionsState, invalidateCurrentRun]);
 
@@ -381,22 +378,15 @@ export default function ChatPage() {
     setMessageListKey((k) => k + 1);
   }
 
-  // Toast 提示（自动消失）
-  function showToast(msg, type = 'success') {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast({ msg, type });
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-  }
-
   function showRecoveryToast(task) {
     const key = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
     if (recoveryToastKeyRef.current === key) return;
     recoveryToastKeyRef.current = key;
     if (task.status === 'failed' && task.error === RESTART_INTERRUPTED_ERROR) {
-      showToast('已恢复中断前内容，旧生成因服务重启已停止', 'error');
+      log.warn('chat.resume.interrupted', null, { toast: '已恢复中断前内容，旧生成因服务重启已停止' });
       return;
     }
-    showToast('已恢复生成连接');
+    log.info('chat.resume.reconnected', null, { toast: '已恢复生成连接' });
   }
 
   function applyRecoveredSnapshot(task) {
@@ -453,7 +443,7 @@ export default function ChatPage() {
         },
       });
     } catch (err) {
-      showToast(err.message || '断点续传恢复失败', 'error');
+      log.error('chat.resume.failed', err, { toast: err.message || '断点续传恢复失败' });
     }
   }
 
@@ -575,15 +565,15 @@ export default function ChatPage() {
       },
       onSuggestionFallbackStarted() {
         if (!isCurrentStreamRun(runId)) return;
-        showToast('本轮选项缺失，正在补全…', 'success');
+        log.warn('chat.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
       },
       onSuggestionFallbackSucceeded() {
         if (!isCurrentStreamRun(runId)) return;
-        showToast('选项补全成功', 'success');
+        log.info('chat.suggestion_fallback_succeeded', null, { toast: '选项补全成功' });
       },
       onSuggestionFallbackFailed() {
         if (!isCurrentStreamRun(runId)) return;
-        showToast('选项补全失败', 'error');
+        log.error('chat.suggestion_fallback_failed', null, { toast: '选项补全失败' });
       },
       onAborted(assistant) {
         if (!isCurrentStreamRun(runId)) return;
@@ -633,12 +623,11 @@ export default function ChatPage() {
       onPostprocessFailed(evt) {
         stopMemoryWriting(runId);
         if (!isSameSession()) return;
-        showToast(
-          evt?.timeout
+        log.error('chat.postprocess_failed', evt, {
+          toast: evt?.timeout
             ? '后台整理超时，回复已保留，标题或状态可能未更新'
             : '后台整理失败，回复已保留，标题或状态可能未更新',
-          'error',
-        );
+        });
       },
       onStateRolledBack() {
         if (isSameSession()) useStore.getState().triggerMemoryRefresh();
@@ -830,24 +819,23 @@ export default function ChatPage() {
       onPostprocessFailed(evt) {
         stopMemoryWriting();
         if (currentSessionIdRef.current !== continuationSessionId) return;
-        showToast(
-          evt?.timeout
+        log.error('chat.postprocess_failed', evt, {
+          toast: evt?.timeout
             ? '后台整理超时，回复已保留，标题或状态可能未更新'
             : '后台整理失败，回复已保留，标题或状态可能未更新',
-          'error',
-        );
+        });
       },
       onSuggestionFallbackStarted() {
         if (continuationTokenRef.current !== continuationToken) return;
-        showToast('本轮选项缺失，正在补全…', 'success');
+        log.warn('chat.suggestion_fallback_started', null, { toast: '本轮选项缺失，正在补全…' });
       },
       onSuggestionFallbackSucceeded() {
         if (continuationTokenRef.current !== continuationToken) return;
-        showToast('选项补全成功', 'success');
+        log.info('chat.suggestion_fallback_succeeded', null, { toast: '选项补全成功' });
       },
       onSuggestionFallbackFailed() {
         if (continuationTokenRef.current !== continuationToken) return;
-        showToast('选项补全失败', 'error');
+        log.error('chat.suggestion_fallback_failed', null, { toast: '选项补全失败' });
       },
       onAborted(assistant) {
         if (continuationTokenRef.current !== continuationToken) return;
@@ -898,9 +886,9 @@ export default function ChatPage() {
     }
     try {
       await editAssistantMessage(currentSessionId, messageId, newContent);
-      showToast('已保存，摘要更新中…');
+      log.info('chat.message.saved', null, { toast: '已保存，摘要更新中…' });
     } catch (err) {
-      showToast(err.message || '保存失败', 'error');
+      log.error('chat.message.save_failed', err, { toast: err.message || '保存失败' });
       refreshMessages();
     }
   }
@@ -922,7 +910,7 @@ export default function ChatPage() {
       setOptionCollapsed(false);
       useStore.getState().triggerMemoryRefresh();
     } catch (err) {
-      showToast(err.message || '删除失败', 'error');
+      log.error('chat.message.delete_failed', err, { toast: err.message || '删除失败' });
     }
   }
 
@@ -979,35 +967,24 @@ export default function ChatPage() {
   async function handleRetitle() {
     if (generating || !currentSessionId) return;
     try {
-      showToast('标题生成中…');
+      log.info('chat.title.generating', null, { toast: '标题生成中…' });
       const { title } = await retitle(currentSessionId);
       if (title) {
         setCurrentSession((prev) => prev ? { ...prev, title } : prev);
         if (chatSessionListBridge.updateTitle) {
           chatSessionListBridge.updateTitle(currentSessionIdRef.current, title);
         }
-        showToast(`标题已更新：${title}`);
+        log.info('chat.title.updated', null, { toast: `标题已更新：${title}` });
       } else {
-        showToast('标题生成失败', 'error');
+        log.error('chat.title.generate_failed', null, { toast: '标题生成失败' });
       }
     } catch (err) {
-      showToast(err.message || '标题生成失败', 'error');
+      log.error('chat.title.generate_failed', err, { toast: err.message || '标题生成失败' });
     }
   }
 
   return (
     <PageLayout
-      overlay={toast ? (
-        <div
-          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[var(--we-z-toast)] px-4 py-2 rounded-[var(--we-radius-lg)] text-sm shadow-lg pointer-events-none ${
-            toast.type === 'error'
-              ? 'bg-[var(--we-color-status-danger)] text-[var(--we-color-text-inverse)]'
-              : 'bg-[var(--we-color-accent)] text-[var(--we-color-text-inverse)]'
-          }`}
-        >
-          {toast.msg}
-        </div>
-      ) : null}
       left={(
         <SessionListPanel
           character={character}
