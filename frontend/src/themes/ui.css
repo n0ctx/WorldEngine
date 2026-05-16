@@ -2963,6 +2963,58 @@
 .we-cast-card .we-status-player .we-fields-list--grid > *:first-child {
   grid-column: 1 / -1;
 }
+
+/* writing: 已保存角色 —— 顶部 tab 仅显示当前登场，已保存角色折叠到底部紧凑列表 */
+.we-saved-nearby {
+  margin-top: var(--we-space-md);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-top: 1px solid var(--we-color-border-subtle);
+}
+.we-saved-nearby-title {
+  font-size: 11px;
+  color: var(--we-color-text-tertiary);
+  letter-spacing: 0.04em;
+  margin-bottom: var(--we-space-xs);
+}
+.we-saved-nearby-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.we-saved-nearby-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-sm);
+  padding: 2px 0;
+}
+.we-saved-nearby-name {
+  font-size: 13px;
+  color: var(--we-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.we-saved-nearby-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--we-radius-sm);
+}
+.we-saved-nearby-cancel:hover,
+.we-saved-nearby-cancel:focus-visible {
+  color: var(--we-color-text-primary);
+  background: var(--we-color-bg-subtle);
+}
 .we-panel-card--flush .we-panel-card-collapse--open > .we-panel-card-body {
   padding: 10px 12px 4px;
   border-top: none;

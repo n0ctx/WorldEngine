@@ -43,11 +43,16 @@ import {
   renderPersonaState,
   renderWorldState,
   renderCharacterState,
-  renderNearbyCharacters,
+  renderTransientNearby,
+  renderSavedNearbyIndex,
+  renderRecalledSavedNearby,
   searchRecalledSummaries,
   renderRecalledSummaries,
 } from '../memory/recall.js';
 import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
+import { decideSavedNearbyRecall } from '../memory/saved-nearby-recall.js';
+import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
+import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
 import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
@@ -392,7 +397,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // 全局 / 世界条目 / 历史摘要里的 {{char}} 没有合适的统一替换值：
   // 替换成"叙述者"会让所有 {{char}} 都被同化成同一标签（之前的 bug）；
   // 这里改为保留 {{char}} 字面量交给 LLM 按上下文判断，nearby_characters 渲染
-  // 时另在 renderNearbyCharacters 内部按每个 nearby 名字单独替换。
+  // 时另在 renderTransientNearby / renderSavedNearbyIndex / renderRecalledSavedNearby 内部按每个 nearby 名字单独替换。
   const tv = (t) => applyTemplateVars(t, {
     user: personaName,
     char: null,
@@ -434,11 +439,30 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
 
   // [7] 附近角色（写作模式专属，替代 chat 模式的 character_state）
-  const nearbyText = renderNearbyCharacters(world.id, sessionId);
-  if (nearbyText) {
-    dynamicSystemParts.push(
-      `<nearby_characters>\n以下角色已在本会话登场。叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名。\n${tv(nearbyText)}\n</nearby_characters>`
-    );
+  // - transient（is_saved=0）：完整 name + 底层人设 + state
+  // - saved（is_saved=1）：仅 name + 底层人设（线索清单）；其完整 state 由 [10.5] 按需召回
+  // 一次拉取 nearby 行与 fields，[7] 与 [10.5] 共享，避免每轮重复查询
+  const allNearby = listNearbyBySessionId(sessionId);
+  const transientRows = allNearby.filter((r) => Number(r.is_saved) !== 1);
+  const savedRows = allNearby.filter((r) => Number(r.is_saved) === 1);
+  const nearbyFields = allNearby.length > 0
+    ? getCharacterStateFieldsByWorldId(world.id).filter((f) => Number(f.nearby_enabled) === 1)
+    : [];
+  const transientText = renderTransientNearby(transientRows, nearbyFields);
+  const savedIndexText = renderSavedNearbyIndex(savedRows);
+  if (transientText || savedIndexText) {
+    const sections = [
+      '以下角色已在本会话登场。叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名。',
+    ];
+    if (transientText) {
+      sections.push(`【当前登场】\n${tv(transientText)}`);
+    }
+    if (savedIndexText) {
+      sections.push(
+        `【已保存角色（仅列底层人设，其当前状态系统会按需补充）】\n${tv(savedIndexText)}`,
+      );
+    }
+    dynamicSystemParts.push(`<nearby_characters>\n${sections.join('\n\n')}\n</nearby_characters>`);
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
@@ -471,8 +495,16 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
-  // [10] 记忆展开（由 AI 决定需要展开哪些原文）
-  if (recallHitCount > 0 && writing.memory_expansion_enabled !== false) {
+  // [10] 记忆展开 / [10.5] saved nearby preflight 召回
+  // 两个 preflight LLM 判定彼此独立，并发触发以节省一个 aux RTT。
+  // saved 池子小（N ≤ SAVED_RECALL_PREFLIGHT_MIN-1）时，judge 固定开销摊不开，
+  // 直接全量注入比走 aux LLM 更省 token 也避免漏判风险。
+  const SAVED_RECALL_PREFLIGHT_MIN = 4;
+  const runExpand = recallHitCount > 0 && writing.memory_expansion_enabled !== false;
+  const runSavedRecall = writing.saved_nearby_recall_enabled !== false && savedRows.length > 0;
+  const needSavedJudge = runSavedRecall && savedRows.length >= SAVED_RECALL_PREFLIGHT_MIN;
+
+  if (runExpand) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
       ref: r.ref,
       turn_record_id: r.turn_record_id,
@@ -481,7 +513,14 @@ export async function buildWritingPrompt(sessionId, options = {}) {
       round_index: r.round_index,
       created_at: r.created_at,
     })) });
-    const expandIds = await decideExpansion({ sessionId, recalled });
+  }
+
+  const [expandIds, judgedSavedIds] = await Promise.all([
+    runExpand ? decideExpansion({ sessionId, recalled }) : Promise.resolve([]),
+    needSavedJudge ? decideSavedNearbyRecall({ sessionId, savedRows }) : Promise.resolve([]),
+  ]);
+
+  if (runExpand) {
     if (expandIds.length > 0) {
       const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
       if (expandedText) {
@@ -492,6 +531,20 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     } else {
       onRecallEvent?.('memory_expand_done', { expanded: [] });
     }
+  }
+
+  if (runSavedRecall) {
+    const hitIds = needSavedJudge ? judgedSavedIds : savedRows.map((r) => r.id);
+    if (hitIds.length > 0) {
+      const recalledSavedText = renderRecalledSavedNearby(savedRows, nearbyFields, hitIds);
+      if (recalledSavedText) {
+        dynamicSystemParts.push(
+          `<recalled_characters>\n以下已保存角色与本轮相关，提供其当前完整状态以供叙事使用。\n${tv(recalledSavedText)}\n</recalled_characters>`,
+        );
+        log.debug(`│  [10.5] saved-recall  hits=${hitIds.length} (${needSavedJudge ? 'judge' : 'all-in'})`);
+      }
+    }
+    onRecallEvent?.('saved_recall_done', { hit: hitIds.length, ids: hitIds, mode: needSavedJudge ? 'judge' : 'all-in' });
   }
 
   // [11] 日记注入（一次性，仅本轮生效）

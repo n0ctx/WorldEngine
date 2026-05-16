@@ -1692,14 +1692,6 @@
   color: var(--we-color-text-primary);
 }
 
-.we-section-tab-label--saved {
-  color: var(--we-color-accent);
-  font-weight: 600;
-}
-.we-section-tab.active .we-section-tab-label--saved {
-  color: var(--we-color-accent);
-}
-
 .we-section-tab-indicator {
   position: absolute;
   bottom: 0;

@@ -218,8 +218,8 @@
 
 写作模式下当前 session 内"出场"的角色集合，含两类：
 
-- transient（`is_saved=0`）：仅本 session 临时存在，不落到全局角色库
-- saved（`is_saved=1`）：已通过制卡服务保存为正式 `characters` 行，仍保留在 nearby 列表用于本 session 状态追踪
+- transient（`is_saved=0`）：仅本 session 临时存在，不落到全局角色库；每轮 `name+persona+state` 全量进 prompt（`<nearby_characters>` [7] "当前登场"段）
+- saved（`is_saved=1`）：会话级持久身份，每轮仅 `name+persona` 作为线索清单进入 `<nearby_characters>` 索引段；其 `state` 默认不进 prompt，只有被 `backend/memory/saved-nearby-recall.js` 的 `decideSavedNearbyRecall` 在 [10.5] preflight 命中时，才以完整块注入 `<recalled_characters>`。saved 与"制卡到正式 `characters` 表"是两条独立链路，互不依赖
 
 `name` 在同一 session 内唯一（transient 与 saved 共享同一命名空间）。
 
@@ -228,7 +228,7 @@
 | id | TEXT PK | UUID（前端不暴露） |
 | session_id | TEXT FK→sessions.id CASCADE | — |
 | name | TEXT | session 内唯一（含 transient + saved） |
-| persona | TEXT | 一句话人物设定（性格 / 身份 / 关键标签）。副 LLM 在新登场时填写；已有角色可由 LLM 补充修正，但不强制每轮重写。在 nearby→character 制卡时直接作为新角色 `characters.description` 的基底 |
+| persona | TEXT | **底层人物设定**（性格 / 说话风格 / 长期身份 / 关键标签）—— 稳定属性。`backend/prompts/nearby-prompt.js` 明确禁止 LLM 在 persona 中写入当前剧情片段、与玩家的临时关系、当下情绪/场景/位置等动态内容（这些走叙事正文与 state 字段）。新登场必填；已有角色仅在身份/性格需要修正时输出，否则省略以避免覆盖稳定人设。制卡时直接作为新角色 `characters.description` 的基底 |
 | is_saved | INTEGER | 0=transient / 1=saved，默认 0 |
 | created_at | INTEGER | — |
 | updated_at | INTEGER | — |

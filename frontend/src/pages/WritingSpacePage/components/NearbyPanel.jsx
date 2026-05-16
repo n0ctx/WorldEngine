@@ -341,52 +341,41 @@ export default function NearbyPanel({
       log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
     }
   };
-  const nearbyToolbarFor = (n) => {
-    const isSaved = Number(n?.is_saved) === 1;
-    return (
-      <>
-        {nearbyToolbarBase}
-        {isSaved ? (
-          <button
-            type="button"
-            className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-            onClick={() => handleToggleSavedFor(n)}
-            title="取消保存（保留记录，下轮仍注入）"
-          >
-            <CancelIcon /><span>取消</span>
-          </button>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-              onClick={() => handleToggleSavedFor(n)}
-              title="保存到附近角色池"
-            >
-              <SaveIcon /><span>保存</span>
-            </button>
-            <button
-              type="button"
-              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-              onClick={() => handleRemoveFor(n)}
-              title="移除（物理删除，下轮不再注入）"
-            >
-              <TrashIcon /><span>移除</span>
-            </button>
-          </>
-        )}
-      </>
-    );
-  };
+  const nearbyToolbarFor = (n) => (
+    <>
+      {nearbyToolbarBase}
+      <button
+        type="button"
+        className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+        onClick={() => handleToggleSavedFor(n)}
+        title="保存到附近角色池（之后只在被召回时进入提示词）"
+      >
+        <SaveIcon /><span>保存</span>
+      </button>
+      <button
+        type="button"
+        className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+        onClick={() => handleRemoveFor(n)}
+        title="移除（物理删除，下轮不再注入）"
+      >
+        <TrashIcon /><span>移除</span>
+      </button>
+    </>
+  );
 
-  const perCharSections = (Array.isArray(nearby) ? nearby : []).map((n) => {
-    const isSaved = Number(n?.is_saved) === 1;
+  const { transientNearby, savedNearby } = useMemo(() => {
+    const list = Array.isArray(nearby) ? nearby : [];
+    return {
+      transientNearby: list.filter((n) => Number(n?.is_saved) !== 1),
+      savedNearby: list.filter((n) => Number(n?.is_saved) === 1),
+    };
+  }, [nearby]);
+
+  const perCharSections = transientNearby.map((n) => {
     const name = n.name || '未命名';
     return {
     key: n.id,
-    label: isSaved ? (
-      <span className="we-section-tab-label--saved">{name}</span>
-    ) : name,
+    label: name,
     actions: nearbyToolbarFor(n),
     content: (
       <div className="we-panel-tab-body we-nearby-tab">
@@ -477,7 +466,7 @@ export default function NearbyPanel({
     </div>
   );
 
-  const hasNearby = Array.isArray(nearby) && nearby.length > 0;
+  const hasTransient = transientNearby.length > 0;
   const sections = [
     {
       key: 'player',
@@ -485,7 +474,7 @@ export default function NearbyPanel({
       content: playerTab,
       actions: renderResetAction(handleResetPersonaState, personaResetting),
     },
-    ...(hasNearby
+    ...(hasTransient
       ? perCharSections
       : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase }]),
     ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
@@ -505,6 +494,28 @@ export default function NearbyPanel({
         <div className="we-cast-card">
           <SectionTabs sections={sections} defaultKey="player" globalActions={addNearbyGlobalAction} />
         </div>
+
+        {savedNearby.length > 0 && (
+          <div className="we-saved-nearby">
+            <div className="we-saved-nearby-title">已保存角色</div>
+            <ul className="we-saved-nearby-list">
+              {savedNearby.map((n) => (
+                <li key={n.id} className="we-saved-nearby-item">
+                  <span className="we-saved-nearby-name">{n.name || '未命名'}</span>
+                  <button
+                    type="button"
+                    className="we-state-section-reset we-saved-nearby-cancel"
+                    onClick={() => handleToggleSavedFor(n)}
+                    title="取消保存（角色回到当前登场池；下轮如未出场会被自动清理）"
+                    aria-label="取消保存"
+                  >
+                    <CancelIcon />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <AnimatePresence>
           {addModalOpen && (

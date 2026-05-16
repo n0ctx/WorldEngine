@@ -83,6 +83,7 @@ const DEFAULT_CONFIG = {
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     long_term_memory_enabled: false,
+    saved_nearby_recall_enabled: true,
     llm: {
       provider: null,
       provider_models: {},
@@ -111,6 +112,7 @@ const DEFAULT_WRITING = {
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
+  saved_nearby_recall_enabled: true,
   llm: {
     provider: null,
     provider_models: {},
