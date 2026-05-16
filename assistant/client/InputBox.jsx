@@ -12,7 +12,7 @@ import { useEffect, useRef } from 'react';
 export default function InputBox({ value, onChange, onSend, disabled = false, placeholder }) {
   const textareaRef = useRef(null);
 
-  // 自动调整高度，但限制在面板内的安全高度范围；超出时不展示原生滚动条。
+  // 自动调整高度；触顶后允许原生纵向滚动条出现，避免长输入被裁切看不到。
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -42,7 +42,7 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
         disabled={disabled}
         placeholder={disabled ? '当前暂不可输入' : hint}
         rows={1}
-        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-hidden rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-canvas)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] outline-none transition-colors focus-visible:border-[var(--we-color-accent)] disabled:cursor-not-allowed disabled:bg-[var(--we-color-bg-subtle)]"
+        className="min-h-[36px] max-h-[120px] flex-1 resize-none overflow-y-auto rounded-[var(--we-radius-sm)] border border-[var(--we-color-border-subtle)] bg-[var(--we-color-bg-canvas)] px-3 py-2 text-[13px] leading-relaxed text-[var(--we-color-text-primary)] outline-none transition-colors focus-visible:border-[var(--we-color-accent)] disabled:cursor-not-allowed disabled:bg-[var(--we-color-bg-subtle)]"
         style={{ fontFamily: 'var(--we-font-body)' }}
       />
       <button

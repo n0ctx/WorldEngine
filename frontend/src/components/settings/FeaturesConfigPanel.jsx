@@ -228,7 +228,7 @@ export default function FeaturesConfigPanel({
             <div className="we-settings-field-group">
               <FormGroup
                 label="写作每章轮数"
-                hint="留空继承对话配置；仅影响章节分组"
+                hint="按 N 轮（user + assistant）切一章；仅影响章节分组，不影响翻页"
                 variant="settings"
               >
                 <div className="we-settings-inline-field">
@@ -237,11 +237,10 @@ export default function FeaturesConfigPanel({
                     min={1}
                     className="we-settings-number-short"
                     value={currentChapterTurnSize}
-                    placeholder="继承对话"
                     onChange={onChangeChapterTurnSize}
                     onBlur={onBlurChapterTurnSize}
                   />
-                  <span className="we-settings-inline-hint">留空继承对话配置</span>
+                  <span className="we-settings-inline-hint">每 N 轮一章</span>
                 </div>
               </FormGroup>
             </div>

@@ -201,12 +201,31 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           id: args.stepId ?? `adhoc-${Date.now()}`,
           title: args.task?.slice(0, 24) || '临时子任务',
           targetType: args.targetType,
-          operation: args.operation ?? 'update',
+          operation: args.operation,
           dependsOn: args.entityRef ? [args.entityRef] : [],
           task: args.task,
         };
         if (!resolved.targetType || !resolved.task) {
           return { success: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
+        }
+        // 早期版本会把缺省 operation 静默回退到 'update'，导致用户说"新建一张卡"时直接覆盖现卡。
+        // 这里对 ad-hoc 与 plan-step 两条路径统一校验 resolved.operation。
+        if (!resolved.operation) {
+          return {
+            success: false,
+            error: 'dispatch_subagent 必须显式传 operation（create / update / delete）；不要省略，也不要默认 update。如果是要新建一张全新的卡，请传 operation:"create" 且不要带 entityRef。',
+          };
+        }
+        if (!['create', 'update', 'delete'].includes(resolved.operation)) {
+          return { success: false, error: `dispatch_subagent operation 非法："${resolved.operation}"，只接受 create / update / delete。` };
+        }
+        // create 不允许带 entityRef：否则子代理会拿到一个"现有资源 ID"，
+        // 在 system prompt + 上下文双重暗示下极易退化为 update 覆盖该资源。
+        if (resolved.operation === 'create' && resolved.dependsOn?.length > 0) {
+          return {
+            success: false,
+            error: `dispatch_subagent operation:"create" 不能携带 entityRef / dependsOn（收到 ${JSON.stringify(resolved.dependsOn)}）。新建资源不依赖某张现有卡；如果你其实是想改动这张已有的卡，请改成 operation:"update"。`,
+          };
         }
         // 检测 task 字段疑似被 LLM 截断（以中/英文冒号结尾），避免子代理拿到不完整指令后白跑一次
         if (/[：:]\s*$/.test(resolved.task.trim())) {

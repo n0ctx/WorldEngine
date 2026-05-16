@@ -4,6 +4,9 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **ui(assistant/header): 主代理活跃微指示** — `assistant/client/AssistantPanel.jsx` 在抽屉标题栏的"写卡助手"右侧加 `AssistantStatusIndicator`：`status==='running'` 时显示三点呼吸 + "正在处理"（沿用 `typing-dot` 关键帧），`awaiting_approval` / `paused` 走轻量文字提示，避免用户误判"是不是断了"。
+- **fix(assistant): 创建/更新边界硬化 + 输入栏可滚动** — `dispatch_subagent` schema 在 description / 字段说明里强约束 `operation` 必显式给出且 create 不得携带 entityRef；`tools/meta/runtime.js` 与 `sub-agent.js` 在 resolved.operation 上统一校验（覆盖 ad-hoc 与 plan-step 两条路径），移除"未传 operation 静默回退 update"的危险默认，杜绝"新建一张卡却把现卡覆盖"。`assistant/client/InputBox.jsx` 把 textarea `overflow-y-hidden` 改 `overflow-y-auto`，超过 120px 上限时显示原生纵向滚动条。
+- **ui(settings/features): 分章去除"继承对话"措辞** — 分章为写作专属，`FeaturesConfigPanel.jsx` 移除占位符"继承对话"与"留空继承对话配置"提示，改为"每 N 轮一章"。
 - **ui(settings/features): 功能配置分组重排** — `FeaturesConfigPanel.jsx` 中「上下文保留轮次」并入"记忆"分组；分章/翻页移到面板底部；分章配置仅写作模式可见（对话模式隐藏）。
 - **feat(memory/ui): 召回条目数量上限可配置 + Toast 印章字与关闭按钮去重叠** — 新增顶层配置 `memory_recall_max_sessions`(默认 5)，`backend/memory/recall.js` 优先从 `getConfig()` 读取 topK，非正数回退 `MEMORY_RECALL_MAX_SESSIONS` 常量；前端「设置 -> 功能配置 -> 记忆」加数字输入框(`FeaturesConfigPanel.jsx` + `useSettingsConfig.js` + `SettingsPage.jsx`)，chat/writing 共享同一上限。`ToastCard.jsx` 印章艺术单字从 `bottom-1 right-2` 改到 `-bottom-1 left-1`，避开右上角关闭按钮的层叠重叠区。
 - **chore(lint): 扩充前后端 ESLint 规则集 + 自定义规则单测** — 后端接入 `js.configs.recommended`（`no-empty` 允许空 catch、`utils/logger.js` 豁免 `no-control-regex`、`no-unused-vars` 默认豁免 `_` 前缀），并清理 21 处 unused-vars、4 处 useless-escape、7 处 useless-assignment、1 处 irregular-whitespace、1 处 preserve-caught-error。前端补 `eqeqeq` / `no-var` / `prefer-const` / `no-duplicate-imports` / `no-template-curly-in-string` / `react/jsx-key` / `react/no-unknown-property` 七条规则；修复 `MessageList.jsx`、`ImportExportPanel.jsx` 三处 `set-state-in-effect` 报错（前者两处显式 disable+原因，后者改为"在渲染期同步派生 state"）。新增 `eslint-rules/__tests__/*.test.js` 用 RuleTester 覆盖两条自定义规则，根 `package.json` 加 `test:eslint-rules` 并并入 `npm run lint`

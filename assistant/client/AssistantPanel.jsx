@@ -532,29 +532,32 @@ export default function AssistantPanel() {
         {/* 标题栏 */}
         <header className="flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/10 bg-[var(--we-color-bg-subtle)] px-3">
           <span
-            className="flex-1 text-[14px] italic text-[var(--we-color-text-primary)]"
+            className="text-[14px] italic text-[var(--we-color-text-primary)]"
             style={{ fontFamily: 'var(--we-font-display)' }}
           >
             写卡助手
           </span>
-          {(messages.length > 0 || planDoc || taskId) && (
+          <AssistantStatusIndicator status={status} isStreaming={isStreaming} />
+          <div className="ml-auto flex items-center gap-2">
+            {(messages.length > 0 || planDoc || taskId) && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="rounded px-2 py-0.5 text-[11px] text-[var(--we-color-text-tertiary)] hover:bg-black/5"
+                title="清空对话"
+              >
+                清空
+              </button>
+            )}
             <button
               type="button"
-              onClick={handleReset}
-              className="rounded px-2 py-0.5 text-[11px] text-[var(--we-color-text-tertiary)] hover:bg-black/5"
-              title="清空对话"
+              onClick={close}
+              aria-label="关闭"
+              className="rounded px-2 py-0.5 text-[16px] leading-none text-[var(--we-color-text-tertiary)] hover:bg-black/5"
             >
-              清空
+              ×
             </button>
-          )}
-          <button
-            type="button"
-            onClick={close}
-            aria-label="关闭"
-            className="rounded px-2 py-0.5 text-[16px] leading-none text-[var(--we-color-text-tertiary)] hover:bg-black/5"
-          >
-            ×
-          </button>
+          </div>
         </header>
 
         {/* 消息流 */}
@@ -651,4 +654,53 @@ export default function AssistantPanel() {
       </aside>
     </>
   );
+}
+
+// 标题栏的"主代理活跃"微指示：
+// - running：LLM 还在吐 token 或工具循环还没让出，显示三点呼吸 + "正在处理"
+// - awaiting_approval：等待用户审批，文案明确告诉用户"在等你"
+// - paused：被打断，文案提示"已暂停"，与 running 视觉区分
+// - 其它（completed/failed/cancelled/idle）：不显示，避免空状态噪音
+function AssistantStatusIndicator({ status, isStreaming }) {
+  const active = status === 'running' || (isStreaming && status !== 'awaiting_approval' && status !== 'paused');
+  if (active) {
+    return (
+      <span
+        className="flex items-center gap-1.5 text-[11px] text-[var(--we-color-text-tertiary)]"
+        role="status"
+        aria-live="polite"
+        title="主代理正在处理，未中断"
+      >
+        <span className="flex items-center" aria-hidden="true">
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+          <span className="typing-dot typing-dot-accent" />
+        </span>
+        <span>正在处理</span>
+      </span>
+    );
+  }
+  if (status === 'awaiting_approval') {
+    return (
+      <span
+        className="text-[11px] text-[var(--we-color-accent)]"
+        role="status"
+        aria-live="polite"
+      >
+        等待审批
+      </span>
+    );
+  }
+  if (status === 'paused') {
+    return (
+      <span
+        className="text-[11px] text-[var(--we-color-text-tertiary)]"
+        role="status"
+        aria-live="polite"
+      >
+        已暂停
+      </span>
+    );
+  }
+  return null;
 }

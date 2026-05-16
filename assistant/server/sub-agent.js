@@ -130,7 +130,7 @@ function resolveEntityRef(entityRef, context) {
 export async function dispatchSubAgent({
   stepId = null,
   targetType,
-  operation = 'update',
+  operation,
   entityRef = null,
   task = '',
   context = {},
@@ -142,6 +142,15 @@ export async function dispatchSubAgent({
 } = {}) {
   const apply = APPLY_BY_TYPE[targetType];
   if (!apply) throw new Error(`No apply tool for targetType "${targetType}"`);
+  // operation 必须由调用方显式给出（来自 plan step 或 dispatch_subagent 参数）。
+  // 早期默认成 'update' 会让用户说"新建一张卡"时直接覆盖上下文中的现卡。
+  if (!operation || !['create', 'update', 'delete'].includes(operation)) {
+    throw new Error(`dispatchSubAgent: operation 必须显式传 create / update / delete，收到："${operation}"`);
+  }
+  // create 时严禁把上下文里已有资源的 ID 当作 entityRef：那是 update 的语义。
+  if (operation === 'create' && entityRef) {
+    throw new Error(`dispatchSubAgent: operation:"create" 不能携带 entityRef（收到 "${entityRef}"）。新建资源不应指向已有 ID。`);
+  }
 
   const resolvedEntityId = resolveEntityRef(entityRef, context);
   const worldRefId = context?.worldId ?? null;
