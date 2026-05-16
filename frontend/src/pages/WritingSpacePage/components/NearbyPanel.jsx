@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import StatusSection from '../../../components/state/StatusSection.jsx';
@@ -129,9 +129,11 @@ export default function NearbyPanel({
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
-  // saved 角色"待观察"集合：刚被用户点保存的 saved 角色仍按完整 state 显示，
-  // 等下一轮 LLM 输出后若其 state 未被本轮触达（state_updated_at <= pinnedStateAt），再降级到底部列表
+  // saved 角色"在场"集合：本轮 LLM 触达过 state（auto-detect）或刚被手动保存（grace 一轮）的 saved 角色按完整 state tab 显示；
+  // 其余 saved 角色降级到底部紧凑列表。Map value: { pinnedAt, pinnedAtTick }
   const [pinnedSavedIds, setPinnedSavedIds] = useState(() => new Map());
+  // 上一次 nearby 快照里每个角色的 state_updated_at；用于检测"本轮 LLM 是否触达了某 saved 角色"
+  const prevStateUpdatedAtRef = useRef(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
 
@@ -172,42 +174,55 @@ export default function NearbyPanel({
     return () => { cancelled = true; };
   }, [worldId, sessionId, stateTick]);
 
-  // 切换会话/世界时清空 pinned（pin 仅在本次会话内有效，渲染期无法派生此重置语义）
+  // 切换会话/世界时清空 pin 与 prev 快照（pin 仅在本次会话内有效）
   useEffect(() => {
+    prevStateUpdatedAtRef.current = null;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPinnedSavedIds((prev) => (prev.size === 0 ? prev : new Map()));
   }, [worldId, sessionId]);
 
-  // 每次 nearby 刷新后评估 pinned 过期：用服务端的 state_updated_at 做基线，避免与客户端 Date.now 比较产生时钟偏差
-  // - row 不再是 saved → 去 pin
-  // - stateTick 已较 pin 时刻前进过（一轮完成），且本轮 LLM 没动这角色的 state → 去 pin，降级到底部
-  // - 本轮被触达 → 保持 pin，把基线推进到当前 state_updated_at，下轮再判
+  // 首次观察（prev 为 null）只记录基线、不做判定，避免恢复会话时把旧 state 误判为本轮触达
   useEffect(() => {
     if (!Array.isArray(nearby)) return;
-    // 必须在 effect 里 setState：判定依赖外部异步信号（nearby snapshot + stateTick），
-    // 渲染期无法纯派生（pin 是有"上次评估时刻"语义的状态，非 nearby 的纯函数）
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    const prevMap = prevStateUpdatedAtRef.current;
+    const curMap = new Map();
+    for (const n of nearby) curMap.set(n.id, n);
+    prevStateUpdatedAtRef.current = curMap;
+    if (prevMap === null) return;
+
+    // 判定依赖外部异步信号（nearby snapshot + prev ref + stateTick），渲染期无法纯派生
     setPinnedSavedIds((prev) => {
-      if (prev.size === 0) return prev;
       const next = new Map(prev);
       let changed = false;
+
+      // Phase 1: state_updated_at 相对上一 snapshot 推进过的 saved 角色 → 自动 pin
+      for (const n of nearby) {
+        if (!isNearbySaved(n)) continue;
+        const prevAt = prevMap.get(n.id)?.state_updated_at || 0;
+        const curAt = n.state_updated_at || 0;
+        if (curAt > prevAt) {
+          next.set(n.id, { pinnedStateAt: curAt, pinnedAtTick: stateTick });
+          changed = true;
+        }
+      }
+
+      // Phase 2: stateTick 推进过、且本轮没被 Phase 1 刷新过的旧 pin → 过期降级
       for (const [id, pin] of prev) {
-        const row = nearby.find((n) => n.id === id);
+        const row = curMap.get(id);
         if (!row || !isNearbySaved(row)) {
           next.delete(id);
           changed = true;
           continue;
         }
         if (stateTick <= pin.pinnedAtTick) continue;
-        const rowStateAt = row.state_updated_at || 0;
-        if (rowStateAt <= pin.pinnedStateAt) {
+        const refreshed = next.get(id);
+        if (refreshed && refreshed.pinnedAtTick === stateTick) continue;
+        if ((row.state_updated_at || 0) <= pin.pinnedStateAt) {
           next.delete(id);
-          changed = true;
-        } else {
-          next.set(id, { pinnedStateAt: rowStateAt, pinnedAtTick: stateTick });
           changed = true;
         }
       }
+
       return changed ? next : prev;
     });
   }, [nearby, stateTick]);
