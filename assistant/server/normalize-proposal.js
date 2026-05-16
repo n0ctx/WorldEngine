@@ -45,6 +45,7 @@ import {
   updateRegexRule,
   deleteRegexRule,
 } from '../../backend/db/queries/regex-rules.js';
+import { applyAssistantThemeOp, assertThemeId } from '../../backend/services/themes.js';
 import {
   replaceEntryConditions,
 } from '../../backend/db/queries/entry-conditions.js';
@@ -70,7 +71,9 @@ const PROPOSAL_ALLOWED_OPERATIONS = {
   'global-config': new Set(['update']),
   'css-snippet': new Set(['create', 'update', 'delete']),
   'regex-rule': new Set(['create', 'update', 'delete']),
+  'theme': new Set(['create', 'update', 'delete']),
 };
+
 const STATE_TARGETS_BY_PROPOSAL_TYPE = {
   'world-card': new Set(['world', 'persona', 'character']),
   'character-card': new Set(),
@@ -238,6 +241,11 @@ async function applyProposal(proposal, worldRefId = null) {
       });
     }
 
+    case 'theme': {
+      if (!entityId) throw new Error('theme 提案缺少 entityId');
+      return applyAssistantThemeOp({ id: entityId, operation, changes });
+    }
+
     case 'regex-rule': {
       if (operation === 'delete') {
         if (!entityId) throw new Error('regex-rule delete 需要 entityId');
@@ -346,8 +354,17 @@ function normalizeProposal(raw, locked = {}) {
 
   if (type === 'world-card' || type === 'character-card' || type === 'persona-card' ||
       (type === 'css-snippet' && operation !== 'create') ||
-      (type === 'regex-rule' && operation !== 'create')) {
+      (type === 'regex-rule' && operation !== 'create') ||
+      type === 'theme') {
     proposal.entityId = normalizeEntityId(locked.entityId ?? raw?.entityId);
+  }
+  if (type === 'theme') {
+    if (!proposal.entityId) throw new Error('提案格式错误：theme 必须提供 entityId（主题 id）');
+    try {
+      assertThemeId(proposal.entityId);
+    } catch (err) {
+      throw new Error(`提案格式错误：${err.message}`);
+    }
   }
 
   const changes = raw?.changes && typeof raw.changes === 'object' && !Array.isArray(raw.changes) ? raw.changes : {};
@@ -403,6 +420,13 @@ function normalizeProposal(raw, locked = {}) {
         proposal.changes = pickAllowed(changes, ['name', 'pattern', 'replacement', 'flags', 'scope', 'world_id', 'mode', 'enabled']);
       } else {
         proposal.changes = normalizeRegexRuleChanges(changes);
+      }
+      break;
+    case 'theme':
+      if (operation === 'delete') {
+        proposal.changes = {};
+      } else {
+        proposal.changes = normalizeThemeChanges(changes, operation);
       }
       break;
     default: break;
@@ -471,6 +495,34 @@ function normalizeCssSnippetChanges(changes) {
     mode: normalizeMode(picked.mode),
     enabled: normalizeEnabled(picked.enabled),
   };
+}
+
+function normalizeThemeChanges(changes, operation) {
+  const picked = pickAllowed(changes, ['name', 'version', 'author', 'description', 'preview', 'css']);
+  const normalized = {};
+  if ('name' in picked) normalized.name = String(picked.name ?? '').trim();
+  if ('version' in picked) normalized.version = String(picked.version ?? '').trim();
+  if ('author' in picked) normalized.author = String(picked.author ?? '');
+  if ('description' in picked) normalized.description = String(picked.description ?? '');
+  if ('preview' in picked) {
+    if (picked.preview && typeof picked.preview === 'object' && !Array.isArray(picked.preview)) {
+      normalized.preview = picked.preview;
+    } else {
+      throw new Error('提案格式错误：theme.changes.preview 必须是对象');
+    }
+  }
+  if ('css' in picked) {
+    if (typeof picked.css !== 'string') throw new Error('提案格式错误：theme.changes.css 必须是字符串');
+    const trimmed = picked.css.trim();
+    if (!trimmed) throw new Error('提案格式错误：theme.changes.css 不能为空');
+    normalized.css = picked.css;
+  }
+  if (operation === 'create') {
+    if (!normalized.name) throw new Error('提案格式错误：theme create 必须提供 name');
+    if (!normalized.version) throw new Error('提案格式错误：theme create 必须提供 version');
+    if (typeof normalized.css !== 'string') throw new Error('提案格式错误：theme create 必须提供 css');
+  }
+  return normalized;
 }
 
 function normalizeRegexRuleChanges(changes) {

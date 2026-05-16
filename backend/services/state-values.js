@@ -18,6 +18,15 @@ function getFieldMap(fields) {
   return new Map(fields.map((field) => [field.field_key, field]));
 }
 
+// 把"状态字段不存在"升级成带 field_key + 已定义列表 + 操作提示的诊断信息,
+// 避免子代理 LLM 拿到无信息错误后用同样入参重试。保留 "状态字段不存在" 子串以保兼容旧 grep / 测试。
+function makeMissingFieldError(target, fieldKey, fields) {
+  const defined = fields.map((f) => f.field_key);
+  const list = defined.length ? defined.join(', ') : '(空)';
+  const hint = `如需新增字段,先在 world-card.update 的 stateFieldOps 里 create 一条 target='${target}' 的字段定义,再回到本卡写值。`;
+  return new Error(`状态字段不存在: field_key='${fieldKey}' (target=${target})。当前已定义: [${list}]。${hint}`);
+}
+
 function parseValueJson(valueJson) {
   if (valueJson === null) {
     return null;
@@ -112,7 +121,7 @@ export function updateCharacterDefaultStateValueValidated(characterId, fieldKey,
   const fields = getCharacterStateFieldsByWorldId(character.world_id);
   const field = getFieldMap(fields).get(fieldKey);
   if (!field) {
-    throw new Error('状态字段不存在');
+    throw makeMissingFieldError('character', fieldKey, fields);
   }
 
   return upsertCharacterStateValue(characterId, fieldKey, {
@@ -146,7 +155,7 @@ export function updatePersonaDefaultStateValueValidated(worldId, fieldKey, value
   const fields = getPersonaStateFieldsByWorldId(worldId);
   const field = getFieldMap(fields).get(fieldKey);
   if (!field) {
-    throw new Error('状态字段不存在');
+    throw makeMissingFieldError('persona', fieldKey, fields);
   }
 
   return upsertPersonaStateValue(worldId, fieldKey, {
@@ -182,7 +191,7 @@ export function updatePersonaDefaultStateValueByPersonaIdValidated(personaId, wo
 
   const fields = getPersonaStateFieldsByWorldId(worldId);
   const field = getFieldMap(fields).get(fieldKey);
-  if (!field) throw new Error('状态字段不存在');
+  if (!field) throw makeMissingFieldError('persona', fieldKey, fields);
 
   return upsertPersonaStateValueByPersonaId(personaId, worldId, fieldKey, {
     defaultValueJson: normalizeStateValueJson(valueJson, field),
@@ -216,7 +225,7 @@ export function updateWorldDefaultStateValueValidated(worldId, fieldKey, valueJs
   const fields = getWorldStateFieldsByWorldId(worldId);
   const field = getFieldMap(fields).get(fieldKey);
   if (!field) {
-    throw new Error('状态字段不存在');
+    throw makeMissingFieldError('world', fieldKey, fields);
   }
 
   return upsertWorldStateValue(worldId, fieldKey, {

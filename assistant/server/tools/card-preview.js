@@ -18,6 +18,7 @@ import { getCharacterStateValuesWithFields } from '../../../backend/db/queries/c
 import { getPersonaStateValuesWithFields } from '../../../backend/db/queries/persona-state-values.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
+import { listThemes, getThemeSnapshot } from '../../../backend/services/themes.js';
 
 /**
  * 创建 preview_card tool（按请求绑定 context）
@@ -38,7 +39,7 @@ export function createPreviewCardTool(context) {
         properties: {
           target: {
             type: 'string',
-            enum: ['world-card', 'character-card', 'persona-card', 'global-prompt', 'css-snippet', 'regex-rule'],
+            enum: ['world-card', 'character-card', 'persona-card', 'global-prompt', 'css-snippet', 'regex-rule', 'theme'],
             description: '要查询的实体类型',
           },
           operation: {
@@ -95,6 +96,10 @@ function loadEntityData(target, operation, entityId, context, personaId = null) 
   }
 
   if (operation === 'create') {
+    if (target === 'theme') {
+      // create 时返回现有主题列表，避免 id 冲突，并可作为 token 覆盖参考
+      return { existingThemes: listThemes().themes };
+    }
     if (target === 'world-card') {
       return {};
     }
@@ -198,6 +203,10 @@ function loadEntityData(target, operation, entityId, context, personaId = null) 
     }
     case 'regex-rule': {
       return { existingRules: listRegexRules() };
+    }
+    case 'theme': {
+      if (!entityId) throw Object.assign(new Error('preview_card(target="theme") 需要 entityId（主题 id）'), { userFacing: true });
+      return getThemeSnapshot(entityId);
     }
     default:
       throw new Error(`未知的 target：${target}`);

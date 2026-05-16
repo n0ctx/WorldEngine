@@ -2,48 +2,10 @@ import { motion, useReducedMotion } from 'framer-motion';
 import Icon from './Icon.jsx';
 
 const TYPE_META = {
-  error: {
-    color: 'var(--we-color-status-danger)',
-    seal: '驳',
-    iconPaths: (
-      <>
-        <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </>
-    ),
-  },
-  warning: {
-    color: 'var(--we-color-status-warning)',
-    seal: '警',
-    iconPaths: (
-      <>
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </>
-    ),
-  },
-  info: {
-    color: 'var(--we-color-status-info)',
-    seal: '录',
-    iconPaths: (
-      <>
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="16" x2="12" y2="12" />
-        <line x1="12" y1="8" x2="12.01" y2="8" />
-      </>
-    ),
-  },
-  success: {
-    color: 'var(--we-color-accent)',
-    seal: '成',
-    iconPaths: (
-      <>
-        <polyline points="20 6 9 17 4 12" />
-      </>
-    ),
-  },
+  error: { color: 'var(--we-color-status-danger)', seal: '驳' },
+  warning: { color: 'var(--we-color-status-warning)', seal: '警' },
+  info: { color: 'var(--we-color-status-info)', seal: '录' },
+  success: { color: 'var(--we-color-accent)', seal: '成' },
 };
 
 const CLOSE_PATHS = (
@@ -84,8 +46,11 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       style={{ '--toast-color': meta.color }}
     >
       <div className="flex items-start gap-2">
-        <span className="text-[var(--toast-color)] mt-0.5" aria-hidden>
-          <Icon size={16}>{meta.iconPaths}</Icon>
+        <span
+          className="text-[var(--toast-color)] [font-family:var(--we-font-serif)] text-[16px] leading-none mt-0.5 select-none"
+          aria-hidden
+        >
+          {meta.seal}
         </span>
         <div className="flex-1 min-w-0">
           {toast.title ? (
@@ -106,12 +71,6 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
           <Icon size={16}>{CLOSE_PATHS}</Icon>
         </button>
       </div>
-      <span
-        aria-hidden
-        className="absolute -bottom-1 left-1 [font-family:var(--we-font-serif)] text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
-      >
-        {meta.seal}
-      </span>
     </motion.div>
   );
 }

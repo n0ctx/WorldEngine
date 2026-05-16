@@ -39,6 +39,7 @@
 | `global-config` | — | `{changes}` | — |
 | `css-snippet` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
 | `regex-rule` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
+| `theme` | `{entityId, changes}` | `{entityId, changes?}` | `{entityId}` |
 
 每个顶层都带 `explanation`（简体中文，50 字以内）。`entryOps` 仅 world-card；`stateFieldOps` 仅 world-card；`stateValueOps` 仅 character/persona。
 
@@ -58,6 +59,7 @@
 | 全局配置 | `assistant/knowledge/GLOBALPROMPT.md` |
 | CSS 片段 | `assistant/knowledge/CSSSNIPPET.md` |
 | 正则规则 | `assistant/knowledge/REGEXRULE.md` |
+| 主题包（可切换皮肤） | `assistant/knowledge/THEME.md` |
 
 复合任务按所有命中类型并行加载。
 

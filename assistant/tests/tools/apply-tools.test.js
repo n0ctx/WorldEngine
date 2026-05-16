@@ -1,7 +1,9 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
-import { createTestSandbox, freshImport } from '../../../backend/tests/helpers/test-env.js';
+import { createTestSandbox, freshImport, freshImportUncached } from '../../../backend/tests/helpers/test-env.js';
 import { insertWorld, insertCharacter } from '../../../backend/tests/helpers/fixtures.js';
 
 const sandbox = createTestSandbox('assistant-apply-tools');
@@ -13,6 +15,7 @@ const applyPersonaCard = await freshImport('assistant/server/tools/apply-persona
 const applyCssSnippet = await freshImport('assistant/server/tools/apply-css-snippet.js');
 const applyRegexRule = await freshImport('assistant/server/tools/apply-regex-rule.js');
 const applyGlobalConfig = await freshImport('assistant/server/tools/apply-global-config.js');
+const applyTheme = await freshImport('assistant/server/tools/apply-theme.js');
 
 after(() => sandbox.cleanup());
 
@@ -145,6 +148,141 @@ test('apply_regex_rule.execute 走 create/update/delete 全路径', async () => 
     entityId: rid,
   });
   assert.equal(deleted.success, true);
+});
+
+test('apply_theme.execute 走 create/update/delete 全路径（user 层主题）', async () => {
+  const themeId = 'test-theme-user';
+  const themesDir = path.join(sandbox.root, 'themes');
+
+  const created = await applyTheme.execute({
+    operation: 'create',
+    entityId: themeId,
+    changes: {
+      name: '测试主题',
+      version: '1.0.0',
+      author: 'tester',
+      description: 'unit test',
+      preview: { paper: '#eeeeee', accent: '#aa0000' },
+      css: ':root { --we-base-paper-100: #eeeeee; }',
+    },
+    explanation: '创建',
+  });
+  assert.equal(created.success, true);
+  assert.equal(created.entityId, themeId);
+
+  const metaPath = path.join(themesDir, themeId, 'theme.json');
+  const cssPath = path.join(themesDir, themeId, 'theme.css');
+  assert.ok(fs.existsSync(metaPath), 'theme.json 应当被写入');
+  assert.ok(fs.existsSync(cssPath), 'theme.css 应当被写入');
+  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+  assert.equal(meta.id, themeId);
+  assert.equal(meta.name, '测试主题');
+  assert.equal(meta.version, '1.0.0');
+  assert.deepEqual(meta.preview, { paper: '#eeeeee', accent: '#aa0000' });
+
+  const updated = await applyTheme.execute({
+    operation: 'update',
+    entityId: themeId,
+    changes: {
+      name: '测试主题改名',
+      css: ':root { --we-base-paper-100: #ffffff; }',
+    },
+  });
+  assert.equal(updated.success, true);
+  const meta2 = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+  assert.equal(meta2.name, '测试主题改名');
+  assert.equal(meta2.version, '1.0.0'); // 未传字段保留
+  assert.match(fs.readFileSync(cssPath, 'utf-8'), /#ffffff/);
+
+  const deleted = await applyTheme.execute({
+    operation: 'delete',
+    entityId: themeId,
+    changes: {},
+  });
+  assert.equal(deleted.success, true);
+  assert.equal(fs.existsSync(path.join(themesDir, themeId)), false);
+
+  assert.equal(applyTheme.definition.name, 'apply_theme');
+});
+
+test('apply_theme.execute update 内置主题 → fork 到 user 层，内置不动', async () => {
+  // 在 sandbox 里造一个"伪内置主题"：把它放在 REPO_ROOT/themes/<id>/ 之外不行，
+  // 因为 services/themes.js 用 process.env.WE_ROOT_THEMES_DIR 覆盖；这里手动覆盖一次。
+  const fakeBuiltinRoot = path.join(sandbox.root, 'builtin-themes');
+  const builtinId = 'fake-builtin';
+  fs.mkdirSync(path.join(fakeBuiltinRoot, builtinId), { recursive: true });
+  fs.writeFileSync(
+    path.join(fakeBuiltinRoot, builtinId, 'theme.json'),
+    JSON.stringify({ id: builtinId, name: '伪内置', version: '1.0.0', preview: {} }, null, 2),
+  );
+  fs.writeFileSync(
+    path.join(fakeBuiltinRoot, builtinId, 'theme.css'),
+    ':root { --we-base-paper-100: #111111; }',
+  );
+  const prevRootEnv = process.env.WE_ROOT_THEMES_DIR;
+  process.env.WE_ROOT_THEMES_DIR = fakeBuiltinRoot;
+  // services/themes.js 在模块加载时读取 WE_ROOT_THEMES_DIR；用 uncached 重新加载该模块本身即可命中新 env
+  const themesService = await freshImportUncached('backend/services/themes.js');
+
+  try {
+    const res = themesService.applyAssistantThemeOp({
+      id: builtinId,
+      operation: 'update',
+      changes: { css: ':root { --we-base-paper-100: #222222; }' },
+    });
+    assert.equal(res.forkedFromBuiltin, true);
+
+    // 内置文件原样
+    const builtinCss = fs.readFileSync(path.join(fakeBuiltinRoot, builtinId, 'theme.css'), 'utf-8');
+    assert.match(builtinCss, /#111111/);
+
+    // user 层有 fork
+    const userDir = path.join(sandbox.root, 'themes', builtinId);
+    assert.ok(fs.existsSync(path.join(userDir, 'theme.json')));
+    const userCss = fs.readFileSync(path.join(userDir, 'theme.css'), 'utf-8');
+    assert.match(userCss, /#222222/);
+
+    // delete 只清 user 层
+    const del = themesService.applyAssistantThemeOp({ id: builtinId, operation: 'delete', changes: {} });
+    assert.equal(del.deleted, true);
+    assert.equal(fs.existsSync(userDir), false);
+    assert.ok(fs.existsSync(path.join(fakeBuiltinRoot, builtinId, 'theme.css')), '内置不应被删除');
+
+    // 只有内置时 delete 应拒绝
+    assert.throws(
+      () => themesService.applyAssistantThemeOp({ id: builtinId, operation: 'delete', changes: {} }),
+      /内置主题不能删除/,
+    );
+  } finally {
+    if (prevRootEnv == null) delete process.env.WE_ROOT_THEMES_DIR;
+    else process.env.WE_ROOT_THEMES_DIR = prevRootEnv;
+  }
+});
+
+test('apply_theme.execute 校验：缺 entityId / id 非法 / 已存在', async () => {
+  await assert.rejects(
+    applyTheme.execute({ operation: 'create', entityId: null, changes: { name: 'x', version: '1', css: 'a' } }),
+    /entityId/,
+  );
+  await assert.rejects(
+    applyTheme.execute({ operation: 'create', entityId: 'BadID', changes: { name: 'x', version: '1', css: 'a' } }),
+    /小写字母开头/,
+  );
+
+  // 先建一个，再次 create 同 id 应拒绝
+  await applyTheme.execute({
+    operation: 'create',
+    entityId: 'dup-theme',
+    changes: { name: 'a', version: '1.0.0', css: ':root{}' },
+  });
+  await assert.rejects(
+    applyTheme.execute({
+      operation: 'create',
+      entityId: 'dup-theme',
+      changes: { name: 'b', version: '1.0.0', css: ':root{}' },
+    }),
+    /已存在/,
+  );
 });
 
 test('apply_global_config.execute 移除 api_key 后落库', async () => {

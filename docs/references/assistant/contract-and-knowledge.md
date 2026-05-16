@@ -11,6 +11,7 @@ CONTRACT 注入、知识文件路由与 `read_file` 工具定位。
 - `assistant/knowledge/GLOBALPROMPT.md`
 - `assistant/knowledge/CSSSNIPPET.md`
 - `assistant/knowledge/REGEXRULE.md`
+- `assistant/knowledge/THEME.md`（写卡助手写主题包：`/data/themes/<id>/theme.json + theme.css`，内置主题 update 时自动 fork 到 user 层）
 
 ## 使用规则
 

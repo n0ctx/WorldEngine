@@ -4,6 +4,10 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **refactor(themes/normalize): theme 写入路径 simplify 清扫** — `backend/services/themes.js#applyAssistantThemeOp` 拍平 update 分支嵌套、delete 单次 `findTheme`、`baseCss` 改按需读；`assistant/server/normalize-proposal.js` 复用 `assertThemeId`（去掉本地重复正则）；`assistant/server/tools/apply-theme.js` schema `required` 与同类工具对齐。
+- **ui(toast): 去掉类型图标，类型字占位** — `frontend/src/components/ui/ToastCard.jsx` 移除左侧叹号/对勾等 svg 图标与右下角半透明印章字，类型字（驳/警/录/成）直接放到原图标位置，避免两者重叠。
+- **fix(assistant): 状态字段缺失错误信息可操作化** — `backend/services/state-values.js` 四个 `updateXxxDefaultStateValueValidated` 抛出的 `"状态字段不存在"` 升级为含 `field_key`、当前已定义 keys、`world-card.stateFieldOps target` 提示的诊断串(`makeMissingFieldError` 助手),终结子代理拿到无信息错误后用同样入参连续重试的死循环;保留 "状态字段不存在" 子串确保旧测试/路由层 grep 兼容。
+- **feat(assistant): 写卡助手新增 theme 资源** — 第 7 类资源 `theme` 接入 sub-agent（`assistant/server/sub-agent.js` APPLY_BY_TYPE / KNOWLEDGE_BY_TYPE），新增 `apply-theme.js` + `THEME.md` + `services/themes.js#applyAssistantThemeOp`；写入只落 `/data/themes/<id>/`，内置主题 update 自动 fork 到 user 层，delete 仅清 user 覆盖，激活态不由助手改。CONTRACT/preview/list 同步注册。
 - **ui(assistant/header): 主代理活跃微指示** — `assistant/client/AssistantPanel.jsx` 在抽屉标题栏的"写卡助手"右侧加 `AssistantStatusIndicator`：`status==='running'` 时显示三点呼吸 + "正在处理"（沿用 `typing-dot` 关键帧），`awaiting_approval` / `paused` 走轻量文字提示，避免用户误判"是不是断了"。
 - **fix(assistant): 创建/更新边界硬化 + 输入栏可滚动** — `dispatch_subagent` schema 在 description / 字段说明里强约束 `operation` 必显式给出且 create 不得携带 entityRef；`tools/meta/runtime.js` 与 `sub-agent.js` 在 resolved.operation 上统一校验（覆盖 ad-hoc 与 plan-step 两条路径），移除"未传 operation 静默回退 update"的危险默认，杜绝"新建一张卡却把现卡覆盖"。`assistant/client/InputBox.jsx` 把 textarea `overflow-y-hidden` 改 `overflow-y-auto`，超过 120px 上限时显示原生纵向滚动条。
 - **ui(settings/features): 分章去除"继承对话"措辞** — 分章为写作专属，`FeaturesConfigPanel.jsx` 移除占位符"继承对话"与"留空继承对话配置"提示，改为"每 N 轮一章"。

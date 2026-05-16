@@ -5,6 +5,7 @@ import { listPersonas } from '../../../backend/services/personas.js';
 import { getAllPersonas } from '../../../backend/db/queries/personas.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
+import { listThemes } from '../../../backend/services/themes.js';
 
 const MAX = 200;
 
@@ -24,7 +25,7 @@ export const definition = {
     parameters: {
       type: 'object',
       properties: {
-        target: { type: 'string', enum: ['worlds', 'characters', 'personas', 'css-snippets', 'regex-rules'] },
+        target: { type: 'string', enum: ['worlds', 'characters', 'personas', 'css-snippets', 'regex-rules', 'themes'] },
         worldId: { type: 'string', description: 'characters / personas 时可选：限定世界；省略则返回所有世界' },
       },
       required: ['target'],
@@ -48,6 +49,8 @@ export async function execute({ target, worldId }) {
       return JSON.stringify(trim(listCustomCssSnippets()));
     case 'regex-rules':
       return JSON.stringify(trim(listRegexRules()));
+    case 'themes':
+      return JSON.stringify(trim(listThemes().themes));
     default:
       throw new Error(`未知 target: ${target}`);
   }

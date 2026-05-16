@@ -31,6 +31,7 @@ import * as applyPersonaCard from './tools/apply-persona-card.js';
 import * as applyGlobalConfig from './tools/apply-global-config.js';
 import * as applyCssSnippet from './tools/apply-css-snippet.js';
 import * as applyRegexRule from './tools/apply-regex-rule.js';
+import * as applyTheme from './tools/apply-theme.js';
 import * as listResources from './tools/list-resources.js';
 import { createPreviewCardTool } from './tools/card-preview.js';
 import { READ_FILE_TOOL } from './tools/project-reader.js';
@@ -45,6 +46,7 @@ const APPLY_BY_TYPE = {
   'global-config': applyGlobalConfig,
   'css-snippet': applyCssSnippet,
   'regex-rule': applyRegexRule,
+  'theme': applyTheme,
 };
 
 const KNOWLEDGE_BY_TYPE = {
@@ -54,6 +56,7 @@ const KNOWLEDGE_BY_TYPE = {
   'global-config': 'GLOBALPROMPT.md',
   'css-snippet': 'CSSSNIPPET.md',
   'regex-rule': 'REGEXRULE.md',
+  'theme': 'THEME.md',
 };
 
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');

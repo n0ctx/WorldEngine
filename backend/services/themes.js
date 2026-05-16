@@ -18,7 +18,7 @@ function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function assertThemeId(id) {
+export function assertThemeId(id) {
   if (typeof id !== 'string' || !THEME_ID_RE.test(id)) {
     throw new Error('主题 id 必须以小写字母开头，仅包含小写字母、数字、下划线或连字符，长度 2-64');
   }
@@ -141,16 +141,7 @@ export function importThemePackage(pkg) {
   const { theme, css } = normalizeThemePackage(pkg);
   if (findTheme(theme.id)) throw new Error('主题 id 已存在');
   const targetDir = assertSafeThemePath(DATA_THEMES_DIR, theme.id);
-  fs.mkdirSync(targetDir, { recursive: true });
-  fs.writeFileSync(path.join(targetDir, 'theme.json'), JSON.stringify({
-    id: theme.id,
-    name: theme.name,
-    version: theme.version,
-    author: theme.author,
-    description: theme.description,
-    preview: theme.preview,
-  }, null, 2), 'utf-8');
-  fs.writeFileSync(path.join(targetDir, 'theme.css'), css, 'utf-8');
+  writeThemeFiles(targetDir, theme, css);
   return { ...theme, builtin: false, source: 'user' };
 }
 
@@ -177,4 +168,103 @@ export function deleteTheme(id) {
   if (config.ui?.theme === id) {
     updateConfig({ ui: { theme: DEFAULT_THEME_ID } });
   }
+}
+
+const THEME_META_KEYS = ['name', 'version', 'author', 'description', 'preview'];
+
+function writeThemeFiles(dirPath, meta, css) {
+  fs.mkdirSync(dirPath, { recursive: true });
+  fs.writeFileSync(path.join(dirPath, 'theme.json'), JSON.stringify({
+    id: meta.id,
+    name: meta.name,
+    version: meta.version,
+    author: meta.author ?? '',
+    description: meta.description ?? '',
+    preview: isPlainObject(meta.preview) ? meta.preview : {},
+  }, null, 2), 'utf-8');
+  fs.writeFileSync(path.join(dirPath, 'theme.css'), String(css ?? ''), 'utf-8');
+}
+
+// 写卡助手专用主题写入入口。update 命中 builtin 时把整份复制到 user 层再覆写，
+// 原 builtin 不动；delete 只清 user 层覆盖。激活态不在此处变更。
+export function applyAssistantThemeOp({ id, operation, changes = {} }) {
+  assertThemeId(id);
+  const targetDir = assertSafeThemePath(DATA_THEMES_DIR, id);
+
+  if (operation === 'create') {
+    if (findTheme(id)) throw new Error('主题 id 已存在');
+    writeThemeFiles(targetDir, {
+      id,
+      name: changes.name.trim(),
+      version: changes.version.trim(),
+      author: changes.author,
+      description: changes.description,
+      preview: changes.preview,
+    }, changes.css);
+    return { id, source: 'user' };
+  }
+
+  if (operation === 'update') {
+    const existing = findTheme(id);
+    if (!existing) throw new Error('主题不存在');
+
+    const nextMeta = {
+      id,
+      name: existing.name,
+      version: existing.version,
+      author: existing.author,
+      description: existing.description,
+      preview: existing.preview,
+    };
+    if ('preview' in changes) {
+      nextMeta.preview = isPlainObject(changes.preview) ? changes.preview : {};
+    }
+    for (const key of ['name', 'version', 'author', 'description']) {
+      if (typeof changes[key] === 'string') nextMeta[key] = changes[key];
+    }
+    if (!nextMeta.name.trim()) throw new Error('theme update 后 name 为空');
+    if (!nextMeta.version.trim()) throw new Error('theme update 后 version 为空');
+
+    const nextCss = typeof changes.css === 'string'
+      ? changes.css
+      : fs.readFileSync(existing.cssPath, 'utf-8');
+    if (!nextCss.trim()) throw new Error('theme update 后 css 为空');
+
+    writeThemeFiles(targetDir, nextMeta, nextCss);
+    return { id, source: 'user', forkedFromBuiltin: existing.builtin };
+  }
+
+  if (operation === 'delete') {
+    const existing = findTheme(id);
+    if (!existing) throw new Error('主题不存在');
+    const userDir = path.join(DATA_THEMES_DIR, id);
+    if (!fs.existsSync(userDir)) {
+      if (existing.builtin) throw new Error('内置主题不能删除');
+      throw new Error('主题不存在');
+    }
+    fs.rmSync(assertSafeThemePath(DATA_THEMES_DIR, id), { recursive: true, force: true });
+    const config = getConfig();
+    if (config.ui?.theme === id && !existing.builtin) {
+      updateConfig({ ui: { theme: DEFAULT_THEME_ID } });
+    }
+    return { id, deleted: true };
+  }
+
+  throw new Error(`不支持的 operation：${operation}`);
+}
+
+export function getThemeSnapshot(id) {
+  const theme = findTheme(id);
+  if (!theme) throw new Error('主题不存在');
+  return {
+    id: theme.id,
+    name: theme.name,
+    version: theme.version,
+    author: theme.author,
+    description: theme.description,
+    preview: theme.preview,
+    builtin: theme.builtin,
+    source: theme.source,
+    css: fs.readFileSync(theme.cssPath, 'utf-8'),
+  };
 }
