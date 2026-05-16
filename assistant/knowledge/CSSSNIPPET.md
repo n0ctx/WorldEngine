@@ -62,17 +62,34 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 - **禁止裸 hex / `rgba()` 拼色 / 非 token 圆角 / 非 token z-index**
 - **禁止渐变背景 / glassmorphism / 发光效果 / 装饰性 emoji**
 
-### 常用 CSS 变量
+### token 三层（写片段时务必先分清）
+
+`frontend/src/themes/tokens.css` 把 token 分成三层，从下往上：
+
+1. **`--we-core-*`**：硬编码原始色（如 `--we-core-surface-100: #f7f7f4`）。**所有层禁止直接消费**，仅供 base 层引用。
+2. **`--we-base-*`**：基础色板（`--we-base-paper-100/200/300/400`、`--we-base-ink-900/700/500`、`--we-base-vermilion-600/800`、`--we-base-gold-600/400`、`--we-base-moss-600`、`--we-base-amber-600`、`--we-base-slate-600`、`--we-base-book-bg` …）。**主题包**（`theme.css`）只允许覆盖这一层来批量换肤。
+3. **`--we-color-*`**：语义层（`--we-color-bg-canvas/surface/elevated/subtle/muted`、`--we-color-text-primary/secondary/tertiary`、`--we-color-border-default/subtle/strong/focus`、`--we-color-accent`、`--we-color-status-success/warning/danger/info` …）。**组件 CSS** 与 **css-snippet 局部样式**应当读这一层。
+
+> 在 `css-snippet` 里推荐用法：**消费 `--we-color-*` 语义层**做局部覆盖；只有当你想"全站换肤但又不打算建主题包"时，才在 `:root` 覆盖 `--we-base-*`（注意这会影响所有依赖该 base 的语义 token）。
+
+### 常用 token 速查（默认值见 `frontend/src/themes/tokens.css`）
+
+语义层（局部覆盖优先用这层）：
 
 - `--we-color-bg-canvas`：页面大背景
-- `--we-color-bg-surface`：卡片 / 面板背景
-- `--we-color-text-primary`：主文字色
-- `--we-color-text-secondary`：次要文字色
-- `--we-color-border-default`：默认边框
-- `--we-card-bg` / `--we-panel-card-bg`：组件皮肤背景
-- `--we-radius-sm` / `--we-radius-md`：圆角
+- `--we-color-bg-surface`：卡片/面板背景
+- `--we-color-bg-elevated`：浮层/弹窗
+- `--we-color-text-primary` / `--we-color-text-secondary` / `--we-color-text-tertiary`
+- `--we-color-border-default` / `--we-color-border-subtle` / `--we-color-border-strong`
+- `--we-color-accent` / `--we-color-accent-deep` / `--we-color-accent-bg`
+- `--we-color-status-success/warning/danger/info`
 
-> 完整变量清单见 `frontend/src/themes/tokens.css`；新片段不要发明新变量名，覆盖现有变量即可。
+基础层（全站换肤覆盖这层）：
+
+- `--we-base-paper-100/200/300/400`、`--we-base-ink-900/700/500`
+- `--we-base-vermilion-600/800`、`--we-base-gold-600/400`、`--we-base-book-bg`
+
+> 完整清单见 `frontend/src/themes/tokens.css`；**不要发明新 token 名**——如果现有 token 不够，先找有没有现成语义 token 可用，再考虑提议在 token 体系里补，不要在片段里堆裸 hex。
 
 ### 常用目标类
 
@@ -86,18 +103,31 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 
 ## 操作手册
 
-### 主题改造
+### 主题改造（其实更适合走主题包）
 
-"把聊天界面调成深色羊皮纸主题" → 优先覆写 `:root` 下的 `--we-*` 变量，例：
+"全站换肤"应优先用 `theme` 资源；`css-snippet` 适合做"在当前主题之上局部微调"。如果用户坚持用 snippet 做全站换肤，覆盖 `--we-base-*` 即可让语义层批量跟随：
 
 ```css
 :root {
-  --we-paper-base: var(--we-paper-aged);
-  --we-ink-primary: #c9b899;
+  /* 让纸面与文字整体偏暖偏深；其它语义 token 会自动从这两层派生 */
+  --we-base-paper-100: #2a241d;   /* canvas */
+  --we-base-paper-200: #332b22;   /* surface */
+  --we-base-paper-300: #3f3528;   /* subtle / 边框 */
+  --we-base-ink-900:   #efe3c8;   /* 主文字 */
+  --we-base-ink-700:   #c9b899;   /* 次文字 */
 }
 ```
 
-> 上例为示意；实际写片段时**仍应使用 token 而非裸 hex**——若现有 token 不够用，应先在 token 体系内引入新变量再覆盖，而不是在片段里堆 hex。
+只想改局部（例：把卡片底色调亮一点），用语义层就够：
+
+```css
+.we-message-bubble-assistant {
+  background: var(--we-color-bg-elevated);
+  border-color: var(--we-color-border-strong);
+}
+```
+
+> **不要**写 `--we-paper-base` / `--we-ink-primary` 这种凭印象起的名字——它们不存在。所有 token 必须能在 `frontend/src/themes/tokens.css` 找到对应定义。
 
 ### 思考链样式
 

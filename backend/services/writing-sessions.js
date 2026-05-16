@@ -164,7 +164,7 @@ function getNearbyEnabledFields(worldId) {
   return all.filter((f) => Number(f.nearby_enabled) === 1);
 }
 
-function buildNearbyRow(row, fields, valueMap) {
+function buildNearbyRow(row, fields, valueMap, stateUpdatedAt) {
   const state = fields.map((f) => ({
     field_key: f.field_key,
     label: f.label,
@@ -186,6 +186,8 @@ function buildNearbyRow(row, fields, valueMap) {
     is_saved: row.is_saved,
     created_at: row.created_at,
     updated_at: row.updated_at,
+    // state 中任何 value 最近一次被写入的时间戳；前端用于"saved 角色是否被本轮 LLM 触达"的判定
+    state_updated_at: stateUpdatedAt,
     state,
   };
 }
@@ -197,7 +199,8 @@ export function listNearby(sessionId) {
   return rows.map((row) => {
     const values = getStateValuesByNearbyId(row.id);
     const valueMap = new Map(values.map((v) => [v.field_key, v.runtime_value_json]));
-    return buildNearbyRow(row, fields, valueMap);
+    const stateUpdatedAt = values.reduce((max, v) => (v.updated_at > max ? v.updated_at : max), 0);
+    return buildNearbyRow(row, fields, valueMap, stateUpdatedAt);
   });
 }
 

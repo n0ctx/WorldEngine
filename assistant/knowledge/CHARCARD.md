@@ -58,6 +58,16 @@
 
 见 `assistant/knowledge/STATEVALUE-CHEATSHEET.md`。
 
+## 修改前的研究
+
+修改已有角色卡前**必须**先拉现状：
+
+```
+preview_card(target="character-card", entityId="<角色ID>")
+```
+
+返回值含 `existingCharacterStateFields`（可填的字段定义清单），`stateValueOps` 的 `field_key` 只能来自这里。
+
 ## 创建依赖约束
 
 `character-card create` 必须依赖世界来源：

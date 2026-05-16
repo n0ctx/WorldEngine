@@ -41,9 +41,13 @@
 - `keywords`：关键词数组（`keyword` 类型必填且至少 1 项）
 - `keyword_scope`：`"user"` / `"assistant"` / `"user,assistant"`；**仅 `keyword` 类型生效**；至少包含一项，留空会被后端拒绝
 - `keyword_logic`：`"AND"` / `"OR"`；**仅 `keyword` 类型生效**；`AND` = 所有关键词都出现才命中，`OR` = 任一关键词出现即命中（默认 `OR`）
-- `active_turns`：非负整数；**仅 `keyword` 类型生效**；`0` = 命中后永久生效；`1` = 仅命中当轮；`N` = 命中后续 N 轮（默认 `1`）
+- `active_turns`：非负整数；**仅 `keyword` 类型生效**；`0` = 命中后永久生效；`1` = 仅命中当轮；`N` = 命中当轮后再续 N-1 轮 carry-over（**共 N 轮**，默认 `1`）。fresh hit 只扫"本轮"最新一条 user/assistant 消息，跨轮持续完全由该字段控制
+- `condition_logic`：`"AND"` / `"OR"`；**仅 `state` 类型生效**；默认 `"AND"`（所有 `conditions` 项全部满足才触发），`"OR"` 表示任一满足即可。需要 OR 时直接填该字段，不要把同一条目拆成多条
 - `trigger_type`：`always` / `keyword` / `llm` / `state`（必填）
-- `token`：注入顺序权重，整数 ≥ 1，**越小越靠前、越大越靠后**（默认 1）。这是排序权重，不是优先级。LLM 对靠后的内容 recency 更强，因此**越靠后（token 数越大）实际优先级越高**；越靠前（token 数越小）越容易被后续内容覆盖。需要 LLM 严格遵守的规则应放大 token 让其靠后注入，背景设定可放小 token 靠前注入。回复用户时禁止把 "token=1" 描述为 "优先级最高"
+- `token`：注入顺序权重，**整数 ≥ 1（默认 1）**，token 越大越靠后（ASC 排序）；同 token 时按 `sort_order` 升序。LLM 对靠后内容 recency 更强，所以"越靠后实际优先级越高"。回复用户时禁止把 "token=1" 描述为 "优先级最高"
+  - **特例 `token=0`（cached layer）**：仅 `trigger_type:"always"` 允许填 0；该条目**不进 [7] 注入**，转而拼到 cached system 消息末尾（位于 [3] 之后），是 prompt cache 的一部分，按 `sort_order ASC, created_at ASC` 稳定排序。适合"始终常驻、文本稳定、希望命中 prompt cache"的世界观核心条目。trigger_type 从 always 切走时 token=0 会被后端归一为 1
+- `sort_order`：整数，默认 0；同 token 时的细排序（拖拽用），LLM 一般不需要主动输出
+- `enabled`：`1` 启用 / `0` 禁用；缺省视为启用。update 时如需临时关闭某条目可显式输出 `0`
 
 > `position` 字段已废弃，禁止输出。所有命中条目统一在 [7] 注入。
 
@@ -66,7 +70,7 @@
 
 ### conditions（trigger_type:"state" 专用）
 
-- 数组所有条件 **AND** 逻辑，必须全部满足；不支持 OR（OR 拆成多条独立 state 条目）
+- 条目的 `condition_logic` 决定多条 conditions 的合取方式：`"AND"`（默认）全部满足 / `"OR"` 任一满足；需要 OR 时直接写 `condition_logic:"OR"`，不要为了凑 OR 拆成多条 state 条目
 - 每项格式：`{ "target_field": "<层级>.<label>", "operator": "...", "value": "..." }`
 - `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`，不要只写裸 `field_key`
 - 操作符：
@@ -104,7 +108,7 @@ create 关键词（AND + 仅 user 消息触发 + 命中后保持 3 轮）：
 }
 ```
 
-create 状态触发：
+create 状态触发（默认 AND）：
 ```json
 {
   "op": "create", "title": "决战节奏提醒", "description": "",
@@ -112,6 +116,31 @@ create 状态触发：
   "trigger_type": "state",
   "conditions": [{ "target_field": "世界.剧情阶段", "operator": "等于", "value": "决战" }],
   "token": 1
+}
+```
+
+create 状态触发（OR 任一满足即可）：
+```json
+{
+  "op": "create", "title": "战斗高压预警", "description": "",
+  "content": "{{char}} 的语气应变得急促、戒备。",
+  "trigger_type": "state",
+  "condition_logic": "OR",
+  "conditions": [
+    { "target_field": "角色.HP", "operator": "<", "value": "30" },
+    { "target_field": "世界.剧情阶段", "operator": "等于", "value": "决战" }
+  ],
+  "token": 1
+}
+```
+
+create 缓存层常驻条目（`always` + `token=0`，进入 prompt cache）：
+```json
+{
+  "op": "create", "title": "世界观核心", "description": "",
+  "content": "本世界遵循 …（极稳定的世界规则，几乎不会改）",
+  "trigger_type": "always",
+  "token": 0
 }
 ```
 
@@ -153,6 +182,7 @@ datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数（
 
 - `"manual"`：仅写卡助手或前端显式写入，不参与每轮自动更新
 - `"llm_auto"`：每轮对话后由 LLM 根据 `update_instruction` 自动更新
+- `"system_rule"`（仅 `target:"world"` / `target:"persona"`）：由系统规则驱动，不交给 LLM；助手一般不主动产生该值，仅在用户明确要求时填
 
 ### prefix（仅 datetime）
 
@@ -270,5 +300,7 @@ create（table 类型示例）：
 - 把 `{{user}}` 血量写进 entryOps（应是 stateField，target:"persona"）
 - `conditions` 写裸 field_key：`{ "target_field": "hp", ... }`（缺层级前缀）
 - `stateFieldOps` 创建 `label:"生命值"` 但 `conditions` 写 `target_field:"玩家.HP"`——label 不一致永远不触发
+- 为了凑 OR 逻辑把同一段 state 条目拆成多条（应改 `condition_logic:"OR"`）
+- `trigger_type:"keyword"` 或 `"state"` 上填 `token:0`（被后端归一为 1，cached layer 仅 `always` 可用）
 - 输出 `position:"system"` / `position:"post"`（已废弃）
 - 在 `changes` 输出 `system_prompt` / `post_prompt`

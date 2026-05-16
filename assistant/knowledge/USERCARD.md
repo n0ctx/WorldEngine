@@ -78,6 +78,17 @@ persona-card **仅允许 `create` / `update`**，**不允许 `delete`**。
 
 > 发现世界下所有玩家卡：`list_resources` with `target:"personas"` + `worldId`，返回结果含 `id`（即 personaId）和 `is_active` 标记。
 
+## 修改前的研究
+
+修改已有 persona 前**必须**先拉现状：
+
+```
+preview_card(target="persona-card", entityId="<worldId>")     // 不带 personaId → 拉激活 persona
+preview_card(target="persona-card", entityId="<worldId>", personaId="<personaId>")  // 拉指定 persona
+```
+
+返回值含 `existingPersonaStateFields`，`stateValueOps` 的 `field_key` 只能来自这里。
+
 ## 操作手册
 
 ### 修改 persona 身份

@@ -35,7 +35,7 @@
 |---|---|---|---|
 | `world-card` | `{entityId:null, changes, entryOps, stateFieldOps}` | `{entityId, changes?, entryOps?, stateFieldOps?}` | `{entityId}` |
 | `character-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId, changes?, stateValueOps?}` | `{entityId}` |
-| `persona-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId:worldId, changes?, stateValueOps?}` | — |
+| `persona-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId:worldId, personaId?, changes?, stateValueOps?}` | — |
 | `global-config` | — | `{changes}` | — |
 | `css-snippet` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
 | `regex-rule` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
@@ -60,6 +60,7 @@
 | CSS 片段 | `assistant/knowledge/CSSSNIPPET.md` |
 | 正则规则 | `assistant/knowledge/REGEXRULE.md` |
 | 主题包（可切换皮肤） | `assistant/knowledge/THEME.md` |
+| 状态值 `value_json` 写法速查 | `assistant/knowledge/STATEVALUE-CHEATSHEET.md`（凡涉及 `stateValueOps` 的任务都要参考）|
 
 复合任务按所有命中类型并行加载。
 

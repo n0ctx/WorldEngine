@@ -223,6 +223,8 @@
 
 `name` 在同一 session 内唯一（transient 与 saved 共享同一命名空间）。
 
+`backend/services/writing-sessions.js` 的 `listNearby` 返回每行额外带 `state_updated_at` 字段（=该角色所有 `session_nearby_character_state_values.updated_at` 的最大值，无 state 行时为 `0`）。前端 `NearbyPanel` 用它实现"保存后待观察"：用户刚保存的 saved 角色仍按完整 state tab 显示，下一轮 LLM 输出完成后若 `state_updated_at <= pinnedAt` 则降级到底部紧凑列表。该字段不入库，仅由 listNearby 派生。
+
 | 字段 | 类型 | 说明 |
 |---|---|---|
 | id | TEXT PK | UUID（前端不暴露） |

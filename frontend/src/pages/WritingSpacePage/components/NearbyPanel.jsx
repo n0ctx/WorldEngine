@@ -111,6 +111,8 @@ function DiaryEntry({ entry, index, selected, onSelect }) {
   );
 }
 
+const isNearbySaved = (n) => Number(n?.is_saved) === 1;
+
 export default function NearbyPanel({
   worldId,
   sessionId,
@@ -127,6 +129,9 @@ export default function NearbyPanel({
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
+  // saved 角色"待观察"集合：刚被用户点保存的 saved 角色仍按完整 state 显示，
+  // 等下一轮 LLM 输出后若其 state 未被本轮触达（state_updated_at <= pinnedStateAt），再降级到底部列表
+  const [pinnedSavedIds, setPinnedSavedIds] = useState(() => new Map());
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
 
@@ -166,6 +171,46 @@ export default function NearbyPanel({
       .catch(() => { if (!cancelled) setNearby([]); });
     return () => { cancelled = true; };
   }, [worldId, sessionId, stateTick]);
+
+  // 切换会话/世界时清空 pinned（pin 仅在本次会话内有效，渲染期无法派生此重置语义）
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPinnedSavedIds((prev) => (prev.size === 0 ? prev : new Map()));
+  }, [worldId, sessionId]);
+
+  // 每次 nearby 刷新后评估 pinned 过期：用服务端的 state_updated_at 做基线，避免与客户端 Date.now 比较产生时钟偏差
+  // - row 不再是 saved → 去 pin
+  // - stateTick 已较 pin 时刻前进过（一轮完成），且本轮 LLM 没动这角色的 state → 去 pin，降级到底部
+  // - 本轮被触达 → 保持 pin，把基线推进到当前 state_updated_at，下轮再判
+  useEffect(() => {
+    if (!Array.isArray(nearby)) return;
+    // 必须在 effect 里 setState：判定依赖外部异步信号（nearby snapshot + stateTick），
+    // 渲染期无法纯派生（pin 是有"上次评估时刻"语义的状态，非 nearby 的纯函数）
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPinnedSavedIds((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Map(prev);
+      let changed = false;
+      for (const [id, pin] of prev) {
+        const row = nearby.find((n) => n.id === id);
+        if (!row || !isNearbySaved(row)) {
+          next.delete(id);
+          changed = true;
+          continue;
+        }
+        if (stateTick <= pin.pinnedAtTick) continue;
+        const rowStateAt = row.state_updated_at || 0;
+        if (rowStateAt <= pin.pinnedStateAt) {
+          next.delete(id);
+          changed = true;
+        } else {
+          next.set(id, { pinnedStateAt: rowStateAt, pinnedAtTick: stateTick });
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [nearby, stateTick]);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,8 +371,17 @@ export default function NearbyPanel({
   );
 
   const handleToggleSavedFor = async (n) => {
+    const willSave = !n.is_saved;
     try {
-      await setNearbySaved(worldId, sessionId, n.id, !n.is_saved);
+      await setNearbySaved(worldId, sessionId, n.id, willSave);
+      // 由未保存 → 保存：把角色加入"待观察" pin，下一轮 LLM 若没动它的 state 再降级
+      // 由保存 → 取消保存：去 pin（角色回到 transient，下轮如未出场会被后端清理）
+      setPinnedSavedIds((prev) => {
+        const next = new Map(prev);
+        if (willSave) next.set(n.id, { pinnedStateAt: n.state_updated_at || 0, pinnedAtTick: stateTick });
+        else next.delete(n.id);
+        return next;
+      });
       reloadNearby();
     } catch (err) {
       log.error('nearby.toggle_failed', err, { toast: err?.message || '切换保存失败' });
@@ -336,42 +390,56 @@ export default function NearbyPanel({
   const handleRemoveFor = async (n) => {
     try {
       await removeNearby(worldId, sessionId, n.id);
+      setPinnedSavedIds((prev) => {
+        if (!prev.has(n.id)) return prev;
+        const next = new Map(prev);
+        next.delete(n.id);
+        return next;
+      });
       reloadNearby();
     } catch (err) {
       log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
     }
   };
-  const nearbyToolbarFor = (n) => (
-    <>
-      {nearbyToolbarBase}
-      <button
-        type="button"
-        className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-        onClick={() => handleToggleSavedFor(n)}
-        title="保存到附近角色池（之后只在被召回时进入提示词）"
-      >
-        <SaveIcon /><span>保存</span>
-      </button>
-      <button
-        type="button"
-        className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
-        onClick={() => handleRemoveFor(n)}
-        title="移除（物理删除，下轮不再注入）"
-      >
-        <TrashIcon /><span>移除</span>
-      </button>
-    </>
-  );
+  const nearbyToolbarFor = (n) => {
+    const isSaved = isNearbySaved(n);
+    return (
+      <>
+        {nearbyToolbarBase}
+        <button
+          type="button"
+          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          onClick={() => handleToggleSavedFor(n)}
+          title={isSaved
+            ? '取消保存（角色回到当前登场池；下轮如未出场会被自动清理）'
+            : '保存到附近角色池（之后只在被召回时进入提示词）'}
+        >
+          {isSaved ? <><CancelIcon /><span>取消保存</span></> : <><SaveIcon /><span>保存</span></>}
+        </button>
+        <button
+          type="button"
+          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          onClick={() => handleRemoveFor(n)}
+          title="移除（物理删除，下轮不再注入）"
+        >
+          <TrashIcon /><span>移除</span>
+        </button>
+      </>
+    );
+  };
 
-  const { transientNearby, savedNearby } = useMemo(() => {
+  const { fullStateChars, demotedSavedNearby } = useMemo(() => {
     const list = Array.isArray(nearby) ? nearby : [];
-    return {
-      transientNearby: list.filter((n) => Number(n?.is_saved) !== 1),
-      savedNearby: list.filter((n) => Number(n?.is_saved) === 1),
-    };
-  }, [nearby]);
+    const full = [];
+    const demoted = [];
+    for (const n of list) {
+      if (!isNearbySaved(n) || pinnedSavedIds.has(n.id)) full.push(n);
+      else demoted.push(n);
+    }
+    return { fullStateChars: full, demotedSavedNearby: demoted };
+  }, [nearby, pinnedSavedIds]);
 
-  const perCharSections = transientNearby.map((n) => {
+  const perCharSections = fullStateChars.map((n) => {
     const name = n.name || '未命名';
     return {
     key: n.id,
@@ -466,7 +534,7 @@ export default function NearbyPanel({
     </div>
   );
 
-  const hasTransient = transientNearby.length > 0;
+  const hasTransient = fullStateChars.length > 0;
   const sections = [
     {
       key: 'player',
@@ -495,11 +563,11 @@ export default function NearbyPanel({
           <SectionTabs sections={sections} defaultKey="player" globalActions={addNearbyGlobalAction} />
         </div>
 
-        {savedNearby.length > 0 && (
+        {demotedSavedNearby.length > 0 && (
           <div className="we-saved-nearby">
             <div className="we-saved-nearby-title">已保存角色</div>
             <ul className="we-saved-nearby-list">
-              {savedNearby.map((n) => (
+              {demotedSavedNearby.map((n) => (
                 <li key={n.id} className="we-saved-nearby-item">
                   <span className="we-saved-nearby-name">{n.name || '未命名'}</span>
                   <button
