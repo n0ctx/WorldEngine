@@ -1,11 +1,10 @@
 import Button from '../ui/Button';
 import MarkdownEditor from '../ui/MarkdownEditor';
-import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function PromptConfigPanel({
-  settingsMode, onModeChange,
+  settingsMode,
   globalSystemPrompt, setGlobalSystemPrompt,
   globalPostPrompt, setGlobalPostPrompt,
   onSave, saving, saved,
@@ -17,7 +16,6 @@ export default function PromptConfigPanel({
   return (
     <div>
       <h2 className="we-settings-section-title">全局提示词</h2>
-      <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       {settingsMode === SETTINGS_MODE.WRITING ? (
         <>

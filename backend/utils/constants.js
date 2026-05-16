@@ -1,7 +1,10 @@
 import {
   CHAPTER_MESSAGE_SIZE as SHARED_CHAPTER_MESSAGE_SIZE,
-  CHAPTER_TIME_GAP_MS as SHARED_CHAPTER_TIME_GAP_MS,
+  CHAPTER_TURN_SIZE as SHARED_CHAPTER_TURN_SIZE,
+  PAGE_TURN_SIZE as SHARED_PAGE_TURN_SIZE,
 } from '../../shared/chapter-constants.mjs';
+
+export { resolveChapterMessageSize } from '../../shared/chapter-constants.mjs';
 
 export {
   MAX_ATTACHMENTS_PER_MESSAGE,
@@ -67,7 +70,9 @@ export const LLM_DIARY_MAX_TOKENS = 2000;
 // ============================
 // 消息查询
 // ============================
-export const ALL_MESSAGES_LIMIT = 9999;
+// null 表示不分页：getMessagesBySessionId 在 limit 为 null/<=0 时返回该会话全部消息，
+// 避免超长会话被旧的 9999 上限截掉最早历史。
+export const ALL_MESSAGES_LIMIT = null;
 
 // ============================
 // 附件 / 本地 LLM 默认 URL：见文件顶部 re-export，单一来源在 shared/runtime-constants.mjs
@@ -125,12 +130,14 @@ export const LLM_THINKING_BUDGET_MEDIUM = 8192;
 export const LLM_THINKING_BUDGET_HIGH   = 16384;
 
 // ============================
-// 章节分组（前后端共享单一来源）
+// 章节分组与翻页（前后端共享单一来源，互相解耦）
 // ============================
-/** 每 N 条消息触发新章节（与前端 CHAPTER_MESSAGE_SIZE 相同） */
+/** 每章轮数（分章阈值的单一真源） */
+export const CHAPTER_TURN_SIZE = SHARED_CHAPTER_TURN_SIZE;
+/** 每 N 条消息触发新章节（= CHAPTER_TURN_SIZE * 2，含 user+assistant） */
 export const CHAPTER_MESSAGE_SIZE = SHARED_CHAPTER_MESSAGE_SIZE;
-/** 时间间隔超过此值（毫秒）触发新章节（与前端 CHAPTER_TIME_GAP_MS 相同） */
-export const CHAPTER_TIME_GAP_MS  = SHARED_CHAPTER_TIME_GAP_MS;
+/** Pager 每页轮数（仅翻页条使用，不影响分章） */
+export const PAGE_TURN_SIZE = SHARED_PAGE_TURN_SIZE;
 /** 章节标题生成最大 token 数 */
 export const LLM_CHAPTER_TITLE_MAX_TOKENS = 30;
 

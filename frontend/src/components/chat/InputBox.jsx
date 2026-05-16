@@ -24,6 +24,7 @@ const InputBox = forwardRef(function InputBox({
   onImpersonate,
   onRetry,
   onTitle,
+  pagerSlot = null,
 }, ref) {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -222,6 +223,49 @@ const InputBox = forwardRef(function InputBox({
 
   return (
     <div className="we-chat-input">
+      {/* 顶部工具条：翻页（居中）+ 快捷动作（右侧） */}
+      <div className="we-chat-input__toolbar">
+        <div className="we-chat-input__toolbar-pager">{pagerSlot}</div>
+        <div className="we-chat-quick-actions">
+          <button
+            onMouseDown={(e) => { e.preventDefault(); onScrollToBottom?.(); }}
+            className="we-chat-quick-btn"
+            title="跳转到底部"
+            aria-label="跳转到底部"
+          >
+            <Icon size={16} strokeWidth="2.2">
+              <line x1="4" y1="20" x2="20" y2="20" />
+              <polyline points="8 12 12 16 16 12" />
+              <line x1="12" y1="4" x2="12" y2="16" />
+            </Icon>
+          </button>
+          <button
+            onMouseDown={(e) => { e.preventDefault(); if (!generating) onContinue?.(); }}
+            disabled={generating}
+            className="we-chat-quick-btn"
+            title="续写上一条 AI 回复"
+            aria-label="续写上一条 AI 回复"
+          >
+            <Icon size={16} strokeWidth="2.2">
+              <polyline points="13 17 18 12 13 7" />
+              <polyline points="6 17 11 12 6 7" />
+            </Icon>
+          </button>
+          <button
+            onMouseDown={(e) => { e.preventDefault(); if (!generating) onImpersonate?.(); }}
+            disabled={generating}
+            className="we-chat-quick-btn"
+            title="AI 替你写一条消息"
+            aria-label="AI 替你写一条消息"
+          >
+            <Icon size={16} strokeWidth="2.2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </Icon>
+          </button>
+        </div>
+      </div>
+
       {/* 图片缩略图 */}
       {attachments.length > 0 && (
         <div className="we-chat-input__attachments">
@@ -292,46 +336,6 @@ const InputBox = forwardRef(function InputBox({
               <span className="we-impersonate-thinking we-chat-impersonate-text">AI 正在构思</span>
             </div>
           )}
-
-          {/* 快捷图标：锚定在 textarea 右下角，用 onMouseDown 避免 textarea 失焦拦截 */}
-          <div className="we-chat-quick-actions">
-            <button
-              onMouseDown={(e) => { e.preventDefault(); onScrollToBottom?.(); }}
-              className="we-chat-quick-btn"
-              title="跳转到底部"
-              aria-label="跳转到底部"
-            >
-              <Icon size={16} strokeWidth="2.2">
-                <line x1="4" y1="20" x2="20" y2="20" />
-                <polyline points="8 12 12 16 16 12" />
-                <line x1="12" y1="4" x2="12" y2="16" />
-              </Icon>
-            </button>
-            <button
-              onMouseDown={(e) => { e.preventDefault(); if (!generating) onContinue?.(); }}
-              disabled={generating}
-              className="we-chat-quick-btn"
-              title="续写上一条 AI 回复"
-              aria-label="续写上一条 AI 回复"
-            >
-              <Icon size={16} strokeWidth="2.2">
-                <polyline points="13 17 18 12 13 7" />
-                <polyline points="6 17 11 12 6 7" />
-              </Icon>
-            </button>
-            <button
-              onMouseDown={(e) => { e.preventDefault(); if (!generating) onImpersonate?.(); }}
-              disabled={generating}
-              className="we-chat-quick-btn"
-              title="AI 替你写一条消息"
-              aria-label="AI 替你写一条消息"
-            >
-              <Icon size={16} strokeWidth="2.2">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </Icon>
-            </button>
-          </div>
 
           <textarea
             ref={textareaRef}

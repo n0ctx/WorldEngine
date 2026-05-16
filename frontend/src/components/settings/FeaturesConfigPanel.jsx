@@ -1,7 +1,6 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
-import ModeSwitch from './ModeSwitch';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
@@ -23,9 +22,13 @@ function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
 }
 
 export default function FeaturesConfigPanel({
-  settingsMode, onModeChange,
+  settingsMode,
   contextRounds, setContextRounds, onSaveContextRounds,
   writingContextRounds, setWritingContextRounds, onSaveWritingContextRounds,
+  chapterTurnSize, setChapterTurnSize, onSaveChapterTurnSize,
+  writingChapterTurnSize, setWritingChapterTurnSize, onSaveWritingChapterTurnSize,
+  pageTurnSize, setPageTurnSize, onSavePageTurnSize,
+  writingPageTurnSize, setWritingPageTurnSize, onSaveWritingPageTurnSize,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   longTermMemoryEnabled, onToggleLongTermMemory,
@@ -60,10 +63,25 @@ export default function FeaturesConfigPanel({
     ? () => onSaveContextRounds(contextRounds)
     : () => onSaveWritingContextRounds(writingContextRounds);
 
+  const currentChapterTurnSize = isChat ? chapterTurnSize : (writingChapterTurnSize ?? '');
+  const onChangeChapterTurnSize = isChat
+    ? (e) => setChapterTurnSize(e.target.value)
+    : (e) => setWritingChapterTurnSize(e.target.value === '' ? null : e.target.value);
+  const onBlurChapterTurnSize = isChat
+    ? () => onSaveChapterTurnSize(chapterTurnSize)
+    : () => onSaveWritingChapterTurnSize(writingChapterTurnSize);
+
+  const currentPageTurnSize = isChat ? pageTurnSize : (writingPageTurnSize ?? '');
+  const onChangePageTurnSize = isChat
+    ? (e) => setPageTurnSize(e.target.value)
+    : (e) => setWritingPageTurnSize(e.target.value === '' ? null : e.target.value);
+  const onBlurPageTurnSize = isChat
+    ? () => onSavePageTurnSize(pageTurnSize)
+    : () => onSaveWritingPageTurnSize(writingPageTurnSize);
+
   return (
     <div>
       <h2 className="we-settings-section-title">功能配置</h2>
-      <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div className="we-settings-section-body">
         <p className="we-settings-subsection-title">上下文</p>
@@ -86,6 +104,64 @@ export default function FeaturesConfigPanel({
               />
               <span className="we-settings-inline-hint">
                 {isChat ? '保留最近 N 轮，0 = 不限制' : '留空继承对话配置，0 = 不限制'}
+              </span>
+            </div>
+          </FormGroup>
+        </div>
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">分章</p>
+
+        <div className="we-settings-field-group">
+          <FormGroup
+            label={isChat ? '每章轮数' : '写作每章轮数'}
+            hint={isChat
+              ? '写作模式按 N 轮（user + assistant）切一章；仅影响章节分组，不影响翻页'
+              : '留空继承对话配置；仅影响章节分组'}
+            variant="settings"
+          >
+            <div className="we-settings-inline-field">
+              <Input
+                type="number"
+                min={1}
+                className="we-settings-number-short"
+                value={currentChapterTurnSize}
+                placeholder={isChat ? '' : '继承对话'}
+                onChange={onChangeChapterTurnSize}
+                onBlur={onBlurChapterTurnSize}
+              />
+              <span className="we-settings-inline-hint">
+                {isChat ? '每 N 轮一章' : '留空继承对话配置'}
+              </span>
+            </div>
+          </FormGroup>
+        </div>
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">翻页</p>
+
+        <div className="we-settings-field-group">
+          <FormGroup
+            label={isChat ? '每页轮数' : '写作每页轮数'}
+            hint={isChat
+              ? '翻页条按 N 轮（user + assistant）切一页；仅控制翻页跳转，不影响分章'
+              : '留空继承对话配置；仅控制翻页跳转'}
+            variant="settings"
+          >
+            <div className="we-settings-inline-field">
+              <Input
+                type="number"
+                min={1}
+                className="we-settings-number-short"
+                value={currentPageTurnSize}
+                placeholder={isChat ? '' : '继承对话'}
+                onChange={onChangePageTurnSize}
+                onBlur={onBlurPageTurnSize}
+              />
+              <span className="we-settings-inline-hint">
+                {isChat ? '每 N 轮一页' : '留空继承对话配置'}
               </span>
             </div>
           </FormGroup>

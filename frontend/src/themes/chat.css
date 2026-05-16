@@ -1024,7 +1024,7 @@
 .we-chat-input {
   border-top: 1px solid var(--we-color-border-default);
   background: var(--we-color-bg-canvas);
-  padding: var(--we-space-sm) var(--we-space-lg);
+  padding: var(--we-space-xs) var(--we-space-lg) var(--we-space-xxs);
 }
 
 .we-chat-input__attachments {
@@ -1066,7 +1066,7 @@
 .we-chat-input__row {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--we-space-sm);
 }
 
@@ -1172,14 +1172,32 @@
   opacity: 0.7;
 }
 
+/* 输入框顶部工具条：翻页（居中）+ 快捷动作（右） */
+.we-chat-input__toolbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 28px; /* design exact: 与 we-chat-quick-btn 对齐 */
+  margin-bottom: var(--we-space-xs);
+}
+
+.we-chat-input__toolbar-pager {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  width: max-content;
+}
+
 /* Quick action buttons (continue / impersonate) */
 .we-chat-quick-actions {
-  position: absolute;
-  top: 50%;
-  right: var(--we-space-md);
-  transform: translateY(-50%);
   display: flex;
   gap: var(--we-space-xs);
+  /* 对齐 textarea 右沿：偏移 = send btn 宽度 + 输入行 gap */
+  margin-right: calc(36px + var(--we-space-sm)); /* design exact: send 圆按钮直径 */
   z-index: var(--we-z-action);
 }
 
@@ -1216,8 +1234,7 @@
 /* Main textarea */
 .we-chat-textarea {
   width: 100%;
-  padding: var(--we-space-sm) var(--we-space-lg);
-  padding-right: 76px; /* design exact: 容纳 we-chat-quick-actions 三按钮 */
+  padding: var(--we-space-xs) var(--we-space-lg);
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-md);
@@ -1227,7 +1244,7 @@
   color: var(--we-color-text-primary);
   resize: none;
   outline: none;
-  min-height: 36px; /* design exact: 单行高度 */
+  min-height: 28px; /* design exact: 单行高度 */
   overflow-y: hidden;
   transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
 }
@@ -2333,4 +2350,95 @@
   color: var(--we-color-bg-muted);
   line-height: var(--we-leading-flush);
   flex-shrink: 0;
+}
+
+/* ============================================================
+   Pager — 嵌在消息列表最后一条 message 下方的翻页按钮组
+   无背景条，仅按钮胶囊；pages.length<=1 时不渲染。
+   样式只消费 token；主题包通过覆写 --we-pager-btn-* token 改外观。
+   ============================================================ */
+.we-pager-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-md);
+  margin: var(--we-space-md) auto var(--we-space-lg);
+  width: max-content;
+  max-width: calc(100% - var(--we-space-2xl));
+  color: var(--we-color-text-secondary);
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+}
+
+/* 翻页条嵌入输入框顶部工具条：自然流式布局，无外边距；不受 100% 容器宽约束 */
+.we-pager-bar--inline {
+  margin: 0;
+  max-width: none;
+}
+
+.we-pager-bar--inline .we-pager-label {
+  overflow: visible;
+  max-width: none;
+}
+
+.we-pager-btn {
+  width: 28px; /* design exact: 与 we-chat-quick-btn 对齐 */
+  height: 28px; /* design exact */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--we-pager-btn-bg);
+  border: var(--we-pager-btn-border);
+  box-shadow: var(--we-pager-btn-shadow);
+  color: var(--we-color-text-tertiary);
+  border-radius: var(--we-radius-full);
+  cursor: pointer;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp),
+              background var(--we-duration-fast) var(--we-easing-sharp),
+              border-color var(--we-duration-fast) var(--we-easing-sharp),
+              box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+}
+
+.we-pager-btn:hover:not(:disabled) {
+  color: var(--we-color-accent);
+  background: var(--we-pager-btn-hover-bg);
+  box-shadow: var(--we-pager-btn-hover-shadow);
+}
+
+.we-pager-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.we-pager-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--we-space-xs);
+  letter-spacing: var(--we-tracking-normal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 36ch;
+}
+
+.we-pager-index {
+  font-variant-numeric: tabular-nums;
+  color: var(--we-color-text-secondary);
+}
+
+.we-pager-sep {
+  color: var(--we-color-text-tertiary);
+  opacity: 0.6;
+}
+
+.we-pager-title {
+  color: var(--we-color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 24ch;
 }

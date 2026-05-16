@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
+import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
@@ -58,10 +59,10 @@ function ThinkBlock({ content, open = false, interrupted = false }) {
 }
 
 const REMARK_PLUGINS = [remarkGfm];
-const REHYPE_PLUGINS = [rehypeRaw, rehypeSanitize];
+const REHYPE_PLUGINS = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
 // think block 用轻量插件（不需要 rehypeRaw，避免 XSS 风险）
 const THINK_REMARK_PLUGINS = [remarkGfm];
-const THINK_REHYPE_PLUGINS = [rehypeSanitize];
+const THINK_REHYPE_PLUGINS = [[rehypeSanitize, markdownSanitizeSchema]];
 
 function CodeBlock({ children, className }) {
   const [copied, setCopied] = useState(false);
@@ -265,9 +266,7 @@ export default function MessageItem({
     displayContent = displayContent.replace(/\n{0,2}\[已中断\]\s*$/, '');
     interrupted = true;
   }
-  if (!isStreaming) {
-    displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
-  }
+  displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
 
   // 统一解析为 blocks（流式和非流式共用）;中断标记挂到最后一个 block。
   const blocks = parseStreamingBlocks(displayContent);
@@ -296,6 +295,7 @@ export default function MessageItem({
   if (isStreaming && !streamingText) {
     return (
       <MotionDiv
+        data-message-id={message?.id}
         className="we-message-row we-message-assistant"
         initial="hidden"
         animate="visible"
@@ -323,6 +323,7 @@ export default function MessageItem({
   if (isUser) {
     return (
       <MotionDiv
+        data-message-id={message?.id}
         className="we-message-row we-message-user"
         initial="hidden"
         animate="visible"
@@ -396,6 +397,7 @@ export default function MessageItem({
 
   return (
     <MotionDiv
+      data-message-id={message?.id}
       className="we-message-row we-message-assistant"
       initial="hidden"
       animate="visible"

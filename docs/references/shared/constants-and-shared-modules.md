@@ -5,7 +5,7 @@
 ## 单一来源
 
 - `backend/utils/constants.js`：后端硬性数值常量、阈值、默认限制
-- `shared/chapter-constants.mjs`：前后端共享章节分组阈值
+- `shared/chapter-constants.mjs`：前后端共享分章/翻页阈值。**分章** `CHAPTER_TURN_SIZE` 默认 20 轮（`CHAPTER_MESSAGE_SIZE = CHAPTER_TURN_SIZE * 2` 派生）；**翻页** `PAGE_TURN_SIZE` 默认 50 轮，仅服务 `Pager.jsx`。两者解耦，配置键分别为 `chapter_turn_size` / `page_turn_size`；`resolveChapterMessageSize(chapterTurnSize)` 把"每章轮数"换算成消息条数阈值
 - 根 `package.json`：版本号单一来源
 - `frontend/src/themes/tokens.css`：核心 token 名与中性默认值
 

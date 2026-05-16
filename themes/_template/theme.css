@@ -265,4 +265,13 @@
   /* --we-tracking-wider:   0.12em; */
   /* --we-tracking-caps:    0.18em; */
   /* --we-tracking-display: 0.34em; */
+
+  /* ──────────────────────────────────────────────────────────────
+     § 8 Pager（嵌在消息列表底部的翻页按钮胶囊）—— 主题可覆写定制外观
+     ────────────────────────────────────────────────────────────── */
+  /* --we-pager-btn-bg:           var(--we-color-bg-surface); */
+  /* --we-pager-btn-border:       1px solid var(--we-color-border-default); */
+  /* --we-pager-btn-shadow:       none; */
+  /* --we-pager-btn-hover-bg:     var(--we-color-accent-bg); */
+  /* --we-pager-btn-hover-shadow: none; */
 }

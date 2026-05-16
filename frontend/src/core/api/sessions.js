@@ -46,8 +46,8 @@ export async function renameSession(id, title) {
   return res.json();
 }
 
-export async function getMessages(sessionId, limit = 50, offset = 0) {
-  const res = await fetch(`${BASE}/sessions/${sessionId}/messages?limit=${limit}&offset=${offset}`);
+export async function getMessages(sessionId) {
+  const res = await fetch(`${BASE}/sessions/${sessionId}/messages`);
   if (!res.ok) throw new Error(`getMessages failed: ${res.status}`);
   return res.json();
 }

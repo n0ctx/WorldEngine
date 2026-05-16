@@ -1,19 +1,20 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAppModeStore } from '../../core/state/appMode';
 import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../core/api/import-export';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner';
-import ModeSwitch from './ModeSwitch';
 import Button from '../ui/Button';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 
-export default function ImportExportPanel({ onImportSuccess }) {
+export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
   const fileInputRef = useRef(null);
-  const [mode, setMode] = useState(SETTINGS_MODE.CHAT);
+  const mode = settingsMode ?? SETTINGS_MODE.CHAT;
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState(null);
   const appMode = useAppModeStore((s) => s.appMode);
+
+  useEffect(() => { setMessage(null); }, [mode]);
 
   async function handleExport() {
     setExporting(true);
@@ -60,8 +61,6 @@ export default function ImportExportPanel({ onImportSuccess }) {
       <h2 className="we-settings-section-title">导入导出</h2>
 
       <div className="we-settings-field-group">
-        <ModeSwitch mode={mode} onChange={(m) => { setMode(m); setMessage(null); }} />
-
         <p className="we-settings-body-copy">
           当前操作范围：<strong>{modeLabel}</strong>。导出内容包括该模式的全局提示词、自定义 CSS、全局正则规则；其中写作模式额外包含 `writing.llm` 模型配置。不含 API Key 与其余功能配置。
           <br />

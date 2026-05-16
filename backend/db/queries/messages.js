@@ -59,9 +59,13 @@ function parseActivatedEntries(raw) {
  * 获取某会话下的消息，按 created_at 升序，支持分页，attachments 自动 JSON.parse
  */
 export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
-  const rows = db.prepare(
-    'SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ? OFFSET ?',
-  ).all(sessionId, limit, offset);
+  // limit 传 null/undefined/<=0 时不分页，返回全部消息（用于一次性加载会话视图）
+  const unlimited = limit == null || !(Number(limit) > 0);
+  const rows = unlimited
+    ? db.prepare('SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC').all(sessionId)
+    : db.prepare(
+        'SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC, rowid ASC LIMIT ? OFFSET ?',
+      ).all(sessionId, limit, offset);
 
   for (const row of rows) {
     row.attachments = row.attachments ? JSON.parse(row.attachments) : null;

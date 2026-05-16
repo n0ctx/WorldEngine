@@ -1,10 +1,9 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
-import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 
 export default function DiaryConfigPanel({
-  settingsMode, onModeChange,
+  settingsMode,
   chatEnabled, onToggleChatEnabled,
   chatDateMode, onChangeChatDateMode,
   writingEnabled, onToggleWritingEnabled,
@@ -19,7 +18,6 @@ export default function DiaryConfigPanel({
   return (
     <div>
       <h2 className="we-settings-section-title">日记</h2>
-      <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div className="we-settings-field-group we-settings-field-group--spaced">
         <FormGroup

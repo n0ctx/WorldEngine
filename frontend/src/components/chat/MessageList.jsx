@@ -10,8 +10,6 @@ import { log } from '../../core/utils/logger.js';
 
 const NOOP = () => {};
 
-const PAGE_SIZE = 50;
-
 function areOptionsEqual(a, b) {
   if (a === b) return true;
   if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
@@ -80,36 +78,45 @@ const MessageList = forwardRef(function MessageList({
   optionCollapsed = false,
   onOptionCollapsedChange,
   onMessagesLoaded,
+  chapterTurnSize,
+  pageTurnSize,
+  onPageInfoChange,
 }, ref) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [loadingMoreError, setLoadingMoreError] = useState(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
+  // 翻页锚点：followLast=true 永远跟随末页（新消息到来时自动追随）；用户手动翻页后 followLast=false 停在固定页
+  const [pageAnchor, setPageAnchor] = useState({ idx: 0, followLast: true });
   const listRef = useRef(null);
-  const prevScrollHeight = useRef(0);
   const messagesRef = useRef([]);
+  const lastPageIdxRef = useRef(0);
   const handleMessagesLoaded = useEffectEvent((hydrated) => {
     onMessagesLoaded?.(hydrated);
   });
-
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
+  const handleJumpToMessage = useCallback((messageId) => {
+    const el = listRef.current;
+    if (!el || !messageId) return;
+    const target = el.querySelector(`[data-message-id="${CSS.escape(String(messageId))}"]`);
+    if (!target) return;
+    const top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+    el.scrollTo({ top, behavior: 'smooth' });
+  }, []);
+
   // 初始加载
   useEffect(() => {
     let cancelled = false;
+    // 切换 session 必须重置翻页锚点，避免沿用旧会话的页码停在中间历史
+    setPageAnchor({ idx: 0, followLast: true });
 
     if (!sessionId) {
       const timeoutId = setTimeout(() => {
         if (cancelled) return;
         setMessages([]);
-        setOffset(0);
-        setHasMore(false);
         setLoadError(null);
       }, 0);
       return () => {
@@ -124,11 +131,9 @@ const MessageList = forwardRef(function MessageList({
       setLoading(true);
       setLoadError(null);
       setMessages([]);
-      setOffset(0);
-      setHasMore(false);
 
       try {
-        const msgs = await getMessages(sessionId, PAGE_SIZE, 0);
+        const msgs = await getMessages(sessionId);
         if (cancelled) return;
         const hydrated = msgs.map((m) => (
           m.role === 'assistant' && Array.isArray(m.next_options) && m.next_options.length > 0
@@ -136,10 +141,14 @@ const MessageList = forwardRef(function MessageList({
             : m
         ));
         setMessages(hydrated);
-        setOffset(hydrated.length);
-        setHasMore(hydrated.length === PAGE_SIZE);
         setLoading(false);
         handleMessagesLoaded(hydrated);
+        // 全量加载完毕：定位到最后一条消息。double rAF 跨过 commit 等到 paint。
+        const scrollToLatest = () => {
+          const el = listRef.current;
+          if (el) el.scrollTop = el.scrollHeight;
+        };
+        requestAnimationFrame(() => requestAnimationFrame(scrollToLatest));
       } catch (err) {
         if (!cancelled) {
           setLoading(false);
@@ -154,56 +163,14 @@ const MessageList = forwardRef(function MessageList({
     };
   }, [sessionId, reloadToken]);
 
-  const loadMore = useCallback(() => {
-    if (loadingMore || !hasMore || !sessionId) return;
-    setLoadingMore(true);
-    setLoadingMoreError(null);
-    const el = listRef.current;
-    if (el) prevScrollHeight.current = el.scrollHeight;
-
-    getMessages(sessionId, PAGE_SIZE, offset)
-      .then((older) => {
-        const hydrated = older.map((m) => (
-          m.role === 'assistant' && Array.isArray(m.next_options) && m.next_options.length > 0
-            ? { ...m, _options: m.next_options, _options_collapsed: true }
-            : m
-        ));
-        setMessages((prev) => [...hydrated, ...prev]);
-        setOffset((o) => o + hydrated.length);
-        setHasMore(hydrated.length === PAGE_SIZE);
-        setLoadingMore(false);
-        if (el) {
-          requestAnimationFrame(() => {
-            el.scrollTop = el.scrollHeight - prevScrollHeight.current;
-          });
-        }
-      })
-      .catch((err) => {
-        setLoadingMore(false);
-        setLoadingMoreError('加载更多失败，请稍后重试');
-        log.error('chat.messages.load_more_failed', err);
-      });
-  }, [loadingMore, hasMore, sessionId, offset]);
-
-  // 监听滚动：到顶部时加载更多
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-
-    function handleScroll() {
-      if (el.scrollTop < 80 && hasMore && !loadingMore) {
-        loadMore();
-      }
-    }
-
-    el.addEventListener('scroll', handleScroll, { passive: true });
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [loadMore, hasMore, loadingMore]);
-
 
   useImperativeHandle(ref, () => ({
     appendMessage: (msg) => setMessages((prev) => [...prev, msg]),
     updateMessages: (updater) => setMessages(updater),
+    setPage: (idx) => {
+      const safe = Number.isFinite(idx) ? Math.max(0, Math.floor(idx)) : 0;
+      setPageAnchor({ idx: safe, followLast: safe >= (lastPageIdxRef.current ?? 0) });
+    },
     freezeOptions: (frozenOptions, selectedIndex, collapsed) => {
       setMessages((prev) => {
         const idx = [...prev].reverse().findIndex((m) => m.role === 'assistant');
@@ -220,20 +187,67 @@ const MessageList = forwardRef(function MessageList({
       });
     },
     scrollToBottom: () => {
+      // 外部生成新消息/继续等场景：先切回末页（若不在末页），再滚到底
+      setPageAnchor({ idx: 0, followLast: true });
       const el = listRef.current;
       if (el) el.scrollTop = el.scrollHeight;
     },
+    scrollPageToBottom: () => {
+      // 用户点"跳转到底部"：留在当前页，仅把滚动容器拖到底
+      const el = listRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    },
+    scrollToMessage: handleJumpToMessage,
     get messagesRef() {
       return messagesRef;
     },
   }));
 
+  // 翻页：按 pageTurnSize*2 条切片，每次只渲染当前页消息（不是滚动）
+  const pageSize = useMemo(() => {
+    const turn = Number(pageTurnSize);
+    return (Number.isFinite(turn) && turn > 0 ? Math.floor(turn) : 50) * 2;
+  }, [pageTurnSize]);
+  const totalPages = Math.max(1, Math.ceil(messages.length / pageSize));
+  const lastPageIdx = totalPages - 1;
+  const currentPage = pageAnchor.followLast ? lastPageIdx : Math.min(pageAnchor.idx, lastPageIdx);
+  const notifyPageInfo = useEffectEvent((info) => onPageInfoChange?.(info));
+  useEffect(() => {
+    lastPageIdxRef.current = lastPageIdx;
+    notifyPageInfo({ totalPages, currentPage });
+  }, [totalPages, currentPage, lastPageIdx]);
+  const pageMessages = useMemo(() => {
+    if (messages.length === 0) return messages;
+    const start = currentPage * pageSize;
+    return messages.slice(start, start + pageSize);
+  }, [messages, currentPage, pageSize]);
+  const onLastPage = currentPage === lastPageIdx;
+
+  // 生成新一轮（流式 / 继续写）时强制跟随末页，避免用户停在旧页时新消息看不见
+  useEffect(() => {
+    if (generating || continuingMessageId) {
+      setPageAnchor((prev) => (prev.followLast ? prev : { idx: 0, followLast: true }));
+    }
+  }, [generating, continuingMessageId]);
+
+  // 翻页后一律贴顶（包括末页），从该页第一条开始读。贴底场景由 scrollToBottom imperative 显式处理（初次加载、流式结束、用户点跳底按钮）。
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      const node = listRef.current;
+      if (!node) return;
+      node.scrollTop = 0;
+    });
+  }, [currentPage]);
+
   const messagesForDisplay = useMemo(() => {
-    if (!prose || !generating || !!continuingMessageId) return messages;
-    const lastMsg = messages[messages.length - 1];
+    // streaming 仅在末页（followLast 语义）追加，翻到旧页时不展示
+    if (!prose || !generating || !!continuingMessageId || !onLastPage) return pageMessages;
+    const lastMsg = pageMessages[pageMessages.length - 1];
     const fakeTs = (lastMsg?.created_at ?? 0) + 1;
     return [
-      ...messages,
+      ...pageMessages,
       {
         _key: streamingKey || '__streaming__',
         id: streamingKey || '__streaming__',
@@ -243,7 +257,7 @@ const MessageList = forwardRef(function MessageList({
         created_at: fakeTs,
       },
     ];
-  }, [prose, messages, generating, continuingMessageId, streamingKey, streamingText]);
+  }, [prose, pageMessages, onLastPage, generating, continuingMessageId, streamingKey, streamingText]);
 
   const lastAssistantId = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -260,11 +274,22 @@ const MessageList = forwardRef(function MessageList({
   }, [messages]);
   const suppressLastFrozen = options.length > 0 && areOptionsEqual(options, lastAssistantFrozenOptions);
 
-  // 章节分组仅用于写作（prose 模式）
-  const chapters = useMemo(
-    () => prose ? groupMessagesIntoChapters(messagesForDisplay) : [],
-    [prose, messagesForDisplay]
-  );
+  // 章节按全局 messages 分（保留稳定 chapterIndex），再投影出当前页可见的章节子集；末页 streaming stub 单独并入末章
+  const chapters = useMemo(() => {
+    if (!prose) return [];
+    const globalChapters = groupMessagesIntoChapters(messages, chapterTurnSize);
+    if (globalChapters.length === 0) return globalChapters;
+    // 必须按 m.id 建集合：onUserSaved 后用户消息 id=realId/_key=tempId、appendMessage 后助手 id=realId/_key=streamKey；用 _key 会与下面 ch.messages.filter(m=>visibleIds.has(m.id)) 错位导致整条消息被过滤
+    const visibleIds = new Set(messagesForDisplay.map((m) => m.id));
+    const streamStub = messagesForDisplay.find((m) => m._isStream) || null;
+    const visible = globalChapters
+      .map((ch) => ({ ...ch, messages: ch.messages.filter((m) => visibleIds.has(m.id)) }))
+      .filter((ch) => ch.messages.length > 0);
+    if (streamStub && visible.length > 0) {
+      visible[visible.length - 1].messages = [...visible[visible.length - 1].messages, streamStub];
+    }
+    return visible;
+  }, [prose, messages, messagesForDisplay, chapterTurnSize]);
 
   if (loading) {
     return (
@@ -301,14 +326,7 @@ const MessageList = forwardRef(function MessageList({
   return (
     <div className="relative flex-1 min-h-0">
     <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 py-4">
-      {/* 加载更多指示器 */}
-      {loadingMore && (
-        <div className="text-center text-xs opacity-40 py-3">加载历史消息…</div>
-      )}
-      {loadingMoreError && (
-        <div className="text-center text-xs text-[var(--we-color-text-danger)] py-2">{loadingMoreError}</div>
-      )}
-      {!hasMore && messages.length > 0 && (
+      {messages.length > 0 && (
         <div className="text-center text-xs opacity-25 py-2">— 对话开始 —</div>
       )}
 
@@ -398,7 +416,7 @@ const MessageList = forwardRef(function MessageList({
                     onRegenerate={onRegenerateMessage}
                     onEditAssistant={onEditAssistantMessage}
                     onDelete={isStream ? undefined : onDeleteMessage}
-                    isGreeting={!hasMore && msgIdx === 0 && msg.role === 'assistant' && !isStream}
+                    isGreeting={msgIdx === 0 && msg.role === 'assistant' && !isStream}
                   />
                 );
                 if (displayMsg._options?.length > 0 && !isStream && !(suppressLastFrozen && msg.id === lastAssistantId)) {
@@ -412,7 +430,7 @@ const MessageList = forwardRef(function MessageList({
                   );
                 }
               });
-              if (generating && !continuingMessageId) {
+              if (generating && !continuingMessageId && onLastPage) {
                 items.push(
                   <MessageItem
                     key={streamingKey || '__streaming__'}

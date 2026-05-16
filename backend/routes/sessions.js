@@ -66,14 +66,12 @@ router.get('/sessions/:id', (req, res) => {
   res.json(session);
 });
 
-// GET /api/sessions/:id/messages — 获取会话消息（分页）
+// GET /api/sessions/:id/messages — 获取会话全部消息（一次性返回，前端自行翻页）
 router.get('/sessions/:id/messages', (req, res) => {
   const session = getSessionById(req.params.id);
   if (!assertExists(res, session, '会话不存在')) return;
-  const limit = Math.max(1, parseInt(req.query.limit, 10) || 50);
-  const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
-  const messages = getMessagesBySessionId(req.params.id, limit, offset);
-  res.json(messages);
+  // ALL_MESSAGES_LIMIT 现为 null（不分页），避免超长会话丢失最早历史；前端按 PAGE_TURN_SIZE 切片渲染
+  res.json(getMessagesBySessionId(req.params.id, ALL_MESSAGES_LIMIT, 0));
 });
 
 // DELETE /api/sessions/:id — 删除会话

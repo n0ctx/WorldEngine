@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import ToggleSwitch from '../ui/ToggleSwitch';
-import ModeSwitch from './ModeSwitch';
 import ConfirmModal from '../ui/ConfirmModal';
 import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
 import { clearAllDiaries } from '../../core/api/world-state-fields';
@@ -25,7 +24,7 @@ function ToggleRow({ label, hint, checked, onChange }) {
 
 
 export default function MemoryConfigPanel({
-  settingsMode, onModeChange,
+  settingsMode,
   memoryExpansionEnabled, onToggleMemoryExpansion,
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
@@ -61,7 +60,6 @@ export default function MemoryConfigPanel({
   return (
     <div>
       <h2 className="we-settings-section-title">记忆</h2>
-      <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       <div className="we-settings-section-body">
         <ToggleRow

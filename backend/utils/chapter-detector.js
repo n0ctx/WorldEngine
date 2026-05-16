@@ -5,28 +5,27 @@
  * 若是，则表示需要为该章节生成标题。
  */
 
-import { CHAPTER_MESSAGE_SIZE, CHAPTER_TIME_GAP_MS } from './constants.js';
+import { CHAPTER_MESSAGE_SIZE, resolveChapterMessageSize } from './constants.js';
 
 /**
  * 将消息列表按章节分组（纯函数，算法与前端 groupMessagesIntoChapters 完全一致）。
  * @param {Array} messages  按 created_at 升序排列的消息数组
+ * @param {number} [chapterTurnSize]  每章轮数；省略时使用默认 CHAPTER_TURN_SIZE
  * @returns {Array<{chapterIndex: number, startIdx: number, messages: Array}>}
  */
-function groupIntoChapters(messages) {
+function groupIntoChapters(messages, chapterTurnSize) {
   if (!messages || messages.length === 0) return [];
+  const threshold = chapterTurnSize == null ? CHAPTER_MESSAGE_SIZE : resolveChapterMessageSize(chapterTurnSize);
 
   const chapters = [];
   let currentChapter = null;
   let count = 0;
-  let prevTimestamp = null;
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    const ts = msg.created_at ?? 0;
-    const timeGap = prevTimestamp != null && (ts - prevTimestamp) > CHAPTER_TIME_GAP_MS;
-    const countExceeded = count > 0 && count >= CHAPTER_MESSAGE_SIZE;
+    const countExceeded = count > 0 && count >= threshold;
 
-    if (!currentChapter || timeGap || countExceeded) {
+    if (!currentChapter || countExceeded) {
       const chapterIndex = chapters.length + 1;
       currentChapter = { chapterIndex, startIdx: i, messages: [] };
       chapters.push(currentChapter);
@@ -35,7 +34,6 @@ function groupIntoChapters(messages) {
 
     currentChapter.messages.push(msg);
     count++;
-    prevTimestamp = ts;
   }
 
   return chapters;
@@ -43,12 +41,13 @@ function groupIntoChapters(messages) {
 
 /**
  * 返回指定章节内的全部消息（用于章节标题重新生成）。
- * @param {Array} messages  按 created_at 升序排列的全部消息数组
+ * @param {Array} messages
  * @param {number} chapterIndex  1-based 章节序号
+ * @param {number} [chapterTurnSize]
  * @returns {Array}
  */
-export function groupChapterMessages(messages, chapterIndex) {
-  const chapters = groupIntoChapters(messages);
+export function groupChapterMessages(messages, chapterIndex, chapterTurnSize) {
+  const chapters = groupIntoChapters(messages, chapterTurnSize);
   const chapter = chapters.find((ch) => ch.chapterIndex === chapterIndex);
   return chapter ? chapter.messages : [];
 }
@@ -56,18 +55,13 @@ export function groupChapterMessages(messages, chapterIndex) {
 /**
  * 判断消息列表最后一条 assistant 消息是否是新章节的第一条消息（触发章节标题生成的条件）。
  *
- * 触发条件：
- * 1. 最后一条 assistant 消息是某章节的第一条消息（该章节刚刚出现的第一轮 AI 回复）
- * 2. 该章节在 chapter_titles 中尚无记录（由调用方负责检查）
- *
- * @param {Array} messages  按 created_at 升序排列的全部消息数组
+ * @param {Array} messages
+ * @param {number} [chapterTurnSize]
  * @returns {{ chapterIndex: number, chapterMessages: Array } | null}
- *   若触发新章节，返回章节信息；否则返回 null
  */
-export function detectNewChapter(messages) {
+export function detectNewChapter(messages, chapterTurnSize) {
   if (!messages || messages.length < 1) return null;
 
-  // 找最后一条 assistant 消息
   let lastAsstIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'assistant') {
@@ -77,15 +71,13 @@ export function detectNewChapter(messages) {
   }
   if (lastAsstIdx === -1) return null;
 
-  const chapters = groupIntoChapters(messages);
+  const chapters = groupIntoChapters(messages, chapterTurnSize);
   if (chapters.length === 0) return null;
 
-  // 找最后一条 assistant 消息所在章节
   const targetMsg = messages[lastAsstIdx];
   const targetChapter = chapters.find((ch) => ch.messages.some((m) => m.id === targetMsg.id));
   if (!targetChapter) return null;
 
-  // 判断该 assistant 消息是否是该章节的第一条 assistant 消息
   const firstAsstInChapter = targetChapter.messages.find((m) => m.role === 'assistant');
   if (!firstAsstInChapter || firstAsstInChapter.id !== targetMsg.id) return null;
 

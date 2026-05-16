@@ -2,7 +2,9 @@
 
 export {
   CHAPTER_MESSAGE_SIZE,
-  CHAPTER_TIME_GAP_MS,
+  CHAPTER_TURN_SIZE,
+  PAGE_TURN_SIZE,
+  resolveChapterMessageSize,
 } from '../../../../shared/chapter-constants.mjs';
 
 export {

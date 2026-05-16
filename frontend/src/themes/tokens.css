@@ -342,6 +342,13 @@
 
   /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
   --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
+
+  /* === Pager（嵌在消息列表底部的翻页按钮胶囊）皮肤 token：中性默认，主题可覆写 === */
+  --we-pager-btn-bg:               var(--we-color-bg-surface);
+  --we-pager-btn-border:           1px solid var(--we-color-border-default);
+  --we-pager-btn-shadow:           none;
+  --we-pager-btn-hover-bg:         var(--we-color-accent-bg);
+  --we-pager-btn-hover-shadow:     none;
 }
 
 @media (prefers-reduced-motion: reduce) {

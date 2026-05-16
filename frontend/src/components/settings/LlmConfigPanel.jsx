@@ -8,7 +8,6 @@ import ProviderBlock from './ProviderBlock';
 import WritingLlmBlock from './WritingLlmBlock';
 import AuxLlmBlock from './AuxLlmBlock';
 import AssistantModelBlock from './AssistantModelBlock';
-import ModeSwitch from './ModeSwitch';
 import FormGroup from '../ui/FormGroup';
 import FieldLabel from '../ui/FieldLabel';
 import Button from '../ui/Button';
@@ -18,7 +17,7 @@ import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from '../../core/co
 
 export default function LlmConfigPanel({
   llm, embedding, onLlmChange, onEmbeddingChange,
-  settingsMode, onModeChange,
+  settingsMode,
   writingLlm, onWritingLlmChange, onWritingApiKeySave, fetchWritingModels, testWritingConnection,
   auxLlm, onAuxLlmChange, onAuxApiKeySave, fetchAuxModels, testAuxConnection,
   writingAuxLlm, onWritingAuxLlmChange, onWritingAuxApiKeySave, fetchWritingAuxModels, testWritingAuxConnection,
@@ -73,7 +72,6 @@ export default function LlmConfigPanel({
   return (
     <div className="we-settings-llm-panel">
       <h2 className="we-settings-section-title">LLM 配置</h2>
-      <ModeSwitch mode={settingsMode} onChange={onModeChange} />
 
       {/* 主模型区块：按 settingsMode 分支渲染 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (

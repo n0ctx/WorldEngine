@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompts/assembler.js';
-import { getWritingLlmConfig } from '../services/config.js';
+import { getWritingLlmConfig, getEffectiveChapterTurnSize } from '../services/config.js';
 import { activeStreams } from '../services/chat.js';
 import { logPrompt, createLogger, formatMeta } from '../utils/logger.js';
 import {
@@ -474,7 +474,7 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
 
   const idx = Number(chapterIndex);
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const chapterMsgs = groupChapterMessages(allMsgs, idx);
+  const chapterMsgs = groupChapterMessages(allMsgs, idx, getEffectiveChapterTurnSize('writing'));
   if (chapterMsgs.length === 0) {
     log.warn(`writing.not_found ${formatMeta({ method: req.method, path: req.path, id: `chapter:${idx}` })}`);
     return res.status(404).json({ error: 'Chapter not found' });

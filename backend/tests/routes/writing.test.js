@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { createRouteTestContext } from '../helpers/http.js';
 import { resetMockEnv } from '../helpers/test-env.js';
 import { enqueue } from '../../utils/async-queue.js';
+import { CHAPTER_MESSAGE_SIZE } from '../../utils/constants.js';
 import {
   insertMessage,
   insertSession,
@@ -402,18 +403,23 @@ test('写作 generate 在存在新章节时会推 title_updated 与 chapter_titl
   assert.ok(events.some((event) => event.type === 'chapter_title_updated' && event.title === '章节标题' && event.chapterIndex === 1));
 });
 
-test('写作章节标题重生成按 6 小时间隔分章，与前端保持一致', async () => {
+test('写作章节标题重生成按消息条数分章，与前端保持一致', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_COMPLETE_QUEUE = JSON.stringify(['第二章标题']);
 
   const world = insertWorld(ctx.sandbox.db, { name: '章节重标题世界' });
   const session = insertSession(ctx.sandbox.db, { world_id: world.id, mode: 'writing' });
-  const gap = (6 * 60 * 60 * 1000) + 1;
 
-  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '第一章开头', created_at: 1 });
-  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第一章回应', created_at: 2 });
-  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '第二章开头', created_at: 2 + gap });
-  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第二章回应', created_at: 3 + gap });
+  // 灌满第一章（CHAPTER_MESSAGE_SIZE 条），第 N+1 条进入第二章
+  for (let i = 0; i < CHAPTER_MESSAGE_SIZE; i++) {
+    insertMessage(ctx.sandbox.db, session.id, {
+      role: i % 2 === 0 ? 'user' : 'assistant',
+      content: `第一章 ${i}`,
+      created_at: i + 1,
+    });
+  }
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: '第二章开头', created_at: CHAPTER_MESSAGE_SIZE + 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: '第二章回应', created_at: CHAPTER_MESSAGE_SIZE + 2 });
 
   const res = await ctx.request(
     `/api/worlds/${world.id}/writing-sessions/${session.id}/chapter-titles/2/retitle`,

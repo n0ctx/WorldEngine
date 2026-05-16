@@ -11,6 +11,7 @@ import { createSession, getSession, deleteMessage as deleteMessageApi } from '..
 import SessionListPanel from './components/SessionListPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
+import Pager from '../../components/chat/Pager.jsx';
 import PageLayout from '../layout/PageLayout.jsx';
 import StatePanel from '../../components/state/StatePanel.jsx';
 import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
@@ -62,12 +63,19 @@ export default function ChatPage() {
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
 
   const [ltmEnabled, setLtmEnabled] = useState(false);
+  const [chapterTurnSize, setChapterTurnSize] = useState(20);
+  const [pageTurnSize, setPageTurnSize] = useState(50);
   useEffect(() => {
-    getConfig().then((c) => {
+    const load = () => getConfig().then((c) => {
       setShowTokenUsage(c.ui?.show_token_usage === true);
       setCurrentModelPricing(c.llm?.model_pricing ?? null);
       setLtmEnabled(c.long_term_memory_enabled === true);
+      setChapterTurnSize(c.chapter_turn_size ?? 20);
+      setPageTurnSize(c.page_turn_size ?? 50);
     });
+    load();
+    window.addEventListener('we:global-config-updated', load);
+    return () => window.removeEventListener('we:global-config-updated', load);
   }, [setCurrentModelPricing, setShowTokenUsage]);
   const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
 
@@ -82,6 +90,7 @@ export default function ChatPage() {
   const [memoryWriting, setMemoryWriting] = useState(false);
   const [recallSummary, setRecallSummary] = useState(null); // null | { recalled: number, expanded: number }
   const [messageListKey, setMessageListKey] = useState(0);
+  const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const [continuingMessageId, setContinuingMessageId] = useState(null);
   const [continuingText, setContinuingText] = useState('');
   const inputBoxRef = useRef(null);
@@ -1069,6 +1078,9 @@ export default function ChatPage() {
             }
             void recoverLiveStream(currentSessionIdRef.current);
           }}
+          chapterTurnSize={chapterTurnSize}
+          pageTurnSize={pageTurnSize}
+          onPageInfoChange={setPageInfo}
         />
 
         {/* 错误气泡：生成失败时保留可见，提供重试入口 */}
@@ -1128,13 +1140,20 @@ export default function ChatPage() {
           onStop={handleStop}
           generating={generating}
           impersonating={impersonating}
-          onScrollToBottom={() => messageListRef.current?.scrollToBottom?.()}
+          onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
           onContinue={handleContinue}
           onImpersonate={handleImpersonate}
           onRetry={handleRetryLast}
           onTitle={handleRetitle}
           worldId={character?.world_id ?? null}
           mode="chat"
+          pagerSlot={(
+            <Pager
+              totalPages={pageInfo.totalPages}
+              currentPage={pageInfo.currentPage}
+              onChange={(idx) => messageListRef.current?.setPage?.(idx)}
+            />
+          )}
         />
         </div>
       )}

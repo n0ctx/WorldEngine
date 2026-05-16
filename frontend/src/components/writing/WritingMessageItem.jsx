@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
+import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
@@ -17,9 +18,9 @@ import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.
 const MotionDiv = motion.div;
 
 const REMARK_PLUGINS_W = [remarkGfm];
-const REHYPE_PLUGINS_W = [rehypeRaw, rehypeSanitize];
+const REHYPE_PLUGINS_W = [rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]];
 const THINK_REMARK_PLUGINS_W = [remarkGfm];
-const THINK_REHYPE_PLUGINS_W = [rehypeSanitize];
+const THINK_REHYPE_PLUGINS_W = [[rehypeSanitize, markdownSanitizeSchema]];
 
 function formatTokens(n) {
   if (n == null || Number.isNaN(n)) return '-';
@@ -150,9 +151,7 @@ export default function WritingMessageItem({
     displayContent = displayContent.replace(/\n{0,2}\[已中断\]\s*$/, '');
     interrupted = true;
   }
-  if (!isStreaming) {
-    displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
-  }
+  displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
   const blocks = parseStreamingBlocks(displayContent);
   const lastBlockIndex = blocks.length - 1;
   const content = displayContent;
@@ -189,6 +188,7 @@ export default function WritingMessageItem({
   if (isUser) {
     return (
       <MotionDiv
+        data-message-id={message?.id}
         className="we-writing-annotation"
         initial="hidden"
         animate="visible"
@@ -201,7 +201,11 @@ export default function WritingMessageItem({
           trackValue={draft}
           surfaceClassName={editing ? 'we-writing-annotation--editing' : ''}
           readClassName="we-writing-annotation__text"
-          renderRead={() => <span>{content}</span>}
+          renderRead={() => (
+            <ReactMarkdown remarkPlugins={REMARK_PLUGINS_W} rehypePlugins={REHYPE_PLUGINS_W}>
+              {content}
+            </ReactMarkdown>
+          )}
           renderEditor={({ editorRef, syncLayout }) => (
             <textarea
               ref={editorRef}
@@ -245,6 +249,7 @@ export default function WritingMessageItem({
   /* ── 助手叙事：书页正文散文风格 ── */
   return (
     <MotionDiv
+      data-message-id={message?.id}
       className="we-writing-prose"
       initial="hidden"
       animate="visible"

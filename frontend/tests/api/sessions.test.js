@@ -25,7 +25,7 @@ describe('sessions api', () => {
     await getLatestChatSession('world-1');
     await createSession('char-1');
     await renameSession('session-1', '新标题');
-    await getMessages('session-1', 3, 6);
+    await getMessages('session-1');
     await editMessage('msg-1', '新内容');
     await deleteMessage('session-1', 'msg-1');
     await deleteSession('session-1');
@@ -38,7 +38,7 @@ describe('sessions api', () => {
       method: 'PUT',
       body: JSON.stringify({ title: '新标题' }),
     }));
-    expect(fetch).toHaveBeenNthCalledWith(6, '/api/sessions/session-1/messages?limit=3&offset=6');
+    expect(fetch).toHaveBeenNthCalledWith(6, '/api/sessions/session-1/messages');
     expect(fetch).toHaveBeenNthCalledWith(7, '/api/messages/msg-1', expect.objectContaining({
       method: 'PUT',
       body: JSON.stringify({ content: '新内容' }),

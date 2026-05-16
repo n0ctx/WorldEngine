@@ -32,6 +32,10 @@ export function useSettingsConfig() {
   const [writingSystemPrompt, setWritingSystemPrompt] = useState('');
   const [writingPostPrompt, setWritingPostPrompt] = useState('');
   const [writingContextRounds, setWritingContextRounds] = useState(null);
+  const [chapterTurnSize, setChapterTurnSize] = useState(20);
+  const [writingChapterTurnSize, setWritingChapterTurnSize] = useState(null);
+  const [pageTurnSize, setPageTurnSize] = useState(50);
+  const [writingPageTurnSize, setWritingPageTurnSize] = useState(null);
   const [diaryChatEnabled, setDiaryChatEnabled] = useState(false);
   const [diaryChatDateMode, setDiaryChatDateMode] = useState(DIARY_DATE_MODE.VIRTUAL);
   const [diaryWritingEnabled, setDiaryWritingEnabled] = useState(false);
@@ -72,6 +76,10 @@ export function useSettingsConfig() {
       setWritingSystemPrompt(w.global_system_prompt ?? '');
       setWritingPostPrompt(w.global_post_prompt ?? '');
       setWritingContextRounds(w.context_history_rounds ?? null);
+      setChapterTurnSize(c.chapter_turn_size ?? 20);
+      setWritingChapterTurnSize(w.chapter_turn_size ?? null);
+      setPageTurnSize(c.page_turn_size ?? 50);
+      setWritingPageTurnSize(w.page_turn_size ?? null);
       const d = c.diary || {};
       setDiaryChatEnabled(d.chat?.enabled === true);
       setDiaryChatDateMode(d.chat?.date_mode ?? DIARY_DATE_MODE.VIRTUAL);
@@ -239,6 +247,32 @@ export function useSettingsConfig() {
     });
   }
 
+  async function handleSaveChapterTurnSize(value) {
+    const n = Math.max(1, Math.floor(Number(value) || 20));
+    setChapterTurnSize(n);
+    await patchConfig({ chapter_turn_size: n });
+  }
+
+  async function handleSaveWritingChapterTurnSize(value) {
+    const isEmpty = value === '' || value === null;
+    const n = isEmpty ? null : Math.max(1, Math.floor(Number(value) || 20));
+    setWritingChapterTurnSize(n);
+    await patchConfig({ writing: { chapter_turn_size: n } });
+  }
+
+  async function handleSavePageTurnSize(value) {
+    const n = Math.max(1, Math.floor(Number(value) || 50));
+    setPageTurnSize(n);
+    await patchConfig({ page_turn_size: n });
+  }
+
+  async function handleSaveWritingPageTurnSize(value) {
+    const isEmpty = value === '' || value === null;
+    const n = isEmpty ? null : Math.max(1, Math.floor(Number(value) || 50));
+    setWritingPageTurnSize(n);
+    await patchConfig({ writing: { page_turn_size: n } });
+  }
+
   async function handleProxyUrlSave(url) {
     setProxyUrl(url);
     await patchConfig({ proxy_url: url });
@@ -328,6 +362,10 @@ export function useSettingsConfig() {
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
     setWritingContextRounds(w.context_history_rounds ?? null);
+    setChapterTurnSize(c.chapter_turn_size ?? 20);
+    setWritingChapterTurnSize(w.chapter_turn_size ?? null);
+    setPageTurnSize(c.page_turn_size ?? 50);
+    setWritingPageTurnSize(w.page_turn_size ?? null);
   }
 
   return {
@@ -384,6 +422,14 @@ export function useSettingsConfig() {
       writingContextRounds, setWritingContextRounds,
       onSaveWriting: handleSaveWritingGeneral,
       onSaveWritingContextRounds: handleSaveWritingContextRounds,
+      chapterTurnSize, setChapterTurnSize,
+      onSaveChapterTurnSize: handleSaveChapterTurnSize,
+      writingChapterTurnSize, setWritingChapterTurnSize,
+      onSaveWritingChapterTurnSize: handleSaveWritingChapterTurnSize,
+      pageTurnSize, setPageTurnSize,
+      onSavePageTurnSize: handleSavePageTurnSize,
+      writingPageTurnSize, setWritingPageTurnSize,
+      onSaveWritingPageTurnSize: handleSaveWritingPageTurnSize,
     },
     onImportSuccess: handleImportSuccess,
     diaryProps: {

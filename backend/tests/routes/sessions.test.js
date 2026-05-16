@@ -47,14 +47,14 @@ test('GET /api/sessions/:id 与 /messages 在会话不存在时 404', async () =
   assert.equal(r2.status, 404);
 });
 
-test('GET /api/sessions/:id/messages 返回分页结果', async () => {
+test('GET /api/sessions/:id/messages 返回该会话全部消息', async () => {
   const world = insertWorld(ctx.sandbox.db, { name: '消息-世界' });
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: '消息-角色' });
   const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
   insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'q1' });
   insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1' });
 
-  const res = await ctx.request(`/api/sessions/${session.id}/messages?limit=10`);
+  const res = await ctx.request(`/api/sessions/${session.id}/messages`);
   assert.equal(res.status, 200);
   const msgs = await res.json();
   assert.equal(msgs.length, 2);

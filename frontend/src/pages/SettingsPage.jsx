@@ -88,31 +88,45 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+          <div className="we-settings-nav-footer">
+            <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
+          </div>
         </nav>
 
         <div className="we-settings-body">
           <div className="we-settings-body-main">
             {activeSection === NAV_KEY.LLM && (
               <div className="we-settings-section">
-                <LlmConfigPanel {...llmProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
+                <LlmConfigPanel {...llmProps} settingsMode={settingsMode} />
               </div>
             )}
             {activeSection === NAV_KEY.PROMPT && (
               <div className="we-settings-section">
-                <PromptConfigPanel {...promptProps} settingsMode={settingsMode} onModeChange={setSettingsMode} />
+                <PromptConfigPanel {...promptProps} settingsMode={settingsMode} />
               </div>
             )}
             {activeSection === NAV_KEY.FEATURES && (
               <div className="we-settings-section">
                 <FeaturesConfigPanel
                   settingsMode={settingsMode}
-                  onModeChange={setSettingsMode}
                   contextRounds={promptProps.contextRounds}
                   setContextRounds={promptProps.setContextRounds}
                   onSaveContextRounds={promptProps.onSaveContextRounds}
                   writingContextRounds={promptProps.writingContextRounds}
                   setWritingContextRounds={promptProps.setWritingContextRounds}
                   onSaveWritingContextRounds={promptProps.onSaveWritingContextRounds}
+                  chapterTurnSize={promptProps.chapterTurnSize}
+                  setChapterTurnSize={promptProps.setChapterTurnSize}
+                  onSaveChapterTurnSize={promptProps.onSaveChapterTurnSize}
+                  writingChapterTurnSize={promptProps.writingChapterTurnSize}
+                  setWritingChapterTurnSize={promptProps.setWritingChapterTurnSize}
+                  onSaveWritingChapterTurnSize={promptProps.onSaveWritingChapterTurnSize}
+                  pageTurnSize={promptProps.pageTurnSize}
+                  setPageTurnSize={promptProps.setPageTurnSize}
+                  onSavePageTurnSize={promptProps.onSavePageTurnSize}
+                  writingPageTurnSize={promptProps.writingPageTurnSize}
+                  setWritingPageTurnSize={promptProps.setWritingPageTurnSize}
+                  onSaveWritingPageTurnSize={promptProps.onSaveWritingPageTurnSize}
                   memoryExpansionEnabled={promptProps.memoryExpansionEnabled}
                   onToggleMemoryExpansion={promptProps.onToggleMemoryExpansion}
                   writingMemoryExpansionEnabled={promptProps.writingMemoryExpansionEnabled}
@@ -145,7 +159,6 @@ export default function SettingsPage() {
             {activeSection === NAV_KEY.CSS && (
               <div className="we-settings-section">
                 <h2 className="we-settings-section-title">自定义 CSS</h2>
-                <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
                 <CustomCssManager settingsMode={settingsMode} />
               </div>
             )}
@@ -158,13 +171,12 @@ export default function SettingsPage() {
             {activeSection === NAV_KEY.REGEX && (
               <div className="we-settings-section">
                 <h2 className="we-settings-section-title">正则规则</h2>
-                <ModeSwitch mode={settingsMode} onChange={setSettingsMode} />
                 <RegexRulesManager settingsMode={settingsMode} />
               </div>
             )}
             {activeSection === NAV_KEY.IMPORT_EXPORT && (
               <div className="we-settings-section">
-                <ImportExportPanel onImportSuccess={onImportSuccess} />
+                <ImportExportPanel settingsMode={settingsMode} onImportSuccess={onImportSuccess} />
               </div>
             )}
             {activeSection === NAV_KEY.ABOUT && (

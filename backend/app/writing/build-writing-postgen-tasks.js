@@ -6,6 +6,7 @@ import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { createTurnRecord } from '../../memory/turn-summarizer.js';
 import { detectNewChapter } from '../../utils/chapter-detector.js';
+import { getEffectiveChapterTurnSize } from '../../services/config.js';
 
 export function buildWritingPostgenTasks({
   sessionId,
@@ -21,7 +22,7 @@ export function buildWritingPostgenTasks({
   let chapterTitleCondition = false;
 
   if (includeChapterTitle && !turnRecordOpts?.isUpdate) {
-    const newChapter = detectNewChapter(messages);
+    const newChapter = detectNewChapter(messages, getEffectiveChapterTurnSize('writing'));
     if (newChapter) {
       chapterIndex = newChapter.chapterIndex;
       chapterMessages = newChapter.chapterMessages;

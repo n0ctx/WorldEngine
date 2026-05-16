@@ -28,6 +28,7 @@ import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
+import Pager from '../../components/chat/Pager.jsx';
 import WritingSessionList from './components/WritingSessionList.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
@@ -71,13 +72,20 @@ export default function WritingSpacePage() {
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
 
   const [ltmEnabled, setLtmEnabled] = useState(false);
+  const [chapterTurnSize, setChapterTurnSize] = useState(20);
+  const [pageTurnSize, setPageTurnSize] = useState(50);
   useEffect(() => {
-    getConfig().then((c) => {
+    const load = () => getConfig().then((c) => {
       setShowTokenUsage(c.ui?.show_token_usage === true);
       const writingModel = c.writing?.llm?.model_pricing ?? null;
       setCurrentWritingModelPricing(writingModel);
       setLtmEnabled(c.writing?.long_term_memory_enabled === true);
+      setChapterTurnSize(c.writing?.chapter_turn_size ?? c.chapter_turn_size ?? 20);
+      setPageTurnSize(c.writing?.page_turn_size ?? c.page_turn_size ?? 50);
     });
+    load();
+    window.addEventListener('we:global-config-updated', load);
+    return () => window.removeEventListener('we:global-config-updated', load);
   }, [setCurrentWritingModelPricing, setShowTokenUsage]);
 
   useEffect(() => {
@@ -103,6 +111,7 @@ export default function WritingSpacePage() {
   const [stateQueuedTick, setStateQueuedTick] = useState(0);
   const [stateFailedTick, setStateFailedTick] = useState(0);
   const [messageListKey, setMessageListKey] = useState(0);
+  const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const [error, setError] = useState(null);
   const [memoryRecalling, setMemoryRecalling] = useState(false);
   const [memoryExpanding, setMemoryExpanding] = useState(false);
@@ -1073,6 +1082,9 @@ export default function WritingSpacePage() {
                   }
                   void recoverLiveStream(currentSessionRef.current?.id ?? null);
                 }}
+                chapterTurnSize={chapterTurnSize}
+                pageTurnSize={pageTurnSize}
+                onPageInfoChange={setPageInfo}
               />
             )}
 
@@ -1095,10 +1107,17 @@ export default function WritingSpacePage() {
               lastUserContent=""
               worldId={worldId}
               mode="writing"
-              onScrollToBottom={() => messageListRef.current?.scrollToBottom?.()}
+              onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
               onContinue={handleContinue}
               onImpersonate={handleImpersonate}
               onTitle={handleRetitle}
+              pagerSlot={(
+                <Pager
+                  totalPages={pageInfo.totalPages}
+                  currentPage={pageInfo.currentPage}
+                  onChange={(idx) => messageListRef.current?.setPage?.(idx)}
+                />
+              )}
             />
         </div>
       )}

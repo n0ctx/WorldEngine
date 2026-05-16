@@ -54,6 +54,8 @@ const DEFAULT_CONFIG = {
   },
   ui: structuredClone(DEFAULT_UI),
   context_history_rounds: 10,
+  chapter_turn_size: 20,
+  page_turn_size: 50,
   global_system_prompt: '',
   global_post_prompt: '',
   memory_expansion_enabled: true,
@@ -75,6 +77,8 @@ const DEFAULT_CONFIG = {
     global_system_prompt: '',
     global_post_prompt: '',
     context_history_rounds: null,
+    chapter_turn_size: null,
+    page_turn_size: null,
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     long_term_memory_enabled: false,
@@ -100,6 +104,8 @@ const DEFAULT_WRITING = {
   global_system_prompt: '',
   global_post_prompt: '',
   context_history_rounds: null,
+  chapter_turn_size: null,
+  page_turn_size: null,
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
@@ -347,6 +353,17 @@ export function updateConfig(patch) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf-8');
   log.info(`config.update  ${formatMeta({ keys: Object.keys(patch ?? {}) })}`);
   return merged;
+}
+
+/** 取得 chat / writing 各自有效的「每章轮数」：writing.chapter_turn_size 为 null 时继承 chat 顶层。 */
+export function getEffectiveChapterTurnSize(mode = 'chat') {
+  const c = getConfig();
+  const top = c.chapter_turn_size;
+  if (mode === 'writing') {
+    const w = c.writing?.chapter_turn_size;
+    return w == null ? top : w;
+  }
+  return top;
 }
 
 /** 读取顶层共享 provider_keys 中指定 provider 的 key */

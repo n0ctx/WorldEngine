@@ -1927,6 +1927,24 @@
   gap: var(--we-space-xs);
 }
 
+.we-settings-nav-footer {
+  margin-top: auto;
+  padding-top: var(--we-space-md);
+  display: flex;
+}
+
+.we-settings-nav-footer .we-settings-mode-switch {
+  margin: 0;
+  width: 100%;
+}
+
+.we-settings-nav-footer .we-settings-mode-switch-item {
+  flex: 1;
+  min-width: 0;
+  padding: var(--we-space-xs) var(--we-space-md);
+  font-size: var(--we-text-sm);
+}
+
 .we-settings-nav-item {
   font-family: var(--we-font-serif);
   font-style: normal;
