@@ -38,7 +38,7 @@ const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
 // 单个 think 块匹配（用于提取内容，不带 g 以避免 lastIndex 副作用）
 const THINK_SINGLE_RE = /<\s*think(?:ing)?\s*>([\s\S]*?)(?:<\s*\/\s*think(?:ing)?\s*>|$)/i;
 
-function stripThinkBlocksFromText(text) {
+export function stripThinkBlocksFromText(text) {
   let cleaned = text.replace(THINK_CLOSED_RE, '');
   if (THINK_OPEN_TEST_RE.test(cleaned)) {
     cleaned = cleaned.replace(THINK_OPEN_TAIL_RE, '');
@@ -47,7 +47,7 @@ function stripThinkBlocksFromText(text) {
 }
 
 // 在原始文本中找到对应 stripped 文本中 idxInStripped 位置的 <next_prompt> 的原始偏移量
-function findRawNextPromptIdx(raw, idxInStripped) {
+export function findRawNextPromptIdx(raw, idxInStripped) {
   let from = 0;
   while (from <= raw.length) {
     const pos = raw.indexOf('<next_prompt>', from);
@@ -75,6 +75,22 @@ export function unwrapSoloThinkBlock(text) {
   if (outer) return text;
   const m = text.match(THINK_SINGLE_RE);
   return m?.[1] ?? text;
+}
+
+/**
+ * 'closed' | 'truncated' | 'absent'
+ * - closed: 有 <next_prompt> 与 </next_prompt>
+ * - truncated: 仅有开标签
+ * - absent: 完全缺失或只剩残片（如 <next_prom）
+ * 入参应是已 strip think 块后的 visibleContent。
+ */
+export function classifyNextPromptBoundary(visibleContent) {
+  const trimmed = (visibleContent ?? '').trimEnd();
+  if (!trimmed) return 'absent';
+  const openIdx = trimmed.indexOf('<next_prompt>');
+  if (openIdx === -1) return 'absent';
+  const closeIdx = trimmed.indexOf('</next_prompt>', openIdx);
+  return closeIdx === -1 ? 'truncated' : 'closed';
 }
 
 /**

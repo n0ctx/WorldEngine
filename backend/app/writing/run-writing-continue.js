@@ -6,7 +6,7 @@ import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js
 import { createHttpError } from '../shared/http-error.js';
 import { buildWritingPrompt } from '../../prompts/assembler.js';
 import { getConfig, getWritingLlmConfig } from '../../services/config.js';
-import { processStreamOutput } from '../../services/chat.js';
+import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import {
   getMessagesBySessionId,
   getWritingSessionById,
@@ -150,15 +150,7 @@ export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attac
           suggestionEnabled: !!getConfig().writing?.suggestion_enabled,
           currentUserContent: lastUser?.content ?? '',
           configScope: 'writing-aux',
-          onSuggestionFallback() {
-            emitSse({ type: 'suggestion_fallback_started' });
-          },
-          onSuggestionFallbackSucceeded() {
-            emitSse({ type: 'suggestion_fallback_succeeded' });
-          },
-          onSuggestionFallbackFailed() {
-            emitSse({ type: 'suggestion_fallback_failed' });
-          },
+          ...makeSuggestionFallbackCallbacks(emitSse),
           createMessageFn: () => null,
           touchSessionFn: () => {},
         });

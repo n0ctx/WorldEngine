@@ -3043,6 +3043,29 @@
   color: var(--we-color-text-primary);
   background: var(--we-color-bg-subtle);
 }
+.we-saved-nearby-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  flex-shrink: 0;
+}
+.we-saved-nearby-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--we-radius-sm);
+}
+.we-saved-nearby-expand:hover,
+.we-saved-nearby-expand:focus-visible {
+  color: var(--we-color-text-primary);
+  background: var(--we-color-bg-subtle);
+}
 .we-panel-card--flush .we-panel-card-collapse--open > .we-panel-card-body {
   padding: 10px 12px 4px;
   border-top: none;

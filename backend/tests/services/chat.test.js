@@ -208,6 +208,30 @@ test('processStreamOutput 的闭合检测会先剥离 think block，再决定是
   assert.deepEqual(result.options, ['选项一', '选项二', '选项三']);
 });
 
+test('processStreamOutput 在选项区闭合但只有 1-2 条时会删掉闭合标签走 continuation 补齐', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_COMPLETE = '<next_prompt>\n选项一\n选项二\n补齐的第三条\n</next_prompt>';
+
+  const world = insertWorld(sandbox.db, { name: '聊天世界-补齐' });
+  const session = insertSession(sandbox.db, { character_id: insertCharacter(sandbox.db, world.id).id });
+
+  const { processStreamOutput } = await freshImport('backend/services/chat.js');
+  const result = await processStreamOutput(
+    '正文\n<next_prompt>\n选项一\n选项二\n</next_prompt>',
+    false,
+    world.id,
+    session.id,
+    {
+      suggestionEnabled: true,
+      currentUserContent: '继续',
+      configScope: 'aux',
+    },
+  );
+
+  assert.equal(result.savedContent, '正文');
+  assert.deepEqual(result.options, ['选项一', '选项二', '补齐的第三条']);
+});
+
 test('processStreamOutput 在已存在 </next_prompt> 时会截掉最后一个闭合标签后的尾部内容', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_COMPLETE_ERROR = 'fallback should not run';

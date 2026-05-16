@@ -10,7 +10,14 @@ import { logPrompt, createLogger, previewText } from '../utils/logger.js';
 import { getConfig } from './config.js';
 import { createMessage, touchSession } from './sessions.js';
 import { applyRules } from '../utils/regex-runner.js';
-import { stripAsstContext, extractNextPromptOptions, unwrapSoloThinkBlock } from '../utils/turn-dialogue.js';
+import {
+  stripAsstContext,
+  extractNextPromptOptions,
+  unwrapSoloThinkBlock,
+  stripThinkBlocksFromText,
+  findRawNextPromptIdx,
+  classifyNextPromptBoundary,
+} from '../utils/turn-dialogue.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { runHook } from '../hooks/hook-registry.js';
 
@@ -19,9 +26,6 @@ const ATTACHMENTS_DIR = process.env.WE_DATA_DIR
   ? path.resolve(process.env.WE_DATA_DIR, 'uploads', 'attachments')
   : path.resolve(__dirname, '..', '..', 'data', 'uploads', 'attachments');
 const log = createLogger('chat-post');
-const THINK_CLOSED_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
-const THINK_OPEN_TEST_RE = /<\s*think(?:ing)?\s*>/i;
-const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
 
 // ── 进行中的流式请求 ──
 // Map<sessionId, AbortController>
@@ -82,15 +86,6 @@ export async function buildContext(sessionId, options = {}) {
   return { messages, overrides: { temperature, maxTokens, cacheableSystem }, recallHitCount: recallHitCount ?? 0, suggestionText: suggestionText ?? null, activatedEntries: activatedEntries ?? [] };
 }
 
-function stripThinkBlocksForSuggestion(text) {
-  if (!text) return text ?? '';
-  let cleaned = text.replace(THINK_CLOSED_RE, '');
-  if (THINK_OPEN_TEST_RE.test(cleaned)) {
-    cleaned = cleaned.replace(THINK_OPEN_TAIL_RE, '');
-  }
-  return cleaned;
-}
-
 function trimAfterLastNextPromptClose(text) {
   if (!text) return text ?? '';
   const lastCloseIdx = text.lastIndexOf('</next_prompt>');
@@ -98,35 +93,47 @@ function trimAfterLastNextPromptClose(text) {
   return text.slice(0, lastCloseIdx + '</next_prompt>'.length);
 }
 
-function hasSatisfiedNextPromptBoundary(content) {
-  if (!content) return false;
-  const trimmed = content.trimEnd();
-  if (trimmed.endsWith('</next_prompt>')) return true;
-
-  const lastThinkClose = trimmed.lastIndexOf('</think>');
-  const lastThinkingClose = trimmed.lastIndexOf('</thinking>');
-  const thinkCloseIdx = Math.max(lastThinkClose, lastThinkingClose);
-  if (thinkCloseIdx === -1) return false;
-
-  const tail = trimmed.slice(thinkCloseIdx);
-  return tail.includes('</next_prompt>');
+/**
+ * 构造 4 个 run-*.js 入口共享的"补选项 SSE 回调"。
+ * mode: 'fallback' | 'continuation'；reason: 'empty' | 'error'。
+ */
+export function makeSuggestionFallbackCallbacks(emitSse) {
+  return {
+    onSuggestionFallback({ mode } = {}) {
+      emitSse({ type: 'suggestion_fallback_started', mode });
+    },
+    onSuggestionFallbackSucceeded({ mode } = {}) {
+      emitSse({ type: 'suggestion_fallback_succeeded', mode });
+    },
+    onSuggestionFallbackFailed({ mode, reason } = {}) {
+      emitSse({ type: 'suggestion_fallback_failed', mode, reason });
+    },
+  };
 }
 
-function shouldRunSuggestionFallback({ suggestionEnabled, aborted, content }) {
-  const visibleContent = stripThinkBlocksForSuggestion(content);
-  return !!(suggestionEnabled && !aborted && visibleContent && !hasSatisfiedNextPromptBoundary(content));
-}
+const SUGGESTION_AUX_VARIANTS = {
+  fallback: {
+    template: 'shared-suggestion-fallback.md',
+    assistantKey: 'ASSISTANT_MESSAGE',
+    callType: 'suggestion_fallback',
+  },
+  continuation: {
+    template: 'shared-suggestion-continuation.md',
+    assistantKey: 'ASSISTANT_PARTIAL',
+    callType: 'suggestion_continuation',
+  },
+};
 
-async function buildSuggestionFallback({ userContent, assistantContent, configScope = 'aux' }) {
-  const prompt = renderBackendPrompt('shared-suggestion-fallback.md', {
+async function buildSuggestionAux({ mode, userContent, assistantText, configScope = 'aux' }) {
+  const variant = SUGGESTION_AUX_VARIANTS[mode];
+  const prompt = renderBackendPrompt(variant.template, {
     USER_MESSAGE: userContent ?? '',
-    ASSISTANT_MESSAGE: assistantContent ?? '',
+    [variant.assistantKey]: assistantText ?? '',
   });
-  const messages = [{ role: 'user', content: prompt }];
-  return llm.complete(messages, {
+  return llm.complete([{ role: 'user', content: prompt }], {
     configScope,
     temperature: 0,
-    callType: 'suggestion_fallback',
+    callType: variant.callType,
   });
 }
 
@@ -143,29 +150,51 @@ async function resolveSuggestionOptions({
 }) {
   if (!content) return { content: content ?? '', options: [] };
   content = trimAfterLastNextPromptClose(content);
-  const visibleContent = stripThinkBlocksForSuggestion(content);
+  let visibleContent = stripThinkBlocksFromText(content) ?? '';
+  let boundary = classifyNextPromptBoundary(visibleContent);
 
-  if (!shouldRunSuggestionFallback({ suggestionEnabled, aborted, content })) {
+  if (suggestionEnabled && !aborted && visibleContent && boundary === 'closed') {
+    const peek = extractNextPromptOptions(content);
+    if (peek.options.length >= 3) return peek;
+    if (peek.options.length === 0) return peek;
+    // 闭合但只有 1-2 条：删掉闭标签复用 continuation 路径补齐到三条。
+    // 已知此后 boundary 必为 truncated，无需重新 strip / classify。
+    content = content.replace(/<\/next_prompt>\s*$/, '');
+    visibleContent = visibleContent.replace(/<\/next_prompt>\s*$/, '');
+    boundary = 'truncated';
+  }
+
+  if (!suggestionEnabled || aborted || !visibleContent || boundary === 'closed') {
     return extractNextPromptOptions(content);
   }
 
+  const mode = boundary === 'truncated' ? 'continuation' : 'fallback';
   try {
-    onSuggestionFallback?.();
-    const fallbackRaw = await buildSuggestionFallback({
+    onSuggestionFallback?.({ mode });
+    const raw = await buildSuggestionAux({
+      mode,
       userContent,
-      assistantContent: visibleContent,
+      assistantText: visibleContent,
       configScope,
     });
-    const extracted = extractNextPromptOptions(fallbackRaw);
+    const extracted = extractNextPromptOptions(raw);
     if (extracted.options.length > 0) {
-      onSuggestionFallbackSucceeded?.();
-      return { content, options: extracted.options };
+      onSuggestionFallbackSucceeded?.({ mode });
+      let cleanedContent = content;
+      if (mode === 'continuation') {
+        // 把 partial 的 <next_prompt>...EOF 段从正文切掉，避免散文残留。
+        const rawOpenIdx = findRawNextPromptIdx(content, visibleContent.indexOf('<next_prompt>'));
+        if (rawOpenIdx !== -1) {
+          cleanedContent = content.slice(0, rawOpenIdx).replace(/\n+$/, '');
+        }
+      }
+      return { content: cleanedContent, options: extracted.options };
     }
-    onSuggestionFallbackFailed?.('empty');
-    log.warn(`SUGGESTION FALLBACK EMPTY  session=${sessionId.slice(0, 8)}  preview=${JSON.stringify(previewText(fallbackRaw))}`);
+    onSuggestionFallbackFailed?.({ mode, reason: 'empty' });
+    log.warn(`SUGGESTION ${mode.toUpperCase()} EMPTY  session=${sessionId.slice(0, 8)}  preview=${JSON.stringify(previewText(raw))}`);
   } catch (err) {
-    onSuggestionFallbackFailed?.('error');
-    log.warn(`SUGGESTION FALLBACK FAIL  session=${sessionId.slice(0, 8)}  error=${err.message}`);
+    onSuggestionFallbackFailed?.({ mode, reason: 'error' });
+    log.warn(`SUGGESTION ${mode.toUpperCase()} FAIL  session=${sessionId.slice(0, 8)}  error=${err.message}`);
   }
 
   return { content, options: [] };

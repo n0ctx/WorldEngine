@@ -3,7 +3,7 @@ import { buildChatPostgenTasks } from './build-chat-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
-import { processStreamOutput, buildContext } from '../../services/chat.js';
+import { processStreamOutput, buildContext, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import { getConfig } from '../../services/config.js';
 import { getCharacterById } from '../../services/characters.js';
 import { getMessagesBySessionId, getSessionById } from '../../services/sessions.js';
@@ -130,15 +130,7 @@ export async function runChatStream({
           suggestionEnabled: !!getConfig().suggestion_enabled,
           currentUserContent: userContent ?? getLastUserContent(sessionId),
           configScope: 'aux',
-          onSuggestionFallback() {
-            emitSse({ type: 'suggestion_fallback_started' });
-          },
-          onSuggestionFallbackSucceeded() {
-            emitSse({ type: 'suggestion_fallback_succeeded' });
-          },
-          onSuggestionFallbackFailed() {
-            emitSse({ type: 'suggestion_fallback_failed' });
-          },
+          ...makeSuggestionFallbackCallbacks(emitSse),
         }
       );
 

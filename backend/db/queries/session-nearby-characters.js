@@ -54,6 +54,26 @@ export function updateNearbyIsSaved(id, isSaved) {
   ).run(isSaved ? 1 : 0, Date.now(), id);
 }
 
+/**
+ * 仅 bump session_nearby_characters.updated_at（不改其它字段）。
+ * combined-state-updater 在本轮 LLM 触达每个 seenId 后调用，提供给前端
+ * "本轮谁登场了"的可靠信号（state_updated_at 在 state 为空时不会前进）。
+ */
+export function touchNearbyRow(id) {
+  db.prepare(
+    `UPDATE session_nearby_characters SET updated_at = ? WHERE id = ?`,
+  ).run(Date.now(), id);
+}
+
+export function touchNearbyRows(ids) {
+  const list = Array.isArray(ids) ? ids : [];
+  if (list.length === 0) return;
+  const placeholders = list.map(() => '?').join(',');
+  db.prepare(
+    `UPDATE session_nearby_characters SET updated_at = ? WHERE id IN (${placeholders})`,
+  ).run(Date.now(), ...list);
+}
+
 export function deleteNearbyById(id) {
   db.prepare(`DELETE FROM session_nearby_characters WHERE id = ?`).run(id);
 }

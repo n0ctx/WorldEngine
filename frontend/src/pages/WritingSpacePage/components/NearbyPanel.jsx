@@ -72,6 +72,22 @@ function TrashIcon() {
   );
 }
 
+function ChevronUpIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 15 12 9 18 15" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
 function CancelIcon() {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -129,11 +145,12 @@ export default function NearbyPanel({
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
-  // saved 角色"在场"集合：本轮 LLM 触达过 state（auto-detect）或刚被手动保存（grace 一轮）的 saved 角色按完整 state tab 显示；
-  // 其余 saved 角色降级到底部紧凑列表。Map value: { pinnedAt, pinnedAtTick }
-  const [pinnedSavedIds, setPinnedSavedIds] = useState(() => new Map());
-  // 上一次 nearby 快照里每个角色的 state_updated_at；用于检测"本轮 LLM 是否触达了某 saved 角色"
-  const prevStateUpdatedAtRef = useRef(null);
+  // saved 角色默认在顶部完整 state tab 展开；用户点击"收起"或本轮 state 更新 LLM 判定未登场时进入此集合，
+  // 仅在底部姓名列表里露出。仅当前会话内有效；切换会话清空。
+  const [collapsedSavedIds, setCollapsedSavedIds] = useState(() => new Set());
+  // 上一轮各 nearby 的 updated_at，用于在 stateTick 推进时判定"本轮 LLM 是否触达过该 saved 角色"
+  const prevUpdatedAtRef = useRef(null);
+  const lastProcessedTickRef = useRef(null);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
 
@@ -174,57 +191,54 @@ export default function NearbyPanel({
     return () => { cancelled = true; };
   }, [worldId, sessionId, stateTick]);
 
-  // 切换会话/世界时清空 pin 与 prev 快照（pin 仅在本次会话内有效）
+  // 切换会话/世界时清空收起集合与 prev 快照（仅本次会话有效）
   useEffect(() => {
-    prevStateUpdatedAtRef.current = null;
+    prevUpdatedAtRef.current = null;
+    lastProcessedTickRef.current = null;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPinnedSavedIds((prev) => (prev.size === 0 ? prev : new Map()));
+    setCollapsedSavedIds((prev) => (prev.size === 0 ? prev : new Set()));
   }, [worldId, sessionId]);
 
-  // 首次观察（prev 为 null）只记录基线、不做判定，避免恢复会话时把旧 state 误判为本轮触达
+  // 单次扫描 nearby，同时做：
+  //   a) stateTick 推进时按 updated_at 增量自动展开/收起 saved 角色（首次观察只记录基线）
+  //   b) 清掉那些已不再是 saved（或已不存在）的脏 id
   useEffect(() => {
     if (!Array.isArray(nearby)) return;
-    const prevMap = prevStateUpdatedAtRef.current;
-    const curMap = new Map();
-    for (const n of nearby) curMap.set(n.id, n);
-    prevStateUpdatedAtRef.current = curMap;
-    if (prevMap === null) return;
+    const curById = new Map();
+    const curUpdatedAt = new Map();
+    for (const n of nearby) {
+      curById.set(n.id, n);
+      curUpdatedAt.set(n.id, n.updated_at || 0);
+    }
 
-    // 判定依赖外部异步信号（nearby snapshot + prev ref + stateTick），渲染期无法纯派生
-    setPinnedSavedIds((prev) => {
-      const next = new Map(prev);
+    const prevMap = prevUpdatedAtRef.current;
+    const tickAdvanced = prevMap !== null && lastProcessedTickRef.current !== stateTick;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCollapsedSavedIds((prev) => {
+      const next = new Set(prev);
       let changed = false;
-
-      // Phase 1: state_updated_at 相对上一 snapshot 推进过的 saved 角色 → 自动 pin
-      for (const n of nearby) {
-        if (!isNearbySaved(n)) continue;
-        const prevAt = prevMap.get(n.id)?.state_updated_at || 0;
-        const curAt = n.state_updated_at || 0;
-        if (curAt > prevAt) {
-          next.set(n.id, { pinnedStateAt: curAt, pinnedAtTick: stateTick });
-          changed = true;
+      if (tickAdvanced) {
+        for (const n of nearby) {
+          if (!isNearbySaved(n)) continue;
+          const onStage = (n.updated_at || 0) > (prevMap.get(n.id) || 0);
+          if (onStage) {
+            if (next.has(n.id)) { next.delete(n.id); changed = true; }
+          } else if (!next.has(n.id)) {
+            next.add(n.id); changed = true;
+          }
         }
       }
-
-      // Phase 2: stateTick 推进过、且本轮没被 Phase 1 刷新过的旧 pin → 过期降级
-      for (const [id, pin] of prev) {
-        const row = curMap.get(id);
-        if (!row || !isNearbySaved(row)) {
-          next.delete(id);
-          changed = true;
-          continue;
-        }
-        if (stateTick <= pin.pinnedAtTick) continue;
-        const refreshed = next.get(id);
-        if (refreshed && refreshed.pinnedAtTick === stateTick) continue;
-        if ((row.state_updated_at || 0) <= pin.pinnedStateAt) {
-          next.delete(id);
-          changed = true;
-        }
+      // 脏 id 清理：每次都做（廉价，size==0 时 for-of 直接结束）
+      for (const id of prev) {
+        const row = curById.get(id);
+        if (!row || !isNearbySaved(row)) { next.delete(id); changed = true; }
       }
-
       return changed ? next : prev;
     });
+
+    prevUpdatedAtRef.current = curUpdatedAt;
+    lastProcessedTickRef.current = stateTick;
   }, [nearby, stateTick]);
 
   useEffect(() => {
@@ -389,14 +403,15 @@ export default function NearbyPanel({
     const willSave = !n.is_saved;
     try {
       await setNearbySaved(worldId, sessionId, n.id, willSave);
-      // 由未保存 → 保存：把角色加入"待观察" pin，下一轮 LLM 若没动它的 state 再降级
-      // 由保存 → 取消保存：去 pin（角色回到 transient，下轮如未出场会被后端清理）
-      setPinnedSavedIds((prev) => {
-        const next = new Map(prev);
-        if (willSave) next.set(n.id, { pinnedStateAt: n.state_updated_at || 0, pinnedAtTick: stateTick });
-        else next.delete(n.id);
-        return next;
-      });
+      // 取消保存时清掉收起标记，避免后续再保存时残留旧状态
+      if (!willSave) {
+        setCollapsedSavedIds((prev) => {
+          if (!prev.has(n.id)) return prev;
+          const next = new Set(prev);
+          next.delete(n.id);
+          return next;
+        });
+      }
       reloadNearby();
     } catch (err) {
       log.error('nearby.toggle_failed', err, { toast: err?.message || '切换保存失败' });
@@ -405,9 +420,9 @@ export default function NearbyPanel({
   const handleRemoveFor = async (n) => {
     try {
       await removeNearby(worldId, sessionId, n.id);
-      setPinnedSavedIds((prev) => {
+      setCollapsedSavedIds((prev) => {
         if (!prev.has(n.id)) return prev;
-        const next = new Map(prev);
+        const next = new Set(prev);
         next.delete(n.id);
         return next;
       });
@@ -415,6 +430,15 @@ export default function NearbyPanel({
     } catch (err) {
       log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
     }
+  };
+  const setSavedCollapsed = (n, collapsed) => {
+    setCollapsedSavedIds((prev) => {
+      if (collapsed ? prev.has(n.id) : !prev.has(n.id)) return prev;
+      const next = new Set(prev);
+      if (collapsed) next.add(n.id);
+      else next.delete(n.id);
+      return next;
+    });
   };
   const nearbyToolbarFor = (n) => {
     const isSaved = isNearbySaved(n);
@@ -431,6 +455,16 @@ export default function NearbyPanel({
         >
           {isSaved ? <><CancelIcon /><span>取消保存</span></> : <><SaveIcon /><span>保存</span></>}
         </button>
+        {isSaved && (
+          <button
+            type="button"
+            className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+            onClick={() => setSavedCollapsed(n, true)}
+            title="收起完整 state，仅在底部已保存列表里显示姓名"
+          >
+            <ChevronUpIcon /><span>收起</span>
+          </button>
+        )}
         <button
           type="button"
           className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
@@ -446,13 +480,15 @@ export default function NearbyPanel({
   const { fullStateChars, demotedSavedNearby } = useMemo(() => {
     const list = Array.isArray(nearby) ? nearby : [];
     const full = [];
-    const demoted = [];
+    const savedAll = [];
     for (const n of list) {
-      if (!isNearbySaved(n) || pinnedSavedIds.has(n.id)) full.push(n);
-      else demoted.push(n);
+      const saved = isNearbySaved(n);
+      // 默认展开：saved 角色只在用户主动收起后才从顶部 tab 移除
+      if (!saved || !collapsedSavedIds.has(n.id)) full.push(n);
+      if (saved) savedAll.push(n);
     }
-    return { fullStateChars: full, demotedSavedNearby: demoted };
-  }, [nearby, pinnedSavedIds]);
+    return { fullStateChars: full, demotedSavedNearby: savedAll };
+  }, [nearby, collapsedSavedIds]);
 
   const perCharSections = fullStateChars.map((n) => {
     const name = n.name || '未命名';
@@ -582,20 +618,36 @@ export default function NearbyPanel({
           <div className="we-saved-nearby">
             <div className="we-saved-nearby-title">已保存角色</div>
             <ul className="we-saved-nearby-list">
-              {demotedSavedNearby.map((n) => (
-                <li key={n.id} className="we-saved-nearby-item">
-                  <span className="we-saved-nearby-name">{n.name || '未命名'}</span>
-                  <button
-                    type="button"
-                    className="we-state-section-reset we-saved-nearby-cancel"
-                    onClick={() => handleToggleSavedFor(n)}
-                    title="取消保存（角色回到当前登场池；下轮如未出场会被自动清理）"
-                    aria-label="取消保存"
-                  >
-                    <CancelIcon />
-                  </button>
-                </li>
-              ))}
+              {demotedSavedNearby.map((n) => {
+                const collapsed = collapsedSavedIds.has(n.id);
+                return (
+                  <li key={n.id} className="we-saved-nearby-item">
+                    <span className="we-saved-nearby-name">{n.name || '未命名'}</span>
+                    <span className="we-saved-nearby-actions">
+                      {collapsed && (
+                        <button
+                          type="button"
+                          className="we-state-section-reset we-saved-nearby-expand"
+                          onClick={() => setSavedCollapsed(n, false)}
+                          title="展示完整 state（恢复到顶部 tab）"
+                          aria-label="展示"
+                        >
+                          <ChevronDownIcon />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="we-state-section-reset we-saved-nearby-cancel"
+                        onClick={() => handleToggleSavedFor(n)}
+                        title="取消保存（角色回到当前登场池；下轮如未出场会被自动清理）"
+                        aria-label="取消保存"
+                      >
+                        <CancelIcon />
+                      </button>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

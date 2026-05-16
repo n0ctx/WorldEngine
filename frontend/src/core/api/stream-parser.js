@@ -20,9 +20,9 @@ import { log } from '../utils/logger.js';
  *   onStateUpdateFailed(evt)    — 状态栏更新失败，evt.error 为错误信息
  *   onPostprocessFailed(evt)    — keep-alive 后处理失败/超时（如标题生成）
  *   onDiaryUpdated()            — 日记异步生成完成（writing 专有）
- *   onSuggestionFallbackStarted() — 选项区缺失，后端已触发副模型补选项
- *   onSuggestionFallbackSucceeded() — 补选项成功
- *   onSuggestionFallbackFailed() — 补选项失败
+ *   onSuggestionFallbackStarted(evt) — 选项区缺失或截断，后端触发副模型补选项；evt.mode 为 'fallback'|'continuation'
+ *   onSuggestionFallbackSucceeded(evt) — 补选项成功；evt.mode 同上
+ *   onSuggestionFallbackFailed(evt) — 补选项失败；evt.mode/evt.reason
  *   onEntriesActivated(entries) — 本轮激活的非常驻条目（运行时展示，不持久化）
  */
 export async function subscribeSse(url, callbacks, signal) {
@@ -69,9 +69,9 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'state_update_failed') callbacks.onStateUpdateFailed?.(evt);
           else if (evt.type === 'postprocess_failed') callbacks.onPostprocessFailed?.(evt);
           else if (evt.type === 'diary_updated') callbacks.onDiaryUpdated?.();
-          else if (evt.type === 'suggestion_fallback_started') callbacks.onSuggestionFallbackStarted?.();
-          else if (evt.type === 'suggestion_fallback_succeeded') callbacks.onSuggestionFallbackSucceeded?.();
-          else if (evt.type === 'suggestion_fallback_failed') callbacks.onSuggestionFallbackFailed?.();
+          else if (evt.type === 'suggestion_fallback_started') callbacks.onSuggestionFallbackStarted?.(evt);
+          else if (evt.type === 'suggestion_fallback_succeeded') callbacks.onSuggestionFallbackSucceeded?.(evt);
+          else if (evt.type === 'suggestion_fallback_failed') callbacks.onSuggestionFallbackFailed?.(evt);
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
           else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);

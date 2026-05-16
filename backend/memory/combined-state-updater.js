@@ -26,6 +26,7 @@ import { upsertSessionPersonaStateValue, getSessionPersonaStateValues } from '..
 import {
   createNearbyCharacter,
   deleteTransientNotInIds,
+  touchNearbyRows,
   getNearbyByName,
   listNearbyBySessionId,
   updateNearbyPersona,
@@ -709,6 +710,10 @@ export function applyNearbyResult({ sessionId, worldId: _worldId, fields, nearby
     if (!keepIds.includes(id)) keepIds.push(id);
   }
   deleteTransientNotInIds(sessionId, keepIds);
+
+  // 本轮"被 LLM 触达"信号：bump updated_at，供前端判断 saved 角色是否登场（自动展开/收起）
+  // state_updated_at 在 state 字段空时不前进，所以单独维护 row.updated_at
+  touchNearbyRows(seenIds);
 }
 
 // ── 值校验与格式化 ───────────────────────────────────────────────────────────

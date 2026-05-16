@@ -8,6 +8,7 @@ import { getConfig } from '../../services/config.js';
 import {
   activeStreams as _unused,
   processStreamOutput,
+  makeSuggestionFallbackCallbacks,
 } from '../../services/chat.js';
 import {
   createMessage,
@@ -143,15 +144,7 @@ export async function runWritingStream({
           suggestionEnabled: !!getConfig().writing?.suggestion_enabled,
           currentUserContent: userContent ?? getLastUserContent(sessionId),
           configScope: 'writing-aux',
-          onSuggestionFallback() {
-            emitSse({ type: 'suggestion_fallback_started' });
-          },
-          onSuggestionFallbackSucceeded() {
-            emitSse({ type: 'suggestion_fallback_succeeded' });
-          },
-          onSuggestionFallbackFailed() {
-            emitSse({ type: 'suggestion_fallback_failed' });
-          },
+          ...makeSuggestionFallbackCallbacks(emitSse),
         }
       );
 

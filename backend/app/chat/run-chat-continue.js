@@ -4,7 +4,7 @@ import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { createHttpError } from '../shared/http-error.js';
-import { processStreamOutput, buildContext } from '../../services/chat.js';
+import { processStreamOutput, buildContext, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import { getConfig } from '../../services/config.js';
 import { getCharacterById } from '../../services/characters.js';
 import {
@@ -127,15 +127,7 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
           suggestionEnabled: !!getConfig().suggestion_enabled,
           currentUserContent: lastUser?.content ?? '',
           configScope: 'aux',
-          onSuggestionFallback() {
-            emitSse({ type: 'suggestion_fallback_started' });
-          },
-          onSuggestionFallbackSucceeded() {
-            emitSse({ type: 'suggestion_fallback_succeeded' });
-          },
-          onSuggestionFallbackFailed() {
-            emitSse({ type: 'suggestion_fallback_failed' });
-          },
+          ...makeSuggestionFallbackCallbacks(emitSse),
           createMessageFn: () => null,
           touchSessionFn: () => {},
         });

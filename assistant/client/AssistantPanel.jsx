@@ -136,8 +136,11 @@ export default function AssistantPanel() {
           ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '恢复订阅失败' });
         }
       } finally {
-        if (abortRef.current === ctrl) abortRef.current = null;
-        setIsStreaming(false);
+        // 只对仍活跃的 ctrl 收回 isStreaming，避免覆盖下一轮 handleSend 已设置的 true
+        if (abortRef.current === ctrl) {
+          abortRef.current = null;
+          setIsStreaming(false);
+        }
       }
     },
     [ingestEvent],
@@ -343,8 +346,11 @@ export default function AssistantPanel() {
           ingestEvent({ type: SSE_EVENTS.TASK_FAILED, error: err?.message || '请求失败' });
         }
       } finally {
-        if (abortRef.current === ctrl) abortRef.current = null;
-        setIsStreaming(false);
+        // 只对仍活跃的 ctrl 收回 isStreaming（见 openRecoveryStream）
+        if (abortRef.current === ctrl) {
+          abortRef.current = null;
+          setIsStreaming(false);
+        }
       }
     },
     [input, taskId, buildContext, ingestEvent, pushUserMessage, beginUserTurn, handleStop],

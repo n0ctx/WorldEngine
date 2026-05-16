@@ -16,6 +16,8 @@ CSS 片段（`css-snippet`）承载用户自定义视觉样式：
 - 文本替换 / HTML 包裹 / Markdown 标记清洗 → 属于 `regex-rule`
 - prompt 文本本身 → 属于 world-card / character-card / global-config
 - 数据字段定义 → 属于 world-card stateFieldOps
+- **整套换肤 / 全局换色 / "这个主题别红了"** → 属于 `theme` 资源，不要在 snippet 里堆 `:root { --we-base-* }` 覆盖。判断口诀见 `THEME.md` §「与 css-snippet 共存时的归位判断」。
+- 修改弹窗遮罩浓度（`--we-color-bg-overlay` / `--we-color-overlay-heavy`）→ 走当前激活主题的 `theme.update`，不要在 snippet 里盖。
 
 ## operation 与 entityId
 

@@ -15,7 +15,7 @@ import {
   deleteMessagesAfter,
 } from '../services/sessions.js';
 import { getCharacterById } from '../services/characters.js';
-import { deleteTurnRecordsAfterRound, getLatestTurnRecord } from '../db/queries/turn-records.js';
+import { deleteTurnRecordsAfterRound, getLatestTurnRecord, getLatestTurnRecordWithSnapshot } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
 import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
@@ -135,7 +135,8 @@ router.put('/messages/:id', async (req, res) => {
   if (editWorldId) {
     // 写作模式没有固定角色身份，editCharIds 留空即可（nearby 状态由专属表回滚）
     const editCharIds = editCharId ? [editCharId] : [];
-    const editLastRecord = getLatestTurnRecord(editSessionId);
+    // 必须用带 snapshot 的最近 turn record；否则 snapshot=null 走到 state-rollback 降级分支会无差别清空 nearby
+    const editLastRecord = getLatestTurnRecordWithSnapshot(editSessionId);
     restoreStateFromSnapshot(
       editSessionId, editWorldId, editCharIds,
       editLastRecord?.state_snapshot ? JSON.parse(editLastRecord.state_snapshot) : null,
@@ -184,7 +185,8 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   if (worldId) {
     // 写作模式无固定角色，characterIds 留空（nearby 状态由专属表回滚）
     const characterIds = characterId ? [characterId] : [];
-    const lastRecord = getLatestTurnRecord(sessionId);
+    // 必须用带 snapshot 的最近 turn record；否则 snapshot=null 走到 state-rollback 降级分支会无差别清空 nearby
+    const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
     restoreStateFromSnapshot(
       sessionId, worldId, characterIds,
       lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null,
