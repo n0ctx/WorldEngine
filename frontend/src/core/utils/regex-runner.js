@@ -9,15 +9,22 @@ import { listRegexRules } from '../api/regex-rules.js';
 
 // 模块级缓存，null 表示未加载
 let _cachedRules = null;
+// 单调递增的序号，确保 mode 快速切换时只有最新一次 loadRules 的结果落入缓存,
+// 避免旧请求晚于新请求返回时覆盖当前 mode 的数据。
+let _loadSeq = 0;
 
 /**
  * 拉取指定 mode 的规则到缓存（打开设置页或规则变更后调用）
  * @param {'chat'|'writing'} [mode]
  */
 export async function loadRules(mode) {
+  const seq = ++_loadSeq;
   try {
-    _cachedRules = await listRegexRules(mode ? { mode } : {});
+    const rules = await listRegexRules(mode ? { mode } : {});
+    if (seq !== _loadSeq) return; // 已被后续请求作废
+    _cachedRules = rules;
   } catch (err) {
+    if (seq !== _loadSeq) return;
     console.warn('[regex-runner] 规则加载失败:', err.message);
     _cachedRules = [];
   }

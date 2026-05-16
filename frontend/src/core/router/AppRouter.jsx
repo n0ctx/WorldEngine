@@ -75,11 +75,18 @@ export default function AppRouter() {
   // 监听必须挂在根组件（而非设置页内组件）上，否则用户停留在聊天/世界/角色页时
   // 设置组件未挂载，事件没人接 → 注入的 <style id="we-custom-css"> 和正则缓存
   // 都不会更新，必须刷新页面才能看到效果。
+  // 同时 appMode 变化（聊天↔写作）时也主动 reload，否则两套配置只在切 settings tab
+  // 时才生效，进出页面不会自动适配。
   useEffect(() => {
-    const onCssUpdated = () => { refreshCustomCss(appMode).catch(() => {}); };
+    // refreshCustomCss / loadRules 内部各有序号保护,
+    // 模式快速切换时旧请求晚返回不会覆盖当前模式的单例状态。
+    refreshCustomCss(appMode);
+    invalidateCache();
+    loadRules(appMode);
+    const onCssUpdated = () => { refreshCustomCss(appMode); };
     const onRegexUpdated = () => {
       invalidateCache();
-      loadRules(appMode).catch(() => {});
+      loadRules(appMode);
     };
     window.addEventListener('we:css-updated', onCssUpdated);
     window.addEventListener('we:regex-updated', onRegexUpdated);

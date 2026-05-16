@@ -754,6 +754,7 @@ export function exportGlobalSettings(mode = 'chat') {
           model: writingLlm.model ?? '',
           temperature: writingLlm.temperature ?? null,
           max_tokens: writingLlm.max_tokens ?? null,
+          thinking_level: writingLlm.thinking_level ?? null,
         },
       },
     };
@@ -849,6 +850,7 @@ export function importGlobalSettings(data) {
       if (typeof data.writing.llm.model === 'string') writingPatch.llm.model = data.writing.llm.model;
       if (data.writing.llm.temperature === null || typeof data.writing.llm.temperature === 'number') writingPatch.llm.temperature = data.writing.llm.temperature;
       if (data.writing.llm.max_tokens === null || typeof data.writing.llm.max_tokens === 'number') writingPatch.llm.max_tokens = data.writing.llm.max_tokens;
+      if (data.writing.llm.thinking_level === null || typeof data.writing.llm.thinking_level === 'string') writingPatch.llm.thinking_level = data.writing.llm.thinking_level;
     }
     if (Object.keys(writingPatch).length > 0) updateConfig({ writing: writingPatch });
   }

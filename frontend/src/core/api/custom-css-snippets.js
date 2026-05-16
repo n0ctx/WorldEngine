@@ -29,9 +29,15 @@ export function reorderSnippets(items) {
  * 拉取指定 mode 的启用片段，按 sort_order 拼接后写入 <style id="we-custom-css">
  * @param {'chat'|'writing'} [mode] 不传则加载全部
  */
+// 单调递增的序号，确保 mode 快速切换时只有最新一次 refreshCustomCss 的结果
+// 落入 <style id="we-custom-css">，避免旧请求晚返回时覆盖当前 mode 的样式。
+let _cssRefreshSeq = 0;
+
 export async function refreshCustomCss(mode) {
+  const seq = ++_cssRefreshSeq;
   try {
     const snippets = await listSnippets(mode ? { mode } : {});
+    if (seq !== _cssRefreshSeq) return; // 已被后续请求作废
     const css = snippets
       .filter((s) => s.enabled)
       .map((s) => s.content)

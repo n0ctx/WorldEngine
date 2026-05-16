@@ -89,6 +89,7 @@ const DEFAULT_CONFIG = {
       model: '',
       temperature: null,
       max_tokens: null,
+      thinking_level: null,
     },
     aux_llm: structuredClone(DEFAULT_AUX_LLM),
   },
@@ -116,6 +117,7 @@ const DEFAULT_WRITING = {
     model: '',
     temperature: null,
     max_tokens: null,
+    thinking_level: null,
   },
   aux_llm: structuredClone(DEFAULT_AUX_LLM),
 };

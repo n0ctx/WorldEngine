@@ -5,14 +5,12 @@ import {
   testConnection, testEmbeddingConnection,
 } from '../../core/api/config';
 import ProviderBlock from './ProviderBlock';
-import WritingLlmBlock from './WritingLlmBlock';
+import MainLlmBlock from './MainLlmBlock';
 import AuxLlmBlock from './AuxLlmBlock';
 import AssistantModelBlock from './AssistantModelBlock';
 import FormGroup from '../ui/FormGroup';
-import FieldLabel from '../ui/FieldLabel';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
-import Range from '../ui/Range';
 import { LLM_PROVIDERS, EMBEDDING_PROVIDERS, SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function LlmConfigPanel({
@@ -24,31 +22,10 @@ export default function LlmConfigPanel({
   assistantModelSource, onAssistantModelSourceChange,
   proxyUrl, onProxyUrlSave,
 }) {
-  const [testStatus, setTestStatus] = useState('idle');
-  const [testMsg, setTestMsg] = useState('');
   const [embedTestStatus, setEmbedTestStatus] = useState('idle');
   const [embedTestMsg, setEmbedTestMsg] = useState('');
   const [proxyInput, setProxyInput] = useState(proxyUrl ?? '');
   const [proxySaved, setProxySaved] = useState(false);
-
-  async function handleTestConnection() {
-    setTestStatus('testing');
-    setTestMsg('');
-    try {
-      const result = await testConnection();
-      if (result.success) {
-        setTestStatus('ok');
-        setTestMsg('连接成功');
-      } else {
-        setTestStatus('error');
-        setTestMsg(result.error || '连接失败');
-      }
-    } catch (e) {
-      setTestStatus('error');
-      setTestMsg(e.message);
-    }
-    setTimeout(() => setTestStatus('idle'), 4000);
-  }
 
   async function handleTestEmbedding() {
     setEmbedTestStatus('testing');
@@ -73,67 +50,40 @@ export default function LlmConfigPanel({
     <div className="we-settings-llm-panel">
       <h2 className="we-settings-section-title">LLM 配置</h2>
 
-      {/* 主模型区块：按 settingsMode 分支渲染 */}
+      {/* 主模型区块：对话/写作共用 MainLlmBlock，inheritFrom 切换继承语义 */}
       {settingsMode === SETTINGS_MODE.WRITING ? (
-        <WritingLlmBlock
-          writingLlm={writingLlm}
+        <MainLlmBlock
+          title="主模型(LLM)"
           providers={LLM_PROVIDERS}
-          onWritingLlmChange={onWritingLlmChange}
+          config={writingLlm}
+          onProviderChange={(v) => onWritingLlmChange('provider', v)}
+          onBaseUrlChange={(v) => onWritingLlmChange('base_url', v)}
+          onModelChange={(v) => onWritingLlmChange('model', v)}
+          onThinkingLevelChange={(v) => onWritingLlmChange('thinking_level', v)}
+          onTemperatureChange={(v) => onWritingLlmChange('temperature', v)}
+          onMaxTokensChange={(v) => onWritingLlmChange('max_tokens', v)}
           onApiKeySave={onWritingApiKeySave}
-          loadModels={fetchWritingModels}
+          onApiKeySaved={() => onWritingLlmChange('has_key', true)}
           testConnection={testWritingConnection}
-          chatModel={llm.model}
+          loadModels={fetchWritingModels}
+          inheritFrom={{ label: '对话主模型', model: llm.model }}
         />
       ) : (
-        <div className="we-settings-field-group we-settings-field-group--tight">
-          <ProviderBlock
-            title="主模型（LLM）"
-            providers={LLM_PROVIDERS}
-            config={llm}
-            onProviderChange={(v) => onLlmChange('provider', v)}
-            onBaseUrlChange={(v) => onLlmChange('base_url', v)}
-            onModelChange={(v) => onLlmChange('model', v)}
-            onApiKeySave={updateProviderKey}
-            onApiKeySaved={() => onLlmChange('has_key', true)}
-            onThinkingLevelChange={(v) => onLlmChange('thinking_level', v)}
-            loadModels={fetchModels}
-          />
-
-          <div className="we-settings-field-group we-settings-field-group--compact">
-            <div className="we-settings-inline-control-block">
-              <div className="we-settings-range-head">
-                <FieldLabel variant="settings">Temperature</FieldLabel>
-                <span className="we-settings-range-value">
-                  {(llm.temperature ?? 0.8).toFixed(1)}
-                </span>
-              </div>
-              <Range
-                min="0.1"
-                max="2.0"
-                step="0.1"
-                value={llm.temperature ?? 0.8}
-                onChange={(e) => onLlmChange('temperature', parseFloat(e.target.value))}
-              />
-            </div>
-
-            <FormGroup label="Max Tokens" variant="settings">
-              <Input
-                type="number"
-                min="64" max="32000" step="64"
-                value={llm.max_tokens ?? 4096}
-                onChange={(e) => onLlmChange('max_tokens', parseInt(e.target.value, 10))}
-              />
-            </FormGroup>
-
-            <div className="we-settings-action-row we-settings-action-row--spaced">
-              <Button variant="default" onClick={handleTestConnection} disabled={testStatus === 'testing'}>
-                {testStatus === 'testing' ? '测试中…' : '测试连接'}
-              </Button>
-              {testStatus === 'ok' && <span className="we-settings-status-ok">{testMsg}</span>}
-              {testStatus === 'error' && <span className="we-settings-status-error">{testMsg}</span>}
-            </div>
-          </div>
-        </div>
+        <MainLlmBlock
+          title="主模型（LLM）"
+          providers={LLM_PROVIDERS}
+          config={llm}
+          onProviderChange={(v) => onLlmChange('provider', v)}
+          onBaseUrlChange={(v) => onLlmChange('base_url', v)}
+          onModelChange={(v) => onLlmChange('model', v)}
+          onThinkingLevelChange={(v) => onLlmChange('thinking_level', v)}
+          onTemperatureChange={(v) => onLlmChange('temperature', v)}
+          onMaxTokensChange={(v) => onLlmChange('max_tokens', v)}
+          onApiKeySave={updateProviderKey}
+          onApiKeySaved={() => onLlmChange('has_key', true)}
+          testConnection={testConnection}
+          loadModels={fetchModels}
+        />
       )}
 
       {/* 副模型按 settingsMode 分别渲染（写作 tab 与对话 tab 各自独立配置） */}

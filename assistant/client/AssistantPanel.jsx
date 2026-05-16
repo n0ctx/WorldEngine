@@ -150,7 +150,9 @@ export default function AssistantPanel() {
     [openRecoveryStream],
   );
 
-  useEffect(() => {
+  // 通用的恢复入口：开面板时 / 依赖变化时 / 回到前台时都走这里。
+  // 重入靠 recoveringRef + isStreaming 守门，可被外部事件（visibility/focus/online）反复触发。
+  const runRecovery = useCallback(async () => {
     if (!isOpen || recoveringRef.current || isStreaming) return;
     const shouldRecover =
       Boolean(taskId) ||
@@ -161,82 +163,104 @@ export default function AssistantPanel() {
     if (!shouldRecover) return;
 
     recoveringRef.current = true;
-    (async () => {
-      try {
-        let task = null;
-        let recoveryMode = 'existing';
-        if (taskId) {
-          task = await fetchTask(taskId).catch(() => null);
-        }
-        if (!task) {
-          // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
-          const recoverContext = {
+    try {
+      let task = null;
+      let recoveryMode = 'existing';
+      if (taskId) {
+        task = await fetchTask(taskId).catch(() => null);
+      }
+      if (!task) {
+        // 按当前世界 / 角色上下文严格匹配，避免跨上下文串台。
+        const recoverContext = {
+          worldId: currentWorldId ?? null,
+          characterId: currentCharacterId ?? null,
+        };
+        task = await recoverTask(recoverContext).catch(() => null);
+        recoveryMode = 'latest';
+      }
+      if (!task) {
+        if (taskId) resetTask();
+        // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
+        try {
+          const others = await listRecoverableTasks({
             worldId: currentWorldId ?? null,
             characterId: currentCharacterId ?? null,
-          };
-          task = await recoverTask(recoverContext).catch(() => null);
-          recoveryMode = 'latest';
-        }
-        if (!task) {
-          if (taskId) resetTask();
-          // 当前上下文无可恢复任务时，主动检查其它上下文是否还有未完成任务，给用户一个温和提示。
-          try {
-            const others = await listRecoverableTasks({
-              worldId: currentWorldId ?? null,
-              characterId: currentCharacterId ?? null,
+          });
+          if (others.length > 0) {
+            log.info('assistant.resume.other_context', null, {
+              toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
             });
-            if (others.length > 0) {
-              log.info('assistant.resume.other_context', null, {
-                toast: `其它世界 / 角色还有 ${others.length} 个未完成的写卡任务，切换上下文后可继续`,
-              });
-            }
-          } catch {
-            // 忽略列表查询失败
           }
-          return;
+        } catch {
+          // 忽略列表查询失败
         }
-        replaceTaskSnapshot(task);
-        const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
-        const shouldToastRecovery =
-          task.status === 'running' ||
-          task.status === 'paused' ||
-          task.status === 'awaiting_approval' ||
-          (task.status === 'failed' && isRestartInterrupted(task.error));
-        if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
-          recoveryToastKeyRef.current = toastKey;
-          if (task.status === 'failed' && isRestartInterrupted(task.error)) {
-            log.warn('assistant.resume.interrupted', null, {
-              toast: '已恢复中断前快照，旧执行因服务重启已停止',
-            });
-          } else if (recoveryMode === 'latest') {
-            log.info('assistant.resume.latest', null, { toast: '已恢复最近的写卡助手任务' });
-          } else {
-            log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
-          }
-        }
-        const isUserRejectedPlanPause =
-          task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
-        const isHarnessRecoverablePause =
-          task.status === 'paused' && task.error === HARNESS_RECOVERABLE_PAUSE_REASON;
-        const isConsecutiveToolFailuresPause =
-          task.status === 'paused' && task.error === CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON;
-        const shouldAutoResume =
-          task.status === 'running' ||
-          (task.status === 'paused'
-            && !isUserRejectedPlanPause
-            && !isHarnessRecoverablePause
-            && !isConsecutiveToolFailuresPause) ||
-          (task.status === 'failed' && isRestartInterrupted(task.error));
-        if (shouldAutoResume) {
-          await openRecoveryStream(task.id, 'resume');
-        } else if (task.status === 'awaiting_approval') {
-          await attachRecoveryStream(task.id);
-        }
-      } finally {
-        recoveringRef.current = false;
+        return;
       }
-    })();
+      replaceTaskSnapshot(task);
+      const toastKey = `${task.id}:${task.updatedAt ?? ''}:${task.status}:${task.error ?? ''}`;
+      const shouldToastRecovery =
+        task.status === 'running' ||
+        task.status === 'paused' ||
+        task.status === 'awaiting_approval' ||
+        (task.status === 'failed' && isRestartInterrupted(task.error));
+      if (shouldToastRecovery && recoveryToastKeyRef.current !== toastKey) {
+        recoveryToastKeyRef.current = toastKey;
+        if (task.status === 'failed' && isRestartInterrupted(task.error)) {
+          log.warn('assistant.resume.interrupted', null, {
+            toast: '已恢复中断前快照，旧执行因服务重启已停止',
+          });
+        } else if (recoveryMode === 'latest') {
+          log.info('assistant.resume.latest', null, { toast: '已恢复最近的写卡助手任务' });
+        } else {
+          log.info('assistant.resume.reconnected', null, { toast: '写卡助手已恢复连接' });
+        }
+      }
+      const isUserRejectedPlanPause =
+        task.status === 'paused' && task.error === PLAN_REJECTED_PAUSE_REASON;
+      const isHarnessRecoverablePause =
+        task.status === 'paused' && task.error === HARNESS_RECOVERABLE_PAUSE_REASON;
+      const isConsecutiveToolFailuresPause =
+        task.status === 'paused' && task.error === CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON;
+      const shouldAutoResume =
+        task.status === 'running' ||
+        (task.status === 'paused'
+          && !isUserRejectedPlanPause
+          && !isHarnessRecoverablePause
+          && !isConsecutiveToolFailuresPause) ||
+        (task.status === 'failed' && isRestartInterrupted(task.error));
+      if (shouldAutoResume) {
+        await openRecoveryStream(task.id, 'resume');
+      } else if (task.status === 'awaiting_approval') {
+        await attachRecoveryStream(task.id);
+      }
+    } finally {
+      recoveringRef.current = false;
+    }
   }, [isOpen, isStreaming, taskId, status, isRestartRecoverable, replaceTaskSnapshot, attachRecoveryStream, openRecoveryStream, resetTask, currentWorldId, currentCharacterId]);
+
+  // 依赖（isOpen / taskId / status / 上下文）变化时跑一次。
+  useEffect(() => {
+    runRecovery();
+  }, [runRecovery]);
+
+  // 回到前台 / 重新拿到焦点 / 网络恢复时再跑一次：SSE 长连接被中间层切断或浏览器后台节流后，
+  // 仅靠 useEffect 依赖不会再触发；这里补上"用户回来"的钩子，避免出现"看着开着但没反应"。
+  useEffect(() => {
+    if (!isOpen) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') runRecovery();
+    };
+    const onFocus = () => runRecovery();
+    const onOnline = () => runRecovery();
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
+    };
+  }, [isOpen, runRecovery]);
 
   const handleStop = useCallback(async () => {
     // 用户敲 `/stop` 或外部触发"请求取消"流程：

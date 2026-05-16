@@ -12,12 +12,26 @@ import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 
+const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
+
+function readPersistedSettingsMode() {
+  try {
+    const v = globalThis.localStorage?.getItem(SETTINGS_MODE_STORAGE_KEY);
+    if (v === SETTINGS_MODE.CHAT || v === SETTINGS_MODE.WRITING) return v;
+  } catch { /* ignore */ }
+  return SETTINGS_MODE.CHAT;
+}
+
 export default function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const isOverlay = !!location.state?.backgroundLocation;
   const [activeSection, setActiveSection] = useState(NAV_SECTIONS[0].key);
-  const [settingsMode, setSettingsMode] = useState(SETTINGS_MODE.CHAT);
+  const [settingsMode, setSettingsModeState] = useState(readPersistedSettingsMode);
+  const setSettingsMode = (mode) => {
+    setSettingsModeState(mode);
+    try { globalThis.localStorage?.setItem(SETTINGS_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+  };
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
   const panelRef = useRef(null);
   const mouseDownOutsidePanel = useRef(false);

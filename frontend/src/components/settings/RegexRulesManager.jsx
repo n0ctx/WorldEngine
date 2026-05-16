@@ -165,6 +165,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
         <RegexRuleEditor
           rule={editingRule}
           worlds={worlds}
+          settingsMode={settingsMode}
           onSave={handleSave}
           onClose={() => setEditorOpen(false)}
         />

@@ -12,12 +12,7 @@ const SCOPE_OPTIONS = [
 
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
 
-const MODE_OPTIONS = [
-  { value: 'chat', label: '对话' },
-  { value: 'writing', label: '写作' },
-];
-
-function buildForm(rule) {
+function buildForm(rule, fallbackMode) {
   return {
     name: rule?.name ?? '',
     enabled: rule?.enabled ?? 1,
@@ -26,13 +21,13 @@ function buildForm(rule) {
     flags: rule?.flags ?? 'g',
     scope: rule?.scope ?? 'user_input',
     world_id: rule?.world_id ?? null,
-    mode: rule?.mode ?? 'chat',
+    mode: rule?.mode ?? fallbackMode ?? 'chat',
   };
 }
 
-export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
+export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, onClose }) {
   const mouseDownOnOverlay = useRef(false);
-  const [form, setForm] = useState(() => buildForm(rule));
+  const [form, setForm] = useState(() => buildForm(rule, settingsMode));
 
   const [testInput, setTestInput] = useState('');
   const [testOutput, setTestOutput] = useState(null);
@@ -118,16 +113,6 @@ export default function RegexRuleEditor({ rule, worlds, onSave, onClose }) {
               { value: '', label: '全局（所有世界）' },
               ...(worlds || []).map((w) => ({ value: w.id, label: w.name })),
             ]}
-          />
-        </div>
-
-        {/* 应用模式 */}
-        <div>
-          <label className="we-dialog-label">应用模式</label>
-          <Select
-            value={form.mode}
-            onChange={(v) => setField('mode', v)}
-            options={MODE_OPTIONS}
           />
         </div>
 
