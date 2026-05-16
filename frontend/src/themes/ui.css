@@ -179,6 +179,15 @@
   line-height: var(--we-leading-snug);
 }
 
+/* 编辑页（玩家/角色/世界）输入控件统一窄行尺寸 + 圆角 */
+.we-edit-panel .we-input,
+.we-edit-panel .we-textarea {
+  padding: var(--we-space-sm) var(--we-space-md);
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+  border-radius: var(--we-radius-sm);
+}
+
 /* ── Datetime Split Input（年/月/日/时/分 五段拆分输入）── */
 .we-datetime-part-input {
   display: inline-flex;
@@ -615,6 +624,25 @@
 .we-settings-panel .we-select-chevron {
   width: 13px;
   height: 13px;
+}
+
+/* 编辑页 Select trigger 同步窄行尺寸 + 圆角 */
+.we-edit-panel .we-select-trigger {
+  padding: var(--we-space-sm) var(--we-space-md);
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+  border-radius: var(--we-radius-sm);
+}
+.we-edit-panel .we-select-chevron {
+  width: 13px;
+  height: 13px;
+}
+/* 编辑页 tag-input 同步圆角，保持与上方 input 视觉一致 */
+.we-edit-panel .we-tag-input {
+  border-radius: var(--we-radius-sm);
+}
+.we-edit-panel .we-tag-input .we-tag {
+  border-radius: var(--we-radius-xs);
 }
 
 .we-status-inline-select .we-select-trigger {

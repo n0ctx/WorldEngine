@@ -99,6 +99,32 @@ test('buildContextBlock 反映 task 状态与 appliedResources', () => {
   assert.match(empty, /本轮尚未落地任何资源/);
 });
 
+test('buildContextBlock 注入本世界 personas / characters 清单（id + name）', async () => {
+  const worldsQ = await freshImport('backend/db/queries/worlds.js');
+  const charactersQ = await freshImport('backend/db/queries/characters.js');
+  const personasQ = await freshImport('backend/db/queries/personas.js');
+  const world = worldsQ.createWorld({ name: 'roster-w' });
+  personasQ.createPersona(world.id, { name: 'P-alpha' });
+  personasQ.createPersona(world.id, { name: 'P-beta' });
+  charactersQ.createCharacter({ world_id: world.id, name: 'C-foo' });
+  charactersQ.createCharacter({ world_id: world.id, name: 'C-bar' });
+  charactersQ.createCharacter({ world_id: world.id, name: 'C-baz' });
+
+  const task = { id: 'task-roster', status: 'running', context: { worldId: world.id }, appliedResources: [] };
+  const block = __testables.buildContextBlock(task, '');
+  assert.match(block, /本世界资源清单/);
+  assert.match(block, /personas（共 2）/);
+  assert.match(block, /characters（共 3）/);
+  assert.match(block, /P-alpha/);
+  assert.match(block, /P-beta/);
+  assert.match(block, /C-foo/);
+  assert.match(block, /C-bar/);
+  assert.match(block, /C-baz/);
+
+  const blockNoWorld = __testables.buildContextBlock({ id: 't', status: 'running', context: {}, appliedResources: [] }, '');
+  assert.doesNotMatch(blockNoWorld, /本世界资源清单/);
+});
+
 test('detectPlanFirstPolicy 会识别通用计划边界', () => {
   assert.equal(__testables.detectPlanFirstPolicy('创建一个玩家卡').requiresPlanFirst, true);
   assert.equal(__testables.detectPlanFirstPolicy('新建一个角色').requiresPlanFirst, true);

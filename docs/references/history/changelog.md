@@ -4,6 +4,9 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **feat(assistant/parent-agent): 上下文注入本世界 personas / characters 概览** — `assistant/server/parent-agent.js` 的 `buildContextBlock` 在 `context.worldId` 存在时附加「# 本世界资源清单」（id + name + active 标记，单类上限 40 条），让父代理一眼看到不止当前选中那一张卡；详情仍走 `preview_card`；同步 `docs/references/assistant/architecture.md` 与新增测试 `assistant/tests/parent-agent.test.mjs`。
+- **style(frontend/edit-pages): 输入控件统一窄行尺寸 + 圆角** — `frontend/src/themes/ui.css` 给 `.we-edit-panel` 下的 `.we-input/.we-textarea/.we-select-trigger` 加覆写（padding `sm/md`、font-size `sm`、line-height `snug`、`border-radius: var(--we-radius-sm)`），`.we-tag-input` 同步圆角、内部 `.we-tag` 用 `--we-radius-xs`；不改背景/边框/阴影，`.we-datetime-split .we-input` 选择器更具体不受影响。
+- **docs(assistant/CSSSNIPPET): 补齐写作模式与面板族选择器** — 「常用目标类」拆为 chat / writing / 面板三组，显式列出 `.we-writing-prose|annotation|think*` 与 `.we-panel-card*`，并提示「裸 `.we-panel` 不存在」；「写作正文版式」示例从 `.we-message-content` 改为 `.we-writing-prose`，避免写卡助手再蒙错类名。
 - **refactor(frontend/nearby): pin 推导省一次 O(N·M) 扫描** — `NearbyPanel.jsx` 把每轮 nearby 快照 `curMap` 从 `id→state_updated_at` 改成 `id→row`，Phase 2 旧 pin 过期判断直接 `curMap.get(id)` 拿 row，省掉 `nearby.find(...)` 内循环；同时收掉 effect 顶部冗余的 WHAT 注释，只留首次观察基线那条 WHY。
 - **fix(frontend/chat): 活跃 OptionCard 不再跨页显示** — `frontend/src/components/chat/MessageList.jsx` 两处 `OptionCard` 渲染条件加 `&& onLastPage`，翻到非末页时不再渲染最新待选项卡;末页行为不变(仍与 `suppressLastFrozen` 协作避免和 FrozenOptionCard 重复)。
 - **fix(frontend/think-blocks): 忽略 think 块内多余的 `</think>`** — `frontend/src/core/utils/think-blocks.js` 在进入 think 后预计算剩余闭合标签数，只把"最后一个" `</think>` 视为真正闭合，前面多出来的与多余的 `<think>` 一样被当作内容，避免 AI 在思考中误写一次 `</think>` 就提前结束 think 块导致后续推理外溢到正文。`frontend/tests/utils/think-blocks.test.js` 加对应用例。

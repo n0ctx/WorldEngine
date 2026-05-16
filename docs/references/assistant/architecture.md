@@ -28,6 +28,7 @@ assistant/
 - 父代理决定“直接执行 / 写 plan / 派发子代理 / 回复用户”
 - 子代理只做单资源或窄范围执行，不拥有全局任务编排权
 - assistant 后端独立于主 chat / writing SSE，但共用同一仓库真源与 DB
+- 父代理每轮注入的 `# 任务上下文` 块在 `context.worldId` 存在时，会自动附带 `# 本世界资源清单` 概览（personas / characters 的 `id + name`，单类超过 40 条截断并提示用 `list_resources` 查全），让模型一眼看到本世界不止当前选中那一张卡；详情仍走 `preview_card`
 
 ## 相关代码文件
 

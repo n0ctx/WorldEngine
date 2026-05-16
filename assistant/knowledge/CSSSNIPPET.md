@@ -93,13 +93,31 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 
 ### 常用目标类
 
-- `.we-message-content` / `.we-message-assistant`
-- `.we-message-bubble-assistant` / `.we-message-bubble-user`
-- `.we-think-block`
+聊天模式（`mode:"chat"`）：
 
+- `.we-message-assistant` / `.we-message-user`（整条消息容器）
+- `.we-message-bubble-assistant` / `.we-message-bubble-user`（气泡）
+- `.we-message-content`（气泡内的 Markdown 正文）
+- `.we-think-block` / `.we-think-block-toggle` / `.we-think-block-body` / `.we-think-block-content`（思考链外壳与内容）
+
+写作模式（`mode:"writing"`）：
+
+- `.we-writing-prose`（写作正文段落，**不是** `.we-message-content`）
+- `.we-writing-annotation`（旁注 / 注解）
+- `.we-writing-think` / `.we-writing-think-toggle` / `.we-writing-think-body`（写作模式的思考链）
+
+面板与卡片（chat / writing 都生效）：
+
+- `.we-panel-card` / `.we-panel-card-header` / `.we-panel-card-body`（**不是**裸 `.we-panel`，没有这个类）
+- `.we-panel-card-action` / `.we-panel-card-actions`（卡片头部按钮）
+- `.we-panel-tab-body` / `.we-panel-tab-header`（标签页内容容器）
+
+> 改前先 grep `frontend/src/components/` 或 `frontend/src/themes/` 确认类名存在，不要凭"语义猜测"造类名。命名规律是 `we-<area>-<element>[-modifier]`，但不是所有逻辑分区都有同名根类（如面板没有 `.we-panel`，只有 `.we-panel-card`）。
 > 优先做"主题层"或"局部组件层"的样式，不要写脆弱的深层 DOM 选择器（如 `.page > div:nth-child(3) > ...`）。
 > 谨慎使用 `!important`。
 > 动效要克制，避免持续高频闪烁。
+
+> **chat 与 writing 不通用**：chat 模式片段在 `<style id="we-custom-css">` 里只对聊天页生效，但选择器命中规则是浏览器决定的；如果你在 chat 片段里写 `.we-writing-prose`，写作页一旦也加载了这段 CSS 就会命中。为避免互染，写作相关样式请放在 `mode:"writing"` 片段里。
 
 ## 操作手册
 
@@ -131,11 +149,12 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 
 ### 思考链样式
 
-"给思考链做成旧终端荧光风格" → `.we-think-block` 改字体 + 边框 + 颜色（覆盖 token）
+- chat 模式："给思考链做成旧终端荧光风格" → `mode:"chat"` + `.we-think-block` / `.we-think-block-body` 改字体 + 边框 + 颜色（覆盖 token）
+- writing 模式：对应类是 `.we-writing-think` / `.we-writing-think-body`，不是 `.we-think-block`
 
 ### 写作正文版式
 
-"写作正文更疏朗" → `mode:"writing"` + `.we-message-content` 改 `line-height` / `letter-spacing`
+"写作正文更疏朗" → `mode:"writing"` + `.we-writing-prose` 改 `line-height` / `letter-spacing`（写作正文不是聊天气泡，**不要**用 `.we-message-content`）
 
 ### 修改 / 删除现有片段
 

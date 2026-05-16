@@ -10,6 +10,8 @@ import {
   TOOL_LOOP_SIGNAL,
 } from '../../backend/llm/tool-loop-control.js';
 import { getConfig } from '../../backend/services/config.js';
+import { getCharactersByWorldId } from '../../backend/db/queries/characters.js';
+import { getPersonasByWorldId } from '../../backend/db/queries/personas.js';
 import { createLogger, formatMeta, previewText, summarizeMessages } from '../../backend/utils/logger.js';
 
 import * as planDoc from './plan-doc.js';
@@ -91,6 +93,43 @@ function renderAppliedResources(task) {
     .join('\n');
 }
 
+// 当前世界下的 personas / characters 概览：仅 id + name(+ is_active)，
+// 让模型一眼看到"有多张卡"，详情仍走 preview_card / list_resources。
+// 单张超过 ROSTER_LIMIT 截断，避免大世界把 prompt 撑爆。
+const ROSTER_LIMIT = 40;
+
+function renderRosterRow(row) {
+  const id = row?.id ?? '';
+  const name = typeof row?.name === 'string' && row.name.trim() ? row.name.trim() : '(未命名)';
+  const active = row?.is_active ? ' [active]' : '';
+  return `  - ${id} / ${name}${active}`;
+}
+
+function buildWorldRosterBlock(worldId) {
+  if (!worldId) return null;
+  let personas = [];
+  let characters = [];
+  try { personas = getPersonasByWorldId(worldId) ?? []; } catch { personas = []; }
+  try { characters = getCharactersByWorldId(worldId) ?? []; } catch { characters = []; }
+  if (personas.length === 0 && characters.length === 0) return null;
+
+  const personaRows = personas.slice(0, ROSTER_LIMIT).map(renderRosterRow);
+  const characterRows = characters.slice(0, ROSTER_LIMIT).map(renderRosterRow);
+  const personaTail = personas.length > ROSTER_LIMIT ? [`  - …还有 ${personas.length - ROSTER_LIMIT} 条，需要时用 list_resources(target='personas', worldId='${worldId}') 查全部`] : [];
+  const characterTail = characters.length > ROSTER_LIMIT ? [`  - …还有 ${characters.length - ROSTER_LIMIT} 条，需要时用 list_resources(target='characters', worldId='${worldId}') 查全部`] : [];
+
+  return [
+    '# 本世界资源清单（id + name，详情走 preview_card）',
+    '',
+    `- personas（共 ${personas.length}）:`,
+    ...(personaRows.length > 0 ? personaRows : ['  - （无）']),
+    ...personaTail,
+    `- characters（共 ${characters.length}）:`,
+    ...(characterRows.length > 0 ? characterRows : ['  - （无）']),
+    ...characterTail,
+  ].join('\n');
+}
+
 function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger = null) {
   const lastToolFailure = task?.lastToolFailure
     ? `- 最近一次工具失败：${task.lastToolFailure.toolName ?? 'unknown'} / ${task.lastToolFailure.error ?? 'unknown'}`
@@ -98,6 +137,7 @@ function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger =
   const lastSubagentResult = task?.lastSubagentResult
     ? `- 最近一次子代理结果：${task.lastSubagentResult.stepId ?? 'adhoc'} / ${task.lastSubagentResult.success ? 'ok' : 'error'}${task.lastSubagentResult.error ? ` / ${task.lastSubagentResult.error}` : ''}`
     : '- 最近一次子代理结果：无';
+  const rosterBlock = buildWorldRosterBlock(task?.context?.worldId ?? null);
 
   return [
     // turnTrigger 用于显式告知模型本轮是被审批/恢复事件唤醒的（不写进 task.messages 历史，
@@ -113,6 +153,7 @@ function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger =
     `- loopIteration: ${task.loopIteration ?? 0}`,
     lastToolFailure,
     lastSubagentResult,
+    ...(rosterBlock ? ['', rosterBlock] : []),
     '',
     '# 本轮已落地变更',
     '',
