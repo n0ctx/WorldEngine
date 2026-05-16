@@ -2,21 +2,27 @@ const THINK_TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
 
 /**
  * 将文本拆成普通正文块和 think 块。
- * 进入 think 后，直到遇到第一个闭合标签前，都不再把内部 <think> 重新当作开标签解析。
+ * 进入 think 后，内部多出来的 <think> 与 </think> 都不再当作结构标签，只把最后一个 </think> 视为真正的闭合。
  */
 export function parseStreamingBlocks(text) {
   const source = text || '';
+  const matches = Array.from(source.matchAll(THINK_TAG_RE));
+  const closeCounts = matches.map((m) => (m[1] ? 1 : 0));
+  let remainingCloses = closeCounts.reduce((a, b) => a + b, 0);
+
   const blocks = [];
   let cursor = 0;
   let inThink = false;
   let current = '';
 
-  for (const match of source.matchAll(THINK_TAG_RE)) {
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i];
     const token = match[0];
     const isClose = Boolean(match[1]);
     const index = match.index ?? 0;
     current += source.slice(cursor, index);
     cursor = index + token.length;
+    if (isClose) remainingCloses -= 1;
 
     if (!inThink) {
       if (isClose) {
@@ -31,6 +37,10 @@ export function parseStreamingBlocks(text) {
     }
 
     if (isClose) {
+      if (remainingCloses > 0) {
+        current += token;
+        continue;
+      }
       blocks.push({ type: 'thinking', content: current, open: false });
       current = '';
       inThink = false;

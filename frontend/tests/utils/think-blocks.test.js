@@ -16,6 +16,13 @@ describe('think blocks', () => {
     ]);
   });
 
+  it('进入 think 后忽略内部重复出现的 think 闭合标签', () => {
+    expect(parseStreamingBlocks('<think>思考内容</think>内层补充</think>正文')).toEqual([
+      { type: 'thinking', content: '思考内容</think>内层补充', open: false },
+      { type: 'text', content: '正文', open: false },
+    ]);
+  });
+
   it('未闭合 think 块保持 open 状态', () => {
     expect(parseStreamingBlocks('前文<think>思考中<think>标签')).toEqual([
       { type: 'text', content: '前文', open: false },

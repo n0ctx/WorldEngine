@@ -121,11 +121,13 @@ vi.mock('../../src/components/chat/OptionCard.jsx', () => ({ default: ({ options
 import { PageLayoutRendererProvider } from '../../src/pages/layout/PageLayout.jsx';
 import renderPageLayout from '../../src/shells/book-spread/layout/pageLayoutRenderer.jsx';
 import ChatPage from '../../src/pages/ChatPage/index.jsx';
+import GlobalToast from '../../src/components/ui/GlobalToast.jsx';
 
 const renderChatPage = () =>
   render(
     <PageLayoutRendererProvider render={renderPageLayout}>
       <ChatPage />
+      <GlobalToast />
     </PageLayoutRendererProvider>,
   );
 

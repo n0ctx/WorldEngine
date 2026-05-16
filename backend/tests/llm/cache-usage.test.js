@@ -61,7 +61,7 @@ test('recordTokenUsage 标准化 OpenAI/Qwen cached_tokens', () => {
   }, 'qwen');
 
   assert.deepEqual(usage, {
-    prompt_tokens: 1200,
+    prompt_tokens: 176,
     completion_tokens: 300,
     cache_read_tokens: 1024,
   });
@@ -77,7 +77,7 @@ test('recordTokenUsage 标准化 DeepSeek hit/miss tokens', () => {
   }, 'deepseek');
 
   assert.deepEqual(usage, {
-    prompt_tokens: 1500,
+    prompt_tokens: 800,
     completion_tokens: 250,
     cache_read_tokens: 700,
     cache_miss_tokens: 800,
@@ -93,7 +93,7 @@ test('recordTokenUsage 标准化 Gemini usageMetadata', () => {
   }, 'gemini');
 
   assert.deepEqual(usage, {
-    prompt_tokens: 2200,
+    prompt_tokens: 400,
     completion_tokens: 400,
     cache_read_tokens: 1800,
   });

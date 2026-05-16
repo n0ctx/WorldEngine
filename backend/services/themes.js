@@ -170,8 +170,6 @@ export function deleteTheme(id) {
   }
 }
 
-const THEME_META_KEYS = ['name', 'version', 'author', 'description', 'preview'];
-
 function writeThemeFiles(dirPath, meta, css) {
   fs.mkdirSync(dirPath, { recursive: true });
   fs.writeFileSync(path.join(dirPath, 'theme.json'), JSON.stringify({
