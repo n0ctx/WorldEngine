@@ -117,7 +117,7 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
     : config.long_term_memory_enabled === true;
 
   // LLM 生成摘要（非流式，temp=0.3）
-  let summary = '';
+  let summary;
   let memoryLines = [];
   try {
     const tplName = ltmEnabled ? 'memory-turn-summary-with-ltm.md' : 'memory-turn-summary.md';

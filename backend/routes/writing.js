@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import * as llm from '../llm/index.js';
 import { buildWritingPrompt } from '../prompts/assembler.js';
-import { getWritingLlmConfig, getEffectiveChapterTurnSize } from '../services/config.js';
+import { getEffectiveChapterTurnSize } from '../services/config.js';
 import { activeStreams } from '../services/chat.js';
 import { logPrompt, createLogger, formatMeta } from '../utils/logger.js';
 import {
@@ -30,7 +30,7 @@ import { updateAllStates } from '../memory/combined-state-updater.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { createTurnRecord } from '../memory/turn-summarizer.js';
 import { generateChapterTitle } from '../memory/chapter-title-generator.js';
-import { groupChapterMessages, detectNewChapter } from '../utils/chapter-detector.js';
+import { groupChapterMessages } from '../utils/chapter-detector.js';
 import {
   getChapterTitlesBySessionId,
   upsertChapterTitle,
@@ -298,7 +298,6 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     const {
       messages: baseMessages,
       temperature,
-      maxTokens,
       model,
       cacheableSystem,
     } = await buildWritingPrompt(sessionId, { skipWritingInstructions: true });

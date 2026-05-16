@@ -59,7 +59,6 @@ export async function runChatStream({
     userMsgId,
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      let activatedEntries = [];
 
       emitSse({ type: 'memory_recall_start' });
       const { messages, overrides, recallHitCount, activatedEntries: entries } =
@@ -70,7 +69,7 @@ export async function runChatStream({
           diaryInjection,
         });
 
-      activatedEntries = entries ?? [];
+      const activatedEntries = entries ?? [];
       emitSse({ type: 'memory_recall_done', hit: recallHitCount });
       if (activatedEntries.length > 0) {
         emitSse({ type: 'entries_activated', entries: activatedEntries });

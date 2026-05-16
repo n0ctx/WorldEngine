@@ -19,6 +19,9 @@ export default defineConfig([
       react: reactPlugin,
       'we-local': { rules: { 'no-direct-toast-import': noDirectToastImport } },
     },
+    settings: {
+      react: { version: 'detect' },
+    },
     languageOptions: {
       ecmaVersion: 2020,
       globals: { ...globals.browser, __APP_VERSION__: 'readonly' },
@@ -30,7 +33,14 @@ export default defineConfig([
     },
     rules: {
       'react/jsx-uses-vars': 'error',
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'react/jsx-key': 'error',
+      'react/no-unknown-property': 'error',
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
+      'eqeqeq': ['error', 'smart'],
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'no-duplicate-imports': 'error',
+      'no-template-curly-in-string': 'error',
       'we-local/no-direct-toast-import': 'error',
       'no-restricted-syntax': [
         'warn',

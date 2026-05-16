@@ -110,7 +110,8 @@ const MessageList = forwardRef(function MessageList({
   // 初始加载
   useEffect(() => {
     let cancelled = false;
-    // 切换 session 必须重置翻页锚点，避免沿用旧会话的页码停在中间历史
+    // 切换 session 必须重置翻页锚点，避免沿用旧会话的页码停在中间历史；与异步加载耦合，无法外提
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPageAnchor({ idx: 0, followLast: true });
 
     if (!sessionId) {
@@ -224,8 +225,10 @@ const MessageList = forwardRef(function MessageList({
   const onLastPage = currentPage === lastPageIdx;
 
   // 生成新一轮（流式 / 继续写）时强制跟随末页，避免用户停在旧页时新消息看不见
+  // 同步外部生成状态到分页锚点，属 effect 合法用途；规则误报，显式豁免
   useEffect(() => {
     if (generating || continuingMessageId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPageAnchor((prev) => (prev.followLast ? prev : { idx: 0, followLast: true }));
     }
   }, [generating, continuingMessageId]);

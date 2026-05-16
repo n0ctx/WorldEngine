@@ -68,7 +68,6 @@ export async function runWritingStream({
     userMsgId,
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      let activatedEntries = [];
 
       emitSse({ type: 'memory_recall_start' });
       const onRecallEvent = (name, payload) => {
@@ -83,7 +82,7 @@ export async function runWritingStream({
         activatedEntries: entries,
       } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection });
 
-      activatedEntries = entries ?? [];
+      const activatedEntries = entries ?? [];
       log.info(
         `PROMPT READY  ${formatMeta({
           session: sid,

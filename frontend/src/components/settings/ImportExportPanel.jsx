@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useAppModeStore } from '../../core/state/appMode';
 import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../core/api/import-export';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
@@ -12,9 +12,13 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [prevMode, setPrevMode] = useState(mode);
   const appMode = useAppModeStore((s) => s.appMode);
 
-  useEffect(() => { setMessage(null); }, [mode]);
+  if (prevMode !== mode) {
+    setPrevMode(mode);
+    setMessage(null);
+  }
 
   async function handleExport() {
     setExporting(true);

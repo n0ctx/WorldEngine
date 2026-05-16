@@ -70,45 +70,6 @@ export function saveAttachments(messageId, attachments) {
 }
 
 /**
- * 读取附件文件并转为 base64 data URL
- */
-function readAttachmentAsDataUrl(relativePath) {
-  const uploadsDir = process.env.WE_DATA_DIR
-    ? path.resolve(process.env.WE_DATA_DIR, 'uploads')
-    : path.resolve(__dirname, '..', '..', 'data', 'uploads');
-  const absPath = path.resolve(uploadsDir, relativePath);
-  if (!fs.existsSync(absPath)) return null;
-
-  const buf = fs.readFileSync(absPath);
-  const ext = path.extname(absPath).slice(1).toLowerCase();
-  const mimeMap = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-    gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp', pdf: 'application/pdf',
-  };
-  const mime = mimeMap[ext] || 'application/octet-stream';
-  return `data:${mime};base64,${buf.toString('base64')}`;
-}
-
-/**
- * 将消息转换为 LLM messages 数组格式
- * 含附件的消息 content 转换为 OpenAI vision 数组格式
- */
-function formatMessageForLLM(msg) {
-  if (!msg.attachments || msg.attachments.length === 0) {
-    return { role: msg.role, content: msg.content };
-  }
-
-  const contentParts = [{ type: 'text', text: msg.content }];
-  for (const relPath of msg.attachments) {
-    const dataUrl = readAttachmentAsDataUrl(relPath);
-    if (dataUrl) {
-      contentParts.push({ type: 'image_url', image_url: { url: dataUrl } });
-    }
-  }
-  return { role: msg.role, content: contentParts };
-}
-
-/**
  * 构建上下文 messages 数组，调用 assembler.js 组装完整提示词
  *
  * @param {string} sessionId

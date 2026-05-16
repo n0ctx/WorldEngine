@@ -255,7 +255,7 @@ export async function buildPrompt(sessionId, options = {}) {
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
   // [10] 记忆展开（由 AI 决定需要展开哪些原文）
-  let expandedText = '';
+  let expandedText;
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
     onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
       ref: r.ref,

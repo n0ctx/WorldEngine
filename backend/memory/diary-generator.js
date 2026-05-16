@@ -132,7 +132,7 @@ function collectPrevDayMessages(allRecords, prevDateStr, dateMode) {
   const lines = [];
 
   for (const rec of allRecords) {
-    let recDateStr = null;
+    let recDateStr;
 
     if (dateMode === 'virtual') {
       const raw = extractDiaryTimeFromSnapshot(rec.state_snapshot);
@@ -246,7 +246,7 @@ export async function checkAndGenerateDiary(sessionId, roundIndex) {
   }
 
   // LLM 生成日记
-  let diaryContent = '';
+  let diaryContent;
   try {
     const prompt = [{
       role: 'user',

@@ -304,11 +304,13 @@ export async function searchRecalledSummaries(worldId, sessionId) {
   }
   if (!queryVector) return { recalled: [], recentMessagesText };
 
-  // 向量搜索（当前世界内跨会话，取 topK）
+  // 向量搜索（当前世界内跨会话，取 topK；从 config 读取，未配置时回退常量）
+  const cfgRecall = Number(getConfig().memory_recall_max_sessions);
+  const topK = Number.isFinite(cfgRecall) && cfgRecall > 0 ? Math.floor(cfgRecall) : MEMORY_RECALL_MAX_SESSIONS;
   const hits = search(queryVector, {
     worldId,
     currentSessionId: sessionId,
-    topK: MEMORY_RECALL_MAX_SESSIONS,
+    topK,
     sessionOnly: true,
   });
 

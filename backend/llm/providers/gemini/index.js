@@ -1,5 +1,5 @@
 import { getBaseUrl } from '../_shared/base-urls.js';
-import { apiError, parseSSE, executeToolCall } from '../_shared/fetch-utils.js';
+import { apiError, parseSSE } from '../_shared/fetch-utils.js';
 import { resolveThinkingBudget } from '../_shared/thinking-budget.js';
 import { convertToGeminiContents } from '../_shared/converters.js';
 import { recordTokenUsage } from '../_shared/cache-usage.js';
@@ -47,13 +47,11 @@ async function buildCachedRequestParts(messages, config) {
   const cacheable = config.cacheableSystem;
   if (!cacheable) return null;
 
-  let dynamicSystem = '';
-  if (fullSystem.startsWith(cacheable)) {
-    dynamicSystem = fullSystem.slice(cacheable.length).replace(/^\s*\n+/, '');
-  } else {
+  if (!fullSystem.startsWith(cacheable)) {
     cacheLog.warn(`SYSTEM PREFIX MISMATCH  cacheable=${cacheable.length}  full=${fullSystem.length}  fallback`);
     return null;
   }
+  const dynamicSystem = fullSystem.slice(cacheable.length).replace(/^\s*\n+/, '');
 
   const baseUrl = getBaseUrl(config);
   const cachedContentName = await getOrCreateCache({

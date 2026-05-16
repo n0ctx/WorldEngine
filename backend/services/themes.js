@@ -38,7 +38,7 @@ function readJsonFile(filePath) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
   } catch (err) {
-    throw new Error(`主题元信息读取失败：${err.message}`);
+    throw new Error(`主题元信息读取失败：${err.message}`, { cause: err });
   }
 }
 

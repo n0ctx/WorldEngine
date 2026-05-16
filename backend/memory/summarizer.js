@@ -2,7 +2,6 @@
  * summarizer.js — 会话标题的异步生成
  */
 
-import * as llm from '../llm/index.js';
 import { getMessagesBySessionId, updateSessionTitle } from '../services/sessions.js';
 import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_TITLE_MAX_TOKENS } from '../utils/constants.js';

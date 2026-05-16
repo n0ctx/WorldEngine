@@ -29,7 +29,7 @@ const log = createLogger('post-gen');
  * @returns {{ hasSseWaits: boolean }}
  *   hasSseWaits=true 时调用方应立即 return（连接由 Promise.allSettled 关闭）
  */
-export function runPostGenTasks(sessionId, taskSpecs, { streamState, sid, emitSse, onAllSettled }) {
+export function runPostGenTasks(sessionId, taskSpecs, { streamState: _streamState, sid, emitSse, onAllSettled }) {
   const ssePromises = [];
 
   for (const spec of taskSpecs) {

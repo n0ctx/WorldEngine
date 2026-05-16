@@ -108,7 +108,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       </div>
       <span
         aria-hidden
-        className="absolute bottom-1 right-2 [font-family:var(--we-font-serif)] text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
+        className="absolute -bottom-1 left-1 [font-family:var(--we-font-serif)] text-[20px] select-none pointer-events-none text-[var(--toast-color)] opacity-[0.18]"
       >
         {meta.seal}
       </span>

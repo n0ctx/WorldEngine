@@ -33,6 +33,7 @@ export default function FeaturesConfigPanel({
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   longTermMemoryEnabled, onToggleLongTermMemory,
   writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
+  memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
   writingDiaryEnabled, onToggleWritingDiaryEnabled,
@@ -84,7 +85,7 @@ export default function FeaturesConfigPanel({
       <h2 className="we-settings-section-title">功能配置</h2>
 
       <div className="we-settings-section-body">
-        <p className="we-settings-subsection-title">上下文</p>
+        <p className="we-settings-subsection-title">记忆</p>
 
         <div className="we-settings-field-group">
           <FormGroup
@@ -109,16 +110,10 @@ export default function FeaturesConfigPanel({
           </FormGroup>
         </div>
 
-        <hr className="we-settings-divider" />
-
-        <p className="we-settings-subsection-title">分章</p>
-
         <div className="we-settings-field-group">
           <FormGroup
-            label={isChat ? '每章轮数' : '写作每章轮数'}
-            hint={isChat
-              ? '写作模式按 N 轮（user + assistant）切一章；仅影响章节分组，不影响翻页'
-              : '留空继承对话配置；仅影响章节分组'}
+            label="召回条目数量上限"
+            hint="向量召回历史 turn 摘要时返回的最大条数（topK），实际注入仍受 token 预算约束"
             variant="settings"
           >
             <div className="we-settings-inline-field">
@@ -126,50 +121,14 @@ export default function FeaturesConfigPanel({
                 type="number"
                 min={1}
                 className="we-settings-number-short"
-                value={currentChapterTurnSize}
-                placeholder={isChat ? '' : '继承对话'}
-                onChange={onChangeChapterTurnSize}
-                onBlur={onBlurChapterTurnSize}
+                value={memoryRecallMaxSessions ?? ''}
+                onChange={(e) => setMemoryRecallMaxSessions(e.target.value === '' ? '' : Number(e.target.value))}
+                onBlur={() => onSaveMemoryRecallMaxSessions(memoryRecallMaxSessions)}
               />
-              <span className="we-settings-inline-hint">
-                {isChat ? '每 N 轮一章' : '留空继承对话配置'}
-              </span>
+              <span className="we-settings-inline-hint">最多召回 N 条，默认 5</span>
             </div>
           </FormGroup>
         </div>
-
-        <hr className="we-settings-divider" />
-
-        <p className="we-settings-subsection-title">翻页</p>
-
-        <div className="we-settings-field-group">
-          <FormGroup
-            label={isChat ? '每页轮数' : '写作每页轮数'}
-            hint={isChat
-              ? '翻页条按 N 轮（user + assistant）切一页；仅控制翻页跳转，不影响分章'
-              : '留空继承对话配置；仅控制翻页跳转'}
-            variant="settings"
-          >
-            <div className="we-settings-inline-field">
-              <Input
-                type="number"
-                min={1}
-                className="we-settings-number-short"
-                value={currentPageTurnSize}
-                placeholder={isChat ? '' : '继承对话'}
-                onChange={onChangePageTurnSize}
-                onBlur={onBlurPageTurnSize}
-              />
-              <span className="we-settings-inline-hint">
-                {isChat ? '每 N 轮一页' : '留空继承对话配置'}
-              </span>
-            </div>
-          </FormGroup>
-        </div>
-
-        <hr className="we-settings-divider" />
-
-        <p className="we-settings-subsection-title">记忆</p>
 
         <ToggleRow
           label="记忆原文展开"
@@ -259,6 +218,64 @@ export default function FeaturesConfigPanel({
           checked={suggestionEnabledCurrent}
           onChange={onToggleSuggestionCurrent}
         />
+
+        {!isChat && (
+          <>
+            <hr className="we-settings-divider" />
+
+            <p className="we-settings-subsection-title">分章</p>
+
+            <div className="we-settings-field-group">
+              <FormGroup
+                label="写作每章轮数"
+                hint="留空继承对话配置；仅影响章节分组"
+                variant="settings"
+              >
+                <div className="we-settings-inline-field">
+                  <Input
+                    type="number"
+                    min={1}
+                    className="we-settings-number-short"
+                    value={currentChapterTurnSize}
+                    placeholder="继承对话"
+                    onChange={onChangeChapterTurnSize}
+                    onBlur={onBlurChapterTurnSize}
+                  />
+                  <span className="we-settings-inline-hint">留空继承对话配置</span>
+                </div>
+              </FormGroup>
+            </div>
+          </>
+        )}
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">翻页</p>
+
+        <div className="we-settings-field-group">
+          <FormGroup
+            label={isChat ? '每页轮数' : '写作每页轮数'}
+            hint={isChat
+              ? '翻页条按 N 轮（user + assistant）切一页；仅控制翻页跳转，不影响分章'
+              : '留空继承对话配置；仅控制翻页跳转'}
+            variant="settings"
+          >
+            <div className="we-settings-inline-field">
+              <Input
+                type="number"
+                min={1}
+                className="we-settings-number-short"
+                value={currentPageTurnSize}
+                placeholder={isChat ? '' : '继承对话'}
+                onChange={onChangePageTurnSize}
+                onBlur={onBlurPageTurnSize}
+              />
+              <span className="we-settings-inline-hint">
+                {isChat ? '每 N 轮一页' : '留空继承对话配置'}
+              </span>
+            </div>
+          </FormGroup>
+        </div>
       </div>
     </div>
   );

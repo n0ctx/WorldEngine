@@ -53,7 +53,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
       try { listDefaults = JSON.parse(field.default_value) || []; } catch { listDefaults = []; }
     }
     // 解析 table 类型的 columns + 默认值
-    let tableColumns = Array.isArray(field?.table_columns) ? field.table_columns : [];
+    const tableColumns = Array.isArray(field?.table_columns) ? field.table_columns : [];
     let tableDefaults = {};
     if (field?.type === 'table' && field?.default_value) {
       try { tableDefaults = JSON.parse(field.default_value) || {}; } catch { tableDefaults = {}; }

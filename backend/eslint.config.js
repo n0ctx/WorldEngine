@@ -1,8 +1,12 @@
+import js from '@eslint/js';
 import globals from 'globals';
 import noBackendConsole from '../eslint-rules/no-backend-console.js';
 
-// 后端 lint 范围有限：当前只强制 no-backend-console，避免引入大量历史问题。
-// 未来若想接入 js.configs.recommended，需要先批量清理 ~100 处 unused-var / empty-block / no-control-regex。
+// recommended 已接入。历史中曾有 ~100 处 unused-var / empty-block / control-regex，已统一清理；
+// 现行策略：
+//   - no-empty 允许 catch {}（迁移/兜底清理常态）
+//   - no-unused-vars 默认豁免 _ 前缀（参数/解构/catch 显式占位）
+//   - utils/logger.js 文件级豁免 no-control-regex（解析 ANSI 转义）
 //
 // no-restricted-syntax 兜底：禁止重复硬编码已有单一来源的字面量。豁免文件见末尾 file-level override。
 const sharedConstantRestrictions = [
@@ -22,6 +26,7 @@ export default [
   {
     ignores: ['node_modules/**', 'tests/**', 'data/**', 'coverage/**'],
   },
+  js.configs.recommended,
   {
     files: ['**/*.js'],
     languageOptions: {
@@ -35,6 +40,20 @@ export default [
     rules: {
       'we-local/no-backend-console': 'error',
       'no-restricted-syntax': ['error', ...sharedConstantRestrictions],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+    },
+  },
+  // utils/logger.js 解析 ANSI 转义需要匹配控制字符，必须豁免 no-control-regex
+  {
+    files: ['utils/logger.js'],
+    rules: {
+      'no-control-regex': 'off',
     },
   },
   // 常量定义文件本身需要写字面量，单独豁免。

@@ -9,7 +9,7 @@ const RETRY_CAP = 200;
 const POST_BATCH_MAX = 100;
 const DEDUP_MS = 1500;
 
-let consoleLevel = (() => {
+const consoleLevel = (() => {
   try {
     const fromUrl = new URLSearchParams(globalThis.location?.search || '').get('debug');
     if (fromUrl === '1') return 'debug';

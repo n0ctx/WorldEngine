@@ -18,6 +18,7 @@ export function useSettingsConfig() {
   const [writingMemoryExpansionEnabled, setWritingMemoryExpansionEnabled] = useState(true);
   const [longTermMemoryEnabled, setLongTermMemoryEnabled] = useState(false);
   const [writingLongTermMemoryEnabled, setWritingLongTermMemoryEnabled] = useState(false);
+  const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
   const [autoCollapseThinking, setAutoCollapseThinkingLocal] = useState(true);
@@ -62,6 +63,7 @@ export function useSettingsConfig() {
       setWritingMemoryExpansionEnabled(c.writing?.memory_expansion_enabled !== false);
       setLongTermMemoryEnabled(c.long_term_memory_enabled === true);
       setWritingLongTermMemoryEnabled(c.writing?.long_term_memory_enabled === true);
+      setMemoryRecallMaxSessions(c.memory_recall_max_sessions ?? 5);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
       setShowThinkingStore(c.ui?.show_thinking !== false);
       setAutoCollapseThinkingLocal(c.ui?.auto_collapse_thinking !== false);
@@ -308,6 +310,13 @@ export function useSettingsConfig() {
     await patchConfig({ writing: { long_term_memory_enabled: enabled } });
   }
 
+  async function handleSaveMemoryRecallMaxSessions(value) {
+    const isEmpty = value === '' || value === null || value === undefined;
+    const n = isEmpty ? 5 : Math.max(1, Math.floor(Number(value) || 5));
+    setMemoryRecallMaxSessions(n);
+    await patchConfig({ memory_recall_max_sessions: n });
+  }
+
   async function handleToggleShowThinking(enabled) {
     setShowThinkingLocal(enabled);
     setShowThinkingStore(enabled);
@@ -358,6 +367,7 @@ export function useSettingsConfig() {
     setWritingMemoryExpansionEnabled(w.memory_expansion_enabled !== false);
     setLongTermMemoryEnabled(c.long_term_memory_enabled === true);
     setWritingLongTermMemoryEnabled(w.long_term_memory_enabled === true);
+    setMemoryRecallMaxSessions(c.memory_recall_max_sessions ?? 5);
     setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
     setWritingPostPrompt(w.global_post_prompt ?? '');
@@ -412,6 +422,8 @@ export function useSettingsConfig() {
       writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
       longTermMemoryEnabled, onToggleLongTermMemory: handleToggleLongTermMemory,
       writingLongTermMemoryEnabled, onToggleWritingLongTermMemory: handleToggleWritingLongTermMemory,
+      memoryRecallMaxSessions, setMemoryRecallMaxSessions,
+      onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
       onSave: handleSaveGeneral,
       saving,
       saved,

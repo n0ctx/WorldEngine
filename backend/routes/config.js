@@ -197,15 +197,6 @@ function extractNumberAfter(text, label, window = 240) {
   return parseFloat(match[1]);
 }
 
-function extractAllNumbersAfter(text, label, count, window = 600) {
-  const start = text.indexOf(label);
-  if (start < 0) return [];
-  const snippet = text.slice(start, start + window);
-  return [...snippet.matchAll(/([0-9]+(?:\.[0-9]+)?)/g)]
-    .slice(0, count)
-    .map((match) => parseFloat(match[1]));
-}
-
 function parseGeminiPricingPage(html) {
   const text = stripHtmlToText(html);
   const sections = [
@@ -389,7 +380,7 @@ function parseOpenAIPricingMarkdown(text) {
 function parseGlmPricingMarkdown(text) {
   // | GLM-5.1 | \$1.4 | \$0.26 | Limited-time Free | \$4.4 |
   const pricing = new Map();
-  const rowRe = /\|\s*(GLM-[A-Za-z0-9.\-]+)\s*\|\s*\\?\$([0-9.]+)\s*\|\s*\\?\$([0-9.]+)\s*\|[^|]*\|\s*\\?\$([0-9.]+)\s*\|/g;
+  const rowRe = /\|\s*(GLM-[A-Za-z0-9.-]+)\s*\|\s*\\?\$([0-9.]+)\s*\|\s*\\?\$([0-9.]+)\s*\|[^|]*\|\s*\\?\$([0-9.]+)\s*\|/g;
   let match;
   while ((match = rowRe.exec(text)) !== null) {
     pricing.set(match[1], {
@@ -404,7 +395,7 @@ function parseGlmPricingMarkdown(text) {
 function parseMiniMaxPricingMarkdown(text) {
   // | **MiniMax-M2.7** | 2.1 | 8.4 | 0.42 | 2.625 |  (CNY/M tokens — 与现有 qwen 解析器同口径,原值直存)
   const pricing = new Map();
-  const rowRe = /\|\s*\*?\*?\s*(MiniMax-[A-Za-z0-9.\-]+)\s*\*?\*?\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.—\-]+)\s*\|\s*([0-9.—\-]+)\s*\|/g;
+  const rowRe = /\|\s*\*?\*?\s*(MiniMax-[A-Za-z0-9.-]+)\s*\*?\*?\s*\|\s*([0-9.]+)\s*\|\s*([0-9.]+)\s*\|\s*([0-9.—-]+)\s*\|\s*([0-9.—-]+)\s*\|/g;
   let match;
   while ((match = rowRe.exec(text)) !== null) {
     const entry = {
@@ -1004,7 +995,6 @@ router.get('/writing-aux/models', async (_req, res) => {
 
 // GET /api/config/aux/models — 拉取副模型列表
 router.get('/aux/models', async (_req, res) => {
-  const config = getConfig();
   const auxConfig = getAuxLlmConfig();
   const { provider, base_url } = auxConfig;
   const apiKey = auxConfig.api_key;
@@ -1109,7 +1099,6 @@ router.get('/writing-aux/test-connection', async (_req, res) => {
 
 // GET /api/config/aux/test-connection — 验证副模型 LLM 连通性
 router.get('/aux/test-connection', async (_req, res) => {
-  const config = getConfig();
   const auxConfig = getAuxLlmConfig();
   try {
     const testConfig = {

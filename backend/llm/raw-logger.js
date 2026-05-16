@@ -35,7 +35,7 @@ function sha256(text) {
 /** CJK ≈ 1 token/char，其余 ≈ 4 chars/token */
 function estimateTokens(text) {
   if (!text) return 0;
-  const cjk = (String(text).match(/[　-鿿豈-﫿가-힯]/g) ?? []).length;
+  const cjk = (String(text).match(/[\u3000-\u9fff\uf900-\ufaff\uac00-\ud7af]/g) ?? []).length;
   return Math.ceil(cjk + (String(text).length - cjk) / 4);
 }
 

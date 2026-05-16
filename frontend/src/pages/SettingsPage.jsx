@@ -149,6 +149,9 @@ export default function SettingsPage() {
                   onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
                   writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
                   onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
+                  memoryRecallMaxSessions={promptProps.memoryRecallMaxSessions}
+                  setMemoryRecallMaxSessions={promptProps.setMemoryRecallMaxSessions}
+                  onSaveMemoryRecallMaxSessions={promptProps.onSaveMemoryRecallMaxSessions}
                   chatDiaryEnabled={diaryProps.chatEnabled}
                   onToggleChatDiaryEnabled={diaryProps.onToggleChatEnabled}
                   chatDateMode={diaryProps.chatDateMode}

@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = {
   global_post_prompt: '',
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
+  memory_recall_max_sessions: 5,
   suggestion_enabled: false,
   log_prompt: false,
   logging: {
