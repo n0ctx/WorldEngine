@@ -11,3 +11,15 @@ export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';
 
 // ---- 流任务 ----
 export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';
+
+// ---- 副模型 / 后台 LLM 错误分类 ----
+// 后端 backend/utils/post-gen-runner.js#classifyLlmError 写入，前端
+// frontend/src/core/api/postgen-error-toast.js 据此渲染 toast。新增 reason 必须同步更新两端。
+export const LLM_ERROR_REASON = Object.freeze({
+  TIMEOUT: 'timeout',
+  QUOTA: 'quota',
+  AUTH: 'auth',
+  RATE_LIMIT: 'rate_limit',
+  SERVER: 'server',
+  UNKNOWN: 'unknown',
+});

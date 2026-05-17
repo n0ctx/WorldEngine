@@ -1,8 +1,27 @@
 import { enqueue } from './async-queue.js';
 import { trackStateUpdate } from './state-update-tracker.js';
 import { createLogger, formatMeta } from './logger.js';
+import { LLM_ERROR_REASON } from '../../shared/runtime-constants.mjs';
 
 const log = createLogger('post-gen');
+
+// 把后台 LLM 错误归类为 reason 码，前端据此显示可操作的 toast（额度/鉴权/限流等）。
+// 各 provider 的余额/额度文案差异较大（deepseek "Insufficient Balance"、OpenAI "exceeded your current quota"、
+// Anthropic "credit balance is too low" 等），合并成单个正则覆盖；匹配的是后端 LLMError.message，长度有限不存在回溯风险。
+const QUOTA_MESSAGE_RE = /insufficient[\s_]*(balance|quota|credit|fund)|exceeded[\s\S]{0,40}quota|credit\s+balance|payment\s+required|out of credit|billing/i;
+
+function classifyLlmError(err) {
+  const status = Number.isFinite(err?.status) ? err.status : null;
+  const message = String(err?.message || '');
+  const provider = err?.provider || null;
+  let reason = LLM_ERROR_REASON.UNKNOWN;
+  if (err?.code === 'LLM_TIMEOUT' || status === 504) reason = LLM_ERROR_REASON.TIMEOUT;
+  else if (status === 402 || QUOTA_MESSAGE_RE.test(message)) reason = LLM_ERROR_REASON.QUOTA;
+  else if (status === 401 || status === 403) reason = LLM_ERROR_REASON.AUTH;
+  else if (status === 429) reason = LLM_ERROR_REASON.RATE_LIMIT;
+  else if (status && status >= 500) reason = LLM_ERROR_REASON.SERVER;
+  return { reason, status, provider };
+}
 
 /**
  * 流式生成结束后，统一入队后台异步任务并管理 SSE 连接生命周期。
@@ -67,15 +86,11 @@ export function runPostGenTasks(sessionId, taskSpecs, { streamState: _streamStat
         .catch((err) => {
           log.warn(`后台任务失败 [${spec.label}]:`, err.message);
           // tracksState 任务失败时通知前端，避免"整理中"状态永久卡住
+          const meta = classifyLlmError(err);
           if (spec.tracksState) {
-            emitSse({ type: 'state_update_failed', error: err.message });
+            emitSse({ type: 'state_update_failed', error: err.message, ...meta });
           } else {
-            emitSse({
-              type: 'postprocess_failed',
-              label: spec.label,
-              error: err.message,
-              timeout: err?.code === 'LLM_TIMEOUT' || err?.status === 504,
-            });
+            emitSse({ type: 'postprocess_failed', label: spec.label, error: err.message, ...meta });
           }
         });
       ssePromises.push(ssePromise);

@@ -5,6 +5,7 @@ import { useAppModeStore } from '../../core/state/appMode.js';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { getConfig } from '../../core/api/config.js';
+import { buildPostgenToast } from '../../core/api/postgen-error-toast.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { getPersona, getPersonaById } from '../../core/api/personas.js';
 import useStore from '../../core/state/index.js';
@@ -584,16 +585,14 @@ export default function WritingSpacePage() {
         stopMemoryWriting(runId);
         if (isSameSession()) {
           setStateFailedTick((tick) => tick + 1);
-          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+          log.error('state.update_failed', evt?.error, { toast: buildPostgenToast(evt, 'state') });
         }
       },
       onPostprocessFailed(evt) {
         stopMemoryWriting(runId);
         if (!isSameSession()) return;
         log.error('writing.postprocess_failed', evt?.error, {
-          toast: evt?.timeout
-            ? '后台整理超时，回复已保留，标题或状态可能未更新'
-            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          toast: buildPostgenToast(evt, 'postprocess'),
         });
       },
       onStateRolledBack() {
@@ -884,16 +883,14 @@ export default function WritingSpacePage() {
         stopMemoryWriting();
         if (currentSessionRef.current?.id === continuationSessionId) {
           setStateFailedTick((tick) => tick + 1);
-          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+          log.error('state.update_failed', evt?.error, { toast: buildPostgenToast(evt, 'state') });
         }
       },
       onPostprocessFailed(evt) {
         stopMemoryWriting();
         if (currentSessionRef.current?.id !== continuationSessionId) return;
         log.error('writing.postprocess_failed', evt?.error, {
-          toast: evt?.timeout
-            ? '后台整理超时，回复已保留，标题或状态可能未更新'
-            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          toast: buildPostgenToast(evt, 'postprocess'),
         });
       },
       onSuggestionFallbackStarted() {

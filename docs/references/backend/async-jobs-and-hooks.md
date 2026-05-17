@@ -9,6 +9,7 @@
 - 优先级 4/5：可丢弃或可重建的后处理任务
 - 编辑消息、删除后续消息、重新生成时，清空该 session 未开始的 4/5 级任务
 - keep-alive 的后处理任务（如标题、状态整理）若其内部 aux LLM 非流式调用超时，会以失败事件结束 SSE，避免前端永久卡在“记录记忆/整理中”；状态整理走 `state_update_failed`，其他 keep-alive 任务走 `postprocess_failed`
+- 两类失败事件均带 `reason`（`quota` / `auth` / `rate_limit` / `timeout` / `server` / `unknown`）+ `status` + `provider`，由 `backend/utils/post-gen-runner.js` 的 `classifyLlmError` 在 emit 前归类；前端 `frontend/src/core/api/postgen-error-toast.js` 据此渲染可操作 toast（例如 402 提示“副模型余额不足”）。新增 reason 时两端要同步维护
 
 ## 删除钩子
 

@@ -19,6 +19,7 @@ import { loadRules } from '../../core/utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar.js';
 import { log } from '../../core/utils/logger.js';
 import { getConfig } from '../../core/api/config.js';
+import { buildPostgenToast } from '../../core/api/postgen-error-toast.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { chatSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import { parseNextPromptStream, parseContinuationText } from '../../core/utils/next-prompt.js';
@@ -626,16 +627,14 @@ export default function ChatPage() {
         stopMemoryWriting(runId);
         if (isSameSession()) {
           useStore.getState().triggerStateFailed();
-          log.error('state.update_failed', evt?.error, { toast: '状态整理失败，数据可能未更新' });
+          log.error('state.update_failed', evt?.error, { toast: buildPostgenToast(evt, 'state') });
         }
       },
       onPostprocessFailed(evt) {
         stopMemoryWriting(runId);
         if (!isSameSession()) return;
         log.error('chat.postprocess_failed', evt, {
-          toast: evt?.timeout
-            ? '后台整理超时，回复已保留，标题或状态可能未更新'
-            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          toast: buildPostgenToast(evt, 'postprocess'),
         });
       },
       onStateRolledBack() {
@@ -829,9 +828,7 @@ export default function ChatPage() {
         stopMemoryWriting();
         if (currentSessionIdRef.current !== continuationSessionId) return;
         log.error('chat.postprocess_failed', evt, {
-          toast: evt?.timeout
-            ? '后台整理超时，回复已保留，标题或状态可能未更新'
-            : '后台整理失败，回复已保留，标题或状态可能未更新',
+          toast: buildPostgenToast(evt, 'postprocess'),
         });
       },
       onSuggestionFallbackStarted() {

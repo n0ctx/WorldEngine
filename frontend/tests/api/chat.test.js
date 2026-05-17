@@ -67,20 +67,20 @@ describe('chat api', () => {
     const calls = [];
     fetch.mockResolvedValue(createSseResponse([
       { done: true, assistant: { id: 'msg-asst', content: '你好' }, options: [] },
-      { type: 'postprocess_failed', label: 'title', error: 'timeout', timeout: true },
+      { type: 'postprocess_failed', label: 'title', error: 'timeout', reason: 'timeout' },
     ]));
 
     await new Promise((resolve) => {
       sendMessage('session-1', '嗨', [], {
         onDone: () => calls.push(['done']),
-        onPostprocessFailed: (evt) => calls.push(['postprocess_failed', evt.label, evt.timeout]),
+        onPostprocessFailed: (evt) => calls.push(['postprocess_failed', evt.label, evt.reason]),
         onStreamEnd: resolve,
       });
     });
 
     expect(calls).toEqual([
       ['done'],
-      ['postprocess_failed', 'title', true],
+      ['postprocess_failed', 'title', 'timeout'],
     ]);
   });
 
