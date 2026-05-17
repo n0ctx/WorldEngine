@@ -1,26 +1,40 @@
+import { THINK_TAG_RE } from './think-blocks.js';
+
 const OPEN_TAG = '<think>';
 const CLOSE_TAG = '</think>';
 const NEXT_OPEN = '<next_prompt>';
 const NEXT_CLOSE = '</next_prompt>';
 
-// 仅用于 .test() 存在性检查，不能带 g flag（g flag 会累积 lastIndex 导致跨调用状态泄漏）
-const THINK_OPEN_RE = /<\s*think(?:ing)?\s*>/i;
-// 已闭合的 think/thinking 块，整段（含标签）替换掉
-const THINK_CLOSED_BLOCK_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
-// 未闭合的尾部 think 块：最后一个开标签到文本末尾
-const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
-
-/**
- * 把 think/thinking 块从文本中剥除，返回剥除后的纯正文。
- * - 已闭合块：连同标签一起删除
- * - 未闭合的尾部块：从最后一个未闭合开标签到末尾全部删除
- */
+// 与 parseStreamingBlocks 同语义的栈式剥除:未闭合外层 think 整段(到末尾)丢弃,孤立 </think> 当作正文。
 function stripThinkBlocks(text) {
-  let cleaned = text.replace(THINK_CLOSED_BLOCK_RE, '');
-  if (THINK_OPEN_RE.test(cleaned)) {
-    cleaned = cleaned.replace(THINK_OPEN_TAIL_RE, '');
+  const source = text || '';
+  let out = '';
+  let cursor = 0;
+  let depth = 0;
+
+  for (const match of source.matchAll(THINK_TAG_RE)) {
+    const token = match[0];
+    const isClose = Boolean(match[1]);
+    const index = match.index ?? 0;
+
+    if (depth === 0) {
+      if (isClose) continue;
+      out += source.slice(cursor, index);
+      cursor = index + token.length;
+      depth = 1;
+      continue;
+    }
+
+    if (isClose) {
+      depth -= 1;
+      if (depth === 0) cursor = index + token.length;
+      continue;
+    }
+    depth += 1;
   }
-  return cleaned;
+
+  if (depth === 0) out += source.slice(cursor);
+  return out;
 }
 
 /**

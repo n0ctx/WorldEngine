@@ -63,6 +63,16 @@ function toPricingPayload(pricing) {
 }
 
 const MODEL_PRICE_ALIASES = [
+  // Gemini 3.x — preview id 直接命中；stable id 共享 preview 价格作为兜底
+  ['gemini-3.1-pro-preview', 'gemini-3.1-pro-preview'],
+  ['gemini-3.1-pro', 'gemini-3.1-pro-preview'],
+  ['gemini-3-pro-preview', 'gemini-3.1-pro-preview'],
+  ['gemini-3-pro', 'gemini-3.1-pro-preview'],
+  ['gemini-3.1-flash-lite-preview', 'gemini-3.1-flash-lite-preview'],
+  ['gemini-3.1-flash-lite', 'gemini-3.1-flash-lite-preview'],
+  ['gemini-3-flash-preview', 'gemini-3-flash-preview'],
+  ['gemini-3.1-flash', 'gemini-3-flash-preview'],
+  ['gemini-3-flash', 'gemini-3-flash-preview'],
   ['gemini-2.5-flash-lite-preview', 'gemini-2.5-flash-lite'],
   ['gemini-2.5-flash-lite', 'gemini-2.5-flash-lite'],
   ['gemini-2.5-flash-preview', 'gemini-2.5-flash'],
@@ -200,6 +210,10 @@ function extractNumberAfter(text, label, window = 240) {
 function parseGeminiPricingPage(html) {
   const text = stripHtmlToText(html);
   const sections = [
+    // Gemini 3.x preview 系列在页面中位于 2.5 之前；end markers 指向下一个出现的小节标题。
+    ['gemini-3.1-pro-preview', ['gemini-3.1-flash-lite-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro']],
+    ['gemini-3.1-flash-lite-preview', ['gemini-3.1-flash-live-preview', 'gemini-3.1-flash-image-preview', 'gemini-3-flash-preview', 'gemini-2.5-pro']],
+    ['gemini-3-flash-preview', ['gemini-3-pro-image-preview', 'gemini-2.5-pro']],
     ['gemini-2.5-pro', ['gemini-2.5-flash']],
     ['gemini-2.5-flash', ['gemini-2.5-flash-lite']],
     ['gemini-2.5-flash-lite', ['gemini-2.5-flash-lite-preview-09-2025', 'gemini-2.5-flash-native-audio-preview-12-2025', 'gemini-2.0-flash']],
@@ -694,6 +708,10 @@ const KNOWN_PRICES = new Map([
   // DeepSeek
   ['deepseek-chat',         { inputPrice: 0.27,  outputPrice: 1.1   }],
   ['deepseek-reasoner',     { inputPrice: 0.55,  outputPrice: 2.19  }],
+  // Gemini 3.x（以 ≤200k tier 为基准；>200k 的更高单价由 API 实测覆盖）
+  ['gemini-3.1-pro-preview',        { inputPrice: 2,     outputPrice: 12,  cacheReadPrice: 0.2  }],
+  ['gemini-3.1-flash-lite-preview', { inputPrice: 0.25,  outputPrice: 1.5, cacheReadPrice: 0.025 }],
+  ['gemini-3-flash-preview',        { inputPrice: 0.5,   outputPrice: 3,   cacheReadPrice: 0.05  }],
   // Gemini
   ['gemini-2.5-pro-preview',        { inputPrice: 1.25,  outputPrice: 10   }],
   ['gemini-2.5-flash-preview',      { inputPrice: 0.15,  outputPrice: 0.6  }],

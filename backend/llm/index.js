@@ -88,8 +88,8 @@ function buildLLMConfig(options = {}) {
     api_key = writingAuxConfig.api_key;
   } else if (options.configScope === 'writing') {
     const writingConfig = getWritingLlmConfig();
-    // 未配置写作 provider 时整体继承主模型,忽略 writing.llm 上保存过的旧参数,
-    // 避免切回"未配置"后隐藏字段(temperature/max_tokens/thinking_level)仍然生效。
+    // 写作选了独立 provider 时 thinking_level 不跨 provider 继承(留空 = 模型默认);
+    // 仅在完全未配置(整体继承对话主模型)时才回退到 config.llm.thinking_level。
     const writingLlm = config.writing?.llm?.provider ? config.writing.llm : config.llm;
     llm = {
       provider: writingConfig.provider,
@@ -97,7 +97,7 @@ function buildLLMConfig(options = {}) {
       model: writingConfig.model,
       temperature: writingLlm.temperature ?? config.llm.temperature,
       max_tokens: writingLlm.max_tokens ?? config.llm.max_tokens,
-      thinking_level: writingLlm.thinking_level ?? config.llm.thinking_level,
+      thinking_level: writingLlm.thinking_level ?? null,
     };
     api_key = writingConfig.api_key;
   } else {

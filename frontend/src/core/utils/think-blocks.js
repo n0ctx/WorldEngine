@@ -1,19 +1,19 @@
-const THINK_TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
+export const THINK_TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
 
-/**
- * 将文本拆成普通正文块和 think 块。
- * 进入 think 后，内部多出来的 <think> 与 </think> 都不再当作结构标签，只把最后一个 </think> 视为真正的闭合。
- */
+// 栈式深度计数:流式中间态外层未闭合时,内层 </think> 不会被误判为外层闭合。
 export function parseStreamingBlocks(text) {
   const source = text || '';
   const matches = Array.from(source.matchAll(THINK_TAG_RE));
-  const closeCounts = matches.map((m) => (m[1] ? 1 : 0));
-  let remainingCloses = closeCounts.reduce((a, b) => a + b, 0);
 
   const blocks = [];
   let cursor = 0;
-  let inThink = false;
+  let depth = 0;
   let current = '';
+
+  function pushText(content) {
+    const trimmed = content.replace(/^\n+/, '');
+    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+  }
 
   for (let i = 0; i < matches.length; i += 1) {
     const match = matches[i];
@@ -22,41 +22,39 @@ export function parseStreamingBlocks(text) {
     const index = match.index ?? 0;
     current += source.slice(cursor, index);
     cursor = index + token.length;
-    if (isClose) remainingCloses -= 1;
 
-    if (!inThink) {
+    if (depth === 0) {
       if (isClose) {
         current += token;
         continue;
       }
-      const trimmed = current.replace(/^\n+/, '');
-      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+      pushText(current);
       current = '';
-      inThink = true;
+      depth = 1;
       continue;
     }
 
     if (isClose) {
-      if (remainingCloses > 0) {
+      depth -= 1;
+      if (depth > 0) {
         current += token;
         continue;
       }
       blocks.push({ type: 'thinking', content: current, open: false });
       current = '';
-      inThink = false;
       continue;
     }
 
+    depth += 1;
     current += token;
   }
 
   current += source.slice(cursor);
 
-  if (inThink) {
+  if (depth > 0) {
     blocks.push({ type: 'thinking', content: current, open: true });
   } else {
-    const trimmed = current.replace(/^\n+/, '');
-    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
+    pushText(current);
   }
 
   return blocks.length > 0 ? blocks : [{ type: 'text', content: source, open: false }];

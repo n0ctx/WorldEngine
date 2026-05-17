@@ -175,14 +175,14 @@ export default function MainLlmBlock({
       {thinkingOptions.length > 0 && onThinkingLevelChange && (
         <FormGroup
           label="思考链级别"
-          hint={inherit ? '留空（自动）则跟随对话主模型' : 'auto = 不传参数，使用模型默认行为'}
+          hint="auto = 不传参数，使用模型默认行为"
           variant="settings"
         >
           <Select
             value={cfg.thinking_level || ''}
             onChange={(v) => onThinkingLevelChange(v || null)}
             options={[
-              { value: '', label: inherit ? '自动（跟随对话主模型）' : '自动（模型默认）' },
+              { value: '', label: '自动（模型默认）' },
               ...thinkingOptions,
             ]}
           />
