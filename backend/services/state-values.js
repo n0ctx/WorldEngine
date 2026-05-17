@@ -43,7 +43,10 @@ function parseValueJson(valueJson) {
   }
 }
 
-function validateStateValue(value, field) {
+// datetime: 年份允许任意位正整数（参见 STATEVALUE-CHEATSHEET.md），月/日/时/分各 2 位
+const DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+export function validateStateValue(value, field) {
   if (value === null || value === undefined || value === '') {
     return field.allow_empty ? null : undefined;
   }
@@ -67,6 +70,8 @@ function validateStateValue(value, field) {
       if (typeof value !== 'string') return undefined;
       if (field.enum_options && !field.enum_options.includes(value)) return undefined;
       return value;
+    case 'datetime':
+      return typeof value === 'string' && DATETIME_RE.test(value) ? value : undefined;
     case 'list': {
       const parsedList = typeof value === 'string'
         ? value.split(/[,，、]/).map((item) => item.trim()).filter(Boolean)

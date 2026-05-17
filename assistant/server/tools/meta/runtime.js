@@ -10,6 +10,11 @@ import {
   dispatchSubagentDefinition,
   deletePlanDocDefinition,
 } from './index.js';
+import {
+  resolveStateValues,
+  deriveWorldIdForStateValues,
+  SUPPORTED_TARGET_TYPES as STATE_VALUES_SUPPORTED_TYPES,
+} from './state-values-resolver.js';
 
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
   const MIN_PLAN_STEPS = 3;
@@ -197,7 +202,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           if (!step) return { success: false, error: `step not found: ${args.stepId}` };
           if (step.done) return { success: false, error: `step already done: ${args.stepId}` };
         }
-        const resolved = step ?? {
+        let resolved = step ?? {
           id: args.stepId ?? `adhoc-${Date.now()}`,
           title: args.task?.slice(0, 24) || '临时子任务',
           targetType: args.targetType,
@@ -259,6 +264,46 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
               error: `entityRef "${entityRefForDispatch}" 引用了步骤 ${normalizedStepId}，但该步骤尚未成功落库或无资源 ID。请先确认依赖步骤已完成，或直接在 task 中指定目标资源 ID。`,
             };
           }
+        }
+
+        // typed stateValues 入参：工具层从 world schema 解析 field_key/type，
+        // 把 {field, value} → {target, field_key, value_json}；解析失败立刻原路返回，不烧子代理 token。
+        // 顺序在 step→UUID 解析之后：跨步骤创建世界的计划里，目标 world 不是 context.worldId
+        // 而是 dependsOn 指向的 step 落库出的新世界（Codex P1）。
+        if (Array.isArray(args.stateValues) && args.stateValues.length > 0) {
+          if (!STATE_VALUES_SUPPORTED_TYPES.includes(resolved.targetType)) {
+            return {
+              success: false,
+              error: `stateValues 入参当前仅支持 ${STATE_VALUES_SUPPORTED_TYPES.join(' / ')}；targetType=${resolved.targetType} 请改回 task 字符串写入。`,
+            };
+          }
+          if (resolved.operation === 'delete') {
+            return { success: false, error: 'stateValues 入参不适用于 delete 操作；删除请通过 task 描述。' };
+          }
+          const worldIdForSchema = deriveWorldIdForStateValues({
+            targetType: resolved.targetType,
+            operation: resolved.operation,
+            entityRef: entityRefForDispatch,
+            context: task.context,
+          });
+          const resolverResult = resolveStateValues({
+            worldId: worldIdForSchema,
+            targetType: resolved.targetType,
+            entries: args.stateValues,
+          });
+          if (!resolverResult.success) {
+            return { success: false, error: `stateValues 校验失败：${resolverResult.error}` };
+          }
+          // 紧凑 JSON：sub-agent 是机器消费方，pretty-print 只浪费 token。契约见 sub-agent.md
+          const augmentedTask = [
+            String(resolved.task ?? '').trim(),
+            '',
+            '已校验 stateValueOps（原样作为 apply 的 stateValueOps 提交，勿改）：',
+            '```json',
+            JSON.stringify(resolverResult.stateValueOps),
+            '```',
+          ].join('\n');
+          resolved = { ...resolved, task: augmentedTask };
         }
 
         taskStore.setCurrentStep(task.id, resolved.id);

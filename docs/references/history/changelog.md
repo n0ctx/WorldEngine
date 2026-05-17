@@ -4,6 +4,8 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **feat(assistant): dispatch_subagent 加 stateValues typed 入参** — 新增 `assistant/server/tools/meta/state-values-resolver.js`，父代理传 `{field|field_key, value}`，工具层从 world schema 解析 field_key/type 并校验 value，把"猜 value_json 格式"导致的子代理失败拒绝在 LLM 之外；`runtime.js` 在 dispatchSubagent.execute 内调用解析器并把已校验的 `stateValueOps` 块注入 sub-agent task；`prompts/sub-agent.md` 增加"收到已校验块必须原样 apply"约束，`prompts/parent-agent.md` 改写"派 stateValue 优先用 stateValues 入参 + 首次失败禁同模式重试"；新增 `assistant/tests/state-values-resolver.test.mjs` 11 用例覆盖各 type 与拒绝路径，221 assistant 测试全部通过。
+- **style(state-panel): text 字段在右侧状态栏改为独占一行** — `StatusSection.jsx` `isShortField` 把 `text` 加入非短字段；与 list/datetime/table 一致走 `we-status-field--long`，避免长文本被挤进 2 列网格。
 - **fix(writing/nearby): saved 角色展开/收起改由后端 saved_recall hits 驱动** — `stream-parser.js` 增 `onSavedRecallDone` 转发；`WritingSpacePage/index.jsx` 新增 `savedRecallTick/savedRecallHits` 状态并在主+续写两套回调里写入,透传给 `NearbyPanel`;`NearbyPanel.jsx` 替换原 `updated_at` 增量推导(`prevUpdatedAtRef`/`lastProcessedTickRef`)为 `lastAppliedRecallTickRef`-gated 的 hits 驱动,与后端 [10.5] 注入 `<recalled_characters>` 的判定严格对齐,解决"角色登场但 state 未被改写时被错误折叠"。
 - **feat(theme): 新增内置主题 Neon Noir** — `themes/neon-noir/{theme.json,theme.css}`，赛博暗系搭配 Neon Noir FX；通过 `backend/services/themes.js` 目录扫描自动注册为 builtin，无需改代码。
 - **fix(writing): 移除重新生成二次确认弹窗** — `WritingSpacePage/index.jsx` 删除 `pendingRegenerate` 状态与 `ConfirmModal` 分支,`handleRegenerateMessage` 直接 `doRegenerate`;清理本页未用的 `ConfirmModal` / `fetchNearby` import。

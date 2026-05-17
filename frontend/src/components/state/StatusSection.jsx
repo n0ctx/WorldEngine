@@ -465,7 +465,7 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
 /** 判断字段是否短值（适合放进 2 列网格） */
 function isShortField(row) {
   const type = row.field_type ?? row.type;
-  if (type === 'table' || type === 'list' || type === 'datetime') return false;
+  if (type === 'table' || type === 'list' || type === 'datetime' || type === 'text') return false;
   return true;
 }
 

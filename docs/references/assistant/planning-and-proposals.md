@@ -20,6 +20,17 @@ plan 门槛、proposal 归一化、审批门与写入约束。
 - 修改 / 删除已有资源前，必须先 `preview_card`
 - 资源落库安全边界在后端 normalize + apply 层，不靠 prompt 兜底
 
+## dispatch_subagent.stateValues 工具层解析（typed 入参）
+
+针对 `targetType=persona-card / character-card` 的状态值写入，`dispatch_subagent` 接受结构化入参 `stateValues: [{ field?, field_key?, value, target? }]`：
+
+- 入口：`assistant/server/tools/meta/state-values-resolver.js`（被 `runtime.js` 内的 `dispatchSubagent.execute` 调用）
+- 工具层从 `world_state_fields`/`persona_state_fields`/`character_state_fields` 读 schema，按字段 `type` 校验并强转 `value` → `value_json`（list 给数组、number 给数字、enum 给枚举字符串、boolean 给 `true/false`、datetime 给 `"YYYY-MM-DDTHH:mm"`、table 给 `{col:number}`、清空给 `null`）
+- 解析失败 → `{success:false, error}` 直接返回给父代理，**不进 sub-agent**，杜绝"猜格式"导致的 proposal 校验失败
+- 解析成功 → 把已校验的 `stateValueOps` JSON 块拼到子代理 `task` 末尾，子代理（见 `prompts/sub-agent.md`）必须原样作为 `apply_*.stateValueOps` 提交，不再读 cheatsheet 推断
+- 仅支持 `persona-card / character-card`；写世界字段定义（`stateFieldOps`）仍走 `world-card.update` + cheatsheet
+- 回归：`assistant/tests/state-values-resolver.test.mjs`
+
 ## 关键真源
 
 - plan doc 工具：`assistant/server/tools/meta/`

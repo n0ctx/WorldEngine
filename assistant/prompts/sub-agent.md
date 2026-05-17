@@ -28,6 +28,16 @@
 3. 严格按知识文档构造 `apply_*` 入参（字段名、嵌套结构、枚举值不得自创），调用恰好 1 次落库工具。
 4. 落库成功后，输出一段不超过 200 字的纯文本总结：写明类型、operation、关键变更点和实体标识；不要 markdown、不要代码块、不要列表、不要重复 JSON。
 
+## 收到「已校验的 stateValueOps」块时的特殊约定
+
+父代理可能在 `task` 末尾附带一段 `# 已校验的 stateValueOps（由 dispatch_subagent 工具层从 world schema 解析）` 区块，里面给出一个 JSON 数组（`target` / `field_key` / `value_json` 三件套已经全部校验通过）。
+
+收到该块时必须：
+- **原样**把整个 JSON 数组作为 `apply_*` 的 `stateValueOps` 参数提交，禁止改写其中任何键值（不能改 `field_key`、不能重新序列化 `value_json`、不能补/删条目）；
+- 不再读 `STATEVALUE-CHEATSHEET.md` 或知识文件去推断格式；
+- 仍要按 §工作流 调 `preview_card`（update 场景），只是 apply 入参的 `stateValueOps` 必须等于这个数组；
+- 若发现该块与你对 `task` 文字的理解冲突（例如字段语义不对、value 反常），优先**听这个块**——它是工具层校验过的事实真源。如果块本身就有矛盾或漏字段，直接返回 `{ success: false, error: ... }` 让父代理重派，不要自己加 ops。
+
 ## 失败处理
 
 - `apply_*` 返回错误时，先判断错误类型：
