@@ -37,6 +37,7 @@ import {
 } from '../db/queries/chapter-titles.js';
 import { getMessageById, updateMessageContent } from '../db/queries/messages.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { analyzeNearbyForCard } from '../services/nearby-card-maker.js';
 import { runHook } from '../hooks/hook-registry.js';
@@ -327,7 +328,7 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
       callType: 'writing_impersonate',
       conversationId: sessionId,
     });
-    const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const cleaned = stripThinkBlocksFromText(content).trim();
     res.json({ content: cleaned });
   } catch (err) {
     log.error(

@@ -30,20 +30,49 @@ export function stripAsstContext(raw) {
   return stripDialoguePrefix(stripTrailingStateBlocks(raw), ['{{char}}：', 'AI：']);
 }
 
-// think block 剥除（与前端 next-prompt.js 保持一致）
-// 注意：THINK_OPEN_TEST_RE 不能带 g flag，否则 .test() 会累积 lastIndex 导致跨调用状态泄漏
-const THINK_CLOSED_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
-const THINK_OPEN_TEST_RE = /<\s*think(?:ing)?\s*>/i;
-const THINK_OPEN_TAIL_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;
-// 单个 think 块匹配（用于提取内容，不带 g 以避免 lastIndex 副作用）
-const THINK_SINGLE_RE = /<\s*think(?:ing)?\s*>([\s\S]*?)(?:<\s*\/\s*think(?:ing)?\s*>|$)/i;
+// think block 剥除：栈式深度计数，与前端 next-prompt.js 保持一致。
+// 注意：非贪婪 <think>...</think> 在模型自言自语回放 prompt 字面 <think>/</think> 时会就近闭合，
+// 把外层 think 提前断开，正文随后被 next_prompt 解析吞掉；用栈正确处理嵌套与孤立标签。
+const THINK_TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
+
+// 单遍扫描同时返回剥除结果与首个外层 think 块的内部内容，供 unwrapSoloThinkBlock 复用。
+function scanThinkBlocks(text) {
+  const source = text ?? '';
+  let out = '';
+  let cursor = 0;
+  let depth = 0;
+  let outerInnerStart = -1;
+  let outerInner = null;
+  for (const match of source.matchAll(THINK_TAG_RE)) {
+    const token = match[0];
+    const isClose = Boolean(match[1]);
+    const index = match.index ?? 0;
+    if (depth === 0) {
+      if (isClose) continue;
+      out += source.slice(cursor, index);
+      cursor = index + token.length;
+      depth = 1;
+      outerInnerStart = cursor;
+      continue;
+    }
+    if (isClose) {
+      depth -= 1;
+      if (depth === 0) {
+        if (outerInner == null) outerInner = source.slice(outerInnerStart, index);
+        cursor = index + token.length;
+      }
+      continue;
+    }
+    depth += 1;
+  }
+  if (depth === 0) out += source.slice(cursor);
+  // depth > 0：未闭合 think 延伸到 EOF，整段丢弃。
+  if (depth > 0 && outerInner == null) outerInner = source.slice(outerInnerStart);
+  return { stripped: out, outerInner };
+}
 
 export function stripThinkBlocksFromText(text) {
-  let cleaned = text.replace(THINK_CLOSED_RE, '');
-  if (THINK_OPEN_TEST_RE.test(cleaned)) {
-    cleaned = cleaned.replace(THINK_OPEN_TAIL_RE, '');
-  }
-  return cleaned;
+  return scanThinkBlocks(text).stripped;
 }
 
 // 在原始文本中找到对应 stripped 文本中 idxInStripped 位置的 <next_prompt> 的原始偏移量
@@ -68,13 +97,9 @@ export function findRawNextPromptIdx(raw, idxInStripped) {
  */
 export function unwrapSoloThinkBlock(text) {
   if (!text?.trim()) return text;
-  const outer = text
-    .replace(THINK_CLOSED_RE, '')
-    .replace(THINK_OPEN_TAIL_RE, '')
-    .trim();
-  if (outer) return text;
-  const m = text.match(THINK_SINGLE_RE);
-  return m?.[1] ?? text;
+  const { stripped, outerInner } = scanThinkBlocks(text);
+  if (stripped.trim()) return text;
+  return outerInner ?? text;
 }
 
 /**

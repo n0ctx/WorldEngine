@@ -29,6 +29,7 @@ import {
 } from '../utils/constants.js';
 import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader.js';
 import { assertExists } from '../utils/route-helpers.js';
+import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { runHook } from '../hooks/hook-registry.js';
 import { runChatContinue } from '../app/chat/run-chat-continue.js';
 import { runChatRegenerate } from '../app/chat/run-chat-regenerate.js';
@@ -275,7 +276,7 @@ router.post('/:sessionId/impersonate', async (req, res) => {
       callType: 'impersonate',
       conversationId: sessionId,
     });
-    const content = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    const content = stripThinkBlocksFromText(raw).trim();
     res.json({ content });
   } catch (err) {
     log.error(
@@ -344,9 +345,7 @@ router.post('/:sessionId/retitle', async (req, res) => {
 
     const titlePrompt = [...messages];
     if (lastAssistant) {
-      const cleanContent = lastAssistant.content
-        .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
-        .trim();
+      const cleanContent = stripThinkBlocksFromText(lastAssistant.content).trim();
       titlePrompt.push({ role: 'assistant', content: cleanContent });
     }
     titlePrompt.push({
@@ -363,9 +362,7 @@ router.post('/:sessionId/retitle', async (req, res) => {
     });
     if (!raw) return res.json({ title: null });
 
-    const title = raw
-      .replace(/<think>[\s\S]*?<\/think>\n*/gi, '')
-      .replace(/<think>[\s\S]*$/i, '')
+    const title = stripThinkBlocksFromText(raw)
       .trim()
       .replace(/["'"'「」『』《》【】]/g, '')
       .slice(0, 15);

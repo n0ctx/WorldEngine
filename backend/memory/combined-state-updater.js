@@ -43,6 +43,7 @@ import { getSessionById } from '../db/queries/sessions.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
+import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 
 const log = createLogger('all-state');
 
@@ -66,12 +67,10 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  */
 // 部分 reasoning 模型即便已通过副模型配置关闭思考，仍可能在输出里夹带 <think>…</think>（或服务端故障重开思考）。
 // 思考块里包含大量 {/} 会污染贪婪 JSON 提取，解析前先剥离做 defense-in-depth。
+// 复用 turn-dialogue 的栈式剥除，避免非贪婪正则在 think 内回放字面 </think> 时提前闭合。
 function stripThinkBlocks(text) {
   if (typeof text !== 'string') return text;
-  return text
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<think>[\s\S]*$/gi, '')
-    .trim();
+  return stripThinkBlocksFromText(text).trim();
 }
 
 /**
