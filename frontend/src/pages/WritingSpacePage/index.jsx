@@ -31,8 +31,6 @@ import InputBox from '../../components/chat/InputBox.jsx';
 import Pager from '../../components/chat/Pager.jsx';
 import WritingSessionList from './components/WritingSessionList.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
-import ConfirmModal from '../../components/ui/ConfirmModal';
-import { fetchNearby } from '../../core/api/session-nearby.js';
 import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { log } from '../../core/utils/logger.js';
@@ -103,7 +101,6 @@ export default function WritingSpacePage() {
   const [currentSession, setCurrentSession] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [ltmOpen, setLtmOpen] = useState(false);
-  const [pendingRegenerate, setPendingRegenerate] = useState(null); // { assistantMessageId, savedCount }
   const [streamingText, setStreamingText] = useState('');
   const [streamingKey, setStreamingKey] = useState('__ws_stream_init__');
   const [continuingMessageId, setContinuingMessageId] = useState(null);
@@ -726,21 +723,9 @@ export default function WritingSpacePage() {
     stopRef.current = regenerateWriting(worldId, session.id, afterMessageId, makeStreamCallbacks(runId, session.id));
   }
 
-  async function handleRegenerateMessage(assistantMessageId) {
+  function handleRegenerateMessage(assistantMessageId) {
     const session = currentSessionRef.current;
     if (!session || generating) return;
-    // regenerate 会回滚到上一轮 snapshot，"刚保存但快照里没有"的 nearby 角色会被清掉，先提示
-    let savedCount = 0;
-    try {
-      const rows = await fetchNearby(worldId, session.id);
-      if (Array.isArray(rows)) {
-        savedCount = rows.filter((n) => Number(n?.is_saved) === 1).length;
-      }
-    } catch { /* 取不到不阻塞 */ }
-    if (savedCount > 0) {
-      setPendingRegenerate({ assistantMessageId, savedCount });
-      return;
-    }
     doRegenerate(assistantMessageId);
   }
 
@@ -1049,34 +1034,6 @@ export default function WritingSpacePage() {
                   key="ltm-modal"
                   sessionId={currentSession.id}
                   onClose={() => setLtmOpen(false)}
-                />
-              )}
-              {pendingRegenerate && (
-                <ConfirmModal
-                  key="regenerate-confirm"
-                  title="确认重新生成"
-                  message={
-                    <>
-                      <p className="we-confirm-msg-line">
-                        重新生成将回滚状态到上一轮，
-                        <span className="we-confirm-msg-name">
-                          当前 {pendingRegenerate.savedCount} 个"已保存"角色
-                        </span>
-                        会被一并按上一轮快照恢复。
-                      </p>
-                      <p className="we-confirm-msg-danger">
-                        若它们是在上一轮之后才保存的，重新生成后会从列表中消失。
-                      </p>
-                    </>
-                  }
-                  confirmText="继续重新生成"
-                  danger
-                  onConfirm={async () => {
-                    const id = pendingRegenerate.assistantMessageId;
-                    setPendingRegenerate(null);
-                    doRegenerate(id);
-                  }}
-                  onClose={() => setPendingRegenerate(null)}
                 />
               )}
             </AnimatePresence>

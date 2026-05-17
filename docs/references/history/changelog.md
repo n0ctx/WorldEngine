@@ -4,6 +4,7 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **fix(writing): 移除重新生成二次确认弹窗** — `WritingSpacePage/index.jsx` 删除 `pendingRegenerate` 状态与 `ConfirmModal` 分支,`handleRegenerateMessage` 直接 `doRegenerate`;清理本页未用的 `ConfirmModal` / `fetchNearby` import。
 - **refactor: simplify 三路 review 后清理** — `backend/services/chat.js` 把 `buildSuggestionFallback`/`buildSuggestionContinuation` 合并为 `buildSuggestionAux({ mode })` + `SUGGESTION_AUX_VARIANTS` 表；`db/queries/session-nearby-characters.js` 增 `touchNearbyRows(ids)` IN-clause 批量 UPDATE，`combined-state-updater.js` 用它替掉 N+1 循环；`NearbyPanel.jsx` 把两段 `[nearby, stateTick]` / `[nearby]` useEffect 合并为单次扫描（兼顾 stateTick 推进自动展开/收起 + 脏 id 清理），`collapseSaved`/`expandSaved` 合并为 `setSavedCollapsed(n, collapsed)`。
 - **feat(writing/nearby): saved 角色按 state 更新 LLM 是否触达自动展开/收起** — `combined-state-updater.js#applyNearbyResult` 在 `deleteTransientNotInIds` 之后对所有 seenIds 调用新 `touchNearbyRow(id)`（`db/queries/session-nearby-characters.js`）bump `updated_at`，state 字段为空也能携带"本轮登场"信号；`NearbyPanel.jsx` 用 `prevUpdatedAtRef` + `lastProcessedTickRef` 在 stateTick 推进时比对 saved 角色的 `updated_at` 增量，前进 → 移出 collapsed（展开），未前进 → 加入 collapsed（收起）；首次观察只记基线避免恢复会话误判，用户手动收起/展开仍可在本轮内覆盖。
 - **feat(writing/nearby): saved 角色「展示/收起」手动切换 + 默认展开** — `NearbyPanel.jsx` 用 `collapsedSavedIds: Set` 替换原 `pinnedSavedIds: Map`（连带删掉 Phase 1/2 的 `prevStateUpdatedAtRef` 自动 pin 逻辑）；saved 角色默认展开（同时出现在顶部 tab 的完整 state 与底部姓名列表），顶部 tab toolbar 增"收起"按钮（取消保存右侧），底部姓名列表在收起态显示"展示"按钮；`ui.css` 加 `.we-saved-nearby-actions / .we-saved-nearby-expand` 样式，所有色值走 token。
