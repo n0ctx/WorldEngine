@@ -4,6 +4,7 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **chore(prompts/suggestion): 三选项模板强化路线分岔语义** — `backend/prompts/templates/shared-suggestion.md` / `shared-suggestion-fallback.md` / `shared-suggestion-continuation.md` 统一"我"第一人称表述；continuation 模板将三选项改写为正向/负向/分岔三条独立剧情路线，明确要求改变核心变量（道德立场/阵营/任务目标等），禁止仅给同一问题的不同语气或强度版本；同步 root/backend/frontend `package.json` 版本号到 0.1.5。
 - **fix(ui/textarea): 点击聚焦 / resize 拖动后自身滚动条消失** — `frontend/src/components/ui/Textarea.jsx` 两处坑：(1) 之前任意 mousedown 都挂 `ResizeObserver`，`observe()` 立刻投递一次初始回调把 `overflow-y` 置成 hidden，普通点击聚焦后滚动条就没了 —— 改回右下角 20×20 角区域识别 resize 手柄，只有命中手柄才挂观察器，并用 `primed` 标记跳过初始投递；(2) `DialogShell` 的 React `onMouseUp` 内 `stopPropagation()` 在 React 17+ 会同步调用 `nativeEvent.stopPropagation()`，root 容器代理事件把 native 冒泡也截掉，document bubble 监听的 `unlock` 永远不触发，`overflow-y:hidden` 卡死 —— `mouseup` 监听改捕获阶段 (`{ capture: true }`)，在 React root 拿到事件之前先跑 unlock。
 - **fix(llm/tool-loop): 工具对象返回不再被 `String()` 拍扁成 `[object Object]`** — `backend/llm/tool-loop-control.js` 把 `result = String(await fn(...))` 改为先拿原始返回值，非字符串走 `JSON.stringify`；修复写卡助手 `dispatch_subagent` 等返回 `{success,error,summary}` 结构化对象的 meta 工具在喂回 LLM 时被序列化成字面 `[object Object]`，父代理拿不到 success/error 字段、反复试探后 SSE 静默断流的根因。`wrapToolEvents`(adapter.js) 旁路在 stringify 之前已拿到对象判 success，前端 `tool_call_completed` 事件不受影响。
 - **chore(prompts/ltm): 长期记忆摘要模板放宽 0 条输出** — `backend/prompts/templates/memory-turn-summary-with-ltm.md`：行数上限"每轮最多新增 1 行"改为"0-1 行"，补一段 `"memory":[]` 的合法输出范例，措辞与 `禁止编凑` 一致；让模型在没有满足条件条目时更倾向输出空数组而不是凑一条。
