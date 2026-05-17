@@ -1,0 +1,281 @@
+:root {
+  /* ==================== 基础纸面 ==================== */
+  --we-base-paper-100: #0a0a14;
+  --we-base-paper-200: #16161f;
+  --we-base-paper-300: #1a1a28;
+  --we-base-paper-400: #1e1e2d;
+
+  /* ==================== 基础文字 ==================== */
+  --we-base-ink-900: #e0e0f0;
+  --we-base-ink-700: #8a8aaa;
+  --we-base-ink-500: #5a5a7a;
+
+  /* ==================== 赛博霓虹色板 ==================== */
+  --we-base-vermilion-600: #00d4ff;
+  --we-base-vermilion-800: #0099cc;
+  --we-base-gold-600: #c9a84c;
+  --we-base-gold-400: #e0c86a;
+  --we-base-moss-600: #3a8a5e;
+  --we-base-amber-600: #c9883a;
+  --we-base-slate-600: #4a6a8a;
+  --we-base-book-bg: #050508;
+  --we-base-white: #ffffff;
+  --we-base-peach-200: #2a1a30;
+
+  /* ==================== 字体族：科技无衬线 ==================== */
+  --we-font-serif:   system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-display: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-seal:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-sans:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  /* ==================== 语义色：文字 ==================== */
+  --we-color-text-primary:   #e0e0f0;
+  --we-color-text-secondary: #8a8aaa;
+  --we-color-text-tertiary:  #5a5a7a;
+  --we-color-text-inverse:   #0a0a14;
+  --we-color-text-danger:    #00d4ff;
+
+  /* ==================== 语义色：背景 ==================== */
+  --we-color-bg-canvas:   #0a0a14;
+  --we-color-bg-surface:  #16161f;
+  --we-color-bg-elevated: #1a1a28;
+  --we-color-bg-subtle:   #1a1a28;
+  --we-color-bg-muted:    #1e1e2d;
+  --we-color-bg-overlay:  rgba(10, 10, 20, 0.55);
+  --we-color-bg-inverse:  #050508;
+
+  /* ==================== 语义色：边框 ==================== */
+  --we-color-border-default:     #1e1e2d;
+  --we-color-border-subtle:      #16161f;
+  --we-color-border-strong:      #2a2a3e;
+  --we-color-border-focus:       #00d4ff;
+  --we-color-border-white-faint: rgba(255, 255, 255, 0.04);
+
+  /* ==================== 语义色：状态 ==================== */
+  --we-color-status-success: #3a8a5e;
+  --we-color-status-warning: #c9883a;
+  --we-color-status-danger:  #00d4ff;
+  --we-color-status-info:    #4a6a8a;
+
+  /* ==================== 语义色：强调 ==================== */
+  --we-color-accent:      #00d4ff;
+  --we-color-accent-deep: #0099cc;
+  --we-color-accent-bg:   rgba(0, 212, 255, 0.10);
+  --we-color-gold:        #c9a84c;
+  --we-color-gold-pale:   #e0c86a;
+
+  /* ==================== 头像占位 ==================== */
+  --we-color-avatar-placeholder: #2a1a30;
+
+  /* ==================== 墨色透明层（基于 #0a0a14 暗墨） ==================== */
+  --we-color-ink-wash:          rgba(10, 10, 20, 0.035);
+  --we-color-ink-wash-md:       rgba(10, 10, 20, 0.06);
+  --we-color-ink-wash-strong:   rgba(10, 10, 20, 0.13);
+  --we-color-shadow-sm:         rgba(10, 10, 20, 0.08);
+  --we-color-shadow-md:         rgba(10, 10, 20, 0.14);
+  --we-color-shadow-lg:         rgba(10, 10, 20, 0.20);
+  --we-color-shadow-xl:         rgba(10, 10, 20, 0.30);
+  --we-color-overlay-light:     rgba(10, 10, 20, 0.15);
+  --we-color-overlay-medium:    rgba(10, 10, 20, 0.35);
+  --we-color-overlay-heavy:     rgba(10, 10, 20, 0.70);
+
+  /* ==================== 白色高光叠加 ==================== */
+  --we-color-white-wash:     rgba(255, 255, 255, 0.05);
+  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.12);
+  --we-color-white-sheen-md: rgba(255, 255, 255, 0.22);
+
+  /* ==================== 表面透明叠加 ==================== */
+  --we-color-paper-wash:        rgba(10, 10, 20, 0.28);
+  --we-color-paper-tint:        rgba(26, 26, 40, 0.45);
+  --we-color-paper-overlay:     rgba(30, 30, 45, 0.12);
+
+  /* ==================== 墨水次色透明叠加 ==================== */
+  --we-color-ink-secondary-wash:    rgba(138, 138, 170, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(138, 138, 170, 0.12);
+
+  /* ==================== 强调色透明叠加 ==================== */
+  --we-color-accent-border:     rgba(0, 212, 255, 0.25);
+  --we-color-accent-border-sm:  rgba(0, 212, 255, 0.22);
+
+  /* ==================== 页面大画布（书架/列表页） ==================== */
+  --we-page-canvas-bg:               var(--we-color-bg-inverse);
+  --we-page-canvas-fg:               rgba(224, 224, 240, 0.90);
+  --we-page-canvas-fg-muted:         rgba(138, 138, 170, 0.55);
+  --we-page-canvas-fg-deep:          rgba(138, 138, 170, 0.30);
+  --we-page-canvas-title-style:      normal;
+  --we-page-canvas-title-weight:     600;
+  --we-page-canvas-subtitle-display: block;
+  --we-card-name-font-style:         normal;
+  --we-card-name-font-weight:        400;
+  --we-bookshelf-frame-bg:
+    radial-gradient(circle at top center, rgba(0, 212, 255, 0.06), transparent 42%),
+    linear-gradient(180deg, rgba(0, 212, 255, 0.02), rgba(5, 5, 8, 0.20));
+  --we-bookshelf-frame-border:       rgba(0, 212, 255, 0.08);
+  --we-bookshelf-frame-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(0, 212, 255, 0.04),
+    0 20px 42px rgba(0, 0, 0, 0.30);
+  --we-bookshelf-back-panel-bg:
+    linear-gradient(180deg, rgba(10, 10, 20, 0.60), rgba(5, 5, 8, 0.80));
+  --we-bookshelf-back-panel-border:  rgba(0, 212, 255, 0.06);
+  --we-bookshelf-card-plain-bg:      rgba(22, 22, 31, 0.96);
+  --we-bookshelf-card-plain-border:  1px solid rgba(0, 212, 255, 0.15);
+  --we-bookshelf-empty-bg:           rgba(5, 5, 8, 0.40);
+  --we-bookshelf-empty-border:       rgba(0, 212, 255, 0.06);
+  --we-bookshelf-frame-glow:         rgba(0, 212, 255, 0.04);
+  --we-bookshelf-frame-vignette:     rgba(0, 0, 0, 0.35);
+
+  /* ==================== 卡片皮肤：赛博边框 ==================== */
+  --we-card-bg: var(--we-color-bg-surface);
+  --we-card-border: 1px solid rgba(0, 212, 255, 0.12);
+  --we-card-radius: var(--we-radius-sm);
+  --we-card-shadow:
+    0 0 0 1px rgba(0, 212, 255, 0.05),
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(0, 0, 0, 0.20);
+  --we-card-hover-shadow:
+    0 0 0 1px rgba(0, 212, 255, 0.15),
+    0 4px 8px rgba(0, 0, 0, 0.30),
+    0 16px 32px rgba(0, 0, 0, 0.25);
+  --we-list-card-shadow: var(--we-card-shadow);
+  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
+  --we-panel-card-bg: var(--we-color-bg-surface);
+  --we-panel-card-border: 1px solid var(--we-color-border-default);
+  --we-panel-card-radius: var(--we-radius-md);
+  --we-panel-card-shadow: 0 0 0 1px rgba(10, 10, 20, 0.03);
+
+  /* ==================== TopBar 壳层 ==================== */
+  --we-topbar-bg: #050508;
+  --we-topbar-border: rgba(0, 212, 255, 0.10);
+  --we-topbar-item: rgba(255, 255, 255, 0.50);
+  --we-topbar-item-hover: rgba(0, 212, 255, 0.75);
+  --we-topbar-sep: rgba(255, 255, 255, 0.15);
+  --we-topbar-active-bg: rgba(0, 212, 255, 0.10);
+  --we-topbar-active-ring: rgba(0, 212, 255, 0.30);
+  --we-topbar-dropdown-bg: #0a0a14;
+  --we-topbar-dropdown-border: rgba(0, 212, 255, 0.12);
+  --we-topbar-dropdown-shadow: 0 8px 24px rgba(0, 0, 0, 0.50);
+  --we-topbar-item-hover-bg: rgba(0, 212, 255, 0.06);
+  --we-topbar-item-dim: rgba(255, 255, 255, 0.25);
+  --we-topbar-item-muted: rgba(255, 255, 255, 0.35);
+  --we-topbar-item-faint: rgba(255, 255, 255, 0.55);
+  --we-topbar-divider: rgba(0, 212, 255, 0.08);
+
+  /* ==================== 书脊阴影 ==================== */
+  --we-spine-shadow-left: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.18) 0%,
+    rgba(0, 0, 0, 0.06) 40%,
+    transparent 100%
+  );
+  --we-spine-shadow-right: linear-gradient(
+    to left,
+    rgba(0, 0, 0, 0.12) 0%,
+    rgba(0, 0, 0, 0.04) 40%,
+    transparent 100%
+  );
+
+  /* ==================== 质感阴影（棱角分明的赛博风格） ==================== */
+  --we-shadow-stamp-up:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.20),
+    0 2px 0 var(--we-color-accent-deep),
+    0 4px 8px rgba(0, 0, 0, 0.35);
+  --we-shadow-stamp-down:
+    inset 0 2px 4px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(0, 0, 0, 0.15),
+    0 1px 0 var(--we-color-accent-deep);
+  --we-shadow-paper-stack:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    1px 2px 0 var(--we-color-bg-muted),
+    2px 4px 0 var(--we-color-border-default),
+    0 6px 18px rgba(0, 0, 0, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.12);
+  --we-shadow-paper-lift:
+    0 0 5px rgba(10, 10, 20, 0.15),
+    0 0 12px rgba(10, 10, 20, 0.08);
+  --we-shadow-paper-indent:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 2px 6px rgba(10, 10, 20, 0.10),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03),
+    0 2px 6px rgba(10, 10, 20, 0.10),
+    0 1px 0 rgba(10, 10, 20, 0.06);
+  --we-shadow-dialog:
+    0 0 0 1px var(--we-color-shadow-sm),
+    0 4px 18px var(--we-color-shadow-md),
+    0 16px 48px var(--we-color-shadow-md);
+  --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
+  --we-shadow-range-thumb: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+  --we-shadow-range-thumb-active:
+    0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
+    0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
+
+  /* ==================== 焦点环 ==================== */
+  --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
+
+  /* ==================== 圆角阶梯（锐利赛博感） ==================== */
+  --we-radius-none: 0px;
+  --we-radius-xs:   2px;
+  --we-radius-sm:   4px;
+  --we-radius-md:   8px;
+  --we-radius-lg:   12px;
+  --we-radius-xl:   24px;
+  --we-radius-full: 9999px;
+
+  /* ==================== 装饰 & 纹理（全部关闭，纯色块） ==================== */
+  --we-canvas-texture-image:    none;
+  --we-card-overlay-bg:           linear-gradient(160deg, rgba(0, 0, 0, 0.40) 0%, rgba(0, 0, 0, 0.75) 100%);
+  --we-card-overlay-hover-bg:     var(--we-card-overlay-bg);
+  --we-card-overlay-backdrop-filter:       none;
+  --we-card-overlay-hover-backdrop-filter: none;
+  --we-card-cover-text-color:     rgba(224, 224, 240, 0.85);
+  --we-card-cover-meta-color:     rgba(138, 138, 170, 0.60);
+  --we-col-header-border-color:   rgba(255, 255, 255, 0.06);
+  --we-col-btn-border-color:      rgba(0, 212, 255, 0.20);
+  --we-col-btn-color:             rgba(0, 212, 255, 0.60);
+  --we-entry-meta-color:          rgba(138, 138, 170, 0.55);
+  --we-entry-header-decor-bg:     linear-gradient(to right, transparent, rgba(0, 212, 255, 0.20) 30%, rgba(0, 212, 255, 0.20) 70%, transparent);
+  --we-parchment-display:         none;
+  --we-parchment-fiber-opacity:   0;
+  --we-spine-display:             none;
+  --we-bookmark-display:          none;
+
+  /* ==================== 条目行 ==================== */
+  --we-entry-row-bg:     var(--we-color-bg-canvas);
+  --we-entry-row-shadow: none;
+
+  /* ==================== 主按钮 hover：霓虹青 ==================== */
+  --we-col-btn-primary-hover-bg: rgba(0, 212, 255, 0.12);
+
+  /* ==================== 加载占位 ==================== */
+  --we-loading-scrim-bg:
+    linear-gradient(180deg, rgb(10 10 20 / 42%), rgb(22 22 31 / 28%));
+  --we-loading-scrim-border: rgb(0 212 255 / 10%);
+  --we-loading-scrim-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 10%),
+    0 14px 36px rgb(0 0 0 / 25%);
+
+  /* ==================== Pager 按钮胶囊 ==================== */
+  --we-pager-btn-bg:               rgba(22, 22, 31, 0.86);
+  --we-pager-btn-border:           1px solid rgba(0, 212, 255, 0.20);
+  --we-pager-btn-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.12),
+    0 2px 4px rgba(0, 0, 0, 0.25);
+  --we-pager-btn-hover-bg:         rgba(0, 212, 255, 0.12);
+  --we-pager-btn-hover-shadow:
+    inset 0 1px 0 rgba(0, 212, 255, 0.15),
+    0 3px 6px rgba(0, 153, 204, 0.20);
+
+  /* ==================== 范围滑条（保留功能性渐变） ==================== */
+  --we-range-track-bg: linear-gradient(
+    to right,
+    var(--we-color-accent) 0%,
+    var(--we-color-accent) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) calc(var(--range-pct, 0%)),
+    var(--we-color-border-default) 100%
+  );
+}

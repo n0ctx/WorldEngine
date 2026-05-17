@@ -4,6 +4,7 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **feat(theme): 新增内置主题 Neon Noir** — `themes/neon-noir/{theme.json,theme.css}`，赛博暗系搭配 Neon Noir FX；通过 `backend/services/themes.js` 目录扫描自动注册为 builtin，无需改代码。
 - **fix(writing): 移除重新生成二次确认弹窗** — `WritingSpacePage/index.jsx` 删除 `pendingRegenerate` 状态与 `ConfirmModal` 分支,`handleRegenerateMessage` 直接 `doRegenerate`;清理本页未用的 `ConfirmModal` / `fetchNearby` import。
 - **refactor: simplify 三路 review 后清理** — `backend/services/chat.js` 把 `buildSuggestionFallback`/`buildSuggestionContinuation` 合并为 `buildSuggestionAux({ mode })` + `SUGGESTION_AUX_VARIANTS` 表；`db/queries/session-nearby-characters.js` 增 `touchNearbyRows(ids)` IN-clause 批量 UPDATE，`combined-state-updater.js` 用它替掉 N+1 循环；`NearbyPanel.jsx` 把两段 `[nearby, stateTick]` / `[nearby]` useEffect 合并为单次扫描（兼顾 stateTick 推进自动展开/收起 + 脏 id 清理），`collapseSaved`/`expandSaved` 合并为 `setSavedCollapsed(n, collapsed)`。
 - **feat(writing/nearby): saved 角色按 state 更新 LLM 是否触达自动展开/收起** — `combined-state-updater.js#applyNearbyResult` 在 `deleteTransientNotInIds` 之后对所有 seenIds 调用新 `touchNearbyRow(id)`（`db/queries/session-nearby-characters.js`）bump `updated_at`，state 字段为空也能携带"本轮登场"信号；`NearbyPanel.jsx` 用 `prevUpdatedAtRef` + `lastProcessedTickRef` 在 stateTick 推进时比对 saved 角色的 `updated_at` 增量，前进 → 移出 collapsed（展开），未前进 → 加入 collapsed（收起）；首次观察只记基线避免恢复会话误判，用户手动收起/展开仍可在本轮内覆盖。
