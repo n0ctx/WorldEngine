@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
+import DialogShell from '../ui/DialogShell';
 import { log } from '../../core/utils/logger.js';
 
 const SCOPE_OPTIONS = [
@@ -26,7 +27,6 @@ function buildForm(rule, fallbackMode) {
 }
 
 export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, onClose }) {
-  const mouseDownOnOverlay = useRef(false);
   const [form, setForm] = useState(() => buildForm(rule, settingsMode));
 
   const [testInput, setTestInput] = useState('');
@@ -63,12 +63,7 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
   }
 
   return (
-    <div
-      className="we-regex-modal-overlay"
-      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
-      onClick={() => { if (mouseDownOnOverlay.current) onClose(); }}
-    >
-      <div className="we-dialog-panel w-full max-w-lg max-h-[90vh] flex flex-col">
+    <DialogShell onClose={onClose}>
         <div className="we-dialog-header flex items-center justify-between">
           <h3>{rule ? '编辑规则' : '新建规则'}</h3>
           <button
@@ -213,7 +208,6 @@ export default function RegexRuleEditor({ rule, worlds, settingsMode, onSave, on
             {saving ? '保存中…' : '保存'}
           </button>
         </div>
-      </div>
-    </div>
+    </DialogShell>
   );
 }

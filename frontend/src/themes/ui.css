@@ -1653,7 +1653,7 @@
 }
 
 /* ── Regex Editor Modal Overlay ── */
-.we-regex-modal-overlay {
+.we-dialog-overlay {
   position: fixed;
   inset: 0;
   background: var(--we-color-bg-overlay);

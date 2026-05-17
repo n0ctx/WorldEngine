@@ -8,6 +8,8 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
+import ConfirmModal from '../ui/ConfirmModal';
+import DialogShell from '../ui/DialogShell';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
@@ -154,7 +156,11 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
       )}
 
       {deletingId && (
-        <DeleteConfirm
+        <ConfirmModal
+          title="确认删除"
+          message="此操作无法撤销。"
+          confirmText="确认删除"
+          danger
           onConfirm={() => handleDelete(deletingId)}
           onClose={() => setDeletingId(null)}
         />
@@ -261,27 +267,15 @@ function SnippetEditor({ snippet, onSave, onClose }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
-      <div style={{
-        background: 'var(--we-color-bg-canvas)',
-        border: '1px solid var(--we-color-border-default)',
-        borderRadius: 'var(--we-radius-sm)',
-        boxShadow: '0 16px 48px var(--we-color-shadow-xl)',
-        width: '100%',
-        maxWidth: '640px',
-        margin: '0 16px',
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px',
-      }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-color-text-primary)', margin: 0 }}>
-          {snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}
-        </h2>
+    <DialogShell onClose={onClose}>
+      <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
+        <div className="we-dialog-header flex items-center justify-between">
+          <h3>{snippet ? '编辑 CSS 片段' : '新建 CSS 片段'}</h3>
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="we-dialog-body flex flex-col gap-4">
           <div>
-            <label className="we-edit-label">片段名称</label>
+            <label className="we-dialog-label">片段名称</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -291,61 +285,26 @@ function SnippetEditor({ snippet, onSave, onClose }) {
           </div>
 
           <div>
-            <label className="we-edit-label">CSS 内容</label>
+            <label className="we-dialog-label">CSS 内容</label>
             <Textarea
-              rows={12}
+              rows={10}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder=".message-bubble { background: #fff; }"
               spellCheck={false}
-              style={{ fontFamily: 'Courier New, monospace', resize: 'none' }}
+              style={{ fontFamily: 'Courier New, monospace' }}
             />
           </div>
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '4px' }}>
-            <Button variant="ghost" type="button" onClick={onClose}>取消</Button>
-            <Button variant="primary" type="submit" disabled={saving || !name.trim()}>
-              {saving ? '保存中…' : '保存'}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function DeleteConfirm({ onConfirm, onClose }) {
-  const [deleting, setDeleting] = useState(false);
-  async function handle() {
-    setDeleting(true);
-    await onConfirm();
-    setDeleting(false);
-  }
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--we-color-bg-overlay)' }}>
-      <div style={{
-        background: 'var(--we-color-bg-canvas)',
-        border: '1px solid var(--we-color-border-default)',
-        borderRadius: 'var(--we-radius-sm)',
-        boxShadow: '0 16px 48px var(--we-color-shadow-xl)',
-        width: '100%',
-        maxWidth: '360px',
-        margin: '0 16px',
-        padding: '24px',
-      }}>
-        <h2 style={{ fontFamily: 'var(--we-font-display)', fontSize: '18px', fontStyle: 'italic', fontWeight: 300, color: 'var(--we-color-text-primary)', margin: '0 0 8px' }}>
-          确认删除
-        </h2>
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-accent)', margin: '0 0 20px' }}>
-          此操作无法撤销。
-        </p>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <Button variant="ghost" onClick={onClose}>取消</Button>
-          <Button variant="danger" onClick={handle} disabled={deleting}>
-            {deleting ? '删除中…' : '确认删除'}
+        <div className="we-dialog-footer">
+          <Button variant="ghost" type="button" onClick={onClose}>取消</Button>
+          <Button variant="primary" type="submit" disabled={saving || !name.trim()}>
+            {saving ? '保存中…' : '保存'}
           </Button>
         </div>
-      </div>
-    </div>
+      </form>
+    </DialogShell>
   );
 }
+
