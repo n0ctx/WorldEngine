@@ -101,7 +101,8 @@ export async function runToolLoop({
         if (!fn) {
           result = `工具未定义:${call.name}`;
         } else {
-          result = String(await fn(call.arguments));
+          const raw = await fn(call.arguments);
+          result = typeof raw === 'string' ? raw : JSON.stringify(raw);
         }
       } catch (e) {
         if (isToolLoopCancelledError(e)) throw e;
