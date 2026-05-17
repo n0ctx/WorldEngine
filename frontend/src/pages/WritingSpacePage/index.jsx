@@ -110,6 +110,14 @@ export default function WritingSpacePage() {
   const [diaryTick, setDiaryTick] = useState(0);
   const [stateQueuedTick, setStateQueuedTick] = useState(0);
   const [stateFailedTick, setStateFailedTick] = useState(0);
+  // saved nearby 召回判定结果（驱动右侧面板自动展开/收起 saved 角色 state）
+  // hits=null 表示尚未收到本轮事件（保留之前的展开状态）；tick 在每次事件递增，触发子组件应用
+  const [savedRecallTick, setSavedRecallTick] = useState(0);
+  const [savedRecallHits, setSavedRecallHits] = useState(null);
+  const applySavedRecall = (evt) => {
+    setSavedRecallHits(Array.isArray(evt?.ids) ? evt.ids : []);
+    setSavedRecallTick((t) => t + 1);
+  };
   const [messageListKey, setMessageListKey] = useState(0);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const [error, setError] = useState(null);
@@ -615,6 +623,10 @@ export default function WritingSpacePage() {
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
+      onSavedRecallDone(evt) {
+        if (!isCurrentStreamRun(runId)) return;
+        applySavedRecall(evt);
+      },
       onStreamEnd() {
         if (!isCurrentStreamRun(runId)) {
           stopMemoryWriting(runId);
@@ -916,6 +928,10 @@ export default function WritingSpacePage() {
         const count = Array.isArray(evt?.expanded) ? evt.expanded.length : 0;
         setRecallSummary((prev) => prev ? { ...prev, expanded: count } : { recalled: 0, expanded: count });
       },
+      onSavedRecallDone(evt) {
+        if (continuationTokenRef.current !== continuationToken) return;
+        applySavedRecall(evt);
+      },
       onStreamEnd() {
         if (continuationTokenRef.current !== continuationToken) return;
         stopMemoryWriting();
@@ -1135,6 +1151,8 @@ export default function WritingSpacePage() {
           diaryTick={diaryTick}
           stateQueuedTick={stateQueuedTick}
           stateFailedTick={stateFailedTick}
+          savedRecallTick={savedRecallTick}
+          savedRecallHits={savedRecallHits}
           persona={persona}
           onDiaryInject={setPendingDiaryInject}
         />

@@ -137,6 +137,8 @@ export default function NearbyPanel({
   diaryTick = 0,
   stateQueuedTick = 0,
   stateFailedTick = 0,
+  savedRecallTick = 0,
+  savedRecallHits = null,
   onDiaryInject,
 }) {
   const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } =
@@ -145,12 +147,11 @@ export default function NearbyPanel({
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
-  // saved 角色默认在顶部完整 state tab 展开；用户点击"收起"或本轮 state 更新 LLM 判定未登场时进入此集合，
+  // saved 角色默认在顶部完整 state tab 展开；用户点击"收起"或后端 saved_recall 判定未命中时进入此集合，
   // 仅在底部姓名列表里露出。仅当前会话内有效；切换会话清空。
   const [collapsedSavedIds, setCollapsedSavedIds] = useState(() => new Set());
-  // 上一轮各 nearby 的 updated_at，用于在 stateTick 推进时判定"本轮 LLM 是否触达过该 saved 角色"
-  const prevUpdatedAtRef = useRef(null);
-  const lastProcessedTickRef = useRef(null);
+  // 记录上次应用过的 savedRecallTick，避免对同一事件重复处理；session 切换时重置为当前 tick 以忽略陈旧 hits
+  const lastAppliedRecallTickRef = useRef(savedRecallTick);
   const [worldResetting, setWorldResetting] = useState(false);
   const [personaResetting, setPersonaResetting] = useState(false);
 
@@ -191,55 +192,52 @@ export default function NearbyPanel({
     return () => { cancelled = true; };
   }, [worldId, sessionId, stateTick]);
 
-  // 切换会话/世界时清空收起集合与 prev 快照（仅本次会话有效）
+  // 切换会话/世界时清空收起集合；同时把"已应用 tick"对齐到当前值，避免之前会话的 hits 在新会话触发误收起
   useEffect(() => {
-    prevUpdatedAtRef.current = null;
-    lastProcessedTickRef.current = null;
+    lastAppliedRecallTickRef.current = savedRecallTick;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCollapsedSavedIds((prev) => (prev.size === 0 ? prev : new Set()));
+    // savedRecallTick 故意不进依赖：仅在 world/session 切换时对齐基线，新事件由下面的 effect 负责
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [worldId, sessionId]);
 
-  // 单次扫描 nearby，同时做：
-  //   a) stateTick 推进时按 updated_at 增量自动展开/收起 saved 角色（首次观察只记录基线）
+  // 单次扫描 nearby，做两件事：
+  //   a) 收到新的 saved_recall_done 事件（savedRecallTick 推进）时，按 hits 重算 saved 角色的展开/收起
+  //      —— hits 中的 id 展开（从 collapsed 移除），其余 saved 收起（加入 collapsed）
   //   b) 清掉那些已不再是 saved（或已不存在）的脏 id
   useEffect(() => {
     if (!Array.isArray(nearby)) return;
-    const curById = new Map();
-    const curUpdatedAt = new Map();
-    for (const n of nearby) {
-      curById.set(n.id, n);
-      curUpdatedAt.set(n.id, n.updated_at || 0);
-    }
-
-    const prevMap = prevUpdatedAtRef.current;
-    const tickAdvanced = prevMap !== null && lastProcessedTickRef.current !== stateTick;
+    const recallAdvanced = savedRecallTick !== lastAppliedRecallTickRef.current;
+    const hitSet = recallAdvanced && Array.isArray(savedRecallHits) ? new Set(savedRecallHits) : null;
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCollapsedSavedIds((prev) => {
+      if (!hitSet && prev.size === 0) return prev;
       const next = new Set(prev);
       let changed = false;
-      if (tickAdvanced) {
+      if (hitSet) {
         for (const n of nearby) {
           if (!isNearbySaved(n)) continue;
-          const onStage = (n.updated_at || 0) > (prevMap.get(n.id) || 0);
-          if (onStage) {
+          if (hitSet.has(n.id)) {
             if (next.has(n.id)) { next.delete(n.id); changed = true; }
           } else if (!next.has(n.id)) {
             next.add(n.id); changed = true;
           }
         }
       }
-      // 脏 id 清理：每次都做（廉价，size==0 时 for-of 直接结束）
-      for (const id of prev) {
-        const row = curById.get(id);
-        if (!row || !isNearbySaved(row)) { next.delete(id); changed = true; }
+      if (prev.size > 0) {
+        const curById = new Map();
+        for (const n of nearby) curById.set(n.id, n);
+        for (const id of prev) {
+          const row = curById.get(id);
+          if (!row || !isNearbySaved(row)) { next.delete(id); changed = true; }
+        }
       }
       return changed ? next : prev;
     });
 
-    prevUpdatedAtRef.current = curUpdatedAt;
-    lastProcessedTickRef.current = stateTick;
-  }, [nearby, stateTick]);
+    if (recallAdvanced) lastAppliedRecallTickRef.current = savedRecallTick;
+  }, [nearby, savedRecallTick, savedRecallHits]);
 
   useEffect(() => {
     let cancelled = false;

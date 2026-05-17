@@ -4,6 +4,7 @@
 
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **fix(writing/nearby): saved 角色展开/收起改由后端 saved_recall hits 驱动** — `stream-parser.js` 增 `onSavedRecallDone` 转发；`WritingSpacePage/index.jsx` 新增 `savedRecallTick/savedRecallHits` 状态并在主+续写两套回调里写入,透传给 `NearbyPanel`;`NearbyPanel.jsx` 替换原 `updated_at` 增量推导(`prevUpdatedAtRef`/`lastProcessedTickRef`)为 `lastAppliedRecallTickRef`-gated 的 hits 驱动,与后端 [10.5] 注入 `<recalled_characters>` 的判定严格对齐,解决"角色登场但 state 未被改写时被错误折叠"。
 - **feat(theme): 新增内置主题 Neon Noir** — `themes/neon-noir/{theme.json,theme.css}`，赛博暗系搭配 Neon Noir FX；通过 `backend/services/themes.js` 目录扫描自动注册为 builtin，无需改代码。
 - **fix(writing): 移除重新生成二次确认弹窗** — `WritingSpacePage/index.jsx` 删除 `pendingRegenerate` 状态与 `ConfirmModal` 分支,`handleRegenerateMessage` 直接 `doRegenerate`;清理本页未用的 `ConfirmModal` / `fetchNearby` import。
 - **refactor: simplify 三路 review 后清理** — `backend/services/chat.js` 把 `buildSuggestionFallback`/`buildSuggestionContinuation` 合并为 `buildSuggestionAux({ mode })` + `SUGGESTION_AUX_VARIANTS` 表；`db/queries/session-nearby-characters.js` 增 `touchNearbyRows(ids)` IN-clause 批量 UPDATE，`combined-state-updater.js` 用它替掉 N+1 循环；`NearbyPanel.jsx` 把两段 `[nearby, stateTick]` / `[nearby]` useEffect 合并为单次扫描（兼顾 stateTick 推进自动展开/收起 + 脏 id 清理），`collapseSaved`/`expandSaved` 合并为 `setSavedCollapsed(n, collapsed)`。

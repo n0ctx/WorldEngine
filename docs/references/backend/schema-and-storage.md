@@ -223,7 +223,9 @@
 
 `name` 在同一 session 内唯一（transient 与 saved 共享同一命名空间）。
 
-`backend/services/writing-sessions.js` 的 `listNearby` 返回每行额外带 `state_updated_at` 字段（=该角色所有 `session_nearby_character_state_values.updated_at` 的最大值，无 state 行时为 `0`）。前端 `NearbyPanel` 用它实现"保存后待观察"：用户刚保存的 saved 角色仍按完整 state tab 显示，下一轮 LLM 输出完成后若 `state_updated_at <= pinnedAt` 则降级到底部紧凑列表。该字段不入库，仅由 listNearby 派生。
+`backend/services/writing-sessions.js` 的 `listNearby` 返回每行额外带 `state_updated_at` 字段（=该角色所有 `session_nearby_character_state_values.updated_at` 的最大值，无 state 行时为 `0`），该字段不入库，仅由 listNearby 派生。
+
+saved 角色在前端 `NearbyPanel` 的自动展开/收起由 **后端 `saved_recall_done` SSE 事件**驱动（与 [10.5] 注入 `<recalled_characters>` 的判定结果严格一致）：事件 `ids` 中的角色展示完整 state，未命中的降级到底部紧凑列表；与 `state_updated_at` 解耦——不再要求 LLM "改写过 state" 才算"登场"，避免叙事中出现但 state 未变的角色被错误折叠。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|

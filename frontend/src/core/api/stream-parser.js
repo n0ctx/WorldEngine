@@ -14,6 +14,7 @@ import { log } from '../utils/logger.js';
  *   onMemoryRecallDone(evt)     — 向量召回完成
  *   onMemoryExpandStart(evt)    — 记忆展开开始
  *   onMemoryExpandDone(evt)     — 记忆展开完成
+ *   onSavedRecallDone(evt)      — saved nearby 角色召回判定完成；evt.ids 为本轮应展开的角色 id 列表，evt.mode 为 'judge'|'all-in'
  *   onChapterTitleUpdated(chapterIndex, title) — 章节标题已更新（写作）
  *   onStateQueued()             — 状态栏整理 LLM 开始调用（整理中出现时机）
  *   onStateUpdated()            — 状态栏异步更新完成
@@ -63,6 +64,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'memory_recall_done') callbacks.onMemoryRecallDone?.(evt);
           else if (evt.type === 'memory_expand_start') callbacks.onMemoryExpandStart?.(evt);
           else if (evt.type === 'memory_expand_done') callbacks.onMemoryExpandDone?.(evt);
+          else if (evt.type === 'saved_recall_done') callbacks.onSavedRecallDone?.(evt);
           else if (evt.type === 'chapter_title_updated') callbacks.onChapterTitleUpdated?.(evt.chapterIndex, evt.title);
           else if (evt.type === 'state_queued') callbacks.onStateQueued?.();
           else if (evt.type === 'state_updated') callbacks.onStateUpdated?.();
