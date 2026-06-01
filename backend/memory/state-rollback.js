@@ -4,7 +4,7 @@
  * 对外暴露：
  *   captureStateSnapshot(sessionId, worldId, characterIds)      → snapshot 对象
  *   restoreStateFromSnapshot(sessionId, worldId, characterIds, snapshot)
- *     snapshot=null 时降级：清空回 default
+ *     snapshot=null 时保留现状（首轮重生成场景：用户手动加的 nearby / state 是显式意图，不能清）
  */
 
 import db from '../db/index.js';
@@ -64,7 +64,7 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
 }
 
 /**
- * 从快照恢复会话三层状态；snapshot=null 时清空回 default
+ * 从快照恢复会话三层状态；snapshot=null 时保留现状
  *
  * @param {string} sessionId
  * @param {string} worldId
@@ -73,11 +73,9 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
  */
 export function restoreStateFromSnapshot(sessionId, worldId, characterIds, snapshot) {
   if (!snapshot) {
-    // 无快照可恢复，清空回 default（降级）
-    clearSessionWorldStateValues(sessionId);
-    clearSessionPersonaStateValues(sessionId);
-    clearSessionCharacterStateValues(sessionId);
-    for (const r of listNearbyBySessionId(sessionId)) deleteNearbyById(r.id);
+    // 无 turn record 检查点（典型场景：重生成首轮对话）。
+    // 当前 session state / nearby 是用户在首轮前的手动配置，是显式意图，必须保留。
+    // 早期实现会清空回 default，导致用户从角色卡添加的"附近角色"被静默删除。
     return;
   }
 
