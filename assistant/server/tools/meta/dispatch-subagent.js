@@ -12,7 +12,11 @@ export const dispatchSubagentDefinition = {
   parameters: {
     type: 'object',
     properties: {
-      stepId: { type: 'string' },
+      stepId: {
+        type: 'string',
+        description:
+          '可选：指向 plan_doc 中的步骤 ID。仅当 step.task 命中尾部截断（已批准计划里 task 写成「...：」一类残缺指令）时，同时给出 task 才会覆盖 step.task；正常 step 的 task 不可被覆盖，需要改语义请走 edit_plan_doc.replace_steps 重新审批。',
+      },
       targetType: { type: 'string' },
       operation: {
         type: 'string',

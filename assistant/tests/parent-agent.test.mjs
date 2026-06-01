@@ -335,6 +335,65 @@ test('dispatch_subagent: task 截断检测覆盖冒号/逗号/未闭合反引号
   assert.equal(detectTaskTruncation('在世界卡的「背景设定」段落里追加一段关于（古代帝国）的描述并保存。'), null);
 });
 
+test('detectTaskTailTruncation: 仅校验尾部标点，引号/括号合法的复杂任务不误报', async () => {
+  const metaRuntime = await freshImport('assistant/server/tools/meta/runtime.js');
+  const { detectTaskTailTruncation } = metaRuntime;
+  assert.match(detectTaskTailTruncation('在 world-card 上用 stateFieldOps create 三个字段：'), /冒号/);
+  assert.match(detectTaskTailTruncation('继续编排——'), /破折号/);
+  // 合法 task 含引号 / 括号 / 反引号片段也不应被严格规则误报
+  assert.equal(detectTaskTailTruncation('请把字段 name = "Alice 写进去'), null);
+  assert.equal(detectTaskTailTruncation('引用「Alice 然后继续'), null);
+  assert.equal(detectTaskTailTruncation('完成全部字段并保存。'), null);
+});
+
+test('write_plan_doc: 拒绝 step.task 以冒号结尾的伪截断计划', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {});
+  const writePlan = tools[0];
+  const r = await writePlan.execute({
+    title: '会被拒绝的计划',
+    intent: '测试 task 尾部截断',
+    steps: [
+      { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡，包含字段：' },
+      { title: '加字段', targetType: 'world-card', operation: 'update', task: '加角色字段 HP=100。' },
+      { title: '验收', targetType: 'world-card', operation: 'update', task: '核对全部字段。' },
+    ],
+  });
+  assert.equal(r.success, false);
+  assert.equal(r.failureKind, 'precheck');
+  assert.match(r.error, /task 字段疑似被截断/);
+  assert.match(r.error, /单行/);
+});
+
+test('dispatch_subagent: stepId + args.task 时用 args.task 覆盖 step.task（自救已批准计划）', async () => {
+  const task = taskStore.createTask({ context: {} });
+  // 模拟一份已批准但 step.task 被截断的计划
+  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+    title: '已批准但 task 被截断',
+    status: 'approved',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+    intent: '触发自救路径',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: '建字段', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 stateFieldOps create 三个字段：' },
+      { id: 'step-2', title: '建条目', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 entryOps create 条目。' },
+      { id: 'step-3', title: '验收', targetType: 'world-card', operation: 'update', task: '核对结果。' },
+    ],
+  }));
+  const tools = __testables.buildMetaTools(task, () => {}, null, {
+    planDocExists: true,
+    planAlreadyApproved: true,
+    planExecutionApproved: true,
+  });
+  const dispatch = tools[2];
+  // 模型补传完整 task：应当覆盖 step.task 并通过截断检测，进入到下游 sub-agent（mock 后报子代理失败）
+  const overrideTask = '在世界卡 W 上用 stateFieldOps 新建三个 target=character 的 number 字段 HP/MP/SP，范围 0-100，默认 100。';
+  const r = await dispatch.execute({ stepId: 'step-1', task: overrideTask });
+  // 截断检测应被绕过；不应再返回"task 字段疑似被截断"
+  assert.equal(/task 字段疑似被截断/.test(String(r.error ?? '')), false);
+});
+
 test('write_plan_doc / edit_plan_doc: 参数级失败均标 failureKind=precheck', async () => {
   const task = taskStore.createTask({ context: {} });
   const tools = __testables.buildMetaTools(task, () => {});

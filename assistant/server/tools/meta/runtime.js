@@ -26,9 +26,8 @@ import {
 export function detectTaskTruncation(rawTask) {
   const text = String(rawTask ?? '').trim();
   if (!text) return null;
-  const tail = text.slice(-24);
-  if (/[：:，,；;]\s*$/.test(tail)) return '结尾为冒号/逗号/分号，缺少后续具体内容';
-  if (/[-—–]{1,2}\s*$/.test(tail)) return '结尾为破折号，缺少后续具体内容';
+  const tailDetail = detectTaskTailTruncation(text);
+  if (tailDetail) return tailDetail;
   const fences = (text.match(/```/g) ?? []).length;
   if (fences % 2 === 1) return '反引号代码块未闭合（``` 出现奇数次）';
   const dq = (text.match(/"/g) ?? []).length;
@@ -36,6 +35,41 @@ export function detectTaskTruncation(rawTask) {
   const left = (text.match(/[「『（《【“]/g) ?? []).length;
   const right = (text.match(/[」』）》】”]/g) ?? []).length;
   if (left !== right) return '中文成对引号/括号未闭合';
+  return null;
+}
+
+// 仅检查"尾部标点截断"——计划写入阶段的严格门：
+// 模型经常把 step.task 写成 `"...的新字段："` 并把要点放进子条目，
+// 但 plan-doc parser 只读单行 `- 任务：...`，子条目会被丢掉，
+// 派发时 step.task 就是一段裸露的"以冒号结尾"截断指令。
+// 在 write_plan_doc / replace_steps 阶段就拦下这种 task，强制模型把要点写进同一行。
+// 引号 / 括号 / 反引号配对在 plan 阶段误伤高（合法引用 `"100"` 也会被打回），故只用尾部规则。
+export function detectTaskTailTruncation(rawTask) {
+  const text = String(rawTask ?? '').trim();
+  if (!text) return null;
+  const tail = text.slice(-24);
+  if (/[：:，,；;]\s*$/.test(tail)) return '结尾为冒号/逗号/分号，缺少后续具体内容';
+  if (/[-—–]{1,2}\s*$/.test(tail)) return '结尾为破折号，缺少后续具体内容';
+  return null;
+}
+
+// 计划阶段共用的 task 校验：返回 precheck 错误对象或 null
+function validatePlanStepsTaskTail(steps) {
+  for (const s of steps) {
+    const detail = detectTaskTailTruncation(s.task);
+    if (detail) {
+      return {
+        success: false,
+        failureKind: 'precheck',
+        error: [
+          `step ${s.id ?? '(待生成)'} 的 task 字段疑似被截断（${detail}）。`,
+          'plan_doc 的每个 step.task 必须是一段完整自洽的中文指令，`',
+          '不要把要点放到子条目里（plan 解析器只读单行 `- 任务：...`，子条目会被丢弃）。',
+          '请把字段名、取值范围、关键说明都直接写进 task 同一段文字里再重发。',
+        ].join(''),
+      };
+    }
+  }
   return null;
 }
 
@@ -72,6 +106,8 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             ].join(''),
           };
         }
+        const taskTailIssue = validatePlanStepsTaskTail(steps);
+        if (taskTailIssue) return taskTailIssue;
         const nowIso = new Date().toISOString();
         const md = planDoc.renderPlanDoc({
           title: args.title,
@@ -151,6 +187,8 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
               done: false,
               completedAt: null,
             }));
+          const taskTailIssue = validatePlanStepsTaskTail(incoming);
+          if (taskTailIssue) return taskTailIssue;
           md = planDoc.renderPlanDoc({
             title: parsed.title,
             status: parsed.status,
@@ -240,6 +278,21 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           dependsOn: args.entityRef ? [args.entityRef] : [],
           task: args.task,
         };
+        // 当 stepId 解析到了 step 但模型同时给了一段全新的 args.task：
+        // - 仅当 step.task 命中尾部截断（被 plan-doc 单行解析器吃掉子条目导致的坏数据）时，
+        //   才允许 args.task 覆盖 step.task；这是已批准计划的自救通道，不是任意改写许可。
+        // - 否则保留 step.task 不动：避免模型借 args.task 把"更新字段 A"偷换成"删除所有条目"，
+        //   绕过 replace_steps 的审批边界（targetType/operation 仍然沿用 step，覆盖 task 等于换语义）。
+        if (
+          step
+          && typeof args.task === 'string'
+          && args.task.trim()
+          && args.task.trim() !== String(step.task ?? '').trim()
+          && detectTaskTailTruncation(step.task)
+          && !detectTaskTailTruncation(args.task)
+        ) {
+          resolved = { ...resolved, task: args.task };
+        }
         if (!resolved.targetType || !resolved.task) {
           return {
             success: false,
