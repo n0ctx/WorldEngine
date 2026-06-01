@@ -4,9 +4,9 @@ import { parseNextPromptStream } from '../../src/core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../src/core/utils/think-blocks.js';
 
 describe('think blocks', () => {
-  it('进入 think 后内层重复 <think> 增加深度,内层 </think> 减深但不闭合外层', () => {
+  it('两开一闭(失衡):EOF 兜底回退到首个 </think> 闭合,内层 <think> 当文本', () => {
     expect(parseStreamingBlocks('<think>思考内容<think>字面标签</think>')).toEqual([
-      { type: 'thinking', content: '思考内容<think>字面标签</think>', open: true },
+      { type: 'thinking', content: '思考内容<think>字面标签', open: false },
     ]);
   });
 
@@ -30,9 +30,17 @@ describe('think blocks', () => {
     ]);
   });
 
-  it('流式中间态:外层未闭合时内层 close 不提前闭合外层', () => {
+  it('失衡 EOF 兜底:<think>A<think>B</think> 视为外层闭合,内层 <think> 当文本', () => {
     expect(parseStreamingBlocks('<think>A<think>B</think>')).toEqual([
-      { type: 'thinking', content: 'A<think>B</think>', open: true },
+      { type: 'thinking', content: 'A<think>B', open: false },
+    ]);
+  });
+
+  it('正文+失衡 think+正文:兜底闭合后剩余文本回到 text 块', () => {
+    expect(parseStreamingBlocks('前<think>A<think>B</think>正文')).toEqual([
+      { type: 'text', content: '前', open: false },
+      { type: 'thinking', content: 'A<think>B', open: false },
+      { type: 'text', content: '正文', open: false },
     ]);
   });
 
@@ -74,5 +82,30 @@ describe('next prompt stream', () => {
   it('未闭合 think 内的 next_prompt 在流式中不被解析为正文选项', () => {
     const raw = '前文<think>思考 <next_prompt>残草稿';
     expect(parseNextPromptStream(raw)).toEqual({ display: raw, options: [] });
+  });
+
+  it('mode-divergence 回归:full 走 boolean 兜底时 display 不再泄漏 <next_prompt> 字面标签', () => {
+    // 老实现 findRawAnchor 对 prefix 再 strip 与 full 模式不一致,rawIdx=-1 → display=raw。
+    const raw = '<think>A<think>B</think>C</think>D<next_prompt>opt</next_prompt><think>unclosed';
+    expect(parseNextPromptStream(raw)).toEqual({
+      display: '<think>A<think>B</think>C</think>D',
+      options: ['opt'],
+    });
+  });
+});
+
+describe('parseStreamingBlocks streaming guard', () => {
+  it('isStreaming=true:嵌套良好的两开一闭流式中段不被错判为闭合(避免后续 </think> 到达时 text 倒回 thinking 引起闪烁)', () => {
+    // 流式途中 '<think>A<think>B</think>C' 仍属外层未闭合,正确表现是 thinking open;
+    // 否则下一帧外层 </think> 一到,'C' 又被吸进 thinking,UI 闪烁一次。
+    expect(parseStreamingBlocks('<think>A<think>B</think>C', { isStreaming: true })).toEqual([
+      { type: 'thinking', content: 'A<think>B</think>C', open: true },
+    ]);
+  });
+
+  it('isStreaming=false (终态):两开一闭仍走 boolean 兜底闭合,修复用户报告的全文吞 think bug', () => {
+    expect(parseStreamingBlocks('<think>A<think>B</think>')).toEqual([
+      { type: 'thinking', content: 'A<think>B', open: false },
+    ]);
   });
 });

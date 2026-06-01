@@ -152,7 +152,7 @@ export default function WritingMessageItem({
     interrupted = true;
   }
   displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
-  const blocks = parseStreamingBlocks(displayContent);
+  const blocks = parseStreamingBlocks(displayContent, { isStreaming });
   const lastBlockIndex = blocks.length - 1;
   const content = displayContent;
 

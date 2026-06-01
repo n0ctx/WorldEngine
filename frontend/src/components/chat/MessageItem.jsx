@@ -269,7 +269,7 @@ export default function MessageItem({
   displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
 
   // 统一解析为 blocks（流式和非流式共用）;中断标记挂到最后一个 block。
-  const blocks = parseStreamingBlocks(displayContent);
+  const blocks = parseStreamingBlocks(displayContent, { isStreaming });
   const lastBlockIndex = blocks.length - 1;
 
   function startEdit() { setDraft(message.content); setEditing(true); }

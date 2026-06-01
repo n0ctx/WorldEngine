@@ -5,26 +5,33 @@ const CLOSE_TAG = '</think>';
 const NEXT_OPEN = '<next_prompt>';
 const NEXT_CLOSE = '</next_prompt>';
 
-// 与 parseStreamingBlocks 同语义的栈式剥除:未闭合外层 think 整段(到末尾)丢弃,孤立 </think> 当作正文。
-function stripThinkBlocks(text) {
-  const source = text || '';
+// 与 parseStreamingBlocks 同语义:嵌套平衡走栈式,EOF depth>0 回退到首个 </think> 闭合(两开一闭兜底)。
+// 两种模式都返回 spans = [{ srcStart, length, dstStart }],供 parseNextPromptStream 把 cleaned
+// 偏移精确反推回原文偏移;避免老 findRawAnchor 对 prefix 再次 strip 与 full 的模式不一致(full=boolean
+// + prefix=stack)导致长度对不上、display 退回 raw 把 <next_prompt> 字面标签泄漏到聊天气泡的 bug。
+function stackStrip(source) {
+  const spans = [];
   let out = '';
   let cursor = 0;
   let depth = 0;
-
+  const flush = (end) => {
+    if (end > cursor) {
+      spans.push({ srcStart: cursor, length: end - cursor, dstStart: out.length });
+      out += source.slice(cursor, end);
+    }
+    cursor = end;
+  };
   for (const match of source.matchAll(THINK_TAG_RE)) {
     const token = match[0];
     const isClose = Boolean(match[1]);
     const index = match.index ?? 0;
-
     if (depth === 0) {
       if (isClose) continue;
-      out += source.slice(cursor, index);
+      flush(index);
       cursor = index + token.length;
       depth = 1;
       continue;
     }
-
     if (isClose) {
       depth -= 1;
       if (depth === 0) cursor = index + token.length;
@@ -32,9 +39,58 @@ function stripThinkBlocks(text) {
     }
     depth += 1;
   }
+  if (depth > 0) return null;
+  flush(source.length);
+  return { stripped: out, spans };
+}
 
-  if (depth === 0) out += source.slice(cursor);
-  return out;
+function booleanStrip(source) {
+  const spans = [];
+  let out = '';
+  let cursor = 0;
+  let inThink = false;
+  const flush = (end) => {
+    if (end > cursor) {
+      spans.push({ srcStart: cursor, length: end - cursor, dstStart: out.length });
+      out += source.slice(cursor, end);
+    }
+    cursor = end;
+  };
+  for (const match of source.matchAll(THINK_TAG_RE)) {
+    const token = match[0];
+    const isClose = Boolean(match[1]);
+    const index = match.index ?? 0;
+    if (!inThink) {
+      if (isClose) continue;
+      flush(index);
+      cursor = index + token.length;
+      inThink = true;
+      continue;
+    }
+    if (isClose) {
+      cursor = index + token.length;
+      inThink = false;
+    }
+  }
+  if (!inThink) flush(source.length);
+  return { stripped: out, spans };
+}
+
+function scanStrip(text) {
+  const source = text || '';
+  return stackStrip(source) ?? booleanStrip(source);
+}
+
+function mapStrippedToSrc(spans, dstIdx) {
+  if (dstIdx < 0) return -1;
+  for (const sp of spans) {
+    if (dstIdx >= sp.dstStart && dstIdx < sp.dstStart + sp.length) {
+      return sp.srcStart + (dstIdx - sp.dstStart);
+    }
+  }
+  const last = spans[spans.length - 1];
+  if (last && dstIdx === last.dstStart + last.length) return last.srcStart + last.length;
+  return -1;
 }
 
 /**
@@ -47,30 +103,15 @@ function stripThinkBlocks(text) {
  */
 export function parseNextPromptStream(text) {
   const raw = text || '';
-  const cleaned = stripThinkBlocks(raw);
-  const idx = cleaned.lastIndexOf(NEXT_OPEN);
-  if (idx === -1) return { display: raw, options: [] };
-  const rawIdx = findRawAnchor(raw, idx);
-  const display = rawIdx >= 0 ? raw.slice(0, rawIdx) : raw;
-  const after = cleaned.slice(idx + NEXT_OPEN.length).replace(NEXT_CLOSE, '');
+  const { stripped, spans } = scanStrip(raw);
+  const idxInCleaned = stripped.lastIndexOf(NEXT_OPEN);
+  if (idxInCleaned === -1) return { display: raw, options: [] };
+  const rawIdx = mapStrippedToSrc(spans, idxInCleaned);
+  if (rawIdx < 0 || !raw.startsWith(NEXT_OPEN, rawIdx)) return { display: raw, options: [] };
+  const display = raw.slice(0, rawIdx);
+  const after = stripped.slice(idxInCleaned + NEXT_OPEN.length).replace(NEXT_CLOSE, '');
   const options = after.split('\n').map((s) => s.trim()).filter(Boolean);
   return { display, options };
-}
-
-/**
- * 从原文末尾向前扫描 <next_prompt> 位置，返回 stripThinkBlocks(prefix).length === idxInCleaned
- * 的那一个 —— 即剥除 think 块后位于 idxInCleaned 处的真实原文坐标。
- * 从末尾向前确保选中“最后一个非 think 内”的 <next_prompt>。
- */
-function findRawAnchor(raw, idxInCleaned) {
-  let from = raw.length;
-  while (from >= 0) {
-    const pos = raw.lastIndexOf(NEXT_OPEN, from);
-    if (pos === -1) return -1;
-    if (stripThinkBlocks(raw.slice(0, pos)).length === idxInCleaned) return pos;
-    from = pos - 1;
-  }
-  return -1;
 }
 
 /**
