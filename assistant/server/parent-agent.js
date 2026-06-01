@@ -399,7 +399,11 @@ function buildReplyToUserTool() {
   };
 }
 
-const CONSECUTIVE_FAILURE_PAUSE_THRESHOLD = 3;
+// runtime 失败：真实业务/异常失败，重试一般无效 → 阈值低
+const CONSECUTIVE_RUNTIME_FAILURE_PAUSE_THRESHOLD = 3;
+// precheck 失败：参数级格式错（task 截断、operation 缺失、entityRef 类型错等），模型读到清晰 error 就能自纠
+// → 阈值显著放宽。截图里的"dispatch_subagent 连续失败 3 次"恰好是这一类，旧阈值 3 把模型卡死。
+const CONSECUTIVE_PRECHECK_FAILURE_PAUSE_THRESHOLD = 8;
 export const CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON = 'consecutive tool failures';
 
 function buildToolRegistry(task, emitFn, runId, options = {}) {
@@ -414,15 +418,26 @@ function buildToolRegistry(task, emitFn, runId, options = {}) {
   // 连续失败熔断：本轮内连续 N 次失败 → 立即暂停等用户介入。
   // 模型在错误状态（参数错、entity 不存在、字段缺失等）下会反复重试同一个调用，
   // 即使加了 lastToolFailure 提示也修不动 —— 此时继续 burn token 收益为零。
-  const afterCompleted = ({ success, error, name: toolName }) => {
+  //
+  // 失败分级：
+  // - precheck（工具自报，参数级格式错）→ 阈值 8，给模型多次纠错机会
+  // - runtime（其它失败，含 throw）→ 阈值 3，重试无意义就早停
+  // 任何一种命中阈值都暂停；两边的计数在成功调用时一并清零。
+  const afterCompleted = ({ success, error, name: toolName, failureKind }) => {
     if (success) {
       taskStore.resetConsecutiveFailure(task.id);
       return;
     }
-    const count = taskStore.bumpConsecutiveFailure(task.id);
-    if (count >= CONSECUTIVE_FAILURE_PAUSE_THRESHOLD) {
+    const isPrecheck = failureKind === 'precheck';
+    const count = isPrecheck
+      ? taskStore.bumpConsecutivePrecheckFailure(task.id)
+      : taskStore.bumpConsecutiveFailure(task.id);
+    const threshold = isPrecheck
+      ? CONSECUTIVE_PRECHECK_FAILURE_PAUSE_THRESHOLD
+      : CONSECUTIVE_RUNTIME_FAILURE_PAUSE_THRESHOLD;
+    if (count >= threshold) {
       taskStore.resetConsecutiveFailure(task.id);
-      log.warn(`CONSECUTIVE_FAILURE_PAUSE  ${formatMeta({ runId, taskId: task.id, tool: toolName, error, count })}`);
+      log.warn(`CONSECUTIVE_FAILURE_PAUSE  ${formatMeta({ runId, taskId: task.id, tool: toolName, error, count, kind: failureKind ?? 'runtime' })}`);
       const hint = [
         `刚才 ${toolName} 连续失败 ${count} 次（最近一次：${error ?? '未知错误'}）。`,
         '为避免继续在错误状态下反复尝试，我先停下来。',
@@ -756,17 +771,9 @@ export async function runParentAgent(task, userInput, opts = {}) {
         return;
       }
       if (kind === TOOL_LOOP_SIGNAL.PAUSED) {
-        if (payload?.reason === 'subagent_failed') {
-          const title = payload?.title ?? task.lastSubagentResult?.title ?? task.lastSubagentResult?.stepId ?? '子任务';
-          const errDetail = String(payload?.error ?? task.lastSubagentResult?.error ?? '未知错误').trim();
-          await pauseSubagentFailed(
-            task,
-            emitFn,
-            runId,
-            'subagent tool reported failure',
-            payload?.message ?? `子任务"${title}"执行失败（${errDetail}），已暂停。请告诉我如何处理这个失败步骤。`,
-          );
-        } else if (payload?.message) {
+        // subagent 失败信号已经在 meta/runtime.js 内被改回 outcome.success:false，由父代理 LLM 自行决策；
+        // 这里只剩"用户在执行中暂停 / 连续失败熔断 / 显式 pauseReason"等显式信号。
+        if (payload?.message) {
           await finalizePaused(task, emitFn, payload.message, payload.pauseReason ?? payload.reason ?? null);
         }
         return;

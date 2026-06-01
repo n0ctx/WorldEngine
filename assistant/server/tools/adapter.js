@@ -39,8 +39,11 @@ export function toLLMTool(input, executeOverride) {
  *   opts.cancelCheck: () => boolean。若返回 true，在 execute 前/后立刻抛 ToolLoopCancelledError。
  *   opts.makeCallId:  () => string。默认 crypto.randomUUID().slice(0,8)。
  *   opts.onCancelLog: (toolName) => void。命中后置闸门时的日志钩子。
- *   opts.afterCompleted: ({ success, error, name }) => void | throws。
- *     在 tool_call_completed 事件发出后调用，调用方可在此累计失败次数；
+ *   opts.afterCompleted: ({ success, error, name, failureKind }) => void | throws。
+ *     在 tool_call_completed 事件发出后调用，调用方可在此分级累计失败次数。
+ *     failureKind 取值：'precheck'（参数级 / 模型可自纠的格式错） / 'runtime'（真实业务或异常失败）。
+ *     工具可在 success:false 时返回 { failureKind: 'precheck' } 显式标注；
+ *     未声明时默认 'runtime'。execute throw 一律视为 'runtime'。
  *     抛 ToolLoopControlSignal 会向上传播，终止工具循环（用于"连续失败 → 暂停等用户"）。
  */
 export function wrapToolEvents(tool, emitFn, opts = {}) {
@@ -83,7 +86,11 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
           success,
           error,
         });
-        afterCompleted({ success, error, name });
+        const completedPayload = { success, error, name };
+        if (!success) {
+          completedPayload.failureKind = result?.failureKind === 'precheck' ? 'precheck' : 'runtime';
+        }
+        afterCompleted(completedPayload);
         return result;
       } catch (err) {
         if (isToolLoopControlSignal(err)) {
@@ -93,7 +100,7 @@ export function wrapToolEvents(tool, emitFn, opts = {}) {
         emitFn({ type: SSE_EVENTS.TOOL_CALL_COMPLETED, toolName: name, callId, success: false, error: err.message });
         // 抛错路径也通知 afterCompleted；它内部若再抛 ToolLoopControlSignal 会终止循环
         try {
-          afterCompleted({ success: false, error: err.message, name });
+          afterCompleted({ success: false, error: err.message, name, failureKind: 'runtime' });
         } catch (signal) {
           if (isToolLoopControlSignal(signal)) throw signal;
         }

@@ -16,6 +16,29 @@ import {
   SUPPORTED_TARGET_TYPES as STATE_VALUES_SUPPORTED_TYPES,
 } from './state-values-resolver.js';
 
+// 识别 LLM tool_use args 里被截断的 task 字段。被截断的 task 喂给子代理只会让它白跑或
+// 落库脏数据；先拦下并把"为什么是截断"的信号回传给模型，让模型重发完整指令。
+// 命中模式（按可信度排序）：
+//   1) 以中/英文冒号、逗号、分号、破折号结尾且距末尾 16 字符内无句号/换行
+//   2) 反引号代码块未闭合（``` 出现奇数次）
+//   3) 引号未闭合（单/双/中文左右引号配对失衡）
+// 返回简短"截断信号"字符串；正常文本返回 null。
+export function detectTaskTruncation(rawTask) {
+  const text = String(rawTask ?? '').trim();
+  if (!text) return null;
+  const tail = text.slice(-24);
+  if (/[：:，,；;]\s*$/.test(tail)) return '结尾为冒号/逗号/分号，缺少后续具体内容';
+  if (/[-—–]{1,2}\s*$/.test(tail)) return '结尾为破折号，缺少后续具体内容';
+  const fences = (text.match(/```/g) ?? []).length;
+  if (fences % 2 === 1) return '反引号代码块未闭合（``` 出现奇数次）';
+  const dq = (text.match(/"/g) ?? []).length;
+  if (dq % 2 === 1) return '英文双引号未闭合';
+  const left = (text.match(/[「『（《【“]/g) ?? []).length;
+  const right = (text.match(/[」』）》】”]/g) ?? []).length;
+  if (left !== right) return '中文成对引号/括号未闭合';
+  return null;
+}
+
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
   const MIN_PLAN_STEPS = 3;
   const writePlanDoc = {
@@ -25,6 +48,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (options.planAlreadyApproved || options.planExecutionApproved) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: '当前计划已批准，继续 dispatch_subagent 或 reply_to_user，不要重新提交计划。',
           };
         }
@@ -40,6 +64,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (steps.length < MIN_PLAN_STEPS) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: [
               `write_plan_doc 至少需要 ${MIN_PLAN_STEPS} 个可执行步骤。`,
               '如果任务只能拆成 1-2 个动作，请直接 dispatch_subagent 执行；',
@@ -59,7 +84,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         });
         const validation = planDoc.validatePlanDoc(md);
         if (!validation.valid) {
-          return { success: false, error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
+          return { success: false, failureKind: 'precheck', error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
         }
         // write_plan_doc 表示"提交全新方案"——先显式清掉上一份方案（被拒绝的、已完成的或废弃的），
         // 再写入新方案；既保证 planDocContent / file 不残留旧数据，也清掉 PLAN_REJECTED 等遗留 error 标记。
@@ -90,21 +115,23 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (args.op === 'replace_steps' && options.planExecutionApproved) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: '当前计划已批准并开始执行，不要在执行中重写未完成步骤或重新发起审批。',
           };
         }
         let md = await planDoc.readPlanDoc(task.id);
         if (args.op === 'mark_done') {
-          if (!args.stepId) return { success: false, error: 'mark_done 需要 stepId' };
+          if (!args.stepId) return { success: false, failureKind: 'precheck', error: 'mark_done 需要 stepId' };
           md = planDoc.markStepDone(md, args.stepId, new Date().toISOString().slice(11, 19));
         } else if (args.op === 'replace_steps') {
-          if (!Array.isArray(args.steps)) return { success: false, error: 'replace_steps 需要 steps 数组' };
+          if (!Array.isArray(args.steps)) return { success: false, failureKind: 'precheck', error: 'replace_steps 需要 steps 数组' };
           const parsed = planDoc.parsePlanDoc(md);
           const doneSteps = parsed.steps.filter((s) => s.done);
           const doneIds = new Set(doneSteps.map((s) => s.id));
           if (args.steps.length < MIN_PLAN_STEPS) {
             return {
               success: false,
+              failureKind: 'precheck',
               error: `replace_steps 至少需要 ${MIN_PLAN_STEPS} 个未完成步骤，避免把复杂任务缩回 1-2 步伪计划。`,
             };
           }
@@ -135,10 +162,10 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           });
           const validation = planDoc.validatePlanDoc(md);
           if (!validation.valid) {
-            return { success: false, error: `计划文档校验失败：${validation.error}，请检查 steps 字段是否完整` };
+            return { success: false, failureKind: 'precheck', error: `计划文档校验失败：${validation.error}，请检查 steps 字段是否完整` };
           }
         } else {
-          return { success: false, error: `unknown op: ${args.op}` };
+          return { success: false, failureKind: 'precheck', error: `unknown op: ${args.op}` };
         }
         await planDoc.writePlanDoc(task.id, md);
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
@@ -169,6 +196,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (options.planApprovalPending) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: [
               '当前计划还在等待用户审批，不能直接执行子任务。',
               '如需改方案，请继续 write_plan_doc 或 edit_plan_doc.replace_steps；只有用户确认后才能 dispatch_subagent。',
@@ -178,6 +206,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (options.planRejectedNeedsRewrite) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: [
               '上一版计划已被用户拒绝，当前计划不能直接执行。',
               '请先调用 write_plan_doc 提交全新方案，或用 edit_plan_doc.replace_steps 更新未完成步骤并重新进入审批。',
@@ -187,6 +216,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         if (options.requiresPlanFirst && !options.planDocExists && !args.stepId) {
           return {
             success: false,
+            failureKind: 'precheck',
             error: [
               '当前用户请求属于复杂 / 高风险 / 结构化体系任务，必须先调用 write_plan_doc 拆成可审批步骤。',
               '不要直接 dispatch_subagent。',
@@ -199,8 +229,8 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           const md = await planDoc.readPlanDoc(task.id);
           const parsed = planDoc.parsePlanDoc(md);
           step = parsed.steps.find((s) => s.id === args.stepId);
-          if (!step) return { success: false, error: `step not found: ${args.stepId}` };
-          if (step.done) return { success: false, error: `step already done: ${args.stepId}` };
+          if (!step) return { success: false, failureKind: 'precheck', error: `step not found: ${args.stepId}。请使用 list_resources 风格的视角先核对当前 plan_doc 内已有的 stepId 列表。` };
+          if (step.done) return { success: false, failureKind: 'precheck', error: `step already done: ${args.stepId}。下一次 dispatch_subagent 请指向计划中还未完成的 stepId，或者用 reply_to_user 告知用户已完成。` };
         }
         let resolved = step ?? {
           id: args.stepId ?? `adhoc-${Date.now()}`,
@@ -211,32 +241,65 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: args.task,
         };
         if (!resolved.targetType || !resolved.task) {
-          return { success: false, error: 'dispatch_subagent 需要 stepId，或直接提供 targetType + task' };
+          return {
+            success: false,
+            failureKind: 'precheck',
+            error: [
+              'dispatch_subagent 缺少必要参数：',
+              `- targetType=${resolved.targetType ? JSON.stringify(resolved.targetType) : '缺失'}`,
+              `- task=${resolved.task ? '（已提供）' : '缺失或空字符串'}`,
+              '修复方法：要么传 stepId 指向已存在的计划步骤，要么同时显式提供 targetType + task（task 是一段完整中文指令，描述这一步要做什么）。',
+            ].join('\n'),
+          };
         }
         // 早期版本会把缺省 operation 静默回退到 'update'，导致用户说"新建一张卡"时直接覆盖现卡。
         // 这里对 ad-hoc 与 plan-step 两条路径统一校验 resolved.operation。
         if (!resolved.operation) {
           return {
             success: false,
-            error: 'dispatch_subagent 必须显式传 operation（create / update / delete）；不要省略，也不要默认 update。如果是要新建一张全新的卡，请传 operation:"create" 且不要带 entityRef。',
+            failureKind: 'precheck',
+            error: [
+              'dispatch_subagent 必须显式传 operation：',
+              '- create：从零新建一张卡（entityRef 必须留空）',
+              '- update：改动指定 entityRef 的现有卡',
+              '- delete：删除指定 entityRef 的现有卡',
+              '不要省略，不要默认 update。例如要新建一张全新的卡：{ targetType, operation: "create", task: "...", entityRef: null }',
+            ].join('\n'),
           };
         }
         if (!['create', 'update', 'delete'].includes(resolved.operation)) {
-          return { success: false, error: `dispatch_subagent operation 非法："${resolved.operation}"，只接受 create / update / delete。` };
+          return {
+            success: false,
+            failureKind: 'precheck',
+            error: `dispatch_subagent operation 非法："${resolved.operation}"，只接受 create / update / delete 之一。请直接用这三个枚举字符串重发本次工具调用。`,
+          };
         }
         // create 不允许带 entityRef：否则子代理会拿到一个"现有资源 ID"，
         // 在 system prompt + 上下文双重暗示下极易退化为 update 覆盖该资源。
         if (resolved.operation === 'create' && resolved.dependsOn?.length > 0) {
           return {
             success: false,
-            error: `dispatch_subagent operation:"create" 不能携带 entityRef / dependsOn（收到 ${JSON.stringify(resolved.dependsOn)}）。新建资源不依赖某张现有卡；如果你其实是想改动这张已有的卡，请改成 operation:"update"。`,
+            failureKind: 'precheck',
+            error: [
+              `dispatch_subagent operation:"create" 不能携带 entityRef / dependsOn（收到 ${JSON.stringify(resolved.dependsOn)}）。`,
+              '新建资源不依赖某张现有卡。修复方法：',
+              '- 真的要新建 → entityRef 改为 null，重发；',
+              '- 其实是想改这张已有卡 → operation 改成 "update"，保留 entityRef。',
+            ].join('\n'),
           };
         }
-        // 检测 task 字段疑似被 LLM 截断（以中/英文冒号结尾），避免子代理拿到不完整指令后白跑一次
-        if (/[：:]\s*$/.test(resolved.task.trim())) {
+        // 检测 task 字段疑似被 LLM 截断：常见尾部包括「中/英文冒号」「逗号」「未闭合反引号块」「未闭合引号」。
+        // 子代理拿到不完整指令会白跑一次还可能落库脏数据，必须在派发前拦下，且给模型清晰的"如何补全"提示。
+        const truncationDetail = detectTaskTruncation(resolved.task);
+        if (truncationDetail) {
           return {
             success: false,
-            error: `dispatch_subagent 的 task 字段疑似被截断（结尾为"："，缺少具体操作内容）。请补全操作指令后重试。`,
+            failureKind: 'precheck',
+            error: [
+              `dispatch_subagent 的 task 字段疑似被截断（${truncationDetail}）。`,
+              '不要重复发送同样的截断指令；请把 task 写成一段完整自洽的中文指令，',
+              '至少包含「对什么资源」「做什么动作」「具体到字段或值」三要素，然后重发本次工具调用。',
+            ].join(''),
           };
         }
 
@@ -246,6 +309,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           if (dup) {
             return {
               success: false,
+              failureKind: 'precheck',
               error: `本轮已经成功创建过 ${resolved.targetType}（${dup.name ?? dup.refId ?? '上一条记录'}）。若用户明确还要再建一张，请在 task 字段说明差异并加 force:true；否则用 reply_to_user 告知用户已完成。`,
             };
           }
@@ -261,6 +325,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           } else {
             return {
               success: false,
+              failureKind: 'precheck',
               error: `entityRef "${entityRefForDispatch}" 引用了步骤 ${normalizedStepId}，但该步骤尚未成功落库或无资源 ID。请先确认依赖步骤已完成，或直接在 task 中指定目标资源 ID。`,
             };
           }
@@ -274,11 +339,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           if (!STATE_VALUES_SUPPORTED_TYPES.includes(resolved.targetType)) {
             return {
               success: false,
+              failureKind: 'precheck',
               error: `stateValues 入参当前仅支持 ${STATE_VALUES_SUPPORTED_TYPES.join(' / ')}；targetType=${resolved.targetType} 请改回 task 字符串写入。`,
             };
           }
           if (resolved.operation === 'delete') {
-            return { success: false, error: 'stateValues 入参不适用于 delete 操作；删除请通过 task 描述。' };
+            return { success: false, failureKind: 'precheck', error: 'stateValues 入参不适用于 delete 操作；删除请通过 task 描述。' };
           }
           const worldIdForSchema = deriveWorldIdForStateValues({
             targetType: resolved.targetType,
@@ -292,7 +358,7 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             entries: args.stateValues,
           });
           if (!resolverResult.success) {
-            return { success: false, error: `stateValues 校验失败：${resolverResult.error}` };
+            return { success: false, failureKind: 'precheck', error: `stateValues 校验失败：${resolverResult.error}` };
           }
           // 紧凑 JSON：sub-agent 是机器消费方，pretty-print 只浪费 token。契约见 sub-agent.md
           const augmentedTask = [
@@ -309,8 +375,6 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         taskStore.setCurrentStep(task.id, resolved.id);
         emitFn({ type: SSE_EVENTS.STEP_STARTED, taskId: task.id, stepId: resolved.id, title: resolved.title });
         let outcome;
-        // pendingPauseSignal：延迟到 setLastSubagentResult 之后再抛，避免 ToolLoopControlSignal 在内层 catch 被吞噬
-        let pendingPauseSignal = null;
         try {
           const result = await dispatchSubAgent({
             stepId: resolved.id,
@@ -328,17 +392,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           if (result?.success === false) {
             emitFn({ type: SSE_EVENTS.STEP_FAILED, taskId: task.id, stepId: resolved.id, error: result.error ?? 'unknown' });
             const errDetail = result.error ?? 'subagent reported failure';
+            // 子代理失败不再立即抛 PAUSED 信号——把 outcome.success:false 正常还给父代理 LLM，
+            // 它能在下一轮看到 lastSubagentResult.error 并自主决策：要么补完参数后重派一次，
+            // 要么调用 reply_to_user 上报用户。这就是"允许 1 次自动重决策"的真正语义。
+            // 仍保留的护网：父代理若误报"已完成"时，runParentAgent 末尾的 lastSubagentResult 检查
+            // 会兜底走 pauseSubagentFailed，并阻止虚假 reply_to_user。
             outcome = { success: false, error: errDetail };
-            pendingPauseSignal = new ToolLoopControlSignal(TOOL_LOOP_SIGNAL.PAUSED, {
-              reason: 'subagent_failed',
-              stepId: resolved.id,
-              title: resolved.title,
-              error: errDetail,
-              message: [
-                `子任务"${resolved.title}"执行失败（${errDetail}）。`,
-                '我先暂停，等你确认是要改参数、改计划，还是换一种方式继续。',
-              ].join(''),
-            });
           } else {
             emitFn({ type: SSE_EVENTS.STEP_COMPLETED, taskId: task.id, stepId: resolved.id, result });
             outcome = { success: true, summary: result?.summary ?? '' };
@@ -373,8 +432,6 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             outcome,
           });
         }
-        // 子代理失败信号：在所有收尾记录完成后统一抛出，让外层 runParentAgent 正确处理暂停
-        if (pendingPauseSignal) throw pendingPauseSignal;
         return outcome;
       } catch (err) {
         if (err instanceof ToolLoopControlSignal) throw err;

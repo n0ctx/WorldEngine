@@ -449,6 +449,10 @@ export function isExecutionActive(id) {
 
 // 连续失败计数：父代理工具循环里若同一轮内连续 N 次失败，主动暂停等用户介入，
 // 避免模型在错误状态下无意义反复重试 → 5/10/25 个失败气泡刷屏。
+// 分两个计数器（均仅运行期，不持久化）：
+// - consecutiveFailures：runtime 类（真实业务或异常失败）；阈值低，重试无意义。
+// - consecutivePrecheckFailures：precheck 类（参数级格式错，模型可自纠）；阈值高，给模型多次纠错机会。
+// 任何一个计数器在成功调用时统一清零，避免"runtime 一次 → 模型纠到 precheck → 又 runtime"地交错堆积。
 export function bumpConsecutiveFailure(id) {
   const t = tasks.get(id);
   if (!t) return 0;
@@ -456,10 +460,20 @@ export function bumpConsecutiveFailure(id) {
   return t.consecutiveFailures;
 }
 
+export function bumpConsecutivePrecheckFailure(id) {
+  const t = tasks.get(id);
+  if (!t) return 0;
+  t.consecutivePrecheckFailures = Number.isFinite(t.consecutivePrecheckFailures)
+    ? t.consecutivePrecheckFailures + 1
+    : 1;
+  return t.consecutivePrecheckFailures;
+}
+
 export function resetConsecutiveFailure(id) {
   const t = tasks.get(id);
   if (!t) return;
   if (t.consecutiveFailures) t.consecutiveFailures = 0;
+  if (t.consecutivePrecheckFailures) t.consecutivePrecheckFailures = 0;
 }
 
 // preview 缓存：子代理在 update/delete 前必须 preview_card；同一 task 内的多个步骤可能针对同一实体，
