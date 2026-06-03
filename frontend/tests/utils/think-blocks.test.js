@@ -94,18 +94,25 @@ describe('next prompt stream', () => {
   });
 });
 
-describe('parseStreamingBlocks streaming guard', () => {
-  it('isStreaming=true:嵌套良好的两开一闭流式中段不被错判为闭合(避免后续 </think> 到达时 text 倒回 thinking 引起闪烁)', () => {
-    // 流式途中 '<think>A<think>B</think>C' 仍属外层未闭合,正确表现是 thinking open;
-    // 否则下一帧外层 </think> 一到,'C' 又被吸进 thinking,UI 闪烁一次。
+describe('parseStreamingBlocks streaming/terminal 行为一致', () => {
+  it('流式中段两开一闭即闭合:</think> 后的正文必须立即渲染到 thinking 块外', () => {
+    // 旧守卫保留 open 是为了规避良构嵌套场景的末帧跳变,但模型实际几乎只会"两开一闭"
+    // 不补外层,守卫反而让用户在整个流式过程中看到正文被错塞进思考块。
     expect(parseStreamingBlocks('<think>A<think>B</think>C', { isStreaming: true })).toEqual([
-      { type: 'thinking', content: 'A<think>B</think>C', open: true },
+      { type: 'thinking', content: 'A<think>B', open: false },
+      { type: 'text', content: 'C', open: false },
     ]);
   });
 
-  it('isStreaming=false (终态):两开一闭仍走 boolean 兜底闭合,修复用户报告的全文吞 think bug', () => {
+  it('终态两开一闭走 boolean 兜底,与流式中段语义一致', () => {
     expect(parseStreamingBlocks('<think>A<think>B</think>')).toEqual([
       { type: 'thinking', content: 'A<think>B', open: false },
+    ]);
+  });
+
+  it('单层未闭合在流式中仍 open(撑起思考块加载态)', () => {
+    expect(parseStreamingBlocks('<think>思考中', { isStreaming: true })).toEqual([
+      { type: 'thinking', content: '思考中', open: true },
     ]);
   });
 });
