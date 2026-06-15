@@ -2,8 +2,11 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(prompt/suggestion): 选项生成禁止上帝视角** — 三个选项模板(shared-suggestion / -continuation / -fallback)统一加入约束：仅限{{user}}当前可知信息内的第一视角主观行动，不写行动结果与最优解。
+
 新条目追加在列表顶部；细节查 git log，本文件只承担"为什么现在长这样"的索引。
 
+- **chore(tooling): 接入 CodeGraph/Headroom 本地上下文工具链** — 全局配置 Claude Code/Codex CLI 的 CodeGraph MCP，仓库新增 CodeGraph git hooks 与 `scripts/agent-with-context.sh` / `scripts/*-headroom.sh` 启动脚本；`.codegraph/` 保持本地索引不入库。
 - **fix(parser/think): 流式去掉栈式守卫,与终态共用 boolean 兜底** — `frontend/src/core/utils/think-blocks.js` 删除 `stackParseStreaming` / `parseStreamingBlocks` 的 `isStreaming` 分支,流式中段同样走 `stackParse ?? booleanParse`。原守卫为规避良构嵌套场景末帧"text→thinking"跳变,实测模型几乎只输出"两开一闭"不补外层 `</think>`,守卫反而让整个流式过程把 `</think>` 后的正文错塞进思考块、必须等流结束才正确。`frontend/tests/utils/think-blocks.test.js` 同步改写 streaming guard 用例(中段两开一闭立即闭合 + 单层未闭合仍 open),16/16 通过。
 - **fix(parser/think): 两开一闭失衡 EOF 兜底 + spans 位置映射,根除 mode-divergence 与流式闪烁** — 三处 think 解析(`frontend/src/core/utils/think-blocks.js` / `next-prompt.js`、`backend/utils/turn-dialogue.js`)统一"栈式失衡→布尔回退",修复模型偶发 `<think>...<think>...</think>正文` 时整段被吞为 thinking 的报告 bug;同时 `scanThinkBlocks` / `scanStrip` 在两种模式下都返回 `spans = [{ srcStart, length, dstStart }]`,`extractNextPromptOptions` / `parseNextPromptStream` 改查映射表反推原文偏移,彻底消除老 `findRawAnchor` / `findRawNextPromptIdx` 因 full 走 boolean、prefix 走 stack 的模式差导致选项被丢/裸 `<next_prompt>` 标签泄漏到聊天气泡的回归。`parseStreamingBlocks` 新增 `{ isStreaming }` 选项:流式中保持栈式语义(open thinking),终态才走 boolean 兜底,避免嵌套 `<think>...<think>...</think>C</think>` 流式中段 'C' 闪现又被吸回 thinking 的闪烁。`unwrapSoloThinkBlock` 的失衡 `outerInner` 现连带尾部 `</think>`,防止持久化后再 strip 丢失内容。MessageItem / WritingMessageItem 透传 `isStreaming`;前后端共补 4 条回归测试(mode-divergence、流式守卫、unwrap 失衡尾部),kimi-coding 回归保留通过。
 - **fix(memory/state-rollback): 首轮重生成不再删除用户从角色卡添加的附近角色** — `backend/memory/state-rollback.js` 的 `restoreStateFromSnapshot` 在 `snapshot=null` 时原本"清空回 default"（清三层 state + 删所有 nearby），但首轮重生成是该分支的唯一现实命中场景，此时 session 当前状态恰好是用户手动配置（character card 加的 nearby、手动 set 的 state），降级直接把用户显式意图当脏数据抹掉。改为 `snapshot=null` 时保留现状（no-op）；同步更新 `backend/tests/memory/state-rollback.test.js` 中对应断言，并补 nearby + state 双重保留验证。副作用：被删除那一轮 AI 产生的 state 变更会残留，但下一次重生成 `updateAllStates` 会 upsert 覆盖，影响远小于丢失 nearby。
