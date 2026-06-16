@@ -58,7 +58,11 @@ function stripLeadingThinkBlocks(text) {
     const firstBrace = result.indexOf('{');
     // think 块在首个 { 之前 → 是推理前缀，可以安全剥离
     if (firstBrace === -1 || firstThink < firstBrace) {
-      result = result.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+      const next = result.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+      // 守卫：未闭合的 <think>（流式截断常见）匹配不到闭标签 → next === result，
+      // 否则 while(true) 死循环阻塞事件循环。无变化即停止。
+      if (next === result) break;
+      result = next;
     } else {
       // { 在 think 之前 → think 在 JSON 内容里，停止剥离
       break;

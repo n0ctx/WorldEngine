@@ -49,11 +49,13 @@ import { applyAssistantThemeOp, assertThemeId } from '../../backend/services/the
 import {
   replaceEntryConditions,
 } from '../../backend/db/queries/entry-conditions.js';
-import { createPersona as createPersonaDb, setActivePersona } from '../../backend/db/queries/personas.js';
+import { createPersona as createPersonaDb, setActivePersona, getPersonaById } from '../../backend/db/queries/personas.js';
 import {
   updateCharacterDefaultStateValueValidated,
   updatePersonaDefaultStateValueValidated,
+  validateStateValue,
 } from '../../backend/services/state-values.js';
+import { getCharacterById } from '../../backend/db/queries/characters.js';
 import { createLogger, formatMeta } from '../../backend/utils/logger.js';
 
 const log = createLogger('as-route', 'yellow');
@@ -156,6 +158,8 @@ async function applyProposal(proposal, worldRefId = null) {
       if (operation === 'create') {
         const worldId = changes.world_id ?? worldRefId ?? entityId;
         if (!worldId) throw new Error('character-card create 需要 worldId（entityId、changes.world_id 或上下文 worldId）');
+        // 先全量校验 stateValueOps，再建卡 + 填值；任一值不过则整体拒绝、不建卡（item 3）
+        preValidateStateValueOps(proposal.stateValueOps, { worldId });
         const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
         const newChar = createCharacter({
           world_id: worldId,
@@ -177,6 +181,8 @@ async function applyProposal(proposal, worldRefId = null) {
       }
       // update
       if (!entityId) throw new Error('character-card 提案缺少 entityId');
+      // 先全量校验 stateValueOps，再改名 + 填值；避免"改名成功但填值失败"留中间态（item 3）
+      preValidateStateValueOps(proposal.stateValueOps, { characterId: entityId });
       const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt', 'post_prompt', 'first_message']);
       let updated = null;
       if (Object.keys(safeChanges).length > 0) updated = await updateCharacter(entityId, safeChanges);
@@ -190,6 +196,8 @@ async function applyProposal(proposal, worldRefId = null) {
       if (operation === 'create') {
         const worldId = changes.world_id ?? entityId;
         if (!worldId) throw new Error('persona-card create 需要 worldId（entityId 或 changes.world_id）');
+        // 先全量校验 stateValueOps，再建卡 + 填值（item 3）
+        preValidateStateValueOps(proposal.stateValueOps, { worldId });
         const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
         const newPersona = createPersonaDb(worldId, {
           name: safeChanges.name || '新玩家',
@@ -204,6 +212,15 @@ async function applyProposal(proposal, worldRefId = null) {
         return newPersona;
       }
       // update
+      // 先全量校验 stateValueOps（item 3）：在改名之前解析出 worldId 用于字段校验，
+      // 任一值不过则整体拒绝、不改名、不填值。
+      if (Array.isArray(proposal.stateValueOps) && proposal.stateValueOps.length > 0) {
+        let preWorldId = proposal.personaId
+          ? (getPersonaById(proposal.personaId)?.world_id ?? null)
+          : entityId;
+        if (!preWorldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
+        preValidateStateValueOps(proposal.stateValueOps, { worldId: preWorldId });
+      }
       const safeChanges = pickAllowed(changes, ['name', 'description', 'system_prompt']);
       let updated;
       if (proposal.personaId) {
@@ -300,17 +317,100 @@ function applyStateFieldCreate(op, worldId) {
   }
 }
 
+// ── item 3：validate-all-then-apply ──────────────────────────────
+// better-sqlite3 事务不能跨 await，而 applyProposal 全程 await services，无法包真事务。
+// 改为两遍：先把本提案所有 stateValueOps 逐一离线校验（字段存在性 + 值类型约束），
+// 任一不过就整体拒绝、不写任何库；全过才进入真正落库。
+// 避免"改名成功但填值失败"留下半完成中间态。
+function buildStateFieldMap(target, refs) {
+  if (target === 'character') {
+    // character 字段定义挂在 world 上：优先用 refs.worldId（create 时角色还没建出来），
+    // 否则从 characterId 反查 world_id（update）。
+    let worldId = refs.worldId ?? null;
+    if (!worldId) {
+      const characterId = refs.characterId;
+      if (!characterId) throw new Error('character 状态值写入缺少 characterId / worldId');
+      const character = getCharacterById(characterId);
+      if (!character) throw new Error('角色不存在');
+      worldId = character.world_id;
+    }
+    const fields = listCharacterStateFields(worldId);
+    return new Map(fields.map((f) => [f.field_key, f]));
+  }
+  if (target === 'persona') {
+    const worldId = refs.worldId;
+    if (!worldId) throw new Error('persona 状态值写入缺少 worldId');
+    const fields = getPersonaStateFieldsByWorldId(worldId);
+    return new Map(fields.map((f) => [f.field_key, f]));
+  }
+  throw new Error(`不支持的状态值 target：${target}`);
+}
+
+function preValidateStateValueOps(ops, refs) {
+  if (!Array.isArray(ops) || ops.length === 0) return;
+  const fieldMapByTarget = new Map();
+  const failures = [];
+  for (let i = 0; i < ops.length; i++) {
+    const op = ops[i];
+    let fieldMap = fieldMapByTarget.get(op.target);
+    if (!fieldMap) {
+      fieldMap = buildStateFieldMap(op.target, refs);
+      fieldMapByTarget.set(op.target, fieldMap);
+    }
+    const field = fieldMap.get(op.field_key);
+    if (!field) {
+      failures.push(`stateValueOps[${i}]: 字段 "${op.field_key}" 不存在（${op.target} 字段会自动追加 ${op.target === 'character' ? '_char' : '_user'} 后缀；若尚未创建，请先用 world-card 的 stateFieldOps 创建它）`);
+      continue;
+    }
+    // 值校验：复刻 normalizeStateValueJson 的 parse + validate，但不写库。
+    let parsed;
+    if (op.value_json === null) {
+      parsed = null;
+    } else {
+      try { parsed = JSON.parse(op.value_json); } catch {
+        failures.push(`stateValueOps[${i}]: 字段 "${op.field_key}" 的 value_json 不是合法 JSON`);
+        continue;
+      }
+    }
+    const validated = validateStateValue(parsed, field);
+    if (validated === undefined) {
+      failures.push(`stateValueOps[${i}]: 字段 "${op.field_key}" 的值不符合类型约束（type=${field.type}）`);
+    }
+  }
+  if (failures.length > 0) {
+    // 整体拒绝：抛错前不会有任何 changes / 值被写入（调用方在写 changes 之前先调本函数）。
+    throw new Error(`提案校验失败，未做任何改动（validate-all-then-apply）：\n- ${failures.join('\n- ')}`);
+  }
+}
+
 function applyStateValueOp(op, refs = {}) {
+  // field_key 在 normalizeStateValueOps 里已被自动追加 _char/_user 后缀；
+  // 若底层报"字段不存在"，多半是该字段尚未由 world-card 创建，或裸键/后缀不一致。
+  // 包一层把后缀规则写进错误，便于父代理判断"应先用 world-card 创建该字段"。
+  const withFieldHint = (fn) => {
+    try {
+      fn();
+    } catch (err) {
+      const msg = String(err?.message ?? err);
+      if (/不存在|not found|未找到|无效字段|invalid field/i.test(msg)) {
+        throw new Error(
+          `${msg}（注意：${op.target} 字段会自动追加 ${op.target === 'character' ? '_char' : '_user'} 后缀，`
+          + `实际字段名为 "${op.field_key}"；若该字段尚未创建，请先用 world-card 的 stateFieldOps 创建它）`,
+        );
+      }
+      throw err;
+    }
+  };
   if (op.target === 'character') {
     const characterId = refs.characterId;
     if (!characterId) throw new Error('character 状态值写入缺少 characterId');
-    updateCharacterDefaultStateValueValidated(characterId, op.field_key, op.value_json);
+    withFieldHint(() => updateCharacterDefaultStateValueValidated(characterId, op.field_key, op.value_json));
     return;
   }
   if (op.target === 'persona') {
     const worldId = refs.worldId;
     if (!worldId) throw new Error('persona 状态值写入缺少 worldId');
-    updatePersonaDefaultStateValueValidated(worldId, op.field_key, op.value_json);
+    withFieldHint(() => updatePersonaDefaultStateValueValidated(worldId, op.field_key, op.value_json));
     return;
   }
   throw new Error(`不支持的状态值 target：${op.target}`);
@@ -609,13 +709,32 @@ function buildWorldConditionContext(worldId, stateFieldOps = []) {
   const byFieldKey = new Map();
   const byLabel = new Map();
 
+  // persona/character 字段在 normalizeStateFieldOps 里被自动追加 _user/_char 后缀，
+  // 而 LLM 写条件 target_field 时通常用裸键（玩家.affection 而非 玩家.affection_user）。
+  // 这里同时注册裸键别名，让裸键写法也能解析；后缀键优先，裸键仅在不冲突时补位。
+  const stripScopeSuffix = (key) => key.replace(/_(?:user|char)$/, '');
+  const registerFieldKeyAlias = (mapKey, field, map) => {
+    if (!map.has(mapKey)) map.set(mapKey, field);
+  };
+  const registerListAlias = (mapKey, field, map) => {
+    if (!map.has(mapKey)) map.set(mapKey, [field]);
+  };
+
   for (const field of deduped) {
     const scopedLabel = `${field.scopeLabel}.${field.label}`;
     byScopedLabel.set(scopedLabel, field);
-    if (field.field_key) byScopedFieldKey.set(`${field.scopeLabel}.${field.field_key}`, field);
+    if (field.field_key) {
+      byScopedFieldKey.set(`${field.scopeLabel}.${field.field_key}`, field);
+      const bareKey = stripScopeSuffix(field.field_key);
+      if (bareKey !== field.field_key) {
+        registerFieldKeyAlias(`${field.scopeLabel}.${bareKey}`, field, byScopedFieldKey);
+      }
+    }
     if (field.field_key) {
       if (!byFieldKey.has(field.field_key)) byFieldKey.set(field.field_key, []);
       byFieldKey.get(field.field_key).push(field);
+      const bareKey = stripScopeSuffix(field.field_key);
+      if (bareKey !== field.field_key) registerListAlias(bareKey, field, byFieldKey);
     }
     if (!byLabel.has(field.label)) byLabel.set(field.label, []);
     byLabel.get(field.label).push(field);

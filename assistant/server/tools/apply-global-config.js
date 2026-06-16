@@ -1,5 +1,6 @@
 // assistant/server/tools/apply-global-config.js
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { runApply } from './_apply-factory.js';
 
 const FORBIDDEN = ['api_key'];
 
@@ -33,7 +34,9 @@ export async function execute(args) {
     changes: stripForbidden(args.changes ?? {}),
     explanation: args.explanation ?? '',
   };
-  const normalized = normalizeProposal(proposal);
-  await applyProposal(normalized, null);
-  return { success: true, type: 'global-config', operation: 'update', summary: '更新全局配置' };
+  return runApply(
+    () => normalizeProposal(proposal),
+    (normalized) => applyProposal(normalized, null),
+    () => ({ success: true, type: 'global-config', operation: 'update', summary: '更新全局配置' }),
+  );
 }

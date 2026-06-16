@@ -270,6 +270,27 @@ test('applyProposal world-card update with entryOps update / delete', async () =
   assert.equal(updated.title, 'e1-改');
 });
 
+test('同提案创建 persona 字段 + state 条件用裸键引用可解析（后缀别名）', () => {
+  const w = insertWorld(sandbox.db, { name: 'np-cond-alias' });
+  // 创建 persona 字段 field_key:"affection"（normalize 会追加 _user），label:"好感度"
+  // 同时 entryOps 用裸键 玩家.affection 引用——修复前 byScopedFieldKey 只有 玩家.affection_user，
+  // 裸键 玩家.affection 会落到 unresolved；修复后裸键别名命中，target_field 解析为 玩家.好感度。
+  const proposal = normalizeProposal({
+    type: 'world-card', operation: 'update', entityId: w.id,
+    stateFieldOps: [{
+      op: 'create', target: 'persona',
+      field_key: 'affection', label: '好感度', type: 'number',
+    }],
+    entryOps: [{
+      op: 'create', title: '高好感事件', content: 'x',
+      trigger_type: 'state',
+      conditions: [{ target_field: '玩家.affection', operator: '>=', value: '80' }],
+    }],
+  });
+  assert.equal(proposal.stateFieldOps[0].field_key, 'affection_user');
+  assert.equal(proposal.entryOps[0].conditions[0].target_field, '玩家.好感度');
+});
+
 test('applyProposal world-card update without entityId 抛错', async () => {
   await assert.rejects(() => applyProposal({ type: 'world-card', operation: 'update', changes: { name: 'x' } }), /缺少 entityId/);
 });

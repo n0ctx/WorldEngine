@@ -22,6 +22,7 @@ export const TERMINAL_STREAM_TASK_STATUSES = new Set(['completed', 'failed', 'ca
 function cloneTask(task) {
   return {
     id: task.id,
+    gen: typeof task.gen === 'number' ? task.gen : 0,
     sessionId: task.sessionId,
     mode: task.mode,
     status: task.status,
@@ -91,6 +92,33 @@ export function getRecoverableSessionStreamTask(sessionId) {
   return null;
 }
 
+function isNonTerminalStatus(status) {
+  return !TERMINAL_STREAM_TASK_STATUSES.has(status);
+}
+
+// 并发创建同 sessionId 任务时，旧的非终态任务被新 gen 取代（supersede），
+// 仅记录可观测性日志，不在此处触碰 SSE。
+//
+// 关键：SSE 客户端的收尾（emit `aborted` → end response）由 chat.js 的
+// runStreamLifecycle single-flight 独占（新流 abort 旧 controller，旧 lifecycle
+// 负责写出中断事件并结束自己的响应）。store 若在这里抢先 closeSessionStreamSse，
+// 会在旧 lifecycle 写出 `aborted` 之前强行 end 响应，与中断契约抢跑并导致客户端挂死。
+// 旧 DB 行随后被新任务的 upsert（session_id 唯一键）原子替换，不会再被恢复链路命中，
+// 因此 store 无需、也不应主动断开旧 SSE。
+function supersedePriorTask(sessionId, nextGen) {
+  const prior = tasks.get(sessionId) ?? getSessionStreamTask(sessionId);
+  if (prior && isNonTerminalStatus(prior.status)) {
+    log.info(
+      `SUPERSEDE ${formatMeta({
+        session: sessionId.slice(0, 8),
+        priorId: prior.id,
+        priorStatus: prior.status,
+        gen: nextGen,
+      })}`,
+    );
+  }
+}
+
 export function createSessionStreamTask({
   sessionId,
   mode,
@@ -98,8 +126,12 @@ export function createSessionStreamTask({
   continuingMessageId = null,
 }) {
   const now = Date.now();
+  const priorGen = tasks.get(sessionId)?.gen ?? getSessionStreamTask(sessionId)?.gen ?? 0;
+  const gen = priorGen + 1;
+  supersedePriorTask(sessionId, gen);
   const task = {
     id: `stream-${randomUUID().slice(0, 8)}`,
+    gen,
     sessionId,
     mode,
     status: 'streaming',
@@ -112,14 +144,19 @@ export function createSessionStreamTask({
     createdAt: now,
     updatedAt: now,
   };
-  tasks.set(sessionId, task);
+  // 先持久化成功，再提交到内存（persist-then-commit / CAS 风格）：
+  // upsert 以 session_id 为唯一键，会原子地用新任务行替换旧任务行；
+  // 若持久化抛错，则保留旧内存指针不变，避免内存与 DB 分裂。
   persist(task);
+  tasks.set(sessionId, task);
   return task;
 }
 
 export function setSessionStreamTaskStatus(sessionId, status, { error } = {}) {
   const task = tasks.get(sessionId);
   if (!task) return null;
+  // 持久化失败时不能让内存与 DB 分裂：先快照旧字段，persist 抛错则回滚内存。
+  const prev = { status: task.status, error: task.error, updatedAt: task.updatedAt };
   task.status = status;
   if (error === undefined) {
     // keep
@@ -129,7 +166,15 @@ export function setSessionStreamTaskStatus(sessionId, status, { error } = {}) {
     task.error = String(error);
   }
   touch(task);
-  persist(task);
+  try {
+    persist(task);
+  } catch (err) {
+    task.status = prev.status;
+    if (prev.error === undefined) delete task.error;
+    else task.error = prev.error;
+    task.updatedAt = prev.updatedAt;
+    throw err;
+  }
   return task;
 }
 

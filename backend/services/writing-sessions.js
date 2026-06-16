@@ -35,8 +35,10 @@ import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-
 import { getAllCharacterStateValues } from '../db/queries/character-state-values.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import db from '../db/index.js';
-import { createPersona as dbCreatePersona } from '../db/queries/personas.js';
+import {
+  createPersona as dbCreatePersona,
+  getActivePersonaIdByWorldId,
+} from '../db/queries/personas.js';
 
 const log = createLogger('svc', 'green');
 
@@ -46,12 +48,8 @@ const log = createLogger('svc', 'green');
  * 世界下无任何 persona 时自动建一张默认 persona 并返回其 id（写作 session 强制要求 persona）。
  */
 function resolveActivePersonaId(worldId) {
-  const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
-  if (world?.active_persona_id) return world.active_persona_id;
-  const fallback = db.prepare(
-    'SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1'
-  ).get(worldId);
-  if (fallback?.id) return fallback.id;
+  const existingId = getActivePersonaIdByWorldId(worldId);
+  if (existingId) return existingId;
   // 兜底：世界无 persona 时建一张默认 persona，避免写作 session 因 FK 约束创建失败
   const created = dbCreatePersona(worldId, { name: '玩家' });
   log.info(`persona.auto_create  ${formatMeta({ worldId, personaId: created.id, reason: 'writing_session_bootstrap' })}`);

@@ -14,22 +14,11 @@ import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
-
-const SCOPE_LABELS = {
-  user_input: '用户输入',
-  ai_output: 'AI 输出',
-  display_only: '仅显示',
-  prompt_only: '仅提示词',
-};
-
-const SCOPE_HINTS = {
-  user_input: '前端发送前，影响存库与 LLM',
-  ai_output: '后端流式完结后，影响存库与显示',
-  display_only: '前端渲染时，不改存库',
-  prompt_only: '后端历史消息组装时，仅影响 LLM 副本',
-};
-
-const SCOPE_ORDER = ['user_input', 'ai_output', 'display_only', 'prompt_only'];
+import {
+  REGEX_SCOPES as SCOPE_ORDER,
+  REGEX_SCOPE_LABELS as SCOPE_LABELS,
+  REGEX_SCOPE_HINTS as SCOPE_HINTS,
+} from '../../../../shared/regex-scopes.mjs';
 
 export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT }) {
   const [rules, setRules] = useState([]);

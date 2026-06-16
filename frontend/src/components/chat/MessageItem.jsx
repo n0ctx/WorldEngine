@@ -25,13 +25,17 @@ const MotionDiv = motion.div;
  */
 function ThinkBlock({ content, open = false, interrupted = false }) {
   const autoCollapse = useDisplaySettingsStore((s) => s.autoCollapseThinking);
-  const [expanded, setExpanded] = useState(!autoCollapse);
+  // 用户是否手动改过展开/折叠;一旦改过就完全尊重用户选择,流式结束也不强制变更
+  const [userToggled, setUserToggled] = useState(false);
+  const [userExpanded, setUserExpanded] = useState(!autoCollapse);
+  // 默认态:流式进行中(open)展开让用户看到实时思考;结束后回落到 autoCollapse 设置
+  const expanded = userToggled ? userExpanded : (open || !autoCollapse);
   const cleanContent = stripNextPromptBlocks(content);
 
   return (
     <div className="we-think-block">
       <button
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => { setUserExpanded(!expanded); setUserToggled(true); }}
         aria-label={expanded ? '折叠思考过程' : '展开思考过程'}
         aria-expanded={expanded}
         className="we-think-block-toggle"
@@ -42,7 +46,10 @@ function ThinkBlock({ content, open = false, interrupted = false }) {
         >
           <polyline points="9 18 15 12 9 6" />
         </Icon>
-        思考过程{open && <span className="we-think-block-dots">…</span>}
+        思考过程
+        {open
+          ? <span className="we-think-block-dots">…</span>
+          : <span className="we-think-block-status">已完成</span>}
       </button>
       <div className={`we-think-block-body-wrap${expanded ? ' we-think-block-body-wrap--open' : ''}`}>
         <div className="we-think-block-body-inner">

@@ -2334,6 +2334,23 @@
   animation: wePanelSkeleton 1.6s ease-in-out infinite;
 }
 
+.we-skel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+.we-skel-line {
+  height: 12px; /* design exact: 骨架行高 */
+  width: var(--skel-width, 100%);
+}
+
+.we-cast-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+}
+
 /* ── 字段入场动画 ─── */
 @keyframes wePanelFadeIn {
   from { opacity: 0; transform: translateY(3px); }
@@ -2467,6 +2484,24 @@
 }
 .we-status-field--editing {
   gap: var(--we-space-xs);
+}
+.we-status-inline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  width: 100%;
+  min-width: 0;
+}
+.we-status-inline-wrap--saving {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.we-status-inline-pending {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+}
+.we-status-inline-error {
+  font-size: var(--we-text-xs);
 }
 .we-status-inline-surface {
   width: 100%;

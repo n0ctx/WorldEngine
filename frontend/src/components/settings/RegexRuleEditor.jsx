@@ -3,13 +3,17 @@ import Select from '../ui/Select';
 import Textarea from '../ui/Textarea';
 import DialogShell from '../ui/DialogShell';
 import { log } from '../../core/utils/logger.js';
+import {
+  REGEX_SCOPES,
+  REGEX_SCOPE_LABELS,
+  REGEX_SCOPE_DESCRIPTIONS,
+} from '../../../../shared/regex-scopes.mjs';
 
-const SCOPE_OPTIONS = [
-  { value: 'user_input', label: '用户输入', desc: '发送前处理，影响存库与 LLM' },
-  { value: 'ai_output', label: 'AI 输出', desc: '流式完结后处理，影响存库与显示' },
-  { value: 'display_only', label: '仅显示', desc: '渲染时处理，不改存库' },
-  { value: 'prompt_only', label: '仅提示词', desc: '组装历史消息时处理，仅影响送给 LLM 的副本' },
-];
+const SCOPE_OPTIONS = REGEX_SCOPES.map((value) => ({
+  value,
+  label: REGEX_SCOPE_LABELS[value],
+  desc: REGEX_SCOPE_DESCRIPTIONS[value],
+}));
 
 const FLAGS_PRESETS = ['g', 'gi', 'gm', 'gim'];
 

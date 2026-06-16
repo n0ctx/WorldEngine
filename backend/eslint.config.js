@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import noBackendConsole from '../eslint-rules/no-backend-console.js';
+import noDirectDbPrepare from '../eslint-rules/no-direct-db-prepare.js';
 
 // recommended 已接入。历史中曾有 ~100 处 unused-var / empty-block / control-regex，已统一清理；
 // 现行策略：
@@ -35,7 +36,12 @@ export default [
       globals: { ...globals.node },
     },
     plugins: {
-      'we-local': { rules: { 'no-backend-console': noBackendConsole } },
+      'we-local': {
+        rules: {
+          'no-backend-console': noBackendConsole,
+          'no-direct-db-prepare': noDirectDbPrepare,
+        },
+      },
     },
     rules: {
       'we-local/no-backend-console': 'error',
@@ -47,6 +53,23 @@ export default [
         caughtErrorsIgnorePattern: '^_',
         destructuredArrayIgnorePattern: '^_',
       }],
+    },
+  },
+  // routes / services 禁止直接 db.prepare/db.transaction，SQL 必须收口到 db/queries/。
+  // db/queries/ 本身是合法持有者，故规则仅在这两个目录开启。
+  {
+    files: ['routes/**/*.js', 'services/**/*.js'],
+    rules: {
+      'we-local/no-direct-db-prepare': 'error',
+    },
+  },
+  // import-export.js 的导入事务把 fs（头像写盘）/ JSON 解析 / crypto 与 SQL 深度交织在
+  // db.transaction(() => {...}) 内，无法整体下沉到 db/queries/ 而不大改文件结构。
+  // 暂以文件级豁免兜底，待后续专项重构。TODO(@n0ctx): 拆分 import-export 事务后移除本豁免。
+  {
+    files: ['services/import-export.js'],
+    rules: {
+      'we-local/no-direct-db-prepare': 'off',
     },
   },
   // utils/logger.js 解析 ANSI 转义需要匹配控制字符，必须豁免 no-control-regex

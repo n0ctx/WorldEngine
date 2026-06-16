@@ -8,10 +8,11 @@ import {
   setActivePersona,
   upsertPersona,
   reorderPersonas as dbReorderPersonas,
+  countPersonasByWorldId,
 } from '../db/queries/personas.js';
+import { getWritingSessionIdsByPersonaId } from '../db/queries/sessions.js';
 import { unlinkUploadFile } from '../utils/file-cleanup.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import db from '../db/index.js';
 import { deleteWritingSession } from './writing-sessions.js';
 
 const log = createLogger('svc', 'green');
@@ -73,12 +74,9 @@ export async function deletePersonaService(id) {
 
   // "至少保留一张"检查必须在删 session 之前执行，否则一旦失败 session 已被永久清空。
   // 复用 deletePersonaById 的同一条件，保持单一来源。
-  const count = db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(persona.world_id);
-  if (count.c <= 1) throw new Error('至少需要保留一张玩家卡');
+  if (countPersonasByWorldId(persona.world_id) <= 1) throw new Error('至少需要保留一张玩家卡');
 
-  const sessionRows = db.prepare(
-    "SELECT id FROM sessions WHERE persona_id = ? AND mode = 'writing'"
-  ).all(id);
+  const sessionRows = getWritingSessionIdsByPersonaId(id);
   for (const row of sessionRows) {
     await deleteWritingSession(row.id);
   }

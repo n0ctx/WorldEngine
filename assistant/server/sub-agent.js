@@ -187,10 +187,28 @@ export async function dispatchSubAgent({
   const wrapOpts = cancelCheck ? { cancelCheck } : undefined;
   let applySuccessCount = 0;
   let lastApplyError = null;
-  // create 幂等：completeWithTools 的重试在整段工具循环外层，重试会从第 0 轮重放，
-  // 复用同一 handlers 闭包 → 已成功的 create 会被再次执行（重复建卡）。
-  // 一次 dispatch 只落地一个资源，故记住首个成功 create 的结果，重放时直接返回不再建。
+  // 幂等：completeWithTools 的重试在整段工具循环外层（5xx/429 自动重试），重试会从第 0 轮重放，
+  // 复用同一 handlers 闭包 → 已成功的 apply 会被再次执行。create 会重复建卡；
+  // 带 entryOps/stateFieldOps[create] 的 update 会重复建条目/字段。
+  // 故按 operation 签名缓存每个已成功 apply 的结果，重放命中同签名时直接返回，不再落库。
+  const appliedBySignature = new Map();
+  // 兼容旧逻辑：首个成功 create 的结果（onApplied / 日志仍可用）。
   let firstCreateResult = null;
+  // 用入参生成稳定签名：op + 目标实体 + 各 ops 数组的内容。禁止纳入随机/时间值。
+  const applySignature = (args, op) => {
+    try {
+      return JSON.stringify({
+        op,
+        entityId: args?.entityId ?? resolvedEntityId ?? null,
+        changes: args?.changes ?? null,
+        stateValueOps: args?.stateValueOps ?? null,
+        stateFieldOps: args?.stateFieldOps ?? null,
+        entryOps: args?.entryOps ?? null,
+      });
+    } catch {
+      return null;
+    }
+  };
   let previewedThisRun = false;
   // preview 缓存 key：task 内同实体的多步 update 共享，避免每步都重新拉一次 preview。
   // 没有 taskId / entityId 时回退到 run 内 flag。
@@ -220,9 +238,13 @@ export async function dispatchSubAgent({
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(apply, async (args) => {
       const op = args.operation ?? operation;
-      // 重试重放保护：本次 dispatch 已成功 create 过，直接复用结果，不重复建卡。
-      if (op === 'create' && firstCreateResult) {
-        return firstCreateResult;
+      // 重试重放保护：本次 dispatch 已成功执行过相同签名的 apply，直接复用结果，不重复落库。
+      // 覆盖 create（重复建卡）与带 entryOps/stateFieldOps[create] 的 update/delete（重复建条目/字段）。
+      const sig = applySignature(args, op);
+      if (sig && appliedBySignature.has(sig)) {
+        // 重放命中：返回首次成功结果的副本并打 skipped 标记，
+        // 既保留真实 entityId 供链式 step 引用，又让上层 / 模型识别"本次未重复落库"。
+        return { ...appliedBySignature.get(sig), skipped: true, reason: 'duplicate' };
       }
       if ((op === 'update' || op === 'delete') && !previewedThisRun) {
         // 闸门:update / delete 必须先 preview_card 拉现状,否则极易写错字段 / ID
@@ -232,10 +254,15 @@ export async function dispatchSubAgent({
         lastApplyError = hint;
         return { success: false, error: hint };
       }
+      // apply 工具内部（_apply-factory.runApply）已把 normalize/apply 抛错转成
+      // 结构化 { success:false, error_code, message }，正常不会再 throw。
+      // 这里仍保留 try/catch 兜底未预期异常，但**不再 re-throw**：把异常也归一成结构化
+      // 错误返回给模型，避免异常冒泡到 completeWithTools 触发"盲目重试 / 重放"（item 1/2）。
       try {
         const res = await apply.execute(args, { worldRefId });
         if (res?.success !== false) {
           applySuccessCount += 1;
+          if (sig) appliedBySignature.set(sig, res);
           if (op === 'create' && !firstCreateResult) firstCreateResult = res;
           if (onApplied) {
             try {
@@ -248,12 +275,13 @@ export async function dispatchSubAgent({
             } catch { /* ignore */ }
           }
         } else {
-          lastApplyError = res?.error ?? `${apply.definition.name} 返回 success:false`;
+          lastApplyError = res?.message ?? res?.error ?? `${apply.definition.name} 返回 success:false`;
         }
         return res;
       } catch (err) {
-        lastApplyError = err?.message ?? String(err);
-        throw err;
+        const message = err?.message ?? String(err);
+        lastApplyError = message;
+        return { success: false, error_code: 'apply_failed', message };
       }
     }), emitFn, wrapOpts),
   ];

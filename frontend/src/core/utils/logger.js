@@ -1,3 +1,5 @@
+import { postClientLogs, sendClientLogsBeacon } from '../api/client-logs.js';
+
 const LEVEL_ORDER = { debug: 0, info: 1, warn: 2, error: 3 };
 const TOAST_TYPE = { error: 'error', warn: 'warning', info: 'info', success: 'success' };
 
@@ -158,25 +160,15 @@ async function doFlush({ useBeacon = false } = {}) {
     logs: merged,
   };
   _droppedCount = 0;
-  const json = JSON.stringify(body);
 
-  if (useBeacon && typeof navigator !== 'undefined' && navigator.sendBeacon) {
-    try {
-      navigator.sendBeacon('/api/client-logs', new Blob([json], { type: 'application/json' }));
-    } catch {
-      /* ignore */
-    }
+  if (useBeacon) {
+    sendClientLogsBeacon(body);
     return;
   }
 
   _flushing = true;
   try {
-    await fetch('/api/client-logs', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: json,
-      keepalive: true,
-    });
+    await postClientLogs(body);
   } catch {
     saveRetry([...loadRetry(), ...merged]);
   } finally {

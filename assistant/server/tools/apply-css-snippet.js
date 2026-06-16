@@ -1,4 +1,5 @@
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { runApply } from './_apply-factory.js';
 
 export const definition = {
   name: 'apply_css_snippet',
@@ -31,7 +32,9 @@ export async function execute(args) {
     changes: args.changes ?? {},
     explanation: args.explanation ?? '',
   };
-  const normalized = normalizeProposal(proposal);
-  const result = await applyProposal(normalized, null);
-  return { success: true, type: 'css-snippet', operation: args.operation, entityId: result?.id ?? result?.entityId ?? args.entityId ?? null, summary: `${args.operation} CSS 片段 ${args.changes?.name ?? args.entityId ?? ''}` };
+  return runApply(
+    () => normalizeProposal(proposal),
+    (normalized) => applyProposal(normalized, null),
+    (result) => ({ success: true, type: 'css-snippet', operation: args.operation, entityId: result?.id ?? result?.entityId ?? args.entityId ?? null, summary: `${args.operation} CSS 片段 ${args.changes?.name ?? args.entityId ?? ''}` }),
+  );
 }

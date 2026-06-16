@@ -2,6 +2,23 @@ import crypto from 'node:crypto';
 import db from '../index.js';
 
 /**
+ * 取会话最近 N 条 turn 摘要，按 round_index 升序返回（用于时间线）。
+ *
+ * @param {string} sessionId
+ * @param {number} limit
+ * @returns {Array<{ round_index:number, summary:string, created_at:number }>}
+ */
+export function getRecentTurnSummaries(sessionId, limit) {
+  return db.prepare(`
+    SELECT round_index, summary, created_at FROM (
+      SELECT round_index, summary, created_at FROM turn_records
+      WHERE session_id = ?
+      ORDER BY round_index DESC LIMIT ?
+    ) ORDER BY round_index ASC
+  `).all(sessionId, limit);
+}
+
+/**
  * 插入或更新 turn record（按 session_id + round_index UPSERT）
  *
  * @param {object} data - { session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot }

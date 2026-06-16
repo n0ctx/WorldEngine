@@ -487,12 +487,12 @@ describe('ChatPage', () => {
 
     await act(async () => {
       callbacksRef.current.onDone?.({ id: 'asst-1', content: '第一轮' }, []);
-      callbacksRef.current.onPostprocessFailed?.({ label: 'title', error: 'timeout', timeout: true });
+      callbacksRef.current.onPostprocessFailed?.({ label: 'title', reason: 'timeout', error: 'timed out' });
     });
     expect(await screen.findByText('后台整理超时，回复已保留，标题或状态可能未更新')).toBeInTheDocument();
 
     await act(async () => {
-      callbacksRef.current.onPostprocessFailed?.({ label: 'title', error: 'failed', timeout: false });
+      callbacksRef.current.onPostprocessFailed?.({ label: 'title', reason: 'unknown', error: 'failed' });
     });
     expect(await screen.findByText('后台整理失败，回复已保留，标题或状态可能未更新')).toBeInTheDocument();
   });

@@ -1338,6 +1338,14 @@
   margin-left: var(--we-space-xs);
 }
 
+.we-think-block-status {
+  margin-left: var(--we-space-xs);
+  font-style: normal;
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+  opacity: 0.55;
+}
+
 .we-think-block-body-wrap {
   display: grid;
   grid-template-rows: 0fr;

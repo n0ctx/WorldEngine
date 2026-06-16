@@ -1,10 +1,11 @@
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 import { stateValueOpsSchema } from './apply-schemas.js';
+import { runApply } from './_apply-factory.js';
 
 export const definition = {
   name: 'apply_persona_card',
   description:
-    '落库玩家卡（persona）变更。operation 仅支持 create/update。' +
+    '落库玩家卡（persona）变更。玩家卡禁止 stateFieldOps（新增/改/删状态字段定义必须走 world-card）；本工具只写字段「值」stateValueOps。operation 仅支持 create/update。' +
     'create 时 entityId 为目标 worldId；update 可额外传 personaId 定位特定玩家卡。' +
     '参数结构详见 CONTRACT.md / USERCARD.md。',
   parameters: {
@@ -40,9 +41,11 @@ export async function execute(args, ctx = {}) {
     stateValueOps: args.stateValueOps ?? [],
     explanation: args.explanation ?? '',
   };
-  const normalized = normalizeProposal(proposal);
-  const result = await applyProposal(normalized, ctx.worldRefId ?? null);
   // persona-card 的 entityId 始终是 worldId（create/update 都依赖 worldId 定位 persona），
   // 不能用 result.id（新 persona 的主键）覆盖，否则后续链式 update 会拿 personaId 当 worldId 查表。
-  return { success: true, type: 'persona-card', operation: args.operation, entityId: args.entityId ?? null, personaId: result?.id ?? null, summary: `${args.operation} 玩家卡 ${args.changes?.name ?? args.entityId ?? ''}` };
+  return runApply(
+    () => normalizeProposal(proposal),
+    (normalized) => applyProposal(normalized, ctx.worldRefId ?? null),
+    (result) => ({ success: true, type: 'persona-card', operation: args.operation, entityId: args.entityId ?? null, personaId: result?.id ?? null, summary: `${args.operation} 玩家卡 ${args.changes?.name ?? args.entityId ?? ''}` }),
+  );
 }

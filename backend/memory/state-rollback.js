@@ -13,7 +13,6 @@ import { upsertSessionPersonaStateValue, clearSessionPersonaStateValues } from '
 import {
   upsertSessionCharacterStateValue,
   clearSingleCharacterSessionStateValues,
-  clearSessionCharacterStateValues,
 } from '../db/queries/session-character-state-values.js';
 import {
   listNearbyBySessionId,

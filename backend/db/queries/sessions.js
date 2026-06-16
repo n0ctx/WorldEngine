@@ -24,6 +24,15 @@ export function getSessionById(id) {
 }
 
 /**
+ * 取某 persona 名下所有 writing 模式会话的 id 列表。
+ */
+export function getWritingSessionIdsByPersonaId(personaId) {
+  return db.prepare(
+    "SELECT id FROM sessions WHERE persona_id = ? AND mode = 'writing'",
+  ).all(personaId);
+}
+
+/**
  * 获取某角色下的会话列表，按 updated_at 降序，支持分页
  */
 export function getSessionsByCharacterId(characterId, limit = 20, offset = 0) {

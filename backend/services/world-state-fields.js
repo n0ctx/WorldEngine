@@ -8,35 +8,25 @@ import {
 } from '../db/queries/world-state-fields.js';
 import { upsertWorldStateValue, deleteWorldStateValue } from '../db/queries/world-state-values.js';
 import { getInitialValueJson } from './_state-field-helpers.js';
-import { createLogger, formatMeta } from '../utils/logger.js';
+import { createStateFieldService } from './_state-field-factory.js';
 
-const log = createLogger('svc', 'green');
-
-export function createWorldStateField(worldId, data) {
-  const field = dbCreate(worldId, data);
-  upsertWorldStateValue(worldId, field.field_key, { defaultValueJson: getInitialValueJson(field) });
-  log.info(`world_state_field.create  ${formatMeta({ worldId, fieldId: field.id, fieldKey: field.field_key, type: field.type })}`);
-  return field;
-}
-export const getWorldStateFieldById = (id)           => dbGetById(id);
-export const listWorldStateFields   = (worldId)      => dbList(worldId);
-export function updateWorldStateField(id, patch) {
-  const field = dbUpdate(id, patch);
-  if (field && Object.hasOwn(patch, 'default_value')) {
+const svc = createStateFieldService({
+  entity: 'world_state_field',
+  queries: { create: dbCreate, getById: dbGetById, list: dbList, update: dbUpdate, remove: dbDelete, reorder: dbReorder },
+  onCreate(field, worldId) {
+    upsertWorldStateValue(worldId, field.field_key, { defaultValueJson: getInitialValueJson(field) });
+  },
+  onUpdateDefault({ field }) {
     upsertWorldStateValue(field.world_id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
-    log.info(`world_state_field.update_default  ${formatMeta({ worldId: field.world_id, fieldId: field.id, fieldKey: field.field_key })}`);
-  }
-  return field;
-}
-export function deleteWorldStateField(id) {
-  const field = dbGetById(id);
-  if (field) {
+  },
+  onDelete(field) {
     deleteWorldStateValue(field.world_id, field.field_key);
-  }
-  const result = dbDelete(id);
-  if (field) {
-    log.info(`world_state_field.delete  ${formatMeta({ worldId: field.world_id, fieldId: id, fieldKey: field.field_key })}`);
-  }
-  return result;
-}
-export const reorderWorldStateFields = (worldId, orderedIds) => dbReorder(worldId, orderedIds);
+  },
+});
+
+export const createWorldStateField = (worldId, data) => svc.create(worldId, data);
+export const getWorldStateFieldById = (id) => svc.getById(id);
+export const listWorldStateFields = (worldId) => svc.list(worldId);
+export const updateWorldStateField = (id, patch) => svc.update(id, patch);
+export const deleteWorldStateField = (id) => svc.remove(id);
+export const reorderWorldStateFields = (worldId, orderedIds) => svc.reorder(worldId, orderedIds);

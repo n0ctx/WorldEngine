@@ -1,6 +1,7 @@
 // assistant/server/tools/apply-world-card.js
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
 import { entryOpsSchema, stateFieldOpsSchema } from './apply-schemas.js';
+import { runApply } from './_apply-factory.js';
 
 export const definition = {
   name: 'apply_world_card',
@@ -38,15 +39,17 @@ export async function execute(args, ctx = {}) {
     stateFieldOps: args.stateFieldOps ?? [],
     explanation: args.explanation ?? '',
   };
-  const normalized = normalizeProposal(proposal);
-  const result = await applyProposal(normalized, ctx.worldRefId ?? null);
-  return {
-    success: true,
-    type: 'world-card',
-    operation: args.operation,
-    entityId: result?.id ?? result?.entityId ?? args.entityId ?? null,
-    summary: summarize(args),
-  };
+  return runApply(
+    () => normalizeProposal(proposal),
+    (normalized) => applyProposal(normalized, ctx.worldRefId ?? null),
+    (result) => ({
+      success: true,
+      type: 'world-card',
+      operation: args.operation,
+      entityId: result?.id ?? result?.entityId ?? args.entityId ?? null,
+      summary: summarize(args),
+    }),
+  );
 }
 
 function summarize(args) {

@@ -128,7 +128,7 @@ function Chevron({ open }) {
  *   onCommit(valueJson) — 保存
  *   onCancel() — 取消
  */
-function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
+function InlineEditor({ row, onCommit, onCancel, templateCtx, saving = false, saveError = null }) {
   const type = row.field_type ?? row.type;
   const rawInit = parseRawValue(row.effective_value_json, type);
   const [draft, setDraft] = useState(rawInit);
@@ -166,6 +166,20 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
       valueJson = value === '' ? null : JSON.stringify(String(value));
     }
     onCommit(valueJson);
+  }
+
+  // 统一包裹:保存中加 pending 视觉与禁用,保存失败在下方内联报错且保留编辑器
+  function wrap(node) {
+    return (
+      <div
+        className={`we-status-inline-wrap${saving ? ' we-status-inline-wrap--saving' : ''}${saveError ? ' we-status-inline-wrap--error' : ''}`}
+        aria-busy={saving || undefined}
+      >
+        {node}
+        {saving && <span className="we-status-inline-pending" role="status">保存中…</span>}
+        {saveError && <span className="we-status-inline-error we-field-error">{saveError}</span>}
+      </div>
+    );
   }
 
   function handleKey(e) {
@@ -207,7 +221,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
   })();
 
   if (type === 'boolean') {
-    return (
+    return wrap(
       <SeamlessEditableSurface
         editing
         trackValue={stringifyTrackValue(draft)}
@@ -237,7 +251,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
 
   if (type === 'enum') {
     const options = parseEnumOptions(row.enum_options);
-    return (
+    return wrap(
       <div ref={boundaryRef}>
         <SeamlessEditableSurface
           editing
@@ -265,7 +279,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
 
   if (type === 'datetime') {
     const dtVal = typeof draft === 'string' && ISO_DATETIME_RE.test(draft) ? draft : '';
-    return (
+    return wrap(
       <SeamlessEditableSurface
         editing
         trackValue={stringifyTrackValue(draft)}
@@ -290,7 +304,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
   }
 
   if (type === 'list') {
-    return (
+    return wrap(
       <ListInlineEditor
         initial={rawInit}
         onCommit={onCommit}
@@ -301,7 +315,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
   }
 
   if (type === 'text') {
-    return (
+    return wrap(
       <SeamlessEditableSurface
         editing
         trackValue={stringifyTrackValue(draft)}
@@ -327,7 +341,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx }) {
     ? (Array.isArray(draft) ? draft.join(', ') : String(draft ?? ''))
     : String(draft ?? '');
 
-  return (
+  return wrap(
     <SeamlessEditableSurface
       editing
       trackValue={stringifyTrackValue(draft)}
@@ -484,14 +498,32 @@ export default function StatusSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [editingKey, setEditingKey] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
 
   const isLoading = rows === null;
   const hasRows = Array.isArray(rows) && rows.length > 0;
   const isEmpty = !isLoading && !hasRows;
 
-  function handleCommit(row, valueJson) {
+  function closeEditor() {
     setEditingKey(null);
-    onSave?.(row.field_key, valueJson, row.character_id);
+    setSaving(false);
+    setSaveError(null);
+  }
+
+  async function handleCommit(row, valueJson) {
+    if (saving) return; // 防重复提交
+    if (!onSave) { closeEditor(); return; }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // onSave 可能同步或返回 Promise;失败时抛出以保留编辑态
+      await onSave(row.field_key, valueJson, row.character_id);
+      closeEditor();
+    } catch (e) {
+      setSaving(false);
+      setSaveError(e?.message || '保存失败');
+    }
   }
 
   const body = (
@@ -551,8 +583,10 @@ export default function StatusSection({
                     <InlineEditor
                       row={row}
                       templateCtx={templateCtx}
+                      saving={saving}
+                      saveError={saveError}
                       onCommit={(vj) => handleCommit(row, vj)}
-                      onCancel={() => setEditingKey(null)}
+                      onCancel={closeEditor}
                     />
                 ) : type === 'list' ? (() => {
                   const arr = parseRawValue(row.effective_value_json, 'list');

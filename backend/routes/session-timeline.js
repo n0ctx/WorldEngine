@@ -7,8 +7,8 @@
  */
 
 import { Router } from 'express';
-import db from '../db/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
+import { getRecentTurnSummaries } from '../db/queries/turn-records.js';
 import { WORLD_TIMELINE_RECENT_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
 
@@ -19,13 +19,7 @@ router.get('/:sessionId/timeline', (req, res) => {
   const session = getSessionById(sessionId);
   if (!assertExists(res, session, '会话不存在')) return;
 
-  const items = db.prepare(`
-    SELECT round_index, summary, created_at FROM (
-      SELECT round_index, summary, created_at FROM turn_records
-      WHERE session_id = ?
-      ORDER BY round_index DESC LIMIT ?
-    ) ORDER BY round_index ASC
-  `).all(sessionId, WORLD_TIMELINE_RECENT_LIMIT);
+  const items = getRecentTurnSummaries(sessionId, WORLD_TIMELINE_RECENT_LIMIT);
 
   res.json({ items });
 });

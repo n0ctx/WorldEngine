@@ -2833,12 +2833,49 @@
   flex-shrink: 0;
 }
 
+.we-writing-error-partial {
+  margin-bottom: var(--we-space-xs);
+  padding: var(--we-space-sm) var(--we-space-md);
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-md);
+  color: var(--we-color-text-primary);
+  font-size: var(--we-text-sm);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  opacity: 0.6;
+}
+
+.we-writing-error-row {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  flex-wrap: wrap;
+}
+
 .we-writing-error-text {
   background: var(--we-color-accent-bg);
   border: 1px solid var(--we-color-status-danger);
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-xxs) var(--we-space-sm);
   display: inline-block;
+}
+
+.we-writing-error-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  padding: var(--we-space-xxs) var(--we-space-md);
+  background: none;
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-md);
+  color: var(--we-color-text-secondary);
+  font-size: var(--we-text-xs);
+  cursor: pointer;
+  transition: background var(--we-duration-fast);
+}
+.we-writing-error-retry:hover {
+  background: var(--we-color-bg-subtle);
 }
 
 /* ── ConfirmModal 消息内容样式 ── */
@@ -3687,11 +3724,21 @@
   color: var(--we-color-accent);
 }
 .we-cast-diary-more {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font-family: inherit;
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   padding: var(--we-space-xs) var(--we-space-xs) 2px; /* 2px: design exact */
   user-select: none;
+}
+.we-cast-diary-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .we-cast-state-overlay {
   position: absolute;

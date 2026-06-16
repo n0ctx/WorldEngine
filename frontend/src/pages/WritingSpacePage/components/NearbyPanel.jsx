@@ -141,12 +141,14 @@ export default function NearbyPanel({
   savedRecallHits = null,
   onDiaryInject,
 }) {
-  const { stateData, setStateData, diaryEntries, stateJustChanged, isUpdating } =
+  const { stateData, setStateData, diaryEntries, diaryError, stateJustChanged, isUpdating } =
     useSessionState(sessionId, stateTick, diaryTick, stateQueuedTick, stateFailedTick);
 
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
   const [nearby, setNearby] = useState(null); // null = loading
+  const [nearbyError, setNearbyError] = useState(null);
+  const [nearbyReloadToken, setNearbyReloadToken] = useState(0);
   // saved 角色默认在顶部完整 state tab 展开；用户点击"收起"或后端 saved_recall 判定未命中时进入此集合，
   // 仅在底部姓名列表里露出。仅当前会话内有效；切换会话清空。
   const [collapsedSavedIds, setCollapsedSavedIds] = useState(() => new Set());
@@ -171,10 +173,10 @@ export default function NearbyPanel({
     let cancelled = false;
     fetchNearby(worldId, sessionId)
       .then((rows) => {
-        if (!cancelled) setNearby(Array.isArray(rows) ? rows : []);
+        if (!cancelled) { setNearby(Array.isArray(rows) ? rows : []); setNearbyError(null); }
       })
-      .catch(() => {
-        if (!cancelled) setNearby([]);
+      .catch((err) => {
+        if (!cancelled) { setNearby([]); setNearbyError(err?.message || '加载附近角色失败'); }
       });
     return () => { cancelled = true; };
   }, [worldId, sessionId]);
@@ -185,12 +187,12 @@ export default function NearbyPanel({
       Promise.resolve().then(() => { if (!cancelled) setNearby([]); });
       return () => { cancelled = true; };
     }
-    Promise.resolve().then(() => { if (!cancelled) setNearby(null); });
+    Promise.resolve().then(() => { if (!cancelled) { setNearby(null); setNearbyError(null); } });
     fetchNearby(worldId, sessionId)
-      .then((rows) => { if (!cancelled) setNearby(Array.isArray(rows) ? rows : []); })
-      .catch(() => { if (!cancelled) setNearby([]); });
+      .then((rows) => { if (!cancelled) { setNearby(Array.isArray(rows) ? rows : []); setNearbyError(null); } })
+      .catch((err) => { if (!cancelled) { setNearby([]); setNearbyError(err?.message || '加载附近角色失败'); } });
     return () => { cancelled = true; };
-  }, [worldId, sessionId, stateTick]);
+  }, [worldId, sessionId, stateTick, nearbyReloadToken]);
 
   // 切换会话/世界时清空收起集合；同时把"已应用 tick"对齐到当前值，避免之前会话的 hits 在新会话触发误收起
   useEffect(() => {
@@ -303,7 +305,10 @@ export default function NearbyPanel({
         ...prev,
         world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { log.error('state.world.update_failed', e, { toast: e.message || '更新世界状态失败' }); }
+    } catch (e) {
+      log.error('state.world.update_failed', e, { toast: e.message || '更新世界状态失败' });
+      throw e; // 抛回内联编辑器,使其保留编辑态并内联报错
+    }
   }
 
   async function handleSavePersona(fieldKey, valueJson) {
@@ -313,7 +318,10 @@ export default function NearbyPanel({
         ...prev,
         persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
       } : prev);
-    } catch (e) { log.error('state.player.update_failed', e, { toast: e.message || '更新玩家状态失败' }); }
+    } catch (e) {
+      log.error('state.player.update_failed', e, { toast: e.message || '更新玩家状态失败' });
+      throw e; // 抛回内联编辑器,使其保留编辑态并内联报错
+    }
   }
 
   async function handleDiarySelect(entry) {
@@ -516,10 +524,21 @@ export default function NearbyPanel({
     <div className="we-panel-tab-body we-nearby-tab">
       <PanelCard variant="headerless">
         {nearby === null ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="we-skel-stack" aria-busy="true">
             {[80, 65, 70].map((w, i) => (
-              <div key={i} className="we-skel" style={{ height: 12, width: `${w}%` }} />
+              <div key={i} className="we-skel we-skel-line" style={{ '--skel-width': `${w}%` }} />
             ))}
+          </div>
+        ) : nearbyError ? (
+          <div className="we-cast-error">
+            <p className="we-field-error">{nearbyError}</p>
+            <button
+              type="button"
+              className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+              onClick={() => setNearbyReloadToken((t) => t + 1)}
+            >
+              <RefreshIcon /><span>重试</span>
+            </button>
           </div>
         ) : (
           <p className="we-cast-empty">暂无附近角色</p>
@@ -538,12 +557,14 @@ export default function NearbyPanel({
     <div className="we-panel-tab-body">
       <PanelCard variant="headerless">
       <div className="we-timeline we-timeline--in-card">
-        {diaryEntries === null ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {diaryEntries === null && !diaryError ? (
+          <div className="we-skel-stack" aria-busy="true">
             {[85, 65, 90].map((w, i) => (
-              <div key={i} className="we-skel" style={{ height: 10, width: `${w}%` }} />
+              <div key={i} className="we-skel we-skel-line" style={{ '--skel-width': `${w}%` }} />
             ))}
           </div>
+        ) : diaryError ? (
+          <p className="we-field-error">{diaryError}</p>
         ) : !hasDiary ? (
           <p className="we-section-empty">暂无日记</p>
         ) : (
@@ -568,12 +589,15 @@ export default function NearbyPanel({
                     onSelect={handleDiarySelect}
                   />
                 ))}
-                <div
+                <button
+                  type="button"
                   className="we-cast-diary-more"
                   onClick={() => setDiaryExpanded((v) => !v)}
+                  disabled={diaryEntries === null}
+                  aria-expanded={diaryExpanded}
                 >
                   {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                </div>
+                </button>
               </>
             )}
           </div>

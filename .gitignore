@@ -36,3 +36,5 @@ dist/
 .temp/
 test-results/
 frontend/coverage/
+
+.codegraph/

@@ -164,11 +164,12 @@ function buildValueMap(values) {
 }
 
 /**
- * 将活跃字段列表渲染为 Prompt 文本段（供 LLM 读取）。
+ * 将活跃字段列表渲染为「字段定义」文本段（schema 部分，逐字节稳定，不含任何运行时取值）。
+ * 仅依赖字段定义本身（key/label/type/range/enum/description/update_instruction），
+ * 因此同一会话各轮调用输出完全一致，可作为 prompt cache 稳定前缀。
  * @param {object[]} fields    活跃字段列表
- * @param {object}   valueMap  buildValueMap 返回的映射
  */
-function buildFieldsDesc(fields, valueMap) {
+function buildFieldsSchema(fields) {
   return fields
     .map((f) => {
       let line = `- ${f.field_key}（${f.label}，类型：${f.type}）`;
@@ -191,10 +192,23 @@ function buildFieldsDesc(fields, valueMap) {
         }).join(' / ');
         line += `，请返回对象 {列key: 数值,...}，列：[${colDesc}]，仅数值类型`;
       }
-      const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
-      line += `，默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
       if (f.update_instruction) line += `\n  更新说明：${f.update_instruction}`;
       return line;
+    })
+    .join('\n');
+}
+
+/**
+ * 将活跃字段列表渲染为「当前取值」文本段（动态部分，逐轮变化）。
+ * 只输出每个字段的默认值 / 当前运行时值，放在 messages 末尾，不进入 cache 前缀。
+ * @param {object[]} fields    活跃字段列表
+ * @param {object}   valueMap  buildValueMap 返回的映射
+ */
+function buildFieldsValues(fields, valueMap) {
+  return fields
+    .map((f) => {
+      const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
+      return `- ${f.field_key}：默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
     })
     .join('\n');
 }
@@ -290,7 +304,14 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
       overLengthList.map((x) => `- ${x.entityKey}.${x.fieldKey}（${x.value.length}条）: ${JSON.stringify(x.value)}`).join('\n')
     : '';
 
-  const prompt = [{ role: 'user', content: renderBackendPrompt('state-compress.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection }) }];
+  // 稳定前缀（cacheableSystem）：压缩任务的通用指令 + 输出格式，逐字节稳定。
+  // 动态后缀（user 段）：本轮待压缩的具体字段值，逐次变化，不进缓存。
+  const cacheableSystem = renderBackendPrompt('state-compress.md');
+  const runtimeUser = renderBackendPrompt('state-compress-runtime.md', { TEXT_SECTION: textSection, LIST_SECTION: listSection });
+  const prompt = [
+    { role: 'system', content: cacheableSystem },
+    { role: 'user', content: runtimeUser },
+  ];
 
   const raw = await llm.complete(prompt, {
     temperature: 0,
@@ -298,6 +319,7 @@ async function compressOverLimitFields(patch, entityFieldPairs, sid, sessionId) 
     configScope: resolveAuxScope(sessionId),
     callType: 'state_compress',
     conversationId: sessionId,
+    cacheableSystem,
     timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
   });
 
@@ -392,7 +414,10 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const primaryName = characters[0]?.name ?? '角色';
 
   // ── 组装 prompt 各节 ──
-  const sections = [];
+  // schemaSections：字段定义（逐字节稳定，进 cacheableSystem 前缀）
+  // valueSections：当前取值（逐轮变化，留在 messages 末尾的 user 段）
+  const schemaSections = [];
+  const valueSections = [];
   const responseKeys = [];
   let worldValueMap = null;
   const charValueMaps = [];
@@ -403,7 +428,9 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       buildValueMap(getAllWorldStateValues(worldId)),
       getSessionWorldStateValues(sessionId, worldId)
     );
-    sections.push(`=== 世界状态（"${world.name}"）===\n` + buildFieldsDesc(worldActiveFields, worldValueMap));
+    const head = `=== 世界状态（"${world.name}"）===`;
+    schemaSections.push(`${head}\n` + buildFieldsSchema(worldActiveFields));
+    valueSections.push(`${head}\n` + buildFieldsValues(worldActiveFields, worldValueMap));
     responseKeys.push('"world"（世界状态）');
   }
 
@@ -415,11 +442,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       getSessionCharacterStateValues(sessionId, char.id)
     );
     charValueMaps[i] = charValueMap;
-    sections.push(
-      `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===\n` +
+    const head = `=== 角色状态（key="${charKey}"，角色名"${char.name}"）===`;
+    schemaSections.push(
+      `${head}\n` +
         `注意：只追踪"${char.name}"自身的状态变化。与"${char.name}"直接相关、并真实发生在其身上的共同经历（如受伤、获得报酬、装备损耗、位置变化）也应计入角色状态；仅玩家独有的变化不要记到角色上。\n` +
-        buildFieldsDesc(charSchemaFields, charValueMap)
+        buildFieldsSchema(charSchemaFields)
     );
+    valueSections.push(`${head}\n` + buildFieldsValues(charSchemaFields, charValueMap));
     responseKeys.push(`"${charKey}"（角色"${char.name}"状态）`);
   }
 
@@ -432,11 +461,13 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       buildValueMap(personaDefaults),
       getSessionPersonaStateValues(sessionId, worldId)
     );
-    sections.push(
-      `=== 玩家状态 ===\n` +
+    const head = `=== 玩家状态 ===`;
+    schemaSections.push(
+      `${head}\n` +
         `注意：只追踪玩家自身的变化，勿将角色的经历记录为玩家的状态。\n` +
-        buildFieldsDesc(personaActiveFields, personaValueMap)
+        buildFieldsSchema(personaActiveFields)
     );
+    valueSections.push(`${head}\n` + buildFieldsValues(personaActiveFields, personaValueMap));
     responseKeys.push('"persona"（玩家状态）');
   }
 
@@ -470,7 +501,11 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
         state,
       };
     });
-    sections.push(
+    // TODO(token): nearby pool 每轮由 listNearbyBySessionId + 逐行 getStateValuesByNearbyId 重建，
+    //   且 buildNearbyPromptSection 把「指令」与「逐轮变化的池数据」揉在一起，无法切出稳定前缀。
+    //   后续可考虑：把 nearby 的「字段定义/输出格式说明」抽进 schema 前缀，仅把池数据留在动态段；
+    //   并对 pool 做会话级缓存 + 失效（saved/transient 变更时 invalidate）。当前保守只放进动态段，不缓存。
+    valueSections.push(
       `=== 登场角色（nearby_characters）===\n` +
         buildNearbyPromptSection(nearbyPool, nearbyEnabledFields, { playerName: nearbyPlayerName })
     );
@@ -500,16 +535,25 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     .filter(Boolean)
     .join(', ');
 
+  // ── 切分稳定前缀 / 动态后缀（prompt caching） ──
+  // 稳定前缀（cacheableSystem）：通用指令 + 各字段 schema 定义。
+  //   只依赖字段定义与会话内固定的 world.name/char.name，逐字节稳定，无 timestamp/随机。
+  //   必须逐字成为 system 消息内容的前缀，provider 层据此切出可缓存段（参考 assembler.js）。
+  // 动态后缀（user 段）：各字段当前取值 + nearby 池 + 本轮对话，逐轮变化，不进缓存。
+  const cacheableSystem = renderBackendPrompt('state-update.md', {
+    SCHEMA: schemaSections.join('\n\n'),
+    RESPONSE_KEYS: responseKeys.join('、'),
+    EXAMPLE_KEYS: exampleKeys,
+  });
+  const runtimeUser = renderBackendPrompt('state-update-runtime.md', {
+    VALUES: valueSections.join('\n\n'),
+    DIALOGUE: dialogue,
+    RESPONSE_KEYS: responseKeys.join('、'),
+  });
+
   const prompt = [
-    {
-      role: 'user',
-      content: renderBackendPrompt('state-update.md', {
-        SECTIONS: sections.join('\n\n'),
-        DIALOGUE: dialogue,
-        RESPONSE_KEYS: responseKeys.join('、'),
-        EXAMPLE_KEYS: exampleKeys,
-      }),
-    },
+    { role: 'system', content: cacheableSystem },
+    { role: 'user', content: runtimeUser },
   ];
 
   log.info(`CALL  ${formatMeta({
@@ -518,7 +562,8 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     characterFields: charSchemaFields.length,
     characters: charactersWithFields.map((c) => c.name),
     personaFields: personaActiveFields.length,
-    promptChars: prompt[0].content.length,
+    cachePrefixChars: cacheableSystem.length,
+    runtimeChars: runtimeUser.length,
   })}`);
 
   // thinking_level 由副模型配置决定（用户在 UI 选择，例如 deepseek 选 thinking_disabled）；这里不再硬编码 null 覆盖。
@@ -533,6 +578,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
       configScope: resolveAuxScope(sessionId),
       callType: 'state_update',
       conversationId: sessionId,
+      cacheableSystem,
       timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
     });
     if (!raw) return;  // LLM API 失败，不进入 JSON 重试
@@ -810,7 +856,8 @@ function formatValueForPrompt(valueJson, field) {
 export const __testables = {
   filterActive,
   buildValueMap,
-  buildFieldsDesc,
+  buildFieldsSchema,
+  buildFieldsValues,
   applyStatePatch,
   validateValue,
   formatValueForPrompt,

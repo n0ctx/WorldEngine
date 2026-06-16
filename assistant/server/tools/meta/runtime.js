@@ -368,10 +368,11 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           }
         }
         // 解析 dependsOn 中的 step 引用 → 实际资源 ID
-        // step-N 或 step:N 格式是计划步骤 ID，不能直接当 entityId 使用；需从 appliedResources 取回真实 UUID
+        // step-N / step:N / step-N.id 格式是计划步骤引用，不能直接当 entityId；需从 appliedResources 取回真实 UUID。
+        // 支持 .id（或 .<prop>）后缀写法（如 step-1.id），解析时一并剥掉再按 step-N 查找。
         let entityRefForDispatch = resolved.dependsOn?.[0] ?? null;
-        if (entityRefForDispatch && /^step[-:]\d+$/i.test(entityRefForDispatch)) {
-          const normalizedStepId = entityRefForDispatch.replace(':', '-');
+        if (entityRefForDispatch && /^step[-:]\d+(?:\.\w+)?$/i.test(entityRefForDispatch)) {
+          const normalizedStepId = entityRefForDispatch.replace(':', '-').replace(/\.\w+$/, '');
           const applied = taskStore.findAppliedResource(task.id, (e) => e.stepId === normalizedStepId);
           if (applied?.refId) {
             entityRefForDispatch = applied.refId;

@@ -418,7 +418,7 @@ export default function WritingSpacePage() {
       setStreamingText(interrupted ? '' : (task.streamingText || ''));
     }
     if (interrupted && task.streamingText) {
-      setError(task.error);
+      setError({ partialContent: '', errorMsg: task.error || '生成失败' });
     }
     setGenerating(!interrupted);
   }
@@ -556,7 +556,9 @@ export default function WritingSpacePage() {
       },
       onError(msg) {
         if (!isCurrentStreamRun(runId)) return;
-        setError(msg);
+        const partial = streamingTextRef.current;
+        const errMsg = typeof msg === 'string' ? msg : (msg?.message || '生成失败');
+        setError({ partialContent: partial, errorMsg: errMsg });
         streamingTextRef.current = '';
         setGenerating(false);
         setStreamingText('');
@@ -740,6 +742,27 @@ export default function WritingSpacePage() {
     doRegenerate(assistantMessageId);
   }
 
+  // 错误后重试:从最后一条 user 消息重新生成(出错时尚未追加 assistant)
+  function handleRetryAfterError() {
+    const session = currentSessionRef.current;
+    if (!session || generating) return;
+    invalidateCurrentRun();
+    recoveryStopRef.current?.();
+    recoveryStopRef.current = null;
+    setError(null);
+    const msgs = messageListRef.current?.messagesRef?.current ?? [];
+    let lastUserId = null;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      if (msgs[i].role === 'user') { lastUserId = msgs[i].id; break; }
+    }
+    if (!lastUserId) return;
+    setGenerating(true);
+    setStreamingText('');
+    streamingTextRef.current = '';
+    const runId = beginStreamRun({ freezeOptions: false });
+    stopRef.current = regenerateWriting(worldId, session.id, lastUserId, makeStreamCallbacks(runId, session.id));
+  }
+
   async function handleEditAssistantMessage(messageId, newContent) {
     if (generating) return;
     const session = currentSessionRef.current;
@@ -752,7 +775,7 @@ export default function WritingSpacePage() {
     try {
       await editWritingAssistantMessage(worldId, session.id, messageId, newContent);
     } catch (err) {
-      setError(err.message || '保存失败');
+      setError({ partialContent: '', errorMsg: err.message || '保存失败' });
       refreshMessages();
     }
   }
@@ -776,7 +799,7 @@ export default function WritingSpacePage() {
       setStateTick((tick) => tick + 1);
       setDiaryTick((tick) => tick + 1);
     } catch (err) {
-      setError(err.message || '删除失败');
+      setError({ partialContent: '', errorMsg: err.message || '删除失败' });
     }
   }
 
@@ -860,7 +883,7 @@ export default function WritingSpacePage() {
       },
       onError(msg) {
         if (continuationTokenRef.current !== continuationToken) return;
-        setError(msg);
+        setError({ partialContent: '', errorMsg: typeof msg === 'string' ? msg : (msg?.message || '生成失败') });
         continuingMessageIdRef.current = null;
         continuingTextRef.current = '';
         setContinuingMessageId(null);
@@ -1107,12 +1130,28 @@ export default function WritingSpacePage() {
               />
             )}
 
-            {/* 错误提示 */}
-            {error && (
+            {/* 错误气泡:生成失败时保留可见,显示部分内容并提供重试入口 */}
+            {error && !generating && (
               <div className="we-writing-error-bar">
-                <p className="we-field-error we-writing-error-text">
-                  生成失败：{error}
-                </p>
+                {error.partialContent && (
+                  <div className="we-writing-error-partial">{error.partialContent}</div>
+                )}
+                <div className="we-writing-error-row">
+                  <span className="we-writing-error-text we-field-error">
+                    生成失败：{error.errorMsg}
+                  </span>
+                  <button
+                    type="button"
+                    className="we-writing-error-retry"
+                    onClick={handleRetryAfterError}
+                  >
+                    <Icon size={16}>
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                    </Icon>
+                    重新生成
+                  </button>
+                </div>
               </div>
             )}
 

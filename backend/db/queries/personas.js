@@ -36,6 +36,27 @@ export function getPersonaByWorldId(worldId) {
 }
 
 /**
+ * 解析某世界当前应使用的 persona_id：优先 worlds.active_persona_id，
+ * 回退到该世界最早创建的 persona（created_at, id 双重升序）。
+ * 世界无 persona 时返回 undefined（建默认 persona 的兜底逻辑留在 service 层）。
+ */
+export function getActivePersonaIdByWorldId(worldId) {
+  const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(worldId);
+  if (world?.active_persona_id) return world.active_persona_id;
+  const fallback = db.prepare(
+    'SELECT id FROM personas WHERE world_id = ? ORDER BY created_at ASC, id ASC LIMIT 1',
+  ).get(worldId);
+  return fallback?.id;
+}
+
+/**
+ * 统计某世界下的 persona 数量。
+ */
+export function countPersonasByWorldId(worldId) {
+  return db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(worldId).c;
+}
+
+/**
  * 根据 id 获取单条 persona。
  */
 export function getPersonaById(id) {
@@ -88,8 +109,7 @@ export function deletePersonaById(id) {
   const persona = db.prepare('SELECT * FROM personas WHERE id = ?').get(id);
   if (!persona) throw new Error('玩家卡不存在');
 
-  const count = db.prepare('SELECT COUNT(*) AS c FROM personas WHERE world_id = ?').get(persona.world_id);
-  if (count.c <= 1) throw new Error('至少需要保留一张玩家卡');
+  if (countPersonasByWorldId(persona.world_id) <= 1) throw new Error('至少需要保留一张玩家卡');
 
   const world = db.prepare('SELECT active_persona_id FROM worlds WHERE id = ?').get(persona.world_id);
   if (world?.active_persona_id === id) {

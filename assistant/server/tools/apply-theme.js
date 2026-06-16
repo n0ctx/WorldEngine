@@ -1,4 +1,5 @@
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { runApply } from './_apply-factory.js';
 
 export const definition = {
   name: 'apply_theme',
@@ -33,13 +34,15 @@ export async function execute(args) {
     changes: args.changes ?? {},
     explanation: args.explanation ?? '',
   };
-  const normalized = normalizeProposal(proposal);
-  const result = await applyProposal(normalized, null);
-  return {
-    success: true,
-    type: 'theme',
-    operation: args.operation,
-    entityId: result?.id ?? args.entityId ?? null,
-    summary: `${args.operation} 主题 ${args.entityId ?? args.changes?.name ?? ''}`,
-  };
+  return runApply(
+    () => normalizeProposal(proposal),
+    (normalized) => applyProposal(normalized, null),
+    (result) => ({
+      success: true,
+      type: 'theme',
+      operation: args.operation,
+      entityId: result?.id ?? args.entityId ?? null,
+      summary: `${args.operation} 主题 ${args.entityId ?? args.changes?.name ?? ''}`,
+    }),
+  );
 }
