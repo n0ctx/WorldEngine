@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { SortableList } from '../index';
+import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
@@ -145,7 +146,7 @@ function FieldRow({ field, isDiaryTime, onEdit, onDelete }) {
     <div
       className={`we-field-row group flex items-center gap-2 px-3 py-2 select-none${isDiaryTime ? '' : ' cursor-grab active:cursor-grabbing'}`}
     >
-      <span className={`text-[var(--we-color-text-secondary)] text-xs flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`}>⠿</span>
+      <DragHandle className={`flex-shrink-0${isDiaryTime ? ' opacity-0' : ' opacity-25 group-hover:opacity-50'}`} />
 
       <div className="flex-1 min-w-0 flex items-center gap-2">
         <span className="text-sm text-[var(--we-color-text-primary)] font-medium truncate">{field.label}</span>

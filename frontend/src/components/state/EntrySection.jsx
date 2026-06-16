@@ -2,6 +2,7 @@ import { useState } from 'react';
 import EntryEditor from './EntryEditor';
 import { deleteWorldEntry, reorderWorldEntries, updateWorldEntry } from '../../core/api/prompt-entries';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
+import DragHandle from '../ui/DragHandle.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { log } from '../../core/utils/logger.js';
 
@@ -100,7 +101,7 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
       style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
       renderItem={(entry) => (
         <div className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
-          <span className="we-entry-section-drag">⠿</span>
+          <span className="we-entry-section-drag"><DragHandle /></span>
           <div className="we-entry-section-main">
             <span className="we-entry-section-name">{entry.title}</span>
             {triggerType === 'always' && entry.token === 0 && entry.enabled !== 0 && (

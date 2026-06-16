@@ -275,6 +275,9 @@
     0 0 0 1px rgba(28, 28, 28, 0.06),
     0 4px 18px rgba(0, 0, 0, 0.1),
     0 16px 48px rgba(0, 0, 0, 0.08);
+  --we-shadow-toast:
+    0 0 0 1px var(--we-color-border-subtle),
+    0 4px 12px rgba(0, 0, 0, 0.1);
   --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
   --we-shadow-range-thumb: 0 1px 4px rgba(28, 28, 28, 0.18);
   --we-shadow-range-thumb-active:

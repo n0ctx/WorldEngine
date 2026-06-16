@@ -1863,26 +1863,6 @@
   background: var(--we-color-border-subtle);
 }
 
-/* 编辑态 textarea */
-.we-asst-entry__edit {
-  width: 100%;
-  resize: none;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-accent);
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-sm) var(--we-space-md);
-  font-family: var(--we-font-serif);
-  font-size: var(--we-text-sm);
-  line-height: 1.6;
-  color: var(--we-color-text-primary);
-  outline: none;
-}
-
-.we-asst-entry__edit:focus,
-.we-asst-entry__edit:focus-visible {
-  outline: none;
-}
-
 /* 空状态 */
 .we-asst-empty {
   flex: 1;
@@ -2006,26 +1986,6 @@
 .we-asst-bubble--user .we-asst-bubble__body a {
   color: var(--we-color-text-inverse);
   text-decoration-color: var(--we-color-text-inverse);
-}
-
-.we-asst-bubble__edit {
-  width: 100%;
-  min-height: 100%;
-  resize: none;
-  background: transparent;
-  border: 0;
-  padding: 0;
-  font-family: var(--we-font-serif);
-  font-size: var(--we-text-sm);
-  line-height: 1.6;
-  color: var(--we-color-text-inverse);
-  outline: none;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-.we-asst-bubble__edit:focus-visible {
-  outline: none;
 }
 
 .we-asst-bubble--editing {
@@ -2449,4 +2409,135 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 24ch;
+}
+
+/* === 自定义 CSS 片段管理（设置面板）=== */
+.we-css-snippet-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--we-space-md);
+}
+
+.we-css-snippet-list__title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  letter-spacing: var(--we-tracking-caps);
+  text-transform: uppercase;
+  color: var(--we-color-text-tertiary);
+}
+
+.we-css-snippet-empty {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  font-style: italic;
+  color: var(--we-color-text-tertiary);
+  text-align: center;
+  padding: var(--we-space-md) 0;
+}
+
+.we-css-snippet-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-css-snippet-row {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-border-default);
+  padding: var(--we-space-sm) var(--we-space-md);
+  cursor: grab;
+  user-select: none;
+  transition: border-color var(--we-duration-fast) ease;
+}
+
+.we-css-snippet-row:hover {
+  border-color: var(--we-color-text-tertiary);
+}
+
+.we-css-snippet-row__drag {
+  flex-shrink: 0;
+  color: var(--we-color-text-tertiary);
+  opacity: 0.5;
+}
+
+.we-css-snippet-row__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
+.we-css-snippet-row__name {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  font-weight: 500;
+  color: var(--we-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-css-snippet-row__preview {
+  font-family: var(--we-font-mono);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-css-snippet-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  flex-shrink: 0;
+}
+
+.we-css-snippet-row__toggle {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-xs);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  border: 1px solid var(--we-color-border-default);
+  color: var(--we-color-text-tertiary);
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--we-duration-fast) ease,
+              border-color var(--we-duration-fast) ease,
+              background var(--we-duration-fast) ease;
+}
+
+.we-css-snippet-row__toggle--on {
+  border-color: var(--we-color-accent);
+  color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
+}
+
+.we-css-snippet-row__action {
+  width: 24px;  /* design exact: icon-only 按钮触达区 */
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  transition: color var(--we-duration-fast) ease;
+}
+
+.we-css-snippet-row__action:hover {
+  color: var(--we-color-text-primary);
+}
+
+.we-css-snippet-row__action--danger:hover {
+  color: var(--we-color-accent);
+}
+
+.we-css-snippet-editor__textarea {
+  font-family: var(--we-font-mono);
 }

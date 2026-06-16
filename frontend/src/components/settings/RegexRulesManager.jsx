@@ -7,6 +7,7 @@ import {
   reorderRegexRules,
 } from '../../core/api/regex-rules.js';
 import { getWorlds } from '../../core/api/worlds.js';
+import DragHandle from '../ui/DragHandle.jsx';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
@@ -177,7 +178,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
 function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
   return (
     <div className="we-regex-rule-row">
-      <span className="we-regex-rule-drag">⠿</span>
+      <span className="we-regex-rule-drag"><DragHandle /></span>
 
       <div className="we-regex-rule-main">
         <span className={`we-regex-rule-name${rule.enabled ? '' : ' we-regex-rule-name--disabled'}`}>

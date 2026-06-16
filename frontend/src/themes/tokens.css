@@ -329,6 +329,10 @@
     0 0 0 1px var(--we-color-shadow-sm),
     0 4px 18px var(--we-color-shadow-md),
     0 16px 48px var(--we-color-shadow-md);
+  /* Toast 卡片：1px 描边 + 轻投影 */
+  --we-shadow-toast:
+    0 0 0 1px var(--we-color-border-subtle),
+    0 4px 12px var(--we-color-shadow-md);
   /* 按钮主色悬停内发光：.we-btn-primary:hover 内侧光晕，基于 avatar-placeholder 色 */
   --we-shadow-btn-primary-inner-glow:
     inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);

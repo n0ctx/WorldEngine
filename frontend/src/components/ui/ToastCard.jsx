@@ -42,7 +42,7 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       {...motionProps}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5 bg-[var(--we-color-bg-canvas)] shadow-[0_0_0_1px_var(--we-color-border-subtle),0_4px_12px_rgba(0,0,0,0.08)] border-l-4 border-l-[var(--toast-color)]"
+      className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5 bg-[var(--we-color-bg-canvas)] shadow-[var(--we-shadow-toast)] border-l-4 border-l-[var(--toast-color)]"
       style={{ '--toast-color': meta.color }}
     >
       <div className="flex items-start gap-2">

@@ -10,6 +10,8 @@ import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
 import ConfirmModal from '../ui/ConfirmModal';
 import DialogShell from '../ui/DialogShell';
+import Icon from '../ui/Icon';
+import DragHandle from '../ui/DragHandle.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
 
@@ -108,27 +110,21 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
         </details>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <span style={{ fontFamily: 'var(--we-font-display)', fontSize: '11px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--we-color-text-tertiary)' }}>
-          自定义 CSS 片段
-        </span>
+      <div className="we-css-snippet-list__header">
+        <span className="we-css-snippet-list__title">自定义 CSS 片段</span>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => { setEditingSnippet(null); setShowEditor(true); }}
         >
-          + 添加
+          添加
         </Button>
       </div>
 
       {loading ? (
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-text-tertiary)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
-          加载中…
-        </p>
+        <p className="we-css-snippet-empty">加载中…</p>
       ) : snippets.length === 0 ? (
-        <p style={{ fontFamily: 'var(--we-font-serif)', fontSize: '13px', color: 'var(--we-color-text-tertiary)', fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
-          暂无 CSS 片段
-        </p>
+        <p className="we-css-snippet-empty">暂无 CSS 片段</p>
       ) : (
         <SortableList
           items={snippets}
@@ -142,8 +138,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
               onDelete={() => setDeletingId(s.id)}
             />
           )}
-          style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}
-          className=""
+          className="we-css-snippet-list"
         />
       )}
 
@@ -171,78 +166,49 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
 
 function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
   return (
-    <div
-      className="group"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        background: 'var(--we-color-bg-surface)',
-        border: '1px solid var(--we-color-border-default)',
-        padding: '8px 12px',
-        cursor: 'grab',
-        userSelect: 'none',
-        transition: 'border-color 0.15s',
-      }}
-      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--we-color-text-tertiary)'}
-      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--we-color-border-default)'}
-    >
-      <span style={{ color: 'var(--we-color-text-tertiary)', fontSize: '12px', flexShrink: 0, opacity: 0.5 }}>⠿</span>
+    <div className="we-css-snippet-row">
+      <span className="we-css-snippet-row__drag"><DragHandle /></span>
 
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontFamily: 'var(--we-font-serif)', fontSize: '14px', color: 'var(--we-color-text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {snippet.name}
-        </span>
+      <div className="we-css-snippet-row__main">
+        <span className="we-css-snippet-row__name">{snippet.name}</span>
         {snippet.content && (
-          <span style={{ fontFamily: 'Courier New, monospace', fontSize: '11px', color: 'var(--we-color-text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className="we-css-snippet-row__preview">
             {snippet.content.trim().slice(0, 40)}{snippet.content.trim().length > 40 ? '…' : ''}
           </span>
         )}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+      <div className="we-css-snippet-row__actions">
         <button
+          type="button"
           onClick={onToggle}
           title={snippet.enabled ? '点击禁用' : '点击启用'}
-          style={{
-            fontFamily: 'var(--we-font-serif)',
-            fontSize: '11px',
-            padding: '2px 8px',
-            border: `1px solid ${snippet.enabled ? 'var(--we-color-accent)' : 'var(--we-color-border-default)'}`,
-            color: snippet.enabled ? 'var(--we-color-accent)' : 'var(--we-color-text-tertiary)',
-            background: snippet.enabled ? 'var(--we-color-accent-bg)' : 'transparent',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
-          }}
+          className={`we-css-snippet-row__toggle${snippet.enabled ? ' we-css-snippet-row__toggle--on' : ''}`}
         >
           {snippet.enabled ? '启用' : '禁用'}
         </button>
         <button
+          type="button"
           onClick={onEdit}
-          title="编辑"
-          style={{
-            width: '24px', height: '24px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', border: 'none',
-            color: 'var(--we-color-text-tertiary)', cursor: 'pointer', fontSize: '12px',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-color-text-primary)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-color-text-tertiary)'}
-        >✎</button>
+          aria-label="编辑"
+          className="we-css-snippet-row__action"
+        >
+          <Icon aria-label="编辑">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </Icon>
+        </button>
         <button
+          type="button"
           onClick={onDelete}
-          title="删除"
-          style={{
-            width: '24px', height: '24px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', border: 'none',
-            color: 'var(--we-color-text-tertiary)', cursor: 'pointer', fontSize: '12px',
-            transition: 'color 0.15s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--we-color-accent)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--we-color-text-tertiary)'}
-        >✕</button>
+          aria-label="删除"
+          className="we-css-snippet-row__action we-css-snippet-row__action--danger"
+        >
+          <Icon aria-label="删除">
+            <path d="M18 6 6 18" />
+            <path d="M6 6l12 12" />
+          </Icon>
+        </button>
       </div>
     </div>
   );
@@ -292,7 +258,7 @@ function SnippetEditor({ snippet, onSave, onClose }) {
               onChange={(e) => setContent(e.target.value)}
               placeholder=".message-bubble { background: #fff; }"
               spellCheck={false}
-              style={{ fontFamily: 'Courier New, monospace' }}
+              className="we-css-snippet-editor__textarea"
             />
           </div>
         </div>

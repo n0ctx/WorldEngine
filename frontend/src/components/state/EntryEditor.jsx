@@ -287,12 +287,12 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
         </div>
         {form.trigger_type === 'always' && form.token === 0 && (
           <div className="we-entry-editor-cached-note we-entry-editor-field-mb">
-            ✦ 此条目将进入 CACHED LAYER，每轮稳定注入，作为 prompt cache 的一部分。
+            此条目将进入 CACHED LAYER，每轮稳定注入，作为 prompt cache 的一部分。
           </div>
         )}
         {form.trigger_type === 'keyword' && form.active_turns === 0 && (
           <div className="we-entry-editor-cached-note we-entry-editor-field-mb">
-            ✦ 此条目一旦命中将永久生效，不再随轮次衰减。
+            此条目一旦命中将永久生效，不再随轮次衰减。
           </div>
         )}
         {!(

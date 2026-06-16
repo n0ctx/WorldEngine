@@ -96,6 +96,9 @@
   --we-card-radius: var(--we-radius-sm);
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-card-shadow);
+  /* 列表型窄长条卡（PersonaCard / CharacterCard 等）：默认沿用 card 投影，可单独收紧 */
+  --we-list-card-shadow: var(--we-card-shadow);
+  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
@@ -214,6 +217,9 @@
     0 0 0 1px rgba(23, 23, 23, 0.08),
     0 4px 18px rgba(23, 23, 23, 0.14),
     0 16px 48px rgba(23, 23, 23, 0.14);
+  --we-shadow-toast:
+    0 0 0 1px #ffffff,
+    0 4px 12px rgba(23, 23, 23, 0.14);
   --we-shadow-btn-primary-inner-glow: none;
   --we-shadow-range-thumb: 0 1px 4px rgba(23, 23, 23, 0.18);
   --we-shadow-range-thumb-active:

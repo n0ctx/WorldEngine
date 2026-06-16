@@ -200,6 +200,8 @@
     0 0 0 1px rgba(162, 59, 46, 0.32),
     0 4px 8px rgba(28, 16, 6, 0.28),
     0 22px 44px rgba(0, 0, 0, 0.34);
+  --we-list-card-shadow: var(--we-card-shadow);
+  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
@@ -243,6 +245,9 @@
     0 0 0 1px rgba(42, 31, 23, 0.12),
     0 4px 18px rgba(42, 31, 23, 0.18),
     0 16px 48px rgba(42, 31, 23, 0.20);
+  --we-shadow-toast:
+    0 0 0 1px var(--we-color-border-subtle),
+    0 4px 12px rgba(42, 31, 23, 0.18);
   --we-shadow-btn-primary-inner-glow: inset 0 0 12px color-mix(in srgb, var(--we-color-avatar-placeholder) 8%, transparent);
   --we-shadow-range-thumb: 0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
   --we-shadow-range-thumb-active:

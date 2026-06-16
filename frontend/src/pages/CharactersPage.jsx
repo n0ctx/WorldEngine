@@ -16,6 +16,7 @@ import {
 } from '../core/api/personas';
 import { listWorldEntries, updateWorldEntry } from '../core/api/prompt-entries';
 import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
+import DragHandle from '../components/ui/DragHandle.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { log } from '../core/utils/logger.js';
 
@@ -152,7 +153,7 @@ function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, o
       style={isActive ? undefined : { cursor: 'not-allowed' }}
     >
       <div className="we-character-card-body">
-        {dragHandleProps && <span className="we-char-drag" {...dragHandleProps}>⠿</span>}
+        {dragHandleProps && <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>}
         <AvatarCircle
           id={persona.id}
           name={persona.name}
@@ -228,7 +229,7 @@ function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete })
       onClick={clickProps.onClick}
     >
       <div className="we-character-card-body">
-        <span className="we-char-drag" {...dragHandleProps}>⠿</span>
+        <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>
         <AvatarCircle
           id={char.id}
           name={char.name}
