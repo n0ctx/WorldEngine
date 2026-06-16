@@ -17,6 +17,7 @@ import { createLogger, formatMeta, previewText, summarizeMessages } from '../../
 import * as planDoc from './plan-doc.js';
 import * as taskStore from './task-store.js';
 import { loadWithCache } from './knowledge-cache.js';
+import { stripThinkBlocks } from './strip-think.js';
 import { SSE_EVENTS } from './sse-events.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import * as listResources from './tools/list-resources.js';
@@ -603,13 +604,6 @@ function buildProviderErrorRecoveryMessage(err) {
 // task.error 上的标记：让客户端识别"harness 软失败暂停"，避免对其自动 resume。
 export const HARNESS_RECOVERABLE_PAUSE_REASON = 'harness recoverable pause';
 
-// 清洗子代理回报里残留的 <think>...</think> 块（sub-agent.js 的截断策略偶尔会漏过）。
-function stripThinkBlocks(text) {
-  return String(text ?? '')
-    .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '')
-    .trim();
-}
-
 export async function runParentAgent(task, userInput, opts = {}) {
   if (!task) throw new Error('runParentAgent: task is required');
 
@@ -695,11 +689,15 @@ export async function runParentAgent(task, userInput, opts = {}) {
       input: previewText(modelUserInput, { limit: 120 }),
     })}`);
 
+    const usageRef = {};
     const finalText = await llm.completeWithTools(modelPayload.messages, toolRegistry, {
       temperature: 0.3,
       thinking_level: null,
       configScope,
       cacheableSystem: systemPrompt,
+      // usageRef 让父代理这条（含整段工具循环）的 token / cache 命中可见，进 COMPLETE_TOOLS DONE 日志。
+      usageRef,
+      callType: 'assistant-parent',
     });
     if (task.status === 'cancelled') {
       emitFn({ type: SSE_EVENTS.DONE, done: true });

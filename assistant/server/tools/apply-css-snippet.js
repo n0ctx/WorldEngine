@@ -7,8 +7,16 @@ export const definition = {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update', 'delete'] },
-      entityId: { type: ['string', 'null'] },
-      changes: { type: 'object' },
+      entityId: { type: ['string', 'null'], description: 'update/delete 必填' },
+      changes: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          content: { type: 'string', description: 'CSS 文本' },
+          mode: { description: "chat / writing，默认 chat（非法值回退 chat）" },
+          enabled: { type: 'boolean' },
+        },
+      },
       explanation: { type: 'string' },
     },
     required: ['operation'],

@@ -25,6 +25,7 @@ import { createLogger, formatMeta, previewText } from '../../backend/utils/logge
 import * as taskStore from './task-store.js';
 import { toLLMTool, wrapToolEvents } from './tools/adapter.js';
 import { loadWithCache } from './knowledge-cache.js';
+import { stripThinkBlocks } from './strip-think.js';
 import * as applyWorldCard from './tools/apply-world-card.js';
 import * as applyCharacterCard from './tools/apply-character-card.js';
 import * as applyPersonaCard from './tools/apply-persona-card.js';
@@ -59,6 +60,17 @@ const KNOWLEDGE_BY_TYPE = {
   'theme': 'THEME.md',
 };
 
+// 状态值写法 cheatsheet（value_json 各 type 的精确格式）随这两类卡一并注入子代理 system。
+// 这两类卡的状态值若走纯 task 字符串路径（父代理没传结构化 stateValues），子代理就拿不到
+// dispatch 工具层生成的"已校验 stateValueOps"块，只能凭知识手写 value_json——cheatsheet 是它的救生圈。
+// 仅 605 字，进 cacheableSystem 可缓存，成本极低。
+const STATE_VALUE_KNOWLEDGE_TYPES = new Set(['persona-card', 'character-card']);
+const STATEVALUE_CHEATSHEET_FILE = 'STATEVALUE-CHEATSHEET.md';
+
+// 子代理工具循环上限：一次只落地一个资源（preview → read → apply），正常 < 8 轮。
+// 不用父代理/全局的 25 轮——卡死的子代理在 25 轮里会持续累积重发历史空烧 token。
+const SUBAGENT_MAX_TOOL_ITERATIONS = 8;
+
 const PROMPT_PATH = path.resolve(__dirname, '../prompts/sub-agent.md');
 const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
 
@@ -66,15 +78,15 @@ const KNOWLEDGE_DIR = path.resolve(__dirname, '../knowledge');
 // - 命中错误关键词（失败 / 不存在 / 字段缺失 / 校验 等）→ 不截断，原样回传给父代理，避免修复建议被切掉
 // - 否则提高上限到 1500 字符（旧值 400 太紧，会丢失多步骤报告的尾部）
 const ERROR_KEYWORDS_RE = /(error|失败|错误|不存在|未找到|缺失|无法|拒绝|invalid|forbidden|conflict|未通过|校验|冲突)/i;
+// 错误分支也设一个高一点的硬上限：避免未闭合 think 块或失控长文整段回传父代理撑爆 token。
+const ERROR_TEXT_HARD_LIMIT = 4000;
 
 export function summarizeSubagentText(raw) {
-  const text = String(raw ?? '').trim();
-  // 剥除 <think>...</think> 块，避免模型内部推理污染回传给父代理的摘要和错误文案
-  const stripped = text
-    .replace(/<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi, '')
+  // 统一 think 清洗（含未闭合块兜底），再压缩多余空行
+  const stripped = stripThinkBlocks(raw)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  if (ERROR_KEYWORDS_RE.test(stripped)) return stripped;
+  if (ERROR_KEYWORDS_RE.test(stripped)) return stripped.slice(0, ERROR_TEXT_HARD_LIMIT);
   return stripped.slice(0, 1500);
 }
 
@@ -159,7 +171,11 @@ export async function dispatchSubAgent({
   const worldRefId = context?.worldId ?? null;
 
   const [basePrompt, knowledge] = await Promise.all([loadPrompt(), loadKnowledge(targetType)]);
-  const systemPrompt = `${basePrompt}\n\n---\n\n# 知识：${targetType}\n\n${knowledge}`;
+  let systemPrompt = `${basePrompt}\n\n---\n\n# 知识：${targetType}\n\n${knowledge}`;
+  if (STATE_VALUE_KNOWLEDGE_TYPES.has(targetType)) {
+    const cheatsheet = await loadWithCache(path.join(KNOWLEDGE_DIR, STATEVALUE_CHEATSHEET_FILE)).catch(() => '');
+    if (cheatsheet) systemPrompt += `\n\n---\n\n# 状态值写法 cheatsheet（写 value_json 必读）\n\n${cheatsheet}`;
+  }
 
   const previewTool = createPreviewCardTool({
     worldId: context?.worldId ?? null,
@@ -171,6 +187,10 @@ export async function dispatchSubAgent({
   const wrapOpts = cancelCheck ? { cancelCheck } : undefined;
   let applySuccessCount = 0;
   let lastApplyError = null;
+  // create 幂等：completeWithTools 的重试在整段工具循环外层，重试会从第 0 轮重放，
+  // 复用同一 handlers 闭包 → 已成功的 create 会被再次执行（重复建卡）。
+  // 一次 dispatch 只落地一个资源，故记住首个成功 create 的结果，重放时直接返回不再建。
+  let firstCreateResult = null;
   let previewedThisRun = false;
   // preview 缓存 key：task 内同实体的多步 update 共享，避免每步都重新拉一次 preview。
   // 没有 taskId / entityId 时回退到 run 内 flag。
@@ -200,6 +220,10 @@ export async function dispatchSubAgent({
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(apply, async (args) => {
       const op = args.operation ?? operation;
+      // 重试重放保护：本次 dispatch 已成功 create 过，直接复用结果，不重复建卡。
+      if (op === 'create' && firstCreateResult) {
+        return firstCreateResult;
+      }
       if ((op === 'update' || op === 'delete') && !previewedThisRun) {
         // 闸门:update / delete 必须先 preview_card 拉现状,否则极易写错字段 / ID
         const hint = `请先调用 preview_card(target="${targetType}", operation="${op}"`
@@ -212,6 +236,7 @@ export async function dispatchSubAgent({
         const res = await apply.execute(args, { worldRefId });
         if (res?.success !== false) {
           applySuccessCount += 1;
+          if (op === 'create' && !firstCreateResult) firstCreateResult = res;
           if (onApplied) {
             try {
               onApplied({
@@ -260,12 +285,17 @@ export async function dispatchSubAgent({
     task: previewText(task, { limit: 120 }),
   })}`);
 
+  const usageRef = {};
   try {
     const raw = await llm.completeWithTools(messages, tools, {
       temperature: 0.3,
       thinking_level: null,
       configScope,
       cacheableSystem: systemPrompt,
+      usageRef,
+      callType: 'assistant-subagent',
+      // 子代理一次只落地一个资源，多数 < 8 轮；不用父代理/全局的 25 轮，避免卡死时空烧 token。
+      maxIterations: SUBAGENT_MAX_TOOL_ITERATIONS,
     });
     const summary = summarizeSubagentText(raw);
     if (applySuccessCount === 0) {
@@ -277,7 +307,15 @@ export async function dispatchSubAgent({
           : `子代理未成功调用 ${apply.definition.name}（apply 工具一次都没执行成功）；模型自述：${summary || '(空)'}`,
       };
     }
-    log.info(`DONE  ${formatMeta({ runId, stepId, targetType, applyCount: applySuccessCount, chars: summary.length })}`);
+    log.info(`DONE  ${formatMeta({
+      runId, stepId, targetType,
+      applyCount: applySuccessCount,
+      chars: summary.length,
+      promptTokens: usageRef.prompt_tokens,
+      completionTokens: usageRef.completion_tokens,
+      cacheReadTokens: usageRef.cache_read_tokens,
+      cacheCreationTokens: usageRef.cache_creation_tokens,
+    })}`);
     return { success: true, summary };
   } catch (err) {
     log.error(`FAIL  ${formatMeta({ runId, stepId, targetType, error: err.message })}`);

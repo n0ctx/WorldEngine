@@ -48,6 +48,37 @@ function toAnthropicTools(toolDefs) {
   }));
 }
 
+// 工具循环内：把当前轮的原始 usage 累加进 usageRef，让多轮工具循环的开销可见、可对账。
+// recordTokenUsage 是"覆盖"语义（单请求快照），工具循环需要"跨轮累加"，故单独累加。
+function accumulateUsageRef(usageRef, usage) {
+  if (!usageRef || !usage) return;
+  const add = (key, value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      usageRef[key] = (Number.isFinite(usageRef[key]) ? usageRef[key] : 0) + value;
+    }
+  };
+  add('prompt_tokens', usage.input_tokens);
+  add('completion_tokens', usage.output_tokens);
+  add('cache_creation_tokens', usage.cache_creation_input_tokens);
+  add('cache_read_tokens', usage.cache_read_input_tokens);
+}
+
+// 在最近一条消息的末尾内容块上打 ephemeral cache 断点。
+// 配合 system 上已有的断点，让"system + 已稳定历史"前缀跨工具循环轮次命中 prompt cache；
+// 每轮都标记新尾部，断点间隔约 1-2 块，天然落在 Anthropic 20-block 回看窗口内。
+// content 既可能是 string 也可能是 block 数组（如 tool_result），两种都处理。
+function markLastMessageCacheable(messages) {
+  if (!Array.isArray(messages) || messages.length === 0) return;
+  const last = messages[messages.length - 1];
+  if (!last || typeof last !== 'object') return;
+  if (typeof last.content === 'string') {
+    last.content = [{ type: 'text', text: last.content, cache_control: { type: 'ephemeral' } }];
+  } else if (Array.isArray(last.content) && last.content.length > 0) {
+    const block = last.content[last.content.length - 1];
+    if (block && typeof block === 'object') block.cache_control = { type: 'ephemeral' };
+  }
+}
+
 export async function* streamAnthropic(messages, config) {
   log.debug('provider.request', formatMeta({ provider: 'anthropic', model: config.model, msgs: messages.length, mode: 'stream' }));
   const baseUrl = getBaseUrl(config);
@@ -215,6 +246,8 @@ const anthropicToolLoopProvider = {
     };
 
     const { system, messages: anthropicMsgs } = convertToAnthropicMessages(state.messages);
+    // 累积工具循环历史每轮都重发，给最近一条消息打 ephemeral 断点，让前缀跨轮命中 prompt cache。
+    markLastMessageCacheable(anthropicMsgs);
     const body = {
       model: config.model,
       messages: anthropicMsgs,
@@ -235,7 +268,10 @@ const anthropicToolLoopProvider = {
     }
 
     const data = await resp.json();
-    if (data.usage) logUsage(config.model, data.usage);
+    if (data.usage) {
+      logUsage(config.model, data.usage);
+      if (config.usageRef) accumulateUsageRef(config.usageRef, data.usage);
+    }
     const content = data.content || [];
     const toolUseBlocks = content.filter((b) => b.type === 'tool_use');
     const textContent = content.filter((b) => b.type === 'text').map((b) => b.text).join('');
@@ -287,5 +323,7 @@ export async function completeAnthropicWithTools(messages, toolDefs, toolHandler
     toolHandlers,
     config,
     completeResultMode: config.toolResultMode ?? 'text',
+    // 调用方可按场景收紧轮数（如子代理单步落库任务 < 8 轮），未传时走全局默认 25。
+    ...(Number.isInteger(config.maxIterations) ? { maxIterations: config.maxIterations } : {}),
   });
 }

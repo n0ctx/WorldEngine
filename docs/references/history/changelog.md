@@ -2,6 +2,10 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **feat(assistant/tools): apply_* 精确化 input_schema（strict-ish 引导）** — 新增 apply-schemas.js（entryOps/stateFieldOps/stateValueOps 片段）；7 个 apply 工具补全 changes/Ops 嵌套结构；仅对 normalize 会 throw 的字段加 enum/required（operation/op/target/type、stateValueOps 三键 + value_json 可空字符串），coerce 字段只描述不收紧；不用 additionalProperties:false / 不依赖 provider strict / 不用 oneOf 等易 400 关键字；新增 apply-schemas 守卫测试 7 例。
+- **fix(assistant+llm): 写卡 harness 优化（缓存/token/稳定性）** — anthropic 工具循环 oneTurn 给最近消息打 ephemeral cache 断点+累加 usageRef（跨轮命中 prompt cache、token 可见）；子代理收紧 maxIterations=8、create 闭包幂等防重试重放重复建卡、persona/character 注入 STATEVALUE-CHEATSHEET、统一 strip-think（含未闭合块兜底）；normalize-proposal create 分支非 create 子 op 改 throw、非法 update_mode 不再落 undefined；runtime stateValueOps header 与 sub-agent.md 对齐。
+- **fix(assistant/client): 修流式渲染性能（persist/重渲/解析）** — useAssistantStore.js 改自定义 storage 在 status==='running' 时跳过写盘（流式期间不 stringify messages，终态写一次，刷新仍可恢复历史）；MessageList.jsx 给 UserEntry/AssistantEntry/ToolEntry 包 memo（按 msg 引用比较，非流式历史条目跳过重渲）+ AssistantEntry 解析按 content useMemo。
+- **docs(assistant/knowledge): CONTRACT 瘦身 + WORLDCARD 补 number 边界** — CONTRACT.md 将与 parent-agent.md 重复的计划/执行细则与 Proposal 顶层 schema 表收敛为指路+安全红线（每轮省约 1500 字，保留禁谎报/高风险须审批等约束）；WORLDCARD.md 正向补 number 类型 `min_value`/`max_value` 边界（越界裁剪+进度条）。
 - **fix(prompt/suggestion): 选项改四取向强制发散** — 三个 suggestion 模板改为四条分属正向进取/阴暗恶意/自毁沉沦/失误非理性四取向，各一条强制最大反差；自毁须主动选择、失误须自然不露破绽、四条对象与动词基调不得雷同；分组仅内部用不外露标签。
 - **fix(prompt/suggestion): 选项改玩法风格池替代道德四路线** — 三个 suggestion 模板删除善良/邪恶/人性/堕落固定四路线，改为从非穷尽玩法风格池挑反差最大的 4 种；不预设道德平衡、不贴善恶标签、混入非理性选项、不暗示剧情走向/对错；去掉续写与兜底末尾“暗示改变剧情”的越权措辞。
 - **fix(prompt/suggestion): 选项第一视角禁止主语** — 三个 suggestion 模板统一改为 {{user}} 第一人称第一视角、禁止任何主语、格式“对话+动作 / 动作+对话”。

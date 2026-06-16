@@ -268,6 +268,13 @@ export const useAssistantStore = create(
     }),
     {
       name: 'we-assistant-v2',
+      // 流式期间不写盘：每个 DELTA 帧都会触发一次 partialize + JSON.stringify(messages)，
+      // 累积文本越长每帧成本越高（O(n²)）。这里提供自定义 PersistStorage，在 status==='running'
+      // 时于 stringify 之前直接 early-return，跳过整条写盘链；任务进入任意终态/暂停/idle
+      // （completed/failed/cancelled/paused/idle/awaiting_approval）时才落盘一次。
+      // 注意：必须早退而非在 partialize 里省略 messages —— 后者每帧仍会用不含 messages 的
+      // 整体 blob 覆盖 localStorage，导致流式中刷新丢失全部历史。
+      storage: createSkipWhileRunningStorage(),
       // 持久化面板偏好 + 最小恢复态；真正任务真相源仍以后端 task snapshot 为准。
       partialize: (s) => ({
         isOpen: s.isOpen,
@@ -288,6 +295,39 @@ export const useAssistantStore = create(
     },
   ),
 );
+
+// 自定义持久化存储：流式（status==='running'）期间跳过 setItem，避免每个 DELTA 帧
+// 同步 JSON.stringify 整个 messages 写 localStorage。zustand 在 stringify 之前调用本
+// setItem(name, value)，其中 value 为 { state, version }，因此可在序列化之后、写盘之前
+// 读 value.state.status 决定是否落盘。读/删保持原生行为。
+function createSkipWhileRunningStorage() {
+  return {
+    getItem: (name) => {
+      try {
+        const str = globalThis.localStorage?.getItem(name);
+        return str ? JSON.parse(str) : null;
+      } catch {
+        return null;
+      }
+    },
+    setItem: (name, value) => {
+      // 流式期间不写盘：直接早退，保留上一次终态写入的历史不被覆盖
+      if (value?.state?.status === 'running') return;
+      try {
+        globalThis.localStorage?.setItem(name, JSON.stringify(value));
+      } catch {
+        // 静默失败：localStorage 不可用（隐私模式 / 配额满）
+      }
+    },
+    removeItem: (name) => {
+      try {
+        globalThis.localStorage?.removeItem(name);
+      } catch {
+        // 静默失败
+      }
+    },
+  };
+}
 
 function cryptoRandomId() {
   try {

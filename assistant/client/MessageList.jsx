@@ -13,7 +13,7 @@
  *   - 删除两段确认（首次"确认？"，2 秒内再次点击才真正删除）
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
@@ -192,7 +192,16 @@ function ErrorDot() {
   return <span className="we-asst-entry__dot we-asst-entry__dot--error" aria-label="失败" />;
 }
 
-function UserEntry({ msg, onEdit, onDelete }) {
+// 比较器基于 msg 对象引用：store 以不可变 .map/.slice 更新 messages，未改动的条目保留
+// 同一引用，仅被改写的条目会得到新对象；onEdit/onDelete/onRegenerate 均为父级 useCallback
+// 稳定引用。因此 prev.msg === next.msg 即可让非流式历史条目跳过重渲，同时让每帧产生新对象
+// 的流式 assistant 条目正常重渲。比 (id+content+status+streaming) 字段表更稳：ToolEntry
+// 还依赖 title/subtitle，字段表会漏掉 STEP_STARTED 改 title 而 status 不变的更新。
+function sameMsg(prev, next) {
+  return prev.msg === next.msg;
+}
+
+function UserEntryImpl({ msg, onEdit, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
@@ -262,10 +271,17 @@ function UserEntry({ msg, onEdit, onDelete }) {
   );
 }
 
-function AssistantEntry({ msg, onRegenerate, onDelete }) {
-  const blocks = msg.streaming && !msg.content
-    ? null
-    : parseStreamingBlocks(msg.content || '');
+const UserEntry = memo(UserEntryImpl, sameMsg);
+
+function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
+  // 对解析结果按 content（及 streaming 占位态）做 useMemo：避免同一条 assistant 在
+  // 无关重渲（如父级状态变化）时重复跑 stripToolCallLeakage + parseStreamingBlocks。
+  // 注意：流式条目本身每帧 content 变化仍会重算（这是其语义），真正消除"每帧全列表重解析"
+  // 的是 sameMsg memo 让非流式历史条目整体跳过。
+  const blocks = useMemo(
+    () => (msg.streaming && !msg.content ? null : parseStreamingBlocks(msg.content || '')),
+    [msg.streaming, msg.content],
+  );
   const hasActions = !msg.streaming && msg.id && (onRegenerate || onDelete);
   const showActions = !msg.streaming && msg.content && (msg.id || true);
   return (
@@ -311,7 +327,9 @@ function AssistantEntry({ msg, onRegenerate, onDelete }) {
   );
 }
 
-function ToolEntry({ msg }) {
+const AssistantEntry = memo(AssistantEntryImpl, sameMsg);
+
+function ToolEntryImpl({ msg }) {
   const isStep = msg.role === 'step';
   const title = isStep
     ? (msg.title ?? msg.stepId)
@@ -342,6 +360,8 @@ function ToolEntry({ msg }) {
     </div>
   );
 }
+
+const ToolEntry = memo(ToolEntryImpl, sameMsg);
 
 function ErrorEntry({ msg }) {
   return (

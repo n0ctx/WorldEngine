@@ -414,10 +414,13 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
             return { success: false, failureKind: 'precheck', error: `stateValues 校验失败：${resolverResult.error}` };
           }
           // 紧凑 JSON：sub-agent 是机器消费方，pretty-print 只浪费 token。契约见 sub-agent.md
+          // header 必须与 sub-agent.md §「收到『已校验的 stateValueOps』块」里告知模型查找的措辞逐字一致，
+          // 否则模型按文档找带 # 的标题段会匹配失败，削弱"原样提交、勿改"的约束力。
           const augmentedTask = [
             String(resolved.task ?? '').trim(),
             '',
-            '已校验 stateValueOps（原样作为 apply 的 stateValueOps 提交，勿改）：',
+            '# 已校验的 stateValueOps（由 dispatch_subagent 工具层从 world schema 解析）',
+            '原样作为 apply 的 stateValueOps 提交，勿改：',
             '```json',
             JSON.stringify(resolverResult.stateValueOps),
             '```',

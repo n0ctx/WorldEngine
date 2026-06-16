@@ -1,5 +1,6 @@
 // assistant/server/tools/apply-character-card.js
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { stateValueOpsSchema } from './apply-schemas.js';
 
 export const definition = {
   name: 'apply_character_card',
@@ -8,9 +9,20 @@ export const definition = {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update', 'delete'] },
-      entityId: { type: ['string', 'null'] },
-      changes: { type: 'object', description: 'create 时可额外包含 world_id 指定目标世界（优先于 entityId）' },
-      stateValueOps: { type: 'array' },
+      entityId: { type: ['string', 'null'], description: 'create=目标 worldId；update/delete=characterId' },
+      changes: {
+        type: 'object',
+        description: 'create 时可额外包含 world_id 指定目标世界（优先于 entityId）',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          system_prompt: { type: 'string' },
+          post_prompt: { type: 'string' },
+          first_message: { type: 'string' },
+          world_id: { type: 'string', description: 'create 时可选：目标世界 ID' },
+        },
+      },
+      stateValueOps: stateValueOpsSchema(['character']),
       explanation: { type: 'string' },
     },
     required: ['operation'],

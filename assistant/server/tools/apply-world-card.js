@@ -1,5 +1,6 @@
 // assistant/server/tools/apply-world-card.js
 import { normalizeProposal, applyProposal } from '../normalize-proposal.js';
+import { entryOpsSchema, stateFieldOpsSchema } from './apply-schemas.js';
 
 export const definition = {
   name: 'apply_world_card',
@@ -8,10 +9,19 @@ export const definition = {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update', 'delete'] },
-      entityId: { type: ['string', 'null'] },
-      changes: { type: 'object' },
-      entryOps: { type: 'array' },
-      stateFieldOps: { type: 'array' },
+      entityId: { type: ['string', 'null'], description: 'update/delete 必填：目标 worldId；create 留空' },
+      changes: {
+        type: 'object',
+        description: '世界卡基础字段',
+        properties: {
+          name: { type: 'string' },
+          description: { type: 'string' },
+          temperature: { type: 'number' },
+          max_tokens: { type: 'number' },
+        },
+      },
+      entryOps: entryOpsSchema,
+      stateFieldOps: stateFieldOpsSchema,
       explanation: { type: 'string' },
     },
     required: ['operation'],

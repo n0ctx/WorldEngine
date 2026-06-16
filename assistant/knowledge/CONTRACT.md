@@ -29,19 +29,9 @@
 - 受约束字段：`content`、`system_prompt`、`post_prompt`、`first_message`、`update_instruction`
 - 不受约束字段（保持原样）：`name`、`label`、`field_key`、`enum_options`、schema 标识符
 
-## Proposal 顶层 Schema 总览
+## Proposal 路由
 
-| type | create | update | delete |
-|---|---|---|---|
-| `world-card` | `{entityId:null, changes, entryOps, stateFieldOps}` | `{entityId, changes?, entryOps?, stateFieldOps?}` | `{entityId}` |
-| `character-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId, changes?, stateValueOps?}` | `{entityId}` |
-| `persona-card` | `{entityId:worldId, changes, stateValueOps}` | `{entityId:worldId, personaId?, changes?, stateValueOps?}` | — |
-| `global-config` | — | `{changes}` | — |
-| `css-snippet` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
-| `regex-rule` | `{changes}` | `{entityId, changes?}` | `{entityId}` |
-| `theme` | `{entityId, changes}` | `{entityId, changes?}` | `{entityId}` |
-
-每个顶层都带 `explanation`（简体中文，50 字以内）。`entryOps` 仅 world-card；`stateFieldOps` 仅 world-card；`stateValueOps` 仅 character/persona。
+父代理不直接产出 proposal（无 apply 工具），落地交子代理。各 type 的顶层 schema 形状随子代理按需注入对应 *CARD.md（见 §知识库指路），父代理只需按用户意图选对 targetType 并拆步派发。安全口径：`entryOps` / `stateFieldOps` 仅 world-card；`stateValueOps` 仅 character/persona。
 
 ## API 关键禁止字段
 
@@ -68,36 +58,10 @@
 
 ## 任务流程契约
 
-### 计划文档（plan mode 专属）
+计划/执行的操作细则（何时写 plan、step 拆分与依赖、状态值分组、dispatch 纪律、暂停/恢复语义）真源在 `assistant/prompts/parent-agent.md`，本文件不复述。下面只列不可违反的安全红线：
 
-- 真源：`assistant_tasks.plan_doc_content`
-- 格式：Markdown，步骤行 `- [ ] **step-N** <标题>（<targetType>.<operation>）`
-- 派发规则：找第一个 `[ ]` 且依赖均已 `[x]` 的步骤，调 `dispatch_subagent`
-- 收尾：需要清理计划文档时，先调 `delete_plan_doc`；最终答复统一通过 `reply_to_user` 收尾
-
-### 资源依赖约束
-
-- `character-card create` / `persona-card create` 必须指定世界来源（`context.worldId`、`step:<stepId>`、显式 `entityId` 或 `changes.world_id`；**支持跨世界创建**）
-- `update` / `delete` 步骤必须带可解析的 entityRef
-- 删除/清空/覆盖类步骤必须显式标记为高风险
-
-### entityRef 取值
-
-- `null`
-- `context.worldId` / `context.characterId`
-- `step:<stepId>`（引用前序步骤 create 出的实体 ID）
-
-## 计划与执行
-
-- 父代理可以先读、再继续判断下一步；不要把“步骤数估算”当成固定入口。
-- 简单问答、debug、失败解释、单资源小改动，优先直接回答或直接执行。
-- 命中任一情况且能拆出至少 3 个真实可执行 step 时必须调用 `write_plan_doc`：高风险删除 / 清空 / 覆盖 / 重置；复杂跨资源修改；创建世界卡 / 玩家卡 / 角色卡；维护状态字段、状态值、Prompt 条目、关键词/AI召回/state 条目、lore 体系；用户使用"完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"等范围词；用户要求先确认方案。只能拆成 1-2 个动作时不要写计划，直接执行。
-- 计划必须体现真实依赖：读/确认现状 → 定义字段或条目 → 创建/定位目标资源 → 写值/更新正文 → 核对验收。不要把同一个大任务塞进一个 step；少于 3 个 step 的 plan 会被工具层拒绝。
-- 状态值填写计划必须分组执行：每个 persona-card / character-card update 步骤只覆盖 3-5 个字段，step.task 逐项列出 `field_key`、label、type、目标 `value_json`，并要求子代理不得遗漏本组字段。
-- 一旦写出 plan doc，审批入口只能来自 `write_plan_doc` 触发的 `awaiting_approval`；用户批准后不得再次 `write_plan_doc` 要求二次确认，只能继续执行既有 step 或收尾。
-- 父代理本轮若要结束，必须真的调用 `reply_to_user`；如果你在普通文本里声称“已派发 / 已创建 / 正在执行”，但没有真实工具调用，服务端会把该轮判为失败。
-
-## 暂停语义
-
-- running 状态收到用户消息：当前正在进行的 step 跑完后切 `paused`
-- paused 后父代理把消息当修改意见，调 `edit_plan_doc` 改未完成步骤
+- **禁谎报**：`# 本轮已落地变更` 无对应资源、或最近一次子代理结果为 error 时，禁止在 `reply_to_user` 中称"已完成/已创建/已更新"。
+- **禁空转**：本轮要么调一个工具推进，要么 `reply_to_user` 收尾；声称"已派发/正在执行"却无真实工具调用会被判软失败。
+- **高风险须审批**：删除/清空/覆盖/重置类动作必须经 plan 审批，不得直接派发；此类 step 显式标记高风险。
+- **批准不可回退确认**：用户批准后禁止再次 `write_plan_doc` 要求二次确认，只能继续执行既有 step 或收尾。
+- **派发须带可解析来源**：`character-card`/`persona-card` create 必须指定世界来源，update/delete 必须带可解析 entityRef。

@@ -102,15 +102,21 @@ async function applyProposal(proposal, worldRefId = null) {
           max_tokens: safeChanges.max_tokens ?? null,
         });
         for (const op of (Array.isArray(proposal.entryOps) ? proposal.entryOps : [])) {
-          if (op.op === 'create') {
-            const entry = createWorldPromptEntry(newWorld.id, op);
-            if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
-              replaceEntryConditions(entry.id, op.conditions);
-            }
+          // create 世界时只能附带 create 条目；混入 update/delete 是对一张刚建出来、还没有旧条目的卡的无效操作。
+          // 旧实现静默忽略（不报错不落库），属"静默丢字段"。这里显式报错让子代理改用 world-card update。
+          if (op.op !== 'create') {
+            throw new Error(`world-card create 的 entryOps 只支持 op:create（收到 "${op.op}"）；要改/删已有条目请改用 world-card update`);
+          }
+          const entry = createWorldPromptEntry(newWorld.id, op);
+          if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
+            replaceEntryConditions(entry.id, op.conditions);
           }
         }
         for (const op of (Array.isArray(proposal.stateFieldOps) ? proposal.stateFieldOps : [])) {
-          if (op.op === 'create') applyStateFieldCreate(op, newWorld.id);
+          if (op.op !== 'create') {
+            throw new Error(`world-card create 的 stateFieldOps 只支持 op:create（收到 "${op.op}"）；要改/删已有字段请改用 world-card update`);
+          }
+          applyStateFieldCreate(op, newWorld.id);
         }
         return newWorld;
       }
@@ -799,7 +805,8 @@ function normalizeStateFieldOps(rawOps, type) {
       if ('label' in data) normalized.label = String(data.label ?? '');
       if ('description' in data) normalized.description = String(data.description ?? '');
       if ('default_value' in data) normalized.default_value = data.default_value == null ? null : String(data.default_value);
-      if ('update_mode' in data) normalized.update_mode = VALID_UPDATE_MODES.has(data.update_mode) ? data.update_mode : undefined;
+      // 非法 update_mode 不要落成 undefined（key 已固化会把列写脏/清空）；只在合法时赋值，否则不带这个 key。
+      if ('update_mode' in data && VALID_UPDATE_MODES.has(data.update_mode)) normalized.update_mode = data.update_mode;
       if ('update_instruction' in data) normalized.update_instruction = String(data.update_instruction ?? '');
       if ('enum_options' in data) normalized.enum_options = normalizeStringArrayOrNull(data.enum_options);
       if ('min_value' in data) normalized.min_value = normalizeNumberOrNull(data.min_value);

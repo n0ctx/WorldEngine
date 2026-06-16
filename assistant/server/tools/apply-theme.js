@@ -7,8 +7,18 @@ export const definition = {
     type: 'object',
     properties: {
       operation: { type: 'string', enum: ['create', 'update', 'delete'] },
-      entityId: { type: ['string', 'null'] },
-      changes: { type: 'object' },
+      entityId: { type: ['string', 'null'], description: '主题 id（三种操作都必填）' },
+      changes: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          version: { type: 'string' },
+          author: { type: 'string' },
+          description: { type: 'string' },
+          preview: { type: 'string', description: '预览图说明 / 路径' },
+          css: { type: 'string', description: 'theme.css 内容（仅覆写 --we-* token）' },
+        },
+      },
       explanation: { type: 'string' },
     },
     required: ['operation'],

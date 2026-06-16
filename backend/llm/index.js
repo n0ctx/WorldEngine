@@ -120,6 +120,8 @@ function buildLLMConfig(options = {}) {
     signal: options.signal || undefined,
     usageRef: options.usageRef || undefined,
     callType: options.callType || undefined,
+    // 工具循环最大轮数：调用方按场景收紧（子代理单步落库 < 8 轮），未传时 provider 走全局默认。
+    maxIterations: Number.isInteger(options.maxIterations) ? options.maxIterations : undefined,
     // 稳定会话 id：用于 xAI 的 x-grok-conv-id header 路由，最大化 prompt cache 命中。
     // 其他 provider 忽略该字段。同一会话内必须保持稳定，禁止用 requestId/timestamp。
     conversationId: options.conversationId || undefined,
