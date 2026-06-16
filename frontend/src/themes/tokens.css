@@ -273,9 +273,9 @@
     transparent 100%
   );
 
-  /* §3.2 字号体系（保留原值不动）*/
-  --we-text-xs:      11px;
-  --we-text-2xs:     12px;  /* 紧凑标签、tag、hint */
+  /* §3.2 字号体系 — 12px 为可见文字下限（WCAG 可读性），勿在可见文本上低于此值 */
+  --we-text-xs:      12px;  /* 由 11px 提升至 12px：11px 低于可读下限 */
+  --we-text-2xs:     12px;  /* 紧凑标签、tag、hint（与 xs 同为 12px 下限）*/
   --we-text-sm:      13px;
   --we-text-body:    14px;  /* 设置面板/下拉/确认弹窗等控件密集区域的正文 */
   --we-text-control: 15px;  /* 主输入控件、按钮、select trigger */

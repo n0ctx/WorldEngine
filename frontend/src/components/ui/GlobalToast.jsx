@@ -62,11 +62,7 @@ export default function GlobalToast() {
   }, [startTimer, stopTimer]);
 
   return (
-    <div
-      role="region"
-      aria-label="通知"
-      className="fixed top-4 right-4 z-[var(--we-z-toast)] flex flex-col items-end gap-3 pointer-events-none max-sm:left-2 max-sm:right-2 max-sm:top-2"
-    >
+    <div role="region" aria-label="通知" className="we-toast-region">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <ToastCard

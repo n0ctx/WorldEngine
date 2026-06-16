@@ -2,6 +2,7 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **style(frontend): UI/UX 审美深审修复（字号/对比度/行宽/Toast 迁移）** — `--we-text-xs` 11→12px 消除可见文字低于可读下限；neon-noir 提亮 ink-500/700 与 border-default 满足 WCAG AA、display/seal 改 JetBrains Mono 增终端感；lovable-cream tertiary 加深至 #565654；散文区 `max-width` 1100px→72ch；ToastCard/GlobalToast 由 Tailwind 任意值迁至 `we-toast-*` 类（ui.css）；MemoryRecallOverlay 加 `role=status`；weInkRise 位移 8→4px；删 NearbyPanel 失效 eslint-disable。check:themes 100% / lint 0 warning / build 通过。
 - **style(frontend): UI/UX 审查修复一批规范违例** — 新增 `DragHandle` 组件与 `--we-shadow-toast` token,把 5 处 `⠿` 盲文字符换成 SVG 拖拽手柄、重构 `CustomCssManager` 去 15 处 inline style/`✎✕` emoji、删 chat.css 死规则 `we-asst-*__edit`、去 EntryEditor 的 `✦` 与 ToastCard 裸 rgba;token 已同步 `_template` 与三主题包(check:themes 100%)。
 - **fix(test): 修复 chat-page postprocess toast 用例预存在失败** — 测试 mock 用旧事件形状 `{error,timeout}`,而 `buildPostgenToast` 已改为按 `evt.reason` 取文案;改用 `{reason:'timeout'}`/`{reason:'unknown'}`,`frontend/tests/pages/chat-page.test.jsx` 全绿(212 passed)。
 - **perf(test): 消除 backend 测试偶发 ~300s 挂起** — 根因是 `tests/helpers/http.js` 与 `tests/routes/chat.test.js`/`client-logs.test.js` 的 after 钩子裸调 `server.close()`,会等 undici keep-alive/客户端断连遗留 socket 自身超时(满负载并发跑时偶发命中,全套从 ~3s 飙到 ~303s);三处统一加 `server.closeAllConnections?.()` 强制关连接;全套稳定 ~3s,507 测试 504 通过 0 失败。

@@ -7,8 +7,8 @@
 
   /* ==================== 基础文字 ==================== */
   --we-base-ink-900: #e0e0f0;
-  --we-base-ink-700: #8a8aaa;
-  --we-base-ink-500: #5a5a7a;
+  --we-base-ink-700: #a6a6c8; /* 由 #8a8aaa 提亮，secondary 文字在深底上 ≥4.5:1 */
+  --we-base-ink-500: #9090b8; /* 由 #5a5a7a 提亮：原值在深底上仅约 2.8:1，违反 WCAG AA */
 
   /* ==================== 赛博霓虹色板 ==================== */
   --we-base-vermilion-600: #00d4ff;
@@ -22,18 +22,20 @@
   --we-base-white: #ffffff;
   --we-base-peach-200: #2a1a30;
 
-  /* ==================== 字体族：科技无衬线 ==================== */
+  /* ==================== 字体族：科技终端感 ====================
+   * 标题/印章走自托管等宽字体（JetBrains Mono）以获得 HUD / 终端个性；
+   * 正文与 UI 仍用 system-ui 保证可读性。不引入 @font-face（主题包禁止）。*/
   --we-font-serif:   system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --we-font-display: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --we-font-seal:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --we-font-display: 'JetBrains Mono', ui-monospace, 'Segoe UI', monospace;
+  --we-font-seal:    'JetBrains Mono', ui-monospace, 'Segoe UI', monospace;
   --we-font-sans:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
   /* ==================== 语义色：文字 ==================== */
   --we-color-text-primary:   #e0e0f0;
-  --we-color-text-secondary: #8a8aaa;
-  --we-color-text-tertiary:  #5a5a7a;
+  --we-color-text-secondary: #a6a6c8; /* 提亮以满足 AA（原 #8a8aaa）*/
+  --we-color-text-tertiary:  #9090b8; /* 提亮以满足 AA（原 #5a5a7a 仅约 2.8:1）*/
   --we-color-text-inverse:   #0a0a14;
   --we-color-text-danger:    #00d4ff;
 
@@ -47,8 +49,8 @@
   --we-color-bg-inverse:  #050508;
 
   /* ==================== 语义色：边框 ==================== */
-  --we-color-border-default:     #1e1e2d;
-  --we-color-border-subtle:      #16161f;
+  --we-color-border-default:     #34344e; /* 由 #1e1e2d 提亮：原值与背景几乎无差，卡片边界消失（UI 组件需 ≥3:1）*/
+  --we-color-border-subtle:      #26263a; /* 由 #16161f 提亮，保留与 default 的层次 */
   --we-color-border-strong:      #2a2a3e;
   --we-color-border-focus:       #00d4ff;
   --we-color-border-white-faint: rgba(255, 255, 255, 0.04);

@@ -212,7 +212,6 @@ export default function NearbyPanel({
     const recallAdvanced = savedRecallTick !== lastAppliedRecallTickRef.current;
     const hitSet = recallAdvanced && Array.isArray(savedRecallHits) ? new Set(savedRecallHits) : null;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCollapsedSavedIds((prev) => {
       if (!hitSet && prev.size === 0) return prev;
       const next = new Set(prev);

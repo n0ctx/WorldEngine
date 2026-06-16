@@ -21,7 +21,7 @@
 }
 
 @keyframes weInkRise {
-  from { opacity: 0; translate: 0 8px; filter: blur(1.5px); }
+  from { opacity: 0; translate: 0 4px; filter: blur(1.5px); }
   to   { opacity: 1; translate: 0 0;   filter: blur(0);     }
 }
 
@@ -57,7 +57,7 @@
 .we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .we-prose-message-list {
-  max-width: 1100px;
+  max-width: 72ch; /* 黄金阅读宽度 65–75 字符，强化叙事沉浸感（原 1100px 单行过宽）*/
   margin: 0 auto;
   padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-xl);
 }

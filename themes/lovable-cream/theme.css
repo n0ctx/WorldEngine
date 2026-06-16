@@ -34,7 +34,7 @@
   /* ========== 基础文字 ========== */
   --we-base-ink-900: #1c1c1c;
   --we-base-ink-700: rgba(28, 28, 28, 0.83);
-  --we-base-ink-500: #5f5f5d;
+  --we-base-ink-500: #565654; /* 由 #5f5f5d 加深：原值在奶油底上约 4.6:1，13px 以下不足 AA */
 
   /* ========== 强调与装饰 ========== */
   --we-base-vermilion-600: #1c1c1c;
@@ -55,7 +55,7 @@
   /* ========== 语义色（全量显式，避免隐式传导导致调试困难） ========== */
   --we-color-text-primary:   #1c1c1c;
   --we-color-text-secondary: rgba(28, 28, 28, 0.82);
-  --we-color-text-tertiary:  #5f5f5d;
+  --we-color-text-tertiary:  #565654; /* 加深以满足小字号 AA（原 #5f5f5d 约 4.6:1）*/
   --we-color-text-inverse:   #fcfbf8;
   --we-color-text-danger:    #1c1c1c;
 

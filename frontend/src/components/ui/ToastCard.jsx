@@ -42,31 +42,24 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
       {...motionProps}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      className="relative pointer-events-auto w-80 overflow-hidden rounded-[var(--we-radius-md)] pl-4 pr-3 py-2.5 bg-[var(--we-color-bg-canvas)] shadow-[var(--we-shadow-toast)] border-l-4 border-l-[var(--toast-color)]"
+      className="we-toast-card"
       style={{ '--toast-color': meta.color }}
     >
-      <div className="flex items-start gap-2">
-        <span
-          className="text-[var(--toast-color)] [font-family:var(--we-font-serif)] text-[16px] leading-none mt-0.5 select-none"
-          aria-hidden
-        >
+      <div className="we-toast-card__row">
+        <span className="we-toast-card__seal" aria-hidden>
           {meta.seal}
         </span>
-        <div className="flex-1 min-w-0">
+        <div className="we-toast-card__body">
           {toast.title ? (
-            <div className="[font-family:var(--we-font-serif)] text-[14px] leading-tight text-[var(--we-color-text-primary)]">
-              {toast.title}
-            </div>
+            <div className="we-toast-card__title">{toast.title}</div>
           ) : null}
-          <div className="text-[12.5px] leading-snug text-[var(--we-color-text-secondary)] break-words">
-            {toast.message}
-          </div>
+          <div className="we-toast-card__message">{toast.message}</div>
         </div>
         <button
           type="button"
           aria-label="关闭通知"
           onClick={onClose}
-          className="text-[var(--we-color-text-tertiary)] hover:text-[var(--we-color-text-primary)] -mt-1"
+          className="we-toast-card__close"
         >
           <Icon size={16}>{CLOSE_PATHS}</Icon>
         </button>

@@ -9,7 +9,7 @@ const Dots = () => (
 );
 
 const Wrap = ({ children }) => (
-  <div className="we-memory-recall">{children}</div>
+  <div className="we-memory-recall" role="status" aria-live="polite">{children}</div>
 );
 
 export default function MemoryRecallOverlay({

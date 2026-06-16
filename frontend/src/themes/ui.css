@@ -3248,3 +3248,87 @@
 }
 .we-timeline-entry--old .we-timeline-dot { color: var(--we-color-text-tertiary); opacity: 0.3; }
 .we-timeline-entry--old .we-timeline-text { opacity: 0.4; font-style: italic; }
+
+/* ── Toast 通知 ──────────────────────────────────────────
+ * 由 Tailwind 任意值迁移而来，统一走 we-* 类与 token，使主题可影响其尺寸与间距。
+ * 动效仍由 framer-motion 在组件内处理。*/
+.we-toast-region {
+  position: fixed;
+  top: var(--we-space-lg);
+  right: var(--we-space-lg);
+  z-index: var(--we-z-toast);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--we-space-md);
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .we-toast-region {
+    left: var(--we-space-sm);
+    right: var(--we-space-sm);
+    top: var(--we-space-sm);
+  }
+}
+
+.we-toast-card {
+  position: relative;
+  pointer-events: auto;
+  width: 320px; /* design exact */
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--we-radius-md);
+  border-left: 4px solid var(--toast-color); /* design exact: 类型色条 */
+  background: var(--we-color-bg-canvas);
+  box-shadow: var(--we-shadow-toast);
+  padding: 10px var(--we-space-md) 10px var(--we-space-lg); /* 10px: design exact 上下 */
+}
+
+.we-toast-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+}
+
+.we-toast-card__seal {
+  flex-shrink: 0;
+  margin-top: 2px; /* design exact: 与标题基线对齐 */
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-base);
+  line-height: var(--we-leading-flush);
+  color: var(--toast-color);
+  user-select: none;
+}
+
+.we-toast-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.we-toast-card__title {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-body);
+  line-height: var(--we-leading-tight);
+  color: var(--we-color-text-primary);
+}
+
+.we-toast-card__message {
+  font-size: var(--we-text-2xs);
+  line-height: var(--we-leading-snug);
+  color: var(--we-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.we-toast-card__close {
+  flex-shrink: 0;
+  margin-top: -2px; /* design exact: 视觉对齐 */
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: var(--we-color-text-tertiary);
+  transition: color var(--we-duration-fast);
+}
+.we-toast-card__close:hover {
+  color: var(--we-color-text-primary);
+}
