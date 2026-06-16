@@ -16,6 +16,9 @@ let server;
 after(async () => {
   resetMockEnv();
   if (server) {
+    // 强制关闭遗留 socket（如客户端提前断连用例），避免 server.close() 等到
+    // socket 超时才回调，导致进程偶发挂起数分钟。
+    server.closeAllConnections?.();
     await new Promise((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
     });

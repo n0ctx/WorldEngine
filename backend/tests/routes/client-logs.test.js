@@ -33,6 +33,7 @@ before(async () => {
 });
 
 after(() => {
+  server?.closeAllConnections?.();
   server?.close();
   fs.rmSync(root, { recursive: true, force: true });
 });

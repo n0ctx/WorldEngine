@@ -21,6 +21,9 @@ export function createRouteTestContext(name, configPatch = {}) {
     async close() {
       resetMockEnv();
       if (server) {
+        // 强制关闭 undici keep-alive / 客户端遗留的 socket，否则 server.close()
+        // 会等到 socket 自身超时（可达数分钟）才回调，导致测试进程偶发挂起。
+        server.closeAllConnections?.();
         await new Promise((resolve, reject) => {
           server.close((err) => (err ? reject(err) : resolve()));
         });
