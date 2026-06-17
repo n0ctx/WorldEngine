@@ -208,7 +208,10 @@ function buildFieldsValues(fields, valueMap) {
   return fields
     .map((f) => {
       const cur = valueMap[f.field_key] ?? { defaultValueJson: f.default_value ?? null, runtimeValueJson: null };
-      return `- ${f.field_key}：默认值：${formatValueForPrompt(cur.defaultValueJson, f)}，当前运行时值：${formatValueForPrompt(cur.runtimeValueJson, f)}`;
+      // 只暴露「有效当前值」= 运行时值优先，回退默认值。不再单独展示默认值，
+      // 避免弱副模型把默认值当成「回退靶子」，每轮把已推进的运行值打回默认。
+      const effectiveJson = cur.runtimeValueJson ?? cur.defaultValueJson;
+      return `- ${f.field_key}：当前值：${formatValueForPrompt(effectiveJson, f)}`;
     })
     .join('\n');
 }
@@ -234,15 +237,49 @@ function mergeSessionValues(globalMap, sessionMap) {
  * @param {Function} upsertFn      (key: string, valueJson: string|null) => void
  * @param {string}   logLabel      日志前缀（如 `world="xxx"`）
  */
-function applyStatePatch(activeFields, patchData, upsertFn, logLabel) {
+/**
+ * 取某 table 字段的旧「有效值」（运行时值优先，回退默认值）并解析为对象。
+ * 用于列级 merge：返回 null 表示无可用旧值（首次写入，照常整体写）。
+ */
+function parseOldTableValue(cur, field) {
+  if (!cur) return null;
+  const json = cur.runtimeValueJson ?? cur.defaultValueJson;
+  if (json == null) return null;
+  let obj = json;
+  if (typeof obj === 'string') {
+    try { obj = JSON.parse(obj); } catch { return null; }
+  }
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
+  // 只保留 schema 仍定义的数值列，避免把已删除列或脏值带回
+  const cols = Array.isArray(field.table_columns) ? field.table_columns : [];
+  const out = {};
+  for (const col of cols) {
+    if (!col || typeof col.key !== 'string' || !(col.key in obj)) continue;
+    const num = typeof obj[col.key] === 'number' ? obj[col.key] : Number(obj[col.key]);
+    if (isFinite(num)) out[col.key] = num;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+function applyStatePatch(activeFields, patchData, upsertFn, logLabel, valueMap = null) {
   if (!patchData || typeof patchData !== 'object') return;
   const fieldMap = Object.fromEntries(activeFields.map((f) => [f.field_key, f]));
   const updated = [];
   for (const [key, rawValue] of Object.entries(patchData)) {
     const field = fieldMap[key];
     if (!field) continue;
-    const validated = validateValue(rawValue, field);
-    if (validated === undefined) continue;
+    let validated = validateValue(rawValue, field);
+    if (validated === undefined) {
+      // 诊断：LLM 输出了该字段但校验失败被丢弃（table/格式问题排查用）
+      log.warn(`DROP  ${logLabel}  ${formatMeta({ key, type: field.type, raw: previewText(JSON.stringify(rawValue)) })}`);
+      continue;
+    }
+    // table 字段做列级 merge：模型只回了变化的列时，未提及的列保留旧有效值，
+    // 避免「抄错/漏写一列」把整张表冲回默认或残缺。
+    if (field.type === 'table' && validated && typeof validated === 'object') {
+      const old = parseOldTableValue(valueMap?.[key], field);
+      if (old) validated = { ...old, ...validated };
+    }
     const valueJson = validated === null ? null : JSON.stringify(validated);
     upsertFn(key, valueJson);
     updated.push(`${key}=${valueJson}`);
@@ -610,7 +647,7 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   if (worldActiveFields.length > 0) {
     applyStatePatch(worldActiveFields, patch.world,
       (key, json) => upsertSessionWorldStateValue(sessionId, worldId, key, json),
-      `world="${world.name}"`
+      `world="${world.name}"`, worldValueMap
     );
   }
 
@@ -618,14 +655,14 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
     const char = charactersWithFields[i];
     applyStatePatch(charSchemaFields, patch[`char_${i}`],
       (key, json) => upsertSessionCharacterStateValue(sessionId, char.id, key, json),
-      `char="${char.name}"`
+      `char="${char.name}"`, charValueMaps[i]
     );
   }
 
   if (personaActiveFields.length > 0) {
     applyStatePatch(personaActiveFields, patch.persona,
       (key, json) => upsertSessionPersonaStateValue(sessionId, worldId, key, json),
-      `persona  world="${world?.name}"`
+      `persona  world="${world?.name}"`, personaValueMap
     );
   }
 
@@ -817,22 +854,36 @@ function validateValue(value, field) {
       if (cols.length === 0) return undefined;
       let obj = value;
       if (typeof obj === 'string') {
-        try { obj = JSON.parse(obj); } catch { return undefined; }
+        try { obj = JSON.parse(obj); } catch {
+          log.warn(`TABLE DROP  ${formatMeta({ field: field.field_key, reason: 'string-not-json', raw: previewText(String(value)) })}`);
+          return undefined;
+        }
       }
-      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return undefined;
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
+        // 最常见失败：模型把 table 当多行表格输出成数组/嵌套
+        log.warn(`TABLE DROP  ${formatMeta({ field: field.field_key, reason: Array.isArray(obj) ? 'got-array' : 'not-object', raw: previewText(JSON.stringify(value)) })}`);
+        return undefined;
+      }
       const out = {};
+      const skipped = [];
       for (const col of cols) {
         if (!col || typeof col.key !== 'string') continue;
         if (!(col.key in obj)) continue;
         const raw = obj[col.key];
         const num = typeof raw === 'number' ? raw : Number(raw);
-        if (!isFinite(num)) continue;
+        if (!isFinite(num)) { skipped.push(`${col.key}=${JSON.stringify(raw)}`); continue; }
         let v = num;
         if (col.min != null && v < col.min) v = col.min;
         if (col.max != null && v > col.max) v = col.max;
         out[col.key] = v;
       }
-      if (Object.keys(out).length === 0) return field.allow_empty ? {} : undefined;
+      if (skipped.length) {
+        log.warn(`TABLE COL SKIP  ${formatMeta({ field: field.field_key, reason: 'non-numeric', cols: skipped.join(', ') })}`);
+      }
+      if (Object.keys(out).length === 0) {
+        log.warn(`TABLE DROP  ${formatMeta({ field: field.field_key, reason: 'no-valid-col', keys: Object.keys(obj).join(', ') })}`);
+        return field.allow_empty ? {} : undefined;
+      }
       return out;
     }
     default:
