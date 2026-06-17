@@ -4029,6 +4029,22 @@
   display: block;
   white-space: pre-wrap;
 }
+/* 人设读态：标签与正文同行，正文右对齐并自行换行（首行与标签平排） */
+.we-nearby-persona-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--we-space-sm);
+}
+.we-nearby-persona-row > .we-section-label {
+  flex-shrink: 0;
+}
+.we-nearby-persona-row > .we-nearby-persona-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+}
 .we-nearby-persona-edit {
   display: flex;
   flex-direction: column;

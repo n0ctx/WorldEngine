@@ -58,40 +58,45 @@ export default function NearbyCharacterBlock({
       <div>
         <div>
           {/* 人设段 */}
-          <div className="we-state-section-title">
-            <span className="we-section-label">人设</span>
-          </div>
-          <div className="we-nearby-persona">
-            {editingPersona ? (
-              <div className="we-nearby-persona-edit">
-                <textarea
-                  className="we-input"
-                  value={personaDraft}
-                  onChange={(ev) => setPersonaDraft(ev.target.value)}
-                  rows={3}
-                  placeholder="一句话人物设定（性格 / 身份 / 关键标签）…"
-                />
-                <div className="we-nearby-persona-actions">
-                  <button
-                    type="button"
-                    className="we-state-section-reset"
-                    onClick={handleSavePersona}
-                  >
-                    保存
-                  </button>
-                  <button
-                    type="button"
-                    className="we-state-section-reset"
-                    onClick={() => {
-                      setEditingPersona(false);
-                      setPersonaDraft(nearby?.persona ?? '');
-                    }}
-                  >
-                    取消
-                  </button>
+          {editingPersona ? (
+            <>
+              <div className="we-state-section-title">
+                <span className="we-section-label">人设</span>
+              </div>
+              <div className="we-nearby-persona">
+                <div className="we-nearby-persona-edit">
+                  <textarea
+                    className="we-input"
+                    value={personaDraft}
+                    onChange={(ev) => setPersonaDraft(ev.target.value)}
+                    rows={3}
+                    placeholder="一句话人物设定（性格 / 身份 / 关键标签）…"
+                  />
+                  <div className="we-nearby-persona-actions">
+                    <button
+                      type="button"
+                      className="we-state-section-reset"
+                      onClick={handleSavePersona}
+                    >
+                      保存
+                    </button>
+                    <button
+                      type="button"
+                      className="we-state-section-reset"
+                      onClick={() => {
+                        setEditingPersona(false);
+                        setPersonaDraft(nearby?.persona ?? '');
+                      }}
+                    >
+                      取消
+                    </button>
+                  </div>
                 </div>
               </div>
-            ) : (
+            </>
+          ) : (
+            <div className="we-nearby-persona we-nearby-persona-row">
+              <span className="we-section-label">人设</span>
               <span
                 className="we-nearby-persona-text"
                 onClick={() => {
@@ -102,8 +107,8 @@ export default function NearbyCharacterBlock({
               >
                 {nearby?.persona || '（无人设）'}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
           <StatusSection
             title=""

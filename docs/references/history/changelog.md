@@ -2,6 +2,7 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **style(theme): 状态面板长字段标签/值同行** — `ui.css` 为 StatePanel/NearbyPanel 的 `.we-status-field--long`(list/text/datetime，排除 table 与编辑态)新增 flex-row 规则，值/tags 右对齐，密度对齐已有 `--short` 行布局；纯 CSS 增量，无结构改动。
 - **style(theme): edu-clay 中文字体搭配** — 标题(`--we-font-display/seal`)挂自托管站酷快乐体(`ZCOOL KuaiLe`，OFL)、正文/UI(`--we-font-serif/sans/ui`)挂自托管阿里妈妈方圆体(实例化 `BEVL=100` 最圆、保留 `wght 200–700`)；英文仍 Baloo 在前、中文按角色回落。新增 `frontend/src/assets/fonts/{zcool-kuaile,alimama-fangyuanti}/*.woff2` 与 `@font-face`(仅 `fonts.css`)，主题包只改 `--we-font-*` token。注意：Vite CSS HMR 不注册新增 `@font-face`，需整页刷新。
 - **style(frontend): 修复设置面板左侧直角** — `.we-settings-panel` 补 `overflow: hidden`，让左侧导航背景随 `border-radius` 裁切，消除左上/左下方角；body 自身 `overflow-y:auto`，滚动不受影响。仅改 `pages.css`。
 
