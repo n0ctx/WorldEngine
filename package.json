@@ -1,6 +1,6 @@
 {
   "name": "worldengine",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "private": true,
   "workspaces": [
     "frontend",
@@ -32,7 +32,7 @@
     "test:coverage:assistant": "npm run test:coverage --prefix assistant",
     "test:e2e": "npm run test:e2e --prefix backend",
     "version:sync": "node scripts/sync-version.mjs",
-    "version": "0.1.5"
+    "version": "0.2.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
