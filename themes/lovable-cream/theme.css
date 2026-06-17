@@ -57,7 +57,7 @@
   --we-color-text-secondary: rgba(28, 28, 28, 0.82);
   --we-color-text-tertiary:  #565654; /* 加深以满足小字号 AA（原 #5f5f5d 约 4.6:1）*/
   --we-color-text-inverse:   #fcfbf8;
-  --we-color-text-danger:    #1c1c1c;
+  --we-color-text-danger:    #97463a; /* 闷砖红：与 success 苔绿/warning 琥珀棕同register，恢复删除/报错语义信号，cream 上约 6.5:1 */
 
   --we-color-bg-canvas:   #f7f4ed;
   /* 白卡浮于奶油画布之上；组件大量引用 --we-color-bg-surface，必须显式覆写 */
@@ -76,7 +76,7 @@
 
   --we-color-status-success: #556253;
   --we-color-status-warning: #7b6a4a;
-  --we-color-status-danger:  #1c1c1c;
+  --we-color-status-danger:  #97463a; /* 同上：危险状态色保留色相，与无色 charcoal 主按钮区分 */
   --we-color-status-info:    #666664;
 
   --we-color-accent:      #1c1c1c;

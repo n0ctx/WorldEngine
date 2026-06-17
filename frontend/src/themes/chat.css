@@ -985,7 +985,7 @@
 }
 
 .we-message-actions button.we-message-action-danger {
-  color: var(--we-color-accent);
+  color: var(--we-color-text-danger);
 }
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */

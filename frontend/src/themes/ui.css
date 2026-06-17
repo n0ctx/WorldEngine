@@ -759,7 +759,7 @@
   cursor: pointer;
 }
 .we-confirm-ok.danger {
-  background: var(--we-color-accent);
+  background: var(--we-color-status-danger);
 }
 .we-confirm-ok:disabled {
   opacity: 0.5;
@@ -1050,7 +1050,7 @@
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
-  background: var(--we-color-accent);
+  background: var(--we-color-status-danger);
   color: var(--we-color-text-inverse);
   border: none;
   cursor: pointer;
