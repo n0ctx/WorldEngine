@@ -18,6 +18,8 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    // 仅当真实内容超过上限才出滚动条；否则隐藏，避免空输入/占位文案折行误触发拖动条。
+    el.style.overflowY = el.scrollHeight > 120 ? 'auto' : 'hidden';
   }, [value]);
 
   function handleKeyDown(e) {
@@ -30,7 +32,7 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
   }
 
   const sendDisabled = disabled || !value.trim();
-  const hint = placeholder ?? 'Enter 发送，Shift+Enter 换行，/stop 停止当前任务';
+  const hint = placeholder ?? 'Enter 发送 · Shift+Enter 换行 · /stop 停止';
 
   return (
     <div className="flex flex-shrink-0 items-end gap-2 border-t border-black/10 bg-[var(--we-color-bg-canvas)] px-3 py-2">
