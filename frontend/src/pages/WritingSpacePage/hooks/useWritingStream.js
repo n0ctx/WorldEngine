@@ -303,7 +303,7 @@ export function useWritingStream({ worldId, messageListRef, inputBoxRef, optionC
         if (!isCurrentStreamRun(runId)) return;
         const next = streamingTextRef.current + delta;
         streamingTextRef.current = next;
-        const { display, options } = parseNextPromptStream(next);
+        const { display, options } = parseNextPromptStream(next, true);
         setStreamingText(display);
         if (options.length > 0) setCurrentOptions(options);
       },

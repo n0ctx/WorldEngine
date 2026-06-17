@@ -94,17 +94,22 @@ describe('next prompt stream', () => {
   });
 });
 
-describe('parseStreamingBlocks streaming/terminal 行为一致', () => {
-  it('流式中段两开一闭即闭合:</think> 后的正文必须立即渲染到 thinking 块外', () => {
-    // 旧守卫保留 open 是为了规避良构嵌套场景的末帧跳变,但模型实际几乎只会"两开一闭"
-    // 不补外层,守卫反而让用户在整个流式过程中看到正文被错塞进思考块。
+describe('parseStreamingBlocks 流式语义', () => {
+  it('流式中外层 think 闭合前保持 open:内部重复 <think>/</think> 强制当文本,禁止裂出正文', () => {
+    // 外层 </think> 到达前不得提前裂块;内层 <think>B</think> 一律作为纯文本留在思考块内。
     expect(parseStreamingBlocks('<think>A<think>B</think>C', { isStreaming: true })).toEqual([
-      { type: 'thinking', content: 'A<think>B', open: false },
-      { type: 'text', content: 'C', open: false },
+      { type: 'thinking', content: 'A<think>B</think>C', open: true },
     ]);
   });
 
-  it('终态两开一闭走 boolean 兜底,与流式中段语义一致', () => {
+  it('流式中外层 think 已闭合:</think> 后的正文立即渲染到思考块外', () => {
+    expect(parseStreamingBlocks('<think>A<think>B</think>C</think>正文', { isStreaming: true })).toEqual([
+      { type: 'thinking', content: 'A<think>B</think>C', open: false },
+      { type: 'text', content: '正文', open: false },
+    ]);
+  });
+
+  it('终态(非流式)两开一闭走 boolean 兜底,保留首个 </think> 闭合', () => {
     expect(parseStreamingBlocks('<think>A<think>B</think>')).toEqual([
       { type: 'thinking', content: 'A<think>B', open: false },
     ]);
@@ -114,5 +119,17 @@ describe('parseStreamingBlocks streaming/terminal 行为一致', () => {
     expect(parseStreamingBlocks('<think>思考中', { isStreaming: true })).toEqual([
       { type: 'thinking', content: '思考中', open: true },
     ]);
+  });
+});
+
+describe('next prompt stream 流式语义', () => {
+  it('流式中外层 think 未闭合:内部 next_prompt + 嵌套 </think> 不得提前裂出正文选项', () => {
+    const raw = '<think>推理 <next_prompt>残A</next_prompt> 继续';
+    expect(parseNextPromptStream(raw, true)).toEqual({ display: raw, options: [] });
+  });
+
+  it('流式中嵌套 </think> 不提前闭合外层 think,内部 next_prompt 不漏出', () => {
+    const raw = '<think>外A<think>内 <next_prompt>残</next_prompt></think>外B';
+    expect(parseNextPromptStream(raw, true)).toEqual({ display: raw, options: [] });
   });
 });

@@ -2,6 +2,7 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(frontend): 流式 think 块裂块守卫——外层 think 闭合前禁止提前裂出正文/next_prompt** — `think-blocks.js` 的 `stackParse` 加 `keepOpen`、`parseStreamingBlocks(text,{isStreaming})` 流式只走 stack 并在 EOF depth>0 时整段作单个 open thinking 块(内部重复 `<think>/</think>` 当纯文本);`next-prompt.js` 的 `stackStrip`/`scanStrip`/`parseNextPromptStream` 同步加流式分支,未闭合 think 内 next_prompt 不漏出;`useChatStream`/`useWritingStream` 的 onDelta 传 `isStreaming=true`。终态(非流式)仍走 `stack ?? boolean` 保留"两开一闭"兜底,行为不变。
 - **fix(theme): 危险态按钮改用 danger token 而非 accent** — `ui.css` 的 `.we-confirm-ok.danger`/`.we-session-item__delete-confirm` 与 `chat.css` 的 `.we-message-action-danger` 原先取 `--we-color-accent`，导致 accent≠danger 的主题(lovable-cream 删除键=charcoal、edu-clay=绿)危险按钮失去语义色；改取 `--we-color-status-danger`/`--we-color-text-danger`。accent==danger 的 classic-parchment/neon-noir 无视觉变化。
 - **style(theme): lovable-cream 危险色恢复闷砖红** — `themes/lovable-cream/theme.css` 将 `--we-color-status-danger` 与 `--we-color-text-danger` 由 charcoal `#1c1c1c` 改为 `#97463a`(与 success 苔绿/warning 琥珀棕同 register)，恢复删除/报错语义信号；仅 token 覆写，`check:themes` 通过。
 - **style(theme): 状态面板长字段标签/值同行** — `ui.css` 为 StatePanel/NearbyPanel 的 `.we-status-field--long`(list/text/datetime，排除 table 与编辑态)新增 flex-row 规则，值/tags 右对齐，密度对齐已有 `--short` 行布局；纯 CSS 增量，无结构改动。
