@@ -39,7 +39,8 @@ import {
 import { buildNearbyPromptSection } from '../prompts/nearby-prompt.js';
 
 import { ALL_MESSAGES_LIMIT, LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, LLM_STATE_COMPRESS_MAX_TOKENS, DIARY_TIME_FIELD_KEY, STATE_TEXT_MAX_LENGTH, STATE_TEXT_COMPRESS_TARGET, STATE_LIST_MAX_ITEMS, STATE_LIST_TRIM_TARGET, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
-import { getSessionById } from '../db/queries/sessions.js';
+import { getSessionById, setSessionStateBaselineIfAbsent } from '../db/queries/sessions.js';
+import { captureFullSnapshot } from './state-rollback.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
@@ -420,8 +421,21 @@ export async function updateAllStates(worldId, characterIds, sessionId) {
   const world = worldId ? getWorldById(worldId) : null;
   log.info(`START  ${formatMeta({ session: sid, worldId: worldId ?? null, characterIds })}`);
 
-  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
   const session = getSessionById(sessionId);
+
+  // ── 首轮前状态基线捕获（回滚锚点）──
+  // 在本轮任何状态写入之前、且仅当基线尚未存在时，把当前 session 状态（= 用户首轮前手动预设）
+  // 不可变地存为基线。重生成第一轮会把所有 turn record 删光，届时回滚拿不到轮次快照，
+  // 改用此基线还原，既保住手动预设，又丢弃被重生成轮次的状态污染。
+  // gate 必须是「基线不存在」而非「无 turn record」——重生成首轮时 turn record 已被删空，
+  // 但此时 session 状态仍是污染态，setSessionStateBaselineIfAbsent 的 IS NULL 条件保证不会被覆盖。
+  if (worldId) {
+    const isWriting = session?.mode === 'writing';
+    const baseline = captureFullSnapshot(sessionId, worldId, characterIds || [], isWriting);
+    setSessionStateBaselineIfAbsent(sessionId, JSON.stringify(baseline));
+  }
+
+  // 真实日期模式：直接写入当前系统时间（在 early-return 之前执行，确保每轮都更新）
   if (session?.diary_date_mode === 'real' && worldId) {
     const timeStr = formatRealTimeDiaryStr();
     upsertSessionWorldStateValue(sessionId, worldId, DIARY_TIME_FIELD_KEY, JSON.stringify(timeStr));

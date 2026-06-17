@@ -200,3 +200,45 @@ test('restoreStateFromSnapshot 在 snapshot 缺 nearby 字段时清空 nearby（
   ).get(session.id).c;
   assert.equal(stateCount, 0);
 });
+
+test('setSessionStateBaselineIfAbsent 不可变：仅首次写入，后续调用不覆盖', async () => {
+  const world = insertWorld(sandbox.db, { name: '基线世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '辛' });
+  const session = insertSession(sandbox.db, { character_id: character.id });
+
+  const { getSessionStateBaseline, setSessionStateBaselineIfAbsent } =
+    await freshImport('backend/db/queries/sessions.js');
+
+  assert.equal(getSessionStateBaseline(session.id), null);
+
+  const first = setSessionStateBaselineIfAbsent(session.id, '{"world":{"a":1}}');
+  assert.equal(first, true);
+  assert.equal(getSessionStateBaseline(session.id), '{"world":{"a":1}}');
+
+  // 第二次（污染态）不得覆盖
+  const second = setSessionStateBaselineIfAbsent(session.id, '{"world":{"polluted":99}}');
+  assert.equal(second, false);
+  assert.equal(getSessionStateBaseline(session.id), '{"world":{"a":1}}');
+});
+
+test('captureFullSnapshot 写作模式包含 nearby 层', async () => {
+  const world = insertWorld(sandbox.db, { name: '基线-nearby世界' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '壬' });
+  const session = insertSession(sandbox.db, { character_id: character.id, mode: 'writing' });
+
+  insertSessionPersonaStateValue(sandbox.db, session.id, world.id, { field_key: 'mood', runtime_value_json: '"平静"' });
+
+  const { createNearbyCharacter } = await freshImport('backend/db/queries/session-nearby-characters.js');
+  const { upsertNearbyStateValue } = await freshImport('backend/db/queries/session-nearby-character-state-values.js');
+  const nid = createNearbyCharacter({ sessionId: session.id, name: '路人甲', persona: '商贩', isSaved: 0 });
+  upsertNearbyStateValue({ sessionId: session.id, nearbyId: nid, fieldKey: 'favor', valueJson: '5' });
+
+  const { captureFullSnapshot } = await freshImport('backend/memory/state-rollback.js');
+  const snap = captureFullSnapshot(session.id, world.id, [], true);
+
+  assert.equal(snap.persona.mood, '"平静"');
+  assert.ok(Array.isArray(snap.nearby));
+  assert.equal(snap.nearby.length, 1);
+  assert.equal(snap.nearby[0].name, '路人甲');
+  assert.deepEqual(snap.nearby[0].state, { favor: '5' });
+});

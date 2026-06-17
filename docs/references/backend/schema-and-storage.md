@@ -205,6 +205,7 @@
 | compressed_context | TEXT NULLABLE | 历史遗留压缩摘要字段；当前保留但默认不参与 prompt 组装，清空聊天时置 NULL |
 | keyword_active_state | TEXT | 关键词条目的跨轮激活状态（JSON 字符串，默认 `'{}'`），结构 `{ "<entry_id>": { "round": <激活时 user 消息计数>, "ttl": <active_turns 快照> } }`；`ttl=0` 永久，`ttl>=1` 时 `currentRound - round < ttl` 期间有效。关键词匹配只扫描"本轮"最新一条 user / assistant 消息（fresh hit），跨轮持续完全由 TTL 控制，旧消息不再因留存于上下文而被反复当作新命中。entry-matcher 每次组装时读取 / 刷新 / 清理 |
 | diary_date_mode | TEXT NULLABLE | T155：`'virtual'` \| `'real'` \| NULL（NULL=日记未开启）；创建时从 config 快照，不可变 |
+| state_baseline_json | TEXT NULLABLE | 首轮前状态基线快照（JSON：`{world,persona,character,nearby?}`，口径同 turn_records.state_snapshot）。`updateAllStates` 在首次状态写入前、仅当本列为 NULL 时不可变写入（`setSessionStateBaselineIfAbsent`）。作用：重生成第一轮会删光所有 turn record，回滚时无轮次快照，改用本基线还原——既保住用户首轮前手动预设，又丢弃被重生成轮次的状态污染。NULL=老会话/从未生成 → 回滚退回"保留现状"（向下兼容） |
 | created_at | INTEGER | — |
 | updated_at | INTEGER | 最后一条消息的时间，用于排序 |
 

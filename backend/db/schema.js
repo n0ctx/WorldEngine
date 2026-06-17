@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   mode                TEXT NOT NULL DEFAULT 'chat',
   title               TEXT,
   compressed_context  TEXT,
+  state_baseline_json TEXT,
   created_at          INTEGER NOT NULL,
   updated_at          INTEGER NOT NULL
 );
@@ -535,6 +536,9 @@ export function initSchema(db) {
   // 写作会话与玩家卡绑定：sessions.persona_id（仅 writing 使用，chat 维持 NULL）
   try { db.exec(`ALTER TABLE sessions ADD COLUMN persona_id TEXT REFERENCES personas(id) ON DELETE CASCADE`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_sessions_world_persona ON sessions(world_id, persona_id, mode, updated_at)`); } catch {}
+  // 首轮前状态基线快照：重生成第一轮（回滚到零残留 turn record）时的回滚锚点，
+  // 区分"用户首轮前手动预设"与"被丢弃轮次的污染"。老会话为 NULL → 回滚退回保留现状（向下兼容）。
+  try { db.exec(`ALTER TABLE sessions ADD COLUMN state_baseline_json TEXT`); } catch {}
   migrateBackfillWritingSessionPersonaId(db);
 }
 

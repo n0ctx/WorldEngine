@@ -14,6 +14,7 @@ import {
   getMessagesBySessionId,
   getWritingSessionById,
 } from '../../../services/writing-sessions.js';
+import { getSessionStateBaseline } from '../../../db/queries/sessions.js';
 
 export async function rollbackWritingSession(sessionId, afterMessageId) {
   await waitForQueueIdle(sessionId);
@@ -42,12 +43,15 @@ export async function rollbackWritingSession(sessionId, afterMessageId) {
     return { stateRolledBack: false };
   }
 
+  // 优先用残留轮次快照；回滚到零残留（重生成首轮）时无轮次快照，
+  // 退回首轮前基线（保住手动预设、丢弃被重生成轮次的污染）；二者皆无（老会话）才保留现状。
   const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
+  const snapshotJson = lastRecord?.state_snapshot ?? getSessionStateBaseline(sessionId);
   restoreStateFromSnapshot(
     sessionId,
     worldId,
     [],
-    lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null
+    snapshotJson ? JSON.parse(snapshotJson) : null
   );
 
   return { stateRolledBack: true };

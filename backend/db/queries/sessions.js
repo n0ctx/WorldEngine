@@ -24,6 +24,24 @@ export function getSessionById(id) {
 }
 
 /**
+ * 取会话的首轮前状态基线快照（JSON 字符串或 null）。
+ */
+export function getSessionStateBaseline(id) {
+  return db.prepare('SELECT state_baseline_json FROM sessions WHERE id = ?').get(id)?.state_baseline_json ?? null;
+}
+
+/**
+ * 仅在基线尚未写入时落盘（不可变）。已有基线则原样保留，避免被后续轮次/重生成污染覆盖。
+ * @returns {boolean} 本次是否实际写入
+ */
+export function setSessionStateBaselineIfAbsent(id, baselineJson) {
+  const r = db.prepare(
+    "UPDATE sessions SET state_baseline_json = ? WHERE id = ? AND state_baseline_json IS NULL",
+  ).run(baselineJson, id);
+  return r.changes > 0;
+}
+
+/**
  * 取某 persona 名下所有 writing 模式会话的 id 列表。
  */
 export function getWritingSessionIdsByPersonaId(personaId) {

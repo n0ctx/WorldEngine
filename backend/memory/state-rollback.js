@@ -19,7 +19,7 @@ import {
   deleteNearbyById,
   createNearbyCharacter,
 } from '../db/queries/session-nearby-characters.js';
-import { upsertNearbyStateValue } from '../db/queries/session-nearby-character-state-values.js';
+import { upsertNearbyStateValue, getStateValuesByNearbyId } from '../db/queries/session-nearby-character-state-values.js';
 
 /**
  * 捕获当前会话的三层状态快照（从 session_*_state_values 表读取）
@@ -59,6 +59,30 @@ export function captureStateSnapshot(sessionId, worldId, characterIds) {
     }
   }
 
+  return snapshot;
+}
+
+/**
+ * 捕获「完整」快照：三层状态 + （写作模式）nearby 层。
+ * 与 createTurnRecord 写入 turn record 的快照口径一致，供基线捕获与轮次快照共用，
+ * 避免回滚时 nearby 缺失被 restoreStateFromSnapshot 清空。
+ *
+ * @param {string} sessionId
+ * @param {string} worldId
+ * @param {string[]} characterIds
+ * @param {boolean} includeNearby  写作模式传 true
+ */
+export function captureFullSnapshot(sessionId, worldId, characterIds, includeNearby) {
+  const snapshot = captureStateSnapshot(sessionId, worldId, characterIds);
+  if (includeNearby) {
+    snapshot.nearby = listNearbyBySessionId(sessionId).map((r) => {
+      const state = {};
+      for (const s of getStateValuesByNearbyId(r.id)) {
+        if (s.runtime_value_json != null) state[s.field_key] = s.runtime_value_json;
+      }
+      return { id: r.id, name: r.name, persona: r.persona, is_saved: r.is_saved, state };
+    });
+  }
   return snapshot;
 }
 

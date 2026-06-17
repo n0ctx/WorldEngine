@@ -16,6 +16,7 @@ import {
   getMessagesBySessionId,
   getSessionById,
 } from '../../../services/sessions.js';
+import { getSessionStateBaseline } from '../../../db/queries/sessions.js';
 
 const log = createLogger('chat');
 
@@ -62,17 +63,21 @@ export async function rollbackChatSession(sessionId, afterMessageId) {
     return { stateRolledBack: false };
   }
 
+  // 优先用残留轮次快照；回滚到零残留（重生成首轮）时退回首轮前基线
+  // （保住手动预设、丢弃被重生成轮次的污染）；二者皆无（老会话）才保留现状。
   const lastRecord = getLatestTurnRecordWithSnapshot(sessionId);
+  const snapshotJson = lastRecord?.state_snapshot ?? getSessionStateBaseline(sessionId);
   restoreStateFromSnapshot(
     sessionId,
     worldId,
     characterId ? [characterId] : [],
-    lastRecord?.state_snapshot ? JSON.parse(lastRecord.state_snapshot) : null
+    snapshotJson ? JSON.parse(snapshotJson) : null
   );
   log.info(
     `STATE ROLLBACK  ${formatMeta({
       session: sessionId.slice(0, 8),
       hasSnapshot: !!lastRecord?.state_snapshot,
+      fromBaseline: !lastRecord?.state_snapshot && !!snapshotJson,
     })}`
   );
 
