@@ -405,8 +405,8 @@
   gap: var(--we-space-sm);
   padding: var(--we-space-sm) var(--we-space-xl);
   background: var(--we-color-bg-surface);
-  border-bottom: 1px solid var(--we-color-border-default);
-  box-shadow: 0 2px 6px var(--we-color-ink-wash);
+  border-bottom: var(--we-chat-header-border-bottom);
+  box-shadow: var(--we-chat-header-shadow);
   flex-shrink: 0;
   position: relative;
   z-index: var(--we-z-spine);
@@ -414,8 +414,8 @@
 
 .we-chat-center-action {
   flex-shrink: 0;
-  background: none;
-  border: none;
+  background: var(--we-chrome-icon-btn-bg);
+  border: var(--we-chrome-icon-btn-border);
   padding: var(--we-space-xs);
   cursor: pointer;
   color: var(--we-color-text-tertiary);
@@ -1023,7 +1023,7 @@
 /* ── InputBox ── */
 
 .we-chat-input {
-  border-top: 1px solid var(--we-color-border-default);
+  border-top: var(--we-composer-bar-border-top);
   background: var(--we-color-bg-canvas);
   padding: var(--we-space-xs) var(--we-space-lg) var(--we-space-xxs);
 }
@@ -1209,7 +1209,7 @@
   align-items: center;
   justify-content: center;
   background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
+  border: var(--we-composer-btn-border);
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
@@ -1236,9 +1236,10 @@
 .we-chat-textarea {
   width: 100%;
   padding: var(--we-space-xs) var(--we-space-lg);
-  background: var(--we-color-ink-wash);
-  border: 1px solid var(--we-color-border-default);
+  background: var(--we-composer-field-bg);
+  border: var(--we-composer-field-border);
   border-radius: var(--we-radius-md);
+  box-shadow: var(--we-composer-field-shadow);
   font-family: var(--we-font-serif);
   font-size: var(--we-text-base);
   line-height: 1.65;
@@ -1275,7 +1276,7 @@
   border: none;
   border-radius: var(--we-radius-full);
   cursor: pointer;
-  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
+  box-shadow: var(--we-composer-send-shadow);
   transition: transform var(--we-duration-fast),
               box-shadow var(--we-duration-fast),
               background var(--we-duration-fast),
@@ -1283,13 +1284,13 @@
 }
 
 .we-chat-send-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--we-color-shadow-md);
+  transform: var(--we-composer-send-hover-transform);
+  box-shadow: var(--we-composer-send-hover-shadow);
 }
 
 .we-chat-send-btn:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px var(--we-color-shadow-sm);
+  transform: var(--we-composer-send-active-transform);
+  box-shadow: var(--we-composer-send-active-shadow);
 }
 
 .we-chat-send-btn:disabled {

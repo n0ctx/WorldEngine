@@ -265,4 +265,31 @@
   --we-pager-btn-hover-bg:        #ffffff;
   --we-pager-btn-hover-shadow:    1px 1px 0 0 #1f2937;
   --we-pager-btn-hover-transform: translate(2px, 2px);
-}
+
+  /* ──────────────────────────────────────────────────────────────
+     § 9 Composer 底部输入栏：白底输入井 + 墨蓝粗描边 + 内陷硬投影，
+        发送键沿用按钮 stamp（凸起 → 按下下压），与卡片/胶囊同一套语言
+     ────────────────────────────────────────────────────────────── */
+  --we-composer-bar-border-top:        1px solid #1f2937;
+  --we-composer-field-bg:              #ffffff;
+  --we-composer-field-border:          2px solid #1f2937;
+  --we-composer-field-shadow:          var(--we-shadow-paper-indent);
+  --we-composer-btn-border:            1.5px solid #1f2937;
+  --we-composer-send-shadow:           2px 2px 0 0 #1f2937;
+  --we-composer-send-hover-shadow:     1px 1px 0 0 #1f2937;
+  --we-composer-send-hover-transform:  translate(1px, 1px);
+  --we-composer-send-active-shadow:    1px 1px 0 0 #1f2937;
+  --we-composer-send-active-transform: translate(1px, 1px);
+
+  /* 标题栏 / 书脊：分隔线改招牌墨蓝实线（替克制奶油），新建会话钮加 stamp 凸起→按下 */
+  --we-chat-header-border-bottom:      1px solid var(--we-color-border-strong);
+  --we-chat-header-shadow:             none;
+  --we-spine-head-border-bottom:       1px solid var(--we-color-border-strong);
+  --we-spine-create-shadow:            2px 2px 0 0 #1f2937;
+  --we-spine-create-hover-shadow:      1px 1px 0 0 #1f2937;
+  --we-spine-create-hover-transform:   translate(1px, 1px);
+  --we-chrome-icon-btn-bg:             #ffffff;
+  --we-chrome-icon-btn-border:         1.5px solid #1f2937;
+  --we-spine-back-opacity:             1;
+  /* 三栏分隔竖线：柔化 hairline → 招牌墨蓝实线，作为页与页的「装订缝」 */
+  --we-page-gutter-border:             1.5px solid var(--we-color-border-strong);

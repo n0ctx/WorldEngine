@@ -3211,7 +3211,7 @@
   flex-direction: column;
   background: var(--we-color-bg-surface);
   /* 软化三栏接缝：半透明 hairline 替代硬 1px 实线，配合背景色差形成柔和边界 */
-  border-left: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
+  border-left: var(--we-page-gutter-border);
   position: relative;
   overflow: hidden;
 }
@@ -3251,7 +3251,7 @@
   overflow: hidden;
   background: var(--we-color-bg-surface);
   /* 软化接缝：半透明 hairline，与右栏一致 */
-  border-right: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
+  border-right: var(--we-page-gutter-border);
   border-radius: 0 0 0 var(--we-radius-sm);
 }
 
@@ -3640,7 +3640,7 @@
 
 .we-session-list-head {
   padding: 14px 14px 10px;
-  border-bottom: 1px solid var(--we-color-border-default);
+  border-bottom: var(--we-spine-head-border-bottom);
 }
 
 .we-session-list-nav {
@@ -3653,10 +3653,10 @@
   padding: var(--we-space-xs);
   border-radius: var(--we-radius-md);
   color: var(--we-color-text-tertiary);
-  background: none;
-  border: none;
+  background: var(--we-chrome-icon-btn-bg);
+  border: var(--we-chrome-icon-btn-border);
   cursor: pointer;
-  opacity: 0.6;
+  opacity: var(--we-spine-back-opacity);
   transition: opacity var(--we-duration-fast);
 }
 
@@ -3680,12 +3680,16 @@
   align-items: center;
   justify-content: center;
   gap: 5px; /* design exact */
-  transition: background var(--we-duration-fast), color var(--we-duration-fast);
+  box-shadow: var(--we-spine-create-shadow);
+  transition: background var(--we-duration-fast), color var(--we-duration-fast),
+    box-shadow var(--we-duration-fast), transform var(--we-duration-fast);
 }
 
 .we-session-list-create:hover {
   background: var(--we-color-ink-wash-md);
   color: var(--we-color-text-primary);
+  box-shadow: var(--we-spine-create-hover-shadow);
+  transform: var(--we-spine-create-hover-transform);
 }
 
 .we-session-list-scroll {
@@ -3724,7 +3728,7 @@
   display: flex;
   flex-direction: column;
   background: var(--we-color-bg-surface);
-  border-left: 1px solid var(--we-color-border-default);
+  border-left: var(--we-page-gutter-border);
   position: relative;
   overflow: hidden;
   animation: wePanelFade var(--we-duration-normal) var(--we-easing-ink) both;

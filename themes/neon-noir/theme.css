@@ -278,6 +278,15 @@
     inset 0 1px 0 rgba(0, 212, 255, 0.15),
     0 3px 6px rgba(0, 153, 204, 0.20);
 
+  /* Composer 输入栏：暗玻璃输入井 + 青色细边，发送键 hover 点亮霓虹辉光 */
+  --we-composer-field-bg:           rgba(22, 22, 31, 0.86);
+  --we-composer-field-border:       1px solid rgba(0, 212, 255, 0.20);
+  --we-composer-field-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  --we-composer-btn-border:         1px solid rgba(0, 212, 255, 0.20);
+  --we-composer-send-hover-shadow:  0 0 14px rgba(0, 212, 255, 0.45);
+
   /* ==================== 范围滑条（保留功能性渐变） ==================== */
   --we-range-track-bg: linear-gradient(
     to right,

@@ -283,4 +283,29 @@
   /* --we-pager-btn-shadow:       none; */
   /* --we-pager-btn-hover-bg:     var(--we-color-accent-bg); */
   /* --we-pager-btn-hover-shadow: none; */
+
+  /* Composer 底部输入栏皮肤（chat / writing 共用）；默认复刻中性观感，按需覆盖 */
+  /* --we-composer-bar-border-top:        1px solid var(--we-color-border-default); */
+  /* --we-composer-field-bg:              var(--we-color-ink-wash); */
+  /* --we-composer-field-border:          1px solid var(--we-color-border-default); */
+  /* --we-composer-field-shadow:          none; */
+  /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
+  /* --we-composer-send-shadow:           0 1px 2px var(--we-color-shadow-sm); */
+  /* --we-composer-send-hover-shadow:     0 4px 12px var(--we-color-shadow-md); */
+  /* --we-composer-send-hover-transform:  translateY(-1px); */
+  /* --we-composer-send-active-shadow:    0 1px 2px var(--we-color-shadow-sm); */
+  /* --we-composer-send-active-transform: translateY(0); */
+
+  /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
+  /* --we-chat-header-border-bottom:      1px solid var(--we-color-border-default); */
+  /* --we-chat-header-shadow:             0 2px 6px var(--we-color-ink-wash); */
+  /* --we-spine-head-border-bottom:       1px solid var(--we-color-border-default); */
+  /* --we-spine-create-shadow:            none; */
+  /* --we-spine-create-hover-shadow:      none; */
+  /* --we-spine-create-hover-transform:   none; */
+  /* --we-chrome-icon-btn-bg:             none; */
+  /* --we-chrome-icon-btn-border:         none; */
+  /* --we-spine-back-opacity:             0.6; */
+  /* 三栏分隔竖线（左会话 / 中正文 / 右状态）；默认柔化 hairline */
+  /* --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent); */
 }
