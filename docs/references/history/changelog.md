@@ -2,6 +2,7 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(backend): 续写 prompt 组装错乱致重复/复述根因修复** — 续写复用生成式组装器,把待续写 assistant 的提示 user 摘出重贴并叠加后置提示/suggestion,导致轮次错乱、assistant 重复、suggestion 双注入;`assembler.js` 给 `buildPrompt`/`buildWritingPrompt` 加 `continuation` 模式(`sliceCompletedHistoryByRounds` 新增 `keepLatestUser` 保留全窗口原序、跳过 [13+14] 后置块),`stream-helpers.js` `buildContinuationMessages` 改为末尾 assistant 时仅追加一条续写指令/prefill 原样返回,`run-chat-continue`/`run-writing-continue` 传 `continuation:true`;补 stream-helpers/assembler 单测,同步 routes-and-sse.md。
 - **fix(theme): edu-clay 翻页键 hover 改下压** — 新增 `--we-pager-btn-hover-transform` token(`tokens.css` 默认 none、`chat.css .we-pager-btn:hover` 消费并补 transform 过渡),edu-clay 设 hover 投影 5/5→1/1 + `translate(2px,2px)`,与卡片下压手感统一;其余主题默认 none 不受影响。
 - **style(frontend): 布局排版审美收口三处** — 书架无封面卡加世界名首字水印 emblem(`WorldsPage.jsx`+`pages.css .we-world-card-emblem`,避免纯色卡显空);世界配置四栏词条行 `编辑/删除` 改 hover/`focus-within` 收起、触发词单行省略、name+badge 包 `we-entry-section-title-line`(`EntrySection.jsx`+`pages.css`,降红链刷屏与多行折叠);角色页"条目顺序"栏头统一为英文 kicker `Order`(`CharactersPage.jsx`)。纯样式/结构微调,无数据与接口变更。
 - **fix(assistant): 写卡助手输入框静止态误现纵向滚动条** — `assistant/client/InputBox.jsx` 自动高度后按 `scrollHeight>120` 切换 `overflowY`(未超上限时 `hidden`,避免占位文案折行/空输入误触发滚动条);占位文案压成单行 `Enter 发送 · Shift+Enter 换行 · /stop 停止`(255px<输入框 313px),不再折两行被裁。

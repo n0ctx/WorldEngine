@@ -43,6 +43,26 @@ test('omitLatestUserMessage 在没有 user 消息时保持原数组', async () =
   assert.deepEqual(__testables.omitLatestUserMessage(input), input);
 });
 
+test('sliceCompletedHistoryByRounds keepLatestUser 控制是否摘除最后一条 user', async () => {
+  const { __testables } = await freshImport('backend/prompts/assembler.js');
+  const msgs = [
+    { role: 'user', content: 'u1' },
+    { role: 'assistant', content: 'a1' },
+    { role: 'user', content: 'u2' },
+    { role: 'assistant', content: 'a2' },
+  ];
+  // 默认（生成模式）：摘掉最后一条 user，历史末尾出现相邻 assistant
+  assert.deepEqual(
+    __testables.sliceCompletedHistoryByRounds(msgs, 12).map((m) => m.content),
+    ['u1', 'a1', 'a2'],
+  );
+  // 续写模式 keepLatestUser=true：保留全窗口原序，末尾为待续写 assistant，轮次交替完整
+  assert.deepEqual(
+    __testables.sliceCompletedHistoryByRounds(msgs, 12, { keepLatestUser: true }).map((m) => m.content),
+    ['u1', 'a1', 'u2', 'a2'],
+  );
+});
+
 test('buildPrompt 组装系统段、历史消息、独立 system 后置提示词和当前用户消息', async () => {
   sandbox.writeConfig({
     ...sandbox.readConfig(),

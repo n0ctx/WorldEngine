@@ -49,6 +49,16 @@ writing 系统 prompt 主要分段（与事件相关）：
 
 SSE 事件 `suggestion_fallback_started/succeeded/failed` 现在带 `mode: 'fallback' | 'continuation'`，`failed` 额外带 `reason: 'empty' | 'error'`，便于前端/日志区分。chat、writing 的 stream/continue 四个入口均已同步。
 
+### 续写（/continue）prompt 组装契约
+
+续写没有"本轮新输入"，最后一条存量消息是待续写的 assistant。普通生成的组装器假设"末尾 user = 新输入"，直接复用会把那条 assistant 的提示 user 摘出再重贴到末尾、并叠加后置提示/suggestion，导致**轮次错乱、待续写 assistant 被重复、suggestion/format 双注入**（历史 bug）。
+
+约定：
+
+- chat 走 `buildContext(sessionId, { continuation: true })` → `buildPrompt`；writing 走 `buildWritingPrompt(sessionId, { continuation: true })`。
+- `continuation: true` 时组装器：历史用 `sliceCompletedHistoryByRounds(..., { keepLatestUser: true })` **保留全窗口原序**（不摘最后一条 user），并**整体跳过** `[13+14]` 后置提示词 + current-user 重贴块。产出的 prompt 自然以待续写 assistant 收尾。
+- `backend/routes/stream-helpers.js` 的 `buildContinuationMessages`：末尾为 assistant 时，prefill provider 且未启用 suggestion 原样返回（assistant 即 prefill）；否则**只追加一条** user 续写指令（suggestion 单次拼在指令末尾）。`originalContent` 仅留作"末尾非 assistant"兜底。
+
 ## 相关代码文件
 
 - `backend/routes/chat.js`

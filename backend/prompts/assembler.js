@@ -117,8 +117,11 @@ function getCurrentUserMessage(messages) {
   return lastUserIndex === -1 ? null : messages[lastUserIndex];
 }
 
-function sliceCompletedHistoryByRounds(messages, rounds) {
-  const history = omitLatestUserMessage(messages);
+// keepLatestUser：续写模式不摘除最后一条 user。普通生成时最后一条 user 是"本轮新输入"，
+// 由 getCurrentUserMessage 单独重贴到末尾，故历史里要先摘掉它；续写没有新输入，最后一条是
+// assistant，强行摘除其前的 user 会破坏轮次交替并让待续写 assistant 错位，故保留全窗口原序。
+function sliceCompletedHistoryByRounds(messages, rounds, { keepLatestUser = false } = {}) {
+  const history = keepLatestUser ? messages : omitLatestUserMessage(messages);
   const userIndexes = history
     .map((msg, index) => (msg.role === 'user' ? index : -1))
     .filter((index) => index >= 0);
@@ -156,7 +159,7 @@ export const __testables = {
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, recallHitCount: number }>}
  */
 export async function buildPrompt(sessionId, options = {}) {
-  const { onRecallEvent, diaryInjection } = options;
+  const { onRecallEvent, diaryInjection, continuation = false } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -300,7 +303,7 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // [12] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
-  const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12);
+  const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12, { keepLatestUser: continuation });
   for (const msg of history) {
     let content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
     if (config.suggestion_enabled && msg.role === 'assistant' && msg.next_options?.length > 0) {
@@ -311,32 +314,36 @@ export async function buildPrompt(sessionId, options = {}) {
   }
   log.debug(`│  [12] history  raw_messages=${history.length}`);
 
-  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后
-  const postParts = [
-    config.global_post_prompt,
-    character.post_prompt,
-  ].filter(Boolean).map(tv);
-  // character.post_prompt 为空时自动注入角色名兜底，防止长对话后身份漂移
-  if (!character.post_prompt) {
-    postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
-  }
-  if (config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-
-  const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
-  if (currentUserMsg?.role === 'user') {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
-    const formatted = formatMessageForLLM({ ...currentUserMsg, content });
-    if (postParts.length > 0) {
-      const postContent = postParts.join('\n\n');
-      if (Array.isArray(formatted.content)) {
-        formatted.content.push({ type: 'text', text: postContent });
-      } else {
-        formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
-      }
+  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
+  // 续写模式无"本轮新输入"，且后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
+  // 这里整体跳过，避免重复注入与轮次错乱（prompt 自然以待续写的 assistant 收尾）。
+  if (!continuation) {
+    const postParts = [
+      config.global_post_prompt,
+      character.post_prompt,
+    ].filter(Boolean).map(tv);
+    // character.post_prompt 为空时自动注入角色名兜底，防止长对话后身份漂移
+    if (!character.post_prompt) {
+      postParts.push(tv('（你正在扮演{{char}}，请严格保持角色名字和设定。）'));
     }
-    messages.push(formatted);
-  } else if (postParts.length > 0) {
-    messages.push({ role: 'user', content: postParts.join('\n\n') });
+    if (config.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
+
+    const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
+    if (currentUserMsg?.role === 'user') {
+      const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'chat');
+      const formatted = formatMessageForLLM({ ...currentUserMsg, content });
+      if (postParts.length > 0) {
+        const postContent = postParts.join('\n\n');
+        if (Array.isArray(formatted.content)) {
+          formatted.content.push({ type: 'text', text: postContent });
+        } else {
+          formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+        }
+      }
+      messages.push(formatted);
+    } else if (postParts.length > 0) {
+      messages.push({ role: 'user', content: postParts.join('\n\n') });
+    }
   }
 
   const temperature = world.temperature ?? config.llm.temperature;
@@ -373,7 +380,7 @@ export async function buildPrompt(sessionId, options = {}) {
  * @returns {Promise<{ messages: Array, temperature: number, maxTokens: number, model: string|null, recallHitCount: number }>}
  */
 export async function buildWritingPrompt(sessionId, options = {}) {
-  const { onRecallEvent, diaryInjection, skipWritingInstructions } = options;
+  const { onRecallEvent, diaryInjection, skipWritingInstructions, continuation = false } = options;
   const session = getSessionById(sessionId);
   if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -567,6 +574,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const history = sliceCompletedHistoryByRounds(
     uncompressedMessages,
     writing.context_history_rounds ?? config.context_history_rounds ?? 12,
+    { keepLatestUser: continuation },
   );
   for (const msg of history) {
     let content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
@@ -577,32 +585,36 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 
-  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后
-  const postParts = [];
-  if (!skipWritingInstructions) {
-    if (writing.global_post_prompt) postParts.push(tv(writing.global_post_prompt));
-    // 有玩家名时自动注入提醒，防止长对话后叙述者捏造或混淆玩家名
-    if (personaName) {
-      postParts.push(tv('（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）'));
-    }
-    if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
-  }
-
-  const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
-  if (currentUserMsg?.role === 'user') {
-    const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
-    const formatted = formatMessageForLLM({ ...currentUserMsg, content });
-    if (postParts.length > 0) {
-      const postContent = postParts.join('\n\n');
-      if (Array.isArray(formatted.content)) {
-        formatted.content.push({ type: 'text', text: postContent });
-      } else {
-        formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+  // [13+14] 后置提示词 + 当前用户消息：合并为一条 user message，后置提示词追加在用户消息之后。
+  // 续写模式无"本轮新输入"，后置提示词/suggestion 由 buildContinuationMessages 在续写指令里统一拼一次，
+  // 这里整体跳过，避免重复注入与轮次错乱（prompt 自然以待续写的 assistant 收尾）。
+  if (!continuation) {
+    const postParts = [];
+    if (!skipWritingInstructions) {
+      if (writing.global_post_prompt) postParts.push(tv(writing.global_post_prompt));
+      // 有玩家名时自动注入提醒，防止长对话后叙述者捏造或混淆玩家名
+      if (personaName) {
+        postParts.push(tv('（玩家角色名为{{user}}，请在叙述中严格使用此名字，不可捏造或替换。）'));
       }
+      if (writing.suggestion_enabled) postParts.push(tv(SUGGESTION_PROMPT));
     }
-    messages.push(formatted);
-  } else if (postParts.length > 0) {
-    messages.push({ role: 'user', content: postParts.join('\n\n') });
+
+    const currentUserMsg = getCurrentUserMessage(uncompressedMessages);
+    if (currentUserMsg?.role === 'user') {
+      const content = applyRules(currentUserMsg.content, 'prompt_only', world.id, 'writing');
+      const formatted = formatMessageForLLM({ ...currentUserMsg, content });
+      if (postParts.length > 0) {
+        const postContent = postParts.join('\n\n');
+        if (Array.isArray(formatted.content)) {
+          formatted.content.push({ type: 'text', text: postContent });
+        } else {
+          formatted.content = [formatted.content, postContent].filter(Boolean).join('\n\n');
+        }
+      }
+      messages.push(formatted);
+    } else if (postParts.length > 0) {
+      messages.push({ role: 'user', content: postParts.join('\n\n') });
+    }
   }
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;

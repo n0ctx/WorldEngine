@@ -75,7 +75,7 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
     emitSse,
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      const { messages, overrides, suggestionText } = await buildContext(sessionId);
+      const { messages, overrides, suggestionText } = await buildContext(sessionId, { continuation: true });
       const usePrefill = supportsPrefill(getConfig()?.llm?.provider);
       const continuationMessages = buildContinuationMessages(messages, originalContent, {
         suggestionText,

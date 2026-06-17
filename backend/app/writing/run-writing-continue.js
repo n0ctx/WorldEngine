@@ -88,7 +88,7 @@ export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attac
         model,
         cacheableSystem,
         suggestionText,
-      } = await buildWritingPrompt(sessionId);
+      } = await buildWritingPrompt(sessionId, { continuation: true });
 
       log.info(
         `CONTINUE PROMPT READY  ${formatMeta({
