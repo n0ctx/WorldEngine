@@ -215,6 +215,22 @@
   background: var(--avatar-bg);
 }
 
+/* 无封面卷宗：用世界名首字 + 印泥底色做"卷宗封面"水印，避免纯色卡显空 */
+.we-world-card-emblem {
+  position: absolute;
+  right: -0.12em;
+  bottom: -0.28em;
+  font-family: var(--we-font-display);
+  font-size: 8.5rem;
+  line-height: 1;
+  font-weight: 600;
+  color: var(--avatar-bg);
+  opacity: 0.16;
+  user-select: none;
+  pointer-events: none;
+  z-index: var(--we-z-card-bg);
+}
+
 .we-world-card-bg {
   position: absolute;
   inset: 0;
@@ -1237,12 +1253,25 @@
 .we-entry-section-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+}
+
+.we-entry-section-title-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .we-entry-section-name {
   font-family: var(--we-font-serif);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .we-entry-section-badge {
@@ -1270,9 +1299,11 @@
 }
 
 .we-entry-section-keywords {
-  margin-left: var(--we-space-sm);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .we-entry-section-actions {
@@ -1281,12 +1312,20 @@
   flex-shrink: 0;
 }
 
+/* 操作链默认收起，hover/键盘聚焦行时显现，避免 4 列红链刷屏 */
 .we-entry-section-action {
   font-size: var(--we-text-xs);
   color: var(--we-color-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--we-duration-fast);
+}
+
+.we-entry-section-row:hover .we-entry-section-action,
+.we-entry-section-row:focus-within .we-entry-section-action {
+  opacity: 1;
 }
 
 .we-entry-section-action--danger {

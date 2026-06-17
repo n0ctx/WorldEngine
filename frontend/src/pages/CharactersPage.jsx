@@ -65,7 +65,7 @@ export function EntryOrderPanel({ entries, onTokenChange }) {
 
   return (
     <div className="we-characters-col-entries">
-      <div className="we-characters-col-header">条目顺序</div>
+      <div className="we-characters-col-header"><span>Order</span></div>
       <div className="we-entry-order-list">
         {sorted.length === 0 ? (
           <p className="we-entry-order-empty">暂无条目</p>

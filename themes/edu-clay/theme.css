@@ -256,11 +256,13 @@
   --we-duration-extended: 520ms;
 
   /* ──────────────────────────────────────────────────────────────
-     § 8 Pager 胶囊：白底 + 墨蓝粗边 + 硬投影，hover 放大
+     § 8 Pager 胶囊：白底 + 墨蓝粗边 + 硬投影，hover 下压
+     （与卡片一致：rest 3/3 凸起 → hover 朝右下沉 2px、投影收到 1/1）
      ────────────────────────────────────────────────────────────── */
-  --we-pager-btn-bg:           #ffffff;
-  --we-pager-btn-border:       2.5px solid #1f2937;
-  --we-pager-btn-shadow:       3px 3px 0 0 #1f2937;
-  --we-pager-btn-hover-bg:     #ffffff;
-  --we-pager-btn-hover-shadow: 5px 5px 0 0 #1f2937;
+  --we-pager-btn-bg:              #ffffff;
+  --we-pager-btn-border:          2.5px solid #1f2937;
+  --we-pager-btn-shadow:          3px 3px 0 0 #1f2937;
+  --we-pager-btn-hover-bg:        #ffffff;
+  --we-pager-btn-hover-shadow:    1px 1px 0 0 #1f2937;
+  --we-pager-btn-hover-transform: translate(2px, 2px);
 }

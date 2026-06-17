@@ -2,6 +2,8 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(theme): edu-clay 翻页键 hover 改下压** — 新增 `--we-pager-btn-hover-transform` token(`tokens.css` 默认 none、`chat.css .we-pager-btn:hover` 消费并补 transform 过渡),edu-clay 设 hover 投影 5/5→1/1 + `translate(2px,2px)`,与卡片下压手感统一;其余主题默认 none 不受影响。
+- **style(frontend): 布局排版审美收口三处** — 书架无封面卡加世界名首字水印 emblem(`WorldsPage.jsx`+`pages.css .we-world-card-emblem`,避免纯色卡显空);世界配置四栏词条行 `编辑/删除` 改 hover/`focus-within` 收起、触发词单行省略、name+badge 包 `we-entry-section-title-line`(`EntrySection.jsx`+`pages.css`,降红链刷屏与多行折叠);角色页"条目顺序"栏头统一为英文 kicker `Order`(`CharactersPage.jsx`)。纯样式/结构微调,无数据与接口变更。
 - **fix(assistant): 写卡助手输入框静止态误现纵向滚动条** — `assistant/client/InputBox.jsx` 自动高度后按 `scrollHeight>120` 切换 `overflowY`(未超上限时 `hidden`,避免占位文案折行/空输入误触发滚动条);占位文案压成单行 `Enter 发送 · Shift+Enter 换行 · /stop 停止`(255px<输入框 313px),不再折两行被裁。
 - **fix(frontend): 流式 think 块裂块守卫——外层 think 闭合前禁止提前裂出正文/next_prompt** — `think-blocks.js` 的 `stackParse` 加 `keepOpen`、`parseStreamingBlocks(text,{isStreaming})` 流式只走 stack 并在 EOF depth>0 时整段作单个 open thinking 块(内部重复 `<think>/</think>` 当纯文本);`next-prompt.js` 的 `stackStrip`/`scanStrip`/`parseNextPromptStream` 同步加流式分支,未闭合 think 内 next_prompt 不漏出;`useChatStream`/`useWritingStream` 的 onDelta 传 `isStreaming=true`。终态(非流式)仍走 `stack ?? boolean` 保留"两开一闭"兜底,行为不变。
 - **fix(theme): 危险态按钮改用 danger token 而非 accent** — `ui.css` 的 `.we-confirm-ok.danger`/`.we-session-item__delete-confirm` 与 `chat.css` 的 `.we-message-action-danger` 原先取 `--we-color-accent`，导致 accent≠danger 的主题(lovable-cream 删除键=charcoal、edu-clay=绿)危险按钮失去语义色；改取 `--we-color-status-danger`/`--we-color-text-danger`。accent==danger 的 classic-parchment/neon-noir 无视觉变化。

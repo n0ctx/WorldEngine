@@ -2368,13 +2368,15 @@
   transition: color var(--we-duration-fast) var(--we-easing-sharp),
               background var(--we-duration-fast) var(--we-easing-sharp),
               border-color var(--we-duration-fast) var(--we-easing-sharp),
-              box-shadow var(--we-duration-fast) var(--we-easing-sharp);
+              box-shadow var(--we-duration-fast) var(--we-easing-sharp),
+              transform var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-pager-btn:hover:not(:disabled) {
   color: var(--we-color-accent);
   background: var(--we-pager-btn-hover-bg);
   box-shadow: var(--we-pager-btn-hover-shadow);
+  transform: var(--we-pager-btn-hover-transform);
 }
 
 .we-pager-btn:disabled {

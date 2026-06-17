@@ -103,19 +103,21 @@ function EntrySortableList({ entries, triggerType, worldId, onEdit, onDelete }) 
         <div className={`we-entry-section-row${entry.enabled === 0 ? ' we-entry-section-row--disabled' : ''}`}>
           <span className="we-entry-section-drag"><DragHandle /></span>
           <div className="we-entry-section-main">
-            <span className="we-entry-section-name">{entry.title}</span>
-            {triggerType === 'always' && entry.token === 0 && entry.enabled !== 0 && (
-              <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">
-                CACHED
-              </span>
-            )}
-            {triggerType === 'keyword' && entry.active_turns === 0 && entry.enabled !== 0 && (
-              <span className="we-entry-cached-badge" title="命中后永久生效">
-                永久
-              </span>
-            )}
+            <div className="we-entry-section-title-line">
+              <span className="we-entry-section-name">{entry.title}</span>
+              {triggerType === 'always' && entry.token === 0 && entry.enabled !== 0 && (
+                <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">
+                  CACHED
+                </span>
+              )}
+              {triggerType === 'keyword' && entry.active_turns === 0 && entry.enabled !== 0 && (
+                <span className="we-entry-cached-badge" title="命中后永久生效">
+                  永久
+                </span>
+              )}
+            </div>
             {triggerType === 'keyword' && entry.keywords?.length > 0 && (
-              <span className="we-entry-section-keywords">
+              <span className="we-entry-section-keywords" title={entry.keywords.join(' / ')}>
                 触发词：{entry.keywords.slice(0, 3).join(' / ')}{entry.keywords.length > 3 ? '…' : ''}
               </span>
             )}

@@ -210,7 +210,16 @@ export default function WorldsPage() {
                         </>
                       )}
                       {!world.cover_path && (
-                        <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
+                        <>
+                          <div
+                            className="we-world-card-emblem"
+                            aria-hidden="true"
+                            style={{ '--avatar-bg': getAvatarColor(world.id) }}
+                          >
+                            {Array.from(world.name || '卷')[0]}
+                          </div>
+                          <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
+                        </>
                       )}
                       <h3 className="we-world-card-name">{world.name}</h3>
                       <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>

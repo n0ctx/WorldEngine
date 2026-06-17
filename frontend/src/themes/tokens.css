@@ -359,6 +359,7 @@
   --we-pager-btn-shadow:           none;
   --we-pager-btn-hover-bg:         var(--we-color-accent-bg);
   --we-pager-btn-hover-shadow:     none;
+  --we-pager-btn-hover-transform:  none;
 }
 
 @media (prefers-reduced-motion: reduce) {
