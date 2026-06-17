@@ -46,7 +46,60 @@ exports[`EntrySection > 默认状态快照 1`] = `
           <span
             class="we-entry-section-drag"
           >
-            ⠿
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="16"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="16"
+            >
+              <circle
+                cx="9"
+                cy="6"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="9"
+                cy="12"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="9"
+                cy="18"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="6"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="12"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="18"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+            </svg>
           </span>
           <div
             class="we-entry-section-main"
@@ -98,7 +151,60 @@ exports[`EntrySection > 默认状态快照 1`] = `
           <span
             class="we-entry-section-drag"
           >
-            ⠿
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="16"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="16"
+            >
+              <circle
+                cx="9"
+                cy="6"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="9"
+                cy="12"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="9"
+                cy="18"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="6"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="12"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+              <circle
+                cx="15"
+                cy="18"
+                fill="currentColor"
+                r="1.4"
+                stroke="none"
+              />
+            </svg>
           </span>
           <div
             class="we-entry-section-main"

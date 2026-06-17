@@ -15,6 +15,7 @@
 - `components/ui/` 只收视觉原子与分子，并同步到 `components/index.js`
 - domain 组件直接路径 import，不进 barrel
 - page-local 组件禁止跨页面引用
+- 页面内复杂逻辑（流式收发、记忆指示器、配置加载等）抽成页面局部 hooks 放 `pages/<Page>/hooks/`；跨页面复用的 hooks 才进 `core/hooks/`（如 ChatPage/WritingSpacePage 的 `usePageConfig` / `useMemoryIndicators` / `useChatStream` / `useWritingStream`）
 - 编辑页优先复用 `pages/layout/EditPageShell.jsx`
 - 通用表单块优先复用 `FormGroup`
 - 确认弹窗优先复用 `ConfirmModal`

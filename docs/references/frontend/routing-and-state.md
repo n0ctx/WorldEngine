@@ -7,6 +7,7 @@
 - 路由：`frontend/src/core/router/`
 - 共享状态：`frontend/src/core/state/`
 - 跨页面 hooks：`frontend/src/core/hooks/`
+- 页面局部 hooks：`frontend/src/pages/<Page>/hooks/`（仅服务该页，禁止跨页引用）
 - 网络请求：`frontend/src/core/api/`
 - assistant 前端功能：`frontend/src/core/features/assistant/`
 - 工具与日志：`frontend/src/core/utils/`

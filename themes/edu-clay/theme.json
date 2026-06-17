@@ -1,0 +1,12 @@
+{
+  "id": "edu-clay",
+  "name": "学习乐园",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "教育平台风(LearnHub)：暖奶油底 + 深墨蓝粗描边 + 进度绿主色，硬质实心偏移投影、圆润 chunky 圆角，轻松友好。",
+  "preview": {
+    "paper": "#faf4ec",
+    "accent": "#22c55e",
+    "ink": "#1f2937"
+  }
+}

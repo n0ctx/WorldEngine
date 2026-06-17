@@ -202,6 +202,9 @@
     0 22px 44px rgba(0, 0, 0, 0.34);
   --we-list-card-shadow: var(--we-card-shadow);
   --we-list-card-hover-shadow: var(--we-card-hover-shadow);
+  --we-card-hover-transform: translateY(-4px);
+  --we-list-card-hover-transform: none;
+  --we-list-card-left-bar: transparent;
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);
@@ -209,8 +212,9 @@
 
   /* ========== 装饰 & 纹理（保留羊皮纸外观）========== */
   --we-canvas-texture-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-  --we-card-overlay-bg:           linear-gradient(160deg, rgba(28, 18, 10, 0.32) 0%, rgba(28, 18, 10, 0.72) 100%);
-  --we-card-overlay-hover-bg:     var(--we-card-overlay-bg);
+  /* 封面浓罩加深且更均匀（顶部 0.32→0.50）：让封面退为氛围底图而非鲜明焦点，降低视觉占比；hover 略减罩以奖励交互、露出更多画面 */
+  --we-card-overlay-bg:           linear-gradient(160deg, rgba(28, 18, 10, 0.50) 0%, rgba(28, 18, 10, 0.80) 100%);
+  --we-card-overlay-hover-bg:     linear-gradient(160deg, rgba(28, 18, 10, 0.40) 0%, rgba(28, 18, 10, 0.74) 100%);
   --we-card-overlay-backdrop-filter:       none;
   --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color:     rgba(255, 248, 235, 0.85);

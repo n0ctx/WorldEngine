@@ -137,7 +137,7 @@
   width: 100%;
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   padding: 10px 14px;
   font-family: var(--we-font-serif);
   font-size: var(--we-text-control);
@@ -351,7 +351,7 @@
   padding: 1px var(--we-space-xs); /* 1px: design exact */
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
@@ -583,7 +583,7 @@
   padding: 10px 14px;
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   font-family: var(--we-font-serif);
   font-size: var(--we-text-control);
   line-height: var(--we-leading-normal);
@@ -637,17 +637,26 @@
   width: 13px;
   height: 13px;
 }
-/* 编辑页 tag-input 同步圆角，保持与上方 input 视觉一致 */
+/* 编辑页 tag-input 对齐同页 input/select：内嵌阴影 + 焦点环 + 行高 + 字号，视觉同属一套控件 */
 .we-edit-panel .we-tag-input {
   border-radius: var(--we-radius-sm);
+  padding: var(--we-space-xs) var(--we-space-sm);
+  box-shadow: var(--we-shadow-paper-indent);
+}
+.we-edit-panel .we-tag-input:focus-within {
+  box-shadow: var(--we-shadow-paper-indent), var(--we-focus-ring);
 }
 .we-edit-panel .we-tag-input .we-tag {
   border-radius: var(--we-radius-xs);
+  font-size: var(--we-text-sm);
+}
+.we-edit-panel .we-tag-input-field {
+  font-size: var(--we-text-sm);
 }
 
 .we-status-inline-select .we-select-trigger {
   width: 100%;
-  min-height: 22px;
+  min-height: 24px;
   padding: 1px var(--we-space-sm) 1px var(--we-space-xs); /* 1px: design exact */
   background: var(--we-color-ink-wash);
   font-size: var(--we-text-2xs);
@@ -1839,6 +1848,9 @@
 
 .we-topbar-world-wrap {
   position: relative;
+  /* inline-flex + 居中：避免 block 包裹层的行盒基线把内部按钮下压 1px，与兄弟项错位 */
+  display: inline-flex;
+  align-items: center;
 }
 
 .we-topbar-item {
@@ -1884,10 +1896,14 @@
 }
 
 .we-topbar-caret {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   margin-left: var(--we-space-xs);
   opacity: 0.5;
-  font-size: 9px; /* no token */
+}
+.we-topbar-caret svg {
+  width: 11px;  /* design exact: 顶栏 caret 视觉尺寸，小于 Icon 最小档 16 */
+  height: 11px;
 }
 
 .we-page-transition {
@@ -2136,7 +2152,7 @@
   width: 100%;
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   overflow: hidden;
   box-shadow: var(--we-shadow-paper-indent);
   transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
@@ -2990,43 +3006,6 @@
   background-position: bottom;
 }
 
-/* 角色 tab 行下方分隔线（与世界卡 header 同款） */
-.we-cast-card .we-section-tabs-bar {
-  background-image: linear-gradient(
-    to right,
-    transparent 0%,
-    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 14%,
-    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 86%,
-    transparent 100%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  background-position: bottom;
-  padding-bottom: 4px;
-}
-
-/* writing: per-tab actions 浮到 tab 内容右上角，与首字段同行 */
-.we-cast-card {
-  position: relative;
-}
-.we-cast-card .we-section-tabs-bar {
-  position: relative;
-  padding-left: 0;
-  padding-right: 0;
-}
-.we-cast-card .we-section-tabs-bar > .we-section-tabs-actions {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  padding: 0;
-  margin: 0;
-  z-index: var(--we-z-card-content);
-}
-/* 玩家 tab 首字段强制独占一行，让右上角 actions 不与字段碰撞 */
-.we-cast-card .we-status-player .we-fields-list--grid > *:first-child {
-  grid-column: 1 / -1;
-}
-
 /* writing: 已保存角色 —— 顶部 tab 仅显示当前登场，已保存角色折叠到底部紧凑列表 */
 .we-saved-nearby {
   margin-top: var(--we-space-md);
@@ -3106,15 +3085,6 @@
   border-top: none;
 }
 
-/* 右栏:世界状态(flush)与下方 tab 区之间用 FleuronLine 章节分隔 */
-.we-state-panel .we-state-scroll > .we-cast-fleuron,
-.we-cast-panel .we-cast-scroll > .we-cast-fleuron {
-  margin: var(--we-space-sm) 0;
-  opacity: 1;
-  clip-path: none;
-  animation: none;
-}
-
 /* ── PanelCard variant: headerless（无 header，内容直接开始） ─── */
 .we-panel-card--headerless {
   background: transparent;
@@ -3133,18 +3103,6 @@
   padding: 10px 0 var(--we-space-xs); /* 10px: design exact */
   border-top: none;
 }
-
-/* 世界状态卡 / 角色 tab 区共用同一外框样式 */
-.we-world-frame,
-.we-cast-card {
-  background: color-mix(in srgb, var(--we-base-paper-100, #ede3d0) 35%, transparent);
-  border: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
-  border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-shadow-paper-lift);
-  padding: var(--we-space-sm) 10px 10px; /* 10px: design exact */
-}
-.we-world-frame { margin: 0; }
-.we-cast-card { margin: 0; }
 
 /* 动作按钮 chip 修饰 — 通过 .we-panel-card-actions 父级提升特异性，消除 !important */
 .we-panel-card-actions .we-panel-card-action--chip,
@@ -3221,6 +3179,26 @@
 }
 .we-fields-list--grid .we-status-field--long {
   grid-column: 1 / -1;
+}
+
+/* 实时状态面板（聊天 StatePanel + 写作 NearbyPanel）：短标量字段「标签 — 值」同行，密集态省高 */
+:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  column-gap: var(--we-space-sm);
+  row-gap: var(--we-space-xxs);
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-key {
+  flex-shrink: 0;
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-value {
+  text-align: right;
+  min-width: 0;
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-bar {
+  flex-basis: 100%;
 }
 
 /* — Timeline 原语补缺（diary-more / timeline-dot / timeline-text / entry-old）─ */

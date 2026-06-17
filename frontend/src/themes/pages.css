@@ -176,7 +176,7 @@
 }
 
 .we-world-card:hover {
-  transform: translateY(-4px);
+  transform: var(--we-card-hover-transform);
   box-shadow: var(--we-card-hover-shadow);
 }
 
@@ -651,12 +651,21 @@
 }
 
 .we-entry-order-title {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  min-width: 0;
   font-size: var(--we-text-sm);
   color: var(--we-page-canvas-fg);
-  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* 标题文字独立省略，避免把后面的 CACHED 徽章一起裁掉 */
+.we-entry-order-title-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .we-entry-order-type {
@@ -677,7 +686,9 @@
 .we-persona-card {
   background: var(--we-card-bg);
   border: var(--we-card-border);
-  border-left: 3px solid transparent;
+  /* 左侧 3px 既是 rest 边框也是 active 指示槽：默认透明(细边主题靠阴影定界)，
+     粗边主题可把 rest 色设为边框色，避免「左侧开口」缺边观感；active 态覆为强调色 */
+  border-left: 3px solid var(--we-list-card-left-bar);
   border-radius: var(--we-card-radius);
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
@@ -693,6 +704,7 @@
 
 .we-persona-card:hover {
   box-shadow: var(--we-list-card-hover-shadow);
+  transform: var(--we-list-card-hover-transform);
 }
 
 .we-persona-card:hover .we-character-card-actions {
@@ -836,12 +848,14 @@
   cursor: pointer;
   position: relative;
   box-shadow: var(--we-list-card-shadow);
-  transition: box-shadow var(--we-duration-normal) var(--we-easing-standard);
+  transition: box-shadow var(--we-duration-normal) var(--we-easing-standard),
+              transform var(--we-duration-normal) var(--we-easing-standard);
   user-select: none;
 }
 
 .we-character-card:hover {
   box-shadow: var(--we-list-card-hover-shadow);
+  transform: var(--we-list-card-hover-transform);
 }
 
 .we-character-card:hover .we-character-card-actions {
@@ -1241,6 +1255,7 @@
 }
 
 .we-entry-cached-badge {
+  flex-shrink: 0;
   margin-left: var(--we-space-sm);
   font-family: var(--we-font-mono, var(--we-font-serif));
   font-size: var(--we-text-xs);
@@ -1251,6 +1266,7 @@
   border-radius: var(--we-radius-sm);
   padding: var(--we-space-xxs) var(--we-space-sm);
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .we-entry-section-keywords {
@@ -1863,6 +1879,7 @@
   box-shadow: 0 6px 24px var(--we-color-shadow-lg);
   display: flex;
   min-height: calc(100vh - 80px);
+  overflow: hidden;
 }
 
 .we-settings-panel-wrap {
@@ -3154,7 +3171,8 @@
   display: flex;
   flex-direction: column;
   background: var(--we-color-bg-surface);
-  border-left: 1px solid var(--we-color-border-default);
+  /* 软化三栏接缝：半透明 hairline 替代硬 1px 实线，配合背景色差形成柔和边界 */
+  border-left: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
   position: relative;
   overflow: hidden;
 }
@@ -3165,7 +3183,7 @@
 .we-panel-spine {
   position: absolute;
   left: 0; top: 0; bottom: 0;
-  width: 14px;
+  width: 8px;
   background: var(--we-spine-shadow-left);
   pointer-events: none;
   z-index: var(--we-z-spine);
@@ -3176,23 +3194,25 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 12px;
+  width: 8px;
   background: var(--we-spine-shadow-left);
   pointer-events: none;
   z-index: var(--we-z-spine);
 }
 
 .we-page-left {
-  flex: 0 0 18%;
-  min-width: 240px;
-  max-width: 320px;
+  /* 收窄会话栏：会话列表内容稀疏，更窄的栏宽让留白成为克制的呼吸感而非空洞 */
+  flex: 0 0 16%;
+  min-width: 216px;
+  max-width: 280px;
   min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
   background: var(--we-color-bg-surface);
-  border-right: 1px solid var(--we-color-border-default);
+  /* 软化接缝：半透明 hairline，与右栏一致 */
+  border-right: 1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
   border-radius: 0 0 0 var(--we-radius-sm);
 }
 
@@ -3201,7 +3221,7 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 12px;
+  width: 8px;
   background: var(--we-spine-shadow-right);
   pointer-events: none;
   z-index: var(--we-z-spine);
@@ -3323,6 +3343,110 @@
 .we-state-scroll::-webkit-scrollbar { width: 4px; }
 .we-state-scroll::-webkit-scrollbar-track { background: transparent; }
 .we-state-scroll::-webkit-scrollbar-thumb { background: var(--we-color-border-default); border-radius: var(--we-radius-full); }
+
+/* — 连续状态卷轴（聊天右栏专属，隔离写作 NearbyPanel 的 .we-cast-* 共享类）— */
+/* 世界区 / 角色 tab 区都是融入纸面的区块，无独立纸框 */
+.we-state-block {
+  padding: var(--we-space-xs) var(--we-space-sm) var(--we-space-sm);
+}
+.we-state-block-head {
+  display: flex;
+  align-items: center;
+  gap: 7px; /* design exact */
+  margin-bottom: 10px; /* design exact */
+}
+.we-state-block-label {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-control);
+  font-weight: 500;
+  color: var(--we-color-text-primary);
+  letter-spacing: var(--we-tracking-wide);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  max-width: 70%;
+}
+/* 细线分隔 —— 取代 ❦ fleuron，两端渐隐与 flush header 同语言 */
+.we-state-divider {
+  height: 1px;
+  flex-shrink: 0; /* 关键：在 column flex 滚动容器里不被压成 0 高（写作面板曾因此分割线消失） */
+  margin: var(--we-space-sm);
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 12%,
+    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 88%,
+    transparent 100%
+  );
+}
+/* tab 行不再画整条全宽细线（旧版那条在深边框主题下是一条"长黑线"，与选中态绿色指示线并存形成双层下划线）。
+   选中 tab 仅由 .we-section-tab-indicator 的绿色短线标识，单条、干净。 */
+/* tab 内容卡彻底融入纸面：去投影/边框/底色（消除部分主题在内容卡边缘残留的绿色光晕「框」） */
+.we-state-block .we-panel-card {
+  box-shadow: none;
+  border: none;
+  background: transparent;
+}
+/* 重置：默认隐去，hover / 键盘聚焦本区时显现（与 .we-state-section-reset 同语义，弱化危险操作） */
+.we-state-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px; /* design exact */
+  flex-shrink: 0;
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-2xs);
+  color: transparent;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  letter-spacing: var(--we-tracking-normal);
+  transition: color var(--we-duration-normal) ease;
+}
+.we-state-block:hover .we-state-reset,
+.we-state-block:focus-within .we-state-reset { color: var(--we-color-text-tertiary); }
+.we-state-reset:hover,
+.we-state-reset:focus-visible { color: var(--we-color-accent); }
+.we-state-reset:disabled { color: var(--we-color-text-tertiary); cursor: not-allowed; }
+/* 空态：图标 + 一句引导，取代裸"暂无数据" */
+.we-state-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--we-space-xs);
+  padding: var(--we-space-lg) var(--we-space-sm);
+  color: var(--we-color-text-tertiary);
+}
+.we-state-empty svg { opacity: 0.5; }
+.we-state-empty-hint {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+  letter-spacing: var(--we-tracking-normal);
+  max-width: 24ch;
+  line-height: var(--we-leading-normal);
+}
+
+/* 写作 nearby：动作按钮去硬框（制卡/保存/收起/移除/+），常显但无边框底色，hover/聚焦仅提亮 —
+   呼应聊天面板的安静风格，消除"生硬的 hover 框" */
+.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip,
+.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: var(--we-space-xxs);
+}
+.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip:hover,
+.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip:hover,
+.we-cast-panel .we-section-tabs-globals .we-panel-card-action--chip:focus-visible,
+.we-cast-panel .we-section-tabs-actions .we-panel-card-action--chip:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  color: var(--we-color-accent);
+}
 
 /* — Panel 头部 + 角色名 + 世界名 + 占位 + 金箔分隔 + 内容区 ─ */
 /* ── 头部 ─── */

@@ -495,6 +495,7 @@ export default function StatusSection({
   templateCtx,
   headerless = false,
   gridLayout = false,
+  emptyContent = null,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [editingKey, setEditingKey] = useState(null);
@@ -529,7 +530,7 @@ export default function StatusSection({
   const body = (
     <>
       {isLoading && <SkeletonRows />}
-      {isEmpty && <p className="we-section-empty">暂无数据</p>}
+      {isEmpty && (emptyContent ?? <p className="we-section-empty">暂无数据</p>)}
       {!isLoading && !isEmpty && (
         <div className={`we-fields-list${gridLayout ? ' we-fields-list--grid' : ''}`}>
           {rows?.map((row, i) => {

@@ -99,6 +99,9 @@
   /* 列表型窄长条卡（PersonaCard / CharacterCard 等）：默认沿用 card 投影，可单独收紧 */
   --we-list-card-shadow: var(--we-card-shadow);
   --we-list-card-hover-shadow: var(--we-card-hover-shadow);
+  --we-card-hover-transform: translateY(-4px);
+  --we-list-card-hover-transform: none;
+  --we-list-card-left-bar: transparent;
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);

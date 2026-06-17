@@ -93,7 +93,7 @@
   width: 100%;
   padding: 7px 0; /* design exact */
   border: 1.5px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-none);
+  border-radius: var(--we-radius-sm);
   background: none;
   cursor: pointer;
   font-size: var(--we-text-2xs);
@@ -185,8 +185,9 @@
 .we-message-content {
   font-family: var(--we-font-serif);
   font-size: var(--we-text-base);
-  line-height: 1.9;
-  color: var(--we-color-text-primary);
+  line-height: 1.8;
+  /* 微提亮墨色：近黑 serif 正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
+  color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
 }
 
 .we-message-content p      { margin-bottom: 0.5em; }
@@ -195,7 +196,7 @@
 .we-message-content li     { margin-bottom: 0.2em; }
 .we-message-content ul li::marker { color: var(--we-color-accent); opacity: 0.7; }
 .we-message-content ol li::marker { color: var(--we-color-text-tertiary); }
-.we-message-content strong { font-weight: 700; font-synthesis: weight; color: var(--we-color-text-primary); }
+.we-message-content strong { font-weight: 600; font-synthesis: weight; color: var(--we-color-text-primary); }
 .we-message-content em     { font-style: italic; font-synthesis: style; }
 
 /* 标题 — 改用展示字体，层次感更强 */

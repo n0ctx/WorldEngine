@@ -1,0 +1,5 @@
+阿里妈妈方圆体 VF (Alimama FangYuanTi VF)
+License: 阿里巴巴免费商用字体协议（免费商用）
+Source: https://www.alibabafonts.com/
+本仓库内为官方可变字 TTF 经 fontTools 实例化：固定 BEVL=100（最圆），
+保留 wght 200–700，再转 woff2，仅用于 edu-clay 主题中文正文/UI。

@@ -97,6 +97,15 @@ function CancelIcon() {
   );
 }
 
+function EmptyStateIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15.5H5.5A1.5 1.5 0 0 0 4 21z" />
+      <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15.5h5.5A1.5 1.5 0 0 1 20 21z" />
+    </svg>
+  );
+}
+
 /** 将 diary_time 行排到首位，其余行顺序不变 */
 function pinDiaryTimeFirst(rows) {
   if (!Array.isArray(rows)) return rows;
@@ -341,28 +350,40 @@ export default function NearbyPanel({
   const renderResetAction = (onClick, busy) => (
     <button
       type="button"
-      className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+      className="we-state-reset"
       onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
       disabled={busy}
+      aria-label="重置本区状态"
+      title="重置本区状态"
     >
       {busy ? '…' : (<><RefreshIcon /><span>重置</span></>)}
     </button>
   );
 
-  const worldTab = (
-    <div className="we-panel-tab-body">
-      <div className="we-world-frame">
-        <PanelCard variant="flush" title={worldName || '世界状态'} actions={renderResetAction(handleResetWorldState, worldResetting)}>
-          <StatusSection
-            headerless
-            gridLayout
-            rows={worldRows}
-            onSave={handleSaveWorld}
-            templateCtx={templateCtx}
-          />
-        </PanelCard>
-      </div>
+  const renderStateEmpty = (hint) => (
+    <div className="we-state-empty">
+      <EmptyStateIcon />
+      <span className="we-state-empty-hint">{hint}</span>
     </div>
+  );
+
+  const worldTab = (
+    <section className="we-state-block we-state-block--world">
+      <header className="we-state-block-head">
+        <span className="we-state-block-label">{worldName || '世界'}</span>
+        <span className="we-section-rule" />
+        {renderResetAction(handleResetWorldState, worldResetting)}
+      </header>
+      <StatusSection
+        headerless
+        gridLayout
+        className="we-status-world"
+        rows={worldRows}
+        onSave={handleSaveWorld}
+        templateCtx={templateCtx}
+        emptyContent={renderStateEmpty('世界状态会随剧情逐步记录')}
+      />
+    </section>
   );
 
   const playerTab = (
@@ -375,6 +396,7 @@ export default function NearbyPanel({
           rows={stateData?.persona ?? null}
           onSave={handleSavePersona}
           templateCtx={templateCtx}
+          emptyContent={renderStateEmpty('玩家状态会随剧情逐步记录')}
         />
       </PanelCard>
     </div>
@@ -626,14 +648,10 @@ export default function NearbyPanel({
 
       <div className="we-cast-scroll">
         {worldTab}
-        <div className="we-cast-fleuron we-chapter-divider we-fleuron--visible" aria-hidden="true">
-          <span className="we-fleuron-line" />
-          <span className="we-fleuron-symbol">❦</span>
-          <span className="we-fleuron-line" />
-        </div>
-        <div className="we-cast-card">
+        <div className="we-state-divider" aria-hidden="true" />
+        <section className="we-state-block we-state-block--cast">
           <SectionTabs sections={sections} defaultKey="player" globalActions={addNearbyGlobalAction} />
-        </div>
+        </section>
 
         {demotedSavedNearby.length > 0 && (
           <div className="we-saved-nearby">

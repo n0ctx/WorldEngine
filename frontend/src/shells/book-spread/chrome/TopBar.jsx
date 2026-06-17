@@ -166,7 +166,9 @@ export default function TopBar() {
             animate={{ rotate: dropdownOpen ? 180 : 0 }}
             transition={{ duration: DURATION.quick, ease: EASE.sharp }}
             aria-hidden="true"
-          >▾</motion.span>
+          >
+            <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
+          </motion.span>
         </button>
         )}
 

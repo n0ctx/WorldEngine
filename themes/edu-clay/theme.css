@@ -1,0 +1,266 @@
+/*
+ * edu-clay 「学习乐园」主题覆盖层
+ *
+ * 还原 skill 内置 educational-platform (LearnHub) demo 实际观感：
+ *   - 配色：暖奶油画布 #faf4ec + 深墨蓝描边 #1f2937 + 进度绿 #22c55e 主色
+ *   - 形状：圆润 chunky 圆角 + 卡片/按钮统一 2.5px 深墨蓝粗边
+ *   - 投影：硬质实心偏移投影 (4px 4px 0 #1f2937)，无模糊、无柔焦
+ *   - hover：persona/character 卡片为纯阴影驱动 (pages.css:694/843)，
+ *           故用「rest 4/4 → hover 6/6」放大硬投影模拟「弹起」手感，
+ *           按钮 stamp 用「rest 凸 4/4 → press 凹 2/2」模拟实体按压
+ *   - 顶栏：白色浮动栏 + 深墨蓝文字/描边（非深色顶栏）
+ *   - 气质：轻松、友好、不用 dark mode
+ *
+ * 规则：只覆盖 token，不写组件选择器。字体只通过 --we-font-* 引用，
+ * 不在主题包声明 @font-face；Baloo 2 变量字体已自托管于
+ * frontend/src/themes/fonts.css（family: 'Baloo 2 Variable'）。
+ */
+
+:root {
+  /* ──────────────────────────────────────────────────────────────
+     § 1 字体：英文 Baloo 2 圆润粗体；中文标题站酷快乐体 / 正文阿里妈妈方圆体（均自托管）
+     ────────────────────────────────────────────────────────────── */
+  /* 英文始终 Baloo 在前；中文按角色回落：
+     标题层(display/seal) → 站酷快乐体；正文/UI 层(serif/sans/ui) → 阿里妈妈方圆体。
+     再之后才退到系统圆体与黑体。两支中文字自托管于 frontend/src/themes/fonts.css。 */
+  --we-font-serif:   'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --we-font-display: 'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'ZCOOL KuaiLe', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --we-font-seal:    'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'ZCOOL KuaiLe', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --we-font-sans:    'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  --we-font-ui:      'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  --we-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 2 语义色与透明层
+     ────────────────────────────────────────────────────────────── */
+
+  /* 文字：深墨蓝主色，逐级提亮但保持 ≥4.5:1（白卡 / 奶油底均达标） */
+  --we-color-text-primary:   #1f2937;
+  --we-color-text-secondary: #475569;
+  --we-color-text-tertiary:  #586273;
+  --we-color-text-inverse:   #ffffff;
+  --we-color-text-danger:    #b42318;
+
+  --we-color-bg-canvas:   #faf4ec;   /* 暖奶油画布 */
+  --we-color-bg-surface:  #ffffff;
+  --we-color-bg-elevated: #ffffff;
+  --we-color-bg-subtle:   #f3ecdd;
+  --we-color-bg-muted:    #e9dfca;
+  --we-color-bg-overlay:  rgba(31, 41, 55, 0.45);
+  --we-color-bg-inverse:  #1f2937;
+
+  /* 边框：default/strong 走深墨蓝识别色；subtle 留白做高光 */
+  --we-color-border-default:     #e2d8c4;   /* 次级分隔线保持克制奶油色 */
+  --we-color-border-subtle:      #ffffff;
+  --we-color-border-strong:      #1f2937;    /* 招牌深墨蓝粗描边色 */
+  --we-color-border-focus:       #16a34a;
+  --we-focus-ring:               0 0 0 3px rgba(34, 197, 94, 0.28);
+  --we-color-border-white-faint: rgba(255, 255, 255, 0.06);
+
+  /* 状态：进度绿主导。success 用 green-700 以满足「绿字 on 白」≥4.5:1 */
+  --we-color-status-success: #15803d;
+  --we-color-status-warning: #b45309;
+  --we-color-status-danger:  #dc2626;
+  --we-color-status-info:    #2563eb;
+
+  /* accent 同时承担「按钮实底（配奶油文字）」与「绿色文字/边框」两职：
+     取 green-700 #15803d —— 奶油文字 on accent = 4.59、accent 文字 on 白 = 5.02，
+     两端均过 WCAG AA。鲜亮 #22c55e 只留给装饰性实底（进度条/激活高亮，无文字叠加）。 */
+  --we-color-accent:      #15803d;
+  --we-color-accent-deep: #166534;
+  --we-color-accent-bg:   rgba(34, 197, 94, 0.08);   /* 调淡：徽章绿字 on 白卡 ≈4.67 过 AA */
+  --we-color-gold:        #22c55e;          /* 鲜亮装饰绿（进度条/高亮，不承载文字） */
+  /* gold-pale 仅用于顶栏 active 文字。白色顶栏须用深色：取 green-800，
+     on active-bg(绿0.16/白) ≈5.9:1，既清晰可读又标明「当前页=绿」 */
+  --we-color-gold-pale:   #166534;
+  --we-color-avatar-placeholder: #93c5b5;
+
+  --we-color-ink-wash:        rgba(31, 41, 55, 0.04);
+  --we-color-ink-wash-md:     rgba(31, 41, 55, 0.06);
+  --we-color-ink-wash-strong: rgba(31, 41, 55, 0.12);
+  --we-color-shadow-sm: rgba(31, 41, 55, 0.10);
+  --we-color-shadow-md: rgba(31, 41, 55, 0.16);
+  --we-color-shadow-lg: rgba(31, 41, 55, 0.22);
+  --we-color-shadow-xl: rgba(31, 41, 55, 0.32);
+  --we-color-overlay-light:  rgba(31, 41, 55, 0.12);
+  --we-color-overlay-medium: rgba(31, 41, 55, 0.32);
+  --we-color-overlay-heavy:  rgba(31, 41, 55, 0.58);
+  --we-color-paper-wash:    rgba(250, 244, 236, 0.30);
+  --we-color-paper-tint:    rgba(243, 236, 221, 0.45);
+  --we-color-paper-overlay: rgba(233, 223, 202, 0.14);
+  --we-color-ink-secondary-wash:    rgba(71, 85, 105, 0.16);
+  --we-color-ink-secondary-wash-sm: rgba(71, 85, 105, 0.12);
+  --we-color-accent-border:    rgba(31, 41, 55, 0.85);   /* hover 描边逼近实色墨蓝 */
+  --we-color-accent-border-sm: rgba(31, 41, 55, 0.55);
+  --we-color-white-wash:     rgba(255, 255, 255, 0.06);
+  --we-color-white-sheen-sm: rgba(255, 255, 255, 0.14);
+  --we-color-white-sheen-md: rgba(255, 255, 255, 0.30);
+
+  /* ──────────────────────────────────────────────────────────────
+     § 3 字体与页面排版
+     ────────────────────────────────────────────────────────────── */
+  --we-page-canvas-bg:          var(--we-color-bg-canvas);
+  --we-page-canvas-fg:          var(--we-color-text-primary);
+  --we-page-canvas-fg-muted:    var(--we-color-text-secondary);
+  --we-page-canvas-fg-deep:     var(--we-color-border-strong);
+  --we-page-canvas-title-style: normal;
+  --we-page-canvas-title-weight: 700;          /* Baloo 圆体粗标题 */
+  --we-page-canvas-subtitle-display: block;
+  --we-card-name-font-style:  normal;
+  --we-card-name-font-weight: 600;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 4 卡片、面板与条目行（招牌：墨蓝粗边 + 硬质偏移投影）
+     ────────────────────────────────────────────────────────────── */
+  --we-card-bg:     #ffffff;
+  --we-card-border: 2.5px solid #1f2937;
+  --we-card-radius: var(--we-radius-lg);
+  /* 下压手感：rest 凸起硬投影 4/4 → hover 卡片朝右下「沉」3px 且投影收到 1/1，
+     像实体按键被按进桌面。位移与投影同步，视觉上卡片贴向其投影。 */
+  --we-card-shadow:           4px 4px 0 0 #1f2937;
+  --we-card-hover-shadow:     1px 1px 0 0 #1f2937;
+  --we-card-hover-transform:  translate(3px, 3px);
+
+  /* 列表型窄长条卡（PersonaCard / CharacterCard）：同款下压。
+     col-list 仅有 padding-right:4px，hover 右外延 = 位移 3 + 投影 1 = 4px ≤ 4px，不裁切。 */
+  --we-list-card-shadow:          4px 4px 0 0 #1f2937;
+  --we-list-card-hover-shadow:    1px 1px 0 0 #1f2937;
+  --we-list-card-hover-transform: translate(3px, 3px);
+  /* 补齐左边框：rest 左条用边框墨蓝色，active 态由组件覆为强调绿 */
+  --we-list-card-left-bar:        #1f2937;
+
+  --we-panel-card-bg:     #ffffff;
+  --we-panel-card-border: 2.5px solid #1f2937;
+  --we-panel-card-radius: var(--we-radius-lg);
+  --we-panel-card-shadow: 4px 4px 0 0 #1f2937;
+
+  /* 条目行：白底墨蓝硬投影小块 */
+  --we-entry-row-bg:     #ffffff;
+  --we-entry-row-shadow: 3px 3px 0 0 #1f2937;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 5 壳层、书架与质感（白色浮动顶栏 + 深墨蓝文字/描边）
+     ────────────────────────────────────────────────────────────── */
+  --we-topbar-bg:            #ffffff;
+  --we-topbar-border:        #1f2937;
+  --we-topbar-item:          rgba(31, 41, 55, 0.72);     /* ≈5.4:1 on 白栏 */
+  --we-topbar-item-hover:    #1f2937;
+  --we-topbar-sep:           rgba(31, 41, 55, 0.18);
+  --we-topbar-active-bg:     rgba(34, 197, 94, 0.16);     /* 进度绿高亮当前页 */
+  --we-topbar-active-ring:   rgba(34, 197, 94, 0.55);
+  --we-topbar-dropdown-bg:   #ffffff;
+  --we-topbar-dropdown-border: #1f2937;
+  --we-topbar-dropdown-shadow: 4px 4px 0 0 #1f2937;
+  --we-topbar-item-hover-bg: rgba(31, 41, 55, 0.06);
+  /* dim/muted/faint 抬到 ≥0.66(≈4.86:1)，确保去强调态文字仍过 AA */
+  --we-topbar-item-dim:      rgba(31, 41, 55, 0.66);
+  --we-topbar-item-muted:    rgba(31, 41, 55, 0.70);
+  --we-topbar-item-faint:    rgba(31, 41, 55, 0.78);
+  --we-topbar-divider:       rgba(31, 41, 55, 0.12);
+
+  --we-canvas-texture-image: none;
+  --we-card-overlay-bg:                    linear-gradient(to top, rgba(15, 23, 42, 0.58) 0%, rgba(15, 23, 42, 0.10) 45%, transparent 78%);
+  --we-card-overlay-hover-bg:              linear-gradient(to top, rgba(15, 23, 42, 0.66) 0%, rgba(15, 23, 42, 0.14) 45%, transparent 82%);
+  --we-card-overlay-backdrop-filter:       none;
+  --we-card-overlay-hover-backdrop-filter: none;
+  --we-card-cover-text-color: #ffffff;
+  --we-card-cover-meta-color: rgba(255, 255, 255, 0.78);
+
+  --we-col-header-border-color: #1f2937;
+  --we-col-btn-border-color:    #1f2937;
+  --we-col-btn-color:           #1f2937;
+  --we-col-btn-primary-hover-bg: rgba(34, 197, 94, 0.14);
+  --we-entry-meta-color: #586273;
+  --we-entry-header-decor-bg: linear-gradient(
+    to right,
+    rgba(31, 41, 55, 0.22) 0%,
+    rgba(31, 41, 55, 0.08) 50%,
+    transparent 80%
+  );
+  --we-parchment-display: none;
+  --we-parchment-fiber-opacity: 0;
+  --we-spine-display: none;
+  --we-bookmark-display: none;
+
+  --we-spine-shadow-left:  linear-gradient(to right, transparent, transparent);
+  --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
+
+  /* 卷宗书架框架：奶油底 + 墨蓝粗边 + 硬投影 */
+  --we-bookshelf-frame-bg:     #fffdf8;
+  --we-bookshelf-frame-border: #1f2937;
+  --we-bookshelf-frame-shadow: 5px 5px 0 0 #1f2937;
+  --we-bookshelf-back-panel-bg:
+    linear-gradient(180deg, #ffffff, #faf4ec);
+  --we-bookshelf-back-panel-border: rgba(31, 41, 55, 0.18);
+  --we-bookshelf-card-plain-bg:     #ffffff;
+  --we-bookshelf-card-plain-border: 2.5px solid #1f2937;
+  --we-bookshelf-empty-bg:     #fffdf8;
+  --we-bookshelf-empty-border: rgba(31, 41, 55, 0.22);
+  --we-bookshelf-frame-glow:     rgba(255, 255, 255, 0.4);
+  --we-bookshelf-frame-vignette: rgba(31, 41, 55, 0.08);
+
+  --we-loading-scrim-bg:
+    linear-gradient(180deg, rgb(250 244 236 / 55%), rgb(243 236 221 / 35%));
+  --we-loading-scrim-border: rgb(31 41 55 / 18%);
+  --we-loading-scrim-shadow: 4px 4px 0 0 rgb(31 41 55 / 60%);
+
+  /* ──────────────────────────────────────────────────────────────
+     § 6 基础色板
+     ────────────────────────────────────────────────────────────── */
+  --we-base-paper-100: #faf4ec;
+  --we-base-paper-200: #ffffff;
+  --we-base-paper-300: #f3ecdd;
+  --we-base-paper-400: #e9dfca;
+  --we-base-ink-900: #1f2937;
+  --we-base-ink-700: #475569;
+  --we-base-ink-500: #586273;
+  --we-base-vermilion-600: #15803d;   /* 主强调绿，作文字时 on 白 ≥4.5 */
+  --we-base-vermilion-800: #166534;
+  --we-base-gold-600: #15803d;
+  --we-base-gold-400: #22c55e;        /* 鲜亮装饰绿 */
+  --we-base-moss-600: #15803d;
+  --we-base-amber-600: #b45309;
+  --we-base-slate-600: #2563eb;
+  --we-base-book-bg: #1f2937;
+  --we-base-white: #ffffff;
+  --we-base-peach-200: #f4a99a;       /* 教育卡常见珊瑚色图标块 */
+
+  /* ──────────────────────────────────────────────────────────────
+     § 7 阴影 / 圆角 / 动效（硬质实心偏移投影 + chunky 圆角）
+     ────────────────────────────────────────────────────────────── */
+  /* 按钮 stamp：凸起硬投影 → 按下凹陷小投影，模拟实体按键 */
+  --we-shadow-stamp-up:   3px 3px 0 0 #1f2937;
+  --we-shadow-stamp-down: 1px 1px 0 0 #1f2937;
+  --we-shadow-paper-stack: 3px 3px 0 0 #1f2937;
+  --we-shadow-paper-lift:  4px 4px 0 0 #1f2937;
+  --we-shadow-paper-indent: inset 2px 2px 0 0 rgba(31, 41, 55, 0.18);
+  --we-shadow-dialog:      6px 6px 0 0 #1f2937;
+  --we-shadow-toast:       4px 4px 0 0 #1f2937;
+  --we-shadow-btn-primary-inner-glow: none;
+  --we-shadow-range-thumb: 2px 2px 0 0 #1f2937;
+  --we-shadow-range-thumb-active: 3px 3px 0 0 #1f2937;
+
+  /* 圆角：chunky 圆润 */
+  --we-radius-none: 2px;
+  --we-radius-xs:   6px;
+  --we-radius-sm:   12px;
+  --we-radius-md:   16px;
+  --we-radius-lg:   20px;
+  --we-radius-xl:   28px;
+  --we-radius-full: 9999px;
+
+  /* 动效：略放慢，弹性手感 */
+  --we-duration-fast:     140ms;
+  --we-duration-normal:   220ms;
+  --we-duration-slow:     340ms;
+  --we-duration-extended: 520ms;
+
+  /* ──────────────────────────────────────────────────────────────
+     § 8 Pager 胶囊：白底 + 墨蓝粗边 + 硬投影，hover 放大
+     ────────────────────────────────────────────────────────────── */
+  --we-pager-btn-bg:           #ffffff;
+  --we-pager-btn-border:       2.5px solid #1f2937;
+  --we-pager-btn-shadow:       3px 3px 0 0 #1f2937;
+  --we-pager-btn-hover-bg:     #ffffff;
+  --we-pager-btn-hover-shadow: 5px 5px 0 0 #1f2937;
+}

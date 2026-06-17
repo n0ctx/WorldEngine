@@ -207,6 +207,12 @@
      需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
   --we-list-card-shadow: var(--we-card-shadow);
   --we-list-card-hover-shadow: var(--we-card-hover-shadow);
+  /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */
+  --we-card-hover-transform: translateY(-4px);
+  /* 列表卡 hover 位移：默认不位移；硬投影/拟物主题可覆写为 translate(...) 制造下压/弹起手感 */
+  --we-list-card-hover-transform: none;
+  /* PersonaCard 左侧指示条 rest 色：默认透明；粗边主题设为边框色以补齐左边框 */
+  --we-list-card-left-bar: transparent;
   --we-panel-card-bg: var(--we-color-bg-surface);
   --we-panel-card-border: 1px solid var(--we-color-border-default);
   --we-panel-card-radius: var(--we-radius-md);

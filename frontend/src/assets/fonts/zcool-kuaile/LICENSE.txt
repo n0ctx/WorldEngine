@@ -1,0 +1,4 @@
+ZCOOL KuaiLe (站酷快乐体)
+License: SIL Open Font License 1.1 (免费商用)
+Source: Google Fonts — https://fonts.google.com/specimen/ZCOOL+KuaiLe
+本仓库内为原始 TTF 转 woff2（全字库，7053 字形），仅用于 edu-clay 主题中文标题。
