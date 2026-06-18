@@ -286,6 +286,7 @@ export default function ChatPage() {
           onRetry={handleRetryLast}
           onTitle={handleRetitle}
           worldId={character?.world_id ?? null}
+          sessionId={currentSessionId}
           mode="chat"
           pagerSlot={(
             <Pager

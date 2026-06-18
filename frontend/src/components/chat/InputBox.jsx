@@ -18,6 +18,7 @@ const InputBox = forwardRef(function InputBox({
   impersonating,
   lastUserContent,
   worldId,
+  sessionId,
   mode = 'chat',
   onScrollToBottom,
   onContinue,
@@ -32,7 +33,7 @@ const InputBox = forwardRef(function InputBox({
   const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
-  const draftKey = `we:chat-draft:${mode}:${globalThis.location?.pathname || ''}`;
+  const draftKey = `we:chat-draft:${mode}:${sessionId || globalThis.location?.pathname || ''}`;
 
   useEffect(() => {
     try {

@@ -323,6 +323,7 @@ export default function WritingSpacePage() {
               impersonating={impersonating}
               lastUserContent=""
               worldId={worldId}
+              sessionId={currentSession?.id}
               mode="writing"
               onScrollToBottom={() => messageListRef.current?.scrollPageToBottom?.()}
               onContinue={handleContinue}
