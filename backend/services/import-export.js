@@ -16,6 +16,7 @@ import {
   EXPORT_FORMAT_PERSONA,
   EXPORT_FORMAT_WORLD,
   EXPORT_FORMAT_GLOBAL_SETTINGS,
+  EXPORT_FORMAT_MIGRATION,
 } from './import-export-constants.js';
 
 const log = createLogger('svc', 'green');
@@ -861,4 +862,43 @@ export function importGlobalSettings(data) {
     regexRules: (data.regex_rules ?? []).length,
   })}`);
   return { ok: true, mode };
+}
+
+// ─── 全量迁移导出 ──────────────────────────────────────────────────────────────
+
+export function exportMigration() {
+  const worldIds = db.prepare('SELECT id FROM worlds ORDER BY created_at ASC, id ASC').all().map((r) => r.id);
+  return {
+    format: EXPORT_FORMAT_MIGRATION,
+    exported_at: new Date().toISOString(),
+    global_settings: {
+      chat: exportGlobalSettings('chat'),
+      writing: exportGlobalSettings('writing'),
+    },
+    worlds: worldIds.map((id) => exportWorld(id)),
+  };
+}
+
+// ─── 全量迁移导入 ──────────────────────────────────────────────────────────────
+
+export function importMigration(data) {
+  if (!data || data.format !== EXPORT_FORMAT_MIGRATION) {
+    throw new Error('全量迁移文件格式不正确');
+  }
+
+  const results = { global_settings: {}, worlds: [] };
+
+  if (data.global_settings?.chat) {
+    results.global_settings.chat = importGlobalSettings(data.global_settings.chat);
+  }
+  if (data.global_settings?.writing) {
+    results.global_settings.writing = importGlobalSettings(data.global_settings.writing);
+  }
+  for (const worldData of (data.worlds ?? [])) {
+    const world = importWorld(worldData);
+    results.worlds.push({ id: world.id, name: world.name });
+  }
+
+  log.info(`migration.import  ${formatMeta({ worlds: results.worlds.length })}`);
+  return results;
 }

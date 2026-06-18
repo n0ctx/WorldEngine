@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportPersonaById, importPersona, exportGlobalSettings, importGlobalSettings } from '../services/import-export.js';
+import { exportCharacter, importCharacter, exportWorld, importWorld, exportPersona, exportPersonaById, importPersona, exportGlobalSettings, importGlobalSettings, exportMigration, importMigration } from '../services/import-export.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
@@ -141,6 +141,32 @@ router.post('/global-settings/import', (req, res) => {
       return res.status(400).json({ error: err.message });
     }
     log.error(`IMPORT GLOBAL FAIL  ${formatMeta({ error: err.message })}`);
+    res.status(500).json({ error: '导入失败' });
+  }
+});
+
+// GET /api/migration/export — 全量迁移导出
+router.get('/migration/export', (req, res) => {
+  try {
+    const data = exportMigration();
+    res.json(data);
+  } catch (err) {
+    log.error(`EXPORT MIGRATION FAIL  ${formatMeta({ error: err.message })}`);
+    res.status(500).json({ error: '导出失败' });
+  }
+});
+
+// POST /api/migration/import — 全量迁移导入
+router.post('/migration/import', (req, res) => {
+  try {
+    const result = importMigration(req.body);
+    res.json(result);
+  } catch (err) {
+    if (err.message === '全量迁移文件格式不正确') {
+      log.warn(`import.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+      return res.status(400).json({ error: err.message });
+    }
+    log.error(`IMPORT MIGRATION FAIL  ${formatMeta({ error: err.message })}`);
     res.status(500).json({ error: '导入失败' });
   }
 });

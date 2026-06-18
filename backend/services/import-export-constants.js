@@ -4,3 +4,4 @@ export const EXPORT_FORMAT_CHARACTER = 'worldengine-character-v1';
 export const EXPORT_FORMAT_PERSONA = 'worldengine-persona-v1';
 export const EXPORT_FORMAT_WORLD = 'worldengine-world-v1';
 export const EXPORT_FORMAT_GLOBAL_SETTINGS = 'worldengine-global-settings-v1';
+export const EXPORT_FORMAT_MIGRATION = 'worldengine-migration-v1';

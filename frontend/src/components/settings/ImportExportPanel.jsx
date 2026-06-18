@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useAppModeStore } from '../../core/state/appMode';
-import { downloadGlobalSettings, importGlobalSettings, readJsonFile } from '../../core/api/import-export';
+import { downloadGlobalSettings, importGlobalSettings, downloadMigration, importMigration, readJsonFile } from '../../core/api/import-export';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner';
 import Button from '../ui/Button';
@@ -8,10 +8,14 @@ import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
   const fileInputRef = useRef(null);
+  const migrationInputRef = useRef(null);
   const mode = settingsMode ?? SETTINGS_MODE.CHAT;
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [migrationExporting, setMigrationExporting] = useState(false);
+  const [migrationImporting, setMigrationImporting] = useState(false);
   const [message, setMessage] = useState(null);
+  const [migrationMessage, setMigrationMessage] = useState(null);
   const [prevMode, setPrevMode] = useState(mode);
   const appMode = useAppModeStore((s) => s.appMode);
 
@@ -58,6 +62,44 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     }
   }
 
+  async function handleMigrationExport() {
+    setMigrationExporting(true);
+    setMigrationMessage(null);
+    try {
+      await downloadMigration();
+      setMigrationMessage({ type: 'ok', text: '全量导出成功' });
+    } catch (e) {
+      setMigrationMessage({ type: 'err', text: `导出失败：${e.message}` });
+    } finally {
+      setMigrationExporting(false);
+    }
+  }
+
+  async function handleMigrationFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!migrationInputRef.current) return;
+    migrationInputRef.current.value = '';
+    if (!file) return;
+    setMigrationImporting(true);
+    setMigrationMessage(null);
+    try {
+      const data = await readJsonFile(file);
+      const result = await importMigration(data);
+      await Promise.all([
+        refreshCustomCss(appMode),
+        loadRules(appMode).catch(() => {}),
+      ]);
+      invalidateCache();
+      const worldCount = result.worlds?.length ?? 0;
+      setMigrationMessage({ type: 'ok', text: `迁移导入成功，已导入对话与写作全局设置，共创建 ${worldCount} 个世界` });
+      onImportSuccess?.();
+    } catch (e) {
+      setMigrationMessage({ type: 'err', text: `导入失败：${e.message}` });
+    } finally {
+      setMigrationImporting(false);
+    }
+  }
+
   const modeLabel = mode === SETTINGS_MODE.WRITING ? '写作' : '对话';
 
   return (
@@ -94,6 +136,39 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
           ].join(' ')}
           >
             {message.text}
+          </p>
+        )}
+      </div>
+
+      <div className="we-settings-field-group">
+        <h3 className="we-settings-field-label">全量迁移</h3>
+        <p className="we-settings-body-copy">
+          将当前所有配置打包导出，包含对话与写作两套全局设置（提示词、CSS、正则规则、写作 LLM 配置）以及全部世界卡数据。导入时会覆盖全局设置并新建所有世界，适合整机迁移或备份还原。不含 API Key。
+        </p>
+
+        <div className="we-settings-button-row">
+          <Button onClick={handleMigrationExport} disabled={migrationExporting}>
+            {migrationExporting ? '导出中…' : '导出全量迁移包'}
+          </Button>
+          <Button variant="ghost" onClick={() => migrationInputRef.current?.click()} disabled={migrationImporting}>
+            {migrationImporting ? '导入中…' : '导入迁移包'}
+          </Button>
+          <input
+            ref={migrationInputRef}
+            type="file"
+            accept=".json,.wemigration.json"
+            className="hidden"
+            onChange={handleMigrationFileChange}
+          />
+        </div>
+
+        {migrationMessage && (
+          <p className={[
+            'we-settings-message',
+            migrationMessage.type === 'ok' ? 'we-settings-message--ok' : 'we-settings-message--error',
+          ].join(' ')}
+          >
+            {migrationMessage.text}
           </p>
         )}
       </div>

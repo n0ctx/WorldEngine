@@ -130,6 +130,37 @@ export function importGlobalSettings(data) {
 }
 
 /**
+ * 全量迁移导出，返回 JSON 数据对象
+ */
+export function exportMigration() {
+  return request(`${BASE}/migration/export`);
+}
+
+/**
+ * 下载全量迁移包为 .wemigration.json 文件
+ */
+export async function downloadMigration() {
+  const data = await exportMigration();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `worldengine-migration-${new Date().toISOString().slice(0, 10)}.wemigration.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 全量迁移导入
+ */
+export function importMigration(data) {
+  return request(`${BASE}/migration/import`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
  * 从文件中读取 JSON 并返回解析后的对象
  */
 export function readJsonFile(file) {
