@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // 代理支持：优先读取 data/config.json 中的 proxy_url，其次读取环境变量
 import { applyProxy } from './utils/proxy.js';
@@ -99,6 +99,8 @@ for (const dir of dataDirs) {
 
 // 初始化数据库表结构
 initSchema(db);
+const { hydrateAssistantTasks } = await import('../assistant/server/task-store.js');
+hydrateAssistantTasks();
 const { hydrateSessionStreamTasks } = await import('./services/session-stream-task-store.js');
 hydrateSessionStreamTasks();
 await loadUserHooks();
@@ -204,6 +206,8 @@ export function startServer({ host = HOST, port = PORT } = {}) {
 
 const HOST = process.env.HOST || '127.0.0.1';
 const PORT = process.env.PORT || 3000;
-if (process.env.WE_DISABLE_AUTOSTART !== 'true') {
+const isMainModule = import.meta.url === pathToFileURL(process.argv[1] ?? '').href;
+
+if (isMainModule && process.env.WE_DISABLE_AUTOSTART !== 'true') {
   startServer();
 }

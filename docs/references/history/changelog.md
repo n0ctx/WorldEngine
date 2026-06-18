@@ -2,6 +2,7 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(backend): 加固后端启动副作用、写作会话归属与配置写入** — `server.js` 改为入口执行时才自启动,assistant task hydrate 移到 schema 初始化后显式调用;writing session 子路由统一校验 `worldId/sessionId` 归属,阻断跨世界访问/删除;配置保存改原子写并补基础形状/数值归一化;新增跨世界路由与 import-only 启动回归测试。
 - **fix(state): 重生成第一轮不再泄漏被丢弃轮次的状态污染** — 根因:回滚到零残留 turn record 时 `restoreStateFromSnapshot(null)` 故意保留现状,导致被重生成轮次的状态(如误获血统)残留。修复:`sessions` 新增 `state_baseline_json` 列(首轮前状态基线,不可变);`updateAllStates` 顶部在任何写入前、gate 在「基线不存在」时捕获基线;`state-rollback.js` 抽 `captureFullSnapshot`(含 nearby);chat/writing 两条 rollback 在无轮次快照时 fallback 到基线,二者皆无(老会话)才保留现状。已污染的老会话需手动清理。新增 2 项测试。
 - **fix(state): table 字段应用改列级 merge，漏列保留旧有效值** — `applyStatePatch` 新增 `valueMap` 入参 + `parseOldTableValue`,table 校验结果与旧运行值(运行??默认)按列合并后再写,模型只回变化列或抄错一列不再冲掉整表;world/char/persona 三处调用已传 valueMap;首次写入无旧值时照常整体写。
 - **fix(state): 状态更新 prompt 不再单独暴露默认值，弱副模型不再把已推进值打回默认** — `combined-state-updater.js` `buildFieldsValues` 改为只输出「当前值=运行时值??默认值」单值(原并列「默认值/运行时值」);`state-update.md` 第 4 条改为基于「当前值」判空并强调当前值为唯一权威基准、禁止无故回退;`state-update-runtime.md` 抬头同步;另在 `validateValue`/`applyStatePatch` 加 `TABLE DROP`/`DROP` 诊断 warn(table 静默丢弃可见化)。运行值为空时仍回退默认值兜底,首轮基准不变。

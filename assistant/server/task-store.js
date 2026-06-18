@@ -250,7 +250,7 @@ function importLegacySidecars() {
   if (imported > 0) log.info(`IMPORT_LEGACY  ${formatMeta({ imported })}`);
 }
 
-function hydrate() {
+export function hydrateAssistantTasks() {
   importLegacySidecars();
   let rows;
   try {
@@ -737,8 +737,6 @@ export function buildTaskSnapshot(task) {
     updatedAt: task.updatedAt ?? null,
   };
 }
-
-hydrate();
 
 export const __testables = {
   tasks,

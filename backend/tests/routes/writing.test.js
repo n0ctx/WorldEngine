@@ -229,6 +229,24 @@ test('写作 generate 在 session 不存在时返回 404', async () => {
   assert.deepEqual(await res.json(), { error: 'Session not found' });
 });
 
+test('写作 session 路由拒绝跨世界访问', async () => {
+ const worldA = insertWorld(ctx.sandbox.db, { name: '世界 A' });
+ const worldB = insertWorld(ctx.sandbox.db, { name: '世界 B' });
+
+ let res = await ctx.request(`/api/worlds/${worldA.id}/writing-sessions`, { method: 'POST' });
+ assert.equal(res.status, 200);
+ const session = await res.json();
+
+ res = await ctx.request(`/api/worlds/${worldB.id}/writing-sessions/${session.id}/messages`);
+ assert.equal(res.status, 404);
+
+ res = await ctx.request(`/api/worlds/${worldB.id}/writing-sessions/${session.id}`, { method: 'DELETE' });
+ assert.equal(res.status, 404);
+
+ const row = ctx.sandbox.db.prepare('SELECT id FROM sessions WHERE id = ?').get(session.id);
+ assert.equal(row.id, session.id);
+});
+
 test('写作 generate 在空流时不落 assistant 消息且不推后台事件', async () => {
   resetMockEnv();
   process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify([]);

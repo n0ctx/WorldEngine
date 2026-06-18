@@ -85,6 +85,26 @@ function handleNearbyError(err, res) {
   return res.status(500).json({ error: msg || 'Internal error' });
 }
 
+function getSessionInWorld(req, res) {
+ const { worldId, sessionId } = req.params;
+ const session = getWritingSessionById(sessionId);
+ if (!assertExists(res, session, 'Session not found')) return null;
+ if (session.world_id !== worldId) {
+ log.warn(
+ `writing.world_mismatch ${formatMeta({
+ method: req.method,
+ path: req.path,
+ worldId,
+ sessionId,
+ actualWorldId: session.world_id,
+ })}`,
+ );
+ res.status(404).json({ error: 'Session not found' });
+ return null;
+ }
+ return session;
+}
+
 router.get('/:worldId/writing-sessions', (req, res) => {
   const { worldId } = req.params;
   const world = getWorldById(worldId);
@@ -100,23 +120,22 @@ router.post('/:worldId/writing-sessions', (req, res) => {
 });
 
 router.delete('/:worldId/writing-sessions/:sessionId', async (req, res) => {
-  const { sessionId } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  await deleteWritingSession(sessionId);
-  res.json({ success: true });
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ await deleteWritingSession(sessionId);
+ res.json({ success: true });
 });
 
 router.get('/:worldId/writing-sessions/:sessionId/messages', (req, res) => {
-  const { sessionId } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  res.json(getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0));
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ res.json(getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0));
 });
 
 router.get('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
-  const { sessionId } = req.params;
-  try {
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ try {
     res.json(listNearby(sessionId));
   } catch (err) {
     handleNearbyError(err, res);
@@ -124,8 +143,9 @@ router.get('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
-  const { sessionId } = req.params;
-  const characterId = req.body?.character_id;
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ const characterId = req.body?.character_id;
   if (!characterId || typeof characterId !== 'string') {
     log.warn(
       `writing.bad_request ${formatMeta({
@@ -145,8 +165,9 @@ router.post('/:worldId/writing-sessions/:sessionId/nearby', (req, res) => {
 });
 
 router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res) => {
-  const { sessionId, nearbyId } = req.params;
-  const { is_saved, persona, name } = req.body ?? {};
+ const { sessionId, nearbyId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ const { is_saved, persona, name } = req.body ?? {};
   try {
     if (typeof name === 'string') renameNearby(sessionId, nearbyId, name);
     if (is_saved !== undefined) setNearbyIsSaved(sessionId, nearbyId, is_saved ? 1 : 0);
@@ -163,8 +184,9 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res
 });
 
 router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state', (req, res) => {
-  const { sessionId, nearbyId } = req.params;
-  const { field_key, value_json } = req.body ?? {};
+ const { sessionId, nearbyId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ const { field_key, value_json } = req.body ?? {};
   if (!field_key || typeof field_key !== 'string') {
     log.warn(
       `writing.bad_request ${formatMeta({
@@ -184,8 +206,9 @@ router.patch('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state', (re
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze', async (req, res) => {
-  const { sessionId, nearbyId } = req.params;
-  try {
+ const { sessionId, nearbyId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ try {
     res.json(await analyzeNearbyForCard(sessionId, nearbyId));
   } catch (err) {
     handleNearbyError(err, res);
@@ -193,8 +216,9 @@ router.post('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze', as
 });
 
 router.delete('/:worldId/writing-sessions/:sessionId/nearby/:nearbyId', (req, res) => {
-  const { sessionId, nearbyId } = req.params;
-  try {
+ const { sessionId, nearbyId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ try {
     removeNearby(sessionId, nearbyId);
     res.status(204).end();
   } catch (err) {
@@ -213,8 +237,7 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
   const { sessionId } = req.params;
   const { content, diaryInjection } = req.body;
 
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ if (!getSessionInWorld(req, res)) return;
 
   let userMsgId = null;
   if (content && typeof content === 'string' && content.trim()) {
@@ -239,16 +262,16 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/stop', (req, res) => {
-  const { sessionId } = req.params;
-  const ac = activeStreams.get(sessionId);
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ const ac = activeStreams.get(sessionId);
   if (ac) ac.abort();
   res.json({ success: true });
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) => {
   const { sessionId } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ if (!getSessionInWorld(req, res)) return;
   const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
   if (lastAssistantIndex < 0) {
@@ -284,12 +307,11 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res) => {
-  const { worldId, sessionId } = req.params;
+ const { worldId, sessionId } = req.params;
 
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ if (!getSessionInWorld(req, res)) return;
 
-  const world = getWorldById(worldId);
+ const world = getWorldById(worldId);
   if (!assertExists(res, world, 'World not found')) return;
 
   const persona = getOrCreatePersona(worldId);
@@ -357,9 +379,8 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
     return res.status(400).json({ error: 'afterMessageId is required' });
   }
 
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  const afterMessage = getMessageById(afterMessageId);
+ if (!getSessionInWorld(req, res)) return;
+ const afterMessage = getMessageById(afterMessageId);
   if (!afterMessage) {
     log.warn(`writing.not_found ${formatMeta({ method: req.method, path: req.path, id: afterMessageId })}`);
     return res.status(404).json({ error: 'afterMessageId not found' });
@@ -395,11 +416,13 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
 });
 
 router.get('/:worldId/writing-sessions/:sessionId/recover-stream', (req, res) => {
+ if (!getSessionInWorld(req, res)) return;
   const task = getRecoverableSessionStreamTask(req.params.sessionId);
   res.json({ task: task ? buildSessionStreamSnapshot(task) : null });
 });
 
 router.get('/:worldId/writing-sessions/:sessionId/stream', (req, res) => {
+ if (!getSessionInWorld(req, res)) return;
   const task = getRecoverableSessionStreamTask(req.params.sessionId);
   if (!task) return res.status(404).json({ error: 'stream task not found' });
   attachSessionStreamSse(req.params.sessionId, task.id, res);
@@ -421,10 +444,9 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
     return res.status(400).json({ error: 'messageId and content are required' });
   }
 
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ if (!getSessionInWorld(req, res)) return;
 
-  updateMessageContent(messageId, content.trim());
+ updateMessageContent(messageId, content.trim());
 
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const lastAssistant = [...allMsgs].reverse().find((message) => message.role === 'assistant');
@@ -442,10 +464,9 @@ router.post('/:worldId/writing-sessions/:sessionId/edit-assistant', async (req, 
 });
 
 router.get('/:worldId/writing-sessions/:sessionId/chapter-titles', (req, res) => {
-  const { sessionId } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  res.json(getChapterTitlesBySessionId(sessionId));
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
+ res.json(getChapterTitlesBySessionId(sessionId));
 });
 
 router.put('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex', (req, res) => {
@@ -461,18 +482,16 @@ router.put('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex',
     );
     return res.status(400).json({ error: 'title is required' });
   }
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
-  upsertChapterTitle(sessionId, Number(chapterIndex), title.trim().slice(0, 20), 0);
+ if (!getSessionInWorld(req, res)) return;
+ upsertChapterTitle(sessionId, Number(chapterIndex), title.trim().slice(0, 20), 0);
   res.json({ success: true });
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle', async (req, res) => {
   const { sessionId, chapterIndex } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ if (!getSessionInWorld(req, res)) return;
 
-  const idx = Number(chapterIndex);
+ const idx = Number(chapterIndex);
   const allMsgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
   const chapterMsgs = groupChapterMessages(allMsgs, idx, getEffectiveChapterTurnSize('writing'));
   if (chapterMsgs.length === 0) {
@@ -507,11 +526,10 @@ router.post('/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/
 });
 
 router.post('/:worldId/writing-sessions/:sessionId/retitle', async (req, res) => {
-  const { sessionId } = req.params;
-  const session = getWritingSessionById(sessionId);
-  if (!assertExists(res, session, 'Session not found')) return;
+ const { sessionId } = req.params;
+ if (!getSessionInWorld(req, res)) return;
 
-  try {
+ try {
     await waitForQueueIdle(sessionId);
     const title = await generateTitle(sessionId);
     if (!title) return res.json({ title: null });

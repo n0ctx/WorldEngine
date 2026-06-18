@@ -10,6 +10,48 @@ import { buildChildProcessEnv, createTestConfig } from './helpers/test-env.js';
 const repoRoot = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const hooksDir = path.join(repoRoot, 'hooks');
 
+test('import server.js 不会自动启动监听端口', () => {
+ const root = path.join(repoRoot, '.temp', 'backend-tests', `server-import-only-${Date.now()}`);
+ const dbPath = path.join(root, 'worldengine.test.db');
+ const configPath = path.join(root, 'config.json');
+ const uploadsDir = path.join(root, 'uploads');
+ const vectorsDir = path.join(root, 'vectors');
+ const assistantStateDir = path.join(root, 'assistant-state');
+ const turnSummaryStorePath = path.join(vectorsDir, 'turn_summaries.json');
+ fs.mkdirSync(uploadsDir, { recursive: true });
+ fs.mkdirSync(vectorsDir, { recursive: true });
+ fs.mkdirSync(assistantStateDir, { recursive: true });
+ fs.writeFileSync(configPath, JSON.stringify(createTestConfig(), null, 2));
+ try {
+ const output = execFileSync(
+ process.execPath,
+ [
+ '--input-type=module',
+ '-e',
+ `await import(${JSON.stringify(path.join(repoRoot, 'backend/server.js'))}); console.log('imported');`,
+ ],
+ {
+ cwd: repoRoot,
+ env: buildChildProcessEnv({
+ WE_DB_PATH: dbPath,
+ WE_CONFIG_PATH: configPath,
+ WE_DATA_DIR: root,
+ WE_UPLOADS_DIR: uploadsDir,
+ WE_TURN_SUMMARY_STORE_PATH: turnSummaryStorePath,
+ ASSISTANT_STATE_DIR: assistantStateDir,
+ LOG_FILE: 'false',
+ }),
+ encoding: 'utf8',
+ timeout: 2000,
+ },
+ );
+ assert.match(output, /imported/);
+ assert.doesNotMatch(output, /SERVER_READY:/);
+ } finally {
+ fs.rmSync(root, { recursive: true, force: true });
+ }
+});
+
 test('server 启动会在 initSchema 之后加载用户 hooks', async () => {
   const root = path.join(repoRoot, '.temp', 'backend-tests', `server-hooks-order-${Date.now()}`);
   const dbPath = path.join(root, 'worldengine.test.db');

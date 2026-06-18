@@ -164,6 +164,76 @@ function deepMerge(target, source) {
   return result;
 }
 
+function writeConfigFile(config) {
+  fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+  const tmpPath = `${CONFIG_PATH}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), 'utf-8');
+  fs.renameSync(tmpPath, CONFIG_PATH);
+}
+
+function ensurePlainObject(value, fallback = {}) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
+}
+
+function normalizePositiveInteger(value, fallback, { min = 1, max = 100000 } = {}) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(number)));
+}
+
+function normalizeTemperature(value, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(2, Math.max(0, number));
+}
+
+function normalizeLlmSection(section, defaults) {
+  const src = ensurePlainObject(section);
+  return {
+    ...defaults,
+    ...src,
+    provider: src.provider == null ? defaults.provider : String(src.provider),
+    provider_models: ensurePlainObject(src.provider_models),
+    base_url: src.base_url == null ? defaults.base_url : String(src.base_url),
+    model: src.model == null ? defaults.model : String(src.model),
+    ...(Object.hasOwn(defaults, 'max_tokens')
+      ? { max_tokens: normalizePositiveInteger(src.max_tokens, defaults.max_tokens, { min: 1, max: 200000 }) }
+      : {}),
+    ...(Object.hasOwn(defaults, 'temperature')
+      ? { temperature: normalizeTemperature(src.temperature, defaults.temperature) }
+      : {}),
+  };
+}
+
+function normalizeConfigForPersist(config) {
+  const normalized = ensurePlainObject(config, structuredClone(DEFAULT_CONFIG));
+  normalized.provider_keys = ensurePlainObject(normalized.provider_keys);
+  normalized.llm = normalizeLlmSection(normalized.llm, DEFAULT_CONFIG.llm);
+  normalized.embedding = normalizeLlmSection(normalized.embedding, DEFAULT_CONFIG.embedding);
+  normalized.aux_llm = normalizeLlmSection(normalized.aux_llm, DEFAULT_AUX_LLM);
+  normalized.writing = ensurePlainObject(normalized.writing, structuredClone(DEFAULT_WRITING));
+  normalized.writing.llm = normalizeLlmSection(normalized.writing.llm, DEFAULT_WRITING.llm);
+  normalized.writing.aux_llm = normalizeLlmSection(normalized.writing.aux_llm, DEFAULT_WRITING.aux_llm);
+  normalized.ui = { ...structuredClone(DEFAULT_UI), ...ensurePlainObject(normalized.ui) };
+  normalized.logging = { ...structuredClone(DEFAULT_LOGGING), ...ensurePlainObject(normalized.logging) };
+  normalized.context_history_rounds = normalizePositiveInteger(
+    normalized.context_history_rounds,
+    DEFAULT_CONFIG.context_history_rounds,
+    { min: 1, max: 1000 },
+  );
+  normalized.chapter_turn_size = normalizePositiveInteger(
+    normalized.chapter_turn_size,
+    DEFAULT_CONFIG.chapter_turn_size,
+    { min: 1, max: 1000 },
+  );
+  normalized.page_turn_size = normalizePositiveInteger(
+    normalized.page_turn_size,
+    DEFAULT_CONFIG.page_turn_size,
+    { min: 1, max: 10000 },
+  );
+  return normalized;
+}
+
 /**
  * 把指定 section 残留的 provider_keys 合并到顶层共享池，然后删除 section 内副本。
  * 优先保留已存在的顶层值（不覆盖）。返回 true 表示发生了变更。
@@ -194,10 +264,10 @@ function mergeSectionKeys(section, sharedKeys) {
  * 读取当前配置，不存在则初始化默认配置并写入文件
  */
 export function getConfig() {
-  if (!fs.existsSync(CONFIG_PATH)) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2), 'utf-8');
-    return structuredClone(DEFAULT_CONFIG);
-  }
+ if (!fs.existsSync(CONFIG_PATH)) {
+ writeConfigFile(DEFAULT_CONFIG);
+ return structuredClone(DEFAULT_CONFIG);
+ }
   const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
   const config = JSON.parse(raw);
 
@@ -265,7 +335,7 @@ export function getConfig() {
   }
 
   if (dirty) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    writeConfigFile(config);
   }
 
   if (!config.ui || typeof config.ui !== 'object') {
@@ -343,7 +413,7 @@ export function getConfig() {
   }
 
   if (dirty) {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
+    writeConfigFile(config);
   }
 
   return config;
@@ -354,8 +424,11 @@ export function getConfig() {
  */
 export function updateConfig(patch) {
   const current = getConfig();
-  const merged = deepMerge(current, patch);
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2), 'utf-8');
+ if (!patch || typeof patch !== 'object' || Array.isArray(patch)) {
+ throw new Error('配置更新必须是对象');
+ }
+ const merged = normalizeConfigForPersist(deepMerge(current, patch));
+ writeConfigFile(merged);
   log.info(`config.update  ${formatMeta({ keys: Object.keys(patch ?? {}) })}`);
   return merged;
 }
@@ -391,7 +464,7 @@ export function updateProviderKey(provider, key) {
     current.provider_keys = {};
   }
   current.provider_keys[provider] = key;
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(current, null, 2), 'utf-8');
+  writeConfigFile(normalizeConfigForPersist(current));
   log.info(`config.update_provider_key  ${formatMeta({ provider, hasKey: !!key })}`);
   return current;
 }
