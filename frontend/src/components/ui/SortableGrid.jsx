@@ -40,7 +40,7 @@ const dropAnimation = {
   duration: 220,
   easing: 'cubic-bezier(0.18, 0.67, 0.32, 1.0)',
   // 用 visibility 而非 opacity 隐藏原位卡片：
-  // 入场 weInkRise 关键帧 fill-mode:both 把 opacity 永久钉在 1，inline opacity:0 无效；
+  // 入场 we-ink-rise 关键帧 fill-mode:both 把 opacity 永久钉在 1，inline opacity:0 无效；
   // visibility 不在关键帧里，inline 设置生效，且不影响布局占位。
   sideEffects: defaultDropAnimationSideEffects({
     styles: {

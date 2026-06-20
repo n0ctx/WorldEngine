@@ -21,6 +21,7 @@
 2. [`pages-and-components.md`](pages-and-components.md)：页面 / domain 组件 / UI 组件归属
 3. [`routing-and-state.md`](routing-and-state.md)：路由、共享状态、API 封装边界
 4. [`ui-and-theme.md`](ui-and-theme.md)：视觉、token、主题和自定义 CSS 边界
+   - [`motion-and-animation.md`](motion-and-animation.md)：动效真源（duration/easing token、framer variants、关键帧、reduced-motion）
 5. [`public-and-test-support.md`](public-and-test-support.md)：静态资源、测试 setup、helpers
 6. [`testing.md`](testing.md)：前端验证入口
 
@@ -28,6 +29,7 @@
 
 - **任何前端改动（必读）**：[`coding-standards.md`](coding-standards.md)
 - 改 UI / 样式 / token / 自定义 CSS：读 [`ui-and-theme.md`](ui-and-theme.md)
+- 改动效 / 缓动 / 入场动画 / 关键帧：读 [`motion-and-animation.md`](motion-and-animation.md)
 - 改页面结构 / 组件归属 / shell：读 [`pages-and-components.md`](pages-and-components.md)
 - 改路由 / Zustand / API 封装 / assistant 前端状态：读 [`routing-and-state.md`](routing-and-state.md)
 - 改 favicon / logo / 测试 setup / axe：读 [`public-and-test-support.md`](public-and-test-support.md)

@@ -143,16 +143,20 @@
   --we-z-tooltip:  500;
 
   /* === Motion Tokens === */
-  /* CSS token → motion.js DURATION 对照：fast=micro, normal=quick, slow=base, extended=slow */
-  --we-duration-fast:     120ms;  /* hover 色变、工具提示 */
-  --we-duration-normal:   200ms;  /* 元数据、局部反馈 */
-  --we-duration-slow:     320ms;  /* 组件入场、Modal 内容 */
-  --we-duration-extended: 500ms;  /* 章节标题、场景分隔线等慢显 */
+  /* 真源：frontend/src/core/utils/motion.js（数值一致性由 scripts/check-motion.mjs 守护）。
+     CSS 4 槽按【语义】对齐 JS DURATION：
+       fast=quick(hover 色变) / normal=base(局部反馈) / slow=medium(组件入场) / extended=slow(慢显) */
+  --we-duration-fast:     180ms;  /* hover 色变、工具提示       → motion.js quick  0.18 */
+  --we-duration-normal:   300ms;  /* 元数据、局部反馈           → motion.js base   0.30 */
+  --we-duration-slow:     380ms;  /* 组件入场、Modal 内容       → motion.js medium 0.38 */
+  --we-duration-extended: 500ms;  /* 章节标题、场景分隔线慢显   → motion.js slow   0.50 */
 
   /* 具名缓动函数（对应 motion.js EASE，供 CSS transition 引用）*/
-  --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场 */
-  --we-easing-sharp:    cubic-bezier(.25, .46, .45, .94);/* 利落：hover 色变 */
-  --we-easing-standard: cubic-bezier(.2,0,0,1);          /* 通用标准（兼容保留）*/
+  --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场      → EASE.ink */
+  --we-easing-sharp:    cubic-bezier(.25, .46, .45, .94);/* 利落：hover 色变       → EASE.sharp */
+  --we-easing-page:     cubic-bezier(.65, 0, .35, 1);    /* 翻页：路由/壳切换      → EASE.page */
+  --we-easing-quill:    cubic-bezier(.40, 0, .20, 1);    /* 落笔：盖印、点击确认   → EASE.quill */
+  --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场、折叠       → EASE.retract */
 
   /* === 页面大画布 token（WorldsPage / CharactersPage / 编辑页大背景）=== */
   /* 主题通过覆盖这些 token 在中性画布与不同审美之间切换，无需改组件 CSS */
@@ -399,7 +403,9 @@
     --we-duration-extended: 0ms;
     --we-easing-ink:      linear;
     --we-easing-sharp:    linear;
-    --we-easing-standard: linear;
+    --we-easing-page:     linear;
+    --we-easing-quill:    linear;
+    --we-easing-retract:  linear;
   }
 }
 

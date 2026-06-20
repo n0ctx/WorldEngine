@@ -54,6 +54,12 @@
   box-shadow: inset 0 1px 3px var(--we-color-shadow-md);
   transform: translateY(0.5px);
 }
+/* 键盘焦点环：鼠标点击不触发（:focus-visible），仅键盘 Tab 时显形 */
+.we-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring), 0 1px 2px var(--we-color-shadow-sm);
+  border-color: var(--we-color-border-focus);
+}
 .we-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -513,12 +519,23 @@
   font-size: var(--we-text-sm);
   color: var(--we-color-text-primary);
   cursor: pointer;
-  transition: background-color var(--we-duration-fast), border-color var(--we-duration-fast);
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp),
+              border-color var(--we-duration-fast) var(--we-easing-sharp),
+              transform var(--we-duration-fast) var(--we-easing-quill);
   line-height: var(--we-leading-snug);
 }
 .we-option-btn:hover:not(.we-option-btn--disabled) {
   background: var(--we-color-accent-bg);
   border-color: var(--we-color-accent);
+}
+/* 落笔：选定瞬间的轻按压反馈（quill 缓动）*/
+.we-option-btn:active:not(.we-option-btn--disabled) {
+  transform: translateY(0.5px) scale(0.997);
+}
+.we-option-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-color: var(--we-color-border-focus);
 }
 .we-option-btn--disabled {
   opacity: 0.45;
@@ -2339,7 +2356,7 @@
 
 /* — 骨架屏 + 字段入场动画 ─ */
 /* ── 骨架屏动画 ─── */
-@keyframes wePanelSkeleton {
+@keyframes we-panel-skeleton {
   0%, 100% { opacity: 0.6; }
   50%       { opacity: 1;   }
 }
@@ -2347,7 +2364,7 @@
   display: block;
   border-radius: var(--we-radius-none);
   background: var(--we-color-bg-muted);
-  animation: wePanelSkeleton 1.6s ease-in-out infinite;
+  animation: we-panel-skeleton 1.6s ease-in-out infinite;
 }
 
 .we-skel-stack {
@@ -2368,7 +2385,7 @@
 }
 
 /* ── 字段入场动画 ─── */
-@keyframes wePanelFadeIn {
+@keyframes we-panel-fade-in {
   from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0); }
 }
@@ -2470,7 +2487,7 @@
   gap: 10px;
 }
 .we-fields-list .we-status-field {
-  animation: wePanelFadeIn var(--we-duration-slow) ease-out both;
+  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
 }
 
 .we-status-skeleton {
@@ -2748,11 +2765,14 @@
   display: grid;
   grid-template-rows: 0fr;
   overflow: hidden;
-  transition: grid-template-rows var(--we-duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+  /* 收起：先快后慢收回（retract）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
 }
 
 .we-status-collapse--open {
   grid-template-rows: 1fr;
+  /* 展开：墨水浸润 ease-out（ink）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
 }
 
 .we-status-collapse-inner {
@@ -2774,7 +2794,7 @@
   display: flex;
   gap: 7px; /* design exact */
   align-items: flex-start;
-  animation: wePanelFadeIn var(--we-duration-slow) ease-out both;
+  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
 }
 
 .we-diary-entry {
@@ -2830,12 +2850,15 @@
 .we-state-collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--we-duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+  /* 收起：先快后慢收回（retract）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
   overflow: hidden;
 }
 
 .we-state-collapse--open {
   grid-template-rows: 1fr;
+  /* 展开：墨水浸润 ease-out（ink）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
 }
 
 .we-state-collapse-inner {
@@ -2963,10 +2986,13 @@
 .we-panel-card-collapse {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--we-duration-slow) cubic-bezier(0.4, 0, 0.2, 1);
+  /* 收起：先快后慢收回（retract）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
 }
 .we-panel-card-collapse--open {
   grid-template-rows: 1fr;
+  /* 展开：墨水浸润 ease-out（ink）*/
+  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
 }
 .we-panel-card-body {
   min-height: 0;
@@ -3331,4 +3357,20 @@
 }
 .we-toast-card__close:hover {
   color: var(--we-color-text-primary);
+}
+
+/* === Reduced-motion 安全网 ===
+   tokens.css 的媒体查询只把 duration 与 easing token 归零，无法停下用字面时长声明的
+   装饰循环动画（spinner / pulse / cursor blink / thinking dots）。此处按无障碍业界
+   标准把所有动画与过渡压到近零并停掉循环，覆盖 framer 之外的纯 CSS 动效。
+   真源说明见 docs/references/frontend/motion-and-animation.md §5。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

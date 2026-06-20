@@ -2,12 +2,12 @@
 
 /* ── Keyframes ─────────────────────────────────────────── */
 
-@keyframes weCursorBlink {
+@keyframes we-cursor-blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
 }
 
-@keyframes weThinkingDots {
+@keyframes we-thinking-dots {
   0%   { content: ''; }
   25%  { content: '.'; }
   50%  { content: '..'; }
@@ -17,15 +17,10 @@
 
 .we-impersonate-thinking::after {
   content: '';
-  animation: weThinkingDots 1.4s steps(1) infinite;
+  animation: we-thinking-dots 1.4s steps(1) infinite;
 }
 
-@keyframes weInkRise {
-  from { opacity: 0; translate: 0 4px; filter: blur(1.5px); }
-  to   { opacity: 1; translate: 0 0;   filter: blur(0);     }
-}
-
-@keyframes wePanelFade {
+@keyframes we-panel-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
@@ -114,7 +109,7 @@
 /* ── Message Row ───────────────────────────────────────── */
 
 .we-message-row {
-  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
   position: relative;
 }
 
@@ -171,6 +166,15 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-sm);
+}
+
+/* 说话人名旁的「已中断」状态标记：弱化、去大写、danger 色调 */
+.we-message-interrupted {
+  font-size: var(--we-text-xs);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--we-color-status-danger);
+  opacity: 0.85;
 }
 
 .we-message-user .we-message-label {
@@ -396,7 +400,7 @@
 .we-chat-center-pane {
   position: relative;
   background: var(--we-color-bg-canvas);
-  animation: wePanelFade var(--we-duration-normal) var(--we-easing-ink) both;
+  animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
 .we-chat-center-header {
@@ -494,12 +498,12 @@
   background: var(--we-color-text-secondary);
   margin-left: 2px;
   vertical-align: text-bottom;
-  animation: weCursorBlink 0.65s steps(1) infinite;
+  animation: we-cursor-blink 0.65s steps(1) infinite;
 }
 
 /* ── Token Usage ────────────────────────────────────────── */
 
-@keyframes weMetaReveal {
+@keyframes we-meta-reveal {
   from { opacity: 0; }
   to   { opacity: 0.65; }
 }
@@ -513,7 +517,7 @@
   margin-top: 4px;
   opacity: 0.65;
   font-family: 'Source Han Serif SC', 'Source Han Serif', serif;
-  animation: weMetaReveal var(--we-duration-normal) var(--we-easing-sharp) both;
+  animation: we-meta-reveal var(--we-duration-normal) var(--we-easing-sharp) both;
 }
 
 .we-token-usage > span {
@@ -903,7 +907,7 @@
   line-height: var(--we-leading-loose);
   color: var(--we-color-text-primary);
   margin-bottom: 0.6em;
-  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-writing-prose p      { margin-bottom: 0; }
@@ -921,7 +925,7 @@
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   margin: 1em 0 0.6em;
-  animation: weInkRise var(--we-duration-slow) var(--we-easing-ink) both;
+  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-writing-annotation .we-message-actions {
@@ -1351,11 +1355,14 @@
 .we-think-block-body-wrap {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-ink);
+  /* 收起：先快后慢收回（retract）*/
+  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-retract);
 }
 
 .we-think-block-body-wrap--open {
   grid-template-rows: 1fr;
+  /* 展开：墨水浸润 ease-out（ink）*/
+  transition: grid-template-rows var(--we-duration-normal) var(--we-easing-ink);
 }
 
 .we-think-block-body-inner {
@@ -1425,7 +1432,7 @@
 }
 
 .we-frozen-card-appear {
-  animation: weInkRise var(--we-duration-normal) var(--we-easing-sharp) both;
+  animation: we-ink-rise var(--we-duration-normal) var(--we-easing-sharp) both;
 }
 
 /* ── Assistant: Step Group ─────────────────────────────── */
@@ -2096,7 +2103,7 @@
    ========================================================= */
 
 /* — 打字三点 ─ */
-@keyframes typing-dot {
+@keyframes we-typing-dot {
   0%, 80%, 100% { opacity: 0.2; transform: translateY(0); }
   40%            { opacity: 1;   transform: translateY(-4px); }
 }
@@ -2108,7 +2115,7 @@
   border-radius: 50%;
   background: var(--we-color-text-tertiary);
   margin: 0 var(--we-space-xxs);
-  animation: typing-dot 1.2s ease-in-out infinite;
+  animation: we-typing-dot 1.2s ease-in-out infinite;
 }
 
 .typing-dot-accent {
@@ -2124,23 +2131,10 @@
   to   { opacity: 1; transform: none; }
 }
 
-
 /* — 流式光标 ─ */
 @keyframes we-stream-pulse {
   0%, 100% { opacity: 0.25; }
   50%      { opacity: 1;    }
-}
-
-/* 流式气泡末尾光标：贴在最后一个块级子元素的行尾，不会换行另起 */
-.we-stream-bubble > :last-child::after {
-  content: '';
-  display: inline-block;
-  width: 2px;
-  height: 0.9em;
-  margin-left: 3px;
-  vertical-align: -2px;
-  background: var(--we-color-accent);
-  animation: we-stream-pulse 1.2s ease-in-out infinite;
 }
 
 /* — 章节标题（WritingSpace）覆盖 chat.css 章节基础规则 ─ */
@@ -2155,7 +2149,7 @@
   filter: blur(1.5px);
 }
 .we-chapter-header.we-chapter-header--visible {
-  animation: we-ink-rise var(--we-duration-slow) cubic-bezier(.22, 1, .36, 1) both;
+  animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 @keyframes we-ink-rise {
   from { opacity: 0; transform: translateY(8px); filter: blur(1.5px); }
@@ -2298,7 +2292,7 @@
   clip-path: inset(0 50% 0 50%);
 }
 .we-chapter-divider.we-fleuron--visible {
-  animation: we-fleuron-draw var(--we-duration-extended) cubic-bezier(.65, 0, .35, 1) both;
+  animation: we-fleuron-draw var(--we-duration-extended) var(--we-easing-page) both;
 }
 @keyframes we-fleuron-draw {
   from { opacity: 0; clip-path: inset(0 50% 0 50%); }
