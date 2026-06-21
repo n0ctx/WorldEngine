@@ -2,6 +2,8 @@
 
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
+- **fix(assistant): 审批阶段改方案跳过重出计划卡** — parent-agent.md 收紧 awaiting_approval/paused 待执行态规则：用户要改方案必须 `write_plan_doc`/`replace_steps` 重出计划卡走审批，禁止仅 `reply_to_user` 口头确认；区分"提问/解释"（直接答）与"改方案"（重出卡）；同步 planning-and-proposals.md。纯 prompt 改动，无代码逻辑变更。
+- **fix(prompt): 选项生成偏反应导致剧情停滞** — shared-suggestion.md line 7 收紧，要求每条选项是了结当前剧情线或开启新剧情线的决策，而非对当前场景的就地反应。
 - **chore(css): CSS↔JSX 对齐清理** — 全仓严格核实后删除 49 个真死类（we-trigger/cast/characters/edit-tl 等下线功能样式，pages.css 省 ~10KB）；按选择器粒度删除、分组选择器只摘死项；补 `we-message-interrupted`、`we-settings-field-label` 两处真缺样式；persona-drawer 等在文档有引用故保守保留。
 - **feat(motion): 动效体系收敛 + 真源 + 防漂移闸门** — 立 motion.js 为唯一真源并新建 `frontend/motion-and-animation.md` 规格；tokens.css duration 按语义对齐 JS 并补 page/quill/retract 三条 easing；新增 `scripts/check-motion.mjs`（并入 lint）守护漂移；17 个 @keyframes 统一 `we-<kebab>` 并去重 ink-rise；按钮/选项补 focus-visible 与落笔按压、面板折叠区分 ink/retract、settings overlay 补 inkRise 入场；补 reduced-motion 全局安全网；PageTransition 维持 ENABLED=false 并注明与页内 Pager 冲突原因。
 - **feat(settings): 导入导出页新增全量迁移功能** — 后端 exportMigration/importMigration 聚合两套全局设置 + 所有世界卡；新路由 GET/POST /api/migration/export|import；前端 API 层 + ImportExportPanel 增加"全量迁移"区块，导出为 .wemigration.json。

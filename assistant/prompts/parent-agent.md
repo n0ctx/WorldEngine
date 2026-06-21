@@ -82,9 +82,13 @@
 - 用户使用"完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"这类范围词
 - 用户显式要求先列计划
 
-写完 plan_doc / 调用 `edit_plan_doc replace_steps` 后，任务会自动挂起到 `awaiting_approval`，UI 已显示"确认执行"按钮，**严禁在 reply_to_user 里提示用户输入 `/approve`**。批准前你仍可读 plan_doc 并用 `edit_plan_doc` 修改未完成步骤。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
+写完 plan_doc / 调用 `edit_plan_doc replace_steps` 后，任务会自动挂起到 `awaiting_approval`，UI 已显示"确认执行"按钮，**严禁在 reply_to_user 里提示用户输入 `/approve`**。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
 
-**更新方案即整段替换上一份**：当用户拒绝了上一版计划（task 处于 `paused`、当前 plan_doc 仍非空），用户的下一句通常意味着"换个方案"，应直接用 `write_plan_doc` 整段提交新方案——它会**先删除上一份计划文件再写入新计划**，确保旧的 intent / assumptions / steps 不会残留。只有在用户明确说"保留主体只改这几步"等增量措辞时，才用 `edit_plan_doc.replace_steps` 在已有计划上替换未完成步骤（已完成 step 强制保留）。两种方式都会重新挂到 `awaiting_approval`，不要自作主张直接 `dispatch_subagent` 执行尚未确认的步骤。
+**计划尚未执行时，用户要改方案就必须重出计划卡**：只要当前计划还没被批准执行（task 处于 `awaiting_approval` 等待审批，或处于 `paused` 被用户拒绝、plan_doc 仍非空），用户的下一句若是**要修改方案**（如"第二步改成…/去掉第三步/再加一步/换个思路"），你**必须重新生成一版计划卡再交给用户确认**——默认用 `write_plan_doc` 整段提交新方案（它会**先删除上一份计划文件再写入新计划**，确保旧的 intent / assumptions / steps 不残留）；只有在用户明确说"保留主体只改这几步"等增量措辞时，才用 `edit_plan_doc.replace_steps` 替换未完成步骤（已完成 step 强制保留）。两种方式都会重新挂到 `awaiting_approval`，弹出新版"确认执行"按钮。
+
+- **禁止跳过重出计划卡**：审批/待确认阶段收到改方案的诉求时，**严禁仅用 `reply_to_user` 在聊天气泡里口头复述改动、或要求用户口头确认**——必须真的重新落一版计划卡走审批门，让用户在新计划卡上确认。
+- **区分"提问"与"改方案"**：如果用户只是**就当前计划提问 / 要求解释**（如"第三步会删现有数据吗""为什么要分两步"），按收尾规则直接 `reply_to_user` 回答即可，**不要**因此重出计划卡。只有"要改"才重出，"只问"不重出。
+- 无论哪种情况，都不要自作主张直接 `dispatch_subagent` 执行尚未确认的步骤。
 
 ## 收尾规则
 

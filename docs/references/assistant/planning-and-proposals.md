@@ -7,7 +7,8 @@ plan 门槛、proposal 归一化、审批门与写入约束。
 - 简单问答、单资源小改、1-2 个动作：直接执行，不写 plan
 - 至少 3 个真实可执行 step，且命中高风险、跨资源、完整建卡、结构化体系等条件：必须先 `write_plan_doc`
 - `awaiting_approval` 不自动推进；用户批准后才进入执行
-- `awaiting_approval` 阶段允许继续对话修改方案，但**禁止**直接 `dispatch_subagent` 执行未审批 step
+- `awaiting_approval` 阶段允许继续对话；但用户若**要改方案**，必须重出一版计划卡再走审批（默认 `write_plan_doc` 整段替换，增量措辞才用 `edit_plan_doc.replace_steps`），**禁止**仅用 `reply_to_user` 口头复述改动或要求口头确认；仅就计划**提问/要解释**时才直接 `reply_to_user` 回答，不重出计划卡
+- `awaiting_approval` 阶段**禁止**直接 `dispatch_subagent` 执行未审批 step
 - 计划被拒绝后必须停在 `paused`，不能自动再生成新计划
 - 计划被拒绝后，旧 `plan_doc` 不能直接继续执行；必须重新 `write_plan_doc` 或 `edit_plan_doc.replace_steps` 后再次进入审批
 - `edit_plan_doc.replace_steps` 不是短路入口；替换后的未完成步骤仍至少要有 3 个，不能借此把复杂任务缩成 1-2 步
