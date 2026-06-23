@@ -237,7 +237,6 @@ export default function CharacterEditPage() {
                 <div key={f.field_key} className="we-state-value-row">
                   <div>
                     <p className="we-state-value-label">{f.label}</p>
-                    <p className="we-state-value-key">{f.field_key}</p>
                   </div>
                   <StateValueField field={f} onSave={handleStateValueSave} />
                 </div>

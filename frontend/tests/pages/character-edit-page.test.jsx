@@ -86,7 +86,7 @@ describe('CharacterEditPage', () => {
       first_message: '你好',
       avatar_path: null,
     });
-    mocks.getCharacterStateValues.mockResolvedValue([{ field_key: 'hp', label: '生命值' }]);
+    mocks.getCharacterStateValues.mockResolvedValue([{ field_key: 'age_char', label: '年龄' }]);
     mocks.createCharacter.mockResolvedValue({ id: 'char-2' });
     mocks.updateCharacter.mockResolvedValue({ id: 'char-1' });
     mocks.updateCharacterStateValue.mockResolvedValue({ success: true });
@@ -99,9 +99,12 @@ describe('CharacterEditPage', () => {
 
     expect(await screen.findByDisplayValue('阿塔')).toBeInTheDocument();
     fireEvent.change(screen.getByDisplayValue('阿塔'), { target: { value: '阿塔-新' } });
-    fireEvent.click(screen.getByText('save-hp'));
+    expect(await screen.findByText('年龄')).toBeInTheDocument();
+    expect(screen.queryByText('age_char')).not.toBeInTheDocument();
 
-    await waitFor(() => expect(mocks.updateCharacterStateValue).toHaveBeenCalledWith('char-1', 'hp', '"hp-10"'));
+    fireEvent.click(screen.getByText('save-age_char'));
+
+    await waitFor(() => expect(mocks.updateCharacterStateValue).toHaveBeenCalledWith('char-1', 'age_char', '"hp-10"'));
 
     fireEvent.click(screen.getAllByText('保存')[0]);
 

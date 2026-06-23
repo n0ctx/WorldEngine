@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import StatusSection from '../../../src/components/state/StatusSection.jsx';
@@ -14,7 +14,7 @@ beforeAll(() => {
 });
 
 describe('StatusSection', () => {
-  it('llm_auto 字段也允许在右栏手动编辑', () => {
+  it('llm_auto 字段也允许在右栏手动编辑', async () => {
     const onSave = vi.fn();
     const { container } = render(
       <StatusSection
@@ -36,7 +36,8 @@ describe('StatusSection', () => {
     fireEvent.change(input, { target: { value: '大雨' } });
     fireEvent.blur(input);
 
-    expect(onSave).toHaveBeenCalledWith('weather', JSON.stringify('大雨'), undefined);
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('weather', JSON.stringify('大雨'), undefined));
+    await waitFor(() => expect(screen.queryByDisplayValue('大雨')).toBeNull());
   });
 
   it('text 字段进入编辑时使用 textarea 以支持自动换行', () => {
@@ -129,7 +130,7 @@ describe('StatusSection', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('列表字段改为回车逐项添加并立即保存', () => {
+  it('列表字段改为回车逐项添加并立即保存', async () => {
     const onSave = vi.fn();
     render(
       <StatusSection
@@ -150,7 +151,8 @@ describe('StatusSection', () => {
     fireEvent.change(input, { target: { value: '绷带' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(onSave).toHaveBeenCalledWith('inventory', JSON.stringify(['药草', '绷带']), undefined);
+    await waitFor(() => expect(onSave).toHaveBeenCalledWith('inventory', JSON.stringify(['药草', '绷带']), undefined));
+    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
   });
 
   it('列表字段点击编辑区外会取消编辑且不保存未提交输入', () => {

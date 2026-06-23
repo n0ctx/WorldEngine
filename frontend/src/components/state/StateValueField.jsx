@@ -1,43 +1,90 @@
-import { useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import DatetimeSplitInput from './DatetimeSplitInput';
 
 const STATE_LIST_MAX_ITEMS = 10;
+const AUTOSAVE_DELAY_MS = 450;
+const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+function parseJsonValue(valueJson) {
+  if (valueJson == null) return null;
+  try {
+    return JSON.parse(valueJson);
+  } catch {
+    return valueJson;
+  }
+}
+
+function getInitialValueJson(field) {
+  return field.value_json ?? field.default_value_json ?? field.effective_value_json ?? null;
+}
+
+function stringifyValue(value) {
+  return JSON.stringify(value);
+}
 
 /**
  * 状态字段值编辑控件
  *
  * 根据 field.type（boolean/number/enum/list/datetime/table/text）渲染对应输入控件。
- * 用于 WorldEditPage 和 CharacterEditPage 的状态字段列表行。
- *
- * @param {{ field_key, type, default_value_json, enum_options }} field
+ * 用于 WorldEditPage、PersonaEditPage 和 CharacterEditPage 的状态字段列表行。
+ * @param {{ field_key, type, value_json, default_value_json, enum_options }} field
  * @param {(fieldKey: string, valueJson: string) => void} onSave
  */
 export default function StateValueField({ field, onSave }) {
-  const parseValue = (vj) => {
-    try { return vj != null ? JSON.parse(vj) : null; }
-    catch { return vj ?? null; }
-  };
-  const [local, setLocal] = useState(() => parseValue(field.default_value_json));
+  const initialValueJson = getInitialValueJson(field);
+  return (
+    <StateValueFieldInner
+      key={`${field.field_key}:${initialValueJson ?? ''}`}
+      field={field}
+      initialValueJson={initialValueJson}
+      onSave={onSave}
+    />
+  );
+}
+
+function StateValueFieldInner({ field, initialValueJson, onSave }) {
+  const parsedInitialValue = useMemo(() => parseJsonValue(initialValueJson), [initialValueJson]);
+  const [local, setLocal] = useState(parsedInitialValue);
   const [listInput, setListInput] = useState('');
+  const lastSavedValueJson = useRef(initialValueJson == null ? stringifyValue(null) : initialValueJson);
   const listRef = useRef(null);
 
-  function saveValue(val) {
-    onSave(field.field_key, JSON.stringify(val));
-  }
+  const saveValue = useCallback((value) => {
+    const valueJson = stringifyValue(value);
+    if (valueJson === lastSavedValueJson.current) return;
+    lastSavedValueJson.current = valueJson;
+    onSave(field.field_key, valueJson);
+  }, [field.field_key, onSave]);
+
+  useEffect(() => {
+    if (!['number', 'text'].includes(field.type)) return undefined;
+    const timer = window.setTimeout(() => {
+      if (field.type === 'number') {
+        saveValue(local === '' || local == null ? null : Number(local));
+        return;
+      }
+      saveValue(String(local ?? ''));
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [field.type, local, saveValue]);
 
   if (field.type === 'boolean') {
     return (
       <input
         type="checkbox"
         checked={!!local}
-        onChange={(e) => { setLocal(e.target.checked); saveValue(e.target.checked); }}
+        onChange={(e) => {
+          setLocal(e.target.checked);
+          saveValue(e.target.checked);
+        }}
         className="w-4 h-4"
         style={{ accentColor: 'var(--we-color-gold)' }}
       />
     );
   }
+
   if (field.type === 'number') {
     const unit = field.unit ?? '';
     return (
@@ -52,29 +99,42 @@ export default function StateValueField({ field, onSave }) {
       </div>
     );
   }
+
+  if (field.type === 'enum') {
+    let options = [];
+    try {
+      options = JSON.parse(field.enum_options || '[]');
+    } catch {
+      options = [];
+    }
+    return (
+      <Select
+        value={local ?? ''}
+        onChange={(v) => {
+          const next = v || null;
+          setLocal(next);
+          saveValue(next);
+        }}
+        options={[{ value: '', label: '—' }, ...options.map((o) => ({ value: o, label: o }))]}
+      />
+    );
+  }
+
   if (field.type === 'datetime') {
-    const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
     return (
       <DatetimeSplitInput
         value={typeof local === 'string' && ISO_DATETIME_RE.test(local) ? local : ''}
-        onChange={(v) => setLocal(v)}
+        onChange={(v) => {
+          setLocal(v);
+          if (ISO_DATETIME_RE.test(v)) saveValue(v);
+        }}
         onBlur={() => {
-          if (local && ISO_DATETIME_RE.test(local)) saveValue(local);
-          else if (!local) saveValue(null);
+          if (!local) saveValue(null);
         }}
       />
     );
   }
-  if (field.type === 'enum') {
-    const options = (() => { try { return JSON.parse(field.enum_options || '[]'); } catch { return []; } })();
-    return (
-      <Select
-        value={local ?? ''}
-        onChange={(v) => { setLocal(v); saveValue(v); }}
-        options={[{ value: '', label: '—' }, ...options.map(o => ({ value: o, label: o }))]}
-      />
-    );
-  }
+
   if (field.type === 'list') {
     const items = Array.isArray(local) ? local : [];
 
@@ -82,12 +142,11 @@ export default function StateValueField({ field, onSave }) {
       const v = raw.trim();
       if (!v || items.includes(v)) return;
       if (items.length >= STATE_LIST_MAX_ITEMS) return;
-      setLocal([...items, v]);
+      const updated = [...items, v];
+      setLocal(updated);
       setListInput('');
-      saveValue([...items, v]);
+      saveValue(updated);
     }
-
-    const atMax = items.length >= STATE_LIST_MAX_ITEMS;
 
     function removeListItem(v) {
       const updated = items.filter((e) => e !== v);
@@ -95,6 +154,8 @@ export default function StateValueField({ field, onSave }) {
       setListInput('');
       saveValue(updated);
     }
+
+    const atMax = items.length >= STATE_LIST_MAX_ITEMS;
 
     return (
       <div
@@ -112,17 +173,21 @@ export default function StateValueField({ field, onSave }) {
         {items.map((v) => (
           <span key={v} className="we-tag">
             {v}
-            <button type="button" onClick={(e) => { e.stopPropagation(); removeListItem(v); }}>×</button>
+            <button type="button" aria-label={`删除 ${v}`} onClick={(e) => { e.stopPropagation(); removeListItem(v); }}>×</button>
           </span>
         ))}
-        <input ref={listRef} className="we-tag-input-field"
-          value={listInput} onChange={(e) => setListInput(e.target.value)}
+        <input
+          ref={listRef}
+          className="we-tag-input-field"
+          value={listInput}
+          onChange={(e) => setListInput(e.target.value)}
           disabled={atMax}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') { e.preventDefault(); addListItem(listInput); }
-            else if (e.key === 'Backspace' && listInput === '' && items.length) {
-              removeListItem(items[items.length - 1]);
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addListItem(listInput);
             }
+            if (e.key === 'Backspace' && listInput === '' && items.length) removeListItem(items[items.length - 1]);
           }}
           onBlur={() => { if (listInput.trim()) addListItem(listInput); }}
           placeholder={atMax ? `已达上限 ${STATE_LIST_MAX_ITEMS} 条，请先删除` : (items.length === 0 ? '输入条目后按回车' : '')}
@@ -130,22 +195,20 @@ export default function StateValueField({ field, onSave }) {
       </div>
     );
   }
+
   if (field.type === 'table') {
     let columns = [];
-    try { columns = JSON.parse(field.table_columns || '[]'); } catch { columns = []; }
-    const obj = (local && typeof local === 'object' && !Array.isArray(local)) ? local : {};
-
+    try {
+      columns = JSON.parse(field.table_columns || '[]');
+    } catch {
+      columns = [];
+    }
+    const obj = local && typeof local === 'object' && !Array.isArray(local) ? local : {};
     if (columns.length === 0) {
       return <span className="text-xs text-[var(--we-color-text-secondary)] opacity-70">未配置列</span>;
     }
-
     return (
-      <div
-        className="we-status-table"
-        style={{ '--we-status-table-cols': columns.length }}
-        role="table"
-        aria-label="表格状态默认值"
-      >
+      <div className="we-status-table" style={{ '--we-status-table-cols': columns.length }} role="table" aria-label="表格状态默认值">
         <div className="we-status-table-row we-status-table-head" role="row">
           {columns.map((col) => (
             <span key={col.key} className="we-status-table-cell we-status-table-head-cell" role="columnheader">
@@ -179,6 +242,7 @@ export default function StateValueField({ field, onSave }) {
       </div>
     );
   }
+
   return (
     <Input
       type="text"
