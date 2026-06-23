@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
@@ -214,7 +215,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
   const isDiaryTime = field?.field_key === DIARY_TIME_FIELD_KEY;
   const isRealDiary = isDiaryTime && diaryDateMode === 'real';
 
-  return (
+  return createPortal((
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header">
@@ -513,5 +514,5 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
