@@ -155,3 +155,40 @@ test('createPreviewCardTool 在条目过多时返回截断标记', async () => {
   assert.equal(data.existingEntries.length, 100);
   assert.deepEqual(data._existingEntriesMeta, { total: 105, limit: 100 });
 });
+
+test('persona-card preview exposes missing persona-specific state values', async () => {
+  const { createPreviewCardTool } = await loadCardPreview();
+  const world = insertWorld(sandbox.db, { name: '空缺字段世界' });
+  const persona = insertPersona(sandbox.db, world.id, { name: '待补玩家' });
+  insertPersonaStateField(sandbox.db, world.id, {
+    field_key: 'gold',
+    label: '金币',
+    type: 'number',
+    default_value: '0',
+  });
+  insertPersonaStateField(sandbox.db, world.id, {
+    field_key: 'memo',
+    label: '备注',
+    type: 'text',
+    default_value: '""',
+  });
+  insertPersonaStateValue(sandbox.db, world.id, {
+    persona_id: persona.id,
+    field_key: 'memo',
+    default_value_json: '""',
+  });
+
+  const tool = createPreviewCardTool({ worldId: world.id });
+  const personaData = JSON.parse(await tool.execute({
+    target: 'persona-card',
+    operation: 'update',
+    entityId: world.id,
+    personaId: persona.id,
+  }));
+
+  assert.deepEqual(
+    personaData.missingPersonaStateValues.map((row) => row.field_key),
+    ['gold', 'memo'],
+  );
+  assert.equal(personaData.missingPersonaStateValues[0].current_effective_value_json, '0');
+});

@@ -4,6 +4,9 @@
  *   GET   /api/worlds/:worldId/persona-state-values
  *   PATCH /api/worlds/:worldId/persona-state-values/:fieldKey
  *   POST  /api/worlds/:worldId/persona-state-values/reset
+ *   GET   /api/worlds/:worldId/personas/:personaId/state-values
+ *   PATCH /api/worlds/:worldId/personas/:personaId/state-values/:fieldKey
+ *   POST  /api/worlds/:worldId/personas/:personaId/state-values/reset
  */
 
 import { Router } from 'express';

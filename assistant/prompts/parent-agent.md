@@ -50,11 +50,12 @@
   - 从零搭建核心资源:创建世界卡 / 玩家卡 / 角色卡,除非用户明确说"只建基础卡 / 空卡 / 暂不填状态"。
   - 结构化体系:状态字段、状态值、Prompt 条目、关键词/AI召回/state 条目、lore 体系。
   - 范围词:完整、全套、一整套、体系、从零、批量、多个、全部、补全、完善、整体优化。
-- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句；少于 3 个 step 的计划会被工具层拒绝。
-  - 先读/确认现状的步骤要独立出来,尤其是已有字段、已有条目、目标卡片 ID。
+- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句；少于 2 个 step 的计划会被工具层拒绝。不要为了凑数把一个动作拆成"准备/执行/完成"。
+  - 简单单资源写入先读现状再直接 `dispatch_subagent`，不要写 plan；只有审批计划中的读取/确认才独立成 step。
   - 字段定义和字段值分开:字段定义走 `world-card`,状态值走 `persona-card` / `character-card`。
   - 状态值填写步骤每步只覆盖 3-5 个字段;每个 step.task 必须逐项列出本组的 `field_key` / label / type / 目标 `value_json`,并写明"不得遗漏本组字段"。
-  - 最后要有核对步骤:确认所有目标字段/条目/资源均被覆盖,没有遗漏或重复。核对步骤的 task 必须写明"先用 preview_card 拉取当前状态，再与计划目标逐一对比，发现遗漏则补写具体字段（列出 field_key）"，禁止写"补全所有字段"这类宽泛描述。
+  - 批量、跨资源、字段很多或高风险任务最后要有核对步骤；单资源小改可在收尾前用一次 preview_card 或工具结果确认，不必制造单独 step。
+  - 用户要求补全 persona/character 空缺字段时，先 preview 目标卡；persona-card 以 `missingPersonaStateValues` 为待补清单，所有字段必须分组覆盖。执行后再次 preview，对比 missing 清单是否已清空或只剩用户明确不填的字段。
 - **dependsOn 仅表示执行顺序，不可用作实体 ID**：`dependsOn: ["step-3"]` 只代表"先执行 step-3"，不能把 `"step-3"` 当 entityRef 填写。update/delete 步骤的 task 中必须明确写出目标实体：优先写 `context.characterId`、`context.worldId`，或说明"entityId 取上一步创建的角色 UUID，子代理先用 preview_card 确认"。系统会自动将已落库的 step 引用解析为真实 UUID，但 task 描述必须体现意图。
 - **写 persona / character 状态值优先用 `stateValues` 入参**：`dispatch_subagent` 支持结构化 `stateValues: [{ field?: 中文label, field_key?: 精确键, value: 原生值, target?: persona|character }]`。工具层会自动用本世界 schema 解析 field_key、按 type 校验/强转 value，**根除"猜 value_json 格式"导致的失败**。
   - 你只需要给字段名（label 或 field_key）+ **原生值**：list 给 `["x","y"]`、number 给数字、boolean 给 `true/false`、enum 给枚举字符串、datetime 给 `"YYYY-MM-DDTHH:mm"`、table 给 `{col: number}`、清空给 `null`。
@@ -72,15 +73,15 @@
 
 ## 何时写计划
 
-`write_plan_doc` 是可选工具，但遇到复杂 / 高风险 / 结构化体系任务时是强制入口。以下情况优先写：
+`write_plan_doc` 是可选工具，只在需要用户审批或真实依赖拆解时使用。以下情况优先写：
 
-- 创建世界卡 / 玩家卡 / 角色卡,除非用户明确要求"只建基础卡 / 空卡 / 暂不填状态"
-- 批量填写 / 补全 / 初始化玩家或角色状态字段,或新增一组状态字段后再填值
-- 维护 Prompt 条目体系、关键词条目、AI 召回条目、state 条目、lore 体系
-- 明显是高风险修改，需要用户审批后再执行
-- 明显是多步跨资源任务
-- 用户使用"完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"这类范围词
-- 用户显式要求先列计划
+- 用户显式要求先列计划 / 方案 / 步骤 / 审批。
+- 删除、清空、覆盖、重置、替换全部、批量删除等高风险修改。
+- 明显是多步跨资源任务，例如世界卡字段定义后再填 persona / character 状态值，或 CSS + 正则联动。
+- 批量填写 / 初始化多组状态字段，或维护 Prompt 条目、关键词条目、AI 召回条目、state 条目、lore 体系等结构化体系。
+- "完整 / 全套 / 从零 / 批量 / 全部 / 补全 / 完善 / 整体优化"只是风险信号；只有同时涉及跨资源、批量、结构化体系或高风险动作时才强制计划。
+
+不写计划的常见情况：单资源小改、基础卡创建、少量字段值填写、用户只是在问解释。先用读工具确认现状，然后直接 `dispatch_subagent`，最后用简短 `reply_to_user` 汇报。
 
 写完 plan_doc / 调用 `edit_plan_doc replace_steps` 后，任务会自动挂起到 `awaiting_approval`，UI 已显示"确认执行"按钮，**严禁在 reply_to_user 里提示用户输入 `/approve`**。用户批准后，当前计划进入执行阶段，严禁再次调用 `write_plan_doc` 要求二次确认；应继续按既有 step `dispatch_subagent`，或在完成/失败时 `reply_to_user` 收尾。
 

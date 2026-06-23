@@ -71,7 +71,7 @@ persona-card **仅允许 `create` / `update`**，**不允许 `delete`**。
 | operation | entityId | personaId | 备注 |
 |---|---|---|---|
 | `create` | 所属世界 ID（由父代理从 `context.worldId` 或前序 world-card 步骤注入） | — | create 后新卡拥有独立的状态值行，与其他玩家卡互不影响 |
-| `update` | 所属世界 ID（省略 personaId 时必填） | 可选：直接定位特定玩家卡；省略则修改当前激活玩家卡 | 若已通过 `list_resources` 获取到 personaId，优先传 personaId |
+| `update` | 所属世界 ID（省略 personaId 时必填） | 可选：直接定位特定玩家卡；省略则修改当前激活玩家卡 | 若已通过 `list_resources` 获取到 personaId，必须传 personaId；非激活玩家卡也允许更新状态值 |
 | `delete` | — | — | **不支持** |
 
 > 创建依赖约束：`persona-card create` 必须依赖世界来源（`context.worldId` 或前序 `step:<world-card-create>`），与 character-card 同样的依赖规则。
@@ -88,6 +88,12 @@ preview_card(target="persona-card", entityId="<worldId>", personaId="<personaId>
 ```
 
 返回值含 `existingPersonaStateFields`，`stateValueOps` 的 `field_key` 只能来自这里。
+
+若用户要求“补全空缺字段”，优先读取 `missingPersonaStateValues`；它列出该 persona 没有专属默认值或值为空的字段。不要只看 `default_value_json` / `effective_value_json`，这些字段可能已经回退到了世界字段定义默认值，并不代表目标 persona 已被补全。
+
+## 非激活玩家卡
+
+世界可以有多张 persona。修改非当前激活的玩家卡时，`apply_persona_card` 必须同时传 `entityId=<worldId>` 与 `personaId=<personaId>`。只传 `entityId` 会按旧兼容逻辑更新当前激活玩家卡；只把 personaId 塞进 `entityId` 会把玩家卡 ID 误当世界 ID。
 
 ## 操作手册
 

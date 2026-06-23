@@ -3,7 +3,7 @@
 export const writePlanDocDefinition = {
   name: 'write_plan_doc',
   description:
-    'plan mode 首次落计划文档；仅适用于至少 3 个可执行步骤的任务。状态自动转 awaiting_approval，UI 会显示审批按钮，无需再 reply_to_user 提示用户操作。' +
+    'plan mode 首次落计划文档；仅适用于至少 2 个有真实依赖的可执行步骤的任务。状态自动转 awaiting_approval，UI 会显示审批按钮，无需再 reply_to_user 提示用户操作。' +
     'steps[].id 可省略（自动生成 step-N）。',
   parameters: {
     type: 'object',
@@ -17,8 +17,8 @@ export const writePlanDocDefinition = {
       },
       steps: {
         type: 'array',
-        minItems: 3,
-        description: '步骤数组，至少 3 项；每项含 id?, title, targetType, operation, dependsOn, task',
+      minItems: 2,
+      description: '步骤数组，至少 2 项；每项含 id?, title, targetType, operation, dependsOn, task。只保留真实依赖，不为了凑数拆同义步骤。',
         items: {
           type: 'object',
           properties: {

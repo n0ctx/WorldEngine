@@ -25,7 +25,11 @@ export const dispatchSubagentDefinition = {
       },
       entityRef: {
         type: ['string', 'null'],
-        description: 'update / delete 必须指向已有资源 ID；create 必须留空（null），不要把当前上下文的 worldId / characterId 当成新建目标。',
+        description: 'update / delete 必须指向已有资源 ID；create 必须留空（null），不要把当前上下文的 worldId / characterId 当成新建目标。persona-card update 推荐把世界 ID 放在 entityRef，并另传 personaId；兼容旧写法：entityRef 也可直接是目标 personaId。',
+      },
+      personaId: {
+        type: ['string', 'null'],
+        description: '仅 persona-card update 使用：直接指定要更新的玩家卡 ID，允许非激活玩家卡。省略则更新当前激活玩家卡。',
       },
       task: { type: 'string' },
       force: {

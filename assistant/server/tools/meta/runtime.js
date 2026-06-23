@@ -74,7 +74,7 @@ function validatePlanStepsTaskTail(steps) {
 }
 
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
-  const MIN_PLAN_STEPS = 3;
+const MIN_PLAN_STEPS = 2;
   const writePlanDoc = {
     definition: writePlanDocDefinition,
     execute: async (args) => {
@@ -95,17 +95,17 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
           task: s.task,
           done: false,
         }));
-        if (steps.length < MIN_PLAN_STEPS) {
-          return {
-            success: false,
-            failureKind: 'precheck',
-            error: [
-              `write_plan_doc 至少需要 ${MIN_PLAN_STEPS} 个可执行步骤。`,
-              '如果任务只能拆成 1-2 个动作，请直接 dispatch_subagent 执行；',
-              '如果这是复杂任务，请拆出读取/确认、定义或定位、分组写入、核对验收等真实依赖步骤后再提交计划。',
-            ].join(''),
-          };
-        }
+    if (steps.length < MIN_PLAN_STEPS) {
+      return {
+        success: false,
+        failureKind: 'precheck',
+        error: [
+          `write_plan_doc 至少需要 ${MIN_PLAN_STEPS} 个可执行步骤。`,
+          '如果任务只能拆成 1 个明确写入动作，请先读现状后直接 dispatch_subagent 执行；',
+          '如果这是复杂任务，请只拆出读取/定位、分组写入、核对验收等真实依赖步骤后再提交计划。',
+        ].join(''),
+      };
+    }
         const taskTailIssue = validatePlanStepsTaskTail(steps);
         if (taskTailIssue) return taskTailIssue;
         const nowIso = new Date().toISOString();
@@ -273,11 +273,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         let resolved = step ?? {
           id: args.stepId ?? `adhoc-${Date.now()}`,
           title: args.task?.slice(0, 24) || '临时子任务',
-          targetType: args.targetType,
-          operation: args.operation,
-          dependsOn: args.entityRef ? [args.entityRef] : [],
-          task: args.task,
-        };
+      targetType: args.targetType,
+      operation: args.operation,
+      dependsOn: args.entityRef ? [args.entityRef] : [],
+      personaId: args.personaId ?? null,
+      task: args.task,
+    };
         // 当 stepId 解析到了 step 但模型同时给了一段全新的 args.task：
         // - 仅当 step.task 命中尾部截断（被 plan-doc 单行解析器吃掉子条目导致的坏数据）时，
         //   才允许 args.task 覆盖 step.task；这是已批准计划的自救通道，不是任意改写许可。
@@ -435,11 +436,12 @@ export function buildMetaTools(task, emitFn, runId = null, options = {}) {
         try {
           const result = await dispatchSubAgent({
             stepId: resolved.id,
-            targetType: resolved.targetType,
-            operation: resolved.operation,
-            entityRef: entityRefForDispatch,
-            task: resolved.task,
-            context: task.context,
+        targetType: resolved.targetType,
+        operation: resolved.operation,
+        entityRef: entityRefForDispatch,
+        personaId: args.personaId ?? resolved.personaId ?? null,
+        task: resolved.task,
+        context: task.context,
             taskId: task.id,
             emitFn,
             runId,

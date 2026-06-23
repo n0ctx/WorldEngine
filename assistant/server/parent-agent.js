@@ -199,9 +199,9 @@ function detectPlanFirstPolicy(userInput) {
   const requiresPlanFirst = explicitPlan
     || highRisk
     || multiResource
-    || (cardCreate && !basicOnly)
-    || (structureHeavy && (comprehensive || cardCreate || multiResource))
-    || (comprehensive && !simpleStateValue && !basicOnly);
+    || (cardCreate && structureHeavy && comprehensive && !basicOnly)
+    || (structureHeavy && comprehensive && multiResource)
+    || (comprehensive && multiResource && !simpleStateValue && !basicOnly);
 
   if (!requiresPlanFirst) return { requiresPlanFirst: false, hints: [] };
 
@@ -217,8 +217,8 @@ function detectPlanFirstPolicy(userInput) {
     requiresPlanFirst: true,
     hints: [
       `这是需要计划的写卡任务：${reasons.join('；') || '需要多步拆解'}。`,
-      '本轮必须先调用 write_plan_doc，不允许直接 dispatch_subagent；用户批准后再按计划逐步执行；计划至少包含 3 个可执行 step。',
-      '计划要把读取/确认、字段或条目定义、资源创建/定位、值填写、核对验收拆开；跨资源任务用 dependsOn 串起真实依赖；如果只能拆成 1-2 个动作，就不要写 plan，直接 dispatch_subagent。',
+      '本轮先调用 write_plan_doc，让用户批准后再逐步执行；计划只保留真实依赖，不为凑数量拆同义步骤。',
+      '若任务可以在 1 个明确写入动作内完成，先读现状后直接 dispatch_subagent；若需要计划，通常用 2-5 个 step 表达读取/定位、写入分组、核对验收等真实边界。',
       '若涉及 persona-card / character-card 状态值填写，每个 update 步骤只覆盖 3-5 个字段，并在 task 中列出本组所有 field_key、label、type 与目标 value_json，要求“不得遗漏本组字段”。',
     ],
   };

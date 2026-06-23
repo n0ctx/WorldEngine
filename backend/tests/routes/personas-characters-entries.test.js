@@ -5,6 +5,7 @@ import { createRouteTestContext } from '../helpers/http.js';
 import {
   insertCharacter,
   insertPersona,
+  insertPersonaStateField,
   insertWorld,
   insertWorldEntry,
 } from '../helpers/fixtures.js';
@@ -33,6 +34,35 @@ test('PATCH /api/worlds/:worldId/persona 修改 active persona 字段', async ()
   const data = await res.json();
   assert.equal(data.name, '新名');
   assert.equal(data.system_prompt, '你是新人');
+});
+
+test('PATCH /api/worlds/:worldId/personas/:personaId/state-values/:fieldKey updates non-active persona', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: '路由-persona-state-by-id' });
+  const activePersona = insertPersona(ctx.sandbox.db, world.id, { name: '当前激活玩家', sort_order: 0 });
+  const targetPersona = insertPersona(ctx.sandbox.db, world.id, { name: '目标玩家', sort_order: 1 });
+  ctx.sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(activePersona.id, world.id);
+  insertPersonaStateField(ctx.sandbox.db, world.id, {
+    field_key: 'gold',
+    label: '金币',
+    type: 'number',
+    default_value: '0',
+  });
+
+  const res = await ctx.request(`/api/worlds/${world.id}/personas/${targetPersona.id}/state-values/gold`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value_json: '88' }),
+  });
+  assert.equal(res.status, 200);
+
+  const activeGold = ctx.sandbox.db.prepare(
+    'SELECT default_value_json FROM persona_state_values WHERE persona_id = ? AND field_key = ?',
+  ).get(activePersona.id, 'gold');
+  const targetGold = ctx.sandbox.db.prepare(
+    'SELECT default_value_json FROM persona_state_values WHERE persona_id = ? AND field_key = ?',
+  ).get(targetPersona.id, 'gold');
+  assert.equal(activeGold, undefined);
+  assert.equal(targetGold.default_value_json, '88');
 });
 
 test('GET / POST /api/worlds/:worldId/personas 列表与新建', async () => {

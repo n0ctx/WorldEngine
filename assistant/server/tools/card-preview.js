@@ -85,8 +85,36 @@ function loadEntityData(target, operation, entityId, context, personaId = null) 
       : entry
   ));
 
-  const MAX_PREVIEW_ENTRIES = 100;
-  const MAX_PREVIEW_FIELDS = 100;
+const MAX_PREVIEW_ENTRIES = 100;
+const MAX_PREVIEW_FIELDS = 100;
+
+function isSemanticallyEmptyJson(valueJson) {
+  if (valueJson == null || valueJson === '') return true;
+  try {
+    const value = JSON.parse(valueJson);
+    if (value == null) return true;
+    if (typeof value === 'string') return value.trim() === '';
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === 'object') return Object.keys(value).length === 0;
+    return false;
+  } catch {
+    return String(valueJson).trim() === '';
+  }
+}
+
+function getMissingStateValues(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .filter((row) => isSemanticallyEmptyJson(row?.stored_default_value_json))
+    .map((row) => ({
+      field_key: row.field_key,
+      label: row.label,
+      type: row.type,
+      field_default_value: row.field_default_value,
+      current_effective_value_json: row.effective_value_json,
+      reason: row.stored_default_value_json == null ? 'no persona-specific value' : 'empty persona-specific value',
+    }));
+}
 
   function maybeTruncate(arr, max, label) {
     if (!Array.isArray(arr) || arr.length <= max) return { data: arr, truncated: false, total: arr.length };
@@ -187,15 +215,17 @@ function loadEntityData(target, operation, entityId, context, personaId = null) 
       const world = getWorldById(worldId);
       const personaEntriesMeta = maybeTruncate(world ? withEntryConditions(getAllWorldEntries(world.id)) : [], MAX_PREVIEW_ENTRIES, '现有世界条目');
       const personaSfMeta = maybeTruncate(getPersonaStateFieldsByWorldId(worldId), MAX_PREVIEW_FIELDS, '玩家状态字段');
+      const stateValues = personaId
+        ? getPersonaStateValuesWithFieldsByPersonaId(persona.id, worldId)
+        : getPersonaStateValuesWithFields(worldId);
       return {
         ...persona,
         existingWorldEntries: personaEntriesMeta.data,
         _existingWorldEntriesMeta: personaEntriesMeta.truncated ? { total: personaEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
         existingPersonaStateFields: personaSfMeta.data,
         _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
-      existingPersonaStateValues: personaId
-        ? getPersonaStateValuesWithFieldsByPersonaId(persona.id, worldId)
-        : getPersonaStateValuesWithFields(worldId),
+        existingPersonaStateValues: stateValues,
+        missingPersonaStateValues: getMissingStateValues(stateValues),
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
       };

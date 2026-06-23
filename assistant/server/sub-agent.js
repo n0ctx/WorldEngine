@@ -101,7 +101,7 @@ async function loadKnowledge(targetType) {
   return loadWithCache(full);
 }
 
-function buildUserMessage({ stepId, targetType, operation, entityRef, task, context }) {
+function buildUserMessage({ stepId, targetType, operation, entityRef, personaId, task, context }) {
   const ctxView = {
     worldId: context?.worldId ?? null,
     characterId: context?.characterId ?? null,
@@ -115,6 +115,7 @@ function buildUserMessage({ stepId, targetType, operation, entityRef, task, cont
     `- targetType: ${targetType}`,
     `- operation: ${operation}`,
     `- entityRef: ${entityRef ?? 'null'}`,
+    `- personaId: ${personaId ?? 'null'}`,
     ``,
     `## 任务`,
     ``,
@@ -147,6 +148,7 @@ export async function dispatchSubAgent({
   targetType,
   operation,
   entityRef = null,
+  personaId = null,
   task = '',
   context = {},
   taskId = null,
@@ -169,6 +171,12 @@ export async function dispatchSubAgent({
 
   const resolvedEntityId = resolveEntityRef(entityRef, context);
   const worldRefId = context?.worldId ?? null;
+  const personaIdHint = targetType === 'persona-card' && operation === 'update'
+    ? (personaId ?? (resolvedEntityId && resolvedEntityId !== worldRefId ? resolvedEntityId : null))
+    : null;
+  const personaEntityIdHint = targetType === 'persona-card' && operation === 'update'
+    ? (worldRefId ?? (resolvedEntityId === personaIdHint ? null : resolvedEntityId))
+    : null;
 
   const [basePrompt, knowledge] = await Promise.all([loadPrompt(), loadKnowledge(targetType)]);
   let systemPrompt = `${basePrompt}\n\n---\n\n# 知识：${targetType}\n\n${knowledge}`;
@@ -197,10 +205,11 @@ export async function dispatchSubAgent({
   // 用入参生成稳定签名：op + 目标实体 + 各 ops 数组的内容。禁止纳入随机/时间值。
   const applySignature = (args, op) => {
     try {
-      return JSON.stringify({
-        op,
-        entityId: args?.entityId ?? resolvedEntityId ?? null,
-        changes: args?.changes ?? null,
+        return JSON.stringify({
+          op,
+          entityId: args?.entityId ?? resolvedEntityId ?? null,
+          personaId: args?.personaId ?? personaIdHint ?? null,
+          changes: args?.changes ?? null,
         stateValueOps: args?.stateValueOps ?? null,
         stateFieldOps: args?.stateFieldOps ?? null,
         entryOps: args?.entryOps ?? null,
@@ -238,9 +247,14 @@ export async function dispatchSubAgent({
     wrapToolEvents(toLLMTool(READ_FILE_TOOL), emitFn, wrapOpts),
     wrapToolEvents(toLLMTool(apply, async (args) => {
       const op = args.operation ?? operation;
+      const applyArgs = { ...args };
+      if (targetType === 'persona-card' && op === 'update') {
+        if (personaEntityIdHint && !applyArgs.entityId) applyArgs.entityId = personaEntityIdHint;
+        if (personaIdHint && !applyArgs.personaId) applyArgs.personaId = personaIdHint;
+      }
       // 重试重放保护：本次 dispatch 已成功执行过相同签名的 apply，直接复用结果，不重复落库。
       // 覆盖 create（重复建卡）与带 entryOps/stateFieldOps[create] 的 update/delete（重复建条目/字段）。
-      const sig = applySignature(args, op);
+      const sig = applySignature(applyArgs, op);
       if (sig && appliedBySignature.has(sig)) {
         // 重放命中：返回首次成功结果的副本并打 skipped 标记，
         // 既保留真实 entityId 供链式 step 引用，又让上层 / 模型识别"本次未重复落库"。
@@ -259,7 +273,7 @@ export async function dispatchSubAgent({
       // 这里仍保留 try/catch 兜底未预期异常，但**不再 re-throw**：把异常也归一成结构化
       // 错误返回给模型，避免异常冒泡到 completeWithTools 触发"盲目重试 / 重放"（item 1/2）。
       try {
-        const res = await apply.execute(args, { worldRefId });
+        const res = await apply.execute(applyArgs, { worldRefId });
         if (res?.success !== false) {
           applySuccessCount += 1;
           if (sig) appliedBySignature.set(sig, res);
@@ -294,7 +308,8 @@ export async function dispatchSubAgent({
         stepId,
         targetType,
         operation,
-        entityRef: resolvedEntityId ?? entityRef,
+        entityRef: personaEntityIdHint ?? resolvedEntityId ?? entityRef,
+        personaId: personaIdHint,
         task,
         context,
       }),
