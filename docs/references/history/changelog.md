@@ -1,5 +1,7 @@
 # History Changelog
 
+- **fix(assistant): 玩家卡指定更新不再落到激活卡** `persona-card` update 的 `stateValueOps` 改按显式 `personaId` 写入，`preview_card` 指定玩家卡时同步读取该卡状态值；补 assistant 回归测试覆盖非激活玩家卡更新。
+
 每条改动一行，格式：`- **<type>: <一句话标题>** — <核心动作 / 关键文件 / 兼容性要点，控制在 1–2 句内>`。
 
 - **fix(assistant): 审批阶段改方案跳过重出计划卡** — parent-agent.md 收紧 awaiting_approval/paused 待执行态规则：用户要改方案必须 `write_plan_doc`/`replace_steps` 重出计划卡走审批，禁止仅 `reply_to_user` 口头确认；区分"提问/解释"（直接答）与"改方案"（重出卡）；同步 planning-and-proposals.md。纯 prompt 改动，无代码逻辑变更。

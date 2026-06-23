@@ -15,7 +15,10 @@ import { listWorldStateFields } from '../../../backend/services/world-state-fiel
 import { listCharacterStateFields } from '../../../backend/services/character-state-fields.js';
 import { getPersonaStateFieldsByWorldId } from '../../../backend/services/persona-state-fields.js';
 import { getCharacterStateValuesWithFields } from '../../../backend/db/queries/character-state-values.js';
-import { getPersonaStateValuesWithFields } from '../../../backend/db/queries/persona-state-values.js';
+import {
+  getPersonaStateValuesWithFields,
+  getPersonaStateValuesWithFieldsByPersonaId,
+} from '../../../backend/db/queries/persona-state-values.js';
 import { listCustomCssSnippets } from '../../../backend/db/queries/custom-css-snippets.js';
 import { listRegexRules } from '../../../backend/db/queries/regex-rules.js';
 import { listThemes, getThemeSnapshot } from '../../../backend/services/themes.js';
@@ -190,7 +193,9 @@ function loadEntityData(target, operation, entityId, context, personaId = null) 
         _existingWorldEntriesMeta: personaEntriesMeta.truncated ? { total: personaEntriesMeta.total, limit: MAX_PREVIEW_ENTRIES } : undefined,
         existingPersonaStateFields: personaSfMeta.data,
         _existingPersonaStateFieldsMeta: personaSfMeta.truncated ? { total: personaSfMeta.total, limit: MAX_PREVIEW_FIELDS } : undefined,
-        existingPersonaStateValues: getPersonaStateValuesWithFields(worldId),
+      existingPersonaStateValues: personaId
+        ? getPersonaStateValuesWithFieldsByPersonaId(persona.id, worldId)
+        : getPersonaStateValuesWithFields(worldId),
         _worldName: world?.name || '',
         _worldDescription: world?.description || '',
       };

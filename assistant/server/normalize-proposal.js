@@ -52,6 +52,7 @@ import {
 import { createPersona as createPersonaDb, setActivePersona, getPersonaById } from '../../backend/db/queries/personas.js';
 import {
   updateCharacterDefaultStateValueValidated,
+  updatePersonaDefaultStateValueByPersonaIdValidated,
   updatePersonaDefaultStateValueValidated,
   validateStateValue,
 } from '../../backend/services/state-values.js';
@@ -205,12 +206,12 @@ async function applyProposal(proposal, worldRefId = null) {
           system_prompt: safeChanges.system_prompt || '',
         });
         // 新建 persona 立即设为 active，后续 stateValueOps 写入其独立状态值行
-        setActivePersona(worldId, newPersona.id);
-        for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-          applyStateValueOp(op, { worldId });
-        }
-        return newPersona;
-      }
+    setActivePersona(worldId, newPersona.id);
+    for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+      applyStateValueOp(op, { personaId: newPersona.id, worldId });
+    }
+    return newPersona;
+  }
       // update
       // 先全量校验 stateValueOps（item 3）：在改名之前解析出 worldId 用于字段校验，
       // 任一值不过则整体拒绝、不改名、不填值。
@@ -232,12 +233,12 @@ async function applyProposal(proposal, worldRefId = null) {
         if (!worldId) throw new Error('persona-card 提案缺少 worldId（entityId）或 personaId');
         updated = await updatePersona(worldId, safeChanges);
       }
-      const resolvedWorldId = updated?.world_id ?? entityId;
-      for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
-        applyStateValueOp(op, { worldId: resolvedWorldId });
-      }
-      return updated;
+    const resolvedWorldId = updated?.world_id ?? entityId;
+    for (const op of (Array.isArray(proposal.stateValueOps) ? proposal.stateValueOps : [])) {
+      applyStateValueOp(op, { personaId: updated?.id ?? proposal.personaId ?? null, worldId: resolvedWorldId });
     }
+    return updated;
+  }
 
     case 'global-config': {
       const safeChanges = deepOmit(changes, ['api_key', 'llm.api_key', 'embedding.api_key']);
@@ -408,6 +409,10 @@ function applyStateValueOp(op, refs = {}) {
     return;
   }
   if (op.target === 'persona') {
+    if (refs.personaId) {
+      withFieldHint(() => updatePersonaDefaultStateValueByPersonaIdValidated(refs.personaId, refs.worldId, op.field_key, op.value_json));
+      return;
+    }
     const worldId = refs.worldId;
     if (!worldId) throw new Error('persona 状态值写入缺少 worldId');
     withFieldHint(() => updatePersonaDefaultStateValueValidated(worldId, op.field_key, op.value_json));
