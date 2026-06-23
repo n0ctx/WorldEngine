@@ -6,7 +6,7 @@
  * CSS 侧 frontend/src/themes/tokens.css 的 --we-duration-* / --we-easing-* 必须
  * 与真源【语义对齐】，否则 framer-motion 与 CSS transition 表现会分叉。
  *
- * 语义映射（见 docs/references/frontend/motion-and-animation.md §3）：
+ * 语义映射：
  *   --we-duration-fast     ↔ DURATION.quick   (hover 色变)
  *   --we-duration-normal   ↔ DURATION.base    (局部反馈)
  *   --we-duration-slow     ↔ DURATION.medium  (组件入场)

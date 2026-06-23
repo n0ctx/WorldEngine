@@ -50,7 +50,7 @@ allowed keys（白名单，多余字段会被丢弃）：
 
 ## CSS 内容强约束（与 css-snippet 同源）
 
-WorldEngine 颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/themes/tokens.css`。详见根 `CLAUDE.md` 与 `docs/references/frontend/ui-and-theme.md`。
+WorldEngine 颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/themes/tokens.css`。详见根 `CLAUDE.md` 与相关主题代码。
 
 主题 CSS 必须遵循：
 

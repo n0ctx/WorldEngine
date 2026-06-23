@@ -12,7 +12,6 @@
     "desktop:dev": "npm run build --prefix frontend && npm run start --prefix desktop",
     "desktop:build": "npm run build --prefix frontend && npm run build --prefix desktop",
     "desktop:dist": "npm run build --prefix frontend && npm run dist --prefix desktop",
-    "check:docs": "node scripts/check-docs-harness.mjs",
     "lint": "npm run lint:frontend && npm run lint:backend && npm run check:assistant && npm run check:hygiene && npm run check:tokens && npm run check:motion && npm run test:eslint-rules",
     "lint:frontend": "npm run lint --prefix frontend",
     "lint:backend": "npm run lint --prefix backend",

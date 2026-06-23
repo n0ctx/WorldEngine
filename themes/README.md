@@ -121,7 +121,7 @@ cp -R themes/_template themes/my-theme
 
 `classic-parchment/` 是默认内置主题，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感。
 
-`lovable-cream/` 走另一条更轻的暖 cream 路线，强调奶油底色、charcoal opacity 中性色、边框驱动的层级和更克制的阴影；当前以 `docs/references/frontend/ui-and-theme.md` 记录的方向为准。
+`lovable-cream/` 走另一条更轻的暖 cream 路线，强调奶油底色、charcoal opacity 中性色、边框驱动的层级和更克制的阴影。
 
 这两个主题都只能覆盖 token，不能直接改结构。
 

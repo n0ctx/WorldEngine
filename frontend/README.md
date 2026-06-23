@@ -20,5 +20,3 @@ npm run test:watch # vitest 监听模式
 
 - 项目总体说明：[`../README.md`](../README.md)
 - agent 协作入口：[`../CLAUDE.md`](../CLAUDE.md)
-- 前端文档索引：[`../docs/references/frontend/index.md`](../docs/references/frontend/index.md)
-- 主题与 token 规则：[`../docs/references/frontend/ui-and-theme.md`](../docs/references/frontend/ui-and-theme.md)

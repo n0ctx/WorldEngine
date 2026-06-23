@@ -1,5 +1,5 @@
 /* WorldEngine 动效 token —— 唯一真源。
- * 规格文档：docs/references/frontend/motion-and-animation.md
+ * 规格以本文件和相关主题 token 为准。
  * CSS 侧 --we-duration-* / --we-easing-* 由本文件按语义对齐；
  * 一致性由 scripts/check-motion.mjs 守护（npm run check:motion）。 */
 

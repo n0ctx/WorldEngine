@@ -3362,8 +3362,7 @@
 /* === Reduced-motion 安全网 ===
    tokens.css 的媒体查询只把 duration 与 easing token 归零，无法停下用字面时长声明的
    装饰循环动画（spinner / pulse / cursor blink / thinking dots）。此处按无障碍业界
-   标准把所有动画与过渡压到近零并停掉循环，覆盖 framer 之外的纯 CSS 动效。
-   真源说明见 docs/references/frontend/motion-and-animation.md §5。 */
+标准把所有动画与过渡压到近零并停掉循环，覆盖 framer 之外的纯 CSS 动效。 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

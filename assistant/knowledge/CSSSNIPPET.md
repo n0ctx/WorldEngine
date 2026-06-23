@@ -56,7 +56,7 @@ allowed keys：
 
 ## 仅使用 CSS 变量（强约束）
 
-WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/themes/tokens.css`。详细规范见根 `CLAUDE.md` 与 `docs/references/frontend/ui-and-theme.md`。
+WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变量定义于 `frontend/src/themes/tokens.css`。详细规范见根 `CLAUDE.md` 与相关主题代码。
 
 写片段时遵循：
 

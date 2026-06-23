@@ -112,16 +112,7 @@ LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / 
 
 ---
 
-## 文档
 
-| 文档 | 说明 |
-|---|---|
-| [产品概览](docs/references/product/overview.md) | 产品定位、功能边界、界面形态与用户路径 |
-| [前端文档索引](docs/references/frontend/index.md) | 页面、组件、主题、路由、状态与测试导航 |
-| [后端文档索引](docs/references/backend/index.md) | schema、接口、prompt、memory、SSE、异步链路导航 |
-| [写卡助手文档索引](docs/references/assistant/index.md) | assistant 架构、知识文件、proposal、恢复链路导航 |
-| [桌面端与打包](docs/references/product/desktop-and-packaging.md) | Electron 打包、数据目录、构建命令 |
-| [路线图](docs/references/product/roadmap.md) | 当前任务池、阶段规划与执行规则 |
 
 ---
 
@@ -149,7 +140,7 @@ npm run desktop:dist
 
 前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。
 
-`lovable-cream` 仍以 [`docs/references/frontend/ui-and-theme.md`](docs/references/frontend/ui-and-theme.md) 中记录的设计方向为目标，但仓库当前未内置合法 `Camera Plain` 字体文件，因此只提供接近该方向的 humanist sans 降级栈；若后续补入授权字体文件，主题会再切到真实字体。
+`lovable-cream` 当前未内置合法 `Camera Plain` 字体文件，因此只提供接近该方向的 humanist sans 降级栈；若后续补入授权字体文件，主题会再切到真实字体。
 
 ---
 

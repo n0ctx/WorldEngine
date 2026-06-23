@@ -46,14 +46,14 @@ export const READ_FILE_TOOL = {
   function: {
     name: 'read_file',
     description:
-      '读取项目仓库中的文件内容。可用于查阅 CLAUDE.md、docs/references/*.md、assistant/knowledge/*.md 等文档，' +
+      '读取项目仓库中的文件内容。可用于查阅 CLAUDE.md、assistant/knowledge/*.md、源码和测试，' +
       '以确认字段名称、JSON 格式和约束，提高生成的提案准确性。',
     parameters: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
-          description: '相对于项目根目录的文件路径，如 "CLAUDE.md"、"docs/references/backend/schema-and-storage.md"',
+          description: '相对于项目根目录的文件路径，如 "CLAUDE.md"、"backend/db/schema.js"',
         },
       },
       required: ['path'],
