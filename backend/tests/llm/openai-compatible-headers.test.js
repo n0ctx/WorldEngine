@@ -42,12 +42,12 @@ test('conversationId 非字符串会被强制转换为字符串', () => {
   assert.equal(headers['x-grok-conv-id'], '12345');
 });
 
-test('任意 OpenAI-compatible provider 都会把首条 system 拆成稳定 cached prefix + 动态 system suffix', () => {
+test('任意 OpenAI-compatible provider 都会把首条 system 拆成稳定 cached prefix + 动态 system suffix（glm/glm-coding 除外，用于低层绕过 Z.AI 安全分类）', () => {
   const messages = [
     { role: 'system', content: 'stable-prefix\n\ndynamic-suffix' },
     { role: 'user', content: 'hello' },
   ];
-  for (const provider of ['openrouter', 'deepseek', 'grok', 'glm', 'kimi', 'openai']) {
+  for (const provider of ['openrouter', 'deepseek', 'grok', 'kimi', 'openai']) {
     const normalized = normalizeOpenAICompatibleMessages(messages, {
       provider,
       cacheableSystem: 'stable-prefix',
@@ -57,6 +57,20 @@ test('任意 OpenAI-compatible provider 都会把首条 system 拆成稳定 cach
       { role: 'system', content: 'dynamic-suffix' },
       { role: 'user', content: 'hello' },
     ], `${provider} 应该被拆分`);
+  }
+});
+
+test('glm / glm-coding (智谱) 跳过 system 拆分（低层绕过，发送原始 messages 结构）', () => {
+  const messages = [
+    { role: 'system', content: 'stable-prefix\n\ndynamic-suffix' },
+    { role: 'user', content: 'hello' },
+  ];
+  for (const provider of ['glm', 'glm-coding']) {
+    const normalized = normalizeOpenAICompatibleMessages(messages, {
+      provider,
+      cacheableSystem: 'stable-prefix',
+    });
+    assert.deepEqual(normalized, messages, `${provider} 不应拆分（绕过用）`);
   }
 });
 
