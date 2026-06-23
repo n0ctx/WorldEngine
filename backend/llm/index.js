@@ -128,6 +128,11 @@ function buildLLMConfig(options = {}) {
     // 稳定 system 前缀（[1-3.5] cached layer）：仅 gemini provider 使用，触发 explicit cachedContents。
     // 其他 provider 忽略；不会进入 messages，无泄漏风险。
     cacheableSystem: options.cacheableSystem || undefined,
+    // Provider 安全/拒绝/敏感/过滤/截断信号 callback。adapter 检测到信号后调用。
+    // 不影响主输出链路；调用方负责写库 / 发 SSE / 日志。
+    onProviderSignal: typeof options.onProviderSignal === 'function' ? options.onProviderSignal : undefined,
+    // 安全信号溯源 context：mode/sessionId/messageId/internalRequestId/stream 等。
+    llmCallContext: options.llmCallContext || undefined,
   };
 }
 

@@ -10,6 +10,7 @@ import { getSession } from '../../core/api/sessions.js';
 import SessionListPanel from './components/SessionListPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
+import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import Pager from '../../components/chat/Pager.jsx';
 import PageLayout from '../layout/PageLayout.jsx';
 import StatePanel from '../../components/state/StatePanel.jsx';
@@ -272,6 +273,9 @@ export default function ChatPage() {
           </motion.div>
         )}
         </AnimatePresence>
+
+        {/* Provider 安全信号横幅（紧邻输入框上方，role=alert 自动朗读） */}
+        <ProviderSafetyBanner />
 
         {/* 输入框 */}
         <InputBox

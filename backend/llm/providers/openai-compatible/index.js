@@ -5,6 +5,12 @@ import { recordTokenUsage } from '../_shared/cache-usage.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import {
+  extractOpenAICompatibleSignal,
+  extractProviderErrorSignal,
+  emitProviderSignal,
+  buildContextFromConfig,
+} from '../_shared/provider-safety-signals.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -103,26 +109,42 @@ export async function* streamOpenAICompatible(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
+    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSignal) await emitProviderSignal(config, errSignal);
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
 
   const contentType = resp.headers.get('content-type') || '';
   if (contentType.includes('application/json')) {
     const data = await resp.json().catch(() => ({}));
+    const signal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'request_error', stream: true }));
+    if (signal) await emitProviderSignal(config, signal);
     assertOpenAICompatibleData(data, config);
     throw apiError(`${config.provider} API error: 返回了非流式 JSON 响应`, 502);
   }
 
   let inThinking = false;
   let lastUsage = null;
+  let emittedChars = 0;
+  let chunkIndex = -1;
+  const streamCtx = buildContextFromConfig(config, { phase: 'stream_chunk', stream: true });
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
+      chunkIndex += 1;
       // 末尾 chunk 携带 usage（stream_options.include_usage: true）
       if (parsed.usage) {
         lastUsage = parsed.usage;
         if (config.usageRef) recordTokenUsage(config.usageRef, parsed.usage, config.provider);
       }
+      // Provider 安全/敏感/过滤/截断信号检测
+      const safetySignal = extractOpenAICompatibleSignal(parsed, {
+        ...streamCtx,
+        phase: parsed.choices?.[0]?.finish_reason ? 'stream_stop' : 'stream_chunk',
+        emittedCharsBeforeTrigger: emittedChars,
+        chunkIndex,
+      });
+      if (safetySignal) await emitProviderSignal(config, safetySignal);
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
       // OpenRouter 等 provider 将推理内容放在 reasoning / reasoning_content 字段
@@ -133,6 +155,7 @@ export async function* streamOpenAICompatible(messages, config) {
       }
       if (delta.content) {
         if (inThinking) { yield '</think>\n'; inThinking = false; }
+        emittedChars += delta.content.length;
         yield delta.content;
       }
     } catch (err) {
@@ -169,6 +192,8 @@ export async function completeOpenAICompatible(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: config.provider || 'openai', status: resp.status, msg: text }));
+    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSignal) await emitProviderSignal(config, errSignal);
     throw apiError(`${config.provider} API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -179,6 +204,8 @@ export async function completeOpenAICompatible(messages, config) {
     log.error('provider.parse_error', formatMeta({ provider: config.provider || 'openai', msg: err.message }));
     throw err;
   }
+  const completeSignal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'complete_response', stream: false }));
+  if (completeSignal) await emitProviderSignal(config, completeSignal);
   assertOpenAICompatibleData(data, config);
   if (data.usage) {
     logOpenAIUsage(config.provider, config.model, data.usage);
@@ -235,6 +262,8 @@ const openaiCompatibleToolLoopProvider = {
     }
 
     const data = await resp.json();
+    const toolSignal = extractOpenAICompatibleSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
+    if (toolSignal) await emitProviderSignal(config, toolSignal);
     assertOpenAICompatibleData(data, config);
     if (data.usage) logOpenAIUsage(config.provider, config.model, data.usage);
 

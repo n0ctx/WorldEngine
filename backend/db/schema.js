@@ -341,9 +341,54 @@ CREATE TABLE IF NOT EXISTS entry_conditions (
   value        TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_entry_conditions_entry_id ON entry_conditions(entry_id);
+
+CREATE TABLE IF NOT EXISTS provider_safety_events (
+  id TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  tenant_id TEXT,
+  session_id TEXT,
+  conversation_id TEXT,
+  message_id TEXT,
+  internal_request_id TEXT NOT NULL,
+  provider_request_id TEXT,
+  mode TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  model TEXT,
+  adapter TEXT NOT NULL,
+  stream INTEGER NOT NULL DEFAULT 0,
+  phase TEXT NOT NULL,
+  signal_family TEXT NOT NULL,
+  signal_name TEXT NOT NULL,
+  severity TEXT NOT NULL,
+  action TEXT NOT NULL,
+  raw_finish_reason TEXT,
+  native_finish_reason TEXT,
+  stop_reason TEXT,
+  stop_details_json TEXT,
+  content_filter_json TEXT,
+  gemini_prompt_feedback_json TEXT,
+  gemini_safety_ratings_json TEXT,
+  minimax_sensitive_meta_json TEXT,
+  provider_error_code TEXT,
+  provider_error_type TEXT,
+  provider_error_message_hash TEXT,
+  emitted_chars_before_trigger INTEGER,
+  chunk_index INTEGER,
+  prompt_hash TEXT,
+  output_hash TEXT,
+  raw_provider_meta_redacted_json TEXT
+);
 `;
 
 const INDEXES = `
+CREATE INDEX IF NOT EXISTS idx_provider_safety_events_created_at
+  ON provider_safety_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_provider_safety_events_provider_created_at
+  ON provider_safety_events(provider, created_at);
+CREATE INDEX IF NOT EXISTS idx_provider_safety_events_session_created_at
+  ON provider_safety_events(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_provider_safety_events_signal_created_at
+  ON provider_safety_events(signal_family, signal_name, created_at);
 CREATE INDEX IF NOT EXISTS idx_characters_world_id ON characters(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_world_state_fields_world_id ON world_state_fields(world_id, sort_order);
 CREATE INDEX IF NOT EXISTS idx_world_state_values_world_id ON world_state_values(world_id, field_key);

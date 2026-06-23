@@ -7,6 +7,12 @@ import { getOrCreateCache } from './cache.js';
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import {
+  extractGeminiSignal,
+  extractProviderErrorSignal,
+  emitProviderSignal,
+  buildContextFromConfig,
+} from '../_shared/provider-safety-signals.js';
 
 const cacheLog = createLogger('gemini-cache', 'cyan');
 const log = createLogger('llm', 'magenta');
@@ -126,19 +132,31 @@ export async function* streamGemini(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
+    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSig) await emitProviderSignal(config, errSig);
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
   let inThinking = false;
   let lastUsage = null;
+  let chunkIndex = -1;
+  let emittedChars = 0;
   for await (const { data } of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
+      chunkIndex += 1;
       const meta = parsed.usageMetadata;
       if (meta) {
         lastUsage = meta;
         if (config.usageRef) recordTokenUsage(config.usageRef, meta, config.provider);
       }
+      const sig = extractGeminiSignal(parsed, buildContextFromConfig(config, {
+        phase: parsed.candidates?.[0]?.finishReason ? 'stream_stop' : 'stream_chunk',
+        stream: true,
+        emittedCharsBeforeTrigger: emittedChars,
+        chunkIndex,
+      }));
+      if (sig) await emitProviderSignal(config, sig);
       const parts = parsed.candidates?.[0]?.content?.parts || [];
       for (const part of parts) {
         if (!part.text) continue;
@@ -147,6 +165,7 @@ export async function* streamGemini(messages, config) {
           yield part.text;
         } else {
           if (inThinking) { yield '</think>\n'; inThinking = false; }
+          emittedChars += part.text.length;
           yield part.text;
         }
       }
@@ -197,6 +216,8 @@ export async function completeGemini(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
+    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSig) await emitProviderSignal(config, errSig);
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -207,6 +228,8 @@ export async function completeGemini(messages, config) {
     log.error('provider.parse_error', formatMeta({ provider: 'gemini', msg: err.message }));
     throw err;
   }
+  const completeSig = extractGeminiSignal(data, buildContextFromConfig(config, { phase: 'complete_response', stream: false }));
+  if (completeSig) await emitProviderSignal(config, completeSig);
   if (data.usageMetadata) {
     logGeminiUsage(config.model, data.usageMetadata);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usageMetadata, config.provider);
@@ -247,6 +270,8 @@ async function completeGeminiFromNative(nativeContents, systemInstruction, confi
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: 'gemini', status: resp.status, msg: text }));
+    const errSig = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSig) await emitProviderSignal(config, errSig);
     throw apiError(`Gemini API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -301,6 +326,8 @@ const geminiToolLoopProvider = {
     }
 
     const data = await resp.json();
+    const toolSig = extractGeminiSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
+    if (toolSig) await emitProviderSignal(config, toolSig);
     if (data.usageMetadata) logGeminiUsage(config.model, data.usageMetadata);
     const parts = data.candidates?.[0]?.content?.parts || [];
     const functionCalls = parts.filter((p) => p.functionCall);

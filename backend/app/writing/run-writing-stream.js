@@ -1,4 +1,5 @@
 import * as llm from '../../llm/index.js';
+import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
 import { buildWritingPostgenTasks } from './build-writing-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
@@ -119,6 +120,11 @@ export async function runWritingStream({
         configScope: 'writing',
         callType: 'writing_main',
         conversationId: sessionId,
+        llmCallContext: { mode: 'writing', sessionId, internalRequestId: taskId, stream: true },
+        onProviderSignal: (signal) => {
+          const saved = recordProviderSafetyEvent(signal);
+          if (saved) emitSse({ type: 'provider_safety_signal', signal: toPublicProviderSafetySignal(saved) });
+        },
       }),
     onError: async ({ err, sid, fullContent, streamState }) => {
       log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);

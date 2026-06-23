@@ -71,6 +71,7 @@ export const NAV_KEY = {
   CSS: 'css',
   REGEX: 'regex',
   IMPORT_EXPORT: 'import_export',
+  PROVIDER_SAFETY: 'provider_safety',
   ABOUT: 'about',
 };
 
@@ -82,6 +83,7 @@ export const NAV_SECTIONS = [
   { key: NAV_KEY.CSS, label: '自定义 CSS' },
   { key: NAV_KEY.REGEX, label: '正则规则' },
   { key: NAV_KEY.IMPORT_EXPORT, label: '导入导出' },
+  { key: NAV_KEY.PROVIDER_SAFETY, label: 'Provider 安全信号' },
   { key: NAV_KEY.ABOUT, label: '关于' },
 ];
 

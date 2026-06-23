@@ -104,17 +104,21 @@ exports[`EntrySection > 默认状态快照 1`] = `
           <div
             class="we-entry-section-main"
           >
-            <span
-              class="we-entry-section-name"
+            <div
+              class="we-entry-section-title-line"
             >
-              世界观设定
-            </span>
-            <span
-              class="we-entry-cached-badge"
-              title="此条目进入 CACHED LAYER"
-            >
-              CACHED
-            </span>
+              <span
+                class="we-entry-section-name"
+              >
+                世界观设定
+              </span>
+              <span
+                class="we-entry-cached-badge"
+                title="此条目进入 CACHED LAYER"
+              >
+                CACHED
+              </span>
+            </div>
           </div>
           <div
             class="we-entry-section-actions"
@@ -209,11 +213,15 @@ exports[`EntrySection > 默认状态快照 1`] = `
           <div
             class="we-entry-section-main"
           >
-            <span
-              class="we-entry-section-name"
+            <div
+              class="we-entry-section-title-line"
             >
-              后置规则
-            </span>
+              <span
+                class="we-entry-section-name"
+              >
+                后置规则
+              </span>
+            </div>
           </div>
           <div
             class="we-entry-section-actions"

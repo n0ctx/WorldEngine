@@ -5,6 +5,7 @@ import LlmConfigPanel from '../components/settings/LlmConfigPanel';
 import PromptConfigPanel from '../components/settings/PromptConfigPanel';
 import ImportExportPanel from '../components/settings/ImportExportPanel';
 import AboutPanel from '../components/settings/AboutPanel';
+import ProviderSafetyPanel from '../components/settings/ProviderSafetyPanel.jsx';
 import ModeSwitch from '../components/settings/ModeSwitch';
 import CustomCssManager from '../components/settings/CustomCssManager';
 import RegexRulesManager from '../components/settings/RegexRulesManager';
@@ -194,6 +195,11 @@ export default function SettingsPage() {
             {activeSection === NAV_KEY.IMPORT_EXPORT && (
               <div className="we-settings-section">
                 <ImportExportPanel settingsMode={settingsMode} onImportSuccess={onImportSuccess} />
+              </div>
+            )}
+            {activeSection === NAV_KEY.PROVIDER_SAFETY && (
+              <div className="we-settings-section">
+                <ProviderSafetyPanel />
               </div>
             )}
             {activeSection === NAV_KEY.ABOUT && (

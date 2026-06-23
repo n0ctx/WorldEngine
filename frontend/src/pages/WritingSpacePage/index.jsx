@@ -13,6 +13,7 @@ import NearbyPanel from './components/NearbyPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
 import Pager from '../../components/chat/Pager.jsx';
+import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import WritingSessionList from './components/WritingSessionList.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
@@ -313,6 +314,9 @@ export default function WritingSpacePage() {
                 </div>
               </div>
             )}
+
+            {/* Provider 安全信号横幅 */}
+            <ProviderSafetyBanner />
 
             {/* 输入区 */}
             <InputBox

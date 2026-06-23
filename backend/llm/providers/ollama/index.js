@@ -9,6 +9,23 @@ import {
   LMSTUDIO_DEFAULT_BASE_URL,
 } from '../../../utils/constants.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
+import crypto from 'node:crypto';
+
+function makeLocalErrorSignal(config, status, body, phase) {
+  const ctx = buildContextFromConfig(config, { phase });
+  return {
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    ...ctx,
+    signalFamily: 'operational',
+    signalName: 'local_provider_error',
+    severity: 'medium',
+    action: 'request_blocked_by_provider',
+    providerErrorCode: String(status),
+    providerErrorMessageHash: hashText(body),
+  };
+}
 
 const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
@@ -64,6 +81,7 @@ export async function* streamChat(messages, config) {
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
+    await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
     throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
   }
 
@@ -102,6 +120,7 @@ export async function complete(messages, config) {
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => '');
+    await emitProviderSignal(config, makeLocalErrorSignal(config, resp.status, body, 'request_error'));
     throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
   }
 

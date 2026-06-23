@@ -7,6 +7,12 @@ import { ANTHROPIC_API_VERSION, ANTHROPIC_PROMPT_CACHING_BETA } from './constant
 import { logRawRequest } from '../../raw-logger.js';
 import { createLogger, formatMeta } from '../../../utils/logger.js';
 import { runToolLoop } from '../../tool-loop-control.js';
+import {
+  extractAnthropicSignal,
+  extractProviderErrorSignal,
+  emitProviderSignal,
+  buildContextFromConfig,
+} from '../_shared/provider-safety-signals.js';
 
 const log = createLogger('llm', 'magenta');
 
@@ -112,6 +118,8 @@ export async function* streamAnthropic(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSignal) await emitProviderSignal(config, errSignal);
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -137,7 +145,15 @@ export async function* streamAnthropic(messages, config) {
           lastUsage = { ...(lastUsage || {}), ...u };
           if (config.usageRef) recordTokenUsage(config.usageRef, u, config.provider);
         }
+        const sig = extractAnthropicSignal(parsed, buildContextFromConfig(config, { phase: 'stream_stop', stream: true }));
+        if (sig) await emitProviderSignal(config, sig);
       } catch (err) { log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message })); }
+    } else if (event === 'error') {
+      try {
+        const parsed = JSON.parse(data);
+        const sig = extractAnthropicSignal(parsed, buildContextFromConfig(config, { phase: 'stream_chunk', stream: true }));
+        if (sig) await emitProviderSignal(config, sig);
+      } catch { /* skip */ }
     } else if (event === 'content_block_start') {
       try {
         const parsed = JSON.parse(data);
@@ -203,6 +219,8 @@ export async function completeAnthropic(messages, config) {
   if (!resp.ok) {
     const text = await resp.text().catch(() => '');
     log.error('provider.http_error', formatMeta({ provider: 'anthropic', status: resp.status, msg: text }));
+    const errSignal = extractProviderErrorSignal(text, buildContextFromConfig(config, { phase: 'request_error' }));
+    if (errSignal) await emitProviderSignal(config, errSignal);
     throw apiError(`Anthropic API error: ${resp.status} ${text}`, resp.status);
   }
 
@@ -213,6 +231,8 @@ export async function completeAnthropic(messages, config) {
     log.error('provider.parse_error', formatMeta({ provider: 'anthropic', msg: err.message }));
     throw err;
   }
+  const completeSig = extractAnthropicSignal(data, buildContextFromConfig(config, { phase: 'complete_response', stream: false }));
+  if (completeSig) await emitProviderSignal(config, completeSig);
   if (data.usage) {
     logUsage(config.model, data.usage);
     if (config.usageRef) recordTokenUsage(config.usageRef, data.usage, config.provider);
@@ -268,6 +288,8 @@ const anthropicToolLoopProvider = {
     }
 
     const data = await resp.json();
+    const toolSig = extractAnthropicSignal(data, buildContextFromConfig(config, { phase: 'tool_loop_turn', stream: false }));
+    if (toolSig) await emitProviderSignal(config, toolSig);
     if (data.usage) {
       logUsage(config.model, data.usage);
       if (config.usageRef) accumulateUsageRef(config.usageRef, data.usage);

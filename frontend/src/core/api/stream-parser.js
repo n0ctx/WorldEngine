@@ -1,4 +1,5 @@
 import { log } from '../utils/logger.js';
+import { publishProviderSafetySignal } from './provider-safety-events.js';
 
 /**
  * 解析 SSE 流，分发事件到对应回调
@@ -77,6 +78,10 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
           else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);
+          else if (evt.type === 'provider_safety_signal') {
+            publishProviderSafetySignal(evt.signal ?? null);
+            callbacks.onProviderSafetySignal?.(evt.signal ?? null);
+          }
           else callbacks.onEvent?.(evt);
         } catch (err) {
           log.warn('sse.malformed_event', {
