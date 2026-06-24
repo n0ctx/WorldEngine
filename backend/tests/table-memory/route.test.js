@@ -14,20 +14,33 @@ test('GET 响应 shape：tables + markdown', () => {
   assert.match(body.markdown, /物品表/);
 });
 
-test('PUT /table-memory 非法 body → 400 不写入', async (t) => {
-  const ctx = createRouteTestContext('route-put-400');
+// 注意：freshImport 缓存模块，server 的 db 绑定到本文件内「第一个起 server 的测试」
+// 的 sandbox。因此 GET 200（需真实 session）与 PUT 400 合用同一个 ctx/server/db。
+test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async (t) => {
+  const ctx = createRouteTestContext('route-session');
   t.after(() => ctx.close());
   const world = insertWorld(ctx.sandbox.db, { name: '测试世界' });
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: '测试角色' });
   const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
-  const res = await ctx.request(`/api/sessions/${session.id}/table-memory`, {
+
+  // GET：即便空表（新会话）也透出 5 张表的列定义，供前端画表头
+  const getRes = await ctx.request(`/api/sessions/${session.id}/table-memory`);
+  assert.equal(getRes.status, 200);
+  const getBody = await getRes.json();
+  assert.ok(getBody.tables && getBody.markdown !== undefined);
+  assert.deepEqual(Object.keys(getBody.schema.tables).sort(), ['items', 'places', 'plotlines', 'relations', 'world']);
+  assert.ok(Array.isArray(getBody.schema.tables.relations.columns));
+  assert.equal(typeof getBody.schema.fieldMaxChars, 'number');
+
+  // PUT 非法 body → 400 不写入
+  const putRes = await ctx.request(`/api/sessions/${session.id}/table-memory`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ tables: null }),
   });
-  assert.equal(res.status, 400);
-  const body = await res.json();
-  assert.equal(body.error, '表格数据格式无效');
+  assert.equal(putRes.status, 400);
+  const putBody = await putRes.json();
+  assert.equal(putBody.error, '表格数据格式无效');
 });
 
 test('GET /table-memory 不存在会话 → 404', async (t) => {

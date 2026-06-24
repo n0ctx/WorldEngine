@@ -256,8 +256,8 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
-  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id）
-  {
+  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id；开关启用时注入）
+  if (config.table_memory_enabled === true) {
     const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
     if (md) {
       dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
@@ -505,8 +505,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id）
-  {
+  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id；开关启用时注入）
+  if (writing.table_memory_enabled === true) {
     const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
     if (md) {
       dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);

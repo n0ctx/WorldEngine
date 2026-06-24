@@ -150,6 +150,10 @@ export default function SettingsPage() {
                   onToggleLongTermMemory={promptProps.onToggleLongTermMemory}
                   writingLongTermMemoryEnabled={promptProps.writingLongTermMemoryEnabled}
                   onToggleWritingLongTermMemory={promptProps.onToggleWritingLongTermMemory}
+                  tableMemoryEnabled={promptProps.tableMemoryEnabled}
+                  onToggleTableMemory={promptProps.onToggleTableMemory}
+                  writingTableMemoryEnabled={promptProps.writingTableMemoryEnabled}
+                  onToggleWritingTableMemory={promptProps.onToggleWritingTableMemory}
                   memoryRecallMaxSessions={promptProps.memoryRecallMaxSessions}
                   setMemoryRecallMaxSessions={promptProps.setMemoryRecallMaxSessions}
                   onSaveMemoryRecallMaxSessions={promptProps.onSaveMemoryRecallMaxSessions}

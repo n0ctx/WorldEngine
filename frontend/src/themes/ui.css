@@ -3373,3 +3373,109 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── 表格记忆（TableMemoryModal）：横向滚动的完整表格 ─── */
+.we-tm-body-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.we-tm-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid color-mix(in srgb, var(--we-base-ink-900) 12%, transparent);
+  border-radius: var(--we-radius-sm, 6px);
+}
+.we-tm-grid {
+  display: grid;
+  /* N 个内容列 + 别名列 + 操作列；用 min-width 防挤扁，靠容器横向滚动 */
+  grid-template-columns:
+    repeat(var(--we-tm-cols, 1), minmax(7.5rem, 1fr))
+    minmax(8rem, 1.2fr)
+    44px;
+  min-width: max-content;
+}
+.we-tm-row {
+  display: contents;
+}
+.we-tm-cell {
+  display: flex;
+  align-items: center;
+  padding: var(--we-space-xs) 8px; /* 8px: design exact */
+  min-width: 0;
+  min-height: 44px; /* 触控目标 ≥44px */
+  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+.we-tm-cell + .we-tm-cell {
+  border-left: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+.we-tm-head .we-tm-head-cell {
+  position: sticky;
+  top: 0;
+  border-top: none;
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  letter-spacing: var(--we-tracking-caps);
+  color: var(--we-color-text-tertiary);
+  background: color-mix(in srgb, var(--we-base-ink-900) 5%, var(--we-color-bg-surface));
+}
+.we-tm-value {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  line-height: var(--we-leading-tight);
+  width: 100%;
+  word-break: break-word;
+}
+.we-tm-alias {
+  color: var(--we-color-text-tertiary);
+  font-size: var(--we-text-xs);
+}
+.we-tm-input {
+  width: 100%;
+  font-size: var(--we-text-sm);
+}
+.we-tm-action-cell {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+.we-tm-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;  /* 触控目标 ≥44px：命中区铺满操作列 */
+  height: 44px;
+  border-radius: var(--we-radius-sm, 6px);
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  transition: color var(--we-duration-fast), background var(--we-duration-fast);
+}
+.we-tm-delete:hover {
+  color: var(--we-color-text-danger);
+  background: color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+.we-tm-empty {
+  grid-column: 1 / -1;
+  padding: var(--we-space-md, 16px);
+  text-align: center;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-tertiary);
+  border-top: 1px solid color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
+}
+.we-tm-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--we-space-sm, 12px) 0;
+}
+.we-tm-skeleton-line {
+  height: 16px;
+  border-radius: 4px;
+}
+/* 放弃确认浮层：高于表格 Modal（--we-z-modal），脱离其 transform 上下文 */
+.we-tm-confirm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--we-z-modal) + 1);
+}

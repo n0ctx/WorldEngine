@@ -33,6 +33,8 @@ export default function FeaturesConfigPanel({
   writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion,
   longTermMemoryEnabled, onToggleLongTermMemory,
   writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
+  tableMemoryEnabled, onToggleTableMemory,
+  writingTableMemoryEnabled, onToggleWritingTableMemory,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
@@ -49,6 +51,8 @@ export default function FeaturesConfigPanel({
   const onToggleExpansion = isChat ? onToggleMemoryExpansion : onToggleWritingMemoryExpansion;
   const ltmEnabledCurrent = isChat ? longTermMemoryEnabled : writingLongTermMemoryEnabled;
   const onToggleLtmCurrent = isChat ? onToggleLongTermMemory : onToggleWritingLongTermMemory;
+  const tableMemoryEnabledCurrent = isChat ? tableMemoryEnabled : writingTableMemoryEnabled;
+  const onToggleTableMemoryCurrent = isChat ? onToggleTableMemory : onToggleWritingTableMemory;
   const diaryEnabled = isChat ? chatDiaryEnabled : writingDiaryEnabled;
   const onToggleDiary = isChat ? onToggleChatDiaryEnabled : onToggleWritingDiaryEnabled;
   const dateMode = isChat ? chatDateMode : writingDateMode;
@@ -142,6 +146,13 @@ export default function FeaturesConfigPanel({
           hint="每轮自动抽取关键事实写入长期记忆并注入提示词；关闭仅停止产出与注入，已有内容保留"
           checked={ltmEnabledCurrent}
           onChange={onToggleLtmCurrent}
+        />
+
+        <ToggleRow
+          label="表格记忆"
+          hint="每轮自动维护关系/物品/地点/剧情线/世界状态 5 张表并注入提示词；关闭仅停止更新与注入，已有表格保留"
+          checked={tableMemoryEnabledCurrent}
+          onChange={onToggleTableMemoryCurrent}
         />
 
         <ToggleRow

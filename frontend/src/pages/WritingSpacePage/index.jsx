@@ -16,6 +16,7 @@ import Pager from '../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import WritingSessionList from './components/WritingSessionList.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
+import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { log } from '../../core/utils/logger.js';
@@ -31,7 +32,7 @@ export default function WritingSpacePage() {
   const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
-  const { ltmEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
+  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
 
   useEffect(() => {
     setAppMode(SETTINGS_MODE.WRITING);
@@ -44,6 +45,7 @@ export default function WritingSpacePage() {
 
   const [persona, setPersona] = useState(null);
   const [ltmOpen, setLtmOpen] = useState(false);
+  const [tmOpen, setTmOpen] = useState(false);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const [isInitializing, setIsInitializing] = useState(false);
   const [initError, setInitError] = useState(null);
@@ -227,6 +229,22 @@ export default function WritingSpacePage() {
                       </Icon>
                     </button>
                   )}
+                  {tableMemoryEnabled && (
+                    <button
+                      type="button"
+                      className="we-chat-center-action"
+                      onClick={() => setTmOpen(true)}
+                      aria-label="表格记忆"
+                      title="表格记忆"
+                    >
+                      <Icon size={20} aria-label="表格记忆">
+                        <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                        <path d="M3 9h18" />
+                        <path d="M3 14h18" />
+                        <path d="M9 4v16" />
+                      </Icon>
+                    </button>
+                  )}
                 </>
               ) : (
                 <span className="flex-1" />
@@ -238,6 +256,13 @@ export default function WritingSpacePage() {
                   key="ltm-modal"
                   sessionId={currentSession.id}
                   onClose={() => setLtmOpen(false)}
+                />
+              )}
+              {tableMemoryEnabled && tmOpen && currentSession && (
+                <TableMemoryModal
+                  key="tm-modal"
+                  sessionId={currentSession.id}
+                  onClose={() => setTmOpen(false)}
                 />
               )}
             </AnimatePresence>

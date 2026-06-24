@@ -8,7 +8,7 @@ import express from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
 import { readTables, writeTables } from '../services/table-memory.js';
 import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
-import { emptyTables } from '../services/table-memory-schema.js';
+import { TABLE_SCHEMAS, FIELD_MAX_CHARS } from '../services/table-memory-schema.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = express.Router();
@@ -21,7 +21,11 @@ router.get('/:sessionId/table-memory', (req, res) => {
     return res.status(404).json({ error: '会话不存在' });
   }
   const tables = readTables(sessionId);
-  res.json({ tables, markdown: renderTablesToMarkdown(tables, { withId: false }) });
+  res.json({
+    tables,
+    markdown: renderTablesToMarkdown(tables, { withId: false }),
+    schema: { tables: TABLE_SCHEMAS, fieldMaxChars: FIELD_MAX_CHARS },
+  });
 });
 
 router.put('/:sessionId/table-memory', (req, res) => {

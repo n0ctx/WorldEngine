@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = {
   global_post_prompt: '',
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
+  table_memory_enabled: false,
   memory_recall_max_sessions: 5,
   suggestion_enabled: false,
   log_prompt: false,
@@ -83,6 +84,7 @@ const DEFAULT_CONFIG = {
     suggestion_enabled: false,
     memory_expansion_enabled: true,
     long_term_memory_enabled: false,
+    table_memory_enabled: false,
     saved_nearby_recall_enabled: true,
     llm: {
       provider: null,
@@ -112,6 +114,7 @@ const DEFAULT_WRITING = {
   suggestion_enabled: false,
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
+  table_memory_enabled: false,
   saved_nearby_recall_enabled: true,
   llm: {
     provider: null,

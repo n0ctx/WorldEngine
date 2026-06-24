@@ -9,6 +9,7 @@ export function usePageConfig() {
   const setShowTokenUsage = useDisplaySettingsStore((s) => s.setShowTokenUsage);
 
   const [ltmEnabled, setLtmEnabled] = useState(false);
+  const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
   const [chapterTurnSize, setChapterTurnSize] = useState(20);
   const [pageTurnSize, setPageTurnSize] = useState(50);
 
@@ -18,6 +19,7 @@ export function usePageConfig() {
       const writingModel = c.writing?.llm?.model_pricing ?? null;
       setCurrentWritingModelPricing(writingModel);
       setLtmEnabled(c.writing?.long_term_memory_enabled === true);
+      setTableMemoryEnabled(c.writing?.table_memory_enabled === true);
       setChapterTurnSize(c.writing?.chapter_turn_size ?? c.chapter_turn_size ?? 20);
       setPageTurnSize(c.writing?.page_turn_size ?? c.page_turn_size ?? 50);
     });
@@ -26,5 +28,5 @@ export function usePageConfig() {
     return () => window.removeEventListener('we:global-config-updated', load);
   }, [setCurrentWritingModelPricing, setShowTokenUsage]);
 
-  return { ltmEnabled, chapterTurnSize, pageTurnSize };
+  return { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize };
 }

@@ -7,7 +7,7 @@ import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { createTurnRecord } from '../../memory/turn-summarizer.js';
 import { detectNewChapter } from '../../utils/chapter-detector.js';
-import { getEffectiveChapterTurnSize } from '../../services/config.js';
+import { getEffectiveChapterTurnSize, getConfig } from '../../services/config.js';
 
 export function buildWritingPostgenTasks({
   sessionId,
@@ -69,6 +69,7 @@ export function buildWritingPostgenTasks({
     {
       label: 'table-memory',
       priority: 2,
+      condition: getConfig().writing?.table_memory_enabled === true,
       fn: async () => {
         const lastUser = [...messages].reverse().find((m) => m.role === 'user');
         const lastAsst = [...messages].reverse().find((m) => m.role === 'assistant');

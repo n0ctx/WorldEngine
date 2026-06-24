@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
 import Icon from '../../components/ui/Icon.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
+import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
 import { getCharacter } from '../../core/api/characters.js';
 import { getPersona } from '../../core/api/personas.js';
 import { getSession } from '../../core/api/sessions.js';
@@ -25,12 +26,13 @@ import { useChatStream } from './hooks/useChatStream.js';
 export default function ChatPage() {
   const { characterId } = useParams();
 
-  const { ltmEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
+  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
 
   const [character, setCharacter] = useState(null);
   const [persona, setPersona] = useState(null);
   const [ltmOpen, setLtmOpen] = useState(false);
+  const [tmOpen, setTmOpen] = useState(false);
   const [pageInfo, setPageInfo] = useState({ totalPages: 1, currentPage: 0 });
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
@@ -180,6 +182,22 @@ export default function ChatPage() {
                   </Icon>
                 </button>
               )}
+              {tableMemoryEnabled && (
+                <button
+                  type="button"
+                  className="we-chat-center-action"
+                  onClick={() => setTmOpen(true)}
+                  aria-label="表格记忆"
+                  title="表格记忆"
+                >
+                  <Icon size={20} aria-label="表格记忆">
+                    <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                    <path d="M3 9h18" />
+                    <path d="M3 14h18" />
+                    <path d="M9 4v16" />
+                  </Icon>
+                </button>
+              )}
             </>
           ) : (
             <span className="flex-1" />
@@ -191,6 +209,13 @@ export default function ChatPage() {
               key="ltm-modal"
               sessionId={currentSession.id}
               onClose={() => setLtmOpen(false)}
+            />
+          )}
+          {tableMemoryEnabled && tmOpen && currentSession && (
+            <TableMemoryModal
+              key="tm-modal"
+              sessionId={currentSession.id}
+              onClose={() => setTmOpen(false)}
             />
           )}
         </AnimatePresence>
