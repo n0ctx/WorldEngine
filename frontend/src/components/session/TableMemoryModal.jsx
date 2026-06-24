@@ -205,7 +205,7 @@ export default function TableMemoryModal({ sessionId, onClose }) {
   const loading = data === null && !error;
 
   return (
-    <ModalShell onClose={requestClose} maxWidth="max-w-4xl">
+    <ModalShell onClose={requestClose} maxWidth="max-w-2xl">
       <div className="we-dialog-header">
         <h2>表格记忆</h2>
       </div>
@@ -221,7 +221,7 @@ export default function TableMemoryModal({ sessionId, onClose }) {
             ))}
           </div>
         ) : sections.length > 0 ? (
-          <SectionTabs sections={sections} defaultKey={sections[0]?.key} />
+          <SectionTabs sections={sections} defaultKey={sections[0]?.key} staticMotion />
         ) : null}
         {error && (
           <p className="we-settings-toggle-hint mt-2 text-[var(--we-color-accent)]" role="alert">

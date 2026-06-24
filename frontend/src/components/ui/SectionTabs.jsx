@@ -14,7 +14,7 @@ const MotionDiv = motion.div;
  *   - active tab 变化时自动 scrollIntoView,让横向滚动条跟随当前 tab
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
-export default function SectionTabs({ sections, defaultKey, variant, globalActions }) {
+export default function SectionTabs({ sections, defaultKey, variant, globalActions, staticMotion = false }) {
   const reactId = useId();
   const layoutId = `tab-indicator-${reactId}`;
   const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
@@ -89,11 +89,15 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
             >
               {s.label}
               {active === s.key && (
-                <motion.div
-                  className="we-section-tab-indicator"
-                  layoutId={layoutId}
-                  transition={{ duration: DURATION.quick, ease: EASE.ink }}
-                />
+                staticMotion ? (
+                  <span className="we-section-tab-indicator" />
+                ) : (
+                  <motion.div
+                    className="we-section-tab-indicator"
+                    layoutId={layoutId}
+                    transition={{ duration: DURATION.quick, ease: EASE.ink }}
+                  />
+                )
               )}
             </button>
           ))}
@@ -109,17 +113,21 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
           <div className="we-section-tabs-actions">{current.actions}</div>
         )}
       </div>
-      <AnimatePresence mode="wait" initial={false}>
-        <MotionDiv
-          key={active}
-          initial={{ opacity: 0, x: dir * 16 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: dir * -16 }}
-          transition={{ duration: DURATION.medium, ease: EASE.ink }}
-        >
-          {current?.content}
-        </MotionDiv>
-      </AnimatePresence>
+      {staticMotion ? (
+        <div>{current?.content}</div>
+      ) : (
+        <AnimatePresence mode="wait" initial={false}>
+          <MotionDiv
+            key={active}
+            initial={{ opacity: 0, x: dir * 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dir * -16 }}
+            transition={{ duration: DURATION.medium, ease: EASE.ink }}
+          >
+            {current?.content}
+          </MotionDiv>
+        </AnimatePresence>
+      )}
     </div>
   );
 }

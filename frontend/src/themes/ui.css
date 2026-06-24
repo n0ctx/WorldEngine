@@ -3388,12 +3388,13 @@
 }
 .we-tm-grid {
   display: grid;
-  /* N 个内容列 + 别名列 + 操作列；用 min-width 防挤扁，靠容器横向滚动 */
+  /* N 个内容列 + 别名列 + 操作列；列宽自适应内容并设上限，避免少列时被 1fr 拉宽、密度过低 */
   grid-template-columns:
-    repeat(var(--we-tm-cols, 1), minmax(7.5rem, 1fr))
-    minmax(8rem, 1.2fr)
+    repeat(var(--we-tm-cols, 1), minmax(6rem, 12rem))
+    minmax(6rem, 12rem)
     44px;
-  min-width: max-content;
+  width: max-content;
+  min-width: 100%;
 }
 .we-tm-row {
   display: contents;
