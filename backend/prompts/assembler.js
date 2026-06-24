@@ -54,6 +54,8 @@ import { decideSavedNearbyRecall } from '../memory/saved-nearby-recall.js';
 import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
 import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
+import { readTables } from '../services/table-memory.js';
+import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
 import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -251,6 +253,15 @@ export async function buildPrompt(sessionId, options = {}) {
     if (ltm) {
       dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
       log.debug(`│  [8.5] long-term memory injected  chars=${ltm.length}`);
+    }
+  }
+
+  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id）
+  {
+    const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
+    if (md) {
+      dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
+      log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
     }
   }
 
@@ -491,6 +502,15 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     if (ltm) {
       dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
       log.debug(`│  [8.5] long-term memory injected (writing)  chars=${ltm.length}`);
+    }
+  }
+
+  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id）
+  {
+    const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
+    if (md) {
+      dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
+      log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
     }
   }
 
