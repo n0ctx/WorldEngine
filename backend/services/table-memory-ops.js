@@ -64,3 +64,29 @@ export function applyOps(tables, ops) {
   }
   return { tables: next, applied, dropped };
 }
+
+function renderOneTable(tableKey, rows, withId) {
+  const schema = TABLE_SCHEMAS[tableKey];
+  const hasAlias = rows.some((r) => r['别名'] != null && r['别名'] !== '');
+  const header = [...(withId ? ['id'] : []), ...schema.columns, ...(hasAlias ? ['别名'] : [])];
+  const cell = (v) => String(v ?? '').replace(/\|/g, '\\|');
+  const lines = [];
+  lines.push(`### ${schema.name}`);
+  lines.push(`| ${header.join(' | ')} |`);
+  lines.push(`| ${header.map(() => '---').join(' | ')} |`);
+  for (const r of rows) {
+    const vals = header.map((col) => cell(col === 'id' ? r.id : r[col]));
+    lines.push(`| ${vals.join(' | ')} |`);
+  }
+  return lines.join('\n');
+}
+
+export function renderTablesToMarkdown(tables, { withId = false } = {}) {
+  const blocks = [];
+  for (const key of TABLE_KEYS) {
+    const rows = tables?.tables?.[key]?.rows ?? [];
+    if (rows.length === 0) continue;
+    blocks.push(renderOneTable(key, rows, withId));
+  }
+  return blocks.join('\n\n');
+}
