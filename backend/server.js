@@ -40,6 +40,7 @@ import sessionTimelineRoutes from './routes/session-timeline.js';
 import dailyEntriesRoutes from './routes/daily-entries.js';
 import sessionStateValuesRoutes from './routes/session-state-values.js';
 import longTermMemoryRoutes from './routes/long-term-memory.js';
+import tableMemoryRoutes from './routes/table-memory.js';
 import assistantRoutes from '../assistant/server/routes.js';
 import clientLogsRoutes from './routes/client-logs.js';
 import providerSafetyEventsRoutes from './routes/provider-safety-events.js';
@@ -164,6 +165,7 @@ export function createApp() {
   app.use('/api/sessions', dailyEntriesRoutes);
   app.use('/api/sessions', sessionStateValuesRoutes);
   app.use('/api/sessions', longTermMemoryRoutes);
+  app.use('/api/sessions', tableMemoryRoutes);
   app.use('/api', promptEntriesRoutes);
   app.use('/api', stateFieldsRoutes);
   app.use('/api', worldStateValuesRoutes);
