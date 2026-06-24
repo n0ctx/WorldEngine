@@ -63,7 +63,7 @@ export const EMBEDDING_PROVIDERS = [
   { value: 'ollama', label: 'Ollama（本地）' },
 ];
 
-// 表格记忆的 5 张固定表（key + 中文名）。与后端 TABLE_SCHEMAS 一一对应，
+// 表格记忆的 6 张固定表（key + 中文名）。与后端 TABLE_SCHEMAS 一一对应，
 // 仅用于设置页渲染每表行数上限输入；若后端增删表需同步此处。
 export const TABLE_MEMORY_TABLES = [
   { key: 'relations', name: '关系表' },
@@ -71,6 +71,7 @@ export const TABLE_MEMORY_TABLES = [
   { key: 'places', name: '地点表' },
   { key: 'plotlines', name: '剧情线表' },
   { key: 'factions', name: '势力表' },
+  { key: 'resources', name: '资源表' },
 ];
 
 export const NAV_KEY = {
