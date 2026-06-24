@@ -9,12 +9,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import * as llm from '../llm/index.js';
+import { getLatestTurnRecord, updateTurnRecordTableSnapshot } from '../db/queries/turn-records.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 import { applyOps, renderTablesToMarkdown } from './table-memory-ops.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { emptyTables, renderSchemaGuide } from './table-memory-schema.js';
+import { emptyTables, renderSchemaGuide, TABLE_KEYS, TABLE_SCHEMAS, FIELD_MAX_CHARS } from './table-memory-schema.js';
 
 const log = createLogger('table-mem');
 
@@ -39,15 +40,65 @@ export function readTables(sessionId) {
   if (!raw) return emptyTables();
   try {
     const parsed = JSON.parse(raw);
-    if (parsed && parsed.tables && parsed.archive) return parsed;
-    return emptyTables();
+    return normalizeTablesForStorage(parsed);
   } catch { return emptyTables(); }
 }
 
 export function writeTables(sessionId, tables) {
   const dir = tablesDir(sessionId);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(tablesPath(sessionId), JSON.stringify(tables ?? emptyTables(), null, 2), 'utf-8');
+  fs.writeFileSync(tablesPath(sessionId), JSON.stringify(normalizeTablesForStorage(tables), null, 2), 'utf-8');
+}
+
+function clampStoredField(v) {
+  return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, FIELD_MAX_CHARS);
+}
+
+function normalizeRows(tableKey, rows) {
+  if (!Array.isArray(rows)) return { rows: [], nextId: 1 };
+  const schema = TABLE_SCHEMAS[tableKey];
+  const seen = new Set();
+  let maxId = 0;
+  const cleaned = [];
+  for (const rawRow of rows) {
+    if (!rawRow || typeof rawRow !== 'object') continue;
+    let id = Number(rawRow.id);
+    if (!Number.isSafeInteger(id) || id <= 0 || seen.has(id)) id = maxId + 1;
+    seen.add(id);
+    maxId = Math.max(maxId, id);
+    const row = { id };
+    for (const col of schema.columns) {
+      if (rawRow[col] != null && rawRow[col] !== '') row[col] = clampStoredField(rawRow[col]);
+    }
+    if (rawRow['别名'] != null && rawRow['别名'] !== '') row['别名'] = clampStoredField(rawRow['别名']);
+    if (rawRow['归档原因'] != null && rawRow['归档原因'] !== '') row['归档原因'] = clampStoredField(rawRow['归档原因']);
+    cleaned.push(row);
+  }
+  return { rows: cleaned, nextId: maxId + 1 };
+}
+
+export function normalizeTablesForStorage(raw) {
+  const normalized = emptyTables();
+  for (const key of TABLE_KEYS) {
+    const active = normalizeRows(key, raw?.tables?.[key]?.rows);
+    const requestedNextId = Number(raw?.tables?.[key]?.nextId);
+    normalized.tables[key] = {
+      rows: active.rows,
+      nextId: Math.max(
+        active.nextId,
+        Number.isSafeInteger(requestedNextId) && requestedNextId > 0 ? requestedNextId : 1,
+      ),
+    };
+    normalized.archive[key] = normalizeRows(key, raw?.archive?.[key]).rows;
+  }
+  return normalized;
+}
+
+export function syncLatestTurnRecordTableSnapshot(sessionId) {
+  const latest = getLatestTurnRecord(sessionId);
+  if (!latest) return false;
+  updateTurnRecordTableSnapshot(latest.id, readTablesRaw(sessionId));
+  return true;
 }
 
 export function deleteTableMemoryDir(sessionId) {

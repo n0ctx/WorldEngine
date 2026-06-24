@@ -1,5 +1,7 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { createRouteTestContext } from '../helpers/http.js';
 import {
@@ -130,6 +132,58 @@ test('PUT /api/messages/:id 在消息不存在时 404，content 非字符串时 
     body: JSON.stringify({ content: 123 }),
   });
   assert.equal(r2.status, 400);
+});
+
+test('PUT /api/messages/:id 截断后会把表格记忆恢复到保留轮次快照', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: 'edit-table-世界' });
+  const character = insertCharacter(ctx.sandbox.db, world.id, { name: 'edit-table-角色' });
+  const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u1', created_at: 1 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a1', created_at: 2 });
+  const editTarget = insertMessage(ctx.sandbox.db, session.id, { role: 'user', content: 'u2 old', created_at: 3 });
+  insertMessage(ctx.sandbox.db, session.id, { role: 'assistant', content: 'a2 future', created_at: 4 });
+
+  const keptSnapshot = {
+    tables: {
+      relations: { rows: [], nextId: 1 },
+      items: { rows: [{ id: 1, 物品: '旧钥匙' }], nextId: 2 },
+      places: { rows: [], nextId: 1 },
+      plotlines: { rows: [], nextId: 1 },
+      world: { rows: [], nextId: 1 },
+    },
+    archive: { relations: [], items: [], places: [], plotlines: [], world: [] },
+  };
+  const futureSnapshot = {
+    tables: {
+      relations: { rows: [], nextId: 1 },
+      items: { rows: [{ id: 1, 物品: '未来钥匙' }], nextId: 2 },
+      places: { rows: [], nextId: 1 },
+      plotlines: { rows: [], nextId: 1 },
+      world: { rows: [], nextId: 1 },
+    },
+    archive: { relations: [], items: [], places: [], plotlines: [], world: [] },
+  };
+  ctx.sandbox.db.prepare(`
+    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot, table_memory_snapshot, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('tm-edit-r1', session.id, 1, 'r1', null, null, null, JSON.stringify(keptSnapshot), 1);
+  ctx.sandbox.db.prepare(`
+    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot, table_memory_snapshot, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run('tm-edit-r2', session.id, 2, 'r2', null, null, null, JSON.stringify(futureSnapshot), 2);
+
+  const tableDir = path.join(ctx.sandbox.root, 'table_memory', session.id);
+  fs.mkdirSync(tableDir, { recursive: true });
+  fs.writeFileSync(path.join(tableDir, 'tables.json'), JSON.stringify(futureSnapshot), 'utf-8');
+
+  const res = await ctx.request(`/api/messages/${editTarget.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: 'u2 new' }),
+  });
+  assert.equal(res.status, 200);
+  const restored = JSON.parse(fs.readFileSync(path.join(tableDir, 'tables.json'), 'utf-8'));
+  assert.deepEqual(restored, keptSnapshot);
 });
 
 test('GET /api/worlds/:id/latest-chat-session 在无会话时 404', async () => {

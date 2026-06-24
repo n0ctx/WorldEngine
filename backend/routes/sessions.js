@@ -18,6 +18,7 @@ import { getCharacterById } from '../services/characters.js';
 import { deleteTurnRecordsAfterRound, getLatestTurnRecord, getLatestTurnRecordWithSnapshot } from '../db/queries/turn-records.js';
 import { restoreStateFromSnapshot } from '../memory/state-rollback.js';
 import { restoreLtmFromTurnRecord } from '../services/long-term-memory.js';
+import { restoreTablesFromTurnRecord } from '../services/table-memory.js';
 import { clearPending, waitForQueueIdle } from '../utils/async-queue.js';
 import { ALL_MESSAGES_LIMIT } from '../utils/constants.js';
 import { assertExists } from '../utils/route-helpers.js';
@@ -128,6 +129,7 @@ router.put('/messages/:id', async (req, res) => {
   const editR = editRemaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(editSessionId, editR - 1);
   restoreLtmFromTurnRecord(editSessionId, editR === 0 ? null : getLatestTurnRecord(editSessionId));
+  restoreTablesFromTurnRecord(editSessionId, editR === 0 ? null : getLatestTurnRecord(editSessionId));
 
   const editCharId = editSession?.character_id;
   const editChar = editCharId ? getCharacterById(editCharId) : null;
@@ -174,6 +176,7 @@ router.delete('/sessions/:sessionId/messages/:messageId', async (req, res) => {
   const R = remaining.filter((m) => m.role === 'user').length;
   deleteTurnRecordsAfterRound(sessionId, R - 1);
   restoreLtmFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
+  restoreTablesFromTurnRecord(sessionId, R === 0 ? null : getLatestTurnRecord(sessionId));
 
   // 清空所有待处理任务，防止旧轮次状态更新（prio 2）覆盖即将恢复的快照
   clearPending(sessionId, 2);

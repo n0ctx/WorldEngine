@@ -32,6 +32,7 @@ test('restore: lastRecord 为空 → 删目录', () => {
 
 test('restore: 快照为 null（旧记录）→ 文件不动', () => {
   const t = emptyTables(); t.tables.world.rows.push({ id: 1, '规则/事实': '战争' });
+  t.tables.world.nextId = 2;
   writeTables('sC', t);
   restoreTablesFromTurnRecord('sC', { table_memory_snapshot: null });
   assert.deepEqual(readTables('sC'), t);

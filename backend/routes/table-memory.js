@@ -6,7 +6,7 @@
  */
 import express from 'express';
 import { getSessionById } from '../db/queries/sessions.js';
-import { readTables, writeTables } from '../services/table-memory.js';
+import { normalizeTablesForStorage, readTables, syncLatestTurnRecordTableSnapshot, writeTables } from '../services/table-memory.js';
 import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
 import { TABLE_SCHEMAS, FIELD_MAX_CHARS } from '../services/table-memory-schema.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
@@ -37,8 +37,10 @@ router.put('/:sessionId/table-memory', (req, res) => {
   if (!incoming || typeof incoming.tables !== 'object' || !incoming.archive) {
     return res.status(400).json({ error: '表格数据格式无效' });
   }
-  writeTables(sessionId, incoming);
-  res.json({ tables: incoming, markdown: renderTablesToMarkdown(incoming, { withId: false }) });
+  const tables = normalizeTablesForStorage(incoming);
+  writeTables(sessionId, tables);
+  syncLatestTurnRecordTableSnapshot(sessionId);
+  res.json({ tables, markdown: renderTablesToMarkdown(tables, { withId: false }) });
 });
 
 export default router;

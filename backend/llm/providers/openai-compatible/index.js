@@ -83,11 +83,26 @@ export function buildOpenAICompatibleHeaders(config) {
   const headers = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.api_key}`,
+    Accept: 'text/event-stream, application/json',
   };
   if (config.provider === 'grok' && config.conversationId) {
     headers['x-grok-conv-id'] = String(config.conversationId);
   }
+  // glm 额外 Accept 头，部分代理/安全层会根据 Accept 做不同路由
   return headers;
+}
+
+function isGlmProvider(config) {
+  return config.provider === 'glm' || config.provider === 'glm-coding';
+}
+
+function applyGlmCompatibilityOptions(body, config) {
+  if (!isGlmProvider(config)) return;
+  // GLM / Z.AI OpenAI-compatible endpoint compatibility:
+  // - user gives upstream a stable request owner without changing prompt text.
+  // - top_p keeps sampling behavior explicit for providers that classify unset and default values differently.
+  body.user = config.conversationId ? String(config.conversationId) : 'worldengine';
+  if (body.top_p == null) body.top_p = 0.95;
 }
 
 export async function* streamOpenAICompatible(messages, config) {
@@ -102,13 +117,15 @@ export async function* streamOpenAICompatible(messages, config) {
     max_tokens: config.max_tokens,
     stream: true,
   };
-  const isGlm = config.provider === 'glm' || config.provider === 'glm-coding';
+  const isGlm = isGlmProvider(config);
   if (!isGlm) {
-    // 低层绕过：Z.AI / 智谱官方 OpenAI 兼容端点不附加 stream_options。
+    // Z.AI / 智谱官方 OpenAI 兼容端点不附加 stream_options。
     // 该字段为 OpenAI 扩展，部分情况下会导致请求走更严格的安全/分类路径（触发 1301）。
     // 去掉后请求更接近官方示例 curl，语义/输出完全不变。
     body.stream_options = { include_usage: true };
   }
+  applyGlmCompatibilityOptions(body, config);
+
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
   // 思考开启时不传 temperature（OpenAI o-series / DeepSeek thinking 模式不兼容 temperature）
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
@@ -193,6 +210,7 @@ export async function completeOpenAICompatible(messages, config) {
     max_tokens: config.max_tokens,
     stream: false,
   };
+  applyGlmCompatibilityOptions(body, config);
   const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
   if (thinkingState !== 'enabled') body.temperature = config.temperature;
 
@@ -256,6 +274,7 @@ const openaiCompatibleToolLoopProvider = {
       max_tokens: config.max_tokens,
       stream: false,
     };
+    applyGlmCompatibilityOptions(body, config);
     const thinkingState = applyThinkingToOpenAICompatibleBody(body, config);
     if (thinkingState !== 'enabled') body.temperature = config.temperature;
 

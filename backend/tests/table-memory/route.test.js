@@ -41,6 +41,37 @@ test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async 
   assert.equal(putRes.status, 400);
   const putBody = await putRes.json();
   assert.equal(putBody.error, '表格数据格式无效');
+
+  // PUT 合法 body：清洗坏结构并同步最新 turn record 快照，避免手动编辑被之后回滚覆盖。
+  const recordId = 'tm-route-record';
+  ctx.sandbox.db.prepare(`
+    INSERT INTO turn_records (id, session_id, round_index, summary, user_message_id, asst_message_id, state_snapshot, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(recordId, session.id, 1, 'summary', null, null, null, Date.now());
+
+  const dirtyTables = {
+    tables: {
+      items: {
+        rows: [{ id: 'bad-id', 物品: ' 钥匙 ', 不存在列: 'drop-me' }],
+        nextId: 1,
+      },
+    },
+    archive: {},
+  };
+  const okPutRes = await ctx.request(`/api/sessions/${session.id}/table-memory`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ tables: dirtyTables }),
+  });
+  assert.equal(okPutRes.status, 200);
+  const okPutBody = await okPutRes.json();
+  assert.deepEqual(Object.keys(okPutBody.tables.tables).sort(), ['items', 'places', 'plotlines', 'relations', 'world']);
+  assert.equal(okPutBody.tables.tables.items.rows[0].id, 1);
+  assert.equal(okPutBody.tables.tables.items.rows[0].物品, '钥匙');
+  assert.equal(okPutBody.tables.tables.items.rows[0].不存在列, undefined);
+  assert.equal(okPutBody.tables.tables.items.nextId, 2);
+  const snapshot = ctx.sandbox.db.prepare('SELECT table_memory_snapshot FROM turn_records WHERE id = ?').get(recordId).table_memory_snapshot;
+  assert.deepEqual(JSON.parse(snapshot), okPutBody.tables);
 });
 
 test('GET /table-memory 不存在会话 → 404', async (t) => {
