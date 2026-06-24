@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import { DEFAULT_ROW_LIMITS, resolveRowLimits } from './table-memory-schema.js';
 
 const log = createLogger('svc', 'green');
 
@@ -61,6 +62,7 @@ const DEFAULT_CONFIG = {
   memory_expansion_enabled: true,
   long_term_memory_enabled: false,
   table_memory_enabled: false,
+  table_memory_row_limits: structuredClone(DEFAULT_ROW_LIMITS),
   memory_recall_max_sessions: 5,
   suggestion_enabled: false,
   log_prompt: false,
@@ -234,6 +236,8 @@ function normalizeConfigForPersist(config) {
     DEFAULT_CONFIG.page_turn_size,
     { min: 1, max: 10000 },
   );
+  // 行数上限：缺失 key 补默认、非法值清洗、未知 key 丢弃（单字段编辑不会抹掉其余 4 表）
+  normalized.table_memory_row_limits = resolveRowLimits(normalized.table_memory_row_limits);
   return normalized;
 }
 
@@ -413,6 +417,15 @@ export function getConfig() {
     config.assistant = structuredClone(DEFAULT_ASSISTANT);
   } else {
     config.assistant = { ...DEFAULT_ASSISTANT, ...config.assistant };
+  }
+
+  // 表格行数上限：旧配置缺该字段时补齐默认（缺 key 补默认、非法清洗、未知丢弃）
+  {
+    const resolved = resolveRowLimits(config.table_memory_row_limits);
+    if (JSON.stringify(resolved) !== JSON.stringify(config.table_memory_row_limits)) {
+      config.table_memory_row_limits = resolved;
+      dirty = true;
+    }
   }
 
   if (dirty) {

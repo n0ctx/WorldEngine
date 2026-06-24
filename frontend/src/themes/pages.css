@@ -2246,6 +2246,19 @@
   width: 96px;
 }
 
+.we-settings-rowlimit-hint {
+  margin-bottom: var(--we-space-sm);
+}
+
+.we-settings-rowlimit-item {
+  margin-bottom: var(--we-space-sm);
+}
+
+.we-settings-rowlimit-label {
+  display: inline-block;
+  min-width: 6rem;
+}
+
 .we-settings-inline-hint {
   font-family: var(--we-font-serif);
   font-size: var(--we-text-sm);

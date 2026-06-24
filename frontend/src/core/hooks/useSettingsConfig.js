@@ -20,6 +20,7 @@ export function useSettingsConfig() {
   const [writingLongTermMemoryEnabled, setWritingLongTermMemoryEnabled] = useState(false);
   const [tableMemoryEnabled, setTableMemoryEnabled] = useState(false);
   const [writingTableMemoryEnabled, setWritingTableMemoryEnabled] = useState(false);
+  const [tableMemoryRowLimits, setTableMemoryRowLimits] = useState({});
   const [memoryRecallMaxSessions, setMemoryRecallMaxSessions] = useState(5);
   const [showThinking, setShowThinkingLocal] = useState(true);
   const setShowThinkingStore = useDisplaySettingsStore((s) => s.setShowThinking);
@@ -67,6 +68,7 @@ export function useSettingsConfig() {
       setWritingLongTermMemoryEnabled(c.writing?.long_term_memory_enabled === true);
       setTableMemoryEnabled(c.table_memory_enabled === true);
       setWritingTableMemoryEnabled(c.writing?.table_memory_enabled === true);
+      setTableMemoryRowLimits(c.table_memory_row_limits ?? {});
       setMemoryRecallMaxSessions(c.memory_recall_max_sessions ?? 5);
       setShowThinkingLocal(c.ui?.show_thinking !== false);
       setShowThinkingStore(c.ui?.show_thinking !== false);
@@ -324,6 +326,14 @@ export function useSettingsConfig() {
     await patchConfig({ writing: { table_memory_enabled: enabled } });
   }
 
+  // 单表行数上限保存：0 = 不限制；clamp 到 [0, 1000]。只 patch 该 key，后端 deepMerge 保留其余表。
+  async function handleSaveTableMemoryRowLimit(key, value) {
+    const isEmpty = value === '' || value === null || value === undefined;
+    const n = isEmpty ? 0 : Math.min(1000, Math.max(0, Math.floor(Number(value) || 0)));
+    setTableMemoryRowLimits((prev) => ({ ...prev, [key]: n }));
+    await patchConfig({ table_memory_row_limits: { [key]: n } });
+  }
+
   async function handleSaveMemoryRecallMaxSessions(value) {
     const isEmpty = value === '' || value === null || value === undefined;
     const n = isEmpty ? 5 : Math.max(1, Math.floor(Number(value) || 5));
@@ -383,6 +393,7 @@ export function useSettingsConfig() {
     setWritingLongTermMemoryEnabled(w.long_term_memory_enabled === true);
     setTableMemoryEnabled(c.table_memory_enabled === true);
     setWritingTableMemoryEnabled(w.table_memory_enabled === true);
+    setTableMemoryRowLimits(c.table_memory_row_limits ?? {});
     setMemoryRecallMaxSessions(c.memory_recall_max_sessions ?? 5);
     setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
     setWritingSystemPrompt(w.global_system_prompt ?? '');
@@ -440,6 +451,8 @@ export function useSettingsConfig() {
       writingLongTermMemoryEnabled, onToggleWritingLongTermMemory: handleToggleWritingLongTermMemory,
       tableMemoryEnabled, onToggleTableMemory: handleToggleTableMemory,
       writingTableMemoryEnabled, onToggleWritingTableMemory: handleToggleWritingTableMemory,
+      tableMemoryRowLimits, setTableMemoryRowLimits,
+      onSaveTableMemoryRowLimit: handleSaveTableMemoryRowLimit,
       memoryRecallMaxSessions, setMemoryRecallMaxSessions,
       onSaveMemoryRecallMaxSessions: handleSaveMemoryRecallMaxSessions,
       onSave: handleSaveGeneral,

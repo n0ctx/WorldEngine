@@ -1,7 +1,7 @@
 import ToggleSwitch from '../ui/ToggleSwitch';
 import Input from '../ui/Input';
 import FormGroup from '../ui/FormGroup';
-import { SETTINGS_MODE, DIARY_DATE_MODE } from '../../core/constants/settings';
+import { SETTINGS_MODE, DIARY_DATE_MODE, TABLE_MEMORY_TABLES } from '../../core/constants/settings';
 
 function ToggleRow({ label, hint, checked, onChange, disabled = false }) {
   return (
@@ -35,6 +35,7 @@ export default function FeaturesConfigPanel({
   writingLongTermMemoryEnabled, onToggleWritingLongTermMemory,
   tableMemoryEnabled, onToggleTableMemory,
   writingTableMemoryEnabled, onToggleWritingTableMemory,
+  tableMemoryRowLimits, setTableMemoryRowLimits, onSaveTableMemoryRowLimit,
   memoryRecallMaxSessions, setMemoryRecallMaxSessions, onSaveMemoryRecallMaxSessions,
   chatDiaryEnabled, onToggleChatDiaryEnabled,
   chatDateMode, onChangeChatDateMode,
@@ -154,6 +155,32 @@ export default function FeaturesConfigPanel({
           checked={tableMemoryEnabledCurrent}
           onChange={onToggleTableMemoryCurrent}
         />
+
+        {tableMemoryEnabledCurrent && (
+          <div className="we-settings-field-group">
+            <p className="we-settings-toggle-hint we-settings-rowlimit-hint">
+              每张表的行数上限（0 = 不限制，对话与写作共用）。表满后 AI 新增前会先归档最不重要的旧行；若 AI 未归档，系统兜底归档最旧的行。
+            </p>
+            {TABLE_MEMORY_TABLES.map(({ key, name }) => (
+              <div key={key} className="we-settings-inline-field we-settings-rowlimit-item">
+                <span className="we-settings-toggle-label we-settings-rowlimit-label">{name}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  className="we-settings-number-short"
+                  value={tableMemoryRowLimits?.[key] ?? ''}
+                  onChange={(e) => setTableMemoryRowLimits((prev) => ({
+                    ...prev,
+                    [key]: e.target.value === '' ? '' : Number(e.target.value),
+                  }))}
+                  onBlur={() => onSaveTableMemoryRowLimit(key, tableMemoryRowLimits?.[key])}
+                />
+                <span className="we-settings-inline-hint">行，0 = 不限制</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <ToggleRow
           label={isChat ? '对话日记' : '写作日记'}

@@ -82,3 +82,46 @@ test('applyOps 不修改入参', () => {
   applyOps(orig, [{ table: 'items', op: 'add', row: { 物品: '钥匙' } }]);
   assert.equal(JSON.stringify(orig), snapshot);
 });
+
+// ── 行数上限兜底 ────────────────────────────────────────────────
+function seedItems(n) {
+  const ops = Array.from({ length: n }, (_, i) => ({ table: 'items', op: 'add', row: { 物品: `物${i + 1}` } }));
+  return applyOps(emptyTables(), ops).tables;
+}
+
+test('无 rowLimits（默认）→ 不限制，不触发归档', () => {
+  const r = applyOps(seedItems(5), [{ table: 'items', op: 'add', row: { 物品: '新物' } }]);
+  assert.equal(r.tables.tables.items.rows.length, 6);
+  assert.equal(r.tables.archive.items.length, 0);
+  assert.deepEqual(r.autoArchived, {});
+});
+
+test('limit=0 视为不限制', () => {
+  const r = applyOps(seedItems(5), [{ table: 'items', op: 'add', row: { 物品: '新物' } }], { items: 0 });
+  assert.equal(r.tables.tables.items.rows.length, 6);
+  assert.equal(r.tables.archive.items.length, 0);
+});
+
+test('超限时兜底归档最旧（id 最小）的行并打自动归档原因', () => {
+  // 5 行（id 1..5），上限 3，add 1 行 → 6 行 → 兜底归档 3 行最旧（id 1,2,3）
+  const r = applyOps(seedItems(5), [{ table: 'items', op: 'add', row: { 物品: '新物' } }], { items: 3 });
+  const kept = r.tables.tables.items.rows;
+  assert.equal(kept.length, 3);
+  assert.deepEqual(kept.map((x) => x.id), [4, 5, 6]);
+  assert.equal(r.autoArchived.items, 3);
+  const archived = r.tables.archive.items;
+  assert.deepEqual(archived.map((x) => x.id), [1, 2, 3]);
+  for (const row of archived) assert.equal(row['归档原因'], '系统自动归档（超出行数上限）');
+});
+
+test('LLM 先 close 再 add 恰好填满 → 不触发兜底', () => {
+  // 3 行（id 1..3），上限 3：close id1 + add 1 → 仍 3 行
+  const r = applyOps(seedItems(3), [
+    { table: 'items', op: 'close', id: 1, reason: '消耗' },
+    { table: 'items', op: 'add', row: { 物品: '新物' } },
+  ], { items: 3 });
+  assert.equal(r.tables.tables.items.rows.length, 3);
+  assert.equal(r.autoArchived.items, undefined); // 未触发兜底
+  assert.equal(r.tables.archive.items.length, 1);
+  assert.equal(r.tables.archive.items[0]['归档原因'], '消耗'); // 保留 LLM 给的原因
+});
