@@ -1,8 +1,11 @@
 import { getLatestTurnRecord } from '../../db/queries/turn-records.js';
+import { getMessagesBySessionId } from '../../db/queries/messages.js';
 import { createTurnRecord } from '../../memory/turn-summarizer.js';
 import { updateAllStates } from '../../memory/combined-state-updater.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
+import { updateTableMemory } from '../../services/table-memory.js';
+import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 
 export function buildChatPostgenTasks({
   sessionId,
@@ -30,6 +33,18 @@ export function buildChatPostgenTasks({
       sseEvent: 'state_updated',
       ssePayload: () => ({ type: 'state_updated' }),
       keepSseAlive: true,
+    },
+    {
+      label: 'table-memory',
+      priority: 2,
+      fn: async () => {
+        const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+        const lastUser = [...msgs].reverse().find((m) => m.role === 'user');
+        const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
+        const turnText = [lastUser?.content, lastAsst?.content].filter(Boolean).join('\n');
+        await updateTableMemory(sessionId, turnText);
+      },
+      keepSseAlive: false,
     },
     {
       label: 'turn-record',
