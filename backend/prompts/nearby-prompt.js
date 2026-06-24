@@ -48,12 +48,23 @@ export function buildNearbyPromptSection(pool, fields, opts = {}) {
     return line;
   }).join('\n');
 
+  // 判断某字段值是否「空」：缺失 / null / 空串 / 空数组 / 空对象。
+  // 空字段需显式告知副 LLM 本轮补全，避免稀疏 patch 永远跳过未变化但仍为空的字段。
+  const isEmptyValue = (v) => {
+    if (v === null || v === undefined || v === '') return true;
+    if (Array.isArray(v)) return v.length === 0;
+    if (typeof v === 'object') return Object.keys(v).length === 0;
+    return false;
+  };
+
   const poolDesc = pool.length
     ? pool.map((p) => {
       const stateStr = p.state && Object.keys(p.state).length
         ? Object.entries(p.state).map(([k, v]) => `${k}=${typeof v === 'string' ? v : JSON.stringify(v)}`).join(', ')
         : '（无）';
-      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '持续追踪' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}`;
+      const missing = fieldKeys.filter((k) => isEmptyValue(p.state ? p.state[k] : undefined));
+      const missingStr = missing.length ? `｜待补全字段（本轮必须填）：[${missing.join(', ')}]` : '';
+      return `- [id=${p.id}] ${p.name}（${p.is_saved ? '持续追踪' : '临时'}）｜人设：${p.persona || '（无）'}｜上轮状态：{${stateStr}}${missingStr}`;
     }).join('\n')
     : '（空）';
 
@@ -75,7 +86,7 @@ export function buildNearbyPromptSection(pool, fields, opts = {}) {
     '严禁在 persona 中写入：当前剧情片段、与玩家的临时关系状态、当下情绪/场景/位置 等动态内容；这些应通过叙事正文与 state 字段表达，不要污染 persona。',
     '新登场必填；已有角色仅在身份/性格描述需要修正补充时再输出 persona，否则省略字段（不强制每轮重写，避免覆盖稳定人设）。',
     '',
-    '角色state 必须填齐所有启用字段',
+    '新登场角色：state 必须填齐所有启用字段，',
     `KEY 集合必须等于：[${fieldKeysCsv}]`,
     'name 必须是「专有人名」（真名 / 化名 / 昵称均可）：',
     '  ① 正文已给出名字 → 直接使用；',
@@ -87,12 +98,13 @@ export function buildNearbyPromptSection(pool, fields, opts = {}) {
     '每个值必须符合该字段 type/range/enum 约束。',
     '',
     '## 池中已有角色（ref_id 命中）—— 稀疏 patch',
-    'state 仅含本轮变化的字段；未变化字段不要重复输出。',
-    '例外：上轮状态显示某字段缺失/为空时，必须补全。',
+    'state 仅含本轮变化的字段；未变化字段不要重复输出（保留上轮已有值，避免被弱模型打回默认）。',
+    '但：该角色若标注了「待补全字段」，必须在本轮 state 中补全这些字段——即使本轮正文未涉及，也要按上方取值优先级合理推断/创作一个合规值，严禁继续留空。',
     '',
     '## 示例（启用字段假设为 [a, b, c]）',
     '✓ 新登场：{ "ref_id": null, "name": "...", "state": { "a": <a的合规值>, "b": <b的合规值>, "c": <c的合规值> }, "persona": "..." }',
     '✗ 新登场缺字段：{ "ref_id": null, "name": "...", "state": { "a": ... } }   ← 错：state 必须含 a/b/c 全部',
     '✓ 已有角色（仅 b 变化）：{ "ref_id": "<id>", "state": { "b": ... } }',
+    '✓ 已有角色（仅 b 变化，但标注待补全 [c]）：{ "ref_id": "<id>", "state": { "b": <新值>, "c": <补全值> } }',
   ].join('\n');
 }
