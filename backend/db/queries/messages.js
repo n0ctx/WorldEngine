@@ -77,6 +77,19 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
 }
 
 /**
+ * 取该会话最后一条 user + 最后一条 assistant 消息（只含 role/content）。
+ * 两次 LIMIT 1 索引查询，避免为「本轮文本」全量加载历史。
+ * @returns {Array<{role, content}>} 命中的消息（0~2 条，顺序不保证）
+ */
+export function getLastTurnMessages(sessionId) {
+  const last = (role) =>
+    db.prepare(
+      'SELECT role, content FROM messages WHERE session_id = ? AND role = ? ORDER BY created_at DESC, rowid DESC LIMIT 1',
+    ).get(sessionId, role);
+  return [last('user'), last('assistant')].filter(Boolean);
+}
+
+/**
  * 更新单条消息的 activated_entries 字段（JSON 数组：[{id,title,trigger_type}]）
  */
 export function updateMessageActivatedEntries(id, entries) {

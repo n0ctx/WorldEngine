@@ -1,5 +1,5 @@
 import { getChapterTitle, upsertChapterTitle } from '../../db/queries/chapter-titles.js';
-import { updateTableMemory } from '../../services/table-memory.js';
+import { updateTableMemory, buildLastTurnText } from '../../services/table-memory.js';
 import { getLatestTurnRecord } from '../../db/queries/turn-records.js';
 import { generateChapterTitle } from '../../memory/chapter-title-generator.js';
 import { updateAllStates } from '../../memory/combined-state-updater.js';
@@ -71,10 +71,7 @@ export function buildWritingPostgenTasks({
       priority: 2,
       condition: getConfig().writing?.table_memory_enabled === true,
       fn: async () => {
-        const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-        const lastAsst = [...messages].reverse().find((m) => m.role === 'assistant');
-        const turnText = [lastUser?.content, lastAsst?.content].filter(Boolean).join('\n');
-        await updateTableMemory(sessionId, turnText);
+        await updateTableMemory(sessionId, buildLastTurnText(messages));
       },
       keepSseAlive: false,
     },

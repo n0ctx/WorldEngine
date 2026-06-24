@@ -13,9 +13,9 @@ import { getLatestTurnRecord, updateTurnRecordTableSnapshot } from '../db/querie
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
-import { applyOps, renderTablesToMarkdown } from './table-memory-ops.js';
+import { applyOps, renderTablesToMarkdown, clampField } from './table-memory-ops.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { emptyTables, renderSchemaGuide, resolveRowLimits, TABLE_KEYS, TABLE_SCHEMAS, FIELD_MAX_CHARS } from './table-memory-schema.js';
+import { emptyTables, renderSchemaGuide, resolveRowLimits, TABLE_KEYS, TABLE_SCHEMAS } from './table-memory-schema.js';
 import { getConfig } from './config.js';
 
 const log = createLogger('table-mem');
@@ -51,10 +51,6 @@ export function writeTables(sessionId, tables) {
   fs.writeFileSync(tablesPath(sessionId), JSON.stringify(normalizeTablesForStorage(tables), null, 2), 'utf-8');
 }
 
-function clampStoredField(v) {
-  return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, FIELD_MAX_CHARS);
-}
-
 function normalizeRows(tableKey, rows) {
   if (!Array.isArray(rows)) return { rows: [], nextId: 1 };
   const schema = TABLE_SCHEMAS[tableKey];
@@ -69,10 +65,10 @@ function normalizeRows(tableKey, rows) {
     maxId = Math.max(maxId, id);
     const row = { id };
     for (const col of schema.columns) {
-      if (rawRow[col] != null && rawRow[col] !== '') row[col] = clampStoredField(rawRow[col]);
+      if (rawRow[col] != null && rawRow[col] !== '') row[col] = clampField(rawRow[col]);
     }
-    if (rawRow['别名'] != null && rawRow['别名'] !== '') row['别名'] = clampStoredField(rawRow['别名']);
-    if (rawRow['归档原因'] != null && rawRow['归档原因'] !== '') row['归档原因'] = clampStoredField(rawRow['归档原因']);
+    if (rawRow['别名'] != null && rawRow['别名'] !== '') row['别名'] = clampField(rawRow['别名']);
+    if (rawRow['归档原因'] != null && rawRow['归档原因'] !== '') row['归档原因'] = clampField(rawRow['归档原因']);
     cleaned.push(row);
   }
   return { rows: cleaned, nextId: maxId + 1 };
@@ -125,6 +121,22 @@ export function restoreTablesFromTurnRecord(sessionId, lastRecord) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(tablesPath(sessionId), String(snapshot), 'utf-8');
   log.info(`ROLLBACK RESTORE  ${formatMeta({ session: sid, bytes: String(snapshot).length })}`);
+}
+
+/**
+ * 从一轮消息中取「最后一条 user + 最后一条 assistant」拼成本轮文本。
+ * 单次反向扫描，供 chat/writing 两条 postgen 链共用。
+ */
+export function buildLastTurnText(messages) {
+  let lastUser;
+  let lastAsst;
+  for (let i = (messages?.length ?? 0) - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!lastUser && m.role === 'user') lastUser = m;
+    if (!lastAsst && m.role === 'assistant') lastAsst = m;
+    if (lastUser && lastAsst) break;
+  }
+  return [lastUser?.content, lastAsst?.content].filter(Boolean).join('\n');
 }
 
 export function __parseOps(raw) {

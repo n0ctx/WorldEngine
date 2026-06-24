@@ -7,7 +7,7 @@ import { TABLE_SCHEMAS, TABLE_KEYS, FIELD_MAX_CHARS, clampRowLimit } from './tab
 // 后端兜底自动归档的原因标记（副 LLM 未按上限主动归档时触发）
 export const AUTO_ARCHIVE_REASON = '系统自动归档（超出行数上限）';
 
-function clampField(v) {
+export function clampField(v) {
   return String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, FIELD_MAX_CHARS);
 }
 

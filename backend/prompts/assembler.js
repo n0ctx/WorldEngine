@@ -69,6 +69,16 @@ const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
 
+// [8.6] 表格记忆注入：结构化真源渲染成 md（主模型版不含内部 id），开关启用时追加到 system。
+// 聊天 / 写作两条装配链共用，避免重复。
+function injectTableMemory(dynamicSystemParts, sessionId, enabled) {
+  if (enabled !== true) return;
+  const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
+  if (!md) return;
+  dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
+  log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = process.env.WE_UPLOADS_DIR
   ? path.resolve(process.env.WE_UPLOADS_DIR)
@@ -256,14 +266,8 @@ export async function buildPrompt(sessionId, options = {}) {
     }
   }
 
-  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id；开关启用时注入）
-  if (config.table_memory_enabled === true) {
-    const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
-    if (md) {
-      dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
-      log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
-    }
-  }
+  // [8.6] 表格记忆
+  injectTableMemory(dynamicSystemParts, sessionId, config.table_memory_enabled);
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
@@ -505,14 +509,8 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     }
   }
 
-  // [8.6] 表格记忆（结构化真源渲染成 md 注入；主模型版不含内部 id；开关启用时注入）
-  if (writing.table_memory_enabled === true) {
-    const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
-    if (md) {
-      dynamicSystemParts.push(`<table_memory>\n${md}\n</table_memory>`);
-      log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
-    }
-  }
+  // [8.6] 表格记忆
+  injectTableMemory(dynamicSystemParts, sessionId, writing.table_memory_enabled);
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);

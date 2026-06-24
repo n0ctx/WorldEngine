@@ -1,12 +1,11 @@
 import { getLatestTurnRecord } from '../../db/queries/turn-records.js';
-import { getMessagesBySessionId } from '../../db/queries/messages.js';
+import { getLastTurnMessages } from '../../db/queries/messages.js';
 import { createTurnRecord } from '../../memory/turn-summarizer.js';
 import { updateAllStates } from '../../memory/combined-state-updater.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
-import { updateTableMemory } from '../../services/table-memory.js';
+import { updateTableMemory, buildLastTurnText } from '../../services/table-memory.js';
 import { getConfig } from '../../services/config.js';
-import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
 
 export function buildChatPostgenTasks({
   sessionId,
@@ -40,11 +39,7 @@ export function buildChatPostgenTasks({
       priority: 2,
       condition: getConfig().table_memory_enabled === true,
       fn: async () => {
-        const msgs = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-        const lastUser = [...msgs].reverse().find((m) => m.role === 'user');
-        const lastAsst = [...msgs].reverse().find((m) => m.role === 'assistant');
-        const turnText = [lastUser?.content, lastAsst?.content].filter(Boolean).join('\n');
-        await updateTableMemory(sessionId, turnText);
+        await updateTableMemory(sessionId, buildLastTurnText(getLastTurnMessages(sessionId)));
       },
       keepSseAlive: false,
     },
