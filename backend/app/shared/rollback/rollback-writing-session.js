@@ -9,6 +9,7 @@ import { ALL_MESSAGES_LIMIT } from '../../../utils/constants.js';
 import { restoreStateFromSnapshot } from '../../../memory/state-rollback.js';
 import { deleteDiaryFile } from '../../../memory/diary-generator.js';
 import { restoreLtmFromTurnRecord } from '../../../services/long-term-memory.js';
+import { restoreTablesFromTurnRecord } from '../../../services/table-memory.js';
 import {
   deleteMessagesAfter,
   getMessagesBySessionId,
@@ -25,6 +26,10 @@ export async function rollbackWritingSession(sessionId, afterMessageId) {
 
   deleteTurnRecordsAfterRound(sessionId, roundCount - 1);
   restoreLtmFromTurnRecord(
+    sessionId,
+    roundCount === 0 ? null : getLatestTurnRecord(sessionId)
+  );
+  restoreTablesFromTurnRecord(
     sessionId,
     roundCount === 0 ? null : getLatestTurnRecord(sessionId)
   );

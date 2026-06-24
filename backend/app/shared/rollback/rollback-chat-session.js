@@ -11,6 +11,7 @@ import { restoreStateFromSnapshot } from '../../../memory/state-rollback.js';
 import { deleteDiaryFile } from '../../../memory/diary-generator.js';
 import { getCharacterById } from '../../../services/characters.js';
 import { restoreLtmFromTurnRecord } from '../../../services/long-term-memory.js';
+import { restoreTablesFromTurnRecord } from '../../../services/table-memory.js';
 import {
   deleteMessagesAfter,
   getMessagesBySessionId,
@@ -36,6 +37,10 @@ export async function rollbackChatSession(sessionId, afterMessageId) {
   );
 
   restoreLtmFromTurnRecord(
+    sessionId,
+    roundCount === 0 ? null : getLatestTurnRecord(sessionId)
+  );
+  restoreTablesFromTurnRecord(
     sessionId,
     roundCount === 0 ? null : getLatestTurnRecord(sessionId)
   );
