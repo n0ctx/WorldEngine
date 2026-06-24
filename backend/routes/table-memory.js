@@ -30,9 +30,11 @@ router.put('/:sessionId/table-memory', (req, res) => {
     return res.status(404).json({ error: '会话不存在' });
   }
   const incoming = req.body?.tables;
-  const tables = incoming && incoming.tables && incoming.archive ? incoming : emptyTables();
-  writeTables(sessionId, tables);
-  res.json({ tables, markdown: renderTablesToMarkdown(tables, { withId: false }) });
+  if (!incoming || typeof incoming.tables !== 'object' || !incoming.archive) {
+    return res.status(400).json({ error: '表格数据格式无效' });
+  }
+  writeTables(sessionId, incoming);
+  res.json({ tables: incoming, markdown: renderTablesToMarkdown(incoming, { withId: false }) });
 });
 
 export default router;

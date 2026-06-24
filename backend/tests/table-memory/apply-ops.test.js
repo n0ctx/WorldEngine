@@ -59,6 +59,22 @@ test('字段超长被截断到 FIELD_MAX_CHARS', () => {
   assert.equal(tables.tables.world.rows[0]['规则/事实'].length, 60);
 });
 
+test('close 未知 id → op 被 drop，archive 仍为空', () => {
+  const t = emptyTables();
+  const r = applyOps(t, [{ table: 'items', op: 'close', id: 999, reason: '不存在' }]);
+  assert.equal(r.dropped, 1);
+  assert.equal(r.tables.tables.items.rows.length, 0);
+  assert.equal(r.tables.archive.items.length, 0);
+});
+
+test('update fields 只含未知列 → op 被 drop，行不变', () => {
+  let t = applyOps(emptyTables(), [{ table: 'relations', op: 'add', row: { 主体A: '张三', 信任: '0' } }]).tables;
+  const before = JSON.stringify(t.tables.relations.rows[0]);
+  const r = applyOps(t, [{ table: 'relations', op: 'update', id: 1, fields: { 不存在列: 'x' } }]);
+  assert.equal(r.dropped, 1);
+  assert.equal(JSON.stringify(r.tables.tables.relations.rows[0]), before);
+});
+
 test('applyOps 不修改入参', () => {
   const orig = emptyTables();
   const snapshot = JSON.stringify(orig);
