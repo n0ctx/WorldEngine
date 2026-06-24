@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { SortableList } from '../index';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
@@ -190,7 +191,7 @@ function DeleteConfirm({ onConfirm, onClose }) {
     await onConfirm();
     setDeleting(false);
   }
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60"
       onMouseDown={(e) => { mouseDownOnBackdropRef.current = e.target === e.currentTarget; }}
@@ -210,6 +211,7 @@ function DeleteConfirm({ onConfirm, onClose }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
