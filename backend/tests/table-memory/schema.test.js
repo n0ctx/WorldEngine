@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TABLE_SCHEMAS, TABLE_KEYS, emptyTables } from '../../services/table-memory-schema.js';
 
 test('TABLE_SCHEMAS 含 5 张表且列不含内置 id/别名', () => {
-  assert.deepEqual(TABLE_KEYS, ['relations', 'items', 'places', 'plotlines', 'world']);
+  assert.deepEqual(TABLE_KEYS, ['relations', 'items', 'places', 'plotlines', 'factions']);
   for (const key of TABLE_KEYS) {
     const cols = TABLE_SCHEMAS[key].columns;
     assert.ok(Array.isArray(cols) && cols.length > 0);

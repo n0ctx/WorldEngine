@@ -56,8 +56,8 @@ test('close 后 archive[plotlines] 含该行；noop 与未知 op 安全', () => 
 
 test('字段超长被截断到 FIELD_MAX_CHARS', () => {
   const long = '字'.repeat(200);
-  const { tables } = applyOps(emptyTables(), [{ table: 'world', op: 'add', row: { '规则/事实': long } }]);
-  assert.equal(tables.tables.world.rows[0]['规则/事实'].length, 60);
+  const { tables } = applyOps(emptyTables(), [{ table: 'factions', op: 'add', row: { '势力': long } }]);
+  assert.equal(tables.tables.factions.rows[0]['势力'].length, 60);
 });
 
 test('close 未知 id → op 被 drop，archive 仍为空', () => {

@@ -151,7 +151,7 @@ export default function FeaturesConfigPanel({
 
         <ToggleRow
           label="表格记忆"
-          hint="每轮自动维护关系/物品/地点/剧情线/世界状态 5 张表并注入提示词；关闭仅停止更新与注入，已有表格保留"
+          hint="每轮自动维护关系/物品/地点/剧情线/势力 5 张表并注入提示词；关闭仅停止更新与注入，已有表格保留"
           checked={tableMemoryEnabledCurrent}
           onChange={onToggleTableMemoryCurrent}
         />

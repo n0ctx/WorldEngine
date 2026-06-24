@@ -70,7 +70,7 @@ export const TABLE_MEMORY_TABLES = [
   { key: 'items', name: '物品表' },
   { key: 'places', name: '地点表' },
   { key: 'plotlines', name: '剧情线表' },
-  { key: 'world', name: '世界状态表' },
+  { key: 'factions', name: '势力表' },
 ];
 
 export const NAV_KEY = {
