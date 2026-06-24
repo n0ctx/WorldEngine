@@ -8,6 +8,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import * as llm from '../llm/index.js';
+import { renderBackendPrompt } from '../prompts/prompt-loader.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
+import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
+import { applyOps, renderTablesToMarkdown } from './table-memory-ops.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { emptyTables } from './table-memory-schema.js';
 
@@ -68,4 +73,61 @@ export function restoreTablesFromTurnRecord(sessionId, lastRecord) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(tablesPath(sessionId), String(snapshot), 'utf-8');
   log.info(`ROLLBACK RESTORE  ${formatMeta({ session: sid, bytes: String(snapshot).length })}`);
+}
+
+export function __parseOps(raw) {
+  let body = String(raw ?? '')
+    .replace(/<think>[\s\S]*?<\/think>\n*/g, '')
+    .replace(/<think>[\s\S]*$/, '')
+    .trim();
+  body = body.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  const start = body.indexOf('[');
+  const end = body.lastIndexOf(']');
+  if (start < 0 || end <= start) return null;
+  try {
+    const arr = JSON.parse(body.slice(start, end + 1));
+    return Array.isArray(arr) ? arr : null;
+  } catch { return null; }
+}
+
+export async function updateTableMemory(sessionId, turnText) {
+  const sid = sessionId.slice(0, 8);
+  if (!turnText || !turnText.trim()) return;
+
+  const current = readTables(sessionId);
+  const rendered = renderTablesToMarkdown(current, { withId: true }) || '（当前所有表为空）';
+  const prompt = [{
+    role: 'user',
+    content: renderBackendPrompt('memory-table-update.md', {
+      CURRENT_TABLES: rendered,
+      TURN_TEXT: turnText,
+    }),
+  }];
+
+  let ops = null;
+  for (let attempt = 0; attempt <= STATE_UPDATE_JSON_RETRY_MAX; attempt++) {
+    let raw;
+    try {
+      raw = await llm.complete(prompt, {
+        temperature: LLM_TASK_TEMPERATURE,
+        maxTokens: LLM_STATE_UPDATE_MAX_TOKENS,
+        configScope: resolveAuxScope(sessionId),
+        callType: 'table_memory_update',
+        conversationId: sessionId,
+        timeoutMs: LLM_BACKGROUND_TASK_TIMEOUT_MS,
+      });
+    } catch (err) {
+      log.warn(`UPDATE LLM FAIL  ${formatMeta({ session: sid, attempt, error: err.message })}`);
+      continue;
+    }
+    ops = __parseOps(raw);
+    if (ops) break;
+    log.warn(`UPDATE PARSE FAIL  ${formatMeta({ session: sid, attempt })}`);
+  }
+
+  if (!ops) { log.warn(`UPDATE GIVEUP  ${formatMeta({ session: sid })}`); return; }
+
+  const { tables, applied, dropped } = applyOps(current, ops);
+  writeTables(sessionId, tables);
+  log.info(`UPDATE DONE  ${formatMeta({ session: sid, applied, dropped })}`);
 }
