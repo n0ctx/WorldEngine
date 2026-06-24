@@ -14,6 +14,7 @@ import * as sessionSummaryVectorStore from '../utils/session-summary-vector-stor
 import * as turnSummaryVectorStore from '../utils/turn-summary-vector-store.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
 import { deleteMemoryDir as deleteLongTermMemoryDir } from './long-term-memory.js';
+import { deleteTableMemoryDir } from './table-memory.js';
 
 import {
   getAttachmentsByMessageId,
@@ -126,6 +127,25 @@ registerOnDelete('character', async (cid) => {
 registerOnDelete('world', async (wid) => {
   for (const sid of getSessionIdsByWorldId(wid)) {
     deleteLongTermMemoryDir(sid);
+  }
+});
+
+// ── 表格记忆文件目录 ─────────────────────────────────────────────
+// 模块：table-memory — 管理 data/table_memory/{sessionId}/ 目录
+
+registerOnDelete('session', async (sid) => {
+  deleteTableMemoryDir(sid);
+});
+
+registerOnDelete('character', async (cid) => {
+  for (const sid of getSessionIdsByCharacterId(cid)) {
+    deleteTableMemoryDir(sid);
+  }
+});
+
+registerOnDelete('world', async (wid) => {
+  for (const sid of getSessionIdsByWorldId(wid)) {
+    deleteTableMemoryDir(sid);
   }
 });
 
