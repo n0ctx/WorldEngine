@@ -114,6 +114,15 @@ export function updateTurnRecordLtmSnapshot(id, snapshot) {
 }
 
 /**
+ * 写入指定 turn record 的表格记忆文件快照（tables.json 全文）。
+ * 用于在创建/更新 turn record 后回填该轮表格状态，供回滚时还原。
+ */
+export function updateTurnRecordTableSnapshot(id, snapshot) {
+  db.prepare('UPDATE turn_records SET table_memory_snapshot = ? WHERE id = ?')
+    .run(snapshot ?? null, id);
+}
+
+/**
  * 删除某会话 round_index 最大的那条 turn record（regenerate 用）
  */
 export function deleteLastTurnRecord(sessionId) {

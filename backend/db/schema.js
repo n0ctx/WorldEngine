@@ -495,6 +495,8 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN state_snapshot TEXT`); } catch {}
   // 长期记忆文件快照：保存该轮结束时 memory.md 的全文，用于回滚时同步还原长期记忆
   try { db.exec(`ALTER TABLE turn_records ADD COLUMN long_term_memory_snapshot TEXT`); } catch {}
+  // 表格记忆文件快照：保存该轮结束时 tables.json 全文，用于回滚时同步还原表格记忆
+  try { db.exec(`ALTER TABLE turn_records ADD COLUMN table_memory_snapshot TEXT`); } catch {}
   // 日记系统：sessions 记录创建时的日记模式，daily_entries 存日记元数据
   try { db.exec(`ALTER TABLE sessions ADD COLUMN diary_date_mode TEXT`); } catch {}
   try { db.exec(`CREATE INDEX IF NOT EXISTS idx_daily_entries_session ON daily_entries(session_id, date_str)`); } catch {}
