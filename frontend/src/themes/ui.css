@@ -3388,10 +3388,11 @@
 }
 .we-tm-grid {
   display: grid;
-  /* N 个内容列 + 别名列 + 操作列；列宽自适应内容并设上限，避免少列时被 1fr 拉宽、密度过低 */
+  /* N 个内容列 + 别名列 + 操作列；fit-content 让列宽随内容自适应，上限 12rem，
+     字少则自动收窄、字多则封顶换行，靠容器横向滚动 */
   grid-template-columns:
-    repeat(var(--we-tm-cols, 1), minmax(6rem, 12rem))
-    minmax(6rem, 12rem)
+    repeat(var(--we-tm-cols, 1), fit-content(12rem))
+    fit-content(12rem)
     44px;
   width: max-content;
   min-width: 100%;
