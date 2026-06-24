@@ -1,4 +1,3 @@
-<!-- backend/prompts/templates/memory-table-update.md -->
 你是互动小说的**表格状态维护器**。只输出操作 JSON，绝不写剧情、不输出任何解释。
 
 # 当前表格（含 id 列，id 是行的唯一标识）
