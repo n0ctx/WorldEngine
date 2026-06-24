@@ -11,7 +11,7 @@ import * as llm from '../llm/index.js';
 import { getSessionById } from '../db/queries/sessions.js';
 import { getCharacterById } from '../db/queries/characters.js';
 import { getMessagesBySessionId } from '../db/queries/messages.js';
-import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById, updateTurnRecordLtmSnapshot } from '../db/queries/turn-records.js';
+import { upsertTurnRecord, countTurnRecords, getLatestTurnRecord, getTurnRecordById, updateTurnRecordLtmSnapshot, updateTurnRecordTableSnapshot } from '../db/queries/turn-records.js';
 import { embed } from '../llm/embedding.js';
 import { upsertEntry } from '../utils/turn-summary-vector-store.js';
 import { createLogger, formatMeta, previewText, shouldLogRaw } from '../utils/logger.js';
@@ -30,6 +30,7 @@ import { getStateValuesByNearbyId } from '../db/queries/session-nearby-character
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
 import { appendMemoryLines, readMemoryFile } from '../services/long-term-memory.js';
+import { readTablesRaw } from '../services/table-memory.js';
 
 /**
  * 从 LLM 原始输出中解析 JSON 结构 {summary, memory[]}。
@@ -215,6 +216,16 @@ export async function createTurnRecord(sessionId, { isUpdate = false } = {}) {
       updateTurnRecordLtmSnapshot(record.id, readMemoryFile(sessionId));
     } catch (err) {
       log.warn(`LTM SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
+    }
+  }
+
+  // 表格记忆快照：把当前 tables.json 全文写入本轮 turn record，回滚时精确还原。
+  // 依赖：本轮 table-memory postgen 任务（priority 2）已先于本任务（priority 3）完成。
+  if (record) {
+    try {
+      updateTurnRecordTableSnapshot(record.id, readTablesRaw(sessionId));
+    } catch (err) {
+      log.warn(`TABLE SNAPSHOT FAIL  ${formatMeta({ session: sid, error: err.message })}`);
     }
   }
 
