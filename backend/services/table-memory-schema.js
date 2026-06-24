@@ -15,6 +15,14 @@ export const TABLE_SCHEMAS = {
 
 export const TABLE_KEYS = Object.keys(TABLE_SCHEMAS);
 
+// 渲染五张表的完整结构（key + 中文名 + 列清单），供副 LLM prompt 无条件注入，
+// 避免空表时模型看不到列名、靠猜导致字段被静默丢弃。
+export function renderSchemaGuide() {
+  return TABLE_KEYS
+    .map((key) => `- ${key}（${TABLE_SCHEMAS[key].name}）：${TABLE_SCHEMAS[key].columns.join(' | ')}`)
+    .join('\n');
+}
+
 export function emptyTables() {
   const tables = {};
   const archive = {};

@@ -14,7 +14,7 @@ import { resolveAuxScope } from '../utils/aux-scope.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 import { applyOps, renderTablesToMarkdown } from './table-memory-ops.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
-import { emptyTables } from './table-memory-schema.js';
+import { emptyTables, renderSchemaGuide } from './table-memory-schema.js';
 
 const log = createLogger('table-mem');
 
@@ -99,6 +99,7 @@ export async function updateTableMemory(sessionId, turnText) {
   const prompt = [{
     role: 'user',
     content: renderBackendPrompt('memory-table-update.md', {
+      SCHEMA: renderSchemaGuide(),
       CURRENT_TABLES: rendered,
       TURN_TEXT: turnText,
     }),

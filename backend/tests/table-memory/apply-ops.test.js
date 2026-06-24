@@ -36,6 +36,7 @@ test('close 把行移入 archive，rows 清空', () => {
   const r = applyOps(t, [{ table: 'plotlines', op: 'close', id: 1, reason: '妹妹已死' }]);
   assert.equal(r.tables.tables.plotlines.rows.length, 0);
   assert.equal(r.tables.archive.plotlines.length, 1);
+  assert.equal(r.tables.archive.plotlines[0]['归档原因'], '妹妹已死'); // close 的 reason 记进归档
   assert.equal(r.tables.tables.plotlines.archive, undefined); // archive 不挂在表节点下
 });
 

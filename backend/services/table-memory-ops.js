@@ -54,6 +54,7 @@ export function applyOps(tables, ops) {
         const idx = t.rows.findIndex((r) => r.id === op.id);
         if (idx < 0) { dropped++; break; }
         const [moved] = t.rows.splice(idx, 1);
+        if (op.reason != null && op.reason !== '') moved['归档原因'] = clampField(op.reason);
         next.archive[tableKey].push(moved);
         applied++;
         break;
