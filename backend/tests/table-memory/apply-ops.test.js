@@ -20,14 +20,14 @@ test('add 分配自增 id 并保留别名、丢弃未知列', () => {
 test('update 按 id 只改给定列，未知 id 计入 dropped', () => {
   let t = applyOps(emptyTables(), [{ table: 'relations', op: 'add', row: { 主体A: '张三', 信任: '0' } }]).tables;
   const r = applyOps(t, [
-    { table: 'relations', op: 'update', id: 1, fields: { '信任/敌意': '-2', 最近变化: '撒谎被识破' } },
+    { table: 'relations', op: 'update', id: 1, fields: { '信任/敌意': '-2', 冲突点: '撒谎被识破' } },
     { table: 'relations', op: 'update', id: 99, fields: { 主体A: 'X' } },
   ]);
   assert.equal(r.applied, 1);
   assert.equal(r.dropped, 1);
   const row = r.tables.tables.relations.rows[0];
   assert.equal(row['信任/敌意'], '-2');
-  assert.equal(row['最近变化'], '撒谎被识破');
+  assert.equal(row['冲突点'], '撒谎被识破');
   assert.equal(row['主体A'], '张三');
 });
 

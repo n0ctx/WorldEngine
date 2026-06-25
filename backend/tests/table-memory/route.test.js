@@ -28,7 +28,7 @@ test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async 
   assert.equal(getRes.status, 200);
   const getBody = await getRes.json();
   assert.ok(getBody.tables && getBody.markdown !== undefined);
-  assert.deepEqual(Object.keys(getBody.schema.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations', 'resources']);
+  assert.deepEqual(Object.keys(getBody.schema.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations']);
   assert.ok(Array.isArray(getBody.schema.tables.relations.columns));
   assert.equal(typeof getBody.schema.fieldMaxChars, 'number');
 
@@ -65,7 +65,7 @@ test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async 
   });
   assert.equal(okPutRes.status, 200);
   const okPutBody = await okPutRes.json();
-  assert.deepEqual(Object.keys(okPutBody.tables.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations', 'resources']);
+  assert.deepEqual(Object.keys(okPutBody.tables.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations']);
   assert.equal(okPutBody.tables.tables.items.rows[0].id, 1);
   assert.equal(okPutBody.tables.tables.items.rows[0].物品, '钥匙');
   assert.equal(okPutBody.tables.tables.items.rows[0].不存在列, undefined);
