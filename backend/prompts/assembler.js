@@ -75,7 +75,7 @@ function injectTableMemory(dynamicSystemParts, sessionId, enabled) {
   if (enabled !== true) return;
   const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
   if (!md) return;
-  dynamicSystemParts.push(`<table_memory hint="以下为当前已知状态，供保持连贯参考；剧情走向以玩家本轮输入为准，无需强行推进或收尾未完成的剧情线">\n${md}\n</table_memory>`);
+  dynamicSystemParts.push(`<table_memory hint="以下为当前已知状态，供保持连贯参考；剧情走向以玩家本轮输入为准。其中「定局表」为已成定局、不可自相矛盾的红线（别写穿帮），其余为当前状态快照">\n${md}\n</table_memory>`);
   log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
 }
 
