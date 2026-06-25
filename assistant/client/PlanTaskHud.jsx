@@ -49,9 +49,12 @@ export default function PlanTaskHud() {
   // 直接读 plan doc 头部的"状态：xxx"作为兜底，未审批就不亮 HUD。
   if (parsePlanDocStatus(planDoc) === 'awaiting_approval') return null;
   if (total === 0) return null;
-  // 运行期间保持 HUD 可见（避免步骤完成时瞬间消失再出现的闪烁）；
-  // 仅在非运行状态下才因 done >= total 隐藏。
-  if (done >= total && status !== 'running') return null;
+  // 全部勾选完成即隐藏，不再残留 100% 的 HUD。
+  // done >= total 只会在「所有步骤都完成」时为真——执行中途总有未勾选项，
+  // done 必然小于 total，所以这里不会误伤中途的步骤切换。
+  // （旧逻辑加了 status !== 'running' 例外，反而导致最后一步完成、状态尚未从
+  //   running 切到终态的窗口里，100% 的 HUD 一直挂着不消失。）
+  if (done >= total) return null;
 
   const pct = Math.round((done / total) * 100);
   const visible = sorted.slice(0, MAX_VISIBLE);
