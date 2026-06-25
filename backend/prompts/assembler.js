@@ -75,7 +75,7 @@ function injectTableMemory(dynamicSystemParts, sessionId, enabled) {
   if (enabled !== true) return;
   const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
   if (!md) return;
-  dynamicSystemParts.push(`<table_memory hint="以下为当前已知状态，供保持连贯参考；剧情走向以玩家本轮输入为准。其中「定局表」为已成定局、不可自相矛盾的红线（别写穿帮），其余为当前状态快照。各行、各表之间彼此独立，仅当本轮正文明确写出关联时才视为相关；不要自行在无关的人物、势力、线索之间臆造因果、巧合或牵连（例如把毫不相干的两件事强行联系起来）">\n${md}\n</table_memory>`);
+  dynamicSystemParts.push(`<table_memory hint="以下为已知状态的被动参考：「定局表」是不可违背的红线（别写穿帮），其余为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。">\n${md}\n</table_memory>`);
   log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
 }
 
