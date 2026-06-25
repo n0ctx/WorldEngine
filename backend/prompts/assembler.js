@@ -75,7 +75,7 @@ function injectTableMemory(dynamicSystemParts, sessionId, enabled) {
   if (enabled !== true) return;
   const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
   if (!md) return;
-  dynamicSystemParts.push(`<table_memory hint="以下为已知状态的被动参考：「定局表」是不可违背的红线（别写穿帮），其余为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。">\n${md}\n</table_memory>`);
+  dynamicSystemParts.push(`<table_memory hint="以下为已知状态的被动参考：「信息表」记信息差红线（别让不知情者表现得知道真相、别写穿帮），其余为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。">\n${md}\n</table_memory>`);
   log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
 }
 
