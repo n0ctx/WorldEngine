@@ -32,25 +32,25 @@ test('update 按 id 只改给定列，未知 id 计入 dropped', () => {
 });
 
 test('close 把行移入 archive，rows 清空', () => {
-  let t = applyOps(emptyTables(), [{ table: 'plotlines', op: 'add', row: { 信息: '妹妹被掳走' } }]).tables;
-  const r = applyOps(t, [{ table: 'plotlines', op: 'close', id: 1, reason: '设定撤销' }]);
-  assert.equal(r.tables.tables.plotlines.rows.length, 0);
-  assert.equal(r.tables.archive.plotlines.length, 1);
-  assert.equal(r.tables.archive.plotlines[0]['归档原因'], '设定撤销'); // close 的 reason 记进归档
-  assert.equal(r.tables.tables.plotlines.archive, undefined); // archive 不挂在表节点下
+  let t = applyOps(emptyTables(), [{ table: 'items', op: 'add', row: { 物品: '断剑' } }]).tables;
+  const r = applyOps(t, [{ table: 'items', op: 'close', id: 1, reason: '设定撤销' }]);
+  assert.equal(r.tables.tables.items.rows.length, 0);
+  assert.equal(r.tables.archive.items.length, 1);
+  assert.equal(r.tables.archive.items[0]['归档原因'], '设定撤销'); // close 的 reason 记进归档
+  assert.equal(r.tables.tables.items.archive, undefined); // archive 不挂在表节点下
 });
 
-test('close 后 archive[plotlines] 含该行；noop 与未知 op 安全', () => {
-  let t = applyOps(emptyTables(), [{ table: 'plotlines', op: 'add', row: { 信息: '妹妹被掳走' } }]).tables;
+test('close 后 archive[items] 含该行；noop 与未知 op 安全', () => {
+  let t = applyOps(emptyTables(), [{ table: 'items', op: 'add', row: { 物品: '断剑' } }]).tables;
   const r = applyOps(t, [
-    { table: 'plotlines', op: 'close', id: 1 },
+    { table: 'items', op: 'close', id: 1 },
     { table: 'items', op: 'noop' },
     { table: 'items', op: 'delete', id: 1 },
     { table: '不存在表', op: 'add', row: {} },
     'garbage',
   ]);
-  assert.equal(r.tables.archive.plotlines.length, 1);
-  assert.equal(r.tables.archive.plotlines[0]['信息'], '妹妹被掳走');
+  assert.equal(r.tables.archive.items.length, 1);
+  assert.equal(r.tables.archive.items[0]['物品'], '断剑');
   assert.equal(r.dropped, 3); // delete + 未知表 + garbage
 });
 

@@ -23,12 +23,12 @@ test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async 
   const character = insertCharacter(ctx.sandbox.db, world.id, { name: '测试角色' });
   const session = insertSession(ctx.sandbox.db, { character_id: character.id, world_id: world.id });
 
-  // GET：即便空表（新会话）也透出 5 张表的列定义，供前端画表头
+  // GET：即便空表（新会话）也透出 4 张表的列定义，供前端画表头
   const getRes = await ctx.request(`/api/sessions/${session.id}/table-memory`);
   assert.equal(getRes.status, 200);
   const getBody = await getRes.json();
   assert.ok(getBody.tables && getBody.markdown !== undefined);
-  assert.deepEqual(Object.keys(getBody.schema.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations']);
+  assert.deepEqual(Object.keys(getBody.schema.tables).sort(), ['factions', 'items', 'places', 'relations']);
   assert.ok(Array.isArray(getBody.schema.tables.relations.columns));
   assert.equal(typeof getBody.schema.fieldMaxChars, 'number');
 
@@ -65,7 +65,7 @@ test('GET 返回 schema + PUT 非法 body → 400（共用 server/db）', async 
   });
   assert.equal(okPutRes.status, 200);
   const okPutBody = await okPutRes.json();
-  assert.deepEqual(Object.keys(okPutBody.tables.tables).sort(), ['factions', 'items', 'places', 'plotlines', 'relations']);
+  assert.deepEqual(Object.keys(okPutBody.tables.tables).sort(), ['factions', 'items', 'places', 'relations']);
   assert.equal(okPutBody.tables.tables.items.rows[0].id, 1);
   assert.equal(okPutBody.tables.tables.items.rows[0].物品, '钥匙');
   assert.equal(okPutBody.tables.tables.items.rows[0].不存在列, undefined);
