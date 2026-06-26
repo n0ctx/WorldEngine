@@ -126,27 +126,28 @@ test('buildContextBlock 注入本世界 personas / characters 清单（id + name
 });
 
 test('detectPlanFirstPolicy 会识别通用计划边界', () => {
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个玩家卡').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('新建一个角色').requiresPlanFirst, true);
+  // 收紧后：单纯建卡不再强制计划，只有「建卡 + 结构化 + 完整」或跨资源 / 高风险才触发
+  assert.equal(__testables.detectPlanFirstPolicy('创建一个玩家卡').requiresPlanFirst, false);
+  assert.equal(__testables.detectPlanFirstPolicy('新建一个角色').requiresPlanFirst, false);
+  assert.equal(__testables.detectPlanFirstPolicy('给新的角色卡补全全部状态字段').requiresPlanFirst, false);
   assert.equal(__testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('给新的角色卡补全全部状态字段').requiresPlanFirst, true);
   assert.equal(__testables.detectPlanFirstPolicy('删除所有旧的关键词条目').requiresPlanFirst, true);
   assert.equal(__testables.detectPlanFirstPolicy('从零设计一套 lore 和 AI召回条目').requiresPlanFirst, true);
   assert.equal(__testables.detectPlanFirstPolicy('只建一个空白玩家卡，暂不填状态').requiresPlanFirst, false);
   assert.equal(__testables.detectPlanFirstPolicy('创建一个 CSS 片段').requiresPlanFirst, false);
   assert.equal(__testables.detectPlanFirstPolicy('把当前玩家卡金币改成120').requiresPlanFirst, false);
   const task = { id: 't', status: 'running', context: {}, appliedResources: [] };
-  const block = __testables.buildContextBlock(task, '', __testables.detectPlanFirstPolicy('从零创建一个角色卡并补全状态').hints);
+  const block = __testables.buildContextBlock(task, '', __testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').hints);
   assert.match(block, /本轮强制编排提示/);
-  assert.match(block, /必须先调用 write_plan_doc/);
+  assert.match(block, /先调用 write_plan_doc/);
 });
 
 test('detectPlanFirstPolicy 排除纯查询动词', () => {
   assert.equal(__testables.detectPlanFirstPolicy('完整地展示一下我的角色卡').requiresPlanFirst, false);
   assert.equal(__testables.detectPlanFirstPolicy('告诉我现在有哪些条目').requiresPlanFirst, false);
   assert.equal(__testables.detectPlanFirstPolicy('帮我查看一下全部世界卡').requiresPlanFirst, false);
-  // 含写入意图时即使有"展示"字样也应触发
-  assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再补全所有字段').requiresPlanFirst, true);
+  // 含高风险动作时即使有"展示"字样也应触发
+  assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再删除所有旧字段').requiresPlanFirst, true);
 });
 
 test('extractHardConstraints 抽取字段名/ID/必须禁止类硬约束', () => {
@@ -249,7 +250,7 @@ test('buildMetaTools：4 个工具与各分支', async () => {
   assert.equal((await editPlan.execute({ op: 'mark_done' })).success, false);
 });
 
-test('write_plan_doc: 少于 3 个 step 时拒绝且不进入审批态', async () => {
+test('write_plan_doc: 少于 2 个 step 时拒绝且不进入审批态', async () => {
   const task = taskStore.createTask({ context: {} });
   const events = [];
   const tools = __testables.buildMetaTools(task, (e) => events.push(e));
@@ -260,7 +261,7 @@ test('write_plan_doc: 少于 3 个 step 时拒绝且不进入审批态', async (
     steps: [{ title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡' }],
   });
   assert.equal(r.success, false);
-  assert.match(r.error, /至少需要 3 个/);
+  assert.match(r.error, /至少需要 2 个/);
   assert.equal(task.status, 'idle');
   assert.equal(task.approvalCheckpoint, null);
   assert.equal(await planDoc.readPlanDoc(task.id), '');
@@ -946,7 +947,7 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
     steps: [{ title: '只剩这个', targetType: 'character-card', operation: 'update', task: 't' }],
   });
   assert.equal(tooShort.success, false);
-  assert.match(tooShort.error, /replace_steps 至少需要 3 个未完成步骤/);
+  assert.match(tooShort.error, /replace_steps 至少需要 2 个未完成步骤/);
 
   await assert.rejects(
     editPlan.execute({

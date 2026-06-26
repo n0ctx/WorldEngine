@@ -54,6 +54,8 @@ fs.writeFileSync(path.join(sandbox.assistantStateDir, 'task-ddddddd1.json'), JSO
 }));
 
 const taskStore = await freshImportUncached('assistant/server/task-store.js');
+// hydrate 已从模块加载期改为显式调用（server.js 启动时触发），测试需手动触发
+taskStore.hydrateAssistantTasks();
 
 after(() => {
   sandbox.cleanup();
