@@ -98,6 +98,56 @@ test('apply_persona_card.execute update（默认 persona）', async () => {
   assert.equal(res.success, true);
 });
 
+test('apply_world_card.execute update 只改 state 条目 conditions（省略 trigger_type 也要落库）', async () => {
+  // 回归：已是 state 的条目，子代理常只回传 conditions、不再带 trigger_type。
+  // 旧实现在 normalize（按 trigger_type==='state' 才保留 conditions）与 apply
+  // （同样按 op.trigger_type==='state' 才 replaceEntryConditions）两层都把 conditions 静默丢弃，
+  // 造成「说改了实际没改成功」。修复后 conditions 必须真正写库。
+  const created = await applyWorldCard.execute({
+    operation: 'create',
+    changes: { name: 'cond-world', description: 'd' },
+    stateFieldOps: [
+      { op: 'create', target: 'world', field_key: 'mood', label: '心情', type: 'text' },
+    ],
+    entryOps: [
+      {
+        op: 'create',
+        title: '触发条目',
+        content: 'c',
+        trigger_type: 'state',
+        conditions: [{ target_field: '世界.心情', operator: 'eq', value: '开心' }],
+      },
+    ],
+    explanation: '建',
+  });
+  assert.equal(created.success, true);
+  const wid = sandbox.db.prepare('SELECT id FROM worlds WHERE name = ?').get('cond-world')?.id;
+  const entryId = sandbox.db.prepare('SELECT id FROM world_prompt_entries WHERE world_id = ?').get(wid)?.id;
+  assert.ok(entryId);
+
+  const before = sandbox.db.prepare('SELECT value FROM entry_conditions WHERE entry_id = ?').all(entryId);
+  assert.equal(before.length, 1);
+  assert.equal(before[0].value, '开心');
+
+  // 关键：update 时只带 conditions，省略 trigger_type
+  const updated = await applyWorldCard.execute({
+    operation: 'update',
+    entityId: wid,
+    entryOps: [
+      {
+        op: 'update',
+        id: entryId,
+        conditions: [{ target_field: '世界.心情', operator: 'eq', value: '伤心' }],
+      },
+    ],
+  });
+  assert.equal(updated.success, true);
+
+  const after = sandbox.db.prepare('SELECT value FROM entry_conditions WHERE entry_id = ?').all(entryId);
+  assert.equal(after.length, 1);
+  assert.equal(after[0].value, '伤心', 'conditions 必须真正更新到「伤心」');
+});
+
 test('apply_css_snippet.execute 走 create/update/delete 全路径', async () => {
   const created = await applyCssSnippet.execute({
     operation: 'create',

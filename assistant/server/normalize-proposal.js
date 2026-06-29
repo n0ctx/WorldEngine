@@ -137,12 +137,16 @@ async function applyProposal(proposal, worldRefId = null) {
       for (const op of worldOps) {
         if (op.op === 'create') {
           const entry = createWorldPromptEntry(entityId, op);
-          if (op.trigger_type === 'state' && Array.isArray(op.conditions) && op.conditions.length > 0) {
+          // 以「落库后条目的实际 trigger_type」为准，而不是本次 op 是否声明 state，
+          // 避免 op 省略/由后端归一 trigger_type 时条件写不进去。
+          if (Array.isArray(op.conditions) && op.conditions.length > 0 && entry?.trigger_type === 'state') {
             replaceEntryConditions(entry.id, op.conditions);
           }
         } else if (op.op === 'update' && op.id) {
-          updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
-          if (op.trigger_type === 'state' && Array.isArray(op.conditions)) {
+          const updatedEntry = updateWorldPromptEntry(op.id, pickAllowed(op, ['title', 'description', 'content', 'keywords', 'keyword_scope', 'keyword_logic', 'active_turns', 'condition_logic', 'trigger_type', 'token']));
+          // 已是 state 的条目只改触发条件时，op 常省略 trigger_type；
+          // 据更新后条目的实际类型判断，确保「只改 conditions」也真正落库。
+          if (Array.isArray(op.conditions) && updatedEntry?.trigger_type === 'state') {
             replaceEntryConditions(op.id, op.conditions);
           }
         } else if (op.op === 'delete' && op.id) deleteWorldPromptEntry(op.id);
@@ -880,7 +884,14 @@ function normalizeEntryOps(rawOps, { includeMode = false, allowTriggerType = fal
         warnings?.push(`条目「${normalized.title || idx}」类型为 keyword 但 keywords 为空，该条目永远不会触发；请添加关键词或改为 llm/always 类型`);
       }
     }
-    if (allowTriggerType && normalized.trigger_type === 'state' && Array.isArray(raw.conditions)) {
+    // 已是 state 的条目，update 时子代理常只回传 conditions、不再带 trigger_type。
+    // 此处不能再按本次 op 是否声明 trigger_type==='state' 来决定是否保留 conditions，
+    // 否则会把"只改触发条件"的改动在归一化阶段就静默丢掉（apply 层据此也不写库）。
+    // 仅当本次 op 显式把类型切到非 state 时才丢弃 conditions（切走即应清空条件）。
+    const keepConditions = allowTriggerType
+      && Array.isArray(raw.conditions)
+      && (normalized.trigger_type === 'state' || normalized.trigger_type === undefined);
+    if (keepConditions) {
       normalized.conditions = raw.conditions
         .filter((c) => c && typeof c === 'object' && c.target_field && c.operator && 'value' in c)
         .map((c, condIdx) => {
