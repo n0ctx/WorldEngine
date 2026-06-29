@@ -3044,6 +3044,20 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* 字段定义就地内嵌编辑：复用 StateFieldEditor 的表单，但不走浮层 */
+.we-state-field-inline {
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-lg);
+  padding: var(--we-space-md);
+  background: var(--we-color-bg-subtle);
+}
+.we-state-field-inline .we-dialog-body { padding: 0; }
+.we-state-field-inline .we-dialog-footer {
+  padding: var(--we-space-md) 0 0;
+  margin-top: var(--we-space-md);
+  border-top: 1px solid var(--we-color-border-default);
+}
 .we-config-workshop-hint {
   margin-top: var(--we-space-sm);
   font-size: var(--we-text-xs);

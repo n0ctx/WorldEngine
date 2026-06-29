@@ -61,7 +61,6 @@ export default function StateWorkshopPage() {
   const [scopeKey, setScopeKey] = useState('character');
   const [fields, setFields] = useState([]);
   const [selectedKey, setSelectedKey] = useState(null);
-  const [editingField, setEditingField] = useState(null); // 字段定义编辑/新建
   const [creatingField, setCreatingField] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
 
@@ -146,8 +145,9 @@ export default function StateWorkshopPage() {
                 key={`${scopeKey}:${selectedField.field_key}`}
                 worldId={worldId}
                 scope={scope}
+                scopeKey={scopeKey}
                 field={selectedField}
-                onEditDefinition={() => setEditingField(selectedField)}
+                onDefinitionSaved={() => loadFields(true)}
               />
             )}
           </section>
@@ -165,19 +165,6 @@ export default function StateWorkshopPage() {
             setSelectedKey(created?.field_key ?? payload.field_key);
           }}
           onClose={() => setCreatingField(false)}
-        />
-      )}
-
-      {/* 编辑字段定义 */}
-      {editingField && (
-        <StateFieldEditor
-          field={editingField}
-          scope={scopeKey}
-          onSave={async (payload) => {
-            await scope.updateFn(editingField.id, payload);
-            await loadFields(true);
-          }}
-          onClose={() => setEditingField(null)}
         />
       )}
 
@@ -200,9 +187,10 @@ export default function StateWorkshopPage() {
 }
 
 // ── 字段详情：定义 + 默认值矩阵 + 相关条目 ──
-function FieldDetail({ worldId, scope, field, onEditDefinition }) {
+function FieldDetail({ worldId, scope, scopeKey, field, onDefinitionSaved }) {
   const [entryEditor, setEntryEditor] = useState(null); // { entry } | { prefill:true }
   const [entriesReload, setEntriesReload] = useState(0);
+  const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
 
   return (
     <div className="we-workshop-detail-inner">
@@ -212,8 +200,29 @@ function FieldDetail({ worldId, scope, field, onEditDefinition }) {
           <span className="we-field-badge">{TYPE_LABEL[field.type] ?? field.type}</span>
           {field.description && <p className="we-workshop-detail-desc">{field.description}</p>}
         </div>
-        <button className="we-btn we-btn-sm we-btn-secondary" onClick={onEditDefinition}>编辑定义</button>
+        <button
+          className="we-btn we-btn-sm we-btn-secondary"
+          onClick={() => setEditingDef((v) => !v)}
+        >
+          {editingDef ? '收起定义' : '编辑定义'}
+        </button>
       </div>
+
+      {editingDef && (
+        <div className="we-workshop-section">
+          <StateFieldEditor
+            inline
+            field={field}
+            scope={scopeKey}
+            onSave={async (payload) => {
+              await scope.updateFn(field.id, payload);
+              setEditingDef(false);
+              onDefinitionSaved();
+            }}
+            onClose={() => setEditingDef(false)}
+          />
+        </div>
+      )}
 
       <DefaultValueMatrix worldId={worldId} scope={scope} field={field} />
 

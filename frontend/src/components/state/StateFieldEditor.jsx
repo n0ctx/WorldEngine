@@ -37,7 +37,7 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  *   onSave(data)  — 父组件负责调用 API，返回 Promise
  *   onClose()
  */
-export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose }) {
+export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose, inline = false }) {
   // 已落库的列 key 不允许重命名：列 key 是 *_state_values 的 JSON key，也是 entry_conditions.target_field 的列定位。
   // 改名会让历史值/条件失联，且不做后端迁移。
   const [lockedColumnKeys] = useState(
@@ -215,12 +215,13 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
   const isDiaryTime = field?.field_key === DIARY_TIME_FIELD_KEY;
   const isRealDiary = isDiaryTime && diaryDateMode === 'real';
 
-  return createPortal((
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
-      <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
-        <div className="we-dialog-header">
-          <h2>{field ? '编辑字段' : '新建字段'}</h2>
-        </div>
+  const panel = (
+      <div className={inline ? 'we-state-field-inline flex flex-col gap-4' : 'we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]'}>
+        {!inline && (
+          <div className="we-dialog-header">
+            <h2>{field ? '编辑字段' : '新建字段'}</h2>
+          </div>
+        )}
 
         <div className="we-dialog-body flex flex-col gap-4">
           {/* 基础信息 */}
@@ -513,6 +514,13 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
           </button>
         </div>
       </div>
-    </div>
-  ), document.body);
+  );
+
+  if (inline) return panel;
+  return createPortal(
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
+      {panel}
+    </div>,
+    document.body,
+  );
 }
