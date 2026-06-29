@@ -236,14 +236,17 @@ function FieldDetail({ worldId, scope, scopeKey, field, onDefinitionSaved }) {
       />
 
       {entryEditor && (
-        <EntryEditor
-          worldId={worldId}
-          entry={entryEditor.entry ?? null}
-          defaultTriggerType="state"
-          prefillCondition={entryEditor.prefill ? { scope: scope.cnScope, field_label: field.label } : undefined}
-          onClose={() => setEntryEditor(null)}
-          onSave={() => { setEntryEditor(null); setEntriesReload((k) => k + 1); }}
-        />
+        <div className="we-workshop-section">
+          <EntryEditor
+            inline
+            worldId={worldId}
+            entry={entryEditor.entry ?? null}
+            defaultTriggerType="state"
+            prefillCondition={entryEditor.prefill ? { scope: scope.cnScope, field_label: field.label } : undefined}
+            onClose={() => setEntryEditor(null)}
+            onSave={() => { setEntryEditor(null); setEntriesReload((k) => k + 1); }}
+          />
+        </div>
       )}
     </div>
   );

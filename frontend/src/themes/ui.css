@@ -1124,6 +1124,16 @@
   overflow-y: auto;
 }
 
+/* 就地内嵌模式：不再是浮层卡片，铺满详情列、随内容流动 */
+.we-entry-editor-panel--inline {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  padding: var(--we-space-md);
+  background: var(--we-color-bg-subtle);
+  border-radius: var(--we-radius-lg);
+}
+
 .we-entry-editor-title {
   font-family: var(--we-font-display);
   font-size: var(--we-text-md);

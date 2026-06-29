@@ -95,7 +95,7 @@ function getOpsForField(targetField, fieldTypeMap) {
   return NUMERIC_TYPES.has(type) ? NUMERIC_OPS : TEXT_OPS;
 }
 
-export default function EntryEditor({ worldId, entry, defaultTriggerType, prefillCondition, onClose, onSave }) {
+export default function EntryEditor({ worldId, entry, defaultTriggerType, prefillCondition, onClose, onSave, inline = false }) {
   const isNew = !entry?.id;
   const [form, setForm] = useState({
     title: entry?.title ?? '',
@@ -244,13 +244,11 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
     }
   }
 
-  return (
-    <div
-      className="we-entry-editor-overlay"
-      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
-      onClick={() => { if (mouseDownOnOverlay.current) onClose(); }}
-    >
-      <div className="we-entry-editor-panel" onClick={(e) => e.stopPropagation()}>
+  const panel = (
+      <div
+        className={`we-entry-editor-panel${inline ? ' we-entry-editor-panel--inline' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <h3 className="we-entry-editor-title">
           {isNew ? '新建条目' : '编辑条目'}
         </h3>
@@ -526,6 +524,16 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
           </button>
         </div>
       </div>
+  );
+
+  if (inline) return panel;
+  return (
+    <div
+      className="we-entry-editor-overlay"
+      onMouseDown={(e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; }}
+      onClick={() => { if (mouseDownOnOverlay.current) onClose(); }}
+    >
+      {panel}
     </div>
   );
 }
