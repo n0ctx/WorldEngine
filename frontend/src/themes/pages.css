@@ -2876,6 +2876,183 @@
   color: var(--we-entry-meta-color);
 }
 
+/* ══════════════════════════════════════════
+   StateWorkshopPage — 状态工作台
+══════════════════════════════════════════ */
+
+.we-workshop {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--we-space-md);
+  margin-top: var(--we-space-sm);
+}
+
+.we-workshop-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--we-space-md);
+}
+.we-workshop-title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  color: var(--we-color-text-primary);
+}
+.we-workshop-subtitle {
+  flex: 1;
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  opacity: 0.7;
+}
+
+.we-workshop-tabs {
+  display: flex;
+  gap: var(--we-space-sm);
+  border-bottom: 1px solid var(--we-color-border-default);
+}
+.we-workshop-tab {
+  padding: var(--we-space-sm) var(--we-space-md);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  border-bottom: 2px solid transparent;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-workshop-tab.is-active {
+  color: var(--we-color-text-primary);
+  border-bottom-color: var(--we-color-accent);
+}
+
+.we-workshop-body {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  gap: var(--we-space-lg);
+  flex: 1;
+  min-height: 0;
+}
+
+.we-workshop-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+  overflow-y: auto;
+  padding-right: var(--we-space-sm);
+}
+.we-workshop-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+}
+.we-workshop-field-items { display: flex; flex-direction: column; gap: var(--we-space-xs); }
+.we-workshop-field-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-sm);
+  width: 100%;
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-lg);
+  color: var(--we-color-text-primary);
+  transition: background var(--we-duration-fast);
+}
+.we-workshop-field-item:hover { background: var(--we-color-bg-subtle); }
+.we-workshop-field-item.is-active { background: var(--we-color-bg-subtle); box-shadow: inset 2px 0 0 var(--we-color-accent); }
+.we-workshop-field-name { font-size: var(--we-text-sm); }
+
+.we-workshop-detail { overflow-y: auto; }
+.we-workshop-detail-inner { display: flex; flex-direction: column; gap: var(--we-space-xl); }
+.we-workshop-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--we-space-md);
+}
+.we-workshop-detail-title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  color: var(--we-color-text-primary);
+  margin-right: var(--we-space-sm);
+  display: inline;
+}
+.we-workshop-detail-desc {
+  margin-top: var(--we-space-xs);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+}
+
+.we-workshop-section { display: flex; flex-direction: column; gap: var(--we-space-sm); }
+.we-workshop-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-md);
+}
+.we-workshop-section-title {
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  font-weight: 500;
+}
+.we-workshop-bulk { display: flex; align-items: center; gap: var(--we-space-sm); }
+.we-workshop-bulk-label { font-size: var(--we-text-xs); color: var(--we-color-text-secondary); opacity: 0.7; }
+.we-workshop-bulk-saving { font-size: var(--we-text-xs); color: var(--we-color-text-secondary); }
+
+.we-workshop-matrix { display: flex; flex-direction: column; gap: var(--we-space-xs); }
+.we-workshop-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 160px) 1fr;
+  align-items: center;
+  gap: var(--we-space-md);
+  padding: var(--we-space-xs) 0;
+}
+.we-workshop-matrix-name { font-size: var(--we-text-sm); color: var(--we-color-text-primary); }
+
+.we-workshop-entry-items { display: flex; flex-direction: column; gap: var(--we-space-xs); }
+.we-workshop-entry-item {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  width: 100%;
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-lg);
+  text-align: left;
+  transition: background var(--we-duration-fast);
+}
+.we-workshop-entry-item:hover { background: var(--we-color-bg-subtle); }
+.we-workshop-entry-title { font-size: var(--we-text-sm); color: var(--we-color-text-primary); }
+.we-workshop-entry-cross {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-accent);
+  opacity: 0.85;
+}
+
+.we-workshop-empty {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  opacity: 0.5;
+  font-style: italic;
+  padding: var(--we-space-md) 0;
+}
+
+.we-workshop-entry-link {
+  color: var(--we-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.we-config-workshop-hint {
+  margin-top: var(--we-space-sm);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  display: flex;
+  gap: var(--we-space-xs);
+  align-items: center;
+}
+
 /* ==========================================================
    以下规则从 frontend/src/index.css 迁移（B1 文件拆分）
    页面级布局：StatePanel / CastPanel / 书脊 / 角色印章 / 羊皮纸纹理

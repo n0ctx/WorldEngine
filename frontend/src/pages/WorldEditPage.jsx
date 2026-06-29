@@ -234,6 +234,16 @@ export default function WorldEditPage() {
       label: '状态模板',
       content: (
         <div>
+          <p className="we-config-workshop-hint">
+            想以字段为中心、一站式设置各角色/玩家默认值与触发条目？
+            <button
+              type="button"
+              className="we-workshop-entry-link"
+              onClick={() => navigate(`/worlds/${worldId}/state-workshop`)}
+            >
+              前往状态工作台 →
+            </button>
+          </p>
           <StateFieldList
             scope="world"
             worldId={worldId}

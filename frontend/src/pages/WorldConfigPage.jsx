@@ -29,6 +29,17 @@ export default function WorldConfigPage() {
     <div className="we-characters-canvas">
       <BackButton onClick={() => navigate('/')} label="卷宗书架" />
 
+      <p className="we-config-workshop-hint">
+        想一站式搭建状态系统？
+        <button
+          type="button"
+          className="we-workshop-entry-link"
+          onClick={() => navigate(`/worlds/${worldId}/state-workshop`)}
+        >
+          前往状态工作台 →
+        </button>
+      </p>
+
       <div className="we-config-grid">
         {/* 第1列：常驻条目 */}
         <div className="we-config-col" data-type="always">

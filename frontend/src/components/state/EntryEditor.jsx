@@ -72,13 +72,30 @@ function parseKeywordScope(raw) {
   return [...new Set(items)];
 }
 
+// 字段视图/向导新建条目时，预填某字段为第一个条件
+// prefill: { scope: '世界'|'角色'|'玩家', field_label }
+function buildPrefillCondition(prefill, typeMap) {
+  if (!prefill?.scope || !prefill?.field_label) return null;
+  const target_field = `${prefill.scope}.${prefill.field_label}`;
+  const type = typeMap.get(target_field);
+  const operator = type && !NUMERIC_TYPES.has(type) ? '包含' : '>';
+  return {
+    scope: prefill.scope,
+    field_label: prefill.field_label,
+    col_key: '',
+    target_field,
+    operator,
+    value: '',
+  };
+}
+
 function getOpsForField(targetField, fieldTypeMap) {
   const type = fieldTypeMap.get(targetField);
   if (!type) return [...NUMERIC_OPS, ...TEXT_OPS];
   return NUMERIC_TYPES.has(type) ? NUMERIC_OPS : TEXT_OPS;
 }
 
-export default function EntryEditor({ worldId, entry, defaultTriggerType, onClose, onSave }) {
+export default function EntryEditor({ worldId, entry, defaultTriggerType, prefillCondition, onClose, onSave }) {
   const isNew = !entry?.id;
   const [form, setForm] = useState({
     title: entry?.title ?? '',
@@ -96,6 +113,8 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
   const [keywordInput, setKeywordInput] = useState('');
   const keywordRef = useRef(null);
   const mouseDownOnOverlay = useRef(false);
+  // 仅在挂载时读取一次，避免父级重渲染改变对象身份时触发 effect 重跑、清空用户已编辑的条件
+  const prefillRef = useRef(prefillCondition);
 
   function addKeyword(raw) {
     const v = String(raw ?? '').trim();
@@ -148,7 +167,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, onClos
             ? conds.map((c) => ({ ...c, ...parseTargetField(c.target_field) }))
             : [emptyCondition()]);
         } else {
-          setConditions([emptyCondition()]);
+          setConditions([buildPrefillCondition(prefillRef.current, typeMap) ?? emptyCondition()]);
         }
       } catch (err) {
         log.error('entry.fields.load_failed', err, { toast: err.message || '加载状态字段失败' });

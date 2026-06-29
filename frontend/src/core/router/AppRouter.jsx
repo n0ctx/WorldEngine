@@ -25,6 +25,7 @@ const ChatPage = lazy(() => import('../../pages/ChatPage'));
 const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('../../pages/WritingSpacePage'));
 const WorldConfigPage = lazy(() => import('../../pages/WorldConfigPage'));
+const StateWorkshopPage = lazy(() => import('../../pages/StateWorkshopPage'));
 const AssistantPanel = lazy(() => import('../features/assistant/AssistantPanelHost.jsx'));
 
 function RedirectToConfig() {
@@ -119,6 +120,7 @@ export default function AppRouter() {
           <Route path="/characters/:characterId/chat" element={<ChatPage />} />
           <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
           <Route path="/worlds/:worldId/config" element={<WorldConfigPage />} />
+          <Route path="/worlds/:worldId/state-workshop" element={<StateWorkshopPage />} />
           <Route path="/worlds/:worldId/build" element={<RedirectToConfig />} />
           <Route path="/worlds/:worldId/state" element={<RedirectToConfig />} />
           <Route path="/settings" element={<SettingsPage />} />
