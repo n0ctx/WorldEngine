@@ -45,6 +45,30 @@ test('restore: 有快照 → 覆盖写', () => {
   assert.equal(readTables('sD').tables.places.rows[0].地点, '旧城');
 });
 
+test('readTables 折叠关系表已有重复对：保留最旧 id、新值胜；archive 不去重', () => {
+  const t = emptyTables();
+  // 同一对（含反向顺序）的三行重复 active 数据，模拟历史脏数据
+  t.tables.relations.rows.push(
+    { id: 1, 主体A: '林清雪', 主体B: '张逸轩', 关系类型: '学长-学妹', '信任/敌意': '初识' },
+    { id: 3, 主体A: '张逸轩', 主体B: '林清雪', 关系类型: '学长-学妹（外联部）', '债务/承诺': '承诺帮她进外联部' },
+    { id: 5, 主体A: '林清雪', 主体B: '周鹏', 关系类型: '社团招新接触' },
+  );
+  t.tables.relations.nextId = 6;
+  // archive 里同一对的两条已归档关系应保持各自独立
+  t.archive.relations.push(
+    { id: 1, 主体A: '林清雪', 主体B: '张逸轩', 归档原因: '旧' },
+    { id: 2, 主体A: '林清雪', 主体B: '张逸轩', 归档原因: '新' },
+  );
+  writeTables('sDedup', t);
+  const r = readTables('sDedup');
+  const rows = r.tables.relations.rows;
+  assert.equal(rows.length, 2); // 林↔张 合并为一行 + 林↔周
+  const pair = rows.find((x) => x.id === 1);
+  assert.equal(pair['关系类型'], '学长-学妹（外联部）'); // 新值胜
+  assert.equal(pair['债务/承诺'], '承诺帮她进外联部');
+  assert.equal(r.archive.relations.length, 2); // archive 不去重
+});
+
 test('deleteTableMemoryDir 清空', () => {
   writeTables('sE', emptyTables());
   deleteTableMemoryDir('sE');

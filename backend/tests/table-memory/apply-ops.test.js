@@ -125,3 +125,26 @@ test('LLM 先 close 再 add 恰好填满 → 不触发兜底', () => {
   assert.equal(r.tables.archive.items.length, 1);
   assert.equal(r.tables.archive.items[0]['归档原因'], '消耗'); // 保留 LLM 给的原因
 });
+
+// 关系表业务键去重（同一对角色只一行） ──────────────────────────
+test('add 关系表同一对角色（顺序无关）→ 合并覆写已有行而非新增', () => {
+  const t = applyOps(emptyTables(), [
+    { table: 'relations', op: 'add', row: { 主体A: '林清雪', 主体B: '张逸轩', 关系类型: '学长-学妹', '信任/敌意': '初识' } },
+  ]).tables;
+  // 反向顺序的同一对 + 新信息
+  const r = applyOps(t, [
+    { table: 'relations', op: 'add', row: { 主体A: '张逸轩', 主体B: '林清雪', 关系类型: '学长-学妹（外联部）', '债务/承诺': '张逸轩承诺帮她进外联部' } },
+  ]);
+  const rows = r.tables.tables.relations.rows;
+  assert.equal(rows.length, 1);          // 不新增重复行
+  assert.equal(rows[0].id, 1);           // 保留最旧 id
+  assert.equal(rows[0]['关系类型'], '学长-学妹（外联部）'); // 新值胜
+  assert.equal(rows[0]['债务/承诺'], '张逸轩承诺帮她进外联部');
+  assert.equal(r.tables.tables.relations.nextId, 2); // 首次 add 消耗到 2，合并不再消耗 nextId
+});
+
+test('add 关系表主体B 缺失 → 不参与去重，正常新增', () => {
+  const t = applyOps(emptyTables(), [{ table: 'relations', op: 'add', row: { 主体A: '张三' } }]).tables;
+  const r = applyOps(t, [{ table: 'relations', op: 'add', row: { 主体A: '李四' } }]);
+  assert.equal(r.tables.tables.relations.rows.length, 2);
+});

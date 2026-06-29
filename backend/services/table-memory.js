@@ -13,7 +13,7 @@ import { getLatestTurnRecord, updateTurnRecordTableSnapshot } from '../db/querie
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { LLM_TASK_TEMPERATURE, LLM_STATE_UPDATE_MAX_TOKENS, STATE_UPDATE_JSON_RETRY_MAX, LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
-import { applyOps, renderTablesToMarkdown, clampField } from './table-memory-ops.js';
+import { applyOps, renderTablesToMarkdown, clampField, dedupeActiveRows } from './table-memory-ops.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 import { emptyTables, renderSchemaGuide, resolveRowLimits, TABLE_KEYS, TABLE_SCHEMAS } from './table-memory-schema.js';
 import { getConfig } from './config.js';
@@ -80,7 +80,7 @@ export function normalizeTablesForStorage(raw) {
     const active = normalizeRows(key, raw?.tables?.[key]?.rows);
     const requestedNextId = Number(raw?.tables?.[key]?.nextId);
     normalized.tables[key] = {
-      rows: active.rows,
+      rows: dedupeActiveRows(key, active.rows), // 折叠业务键重复行（如关系表同一对角色），自愈历史数据；archive 不去重
       nextId: Math.max(
         active.nextId,
         Number.isSafeInteger(requestedNextId) && requestedNextId > 0 ? requestedNextId : 1,
