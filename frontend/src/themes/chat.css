@@ -2507,9 +2507,14 @@
   align-items: center;
   white-space: nowrap;
   will-change: transform;
+  pointer-events: auto; /* 接收悬停以暂停（band 整体仍 none，不挡顶栏点击）*/
   animation-name: we-danmaku-marquee;
   animation-timing-function: linear;
   animation-iteration-count: infinite; /* 持续循环滚动 */
+}
+
+.we-danmaku-track:hover {
+  animation-play-state: paused; /* 鼠标悬停时暂停滚动 */
 }
 
 .we-danmaku-bullet {
