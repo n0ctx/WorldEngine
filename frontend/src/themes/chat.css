@@ -2481,70 +2481,60 @@
   font-family: var(--we-font-mono);
 }
 
-/* ===== 弹幕层（输入框上方 2 行滚动弹幕彩蛋）===== */
-.we-input-with-danmaku {
-  position: relative;
-}
-
-.we-danmaku-layer {
-  --we-danmaku-row-height: 1.9em; /* 每条弹幕独占一行的行高 */
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 100%;
-  height: calc(var(--we-danmaku-rows, 2) * var(--we-danmaku-row-height));
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 5;
-  container-type: inline-size; /* 供弹幕用 cqw 计算横移距离 */
-}
-
-.we-danmaku-item {
-  position: absolute;
-  left: 0;
-  /* lane = 弹幕索引，每条独占一行，彼此不重叠 */
-  top: calc(var(--we-danmaku-lane, 0) * var(--we-danmaku-row-height));
-  height: var(--we-danmaku-row-height);
+/* ===== 弹幕带（顶部栏中间单行滚动跑马灯）===== */
+.we-topbar-danmaku-slot {
+  flex: 1 1 auto;
+  min-width: 0;
+  align-self: stretch;
   display: flex;
   align-items: center;
+  overflow: hidden;
+}
+
+.we-danmaku-band {
+  width: 100%;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+}
+
+.we-danmaku-track {
+  display: inline-flex;
+  align-items: center;
   white-space: nowrap;
+  will-change: transform;
+  animation-name: we-danmaku-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite; /* 持续循环滚动 */
+}
+
+.we-danmaku-bullet {
+  /* 每条自带右间距 → 复制两份后整条轨道严格周期，平移 -50% 无缝衔接不跳帧 */
+  margin-right: 2.6rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1;
   color: var(--we-danmaku-color);
   text-shadow:
     0 1px 2px var(--we-danmaku-shadow),
     0 0 2px var(--we-danmaku-shadow);
-  will-change: transform;
-  transform: translateX(100cqw);
-  animation-name: we-danmaku-scroll;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite; /* 持续循环滚动 */
-  animation-fill-mode: backwards; /* 延迟期间停在右侧屏外，错峰首进 */
-  animation-delay: var(--we-danmaku-delay);
-  animation-duration: var(--we-danmaku-duration);
 }
 
-.we-danmaku-item--sm {
-  font-size: 0.85rem;
-}
-.we-danmaku-item--md {
-  font-size: 1rem;
-}
-.we-danmaku-item--lg {
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-@keyframes we-danmaku-scroll {
+@keyframes we-danmaku-marquee {
   from {
-    transform: translateX(100cqw);
+    transform: translateX(0);
   }
   to {
-    transform: translateX(-100%);
+    transform: translateX(-50%); /* 复制两份内容，平移半程即无缝接上 */
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .we-danmaku-layer {
-    display: none;
+  .we-danmaku-track {
+    animation: none;
   }
 }

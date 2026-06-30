@@ -28,6 +28,7 @@ export function getMessageById(id) {
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
     row.next_options = parseNextOptions(row.next_options);
     row.activated_entries = parseActivatedEntries(row.activated_entries);
+    row.danmaku = parseDanmaku(row.danmaku);
   }
   return row;
 }
@@ -55,6 +56,18 @@ function parseActivatedEntries(raw) {
   }
 }
 
+function parseDanmaku(raw) {
+  if (!raw) return null;
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return null;
+    const cleaned = arr.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim());
+    return cleaned.length > 0 ? cleaned : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 获取某会话下的消息，按 created_at 升序，支持分页，attachments 自动 JSON.parse
  */
@@ -72,8 +85,29 @@ export function getMessagesBySessionId(sessionId, limit = 50, offset = 0) {
     row.token_usage = row.token_usage ? JSON.parse(row.token_usage) : null;
     row.next_options = parseNextOptions(row.next_options);
     row.activated_entries = parseActivatedEntries(row.activated_entries);
+    row.danmaku = parseDanmaku(row.danmaku);
   }
   return rows;
+}
+
+/**
+ * 取某会话最新一条 assistant 消息的 id（按 created_at/rowid 倒序）；无则返回 null。
+ */
+export function getLatestAssistantMessageId(sessionId) {
+  const row = db.prepare(
+    `SELECT id FROM messages WHERE session_id = ? AND role = 'assistant'
+     ORDER BY created_at DESC, rowid DESC LIMIT 1`,
+  ).get(sessionId);
+  return row?.id ?? null;
+}
+
+/**
+ * 更新单条消息的 danmaku 字段（JSON 字符串数组）；空数组等价清空。
+ */
+export function updateMessageDanmaku(id, comments) {
+  const arr = Array.isArray(comments) ? comments.filter((v) => typeof v === 'string' && v.trim()).map((v) => v.trim()) : [];
+  const value = arr.length > 0 ? JSON.stringify(arr) : null;
+  db.prepare('UPDATE messages SET danmaku = ? WHERE id = ?').run(value, id);
 }
 
 /**

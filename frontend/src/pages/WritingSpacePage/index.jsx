@@ -12,8 +12,7 @@ import PageLayout from '../layout/PageLayout.jsx';
 import NearbyPanel from './components/NearbyPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
-import DanmakuLayer from '../../components/chat/DanmakuLayer.jsx';
-import { useDisplaySettingsStore } from '../../core/state/displaySettings';
+import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
 import Pager from '../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import WritingSessionList from './components/WritingSessionList.jsx';
@@ -60,11 +59,9 @@ export default function WritingSpacePage() {
 
   const memory = useMemoryIndicators();
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
-  const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
-  // 弹幕带内容 = 最新一条 AI 消息的弹幕（由 MessageList 从消息集派生回调）；tick 变化即重置滚动
-  const [danmakuComments, setDanmakuComments] = useState(null);
-  const handleLatestDanmaku = (comments) =>
-    setDanmakuComments(Array.isArray(comments) && comments.length > 0 ? { items: comments, tick: Date.now() } : null);
+  // 弹幕带在全局 store（顶部栏 TopBar 渲染），由流 hook 写入；离开页面时清空
+  const clearDanmakuBand = useDanmakuBandStore((s) => s.clear);
+  useEffect(() => () => clearDanmakuBand(), [clearDanmakuBand]);
 
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, optionCollapsedRef, memory });
   const {
@@ -272,7 +269,6 @@ export default function WritingSpacePage() {
                 optionCollapsed={optionCollapsed}
                 onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
                 onMessagesLoaded={handleMessagesLoaded}
-                onLatestDanmaku={handleLatestDanmaku}
                 chapterTurnSize={chapterTurnSize}
                 pageTurnSize={pageTurnSize}
                 onPageInfoChange={setPageInfo}
@@ -307,9 +303,7 @@ export default function WritingSpacePage() {
             {/* Provider 安全信号横幅 */}
             <ProviderSafetyBanner />
 
-            {/* 输入区（上方挂弹幕层）*/}
-            <div className="we-input-with-danmaku">
-            <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
+            {/* 输入区 */}
             <InputBox
               ref={inputBoxRef}
               onSend={handleSend}
@@ -334,7 +328,6 @@ export default function WritingSpacePage() {
                 />
               )}
             />
-            </div>
         </div>
       )}
       right={(

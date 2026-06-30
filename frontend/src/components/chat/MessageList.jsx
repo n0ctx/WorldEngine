@@ -268,6 +268,7 @@ const MessageList = forwardRef(function MessageList({
     }
     return null;
   }, [messages]);
+
   const lastAssistantFrozenOptions = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       const msg = messages[i];

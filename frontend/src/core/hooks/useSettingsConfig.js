@@ -30,6 +30,10 @@ export function useSettingsConfig() {
   const setShowTokenUsageStore = useDisplaySettingsStore((s) => s.setShowTokenUsage);
   const setCurrentModelPricing = useDisplaySettingsStore((s) => s.setCurrentModelPricing);
   const setCurrentWritingModelPricing = useDisplaySettingsStore((s) => s.setCurrentWritingModelPricing);
+  const [danmakuEnabled, setDanmakuEnabled] = useState(false);
+  const [danmakuCount, setDanmakuCount] = useState(5);
+  const [danmakuSpeed, setDanmakuSpeedLocal] = useState('normal');
+  const setDanmakuSpeedStore = useDisplaySettingsStore((s) => s.setDanmakuSpeed);
   const { saving, saved, run: runSave } = useSaveState();
   const { saving: savingWriting, saved: savedWriting, run: runSaveWriting } = useSaveState();
   const [writingLlm, setWritingLlm] = useState({ provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
@@ -79,6 +83,11 @@ export function useSettingsConfig() {
       setShowTokenUsageStore(tokenUsage);
       setCurrentModelPricing(c.llm?.model_pricing ?? null);
       setCurrentWritingModelPricing(c.writing?.llm?.model_pricing ?? null);
+      setDanmakuEnabled(c.danmaku?.enabled === true);
+      setDanmakuCount(c.danmaku?.count ?? 5);
+      const dmSpeed = c.danmaku?.speed ?? 'normal';
+      setDanmakuSpeedLocal(dmSpeed);
+      setDanmakuSpeedStore(dmSpeed);
       const w = c.writing || {};
       setWritingLlm(w.llm || { provider: null, base_url: null, model: '', temperature: null, max_tokens: null, has_key: false });
       setWritingSystemPrompt(w.global_system_prompt ?? '');
@@ -102,6 +111,7 @@ export function useSettingsConfig() {
     setCurrentWritingModelPricing,
     setShowThinkingStore,
     setShowTokenUsageStore,
+    setDanmakuSpeedStore,
   ]);
 
   const suppressNextReloadRef = useRef(false);
@@ -301,6 +311,23 @@ export function useSettingsConfig() {
     await patchConfig({ writing: { suggestion_enabled: enabled } });
   }
 
+  async function handleToggleDanmaku(enabled) {
+    setDanmakuEnabled(enabled);
+    await patchConfig({ danmaku: { enabled } });
+  }
+
+  async function handleSaveDanmakuCount(value) {
+    const n = Math.max(1, Math.min(20, Number(value) || 5));
+    setDanmakuCount(n);
+    await patchConfig({ danmaku: { count: n } });
+  }
+
+  async function handleChangeDanmakuSpeed(speed) {
+    setDanmakuSpeedLocal(speed);
+    setDanmakuSpeedStore(speed);
+    await patchConfig({ danmaku: { speed } });
+  }
+
   async function handleToggleWritingMemoryExpansion(enabled) {
     setWritingMemoryExpansionEnabled(enabled);
     await patchConfig({ writing: { memory_expansion_enabled: enabled } });
@@ -446,6 +473,9 @@ export function useSettingsConfig() {
       memoryExpansionEnabled, onToggleMemoryExpansion: handleToggleMemoryExpansion,
       suggestionEnabled, onToggleSuggestion: handleToggleSuggestion,
       writingSuggestionEnabled, onToggleWritingSuggestion: handleToggleWritingSuggestion,
+      danmakuEnabled, onToggleDanmaku: handleToggleDanmaku,
+      danmakuCount, setDanmakuCount, onSaveDanmakuCount: handleSaveDanmakuCount,
+      danmakuSpeed, onChangeDanmakuSpeed: handleChangeDanmakuSpeed,
       writingMemoryExpansionEnabled, onToggleWritingMemoryExpansion: handleToggleWritingMemoryExpansion,
       longTermMemoryEnabled, onToggleLongTermMemory: handleToggleLongTermMemory,
       writingLongTermMemoryEnabled, onToggleWritingLongTermMemory: handleToggleWritingLongTermMemory,

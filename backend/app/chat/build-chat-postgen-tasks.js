@@ -5,6 +5,7 @@ import { updateAllStates } from '../../memory/combined-state-updater.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
 import { updateTableMemory, buildLastTurnText } from '../../services/table-memory.js';
+import { generateDanmaku } from '../../memory/danmaku-generator.js';
 import { getConfig } from '../../services/config.js';
 
 export function buildChatPostgenTasks({
@@ -42,6 +43,18 @@ export function buildChatPostgenTasks({
         await updateTableMemory(sessionId, buildLastTurnText(getLastTurnMessages(sessionId)));
       },
       keepSseAlive: false,
+    },
+    {
+      label: 'danmaku',
+      priority: 2,
+      condition: getConfig().danmaku?.enabled === true,
+      fn: () => generateDanmaku(sessionId, { mode: 'chat' }),
+      sseEvent: 'danmaku',
+      ssePayload: (comments) =>
+        Array.isArray(comments) && comments.length > 0
+          ? { type: 'danmaku', comments }
+          : null,
+      keepSseAlive: true,
     },
     {
       label: 'turn-record',

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import useStore from '../../../core/state/index.js';
+import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
+import { latestAssistantDanmaku, toDanmakuBand } from '../../../core/utils/danmaku.js';
 import {
   sendMessage,
   stopGeneration,
@@ -67,6 +69,7 @@ export function useChatStream({ character, messageListRef, inputBoxRef, currentS
     cancelMemoryWriting,
     clearMemoryState,
   } = memory;
+  const setDanmakuBand = useDanmakuBandStore((s) => s.setComments);
 
   const [currentSession, setCurrentSession] = useState(null);
   const [generating, setGenerating] = useState(false);
@@ -430,6 +433,13 @@ export function useChatStream({ character, messageListRef, inputBoxRef, currentS
       onEntriesActivated(entries) {
         if (!isCurrentStreamRun(runId)) return;
         pendingEntriesRef.current = Array.isArray(entries) ? entries : [];
+      },
+      onDanmaku(comments) {
+        if (!isCurrentStreamRun(runId)) return;
+        const arr = Array.isArray(comments) ? comments.filter((c) => typeof c === 'string' && c.trim()) : [];
+        if (arr.length === 0) return;
+        // 实时弹幕直接写入弹幕带 store（顶部栏读取）；历史回退由 handleMessagesLoaded 兜底
+        setDanmakuBand(toDanmakuBand(arr));
       },
       onSuggestionFallbackStarted() {
         if (!isCurrentStreamRun(runId)) return;
@@ -861,6 +871,8 @@ export function useChatStream({ character, messageListRef, inputBoxRef, currentS
         setOptionCollapsed(false);
       }
     }
+    // 弹幕带反映本会话最新一轮的弹幕（加载/刷新历史时可靠触发，不依赖渲染期派生）
+    setDanmakuBand(toDanmakuBand(latestAssistantDanmaku(msgs)));
     void recoverLiveStream(currentSessionIdRef.current);
   }
 

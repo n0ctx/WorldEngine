@@ -178,6 +178,13 @@ export default function SettingsPage() {
                   onToggleSuggestion={promptProps.onToggleSuggestion}
                   writingSuggestionEnabled={promptProps.writingSuggestionEnabled}
                   onToggleWritingSuggestion={promptProps.onToggleWritingSuggestion}
+                  danmakuEnabled={promptProps.danmakuEnabled}
+                  onToggleDanmaku={promptProps.onToggleDanmaku}
+                  danmakuCount={promptProps.danmakuCount}
+                  setDanmakuCount={promptProps.setDanmakuCount}
+                  onSaveDanmakuCount={promptProps.onSaveDanmakuCount}
+                  danmakuSpeed={promptProps.danmakuSpeed}
+                  onChangeDanmakuSpeed={promptProps.onChangeDanmakuSpeed}
                 />
               </div>
             )}

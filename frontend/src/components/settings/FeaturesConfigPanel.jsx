@@ -46,6 +46,9 @@ export default function FeaturesConfigPanel({
   showTokenUsage, onToggleShowTokenUsage,
   suggestionEnabled, onToggleSuggestion,
   writingSuggestionEnabled, onToggleWritingSuggestion,
+  danmakuEnabled, onToggleDanmaku,
+  danmakuCount, setDanmakuCount, onSaveDanmakuCount,
+  danmakuSpeed, onChangeDanmakuSpeed,
 }) {
   const isChat = settingsMode === SETTINGS_MODE.CHAT;
   const expansionEnabled = isChat ? memoryExpansionEnabled : writingMemoryExpansionEnabled;
@@ -245,6 +248,57 @@ export default function FeaturesConfigPanel({
           checked={showTokenUsage}
           onChange={onToggleShowTokenUsage}
         />
+
+        <hr className="we-settings-divider" />
+
+        <p className="we-settings-subsection-title">弹幕</p>
+
+        <ToggleRow
+          label="弹幕"
+          hint="每轮回复后由副模型生成几条「观众弹幕」，在输入框上方滚动飘过（纯特效，不保存，对话与写作共用）"
+          checked={danmakuEnabled}
+          onChange={onToggleDanmaku}
+        />
+
+        {danmakuEnabled && (
+          <>
+            <div className="we-settings-field-group">
+              <FormGroup label="每轮弹幕条数" hint="建议 3–8 条" variant="settings">
+                <div className="we-settings-inline-field">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="we-settings-number-short"
+                    value={danmakuCount ?? ''}
+                    onChange={(e) => setDanmakuCount(e.target.value === '' ? '' : Number(e.target.value))}
+                    onBlur={() => onSaveDanmakuCount(danmakuCount)}
+                  />
+                  <span className="we-settings-inline-hint">条，1–20</span>
+                </div>
+              </FormGroup>
+            </div>
+
+            <div className="we-settings-date-mode">
+              <p className="we-settings-date-label">滚动速度</p>
+              <div className="we-settings-date-options">
+                {[
+                  { value: 'slow', label: '慢' },
+                  { value: 'normal', label: '中' },
+                  { value: 'fast', label: '快' },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => onChangeDanmakuSpeed(value)}
+                    className={`we-settings-date-option${danmakuSpeed === value ? ' we-settings-date-option--active' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
 
         <hr className="we-settings-divider" />
 

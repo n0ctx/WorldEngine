@@ -110,6 +110,16 @@
   --we-color-accent-border:     rgba(125, 118, 111, 0.25);
   --we-color-accent-border-sm:  rgba(125, 118, 111, 0.22);
 
+  /* 弹幕色板（B 站式滚动弹幕的彩色文字，组件按索引循环取色）*/
+  --we-danmaku-1: #ffffff;
+  --we-danmaku-2: #ff6699;
+  --we-danmaku-3: #ffd700;
+  --we-danmaku-4: #66ccff;
+  --we-danmaku-5: #87d068;
+  --we-danmaku-6: #ff8a3d;
+  --we-danmaku-7: #c39bff;
+  --we-danmaku-shadow: rgba(0, 0, 0, 0.55);
+
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
   --we-space-xs:  4px;

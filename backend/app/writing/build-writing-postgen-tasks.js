@@ -6,6 +6,7 @@ import { updateAllStates } from '../../memory/combined-state-updater.js';
 import { checkAndGenerateDiary } from '../../memory/diary-generator.js';
 import { generateTitle } from '../../memory/summarizer.js';
 import { createTurnRecord } from '../../memory/turn-summarizer.js';
+import { generateDanmaku } from '../../memory/danmaku-generator.js';
 import { detectNewChapter } from '../../utils/chapter-detector.js';
 import { getEffectiveChapterTurnSize, getConfig } from '../../services/config.js';
 
@@ -74,6 +75,18 @@ export function buildWritingPostgenTasks({
         await updateTableMemory(sessionId, buildLastTurnText(messages));
       },
       keepSseAlive: false,
+    },
+    {
+      label: 'danmaku',
+      priority: 2,
+      condition: getConfig().danmaku?.enabled === true,
+      fn: () => generateDanmaku(sessionId, { mode: 'writing' }),
+      sseEvent: 'danmaku',
+      ssePayload: (comments) =>
+        Array.isArray(comments) && comments.length > 0
+          ? { type: 'danmaku', comments }
+          : null,
+      keepSseAlive: true,
     },
     {
       label: 'turn-record',

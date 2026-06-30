@@ -11,4 +11,7 @@ export const useDisplaySettingsStore = create((set) => ({
   setCurrentModelPricing: (v) => set({ currentModelPricing: v }),
   currentWritingModelPricing: null,
   setCurrentWritingModelPricing: (v) => set({ currentWritingModelPricing: v }),
+  // 弹幕滚动速度（'slow'|'normal'|'fast'）；开关由后端控制是否下发弹幕，前端只需速度
+  danmakuSpeed: 'normal',
+  setDanmakuSpeed: (v) => set({ danmakuSpeed: v }),
 }));

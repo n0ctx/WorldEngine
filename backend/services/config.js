@@ -105,6 +105,9 @@ const DEFAULT_CONFIG = {
   },
   aux_llm: structuredClone(DEFAULT_AUX_LLM),
   assistant: structuredClone(DEFAULT_ASSISTANT),
+  // 弹幕彩蛋：每轮回复后由副模型生成「观众弹幕」，纯前端临时特效，不持久化。
+  // speed: 'slow' | 'normal' | 'fast'（仅决定前端滚动时长）
+  danmaku: { enabled: false, count: 5, speed: 'normal' },
 };
 
 const DEFAULT_WRITING = {
@@ -324,6 +327,12 @@ export function getConfig() {
 
   if (config.log_prompt === true && !config.logging.prompt.enabled) {
     config.logging.prompt.enabled = true;
+    dirty = true;
+  }
+
+  // 弹幕配置兜底：旧 config.json 无此段时补默认，保证读取处永远拿到对象
+  if (!config.danmaku || typeof config.danmaku !== 'object' || Array.isArray(config.danmaku)) {
+    config.danmaku = structuredClone(DEFAULT_CONFIG.danmaku);
     dirty = true;
   }
 

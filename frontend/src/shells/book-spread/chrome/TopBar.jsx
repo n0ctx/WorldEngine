@@ -10,6 +10,9 @@ import { getLatestSession } from '../../../core/api/sessions.js';
 import { log } from '../../../core/utils/logger.js';
 import useStore from '../../../core/state/index.js';
 import { useAssistantPanel } from '../../../core/features/assistant/index.js';
+import DanmakuLayer from '../../../components/chat/DanmakuLayer.jsx';
+import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
+import { useDisplaySettingsStore } from '../../../core/state/displaySettings';
 
 function extractIds(pathname) {
   const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
@@ -49,6 +52,8 @@ export default function TopBar() {
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
   const toggleAssistant = useAssistantPanel((s) => s.toggle);
   const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
+  const danmakuComments = useDanmakuBandStore((s) => s.comments);
+  const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
 
   const [worlds, setWorlds] = useState([]);
   const [worldsLoading, setWorldsLoading] = useState(false);
@@ -274,7 +279,10 @@ export default function TopBar() {
         </>
       )}
 
-      <div className="we-topbar-spacer" />
+      {/* 中间槽位：有弹幕时单行滚动，无弹幕时作为占位把右侧按钮推到最右 */}
+      <div className="we-topbar-danmaku-slot">
+        <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
+      </div>
 
       <button
         className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}

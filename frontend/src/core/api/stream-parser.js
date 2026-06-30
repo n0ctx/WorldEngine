@@ -26,6 +26,7 @@ import { publishProviderSafetySignal } from './provider-safety-events.js';
  *   onSuggestionFallbackSucceeded(evt) — 补选项成功；evt.mode 同上
  *   onSuggestionFallbackFailed(evt) — 补选项失败；evt.mode/evt.reason
  *   onEntriesActivated(entries) — 本轮激活的非常驻条目（运行时展示，不持久化）
+ *   onDanmaku(comments)         — 本轮回复后副模型生成的观众弹幕（纯文本数组，前端临时特效）
  */
 export async function subscribeSse(url, callbacks, signal) {
   const res = await fetch(url, { method: 'GET', signal });
@@ -77,6 +78,7 @@ export async function parseSSEStream(response, callbacks) {
           else if (evt.type === 'suggestion_fallback_failed') callbacks.onSuggestionFallbackFailed?.(evt);
           else if (evt.type === 'state_rolled_back') callbacks.onStateRolledBack?.();
           else if (evt.type === 'entries_activated') callbacks.onEntriesActivated?.(evt.entries ?? []);
+          else if (evt.type === 'danmaku') callbacks.onDanmaku?.(evt.comments ?? []);
           else if (evt.type === 'stream_snapshot') callbacks.onStreamSnapshot?.(evt.task ?? null);
           else if (evt.type === 'provider_safety_signal') {
             publishProviderSafetySignal(evt.signal ?? null);
