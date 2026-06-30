@@ -11,6 +11,9 @@ import {
   getLatestAssistantMessageId,
   updateMessageDanmaku,
 } from '../db/queries/messages.js';
+import { getSessionById } from '../db/queries/sessions.js';
+import { getCharacterById } from '../db/queries/characters.js';
+import { getPersonaByWorldId } from '../db/queries/personas.js';
 import { buildLastTurnText } from '../services/table-memory.js';
 import { resolveAuxScope } from '../utils/aux-scope.js';
 import { getConfig } from '../services/config.js';
@@ -21,19 +24,47 @@ import { LLM_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 const log = createLogger('danmaku');
 
 const DANMAKU_MAX_TOKENS = 800;
+const PERSONA_MAX_CHARS = 600;
 
-function buildPrompt(turnText, count) {
+/**
+ * 取本会话「主角（玩家）人设」文本，供弹幕代入主角视角时参考。
+ * 聊天会话经 character→world 解析世界，写作会话直接挂 session.world_id；
+ * 任一环节缺失都返回 ''（纯读，不创建 persona）。
+ */
+function buildPersonaText(sessionId) {
+  try {
+    const session = getSessionById(sessionId);
+    if (!session) return '';
+    const worldId = session.world_id
+      || (session.character_id ? getCharacterById(session.character_id)?.world_id : null);
+    if (!worldId) return '';
+    const persona = getPersonaByWorldId(worldId);
+    if (!persona) return '';
+    const parts = [];
+    if (persona.name) parts.push(`名字：${persona.name}`);
+    if (persona.system_prompt) parts.push(String(persona.system_prompt).trim());
+    return parts.join('\n').slice(0, PERSONA_MAX_CHARS).trim();
+  } catch {
+    return '';
+  }
+}
+
+function buildPrompt(turnText, count, personaText) {
   const system =
     '你是一屏正在刷这段剧情的B站弹幕。发的是真·弹幕，不是影评——既要有网感，也要真的在「看这段剧情」：\n' +
     '- 必须扣住本轮具体内容：点到角色名、具体动作/台词/细节/转折，让人一看就知道在说哪一段，别发放之四海皆可的空话。\n' +
+    '- 弹幕里多数是路人观众视角，但也可以有几条以「主角第一视角」代入吐槽/喊话（弹幕圈所谓「梦女/嗑到自己」），贴合下方主角人设。\n' +
     '- 在此基础上玩起来：口语化、情绪化、不讲语法、碎片化；玩梗、吐槽、接话、磕CP、对角色喊话、阴阳怪气、自我代入都行。\n' +
     '- 适当用语气词和符号（啊啊啊、草、？？？、www、哈哈哈哈）和 emoji（😂🤣😭💦🔥👀🤡），但别整条只有梗和符号、没信息量。\n' +
     '- 每条短（多数10~18字，最多20字），像一闪而过的真弹幕；条条角度不同，别都一个语气、别复读同一个梗。\n' +
     `输出格式：只输出一个 JSON 字符串数组，恰好 ${count} 条，例如 ["周锐这操作我直接绷不住😂","姐姐别喝那杯水啊！！","锁精液推回去是真狠😭"]。` +
     '禁止输出任何解释、标题、代码块标记(```)或数组以外的内容；每条用英文双引号包裹。';
+  const personaBlock = personaText
+    ? `【主角人设（弹幕里的「我」就是TA，可代入第一视角，但别整屏都是主角自述）】\n${personaText}\n\n`
+    : '';
   return [
     { role: 'system', content: system },
-    { role: 'user', content: `【最新剧情】\n${turnText}\n\n针对上面这段的具体内容开刷，直接输出 ${count} 条弹幕的 JSON 数组：` },
+    { role: 'user', content: `${personaBlock}【最新剧情】\n${turnText}\n\n针对上面这段的具体内容开刷，直接输出 ${count} 条弹幕的 JSON 数组：` },
   ];
 }
 
@@ -84,8 +115,9 @@ export async function generateDanmaku(sessionId, { mode = 'chat' } = {}) {
     // 聊天与写作的消息同存 messages 表，getLastTurnMessages 对两者皆取「最后一条 user + assistant」
     const turnText = buildLastTurnText(getLastTurnMessages(sessionId));
     if (!turnText || !turnText.trim()) return [];
+    const personaText = buildPersonaText(sessionId);
 
-    const raw = await llm.complete(buildPrompt(turnText, count), {
+    const raw = await llm.complete(buildPrompt(turnText, count, personaText), {
       temperature: 1.0,
       maxTokens: DANMAKU_MAX_TOKENS,
       configScope: resolveAuxScope(sessionId),
