@@ -403,65 +403,6 @@
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
 }
 
-.we-chat-center-header {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  padding: var(--we-space-sm) var(--we-space-xl);
-  background: var(--we-color-bg-surface);
-  border-bottom: var(--we-chat-header-border-bottom);
-  box-shadow: var(--we-chat-header-shadow);
-  flex-shrink: 0;
-  position: relative;
-  z-index: var(--we-z-spine);
-}
-
-.we-chat-center-action {
-  flex-shrink: 0;
-  background: var(--we-chrome-icon-btn-bg);
-  border: var(--we-chrome-icon-btn-border);
-  padding: var(--we-space-xs);
-  cursor: pointer;
-  color: var(--we-color-text-tertiary);
-  border-radius: var(--we-radius-sm);
-  transition: color var(--we-duration-fast), background var(--we-duration-fast);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.we-chat-center-action:hover {
-  color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
-}
-
-.we-chat-center-title {
-  flex: 1;
-  margin: 0;
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-control);
-  line-height: var(--we-leading-snug);
-  font-style: italic;
-  font-weight: 400;
-  color: var(--we-color-text-secondary);
-}
-
-.we-chat-center-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px; /* design exact: 短饰条宽度 */
-  height: 12px; /* design exact: 与 control 字号匹配 */
-  margin-right: var(--we-space-sm);
-  background: var(--we-color-accent);
-  border-radius: var(--we-radius-xs);
-  flex-shrink: 0;
-}
-
 /* Empty state for chat / writing */
 .we-chat-empty-state {
   display: flex;
@@ -2538,4 +2479,72 @@
 
 .we-css-snippet-editor__textarea {
   font-family: var(--we-font-mono);
+}
+
+/* ===== 弹幕层（输入框上方 2 行滚动弹幕彩蛋）===== */
+.we-input-with-danmaku {
+  position: relative;
+}
+
+.we-danmaku-layer {
+  --we-danmaku-row-height: 1.9em; /* 每条弹幕独占一行的行高 */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: calc(var(--we-danmaku-rows, 2) * var(--we-danmaku-row-height));
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+  container-type: inline-size; /* 供弹幕用 cqw 计算横移距离 */
+}
+
+.we-danmaku-item {
+  position: absolute;
+  left: 0;
+  /* lane = 弹幕索引，每条独占一行，彼此不重叠 */
+  top: calc(var(--we-danmaku-lane, 0) * var(--we-danmaku-row-height));
+  height: var(--we-danmaku-row-height);
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--we-danmaku-color);
+  text-shadow:
+    0 1px 2px var(--we-danmaku-shadow),
+    0 0 2px var(--we-danmaku-shadow);
+  will-change: transform;
+  transform: translateX(100cqw);
+  animation-name: we-danmaku-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite; /* 持续循环滚动 */
+  animation-fill-mode: backwards; /* 延迟期间停在右侧屏外，错峰首进 */
+  animation-delay: var(--we-danmaku-delay);
+  animation-duration: var(--we-danmaku-duration);
+}
+
+.we-danmaku-item--sm {
+  font-size: 0.85rem;
+}
+.we-danmaku-item--md {
+  font-size: 1rem;
+}
+.we-danmaku-item--lg {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+@keyframes we-danmaku-scroll {
+  from {
+    transform: translateX(100cqw);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .we-danmaku-layer {
+    display: none;
+  }
 }

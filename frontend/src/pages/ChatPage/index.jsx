@@ -11,6 +11,8 @@ import { getSession } from '../../core/api/sessions.js';
 import SessionListPanel from './components/SessionListPanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
+import DanmakuLayer from '../../components/chat/DanmakuLayer.jsx';
+import { useDisplaySettingsStore } from '../../core/state/displaySettings';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
 import Pager from '../../components/chat/Pager.jsx';
 import PageLayout from '../layout/PageLayout.jsx';
@@ -39,6 +41,11 @@ export default function ChatPage() {
 
   const memory = useMemoryIndicators();
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
+  const danmakuSpeed = useDisplaySettingsStore((s) => s.danmakuSpeed);
+  // 弹幕带内容 = 最新一条 AI 消息的弹幕（由 MessageList 从消息集派生回调）；tick 变化即重置滚动
+  const [danmakuComments, setDanmakuComments] = useState(null);
+  const handleLatestDanmaku = (comments) =>
+    setDanmakuComments(Array.isArray(comments) && comments.length > 0 ? { items: comments, tick: Date.now() } : null);
 
   const stream = useChatStream({
     character,
@@ -159,50 +166,6 @@ export default function ChatPage() {
       recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}
       main={(
         <div className="we-main we-chat-center-pane flex-1 min-w-0 flex flex-col overflow-hidden">
-        {/* 顶部栏 */}
-        <div className="we-chat-center-header">
-          {currentSession ? (
-            <>
-              <h1 className="we-chat-center-title">
-                {currentSession.title || '新对话'}
-              </h1>
-              {ltmEnabled && (
-                <button
-                  type="button"
-                  className="we-chat-center-action"
-                  onClick={() => setLtmOpen(true)}
-                  aria-label="长期记忆"
-                  title="长期记忆"
-                >
-                  <Icon size={20} aria-label="长期记忆">
-                    <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
-                    <path d="M8 8h8" />
-                    <path d="M8 12h8" />
-                    <path d="M8 16h5" />
-                  </Icon>
-                </button>
-              )}
-              {tableMemoryEnabled && (
-                <button
-                  type="button"
-                  className="we-chat-center-action"
-                  onClick={() => setTmOpen(true)}
-                  aria-label="表格记忆"
-                  title="表格记忆"
-                >
-                  <Icon size={20} aria-label="表格记忆">
-                    <rect x="3" y="4" width="18" height="16" rx="1.5" />
-                    <path d="M3 9h18" />
-                    <path d="M3 14h18" />
-                    <path d="M9 4v16" />
-                  </Icon>
-                </button>
-              )}
-            </>
-          ) : (
-            <span className="flex-1" />
-          )}
-        </div>
         <AnimatePresence>
           {ltmEnabled && ltmOpen && currentSession && (
             <LongTermMemoryModal
@@ -244,6 +207,7 @@ export default function ChatPage() {
           optionCollapsed={optionCollapsed}
           onOptionCollapsedChange={setOptionCollapsed}
           onMessagesLoaded={handleMessagesLoaded}
+          onLatestDanmaku={handleLatestDanmaku}
           chapterTurnSize={chapterTurnSize}
           pageTurnSize={pageTurnSize}
           onPageInfoChange={setPageInfo}
@@ -302,7 +266,9 @@ export default function ChatPage() {
         {/* Provider 安全信号横幅（紧邻输入框上方，role=alert 自动朗读） */}
         <ProviderSafetyBanner />
 
-        {/* 输入框 */}
+        {/* 输入框（上方挂弹幕层）*/}
+        <div className="we-input-with-danmaku">
+        <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
         <InputBox
           ref={inputBoxRef}
           onSend={handleSend}
@@ -314,6 +280,8 @@ export default function ChatPage() {
           onImpersonate={handleImpersonate}
           onRetry={handleRetryLast}
           onTitle={handleRetitle}
+          onLongTermMemory={ltmEnabled && currentSession ? () => setLtmOpen(true) : null}
+          onTableMemory={tableMemoryEnabled && currentSession ? () => setTmOpen(true) : null}
           worldId={character?.world_id ?? null}
           sessionId={currentSessionId}
           mode="chat"
@@ -325,6 +293,7 @@ export default function ChatPage() {
             />
           )}
         />
+        </div>
         </div>
       )}
       right={(

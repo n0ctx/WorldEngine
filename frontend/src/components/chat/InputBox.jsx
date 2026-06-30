@@ -25,6 +25,8 @@ const InputBox = forwardRef(function InputBox({
   onImpersonate,
   onRetry,
   onTitle,
+  onLongTermMemory = null,
+  onTableMemory = null,
   pagerSlot = null,
 }, ref) {
   const [text, setText] = useState('');
@@ -264,6 +266,36 @@ const InputBox = forwardRef(function InputBox({
               <circle cx="12" cy="7" r="4" />
             </Icon>
           </button>
+          {onLongTermMemory && (
+            <button
+              onMouseDown={(e) => { e.preventDefault(); onLongTermMemory(); }}
+              className="we-chat-quick-btn"
+              title="长期记忆"
+              aria-label="长期记忆"
+            >
+              <Icon size={16} strokeWidth="2.2">
+                <path d="M4 4h12a4 4 0 0 1 4 4v12H8a4 4 0 0 1-4-4V4z" />
+                <path d="M8 8h8" />
+                <path d="M8 12h8" />
+                <path d="M8 16h5" />
+              </Icon>
+            </button>
+          )}
+          {onTableMemory && (
+            <button
+              onMouseDown={(e) => { e.preventDefault(); onTableMemory(); }}
+              className="we-chat-quick-btn"
+              title="表格记忆"
+              aria-label="表格记忆"
+            >
+              <Icon size={16} strokeWidth="2.2">
+                <rect x="3" y="4" width="18" height="16" rx="1.5" />
+                <path d="M3 9h18" />
+                <path d="M3 14h18" />
+                <path d="M9 4v16" />
+              </Icon>
+            </button>
+          )}
         </div>
       </div>
 
