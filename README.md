@@ -70,13 +70,26 @@ cd backend  && npm run dev   # http://localhost:3000
 
 每轮 AI 回复后异步生成摘要并建向量索引。新消息发送时，语义召回历史相关片段注入上下文，同 session 阈值 0.6，跨 session 默认关闭可手动开启。LLM 进一步判断是否展开原文（智能展开），在保持上下文简洁的同时让细节可追溯。长期记忆通过独立的 `memory.md` 文件持久化，按轮次快照，支持随消息回滚还原。
 
+### 结构化表格记忆
+
+在向量召回之外，另用四张内置表格维护「当前世界状态」的结构化快照，防止长程剧情穿帮：
+
+| 表 | 记录内容 |
+|---|---|
+| 关系表 | 角色/势力之间的当前关系、信任敌意、债务承诺 |
+| 物品表 | 关键物品的持有人、位置、效果、状态 |
+| 地点表 | 地点的归属、当前状态、危险资源、历史标记 |
+| 势力表 | 组织的控制范围、核心人物、实力、立场 |
+
+每轮回复后由副模型自动增删改，满表时自动归档；用户也能在「表格记忆」面板直接点单元格改值或删行。按轮次快照，随消息回滚还原。
+
 ### 状态驱动叙事
 
-世界、角色、玩家（Persona）各自拥有独立的状态字段，支持 text / number / boolean / enum / list 五种类型。`llm_auto` 模式下每轮 AI 回复后自动解析并更新状态；每个会话有独立的状态快照，多会话互不干扰。状态值可以直接触发对应的提示词条目，让场景变化自动带入上下文。
+世界、角色、玩家（Persona）各自拥有独立的状态字段，支持 text / number / boolean / enum / list / datetime / table 七种类型。`llm_auto` 模式下每轮 AI 回复后自动解析并更新状态；每个会话有独立的状态快照，多会话互不干扰。状态值可以直接触发对应的提示词条目，让场景变化自动带入上下文。字段的定义、默认值和触发条件都可在「状态工作台」以字段为中心集中配置。
 
 ### Chat / Writing 双模式
 
-- **对话（Chat）**：气泡消息列表，单角色扮演，右侧实时状态面板，支持重新生成、续写、模拟、编辑。
+- **对话（Chat）**：气泡消息列表，单角色扮演，右侧实时状态面板，支持重新生成、续写、编辑。
 - **写作（Writing）**：散文段落排版，多角色协作，章节自动分组并生成标题，AI 统筹所有激活角色的行为。
 
 ### 写卡助手
@@ -94,7 +107,7 @@ cd backend  && npm run dev   # http://localhost:3000
             └─ 会话（状态快照、消息历史、turn record）
 ```
 
-Prompt 按 14 段顺序组装，前 4 段走 Prompt Cache 层（全局提示词 + Persona + 角色 system prompt + 常驻条目），后续段动态拼接（状态、召回摘要、历史消息、后置提示词、当前消息）。各 provider 缓存策略自动适配（Anthropic `cache_control`、OpenAI-compatible 稳定前缀、Gemini explicit cache）。
+Prompt 按 14 段顺序组装，前 4 段走 Prompt Cache 层（全局提示词 + Persona + 角色 system prompt + 常驻条目），后续段动态拼接（状态、长期记忆、表格记忆、召回摘要、历史消息、后置提示词、当前消息）。各 provider 缓存策略自动适配（Anthropic `cache_control`、OpenAI-compatible 稳定前缀、Gemini explicit cache）。
 
 技术栈：React 19 + Vite + TailwindCSS + Zustand（前端）/ Node.js + Express + ES Modules（后端）/ SQLite（better-sqlite3）/ OpenAI 或 Ollama embeddings（可选）/ Electron（桌面端）
 
@@ -112,7 +125,9 @@ LLM 支持：Anthropic Claude · OpenAI GPT · OpenAI 兼容接口（DeepSeek / 
 
 ---
 
+## 弹幕彩蛋
 
+可选开启的娱乐彩蛋：每轮回复后由副模型生成一组「观众弹幕」，扣住本轮具体剧情，并注入主角人设支持第一视角代入。以 B 站式跑马灯在顶部栏单行滚动，鼠标悬停暂停。随消息删除/重生成/回滚自动清理，任何失败都静默降级不影响主流程。
 
 ---
 
@@ -140,7 +155,7 @@ npm run desktop:dist
 
 前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。
 
-`lovable-cream` 当前未内置合法 `Camera Plain` 字体文件，因此只提供接近该方向的 humanist sans 降级栈；若后续补入授权字体文件，主题会再切到真实字体。
+`lovable-cream` 未内置授权的 `Camera Plain` 字体文件，改用自托管的 Instrument Sans 近似其观感；字体族只经 `--we-font-*` token 引用，主题包内不声明 `@font-face`。
 
 ---
 
