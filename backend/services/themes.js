@@ -12,7 +12,7 @@ const DATA_THEMES_DIR = process.env.WE_DATA_DIR
 
 const THEME_ID_RE = /^[a-z][a-z0-9_-]{1,63}$/;
 const THEME_FORMAT = 'worldengine-theme-v1';
-export const DEFAULT_THEME_ID = 'classic-parchment';
+export const DEFAULT_THEME_ID = 'nocturne';
 
 function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);

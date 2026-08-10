@@ -65,6 +65,7 @@ test('删除主题拒绝内置主题，允许删除用户主题并回退 active 
   assert.throws(() => deleteTheme('classic-parchment'), /内置主题不能删除/);
   setActiveTheme('paper2');
   deleteTheme('paper2');
-  assert.equal(sandbox.readConfig().ui.theme, 'classic-parchment');
+  // 回退目标是 backend/services/themes.js 的 DEFAULT_THEME_ID（生产默认主题），而非本用例起始 sandbox 值。
+  assert.equal(sandbox.readConfig().ui.theme, 'nocturne');
   assert.equal(fs.existsSync(path.join(sandbox.root, 'themes', 'paper2')), false);
 });

@@ -606,7 +606,10 @@
   font-size: var(--we-text-xs);
   font-family: var(--we-font-mono, monospace);
   color: var(--we-color-text-secondary);
-  background: var(--we-color-border-default);
+  /* 用 bg-muted 而非 border-default：这里是实心徽标底色，压着文字，
+     需要按“文字对比度”标定，border-default 是按“非文本边框”标定的，两者要求不同
+     （深色主题下 border-default 当实心底色会把数字压到接近不可读）。 */
+  background: var(--we-color-bg-muted);
   border-radius: var(--we-radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
@@ -999,7 +1002,11 @@
 .we-entry-section-new-btn {
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
-  color: var(--we-base-white);
+  /* 用 text-inverse 而非硬编码 --we-base-white：accent 按钮文字要跟随主题的
+     accent 明暗反转（浅色主题 accent 深、白字；深色主题如 nocturne/neon-noir
+     accent 反而偏亮，需要深字才够对比度，硬编码白字在这些主题里会掉到 <3.2:1）。
+     组件也不该直接引用 A 层 --we-base-*，应走 B 层语义 token。 */
+  color: var(--we-color-text-inverse);
   background: var(--we-color-accent);
   border: 1px solid var(--we-color-accent-deep);
   border-radius: var(--we-radius-sm);
@@ -1087,7 +1094,8 @@
   margin-left: var(--we-space-sm);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
-  background: var(--we-color-border-default);
+  /* 实心徽标底色用 bg-muted，理由同 .we-entry-order-token */
+  background: var(--we-color-bg-muted);
   border-radius: var(--we-radius-md);
   padding: var(--we-space-xxs) var(--we-space-sm);
 }
@@ -2430,7 +2438,8 @@
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-full);
-  background: var(--we-color-border-default);
+  /* 实心徽标底色用 bg-muted，理由同 .we-entry-order-token */
+  background: var(--we-color-bg-muted);
   color: var(--we-color-text-tertiary);
   cursor: help;
 }
@@ -2675,7 +2684,8 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  color: var(--we-color-bg-canvas);
+  /* 见 tokens.css --we-color-avatar-text 注释：不要换回 bg-canvas / text-inverse */
+  color: var(--we-color-avatar-text);
   background: var(--avatar-bg);
 }
 

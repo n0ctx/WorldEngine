@@ -206,7 +206,8 @@ test('themes API 支持列表、切换、CSS、导入、导出、删除', async 
 
   const deleted = await ctx.request('/api/themes/route-theme', { method: 'DELETE' });
   assert.equal(deleted.status, 204);
-  assert.equal(ctx.sandbox.readConfig().ui.theme, 'classic-parchment');
+  // 回退目标是 backend/services/themes.js 的 DEFAULT_THEME_ID（生产默认主题），而非起始 sandbox 值。
+  assert.equal(ctx.sandbox.readConfig().ui.theme, 'nocturne');
 });
 
 // ─── daily-entries ──────────────────────────────────────────────────

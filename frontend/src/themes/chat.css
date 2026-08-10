@@ -66,7 +66,8 @@
   overflow: hidden;
   border-radius: var(--we-radius-full);
   background: var(--avatar-bg);
-  color: var(--we-color-bg-canvas);
+  /* 见 tokens.css --we-color-avatar-text 注释：不要换回 bg-canvas */
+  color: var(--we-color-avatar-text);
   font-weight: 700;
 }
 
@@ -237,7 +238,8 @@
 .we-message-content code {
   font-family: var(--we-font-mono);
   font-size: var(--we-text-sm);
-  background: var(--we-color-border-default);
+  /* 实心底色用 bg-muted，理由同 pages.css 的 .we-entry-order-token */
+  background: var(--we-color-bg-muted);
   padding: 0 var(--we-space-xs);
   border-radius: var(--we-radius-none);
   color: var(--we-color-text-secondary);

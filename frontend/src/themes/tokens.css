@@ -81,6 +81,11 @@
   --we-color-text-tertiary:  var(--we-base-ink-500);
   --we-color-text-inverse:   var(--we-base-white);
   --we-color-text-danger:    var(--we-base-vermilion-600);
+  /* 头像占位圈文字色：叠在 avatar.js 的固定哈希色板（--avatar-bg）上，
+     该色板本身不随主题变化、始终是中低明度色，因此这里恒定取浅色，
+     不能复用 text-inverse —— text-inverse 在深色主题里会为了「主色按钮文字」
+     场景反转成深色，套到头像色板上会导致深字压深底、初始字母不可读。 */
+  --we-color-avatar-text:    var(--we-base-white);
 
   /* 背景色 */
   --we-color-bg-canvas:   var(--we-base-paper-100);

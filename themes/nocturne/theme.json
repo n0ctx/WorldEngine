@@ -1,0 +1,8 @@
+{
+  "id": "nocturne",
+  "name": "夜航",
+  "version": "1.0.0",
+  "author": "WorldEngine",
+  "description": "深色沉浸主题：中性冷灰地面，单一低饱和主色，把颜色让给世界封面。",
+  "preview": { "paper": "#15181b", "accent": "#7f95a8", "ink": "#ebe8e3" }
+}

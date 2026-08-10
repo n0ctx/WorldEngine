@@ -1,7 +1,7 @@
 import { request } from './request.js';
 
 const BASE = '/api/themes';
-export const DEFAULT_THEME_ID = 'classic-parchment';
+export const DEFAULT_THEME_ID = 'nocturne';
 
 let activeThemeId = DEFAULT_THEME_ID;
 export function getActiveThemeId() {

@@ -25,7 +25,7 @@ const DEFAULT_ASSISTANT = {
 };
 
 const DEFAULT_UI = {
-  theme: 'classic-parchment',
+  theme: 'nocturne',
   font_size: 16,
   custom_css: '',
   show_thinking: true,
