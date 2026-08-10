@@ -1140,7 +1140,7 @@
   color: var(--we-page-canvas-fg);
 }
 
-/* ── WorldConfigPage：Prompt 条目区 ── */
+/* ── RulesPage：Prompt 条目区（复用自旧 WorldConfigPage 的条目行样式）── */
 
 .we-entry-section {
   margin-bottom: var(--we-space-2xl);
@@ -1229,6 +1229,18 @@
 
 .we-entry-section-row:hover {
   border-color: var(--we-color-gold);
+}
+
+/* 非拖拽场景（按分组筛选后的普通列表）：整行可点击选中查看详情，不是可拖拽项 */
+.we-entry-section-row--selectable {
+  cursor: pointer;
+}
+.we-entry-section-row--selectable:active {
+  cursor: pointer;
+}
+.we-entry-section-row.is-selected {
+  border-color: var(--we-color-accent);
+  box-shadow: inset 2px 0 0 var(--we-color-accent);
 }
 
 .we-entry-section-drag {
@@ -1340,7 +1352,8 @@
   height: 16px;
   border-radius: var(--we-radius-md);
   border: none;
-  background: var(--we-color-status-warning);
+  /* 全站唯一彩色是主色 accent；此前误用 status-warning（琥珀色）当激活色 */
+  background: var(--we-color-accent);
   position: relative;
   cursor: pointer;
   padding: 0;
@@ -3034,39 +3047,7 @@
 }
 
 /* ══════════════════════════════════════════
-   WorldConfigPage — 三栏布局
-══════════════════════════════════════════ */
-
-.we-config-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--we-space-md);
-  flex: 1;
-  min-height: 0;
-  margin-top: var(--we-space-sm);
-}
-
-.we-config-col {
-  padding: var(--we-space-lg) var(--we-space-md) var(--we-space-2xl);
-  overflow-y: auto;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-color-border-default) transparent;
-}
-.we-config-col::-webkit-scrollbar { width: 4px; }
-.we-config-col::-webkit-scrollbar-track { background: transparent; }
-.we-config-col::-webkit-scrollbar-thumb { background: var(--we-color-border-default); border-radius: var(--we-radius-full); }
-
-/* 列容器透明后，描述文字颜色跟随主题 entry-meta 语义色 */
-.we-config-col .we-entry-section-desc {
-  color: var(--we-entry-meta-color);
-}
-
-/* ══════════════════════════════════════════
-   StateWorkshopPage — 状态工作台
+   RulesPage — 这个世界的规则（设定条目 + 状态字段合一）
 ══════════════════════════════════════════ */
 
 .we-workshop {
@@ -3120,6 +3101,78 @@
   flex: 1;
   min-height: 0;
 }
+
+/* 三栏变体：左导航（窄）/ 中列表 / 右详情。
+   中栏是长期浏览区（条目/字段列表），右栏是编辑表单——两者应大致均分剩余空间，
+   中栏略宽一点方便扫读标题，而不是让右栏空着还占六成屏。 */
+.we-workshop-body--3col {
+  grid-template-columns: minmax(160px, 200px) minmax(300px, 1.1fr) minmax(340px, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .we-workshop-body--3col {
+    grid-template-columns: minmax(150px, 180px) minmax(260px, 1fr) minmax(300px, 1fr);
+  }
+}
+
+/* 窄屏放不下三栏并排：导航退化为横向 chips 条，列表与详情上下堆叠，
+   选中条目/字段后详情出现在列表下方，避免 overflow-x:hidden 把内容裁掉。 */
+@media (max-width: 860px) {
+  .we-workshop-body--3col {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .we-workshop-body--3col .we-workshop-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-y: visible;
+    gap: var(--we-space-sm);
+  }
+  .we-workshop-body--3col .we-workshop-nav-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .we-workshop-body--3col .we-workshop-nav-group-title {
+    width: 100%;
+  }
+  .we-workshop-body--3col .we-workshop-list {
+    max-height: 40vh;
+  }
+}
+
+.we-workshop-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-lg);
+  overflow-y: auto;
+  padding-right: var(--we-space-sm);
+}
+.we-workshop-nav-group { display: flex; flex-direction: column; gap: var(--we-space-xs); }
+.we-workshop-nav-group-title {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  padding: 0 var(--we-space-md);
+}
+.we-workshop-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-sm);
+  width: 100%;
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-lg);
+  color: var(--we-color-text-primary);
+  font-size: var(--we-text-sm);
+  transition: background var(--we-duration-fast);
+}
+.we-workshop-nav-item:hover { background: var(--we-color-bg-subtle); }
+.we-workshop-nav-item.is-active { background: var(--we-color-bg-subtle); box-shadow: inset 2px 0 0 var(--we-color-accent); }
+
+.we-workshop-list-actions { display: flex; gap: var(--we-space-xs); }
 
 .we-workshop-list {
   display: flex;
@@ -3226,6 +3279,58 @@
   opacity: 0.5;
   font-style: italic;
   padding: var(--we-space-md) 0;
+}
+
+/* 右栏空态：世界规则概览，代替一句灰字占满六成屏 */
+.we-rules-overview-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-lg);
+}
+.we-rules-overview-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 56px;
+}
+.we-rules-overview-stat-value {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  color: var(--we-color-text-primary);
+  line-height: 1.1;
+}
+.we-rules-overview-stat-label {
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  opacity: 0.75;
+}
+.we-rules-overview-order {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xs);
+  list-style: none;
+  padding: 0;
+  counter-reset: we-rules-order;
+}
+.we-rules-overview-order li {
+  counter-increment: we-rules-order;
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-primary);
+}
+.we-rules-overview-order li::before {
+  content: counter(we-rules-order);
+  flex-shrink: 0;
+  color: var(--we-color-text-tertiary);
+  font-size: var(--we-text-xs);
+  width: 1.2em;
+  text-align: right;
+}
+.we-rules-overview-order li.is-disabled {
+  color: var(--we-color-text-secondary);
+  opacity: 0.6;
 }
 
 .we-workshop-entry-link {

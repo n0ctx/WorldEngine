@@ -224,11 +224,11 @@ describe('CharactersPage', () => {
     await waitFor(() => expect(mocks.getWorldTimeline).toHaveBeenCalledTimes(2));
   });
 
-  it('世界规则入口卡点击后跳转到世界配置页', async () => {
+  it('世界规则入口卡点击后跳转到规则页', async () => {
     render(<CharactersPage />);
     await screen.findByText('1 条设定 · 2 个状态字段');
 
     fireEvent.click(screen.getByText('规则与状态'));
-    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/config');
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
   });
 });

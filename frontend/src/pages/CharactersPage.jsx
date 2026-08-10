@@ -701,7 +701,7 @@ export default function CharactersPage() {
             <button
               type="button"
               className="we-rules-entry-card"
-              onClick={() => navigate(`/worlds/${worldId}/config`)}
+              onClick={() => navigate(`/worlds/${worldId}/rules`)}
             >
               <div className="we-rules-entry-info">
                 <p className="we-rules-entry-label">规则与状态</p>

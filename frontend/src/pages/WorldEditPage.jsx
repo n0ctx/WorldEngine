@@ -239,9 +239,9 @@ export default function WorldEditPage() {
             <button
               type="button"
               className="we-workshop-entry-link"
-              onClick={() => navigate(`/worlds/${worldId}/state-workshop`)}
+              onClick={() => navigate(`/worlds/${worldId}/rules?tab=state`)}
             >
-              前往状态工作台 →
+              前往这个世界的规则 →
             </button>
           </p>
           <StateFieldList

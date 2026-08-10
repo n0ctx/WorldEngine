@@ -24,13 +24,17 @@ const PersonaEditPage = lazy(() => import('../../pages/PersonaEditPage'));
 const ChatPage = lazy(() => import('../../pages/ChatPage'));
 const SettingsPage = lazy(() => import('../../pages/SettingsPage'));
 const WritingSpacePage = lazy(() => import('../../pages/WritingSpacePage'));
-const WorldConfigPage = lazy(() => import('../../pages/WorldConfigPage'));
-const StateWorkshopPage = lazy(() => import('../../pages/StateWorkshopPage'));
+const RulesPage = lazy(() => import('../../pages/RulesPage'));
 const AssistantPanel = lazy(() => import('../features/assistant/AssistantPanelHost.jsx'));
 
-function RedirectToConfig() {
+function RedirectToRules() {
   const { worldId } = useParams();
-  return <Navigate to={`/worlds/${worldId}/config`} replace />;
+  return <Navigate to={`/worlds/${worldId}/rules`} replace />;
+}
+
+function RedirectToRulesState() {
+  const { worldId } = useParams();
+  return <Navigate to={`/worlds/${worldId}/rules?tab=state`} replace />;
 }
 
 function RouteFallback() {
@@ -121,10 +125,9 @@ export default function AppRouter() {
           <Route path="/characters/:characterId/edit" element={<CharacterEditPage />} />
           <Route path="/characters/:characterId/chat" element={<ChatPage />} />
           <Route path="/worlds/:worldId/writing" element={<WritingSpacePage />} />
-          <Route path="/worlds/:worldId/config" element={<WorldConfigPage />} />
-          <Route path="/worlds/:worldId/state-workshop" element={<StateWorkshopPage />} />
-          <Route path="/worlds/:worldId/build" element={<RedirectToConfig />} />
-          <Route path="/worlds/:worldId/state" element={<RedirectToConfig />} />
+          <Route path="/worlds/:worldId/rules" element={<RulesPage />} />
+          <Route path="/worlds/:worldId/config" element={<RedirectToRules />} />
+          <Route path="/worlds/:worldId/state-workshop" element={<RedirectToRulesState />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </Suspense>

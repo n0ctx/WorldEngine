@@ -270,11 +270,11 @@ export default function TopBar() {
           <span className="we-topbar-sep">·</span>
 
           <button
-            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}/config` ? ' we-topbar-item--active' : ''}`}
-            onClick={() => navigate(`/worlds/${effectiveWorldId}/config`)}
-            aria-label="进入配置页"
+            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}/rules` ? ' we-topbar-item--active' : ''}`}
+            onClick={() => navigate(`/worlds/${effectiveWorldId}/rules`)}
+            aria-label="进入规则页"
           >
-            配置
+            规则
           </button>
         </>
       )}

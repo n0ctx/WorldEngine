@@ -269,8 +269,10 @@ test('GET /api/worlds/:worldId/timeline 会话所有消息洗干净后都为空�
 
 test('GET /api/worlds/:worldId/timeline writing 会话按当前激活的 persona 过滤，不显示其他 persona 的写作会话', async () => {
   const world = insertWorld(ctx.sandbox.db, { name: '时间线-多玩家世界' });
-  const personaA = insertPersona(ctx.sandbox.db, world.id, { name: '玩家A' });
-  const personaB = insertPersona(ctx.sandbox.db, world.id, { name: '玩家B' });
+  // created_at 必须显式错开：回退查询按 `created_at ASC, id ASC` 取第一条，
+  // 两个 persona 落在同一毫秒时由随机 UUID 决胜，测试会间歇性失败。
+  const personaA = insertPersona(ctx.sandbox.db, world.id, { name: '玩家A', created_at: 1000 });
+  const personaB = insertPersona(ctx.sandbox.db, world.id, { name: '玩家B', created_at: 2000 });
 
   // 世界未显式设置 active_persona_id 时，回退到最早创建的 persona（personaA）
   const sessionA = insertSession(ctx.sandbox.db, {
