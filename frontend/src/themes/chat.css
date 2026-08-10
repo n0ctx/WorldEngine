@@ -52,9 +52,15 @@
 .we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .we-prose-message-list {
-  max-width: 72ch; /* 黄金阅读宽度 65–75 字符，强化叙事沉浸感（原 1100px 单行过宽）*/
+  max-width: var(--we-text-width-prose); /* 叙事正文舒适阅读宽度：中文约 34–40 字/行 */
   margin: 0 auto;
   padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-xl);
+}
+
+/* 会话页（非写作模式）消息流：与写作模式共用同一读宽 token，居中定宽 */
+.we-message-list {
+  max-width: var(--we-text-width-prose);
+  margin: 0 auto;
 }
 
 .we-sidebar-avatar,
@@ -117,7 +123,8 @@
 .we-message-user {
   display: flex;
   flex-direction: column;
-  padding: var(--we-space-xs) 0 var(--we-space-md);
+  /* 玩家行动：上下留白明显大于段间距（0.5em ≈ 8px），在阅读流里读起来像独立的一拍 */
+  padding: var(--we-space-lg) 0 var(--we-space-xl);
 }
 
 .we-message-assistant {
@@ -127,33 +134,34 @@
 }
 
 /* ── Bubble containers ─────────────────────────────────── */
+/* AI 叙事就是页面正文本身：不设背景/边框/圆角，段间距靠外层 row 的 padding 撑开。 */
 
 .we-message-bubble-user {
-  width: fit-content;
-  max-width: 560px;
-  background: var(--we-color-bg-surface);
-  border-right: 2.5px solid var(--we-color-status-warning);
-  padding: 10px 14px;
-  border-radius: var(--we-radius-sm);
+  width: 100%;
+  border-left: 2px solid var(--we-color-accent);
+  padding: var(--we-space-xxs) var(--we-space-md);
   font-family: var(--we-font-prose);
   font-size: var(--we-text-prose);
   line-height: var(--we-leading-prose);
-  color: var(--we-color-text-primary);
-  box-shadow: var(--we-shadow-paper-indent);
 }
 
 .we-message-bubble-assistant {
-  width: fit-content;
-  max-width: 680px;
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  padding: var(--we-space-md) var(--we-space-lg);
-  border-radius: var(--we-radius-sm);
+  width: 100%;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-prose);
   line-height: var(--we-leading-prose);
   color: var(--we-color-text-primary);
-  box-shadow: var(--we-shadow-paper-lift);
+}
+
+/* 编辑态：唯一保留的「框」，让用户清楚知道自己在改哪一段 */
+.we-message-bubble--editing {
+  background: var(--we-color-bg-surface);
+  border-radius: var(--we-radius-sm);
+  padding: var(--we-space-md) var(--we-space-lg);
+  box-shadow:
+    var(--we-shadow-paper-lift),
+    inset 0 0 0 1px var(--we-color-accent),
+    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
 }
 
 /* ── Speaker Label ─────────────────────────────────────── */
@@ -180,8 +188,6 @@
 
 .we-message-user .we-message-label {
   color: var(--we-color-status-warning);
-  text-align: right;
-  justify-content: flex-end;
 }
 .we-message-assistant .we-message-label { color: var(--we-color-text-tertiary); }
 
@@ -193,6 +199,11 @@
   line-height: var(--we-leading-prose);
   /* 微提亮墨色：近黑正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
   color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
+}
+
+/* 玩家行动：文字颜色比 AI 正文低一档，靠左侧细线与缩进区分，而非气泡 */
+.we-message-user .we-message-content {
+  color: var(--we-color-text-secondary);
 }
 
 .we-message-content p      { margin-bottom: 0.5em; }
@@ -446,11 +457,9 @@
 
 /* ── Token Usage ────────────────────────────────────────── */
 
-@keyframes we-meta-reveal {
-  from { opacity: 0; }
-  to   { opacity: 0.65; }
-}
-
+/* 开发调试信息，默认压到几乎不可见，只在 hover 该轮消息时完全显现（见下方 hover 规则）。
+   不用 animation：animation 的终值会以「动画层」的优先级钉死 opacity，盖过下面的
+   :hover 规则（即使 hover 选择器权重更高），改用 transition 让 hover 能正常接管。 */
 .we-token-usage {
   display: flex;
   align-items: baseline;
@@ -458,13 +467,13 @@
   font-size: 0.72em;
   color: var(--we-color-text-secondary);
   margin-top: 4px;
-  opacity: 0.65;
+  opacity: 0.15;
   /* mono 字体族普遍不含中文字形（各主题包覆盖 --we-font-mono 时也未加中文回退），
      数字/单位走等宽对齐，"命中"/"写入" 等中文标签逐字形回退到 --we-font-prose，
      避免落入无主题控制的系统默认字体 */
   font-family: var(--we-font-mono), var(--we-font-prose);
   font-variant-numeric: tabular-nums;
-  animation: we-meta-reveal var(--we-duration-normal) var(--we-easing-sharp) both;
+  transition: opacity var(--we-duration-fast);
 }
 
 .we-token-usage > span {
@@ -500,18 +509,16 @@
   gap: 14px; /* design exact */
 }
 
-.we-message-user .we-message-actions {
-  justify-content: flex-end;
-}
-
-.we-message-assistant .we-message-actions,
-.we-message-assistant .we-token-usage {
-  max-width: 680px;
-}
-
-.we-message-row:hover .we-message-actions {
+.we-message-row:hover .we-message-actions,
+.we-message-row:focus-within .we-message-actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* :focus-within 让键盘用户 Tab 到操作按钮时也能看到 token 计数，不依赖鼠标悬浮 */
+.we-message-row:hover .we-token-usage,
+.we-message-row:focus-within .we-token-usage {
+  opacity: 0.85;
 }
 
 .we-message-actions button,
@@ -660,13 +667,6 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-
-.we-message-bubble--editing {
-  box-shadow:
-    var(--we-shadow-paper-lift),
-    inset 0 0 0 1px var(--we-color-accent),
-    inset 0 0 0 3px color-mix(in srgb, var(--we-color-accent) 14%, transparent);
 }
 
 .we-message-edit__textarea {
@@ -864,14 +864,16 @@
 .we-writing-prose strong { font-weight: 700; font-synthesis: weight; }
 .we-writing-prose em     { font-style: italic; font-synthesis: style; }
 
+/* 玩家行动：与会话页 .we-message-bubble-user 同规格的左线 + 缩进 + 降一档文字颜色，
+   写作模式与会话页保持同一套视觉语言 */
 .we-writing-annotation {
-  border-left: 1.5px solid var(--we-color-accent);
-  padding-left: 12px;
+  border-left: 2px solid var(--we-color-accent);
+  padding-left: var(--we-space-md);
   font-family: var(--we-font-display);
   font-style: italic;
   font-size: var(--we-text-sm);
-  color: var(--we-color-text-tertiary);
-  margin: 1em 0 0.6em;
+  color: var(--we-color-text-secondary);
+  margin: var(--we-space-lg) 0 var(--we-space-xl);
   animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
@@ -884,9 +886,18 @@
 }
 
 .we-writing-annotation:hover .we-message-actions,
-.we-writing-prose:hover .we-message-actions {
+.we-writing-prose:hover .we-message-actions,
+.we-writing-annotation:focus-within .we-message-actions,
+.we-writing-prose:focus-within .we-message-actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+.we-writing-annotation:hover .we-token-usage,
+.we-writing-prose:hover .we-token-usage,
+.we-writing-annotation:focus-within .we-token-usage,
+.we-writing-prose:focus-within .we-token-usage {
+  opacity: 0.85;
 }
 
 .we-writing-think {
@@ -1332,18 +1343,11 @@
   gap: var(--we-space-md);
 }
 
-.we-message-row-inner--user {
-  justify-content: flex-end;
-}
-
-.we-message-body {
+/* 玩家行动与 AI 叙事共用同一套左对齐结构，靠左侧细线 + 缩进区分，不再镜像成对话气泡 */
+.we-message-body,
+.we-message-body--assistant {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  min-width: 0;
-}
-
-.we-message-body--assistant {
   flex: 1;
   min-width: 0;
   align-items: flex-start;

@@ -397,7 +397,7 @@ const MessageList = forwardRef(function MessageList({
           )}
         </div>
       ) : (
-        <div>
+        <div className="we-message-list">
           <AnimatePresence mode="popLayout">
             {(() => {
               const items = [];

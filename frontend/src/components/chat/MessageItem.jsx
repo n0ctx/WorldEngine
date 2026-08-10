@@ -338,7 +338,8 @@ export default function MessageItem({
         transition={transitions.ink}
         exit={{ opacity: 0, y: -4, transition: { duration: 0.18 } }}
       >
-        <div className="we-message-row-inner we-message-row-inner--user">
+        <div className="we-message-row-inner">
+          <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
           <div className="we-message-body">
             <div className="we-message-label">
               {speakerName}
@@ -396,7 +397,6 @@ export default function MessageItem({
               )}
             </div>
           </div>
-          <CharacterSeal character={persona} size={32} color="var(--we-color-status-warning)" />
         </div>
       </MotionDiv>
     );
