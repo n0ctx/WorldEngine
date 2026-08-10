@@ -46,6 +46,8 @@ allowed keys（**仅 3 个**）：
 
 仅填写**已存在**的 `{{user}}` 状态字段值。不能创建字段、不能删除字段，新字段需通过 world-card 任务管理。
 
+> 每个新建世界的玩家层已自带 `personality`(性格/list)、`age`(年龄/number)、`appearance`(外貌/list)、`outfit`(穿着/list)、`identity`(身份/list) 五个默认字段（完整清单与禁止重复创建同义字段的规则见 `WORLDCARD.md` §「默认状态字段」）。填这些字段的值时注意类型：`age` 是 number，不要写成文本描述；`personality`/`appearance`/`outfit`/`identity` 都是 list，`value_json` 要写数组（如 `identity: ["流浪医师","前军医"]`），不要写成单个字符串。
+
 ### 格式
 
 ```json

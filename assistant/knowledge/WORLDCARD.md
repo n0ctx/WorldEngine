@@ -162,6 +162,37 @@ update / delete：
 
 > character-card / persona-card **不允许** stateFieldOps。
 
+### 默认状态字段（新建世界自带，禁止重复创建）
+
+新建世界时，`createWorld()` 已自动落库以下状态字段（定义见 `backend/utils/default-state-fields.js`）。落库后它们就是普通字段——用户可在字段管理界面改名/改类型/删除，写卡助手也可以对它们发起 `update` / `delete`，但**禁止再创建语义重复的新字段**。
+
+| 层级 | field_key | label | type | update_mode | 备注 |
+|---|---|---|---|---|---|
+| world | `location` | 地点 | text | llm_auto | |
+| world | `weather` | 天气 | enum | llm_auto | 选项：晴/多云/阴/雨/雪/雾/风暴 |
+| world | `diary_time` | 时间 | datetime | llm_auto 或 system_rule | 仅日记功能开启时存在，sort_order 固定 0 |
+| persona **与** character（两层字段定义相同，各层各自独立取值） | `personality` | 性格 | list | manual | |
+| 同上 | `age` | 年龄 | number | manual | |
+| 同上 | `appearance` | 外貌 | list | manual | |
+| 同上 | `outfit` | 穿着 | list | llm_auto | |
+| 同上 | `identity` | 身份 | list | manual | 身份/职业/头衔 |
+
+> 不含姓名字段——角色/玩家表本身已有 `name` 列，不要为姓名再建状态字段。
+
+**禁止创建同义重复字段**：以下常见同义词已被默认字段覆盖，命中即禁止另建，应复用已有 `field_key`：
+
+- 服装 / 衣着 / 装扮 / 穿搭 → 已有 `outfit`（穿着，list）
+- 外形 / 长相 / 容貌 / 相貌 → 已有 `appearance`（外貌，list）
+- 职业 / 头衔 / 身份背景 / 身份标签 → 已有 `identity`（身份，list）
+- 位置 / 所在地 / 场景 / 当前地点 → 已有 `location`（地点，text）
+- 气候 / 天色 / 天候 → 已有 `weather`（天气，enum）
+- 性情 / 脾气 / 秉性 → 已有 `personality`（性格，list）
+- 岁数 / 年岁 → 已有 `age`（年龄，number）
+
+**需要调整默认字段时**（如某世界"天气"枚举选项不合适、非人类世界不需要"年龄"），走 `stateFieldOps` 的 `update` / `delete` 改这些已有字段，不要另起一个新 `field_key`。
+
+只应新增**默认字段未覆盖的、世界特有**的字段：如 HP、金币、好感度、任务阶段、修为、声望、势力值等。
+
 ### 7 种 type
 
 > 选 type 前按 **boolean → number → datetime → enum → list → table → text** 顺序逐项排除，不允许跳步。默认禁止 `text`，必须先排除其他 6 种。
@@ -171,7 +202,7 @@ update / delete：
 | `boolean` | 二元状态：是否死亡、是否已解锁、是否入伙 | `已入伙: false` | 多选项状态（用 enum）|
 | `number` | 纯数字：HP、金币、好感度、侵蚀度、声望、进度% | `HP: 85` | 文本描述、有固定选项的状态 |
 | `datetime` | 可比较的时间点：游戏内当前日期时间、剧情时间线、约定截止时间 | `当前时间: "1000-03-15T14:30"` | 时长（用 number）；模糊时段（用 text/enum）|
-| `enum` | 有固定可枚举选项：天气、剧情阶段、情绪、关系状态 | `天气: 酸雨/晴天/暴雪` | 数量无限或自由填写 |
+| `enum` | 有固定可枚举选项：剧情阶段、情绪、关系状态 | `情绪: 平静/愤怒/悲伤` | 数量无限或自由填写 |
 | `list` | 可增减集合：背包、清单、已知线索、激活任务 | `背包: ["火把", "解毒药"]` | 单值字段（用 enum/text）|
 | `table` | 一组同结构的并列数值：六维属性、攻防速、左右手装备耐久 | `三围: {atk:30, def:20, spd:15}` | 列数会变化的数据（用 list）；非数值字段 |
 | `text` | 真正需要自由描述的状态：当前伤势详情 | `伤势描述: "右臂骨折"` | 一切可用前 6 种覆盖的场景 |
@@ -267,8 +298,8 @@ create（table 类型示例）：
 
 1. **基础参数**：`name` / `description` / `temperature` / `max_tokens`
 2. **核心框架条目**（1-2 条 `always`）：世界观概述、核心规则；精炼、稳定、不堆砌
-3. **基础状态字段**（建议覆盖三层、覆盖多种 type）：
-   - 世界层：天气(enum)、剧情阶段(enum)、白天/黑夜(boolean)
+3. **世界特有状态字段**（三层默认字段已由系统自动创建，见 stateFieldOps 章节「默认状态字段」；这里只补默认字段未覆盖的、世界特有的字段，禁止重复创建同义字段）：
+   - 世界层：剧情阶段(enum)、白天/黑夜(boolean)
    - {{user}} 层：HP/金币(number)、背包(list)
    - {{char}} 层：好感度(number)、任务状态(enum)、是否入伙(boolean)
 4. **Lore 条目**（3-8 条 `keyword` 或 `llm`）：地点、组织、势力、历史事件、文化习俗
@@ -306,3 +337,4 @@ create（table 类型示例）：
 - `trigger_type:"keyword"` 或 `"state"` 上填 `token:0`（被后端归一为 1，cached layer 仅 `always` 可用）
 - 输出 `position:"system"` / `position:"post"`（已废弃）
 - 在 `changes` 输出 `system_prompt` / `post_prompt`
+- 世界已有默认字段 `outfit`（穿着），还创建一个 `clothing`/"服装" 字段（语义重复，应复用或 `update` 已有字段，见「默认状态字段」）
