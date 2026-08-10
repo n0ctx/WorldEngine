@@ -11,12 +11,6 @@ import ConfirmModal from '../components/ui/ConfirmModal';
 import Icon from '../components/ui/Icon.jsx';
 import { log } from '../core/utils/logger.js';
 
-function getWorldGridColumns(width = window.innerWidth) {
-  if (width <= 640) return 1;
-  if (width <= 960) return 2;
-  return 3;
-}
-
 export default function WorldsPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +23,6 @@ export default function WorldsPage() {
   const [exportingWorldId, setExportingWorldId] = useState(null);
   const [importingWorld, setImportingWorld] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [gridColumns, setGridColumns] = useState(() => getWorldGridColumns());
   const worldImportRef = useRef(null);
 
   async function loadWorlds() {
@@ -61,14 +54,6 @@ export default function WorldsPage() {
     window.addEventListener('we:world-updated', h);
     return () => window.removeEventListener('we:world-updated', h);
   }, []);
-
-  useEffect(() => {
-    const updateGridColumns = () => setGridColumns(getWorldGridColumns());
-    window.addEventListener('resize', updateGridColumns);
-    return () => window.removeEventListener('resize', updateGridColumns);
-  }, []);
-
-  const visibleColumns = Math.max(1, Math.min(gridColumns, worlds.length || 1));
 
   function handleEnterWorld(world) {
     setCurrentWorldId(world.id);
@@ -125,8 +110,7 @@ export default function WorldsPage() {
       {/* 页头 */}
       <div className="we-worlds-header">
         <div>
-          <h1 className="we-worlds-title">卷宗书架</h1>
-          <p className="we-worlds-subtitle">BOOKSHELF</p>
+          <h1 className="we-worlds-title">书架</h1>
         </div>
         <div className="we-worlds-header-actions">
           <button
@@ -152,130 +136,118 @@ export default function WorldsPage() {
         </div>
       </div>
 
-      <section className="we-worlds-bookshelf" aria-label="世界卷宗书架">
-        <div className="we-worlds-bookshelf-inner">
-          {/* 内容区 */}
-          {loading ? (
-            <div className="we-worlds-bookshelf-state">
-              <div className="we-worlds-loading">检索卷宗中…</div>
-            </div>
-          ) : loadError ? (
-            <div className="we-worlds-bookshelf-state">
-              <div className="we-worlds-empty">
-                <p className="we-worlds-empty-text">世界列表读取失败</p>
-                <p className="we-worlds-subtitle we-worlds-error-detail">{loadError}</p>
-                <button className="we-worlds-empty-btn" onClick={loadWorlds}>
-                  重试
-                </button>
-              </div>
-            </div>
-          ) : worlds.length === 0 ? (
-            <div className="we-worlds-bookshelf-state">
-              <div className="we-worlds-empty">
-                <p className="we-worlds-empty-text">暂无世界记录</p>
-                <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
-                  新建世界
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              className="we-worlds-grid-stack"
-              style={{
-                '--we-worlds-grid-columns': gridColumns,
-                '--we-worlds-visible-columns': visibleColumns,
-              }}
-            >
-              <SortableGrid
-                items={worlds}
-                onReorderEnd={handleReorderEnd}
-                className="we-worlds-grid"
-                renderItem={(world, { setNodeRef, style, isDragging, attributes, listeners }) => (
-                  <div
-                    ref={setNodeRef}
-                    style={style}
-                    {...attributes}
-                    {...listeners}
-                    className="we-world-card-shell"
-                  >
-                    <div
-                      data-dragging={isDragging || undefined}
-                      className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ''}`}
-                      onClick={() => { if (!isDragging) handleEnterWorld(world); }}
-                    >
-                      {world.cover_path && (
-                        <>
-                          <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
-                          <div className="we-world-card-overlay" />
-                        </>
-                      )}
-                      {!world.cover_path && (
-                        <>
-                          <div
-                            className="we-world-card-emblem"
-                            aria-hidden="true"
-                            style={{ '--avatar-bg': getAvatarColor(world.id) }}
-                          >
-                            {Array.from(world.name || '卷')[0]}
-                          </div>
-                          <div className="we-world-card-seal" style={{ '--avatar-bg': getAvatarColor(world.id) }} />
-                        </>
-                      )}
-                      <h3 className="we-world-card-name">{world.name}</h3>
-                      <p className={`we-world-card-desc${!world.description ? ' we-world-card-desc-empty' : ''}`}>
-                        {world.description || '暂无描述'}
-                      </p>
-                      <div className="we-world-card-meta">
-                        <span>{world.character_count} 角色</span>
-                        <span>·</span>
-                        <span>{relativeTime(world.updated_at)}</span>
-                      </div>
-
-                      {/* hover 操作按钮 */}
-                      <div
-                        className="we-world-card-actions"
-                        onClick={(e) => e.stopPropagation()}
-                        onPointerDown={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          className="we-world-card-action-btn"
-                          onClick={(e) => handleExportWorld(world, e)}
-                          disabled={exportingWorldId === world.id}
-                          title="导出世界卡"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          className="we-world-card-action-btn"
-                          onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
-                          title="编辑"
-                          aria-label="编辑世界"
-                        >
-                          <Icon size={16}>
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                          </Icon>
-                        </button>
-                        <button
-                          className="we-world-card-action-btn danger"
-                          onClick={() => setDeletingWorld(world)}
-                          title="删除"
-                          aria-label="删除世界"
-                        >
-                          <Icon size={16}>
-                            <line x1="18" y1="6" x2="6" y2="18" />
-                            <line x1="6" y1="6" x2="18" y2="18" />
-                          </Icon>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              />
-            </div>
-          )}
+      {/* 内容区：三态或网格，不再套装饰性书架框 */}
+      {loading ? (
+        <div className="we-worlds-state">
+          <div className="we-worlds-loading">检索中…</div>
         </div>
-      </section>
+      ) : loadError ? (
+        <div className="we-worlds-state">
+          <div className="we-worlds-empty">
+            <p className="we-worlds-empty-text">世界列表读取失败</p>
+            <p className="we-worlds-subtitle we-worlds-error-detail">{loadError}</p>
+            <button className="we-worlds-empty-btn" onClick={loadWorlds}>
+              重试
+            </button>
+          </div>
+        </div>
+      ) : worlds.length === 0 ? (
+        <div className="we-worlds-state">
+          <div className="we-worlds-empty">
+            <p className="we-worlds-empty-text">暂无世界记录</p>
+            <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
+              新建世界
+            </button>
+          </div>
+        </div>
+      ) : (
+        <SortableGrid
+          items={worlds}
+          onReorderEnd={handleReorderEnd}
+          className="we-worlds-grid"
+          renderItem={(world, { setNodeRef, style, isDragging, attributes, listeners }) => {
+            // 大格选取：worlds 列表已由后端按 sort_order → created_at 排序，即用户手工拖拽的顺序。
+            // 直接取列表首位而非另算 updated_at 最新项——手工排序表达的是用户主观的重要性，
+            // 理应优先于系统猜的"最近打开"；且这样大格位置天然随拖拽结果同步更新，无需额外同步逻辑。
+            const isFeature = world.id === worlds[0]?.id;
+            return (
+              <div
+                ref={setNodeRef}
+                style={style}
+                {...attributes}
+                {...listeners}
+                className={`we-world-card-shell${isFeature ? ' we-world-card-shell--feature' : ''}`}
+              >
+                <div
+                  data-dragging={isDragging || undefined}
+                  className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
+                  onClick={() => { if (!isDragging) handleEnterWorld(world); }}
+                >
+                  {world.cover_path ? (
+                    <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />
+                  ) : (
+                    <div
+                      className="we-world-card-block"
+                      aria-hidden="true"
+                      style={{ '--avatar-bg': getAvatarColor(world.id) }}
+                    />
+                  )}
+                  <div className="we-world-card-overlay" />
+                  <h3 className="we-world-card-name">{world.name}</h3>
+                  {/* 没有描述就不渲染这一行。"暂无描述" 不提供任何信息，
+                      而真实描述是 hover 才浮现的，占位常驻会让最没内容的卡最吵。 */}
+                  {world.description ? (
+                    <p className="we-world-card-desc">{world.description}</p>
+                  ) : null}
+                  <div className="we-world-card-meta">
+                    <span>{world.character_count} 角色</span>
+                    <span>·</span>
+                    <span>{relativeTime(world.updated_at)}</span>
+                  </div>
+
+                  {/* hover 操作按钮 */}
+                  <div
+                    className="we-world-card-actions"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      className="we-world-card-action-btn"
+                      onClick={(e) => handleExportWorld(world, e)}
+                      disabled={exportingWorldId === world.id}
+                      title="导出世界卡"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className="we-world-card-action-btn"
+                      onClick={() => navigate(`/worlds/${world.id}/edit`, { state: { backgroundLocation: location } })}
+                      title="编辑"
+                      aria-label="编辑世界"
+                    >
+                      <Icon size={16}>
+                        <path d="M12 20h9" />
+                        <path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                      </Icon>
+                    </button>
+                    <button
+                      className="we-world-card-action-btn danger"
+                      onClick={() => setDeletingWorld(world)}
+                      title="删除"
+                      aria-label="删除世界"
+                    >
+                      <Icon size={16}>
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </Icon>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }}
+        />
+      )}
 
       {deletingWorld && (
         <ConfirmModal

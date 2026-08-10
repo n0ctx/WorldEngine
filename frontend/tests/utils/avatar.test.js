@@ -4,7 +4,7 @@ import { getAvatarColor, getAvatarUrl } from '../../src/core/utils/avatar.js';
 
 describe('avatar utils', () => {
   it('空 id 使用默认颜色，同一 id 颜色稳定', () => {
-    expect(getAvatarColor()).toBe('#a23b2e');
+    expect(getAvatarColor()).toBe('hsl(0, 42%, 36%)');
     expect(getAvatarColor('char-1')).toBe(getAvatarColor('char-1'));
     expect(getAvatarColor('char-1')).not.toBe(getAvatarColor('char-2'));
   });

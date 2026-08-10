@@ -52,52 +52,11 @@
   margin-bottom: calc(-1 * var(--we-space-xs));
 }
 
-.we-worlds-bookshelf {
-  position: relative;
-  border-radius: calc(var(--we-card-radius) + 4px);
-  padding: clamp(var(--we-space-lg), 2.3vw, var(--we-space-2xl)) clamp(var(--we-space-lg), 2.2vw, var(--we-space-2xl)) clamp(var(--we-space-lg), 2.2vw, var(--we-space-2xl));
-  background: var(--we-bookshelf-frame-bg);
-  border: 1px solid var(--we-bookshelf-frame-border);
-  box-shadow: var(--we-bookshelf-frame-shadow);
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.we-worlds-bookshelf::before {
-  content: "";
-  position: absolute;
-  inset: 12px;
-  border-radius: calc(var(--we-card-radius) + 1px);
-  background: var(--we-bookshelf-back-panel-bg);
-  box-shadow:
-    inset 0 1px 0 var(--we-bookshelf-frame-glow),
-    inset 0 0 0 1px var(--we-bookshelf-back-panel-border),
-    inset 0 24px 40px color-mix(in srgb, var(--we-bookshelf-frame-vignette) 80%, transparent),
-    inset 0 -24px 40px color-mix(in srgb, var(--we-bookshelf-frame-vignette) 90%, transparent);
-  pointer-events: none;
-}
-
-.we-worlds-bookshelf::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    radial-gradient(circle at top center, color-mix(in srgb, var(--we-bookshelf-frame-glow) 90%, transparent), transparent 48%),
-    radial-gradient(circle at center, transparent 55%, color-mix(in srgb, var(--we-bookshelf-frame-vignette) 85%, transparent) 100%);
-  pointer-events: none;
-}
-
-.we-worlds-bookshelf-inner {
-  position: relative;
-  z-index: var(--we-z-card-overlay);
-  min-height: 320px;
-}
-
-.we-worlds-bookshelf-state {
+/* 三态（加载 / 错误 / 空）容器：拆掉书架框后直接挂在页面上，不再嵌套 */
+.we-worlds-state {
   min-height: 320px;
   padding: clamp(var(--we-space-lg), 2.2vw, var(--we-space-2xl));
-  border-radius: calc(var(--we-card-radius) + 2px);
+  border-radius: var(--we-card-radius);
   background: var(--we-bookshelf-empty-bg);
   border: 1px solid var(--we-bookshelf-empty-border);
 }
@@ -128,34 +87,34 @@
   --we-worlds-grid-gap-x: clamp(var(--we-space-lg), 2vw, var(--we-space-2xl));
   --we-worlds-grid-gap-y: var(--we-space-lg);
   display: grid;
-  grid-template-columns: repeat(var(--we-worlds-grid-columns, 3), minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   column-gap: var(--we-worlds-grid-gap-x);
   row-gap: var(--we-worlds-grid-gap-y);
   width: 100%;
-  max-width: 100%;
-  margin: 0 auto;
   align-items: start;
-  position: relative;
-  z-index: var(--we-z-card-overlay);
-}
-
-.we-worlds-grid-stack {
-  position: relative;
-  --we-worlds-card-max-width: 560px;
-  max-width: min(
-    100%,
-    calc(
-      var(--we-worlds-visible-columns, 1) * var(--we-worlds-card-max-width) +
-      (max(var(--we-worlds-visible-columns, 1) - 1, 0) * var(--we-worlds-grid-gap-x))
-    )
-  );
-  margin: 0 auto;
   padding: 0 0 var(--we-space-lg);
 }
 
 .we-world-card-shell {
   width: 100%;
   touch-action: none;
+}
+
+/* 最近打开（或用户拖拽排序后的第一位）世界：占 2×2 大格，成为视线落点 */
+.we-world-card-shell--feature {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+/* 排序期间把网格拍平成等大格。dnd-kit 的 rectSortingStrategy 按等大矩形推算
+   每张卡的目标位移，网格里混着跨行跨列的大格时算出来的位置是错的，会看到卡片
+   瞬移。排序时统一尺寸既修掉这个错位，也让「我在排第几位」更好判断。 */
+.we-worlds-grid[data-sorting] .we-world-card-shell--feature {
+  grid-column: span 1;
+  grid-row: span 1;
+}
+.we-worlds-grid[data-sorting] .we-world-card--feature {
+  aspect-ratio: 16 / 10;
 }
 
 .we-world-card {
@@ -175,6 +134,13 @@
   margin-bottom: 0;
 }
 
+/* 无封面卡：信息量只有标题一行，等高等宽会让全书架里内容最少的卡占最大视觉面积
+   （书架下半屏因此显得又空又沉）。压低无封面卡的行高，让视觉重量与信息量匹配。
+   只走「收窄」这一个方向，不叠加加纹理、放大标题这类给空卡加戏的做法。 */
+.we-world-card--tinted:not(.we-world-card--feature) {
+  aspect-ratio: 2.15;
+}
+
 .we-world-card:hover {
   transform: var(--we-card-hover-transform);
   box-shadow: var(--we-card-hover-shadow);
@@ -185,50 +151,20 @@
   box-shadow: var(--we-card-hover-shadow);
 }
 
-.we-world-card:not(.we-world-card--has-cover) {
-  background: var(--we-bookshelf-card-plain-bg);
-  border: var(--we-bookshelf-card-plain-border);
-}
-
 .we-world-card[data-dragging]:hover {
   transform: none;
 }
 
-.we-world-card:hover .we-world-card-actions {
+.we-world-card:hover .we-world-card-actions,
+.we-world-card:focus-within .we-world-card-actions {
   opacity: 1;
 }
 
 /* 拖拽排序放下动画期间禁用 opacity 过渡，防止 hover 状态因 FLIP 位移动画暂时丢失而闪烁 */
 .we-worlds-grid[data-dropping] .we-world-card-desc,
+.we-worlds-grid[data-dropping] .we-world-card-meta,
 .we-worlds-grid[data-dropping] .we-world-card-actions {
   transition: none;
-}
-
-.we-world-card-seal {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--avatar-bg);
-}
-
-/* 无封面卷宗：用世界名首字 + 印泥底色做"卷宗封面"水印，避免纯色卡显空 */
-.we-world-card-emblem {
-  position: absolute;
-  right: -0.12em;
-  bottom: -0.28em;
-  font-family: var(--we-font-display);
-  font-size: 8.5rem;
-  line-height: 1;
-  font-weight: 600;
-  color: var(--avatar-bg);
-  opacity: 0.16;
-  user-select: none;
-  pointer-events: none;
-  z-index: var(--we-z-card-bg);
 }
 
 .we-world-card-bg {
@@ -237,6 +173,17 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: var(--we-z-card-bg);
+}
+
+/* 无封面世界：低饱和色块（世界名哈希取色，压暗一档）取代原来的幽灵水印 + 圆点
+   混合比从 45/55 提到 62/38：旧比例把色相压得太暗，邻近哈希色相在深色底上
+   进一步被同化到几乎同色；提高 avatar-bg 权重以保留可辨识的色相/明度差。 */
+.we-world-card-block {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--avatar-bg) 62%, var(--we-color-bg-inverse) 38%);
   z-index: var(--we-z-card-bg);
 }
 
@@ -260,25 +207,27 @@
   -webkit-backdrop-filter: var(--we-card-overlay-hover-backdrop-filter);
 }
 
-.we-world-card--has-cover .we-world-card-seal,
 .we-world-card--has-cover .we-world-card-name,
-.we-world-card--has-cover .we-world-card-desc {
+.we-world-card--has-cover .we-world-card-desc,
+.we-world-card--tinted .we-world-card-name,
+.we-world-card--tinted .we-world-card-desc {
   position: relative;
   z-index: var(--we-z-card-content);
-}
-
-.we-world-card--has-cover .we-world-card-actions {
-  z-index: var(--we-z-card-content);
-}
-
-.we-world-card--has-cover .we-world-card-name,
-.we-world-card--has-cover .we-world-card-desc {
   color: var(--we-card-cover-text-color);
 }
 
-.we-world-card--has-cover .we-world-card-meta {
+.we-world-card--has-cover .we-world-card-actions,
+.we-world-card--tinted .we-world-card-actions {
+  z-index: var(--we-z-card-content);
+}
+
+.we-world-card--has-cover .we-world-card-meta,
+.we-world-card--tinted .we-world-card-meta {
   color: var(--we-card-cover-meta-color);
   z-index: var(--we-z-card-content);
+  /* 大格常驻显示元信息，压在封面图上；背景是图不是纯色，按最坏情况（图像最亮处）
+     兜底加暗投影，避免浅色封面下 meta 文字对比度不足（实测过曾低于 4.5:1）。 */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 .we-world-card-name {
@@ -306,13 +255,9 @@
   transition: opacity var(--we-duration-normal) var(--we-easing-sharp);
 }
 
-.we-world-card:hover .we-world-card-desc {
+.we-world-card:hover .we-world-card-desc,
+.we-world-card:focus-within .we-world-card-desc {
   opacity: 1;
-}
-
-.we-world-card-desc-empty {
-  font-style: italic;
-  opacity: 0.5;
 }
 
 .we-world-card-meta {
@@ -327,6 +272,17 @@
   position: absolute;
   bottom: 16px;
   left: 16px;
+  opacity: 0;
+  transition: opacity var(--we-duration-normal) var(--we-easing-sharp);
+}
+
+/* 元信息默认隐藏，hover 才淡入；大格面积大，常驻显示不需要交互触发。
+   同时响应 :focus-within——键盘用户 Tab 到卡片/操作按钮时若只认 :hover，
+   视觉上拿不到这行信息（虽然文字本身不受 opacity 影响、屏幕阅读器仍能读到）。 */
+.we-world-card:hover .we-world-card-meta,
+.we-world-card:focus-within .we-world-card-meta,
+.we-world-card--feature .we-world-card-meta {
+  opacity: 1;
 }
 
 .we-world-card-actions {
@@ -367,6 +323,15 @@
 .we-world-card-action-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 无精确指针（触摸设备）时不存在真正的 hover：:hover 常驻触发或干脆永远不触发，
+   两种设备都可能出现，元信息会被永久藏起、用户无从得知。直接常驻展示元信息，
+   操作按钮维持点击/长按可达（有 title/aria-label，不依赖可见性）。 */
+@media (hover: none) {
+  .we-world-card-meta {
+    opacity: 1;
+  }
 }
 
 .we-worlds-create-btn {
@@ -2794,15 +2759,7 @@
     margin-bottom: 0;
   }
 
-  .we-worlds-bookshelf {
-    padding: var(--we-space-lg) var(--we-space-lg) var(--we-space-lg);
-  }
-
-  .we-worlds-bookshelf::before {
-    inset: 8px;
-  }
-
-  .we-worlds-bookshelf-state {
+  .we-worlds-state {
     min-height: 240px;
     padding: var(--we-space-lg);
   }
@@ -2810,11 +2767,7 @@
   .we-worlds-grid {
     --we-worlds-grid-gap-x: var(--we-space-lg);
     --we-worlds-grid-gap-y: var(--we-space-lg);
-  }
-
-  .we-worlds-grid-stack {
-    --we-worlds-card-max-width: 500px;
-    padding-bottom: var(--we-space-lg);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .we-settings-panel,
@@ -2854,9 +2807,15 @@
 }
 
 @media (max-width: 640px) {
-  .we-worlds-grid-stack {
-    --we-worlds-card-max-width: 100%;
+  .we-worlds-grid {
+    grid-template-columns: 1fr;
     padding: var(--we-space-xs) 0 var(--we-space-lg);
+  }
+
+  /* 单列视口下大格没有第二列可跨，退化为普通格 */
+  .we-world-card-shell--feature {
+    grid-column: span 1;
+    grid-row: span 1;
   }
 }
 

@@ -23,8 +23,7 @@
  *   历史遗留层，数量已经过多，主题作者要拧上百个旋钮才能换一次皮。后续步骤会逐步把它们
  *   收敛回 B/C 层的组合，新代码不要再往这一层加 token，优先复用已有的语义 / 结构 token。
  *
- * E 层 · 运行时 token（--we-status-table-cols / --we-worlds-grid-columns /
- *   --we-worlds-visible-columns）
+ * E 层 · 运行时 token（--we-status-table-cols）
  *   由 JS 在组件节点上动态设置，这里只声明默认值，避免 var() fallback 散落各处。
  */
 
@@ -263,21 +262,8 @@
   --we-page-canvas-subtitle-display:  block;   /* 画布页副标题可见性 */
   --we-card-name-font-style:          normal;  /* 卡片名称字形 */
   --we-card-name-font-weight:         400;     /* 卡片名称字重 */
-  --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.03);
-  --we-bookshelf-frame-border:        rgba(23, 23, 23, 0.08);
-  --we-bookshelf-frame-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 16px 40px rgba(0, 0, 0, 0.06);
-  --we-bookshelf-back-panel-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02));
-  --we-bookshelf-back-panel-border:   rgba(23, 23, 23, 0.06);
-  --we-bookshelf-card-plain-bg:       var(--we-card-bg);
-  --we-bookshelf-card-plain-border:   var(--we-card-border);
   --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
   --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
-  --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.04);
-  --we-bookshelf-frame-vignette:      rgba(0, 0, 0, 0.12);
 
   /* === Component skin tokens === */
   /* 主按钮 hover 暖色叠加（朱砂调），主题可覆盖以匹配各自配色 */
@@ -458,8 +444,6 @@
 
   /* === 运行时布局 token：由 JS 在组件上动态设置，此处声明默认值，避免 var() fallback 散落各处 === */
   --we-status-table-cols:       1;   /* StatusTable: 状态表格列数 */
-  --we-worlds-grid-columns:     3;   /* WorldsPage: 网格列数 */
-  --we-worlds-visible-columns:  1;   /* WorldsPage: 当前视口可见列数 */
 }
 
 @media (prefers-reduced-motion: reduce) {

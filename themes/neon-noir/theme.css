@@ -109,23 +109,8 @@
   --we-page-canvas-subtitle-display: block;
   --we-card-name-font-style:         normal;
   --we-card-name-font-weight:        400;
-  --we-bookshelf-frame-bg:
-    radial-gradient(circle at top center, rgba(0, 212, 255, 0.06), transparent 42%),
-    linear-gradient(180deg, rgba(0, 212, 255, 0.02), rgba(5, 5, 8, 0.20));
-  --we-bookshelf-frame-border:       rgba(0, 212, 255, 0.08);
-  --we-bookshelf-frame-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 0 0 1px rgba(0, 212, 255, 0.04),
-    0 20px 42px rgba(0, 0, 0, 0.30);
-  --we-bookshelf-back-panel-bg:
-    linear-gradient(180deg, rgba(10, 10, 20, 0.60), rgba(5, 5, 8, 0.80));
-  --we-bookshelf-back-panel-border:  rgba(0, 212, 255, 0.06);
-  --we-bookshelf-card-plain-bg:      rgba(22, 22, 31, 0.96);
-  --we-bookshelf-card-plain-border:  1px solid rgba(0, 212, 255, 0.15);
   --we-bookshelf-empty-bg:           rgba(5, 5, 8, 0.40);
   --we-bookshelf-empty-border:       rgba(0, 212, 255, 0.06);
-  --we-bookshelf-frame-glow:         rgba(0, 212, 255, 0.04);
-  --we-bookshelf-frame-vignette:     rgba(0, 0, 0, 0.35);
 
   /* ==================== 卡片皮肤：赛博边框 ==================== */
   --we-card-bg: var(--we-color-bg-surface);

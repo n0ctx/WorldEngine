@@ -95,7 +95,14 @@ export default function SortableGrid({
       onDragCancel={handleDragCancel}
     >
       <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-        <div className={className} data-dropping={isDropping || undefined}>
+        {/* data-sorting 供使用方在排序期间把网格拍平成等大格：
+            rectSortingStrategy 按等大矩形算位移，网格里混入跨行跨列的大格时
+            算出来的目标位置是错的，会看到卡片瞬移。排序时统一尺寸即可规避。 */}
+        <div
+          className={className}
+          data-dropping={isDropping || undefined}
+          data-sorting={activeId ? '' : undefined}
+        >
           {items.map((item) => (
             <SortableGridItem
               key={item.id}

@@ -209,22 +209,9 @@
   --we-card-name-font-style: normal;
   --we-card-name-font-weight: 400;
 
-  /* ========== 卷宗书架框架（Lovable 极简，轻描边 + 奶油卡片） ========== */
-  --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.48);
-  --we-bookshelf-frame-border:        rgba(28, 28, 28, 0.04);
-  --we-bookshelf-frame-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    inset 0 24px 36px rgba(255, 255, 255, 0.08),
-    0 10px 24px rgba(28, 28, 28, 0.04);
-  --we-bookshelf-back-panel-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(247, 244, 237, 0.92));
-  --we-bookshelf-back-panel-border:   rgba(28, 28, 28, 0.06);
-  --we-bookshelf-card-plain-bg:       #ffffff;
-  --we-bookshelf-card-plain-border:   1px solid rgba(28, 28, 28, 0.10);
+  /* ========== 书架空/加载/错误态面板 ========== */
   --we-bookshelf-empty-bg:            rgba(247, 244, 237, 0.68);
   --we-bookshelf-empty-border:        rgba(28, 28, 28, 0.06);
-  --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.3);
-  --we-bookshelf-frame-vignette:      rgba(28, 28, 28, 0.08);
 
   /* ========== 世界卡封面图文字（毛玻璃 rest，hover 取消显原图） ==========
    * 设计目标：浅奶油底色 + 暗封面图反差过强，把"黑色色块"压成"毛玻璃预览"。

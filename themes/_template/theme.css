@@ -155,22 +155,9 @@
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
-  /* 卷宗书架框架（深色主题用，浅色主题可大幅简化） */
-  --we-bookshelf-frame-bg:            rgba(255, 255, 255, 0.03);
-  --we-bookshelf-frame-border:        rgba(23, 23, 23, 0.08);
-  --we-bookshelf-frame-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 16px 40px rgba(0, 0, 0, 0.06);
-  --we-bookshelf-back-panel-bg:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.02));
-  --we-bookshelf-back-panel-border:   rgba(23, 23, 23, 0.06);
-  --we-bookshelf-card-plain-bg:       var(--we-color-bg-surface);
-  --we-bookshelf-card-plain-border:   1px solid var(--we-color-border-default);
+  /* 书架空/加载/错误态面板 */
   --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
   --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
-  --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.04);
-  --we-bookshelf-frame-vignette:      rgba(0, 0, 0, 0.12);
 
   /* 设置面板加载占位 scrim */
   --we-loading-scrim-bg:

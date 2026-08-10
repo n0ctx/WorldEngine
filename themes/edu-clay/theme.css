@@ -183,19 +183,9 @@
   --we-spine-shadow-left:  linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 
-  /* 卷宗书架框架：奶油底 + 墨蓝粗边 + 硬投影 */
-  --we-bookshelf-frame-bg:     #fffdf8;
-  --we-bookshelf-frame-border: #1f2937;
-  --we-bookshelf-frame-shadow: 5px 5px 0 0 #1f2937;
-  --we-bookshelf-back-panel-bg:
-    linear-gradient(180deg, #ffffff, #faf4ec);
-  --we-bookshelf-back-panel-border: rgba(31, 41, 55, 0.18);
-  --we-bookshelf-card-plain-bg:     #ffffff;
-  --we-bookshelf-card-plain-border: 2.5px solid #1f2937;
+  /* 书架空/加载/错误态面板 */
   --we-bookshelf-empty-bg:     #fffdf8;
   --we-bookshelf-empty-border: rgba(31, 41, 55, 0.22);
-  --we-bookshelf-frame-glow:     rgba(255, 255, 255, 0.4);
-  --we-bookshelf-frame-vignette: rgba(31, 41, 55, 0.08);
 
   --we-loading-scrim-bg:
     linear-gradient(180deg, rgb(250 244 236 / 55%), rgb(243 236 221 / 35%));

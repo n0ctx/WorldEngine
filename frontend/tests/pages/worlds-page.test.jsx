@@ -35,6 +35,7 @@ vi.mock('../../src/core/api/import-export', () => ({
 }));
 vi.mock('../../src/core/utils/avatar', () => ({
   getAvatarColor: () => '#caa272',
+  getAvatarUrl: (path) => (path ? `/api/uploads/${path}` : null),
 }));
 
 import WorldsPage from '../../src/pages/WorldsPage.jsx';
@@ -62,7 +63,7 @@ describe('WorldsPage', () => {
 
     render(<WorldsPage />);
 
-    expect(screen.getByText('检索卷宗中…')).toBeInTheDocument();
+    expect(screen.getByText('检索中…')).toBeInTheDocument();
     expect(await screen.findByText('群星海')).toBeInTheDocument();
     expect(screen.getByText('2 角色')).toBeInTheDocument();
 
@@ -87,6 +88,33 @@ describe('WorldsPage', () => {
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/new', {
       state: { backgroundLocation: { pathname: '/' } },
     });
+  });
+
+  it('首位世界占大格，无封面世界渲染色块而非图片', async () => {
+    mocks.getWorlds.mockResolvedValue([
+      { id: 'world-1', name: '群星海', cover_path: 'covers/a.png', updated_at: Date.now() },
+      { id: 'world-2', name: '空白页', cover_path: null, updated_at: Date.now() },
+    ]);
+    mocks.getCharactersByWorld.mockResolvedValue([]);
+
+    const { container } = render(<WorldsPage />);
+
+    expect(await screen.findByText('群星海')).toBeInTheDocument();
+
+    const firstShell = screen.getByText('群星海').closest('.we-world-card-shell');
+    const secondShell = screen.getByText('空白页').closest('.we-world-card-shell');
+
+    // 首位（worlds[0]）应带大格 modifier，其余不带
+    expect(firstShell.className).toContain('we-world-card-shell--feature');
+    expect(secondShell.className).not.toContain('we-world-card-shell--feature');
+
+    // 有封面：渲染 <img class="we-world-card-bg">；无封面：渲染色块 div，不渲染 img
+    expect(firstShell.querySelector('.we-world-card-bg')).toBeTruthy();
+    expect(secondShell.querySelector('.we-world-card-bg')).toBeFalsy();
+    expect(secondShell.querySelector('.we-world-card-block')).toBeTruthy();
+    expect(secondShell.querySelector('.we-world-card--tinted')).toBeTruthy();
+
+    expect(container.querySelectorAll('.we-world-card-shell--feature')).toHaveLength(1);
   });
 
   it('加载失败时显示错误并允许重试', async () => {
