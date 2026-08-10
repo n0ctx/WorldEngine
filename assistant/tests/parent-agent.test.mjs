@@ -133,31 +133,6 @@ test('buildContextBlock 注入本世界 personas / characters 清单（id + name
   assert.doesNotMatch(blockNoWorld, /本世界资源清单/);
 });
 
-test('detectPlanFirstPolicy 会识别通用计划边界', () => {
-  // 收紧后：单纯建卡不再强制计划，只有「建卡 + 结构化 + 完整」或跨资源 / 高风险才触发
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个玩家卡').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('新建一个角色').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('给新的角色卡补全全部状态字段').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('删除所有旧的关键词条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('从零设计一套 lore 和 AI召回条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('只建一个空白玩家卡，暂不填状态').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个 CSS 片段').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('把当前玩家卡金币改成120').requiresPlanFirst, false);
-  const task = { id: 't', status: 'running', context: {}, appliedResources: [] };
-  const block = __testables.buildContextBlock(task, '', __testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').hints);
-  assert.match(block, /本轮强制编排提示/);
-  assert.match(block, /先调用 write_plan_doc/);
-});
-
-test('detectPlanFirstPolicy 排除纯查询动词', () => {
-  assert.equal(__testables.detectPlanFirstPolicy('完整地展示一下我的角色卡').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('告诉我现在有哪些条目').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('帮我查看一下全部世界卡').requiresPlanFirst, false);
-  // 含高风险动作时即使有"展示"字样也应触发
-  assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再删除所有旧字段').requiresPlanFirst, true);
-});
-
 test('extractHardConstraints 抽取字段名/ID/必须禁止类硬约束', () => {
   const messages = [
     { role: 'user', content: '字段名必须用 player_hp，不能用别的拼法' },
@@ -306,13 +281,59 @@ test('dispatch_subagent: 已 applied 过 create 时拒绝重复', async () => {
   assert.match(r2.error, /子代理未成功/);
 });
 
-test('dispatch_subagent: 状态密集型任务未写计划时拒绝直接派发', async () => {
+test('dispatch_subagent: 无计划 + ad-hoc + delete 被删除闸门拦下', async () => {
   const task = taskStore.createTask({ context: {} });
-  const tools = __testables.buildMetaTools(task, () => {}, null, { requiresPlanFirst: true, planDocExists: false });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
   const dispatch = tools[2];
-  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '创建玩家卡并填写全部状态字段' });
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'delete', entityRef: 'p-1', task: '删除这个角色' });
   assert.equal(r.success, false);
-  assert.match(r.error, /必须先调用 write_plan_doc/);
+  assert.equal(r.failureKind, 'precheck');
+  assert.match(r.error, /删除操作不可逆/);
+  assert.match(r.error, /write_plan_doc/);
+});
+
+test('dispatch_subagent: 无计划 + ad-hoc + create 不受删除闸门影响，能走到子代理', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '建一个新角色' });
+  assert.equal(r.success, false);
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  // 走到了真实子代理派发（mock 未配置 LLM 工具调用，子代理本身失败），而非被本闸门 precheck 拦下
+  assert.match(r.error, /子代理未成功/);
+});
+
+test('dispatch_subagent: 无计划 + ad-hoc + update 不受删除闸门影响，能走到子代理', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'update', entityRef: 'p-1', task: '改个名字' });
+  assert.equal(r.success, false);
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  assert.match(r.error, /子代理未成功/);
+});
+
+test('dispatch_subagent: 有计划 + 带 stepId 的 delete 步骤放行（已批准的计划内删除不受删除闸门限制）', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '带删除步骤的计划',
+    status: 'approved',
+    createdAt: '2026-05-15T00:00:00.000Z',
+    updatedAt: '2026-05-15T00:00:00.000Z',
+    intent: '测试计划内删除步骤放行',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: '核对现状', targetType: 'world-card', operation: 'update', dependsOn: [], task: '核对现状', done: false },
+      { id: 'step-2', title: '删除旧条目', targetType: 'world-card', operation: 'delete', dependsOn: [], task: '删除旧条目', done: false },
+    ],
+  });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: true, planExecutionApproved: true });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: 'step-2' });
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  // 走到了真实子代理派发（mock 未配置 LLM 工具调用，子代理本身失败），而非被本闸门 precheck 拦下
+  assert.match(r.error, /子代理未成功/);
+  await planDoc.deletePlanDoc(task.id);
 });
 
 test('dispatch_subagent: awaiting_approval 阶段拒绝直接执行，必须先等用户确认', async () => {
@@ -433,7 +454,6 @@ test('dispatch_subagent: 计划被拒后保留旧 plan doc 时，必须先重提
     steps: threePlanSteps('旧步骤'),
   });
   const tools = __testables.buildMetaTools(task, () => {}, null, {
-    requiresPlanFirst: true,
     planDocExists: true,
     planRejectedNeedsRewrite: true,
   });

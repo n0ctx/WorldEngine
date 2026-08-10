@@ -197,17 +197,6 @@ const MIN_PLAN_STEPS = 2;
             ].join(''),
           };
         }
-        if (options.requiresPlanFirst && !options.planDocExists && !args.stepId) {
-          return {
-            success: false,
-            failureKind: 'precheck',
-            error: [
-              '当前用户请求属于复杂 / 高风险 / 结构化体系任务，必须先调用 write_plan_doc 拆成可审批步骤。',
-              '不要直接 dispatch_subagent。',
-              '计划至少包含：读取/确认现状、定义字段或条目、创建或定位目标资源、分组写入、最终核对。',
-            ].join(''),
-          };
-        }
         let step = null;
         if (args.stepId) {
           const parsed = await planDoc.readPlanData(task.id);
@@ -256,6 +245,19 @@ const MIN_PLAN_STEPS = 2;
             success: false,
             failureKind: 'precheck',
             error: `dispatch_subagent operation 非法："${resolved.operation}"，只接受 create / update / delete 之一。请直接用这三个枚举字符串重发本次工具调用。`,
+          };
+        }
+        // 删除闸门：没有计划文档、且是 ad-hoc 派发（无 stepId）、且这一步是 delete 时拦下。
+        // 删除不可逆，必须先让用户看到并批准要删的具体目标，不能靠临时一次 dispatch 就执行掉。
+        // 已批准计划内的 delete step（带 stepId）不受此限制——那份计划本身已经过用户审批。
+        if (!options.planDocExists && !args.stepId && resolved.operation === 'delete') {
+          return {
+            success: false,
+            failureKind: 'precheck',
+            error: [
+              '删除操作不可逆，不能在没有计划的情况下临时派发。',
+              '请先调用 write_plan_doc 提交一份包含此次删除目标与理由的可审批方案，等用户确认后再执行删除。',
+            ].join(''),
           };
         }
         // create 不允许带 entityRef：否则子代理会拿到一个"现有资源 ID"，

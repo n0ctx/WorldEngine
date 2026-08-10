@@ -38,18 +38,6 @@ const ASSISTANT_CONTEXT_CHAR_LIMIT = 24_000;
 const ASSISTANT_DELTA_CHUNK_SIZE = 48;
 const MODEL_MESSAGE_ROLES = new Set(['user', 'assistant']);
 const ACTION_CLAIM_RE = /(派发子代理|dispatch_subagent|调用子代理|(?:现在|接下来|马上|将|会|正在|开始|已|已经).{0,24}(?:创建|更新|删除|填写|填入|执行))/;
-const EXPLICIT_PLAN_RE = /(先.*(计划|方案|步骤|确认|审批)|列.*(计划|方案|步骤)|plan|规划一下)/i;
-const BASIC_ONLY_RE = /(只|仅)[^。！？\n]{0,18}(基础|名字|名称|简介|人设|空白|空卡|一项|单个)|暂不填状态|不填状态|不用填状态|不需要状态/;
-const HIGH_RISK_RE = /(删除|移除|清空|覆盖|重置|替换全部|全部替换|批量删|删掉所有|清除所有|不可逆)/;
-const MULTI_RESOURCE_RE = /(同时|并且|以及|和|含|包含|带上|附带|一起|顺便|再加).{0,32}(世界|玩家|persona|角色|character|条目|entry|状态|字段|CSS|正则|regex)/i;
-const CARD_CREATE_RE = /(创建|新建|生成|做|建|设计)(?:一个|一张|新的|完整的|全套)?[^。！？\n]{0,28}(世界卡?|world-card|玩家卡?|persona|角色卡?|character)/i;
-const COMPREHENSIVE_RE = /(完整|全套|一整套|体系|系统|骨架|从零|复杂|批量|多个|所有|全部|全字段|补全|填满|大量|一批|整套|完善|优化整体|整体优化)/;
-const STRUCTURE_HEAVY_RE = /(状态字段|状态值|初始状态|初始值|stateFieldOps|stateValueOps|Prompt 条目|prompt 条目|条目体系|entryOps|关键词条目|AI召回|AI 召回|state 条目|lore|世界观条目)/i;
-const SIMPLE_STATE_VALUE_RE = /(把|将|设置|改成|调整)[^。！？\n]{0,20}(金币|HP|血量|好感|等级|状态|字段)[^。！？\n]{0,16}(改成|设为|设置为|=|到)\s*[^，。！？\n]+$/;
-// 纯查询动词：若用户消息整体属于"展示 / 查看 / 看一下"等读取意图，且不含高风险或多资源写入语义，
-// 视为查询场景，不触发 plan-first，避免"完整地展示我的角色卡"被误判为复杂任务。
-const PURE_QUERY_RE = /(展示|查看|看一下|看看|显示|列出|告诉我|给我看看|读取|查询|查一下|有哪些|是什么|介绍一下|说明一下)/;
-const WRITE_INTENT_RE = /(创建|新建|新增|添加|生成|编写|写一下|修改|更新|编辑|删除|移除|清空|覆盖|替换|填写|填入|补全|做一个|做一张|改成|设置为|设为)/;
 
 function clearModelContext(task) {
   if (!task?.modelContext) return null;
@@ -131,7 +119,7 @@ function buildWorldRosterBlock(worldId) {
   ].join('\n');
 }
 
-function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger = null) {
+function buildContextBlock(task, planDocContent, turnTrigger = null) {
   const lastToolFailure = task?.lastToolFailure
     ? `- 最近一次工具失败：${task.lastToolFailure.toolName ?? 'unknown'} / ${task.lastToolFailure.error ?? 'unknown'}`
     : '- 最近一次工具失败：无';
@@ -163,65 +151,11 @@ function buildContextBlock(task, planDocContent, policyHints = [], turnTrigger =
     '# 最近运行痕迹',
     '',
     summarizeRecentRuntimeMessages(task),
-    ...(policyHints.length > 0
-      ? [
-          '',
-          '# 本轮强制编排提示',
-          '',
-          ...policyHints.map((hint) => `- ${hint}`),
-        ]
-      : []),
     '',
     '# 当前计划文档',
     '',
     planDocContent || '（尚未生成）',
   ].join('\n');
-}
-
-function detectPlanFirstPolicy(userInput) {
-  const text = String(userInput ?? '');
-  if (!text.trim()) return { requiresPlanFirst: false, hints: [] };
-  // 纯查询场景直接跳过：用户只是想"展示/查看/告诉我"，且不含写入意图、不含高风险动作时，
-  // 即使句中出现"完整、整套、全部"等词也不应升级为复杂任务流程。
-  const isPureQuery = PURE_QUERY_RE.test(text)
-    && !WRITE_INTENT_RE.test(text)
-    && !HIGH_RISK_RE.test(text);
-  if (isPureQuery) return { requiresPlanFirst: false, hints: [] };
-  const explicitPlan = EXPLICIT_PLAN_RE.test(text);
-  const highRisk = HIGH_RISK_RE.test(text);
-  const multiResource = MULTI_RESOURCE_RE.test(text);
-  const cardCreate = CARD_CREATE_RE.test(text);
-  const comprehensive = COMPREHENSIVE_RE.test(text);
-  const structureHeavy = STRUCTURE_HEAVY_RE.test(text);
-  const basicOnly = BASIC_ONLY_RE.test(text);
-  const simpleStateValue = SIMPLE_STATE_VALUE_RE.test(text) && !comprehensive && !multiResource;
-
-  const requiresPlanFirst = explicitPlan
-    || highRisk
-    || multiResource
-    || (cardCreate && structureHeavy && comprehensive && !basicOnly)
-    || (structureHeavy && comprehensive && multiResource)
-    || (comprehensive && multiResource && !simpleStateValue && !basicOnly);
-
-  if (!requiresPlanFirst) return { requiresPlanFirst: false, hints: [] };
-
-  const reasons = [];
-  if (explicitPlan) reasons.push('用户要求先计划或先确认');
-  if (highRisk) reasons.push('包含删除 / 清空 / 覆盖 / 重置等高风险动作');
-  if (multiResource) reasons.push('跨资源或多目标协作');
-  if (cardCreate && !basicOnly) reasons.push('从零创建核心卡片，默认需要考虑配套条目与状态');
-  if (structureHeavy) reasons.push('涉及状态字段 / 状态值 / Prompt 条目等结构化体系');
-  if (comprehensive) reasons.push('包含完整、批量、全套、补全或整体优化语义');
-
-  return {
-    requiresPlanFirst: true,
-    hints: [
-      `这是需要计划的写卡任务：${reasons.join('；') || '需要多步拆解'}。`,
-      '本轮先调用 write_plan_doc，让用户批准后再逐步执行；计划只保留真实依赖，不为凑数量拆同义步骤。',
-      '若任务可以在 1 个明确写入动作内完成，先读现状后直接 dispatch_subagent；若需要计划，通常用 2-5 个 step 表达读取/定位、写入分组、核对验收等真实边界。',
-      '若涉及 persona-card / character-card 状态值填写，每个 update 步骤只覆盖 3-5 个字段，并在 task 中列出本组所有 field_key、label、type 与目标 value_json，要求“不得遗漏本组字段”。',
-    ],
-  };
 }
 
 // 从 user 消息序列中抽取"硬约束"片段：摘要 6 行可能丢字段名、ID、命名约定等关键决策，
@@ -664,9 +598,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     const config = getConfig();
     const configScope = config.assistant?.model_source === 'aux' ? 'aux' : 'main';
     const planDocContent = await planDoc.readPlanDoc(task.id).catch(() => '');
-    const planPolicy = detectPlanFirstPolicy(modelUserInput);
     const toolRegistry = buildToolRegistry(task, emitFn, runId, {
-      requiresPlanFirst: planPolicy.requiresPlanFirst,
       planDocExists: Boolean(planDocContent),
       planAlreadyApproved: isApprovedSentinel,
       planApprovalPending: planApprovalPending && !isApprovedSentinel,
@@ -675,7 +607,7 @@ export async function runParentAgent(task, userInput, opts = {}) {
     });
     await refreshModelContextIfNeeded(task, { configScope, systemPrompt, runId });
     const turnTrigger = (isApprovedSentinel || isResumeSentinel) ? modelUserInput : null;
-    const modelPayload = buildModelMessages(task, systemPrompt, buildContextBlock(task, planDocContent, planPolicy.hints, turnTrigger));
+    const modelPayload = buildModelMessages(task, systemPrompt, buildContextBlock(task, planDocContent, turnTrigger));
 
     log.info(`START  ${formatMeta({
       runId,
@@ -800,7 +732,6 @@ export const __testables = {
   loadSystemPrompt,
   buildReplyToUserTool,
   claimedExecutionWithoutRealAction,
-  detectPlanFirstPolicy,
   renderAppliedResources,
   APPROVED_SENTINEL,
   RESUME_SENTINEL,
