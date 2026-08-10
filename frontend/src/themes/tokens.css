@@ -1,6 +1,38 @@
 /* WorldEngine 核心视觉 token — 默认值保持中性；具体风格由主题 CSS 覆盖。 */
 
+/*
+ * === Token 五层契约 ===
+ * 本文件自上而下分五层，层与层之间用分节注释隔开。新增 token 前先想清楚它属于哪一层，
+ * 不要图省事塞进离得最近的一层。
+ *
+ * A 层 · 基础色板（--we-core-* / --we-base-*）
+ *   最原始的取值。--we-core-* 是内部基础色，只供 --we-base-* 派生引用，组件和主题都
+ *   不准直接使用。主题包换肤时真正要覆盖的是 --we-base-*。
+ *
+ * B 层 · 语义 token（--we-color-* / --we-danmaku-*）
+ *   从 A 层派生、组件必须使用的一套。禁止跳过这一层直接引用基础色。
+ *
+ * C 层 · 结构 token（--we-space-* / --we-radius-* / --we-z-* / --we-duration-* /
+ *   --we-easing-* / --we-text-* / --we-leading-* / --we-tracking-* / --we-focus-ring）
+ *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
+ *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
+ *   （classic-parchment / edu-clay / lovable-cream / neon-noir）实际在覆盖的圆角节奏 /
+ *   焦点环观感旋钮，允许主题覆盖；其余 C 层 token 目前没有任何主题覆盖，保持不可覆盖。
+ *
+ * D 层 · 组件皮肤 token（其余所有绑定到某个具体组件、具体状态的 token）
+ *   历史遗留层，数量已经过多，主题作者要拧上百个旋钮才能换一次皮。后续步骤会逐步把它们
+ *   收敛回 B/C 层的组合，新代码不要再往这一层加 token，优先复用已有的语义 / 结构 token。
+ *
+ * E 层 · 运行时 token（--we-status-table-cols / --we-worlds-grid-columns /
+ *   --we-worlds-visible-columns）
+ *   由 JS 在组件节点上动态设置，这里只声明默认值，避免 var() fallback 散落各处。
+ */
+
 :root {
+  /* ============================================================
+   * A 层 · 基础色板
+   * ============================================================ */
+
   /* === 基础色（仅供语义色引用，组件禁止直接使用）=== */
   --we-core-surface-100: #f7f7f4;
   --we-core-surface-200: #ffffff;
@@ -36,6 +68,10 @@
   --we-base-book-bg:   var(--we-core-shell-bg);
   --we-base-white:     #ffffff;
   --we-base-peach-200: #f0c4a4;
+
+  /* ============================================================
+   * B 层 · 语义 token
+   * ============================================================ */
 
   /* === 语义色（组件必须使用这些，禁止直接用基础色）=== */
 
@@ -87,7 +123,6 @@
   --we-color-shadow-md:         rgba(23, 23, 23, 0.14);
   --we-color-shadow-lg:         rgba(23, 23, 23, 0.20);
   --we-color-shadow-xl:         rgba(23, 23, 23, 0.30);
-  --we-color-overlay-light:     rgba(23, 23, 23, 0.15);
   --we-color-overlay-medium:    rgba(23, 23, 23, 0.35);
   --we-color-overlay-heavy:     rgba(23, 23, 23, 0.60);
 
@@ -119,6 +154,10 @@
   --we-danmaku-6: #ff8a3d;
   --we-danmaku-7: #c39bff;
   --we-danmaku-shadow: rgba(0, 0, 0, 0.55);
+
+  /* ============================================================
+   * C 层 · 结构 token
+   * ============================================================ */
 
   /* === 间距 Scale（严格 4 的倍数）=== */
   --we-space-xxs: 2px;
@@ -168,6 +207,41 @@
   --we-easing-quill:    cubic-bezier(.40, 0, .20, 1);    /* 落笔：盖印、点击确认   → EASE.quill */
   --we-easing-retract:  cubic-bezier(.55, 0, 1, .45);    /* 收回：离场、折叠       → EASE.retract */
 
+  /* §3.2 字号体系 — 12px 为可见文字下限（WCAG 可读性），勿在可见文本上低于此值 */
+  --we-text-xs:      12px;  /* 由 11px 提升至 12px：11px 低于可读下限 */
+  --we-text-2xs:     12px;  /* 紧凑标签、tag、hint（与 xs 同为 12px 下限）*/
+  --we-text-sm:      13px;
+  --we-text-body:    14px;  /* 设置面板/下拉/确认弹窗等控件密集区域的正文 */
+  --we-text-control: 15px;  /* 主输入控件、按钮、select trigger */
+  --we-text-base:    16.5px;
+  --we-text-md:      18px;
+  --we-text-lg:      22px;
+  --we-text-xl:      28px;
+  --we-text-display: 48px;  /* 头像占位等装饰性大字 */
+
+  --we-leading-flush:  1;
+  --we-leading-tight:  1.3;
+  --we-leading-snug:   1.5;
+  --we-leading-normal: 1.75;
+  --we-leading-loose:  1.95;
+
+  /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.12em 等 */
+  --we-tracking-tight:   0.02em;  /* 标题微调 */
+  --we-tracking-normal:  0.05em;  /* 内文/按钮 */
+  --we-tracking-wide:    0.08em;  /* 装饰副标题 */
+  --we-tracking-wider:   0.12em;  /* 卡片标题 */
+  --we-tracking-caps:    0.18em;  /* 全大写小标签 */
+  --we-tracking-display: 0.34em;  /* 区块标题 / 章节号 */
+
+  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
+  --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
+
+  /* ============================================================
+   * D 层 · 组件皮肤 token
+   * 历史遗留层，数量过多导致主题作者要拧上百个旋钮才能换一次皮。
+   * 后续步骤会逐步把它们收敛回 B/C 层的组合，新代码不要再往这一层加 token。
+   * ============================================================ */
+
   /* === 页面大画布 token（WorldsPage / CharactersPage / 编辑页大背景）=== */
   /* 主题通过覆盖这些 token 在中性画布与不同审美之间切换，无需改组件 CSS */
   --we-page-canvas-bg:                var(--we-color-bg-canvas);      /* 画布大背景 */
@@ -194,11 +268,6 @@
   --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
   --we-bookshelf-frame-glow:          rgba(255, 255, 255, 0.04);
   --we-bookshelf-frame-vignette:      rgba(0, 0, 0, 0.12);
-
-  /* === 运行时布局 token：由 JS 在组件上动态设置，此处声明默认值，避免 var() fallback 散落各处 === */
-  --we-status-table-cols:       1;   /* StatusTable: 状态表格列数 */
-  --we-worlds-grid-columns:     3;   /* WorldsPage: 网格列数 */
-  --we-worlds-visible-columns:  1;   /* WorldsPage: 当前视口可见列数 */
 
   /* === Component skin tokens === */
   /* 主按钮 hover 暖色叠加（朱砂调），主题可覆盖以匹配各自配色 */
@@ -293,32 +362,6 @@
     transparent 100%
   );
 
-  /* §3.2 字号体系 — 12px 为可见文字下限（WCAG 可读性），勿在可见文本上低于此值 */
-  --we-text-xs:      12px;  /* 由 11px 提升至 12px：11px 低于可读下限 */
-  --we-text-2xs:     12px;  /* 紧凑标签、tag、hint（与 xs 同为 12px 下限）*/
-  --we-text-sm:      13px;
-  --we-text-body:    14px;  /* 设置面板/下拉/确认弹窗等控件密集区域的正文 */
-  --we-text-control: 15px;  /* 主输入控件、按钮、select trigger */
-  --we-text-base:    16.5px;
-  --we-text-md:      18px;
-  --we-text-lg:      22px;
-  --we-text-xl:      28px;
-  --we-text-display: 48px;  /* 头像占位等装饰性大字 */
-
-  --we-leading-flush:  1;
-  --we-leading-tight:  1.3;
-  --we-leading-snug:   1.5;
-  --we-leading-normal: 1.75;
-  --we-leading-loose:  1.95;
-
-  /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.12em 等 */
-  --we-tracking-tight:   0.02em;  /* 标题微调 */
-  --we-tracking-normal:  0.05em;  /* 内文/按钮 */
-  --we-tracking-wide:    0.08em;  /* 装饰副标题 */
-  --we-tracking-wider:   0.12em;  /* 卡片标题 */
-  --we-tracking-caps:    0.18em;  /* 全大写小标签 */
-  --we-tracking-display: 0.34em;  /* 区块标题 / 章节号 */
-
   /* 物理质感阴影：默认中性，主题可替换为纸张、印章等具体材质。 */
   --we-shadow-stamp-up:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
@@ -364,9 +407,6 @@
     0 0 0 3px color-mix(in srgb, var(--we-base-vermilion-600) 15%, transparent),
     0 1px 4px color-mix(in srgb, var(--we-base-ink-900) 18%, transparent);
 
-  /* 统一焦点环：可与 box-shadow 叠加（如 input 的 paper-indent + focus-ring） */
-  --we-focus-ring: 0 0 0 2px var(--we-color-accent-bg);
-
   /* === Pager（嵌在消息列表底部的翻页按钮胶囊）皮肤 token：中性默认，主题可覆写 === */
   --we-pager-btn-bg:               var(--we-color-bg-surface);
   --we-pager-btn-border:           1px solid var(--we-color-border-default);
@@ -389,8 +429,6 @@
   --we-composer-send-active-transform: translateY(0);
 
   /* === 标题栏 / 书脊（chat 顶部栏 + 左侧会话列表）chrome：中性默认复刻历史观感 === */
-  --we-chat-header-border-bottom:      1px solid var(--we-color-border-default);
-  --we-chat-header-shadow:             0 2px 6px var(--we-color-ink-wash);
   --we-spine-head-border-bottom:       1px solid var(--we-color-border-default);
   --we-spine-create-shadow:            none;
   --we-spine-create-hover-shadow:      none;
@@ -403,6 +441,15 @@
 
   /* 三栏（左会话 / 中正文 / 右状态）之间的分隔竖线；默认柔化 hairline */
   --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);
+
+  /* ============================================================
+   * E 层 · 运行时 token
+   * ============================================================ */
+
+  /* === 运行时布局 token：由 JS 在组件上动态设置，此处声明默认值，避免 var() fallback 散落各处 === */
+  --we-status-table-cols:       1;   /* StatusTable: 状态表格列数 */
+  --we-worlds-grid-columns:     3;   /* WorldsPage: 网格列数 */
+  --we-worlds-visible-columns:  1;   /* WorldsPage: 当前视口可见列数 */
 }
 
 @media (prefers-reduced-motion: reduce) {

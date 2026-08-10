@@ -82,7 +82,6 @@
   --we-color-shadow-md: rgba(31, 41, 55, 0.16);
   --we-color-shadow-lg: rgba(31, 41, 55, 0.22);
   --we-color-shadow-xl: rgba(31, 41, 55, 0.32);
-  --we-color-overlay-light:  rgba(31, 41, 55, 0.12);
   --we-color-overlay-medium: rgba(31, 41, 55, 0.32);
   --we-color-overlay-heavy:  rgba(31, 41, 55, 0.58);
   --we-color-paper-wash:    rgba(250, 244, 236, 0.30);
@@ -282,8 +281,6 @@
   --we-composer-send-active-transform: translate(1px, 1px);
 
   /* 标题栏 / 书脊：分隔线改招牌墨蓝实线（替克制奶油），新建会话钮加 stamp 凸起→按下 */
-  --we-chat-header-border-bottom:      1px solid var(--we-color-border-strong);
-  --we-chat-header-shadow:             none;
   --we-spine-head-border-bottom:       1px solid var(--we-color-border-strong);
   --we-spine-create-shadow:            2px 2px 0 0 #1f2937;
   --we-spine-create-hover-shadow:      1px 1px 0 0 #1f2937;

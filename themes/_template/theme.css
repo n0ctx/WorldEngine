@@ -52,7 +52,6 @@
   --we-color-shadow-md: rgba(23, 23, 23, 0.14);
   --we-color-shadow-lg: rgba(23, 23, 23, 0.20);
   --we-color-shadow-xl: rgba(23, 23, 23, 0.30);
-  --we-color-overlay-light: rgba(23, 23, 23, 0.15);
   --we-color-overlay-medium: rgba(23, 23, 23, 0.35);
   --we-color-overlay-heavy: rgba(23, 23, 23, 0.60);
   --we-color-paper-wash: rgba(247, 247, 244, 0.28);
@@ -297,8 +296,6 @@
   /* --we-composer-send-active-transform: translateY(0); */
 
   /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
-  /* --we-chat-header-border-bottom:      1px solid var(--we-color-border-default); */
-  /* --we-chat-header-shadow:             0 2px 6px var(--we-color-ink-wash); */
   /* --we-spine-head-border-bottom:       1px solid var(--we-color-border-default); */
   /* --we-spine-create-shadow:            none; */
   /* --we-spine-create-hover-shadow:      none; */
