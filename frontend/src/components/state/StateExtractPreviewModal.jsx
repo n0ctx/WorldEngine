@@ -5,12 +5,12 @@ import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, parseLoos
 const EMPTY_DISPLAY = '（未设置）';
 
 /**
- * 按字段类型把 value_json（可能是合法 JSON 也可能是裸字符串）渲染为可读文本；返回 null 表示"未设置"。
+ * 按字段类型把 value_json（可能是合法 JSON 也可能是裸字符串）渲染为可读文本；返回 null 表示"没有内容"。
  *
- * 注意：list/table 类型解析出的空容器（'[]' / '{}'）不能返回 null——它们代表"已存值但内容为空"
- * （例如用户手动清空过列表），与"从未设置"（current_value_json 为 null/''）语义不同。上层用
- * `currentDisplay != null` 判定是否为"覆盖"，一旦这里把空容器误判为 null，会导致真实存在的空
- * 列表/空表格被当成"新增"，默认勾选后静默覆盖。
+ * 空列表 '[]' / 空表格 '{}' 一律按"没有内容"处理：上层用 `currentDisplay != null` 判定"覆盖"，
+ * 而覆盖警示要保护的是用户写过的内容——空容器没有内容可丢，与"从未设置"对用户没有区别。
+ * 若把空容器算成"覆盖"，新建角色的 list 字段（种子默认值就是 '[]'）会全部默认不勾选，
+ * 用户每次提取都得手动全选，主路径反而最难走。
  */
 function formatDisplayValue(rawJson, type) {
   if (rawJson == null || rawJson === '') return null;
@@ -20,12 +20,12 @@ function formatDisplayValue(rawJson, type) {
       return formatBooleanDisplay(v);
     case 'list': {
       if (!Array.isArray(v)) return String(v);
-      return v.length === 0 ? '（空列表）' : v.join('、');
+      return v.length === 0 ? null : v.join('、');
     }
     case 'table': {
       if (!v || typeof v !== 'object' || Array.isArray(v)) return String(v);
       const entries = Object.entries(v);
-      return entries.length === 0 ? '（空表格）' : entries.map(([k, val]) => `${k}: ${val}`).join('、');
+      return entries.length === 0 ? null : entries.map(([k, val]) => `${k}: ${val}`).join('、');
     }
     case 'datetime': {
       if (typeof v === 'string' && ISO_DATETIME_RE.test(v)) return formatDatetimeChinese(v);

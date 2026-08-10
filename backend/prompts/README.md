@@ -83,6 +83,9 @@
 - `templates/state-compress.md`
   状态字段（text / list 等）超出 token 阈值时的压缩 prompt。
   调用方：`backend/memory/combined-state-updater.js`
+- `templates/state-extract.md`
+  从角色卡 / 玩家卡人设正文推断该层全部状态字段建议值的 prompt，只返回建议不写库。
+  调用方：`backend/services/state-extract.js`
 
 ### 用户操作辅助
 
