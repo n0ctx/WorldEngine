@@ -30,7 +30,7 @@
 
 /* ── Button ── */
 .we-btn {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   padding: var(--we-space-sm) var(--we-space-lg);
   border-radius: var(--we-radius-sm);
@@ -145,7 +145,7 @@
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
   padding: 10px 14px;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   color: var(--we-color-text-primary);
   outline: none;
@@ -215,7 +215,7 @@
   padding: 0 var(--we-space-xs);
   color: var(--we-color-text-tertiary);
   user-select: none;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
 }
 .we-datetime-split .we-input {
   width: auto;
@@ -258,7 +258,7 @@
   align-items: center;
   padding: var(--we-space-xxs) var(--we-space-sm);
   font-size: var(--we-text-xs);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   border-radius: var(--we-radius-none);
   border: 1px solid var(--we-color-border-default);
   background: transparent;
@@ -334,7 +334,7 @@
 
 .we-dialog-label {
   display: block;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-style: italic;
   color: var(--we-color-text-secondary);
@@ -343,7 +343,7 @@
 }
 
 .we-dialog-hint {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -364,7 +364,7 @@
 }
 
 .we-extract-count {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
 }
@@ -414,7 +414,7 @@
 }
 
 .we-extract-label {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-primary);
 }
@@ -443,7 +443,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--we-space-xs);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
 }
@@ -489,7 +489,7 @@
   background: var(--we-color-accent-bg);
   border: 1px solid var(--we-color-accent-border);
   border-radius: var(--we-radius-none);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-accent);
   letter-spacing: 0.02em;
@@ -522,7 +522,7 @@
   background: transparent;
   border: none;
   outline: none;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   line-height: var(--we-leading-snug);
   color: var(--we-color-text-primary);
@@ -621,7 +621,7 @@
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
   padding: 7px var(--we-space-md); /* 7px: design exact */
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-primary);
   cursor: pointer;
@@ -660,7 +660,7 @@
   background: none;
   border: none;
   padding: var(--we-space-xxs) var(--we-space-xs);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
@@ -669,7 +669,7 @@
 
 .we-option-streaming-hint {
   margin-left: auto;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -684,7 +684,7 @@
   margin-top: 6px; /* design exact */
 }
 .we-option-collapsed-hint {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -707,7 +707,7 @@
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   line-height: var(--we-leading-normal);
   color: var(--we-color-text-tertiary);
@@ -818,7 +818,7 @@
 }
 .we-select-option {
   padding: 7px 14px; /* design exact */
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-body);
   color: var(--we-color-text-secondary);
   cursor: pointer;
@@ -847,14 +847,14 @@
 }
 
 .we-confirm-message {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-body);
   color: var(--we-color-text-secondary);
   margin-bottom: 20px; /* design exact */
 }
 
 .we-confirm-cancel {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   background: none;
@@ -872,7 +872,7 @@
 }
 
 .we-confirm-ok {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   background: var(--we-color-text-secondary);
   color: var(--we-color-bg-canvas);
@@ -994,7 +994,7 @@
 }
 
 .we-avatar-hint {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   margin-top: var(--we-space-sm);
@@ -1007,7 +1007,7 @@
 
 /* ── BackButton 返回按钮 Block ── */
 .we-back-btn {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-border-default);
   background: none;
@@ -1114,7 +1114,7 @@
 
 .we-session-item__title {
   font-size: var(--we-text-sm);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   color: var(--we-color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -1192,7 +1192,7 @@
 .we-session-item__edit-input {
   width: 100%;
   font-size: var(--we-text-sm);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
@@ -1274,7 +1274,7 @@
 .we-entry-editor-field {
   width: 100%;
   padding: var(--we-space-xs) var(--we-space-md);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
@@ -1303,7 +1303,7 @@
 .we-entry-editor-select {
   width: 100%;
   padding: var(--we-space-xs) var(--we-space-md);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
@@ -1325,11 +1325,11 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
 }
 
 .we-entry-editor-save {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   background: var(--we-color-accent);
   color: var(--we-color-text-inverse);
@@ -1347,7 +1347,7 @@
 /* ── 状态条件行（EntryEditor state 类型） ── */
 .we-entry-condition-input {
   padding: 6px 10px;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   background: var(--we-color-ink-wash);
   border: 1px solid var(--we-color-border-default);
@@ -1434,7 +1434,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
 }
 
 .we-entry-condition-logic-row {
@@ -1456,7 +1456,7 @@
 .we-entry-condition-logic-btn {
   padding: 2px 10px;
   font-size: var(--we-text-xs);
-  font-family: var(--we-font-ui, var(--we-font-sans));
+  font-family: var(--we-font-ui);
   background: none;
   border: none;
   cursor: pointer;
@@ -1528,7 +1528,7 @@
 
 /* ── RegexRuleEditor ── */
 .we-regex-dialog-close {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-md);
   color: var(--we-color-text-tertiary);
   background: none;
@@ -1595,7 +1595,7 @@
 
 /* ── RegexRulesManager ── */
 .we-regex-manager-loading {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -1615,7 +1615,7 @@
 }
 
 .we-regex-manager-note {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -1637,14 +1637,14 @@
 }
 
 .we-regex-scope-hint {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
 }
 
 .we-regex-scope-empty {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -1690,7 +1690,7 @@
 }
 
 .we-regex-rule-name {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-weight: 500;
   color: var(--we-color-text-primary);
@@ -1704,7 +1704,7 @@
 }
 
 .we-regex-rule-world {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   flex-shrink: 0;
@@ -1728,7 +1728,7 @@
 }
 
 .we-regex-rule-toggle {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border: 1px solid var(--we-color-border-default);
@@ -2168,7 +2168,7 @@
 }
 
 .we-md-content .cm-scroller {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   line-height: var(--we-leading-loose);
   color: var(--we-color-text-primary);
@@ -2295,7 +2295,7 @@
   flex: 1;
   padding: 10px 14px;
   background: transparent;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   line-height: var(--we-leading-normal);
   color: var(--we-color-text-primary);
@@ -2374,7 +2374,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-body);
   color: var(--we-color-text-secondary);
   cursor: pointer;
@@ -2403,7 +2403,7 @@
   flex-shrink: 0;
   margin-left: 10px;
   font-size: var(--we-text-2xs);
-  font-family: var(--we-font-ui, var(--we-font-serif));
+  font-family: var(--we-font-ui);
   color: var(--we-color-text-tertiary);
   opacity: 0.8;
   white-space: nowrap;
@@ -2712,7 +2712,7 @@
 }
 .we-status-value {
   display: block;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-snug);
@@ -2754,7 +2754,7 @@
   align-items: flex-start;
 }
 .we-status-tag {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-secondary);
   background: var(--we-color-bg-subtle);
@@ -2772,7 +2772,7 @@
 }
 
 .we-status-inline-input {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   line-height: var(--we-leading-snug);
   padding: 1px var(--we-space-xs); /* 1px: design exact */
@@ -2859,7 +2859,7 @@
   background: color-mix(in srgb, var(--we-base-ink-900) 4%, transparent);
 }
 .we-status-table-body-cell .we-status-table-value {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-tight);
@@ -3042,7 +3042,7 @@
 }
 .we-panel-card-title {
   flex: 1;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-control);
   font-weight: 500;
   color: var(--we-color-text-primary);
@@ -3375,7 +3375,7 @@
 }
 
 .we-timeline-dot {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-body);
   color: var(--we-color-accent);
   opacity: 0.5;
@@ -3383,7 +3383,7 @@
   flex-shrink: 0;
 }
 .we-timeline-text {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-normal);
@@ -3435,7 +3435,7 @@
 .we-toast-card__seal {
   flex-shrink: 0;
   margin-top: 2px; /* design exact: 与标题基线对齐 */
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: var(--we-leading-flush);
   color: var(--toast-color);
@@ -3448,7 +3448,7 @@
 }
 
 .we-toast-card__title {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-body);
   line-height: var(--we-leading-tight);
   color: var(--we-color-text-primary);
@@ -3538,7 +3538,7 @@
   background: color-mix(in srgb, var(--we-base-ink-900) 5%, var(--we-color-bg-surface));
 }
 .we-tm-value {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-tight);

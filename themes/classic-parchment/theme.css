@@ -35,10 +35,9 @@
   --we-base-peach-200: #ffc8a0;
 
   /* 字体族：经典羊皮纸风格 */
-  --we-font-serif:   'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif;
+  --we-font-prose:   'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif;
   --we-font-display: 'Cormorant Garamond', 'LXGW WenKai TC', serif;
   --we-font-seal:    'ZCOOL XiaoWei', 'LXGW WenKai TC', serif;
-  --we-font-sans:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 

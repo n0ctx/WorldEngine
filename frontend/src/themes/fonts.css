@@ -47,10 +47,34 @@
 }
 
 :root {
-  --we-font-serif:   Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-seal:    Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-sans:    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --we-font-mono:    ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+  /* 界面字体：按钮、标签、表单、导航、列表 */
+  --we-font-ui:
+    -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Noto Sans SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei',
+    system-ui, sans-serif;
+
+  /* 叙事正文：chat / writing 的小说正文。
+     今天与界面同栈，它作为将来换叙事字体的唯一开关单独存在。 */
+  --we-font-prose:
+    -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Noto Sans SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei',
+    system-ui, sans-serif;
+
+  /* 标题与展示：自托管的阿里妈妈方圆体，轻字重下不显幼稚 */
+  --we-font-display:
+    'Alimama FangYuanTi VF',
+    -apple-system, BlinkMacSystemFont,
+    'PingFang SC', 'HarmonyOS Sans SC', 'Source Han Sans SC', 'Noto Sans SC',
+    'Microsoft YaHei UI', 'Microsoft YaHei',
+    system-ui, sans-serif;
+
+  /* 数字与代码。中文回退跟上，避免中英混排时数字跳字体 */
+  --we-font-mono:
+    ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono', Consolas,
+    'PingFang SC', 'Microsoft YaHei', monospace;
+
+  /* 印章装饰，全站仅 1 处（StatePanel 角色名），随 book-spread 外壳一起退役前先并入 display */
+  --we-font-seal: var(--we-font-display);
 }

@@ -69,12 +69,16 @@
      § 2 字体与页面排版
      ────────────────────────────────────────────────────────────── */
 
-  --we-font-serif: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-seal: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
-  --we-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* --we-font-ui：界面字体，按钮/标签/表单/导航/列表 */
   --we-font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* --we-font-prose：叙事正文，chat / writing 的小说正文 */
+  --we-font-prose: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  /* --we-font-display：标题与展示字体 */
+  --we-font-display: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
+  /* --we-font-mono：数字与代码 */
   --we-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
+  /* --we-font-seal：印章装饰，全站仅 1 处引用 */
+  --we-font-seal: Georgia, 'Times New Roman', 'Noto Serif SC', serif;
 
   --we-page-canvas-bg: var(--we-color-bg-canvas);
   --we-page-canvas-fg: var(--we-color-text-primary);

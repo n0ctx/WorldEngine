@@ -92,7 +92,7 @@
   background: none;
   cursor: pointer;
   font-size: var(--we-text-2xs);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   color: var(--we-color-text-secondary);
   display: flex;
   align-items: center;
@@ -134,7 +134,7 @@
   border-right: 2.5px solid var(--we-color-status-warning);
   padding: 10px 14px;
   border-radius: var(--we-radius-sm);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: var(--we-leading-loose);
   color: var(--we-color-text-primary);
@@ -148,7 +148,7 @@
   border: 1px solid var(--we-color-border-default);
   padding: var(--we-space-md) var(--we-space-lg);
   border-radius: var(--we-radius-sm);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: var(--we-leading-loose);
   color: var(--we-color-text-primary);
@@ -187,7 +187,7 @@
 /* ── Message Content ───────────────────────────────────── */
 
 .we-message-content {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: 1.8;
   /* 微提亮墨色：近黑 serif 正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
@@ -423,7 +423,7 @@
 
 .we-chat-empty-state__text {
   margin: 0;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   font-style: italic;
   color: var(--we-color-text-tertiary);
@@ -534,7 +534,7 @@
   flex-wrap: nowrap;
   align-items: center;
   gap: 0;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: 1em;
   color: var(--we-color-text-tertiary);
   line-height: 1.4;
@@ -591,7 +591,7 @@
   gap: var(--we-space-sm);
   margin: var(--we-space-md) 0 var(--we-space-xs);
   color: var(--we-color-status-warning);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-style: italic;
   font-size: var(--we-text-xs);
   letter-spacing: 0.24em;
@@ -843,7 +843,7 @@
 /* ── Writing space: prose & annotation ────────────────── */
 
 .we-writing-prose {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: var(--we-leading-loose);
   color: var(--we-color-text-primary);
@@ -899,7 +899,7 @@
   border: none;
   padding: var(--we-space-xs) 10px; /* 10px: design exact */
   cursor: pointer;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -922,7 +922,7 @@
 
 .we-writing-think-body {
   padding: var(--we-space-sm) var(--we-space-md);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-2xs);
   color: var(--we-color-text-tertiary);
   line-height: 1.7;
@@ -1092,7 +1092,7 @@
 }
 
 .we-chat-slash-item__desc {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
 }
@@ -1112,7 +1112,7 @@
 }
 
 .we-chat-impersonate-text {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   color: var(--we-color-text-tertiary);
   opacity: 0.7;
@@ -1185,7 +1185,7 @@
   border: var(--we-composer-field-border);
   border-radius: var(--we-radius-md);
   box-shadow: var(--we-composer-field-shadow);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: 1.65;
   color: var(--we-color-text-primary);
@@ -1264,7 +1264,7 @@
   border: none;
   padding: var(--we-space-xs) var(--we-space-md);
   cursor: pointer;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   font-style: italic;
@@ -1313,7 +1313,7 @@
 
 .we-think-block-body {
   padding: var(--we-space-sm) var(--we-space-md);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   line-height: 1.7;
@@ -1468,7 +1468,7 @@
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-sm);
   box-shadow: var(--we-shadow-paper-lift);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   color: var(--we-color-text-primary);
   animation: we-bubble-in 0.2s var(--we-easing-ink) both;
 }
@@ -1672,7 +1672,7 @@
   gap: var(--we-space-sm);
   padding: 0 var(--we-space-md);
   margin: 2px 0; /* design exact */
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
@@ -1719,7 +1719,7 @@
 .we-asst-think-line__body {
   display: block;
   padding: var(--we-space-sm) var(--we-space-md) 0;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-style: italic;
   font-size: var(--we-text-sm);
   color: var(--we-color-text-tertiary);
@@ -1834,7 +1834,7 @@
 
 .we-asst-empty__hint {
   max-width: 240px;
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   line-height: 1.6;
   color: var(--we-color-text-tertiary);
@@ -1859,7 +1859,7 @@
   gap: var(--we-space-xs);
   max-width: 88%;
   padding: var(--we-space-sm) var(--we-space-md);
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   line-height: 1.7;
   animation: we-bubble-in 0.2s var(--we-easing-ink) both;
@@ -1971,7 +1971,7 @@
 
 /* ── Plan Doc Preview（awaiting_approval 阶段的计划文档 Markdown 渲染）── */
 .we-plan-doc-preview {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   color: var(--we-color-text-primary);
   font-size: var(--we-text-xs);
   line-height: 1.65;
@@ -2150,7 +2150,7 @@
 }
 
 .we-chapter-edit-btn {
-  font-family: var(--we-font-sans);
+  font-family: var(--we-font-ui);
   font-size: var(--we-text-xs);
   color: var(--we-color-text-tertiary);
   background: none;
@@ -2367,7 +2367,7 @@
 }
 
 .we-css-snippet-empty {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-style: italic;
   color: var(--we-color-text-tertiary);
@@ -2412,7 +2412,7 @@
 }
 
 .we-css-snippet-row__name {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   font-weight: 500;
   color: var(--we-color-text-primary);
@@ -2438,7 +2438,7 @@
 }
 
 .we-css-snippet-row__toggle {
-  font-family: var(--we-font-serif);
+  font-family: var(--we-font-prose);
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border: 1px solid var(--we-color-border-default);

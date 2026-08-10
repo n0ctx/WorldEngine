@@ -201,7 +201,7 @@ function DeleteConfirm({ onConfirm, onClose }) {
         <h2 className="mb-3 text-[17px] font-normal italic text-[var(--we-color-text-primary)] [font-family:var(--we-font-display)]">
           确认删除字段
         </h2>
-        <p className="mb-5 text-[13px] text-[var(--we-color-accent)] [font-family:var(--we-font-serif)]">
+        <p className="mb-5 text-[13px] text-[var(--we-color-accent)] [font-family:var(--we-font-prose)]">
           此操作无法撤销。
         </p>
         <div className="flex justify-end gap-3">

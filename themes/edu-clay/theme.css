@@ -21,12 +21,11 @@
      § 1 字体：英文 Baloo 2 圆润粗体；中文标题站酷快乐体 / 正文阿里妈妈方圆体（均自托管）
      ────────────────────────────────────────────────────────────── */
   /* 英文始终 Baloo 在前；中文按角色回落：
-     标题层(display/seal) → 站酷快乐体；正文/UI 层(serif/sans/ui) → 阿里妈妈方圆体。
+     标题层(display/seal) → 站酷快乐体；正文/UI 层(prose/ui) → 阿里妈妈方圆体。
      再之后才退到系统圆体与黑体。两支中文字自托管于 frontend/src/themes/fonts.css。 */
-  --we-font-serif:   'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --we-font-prose:   'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --we-font-display: 'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'ZCOOL KuaiLe', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
   --we-font-seal:    'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'ZCOOL KuaiLe', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-  --we-font-sans:    'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
   --we-font-ui:      'Baloo 2 Variable', 'Baloo 2', ui-rounded, 'SF Pro Rounded', 'Alimama FangYuanTi VF', 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
