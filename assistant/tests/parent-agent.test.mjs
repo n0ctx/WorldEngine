@@ -326,83 +326,6 @@ test('dispatch_subagent: awaiting_approval 阶段拒绝直接执行，必须先�
   assert.match(r.error, /还在等待用户审批/);
 });
 
-test('dispatch_subagent: task 截断检测覆盖冒号/逗号/未闭合反引号/未闭合引号/中文括号', async () => {
-  const metaRuntime = await freshImport('assistant/server/tools/meta/runtime.js');
-  const { detectTaskTruncation } = metaRuntime;
-  // 命中各类截断
-  assert.match(detectTaskTruncation('创建一个世界并填入：'), /冒号/);
-  assert.match(detectTaskTruncation('请按以下需求,'), /逗号/);
-  assert.match(detectTaskTruncation('继续编排——'), /破折号/);
-  assert.match(detectTaskTruncation('参考 ```json\n{}\n``` 然后另起一段 ```sql\nselect 1'), /反引号代码块/);
-  assert.match(detectTaskTruncation('请把字段 name = "Alice 写进去'), /英文双引号/);
-  assert.match(detectTaskTruncation('引用「Alice 然后继续'), /中文成对/);
-  // 完整指令不应误报
-  assert.equal(detectTaskTruncation('创建一个名为 Alice 的角色卡，并补齐 HP 字段为 100。'), null);
-  assert.equal(detectTaskTruncation('使用 stateValueOps 写入 ```json\n[{"field_key":"hp","value":100}]\n``` 完成更新。'), null);
-  // 含中文配对引号 / 括号的合法复杂任务不应被中文括号成对规则误报
-  assert.equal(detectTaskTruncation('请把字段「hp」从 90 改成 100，理由：刚跑完战斗副本。'), null);
-  assert.equal(detectTaskTruncation('在世界卡的「背景设定」段落里追加一段关于（古代帝国）的描述并保存。'), null);
-});
-
-test('detectTaskTailTruncation: 仅校验尾部标点，引号/括号合法的复杂任务不误报', async () => {
-  const metaRuntime = await freshImport('assistant/server/tools/meta/runtime.js');
-  const { detectTaskTailTruncation } = metaRuntime;
-  assert.match(detectTaskTailTruncation('在 world-card 上用 stateFieldOps create 三个字段：'), /冒号/);
-  assert.match(detectTaskTailTruncation('继续编排——'), /破折号/);
-  // 合法 task 含引号 / 括号 / 反引号片段也不应被严格规则误报
-  assert.equal(detectTaskTailTruncation('请把字段 name = "Alice 写进去'), null);
-  assert.equal(detectTaskTailTruncation('引用「Alice 然后继续'), null);
-  assert.equal(detectTaskTailTruncation('完成全部字段并保存。'), null);
-});
-
-test('write_plan_doc: 拒绝 step.task 以冒号结尾的伪截断计划', async () => {
-  const task = taskStore.createTask({ context: {} });
-  const tools = __testables.buildMetaTools(task, () => {});
-  const writePlan = tools[0];
-  const r = await writePlan.execute({
-    title: '会被拒绝的计划',
-    intent: '测试 task 尾部截断',
-    steps: [
-      { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡，包含字段：' },
-      { title: '加字段', targetType: 'world-card', operation: 'update', task: '加角色字段 HP=100。' },
-      { title: '验收', targetType: 'world-card', operation: 'update', task: '核对全部字段。' },
-    ],
-  });
-  assert.equal(r.success, false);
-  assert.equal(r.failureKind, 'precheck');
-  assert.match(r.error, /task 字段疑似被截断/);
-  assert.match(r.error, /单行/);
-});
-
-test('dispatch_subagent: stepId + args.task 时用 args.task 覆盖 step.task（自救已批准计划）', async () => {
-  const task = taskStore.createTask({ context: {} });
-  // 模拟一份已批准但 step.task 被截断的计划
-  await planDoc.writePlanDoc(task.id, {
-    title: '已批准但 task 被截断',
-    status: 'approved',
-    createdAt: '2026-06-01T00:00:00.000Z',
-    updatedAt: '2026-06-01T00:00:00.000Z',
-    intent: '触发自救路径',
-    assumptions: [],
-    steps: [
-      { id: 'step-1', title: '建字段', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 stateFieldOps create 三个字段：' },
-      { id: 'step-2', title: '建条目', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 entryOps create 条目。' },
-      { id: 'step-3', title: '验收', targetType: 'world-card', operation: 'update', task: '核对结果。' },
-    ],
-  });
-  const tools = __testables.buildMetaTools(task, () => {}, null, {
-    planDocExists: true,
-    planAlreadyApproved: true,
-    planExecutionApproved: true,
-  });
-  const dispatch = tools[2];
-  // 模型补传完整 task：应当覆盖 step.task 并通过截断检测，进入到下游 sub-agent（mock 后报子代理失败）
-  const overrideTask = '在世界卡 W 上用 stateFieldOps 新建三个 target=character 的 number 字段 HP/MP/SP，范围 0-100，默认 100。';
-  const r = await dispatch.execute({ stepId: 'step-1', task: overrideTask });
-  // 截断检测应被绕过；不应再返回"task 字段疑似被截断"
-  assert.equal(/task 字段疑似被截断/.test(String(r.error ?? '')), false);
-});
-
 test('write_plan_doc / edit_plan_doc: 参数级失败均标 failureKind=precheck', async () => {
   const task = taskStore.createTask({ context: {} });
   const tools = __testables.buildMetaTools(task, () => {});
@@ -430,14 +353,64 @@ test('write_plan_doc / edit_plan_doc: 参数级失败均标 failureKind=precheck
   assert.equal(r4.failureKind, 'precheck');
 });
 
+test('write_plan_doc + dispatch_subagent: 结构化 task 字段不再经 md 往返，多行/中文冒号收尾/未闭合反引号原样写入与取回', async () => {
+  // 覆盖本步核心收益：step.task 现在直接落 plan_doc_data_json 结构化列，
+  // 不再经过 renderPlanDoc → parsePlanDoc 的单行正则往返，因此旧实现下会被
+  // detectTaskTailTruncation / validatePlanStepsTaskTail 打回的"多行 + 中文冒号收尾 + 未闭合反引号"
+  // 文本现在应当原样写入、原样取回。
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_TOOL_CALLS_QUEUE;
+  delete process.env.MOCK_LLM_COMPLETE;
+  delete process.env.MOCK_LLM_COMPLETE_ERROR;
+
+  const nastyTask = [
+    '第一行：先读取现状',
+    '第二行包含未闭合反引号 ` 以及更多说明文字',
+    '第三行以中文冒号收尾：',
+  ].join('\n');
+
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {});
+  const writePlan = tools[0];
+
+  await assert.rejects(
+    writePlan.execute({
+      title: '结构化 task 往返验证',
+      intent: '验证多行/冒号收尾/未闭合反引号不再被截断检测拦截',
+      steps: [
+        { title: '读取现状', targetType: 'world-card', operation: 'update', task: nastyTask },
+        { title: '写入变更', targetType: 'world-card', operation: 'update', task: '核对并写入。' },
+        { title: '验收', targetType: 'world-card', operation: 'update', task: '核对全部字段。' },
+      ],
+    }),
+    (err) => err?.kind === 'awaiting_approval',
+  );
+
+  const plan = await planDoc.readPlanData(task.id);
+  const step1 = plan.steps.find((s) => s.title === '读取现状');
+  assert.ok(step1, '写入应成功，step 应存在');
+  // 核心断言：dispatch_subagent 实际读取 step.task 所用的同一条路径（readPlanData）取回的值
+  // 与写入时逐字相等——没有任何 md 往返造成的截断或改写。
+  assert.equal(step1.task, nastyTask);
+
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: step1.id });
+  // 不应再因"task 字段疑似被截断"被 precheck 拦下；子代理本身因 mock 未配置 apply 调用而失败，属预期。
+  assert.equal(/截断/.test(String(r.error ?? '')), false);
+  assert.equal(r.success, false);
+  assert.match(r.error, /子代理未成功/);
+
+  await planDoc.deletePlanDoc(task.id);
+});
+
 test('dispatch_subagent: 失败返回 failureKind=precheck，让父代理区分轻重', async () => {
   const task = taskStore.createTask({ context: {} });
   const tools = __testables.buildMetaTools(task, () => {});
   const dispatch = tools[2];
-  // task 截断
-  const truncated = await dispatch.execute({ targetType: 'world-card', operation: 'create', task: '继续编排：' });
-  assert.equal(truncated.success, false);
-  assert.equal(truncated.failureKind, 'precheck');
+  // 缺少 task
+  const missingTask = await dispatch.execute({ targetType: 'world-card', operation: 'create' });
+  assert.equal(missingTask.success, false);
+  assert.equal(missingTask.failureKind, 'precheck');
   // operation 非法
   const badOp = await dispatch.execute({ targetType: 'world-card', operation: 'patch', task: '随便干点啥' });
   assert.equal(badOp.success, false);
@@ -711,13 +684,13 @@ test('runParentAgent: 伪流式 delta 之间让出事件循环，cancel 可中�
   clearMockEnv();
 });
 
-test('runParentAgent: 截图场景复现——dispatch_subagent task 截断 3 次不应触发熔断（precheck 阈值 8）', async () => {
-  // 模拟 LLM 反复用以":"结尾的截断 task 派发：旧实现 3 次后立即触发 CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON 熔断；
+test('runParentAgent: 截图场景复现——dispatch_subagent 参数非法 3 次不应触发熔断（precheck 阈值 8）', async () => {
+  // 模拟 LLM 反复用非法 operation 派发：旧实现 3 次后立即触发 CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON 熔断；
   // 新实现把 dispatch_subagent 的预检失败标为 precheck，阈值 8，给模型多次纠错机会，不再因 3 次硬熔断。
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '创建一个世界并填入：' } },
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '请按以下需求继续：' } },
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '继续编排：' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '创建一个世界并填入字段' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '请按以下需求继续处理' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '继续编排下一步' } },
   ]);
   process.env.MOCK_LLM_COMPLETE = '';
   const task = taskStore.createTask({ context: {} });
@@ -734,7 +707,7 @@ test('runParentAgent: 截图场景复现——dispatch_subagent task 截断 3 �
 
 test('runParentAgent: precheck 类失败达到阈值 8 时仍会熔断', async () => {
   const calls = Array.from({ length: 8 }, (_, i) => (
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: `第${i + 1}次截断指令：` } }
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: `第${i + 1}次非法指令` } }
   ));
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify(calls);
   process.env.MOCK_LLM_COMPLETE = '';
@@ -971,7 +944,7 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   );
 
   const newMd = await planDoc.readPlanDoc(task.id);
-  const parsed = planDoc.parsePlanDoc(newMd);
+  const parsed = await planDoc.readPlanData(task.id);
   const doneStep = parsed.steps.find((s) => s.id === 'step-1');
   assert.ok(doneStep);
   assert.equal(doneStep.done, true);
@@ -998,7 +971,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
   process.env.MOCK_LLM_COMPLETE = '';
   await runParentAgent(task, '建一个赛博朋克世界');
   assert.equal(task.status, 'awaiting_approval');
-  const before = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const before = await planDoc.readPlanData(task.id);
   assert.equal(before.intent, '用户要建一个完整的赛博朋克世界');
   assert.deepEqual(before.assumptions, ['世界尚未存在', 'persona 已就位']);
   assert.ok(before.createdAt);
@@ -1017,7 +990,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
     (err) => err?.kind === 'awaiting_approval',
   );
 
-  const after = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const after = await planDoc.readPlanData(task.id);
   assert.equal(after.intent, before.intent);
   assert.deepEqual(after.assumptions, before.assumptions);
   assert.equal(after.createdAt, before.createdAt);
@@ -1111,7 +1084,7 @@ test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
 
   const tools = __testables.buildMetaTools(task, () => {});
   const editPlan = tools[1];
-  // 步骤缺少 task 字段 → validatePlanDoc 应失败
+  // 步骤缺少 task 字段 → validatePlan 应失败
   const r = await editPlan.execute({
     op: 'replace_steps',
     steps: [

@@ -16,63 +16,6 @@ import {
   SUPPORTED_TARGET_TYPES as STATE_VALUES_SUPPORTED_TYPES,
 } from './state-values-resolver.js';
 
-// 识别 LLM tool_use args 里被截断的 task 字段。被截断的 task 喂给子代理只会让它白跑或
-// 落库脏数据；先拦下并把"为什么是截断"的信号回传给模型，让模型重发完整指令。
-// 命中模式（按可信度排序）：
-//   1) 以中/英文冒号、逗号、分号、破折号结尾且距末尾 16 字符内无句号/换行
-//   2) 反引号代码块未闭合（``` 出现奇数次）
-//   3) 引号未闭合（单/双/中文左右引号配对失衡）
-// 返回简短"截断信号"字符串；正常文本返回 null。
-export function detectTaskTruncation(rawTask) {
-  const text = String(rawTask ?? '').trim();
-  if (!text) return null;
-  const tailDetail = detectTaskTailTruncation(text);
-  if (tailDetail) return tailDetail;
-  const fences = (text.match(/```/g) ?? []).length;
-  if (fences % 2 === 1) return '反引号代码块未闭合（``` 出现奇数次）';
-  const dq = (text.match(/"/g) ?? []).length;
-  if (dq % 2 === 1) return '英文双引号未闭合';
-  const left = (text.match(/[「『（《【“]/g) ?? []).length;
-  const right = (text.match(/[」』）》】”]/g) ?? []).length;
-  if (left !== right) return '中文成对引号/括号未闭合';
-  return null;
-}
-
-// 仅检查"尾部标点截断"——计划写入阶段的严格门：
-// 模型经常把 step.task 写成 `"...的新字段："` 并把要点放进子条目，
-// 但 plan-doc parser 只读单行 `- 任务：...`，子条目会被丢掉，
-// 派发时 step.task 就是一段裸露的"以冒号结尾"截断指令。
-// 在 write_plan_doc / replace_steps 阶段就拦下这种 task，强制模型把要点写进同一行。
-// 引号 / 括号 / 反引号配对在 plan 阶段误伤高（合法引用 `"100"` 也会被打回），故只用尾部规则。
-export function detectTaskTailTruncation(rawTask) {
-  const text = String(rawTask ?? '').trim();
-  if (!text) return null;
-  const tail = text.slice(-24);
-  if (/[：:，,；;]\s*$/.test(tail)) return '结尾为冒号/逗号/分号，缺少后续具体内容';
-  if (/[-—–]{1,2}\s*$/.test(tail)) return '结尾为破折号，缺少后续具体内容';
-  return null;
-}
-
-// 计划阶段共用的 task 校验：返回 precheck 错误对象或 null
-function validatePlanStepsTaskTail(steps) {
-  for (const s of steps) {
-    const detail = detectTaskTailTruncation(s.task);
-    if (detail) {
-      return {
-        success: false,
-        failureKind: 'precheck',
-        error: [
-          `step ${s.id ?? '(待生成)'} 的 task 字段疑似被截断（${detail}）。`,
-          'plan_doc 的每个 step.task 必须是一段完整自洽的中文指令，`',
-          '不要把要点放到子条目里（plan 解析器只读单行 `- 任务：...`，子条目会被丢弃）。',
-          '请把字段名、取值范围、关键说明都直接写进 task 同一段文字里再重发。',
-        ].join(''),
-      };
-    }
-  }
-  return null;
-}
-
 export function buildMetaTools(task, emitFn, runId = null, options = {}) {
 const MIN_PLAN_STEPS = 2;
   const writePlanDoc = {
@@ -106,8 +49,6 @@ const MIN_PLAN_STEPS = 2;
         ].join(''),
       };
     }
-        const taskTailIssue = validatePlanStepsTaskTail(steps);
-        if (taskTailIssue) return taskTailIssue;
         const nowIso = new Date().toISOString();
         const plan = {
           title: args.title,
@@ -119,7 +60,7 @@ const MIN_PLAN_STEPS = 2;
           steps,
         };
         const md = planDoc.renderPlanDoc(plan);
-        const validation = planDoc.validatePlanDoc(md);
+        const validation = planDoc.validatePlan(plan);
         if (!validation.valid) {
           return { success: false, failureKind: 'precheck', error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
         }
@@ -193,8 +134,6 @@ const MIN_PLAN_STEPS = 2;
               done: false,
               completedAt: null,
             }));
-          const taskTailIssue = validatePlanStepsTaskTail(incoming);
-          if (taskTailIssue) return taskTailIssue;
           plan = {
             title: parsed.title,
             status: parsed.status,
@@ -205,7 +144,7 @@ const MIN_PLAN_STEPS = 2;
             steps: [...doneSteps, ...incoming],
           };
           md = planDoc.renderPlanDoc(plan);
-          const validation = planDoc.validatePlanDoc(md);
+          const validation = planDoc.validatePlan(plan);
           if (!validation.valid) {
             return { success: false, failureKind: 'precheck', error: `计划文档校验失败：${validation.error}，请检查 steps 字段是否完整` };
           }
@@ -285,21 +224,6 @@ const MIN_PLAN_STEPS = 2;
       personaId: args.personaId ?? null,
       task: args.task,
     };
-        // 当 stepId 解析到了 step 但模型同时给了一段全新的 args.task：
-        // - 仅当 step.task 命中尾部截断（被 plan-doc 单行解析器吃掉子条目导致的坏数据）时，
-        //   才允许 args.task 覆盖 step.task；这是已批准计划的自救通道，不是任意改写许可。
-        // - 否则保留 step.task 不动：避免模型借 args.task 把"更新字段 A"偷换成"删除所有条目"，
-        //   绕过 replace_steps 的审批边界（targetType/operation 仍然沿用 step，覆盖 task 等于换语义）。
-        if (
-          step
-          && typeof args.task === 'string'
-          && args.task.trim()
-          && args.task.trim() !== String(step.task ?? '').trim()
-          && detectTaskTailTruncation(step.task)
-          && !detectTaskTailTruncation(args.task)
-        ) {
-          resolved = { ...resolved, task: args.task };
-        }
         if (!resolved.targetType || !resolved.task) {
           return {
             success: false,
@@ -348,21 +272,6 @@ const MIN_PLAN_STEPS = 2;
             ].join('\n'),
           };
         }
-        // 检测 task 字段疑似被 LLM 截断：常见尾部包括「中/英文冒号」「逗号」「未闭合反引号块」「未闭合引号」。
-        // 子代理拿到不完整指令会白跑一次还可能落库脏数据，必须在派发前拦下，且给模型清晰的"如何补全"提示。
-        const truncationDetail = detectTaskTruncation(resolved.task);
-        if (truncationDetail) {
-          return {
-            success: false,
-            failureKind: 'precheck',
-            error: [
-              `dispatch_subagent 的 task 字段疑似被截断（${truncationDetail}）。`,
-              '不要重复发送同样的截断指令；请把 task 写成一段完整自洽的中文指令，',
-              '至少包含「对什么资源」「做什么动作」「具体到字段或值」三要素，然后重发本次工具调用。',
-            ].join(''),
-          };
-        }
-
         if (resolved.operation === 'create' && !args.force) {
           const dup = taskStore.findAppliedResource(task.id, (e) =>
             e.kind === resolved.targetType && e.op === 'create');
@@ -519,9 +428,4 @@ const MIN_PLAN_STEPS = 2;
   };
 
   return [writePlanDoc, editPlanDoc, dispatchSubagent, deletePlanDocTool];
-}
-
-function parsedPlanTitle(md) {
-  const match = String(md ?? '').match(/^#\s*任务：(.+)$/m);
-  return match?.[1]?.trim() || '计划草案';
 }

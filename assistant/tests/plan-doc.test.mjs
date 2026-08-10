@@ -9,7 +9,6 @@ sandbox.setEnv();
 const taskStore = await freshImport('assistant/server/task-store.js');
 const {
   renderPlanDoc,
-  parsePlanDoc,
   pickNextStep,
   markStepDone,
   normalizePlanDocList,
@@ -70,29 +69,23 @@ test('renderPlanDoc 清洗对象形态的假设与约束', () => {
   assert.match(md, /- foo: bar；nested: baz/);
 });
 
-test('parsePlanDoc 还原 steps + done 状态', () => {
-  const md = `# 任务：T
-
-> 状态：executing · 创建时间：2026-05-07T14:32
-
-## 用户意图
-intent
-
-## 步骤
-
-- [x] **step-1** A（world-card.create）
-  - 依赖：无
-  - 任务：a
-- [ ] **step-2** B（character-card.create）
-  - 依赖：step-1
-  - 任务：b
-`;
-  const parsed = parsePlanDoc(md);
-  assert.equal(parsed.steps.length, 2);
-  assert.equal(parsed.steps[0].done, true);
-  assert.equal(parsed.steps[1].done, false);
-  assert.deepEqual(parsed.steps[1].dependsOn, ['step-1']);
-  assert.equal(parsed.steps[1].targetType, 'character-card');
+test('renderPlanDoc 把 intent / assumptions / createdAt / updatedAt 写入对应段落', () => {
+  const md = renderPlanDoc({
+    title: 'T',
+    status: 'planning',
+    createdAt: '2026-05-13T10:00:00Z',
+    updatedAt: '2026-05-13T11:00:00Z',
+    intent: '希望补全角色卡',
+    assumptions: ['世界 X 已存在', '角色 Y 没有状态字段'],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a' },
+    ],
+  });
+  assert.match(md, /创建时间：2026-05-13T10:00:00Z/);
+  assert.match(md, /更新时间：2026-05-13T11:00:00Z/);
+  assert.match(md, /## 用户意图\n希望补全角色卡/);
+  assert.match(md, /- 世界 X 已存在/);
+  assert.match(md, /- 角色 Y 没有状态字段/);
 });
 
 test('pickNextStep 跳过已完成与未满足依赖', () => {
@@ -142,62 +135,6 @@ test('renderPlanDoc 可序列化已完成 step 的 completedAt', () => {
   assert.match(md, /- \[x\] \*\*step-1\*\*/);
   assert.match(md, /完成于 ts1/);
   assert.doesNotMatch(md, /执行日志/);
-});
-
-test('parsePlanDoc 容忍半角括号 / 多余空格', () => {
-  const md = [
-    '# 任务：T',
-    '',
-    '> 状态：planning · 创建时间：2026-05-13',
-    '',
-    '## 用户意图',
-    'intent',
-    '',
-    '## 假设与约束',
-    '- 无',
-    '',
-    '## 步骤',
-    '',
-    '-  [ ]   **step-1**  半角(world-card.create)',
-    '  - 依赖：无',
-    '  - 任务：a',
-    '- [x] **step-2** 全角混合（character-card.update)',
-    '  - 依赖：step-1',
-    '  - 任务：b',
-    '',
-  ].join('\n');
-  const parsed = parsePlanDoc(md);
-  assert.equal(parsed.steps.length, 2, '半角与混合括号都应被识别');
-  assert.equal(parsed.steps[0].targetType, 'world-card');
-  assert.equal(parsed.steps[0].operation, 'create');
-  assert.equal(parsed.steps[1].done, true);
-  assert.equal(parsed.steps[1].operation, 'update');
-});
-
-test('parsePlanDoc 提取 intent / assumptions / createdAt / updatedAt', () => {
-  const md = renderPlanDoc({
-    title: 'T',
-    status: 'planning',
-    createdAt: '2026-05-13T10:00:00Z',
-    updatedAt: '2026-05-13T11:00:00Z',
-    intent: '希望补全角色卡',
-    assumptions: ['世界 X 已存在', '角色 Y 没有状态字段'],
-    steps: [
-      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a' },
-    ],
-  });
-  const parsed = parsePlanDoc(md);
-  assert.equal(parsed.intent, '希望补全角色卡');
-  assert.deepEqual(parsed.assumptions, ['世界 X 已存在', '角色 Y 没有状态字段']);
-  assert.equal(parsed.createdAt, '2026-05-13T10:00:00Z');
-  assert.equal(parsed.updatedAt, '2026-05-13T11:00:00Z');
-});
-
-test('parsePlanDoc 处理空文档与无意义首行', () => {
-  const parsed = parsePlanDoc('# 不匹配\n');
-  assert.equal(parsed.title, '');
-  assert.equal(parsed.status, 'planning');
-  assert.deepEqual(parsed.steps, []);
 });
 
 test('pickNextStep 全部完成时返回 null', () => {
