@@ -1386,6 +1386,12 @@
   align-items: center;
 }
 
+.we-state-extract-trigger-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: var(--we-space-xs);
+}
+
 .we-state-value-label {
   font-family: var(--we-font-serif);
   font-size: var(--we-text-sm);

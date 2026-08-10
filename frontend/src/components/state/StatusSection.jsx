@@ -5,39 +5,29 @@ import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
+import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, formatListDisplay } from './state-value-format.js';
 
-const ISO_DATETIME_RE = /^(\d+)-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 const STATE_LIST_MAX_ITEMS = 10;
 const EMPTY_STATUS_DISPLAY = '—';
-
-/** datetime ISO 字符串渲染为 "{prefix}X年X月X日X时X分"（去前导零） */
-function formatDatetimeChinese(iso, prefix) {
-  const m = iso.match(ISO_DATETIME_RE);
-  if (!m) return iso;
-  const [, y, mo, d, h, min] = m;
-  const strip = (s) => String(parseInt(s, 10));
-  return `${prefix ?? ''}${strip(y)}年${strip(mo)}月${strip(d)}日${strip(h)}时${strip(min)}分`;
-}
 
 function parseValue(effectiveValueJson, type, prefix) {
   if (effectiveValueJson == null) return null;
   try {
     const v = JSON.parse(effectiveValueJson);
     if (type === 'boolean') {
-      return (v === true || v === 'true' || v === '1' || v === 1) ? '是' : '否';
+      return formatBooleanDisplay(v);
     }
     if (type === 'list') {
-      if (!Array.isArray(v) || v.length === 0) return null;
-      return v.join('、');
+      return formatListDisplay(v);
     }
     if (type === 'datetime' && typeof v === 'string' && ISO_DATETIME_RE.test(v)) {
-      return formatDatetimeChinese(v, prefix);
+      return formatDatetimeChinese(v, prefix ?? '');
     }
     return String(v);
   } catch {
     // wsf.default_value 是裸字符串（非 JSON 编码），datetime 字段直接尝试格式化
     if (type === 'datetime' && typeof effectiveValueJson === 'string' && ISO_DATETIME_RE.test(effectiveValueJson)) {
-      return formatDatetimeChinese(effectiveValueJson, prefix);
+      return formatDatetimeChinese(effectiveValueJson, prefix ?? '');
     }
     return String(effectiveValueJson);
   }

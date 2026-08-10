@@ -26,6 +26,16 @@ export async function updateCharacterStateValue(characterId, fieldKey, valueJson
   return res.json();
 }
 
+/** AI 从人设正文提取状态字段建议值（只读，不写库） */
+export async function extractCharacterStateValues(characterId) {
+  const res = await fetch(`${BASE}/characters/${characterId}/state-values/extract`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `提取失败：${res.status}`);
+  }
+  return res.json();
+}
+
 export async function resetCharacterStateValues(characterId) {
   const res = await fetch(`${BASE}/characters/${characterId}/state-values/reset`, { method: 'POST' });
   if (!res.ok) {

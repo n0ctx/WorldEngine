@@ -8,6 +8,7 @@ import {
   updatePersonaById,
   createPersona,
   uploadPersonaAvatarById,
+  extractPersonaStateValues,
 } from '../core/api/personas';
 import {
   getPersonaStateValues,
@@ -21,6 +22,7 @@ import MarkdownEditor from '../components/ui/MarkdownEditor';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import StateValueField from '../components/state/StateValueField';
+import StateExtractPreviewModal from '../components/state/StateExtractPreviewModal';
 import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
@@ -47,6 +49,7 @@ export default function PersonaEditPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
+  const [showExtract, setShowExtract] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +119,24 @@ export default function PersonaEditPage() {
     } catch (err) {
       log.error('persona.state.save_failed', err, { toast: err.message || '状态值保存失败' });
     }
+  }
+
+  async function handleExtractConfirm(items) {
+    if (!resolvedPersonaId) return;
+    const failed = [];
+    for (const item of items) {
+      try {
+        await updatePersonaStateValueByPersonaId(worldId, resolvedPersonaId, item.field_key, item.suggested_value_json);
+      } catch (err) {
+        failed.push({ item, err });
+      }
+    }
+    if (failed.length > 0) {
+      setReloadKey((k) => k + 1); // 已成功写入的部分仍需刷新显示
+      const okCount = items.length - failed.length;
+      throw new Error(`成功 ${okCount} 条，失败 ${failed.length} 条（${failed.map((f) => f.item.label).join('、')}）：${failed[0].err.message || '写入失败'}`);
+    }
+    setReloadKey((k) => k + 1);
   }
 
   async function handleFileChange(e) {
@@ -224,6 +245,17 @@ export default function PersonaEditPage() {
           <div>
             <div className="we-edit-state-sep" />
             <FormGroup label="玩家状态">
+              <div className="we-state-extract-trigger-row">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowExtract(true)}
+                  disabled={!resolvedPersonaId}
+                  title={resolvedPersonaId ? undefined : '请先保存玩家卡后再提取'}
+                >
+                  AI 提取状态字段建议
+                </Button>
+              </div>
               <div className="we-state-value-list we-persona-state-list">
                 {stateFields.map(f => (
                   <div key={f.field_key} className="we-persona-state-item">
@@ -242,6 +274,13 @@ export default function PersonaEditPage() {
           </Button>
         </div>
       </div>
+      {showExtract && resolvedPersonaId && (
+        <StateExtractPreviewModal
+          onExtract={() => extractPersonaStateValues(resolvedPersonaId)}
+          onConfirm={handleExtractConfirm}
+          onClose={() => setShowExtract(false)}
+        />
+      )}
     </EditPageShell>
   );
 }

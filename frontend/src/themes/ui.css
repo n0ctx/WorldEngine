@@ -350,6 +350,112 @@
   margin-left: var(--we-space-xs);
 }
 
+/* ── State Extract Preview（AI 提取状态字段建议值弹窗）── */
+.we-extract-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--we-space-md);
+}
+
+.we-extract-toolbar-actions {
+  display: flex;
+  gap: var(--we-space-sm);
+}
+
+.we-extract-count {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+}
+
+.we-extract-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.we-extract-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-sm);
+  background: var(--we-color-bg-surface);
+  cursor: pointer;
+}
+
+.we-extract-row--override {
+  border-color: var(--we-color-status-warning);
+  background: color-mix(in srgb, var(--we-color-status-warning) 8%, var(--we-color-bg-surface));
+}
+
+.we-extract-checkbox {
+  margin-top: 3px;
+  accent-color: var(--we-color-gold);
+  flex-shrink: 0;
+}
+
+.we-extract-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  min-width: 0;
+  flex: 1;
+}
+
+.we-extract-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
+.we-extract-label {
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-primary);
+}
+
+.we-extract-badge {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-2xs);
+  letter-spacing: 0.05em;
+  padding: 1px var(--we-space-xs);
+  border-radius: var(--we-radius-none);
+  border: 1px solid var(--we-color-border-default);
+}
+
+.we-extract-badge--new {
+  color: var(--we-color-status-success);
+  border-color: var(--we-color-status-success);
+}
+
+.we-extract-badge--override {
+  color: var(--we-color-status-warning);
+  border-color: var(--we-color-status-warning);
+}
+
+.we-extract-values {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--we-space-xs);
+  font-family: var(--we-font-serif);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-tertiary);
+}
+
+.we-extract-suggested {
+  color: var(--we-color-text-secondary);
+}
+
+.we-extract-arrow {
+  opacity: 0.5;
+}
+
 /* 关键词/枚举 tag 容器 */
 .we-tag-input {
   width: 100%;

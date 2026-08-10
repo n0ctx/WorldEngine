@@ -32,6 +32,16 @@ export async function getPersonaById(id) {
   return res.json();
 }
 
+/** AI 从人设正文提取状态字段建议值（只读，不写库） */
+export async function extractPersonaStateValues(id) {
+  const res = await fetch(`${BASE}/personas/${id}/state-values/extract`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `提取失败：${res.status}`);
+  }
+  return res.json();
+}
+
 /** 创建新 persona */
 export async function createPersona(worldId, data = {}) {
   const res = await fetch(`${BASE}/worlds/${worldId}/personas`, {
