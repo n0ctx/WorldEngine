@@ -323,3 +323,32 @@ test('全局设置 round-trip 采用覆盖语义并保留导出内容等价', as
   assert.equal(writingCss.c, 1);
   assert.equal(writingRule.c, 1);
 });
+
+test('导入世界卡不会被 createWorld 的默认状态字段种子污染', async () => {
+  // 源世界不带任何状态字段定义（模拟一张"没有状态字段"的世界卡）
+  const world = insertWorld(sandbox.db, { name: '无状态字段世界' });
+  insertPersona(sandbox.db, world.id, { name: '空玩家' });
+
+  const exported = exportWorld(world.id);
+  assert.deepEqual(exported.world_state_fields, []);
+  assert.deepEqual(exported.persona_state_fields, []);
+  assert.deepEqual(exported.character_state_fields, []);
+
+  const imported = importWorld(exported);
+
+  // 导入路径走裸 SQL（INSERT INTO worlds），不经过 services/worlds.js 的 createWorld，
+  // 因此不应种下 location/weather/personality/age/appearance/outfit/identity 等默认字段。
+  const worldFieldCount = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM world_state_fields WHERE world_id = ?',
+  ).get(imported.id).c;
+  const personaFieldCount = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM persona_state_fields WHERE world_id = ?',
+  ).get(imported.id).c;
+  const characterFieldCount = sandbox.db.prepare(
+    'SELECT COUNT(*) AS c FROM character_state_fields WHERE world_id = ?',
+  ).get(imported.id).c;
+
+  assert.equal(worldFieldCount, 0);
+  assert.equal(personaFieldCount, 0);
+  assert.equal(characterFieldCount, 0);
+});

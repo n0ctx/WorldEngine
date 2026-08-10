@@ -2,19 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Input from '../ui/Input';
 import Select from '../ui/Select';
 import DatetimeSplitInput from './DatetimeSplitInput';
+import { parseLooseJson } from './state-value-format';
 
 const STATE_LIST_MAX_ITEMS = 10;
 const AUTOSAVE_DELAY_MS = 450;
 const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
-
-function parseJsonValue(valueJson) {
-  if (valueJson == null) return null;
-  try {
-    return JSON.parse(valueJson);
-  } catch {
-    return valueJson;
-  }
-}
 
 function getInitialValueJson(field) {
   return field.value_json ?? field.default_value_json ?? field.effective_value_json ?? null;
@@ -45,7 +37,7 @@ export default function StateValueField({ field, onSave }) {
 }
 
 function StateValueFieldInner({ field, initialValueJson, onSave }) {
-  const parsedInitialValue = useMemo(() => parseJsonValue(initialValueJson), [initialValueJson]);
+  const parsedInitialValue = useMemo(() => parseLooseJson(initialValueJson), [initialValueJson]);
   const [local, setLocal] = useState(parsedInitialValue);
   const [listInput, setListInput] = useState('');
   const lastSavedValueJson = useRef(initialValueJson == null ? stringifyValue(null) : initialValueJson);

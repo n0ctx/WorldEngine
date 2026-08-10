@@ -4,6 +4,7 @@
  *   GET   /api/characters/:characterId/state-values
  *   PATCH /api/characters/:characterId/state-values/:fieldKey
  *   POST  /api/characters/:characterId/state-values/reset
+ *   POST  /api/characters/:characterId/state-values/extract
  */
 
 import { Router } from 'express';
@@ -12,6 +13,7 @@ import {
   resetCharacterStateValuesValidated,
   updateCharacterDefaultStateValueValidated,
 } from '../services/state-values.js';
+import { extractCharacterStateSuggestions } from '../services/state-extract.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
 
 const router = Router();
@@ -58,6 +60,20 @@ router.post('/characters/:characterId/state-values/reset', (req, res) => {
 
     log.warn(`character-state-values.bad_request ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
     res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/characters/:characterId/state-values/extract', async (req, res) => {
+  try {
+    const suggestions = await extractCharacterStateSuggestions(req.params.characterId);
+    res.json(suggestions);
+  } catch (err) {
+    if (err.code === 'NOT_FOUND') {
+      log.warn(`character-state-values.not_found ${formatMeta({ method: req.method, path: req.path, id: req.params.characterId })}`);
+      return res.status(404).json({ error: err.message });
+    }
+    log.error(`character-state-values.extract_failed ${formatMeta({ method: req.method, path: req.path, reason: err.message })}`);
+    res.status(502).json({ error: 'AI 提取状态字段建议失败，请稍后重试' });
   }
 });
 

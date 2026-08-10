@@ -17,12 +17,17 @@ import { upsertWorldStateValue } from '../db/queries/world-state-values.js';
 import { getConfig } from './config.js';
 import { DIARY_TIME_FIELD_KEY, DIARY_TIME_UPDATE_INSTRUCTION, DIARY_TIME_DESCRIPTION } from '../utils/constants.js';
 import { upsertPersona } from '../db/queries/personas.js';
-import { getPersonaStateFieldsByWorldId } from '../db/queries/persona-state-fields.js';
+import { getPersonaStateFieldsByWorldId, createPersonaStateField } from '../db/queries/persona-state-fields.js';
 import { upsertPersonaStateValueByPersonaId } from '../db/queries/persona-state-values.js';
+import { createCharacterStateField } from '../db/queries/character-state-fields.js';
 import { getSessionIdsByWorldId } from '../db/queries/characters.js';
 import { deleteDailyEntriesBySessionId } from '../db/queries/daily-entries.js';
 import { deleteDiaryDir } from '../memory/diary-generator.js';
 import { createLogger, formatMeta } from '../utils/logger.js';
+import {
+  DEFAULT_WORLD_STATE_FIELDS,
+  DEFAULT_ACTOR_STATE_FIELDS,
+} from '../utils/default-state-fields.js';
 
 const log = createLogger('svc', 'green');
 
@@ -91,7 +96,17 @@ export function createWorld(data) {
   // 日记时间字段同步（复用 ensureDiaryTimeField 逻辑）
   ensureDiaryTimeField(world.id);
 
-  // 根据已有 world_state_fields 初始化状态值（导入场景；新建空世界时无字段，为 no-op）
+  // 新建世界种下默认状态字段（世界层/玩家层/角色层），让用户不必每个世界重设。
+  // 落库后就是普通字段，用户可改可删。只在 createWorld 里种，不影响已存在的世界。
+  for (const field of DEFAULT_WORLD_STATE_FIELDS) {
+    createWorldStateField(world.id, field);
+  }
+  for (const field of DEFAULT_ACTOR_STATE_FIELDS) {
+    createPersonaStateField(world.id, field);
+    createCharacterStateField(world.id, field);
+  }
+
+  // 根据已有 world_state_fields 初始化状态值（含上面新种下的默认字段）
   const fields = getWorldStateFieldsByWorldId(world.id);
   for (const field of fields) {
     upsertWorldStateValue(world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });
@@ -101,7 +116,7 @@ export function createWorld(data) {
     name: data.persona_name ?? '',
     system_prompt: data.persona_system_prompt ?? '',
   });
-  // 根据已有 persona_state_fields 初始化状态值（导入场景；新建时无字段，为 no-op）
+  // 根据已有 persona_state_fields 初始化状态值（含上面新种下的默认字段）
   const personaFields = getPersonaStateFieldsByWorldId(world.id);
   for (const field of personaFields) {
     upsertPersonaStateValueByPersonaId(persona.id, world.id, field.field_key, { defaultValueJson: getInitialValueJson(field) });

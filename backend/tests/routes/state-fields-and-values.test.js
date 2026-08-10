@@ -151,6 +151,30 @@ test('character-state-fields 全 CRUD + reorder + 校验', async () => {
   assert.equal(del.status, 204);
 });
 
+// ─── persona-state-fields ───────────────────────────────────────────
+
+test('POST /api/worlds/:worldId/persona-state-fields 校验必填并 201 返回；重复 field_key 409', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: 'persona-字段创建-世界' });
+
+  const bad = await ctx.request(`/api/worlds/${world.id}/persona-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'x' }),
+  });
+  assert.equal(bad.status, 400);
+
+  const ok = await ctx.request(`/api/worlds/${world.id}/persona-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'personality', label: '性格', type: 'list' }),
+  });
+  assert.equal(ok.status, 201);
+
+  const dup = await ctx.request(`/api/worlds/${world.id}/persona-state-fields`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ field_key: 'personality', label: 'X', type: 'text' }),
+  });
+  assert.equal(dup.status, 409);
+});
+
 // ─── world-state-values ─────────────────────────────────────────────
 
 test('world-state-values: GET / PATCH(校验/404) / reset', async () => {
