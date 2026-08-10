@@ -5,21 +5,15 @@
 
 cd "$(dirname "$0")"
 
-# 检查 node_modules 是否存在，不存在则先安装
-if [ ! -d "node_modules" ]; then
-  echo "首次启动，安装依赖..."
-  npm install
-fi
+# 每次启动都同步依赖，避免 git pull 后依赖不一致导致启动失败。
+# 依赖已是最新时 npm install 几乎瞬间返回，不影响启动速度。
+# 根 install 覆盖 workspaces（frontend、assistant/client）与 assistant/server 用到的 express，
+# 不要再单独 npm install --prefix frontend，否则会生成重复的 react 副本。
+echo "同步根依赖（含前端 / 写卡助手）..."
+npm install || { echo "根依赖安装失败，请检查网络或 npm 配置"; exit 1; }
 
-if [ ! -d "frontend/node_modules" ]; then
-  echo "安装前端依赖..."
-  npm install --prefix frontend
-fi
-
-if [ ! -d "backend/node_modules" ]; then
-  echo "安装后端依赖..."
-  npm install --prefix backend
-fi
+echo "同步后端依赖..."
+npm install --prefix backend || { echo "后端依赖安装失败，请检查网络或 npm 配置"; exit 1; }
 
 echo ""
 echo "========================================="
