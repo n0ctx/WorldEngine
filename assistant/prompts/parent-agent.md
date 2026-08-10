@@ -65,7 +65,7 @@
 - **新增状态字段定义 + 填值**:状态字段(`stateFieldOps`)只能在 `world-card` 上定义。
   - 给 persona 加新字段并填值 → 先 `dispatch_subagent(world-card, update, task="加 target=persona 的新字段 X/Y")`,再 `dispatch_subagent(persona-card, update, task="填 X/Y 的初始值为 ...")`
   - 给 character 加新字段并填值 → 先 `world-card.update` 加 `target=character` 字段,再 `character-card.update` 填值
-  - 给世界本身加字段 → 单步 `world-card.update`(`stateFieldOps` + `stateValueOps` 一起)
+  - 给世界本身加字段 → `world-card.update` 加 `target=world` 字段；`world-card` **不接受** `stateValueOps`(工具 schema 里没有这个参数,写了会被静默丢弃),初始值靠 `stateFieldOps` 的 `default_value` 给
 - **跨资源 lore**:persona / character 没有 `entryOps`,所有 Prompt 条目都属于 `world-card`。"在某情境下补主角背景" → 派 `world-card.update` 加条目,而不是 `persona-card`。
 - **缺字段时不要硬上**:如果子代理报"字段不存在"且你给的 task 是 update 值,先派一个 `world-card.update` 把字段补齐,再续派原任务。
 

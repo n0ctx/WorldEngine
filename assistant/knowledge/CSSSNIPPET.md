@@ -64,34 +64,15 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 - **禁止裸 hex / `rgba()` 拼色 / 非 token 圆角 / 非 token z-index**
 - **禁止渐变背景 / glassmorphism / 发光效果 / 装饰性 emoji**
 
-### token 三层（写片段时务必先分清）
+### token 三层（写片段时务必先分清，默认值见 `frontend/src/themes/tokens.css`）
 
 `frontend/src/themes/tokens.css` 把 token 分成三层，从下往上：
 
 1. **`--we-core-*`**：硬编码原始色（如 `--we-core-surface-100: #f7f7f4`）。**所有层禁止直接消费**，仅供 base 层引用。
-2. **`--we-base-*`**：基础色板（`--we-base-paper-100/200/300/400`、`--we-base-ink-900/700/500`、`--we-base-vermilion-600/800`、`--we-base-gold-600/400`、`--we-base-moss-600`、`--we-base-amber-600`、`--we-base-slate-600`、`--we-base-book-bg` …）。**主题包**（`theme.css`）只允许覆盖这一层来批量换肤。
-3. **`--we-color-*`**：语义层（`--we-color-bg-canvas/surface/elevated/subtle/muted`、`--we-color-text-primary/secondary/tertiary`、`--we-color-border-default/subtle/strong/focus`、`--we-color-accent`、`--we-color-status-success/warning/danger/info` …）。**组件 CSS** 与 **css-snippet 局部样式**应当读这一层。
+2. **`--we-base-*`**：基础色板，如 `--we-base-paper-100/200/300/400`（纸面）、`--we-base-ink-900/700/500`（文字）、`--we-base-vermilion-600/800`、`--we-base-gold-600/400`、`--we-base-moss-600`、`--we-base-amber-600`、`--we-base-slate-600`、`--we-base-book-bg`（TopBar/深底）… **主题包**（`theme.css`）只允许覆盖这一层来批量换肤。
+3. **`--we-color-*`**：语义层，如 `--we-color-bg-canvas`（页面大背景）/ `-surface`（卡片面板）/ `-elevated`（浮层弹窗）、`--we-color-text-primary/secondary/tertiary`、`--we-color-border-default/subtle/strong/focus`、`--we-color-accent/-accent-deep/-accent-bg`、`--we-color-status-success/warning/danger/info` … **组件 CSS** 与 **css-snippet 局部样式**应当读这一层。
 
-> 在 `css-snippet` 里推荐用法：**消费 `--we-color-*` 语义层**做局部覆盖；只有当你想"全站换肤但又不打算建主题包"时，才在 `:root` 覆盖 `--we-base-*`（注意这会影响所有依赖该 base 的语义 token）。
-
-### 常用 token 速查（默认值见 `frontend/src/themes/tokens.css`）
-
-语义层（局部覆盖优先用这层）：
-
-- `--we-color-bg-canvas`：页面大背景
-- `--we-color-bg-surface`：卡片/面板背景
-- `--we-color-bg-elevated`：浮层/弹窗
-- `--we-color-text-primary` / `--we-color-text-secondary` / `--we-color-text-tertiary`
-- `--we-color-border-default` / `--we-color-border-subtle` / `--we-color-border-strong`
-- `--we-color-accent` / `--we-color-accent-deep` / `--we-color-accent-bg`
-- `--we-color-status-success/warning/danger/info`
-
-基础层（全站换肤覆盖这层）：
-
-- `--we-base-paper-100/200/300/400`、`--we-base-ink-900/700/500`
-- `--we-base-vermilion-600/800`、`--we-base-gold-600/400`、`--we-base-book-bg`
-
-> 完整清单见 `frontend/src/themes/tokens.css`；**不要发明新 token 名**——如果现有 token 不够，先找有没有现成语义 token 可用，再考虑提议在 token 体系里补，不要在片段里堆裸 hex。
+> 在 `css-snippet` 里推荐用法：**消费 `--we-color-*` 语义层**做局部覆盖；只有当你想"全站换肤但又不打算建主题包"时，才在 `:root` 覆盖 `--we-base-*`（注意这会影响所有依赖该 base 的语义 token）。完整清单见 `frontend/src/themes/tokens.css`；**不要发明新 token 名**——如果现有 token 不够，先找有没有现成语义 token 可用，再考虑提议在 token 体系里补，不要在片段里堆裸 hex。
 
 ### 常用目标类
 
@@ -160,8 +141,7 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 
 ### 修改 / 删除现有片段
 
-- **必须**先 `preview_card(target="css-snippet")` 拉片段列表（含 id / name / mode / enabled）
-- 从中确认目标 ID 后再生成提案
+- 按 §工作流 preview 出的列表（含 id / name / mode / enabled）确认目标 ID 后再生成提案
 - update 只输出需要修改的字段（如只改 `content`，不要重复输出 `name` / `mode` / `enabled`）
 
 ## 反例
@@ -172,4 +152,3 @@ WorldEngine 前端的颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we
 - 大面积裸 hex：`color: #2a2a2a; background: #f5e6c8;`（应覆盖 token）
 - 渐变背景 / 发光效果：`background: linear-gradient(...)` / `box-shadow: 0 0 20px gold`
 - create / update 输出空 `content`
-- delete 时 `changes` 不为 `{}`
