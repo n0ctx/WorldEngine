@@ -18,47 +18,31 @@
 
 ## changes 字段集
 
-允许键只有：
+`name`（世界名称）/ `description`（一句话简介，展示用，不要塞设定书）/ `temperature`（LLM 采样温度，题材决定：严肃史诗偏低，轻松恋爱偏高）/ `max_tokens`。
 
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `name` | string | 世界名称 |
-| `description` | string | 一句话简介（展示用，不要塞设定书） |
-| `temperature` | number | LLM 采样温度（题材决定，严肃史诗偏低，轻松恋爱偏高） |
-| `max_tokens` | number | LLM 最大输出长度 |
-
-**禁止字段**：`system_prompt`、`post_prompt`（世界级别没有 prompt 字段；世界正文只能用 entryOps 表达）。
+**禁止字段**：`system_prompt`、`post_prompt`（世界级别没有 prompt 字段，且后端会静默丢弃这两个键、不报错；世界正文只能用 entryOps 表达）。
 
 ## entryOps 完整规则
 
-每项 `op` 只能是 `create` / `update` / `delete`。`update` / `delete` 的 `id` 必须从 `preview_card` 返回数据中取得，不得自行发明。
+每项 `op` 只能是 `create` / `update` / `delete`。`update` / `delete` 的 `id` 必须从 `preview_card` 返回数据中取得，不得自行发明——ID 不存在时后端不会报错，只是这条 op 静默不生效。
 
-### 通用字段
+### 字段补充说明（schema 已声明字段名/类型，这里只写 schema 没有的语义）
 
-- `title`：条目标题
-- `description`：1-2 句话描述**何时**触发（仅 `llm` 类型必填；`always`/`keyword`/`state` 可留空）
-- `content`：完整注入内容（受术语约束：`{{user}}` / `{{char}}`）
-- `keywords`：关键词数组（`keyword` 类型必填且至少 1 项）
-- `keyword_scope`：`"user"` / `"assistant"` / `"user,assistant"`；**仅 `keyword` 类型生效**；至少包含一项，留空会被后端拒绝
-- `keyword_logic`：`"AND"` / `"OR"`；**仅 `keyword` 类型生效**；`AND` = 所有关键词都出现才命中，`OR` = 任一关键词出现即命中（默认 `OR`）
-- `active_turns`：非负整数；**仅 `keyword` 类型生效**；`0` = 命中后永久生效；`1` = 仅命中当轮；`N` = 命中当轮后再续 N-1 轮 carry-over（**共 N 轮**，默认 `1`）。fresh hit 只扫"本轮"最新一条 user/assistant 消息，跨轮持续完全由该字段控制
-- `condition_logic`：`"AND"` / `"OR"`；**仅 `state` 类型生效**；默认 `"AND"`（所有 `conditions` 项全部满足才触发），`"OR"` 表示任一满足即可。需要 OR 时直接填该字段，不要把同一条目拆成多条
-- `trigger_type`：`always` / `keyword` / `llm` / `state`（必填）
-- `token`：注入顺序权重，**整数 ≥ 1（默认 1）**，token 越大越靠后（ASC 排序）；同 token 时按 `sort_order` 升序。LLM 对靠后内容 recency 更强，所以"越靠后实际优先级越高"。回复用户时禁止把 "token=1" 描述为 "优先级最高"
-  - **特例 `token=0`（cached layer）**：仅 `trigger_type:"always"` 允许填 0；该条目**不进 [7] 注入**，转而拼到 cached system 消息末尾（位于 [3] 之后），是 prompt cache 的一部分，按 `sort_order ASC, created_at ASC` 稳定排序。适合"始终常驻、文本稳定、希望命中 prompt cache"的世界观核心条目。trigger_type 从 always 切走时 token=0 会被后端归一为 1
-- `sort_order`：整数，默认 0；同 token 时的细排序（拖拽用），LLM 一般不需要主动输出
-- `enabled`：`1` 启用 / `0` 禁用；缺省视为启用。update 时如需临时关闭某条目可显式输出 `0`
+- `description`：仅 `trigger_type:"llm"` 必填（LLM 靠它语义判定是否注入）；其余类型留空即可，不校验、不报错。
+- `content`：受术语约束，写 `{{user}}` / `{{char}}` 占位符。
+- `keyword_scope` / `keyword_logic` / `active_turns`：**仅 `trigger_type:"keyword"` 生效**，其他类型填了会被静默存下但不产生任何效果。`keyword_logic` 的 `AND` = 所有关键词都出现才命中，`OR`（默认）= 任一出现即命中。`active_turns`：`0` = 命中后永久生效；`1`（默认）= 仅命中当轮；`N` = 命中当轮后再续 N-1 轮 carry-over（共 N 轮）。fresh hit 只扫"本轮"最新一条 user/assistant 消息，跨轮持续完全由该字段控制。
+- `condition_logic`：`"AND"` / `"OR"`，**仅 `trigger_type:"state"` 生效，且不在 apply 工具的 schema 里**（写了才有效，不写默认 `"AND"`，非 `"OR"` 的值一律按 `"AND"` 处理，不报错）。多条 `conditions` 要 OR 时直接填该字段，不要把同一条目拆成多条。
+- `token`：整数 ≥1（默认 1，非法值静默钳到 1）。**特例 `token=0`（cached layer）**：仅 `trigger_type:"always"` 允许填 0；该条目**不进 [7] 注入**，转而拼到 cached system 消息末尾（位于 [3] 之后），是 prompt cache 的一部分，按 `sort_order ASC, created_at ASC` 稳定排序，适合"始终常驻、文本稳定、希望命中 prompt cache"的世界观核心条目。trigger_type 从 always 切走时 token=0 会被后端静默归一为 1。回复用户时禁止把 "token=1" 描述为"优先级最高"——token 越大越靠后，LLM 对靠后内容 recency 更强，越靠后实际优先级越高。
+- `sort_order`：同 token 时的细排序，LLM 一般无需主动输出。
 
-> `position` 字段已废弃，禁止输出。所有命中条目统一在 [7] 注入。
+> `position` 字段已废弃，禁止输出（见「反例」）。所有命中条目统一在 [7] 注入。
 
-### 四种 trigger_type
+### trigger_type 选型（always / keyword / llm / state；schema 不做 enum 校验，写错值会被静默丢弃，务必按此表填）
 
-| trigger_type | 用途 | 关键约束 |
-|---|---|---|
-| `always` | 常驻条目，每轮必注入；用于世界观核心框架、不可违背的法则 | `keywords` 可为空 |
-| `keyword` | 关键词命中时注入；用于专有名词触发的 lore | `keywords` 至少 1 项；空则改用 llm 或 always |
-| `llm` | LLM 读 `description` 字段语义判定是否注入（关键词兜底）；用户/UI 称"AI 召回条目" | **不是向量召回**；`description` 必填 |
-| `state` | 当前会话状态全部满足 `conditions` 时注入 | `conditions` 至少 1 项，否则永远不触发 |
+- `always`：常驻，每轮必注入；世界观核心框架、不可违背的法则
+- `keyword`：关键词命中时注入；专有名词触发的 lore；`keywords` 至少 1 项，否则永远不触发
+- `llm`：LLM 读 `description` 语义判定是否注入（**不是向量召回**）；用户/UI 称"AI 召回条目"；`description` 必填
+- `state`：当前会话状态满足 `conditions`（按 `condition_logic`）时注入；`conditions` 至少 1 项，否则永远不触发
 
 > 任务文本出现"AI 召回条目" / "AI召回" 时，必须输出 `trigger_type:"llm"` 并写非空 `description`，禁止降级为 keyword 或 always。
 
@@ -70,17 +54,12 @@
 
 ### conditions（trigger_type:"state" 专用）
 
-- 条目的 `condition_logic` 决定多条 conditions 的合取方式：`"AND"`（默认）全部满足 / `"OR"` 任一满足；需要 OR 时直接写 `condition_logic:"OR"`，不要为了凑 OR 拆成多条 state 条目
-- 每项格式：`{ "target_field": "<层级>.<label>", "operator": "...", "value": "..." }`
-- `target_field` 必须使用真实字段标签：`世界.xxx` / `玩家.xxx` / `角色.xxx`，不要只写裸 `field_key`
-- 操作符：
-  - 数值：`>` `<` `=` `>=` `<=` `!=`
-  - 文本：`包含` `等于` `不包含`
-  - **datetime**：使用数值操作符；`value` 必须写完整 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`，按段位解析为整数后逐段比较
+- 每项格式：`{ "target_field": "<层级>.<label>", "operator": "...", "value": "..." }`；`target_field` 必须使用真实字段标签 `世界.xxx` / `玩家.xxx` / `角色.xxx`，不要只写裸 `field_key`（裸键在同名冲突时会报错，要求改写为带层级前缀的形式）。
+- 操作符非法会直接报错自纠；**datetime** 字段是唯一的静默风险点：必须用数值操作符，`value` 必须写完整 ISO 局部时间 `"YYYY-MM-DDTHH:mm"`，按段位解析为整数逐段比较，格式不对不会报错，只会导致条件永远不匹配。
 
 ### 状态字段与 state 条目耦联约束（必读）
 
-`target_field` 中的 label 部分必须与真实存在的状态字段 `label` **逐字符一致**（大小写敏感）。系统按 label 查找字段——字段不存在 = 条件永远为假 = 条目永远不触发。
+`target_field` 中的 label 部分必须与真实存在的状态字段 `label` **逐字符一致**（大小写敏感）。系统按 label 查找字段——字段不存在 = 条件永远为假 = 条目永远不触发，**这个错配不会报错**。
 
 实践：
 1. 引用已有字段：先 `preview_card` 确认真实 label
@@ -89,58 +68,30 @@
 
 ### 示例
 
-create 常驻：
+create 常驻（cached layer，`always` + `token=0`）：
 ```json
-{ "op": "create", "title": "世界背景", "description": "", "content": "完整内容", "keywords": [], "trigger_type": "always", "token": 1 }
+{ "op": "create", "title": "世界观核心", "content": "本世界遵循 …（极稳定的世界规则，几乎不会改）", "trigger_type": "always", "token": 0 }
 ```
 
 create 关键词（AND + 仅 user 消息触发 + 命中后保持 3 轮）：
 ```json
 {
-  "op": "create", "title": "黑市暗号", "description": "",
-  "content": "{{user}} 报出暗号后，黑市探子会暗中跟踪…",
-  "keywords": ["影笺", "暗号"],
-  "keyword_scope": "user",
-  "keyword_logic": "AND",
-  "active_turns": 3,
-  "trigger_type": "keyword",
-  "token": 5
-}
-```
-
-create 状态触发（默认 AND）：
-```json
-{
-  "op": "create", "title": "决战节奏提醒", "description": "",
-  "content": "{{char}} 的反应应切到高压节奏...",
-  "trigger_type": "state",
-  "conditions": [{ "target_field": "世界.剧情阶段", "operator": "等于", "value": "决战" }],
-  "token": 1
+  "op": "create", "title": "黑市暗号", "content": "{{user}} 报出暗号后，黑市探子会暗中跟踪…",
+  "keywords": ["影笺", "暗号"], "keyword_scope": "user", "keyword_logic": "AND", "active_turns": 3,
+  "trigger_type": "keyword", "token": 5
 }
 ```
 
 create 状态触发（OR 任一满足即可）：
 ```json
 {
-  "op": "create", "title": "战斗高压预警", "description": "",
-  "content": "{{char}} 的语气应变得急促、戒备。",
-  "trigger_type": "state",
-  "condition_logic": "OR",
+  "op": "create", "title": "战斗高压预警", "content": "{{char}} 的语气应变得急促、戒备。",
+  "trigger_type": "state", "condition_logic": "OR",
   "conditions": [
     { "target_field": "角色.HP", "operator": "<", "value": "30" },
     { "target_field": "世界.剧情阶段", "operator": "等于", "value": "决战" }
   ],
   "token": 1
-}
-```
-
-create 缓存层常驻条目（`always` + `token=0`，进入 prompt cache）：
-```json
-{
-  "op": "create", "title": "世界观核心", "description": "",
-  "content": "本世界遵循 …（极稳定的世界规则，几乎不会改）",
-  "trigger_type": "always",
-  "token": 0
 }
 ```
 
@@ -152,15 +103,11 @@ update / delete：
 
 ## stateFieldOps 完整规则
 
-每项 `op` 只能是 `create` / `update` / `delete`。`update`/`delete` 的 `id` 必须从 `preview_card` 取得。
-
-### target 取值（仅 world-card）
+每项 `op` 只能是 `create` / `update` / `delete`。`update`/`delete` 的 `id` 必须从 `preview_card` 取得。`target` 只能是 `"world"` / `"persona"` / `"character"`；character-card / persona-card 上出现 stateFieldOps 会直接报错拒绝（状态字段的创建/修改/删除只能在 world-card 做）。
 
 - `"world"`：世界/环境/剧情局势字段
 - `"persona"`：`{{user}}` 状态字段
 - `"character"`：`{{char}}` 共享字段定义（具体值由 character-card 写）
-
-> character-card / persona-card **不允许** stateFieldOps。
 
 ### 默认状态字段（新建世界自带，禁止重复创建）
 
@@ -193,58 +140,38 @@ update / delete：
 
 只应新增**默认字段未覆盖的、世界特有**的字段：如 HP、金币、好感度、任务阶段、修为、声望、势力值等。
 
-### 7 种 type
+### 7 种 type 选型（枚举见 schema：number / text / enum / list / boolean / datetime / table）
 
-> 选 type 前按 **boolean → number → datetime → enum → list → table → text** 顺序逐项排除，不允许跳步。默认禁止 `text`，必须先排除其他 6 种。
+> 选 type 前按 **boolean → number → datetime → enum → list → table → text** 顺序逐项排除，不允许跳步。默认禁止 `text`，必须先排除其他 6 种——这是纯选型判断，schema 只给类型枚举，不会替你把关。
 
-| type | 用于 | 正例 | 不要用于 |
-|---|---|---|---|
-| `boolean` | 二元状态：是否死亡、是否已解锁、是否入伙 | `已入伙: false` | 多选项状态（用 enum）|
-| `number` | 纯数字：HP、金币、好感度、侵蚀度、声望、进度% | `HP: 85` | 文本描述、有固定选项的状态 |
-| `datetime` | 可比较的时间点：游戏内当前日期时间、剧情时间线、约定截止时间 | `当前时间: "1000-03-15T14:30"` | 时长（用 number）；模糊时段（用 text/enum）|
-| `enum` | 有固定可枚举选项：剧情阶段、情绪、关系状态 | `情绪: 平静/愤怒/悲伤` | 数量无限或自由填写 |
-| `list` | 可增减集合：背包、清单、已知线索、激活任务 | `背包: ["火把", "解毒药"]` | 单值字段（用 enum/text）|
-| `table` | 一组同结构的并列数值：六维属性、攻防速、左右手装备耐久 | `三围: {atk:30, def:20, spd:15}` | 列数会变化的数据（用 list）；非数值字段 |
-| `text` | 真正需要自由描述的状态：当前伤势详情 | `伤势描述: "右臂骨折"` | 一切可用前 6 种覆盖的场景 |
+- `boolean`：二元状态（是否死亡/已解锁/入伙），不要用于多选项状态（应用 enum）
+- `number`：纯数字（HP、金币、好感度、侵蚀度、声望、进度%）；可选 `min_value` / `max_value`，参与每轮自动状态更新的越界裁剪与前端进度条渲染
+- `datetime`：可比较的时间点（游戏内当前日期时间、剧情时间线、约定截止时间），不要用于时长（应用 number）或模糊时段（应用 text/enum）
+- `enum`：固定可枚举选项（剧情阶段、情绪、关系状态），不要用于数量无限或自由填写的场景
+- `list`：可增减集合（背包、清单、已知线索、激活任务），不要用于单值字段（应用 enum/text）
+- `table`：一组同结构的并列数值（六维属性、攻防速），列数会变化的数据应用 list，非数值字段不要放进 table
+- `text`：真正需要自由描述的状态（如伤势详情），一切可用前 6 种覆盖的场景都不要用 text
 
-number 边界（可选）：可填 `min_value` / `max_value` 设数值上下限，参与每轮自动状态更新的越界裁剪与前端进度条渲染（如 `HP` 设 `min_value:0` / `max_value:100`）。`type='table'` 禁用这两个键，按列上下限改填 `table_columns[].min/max`。
-
-datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数（1-N 位均可），月/日/时/分各 2 位（例 `"1000-03-15T14:30"` 或 `"238-04-20T00:00"`）。比较按段位解析为整数后逐段比较，不需要等宽零填充年份。
+datetime 格式：`"YYYY-MM-DDTHH:mm"`，年份为正整数、可任意位数，月/日/时/分各 2 位（例 `"1000-03-15T14:30"`）；不符合会直接报错自纠。
 
 ### update_mode
 
 - `"manual"`：仅写卡助手或前端显式写入，不参与每轮自动更新
 - `"llm_auto"`：每轮对话后由 LLM 根据 `update_instruction` 自动更新
-- `"system_rule"`（仅 `target:"world"` / `target:"persona"`）：由系统规则驱动，不交给 LLM；助手一般不主动产生该值，仅在用户明确要求时填
+- `"system_rule"`（仅默认字段 `diary_time` 使用，由 `createWorld()` 直接写库）：由系统规则驱动，不交给 LLM。**写卡助手不要主动输出这个值**——它不在合法枚举内，写了会被静默拒绝并回退为 `manual`，不会报错也不会变成你想要的效果。
 
-### prefix（仅 datetime）
+### default_value 写法（除 datetime / table 外，格式错误不会报错，只会存入错误的值）
 
-`datetime` 字段可选 `prefix` 字段，写展示前缀字符串（如 `"第三纪元 "`），仅前端渲染用，**不参与 LLM 比较**。
-
-### nearby_enabled（仅 `target:"character"`）
-
-可选布尔字段，默认 `true`（DB 层默认值 1）。控制该字段是否被"附近 / 登场角色"（session 内的临时角色池）继承：
-
-- `true`：登场角色面板会显示该字段，每轮自动状态更新会维护它的值；玩家把临时角色升级为正式角色时，字段值会迁移
-- `false`：字段仅作用于正式角色卡（chat 模式与角色编辑入口），登场角色不显示也不写入
-
-使用场景：当某些字段（HP / MP / 复杂数值表 / 长篇人物档案）只对正式 `{{char}}` 有意义、登场角色不需要继承时，建议把这些字段标记为 `nearby_enabled: false`，避免污染本轮临时角色池。
-
-仅 `target:"character"` 字段允许填写；`target:"world"` / `target:"persona"` 出现 `nearby_enabled` 会被 normalize 拒绝。LLM 在 create / update 中如果不显式输出，DB 默认值 1 生效，不要为了"补全"主动填 `nearby_enabled: 1`。
-
-### default_value 写法
-
-- number → `"100"`
-- text → `"\"正常\""`
-- enum → `"\"序章\""`
+- number → `"100"`；text → `"\"正常\""`；enum → `"\"序章\""`；boolean → `"false"`
 - list → `"[]"`（空数组；预设值如 `"[\"线索A\"]"`）
-- boolean → `"false"`
-- datetime → `"\"1000-03-15T14:30\""`
-- table → `"{\"atk\":10,\"def\":5}"`（对象；key 必须是 `table_columns` 里声明过的列 key，值必须是数值）
+- datetime → `"\"1000-03-15T14:30\""`（格式错误会直接报错）
+- table → `"{\"atk\":10,\"def\":5}"`（对象；key 必须是 `table_columns` 里声明过的列 key 且值必须是数值，否则报错）
 
 ### table_columns（仅 type='table'）
 
-`type='table'` 字段必须填写 `table_columns`：JSON 数组，每项 `{ "key": "atk", "label": "攻", "min": 0, "max": 99 }`。`key` 仅允许字母数字下划线且列内唯一；`label` 是表头展示文本；`min` / `max` 可选，前端按上下限渲染进度条。`type='table'` 时禁止填写 `enum_options` / `min_value` / `max_value` / `prefix`。
+必填，JSON 数组，每项 `{ "key": "atk", "label": "攻", "min": 0, "max": 99 }`；`key` 仅允许字母数字下划线且列内唯一，格式错误会报错。`type='table'` 时禁止填写 `enum_options` / `min_value` / `max_value` / `prefix`（填了会报错）。
+
+状态条目 (`trigger_type='state'`) 的条件 `target_field` 可定位到具体一列，格式 `角色.三围.atk`（即 `scope.field_label.column_key`）。
 
 ### 示例
 
@@ -253,12 +180,26 @@ create：
 {
   "op": "create", "target": "world", "field_key": "story_phase",
   "label": "剧情阶段", "type": "enum",
-  "description": "当前主线推进到哪一阶段",
   "default_value": "\"序章\"",
   "update_mode": "llm_auto",
   "update_instruction": "根据剧情推进更新阶段",
-  "enum_options": ["序章", "调查", "冲突", "决战"],
-  "allow_empty": 1
+  "enum_options": ["序章", "调查", "冲突", "决战"]
+}
+```
+
+create（table 类型）：
+```json
+{
+  "op": "create", "target": "character", "field_key": "stats",
+  "label": "三围", "type": "table",
+  "default_value": "{\"atk\":30,\"def\":20,\"spd\":15}",
+  "table_columns": [
+    { "key": "atk", "label": "攻", "min": 0, "max": 99 },
+    { "key": "def", "label": "防", "min": 0, "max": 99 },
+    { "key": "spd", "label": "速", "min": 0, "max": 99 }
+  ],
+  "update_mode": "llm_auto",
+  "update_instruction": "战斗结果或装备变化后更新对应列"
 }
 ```
 
@@ -272,25 +213,9 @@ delete：
 { "op": "delete", "target": "world", "id": "现有字段ID" }
 ```
 
-create（table 类型示例）：
-```json
-{
-  "op": "create", "target": "character", "field_key": "stats",
-  "label": "三围", "type": "table",
-  "description": "角色基础属性，按攻/防/速三列存储",
-  "default_value": "{\"atk\":30,\"def\":20,\"spd\":15}",
-  "table_columns": [
-    { "key": "atk", "label": "攻", "min": 0, "max": 99 },
-    { "key": "def", "label": "防", "min": 0, "max": 99 },
-    { "key": "spd", "label": "速", "min": 0, "max": 99 }
-  ],
-  "update_mode": "llm_auto",
-  "update_instruction": "战斗结果或装备变化后更新对应列",
-  "allow_empty": 1
-}
-```
+> `nearby_enabled`（仅 `target:"character"` 可选布尔，默认 `true`）：控制该字段是否被"附近/登场角色"临时角色池继承。`false` 时只作用于正式角色卡，登场角色不显示也不写入。用于 HP / MP / 复杂数值表等只对正式 `{{char}}` 有意义的字段。非 character 字段填了会报错。
 
-> 状态条目 (`trigger_type='state'`) 的条件 `target_field` 可定位到具体一列，格式 `角色.三围.atk`（即 `scope.field_label.column_key`）。
+> `prefix`（仅 datetime 类型可选）：展示前缀字符串（如 `"第三纪元 "`），仅前端渲染用，**不参与 LLM 比较**。
 
 ## 操作手册
 
@@ -298,10 +223,7 @@ create（table 类型示例）：
 
 1. **基础参数**：`name` / `description` / `temperature` / `max_tokens`
 2. **核心框架条目**（1-2 条 `always`）：世界观概述、核心规则；精炼、稳定、不堆砌
-3. **世界特有状态字段**（三层默认字段已由系统自动创建，见 stateFieldOps 章节「默认状态字段」；这里只补默认字段未覆盖的、世界特有的字段，禁止重复创建同义字段）：
-   - 世界层：剧情阶段(enum)、白天/黑夜(boolean)
-   - {{user}} 层：HP/金币(number)、背包(list)
-   - {{char}} 层：好感度(number)、任务状态(enum)、是否入伙(boolean)
+3. **世界特有状态字段**（默认字段已自动创建，见「默认状态字段」；这里只补默认字段未覆盖的、世界特有的字段）：世界层剧情阶段(enum)/昼夜(boolean)、{{user}} 层 HP/金币(number)/背包(list)、{{char}} 层好感度(number)/任务状态(enum)/是否入伙(boolean)
 4. **Lore 条目**（3-8 条 `keyword` 或 `llm`）：地点、组织、势力、历史事件、文化习俗
 5. **动态提醒条目**（2-4 条 `state`）：HP < 30 紧急反应、剧情阶段切换叙事变化、好感阈值互动模式
 
@@ -316,16 +238,11 @@ create（table 类型示例）：
 
 ### 修复 / 补强已有世界卡
 
-- 先 `preview_card` 拉现状
-- 优先复用已有字段，缺什么再补；不要重复创建
-- 补"状态-状态条目动态系统"：先确认状态字段齐全 → 再补 `state` 条目把状态变化和叙事提醒接起来
+先 `preview_card` 拉现状 → 优先复用已有字段，缺什么再补，不要重复创建 → 确认状态字段齐全后再补 `state` 条目把状态变化和叙事提醒接起来。
 
 ### 创建世界时预设初始状态值
 
-`world-card` 不支持 `stateValueOps`。需要预设初始属性值时拆步骤：
-- Step 1：`world-card create` 定义状态字段
-- Step 2：`persona-card update`（依赖 Step 1）用 `stateValueOps` 填初始值
-- `field_key` 必须与 Step 1 字段一致
+`world-card` 不支持 `stateValueOps`。需要预设初始属性值时拆步骤：Step 1 `world-card create` 定义状态字段 → Step 2 `persona-card update`（依赖 Step 1）用 `stateValueOps` 填初始值，`field_key` 须与 Step 1 一致。
 
 ## 反例
 
