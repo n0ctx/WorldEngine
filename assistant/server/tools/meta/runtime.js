@@ -109,7 +109,7 @@ const MIN_PLAN_STEPS = 2;
         const taskTailIssue = validatePlanStepsTaskTail(steps);
         if (taskTailIssue) return taskTailIssue;
         const nowIso = new Date().toISOString();
-        const md = planDoc.renderPlanDoc({
+        const plan = {
           title: args.title,
           status: 'awaiting_approval',
           createdAt: nowIso,
@@ -117,7 +117,8 @@ const MIN_PLAN_STEPS = 2;
           intent: args.intent,
           assumptions: planDoc.normalizePlanDocList(args.assumptions ?? []),
           steps,
-        });
+        };
+        const md = planDoc.renderPlanDoc(plan);
         const validation = planDoc.validatePlanDoc(md);
         if (!validation.valid) {
           return { success: false, failureKind: 'precheck', error: `计划文档格式校验失败：${validation.error}，请修正后重试` };
@@ -126,7 +127,7 @@ const MIN_PLAN_STEPS = 2;
         // 再写入新方案；既保证 planDocContent / file 不残留旧数据，也清掉 PLAN_REJECTED 等遗留 error 标记。
         // （writePlanDoc 本身就会覆盖文件，这里加 delete 是为了把意图说明白，并顺带把 task.error 清零。）
         await planDoc.deletePlanDoc(task.id);
-        await planDoc.writePlanDoc(task.id, md);
+        await planDoc.writePlanDoc(task.id, plan);
         taskStore.setApprovalCheckpoint(task.id, {
           at: Date.now(),
           title: args.title,
@@ -155,13 +156,18 @@ const MIN_PLAN_STEPS = 2;
             error: '当前计划已批准并开始执行，不要在执行中重写未完成步骤或重新发起审批。',
           };
         }
-        let md = await planDoc.readPlanDoc(task.id);
+        let plan;
+        let md;
         if (args.op === 'mark_done') {
           if (!args.stepId) return { success: false, failureKind: 'precheck', error: 'mark_done 需要 stepId' };
-          md = planDoc.markStepDone(md, args.stepId, new Date().toISOString().slice(11, 19));
+          const currentPlan = await planDoc.readPlanData(task.id);
+          if (!currentPlan) return { success: false, failureKind: 'precheck', error: '当前没有可编辑的计划，请先 write_plan_doc' };
+          plan = planDoc.markStepDone(currentPlan, args.stepId, new Date().toISOString().slice(11, 19));
+          md = planDoc.renderPlanDoc(plan);
         } else if (args.op === 'replace_steps') {
           if (!Array.isArray(args.steps)) return { success: false, failureKind: 'precheck', error: 'replace_steps 需要 steps 数组' };
-          const parsed = planDoc.parsePlanDoc(md);
+          const parsed = await planDoc.readPlanData(task.id);
+          if (!parsed) return { success: false, failureKind: 'precheck', error: '当前没有可编辑的计划，请先 write_plan_doc' };
           const doneSteps = parsed.steps.filter((s) => s.done);
           const doneIds = new Set(doneSteps.map((s) => s.id));
           if (args.steps.length < MIN_PLAN_STEPS) {
@@ -189,7 +195,7 @@ const MIN_PLAN_STEPS = 2;
             }));
           const taskTailIssue = validatePlanStepsTaskTail(incoming);
           if (taskTailIssue) return taskTailIssue;
-          md = planDoc.renderPlanDoc({
+          plan = {
             title: parsed.title,
             status: parsed.status,
             createdAt: parsed.createdAt || new Date().toISOString(),
@@ -197,7 +203,8 @@ const MIN_PLAN_STEPS = 2;
             intent: parsed.intent ?? '',
             assumptions: parsed.assumptions ?? [],
             steps: [...doneSteps, ...incoming],
-          });
+          };
+          md = planDoc.renderPlanDoc(plan);
           const validation = planDoc.validatePlanDoc(md);
           if (!validation.valid) {
             return { success: false, failureKind: 'precheck', error: `计划文档校验失败：${validation.error}，请检查 steps 字段是否完整` };
@@ -205,13 +212,13 @@ const MIN_PLAN_STEPS = 2;
         } else {
           return { success: false, failureKind: 'precheck', error: `unknown op: ${args.op}` };
         }
-        await planDoc.writePlanDoc(task.id, md);
+        await planDoc.writePlanDoc(task.id, plan);
         emitFn({ type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: md });
         // replace_steps 更新了未完成步骤，需重新等待用户审批
         if (args.op === 'replace_steps') {
           taskStore.setApprovalCheckpoint(task.id, {
             at: Date.now(),
-            title: parsedPlanTitle(md),
+            title: plan.title,
             stepCount: args.steps.length,
             status: 'pending',
           });
@@ -264,9 +271,8 @@ const MIN_PLAN_STEPS = 2;
         }
         let step = null;
         if (args.stepId) {
-          const md = await planDoc.readPlanDoc(task.id);
-          const parsed = planDoc.parsePlanDoc(md);
-          step = parsed.steps.find((s) => s.id === args.stepId);
+          const parsed = await planDoc.readPlanData(task.id);
+          step = parsed?.steps?.find((s) => s.id === args.stepId) ?? null;
           if (!step) return { success: false, failureKind: 'precheck', error: `step not found: ${args.stepId}。请使用 list_resources 风格的视角先核对当前 plan_doc 内已有的 stepId 列表。` };
           if (step.done) return { success: false, failureKind: 'precheck', error: `step already done: ${args.stepId}。下一次 dispatch_subagent 请指向计划中还未完成的 stepId，或者用 reply_to_user 告知用户已完成。` };
         }

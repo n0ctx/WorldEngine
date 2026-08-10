@@ -57,8 +57,16 @@ test('plan_doc_updated 事件携带文档全文', async () => {
   const events = [];
   const fakeRes = { write: (line) => events.push(line) };
   taskStore.attachSse(task.id, fakeRes);
-  await planDoc.writePlanDoc(task.id,
-    '# 任务：T\n\n> 状态：planning · 创建时间：x\n\n## 用户意图\nx\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n');
+  await planDoc.writePlanDoc(task.id, {
+    title: 'T',
+    status: 'planning',
+    createdAt: 'x',
+    intent: 'x',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a' },
+    ],
+  });
   taskStore.emit(task.id, { type: 'plan_doc_updated', taskId: task.id, content: 'demo' });
   assert.match(events.at(-1), /plan_doc_updated/);
   assert.match(events.at(-1), /demo/);
@@ -369,7 +377,7 @@ test('write_plan_doc: 拒绝 step.task 以冒号结尾的伪截断计划', async
 test('dispatch_subagent: stepId + args.task 时用 args.task 覆盖 step.task（自救已批准计划）', async () => {
   const task = taskStore.createTask({ context: {} });
   // 模拟一份已批准但 step.task 被截断的计划
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+  await planDoc.writePlanDoc(task.id, {
     title: '已批准但 task 被截断',
     status: 'approved',
     createdAt: '2026-06-01T00:00:00.000Z',
@@ -381,7 +389,7 @@ test('dispatch_subagent: stepId + args.task 时用 args.task 覆盖 step.task（
       { id: 'step-2', title: '建条目', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 entryOps create 条目。' },
       { id: 'step-3', title: '验收', targetType: 'world-card', operation: 'update', task: '核对结果。' },
     ],
-  }));
+  });
   const tools = __testables.buildMetaTools(task, () => {}, null, {
     planDocExists: true,
     planAlreadyApproved: true,
@@ -442,7 +450,7 @@ test('dispatch_subagent: 失败返回 failureKind=precheck，让父代理区分�
 
 test('dispatch_subagent: 计划被拒后保留旧 plan doc 时，必须先重提方案再审批', async () => {
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+  await planDoc.writePlanDoc(task.id, {
     title: '旧计划',
     status: 'paused',
     createdAt: '2026-05-15T00:00:00.000Z',
@@ -450,7 +458,7 @@ test('dispatch_subagent: 计划被拒后保留旧 plan doc 时，必须先重提
     intent: '测试 reject 后绕过审批',
     assumptions: [],
     steps: threePlanSteps('旧步骤'),
-  }));
+  });
   const tools = __testables.buildMetaTools(task, () => {}, null, {
     requiresPlanFirst: true,
     planDocExists: true,
@@ -574,9 +582,21 @@ test('runParentAgent: write_plan_doc 后停在 awaiting_approval（不发 done�
 test('runParentAgent: 用户拒绝旧计划后写新计划 → 旧 plan_doc 文件被清掉、PLAN_REJECTED 标记清零', async () => {
   // 先模拟一份旧计划被拒绝的状态
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, '# 旧方案\n\n- [ ] 旧步骤一\n- [ ] 旧步骤二');
+  const oldPlan = {
+    title: '旧方案',
+    status: 'paused',
+    createdAt: '2026-05-01T00:00:00.000Z',
+    updatedAt: '2026-05-01T00:00:00.000Z',
+    intent: '旧意图',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: '旧步骤一', targetType: 'world-card', operation: 'update', dependsOn: [], task: '旧步骤一' },
+      { id: 'step-2', title: '旧步骤二', targetType: 'world-card', operation: 'update', dependsOn: [], task: '旧步骤二' },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, oldPlan);
   taskStore.setStatus(task.id, 'paused', { error: 'plan rejected by user' });
-  assert.equal(await planDoc.readPlanDoc(task.id), '# 旧方案\n\n- [ ] 旧步骤一\n- [ ] 旧步骤二');
+  assert.equal(await planDoc.readPlanDoc(task.id), planDoc.renderPlanDoc(oldPlan));
 
   // LLM 在下一轮调用 write_plan_doc 提交全新方案
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
@@ -874,7 +894,7 @@ test('runParentAgent: 子代理失败时立即暂停，不再继续输出完成�
 
 test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不回到 awaiting_approval', async () => {
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+  await planDoc.writePlanDoc(task.id, {
     title: '已确认计划',
     status: 'awaiting_approval',
     createdAt: '2026-05-13T00:00:00.000Z',
@@ -882,7 +902,7 @@ test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不�
     intent: '测试重复确认',
     assumptions: [],
     steps: threePlanSteps('已确认'),
-  }));
+  });
   taskStore.setStatus(task.id, 'running');
   const events = [];
   taskStore.attachSse(task.id, { write: (l) => events.push(l) });
@@ -917,29 +937,18 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   taskStore.attachSse(task.id, { write: () => {} });
   const tools = __testables.buildMetaTools(task, () => {});
 
-  const md = [
-    '# 任务：T',
-    '',
-    '> 状态：running · 创建时间：x',
-    '',
-    '## 用户意图',
-    'i',
-    '',
-    '## 假设与约束',
-    '- 无',
-    '',
-    '## 步骤',
-    '',
-    '- [x] **step-1** done（world-card.create）',
-    '  - 依赖：无',
-    '  - 任务：a',
-    '  - 完成于 12:00:00',
-    '- [ ] **step-2** todo（character-card.create）',
-    '  - 依赖：无',
-    '  - 任务：b',
-    '',
-  ].join('\n');
-  await planDoc.writePlanDoc(task.id, md);
+  const plan = {
+    title: 'T',
+    status: 'running',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'done', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: true, completedAt: '12:00:00' },
+      { id: 'step-2', title: 'todo', targetType: 'character-card', operation: 'create', dependsOn: [], task: 'b', done: false, completedAt: null },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, plan);
 
   const editPlan = tools[1];
   const tooShort = await editPlan.execute({
@@ -1020,7 +1029,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
 
 test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新进入审批', async () => {
   const task = taskStore.createTask({ context: {} });
-  const md = planDoc.renderPlanDoc({
+  const plan = {
     title: '已批准计划',
     status: 'running',
     createdAt: '2026-05-15T00:00:00.000Z',
@@ -1028,8 +1037,8 @@ test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新
     intent: '执行中禁止改计划',
     assumptions: [],
     steps: threePlanSteps('执行中步骤'),
-  });
-  await planDoc.writePlanDoc(task.id, md);
+  };
+  await planDoc.writePlanDoc(task.id, plan);
   taskStore.setStatus(task.id, 'running');
   taskStore.setApprovalCheckpoint(task.id, {
     title: '已批准计划',
@@ -1050,7 +1059,7 @@ test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新
   });
   assert.equal(r.success, false);
   assert.match(r.error, /执行中重写未完成步骤/);
-  assert.equal(await planDoc.readPlanDoc(task.id), md);
+  assert.equal(await planDoc.readPlanDoc(task.id), planDoc.renderPlanDoc(plan));
   await planDoc.deletePlanDoc(task.id);
 });
 
@@ -1088,25 +1097,17 @@ test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
   const task = taskStore.createTask({ context: {} });
   taskStore.attachSse(task.id, { write: () => {} });
 
-  const md = [
-    '# 任务：T',
-    '',
-    '> 状态：running · 创建时间：x',
-    '',
-    '## 用户意图',
-    'i',
-    '',
-    '## 假设与约束',
-    '- 无',
-    '',
-    '## 步骤',
-    '',
-    '- [ ] **step-1** A（world-card.create）',
-    '  - 依赖：无',
-    '  - 任务：a',
-    '',
-  ].join('\n');
-  await planDoc.writePlanDoc(task.id, md);
+  const plan = {
+    title: 'T',
+    status: 'running',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: false, completedAt: null },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, plan);
 
   const tools = __testables.buildMetaTools(task, () => {});
   const editPlan = tools[1];

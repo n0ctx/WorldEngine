@@ -265,6 +265,7 @@ CREATE TABLE IF NOT EXISTS assistant_tasks (
   messages_json              TEXT NOT NULL,
   pending_user_messages_json TEXT NOT NULL,
   plan_doc_content           TEXT NOT NULL DEFAULT '',
+  plan_doc_data_json         TEXT,
   model_context_json         TEXT,
   created_at                 INTEGER NOT NULL,
   current_step_id            TEXT,
@@ -416,6 +417,8 @@ export function initSchema(db) {
   try { db.exec(`ALTER TABLE worlds ADD COLUMN description TEXT NOT NULL DEFAULT ''`); } catch {}
   // T-assistant-resume: 为现有数据库补持久化计划文档正文
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_content TEXT NOT NULL DEFAULT ''`); } catch {}
+  // T-plan-doc-structured: 为现有数据库补持久化计划文档结构化数据（渲染 md 的真源）
+  try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN plan_doc_data_json TEXT`); } catch {}
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_tool_failure_json TEXT`); } catch {}
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN last_subagent_result_json TEXT`); } catch {}
   try { db.exec(`ALTER TABLE assistant_tasks ADD COLUMN approval_checkpoint_json TEXT`); } catch {}

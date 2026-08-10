@@ -2,7 +2,7 @@ import {
   getAssistantTask,
   upsertAssistantTask,
 } from '../../backend/db/queries/assistant-tasks.js';
-import { setPlanDocContent } from './task-store.js';
+import { setPlanDocContent, setPlanDocData } from './task-store.js';
 
 export async function ensurePlanDir() {
   // 兼容旧调用方；计划文档现已完全持久化到 assistant_tasks.plan_doc_content。
@@ -194,39 +194,28 @@ export function validatePlanDoc(md) {
   return { valid: true };
 }
 
-export function markStepDone(md, stepId, completedAt) {
-  const lines = md.split('\n');
-  const out = [];
-  for (let i = 0; i < lines.length; i += 1) {
-    const m = lines[i].match(STEP_RE);
-    if (m && m[2] === stepId) {
-      out.push(lines[i].replace(/^(\s*-\s*)\[\s*\]/, '$1[x]'));
-      let j = i + 1;
-      const block = [];
-      while (j < lines.length && lines[j].startsWith('  - ')) {
-        block.push(lines[j]);
-        j += 1;
-      }
-      out.push(...block);
-      out.push(`  - 完成于 ${completedAt}`);
-      i = j - 1;
-    } else {
-      out.push(lines[i]);
-    }
-  }
-  return out.join('\n');
+/**
+ * 结构级操作：把 plan.steps 中对应 stepId 的 done 置 true、completedAt 写上，返回新的 plan 对象。
+ * 不做任何 md 字符串手术——md 完全由 renderPlanDoc(plan) 派生，结构性地不可能与 plan 不同步。
+ */
+export function markStepDone(plan, stepId, completedAt) {
+  const steps = (plan?.steps ?? []).map((s) =>
+    s.id === stepId ? { ...s, done: true, completedAt } : s,
+  );
+  return { ...plan, steps };
 }
 
 function getPersistedTask(taskId) {
   return getAssistantTask(taskId);
 }
 
-function upsertPlanDocContent(taskId, content) {
+function upsertPlanDocument(taskId, md, plan) {
   const task = getPersistedTask(taskId);
   if (!task) throw new Error(`task not found: ${taskId}`);
   upsertAssistantTask({
     ...task,
-    planDocContent: typeof content === 'string' ? content : '',
+    planDocContent: typeof md === 'string' ? md : '',
+    planDocData: plan ?? null,
     updatedAt: Date.now(),
   });
 }
@@ -235,9 +224,21 @@ export async function readPlanDoc(taskId) {
   return getPersistedTask(taskId)?.planDocContent ?? '';
 }
 
-export async function writePlanDoc(taskId, content) {
-  upsertPlanDocContent(taskId, content);
-  setPlanDocContent(taskId, content);
+/** 返回结构化计划对象（真源），没有则返回 null；不做 md 反解析兜底。 */
+export async function readPlanData(taskId) {
+  return getPersistedTask(taskId)?.planDocData ?? null;
+}
+
+/**
+ * plan 是结构化对象 { title, status, createdAt, updatedAt, intent, assumptions, steps }。
+ * 内部用 renderPlanDoc(plan) 派生 md，md 与结构同时落库（DB + task-store 内存镜像），
+ * 调用方不需要（也不应该）分别传 md 和 plan。
+ */
+export async function writePlanDoc(taskId, plan) {
+  const md = renderPlanDoc(plan);
+  upsertPlanDocument(taskId, md, plan);
+  setPlanDocContent(taskId, md);
+  setPlanDocData(taskId, plan);
 }
 
 export async function deletePlanDoc(taskId) {
@@ -246,7 +247,9 @@ export async function deletePlanDoc(taskId) {
   upsertAssistantTask({
     ...task,
     planDocContent: '',
+    planDocData: null,
     updatedAt: Date.now(),
   });
   setPlanDocContent(taskId, '');
+  setPlanDocData(taskId, null);
 }

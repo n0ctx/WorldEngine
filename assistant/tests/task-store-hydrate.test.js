@@ -12,19 +12,30 @@ const now = Date.now();
 const insert = sandbox.db.prepare(`
   INSERT INTO assistant_tasks (
     id, status, context_json, messages_json, pending_user_messages_json,
-    plan_doc_content, model_context_json, created_at, current_step_id, error, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    plan_doc_content, plan_doc_data_json, model_context_json, created_at, current_step_id, error, updated_at
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
+const bbbbbbb1PlanData = {
+  title: 'T',
+  status: 'running',
+  createdAt: 'x',
+  intent: 'i',
+  assumptions: [],
+  steps: [
+    { id: 'step-1', title: '执行中', targetType: 'world-card', operation: 'update', dependsOn: [], task: 'a', done: false, completedAt: null },
+    { id: 'step-2', title: '待办', targetType: 'world-card', operation: 'update', dependsOn: ['step-1'], task: 'b', done: false, completedAt: null },
+  ],
+};
 const seeds = [
-  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
-  { id: 'task-bbbbbbb1', status: 'running', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
+  { id: 'task-aaaaaaa1', status: 'completed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
+  { id: 'task-aaaaaaa2', status: 'failed', context: {}, messages: [], pendingUserMessages: [], planDocContent: '', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: 'boom', updatedAt: now },
+  { id: 'task-bbbbbbb1', status: 'running', context: {}, messages: [{ id: 'm1', role: 'user', content: 'x' }], pendingUserMessages: [], planDocContent: '# live plan', planDocData: bbbbbbb1PlanData, createdAt: 1, currentStepId: 'step-1', modelContext: null, error: null, updatedAt: now },
   { id: 'task-bbbbbbb2', status: 'awaiting_approval', context: { worldId: 'w' }, messages: [
     { id: 'call-1', role: 'tool_call', toolName: 'preview_card', status: 'running' },
     { id: 'step-1', role: 'step', stepId: 'step-1', title: '执行中', status: 'running' },
     { id: 'plan-doc-task-bbbbbbb2', role: 'plan_doc', content: '# plan' },
-  ], pendingUserMessages: [], planDocContent: '# plan', createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
-  { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], planDocContent: '# paused plan', createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
+  ], pendingUserMessages: [], planDocContent: '# plan', planDocData: null, createdAt: 1, currentStepId: null, modelContext: null, error: null, updatedAt: now },
+  { id: 'task-ccccccc1', status: 'paused', context: { worldId: 'w2' }, messages: [{ id: 'm2', role: 'assistant', content: 'pending' }], pendingUserMessages: ['继续'], planDocContent: '# paused plan', planDocData: null, createdAt: 2, currentStepId: null, modelContext: { summary: 'old', summarizedUntilMessageId: 'm1', sourceMessageCount: 1, sourceChars: 3 }, error: null, updatedAt: now },
 ];
 for (const s of seeds) {
   insert.run(
@@ -34,6 +45,7 @@ for (const s of seeds) {
     JSON.stringify(s.messages),
     JSON.stringify(s.pendingUserMessages),
     s.planDocContent,
+    s.planDocData ? JSON.stringify(s.planDocData) : null,
     s.modelContext ? JSON.stringify(s.modelContext) : null,
     s.createdAt,
     s.currentStepId,
@@ -93,6 +105,19 @@ test('hydrate: running 状态保持写回数据库', () => {
   const raw = sandbox.db.prepare('SELECT status, error FROM assistant_tasks WHERE id = ?').get('task-bbbbbbb1');
   assert.equal(raw.status, 'running');
   assert.equal(raw.error, null);
+});
+
+test('hydrate: planDocData 从 DB 正确恢复到内存任务，且能按 stepId 找到 step（dispatch_subagent 依赖的查找路径）', () => {
+  const t1 = taskStore.getTask('task-bbbbbbb1');
+  assert.deepEqual(t1.planDocData, bbbbbbb1PlanData);
+  const step = t1.planDocData?.steps?.find((s) => s.id === 'step-1');
+  assert.ok(step, 'dispatch_subagent 按 stepId 在恢复后的结构里应能找到 step');
+  assert.equal(step.title, '执行中');
+  assert.equal(step.targetType, 'world-card');
+
+  // 未写入过结构化计划的任务应保持 planDocData 为 null，不应该被污染
+  const t2 = taskStore.getTask('task-bbbbbbb2');
+  assert.equal(t2.planDocData, null);
 });
 
 test('hydrate: 旧 JSON sidecar 导入到 SQLite', () => {

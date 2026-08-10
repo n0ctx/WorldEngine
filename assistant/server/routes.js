@@ -184,22 +184,16 @@ router.post('/agent/:taskId/approve', async (req, res) => {
   // 否则父代理新一轮读到的 plan_doc 仍标记为待审批，与 task.status 实时状态自相矛盾，
   // 模型可能误判要再次发起审批，输出"请确认执行"之类的冗余提示。
   try {
-    const md = await planDoc.readPlanDoc(task.id).catch(() => '');
-    if (md) {
-      const parsed = planDoc.parsePlanDoc(md);
-      if (parsed.status !== 'approved') {
-        const updated = planDoc.renderPlanDoc({
-          title: parsed.title,
-          status: 'approved',
-          createdAt: parsed.createdAt,
-          updatedAt: new Date().toISOString(),
-          intent: parsed.intent ?? '',
-          assumptions: parsed.assumptions ?? [],
-          steps: parsed.steps ?? [],
-        });
-        await planDoc.writePlanDoc(task.id, updated);
-        taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: updated });
-      }
+    const parsed = await planDoc.readPlanData(task.id).catch(() => null);
+    if (parsed && parsed.status !== 'approved') {
+      const plan = {
+        ...parsed,
+        status: 'approved',
+        updatedAt: new Date().toISOString(),
+      };
+      const updated = planDoc.renderPlanDoc(plan);
+      await planDoc.writePlanDoc(task.id, plan);
+      taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: updated });
     }
   } catch (err) {
     log.warn(`/agent/approve PLAN_DOC_SYNC_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
@@ -270,9 +264,16 @@ router.post('/agent/:taskId/truncate', async (req, res) => {
   // 否则重新生成时 parent-agent 会读到旧 plan doc 并跳过 write_plan_doc 直接执行
   const stillHasPlanDoc = task.messages.some((m) => m.role === 'plan_doc');
   if (hadPlanDoc && !stillHasPlanDoc) {
-    taskStore.setPlanDocContent(task.id, '');
     taskStore.setApprovalCheckpoint(task.id, null);
-    planDoc.deletePlanDoc(task.id).catch(() => {});
+    // deletePlanDoc 是清空 planDocContent + planDocData 的唯一入口；
+    // 之前这里额外调用 taskStore.setPlanDocContent(task.id, '') 会在两次持久化之间
+    // 留下一个 plan_doc_content='' 但 plan_doc_data_json 仍是旧计划的落库窗口——
+    // 正是本次重构要消灭的"md 与结构分叉"，必须只走 deletePlanDoc 这一条路径。
+    try {
+      await planDoc.deletePlanDoc(task.id);
+    } catch (err) {
+      log.warn(`/agent/truncate PLAN_DOC_DELETE_FAIL  ${formatMeta({ taskId: task.id, error: err.message })}`);
+    }
     taskStore.emit(task.id, { type: SSE_EVENTS.PLAN_DOC_UPDATED, taskId: task.id, content: '' });
   }
   taskStore.emit(task.id, { type: SSE_EVENTS.MESSAGES_CHANGED, taskId: task.id, messages: task.messages });

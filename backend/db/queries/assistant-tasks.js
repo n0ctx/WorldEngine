@@ -22,6 +22,7 @@ function decodeRow(row) {
     messages: parseJson(row.messages_json, []),
     pendingUserMessages: parseJson(row.pending_user_messages_json, []),
     planDocContent: typeof row.plan_doc_content === 'string' ? row.plan_doc_content : '',
+    planDocData: parseJson(row.plan_doc_data_json, null),
     modelContext: parseJson(row.model_context_json, null),
     createdAt: row.created_at,
     currentStepId: row.current_step_id ?? null,
@@ -38,15 +39,16 @@ export function upsertAssistantTask(task) {
   db.prepare(`
     INSERT INTO assistant_tasks (
       id, status, context_json, messages_json, pending_user_messages_json, plan_doc_content,
-      model_context_json, created_at, current_step_id, last_tool_failure_json,
+      plan_doc_data_json, model_context_json, created_at, current_step_id, last_tool_failure_json,
       last_subagent_result_json, approval_checkpoint_json, loop_iteration, error, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       status = excluded.status,
       context_json = excluded.context_json,
       messages_json = excluded.messages_json,
       pending_user_messages_json = excluded.pending_user_messages_json,
       plan_doc_content = excluded.plan_doc_content,
+      plan_doc_data_json = excluded.plan_doc_data_json,
       model_context_json = excluded.model_context_json,
       created_at = excluded.created_at,
       current_step_id = excluded.current_step_id,
@@ -63,6 +65,7 @@ export function upsertAssistantTask(task) {
     encodeJson(task.messages, []),
     encodeJson(task.pendingUserMessages, []),
     typeof task.planDocContent === 'string' ? task.planDocContent : '',
+    task.planDocData == null ? null : encodeJson(task.planDocData, null),
     task.modelContext == null ? null : encodeJson(task.modelContext, null),
     task.createdAt,
     task.currentStepId ?? null,
