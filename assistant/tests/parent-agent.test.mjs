@@ -1118,3 +1118,174 @@ test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
 
   await planDoc.deletePlanDoc(task.id);
 });
+
+// ---------------------------------------------------------------------------
+// 已批准计划未完成就宣告收尾守卫（findApprovedPlanPendingSteps / buildIncompletePlanRecoveryMessage）
+// ---------------------------------------------------------------------------
+
+function approvedPlanSteps(doneFlags) {
+  const titles = ['步骤一', '步骤二', '步骤三'];
+  return titles.map((title, i) => ({
+    id: `step-${i + 1}`,
+    title,
+    targetType: 'world-card',
+    operation: 'update',
+    dependsOn: [],
+    task: title,
+    done: Boolean(doneFlags[i]),
+    completedAt: doneFlags[i] ? '2026-05-15T00:00:00.000Z' : null,
+  }));
+}
+
+test('findApprovedPlanPendingSteps: 已批准计划有未完成步骤时返回未完成列表', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'approved',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([true, false, false]),
+  });
+  const pending = await __testables.findApprovedPlanPendingSteps(task.id);
+  assert.ok(Array.isArray(pending));
+  assert.deepEqual(pending.map((s) => s.id), ['step-2', 'step-3']);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 全部步骤已完成时返回 null', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'approved',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([true, true, true]),
+  });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 计划处于 awaiting_approval（未批准）时不触发', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'awaiting_approval',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([false, false, false]),
+  });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 没有计划文档（已删除/从未创建）时返回 null', async () => {
+  const task = taskStore.createTask({ context: {} });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+});
+
+test('buildIncompletePlanRecoveryMessage: 列出未完成 stepId 与标题，超过 5 条折叠', () => {
+  const steps = Array.from({ length: 7 }, (_, i) => ({ id: `step-${i + 1}`, title: `步骤${i + 1}` }));
+  const msg = __testables.buildIncompletePlanRecoveryMessage(steps);
+  assert.match(msg, /step-1/);
+  assert.match(msg, /step-5/);
+  assert.equal(msg.includes('step-6'), false);
+  assert.equal(msg.includes('step-7'), false);
+  assert.match(msg, /等 2 步/);
+  assert.match(msg, /dispatch_subagent/);
+  assert.match(msg, /delete_plan_doc/);
+});
+
+test('runParentAgent: 已批准计划有未完成步骤时 reply_to_user 收尾会被拦下并暂停', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '建一个世界',
+    status: 'approved',
+    createdAt: 'x',
+    intent: '测试计划未完成即收尾',
+    assumptions: [],
+    steps: approvedPlanSteps([true, false, false]),
+  });
+  setReplyToUser('都做完了');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'paused');
+  assert.equal(task.error, 'harness recoverable pause');
+  assert.ok(parsed.some((e) => e.type === 'paused'));
+  assert.equal(parsed.some((e) => e.type === 'task_completed'), false);
+  const harnessStep = task.messages.find((m) => m.role === 'step' && typeof m.stepId === 'string' && m.stepId.startsWith('harness-'));
+  assert.ok(harnessStep, '应有一条 harness step 记录');
+  assert.match(harnessStep.title, /还没标记完成/);
+  assert.match(harnessStep.title, /step-2/);
+  assert.match(harnessStep.title, /step-3/);
+  assert.equal(task.messages.some((m) => m.role === 'assistant' && m.content === '都做完了'), false);
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
+test('runParentAgent: 已批准计划全部步骤完成时 reply_to_user 收尾正常完成，不被拦', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '建一个世界',
+    status: 'approved',
+    createdAt: 'x',
+    intent: '测试计划已全部完成',
+    assumptions: [],
+    steps: approvedPlanSteps([true, true, true]),
+  });
+  setReplyToUser('都做完了');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'completed');
+  assert.ok(parsed.some((e) => e.type === 'task_completed'));
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
+test('runParentAgent: 没有计划的 ad-hoc 场景不受计划完整性守卫影响（无工具调用路径）', async () => {
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([]);
+  process.env.MOCK_LLM_COMPLETE = '这是不涉及任何计划的直接回答。';
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  await runParentAgent(task, '随便问个问题');
+
+  assert.equal(task.status, 'completed');
+  clearMockEnv();
+});
+
+test('runParentAgent: 计划处于 awaiting_approval（未批准）时守卫不触发', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '待审批计划',
+    status: 'awaiting_approval',
+    createdAt: 'x',
+    intent: '测试未批准计划不受守卫影响',
+    assumptions: [],
+    steps: approvedPlanSteps([false, false, false]),
+  });
+  setReplyToUser('确认一下');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'completed');
+  assert.ok(parsed.some((e) => e.type === 'task_completed'));
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});

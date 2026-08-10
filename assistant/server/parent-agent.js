@@ -37,6 +37,13 @@ const ASSISTANT_CONTEXT_RAW_LIMIT = 8;
 const ASSISTANT_CONTEXT_CHAR_LIMIT = 24_000;
 const ASSISTANT_DELTA_CHUNK_SIZE = 48;
 const MODEL_MESSAGE_ROLES = new Set(['user', 'assistant']);
+// 收尾前的两道守卫分工不同、互补而非重复：
+// - ACTION_CLAIM_RE / claimedExecutionWithoutRealAction：管 ad-hoc（无结构化计划）场景，
+//   只能靠措辞判断模型是否"声称"自己执行了写入——因为这类场景没有可核对的结构化状态。
+//   这条正则不能删：去掉它会让"用 preview_card 读一张卡然后回答用户"这类合法只读轮次
+//   （已经调过工具、但没有计划、也没有 appliedResources 变化）被误判成"嘴上说做了却没做"。
+// - findApprovedPlanPendingSteps（见下）：管已批准计划场景，直接读 planDoc 的结构化 status/steps，
+//   与模型说了什么无关，能抓住"计划没做完就用 reply_to_user 宣告收尾"这类正则本身抓不住的说法。
 const ACTION_CLAIM_RE = /(派发子代理|dispatch_subagent|调用子代理|(?:现在|接下来|马上|将|会|正在|开始|已|已经).{0,24}(?:创建|更新|删除|填写|填入|执行))/;
 
 function clearModelContext(task) {
@@ -306,6 +313,17 @@ function claimedExecutionWithoutRealAction(task, startMessageCount, startApplied
   return !dispatchedSubagent && appliedCount <= startAppliedCount;
 }
 
+// 已批准计划是否还有未完成步骤——纯状态判定，与模型措辞无关。
+// 只在 plan.status === 'approved' 时生效：awaiting_approval（未批准）不该拦，
+// 计划被拒绝或被 delete_plan_doc 清掉后 readPlanData 返回 null，同样不拦。
+async function findApprovedPlanPendingSteps(taskId) {
+  const plan = await planDoc.readPlanData(taskId).catch(() => null);
+  if (!plan || plan.status !== 'approved') return null;
+  const steps = Array.isArray(plan.steps) ? plan.steps : [];
+  const pending = steps.filter((s) => s?.done !== true);
+  return pending.length > 0 ? pending : null;
+}
+
 function buildReplyToUserTool() {
   return {
     definition: {
@@ -530,6 +548,26 @@ function buildClaimedExecutionRecoveryMessage() {
   return '刚才像是"已经做完了"但没真正落库，已暂停';
 }
 
+// pauseForRecoverableHarnessIssue 的 message 参数只落在一条紧凑 step 条目的 title 上，
+// 且 summarizeRecentRuntimeMessages 渲染 step 消息时只取 status/error、不取 title——
+// 也就是说 title 只在当次前端展示给用户看，不会原样回喂进模型下一轮的"最近运行痕迹"。
+// 真正回到模型下一轮上下文的是 reason 参数（被存进该 step 消息的 error 字段）。
+// 所以这条恢复消息在调用处会同时作为 reason 和 message 传入：
+// 保证模型下一轮真的能看到"哪些步骤没做完 + 两条出路"，而不只是展示给用户看。
+function buildIncompletePlanRecoveryMessage(pendingSteps) {
+  const shown = pendingSteps.slice(0, 5);
+  const lines = shown.map((s) => `- ${s?.id ?? '(无 id)'} ${s?.title ?? '(无标题)'}`.trim());
+  const remaining = pendingSteps.length - shown.length;
+  if (remaining > 0) lines.push(`- …等 ${remaining} 步`);
+  return [
+    '计划已批准，但以下步骤还没标记完成：',
+    ...lines,
+    '',
+    '请继续调用 dispatch_subagent 执行剩余步骤；',
+    '如果用户已经中途叫停、这份计划不用再做了，请先调用 delete_plan_doc 放弃这份计划，再回复用户收尾。',
+  ].join('\n');
+}
+
 function buildProviderErrorRecoveryMessage(err) {
   const msg = err?.message ? `（${err.message}）` : '';
   return `刚才处理时出了点问题${msg}，已暂停`;
@@ -657,6 +695,12 @@ export async function runParentAgent(task, userInput, opts = {}) {
       );
       return;
     }
+    const pendingApprovedSteps = await findApprovedPlanPendingSteps(task.id);
+    if (pendingApprovedSteps) {
+      const recoveryMessage = buildIncompletePlanRecoveryMessage(pendingApprovedSteps);
+      await pauseForRecoverableHarnessIssue(task, emitFn, runId, recoveryMessage, recoveryMessage);
+      return;
+    }
     if (task.lastSubagentResult?.success === false) {
       const title = task.lastSubagentResult.title ?? task.lastSubagentResult.stepId ?? '子任务';
       const errDetail = stripThinkBlocks(task.lastSubagentResult.error ?? '未知错误');
@@ -692,7 +736,17 @@ export async function runParentAgent(task, userInput, opts = {}) {
             `子任务"${title}"执行失败（${errDetail}），但助手误报了成功，已暂停。请告诉我如何处理这个失败步骤。`,
           );
         } else {
-          await finalizeCompleted(task, emitFn, payload.message ?? '');
+          // reply_to_user(terminal=true) 是模型宣告收尾的主路径（比上面 try 主体里
+          // "没调用任何工具、模型直接吐出终稿文本" 的兜底路径更常见），已批准计划
+          // 未完成就收尾的守卫必须同样覆盖这里，否则在真实场景里基本不会触发。
+          // terminal:false 走的是下面 TOOL_LOOP_SIGNAL.PAUSED 分支，不经过这里，不受影响。
+          const pendingApprovedSteps = await findApprovedPlanPendingSteps(task.id);
+          if (pendingApprovedSteps) {
+            const recoveryMessage = buildIncompletePlanRecoveryMessage(pendingApprovedSteps);
+            await pauseForRecoverableHarnessIssue(task, emitFn, runId, recoveryMessage, recoveryMessage);
+          } else {
+            await finalizeCompleted(task, emitFn, payload.message ?? '');
+          }
         }
         return;
       }
@@ -742,6 +796,8 @@ export const __testables = {
   buildEmptyReplyRecoveryMessage,
   buildClaimedExecutionRecoveryMessage,
   buildProviderErrorRecoveryMessage,
+  findApprovedPlanPendingSteps,
+  buildIncompletePlanRecoveryMessage,
   normalizeVisibleAssistantText,
   CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON,
 };
