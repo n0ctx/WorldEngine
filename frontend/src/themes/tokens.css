@@ -225,6 +225,11 @@
   --we-leading-normal: 1.75;
   --we-leading-loose:  1.95;
 
+  /* 叙事正文（AI 叙事 / 用户正文）是产品里停留最久的文字，中文长文阅读需要独立于界面基准
+     可调的字号与行高，不要复用 --we-text-base / --we-leading-normal。 */
+  --we-text-prose:    16.5px;  /* 叙事正文字号，与 --we-text-base 同值但独立可调 */
+  --we-leading-prose: 2;       /* 叙事正文行高，中文长文阅读用 */
+
   /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.12em 等 */
   --we-tracking-tight:   0.02em;  /* 标题微调 */
   --we-tracking-normal:  0.05em;  /* 内文/按钮 */
@@ -475,4 +480,4 @@
 .we-type-sm      { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); }
 .we-type-caption { font-size: var(--we-text-xs);   font-weight: 400; line-height: var(--we-leading-normal); }
 .we-type-label   { font-size: var(--we-text-sm);   font-weight: 500; line-height: var(--we-leading-tight); }
-.we-type-code    { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: monospace; }
+.we-type-code    { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: var(--we-font-mono); }

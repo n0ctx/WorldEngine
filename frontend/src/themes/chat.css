@@ -135,8 +135,8 @@
   padding: 10px 14px;
   border-radius: var(--we-radius-sm);
   font-family: var(--we-font-prose);
-  font-size: var(--we-text-base);
-  line-height: var(--we-leading-loose);
+  font-size: var(--we-text-prose);
+  line-height: var(--we-leading-prose);
   color: var(--we-color-text-primary);
   box-shadow: var(--we-shadow-paper-indent);
 }
@@ -149,8 +149,8 @@
   padding: var(--we-space-md) var(--we-space-lg);
   border-radius: var(--we-radius-sm);
   font-family: var(--we-font-prose);
-  font-size: var(--we-text-base);
-  line-height: var(--we-leading-loose);
+  font-size: var(--we-text-prose);
+  line-height: var(--we-leading-prose);
   color: var(--we-color-text-primary);
   box-shadow: var(--we-shadow-paper-lift);
 }
@@ -188,9 +188,9 @@
 
 .we-message-content {
   font-family: var(--we-font-prose);
-  font-size: var(--we-text-base);
-  line-height: 1.8;
-  /* 微提亮墨色：近黑 serif 正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
+  font-size: var(--we-text-prose);
+  line-height: var(--we-leading-prose);
+  /* 微提亮墨色：近黑正文在浅底上显厚重，回退 10% 朝画布以减轻视觉重量（仍远高于 4.5:1） */
   color: color-mix(in srgb, var(--we-color-text-primary) 90%, var(--we-color-bg-canvas));
 }
 
@@ -457,7 +457,11 @@
   color: var(--we-color-text-secondary);
   margin-top: 4px;
   opacity: 0.65;
-  font-family: 'Source Han Serif SC', 'Source Han Serif', serif;
+  /* mono 字体族普遍不含中文字形（各主题包覆盖 --we-font-mono 时也未加中文回退），
+     数字/单位走等宽对齐，"命中"/"写入" 等中文标签逐字形回退到 --we-font-prose，
+     避免落入无主题控制的系统默认字体 */
+  font-family: var(--we-font-mono), var(--we-font-prose);
+  font-variant-numeric: tabular-nums;
   animation: we-meta-reveal var(--we-duration-normal) var(--we-easing-sharp) both;
 }
 
@@ -844,8 +848,8 @@
 
 .we-writing-prose {
   font-family: var(--we-font-prose);
-  font-size: var(--we-text-base);
-  line-height: var(--we-leading-loose);
+  font-size: var(--we-text-prose);
+  line-height: var(--we-leading-prose);
   color: var(--we-color-text-primary);
   margin-bottom: 0.6em;
   animation: we-ink-rise var(--we-duration-slow) var(--we-easing-ink) both;

@@ -262,6 +262,7 @@
   /* --we-text-lg:      22px; */
   /* --we-text-xl:      28px; */
   /* --we-text-display: 48px; */
+  /* --we-text-prose:   16.5px; */ /* 叙事正文（消息 / 写作）专用字号，独立于 --we-text-base */
 
   /* 行高阶梯 */
   /* --we-leading-flush:  1; */
@@ -269,6 +270,7 @@
   /* --we-leading-snug:   1.5; */
   /* --we-leading-normal: 1.75; */
   /* --we-leading-loose:  1.95; */
+  /* --we-leading-prose:  2; */    /* 叙事正文专用行高，独立于 --we-leading-loose */
 
   /* 字距阶梯（letter-spacing） */
   /* --we-tracking-tight:   0.02em; */

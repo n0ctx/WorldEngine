@@ -2522,7 +2522,7 @@
 }
 
 .we-css-reference-code {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: var(--we-font-mono);
   font-size: var(--we-text-sm);
   line-height: 1.7;
   color: var(--we-color-text-secondary);
