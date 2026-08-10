@@ -6,6 +6,7 @@ const displaySettingsStore = vi.hoisted(() => ({
   setShowThinking: vi.fn(),
   setAutoCollapseThinking: vi.fn(),
   setShowTokenUsage: vi.fn(),
+  setDanmakuSpeed: vi.fn(),
   setCurrentModelPricing: vi.fn(),
   setCurrentWritingModelPricing: vi.fn(),
 }));
