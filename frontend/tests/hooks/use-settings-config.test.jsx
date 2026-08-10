@@ -8,6 +8,7 @@ const displaySettingsStore = vi.hoisted(() => ({
   setShowTokenUsage: vi.fn(),
   setCurrentModelPricing: vi.fn(),
   setCurrentWritingModelPricing: vi.fn(),
+  setDanmakuSpeed: vi.fn(),
 }));
 
 vi.mock('../../src/core/api/config.js', () => ({

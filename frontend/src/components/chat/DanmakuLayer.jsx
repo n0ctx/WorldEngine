@@ -9,7 +9,17 @@
  * @param {'slow'|'normal'|'fast'} speed 滚动速度（每条弹幕占用的秒数，决定整条轨道时长）
  */
 const SECONDS_PER_ITEM = { slow: 4.5, normal: 3, fast: 1.8 };
-const PALETTE_SIZE = 7; // 与 tokens.css --we-danmaku-1..7 对应
+// 与 tokens.css 的 --we-danmaku-1..7 一一对应；写成字面量而非模板拼接，
+// 这样 scripts/check-css-tokens.mjs 能静态识别到这些引用。
+const PALETTE = [
+  'var(--we-danmaku-1)',
+  'var(--we-danmaku-2)',
+  'var(--we-danmaku-3)',
+  'var(--we-danmaku-4)',
+  'var(--we-danmaku-5)',
+  'var(--we-danmaku-6)',
+  'var(--we-danmaku-7)',
+];
 
 export default function DanmakuLayer({ comments, speed = 'normal' }) {
   const items = comments?.items;
@@ -34,7 +44,7 @@ export default function DanmakuLayer({ comments, speed = 'normal' }) {
           <span
             key={i}
             className="we-danmaku-bullet"
-            style={{ '--we-danmaku-color': `var(--we-danmaku-${(i % bullets.length % PALETTE_SIZE) + 1})` }}
+            style={{ '--we-danmaku-color': PALETTE[(i % bullets.length) % PALETTE.length] }}
           >
             {text}
           </span>
