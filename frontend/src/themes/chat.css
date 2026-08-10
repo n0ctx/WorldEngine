@@ -249,7 +249,7 @@
 .we-message-content code {
   font-family: var(--we-font-mono);
   font-size: var(--we-text-sm);
-  /* 实心底色用 bg-muted，理由同 pages.css 的 .we-entry-order-token */
+  /* 实心底色用 bg-muted：在浅色/深色主题下都保证与周边卡片底色有区分度 */
   background: var(--we-color-bg-muted);
   padding: 0 var(--we-space-xs);
   border-radius: var(--we-radius-none);

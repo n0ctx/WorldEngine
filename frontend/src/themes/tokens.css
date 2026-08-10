@@ -100,7 +100,6 @@
   --we-color-border-subtle:  var(--we-base-paper-200);
   --we-color-border-strong:  var(--we-base-paper-400);
   --we-color-border-focus:   var(--we-base-vermilion-600);
-  --we-color-border-white-faint: rgba(255, 255, 255, 0.04); /* 深色表面上的极淡白色分隔线 */
 
   /* 状态色 */
   --we-color-status-success: var(--we-base-moss-600);

@@ -25,6 +25,13 @@ export async function getLatestSession(worldId) {
   return res.json();
 }
 
+/** 获取某世界的故事线：chat + writing 会话混编，按更新时间倒序 */
+export async function getWorldTimeline(worldId, limit = 50) {
+  const res = await fetch(`${BASE}/worlds/${worldId}/timeline?limit=${limit}`);
+  if (!res.ok) throw new Error(`getWorldTimeline failed: ${res.status}`);
+  return res.json();
+}
+
 export async function createSession(characterId) {
   const res = await fetch(`${BASE}/characters/${characterId}/sessions`, { method: 'POST' });
   if (!res.ok) throw new Error(`createSession failed: ${res.status}`);

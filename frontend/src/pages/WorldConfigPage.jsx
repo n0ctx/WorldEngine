@@ -27,7 +27,7 @@ export default function WorldConfigPage() {
 
   return (
     <div className="we-characters-canvas">
-      <BackButton onClick={() => navigate('/')} label="卷宗书架" />
+      <BackButton onClick={() => navigate('/')} label="书架" />
 
       <p className="we-config-workshop-hint">
         想一站式搭建状态系统？

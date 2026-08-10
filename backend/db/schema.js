@@ -402,6 +402,9 @@ CREATE INDEX IF NOT EXISTS idx_persona_state_fields_world_id ON persona_state_fi
 CREATE INDEX IF NOT EXISTS idx_persona_state_values_world_id ON persona_state_values(world_id, field_key);
 CREATE INDEX IF NOT EXISTS idx_assistant_tasks_status_updated_at ON assistant_tasks(status, updated_at);
 CREATE INDEX IF NOT EXISTS idx_session_stream_tasks_status_updated_at ON session_stream_tasks(status, updated_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_world_id ON sessions(world_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_character_id ON sessions(character_id);
+CREATE INDEX IF NOT EXISTS idx_messages_session_id_created_at ON messages(session_id, created_at);
 `;
 
 export function initSchema(db) {

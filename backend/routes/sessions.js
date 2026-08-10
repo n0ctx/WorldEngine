@@ -5,6 +5,7 @@ import {
   getSessionsByCharacterId,
   getLatestChatSessionByWorldId,
   getLatestSessionByWorldId,
+  getSessionsByWorldId,
   updateSessionTitle,
   deleteSession,
   getMessagesBySessionId,
@@ -50,6 +51,13 @@ router.get('/worlds/:worldId/latest-session', (req, res) => {
   const session = getLatestSessionByWorldId(req.params.worldId);
   if (!assertExists(res, session, '该世界暂无会话')) return;
   res.json(session);
+});
+
+// GET /api/worlds/:worldId/timeline — 获取某世界的故事线（chat + writing 混编，按更新时间倒序）
+router.get('/worlds/:worldId/timeline', (req, res) => {
+  const limit = Math.max(1, parseInt(req.query.limit, 10) || 50);
+  const sessions = getSessionsByWorldId(req.params.worldId, limit);
+  res.json(sessions);
 });
 
 // POST /api/characters/:characterId/sessions — 创建会话（自动插入 first_message）

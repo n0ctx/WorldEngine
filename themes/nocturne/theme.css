@@ -29,7 +29,6 @@
   --we-color-border-subtle: rgba(255, 255, 255, 0.05);
   --we-color-border-strong: rgba(255, 255, 255, 0.44);
   --we-color-border-focus: #7f95a8;
-  --we-color-border-white-faint: rgba(255, 255, 255, 0.04);
 
   --we-color-status-success: #6f9e82;
   --we-color-status-warning: #b08b52;
@@ -105,7 +104,7 @@
   --we-entry-row-shadow: none;
 
   /* ──────────────────────────────────────────────────────────────
-     § 4 壳层、卷宗书架与质感
+     § 4 壳层、书架与质感
      ────────────────────────────────────────────────────────────── */
 
   --we-topbar-bg: #0e1012;

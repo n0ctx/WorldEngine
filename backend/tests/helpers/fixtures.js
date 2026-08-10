@@ -67,12 +67,13 @@ export function insertSession(db, patch = {}) {
   const id = patch.id ?? crypto.randomUUID();
   const now = nowTs(patch.created_at);
   db.prepare(`
-    INSERT INTO sessions (id, character_id, world_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, character_id, world_id, persona_id, mode, title, compressed_context, diary_date_mode, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     patch.character_id ?? null,
     patch.world_id ?? null,
+    patch.persona_id ?? null,
     patch.mode ?? 'chat',
     patch.title ?? null,
     patch.compressed_context ?? null,

@@ -52,7 +52,6 @@
   --we-color-border-subtle:      #26263a; /* 由 #16161f 提亮，保留与 default 的层次 */
   --we-color-border-strong:      #2a2a3e;
   --we-color-border-focus:       #00d4ff;
-  --we-color-border-white-faint: rgba(255, 255, 255, 0.04);
 
   /* ==================== 语义色：状态 ==================== */
   --we-color-status-success: #3a8a5e;

@@ -59,7 +59,6 @@
   --we-color-border-subtle:      #d9ccb0;
   --we-color-border-strong:      #b8a882;
   --we-color-border-focus:       #a23b2e;
-  --we-color-border-white-faint: rgba(255, 255, 255, 0.04);
 
   --we-color-status-success: #5c6b3a;
   --we-color-status-warning: #8b5a1f;
@@ -152,7 +151,7 @@
     0 2px 6px rgba(42, 31, 23, 0.08),
     0 1px 0 rgba(42, 31, 23, 0.05);
 
-  /* 页面大画布（深色卷宗书架背景，同 book-bg = bg-inverse） */
+  /* 页面大画布（深色书架背景，同 book-bg = bg-inverse） */
   --we-page-canvas-bg:               var(--we-color-bg-inverse);
   --we-page-canvas-fg:               rgba(237, 227, 208, 0.90);
   --we-page-canvas-fg-muted:         rgba(200, 185, 154, 0.55);

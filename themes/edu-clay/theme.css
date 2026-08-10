@@ -54,7 +54,6 @@
   --we-color-border-strong:      #1f2937;    /* 招牌深墨蓝粗描边色 */
   --we-color-border-focus:       #16a34a;
   --we-focus-ring:               0 0 0 3px rgba(34, 197, 94, 0.28);
-  --we-color-border-white-faint: rgba(255, 255, 255, 0.06);
 
   /* 状态：进度绿主导。success 用 green-700 以满足「绿字 on 白」≥4.5:1 */
   --we-color-status-success: #15803d;

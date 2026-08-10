@@ -71,7 +71,6 @@
   --we-color-border-strong:      rgba(28, 28, 28, 0.4);
   --we-color-border-focus:       rgba(59, 130, 246, 0.5);
   --we-focus-ring:               0 0 0 2px rgba(59, 130, 246, 0.15);
-  --we-color-border-white-faint: rgba(252, 251, 248, 0.06);
 
   --we-color-status-success: #556253;
   --we-color-status-warning: #7b6a4a;
@@ -198,7 +197,7 @@
   --we-entry-row-bg: #ffffff;
   --we-entry-row-shadow: none;
 
-  /* ========== 页面大画布（无暗卷宗书架，整页奶油底） ========== */
+  /* ========== 页面大画布（无暗书架背景，整页奶油底） ========== */
   --we-page-canvas-bg: var(--we-color-bg-canvas);
   --we-page-canvas-fg: var(--we-color-text-primary);
   --we-page-canvas-fg-muted: var(--we-color-text-tertiary);

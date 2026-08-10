@@ -1184,7 +1184,7 @@
   font-size: var(--we-text-xs);
   padding: var(--we-space-xxs) var(--we-space-sm);
   border-radius: var(--we-radius-sm);
-  /* 实心按钮底色用 bg-muted，理由同 pages.css 的 .we-entry-order-token */
+  /* 实心按钮底色用 bg-muted：在浅色/深色主题下都保证与周边卡片底色有区分度 */
   background: var(--we-color-bg-muted);
   color: var(--we-color-text-secondary);
   border: none;

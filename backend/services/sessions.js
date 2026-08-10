@@ -4,10 +4,12 @@ import {
   getSessionsByCharacterId as dbGetSessionsByCharacterId,
   getLatestChatSessionByWorldId as dbGetLatestChatSessionByWorldId,
   getLatestSessionByWorldId as dbGetLatestSessionByWorldId,
+  getSessionsByWorldId as dbGetSessionsByWorldId,
   updateSessionTitle as dbUpdateSessionTitle,
   touchSession as dbTouchSession,
   deleteSession as dbDeleteSession,
 } from '../db/queries/sessions.js';
+import { getActivePersonaIdByWorldId } from '../db/queries/personas.js';
 
 import {
   createMessage as dbCreateMessage,
@@ -71,6 +73,15 @@ export function getLatestChatSessionByWorldId(worldId) {
 
 export function getLatestSessionByWorldId(worldId) {
   return dbGetLatestSessionByWorldId(worldId);
+}
+
+/**
+ * 世界时间线：writing 会话按当前激活的 persona 过滤（与写作页会话列表口径一致），
+ * chat 会话不受影响。
+ */
+export function getSessionsByWorldId(worldId, limit) {
+  const activePersonaId = getActivePersonaIdByWorldId(worldId) ?? null;
+  return dbGetSessionsByWorldId(worldId, limit, activePersonaId);
 }
 
 export function updateSessionTitle(id, title) {
