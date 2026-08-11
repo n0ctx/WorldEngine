@@ -28,6 +28,7 @@
 /* ── Scrollbar ─────────────────────────────────────────── */
 
 .we-chat-area,
+.we-chat-textarea,
 .we-settings-body,
 .we-persona-drawer-body,
 .we-edit-panel-overlay,
@@ -36,16 +37,19 @@
   scrollbar-color: var(--we-color-border-default) transparent;
 }
 .we-chat-area::-webkit-scrollbar,
+.we-chat-textarea::-webkit-scrollbar,
 .we-settings-body::-webkit-scrollbar,
 .we-persona-drawer-body::-webkit-scrollbar,
 .we-edit-panel-overlay::-webkit-scrollbar,
 .we-assistant-scroll::-webkit-scrollbar { width: 4px; }
 .we-chat-area::-webkit-scrollbar-thumb,
+.we-chat-textarea::-webkit-scrollbar-thumb,
 .we-settings-body::-webkit-scrollbar-thumb,
 .we-persona-drawer-body::-webkit-scrollbar-thumb,
 .we-edit-panel-overlay::-webkit-scrollbar-thumb,
 .we-assistant-scroll::-webkit-scrollbar-thumb { background: var(--we-color-border-default); border-radius: var(--we-radius-full); }
 .we-chat-area::-webkit-scrollbar-track,
+.we-chat-textarea::-webkit-scrollbar-track,
 .we-settings-body::-webkit-scrollbar-track,
 .we-persona-drawer-body::-webkit-scrollbar-track,
 .we-edit-panel-overlay::-webkit-scrollbar-track,
@@ -1209,7 +1213,11 @@
   resize: none;
   outline: none;
   min-height: 28px; /* design exact: 单行高度 */
-  overflow-y: hidden;
+  /* 上限 ≈ 10 行正文(line-height 1.65)+ 上下 padding + 边框。
+     缺这个上限时 adjustHeight() 会按 scrollHeight 无限撑高，
+     把上方消息区挤成 0 高度；超出后改由 textarea 自身滚动。 */
+  max-height: calc(1.65em * 10 + var(--we-space-xs) * 2 + 2px);
+  overflow-y: auto;
   transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
 }
 
