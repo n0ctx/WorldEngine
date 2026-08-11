@@ -35,14 +35,13 @@ npm run check:themes
 - `1` — 主题覆盖了内核不存在的 token（硬错误）
 - `2` — 内核 token 未出现在模板 / 主题覆盖率不足（警告）
 
-`_template/theme.css` 现在包含内核所有视觉 token（147 个），新主题从模板复制后删除不需要的行即可，无需猜哪些 token 可覆盖。
+`_template/theme.css` 现在包含内核所有视觉 token（144 个），新主题从模板复制后删除不需要的行即可，无需猜哪些 token 可覆盖。
 
 ## 迁移声明
 
 - 主题系统只接受正式语义 token 和基础色板 token，旧兼容别名已全部移除。
 - 新主题请优先覆盖 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*`、`--we-bookshelf-*`、`--we-entry-row-*`。
 - 如果你的历史主题包仍引用旧别名，需要手动迁移到当前 token 名。
-- `lovable-cream` 使用自托管 `Instrument Sans` 变量字体近似 Camera Plain 暖 cream 风格；主题层只通过 `--we-font-*` token 引用字体，不在主题包里声明 `@font-face`。
 
 ## 主题包结构
 
@@ -117,13 +116,11 @@ cp -R themes/_template themes/my-theme
 - 数据逻辑：路由、状态、加载、导入导出流程
 - 私有 DOM 依赖：`nth-child`、深层级选择器、临时 hack
 
-## 默认主题
+## 内置主题
 
-`classic-parchment/` 是默认内置主题，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感。
+`nocturne/` 是默认内置主题（暗色）。`classic-parchment/`（亮色，保留羊皮纸色板、书脊阴影、印章/纸张阴影、卡片边框与旧化质感）与 `neon-noir/`（暗色，高对比霓虹路线）是另外两个内置主题。
 
-`lovable-cream/` 走另一条更轻的暖 cream 路线，强调奶油底色、charcoal opacity 中性色、边框驱动的层级和更克制的阴影。
-
-这两个主题都只能覆盖 token，不能直接改结构。
+三个内置主题都只能覆盖 token，不能直接改结构。
 
 ## 版本与导入导出
 

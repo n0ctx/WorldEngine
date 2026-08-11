@@ -28,7 +28,7 @@
   font-family: var(--we-font-display);
   font-size: var(--we-text-xl);
   font-style: var(--we-page-canvas-title-style);
-  font-weight: var(--we-page-canvas-title-weight);
+  font-weight: 600;
   color: var(--we-page-canvas-fg);
   letter-spacing: 0.05em;
   line-height: 1.2;
@@ -41,7 +41,7 @@
   text-transform: uppercase;
   color: var(--we-page-canvas-fg-muted);
   margin-top: var(--we-space-sm);
-  display: var(--we-page-canvas-subtitle-display);
+  display: block;
 }
 
 .we-worlds-header-actions {
@@ -142,7 +142,7 @@
 }
 
 .we-world-card:hover {
-  transform: var(--we-card-hover-transform);
+  transform: translateY(-4px);
   box-shadow: var(--we-card-hover-shadow);
 }
 
@@ -193,8 +193,8 @@
   /* backdrop-filter 会自建合成层，部分浏览器（Safari）不再受父级 overflow:hidden 裁剪 → 必须显式继承圆角 */
   border-radius: inherit;
   background: var(--we-card-overlay-bg);
-  backdrop-filter: var(--we-card-overlay-backdrop-filter);
-  -webkit-backdrop-filter: var(--we-card-overlay-backdrop-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   z-index: var(--we-z-card-overlay);
   transition: background var(--we-duration-normal) var(--we-easing-sharp),
               backdrop-filter var(--we-duration-normal) var(--we-easing-sharp),
@@ -203,8 +203,8 @@
 
 .we-world-card:hover .we-world-card-overlay {
   background: var(--we-card-overlay-hover-bg);
-  backdrop-filter: var(--we-card-overlay-hover-backdrop-filter);
-  -webkit-backdrop-filter: var(--we-card-overlay-hover-backdrop-filter);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .we-world-card--has-cover .we-world-card-name,
@@ -234,7 +234,7 @@
   font-family: var(--we-font-display);
   font-size: var(--we-text-lg);
   font-style: var(--we-card-name-font-style);
-  font-weight: var(--we-card-name-font-weight);
+  font-weight: 400;
   color: var(--we-color-text-primary);
   margin-bottom: var(--we-space-sm);
   padding-right: var(--we-space-2xl);
@@ -574,12 +574,12 @@
   border: var(--we-card-border);
   /* 左侧 3px 既是 rest 边框也是 active 指示槽：默认透明(细边主题靠阴影定界)，
      粗边主题可把 rest 色设为边框色，避免「左侧开口」缺边观感；active 态覆为强调色 */
-  border-left: 3px solid var(--we-list-card-left-bar);
+  border-left: 3px solid transparent;
   border-radius: var(--we-card-radius);
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-list-card-shadow);
+  box-shadow: var(--we-card-shadow);
   transition: transform var(--we-duration-normal) var(--we-easing-sharp),
               box-shadow var(--we-duration-normal) var(--we-easing-sharp),
               border-left-color var(--we-duration-normal) var(--we-easing-sharp),
@@ -589,8 +589,8 @@
 }
 
 .we-persona-card:hover {
-  box-shadow: var(--we-list-card-hover-shadow);
-  transform: var(--we-list-card-hover-transform);
+  box-shadow: var(--we-card-hover-shadow);
+  transform: none;
 }
 
 .we-persona-card:hover .we-character-card-actions {
@@ -692,15 +692,15 @@
   padding: var(--we-space-lg);
   cursor: pointer;
   position: relative;
-  box-shadow: var(--we-list-card-shadow);
+  box-shadow: var(--we-card-shadow);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp),
               transform var(--we-duration-normal) var(--we-easing-sharp);
   user-select: none;
 }
 
 .we-character-card:hover {
-  box-shadow: var(--we-list-card-hover-shadow);
-  transform: var(--we-list-card-hover-transform);
+  box-shadow: var(--we-card-hover-shadow);
+  transform: none;
 }
 
 .we-character-card:hover .we-character-card-actions {
@@ -741,7 +741,7 @@
   font-family: var(--we-font-display);
   font-size: var(--we-text-base);
   font-style: var(--we-card-name-font-style);
-  font-weight: var(--we-card-name-font-weight);
+  font-weight: 400;
   color: var(--we-color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -912,15 +912,15 @@
   border-radius: var(--we-card-radius);
   padding: var(--we-space-lg) var(--we-space-xl);
   cursor: pointer;
-  box-shadow: var(--we-list-card-shadow);
+  box-shadow: var(--we-card-shadow);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp),
               transform var(--we-duration-normal) var(--we-easing-sharp);
   flex-shrink: 0;
 }
 
 .we-storyline-continue:hover {
-  box-shadow: var(--we-list-card-hover-shadow);
-  transform: var(--we-list-card-hover-transform);
+  box-shadow: var(--we-card-hover-shadow);
+  transform: none;
 }
 
 .we-storyline-continue-head {
@@ -979,14 +979,14 @@
   border-radius: var(--we-card-radius);
   padding: var(--we-space-sm) var(--we-space-lg);
   cursor: pointer;
-  box-shadow: var(--we-list-card-shadow);
+  box-shadow: var(--we-card-shadow);
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp),
               transform var(--we-duration-normal) var(--we-easing-sharp);
 }
 
 .we-storyline-item:hover {
-  box-shadow: var(--we-list-card-hover-shadow);
-  transform: var(--we-list-card-hover-transform);
+  box-shadow: var(--we-card-hover-shadow);
+  transform: none;
 }
 
 /* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态 */
@@ -1122,15 +1122,15 @@
   padding: var(--we-space-md) var(--we-space-lg);
   cursor: pointer;
   font-family: inherit;
-  box-shadow: var(--we-list-card-shadow);
+  box-shadow: var(--we-card-shadow);
   color: inherit;
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp),
               transform var(--we-duration-normal) var(--we-easing-sharp);
 }
 
 .we-rules-entry-card:hover {
-  box-shadow: var(--we-list-card-hover-shadow);
-  transform: var(--we-list-card-hover-transform);
+  box-shadow: var(--we-card-hover-shadow);
+  transform: none;
   color: var(--we-color-accent);
 }
 
@@ -1227,10 +1227,10 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--we-space-sm) var(--we-space-lg);
-  background: var(--we-entry-row-bg);
+  background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
   border-radius: var(--we-radius-sm);
-  box-shadow: var(--we-entry-row-shadow);
+  box-shadow: none;
   cursor: grab;
   transition: border-color var(--we-duration-fast);
 }
@@ -3933,7 +3933,7 @@
 
 .we-session-list-head {
   padding: 14px 14px 10px;
-  border-bottom: var(--we-spine-head-border-bottom);
+  border-bottom: 1px solid var(--we-color-border-default);
 }
 
 .we-session-list-nav {
@@ -3946,10 +3946,10 @@
   padding: var(--we-space-xs);
   border-radius: var(--we-radius-md);
   color: var(--we-color-text-tertiary);
-  background: var(--we-chrome-icon-btn-bg);
-  border: var(--we-chrome-icon-btn-border);
+  background: none;
+  border: none;
   cursor: pointer;
-  opacity: var(--we-spine-back-opacity);
+  opacity: 0.6;
   transition: opacity var(--we-duration-fast);
 }
 
@@ -3973,7 +3973,7 @@
   align-items: center;
   justify-content: center;
   gap: 5px; /* design exact */
-  box-shadow: var(--we-spine-create-shadow);
+  box-shadow: none;
   transition: background var(--we-duration-fast), color var(--we-duration-fast),
     box-shadow var(--we-duration-fast), transform var(--we-duration-fast);
 }
@@ -3981,8 +3981,8 @@
 .we-session-list-create:hover {
   background: var(--we-color-ink-wash-md);
   color: var(--we-color-text-primary);
-  box-shadow: var(--we-spine-create-hover-shadow);
-  transform: var(--we-spine-create-hover-transform);
+  box-shadow: none;
+  transform: none;
 }
 
 .we-session-list-scroll {

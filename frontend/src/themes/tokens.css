@@ -16,12 +16,13 @@
  *   --we-easing-* / --we-text-* / --we-leading-* / --we-tracking-* / --we-focus-ring）
  *   间距、层级、动效节奏（easing）、字号字距等骨架量，跟视觉风格无关，主题不该改这几类。
  *   例外：--we-radius-* / --we-duration-* / --we-focus-ring 是既有主题包
- *   （classic-parchment / edu-clay / lovable-cream / neon-noir）实际在覆盖的圆角节奏 /
+ *   （classic-parchment / neon-noir）实际在覆盖的圆角节奏 /
  *   焦点环观感旋钮，允许主题覆盖；其余 C 层 token 目前没有任何主题覆盖，保持不可覆盖。
  *
  * D 层 · 组件皮肤 token（其余所有绑定到某个具体组件、具体状态的 token）
- *   历史遗留层，数量已经过多，主题作者要拧上百个旋钮才能换一次皮。后续步骤会逐步把它们
- *   收敛回 B/C 层的组合，新代码不要再往这一层加 token，优先复用已有的语义 / 结构 token。
+ *   收敛后仍保留的这一层，是三个内置主题（nocturne / classic-parchment / neon-noir）
+ *   换肤时确实需要不同取值、且无法用 B/C 层语义 / 结构 token 组合表达的旋钮。新代码不要
+ *   再往这一层加 token，优先复用已有的语义 / 结构 token。
  *
  * E 层 · 运行时 token（--we-status-table-cols）
  *   由 JS 在组件节点上动态设置，这里只声明默认值，避免 var() fallback 散落各处。
@@ -260,10 +261,7 @@
   --we-page-canvas-fg-muted:          var(--we-color-text-secondary); /* 画布上次要文字 / 细边框 */
   --we-page-canvas-fg-deep:           var(--we-color-border-strong);  /* 画布上按钮较深边框 */
   --we-page-canvas-title-style:       normal;  /* 画布页标题字形 */
-  --we-page-canvas-title-weight:      600;     /* 画布页标题字重 */
-  --we-page-canvas-subtitle-display:  block;   /* 画布页副标题可见性 */
   --we-card-name-font-style:          normal;  /* 卡片名称字形 */
-  --we-card-name-font-weight:         400;     /* 卡片名称字重 */
   --we-bookshelf-empty-bg:            rgba(255, 255, 255, 0.02);
   --we-bookshelf-empty-border:        rgba(23, 23, 23, 0.06);
 
@@ -286,17 +284,9 @@
   --we-card-hover-shadow: var(--we-card-shadow);
   /* 列表型卡（PersonaCard / CharacterCard 等窄长条 list row）：默认沿用 --we-card-shadow，
      需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
-  --we-list-card-shadow: var(--we-card-shadow);
-  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
   /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */
-  --we-card-hover-transform: translateY(-4px);
   /* 列表卡 hover 位移：默认不位移；硬投影/拟物主题可覆写为 translate(...) 制造下压/弹起手感 */
-  --we-list-card-hover-transform: none;
   /* PersonaCard 左侧指示条 rest 色：默认透明；粗边主题设为边框色以补齐左边框 */
-  --we-list-card-left-bar: transparent;
-  --we-panel-card-bg: var(--we-color-bg-surface);
-  --we-panel-card-border: 1px solid var(--we-color-border-default);
-  --we-panel-card-radius: var(--we-radius-md);
   --we-panel-card-shadow: 0 0 0 1px rgba(23, 23, 23, 0.03); /* fallback: older browsers */
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 
@@ -304,17 +294,12 @@
   --we-canvas-texture-image:    none;
   --we-card-overlay-bg:                  transparent;
   --we-card-overlay-hover-bg:            var(--we-card-overlay-bg);
-  --we-card-overlay-backdrop-filter:       none;
-  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color:   var(--we-color-text-primary);
   --we-card-cover-meta-color:   var(--we-color-text-secondary);
   --we-col-header-border-color: var(--we-color-border-default);
   --we-col-btn-border-color:    var(--we-color-border-strong);
   --we-col-btn-color:           var(--we-color-text-secondary);
-  --we-entry-meta-color:        var(--we-color-text-tertiary);
   --we-entry-header-decor-bg:   none;
-  --we-entry-row-bg:            var(--we-color-bg-canvas);  /* 条目行背景，主题可覆盖以区分前景/背景 */
-  --we-entry-row-shadow:        none;                       /* 条目行阴影，主题可覆盖以增加层次感 */
   --we-parchment-display:       none;
   --we-parchment-fiber-opacity: 0;
   --we-spine-display:           none;
@@ -411,31 +396,20 @@
   --we-pager-btn-shadow:           none;
   --we-pager-btn-hover-bg:         var(--we-color-accent-bg);
   --we-pager-btn-hover-shadow:     none;
-  --we-pager-btn-hover-transform:  none;
 
   /* === Composer（chat / writing 共用的底部输入栏）皮肤 token：
      中性默认复刻历史观感，主题可整体改写输入栏质感（描边 / 填充 / 投影物理） === */
-  --we-composer-bar-border-top:    1px solid var(--we-color-border-default);
   --we-composer-field-bg:          var(--we-color-ink-wash);
   --we-composer-field-border:      1px solid var(--we-color-border-default);
   --we-composer-field-shadow:      none;
   --we-composer-btn-border:        1px solid var(--we-color-border-default);
   --we-composer-send-shadow:        0 1px 2px var(--we-color-shadow-sm);
   --we-composer-send-hover-shadow:  0 4px 12px var(--we-color-shadow-md);
-  --we-composer-send-hover-transform: translateY(-1px);
   --we-composer-send-active-shadow:    0 1px 2px var(--we-color-shadow-sm);
-  --we-composer-send-active-transform: translateY(0);
 
   /* === 标题栏 / 书脊（chat 顶部栏 + 左侧会话列表）chrome：中性默认复刻历史观感 === */
-  --we-spine-head-border-bottom:       1px solid var(--we-color-border-default);
-  --we-spine-create-shadow:            none;
-  --we-spine-create-hover-shadow:      none;
-  --we-spine-create-hover-transform:   none;
 
   /* 标题栏记忆钮 + 书脊返回钮等图标按钮 chrome：默认无边透明，主题可改墨环圆钮 */
-  --we-chrome-icon-btn-bg:             none;
-  --we-chrome-icon-btn-border:         none;
-  --we-spine-back-opacity:             0.6;
 
   /* 三栏（左会话 / 中正文 / 右状态）之间的分隔竖线；默认柔化 hairline */
   --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent);

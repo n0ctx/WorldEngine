@@ -989,7 +989,7 @@
 /* ── InputBox ── */
 
 .we-chat-input {
-  border-top: var(--we-composer-bar-border-top);
+  border-top: 1px solid var(--we-color-border-default);
   background: var(--we-color-bg-canvas);
   padding: var(--we-space-xs) var(--we-space-lg) var(--we-space-xxs);
 }
@@ -1254,12 +1254,12 @@
 }
 
 .we-chat-send-btn:hover:not(:disabled) {
-  transform: var(--we-composer-send-hover-transform);
+  transform: translateY(-1px);
   box-shadow: var(--we-composer-send-hover-shadow);
 }
 
 .we-chat-send-btn:active:not(:disabled) {
-  transform: var(--we-composer-send-active-transform);
+  transform: translateY(0);
   box-shadow: var(--we-composer-send-active-shadow);
 }
 
@@ -2330,7 +2330,7 @@
   color: var(--we-color-accent);
   background: var(--we-pager-btn-hover-bg);
   box-shadow: var(--we-pager-btn-hover-shadow);
-  transform: var(--we-pager-btn-hover-transform);
+  transform: none;
 }
 
 .we-pager-btn:disabled {

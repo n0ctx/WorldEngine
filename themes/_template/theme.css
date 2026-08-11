@@ -84,10 +84,7 @@
   --we-page-canvas-fg-muted: var(--we-color-text-secondary);
   --we-page-canvas-fg-deep: var(--we-color-border-strong);
   --we-page-canvas-title-style: normal;
-  --we-page-canvas-title-weight: 600;
-  --we-page-canvas-subtitle-display: block;
   --we-card-name-font-style: normal;
-  --we-card-name-font-weight: 400;
 
   /* ──────────────────────────────────────────────────────────────
      § 3 卡片、面板与条目行
@@ -99,19 +96,9 @@
   --we-card-shadow: var(--we-shadow-paper-lift);
   --we-card-hover-shadow: var(--we-card-shadow);
   /* 列表型窄长条卡（PersonaCard / CharacterCard 等）：默认沿用 card 投影，可单独收紧 */
-  --we-list-card-shadow: var(--we-card-shadow);
-  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
-  --we-card-hover-transform: translateY(-4px);
-  --we-list-card-hover-transform: none;
-  --we-list-card-left-bar: transparent;
-  --we-panel-card-bg: var(--we-color-bg-surface);
-  --we-panel-card-border: 1px solid var(--we-color-border-default);
-  --we-panel-card-radius: var(--we-radius-md);
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, #171717 3%, transparent);
 
   /* 条目行（WorldConfigPage 四列）：默认与画布同色，主题可覆盖以产生浮起感 */
-  --we-entry-row-bg: var(--we-color-bg-canvas);
-  --we-entry-row-shadow: none;
 
   /* ──────────────────────────────────────────────────────────────
      § 4 壳层、书架与质感
@@ -136,15 +123,12 @@
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: transparent;
   --we-card-overlay-hover-bg: transparent;
-  --we-card-overlay-backdrop-filter: none;
-  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color: var(--we-color-text-primary);
   --we-card-cover-meta-color: var(--we-color-text-secondary);
   --we-col-header-border-color: var(--we-color-border-default);
   --we-col-btn-border-color: var(--we-color-border-strong);
   --we-col-btn-color: var(--we-color-text-secondary);
   --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12); /* 主按钮 hover 色，主题可换色调 */
-  --we-entry-meta-color: var(--we-color-text-tertiary);
   --we-entry-header-decor-bg: none;
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
@@ -276,25 +260,15 @@
   /* --we-pager-btn-hover-shadow: none; */
 
   /* Composer 底部输入栏皮肤（chat / writing 共用）；默认复刻中性观感，按需覆盖 */
-  /* --we-composer-bar-border-top:        1px solid var(--we-color-border-default); */
   /* --we-composer-field-bg:              var(--we-color-ink-wash); */
   /* --we-composer-field-border:          1px solid var(--we-color-border-default); */
   /* --we-composer-field-shadow:          none; */
   /* --we-composer-btn-border:            1px solid var(--we-color-border-default); */
   /* --we-composer-send-shadow:           0 1px 2px var(--we-color-shadow-sm); */
   /* --we-composer-send-hover-shadow:     0 4px 12px var(--we-color-shadow-md); */
-  /* --we-composer-send-hover-transform:  translateY(-1px); */
   /* --we-composer-send-active-shadow:    0 1px 2px var(--we-color-shadow-sm); */
-  /* --we-composer-send-active-transform: translateY(0); */
 
   /* 标题栏 / 书脊 chrome（chat 顶部栏 + 左侧会话列表）；默认复刻中性观感 */
-  /* --we-spine-head-border-bottom:       1px solid var(--we-color-border-default); */
-  /* --we-spine-create-shadow:            none; */
-  /* --we-spine-create-hover-shadow:      none; */
-  /* --we-spine-create-hover-transform:   none; */
-  /* --we-chrome-icon-btn-bg:             none; */
-  /* --we-chrome-icon-btn-border:         none; */
-  /* --we-spine-back-opacity:             0.6; */
   /* 三栏分隔竖线（左会话 / 中正文 / 右状态）；默认柔化 hairline */
   /* --we-page-gutter-border:             1px solid color-mix(in srgb, var(--we-color-border-default) 55%, transparent); */
 }

@@ -157,8 +157,6 @@ npm run desktop:dist
 
 前端主题现在只接受正式语义 token 和基础色板 token。旧兼容别名已经移除，新主题或自定义 CSS 需要使用 `--we-color-*`、`--we-font-*`、`--we-page-canvas-*`、`--we-card-*`、`--we-panel-card-*` 等当前入口。
 
-`lovable-cream` 未内置授权的 `Camera Plain` 字体文件，改用自托管的 Instrument Sans 近似其观感；字体族只经 `--we-font-*` token 引用，主题包内不声明 `@font-face`。
-
 ---
 
 ## 社区

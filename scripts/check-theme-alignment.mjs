@@ -45,6 +45,8 @@ const SKIP_PREFIXES = [
   '--we-tracking-',    // 字距阶梯
   '--we-focus-ring',   // 通用焦点环，通常不需主题定制
   '--we-color-avatar-placeholder', // 业务色，很少主题化
+  '--we-color-avatar-text',        // 头像占位圈文字色：按 tokens.css 注释显式恒定，不随主题变化
+  '--we-danmaku-',                 // 弹幕色板：固定的多色循环取色集，不随主题变化
 ];
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────

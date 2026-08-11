@@ -69,3 +69,27 @@ test('删除主题拒绝内置主题，允许删除用户主题并回退 active 
   assert.equal(sandbox.readConfig().ui.theme, 'nocturne');
   assert.equal(fs.existsSync(path.join(sandbox.root, 'themes', 'paper2')), false);
 });
+
+test('主题目录被磁盘层面直接删除（未经 deleteTheme）时，resolveActiveThemeId 自愈回落到默认主题并持久化', async () => {
+  const { setActiveTheme, resolveActiveThemeId, listThemes, importThemePackage } = await freshImport('backend/services/themes.js');
+
+  importThemePackage({
+    format: 'worldengine-theme-v1',
+    theme: { id: 'ghost', name: '幽灵主题', version: '1.0.0' },
+    css: ':root { --we-color-accent: red; }',
+  });
+  setActiveTheme('ghost');
+  assert.equal(sandbox.readConfig().ui.theme, 'ghost');
+
+  // 模拟主题目录被 git checkout / 手动 rm 之类的带外操作删除，而不是走 deleteTheme。
+  fs.rmSync(path.join(sandbox.root, 'themes', 'ghost'), { recursive: true, force: true });
+
+  const resolved = resolveActiveThemeId();
+  assert.equal(resolved, 'nocturne');
+  // 修正结果需要持久化，避免下一次读取仍然拿到失效 id。
+  assert.equal(sandbox.readConfig().ui.theme, 'nocturne');
+
+  const data = listThemes();
+  assert.equal(data.activeTheme, 'nocturne');
+  assert.equal(data.themes.some((theme) => theme.id === 'ghost'), false);
+});

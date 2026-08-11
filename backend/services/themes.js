@@ -108,10 +108,20 @@ function findTheme(id) {
   return scanThemes().find((theme) => theme.id === id) || null;
 }
 
-export function listThemes() {
+// 激活主题 id 校验 + 自愈：主题目录可能在磁盘层面被直接删除（而非走 deleteTheme /
+// applyAssistantThemeOp），此时 config.ui.theme 会残留一个已不存在的 id。这里统一
+// 兜底回落到默认主题并持久化修正，避免前端拿到一个请求 CSS 必 404 的主题 id。
+export function resolveActiveThemeId() {
   const config = getConfig();
+  const id = config.ui?.theme || DEFAULT_THEME_ID;
+  if (findTheme(id)) return id;
+  updateConfig({ ui: { theme: DEFAULT_THEME_ID } });
+  return DEFAULT_THEME_ID;
+}
+
+export function listThemes() {
   return {
-    activeTheme: config.ui?.theme || DEFAULT_THEME_ID,
+    activeTheme: resolveActiveThemeId(),
     themes: scanThemes().map(({ dirPath: _dirPath, cssPath: _cssPath, ...theme }) => theme),
   };
 }

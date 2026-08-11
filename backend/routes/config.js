@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getConfig, updateConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig, getProviderKey, updateProviderKey } from '../services/config.js';
+import { resolveActiveThemeId } from '../services/themes.js';
 import { validateModelFetchBaseUrl } from '../utils/network-safety.js';
 import { applyProxy } from '../utils/proxy.js';
 import { embed } from '../llm/embedding.js';
@@ -548,6 +549,7 @@ router.get('/', async (_req, res) => {
   const config = getConfig();
   const logging = getLoggingConfig();
   const safe = stripApiKeys(config);
+  if (safe.ui) safe.ui.theme = resolveActiveThemeId();
 
   const writingProvider = config.writing?.llm?.provider || config.llm?.provider;
   const writingModel = config.writing?.llm?.model || config.llm?.model;

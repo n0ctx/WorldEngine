@@ -3193,9 +3193,9 @@
 
 /* PanelCard */
 .we-panel-card {
-  background: var(--we-panel-card-bg);
-  border: var(--we-panel-card-border);
-  border-radius: var(--we-panel-card-radius);
+  background: var(--we-color-bg-surface);
+  border: 1px solid var(--we-color-border-default);
+  border-radius: var(--we-radius-md);
   box-shadow: var(--we-panel-card-shadow);
   overflow: hidden;
 }

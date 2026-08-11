@@ -104,10 +104,7 @@
   --we-page-canvas-fg-muted:         rgba(138, 138, 170, 0.55);
   --we-page-canvas-fg-deep:          rgba(138, 138, 170, 0.30);
   --we-page-canvas-title-style:      normal;
-  --we-page-canvas-title-weight:     600;
-  --we-page-canvas-subtitle-display: block;
   --we-card-name-font-style:         normal;
-  --we-card-name-font-weight:        400;
   --we-bookshelf-empty-bg:           rgba(5, 5, 8, 0.40);
   --we-bookshelf-empty-border:       rgba(0, 212, 255, 0.06);
 
@@ -123,14 +120,6 @@
     0 0 0 1px rgba(0, 212, 255, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.30),
     0 16px 32px rgba(0, 0, 0, 0.25);
-  --we-list-card-shadow: var(--we-card-shadow);
-  --we-list-card-hover-shadow: var(--we-card-hover-shadow);
-  --we-card-hover-transform: translateY(-4px);
-  --we-list-card-hover-transform: none;
-  --we-list-card-left-bar: transparent;
-  --we-panel-card-bg: var(--we-color-bg-surface);
-  --we-panel-card-border: 1px solid var(--we-color-border-default);
-  --we-panel-card-radius: var(--we-radius-md);
   --we-panel-card-shadow: 0 0 0 1px rgba(10, 10, 20, 0.03);
 
   /* ==================== TopBar 壳层 ==================== */
@@ -219,14 +208,11 @@
   --we-canvas-texture-image:    none;
   --we-card-overlay-bg:           linear-gradient(160deg, rgba(0, 0, 0, 0.40) 0%, rgba(0, 0, 0, 0.75) 100%);
   --we-card-overlay-hover-bg:     var(--we-card-overlay-bg);
-  --we-card-overlay-backdrop-filter:       none;
-  --we-card-overlay-hover-backdrop-filter: none;
   --we-card-cover-text-color:     rgba(224, 224, 240, 0.85);
   --we-card-cover-meta-color:     rgba(138, 138, 170, 0.60);
   --we-col-header-border-color:   rgba(255, 255, 255, 0.06);
   --we-col-btn-border-color:      rgba(0, 212, 255, 0.20);
   --we-col-btn-color:             rgba(0, 212, 255, 0.60);
-  --we-entry-meta-color:          rgba(138, 138, 170, 0.55);
   --we-entry-header-decor-bg:     linear-gradient(to right, transparent, rgba(0, 212, 255, 0.20) 30%, rgba(0, 212, 255, 0.20) 70%, transparent);
   --we-parchment-display:         none;
   --we-parchment-fiber-opacity:   0;
@@ -234,8 +220,6 @@
   --we-bookmark-display:          none;
 
   /* ==================== 条目行 ==================== */
-  --we-entry-row-bg:     var(--we-color-bg-canvas);
-  --we-entry-row-shadow: none;
 
   /* ==================== 主按钮 hover：霓虹青 ==================== */
   --we-col-btn-primary-hover-bg: rgba(0, 212, 255, 0.12);

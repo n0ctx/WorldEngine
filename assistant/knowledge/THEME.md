@@ -8,7 +8,7 @@
 主题（`theme`）是用户可在设置面板里切换的整套视觉包：
 
 - 真源是文件系统：`/data/themes/<id>/theme.json + theme.css`（用户层），`/themes/<id>/...`（内置层）
-- 内置主题（`classic-parchment`、`lovable-cream`）只读；助手对内置主题执行 `update` 时，**会自动先把内置整份复制到 user 层（`/data/themes/<id>/`）再覆写**，原内置文件不动
+- 内置主题（`nocturne`、`classic-parchment`、`neon-noir`）只读；助手对内置主题执行 `update` 时，**会自动先把内置整份复制到 user 层（`/data/themes/<id>/`）再覆写**，原内置文件不动
 - 全部 `enabled` 主题中只有"当前激活"那张生效（用户在设置切换）；与 `css-snippet`（全局并行注入）完全不同
 
 不属于 theme：
