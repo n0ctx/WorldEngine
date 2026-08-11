@@ -167,6 +167,10 @@ export default function WorldsPage() {
         <div className="we-worlds-state">
           <div className="we-worlds-empty">
             <p className="we-worlds-empty-text">暂无世界记录</p>
+            <p className="we-worlds-empty-hint">
+              一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。
+              如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。
+            </p>
             <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
               新建世界
             </button>

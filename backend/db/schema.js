@@ -2,15 +2,16 @@ import { randomUUID } from 'node:crypto';
 
 const TABLES = `
 CREATE TABLE IF NOT EXISTS worlds (
-  id                TEXT PRIMARY KEY,
-  name              TEXT NOT NULL,
-  description       TEXT NOT NULL DEFAULT '',
-  temperature       REAL,
-  max_tokens        INTEGER,
-  active_persona_id TEXT,
-  sort_order        INTEGER NOT NULL DEFAULT 0,
-  created_at        INTEGER NOT NULL,
-  updated_at        INTEGER NOT NULL
+  id                    TEXT PRIMARY KEY,
+  name                  TEXT NOT NULL,
+  description           TEXT NOT NULL DEFAULT '',
+  temperature           REAL,
+  max_tokens            INTEGER,
+  active_persona_id     TEXT,
+  sort_order            INTEGER NOT NULL DEFAULT 0,
+  onboarding_dismissed  INTEGER NOT NULL DEFAULT 0,
+  created_at            INTEGER NOT NULL,
+  updated_at            INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS personas (
@@ -601,6 +602,9 @@ export function initSchema(db) {
   // 主色来源：'auto'（默认，随封面自动重算）| 'manual'（用户手工指定，封面变化不再覆盖）。
   // 旧库回填为 NULL，读取时按 'auto' 处理。
   try { db.exec(`ALTER TABLE worlds ADD COLUMN accent_source TEXT`); } catch {}
+  // 新建世界引导：用户主动关闭引导时置 1，与「三步是否完成」（客观判断，不落库）彻底分开。
+  // 关闭后即使三步仍未做完也不再弹出；完成三步则无论是否被关闭过都会消失（判断逻辑见前端）。
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN onboarding_dismissed INTEGER NOT NULL DEFAULT 0`); } catch {}
 }
 
 /**

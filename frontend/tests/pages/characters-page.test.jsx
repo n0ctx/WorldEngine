@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   getCharactersByWorld: vi.fn(),
   deleteCharacter: vi.fn(),
   reorderCharacters: vi.fn(),
+  getWorld: vi.fn(),
+  updateWorld: vi.fn(),
   importCharacter: vi.fn(),
   importPersona: vi.fn(),
   readJsonFile: vi.fn(),
@@ -36,6 +38,10 @@ vi.mock('../../src/core/api/characters', () => ({
   getCharactersByWorld: (...args) => mocks.getCharactersByWorld(...args),
   deleteCharacter: (...args) => mocks.deleteCharacter(...args),
   reorderCharacters: (...args) => mocks.reorderCharacters(...args),
+}));
+vi.mock('../../src/core/api/worlds', () => ({
+  getWorld: (...args) => mocks.getWorld(...args),
+  updateWorld: (...args) => mocks.updateWorld(...args),
 }));
 vi.mock('../../src/core/api/import-export', () => ({
   importCharacter: (...args) => mocks.importCharacter(...args),
@@ -102,6 +108,14 @@ describe('CharactersPage', () => {
     vi.clearAllMocks();
     mocks.useParams.mockReturnValue({ worldId: 'world-1' });
     mocks.useLocation.mockReturnValue({ pathname: '/worlds/world-1', state: null });
+    // 默认给一个「已完成三步」的成熟世界，避免每条既有用例都被引导页接管；
+    // 引导本身的行为单独在下面的 describe 块里覆盖。
+    mocks.getWorld.mockResolvedValue({
+      id: 'world-1',
+      description: '一个已经写好设定的世界',
+      onboarding_dismissed: 0,
+    });
+    mocks.updateWorld.mockResolvedValue({});
     mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '阿塔', description: '守夜人' }]);
     mocks.listPersonas.mockResolvedValue([{ id: 'persona-1', name: '旅者', description: '主角', is_active: 1 }]);
     mocks.listWorldEntries.mockResolvedValue([{ id: 'entry-1', title: '世界规则条目', trigger_type: 'always', token: 0, sort_order: 0 }]);
@@ -229,5 +243,93 @@ describe('CharactersPage', () => {
 
     fireEvent.click(screen.getByText('规则与状态'));
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
+  });
+
+  describe('新世界搭建引导', () => {
+    beforeEach(() => {
+      // 全空世界：三步全部未完成
+      mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '', onboarding_dismissed: 0 });
+      mocks.getCharactersByWorld.mockResolvedValue([]);
+      mocks.listWorldEntries.mockResolvedValue([]);
+      mocks.listWorldStateFields.mockResolvedValue([]);
+    });
+
+    it('三步全未完成时展示引导，且三步都标记为未完成', async () => {
+      render(<CharactersPage />);
+
+      expect(await screen.findByText('先做这三件事，这个世界就活了')).toBeInTheDocument();
+      expect(screen.getByText('写一写这个世界观')).toBeInTheDocument();
+      expect(screen.getByText('加一个角色')).toBeInTheDocument();
+      expect(screen.getByText('定一条这里的规则')).toBeInTheDocument();
+      // 未完成的步骤显示序号而非勾选态 class
+      expect(document.querySelectorAll('.we-onboarding-step--done')).toHaveLength(0);
+      // 引导接管页面时，右栏的正常空态不应该再渲染
+      expect(screen.queryByText('世界规则')).not.toBeInTheDocument();
+    });
+
+    it('只有世界观写完时，只有第一步打勾，引导仍然展示', async () => {
+      mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '这里没有魔法', onboarding_dismissed: 0 });
+      render(<CharactersPage />);
+
+      await screen.findByText('先做这三件事，这个世界就活了');
+      const steps = document.querySelectorAll('.we-onboarding-step');
+      expect(steps).toHaveLength(3);
+      expect(steps[0]).toHaveClass('we-onboarding-step--done');
+      expect(steps[1]).not.toHaveClass('we-onboarding-step--done');
+      expect(steps[2]).not.toHaveClass('we-onboarding-step--done');
+    });
+
+    it('点击「写一写这个世界观」跳转到世界编辑页', async () => {
+      render(<CharactersPage />);
+      fireEvent.click(await screen.findByText('写一写这个世界观'));
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        '/worlds/world-1/edit',
+        { state: { backgroundLocation: { pathname: '/worlds/world-1', state: null } } },
+      );
+    });
+
+    it('点击「加一个角色」跳转到角色创建页', async () => {
+      render(<CharactersPage />);
+      fireEvent.click(await screen.findByText('加一个角色'));
+      expect(mocks.navigate).toHaveBeenCalledWith(
+        '/worlds/world-1/characters/new',
+        { state: { backgroundLocation: { pathname: '/worlds/world-1', state: null } } },
+      );
+    });
+
+    it('点击「定一条这里的规则」跳转到规则空间', async () => {
+      render(<CharactersPage />);
+      fireEvent.click(await screen.findByText('定一条这里的规则'));
+      expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');
+    });
+
+    it('三步都完成后引导不再出现，恢复正常世界层布局', async () => {
+      mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '写好了', onboarding_dismissed: 0 });
+      mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '阿塔', description: '守夜人' }]);
+      mocks.listWorldEntries.mockResolvedValue([{ id: 'entry-1', title: '规则', trigger_type: 'always', token: 0, sort_order: 0 }]);
+
+      render(<CharactersPage />);
+
+      await screen.findByText('世界规则');
+      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+    });
+
+    it('点击「跳过引导」持久化关闭状态，并立即隐藏引导', async () => {
+      render(<CharactersPage />);
+      fireEvent.click(await screen.findByText('跳过引导'));
+
+      await waitFor(() => expect(mocks.updateWorld).toHaveBeenCalledWith('world-1', { onboarding_dismissed: 1 }));
+      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+      // 关闭后恢复正常布局，能看到世界规则入口
+      expect(await screen.findByText('世界规则')).toBeInTheDocument();
+    });
+
+    it('已被关闭过的世界即使三步未完成也不再展示引导', async () => {
+      mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '', onboarding_dismissed: 1 });
+      render(<CharactersPage />);
+
+      await screen.findByText('世界规则');
+      expect(screen.queryByText('先做这三件事，这个世界就活了')).not.toBeInTheDocument();
+    });
   });
 });

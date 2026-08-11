@@ -39,3 +39,18 @@ test('updateWorld 忽略 allowlist 之外的字段', () => {
   assert.equal(updated.id, world.id);
   assert.equal(updated.accent_color, '#445566');
 });
+
+test('onboarding_dismissed 新库默认 0（引导默认可见，由前端按完成度决定是否展示）', () => {
+  const world = insertWorld(sandbox.db, { name: '引导-新建世界' });
+  const row = getWorldById(world.id);
+  assert.equal(row.onboarding_dismissed, 0);
+});
+
+test('updateWorld 允许写入 onboarding_dismissed，且与完成度判断无关的字段互不影响', () => {
+  const world = insertWorld(sandbox.db, { name: '引导-关闭' });
+  const updated = updateWorld(world.id, { onboarding_dismissed: 1 });
+  assert.equal(updated.onboarding_dismissed, 1);
+
+  const afterNameChange = updateWorld(world.id, { name: '改了名字' });
+  assert.equal(afterNameChange.onboarding_dismissed, 1, 'patch 其它字段不应重置关闭状态');
+});

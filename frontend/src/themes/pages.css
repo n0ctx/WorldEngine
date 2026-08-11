@@ -367,6 +367,15 @@
   color: var(--we-page-canvas-fg-muted);
 }
 
+.we-worlds-empty-hint {
+  max-width: 480px;
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-sm);
+  color: var(--we-page-canvas-fg-muted);
+  line-height: 1.7;
+  text-align: center;
+}
+
 .we-worlds-empty-btn {
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
@@ -416,6 +425,149 @@
 .we-characters-canvas::-webkit-scrollbar-thumb {
   background: var(--we-page-canvas-fg-muted);
   border-radius: var(--we-radius-full);
+}
+
+/* ── 新世界搭建引导：世界观 / 角色 / 规则三步，取代空世界层的整套空态 ── */
+
+.we-onboarding-guide {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--we-space-2xl) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xl);
+}
+
+.we-onboarding-guide-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--we-space-lg);
+}
+
+.we-onboarding-guide-title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  font-style: italic;
+  color: var(--we-page-canvas-fg);
+}
+
+.we-onboarding-guide-subtitle {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-sm);
+  color: var(--we-page-canvas-fg-muted);
+  margin-top: var(--we-space-sm);
+  line-height: 1.6;
+}
+
+.we-onboarding-guide-skip {
+  flex-shrink: 0;
+  font-family: var(--we-font-ui);
+  font-size: var(--we-text-xs);
+  letter-spacing: 0.05em;
+  padding: var(--we-space-xs) var(--we-space-md);
+  border-radius: var(--we-radius-sm);
+  border: 1px solid var(--we-col-btn-border-color);
+  background: transparent;
+  color: var(--we-page-canvas-fg-muted);
+  cursor: pointer;
+  transition: border-color var(--we-duration-fast), color var(--we-duration-fast);
+}
+
+.we-onboarding-guide-skip:hover,
+.we-onboarding-guide-skip:focus-visible {
+  border-color: var(--we-page-canvas-fg-muted);
+  color: var(--we-page-canvas-fg);
+}
+
+.we-onboarding-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-md);
+}
+
+.we-onboarding-step {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-lg);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  background: var(--we-card-bg);
+  border: var(--we-card-border);
+  border-radius: var(--we-card-radius);
+  padding: var(--we-space-lg);
+  cursor: pointer;
+  box-shadow: var(--we-card-shadow);
+  transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp);
+}
+
+.we-onboarding-step:hover {
+  box-shadow: var(--we-card-hover-shadow);
+}
+
+.we-onboarding-step:focus-visible {
+  box-shadow: var(--we-card-hover-shadow);
+  outline: 2px solid var(--we-color-accent);
+  outline-offset: 2px;
+}
+
+.we-onboarding-step-mark {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--we-radius-full);
+  border: 1px solid var(--we-color-border-default);
+  color: var(--we-color-text-tertiary);
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-sm);
+}
+
+.we-onboarding-step--done .we-onboarding-step-mark {
+  border-color: var(--we-color-accent);
+  background: var(--we-color-accent-bg);
+  color: var(--we-color-accent);
+}
+
+.we-onboarding-step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+}
+
+.we-onboarding-step-title {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-md);
+  color: var(--we-page-canvas-fg);
+}
+
+.we-onboarding-step--done .we-onboarding-step-title {
+  color: var(--we-page-canvas-fg-muted);
+}
+
+.we-onboarding-step-hint {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-xs);
+  color: var(--we-page-canvas-fg-muted);
+  line-height: 1.6;
+}
+
+.we-onboarding-step-action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  font-family: var(--we-font-ui);
+  font-size: var(--we-text-xs);
+  letter-spacing: 0.05em;
+  color: var(--we-color-accent);
+  white-space: nowrap;
 }
 
 /* ── 世界层双栏布局：左宽（故事线）右窄（角色/我扮演/世界规则） ── */

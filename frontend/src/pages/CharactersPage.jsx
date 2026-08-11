@@ -5,6 +5,7 @@ import {
   deleteCharacter,
   reorderCharacters,
 } from '../core/api/characters';
+import { getWorld, updateWorld } from '../core/api/worlds';
 import useStore from '../core/state/index';
 import { importCharacter, importPersona, readJsonFile } from '../core/api/import-export';
 import { listCharacterStateFields } from '../core/api/character-state-fields';
@@ -255,6 +256,96 @@ function ContinueCard({ item, title, onClick }) {
   );
 }
 
+// ── NewWorldGuide（新世界搭建引导）──────────────────────────────────────────
+//
+// 「新世界」判断标准：世界观描述 / 角色 / 规则三项是否都已存在内容，纯客观完成度，
+// 不看创建时间——时间阈值会过期（老账号里几分钟前建的世界和半年前建的世界该一视同
+// 仁），完成度不会。三项全部完成后引导自动消失，不再占位；未完成时即使用户来回
+// 切换页面也会稳定复现，不会像"已读标记"那样过几天自己消失。
+//
+// 「关闭」与「完成」是两件独立的事：完成是可计算的客观状态，关闭是用户的主观选择
+// （persisted 到 worlds.onboarding_dismissed）。关闭后即便三步仍未做完也不再弹出，
+// 尊重用户"我知道，不用管我"的意愿；但反过来，只要三步真的做完了，引导必然消失，
+// 不依赖是否点过关闭——不会出现「已经把三件事都做完了，却因为没点过关闭一直被打扰」
+// 的情况。
+
+const GUIDE_STEPS = [
+  {
+    key: 'world',
+    title: '写一写这个世界观',
+    hint: '这个世界是什么样的、发生在哪、有什么背景——写清楚了，AI 之后讲故事才不会跑偏。',
+    action: '去填写',
+  },
+  {
+    key: 'character',
+    title: '加一个角色',
+    hint: '角色是故事里会说话、会行动的人。加一个，你就有了对话或写作的对象。',
+    action: '去创建',
+  },
+  {
+    key: 'rule',
+    title: '定一条这里的规则',
+    hint: '规则是这个世界里「什么是真的」——比如没有魔法、货币是贝壳。定下来，AI 每次讲故事都会记得。',
+    action: '去设定',
+  },
+];
+
+function NewWorldGuide({ completed, onStepClick, onDismiss }) {
+  return (
+    <div className="we-onboarding-guide" role="region" aria-label="新世界搭建引导">
+      <div className="we-onboarding-guide-head">
+        <div>
+          <h2 className="we-onboarding-guide-title">先做这三件事，这个世界就活了</h2>
+          <p className="we-onboarding-guide-subtitle">
+            世界观、角色、规则是这个产品最重要的三块拼图，做完之后 AI 才知道该怎么陪你讲故事。
+          </p>
+        </div>
+        <button
+          type="button"
+          className="we-onboarding-guide-skip"
+          onClick={onDismiss}
+        >
+          跳过引导
+        </button>
+      </div>
+
+      <div className="we-onboarding-steps">
+        {GUIDE_STEPS.map((step, idx) => {
+          const done = !!completed[step.key];
+          return (
+            <button
+              key={step.key}
+              type="button"
+              className={`we-onboarding-step${done ? ' we-onboarding-step--done' : ''}`}
+              onClick={() => onStepClick(step.key)}
+            >
+              <span className="we-onboarding-step-mark" aria-hidden="true">
+                {done ? (
+                  <Icon size={16}>
+                    <polyline points="20 6 9 17 4 12" />
+                  </Icon>
+                ) : (
+                  idx + 1
+                )}
+              </span>
+              <span className="we-onboarding-step-body">
+                <span className="we-onboarding-step-title">{step.title}</span>
+                <span className="we-onboarding-step-hint">{step.hint}</span>
+              </span>
+              <span className="we-onboarding-step-action">
+                {done ? '回去改改' : step.action}
+                <Icon size={16}>
+                  <polyline points="9 18 15 12 9 6" />
+                </Icon>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── CharactersPage（世界层枢纽）──────────────────────────────────────────────
 
 export default function CharactersPage() {
@@ -265,6 +356,7 @@ export default function CharactersPage() {
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
+  const [world, setWorld] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [personas, setPersonas] = useState([]);
   const [entries, setEntries] = useState([]);
@@ -286,13 +378,15 @@ export default function CharactersPage() {
     setLoading(true);
     setLoadError('');
     try {
-      const [chars, ps, ents, fields, tl] = await Promise.all([
+      const [w, chars, ps, ents, fields, tl] = await Promise.all([
+        getWorld(worldId),
         getCharactersByWorld(worldId),
         listPersonas(worldId),
         listWorldEntries(worldId),
         listWorldStateFields(worldId),
         getWorldTimeline(worldId),
       ]);
+      setWorld(w);
       setCharacters(chars);
       setPersonas(ps);
       setEntries(ents);
@@ -331,6 +425,37 @@ export default function CharactersPage() {
   }, [characters]);
 
   const activePersona = useMemo(() => personas.find((p) => p.is_active) || null, [personas]);
+
+  // 引导完成度：纯客观判断，不依赖创建时间。三步都做完，引导必然消失。
+  const guideCompleted = useMemo(() => ({
+    world: !!(world?.description && world.description.trim()),
+    character: characters.length > 0,
+    rule: entries.length > 0,
+  }), [world, characters, entries]);
+
+  const guideAllDone = guideCompleted.world && guideCompleted.character && guideCompleted.rule;
+  const showGuide = !loading && !!world && !guideAllDone && !world.onboarding_dismissed;
+
+  function handleGuideStepClick(stepKey) {
+    if (stepKey === 'world') {
+      navigate(`/worlds/${worldId}/edit`, { state: { backgroundLocation: location } });
+    } else if (stepKey === 'character') {
+      navigate(`/worlds/${worldId}/characters/new`, { state: { backgroundLocation: location } });
+    } else if (stepKey === 'rule') {
+      navigate(`/worlds/${worldId}/rules`);
+    }
+  }
+
+  async function handleDismissGuide() {
+    // 乐观更新：不等接口返回就先隐藏，避免用户点了「跳过」还要再等一次网络往返。
+    setWorld((w) => (w ? { ...w, onboarding_dismissed: 1 } : w));
+    try {
+      await updateWorld(worldId, { onboarding_dismissed: 1 });
+    } catch (err) {
+      log.error('world.onboarding_dismiss_failed', err, { toast: `关闭引导失败：${err.message}` });
+      setWorld((w) => (w ? { ...w, onboarding_dismissed: 0 } : w));
+    }
+  }
 
   function storylineTitle(item) {
     if (item.title) return item.title;
@@ -472,7 +597,17 @@ export default function CharactersPage() {
     <div className="we-characters-canvas">
       {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
 
+      {/* 新世界搭建引导：三步未完成且未被手动关闭时，取代下方整套空态 */}
+      {showGuide && (
+        <NewWorldGuide
+          completed={guideCompleted}
+          onStepClick={handleGuideStepClick}
+          onDismiss={handleDismissGuide}
+        />
+      )}
+
       {/* 世界层：左宽（故事线）右窄（角色 / 我扮演 / 世界规则） */}
+      {!showGuide && (
       <div className="we-worldhub-layout">
 
         {/* ── 左栏：故事线 ── */}
@@ -716,6 +851,7 @@ export default function CharactersPage() {
 
         </div>
       </div>
+      )}
 
       {/* 删除角色确认 */}
       {deletingChar && (
