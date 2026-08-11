@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   listWorldStateFields: vi.fn(),
   listCharacterStateFields: vi.fn(),
   listPersonaStateFields: vi.fn(),
+  listWorldEntries: vi.fn(),
   logError: vi.fn(),
 }));
 
@@ -18,6 +19,7 @@ vi.mock('../../../src/core/api/prompt-entries', () => ({
   updateWorldEntry: (...args) => mocks.updateWorldEntry(...args),
   getEntryConditions: (...args) => mocks.getEntryConditions(...args),
   replaceEntryConditions: (...args) => mocks.replaceEntryConditions(...args),
+  listWorldEntries: (...args) => mocks.listWorldEntries(...args),
 }));
 vi.mock('../../../src/core/api/world-state-fields', () => ({
   listWorldStateFields: (...args) => mocks.listWorldStateFields(...args),
@@ -27,6 +29,12 @@ vi.mock('../../../src/core/api/character-state-fields', () => ({
 }));
 vi.mock('../../../src/core/api/persona-state-fields', () => ({
   listPersonaStateFields: (...args) => mocks.listPersonaStateFields(...args),
+}));
+vi.mock('../../../src/core/api/characters', () => ({
+  getCharactersByWorld: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('../../../src/core/api/personas', () => ({
+  listPersonas: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('../../../src/core/utils/logger.js', () => ({
   log: {
@@ -70,6 +78,7 @@ describe('EntryEditor', () => {
     mocks.listWorldStateFields.mockResolvedValue([{ label: '温度', type: 'number' }]);
     mocks.listCharacterStateFields.mockResolvedValue([{ label: '心情', type: 'text' }]);
     mocks.listPersonaStateFields.mockResolvedValue([{ label: '体力', type: 'number' }]);
+    mocks.listWorldEntries.mockResolvedValue([]);
   });
 
   it('always 条目允许 token=0，并显示 cached 提示', async () => {

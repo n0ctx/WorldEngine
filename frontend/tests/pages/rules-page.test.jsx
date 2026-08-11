@@ -96,10 +96,10 @@ vi.mock('../../src/components/state/StateValueField', () => ({
 import RulesPage from '../../src/pages/RulesPage/index.jsx';
 
 const baseEntries = [
-  { id: 'e-always-1', title: '世界观设定', trigger_type: 'always', enabled: 1, token: 0, keywords: [] },
-  { id: 'e-always-2', title: '常驻规则', trigger_type: 'always', enabled: 1, token: 1, keywords: [] },
-  { id: 'e-keyword-1', title: '战斗触发', trigger_type: 'keyword', enabled: 1, active_turns: 1, keywords: ['战斗'] },
-  { id: 'e-state-1', title: '好感条件', trigger_type: 'state', enabled: 0, keywords: [] },
+  { id: 'e-always-1', title: '世界观设定', trigger_type: 'always', enabled: 1, token: 0, keywords: [], group_name: '总则' },
+  { id: 'e-always-2', title: '常驻规则', trigger_type: 'always', enabled: 1, token: 1, keywords: [], group_name: null },
+  { id: 'e-keyword-1', title: '战斗触发', trigger_type: 'keyword', enabled: 1, active_turns: 1, keywords: ['战斗'], group_name: '总则' },
+  { id: 'e-state-1', title: '好感条件', trigger_type: 'state', enabled: 0, keywords: [], group_name: null },
 ];
 
 describe('RulesPage', () => {
@@ -118,17 +118,17 @@ describe('RulesPage', () => {
     mocks.logError.mockReset();
   });
 
-  it('左栏两组计数正确：设定条目按 trigger_type 分组 + 全部，状态字段三个作用域', async () => {
+  it('左栏按用户自定义分组导航 + 全部 + 未分组，状态字段三个作用域', async () => {
     render(<RulesPage />);
 
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledWith('world-1'));
 
-    // 设定条目：全部 4，常驻 2，关键词 1，AI 召回 0，状态条件 1
+    // 设定条目：全部 4，「总则」分组 2（世界观设定 + 战斗触发），未分组 2（常驻规则 + 好感条件）
     expect(screen.getByTestId('nav-entries-all')).toHaveTextContent('全部4');
-    expect(screen.getByTestId('nav-entries-always')).toHaveTextContent('常驻2');
-    expect(screen.getByTestId('nav-entries-keyword')).toHaveTextContent('关键词1');
-    expect(screen.getByTestId('nav-entries-llm')).toHaveTextContent('AI 召回0');
-    expect(screen.getByTestId('nav-entries-state')).toHaveTextContent('状态条件1');
+    expect(screen.getByTestId('nav-entries-group-总则')).toHaveTextContent('总则2');
+    expect(screen.getByTestId('nav-entries-ungrouped')).toHaveTextContent('未分组2');
+    // 机制不再是左栏分类维度
+    expect(screen.queryByTestId('nav-entries-always')).not.toBeInTheDocument();
 
     // 状态字段：三个作用域初始为空
     await waitFor(() => expect(mocks.listCharacterStateFields).toHaveBeenCalledWith('world-1'));
@@ -137,19 +137,31 @@ describe('RulesPage', () => {
     expect(screen.getByTestId('nav-fields-persona')).toHaveTextContent('玩家状态0');
   });
 
-  it('点击「常驻」分组后中栏只显示常驻条目', async () => {
+  it('点击「总则」分组后中栏只显示该分组条目', async () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId('nav-entries-always'));
+    fireEvent.click(screen.getByTestId('nav-entries-group-总则'));
 
     // 右栏此时是「世界规则概览」空态，注入顺序预览里也会出现同名条目——
     // 用 data-testid 把断言范围收窄到中栏列表本身，避免和概览面板的文本重复。
     const list = within(screen.getByTestId('entry-list'));
     expect(list.getByText('世界观设定')).toBeInTheDocument();
-    expect(list.getByText('常驻规则')).toBeInTheDocument();
-    expect(list.queryByText('战斗触发')).not.toBeInTheDocument();
+    expect(list.getByText('战斗触发')).toBeInTheDocument();
+    expect(list.queryByText('常驻规则')).not.toBeInTheDocument();
     expect(list.queryByText('好感条件')).not.toBeInTheDocument();
+  });
+
+  it('点击「未分组」后中栏只显示未分组条目', async () => {
+    render(<RulesPage />);
+    await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByTestId('nav-entries-ungrouped'));
+
+    const list = within(screen.getByTestId('entry-list'));
+    expect(list.getByText('常驻规则')).toBeInTheDocument();
+    expect(list.getByText('好感条件')).toBeInTheDocument();
+    expect(list.queryByText('世界观设定')).not.toBeInTheDocument();
   });
 
   it('点击条目行后右栏出现内嵌编辑器', async () => {
@@ -193,7 +205,7 @@ describe('RulesPage', () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByTestId('nav-entries-always')); // 先筛到常驻分组
+    fireEvent.click(screen.getByTestId('nav-entries-group-总则')); // 先筛到「总则」分组
     fireEvent.click(screen.getByText('调整顺序'));
 
     expect(screen.getByText('完成排序')).toBeInTheDocument();

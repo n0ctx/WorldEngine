@@ -65,6 +65,13 @@ function normalizeActiveTurns(value) {
   return n;
 }
 
+// 分组名：空字符串/未定义一律归一化为 NULL（未分组），避免 '' 和 NULL 在左栏被当成两个分组。
+function normalizeGroupName(value) {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed || null;
+}
+
 function parseKeywords(row) {
   if (!row) return row;
   return {
@@ -87,8 +94,8 @@ export function createWorldEntry(data) {
   const sortOrder = data.sort_order ?? ((maxRow?.m ?? -1) + 1);
 
   db.prepare(`
-    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO world_prompt_entries (id, world_id, title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, group_name, sort_order, token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     data.world_id,
@@ -101,6 +108,7 @@ export function createWorldEntry(data) {
     data.condition_logic === 'OR' ? 'OR' : 'AND',
     normalizeKeywordLogic(data.keyword_logic),
     normalizeActiveTurns(data.active_turns ?? 1),
+    normalizeGroupName(data.group_name),
     sortOrder,
     normalizeToken(data.token, data.trigger_type ?? 'always'),
     now,
@@ -118,7 +126,7 @@ export function getAllWorldEntries(worldId) {
 }
 
 export function updateWorldEntry(id, patch) {
-  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'condition_logic', 'keyword_logic', 'active_turns', 'token', 'enabled'];
+  const allowed = ['title', 'description', 'content', 'keywords', 'keyword_scope', 'sort_order', 'trigger_type', 'condition_logic', 'keyword_logic', 'active_turns', 'token', 'enabled', 'group_name'];
   const sets = [];
   const values = [];
 
@@ -141,7 +149,9 @@ export function updateWorldEntry(id, patch) {
               ? normalizeActiveTurns(patch.active_turns)
               : field === 'token'
                 ? normalizeToken(patch.token, effectiveTriggerType)
-                : patch[field]);
+                : field === 'group_name'
+                  ? normalizeGroupName(patch.group_name)
+                  : patch[field]);
     }
   }
 

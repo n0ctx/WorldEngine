@@ -59,6 +59,23 @@ test('prompt entries query 会更新字段并按 owner 范围重排', async () =
   assert.deepEqual(otherRows.map((row) => row.title), ['外部']);
 });
 
+test('group_name：默认未分组，可设置/清空，空字符串归一化为 NULL', async () => {
+  const world = insertWorld(sandbox.db, { name: '条目世界-分组' });
+  const queries = await freshImport('backend/db/queries/prompt-entries.js');
+
+  const ungrouped = queries.createWorldEntry({ world_id: world.id, title: '默认条目', content: 'x' });
+  assert.equal(ungrouped.group_name, null);
+
+  const grouped = queries.createWorldEntry({ world_id: world.id, title: '分组条目', content: 'x', group_name: '  城市地理 ' });
+  assert.equal(grouped.group_name, '城市地理');
+
+  const regrouped = queries.updateWorldEntry(ungrouped.id, { group_name: '总则' });
+  assert.equal(regrouped.group_name, '总则');
+
+  const cleared = queries.updateWorldEntry(regrouped.id, { group_name: '' });
+  assert.equal(cleared.group_name, null);
+});
+
 test('updateWorldEntry 在空 patch 时返回现有记录，不会破坏排序与数据', async () => {
   const world = insertWorld(sandbox.db, { name: '条目世界-空更新' });
   const queries = await freshImport('backend/db/queries/prompt-entries.js');

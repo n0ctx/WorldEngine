@@ -58,15 +58,16 @@ const SCOPES = {
 const FIELD_SCOPE_KEYS = ['world', 'character', 'persona'];
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 
-// 设定条目按 trigger_type 分组——这是数据库字段的四个取值，目前直接当左栏分组用，
-// 属于过渡状态。下一步会把机制降级成条目上的一个标记，左栏改成按用户自己的内容分组。
+// 触发机制：条目的一个属性（何时生效），不再是左栏分类维度——
+// 左栏改按用户自己起的分组名导航，机制只在中栏色点 + 筛选 chip、右栏详情里出现。
 const TRIGGER_TYPES = [
-  { key: 'always', label: '常驻', desc: '始终注入' },
-  { key: 'keyword', label: '关键词', desc: '对话中出现指定词语时自动注入' },
-  { key: 'llm', label: 'AI 召回', desc: '由 AI 判断当前情境是否需要注入' },
-  { key: 'state', label: '状态条件', desc: '当状态字段满足设定条件时自动注入' },
+  { key: 'always', label: '一直生效', desc: '始终注入' },
+  { key: 'keyword', label: '出现关键词', desc: '对话中出现指定词语时自动注入' },
+  { key: 'llm', label: 'AI 判断相关', desc: '由 AI 判断当前情境是否需要注入' },
+  { key: 'state', label: '状态满足条件', desc: '当状态字段满足设定条件时自动注入' },
 ];
 const TRIGGER_LABEL = Object.fromEntries(TRIGGER_TYPES.map((t) => [t.key, t.label]));
+const UNGROUPED = '__ungrouped__';
 
 export default function RulesPage() {
   const { worldId } = useParams();
@@ -75,7 +76,8 @@ export default function RulesPage() {
 
   // ── 设定条目 ──
   const [entries, setEntries] = useState([]);
-  const [entryFilter, setEntryFilter] = useState('all'); // all | always | keyword | llm | state
+  const [entryFilter, setEntryFilter] = useState('all'); // all | 分组名 | UNGROUPED（左栏导航）
+  const [triggerTypeFilter, setTriggerTypeFilter] = useState('all'); // all | always | keyword | llm | state（中栏筛选 chip）
   const [orderMode, setOrderMode] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [creatingEntry, setCreatingEntry] = useState(false);
@@ -131,11 +133,21 @@ export default function RulesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅需在 worldId 变化时重拉
   }, [worldId]);
 
-  const alwaysCount = entries.filter((e) => e.trigger_type === 'always').length;
-  const keywordCount = entries.filter((e) => e.trigger_type === 'keyword').length;
-  const llmCount = entries.filter((e) => e.trigger_type === 'llm').length;
-  const stateCount = entries.filter((e) => e.trigger_type === 'state').length;
-  const entryCounts = { all: entries.length, always: alwaysCount, keyword: keywordCount, llm: llmCount, state: stateCount };
+  // 左栏分组：用户自己在条目详情里填的 group_name，未分组的落在 UNGROUPED。
+  // 不按 trigger_type 派生——机制不再是分类维度。
+  const groupList = useMemo(() => {
+    const counts = new Map();
+    for (const e of entries) {
+      const key = e.group_name ? e.group_name : UNGROUPED;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const named = [...counts.entries()]
+      .filter(([key]) => key !== UNGROUPED)
+      .sort((a, b) => a[0].localeCompare(b[0], 'zh'));
+    return { named, ungroupedCount: counts.get(UNGROUPED) ?? 0 };
+  }, [entries]);
+  // 详情里「分组」输入框的建议列表：用户已经起过的分组名
+  const existingGroupNames = useMemo(() => groupList.named.map(([name]) => name), [groupList]);
 
   function selectEntryGroup(key) {
     setNavMode('entries');
@@ -183,8 +195,16 @@ export default function RulesPage() {
     }
   }
 
-  const filteredEntries = entryFilter === 'all' ? entries : entries.filter((e) => e.trigger_type === entryFilter);
-  const defaultTriggerTypeForNew = entryFilter === 'all' ? 'always' : entryFilter;
+  const groupFilteredEntries = entryFilter === 'all'
+    ? entries
+    : entryFilter === UNGROUPED
+      ? entries.filter((e) => !e.group_name)
+      : entries.filter((e) => e.group_name === entryFilter);
+  const filteredEntries = triggerTypeFilter === 'all'
+    ? groupFilteredEntries
+    : groupFilteredEntries.filter((e) => e.trigger_type === triggerTypeFilter);
+  // 新建条目预填分组：当前选中了具体分组时带入，选"全部"/"未分组"时不预填
+  const defaultGroupNameForNew = entryFilter !== 'all' && entryFilter !== UNGROUPED ? entryFilter : '';
 
   return (
     <div className="we-characters-canvas">
@@ -210,19 +230,27 @@ export default function RulesPage() {
                 onClick={() => selectEntryGroup('all')}
               >
                 <span>全部</span>
-                <span className="we-field-badge">{entryCounts.all}</span>
+                <span className="we-field-badge">{entries.length}</span>
               </button>
-              {TRIGGER_TYPES.map((t) => (
+              {groupList.named.map(([name, count]) => (
                 <button
-                  key={t.key}
-                  data-testid={`nav-entries-${t.key}`}
-                  className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === t.key ? ' is-active' : ''}`}
-                  onClick={() => selectEntryGroup(t.key)}
+                  key={name}
+                  data-testid={`nav-entries-group-${name}`}
+                  className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === name ? ' is-active' : ''}`}
+                  onClick={() => selectEntryGroup(name)}
                 >
-                  <span>{t.label}</span>
-                  <span className="we-field-badge">{entryCounts[t.key]}</span>
+                  <span>{name}</span>
+                  <span className="we-field-badge">{count}</span>
                 </button>
               ))}
+              <button
+                data-testid="nav-entries-ungrouped"
+                className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === UNGROUPED ? ' is-active' : ''}`}
+                onClick={() => selectEntryGroup(UNGROUPED)}
+              >
+                <span>未分组</span>
+                <span className="we-field-badge">{groupList.ungroupedCount}</span>
+              </button>
             </div>
 
             <div className="we-workshop-nav-group">
@@ -245,7 +273,9 @@ export default function RulesPage() {
           {navMode === 'entries' ? (
             <section className="we-workshop-list">
               <div className="we-workshop-list-head">
-                <span>{entryFilter === 'all' ? '全部条目' : `${TRIGGER_LABEL[entryFilter]}条目`}</span>
+                <span>
+                  {entryFilter === 'all' ? '全部条目' : entryFilter === UNGROUPED ? '未分组条目' : `「${entryFilter}」条目`}
+                </span>
                 <div className="we-workshop-list-actions">
                   <button
                     className={`we-btn we-btn-sm${orderMode ? ' we-btn-primary' : ' we-btn-secondary'}`}
@@ -264,6 +294,28 @@ export default function RulesPage() {
                 </div>
               </div>
 
+              {!orderMode && (
+                <div className="we-trigger-filter-row" role="group" aria-label="按触发机制筛选">
+                  <button
+                    type="button"
+                    className={`we-trigger-filter-chip${triggerTypeFilter === 'all' ? ' is-active' : ''}`}
+                    onClick={() => setTriggerTypeFilter('all')}
+                  >
+                    全部机制
+                  </button>
+                  {TRIGGER_TYPES.map((t) => (
+                    <button
+                      type="button"
+                      key={t.key}
+                      className={`we-trigger-filter-chip${triggerTypeFilter === t.key ? ' is-active' : ''}`}
+                      onClick={() => setTriggerTypeFilter(t.key)}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {orderMode ? (
                 <EntryOrderList
                   entries={entries}
@@ -274,7 +326,6 @@ export default function RulesPage() {
               ) : (
                 <EntryPlainList
                   entries={filteredEntries}
-                  showTypeBadge={entryFilter === 'all'}
                   selectedId={selectedEntryId}
                   onSelect={(entry) => { setSelectedEntryId(entry.id); setCreatingEntry(false); }}
                   onToggle={handleToggleEntry}
@@ -319,7 +370,8 @@ export default function RulesPage() {
                     inline
                     worldId={worldId}
                     entry={null}
-                    defaultTriggerType={defaultTriggerTypeForNew}
+                    defaultGroupName={defaultGroupNameForNew}
+                    existingGroupNames={existingGroupNames}
                     onClose={() => setCreatingEntry(false)}
                     onSave={() => { setCreatingEntry(false); refreshEntries(); }}
                   />
@@ -331,7 +383,7 @@ export default function RulesPage() {
                     inline
                     worldId={worldId}
                     entry={selectedEntry}
-                    defaultTriggerType={selectedEntry.trigger_type}
+                    existingGroupNames={existingGroupNames}
                     onClose={() => setSelectedEntryId(null)}
                     onSave={() => refreshEntries()}
                   />
@@ -356,6 +408,7 @@ export default function RulesPage() {
                 scope={fieldScope}
                 scopeKey={fieldScopeKey}
                 field={selectedField}
+                existingGroupNames={existingGroupNames}
                 onDefinitionSaved={() => loadFieldsFor(fieldScopeKey)}
               />
             )}
@@ -476,7 +529,7 @@ function RulesOverview({ entries, fieldsByScope, hint }) {
 
 // ── 设定条目：普通列表（按分组筛选，不可拖拽——sort_order 是跨类型的全局顺序，
 //    筛选后的子集内拖拽会破坏真实顺序，拖拽排序统一放到「调整顺序」视图里做）──
-function EntryPlainList({ entries, showTypeBadge, selectedId, onSelect, onToggle, onDelete }) {
+function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDelete }) {
   if (entries.length === 0) {
     return <div className="we-entry-section-empty">暂无条目</div>;
   }
@@ -494,7 +547,7 @@ function EntryPlainList({ entries, showTypeBadge, selectedId, onSelect, onToggle
           <div className="we-entry-section-main">
             <div className="we-entry-section-title-line">
               <span className="we-entry-section-name">{entry.title || '（无标题）'}</span>
-              {showTypeBadge && <span className="we-entry-section-badge">{TRIGGER_LABEL[entry.trigger_type]}</span>}
+              <span className="we-entry-section-badge">{TRIGGER_LABEL[entry.trigger_type]}</span>
               {entry.trigger_type === 'always' && entry.token === 0 && entry.enabled !== 0 && (
                 <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">CACHED</span>
               )}
@@ -568,7 +621,7 @@ function EntryOrderList({ entries, onReorder, onReorderEnd, onToggle }) {
 }
 
 // ── 字段详情：定义 + 默认值矩阵 + 相关条目 ──
-function FieldDetail({ worldId, scope, scopeKey, field, onDefinitionSaved }) {
+function FieldDetail({ worldId, scope, scopeKey, field, existingGroupNames, onDefinitionSaved }) {
   const [entryEditor, setEntryEditor] = useState(null); // { entry } | { prefill:true }
   const [entriesReload, setEntriesReload] = useState(0);
   const [editingDef, setEditingDef] = useState(false); // 是否就地展开「编辑定义」
@@ -623,6 +676,7 @@ function FieldDetail({ worldId, scope, scopeKey, field, onDefinitionSaved }) {
             worldId={worldId}
             entry={entryEditor.entry ?? null}
             defaultTriggerType="state"
+            existingGroupNames={existingGroupNames}
             prefillCondition={entryEditor.prefill ? { scope: scope.cnScope, field_label: field.label } : undefined}
             onClose={() => setEntryEditor(null)}
             onSave={() => { setEntryEditor(null); setEntriesReload((k) => k + 1); }}

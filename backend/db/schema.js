@@ -199,6 +199,7 @@ CREATE TABLE IF NOT EXISTS world_prompt_entries (
   keywords        TEXT,
   keyword_scope   TEXT NOT NULL DEFAULT 'user,assistant',
   condition_logic TEXT NOT NULL DEFAULT 'AND',
+  group_name      TEXT,
   sort_order      INTEGER NOT NULL DEFAULT 0,
   created_at      INTEGER NOT NULL,
   updated_at      INTEGER NOT NULL
@@ -592,6 +593,9 @@ export function initSchema(db) {
   // 区分"用户首轮前手动预设"与"被丢弃轮次的污染"。老会话为 NULL → 回滚退回保留现状（向下兼容）。
   try { db.exec(`ALTER TABLE sessions ADD COLUMN state_baseline_json TEXT`); } catch {}
   migrateBackfillWritingSessionPersonaId(db);
+  // 设定条目分组：触发机制从左栏分类维度降级为条目属性，条目改按用户自定义分组导航。
+  // 可空，默认 NULL（未分组）；不按 trigger_type 回填，避免"换个名字继续当分类"。
+  try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN group_name TEXT`); } catch {}
 }
 
 /**

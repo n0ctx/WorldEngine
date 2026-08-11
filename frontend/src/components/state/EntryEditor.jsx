@@ -1,12 +1,24 @@
 import { useState, useEffect, useRef } from 'react';
-import { createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions } from '../../core/api/prompt-entries';
+import {
+  createWorldEntry, updateWorldEntry, getEntryConditions, replaceEntryConditions, listWorldEntries,
+} from '../../core/api/prompt-entries';
 import { listWorldStateFields } from '../../core/api/world-state-fields';
 import { listCharacterStateFields } from '../../core/api/character-state-fields';
 import { listPersonaStateFields } from '../../core/api/persona-state-fields';
+import { getCharactersByWorld } from '../../core/api/characters';
+import { listPersonas } from '../../core/api/personas';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import Select from '../ui/Select';
 import DatetimePartInput from './DatetimePartInput';
 import { log } from '../../core/utils/logger.js';
+import { suggestTrigger } from '../../core/utils/trigger-suggestion.js';
+
+const TRIGGER_SEGMENTS = [
+  { key: 'always', label: '一直生效' },
+  { key: 'keyword', label: '出现关键词' },
+  { key: 'llm', label: 'AI 判断相关' },
+  { key: 'state', label: '状态满足条件' },
+];
 
 const NUMERIC_TYPES = new Set(['number', 'integer', 'float', 'datetime']);
 const NUMERIC_OPS = [
@@ -95,19 +107,24 @@ function getOpsForField(targetField, fieldTypeMap) {
   return NUMERIC_TYPES.has(type) ? NUMERIC_OPS : TEXT_OPS;
 }
 
-export default function EntryEditor({ worldId, entry, defaultTriggerType, prefillCondition, onClose, onSave, inline = false }) {
+export default function EntryEditor({
+  worldId, entry, defaultTriggerType, defaultGroupName, existingGroupNames,
+  prefillCondition, onClose, onSave, inline = false,
+}) {
   const isNew = !entry?.id;
   const [form, setForm] = useState({
     title: entry?.title ?? '',
     content: entry?.content ?? '',
     description: entry?.description ?? '',
     keywords: entry?.keywords ?? [],
-    trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'always',
+    // 未指定机制时默认「AI 判断相关」——新建条目不强求用户先决定触发方式
+    trigger_type: entry?.trigger_type ?? defaultTriggerType ?? 'llm',
     condition_logic: entry?.condition_logic ?? 'AND',
     keyword_logic: entry?.keyword_logic === 'AND' ? 'AND' : 'OR',
     keyword_scope: entry ? parseKeywordScope(entry.keyword_scope) : ['user', 'assistant'],
     active_turns: clampActiveTurns(entry?.active_turns ?? 1),
     token: entry?.token ?? 1,
+    group_name: entry?.group_name ?? defaultGroupName ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [keywordInput, setKeywordInput] = useState('');
@@ -116,31 +133,61 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
   // 仅在挂载时读取一次，避免父级重渲染改变对象身份时触发 effect 重跑、清空用户已编辑的条件
   const prefillRef = useRef(prefillCondition);
 
-  function addKeyword(raw) {
-    const v = String(raw ?? '').trim();
-    if (!v) return;
-    setForm((f) => (f.keywords.includes(v) ? f : { ...f, keywords: [...f.keywords, v] }));
-    setKeywordInput('');
-  }
-  function removeKeyword(v) {
-    setForm((f) => ({ ...f, keywords: f.keywords.filter((k) => k !== v) }));
-  }
+  // 智能建议：世界内已有的专有名词（角色名/玩家名/状态字段名）+ 状态字段名单独存一份，
+  // 与 trigger_type 无关，挂载时就加载好，机制切换或输入内容变化时都能即时给建议。
+  const [properNouns, setProperNouns] = useState([]);
+  const [allStateFieldLabels, setAllStateFieldLabels] = useState([]);
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggestionDismissedFor, setSuggestionDismissedFor] = useState('');
 
-  // state 类型专用
+  // state 类型用：字段选项 + 已有条件（下方 useEffect 会填充）
   const [conditions, setConditions] = useState([emptyCondition()]);
   const [rawFieldsByScope, setRawFieldsByScope] = useState({});
   const [fieldTypeMap, setFieldTypeMap] = useState(new Map());
+  // 条件只初始化一次：用户切到 state 编辑了条件后再切走又切回来，不该被"已有条件/预填"冲掉。
+  // 挂载时若一开始就是 state，直接在同一条 fetch 链里顺带初始化，避免多一次 render 造成的时序竞争
+  // （否则测试/慢网络下用户来得及先操作，再被稍后完成的初始化覆盖）。
+  const conditionsInitRef = useRef(false);
+  const initialTriggerTypeRef = useRef(form.trigger_type);
 
-  // 当 trigger_type 切换为 state 时，加载字段选项 + 已有条件
+  async function loadConditionsInto(typeMap) {
+    if (!isNew) {
+      const conds = await getEntryConditions(entry.id);
+      setConditions(conds.length > 0
+        ? conds.map((c) => ({ ...c, ...parseTargetField(c.target_field) }))
+        : [emptyCondition()]);
+    } else {
+      setConditions([buildPrefillCondition(prefillRef.current, typeMap) ?? emptyCondition()]);
+    }
+  }
+
   useEffect(() => {
-    if (form.trigger_type !== 'state') return;
-    async function load() {
+    let cancelled = false;
+    (async () => {
       try {
-        const [worldFields, charFields, personaFields] = await Promise.all([
+        const [characters, personas, worldFields, charFields, personaFields, worldEntries] = await Promise.all([
+          getCharactersByWorld(worldId),
+          listPersonas(worldId),
           listWorldStateFields(worldId),
           listCharacterStateFields(worldId),
           listPersonaStateFields(worldId),
+          listWorldEntries(worldId),
         ]);
+        if (cancelled) return;
+        const labels = [...new Set([...worldFields, ...charFields, ...personaFields].map((f) => f.label).filter(Boolean))];
+        const names = [...new Set([...characters.map((c) => c.name), ...personas.map((p) => p.name)].filter(Boolean))];
+        // 关键词建议的专有名词只取「用户在这个世界里起的名字」：角色名、玩家卡名、
+        // 其它条目的标题。刻意排除两类噪声：
+        //   1. 状态字段 label（时间 / 天气 / 性格 / 心情 …）本身就是日常词汇，
+        //      任何叙事都会命中，命中它们不代表这段正文该用关键词触发；
+        //      字段是「状态满足条件」那条信号的原料，不该混进关键词信号。
+        //   2. 本条目自己的标题——正文普遍以【标题】开头，自我命中没有任何信息量。
+        const entryTitles = [...new Set(
+          worldEntries.map((e) => e.title).filter((t) => t && t !== entry?.title),
+        )];
+        setAllStateFieldLabels(labels);
+        setProperNouns([...names, ...entryTitles]);
+
         setRawFieldsByScope({ 世界: worldFields, 玩家: personaFields, 角色: charFields });
         const typeMap = new Map();
         const rebuildTypeMap = (scope, fields) => {
@@ -161,20 +208,58 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
         rebuildTypeMap('角色', charFields);
         setFieldTypeMap(typeMap);
 
-        if (!isNew && form.trigger_type === 'state') {
-          const conds = await getEntryConditions(entry.id);
-          setConditions(conds.length > 0
-            ? conds.map((c) => ({ ...c, ...parseTargetField(c.target_field) }))
-            : [emptyCondition()]);
-        } else {
-          setConditions([buildPrefillCondition(prefillRef.current, typeMap) ?? emptyCondition()]);
+        // 一开始就是 state 类型：条件初始化跟字段加载同一条微任务链一起做，时序上等价于挂载时立即就绪
+        if (initialTriggerTypeRef.current === 'state' && !conditionsInitRef.current) {
+          conditionsInitRef.current = true;
+          await loadConditionsInto(typeMap);
         }
       } catch (err) {
-        log.error('entry.fields.load_failed', err, { toast: err.message || '加载状态字段失败' });
+        log.error('entry.suggestion_context.load_failed', err, { toast: err.message || '加载状态字段失败' });
       }
-    }
-    load();
-  }, [entry?.id, form.trigger_type, isNew, worldId]);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 只需在挂载时（worldId 确定后）跑一次
+  }, [worldId]);
+
+  // 交互中途才切到 state（挂载时不是 state）：字段已经加载好后补一次初始化，同样只做一次
+  useEffect(() => {
+    if (form.trigger_type !== 'state') return;
+    if (conditionsInitRef.current) return;
+    if (fieldTypeMap.size === 0 && Object.keys(rawFieldsByScope).length === 0) return;
+    conditionsInitRef.current = true;
+    (async () => {
+      try {
+        await loadConditionsInto(fieldTypeMap);
+      } catch (err) {
+        log.error('entry.fields.load_failed', err, { toast: err.message || '加载状态条件失败' });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- loadConditionsInto 依赖的都是稳定引用/ref
+  }, [form.trigger_type, fieldTypeMap, rawFieldsByScope]);
+
+  // 正文变化 400ms 防抖后计算建议；非侵入——只在建议的机制与当前选择不同、
+  // 且用户没有针对这段正文点过「忽略」时才展示，避免刷屏。
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const result = suggestTrigger(form.content, { properNouns, stateFieldLabels: allStateFieldLabels });
+      if (!result || result.trigger_type === form.trigger_type || form.content === suggestionDismissedFor) {
+        setSuggestion(null);
+        return;
+      }
+      setSuggestion(result);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [form.content, form.trigger_type, properNouns, allStateFieldLabels, suggestionDismissedFor]);
+
+  function addKeyword(raw) {
+    const v = String(raw ?? '').trim();
+    if (!v) return;
+    setForm((f) => (f.keywords.includes(v) ? f : { ...f, keywords: [...f.keywords, v] }));
+    setKeywordInput('');
+  }
+  function removeKeyword(v) {
+    setForm((f) => ({ ...f, keywords: f.keywords.filter((k) => k !== v) }));
+  }
 
   function updateCondition(index, patch) {
     setConditions((prev) => prev.map((c, i) => {
@@ -202,6 +287,38 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
     }));
   }
 
+  function findScopeForFieldLabel(label) {
+    for (const scope of ['世界', '角色', '玩家']) {
+      if ((rawFieldsByScope[scope] || []).some((f) => f.label === label)) return scope;
+    }
+    return '世界';
+  }
+
+  // 采用智能建议：只切换机制 + 预填对应参数，不动用户已经填的其它内容；用户不采用则完全不受影响。
+  function handleAdoptSuggestion() {
+    if (!suggestion) return;
+    setForm((f) => ({ ...f, trigger_type: suggestion.trigger_type }));
+    if (suggestion.trigger_type === 'keyword' && suggestion.prefill?.keywords) {
+      setForm((f) => ({ ...f, keywords: [...new Set([...f.keywords, ...suggestion.prefill.keywords])] }));
+    }
+    if (suggestion.trigger_type === 'state' && suggestion.prefill?.conditions?.length) {
+      const c = suggestion.prefill.conditions[0];
+      const scope = findScopeForFieldLabel(c.field_label);
+      // 标记条件已初始化，防止「切到 state 时补拉已有条件/预填」的 effect 随后把这次采用的结果冲掉
+      conditionsInitRef.current = true;
+      setConditions([{
+        scope, field_label: c.field_label, col_key: '',
+        target_field: `${scope}.${c.field_label}`, operator: c.operator, value: c.value,
+      }]);
+    }
+    setSuggestion(null);
+  }
+
+  function handleDismissSuggestion() {
+    setSuggestionDismissedFor(form.content);
+    setSuggestion(null);
+  }
+
   async function handleSave() {
     if (!form.title.trim()) return;
     if (form.trigger_type === 'keyword' && form.keyword_scope.length === 0) {
@@ -224,6 +341,7 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
       keyword_scope: form.keyword_scope.join(','),
       active_turns: clampActiveTurns(form.active_turns),
       token: clampToken(form.token, form.trigger_type),
+      group_name: form.group_name.trim() || null,
     };
     try {
       let saved;
@@ -260,6 +378,39 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
           onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
           className="we-entry-editor-field we-entry-editor-field-mb"
         />
+
+        {/* 分组：条目自己的一个属性，不是必填；输入框带既有分组建议 */}
+        <label className="we-entry-editor-label">分组（可选，用于左栏导航）</label>
+        <div className="we-entry-group-row we-entry-editor-field-mb">
+          <input
+            list="we-entry-group-suggestions"
+            value={form.group_name}
+            onChange={(e) => setForm((f) => ({ ...f, group_name: e.target.value }))}
+            placeholder="例如：城市地理"
+            className="we-entry-editor-field"
+          />
+          <datalist id="we-entry-group-suggestions">
+            {(existingGroupNames ?? []).map((name) => <option key={name} value={name} />)}
+          </datalist>
+        </div>
+
+        {/* 何时生效：机制降级为条目的一个属性，切换后下方对应参数区跟着变 */}
+        <label className="we-entry-editor-label">何时生效</label>
+        <div className="we-trigger-segmented we-entry-editor-field-mb" role="radiogroup" aria-label="触发机制">
+          {TRIGGER_SEGMENTS.map((seg) => (
+            <button
+              key={seg.key}
+              type="button"
+              role="radio"
+              aria-checked={form.trigger_type === seg.key}
+              className={`we-trigger-segmented-btn${form.trigger_type === seg.key ? ' is-active' : ''}`}
+              onClick={() => setForm((f) => ({ ...f, trigger_type: seg.key }))}
+            >
+              <span className={`we-trigger-dot we-trigger-dot--${seg.key}`} aria-hidden="true" />
+              {seg.label}
+            </button>
+          ))}
+        </div>
 
         {/* 顺序权重 / 生效轮数（同一行） */}
         <div className="we-entry-editor-inline-row">
@@ -329,6 +480,26 @@ export default function EntryEditor({ worldId, entry, defaultTriggerType, prefil
             minHeight={120}
           />
         </div>
+
+        {/* 智能建议：非侵入，不点「采用」不影响已选机制 */}
+        {suggestion && (
+          <div className="we-trigger-suggestion we-entry-editor-field-mb" data-testid="trigger-suggestion">
+            <span className="we-trigger-suggestion-text">{suggestion.reason}</span>
+            <div className="we-trigger-suggestion-actions">
+              <button type="button" className="we-btn we-btn-sm we-btn-secondary" onClick={handleAdoptSuggestion}>
+                采用
+              </button>
+              <button
+                type="button"
+                className="we-entry-condition-icon-btn"
+                aria-label="忽略此建议"
+                onClick={handleDismissSuggestion}
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 关键词（仅 keyword 类型） */}
         {form.trigger_type === 'keyword' && (

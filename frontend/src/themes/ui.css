@@ -1297,6 +1297,117 @@
   margin-bottom: var(--we-space-md);
 }
 
+/* 触发机制色点：全站唯一彩色是主色 accent（见 we-entry-section-toggle 旁注），
+   这里不引入第二种彩色，改用形状区分四种机制，颜色统一取中性 tertiary 文字色。 */
+.we-trigger-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--we-space-xs);
+}
+.we-trigger-dot--always {
+  border-radius: 50%;
+  background: var(--we-color-text-tertiary);
+}
+.we-trigger-dot--keyword {
+  border-radius: 2px;
+  background: var(--we-color-text-tertiary);
+  transform: rotate(45deg);
+}
+.we-trigger-dot--llm {
+  border-radius: 50%;
+  background: transparent;
+  /* 8px 时描边圆很容易被看成实心圆的残缺渲染——加粗描边、内缩尺寸拉开与
+     --always 实心圆的差距，纯形状编码在小尺寸下才站得住。 */
+  width: 8px;
+  height: 8px;
+  margin: 1px var(--we-space-xs) 1px 1px;
+  border: 2px solid var(--we-color-text-tertiary);
+  box-sizing: border-box;
+}
+.we-trigger-dot--state {
+  background: var(--we-color-text-tertiary);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+}
+
+/* 中栏机制筛选 chip：默认不筛，选中态复用 nav-item 同款 accent 描边逻辑 */
+.we-trigger-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-xs);
+}
+.we-trigger-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  border-radius: var(--we-radius-md);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+  background: var(--we-color-bg-muted);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--we-duration-fast), border-color var(--we-duration-fast);
+}
+.we-trigger-filter-chip:hover { background: var(--we-color-bg-subtle); }
+.we-trigger-filter-chip.is-active {
+  color: var(--we-color-text-primary);
+  border-color: var(--we-color-accent);
+}
+
+/* 何时生效：分段控件（新建/编辑条目详情里的机制选择） */
+.we-trigger-segmented {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--we-space-xs);
+}
+.we-trigger-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xxs);
+  padding: var(--we-space-xs) var(--we-space-md);
+  border-radius: var(--we-radius-md);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  background: var(--we-color-bg-canvas);
+  border: 1px solid var(--we-color-border-default);
+  cursor: pointer;
+  transition: background var(--we-duration-fast), border-color var(--we-duration-fast), color var(--we-duration-fast);
+}
+.we-trigger-segmented-btn:hover { background: var(--we-color-bg-subtle); }
+.we-trigger-segmented-btn.is-active {
+  color: var(--we-color-text-primary);
+  background: var(--we-color-bg-subtle);
+  border-color: var(--we-color-accent);
+}
+
+/* 智能建议卡片：非侵入提示，用户可采用/忽略 */
+.we-trigger-suggestion {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--we-space-sm);
+  padding: var(--we-space-sm) var(--we-space-md);
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-accent-bg);
+  box-shadow: inset 2px 0 0 var(--we-color-accent);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+}
+.we-trigger-suggestion-text { flex: 1; min-width: 0; }
+.we-trigger-suggestion-actions {
+  display: flex;
+  gap: var(--we-space-xs);
+  flex-shrink: 0;
+}
+
+/* 分组名输入：既有分组做建议列表 */
+.we-entry-group-row {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
 .we-entry-editor-field--resizable {
   resize: vertical;
   overflow-anchor: none;

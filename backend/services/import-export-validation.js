@@ -87,6 +87,7 @@ function assertPromptEntries(entries, label) {
       }
     }
     assertOptionalString(entry.trigger_type, `${label}[${index}].trigger_type`, 20);
+    assertOptionalString(entry.group_name, `${label}[${index}].group_name`, MAX_NAME_LENGTH);
     if (entry.conditions !== undefined && entry.conditions !== null) {
       assertArray(entry.conditions, `${label}[${index}].conditions`);
       for (const [cIndex, cond] of entry.conditions.entries()) {

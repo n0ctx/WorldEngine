@@ -19,13 +19,13 @@ router.get('/worlds/:worldId/entries', (req, res) => {
 
 // POST /api/worlds/:worldId/entries
 router.post('/worlds/:worldId/entries', (req, res) => {
-  const { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token } = req.body;
+  const { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, group_name } = req.body;
   if (!title) {
     log.warn(`prompt-entries.bad_request ${formatMeta({ method: req.method, path: req.path, reason: 'title is required' })}`);
     return res.status(400).json({ error: 'title is required' });
   }
   try {
-    const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token });
+    const entry = createWorldPromptEntry(req.params.worldId, { title, description, content, keywords, keyword_scope, trigger_type, condition_logic, keyword_logic, active_turns, sort_order, token, group_name });
     res.status(201).json(entry);
   } catch (err) {
     if (err instanceof KeywordScopeEmptyError) {
