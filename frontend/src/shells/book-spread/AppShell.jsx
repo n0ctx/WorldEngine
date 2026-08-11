@@ -14,14 +14,14 @@ import TopBar from './chrome/TopBar.jsx';
 import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';
-import renderPageLayout from './layout/pageLayoutRenderer.jsx';
+import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
 
 export default function AppShell({ children, locationKey }) {
   return (
     <div className="we-app-root we-shell-book-spread">
       <TopBar />
       <GlobalToast />
-      <PageLayoutRendererProvider render={renderPageLayout}>
+      <PageLayoutRendererProvider render={RenderPageLayout}>
         <PageTransition locationKey={locationKey}>
           {children}
         </PageTransition>

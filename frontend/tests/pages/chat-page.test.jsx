@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import useStore from '../../src/core/state/index.js';
+import useSidePanelsStore from '../../src/core/state/sidePanels.js';
 
 const mocks = vi.hoisted(() => {
   function createMessageListMock() {
@@ -140,6 +141,9 @@ describe('ChatPage', () => {
       currentSessionId: null,
       memoryRefreshTick: 0,
     });
+    // 两侧抽屉是跨页面共享的全局 store，测试间要重置回默认收起态，
+    // 否则前一个用例点开过的面板会带到下一个用例里。
+    useSidePanelsStore.setState({ leftOpen: false, rightOpen: false });
     mocks.MessageListState.appendMessage.mockReset();
     mocks.MessageListState.updateMessages.mockReset();
     mocks.MessageListState.messagesRef.current = [];
@@ -195,7 +199,38 @@ describe('ChatPage', () => {
       expect.any(Object),
     ));
     expect(mocks.MessageListState.appendMessage).toHaveBeenCalled();
+    // 状态面板默认收在右侧窄轨里，先展开再断言内容（第 10 步：两侧改为可收起抽屉）
+    fireEvent.click(screen.getByRole('button', { name: '展开状态面板' }));
     expect(screen.getByTestId('state-panel')).toHaveTextContent('world-1');
+  });
+
+  it('两侧抽屉默认收起为窄轨，展开后才挂载内容，收起也能收回去（第 10 步核心行为）', async () => {
+    renderChatPage();
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    const toggleLeft = screen.getByRole('button', { name: '展开会话列表' });
+    const toggleRight = screen.getByRole('button', { name: '展开状态面板' });
+
+    // 默认收起：切换按钮 aria-expanded=false，抽屉内容尚未挂载
+    expect(toggleLeft).toHaveAttribute('aria-expanded', 'false');
+    expect(toggleRight).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('session-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('state-panel')).not.toBeInTheDocument();
+
+    // 展开后内容挂载，按钮文案与 aria-expanded 同步翻转
+    fireEvent.click(toggleLeft);
+    fireEvent.click(toggleRight);
+    expect(screen.getByRole('button', { name: '收起会话列表' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: '收起状态面板' })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('session-list')).toBeInTheDocument();
+    expect(screen.getByTestId('state-panel')).toBeInTheDocument();
+
+    // 再次收起，内容卸载
+    fireEvent.click(screen.getByRole('button', { name: '收起会话列表' }));
+    fireEvent.click(screen.getByRole('button', { name: '收起状态面板' }));
+    expect(screen.queryByTestId('session-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('state-panel')).not.toBeInTheDocument();
   });
 
   it('continue 在 onStreamEnd 前不会允许重复触发', async () => {
@@ -539,6 +574,8 @@ describe('ChatPage', () => {
     const view = renderChatPage();
     await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
 
+    // 状态面板默认收在右侧窄轨里，先展开才能点到里面的 inject-diary（第 10 步：两侧改为可收起抽屉）
+    fireEvent.click(screen.getByRole('button', { name: '展开状态面板' }));
     fireEvent.click(screen.getByText('inject-diary'));
 
     mocks.useParams.mockReturnValue({ characterId: 'char-2' });

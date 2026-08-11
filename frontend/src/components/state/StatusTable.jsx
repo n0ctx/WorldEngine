@@ -40,9 +40,6 @@ export default function StatusTable({ columns, values, editable, onCellCommit })
           const isEditing = editingKey === col.key;
           const lo = col.min;
           const hi = col.max;
-          const pct = hasNum && lo != null && hi != null && hi > lo
-            ? Math.max(0, Math.min(100, ((num - lo) / (hi - lo)) * 100))
-            : null;
 
           return (
             <span
@@ -66,11 +63,6 @@ export default function StatusTable({ columns, values, editable, onCellCommit })
                 >
                   {hasNum ? num : (editable ? '—' : '—')}
                 </span>
-              )}
-              {pct != null && !isEditing && (
-                <div className="we-status-bar we-status-table-bar">
-                  <div className="we-status-bar-fill" style={{ '--status-pct': `${pct}%` }} />
-                </div>
               )}
             </span>
           );

@@ -5,33 +5,12 @@ import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
-import { ISO_DATETIME_RE, formatBooleanDisplay, formatDatetimeChinese, formatListDisplay } from './state-value-format.js';
+import { ISO_DATETIME_RE, formatFieldValue } from './state-value-format.js';
 
 const STATE_LIST_MAX_ITEMS = 10;
 const EMPTY_STATUS_DISPLAY = '—';
 
-function parseValue(effectiveValueJson, type, prefix) {
-  if (effectiveValueJson == null) return null;
-  try {
-    const v = JSON.parse(effectiveValueJson);
-    if (type === 'boolean') {
-      return formatBooleanDisplay(v);
-    }
-    if (type === 'list') {
-      return formatListDisplay(v);
-    }
-    if (type === 'datetime' && typeof v === 'string' && ISO_DATETIME_RE.test(v)) {
-      return formatDatetimeChinese(v, prefix ?? '');
-    }
-    return String(v);
-  } catch {
-    // wsf.default_value 是裸字符串（非 JSON 编码），datetime 字段直接尝试格式化
-    if (type === 'datetime' && typeof effectiveValueJson === 'string' && ISO_DATETIME_RE.test(effectiveValueJson)) {
-      return formatDatetimeChinese(effectiveValueJson, prefix ?? '');
-    }
-    return String(effectiveValueJson);
-  }
-}
+const parseValue = formatFieldValue;
 
 function parseTableColumns(raw) {
   if (raw == null) return [];
@@ -559,8 +538,6 @@ export default function StatusSection({
             const display = parseValue(row.effective_value_json, type, row.prefix);
             const max = row.max_value ?? row.max ?? null;
             const isNumber = type === 'number';
-            const numVal = isNumber && display != null ? parseFloat(display) : null;
-            const pct = max != null && numVal != null ? Math.min(100, (numVal / max) * 100) : null;
             const isEditing = editingKey === editKey;
 
             return (
@@ -604,7 +581,7 @@ export default function StatusSection({
                   );
                 })() : (
                   <span
-                    className={`we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}${editable ? ' we-status-editable' : ''}`}
+                    className={`we-status-value${display == null ? ' we-status-null' : ''}${type === 'text' ? ' we-status-value--multiline' : ''}${isNumber ? ' we-status-value--number' : ''}${editable ? ' we-status-editable' : ''}`}
                     onClick={editable ? () => setEditingKey(editKey) : undefined}
                     title={display != null && editable ? '点击编辑' : undefined}
                   >
@@ -616,11 +593,6 @@ export default function StatusSection({
                         : applyTemplateVars(display, templateCtx)
                     ) : EMPTY_STATUS_DISPLAY}
                   </span>
-                )}
-                {pct != null && !isEditing && (
-                  <div className="we-status-bar">
-                    <div className="we-status-bar-fill" style={{ '--status-pct': `${pct}%` }} />
-                  </div>
                 )}
               </div>
             );

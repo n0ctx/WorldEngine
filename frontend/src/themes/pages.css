@@ -3373,15 +3373,13 @@
    ========================================================= */
 
 .we-state-panel {
-  flex: 0 0 28%;
-  min-width: 360px;
-  max-width: 520px;
+  /* 尺寸（flex-basis/min/max-width）与接缝边框现由外层 .we-side-drawer--right 统一
+     管理——收起时这块内容根本不挂载，尺寸交给抽屉更省心，也避免两处各写一份。 */
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--we-color-bg-surface);
-  /* 软化三栏接缝：半透明 hairline 替代硬 1px 实线，配合背景色差形成柔和边界 */
-  border-left: var(--we-page-gutter-border);
   position: relative;
   overflow: hidden;
 }
@@ -3409,19 +3407,118 @@
 }
 
 .we-page-left {
-  /* 收窄会话栏：会话列表内容稀疏，更窄的栏宽让留白成为克制的呼吸感而非空洞 */
-  flex: 0 0 16%;
-  min-width: 216px;
-  max-width: 280px;
+  /* 尺寸与接缝边框现由外层 .we-side-drawer--left 统一管理，见下方 SideDrawer 规则块。 */
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   position: relative;
   overflow: hidden;
   background: var(--we-color-bg-surface);
-  /* 软化接缝：半透明 hairline，与右栏一致 */
+  border-radius: 0 0 0 var(--we-radius-sm);
+}
+
+/* ==========================================================
+   SideDrawer — 两侧「窄轨 / 展开」抽屉（第 10 步：正文常驻主角，
+   两侧只在需要时唤出）。轨宽固定 52px，只放一个切换图标按钮；
+   展开时让出 flex-basis，正文（.we-page-right 里的 flex:1）随之收窄——
+   「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
+   展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
+   ========================================================= */
+.we-side-drawer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--we-color-bg-surface);
+  transition: flex-basis var(--we-duration-slow) var(--we-easing-page),
+    min-width var(--we-duration-slow) var(--we-easing-page),
+    max-width var(--we-duration-slow) var(--we-easing-page);
+}
+
+.we-side-drawer--left {
+  flex: 0 0 52px;
   border-right: var(--we-page-gutter-border);
   border-radius: 0 0 0 var(--we-radius-sm);
+}
+
+.we-side-drawer--left.we-side-drawer--open {
+  flex: 0 0 16%;
+  min-width: 216px;
+  max-width: 280px;
+}
+
+.we-side-drawer--right {
+  flex: 0 0 52px;
+  border-left: var(--we-page-gutter-border);
+}
+
+.we-side-drawer--right.we-side-drawer--open {
+  flex: 0 0 28%;
+  min-width: 360px;
+  max-width: 520px;
+}
+
+/* 窄屏（平板及以下）：两侧抽屉的固定 min-width 加起来会挤爆正文——
+   768px 视口下左右都展开时 216+360=576px，只剩不到 200px 给正文，
+   输入框会被挤成竖排单字。缩小两侧展开态的下限，给正文留出可用宽度。 */
+@media (max-width: 900px) {
+  .we-side-drawer--left.we-side-drawer--open {
+    min-width: 180px;
+    max-width: 220px;
+  }
+  .we-side-drawer--right.we-side-drawer--open {
+    min-width: 280px;
+    max-width: 320px;
+  }
+}
+
+.we-side-drawer-toggle {
+  flex: 0 0 auto;
+  width: 52px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--we-color-text-tertiary);
+  transition: color var(--we-duration-fast);
+}
+
+.we-side-drawer-toggle:hover {
+  color: var(--we-color-accent);
+}
+
+.we-side-drawer-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-radius: var(--we-radius-sm);
+}
+
+.we-side-drawer-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .we-side-drawer {
+    transition: none;
+  }
+}
+
+/* 记忆检索指示器收起窄轨时也要露出来，但 52px 塞不下文字标签，只留三个点 */
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall {
+  flex-direction: column;
+  padding: var(--we-space-xs) 0;
+}
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall__label,
+.we-side-drawer--left:not(.we-side-drawer--open) .we-memory-recall__summary {
+  display: none;
 }
 
 .we-page-left-spine {
@@ -3878,13 +3975,12 @@
 /* — CastPanel + 角色块 + cast 状态 overlay + cast 添加 modal ─ */
 /* ── CastPanel（写作右侧角色台）───────────────────────────── */
 .we-cast-panel {
-  flex: 0 0 28%;
-  min-width: 360px;
-  max-width: 520px;
+  /* 尺寸与接缝边框现由外层 .we-side-drawer--right 统一管理（同 .we-state-panel）。 */
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--we-color-bg-surface);
-  border-left: var(--we-page-gutter-border);
   position: relative;
   overflow: hidden;
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;

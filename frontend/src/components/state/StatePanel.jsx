@@ -24,7 +24,8 @@ import { fetchDiaryContent } from '../../core/api/daily-entries.js';
 import { getWorld } from '../../core/api/worlds.js';
 import { getConfig } from '../../core/api/config.js';
 import { useSessionState } from '../../core/hooks/useSessionState.js';
-import StatusSection from './StatusSection.jsx';
+import { useStateDiff } from '../../core/hooks/useStateDiff.js';
+import StateChangeCard from './StateChangeCard.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
 import { log } from '../../core/utils/logger.js';
 
@@ -85,6 +86,8 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     isUpdating,
     retryStateLoad,
   } = useSessionState(sessionId, tick, tick, queuedTick, failedTick);
+
+  const { diff: stateDiff, ready: stateDiffReady } = useStateDiff(stateData, sessionId);
 
   const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
 
@@ -273,11 +276,11 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         {renderResetAction(handleResetWorld, worldResetting)}
       </header>
       {stateError ? renderLoadError('世界状态加载失败') : (
-        <StatusSection
-          headerless
-          gridLayout
+        <StateChangeCard
           className="we-status-world"
           rows={worldRows}
+          changes={stateDiff.world}
+          hasBaseline={stateDiffReady}
           onSave={handleSaveWorld}
           templateCtx={templateCtx}
           emptyContent={renderStateEmpty('世界状态会随剧情逐步记录')}
@@ -290,11 +293,11 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     <div className="we-panel-tab-body">
       <PanelCard variant="headerless">
         {stateError ? renderLoadError('玩家状态加载失败') : (
-          <StatusSection
-            headerless
-            gridLayout
+          <StateChangeCard
             className="we-status-player"
             rows={stateData?.persona ?? null}
+            changes={stateDiff.persona}
+            hasBaseline={stateDiffReady}
             onSave={handleSavePersona}
             templateCtx={templateCtx}
             emptyContent={renderStateEmpty('玩家状态会随剧情逐步记录')}
@@ -309,11 +312,11 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       <PanelCard variant="headerless">
         {character ? (
           stateError ? renderLoadError('角色状态加载失败') : (
-            <StatusSection
-              headerless
-              gridLayout
+            <StateChangeCard
               className="we-status-character"
               rows={stateData?.character ?? null}
+              changes={stateDiff.character}
+              hasBaseline={stateDiffReady}
               onSave={handleSaveCharacter}
               templateCtx={templateCtx}
               emptyContent={renderStateEmpty('角色状态会随剧情逐步记录')}

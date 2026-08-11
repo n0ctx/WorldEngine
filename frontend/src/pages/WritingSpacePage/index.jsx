@@ -197,6 +197,8 @@ export default function WritingSpacePage() {
 
   return (
     <PageLayout
+      leftLabel="会话列表"
+      rightLabel="附近角色与状态"
       left={(
         <WritingSessionList
           worldId={worldId}

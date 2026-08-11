@@ -151,6 +151,8 @@ export default function ChatPage() {
 
   return (
     <PageLayout
+      leftLabel="会话列表"
+      rightLabel="状态面板"
       left={(
         <SessionListPanel
           character={character}

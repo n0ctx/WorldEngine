@@ -20,7 +20,14 @@
  *     right={<StatePanel />}
  *     inspector={<DetailsPanel />}
  *     overlay={<Toast />}
+ *     leftLabel="会话列表"
+ *     rightLabel="状态面板"
  *   />
+ *
+ * leftLabel / rightLabel are plain accessibility strings, not shell vocabulary —
+ * shells that render left/right as collapsible rails (e.g. book-spread) use them
+ * to label the rail toggle button (aria-label/title). Shells that don't collapse
+ * anything are free to ignore them.
  *
  * The default DOM rendering below is a neutral fallback used when no shell
  * provides a renderer (e.g. tests, future shells under construction).

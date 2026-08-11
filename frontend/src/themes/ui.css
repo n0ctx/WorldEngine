@@ -2915,18 +2915,102 @@
   display: none;
 }
 
-/* 进度条 */
-.we-status-bar {
-  height: 2px;
-  background: color-mix(in srgb, var(--we-base-ink-900) 8%, transparent);
-  margin-top: 4px;
-  overflow: hidden;
+/* 数值就是数值：不再用填充进度条暗示占比，数字本身用等宽数字对齐即可 */
+.we-status-value--number {
+  font-variant-numeric: tabular-nums;
 }
-.we-status-bar-fill {
-  height: 100%;
-  width: var(--status-pct);
-  background: var(--we-color-status-success);
-  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+
+/* ── 情境卡（StateChangeCard）：默认只显示本轮变化，「查看全部」展开完整表 ─── */
+.we-state-change-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-state-change-empty {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xs);
+  font-style: italic;
+  color: var(--we-color-text-tertiary);
+  opacity: 0.55;
+  margin: 0;
+  letter-spacing: var(--we-tracking-normal);
+}
+
+/* 变化列表：组内不用逐行分隔线，靠间距分开即可（"稀疏分隔"） */
+.we-state-change-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-md);
+}
+
+.we-state-change-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-xxs);
+  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
+}
+
+.we-state-change-label {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-2xs);
+  letter-spacing: var(--we-tracking-normal);
+  color: var(--we-color-text-tertiary);
+}
+
+.we-state-change-diff {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-sm);
+  line-height: var(--we-leading-snug);
+}
+
+.we-state-change-value {
+  color: var(--we-color-text-secondary);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.we-state-change-arrow {
+  flex-shrink: 0;
+  color: var(--we-color-gold);
+  opacity: 0.8;
+}
+
+/* 「查看全部」切换：与变化列表之间用一条稀疏分隔线隔开（分组，而非逐行分隔） */
+.we-state-change-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  padding-top: var(--we-space-sm);
+  border-top: 1px solid var(--we-color-border-default);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-2xs);
+  letter-spacing: var(--we-tracking-normal);
+  color: var(--we-color-text-tertiary);
+  cursor: pointer;
+  text-align: left;
+  transition: color var(--we-duration-fast);
+}
+
+.we-state-change-toggle:hover {
+  color: var(--we-color-accent);
+}
+
+.we-state-change-toggle:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+  border-radius: var(--we-radius-sm);
+}
+
+.we-state-change-full {
+  padding-top: var(--we-space-xs);
 }
 
 /* ── 表格状态（type='table'）：2 行 N 列 ─── */
@@ -2974,18 +3058,16 @@
 .we-status-table-body-cell .we-status-table-value {
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
+  font-variant-numeric: tabular-nums;
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-tight);
   text-align: center;
   min-height: 22px;
   padding: 1px var(--we-space-xs); /* 1px: design exact */
   border: 1px solid transparent;
+}
 
 /* — 时间线 + 日记条目 + 状态折叠 ─ */
-}
-.we-status-table-bar {
-  margin-top: 4px;
-}
 .we-status-table-input {
   text-align: center;
 }
@@ -3451,9 +3533,6 @@
 :is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-value {
   text-align: right;
   min-width: 0;
-}
-:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-bar {
-  flex-basis: 100%;
 }
 
 /* 长字段（list / text / datetime，排除 table）也「标签 — 值」同行，值右对齐，进一步提密度 */

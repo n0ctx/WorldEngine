@@ -45,3 +45,32 @@ export function formatDatetimeChinese(iso, prefix = '') {
   const strip = (s) => String(parseInt(s, 10));
   return `${prefix}${strip(y)}年${strip(mo)}月${strip(d)}日${strip(h)}时${strip(min)}分`;
 }
+
+/**
+ * 状态字段值 → 展示字符串（与 StatusSection.parseValue 逐字节一致，抽出来给
+ * StateChangeCard 复用，避免"情境卡"里的旧值/新值格式化和完整表格的格式化各写一份、
+ * 慢慢跑偏）。JSON.parse 成功时才按类型格式化；失败时整体回退为原始字符串
+ * （wsf.default_value 之类的裸字符串场景），datetime 例外单独尝试。
+ */
+export function formatFieldValue(effectiveValueJson, type, prefix) {
+  if (effectiveValueJson == null) return null;
+  try {
+    const v = JSON.parse(effectiveValueJson);
+    if (type === 'boolean') return formatBooleanDisplay(v);
+    if (type === 'list') return formatListDisplay(v);
+    if (type === 'datetime' && typeof v === 'string' && ISO_DATETIME_RE.test(v)) {
+      return formatDatetimeChinese(v, prefix ?? '');
+    }
+    return String(v);
+  } catch {
+    if (type === 'datetime' && typeof effectiveValueJson === 'string' && ISO_DATETIME_RE.test(effectiveValueJson)) {
+      return formatDatetimeChinese(effectiveValueJson, prefix ?? '');
+    }
+    return String(effectiveValueJson);
+  }
+}
+
+/** 状态字段行的稳定 key：角色字段带 character_id 前缀，避免跨角色撞 field_key */
+export function stateRowKey(row) {
+  return row.character_id ? `${row.character_id}:${row.field_key}` : row.field_key;
+}
