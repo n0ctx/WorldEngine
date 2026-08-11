@@ -1,4 +1,4 @@
-/* DESIGN.md §5.4 §8.2 */
+/* Pure visual wrapper for the right page of the book-spread two-page layout. */
 export default function PageRight({ children, className = '', flush = false }) {
   return (
     <div

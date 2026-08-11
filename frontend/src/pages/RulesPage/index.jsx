@@ -547,7 +547,7 @@ function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDelete }) {
               <span className="we-entry-section-name">{entry.title || '（无标题）'}</span>
               <span className="we-entry-section-badge">{TRIGGER_LABEL[entry.trigger_type]}</span>
               {entry.trigger_type === 'always' && entry.token === 0 && entry.enabled !== 0 && (
-                <span className="we-entry-cached-badge" title="此条目进入 CACHED LAYER">CACHED</span>
+                <span className="we-entry-cached-badge" title="此条目进入 prompt 缓存前缀，稳定不变以提高缓存命中率">已缓存</span>
               )}
               {entry.trigger_type === 'keyword' && entry.active_turns === 0 && entry.enabled !== 0 && (
                 <span className="we-entry-cached-badge" title="命中后永久生效">永久</span>

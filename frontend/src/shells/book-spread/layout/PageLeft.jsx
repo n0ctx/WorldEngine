@@ -1,5 +1,4 @@
-/* DESIGN.md §5.3 §8.2
- * Pure visual wrapper for the left page of the parchment two-page spread.
+/* Pure visual wrapper for the left page of the book-spread two-page layout.
  * Owned by book-spread shell. Content is supplied by the page via PageLayout
  * slots. The memory-recall overlay now lives in SideDrawer's `footer` (it must
  * stay visible even when this drawer is collapsed), not here.

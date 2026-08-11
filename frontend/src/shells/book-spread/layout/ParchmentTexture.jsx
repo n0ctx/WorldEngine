@@ -1,4 +1,5 @@
-/* DESIGN.md §8.1 */
+/* SVG noise/fiber texture overlay. Only visible in classic-parchment (via
+ * --we-parchment-display); other themes hide it and pay no visual cost. */
 const svgNoise = `<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'>
   <filter id='parchment'>
     <feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/>

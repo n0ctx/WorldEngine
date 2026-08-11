@@ -6,9 +6,9 @@ import { DURATION, EASE } from '../../core/utils/motion.js';
 const MotionDiv = motion.div;
 
 /**
- * 羊皮纸模态壳 — DESIGN §7.8
- * - 蒙版：深棕半透 + 微blur，营造"灯光聚焦"感
- * - 容器：paper-base 底色，顶部陶土细线，多层阴影体现悬浮质感
+ * 通用模态壳（各主题观感由 --we-* token 决定，见 themes/ui.css 的 we-modal / we-modal-backdrop）
+ * - 蒙版：半透背景 + 微 blur，聚焦主体内容
+ * - 容器：底色 + 顶部强调细线 + 阴影，体现悬浮层级
  * - 无内置 padding，由子组件自行控制布局
  */
 export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' }) {

@@ -982,12 +982,6 @@
   color: var(--we-color-text-tertiary);
 }
 
-.we-characters-empty-icon {
-  font-size: var(--we-text-xl);
-  margin-bottom: var(--we-space-lg);
-  opacity: 0.4;
-}
-
 .we-characters-empty-text {
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
@@ -1304,69 +1298,7 @@
   margin-top: var(--we-space-xxs);
 }
 
-/* ── RulesPage：Prompt 条目区（复用自旧 WorldConfigPage 的条目行样式）── */
-
-.we-entry-section {
-  margin-bottom: var(--we-space-2xl);
-}
-
-.we-entry-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: var(--we-space-md);
-  padding-bottom: var(--we-space-sm);
-  background-image: var(--we-entry-header-decor-bg);
-  background-size: 100% 1px;
-  background-repeat: no-repeat;
-  background-position: bottom center;
-}
-
-.we-entry-section-icon {
-  font-size: var(--we-text-md);
-  margin-right: var(--we-space-sm);
-  color: var(--we-color-accent);
-}
-
-.we-entry-section-title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
-  color: var(--we-page-canvas-fg);
-  font-style: italic;
-}
-
-.we-entry-section-desc {
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
-  margin-top: var(--we-space-xs);
-  margin-left: var(--we-space-xl);
-}
-
-.we-entry-section-new-btn {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  /* 用 text-inverse 而非硬编码 --we-base-white：accent 按钮文字要跟随主题的
-     accent 明暗反转（浅色主题 accent 深、白字；深色主题如 nocturne/neon-noir
-     accent 反而偏亮，需要深字才够对比度，硬编码白字在这些主题里会掉到 <3.2:1）。
-     组件也不该直接引用 A 层 --we-base-*，应走 B 层语义 token。 */
-  color: var(--we-color-text-inverse);
-  background: var(--we-color-accent);
-  border: 1px solid var(--we-color-accent-deep);
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-xs) var(--we-space-md);
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: none;
-  transition: background var(--we-duration-fast) var(--we-easing-sharp);
-}
-
-.we-entry-section-new-btn:hover {
-  background: var(--we-color-accent-deep);
-}
-
-.we-entry-section-new-btn:active {
-  opacity: 0.85;
-}
+/* ── RulesPage：Prompt 条目区 ── */
 
 .we-entry-section-list {
   display: flex;
@@ -1790,14 +1722,6 @@
   color: var(--we-color-text-secondary);
 }
 
-.we-state-value-key {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  color: var(--we-color-text-tertiary);
-  letter-spacing: 0.05em;
-  margin-top: var(--we-space-xxs);
-}
-
 /* ── SectionTabs ── */
 
 .we-section-tabs {
@@ -1911,80 +1835,12 @@
   border-radius: var(--we-radius-none);
 }
 
-.we-section-tabs-sep {
-  display: flex;
-  align-items: center;
-  gap: var(--we-space-sm);
-  margin: 0 0 var(--we-space-xl);
-}
-
-.we-section-tabs-sep-line {
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-border-default);
-}
-
-.we-section-tabs-sep-fleuron {
-  font-size: var(--we-text-sm);
-  color: var(--we-color-gold);
-  line-height: 1;
-  flex-shrink: 0;
-  width: 24px;
-  text-align: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* SectionTabs 子级（嵌套）变体：更紧凑、无 fleuron 分隔 */
-.we-section-tabs--sub .we-section-tab {
-  font-size: var(--we-text-sm);
-  padding: var(--we-space-sm) var(--we-space-md);
-}
-.we-section-tabs--sub .we-section-tabs-sep {
-  margin: 0 0 var(--we-space-md);
-}
-.we-section-tabs--sub .we-section-tabs-sep-fleuron {
-  display: none;
-}
-.we-section-tabs--sub .we-section-tabs-sep-line {
-  background: transparent;
-}
-
 /* StatePanel / NearbyPanel：tab 内容区 */
 .we-panel-tab-body {
   display: flex;
   flex-direction: column;
   gap: var(--we-space-md);
 }
-.we-panel-tab-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--we-space-sm);
-  margin-bottom: var(--we-space-xs);
-}
-.we-panel-tab-caption {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-sm);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-  text-align: center;
-  margin: 0 0 var(--we-space-xs);
-}
-.we-nearby-tab-actions {
-  display: flex;
-  gap: var(--we-space-sm);
-  justify-content: flex-end;
-  margin-bottom: var(--we-space-xs);
-}
-
-.we-persona-drawer-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--we-space-xl);
-}
-
 /* ── SettingsPage 双栏布局 ── */
 
 .we-settings-panel {
@@ -2027,15 +1883,6 @@
   flex-direction: column;
   gap: var(--we-space-xs);
   padding-left: var(--we-space-md);
-}
-
-.we-settings-nav-eyebrow {
-  margin: 0;
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--we-color-text-tertiary);
 }
 
 .we-settings-nav-title {
@@ -2184,14 +2031,6 @@
 
 .we-settings-field-group--spaced {
   margin-top: var(--we-space-lg);
-}
-
-.we-settings-field-group--tight {
-  gap: var(--we-space-lg);
-}
-
-.we-settings-field-group--compact {
-  gap: var(--we-space-md);
 }
 
 .we-settings-divider {
@@ -2735,14 +2574,6 @@
   margin-bottom: var(--we-space-lg);
 }
 
-.we-settings-llm-panel .we-settings-field-group--tight {
-  gap: var(--we-space-lg);
-}
-
-.we-settings-llm-panel .we-settings-field-group--compact {
-  gap: var(--we-space-md);
-}
-
 .we-settings-llm-panel .we-settings-divider {
   margin: var(--we-space-lg) 0;
 }
@@ -2765,13 +2596,6 @@
 
 .we-state-field-required {
   color: var(--we-color-accent);
-}
-
-.we-state-field-note {
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
-  font-family: var(--we-font-prose);
-  line-height: 1.6;
 }
 
 .we-state-field-hint {
@@ -3269,23 +3093,6 @@
   opacity: 0.7;
 }
 
-.we-workshop-tabs {
-  display: flex;
-  gap: var(--we-space-sm);
-  border-bottom: 1px solid var(--we-color-border-default);
-}
-.we-workshop-tab {
-  padding: var(--we-space-sm) var(--we-space-md);
-  font-size: var(--we-text-sm);
-  color: var(--we-color-text-secondary);
-  border-bottom: 2px solid transparent;
-  transition: color var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
-}
-.we-workshop-tab.is-active {
-  color: var(--we-color-text-primary);
-  border-bottom-color: var(--we-color-accent);
-}
-
 .we-workshop-body {
   display: grid;
   grid-template-columns: minmax(200px, 280px) 1fr;
@@ -3434,7 +3241,6 @@
 }
 .we-workshop-bulk { display: flex; align-items: center; gap: var(--we-space-sm); }
 .we-workshop-bulk-label { font-size: var(--we-text-xs); color: var(--we-color-text-secondary); opacity: 0.7; }
-.we-workshop-bulk-saving { font-size: var(--we-text-xs); color: var(--we-color-text-secondary); }
 
 .we-workshop-matrix { display: flex; flex-direction: column; gap: var(--we-space-xs); }
 .we-workshop-matrix-row {
@@ -3554,15 +3360,10 @@
 }
 
 /* ==========================================================
-   以下规则从 frontend/src/index.css 迁移（B1 文件拆分）
-   页面级布局：StatePanel / CastPanel / 书脊 / 角色印章 / 羊皮纸纹理
-   / 会话列表 / Modal / NearbyPanel / 页脚
+   页面级布局：StatePanel / CastPanel / 左右页 / 会话列表 / Modal / NearbyPanel / 页脚
    ========================================================= */
 
 /* — StatePanel 容器 ─ */
-/* =========================================================
-   StatePanel 档案侧页（T64 重打磨）
-   ========================================================= */
 
 .we-state-panel {
   /* 尺寸（flex-basis/min/max-width）与接缝边框现由外层 .we-side-drawer--right 统一
@@ -3576,17 +3377,7 @@
   overflow: hidden;
 }
 
-/* — 书脊 + 左右页 + 角色印章 + 羊皮纸纹理 + 印章动画 + 滚动 ─ */
-/* ── 书脊阴影 ─── */
-.we-panel-spine {
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 8px;
-  background: var(--we-spine-shadow-left);
-  pointer-events: none;
-  z-index: var(--we-z-spine);
-}
-
+/* ── 分栏接缝阴影 ─── */
 .we-state-spine {
   position: absolute;
   left: 0;
@@ -3940,86 +3731,6 @@
   color: var(--we-color-accent);
 }
 
-/* — Panel 头部 + 角色名 + 世界名 + 占位 + 金箔分隔 + 内容区 ─ */
-/* ── 头部 ─── */
-.we-state-panel-header {
-  padding: var(--we-space-xl) var(--we-space-lg) var(--we-space-lg);
-  text-align: center;
-}
-
-.we-panel-char-name {
-  font-family: var(--we-font-seal);
-  font-size: var(--we-text-base);
-  color: var(--we-color-text-primary);
-  letter-spacing: var(--we-tracking-wide);
-  margin: 0 0 var(--we-space-xs);
-  line-height: var(--we-leading-tight);
-}
-.we-panel-world-name {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-  letter-spacing: var(--we-tracking-wider);
-  margin: 0;
-}
-.we-panel-placeholder {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-  letter-spacing: var(--we-tracking-wide);
-  margin: var(--we-space-sm) 0 0;
-  opacity: 0.7;
-}
-
-/* ── 金箔分隔线 ─── */
-.we-panel-divider {
-  display: flex;
-  align-items: center;
-  gap: 6px; /* design exact */
-  margin: 0 20px 0; /* design exact */
-  padding-bottom: 2px;
-}
-.we-panel-divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-gold);
-  opacity: 0.7;
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--we-base-gold-600) 40%, transparent),
-    0 -0.5px 0 color-mix(in srgb, var(--we-base-ink-900) 10%, transparent);
-}
-.we-panel-divider-gem {
-  font-size: 7px; /* no token */
-  color: var(--we-color-gold);
-  opacity: 0.8;
-  flex-shrink: 0;
-  line-height: var(--we-leading-flush);
-}
-
-/* ── 内容区 ─── */
-.we-panel-body {
-  padding: 0 14px var(--we-space-xl); /* 14px: design exact */
-}
-
-.we-marginalia-list { padding-top: 2px; }
-.we-marginalia {
-  position: relative;
-  padding-left: 11px;
-  margin-bottom: 11px;
-  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
-}
-.we-marginalia::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 2px; bottom: 2px;
-  width: 1.5px;
-  background: var(--we-color-accent);
-  opacity: 0.45;
-  border-radius: var(--we-radius-none);
-}
-
 /* — 页脚 + StatePanel 内分割线重置 + 状态变更 overlay ─ */
 /* ── 页脚（PageFooter）────────────────────────────────────────── */
 .we-page-footer {
@@ -4154,14 +3865,6 @@
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
   padding: var(--we-space-xl) 0;
-}
-
-.we-session-list-loading {
-  font-size: var(--we-text-xs);
-  text-align: center;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.5;
-  padding: var(--we-space-sm) 0;
 }
 
 /* — CastPanel + 角色块 + cast 状态 overlay + cast 添加 modal ─ */
@@ -4423,14 +4126,6 @@
 }
 
 /* — NearbyPanel ─ */
-
-/* — NearbyPanel — */
-/* 已保存的附近角色：名字用强调色 + 加粗（中文字重靠 text-shadow 假粗，因中文衬线字体无 600 字重） */
-.we-section-label.we-section-label--saved {
-  color: var(--we-color-accent);
-  font-weight: 700;
-  text-shadow: 0 0 0.4px var(--we-color-accent), 0 0 0.4px var(--we-color-accent);
-}
 .we-nearby-persona {
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
@@ -4476,24 +4171,6 @@
   display: flex;
   gap: var(--we-space-sm);
   justify-content: flex-end;
-}
-
-/* — marginalia date + text ─ */
-.we-marginalia-date {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  font-style: italic;
-  color: var(--we-color-accent);
-  opacity: 0.8;
-  margin-bottom: 2px;
-  letter-spacing: var(--we-tracking-normal);
-}
-.we-marginalia-text {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-2xs);
-  line-height: var(--we-leading-normal);
-  color: var(--we-color-text-tertiary);
-  font-style: italic;
 }
 
 /* ============================================================

@@ -88,7 +88,6 @@ export default function SettingsPage() {
         <nav className="we-settings-nav">
           <button className="we-edit-back" onClick={handleBack}>← 返回</button>
           <div className="we-settings-nav-header">
-            <p className="we-settings-nav-eyebrow">Settings</p>
             <p className="we-settings-nav-title">设置</p>
           </div>
           <div className="we-settings-nav-items">

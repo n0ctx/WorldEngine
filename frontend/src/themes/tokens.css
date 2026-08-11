@@ -269,7 +269,7 @@
   /* 主按钮 hover 暖色叠加（朱砂调），主题可覆盖以匹配各自配色 */
   --we-col-btn-primary-hover-bg: rgba(180, 80, 60, 0.12);
 
-  /* Settings 加载占位（羊皮纸质感 scrim） */
+  /* Settings 加载占位 scrim（各主题按自身配色覆盖，此处为兜底值） */
   --we-loading-scrim-bg:
     linear-gradient(180deg, rgb(255 248 236 / 42%), rgb(245 233 212 / 28%));
   --we-loading-scrim-border: rgb(120 76 33 / 10%);
@@ -299,11 +299,9 @@
   --we-col-header-border-color: var(--we-color-border-default);
   --we-col-btn-border-color:    var(--we-color-border-strong);
   --we-col-btn-color:           var(--we-color-text-secondary);
-  --we-entry-header-decor-bg:   none;
   --we-parchment-display:       none;
   --we-parchment-fiber-opacity: 0;
   --we-spine-display:           none;
-  --we-bookmark-display:        none;
 
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
   /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
@@ -435,14 +433,3 @@
     --we-easing-retract:  linear;
   }
 }
-
-/* === Typography 预设（必须使用这些组合，禁止散写字号+字重）=== */
-.we-type-h1      { font-size: var(--we-text-xl);   font-weight: 600; line-height: var(--we-leading-tight); }
-.we-type-h2      { font-size: var(--we-text-lg);   font-weight: 600; line-height: var(--we-leading-tight); }
-.we-type-h3      { font-size: var(--we-text-md);   font-weight: 500; line-height: var(--we-leading-tight); }
-.we-type-h4      { font-size: var(--we-text-base); font-weight: 500; line-height: var(--we-leading-tight); }
-.we-type-body    { font-size: var(--we-text-base); font-weight: 400; line-height: var(--we-leading-normal); }
-.we-type-sm      { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); }
-.we-type-caption { font-size: var(--we-text-xs);   font-weight: 400; line-height: var(--we-leading-normal); }
-.we-type-label   { font-size: var(--we-text-sm);   font-weight: 500; line-height: var(--we-leading-tight); }
-.we-type-code    { font-size: var(--we-text-sm);   font-weight: 400; line-height: var(--we-leading-normal); font-family: var(--we-font-mono); }

@@ -1,4 +1,4 @@
-/* DESIGN.md §5.2 — book-spread shell top bar */
+/* book-spread shell top bar — three-level breadcrumb + shell chrome */
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DURATION, EASE } from '../../../core/utils/motion.js';

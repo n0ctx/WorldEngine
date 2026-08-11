@@ -2,9 +2,9 @@
  * 「封面即光源」取色：从世界封面图提取主色，压低饱和度、保证与深色底文字的对比度后
  * 得到可直接用作 --we-color-accent 的十六进制色。
  *
- * 取色放在前端（canvas 采样），理由见 core/features/worldAccent/README 或任务报告：
- * 后端没有图像处理依赖，且本项目所有上传/导入路径（封面直传、世界卡导入）都经过浏览器，
- * 浏览器侧已能拿到完整图片字节（File 或 base64 dataURL），无需给后端加图像库。
+ * 取色放在前端（canvas 采样）：后端没有图像处理依赖，且本项目所有上传/导入路径
+ * （封面直传、世界卡导入）都经过浏览器，浏览器侧已能拿到完整图片字节（File 或
+ * base64 dataURL），无需给后端加图像库。
  */
 import {
   rgbToHsl, hslToRgb, rgbToHex, contrastRatio, clamp,

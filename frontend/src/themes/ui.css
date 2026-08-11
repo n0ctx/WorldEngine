@@ -4,7 +4,6 @@
 .we-dialog-body,
 .we-option-card--streaming .we-option-list,
 .we-select-dropdown,
-.we-session-list-body,
 .we-entry-editor-panel {
   scrollbar-width: thin;
   scrollbar-color: var(--we-color-border-default) transparent;
@@ -12,17 +11,14 @@
 .we-dialog-body::-webkit-scrollbar,
 .we-option-card--streaming .we-option-list::-webkit-scrollbar,
 .we-select-dropdown::-webkit-scrollbar,
-.we-session-list-body::-webkit-scrollbar,
 .we-entry-editor-panel::-webkit-scrollbar { width: 4px; }
 .we-dialog-body::-webkit-scrollbar-track,
 .we-option-card--streaming .we-option-list::-webkit-scrollbar-track,
 .we-select-dropdown::-webkit-scrollbar-track,
-.we-session-list-body::-webkit-scrollbar-track,
 .we-entry-editor-panel::-webkit-scrollbar-track { background: transparent; }
 .we-dialog-body::-webkit-scrollbar-thumb,
 .we-option-card--streaming .we-option-list::-webkit-scrollbar-thumb,
 .we-select-dropdown::-webkit-scrollbar-thumb,
-.we-session-list-body::-webkit-scrollbar-thumb,
 .we-entry-editor-panel::-webkit-scrollbar-thumb {
   background: var(--we-color-border-default);
   border-radius: var(--we-radius-full);
@@ -340,14 +336,6 @@
   color: var(--we-color-text-secondary);
   margin-bottom: 6px;
   letter-spacing: 0.02em;
-}
-
-.we-dialog-hint {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-2xs);
-  color: var(--we-color-text-tertiary);
-  font-style: italic;
-  margin-left: var(--we-space-xs);
 }
 
 /* ── State Extract Preview（AI 提取状态字段建议值弹窗）── */
@@ -1006,20 +994,6 @@
   color: var(--we-color-accent);
 }
 
-/* ── Bookmark ── */
-.we-bookmark {
-  position: absolute;
-  top: -4px;
-  right: 72px;
-  width: 16px;
-  height: 52px;
-  background: var(--we-color-accent);
-  clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
-  box-shadow: var(--we-shadow-paper-lift);
-  z-index: var(--we-z-dropdown);
-  display: var(--we-bookmark-display, block);
-}
-
 /* ── BookSpread ── */
 .we-book-spread-outer {
   flex: 1;
@@ -1039,91 +1013,13 @@
   min-height: 0;
 }
 
-/* ── WritingSessionList ── */
-.we-session-list-root {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-
-.we-session-list-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--we-space-xs) var(--we-space-sm);
-}
-
-.we-session-empty {
-  font-size: var(--we-text-xs);
-  text-align: center;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.6;
-  padding: var(--we-space-xl) 0;
-}
-
-.we-session-item {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--we-space-xs);
-  padding: var(--we-space-sm) var(--we-space-md);
-  cursor: pointer;
-  position: relative;
-  border-radius: var(--we-radius-sm);
-  transition: background var(--we-duration-fast);
-  background: transparent;
-  border-left: 2px solid transparent;
-  user-select: none;
-}
-
-.we-session-item:hover {
-  background: var(--we-color-ink-wash-md);
-}
-
-.we-session-item--active {
-  background: var(--we-color-ink-wash-strong);
-  border-left-color: var(--we-color-accent);
-}
-
-.we-session-item--active:hover {
-  background: var(--we-color-ink-wash-strong);
-}
-
-.we-session-item__content {
-  flex: 1;
-  min-width: 0;
-}
-
-.we-session-item__title {
-  font-size: var(--we-text-sm);
-  font-family: var(--we-font-prose);
-  color: var(--we-color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: var(--we-leading-tight);
-  margin: 0;
-}
-
-.we-session-item__date {
-  font-size: var(--we-text-xs);
-  font-style: italic;
-  color: var(--we-color-text-tertiary);
-  margin: var(--we-space-xxs) 0 0;
-}
-
+/* .we-session-item__* 系列现挂在 .we-storyline-item（见下方）下渲染；显隐由
+   WorldTimelinePanel 的 hovered/editing state 控制挂载与否，这里不再需要
+   opacity/hover 兜底。 */
 .we-session-item__actions {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--we-duration-fast);
-}
-
-.we-session-item:hover .we-session-item__actions,
-.we-session-item--editing .we-session-item__actions {
-  opacity: 1;
-  pointer-events: auto;
 }
 
 .we-session-item__btn-group {
@@ -1269,10 +1165,6 @@
   margin-bottom: var(--we-space-md);
 }
 
-.we-entry-editor-field-mb-lg {
-  margin-bottom: var(--we-space-lg);
-}
-
 .we-entry-editor-content-wrap {
   margin-bottom: var(--we-space-md);
 }
@@ -1386,24 +1278,6 @@
   display: flex;
   align-items: center;
   gap: var(--we-space-sm);
-}
-
-.we-entry-editor-field--resizable {
-  resize: vertical;
-  overflow-anchor: none;
-}
-
-.we-entry-editor-select {
-  width: 100%;
-  padding: var(--we-space-xs) var(--we-space-md);
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  background: var(--we-color-bg-canvas);
-  border: 1px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  color: var(--we-color-text-primary);
-  box-sizing: border-box;
-  margin-bottom: var(--we-space-lg);
 }
 
 .we-entry-editor-footer {
@@ -1958,22 +1832,6 @@
    / Combobox / Range / 骨架屏 / StatusField 原语 / Timeline / PanelCard
    ========================================================= */
 
-/* — 通用 spinner ─ */
-@keyframes we-spin {
-  to { transform: rotate(360deg); }
-}
-.we-spinner {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  flex-shrink: 0;
-  border: 1.5px solid var(--we-color-border-default);
-  border-top-color: var(--we-color-accent);
-  border-radius: 50%;
-  animation: we-spin 0.6s linear infinite;
-}
-
-
 /* — MarkdownEditor 工具栏 + 容器 ─ */
 /* =========================================================
    MarkdownEditor (tiptap WYSIWYG) 样式 — 手稿书写风格
@@ -2113,12 +1971,8 @@
   background: var(--we-topbar-active-bg);
 }
 
-.we-topbar-item:active:not(.we-topbar-item--static) {
+.we-topbar-item:active {
   transform: scale(0.96);
-}
-
-.we-topbar-item--static {
-  cursor: default;
 }
 
 /* 面包屑当前层：非按钮，不可点，用主色系文字与其余可点层级区分 */
@@ -2238,10 +2092,6 @@
   color: var(--we-topbar-sep);
   font-size: var(--we-text-2xs);
   user-select: none;
-}
-
-.we-topbar-spacer {
-  flex: 1;
 }
 
 .we-topbar-settings-btn {
@@ -2620,23 +2470,6 @@
   align-items: center;
   gap: 7px; /* design exact */
   margin-bottom: 10px; /* design exact */
-}
-
-.we-state-section-title--toggle {
-  cursor: pointer;
-  user-select: none;
-}
-
-.we-state-chevron {
-  flex-shrink: 0;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.45;
-  transition: transform var(--we-duration-normal) ease;
-  transform: rotate(-90deg);
-}
-
-.we-state-chevron--open {
-  transform: rotate(0deg);
 }
 
 .we-section-label {
@@ -3147,25 +2980,6 @@
   color: var(--we-color-accent);
 }
 
-.we-state-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  /* 收起：先快后慢收回（retract）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-retract);
-  overflow: hidden;
-}
-
-.we-state-collapse--open {
-  grid-template-rows: 1fr;
-  /* 展开：墨水浸润 ease-out（ink）*/
-  transition: grid-template-rows var(--we-duration-slow) var(--we-easing-ink);
-}
-
-.we-state-collapse-inner {
-  overflow: hidden;
-  min-height: 0;
-}
-
 .we-state-skeleton-list {
   display: flex;
   flex-direction: column;
@@ -3208,14 +3022,6 @@
   border: none;
   width: 100%;
   text-align: left;
-}
-.we-panel-card-header--clickable {
-  cursor: pointer;
-  user-select: none;
-  transition: background-color var(--we-duration-normal) ease;
-}
-.we-panel-card-header--clickable:hover {
-  background: color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 }
 .we-panel-card-icon {
   display: inline-flex;
@@ -3277,12 +3083,6 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
-.we-panel-card-chevron {
-  flex-shrink: 0;
-  color: var(--we-color-text-tertiary);
-  opacity: 0.6;
-  transition: transform var(--we-duration-normal) ease;
-}
 .we-panel-card-collapse {
   display: grid;
   grid-template-rows: 0fr;
@@ -3307,29 +3107,6 @@
 .we-panel-card-body .we-state-section--headerless {
   padding: 10px 0 2px;
   border-top: none;
-}
-
-/* ── PanelCard variant: flush（融入纸面，章节式 header） ─────── */
-.we-panel-card--flush {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
-  overflow: visible;
-}
-.we-panel-card--flush > .we-panel-card-header {
-  padding: var(--we-space-xxs) var(--we-space-md) 6px; /* 6px: design exact */
-  border-bottom: none;
-  background-image: linear-gradient(
-    to right,
-    transparent 0%,
-    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 14%,
-    color-mix(in srgb, var(--we-color-border-default) 80%, transparent) 86%,
-    transparent 100%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 1px;
-  background-position: bottom;
 }
 
 /* writing: 已保存角色 —— 顶部 tab 仅显示当前登场，已保存角色折叠到底部紧凑列表 */
@@ -3406,11 +3183,6 @@
   color: var(--we-color-text-primary);
   background: var(--we-color-bg-subtle);
 }
-.we-panel-card--flush .we-panel-card-collapse--open > .we-panel-card-body {
-  padding: 10px 12px 4px;
-  border-top: none;
-}
-
 /* ── PanelCard variant: headerless（无 header，内容直接开始） ─── */
 .we-panel-card--headerless {
   background: transparent;
@@ -3569,9 +3341,6 @@
   color: var(--we-color-text-secondary);
   line-height: var(--we-leading-normal);
 }
-.we-timeline-entry--old .we-timeline-dot { color: var(--we-color-text-tertiary); opacity: 0.3; }
-.we-timeline-entry--old .we-timeline-text { opacity: 0.4; font-style: italic; }
-
 /* ── Toast 通知 ──────────────────────────────────────────
  * 由 Tailwind 任意值迁移而来，统一走 we-* 类与 token，使主题可影响其尺寸与间距。
  * 动效仍由 framer-motion 在组件内处理。*/

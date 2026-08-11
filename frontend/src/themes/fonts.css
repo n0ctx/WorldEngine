@@ -37,7 +37,4 @@
   --we-font-mono:
     ui-monospace, SFMono-Regular, 'SF Mono', 'Cascadia Mono', Consolas,
     'PingFang SC', 'Microsoft YaHei', monospace;
-
-  /* 印章装饰，全站仅 1 处（StatePanel 角色名），随 book-spread 外壳一起退役前先并入 display */
-  --we-font-seal: var(--we-font-display);
 }

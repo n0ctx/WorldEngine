@@ -1,4 +1,3 @@
-/* DESIGN.md §5 §8.1 §8.2 */
 import ParchmentTexture from './ParchmentTexture.jsx';
 
 export default function BookSpread({ children, className = '' }) {

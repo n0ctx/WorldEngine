@@ -71,7 +71,7 @@ export const variants = {
     hidden:  { opacity: 0, y: 6 },
     visible: { opacity: 1, y: 0 },
   },
-  // 页面级：路由切换过渡（对应 DESIGN.md §9 pageTransition）
+  // 页面级：路由切换过渡
   pageTransition: {
     hidden:  { opacity: 0, y: 6 },
     visible: { opacity: 1, y: 0, transition: { duration: DURATION.quick, ease: EASE.ink } },

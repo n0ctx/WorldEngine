@@ -1,4 +1,4 @@
-/* WorldEngine 对话区样式 — 权威定义见 DESIGN.md §7.1 §9.2 §10.2 */
+/* WorldEngine 对话区样式：会话正文（叙事排版）、Assistant Drawer、输入区、侧轨相关规则 */
 
 /* ── Keyframes ─────────────────────────────────────────── */
 
@@ -30,7 +30,6 @@
 .we-chat-area,
 .we-chat-textarea,
 .we-settings-body,
-.we-persona-drawer-body,
 .we-edit-panel-overlay,
 .we-assistant-scroll {
   scrollbar-width: thin;
@@ -39,19 +38,16 @@
 .we-chat-area::-webkit-scrollbar,
 .we-chat-textarea::-webkit-scrollbar,
 .we-settings-body::-webkit-scrollbar,
-.we-persona-drawer-body::-webkit-scrollbar,
 .we-edit-panel-overlay::-webkit-scrollbar,
 .we-assistant-scroll::-webkit-scrollbar { width: 4px; }
 .we-chat-area::-webkit-scrollbar-thumb,
 .we-chat-textarea::-webkit-scrollbar-thumb,
 .we-settings-body::-webkit-scrollbar-thumb,
-.we-persona-drawer-body::-webkit-scrollbar-thumb,
 .we-edit-panel-overlay::-webkit-scrollbar-thumb,
 .we-assistant-scroll::-webkit-scrollbar-thumb { background: var(--we-color-border-default); border-radius: var(--we-radius-full); }
 .we-chat-area::-webkit-scrollbar-track,
 .we-chat-textarea::-webkit-scrollbar-track,
 .we-settings-body::-webkit-scrollbar-track,
-.we-persona-drawer-body::-webkit-scrollbar-track,
 .we-edit-panel-overlay::-webkit-scrollbar-track,
 .we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
@@ -67,7 +63,6 @@
   margin: 0 auto;
 }
 
-.we-sidebar-avatar,
 .we-chat-error-avatar {
   display: flex;
   align-items: center;
@@ -79,42 +74,10 @@
   /* 见 tokens.css --we-color-avatar-text 注释：不要换回 bg-canvas */
   color: var(--we-color-avatar-text);
   font-weight: 700;
-}
-
-.we-sidebar-avatar {
-  width: 36px;
-  height: 36px;
-  font-size: var(--we-text-sm);
-}
-
-.we-chat-error-avatar {
   width: 24px;
   height: 24px;
   flex-shrink: 0;
   font-size: var(--we-text-xs);
-}
-
-.we-chat-new-btn {
-  margin-top: 10px;
-  width: 100%;
-  padding: 7px 0; /* design exact */
-  border: 1.5px solid var(--we-color-border-default);
-  border-radius: var(--we-radius-sm);
-  background: none;
-  cursor: pointer;
-  font-size: var(--we-text-2xs);
-  font-family: var(--we-font-prose);
-  color: var(--we-color-text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px; /* design exact */
-  transition: background var(--we-duration-fast);
-}
-
-.we-chat-new-btn:hover {
-  background: var(--we-color-bg-surface);
-  color: var(--we-color-text-primary);
 }
 
 /* ── Message Row ───────────────────────────────────────── */
@@ -702,15 +665,6 @@
 
 /* ── Prose writing mode overrides ──────────────────────── */
 
-.we-prose-item.we-message-user .we-message-label {
-  text-align: left;
-  justify-content: flex-start;
-}
-
-.we-prose-item.we-message-user .we-message-actions {
-  justify-content: flex-start;
-}
-
 .we-writing-annotation--editing {
   border-left-color: var(--we-color-accent);
   background: color-mix(in srgb, var(--we-color-accent) 6%, transparent);
@@ -956,22 +910,22 @@
 
 /* ── Think Block Content (Markdown in reasoning) ─────── */
 
-.we-think-block-content p      { margin-bottom: 0.4em; font-style: italic; }
-.we-think-block-content p:last-child { margin-bottom: 0; }
-.we-think-block-content ul, .we-think-block-content ol { padding-left: 1.4em; margin-bottom: 0.4em; }
-.we-think-block-content li     { margin-bottom: 0.15em; font-style: italic; }
-.we-think-block-content strong { font-weight: 600; color: inherit; }
-.we-think-block-content em     { font-style: normal; opacity: 0.85; }
-.we-think-block-content h1,
-.we-think-block-content h2,
-.we-think-block-content h3 {
+.we-think-block-body p      { margin-bottom: 0.4em; font-style: italic; }
+.we-think-block-body p:last-child { margin-bottom: 0; }
+.we-think-block-body ul, .we-think-block-body ol { padding-left: 1.4em; margin-bottom: 0.4em; }
+.we-think-block-body li     { margin-bottom: 0.15em; font-style: italic; }
+.we-think-block-body strong { font-weight: 600; color: inherit; }
+.we-think-block-body em     { font-style: normal; opacity: 0.85; }
+.we-think-block-body h1,
+.we-think-block-body h2,
+.we-think-block-body h3 {
   font-size: 1em;
   font-weight: 600;
   font-style: italic;
   margin: 0.5em 0 0.2em;
   color: inherit;
 }
-.we-think-block-content code {
+.we-think-block-body code {
   background: var(--we-color-ink-wash-md);
   border-radius: var(--we-radius-sm);
   padding: 0 3px; /* design exact */
@@ -979,7 +933,7 @@
   font-style: normal;
   font-family: var(--we-font-mono, monospace);
 }
-.we-think-block-content blockquote {
+.we-think-block-body blockquote {
   border-left: 1.5px solid currentColor;
   padding-left: 0.8em;
   opacity: 0.7;
@@ -1390,40 +1344,7 @@
   border-radius: var(--we-radius-sm);
 }
 
-.we-frozen-card-appear {
-  animation: we-ink-rise var(--we-duration-normal) var(--we-easing-sharp) both;
-}
-
-/* ── Assistant: Step Group ─────────────────────────────── */
-
-.we-step-group {
-  border-left: 2px solid var(--we-color-border-default);
-  border-radius: 0 var(--we-radius-md) var(--we-radius-md) 0;
-  background-color: var(--we-color-bg-subtle);
-  transition:
-    background-color var(--we-duration-slow) var(--we-easing-sharp),
-    border-color     var(--we-duration-slow) var(--we-easing-sharp),
-    opacity          var(--we-duration-slow) var(--we-easing-sharp);
-}
-
-.we-step-group--running {
-  border-left-color: var(--we-color-accent);
-}
-
-.we-step-group--done {
-  border-left-color: var(--we-color-status-success);
-}
-
-.we-step-group--failed {
-  border-left-color: var(--we-color-status-danger);
-}
-
-.we-step-group--archived {
-  background-color: var(--we-color-bg-canvas);
-  opacity: 0.72;
-}
-
-/* ── Assistant Drawer · Scroll Entries (卷宗条目) ────────
+/* ── Assistant Drawer · 消息条目 ────────
    统一的卡片原子：所有消息（用户 / 助手 / 工具 / 错误 / 计划）共用同一节奏，
    通过左侧朱砂/铁胆墨细竖线区分语义。替代旧的左右气泡+紧凑工具条混排。 */
 
@@ -1503,8 +1424,6 @@
   border-bottom-left-radius: var(--we-radius-sm);
 }
 
-.we-asst-entry--user::before     { background: var(--we-color-text-primary); }
-.we-asst-entry--assistant::before { background: var(--we-color-text-tertiary); }
 .we-asst-entry--tool,
 .we-asst-entry--tool-running {
   max-width: 88%;
@@ -1513,7 +1432,6 @@
 .we-asst-entry--tool::before,
 .we-asst-entry--tool-running::before { display: none; }
 .we-asst-entry--error::before    { background: var(--we-color-accent-deep); }
-.we-asst-entry--plan::before     { display: none; }
 
 /* 工具卡：缩小 + 淡色 + emoji（弱化为过程信息，不与对话气泡争视觉） */
 .we-asst-entry--tool,
@@ -1583,16 +1501,6 @@
   content: '·';
   margin: 0 var(--we-space-xs);
   color: var(--we-color-text-tertiary);
-}
-
-.we-asst-entry__role {
-  margin-left: auto;
-  font-family: var(--we-font-display);
-  font-style: italic;
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.16em;
-  color: var(--we-color-text-tertiary);
-  flex-shrink: 0;
 }
 
 /* 流式运行指示器（替代红绿点） */
@@ -1747,24 +1655,6 @@
 .we-asst-think-line__body p { margin: 0 0 var(--we-space-xs); }
 .we-asst-think-line__body p:last-child { margin: 0; }
 
-/* 卡片内联操作行：hover 出现 */
-.we-asst-entry__actions {
-  display: flex;
-  gap: var(--we-space-xs);
-  justify-content: flex-end;
-  margin-top: var(--we-space-xs);
-  opacity: 0;
-  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
-}
-
-.we-asst-entry:hover .we-asst-entry__actions,
-.we-asst-entry:focus-within .we-asst-entry__actions,
-.we-asst-entry__actions--visible {
-  opacity: 1;
-}
-
-.we-asst-entry__body--pre { white-space: pre-wrap; }
-
 .we-asst-entry__action {
   font-family: var(--we-font-display);
   font-style: italic;
@@ -1803,32 +1693,6 @@
   margin-left: 2px;
   vertical-align: text-bottom;
   animation: we-stream-pulse 1.2s ease-in-out infinite;
-}
-
-/* 计划卡：标题加大 + fleuron 分隔 */
-.we-asst-entry--plan .we-asst-entry__title {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
-  font-style: italic;
-  font-weight: 400;
-}
-
-.we-asst-entry__fleuron {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--we-space-sm);
-  color: var(--we-color-gold);
-  font-size: var(--we-text-sm);
-  margin: 0 0 var(--we-space-xs);
-}
-
-.we-asst-entry__fleuron::before,
-.we-asst-entry__fleuron::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--we-color-border-subtle);
 }
 
 /* 空状态 */
@@ -2353,19 +2217,6 @@
 .we-pager-index {
   font-variant-numeric: tabular-nums;
   color: var(--we-color-text-secondary);
-}
-
-.we-pager-sep {
-  color: var(--we-color-text-tertiary);
-  opacity: 0.6;
-}
-
-.we-pager-title {
-  color: var(--we-color-text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 24ch;
 }
 
 /* === 自定义 CSS 片段管理（设置面板）=== */

@@ -99,7 +99,7 @@ export default function WorldsPage() {
       const created = await importWorld(data);
       // 旧格式世界卡没有 accent_color：有封面、且不是手工指定色时，导入完成后
       // 补算一次自动取色并回写，否则「封面即光源」对所有导入世界永久失效
-      // （导入世界卡是本产品主要的分享方式，见任务报告缺陷四）。
+      // （导入世界卡是本产品主要的分享方式）。
       if (created?.cover_path && !created.accent_color && created.accent_source !== 'manual') {
         try {
           const accentColor = await extractAccentColorFromImageSrc(getAvatarUrl(created.cover_path));

@@ -37,7 +37,6 @@
   /* 字体族：经典羊皮纸风格 */
   --we-font-prose:   'EB Garamond', 'Source Han Serif SC', 'Source Han Serif', serif;
   --we-font-display: 'Cormorant Garamond', 'LXGW WenKai TC', serif;
-  --we-font-seal:    'ZCOOL XiaoWei', 'LXGW WenKai TC', serif;
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
@@ -191,11 +190,9 @@
   --we-col-header-border-color:   rgba(255, 255, 255, 0.08);
   --we-col-btn-border-color:      rgba(200, 185, 154, 0.3);
   --we-col-btn-color:             rgba(200, 185, 154, 0.7);
-  --we-entry-header-decor-bg:     linear-gradient(to right, transparent, rgba(160, 131, 63, 0.35) 30%, rgba(160, 131, 63, 0.35) 70%, transparent);
   --we-parchment-display:         block;
   --we-parchment-fiber-opacity:   0.22;
   --we-spine-display:             block;
-  --we-bookmark-display:          block;
 
   /* 条目行：羊皮纸画布底色，无额外阴影 */
 

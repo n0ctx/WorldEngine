@@ -119,11 +119,9 @@
   --we-col-btn-border-color: var(--we-color-border-strong);
   --we-col-btn-color: var(--we-color-text-secondary);
   --we-col-btn-primary-hover-bg: rgba(127, 149, 168, 0.16);
-  --we-entry-header-decor-bg: none;
   --we-parchment-display: none;
   --we-parchment-fiber-opacity: 0;
   --we-spine-display: none;
-  --we-bookmark-display: none;
 
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);

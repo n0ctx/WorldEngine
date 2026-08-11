@@ -23,11 +23,10 @@
   --we-base-peach-200: #2a1a30;
 
   /* ==================== 字体族：科技终端感 ====================
-   * 标题/印章走自托管等宽字体（JetBrains Mono）以获得 HUD / 终端个性；
+   * 标题走自托管等宽字体（JetBrains Mono）以获得 HUD / 终端个性；
    * 正文与 UI 仍用 system-ui 保证可读性。不引入 @font-face（主题包禁止）。*/
   --we-font-prose:   system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-display: 'JetBrains Mono', ui-monospace, 'Segoe UI', monospace;
-  --we-font-seal:    'JetBrains Mono', ui-monospace, 'Segoe UI', monospace;
   --we-font-ui:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --we-font-mono:    'JetBrains Mono', ui-monospace, monospace;
 
@@ -213,11 +212,9 @@
   --we-col-header-border-color:   rgba(255, 255, 255, 0.06);
   --we-col-btn-border-color:      rgba(0, 212, 255, 0.20);
   --we-col-btn-color:             rgba(0, 212, 255, 0.60);
-  --we-entry-header-decor-bg:     linear-gradient(to right, transparent, rgba(0, 212, 255, 0.20) 30%, rgba(0, 212, 255, 0.20) 70%, transparent);
   --we-parchment-display:         none;
   --we-parchment-fiber-opacity:   0;
   --we-spine-display:             none;
-  --we-bookmark-display:          none;
 
   /* ==================== 条目行 ==================== */
 

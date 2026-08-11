@@ -51,30 +51,6 @@ body {
 }
 
 /* =========================================================
-   通用工具类
-   ========================================================= */
-
-/* 细滚动条 — 各 themes/ 文件可直接 @apply 或 className 引用 */
-.we-scroll-thin {
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-color-border-default) transparent;
-}
-.we-scroll-thin::-webkit-scrollbar { width: 4px; }
-.we-scroll-thin::-webkit-scrollbar-track { background: transparent; }
-.we-scroll-thin::-webkit-scrollbar-thumb {
-  background: var(--we-color-border-default);
-  border-radius: var(--we-radius-full);
-}
-
-/* 文字截断辅助 */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* =========================================================
    根容器
    ========================================================= */
 
