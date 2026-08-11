@@ -596,6 +596,11 @@ export function initSchema(db) {
   // 设定条目分组：触发机制从左栏分类维度降级为条目属性，条目改按用户自定义分组导航。
   // 可空，默认 NULL（未分组）；不按 trigger_type 回填，避免"换个名字继续当分类"。
   try { db.exec(`ALTER TABLE world_prompt_entries ADD COLUMN group_name TEXT`); } catch {}
+  // 世界主色（"封面即光源"）：从封面图取色后压低饱和度存入，NULL 表示未取色/无封面时走主题默认色。
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN accent_color TEXT`); } catch {}
+  // 主色来源：'auto'（默认，随封面自动重算）| 'manual'（用户手工指定，封面变化不再覆盖）。
+  // 旧库回填为 NULL，读取时按 'auto' 处理。
+  try { db.exec(`ALTER TABLE worlds ADD COLUMN accent_source TEXT`); } catch {}
 }
 
 /**

@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getWorlds, deleteWorld, reorderWorlds } from '../core/api/worlds';
+import { getWorlds, deleteWorld, reorderWorlds, updateWorld } from '../core/api/worlds';
 import SortableGrid from '../components/ui/SortableGrid';
 import { getCharactersByWorld } from '../core/api/characters';
 import useStore from '../core/state/index';
 import { downloadWorldCard, importWorld, readJsonFile } from '../core/api/import-export';
+import { extractAccentColorFromImageSrc } from '../core/utils/extractAccentColor.js';
 import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import { relativeTime } from '../core/utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -95,7 +96,18 @@ export default function WorldsPage() {
     setImportingWorld(true);
     try {
       const data = await readJsonFile(file);
-      await importWorld(data);
+      const created = await importWorld(data);
+      // 旧格式世界卡没有 accent_color：有封面、且不是手工指定色时，导入完成后
+      // 补算一次自动取色并回写，否则「封面即光源」对所有导入世界永久失效
+      // （导入世界卡是本产品主要的分享方式，见任务报告缺陷四）。
+      if (created?.cover_path && !created.accent_color && created.accent_source !== 'manual') {
+        try {
+          const accentColor = await extractAccentColorFromImageSrc(getAvatarUrl(created.cover_path));
+          await updateWorld(created.id, { accent_color: accentColor, accent_source: 'auto' });
+        } catch (err) {
+          log.error('world.import.accent_backfill_failed', err);
+        }
+      }
       await loadWorlds();
     } catch (err) {
       log.error('world.import_failed', err, { toast: `导入失败：${err.message}` });

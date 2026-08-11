@@ -26,9 +26,14 @@ export function reorderWorlds(items) {
   return request(`${BASE}/reorder`, { method: 'PUT', body: JSON.stringify({ items }) });
 }
 
-export function uploadWorldCover(worldId, file) {
+/**
+ * 上传封面图。accentColor 为前端 canvas 取色结果（见 core/utils/extractAccentColor.js），
+ * 随封面一并提交；后端只在世界当前主色来源不是 'manual' 时才会用它覆盖 accent_color。
+ */
+export function uploadWorldCover(worldId, file, accentColor) {
   const formData = new FormData();
   formData.append('cover', file);
+  if (accentColor) formData.append('accent_color', accentColor);
   return fetch(`${BASE}/${worldId}/cover`, {
     method: 'POST',
     body: formData,

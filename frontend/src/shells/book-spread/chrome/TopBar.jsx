@@ -13,32 +13,7 @@ import { useAssistantPanel } from '../../../core/features/assistant/index.js';
 import DanmakuLayer from '../../../components/chat/DanmakuLayer.jsx';
 import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
 import { useDisplaySettingsStore } from '../../../core/state/displaySettings';
-
-function extractIds(pathname) {
-  const charChat = pathname.match(/\/characters\/([\w-]+)\/chat/);
-  const worldWriting = pathname.match(/\/worlds\/([\w-]+)/);
-  return {
-    characterId: charChat?.[1] ?? null,
-    worldId: worldWriting?.[1] ?? null,
-  };
-}
-
-// Overlay routes that should not affect topbar state — mirrors AppRoot's background <Routes> block.
-const OVERLAY_PATTERNS = [
-  /^\/worlds\/new$/,
-  /^\/worlds\/[\w-]+\/edit$/,
-  /^\/worlds\/[\w-]+\/persona$/,
-  /^\/worlds\/[\w-]+\/characters\/new$/,
-  /^\/characters\/[\w-]+\/edit$/,
-  /^\/settings$/,
-];
-
-function resolveTopbarPathname(location) {
-  const bg = location.state?.backgroundLocation;
-  if (bg) return bg.pathname;
-  if (OVERLAY_PATTERNS.some((re) => re.test(location.pathname))) return '/';
-  return location.pathname;
-}
+import { extractIds, resolveTopbarPathname } from '../../../core/utils/worldScope.js';
 
 export default function TopBar() {
   const navigate = useNavigate();

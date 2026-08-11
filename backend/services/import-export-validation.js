@@ -186,6 +186,8 @@ export function validateWorldImportPayload(data) {
   assertOptionalNumber(data.world.max_tokens, 'world.max_tokens');
   assertOptionalString(data.world.cover_path, 'world.cover_path', MAX_TEXT_FIELD_LENGTH);
   assertAvatarPayload(data.world.cover_base64, data.world.cover_mime, 'world');
+  assertOptionalString(data.world.accent_color, 'world.accent_color', 32);
+  assertOptionalString(data.world.accent_source, 'world.accent_source', 16);
 
   if (Array.isArray(data.personas)) {
     // 新格式：personas 数组，每项携带自己的 persona_state_values

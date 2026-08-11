@@ -15,10 +15,15 @@ import PageTransition from './transitions/PageTransition.jsx';
 import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';
 import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
+import { useWorldAccentVars } from '../../core/features/worldAccent/useWorldAccentVars.js';
 
 export default function AppShell({ children, locationKey }) {
+  // 「封面即光源」：进入某个世界后，把该世界的主色注入成 CSS 变量覆盖 --we-color-accent 一系。
+  // 书架层 / 无主色 / 浅色主题下返回 null，不注入，页面用主题自身默认色。
+  const worldAccentVars = useWorldAccentVars();
+
   return (
-    <div className="we-app-root we-shell-book-spread">
+    <div className="we-app-root we-shell-book-spread" style={worldAccentVars ?? undefined}>
       <TopBar />
       <GlobalToast />
       <PageLayoutRendererProvider render={RenderPageLayout}>

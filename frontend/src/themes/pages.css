@@ -1562,6 +1562,34 @@
   margin: var(--we-space-xl) 0;
 }
 
+/* 世界主色（封面即光源）：自动/手动切换行 */
+.we-edit-accent-row {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
+.we-edit-accent-label {
+  font-family: var(--we-font-prose);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+}
+
+.we-edit-accent-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--we-radius-full);
+  border: 1px solid var(--we-color-border-default);
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.we-edit-accent-swatch--readonly {
+  cursor: default;
+  background: var(--we-edit-accent-preview, var(--we-color-accent));
+}
+
 .we-edit-empty-text {
   font-family: var(--we-font-display);
   font-size: var(--we-text-sm);

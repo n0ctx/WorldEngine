@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   readJsonFile: vi.fn(),
   importWorld: vi.fn(),
   downloadWorldCard: vi.fn(),
+  updateWorld: vi.fn(),
+  extractAccentColorFromImageSrc: vi.fn(),
 }));
 
 vi.mock('react-router-dom', () => ({
@@ -24,6 +26,10 @@ vi.mock('../../src/core/state/index', () => ({
 vi.mock('../../src/core/api/worlds', () => ({
   getWorlds: (...args) => mocks.getWorlds(...args),
   deleteWorld: (...args) => mocks.deleteWorld(...args),
+  updateWorld: (...args) => mocks.updateWorld(...args),
+}));
+vi.mock('../../src/core/utils/extractAccentColor.js', () => ({
+  extractAccentColorFromImageSrc: (...args) => mocks.extractAccentColorFromImageSrc(...args),
 }));
 vi.mock('../../src/core/api/characters', () => ({
   getCharactersByWorld: (...args) => mocks.getCharactersByWorld(...args),
@@ -51,6 +57,8 @@ describe('WorldsPage', () => {
     mocks.readJsonFile.mockReset();
     mocks.importWorld.mockReset();
     mocks.downloadWorldCard.mockReset();
+    mocks.updateWorld.mockReset();
+    mocks.extractAccentColorFromImageSrc.mockReset();
     global.alert = vi.fn();
   });
 
@@ -130,5 +138,49 @@ describe('WorldsPage', () => {
 
     fireEvent.click(screen.getByText('重试'));
     expect(await screen.findByText('余烬城')).toBeInTheDocument();
+  });
+
+  it('导入的世界卡有封面但没有主色时，导入后自动补算取色并回写（缺陷四）', async () => {
+    mocks.getWorlds.mockResolvedValue([]);
+    mocks.readJsonFile.mockResolvedValue({ world: { name: '新世界' } });
+    mocks.importWorld.mockResolvedValue({
+      id: 'world-new', cover_path: 'covers/new.png', accent_color: null, accent_source: null,
+    });
+    mocks.extractAccentColorFromImageSrc.mockResolvedValue('#334455');
+    mocks.updateWorld.mockResolvedValue({});
+
+    const { container } = render(<WorldsPage />);
+    await screen.findByText('暂无世界记录');
+
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['{}'], 'world.weworld.json', { type: 'application/json' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(mocks.importWorld).toHaveBeenCalled());
+    await waitFor(() => expect(mocks.extractAccentColorFromImageSrc)
+      .toHaveBeenCalledWith('/api/uploads/covers/new.png'));
+    expect(mocks.updateWorld).toHaveBeenCalledWith('world-new', {
+      accent_color: '#334455',
+      accent_source: 'auto',
+    });
+  });
+
+  it('导入的世界卡已带主色时不重复取色', async () => {
+    mocks.getWorlds.mockResolvedValue([]);
+    mocks.readJsonFile.mockResolvedValue({ world: { name: '新世界' } });
+    mocks.importWorld.mockResolvedValue({
+      id: 'world-new', cover_path: 'covers/new.png', accent_color: '#112233', accent_source: 'auto',
+    });
+
+    const { container } = render(<WorldsPage />);
+    await screen.findByText('暂无世界记录');
+
+    const input = container.querySelector('input[type="file"]');
+    const file = new File(['{}'], 'world.weworld.json', { type: 'application/json' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => expect(mocks.importWorld).toHaveBeenCalled());
+    expect(mocks.extractAccentColorFromImageSrc).not.toHaveBeenCalled();
+    expect(mocks.updateWorld).not.toHaveBeenCalled();
   });
 });

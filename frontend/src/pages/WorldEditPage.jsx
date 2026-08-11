@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getWorld, updateWorld, createWorld, uploadWorldCover } from '../core/api/worlds';
+import { extractAccentColorFromFile, extractAccentColorFromImageSrc, FALLBACK_ACCENT_HEX } from '../core/utils/extractAccentColor.js';
 
 import StateFieldList from '../components/state/StateFieldList';
 import AvatarUpload from '../components/ui/AvatarUpload';
@@ -9,6 +10,7 @@ import Input from '../components/ui/Input';
 import SectionTabs from '../components/ui/SectionTabs.jsx';
 import EditPageShell from './layout/EditPageShell';
 import FormGroup from '../components/ui/FormGroup';
+import ToggleSwitch from '../components/ui/ToggleSwitch';
 import {
   listWorldStateFields, createWorldStateField,
   updateWorldStateField, deleteWorldStateField, reorderWorldStateFields,
@@ -40,6 +42,9 @@ export default function WorldEditPage() {
   const [coverBustKey, setCoverBustKey] = useState(0);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverFileInputRef = useRef(null);
+  const [accentColor, setAccentColor] = useState(null);
+  const [accentSource, setAccentSource] = useState('auto');
+  const [accentSaving, setAccentSaving] = useState(false);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -84,6 +89,8 @@ export default function WorldEditPage() {
       setTemperature(w.temperature != null ? String(w.temperature) : '');
       setMaxTokens(w.max_tokens != null ? String(w.max_tokens) : '');
       setCoverPath(w.cover_path ?? null);
+      setAccentColor(w.accent_color ?? null);
+      setAccentSource(w.accent_source === 'manual' ? 'manual' : 'auto');
       setLoading(false);
     });
   }, [worldId, reloadKey, isCreate]);
@@ -136,15 +143,57 @@ export default function WorldEditPage() {
     if (!file) return;
     setCoverUploading(true);
     try {
-      const result = await uploadWorldCover(worldId, file);
+      // 主色手工指定后不再随封面自动重算；仅 'auto' 时才在前端算一次新色随封面一起提交。
+      const nextAccentColor = accentSource === 'manual' ? null : await extractAccentColorFromFile(file);
+      const result = await uploadWorldCover(worldId, file, nextAccentColor);
       setCoverPath(result.cover_path);
       setCoverBustKey(Date.now());
+      if (accentSource !== 'manual') {
+        setAccentColor(result.accent_color ?? null);
+        setAccentSource(result.accent_source === 'manual' ? 'manual' : 'auto');
+      }
       window.dispatchEvent(new Event('we:world-updated'));
     } catch (err) {
       log.error('world.cover.upload_failed', err, { toast: `封面上传失败：${err.message}` });
     } finally {
       setCoverUploading(false);
       e.target.value = '';
+    }
+  }
+
+  async function handleAccentSourceToggle(nextIsManual) {
+    setAccentSaving(true);
+    try {
+      if (nextIsManual) {
+        const manualColor = accentColor ?? FALLBACK_ACCENT_HEX;
+        await updateWorld(worldId, { accent_color: manualColor, accent_source: 'manual' });
+        setAccentColor(manualColor);
+        setAccentSource('manual');
+      } else {
+        // 切回自动：有封面则立即按当前封面重算一次，没有封面则清空、退回主题默认色。
+        const recomputed = coverPath ? await extractAccentColorFromImageSrc(getAvatarUrl(coverPath)) : null;
+        await updateWorld(worldId, { accent_color: recomputed, accent_source: 'auto' });
+        setAccentColor(recomputed);
+        setAccentSource('auto');
+      }
+      window.dispatchEvent(new Event('we:world-updated'));
+    } catch (err) {
+      log.error('world.accent.update_failed', err, { toast: `主色更新失败：${err.message}` });
+    } finally {
+      setAccentSaving(false);
+    }
+  }
+
+  async function handleAccentColorPick(hex) {
+    setAccentColor(hex);
+    setAccentSaving(true);
+    try {
+      await updateWorld(worldId, { accent_color: hex, accent_source: 'manual' });
+      window.dispatchEvent(new Event('we:world-updated'));
+    } catch (err) {
+      log.error('world.accent.update_failed', err, { toast: `主色更新失败：${err.message}` });
+    } finally {
+      setAccentSaving(false);
     }
   }
 
@@ -189,6 +238,38 @@ export default function WorldEditPage() {
                 shape="rect"
                 hint="点击上传封面图"
               />
+            </FormGroup>
+          )}
+          {!isCreate && (
+            <FormGroup
+              label="主色"
+              hint={accentSource === 'manual' ? '已手工指定，封面变化不再自动覆盖' : '自动跟随封面：从封面图取主导色，替代主题默认的界面主色'}
+            >
+              <div className="we-edit-accent-row">
+                <ToggleSwitch
+                  checked={accentSource === 'manual'}
+                  onChange={handleAccentSourceToggle}
+                  disabled={accentSaving}
+                />
+                <span className="we-edit-accent-label">{accentSource === 'manual' ? '手动指定' : '自动（跟随封面）'}</span>
+                {accentSource === 'manual' && (
+                  <input
+                    type="color"
+                    className="we-edit-accent-swatch"
+                    value={accentColor ?? FALLBACK_ACCENT_HEX}
+                    disabled={accentSaving}
+                    onChange={(e) => handleAccentColorPick(e.target.value)}
+                    aria-label="选择主色"
+                  />
+                )}
+                {accentSource !== 'manual' && (
+                  <span
+                    className="we-edit-accent-swatch we-edit-accent-swatch--readonly"
+                    style={{ '--we-edit-accent-preview': accentColor ?? 'var(--we-color-accent)' }}
+                    title={accentColor ?? '主题默认色'}
+                  />
+                )}
+              </div>
             </FormGroup>
           )}
         </div>

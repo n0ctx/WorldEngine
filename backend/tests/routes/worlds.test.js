@@ -2,6 +2,12 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+// backend/utils/proxy.js 把 globalThis.fetch 换成了 npm undici 包的 fetch（见该文件注释：
+// Node 内置 fetch 与 node_modules/undici 是两个独立实例）。它内部用 `instanceof` 校验
+// multipart body 是不是"自己认识的" FormData/Blob——用 Node 内置的 FormData 会校验失败，
+// 被当成普通对象 stringify 成 text/plain 发出去，服务端收不到文件。这里改用同一个 undici
+// 包的 FormData/Blob，与被替换后的 fetch 出自同一实例。
+import { FormData } from 'undici';
 
 import { createRouteTestContext } from '../helpers/http.js';
 import { insertWorld } from '../helpers/fixtures.js';
@@ -117,4 +123,45 @@ test('POST /api/worlds/:id/cover 缺文件 400 / 世界不存在 404', async () 
   const emptyForm2 = new FormData();
   const miss = await ctx.request('/api/worlds/no-such/cover', { method: 'POST', body: emptyForm2 });
   assert.equal(miss.status, 404);
+});
+
+// 1x1 白色 PNG，用于封面上传成功路径测试
+const TINY_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+
+function tinyPngBlob() {
+  return new Blob([Buffer.from(TINY_PNG_BASE64, 'base64')], { type: 'image/png' });
+}
+
+test('POST /api/worlds/:id/cover 成功时接受前端算出的 accent_color（accent_source 非 manual）', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: 'cover-accent-auto' });
+
+  const form = new FormData();
+  form.append('cover', tinyPngBlob(), 'cover.png');
+  form.append('accent_color', '#a1b2c3');
+  const res = await ctx.request(`/api/worlds/${world.id}/cover`, { method: 'POST', body: form });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(body.cover_path);
+  assert.equal(body.accent_color, '#a1b2c3');
+  assert.equal(body.accent_source, 'auto');
+});
+
+test('POST /api/worlds/:id/cover 主色来源为 manual 时，换封面不覆盖用户手工指定的主色', async () => {
+  const world = insertWorld(ctx.sandbox.db, { name: 'cover-accent-manual' });
+  const setManual = await ctx.request(`/api/worlds/${world.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accent_color: '#ff0000', accent_source: 'manual' }),
+  });
+  assert.equal(setManual.status, 200);
+
+  const form = new FormData();
+  form.append('cover', tinyPngBlob(), 'cover.png');
+  form.append('accent_color', '#a1b2c3'); // 前端仍会算并提交，但后端应忽略
+  const res = await ctx.request(`/api/worlds/${world.id}/cover`, { method: 'POST', body: form });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.ok(body.cover_path);
+  assert.equal(body.accent_color, '#ff0000');
+  assert.equal(body.accent_source, 'manual');
 });

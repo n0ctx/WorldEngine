@@ -58,7 +58,7 @@ export function reorderWorlds(items) {
  * 部分更新世界字段，返回更新后的记录
  */
 export function updateWorld(id, patch) {
-  const allowedFields = ['name', 'description', 'temperature', 'max_tokens', 'cover_path'];
+  const allowedFields = ['name', 'description', 'temperature', 'max_tokens', 'cover_path', 'accent_color', 'accent_source'];
   const sets = [];
   const values = [];
 

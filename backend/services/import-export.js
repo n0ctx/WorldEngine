@@ -482,6 +482,8 @@ export function exportWorld(worldId) {
       cover_path: world.cover_path ?? null,
       temperature: world.temperature ?? null,
       max_tokens: world.max_tokens ?? null,
+      accent_color: world.accent_color ?? null,
+      accent_source: world.accent_source ?? null,
       ...(coverBase64 ? { cover_base64: coverBase64, cover_mime: coverMime } : {}),
     },
     personas,
@@ -507,9 +509,11 @@ export function importWorld(data) {
     const coverPath = saveAvatarFile(worldId, data.world.cover_base64, data.world.cover_mime);
 
     // 插入世界
+    // accent_color / accent_source：随卡带走（新版导出会带上）；旧卡没有这两个字段则为 NULL，
+    // 前端在导入流程里会按需用 canvas 补算一次自动取色，这里只负责原样落库。
     db.prepare(`
-      INSERT INTO worlds (id, name, description, temperature, max_tokens, cover_path, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO worlds (id, name, description, temperature, max_tokens, cover_path, accent_color, accent_source, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       worldId,
       data.world.name,
@@ -517,6 +521,8 @@ export function importWorld(data) {
       data.world.temperature ?? null,
       data.world.max_tokens ?? null,
       coverPath,
+      data.world.accent_color ?? null,
+      data.world.accent_source ?? null,
       now, now,
     );
 

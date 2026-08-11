@@ -167,6 +167,20 @@ test('世界卡 round-trip 保持世界/状态/角色结构等价', async () => 
   assert.deepEqual(normalizeWorldPackage(reExported), normalizeWorldPackage(exported));
 });
 
+test('世界卡 round-trip 带上 accent_color / accent_source（手工指定的主色不丢）', async () => {
+  const { updateWorld } = await freshImport('backend/db/queries/worlds.js');
+  const world = insertWorld(sandbox.db, { name: '带主色的世界' });
+  updateWorld(world.id, { accent_color: '#4477aa', accent_source: 'manual' });
+
+  const exported = exportWorld(world.id);
+  assert.equal(exported.world.accent_color, '#4477aa');
+  assert.equal(exported.world.accent_source, 'manual');
+
+  const imported = importWorld(exported);
+  assert.equal(imported.accent_color, '#4477aa');
+  assert.equal(imported.accent_source, 'manual');
+});
+
 test('角色卡 round-trip 保持角色主体与合法状态值等价', async () => {
   const sourceWorld = insertWorld(sandbox.db, { name: '源世界' });
   const targetWorld = insertWorld(sandbox.db, { name: '目标世界' });

@@ -106,8 +106,15 @@ router.post('/:id/cover', upload.single('cover'), async (req, res) => {
     return res.status(400).json({ error: '未收到图片文件' });
   }
   const relativePath = `avatars/world_${req.params.id}${path.extname(req.file.originalname).toLowerCase() || '.jpg'}`;
-  const updated = updateWorld(req.params.id, { cover_path: relativePath });
-  res.json({ cover_path: updated.cover_path });
+  // 取色在前端用 canvas 完成（见 core/utils/extractAccentColor.js），随封面一并提交。
+  // 仅当当前主色来源不是 'manual' 时才接受前端算出的自动主色，避免覆盖用户手工指定的值。
+  const patch = { cover_path: relativePath };
+  if (existing.accent_source !== 'manual' && typeof req.body.accent_color === 'string' && req.body.accent_color) {
+    patch.accent_color = req.body.accent_color;
+    patch.accent_source = 'auto';
+  }
+  const updated = updateWorld(req.params.id, patch);
+  res.json({ cover_path: updated.cover_path, accent_color: updated.accent_color, accent_source: updated.accent_source });
 });
 
 // POST /api/worlds/:id/sync-diary — 根据当前日记配置同步 diary_time 字段
