@@ -57,8 +57,16 @@ test('plan_doc_updated 事件携带文档全文', async () => {
   const events = [];
   const fakeRes = { write: (line) => events.push(line) };
   taskStore.attachSse(task.id, fakeRes);
-  await planDoc.writePlanDoc(task.id,
-    '# 任务：T\n\n> 状态：planning · 创建时间：x\n\n## 用户意图\nx\n\n## 假设与约束\n- 无\n\n## 步骤\n\n- [ ] **step-1** A（world-card.create）\n  - 依赖：无\n  - 任务：a\n');
+  await planDoc.writePlanDoc(task.id, {
+    title: 'T',
+    status: 'planning',
+    createdAt: 'x',
+    intent: 'x',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a' },
+    ],
+  });
   taskStore.emit(task.id, { type: 'plan_doc_updated', taskId: task.id, content: 'demo' });
   assert.match(events.at(-1), /plan_doc_updated/);
   assert.match(events.at(-1), /demo/);
@@ -123,31 +131,6 @@ test('buildContextBlock 注入本世界 personas / characters 清单（id + name
 
   const blockNoWorld = __testables.buildContextBlock({ id: 't', status: 'running', context: {}, appliedResources: [] }, '');
   assert.doesNotMatch(blockNoWorld, /本世界资源清单/);
-});
-
-test('detectPlanFirstPolicy 会识别通用计划边界', () => {
-  // 收紧后：单纯建卡不再强制计划，只有「建卡 + 结构化 + 完整」或跨资源 / 高风险才触发
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个玩家卡').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('新建一个角色').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('给新的角色卡补全全部状态字段').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('删除所有旧的关键词条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('从零设计一套 lore 和 AI召回条目').requiresPlanFirst, true);
-  assert.equal(__testables.detectPlanFirstPolicy('只建一个空白玩家卡，暂不填状态').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('创建一个 CSS 片段').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('把当前玩家卡金币改成120').requiresPlanFirst, false);
-  const task = { id: 't', status: 'running', context: {}, appliedResources: [] };
-  const block = __testables.buildContextBlock(task, '', __testables.detectPlanFirstPolicy('创建一个世界卡，包含基础状态和世界观条目').hints);
-  assert.match(block, /本轮强制编排提示/);
-  assert.match(block, /先调用 write_plan_doc/);
-});
-
-test('detectPlanFirstPolicy 排除纯查询动词', () => {
-  assert.equal(__testables.detectPlanFirstPolicy('完整地展示一下我的角色卡').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('告诉我现在有哪些条目').requiresPlanFirst, false);
-  assert.equal(__testables.detectPlanFirstPolicy('帮我查看一下全部世界卡').requiresPlanFirst, false);
-  // 含高风险动作时即使有"展示"字样也应触发
-  assert.equal(__testables.detectPlanFirstPolicy('展示完整角色卡，再删除所有旧字段').requiresPlanFirst, true);
 });
 
 test('extractHardConstraints 抽取字段名/ID/必须禁止类硬约束', () => {
@@ -298,13 +281,59 @@ test('dispatch_subagent: 已 applied 过 create 时拒绝重复', async () => {
   assert.match(r2.error, /子代理未成功/);
 });
 
-test('dispatch_subagent: 状态密集型任务未写计划时拒绝直接派发', async () => {
+test('dispatch_subagent: 无计划 + ad-hoc + delete 被删除闸门拦下', async () => {
   const task = taskStore.createTask({ context: {} });
-  const tools = __testables.buildMetaTools(task, () => {}, null, { requiresPlanFirst: true, planDocExists: false });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
   const dispatch = tools[2];
-  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '创建玩家卡并填写全部状态字段' });
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'delete', entityRef: 'p-1', task: '删除这个角色' });
   assert.equal(r.success, false);
-  assert.match(r.error, /必须先调用 write_plan_doc/);
+  assert.equal(r.failureKind, 'precheck');
+  assert.match(r.error, /删除操作不可逆/);
+  assert.match(r.error, /write_plan_doc/);
+});
+
+test('dispatch_subagent: 无计划 + ad-hoc + create 不受删除闸门影响，能走到子代理', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'create', task: '建一个新角色' });
+  assert.equal(r.success, false);
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  // 走到了真实子代理派发（mock 未配置 LLM 工具调用，子代理本身失败），而非被本闸门 precheck 拦下
+  assert.match(r.error, /子代理未成功/);
+});
+
+test('dispatch_subagent: 无计划 + ad-hoc + update 不受删除闸门影响，能走到子代理', async () => {
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: false });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ targetType: 'persona-card', operation: 'update', entityRef: 'p-1', task: '改个名字' });
+  assert.equal(r.success, false);
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  assert.match(r.error, /子代理未成功/);
+});
+
+test('dispatch_subagent: 有计划 + 带 stepId 的 delete 步骤放行（已批准的计划内删除不受删除闸门限制）', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '带删除步骤的计划',
+    status: 'approved',
+    createdAt: '2026-05-15T00:00:00.000Z',
+    updatedAt: '2026-05-15T00:00:00.000Z',
+    intent: '测试计划内删除步骤放行',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: '核对现状', targetType: 'world-card', operation: 'update', dependsOn: [], task: '核对现状', done: false },
+      { id: 'step-2', title: '删除旧条目', targetType: 'world-card', operation: 'delete', dependsOn: [], task: '删除旧条目', done: false },
+    ],
+  });
+  const tools = __testables.buildMetaTools(task, () => {}, null, { planDocExists: true, planExecutionApproved: true });
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: 'step-2' });
+  assert.equal(/删除操作不可逆/.test(String(r.error ?? '')), false);
+  // 走到了真实子代理派发（mock 未配置 LLM 工具调用，子代理本身失败），而非被本闸门 precheck 拦下
+  assert.match(r.error, /子代理未成功/);
+  await planDoc.deletePlanDoc(task.id);
 });
 
 test('dispatch_subagent: awaiting_approval 阶段拒绝直接执行，必须先等用户确认', async () => {
@@ -316,83 +345,6 @@ test('dispatch_subagent: awaiting_approval 阶段拒绝直接执行，必须先�
   const r = await dispatch.execute({ stepId: 'step-1' });
   assert.equal(r.success, false);
   assert.match(r.error, /还在等待用户审批/);
-});
-
-test('dispatch_subagent: task 截断检测覆盖冒号/逗号/未闭合反引号/未闭合引号/中文括号', async () => {
-  const metaRuntime = await freshImport('assistant/server/tools/meta/runtime.js');
-  const { detectTaskTruncation } = metaRuntime;
-  // 命中各类截断
-  assert.match(detectTaskTruncation('创建一个世界并填入：'), /冒号/);
-  assert.match(detectTaskTruncation('请按以下需求,'), /逗号/);
-  assert.match(detectTaskTruncation('继续编排——'), /破折号/);
-  assert.match(detectTaskTruncation('参考 ```json\n{}\n``` 然后另起一段 ```sql\nselect 1'), /反引号代码块/);
-  assert.match(detectTaskTruncation('请把字段 name = "Alice 写进去'), /英文双引号/);
-  assert.match(detectTaskTruncation('引用「Alice 然后继续'), /中文成对/);
-  // 完整指令不应误报
-  assert.equal(detectTaskTruncation('创建一个名为 Alice 的角色卡，并补齐 HP 字段为 100。'), null);
-  assert.equal(detectTaskTruncation('使用 stateValueOps 写入 ```json\n[{"field_key":"hp","value":100}]\n``` 完成更新。'), null);
-  // 含中文配对引号 / 括号的合法复杂任务不应被中文括号成对规则误报
-  assert.equal(detectTaskTruncation('请把字段「hp」从 90 改成 100，理由：刚跑完战斗副本。'), null);
-  assert.equal(detectTaskTruncation('在世界卡的「背景设定」段落里追加一段关于（古代帝国）的描述并保存。'), null);
-});
-
-test('detectTaskTailTruncation: 仅校验尾部标点，引号/括号合法的复杂任务不误报', async () => {
-  const metaRuntime = await freshImport('assistant/server/tools/meta/runtime.js');
-  const { detectTaskTailTruncation } = metaRuntime;
-  assert.match(detectTaskTailTruncation('在 world-card 上用 stateFieldOps create 三个字段：'), /冒号/);
-  assert.match(detectTaskTailTruncation('继续编排——'), /破折号/);
-  // 合法 task 含引号 / 括号 / 反引号片段也不应被严格规则误报
-  assert.equal(detectTaskTailTruncation('请把字段 name = "Alice 写进去'), null);
-  assert.equal(detectTaskTailTruncation('引用「Alice 然后继续'), null);
-  assert.equal(detectTaskTailTruncation('完成全部字段并保存。'), null);
-});
-
-test('write_plan_doc: 拒绝 step.task 以冒号结尾的伪截断计划', async () => {
-  const task = taskStore.createTask({ context: {} });
-  const tools = __testables.buildMetaTools(task, () => {});
-  const writePlan = tools[0];
-  const r = await writePlan.execute({
-    title: '会被拒绝的计划',
-    intent: '测试 task 尾部截断',
-    steps: [
-      { title: '建世界', targetType: 'world-card', operation: 'create', task: '创建空世界卡，包含字段：' },
-      { title: '加字段', targetType: 'world-card', operation: 'update', task: '加角色字段 HP=100。' },
-      { title: '验收', targetType: 'world-card', operation: 'update', task: '核对全部字段。' },
-    ],
-  });
-  assert.equal(r.success, false);
-  assert.equal(r.failureKind, 'precheck');
-  assert.match(r.error, /task 字段疑似被截断/);
-  assert.match(r.error, /单行/);
-});
-
-test('dispatch_subagent: stepId + args.task 时用 args.task 覆盖 step.task（自救已批准计划）', async () => {
-  const task = taskStore.createTask({ context: {} });
-  // 模拟一份已批准但 step.task 被截断的计划
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
-    title: '已批准但 task 被截断',
-    status: 'approved',
-    createdAt: '2026-06-01T00:00:00.000Z',
-    updatedAt: '2026-06-01T00:00:00.000Z',
-    intent: '触发自救路径',
-    assumptions: [],
-    steps: [
-      { id: 'step-1', title: '建字段', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 stateFieldOps create 三个字段：' },
-      { id: 'step-2', title: '建条目', targetType: 'world-card', operation: 'update', task: '在 world-card 上用 entryOps create 条目。' },
-      { id: 'step-3', title: '验收', targetType: 'world-card', operation: 'update', task: '核对结果。' },
-    ],
-  }));
-  const tools = __testables.buildMetaTools(task, () => {}, null, {
-    planDocExists: true,
-    planAlreadyApproved: true,
-    planExecutionApproved: true,
-  });
-  const dispatch = tools[2];
-  // 模型补传完整 task：应当覆盖 step.task 并通过截断检测，进入到下游 sub-agent（mock 后报子代理失败）
-  const overrideTask = '在世界卡 W 上用 stateFieldOps 新建三个 target=character 的 number 字段 HP/MP/SP，范围 0-100，默认 100。';
-  const r = await dispatch.execute({ stepId: 'step-1', task: overrideTask });
-  // 截断检测应被绕过；不应再返回"task 字段疑似被截断"
-  assert.equal(/task 字段疑似被截断/.test(String(r.error ?? '')), false);
 });
 
 test('write_plan_doc / edit_plan_doc: 参数级失败均标 failureKind=precheck', async () => {
@@ -422,14 +374,64 @@ test('write_plan_doc / edit_plan_doc: 参数级失败均标 failureKind=precheck
   assert.equal(r4.failureKind, 'precheck');
 });
 
+test('write_plan_doc + dispatch_subagent: 结构化 task 字段不再经 md 往返，多行/中文冒号收尾/未闭合反引号原样写入与取回', async () => {
+  // 覆盖本步核心收益：step.task 现在直接落 plan_doc_data_json 结构化列，
+  // 不再经过 renderPlanDoc → parsePlanDoc 的单行正则往返，因此旧实现下会被
+  // detectTaskTailTruncation / validatePlanStepsTaskTail 打回的"多行 + 中文冒号收尾 + 未闭合反引号"
+  // 文本现在应当原样写入、原样取回。
+  delete process.env.MOCK_LLM_TOOL_CALLS;
+  delete process.env.MOCK_LLM_TOOL_CALLS_QUEUE;
+  delete process.env.MOCK_LLM_COMPLETE;
+  delete process.env.MOCK_LLM_COMPLETE_ERROR;
+
+  const nastyTask = [
+    '第一行：先读取现状',
+    '第二行包含未闭合反引号 ` 以及更多说明文字',
+    '第三行以中文冒号收尾：',
+  ].join('\n');
+
+  const task = taskStore.createTask({ context: {} });
+  const tools = __testables.buildMetaTools(task, () => {});
+  const writePlan = tools[0];
+
+  await assert.rejects(
+    writePlan.execute({
+      title: '结构化 task 往返验证',
+      intent: '验证多行/冒号收尾/未闭合反引号不再被截断检测拦截',
+      steps: [
+        { title: '读取现状', targetType: 'world-card', operation: 'update', task: nastyTask },
+        { title: '写入变更', targetType: 'world-card', operation: 'update', task: '核对并写入。' },
+        { title: '验收', targetType: 'world-card', operation: 'update', task: '核对全部字段。' },
+      ],
+    }),
+    (err) => err?.kind === 'awaiting_approval',
+  );
+
+  const plan = await planDoc.readPlanData(task.id);
+  const step1 = plan.steps.find((s) => s.title === '读取现状');
+  assert.ok(step1, '写入应成功，step 应存在');
+  // 核心断言：dispatch_subagent 实际读取 step.task 所用的同一条路径（readPlanData）取回的值
+  // 与写入时逐字相等——没有任何 md 往返造成的截断或改写。
+  assert.equal(step1.task, nastyTask);
+
+  const dispatch = tools[2];
+  const r = await dispatch.execute({ stepId: step1.id });
+  // 不应再因"task 字段疑似被截断"被 precheck 拦下；子代理本身因 mock 未配置 apply 调用而失败，属预期。
+  assert.equal(/截断/.test(String(r.error ?? '')), false);
+  assert.equal(r.success, false);
+  assert.match(r.error, /子代理未成功/);
+
+  await planDoc.deletePlanDoc(task.id);
+});
+
 test('dispatch_subagent: 失败返回 failureKind=precheck，让父代理区分轻重', async () => {
   const task = taskStore.createTask({ context: {} });
   const tools = __testables.buildMetaTools(task, () => {});
   const dispatch = tools[2];
-  // task 截断
-  const truncated = await dispatch.execute({ targetType: 'world-card', operation: 'create', task: '继续编排：' });
-  assert.equal(truncated.success, false);
-  assert.equal(truncated.failureKind, 'precheck');
+  // 缺少 task
+  const missingTask = await dispatch.execute({ targetType: 'world-card', operation: 'create' });
+  assert.equal(missingTask.success, false);
+  assert.equal(missingTask.failureKind, 'precheck');
   // operation 非法
   const badOp = await dispatch.execute({ targetType: 'world-card', operation: 'patch', task: '随便干点啥' });
   assert.equal(badOp.success, false);
@@ -442,7 +444,7 @@ test('dispatch_subagent: 失败返回 failureKind=precheck，让父代理区分�
 
 test('dispatch_subagent: 计划被拒后保留旧 plan doc 时，必须先重提方案再审批', async () => {
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+  await planDoc.writePlanDoc(task.id, {
     title: '旧计划',
     status: 'paused',
     createdAt: '2026-05-15T00:00:00.000Z',
@@ -450,9 +452,8 @@ test('dispatch_subagent: 计划被拒后保留旧 plan doc 时，必须先重提
     intent: '测试 reject 后绕过审批',
     assumptions: [],
     steps: threePlanSteps('旧步骤'),
-  }));
+  });
   const tools = __testables.buildMetaTools(task, () => {}, null, {
-    requiresPlanFirst: true,
     planDocExists: true,
     planRejectedNeedsRewrite: true,
   });
@@ -574,9 +575,21 @@ test('runParentAgent: write_plan_doc 后停在 awaiting_approval（不发 done�
 test('runParentAgent: 用户拒绝旧计划后写新计划 → 旧 plan_doc 文件被清掉、PLAN_REJECTED 标记清零', async () => {
   // 先模拟一份旧计划被拒绝的状态
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, '# 旧方案\n\n- [ ] 旧步骤一\n- [ ] 旧步骤二');
+  const oldPlan = {
+    title: '旧方案',
+    status: 'paused',
+    createdAt: '2026-05-01T00:00:00.000Z',
+    updatedAt: '2026-05-01T00:00:00.000Z',
+    intent: '旧意图',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: '旧步骤一', targetType: 'world-card', operation: 'update', dependsOn: [], task: '旧步骤一' },
+      { id: 'step-2', title: '旧步骤二', targetType: 'world-card', operation: 'update', dependsOn: [], task: '旧步骤二' },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, oldPlan);
   taskStore.setStatus(task.id, 'paused', { error: 'plan rejected by user' });
-  assert.equal(await planDoc.readPlanDoc(task.id), '# 旧方案\n\n- [ ] 旧步骤一\n- [ ] 旧步骤二');
+  assert.equal(await planDoc.readPlanDoc(task.id), planDoc.renderPlanDoc(oldPlan));
 
   // LLM 在下一轮调用 write_plan_doc 提交全新方案
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
@@ -691,13 +704,13 @@ test('runParentAgent: 伪流式 delta 之间让出事件循环，cancel 可中�
   clearMockEnv();
 });
 
-test('runParentAgent: 截图场景复现——dispatch_subagent task 截断 3 次不应触发熔断（precheck 阈值 8）', async () => {
-  // 模拟 LLM 反复用以":"结尾的截断 task 派发：旧实现 3 次后立即触发 CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON 熔断；
+test('runParentAgent: 截图场景复现——dispatch_subagent 参数非法 3 次不应触发熔断（precheck 阈值 8）', async () => {
+  // 模拟 LLM 反复用非法 operation 派发：旧实现 3 次后立即触发 CONSECUTIVE_TOOL_FAILURES_PAUSE_REASON 熔断；
   // 新实现把 dispatch_subagent 的预检失败标为 precheck，阈值 8，给模型多次纠错机会，不再因 3 次硬熔断。
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '创建一个世界并填入：' } },
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '请按以下需求继续：' } },
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: '继续编排：' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '创建一个世界并填入字段' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '请按以下需求继续处理' } },
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: '继续编排下一步' } },
   ]);
   process.env.MOCK_LLM_COMPLETE = '';
   const task = taskStore.createTask({ context: {} });
@@ -714,7 +727,7 @@ test('runParentAgent: 截图场景复现——dispatch_subagent task 截断 3 �
 
 test('runParentAgent: precheck 类失败达到阈值 8 时仍会熔断', async () => {
   const calls = Array.from({ length: 8 }, (_, i) => (
-    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'create', task: `第${i + 1}次截断指令：` } }
+    { name: 'dispatch_subagent', arguments: { targetType: 'world-card', operation: 'patch', task: `第${i + 1}次非法指令` } }
   ));
   process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify(calls);
   process.env.MOCK_LLM_COMPLETE = '';
@@ -874,7 +887,7 @@ test('runParentAgent: 子代理失败时立即暂停，不再继续输出完成�
 
 test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不回到 awaiting_approval', async () => {
   const task = taskStore.createTask({ context: {} });
-  await planDoc.writePlanDoc(task.id, planDoc.renderPlanDoc({
+  await planDoc.writePlanDoc(task.id, {
     title: '已确认计划',
     status: 'awaiting_approval',
     createdAt: '2026-05-13T00:00:00.000Z',
@@ -882,7 +895,7 @@ test('runParentAgent: approve 后模型再次 write_plan_doc 会被拒绝且不�
     intent: '测试重复确认',
     assumptions: [],
     steps: threePlanSteps('已确认'),
-  }));
+  });
   taskStore.setStatus(task.id, 'running');
   const events = [];
   taskStore.attachSse(task.id, { write: (l) => events.push(l) });
@@ -917,29 +930,18 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   taskStore.attachSse(task.id, { write: () => {} });
   const tools = __testables.buildMetaTools(task, () => {});
 
-  const md = [
-    '# 任务：T',
-    '',
-    '> 状态：running · 创建时间：x',
-    '',
-    '## 用户意图',
-    'i',
-    '',
-    '## 假设与约束',
-    '- 无',
-    '',
-    '## 步骤',
-    '',
-    '- [x] **step-1** done（world-card.create）',
-    '  - 依赖：无',
-    '  - 任务：a',
-    '  - 完成于 12:00:00',
-    '- [ ] **step-2** todo（character-card.create）',
-    '  - 依赖：无',
-    '  - 任务：b',
-    '',
-  ].join('\n');
-  await planDoc.writePlanDoc(task.id, md);
+  const plan = {
+    title: 'T',
+    status: 'running',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'done', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: true, completedAt: '12:00:00' },
+      { id: 'step-2', title: 'todo', targetType: 'character-card', operation: 'create', dependsOn: [], task: 'b', done: false, completedAt: null },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, plan);
 
   const editPlan = tools[1];
   const tooShort = await editPlan.execute({
@@ -962,7 +964,7 @@ test('edit_plan_doc.replace_steps: 已完成步骤被强制保留', async () => 
   );
 
   const newMd = await planDoc.readPlanDoc(task.id);
-  const parsed = planDoc.parsePlanDoc(newMd);
+  const parsed = await planDoc.readPlanData(task.id);
   const doneStep = parsed.steps.find((s) => s.id === 'step-1');
   assert.ok(doneStep);
   assert.equal(doneStep.done, true);
@@ -989,7 +991,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
   process.env.MOCK_LLM_COMPLETE = '';
   await runParentAgent(task, '建一个赛博朋克世界');
   assert.equal(task.status, 'awaiting_approval');
-  const before = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const before = await planDoc.readPlanData(task.id);
   assert.equal(before.intent, '用户要建一个完整的赛博朋克世界');
   assert.deepEqual(before.assumptions, ['世界尚未存在', 'persona 已就位']);
   assert.ok(before.createdAt);
@@ -1008,7 +1010,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
     (err) => err?.kind === 'awaiting_approval',
   );
 
-  const after = planDoc.parsePlanDoc(await planDoc.readPlanDoc(task.id));
+  const after = await planDoc.readPlanData(task.id);
   assert.equal(after.intent, before.intent);
   assert.deepEqual(after.assumptions, before.assumptions);
   assert.equal(after.createdAt, before.createdAt);
@@ -1020,7 +1022,7 @@ test('edit_plan_doc.replace_steps: 保留 intent / assumptions / createdAt，仅
 
 test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新进入审批', async () => {
   const task = taskStore.createTask({ context: {} });
-  const md = planDoc.renderPlanDoc({
+  const plan = {
     title: '已批准计划',
     status: 'running',
     createdAt: '2026-05-15T00:00:00.000Z',
@@ -1028,8 +1030,8 @@ test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新
     intent: '执行中禁止改计划',
     assumptions: [],
     steps: threePlanSteps('执行中步骤'),
-  });
-  await planDoc.writePlanDoc(task.id, md);
+  };
+  await planDoc.writePlanDoc(task.id, plan);
   taskStore.setStatus(task.id, 'running');
   taskStore.setApprovalCheckpoint(task.id, {
     title: '已批准计划',
@@ -1050,7 +1052,7 @@ test('edit_plan_doc.replace_steps: 计划批准后禁止执行中重写并重新
   });
   assert.equal(r.success, false);
   assert.match(r.error, /执行中重写未完成步骤/);
-  assert.equal(await planDoc.readPlanDoc(task.id), md);
+  assert.equal(await planDoc.readPlanDoc(task.id), planDoc.renderPlanDoc(plan));
   await planDoc.deletePlanDoc(task.id);
 });
 
@@ -1088,29 +1090,21 @@ test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
   const task = taskStore.createTask({ context: {} });
   taskStore.attachSse(task.id, { write: () => {} });
 
-  const md = [
-    '# 任务：T',
-    '',
-    '> 状态：running · 创建时间：x',
-    '',
-    '## 用户意图',
-    'i',
-    '',
-    '## 假设与约束',
-    '- 无',
-    '',
-    '## 步骤',
-    '',
-    '- [ ] **step-1** A（world-card.create）',
-    '  - 依赖：无',
-    '  - 任务：a',
-    '',
-  ].join('\n');
-  await planDoc.writePlanDoc(task.id, md);
+  const plan = {
+    title: 'T',
+    status: 'running',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: [
+      { id: 'step-1', title: 'A', targetType: 'world-card', operation: 'create', dependsOn: [], task: 'a', done: false, completedAt: null },
+    ],
+  };
+  await planDoc.writePlanDoc(task.id, plan);
 
   const tools = __testables.buildMetaTools(task, () => {});
   const editPlan = tools[1];
-  // 步骤缺少 task 字段 → validatePlanDoc 应失败
+  // 步骤缺少 task 字段 → validatePlan 应失败
   const r = await editPlan.execute({
     op: 'replace_steps',
     steps: [
@@ -1123,4 +1117,175 @@ test('edit_plan_doc.replace_steps: 校验失败时拒绝写入', async () => {
   assert.match(r.error, /校验失败|缺少/);
 
   await planDoc.deletePlanDoc(task.id);
+});
+
+// ---------------------------------------------------------------------------
+// 已批准计划未完成就宣告收尾守卫（findApprovedPlanPendingSteps / buildIncompletePlanRecoveryMessage）
+// ---------------------------------------------------------------------------
+
+function approvedPlanSteps(doneFlags) {
+  const titles = ['步骤一', '步骤二', '步骤三'];
+  return titles.map((title, i) => ({
+    id: `step-${i + 1}`,
+    title,
+    targetType: 'world-card',
+    operation: 'update',
+    dependsOn: [],
+    task: title,
+    done: Boolean(doneFlags[i]),
+    completedAt: doneFlags[i] ? '2026-05-15T00:00:00.000Z' : null,
+  }));
+}
+
+test('findApprovedPlanPendingSteps: 已批准计划有未完成步骤时返回未完成列表', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'approved',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([true, false, false]),
+  });
+  const pending = await __testables.findApprovedPlanPendingSteps(task.id);
+  assert.ok(Array.isArray(pending));
+  assert.deepEqual(pending.map((s) => s.id), ['step-2', 'step-3']);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 全部步骤已完成时返回 null', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'approved',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([true, true, true]),
+  });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 计划处于 awaiting_approval（未批准）时不触发', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '测试计划',
+    status: 'awaiting_approval',
+    createdAt: 'x',
+    intent: 'i',
+    assumptions: [],
+    steps: approvedPlanSteps([false, false, false]),
+  });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+  await planDoc.deletePlanDoc(task.id);
+});
+
+test('findApprovedPlanPendingSteps: 没有计划文档（已删除/从未创建）时返回 null', async () => {
+  const task = taskStore.createTask({ context: {} });
+  assert.equal(await __testables.findApprovedPlanPendingSteps(task.id), null);
+});
+
+test('buildIncompletePlanRecoveryMessage: 列出未完成 stepId 与标题，超过 5 条折叠', () => {
+  const steps = Array.from({ length: 7 }, (_, i) => ({ id: `step-${i + 1}`, title: `步骤${i + 1}` }));
+  const msg = __testables.buildIncompletePlanRecoveryMessage(steps);
+  assert.match(msg, /step-1/);
+  assert.match(msg, /step-5/);
+  assert.equal(msg.includes('step-6'), false);
+  assert.equal(msg.includes('step-7'), false);
+  assert.match(msg, /等 2 步/);
+  assert.match(msg, /dispatch_subagent/);
+  assert.match(msg, /delete_plan_doc/);
+});
+
+test('runParentAgent: 已批准计划有未完成步骤时 reply_to_user 收尾会被拦下并暂停', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '建一个世界',
+    status: 'approved',
+    createdAt: 'x',
+    intent: '测试计划未完成即收尾',
+    assumptions: [],
+    steps: approvedPlanSteps([true, false, false]),
+  });
+  setReplyToUser('都做完了');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'paused');
+  assert.equal(task.error, 'harness recoverable pause');
+  assert.ok(parsed.some((e) => e.type === 'paused'));
+  assert.equal(parsed.some((e) => e.type === 'task_completed'), false);
+  const harnessStep = task.messages.find((m) => m.role === 'step' && typeof m.stepId === 'string' && m.stepId.startsWith('harness-'));
+  assert.ok(harnessStep, '应有一条 harness step 记录');
+  assert.match(harnessStep.title, /还没标记完成/);
+  assert.match(harnessStep.title, /step-2/);
+  assert.match(harnessStep.title, /step-3/);
+  assert.equal(task.messages.some((m) => m.role === 'assistant' && m.content === '都做完了'), false);
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
+test('runParentAgent: 已批准计划全部步骤完成时 reply_to_user 收尾正常完成，不被拦', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '建一个世界',
+    status: 'approved',
+    createdAt: 'x',
+    intent: '测试计划已全部完成',
+    assumptions: [],
+    steps: approvedPlanSteps([true, true, true]),
+  });
+  setReplyToUser('都做完了');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'completed');
+  assert.ok(parsed.some((e) => e.type === 'task_completed'));
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
+});
+
+test('runParentAgent: 没有计划的 ad-hoc 场景不受计划完整性守卫影响（无工具调用路径）', async () => {
+  process.env.MOCK_LLM_TOOL_CALLS = JSON.stringify([]);
+  process.env.MOCK_LLM_COMPLETE = '这是不涉及任何计划的直接回答。';
+  const task = taskStore.createTask({ context: {} });
+  taskStore.attachSse(task.id, { write: () => {} });
+
+  await runParentAgent(task, '随便问个问题');
+
+  assert.equal(task.status, 'completed');
+  clearMockEnv();
+});
+
+test('runParentAgent: 计划处于 awaiting_approval（未批准）时守卫不触发', async () => {
+  const task = taskStore.createTask({ context: {} });
+  await planDoc.writePlanDoc(task.id, {
+    title: '待审批计划',
+    status: 'awaiting_approval',
+    createdAt: 'x',
+    intent: '测试未批准计划不受守卫影响',
+    assumptions: [],
+    steps: approvedPlanSteps([false, false, false]),
+  });
+  setReplyToUser('确认一下');
+  const events = [];
+  taskStore.attachSse(task.id, { write: (l) => events.push(l) });
+
+  await runParentAgent(task, '继续');
+
+  const parsed = events.map(parseEventLine).filter(Boolean);
+  assert.equal(task.status, 'completed');
+  assert.ok(parsed.some((e) => e.type === 'task_completed'));
+
+  await planDoc.deletePlanDoc(task.id).catch(() => {});
+  clearMockEnv();
 });

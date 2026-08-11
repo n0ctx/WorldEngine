@@ -656,7 +656,6 @@ function normalizeRegexRuleChanges(changes) {
   };
 }
 
-const VALID_ENTRY_CONDITION_OPERATORS = new Set(['eq', 'ne', 'gt', 'lt', 'gte', 'lte', 'contains', 'not_contains']);
 const VALID_TRIGGER_TYPES = new Set(['always', 'keyword', 'llm', 'state']);
 const VALID_RUNTIME_ENTRY_CONDITION_OPERATORS = new Set(['>', '<', '=', '>=', '<=', '!=', '包含', '等于', '不包含']);
 const CONDITION_OPERATOR_ALIASES = {

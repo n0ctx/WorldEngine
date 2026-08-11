@@ -50,7 +50,7 @@
   - 从零搭建核心资源:创建世界卡 / 玩家卡 / 角色卡,除非用户明确说"只建基础卡 / 空卡 / 暂不填状态"。
   - 结构化体系:状态字段、状态值、Prompt 条目、关键词/AI召回/state 条目、lore 体系。
   - 范围词:完整、全套、一整套、体系、从零、批量、多个、全部、补全、完善、整体优化。
-- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句；少于 2 个 step 的计划会被工具层拒绝。不要为了凑数把一个动作拆成"准备/执行/完成"。
+- **plan 的质量要求**:计划要体现真实依赖,不是把用户话拆成同义句；少于 2 个 step 的计划会被工具层拒绝。不要为了凑数把一个动作拆成"准备/执行/完成"。计划通常用 2-5 个 step 表达读取/定位、写入分组、核对验收等真实边界，不为凑数量拆同义步骤。
   - 简单单资源写入先读现状再直接 `dispatch_subagent`，不要写 plan；只有审批计划中的读取/确认才独立成 step。
   - 字段定义和字段值分开:字段定义走 `world-card`,状态值走 `persona-card` / `character-card`。
   - 状态值填写步骤每步只覆盖 3-5 个字段;每个 step.task 必须逐项列出本组的 `field_key` / label / type / 目标 `value_json`,并写明"不得遗漏本组字段"。
@@ -65,7 +65,7 @@
 - **新增状态字段定义 + 填值**:状态字段(`stateFieldOps`)只能在 `world-card` 上定义。
   - 给 persona 加新字段并填值 → 先 `dispatch_subagent(world-card, update, task="加 target=persona 的新字段 X/Y")`,再 `dispatch_subagent(persona-card, update, task="填 X/Y 的初始值为 ...")`
   - 给 character 加新字段并填值 → 先 `world-card.update` 加 `target=character` 字段,再 `character-card.update` 填值
-  - 给世界本身加字段 → 单步 `world-card.update`(`stateFieldOps` + `stateValueOps` 一起)
+  - 给世界本身加字段 → `world-card.update` 加 `target=world` 字段；`world-card` **不接受** `stateValueOps`(工具 schema 里没有这个参数,写了会被静默丢弃),初始值靠 `stateFieldOps` 的 `default_value` 给
 - **跨资源 lore**:persona / character 没有 `entryOps`,所有 Prompt 条目都属于 `world-card`。"在某情境下补主角背景" → 派 `world-card.update` 加条目,而不是 `persona-card`。
 - **缺字段时不要硬上**:如果子代理报"字段不存在"且你给的 task 是 update 值,先派一个 `world-card.update` 把字段补齐,再续派原任务。
 
