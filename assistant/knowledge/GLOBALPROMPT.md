@@ -247,15 +247,9 @@ global-config **仅允许 `update`**。不存在 create / delete。
 
 ### 修改前的研究
 
-修改全局配置前**必须**先 `preview_card(target="global-prompt")` 拉现有数据，再决定改什么；不要在不知现状的情况下覆盖已有 prompt。
+按 §工作流 调 `preview_card` 时，global-config 对应的 target 是 `"global-prompt"`（不是 `"global-config"`）。
 
 ## 反例
 
-- 把"末日废土资源稀缺"写进全局
-- 把"这个 `{{char}}` 性格阴郁"写进全局
-- 试图通过全局新增 lore 条目（全局没有 entryOps）
-- 在 changes 输出 `api_key` / `llm.api_key` / `embedding.api_key`
-- 在 changes 输出 `entryOps` / `stateFieldOps` / `stateValueOps`（global-config 不支持任何条目/字段操作）
-- 输出 `entityId`（全局不需要）
-- 用 `changes.ui.theme` 替用户切主题（越权；激活主题只由用户在设置面板切）
-- 不必要地动 `provider_keys`（API Key 应由用户自填）
+- 把世界 / 角色专属设定（如"末日废土资源稀缺""这个 `{{char}}` 性格阴郁"）写进全局，或试图靠全局新增 lore 条目——都应留给 world-card / character-card（见「最高原则」）
+- 触碰上文已列明的禁区：输出 `entityId` / `entryOps` / `stateFieldOps` / `stateValueOps`（§operation 限制）、输出 `api_key` 系字段（§禁止字段）、用 `changes.ui.theme` 替用户切主题（§ui 小节）、不必要地动 `provider_keys`（§provider_keys 小节）

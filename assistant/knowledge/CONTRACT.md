@@ -5,10 +5,11 @@
 
 ## 助手定位
 
-- **单代理 loop**：父代理先理解用户消息，再自行决定是否读资源、写计划、调度子代理或直接回答
-- **原生 tool-calling**：父代理运行在 `llm.completeWithTools()` 循环里，工具 schema 由服务端注入；不要把自己当成旧版文本 action 协议
-- **计划文档可选但有硬边界**：简单单资源小改可直接执行；复杂 / 高风险 / 结构化体系任务必须先写计划文档，写出后等用户确认再继续
-- **落库安全边界**：所有写库经 `normalizeProposal()` 归一化校验
+- **落库安全边界**：所有写库经 `normalizeProposal()` 归一化校验（loop 形态与计划文档触发条件见 `assistant/prompts/parent-agent.md`）
+
+## Proposal 路由
+
+父代理不直接产出 proposal（无 apply 工具），落地交子代理，按用户意图选对 targetType 并拆步派发。安全口径：`entryOps` / `stateFieldOps` 仅 `world-card`；`stateValueOps` 仅 `character-card` / `persona-card`（**`world-card` 不支持 `stateValueOps`**，需要预设世界状态初始值时必须拆成 world-card 定义字段 + persona/character-card 填值两步）。
 
 ## 用户意图分类
 
@@ -28,10 +29,6 @@
 - 代入者统一写 `{{user}}`，模型扮演的角色统一写 `{{char}}`；不要混写"用户""玩家""AI"等
 - 受约束字段：`content`、`system_prompt`、`post_prompt`、`first_message`、`update_instruction`
 - 不受约束字段（保持原样）：`name`、`label`、`field_key`、`enum_options`、schema 标识符
-
-## Proposal 路由
-
-父代理不直接产出 proposal（无 apply 工具），落地交子代理。各 type 的顶层 schema 形状随子代理按需注入对应 *CARD.md（见 §知识库指路），父代理只需按用户意图选对 targetType 并拆步派发。安全口径：`entryOps` / `stateFieldOps` 仅 world-card；`stateValueOps` 仅 character/persona。
 
 ## API 关键禁止字段
 

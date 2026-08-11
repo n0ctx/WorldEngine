@@ -319,12 +319,10 @@ export async function buildPrompt(sessionId, options = {}) {
   // [12] 历史消息：稳定使用原始消息窗口。
   const uncompressedMessages = getUncompressedMessagesBySessionId(sessionId);
   const history = sliceCompletedHistoryByRounds(uncompressedMessages, config.context_history_rounds ?? 12, { keepLatestUser: continuation });
+  // 历史里不回灌旧的 <next_prompt> 选项块：它们会变成同格式的 few-shot 示范，
+  // 把新一轮选项拽回"延续上文"的老路，且新选项存回历史后自我强化。
   for (const msg of history) {
-    let content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
-    if (config.suggestion_enabled && msg.role === 'assistant' && msg.next_options?.length > 0) {
-      const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', world.id, 'chat');
-      content += `\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
-    }
+    const content = applyRules(msg.content, 'prompt_only', world.id, 'chat');
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
   log.debug(`│  [12] history  raw_messages=${history.length}`);
@@ -594,12 +592,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
     writing.context_history_rounds ?? config.context_history_rounds ?? 12,
     { keepLatestUser: continuation },
   );
+  // 同 chat 版：历史里不回灌旧的 <next_prompt> 选项块，避免变成延续型选项的 few-shot 示范。
   for (const msg of history) {
-    let content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
-    if (writing.suggestion_enabled && msg.role === 'assistant' && msg.next_options?.length > 0) {
-      const optionsText = applyRules(msg.next_options.join('\n'), 'prompt_only', world.id, 'writing');
-      content += `\n\n<next_prompt>\n${optionsText}\n</next_prompt>`;
-    }
+    const content = applyRules(msg.content, 'prompt_only', world.id, 'writing');
     messages.push(formatMessageForLLM({ ...msg, content }));
   }
 

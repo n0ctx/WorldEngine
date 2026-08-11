@@ -1,6 +1,6 @@
 // 统一的 <think>/<thinking> 推理块清洗工具。
 //
-// 历史上 sub-agent.js / parent-agent.js / tools/extract-json.js 各自实现了一份，
+// 历史上 sub-agent.js / parent-agent.js 各自实现了一份，
 // 覆盖的标签变体（think vs thinking）、是否处理未闭合块各不相同，模型换 think 风格时
 // 只有部分路径生效。此处收口为单一真源。
 //

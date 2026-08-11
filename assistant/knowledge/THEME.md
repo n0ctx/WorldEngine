@@ -126,11 +126,8 @@ WorldEngine 颜色 / 字体 / 圆角 / 阴影 / z-index 都通过 `--we-*` 变�
 
 ## 反例
 
-- create 时不给 entityId（×）；id 含大写或空格（×）
-- update / delete 时不先 preview_card（×，会被闸门拒绝）
 - 在 `changes.css` 里写组件选择器（`.we-message-bubble-assistant { ... }`）→ 改用 `css-snippet`
 - 在 `changes.css` 里嵌 `@font-face` 或 `@import url(...)` → 禁止
 - 把"想换某个气泡颜色"这类一处覆盖做成新主题 → 应改用 `css-snippet`
 - create 时 `css` 字段为空字符串 / 缺失
-- delete 时 `changes` 不为 `{}`
 - 修改完主题后调 `setActiveTheme` 或试图替用户切换 → **越权**，激活态只由用户在设置面板控制

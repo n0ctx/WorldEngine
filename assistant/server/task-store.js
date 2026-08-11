@@ -40,6 +40,7 @@ function cloneTaskForPersist(task) {
     messages: Array.isArray(task.messages) ? task.messages : [],
     pendingUserMessages: Array.isArray(task.pendingUserMessages) ? task.pendingUserMessages : [],
     planDocContent: typeof task.planDocContent === 'string' ? task.planDocContent : '',
+    planDocData: task.planDocData ?? null,
     modelContext: task.modelContext ?? null,
     createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
     currentStepId: task.currentStepId ?? null,
@@ -90,6 +91,7 @@ function hydrateTask(data) {
     messages: normalizeRecoveredUiMessages(data.messages),
     pendingUserMessages: Array.isArray(data.pendingUserMessages) ? data.pendingUserMessages : [],
     planDocContent: typeof data.planDocContent === 'string' ? data.planDocContent : '',
+    planDocData: data.planDocData ?? null,
     modelContext: data.modelContext ?? null,
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : Date.now(),
     currentStepId: data.currentStepId ?? null,
@@ -287,6 +289,7 @@ export function createTask({ context } = {}) {
     messages: [],
     pendingUserMessages: [],
     planDocContent: '',
+    planDocData: null,
     modelContext: null,
     createdAt: now,
     currentStepId: null,
@@ -556,6 +559,17 @@ export function setPlanDocContent(id, content) {
   const next = typeof content === 'string' ? content : '';
   if (t.planDocContent === next) return;
   t.planDocContent = next;
+  touch(t);
+  persist(t);
+}
+
+// 结构化计划数据的内存镜像；不发 SSE 事件（前端不消费它，只消费 planDocContent 渲染出的 md）。
+export function setPlanDocData(id, data) {
+  const t = tasks.get(id);
+  if (!t) return;
+  const next = data ?? null;
+  if (JSON.stringify(t.planDocData ?? null) === JSON.stringify(next)) return;
+  t.planDocData = next;
   touch(t);
   persist(t);
 }
