@@ -90,7 +90,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
   }),
 }));
 vi.mock('../../src/pages/WritingSpacePage/components/NearbyPanel.jsx', () => ({ default: () => <div data-testid="nearby" /> }));
-vi.mock('../../src/pages/WritingSpacePage/components/WritingSessionList.jsx', () => ({ default: mocks.WritingSessionListMock }));
+vi.mock('../../src/components/session/WorldTimelinePanel.jsx', () => ({ default: mocks.WritingSessionListMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));

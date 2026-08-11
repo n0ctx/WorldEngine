@@ -6,9 +6,8 @@ import Icon from '../../../components/ui/Icon.jsx';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getWorlds } from '../../../core/api/worlds.js';
 import { getCharacter } from '../../../core/api/characters.js';
-import { getLatestSession } from '../../../core/api/sessions.js';
-import { log } from '../../../core/utils/logger.js';
 import useStore from '../../../core/state/index.js';
+import useCurrentStoryStore from '../../../core/state/currentStory.js';
 import { useAssistantPanel } from '../../../core/features/assistant/index.js';
 import DanmakuLayer from '../../../components/chat/DanmakuLayer.jsx';
 import { useDanmakuBandStore } from '../../../core/state/danmakuBand.js';
@@ -24,7 +23,7 @@ export default function TopBar() {
   const setCurrentWorldId = useStore((s) => s.setCurrentWorldId);
   const setCurrentCharacterId = useStore((s) => s.setCurrentCharacterId);
   const setCurrentSessionId = useStore((s) => s.setCurrentSessionId);
-  const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
+  const storyTitle = useCurrentStoryStore((s) => s.title);
   const toggleAssistant = useAssistantPanel((s) => s.toggle);
   const isAssistantOpen = useAssistantPanel((s) => s.isOpen);
   const danmakuComments = useDanmakuBandStore((s) => s.comments);
@@ -125,132 +124,111 @@ export default function TopBar() {
 
   const isWorldsList = topbarPathname === '/';
 
+  // 面包屑第三级（叶子节点）：世界层之下的具体页面。
+  // 只在能明确归类到某个已知页面时才显示；否则叶子留空，面包屑到「世界」这一级为止。
+  let leafLabel = null;
+  if (!isWorldsList && effectiveWorldId) {
+    if (topbarPathname === `/worlds/${effectiveWorldId}/rules`) {
+      leafLabel = '规则';
+    } else if (topbarPathname === `/worlds/${effectiveWorldId}/edit`) {
+      leafLabel = '编辑世界';
+    } else if (/^\/characters\/[\w-]+\/chat$/.test(topbarPathname)) {
+      leafLabel = storyTitle || '对话';
+    } else if (topbarPathname === `/worlds/${effectiveWorldId}/writing`) {
+      leafLabel = storyTitle || '写作';
+    }
+  }
+  // 世界层是最后一级时（世界主页本身），用高对比样式标出「当前位置」。
+  const worldIsCurrentLevel = !isWorldsList && effectiveWorldId && !leafLabel;
+
   return (
     <div className="we-topbar">
-      <div ref={dropdownRef} className="we-topbar-world-wrap">
-        {isWorldsList ? (
-          <span className="we-topbar-item we-topbar-item--static">
-            世界列表
-          </span>
-        ) : (
+      {isWorldsList ? (
+        <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">WorldEngine</span>
+      ) : (
         <button
-          className={`we-topbar-item${currentWorld ? ' we-topbar-item--active' : ''}`}
-          onClick={() => setDropdownOpen((o) => !o)}
-          aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
-          aria-expanded={dropdownOpen}
-          aria-haspopup="listbox"
+          className="we-topbar-item"
+          onClick={() => navigate('/')}
+          aria-label="返回书架"
         >
-          {currentWorld?.name ?? '选择世界'}
-          <motion.span
-            className="we-topbar-caret"
-            animate={{ rotate: dropdownOpen ? 180 : 0 }}
-            transition={{ duration: DURATION.quick, ease: EASE.sharp }}
-            aria-hidden="true"
-          >
-            <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
-          </motion.span>
+          书架
         </button>
-        )}
-
-        <AnimatePresence>
-          {dropdownOpen && (
-            <motion.div
-              className="we-topbar-dropdown"
-              initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
-              animate={{ opacity: 1, scaleY: 1,    y: 0 }}
-              exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
-              transition={{ duration: DURATION.quick, ease: EASE.ink }}
-            >
-              {worldsLoading ? (
-                <div className="we-topbar-dropdown-empty">
-                  加载中…
-                </div>
-              ) : worlds.length === 0 ? (
-                <div className="we-topbar-dropdown-empty">
-                  暂无世界记录
-                </div>
-              ) : null}
-              {!worldsLoading && worlds.map((w) => (
-                <button
-                  key={w.id}
-                  className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
-                  onClick={() => {
-                    setDropdownOpen(false);
-                    setCurrentWorldId(w.id);
-                    setCurrentCharacterId(null);
-                    setCurrentSessionId(null);
-                    navigate(`/worlds/${w.id}`);
-                  }}
-                >
-                  {w.name}
-                </button>
-              ))}
-              {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
-              <button
-                className="we-topbar-dropdown-list-btn"
-                onClick={() => { setDropdownOpen(false); navigate('/'); }}
-              >
-                前往世界列表
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      )}
 
       {!isWorldsList && effectiveWorldId && (
         <>
-          <span className="we-topbar-sep">·</span>
+          <span className="we-topbar-sep" aria-hidden="true">/</span>
+          <div ref={dropdownRef} className="we-topbar-world-wrap">
+            <button
+              className={`we-topbar-item${worldIsCurrentLevel ? ' we-topbar-item--active' : ''}`}
+              onClick={() => setDropdownOpen((o) => !o)}
+              aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
+              aria-expanded={dropdownOpen}
+              aria-haspopup="listbox"
+              aria-current={worldIsCurrentLevel ? 'page' : undefined}
+            >
+              {currentWorld?.name ?? '选择世界'}
+              <motion.span
+                className="we-topbar-caret"
+                animate={{ rotate: dropdownOpen ? 180 : 0 }}
+                transition={{ duration: DURATION.quick, ease: EASE.sharp }}
+                aria-hidden="true"
+              >
+                <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
+              </motion.span>
+            </button>
 
-          <button
-            className={`we-topbar-item${
-              /^\/characters\/[\w-]+\/chat$/.test(topbarPathname) ||
-              topbarPathname === `/worlds/${effectiveWorldId}/writing`
-                ? ' we-topbar-item--active'
-                : ''
-            }`}
-            onClick={async () => {
-              try {
-                const session = await getLatestSession(effectiveWorldId);
-                if (!session) {
-                  log.info('暂无会话记录');
-                  return;
-                }
-                if (session.mode === 'writing') {
-                  setCurrentWritingSessionId(session.id);
-                  navigate(`/worlds/${effectiveWorldId}/writing`);
-                } else {
-                  setCurrentCharacterId(session.character_id);
-                  setCurrentSessionId(session.id);
-                  navigate(`/characters/${session.character_id}/chat`);
-                }
-              } catch (e) {
-                log.error('加载最近会话失败', e);
-              }
-            }}
-            aria-label="进入最近会话"
-          >
-            会话
-          </button>
+            <AnimatePresence>
+              {dropdownOpen && (
+                <motion.div
+                  className="we-topbar-dropdown"
+                  initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
+                  animate={{ opacity: 1, scaleY: 1,    y: 0 }}
+                  exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
+                  transition={{ duration: DURATION.quick, ease: EASE.ink }}
+                >
+                  {worldsLoading ? (
+                    <div className="we-topbar-dropdown-empty">
+                      加载中…
+                    </div>
+                  ) : worlds.length === 0 ? (
+                    <div className="we-topbar-dropdown-empty">
+                      暂无世界记录
+                    </div>
+                  ) : null}
+                  {!worldsLoading && worlds.map((w) => (
+                    <button
+                      key={w.id}
+                      className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        setCurrentWorldId(w.id);
+                        setCurrentCharacterId(null);
+                        setCurrentSessionId(null);
+                        navigate(`/worlds/${w.id}`);
+                      }}
+                    >
+                      {w.name}
+                    </button>
+                  ))}
+                  {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
+                  <button
+                    className="we-topbar-dropdown-list-btn"
+                    onClick={() => { setDropdownOpen(false); navigate('/'); }}
+                  >
+                    前往世界列表
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </>
+      )}
 
-          <span className="we-topbar-sep">·</span>
-
-          <button
-            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}` ? ' we-topbar-item--active' : ''}`}
-            onClick={() => navigate(`/worlds/${effectiveWorldId}`)}
-            aria-label="进入故事页"
-          >
-            故事
-          </button>
-
-          <span className="we-topbar-sep">·</span>
-
-          <button
-            className={`we-topbar-item${topbarPathname === `/worlds/${effectiveWorldId}/rules` ? ' we-topbar-item--active' : ''}`}
-            onClick={() => navigate(`/worlds/${effectiveWorldId}/rules`)}
-            aria-label="进入规则页"
-          >
-            规则
-          </button>
+      {leafLabel && (
+        <>
+          <span className="we-topbar-sep" aria-hidden="true">/</span>
+          <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">{leafLabel}</span>
         </>
       )}
 

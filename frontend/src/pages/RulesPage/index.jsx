@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { BackButton } from '../../components';
+import { useParams, useSearchParams } from 'react-router-dom';
 import StateFieldEditor from '../../components/state/StateFieldEditor';
 import StateValueField from '../../components/state/StateValueField';
 import EntryEditor from '../../components/state/EntryEditor';
@@ -71,7 +70,6 @@ const UNGROUPED = '__ungrouped__';
 
 export default function RulesPage() {
   const { worldId } = useParams();
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // ── 设定条目 ──
@@ -208,7 +206,7 @@ export default function RulesPage() {
 
   return (
     <div className="we-characters-canvas">
-      <BackButton onClick={() => navigate(-1)} label="返回" />
+      {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
 
       <div className="we-workshop">
         <header className="we-workshop-header">

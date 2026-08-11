@@ -858,6 +858,7 @@ export function useWritingStream({ worldId, messageListRef, inputBoxRef, optionC
 
   return {
     currentSession,
+    setCurrentSession,
     generating,
     streamingText,
     streamingKey,

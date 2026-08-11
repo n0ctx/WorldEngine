@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import useStore from '../../core/state/index.js';
+import useCurrentStoryStore from '../../core/state/currentStory.js';
 import Icon from '../../components/ui/Icon.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
 import { getCharacter } from '../../core/api/characters.js';
 import { getPersona } from '../../core/api/personas.js';
-import { getSession } from '../../core/api/sessions.js';
-import SessionListPanel from './components/SessionListPanel.jsx';
+import { getSession, createSession } from '../../core/api/sessions.js';
+import { chatSessionListBridge } from '../../core/utils/session-list-bridge.js';
+import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
 import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
@@ -26,6 +28,7 @@ import { useChatStream } from './hooks/useChatStream.js';
 
 export default function ChatPage() {
   const { characterId } = useParams();
+  const navigate = useNavigate();
 
   const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
   const { currentSessionId, setCurrentSessionId, currentCharacterId, setCurrentCharacterId } = useStore();
@@ -69,9 +72,7 @@ export default function ChatPage() {
     messageListKey,
     setPendingDiaryInject,
     impersonating,
-    handleSessionSelect,
     handleSessionCreate,
-    handleSessionDelete,
     handleSend,
     handleStop,
     handleEditMessage,
@@ -149,17 +150,56 @@ export default function ChatPage() {
     loadRules('chat').catch(() => {});
   }, []);
 
+  // 当前故事线标题同步给 TopBar 面包屑；离开页面清空，避免残留
+  const setStoryTitle = useCurrentStoryStore((s) => s.setStoryTitle);
+  useEffect(() => {
+    setStoryTitle(currentSession?.title || (character ? `与${character.name}的对话` : null));
+  }, [currentSession?.title, character, setStoryTitle]);
+  useEffect(() => () => setStoryTitle(null), [setStoryTitle]);
+
+  // 新建对话会话：绑定当前角色，创建后通过 bridge 合并进左侧时间线，再进入该会话
+  async function handleCreateChatSession() {
+    if (!character) return;
+    try {
+      const session = await createSession(character.id);
+      chatSessionListBridge.addSession?.(session);
+      handleSessionCreate(session);
+    } catch (e) {
+      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
+    }
+  }
+
   return (
     <PageLayout
       leftLabel="会话列表"
       rightLabel="状态面板"
       left={(
-        <SessionListPanel
-          character={character}
+        <WorldTimelinePanel
+          worldId={character?.world_id ?? null}
+          currentMode="chat"
           currentSessionId={currentSessionId}
-          onSessionSelect={handleSessionSelect}
-          onSessionCreate={handleSessionCreate}
-          onSessionDelete={handleSessionDelete}
+          onActiveSessionDeleted={clearActiveSession}
+          onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
+          headerLeft={(
+            <button
+              onClick={() => navigate(`/worlds/${character?.world_id}`)}
+              title="切换角色"
+              className="we-session-list-back"
+            >
+              <Icon size={16}>
+                <polyline points="15 18 9 12 15 6" />
+              </Icon>
+            </button>
+          )}
+          headerRight={(
+            <button onClick={handleCreateChatSession} className="we-session-list-create">
+              <Icon size={16} strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </Icon>
+              新建会话
+            </button>
+          )}
         />
       )}
       recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}

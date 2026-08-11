@@ -18,7 +18,7 @@ import { listWorldEntries } from '../core/api/prompt-entries';
 import { listWorldStateFields } from '../core/api/world-state-fields';
 import { getWorldTimeline } from '../core/api/sessions';
 import { createWritingSession } from '../core/api/writing-sessions';
-import { ConfirmModal, BackButton, AvatarCircle, SortableList } from '../components';
+import { ConfirmModal, AvatarCircle, SortableList } from '../components';
 import DragHandle from '../components/ui/DragHandle.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { relativeTime } from '../core/utils/time.js';
@@ -470,8 +470,7 @@ export default function CharactersPage() {
 
   return (
     <div className="we-characters-canvas">
-      {/* 导航 */}
-      <BackButton onClick={() => navigate('/')} label="书架" />
+      {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
 
       {/* 世界层：左宽（故事线）右窄（角色 / 我扮演 / 世界规则） */}
       <div className="we-worldhub-layout">

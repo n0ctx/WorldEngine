@@ -72,10 +72,6 @@ vi.mock('../../src/core/utils/logger.js', () => ({
   log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: (...args) => mocks.logError(...args) },
 }));
 
-vi.mock('../../src/components', () => ({
-  BackButton: ({ label }) => <button>{label}</button>,
-}));
-
 // EntryEditor / StateFieldEditor / StateValueField 都是复杂子组件，这里只关心 RulesPage 自身的
 // 分组导航、列表筛选、启用开关、删除确认这些结构性行为，子组件内部逻辑各自有单测覆盖。
 vi.mock('../../src/components/state/EntryEditor', () => ({

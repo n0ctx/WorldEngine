@@ -88,7 +88,6 @@ vi.mock('../../src/components', () => ({
       <button onClick={onClose}>取消</button>
     </div>
   ),
-  BackButton: ({ onClick, label }) => <button onClick={onClick}>{label}</button>,
   AvatarCircle: ({ name }) => <div>{name}</div>,
   SortableList: ({ items, renderItem }) => <div>{items.map((item) => <div key={item.id}>{renderItem(item, {})}</div>)}</div>,
 }));

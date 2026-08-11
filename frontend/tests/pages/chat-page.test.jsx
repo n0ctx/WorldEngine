@@ -44,6 +44,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
+  useNavigate: () => vi.fn(),
 }));
 vi.mock('../../src/core/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/core/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
@@ -92,7 +93,7 @@ vi.mock('../../src/components/chat/MessageList.jsx', () => ({
     );
   }),
 }));
-vi.mock('../../src/pages/ChatPage/components/SessionListPanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
+vi.mock('../../src/components/session/WorldTimelinePanel.jsx', () => ({ default: mocks.SessionListPanelMock }));
 vi.mock('../../src/components/chat/InputBox.jsx', () => ({
   default: React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({ fillText: vi.fn() }));

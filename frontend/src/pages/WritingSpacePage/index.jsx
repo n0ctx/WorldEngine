@@ -6,6 +6,7 @@ import { SETTINGS_MODE } from '../../core/constants/settings';
 import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { getPersona, getPersonaById } from '../../core/api/personas.js';
 import useStore from '../../core/state/index.js';
+import useCurrentStoryStore from '../../core/state/currentStory.js';
 import { listWritingSessions, createWritingSession } from '../../core/api/writing-sessions.js';
 import { getSession } from '../../core/api/sessions.js';
 import PageLayout from '../layout/PageLayout.jsx';
@@ -15,7 +16,7 @@ import InputBox from '../../components/chat/InputBox.jsx';
 import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
 import Pager from '../../components/chat/Pager.jsx';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
-import WritingSessionList from './components/WritingSessionList.jsx';
+import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
 import LongTermMemoryModal from '../../components/session/LongTermMemoryModal.jsx';
 import TableMemoryModal from '../../components/session/TableMemoryModal.jsx';
 import Icon from '../../components/ui/Icon.jsx';
@@ -66,6 +67,7 @@ export default function WritingSpacePage() {
   const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, optionCollapsedRef, memory });
   const {
     currentSession,
+    setCurrentSession,
     generating,
     streamingText,
     streamingKey,
@@ -87,7 +89,6 @@ export default function WritingSpacePage() {
     clearOptionsState,
     enterSession,
     handleSessionCreate,
-    handleSessionDelete,
     handleStop,
     handleSend,
     handleEditMessage,
@@ -124,6 +125,13 @@ export default function WritingSpacePage() {
     if (!personaId) return;
     getPersonaById(personaId).then(setPersona).catch(() => {});
   }, [currentSession?.persona_id]);
+
+  // 当前故事线标题同步给 TopBar 面包屑；离开页面清空，避免残留
+  const setStoryTitle = useCurrentStoryStore((s) => s.setStoryTitle);
+  useEffect(() => {
+    setStoryTitle(currentSession?.title || null);
+  }, [currentSession?.title, setStoryTitle]);
+  useEffect(() => () => setStoryTitle(null), [setStoryTitle]);
 
   // 初始化：加载或自动创建第一个会话
   // 若 currentWritingSessionId 给了目标 session（来自 TopBar「会话」入口），优先选它；
@@ -195,18 +203,65 @@ export default function WritingSpacePage() {
   // eslint-disable-next-line react-hooks/refs
   const optionCollapsed = optionCollapsedRef.current;
 
+  // 新建写作会话：创建后通过 bridge 合并进左侧时间线，再进入该会话
+  async function handleCreateWritingSession() {
+    try {
+      const session = await createWritingSession(worldId);
+      writingSessionListBridge.addSession?.(session);
+      handleSessionCreate(session);
+    } catch (e) {
+      log.error('session.create_failed', e, { toast: e.message || '创建会话失败' });
+    }
+  }
+
+  // 内联删除的正是当前打开的写作会话：写作页不允许「无会话」态，落到剩余会话里最新一条，
+  // 一条都不剩就照 init 逻辑自动新建一条——与 useWritingStream 原 handleSessionDelete 的不变量一致。
+  async function handleActiveWritingSessionDeleted() {
+    try {
+      const sessions = await listWritingSessions(worldId);
+      if (sessions.length > 0) {
+        enterSession(sessions[0]);
+        return;
+      }
+      const s = await createWritingSession(worldId);
+      writingSessionListBridge.addSession?.(s);
+      enterSession(s);
+    } catch (err) {
+      log.error('writing.session.delete_recover_failed', err, { toast: '恢复写作会话失败' });
+    }
+  }
+
   return (
     <PageLayout
       leftLabel="会话列表"
       rightLabel="附近角色与状态"
       left={(
-        <WritingSessionList
+        <WorldTimelinePanel
           worldId={worldId}
+          currentMode="writing"
           currentSessionId={currentSession?.id}
-          onSessionSelect={enterSession}
-          onSessionCreate={handleSessionCreate}
-          onSessionDelete={handleSessionDelete}
-          onBack={() => navigate(`/worlds/${worldId}`)}
+          onActiveSessionDeleted={handleActiveWritingSessionDeleted}
+          onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
+          headerLeft={(
+            <button
+              onClick={() => navigate(`/worlds/${worldId}`)}
+              title="返回世界"
+              className="we-session-list-back"
+            >
+              <Icon size={16}>
+                <polyline points="15 18 9 12 15 6" />
+              </Icon>
+            </button>
+          )}
+          headerRight={(
+            <button onClick={handleCreateWritingSession} className="we-session-list-create" aria-label="新建会话">
+              <Icon size={16} strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </Icon>
+              新建会话
+            </button>
+          )}
         />
       )}
       recall={{ memoryRecalling, memoryExpanding, memoryWriting, recallSummary }}

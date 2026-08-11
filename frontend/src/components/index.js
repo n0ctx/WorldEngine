@@ -35,4 +35,3 @@ export { default as ConfirmModal }    from './ui/ConfirmModal';
 export { default as AvatarCircle }    from './ui/AvatarCircle';
 export { default as SortableList }    from './ui/SortableList';
 export { default as SortableGrid }    from './ui/SortableGrid';
-export { default as BackButton }      from './ui/BackButton';
