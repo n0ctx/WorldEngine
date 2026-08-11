@@ -133,7 +133,16 @@ function useDragAwareClick(onClick) {
     }
   };
 
-  return { onMouseDown, onClick: handleClick };
+  // 键盘激活不走拖动判定：Enter / Space 直接触发。
+  // 卡片内部的编辑/删除按钮也会冒泡 keydown，用 target 判断挡掉，避免一次按键触发两个动作。
+  const onKeyDown = (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target !== e.currentTarget) return;
+    e.preventDefault();
+    onClick?.(e);
+  };
+
+  return { onMouseDown, onClick: handleClick, onKeyDown };
 }
 
 // ── PersonaCard（内联组件）─────────────────────────────────────────────────
@@ -146,8 +155,11 @@ function PersonaCard({ persona, dragHandleProps, onActivate, onEdit, onDelete, o
   return (
     <div
       className={`we-persona-card${isActive ? ' we-persona-card--active' : ' we-persona-card--inactive'}`}
+      role={isActive ? 'button' : undefined}
+      tabIndex={isActive ? 0 : undefined}
       onMouseDown={isActive ? clickProps.onMouseDown : undefined}
       onClick={isActive ? clickProps.onClick : undefined}
+      onKeyDown={isActive ? clickProps.onKeyDown : undefined}
       aria-disabled={isActive ? undefined : true}
       title={isActive ? undefined : '先激活该玩家卡再进入写作'}
       style={isActive ? undefined : { cursor: 'not-allowed' }}
@@ -225,8 +237,11 @@ function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete })
   return (
     <div
       className="we-character-card"
+      role="button"
+      tabIndex={0}
       onMouseDown={clickProps.onMouseDown}
       onClick={clickProps.onClick}
+      onKeyDown={clickProps.onKeyDown}
     >
       <div className="we-character-card-body">
         <span className="we-char-drag" {...dragHandleProps}><DragHandle /></span>

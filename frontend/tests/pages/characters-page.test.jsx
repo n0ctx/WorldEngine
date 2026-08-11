@@ -129,6 +129,64 @@ describe('CharactersPage', () => {
     await waitFor(() => expect(mocks.readJsonFile).toHaveBeenCalled());
     await waitFor(() => expect(mocks.importCharacter).toHaveBeenCalledWith('world-1', expect.any(Object)));
   });
+
+  it('角色卡可聚焦，Enter 键进入对话', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    const card = document.querySelector('.we-character-card');
+    expect(card).toHaveAttribute('role', 'button');
+    expect(card).toHaveAttribute('tabindex', '0');
+
+    fireEvent.keyDown(card, { key: 'Enter' });
+
+    expect(mocks.setCurrentCharacterId).toHaveBeenCalledWith('char-1');
+    expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat');
+  });
+
+  it('角色卡上 Space 键进入对话，内部按钮的按键不冒泡触发卡片', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('阿塔');
+
+    const card = document.querySelector('.we-character-card');
+    fireEvent.keyDown(card, { key: ' ' });
+    expect(mocks.navigate).toHaveBeenCalledWith('/characters/char-1/chat');
+
+    mocks.navigate.mockClear();
+    fireEvent.keyDown(screen.getByLabelText('编辑角色'), { key: 'Enter', bubbles: true });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it('激活的玩家卡可聚焦，Enter 键进入写作页', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('旅者');
+
+    const card = document.querySelector('.we-persona-card');
+    expect(card).toHaveAttribute('role', 'button');
+    expect(card).toHaveAttribute('tabindex', '0');
+
+    fireEvent.keyDown(card, { key: 'Enter' });
+
+    expect(mocks.setCurrentWritingSessionId).toHaveBeenCalledWith(null);
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/writing');
+  });
+
+  it('未激活的玩家卡不可聚焦，按键不触发跳转', async () => {
+    mocks.listPersonas.mockResolvedValue([
+      { id: 'persona-1', name: '旅者', description: '主角', is_active: 1 },
+      { id: 'persona-2', name: '影子', description: '备用', is_active: 0 },
+    ]);
+    render(<CharactersPage />);
+    await screen.findAllByText('影子');
+
+    const cards = document.querySelectorAll('.we-persona-card');
+    const inactive = cards[1];
+    expect(inactive).not.toHaveAttribute('role');
+    expect(inactive).not.toHaveAttribute('tabindex');
+
+    fireEvent.keyDown(inactive, { key: 'Enter' });
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
 });
 
 describe('EntryOrderPanel', () => {
