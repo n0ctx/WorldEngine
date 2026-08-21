@@ -2037,6 +2037,17 @@
   transform: scale(0.96);
 }
 
+/* 顶栏按钮：移动端触控目标 ≥ 44px（WCAG SC 2.5.5 Target Size）
+   桌面端保持上方精巧尺寸不变；仅在 max-width: 767px 下放大命中区，
+   min-width: 44px 保证纯图标按钮也满足触控目标。 */
+@media (max-width: 767px) {
+  .we-topbar-item {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 var(--we-space-md);
+  }
+}
+
 /* 面包屑当前层：非按钮，不可点，用主色系文字与其余可点层级区分 */
 .we-topbar-crumb-current {
   color: var(--we-color-gold-pale);

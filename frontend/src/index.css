@@ -69,3 +69,24 @@ body {
      padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
   min-height: 100svh;
 }
+
+/* =========================================================
+   可达性 — Skip Link（Tab 首焦直达主区，WCAG 2.1 SC 2.4.1）
+   默认移出视口不可见；键盘 focus 时回到顶栏左上角，跳过顶栏导航。
+   ========================================================= */
+.we-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  background: var(--we-color-accent);
+  color: var(--we-color-text-inverse);
+  padding: var(--we-space-sm) var(--we-space-lg);
+  z-index: var(--we-z-toast);
+  border-radius: 0 0 var(--we-radius-sm) 0;
+  font-size: var(--we-text-body);
+  text-decoration: none;
+  transition: top var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-skip-link:focus {
+  top: 0;
+}

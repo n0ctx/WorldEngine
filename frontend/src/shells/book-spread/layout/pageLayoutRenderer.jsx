@@ -48,7 +48,7 @@ export default function RenderPageLayout({
         ) : null}
         <PageRight flush>
           {header}
-          <div className="we-page-right__body">
+          <div id="we-main-content" tabIndex={-1} className="we-page-right__body">
             {main}
             {right != null ? (
               <SideDrawer side="right" open={rightOpen} onToggle={toggleRight} label={rightLabel}>

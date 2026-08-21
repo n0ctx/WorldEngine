@@ -24,6 +24,7 @@ export default function AppShell({ children, locationKey }) {
 
   return (
     <div className="we-app-root we-shell-book-spread" style={worldAccentVars ?? undefined}>
+      <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
       <TopBar />
       <GlobalToast />
       <PageLayoutRendererProvider render={RenderPageLayout}>
