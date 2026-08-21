@@ -1113,13 +1113,37 @@
   padding: var(--we-space-sm) var(--we-space-lg);
   cursor: pointer;
   box-shadow: var(--we-card-shadow);
+  position: relative;
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp),
-              transform var(--we-duration-normal) var(--we-easing-sharp);
+              transform var(--we-duration-normal) var(--we-easing-sharp),
+              background var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-storyline-item:hover {
   box-shadow: var(--we-card-hover-shadow);
-  transform: none;
+  transform: translateX(2px);
+}
+
+/* 非选中态：hover 浮一层极轻墨晕，提示"可点入"；
+   选中态（--active）已有更强底色 ink-wash-strong，hover 不冲淡它。 */
+.we-storyline-item:not(.we-storyline-item--active):hover {
+  background: var(--we-color-ink-wash);
+}
+
+/* hover 时浮现「继续」快捷图标：装饰性，aria-hidden，不参与点击/布局 */
+.we-storyline-quick {
+  position: absolute;
+  right: var(--we-space-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--we-color-text-tertiary);
+  font-size: var(--we-text-md);
+  opacity: 0;
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
+}
+
+.we-storyline-item:hover .we-storyline-quick {
+  opacity: 1;
 }
 
 /* 混编时间线在对话页/写作页复用时，当前打开的那一条打选中态 */

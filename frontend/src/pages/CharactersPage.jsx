@@ -240,6 +240,7 @@ function StorylineItem({ item, title, onClick }) {
         )}
       </div>
       <span className="we-storyline-item-time">{relativeTime(item.updated_at)}</span>
+      <span className="we-storyline-quick" aria-hidden="true">→</span>
     </div>
   );
 }
