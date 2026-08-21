@@ -216,6 +216,9 @@
   --we-parchment-fiber-opacity:   0;
   --we-spine-display:             none;
 
+  /* 无封面世界卡占位纹样：霓虹网格（赛博 HUD 风）*/
+  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 20 H40 M20 0 V40' stroke='%2300d4ff' stroke-width='0.5' fill='none' opacity='.12'/%3E%3C/svg%3E");
+
   /* ==================== 条目行 ==================== */
 
   /* ==================== 主按钮 hover：霓虹青 ==================== */

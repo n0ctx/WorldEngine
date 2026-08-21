@@ -310,6 +310,9 @@
   --we-parchment-fiber-opacity: 0;
   --we-spine-display:           none;
 
+  /* === 无封面世界卡占位纹样 === */
+  --we-world-card-pattern: none;  /* 主题可覆写为 SVG 纹样 URL */
+
   /* === 功能性渐变 Token（允许保留 linear-gradient，因含动态变量）=== */
   /* range 滑条：由 --range-pct 动态计算填充比例，无法用 color-mix 替代 */
   --we-range-track-bg: linear-gradient(

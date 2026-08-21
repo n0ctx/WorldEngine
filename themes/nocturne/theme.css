@@ -123,6 +123,9 @@
   --we-parchment-fiber-opacity: 0;
   --we-spine-display: none;
 
+  /* 无封面世界卡占位纹样：星点（夜航星图）*/
+  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='20' cy='25' r='1' fill='%23fff' opacity='.15'/%3E%3Ccircle cx='55' cy='15' r='1.4' fill='%23fff' opacity='.18'/%3E%3Ccircle cx='65' cy='60' r='1' fill='%23fff' opacity='.12'/%3E%3C/svg%3E");
+
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
 

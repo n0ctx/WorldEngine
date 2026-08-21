@@ -154,14 +154,22 @@
   z-index: var(--we-z-card-bg);
 }
 
-/* 无封面世界：低饱和色块（世界名哈希取色，压暗一档）取代原来的幽灵水印 + 圆点
-   混合比从 45/55 提到 62/38：旧比例把色相压得太暗，邻近哈希色相在深色底上
-   进一步被同化到几乎同色；提高 avatar-bg 权重以保留可辨识的色相/明度差。 */
+/* 无封面世界：渐变占位 + 主题纹样叠加，取代纯色块。
+   --avatar-bg 是 JS 哈希取色，与画布色做 135° 柔和渐变；主题可通过
+   --we-world-card-pattern 叠加 SVG 纹样（星点/墨纹/网格）提升视觉质感。 */
 .we-world-card-block {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: color-mix(in srgb, var(--avatar-bg) 62%, var(--we-color-bg-inverse) 38%);
+  /* 渐变占位：基于世界 ID 哈希色 + 画布色的柔和渐变 */
+  background:
+    var(--we-world-card-pattern, none),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--avatar-bg, var(--we-color-accent)) 60%, var(--we-color-bg-canvas) 40%),
+      color-mix(in srgb, var(--avatar-bg, var(--we-color-accent)) 30%, var(--we-color-bg-canvas) 70%)
+    );
+  background-size: cover, 100% 100%;
   z-index: var(--we-z-card-bg);
 }
 

@@ -194,6 +194,9 @@
   --we-parchment-fiber-opacity:   0.22;
   --we-spine-display:             block;
 
+  /* 无封面世界卡占位纹样：墨纹（羊皮纸上的几缕淡墨曲线）*/
+  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath d='M5 20 Q25 15 45 25 T85 30' stroke='%232a1f17' stroke-width='1' fill='none' opacity='.12'/%3E%3Cpath d='M5 55 Q30 50 55 60 T85 55' stroke='%232a1f17' stroke-width='1' fill='none' opacity='.1'/%3E%3C/svg%3E");
+
   /* 条目行：羊皮纸画布底色，无额外阴影 */
 
   /* 主按钮 hover：朱砂调 */
