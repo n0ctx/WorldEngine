@@ -14,6 +14,7 @@ import { useDisplaySettingsStore } from '../state/displaySettings';
 import { useAppModeStore } from '../state/appMode';
 import { invalidateCache, loadRules } from '../utils/regex-runner.js';
 import { useAssistantPanel } from '../features/assistant/index.js';
+import RouteFallback from '../../components/ui/RouteFallback.jsx';
 import { OVERLAY_ROUTES } from './route-constants.js';
 
 const WorldsPage = lazy(() => import('../../pages/WorldsPage'));
@@ -35,14 +36,6 @@ function RedirectToRules() {
 function RedirectToRulesState() {
   const { worldId } = useParams();
   return <Navigate to={`/worlds/${worldId}/rules?tab=state`} replace />;
-}
-
-function RouteFallback() {
-  return (
-    <div className="we-edit-canvas we-route-fallback">
-      <p className="we-edit-empty-text">页面加载中…</p>
-    </div>
-  );
 }
 
 export default function AppRouter() {

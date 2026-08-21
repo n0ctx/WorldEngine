@@ -64,7 +64,8 @@ body {
 }
 
 .we-route-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* 撑满视口，避免路由切换瞬间骨架坍缩为一小条。
+     不再用 flex 居中——骨架模拟页面内容应左对齐而非居中；
+     padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
+  min-height: 100svh;
 }
