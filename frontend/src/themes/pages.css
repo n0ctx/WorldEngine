@@ -61,28 +61,6 @@
   border: 1px solid var(--we-bookshelf-empty-border);
 }
 
-.we-worlds-import-btn {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  padding: var(--we-space-sm) var(--we-space-lg);
-  border: 1px solid var(--we-page-canvas-fg-deep);
-  border-radius: var(--we-radius-sm);
-  background: transparent;
-  color: var(--we-page-canvas-fg-muted);
-  cursor: pointer;
-  transition: all var(--we-duration-fast) var(--we-easing-sharp);
-}
-
-.we-worlds-import-btn:hover:not(:disabled) {
-  border-color: var(--we-page-canvas-fg);
-  color: var(--we-page-canvas-fg);
-}
-
-.we-worlds-import-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .we-worlds-grid {
   --we-worlds-grid-gap-x: clamp(var(--we-space-lg), 2vw, var(--we-space-2xl));
   --we-worlds-grid-gap-y: var(--we-space-lg);

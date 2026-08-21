@@ -128,7 +128,7 @@ export default function WorldsPage() {
           <button
             onClick={() => worldImportRef.current?.click()}
             disabled={importingWorld}
-            className="we-worlds-import-btn"
+            className="we-btn we-btn-ghost"
           >
             {importingWorld ? '导入中…' : '导入世界卡'}
           </button>
