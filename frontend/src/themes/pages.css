@@ -886,6 +886,23 @@
   font-style: italic;
 }
 
+/* 角色名册空简介引导：虚线下划线提示可补全，hover 加深增强引导 */
+.we-character-card-desc--empty {
+  color: var(--we-color-text-tertiary);
+  font-style: italic;
+  cursor: pointer;
+  border-bottom: 1px dashed var(--we-color-border-default);
+  display: inline-block;
+  padding-bottom: 1px;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp),
+              border-color var(--we-duration-fast) var(--we-easing-sharp);
+}
+
+.we-character-card-desc--empty:hover {
+  color: var(--we-color-text-secondary);
+  border-color: var(--we-color-border-strong);
+}
+
 .we-character-card-actions {
   position: absolute;
   top: 10px;

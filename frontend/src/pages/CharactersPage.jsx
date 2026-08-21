@@ -168,7 +168,9 @@ function CharacterCard({ char, dragHandleProps, onCardClick, onEdit, onDelete })
           {char.description ? (
             <p className="we-character-card-desc">{char.description}</p>
           ) : (
-            <p className="we-character-card-desc we-character-card-desc-empty">暂无简介</p>
+            <p className="we-character-card-desc we-character-card-desc--empty">
+              为 {char.name} 写一句简介
+            </p>
           )}
         </div>
       </div>
