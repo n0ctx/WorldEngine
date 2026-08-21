@@ -1922,12 +1922,39 @@
   flex-shrink: 0;
   background: var(--we-topbar-bg);
   border-bottom: 1px solid var(--we-topbar-border);
-  display: flex;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   padding: 0 var(--we-space-lg);
-  gap: var(--we-space-xs);
   z-index: var(--we-z-dropdown);
   position: relative;
+}
+
+/* 左侧：品牌 + 面包屑导航 */
+.we-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  min-width: 0;
+}
+
+/* 中间：弹幕槽位，占满 1fr */
+.we-topbar-center {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 右侧：操作按钮组 */
+.we-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+}
+
+/* 书架页品牌文字：沿用 crumb-current 高对比样式 */
+.we-topbar-brand {
+  white-space: nowrap;
 }
 
 .we-topbar-world-wrap {

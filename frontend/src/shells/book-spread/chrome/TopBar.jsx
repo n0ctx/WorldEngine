@@ -143,136 +143,146 @@ export default function TopBar() {
 
   return (
     <div className="we-topbar">
-      {isWorldsList ? (
-        <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">WorldEngine</span>
-      ) : (
-        <button
-          className="we-topbar-item"
-          onClick={() => navigate('/')}
-          aria-label="返回书架"
-        >
-          书架
-        </button>
-      )}
-
-      {!isWorldsList && effectiveWorldId && (
-        <>
-          <span className="we-topbar-sep" aria-hidden="true">/</span>
-          <div ref={dropdownRef} className="we-topbar-world-wrap">
+      {/* 左侧：品牌 + 面包屑导航 */}
+      <div className="we-topbar-left">
+        {isWorldsList ? (
+          <span className="we-topbar-item we-topbar-crumb-current we-topbar-brand" aria-current="page">WorldEngine</span>
+        ) : (
+          <>
             <button
-              className={`we-topbar-item${worldIsCurrentLevel ? ' we-topbar-item--active' : ''}`}
-              onClick={() => setDropdownOpen((o) => !o)}
-              aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
-              aria-expanded={dropdownOpen}
-              aria-haspopup="listbox"
-              aria-current={worldIsCurrentLevel ? 'page' : undefined}
+              className="we-topbar-item"
+              onClick={() => navigate('/')}
+              aria-label="返回书架"
             >
-              {currentWorld?.name ?? '选择世界'}
-              <motion.span
-                className="we-topbar-caret"
-                animate={{ rotate: dropdownOpen ? 180 : 0 }}
-                transition={{ duration: DURATION.quick, ease: EASE.sharp }}
-                aria-hidden="true"
-              >
-                <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
-              </motion.span>
+              书架
             </button>
+          </>
+        )}
 
-            <AnimatePresence>
-              {dropdownOpen && (
-                <motion.div
-                  className="we-topbar-dropdown"
-                  initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
-                  animate={{ opacity: 1, scaleY: 1,    y: 0 }}
-                  exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
-                  transition={{ duration: DURATION.quick, ease: EASE.ink }}
+        {!isWorldsList && effectiveWorldId && (
+          <>
+            <span className="we-topbar-sep" aria-hidden="true">/</span>
+            <div ref={dropdownRef} className="we-topbar-world-wrap">
+              <button
+                className={`we-topbar-item${worldIsCurrentLevel ? ' we-topbar-item--active' : ''}`}
+                onClick={() => setDropdownOpen((o) => !o)}
+                aria-label={currentWorld ? `切换世界，当前：${currentWorld.name}` : '选择世界'}
+                aria-expanded={dropdownOpen}
+                aria-haspopup="listbox"
+                aria-current={worldIsCurrentLevel ? 'page' : undefined}
+              >
+                {currentWorld?.name ?? '选择世界'}
+                <motion.span
+                  className="we-topbar-caret"
+                  animate={{ rotate: dropdownOpen ? 180 : 0 }}
+                  transition={{ duration: DURATION.quick, ease: EASE.sharp }}
+                  aria-hidden="true"
                 >
-                  {worldsLoading ? (
-                    <div className="we-topbar-dropdown-empty">
-                      加载中…
-                    </div>
-                  ) : worlds.length === 0 ? (
-                    <div className="we-topbar-dropdown-empty">
-                      暂无世界记录
-                    </div>
-                  ) : null}
-                  {!worldsLoading && worlds.map((w) => (
-                    <button
-                      key={w.id}
-                      className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
-                      onClick={() => {
-                        setDropdownOpen(false);
-                        setCurrentWorldId(w.id);
-                        setCurrentCharacterId(null);
-                        setCurrentSessionId(null);
-                        navigate(`/worlds/${w.id}`);
-                      }}
-                    >
-                      {w.name}
-                    </button>
-                  ))}
-                  {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
-                  <button
-                    className="we-topbar-dropdown-list-btn"
-                    onClick={() => { setDropdownOpen(false); navigate('/'); }}
+                  <Icon size={16} viewBox="0 0 10 10" strokeWidth="1.6"><polyline points="2,3.5 5,6.5 8,3.5" /></Icon>
+                </motion.span>
+              </button>
+
+              <AnimatePresence>
+                {dropdownOpen && (
+                  <motion.div
+                    className="we-topbar-dropdown"
+                    initial={{ opacity: 0, scaleY: 0.92, y: -4 }}
+                    animate={{ opacity: 1, scaleY: 1,    y: 0 }}
+                    exit={{   opacity: 0, scaleY: 0.92, y: -4 }}
+                    transition={{ duration: DURATION.quick, ease: EASE.ink }}
                   >
-                    前往世界列表
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </>
-      )}
+                    {worldsLoading ? (
+                      <div className="we-topbar-dropdown-empty">
+                        加载中…
+                      </div>
+                    ) : worlds.length === 0 ? (
+                      <div className="we-topbar-dropdown-empty">
+                        暂无世界记录
+                      </div>
+                    ) : null}
+                    {!worldsLoading && worlds.map((w) => (
+                      <button
+                        key={w.id}
+                        className={`we-topbar-dropdown-item${w.id === effectiveWorldId ? ' we-topbar-dropdown-item--active' : ''}`}
+                        onClick={() => {
+                          setDropdownOpen(false);
+                          setCurrentWorldId(w.id);
+                          setCurrentCharacterId(null);
+                          setCurrentSessionId(null);
+                          navigate(`/worlds/${w.id}`);
+                        }}
+                      >
+                        {w.name}
+                      </button>
+                    ))}
+                    {!worldsLoading && <div className="we-topbar-dropdown-divider" />}
+                    <button
+                      className="we-topbar-dropdown-list-btn"
+                      onClick={() => { setDropdownOpen(false); navigate('/'); }}
+                    >
+                      前往世界列表
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </>
+        )}
 
-      {leafLabel && (
-        <>
-          <span className="we-topbar-sep" aria-hidden="true">/</span>
-          <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">{leafLabel}</span>
-        </>
-      )}
-
-      {/* 中间槽位：有弹幕时单行滚动，无弹幕时作为占位把右侧按钮推到最右 */}
-      <div className="we-topbar-danmaku-slot">
-        <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
+        {leafLabel && (
+          <>
+            <span className="we-topbar-sep" aria-hidden="true">/</span>
+            <span className="we-topbar-item we-topbar-crumb-current" aria-current="page">{leafLabel}</span>
+          </>
+        )}
       </div>
 
-      <button
-        className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}
-        onClick={toggleAssistant}
-        title="写卡助手"
-        aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
-        aria-pressed={isAssistantOpen}
-      >
-        助手
-      </button>
+      {/* 中间槽位：有弹幕时单行滚动，无弹幕时作为占位把右侧按钮推到最右 */}
+      <div className="we-topbar-center">
+        <div className="we-topbar-danmaku-slot">
+          <DanmakuLayer comments={danmakuComments} speed={danmakuSpeed} />
+        </div>
+      </div>
 
-      <span className="we-topbar-sep">·</span>
+      {/* 右侧：操作按钮 */}
+      <div className="we-topbar-actions">
+        <button
+          className={`we-topbar-item${isAssistantOpen ? ' we-topbar-item--active' : ''}`}
+          onClick={toggleAssistant}
+          title="写卡助手"
+          aria-label={isAssistantOpen ? '关闭写卡助手' : '打开写卡助手'}
+          aria-pressed={isAssistantOpen}
+        >
+          助手
+        </button>
 
-      <button
-        className="we-topbar-item we-topbar-settings-btn"
-        aria-label="打开设置"
-        onClick={() => {
-          const realBackground = location.state?.backgroundLocation ?? location;
-          navigate('/settings', {
-            state: {
-              backgroundLocation: realBackground,
-              from: {
-                pathname: location.pathname,
-                search: location.search,
-                hash: location.hash,
-                state: location.state,
+        <span className="we-topbar-sep">·</span>
+
+        <button
+          className="we-topbar-item we-topbar-settings-btn"
+          aria-label="打开设置"
+          onClick={() => {
+            const realBackground = location.state?.backgroundLocation ?? location;
+            navigate('/settings', {
+              state: {
+                backgroundLocation: realBackground,
+                from: {
+                  pathname: location.pathname,
+                  search: location.search,
+                  hash: location.hash,
+                  state: location.state,
+                },
               },
-            },
-          });
-        }}
-        title="设置"
-      >
-        <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </Icon>
-      </button>
+            });
+          }}
+          title="设置"
+        >
+          <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </Icon>
+        </button>
+      </div>
     </div>
   );
 }
