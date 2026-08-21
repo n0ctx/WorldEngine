@@ -9,6 +9,7 @@ import { extractAccentColorFromImageSrc } from '../core/utils/extractAccentColor
 import { getAvatarColor, getAvatarUrl } from '../core/utils/avatar';
 import { relativeTime } from '../core/utils/time';
 import ConfirmModal from '../components/ui/ConfirmModal';
+import EmptyState from '../components/ui/EmptyState.jsx';
 import Icon from '../components/ui/Icon.jsx';
 import { log } from '../core/utils/logger.js';
 
@@ -155,26 +156,19 @@ export default function WorldsPage() {
         </div>
       ) : loadError ? (
         <div className="we-worlds-state">
-          <div className="we-worlds-empty">
-            <p className="we-worlds-empty-text">世界列表读取失败</p>
-            <p className="we-worlds-subtitle we-worlds-error-detail">{loadError}</p>
-            <button className="we-worlds-empty-btn" onClick={loadWorlds}>
-              重试
-            </button>
-          </div>
+          <EmptyState
+            title="世界列表读取失败"
+            hint={loadError}
+            primaryAction={{ label: '重试', onClick: loadWorlds }}
+          />
         </div>
       ) : worlds.length === 0 ? (
         <div className="we-worlds-state">
-          <div className="we-worlds-empty">
-            <p className="we-worlds-empty-text">暂无世界记录</p>
-            <p className="we-worlds-empty-hint">
-              一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。
-              如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。
-            </p>
-            <button className="we-worlds-empty-btn" onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}>
-              新建世界
-            </button>
-          </div>
+          <EmptyState
+            title="暂无世界记录"
+            hint="一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。"
+            primaryAction={{ label: '新建世界', onClick: () => navigate('/worlds/new', { state: { backgroundLocation: location } }) }}
+          />
         </div>
       ) : (
         <SortableGrid
