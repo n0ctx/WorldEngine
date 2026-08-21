@@ -141,7 +141,7 @@ export default function WorldsPage() {
           />
           <button
             onClick={() => navigate('/worlds/new', { state: { backgroundLocation: location } })}
-            className="we-worlds-create-btn"
+            className="we-btn we-btn-primary"
           >
             + 创建世界
           </button>

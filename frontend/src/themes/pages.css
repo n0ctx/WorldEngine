@@ -334,22 +334,6 @@
   }
 }
 
-.we-worlds-create-btn {
-  font-family: var(--we-font-prose);
-  font-size: var(--we-text-sm);
-  color: var(--we-color-bg-canvas);
-  background: var(--we-color-accent);
-  border: none;
-  border-radius: var(--we-radius-sm);
-  padding: var(--we-space-sm) var(--we-space-lg);
-  cursor: pointer;
-  transition: opacity var(--we-duration-fast);
-}
-
-.we-worlds-create-btn:hover {
-  opacity: 0.88;
-}
-
 .we-worlds-empty {
   max-width: 1200px;
   margin: 0 auto;
