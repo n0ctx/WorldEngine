@@ -4492,3 +4492,53 @@
     transition: none;
   }
 }
+
+/* ── Skeleton Loading 占位 ── */
+@keyframes we-skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1.0; }
+}
+
+.we-skeleton-block {
+  height: 16px;
+  border-radius: var(--we-radius-sm);
+  background: var(--we-skeleton-base-bg);
+  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) var(--we-easing-ink) infinite;
+  margin-bottom: var(--we-space-sm);
+}
+
+/* 骨架屏容器：模拟页面结构的占位块 */
+.we-skeleton-container {
+  padding: var(--we-space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+/* 可变宽度修饰符 */
+.we-skeleton-block--w-40 { width: 40%; }
+.we-skeleton-block--w-55 { width: 55%; }
+.we-skeleton-block--w-70 { width: 70%; }
+.we-skeleton-block--w-90 { width: 90%; }
+
+/* 大尺寸骨架（标题/卡片占位）*/
+.we-skeleton-block--lg {
+  height: 24px;
+  border-radius: var(--we-radius-md);
+}
+
+/* 卡片占位 */
+.we-skeleton-card {
+  border: var(--we-card-border);
+  border-radius: var(--we-card-radius);
+  padding: var(--we-space-lg);
+  background: var(--we-card-bg);
+}
+
+/* reduced-motion 降级 */
+@media (prefers-reduced-motion: reduce) {
+  .we-skeleton-block {
+    animation: none;
+    opacity: 0.6;
+  }
+}

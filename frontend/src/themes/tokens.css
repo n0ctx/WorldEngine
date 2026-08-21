@@ -277,6 +277,13 @@
     inset 0 1px 0 rgb(255 255 255 / 26%),
     0 14px 36px rgb(48 31 13 / 10%);
 
+  /* Skeleton 占位块皮肤：base-bg 走 B 层 --we-color-ink-wash-md，
+     三个主题都已覆盖该语义色，skeleton 自动随主题适配，无需主题额外覆写。
+     pulse-duration 为循环呼吸动画时长，独立于 --we-duration-* 四槽语义，
+     不被 check-motion.mjs 校验（该校验只覆盖 --we-duration-* 前缀）。 */
+  --we-skeleton-base-bg:         var(--we-color-ink-wash-md);
+  --we-skeleton-pulse-duration:  1400ms;
+
   --we-card-bg: var(--we-color-bg-surface);
   --we-card-border: 1px solid var(--we-color-border-default);
   --we-card-radius: var(--we-radius-sm);
