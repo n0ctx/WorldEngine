@@ -6,9 +6,12 @@ import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
 import { buildPrompt } from '../prompts/assembler.js';
+import { renderPersonaState } from '../memory/recall.js';
+import { getPersonaById } from '../db/queries/personas.js';
 import { logPrompt, createLogger, previewText } from '../utils/logger.js';
 import { getConfig } from './config.js';
-import { createMessage, touchSession } from './sessions.js';
+import { createMessage, getSessionById, touchSession } from './sessions.js';
+import { getOrCreatePersona } from './personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import {
   stripAsstContext,
@@ -124,12 +127,36 @@ const SUGGESTION_AUX_VARIANTS = {
   },
 };
 
-async function buildSuggestionAux({ mode, userContent, assistantText, configScope = 'aux' }) {
+function getSuggestionPlayerContext(sessionId, worldId) {
+  const session = sessionId ? getSessionById(sessionId) : null;
+  const persona = session?.persona_id
+    ? getPersonaById(session.persona_id)
+    : (worldId ? getOrCreatePersona(worldId) : null);
+
+  return {
+    name: persona?.name || '当前玩家',
+    persona: persona?.system_prompt || '未设置额外人设。',
+    state: worldId ? (renderPersonaState(worldId, sessionId) || '未记录当前状态。') : '未记录当前状态。',
+  };
+}
+
+function renderSuggestionAuxPrompt({ mode, userContent, assistantText, sessionId, worldId }) {
   const variant = SUGGESTION_AUX_VARIANTS[mode];
-  const prompt = renderBackendPrompt(variant.template, {
+  const player = getSuggestionPlayerContext(sessionId, worldId);
+  return renderBackendPrompt(variant.template, {
     USER_MESSAGE: userContent ?? '',
     [variant.assistantKey]: assistantText ?? '',
+    USER_NAME: player.name,
+    USER_PERSONA: player.persona,
+    USER_STATE: player.state,
   });
+}
+
+export const __testables = { getSuggestionPlayerContext, renderSuggestionAuxPrompt };
+
+async function buildSuggestionAux({ mode, userContent, assistantText, sessionId, worldId, configScope = 'aux' }) {
+  const variant = SUGGESTION_AUX_VARIANTS[mode];
+  const prompt = renderSuggestionAuxPrompt({ mode, userContent, assistantText, sessionId, worldId });
   return llm.complete([{ role: 'user', content: prompt }], {
     configScope,
     temperature: 0,
@@ -142,6 +169,7 @@ async function resolveSuggestionOptions({
   suggestionEnabled,
   aborted,
   userContent,
+  worldId,
   configScope = 'aux',
   sessionId,
   onSuggestionFallback,
@@ -175,6 +203,8 @@ async function resolveSuggestionOptions({
       mode,
       userContent,
       assistantText: visibleContent,
+      sessionId,
+      worldId,
       configScope,
     });
     const extracted = extractNextPromptOptions(raw);
@@ -243,6 +273,7 @@ export async function processStreamOutput(rawContent, aborted, worldId, sessionI
     suggestionEnabled,
     aborted,
     userContent: currentUserContent,
+    worldId,
     configScope,
     sessionId,
     onSuggestionFallback,

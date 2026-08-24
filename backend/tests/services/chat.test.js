@@ -2,7 +2,15 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
-import { insertCharacter, insertMessage, insertSession, insertWorld } from '../helpers/fixtures.js';
+import {
+  insertCharacter,
+  insertMessage,
+  insertPersona,
+  insertPersonaStateField,
+  insertSession,
+  insertSessionPersonaStateValue,
+  insertWorld,
+} from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('service-chat-suite', {
   global_system_prompt: '系统：{{world}}',
@@ -26,6 +34,42 @@ test('buildContext 会返回 messages、override 参数与 recallHitCount', asyn
   assert.equal(result.recallHitCount, 0);
   assert.equal(Array.isArray(result.messages), true);
   assert.match(result.messages[0].content, /系统：聊天世界/);
+});
+
+test('补选项上下文使用当前玩家的人设与会话状态', async () => {
+  const world = insertWorld(sandbox.db, { name: '玩家上下文世界' });
+  const player = insertPersona(sandbox.db, world.id, {
+    name: '沈青萝',
+    system_prompt: '冷静的药师，只依据亲眼所见行动。',
+  });
+  sandbox.db.prepare('UPDATE worlds SET active_persona_id = ? WHERE id = ?').run(player.id, world.id);
+  const session = insertSession(sandbox.db, {
+    character_id: insertCharacter(sandbox.db, world.id).id,
+    persona_id: player.id,
+  });
+  insertPersonaStateField(sandbox.db, world.id, { field_key: 'location', label: '位置' });
+  insertSessionPersonaStateValue(sandbox.db, session.id, world.id, {
+    field_key: 'location',
+    runtime_value_json: JSON.stringify('药铺后院'),
+  });
+
+  const { __testables } = await freshImport('backend/services/chat.js');
+  const context = __testables.getSuggestionPlayerContext(session.id, world.id);
+  const prompt = __testables.renderSuggestionAuxPrompt({
+    mode: 'fallback',
+    userContent: '查看后院动静',
+    assistantText: '药童说外面有人等候。',
+    sessionId: session.id,
+    worldId: world.id,
+  });
+
+  assert.equal(context.name, '沈青萝');
+  assert.match(context.persona, /冷静的药师/);
+  assert.match(context.state, /位置：药铺后院/);
+  assert.match(prompt, /当前玩家：沈青萝/);
+  assert.match(prompt, /冷静的药师/);
+  assert.match(prompt, /位置：药铺后院/);
+  assert.doesNotMatch(prompt, /{{(?:user|USER_NAME|USER_PERSONA|USER_STATE)}}/);
 });
 
 test('processStreamOutput 在正常完成时会剥离选项、套 ai_output 规则并写入 assistant 消息', async () => {
