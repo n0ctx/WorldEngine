@@ -175,11 +175,13 @@ export default function WorldsPage() {
           items={worlds}
           onReorderEnd={handleReorderEnd}
           className="we-worlds-grid"
-          renderItem={(world, { setNodeRef, style, isDragging, attributes, listeners }) => {
+          renderItem={(world, { setNodeRef, style, isDragging, index, attributes, listeners }) => {
             // 大格选取：worlds 列表已由后端按 sort_order → created_at 排序，即用户手工拖拽的顺序。
             // 直接取列表首位而非另算 updated_at 最新项——手工排序表达的是用户主观的重要性，
             // 理应优先于系统猜的"最近打开"；且这样大格位置天然随拖拽结果同步更新，无需额外同步逻辑。
-            const isFeature = world.id === worlds[0]?.id;
+            // 用 SortableGrid 给的实时 index 而非 worlds[0]：拖动中顺序只存在于 SortableGrid，
+            // 拿 worlds 判断会让大格在整个拖动过程里钉在旧的那张卡上。
+            const isFeature = index === 0;
             return (
               <div
                 ref={setNodeRef}

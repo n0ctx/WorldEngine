@@ -84,17 +84,6 @@
   grid-row: span 2;
 }
 
-/* 排序期间把网格拍平成等大格。dnd-kit 的 rectSortingStrategy 按等大矩形推算
-   每张卡的目标位移，网格里混着跨行跨列的大格时算出来的位置是错的，会看到卡片
-   瞬移。排序时统一尺寸既修掉这个错位，也让「我在排第几位」更好判断。 */
-.we-worlds-grid[data-sorting] .we-world-card-shell--feature {
-  grid-column: span 1;
-  grid-row: span 1;
-}
-.we-worlds-grid[data-sorting] .we-world-card--feature {
-  aspect-ratio: 16 / 10;
-}
-
 .we-world-card {
   background: var(--we-card-bg);
   border: var(--we-card-border);
