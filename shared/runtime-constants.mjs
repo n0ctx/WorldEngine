@@ -8,6 +8,7 @@ export const MAX_ATTACHMENT_SIZE_MB = 5;
 // ---- 本地 LLM 服务默认地址 ----
 export const OLLAMA_DEFAULT_BASE_URL = 'http://localhost:11434';
 export const LMSTUDIO_DEFAULT_BASE_URL = 'http://localhost:1234';
+export const LLAMACPP_DEFAULT_BASE_URL = 'http://localhost:8080';
 
 // ---- 流任务 ----
 export const RESTART_INTERRUPTED_ERROR = 'interrupted by restart';

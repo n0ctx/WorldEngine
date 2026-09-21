@@ -1,7 +1,7 @@
 const ANTHROPIC_EXPLICIT_PROVIDERS = new Set(['anthropic', 'kimi-coding', 'minimax-coding']);
 const DEEPSEEK_PREFIX_PROVIDERS = new Set(['deepseek']);
 const GEMINI_IMPLICIT_PROVIDERS = new Set(['gemini']);
-const LOCAL_OR_UNKNOWN_PROVIDERS = new Set(['ollama', 'lmstudio', 'mock']);
+const LOCAL_OR_UNKNOWN_PROVIDERS = new Set(['ollama', 'lmstudio', 'llamacpp', 'mock']);
 
 const OPENAI_PREFIX_PROVIDERS = new Set([
   'openai',

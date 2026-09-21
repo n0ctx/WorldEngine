@@ -12,5 +12,6 @@ export {
   MAX_ATTACHMENT_SIZE_MB,
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
+  LLAMACPP_DEFAULT_BASE_URL,
   RESTART_INTERRUPTED_ERROR,
 } from '../../../../shared/runtime-constants.mjs';

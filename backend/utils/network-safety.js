@@ -1,7 +1,7 @@
 import net from 'node:net';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1', '0.0.0.0']);
-const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio']);
+const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio', 'llamacpp']);
 
 function isPrivateIpv4(hostname) {
   const parts = hostname.split('.').map(Number);

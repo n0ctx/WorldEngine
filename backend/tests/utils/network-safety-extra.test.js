@@ -49,6 +49,18 @@ test('validateModelFetchBaseUrl 本地 provider 接受 ::1 与 localhost', async
     validateModelFetchBaseUrl('lmstudio', 'http://[::1]:1234/v1/'),
     'http://[::1]:1234/v1',
   );
+  assert.equal(
+    validateModelFetchBaseUrl('llamacpp', 'http://127.0.0.1:8080/'),
+    'http://127.0.0.1:8080',
+  );
+});
+
+test('validateModelFetchBaseUrl llamacpp 仍受本地地址限制', async () => {
+  const { validateModelFetchBaseUrl } = await loadModule('backend/utils/network-safety.js');
+  assert.throws(
+    () => validateModelFetchBaseUrl('llamacpp', 'http://192.168.1.10:8080'),
+    /仅允许 localhost/,
+  );
 });
 
 test('validateModelFetchBaseUrl 远程 provider 拒绝多种私网与本机 IP', async () => {
