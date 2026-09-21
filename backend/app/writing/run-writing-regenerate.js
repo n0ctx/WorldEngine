@@ -1,4 +1,5 @@
-import { rollbackWritingSession } from '../shared/rollback/rollback-writing-session.js';
+import { writingMode } from '../modes/writing-mode.js';
+import { rollbackSession } from '../shared/rollback/rollback-session.js';
 import { runWritingStream } from './run-writing-stream.js';
 
 export async function runWritingRegenerate({
@@ -8,7 +9,7 @@ export async function runWritingRegenerate({
   attachSse,
   activeStreams,
 }) {
-  const { stateRolledBack } = await rollbackWritingSession(sessionId, afterMessageId);
+  const { stateRolledBack } = await rollbackSession(writingMode, sessionId, afterMessageId);
   return runWritingStream({
     sessionId,
     emitSse,

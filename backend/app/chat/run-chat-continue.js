@@ -1,6 +1,7 @@
 import * as llm from '../../llm/index.js';
 import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
-import { buildChatPostgenTasks } from './build-chat-postgen-tasks.js';
+import { chatMode } from '../modes/chat-mode.js';
+import { buildTurnPostgenTasks } from '../shared/postgen/build-turn-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
@@ -169,12 +170,16 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
       if (!aborted && mergedContent) {
         const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
         if (messages.some((message) => message.role === 'user')) {
-          const taskSpecs = buildChatPostgenTasks({
+          const taskSpecs = buildTurnPostgenTasks({
+            mode: chatMode,
             sessionId,
             worldId,
-            characterId,
+            characterIds: characterId ? [characterId] : [],
             session,
+            messages,
             turnRecordOpts: { isUpdate: true },
+            includeSessionTitle: false,
+            includeChapterTitle: false,
           });
           const { hasSseWaits } = await runPostGenFlow({
             sessionId,

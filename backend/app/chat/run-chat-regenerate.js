@@ -1,4 +1,5 @@
-import { rollbackChatSession } from '../shared/rollback/rollback-chat-session.js';
+import { chatMode } from '../modes/chat-mode.js';
+import { rollbackSession } from '../shared/rollback/rollback-session.js';
 import { runChatStream } from './run-chat-stream.js';
 
 export async function runChatRegenerate({
@@ -8,7 +9,7 @@ export async function runChatRegenerate({
   attachSse,
   activeStreams,
 }) {
-  const { stateRolledBack } = await rollbackChatSession(sessionId, afterMessageId);
+  const { stateRolledBack } = await rollbackSession(chatMode, sessionId, afterMessageId);
   return runChatStream({
     sessionId,
     emitSse,

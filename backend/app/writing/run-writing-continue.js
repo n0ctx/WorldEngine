@@ -1,6 +1,7 @@
 import * as llm from '../../llm/index.js';
 import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
-import { buildWritingPostgenTasks } from './build-writing-postgen-tasks.js';
+import { writingMode } from '../modes/writing-mode.js';
+import { buildTurnPostgenTasks } from '../shared/postgen/build-turn-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
@@ -181,28 +182,34 @@ export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attac
       streamState.clear();
 
       if (!aborted && mergedContent) {
-        const taskSpecs = buildWritingPostgenTasks({
-          sessionId,
-          worldId,
-          session,
-          turnRecordOpts: { isUpdate: true },
-          includeSessionTitle: false,
-          includeChapterTitle: false,
-        });
-        const { hasSseWaits } = await runPostGenFlow({
-          sessionId,
-          worldId,
-          mode: 'writing',
-          taskSpecs,
-          streamState,
-          sid,
-          emitSse,
-          onAllSettled() {
-            completeSessionStreamTask(sessionId, taskId);
-            closeSessionStreamSse(sessionId, taskId);
-          },
-        });
-        if (hasSseWaits) return;
+        const allMessages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+        // 与对话侧一致：整个会话没有 user 消息时不触发后处理（写作侧原本漏了这道守卫）
+        if (allMessages.some((message) => message.role === 'user')) {
+          const taskSpecs = buildTurnPostgenTasks({
+            mode: writingMode,
+            sessionId,
+            worldId,
+            session,
+            messages: allMessages,
+            turnRecordOpts: { isUpdate: true },
+            includeSessionTitle: false,
+            includeChapterTitle: false,
+          });
+          const { hasSseWaits } = await runPostGenFlow({
+            sessionId,
+            worldId,
+            mode: 'writing',
+            taskSpecs,
+            streamState,
+            sid,
+            emitSse,
+            onAllSettled() {
+              completeSessionStreamTask(sessionId, taskId);
+              closeSessionStreamSse(sessionId, taskId);
+            },
+          });
+          if (hasSseWaits) return;
+        }
       }
 
       if (aborted) {

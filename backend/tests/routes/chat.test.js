@@ -105,7 +105,9 @@ test('POST /api/sessions/:sessionId/chat 返回完整 SSE 事件流并落库', a
   assert.ok(eventTypes.includes('memory_recall_done'));
   assert.ok(eventTypes.includes('delta'));
   assert.ok(eventTypes.includes('done'));
-  assert.equal(eventTypes.at(-1), 'state_updated');
+  assert.ok(eventTypes.includes('state_updated'));
+  // diary 优先级 4，排在 state_updated 之后收尾；SSE 连接在它 settle 后才关闭
+  assert.equal(eventTypes.at(-1), 'diary_updated');
 
   const doneEvent = events.find((event) => event.done);
   assert.equal(doneEvent.assistant.content, '你好，旅行者');
@@ -623,10 +625,6 @@ test('POST /chat 的 SSE 流包含 state_queued 与 state_updated 事件', async
   assert.ok(events.some((event) => event.type === 'state_queued'), '应包含 state_queued');
   assert.ok(events.some((event) => event.type === 'state_updated'), '应包含 state_updated');
 
-  // TODO(阶段4): diary 任务取并集后对话侧也应推 diary_updated，届时改为 assert.ok(...)
-  assert.equal(
-    events.some((event) => event.type === 'diary_updated'),
-    false,
-    '记录现状：对话侧当前不推 diary_updated',
-  );
+  // diary 任务取两侧并集后，对话侧也推 diary_updated
+  assert.ok(events.some((event) => event.type === 'diary_updated'), '应包含 diary_updated');
 });
