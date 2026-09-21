@@ -22,6 +22,10 @@
  *   [13+14] 后置提示词 + 当前用户消息（合并为一条 user message；后置提示词追加在用户消息之后）
  *
  *
+ * 段渲染实现见 prompts/segments.js；本文件只负责「按锁定顺序调度」。
+ * segments.js 内任何函数的输出字节变化都等价于修改本锁定顺序，需同步确认
+ * tests/prompts/__snapshots__/assembler-golden.snap。
+ *
  * 对外暴露：
  *   buildPrompt(sessionId, options?) → Promise<{ messages, temperature, maxTokens, recallHitCount }>
  *   options.onRecallEvent?: (name, payload) => void  — SSE 回调
@@ -40,44 +44,46 @@ import {
 import { getConfig } from '../services/config.js';
 import { matchEntries } from './entry-matcher.js';
 import {
-  renderPersonaState,
-  renderWorldState,
   renderCharacterState,
   renderTransientNearby,
   renderSavedNearbyIndex,
   renderRecalledSavedNearby,
   searchRecalledSummaries,
-  renderRecalledSummaries,
 } from '../memory/recall.js';
-import { decideExpansion, renderExpandedTurnRecords } from '../memory/summary-expander.js';
+import { decideExpansion } from '../memory/summary-expander.js';
 import { decideSavedNearbyRecall } from '../memory/saved-nearby-recall.js';
 import { listNearbyBySessionId } from '../db/queries/session-nearby-characters.js';
 import { getCharacterStateFieldsByWorldId } from '../db/queries/character-state-fields.js';
-import { readMemoryFile as readLongTermMemory } from '../services/long-term-memory.js';
-import { readTables } from '../services/table-memory.js';
-import { renderTablesToMarkdown } from '../services/table-memory-ops.js';
-import { MEMORY_EXPAND_MAX_TOKENS, SUGGESTION_TOKEN_RESERVE } from '../utils/constants.js';
+
 import { getOrCreatePersona } from '../services/personas.js';
 import { applyRules } from '../utils/regex-runner.js';
 import { applyTemplateVars } from '../utils/template-vars.js';
 import { createLogger } from '../utils/logger.js';
 import { loadBackendPrompt } from './prompt-loader.js';
+import {
+  buildExpandCandidates,
+  composeSystemContent,
+  renderCachedEntriesSection,
+  renderDiarySection,
+  renderExpandedSection,
+  renderLongTermMemorySection,
+  renderRecalledSummariesSection,
+  renderTableMemorySection,
+  renderTriggeredEntriesSection,
+  renderUserInfoSection,
+  renderUserStateSection,
+  renderWorldStateSection,
+  resolveMaxTokens,
+  selectActivatedEntries,
+  selectDynamicWorldEntries,
+  sortTriggeredEntries,
+} from './segments.js';
 
 const log = createLogger('assembler', 'magenta');
 const SUGGESTION_PROMPT = loadBackendPrompt('shared-suggestion.md');
 
 /** 将字符数格式化为可读单位，如 3241 → '3.2k' */
 function fmtK(n) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`; }
-
-// [8.6] 表格记忆注入：结构化真源渲染成 md（主模型版不含内部 id），开关启用时追加到 system。
-// 聊天 / 写作两条装配链共用，避免重复。
-function injectTableMemory(dynamicSystemParts, sessionId, enabled) {
-  if (enabled !== true) return;
-  const md = renderTablesToMarkdown(readTables(sessionId), { withId: false });
-  if (!md) return;
-  dynamicSystemParts.push(`<table_memory hint="以下为已知状态的被动参考，均为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。">\n${md}\n</table_memory>`);
-  log.debug(`│  [8.6] table memory injected  chars=${md.length}`);
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS_DIR = process.env.WE_UPLOADS_DIR
@@ -205,21 +211,15 @@ export async function buildPrompt(sessionId, options = {}) {
   // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 拼到 cachedSystemParts 末尾，按 sort_order ASC, created_at ASC 稳定排序，保证 prompt cache 命中。
   const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
-  const cachedEntries = allWorldEntries
-    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
-  if (cachedEntries.length > 0) {
-    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-    cachedSystemParts.push(`<world_entries>\n${cachedTexts.join('\n\n')}\n</world_entries>`);
-    log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
+  const cachedEntries = renderCachedEntriesSection(allWorldEntries, tv);
+  if (cachedEntries.text) {
+    cachedSystemParts.push(cachedEntries.text);
+    log.debug(`│  [2] cached entries  count=${cachedEntries.count}`);
   }
 
   // [3] 玩家 System Prompt
-  if (personaName || personaPrompt) {
-    const lines = [];
-    if (personaName) lines.push(`名字：${personaName}`);
-    if (personaPrompt) lines.push(tv(personaPrompt));
-    cachedSystemParts.push(tv(`<user_info>\n${lines.join('\n')}\n</user_info>`));
-  }
+  const userInfoSection = renderUserInfoSection(personaName, personaPrompt, tv);
+  if (userInfoSection) cachedSystemParts.push(userInfoSection);
 
   // [4] 角色 System Prompt
   if (character.system_prompt) {
@@ -228,82 +228,68 @@ export async function buildPrompt(sessionId, options = {}) {
 
   // ─── DYNAMIC LAYER (5-11) ───
   // [5] 世界状态
-  const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) dynamicSystemParts.push(`<world_state>\n${tv(worldStateText)}\n</world_state>`);
+  const worldStateSection = renderWorldStateSection(world.id, sessionId, tv);
+  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
 
   // [6] 玩家状态
-  const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
+  const personaStateSection = renderUserStateSection(world.id, sessionId, tv);
+  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
 
   // [7] 角色状态
   const characterStateText = renderCharacterState(character.id, sessionId);
   if (characterStateText) dynamicSystemParts.push(`<char_state>\n${tv(characterStateText)}\n</char_state>`);
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
+  const worldEntries = selectDynamicWorldEntries(allWorldEntries);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
   log.debug(`│  [8] entries  world=${worldEntries.length}  triggered=${triggeredIds.size}/${worldEntries.length}`);
 
-  const triggeredEntries = worldEntries
-    .filter((entry) => triggeredIds.has(entry.id) && entry.content)
-    .sort((a, b) => {
-      const diff = (a.token ?? 1) - (b.token ?? 1);
-      if (diff !== 0) return diff;
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    });
-  const entryTexts = triggeredEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-
-  if (entryTexts.length > 0) {
-    dynamicSystemParts.push(`<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`);
-  }
+  const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
+  const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
+  if (entriesSection) dynamicSystemParts.push(entriesSection);
 
   // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
-  if (config.long_term_memory_enabled === true) {
-    const ltm = readLongTermMemory(sessionId).trim();
-    if (ltm) {
-      dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
-      log.debug(`│  [8.5] long-term memory injected  chars=${ltm.length}`);
-    }
+  const ltmSection = renderLongTermMemorySection(sessionId, config.long_term_memory_enabled, tv);
+  if (ltmSection) {
+    dynamicSystemParts.push(ltmSection.text);
+    log.debug(`│  [8.5] long-term memory injected  chars=${ltmSection.chars}`);
   }
 
   // [8.6] 表格记忆
-  injectTableMemory(dynamicSystemParts, sessionId, config.table_memory_enabled);
+  const tableSection = renderTableMemorySection(sessionId, config.table_memory_enabled);
+  if (tableSection) {
+    dynamicSystemParts.push(tableSection.text);
+    log.debug(`│  [8.6] table memory injected  chars=${tableSection.chars}`);
+  }
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
-  const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) dynamicSystemParts.push(`<recalled_memories>\n${tv(recalledSummariesText)}\n</recalled_memories>`);
+  const recalledSection = renderRecalledSummariesSection(recalled, tv);
+  if (recalledSection) dynamicSystemParts.push(recalledSection);
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
   // [10] 记忆展开（由 AI 决定需要展开哪些原文）
-  let expandedText;
   if (recallHitCount > 0 && config.memory_expansion_enabled !== false) {
-    onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
-      ref: r.ref,
-      turn_record_id: r.turn_record_id,
-      session_id: r.session_id,
-      session_title: r.session_title,
-      round_index: r.round_index,
-      created_at: r.created_at,
-    })) });
+    onRecallEvent?.('memory_expand_start', { candidates: buildExpandCandidates(recalled) });
     const expandIds = await decideExpansion({ sessionId, recalled });
     if (expandIds.length > 0) {
-      expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
-      if (expandedText) {
-        dynamicSystemParts.push(`<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>`);
+      const expanded = renderExpandedSection(expandIds, tv);
+      if (expanded.text) {
+        dynamicSystemParts.push(expanded.text);
         log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
-      onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
+      onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
     } else {
       onRecallEvent?.('memory_expand_done', { expanded: [] });
     }
   }
 
   // [11] 日记注入（一次性，仅本轮生效）
-  if (diaryInjection && typeof diaryInjection === 'string') {
-    dynamicSystemParts.push(`<diary>\n${diaryInjection}\n</diary>`);
+  const diarySection = renderDiarySection(diaryInjection);
+  if (diarySection) {
+    dynamicSystemParts.push(diarySection);
     log.debug('│  [11] diary injection applied');
   }
 
@@ -311,9 +297,7 @@ export async function buildPrompt(sessionId, options = {}) {
   const messages = [];
 
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
-  const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
-  const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
-  const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');
+  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：稳定使用原始消息窗口。
@@ -361,16 +345,12 @@ export async function buildPrompt(sessionId, options = {}) {
 
   const temperature = world.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? config.llm.max_tokens;
-  const maxTokens = config.suggestion_enabled
-    ? Math.max(baseMaxTokens - SUGGESTION_TOKEN_RESERVE, 500)
-    : baseMaxTokens;
+  const maxTokens = resolveMaxTokens(baseMaxTokens, config.suggestion_enabled);
 
   const suggestionText = config.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
 
   // 本轮激活的非常驻条目（trigger_type !== 'always'），供 SSE 透传给前端展示
-  const activatedEntries = triggeredEntries
-    .filter((e) => e.trigger_type !== 'always')
-    .map((e) => ({ id: e.id, title: e.title, trigger_type: e.trigger_type }));
+  const activatedEntries = selectActivatedEntries(triggeredEntries);
 
   log.info(`└─ buildPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
@@ -433,30 +413,24 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   // [2] 常驻 cached 条目（trigger_type=always 且 token=0）
   // 写作模式下 cached layer 含 [1][2][3]，cached 条目拼到其后；按 sort_order ASC, created_at ASC 稳定。
   const allWorldEntries = getAllWorldEntries(world.id).filter((e) => e.enabled !== 0);
-  const cachedEntries = allWorldEntries
-    .filter((entry) => entry.trigger_type === 'always' && entry.token === 0 && entry.content);
-  if (cachedEntries.length > 0) {
-    const cachedTexts = cachedEntries.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-    cachedSystemParts.push(`<world_entries>\n${cachedTexts.join('\n\n')}\n</world_entries>`);
-    log.debug(`│  [2] cached entries  count=${cachedEntries.length}`);
+  const cachedEntries = renderCachedEntriesSection(allWorldEntries, tv);
+  if (cachedEntries.text) {
+    cachedSystemParts.push(cachedEntries.text);
+    log.debug(`│  [2] cached entries  count=${cachedEntries.count}`);
   }
 
   // [3] 玩家 System Prompt（写作模式下仅作背景参考，不是 AI 身份设定）
-  if (personaName || personaPrompt) {
-    const lines = [];
-    if (personaName) lines.push(`名字：${personaName}`);
-    if (personaPrompt) lines.push(tv(personaPrompt));
-    cachedSystemParts.push(tv(`<user_info>\n${lines.join('\n')}\n</user_info>`));
-  }
+  const userInfoSection = renderUserInfoSection(personaName, personaPrompt, tv);
+  if (userInfoSection) cachedSystemParts.push(userInfoSection);
 
   // ─── DYNAMIC LAYER (5-11；写作模式下 [4] 角色 system prompt 与 [7] 角色状态段不注入) ───
   // [5] 世界状态
-  const worldStateText = renderWorldState(world.id, sessionId);
-  if (worldStateText) dynamicSystemParts.push(`<world_state>\n${tv(worldStateText)}\n</world_state>`);
+  const worldStateSection = renderWorldStateSection(world.id, sessionId, tv);
+  if (worldStateSection) dynamicSystemParts.push(worldStateSection);
 
   // [6] 玩家状态
-  const personaStateText = renderPersonaState(world.id, sessionId);
-  if (personaStateText) dynamicSystemParts.push(`<user_state>\n${tv(personaStateText)}\n</user_state>`);
+  const personaStateSection = renderUserStateSection(world.id, sessionId, tv);
+  if (personaStateSection) dynamicSystemParts.push(personaStateSection);
 
   // [7] 附近角色（写作模式专属，替代 chat 模式的 character_state）
   // - transient（is_saved=0）：完整 name + 底层人设 + state
@@ -486,35 +460,31 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [8] 世界 State 条目（常驻 / 关键词 / AI 召回；token=0 的常驻条目已进 cached layer）
-  const worldEntries = allWorldEntries.filter((entry) => !(entry.trigger_type === 'always' && entry.token === 0));
+  const worldEntries = selectDynamicWorldEntries(allWorldEntries);
   const triggeredIds = await matchEntries(sessionId, worldEntries, world.id);
-  const triggeredEntries2 = worldEntries
-    .filter((entry) => triggeredIds.has(entry.id) && entry.content)
-    .sort((a, b) => {
-      const diff = (a.token ?? 1) - (b.token ?? 1);
-      if (diff !== 0) return diff;
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    });
-  const entryTexts = triggeredEntries2.map((entry) => `【${tv(entry.title)}】\n${tv(entry.content)}`);
-  if (entryTexts.length > 0) dynamicSystemParts.push(`<world_entries>\n${entryTexts.join('\n\n')}\n</world_entries>`);
+  const triggeredEntries = sortTriggeredEntries(worldEntries, triggeredIds);
+  const entriesSection = renderTriggeredEntriesSection(triggeredEntries, tv);
+  if (entriesSection) dynamicSystemParts.push(entriesSection);
 
   // [8.5] 长期记忆（会话级 md 文件，开关启用时注入）
-  if (writing.long_term_memory_enabled === true) {
-    const ltm = readLongTermMemory(sessionId).trim();
-    if (ltm) {
-      dynamicSystemParts.push(`<long_term_memory>\n${tv(ltm)}\n</long_term_memory>`);
-      log.debug(`│  [8.5] long-term memory injected (writing)  chars=${ltm.length}`);
-    }
+  const writingLtm = renderLongTermMemorySection(sessionId, writing.long_term_memory_enabled, tv);
+  if (writingLtm) {
+    dynamicSystemParts.push(writingLtm.text);
+    log.debug(`│  [8.5] long-term memory injected (writing)  chars=${writingLtm.chars}`);
   }
 
   // [8.6] 表格记忆
-  injectTableMemory(dynamicSystemParts, sessionId, writing.table_memory_enabled);
+  const writingTableSection = renderTableMemorySection(sessionId, writing.table_memory_enabled);
+  if (writingTableSection) {
+    dynamicSystemParts.push(writingTableSection.text);
+    log.debug(`│  [8.6] table memory injected  chars=${writingTableSection.chars}`);
+  }
 
   // [9] 召回摘要（向量搜索历史 turn summaries，排除当前上下文窗口内的轮次）
   const { recalled } = await searchRecalledSummaries(world.id, sessionId);
-  const recalledSummariesText = renderRecalledSummaries(recalled);
   const recallHitCount = recalled.length;
-  if (recalledSummariesText) dynamicSystemParts.push(`<recalled_memories>\n${tv(recalledSummariesText)}\n</recalled_memories>`);
+  const recalledSection = renderRecalledSummariesSection(recalled, tv);
+  if (recalledSection) dynamicSystemParts.push(recalledSection);
   if (recallHitCount > 0) log.debug(`│  [9] recall  hits=${recallHitCount}`);
   onRecallEvent?.('memory_recall_done', { hit: recallHitCount });
 
@@ -528,14 +498,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const needSavedJudge = runSavedRecall && savedRows.length >= SAVED_RECALL_PREFLIGHT_MIN;
 
   if (runExpand) {
-    onRecallEvent?.('memory_expand_start', { candidates: recalled.map((r) => ({
-      ref: r.ref,
-      turn_record_id: r.turn_record_id,
-      session_id: r.session_id,
-      session_title: r.session_title,
-      round_index: r.round_index,
-      created_at: r.created_at,
-    })) });
+    onRecallEvent?.('memory_expand_start', { candidates: buildExpandCandidates(recalled) });
   }
 
   const [expandIds, judgedSavedIds] = await Promise.all([
@@ -545,12 +508,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   if (runExpand) {
     if (expandIds.length > 0) {
-      const expandedText = renderExpandedTurnRecords(expandIds, MEMORY_EXPAND_MAX_TOKENS);
-      if (expandedText) {
-        dynamicSystemParts.push(`<expanded_dialogues>\n${tv(expandedText)}\n</expanded_dialogues>`);
+      const expanded = renderExpandedSection(expandIds, tv);
+      if (expanded.text) {
+        dynamicSystemParts.push(expanded.text);
         log.debug(`│  [10] expand  ids=${expandIds.length}`);
       }
-      onRecallEvent?.('memory_expand_done', { expanded: expandedText ? expandIds : [] });
+      onRecallEvent?.('memory_expand_done', { expanded: expanded.expandedText ? expandIds : [] });
     } else {
       onRecallEvent?.('memory_expand_done', { expanded: [] });
     }
@@ -571,8 +534,9 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   }
 
   // [11] 日记注入（一次性，仅本轮生效）
-  if (diaryInjection && typeof diaryInjection === 'string') {
-    dynamicSystemParts.push(`<diary>\n${diaryInjection}\n</diary>`);
+  const diarySection = renderDiarySection(diaryInjection);
+  if (diarySection) {
+    dynamicSystemParts.push(diarySection);
     log.debug('│  [11] diary injection applied (writing)');
   }
 
@@ -580,9 +544,7 @@ export async function buildWritingPrompt(sessionId, options = {}) {
   const messages = [];
 
   // [1-11] 合并为单条 system message：cached 前缀 + dynamic 后缀
-  const cachedContent = cachedSystemParts.filter(Boolean).join('\n\n');
-  const dynamicContent = dynamicSystemParts.filter(Boolean).join('\n\n');
-  const systemContent = [cachedContent, dynamicContent].filter(Boolean).join('\n\n');
+  const { cachedContent, systemContent } = composeSystemContent(cachedSystemParts, dynamicSystemParts);
   if (systemContent) messages.push({ role: 'system', content: systemContent });
 
   // [12] 历史消息：稳定使用原始消息窗口；turn records 仅用于摘要/时间线。
@@ -632,16 +594,12 @@ export async function buildWritingPrompt(sessionId, options = {}) {
 
   const temperature = world.temperature ?? writing.temperature ?? config.llm.temperature;
   const baseMaxTokens = world.max_tokens ?? writing.max_tokens ?? config.llm.max_tokens;
-  const maxTokens = writing.suggestion_enabled
-    ? Math.max(baseMaxTokens - SUGGESTION_TOKEN_RESERVE, 500)
-    : baseMaxTokens;
+  const maxTokens = resolveMaxTokens(baseMaxTokens, writing.suggestion_enabled);
   const model = writing.model || null;
 
   const suggestionText = writing.suggestion_enabled ? tv(SUGGESTION_PROMPT) : null;
 
-  const activatedEntries = triggeredEntries2
-    .filter((e) => e.trigger_type !== 'always')
-    .map((e) => ({ id: e.id, title: e.title, trigger_type: e.trigger_type }));
+  const activatedEntries = selectActivatedEntries(triggeredEntries);
 
   log.info(`└─ buildWritingPrompt DONE  session=${sid}  msgs=${messages.length}  cached=${fmtK(cachedContent.length)}  +${Date.now() - t0}ms  temp=${temperature}  max=${maxTokens}`);
   return { messages, temperature, maxTokens, model, recallHitCount, cacheableSystem: cachedContent, suggestionText, activatedEntries };
