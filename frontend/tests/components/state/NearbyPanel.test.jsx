@@ -22,16 +22,21 @@ vi.mock('../../../src/core/api/session-state-values.js', () => ({
   resetSessionPersonaStateValues: vi.fn(),
   patchSessionStateValue: vi.fn(),
 }));
-vi.mock('../../../src/core/hooks/useSessionState.js', () => ({
-  useSessionState: () => ({
+// stateData 的引用必须稳定：真实 hook 只在数据变化时换对象，每次渲染换新对象会让
+// useStateDiff 的 layout effect 无限自触发
+vi.mock('../../../src/core/hooks/useSessionState.js', () => {
+  const sessionState = {
     stateData: { world: [], persona: [], character: [] },
     setStateData: vi.fn(),
     diaryEntries: [],
+    stateError: null,
     diaryError: null,
     stateJustChanged: false,
     isUpdating: false,
-  }),
-}));
+    retryStateLoad: vi.fn(),
+  };
+  return { useSessionState: () => sessionState };
+});
 vi.mock('../../../src/core/utils/logger.js', () => ({
   log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), success: vi.fn() },
 }));

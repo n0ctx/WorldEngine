@@ -1,36 +1,28 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
-import StatusSection from '../../../components/state/StatusSection.jsx';
 import PanelCard from '../../../components/ui/PanelCard.jsx';
+import SessionStatePanel from '../../../components/state/SessionStatePanel.jsx';
 import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
-import SectionTabs from '../../../components/ui/SectionTabs.jsx';
-import { getWorld } from '../../../core/api/worlds.js';
-import { getConfig } from '../../../core/api/config.js';
-import {
-  resetSessionWorldStateValues,
-  resetSessionPersonaStateValues,
-  patchSessionStateValue,
-} from '../../../core/api/session-state-values.js';
-import { useSessionState } from '../../../core/hooks/useSessionState.js';
 import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
-import {
-  DiaryEntry,
-  ResetAction,
-  StateBusyOverlay,
-  StateEmpty,
-  RefreshIcon,
-} from '../../../components/state/panel-parts.jsx';
-import {
-  DIARY_RECENT_LIMIT,
-  pinDiaryTimeFirst,
-  splitDiaryEntries,
-  useDiarySelection,
-} from '../../../components/state/panel-utils.js';
+import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 import { log } from '../../../core/utils/logger.js';
+
+const CLASS_NAMES = {
+  panel: 'we-cast-panel',
+  spine: 'we-cast-spine',
+  scroll: 'we-cast-scroll',
+  diaryEntry: 'we-cast-diary-entry',
+  diaryEntryStyle: { transition: 'background 0.18s ease' },
+  diaryMore: 'we-cast-diary-more',
+  overlayKey: 'nearby-state-overlay',
+  overlay: 'we-cast-state-overlay',
+  overlayChipStyle: { display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' },
+  overlayText: 'we-cast-state-overlay-text',
+};
 
 function PlusIcon() {
   return (
@@ -110,11 +102,6 @@ export default function NearbyPanel({
   savedRecallHits = null,
   onDiaryInject,
 }) {
-  const { stateData, setStateData, diaryEntries, diaryError, stateJustChanged, isUpdating } =
-    useSessionState(sessionId, stateTick, diaryTick, stateQueuedTick, stateFailedTick);
-
-  const worldRows = useMemo(() => pinDiaryTimeFirst(stateData?.world ?? null), [stateData?.world]);
-
   const [nearby, setNearby] = useState(null); // null = loading
   const [nearbyError, setNearbyError] = useState(null);
   const [nearbyReloadToken, setNearbyReloadToken] = useState(0);
@@ -123,16 +110,8 @@ export default function NearbyPanel({
   const [collapsedSavedIds, setCollapsedSavedIds] = useState(() => new Set());
   // 记录上次应用过的 savedRecallTick，避免对同一事件重复处理；session 切换时重置为当前 tick 以忽略陈旧 hits
   const lastAppliedRecallTickRef = useRef(savedRecallTick);
-  const [worldResetting, setWorldResetting] = useState(false);
-  const [personaResetting, setPersonaResetting] = useState(false);
-
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [makeCardOpen, setMakeCardOpen] = useState(false);
-
-  const [diaryExpanded, setDiaryExpanded] = useState(false);
-  const { selectedEntry, handleDiarySelect } = useDiarySelection(sessionId, onDiaryInject);
-  const [worldName, setWorldName] = useState(null);
-  const [diaryEnabled, setDiaryEnabled] = useState(true);
 
   const reloadNearby = useCallback(() => {
     if (!worldId || !sessionId) {
@@ -208,119 +187,6 @@ export default function NearbyPanel({
 
     if (recallAdvanced) lastAppliedRecallTickRef.current = savedRecallTick;
   }, [nearby, savedRecallTick, savedRecallHits]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const p = worldId ? getWorld(worldId) : Promise.resolve(null);
-    p.then((w) => { if (!cancelled) setWorldName(worldId ? (w?.name ?? null) : null); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [worldId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const load = () => {
-      getConfig().then((c) => {
-        if (!cancelled) setDiaryEnabled(c?.diary?.writing?.enabled !== false);
-      }).catch(() => {});
-    };
-    load();
-    const onConfigUpdated = (e) => {
-      const next = e?.detail;
-      if (next && typeof next === 'object' && next.diary) {
-        setDiaryEnabled(next?.diary?.writing?.enabled !== false);
-      } else {
-        load();
-      }
-    };
-    window.addEventListener('we:global-config-updated', onConfigUpdated);
-    return () => {
-      cancelled = true;
-      window.removeEventListener('we:global-config-updated', onConfigUpdated);
-    };
-  }, []);
-
-  const templateCtx = useMemo(() => ({
-    user: persona?.name ?? '',
-    char: '',
-    world: worldName ?? '',
-  }), [persona?.name, worldName]);
-
-  async function handleResetWorldState() {
-    if (!sessionId || worldResetting) return;
-    setWorldResetting(true);
-    try { setStateData(await resetSessionWorldStateValues(sessionId)); }
-    catch (e) { log.error('state.world.reset_failed', e, { toast: e.message || '重置世界状态失败' }); }
-    finally { setWorldResetting(false); }
-  }
-
-  async function handleResetPersonaState() {
-    if (!sessionId || personaResetting) return;
-    setPersonaResetting(true);
-    try { setStateData(await resetSessionPersonaStateValues(sessionId)); }
-    catch (e) { log.error('state.player.reset_failed', e, { toast: e.message || '重置玩家状态失败' }); }
-    finally { setPersonaResetting(false); }
-  }
-
-  async function handleSaveWorld(fieldKey, valueJson) {
-    try {
-      await patchSessionStateValue(sessionId, 'world', fieldKey, valueJson);
-      setStateData((prev) => prev ? {
-        ...prev,
-        world: prev.world.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
-      } : prev);
-    } catch (e) {
-      log.error('state.world.update_failed', e, { toast: e.message || '更新世界状态失败' });
-      throw e; // 抛回内联编辑器,使其保留编辑态并内联报错
-    }
-  }
-
-  async function handleSavePersona(fieldKey, valueJson) {
-    try {
-      await patchSessionStateValue(sessionId, 'persona', fieldKey, valueJson);
-      setStateData((prev) => prev ? {
-        ...prev,
-        persona: prev.persona.map((r) => r.field_key === fieldKey ? { ...r, effective_value_json: valueJson, runtime_value_json: valueJson } : r),
-      } : prev);
-    } catch (e) {
-      log.error('state.player.update_failed', e, { toast: e.message || '更新玩家状态失败' });
-      throw e; // 抛回内联编辑器,使其保留编辑态并内联报错
-    }
-  }
-
-  const worldTab = (
-    <section className="we-state-block we-state-block--world">
-      <header className="we-state-block-head">
-        <span className="we-state-block-label">{worldName || '世界'}</span>
-        <span className="we-section-rule" />
-        {<ResetAction onClick={handleResetWorldState} busy={worldResetting} />}
-      </header>
-      <StatusSection
-        headerless
-        gridLayout
-        className="we-status-world"
-        rows={worldRows}
-        onSave={handleSaveWorld}
-        templateCtx={templateCtx}
-        emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
-      />
-    </section>
-  );
-
-  const playerTab = (
-    <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
-        <StatusSection
-          headerless
-          gridLayout
-          className="we-status-player"
-          rows={stateData?.persona ?? null}
-          onSave={handleSavePersona}
-          templateCtx={templateCtx}
-          emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
-        />
-      </PanelCard>
-    </div>
-  );
 
   const addNearbyGlobalAction = (
     <button
@@ -437,30 +303,6 @@ export default function NearbyPanel({
     return { fullStateChars: full, demotedSavedNearby: savedAll };
   }, [nearby, collapsedSavedIds]);
 
-  const perCharSections = fullStateChars.map((n) => {
-    const name = n.name || '未命名';
-    return {
-    key: n.id,
-    label: name,
-    actions: nearbyToolbarFor(n),
-    content: (
-      <div className="we-panel-tab-body we-nearby-tab">
-        <PanelCard variant="headerless">
-          <div className="we-cast-characters">
-            <NearbyCharacterBlock
-              worldId={worldId}
-              sessionId={sessionId}
-              nearby={n}
-              onChange={reloadNearby}
-              templateCtx={templateCtx}
-            />
-          </div>
-        </PanelCard>
-      </div>
-    ),
-    };
-  });
-
   const emptyNearbyTab = (
     <div className="we-panel-tab-body we-nearby-tab">
       <PanelCard variant="headerless">
@@ -488,91 +330,34 @@ export default function NearbyPanel({
     </div>
   );
 
-  const { hasDiary, recentDiary, olderDiary, hasMore } = splitDiaryEntries(diaryEntries, DIARY_RECENT_LIMIT);
-
-  const diaryTab = (
-    <div className="we-panel-tab-body">
-      <PanelCard variant="headerless">
-      <div className="we-timeline we-timeline--in-card">
-        {diaryEntries === null && !diaryError ? (
-          <div className="we-skel-stack" aria-busy="true">
-            {[85, 65, 90].map((w, i) => (
-              <div key={i} className="we-skel we-skel-line" style={{ '--skel-width': `${w}%` }} />
-            ))}
+  // 附近角色区块：每个在场角色一个 tab，没有在场角色时给一个空态 tab
+  const extraSections = ({ templateCtx }) => (
+    fullStateChars.length > 0
+      ? fullStateChars.map((n) => ({
+        key: n.id,
+        label: n.name || '未命名',
+        actions: nearbyToolbarFor(n),
+        content: (
+          <div className="we-panel-tab-body we-nearby-tab">
+            <PanelCard variant="headerless">
+              <div className="we-cast-characters">
+                <NearbyCharacterBlock
+                  worldId={worldId}
+                  sessionId={sessionId}
+                  nearby={n}
+                  onChange={reloadNearby}
+                  templateCtx={templateCtx}
+                />
+              </div>
+            </PanelCard>
           </div>
-        ) : diaryError ? (
-          <p className="we-field-error">{diaryError}</p>
-        ) : !hasDiary ? (
-          <p className="we-section-empty">暂无日记</p>
-        ) : (
-          <div className="we-timeline-list">
-            {recentDiary.map((entry, i) => (
-              <DiaryEntry
-                key={entry.date_str}
-                entry={entry}
-                index={i}
-                selected={selectedEntry?.date_str === entry.date_str}
-                onSelect={handleDiarySelect}
-                className="we-cast-diary-entry"
-                style={{ transition: 'background 0.18s ease' }}
-              />
-            ))}
-            {hasMore && (
-              <>
-                {diaryExpanded && olderDiary.map((entry, i) => (
-                  <DiaryEntry
-                    key={entry.date_str}
-                    entry={entry}
-                    index={DIARY_RECENT_LIMIT + i}
-                    selected={selectedEntry?.date_str === entry.date_str}
-                    onSelect={handleDiarySelect}
-                    className="we-cast-diary-entry"
-                    style={{ transition: 'background 0.18s ease' }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  className="we-cast-diary-more"
-                  onClick={() => setDiaryExpanded((v) => !v)}
-                  disabled={diaryEntries === null}
-                  aria-expanded={diaryExpanded}
-                >
-                  {diaryExpanded ? '▲ 收起' : `▼ 展开更多（${olderDiary.length} 条）`}
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-      </PanelCard>
-    </div>
+        ),
+      }))
+      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase }]
   );
 
-  const hasTransient = fullStateChars.length > 0;
-  const sections = [
-    {
-      key: 'player',
-      label: persona?.name || '玩家',
-      content: playerTab,
-      actions: <ResetAction onClick={handleResetPersonaState} busy={personaResetting} />,
-    },
-    ...(hasTransient
-      ? perCharSections
-      : [{ key: 'nearby', label: '附近', content: emptyNearbyTab, actions: nearbyToolbarBase }]),
-    ...(diaryEnabled ? [{ key: 'diary', label: '日记', content: diaryTab }] : []),
-  ];
-
-  return (
-    <div className="we-cast-panel">
-      <div className="we-cast-spine" />
-
-      <div className="we-cast-scroll">
-        {worldTab}
-        <div className="we-state-divider" aria-hidden="true" />
-        <section className="we-state-block we-state-block--cast">
-          <SectionTabs sections={sections} defaultKey="player" globalActions={addNearbyGlobalAction} />
-        </section>
-
+  const belowTabs = (
+    <>
         {demotedSavedNearby.length > 0 && (
           <div className="we-saved-nearby">
             <div className="we-saved-nearby-title">已保存角色</div>
@@ -631,16 +416,21 @@ export default function NearbyPanel({
             />
           )}
         </AnimatePresence>
-      </div>
+    </>
+  );
 
-      <StateBusyOverlay
-        isUpdating={isUpdating}
-        justChanged={stateJustChanged}
-        overlayKey="nearby-state-overlay"
-        overlayClassName="we-cast-state-overlay"
-        chipStyle={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
-        textClassName="we-cast-state-overlay-text"
-      />
-    </div>
+  return (
+    <SessionStatePanel
+      sessionId={sessionId}
+      worldId={worldId}
+      persona={persona}
+      ticks={{ state: stateTick, diary: diaryTick, queued: stateQueuedTick, failed: stateFailedTick }}
+      diaryScope="writing"
+      classNames={CLASS_NAMES}
+      extraSections={extraSections}
+      globalActions={addNearbyGlobalAction}
+      belowTabs={belowTabs}
+      onDiaryInject={onDiaryInject}
+    />
   );
 }
