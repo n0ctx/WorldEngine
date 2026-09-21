@@ -7,6 +7,7 @@ import { createLogger } from '../utils/logger.js';
 import { LLM_TASK_TEMPERATURE, LLM_CHAPTER_TITLE_MAX_TOKENS } from '../utils/constants.js';
 import { renderBackendPrompt } from '../prompts/prompt-loader.js';
 import { generateTitleWithRetry, stripThinkTags } from './title-generation.js';
+import { resolveAuxScope } from '../utils/aux-scope.js';
 
 const log = createLogger('chapter-title');
 
@@ -51,7 +52,7 @@ export async function generateChapterTitle(sessionId, chapterIndex, chapterMessa
     logLabel: 'generateChapterTitle',
     logMeta: `session=${sid}  chapter=${chapterIndex}`,
     conversationId: sessionId,
-    configScope: 'writing-aux',
+    configScope: resolveAuxScope(sessionId),
   });
   if (!result?.title) return null;
 
