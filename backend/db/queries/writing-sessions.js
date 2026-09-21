@@ -35,18 +35,6 @@ export function getWritingSessionById(id) {
   return db.prepare('SELECT * FROM sessions WHERE id = ? AND mode = \'writing\'').get(id);
 }
 
-export function deleteWritingSession(id) {
-
-  db.prepare('DELETE FROM sessions WHERE id = ?').run(id);
-}
-
-export function updateWritingSessionTitle(id, title) {
-
-  db.prepare('UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?').run(title, Date.now(), id);
-}
-
-export function touchWritingSession(id) {
-
-  db.prepare('UPDATE sessions SET updated_at = ? WHERE id = ?').run(Date.now(), id);
-}
+// 删除 / 改标题 / touch 与 chat 会话的 SQL 完全一致，统一走 db/queries/sessions.js，
+// 这里只保留写作专属的建表语义（mode='writing' + persona_id）与带 mode 过滤的读取。
 

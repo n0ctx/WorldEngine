@@ -2,19 +2,9 @@ import {
   createWritingSession as dbCreateWritingSession,
   getWritingSessionsByWorldId as dbGetWritingSessionsByWorldId,
   getWritingSessionById as dbGetWritingSessionById,
-  deleteWritingSession as dbDeleteWritingSession,
-  updateWritingSessionTitle as dbUpdateWritingSessionTitle,
-  touchWritingSession as dbTouchWritingSession,
 } from '../db/queries/writing-sessions.js';
-import {
-  createMessage as dbCreateMessage,
-  getMessageById as dbGetMessageById,
-  getMessagesBySessionId as dbGetMessagesBySessionId,
-  deleteAllMessagesBySessionId as dbDeleteAllMessagesBySessionId,
-  getMessageIdsBySessionId,
-  getMessageIdsAfter,
-  deleteMessagesAfter as dbDeleteMessagesAfter,
-} from '../db/queries/messages.js';
+import { deleteSession as dbDeleteSession } from '../db/queries/sessions.js';
+import { getMessageIdsBySessionId } from '../db/queries/messages.js';
 import { runOnDelete } from '../utils/cleanup-hooks.js';
 import { getConfig } from './config.js';
 import {
@@ -80,58 +70,31 @@ export function getWritingSessionById(id) {
   return dbGetWritingSessionById(id);
 }
 
+/**
+ * 写作会话的删除比 chat 多一步逐条 message 清理回调：
+ * services/personas.js 删 persona 时依赖这条级联语义，不能退化成 sessions.deleteSession。
+ */
 export async function deleteWritingSession(id) {
   const ids = getMessageIdsBySessionId(id);
   for (const mid of ids) {
     await runOnDelete('message', mid);
   }
   await runOnDelete('session', id);
-  const result = dbDeleteWritingSession(id);
+  const result = dbDeleteSession(id);
   log.info(`writing_session.delete  ${formatMeta({ sessionId: id, messages: ids.length })}`);
   return result;
 }
 
-export function updateWritingSessionTitle(id, title) {
-  return dbUpdateWritingSessionTitle(id, title);
-}
-
-export function touchWritingSession(id) {
-  return dbTouchWritingSession(id);
-}
-
-export function createMessage(data) {
-  const msg = dbCreateMessage(data);
-  dbTouchWritingSession(data.session_id);
-  return msg;
-}
-
-export function getMessagesBySessionId(sessionId, limit, offset) {
-  return dbGetMessagesBySessionId(sessionId, limit, offset);
-}
-
-export function getMessageById(id) {
-  return dbGetMessageById(id);
-}
-
-export async function deleteMessagesAfter(messageId) {
-  const ids = getMessageIdsAfter(messageId);
-  for (const mid of ids) {
-    await runOnDelete('message', mid);
-  }
-  const result = dbDeleteMessagesAfter(messageId);
-  log.info(`writing_message.delete_after  ${formatMeta({ messageId, count: ids.length })}`);
-  return result;
-}
-
-export async function deleteAllMessages(sessionId) {
-  const ids = getMessageIdsBySessionId(sessionId);
-  for (const mid of ids) {
-    await runOnDelete('message', mid);
-  }
-  const result = dbDeleteAllMessagesBySessionId(sessionId);
-  log.info(`writing_message.delete_all  ${formatMeta({ sessionId, count: ids.length })}`);
-  return result;
-}
+// 消息读写与 touch 在两种模式下完全同构（底层都是同一张 sessions / messages 表），
+// 统一由 services/sessions.js 承担，这里只做转出口。
+export {
+  touchSession as touchWritingSession,
+  createMessage,
+  getMessagesBySessionId,
+  getMessageById,
+  deleteMessagesAfter,
+  deleteAllMessagesBySessionId as deleteAllMessages,
+} from './sessions.js';
 
 // ---------------------------------------------------------------------------
 // Nearby characters（写作会话登场角色）
