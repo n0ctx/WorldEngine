@@ -1,5 +1,6 @@
 import { getConfig } from '../../services/config.js';
 import { getCharacterById } from '../../services/characters.js';
+import { getWorldById } from '../../services/worlds.js';
 import {
   createMessage,
   deleteMessagesAfter,
@@ -47,6 +48,20 @@ export const chatMode = {
       worldId: character?.world_id ?? null,
       characterIds: characterId ? [characterId] : [],
     };
+  },
+
+  impersonate: {
+    promptOptions: () => ({}),
+    maxTokens: (overrides) => overrides.maxTokens ?? 1000,
+    /** 代拟需要玩家卡所在世界；对话会话经角色间接拿到 */
+    resolveWorldId(req, session) {
+      const character = session.character_id ? getCharacterById(session.character_id) : null;
+      const world = character?.world_id ? getWorldById(character.world_id) : null;
+      if (!character || !world) {
+        return { worldId: null, status: 400, error: 'Session is missing character/world context' };
+      }
+      return { worldId: world.id };
+    },
   },
 
   postgen: {

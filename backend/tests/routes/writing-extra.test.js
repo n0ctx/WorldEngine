@@ -93,7 +93,7 @@ test('写作 /edit-assistant：参数校验 + session 校验 + 成功路径', as
   assert.equal(ok2.status, 200);
 });
 
-test('写作 /edit-assistant：当前不触发 message:edited hook', async () => {
+test('写作 /edit-assistant：触发 message:edited hook', async () => {
   resetMockEnv();
   const { freshImport } = await import('../helpers/test-env.js');
   const { registerHook } = await freshImport('backend/hooks/hook-registry.js');
@@ -114,8 +114,7 @@ test('写作 /edit-assistant：当前不触发 message:edited hook', async () =>
   assert.equal(res.status, 200);
   await new Promise((resolve) => setTimeout(resolve, 50));
 
-  // TODO(阶段6): 合并 handler 后写作侧应与对话侧一致触发 message:edited，届时改为 assert.equal(fired, true)
-  assert.equal(fired, false, '记录现状：写作侧当前不触发 message:edited');
+  assert.equal(fired, true, '写作侧应与对话侧一致触发 message:edited');
 });
 
 test('写作 /retitle：session 不存在 → 404；正常路径返回 title', async () => {

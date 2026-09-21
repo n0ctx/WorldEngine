@@ -9,6 +9,7 @@ import {
   getWritingSessionById,
   touchWritingSession,
 } from '../../services/writing-sessions.js';
+import { getWorldById } from '../../services/worlds.js';
 import { detectNewChapter } from '../../utils/chapter-detector.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -43,6 +44,17 @@ export const writingMode = {
       worldId: session?.world_id ?? null,
       characterIds: [],
     };
+  },
+
+  impersonate: {
+    // 代拟不要写作体裁指令，只借用世界与玩家上下文
+    promptOptions: () => ({ skipWritingInstructions: true }),
+    maxTokens: () => 1000,
+    resolveWorldId(req) {
+      const { worldId } = req.params;
+      if (!getWorldById(worldId)) return { worldId: null, status: 404, error: 'World not found' };
+      return { worldId };
+    },
   },
 
   postgen: {
