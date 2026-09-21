@@ -52,6 +52,8 @@ export const chatMode = {
 
   impersonate: {
     promptOptions: () => ({}),
+    // 代拟是短任务，对话侧一直显式关闭扩展思考
+    disableThinking: true,
     maxTokens: (overrides) => overrides.maxTokens ?? 1000,
     /** 代拟需要玩家卡所在世界；对话会话经角色间接拿到 */
     resolveWorldId(req, session) {

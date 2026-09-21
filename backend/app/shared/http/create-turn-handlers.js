@@ -244,7 +244,8 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
           maxTokens: mode.impersonate.maxTokens(overrides),
           model: overrides.model,
           cacheableSystem: overrides.cacheableSystem,
-          thinking_level: null,
+          // 只有显式传 thinking_level 才会覆盖配置；不传等于沿用该模式的 thinking_level
+          ...(mode.impersonate.disableThinking ? { thinking_level: null } : {}),
           configScope: mode.llm.configScope,
           callType: mode.llm.callType.impersonate,
           conversationId: sessionId,

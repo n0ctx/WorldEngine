@@ -49,6 +49,8 @@ export const writingMode = {
   impersonate: {
     // 代拟不要写作体裁指令，只借用世界与玩家上下文
     promptOptions: () => ({ skipWritingInstructions: true }),
+    // 写作侧沿用 writing.llm.thinking_level 配置，不强制关闭
+    disableThinking: false,
     maxTokens: () => 1000,
     resolveWorldId(req) {
       const { worldId } = req.params;
