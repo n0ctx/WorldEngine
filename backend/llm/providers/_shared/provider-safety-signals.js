@@ -25,7 +25,7 @@ export function hashText(text) {
 function detectAdapter(provider) {
   if (provider === 'anthropic' || provider === 'kimi-coding' || provider === 'minimax-coding') return 'anthropic';
   if (provider === 'gemini') return 'gemini';
-  if (provider === 'ollama' || provider === 'lmstudio') return provider;
+  if (provider === 'ollama' || provider === 'lmstudio' || provider === 'llamacpp') return provider;
   if (provider === 'mock') return 'mock';
   return OPENAI_COMPAT_ADAPTER;
 }

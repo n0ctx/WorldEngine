@@ -23,7 +23,7 @@ const log = createLogger('llm');
 // Provider 路由
 // ============================================================
 
-const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio']);
+const LOCAL_PROVIDERS = new Set(['ollama', 'lmstudio', 'llamacpp']);
 
 function getRetryPolicy() {
   const max = Number(process.env.WE_LLM_RETRY_MAX);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { completeWithTools } from '../../llm/providers/ollama/index.js';
+import { completeWithTools, complete } from '../../llm/providers/ollama/index.js';
 import { ToolLoopCancelledError } from '../../llm/tool-loop-control.js';
 
 // 通用 fetch mock 工厂：按顺序返回预设响应；记录每次入参以便断言
@@ -144,3 +144,11 @@ test('completeWithTools: handler 抛 ToolLoopCancelledError → 透传不吞', a
   } finally { restore(); }
 });
 
+
+test('llamacpp: 未填 base_url 时回落到 llama.cpp 默认端口', async () => {
+  const { calls, restore } = mockFetchSequence([{ json: chatResp({ content: 'ok' }) }]);
+  try {
+    await complete([{ role: 'user', content: 'hi' }], { provider: 'llamacpp', model: 'local' });
+    assert.equal(calls[0].url, 'http://localhost:8080/v1/chat/completions');
+  } finally { restore(); }
+});

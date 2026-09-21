@@ -1,4 +1,4 @@
-import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
+import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL, LLAMACPP_DEFAULT_BASE_URL } from '../utils/constants.js';
 
 export const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -18,6 +18,7 @@ export const LLM_PROVIDERS = [
   { value: 'minimax-coding', label: 'MiniMax Coding Plan' },
   { value: 'ollama', label: 'Ollama（本地）' },
   { value: 'lmstudio', label: 'LM Studio（本地）' },
+  { value: 'llamacpp', label: 'llama.cpp（本地）' },
 ];
 
 export const PROVIDER_HINTS = {
@@ -96,12 +97,13 @@ export const NAV_SECTIONS = [
   { key: NAV_KEY.ABOUT, label: '关于' },
 ];
 
-export const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
+export const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
 export const NEEDS_BASE_URL_PROVIDERS = new Set([...LOCAL_PROVIDERS, 'openai_compatible', 'xiaomi']);
 
 export const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
+  llamacpp: LLAMACPP_DEFAULT_BASE_URL,
   xiaomi: 'https://your-xiaomi-api-endpoint/v1',
 };
 

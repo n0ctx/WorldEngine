@@ -1,12 +1,13 @@
 /**
- * 本地 LLM Provider 适配 — Ollama / LM Studio
+ * 本地 LLM Provider 适配 — Ollama / LM Studio / llama.cpp
  *
- * 两者均使用 OpenAI-compatible /v1/chat/completions 接口
+ * 三者均使用 OpenAI-compatible /v1/chat/completions 接口
  */
 
 import {
   OLLAMA_DEFAULT_BASE_URL,
   LMSTUDIO_DEFAULT_BASE_URL,
+  LLAMACPP_DEFAULT_BASE_URL,
 } from '../../../utils/constants.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
@@ -30,6 +31,7 @@ function makeLocalErrorSignal(config, status, body, phase) {
 const DEFAULT_BASE_URLS = {
   ollama: OLLAMA_DEFAULT_BASE_URL,
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
+  llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
 
 function getBaseUrl(config) {

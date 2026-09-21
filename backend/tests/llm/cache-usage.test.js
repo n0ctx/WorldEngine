@@ -23,6 +23,7 @@ test('getPromptCacheStrategy 覆盖全部云端预设 provider', () => {
     ['gemini', 'gemini-implicit'],
     ['ollama', 'local-or-unknown'],
     ['lmstudio', 'local-or-unknown'],
+    ['llamacpp', 'local-or-unknown'],
   ]);
 
   for (const [provider, strategy] of expected) {

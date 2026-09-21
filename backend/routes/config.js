@@ -9,7 +9,7 @@ import { DEFAULT_BASE_URLS } from '../llm/providers/_shared/base-urls.js';
 import { extractProviderError } from '../llm/providers/_shared/fetch-utils.js';
 import { ANTHROPIC_API_VERSION } from '../llm/providers/anthropic/constants.js';
 import { createLogger, formatMeta, getLoggingConfig } from '../utils/logger.js';
-import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL } from '../utils/constants.js';
+import { OLLAMA_DEFAULT_BASE_URL, LMSTUDIO_DEFAULT_BASE_URL, LLAMACPP_DEFAULT_BASE_URL } from '../utils/constants.js';
 
 const router = Router();
 const log = createLogger('config', 'blue');
@@ -757,7 +757,7 @@ const KNOWN_PRICES = new Map([
 
 /**
  * OpenAI-compatible 模型列表拉取（通用）
- * 适用于：OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow / LM Studio
+ * 适用于：OpenAI / OpenRouter / GLM / Kimi / MiniMax / DeepSeek / Grok / SiliconFlow / LM Studio / llama.cpp
  * 返回 { id, inputPrice?, outputPrice? }[]，价格单位 $/1M tokens
  * 目前只有 OpenRouter 在模型列表 API 中返回价格
  */
@@ -774,6 +774,7 @@ const OPENAI_COMPATIBLE_BASE_URLS = {
   siliconflow: 'https://api.siliconflow.cn/v1',
   qwen: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
+  llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
 
 function toPrice1M(perToken) {
