@@ -1,38 +1,5 @@
 import { editMessage } from './sessions.js';
-import { parseSSEStream, subscribeSse } from './stream-parser.js';
-
-/**
- * 内部辅助：POST 请求 + SSE 流解析
- * onStreamEnd 通过 finally 保证在任何情况下都被调用（包括 HTTP 错误和非 Abort 异常）
- */
-function streamPost(url, body, callbacks) {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        callbacks.onError?.(err.error || `HTTP ${res.status}`);
-        return;
-      }
-      await parseSSEStream(res, callbacks);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        callbacks.onError?.(err.message);
-      }
-    } finally {
-      callbacks.onStreamEnd?.();
-    }
-  })();
-
-  return () => controller.abort();
-}
+import { recoverStream, streamPost, subscribeStream } from './sse-post.js';
 
 /**
  * 发送消息，返回 abort 函数
@@ -62,33 +29,11 @@ export function regenerate(sessionId, afterMessageId, callbacks) {
  * 编辑消息并重新生成，返回 abort 函数
  */
 export function editAndRegenerate(sessionId, messageId, newContent, callbacks) {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const updated = await editMessage(messageId, newContent);
-      const res = await fetch(`/api/sessions/${sessionId}/regenerate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ afterMessageId: updated.id }),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        callbacks.onError?.(err.error || `HTTP ${res.status}`);
-        return;
-      }
-      await parseSSEStream(res, callbacks);
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        callbacks.onError?.(err.message);
-      }
-    } finally {
-      callbacks.onStreamEnd?.();
-    }
-  })();
-
-  return () => controller.abort();
+  return streamPost(
+    `/api/sessions/${sessionId}/regenerate`,
+    async () => ({ afterMessageId: (await editMessage(messageId, newContent)).id }),
+    callbacks
+  );
 }
 
 /**
@@ -99,24 +44,11 @@ export function continueGeneration(sessionId, callbacks) {
 }
 
 export async function recoverChatStream(sessionId) {
-  const res = await fetch(`/api/sessions/${sessionId}/recover-stream`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  return json.task || null;
+  return recoverStream(`/api/sessions/${sessionId}/recover-stream`);
 }
 
 export function subscribeChatStream(sessionId, callbacks) {
-  const controller = new AbortController();
-  (async () => {
-    try {
-      await subscribeSse(`/api/sessions/${sessionId}/stream`, callbacks, controller.signal);
-    } catch (err) {
-      if (err.name !== 'AbortError') callbacks.onError?.(err.message);
-    } finally {
-      callbacks.onStreamEnd?.();
-    }
-  })();
-  return () => controller.abort();
+  return subscribeStream(`/api/sessions/${sessionId}/stream`, callbacks);
 }
 
 /**

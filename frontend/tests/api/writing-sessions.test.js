@@ -51,7 +51,7 @@ describe('writing api', () => {
     ]);
   });
 
-  it('generate 在 HTTP 错误时只触发 onError，不触发 onStreamEnd', async () => {
+  it('generate 在 HTTP 错误时先触发 onError 再触发 onStreamEnd', async () => {
     fetch.mockResolvedValue({
       ok: false,
       status: 500,
@@ -65,7 +65,7 @@ describe('writing api', () => {
     });
 
     await vi.waitFor(() => {
-      expect(calls).toEqual([['error', '爆炸了']]);
+      expect(calls).toEqual([['error', '爆炸了'], ['end']]);
     });
   });
 
@@ -107,7 +107,7 @@ describe('writing api', () => {
     ]);
   });
 
-  it('editAndRegenerateWriting 在编辑失败时触发 onError', async () => {
+  it('editAndRegenerateWriting 在编辑失败时触发 onError 并收尾', async () => {
     fetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
     const calls = [];
@@ -117,7 +117,7 @@ describe('writing api', () => {
     });
 
     await vi.waitFor(() => {
-      expect(calls).toEqual([['error', 'editMessage failed: 500']]);
+      expect(calls).toEqual([['error', 'editMessage failed: 500'], ['end']]);
     });
   });
 });

@@ -1,38 +1,5 @@
-import { parseSSEStream, subscribeSse } from './stream-parser.js';
-
-/**
- * 内部辅助：POST 请求 + SSE 流解析（写作版）
- * onStreamEnd 仅在成功完成或 AbortError 时调用；HTTP 错误和非 Abort 异常时不调用（由 onError 处理）
- */
-function streamPost(url, body, callbacks) {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-        signal: controller.signal,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        callbacks.onError?.(err.error || `HTTP ${res.status}`);
-        return;
-      }
-      await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
-      }
-    }
-  })();
-
-  return () => controller.abort();
-}
+import { recoverStream, streamPost, subscribeStream } from './sse-post.js';
+import { editMessage } from './sessions.js';
 
 // ─── 会话 CRUD ────────────────────────────────────────────────────────
 
@@ -119,44 +86,11 @@ export function regenerateWriting(worldId, sessionId, afterMessageId, callbacks)
  * 编辑用户消息并重新生成，返回 abort 函数
  */
 export function editAndRegenerateWriting(worldId, sessionId, messageId, newContent, callbacks) {
-  const controller = new AbortController();
-
-  (async () => {
-    try {
-      const editRes = await fetch(`/api/messages/${messageId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newContent }),
-      });
-      if (!editRes.ok) throw new Error(`editMessage failed: ${editRes.status}`);
-      const updated = await editRes.json();
-
-      const res = await fetch(
-        `/api/worlds/${worldId}/writing-sessions/${sessionId}/regenerate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ afterMessageId: updated.id }),
-          signal: controller.signal,
-        }
-      );
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        callbacks.onError?.(err.error || `HTTP ${res.status}`);
-        return;
-      }
-      await parseSSEStream(res, callbacks);
-      callbacks.onStreamEnd?.();
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        callbacks.onError?.(err.message);
-      } else {
-        callbacks.onStreamEnd?.();
-      }
-    }
-  })();
-
-  return () => controller.abort();
+  return streamPost(
+    `/api/worlds/${worldId}/writing-sessions/${sessionId}/regenerate`,
+    async () => ({ afterMessageId: (await editMessage(messageId, newContent)).id }),
+    callbacks
+  );
 }
 
 /**
@@ -200,22 +134,9 @@ export function continueGeneration(worldId, sessionId, callbacks) {
 }
 
 export async function recoverWritingStream(worldId, sessionId) {
-  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/recover-stream`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  return json.task || null;
+  return recoverStream(`/api/worlds/${worldId}/writing-sessions/${sessionId}/recover-stream`);
 }
 
 export function subscribeWritingStream(worldId, sessionId, callbacks) {
-  const controller = new AbortController();
-  (async () => {
-    try {
-      await subscribeSse(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stream`, callbacks, controller.signal);
-    } catch (err) {
-      if (err.name !== 'AbortError') callbacks.onError?.(err.message);
-    } finally {
-      callbacks.onStreamEnd?.();
-    }
-  })();
-  return () => controller.abort();
+  return subscribeStream(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stream`, callbacks);
 }
