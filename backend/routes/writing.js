@@ -1,10 +1,10 @@
 import { Router } from 'express';
 
 import * as llm from '../llm/index.js';
-import { buildWritingPrompt } from '../prompts/assembler.js';
+import { buildTurnContext } from '../app/turn/build-turn-context.js';
 import { getEffectiveChapterTurnSize } from '../services/config.js';
 import { activeStreams } from '../services/chat.js';
-import { logPrompt, createLogger, formatMeta } from '../utils/logger.js';
+import { createLogger, formatMeta } from '../utils/logger.js';
 import {
   createWritingSession,
   getActiveWritingSessionsByWorldId,
@@ -318,12 +318,9 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
   const personaName = persona?.name || '用户';
 
   try {
-    const {
-      messages: baseMessages,
-      temperature,
-      model,
-      cacheableSystem,
-    } = await buildWritingPrompt(sessionId, { skipWritingInstructions: true });
+    const { messages: baseMessages, overrides } = await buildTurnContext('writing', sessionId, {
+      skipWritingInstructions: true,
+    });
     log.info(
       `POST /impersonate  ${formatMeta({
         session: sessionId.slice(0, 8),
@@ -331,7 +328,6 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
         msgs: baseMessages.length,
       })}`
     );
-    logPrompt(sessionId, baseMessages);
     const prompt = [...baseMessages];
     while (prompt.length > 0 && prompt[prompt.length - 1].role === 'user') {
       prompt.pop();
@@ -342,10 +338,8 @@ router.post('/:worldId/writing-sessions/:sessionId/impersonate', async (req, res
     prompt.push({ role: 'user', content: instruction });
 
     const content = await llm.complete(prompt, {
-      temperature,
+      ...overrides,
       maxTokens: 1000,
-      model,
-      cacheableSystem,
       configScope: 'writing',
       callType: 'writing_impersonate',
       conversationId: sessionId,

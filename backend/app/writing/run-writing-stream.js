@@ -4,7 +4,7 @@ import { buildWritingPostgenTasks } from './build-writing-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
-import { buildWritingPrompt } from '../../prompts/assembler.js';
+import { buildTurnContext } from '../turn/build-turn-context.js';
 import { getConfig } from '../../services/config.js';
 import {
   activeStreams as _unused,
@@ -18,7 +18,7 @@ import {
   touchWritingSession,
 } from '../../services/writing-sessions.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
-import { createLogger, formatMeta, logPrompt } from '../../utils/logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
 import {
   closeSessionStreamSse,
   completeSessionStreamTask,
@@ -75,46 +75,29 @@ export async function runWritingStream({
       const onRecallEvent = (name, payload) => {
         emitSse({ type: name, ...payload });
       };
-      const {
-        messages,
-        temperature,
-        maxTokens,
-        model,
-        cacheableSystem,
-        activatedEntries: entries,
-      } = await buildWritingPrompt(sessionId, { onRecallEvent, diaryInjection });
+      const { messages, overrides, activatedEntries } = await buildTurnContext('writing', sessionId, {
+        onRecallEvent,
+        diaryInjection,
+      });
 
-      const activatedEntries = entries ?? [];
       log.info(
         `PROMPT READY  ${formatMeta({
           session: sid,
           msgs: messages.length,
-          model: model || '',
-          temperature,
-          maxTokens,
+          model: overrides.model || '',
+          temperature: overrides.temperature,
+          maxTokens: overrides.maxTokens,
         })}`
       );
-      logPrompt(sessionId, messages);
       if (activatedEntries.length > 0) {
         emitSse({ type: 'entries_activated', entries: activatedEntries });
       }
 
-      return {
-        messages,
-        temperature,
-        maxTokens,
-        model,
-        cacheableSystem,
-        usageRef,
-        activatedEntries,
-      };
+      return { messages, overrides, usageRef, activatedEntries };
     },
     createStream: ({ controller, setup }) =>
       llm.chat(setup.messages, {
-        temperature: setup.temperature,
-        maxTokens: setup.maxTokens,
-        model: setup.model,
-        cacheableSystem: setup.cacheableSystem,
+        ...setup.overrides,
         signal: controller.signal,
         usageRef: setup.usageRef,
         configScope: 'writing',

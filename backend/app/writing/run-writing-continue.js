@@ -5,7 +5,7 @@ import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { createHttpError } from '../shared/http-error.js';
-import { buildWritingPrompt } from '../../prompts/assembler.js';
+import { buildTurnContext } from '../turn/build-turn-context.js';
 import { getConfig, getWritingLlmConfig } from '../../services/config.js';
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
 import {
@@ -18,7 +18,7 @@ import {
   updateMessageNextOptions,
 } from '../../db/queries/messages.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
-import { createLogger, formatMeta, logPrompt } from '../../utils/logger.js';
+import { createLogger, formatMeta } from '../../utils/logger.js';
 import {
   closeSessionStreamSse,
   completeSessionStreamTask,
@@ -82,25 +82,19 @@ export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attac
     emitSse,
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      const {
-        messages,
-        temperature,
-        maxTokens,
-        model,
-        cacheableSystem,
-        suggestionText,
-      } = await buildWritingPrompt(sessionId, { continuation: true });
+      const { messages, overrides, suggestionText } = await buildTurnContext('writing', sessionId, {
+        continuation: true,
+      });
 
       log.info(
         `CONTINUE PROMPT READY  ${formatMeta({
           session: sid,
           msgs: messages.length,
-          model: model || '',
-          temperature,
-          maxTokens,
+          model: overrides.model || '',
+          temperature: overrides.temperature,
+          maxTokens: overrides.maxTokens,
         })}`
       );
-      logPrompt(sessionId, messages);
 
       const usePrefill = supportsPrefill(getWritingLlmConfig()?.provider);
       const continuationMessages = buildContinuationMessages(messages, originalContent, {
@@ -108,21 +102,11 @@ export async function runWritingContinue({ sessionId, emitSse: rawEmitSse, attac
         usePrefill,
       });
 
-      return {
-        continuationMessages,
-        temperature,
-        maxTokens,
-        model,
-        cacheableSystem,
-        usageRef,
-      };
+      return { continuationMessages, overrides, usageRef };
     },
     createStream: ({ controller, setup }) =>
       llm.chat(setup.continuationMessages, {
-        temperature: setup.temperature,
-        maxTokens: setup.maxTokens,
-        model: setup.model,
-        cacheableSystem: setup.cacheableSystem,
+        ...setup.overrides,
         signal: controller.signal,
         usageRef: setup.usageRef,
         configScope: 'writing',

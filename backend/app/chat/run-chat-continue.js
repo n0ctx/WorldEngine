@@ -5,7 +5,8 @@ import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
 import { createHttpError } from '../shared/http-error.js';
-import { processStreamOutput, buildContext, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
+import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
+import { buildTurnContext } from '../turn/build-turn-context.js';
 import { getConfig } from '../../services/config.js';
 import { getCharacterById } from '../../services/characters.js';
 import {
@@ -76,7 +77,7 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
     emitSse,
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      const { messages, overrides, suggestionText } = await buildContext(sessionId, { continuation: true });
+      const { messages, overrides, suggestionText } = await buildTurnContext('chat', sessionId, { continuation: true });
       const usePrefill = supportsPrefill(getConfig()?.llm?.provider);
       const continuationMessages = buildContinuationMessages(messages, originalContent, {
         suggestionText,

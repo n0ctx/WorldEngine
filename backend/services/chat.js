@@ -5,11 +5,10 @@ import { fileURLToPath } from 'node:url';
 import * as llm from '../llm/index.js';
 import { updateMessageAttachments, updateMessageNextOptions } from '../db/queries/messages.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../utils/constants.js';
-import { buildPrompt } from '../prompts/assembler.js';
+import { buildTurnContext } from '../app/turn/build-turn-context.js';
 import { renderPersonaState } from '../memory/recall.js';
 import { getPersonaById } from '../db/queries/personas.js';
-import { logPrompt, createLogger, previewText } from '../utils/logger.js';
-import { getConfig } from './config.js';
+import { createLogger, previewText } from '../utils/logger.js';
 import { createMessage, getSessionById, touchSession } from './sessions.js';
 import { getOrCreatePersona } from './personas.js';
 import { applyRules } from '../utils/regex-runner.js';
@@ -84,9 +83,8 @@ export function saveAttachments(messageId, attachments) {
  * @returns {Promise<{ messages: Array, overrides: { temperature: number, maxTokens: number }, recallHitCount: number }>}
  */
 export async function buildContext(sessionId, options = {}) {
-  const { messages, temperature, maxTokens, recallHitCount, cacheableSystem, suggestionText, activatedEntries } = await buildPrompt(sessionId, options);
-  if (getConfig().log_prompt) logPrompt(sessionId, messages);
-  return { messages, overrides: { temperature, maxTokens, cacheableSystem }, recallHitCount: recallHitCount ?? 0, suggestionText: suggestionText ?? null, activatedEntries: activatedEntries ?? [] };
+  // 兼容层：新代码直接用 app/turn/build-turn-context.js
+  return buildTurnContext('chat', sessionId, options);
 }
 
 function trimAfterLastNextPromptClose(text) {
