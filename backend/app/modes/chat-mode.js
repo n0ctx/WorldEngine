@@ -18,6 +18,13 @@ export const chatMode = {
   id: 'chat',
   log: createLogger('chat'),
 
+  llm: {
+    // 主模型无需 configScope；callType 只用于日志与用量归类
+    configScope: undefined,
+    callType: { stream: 'main_answer', continue: 'main_continue', impersonate: 'impersonate' },
+    prefillProvider: () => getConfig()?.llm?.provider,
+  },
+
   auxScope: 'aux',
   suggestionEnabled: () => !!getConfig().suggestion_enabled,
 

@@ -41,9 +41,10 @@ import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { assertExists } from '../utils/route-helpers.js';
 import { analyzeNearbyForCard } from '../services/nearby-card-maker.js';
 import { runHook } from '../hooks/hook-registry.js';
-import { runWritingContinue } from '../app/writing/run-writing-continue.js';
-import { runWritingRegenerate } from '../app/writing/run-writing-regenerate.js';
-import { runWritingStream } from '../app/writing/run-writing-stream.js';
+import { writingMode } from '../app/modes/writing-mode.js';
+import { runTurnContinue } from '../app/turn/run-turn-continue.js';
+import { runTurnRegenerate } from '../app/turn/run-turn-regenerate.js';
+import { runTurnStream } from '../app/turn/run-turn-stream.js';
 import {
   attachSessionStreamSse,
   buildSessionStreamSnapshot,
@@ -250,7 +251,8 @@ router.post('/:worldId/writing-sessions/:sessionId/generate', async (req, res) =
     log.info(`POST /generate  ${formatMeta({ session: sessionId.slice(0, 8), len: trimmedContent.length })}`);
   }
 
-  await runWritingStream({
+  await runTurnStream({
+    mode: writingMode,
     sessionId,
     emitSse: (payload, options) => emitSse(sessionId, payload, options),
     attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
@@ -285,7 +287,8 @@ router.post('/:worldId/writing-sessions/:sessionId/continue', async (req, res) =
   }
 
   try {
-    await runWritingContinue({
+    await runTurnContinue({
+      mode: writingMode,
       sessionId,
       emitSse: (payload, options) => emitSse(sessionId, payload, options),
       attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
@@ -400,7 +403,8 @@ router.post('/:worldId/writing-sessions/:sessionId/regenerate', async (req, res)
     return res.status(400).json({ error: 'afterMessageId must be a user message' });
   }
 
-  await runWritingRegenerate({
+  await runTurnRegenerate({
+    mode: writingMode,
     sessionId,
     afterMessageId,
     emitSse: (payload, options) => emitSse(sessionId, payload, options),

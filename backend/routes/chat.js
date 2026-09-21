@@ -31,9 +31,10 @@ import { renderBackendPrompt, loadBackendPrompt } from '../prompts/prompt-loader
 import { assertExists } from '../utils/route-helpers.js';
 import { stripThinkBlocksFromText } from '../utils/turn-dialogue.js';
 import { runHook } from '../hooks/hook-registry.js';
-import { runChatContinue } from '../app/chat/run-chat-continue.js';
-import { runChatRegenerate } from '../app/chat/run-chat-regenerate.js';
-import { runChatStream } from '../app/chat/run-chat-stream.js';
+import { chatMode } from '../app/modes/chat-mode.js';
+import { runTurnContinue } from '../app/turn/run-turn-continue.js';
+import { runTurnRegenerate } from '../app/turn/run-turn-regenerate.js';
+import { runTurnStream } from '../app/turn/run-turn-stream.js';
 import {
   attachSessionStreamSse,
   buildSessionStreamSnapshot,
@@ -107,7 +108,8 @@ router.post('/:sessionId/chat', async (req, res) => {
 
   await runHook('message:user:saved', { message: userMsg, sessionId });
 
-  await runChatStream({
+  await runTurnStream({
+    mode: chatMode,
     sessionId,
     emitSse: (payload, options) => emitSse(sessionId, payload, options),
     attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),
@@ -175,7 +177,8 @@ router.post('/:sessionId/regenerate', async (req, res) => {
     })}`
   );
 
-  await runChatRegenerate({
+  await runTurnRegenerate({
+    mode: chatMode,
     sessionId,
     afterMessageId,
     emitSse: (payload, options) => emitSse(sessionId, payload, options),
@@ -201,7 +204,8 @@ router.post('/:sessionId/continue', async (req, res) => {
   }
 
   try {
-    await runChatContinue({
+    await runTurnContinue({
+      mode: chatMode,
       sessionId,
       emitSse: (payload, options) => emitSse(sessionId, payload, options),
       attachSse: (task) => attachSessionStreamSse(sessionId, task.id, res),

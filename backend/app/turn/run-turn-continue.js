@@ -1,70 +1,37 @@
 import * as llm from '../../llm/index.js';
 import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
-import { chatMode } from '../modes/chat-mode.js';
 import { buildTurnPostgenTasks } from '../shared/postgen/build-turn-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
-import { createHttpError } from '../shared/http-error.js';
 import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
-import { buildTurnContext } from '../turn/build-turn-context.js';
-import { getConfig } from '../../services/config.js';
-import { getCharacterById } from '../../services/characters.js';
-import {
-  getMessagesBySessionId,
-  getSessionById,
-  touchSession,
-} from '../../services/sessions.js';
-import {
-  updateMessageContent,
-  updateMessageNextOptions,
-} from '../../db/queries/messages.js';
+import { updateMessageContent, updateMessageNextOptions } from '../../db/queries/messages.js';
+import { buildContinuationMessages, supportsPrefill } from '../../routes/stream-helpers.js';
+import { buildTurnContext } from './build-turn-context.js';
+import { makeStreamErrorHandler, resolveContinuationBase } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { formatMeta } from '../../utils/logger.js';
 import {
   closeSessionStreamSse,
   completeSessionStreamTask,
   createSessionStreamTask,
-  failSessionStreamTask,
 } from '../../services/session-stream-task-store.js';
-import {
-  buildContinuationMessages,
-  supportsPrefill,
-} from '../../routes/stream-helpers.js';
 
-const log = createLogger('chat');
-
-function resolveContinuationBase(sessionId) {
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const lastAssistantIndex = messages.map((message) => message.role).lastIndexOf('assistant');
-  const lastAssistant = lastAssistantIndex >= 0 ? messages[lastAssistantIndex] : null;
-  if (!lastAssistant) {
-    throw createHttpError(400, '当前会话没有 AI 回复可续写');
-  }
-
-  const hasUserBeforeAssistant = messages
-    .slice(0, lastAssistantIndex)
-    .some((message) => message.role === 'user');
-  if (!hasUserBeforeAssistant) {
-    throw createHttpError(400, '当前会话没有可续写的用户-助手轮次');
-  }
-
-  const lastUser = [...messages.slice(0, lastAssistantIndex)]
-    .reverse()
-    .find((message) => message.role === 'user');
-
-  return { messages, lastAssistant, lastUser };
-}
-
-export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSse, activeStreams }) {
-  const session = getSessionById(sessionId);
-  const { messages: baseMessages, lastAssistant, lastUser } = resolveContinuationBase(sessionId);
+/**
+ * 续写：不新建 assistant 消息，把新产出拼到最后一条 assistant 之后。
+ * 两种模式共用，差异全部来自 mode 描述符。
+ */
+export async function runTurnContinue({ mode, sessionId, emitSse: rawEmitSse, attachSse, activeStreams }) {
+  const log = mode.log;
+  const { session, worldId, characterIds } = mode.resolveScope(sessionId);
+  const { messages: baseMessages, lastAssistant, lastUser } = resolveContinuationBase(mode, sessionId);
   const originalContent = lastAssistant.content;
 
   log.info(`POST /continue  ${formatMeta({ session: sessionId.slice(0, 8) })}`);
+
   const task = createSessionStreamTask({
     sessionId,
-    mode: 'chat',
+    mode: mode.id,
     messages: baseMessages,
     continuingMessageId: lastAssistant.id,
   });
@@ -76,10 +43,13 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
     sessionId,
     activeStreams,
     emitSse,
+
     beforeStream: async ({ sid }) => {
       const usageRef = {};
-      const { messages, overrides, suggestionText } = await buildTurnContext('chat', sessionId, { continuation: true });
-      const usePrefill = supportsPrefill(getConfig()?.llm?.provider);
+      const { messages, overrides, suggestionText } = await buildTurnContext(mode.id, sessionId, {
+        continuation: true,
+      });
+      const usePrefill = supportsPrefill(mode.llm.prefillProvider());
       const continuationMessages = buildContinuationMessages(messages, originalContent, {
         suggestionText,
         usePrefill,
@@ -89,6 +59,7 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
         `CONTINUE PROMPT READY  ${formatMeta({
           session: sid,
           msgs: continuationMessages.length,
+          model: overrides.model || '',
           temperature: overrides.temperature,
           maxTokens: overrides.maxTokens,
         })}`
@@ -96,53 +67,43 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
 
       return { continuationMessages, overrides, usageRef };
     },
+
     createStream: ({ controller, setup }) =>
       llm.chat(setup.continuationMessages, {
         ...setup.overrides,
         signal: controller.signal,
         usageRef: setup.usageRef,
-        callType: 'main_continue',
+        configScope: mode.llm.configScope,
+        callType: mode.llm.callType.continue,
         conversationId: sessionId,
-        llmCallContext: { mode: 'chat', sessionId, internalRequestId: taskId, stream: true },
+        llmCallContext: { mode: mode.id, sessionId, internalRequestId: taskId, stream: true },
         onProviderSignal: (signal) => {
           const saved = recordProviderSafetyEvent(signal);
           if (saved) emitSse({ type: 'provider_safety_signal', signal: toPublicProviderSafetySignal(saved) });
         },
       }),
-    onError: async ({ err, sid, fullContent, streamState }) => {
-      log.error(`CONTINUE ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      emitSse({ type: 'error', error: err.message });
-      if (!fullContent) {
-        streamState.clear();
-        failSessionStreamTask(sessionId, err.message, taskId);
-        closeSessionStreamSse(sessionId, taskId);
-        return { stopLifecycle: true };
-      }
-      return null;
-    },
-    onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
-      const characterId = session.character_id;
-      const character = characterId ? getCharacterById(characterId) : null;
-      const worldId = character?.world_id ?? null;
 
+    onError: makeStreamErrorHandler({ log, label: 'CONTINUE ERROR', sessionId, taskId, emitSse }),
+
+    onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       let mergedAssistant = null;
       let mergedContent = '';
       let continueOptions = [];
 
       if (fullContent) {
         const processed = await processStreamOutput(fullContent, aborted, worldId, sessionId, {
-          mode: session.mode,
-          suggestionEnabled: !!getConfig().suggestion_enabled,
+          mode: mode.id,
+          suggestionEnabled: mode.suggestionEnabled(),
           currentUserContent: lastUser?.content ?? '',
-          configScope: 'aux',
+          configScope: mode.auxScope,
           ...makeSuggestionFallbackCallbacks(emitSse),
+          // 续写不新建消息，只把产出拼回原 assistant
           createMessageFn: () => null,
           touchSessionFn: () => {},
         });
 
         continueOptions = processed.options;
-        mergedContent =
-          originalContent + '\n\n' + processed.savedContent.replace(/^\n+/, '');
+        mergedContent = originalContent + '\n\n' + processed.savedContent.replace(/^\n+/, '');
         updateMessageContent(lastAssistant.id, mergedContent);
         if (!aborted) {
           updateMessageNextOptions(lastAssistant.id, continueOptions);
@@ -150,11 +111,18 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
 
         mergedAssistant = { ...lastAssistant, content: mergedContent };
         if (!aborted) {
-          mergedAssistant.next_options =
-            continueOptions.length > 0 ? continueOptions : null;
+          mergedAssistant.next_options = continueOptions.length > 0 ? continueOptions : null;
         }
-        touchSession(sessionId);
+        mode.session.touch(sessionId);
       }
+
+      log.info(
+        `CONTINUE END  ${formatMeta({
+          session: sid,
+          chars: mergedContent.length || fullContent.length,
+          aborted,
+        })}`
+      );
 
       finalizeStreamOutput({
         assistant: mergedAssistant,
@@ -168,24 +136,23 @@ export async function runChatContinue({ sessionId, emitSse: rawEmitSse, attachSs
       streamState.clear();
 
       if (!aborted && mergedContent) {
-        const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+        const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
         if (messages.some((message) => message.role === 'user')) {
-          const taskSpecs = buildTurnPostgenTasks({
-            mode: chatMode,
-            sessionId,
-            worldId,
-            characterIds: characterId ? [characterId] : [],
-            session,
-            messages,
-            turnRecordOpts: { isUpdate: true },
-            includeSessionTitle: false,
-            includeChapterTitle: false,
-          });
           const { hasSseWaits } = await runPostGenFlow({
             sessionId,
             worldId,
-            mode: 'chat',
-            taskSpecs,
+            mode: mode.id,
+            taskSpecs: buildTurnPostgenTasks({
+              mode,
+              sessionId,
+              worldId,
+              characterIds,
+              session,
+              messages,
+              turnRecordOpts: { isUpdate: true },
+              includeSessionTitle: false,
+              includeChapterTitle: false,
+            }),
             streamState,
             sid,
             emitSse,

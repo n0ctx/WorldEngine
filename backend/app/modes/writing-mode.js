@@ -1,7 +1,7 @@
 import { getChapterTitle, upsertChapterTitle } from '../../db/queries/chapter-titles.js';
 import { getLastTurnMessages } from '../../db/queries/messages.js';
 import { generateChapterTitle } from '../../memory/chapter-title-generator.js';
-import { getConfig, getEffectiveChapterTurnSize } from '../../services/config.js';
+import { getConfig, getEffectiveChapterTurnSize, getWritingLlmConfig } from '../../services/config.js';
 import {
   createMessage,
   deleteMessagesAfter,
@@ -16,6 +16,12 @@ import { createLogger } from '../../utils/logger.js';
 export const writingMode = {
   id: 'writing',
   log: createLogger('writing'),
+
+  llm: {
+    configScope: 'writing',
+    callType: { stream: 'writing_main', continue: 'writing_continue', impersonate: 'writing_impersonate' },
+    prefillProvider: () => getWritingLlmConfig()?.provider,
+  },
 
   auxScope: 'writing-aux',
   suggestionEnabled: () => !!getConfig().writing?.suggestion_enabled,

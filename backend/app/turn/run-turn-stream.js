@@ -1,41 +1,26 @@
 import * as llm from '../../llm/index.js';
 import { recordProviderSafetyEvent, toPublicProviderSafetySignal } from '../../services/provider-safety-events.js';
-import { writingMode } from '../modes/writing-mode.js';
 import { buildTurnPostgenTasks } from '../shared/postgen/build-turn-postgen-tasks.js';
 import { runPostGenFlow } from '../shared/postgen/run-postgen-flow.js';
 import { runStreamLifecycle } from '../shared/stream/create-stream-runner.js';
 import { finalizeStreamOutput } from '../shared/stream/finalize-stream-output.js';
-import { buildTurnContext } from '../turn/build-turn-context.js';
-import { getConfig } from '../../services/config.js';
-import {
-  activeStreams as _unused,
-  processStreamOutput,
-  makeSuggestionFallbackCallbacks,
-} from '../../services/chat.js';
-import {
-  createMessage,
-  getMessagesBySessionId,
-  getWritingSessionById,
-  touchWritingSession,
-} from '../../services/writing-sessions.js';
+import { processStreamOutput, makeSuggestionFallbackCallbacks } from '../../services/chat.js';
+import { buildTurnContext } from './build-turn-context.js';
+import { getLastUserContent, makeStreamErrorHandler } from './turn-helpers.js';
 import { ALL_MESSAGES_LIMIT } from '../../utils/constants.js';
-import { createLogger, formatMeta } from '../../utils/logger.js';
+import { formatMeta } from '../../utils/logger.js';
 import {
   closeSessionStreamSse,
   completeSessionStreamTask,
   createSessionStreamTask,
-  failSessionStreamTask,
 } from '../../services/session-stream-task-store.js';
 
-const log = createLogger('writing');
-
-function getLastUserContent(sessionId) {
-  const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
-  const lastUser = [...messages].reverse().find((message) => message.role === 'user');
-  return lastUser?.content ?? '';
-}
-
-export async function runWritingStream({
+/**
+ * 一轮新生成：装配上下文 → 流式产出 → 落库 → 触发副模型后处理。
+ * 两种模式共用，差异全部来自 mode 描述符。
+ */
+export async function runTurnStream({
+  mode,
   sessionId,
   emitSse: rawEmitSse,
   attachSse,
@@ -45,19 +30,22 @@ export async function runWritingStream({
   diaryInjection,
   stateRolledBack = false,
 }) {
-  const session = getWritingSessionById(sessionId);
-  const worldId = session?.world_id;
+  const log = mode.log;
+  const startedAt = Date.now();
+  const { session, worldId, characterIds } = mode.resolveScope(sessionId);
 
   log.info(
     `REQUEST START  ${formatMeta({
       session: sessionId.slice(0, 8),
       worldId: worldId?.slice(0, 8) ?? null,
+      userMsgId: userMsgId?.slice(0, 8) ?? null,
     })}`
   );
+
   const task = createSessionStreamTask({
     sessionId,
-    mode: 'writing',
-    messages: getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0),
+    mode: mode.id,
+    messages: mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0),
   });
   attachSse?.(task);
   const taskId = task.id;
@@ -69,58 +57,58 @@ export async function runWritingStream({
     emitSse,
     stateRolledBack,
     userMsgId,
+
     beforeStream: async ({ sid }) => {
       const usageRef = {};
 
       emitSse({ type: 'memory_recall_start' });
-      const onRecallEvent = (name, payload) => {
-        emitSse({ type: name, ...payload });
-      };
-      const { messages, overrides, activatedEntries } = await buildTurnContext('writing', sessionId, {
-        onRecallEvent,
-        diaryInjection,
-      });
+      // memory_recall_done 由 assembler 内部经 onRecallEvent 推送，这里不再重复推一次
+      const { messages, overrides, recallHitCount, activatedEntries } = await buildTurnContext(
+        mode.id,
+        sessionId,
+        {
+          onRecallEvent(name, payload) {
+            emitSse({ type: name, ...payload });
+          },
+          diaryInjection,
+        },
+      );
+
+      if (activatedEntries.length > 0) {
+        emitSse({ type: 'entries_activated', entries: activatedEntries });
+      }
 
       log.info(
-        `PROMPT READY  ${formatMeta({
+        `CONTEXT DONE  ${formatMeta({
           session: sid,
           msgs: messages.length,
+          recall: recallHitCount,
           model: overrides.model || '',
           temperature: overrides.temperature,
           maxTokens: overrides.maxTokens,
         })}`
       );
-      if (activatedEntries.length > 0) {
-        emitSse({ type: 'entries_activated', entries: activatedEntries });
-      }
 
       return { messages, overrides, usageRef, activatedEntries };
     },
+
     createStream: ({ controller, setup }) =>
       llm.chat(setup.messages, {
         ...setup.overrides,
         signal: controller.signal,
         usageRef: setup.usageRef,
-        configScope: 'writing',
-        callType: 'writing_main',
+        configScope: mode.llm.configScope,
+        callType: mode.llm.callType.stream,
         conversationId: sessionId,
-        llmCallContext: { mode: 'writing', sessionId, internalRequestId: taskId, stream: true },
+        llmCallContext: { mode: mode.id, sessionId, internalRequestId: taskId, stream: true },
         onProviderSignal: (signal) => {
           const saved = recordProviderSafetyEvent(signal);
           if (saved) emitSse({ type: 'provider_safety_signal', signal: toPublicProviderSafetySignal(saved) });
         },
       }),
-    onError: async ({ err, sid, fullContent, streamState }) => {
-      log.error(`STREAM ERROR  ${formatMeta({ session: sid, error: err.message })}`);
-      emitSse({ type: 'error', error: err.message });
-      if (!fullContent) {
-        streamState.clear();
-        failSessionStreamTask(sessionId, err.message, taskId);
-        closeSessionStreamSse(sessionId, taskId);
-        return { stopLifecycle: true };
-      }
-      return null;
-    },
+
+    onError: makeStreamErrorHandler({ log, label: 'STREAM ERROR', sessionId, taskId, emitSse }),
+
     onDone: async ({ sid, setup, fullContent, aborted, streamState }) => {
       const { savedContent, options, savedAssistant } = await processStreamOutput(
         fullContent,
@@ -128,12 +116,12 @@ export async function runWritingStream({
         worldId,
         sessionId,
         {
-          mode: 'writing',
-          createMessageFn: createMessage,
-          touchSessionFn: touchWritingSession,
-          suggestionEnabled: !!getConfig().writing?.suggestion_enabled,
-          currentUserContent: userContent ?? getLastUserContent(sessionId),
-          configScope: 'writing-aux',
+          mode: mode.id,
+          createMessageFn: mode.session.createMessage,
+          touchSessionFn: mode.session.touch,
+          suggestionEnabled: mode.suggestionEnabled(),
+          currentUserContent: userContent ?? getLastUserContent(mode, sessionId),
+          configScope: mode.auxScope,
           ...makeSuggestionFallbackCallbacks(emitSse),
         }
       );
@@ -141,8 +129,9 @@ export async function runWritingStream({
       log.info(
         `STREAM END  ${formatMeta({
           session: sid,
-          chars: savedContent.length,
+          chars: fullContent.length,
           aborted,
+          ms: Date.now() - startedAt,
         })}`
       );
 
@@ -159,20 +148,20 @@ export async function runWritingStream({
       streamState.clear();
 
       if (!aborted && savedContent) {
-        const messages = getMessagesBySessionId(sessionId, ALL_MESSAGES_LIMIT, 0);
+        const messages = mode.session.getMessages(sessionId, ALL_MESSAGES_LIMIT, 0);
         if (messages.some((message) => message.role === 'user')) {
-          const taskSpecs = buildTurnPostgenTasks({
-            mode: writingMode,
-            sessionId,
-            worldId,
-            session,
-            messages,
-          });
           const { hasSseWaits } = await runPostGenFlow({
             sessionId,
             worldId,
-            mode: 'writing',
-            taskSpecs,
+            mode: mode.id,
+            taskSpecs: buildTurnPostgenTasks({
+              mode,
+              sessionId,
+              worldId,
+              characterIds,
+              session,
+              messages,
+            }),
             streamState,
             sid,
             emitSse,
