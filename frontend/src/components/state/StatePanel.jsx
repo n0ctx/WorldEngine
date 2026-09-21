@@ -1,18 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import SectionTabs from '../ui/SectionTabs.jsx';
-
-const DIARY_TIME_FIELD_KEY = 'diary_time';
-
-/** 将 diary_time 行排到首位，其余行顺序不变 */
-function pinDiaryTimeFirst(rows) {
-  if (!Array.isArray(rows)) return rows;
-  const idx = rows.findIndex((r) => r.field_key === DIARY_TIME_FIELD_KEY);
-  if (idx <= 0) return rows;
-  const result = [...rows];
-  result.unshift(result.splice(idx, 1)[0]);
-  return result;
-}
 import useStore from '../../core/state/index.js';
 import {
   resetSessionWorldStateValues,
@@ -20,57 +7,25 @@ import {
   resetSessionCharacterStateValues,
   patchSessionStateValue,
 } from '../../core/api/session-state-values.js';
-import { fetchDiaryContent } from '../../core/api/daily-entries.js';
 import { getWorld } from '../../core/api/worlds.js';
 import { getConfig } from '../../core/api/config.js';
 import { useSessionState } from '../../core/hooks/useSessionState.js';
 import { useStateDiff } from '../../core/hooks/useStateDiff.js';
 import StateChangeCard from './StateChangeCard.jsx';
 import PanelCard from '../ui/PanelCard.jsx';
+import {
+  DiaryEntry,
+  ResetAction,
+  StateBusyOverlay,
+  StateEmpty,
+} from './panel-parts.jsx';
+import {
+  DIARY_RECENT_LIMIT,
+  pinDiaryTimeFirst,
+  splitDiaryEntries,
+  useDiarySelection,
+} from './panel-utils.js';
 import { log } from '../../core/utils/logger.js';
-
-
-const MotionDiv = motion.div;
-
-const RECENT_LIMIT = 5;
-
-function RefreshIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12a9 9 0 1 1-3-6.7" />
-      <polyline points="21 4 21 10 15 10" />
-    </svg>
-  );
-}
-
-function EmptyStateIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15.5H5.5A1.5 1.5 0 0 0 4 21z" />
-      <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15.5h5.5A1.5 1.5 0 0 1 20 21z" />
-    </svg>
-  );
-}
-
-// ── 日记条目 ────────────────────────────────────────────────
-function DiaryEntry({ entry, index, selected, onSelect }) {
-  return (
-    <div
-      className={`we-timeline-entry we-diary-entry${selected ? ' we-diary-entry--selected' : ''}`}
-      style={{
-        animationDelay: `${index * 50}ms`,
-      }}
-      onClick={() => onSelect(entry)}
-      title="点击注入下轮提示词"
-    >
-      <span className="we-timeline-dot">·</span>
-      <span className="we-timeline-text">
-        <em className="we-timeline-round">{entry.date_display}</em>
-        {' '}{entry.summary}
-      </span>
-    </div>
-  );
-}
 
 export default function StatePanel({ sessionId, character, worldId, persona, onDiaryInject }) {
   const tick = useStore((s) => s.memoryRefreshTick);
@@ -103,7 +58,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
   }), [persona?.name, character?.name, worldName]);
 
   const [diaryExpanded, setDiaryExpanded] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
+  const { selectedEntry, handleDiarySelect } = useDiarySelection(sessionId, onDiaryInject);
 
   useEffect(() => {
     let cancelled = false;
@@ -208,52 +163,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
     } catch (e) { log.error('state.character.update_failed', e, { toast: e.message || '更新角色状态失败' }); }
   }
 
-  // ── 日记点击注入 ─────────────────────────────────────────
-  async function handleDiarySelect(entry) {
-    if (selectedEntry?.date_str === entry.date_str) {
-      setSelectedEntry(null);
-      onDiaryInject?.(null);
-      return;
-    }
-    try {
-      const content = await fetchDiaryContent(sessionId, entry.date_str);
-      setSelectedEntry(entry);
-      onDiaryInject?.(content);
-    } catch (e) {
-      log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
-    }
-  }
-
-  useEffect(() => {
-    const timeoutId = setTimeout(() => setSelectedEntry(null), 0);
-    return () => clearTimeout(timeoutId);
-  }, [sessionId]);
-
-  const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
-  const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
-  const recentDiary = reversedDiary.slice(0, RECENT_LIMIT);
-  const olderDiary = reversedDiary.slice(RECENT_LIMIT);
-  const hasMore = olderDiary.length > 0;
-
-  const renderResetAction = (onClick, busy) => (
-    <button
-      type="button"
-      className="we-state-reset"
-      onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
-      disabled={busy}
-      aria-label="重置本区状态"
-      title="重置本区状态"
-    >
-      {busy ? '…' : (<><RefreshIcon /><span>重置</span></>)}
-    </button>
-  );
-
-  const renderStateEmpty = (hint) => (
-    <div className="we-state-empty">
-      <EmptyStateIcon />
-      <span className="we-state-empty-hint">{hint}</span>
-    </div>
-  );
+  const { hasDiary, recentDiary, olderDiary, hasMore } = splitDiaryEntries(diaryEntries);
 
   const renderLoadError = (message) => (
     <div className="flex flex-col items-center gap-3 px-4 py-6 text-center">
@@ -273,7 +183,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       <header className="we-state-block-head">
         <span className="we-state-block-label">{worldName || '世界'}</span>
         <span className="we-section-rule" />
-        {renderResetAction(handleResetWorld, worldResetting)}
+        {<ResetAction onClick={handleResetWorld} busy={worldResetting} />}
       </header>
       {stateError ? renderLoadError('世界状态加载失败') : (
         <StateChangeCard
@@ -283,7 +193,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
           hasBaseline={stateDiffReady}
           onSave={handleSaveWorld}
           templateCtx={templateCtx}
-          emptyContent={renderStateEmpty('世界状态会随剧情逐步记录')}
+          emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
         />
       )}
     </section>
@@ -300,7 +210,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
             hasBaseline={stateDiffReady}
             onSave={handleSavePersona}
             templateCtx={templateCtx}
-            emptyContent={renderStateEmpty('玩家状态会随剧情逐步记录')}
+            emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
           />
         )}
       </PanelCard>
@@ -319,7 +229,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
               hasBaseline={stateDiffReady}
               onSave={handleSaveCharacter}
               templateCtx={templateCtx}
-              emptyContent={renderStateEmpty('角色状态会随剧情逐步记录')}
+              emptyContent={<StateEmpty hint="角色状态会随剧情逐步记录" />}
             />
           )
         ) : (
@@ -352,6 +262,7 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
                 index={i}
                 selected={selectedEntry?.date_str === entry.date_str}
                 onSelect={handleDiarySelect}
+                className="we-diary-entry"
               />
             ))}
             {hasMore && (
@@ -360,9 +271,10 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
                   <DiaryEntry
                     key={entry.date_str}
                     entry={entry}
-                    index={RECENT_LIMIT + i}
+                    index={DIARY_RECENT_LIMIT + i}
                     selected={selectedEntry?.date_str === entry.date_str}
                     onSelect={handleDiarySelect}
+                    className="we-diary-entry"
                   />
                 ))}
                 <div
@@ -385,13 +297,13 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
       key: 'player',
       label: persona?.name || '玩家',
       content: playerTab,
-      actions: renderResetAction(handleResetPersona, personaResetting),
+      actions: <ResetAction onClick={handleResetPersona} busy={personaResetting} />,
     },
     {
       key: 'character',
       label: character?.name || '角色',
       content: characterTab,
-      actions: renderResetAction(handleResetChar, charResetting),
+      actions: <ResetAction onClick={handleResetChar} busy={charResetting} />,
     },
     ...(diaryEnabled
       ? [{ key: 'diary', label: '日记', content: diaryTab }]
@@ -410,44 +322,14 @@ export default function StatePanel({ sessionId, character, worldId, persona, onD
         </section>
       </div>
 
-      <AnimatePresence>
-        {(isUpdating || stateJustChanged) && (
-          <MotionDiv
-            key="state-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="we-state-change-overlay"
-          >
-            <AnimatePresence mode="wait">
-              {isUpdating ? (
-                <MotionDiv
-                  key="updating"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  className="we-state-change-chip"
-                >
-                  <span className="we-state-change-text">整理中</span>
-                </MotionDiv>
-              ) : (
-                <MotionDiv
-                  key="done"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  className="we-state-change-chip"
-                >
-                  <span className="we-state-change-text">已整理</span>
-                </MotionDiv>
-              )}
-            </AnimatePresence>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
+      <StateBusyOverlay
+        isUpdating={isUpdating}
+        justChanged={stateJustChanged}
+        overlayKey="state-overlay"
+        overlayClassName="we-state-change-overlay"
+        chipClassName="we-state-change-chip"
+        textClassName="we-state-change-text"
+      />
     </div>
   );
 }

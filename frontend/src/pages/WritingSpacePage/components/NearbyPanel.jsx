@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 import StatusSection from '../../../components/state/StatusSection.jsx';
 import PanelCard from '../../../components/ui/PanelCard.jsx';
@@ -15,23 +15,22 @@ import {
   resetSessionPersonaStateValues,
   patchSessionStateValue,
 } from '../../../core/api/session-state-values.js';
-import { fetchDiaryContent } from '../../../core/api/daily-entries.js';
 import { useSessionState } from '../../../core/hooks/useSessionState.js';
 import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
+import {
+  DiaryEntry,
+  ResetAction,
+  StateBusyOverlay,
+  StateEmpty,
+  RefreshIcon,
+} from '../../../components/state/panel-parts.jsx';
+import {
+  DIARY_RECENT_LIMIT,
+  pinDiaryTimeFirst,
+  splitDiaryEntries,
+  useDiarySelection,
+} from '../../../components/state/panel-utils.js';
 import { log } from '../../../core/utils/logger.js';
-
-const MotionDiv = motion.div;
-const DIARY_TIME_FIELD_KEY = 'diary_time';
-const DIARY_RECENT_LIMIT = 5;
-
-function RefreshIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M21 12a9 9 0 1 1-3-6.7" />
-      <polyline points="21 4 21 10 15 10" />
-    </svg>
-  );
-}
 
 function PlusIcon() {
   return (
@@ -97,45 +96,6 @@ function CancelIcon() {
   );
 }
 
-function EmptyStateIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v15.5H5.5A1.5 1.5 0 0 0 4 21z" />
-      <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13v15.5h5.5A1.5 1.5 0 0 1 20 21z" />
-    </svg>
-  );
-}
-
-/** 将 diary_time 行排到首位，其余行顺序不变 */
-function pinDiaryTimeFirst(rows) {
-  if (!Array.isArray(rows)) return rows;
-  const idx = rows.findIndex((r) => r.field_key === DIARY_TIME_FIELD_KEY);
-  if (idx <= 0) return rows;
-  const result = [...rows];
-  result.unshift(result.splice(idx, 1)[0]);
-  return result;
-}
-
-function DiaryEntry({ entry, index, selected, onSelect }) {
-  return (
-    <div
-      className={`we-timeline-entry we-cast-diary-entry${selected ? ' we-cast-diary-entry--selected' : ''}`}
-      style={{
-        animationDelay: `${index * 50}ms`,
-        transition: 'background 0.18s ease',
-      }}
-      onClick={() => onSelect(entry)}
-      title="点击注入下轮提示词"
-    >
-      <span className="we-timeline-dot">·</span>
-      <span className="we-timeline-text">
-        <em className="we-timeline-round">{entry.date_display}</em>
-        {' '}{entry.summary}
-      </span>
-    </div>
-  );
-}
-
 const isNearbySaved = (n) => Number(n?.is_saved) === 1;
 
 export default function NearbyPanel({
@@ -170,7 +130,7 @@ export default function NearbyPanel({
   const [makeCardOpen, setMakeCardOpen] = useState(false);
 
   const [diaryExpanded, setDiaryExpanded] = useState(false);
-  const [selectedEntry, setSelectedEntry] = useState(null);
+  const { selectedEntry, handleDiarySelect } = useDiarySelection(sessionId, onDiaryInject);
   const [worldName, setWorldName] = useState(null);
   const [diaryEnabled, setDiaryEnabled] = useState(true);
 
@@ -285,11 +245,6 @@ export default function NearbyPanel({
     world: worldName ?? '',
   }), [persona?.name, worldName]);
 
-  useEffect(() => {
-    const t = setTimeout(() => setSelectedEntry(null), 0);
-    return () => clearTimeout(t);
-  }, [sessionId]);
-
   async function handleResetWorldState() {
     if (!sessionId || worldResetting) return;
     setWorldResetting(true);
@@ -332,47 +287,12 @@ export default function NearbyPanel({
     }
   }
 
-  async function handleDiarySelect(entry) {
-    if (selectedEntry?.date_str === entry.date_str) {
-      setSelectedEntry(null);
-      onDiaryInject?.(null);
-      return;
-    }
-    try {
-      const content = await fetchDiaryContent(sessionId, entry.date_str);
-      setSelectedEntry(entry);
-      onDiaryInject?.(content);
-    } catch (e) {
-      log.error('diary.fetch_failed', e, { toast: e.message || '获取日记内容失败' });
-    }
-  }
-
-  const renderResetAction = (onClick, busy) => (
-    <button
-      type="button"
-      className="we-state-reset"
-      onClick={(e) => { e.stopPropagation(); if (!busy) onClick(); }}
-      disabled={busy}
-      aria-label="重置本区状态"
-      title="重置本区状态"
-    >
-      {busy ? '…' : (<><RefreshIcon /><span>重置</span></>)}
-    </button>
-  );
-
-  const renderStateEmpty = (hint) => (
-    <div className="we-state-empty">
-      <EmptyStateIcon />
-      <span className="we-state-empty-hint">{hint}</span>
-    </div>
-  );
-
   const worldTab = (
     <section className="we-state-block we-state-block--world">
       <header className="we-state-block-head">
         <span className="we-state-block-label">{worldName || '世界'}</span>
         <span className="we-section-rule" />
-        {renderResetAction(handleResetWorldState, worldResetting)}
+        {<ResetAction onClick={handleResetWorldState} busy={worldResetting} />}
       </header>
       <StatusSection
         headerless
@@ -381,7 +301,7 @@ export default function NearbyPanel({
         rows={worldRows}
         onSave={handleSaveWorld}
         templateCtx={templateCtx}
-        emptyContent={renderStateEmpty('世界状态会随剧情逐步记录')}
+        emptyContent={<StateEmpty hint="世界状态会随剧情逐步记录" />}
       />
     </section>
   );
@@ -396,7 +316,7 @@ export default function NearbyPanel({
           rows={stateData?.persona ?? null}
           onSave={handleSavePersona}
           templateCtx={templateCtx}
-          emptyContent={renderStateEmpty('玩家状态会随剧情逐步记录')}
+          emptyContent={<StateEmpty hint="玩家状态会随剧情逐步记录" />}
         />
       </PanelCard>
     </div>
@@ -568,11 +488,7 @@ export default function NearbyPanel({
     </div>
   );
 
-  const hasDiary = Array.isArray(diaryEntries) && diaryEntries.length > 0;
-  const reversedDiary = hasDiary ? [...diaryEntries].reverse() : [];
-  const recentDiary = reversedDiary.slice(0, DIARY_RECENT_LIMIT);
-  const olderDiary = reversedDiary.slice(DIARY_RECENT_LIMIT);
-  const hasMore = olderDiary.length > 0;
+  const { hasDiary, recentDiary, olderDiary, hasMore } = splitDiaryEntries(diaryEntries, DIARY_RECENT_LIMIT);
 
   const diaryTab = (
     <div className="we-panel-tab-body">
@@ -597,6 +513,8 @@ export default function NearbyPanel({
                 index={i}
                 selected={selectedEntry?.date_str === entry.date_str}
                 onSelect={handleDiarySelect}
+                className="we-cast-diary-entry"
+                style={{ transition: 'background 0.18s ease' }}
               />
             ))}
             {hasMore && (
@@ -608,6 +526,8 @@ export default function NearbyPanel({
                     index={DIARY_RECENT_LIMIT + i}
                     selected={selectedEntry?.date_str === entry.date_str}
                     onSelect={handleDiarySelect}
+                    className="we-cast-diary-entry"
+                    style={{ transition: 'background 0.18s ease' }}
                   />
                 ))}
                 <button
@@ -634,7 +554,7 @@ export default function NearbyPanel({
       key: 'player',
       label: persona?.name || '玩家',
       content: playerTab,
-      actions: renderResetAction(handleResetPersonaState, personaResetting),
+      actions: <ResetAction onClick={handleResetPersonaState} busy={personaResetting} />,
     },
     ...(hasTransient
       ? perCharSections
@@ -713,44 +633,14 @@ export default function NearbyPanel({
         </AnimatePresence>
       </div>
 
-      <AnimatePresence>
-        {(isUpdating || stateJustChanged) && (
-          <MotionDiv
-            key="nearby-state-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="we-cast-state-overlay"
-          >
-            <AnimatePresence mode="wait">
-              {isUpdating ? (
-                <MotionDiv
-                  key="updating"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
-                >
-                  <span className="we-cast-state-overlay-text">整理中</span>
-                </MotionDiv>
-              ) : (
-                <MotionDiv
-                  key="done"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
-                >
-                  <span className="we-cast-state-overlay-text">已整理</span>
-                </MotionDiv>
-              )}
-            </AnimatePresence>
-          </MotionDiv>
-        )}
-      </AnimatePresence>
+      <StateBusyOverlay
+        isUpdating={isUpdating}
+        justChanged={stateJustChanged}
+        overlayKey="nearby-state-overlay"
+        overlayClassName="we-cast-state-overlay"
+        chipStyle={{ display: 'flex', alignItems: 'center', gap: 7, userSelect: 'none' }}
+        textClassName="we-cast-state-overlay-text"
+      />
     </div>
   );
 }
