@@ -1,0 +1,38 @@
+{
+  "chat": [
+    "GET /api/sessions/:sessionId/recover-stream",
+    "GET /api/sessions/:sessionId/stream",
+    "POST /api/sessions/:sessionId/chat",
+    "POST /api/sessions/:sessionId/continue",
+    "POST /api/sessions/:sessionId/edit-assistant",
+    "POST /api/sessions/:sessionId/impersonate",
+    "POST /api/sessions/:sessionId/regenerate",
+    "POST /api/sessions/:sessionId/retitle",
+    "POST /api/sessions/:sessionId/stop"
+  ],
+  "writing": [
+    "DELETE /api/worlds/:worldId/writing-sessions/:sessionId",
+    "DELETE /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId",
+    "GET /api/worlds/:worldId/characters",
+    "GET /api/worlds/:worldId/writing-sessions",
+    "GET /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles",
+    "GET /api/worlds/:worldId/writing-sessions/:sessionId/messages",
+    "GET /api/worlds/:worldId/writing-sessions/:sessionId/nearby",
+    "GET /api/worlds/:worldId/writing-sessions/:sessionId/recover-stream",
+    "GET /api/worlds/:worldId/writing-sessions/:sessionId/stream",
+    "PATCH /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId",
+    "PATCH /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/state",
+    "POST /api/worlds/:worldId/writing-sessions",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex/retitle",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/continue",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/edit-assistant",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/generate",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/impersonate",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/nearby",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/nearby/:nearbyId/analyze",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/regenerate",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/retitle",
+    "POST /api/worlds/:worldId/writing-sessions/:sessionId/stop",
+    "PUT /api/worlds/:worldId/writing-sessions/:sessionId/chapter-titles/:chapterIndex"
+  ]
+}

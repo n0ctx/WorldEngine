@@ -100,6 +100,8 @@ test('Playwright: 聊天页可以新建会话并完成一次真实收发', {
   const page = await browser.newPage();
   try {
     await page.goto(`${frontendUrl}/characters/${character.id}/chat`);
+    // 两侧面板默认收起成窄轨，「新建会话」在左侧抽屉里，需先展开
+    await page.getByRole('button', { name: '展开会话列表' }).click();
     await page.getByRole('button', { name: '新建会话' }).click();
     const input = page.getByPlaceholder('发送消息… (Shift+Enter 换行，/ 调出命令)');
     await input.fill('浏览器测试消息');

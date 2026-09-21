@@ -601,3 +601,32 @@ test('同一 session 的第二个 /chat 会中断第一个流且不泄漏 active
   }
   assert.equal(activeStreams.size, 0);
 });
+
+test('POST /chat 的 SSE 流包含 state_queued 与 state_updated 事件', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['片段']);
+
+  const appServer = await ensureServer();
+  const world = insertWorld(sandbox.db, { name: '对话状态城' });
+  const character = insertCharacter(sandbox.db, world.id, { name: '状态观察者' });
+  const session = insertSession(sandbox.db, { character_id: character.id, world_id: world.id });
+  const port = appServer.address().port;
+
+  const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '写点什么' }),
+  });
+  assert.equal(response.status, 200);
+  const events = parseSsePayloads(await response.text());
+
+  assert.ok(events.some((event) => event.type === 'state_queued'), '应包含 state_queued');
+  assert.ok(events.some((event) => event.type === 'state_updated'), '应包含 state_updated');
+
+  // TODO(阶段4): diary 任务取并集后对话侧也应推 diary_updated，届时改为 assert.ok(...)
+  assert.equal(
+    events.some((event) => event.type === 'diary_updated'),
+    false,
+    '记录现状：对话侧当前不推 diary_updated',
+  );
+});

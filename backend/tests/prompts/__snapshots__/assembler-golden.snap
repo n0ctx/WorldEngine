@@ -1,0 +1,246 @@
+{
+  "1-chat-base": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n金标日记内容\n</diary>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 后置提示 金标角色\n\n角色后置 金标角色\n\n<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "recallHitCount": 1,
+    "cacheableSystem": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-chat-base",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "2-chat-continuation": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "recallHitCount": 1,
+    "cacheableSystem": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-chat-base",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "3-chat-no-suggestion-no-expand": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-lean\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 精简会话】可召回的旧轮摘要\n</recalled_memories>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 后置提示 精简角色\n\n（你正在扮演精简角色，请严格保持角色名字和设定。）"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 420,
+    "recallHitCount": 1,
+    "cacheableSystem": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>",
+    "suggestionText": null,
+    "activatedEntries": [
+      {
+        "id": "entry-kw-chat-lean",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "4-chat-ltm-and-table": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 全局提示 金标世界-chat-memory\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-memory\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n记忆人设 记忆角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-memory\n</world_entries>\n\n<long_term_memory>\n长期记忆正文第一行\n长期记忆正文第二行\n</long_term_memory>\n\n<table_memory hint=\"以下为已知状态的被动参考，均为当前状态快照。剧情以玩家本轮输入为准——这不是在场名单或行动清单，不要因某项列在表里就让它登场或被提及，也不要在无关的人/势力/线索间臆造关联；仅本轮正文确需或明确关联时才动用。\">\n### 关系表\n| 主体A | 主体B | 关系类型 | 信任/敌意 | 债务/承诺 |\n| --- | --- | --- | --- | --- |\n| 金标玩家 | 记忆角色 | 同盟 | 高信任 |  |\n\n### 物品表\n| 物品 | 持有人/位置 | 类型 | 效果/用途 | 限制条件 | 状态 |\n| --- | --- | --- | --- | --- | --- |\n| 断刃 | 记忆角色 |  |  |  | 完好 |\n</table_memory>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 后置提示 记忆角色\n\n（你正在扮演记忆角色，请严格保持角色名字和设定。）\n\n<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "recallHitCount": 0,
+    "cacheableSystem": "GOLDEN 全局提示 金标世界-chat-memory\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-memory\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n记忆人设 记忆角色\n</char_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-chat-memory",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "5-writing-base": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标写作会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标写作会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n{{char}}：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n写作日记内容\n</diary>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 写作后置\n\n（玩家角色名为金标玩家，请在叙述中严格使用此名字，不可捏造或替换。）\n\n<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "model": "golden-writer-model",
+    "recallHitCount": 1,
+    "cacheableSystem": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-writing-base",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "6-writing-nearby-all-in": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 写作全局 金标世界-writing-allin\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-allin\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<nearby_characters>\n以下角色已在本会话登场。叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名。\n\n【当前登场】\n【临时甲】\n底层人设：临时甲人设 临时甲\n- 立场：戒备\n\n【临时乙】\n底层人设：临时乙人设\n\n【已保存角色（仅列底层人设，其当前状态系统会按需补充）】\n【已存丙】\n底层人设：已存丙人设\n\n【已存丁】\n底层人设：已存丁人设\n</nearby_characters>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-allin\n</world_entries>\n\n<recalled_characters>\n以下已保存角色与本轮相关，提供其当前完整状态以供叙事使用。\n【已存丙】\n底层人设：已存丙人设\n- 立场：中立\n\n【已存丁】\n底层人设：已存丁人设\n</recalled_characters>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 写作后置\n\n（玩家角色名为金标玩家，请在叙述中严格使用此名字，不可捏造或替换。）\n\n<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "model": "golden-writer-model",
+    "recallHitCount": 0,
+    "cacheableSystem": "GOLDEN 写作全局 金标世界-writing-allin\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-allin\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-writing-allin",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "7-writing-nearby-judge": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "GOLDEN 写作全局 金标世界-writing-judge\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-judge\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<nearby_characters>\n以下角色已在本会话登场。叙述中若涉及这些人物，必须沿用其既定名字，不要另起新名。\n\n【当前登场】\n【临时戊】\n底层人设：临时戊人设\n\n【已保存角色（仅列底层人设，其当前状态系统会按需补充）】\n【已存1号】\n底层人设：已存1号人设\n\n【已存2号】\n底层人设：已存2号人设\n\n【已存3号】\n底层人设：已存3号人设\n\n【已存4号】\n底层人设：已存4号人设\n\n【已存5号】\n底层人设：已存5号人设\n</nearby_characters>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-judge\n</world_entries>\n\n<recalled_characters>\n以下已保存角色与本轮相关，提供其当前完整状态以供叙事使用。\n【已存2号】\n底层人设：已存2号人设\n- 立场：潜伏\n\n【已存4号】\n底层人设：已存4号人设\n</recalled_characters>"
+      },
+      {
+        "role": "user",
+        "content": "旧轮用户消息"
+      },
+      {
+        "role": "assistant",
+        "content": "旧轮助手消息"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息\n\nGOLDEN 写作后置\n\n（玩家角色名为金标玩家，请在叙述中严格使用此名字，不可捏造或替换。）\n\n<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "model": "golden-writer-model",
+    "recallHitCount": 0,
+    "cacheableSystem": "GOLDEN 写作全局 金标世界-writing-judge\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-judge\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-writing-judge",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  },
+  "8-writing-continuation-skip-instructions": {
+    "messages": [
+      {
+        "role": "system",
+        "content": "<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-cont\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-cont\n</world_entries>"
+      },
+      {
+        "role": "user",
+        "content": "金标关键词 当前用户消息"
+      }
+    ],
+    "temperature": 0.31,
+    "maxTokens": 500,
+    "model": "golden-writer-model",
+    "recallHitCount": 0,
+    "cacheableSystem": "<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-cont\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>",
+    "suggestionText": "<suggestion_format>\n\n在正文末尾另起一行，输出 `<next_prompt></next_prompt>` 包裹的 4 条选项。\n\n4 条通向 4 条互不相同的剧情线：只有第 1 条服务当前主线，第 2、3、4 条各自开启一条与主线无关、彼此也不相干的新线。主线指 金标玩家 此刻在追求的最近目标；主线不明确时，取本轮场景里 金标玩家 最直接的当下目的。\n\n按位置固定，不得调换或替换：\n1. 一次把主线目标做完、收尾结清，而不是推进一步。\n2. 中止或搁置主线，在当前时空转做一件全新的事。\n3. 以月或年计的大跨度推进开头，久到局势、身份或关系已经变样；「第二天」「等到入夜」这类小跨度不合格。\n4. 场景直接落在一个前文没出现过的新地点并点名，写在那里做的事，不写告别、收拾、赶路的过程。\n\n要求：\n- 第 2、3、4 条各自引入至少一个前文从未出现过的全新主体（地点／角色／物品／组织／事件），行动直接落在该主体上；只在已出场的人事物之间打转不合格。新主体须贴合世界观与 金标玩家 的处境，可以新增人事物，但不得改写已确立的设定。\n- 每条都是符合 金标玩家 当下性格的具体行动，不写空泛的态度或心情。\n- 以 金标玩家 第一人称、第一视角输出：不带主语（含「我」「你」及 金标玩家 的名字），不带「选项一：」之类标签。\n- 只依据 金标玩家 当前可知的信息，禁止上帝视角。\n\n格式：\n\n<next_prompt>\n选项1\n选项2\n选项3\n选项4\n</next_prompt>\n\n</suggestion_format>",
+    "activatedEntries": [
+      {
+        "id": "entry-kw-writing-cont",
+        "title": "关键词条目",
+        "trigger_type": "keyword"
+      }
+    ]
+  }
+}

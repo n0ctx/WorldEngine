@@ -340,3 +340,38 @@ export function insertRegexRule(db, patch = {}) {
   );
   return { id, ...patch, created_at: now, updated_at: patch.updated_at ?? now };
 }
+
+export function insertNearbyCharacter(db, sessionId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.created_at);
+  db.prepare(`
+    INSERT INTO session_nearby_characters (id, session_id, name, persona, is_saved, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    patch.name ?? '临时角色',
+    patch.persona ?? '',
+    patch.is_saved ?? 0,
+    now,
+    patch.updated_at ?? now,
+  );
+  return { id, session_id: sessionId, ...patch, created_at: now, updated_at: patch.updated_at ?? now };
+}
+
+export function insertNearbyStateValue(db, sessionId, nearbyId, patch = {}) {
+  const id = patch.id ?? crypto.randomUUID();
+  const now = nowTs(patch.updated_at);
+  db.prepare(`
+    INSERT INTO session_nearby_character_state_values (id, session_id, nearby_id, field_key, runtime_value_json, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    sessionId,
+    nearbyId,
+    patch.field_key ?? 'field',
+    patch.runtime_value_json ?? null,
+    now,
+  );
+  return { id, session_id: sessionId, nearby_id: nearbyId, ...patch, updated_at: now };
+}

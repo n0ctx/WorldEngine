@@ -602,3 +602,89 @@ test('写作 regenerate 会等待同 session 队列空闲后再截断消息', as
   const countAfter = ctx.sandbox.db.prepare('SELECT COUNT(*) AS c FROM messages WHERE session_id = ?').get(session.id).c;
   assert.equal(countAfter, 2);
 });
+
+test('写作 generate 在客户端提前关闭时服务端继续完成并落库，且最终清理 activeStreams', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_CHUNKS = JSON.stringify(['第一段', '第二段']);
+  process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([0, 200]);
+
+  const { freshImport } = await import('../helpers/test-env.js');
+  const { activeStreams } = await freshImport('backend/services/chat.js');
+
+  const appServer = await ctx.ensureServer();
+  const port = appServer.address().port;
+  const world = insertWorld(ctx.sandbox.db, { name: '写作断连城' });
+  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
+  const session = await res.json();
+
+  const response = await fetch(
+    `http://127.0.0.1:${port}/api/worlds/${world.id}/writing-sessions/${session.id}/generate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '写到一半我断开' }),
+    },
+  );
+  const reader = response.body.getReader();
+  await reader.read();
+  await reader.cancel();
+  await new Promise((resolve) => setTimeout(resolve, 600));
+
+  const rows = ctx.sandbox.db.prepare(
+    'SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC',
+  ).all(session.id);
+  assert.deepEqual(rows.map((row) => row.role), ['user', 'assistant']);
+  assert.match(rows[1].content, /第一段/);
+  assert.match(rows[1].content, /第二段/);
+  assert.doesNotMatch(rows[1].content, /\[已中断\]/);
+  assert.equal(activeStreams.size, 0);
+});
+
+test('同一写作 session 的第二个 generate 会中断第一个流且不泄漏 activeStreams', async () => {
+  resetMockEnv();
+  process.env.MOCK_LLM_STREAM_QUEUE = JSON.stringify(['第一条-慢速', '第二条-完成']);
+  process.env.MOCK_LLM_STREAM_DELAYS = JSON.stringify([300]);
+
+  const { freshImport } = await import('../helpers/test-env.js');
+  const { activeStreams } = await freshImport('backend/services/chat.js');
+
+  const appServer = await ctx.ensureServer();
+  const port = appServer.address().port;
+  const world = insertWorld(ctx.sandbox.db, { name: '写作并发谷' });
+  let res = await ctx.request(`/api/worlds/${world.id}/writing-sessions`, { method: 'POST' });
+  const session = await res.json();
+  const url = `http://127.0.0.1:${port}/api/worlds/${world.id}/writing-sessions/${session.id}/generate`;
+
+  const firstPromise = fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '第一条请求' }),
+  }).then((response) => response.text());
+
+  await new Promise((resolve) => setTimeout(resolve, 80));
+
+  const secondPromise = fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: '第二条请求' }),
+  }).then((response) => response.text());
+
+  const [firstRaw, secondRaw] = await Promise.all([firstPromise, secondPromise]);
+  const firstEvents = parseSsePayloads(firstRaw);
+  const secondEvents = parseSsePayloads(secondRaw);
+
+  assert.ok(firstEvents.some((event) => event.aborted));
+  assert.ok(secondEvents.some((event) => event.done));
+
+  const assistants = ctx.sandbox.db.prepare(`
+    SELECT role, content FROM messages
+    WHERE session_id = ? AND role = 'assistant'
+    ORDER BY created_at ASC
+  `).all(session.id);
+  assert.ok(assistants.length >= 1 && assistants.length <= 2);
+  assert.equal(assistants.at(-1).content, '第二条-完成');
+  if (assistants.length === 2) {
+    assert.match(assistants[0].content, /\[已中断\]/);
+  }
+  assert.equal(activeStreams.size, 0);
+});
