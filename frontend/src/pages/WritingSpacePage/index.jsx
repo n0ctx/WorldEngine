@@ -55,16 +55,13 @@ export default function WritingSpacePage() {
 
   const inputBoxRef = useRef(null);
   const messageListRef = useRef(null);
-  // 折叠态用 ref（非响应式 UI 提示）：渲染期在页面本地 ref 读取，避免 react-hooks/refs 误报。
-  const optionCollapsedRef = useRef(false);
-
   const memory = useMemoryIndicators();
   const { memoryRecalling, memoryExpanding, memoryWriting, recallSummary } = memory;
   // 弹幕带在全局 store（顶部栏 TopBar 渲染），由流 hook 写入；离开页面时清空
   const clearDanmakuBand = useDanmakuBandStore((s) => s.clear);
   useEffect(() => () => clearDanmakuBand(), [clearDanmakuBand]);
 
-  const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, optionCollapsedRef, memory });
+  const stream = useWritingStream({ worldId, messageListRef, inputBoxRef, memory });
   const {
     currentSession,
     setCurrentSession,
@@ -76,6 +73,8 @@ export default function WritingSpacePage() {
     error,
     currentOptions,
     setCurrentOptions,
+    optionCollapsed,
+    setOptionCollapsed,
     chapterTitles,
     messageListKey,
     setPendingDiaryInject,
@@ -199,10 +198,6 @@ export default function WritingSpacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWritingSessionId, currentSession]);
 
-  // 折叠态为非响应式 ref：渲染期读取其当前值作为 MessageList 初始折叠态（行为同原组件）。
-  // eslint-disable-next-line react-hooks/refs
-  const optionCollapsed = optionCollapsedRef.current;
-
   // 新建写作会话：创建后通过 bridge 合并进左侧时间线，再进入该会话
   async function handleCreateWritingSession() {
     try {
@@ -324,7 +319,7 @@ export default function WritingSpacePage() {
                 onSelectOption={selectOption}
                 onDismissOptions={() => setCurrentOptions([])}
                 optionCollapsed={optionCollapsed}
-                onOptionCollapsedChange={(c) => { optionCollapsedRef.current = c; }}
+                onOptionCollapsedChange={setOptionCollapsed}
                 onMessagesLoaded={handleMessagesLoaded}
                 chapterTurnSize={chapterTurnSize}
                 pageTurnSize={pageTurnSize}
