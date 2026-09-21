@@ -23,8 +23,8 @@ import Icon from '../../components/ui/Icon.jsx';
 import { AnimatePresence } from 'framer-motion';
 import { log } from '../../core/utils/logger.js';
 import { writingSessionListBridge } from '../../core/utils/session-list-bridge.js';
-import { usePageConfig } from './hooks/usePageConfig.js';
-import { useMemoryIndicators } from './hooks/useMemoryIndicators.js';
+import { usePageConfig } from '../../core/hooks/usePageConfig.js';
+import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
 import { useWritingStream } from './hooks/useWritingStream.js';
 
 export default function WritingSpacePage() {
@@ -34,7 +34,7 @@ export default function WritingSpacePage() {
   const currentWritingSessionId = useStore((s) => s.currentWritingSessionId);
   const setCurrentWritingSessionId = useStore((s) => s.setCurrentWritingSessionId);
 
-  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig();
+  const { ltmEnabled, tableMemoryEnabled, chapterTurnSize, pageTurnSize } = usePageConfig('writing');
 
   useEffect(() => {
     setAppMode(SETTINGS_MODE.WRITING);

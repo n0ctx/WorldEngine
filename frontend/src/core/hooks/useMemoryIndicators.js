@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-// 记忆指示器状态机：召回 / 扩展 / 写入 三段动画 + recallSummary。
+// 记忆指示器状态机：召回 / 扩展 / 写入 三段动画 + recallSummary。对话页与写作页共用。
 // 每段保证至少展示 1500ms（从 start 时刻计），写入完成 2000ms 后清除 summary。
 // 流式回调只调用 start/stop（不读取布尔值），故 hook 暴露这些函数 + 状态值供页面消费。
 export function useMemoryIndicators() {

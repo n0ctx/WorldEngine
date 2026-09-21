@@ -22,8 +22,8 @@ import { syncDiaryTimeField } from '../../core/api/world-state-fields.js';
 import { loadRules } from '../../core/utils/regex-runner.js';
 import { getAvatarColor, getAvatarUrl } from '../../core/utils/avatar.js';
 import { log } from '../../core/utils/logger.js';
-import { usePageConfig } from './hooks/usePageConfig.js';
-import { useMemoryIndicators } from './hooks/useMemoryIndicators.js';
+import { usePageConfig } from '../../core/hooks/usePageConfig.js';
+import { useMemoryIndicators } from '../../core/hooks/useMemoryIndicators.js';
 import { useChatStream } from './hooks/useChatStream.js';
 
 export default function ChatPage() {
