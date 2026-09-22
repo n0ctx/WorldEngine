@@ -1,4 +1,4 @@
-import { THINK_TAG_RE } from './think-blocks.js';
+import { matchThinkTags } from './think-blocks.js';
 
 const OPEN_TAG = '<think>';
 const CLOSE_TAG = '</think>';
@@ -21,7 +21,7 @@ function stackStrip(source, keepOpen = false) {
     }
     cursor = end;
   };
-  for (const match of source.matchAll(THINK_TAG_RE)) {
+  for (const match of matchThinkTags(source)) {
     const token = match[0];
     const isClose = Boolean(match[1]);
     const index = match.index ?? 0;
@@ -61,7 +61,7 @@ function booleanStrip(source) {
     }
     cursor = end;
   };
-  for (const match of source.matchAll(THINK_TAG_RE)) {
+  for (const match of matchThinkTags(source)) {
     const token = match[0];
     const isClose = Boolean(match[1]);
     const index = match.index ?? 0;
@@ -131,8 +131,10 @@ export function stripNextPromptBlocks(text) {
     .replace(/<\s*\/?\s*next_prompt\s*>/gi, '');
 }
 
-export function parseContinuationText(text) {
-  const { display, options } = parseNextPromptStream(text);
+// isStreaming 必须与主流式路径一致:续写增量到达时外层 think 尚未闭合,
+// 漏传会走终态兜底,把思考里回放的 <next_prompt> 草稿当成真选项弹出并截断正文。
+export function parseContinuationText(text, isStreaming = false) {
+  const { display, options } = parseNextPromptStream(text, isStreaming);
   return { content: display, options };
 }
 

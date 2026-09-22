@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
 import ReactMarkdown from 'react-markdown';
@@ -276,7 +276,10 @@ export default function MessageItem({
   displayContent = applyRules(displayContent, 'display_only', worldId ?? null);
 
   // 统一解析为 blocks（流式和非流式共用）;中断标记挂到最后一个 block。
-  const blocks = parseStreamingBlocks(displayContent, { isStreaming });
+  const blocks = useMemo(
+    () => parseStreamingBlocks(displayContent, { isStreaming }),
+    [displayContent, isStreaming],
+  );
   const lastBlockIndex = blocks.length - 1;
 
   function startEdit() { setDraft(message.content); setEditing(true); }
@@ -429,7 +432,8 @@ export default function MessageItem({
                   {blocks.map((block, i) => {
                     const isLast = i === lastBlockIndex;
                     if (block.type === 'thinking') {
-                      if (!showThinking) return null;
+                      // 关闭思考显示时,若消息正是在思考块里被中断的,仍要留住「已中断」标记
+                      if (!showThinking) return interrupted && isLast ? <InterruptedMark key={i} /> : null;
                       return (
                         <ThinkBlock
                           key={i}

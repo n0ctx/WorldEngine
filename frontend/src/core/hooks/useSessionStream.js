@@ -296,7 +296,7 @@ export function useSessionStream({
       continuingMessageIdRef.current = task.continuingMessageId;
       continuingTextRef.current = task.continuingText || '';
       setContinuingMessageId(task.continuingMessageId);
-      setContinuingText(parseContinuationText(task.continuingText || '').content);
+      setContinuingText(parseContinuationText(task.continuingText || '', true).content);
       streamingTextRef.current = '';
       setStreamingText('');
     } else {
@@ -422,7 +422,7 @@ export function useSessionStream({
         if (isContinuation) {
           const next = continuingTextRef.current + delta;
           continuingTextRef.current = next;
-          const parsed = parseContinuationText(next);
+          const parsed = parseContinuationText(next, true);
           if (parsed.options.length > 0) setCurrentOptions(parsed.options);
           setContinuingText(parsed.content);
           return;

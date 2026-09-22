@@ -17,6 +17,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
+import { parseStreamingBlocks } from '../../frontend/src/core/utils/think-blocks.js';
 import SeamlessEditableSurface from '../../shared/SeamlessEditableSurface.jsx';
 
 const TOOL_LABELS = {
@@ -55,48 +56,6 @@ const STATUS_TEXT = {
   running: '运行中…',
   error: '失败',
 };
-
-function parseStreamingBlocks(rawText) {
-  const text = stripToolCallLeakage(rawText);
-  const blocks = [];
-  const TAG_RE = /<\s*(\/?)\s*think(?:ing)?\s*>/gi;
-  let inThink = false;
-  let current = '';
-  let cursor = 0;
-  for (const match of text.matchAll(TAG_RE)) {
-    const token = match[0];
-    const isClose = Boolean(match[1]);
-    const index = match.index ?? 0;
-    current += text.slice(cursor, index);
-    cursor = index + token.length;
-    if (!inThink) {
-      if (isClose) {
-        current += token;
-        continue;
-      }
-      const trimmed = current.replace(/^\n+/, '');
-      if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-      current = '';
-      inThink = true;
-      continue;
-    }
-    if (isClose) {
-      blocks.push({ type: 'thinking', content: current, open: false });
-      current = '';
-      inThink = false;
-      continue;
-    }
-    current += token;
-  }
-  current += text.slice(cursor);
-  if (inThink) {
-    blocks.push({ type: 'thinking', content: current, open: true });
-  } else {
-    const trimmed = current.replace(/^\n+/, '');
-    if (trimmed) blocks.push({ type: 'text', content: trimmed, open: false });
-  }
-  return blocks.length > 0 ? blocks : [{ type: 'text', content: text, open: false }];
-}
 
 function previewLine(text) {
   const flat = (text || '').replace(/\s+/g, ' ').trim();
@@ -279,7 +238,9 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
   // 注意：流式条目本身每帧 content 变化仍会重算（这是其语义），真正消除"每帧全列表重解析"
   // 的是 sameMsg memo 让非流式历史条目整体跳过。
   const blocks = useMemo(
-    () => (msg.streaming && !msg.content ? null : parseStreamingBlocks(msg.content || '')),
+    () => (msg.streaming && !msg.content
+      ? null
+      : parseStreamingBlocks(stripToolCallLeakage(msg.content || ''), { isStreaming: !!msg.streaming })),
     [msg.streaming, msg.content],
   );
   const hasActions = !msg.streaming && msg.id && (onRegenerate || onDelete);

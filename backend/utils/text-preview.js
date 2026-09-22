@@ -3,7 +3,7 @@
  *
  * 必须剥离：
  *  1. 思考块（<think>…</think> / <thinking>…</thinking>，大小写不敏感）——
- *     标记集合与 frontend/src/core/utils/think-blocks.js 的 THINK_TAG_RE 保持一致，
+ *     标记集合与 frontend/src/core/utils/think-blocks.js 的 THINK_TAG_PATTERN 保持一致，
  *     若前端新增了思考块标记，这里要同步更新。
  *  2. 常见 Markdown 标记（标题、粗斜体、引用、代码块/行内代码、链接、列表符号等）——
  *     预览只要纯文本。
@@ -12,7 +12,7 @@
  * 洗完是空串则由调用方决定是否往前找上一条消息。
  */
 
-// 与 frontend/src/core/utils/think-blocks.js 的 THINK_TAG_RE 保持一致
+// 与 frontend/src/core/utils/think-blocks.js 的 THINK_TAG_PATTERN 保持一致
 const THINK_BLOCK_RE = /<\s*think(?:ing)?\s*>[\s\S]*?<\s*\/\s*think(?:ing)?\s*>/gi;
 // 兜底：流式截断等原因导致只有开标签没有闭标签时，视为思考内容一并丢弃
 const THINK_OPEN_UNCLOSED_RE = /<\s*think(?:ing)?\s*>[\s\S]*$/i;

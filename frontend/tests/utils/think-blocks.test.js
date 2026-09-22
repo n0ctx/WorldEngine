@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { parseNextPromptStream } from '../../src/core/utils/next-prompt.js';
+import { parseContinuationText, parseNextPromptStream } from '../../src/core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../src/core/utils/think-blocks.js';
 
 describe('think blocks', () => {
@@ -131,5 +131,62 @@ describe('next prompt stream 流式语义', () => {
   it('流式中嵌套 </think> 不提前闭合外层 think,内部 next_prompt 不漏出', () => {
     const raw = '<think>外A<think>内 <next_prompt>残</next_prompt></think>外B';
     expect(parseNextPromptStream(raw, true)).toEqual({ display: raw, options: [] });
+  });
+});
+
+describe('空 think 块', () => {
+  it('闭合的空 think 不出块,避免渲染空思考面板', () => {
+    expect(parseStreamingBlocks('<think></think>正文')).toEqual([
+      { type: 'text', content: '正文', open: false },
+    ]);
+    expect(parseStreamingBlocks('<think>\n\n</think>正文', { isStreaming: true })).toEqual([
+      { type: 'text', content: '正文', open: false },
+    ]);
+  });
+
+  it('未闭合的空 think 保留 open 块,撑起流式加载态', () => {
+    expect(parseStreamingBlocks('<think>', { isStreaming: true })).toEqual([
+      { type: 'thinking', content: '', open: true },
+    ]);
+  });
+});
+
+describe('流式半截标签', () => {
+  it('末尾未收齐的 think 标签不当正文出块', () => {
+    for (const partial of ['<', '<t', '<th', '<thi', '<thin', '<think', '</', '</thin']) {
+      expect(parseStreamingBlocks(`前文${partial}`, { isStreaming: true })).toEqual([
+        { type: 'text', content: '前文', open: false },
+      ]);
+    }
+  });
+
+  it('think 内末尾半截闭合标签不泄漏进思考正文', () => {
+    expect(parseStreamingBlocks('<think>推理内容</thi', { isStreaming: true })).toEqual([
+      { type: 'thinking', content: '推理内容', open: true },
+    ]);
+  });
+
+  it('终态不裁剪,孤立 < 仍按原文保留', () => {
+    expect(parseStreamingBlocks('若 a <')).toEqual([
+      { type: 'text', content: '若 a <', open: false },
+    ]);
+  });
+});
+
+describe('续写流式语义', () => {
+  it('续写增量与主流式一致:未闭合 think 内的 next_prompt 草稿不弹成选项', () => {
+    const raw = '<think>外A<think>内</think> <next_prompt>残草稿A\n残草稿B</next_prompt> 我还在思考';
+    expect(parseContinuationText(raw, true)).toEqual({ content: raw, options: [] });
+    expect(parseContinuationText(raw, true)).toEqual({
+      content: parseNextPromptStream(raw, true).display,
+      options: parseNextPromptStream(raw, true).options,
+    });
+  });
+
+  it('续写终态仍走兜底,已闭合 think 之外的 next_prompt 正常成为选项', () => {
+    expect(parseContinuationText('<think>推理</think>正文<next_prompt>选项A</next_prompt>')).toEqual({
+      content: '<think>推理</think>正文',
+      options: ['选项A'],
+    });
   });
 });

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import Icon from '../ui/Icon.jsx';
 import { variants, transitions } from '../../core/utils/motion.js';
@@ -152,7 +152,10 @@ export default function WritingMessageItem({
     interrupted = true;
   }
   displayContent = applyRules(displayContent, 'display_only', worldId ?? null, 'writing');
-  const blocks = parseStreamingBlocks(displayContent, { isStreaming });
+  const blocks = useMemo(
+    () => parseStreamingBlocks(displayContent, { isStreaming }),
+    [displayContent, isStreaming],
+  );
   const lastBlockIndex = blocks.length - 1;
   const content = displayContent;
 
@@ -267,7 +270,8 @@ export default function WritingMessageItem({
               {blocks.map((block, i) => {
                 const isLast = i === lastBlockIndex;
                 if (block.type === 'thinking') {
-                  if (!showThinking) return null;
+                  // 关闭思考显示时,若消息正是在思考块里被中断的,仍要留住「已中断」标记
+                  if (!showThinking) return interrupted && isLast ? <InterruptedMark key={i} /> : null;
                   return (
                     <ThinkBlock
                       key={i}
