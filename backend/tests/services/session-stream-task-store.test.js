@@ -116,6 +116,61 @@ test('并发创建同 session：新任务取代旧任务，旧 lifecycle 写入�
   assert.equal(store.getSessionStreamTaskSnapshot(session.id).streamingText, 'B-history');
 });
 
+function readDbProgress(sessionId) {
+  return sandbox.db
+    .prepare('SELECT status, streaming_text FROM session_stream_tasks WHERE session_id = ?')
+    .get(sessionId);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test('delta 进度落库节流：首个立即写，窗口内合并，窗口结束尾部补写', async () => {
+  const { session } = createChatSessionFixture();
+  store.createSessionStreamTask({ sessionId: session.id, mode: 'chat', messages: [] });
+
+  store.emitSessionStreamEvent(session.id, { delta: 'a' });
+  assert.equal(readDbProgress(session.id).streaming_text, 'a');
+
+  store.emitSessionStreamEvent(session.id, { delta: 'b' });
+  store.emitSessionStreamEvent(session.id, { delta: 'c' });
+  assert.equal(readDbProgress(session.id).streaming_text, 'a');
+  // 内存快照（recover-stream 读取来源）始终是最新
+  assert.equal(store.getSessionStreamTaskSnapshot(session.id).streamingText, 'abc');
+
+  await sleep(store.PROGRESS_FLUSH_INTERVAL_MS + 150);
+  assert.equal(readDbProgress(session.id).streaming_text, 'abc');
+});
+
+test('done 整行落库后，待写的节流进度不会覆盖终态', async () => {
+  const { session } = createChatSessionFixture();
+  store.createSessionStreamTask({ sessionId: session.id, mode: 'chat', messages: [] });
+  store.emitSessionStreamEvent(session.id, { delta: 'x' });
+  store.emitSessionStreamEvent(session.id, { delta: 'y' });
+  store.emitSessionStreamEvent(session.id, {
+    done: true,
+    assistant: { id: 'asst-1', role: 'assistant', content: 'xy' },
+  });
+
+  await sleep(store.PROGRESS_FLUSH_INTERVAL_MS + 150);
+  const row = readDbProgress(session.id);
+  assert.equal(row.status, 'postprocessing');
+  assert.equal(row.streaming_text, '');
+});
+
+test('旧任务待写进度不覆盖同 session 新任务，新任务首个 delta 立即落库', async () => {
+  const { session } = createChatSessionFixture();
+  const taskA = store.createSessionStreamTask({ sessionId: session.id, mode: 'chat', messages: [] });
+  store.emitSessionStreamEvent(session.id, { delta: 'A1' }, { taskId: taskA.id });
+  store.emitSessionStreamEvent(session.id, { delta: 'A2' }, { taskId: taskA.id });
+
+  const taskB = store.createSessionStreamTask({ sessionId: session.id, mode: 'chat', messages: [] });
+  store.emitSessionStreamEvent(session.id, { delta: 'B1' }, { taskId: taskB.id });
+  assert.equal(readDbProgress(session.id).streaming_text, 'B1');
+
+  await sleep(store.PROGRESS_FLUSH_INTERVAL_MS + 150);
+  assert.equal(readDbProgress(session.id).streaming_text, 'B1');
+});
+
 test.after(() => {
   sandbox.cleanup();
 });

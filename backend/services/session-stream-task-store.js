@@ -38,9 +38,56 @@ function cloneTask(task) {
   };
 }
 
+// 流式 delta 的进度落库节流：每个 token 同步写 SQLite（Windows 上单次 ~200ms）会卡死事件循环。
+// 至多每 PROGRESS_FLUSH_INTERVAL_MS 写一次，尾部补写；整行 persist 会顺带写入最新进度并取消待写。
+// 代价：后端崩溃/重启时最多丢失最近 1 秒的流式文本（恢复出的半截正文稍短）。
+export const PROGRESS_FLUSH_INTERVAL_MS = 1000;
+const progressFlushState = new Map(); // sessionId -> { lastAt, timer }
+
+function cancelProgressFlush(sessionId) {
+  const state = progressFlushState.get(sessionId);
+  if (state?.timer) clearTimeout(state.timer);
+  progressFlushState.delete(sessionId);
+}
+
+function flushProgress(task) {
+  const state = progressFlushState.get(task.sessionId);
+  if (state) state.timer = null;
+  // 已被同 session 新任务取代时不写，避免旧进度覆盖新任务行（UPDATE 以 session_id 为键）
+  if (tasks.get(task.sessionId) !== task) return;
+  try {
+    updateSessionStreamProgress(task.sessionId, {
+      streamingText: task.streamingText,
+      continuingText: task.continuingText,
+      updatedAt: task.updatedAt,
+    });
+  } catch (err) {
+    log.error(`PROGRESS FLUSH FAIL  ${formatMeta({ session: task.sessionId.slice(0, 8), msg: err?.message })}`);
+  }
+  // 间隔从写完开始计：同步写本身慢（磁盘繁忙）时不会紧接着再写
+  if (state) state.lastAt = Date.now();
+}
+
+function scheduleProgressFlush(task) {
+  let state = progressFlushState.get(task.sessionId);
+  if (!state) {
+    state = { lastAt: 0, timer: null };
+    progressFlushState.set(task.sessionId, state);
+  }
+  if (state.timer) return;
+  const wait = PROGRESS_FLUSH_INTERVAL_MS - (Date.now() - state.lastAt);
+  if (wait <= 0) {
+    flushProgress(task);
+    return;
+  }
+  state.timer = setTimeout(() => flushProgress(task), wait);
+  state.timer.unref?.();
+}
+
 function persist(task) {
   if (!task) return;
   upsertSessionStreamTask(cloneTask(task));
+  if (tasks.get(task.sessionId) === task) cancelProgressFlush(task.sessionId);
 }
 
 function touch(task) {
@@ -149,6 +196,7 @@ export function createSessionStreamTask({
   // 若持久化抛错，则保留旧内存指针不变，避免内存与 DB 分裂。
   persist(task);
   tasks.set(sessionId, task);
+  cancelProgressFlush(sessionId);
   return task;
 }
 
@@ -233,11 +281,7 @@ function applyEvent(task, payload) {
       task.streamingText += payload.delta;
     }
     task.updatedAt = Date.now();
-    updateSessionStreamProgress(task.sessionId, {
-      streamingText: task.streamingText,
-      continuingText: task.continuingText,
-      updatedAt: task.updatedAt,
-    });
+    scheduleProgressFlush(task);
     return;
   }
   let changed = false;
