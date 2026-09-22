@@ -152,6 +152,13 @@ test('applyThinking: llamacpp effort_* → reasoning_effort（Qwen3 模板按请
   }
 });
 
+test('applyThinking: llamacpp thinking_disabled → chat_template_kwargs.enable_thinking=false', () => {
+  const body = { chat_template_kwargs: { other: 1 } };
+  const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: 'thinking_disabled' });
+  assert.equal(state, 'disabled');
+  assert.deepEqual(body, { chat_template_kwargs: { other: 1, enable_thinking: false } });
+});
+
 test('applyThinking: llamacpp 非 effort_* 命名空间不下发字段', () => {
   for (const lvl of ['qwen_high', 'thinking_enabled', 'none']) {
     const body = {};
