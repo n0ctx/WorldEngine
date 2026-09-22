@@ -344,6 +344,61 @@ describe('ChatPage', () => {
     await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(3));
   });
 
+  it('停止时后端回报无活动流（active=false）会本地断开悬挂连接并解锁输入', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    const aborts = [];
+    mocks.sendMessage.mockImplementation((_sid, _content, _attachments, cb) => {
+      // 模拟 streamPost：abort 后 finally 触发 onStreamEnd；不 abort 则连接永远悬挂
+      const abort = vi.fn(() => cb.onStreamEnd?.());
+      aborts.push(abort);
+      return abort;
+    });
+    mocks.stopGeneration.mockResolvedValue({ success: true, active: false });
+
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByText('send'));
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText('stop'));
+    await waitFor(() => expect(aborts[0]).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(2));
+  });
+
+  it('停止时后端仍有活动流（active=true）不本地断开，等待 aborted 事件', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    const abort = vi.fn();
+    mocks.sendMessage.mockImplementation(() => abort);
+    mocks.stopGeneration.mockResolvedValue({ success: true, active: true });
+
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByText('stop'));
+    await waitFor(() => expect(mocks.stopGeneration).toHaveBeenCalledWith('session-1'));
+    await act(async () => {});
+    expect(abort).not.toHaveBeenCalled();
+  });
+
   it('进入已有 session 时会尝试恢复断点续传并补订阅', async () => {
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
     mocks.recoverChatStream.mockResolvedValue({

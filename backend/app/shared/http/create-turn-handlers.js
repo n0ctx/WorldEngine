@@ -118,7 +118,8 @@ export function createTurnHandlers({ mode, resolveSession, emitSse, logNs, guard
       if (!resolveSession(req, res)) return;
       const controller = activeStreams.get(sessionId);
       if (controller) controller.abort();
-      res.json({ success: true });
+      // active=false：后端已无该会话的活动流（如服务重启后 dev 代理连接悬挂），前端需自行断开收尾
+      res.json({ success: true, active: !!controller });
     },
 
     regenerate: async (req, res) => {

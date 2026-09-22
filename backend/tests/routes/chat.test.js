@@ -342,7 +342,7 @@ test('POST /stop 在没有活跃流时返回 success', async () => {
 
   const response = await fetch(`http://127.0.0.1:${port}/api/sessions/${session.id}/stop`, { method: 'POST' });
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { success: true });
+  assert.deepEqual(await response.json(), { success: true, active: false });
 });
 
 test('POST /continue 会把新内容追加到最后一条 assistant 消息', async () => {

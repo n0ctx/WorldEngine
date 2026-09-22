@@ -15,7 +15,8 @@ export function sendMessage(sessionId, content, attachments, callbacks, opts = {
  * 停止生成
  */
 export async function stopGeneration(sessionId) {
-  await fetch(`/api/sessions/${sessionId}/stop`, { method: 'POST' });
+  const res = await fetch(`/api/sessions/${sessionId}/stop`, { method: 'POST' });
+  try { return await res.json(); } catch { return {}; }
 }
 
 /**

@@ -649,10 +649,24 @@ export function useSessionStream({
   }
 
   // 停止生成：只通知后端中断，不在前端 abort fetch；
-  // 后端会发回 aborted SSE 事件后自然关闭连接，避免前端提前断流导致 refreshMessages 重挂载页面
+  // 后端会发回 aborted SSE 事件后自然关闭连接，避免前端提前断流导致 refreshMessages 重挂载页面。
+  // 例外：后端回报 active=false（该会话已无活动流，典型是服务重启后连接经 dev 代理悬挂、永远等不到 aborted），
+  // 此时本地断开并按非主动停止收尾——刷新消息列表，加载完成后由 recoverLiveStream 恢复中断快照。
   function handleStop() {
     streamAbortedRef.current = true;
-    api.stop(sessionIdRef.current).catch(() => {});
+    const targetSessionId = sessionIdRef.current;
+    api.stop(targetSessionId)
+      .then((result) => {
+        if (result?.active !== false || sessionIdRef.current !== targetSessionId) return;
+        streamAbortedRef.current = false;
+        if (!stopRef.current && !recoveryStopRef.current) {
+          finalizeStream();
+          return;
+        }
+        stopRef.current?.();
+        recoveryStopRef.current?.();
+      })
+      .catch(() => {});
   }
 
   // 编辑用户消息并重新生成

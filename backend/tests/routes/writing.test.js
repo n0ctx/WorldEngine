@@ -477,7 +477,7 @@ test('写作 stop 在没有活跃流时返回 success', async () => {
     method: 'POST',
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { success: true });
+  assert.deepEqual(await res.json(), { success: true, active: false });
 });
 
 test('写作 regenerate 缺少 afterMessageId 时返回 400', async () => {

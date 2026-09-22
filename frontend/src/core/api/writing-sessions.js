@@ -56,7 +56,8 @@ export function generate(worldId, sessionId, content, callbacks, opts = {}) {
  * 停止生成
  */
 export async function stopGeneration(worldId, sessionId) {
-  await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stop`, { method: 'POST' });
+  const res = await fetch(`/api/worlds/${worldId}/writing-sessions/${sessionId}/stop`, { method: 'POST' });
+  try { return await res.json(); } catch { return {}; }
 }
 
 /**
