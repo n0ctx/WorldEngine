@@ -961,6 +961,12 @@ function getThinkingOptions(provider) {
         { value: 'effort_medium', label: '推理：中（仅 o-series 模型）' },
         { value: 'effort_high', label: '推理：高（仅 o-series 模型）' },
       ];
+    case 'llamacpp':
+      return [
+        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
+        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
+        { value: 'effort_high', label: '推理：高（reasoning_effort=xhigh）' },
+      ];
     default:
       return [];
   }

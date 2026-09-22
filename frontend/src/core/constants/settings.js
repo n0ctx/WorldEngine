@@ -147,6 +147,13 @@ export function getProviderThinkingOptions(provider) {
         { value: 'thinking_enabled', label: '思考：开启（reasoning.enabled=true）' },
         { value: 'thinking_disabled', label: '思考：关闭（reasoning.enabled=false）' },
       ];
+    case 'llamacpp':
+      // 服务端 Qwen3 模板只认 low|medium|xhigh，effort_high 在后端映射为 xhigh
+      return [
+        { value: 'effort_low', label: '推理：低（reasoning_effort=low）' },
+        { value: 'effort_medium', label: '推理：中（reasoning_effort=medium）' },
+        { value: 'effort_high', label: '推理：高（reasoning_effort=xhigh）' },
+      ];
     case 'grok':
       return [
         { value: 'effort_low', label: '推理：低（仅 grok-3-mini）' },
