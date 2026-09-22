@@ -25,6 +25,7 @@ export function resolveQwenBudget(thinking_level) {
  * - glm / glm-coding：thinking: { type: "enabled" | "disabled" }（GLM-4.5+ / Z.AI 文档）
  * - deepseek：thinking: { type: "enabled" | "disabled" }（仅 deepseek-v3.1+；老版 chat/reasoner 模型会忽略）
  * - qwen / siliconflow：enable_thinking + thinking_budget（DashScope / SiliconFlow Qwen3、DeepSeek-V3.1）
+ * - llamacpp：reasoning_effort: low/medium/xhigh（Qwen3 jinja 模板支持按请求覆盖，实测 2026-09；server 默认值不受影响。注意服务端只认 xhigh|medium|low，不认 high）
  * - kimi / minimax：模型驱动（kimi-k2-thinking、minimax-m2 等模型自动思考），不下发参数
  *
  * 返回值：'enabled' | 'disabled' | null
@@ -86,6 +87,14 @@ export function applyThinkingToOpenAICompatibleBody(body, config) {
         return 'enabled';
       }
       return null;
+    }
+    case 'llamacpp': {
+      // Qwen3 模板按请求覆盖：effort_high 映射到服务端最高档 xhigh
+      const MAP = { effort_low: 'low', effort_medium: 'medium', effort_high: 'xhigh' };
+      const v = MAP[lvl];
+      if (!v) return null;
+      body.reasoning_effort = v;
+      return 'enabled';
     }
     case 'kimi':
     case 'minimax':

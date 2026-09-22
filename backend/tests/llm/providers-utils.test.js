@@ -138,6 +138,29 @@ test('applyThinking: siliconflow thinking_disabled → enable_thinking=false', (
   assert.equal(state, 'disabled');
 });
 
+test('applyThinking: llamacpp effort_* → reasoning_effort（Qwen3 模板按请求覆盖）', () => {
+  const cases = [
+    ['effort_low', 'low'],
+    ['effort_medium', 'medium'],
+    ['effort_high', 'xhigh'],
+  ];
+  for (const [lvl, expected] of cases) {
+    const body = {};
+    const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: lvl });
+    assert.equal(body.reasoning_effort, expected);
+    assert.equal(state, 'enabled');
+  }
+});
+
+test('applyThinking: llamacpp 非 effort_* 命名空间不下发字段', () => {
+  for (const lvl of ['qwen_high', 'thinking_enabled', 'none']) {
+    const body = {};
+    const state = applyThinkingToOpenAICompatibleBody(body, { provider: 'llamacpp', thinking_level: lvl });
+    assert.equal(state, null);
+    assert.deepEqual(body, {});
+  }
+});
+
 test('applyThinking: kimi / minimax 模型驱动，不下发字段', () => {
   for (const provider of ['kimi', 'minimax']) {
     const body = {};

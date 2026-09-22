@@ -9,6 +9,7 @@ import {
   LMSTUDIO_DEFAULT_BASE_URL,
   LLAMACPP_DEFAULT_BASE_URL,
 } from '../../../utils/constants.js';
+import { applyThinkingToOpenAICompatibleBody } from '../openai-compatible/thinking.js';
 import { runToolLoop } from '../../tool-loop-control.js';
 import { emitProviderSignal, buildContextFromConfig, hashText } from '../_shared/provider-safety-signals.js';
 import crypto from 'node:crypto';
@@ -33,6 +34,22 @@ const DEFAULT_BASE_URLS = {
   lmstudio: LMSTUDIO_DEFAULT_BASE_URL,
   llamacpp: LLAMACPP_DEFAULT_BASE_URL,
 };
+
+// 统一拼 /v1/chat/completions 请求体，并按 provider 注入 thinking/effort 字段。
+// llamacpp 的 effort_* → reasoning_effort（按请求覆盖 server 默认值）；
+// ollama / lmstudio 在 thinking.js 走 default 分支，不写任何字段，行为不变。
+function buildLocalChatBody({ messages, stream, extra = {} }, config) {
+  const body = {
+    model: config.model,
+    messages,
+    temperature: config.temperature,
+    max_tokens: config.max_tokens,
+    stream,
+    ...extra,
+  };
+  applyThinkingToOpenAICompatibleBody(body, config);
+  return body;
+}
 
 function getBaseUrl(config) {
   return (config.base_url || DEFAULT_BASE_URLS[config.provider] || '').replace(/\/+$/, '');
@@ -71,13 +88,7 @@ export async function* streamChat(messages, config) {
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: config.temperature,
-      max_tokens: config.max_tokens,
-      stream: true,
-    }),
+    body: JSON.stringify(buildLocalChatBody({ messages, stream: true }, config)),
     signal: config.signal,
   });
 
@@ -110,13 +121,7 @@ export async function complete(messages, config) {
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: config.temperature,
-      max_tokens: config.max_tokens,
-      stream: false,
-    }),
+    body: JSON.stringify(buildLocalChatBody({ messages, stream: false }, config)),
     signal: config.signal,
   });
 
@@ -140,15 +145,11 @@ async function callWithTools(messages, toolDefs, config) {
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
+    body: JSON.stringify(buildLocalChatBody({
       messages,
-      tools: toolDefs,
-      tool_choice: 'auto',
-      temperature: config.temperature,
-      max_tokens: config.max_tokens,
       stream: false,
-    }),
+      extra: { tools: toolDefs, tool_choice: 'auto' },
+    }, config)),
     signal: config.signal,
   });
   if (!resp.ok) return null; // 降级信号(4xx/5xx 一视同仁,与历史行为对齐)

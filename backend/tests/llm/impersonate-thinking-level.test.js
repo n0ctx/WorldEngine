@@ -2,8 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport, resetMockEnv } from '../helpers/test-env.js';
-import { chatMode } from '../../app/modes/chat-mode.js';
-import { writingMode } from '../../app/modes/writing-mode.js';
 
 /**
  * 代拟端点合并成一份实现后，thinking_level 的差异由 mode.impersonate.disableThinking 承载：
@@ -24,6 +22,10 @@ test('代拟的 thinking_level：对话强制关闭，写作沿用配置', { con
   });
   sandbox.setEnv();
 
+  // mode 模块传递依赖 services/config.js，其 CONFIG_PATH 在模块加载时固化：
+  // 必须在 setEnv() 之后动态导入，否则读到的不是沙箱配置（会泄漏宿主 data/config.json）。
+  const { chatMode } = await freshImport('backend/app/modes/chat-mode.js');
+  const { writingMode } = await freshImport('backend/app/modes/writing-mode.js');
   const { __testables } = await freshImport('backend/llm/index.js');
   const optionsFor = (mode) => ({
     configScope: mode.llm.configScope,
