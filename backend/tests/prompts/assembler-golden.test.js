@@ -35,6 +35,11 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = path.join(__dirname, '__snapshots__', 'assembler-golden.snap');
 
+// 会话创建时间必须固定:renderRecalledSummaries 用它渲染 <recalled_memories> 的日期,
+// 走 fixture 默认的 Date.now() 会让金标快照每天都漂。取小于各用例 baseTs 的值,
+// 保持「会话先于消息创建」的自然关系。
+const SESSION_TS = 1;
+
 const BASE_CONFIG = {
   provider_keys: { openai_compatible: 'test-key' },
   embedding: {
@@ -175,7 +180,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
         post_prompt: '角色后置 {{char}}',
       });
       insertCharacterStateValue(sandbox.db, character.id, { id: 'cv-chat-base', field_key: 'stance', default_value_json: '"守望"' });
-      const session = insertSession(sandbox.db, { id: 'sess-chat-base', character_id: character.id, world_id: world.id, title: '金标聊天会话' });
+      const session = insertSession(sandbox.db, { id: 'sess-chat-base', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '金标聊天会话' });
       seedHistory(session.id, 'chat-base', 1000);
       upsertEntry('turn-old-chat-base', session.id, world.id, [1, 0, 0]);
 
@@ -194,7 +199,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
       const character = insertCharacter(sandbox.db, world.id, {
         id: 'char-chat-lean', name: '精简角色', system_prompt: '精简人设 {{char}}',
       });
-      const session = insertSession(sandbox.db, { id: 'sess-chat-lean', character_id: character.id, world_id: world.id, title: '精简会话' });
+      const session = insertSession(sandbox.db, { id: 'sess-chat-lean', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '精简会话' });
       seedHistory(session.id, 'chat-lean', 2000);
       upsertEntry('turn-old-chat-lean', session.id, world.id, [1, 0, 0]);
 
@@ -212,7 +217,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
       const character = insertCharacter(sandbox.db, world.id, {
         id: 'char-chat-memory', name: '记忆角色', system_prompt: '记忆人设 {{char}}',
       });
-      const session = insertSession(sandbox.db, { id: 'sess-chat-memory', character_id: character.id, world_id: world.id, title: '记忆会话' });
+      const session = insertSession(sandbox.db, { id: 'sess-chat-memory', created_at: SESSION_TS, character_id: character.id, world_id: world.id, title: '记忆会话' });
       seedHistory(session.id, 'chat-memory', 3000);
 
       writeMemoryFile(session.id, '长期记忆正文第一行\n长期记忆正文第二行');
@@ -239,7 +244,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     {
       const world = buildWorld('writing-base');
       const session = insertSession(sandbox.db, {
-        id: 'sess-writing-base', world_id: world.id, mode: 'writing', title: '金标写作会话',
+        id: 'sess-writing-base', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '金标写作会话',
       });
       seedHistory(session.id, 'writing-base', 4000);
       upsertEntry('turn-old-writing-base', session.id, world.id, [1, 0, 0]);
@@ -253,7 +258,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     {
       const world = buildWorld('writing-allin');
       const session = insertSession(sandbox.db, {
-        id: 'sess-writing-allin', world_id: world.id, mode: 'writing', title: '全量召回会话',
+        id: 'sess-writing-allin', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '全量召回会话',
       });
       seedHistory(session.id, 'writing-allin', 5000);
 
@@ -275,7 +280,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     {
       const world = buildWorld('writing-judge');
       const session = insertSession(sandbox.db, {
-        id: 'sess-writing-judge', world_id: world.id, mode: 'writing', title: '判定召回会话',
+        id: 'sess-writing-judge', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '判定召回会话',
       });
       seedHistory(session.id, 'writing-judge', 6000);
 
@@ -301,7 +306,7 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     {
       const world = buildWorld('writing-cont');
       const session = insertSession(sandbox.db, {
-        id: 'sess-writing-cont', world_id: world.id, mode: 'writing', title: '续写会话',
+        id: 'sess-writing-cont', created_at: SESSION_TS, world_id: world.id, mode: 'writing', title: '续写会话',
       });
       seedHistory(session.id, 'writing-cont', 7000);
 
@@ -317,6 +322,13 @@ test('buildPrompt / buildWritingPrompt 的输出逐字节稳定', async () => {
     }
 
     const actual = `${JSON.stringify(cases, null, 2)}\n`;
+
+    // 守住快照的确定性:输出里一旦出现运行当天的日期,说明又有 Date.now() 派生值漏进
+    // prompt(如会话/记录未固定 created_at),快照会每天漂一次。
+    assert.ok(
+      !actual.includes(new Date().toISOString().slice(0, 10)),
+      'assembler 输出包含运行当天日期,说明有非确定性时间漏进 prompt',
+    );
 
     if (process.env.WE_UPDATE_SNAPSHOTS === '1') {
       fs.mkdirSync(path.dirname(SNAPSHOT_PATH), { recursive: true });

@@ -3,7 +3,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n金标日记内容\n</diary>"
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【1970-01-01 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n金标日记内容\n</diary>"
       },
       {
         "role": "user",
@@ -35,7 +35,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>"
+        "content": "GOLDEN 全局提示 金标世界-chat-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n角色人设 金标角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<char_state>\n- 立场：守望\n</char_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【1970-01-01 · 金标聊天会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标聊天会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n金标角色：召回轮助手消息\n</expanded_dialogues>"
       },
       {
         "role": "user",
@@ -59,7 +59,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-lean\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 精简会话】可召回的旧轮摘要\n</recalled_memories>"
+        "content": "GOLDEN 全局提示 金标世界-chat-lean\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-chat-lean\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<char_info>\n精简人设 精简角色\n</char_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-chat-lean\n</world_entries>\n\n<recalled_memories>\n- 【#1】【1970-01-01 · 精简会话】可召回的旧轮摘要\n</recalled_memories>"
       },
       {
         "role": "user",
@@ -123,7 +123,7 @@
     "messages": [
       {
         "role": "system",
-        "content": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【2026-09-21 · 金标写作会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标写作会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n{{char}}：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n写作日记内容\n</diary>"
+        "content": "GOLDEN 写作全局 金标世界-writing-base\n\n<world_entries>\n【常驻条目】\n常驻条目正文 金标世界-writing-base\n</world_entries>\n\n<user_info>\n名字：金标玩家\n玩家人设 金标玩家\n</user_info>\n\n<world_state>\n- 天气：晴朗\n</world_state>\n\n<user_state>\n- 士气：稳定\n</user_state>\n\n<world_entries>\n【关键词条目】\n关键词条目正文 金标世界-writing-base\n</world_entries>\n\n<recalled_memories>\n- 【#1】【1970-01-01 · 金标写作会话】可召回的旧轮摘要\n</recalled_memories>\n\n<expanded_dialogues>\n【历史对话原文 · 1970-01-01 · 金标写作会话 · 第1轮】\n金标玩家：召回轮用户消息\n\n{{char}}：召回轮助手消息\n</expanded_dialogues>\n\n<diary>\n写作日记内容\n</diary>"
       },
       {
         "role": "user",
