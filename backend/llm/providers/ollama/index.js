@@ -98,6 +98,7 @@ export async function* streamChat(messages, config) {
     throw apiError(`${config.provider} API error: ${resp.status} ${body}`, resp.status);
   }
 
+  let inThinking = false;
   for await (const data of parseSSE(resp.body)) {
     try {
       const parsed = JSON.parse(data);
@@ -106,12 +107,29 @@ export async function* streamChat(messages, config) {
         if (u.prompt_tokens != null) config.usageRef.prompt_tokens = u.prompt_tokens;
         if (u.completion_tokens != null) config.usageRef.completion_tokens = u.completion_tokens;
       }
-      const delta = parsed.choices?.[0]?.delta?.content;
-      if (delta) yield delta;
+      const delta = parsed.choices?.[0]?.delta;
+      if (!delta) continue;
+      // llama.cpp（--jinja）/ LM Studio 将推理内容放在 reasoning_content / reasoning 字段，与 openai-compatible 同样包成 <think>
+      const reasoning = delta.reasoning_content || delta.reasoning;
+      if (reasoning) {
+        if (!inThinking) { yield '<think>'; inThinking = true; }
+        yield reasoning;
+      }
+      if (delta.content) {
+        if (inThinking) { yield '</think>\n'; inThinking = false; }
+        yield delta.content;
+      }
     } catch {
       // skip
     }
   }
+  if (inThinking) yield '</think>\n';
+}
+
+function withReasoning(message) {
+  const reasoning = message?.reasoning_content || message?.reasoning;
+  const content = message?.content || '';
+  return reasoning ? `<think>${reasoning}</think>\n${content}` : content;
 }
 
 export async function complete(messages, config) {
@@ -132,7 +150,7 @@ export async function complete(messages, config) {
   }
 
   const data = await resp.json();
-  return data.choices?.[0]?.message?.content || '';
+  return withReasoning(data.choices?.[0]?.message);
 }
 
 // ============================================================
@@ -170,7 +188,7 @@ const ollamaToolLoopProvider = {
     if (!message) return { kind: 'text', text: '' };
 
     if (!message.tool_calls?.length) {
-      return { kind: 'text', text: message.content || '' };
+      return { kind: 'text', text: withReasoning(message) };
     }
 
     const toolCalls = message.tool_calls.map((tc) => {
