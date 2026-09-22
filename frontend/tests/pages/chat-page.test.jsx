@@ -400,6 +400,11 @@ describe('ChatPage', () => {
     await waitFor(() => expect(mocks.recoverChatStream).toHaveBeenCalledWith('session-1'));
     expect(mocks.subscribeChatStream).not.toHaveBeenCalled();
     expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
+    // 半截正文并入消息列表；错误气泡只给提示与重试，不再重复渲染一大段 partial
+    const updater = mocks.MessageListState.updateMessages.mock.calls.at(-1)[0];
+    expect(updater([]).at(-1)).toMatchObject({ role: 'assistant', content: '中断前文本' });
+    expect(await screen.findByText('生成失败：interrupted by restart')).toBeInTheDocument();
+    expect(screen.queryByText('中断前文本')).not.toBeInTheDocument();
   });
 
   it('旧普通流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {

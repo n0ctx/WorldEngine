@@ -346,6 +346,11 @@ describe('WritingSpacePage', () => {
     await waitFor(() => expect(mocks.recoverWritingStream).toHaveBeenCalledWith('world-1', 'ws-1'));
     expect(mocks.subscribeWritingStream).not.toHaveBeenCalled();
     expect(mocks.MessageListState.updateMessages).toHaveBeenCalled();
+    // 半截正文并入消息列表；错误条只给提示与重试，不再重复渲染一大段 partial（刷新后形似编辑框的回归）
+    const updater = mocks.MessageListState.updateMessages.mock.calls.at(-1)[0];
+    expect(updater([]).at(-1)).toMatchObject({ role: 'assistant', content: '中断前段落' });
+    expect(await screen.findByText('生成失败：interrupted by restart')).toBeInTheDocument();
+    expect(screen.queryByText('中断前段落')).not.toBeInTheDocument();
   });
 
   it('旧普通写作流 state_updated 会收起旧轮记忆记录提示，但不会解锁新流', async () => {

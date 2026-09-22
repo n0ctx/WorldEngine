@@ -308,7 +308,9 @@ export function useSessionStream({
       setStreamingText(interrupted ? '' : (task.streamingText || ''));
     }
     if (interrupted && task.streamingText) {
-      setErrorBubble({ partialContent: task.streamingText, errorMsg: task.error });
+      // 半截正文已由 materializeInterruptedMessages 并入消息列表；错误气泡只留提示与重试入口，
+      // 不再重复渲染整段 partialContent（否则消息下方多出一个大文本框，看起来像进入了编辑态）
+      setErrorBubble({ partialContent: '', errorMsg: task.error });
     }
     setGenerating(!interrupted);
   }
