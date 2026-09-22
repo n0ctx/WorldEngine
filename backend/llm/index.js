@@ -9,7 +9,7 @@
  */
 
 import { getConfig, getAuxLlmConfig, getWritingLlmConfig, getWritingAuxLlmConfig } from '../services/config.js';
-import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS } from '../utils/constants.js';
+import { LLM_RETRY_MAX, LLM_RETRY_DELAY_MS, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS } from '../utils/constants.js';
 import * as cloudProvider from './providers/cloud-router.js';
 import * as localProvider from './providers/ollama/index.js';
 import * as mockProvider from './providers/mock/index.js';
@@ -169,6 +169,13 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// 本地 provider 的调用方超时抬到下限 LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS；未传超时（<=0/缺省）保持不限时
+function resolveTimeoutMs(timeoutMs, provider) {
+  const parsed = Number(timeoutMs);
+  if (!Number.isFinite(parsed) || parsed <= 0) return timeoutMs;
+  return LOCAL_PROVIDERS.has(provider) ? Math.max(parsed, LLM_LOCAL_BACKGROUND_TASK_TIMEOUT_MS) : parsed;
+}
+
 function buildTimedSignal(signal, timeoutMs) {
   const parsed = Number(timeoutMs);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -289,6 +296,7 @@ function splitTools(tools = []) {
 
 export const __testables = {
   getProvider,
+  resolveTimeoutMs,
   buildLLMConfig,
   splitTools,
   getRetryPolicy,
@@ -323,7 +331,8 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
   }
 
   const { defs, handlers } = splitTools(tools);
-  const timeout = buildTimedSignal(llmConfig.signal, options.timeoutMs);
+  const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
+  const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
   log.info(`COMPLETE_TOOLS START  ${formatMeta({
     callType: llmConfig.callType,
     provider: llmConfig.provider,
@@ -361,7 +370,7 @@ export async function completeWithToolsDetailed(messages, tools, options = {}) {
         return typeof result === 'string' ? { text: result, messages } : result;
       } catch (err) {
         if (timeout.didTimeout()) {
-          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${options.timeoutMs}ms`);
+          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
           timeoutErr.status = 504;
           timeoutErr.code = 'LLM_TIMEOUT';
           throw wrapError(timeoutErr, llmConfig.provider);
@@ -399,7 +408,8 @@ export async function complete(messages, options = {}) {
   const retry = getRetryPolicy();
   const summary = summarizeMessages(messages);
   const startedAt = Date.now();
-  const timeout = buildTimedSignal(llmConfig.signal, options.timeoutMs);
+  const timeoutMs = resolveTimeoutMs(options.timeoutMs, llmConfig.provider);
+  const timeout = buildTimedSignal(llmConfig.signal, timeoutMs);
 
   log.info(`COMPLETE START  ${formatMeta({
     callType: llmConfig.callType,
@@ -444,7 +454,7 @@ export async function complete(messages, options = {}) {
         return result;
       } catch (err) {
         if (timeout.didTimeout()) {
-          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${options.timeoutMs}ms`);
+          const timeoutErr = new Error(`LLM ${llmConfig.callType || 'request'} timed out after ${timeoutMs}ms`);
           timeoutErr.status = 504;
           timeoutErr.code = 'LLM_TIMEOUT';
           throw wrapError(timeoutErr, llmConfig.provider);

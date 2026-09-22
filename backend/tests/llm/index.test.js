@@ -83,6 +83,23 @@ test('splitTools 只暴露定义并保留 execute handler', { concurrency: false
   assert.equal(await handlers.save_note({}), 'done');
 });
 
+test('resolveTimeoutMs：本地 provider 后台超时抬到 60s 下限，云端与不限时保持原值', { concurrency: false }, async (t) => {
+  const sandbox = createTestSandbox('llm-timeout-resolve');
+  t.after(() => sandbox.cleanup());
+  sandbox.setEnv();
+
+  const { __testables } = await freshImport('backend/llm/index.js');
+  const { resolveTimeoutMs } = __testables;
+  for (const provider of ['llamacpp', 'ollama', 'lmstudio']) {
+    assert.equal(resolveTimeoutMs(20_000, provider), 60_000);
+    assert.equal(resolveTimeoutMs(90_000, provider), 90_000);
+  }
+  assert.equal(resolveTimeoutMs(20_000, 'deepseek'), 20_000);
+  assert.equal(resolveTimeoutMs(10, 'mock'), 10);
+  assert.equal(resolveTimeoutMs(undefined, 'llamacpp'), undefined);
+  assert.equal(resolveTimeoutMs(0, 'llamacpp'), 0);
+});
+
 test('complete 在 provider 非流式调用超时时返回 504 LLMError', { concurrency: false }, async (t) => {
   const sandbox = createTestSandbox('llm-complete-timeout', {
     provider_keys: { mock: 'secret' },
