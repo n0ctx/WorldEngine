@@ -30,8 +30,8 @@ WorldEngine 是一个本地优先的 AI 角色扮演与创作引擎，面向需�
 
 克隆仓库后，直接双击对应脚本，自动安装依赖、启动前后端并打开浏览器：
 
-- **macOS**：双击 `启动WorldEngine.command`（首次需在终端执行 `chmod +x 启动WorldEngine.command` 赋予执行权限）
-- **Windows**：双击 `启动WorldEngine.bat`
+- **macOS**：双击 `WorldEngine.command`（首次需在终端执行 `chmod +x WorldEngine.command` 赋予执行权限）
+- **Windows**：双击 `WorldEngine.bat`
 
 ### 方式三：手动启动（需要 Node.js 18+）
 
