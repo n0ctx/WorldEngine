@@ -128,8 +128,8 @@
   --we-glass-bg: rgba(33, 28, 23, 0.78);
   --we-glass-blur: 18px;
   --we-pane-gap: var(--we-space-md);
-  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 93%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 34%, transparent);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 77%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 16%, transparent);
   --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 26%, transparent);
 
   --we-canvas-texture-image: none;

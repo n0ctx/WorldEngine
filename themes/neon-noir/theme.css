@@ -156,8 +156,8 @@
   --we-glass-bg: rgba(20, 20, 32, 0.8);
   --we-glass-blur: 16px;
   --we-pane-gap: var(--we-space-md);
-  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 30%, transparent);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 78%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 14%, transparent);
   --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 26%, transparent);
 
   /* ==================== 质感阴影（棱角分明的赛博风格） ==================== */

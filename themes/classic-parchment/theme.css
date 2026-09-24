@@ -129,8 +129,8 @@
   --we-glass-bg: var(--we-color-bg-surface);
   --we-glass-blur: 16px;
   --we-pane-gap: var(--we-space-md);
-  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 97%, transparent);
-  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 42%, transparent);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 80%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 22%, transparent);
   --we-pane-glow: color-mix(in srgb, var(--we-atmosphere-color) 20%, transparent);
 
 

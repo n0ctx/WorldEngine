@@ -198,8 +198,8 @@
   /* 会话页三块悬浮面板：面板间与四周露出氛围的缝隙；中栏是最实的正文纸面，
      两侧是更透的磨砂玻璃（模糊半径沿用 --we-glass-blur） */
   --we-pane-gap:                  var(--we-space-md);
-  --we-pane-center-bg:            color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);
-  --we-pane-side-bg:              color-mix(in srgb, var(--we-color-bg-elevated) 40%, transparent);
+  --we-pane-center-bg:            color-mix(in srgb, var(--we-color-bg-canvas) 78%, transparent);
+  --we-pane-side-bg:              color-mix(in srgb, var(--we-color-bg-elevated) 18%, transparent);
   /* 面板背后的环境光：左右两团，透过两侧玻璃被模糊成柔和的色斑 */
   --we-pane-glow:                 color-mix(in srgb, var(--we-atmosphere-color) 18%, transparent);
 
