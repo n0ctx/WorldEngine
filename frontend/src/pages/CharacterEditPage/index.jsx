@@ -16,6 +16,14 @@ import FormGroup from '../../components/ui/FormGroup';
 import AvatarUpload from '../../components/ui/AvatarUpload';
 import { log } from '../../core/utils/logger.js';
 
+function readCreateDraft() {
+  try {
+    return JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
+  } catch {
+    return {};
+  }
+}
+
 export default function CharacterEditPage() {
   const { characterId, worldId } = useParams();
   const navigate = useNavigate();
@@ -33,11 +41,13 @@ export default function CharacterEditPage() {
   const [saveError, setSaveError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [postPrompt, setPostPrompt] = useState('');
-  const [firstMessage, setFirstMessage] = useState('');
+  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
+  const [draft] = useState(() => (isCreate ? readCreateDraft() : {}));
+  const [name, setName] = useState(draft.name ?? '');
+  const [description, setDescription] = useState(draft.description ?? '');
+  const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
+  const [postPrompt, setPostPrompt] = useState(draft.postPrompt ?? '');
+  const [firstMessage, setFirstMessage] = useState(draft.firstMessage ?? '');
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
@@ -48,24 +58,6 @@ export default function CharacterEditPage() {
     name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
     || postPrompt !== saved.postPrompt || firstMessage !== saved.firstMessage
   );
-
-  // 创建模式：从 sessionStorage 恢复草稿
-  useEffect(() => {
-    if (!isCreate) return;
-    const timeoutId = setTimeout(() => {
-      try {
-        const draft = JSON.parse(sessionStorage.getItem('character_create_draft') || '{}');
-        if (draft.name != null) setName(draft.name);
-        if (draft.description != null) setDescription(draft.description);
-        if (draft.systemPrompt != null) setSystemPrompt(draft.systemPrompt);
-        if (draft.postPrompt != null) setPostPrompt(draft.postPrompt);
-        if (draft.firstMessage != null) setFirstMessage(draft.firstMessage);
-      } catch {
-        /* 忽略无效草稿 */
-      }
-    }, 0);
-    return () => clearTimeout(timeoutId);
-  }, [isCreate]);
 
   // 创建模式：自动保存草稿
   useEffect(() => {

@@ -166,6 +166,19 @@ describe('WorldEditPage', () => {
     expect(mocks.updateWorld).not.toHaveBeenCalled();
   });
 
+  it('创建模式重新打开时会恢复草稿', async () => {
+    mocks.useParams.mockReturnValue({});
+    mocks.useLocation.mockReturnValue({ state: {} });
+
+    const { unmount } = render(<WorldEditPage />);
+    fireEvent.change(screen.getByLabelText('世界的名称'), { target: { value: '草稿世界' } });
+    unmount();
+
+    render(<WorldEditPage />);
+    expect(await screen.findByDisplayValue('草稿世界')).toBeInTheDocument();
+    sessionStorage.removeItem('world_create_draft');
+  });
+
   it('overlay 创建成功后会关闭创建页而不是停在保存中', async () => {
     mocks.useParams.mockReturnValue({});
     mocks.useLocation.mockReturnValue({

@@ -28,6 +28,14 @@ import {
 } from '../core/api/persona-state-fields';
 import { log } from '../core/utils/logger.js';
 
+function readCreateDraft() {
+  try {
+    return JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
+  } catch {
+    return {};
+  }
+}
+
 export default function WorldEditPage() {
   const { worldId } = useParams();
   const navigate = useNavigate();
@@ -47,8 +55,10 @@ export default function WorldEditPage() {
   const [accentSource, setAccentSource] = useState('auto');
   const [accentSaving, setAccentSaving] = useState(false);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
+  const [draft] = useState(() => (isCreate ? readCreateDraft() : {}));
+  const [name, setName] = useState(draft.name ?? '');
+  const [description, setDescription] = useState(draft.description ?? '');
   const [temperature, setTemperature] = useState('');
   const [maxTokens, setMaxTokens] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
@@ -66,21 +76,6 @@ export default function WorldEditPage() {
     syncDiaryTimeField(worldId).catch(() => {});
     getConfig().then((c) => setDiaryChatDateMode(c.diary?.chat?.date_mode ?? 'virtual')).catch(() => {});
   }, [worldId, isCreate]);
-
-  // 创建模式：从 sessionStorage 恢复草稿
-  useEffect(() => {
-    if (!isCreate) return;
-    const timeoutId = setTimeout(() => {
-      try {
-        const draft = JSON.parse(sessionStorage.getItem('world_create_draft') || '{}');
-        if (draft.name != null) setName(draft.name);
-        if (draft.description != null) setDescription(draft.description);
-      } catch {
-        /* 忽略无效草稿 */
-      }
-    }, 0);
-    return () => clearTimeout(timeoutId);
-  }, [isCreate]);
 
   // 创建模式：自动保存草稿
   useEffect(() => {
