@@ -17,7 +17,7 @@ const MotionSpan = motion.span;
  *   - tab 列表获焦时支持 ← / → 键盘切换(home/end 跳到首尾)
  */
 export default function SectionTabs({ sections, defaultKey, variant, globalActions, staticMotion = false }) {
-  const { reduced } = useMotion();
+  const { reduced, spring } = useMotion();
   const [storedActive, setActive] = useState(defaultKey ?? sections[0]?.key);
   const [prevIndex, setPrevIndex] = useState(sections.findIndex(s => s.key === (defaultKey ?? sections[0]?.key)));
   // sections 热更新时，若 active 已不在列表中，回退到第一个（仅渲染期推导，不写回状态）
@@ -111,7 +111,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
               className="we-section-tab-indicator"
               initial={false}
               animate={indicator}
-              transition={{ duration: staticMotion || reduced ? 0 : DURATION.quick, ease: EASE.ink }}
+              transition={staticMotion ? { duration: 0 } : spring('overlay')}
             />
           )}
         </div>

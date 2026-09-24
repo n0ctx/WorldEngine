@@ -3461,43 +3461,25 @@
   grid-column: 1 / -1;
 }
 
-/* 实时状态面板（聊天 StatePanel + 写作 NearbyPanel）：短标量字段「标签 — 值」同行，密集态省高 */
-:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  column-gap: var(--we-space-sm);
-  row-gap: var(--we-space-xxs);
+/* 实时状态面板（聊天 StatePanel + 写作 NearbyPanel）：字段是两列信息块——小标签在上、值在下，
+   左对齐，不画分隔线；长字段（list / text / datetime / table）独占一行 */
+:is(.we-state-panel, .we-cast-panel) .we-fields-list--grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: var(--we-space-lg);
 }
-:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-key {
-  flex-shrink: 0;
+:is(.we-state-panel, .we-cast-panel) .we-status-field:not(.we-status-field--editing) {
+  gap: var(--we-space-xs);
 }
-:is(.we-state-panel, .we-cast-panel) .we-status-field--short:not(.we-status-field--editing) .we-status-value {
-  text-align: right;
-  min-width: 0;
+:is(.we-state-panel, .we-cast-panel) .we-status-field .we-status-value {
+  text-align: left;
+  color: var(--we-color-text-primary);
 }
-
-/* 长字段（list / text / datetime，排除 table）也「标签 — 值」同行，值右对齐，进一步提密度 */
-:is(.we-state-panel, .we-cast-panel) .we-status-field--long:not(.we-status-field--table):not(.we-status-field--editing) {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: nowrap;
-  column-gap: var(--we-space-sm);
+/* 值与标签组自带 1px 描边位 + xs 内边距（点击编辑时的框）：标签缩进同样距离，三者左边线对齐 */
+:is(.we-state-panel, .we-cast-panel) .we-status-field > .we-status-key {
+  padding-inline: calc(var(--we-space-xs) + 1px);
 }
-:is(.we-state-panel, .we-cast-panel) .we-status-field--long:not(.we-status-field--table):not(.we-status-field--editing) > .we-status-key {
-  flex-shrink: 0;
-}
-:is(.we-state-panel, .we-cast-panel) .we-status-field--long:not(.we-status-field--table):not(.we-status-field--editing) > .we-status-value {
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: right;
-}
-:is(.we-state-panel, .we-cast-panel) .we-status-field--long:not(.we-status-field--table):not(.we-status-field--editing) > .we-status-tags {
-  flex: 1 1 auto;
-  min-width: 0;
-  justify-content: flex-end;
+:is(.we-state-panel, .we-cast-panel) .we-status-field .we-status-tags {
+  margin-top: 0;
 }
 
 /* — Timeline 原语补缺（diary-more / timeline-dot / timeline-text / entry-old）─ */

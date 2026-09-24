@@ -449,9 +449,16 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
 }
 
 /** 判断字段是否短值（适合放进 2 列网格） */
+// 文本值不超过这个字数时按短字段排进两列网格，再长就独占一行
+const SHORT_TEXT_MAX = 12;
+
 function isShortField(row) {
   const type = row.field_type ?? row.type;
-  if (type === 'table' || type === 'list' || type === 'datetime' || type === 'text') return false;
+  if (type === 'table' || type === 'list' || type === 'datetime') return false;
+  if (type === 'text') {
+    const value = parseRawValue(row.effective_value_json, type);
+    return String(value).length <= SHORT_TEXT_MAX;
+  }
   return true;
 }
 

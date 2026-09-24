@@ -3984,6 +3984,92 @@
 .we-state-panel .we-state-section + .we-state-section,
 .we-state-panel .we-timeline { border-top: none; }
 
+/* ── 会话页右栏（聊天 StatePanel + 写作 NearbyPanel）：玻璃面板上的手稿排版 ───
+   世界名是大号斜体标题；区块之间靠留白分组，不画分隔线；属性表是一排数值瓦片，
+   列表值是无边框的柔和胶囊；角色选项卡是胶囊分段控件，选中项由滑动亮片标出 */
+:is(.we-state-panel, .we-cast-panel) .we-state-block-label {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: var(--we-tracking-tight);
+}
+:is(.we-state-panel, .we-cast-panel) .we-state-divider {
+  background-image: none;
+  margin: var(--we-space-sm) 0;
+}
+:is(.we-state-panel, .we-cast-panel) .we-state-change-toggle {
+  border-top: none;
+  padding-top: var(--we-space-xs);
+}
+
+:is(.we-state-panel, .we-cast-panel) .we-status-tag {
+  color: var(--we-color-text-primary);
+  background: var(--we-color-ink-wash-md);
+  border-color: transparent;
+  border-radius: var(--we-radius-full);
+  padding: var(--we-space-xxs) var(--we-space-sm);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-tags.we-status-editable:hover .we-status-tag {
+  border-color: transparent;
+  background: var(--we-color-ink-wash-strong);
+}
+
+:is(.we-state-panel, .we-cast-panel) .we-status-table {
+  column-gap: var(--we-space-xs);
+  margin-top: var(--we-space-xs);
+  border-top: none;
+  border-bottom: none;
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-table-cell + .we-status-table-cell {
+  border-left: none;
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-table-head-cell {
+  align-items: center;
+  padding: var(--we-space-sm) var(--we-space-xs) 0;
+  font-size: var(--we-text-2xs);
+  letter-spacing: var(--we-tracking-normal);
+  opacity: 1;
+  background: var(--we-color-ink-wash);
+  border-radius: var(--we-radius-md) var(--we-radius-md) 0 0;
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-table-body-cell {
+  padding: 0 var(--we-space-xs) var(--we-space-sm);
+  background: var(--we-color-ink-wash);
+  border-radius: 0 0 var(--we-radius-md) var(--we-radius-md);
+}
+:is(.we-state-panel, .we-cast-panel) .we-status-table-body-cell .we-status-table-value {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-lg);
+  color: var(--we-color-text-primary);
+}
+
+:is(.we-state-panel, .we-cast-panel) .we-section-tabs-list {
+  flex: 0 1 auto;
+  padding: var(--we-space-xs);
+  background: var(--we-color-ink-wash);
+  border-radius: var(--we-radius-full);
+}
+:is(.we-state-panel, .we-cast-panel) .we-section-tab {
+  z-index: 1;
+  padding: var(--we-space-xs) var(--we-space-md);
+  border-radius: var(--we-radius-full);
+}
+:is(.we-state-panel, .we-cast-panel) .we-section-tab-indicator {
+  z-index: 0;
+  top: var(--we-space-xs);
+  bottom: var(--we-space-xs);
+  height: auto;
+  clip-path: none;
+  background: var(--we-color-bg-elevated);
+  border-radius: var(--we-radius-full);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 1px 0 var(--we-material-sheen),
+    var(--we-material-shadow-near);
+}
+
 .we-state-change-overlay {
   position: absolute;
   inset: 0;
