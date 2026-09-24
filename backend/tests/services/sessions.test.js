@@ -2,7 +2,7 @@ import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createTestSandbox, freshImport } from '../helpers/test-env.js';
-import { insertCharacter, insertMessage, insertWorld } from '../helpers/fixtures.js';
+import { insertCharacter, insertMessage, insertPersona, insertWorld } from '../helpers/fixtures.js';
 
 const sandbox = createTestSandbox('service-sessions-suite', {
   diary: {
@@ -35,6 +35,21 @@ test('createSession 会写入 diary_date_mode、同步 diary_time 字段并插�
   assert.equal(dbSession.diary_date_mode, 'virtual');
   assert.deepEqual(firstMessage, { role: 'assistant', content: '欢迎来到试炼场。' });
   assert.deepEqual(diaryField, { field_key: 'diary_time', update_mode: 'llm_auto' });
+});
+
+test('createSession 插入开场白时替换 {{user}}/{{char}}/{{world}}', async () => {
+  const world = insertWorld(sandbox.db, { name: '废土' });
+  insertPersona(sandbox.db, world.id, { name: '周大壮' });
+  const character = insertCharacter(sandbox.db, world.id, {
+    name: '白漓',
+    first_message: '（{{char}}看到{{user}}坐在{{world}}的店里）',
+  });
+
+  const { createSession } = await freshImport('backend/services/sessions.js');
+  const session = createSession(character.id);
+
+  const firstMessage = sandbox.db.prepare('SELECT content FROM messages WHERE session_id = ?').get(session.id);
+  assert.equal(firstMessage.content, '（白漓看到周大壮坐在废土的店里）');
 });
 
 test('updateMessageAndDeleteAfter 会更新当前消息并删除之后消息', async () => {

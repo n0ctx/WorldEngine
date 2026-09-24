@@ -9,7 +9,9 @@ import {
   touchSession as dbTouchSession,
   deleteSession as dbDeleteSession,
 } from '../db/queries/sessions.js';
-import { getActivePersonaIdByWorldId } from '../db/queries/personas.js';
+import { getActivePersonaIdByWorldId, getPersonaByWorldId } from '../db/queries/personas.js';
+import { getWorldById } from '../db/queries/worlds.js';
+import { applyTemplateVars } from '../utils/template-vars.js';
 
 import {
   createMessage as dbCreateMessage,
@@ -32,7 +34,8 @@ import { createLogger, formatMeta } from '../utils/logger.js';
 const log = createLogger('svc', 'green');
 
 /**
- * 创建会话；若角色有 first_message 则自动插入开场白
+ * 创建会话；若角色有 first_message 则自动插入开场白。
+ * 开场白作为普通消息落库，之后原样进入展示与提示词历史，所以模板变量在此处替换。
  */
 export function createSession(characterId) {
   const character = getCharacterById(characterId);
@@ -50,7 +53,11 @@ export function createSession(characterId) {
     dbCreateMessage({
       session_id: session.id,
       role: 'assistant',
-      content: character.first_message,
+      content: applyTemplateVars(character.first_message, {
+        user: getPersonaByWorldId(character.world_id)?.name ?? '',
+        char: character.name,
+        world: getWorldById(character.world_id)?.name ?? '',
+      }),
       created_at: session.created_at,
     });
   }
