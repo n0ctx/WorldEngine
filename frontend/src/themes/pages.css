@@ -1363,8 +1363,10 @@
   background: var(--we-color-bg-elevated);
   box-shadow:
     0 0 0 1px var(--we-material-stroke),
+    inset 0 0 0 1px color-mix(in srgb, var(--we-color-accent-border) 60%, transparent),
     inset 0 1px 0 var(--we-material-sheen),
-    var(--we-material-shadow-near);
+    var(--we-material-shadow-near),
+    0 6px 20px -8px color-mix(in srgb, var(--we-color-accent) 30%, transparent);
   pointer-events: none;
 }
 .we-storyline-list--timeline .we-storyline-item-info {
@@ -3645,19 +3647,22 @@
    「推开正文」而非浮层：两侧本来就是 book-spread 里的行内 flex 兄弟节点，
    展开收起复用已有的 flex 布局最省事，也不会在 1024px 窄屏下叠住正文。
    表面是悬浮在氛围上的磨砂玻璃面板：比正文纸面更透，靠缝隙、描边与投影和正文分开。
+   光从左上方斜照在玻璃上；::before 是跟随指针的一团高光（SideDrawer 写入 --pointer-x/y），
+   ::after 是顶部一条两端渐隐的镜面线和内侧一圈边缘光。
    ========================================================= */
 .we-side-drawer {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--we-pane-side-bg);
+  background:
+    linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) 60%, transparent), transparent 38%),
+    var(--we-pane-side-bg);
   backdrop-filter: blur(var(--we-glass-blur)) saturate(1.6);
   border-radius: var(--we-radius-lg);
   box-shadow:
     0 0 0 1px var(--we-material-stroke),
-    inset 0 1px 0 var(--we-material-sheen),
-    inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent),
     var(--we-material-shadow-far);
   transition: flex-basis var(--we-duration-normal) var(--we-easing-page),
     min-width var(--we-duration-normal) var(--we-easing-page),
@@ -3665,6 +3670,36 @@
 }
 
 /* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
+.we-side-drawer::before,
+.we-side-drawer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.we-side-drawer::before {
+  z-index: -1;
+  background: radial-gradient(
+    260px circle at var(--pointer-x, 50%) var(--pointer-y, 0%),
+    var(--we-pane-glow),
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity var(--we-duration-normal) var(--we-easing-ink);
+}
+
+.we-side-drawer:hover::before {
+  opacity: 1;
+}
+
+.we-side-drawer::after {
+  z-index: 1;
+  background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent);
+}
+
 .we-side-drawer--left {
   flex: 0 0 52px;
   min-width: 0;
@@ -3717,6 +3752,8 @@
 }
 
 .we-side-drawer-toggle {
+  position: relative;
+  isolation: isolate;
   flex: 0 0 auto;
   width: 52px;
   height: 44px;
@@ -3732,6 +3769,25 @@
 
 .we-side-drawer-toggle:hover {
   color: var(--we-color-accent);
+}
+
+/* 悬停时图标后浮出一枚圆形淡底，让窄轨上唯一的按钮有个落点 */
+.we-side-drawer-toggle::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-ink-wash);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity var(--we-duration-fast), transform var(--we-duration-fast) var(--we-easing-sharp);
+}
+
+.we-side-drawer-toggle:hover::before {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .we-side-drawer-toggle:focus-visible {
@@ -3752,6 +3808,13 @@
 @media (prefers-reduced-motion: reduce) {
   .we-side-drawer {
     transition: none;
+  }
+  .we-side-drawer::before {
+    display: none;
+  }
+  .we-side-drawer-toggle::before {
+    transition: none;
+    transform: none;
   }
 }
 
@@ -4039,6 +4102,7 @@
   opacity: 1;
   background: var(--we-color-ink-wash);
   border-radius: var(--we-radius-md) var(--we-radius-md) 0 0;
+  box-shadow: inset 0 1px 0 var(--we-material-sheen);
 }
 :is(.we-state-panel, .we-cast-panel) .we-status-table-body-cell {
   padding: 0 var(--we-space-xxs) var(--we-space-sm);

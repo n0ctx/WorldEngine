@@ -45,6 +45,14 @@ const EDGE_OFFSET = { left: -12, right: 12 };
 /* 进入会话页时两侧面板在正文之后依次浮现：左侧先，右侧后 */
 const ENTER_DELAY = { left: DURATION.micro, right: DURATION.micro * 2 };
 
+/* 玻璃上的高光跟着指针走：直接写 CSS 变量，不经过 React 状态，移动时不重渲染 */
+function trackPointer(event) {
+  const el = event.currentTarget;
+  const rect = el.getBoundingClientRect();
+  el.style.setProperty('--pointer-x', `${event.clientX - rect.left}px`);
+  el.style.setProperty('--pointer-y', `${event.clientY - rect.top}px`);
+}
+
 export default function SideDrawer({ side, open, onToggle, label, footer = null, children }) {
   const { reduced } = useMotion();
   const toggleLabel = open ? `收起${label}` : `展开${label}`;
@@ -60,6 +68,7 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
       initial={reduced ? false : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: DURATION.medium, delay: ENTER_DELAY[side], ease: EASE.ink }}
+      onPointerMove={reduced ? undefined : trackPointer}
     >
       <button
         type="button"
