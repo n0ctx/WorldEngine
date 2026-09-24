@@ -113,6 +113,11 @@
   box-shadow: var(--we-card-hover-shadow);
 }
 
+.we-world-card:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring), var(--we-card-hover-shadow);
+}
+
 .we-world-card[data-dragging] {
   cursor: grabbing;
   box-shadow: var(--we-card-hover-shadow);
@@ -295,6 +300,13 @@
   color: var(--we-color-accent);
 }
 
+.we-world-card-action-btn:focus-visible {
+  outline: none;
+  border-color: var(--we-color-border-focus);
+  color: var(--we-color-text-primary);
+  box-shadow: var(--we-focus-ring);
+}
+
 .we-world-card-action-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -353,17 +365,6 @@
   background: var(--we-color-white-wash);
 }
 
-.we-worlds-loading {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: var(--we-space-2xl) 0;
-  text-align: center;
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-sm);
-  font-style: italic;
-  color: var(--we-page-canvas-fg-muted);
-  letter-spacing: 0.15em;
-}
 
 /* ── CharactersPage 角色名册 ── */
 
@@ -4539,6 +4540,14 @@
 .we-skeleton-block--lg {
   height: 24px;
   border-radius: var(--we-radius-md);
+}
+
+/* 卡片骨架：与世界卡同比例、同圆角 */
+.we-skeleton-block--card {
+  height: auto;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--we-card-radius);
+  margin-bottom: 0;
 }
 
 /* reduced-motion 降级 */

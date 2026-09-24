@@ -155,9 +155,17 @@ export default function WorldsPage() {
       </div>
 
       {/* 内容区：三态或网格，不再套装饰性书架框 */}
-      {loading ? (
-        <div className="we-worlds-state">
-          <div className="we-worlds-loading">检索中…</div>
+      {loading && worlds.length === 0 ? (
+        <div className="we-worlds-grid" role="status" aria-label="加载中">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div
+              key={i}
+              aria-hidden="true"
+              className={`we-world-card-shell${i === 0 ? ' we-world-card-shell--feature' : ''}`}
+            >
+              <div className="we-skeleton-block we-skeleton-block--card" />
+            </div>
+          ))}
         </div>
       ) : loadError ? (
         <div className="we-worlds-state">
@@ -173,6 +181,7 @@ export default function WorldsPage() {
             title="暂无世界记录"
             hint="一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。"
             primaryAction={{ label: '新建世界', onClick: () => navigate('/worlds/new', { state: { backgroundLocation: location } }) }}
+            secondaryAction={{ label: '导入世界卡', onClick: () => worldImportRef.current?.click() }}
           />
         </div>
       ) : (
@@ -198,7 +207,16 @@ export default function WorldsPage() {
                 <div
                   data-dragging={isDragging || undefined}
                   className={`we-world-card${world.cover_path ? ' we-world-card--has-cover' : ' we-world-card--tinted'}${isFeature ? ' we-world-card--feature' : ''}`}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={world.name}
                   onClick={() => { if (!isDragging) handleEnterWorld(world); }}
+                  onKeyDown={(e) => {
+                    // 外层 shell 的键盘拖拽也监听 Enter，这里先截住，Enter 只用于进入世界
+                    if (e.key !== 'Enter' || e.target !== e.currentTarget) return;
+                    e.stopPropagation();
+                    handleEnterWorld(world);
+                  }}
                 >
                   {world.cover_path ? (
                     <img src={`${getAvatarUrl(world.cover_path)}?t=${reloadKey}`} alt="" className="we-world-card-bg" />

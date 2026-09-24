@@ -71,12 +71,16 @@ describe('WorldsPage', () => {
 
     render(<WorldsPage />);
 
-    expect(screen.getByText('检索中…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: '加载中' })).toBeInTheDocument();
     expect(await screen.findByText('群星海')).toBeInTheDocument();
     expect(screen.getByText('2 角色')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('群星海'));
     expect(mocks.setCurrentWorldId).toHaveBeenCalledWith('world-1');
+    expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-1');
+
+    mocks.useNavigate.mockClear();
+    fireEvent.keyDown(screen.getByRole('link', { name: '群星海' }), { key: 'Enter' });
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-1');
 
     fireEvent.click(screen.getByTitle('删除'));
@@ -111,6 +115,7 @@ describe('WorldsPage', () => {
     render(<WorldsPage />);
 
     expect(await screen.findByText('暂无世界记录')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: '导入世界卡' })).toHaveLength(2);
     fireEvent.click(screen.getByText('新建世界'));
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/new', {
       state: { backgroundLocation: { pathname: '/' } },
