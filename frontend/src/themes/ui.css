@@ -4085,7 +4085,7 @@
   width: 321px;
   height: 270px;
   border-radius: 25px;
-  background: #e4e4e4;
+  background: #b4b4b4;
   box-shadow: inset 0 0 6px 2px rgba(178, 178, 178, 0.25);
 }
 .we-folder__cards {
@@ -4126,10 +4126,10 @@
   inset: 0;
 }
 .we-folder__flap-fill {
-  fill: rgba(245, 245, 245, 0.85);
+  fill: rgba(200, 200, 200, 0.85);
 }
 .we-folder__flap-stroke {
-  stroke: #d4d4d4;
+  stroke: #a8a8a8;
 }
 
 /* 消息刻度（ProximityRail）：窄屏会压住正文，收起 */
