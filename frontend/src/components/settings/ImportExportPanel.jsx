@@ -4,6 +4,7 @@ import { downloadGlobalSettings, importGlobalSettings, downloadMigration, import
 import { refreshCustomCss } from '../../core/api/custom-css-snippets';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner';
 import Button from '../ui/Button';
+import ConfirmModal from '../ui/ConfirmModal';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 
 export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
@@ -16,6 +17,8 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
   const [migrationImporting, setMigrationImporting] = useState(false);
   const [message, setMessage] = useState(null);
   const [migrationMessage, setMigrationMessage] = useState(null);
+  // 已选文件、等待用户确认覆盖：{ kind: 'settings' | 'migration', file }
+  const [pendingImport, setPendingImport] = useState(null);
   const [prevMode, setPrevMode] = useState(mode);
   const appMode = useAppModeStore((s) => s.appMode);
 
@@ -37,11 +40,14 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     }
   }
 
-  async function handleFileChange(e) {
+  function handleFileChange(e) {
     const file = e.target.files?.[0];
     if (!fileInputRef.current) return;
     fileInputRef.current.value = '';
-    if (!file) return;
+    if (file) setPendingImport({ kind: 'settings', file });
+  }
+
+  async function importSettingsFile(file) {
     setImporting(true);
     setMessage(null);
     try {
@@ -75,11 +81,14 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
     }
   }
 
-  async function handleMigrationFileChange(e) {
+  function handleMigrationFileChange(e) {
     const file = e.target.files?.[0];
     if (!migrationInputRef.current) return;
     migrationInputRef.current.value = '';
-    if (!file) return;
+    if (file) setPendingImport({ kind: 'migration', file });
+  }
+
+  async function importMigrationFile(file) {
     setMigrationImporting(true);
     setMigrationMessage(null);
     try {
@@ -172,6 +181,24 @@ export default function ImportExportPanel({ settingsMode, onImportSuccess }) {
           </p>
         )}
       </div>
+
+      {pendingImport && (
+        <ConfirmModal
+          title={pendingImport.kind === 'settings' ? `覆盖${modeLabel}全局设置？` : '导入迁移包？'}
+          message={pendingImport.kind === 'settings'
+            ? `将用「${pendingImport.file.name}」覆盖当前${modeLabel}模式的全局提示词、自定义 CSS 与正则规则，此操作无法撤销。`
+            : `将用「${pendingImport.file.name}」覆盖对话与写作两套全局设置，并新建其中的全部世界，此操作无法撤销。`}
+          confirmText="确认导入"
+          danger
+          onConfirm={async () => {
+            const { kind, file } = pendingImport;
+            setPendingImport(null);
+            if (kind === 'settings') await importSettingsFile(file);
+            else await importMigrationFile(file);
+          }}
+          onClose={() => setPendingImport(null)}
+        />
+      )}
     </div>
   );
 }
