@@ -28,8 +28,8 @@ import { relativeTime } from '../core/utils/time.js';
 import { formatDateLiterary } from '../core/utils/date-format.js';
 import { log } from '../core/utils/logger.js';
 import { useMotion } from '../core/hooks/useMotion.js';
-import AnimatedCounter from '../components/motion/AnimatedCounter.jsx';
-import FluidOrb from '../components/motion/FluidOrb.jsx';
+import Folder from '../components/motion/Folder.jsx';
+import TaskList from '../components/motion/TaskList.jsx';
 
 // ── 拖动感知点击 hook ──────────────────────────────────────────────────────
 
@@ -317,40 +317,58 @@ function NewWorldGuide({ completed, onStepClick, onDismiss }) {
         </button>
       </div>
 
-      <div className="we-onboarding-steps">
-        {GUIDE_STEPS.map((step, idx) => {
-          const done = !!completed[step.key];
-          return (
-            <button
-              key={step.key}
-              type="button"
-              className={`we-onboarding-step${done ? ' we-onboarding-step--done' : ''}`}
-              onClick={() => onStepClick(step.key)}
-            >
-              <span className="we-onboarding-step-mark" aria-hidden="true">
-                {done ? (
-                  <Icon size={16}>
-                    <polyline points="20 6 9 17 4 12" />
-                  </Icon>
-                ) : (
-                  idx + 1
-                )}
-              </span>
-              <span className="we-onboarding-step-body">
-                <span className="we-onboarding-step-title">{step.title}</span>
-                <span className="we-onboarding-step-hint">{step.hint}</span>
-              </span>
-              <span className="we-onboarding-step-action">
-                {done ? '回去改改' : step.action}
-                <Icon size={16}>
-                  <polyline points="9 18 15 12 9 6" />
-                </Icon>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <TaskList
+        className="we-onboarding-steps"
+        itemClassName="we-onboarding-step"
+        tasks={GUIDE_STEPS.map((step) => ({
+          id: step.key,
+          title: step.title,
+          done: !!completed[step.key],
+          onClick: () => onStepClick(step.key),
+          detail: <span className="we-onboarding-step-hint">{step.hint}</span>,
+          trailing: (
+            <span className="we-onboarding-step-action">
+              {completed[step.key] ? '回去改改' : step.action}
+              <Icon size={16}>
+                <polyline points="9 18 15 12 9 6" />
+              </Icon>
+            </span>
+          ),
+        }))}
+      />
     </div>
+  );
+}
+
+// ── 世界规则入口卡：悬停时文件夹里的卡片错开，按下时飞出 ──────────────────────
+
+function RulesEntryCard({ entryCount, fieldCount, onOpen }) {
+  const [hovered, setHovered] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const folderState = pressed ? 'open' : hovered ? 'hover' : 'rest';
+  return (
+    <button
+      type="button"
+      className="we-rules-entry-card"
+      onClick={onOpen}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => { setHovered(false); setPressed(false); }}
+      onPointerDown={() => setPressed(true)}
+      onPointerUp={() => setPressed(false)}
+      onFocus={() => setHovered(true)}
+      onBlur={() => setHovered(false)}
+    >
+      <Folder state={folderState} width={48} />
+      <div className="we-rules-entry-info">
+        <p className="we-rules-entry-label">规则与状态</p>
+        <p className="we-rules-entry-count">
+          {entryCount} 条设定 · {fieldCount} 个状态字段
+        </p>
+      </div>
+      <Icon size={16}>
+        <polyline points="9 18 15 12 9 6" />
+      </Icon>
+    </button>
   );
 }
 
@@ -450,7 +468,8 @@ export default function CharactersPage() {
   }), [world, characters, entries]);
 
   const guideAllDone = guideCompleted.world && guideCompleted.character && guideCompleted.rule;
-  const showGuide = !loading && !!world && !guideAllDone && !world.onboarding_dismissed;
+  // 不看 loading：保存后重新拉取期间引导保持挂载，刚完成的一步才能在原地划掉、沉底
+  const showGuide = !!world && !guideAllDone && !world.onboarding_dismissed;
 
   function handleGuideStepClick(stepKey) {
     if (stepKey === 'world') {
@@ -642,7 +661,6 @@ export default function CharactersPage() {
 
           {loading ? null : timeline.length === 0 ? (
             <div className="we-storyline-empty">
-              <FluidOrb size={48} className="we-storyline-empty__orb" />
               <p className="we-characters-empty-text">
                 还没有故事线，点击「+ 新建」开始写作，或在右侧选择一个角色开始对话
               </p>
@@ -864,21 +882,11 @@ export default function CharactersPage() {
             <div className="we-worldhub-section-header">
               <span className="we-worldhub-section-title">世界规则</span>
             </div>
-            <button
-              type="button"
-              className="we-rules-entry-card"
-              onClick={() => navigate(`/worlds/${worldId}/rules`)}
-            >
-              <div className="we-rules-entry-info">
-                <p className="we-rules-entry-label">规则与状态</p>
-                <p className="we-rules-entry-count">
-                  <AnimatedCounter value={entries.length} /> 条设定 · <AnimatedCounter value={stateFields.length} /> 个状态字段
-                </p>
-              </div>
-              <Icon size={16}>
-                <polyline points="9 18 15 12 9 6" />
-              </Icon>
-            </button>
+            <RulesEntryCard
+              entryCount={entries.length}
+              fieldCount={stateFields.length}
+              onOpen={() => navigate(`/worlds/${worldId}/rules`)}
+            />
           </div>
 
         </div>

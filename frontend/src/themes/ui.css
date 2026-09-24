@@ -3896,27 +3896,240 @@
   height: 100%;
 }
 
-/* 竖向导航的钩形导轨（HookRail）；容器须 position: relative，导航项左侧留出导轨位置 */
-.we-hook-rail {
+/* 竖向导航的弹跳圆点（BounceRail）；容器须 position: relative，导航项左侧留出圆点位置 */
+.we-bounce-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.we-bounce-rail.is-visible {
+  opacity: 1;
+}
+
+/* 分步进度条（StepTrack） */
+.we-step-track {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-bg-subtle);
+}
+.we-step-track__step {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--we-radius-full);
+  background: var(--we-color-text-tertiary);
+  transition: background-color 300ms ease;
+}
+.we-step-track__step[data-state="past"] {
+  background: var(--we-color-text-primary);
+}
+.we-step-track__fill {
   position: absolute;
   inset: 0;
-  pointer-events: none;
+  border-radius: inherit;
+  background: var(--we-color-accent);
+  transform-origin: left center;
 }
-.we-hook-rail--active {
+@media (prefers-reduced-motion: reduce) {
+  .we-step-track__step { transition: none; }
+}
+
+/* 只读代码块（CodeBlock）：语法配色由组件按强调色推出，这里只管外框 */
+.we-code-block {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--we-color-border-subtle);
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-bg-surface);
+  text-align: left;
+}
+.we-code-block__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  padding-inline: 14px 6px;
+  border-bottom: 1px solid var(--we-color-border-subtle);
+  background: var(--we-color-ink-wash);
+}
+.we-code-block__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-size: var(--we-text-xs);
+  color: var(--we-color-text-secondary);
+}
+.we-code-block__copy {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--we-radius-sm);
+  color: var(--we-color-text-tertiary);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+.we-code-block__copy:hover {
+  background: var(--we-color-ink-wash-md);
+  color: var(--we-color-text-primary);
+}
+.we-code-block__copy.is-copied {
+  background: var(--we-color-accent-bg);
   color: var(--we-color-accent);
 }
-.we-hook-rail--preview {
-  color: color-mix(in srgb, var(--we-color-text-primary) 30%, transparent);
+.we-code-block__copy-icon {
+  grid-area: 1 / 1;
+  display: grid;
 }
-.we-hook-rail__line {
-  position: absolute;
-  left: 2px;
-  width: 1px;
-  background-image: repeating-linear-gradient(to top, transparent 0 2px, currentColor 2px 4px);
+.we-code-block__viewport {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding-block: 12px;
+  scrollbar-width: thin;
 }
-.we-hook-rail__hook {
+.we-code-block__viewport:focus-visible {
+  outline: 2px solid var(--we-color-border-focus);
+  outline-offset: -2px;
+}
+.we-code-block__viewport ::selection {
+  background: color-mix(in srgb, var(--we-color-accent) 30%, transparent);
+}
+.we-code-block__pre {
+  width: max-content;
+  min-width: 100%;
+  margin: 0;
+  font-family: var(--we-font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.5rem;
+  tab-size: 4;
+}
+.we-code-block__line {
+  display: flex;
+  min-width: 100%;
+  padding-inline: 14px;
+}
+.we-code-block__gutter {
+  flex-shrink: 0;
+  margin-right: 16px;
+  text-align: right;
+  color: var(--we-color-text-tertiary);
+  user-select: none;
+}
+
+/* 清单（TaskList）：对勾圈与划线；行的外观由调用方的 itemClassName 决定 */
+.we-task-check {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--we-color-border-strong);
+}
+.we-task-check__fill {
+  fill: var(--we-color-accent);
+}
+.we-task-check__tick {
+  stroke: var(--we-color-text-inverse);
+}
+.we-task-body {
+  flex: 1;
+  min-width: 0;
+}
+.we-task-title {
+  align-self: flex-start;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 52%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: color 300ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .we-task-title { transition: none; }
+}
+
+/* 文件夹（Folder）：内部按上游 321×270 画布布局，外层整体缩放到目标宽度 */
+.we-folder {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.we-folder__stage {
   position: absolute;
-  left: 2px;
+  top: 50%;
+  left: 50%;
+}
+.we-folder__back,
+.we-folder__cards,
+.we-folder__flap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  /* 用独立的 translate 居中，transform 留给 framer-motion 的旋转 */
+  translate: -50% -50%;
+}
+.we-folder__back {
+  width: 321px;
+  height: 270px;
+  border-radius: 25px;
+  background: var(--we-color-accent);
+  box-shadow: inset 0 0 6px 2px var(--we-color-white-sheen-md);
+}
+.we-folder__cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.we-folder__card-slot {
+  position: absolute;
+  display: block;
+}
+.we-folder__card-slot svg {
+  display: block;
+}
+.we-folder__card {
+  fill: var(--we-color-bg-surface);
+  stroke: var(--we-color-border-default);
+}
+.we-folder__card-line {
+  fill: var(--we-color-border-strong);
+}
+.we-folder__flap {
+  width: 321px;
+  height: 241px;
+  margin-top: 16px;
+  transform-origin: bottom center;
+  transform-style: preserve-3d;
+}
+.we-folder__flap-glass {
+  position: absolute;
+  inset: 0;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  backface-visibility: hidden;
+}
+.we-folder__flap-shape {
+  position: absolute;
+  inset: 0;
+}
+.we-folder__flap-fill {
+  fill: color-mix(in srgb, var(--we-color-accent) 45%, transparent);
+}
+.we-folder__flap-stroke {
+  stroke: var(--we-color-accent-border);
 }
 
 /* 消息刻度（ProximityRail）：窄屏会压住正文，收起 */

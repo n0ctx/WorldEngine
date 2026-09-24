@@ -7,8 +7,8 @@ import DragHandle from '../../components/ui/DragHandle.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import SortableList from '../../components/ui/SortableList.jsx';
 import DeleteButton from '../../components/motion/DeleteButton.jsx';
-import HookRail from '../../components/motion/HookRail.jsx';
-import AnimatedCounter from '../../components/motion/AnimatedCounter.jsx';
+import BounceRail from '../../components/motion/BounceRail.jsx';
+import StepTrack from '../../components/motion/StepTrack.jsx';
 import {
   listWorldStateFields, createWorldStateField, updateWorldStateField, deleteWorldStateField,
 } from '../../core/api/world-state-fields';
@@ -59,9 +59,9 @@ const SCOPES = {
   },
 };
 const FIELD_SCOPE_KEYS = ['world', 'character', 'persona'];
-// 左栏导航项：选中态同时写 class（底色）和 aria-current（读屏，也是钩形导轨的定位依据）
+// 左栏导航项：选中态同时写 class（底色）和 aria-current（读屏，也是弹跳圆点的定位依据）
 const navItemProps = (active) => ({
-  'data-hook-item': true,
+  'data-bounce-item': true,
   'aria-current': active ? 'page' : undefined,
   className: `we-workshop-nav-item${active ? ' is-active' : ''}`,
 });
@@ -235,7 +235,7 @@ export default function RulesPage() {
         <div className="we-workshop-body we-workshop-body--3col">
           {/* 左：导航 */}
           <nav ref={navRef} className="we-workshop-nav">
-            <HookRail containerRef={navRef} activeKey={`${navMode}:${entryFilter}:${fieldScopeKey}`} />
+            <BounceRail containerRef={navRef} activeKey={`${navMode}:${entryFilter}:${fieldScopeKey}`} />
             <div className="we-workshop-nav-group">
               <div className="we-workshop-nav-group-title">设定条目</div>
               <button
@@ -244,7 +244,7 @@ export default function RulesPage() {
                 onClick={() => selectEntryGroup('all')}
               >
                 <span>全部</span>
-                <span className="we-field-badge"><AnimatedCounter value={entries.length} /></span>
+                <span className="we-field-badge">{entries.length}</span>
               </button>
               {groupList.named.map(([name, count]) => (
                 <button
@@ -254,7 +254,7 @@ export default function RulesPage() {
                   onClick={() => selectEntryGroup(name)}
                 >
                   <span>{name}</span>
-                  <span className="we-field-badge"><AnimatedCounter value={count} /></span>
+                  <span className="we-field-badge">{count}</span>
                 </button>
               ))}
               <button
@@ -263,7 +263,7 @@ export default function RulesPage() {
                 onClick={() => selectEntryGroup(UNGROUPED)}
               >
                 <span>未分组</span>
-                <span className="we-field-badge"><AnimatedCounter value={groupList.ungroupedCount} /></span>
+                <span className="we-field-badge">{groupList.ungroupedCount}</span>
               </button>
             </div>
 
@@ -277,7 +277,7 @@ export default function RulesPage() {
                   onClick={() => selectFieldScope(k)}
                 >
                   <span>{SCOPES[k].label}状态</span>
-                  <span className="we-field-badge"><AnimatedCounter value={fieldsByScope[k].length} /></span>
+                  <span className="we-field-badge">{fieldsByScope[k].length}</span>
                 </button>
               ))}
             </div>
@@ -481,16 +481,16 @@ function RulesOverview({ entries, fieldsByScope, hint }) {
         <div className="we-rules-overview-stats">
           {TRIGGER_TYPES.map((t) => (
             <div key={t.key} className="we-rules-overview-stat">
-              <span className="we-rules-overview-stat-value"><AnimatedCounter value={entries.filter((e) => e.trigger_type === t.key).length} /></span>
+              <span className="we-rules-overview-stat-value">{entries.filter((e) => e.trigger_type === t.key).length}</span>
               <span className="we-rules-overview-stat-label">{t.label}</span>
             </div>
           ))}
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value"><AnimatedCounter value={enabledCount} /></span>
+            <span className="we-rules-overview-stat-value">{enabledCount}</span>
             <span className="we-rules-overview-stat-label">已启用</span>
           </div>
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value"><AnimatedCounter value={disabledCount} /></span>
+            <span className="we-rules-overview-stat-value">{disabledCount}</span>
             <span className="we-rules-overview-stat-label">已禁用</span>
           </div>
         </div>
@@ -501,12 +501,12 @@ function RulesOverview({ entries, fieldsByScope, hint }) {
         <div className="we-rules-overview-stats">
           {FIELD_SCOPE_KEYS.map((k) => (
             <div key={k} className="we-rules-overview-stat">
-              <span className="we-rules-overview-stat-value"><AnimatedCounter value={fieldsByScope[k].length} /></span>
+              <span className="we-rules-overview-stat-value">{fieldsByScope[k].length}</span>
               <span className="we-rules-overview-stat-label">{SCOPES[k].label}</span>
             </div>
           ))}
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value"><AnimatedCounter value={fieldTotal} /></span>
+            <span className="we-rules-overview-stat-value">{fieldTotal}</span>
             <span className="we-rules-overview-stat-label">合计</span>
           </div>
         </div>
@@ -947,7 +947,7 @@ function WizardShell({ title, step, children, footer, onClose }) {
     <div className="fixed inset-0 z-[var(--we-z-modal)] flex items-center justify-center bg-black/60 px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">
         <div className="we-dialog-header flex items-center justify-between">
-          <h2>新建系统 · 第 {step}/3 步</h2>
+          <h2 className="flex items-center gap-3">新建系统<StepTrack steps={3} current={step - 1} /></h2>
           <button className="we-btn we-btn-sm we-btn-ghost" onClick={onClose}>关闭</button>
         </div>
         <div className="we-dialog-body flex flex-col gap-4">
