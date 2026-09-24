@@ -128,11 +128,16 @@ export function useSettingsConfig() {
     return () => window.removeEventListener('we:global-config-updated', h);
   }, []);
 
+  // 设置页多数字段改完即自动保存，成功也给一条轻提示，免得用户分不清是否已生效；
+  // 带保存按钮的字段由按钮自身显示「已保存」，传 announceSaved: false。
   // 失败时只提示、不整页回滚：重拉配置会冲掉提示词编辑框里尚未保存的内容。
-  async function patchConfig(patch) {
-    suppressNextReloadRef.current = true;
+  // 切换 provider 会连带改模型与计价，需要保留保存后的整页重拉（reload: true）。
+  async function patchConfig(patch, { announceSaved = true, reload = false } = {}) {
+    suppressNextReloadRef.current = !reload;
     try {
-      await updateConfig(patch);
+      const updated = await updateConfig(patch);
+      if (announceSaved) log.info('settings.saved', null, { toast: '设置已保存' });
+      return updated;
     } catch (err) {
       suppressNextReloadRef.current = false;
       log.error('settings.save_failed', err, { toast: `设置保存失败，本次修改未生效：${err.message || '未知错误'}` });
@@ -144,7 +149,7 @@ export function useSettingsConfig() {
     if (field === 'provider') {
       const isLocal = LOCAL_PROVIDERS.includes(value);
       const patch = isLocal ? { provider: value } : { provider: value, base_url: '' };
-      const updated = await updateConfig({ llm: patch });
+      const updated = await patchConfig({ llm: patch }, { reload: true });
       setLlm((prev) => ({
         ...prev,
         provider: value,
@@ -164,7 +169,7 @@ export function useSettingsConfig() {
     if (field === 'provider') {
       const keepBaseUrl = NEEDS_BASE_URL_PROVIDERS.has(value);
       const patch = keepBaseUrl ? { provider: value } : { provider: value, base_url: '' };
-      const updated = await updateConfig({ embedding: patch });
+      const updated = await patchConfig({ embedding: patch }, { reload: true });
       setEmbedding((prev) => ({
         ...prev,
         provider: value,
@@ -184,7 +189,7 @@ export function useSettingsConfig() {
     if (field === 'provider') {
       const isLocal = value && LOCAL_PROVIDERS.includes(value);
       const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await updateConfig({ aux_llm: patch });
+      const updated = await patchConfig({ aux_llm: patch }, { reload: true });
       setAuxLlm((prev) => ({
         ...prev,
         provider: value || null,
@@ -204,7 +209,7 @@ export function useSettingsConfig() {
     if (field === 'provider') {
       const isLocal = value && LOCAL_PROVIDERS.includes(value);
       const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await updateConfig({ writing: { aux_llm: patch } });
+      const updated = await patchConfig({ writing: { aux_llm: patch } }, { reload: true });
       setWritingAuxLlm((prev) => ({
         ...prev,
         provider: value || null,
@@ -229,7 +234,7 @@ export function useSettingsConfig() {
     if (field === 'provider') {
       const isLocal = value && LOCAL_PROVIDERS.includes(value);
       const patch = value ? (isLocal ? { provider: value } : { provider: value, base_url: '' }) : { provider: null };
-      const updated = await updateConfig({ writing: { llm: patch } });
+      const updated = await patchConfig({ writing: { llm: patch } }, { reload: true });
       setWritingLlm((prev) => ({
         ...prev,
         provider: value || null,
@@ -249,7 +254,7 @@ export function useSettingsConfig() {
     await runSave(() => patchConfig({
       global_system_prompt: globalSystemPrompt,
       global_post_prompt: globalPostPrompt,
-    }));
+    }, { announceSaved: false }));
   }
 
   async function handleSaveWritingGeneral() {
@@ -258,7 +263,7 @@ export function useSettingsConfig() {
         global_system_prompt: writingSystemPrompt,
         global_post_prompt: writingPostPrompt,
       },
-    }));
+    }, { announceSaved: false }));
   }
 
   async function handleSaveContextRounds(value) {

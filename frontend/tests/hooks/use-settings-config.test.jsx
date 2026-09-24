@@ -96,6 +96,28 @@ describe('useSettingsConfig', () => {
     expect(updateConfig).toHaveBeenCalledWith({ llm: { provider: 'ollama' } });
   });
 
+  it('自动保存成功时提示已保存，带保存按钮的提示词保存不重复提示', async () => {
+    const toasts = [];
+    const onToast = (e) => toasts.push(e.detail.message);
+    window.addEventListener('we:toast', onToast);
+    const { result } = renderHook(() => useSettingsConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.promptProps.onSave();
+    });
+    expect(toasts).not.toContain('设置已保存');
+
+    // 越过 logger 的同文案去重窗口（前面用例的自动保存可能刚提示过）
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_000);
+    await act(async () => {
+      await result.current.promptProps.onToggleSuggestion(true);
+    });
+    nowSpy.mockRestore();
+    window.removeEventListener('we:toast', onToast);
+    expect(toasts).toContain('设置已保存');
+  });
+
   it('自动保存失败时弹出提示', async () => {
     const toasts = [];
     const onToast = (e) => toasts.push(e.detail.message);
