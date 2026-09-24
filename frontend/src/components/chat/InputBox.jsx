@@ -96,6 +96,17 @@ const InputBox = forwardRef(function InputBox({
 
   useEffect(() => { adjustHeight(); }, [text]);
 
+  // 生成期间输入框被禁用会丢焦点；结束后若焦点没被用户移到别处，交还给输入框
+  const wasGeneratingRef = useRef(generating);
+  useEffect(() => {
+    const finished = wasGeneratingRef.current && !generating;
+    wasGeneratingRef.current = generating;
+    const active = document.activeElement;
+    if (finished && (!active || active === document.body)) {
+      textareaRef.current?.focus({ preventScroll: true });
+    }
+  }, [generating]);
+
   // 过滤命令列表
   const filteredCommands = text.startsWith('/')
     ? SLASH_COMMANDS.filter((c) => c.cmd.startsWith(text.toLowerCase().trim()))
