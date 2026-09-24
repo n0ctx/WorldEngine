@@ -12,6 +12,7 @@ import Select from '../ui/Select';
 import DatetimePartInput from './DatetimePartInput';
 import { log } from '../../core/utils/logger.js';
 import { suggestTrigger } from '../../core/utils/trigger-suggestion.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 const TRIGGER_SEGMENTS = [
   { key: 'always', label: '一直生效' },
@@ -571,6 +572,7 @@ export default function EntryEditor({
                 value={keywordInput}
                 onChange={(e) => setKeywordInput(e.target.value)}
                 onKeyDown={(e) => {
+                  if (isImeComposing(e)) return;
                   if (e.key === 'Enter') { e.preventDefault(); addKeyword(keywordInput); }
                   else if (e.key === 'Backspace' && keywordInput === '' && form.keywords.length) {
                     removeKeyword(form.keywords[form.keywords.length - 1]);

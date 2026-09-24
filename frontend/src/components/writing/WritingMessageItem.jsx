@@ -8,6 +8,7 @@ import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import { markdownSanitizeSchema } from '../../core/utils/markdown-sanitize.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
@@ -173,6 +174,7 @@ export default function WritingMessageItem({
   }
   function cancelEdit() { setEditing(false); }
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Escape') cancelEdit();
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
   }

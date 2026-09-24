@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 const TYPE_OPTIONS = [
   { value: 'text',     label: '文本' },
@@ -277,6 +278,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                 <input ref={enumRef} className="we-tag-input-field"
                   value={enumInput} onChange={(e) => setEnumInput(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) return;
                     if (e.key === 'Enter') { e.preventDefault(); addEnum(enumInput); }
                     else if (e.key === 'Backspace' && enumInput === '' && form.enum_options.length) {
                       removeEnum(form.enum_options[form.enum_options.length - 1]);
@@ -314,6 +316,7 @@ export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, 
                 <input ref={listDefRef} className="we-tag-input-field"
                   value={listDefInput} onChange={(e) => setListDefInput(e.target.value)}
                   onKeyDown={(e) => {
+                    if (isImeComposing(e)) return;
                     if (e.key === 'Enter') { e.preventDefault(); addListDef(listDefInput); }
                     else if (e.key === 'Backspace' && listDefInput === '' && form.list_defaults.length) {
                       removeListDef(form.list_defaults[form.list_defaults.length - 1]);

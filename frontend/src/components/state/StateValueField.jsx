@@ -3,6 +3,7 @@ import Input from '../ui/Input';
 import Select from '../ui/Select';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { parseLooseJson } from './state-value-format';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 const STATE_LIST_MAX_ITEMS = 10;
 const AUTOSAVE_DELAY_MS = 450;
@@ -175,6 +176,7 @@ function StateValueFieldInner({ field, initialValueJson, onSave }) {
           onChange={(e) => setListInput(e.target.value)}
           disabled={atMax}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') {
               e.preventDefault();
               addListItem(listInput);

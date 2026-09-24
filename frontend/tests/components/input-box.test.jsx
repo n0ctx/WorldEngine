@@ -71,6 +71,27 @@ describe('InputBox', () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
+  it('输入法选字时按 Enter 不发送，选字结束后 Enter 才发送', () => {
+    const onSend = vi.fn();
+    render(
+      <InputBox
+        onSend={onSend}
+        onStop={vi.fn()}
+        generating={false}
+        impersonating={false}
+      />,
+    );
+
+    const textarea = screen.getByPlaceholderText('发送消息… (Shift+Enter 换行，/ 调出命令)');
+    fireEvent.change(textarea, { target: { value: '你好' } });
+    fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(textarea, { key: 'Enter', keyCode: 229 });
+    expect(onSend).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
   it('附件读取失败时会提示并跳过文件', async () => {
     const file = new File(['bad'], 'broken.png', { type: 'image/png' });
     const FileReaderMock = class {

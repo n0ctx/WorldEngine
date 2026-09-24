@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 const CN_NUMS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
 
@@ -59,6 +60,7 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
   }
 
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
     if (e.key === 'Escape') cancelEdit();
   }

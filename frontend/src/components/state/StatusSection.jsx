@@ -4,6 +4,7 @@ import Select from '../ui/Select.jsx';
 import DatetimeSplitInput from './DatetimeSplitInput.jsx';
 import StatusTable from './StatusTable.jsx';
 import { applyTemplateVars } from '../../core/utils/template-vars.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
 import { ISO_DATETIME_RE, formatFieldValue } from './state-value-format.js';
 
@@ -152,6 +153,7 @@ function InlineEditor({ row, onCommit, onCancel, templateCtx, saving = false, sa
   }
 
   function handleKey(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
     if (e.key === 'Escape') { onCancel(); }
   }
@@ -422,6 +424,7 @@ function ListInlineEditor({ initial, onCommit, onCancel, readDisplay }) {
               onChange={(e) => setInput(e.target.value)}
               disabled={atMax}
               onKeyDown={(e) => {
+                if (isImeComposing(e)) return;
                 if (e.key === 'Enter') {
                   e.preventDefault();
                   addItem(input);

@@ -4,6 +4,7 @@ import ModalShell from '../ui/ModalShell.jsx';
 import ConfirmModal from '../ui/ConfirmModal.jsx';
 import SectionTabs from '../ui/SectionTabs.jsx';
 import { getTableMemory, updateTableMemory } from '../../core/api/table-memory.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 const ALIAS_COL = '别名';
 
@@ -32,6 +33,7 @@ function CellEditor({ initial, maxLength, onCommit, onCancel }) {
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => onCommit(draft)}
       onKeyDown={(e) => {
+        if (isImeComposing(e)) return;
         if (e.key === 'Enter') { e.preventDefault(); onCommit(draft); }
         if (e.key === 'Escape') { e.stopPropagation(); onCancel(); }
       }}

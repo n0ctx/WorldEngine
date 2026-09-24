@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { isImeComposing } from '../../frontend/src/core/utils/ime.js';
 
 export default function InputBox({ value, onChange, onSend, disabled = false, placeholder }) {
   const textareaRef = useRef(null);
@@ -23,6 +24,7 @@ export default function InputBox({ value, onChange, onSend, disabled = false, pl
   }, [value]);
 
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!disabled && value.trim()) {

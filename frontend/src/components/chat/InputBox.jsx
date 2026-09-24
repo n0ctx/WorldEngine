@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 're
 import { applyRules } from '../../core/utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
 import { log } from '../../core/utils/logger.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../core/utils/constants.js';
 
 const SLASH_COMMANDS = [
@@ -127,6 +128,7 @@ const InputBox = forwardRef(function InputBox({
   }
 
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     // Slash 命令浮层键盘导航
     if (slashOpen && filteredCommands.length > 0) {
       if (e.key === 'ArrowDown') {

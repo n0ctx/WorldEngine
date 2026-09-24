@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 /** options 支持 string[] 或 { id, inputPrice?, outputPrice? }[] */
 function optionId(o) { return typeof o === 'string' ? o : o.id; }
@@ -73,6 +74,7 @@ export default function ModelCombobox({
   }
 
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Escape') {
       setOpen(false);
     } else if (e.key === 'Enter') {

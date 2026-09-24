@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import SeamlessEditableSurface from '../../../../shared/SeamlessEditableSurface.jsx';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 /**
  * StatusTable — 在右侧状态栏渲染 2 行 N 列的表格状态字段。
@@ -105,6 +106,7 @@ function CellEditor({ initial, min, max, onCommit, onCancel }) {
           onChange={(e) => setDraft(e.target.value)}
           onBlur={() => commit(draft)}
           onKeyDown={(e) => {
+            if (isImeComposing(e)) return;
             if (e.key === 'Enter') { e.preventDefault(); commit(draft); }
             if (e.key === 'Escape') { onCancel(); }
           }}

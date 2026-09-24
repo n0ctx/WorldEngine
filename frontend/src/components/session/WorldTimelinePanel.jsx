@@ -30,6 +30,7 @@ import useStore from '../../core/state/index.js';
 import { formatDateLiterary } from '../../core/utils/date-format.js';
 import { relativeTime } from '../../core/utils/time.js';
 import { log } from '../../core/utils/logger.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 function StorylineModeBadge({ mode }) {
   return (
@@ -77,6 +78,7 @@ function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDe
   }
 
   function handleEditKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
     if (e.key === 'Escape') cancelEdit();
   }

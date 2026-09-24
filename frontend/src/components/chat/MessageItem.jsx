@@ -10,6 +10,7 @@ import { applyRules } from '../../core/utils/regex-runner.js';
 import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
+import { isImeComposing } from '../../core/utils/ime.js';
 
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
@@ -290,6 +291,7 @@ export default function MessageItem({
   }
   function cancelEdit() { setEditing(false); }
   function handleKeyDown(e) {
+    if (isImeComposing(e)) return;
     if (e.key === 'Escape') cancelEdit();
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); confirmEdit(); }
   }
