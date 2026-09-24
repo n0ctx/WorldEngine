@@ -399,6 +399,32 @@ describe('ChatPage', () => {
     expect(abort).not.toHaveBeenCalled();
   });
 
+  it('停止请求失败时弹出提示，不本地断开', async () => {
+    mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
+    useStore.setState({
+      currentWorldId: null,
+      currentCharacterId: 'char-1',
+      currentSessionId: 'session-1',
+      memoryRefreshTick: 0,
+    });
+    const abort = vi.fn();
+    mocks.sendMessage.mockImplementation(() => abort);
+    mocks.stopGeneration.mockRejectedValue(new Error('Failed to fetch'));
+    const toasts = [];
+    const onToast = (e) => toasts.push(e.detail.message);
+    window.addEventListener('we:toast', onToast);
+
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    fireEvent.click(screen.getByText('send'));
+    await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByText('stop'));
+    await waitFor(() => expect(toasts).toContain('停止失败，请重试：Failed to fetch'));
+    window.removeEventListener('we:toast', onToast);
+    expect(abort).not.toHaveBeenCalled();
+  });
+
   it('进入已有 session 时会尝试恢复断点续传并补订阅', async () => {
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
     mocks.recoverChatStream.mockResolvedValue({

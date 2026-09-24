@@ -666,7 +666,11 @@ export function useSessionStream({
         stopRef.current?.();
         recoveryStopRef.current?.();
       })
-      .catch(() => {});
+      .catch((err) => {
+        // 停止请求没送达：生成仍在进行，撤销「主动停止」标记，停止按钮保持可再点
+        if (sessionIdRef.current === targetSessionId) streamAbortedRef.current = false;
+        log.error('stream.stop_failed', err, { toast: `停止失败，请重试：${err.message || '网络错误'}` });
+      });
   }
 
   // 编辑用户消息并重新生成
