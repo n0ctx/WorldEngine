@@ -63,7 +63,12 @@ export default function WorldsPage() {
   }
 
   async function handleDelete() {
-    await deleteWorld(deletingWorld.id);
+    try {
+      await deleteWorld(deletingWorld.id);
+    } catch (err) {
+      log.error('worlds.delete_failed', err, { toast: err.message || '删除世界失败' });
+      return;
+    }
     setDeletingWorld(null);
     await loadWorlds();
   }

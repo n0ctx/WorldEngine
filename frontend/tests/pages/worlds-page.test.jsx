@@ -86,6 +86,25 @@ describe('WorldsPage', () => {
     expect(mocks.getWorlds).toHaveBeenCalledTimes(2);
   });
 
+  it('删除世界失败时弹出提示并保留确认框', async () => {
+    mocks.getWorlds.mockResolvedValue([
+      { id: 'world-1', name: '群星海', system_prompt: '背景', updated_at: Date.now() },
+    ]);
+    mocks.getCharactersByWorld.mockResolvedValue([]);
+    mocks.deleteWorld.mockRejectedValue(new Error('世界正在使用中'));
+    const toasts = [];
+    const onToast = (e) => toasts.push(e.detail.message);
+    window.addEventListener('we:toast', onToast);
+
+    render(<WorldsPage />);
+    fireEvent.click(await screen.findByTitle('删除'));
+    fireEvent.click((await screen.findAllByText('确认删除'))[1]);
+
+    await waitFor(() => expect(toasts).toContain('世界正在使用中'));
+    window.removeEventListener('we:toast', onToast);
+    expect(screen.getAllByText('确认删除')[1]).not.toBeDisabled();
+  });
+
   it('世界列表为空时显示新建入口', async () => {
     mocks.getWorlds.mockResolvedValue([]);
 
