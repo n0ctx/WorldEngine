@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { SortableList } from '../index';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
+import { log } from '../../core/utils/logger.js';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
@@ -56,7 +57,12 @@ export default function StateFieldList({
   }
 
   async function handleDelete(id) {
-    await deleteFn(id);
+    try {
+      await deleteFn(id);
+    } catch (err) {
+      log.error('state_field.delete_failed', err, { toast: err.message || '删除字段失败' });
+      return;
+    }
     setDeletingId(null);
     await load();
   }
@@ -188,8 +194,11 @@ function DeleteConfirm({ onConfirm, onClose }) {
   const mouseDownOnBackdropRef = useRef(false);
   async function handle() {
     setDeleting(true);
-    await onConfirm();
-    setDeleting(false);
+    try {
+      await onConfirm();
+    } finally {
+      setDeleting(false);
+    }
   }
   return createPortal(
     <div
