@@ -368,10 +368,99 @@
   border-radius: var(--we-radius-lg);
   box-shadow:
     0 0 0 1px var(--we-material-stroke),
-    inset 0 1px 0 var(--we-material-sheen),
     var(--we-material-shadow-near),
     var(--we-material-shadow-far);
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+}
+
+/* 纸面：::before 是压在底色上、正文下的静态纸纹；::after 是纸边——
+   顶部一条两端渐隐的镜面线和内侧一圈边缘光，与两侧玻璃同一套材质 */
+.we-chat-center-pane::before,
+.we-chat-center-pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.we-chat-center-pane::before {
+  z-index: -1;
+  opacity: var(--we-material-grain);
+  background-image: var(--we-grain-image);
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+}
+
+.we-chat-center-pane::after {
+  z-index: 1;
+  background: linear-gradient(90deg, transparent 10%, var(--we-material-sheen) 32%, var(--we-material-sheen) 68%, transparent 90%) top / 100% 1px no-repeat;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--we-material-sheen) 40%, transparent);
+  transition: box-shadow var(--we-duration-normal) var(--we-easing-ink);
+}
+
+/* 落笔时纸边亮起一圈淡主色：输入框获得焦点，整张纸进入书写状态 */
+.we-chat-center-pane:has(.we-chat-textarea:focus)::after {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--we-color-accent-border) 70%, transparent),
+    inset 0 -40px 48px -40px color-mix(in srgb, var(--we-color-accent) 18%, transparent);
+}
+
+.we-chat-center-pane ::selection {
+  background: color-mix(in srgb, var(--we-color-accent) 28%, transparent);
+}
+
+/* 纸面上的选项：不再框中套框，外框退掉，每条是一枚墨色浮片，悬停浮起并亮起主色描边 */
+.we-chat-center-pane .we-option-card {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+.we-chat-center-pane .we-option-card--collapsed {
+  padding: var(--we-space-xs) 0;
+}
+
+.we-chat-center-pane .we-option-list {
+  gap: var(--we-space-sm);
+}
+
+.we-chat-center-pane .we-option-btn {
+  padding: var(--we-space-sm) var(--we-space-md);
+  background: var(--we-color-ink-wash);
+  border-color: transparent;
+  border-radius: var(--we-radius-md);
+  box-shadow: inset 0 1px 0 var(--we-material-sheen);
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp),
+              border-color var(--we-duration-fast) var(--we-easing-sharp),
+              box-shadow var(--we-duration-fast) var(--we-easing-sharp),
+              transform var(--we-duration-fast) var(--we-easing-quill);
+}
+
+.we-chat-center-pane .we-option-btn:hover:not(.we-option-btn--disabled) {
+  background: var(--we-color-accent-bg);
+  border-color: var(--we-color-accent-border);
+  box-shadow: inset 0 1px 0 var(--we-material-sheen), var(--we-material-shadow-near);
+  transform: translateY(-1px);
+}
+
+.we-chat-center-pane .we-option-btn:active:not(.we-option-btn--disabled) {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 0 var(--we-material-sheen);
+}
+
+.we-chat-center-pane .we-option-btn--selected {
+  background: var(--we-color-accent-bg);
+  border-color: var(--we-color-accent-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .we-chat-center-pane::after {
+    transition: none;
+  }
+  .we-chat-center-pane .we-option-btn:hover:not(.we-option-btn--disabled) {
+    transform: none;
+  }
 }
 
 .we-chat-pane-nav {
@@ -443,9 +532,15 @@
   }
 }
 
-/* 正文滚到台前下方时渐隐消失，而不是被一条硬边切断 */
+/* 正文滚到台前下方、沉到输入框上方时都渐隐消失，而不是被一条硬边切断 */
 .we-chat-center-pane .we-chat-area {
-  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--we-space-xl));
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    black calc(var(--we-space-xl) * 2),
+    black calc(100% - var(--we-space-lg)),
+    transparent 100%
+  );
 }
 
 /* Empty state for chat / writing */
