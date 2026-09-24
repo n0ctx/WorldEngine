@@ -61,7 +61,9 @@ body {
   height: 100svh;
   width: 100%;
   overflow: hidden;
-  background: var(--we-color-bg-inverse);
+  /* 画布底色只在这里铺一次；页面容器保持透明，让背景氛围层从内容后面透出来 */
+  background: var(--we-page-canvas-bg);
+  isolation: isolate;
 }
 
 .we-route-fallback {

@@ -16,6 +16,10 @@ const useStore = create((set) => ({
   memoryRefreshTick: 0,
   triggerMemoryRefresh: () => set((s) => ({ memoryRefreshTick: s.memoryRefreshTick + 1 })),
 
+  // 书架页悬停/聚焦某个世界入口时，背景氛围临时染上该世界的封面主色；null 表示用主题/世界默认色
+  ambientTint: null,
+  setAmbientTint: (color) => set({ ambientTint: color }),
+
   stateQueuedRefreshTick: 0,
   triggerStateQueued: () => set((s) => ({ stateQueuedRefreshTick: s.stateQueuedRefreshTick + 1 })),
 

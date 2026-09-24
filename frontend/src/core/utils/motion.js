@@ -53,10 +53,12 @@ const SPRING_FADE = { duration: DURATION.quick, ease: EASE.ink };
 export const SPRING = {
   // 轻按压：按下立即压缩，松开短促回弹一次
   press:   { type: 'spring', stiffness: 520, damping: 26, mass: 0.6, opacity: SPRING_FADE },
-  // 卡片：悬停靠近、按下压缩、松开带一点过冲回弹
-  card:    { type: 'spring', stiffness: 360, damping: 22, mass: 0.9, opacity: SPRING_FADE },
+  // 世界入口：体量大，悬停缓慢靠近，按下压缩，松开带一次有分量的过冲回弹
+  portal:  { type: 'spring', stiffness: 300, damping: 20, mass: 1.1, opacity: SPRING_FADE },
   // 消息入场：像角色走上舞台，短回弹后静止
   message: { type: 'spring', stiffness: 420, damping: 28, mass: 0.8, opacity: SPRING_FADE },
+  // 切换角色：新的说话者从侧面落到台前，弹一下后站定
+  speaker: { type: 'spring', stiffness: 340, damping: 24, mass: 1.0, opacity: SPRING_FADE },
   // 弹窗 / 设置：近临界阻尼，几乎不过冲
   overlay: { type: 'spring', stiffness: 380, damping: 34, mass: 0.9, opacity: SPRING_FADE },
 };
@@ -67,9 +69,10 @@ export const GESTURE = {
     whileHover: { scale: 1.03 },
     whileTap:   { scale: 0.95 },
   },
-  card: {
-    whileHover: { y: -6, scale: 1.015 },
-    whileTap:   { y: -2, scale: 0.97 },
+  // 入口面积大，放大幅度收小，靠位移表达"靠近"
+  portal: {
+    whileHover: { y: -4, scale: 1.012 },
+    whileTap:   { y: -1, scale: 0.975 },
   },
 };
 
@@ -110,10 +113,15 @@ export const variants = {
     hidden:  { opacity: 0, y: 14, scale: 0.97 },
     visible: { opacity: 1, y: 0,  scale: 1    },
   },
-  // 场景入场：世界卡 / 空状态（配 SPRING.card，可放在 staggerList 容器下）
+  // 场景入场：世界入口 / 空状态（配 SPRING.portal）
   sceneEnter: {
     hidden:  { opacity: 0, y: 18, scale: 0.96 },
     visible: { opacity: 1, y: 0,  scale: 1    },
+  },
+  // 切换角色：说话者从左侧走上台（配 SPRING.speaker）
+  speakerEnter: {
+    hidden:  { opacity: 0, x: -16, scale: 0.94 },
+    visible: { opacity: 1, x: 0,   scale: 1    },
   },
   // 弹窗 / 设置面板入场（配 SPRING.overlay）
   overlayEnter: {

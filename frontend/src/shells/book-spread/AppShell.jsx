@@ -17,16 +17,33 @@ import GlobalToast from '../../components/ui/GlobalToast.jsx';
 import { PageLayoutRendererProvider } from '../../pages/layout/PageLayout.jsx';
 import RenderPageLayout from './layout/pageLayoutRenderer.jsx';
 import { useWorldAccentVars } from '../../core/features/worldAccent/useWorldAccentVars.js';
+import useStore from '../../core/state/index.js';
+import AtmosphereLayer from './atmosphere/AtmosphereLayer.jsx';
+
+// 长时间阅读的页面：氛围压到最低，只留在边缘
+const QUIET_SCENE = /\/chat$|\/writing$/;
 
 export default function AppShell({ children, locationKey }) {
   // 「封面即光源」：进入某个世界后，把该世界的主色注入成 CSS 变量覆盖 --we-color-accent 一系。
   // 书架层 / 无主色 / 浅色主题下返回 null，不注入，页面用主题自身默认色。
   const worldAccentVars = useWorldAccentVars();
+  // 氛围色：书架页悬停某个入口时临时取那个世界的主色，世界内取注入的世界主色，否则用主题 token。
+  // 必须在这里显式写 --we-atmosphere-color：:root 上的 var(--we-color-accent) 引用在 :root 就已算定，
+  // 不会跟着这里覆盖的 --we-color-accent 变。
+  const ambientTint = useStore((s) => s.ambientTint);
+  const atmosphereColor = ambientTint ?? worldAccentVars?.['--we-color-accent'] ?? null;
+  const rootVars = atmosphereColor
+    ? { ...worldAccentVars, '--we-atmosphere-color': atmosphereColor }
+    : worldAccentVars;
 
   // reducedMotion="user"：系统要求减少动效时，所有 framer 动画关闭位移与缩放，只保留透明度
   return (
     <MotionConfig reducedMotion="user">
-      <div className="we-app-root we-shell-book-spread" style={worldAccentVars ?? undefined}>
+      <div className="we-app-root we-shell-book-spread" style={rootVars ?? undefined}>
+        <AtmosphereLayer
+          quiet={QUIET_SCENE.test(locationKey)}
+          colorKey={atmosphereColor ?? ''}
+        />
         <a href="#we-main-content" className="we-skip-link">跳到主内容</a>
         <TopBar />
         <GlobalToast />

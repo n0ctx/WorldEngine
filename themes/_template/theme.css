@@ -121,6 +121,23 @@
   --we-topbar-item-faint: rgba(255, 255, 255, 0.66);
   --we-topbar-divider: rgba(255, 255, 255, 0.08);
 
+  /* 背景氛围「光尘」（外壳在内容后画的斜光与漂浮微尘）
+     --we-atmosphere-color 默认取主色，进入世界后由外壳按封面主色覆盖 */
+  --we-atmosphere-color: var(--we-color-accent);
+  --we-atmosphere-shade: rgba(52, 64, 96, 0.22);   /* 对角暗部的冷色 */
+  --we-atmosphere-opacity: 0.9;                     /* 场景页光尘强度 0–1 */
+  --we-atmosphere-opacity-quiet: 0.35;              /* 阅读页光尘强度 */
+  --we-atmosphere-glow-strength: 14%;               /* 静态光晕浓度 */
+  --we-atmosphere-grain: 0.04;                      /* 胶片颗粒强度，0 为关闭 */
+  /* 世界入口：细光描边代替实色边框，外阴影只留一层接地影 */
+  --we-entry-edge: inset 0 0 0 1px rgba(255, 255, 255, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+  --we-entry-shadow: 0 18px 40px -22px rgba(23, 23, 23, 0.30);
+  --we-entry-shadow-hover: 0 28px 56px -24px rgba(23, 23, 23, 0.30);
+  --we-atmosphere-scrim: radial-gradient(ellipse 64% 110% at 50% 50%, rgba(247, 247, 244, 0.88) 0%, rgba(247, 247, 244, 0.64) 62%, transparent 100%);
+  --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
+  --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
+  --we-glass-blur: 18px;
+
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: transparent;
   --we-card-overlay-hover-bg: transparent;

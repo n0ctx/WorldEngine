@@ -309,22 +309,26 @@
 }
 
 /* ── Dialog Panel ── */
+/* 弹窗与确认框：半透明面板压在模糊的场景上，场景仍隐约可见，不跳出成一张后台表单 */
 .we-dialog-panel {
-  background: var(--we-color-bg-elevated);
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
   border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-lg);
+  border-radius: var(--we-radius-xl);
   box-shadow: var(--we-shadow-dialog);
 }
 
 /* ── ModalShell ── */
 .we-modal-backdrop {
   background: var(--we-color-bg-overlay);
+  backdrop-filter: blur(6px);
 }
 
 .we-modal {
-  background: var(--we-color-bg-elevated);
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
   border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-lg);
+  border-radius: var(--we-radius-xl);
   box-shadow: var(--we-shadow-dialog);
 }
 
@@ -858,7 +862,7 @@
 
 .we-confirm-title {
   font-family: var(--we-font-display);
-  font-size: var(--we-text-md);
+  font-size: var(--we-text-lg);
   font-weight: 600;
   color: var(--we-color-text-primary);
   margin-bottom: 10px; /* design exact */
@@ -1031,6 +1035,51 @@
 
 .we-form-required {
   color: var(--we-color-accent);
+}
+
+/* ── 背景氛围（光尘）── */
+/* 固定铺满视口，z-index -1 落在根节点底色之上、全部内容之下（根节点 isolation: isolate） */
+.we-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      70% 60% at 14% -6%,
+      color-mix(in srgb, var(--we-atmosphere-color) var(--we-atmosphere-glow-strength), transparent) 0%,
+      transparent 72%
+    ),
+    radial-gradient(60% 70% at 104% 108%, var(--we-atmosphere-shade) 0%, transparent 70%);
+}
+
+/* 胶片颗粒：静态噪点压在光尘之上，减少动效时也保留 */
+.we-atmosphere::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--we-atmosphere-grain);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  mix-blend-mode: overlay;
+}
+
+.we-atmosphere-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: var(--we-atmosphere-opacity);
+  transition: opacity var(--we-duration-slow) var(--we-easing-ink);
+}
+
+/* 阅读页：光尘退到最弱，只在正文两侧边缘可见；颗粒会透过阅读遮罩抬亮正文底色，关掉 */
+.we-atmosphere--quiet .we-atmosphere-canvas {
+  opacity: var(--we-atmosphere-opacity-quiet);
+}
+
+.we-atmosphere--quiet::after {
+  opacity: 0;
 }
 
 /* ── BookSpread ── */
@@ -1803,6 +1852,7 @@
   position: fixed;
   inset: 0;
   background: var(--we-color-bg-overlay);
+  backdrop-filter: blur(6px);
   z-index: var(--we-z-modal);
   display: flex;
   align-items: center;
@@ -1957,6 +2007,7 @@
 .we-topbar {
   height: 52px;
   flex-shrink: 0;
+  /* 顶栏退到边缘：默认无底色、无分隔线，只剩贴边的一行导航 */
   background: var(--we-topbar-bg);
   border-bottom: 1px solid var(--we-topbar-border);
   display: grid;
@@ -2167,14 +2218,40 @@
 }
 
 .we-topbar-settings-btn {
-  width: 34px;
-  height: 34px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   justify-content: center;
 }
 
-.we-topbar-settings-icon {
-  opacity: 0.6;
+.we-topbar-actions .we-topbar-item {
+  gap: var(--we-space-xs);
+}
+
+/* 当前世界名：用展示字体，在一排小字导航里是唯一有分量的一项 */
+.we-topbar-world-name {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-md);
+  font-weight: 600;
+  letter-spacing: var(--we-tracking-tight);
+}
+
+.we-topbar-brand {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-md);
+  letter-spacing: var(--we-tracking-normal);
+}
+
+/* 窄屏：按钮只留图标（aria-label 仍在），世界名回到正文字号，给面包屑让出宽度 */
+@media (max-width: 767px) {
+  .we-topbar-item-label {
+    display: none;
+  }
+
+  .we-topbar-world-name,
+  .we-topbar-brand {
+    font-size: var(--we-text-base);
+  }
 }
 
 /* — CodeMirror 6 ─ */

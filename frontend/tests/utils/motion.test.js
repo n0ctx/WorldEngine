@@ -14,7 +14,7 @@ describe('motion utils', () => {
   });
 
   it('命名弹簧都是 spring 类型，手势只含目标值不含 transition', () => {
-    for (const key of ['press', 'card', 'message', 'overlay']) {
+    for (const key of ['press', 'portal', 'message', 'speaker', 'overlay']) {
       expect(SPRING[key].type).toBe('spring');
     }
     for (const key of Object.keys(GESTURE)) {
@@ -29,5 +29,7 @@ describe('motion utils', () => {
       expect(variants[key].hidden.opacity).toBe(0);
       expect(variants[key].visible).toMatchObject({ opacity: 1, y: 0, scale: 1 });
     }
+    expect(variants.speakerEnter.hidden.opacity).toBe(0);
+    expect(variants.speakerEnter.visible).toMatchObject({ opacity: 1, x: 0, scale: 1 });
   });
 });

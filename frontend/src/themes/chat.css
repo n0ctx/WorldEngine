@@ -385,8 +385,85 @@
 
 .we-chat-center-pane {
   position: relative;
-  background: var(--we-color-bg-canvas);
+  /* 正文列背后压一层阅读遮罩：氛围只留在两侧边缘，正文对比度不随氛围变化 */
+  background: var(--we-atmosphere-scrim);
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
+}
+
+/* 台前：当前说话的角色，正文上方居中，与正文同宽 */
+.we-speaker-stage {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: var(--we-text-width-prose);
+  margin: 0 auto;
+  padding: var(--we-space-lg) var(--we-space-xl) var(--we-space-sm);
+  min-height: 92px; /* design exact: 56px 头像 + 上下留白，换角色时台前不塌陷 */
+}
+
+.we-speaker-stage__cast {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-md);
+  min-width: 0;
+}
+
+/* 头像背后一圈氛围色的光，与背景光尘同色 */
+.we-speaker-stage__halo {
+  display: inline-flex;
+  border-radius: var(--we-radius-full);
+  box-shadow: 0 0 32px -2px color-mix(in srgb, var(--we-atmosphere-color) 32%, transparent);
+}
+
+/* 台前头像：细环代替主色粗环；没有头像时是玻璃底上的一个淡字，不再是主色大字 */
+.we-speaker-stage .we-character-seal {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--we-atmosphere-color) 45%, transparent);
+}
+
+.we-speaker-stage .we-character-seal--initial {
+  background: var(--we-glass-bg);
+  color: var(--we-color-text-primary);
+  font-family: var(--we-font-display);
+  font-weight: 500;
+}
+
+.we-speaker-stage__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.we-speaker-stage__name {
+  font-family: var(--we-font-display);
+  font-size: var(--we-text-xl);
+  font-weight: 500;
+  line-height: var(--we-leading-tight);
+  letter-spacing: var(--we-tracking-tight);
+  color: var(--we-color-text-primary);
+}
+
+.we-speaker-stage__line {
+  font-family: var(--we-font-ui);
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 767px) {
+  .we-speaker-stage {
+    padding: var(--we-space-md) var(--we-space-md) var(--we-space-xs);
+    min-height: 80px; /* design exact */
+  }
+  .we-speaker-stage__name {
+    font-size: var(--we-text-lg);
+  }
+}
+
+/* 正文滚到台前下方时渐隐消失，而不是被一条硬边切断 */
+.we-chat-center-pane .we-chat-area {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--we-space-xl));
 }
 
 /* Empty state for chat / writing */
@@ -948,16 +1025,12 @@
 
 /* ── InputBox ── */
 
-/* 输入区：浮在舞台底边的圆角操作台，与正文同宽居中 */
+/* 输入区：不再是一张操作台卡片，只剩正文下方一条半透明输入胶囊，工具按钮轻轻浮在它上沿 */
 .we-chat-input {
   width: calc(100% - var(--we-space-lg) * 2);
   max-width: calc(var(--we-text-width-prose) + 160px);
-  margin: 0 auto var(--we-space-md);
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-xl);
-  box-shadow: var(--we-shadow-dialog);
-  padding: var(--we-space-sm) var(--we-space-md) var(--we-space-sm);
+  margin: 0 auto var(--we-space-lg);
+  padding: 0 var(--we-space-md);
 }
 
 /* 窄屏：舞台两侧已有抽屉轨，操作台贴近边缘，把宽度留给输入框 */
@@ -965,8 +1038,8 @@
   .we-chat-input {
     width: calc(100% - var(--we-space-sm) * 2);
     margin-bottom: var(--we-space-sm);
-    border-radius: var(--we-radius-lg);
-    padding: var(--we-space-xs) var(--we-space-xs) var(--we-space-xs);
+    margin-bottom: var(--we-space-sm);
+    padding: 0;
   }
 }
 
@@ -1012,8 +1085,20 @@
 .we-chat-input__row {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: var(--we-space-sm);
+  padding: var(--we-space-xs);
+  background: var(--we-composer-field-bg);
+  border: var(--we-composer-field-border);
+  border-radius: var(--we-radius-xl);
+  box-shadow: var(--we-composer-field-shadow);
+  backdrop-filter: blur(var(--we-glass-blur));
+  transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
+}
+
+.we-chat-input__row:focus-within {
+  border-color: var(--we-color-border-focus);
+  box-shadow: var(--we-composer-field-shadow), var(--we-focus-ring);
 }
 
 .we-chat-input__attach-btn {
@@ -1159,7 +1244,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--we-color-bg-elevated);
+  background: transparent;
   border: var(--we-composer-btn-border);
   border-radius: var(--we-radius-full);
   color: var(--we-color-text-tertiary);
@@ -1194,11 +1279,10 @@
 /* Main textarea */
 .we-chat-textarea {
   width: 100%;
-  padding: var(--we-space-xs) var(--we-space-lg);
-  background: var(--we-composer-field-bg);
-  border: var(--we-composer-field-border);
-  border-radius: var(--we-radius-lg);
-  box-shadow: var(--we-composer-field-shadow);
+  /* 可见的输入胶囊由外层 .we-chat-input__row 承担，文本域本身不画框 */
+  padding: 6px var(--we-space-sm); /* design exact: 单行时与 36px 发送按钮垂直居中 */
+  background: transparent;
+  border: none;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-base);
   line-height: 1.65;
@@ -1209,16 +1293,13 @@
   /* 上限 ≈ 10 行正文(line-height 1.65)+ 上下 padding + 边框。
      缺这个上限时 adjustHeight() 会按 scrollHeight 无限撑高，
      把上方消息区挤成 0 高度；超出后改由 textarea 自身滚动。 */
-  max-height: calc(1.65em * 10 + var(--we-space-xs) * 2 + 2px);
+  max-height: calc(1.65em * 10 + 12px);
   overflow-y: auto;
-  transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
 }
 
 .we-chat-textarea:focus,
 .we-chat-textarea:focus-visible {
   outline: none;
-  border-color: var(--we-color-border-focus);
-  box-shadow: var(--we-focus-ring);
 }
 
 .we-chat-textarea:disabled {

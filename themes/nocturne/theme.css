@@ -95,7 +95,7 @@
      § 4 壳层、书架与质感
      ────────────────────────────────────────────────────────────── */
 
-  --we-topbar-bg: var(--we-color-bg-canvas);
+  --we-topbar-bg: transparent;
   --we-topbar-border: transparent;
   --we-topbar-item: rgba(243, 236, 226, 0.66);
   --we-topbar-item-hover: rgba(243, 236, 226, 0.94);
@@ -111,6 +111,21 @@
   --we-topbar-item-faint: rgba(243, 236, 226, 0.72);
   --we-topbar-divider: rgba(255, 238, 220, 0.08);
 
+  /* 背景氛围「光尘」：暖光斜入，冷靛色压在对角的暗部 */
+  --we-atmosphere-color: var(--we-color-accent);
+  --we-atmosphere-shade: rgba(38, 50, 98, 0.34);
+  --we-atmosphere-opacity: 0.95;
+  --we-atmosphere-opacity-quiet: 0.4;
+  --we-atmosphere-glow-strength: 16%;
+  --we-atmosphere-grain: 0.05;
+  --we-entry-edge: inset 0 0 0 1px rgba(255, 238, 220, 0.07), inset 0 1px 0 rgba(255, 238, 220, 0.12);
+  --we-entry-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.85);
+  --we-entry-shadow-hover: 0 30px 60px -26px rgba(0, 0, 0, 0.9);
+  --we-atmosphere-scrim: radial-gradient(ellipse 64% 110% at 50% 50%, rgba(23, 19, 15, 0.86) 0%, rgba(23, 19, 15, 0.6) 62%, transparent 100%);
+  --we-stage-surface: transparent;
+  --we-glass-bg: rgba(33, 28, 23, 0.78);
+  --we-glass-blur: 18px;
+
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: linear-gradient(180deg, rgba(10, 8, 6, 0) 35%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);
   --we-card-overlay-hover-bg: linear-gradient(180deg, rgba(10, 8, 6, 0.82) 0%, rgba(10, 8, 6, 0.45) 45%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);
@@ -124,8 +139,6 @@
   --we-parchment-fiber-opacity: 0;
   --we-spine-display: none;
 
-  /* 无封面世界卡占位纹样：星点（夜航星图）*/
-  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Ccircle cx='20' cy='25' r='1' fill='%23fff' opacity='.15'/%3E%3Ccircle cx='55' cy='15' r='1.4' fill='%23fff' opacity='.18'/%3E%3Ccircle cx='65' cy='60' r='1' fill='%23fff' opacity='.12'/%3E%3C/svg%3E");
 
   --we-spine-shadow-left: linear-gradient(to right, transparent, transparent);
   --we-spine-shadow-right: linear-gradient(to left, transparent, transparent);
@@ -205,10 +218,10 @@
   --we-pager-btn-hover-bg: var(--we-color-accent-bg);
   --we-pager-btn-hover-shadow: none;
 
-  --we-composer-field-bg: var(--we-color-bg-elevated);
+  --we-composer-field-bg: var(--we-glass-bg);
   --we-composer-field-border: 1px solid var(--we-color-border-default);
-  --we-composer-field-shadow: none;
-  --we-composer-btn-border: 1px solid var(--we-color-border-default);
+  --we-composer-field-shadow: 0 18px 44px -18px rgba(0, 0, 0, 0.80);
+  --we-composer-btn-border: 1px solid transparent;
   --we-composer-send-shadow: var(--we-shadow-stamp-up);
   --we-composer-send-hover-shadow: var(--we-shadow-stamp-up);
   --we-composer-send-active-shadow: var(--we-shadow-stamp-down);

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   useNavigate: vi.fn(),
   useLocation: vi.fn(),
   setCurrentWorldId: vi.fn(),
+  setAmbientTint: vi.fn(),
   getWorlds: vi.fn(),
   deleteWorld: vi.fn(),
   getCharactersByWorld: vi.fn(),
@@ -21,7 +22,10 @@ vi.mock('react-router-dom', () => ({
   useLocation: () => mocks.useLocation(),
 }));
 vi.mock('../../src/core/state/index', () => ({
-  default: (selector) => selector({ setCurrentWorldId: mocks.setCurrentWorldId }),
+  default: (selector) => selector({
+    setCurrentWorldId: mocks.setCurrentWorldId,
+    setAmbientTint: mocks.setAmbientTint,
+  }),
 }));
 vi.mock('../../src/core/api/worlds', () => ({
   getWorlds: (...args) => mocks.getWorlds(...args),
@@ -51,6 +55,7 @@ describe('WorldsPage', () => {
     mocks.useLocation.mockReturnValue({ pathname: '/' });
     mocks.useNavigate.mockReset();
     mocks.setCurrentWorldId.mockReset();
+    mocks.setAmbientTint.mockReset();
     mocks.getWorlds.mockReset();
     mocks.deleteWorld.mockReset();
     mocks.getCharactersByWorld.mockReset();
@@ -59,6 +64,7 @@ describe('WorldsPage', () => {
     mocks.downloadWorldCard.mockReset();
     mocks.updateWorld.mockReset();
     mocks.extractAccentColorFromImageSrc.mockReset();
+    mocks.extractAccentColorFromImageSrc.mockResolvedValue('#7f95a8');
     global.alert = vi.fn();
   });
 
@@ -66,14 +72,14 @@ describe('WorldsPage', () => {
     mocks.getWorlds.mockResolvedValue([
       { id: 'world-1', name: '群星海', system_prompt: '背景', updated_at: Date.now() - 3_600_000 },
     ]);
-    mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1' }, { id: 'char-2' }]);
+    mocks.getCharactersByWorld.mockResolvedValue([{ id: 'char-1', name: '阿岚' }, { id: 'char-2', name: '白芷' }]);
     mocks.deleteWorld.mockResolvedValue(null);
 
     render(<WorldsPage />);
 
     expect(screen.getByRole('status', { name: '加载中' })).toBeInTheDocument();
     expect(await screen.findByText('群星海')).toBeInTheDocument();
-    expect(screen.getByText('2 角色')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '2 个角色' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('群星海'));
     expect(mocks.setCurrentWorldId).toHaveBeenCalledWith('world-1');
@@ -83,6 +89,11 @@ describe('WorldsPage', () => {
     fireEvent.keyDown(screen.getByRole('link', { name: '群星海' }), { key: 'Enter' });
     expect(mocks.useNavigate).toHaveBeenCalledWith('/worlds/world-1');
 
+    // 导出 / 编辑 / 删除收在"⋯"操作位里，点开前不出现；点操作位不会进入世界
+    expect(screen.queryByTitle('删除')).toBeNull();
+    mocks.useNavigate.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '世界操作' }));
+    expect(mocks.useNavigate).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTitle('删除'));
     fireEvent.click((await screen.findAllByText('确认删除'))[1]);
 
@@ -101,7 +112,8 @@ describe('WorldsPage', () => {
     window.addEventListener('we:toast', onToast);
 
     render(<WorldsPage />);
-    fireEvent.click(await screen.findByTitle('删除'));
+    fireEvent.click(await screen.findByRole('button', { name: '世界操作' }));
+    fireEvent.click(screen.getByTitle('删除'));
     fireEvent.click((await screen.findAllByText('确认删除'))[1]);
 
     await waitFor(() => expect(toasts).toContain('世界正在使用中'));
@@ -122,7 +134,7 @@ describe('WorldsPage', () => {
     });
   });
 
-  it('首位世界占大格，无封面世界渲染色块而非图片', async () => {
+  it('首位世界占大门，无封面世界渲染按名字生成的场景而非图片', async () => {
     mocks.getWorlds.mockResolvedValue([
       { id: 'world-1', name: '群星海', cover_path: 'covers/a.png', updated_at: Date.now() },
       { id: 'world-2', name: '空白页', cover_path: null, updated_at: Date.now() },
@@ -140,13 +152,45 @@ describe('WorldsPage', () => {
     expect(firstShell.className).toContain('we-world-card-shell--feature');
     expect(secondShell.className).not.toContain('we-world-card-shell--feature');
 
-    // 有封面：渲染 <img class="we-world-card-bg">；无封面：渲染色块 div，不渲染 img
-    expect(firstShell.querySelector('.we-world-card-bg')).toBeTruthy();
-    expect(secondShell.querySelector('.we-world-card-bg')).toBeFalsy();
-    expect(secondShell.querySelector('.we-world-card-block')).toBeTruthy();
+    // 有封面：渲染封面 <img>；无封面：渲染场景 <svg>，不渲染 img
+    expect(firstShell.querySelector('img.we-world-card-bg')).toBeTruthy();
+    expect(secondShell.querySelector('img')).toBeFalsy();
+    expect(secondShell.querySelector('svg.we-world-card-scene')).toBeTruthy();
     expect(secondShell.querySelector('.we-world-card--tinted')).toBeTruthy();
 
     expect(container.querySelectorAll('.we-world-card-shell--feature')).toHaveLength(1);
+  });
+
+  it('角色数量用头像表达，超出的折成 +N', async () => {
+    mocks.getWorlds.mockResolvedValue([{ id: 'world-1', name: '群星海', updated_at: Date.now() }]);
+    mocks.getCharactersByWorld.mockResolvedValue(
+      Array.from({ length: 6 }, (_, i) => ({ id: `char-${i}`, name: `角色${i}` }))
+    );
+
+    render(<WorldsPage />);
+
+    const cast = await screen.findByRole('img', { name: '6 个角色' });
+    expect(cast.querySelectorAll('.we-avatar-circle')).toHaveLength(4);
+    expect(cast).toHaveTextContent('+2');
+  });
+
+  it('悬停入口时背景氛围换成该世界的主色，离开页面时还原', async () => {
+    mocks.getWorlds.mockResolvedValue([
+      { id: 'world-1', name: '群星海', accent_color: '#223344', updated_at: Date.now() },
+      { id: 'world-2', name: '余烬城', accent_color: '#aa5533', updated_at: Date.now() },
+    ]);
+    mocks.getCharactersByWorld.mockResolvedValue([]);
+
+    const { unmount } = render(<WorldsPage />);
+    await screen.findByText('余烬城');
+
+    // 没有悬停时由首位世界定调
+    await waitFor(() => expect(mocks.setAmbientTint).toHaveBeenLastCalledWith('#223344'));
+    fireEvent.mouseEnter(screen.getByRole('link', { name: '余烬城' }));
+    await waitFor(() => expect(mocks.setAmbientTint).toHaveBeenLastCalledWith('#aa5533'));
+
+    unmount();
+    expect(mocks.setAmbientTint).toHaveBeenLastCalledWith(null);
   });
 
   it('加载失败时显示错误并允许重试', async () => {

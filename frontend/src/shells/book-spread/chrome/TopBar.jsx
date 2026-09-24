@@ -173,7 +173,7 @@ export default function TopBar() {
                 aria-haspopup="listbox"
                 aria-current={worldIsCurrentLevel ? 'page' : undefined}
               >
-                {currentWorld?.name ?? '选择世界'}
+                <span className="we-topbar-world-name">{currentWorld?.name ?? '选择世界'}</span>
                 <motion.span
                   className="we-topbar-caret"
                   animate={{ rotate: dropdownOpen ? 180 : 0 }}
@@ -257,10 +257,12 @@ export default function TopBar() {
           aria-pressed={isAssistantOpen}
           {...m.gesture('press')}
         >
-          助手
+          <Icon size={20} strokeWidth="1.6">
+            <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+            <path d="M19 15l.8 1.9 1.9.8-1.9.8L19 20.4l-.8-1.9-1.9-.8 1.9-.8z" />
+          </Icon>
+          <span className="we-topbar-item-label">助手</span>
         </motion.button>
-
-        <span className="we-topbar-sep">·</span>
 
         <motion.button
           className="we-topbar-item we-topbar-settings-btn"
@@ -282,7 +284,7 @@ export default function TopBar() {
           title="设置"
           {...m.gesture('press')}
         >
-          <Icon size={16} strokeWidth="1.8" className="we-topbar-settings-icon">
+          <Icon size={20} strokeWidth="1.6" className="we-topbar-settings-icon">
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </Icon>

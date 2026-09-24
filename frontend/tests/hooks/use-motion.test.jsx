@@ -42,7 +42,7 @@ describe('useMotion', () => {
     mocks.useReducedMotion.mockReturnValue(false);
     const { result } = renderHook(() => useMotion());
 
-    expect(result.current.spring('card')).toBe(SPRING.card);
+    expect(result.current.spring('portal')).toBe(SPRING.portal);
     expect(result.current.gesture('press')).toEqual({ ...GESTURE.press, transition: SPRING.press });
     expect(result.current.variant('messageEnter')).toBe(variants.messageEnter);
     // 禁用时去掉手势目标，但保留弹簧，按下后变禁用的按钮仍能回弹
@@ -53,9 +53,9 @@ describe('useMotion', () => {
     mocks.useReducedMotion.mockReturnValue(true);
     const { result } = renderHook(() => useMotion());
 
-    expect(result.current.spring('card')).toEqual({ duration: 0 });
-    expect(result.current.gesture('card')).toEqual({});
-    expect(result.current.gesture('card', { disabled: true })).toEqual({});
+    expect(result.current.spring('portal')).toEqual({ duration: 0 });
+    expect(result.current.gesture('portal')).toEqual({});
+    expect(result.current.gesture('portal', { disabled: true })).toEqual({});
     expect(result.current.variant('sceneEnter')).toEqual({
       hidden: { opacity: 0 },
       visible: { opacity: 1 },

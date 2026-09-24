@@ -123,8 +123,8 @@
   --we-panel-card-shadow: 0 0 0 1px rgba(10, 10, 20, 0.03);
 
   /* ==================== TopBar 壳层 ==================== */
-  --we-topbar-bg: #050508;
-  --we-topbar-border: rgba(0, 212, 255, 0.10);
+  --we-topbar-bg: transparent;
+  --we-topbar-border: transparent;
   --we-topbar-item: rgba(255, 255, 255, 0.50);
   --we-topbar-item-hover: rgba(0, 212, 255, 0.75);
   --we-topbar-sep: rgba(255, 255, 255, 0.15);
@@ -138,6 +138,21 @@
   --we-topbar-item-muted: rgba(255, 255, 255, 0.35);
   --we-topbar-item-faint: rgba(255, 255, 255, 0.55);
   --we-topbar-divider: rgba(0, 212, 255, 0.08);
+
+  /* 背景氛围「光尘」：青色光束，品红压在对角的暗部 */
+  --we-atmosphere-color: var(--we-color-accent);
+  --we-atmosphere-shade: rgba(160, 0, 120, 0.18);
+  --we-atmosphere-opacity: 1;
+  --we-atmosphere-opacity-quiet: 0.4;
+  --we-atmosphere-glow-strength: 14%;
+  --we-atmosphere-grain: 0.05;
+  --we-entry-edge: inset 0 0 0 1px rgba(0, 212, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --we-entry-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.9);
+  --we-entry-shadow-hover: 0 30px 60px -26px rgba(0, 0, 0, 0.95);
+  --we-atmosphere-scrim: radial-gradient(ellipse 64% 110% at 50% 50%, rgba(10, 10, 20, 0.88) 0%, rgba(10, 10, 20, 0.6) 62%, transparent 100%);
+  --we-stage-surface: transparent;
+  --we-glass-bg: rgba(20, 20, 32, 0.8);
+  --we-glass-blur: 16px;
 
   /* ==================== 书脊阴影 ==================== */
   --we-spine-shadow-left: linear-gradient(
@@ -210,8 +225,6 @@
   --we-parchment-fiber-opacity:   0;
   --we-spine-display:             none;
 
-  /* 无封面世界卡占位纹样：霓虹网格（赛博 HUD 风）*/
-  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 20 H40 M20 0 V40' stroke='%2300d4ff' stroke-width='0.5' fill='none' opacity='.12'/%3E%3C/svg%3E");
 
   /* ==================== 条目行 ==================== */
 

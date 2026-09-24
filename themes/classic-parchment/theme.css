@@ -7,7 +7,7 @@
  *   --we-color-bg-muted   → #b8a882  （羊皮纸深面，via --we-base-paper-400）
  *   --we-color-bg-inverse → #3f2f22  （书卷底色/大背景，via --we-base-book-bg）
  *   --we-color-accent     → #a23b2e  （朱砂主色，via --we-base-vermilion-600）
- *   --we-topbar-bg        → #34271c  （TopBar 底色，比页面大背景再暗一阶）
+ *   --we-topbar-bg        → transparent（TopBar 退到边缘，直接压在页面大背景上）
  */
 
 :root {
@@ -95,8 +95,8 @@
   --we-color-accent-border-sm: rgba(162, 59, 46, 0.22);
 
   /* 书卷壳层 */
-  --we-topbar-bg: #34271c;
-  --we-topbar-border: rgba(255, 255, 255, 0.06);
+  --we-topbar-bg: transparent;
+  --we-topbar-border: transparent;
   --we-topbar-item: rgba(255, 255, 255, 0.5);
   --we-topbar-item-hover: rgba(255, 255, 255, 0.75);
   --we-topbar-sep: rgba(255, 255, 255, 0.2);
@@ -110,6 +110,21 @@
   --we-topbar-item-muted: rgba(255, 255, 255, 0.35);
   --we-topbar-item-faint: rgba(255, 255, 255, 0.6);
   --we-topbar-divider: rgba(255, 255, 255, 0.06);
+
+  /* 背景氛围「光尘」：只在深色书桌上飘一层淡金尘；纸面（正文区、浮层）铺回实底，不透光 */
+  --we-atmosphere-color: #d9b56a;
+  --we-atmosphere-shade: rgba(20, 12, 6, 0.35);
+  --we-atmosphere-opacity: 0.55;
+  --we-atmosphere-opacity-quiet: 0.2;
+  --we-atmosphere-glow-strength: 10%;
+  --we-atmosphere-grain: 0.03;
+  --we-entry-edge: inset 0 0 0 1px rgba(255, 244, 222, 0.14), inset 0 1px 0 rgba(255, 244, 222, 0.2);
+  --we-entry-shadow: 0 16px 34px -20px rgba(40, 24, 10, 0.55);
+  --we-entry-shadow-hover: 0 26px 50px -24px rgba(40, 24, 10, 0.65);
+  --we-atmosphere-scrim: var(--we-color-bg-canvas);
+  --we-stage-surface: var(--we-color-bg-canvas);
+  --we-glass-bg: var(--we-color-bg-surface);
+  --we-glass-blur: 0px;
 
   --we-spine-shadow-left: linear-gradient(
     to right,
@@ -188,8 +203,6 @@
   --we-parchment-fiber-opacity:   0.22;
   --we-spine-display:             block;
 
-  /* 无封面世界卡占位纹样：墨纹（羊皮纸上的几缕淡墨曲线）*/
-  --we-world-card-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cpath d='M5 20 Q25 15 45 25 T85 30' stroke='%232a1f17' stroke-width='1' fill='none' opacity='.12'/%3E%3Cpath d='M5 55 Q30 50 55 60 T85 55' stroke='%232a1f17' stroke-width='1' fill='none' opacity='.1'/%3E%3C/svg%3E");
 
   /* 条目行：羊皮纸画布底色，无额外阴影 */
 

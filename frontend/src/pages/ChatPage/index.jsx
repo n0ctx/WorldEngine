@@ -12,6 +12,7 @@ import { getSession, createSession } from '../../core/api/sessions.js';
 import { chatSessionListBridge } from '../../core/utils/session-list-bridge.js';
 import WorldTimelinePanel from '../../components/session/WorldTimelinePanel.jsx';
 import MessageList from '../../components/chat/MessageList.jsx';
+import SpeakerStage from '../../components/chat/SpeakerStage.jsx';
 import InputBox from '../../components/chat/InputBox.jsx';
 import { useDanmakuBandStore } from '../../core/state/danmakuBand.js';
 import ProviderSafetyBanner from '../../components/ui/ProviderSafetyBanner.jsx';
@@ -223,6 +224,8 @@ export default function ChatPage() {
             />
           )}
         </AnimatePresence>
+
+        <SpeakerStage character={character} />
 
         {/* 消息列表 */}
         <MessageList

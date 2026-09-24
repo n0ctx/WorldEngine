@@ -3,8 +3,10 @@
 /* ── WorldsPage 世界列表 ── */
 
 .we-worlds-canvas {
+  /* 入口网格按画布宽度推算行高（见 .we-worlds-grid 的 cqw） */
+  container-type: inline-size;
   height: calc(100vh - 52px);
-  background: var(--we-page-canvas-bg);
+  background: transparent;
   padding: clamp(var(--we-space-xl), 2.4vw, var(--we-space-2xl)) 5% 4%;
   background-image: var(--we-canvas-texture-image);
   overflow-y: auto;
@@ -17,42 +19,65 @@
 .we-worlds-canvas::-webkit-scrollbar-thumb { background: var(--we-page-canvas-fg-muted); border-radius: var(--we-radius-full); }
 
 .we-worlds-header {
-  margin: 0 0 var(--we-space-2xl);
+  margin: 0 0 var(--we-space-xl);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--we-space-lg);
 }
 
+.we-worlds-heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+}
+
+.we-worlds-eyebrow {
+  margin: 0;
+  font-family: var(--we-font-ui);
+  font-size: var(--we-text-xs);
+  letter-spacing: var(--we-tracking-caps);
+  color: var(--we-page-canvas-fg-muted);
+}
+
 .we-worlds-title {
   font-family: var(--we-font-display);
-  font-size: var(--we-text-xl);
+  font-size: var(--we-text-hero);
   font-style: var(--we-page-canvas-title-style);
   font-weight: 600;
   color: var(--we-page-canvas-fg);
-  letter-spacing: 0.05em;
-  line-height: 1.2;
-}
-
-.we-worlds-subtitle {
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--we-page-canvas-fg-muted);
-  margin-top: var(--we-space-sm);
-  display: block;
+  letter-spacing: var(--we-tracking-tight);
+  line-height: var(--we-leading-flush);
 }
 
 .we-worlds-header-actions {
   display: flex;
   align-items: center;
-  gap: var(--we-space-sm);
+  gap: var(--we-space-xs);
   flex-shrink: 0;
-  margin-bottom: calc(-1 * var(--we-space-xs));
 }
 
-/* 三态（加载 / 错误 / 空）容器：拆掉书架框后直接挂在页面上，不再嵌套 */
+/* 页头操作：无框文字按钮，悬停才浮出底色；创建用强调色文字，是这一页唯一的主动作 */
+.we-worlds-header-btn.we-btn {
+  gap: var(--we-space-xs);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--we-page-canvas-fg-muted);
+}
+
+.we-worlds-header-btn.we-btn:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--we-color-white-wash);
+  color: var(--we-page-canvas-fg);
+}
+
+/* 主色掺一半画布前景色：深色主题里是亮一点的主色，羊皮纸主题的深色书桌上暗红主色也能读 */
+.we-worlds-header-btn--create.we-btn,
+.we-worlds-header-btn--create.we-btn:hover:not(:disabled) {
+  color: color-mix(in srgb, var(--we-color-accent) 55%, var(--we-page-canvas-fg));
+}
+
+/* 错误态容器 */
 .we-worlds-state {
   min-height: 360px;
   display: flex;
@@ -60,84 +85,137 @@
   justify-content: center;
   padding: clamp(var(--we-space-lg), 2.2vw, var(--we-space-2xl));
   border-radius: var(--we-radius-xl);
-  /* 空场景：舞台表面 + 向内收的暗角，像一扇还没点亮的入口 */
   background: var(--we-bookshelf-empty-bg);
   border: 1px solid var(--we-bookshelf-empty-border);
-  box-shadow: inset 0 0 80px var(--we-color-ink-wash-strong), var(--we-card-shadow);
 }
 
+/* 空状态：一扇还没点亮的门，与首位世界的大门同位同尺寸，门底透出一线光 */
+.we-worlds-door {
+  position: relative;
+  width: calc(50% - var(--we-space-lg) / 2);
+  aspect-ratio: 16 / 11;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--we-space-2xl) var(--we-space-xl);
+  border-radius: var(--we-radius-lg);
+  background:
+    linear-gradient(180deg, var(--we-bookshelf-empty-bg) 0%, var(--we-color-ink-wash-strong) 100%);
+  box-shadow: var(--we-entry-edge), inset 0 0 120px var(--we-color-ink-wash-strong);
+  overflow: hidden;
+}
+
+.we-worlds-door__seam {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--we-atmosphere-color) 70%, transparent),
+    transparent
+  );
+  box-shadow: 0 0 36px 6px color-mix(in srgb, var(--we-atmosphere-color) 28%, transparent);
+}
+
+.we-worlds-door__content {
+  max-width: 30em;
+}
+
+/* 构图：首位世界是一扇占左半屏的门（跨 2 列 × 2 行，与右侧两排小入口齐高），其余是两两并排的较小场景入口 */
 .we-worlds-grid {
-  --we-worlds-grid-gap-x: clamp(var(--we-space-lg), 2vw, var(--we-space-2xl));
+  --we-worlds-grid-gap-x: var(--we-space-lg);
   --we-worlds-grid-gap-y: var(--we-space-lg);
+  --we-worlds-grid-cols: 4;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--we-worlds-grid-cols), minmax(0, 1fr));
+  /* 行高 = 单列宽 × 11/16：小入口是 16:11 的画面；大门跨两行，与两排小入口严格齐高，
+     世界不足以填满第二排时大门也不会塌 */
+  grid-auto-rows: calc(
+    (100cqw - (var(--we-worlds-grid-cols) - 1) * var(--we-worlds-grid-gap-x))
+    / var(--we-worlds-grid-cols) * 11 / 16
+  );
   column-gap: var(--we-worlds-grid-gap-x);
   row-gap: var(--we-worlds-grid-gap-y);
   width: 100%;
-  align-items: start;
   padding: 0 0 var(--we-space-lg);
 }
 
 .we-world-card-shell {
   width: 100%;
+  height: 100%;
   touch-action: none;
 }
 
-/* 最近打开（或用户拖拽排序后的第一位）世界：占 2×2 大格，成为视线落点 */
 .we-world-card-shell--feature {
   grid-column: span 2;
   grid-row: span 2;
 }
 
-.we-world-card {
-  background: var(--we-card-bg);
-  border: var(--we-card-border);
+.we-world-card-shell .we-skeleton-block--card {
+  height: 100%;
+  aspect-ratio: auto;
   border-radius: var(--we-radius-lg);
-  padding: var(--we-space-lg);
+}
+
+.we-world-card {
   position: relative;
+  height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  box-shadow: var(--we-card-shadow);
+  padding: var(--we-space-lg);
+  border-radius: var(--we-radius-lg);
+  background: var(--we-card-bg);
+  box-shadow: var(--we-entry-shadow);
   cursor: pointer;
+  overflow: hidden;
+  z-index: var(--we-z-card-overlay);
   /* 靠近 / 压缩 / 回弹由 framer 弹簧驱动（WorldsPage），CSS 只过渡投影 */
   transition: box-shadow var(--we-duration-normal) var(--we-easing-sharp);
-  overflow: hidden;
-  aspect-ratio: 16 / 10;
-  width: 100%;
-  z-index: var(--we-z-card-overlay);
-  margin-bottom: 0;
 }
 
-/* 无封面卡：信息量只有标题一行，等高等宽会让全书架里内容最少的卡占最大视觉面积
-   （书架下半屏因此显得又空又沉）。压低无封面卡的行高，让视觉重量与信息量匹配。
-   只走「收窄」这一个方向，不叠加加纹理、放大标题这类给空卡加戏的做法。 */
-.we-world-card--tinted:not(.we-world-card--feature) {
-  aspect-ratio: 2.15;
+/* 边缘高光单独一层压在画面之上：封面图不会盖住描边，边缘始终是一圈细光而不是硬切 */
+.we-world-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--we-entry-edge);
+  pointer-events: none;
+  z-index: var(--we-z-card-content);
 }
 
-.we-world-card:hover {
-  box-shadow: var(--we-card-hover-shadow);
+.we-world-card--feature {
+  border-radius: var(--we-radius-xl);
+  padding: clamp(var(--we-space-lg), 2.4vw, var(--we-space-2xl));
+}
+
+/* 悬停 / 聚焦：门框透出这个世界的光（背景氛围此时也换成同一种颜色） */
+.we-world-card:hover,
+.we-world-card[data-dragging] {
+  box-shadow:
+    var(--we-entry-shadow-hover),
+    0 0 72px -20px color-mix(in srgb, var(--we-atmosphere-color) 35%, transparent);
 }
 
 .we-world-card:focus-visible {
   outline: none;
-  box-shadow: var(--we-focus-ring), var(--we-card-hover-shadow);
+  box-shadow:
+    var(--we-focus-ring),
+    var(--we-entry-shadow-hover),
+    0 0 72px -20px color-mix(in srgb, var(--we-atmosphere-color) 35%, transparent);
 }
 
 .we-world-card[data-dragging] {
   cursor: grabbing;
-  box-shadow: var(--we-card-hover-shadow);
-}
-
-.we-world-card:hover .we-world-card-actions,
-.we-world-card:focus-within .we-world-card-actions {
-  opacity: 1;
 }
 
 /* 拖拽排序放下动画期间禁用 opacity 过渡，防止 hover 状态因 FLIP 位移动画暂时丢失而闪烁 */
 .we-worlds-grid[data-dropping] .we-world-card-desc,
-.we-worlds-grid[data-dropping] .we-world-card-meta,
 .we-worlds-grid[data-dropping] .we-world-card-actions {
   transition: none;
 }
@@ -148,25 +226,6 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: var(--we-z-card-bg);
-}
-
-/* 无封面世界：渐变占位 + 主题纹样叠加，取代纯色块。
-   --avatar-bg 是 JS 哈希取色，与画布色做 135° 柔和渐变；主题可通过
-   --we-world-card-pattern 叠加 SVG 纹样（星点/墨纹/网格）提升视觉质感。 */
-.we-world-card-block {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  /* 渐变占位：基于世界 ID 哈希色 + 画布色的柔和渐变 */
-  background:
-    var(--we-world-card-pattern, none),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--avatar-bg, var(--we-color-accent)) 60%, var(--we-color-bg-canvas) 40%),
-      color-mix(in srgb, var(--avatar-bg, var(--we-color-accent)) 30%, var(--we-color-bg-canvas) 70%)
-    );
-  background-size: cover, 100% 100%;
   z-index: var(--we-z-card-bg);
 }
 
@@ -196,68 +255,58 @@
   opacity: 0;
 }
 
-.we-world-card:hover .we-world-card-overlay::before,
-.we-world-card:focus-within .we-world-card-overlay::before {
+.we-world-card:not(.we-world-card--feature):hover .we-world-card-overlay::before,
+.we-world-card:not(.we-world-card--feature):focus-within .we-world-card-overlay::before {
   opacity: 0;
 }
 
-.we-world-card:hover .we-world-card-overlay::after,
-.we-world-card:focus-within .we-world-card-overlay::after {
+.we-world-card:not(.we-world-card--feature):hover .we-world-card-overlay::after,
+.we-world-card:not(.we-world-card--feature):focus-within .we-world-card-overlay::after {
   opacity: 1;
 }
 
-.we-world-card--has-cover .we-world-card-name,
-.we-world-card--has-cover .we-world-card-desc,
-.we-world-card--tinted .we-world-card-name,
-.we-world-card--tinted .we-world-card-desc {
+/* 下缘：名字压在画面底部，下面是一排角色头像 */
+.we-world-card-foot {
+  position: relative;
   z-index: var(--we-z-card-content);
-  color: var(--we-card-cover-text-color);
-}
-
-.we-world-card--has-cover .we-world-card-actions,
-.we-world-card--tinted .we-world-card-actions {
-  z-index: var(--we-z-card-content);
-}
-
-.we-world-card--has-cover .we-world-card-meta,
-.we-world-card--tinted .we-world-card-meta {
-  color: var(--we-card-cover-meta-color);
-  z-index: var(--we-z-card-content);
-  /* 大格常驻显示元信息，压在封面图上；背景是图不是纯色，按最坏情况（图像最亮处）
-     兜底加暗投影，避免浅色封面下 meta 文字对比度不足（实测过曾低于 4.5:1）。 */
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 1px 6px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: var(--we-space-sm);
+  min-width: 0;
 }
 
 .we-world-card-name {
-  position: relative;
   font-family: var(--we-font-display);
   font-size: var(--we-text-lg);
   font-style: var(--we-card-name-font-style);
-  font-weight: 700;
-  color: var(--we-color-text-primary);
-  margin-bottom: var(--we-space-xs);
-  line-height: 1.3;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.35);
+  font-weight: 600;
+  line-height: var(--we-leading-tight);
+  letter-spacing: var(--we-tracking-tight);
+  color: var(--we-card-cover-text-color);
+  /* 可读性主要靠底部渐变遮罩，字本身只留一道很轻的投影 */
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
 }
 
 .we-world-card--feature .we-world-card-name {
-  font-size: var(--we-text-xl);
+  font-size: var(--we-text-hero);
+  line-height: var(--we-leading-flush);
+  letter-spacing: var(--we-tracking-tight);
 }
 
+/* 小入口的简介浮在画面上沿，只在悬停/聚焦时出现，不挤动底部的名字 */
 .we-world-card-desc {
+  position: absolute;
+  bottom: calc(100% + var(--we-space-md));
+  left: 0;
+  right: 0;
   font-family: var(--we-font-prose);
   font-size: var(--we-text-sm);
   line-height: 1.7;
-  color: var(--we-color-text-secondary);
+  color: var(--we-card-cover-text-color);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  /* 简介浮在画面上沿，只在悬停/聚焦时出现，不挤动底部的标题 */
-  position: absolute;
-  top: var(--we-space-lg);
-  left: var(--we-space-lg);
-  right: var(--we-space-lg);
   opacity: 0;
   transition: opacity var(--we-duration-normal) var(--we-easing-sharp);
 }
@@ -267,59 +316,132 @@
   opacity: 1;
 }
 
-.we-world-card-meta {
-  font-family: var(--we-font-ui);
-  font-size: var(--we-text-xs);
-  letter-spacing: 0.04em;
-  color: var(--we-color-text-tertiary);
-  display: flex;
-  gap: var(--we-space-sm);
-  align-items: center;
-  position: relative;
-  /* 给右下角的操作按钮留位 */
-  padding-right: 104px;
+/* 大门的简介常驻在名字下方 */
+.we-world-card--feature .we-world-card-desc {
+  position: static;
+  max-width: 34em;
+  font-size: var(--we-text-base);
+  color: var(--we-card-cover-meta-color);
+  -webkit-line-clamp: 2;
+  opacity: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
+.we-world-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  font-family: var(--we-font-ui);
+  font-size: var(--we-text-xs);
+  letter-spacing: var(--we-tracking-tight);
+  color: var(--we-card-cover-meta-color);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
+}
+
+/* 角色头像叠成一排，边缘互相压住一点，像站在门口的一群人 */
+.we-world-card-cast {
+  --cast-size: 24px; /* design exact: 小入口头像，低于通用 sm 档 */
+  display: inline-flex;
+  align-items: center;
+}
+
+.we-world-card--feature .we-world-card-cast {
+  --cast-size: 30px; /* design exact */
+}
+
+.we-world-card-cast .we-avatar-circle,
+.we-world-card-cast-more {
+  width: var(--cast-size);
+  height: var(--cast-size);
+  box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.55);
+}
+
+/* 没有头像的角色：不用哈希出的高饱和色块，统一成半透明玻璃底 + 淡字，和封面融在一起 */
+.we-world-card-cast .we-avatar-circle--placeholder,
+.we-world-card-cast-more {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(6px);
+  color: var(--we-card-cover-meta-color);
+  font-size: calc(var(--cast-size) * 0.44);
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.we-world-card-cast > * + * {
+  margin-left: calc(var(--cast-size) * -0.28);
+}
+
+.we-world-card-cast-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--cast-size);
+  width: auto;
+  padding: 0 5px; /* design exact: +N 两位数时的左右留白 */
+  border-radius: var(--we-radius-full);
+  font-variant-numeric: tabular-nums;
+}
+
+.we-world-card-cast-empty,
+.we-world-card-time {
+  opacity: 0.62;
+}
+
+/* 操作位：右上角一个安静的"⋯"，悬停/聚焦时浮现，展开后才露出导出 / 编辑 / 删除 */
 .we-world-card-actions {
   position: absolute;
-  bottom: var(--we-space-md);
+  top: var(--we-space-md);
   right: var(--we-space-md);
+  z-index: var(--we-z-card-content);
   display: flex;
   gap: var(--we-space-xs);
   opacity: 0;
   transition: opacity var(--we-duration-fast);
 }
 
+.we-world-card:hover .we-world-card-actions,
+.we-world-card:focus-within .we-world-card-actions,
+.we-world-card-actions--open {
+  opacity: 1;
+}
+
+/* 触屏没有悬停：操作位常驻，但保持低调 */
+@media (hover: none) {
+  .we-world-card-actions {
+    opacity: 0.85;
+  }
+}
+
 .we-world-card-action-btn {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--we-radius-full);
-  border: 1px solid var(--we-color-border-default);
-  background: var(--we-color-bg-elevated);
-  color: var(--we-color-text-secondary);
+  border: 1px solid transparent;
+  background: var(--we-color-overlay-medium);
+  backdrop-filter: blur(var(--we-glass-blur));
+  color: var(--we-card-cover-text-color);
   cursor: pointer;
-  font-size: var(--we-text-sm);
   transition: border-color var(--we-duration-fast) var(--we-easing-sharp),
-              color var(--we-duration-fast) var(--we-easing-sharp);
+              color var(--we-duration-fast) var(--we-easing-sharp),
+              background var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-world-card-action-btn:hover {
-  border-color: var(--we-color-text-tertiary);
-  color: var(--we-color-text-primary);
+  background: var(--we-color-overlay-heavy);
+  border-color: var(--we-color-border-default);
 }
 
 .we-world-card-action-btn.danger:hover {
-  border-color: var(--we-color-accent);
-  color: var(--we-color-accent);
+  border-color: var(--we-color-status-danger);
+  color: var(--we-color-status-danger);
 }
 
 .we-world-card-action-btn:focus-visible {
   outline: none;
   border-color: var(--we-color-border-focus);
-  color: var(--we-color-text-primary);
   box-shadow: var(--we-focus-ring);
 }
 
@@ -376,7 +498,7 @@
 /* ── CharactersPage 角色名册 ── */
 
 .we-characters-canvas {
-  background: var(--we-page-canvas-bg);
+  background: transparent;
   height: calc(100vh - 52px);
   padding: var(--we-space-2xl) var(--we-space-2xl);
   position: relative;
@@ -1451,7 +1573,7 @@
 
 .we-edit-canvas {
   min-height: 100%;
-  background: var(--we-page-canvas-bg);
+  background: transparent;
   padding: 0 var(--we-space-lg) var(--we-space-2xl);
   background-image: var(--we-canvas-texture-image);
 }
@@ -1808,7 +1930,8 @@
 .we-settings-panel {
   max-width: 1040px;
   margin: var(--we-space-xl) auto 0;
-  background: var(--we-color-bg-surface);
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
   border: 1px solid var(--we-color-border-subtle);
   border-radius: var(--we-radius-xl);
   box-shadow: var(--we-shadow-dialog);
@@ -1837,7 +1960,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-lg);
-  background: var(--we-color-bg-subtle);
+  background: transparent;
 }
 
 .we-settings-nav-header {
@@ -1848,10 +1971,10 @@
 }
 
 .we-settings-nav-title {
-  font-family: var(--we-font-prose);
+  font-family: var(--we-font-display);
   font-size: var(--we-text-xl);
   font-style: normal;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--we-color-text-primary);
   margin: 0;
 }
@@ -1932,7 +2055,8 @@
   position: fixed;
   inset: 52px 0 0;
   z-index: var(--we-z-sticky);
-  background: var(--we-color-shadow-xl);
+  background: var(--we-color-bg-overlay);
+  backdrop-filter: blur(6px);
   overflow: hidden;
   padding: 0 var(--we-space-xl) var(--we-space-xl);
   box-sizing: border-box;
@@ -2967,9 +3091,11 @@
   }
 
   .we-worlds-grid {
-    --we-worlds-grid-gap-x: var(--we-space-lg);
-    --we-worlds-grid-gap-y: var(--we-space-lg);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --we-worlds-grid-cols: 2;
+  }
+
+  .we-worlds-door {
+    width: 100%;
   }
 
   /* 世界层双栏改为上下堆叠，各栏不再自带滚动，统一由 .we-characters-canvas 整页滚动 */
@@ -3029,14 +3155,25 @@
 
 @media (max-width: 640px) {
   .we-worlds-grid {
-    grid-template-columns: 1fr;
+    --we-worlds-grid-cols: 1;
+    grid-auto-rows: auto;
     padding: var(--we-space-xs) 0 var(--we-space-lg);
   }
 
-  /* 单列视口下大格没有第二列可跨，退化为普通格 */
+  .we-world-card-shell {
+    aspect-ratio: 16 / 10;
+  }
+
+  /* 单列：大门占满首屏宽度，竖长比例像一扇门；其余入口单列排在下面 */
   .we-world-card-shell--feature {
     grid-column: span 1;
     grid-row: span 1;
+    aspect-ratio: 4 / 5;
+  }
+
+  .we-worlds-door {
+    width: 100%;
+    aspect-ratio: 4 / 5;
   }
 }
 
@@ -3391,7 +3528,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--we-color-bg-surface);
+  background: var(--we-glass-bg);
+  backdrop-filter: blur(var(--we-glass-blur));
   transition: flex-basis var(--we-duration-slow) var(--we-easing-page),
     min-width var(--we-duration-slow) var(--we-easing-page),
     max-width var(--we-duration-slow) var(--we-easing-page);
@@ -3502,7 +3640,7 @@
   position: relative;
   overflow: hidden;
   border-radius: 0;
-  background: var(--we-color-bg-canvas);
+  background: var(--we-stage-surface);
   padding: 44px 52px 28px 60px;
 }
 
