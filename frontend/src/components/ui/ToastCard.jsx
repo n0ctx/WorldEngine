@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import Icon from './Icon.jsx';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const TYPE_META = {
   error: { color: 'var(--we-color-status-danger)', seal: '驳' },
@@ -25,13 +26,13 @@ export default function ToastCard({ toast, onClose, onMouseEnter, onMouseLeave }
     ? {
       initial: { opacity: 0 },
       animate: { opacity: 1 },
-      exit: { opacity: 0, transition: { duration: 0.18 } },
-      transition: { duration: 0.2 },
+      exit: { opacity: 0, transition: { duration: DURATION.quick, ease: EASE.retract } },
+      transition: { duration: DURATION.quick, ease: EASE.ink },
     }
     : {
       initial: { opacity: 0, scale: 0.9, y: -8 },
       animate: { opacity: 1, scale: 1, y: 0 },
-      exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: 0.18 } },
+      exit: { opacity: 0, x: 24, scale: 0.96, transition: { duration: DURATION.quick, ease: EASE.retract } },
       transition: m.spring('message'),
       whileHover: { scale: 1.01 },
     };

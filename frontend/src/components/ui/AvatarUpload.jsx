@@ -1,3 +1,5 @@
+import GridReveal from '../motion/GridReveal.jsx';
+
 export default function AvatarUpload({
   name,
   avatarUrl,
@@ -20,7 +22,7 @@ export default function AvatarUpload({
     <div className="we-avatar-upload">
       <button type="button" className="we-avatar-wrap" onClick={onAvatarClick} aria-label={hint}>
         {avatarUrl ? (
-          <img src={avatarUrl} alt={name} className={imgClass} />
+          <GridReveal src={avatarUrl} alt={name} aspect={isRect ? 240 / 150 : 1} className={imgClass} />
         ) : (
           <div className={placeholderClass} style={{ '--avatar-bg': avatarColor }}>
             {initial}

@@ -16,6 +16,8 @@ import EmptyState from '../components/ui/EmptyState.jsx';
 import AvatarCircle from '../components/ui/AvatarCircle.jsx';
 import WorldSceneArt from '../components/ui/WorldSceneArt.jsx';
 import Button from '../components/ui/Button.jsx';
+import AnimatedCounter from '../components/motion/AnimatedCounter.jsx';
+import FluidOrb from '../components/motion/FluidOrb.jsx';
 import { log } from '../core/utils/logger.js';
 import { useMotion } from '../core/hooks/useMotion.js';
 import { STAGGER } from '../core/utils/motion.js';
@@ -217,7 +219,7 @@ export default function WorldsPage() {
       {/* 页头 */}
       <div className="we-worlds-header">
         <div className="we-worlds-heading">
-          {worlds.length > 0 ? <p className="we-worlds-eyebrow">{worlds.length} 个世界</p> : null}
+          {worlds.length > 0 ? <p className="we-worlds-eyebrow"><AnimatedCounter value={worlds.length} /> 个世界</p> : null}
           <h1 className="we-worlds-title">世界</h1>
         </div>
         <div className="we-worlds-header-actions">
@@ -281,6 +283,7 @@ export default function WorldsPage() {
           <div className="we-worlds-door__seam" aria-hidden="true" />
           <EmptyState
             className="we-worlds-door__content"
+            icon={<FluidOrb size={56} />}
             title="暂无世界记录"
             hint="一个「世界」是一整套故事设定：背景、角色、这里什么是真的。建好之后你可以在里面对话或写故事，AI 全程按这套设定来。如果手头已经有别人做好的世界卡，也可以直接导入，不用从零开始写。"
             primaryAction={{ label: '新建世界', onClick: () => navigate('/worlds/new', { state: { backgroundLocation: location } }) }}

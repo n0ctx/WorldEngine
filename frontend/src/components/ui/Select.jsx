@@ -104,9 +104,9 @@ export default function Select({
         {open && (
           <motion.ul
             className="we-select-dropdown"
-            initial={{ opacity: 0, scaleY: 0.92, y: yOffset }}
-            animate={{ opacity: 1, scaleY: 1,    y: 0 }}
-            exit={{   opacity: 0, scaleY: 0.92, y: yOffset }}
+            initial={{ opacity: 0, y: yOffset }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{   opacity: 0, y: yOffset }}
             transition={{ duration: DURATION.quick, ease: EASE.ink }}
             style={dropStyle}
           >

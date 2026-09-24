@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { StreamCaret } from './StreamingMarkdown.jsx';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -37,7 +38,7 @@ export default function OptionCard({ options, streaming, onSelect, initialCollap
     <MotionDiv
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
+      transition={{ duration: DURATION.quick, ease: EASE.ink }}
       className="px-4 pb-2 shrink-0"
     >
       <div className="max-w-[800px] mx-auto">

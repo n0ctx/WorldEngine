@@ -6,7 +6,9 @@ import EntryEditor from '../../components/state/EntryEditor';
 import DragHandle from '../../components/ui/DragHandle.jsx';
 import Icon from '../../components/ui/Icon.jsx';
 import SortableList from '../../components/ui/SortableList.jsx';
-import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import DeleteButton from '../../components/motion/DeleteButton.jsx';
+import HookRail from '../../components/motion/HookRail.jsx';
+import AnimatedCounter from '../../components/motion/AnimatedCounter.jsx';
 import {
   listWorldStateFields, createWorldStateField, updateWorldStateField, deleteWorldStateField,
 } from '../../core/api/world-state-fields';
@@ -57,6 +59,13 @@ const SCOPES = {
   },
 };
 const FIELD_SCOPE_KEYS = ['world', 'character', 'persona'];
+// 左栏导航项：选中态同时写 class（底色）和 aria-current（读屏，也是钩形导轨的定位依据）
+const navItemProps = (active) => ({
+  'data-hook-item': true,
+  'aria-current': active ? 'page' : undefined,
+  className: `we-workshop-nav-item${active ? ' is-active' : ''}`,
+});
+
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 
 // 触发机制：条目的一个属性（何时生效），不再是左栏分类维度——
@@ -82,7 +91,6 @@ export default function RulesPage() {
   const [orderMode, setOrderMode] = useState(false);
   const [selectedEntryId, setSelectedEntryId] = useState(null);
   const [creatingEntry, setCreatingEntry] = useState(false);
-  const [confirmingDeleteEntry, setConfirmingDeleteEntry] = useState(null);
 
   // ── 状态字段 ──
   const [fieldsByScope, setFieldsByScope] = useState({ world: [], character: [], persona: [] });
@@ -94,6 +102,7 @@ export default function RulesPage() {
   // 顶层导航：'entries'（设定条目）| 'fields'（状态字段）。旧的 /state-workshop
   // 路由重定向到 ?tab=state，落在这里默认打开状态字段视图。
   const [navMode, setNavMode] = useState(searchParams.get('tab') === 'state' ? 'fields' : 'entries');
+  const navRef = useRef(null);
 
   const fieldScope = SCOPES[fieldScopeKey];
   const fields = fieldsByScope[fieldScopeKey];
@@ -165,11 +174,10 @@ export default function RulesPage() {
     setCreatingField(false);
   }
 
-  async function handleDeleteEntry() {
+  async function handleDeleteEntry(entry) {
     try {
-      await deleteWorldEntry(confirmingDeleteEntry.id);
-      if (selectedEntryId === confirmingDeleteEntry.id) setSelectedEntryId(null);
-      setConfirmingDeleteEntry(null);
+      await deleteWorldEntry(entry.id);
+      if (selectedEntryId === entry.id) setSelectedEntryId(null);
       refreshEntries();
     } catch (e) {
       log.error('entry.delete_failed', e, { toast: '删除失败：' + (e?.message || '未知错误') });
@@ -226,35 +234,36 @@ export default function RulesPage() {
 
         <div className="we-workshop-body we-workshop-body--3col">
           {/* 左：导航 */}
-          <nav className="we-workshop-nav">
+          <nav ref={navRef} className="we-workshop-nav">
+            <HookRail containerRef={navRef} activeKey={`${navMode}:${entryFilter}:${fieldScopeKey}`} />
             <div className="we-workshop-nav-group">
               <div className="we-workshop-nav-group-title">设定条目</div>
               <button
                 data-testid="nav-entries-all"
-                className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === 'all' ? ' is-active' : ''}`}
+                {...navItemProps(navMode === 'entries' && entryFilter === 'all')}
                 onClick={() => selectEntryGroup('all')}
               >
                 <span>全部</span>
-                <span className="we-field-badge">{entries.length}</span>
+                <span className="we-field-badge"><AnimatedCounter value={entries.length} /></span>
               </button>
               {groupList.named.map(([name, count]) => (
                 <button
                   key={name}
                   data-testid={`nav-entries-group-${name}`}
-                  className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === name ? ' is-active' : ''}`}
+                  {...navItemProps(navMode === 'entries' && entryFilter === name)}
                   onClick={() => selectEntryGroup(name)}
                 >
                   <span>{name}</span>
-                  <span className="we-field-badge">{count}</span>
+                  <span className="we-field-badge"><AnimatedCounter value={count} /></span>
                 </button>
               ))}
               <button
                 data-testid="nav-entries-ungrouped"
-                className={`we-workshop-nav-item${navMode === 'entries' && entryFilter === UNGROUPED ? ' is-active' : ''}`}
+                {...navItemProps(navMode === 'entries' && entryFilter === UNGROUPED)}
                 onClick={() => selectEntryGroup(UNGROUPED)}
               >
                 <span>未分组</span>
-                <span className="we-field-badge">{groupList.ungroupedCount}</span>
+                <span className="we-field-badge"><AnimatedCounter value={groupList.ungroupedCount} /></span>
               </button>
             </div>
 
@@ -264,11 +273,11 @@ export default function RulesPage() {
                 <button
                   key={k}
                   data-testid={`nav-fields-${k}`}
-                  className={`we-workshop-nav-item${navMode === 'fields' && fieldScopeKey === k ? ' is-active' : ''}`}
+                  {...navItemProps(navMode === 'fields' && fieldScopeKey === k)}
                   onClick={() => selectFieldScope(k)}
                 >
                   <span>{SCOPES[k].label}状态</span>
-                  <span className="we-field-badge">{fieldsByScope[k].length}</span>
+                  <span className="we-field-badge"><AnimatedCounter value={fieldsByScope[k].length} /></span>
                 </button>
               ))}
             </div>
@@ -334,7 +343,7 @@ export default function RulesPage() {
                   selectedId={selectedEntryId}
                   onSelect={(entry) => { setSelectedEntryId(entry.id); setCreatingEntry(false); }}
                   onToggle={handleToggleEntry}
-                  onDelete={setConfirmingDeleteEntry}
+                  onDelete={handleDeleteEntry}
                 />
               )}
             </section>
@@ -451,16 +460,6 @@ export default function RulesPage() {
         />
       )}
 
-      {confirmingDeleteEntry && (
-        <ConfirmModal
-          title="删除条目"
-          message={`确认删除条目「${confirmingDeleteEntry.title}」？此操作不可撤销。`}
-          confirmText="删除"
-          danger
-          onConfirm={handleDeleteEntry}
-          onClose={() => setConfirmingDeleteEntry(null)}
-        />
-      )}
     </div>
   );
 }
@@ -482,16 +481,16 @@ function RulesOverview({ entries, fieldsByScope, hint }) {
         <div className="we-rules-overview-stats">
           {TRIGGER_TYPES.map((t) => (
             <div key={t.key} className="we-rules-overview-stat">
-              <span className="we-rules-overview-stat-value">{entries.filter((e) => e.trigger_type === t.key).length}</span>
+              <span className="we-rules-overview-stat-value"><AnimatedCounter value={entries.filter((e) => e.trigger_type === t.key).length} /></span>
               <span className="we-rules-overview-stat-label">{t.label}</span>
             </div>
           ))}
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value">{enabledCount}</span>
+            <span className="we-rules-overview-stat-value"><AnimatedCounter value={enabledCount} /></span>
             <span className="we-rules-overview-stat-label">已启用</span>
           </div>
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value">{disabledCount}</span>
+            <span className="we-rules-overview-stat-value"><AnimatedCounter value={disabledCount} /></span>
             <span className="we-rules-overview-stat-label">已禁用</span>
           </div>
         </div>
@@ -502,12 +501,12 @@ function RulesOverview({ entries, fieldsByScope, hint }) {
         <div className="we-rules-overview-stats">
           {FIELD_SCOPE_KEYS.map((k) => (
             <div key={k} className="we-rules-overview-stat">
-              <span className="we-rules-overview-stat-value">{fieldsByScope[k].length}</span>
+              <span className="we-rules-overview-stat-value"><AnimatedCounter value={fieldsByScope[k].length} /></span>
               <span className="we-rules-overview-stat-label">{SCOPES[k].label}</span>
             </div>
           ))}
           <div className="we-rules-overview-stat">
-            <span className="we-rules-overview-stat-value">{fieldTotal}</span>
+            <span className="we-rules-overview-stat-value"><AnimatedCounter value={fieldTotal} /></span>
             <span className="we-rules-overview-stat-label">合计</span>
           </div>
         </div>
@@ -575,12 +574,7 @@ function EntryPlainList({ entries, selectedId, onSelect, onToggle, onDelete }) {
             >
               <span className="we-entry-section-toggle-thumb" />
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(entry); }}
-              className="we-entry-section-action we-entry-section-action--danger"
-            >
-              删除
-            </button>
+            <DeleteButton label={`删除条目「${entry.title || '（无标题）'}」`} onConfirm={() => onDelete(entry)} />
           </div>
         </div>
       ))}

@@ -265,6 +265,9 @@
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
 }
+.we-empty-state__icon:has(.we-fluid-orb) {
+  opacity: 1;
+}
 .we-empty-state__title {
   font-family: var(--we-font-display);
   font-size: var(--we-text-lg);
@@ -538,7 +541,7 @@
   padding: 0;
   line-height: var(--we-leading-flush);
   font-size: var(--we-text-body);
-  transition: opacity var(--we-duration-fast);
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-tag button:hover { opacity: 1; }
@@ -822,7 +825,7 @@
   height: 14px;
   flex-shrink: 0;
   color: var(--we-color-text-tertiary);
-  transition: transform var(--we-duration-fast);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink);
 }
 .we-select-trigger.open .we-select-chevron {
   transform: rotate(180deg);
@@ -850,7 +853,7 @@
   color: var(--we-color-text-secondary);
   cursor: pointer;
   user-select: none;
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-select-option:hover {
   background: var(--we-color-bg-surface);
@@ -888,7 +891,7 @@
   border-radius: var(--we-radius-full);
   padding: 8px var(--we-space-lg); /* 8px: design exact */
   cursor: pointer;
-  transition: color var(--we-duration-fast), background var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-confirm-cancel:hover:not(:disabled) {
   color: var(--we-color-text-primary);
@@ -915,7 +918,7 @@
   padding: 8px var(--we-space-lg); /* 8px: design exact */
   cursor: pointer;
   box-shadow: var(--we-material-raised);
-  transition: box-shadow var(--we-duration-fast) var(--we-easing-sharp), filter var(--we-duration-fast);
+  transition: box-shadow var(--we-duration-fast) var(--we-easing-sharp), filter var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-confirm-ok.danger {
   background: var(--we-material-raised-face), var(--we-color-status-danger);
@@ -1011,7 +1014,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-avatar-mask--rect {
@@ -1026,7 +1029,7 @@
   color: var(--we-color-text-inverse);
   font-size: var(--we-text-2xs);
   opacity: 0;
-  transition: opacity var(--we-duration-fast);
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-avatar-wrap:hover .we-avatar-mask span {
@@ -1186,7 +1189,7 @@
   cursor: pointer;
   color: var(--we-color-text-tertiary);
   border-radius: var(--we-radius-sm);
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-session-item__icon-btn:hover {
@@ -1367,7 +1370,7 @@
   background: var(--we-color-bg-muted);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: background var(--we-duration-fast), border-color var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-trigger-filter-chip:hover { background: var(--we-color-bg-subtle); }
 .we-trigger-filter-chip.is-active {
@@ -1392,7 +1395,7 @@
   background: var(--we-color-bg-canvas);
   border: 1px solid var(--we-color-border-default);
   cursor: pointer;
-  transition: background var(--we-duration-fast), border-color var(--we-duration-fast), color var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp), border-color var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-trigger-segmented-btn:hover { background: var(--we-color-bg-subtle); }
 .we-trigger-segmented-btn.is-active {
@@ -1620,7 +1623,7 @@
   margin: 0;
   display: inline-block;
   vertical-align: middle;
-  transition: border-color var(--we-duration-fast), background var(--we-duration-fast);
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-entry-editor-scope-item input[type="checkbox"]:hover {
   border-color: var(--we-color-accent);
@@ -1649,7 +1652,7 @@
   cursor: pointer;
   line-height: var(--we-leading-flush);
   opacity: 0.6;
-  transition: opacity var(--we-duration-fast);
+  transition: opacity var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-regex-dialog-close:hover {
@@ -1780,7 +1783,7 @@
   padding: var(--we-space-sm) var(--we-space-md);
   cursor: grab;
   user-select: none;
-  transition: border-color var(--we-duration-fast);
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-regex-rule-row:hover {
@@ -1848,7 +1851,7 @@
   color: var(--we-color-text-tertiary);
   background: transparent;
   cursor: pointer;
-  transition: border-color var(--we-duration-fast), background var(--we-duration-fast), color var(--we-duration-fast);
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-regex-rule-toggle--enabled {
@@ -1868,7 +1871,7 @@
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   font-size: var(--we-text-xs);
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-regex-rule-icon-btn:hover {
@@ -1889,7 +1892,7 @@
   background: var(--we-color-bg-canvas);
   color: var(--we-color-text-secondary);
   cursor: pointer;
-  transition: border-color var(--we-duration-fast), background var(--we-duration-fast), color var(--we-duration-fast);
+  transition: border-color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp), color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-flags-btn:hover {
@@ -1945,7 +1948,7 @@
   width: 36px;
   align-items: center;
   border-radius: var(--we-radius-full);
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
   background: var(--we-color-border-default);
   border: none;
   cursor: pointer;
@@ -1967,7 +1970,7 @@
   background: var(--we-color-text-inverse);
   box-shadow: 0 1px 3px var(--we-color-shadow-lg);
   transform: translateX(3px);
-  transition: transform var(--we-duration-fast);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink);
 }
 .we-toggle-thumb--enabled {
   transform: translateX(19px);
@@ -1990,7 +1993,7 @@
   background: var(--we-color-bg-canvas);
   color: var(--we-color-text-primary);
   overflow: hidden;
-  transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
+  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
   display: flex;
   flex-direction: column;
   resize: vertical;
@@ -2022,18 +2025,19 @@
   cursor: pointer;
   line-height: var(--we-leading-snug);
   letter-spacing: var(--we-tracking-tight);
-  transition: color var(--we-duration-fast), background var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-md-toolbar button::after {
   content: '';
   position: absolute;
   bottom: 1px;
-  left: 50%;
-  right: 50%;
+  left: 6px;
+  right: 6px;
   height: 1.5px;
   background: var(--we-color-accent);
-  transition: left var(--we-duration-fast), right var(--we-duration-fast);
+  transform: scaleX(0);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink);
   opacity: 0;
 }
 
@@ -2047,8 +2051,7 @@
 }
 
 .we-md-toolbar button.active::after {
-  left: 6px;
-  right: 6px;
+  transform: none;
   opacity: 1;
 }
 
@@ -2125,7 +2128,7 @@
   cursor: pointer;
   background: none;
   outline: none;
-  transition: color var(--we-duration-normal), box-shadow var(--we-duration-normal), background var(--we-duration-normal);
+  transition: color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp), background var(--we-duration-normal) var(--we-easing-sharp);
   white-space: nowrap;
   color: var(--we-topbar-item);
 }
@@ -2244,7 +2247,7 @@
 .we-topbar-dropdown-item {
   color: var(--we-topbar-item-faint);
   font-size: var(--we-text-sm);
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-topbar-dropdown-item:hover {
@@ -2264,7 +2267,7 @@
 .we-topbar-dropdown-list-btn {
   color: var(--we-topbar-item-muted);
   font-size: var(--we-text-xs);
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-topbar-dropdown-list-btn:hover {
@@ -2449,7 +2452,7 @@
   border-radius: var(--we-radius-sm);
   overflow: hidden;
   box-shadow: var(--we-shadow-paper-indent);
-  transition: border-color var(--we-duration-normal), box-shadow var(--we-duration-normal);
+  transition: border-color var(--we-duration-normal) var(--we-easing-sharp), box-shadow var(--we-duration-normal) var(--we-easing-sharp);
 }
 
 .we-combobox-input {
@@ -2481,7 +2484,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-combobox-toggle:focus-visible {
@@ -2497,7 +2500,7 @@
 .we-combobox-chevron {
   width: 14px;
   height: 14px;
-  transition: transform var(--we-duration-fast);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink);
 }
 
 .we-settings-panel .we-combobox-input {
@@ -2540,7 +2543,7 @@
   color: var(--we-color-text-secondary);
   cursor: pointer;
   user-select: none;
-  transition: background var(--we-duration-fast);
+  transition: background var(--we-duration-fast) var(--we-easing-sharp);
   list-style: none;
 }
 
@@ -2606,7 +2609,7 @@
   border: 2px solid var(--we-color-accent);
   box-shadow: var(--we-shadow-range-thumb);
   cursor: pointer;
-  transition: transform var(--we-duration-fast), box-shadow var(--we-duration-fast);
+  transition: transform var(--we-duration-fast) var(--we-easing-ink), box-shadow var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-range::-webkit-slider-thumb:hover,
@@ -2633,15 +2636,11 @@
 
 /* — 骨架屏 + 字段入场动画 ─ */
 /* ── 骨架屏动画 ─── */
-@keyframes we-panel-skeleton {
-  0%, 100% { opacity: 0.6; }
-  50%       { opacity: 1;   }
-}
 .we-skel {
   display: block;
   border-radius: var(--we-radius-none);
   background: var(--we-color-bg-muted);
-  animation: we-panel-skeleton 1.6s ease-in-out infinite;
+  animation: we-skeleton-pulse var(--we-skeleton-pulse-duration) var(--we-easing-ink) infinite;
 }
 
 .we-skel-stack {
@@ -2662,10 +2661,6 @@
 }
 
 /* ── 字段入场动画 ─── */
-@keyframes we-panel-fade-in {
-  from { opacity: 0; transform: translateY(3px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* — StatusField 原语（状态区块 / 字段 / 标签 / 进度条 / 表格 / 折叠）─ */
 /* ── 状态区块 ─── */
@@ -2708,7 +2703,7 @@
   border: none;
   cursor: pointer;
   padding: 0;
-  transition: color var(--we-duration-normal);
+  transition: color var(--we-duration-normal) var(--we-easing-sharp);
   flex-shrink: 0;
   letter-spacing: var(--we-tracking-normal);
 }
@@ -2726,7 +2721,7 @@
   flex-shrink: 0;
   color: var(--we-color-text-tertiary);
   opacity: 0.45;
-  transition: transform var(--we-duration-normal) ease, opacity var(--we-duration-normal);
+  transition: transform var(--we-duration-normal) var(--we-easing-ink), opacity var(--we-duration-normal) var(--we-easing-sharp);
 }
 
 /* 空状态文字 */
@@ -2747,7 +2742,7 @@
   gap: 10px;
 }
 .we-fields-list .we-status-field {
-  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
+  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-status-skeleton {
@@ -2879,7 +2874,7 @@
 }
 .we-status-editable {
   cursor: pointer;
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-status-editable:hover {
   color: var(--we-color-gold);
@@ -2979,7 +2974,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xxs);
-  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
+  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-state-change-label {
@@ -3027,7 +3022,7 @@
   color: var(--we-color-text-tertiary);
   cursor: pointer;
   text-align: left;
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 
 .we-state-change-toggle:hover {
@@ -3136,7 +3131,7 @@
   display: flex;
   gap: 7px; /* design exact */
   align-items: flex-start;
-  animation: we-panel-fade-in var(--we-duration-slow) ease-out both;
+  animation: we-rise-in var(--we-duration-slow) var(--we-easing-ink) both;
 }
 
 .we-diary-entry {
@@ -3145,7 +3140,7 @@
   border-radius: var(--we-radius-sm);
   padding: 3px 6px 3px 9px; /* design exact */
   background: transparent;
-  transition: background var(--we-duration-normal) ease, color var(--we-duration-normal) ease;
+  transition: background var(--we-duration-normal) var(--we-easing-sharp), color var(--we-duration-normal) var(--we-easing-sharp);
 }
 .we-diary-entry:hover {
   background: color-mix(in srgb, var(--we-color-bg-surface) 55%, transparent);
@@ -3247,9 +3242,9 @@
   border: 1px solid transparent;
   background: transparent;
   transition:
-    color var(--we-duration-fast) ease,
-    border-color var(--we-duration-fast) ease,
-    background-color var(--we-duration-fast) ease;
+    color var(--we-duration-fast) var(--we-easing-sharp),
+    border-color var(--we-duration-fast) var(--we-easing-sharp),
+    background-color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-panel-card-actions .we-panel-card-action:hover,
 .we-section-tabs-globals .we-panel-card-action:hover,
@@ -3587,25 +3582,10 @@
   padding: 0;
   cursor: pointer;
   color: var(--we-color-text-tertiary);
-  transition: color var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-toast-card__close:hover {
   color: var(--we-color-text-primary);
-}
-
-/* === Reduced-motion 安全网 ===
-   tokens.css 的媒体查询只把 duration 与 easing token 归零，无法停下用字面时长声明的
-   装饰循环动画（spinner / pulse / cursor blink / thinking dots）。此处按无障碍业界
-标准把所有动画与过渡压到近零并停掉循环，覆盖 framer 之外的纯 CSS 动效。 */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
 }
 
 /* ── 表格记忆（TableMemoryModal）：横向滚动的完整表格 ─── */
@@ -3685,7 +3665,7 @@
   border-radius: var(--we-radius-sm, 6px);
   color: var(--we-color-text-tertiary);
   cursor: pointer;
-  transition: color var(--we-duration-fast), background var(--we-duration-fast);
+  transition: color var(--we-duration-fast) var(--we-easing-sharp), background var(--we-duration-fast) var(--we-easing-sharp);
 }
 .we-tm-delete:hover {
   color: var(--we-color-text-danger);
@@ -3714,4 +3694,286 @@
   position: fixed;
   inset: 0;
   z-index: calc(var(--we-z-modal) + 1);
+}
+
+/* ── 动效组件（components/motion/，移植自 Rare UI）───────────────── */
+
+/* 原地确认删除 */
+.we-delete-btn {
+  position: relative;
+  flex-shrink: 0;
+  height: 28px;
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-ink-wash);
+  color: var(--we-color-text-tertiary);
+}
+.we-delete-btn__trigger {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-delete-btn__trigger:hover,
+.we-delete-btn[data-state="open"] .we-delete-btn__trigger {
+  color: var(--we-color-status-danger);
+}
+.we-delete-btn__trigger:focus-visible,
+.we-delete-btn__circle:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+.we-delete-btn__trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.we-delete-btn__done {
+  color: var(--we-color-accent);
+}
+.we-delete-btn__panel {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-xs);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--we-color-text-primary) 8%, var(--we-color-bg-elevated));
+}
+.we-delete-btn__notch {
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 6px;
+  height: 10px;
+  transform: translateY(-50%);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  background: inherit;
+}
+.we-delete-btn__slot {
+  display: flex;
+}
+.we-delete-btn__circle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--we-color-bg-elevated);
+  color: var(--we-color-text-secondary);
+  box-shadow: 0 0 0 1px var(--we-material-stroke), 0 1px 2px var(--we-color-shadow-sm);
+  cursor: pointer;
+}
+.we-delete-btn__confirm-mark {
+  stroke: var(--we-color-status-danger);
+}
+
+/* 里程表数字 */
+.we-counter {
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.we-counter__wheels {
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+/* 每个面上下留出的空隙就是遮罩渐隐的区域，静止的数字保持实色 */
+.we-counter__digit {
+  --we-counter-fade: linear-gradient(to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.06) 5.5%,
+    rgba(0, 0, 0, 0.5) 11%,
+    rgba(0, 0, 0, 0.94) 16.5%,
+    #000 22%,
+    #000 78%,
+    rgba(0, 0, 0, 0.94) 83.5%,
+    rgba(0, 0, 0, 0.5) 89%,
+    rgba(0, 0, 0, 0.06) 94.5%,
+    rgba(0, 0, 0, 0) 100%);
+  position: relative;
+  display: inline-grid;
+  height: 1.5em;
+  overflow: hidden;
+  line-height: 1.5;
+  -webkit-mask-image: var(--we-counter-fade);
+  mask-image: var(--we-counter-fade);
+}
+.we-counter__sizer {
+  visibility: hidden;
+  grid-area: 1 / 1;
+}
+.we-counter__stack {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+}
+.we-counter__face {
+  display: flex;
+  height: 1.5em;
+  align-items: center;
+  justify-content: center;
+}
+.we-counter__mark {
+  display: inline-block;
+}
+
+/* 液滴分段 tab（SectionTabs variant="gooey"）；pages.css 后加载，选择器多带一层以免被编辑面板的 tab 规则覆盖 */
+.we-section-tabs.we-section-tabs--gooey .we-section-tabs-list {
+  align-items: center;
+  margin-left: 0;
+  padding-block: var(--we-space-xxs);
+}
+.we-section-tabs.we-section-tabs--gooey .we-section-tab {
+  padding: var(--we-space-xs) var(--we-space-lg);
+  border-radius: inherit;
+}
+.we-section-tabs.we-section-tabs--gooey .we-section-tab.active {
+  color: var(--we-color-text-inverse);
+}
+.we-gooey-nav__segment {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: var(--we-gooey-gap, 0);
+  background-color: var(--we-color-ink-wash);
+}
+.we-gooey-nav__segment.is-active {
+  background-color: var(--we-color-accent);
+  transition: background-color var(--we-duration-slow) var(--we-easing-sharp);
+}
+.we-gooey-nav__neck {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.we-gooey-nav__stop {
+  stop-color: var(--we-color-ink-wash);
+}
+.we-gooey-nav__stop--active {
+  stop-color: var(--we-color-accent);
+}
+
+/* 点阵球 / 流体球 */
+.we-matrix-orb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  vertical-align: middle;
+}
+.we-matrix-orb canvas {
+  display: block;
+  flex-shrink: 0;
+}
+.we-matrix-orb__label {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-tertiary);
+}
+.we-fluid-orb {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.we-fluid-orb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 竖向导航的钩形导轨（HookRail）；容器须 position: relative，导航项左侧留出导轨位置 */
+.we-hook-rail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.we-hook-rail--active {
+  color: var(--we-color-accent);
+}
+.we-hook-rail--preview {
+  color: color-mix(in srgb, var(--we-color-text-primary) 30%, transparent);
+}
+.we-hook-rail__line {
+  position: absolute;
+  left: 2px;
+  width: 1px;
+  background-image: repeating-linear-gradient(to top, transparent 0 2px, currentColor 2px 4px);
+}
+.we-hook-rail__hook {
+  position: absolute;
+  left: 2px;
+}
+
+/* 消息刻度（ProximityRail）：窄屏会压住正文，收起 */
+.we-proximity-rail {
+  position: absolute;
+  top: 50%;
+  right: var(--we-space-xs);
+  z-index: 2;
+  transform: translateY(-50%);
+}
+.we-proximity-rail__dashes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: var(--we-space-sm) 0 var(--we-space-sm) var(--we-space-md);
+}
+.we-proximity-rail__dash {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 40px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.we-proximity-rail__dash > span {
+  display: block;
+  height: 1px;
+  transform-origin: right center;
+  background: color-mix(in srgb, var(--we-color-text-tertiary) 55%, transparent);
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-proximity-rail__dash--assistant > span {
+  background: var(--we-color-text-secondary);
+}
+.we-proximity-rail__dash[aria-current] > span {
+  background: var(--we-color-accent);
+}
+.we-proximity-rail__dash:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+@media (max-width: 900px) {
+  .we-proximity-rail {
+    display: none;
+  }
+}
+
+/* 图片网格揭开 */
+.we-grid-reveal {
+  position: relative;
+  overflow: hidden;
+}
+.we-grid-reveal canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }

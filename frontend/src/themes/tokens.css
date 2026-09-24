@@ -252,12 +252,13 @@
 
   /* === Motion Tokens === */
   /* 真源：frontend/src/core/utils/motion.js（数值一致性由 scripts/check-motion.mjs 守护）。
-     CSS 4 槽按【语义】对齐 JS DURATION：
-       fast=quick(hover 色变) / normal=base(局部反馈) / slow=medium(组件入场) / extended=slow(慢显) */
+     CSS 各槽按【语义】对齐 JS DURATION：
+       fast=quick(hover 色变) / normal=base(局部反馈) / slow=medium(组件入场) / extended=slow(慢显) / loop=loop(循环指示) */
   --we-duration-fast:     180ms;  /* hover 色变、工具提示       → motion.js quick  0.18 */
   --we-duration-normal:   300ms;  /* 元数据、局部反馈           → motion.js base   0.30 */
   --we-duration-slow:     380ms;  /* 组件入场、Modal 内容       → motion.js medium 0.38 */
   --we-duration-extended: 500ms;  /* 章节标题、场景分隔线慢显   → motion.js slow   0.50 */
+  --we-duration-loop:     1200ms; /* 循环：打字点、光标呼吸、转圈 → motion.js loop   1.20 */
 
   /* 具名缓动函数（对应 motion.js EASE，供 CSS transition 引用）*/
   --we-easing-ink:      cubic-bezier(.22, 1, .36, 1);    /* 墨水浸润：主入场      → EASE.ink */
@@ -468,6 +469,7 @@
     --we-duration-normal:   0ms;
     --we-duration-slow:     0ms;
     --we-duration-extended: 0ms;
+    --we-duration-loop:     0ms;
     --we-easing-ink:      linear;
     --we-easing-sharp:    linear;
     --we-easing-page:     linear;

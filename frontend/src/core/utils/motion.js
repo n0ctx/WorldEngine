@@ -12,6 +12,7 @@ export const DURATION = {
   medium:  0.38,
   slow:    0.50,
   crawl:   0.75,
+  loop:    1.20,
   ambient: 2.00,
 };
 

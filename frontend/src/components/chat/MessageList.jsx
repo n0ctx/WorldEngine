@@ -5,7 +5,9 @@ import WritingMessageItem from '../writing/WritingMessageItem.jsx';
 import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../core/api/sessions.js';
 import { groupMessagesIntoChapters } from '../../core/utils/chapter-grouping.js';
+import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import ChapterDivider from './ChapterDivider.jsx';
+import ProximityRail from '../motion/ProximityRail.jsx';
 import { log } from '../../core/utils/logger.js';
 
 const NOOP = () => {};
@@ -54,6 +56,32 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
   );
 }
 
+// 把消息滚到列表顶部；消息自带的 scroll-margin-top 让开顶部渐隐，落点在可读区域
+function scrollToMessageIn(list, messageId) {
+  if (!list || !messageId) return;
+  const target = list.querySelector(`[data-message-id="${CSS.escape(String(messageId))}"]`);
+  if (!target) return;
+  const margin = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+  const top = target.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop - margin;
+  list.scrollTo({ top, behavior: 'smooth' });
+}
+
+const chapterTitleOf = (titles, index) => titles[index]?.title ?? (index === 1 ? '序章' : '续章');
+
+// 刻度提示取正文开头，跳过思考块
+const railLabelOf = (content) => parseStreamingBlocks(content)
+  .filter((b) => b.type === 'text')
+  .map((b) => b.content)
+  .join(' ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .slice(0, 24) || '（空）';
+
+// 本页每条已落定的消息一根刻度
+const toRailItems = (messages) => messages
+  .filter((m) => !m._isStream && m.id != null)
+  .map((m) => ({ id: m.id, kind: m.role === 'user' ? 'user' : 'assistant', label: railLabelOf(m.content) }));
+
 const MessageList = forwardRef(function MessageList({
   sessionId,
   character,
@@ -99,14 +127,7 @@ const MessageList = forwardRef(function MessageList({
     messagesRef.current = messages;
   }, [messages]);
 
-  const handleJumpToMessage = useCallback((messageId) => {
-    const el = listRef.current;
-    if (!el || !messageId) return;
-    const target = el.querySelector(`[data-message-id="${CSS.escape(String(messageId))}"]`);
-    if (!target) return;
-    const top = target.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
-    el.scrollTo({ top, behavior: 'smooth' });
-  }, []);
+  const handleJumpToMessage = useCallback((messageId) => scrollToMessageIn(listRef.current, messageId), []);
 
   // 初始加载
   useEffect(() => {
@@ -304,6 +325,7 @@ const MessageList = forwardRef(function MessageList({
     }
     return visible;
   }, [prose, messages, messagesForDisplay, chapterTurnSize]);
+  const railItems = useMemo(() => toRailItems(messagesForDisplay), [messagesForDisplay]);
 
   if (loading) {
     return (
@@ -355,7 +377,7 @@ const MessageList = forwardRef(function MessageList({
         <div className="we-prose-message-list">
           {chapters.map((chapter) => {
             const ctEntry = chapterTitles[chapter.chapterIndex];
-            const chapterTitle = ctEntry?.title ?? (chapter.chapterIndex === 1 ? '序章' : '续章');
+            const chapterTitle = chapterTitleOf(chapterTitles, chapter.chapterIndex);
             const isDefault = ctEntry ? !!ctEntry.is_default : true;
             return (
             <div key={chapter.chapterIndex} className="we-chapter">
@@ -480,6 +502,7 @@ const MessageList = forwardRef(function MessageList({
       )}
 
     </div>
+    <ProximityRail containerRef={listRef} items={railItems} onSelect={handleJumpToMessage} />
 
     </div>
   );

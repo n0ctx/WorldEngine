@@ -17,6 +17,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 /**
  * SortableGrid — 2D 网格内可拖拽重排的容器
@@ -42,8 +43,8 @@ import { CSS } from '@dnd-kit/utilities';
  *   activationDistance — 进入拖拽态的指针位移阈值（默认 8px，<阈值走原生 click）
  */
 const dropAnimation = {
-  duration: 220,
-  easing: 'cubic-bezier(0.18, 0.67, 0.32, 1.0)',
+  duration: DURATION.base * 1000,
+  easing: `cubic-bezier(${EASE.ink.join(', ')})`,
   // 用 visibility 而非 opacity 隐藏原位卡片：
   // 入场 we-ink-rise 关键帧 fill-mode:both 把 opacity 永久钉在 1，inline opacity:0 无效；
   // visibility 不在关键帧里，inline 设置生效，且不影响布局占位。

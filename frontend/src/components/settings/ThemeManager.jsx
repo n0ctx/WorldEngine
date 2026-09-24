@@ -12,14 +12,13 @@ import { refreshCustomCss } from '../../core/api/custom-css-snippets.js';
 import { readJsonFile } from '../../core/api/import-export.js';
 import { useAppModeStore } from '../../core/state/appMode.js';
 import Button from '../ui/Button.jsx';
-import ConfirmModal from '../ui/ConfirmModal.jsx';
+import DeleteButton from '../motion/DeleteButton.jsx';
 import { log } from '../../core/utils/logger.js';
 
 export default function ThemeManager() {
   const [themes, setThemes] = useState([]);
   const [activeTheme, setActiveThemeState] = useState(DEFAULT_THEME_ID);
   const [loading, setLoading] = useState(true);
-  const [deletingTheme, setDeletingTheme] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const fileInputRef = useRef(null);
   const appMode = useAppModeStore((s) => s.appMode);
@@ -153,9 +152,7 @@ export default function ThemeManager() {
                     </Button>
                   )}
                   {!theme.builtin && (
-                    <Button variant="danger" size="sm" onClick={() => setDeletingTheme(theme)} disabled={busy}>
-                      删除
-                    </Button>
+                    <DeleteButton label={`删除主题「${theme.name}」`} onConfirm={() => handleDelete(theme.id)} disabled={busy} />
                   )}
                 </div>
               </article>
@@ -164,20 +161,6 @@ export default function ThemeManager() {
         </div>
       )}
 
-      {deletingTheme && (
-        <ConfirmModal
-          title="确认删除主题"
-          message={`删除「${deletingTheme.name}」后无法撤销。`}
-          confirmText="确认删除"
-          danger
-          onConfirm={async () => {
-            const { id } = deletingTheme;
-            setDeletingTheme(null);
-            await handleDelete(id);
-          }}
-          onClose={() => setDeletingTheme(null)}
-        />
-      )}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../core/utils/constants.js';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import MatrixOrb from '../motion/MatrixOrb.jsx';
 
 const SLASH_COMMANDS = [
   { cmd: '/continue',    desc: '续写上一条 AI 回复' },
@@ -396,7 +397,8 @@ const InputBox = forwardRef(function InputBox({
           {/* impersonate 构思中占位层（无用户输入时覆盖 placeholder） */}
           {impersonating && !text && (
             <div className="we-chat-impersonate-thinking">
-              <span className="we-impersonate-thinking we-chat-impersonate-text">AI 正在构思</span>
+              <MatrixOrb size={18} />
+              <span className="we-chat-impersonate-text">AI 正在构思</span>
             </div>
           )}
 

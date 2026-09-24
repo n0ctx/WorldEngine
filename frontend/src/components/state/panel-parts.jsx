@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { DURATION, EASE } from '../../core/utils/motion.js';
 
 const MotionDiv = motion.div;
 
@@ -79,7 +80,7 @@ export function StateBusyOverlay({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.28, ease: 'easeInOut' }}
+          transition={{ duration: DURATION.base, ease: EASE.page }}
           className={overlayClassName}
         >
           <AnimatePresence mode="wait">
@@ -88,7 +89,7 @@ export function StateBusyOverlay({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: DURATION.base, ease: EASE.ink }}
               className={chipClassName}
               style={chipStyle}
             >

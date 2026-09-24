@@ -8,7 +8,7 @@ import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Textarea from '../ui/Textarea';
 import SortableList from '../ui/SortableList';
-import ConfirmModal from '../ui/ConfirmModal';
+import DeleteButton from '../motion/DeleteButton.jsx';
 import DialogShell from '../ui/DialogShell';
 import Icon from '../ui/Icon';
 import DragHandle from '../ui/DragHandle.jsx';
@@ -38,7 +38,6 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
   const [loading, setLoading] = useState(true);
   const [showEditor, setShowEditor] = useState(false);
   const [editingSnippet, setEditingSnippet] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
   const appMode = useAppModeStore((s) => s.appMode);
 
   const load = useCallback(async () => {
@@ -85,7 +84,6 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
 
   async function handleDelete(id) {
     await deleteSnippet(id);
-    setDeletingId(null);
     await load();
     await refreshCustomCss(appMode);
   }
@@ -135,7 +133,7 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
               snippet={s}
               onEdit={() => { setEditingSnippet(s); setShowEditor(true); }}
               onToggle={() => handleToggle(s)}
-              onDelete={() => setDeletingId(s.id)}
+              onDelete={() => handleDelete(s.id)}
             />
           )}
           className="we-css-snippet-list"
@@ -150,16 +148,6 @@ export default function CustomCssManager({ settingsMode = SETTINGS_MODE.CHAT }) 
         />
       )}
 
-      {deletingId && (
-        <ConfirmModal
-          title="确认删除"
-          message="此操作无法撤销。"
-          confirmText="确认删除"
-          danger
-          onConfirm={() => handleDelete(deletingId)}
-          onClose={() => setDeletingId(null)}
-        />
-      )}
     </div>
   );
 }
@@ -198,17 +186,7 @@ function SnippetRow({ snippet, onEdit, onToggle, onDelete }) {
             <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
           </Icon>
         </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="删除"
-          className="we-css-snippet-row__action we-css-snippet-row__action--danger"
-        >
-          <Icon aria-label="删除">
-            <path d="M18 6 6 18" />
-            <path d="M6 6l12 12" />
-          </Icon>
-        </button>
+        <DeleteButton label={`删除片段「${snippet.name}」`} onConfirm={onDelete} />
       </div>
     </div>
   );

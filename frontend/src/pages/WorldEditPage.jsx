@@ -388,7 +388,7 @@ export default function WorldEditPage() {
       onClose={handleClose}
       title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}
     >
-      <SectionTabs sections={sections} defaultKey="basic" />
+      <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />
     </EditPageShell>
   );
 }

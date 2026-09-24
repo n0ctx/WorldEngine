@@ -51,9 +51,8 @@ describe('ThemeManager', () => {
     render(<ThemeManager />);
     await screen.findByText('墨色');
 
-    fireEvent.click(screen.getByRole('button', { name: '删除' }));
+    fireEvent.click(screen.getByRole('button', { name: '删除主题「墨色」' }));
     expect(api.deleteTheme).not.toHaveBeenCalled();
-    expect(screen.getByText('删除「墨色」后无法撤销。')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
     await waitFor(() => expect(api.deleteTheme).toHaveBeenCalledWith('ink'));

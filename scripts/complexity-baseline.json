@@ -32,7 +32,7 @@
     "backend/utils/state-field-validate.js#validateValue": 53,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
-    "frontend/src/components/chat/MessageList.jsx#MessageList": 100,
+    "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
     "frontend/src/components/settings/AuxLlmBlock.jsx#AuxLlmBlock": 38,
     "frontend/src/components/settings/FeaturesConfigPanel.jsx#FeaturesConfigPanel": 51,
     "frontend/src/components/settings/MainLlmBlock.jsx#MainLlmBlock": 68,
@@ -55,10 +55,10 @@
     "frontend/src/pages/CharactersPage.jsx#CharactersPage": 55,
     "frontend/src/pages/ChatPage/index.jsx#ChatPage": 39,
     "frontend/src/pages/PersonaEditPage.jsx#PersonaEditPage": 47,
-    "frontend/src/pages/RulesPage/index.jsx#RulesPage": 57,
+    "frontend/src/pages/RulesPage/index.jsx#RulesPage": 52,
     "frontend/src/pages/WorldEditPage.jsx#WorldEditPage": 57,
     "frontend/src/pages/WorldsPage.jsx#WorldsPage": 47,
-    "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx#NearbyPanel": 65,
+    "frontend/src/pages/WritingSpacePage/components/NearbyPanel.jsx#NearbyPanel": 64,
     "frontend/src/pages/WritingSpacePage/index.jsx#WritingSpacePage": 42,
     "frontend/src/shells/book-spread/chrome/TopBar.jsx#TopBar": 42
   }

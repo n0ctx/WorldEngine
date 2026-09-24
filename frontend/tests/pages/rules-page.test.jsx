@@ -197,10 +197,10 @@ describe('RulesPage', () => {
     render(<RulesPage />);
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalled());
 
-    fireEvent.click(screen.getAllByText('删除')[0]);
-    expect(screen.getByText('删除条目')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: /^删除条目「/ })[0]);
+    expect(mocks.deleteWorldEntry).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText('删除', { selector: '.we-confirm-ok' }));
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }));
 
     await waitFor(() => expect(mocks.deleteWorldEntry).toHaveBeenCalledWith('e-always-1'));
     await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledTimes(2));
