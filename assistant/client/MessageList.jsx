@@ -17,6 +17,7 @@ import { ArrowDown, Check, Copy, PencilLine, RotateCcw, Trash2 } from 'lucide-re
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { stripToolCallLeakage } from './useAssistantStore.js';
+import { formatToolError, formatToolSummary } from './message-helpers.js';
 import { parseStreamingBlocks } from '../../frontend/src/core/utils/think-blocks.js';
 import SeamlessEditableSurface from '../../shared/SeamlessEditableSurface.jsx';
 
@@ -287,10 +288,10 @@ function AssistantEntryImpl({ msg, onRegenerate, onDelete }) {
 const AssistantEntry = memo(AssistantEntryImpl, sameMsg);
 
 function ToolEntryImpl({ msg }) {
-  const title = [TOOL_LABELS[msg.toolName] ?? msg.toolName, msg.summary].filter(Boolean).join(' ');
+  const title = [TOOL_LABELS[msg.toolName] ?? msg.toolName, formatToolSummary(msg.summary, msg.toolName)].filter(Boolean).join(' ');
   const isRunning = msg.status === 'running';
   const isError = msg.status === 'error';
-  const sub = isError && msg.error ? `失败：${msg.error}` : (STATUS_TEXT[msg.status] ?? '');
+  const sub = isError && msg.error ? `失败：${formatToolError(msg.error)}` : (STATUS_TEXT[msg.status] ?? '');
   const emoji = TOOL_EMOJI[msg.toolName] ?? '🔹';
   const variantClass = isError
     ? 'we-asst-entry--tool we-asst-entry--error'
