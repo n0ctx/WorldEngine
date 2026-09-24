@@ -151,5 +151,20 @@ describe('PersonaEditPage', () => {
       system_prompt: '',
     }));
     expect(mocks.useNavigate).toHaveBeenCalledWith(-1);
+    expect(sessionStorage.getItem('persona_create_draft')).toBeNull();
+  });
+
+  it('创建模式会保存并恢复草稿', async () => {
+    mocks.useLocation.mockReturnValue({ pathname: '/worlds/world-1/personas/new', state: {} });
+    mocks.getPersonaStateValues.mockResolvedValue([]);
+
+    const { unmount } = render(<PersonaEditPage />);
+    await waitFor(() => expect(screen.getByText('创建')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('你在这个世界里的名字'), { target: { value: '草稿玩家' } });
+    unmount();
+
+    render(<PersonaEditPage />);
+    expect(await screen.findByDisplayValue('草稿玩家')).toBeInTheDocument();
+    sessionStorage.removeItem('persona_create_draft');
   });
 });

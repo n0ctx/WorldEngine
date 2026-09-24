@@ -28,6 +28,14 @@ import FormGroup from '../components/ui/FormGroup';
 import AvatarUpload from '../components/ui/AvatarUpload';
 import { log } from '../core/utils/logger.js';
 
+function readCreateDraft() {
+  try {
+    return JSON.parse(sessionStorage.getItem('persona_create_draft') || '{}');
+  } catch {
+    return {};
+  }
+}
+
 export default function PersonaEditPage() {
   const { worldId, personaId: personaIdParam } = useParams();
   const navigate = useNavigate();
@@ -44,9 +52,11 @@ export default function PersonaEditPage() {
 
   // resolvedPersonaId: 加载完成后的实际 persona id（new 模式下为 null 直到创建成功）
   const [resolvedPersonaId, setResolvedPersonaId] = useState(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
+  // 创建模式在首次渲染时同步恢复草稿：放进 effect 会晚于下方的草稿自动保存，被空表单先覆盖
+  const [draft] = useState(() => (isNew ? readCreateDraft() : {}));
+  const [name, setName] = useState(draft.name ?? '');
+  const [description, setDescription] = useState(draft.description ?? '');
+  const [systemPrompt, setSystemPrompt] = useState(draft.systemPrompt ?? '');
   const [reloadKey, setReloadKey] = useState(0);
   const [avatarPath, setAvatarPath] = useState(null);
   const [stateFields, setStateFields] = useState([]);
@@ -56,6 +66,12 @@ export default function PersonaEditPage() {
   const dirty = !!saved && (
     name !== saved.name || description !== saved.description || systemPrompt !== saved.systemPrompt
   );
+
+  // 创建模式：自动保存草稿
+  useEffect(() => {
+    if (!isNew) return;
+    sessionStorage.setItem('persona_create_draft', JSON.stringify({ name, description, systemPrompt }));
+  }, [name, description, systemPrompt, isNew]);
 
   useEffect(() => {
     let cancelled = false;
@@ -187,6 +203,7 @@ export default function PersonaEditPage() {
       if (isNew) {
         // 新建：创建 persona 后跳转到编辑页
         const persona = await createPersona(worldId, { name, description, system_prompt: systemPrompt });
+        sessionStorage.removeItem('persona_create_draft');
         window.dispatchEvent(new Event('we:persona-updated'));
         if (isOverlay) {
           navigate(-1);
