@@ -847,7 +847,19 @@ function getStaticCodingPlanModels(provider) {
 
 async function fetchModels(provider, apiKey, baseUrl) {
   const staticModels = getStaticCodingPlanModels(provider);
-  if (staticModels) return staticModels;
+  if (staticModels) {
+    // kimi-coding 的模型列表端点走 OpenAI 兼容协议（/coding/v1/models，与 chat 的 /coding 不同源），
+    // 优先动态拉取真实模型名（随会员档位变化），失败或无 Key 时回退静态表
+    if (provider === 'kimi-coding') {
+      try {
+        const models = await fetchOpenAICompatibleModels(OPENAI_COMPATIBLE_BASE_URLS['kimi-coding'], apiKey, provider);
+        if (models.length) return models;
+      } catch (error) {
+        log.warn(`models.dynamic_fetch_failed ${formatMeta({ provider, error: error.message })}`);
+      }
+    }
+    return staticModels;
+  }
 
   // Anthropic — 原生 /v1/models 接口
   if (provider === 'anthropic') {

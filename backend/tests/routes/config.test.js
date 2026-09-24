@@ -111,6 +111,76 @@ test('GET /api/config/models 对 coding plan provider 返回静态模型列表',
   assert.equal(data.thinkingOptions.length, 3);
 });
 
+test('GET /api/config/models 对 kimi-coding 优先动态拉取模型列表', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    if (target === 'https://api.kimi.com/coding/v1/models') {
+      return new Response(JSON.stringify({
+        data: [{ id: 'k3' }, { id: 'kimi-for-coding' }, { id: 'kimi-for-coding-highspeed' }],
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    provider_keys: { 'kimi-coding': 'test-key' },
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'kimi-coding',
+      model: '',
+      base_url: '',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/models');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.deepEqual(data.models.map((m) => m.id), ['k3', 'kimi-for-coding', 'kimi-for-coding-highspeed']);
+    assert.equal(data.thinkingOptions.length, 3);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('GET /api/config/models 对 kimi-coding 动态拉取失败时回退静态模型列表', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const target = String(url);
+    if (target.startsWith('http://127.0.0.1:')) return originalFetch(url, init);
+    if (target === 'https://api.kimi.com/coding/v1/models') {
+      return new Response(JSON.stringify({ error: { message: 'Invalid Authentication' } }), { status: 401 });
+    }
+    throw new Error(`unexpected fetch: ${target}`);
+  };
+
+  ctx.sandbox.writeConfig({
+    ...ctx.sandbox.readConfig(),
+    provider_keys: { 'kimi-coding': 'bad-key' },
+    llm: {
+      ...ctx.sandbox.readConfig().llm,
+      provider: 'kimi-coding',
+      model: '',
+      base_url: '',
+    },
+  });
+
+  try {
+    const res = await ctx.request('/api/config/models');
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.deepEqual(data.models.map((m) => m.id), ['kimi-for-coding']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('GET /api/config/models 对 xiaomi provider 允许手填模型', async () => {
   ctx.sandbox.writeConfig({
     ...ctx.sandbox.readConfig(),
