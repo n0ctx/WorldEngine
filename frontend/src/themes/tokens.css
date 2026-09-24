@@ -236,7 +236,7 @@
   --we-radius-full: 9999px;
 
   /* === Z-index Scale === */
-  --we-topbar-height: 52px; /* 顶栏高度：贴在顶栏下方的固定层（写卡助手抽屉）以此为起点 */
+  --we-topbar-height: 40px; /* 顶栏高度：贴在顶栏下方的固定层（写卡助手抽屉）以此为起点 */
   --we-z-card-bg:      0;  /* 卡片：封面图层（最底） */
   --we-z-card-overlay: 1;  /* 卡片：渐变蒙版/内容容器层 */
   --we-z-card-content: 2;  /* 卡片：标题/操作/元信息层（最前） */
@@ -453,6 +453,13 @@
 
   /* === 运行时布局 token：由 JS 在组件上动态设置，此处声明默认值，避免 var() fallback 散落各处 === */
   --we-status-table-cols:       1;   /* StatusTable: 状态表格列数 */
+}
+
+/* 手机上顶栏按钮放大到 44px 触控区，顶栏随之加高 */
+@media (max-width: 767px) {
+  :root {
+    --we-topbar-height: 52px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
