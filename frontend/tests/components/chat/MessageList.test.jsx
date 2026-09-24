@@ -163,7 +163,7 @@ describe('MessageList 的分页', () => {
     const writes = [];
     const scrollTopDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop');
     const scrollHeightDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollHeight');
-    Object.defineProperty(Element.prototype, 'scrollTop', { configurable: true, get: () => 0, set: (v) => writes.push(v) });
+    Object.defineProperty(Element.prototype, 'scrollTop', { configurable: true, get: () => 0, set: (v) => { writes.push(v); } });
     Object.defineProperty(Element.prototype, 'scrollHeight', { configurable: true, get: () => 999 });
     try {
       await renderList({ prose: false, pageTurnSize: 2 });
