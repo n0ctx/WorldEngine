@@ -11,7 +11,7 @@ import DragHandle from '../ui/DragHandle.jsx';
 import { invalidateCache, loadRules } from '../../core/utils/regex-runner.js';
 import RegexRuleEditor from './RegexRuleEditor.jsx';
 import Button from '../ui/Button.jsx';
-import ConfirmModal from '../ui/ConfirmModal.jsx';
+import DeleteButton from '../motion/DeleteButton.jsx';
 import SortableList from '../ui/SortableList.jsx';
 import { SETTINGS_MODE } from '../../core/constants/settings';
 import { log } from '../../core/utils/logger.js';
@@ -27,7 +27,6 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState(null);
-  const [confirmingDeleteRule, setConfirmingDeleteRule] = useState(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -67,10 +66,9 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
     await refresh();
   }
 
-  async function handleDelete() {
+  async function handleDelete(rule) {
     try {
-      await deleteRegexRule(confirmingDeleteRule.id);
-      setConfirmingDeleteRule(null);
+      await deleteRegexRule(rule.id);
       await refresh();
     } catch (e) {
       log.error('regex.rules.delete_failed', e, { toast: '删除失败：' + (e?.message || '未知错误') });
@@ -142,7 +140,7 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
                   worldName={getWorldName(rule.world_id)}
                   onEdit={() => openEdit(rule)}
                   onToggle={() => handleToggleEnabled(rule)}
-                  onDelete={() => setConfirmingDeleteRule(rule)}
+                  onDelete={() => handleDelete(rule)}
                 />
               )}
               className="we-regex-rule-list"
@@ -161,16 +159,6 @@ export default function RegexRulesManager({ settingsMode = SETTINGS_MODE.CHAT })
         />
       )}
 
-      {confirmingDeleteRule && (
-        <ConfirmModal
-          title="删除正则规则"
-          message={`确认删除规则「${confirmingDeleteRule.name}」？此操作不可撤销。`}
-          confirmText="删除"
-          danger
-          onConfirm={handleDelete}
-          onClose={() => setConfirmingDeleteRule(null)}
-        />
-      )}
     </div>
   );
 }
@@ -208,12 +196,7 @@ function RuleRow({ rule, worldName, onEdit, onToggle, onDelete }) {
           aria-label="编辑正则规则"
           className="we-regex-rule-icon-btn"
         >✎</button>
-        <button
-          onClick={onDelete}
-          title="删除"
-          aria-label="删除正则规则"
-          className="we-regex-rule-icon-btn we-regex-rule-icon-btn--danger"
-        >✕</button>
+        <DeleteButton label={`删除正则规则「${rule.name}」`} onConfirm={onDelete} />
       </div>
     </div>
   );

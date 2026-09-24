@@ -2,9 +2,9 @@
  * Copyright (c) 2026 Swami Malode，许可见同目录 RAREUI_LICENSE。
  * WebGL 流体球：两层 fbm 扭曲坐标，把一个标量场按两段 smoothstep 映射成亮面、浅色、主色。 */
 import { useEffect, useRef } from 'react';
-import { useInView } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { readCssColor } from './readCssColor.js';
+import { useInViewport } from './useInViewport.js';
 
 const VERT = `
 attribute vec2 a_pos;
@@ -97,7 +97,7 @@ export default function FluidOrb({ size = 120, className = '' }) {
   const rootRef = useRef(null);
   const canvasRef = useRef(null);
   const { reduced } = useMotion();
-  const inView = useInView(rootRef);
+  const inView = useInViewport(rootRef);
 
   useEffect(() => {
     const canvas = canvasRef.current;

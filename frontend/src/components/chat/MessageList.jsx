@@ -6,6 +6,8 @@ import OptionCard from './OptionCard.jsx';
 import { getMessages } from '../../core/api/sessions.js';
 import { groupMessagesIntoChapters } from '../../core/utils/chapter-grouping.js';
 import ChapterDivider from './ChapterDivider.jsx';
+import ProximityRail from '../motion/ProximityRail.jsx';
+import ScrollProgress from '../motion/ScrollProgress.jsx';
 import { log } from '../../core/utils/logger.js';
 
 const NOOP = () => {};
@@ -53,6 +55,23 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
     </div>
   );
 }
+
+const chapterTitleOf = (titles, index) => titles[index]?.title ?? (index === 1 ? '序章' : '续章');
+
+// 写作模式：本页章节进度胶囊的章节列表
+const toChapterSections = (chapters, titles) => chapters.map((ch) => ({
+  id: String(ch.chapterIndex),
+  label: chapterTitleOf(titles, ch.chapterIndex),
+}));
+
+// 对话模式：本页每条已落定的消息一根刻度
+const toRailItems = (messages) => messages
+  .filter((m) => !m._isStream && m.id != null)
+  .map((m) => ({
+    id: m.id,
+    kind: m.role === 'user' ? 'user' : 'assistant',
+    label: (m.content || '').replace(/\s+/g, ' ').slice(0, 24) || '（空）',
+  }));
 
 const MessageList = forwardRef(function MessageList({
   sessionId,
@@ -304,6 +323,8 @@ const MessageList = forwardRef(function MessageList({
     }
     return visible;
   }, [prose, messages, messagesForDisplay, chapterTurnSize]);
+  const chapterSections = useMemo(() => toChapterSections(chapters, chapterTitles), [chapters, chapterTitles]);
+  const railItems = useMemo(() => toRailItems(messagesForDisplay), [messagesForDisplay]);
 
   if (loading) {
     return (
@@ -355,10 +376,10 @@ const MessageList = forwardRef(function MessageList({
         <div className="we-prose-message-list">
           {chapters.map((chapter) => {
             const ctEntry = chapterTitles[chapter.chapterIndex];
-            const chapterTitle = ctEntry?.title ?? (chapter.chapterIndex === 1 ? '序章' : '续章');
+            const chapterTitle = chapterTitleOf(chapterTitles, chapter.chapterIndex);
             const isDefault = ctEntry ? !!ctEntry.is_default : true;
             return (
-            <div key={chapter.chapterIndex} className="we-chapter">
+            <div key={chapter.chapterIndex} className="we-chapter" data-chapter-id={chapter.chapterIndex}>
               <ChapterDivider
                 chapterIndex={chapter.chapterIndex}
                 title={chapterTitle}
@@ -480,6 +501,9 @@ const MessageList = forwardRef(function MessageList({
       )}
 
     </div>
+    {prose
+      ? <ScrollProgress containerRef={listRef} sections={chapterSections} />
+      : <ProximityRail containerRef={listRef} items={railItems} onSelect={handleJumpToMessage} />}
 
     </div>
   );

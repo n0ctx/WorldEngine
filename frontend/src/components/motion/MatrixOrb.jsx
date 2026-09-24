@@ -2,9 +2,9 @@
  * Copyright (c) 2026 Swami Malode，许可见同目录 RAREUI_LICENSE。
  * 点阵球：idle 缓慢呼吸，thinking 有三颗热点绕行；状态切换时按权重从屏上现状过渡。 */
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { useInView } from 'framer-motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
 import { readCssColor } from './readCssColor.js';
+import { useInViewport } from './useInViewport.js';
 
 const TAU = Math.PI * 2;
 const STATES = ['idle', 'thinking'];
@@ -51,7 +51,7 @@ export default function MatrixOrb({ state = 'thinking', size = 24, dots = 9, lab
   const redrawRef = useRef(null);
   const dpr = useDevicePixelRatio();
   const { reduced } = useMotion();
-  const inView = useInView(rootRef);
+  const inView = useInViewport(rootRef);
 
   useEffect(() => {
     stateRef.current = state;

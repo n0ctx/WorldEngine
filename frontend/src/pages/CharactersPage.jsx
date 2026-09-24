@@ -28,6 +28,8 @@ import { relativeTime } from '../core/utils/time.js';
 import { formatDateLiterary } from '../core/utils/date-format.js';
 import { log } from '../core/utils/logger.js';
 import { useMotion } from '../core/hooks/useMotion.js';
+import AnimatedCounter from '../components/motion/AnimatedCounter.jsx';
+import FluidOrb from '../components/motion/FluidOrb.jsx';
 
 // ── 拖动感知点击 hook ──────────────────────────────────────────────────────
 
@@ -640,6 +642,7 @@ export default function CharactersPage() {
 
           {loading ? null : timeline.length === 0 ? (
             <div className="we-storyline-empty">
+              <FluidOrb size={48} className="we-storyline-empty__orb" />
               <p className="we-characters-empty-text">
                 还没有故事线，点击「+ 新建」开始写作，或在右侧选择一个角色开始对话
               </p>
@@ -869,7 +872,7 @@ export default function CharactersPage() {
               <div className="we-rules-entry-info">
                 <p className="we-rules-entry-label">规则与状态</p>
                 <p className="we-rules-entry-count">
-                  {entries.length} 条设定 · {stateFields.length} 个状态字段
+                  <AnimatedCounter value={entries.length} /> 条设定 · <AnimatedCounter value={stateFields.length} /> 个状态字段
                 </p>
               </div>
               <Icon size={16}>

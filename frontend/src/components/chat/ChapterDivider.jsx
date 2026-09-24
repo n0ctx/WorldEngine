@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import Icon from '../ui/Icon.jsx';
+import MatrixOrb from '../motion/MatrixOrb.jsx';
 import { isImeComposing } from '../../core/utils/ime.js';
 
 const CN_NUMS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
@@ -109,10 +110,12 @@ export default function ChapterDivider({ chapterIndex, title, onEdit, onRegenera
               )}
               {onRegenerate && (
                 <button onClick={handleRegenerate} disabled={regenerating} aria-label="重新生成章节标题">
-                  <Icon size={16}>
-                    <polyline points="1 4 1 10 7 10" />
-                    <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
-                  </Icon>
+                  {regenerating ? <MatrixOrb size={16} /> : (
+                    <Icon size={16}>
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 .49-4.98" />
+                    </Icon>
+                  )}
                   {regenerating ? '生成中…' : '重新生成'}
                 </button>
               )}

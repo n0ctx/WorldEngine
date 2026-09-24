@@ -304,7 +304,7 @@ export default function CharacterEditPage() {
         title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}
         headerActions={exportAction}
       >
-        <SectionTabs sections={sections} defaultKey="basic" />
+        <SectionTabs sections={sections} defaultKey="basic" variant="gooey" />
       </EditPageShell>
       <SealStampAnimation trigger={sealKey} text="成" />
       {showExtract && (

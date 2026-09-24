@@ -9,6 +9,8 @@ import { useMotion } from '../../core/hooks/useMotion.js';
 const RADIUS = 40;
 const MAX_WIDTH = 40;
 const IDLE_RESET_DELAY = 80;
+// 少于这么多项时刻度没有导航价值，不显示
+const MIN_ITEMS = 3;
 const DASH_SPRING = { stiffness: 320, damping: 34, mass: 0.7 };
 // 助手回复比玩家发言长，刻度也更长
 const PRESETS = {
@@ -127,6 +129,8 @@ export default function ProximityRail({ containerRef, items, onSelect }) {
       window.removeEventListener('resize', schedule);
     };
   }, [containerRef, ids, pulse]);
+
+  if (items.length < MIN_ITEMS) return null;
 
   return (
     <nav aria-label="本页消息" className="we-proximity-rail">

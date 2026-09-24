@@ -132,7 +132,8 @@ describe('CharactersPage', () => {
     expect(await screen.findAllByText('阿塔')).toHaveLength(1);
     expect(screen.getAllByText('旅者')).toHaveLength(1);
     expect(screen.getByText('世界规则')).toBeInTheDocument();
-    expect(screen.getByText('1 条设定 · 2 个状态字段')).toBeInTheDocument();
+    // 数字是滚动计数器：读屏读到的是完整数值，滚轮本身对读屏隐藏
+    expect(screen.getByRole('button', { name: /1\s*条设定 · 2\s*个状态字段/ })).toBeInTheDocument();
   });
 
   it('故事线为空时展示空态', async () => {
@@ -324,7 +325,7 @@ describe('CharactersPage', () => {
 
   it('世界规则入口卡点击后跳转到规则页', async () => {
     render(<CharactersPage />);
-    await screen.findByText('1 条设定 · 2 个状态字段');
+    await screen.findByRole('button', { name: /1\s*条设定 · 2\s*个状态字段/ });
 
     fireEvent.click(screen.getByText('规则与状态'));
     expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1/rules');

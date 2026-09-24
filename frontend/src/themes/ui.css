@@ -265,6 +265,9 @@
   color: var(--we-color-text-tertiary);
   opacity: 0.6;
 }
+.we-empty-state__icon:has(.we-fluid-orb) {
+  opacity: 1;
+}
 .we-empty-state__title {
   font-family: var(--we-font-display);
   font-size: var(--we-text-lg);
@@ -4001,6 +4004,9 @@
   background: none;
   color: var(--we-color-text-primary);
   cursor: pointer;
+}
+.we-scroll-progress__pill:disabled {
+  cursor: default;
 }
 .we-scroll-progress__pill:focus-visible,
 .we-scroll-progress__item:focus-visible {

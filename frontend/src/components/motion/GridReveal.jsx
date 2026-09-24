@@ -238,136 +238,149 @@ function readAverages(el, root, branches, at) {
   }
 }
 
+// 先按 CORS 请求以便读像素；没有 CORS 头的地址会被拒，退回普通请求
+function loadImage(url, onLoad, isCancelled, withCors = true) {
+  const el = new Image();
+  if (withCors) el.crossOrigin = 'anonymous';
+  el.decoding = 'async';
+  el.onload = () => {
+    if (!isCancelled() && el.naturalWidth && el.naturalHeight) onLoad(el);
+  };
+  el.onerror = () => {
+    if (!isCancelled() && withCors) loadImage(url, onLoad, isCancelled, false);
+  };
+  el.src = url;
+}
+
+// 不在视口里就不画；环境不支持时当作一直可见
+function watchVisibility(frame, onChange) {
+  if (typeof IntersectionObserver !== 'function') return null;
+  let visible = true;
+  const observer = new IntersectionObserver(([entry]) => {
+    if (entry.isIntersecting === visible) return;
+    visible = entry.isIntersecting;
+    onChange(visible);
+  }, { rootMargin: '150px' });
+  observer.observe(frame);
+  return observer;
+}
+
+function createScene(frame, ctx, aspect) {
+  const { root, branches } = buildTree(aspect);
+  const [r, g, b] = readCssColor(frame, 'var(--we-color-bg-canvas)');
+  return {
+    ctx, root, branches, width: 0, height: 0, scale: 1,
+    dark: 0.299 * r + 0.587 * g + 0.114 * b < 128,
+    clock: 0, split: 0, fade: 0, hasColors: false, image: null, loadedAt: -1,
+  };
+}
+
+function renderAt(scene, split, now) {
+  scene.split = split;
+  scene.fade = scene.loadedAt < 0 ? 0 : smoothstep(0, COLOR_MS, now - scene.loadedAt);
+  drawScene(scene);
+}
+
+// 减少动效没有循环，直接画落定的一帧
+function renderSettled(scene) {
+  const settled = scene.loadedAt < 0 ? performance.now() : scene.loadedAt + COLOR_MS;
+  renderAt(scene, scene.image ? 1 : WAIT_CAP, settled);
+}
+
+// 改尺寸会清空画布，尺寸变了就重画
+function fitCanvas(scene, frame, canvas, repaint) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = frame.getBoundingClientRect();
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  scene.scale = dpr;
+  if (w === scene.width && h === scene.height) return;
+  scene.width = w;
+  scene.height = h;
+  canvas.width = w;
+  canvas.height = h;
+  repaint();
+}
+
+// 一帧的推进：收尾由图片到达决定，而不是进度数字；返回是否已完全落定
+function advance(scene, run, dt, now) {
+  run.elapsed += dt;
+  scene.clock = run.elapsed;
+  const ready = scene.image !== null;
+  const target = ready ? 1 : selfPaced(run.elapsed * 1000);
+  run.eased += (target - run.eased) * (1 - Math.exp(-dt * 5.5));
+  const wanted = Math.min(run.eased, ready ? 1 : WAIT_CAP);
+  run.split += (wanted - run.split) * (1 - Math.exp(-dt * 4));
+  renderAt(scene, run.split, now);
+  return ready && run.eased > 0.995 && now - scene.loadedAt > COLOR_MS && run.split > 0.9995;
+}
+
+function animateScene(scene, frame) {
+  const run = { elapsed: 0, eased: 0, split: 0 };
+  let frameId = 0;
+  let last = 0;
+  let stopped = false;
+  const tick = (now) => {
+    frameId = requestAnimationFrame(tick);
+    const dt = last ? Math.min((now - last) / 1000, 0.05) : 0;
+    last = now;
+    if (!advance(scene, run, dt, now)) return;
+    // 之后不再有变化，停掉循环
+    renderAt(scene, 1, now);
+    stopped = true;
+    cancelAnimationFrame(frameId);
+  };
+  const start = () => {
+    if (stopped) return;
+    last = 0;
+    cancelAnimationFrame(frameId);
+    frameId = requestAnimationFrame(tick);
+  };
+  const visibility = watchVisibility(frame, (visible) => (visible ? start() : cancelAnimationFrame(frameId)));
+  start();
+  return () => {
+    cancelAnimationFrame(frameId);
+    visibility?.disconnect();
+  };
+}
+
+function runReveal({ frame, canvas, src, aspect, reduced }) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  const scene = createScene(frame, ctx, aspect);
+  let cancelled = false;
+  const repaint = () => (reduced ? renderSettled(scene) : renderAt(scene, scene.split, performance.now()));
+  const resize = () => fitCanvas(scene, frame, canvas, repaint);
+  resize();
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
+  observer?.observe(frame);
+
+  if (src) {
+    loadImage(src, (el) => {
+      scene.image = el;
+      scene.loadedAt = performance.now();
+      scene.hasColors = readAverages(el, scene.root, scene.branches, scene.split);
+      if (reduced) repaint();
+    }, () => cancelled);
+  }
+
+  if (reduced) repaint();
+  const stopAnimation = reduced ? null : animateScene(scene, frame);
+  return () => {
+    cancelled = true;
+    stopAnimation?.();
+    observer?.disconnect();
+  };
+}
+
 export default function GridReveal({ src, alt = '', aspect = 1, className = '' }) {
   const { reduced } = useMotion();
   const frameRef = useRef(null);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const frame = frameRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!frame || !ctx) return undefined;
-
-    const { root, branches } = buildTree(aspect);
-    const [r, g, b] = readCssColor(frame, 'var(--we-color-bg-canvas)');
-    const scene = {
-      ctx, root, width: 0, height: 0, scale: 1,
-      dark: 0.299 * r + 0.587 * g + 0.114 * b < 128,
-      clock: 0, split: 0, fade: 0, hasColors: false, image: null,
-    };
-    let loadedAt = -1;
-    let cancelled = false;
-
-    const render = (split, now) => {
-      scene.split = split;
-      scene.fade = loadedAt < 0 ? 0 : smoothstep(0, COLOR_MS, now - loadedAt);
-      drawScene(scene);
-    };
-    const repaint = () => {
-      if (!reduced) return render(scene.split, performance.now());
-      // 减少动效没有循环，直接画落定的一帧
-      const settled = loadedAt < 0 ? performance.now() : loadedAt + COLOR_MS;
-      return render(scene.image ? 1 : WAIT_CAP, settled);
-    };
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = frame.getBoundingClientRect();
-      const w = Math.max(1, Math.round(rect.width * dpr));
-      const h = Math.max(1, Math.round(rect.height * dpr));
-      scene.scale = dpr;
-      if (w === scene.width && h === scene.height) return;
-      scene.width = w;
-      scene.height = h;
-      canvas.width = w;
-      canvas.height = h;
-      // 改尺寸会清空画布，必须重画
-      repaint();
-    };
-    resize();
-    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(resize) : null;
-    observer?.observe(frame);
-
-    const load = (url, withCors) => {
-      const el = new Image();
-      if (withCors) el.crossOrigin = 'anonymous';
-      el.decoding = 'async';
-      el.onload = () => {
-        if (cancelled || !el.naturalWidth || !el.naturalHeight) return;
-        scene.image = el;
-        loadedAt = performance.now();
-        scene.hasColors = readAverages(el, root, branches, scene.split);
-        if (reduced) repaint();
-      };
-      // 没有 CORS 头的地址会被拒，退回普通请求
-      el.onerror = () => {
-        if (!cancelled && withCors) load(url, false);
-      };
-      el.src = url;
-    };
-    if (src) load(src, true);
-
-    if (reduced) {
-      repaint();
-      return () => {
-        cancelled = true;
-        observer?.disconnect();
-      };
-    }
-
-    let frameId = 0;
-    let last = 0;
-    let elapsed = 0;
-    let eased = 0;
-    let split = 0;
-    let stopped = false;
-    let visible = true;
-
-    const tick = (now) => {
-      frameId = requestAnimationFrame(tick);
-      if (!last) last = now;
-      const dt = Math.min((now - last) / 1000, 0.05);
-      last = now;
-      elapsed += dt;
-      scene.clock = elapsed;
-      const ready = scene.image !== null;
-      // 收尾由图片到达决定，而不是进度数字
-      const target = ready ? 1 : selfPaced(elapsed * 1000);
-      eased += (target - eased) * (1 - Math.exp(-dt * 5.5));
-      const wanted = Math.min(eased, ready ? 1 : WAIT_CAP);
-      split += (wanted - split) * (1 - Math.exp(-dt * 4));
-      render(split, now);
-      // 之后不再有变化，停掉循环
-      if (ready && eased > 0.995 && now - loadedAt > COLOR_MS && split > 0.9995) {
-        render(1, now);
-        stopped = true;
-        cancelAnimationFrame(frameId);
-      }
-    };
-    const start = () => {
-      if (stopped) return;
-      last = 0;
-      cancelAnimationFrame(frameId);
-      frameId = requestAnimationFrame(tick);
-    };
-    // 不在视口里就不画
-    const visibility = typeof IntersectionObserver === 'function'
-      ? new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting === visible) return;
-        visible = entry.isIntersecting;
-        if (visible) start();
-        else cancelAnimationFrame(frameId);
-      }, { rootMargin: '150px' })
-      : null;
-    visibility?.observe(frame);
-    start();
-
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(frameId);
-      observer?.disconnect();
-      visibility?.disconnect();
-    };
+    if (!frameRef.current || !canvasRef.current) return undefined;
+    return runReveal({ frame: frameRef.current, canvas: canvasRef.current, src, aspect, reduced });
   }, [reduced, src, aspect]);
 
   return (

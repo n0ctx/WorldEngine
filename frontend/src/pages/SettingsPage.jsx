@@ -15,6 +15,7 @@ import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 import { useMotion } from '../core/hooks/useMotion.js';
+import HookRail from '../components/motion/HookRail.jsx';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -39,6 +40,7 @@ export default function SettingsPage() {
   };
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
   const panelRef = useRef(null);
+  const navItemsRef = useRef(null);
   const mouseDownOutsidePanel = useRef(false);
   useEscapeKey(() => navigate(-1), isOverlay);
 
@@ -106,10 +108,12 @@ export default function SettingsPage() {
           <div className="we-settings-nav-header">
             <p className="we-settings-nav-title">设置</p>
           </div>
-          <div className="we-settings-nav-items">
+          <div ref={navItemsRef} className="we-settings-nav-items">
+            <HookRail containerRef={navItemsRef} activeKey={activeSection} />
             {NAV_SECTIONS.map((s) => (
               <button
                 key={s.key}
+                data-hook-item
                 className={`we-settings-nav-item${activeSection === s.key ? ' active' : ''}`}
                 aria-current={activeSection === s.key ? 'page' : undefined}
                 onClick={() => setActiveSection(s.key)}

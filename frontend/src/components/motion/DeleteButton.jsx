@@ -123,11 +123,11 @@ export default function DeleteButton({
       className={`we-delete-btn${className ? ` ${className}` : ''}`}
       animate={{ width: open ? TILE + PANEL : TILE }}
       transition={timing(WIDTH)}
+      // 常放在可点击的行 / 卡片里：点击与按键都不再冒泡，免得同时触发外层的选中
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
-        if (e.key !== 'Escape' || !open) return;
         e.stopPropagation();
-        resolve('kept');
+        if (e.key === 'Escape' && open) resolve('kept');
       }}
     >
       <motion.button

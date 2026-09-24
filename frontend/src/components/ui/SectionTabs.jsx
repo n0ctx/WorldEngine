@@ -7,6 +7,14 @@ import GooeyNav from '../motion/GooeyNav.jsx';
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
 
+// 键盘切换：按键 → 目标 tab 下标
+const KEY_TARGET = {
+  ArrowRight: (i) => i + 1,
+  ArrowLeft: (i) => i - 1,
+  Home: () => 0,
+  End: (_, count) => count - 1,
+};
+
 /**
  * SectionTabs
  *
@@ -68,19 +76,10 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      selectByIndex(activeIndex + 1);
-    } else if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      selectByIndex(activeIndex - 1);
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      selectByIndex(0);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      selectByIndex(sections.length - 1);
-    }
+    const target = KEY_TARGET[e.key]?.(activeIndex, sections.length);
+    if (target === undefined) return;
+    e.preventDefault();
+    selectByIndex(target);
   };
 
   const tabs = sections.map((s) => (

@@ -2,19 +2,6 @@
 
 /* ── Keyframes ─────────────────────────────────────────── */
 
-@keyframes we-thinking-dots {
-  0%   { content: ''; }
-  25%  { content: '.'; }
-  50%  { content: '..'; }
-  75%  { content: '...'; }
-  100% { content: ''; }
-}
-
-.we-impersonate-thinking::after {
-  content: '';
-  animation: we-thinking-dots var(--we-duration-loop) steps(1) infinite;
-}
-
 @keyframes we-panel-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -1313,6 +1300,7 @@
   bottom: 0;
   display: flex;
   align-items: center;
+  gap: var(--we-space-sm);
   padding: var(--we-space-sm) var(--we-space-lg);
   pointer-events: none;
   z-index: var(--we-z-spine);
