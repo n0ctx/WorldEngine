@@ -2967,6 +2967,25 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  /* 世界层双栏改为上下堆叠，各栏不再自带滚动，统一由 .we-characters-canvas 整页滚动 */
+  .we-worldhub-layout {
+    flex-direction: column;
+    flex: none;
+    overflow: visible;
+  }
+
+  .we-worldhub-main,
+  .we-worldhub-side {
+    flex: none;
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+  }
+
+  .we-storyline-body {
+    overflow: visible;
+  }
+
   .we-settings-panel,
   .we-settings-panel-overlay {
     width: min(100%, calc(100vw - 28px));
