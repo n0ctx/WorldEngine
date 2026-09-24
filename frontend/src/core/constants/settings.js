@@ -112,11 +112,13 @@ export const SETTINGS_MODE = { CHAT: 'chat', WRITING: 'writing' };
 export const DIARY_DATE_MODE = { VIRTUAL: 'virtual', REAL: 'real' };
 
 /**
- * 各 provider 思考链配置选项 — 与 backend/llm/providers/openai-compatible/thinking.js#applyThinkingToOpenAICompatibleBody 严格对应
+ * 各 provider 思考链配置选项 — 与后端请求体写入逻辑严格对应
+ * （openai-compatible 族见 backend/llm/providers/openai-compatible/thinking.js#applyThinkingToOpenAICompatibleBody，
+ *   kimi-coding 走 anthropic 适配器，见 backend/llm/providers/anthropic/index.js#resolveKimiCodingEffort）
  *
  * 编码命名空间：
- *   effort_*           → reasoning_effort 或 reasoning.effort（OpenAI o-series / OpenRouter / Grok / Xiaomi）
- *   budget_*           → thinking.budget_tokens / thinkingConfig.thinkingBudget（Anthropic / Gemini / kimi-coding / minimax-coding）
+ *   effort_*           → reasoning_effort 或 reasoning.effort（OpenAI o-series / OpenRouter / Grok / Xiaomi / kimi-coding）
+ *   budget_*           → thinking.budget_tokens / thinkingConfig.thinkingBudget（Anthropic / Gemini / minimax-coding）
  *   thinking_enabled/disabled → thinking: { type } 或 reasoning: { enabled } 或 enable_thinking 开关
  *   qwen_*             → enable_thinking=true + thinking_budget 数值（Qwen / SiliconFlow）
  */
@@ -124,12 +126,18 @@ export function getProviderThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
     case 'gemini':
-    case 'kimi-coding':
     case 'minimax-coding':
       return [
         { value: 'budget_low', label: '思考：低（1024 tokens）' },
         { value: 'budget_medium', label: '思考：中（8192 tokens）' },
         { value: 'budget_high', label: '思考：高（16384 tokens）' },
+      ];
+    // kimi-coding（K3 / K2.8 Preview）官方档位为 low/high/max
+    case 'kimi-coding':
+      return [
+        { value: 'effort_low', label: '思考：低（reasoning_effort=low）' },
+        { value: 'effort_high', label: '思考：高（reasoning_effort=high）' },
+        { value: 'effort_max', label: '思考：最高（reasoning_effort=max）' },
       ];
     case 'openai':
     case 'xiaomi':

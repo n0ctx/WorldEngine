@@ -959,12 +959,18 @@ function getThinkingOptions(provider) {
   switch (provider) {
     case 'anthropic':
     case 'gemini':
-    case 'kimi-coding':
     case 'minimax-coding':
       return [
         { value: 'budget_low', label: '思考：低（1024 tokens）' },
         { value: 'budget_medium', label: '思考：中（8192 tokens）' },
         { value: 'budget_high', label: '思考：高（16384 tokens）' },
+      ];
+    // kimi-coding（K3 / K2.8 Preview）官方档位为 low/high/max，见 anthropic 适配器 resolveKimiCodingEffort
+    case 'kimi-coding':
+      return [
+        { value: 'effort_low', label: '思考：低（reasoning_effort=low）' },
+        { value: 'effort_high', label: '思考：高（reasoning_effort=high）' },
+        { value: 'effort_max', label: '思考：最高（reasoning_effort=max）' },
       ];
     case 'openai':
     case 'glm-coding':

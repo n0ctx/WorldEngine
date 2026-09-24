@@ -26,6 +26,14 @@ function logUsage(model, usage) {
   }));
 }
 
+// kimi-coding（K3 / K2.8 Preview）用 reasoning_effort: low/high/max 控制思考深度，
+// 不认 Anthropic 的 thinking.budget_tokens；effort_* 以外的级别（含遗留 budget_*）一律不下发
+function resolveKimiCodingEffort(provider, thinkingLevel) {
+  if (provider !== 'kimi-coding') return null;
+  const MAP = { effort_low: 'low', effort_high: 'high', effort_max: 'max' };
+  return MAP[thinkingLevel] ?? null;
+}
+
 // 将 system 字符串转为带 cache_control 的数组格式,启用 Anthropic Prompt Caching。
 // 若 config.cacheableSystem 提供了稳定前缀(assembler [1-3.5]),则把 system 拆成
 // stable prefix + dynamic suffix 两段,cache_control 只标在 prefix 上 —— 避免 dynamic
@@ -91,7 +99,8 @@ export async function* streamAnthropic(messages, config) {
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
 
-  const budgetTokens = resolveThinkingBudget(config.thinking_level);
+  const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
+  const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
   const body = {
     model: config.model,
     messages: converted,
@@ -99,8 +108,9 @@ export async function* streamAnthropic(messages, config) {
     stream: true,
   };
   // extended thinking 不兼容 temperature(必须为 1),有 thinking 时不传 temperature
-  if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
+  if (!budgetTokens && !kimiEffort && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
+  if (kimiEffort) body.reasoning_effort = kimiEffort;
   if (system) body.system = withCacheControl(system, config);
 
   const headers = {
@@ -194,14 +204,16 @@ export async function completeAnthropic(messages, config) {
   const url = `${baseUrl}/v1/messages`;
   const { system, messages: converted } = convertToAnthropicMessages(messages);
 
-  const budgetTokens = resolveThinkingBudget(config.thinking_level);
+  const kimiEffort = resolveKimiCodingEffort(config.provider, config.thinking_level);
+  const budgetTokens = config.provider === 'kimi-coding' ? null : resolveThinkingBudget(config.thinking_level);
   const body = {
     model: config.model,
     messages: converted,
     max_tokens: config.max_tokens || 4096,
   };
-  if (!budgetTokens && config.temperature != null) body.temperature = config.temperature;
+  if (!budgetTokens && !kimiEffort && config.temperature != null) body.temperature = config.temperature;
   if (budgetTokens) body.thinking = { type: 'enabled', budget_tokens: budgetTokens };
+  if (kimiEffort) body.reasoning_effort = kimiEffort;
   if (system) body.system = withCacheControl(system, config);
 
   const headers = {
