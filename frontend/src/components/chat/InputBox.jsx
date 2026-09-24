@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { applyRules } from '../../core/utils/regex-runner.js';
 import Icon from '../ui/Icon.jsx';
+import ConfirmModal from '../ui/ConfirmModal.jsx';
 import { log } from '../../core/utils/logger.js';
 import { isImeComposing } from '../../core/utils/ime.js';
 import { MAX_ATTACHMENTS_PER_MESSAGE, MAX_ATTACHMENT_SIZE_MB } from '../../core/utils/constants.js';
@@ -36,6 +37,7 @@ const InputBox = forwardRef(function InputBox({
   const [slashIndex, setSlashIndex] = useState(0);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [pendingFill, setPendingFill] = useState(null);
   const draftKey = `we:chat-draft:${mode}:${sessionId || globalThis.location?.pathname || ''}`;
 
   useEffect(() => {
@@ -72,9 +74,13 @@ const InputBox = forwardRef(function InputBox({
 
   // 暴露命令式 fillText 给父组件
   useImperativeHandle(ref, () => ({
+    // confirmOverwrite：已有内容时弹确认框，由用户决定是否覆盖
     fillText(value, opts = {}) {
-      const { force = false, focus = false } = opts;
-      if (!force && text.trim()) return false;
+      const { force = false, focus = false, confirmOverwrite = false } = opts;
+      if (!force && text.trim()) {
+        if (confirmOverwrite) setPendingFill(value);
+        return false;
+      }
       setText(value);
       if (focus) {
         setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
@@ -422,6 +428,21 @@ const InputBox = forwardRef(function InputBox({
           </button>
         )}
       </div>
+
+      {pendingFill !== null && (
+        <ConfirmModal
+          title="覆盖输入框内容？"
+          message="输入框已有内容，是否用 AI 代写结果覆盖？"
+          confirmText="覆盖"
+          cancelText="保留原内容"
+          onConfirm={async () => {
+            setText(pendingFill);
+            setPendingFill(null);
+            setTimeout(() => textareaRef.current?.focus({ preventScroll: true }), 0);
+          }}
+          onClose={() => setPendingFill(null)}
+        />
+      )}
     </div>
   );
 });

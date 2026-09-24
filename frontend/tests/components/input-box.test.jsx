@@ -51,6 +51,24 @@ describe('InputBox', () => {
     expect(screen.getByDisplayValue('代拟内容')).toBeInTheDocument();
   });
 
+  it('confirmOverwrite 时已有内容会弹确认框，确认后才覆盖', async () => {
+    const ref = React.createRef();
+    render(
+      <InputBox ref={ref} onSend={vi.fn()} onStop={vi.fn()} generating={false} impersonating={false} />,
+    );
+    fireEvent.change(screen.getByPlaceholderText('发送消息… (Shift+Enter 换行，/ 调出命令)'), {
+      target: { value: '已有内容' },
+    });
+
+    act(() => { ref.current.fillText('代拟内容', { confirmOverwrite: true }); });
+    fireEvent.click(screen.getByText('保留原内容'));
+    expect(screen.getByDisplayValue('已有内容')).toBeInTheDocument();
+
+    act(() => { ref.current.fillText('代拟内容', { confirmOverwrite: true }); });
+    fireEvent.click(screen.getByText('覆盖'));
+    expect(await screen.findByDisplayValue('代拟内容')).toBeInTheDocument();
+  });
+
   it('规则处理后为空时不会发送', () => {
     const onSend = vi.fn();
     mocks.applyRules.mockReturnValueOnce('   ');

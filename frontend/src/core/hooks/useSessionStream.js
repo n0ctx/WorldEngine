@@ -782,11 +782,7 @@ export function useSessionStream({
     try {
       const { content } = await api.impersonate(targetSessionId);
       if (content) {
-        const filled = inputBoxRef.current?.fillText(content, { focus: false });
-        if (filled === false) {
-          const confirmed = window.confirm('输入框已有内容，是否用 AI 代写结果覆盖？');
-          if (confirmed) inputBoxRef.current?.fillText(content, { force: true, focus: true });
-        }
+        inputBoxRef.current?.fillText(content, { confirmOverwrite: true });
       }
     } catch (err) {
       log.error(`${mode}.proxy_failed`, err, { toast: err.message || '代拟失败' });
