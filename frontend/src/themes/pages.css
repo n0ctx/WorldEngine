@@ -2108,7 +2108,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xs);
-  padding-left: 14px; /* 弹跳圆点的位置：圆点 6px + 间距 8px */
+  padding-left: 22px; /* 弹跳圆点的位置：弧线向左鼓出 8px + 圆点 6px + 间距 8px */
 }
 
 .we-settings-nav-footer {
@@ -3388,7 +3388,7 @@
   gap: var(--we-space-lg);
   overflow-y: auto;
   padding-right: var(--we-space-sm);
-  padding-left: 14px; /* 弹跳圆点的位置：圆点 6px + 间距 8px */
+  padding-left: 22px; /* 弹跳圆点的位置：弧线向左鼓出 8px + 圆点 6px + 间距 8px */
 }
 .we-workshop-nav-group { display: flex; flex-direction: column; gap: var(--we-space-xs); }
 .we-workshop-nav-group-title {
