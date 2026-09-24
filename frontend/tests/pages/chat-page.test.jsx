@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
   SessionListPanelMock.updateTitle = vi.fn();
 
   return {
+    navigate: vi.fn(),
     useParams: vi.fn(),
     createSession: vi.fn(),
     getSession: vi.fn(),
@@ -44,7 +45,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mocks.navigate,
 }));
 vi.mock('../../src/core/api/characters.js', () => ({ getCharacter: (...args) => mocks.getCharacter(...args) }));
 vi.mock('../../src/core/api/personas.js', () => ({ getPersona: (...args) => mocks.getPersona(...args) }));
@@ -203,6 +204,16 @@ describe('ChatPage', () => {
     // 状态面板默认收在右侧窄轨里，先展开再断言内容（第 10 步：两侧改为可收起抽屉）
     fireEvent.click(screen.getByRole('button', { name: '展开状态面板' }));
     expect(screen.getByTestId('state-panel')).toHaveTextContent('world-1');
+  });
+
+  it('会话栏收起时，对话列顶部仍可点「返回世界」', async () => {
+    renderChatPage();
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(await screen.findByRole('button', { name: '返回世界' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
   });
 
   it('两侧抽屉默认收起为窄轨，展开后才挂载内容，收起也能收回去（第 10 步核心行为）', async () => {

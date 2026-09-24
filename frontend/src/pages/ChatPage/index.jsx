@@ -183,17 +183,6 @@ export default function ChatPage() {
           currentSessionId={currentSessionId}
           onActiveSessionDeleted={clearActiveSession}
           onActiveSessionRenamed={(title) => setCurrentSession((prev) => (prev ? { ...prev, title } : prev))}
-          headerLeft={(
-            <button
-              onClick={() => navigate(`/worlds/${character?.world_id}`)}
-              className="we-session-list-back"
-            >
-              <Icon size={14}>
-                <polyline points="15 18 9 12 15 6" />
-              </Icon>
-              返回世界
-            </button>
-          )}
           headerRight={(
             <button onClick={handleCreateChatSession} className="we-session-list-create">
               <Icon size={16} strokeWidth="2.5">
@@ -224,6 +213,18 @@ export default function ChatPage() {
             />
           )}
         </AnimatePresence>
+
+        <div className="we-chat-pane-nav">
+          <button
+            onClick={() => navigate(`/worlds/${character?.world_id}`)}
+            className="we-chat-pane-back"
+          >
+            <Icon size={14}>
+              <polyline points="15 18 9 12 15 6" />
+            </Icon>
+            返回世界
+          </button>
+        </div>
 
         <SpeakerStage character={character} />
 

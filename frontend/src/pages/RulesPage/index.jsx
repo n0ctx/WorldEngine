@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import StateFieldEditor from '../../components/state/StateFieldEditor';
 import StateValueField from '../../components/state/StateValueField';
 import EntryEditor from '../../components/state/EntryEditor';
 import DragHandle from '../../components/ui/DragHandle.jsx';
+import Icon from '../../components/ui/Icon.jsx';
 import SortableList from '../../components/ui/SortableList.jsx';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
 import {
@@ -72,6 +73,7 @@ const UNGROUPED = '__ungrouped__';
 export default function RulesPage() {
   const { worldId } = useParams();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // ── 设定条目 ──
   const [entries, setEntries] = useState([]);
@@ -207,9 +209,13 @@ export default function RulesPage() {
 
   return (
     <div className="we-characters-canvas">
-      {/* 返回导航已收口到顶栏面包屑（TopBar），此页不再自带返回按钮 */}
-
       <div className="we-workshop">
+        <button className="we-workshop-back" onClick={() => navigate(`/worlds/${worldId}`)}>
+          <Icon size={14}>
+            <polyline points="15 18 9 12 15 6" />
+          </Icon>
+          返回世界
+        </button>
         <header className="we-workshop-header">
           <h1 className="we-workshop-title">这个世界的规则</h1>
           <p className="we-workshop-subtitle">设定条目、状态字段、注入顺序都在这一处管理</p>

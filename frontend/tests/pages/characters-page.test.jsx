@@ -278,6 +278,29 @@ describe('CharactersPage', () => {
     expect(screen.getByText('切换')).toBeInTheDocument();
   });
 
+  it('我扮演：收起状态直接点「编辑」进入当前玩家卡的编辑页', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('旅者');
+
+    fireEvent.click(screen.getByRole('button', { name: '编辑' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith(
+      '/worlds/world-1/personas/persona-1/edit',
+      expect.objectContaining({ state: expect.objectContaining({ backgroundLocation: expect.anything() }) }),
+    );
+  });
+
+  it('我扮演：展开后的玩家卡不显示简介', async () => {
+    render(<CharactersPage />);
+    await screen.findAllByText('旅者');
+
+    fireEvent.click(screen.getByRole('button', { name: '切换' }));
+
+    expect(document.querySelector('.we-persona-card')).toBeInTheDocument();
+    expect(screen.queryByText('主角')).not.toBeInTheDocument();
+    expect(screen.queryByText('暂无简介')).not.toBeInTheDocument();
+  });
+
   it('我扮演：激活另一张玩家卡后重新拉取故事线（写作会话按 persona 过滤，切换后必须刷新）', async () => {
     mocks.listPersonas.mockResolvedValue([
       { id: 'persona-1', name: '旅者', description: '主角', is_active: 1 },

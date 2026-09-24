@@ -114,6 +114,15 @@ describe('RulesPage', () => {
     mocks.logError.mockReset();
   });
 
+  it('页头「返回世界」回到当前世界页', async () => {
+    render(<RulesPage />);
+    await waitFor(() => expect(mocks.listWorldEntries).toHaveBeenCalledWith('world-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: '返回世界' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
+  });
+
   it('左栏按用户自定义分组导航 + 全部 + 未分组，状态字段三个作用域', async () => {
     render(<RulesPage />);
 

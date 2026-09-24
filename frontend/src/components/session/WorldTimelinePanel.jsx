@@ -7,7 +7,7 @@
  *
  * 「新建」不在这个组件里：对话页新建的是「与当前角色的新对话」，写作页新建的是「新写作会话」，
  * 语义各自绑定当前页面上下文，跟世界层「+ 新建」（只能新建写作，因为没有角色上下文）不是一回事。
- * 所以头部的新建/返回按钮由调用方通过 headerLeft / headerRight 传入，组件只负责渲染时间线本身。
+ * 所以头部的新建按钮由调用方通过 headerRight 传入，组件只负责渲染时间线本身。
  *
  * 编辑标题 / 删除会话：只对「与当前页面同模式」的条目提供内联操作——组件自己按 item.mode
  * 选对应的删除接口（chat 用 sessions.js 的 deleteSession，writing 用 writing-sessions.js 的
@@ -174,7 +174,6 @@ function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDe
  * @param {'chat'|'writing'} currentMode 当前页面所在模式，用于给命中项打选中态，也决定订阅哪个
  *   session-list-bridge（chatSessionListBridge / writingSessionListBridge）
  * @param {string|null} currentSessionId 当前活跃会话 id
- * @param {React.ReactNode} [headerLeft] 头部左侧（返回世界等，各页自带）
  * @param {React.ReactNode} [headerRight] 头部右侧（各页自己的「新建」按钮）
  * @param {() => void} [onActiveSessionDeleted] 内联删除的正是当前打开的会话时回调，让页面清空/重置当前会话
  * @param {(title: string|null) => void} [onActiveSessionRenamed] 内联重命名的正是当前打开的会话时回调，让页面同步 currentSession.title
@@ -183,7 +182,6 @@ export default function WorldTimelinePanel({
   worldId,
   currentMode,
   currentSessionId,
-  headerLeft = null,
   headerRight = null,
   onActiveSessionDeleted = null,
   onActiveSessionRenamed = null,
@@ -297,7 +295,6 @@ export default function WorldTimelinePanel({
   return (
     <div className="we-session-list-panel">
       <div className="we-session-list-head">
-        <div className="we-session-list-nav">{headerLeft}</div>
         {headerRight}
       </div>
 

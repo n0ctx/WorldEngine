@@ -236,6 +236,7 @@
   --we-radius-full: 9999px;
 
   /* === Z-index Scale === */
+  --we-topbar-height: 52px; /* 顶栏高度：贴在顶栏下方的固定层（写卡助手抽屉）以此为起点 */
   --we-z-card-bg:      0;  /* 卡片：封面图层（最底） */
   --we-z-card-overlay: 1;  /* 卡片：渐变蒙版/内容容器层 */
   --we-z-card-content: 2;  /* 卡片：标题/操作/元信息层（最前） */
@@ -348,7 +349,6 @@
      需要在窄行/auto-overflow 容器里收紧远距 bloom 的主题可单独覆写这两个 token。 */
   /* 卡片 hover 位移：world 卡默认上浮 -4px；硬投影/拟物主题可覆写为 translate(...) 做下压 */
   /* 列表卡 hover 位移：默认不位移；硬投影/拟物主题可覆写为 translate(...) 制造下压/弹起手感 */
-  /* PersonaCard 左侧指示条 rest 色：默认透明；粗边主题设为边框色以补齐左边框 */
   --we-panel-card-shadow: 0 0 0 1px rgba(23, 23, 23, 0.03); /* fallback: older browsers */
   --we-panel-card-shadow: 0 0 0 1px color-mix(in srgb, var(--we-base-ink-900) 3%, transparent);
 

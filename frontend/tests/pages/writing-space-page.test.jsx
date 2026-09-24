@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
   WritingSessionListMock.updateTitle = vi.fn();
 
   return {
+    navigate: vi.fn(),
     useParams: vi.fn(),
     setAppMode: vi.fn(),
     refreshCustomCss: vi.fn(),
@@ -42,7 +43,7 @@ const mocks = vi.hoisted(() => {
 
 vi.mock('react-router-dom', () => ({
   useParams: () => mocks.useParams(),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mocks.navigate,
 }));
 vi.mock('../../src/core/state/appMode.js', () => ({
   useAppModeStore: (selector) => selector({ setAppMode: mocks.setAppMode }),
@@ -166,6 +167,15 @@ describe('WritingSpacePage', () => {
   afterEach(() => {
     mocks.refreshCustomCss.mockReset();
     vi.useRealTimers();
+  });
+
+  it('会话栏收起时，写作列顶部仍可点「返回世界」', async () => {
+    renderWritingSpacePage();
+
+    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: '返回世界' }));
+
+    expect(mocks.navigate).toHaveBeenCalledWith('/worlds/world-1');
   });
 
   it('首次进入会创建写作会话并切到 writing 模式，发送时调用 generate', async () => {
