@@ -11,6 +11,7 @@
  *   --we-duration-normal   ↔ DURATION.base    (局部反馈)
  *   --we-duration-slow     ↔ DURATION.medium  (组件入场)
  *   --we-duration-extended ↔ DURATION.slow    (慢显)
+ *   --we-duration-loop     ↔ DURATION.loop    (循环指示)
  *   --we-easing-ink/sharp/page/quill/retract ↔ EASE.ink/sharp/page/quill/retract
  *
  * 退出码：0 通过 / 1 漂移（硬错误，阻塞 CI）
@@ -36,6 +37,7 @@ const DURATION_MAP = {
   '--we-duration-normal':   'base',
   '--we-duration-slow':     'medium',
   '--we-duration-extended': 'slow',
+  '--we-duration-loop':     'loop',
 };
 
 function cssMs(token) {
@@ -85,5 +87,5 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log('✓ 动效 token 对齐：motion.js ↔ tokens.css 一致（时长 4 槽 + 缓动 5 条）');
+console.log(`✓ 动效 token 对齐：motion.js ↔ tokens.css 一致（时长 ${Object.keys(DURATION_MAP).length} 槽 + 缓动 ${EASE_KEYS.length} 条）`);
 process.exit(0);

@@ -231,10 +231,11 @@
   --we-radius-xl: 26px;
   --we-radius-full: 9999px;
 
-  --we-duration-fast: 120ms;
-  --we-duration-normal: 200ms;
-  --we-duration-slow: 320ms;
+  --we-duration-fast: 180ms;
+  --we-duration-normal: 300ms;
+  --we-duration-slow: 380ms;
   --we-duration-extended: 500ms;
+  --we-duration-loop: 1200ms;
 
   /* ──────────────────────────────────────────────────────────────
      § 7 排版节奏（字号 / 行高 / 字距阶梯）
