@@ -4557,20 +4557,11 @@
 .we-skeleton-block--w-40 { width: 40%; }
 .we-skeleton-block--w-55 { width: 55%; }
 .we-skeleton-block--w-70 { width: 70%; }
-.we-skeleton-block--w-90 { width: 90%; }
 
 /* 大尺寸骨架（标题/卡片占位）*/
 .we-skeleton-block--lg {
   height: 24px;
   border-radius: var(--we-radius-md);
-}
-
-/* 卡片占位 */
-.we-skeleton-card {
-  border: var(--we-card-border);
-  border-radius: var(--we-card-radius);
-  padding: var(--we-space-lg);
-  background: var(--we-card-bg);
 }
 
 /* reduced-motion 降级 */

@@ -69,6 +69,14 @@ body {
      不再用 flex 居中——骨架模拟页面内容应左对齐而非居中；
      padding 交给内层 .we-skeleton-container 提供，避免双重 padding。 */
   min-height: 100svh;
+  /* 加载在 300ms 内完成时占位根本不出现。延迟写死而不走 --we-duration-*：
+     减弱动效模式会把 duration token 置 0，闪烁会回来。 */
+  animation: we-route-fallback-in var(--we-duration-normal) var(--we-easing-ink) 300ms both;
+}
+
+@keyframes we-route-fallback-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* =========================================================
