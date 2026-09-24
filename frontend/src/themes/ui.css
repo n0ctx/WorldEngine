@@ -3692,3 +3692,414 @@
   inset: 0;
   z-index: calc(var(--we-z-modal) + 1);
 }
+
+/* ── 动效组件（components/motion/，移植自 Rare UI）───────────────── */
+
+/* 原地确认删除 */
+.we-delete-btn {
+  position: relative;
+  flex-shrink: 0;
+  height: 28px;
+  border-radius: var(--we-radius-md);
+  background: var(--we-color-ink-wash);
+  color: var(--we-color-text-tertiary);
+}
+.we-delete-btn__trigger {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-delete-btn__trigger:hover,
+.we-delete-btn[data-state="open"] .we-delete-btn__trigger {
+  color: var(--we-color-status-danger);
+}
+.we-delete-btn__trigger:focus-visible,
+.we-delete-btn__circle:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+.we-delete-btn__trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.we-delete-btn__done {
+  color: var(--we-color-accent);
+}
+.we-delete-btn__panel {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--we-space-xs);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--we-color-text-primary) 8%, var(--we-color-bg-elevated));
+}
+.we-delete-btn__notch {
+  position: absolute;
+  top: 50%;
+  left: -5px;
+  width: 6px;
+  height: 10px;
+  transform: translateY(-50%);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  background: inherit;
+}
+.we-delete-btn__slot {
+  display: flex;
+}
+.we-delete-btn__circle {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--we-color-bg-elevated);
+  color: var(--we-color-text-secondary);
+  box-shadow: 0 0 0 1px var(--we-material-stroke), 0 1px 2px var(--we-color-shadow-sm);
+  cursor: pointer;
+}
+.we-delete-btn__confirm-mark {
+  stroke: var(--we-color-status-danger);
+}
+
+/* 里程表数字 */
+.we-counter {
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.we-counter__wheels {
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+/* 每个面上下留出的空隙就是遮罩渐隐的区域，静止的数字保持实色 */
+.we-counter__digit {
+  --we-counter-fade: linear-gradient(to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.06) 5.5%,
+    rgba(0, 0, 0, 0.5) 11%,
+    rgba(0, 0, 0, 0.94) 16.5%,
+    #000 22%,
+    #000 78%,
+    rgba(0, 0, 0, 0.94) 83.5%,
+    rgba(0, 0, 0, 0.5) 89%,
+    rgba(0, 0, 0, 0.06) 94.5%,
+    rgba(0, 0, 0, 0) 100%);
+  position: relative;
+  display: inline-grid;
+  height: 1.5em;
+  overflow: hidden;
+  line-height: 1.5;
+  -webkit-mask-image: var(--we-counter-fade);
+  mask-image: var(--we-counter-fade);
+}
+.we-counter__sizer {
+  visibility: hidden;
+  grid-area: 1 / 1;
+}
+.we-counter__stack {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+}
+.we-counter__face {
+  display: flex;
+  height: 1.5em;
+  align-items: center;
+  justify-content: center;
+}
+.we-counter__mark {
+  display: inline-block;
+}
+
+/* 液滴分段 tab（SectionTabs variant="gooey"）；pages.css 后加载，选择器多带一层以免被编辑面板的 tab 规则覆盖 */
+.we-section-tabs.we-section-tabs--gooey .we-section-tabs-list {
+  align-items: center;
+  margin-left: 0;
+  padding-block: var(--we-space-xxs);
+}
+.we-section-tabs.we-section-tabs--gooey .we-section-tab {
+  padding: var(--we-space-xs) var(--we-space-lg);
+  border-radius: inherit;
+}
+.we-section-tabs.we-section-tabs--gooey .we-section-tab.active {
+  color: var(--we-color-text-inverse);
+}
+.we-gooey-nav__segment {
+  position: relative;
+  flex-shrink: 0;
+  margin-left: var(--we-gooey-gap, 0);
+  background-color: var(--we-color-ink-wash);
+}
+.we-gooey-nav__segment.is-active {
+  background-color: var(--we-color-accent);
+  transition: background-color var(--we-duration-slow) var(--we-easing-sharp);
+}
+.we-gooey-nav__neck {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.we-gooey-nav__stop {
+  stop-color: var(--we-color-ink-wash);
+}
+.we-gooey-nav__stop--active {
+  stop-color: var(--we-color-accent);
+}
+
+/* 点阵球 / 流体球 */
+.we-matrix-orb {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  vertical-align: middle;
+}
+.we-matrix-orb canvas {
+  display: block;
+  flex-shrink: 0;
+}
+.we-matrix-orb__label {
+  font-family: var(--we-font-display);
+  font-style: italic;
+  font-size: var(--we-text-sm);
+  color: var(--we-color-text-tertiary);
+}
+.we-fluid-orb {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.we-fluid-orb canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* 竖向导航的钩形导轨（HookRail）；容器须 position: relative，导航项左侧留出导轨位置 */
+.we-hook-rail {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.we-hook-rail--active {
+  color: var(--we-color-accent);
+}
+.we-hook-rail--preview {
+  color: color-mix(in srgb, var(--we-color-text-primary) 30%, transparent);
+}
+.we-hook-rail__line {
+  position: absolute;
+  left: 2px;
+  width: 1px;
+  background-image: repeating-linear-gradient(to top, transparent 0 2px, currentColor 2px 4px);
+}
+.we-hook-rail__hook {
+  position: absolute;
+  left: 2px;
+}
+
+/* 消息刻度（ProximityRail）：窄屏会压住正文，收起 */
+.we-proximity-rail {
+  position: absolute;
+  top: 50%;
+  right: var(--we-space-xs);
+  z-index: 2;
+  transform: translateY(-50%);
+}
+.we-proximity-rail__dashes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: var(--we-space-sm) 0 var(--we-space-sm) var(--we-space-md);
+}
+.we-proximity-rail__dash {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 40px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+.we-proximity-rail__dash > span {
+  display: block;
+  height: 1px;
+  transform-origin: right center;
+  background: color-mix(in srgb, var(--we-color-text-tertiary) 55%, transparent);
+  transition: background-color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-proximity-rail__dash--assistant > span {
+  background: var(--we-color-text-secondary);
+}
+.we-proximity-rail__dash[aria-current] > span {
+  background: var(--we-color-accent);
+}
+.we-proximity-rail__dash:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+@media (max-width: 900px) {
+  .we-proximity-rail {
+    display: none;
+  }
+}
+
+/* 章节进度胶囊（ScrollProgress） */
+.we-scroll-progress {
+  position: absolute;
+  top: var(--we-space-sm);
+  left: 50%;
+  z-index: 3;
+  transform: translateX(-50%);
+}
+.we-scroll-progress__sizer {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+.we-scroll-progress__surface {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  overflow: hidden;
+  transform: translateX(-50%);
+  border: 1px solid var(--we-material-stroke);
+  background: color-mix(in srgb, var(--we-color-bg-elevated) 82%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px var(--we-color-shadow-sm);
+}
+.we-scroll-progress__layer {
+  position: absolute;
+  inset: 0;
+}
+.we-scroll-progress__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-sm);
+  padding: 6px var(--we-space-lg) 6px var(--we-space-sm);
+  border: none;
+  background: none;
+  color: var(--we-color-text-primary);
+  cursor: pointer;
+}
+.we-scroll-progress__pill:focus-visible,
+.we-scroll-progress__item:focus-visible {
+  outline: none;
+  box-shadow: var(--we-focus-ring);
+}
+.we-scroll-progress__ring {
+  display: block;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+.we-scroll-progress__ring svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+.we-scroll-progress__track {
+  stroke: color-mix(in srgb, var(--we-color-text-primary) 15%, transparent);
+}
+.we-scroll-progress__fill {
+  stroke: var(--we-color-accent);
+}
+.we-scroll-progress__label {
+  position: relative;
+  flex-shrink: 0;
+  height: 20px;
+}
+.we-scroll-progress__label-text {
+  font-size: var(--we-text-sm);
+  line-height: 1;
+  white-space: nowrap;
+}
+.we-scroll-progress__label .we-scroll-progress__label-text {
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+}
+.we-scroll-progress__list {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+}
+.we-scroll-progress__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--we-space-md);
+  width: 100%;
+  padding: var(--we-space-sm) var(--we-space-md);
+  border: none;
+  border-radius: var(--we-radius-md);
+  background: none;
+  color: var(--we-color-text-tertiary);
+  font-size: var(--we-text-sm);
+  line-height: 1;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--we-duration-fast) var(--we-easing-sharp);
+}
+.we-scroll-progress__item:hover,
+.we-scroll-progress__item.is-active {
+  color: var(--we-color-text-primary);
+}
+.we-scroll-progress__highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--we-color-text-primary) 8%, transparent);
+}
+.we-scroll-progress__dot {
+  position: relative;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--we-color-text-primary) 30%, transparent);
+}
+.we-scroll-progress__item.is-active .we-scroll-progress__dot {
+  background: var(--we-color-accent);
+}
+.we-scroll-progress__item-label {
+  position: relative;
+}
+
+/* 图片网格揭开 */
+.we-grid-reveal {
+  position: relative;
+  overflow: hidden;
+}
+.we-grid-reveal canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

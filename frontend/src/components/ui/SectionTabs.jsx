@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { DURATION, EASE } from '../../core/utils/motion';
 import { useMotion } from '../../core/hooks/useMotion.js';
+import GooeyNav from '../motion/GooeyNav.jsx';
 
 const MotionDiv = motion.div;
 const MotionSpan = motion.span;
@@ -11,6 +12,7 @@ const MotionSpan = motion.span;
  *
  * sections: Array<{ key, label, content, actions? }>
  *   - actions: 当此 tab 激活时,渲染在 tab 行下方的 ReactNode(承载该 tab 的快捷操作,例如"重置")
+ * variant: 'gooey' 时 tab 行是一整条分段，选中段像液滴一样分离出来（不画下划线指示器）
  *
  * 交互:
  *   - active tab 变化时自动 scrollIntoView,让横向滚动条跟随当前 tab
@@ -30,10 +32,12 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
   const listRef = useRef(null);
   const tabRefs = useRef({});
   const [indicator, setIndicator] = useState(null);
+  const gooey = variant === 'gooey';
 
   // 指示器是列表里常驻的一条线，按当前 tab 的位置和宽度移动；不随 tab 挂卸，
   // 连点时从当前位置接着走。列表宽度变化（抽屉展开、窗口缩放）时重新量一次。
   useLayoutEffect(() => {
+    if (gooey) return undefined;
     const measure = () => {
       const el = tabRefs.current[active];
       if (el) setIndicator({ x: el.offsetLeft, width: el.offsetWidth });
@@ -43,7 +47,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
     const observer = new ResizeObserver(measure);
     observer.observe(listRef.current);
     return () => observer.disconnect();
-  }, [active, sections.length]);
+  }, [active, sections.length, gooey]);
 
   // active 变化时，把当前 tab 按钮滚到可视区
   useEffect(() => {
@@ -79,6 +83,24 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
     }
   };
 
+  const tabs = sections.map((s) => (
+    <button
+      key={s.key}
+      ref={(el) => { if (el) tabRefs.current[s.key] = el; }}
+      role="tab"
+      type="button"
+      aria-selected={active === s.key}
+      tabIndex={active === s.key ? 0 : -1}
+      className={`we-section-tab${active === s.key ? ' active' : ''}`}
+      onClick={() => {
+        setPrevIndex(activeIndex);
+        setActive(s.key);
+      }}
+    >
+      {s.label}
+    </button>
+  ));
+
   return (
     <div className={`we-section-tabs${variant ? ` we-section-tabs--${variant}` : ''}`}>
       <div className="we-section-tabs-bar">
@@ -89,23 +111,7 @@ export default function SectionTabs({ sections, defaultKey, variant, globalActio
           role="tablist"
           onKeyDown={handleKeyDown}
         >
-          {sections.map((s) => (
-            <button
-              key={s.key}
-              ref={(el) => { if (el) tabRefs.current[s.key] = el; }}
-              role="tab"
-              type="button"
-              aria-selected={active === s.key}
-              tabIndex={active === s.key ? 0 : -1}
-              className={`we-section-tab${active === s.key ? ' active' : ''}`}
-              onClick={() => {
-                setPrevIndex(activeIndex);
-                setActive(s.key);
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
+          {gooey ? <GooeyNav active={activeIndex}>{tabs}</GooeyNav> : tabs}
           {indicator && (
             <MotionSpan
               className="we-section-tab-indicator"
