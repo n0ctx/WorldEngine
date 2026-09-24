@@ -3,6 +3,7 @@ import { getConfig, updateConfig, updateProviderKey, fetchAuxModels, testAuxConn
 import { useDisplaySettingsStore } from '../state/displaySettings';
 import { LOCAL_PROVIDERS, NEEDS_BASE_URL_PROVIDERS, DIARY_DATE_MODE } from '../constants/settings';
 import { useSaveState } from './useSaveState';
+import { log } from '../utils/logger.js';
 
 export function useSettingsConfig() {
   const [loading, setLoading] = useState(true);
@@ -127,9 +128,16 @@ export function useSettingsConfig() {
     return () => window.removeEventListener('we:global-config-updated', h);
   }, []);
 
+  // 失败时只提示、不整页回滚：重拉配置会冲掉提示词编辑框里尚未保存的内容。
   async function patchConfig(patch) {
     suppressNextReloadRef.current = true;
-    await updateConfig(patch);
+    try {
+      await updateConfig(patch);
+    } catch (err) {
+      suppressNextReloadRef.current = false;
+      log.error('settings.save_failed', err, { toast: `设置保存失败，本次修改未生效：${err.message || '未知错误'}` });
+      throw err;
+    }
   }
 
   async function handleLlmChange(field, value) {

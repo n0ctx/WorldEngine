@@ -96,6 +96,22 @@ describe('useSettingsConfig', () => {
     expect(updateConfig).toHaveBeenCalledWith({ llm: { provider: 'ollama' } });
   });
 
+  it('自动保存失败时弹出提示', async () => {
+    const toasts = [];
+    const onToast = (e) => toasts.push(e.detail.message);
+    window.addEventListener('we:toast', onToast);
+    const { result } = renderHook(() => useSettingsConfig());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    updateConfig.mockRejectedValueOnce(new Error('网络错误'));
+    await act(async () => {
+      await expect(result.current.promptProps.onToggleMemoryExpansion(false)).rejects.toThrow('网络错误');
+    });
+
+    window.removeEventListener('we:toast', onToast);
+    expect(toasts).toContain('设置保存失败，本次修改未生效：网络错误');
+  });
+
   it('保存 general / writing general 时会发送结构化 patch', async () => {
     updateConfig.mockResolvedValue({});
     const { result } = renderHook(() => useSettingsConfig());
