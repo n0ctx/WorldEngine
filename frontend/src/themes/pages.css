@@ -593,30 +593,6 @@
   color: var(--we-page-canvas-fg);
 }
 
-/* 右栏角色/玩家卡列表被 max-height 硬截断时，靠背景渐隐 + 更明显的滚动条给出"还能往下滚"的
-   提示，避免看起来像卡片渲染坏了。用 background-attachment: local/scroll 的经典技巧：
-   local 渐变随内容一起滚动（贴在内容顶/底），scroll 渐变固定在容器顶/底 —— 叠在一起时，
-   只有内容真正贴到顶/底才会完全盖住阴影，天然实现"到头就不提示"，全程不需要 JS。 */
-.we-worldhub-char-list,
-.we-persona-switch-list {
-  background:
-    linear-gradient(var(--we-page-canvas-bg) 30%, transparent) local,
-    linear-gradient(transparent, var(--we-page-canvas-bg) 70%) local,
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.22), transparent) scroll,
-    linear-gradient(to top, rgba(0, 0, 0, 0.22), transparent) scroll;
-  background-repeat: no-repeat;
-  background-size: 100% 24px, 100% 24px, 100% 12px, 100% 12px;
-  background-position: top, bottom, top, bottom;
-}
-
-.we-worldhub-char-list {
-  max-height: 320px;
-}
-
-.we-persona-switch-list {
-  max-height: 280px;
-}
-
 .we-characters-col-actions {
   display: flex;
   gap: var(--we-space-sm);
@@ -654,28 +630,6 @@
 
 .we-characters-col-btn--primary:hover {
   background: var(--we-col-btn-primary-hover-bg);
-}
-
-.we-characters-col-list {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-  padding-right: var(--we-space-xs);
-  scrollbar-width: thin;
-  scrollbar-color: var(--we-page-canvas-fg-muted) transparent;
-}
-
-.we-characters-col-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.we-characters-col-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.we-characters-col-list::-webkit-scrollbar-thumb {
-  background: var(--we-page-canvas-fg-muted);
-  border-radius: var(--we-radius-full);
 }
 
 /* ── PersonaCard ── */
