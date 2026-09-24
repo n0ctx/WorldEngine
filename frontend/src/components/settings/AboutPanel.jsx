@@ -16,19 +16,6 @@ export default function AboutPanel() {
 
         <div>
           <p className="we-settings-about-heading">
-            致谢
-          </p>
-          <p className="we-settings-about-desc">
-            部分界面动效移植自{' '}
-            <a className="we-settings-about-link" href="https://rareui.com" target="_blank" rel="noreferrer">Rare UI</a>
-            （Swami Malode）。
-          </p>
-        </div>
-
-        <hr className="we-settings-divider" />
-
-        <div>
-          <p className="we-settings-about-heading">
             重置数据库
           </p>
           <p className="we-settings-about-desc">

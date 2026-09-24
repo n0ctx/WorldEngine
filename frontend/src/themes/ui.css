@@ -3967,13 +3967,12 @@
   }
 }
 
-/* 章节进度胶囊（ScrollProgress） */
+/* 章节进度胶囊（ScrollProgress）：贴正文区右上角，展开的列表向左下铺开，不压正文 */
 .we-scroll-progress {
   position: absolute;
   top: var(--we-space-sm);
-  left: 50%;
+  right: var(--we-space-lg);
   z-index: 3;
-  transform: translateX(-50%);
 }
 .we-scroll-progress__sizer {
   position: absolute;
@@ -3983,9 +3982,8 @@
 .we-scroll-progress__surface {
   position: absolute;
   top: 0;
-  left: 50%;
+  right: 0;
   overflow: hidden;
-  transform: translateX(-50%);
   border: 1px solid var(--we-material-stroke);
   background: color-mix(in srgb, var(--we-color-bg-elevated) 82%, transparent);
   backdrop-filter: blur(12px);
