@@ -26,6 +26,7 @@ export default function CharacterEditPage() {
 
   const [character, setCharacter] = useState(null);
   const [loading, setLoading] = useState(!isCreate);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [sealKey, setSealKey] = useState(0);
@@ -81,8 +82,17 @@ export default function CharacterEditPage() {
       setAvatarPath(c.avatar_path);
       setStateFields(fields);
       setLoading(false);
+    }).catch((err) => {
+      log.error('character_edit.load_failed', err);
+      setLoadError(err.message || '角色加载失败');
     });
   }, [characterId, reloadKey, isCreate]);
+
+  function retryLoad() {
+    setLoadError('');
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  }
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);
@@ -280,6 +290,8 @@ export default function CharacterEditPage() {
     <>
       <EditPageShell
         loading={loading}
+        loadError={loadError}
+        onRetry={retryLoad}
         isOverlay={isOverlay}
         onClose={handleClose}
         title={isCreate ? '新建角色' : (name ? `编辑角色 · ${name}` : '')}

@@ -1,7 +1,13 @@
 import { useRef } from 'react';
 
+/**
+ * loadError 非空时只显示错误与重试/返回，不渲染表单：
+ * 加载失败时表单是空值，误点保存会把空值写回。
+ */
 export default function EditPageShell({
   loading = false,
+  loadError = '',
+  onRetry,
   isOverlay = false,
   onClose,
   title,
@@ -14,7 +20,18 @@ export default function EditPageShell({
     onClick: () => { if (mouseDownOnOverlay.current) onClose(); },
   };
 
-  if (loading) {
+  if (loading || loadError) {
+    const placeholder = loadError ? (
+      <div className="flex flex-col items-center gap-3">
+        <p className="we-edit-empty-text">{loadError}</p>
+        <div className="flex gap-3">
+          <button className="we-edit-back" onClick={onClose}>← 返回</button>
+          <button className="we-edit-back" onClick={onRetry}>重试</button>
+        </div>
+      </div>
+    ) : (
+      <p className="we-edit-empty-text">加载中…</p>
+    );
     if (isOverlay) {
       return (
         <div className="we-settings-overlay" {...overlayHandlers}>
@@ -22,14 +39,14 @@ export default function EditPageShell({
             className="we-edit-panel we-edit-panel-overlay flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <p className="we-edit-empty-text">加载中…</p>
+            {placeholder}
           </div>
         </div>
       );
     }
     return (
       <div className="we-edit-canvas flex items-center justify-center">
-        <p className="we-edit-empty-text">加载中…</p>
+        {placeholder}
       </div>
     );
   }

@@ -36,6 +36,7 @@ export default function WorldEditPage() {
   const isCreate = !worldId;
 
   const [loading, setLoading] = useState(!isCreate);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [coverPath, setCoverPath] = useState(null);
@@ -92,8 +93,17 @@ export default function WorldEditPage() {
       setAccentColor(w.accent_color ?? null);
       setAccentSource(w.accent_source === 'manual' ? 'manual' : 'auto');
       setLoading(false);
+    }).catch((err) => {
+      log.error('world_edit.load_failed', err);
+      setLoadError(err.message || '世界加载失败');
     });
   }, [worldId, reloadKey, isCreate]);
+
+  function retryLoad() {
+    setLoadError('');
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  }
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);
@@ -363,6 +373,8 @@ export default function WorldEditPage() {
   return (
     <EditPageShell
       loading={loading}
+      loadError={loadError}
+      onRetry={retryLoad}
       isOverlay={isOverlay}
       onClose={handleClose}
       title={isCreate ? '新建世界' : (name ? `编辑世界 · ${name}` : '')}

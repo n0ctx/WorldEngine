@@ -38,6 +38,7 @@ export default function PersonaEditPage() {
   const isNew = location.pathname.endsWith('/personas/new');
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
@@ -67,6 +68,11 @@ export default function PersonaEditPage() {
       };
     }
 
+    const handleLoadError = (err) => {
+      log.error('persona_edit.load_failed', err);
+      setLoadError(err.message || '人设加载失败');
+    };
+
     if (personaIdParam) {
       // 按 id 加载，状态值也按该 persona 的 id 精确拉取
       Promise.all([
@@ -82,7 +88,7 @@ export default function PersonaEditPage() {
         }
         setStateFields(fields);
         setLoading(false);
-      }).catch(() => setLoading(false));
+      }).catch(handleLoadError);
     } else {
       // 兼容旧路由 /worlds/:worldId/persona（加载 active persona）
       Promise.all([
@@ -96,12 +102,18 @@ export default function PersonaEditPage() {
         setAvatarPath(p.avatar_path ?? null);
         setStateFields(fields);
         setLoading(false);
-      }).catch(() => setLoading(false));
+      }).catch(handleLoadError);
     }
     return () => {
       cancelled = true;
     };
   }, [worldId, personaIdParam, isNew, reloadKey]);
+
+  function retryLoad() {
+    setLoadError('');
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  }
 
   useEffect(() => {
     const h = () => setReloadKey((k) => k + 1);
@@ -211,7 +223,7 @@ export default function PersonaEditPage() {
   ) : null;
 
   return (
-    <EditPageShell loading={loading} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
+    <EditPageShell loading={loading} loadError={loadError} onRetry={retryLoad} isOverlay={isOverlay} onClose={() => navigate(-1)} title={pageTitle} headerActions={exportAction}>
       <div className="we-edit-form-stack">
         <AvatarUpload
           name={name}

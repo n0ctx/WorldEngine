@@ -110,6 +110,17 @@ describe('WorldEditPage', () => {
     mocks.syncDiaryTimeField.mockResolvedValue(undefined);
   });
 
+  it('加载失败时显示错误而不是空表单，重试后恢复', async () => {
+    mocks.getWorld.mockRejectedValueOnce(new Error('世界不存在'));
+    render(<WorldEditPage />);
+
+    expect(await screen.findByText('世界不存在')).toBeInTheDocument();
+    expect(screen.queryByText('保存')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('重试'));
+    expect(await screen.findByDisplayValue('群星海')).toBeInTheDocument();
+  });
+
   it('会加载世界并保存配置', async () => {
     render(<WorldEditPage />);
 
