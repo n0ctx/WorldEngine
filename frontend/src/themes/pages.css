@@ -647,27 +647,7 @@
   outline-offset: 2px;
 }
 
-.we-onboarding-step-mark {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--we-radius-full);
-  border: 1px solid var(--we-color-border-default);
-  color: var(--we-color-text-tertiary);
-  font-family: var(--we-font-display);
-  font-size: var(--we-text-sm);
-}
-
-.we-onboarding-step--done .we-onboarding-step-mark {
-  border-color: var(--we-color-accent);
-  background: var(--we-color-accent-bg);
-  color: var(--we-color-accent);
-}
-
-.we-onboarding-step-body {
+.we-onboarding-step .we-task-body {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -675,13 +655,13 @@
   gap: var(--we-space-xxs);
 }
 
-.we-onboarding-step-title {
+.we-onboarding-step .we-task-title {
   font-family: var(--we-font-display);
   font-size: var(--we-text-md);
   color: var(--we-page-canvas-fg);
 }
 
-.we-onboarding-step--done .we-onboarding-step-title {
+.we-onboarding-step .we-task-title.is-struck {
   color: var(--we-page-canvas-fg-muted);
 }
 
@@ -1168,10 +1148,6 @@
   color: var(--we-color-text-tertiary);
 }
 
-.we-storyline-empty__orb {
-  margin: 0 auto var(--we-space-md);
-}
-
 .we-storyline-mode {
   flex-shrink: 0;
   font-family: var(--we-font-display);
@@ -1502,6 +1478,7 @@
 }
 
 .we-rules-entry-info {
+  flex: 1;
   min-width: 0;
   text-align: left;
 }
@@ -2131,7 +2108,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--we-space-xs);
-  padding-left: 14px; /* 钩形导轨的位置：导轨 2px + 钩 12px */
+  padding-left: 22px; /* 弹跳圆点的位置：弧线向左鼓出 8px + 圆点 6px + 间距 8px */
 }
 
 .we-settings-nav-footer {
@@ -3411,7 +3388,7 @@
   gap: var(--we-space-lg);
   overflow-y: auto;
   padding-right: var(--we-space-sm);
-  padding-left: 14px; /* 钩形导轨的位置：导轨 2px + 钩 12px */
+  padding-left: 22px; /* 弹跳圆点的位置：弧线向左鼓出 8px + 圆点 6px + 间距 8px */
 }
 .we-workshop-nav-group { display: flex; flex-direction: column; gap: var(--we-space-xs); }
 .we-workshop-nav-group-title {
@@ -4956,18 +4933,8 @@
 .we-provider-safety-row__meta-item--wide dd {
   grid-column: 2 / 3;
 }
-.we-provider-safety-row__json {
-  margin: 0;
-  padding: 8px 10px;
-  background: var(--we-color-bg-surface);
-  border: 1px solid var(--we-color-border-subtle);
-  border-radius: var(--we-radius-sm);
-  font-family: var(--we-font-mono, ui-monospace, monospace);
-  font-size: var(--we-text-2xs, 11px);
-  white-space: pre-wrap;
-  word-break: break-all;
+.we-provider-safety-row__meta-item--wide .we-code-block {
   max-height: 200px;
-  overflow: auto;
 }
 @media (prefers-reduced-motion: reduce) {
   .we-provider-safety-banner,

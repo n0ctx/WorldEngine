@@ -15,7 +15,7 @@ import FeaturesConfigPanel from '../components/settings/FeaturesConfigPanel';
 import ThemeManager from '../components/settings/ThemeManager.jsx';
 import { NAV_SECTIONS, NAV_KEY, SETTINGS_MODE } from '../core/constants/settings';
 import { useMotion } from '../core/hooks/useMotion.js';
-import HookRail from '../components/motion/HookRail.jsx';
+import BounceRail from '../components/motion/BounceRail.jsx';
 
 const SETTINGS_MODE_STORAGE_KEY = 'we:settings:mode';
 
@@ -109,11 +109,11 @@ export default function SettingsPage() {
             <p className="we-settings-nav-title">设置</p>
           </div>
           <div ref={navItemsRef} className="we-settings-nav-items">
-            <HookRail containerRef={navItemsRef} activeKey={activeSection} />
+            <BounceRail containerRef={navItemsRef} activeKey={activeSection} />
             {NAV_SECTIONS.map((s) => (
               <button
                 key={s.key}
-                data-hook-item
+                data-bounce-item
                 className={`we-settings-nav-item${activeSection === s.key ? ' active' : ''}`}
                 aria-current={activeSection === s.key ? 'page' : undefined}
                 onClick={() => setActiveSection(s.key)}

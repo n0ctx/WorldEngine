@@ -11,6 +11,7 @@ import {
   subscribeProviderSafetySignals,
 } from '../../core/api/provider-safety-events.js';
 import { log } from '../../core/utils/logger.js';
+import CodeBlock from '../motion/CodeBlock.jsx';
 
 const SEVERITY_OPTIONS = [
   { value: '', label: '全部严重度' },
@@ -48,31 +49,31 @@ function MetaTable({ event }) {
       {event.contentFilter && (
         <div className="we-provider-safety-row__meta-item we-provider-safety-row__meta-item--wide">
           <dt>contentFilter</dt>
-          <dd><pre className="we-provider-safety-row__json">{JSON.stringify(event.contentFilter, null, 2)}</pre></dd>
+          <dd><CodeBlock code={JSON.stringify(event.contentFilter, null, 2)} /></dd>
         </div>
       )}
       {event.geminiSafetyRatings && (
         <div className="we-provider-safety-row__meta-item we-provider-safety-row__meta-item--wide">
           <dt>safetyRatings</dt>
-          <dd><pre className="we-provider-safety-row__json">{JSON.stringify(event.geminiSafetyRatings, null, 2)}</pre></dd>
+          <dd><CodeBlock code={JSON.stringify(event.geminiSafetyRatings, null, 2)} /></dd>
         </div>
       )}
       {event.geminiPromptFeedback && (
         <div className="we-provider-safety-row__meta-item we-provider-safety-row__meta-item--wide">
           <dt>promptFeedback</dt>
-          <dd><pre className="we-provider-safety-row__json">{JSON.stringify(event.geminiPromptFeedback, null, 2)}</pre></dd>
+          <dd><CodeBlock code={JSON.stringify(event.geminiPromptFeedback, null, 2)} /></dd>
         </div>
       )}
       {event.minimaxSensitiveMeta && (
         <div className="we-provider-safety-row__meta-item we-provider-safety-row__meta-item--wide">
           <dt>minimax sensitive</dt>
-          <dd><pre className="we-provider-safety-row__json">{JSON.stringify(event.minimaxSensitiveMeta, null, 2)}</pre></dd>
+          <dd><CodeBlock code={JSON.stringify(event.minimaxSensitiveMeta, null, 2)} /></dd>
         </div>
       )}
       {event.stopDetails && (
         <div className="we-provider-safety-row__meta-item we-provider-safety-row__meta-item--wide">
           <dt>stop_details</dt>
-          <dd><pre className="we-provider-safety-row__json">{JSON.stringify(event.stopDetails, null, 2)}</pre></dd>
+          <dd><CodeBlock code={JSON.stringify(event.stopDetails, null, 2)} /></dd>
         </div>
       )}
     </dl>

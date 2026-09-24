@@ -347,22 +347,20 @@ describe('CharactersPage', () => {
       expect(screen.getByText('写一写这个世界观')).toBeInTheDocument();
       expect(screen.getByText('加一个角色')).toBeInTheDocument();
       expect(screen.getByText('定一条这里的规则')).toBeInTheDocument();
-      // 未完成的步骤显示序号而非勾选态 class
-      expect(document.querySelectorAll('.we-onboarding-step--done')).toHaveLength(0);
+      expect(document.querySelectorAll('.we-onboarding-step[data-state="checked"]')).toHaveLength(0);
       // 引导接管页面时，右栏的正常空态不应该再渲染
       expect(screen.queryByText('世界规则')).not.toBeInTheDocument();
     });
 
-    it('只有世界观写完时，只有第一步打勾，引导仍然展示', async () => {
+    it('只有世界观写完时，只有这一步打勾并排到最后，引导仍然展示', async () => {
       mocks.getWorld.mockResolvedValue({ id: 'world-1', description: '这里没有魔法', onboarding_dismissed: 0 });
       render(<CharactersPage />);
 
       await screen.findByText('先做这三件事，这个世界就活了');
       const steps = document.querySelectorAll('.we-onboarding-step');
       expect(steps).toHaveLength(3);
-      expect(steps[0]).toHaveClass('we-onboarding-step--done');
-      expect(steps[1]).not.toHaveClass('we-onboarding-step--done');
-      expect(steps[2]).not.toHaveClass('we-onboarding-step--done');
+      expect([...steps].map((el) => el.dataset.state)).toEqual(['unchecked', 'unchecked', 'checked']);
+      expect(steps[2]).toHaveTextContent('写一写这个世界观');
     });
 
     it('点击「写一写这个世界观」跳转到世界编辑页', async () => {

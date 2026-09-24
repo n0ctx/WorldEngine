@@ -52,7 +52,7 @@
     "frontend/src/core/hooks/useSessionStream.js#useSessionStream": 193,
     "frontend/src/core/hooks/useSettingsConfig.js#useSettingsConfig": 104,
     "frontend/src/pages/CharacterEditPage/index.jsx#CharacterEditPage": 48,
-    "frontend/src/pages/CharactersPage.jsx#CharactersPage": 55,
+    "frontend/src/pages/CharactersPage.jsx#CharactersPage": 54,
     "frontend/src/pages/ChatPage/index.jsx#ChatPage": 39,
     "frontend/src/pages/PersonaEditPage.jsx#PersonaEditPage": 47,
     "frontend/src/pages/RulesPage/index.jsx#RulesPage": 52,

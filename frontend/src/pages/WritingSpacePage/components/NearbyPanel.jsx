@@ -7,7 +7,7 @@ import NearbyCharacterBlock from './NearbyCharacterBlock.jsx';
 
 import AddSavedNearbyModal from './AddSavedNearbyModal.jsx';
 import MakeCardModal from './MakeCardModal.jsx';
-import DeleteButton from '../../../components/motion/DeleteButton.jsx';
+import ConfirmModal from '../../../components/ui/ConfirmModal.jsx';
 import { fetchNearby, setNearbySaved, removeNearby } from '../../../core/api/session-nearby.js';
 import { RefreshIcon } from '../../../components/state/panel-parts.jsx';
 import { log } from '../../../core/utils/logger.js';
@@ -48,6 +48,17 @@ function SaveIcon() {
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <polyline points="17 21 17 13 7 13 7 21" />
       <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
     </svg>
   );
 }
@@ -101,6 +112,7 @@ export default function NearbyPanel({
   const lastAppliedRecallTickRef = useRef(savedRecallTick);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [makeCardOpen, setMakeCardOpen] = useState(false);
+  const [removingNearby, setRemovingNearby] = useState(null);
 
   const reloadNearby = useCallback(() => {
     if (!worldId || !sessionId) {
@@ -222,12 +234,7 @@ export default function NearbyPanel({
   const handleRemoveFor = async (n) => {
     try {
       await removeNearby(worldId, sessionId, n.id);
-      setCollapsedSavedIds((prev) => {
-        if (!prev.has(n.id)) return prev;
-        const next = new Set(prev);
-        next.delete(n.id);
-        return next;
-      });
+      setSavedCollapsed(n, false);
       reloadNearby();
     } catch (err) {
       log.error('nearby.remove_failed', err, { toast: err?.message || '移除失败' });
@@ -267,10 +274,14 @@ export default function NearbyPanel({
             <ChevronUpIcon /><span>收起</span>
           </button>
         )}
-        <DeleteButton
-          label={`移除「${n.name || '未命名'}」（删除其状态，下轮不再注入）`}
-          onConfirm={() => handleRemoveFor(n)}
-        />
+        <button
+          type="button"
+          className="we-state-section-reset we-panel-card-action we-panel-card-action--chip"
+          onClick={() => setRemovingNearby(n)}
+          title="移除（物理删除，下轮不再注入）"
+        >
+          <TrashIcon /><span>移除</span>
+        </button>
       </>
     );
   };
@@ -401,6 +412,20 @@ export default function NearbyPanel({
             />
           )}
         </AnimatePresence>
+        {removingNearby && (
+          <ConfirmModal
+            title="移除附近角色？"
+            message={`「${removingNearby.name || '未命名'}」及其状态将被删除，下轮不再注入，此操作无法撤销。`}
+            confirmText="确认移除"
+            danger
+            onConfirm={async () => {
+              const target = removingNearby;
+              setRemovingNearby(null);
+              await handleRemoveFor(target);
+            }}
+            onClose={() => setRemovingNearby(null)}
+          />
+        )}
     </>
   );
 
