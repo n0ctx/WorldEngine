@@ -382,6 +382,13 @@
   padding: var(--we-space-sm) var(--we-space-xl) 0;
 }
 
+/* 手机上两侧抽屉缩成悬浮在正文左右上角的圆形按钮，这一行两端给按钮让位 */
+@media (max-width: 767px) {
+  .we-chat-pane-nav {
+    padding-inline: calc(40px + var(--we-space-sm));
+  }
+}
+
 /* 台前：当前说话的角色，名字直接落在正文上方，与正文同宽、同一左边线 */
 .we-speaker-stage {
   flex-shrink: 0;
@@ -426,8 +433,9 @@
 }
 
 @media (max-width: 767px) {
+  /* 正文列比阅读宽度窄时台前没有外侧留白，左右按正文的缩进留出，名字与正文对齐 */
   .we-speaker-stage {
-    padding: var(--we-space-md) 0 var(--we-space-xs);
+    padding: var(--we-space-md) calc(var(--we-space-md) + var(--we-space-xl)) var(--we-space-xs);
     min-height: 48px; /* design exact */
   }
   .we-speaker-stage__name {

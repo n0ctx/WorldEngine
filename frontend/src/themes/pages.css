@@ -3666,7 +3666,8 @@
     var(--we-material-shadow-far);
   transition: flex-basis var(--we-duration-normal) var(--we-easing-page),
     min-width var(--we-duration-normal) var(--we-easing-page),
-    max-width var(--we-duration-normal) var(--we-easing-page);
+    max-width var(--we-duration-normal) var(--we-easing-page),
+    margin var(--we-duration-normal) var(--we-easing-page);
 }
 
 /* 收起态显式写 min-width: 0：从默认的 auto 切到展开态的像素下限无法插值，宽度会一步跳满 */
@@ -3731,23 +3732,96 @@
   min-width: 360px;
 }
 
-/* 窄屏（平板及以下）：两侧抽屉的固定 min-width 加起来会挤爆正文——
-   768px 视口下左右都展开时 216+360=576px，只剩不到 200px 给正文，
-   输入框会被挤成竖排单字。缩小两侧展开态的下限，给正文留出可用宽度。 */
-@media (max-width: 900px) {
+/* 窄屏（≤1180px）：推开正文会把正文挤得太窄，抽屉改为浮在正文之上。
+   收起轨仍占 52px；展开时用负外边距把多出的宽度抵掉，布局里仍只占 52px，
+   正文宽度不变，抽屉盖在正文上，由下方遮罩兜住点击。 */
+@media (max-width: 1180px) {
+  /* 浮层压在遮罩上，玻璃取弹层那档更实的底，否则会透出遮罩的暗色而发灰 */
+  .we-side-drawer--open {
+    z-index: 4;
+    background:
+      linear-gradient(155deg, color-mix(in srgb, var(--we-material-sheen) 60%, transparent), transparent 38%),
+      var(--we-glass-bg);
+    box-shadow:
+      0 0 0 1px var(--we-material-stroke),
+      var(--we-material-shadow-lift);
+  }
   .we-side-drawer--left.we-side-drawer--open {
-    min-width: 180px;
-    max-width: 220px;
+    flex-basis: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    margin-inline-end: calc(52px - 280px);
   }
   .we-side-drawer--right.we-side-drawer--open {
-    min-width: 280px;
-    max-width: 320px;
+    flex-basis: min(360px, 44vw);
+    min-width: min(360px, 44vw);
+    max-width: min(360px, 44vw);
+    margin-inline-start: calc(52px - min(360px, 44vw));
   }
   .we-side-drawer--left .we-side-drawer-content > * {
-    min-width: 180px;
+    min-width: 280px;
   }
   .we-side-drawer--right .we-side-drawer-content > * {
-    min-width: 280px;
+    min-width: min(360px, 44vw);
+  }
+}
+
+/* 手机（≤767px）：两条窄轨也放不下，收起时抽屉缩成一颗圆形玻璃按钮，
+   悬浮在正文左上角 / 右上角，不占布局；展开时从同一位置长成贴边的侧抽屉。
+   高度直接到位、只过渡宽度：内容挂载时面板已是全高，里面的选项卡不会把滚动位置带走。 */
+@media (max-width: 767px) {
+  .we-side-drawer,
+  .we-side-drawer--left.we-side-drawer--open,
+  .we-side-drawer--right.we-side-drawer--open {
+    position: absolute;
+    top: var(--we-space-xs);
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    min-width: 0;
+    max-width: none;
+    margin: 0;
+    border-radius: var(--we-radius-full);
+  }
+  .we-side-drawer--left {
+    left: calc(var(--we-space-sm) + var(--we-space-xs));
+  }
+  .we-side-drawer--right {
+    right: var(--we-space-xs);
+  }
+  .we-side-drawer--left.we-side-drawer--open,
+  .we-side-drawer--right.we-side-drawer--open {
+    z-index: 4;
+    min-width: min(86vw, 340px);
+    height: calc(100% - var(--we-space-sm) - var(--we-space-xs));
+    border-radius: var(--we-radius-lg);
+  }
+  /* 右抽屉定位在正文列（.we-page-right）里，底边没有外层缝隙，上下对称留白 */
+  .we-side-drawer--right.we-side-drawer--open {
+    height: calc(100% - var(--we-space-xs) * 2);
+  }
+  .we-side-drawer--left .we-side-drawer-content > *,
+  .we-side-drawer--right .we-side-drawer-content > * {
+    min-width: min(86vw, 340px);
+  }
+  .we-side-drawer-toggle {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* 浮层模式下展开抽屉时垫一层遮罩：点一下收起，同时挡住另一侧的按钮，同一时间只开一侧 */
+.we-side-drawer-scrim {
+  display: none;
+}
+
+@media (max-width: 1180px) {
+  .we-side-drawer-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    background: var(--we-color-bg-overlay);
   }
 }
 

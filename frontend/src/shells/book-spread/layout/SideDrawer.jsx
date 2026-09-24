@@ -63,57 +63,74 @@ export default function SideDrawer({ side, open, onToggle, label, footer = null,
   const edge = EDGE_OFFSET[side];
 
   return (
-    <MotionDiv
-      className={`we-side-drawer we-side-drawer--${side}${expanded ? ' we-side-drawer--open' : ''}`}
-      initial={reduced ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: DURATION.medium, delay: ENTER_DELAY[side], ease: EASE.ink }}
-      onPointerMove={reduced ? undefined : trackPointer}
-    >
-      <button
-        type="button"
-        className="we-side-drawer-toggle"
-        onClick={onToggle}
-        aria-label={toggleLabel}
-        aria-expanded={open}
-        title={toggleLabel}
-      >
-        {open ? (
-          <Icon
-            size={16}
-            viewBox="0 0 10 10"
-            strokeWidth="2.5"
-            style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
-          >
-            <polyline points="2,3.5 5,6.5 8,3.5" />
-          </Icon>
-        ) : COLLAPSED_GLYPH[side]}
-      </button>
-      {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；
-          收起时先退回外侧、卸载后再收宽度。减少动效时只剩瞬间的透明度切换 */}
-      <AnimatePresence initial={false} onExitComplete={() => setContentMounted(false)}>
+    <>
+      {/* 遮罩只在窄屏浮层模式下显示（见 pages.css）：点一下收起抽屉 */}
+      <AnimatePresence>
         {open && (
           <MotionDiv
-            key="content"
-            className="we-side-drawer-content"
-            initial={reduced ? { opacity: 0 } : { opacity: 0, x: edge, filter: `blur(${BLUR.entry})` }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              filter: 'blur(0px)',
-              transition: reduced ? { duration: 0 } : { duration: DURATION.base, delay: DURATION.quick, ease: EASE.ink },
-            }}
-            exit={reduced
-              ? { opacity: 0, transition: { duration: 0 } }
-              : { opacity: 0, x: edge, filter: `blur(${BLUR.entry})`, transition: { duration: DURATION.quick, ease: EASE.retract } }}
-          >
-            {children}
-          </MotionDiv>
+            key="scrim"
+            className="we-side-drawer-scrim"
+            aria-hidden="true"
+            onClick={onToggle}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={reduced ? { duration: 0 } : { duration: DURATION.quick, ease: EASE.ink }}
+          />
         )}
       </AnimatePresence>
-      {/* footer（记忆检索状态指示器）不跟随收起/展开挂卸：它是独立于「会话列表内容」
-          的实时反馈，收起时用户也应该能看到后台正在检索/记录记忆。 */}
-      {footer}
-    </MotionDiv>
+      <MotionDiv
+        className={`we-side-drawer we-side-drawer--${side}${expanded ? ' we-side-drawer--open' : ''}`}
+        initial={reduced ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: DURATION.medium, delay: ENTER_DELAY[side], ease: EASE.ink }}
+        onPointerMove={reduced ? undefined : trackPointer}
+      >
+        <button
+          type="button"
+          className="we-side-drawer-toggle"
+          onClick={onToggle}
+          aria-label={toggleLabel}
+          aria-expanded={open}
+          title={toggleLabel}
+        >
+          {open ? (
+            <Icon
+              size={16}
+              viewBox="0 0 10 10"
+              strokeWidth="2.5"
+              style={{ transform: `rotate(${CHEVRON_ROTATION[side]}deg)` }}
+            >
+              <polyline points="2,3.5 5,6.5 8,3.5" />
+            </Icon>
+          ) : COLLAPSED_GLYPH[side]}
+        </button>
+        {/* 展开时宽度先让出来（CSS 过渡 base 时长），走过大半后内容从外侧边缘带着轻微模糊浮进来；
+            收起时先退回外侧、卸载后再收宽度。减少动效时只剩瞬间的透明度切换 */}
+        <AnimatePresence initial={false} onExitComplete={() => setContentMounted(false)}>
+          {open && (
+            <MotionDiv
+              key="content"
+              className="we-side-drawer-content"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, x: edge, filter: `blur(${BLUR.entry})` }}
+              animate={{
+                opacity: 1,
+                x: 0,
+                filter: 'blur(0px)',
+                transition: reduced ? { duration: 0 } : { duration: DURATION.base, delay: DURATION.quick, ease: EASE.ink },
+              }}
+              exit={reduced
+                ? { opacity: 0, transition: { duration: 0 } }
+                : { opacity: 0, x: edge, filter: `blur(${BLUR.entry})`, transition: { duration: DURATION.quick, ease: EASE.retract } }}
+            >
+              {children}
+            </MotionDiv>
+          )}
+        </AnimatePresence>
+        {/* footer（记忆检索状态指示器）不跟随收起/展开挂卸：它是独立于「会话列表内容」
+            的实时反馈，收起时用户也应该能看到后台正在检索/记录记忆。 */}
+        {footer}
+      </MotionDiv>
+    </>
   );
 }

@@ -247,6 +247,21 @@ describe('ChatPage', () => {
     });
   });
 
+  it('抽屉展开时垫一层遮罩，点遮罩收起抽屉', async () => {
+    const { container } = renderChatPage();
+
+    await waitFor(() => expect(mocks.getCharacter).toHaveBeenCalledWith('char-1'));
+
+    expect(container.querySelector('.we-side-drawer-scrim')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '展开会话列表' }));
+    const scrim = container.querySelector('.we-side-drawer-scrim');
+    expect(scrim).not.toBeNull();
+
+    fireEvent.click(scrim);
+    expect(screen.getByRole('button', { name: '展开会话列表' })).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() => expect(container.querySelector('.we-side-drawer-scrim')).toBeNull());
+  });
+
   it('continue 在 onStreamEnd 前不会允许重复触发', async () => {
     const callbacksRef = { current: null };
     mocks.getSession.mockResolvedValue({ id: 'session-1', title: '会话', character_id: 'char-1' });
