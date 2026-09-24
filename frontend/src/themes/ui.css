@@ -1117,7 +1117,7 @@
   transition: opacity var(--we-duration-slow) var(--we-easing-ink);
 }
 
-/* 阅读页：光尘退到最弱，只在正文两侧边缘可见；颗粒会透过阅读遮罩抬亮正文底色，关掉 */
+/* 阅读页：光尘退到最弱，只在面板缝隙与两侧玻璃后隐约可见；颗粒会透过纸面抬亮正文底色，关掉 */
 .we-atmosphere--quiet .we-atmosphere-canvas {
   opacity: var(--we-atmosphere-opacity-quiet);
 }
@@ -1134,8 +1134,8 @@
   flex-direction: column;
 }
 
-/* 三块悬浮面板（左抽屉 / 正文 / 右抽屉）铺在桌面上：四周与面板之间留同一道缝隙露出氛围；
-   只有这一层裁切，面板的投影能落进缝隙 */
+/* 三块悬浮面板（左抽屉 / 正文 / 右抽屉）铺在桌面上：两侧、底部与面板之间留同一道缝隙露出氛围；
+   顶部不留，缝隙会和顶栏连成一片，看起来像顶栏变高。只有这一层裁切，面板的投影能落进缝隙 */
 .we-book-spread-inner {
   flex: 1;
   display: flex;
@@ -1144,14 +1144,14 @@
   position: relative;
   overflow: hidden;
   min-height: 0;
-  padding: var(--we-pane-gap);
+  padding: 0 var(--we-pane-gap) var(--we-pane-gap);
   background: var(--we-stage-surface);
 }
 
 @media (max-width: 900px) {
   .we-book-spread-inner {
     gap: min(var(--we-pane-gap), var(--we-space-sm));
-    padding: min(var(--we-pane-gap), var(--we-space-sm));
+    padding: 0 min(var(--we-pane-gap), var(--we-space-sm)) min(var(--we-pane-gap), var(--we-space-sm));
   }
 }
 

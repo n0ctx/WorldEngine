@@ -141,7 +141,6 @@
   /* --we-material-raised:         inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(0, 0, 0, 0.20), 0 1px 1px var(--we-color-shadow-md), 0 6px 12px -6px var(--we-color-shadow-lg); */
   /* --we-material-raised-pressed: inset 0 1px 2px rgba(0, 0, 0, 0.24), 0 1px 1px var(--we-color-shadow-sm); */
   /* --we-grain-image:             url("data:image/svg+xml,…feTurbulence…"); */
-  --we-atmosphere-scrim: radial-gradient(ellipse 60% 120% at 50% 50%, var(--we-color-bg-canvas) 0%, var(--we-color-bg-canvas) 42%, color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent) 72%, transparent 100%), color-mix(in srgb, var(--we-color-paper-tint) 50%, transparent);  /* 阅读遮罩：正文列中心实底，外缘透出纸色与氛围 */
   --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
   --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
   --we-glass-blur: 18px;

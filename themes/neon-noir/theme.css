@@ -152,8 +152,6 @@
   --we-material-shadow-near: 0 1px 1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
   --we-material-shadow-far: 0 12px 24px -14px rgba(0, 0, 0, 0.6), 0 32px 56px -32px rgba(0, 0, 0, 0.85);
   --we-material-shadow-lift: 0 16px 28px -14px rgba(0, 0, 0, 0.55), 0 40px 68px -34px rgba(0, 0, 0, 0.8);
-  /* 书桌比纸面更深：阅读遮罩外缘直接透出书桌，不再铺纸色 */
-  --we-atmosphere-scrim: radial-gradient(ellipse 60% 120% at 50% 50%, var(--we-color-bg-canvas) 0%, var(--we-color-bg-canvas) 42%, color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent) 72%, transparent 100%);
   --we-stage-surface: transparent;
   --we-glass-bg: rgba(20, 20, 32, 0.8);
   --we-glass-blur: 16px;

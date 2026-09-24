@@ -359,26 +359,19 @@
   border-radius: var(--we-radius-full);
 }
 
+/* 正文纸面：三块悬浮面板里最实的一块，整面同一底色，不做中心亮、四周暗的遮罩；
+   靠描边、顶部高光和远近两段投影浮在氛围上 */
 .we-chat-center-pane {
   position: relative;
   isolation: isolate;
-  /* 正文列背后压一层阅读遮罩：氛围只留在两侧边缘，正文对比度不随氛围变化 */
-  background: var(--we-atmosphere-scrim);
+  background: var(--we-pane-center-bg);
+  border-radius: var(--we-radius-lg);
+  box-shadow:
+    0 0 0 1px var(--we-material-stroke),
+    inset 0 1px 0 var(--we-material-sheen),
+    var(--we-material-shadow-near),
+    var(--we-material-shadow-far);
   animation: we-panel-fade var(--we-duration-normal) var(--we-easing-ink) both;
-}
-
-/* 遮罩上的静态纸纹：压在正文之下、不随正文滚动；正文列中心挖空，只在两侧和外缘留一点质地 */
-.we-chat-center-pane::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: var(--we-atmosphere-grain);
-  background-image: var(--we-grain-image);
-  background-size: 160px 160px;
-  mix-blend-mode: overlay;
-  mask-image: radial-gradient(ellipse 60% 120% at 50% 50%, transparent 42%, black 72%);
 }
 
 .we-chat-pane-nav {
