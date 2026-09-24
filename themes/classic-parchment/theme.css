@@ -125,9 +125,13 @@
   --we-material-shadow-far: 0 10px 20px -12px rgba(60, 38, 18, 0.20), 0 26px 44px -28px rgba(60, 38, 18, 0.26);
   --we-material-shadow-lift: 0 14px 24px -12px rgba(60, 38, 18, 0.20), 0 34px 56px -30px rgba(60, 38, 18, 0.26);
   --we-atmosphere-scrim: radial-gradient(ellipse 60% 120% at 50% 50%, var(--we-color-bg-canvas) 0%, var(--we-color-bg-canvas) 42%, color-mix(in srgb, var(--we-color-bg-canvas) 55%, transparent) 72%, transparent 100%), color-mix(in srgb, var(--we-color-paper-tint) 50%, transparent);
-  --we-stage-surface: var(--we-color-bg-canvas);
+  /* 书桌比纸面深一档：会话页面板间的缝隙露出这层桌面 */
+  --we-stage-surface: var(--we-color-bg-surface);
   --we-glass-bg: var(--we-color-bg-surface);
-  --we-glass-blur: 0px;
+  --we-glass-blur: 16px;
+  --we-pane-gap: var(--we-space-md);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 97%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-canvas) 60%, transparent);
 
   --we-spine-shadow-left: linear-gradient(
     to right,

@@ -128,6 +128,9 @@
   --we-stage-surface: transparent;
   --we-glass-bg: rgba(33, 28, 23, 0.78);
   --we-glass-blur: 18px;
+  --we-pane-gap: var(--we-space-md);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 93%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 58%, transparent);
 
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: linear-gradient(180deg, rgba(10, 8, 6, 0) 35%, rgba(10, 8, 6, 0.55) 70%, rgba(10, 8, 6, 0.86) 100%);

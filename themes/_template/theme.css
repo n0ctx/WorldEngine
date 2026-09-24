@@ -145,6 +145,9 @@
   --we-stage-surface: transparent;                  /* 页面内容区的底；浅色纸面主题可铺实底 */
   --we-glass-bg: rgba(255, 255, 255, 0.8);          /* 侧栏/设置/弹窗/输入胶囊的半透明底 */
   --we-glass-blur: 18px;
+  --we-pane-gap: var(--we-space-md);                /* 会话页三块悬浮面板之间与四周的缝隙 */
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);    /* 中栏正文纸面：最实 */
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 62%, transparent);    /* 两侧磨砂玻璃：更透，模糊沿用 --we-glass-blur */
 
   --we-canvas-texture-image: none;
   --we-card-overlay-bg: transparent;

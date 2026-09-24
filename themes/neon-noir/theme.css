@@ -157,6 +157,9 @@
   --we-stage-surface: transparent;
   --we-glass-bg: rgba(20, 20, 32, 0.8);
   --we-glass-blur: 16px;
+  --we-pane-gap: var(--we-space-md);
+  --we-pane-center-bg: color-mix(in srgb, var(--we-color-bg-canvas) 94%, transparent);
+  --we-pane-side-bg: color-mix(in srgb, var(--we-color-bg-elevated) 55%, transparent);
 
   /* ==================== 书脊阴影 ==================== */
   --we-spine-shadow-left: linear-gradient(
