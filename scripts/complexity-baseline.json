@@ -32,7 +32,7 @@
     "backend/utils/state-field-validate.js#validateValue": 53,
     "frontend/src/components/chat/InputBox.jsx#InputBox": 63,
     "frontend/src/components/chat/MessageItem.jsx#MessageItem": 63,
-    "frontend/src/components/chat/MessageList.jsx#MessageList": 99,
+    "frontend/src/components/chat/MessageList.jsx#MessageList": 95,
     "frontend/src/components/settings/AuxLlmBlock.jsx#AuxLlmBlock": 38,
     "frontend/src/components/settings/FeaturesConfigPanel.jsx#FeaturesConfigPanel": 51,
     "frontend/src/components/settings/MainLlmBlock.jsx#MainLlmBlock": 68,

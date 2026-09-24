@@ -521,13 +521,19 @@
 
 /* 正文滚到台前下方、沉到输入框上方时都渐隐消失，而不是被一条硬边切断 */
 .we-chat-center-pane .we-chat-area {
+  --we-chat-fade-top: calc(var(--we-space-xl) * 2);
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
-    black calc(var(--we-space-xl) * 2),
+    black var(--we-chat-fade-top),
     black calc(100% - var(--we-space-lg)),
     transparent 100%
   );
+}
+
+/* 跳到某条消息时让开顶部渐隐，落点在完全不透明的区域 */
+.we-chat-center-pane .we-chat-area [data-message-id] {
+  scroll-margin-top: var(--we-chat-fade-top);
 }
 
 /* Empty state for chat / writing */
