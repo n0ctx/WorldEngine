@@ -170,7 +170,7 @@ function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDe
  * @param {'chat'|'writing'} currentMode 当前页面所在模式，用于给命中项打选中态，也决定订阅哪个
  *   session-list-bridge（chatSessionListBridge / writingSessionListBridge）
  * @param {string|null} currentSessionId 当前活跃会话 id
- * @param {React.ReactNode} [headerLeft] 头部左侧（返回/切换角色等，各页自带）
+ * @param {React.ReactNode} [headerLeft] 头部左侧（返回世界等，各页自带）
  * @param {React.ReactNode} [headerRight] 头部右侧（各页自己的「新建」按钮）
  * @param {() => void} [onActiveSessionDeleted] 内联删除的正是当前打开的会话时回调，让页面清空/重置当前会话
  * @param {(title: string|null) => void} [onActiveSessionRenamed] 内联重命名的正是当前打开的会话时回调，让页面同步 currentSession.title

@@ -3802,10 +3802,14 @@
 .we-session-list-nav {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
 }
 
 .we-session-list-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--we-space-xs);
+  font-size: var(--we-text-2xs);
+  font-family: var(--we-font-prose);
   padding: var(--we-space-xs);
   border-radius: var(--we-radius-md);
   color: var(--we-color-text-tertiary);

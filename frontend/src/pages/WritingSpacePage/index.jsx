@@ -240,12 +240,12 @@ export default function WritingSpacePage() {
           headerLeft={(
             <button
               onClick={() => navigate(`/worlds/${worldId}`)}
-              title="返回世界"
               className="we-session-list-back"
             >
-              <Icon size={16}>
+              <Icon size={14}>
                 <polyline points="15 18 9 12 15 6" />
               </Icon>
+              返回世界
             </button>
           )}
           headerRight={(

@@ -183,12 +183,12 @@ export default function ChatPage() {
           headerLeft={(
             <button
               onClick={() => navigate(`/worlds/${character?.world_id}`)}
-              title="切换角色"
               className="we-session-list-back"
             >
-              <Icon size={16}>
+              <Icon size={14}>
                 <polyline points="15 18 9 12 15 6" />
               </Icon>
+              返回世界
             </button>
           )}
           headerRight={(
