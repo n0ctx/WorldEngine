@@ -1156,6 +1156,39 @@
     var(--we-stage-surface);
 }
 
+@media (min-width: 768px) {
+  .we-app-root:has(.we-chat-center-pane) {
+    --we-topbar-height: 30px;
+  }
+
+  .we-app-root:has(.we-chat-center-pane) .we-book-spread-inner {
+    padding-top: var(--we-space-sm);
+  }
+
+  .we-app-root:has(.we-chat-center-pane) .we-topbar-item {
+    min-height: calc(var(--we-space-lg) + var(--we-space-md));
+    padding-block: 0;
+    padding-inline: var(--we-space-sm);
+    justify-content: center;
+    font-size: var(--we-text-xs);
+  }
+
+  .we-app-root:has(.we-chat-center-pane) :is(.we-topbar-world-name, .we-topbar-brand) {
+    font-size: var(--we-text-sm);
+  }
+
+  .we-app-root:has(.we-chat-center-pane) .we-topbar-actions svg {
+    width: var(--we-space-lg);
+    height: var(--we-space-lg);
+  }
+
+  .we-app-root:has(.we-chat-center-pane) .we-topbar-settings-btn {
+    width: calc(var(--we-space-lg) + var(--we-space-md));
+    height: calc(var(--we-space-lg) + var(--we-space-md));
+    padding: 0;
+  }
+}
+
 @media (max-width: 900px) {
   .we-book-spread-inner {
     gap: min(var(--we-pane-gap), var(--we-space-sm));

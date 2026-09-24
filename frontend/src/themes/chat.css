@@ -34,7 +34,7 @@
 .we-assistant-scroll::-webkit-scrollbar-track { background: transparent; }
 
 .we-prose-message-list {
-  max-width: var(--we-text-width-prose); /* 叙事正文舒适阅读宽度：中文约 34–40 字/行 */
+  max-width: var(--we-text-width-prose);
   margin: 0 auto;
   padding: var(--we-space-sm) var(--we-space-xl) var(--we-space-xl);
 }
@@ -350,6 +350,7 @@
    靠描边、顶部高光和远近两段投影浮在氛围上 */
 .we-chat-center-pane {
   position: relative;
+  container-type: inline-size;
   isolation: isolate;
   background: var(--we-pane-center-bg);
   border-radius: var(--we-radius-lg);
@@ -453,9 +454,17 @@
 .we-chat-pane-nav {
   flex-shrink: 0;
   width: 100%;
-  max-width: var(--we-text-width-prose);
-  margin: 0 auto;
   padding: var(--we-space-sm) var(--we-space-xl) 0;
+}
+
+@container (min-width: 840px) {
+  .we-chat-pane-nav {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    width: auto;
+  }
 }
 
 /* 手机上两侧抽屉缩成悬浮在正文左右上角的圆形按钮，这一行两端给按钮让位 */
@@ -521,7 +530,7 @@
 
 /* 正文滚到台前下方、沉到输入框上方时都渐隐消失，而不是被一条硬边切断 */
 .we-chat-center-pane .we-chat-area {
-  --we-chat-fade-top: calc(var(--we-space-xl) * 2);
+  --we-chat-fade-top: 20px;
   mask-image: linear-gradient(
     to bottom,
     transparent 0,
@@ -531,9 +540,9 @@
   );
 }
 
-/* 跳到某条消息时让开顶部渐隐，落点在完全不透明的区域 */
+/* 跳到某条消息时留出首行字形的阅读空间 */
 .we-chat-center-pane .we-chat-area [data-message-id] {
-  scroll-margin-top: var(--we-chat-fade-top);
+  scroll-margin-top: var(--we-space-sm);
 }
 
 /* Empty state for chat / writing */

@@ -56,7 +56,7 @@ function FrozenOptionCard({ options, selectedIndex, initialCollapsed }) {
   );
 }
 
-// 把消息滚到列表顶部；消息自带的 scroll-margin-top 让开顶部渐隐，落点在可读区域
+// 按消息的顶部留白定位到列表顶部
 function scrollToMessageIn(list, messageId) {
   if (!list || !messageId) return;
   const target = list.querySelector(`[data-message-id="${CSS.escape(String(messageId))}"]`);
@@ -361,7 +361,7 @@ const MessageList = forwardRef(function MessageList({
 
   return (
     <div className="relative flex-1 min-h-0">
-    <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 py-4">
+    <div ref={listRef} className="we-chat-area absolute inset-0 overflow-y-auto px-3 pt-2 pb-4">
       {messages.length > 0 && (
         <div className="text-center text-xs opacity-25 py-2">— 对话开始 —</div>
       )}

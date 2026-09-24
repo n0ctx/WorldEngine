@@ -292,7 +292,7 @@
   --we-leading-prose: 2;       /* 叙事正文行高，中文长文阅读用 */
   /* 叙事正文阅读行宽：中文约 34–40 字/行；em 单位随 --we-text-prose 缩放。
      会话页消息流（含头像列）与写作模式正文共用同一读宽。 */
-  --we-text-width-prose: 38em;
+  --we-text-width-prose: 40em;
 
   /* 字距 Scale（letter-spacing）— 走 token，避免散写 0.04/0.06/0.08/0.12em 等 */
   --we-tracking-tight:   0.02em;  /* 标题微调 */
