@@ -89,6 +89,7 @@ const MessageList = forwardRef(function MessageList({
   // 翻页锚点：followLast=true 永远跟随末页（新消息到来时自动追随）；用户手动翻页后 followLast=false 停在固定页
   const [pageAnchor, setPageAnchor] = useState({ idx: 0, followLast: true });
   const listRef = useRef(null);
+  const scrollToLatestPendingRef = useRef(false);
   const messagesRef = useRef([]);
   const lastPageIdxRef = useRef(0);
   const handleMessagesLoaded = useEffectEvent((hydrated) => {
@@ -141,15 +142,11 @@ const MessageList = forwardRef(function MessageList({
             ? { ...m, _options: m.next_options, _options_collapsed: true }
             : m
         ));
+        // 全量加载完毕：定位到最后一条消息（由下方渲染后的 effect 执行）
+        scrollToLatestPendingRef.current = hydrated.length > 0;
         setMessages(hydrated);
         setLoading(false);
         handleMessagesLoaded(hydrated);
-        // 全量加载完毕：定位到最后一条消息。double rAF 跨过 commit 等到 paint。
-        const scrollToLatest = () => {
-          const el = listRef.current;
-          if (el) el.scrollTop = el.scrollHeight;
-        };
-        requestAnimationFrame(() => requestAnimationFrame(scrollToLatest));
       } catch (err) {
         if (!cancelled) {
           setLoading(false);
@@ -233,10 +230,21 @@ const MessageList = forwardRef(function MessageList({
     }
   }, [generating, continuingMessageId]);
 
+  // 初次加载贴底：等加载结果渲染后在下一帧执行。长会话加载会同时把页码从 0 切到末页，
+  // 下方「翻页贴顶」看到待贴底标记会跳过，避免两者按帧先后互相覆盖。
+  useEffect(() => {
+    if (!scrollToLatestPendingRef.current || pageMessages.length === 0) return;
+    requestAnimationFrame(() => {
+      scrollToLatestPendingRef.current = false;
+      const el = listRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
+  }, [pageMessages]);
+
   // 翻页后一律贴顶（包括末页），从该页第一条开始读。贴底场景由 scrollToBottom imperative 显式处理（初次加载、流式结束、用户点跳底按钮）。
   useEffect(() => {
     const el = listRef.current;
-    if (!el) return;
+    if (!el || scrollToLatestPendingRef.current) return;
     requestAnimationFrame(() => {
       const node = listRef.current;
       if (!node) return;
