@@ -2332,3 +2332,12 @@
     animation: none;
   }
 }
+
+/* 触屏没有真正的 hover：消息与章节的操作按钮常驻显示，否则永远点不到 */
+@media (hover: none) {
+  .we-message-actions,
+  .we-chapter-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
