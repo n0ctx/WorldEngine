@@ -78,6 +78,8 @@ function TimelineItem({ item, title, isActive, editable, onClick, onRename, onDe
   }
 
   function handleEditKeyDown(e) {
+    // 外层条目把 Enter/空格当作「打开会话」，编辑框的按键不能冒泡上去
+    e.stopPropagation();
     if (isImeComposing(e)) return;
     if (e.key === 'Enter') { e.preventDefault(); confirmEdit(); }
     if (e.key === 'Escape') cancelEdit();
