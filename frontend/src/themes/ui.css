@@ -1166,7 +1166,7 @@
   }
 
   .we-app-root:has(.we-chat-center-pane) .we-topbar-item {
-    min-height: calc(var(--we-space-lg) + var(--we-space-md));
+    min-height: var(--we-space-xl);
     padding-block: 0;
     padding-inline: var(--we-space-sm);
     justify-content: center;
@@ -1183,8 +1183,8 @@
   }
 
   .we-app-root:has(.we-chat-center-pane) .we-topbar-settings-btn {
-    width: calc(var(--we-space-lg) + var(--we-space-md));
-    height: calc(var(--we-space-lg) + var(--we-space-md));
+    width: var(--we-space-xl);
+    height: var(--we-space-xl);
     padding: 0;
   }
 }
