@@ -11,6 +11,7 @@ import { stripNextPromptBlocks } from '../../core/utils/next-prompt.js';
 import { parseStreamingBlocks } from '../../core/utils/think-blocks.js';
 import { useDisplaySettingsStore } from '../../core/state/displaySettings.js';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 import CharacterSeal from './CharacterSeal.jsx';
 import InterruptedMark from './InterruptedMark.jsx';
@@ -159,6 +160,7 @@ function formatCost(usd) {
 function AttachmentThumbnail({ src }) {
   const [enlarged, setEnlarged] = useState(false);
   const [failed, setFailed] = useState(false);
+  useEscapeKey(() => setEnlarged(false), enlarged);
   const url = `/api/uploads/${src}`;
   if (failed) {
     return (

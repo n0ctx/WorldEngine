@@ -31,15 +31,6 @@ export default function LongTermMemoryModal({ sessionId, onClose }) {
     onClose();
   }
 
-  // Escape 关闭（ModalShell 自身不处理键盘）
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'Escape' && !confirmDiscard) requestClose();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-
   async function handleSave() {
     setSaving(true);
     setError('');

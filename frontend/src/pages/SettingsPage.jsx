@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettingsConfig } from '../core/hooks/useSettingsConfig';
+import { useEscapeKey } from '../core/hooks/useEscapeKey.js';
 import LlmConfigPanel from '../components/settings/LlmConfigPanel';
 import PromptConfigPanel from '../components/settings/PromptConfigPanel';
 import ImportExportPanel from '../components/settings/ImportExportPanel';
@@ -36,6 +37,7 @@ export default function SettingsPage() {
   const { loading, llmProps, promptProps, diaryProps, onImportSuccess } = useSettingsConfig();
   const panelRef = useRef(null);
   const mouseDownOutsidePanel = useRef(false);
+  useEscapeKey(() => navigate(-1), isOverlay);
 
   function handleBack() {
     if (isOverlay) { navigate(-1); return; }

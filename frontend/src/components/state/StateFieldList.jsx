@@ -4,6 +4,7 @@ import { SortableList } from '../index';
 import DragHandle from '../ui/DragHandle.jsx';
 import StateFieldEditor from './StateFieldEditor';
 import { log } from '../../core/utils/logger.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const TYPE_LABEL = { text: '文本', number: '数值', boolean: '布尔', enum: '枚举', list: '列表', datetime: '时间', table: '表格' };
 const UPDATE_LABEL = { manual: '手动', llm_auto: 'LLM自动', system_rule: '系统规则' };
@@ -192,6 +193,7 @@ function Badge({ label, dim }) {
 function DeleteConfirm({ onConfirm, onClose }) {
   const [deleting, setDeleting] = useState(false);
   const mouseDownOnBackdropRef = useRef(false);
+  useEscapeKey(() => { if (!deleting) onClose(); });
   async function handle() {
     setDeleting(true);
     try {

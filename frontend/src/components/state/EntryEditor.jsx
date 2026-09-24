@@ -13,6 +13,7 @@ import DatetimePartInput from './DatetimePartInput';
 import { log } from '../../core/utils/logger.js';
 import { suggestTrigger } from '../../core/utils/trigger-suggestion.js';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const TRIGGER_SEGMENTS = [
   { key: 'always', label: '一直生效' },
@@ -112,6 +113,7 @@ export default function EntryEditor({
   worldId, entry, defaultTriggerType, defaultGroupName, existingGroupNames,
   prefillCondition, onClose, onSave, inline = false,
 }) {
+  useEscapeKey(onClose, !inline);
   const isNew = !entry?.id;
   const [form, setForm] = useState({
     title: entry?.title ?? '',

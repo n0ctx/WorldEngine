@@ -4,6 +4,7 @@ import Select from '../ui/Select';
 import MarkdownEditor from '../ui/MarkdownEditor';
 import DatetimeSplitInput from './DatetimeSplitInput';
 import { isImeComposing } from '../../core/utils/ime.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const TYPE_OPTIONS = [
   { value: 'text',     label: '文本' },
@@ -39,6 +40,7 @@ const ISO_DATETIME_RE = /^\d+-\d{2}-\d{2}T\d{2}:\d{2}$/;
  *   onClose()
  */
 export default function StateFieldEditor({ field, scope, diaryDateMode, onSave, onClose, inline = false }) {
+  useEscapeKey(onClose, !inline);
   // 已落库的列 key 不允许重命名：列 key 是 *_state_values 的 JSON key，也是 entry_conditions.target_field 的列定位。
   // 改名会让历史值/条件失联，且不做后端迁移。
   const [lockedColumnKeys] = useState(

@@ -76,6 +76,8 @@ export default function ModelCombobox({
   function handleKeyDown(e) {
     if (isImeComposing(e)) return;
     if (e.key === 'Escape') {
+      // 下拉展开时 Esc 只收起下拉，不再关闭外层浮层（见 useEscapeKey）
+      if (open) e.preventDefault();
       setOpen(false);
     } else if (e.key === 'Enter') {
       e.preventDefault();

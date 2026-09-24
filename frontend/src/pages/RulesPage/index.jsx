@@ -24,6 +24,7 @@ import {
   listWorldEntries, getEntryConditions, deleteWorldEntry, reorderWorldEntries, updateWorldEntry,
 } from '../../core/api/prompt-entries';
 import { log } from '../../core/utils/logger.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 // 三种作用域的配置：字段模板 CRUD + 实例列表 + 实例默认值读写。
 // cnScope 是状态条件 target_field 里用的中文作用域名（'世界.字段名'）。
@@ -941,6 +942,7 @@ function NewSystemWizard({ worldId, scope, scopeKey, onClose, onFinish }) {
 }
 
 function WizardShell({ title, step, children, footer, onClose }) {
+  useEscapeKey(onClose);
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 px-4">
       <div className="we-dialog-panel w-full max-w-2xl flex flex-col max-h-[90vh]">

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import ConfirmModal from '../../components/ui/ConfirmModal.jsx';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 /**
  * loadError 非空时只显示错误与重试/返回，不渲染表单：
@@ -24,6 +25,8 @@ export default function EditPageShell({
     if (dirty) setConfirmingClose(true);
     else onClose();
   }
+
+  useEscapeKey(requestClose);
 
   const overlayHandlers = {
     onMouseDown: (e) => { mouseDownOnOverlay.current = e.target === e.currentTarget; },

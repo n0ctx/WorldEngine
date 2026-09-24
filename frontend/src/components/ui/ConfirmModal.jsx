@@ -2,6 +2,7 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { variants, transitions } from '../../core/utils/motion.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 /**
  * 通用确认弹窗。
@@ -19,6 +20,7 @@ export default function ConfirmModal({
 }) {
   const [confirming, setConfirming] = useState(false);
   const mouseDownOnBackdrop = useRef(false);
+  useEscapeKey(() => { if (!confirming) onClose(); });
 
   async function handleConfirm() {
     setConfirming(true);

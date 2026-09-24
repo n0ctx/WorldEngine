@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { DURATION, EASE } from '../../core/utils/motion.js';
+import { useEscapeKey } from '../../core/hooks/useEscapeKey.js';
 
 const MotionDiv = motion.div;
 
@@ -14,6 +15,7 @@ const MotionDiv = motion.div;
 export default function ModalShell({ children, onClose, maxWidth = 'max-w-xl' }) {
   // 记录 mousedown 是否发生在背景本身（而非弹窗内容）
   const mouseDownOnBackdrop = useRef(false);
+  useEscapeKey(onClose);
 
   return createPortal(
     <MotionDiv
